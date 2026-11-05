@@ -22,12 +22,8 @@ final class Edge {
     private var observers: [any NSObjectProtocol] = []
 
     /// What Lee set, followed as it changes; `jump` jumps to a session, and tells once it answers whether it jumped;
-    /// `open` opens a session in the SitRep window, from a row on the card; `snoozes` snoozes and wakes a row's asks
-    /// from its menu.
-    init(
-        _ preferences: Preferences, jump: @escaping (String, @escaping (Bool) -> Void) -> Void,
-        open: @escaping (String) -> Void, snoozes: Snoozes
-    ) {
+    /// `snoozes` snoozes and wakes a row's asks from its menu.
+    init(_ preferences: Preferences, jump: @escaping (String, @escaping (Bool) -> Void) -> Void, snoozes: Snoozes) {
         let settings = preferences.edge, display = Displays.chosen(settings)
 
         self.preferences = preferences
@@ -35,7 +31,6 @@ final class Edge {
         notch = NotchController(settings, on: display)
         strip = StripController(settings, on: display)
         notch.onJump = jump
-        notch.onOpen = open
         notch.onSnooze = { snoozes.snoozeRow($1, of: $0, $2) }
         notch.onWake = { snoozes.wakeRow($1, of: $0) }
         strip.onJump = jump

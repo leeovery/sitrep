@@ -99,35 +99,34 @@ struct NotchRunTests {
         return run
     }
 
-    /// The middle of a row's button on the stage (`Opener`).
-    private static func opener(of key: String, in run: NotchRun) throws -> CGPoint {
+    /// The middle of a row's time on the stage, 22 in from the row's right.
+    private static func time(of key: String, in run: NotchRun) throws -> CGPoint {
         let panel = try #require(run.frame.panel)
         let content = run.list.content
         let index = try #require(content.entries.firstIndex { $0.item.key == key })
         let row = content.itemFrame(index), box = content.entries[index].item.box(width: row.width)
-        let button = Opener.frame(in: box.size)
 
         return CGPoint(
-            x: panel.frame.minX + row.minX + button.midX, y: panel.frame.minY + row.minY + box.minY + button.midY - run.scroll
+            x: panel.frame.minX + row.minX + box.maxX - 22, y: panel.frame.minY + row.minY + box.midY - run.scroll
         )
     }
 
-    /// A press on a row's button opens its session, away or not, pressing nothing in and counting no click; one on the
-    /// row beside it jumps, as before, and on an away row does nothing.
-    @Test func aPressOnARowsButtonOpensItsSessionAwayOrNot() throws {
+    /// A press on a row's time is a press on the row, which holds no button there: it jumps, pressing the row in, and
+    /// on an away row does nothing.
+    @Test func aPressOnARowsTimeIsAPressOnTheRow() throws {
         let run = Self.openedWithAway()
 
-        #expect(run.press(Self.at(run.time, try Self.opener(of: "needs:sr-a", in: run))) == .open("sr-a"))
-        #expect(run.press(Self.at(run.time, try Self.opener(of: "needs:sr-k", in: run))) == .open("sr-k"))
-        #expect(!run.isLatest(1))
-        run.step(Self.at(run.time + Self.frameMS))
-        #expect(run.frame.panel?.pressed == nil)
-
-        #expect(run.press(Self.at(run.time, try Self.point(of: "needs:sr-k", in: run))) == nil)
-        guard case .jump? = run.press(Self.at(run.time, try Self.point(of: "needs:sr-a", in: run))) else {
-            Issue.record("a press beside the button did not jump")
+        #expect(run.press(Self.at(run.time, try Self.time(of: "needs:sr-k", in: run))) == nil)
+        guard case let .jump(session, to: target, click: click)? = run.press(
+            Self.at(run.time, try Self.time(of: "needs:sr-a", in: run))
+        )
+        else {
+            Issue.record("a press on the row's time did not jump")
             return
         }
+        #expect(session.id == "sr-a" && target == "sr-a" && click == 1)
+        run.step(Self.at(run.time + Self.frameMS))
+        #expect(run.frame.panel?.pressed == "needs:sr-a")
     }
 
     /// A right-click finds the row under it, away or not; its menu's jump presses that row in as a click does, and on
@@ -172,17 +171,6 @@ struct NotchRunTests {
         held.menuClosed()
         Self.frames(held, for: 5000, away) { held.phase == .closed }
         #expect(held.phase == .closed)
-    }
-
-    /// While a row is pressed in, jumping, the spinner stands where its button was: a press there opens nothing, and
-    /// goes where any press on a jumping row goes.
-    @Test func aPressOnAJumpingRowsSpinnerOpensNothing() throws {
-        let run = Self.openedWithAway()
-
-        _ = run.press(Self.at(run.time, try Self.point(of: "needs:sr-a", in: run)))
-        run.step(Self.at(run.time + Self.frameMS))
-        #expect(run.frame.panel?.pressed == "needs:sr-a")
-        #expect(run.press(Self.at(run.time, try Self.opener(of: "needs:sr-a", in: run))) != .open("sr-a"))
     }
 
     @Test func onlyTheLatestClicksAnswerIsHeard() throws {

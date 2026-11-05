@@ -42,9 +42,6 @@ enum EdgeStyle {
     static let age = NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .regular)
     /// A Needs you row's "+2" after its session's name, in tabular figures (board F).
     static let count = NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .medium)
-    /// A row's button under the pointer, and its glyph (board F).
-    static let opener = white(0x1A / 255.0)
-    static let openerGlyph = white(0.8)
     static let headTitle = NSFont.systemFont(ofSize: 13, weight: .semibold)
     static let headCount = NSFont.systemFont(ofSize: 12)
     /// An eyebrow's name, and its count in tabular figures.

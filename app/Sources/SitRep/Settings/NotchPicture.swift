@@ -31,7 +31,7 @@ enum NotchPicture {
         var halo = lit
 
         halo.addFilter(.blur(radius: 0.8))
-        halo.fill(Path(roundedRect: glow, cornerRadius: glow.width / 2), with: .color(WindowStyle.orange.opacity(0.8)))
-        lit.fill(Path(roundedRect: core, cornerRadius: core.width / 2), with: .color(WindowStyle.orange))
+        halo.fill(Path(roundedRect: glow, cornerRadius: glow.width / 2), with: .color(PictureStyle.orange.opacity(0.8)))
+        lit.fill(Path(roundedRect: core, cornerRadius: core.width / 2), with: .color(PictureStyle.orange))
     }
 }

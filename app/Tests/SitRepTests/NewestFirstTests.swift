@@ -5,8 +5,6 @@ import SitRepEdge
 import SitRepLines
 import SitRepMenu
 import SitRepPanel
-import struct SitRepWindow.Listed
-import struct SitRepWindow.PlaceList
 import Testing
 
 /// Needs you newest first on every surface, over what the real CLI printed (`Lines.newest`): Northwind's Ledger export,
@@ -56,24 +54,6 @@ struct NewestFirstTests {
 
         #expect(marks.map(\.key) == Self.order.map(MarkKey.session))
         Self.expectNewestFirst(sessions)
-    }
-
-    @Test func theWindowsBoardListsNorthwindFirstAtItsNewestLinesTime() {
-        let rows = Listed(Self.last).rows
-
-        #expect(rows.map(\.id) == Self.order)
-        #expect(rows.map(\.since) == [Self.date(Self.at12), Self.date(Self.at11)])
-    }
-
-    /// The window's Needs you is a row per line, the newest first across the sessions: Northwind's 12:00, Contoso's
-    /// 11:00, then Northwind's 09:00.
-    @Test func theWindowsNeedsYouListsEachLineNewestFirst() {
-        let lines = PlaceList(.needsYou, in: Listed(Self.last)).rows.compactMap { row -> (String, Date)? in
-            if case let .line(line) = row { (line.session.id, line.line.since) } else { nil }
-        }
-
-        #expect(lines.map(\.0) == ["sr-nw0001", "sr-ct0001", "sr-nw0001"])
-        #expect(lines.map(\.1) == [Self.date(Self.at12), Self.date(Self.at11), Self.date(Self.at9)])
     }
 
     /// Northwind's session has needed Lee since 09:00, its oldest line, as `watch`'s session `since` says.

@@ -19,7 +19,7 @@ public struct Board: Versioned, Sendable, Equatable {
     /// The card's and the sidebar's Snoozed rows, a session each, the soonest to wake first: apart from `rows`, as a
     /// session may have one in both. None from a CLI before Snooze.
     public let snoozed: [SnoozedRow]
-    /// Those with a current session, in the SitRep window's order.
+    /// Those with a current session, in `watch`'s order.
     public let projects: [Project]
     /// Every live window, the longest attached first, a finished session's among them.
     public let windows: [Window]

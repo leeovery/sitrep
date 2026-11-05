@@ -256,11 +256,11 @@ private struct GlassHead: View {
 
 /// A session's row on glass, on one line, laid out as the black's (board J): its mark, its title (`Session.headline`),
 /// a session's "+2" after its name, its project in the tertiary at the right of its words, never cut, and its time.
-/// Under the pointer, a row that jumps lifts, any row's time gives way to its button, and a click jumping from it
-/// presses it in with an arc spinning in its time's place. A row needing Lee is its name, in medium, an away one's
-/// dimmed; a your-turn row its ring and its words, in regular; a Working row its verb, then what follows it 6 on,
-/// shimmering while it works and still on its own work, its subject plain or a wake's countdown; one in Snoozed is
-/// quieted, as the black's: its dot unlit, its name in the secondary, and when it wakes in its time's place.
+/// Under the pointer, a row that jumps lifts, and a click jumping from it presses it in with an arc spinning in its
+/// time's place. A row needing Lee is its name, in medium, an away one's dimmed; a your-turn row its ring and its
+/// words, in regular; a Working row its verb, then what follows it 6 on, shimmering while it works and still on its own
+/// work, its subject plain or a wake's countdown; one in Snoozed is quieted, as the black's: its dot unlit, its name in
+/// the secondary, and when it wakes in its time's place.
 @available(macOS 26, *)
 struct GlassSessionRow: View {
     let session: Session
@@ -291,8 +291,6 @@ struct GlassSessionRow: View {
                 .placed(in: at.project.offsetBy(dx: 0, dy: TextLine.drop(of: EdgeStyle.sub, to: EdgeStyle.line, lineHeight: at.project.height)))
             if pressed {
                 spinner.placed(in: at.age, alignment: .trailing)
-            } else if hovered {
-                GlassOpener().placed(in: at.opener)
             } else {
                 Text(time)
                     .font(.system(size: 12).monospacedDigit())

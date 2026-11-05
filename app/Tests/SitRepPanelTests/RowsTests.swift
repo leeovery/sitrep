@@ -75,25 +75,6 @@ struct RowsTests {
         #expect(content.item(at: CGPoint(x: row.midX, y: row.minY + 51)) == nil)
     }
 
-    /// Board F's button, 24 square, its right 10 in from the row's and on the row's middle, whole or on one line: a
-    /// press on it opens the session, one beside it on the row does not.
-    @Test func aRowsButtonIs24SquareAtItsRightOnItsMiddle() {
-        let content = Content(laying: [.session(Self.harness), .line(Self.harness)], headed: false)
-        let width = content.itemFrame(0).width
-
-        #expect(Opener.frame(in: CGSize(width: width, height: 49)) == CGRect(x: width - 34, y: 12.5, width: 24, height: 24))
-        #expect(Opener.frame(in: CGSize(width: width, height: 30)) == CGRect(x: width - 34, y: 3, width: 24, height: 24))
-
-        for index in 0 ..< 2 {
-            let row = content.itemFrame(index)
-            let centre = CGPoint(x: row.maxX - 22, y: row.minY + (index == 0 ? 24.5 : 15))
-
-            #expect(content.opens(index, at: centre))
-            #expect(!content.opens(index, at: CGPoint(x: row.maxX - 36, y: centre.y)))
-            #expect(!content.opens(index, at: CGPoint(x: centre.x, y: centre.y + 13)))
-        }
-    }
-
     @Test func thePrototypesSessionsShowTheirAgesAsItDoes() {
         let ages = Item.prototype.compactMap(\.session).map { $0.ageText(at: 0) }
 

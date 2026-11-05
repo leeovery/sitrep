@@ -41,7 +41,7 @@ struct EdgePaneTests {
 
     @Test func withNothingThereIsNoSectionAndOneLineSaysWhatCarriesTheBoard() {
         #expect(Self.sections(.nothing).isEmpty)
-        #expect(EdgePane.menuCarries == "The menu and the SitRep window carry the board.")
+        #expect(EdgePane.menuCarries == "The menu carries the board.")
     }
 
     @Test func materialIsFromMacOS26AloneAndMotionStaysBeforeIt() {

@@ -9,8 +9,7 @@ import SitRepPanel
 /// shimmering in the render server, or on its own work its dotted ring and its words still, a wake's countdown set
 /// again as it reads differently; a row in Snoozed a row needing Lee quieted, as board G draws it, its dot grey and
 /// unlit, its name soft, its "+2" faint, and in its time's place when its soonest ask wakes, soft, the lane grown to
-/// fit it; a turn there the same, its mark the faint ring, and with no time, "until it moves". Under the pointer any
-/// row's time gives way to its button, which opens its session in the SitRep window.
+/// fit it; a turn there the same, its mark the faint ring, and with no time, "until it moves".
 @MainActor
 final class SessionRow {
     /// The row's box: its item's.
@@ -21,8 +20,6 @@ final class SessionRow {
     private let wash = CALayer()
     /// The arc that spins in the time's place while a click is jumping from it.
     private let spinner: Arc
-    /// The button in the time's place under the pointer.
-    let opener: CALayer
     /// Its time, and what it says, as last set.
     private var age: TextLine?
     private var ageText = ""
@@ -39,7 +36,6 @@ final class SessionRow {
         project = TextLine.text(session.project, EdgeStyle.sub, EdgeStyle.ink3)
         at = SessionRowLayout(size: size, project: TextLine.width(project))
         spinner = Self.arc(right: at.age)
-        opener = CardParts.opener(in: at.opener)
         subject = session.subject
         layer.frame = CGRect(origin: .zero, size: size)
         layer.cornerRadius = SessionRowLayout.radius
@@ -56,8 +52,6 @@ final class SessionRow {
         layer.addSublayer(projectLine)
         spinner.layer.isHidden = true
         layer.addSublayer(spinner.layer)
-        opener.isHidden = true
-        layer.addSublayer(opener)
     }
 
     /// Its project in its lane, on its words' baseline.
@@ -67,17 +61,15 @@ final class SessionRow {
         return TextLine(project, in: at.project.offsetBy(dx: 0, dy: drop))
     }
 
-    /// Under the pointer, its time gives way to its button, and a row that jumps lifts; an away row, which jumps
-    /// nowhere, shows its button alone.
+    /// Under the pointer, a row that jumps lifts; an away row, which jumps nowhere, does not.
     var isHighlighted = false {
         didSet {
             showBackground()
-            showTimeOrButton()
         }
     }
 
     /// A click is jumping from it: it presses in, as the prototype's does in 140ms, its background in 110, and an arc
-    /// spins where its time or its button was.
+    /// spins where its time was.
     var isPressed = false {
         didSet {
             guard isPressed != oldValue else {
@@ -91,7 +83,7 @@ final class SessionRow {
             CATransaction.setAnimationDuration(0.11)
             showBackground()
             CATransaction.commit()
-            showTimeOrButton()
+            showTimeOrSpinner()
         }
     }
 
@@ -101,11 +93,10 @@ final class SessionRow {
         layer.backgroundColor = isPressed ? EdgeStyle.press : isHighlighted && session.jumps ? EdgeStyle.hover : nil
     }
 
-    /// In the time's place, one of three: pressed, the spinner; under the pointer, the button; else the time.
-    private func showTimeOrButton() {
+    /// In the time's place, pressed, the spinner; else the time.
+    private func showTimeOrSpinner() {
         still {
-            age?.isHidden = isPressed || isHighlighted
-            opener.isHidden = isPressed || !isHighlighted
+            age?.isHidden = isPressed
             spinner.layer.isHidden = !isPressed
         }
     }
@@ -134,7 +125,7 @@ final class SessionRow {
         let line = TextLine(words, in: at.age, alignment: .right)
 
         line.contentsScale = layer.contentsScale
-        line.isHidden = isPressed || isHighlighted
+        line.isHidden = isPressed
         if let age {
             layer.replaceSublayer(age, with: line)
         } else {

@@ -239,3 +239,8 @@ struct WelcomeFocusTests {
         focused(made).map { $0.convert($0.bounds, to: nil) }
     }
 }
+
+/// The Mac's Keyboard navigation setting, by which buttons take focus.
+private func keyboardNavigation() async -> Bool {
+    await MainActor.run { NSApplication.shared.isFullKeyboardAccessEnabled }
+}

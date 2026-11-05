@@ -16,7 +16,7 @@ public enum EdgePane {
         public let rows: [Row]
     }
 
-    public static let menuCarries = "The menu and the SitRep window carry the board."
+    public static let menuCarries = "The menu carries the board."
 
     /// The sections for what Lee set: Style for the notch, Length and Max for the strip, Max only at Grows; Material
     /// only from macOS 26, before which the edge is black and there is no row.

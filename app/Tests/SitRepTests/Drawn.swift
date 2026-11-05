@@ -97,6 +97,39 @@ struct Drawn {
     func brightest(in rect: CGRect) throws -> NSColor {
         try #require(pixels(in: rect).max { $0.lightness < $1.lightness })
     }
+
+    /// The pixel under this point.
+    func pixel(at point: CGPoint) -> NSColor? {
+        bitmap.colorAt(x: Int(point.x * scale), y: Int(point.y * scale))?.usingColorSpace(.sRGB)
+    }
+
+    /// The pixel under this point as stored, in the drawing's own colour space, as a capture of the live window is
+    /// read.
+    func stored(at point: CGPoint) -> NSColor? {
+        bitmap.colorAt(x: Int(point.x * scale), y: Int(point.y * scale))
+    }
+
+    /// The bounds of what is drawn inside `rect` over what is drawn at `ground`, in points to the pixel; nil with
+    /// nothing.
+    func drawnBox(in rect: CGRect, ground: CGPoint) -> CGRect? {
+        guard let ground = pixel(at: ground) else {
+            return nil
+        }
+
+        let step = 1 / scale
+        let pixels = stride(from: rect.minY, to: rect.maxY, by: step).flatMap { y in
+            stride(from: rect.minX, to: rect.maxX, by: step).map { CGRect(x: $0, y: y, width: step, height: step) }
+        }
+        let drawn = pixels.filter { pixel(at: $0.origin).map { Self.differ($0, ground) } ?? false }
+
+        return drawn.dropFirst().reduce(drawn.first) { box, pixel in box?.union(pixel) }
+    }
+
+    /// Two colours apart by more than a hair, in their light or their cover.
+    private static func differ(_ one: NSColor, _ other: NSColor) -> Bool {
+        abs(one.lightness - other.lightness) > 0.12 || abs(one.alphaComponent - other.alphaComponent) > 0.08
+            || abs(one.redComponent - other.redComponent) > 0.08 || abs(one.blueComponent - other.blueComponent) > 0.08
+    }
 }
 
 extension NSColor {

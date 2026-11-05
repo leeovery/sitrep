@@ -138,7 +138,7 @@ enum StripPicture {
         var quarter = Path()
 
         quarter.addRelativeArc(center: middle, radius: radius, startAngle: .degrees(arc - 90), delta: .degrees(90))
-        context.stroke(circle, with: .color(WindowStyle.track), lineWidth: line)
+        context.stroke(circle, with: .color(PictureStyle.track), lineWidth: line)
         context.stroke(quarter, with: .color(ink(ring)), style: StrokeStyle(lineWidth: line, lineCap: .round))
     }
 
@@ -148,14 +148,14 @@ enum StripPicture {
 
         glow.opacity *= 0.75
         glow.addFilter(.blur(radius: line * 1.4))
-        glow.stroke(circle, with: .color(WindowStyle.orange), lineWidth: line * 1.8)
+        glow.stroke(circle, with: .color(PictureStyle.orange), lineWidth: line * 1.8)
     }
 
     private static func ink(_ ring: Ring) -> Color {
         switch ring {
-        case .needs: WindowStyle.orange
-        case .turn: WindowStyle.text
-        case .working: WindowStyle.arc
+        case .needs: PictureStyle.orange
+        case .turn: PictureStyle.text
+        case .working: PictureStyle.arc
         }
     }
 }

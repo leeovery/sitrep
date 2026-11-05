@@ -1,15 +1,12 @@
 import AppKit
 @testable import SitRep
 @testable import SitRepCore
-import SitRepLines
 import SitRepPanel
-import SitRepWindow
 import Testing
 
-/// A row's right-click menu, on the card and in the window's list (Paper's boards F, G, H and I): Open in SitRep on the
-/// card; Jump to the window, disabled away; then Snooze and its three times on a row whose lines hold asks, those and
-/// Until it moves on a your-turn row, or Wake now on a row in Snoozed; neither on a row of stops alone. What it snoozes
-/// or wakes is what the row showed as it was drawn.
+/// A row's right-click menu on the card (Paper's boards F, G and I): Jump to the window, disabled away; then Snooze and
+/// its three times on a row whose lines hold asks, those and Until it moves on a your-turn row, or Wake now on a row in
+/// Snoozed; neither on a row of stops alone. What it snoozes or wakes is what the row showed as it was drawn.
 @MainActor
 struct RowMenuTests {
     /// Friday 23 October 2026, 14:00 in London.
@@ -29,11 +26,10 @@ struct RowMenuTests {
         var named: [Snoozable] = []
     }
 
-    private static func menu(_ row: RowMenu.Row, opens: Bool = true, _ heard: Heard) -> NSMenu {
+    private static func menu(_ row: RowMenu.Row, _ heard: Heard) -> NSMenu {
         RowMenu.make(
             for: row, at: now, in: london,
             RowMenu.Actions(
-                open: opens ? { heard.said.append("open") } : nil,
                 jump: { heard.said.append("jump") },
                 snooze: { heard.said.append("snooze \($1.title)"); heard.named.append($0) },
                 wake: { heard.said.append("wake"); heard.named.append($0) }
@@ -50,16 +46,15 @@ struct RowMenuTests {
     }
 
     @Test(arguments: [false, true])
-    func aRowOfStopsAloneOffersOpenAndJumpJumpingDisabledAway(away: Bool) {
+    func aRowOfStopsAloneOffersJumpAloneDisabledAway(away: Bool) {
         let heard = Heard()
         let menu = Self.menu(RowMenu.Row(jumps: !away, snoozable: nil, isSnoozed: false), heard)
 
-        #expect(Self.titles(menu) == ["Open in SitRep", "Jump to the window"])
-        #expect(menu.items.map(\.isEnabled) == [true, !away])
+        #expect(Self.titles(menu) == ["Jump to the window"])
+        #expect(menu.items.map(\.isEnabled) == [!away])
 
         menu.performActionForItem(at: 0)
-        menu.performActionForItem(at: 1)
-        #expect(heard.said == (away ? ["open"] : ["open", "jump"]))
+        #expect(heard.said == (away ? [] : ["jump"]))
     }
 
     @Test func aRowWithAsksOffersSnoozeItsThreeTimesEachWithWhenItWakes() throws {
@@ -67,7 +62,7 @@ struct RowMenuTests {
         let menu = Self.menu(RowMenu.Row(jumps: true, snoozable: .asks(["k1", "k3"]), isSnoozed: false), heard)
         let snooze = try #require(menu.items.last?.submenu)
 
-        #expect(Self.titles(menu) == ["Open in SitRep", "Jump to the window", "—", "Snooze"])
+        #expect(Self.titles(menu) == ["Jump to the window", "—", "Snooze"])
         #expect(Self.choices(snooze) == ["Later today\t17:00", "Tomorrow\tSat 09:00", "Next week\tMon 09:00"])
 
         snooze.performActionForItem(at: 1)
@@ -82,7 +77,7 @@ struct RowMenuTests {
         let menu = Self.menu(RowMenu.Row(jumps: true, snoozable: .turn(ended: Self.ended), isSnoozed: false), heard)
         let snooze = try #require(menu.items.last?.submenu)
 
-        #expect(Self.titles(menu) == ["Open in SitRep", "Jump to the window", "—", "Snooze"])
+        #expect(Self.titles(menu) == ["Jump to the window", "—", "Snooze"])
         #expect(Self.choices(snooze) == [
             "Later today\t17:00", "Tomorrow\tSat 09:00", "Next week\tMon 09:00", "—", "Until it moves",
         ])
@@ -98,18 +93,11 @@ struct RowMenuTests {
         let heard = Heard()
         let menu = Self.menu(RowMenu.Row(jumps: false, snoozable: asleep, isSnoozed: true), heard)
 
-        #expect(Self.titles(menu) == ["Open in SitRep", "Jump to the window", "—", "Wake now"])
+        #expect(Self.titles(menu) == ["Jump to the window", "—", "Wake now"])
 
-        menu.performActionForItem(at: 3)
+        menu.performActionForItem(at: 2)
         #expect(heard.said == ["wake"])
         #expect(heard.named == [asleep])
-    }
-
-    /// The sidebar's offers no Open in SitRep: the row is its page there already.
-    @Test func inTheWindowItOffersNoOpen() {
-        let menu = Self.menu(RowMenu.Row(jumps: true, snoozable: .asks(["k1"]), isSnoozed: false), opens: false, Heard())
-
-        #expect(Self.titles(menu) == ["Jump to the window", "—", "Snooze"])
     }
 
     /// The times sit on one right tab stop past the longest name, dim, and brighter on the one highlighted; Until it
@@ -168,36 +156,5 @@ struct RowMenuTests {
         #expect(RowMenu.Row(asleep) == RowMenu.Row(jumps: true, snoozable: .asks(["k1"]), isSnoozed: true))
         #expect(RowMenu.Row(turn) == RowMenu.Row(jumps: true, snoozable: .turn(ended: Self.ended), isSnoozed: false))
         #expect(RowMenu.Row(turnAsleep) == RowMenu.Row(jumps: true, snoozable: .turn(ended: Self.ended), isSnoozed: true))
-    }
-
-    /// A row of the window's list offers the same, over what the real CLI printed: a line's one ask, waiting or asleep
-    /// (`Lines.snoozed`); a Your turn row's turn, and each turn asleep under "N snoozed", by the turn's end
-    /// (`Lines.snoozedTurn`); nothing on a window's stop.
-    @Test func theWindowsListRowOffersWhatItShows() {
-        let ended = { (seconds: TimeInterval) in Snoozable.turn(ended: Date(timeIntervalSince1970: seconds)) }
-        let rows = { (place: Place, line: String) in
-            PlaceList(place, in: Self.listed(line), isFoldOpen: true).shown.map { RowMenu.Row($0) }
-        }
-
-        #expect(rows(.needsYou, Lines.snoozed[0]) == [
-            RowMenu.Row(jumps: false, snoozable: .asks(["k3"]), isSnoozed: false),
-            RowMenu.Row(jumps: false, snoozable: .asks(["k1"]), isSnoozed: true),
-            RowMenu.Row(jumps: false, snoozable: .asks(["k2"]), isSnoozed: true),
-        ])
-        #expect(rows(.needsYou, Lines.snoozedTurn[0]) == [
-            RowMenu.Row(jumps: true, snoozable: ended(1_793_819_270), isSnoozed: true),
-            RowMenu.Row(jumps: true, snoozable: ended(1_793_818_490), isSnoozed: true),
-        ])
-        #expect(rows(.yourTurn, Lines.snoozedTurn[0]) == [
-            RowMenu.Row(jumps: true, snoozable: ended(1_793_817_590), isSnoozed: false),
-        ])
-        #expect(rows(.needsYou, Lines.bySession[0]).contains { $0.snoozable == nil })
-    }
-
-    private static func listed(_ line: String) -> Listed {
-        var last = LastBoard()
-
-        _ = last.hear(.line(line), at: .now)
-        return Listed(last)
     }
 }
