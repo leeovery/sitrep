@@ -50,11 +50,19 @@ from the keychain; `app/build` runs it, installs the bundle to
 `/Applications/SitRep.app` over the cask's copy and starts it, replacing the
 one running; `app/quit` and `app/open` stop and start SitRep for it and for
 `app/plugin`.
-`app/release`, run by mint's `post_release` (`./release`), builds a release
-from its tag, notarizes it (`app/notarize`), uploads it to the GitHub
+A release (`./release`) is built before mint's tag and uploaded after it.
+`app/release-build`, the last of mint's `pre_tag`, builds HEAD in a
+worktree of its own, the bundle stamped with the version mint is about to
+tag, notarizes and staples it (`app/notarize`), and keeps the zip in
+`~/Library/Caches/SitRep/release/<version>/`; anything dirty beyond mint's
+bookkeeping (`plugin.json` in its version alone, `CHANGELOG.md`,
+`.mint.toml`), untracked files included, or HEAD moving before the zip is
+kept, stops it.
+`app/release-upload`, mint's `post_release`, uploads that zip to the GitHub
 release and, for the latest release, sends the cask in
-`leeovery/homebrew-tools` the new zip and waits on the tap's update,
-logging to `~/Library/Logs/SitRep/release-<version>.log`.
+`leeovery/homebrew-tools` the new zip and waits on the tap's update; it
+builds nothing. Both share `app/release-common` and log to
+`~/Library/Logs/SitRep/release-<version>.log`.
 
 ## Live tests
 

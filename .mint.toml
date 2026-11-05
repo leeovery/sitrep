@@ -15,21 +15,26 @@ diff_exclude = [
 
 [release]
 # One version covers the plugin and the app: app/bundle stamps plugin.json's
-# into the bundle.
+# into the bundle, or, in pre_tag, before mint writes it there, the version
+# mint is releasing.
 version_file = '.claude-plugin/plugin.json'
 version_pattern = '"version": "{version}"'
 
 [release.hooks]
-# No CI runs the tests, so every gate runs here, before the irreversible tag
-# and push.
+# No CI runs the tests or builds a release, so both happen here, before the
+# irreversible tag and push: every gate, then app/release-build, which builds
+# HEAD, signed with the Developer ID, notarized and stapled, and keeps its
+# zip, so a failure about the app, the certificate or Apple's answer stops
+# the release before its tag, with nothing public yet.
 pre_tag = [
     'claude plugin test .',
     'bunx tsc -p .',
     'bunx tsc -p cli/shell',
     'swift build --package-path app -j 2',
     'swift test --package-path app -j 2',
+    'app/release-build',
 ]
-# Once the tag and the release are pushed: the app built on this Mac,
-# notarized, and uploaded to the release. A failure here only warns, and
-# app/release, run again by hand, finishes it.
-post_release = ['app/release']
+# Once the tag and the release are pushed: app/release-upload uploads the
+# kept zip to the release and sends the cask the new zip. A failure here only
+# warns, and app/release-upload <version>, run again by hand, finishes it.
+post_release = ['app/release-upload']

@@ -1,0 +1,151 @@
+#!/bin/bash
+# Builds SitRep's release on this Mac, signed with Lee's Developer ID,
+# notarized and stapled, before mint tags it: mint's pre_tag runs it after the
+# gates, from the repository's root, with the version about to be tagged in
+# MINT_NEW_VERSION. It builds HEAD, which mint tags once its bookkeeping is
+# committed, in a git worktree outside the repository, by HEAD's own
+# app/bundle --release, the bundle and its plugin stamped with that version;
+# notarizes and staples it (app/notarize), and keeps the zip of the stapled
+# app, its sha256 and the commit built in
+# ~/Library/Caches/SitRep/release/<version>/ for app/release-upload once the
+# release is made. Any failure exits non-zero, so mint stops before the tag,
+# with nothing public.
+#
+# By hand it builds the version given, from HEAD, or from the ref given after
+# it, as app/release-build 0.3.1 v0.3.1 builds a tag's tree again for
+# app/release-upload. Each run logs to
+# ~/Library/Logs/SitRep/release-<version>.log.
+set -euo pipefail
+
+if [[ $# -gt 2 ]]; then
+  echo "Usage: app/release-build [<version> [<ref>]]" >&2
+  exit 1
+fi
+
+app=$(cd "$(dirname "$0")" && pwd)
+repo=$(dirname "$app")
+# shellcheck source=app/release-common
+. "$app/release-common"
+cd "$repo"
+
+if [[ $# -ge 1 ]]; then
+  version=$1
+  tag=v$version
+else
+  version=${MINT_NEW_VERSION:-}
+  tag=${MINT_VERSION_TAG:-v$version}
+fi
+ref=${2:-}
+[[ -n $version ]] || release_fail "No version to build: mint gives it as MINT_NEW_VERSION; by hand, give it, as app/release-build 0.3.1."
+release_valid_version "$version" || release_fail "$version isn't a version, as 0.3.1."
+asset=$(release_asset "$version")
+
+release_log app/release-build "$version"
+cache=$(release_cache)
+
+# mint tags HEAD once it commits the new version and the changelog, and
+# commits whatever else pre_tag leaves in the working tree, untracked files
+# included, into the tag. So the tree may differ from HEAD in mint's
+# bookkeeping alone, and HEAD stay the commit built, from before the build
+# until the build is kept: anything else would be tagged unbuilt.
+building_head=false
+if [[ -z $ref ]]; then
+  if git rev-parse -q --verify "refs/tags/$tag" > /dev/null; then
+    release_fail "$tag is tagged already, so HEAD isn't what's to be tagged: build the tag, as app/release-build $version $tag."
+  fi
+  building_head=true
+  ref=HEAD
+fi
+commit=$(git rev-parse -q --verify "$ref^{commit}") || release_fail "$ref names no commit to build."
+check_head() {
+  local head
+  head=$(git rev-parse HEAD)
+  [[ $head == "$commit" ]] || release_fail "HEAD moved from $commit, the commit built, to $head, which mint would tag unbuilt: release again."
+  if ! release_bookkeeping_only HEAD; then
+    release_fail "The working tree $why"$'\n'"mint would tag them unbuilt, as app/release-build builds HEAD alone: commit or remove them, then release again."
+  fi
+}
+if $building_head; then check_head; fi
+
+# In a fixed folder, which a run clears first: mint's cancel kills a hook
+# outright, so its trap never removes the worktree, nor the signed SitRep.app
+# that macOS could launch by its bundle id. Runs share it, so one runs at a
+# time, holding a lock that names its process; one whose process is gone, as
+# when killed, is taken over.
+work="$cache/.sitrep-release-work"
+tree="$work/tree"
+lock="$cache/.sitrep-release-lock"
+take_lock() {
+  local holder
+  echo $$ > "$lock.$$"
+  for _ in 1 2; do
+    if ln "$lock.$$" "$lock" 2> /dev/null; then
+      rm -f "$lock.$$"
+      return
+    fi
+    holder=$(cat "$lock" 2> /dev/null || true)
+    if [[ -n $holder ]] && kill -0 "$holder" 2> /dev/null; then
+      rm -f "$lock.$$"
+      release_fail "Another app/release-build, process $holder, is building in $cache: build again once it ends."
+    fi
+    rm -f "$lock"
+  done
+  rm -f "$lock.$$"
+  release_fail "Couldn't take the lock $lock: build again."
+}
+# A worktree registered there is removed even with its folder gone, or
+# locked, as git leaves it when a run is killed during its add; with none
+# registered, git refuses, and that's as it should be.
+clear_work() {
+  git worktree remove -f -f "$tree" 2> /dev/null || true
+  rm -rf "$work" || echo "Couldn't remove $work, as rm says above."
+}
+# A cleanup that fails only says so: the build is good, and failing it would
+# cost the release another wait on Apple.
+finish() {
+  clear_work
+  rm -f "$lock" || echo "Couldn't remove the lock $lock, as rm says above."
+}
+mkdir -p "$cache"
+take_lock
+trap finish EXIT
+clear_work
+
+mkdir -p "$work/build" "$work/out"
+git worktree add --quiet --detach "$tree" "$commit"
+echo "Building SitRep $version from $commit"
+MINT_NEW_VERSION=$version "$tree/app/bundle" --release "$work/build"
+bundle="$work/build/SitRep.app"
+built=$(plutil -extract CFBundleShortVersionString raw -o - "$bundle/Contents/Info.plist")
+[[ $built == "$version" ]] || release_fail "$commit builds SitRep $built, not $version."
+plugin=$(plutil -extract version raw -o - "$bundle/Contents/Resources/Plugin/$release_version_file")
+[[ $plugin == "$version" ]] || release_fail "$commit builds SitRep $version carrying the plugin $plugin."
+
+zip="$work/out/$asset"
+"$app/notarize" "$bundle" "$zip"
+(cd "$work/out" && shasum -a 256 "$asset" > "$asset.sha256")
+echo "$commit" > "$work/out/commit"
+echo "$asset: sha256 $(cut -d ' ' -f 1 "$zip.sha256")"
+
+if $building_head; then check_head; fi
+kept="$cache/$version"
+rm -rf "$kept"
+mv "$work/out" "$kept"
+echo "Kept in $kept for app/release-upload $version"
+
+# Other versions' builds are kept a month, so a trial build doesn't take the
+# one a release's upload still needs. Only a folder as this script keeps
+# one, named as a version and naming the commit built, is ever removed.
+prune_kept() {
+  local old name failed=0
+  for old in "$cache"/*/; do
+    old=${old%/}
+    name=${old##*/}
+    if [[ $name != "$version" ]] && release_valid_version "$name" &&
+      grep -qE '^[0-9a-f]{40}([0-9a-f]{24})?$' "$old/commit" 2> /dev/null && [[ -n $(find "$old" -maxdepth 0 -mtime +30) ]]; then
+      rm -rf "$old" || failed=1
+    fi
+  done
+  return "$failed"
+}
+prune_kept || echo "Removing old builds from $cache failed, as it says above; the build is kept."

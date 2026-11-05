@@ -203,19 +203,27 @@ A release is cut and built on a Mac, by mint:
 ./release --dry-run    # the plan, with nothing changed and no hooks run
 ```
 
-mint sets the version in `.claude-plugin/plugin.json`, which the app takes too. Its `pre_tag` hook runs every gate above, since no CI does; then it writes the notes, tags `v<version>`, pushes, and makes the GitHub release. Its `post_release` hook runs `app/release`, which:
+mint sets the version in `.claude-plugin/plugin.json`, which the app takes too. The app is built, signed and notarized before mint's tag, so a failure in any of that stops the release with nothing public yet. Its `pre_tag` hook runs every gate above, since no CI does, then `app/release-build`, which:
 
-1. builds the app from the tag's tree, by the tag's own `app/bundle`;
-2. notarizes and staples it (`app/notarize`), and checks that Gatekeeper accepts the zip as a download;
-3. uploads `SitRep-<version>.zip` to the release, replacing one there;
-4. when the release is the latest, sends the cask in `leeovery/homebrew-tools` the version, the zip's sha256 and the asset's id, and waits for the tap's workflow to commit them. A rerun for an older release leaves the cask alone, since the cask on an older version would downgrade every Mac.
+1. stops when the working tree differs from HEAD in anything but mint's bookkeeping (the version in `plugin.json`, `CHANGELOG.md`, `.mint.toml`), untracked files included, since mint commits whatever `pre_tag` leaves into the tag; so a `--notes-file` lives outside the repository;
+2. builds the app from HEAD, in a worktree of its own, by HEAD's own `app/bundle`, stamped with the version mint is about to tag;
+3. notarizes and staples it (`app/notarize`), and checks that Gatekeeper accepts the zip as a download;
+4. checks the working tree again, and that HEAD is still the commit built, then keeps the zip, its sha256 and the commit built in `~/Library/Caches/SitRep/release/<version>/`, where other versions' builds are kept a month.
 
-`app/release` logs everything to `~/Library/Logs/SitRep/release-<version>.log`. mint only warns when it fails, so run it again by hand, `app/release` or `app/release <version>`: it builds, notarizes, uploads and sends the cask again. When the upload fails, it says a rerun builds and notarizes again. When the upload went and a step before the tap's run failed (finding the latest release, listing the tap's runs, sending the cask) or the tap started no run within a minute, it prints the command that sends the cask again. When the tap's run started, it prints the run's URL, and if that run fails, the URL and the command.
+Then mint writes the notes, commits the version and the changelog, tags `v<version>`, pushes, and makes the GitHub release. Its `post_release` hook runs `app/release-upload`, which builds nothing:
+
+1. checks the kept zip is whole and was built from what the tag holds, but for mint's bookkeeping;
+2. uploads it as `SitRep-<version>.zip` to the release, replacing one there;
+3. when the release is the latest, sends the cask in `leeovery/homebrew-tools` the version, the zip's sha256 and the asset's id, and waits for the tap's workflow to commit them. A rerun for an older release leaves the cask alone, since the cask on an older version would downgrade every Mac.
+
+Both log everything to `~/Library/Logs/SitRep/release-<version>.log`. mint only warns when `post_release` fails, so run it again by hand, `app/release-upload` or `app/release-upload <version>`: it uploads what's kept and sends the cask again. When nothing fitting is kept, it says to build the tag again first, `app/release-build <version> v<version>`, which notarizes again. When the upload went and a step before the tap's run failed (finding the latest release, listing the tap's runs, sending the cask) or the tap started no run within a minute, it prints the command that sends the cask again. When the tap's run started, it prints the run's URL, and if that run fails, the URL and the command.
+
+Leave the clone alone while mint runs. `pre_tag`'s checks end with it, and mint then writes the notes and waits at the review gate before it tags: a commit or a pull made then, or an edit to `plugin.json` beyond its version, is tagged unbuilt, and `app/release-upload` refuses the zip. `app/release-build <version> v<version>`, then `app/release-upload <version>`, finish that release. Closing the gap needs a mint hook nearer the tag.
 
 A rerun replaces the zip, and GitHub deletes the asset it replaces. Until the tap's workflow commits the new asset's id, about a minute later, the cask names a deleted asset, so installs fail; if the sending or the update fails in between, the cask stays broken until a rerun or the printed command sends it again.
 
 Once per Mac that releases, beside the Developer ID certificate:
 
-- notarytool's login saved in the keychain as the profile `sitrep`: `xcrun notarytool store-credentials sitrep`;
+- notarytool's login saved in the keychain as the Mac's one profile `notarytool`, shared by every app built here: `xcrun notarytool store-credentials notarytool`;
 - `gh` logged in as an account that can upload to this repository's releases and dispatch to `leeovery/homebrew-tools`;
 - mint: `brew install leeovery/tools/mint`.
