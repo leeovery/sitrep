@@ -10,29 +10,10 @@ public enum JumpAnswer: Sendable, Equatable {
     case stopped
 }
 
-/// What `sitrep answer`, `finish`, `snooze` or `wake` came to: written, or refused in the CLI's words, with nothing
-/// written.
+/// What `sitrep snooze` or `wake` came to: written, or refused in the CLI's words, with nothing written.
 public enum WriteAnswer: Sendable, Equatable {
     case written
     case refused(String)
-}
-
-/// What `sitrep screen` came to: which sessions show on screen, or why it could not say, in words.
-public enum ScreenAnswer: Sendable, Equatable {
-    case read(ScreenReading)
-    case failed(String)
-
-    /// The reading; none where the run failed.
-    public var reading: ScreenReading? {
-        if case let .read(reading) = self { reading } else { nil }
-    }
-}
-
-/// Lee's answer to an ask, as the button pressed says it: a yes or one of a choice's options, in the board's words;
-/// or Lee's ignore, which any ask takes.
-public enum Answer: Sendable, Hashable {
-    case words(String)
-    case ignore
 }
 
 /// What a snooze or a wake names: asks of a session, by their ids, or its turn, by the instant the turn ended, as its
@@ -56,14 +37,10 @@ public enum Snoozable: Sendable, Equatable {
 }
 
 /// The plugin's CLI, `<plugin>/bin/sitrep`, run as a child with Lee's PATH.
-/// The app watches the board, reads which sessions show on screen, and jumps, and writes only what the board's own
-/// buttons do: Lee's answers, finishes, snoozes and wakes.
+/// The app watches the board and jumps, and writes only what the card's row menu does: Lee's snoozes and wakes.
 public struct SitRepCLI: Sendable {
-    /// `answer`, `finish`, `snooze` and `wake` read and write one session's files, and run no program.
+    /// `snooze` and `wake` read and write one session's files, and run no program.
     static let sessionLimit: TimeInterval = 10
-    /// `screen --json` reads the sessions a window holds and asks tmux and `ps`, each given 2s and asked at once: about
-    /// 0.2s of CPU over Lee's board, and never hanging over them.
-    static let screenLimit: TimeInterval = 10
     /// How long a whole jump may take, Bun's start and the board's read among it (4 November 2026). One takes under a
     /// second as Ghostty answers, and one Ghostty does not answer at all, as with the screen locked, is refused at its
     /// first question, after 5s; each Ghostty program the CLI runs is killed at 8s, and each of tmux, `ps`, lsappinfo
@@ -98,25 +75,6 @@ public struct SitRepCLI: Sendable {
         self.run = run
     }
 
-    /// Which sessions a live window holds show on a terminal of this Mac. Read-only: it asks tmux and `ps`, and moves
-    /// nothing.
-    public func screen() async -> ScreenAnswer {
-        switch await sitrep(["screen", "--json"], limit: Self.screenLimit) {
-        case let .failure(unanswered):
-            .failed(unanswered.complaint(of: "screen"))
-        case let .success(ran):
-            Self.reading(ran.stdout)
-        }
-    }
-
-    private static func reading(_ json: String) -> ScreenAnswer {
-        do {
-            return .read(try ScreenReading.read(json))
-        } catch {
-            return .failed("sitrep screen \(error).")
-        }
-    }
-
     /// At its limit, or its task cancelled, the jump is told to end, so it puts back its knock's marker, then killed,
     /// with every program it started. One an app gave no answer in time ends unanswered, as at the limit.
     public func jump(to work: String) async -> JumpAnswer {
@@ -138,22 +96,6 @@ public struct SitRepCLI: Sendable {
         }
     }
 
-    /// Answers an ask of the session, or ignores it, into the session's inbox. The ask and the answer come after
-    /// `--`, so neither is read as a flag, whatever its words.
-    public func answer(_ ask: String, of session: String, with answer: Answer) async -> WriteAnswer {
-        let words = switch answer {
-        case let .words(words): ["--session", session, "--", ask, words]
-        case .ignore: ["--session", session, "--ignore", "--", ask]
-        }
-
-        return written(await sitrep(["answer"] + words, limit: Self.sessionLimit), by: "answer")
-    }
-
-    /// Finishes a session no window holds.
-    public func finish(_ session: String) async -> WriteAnswer {
-        written(await sitrep(["finish", "--session", session], limit: Self.sessionLimit), by: "finish")
-    }
-
     /// Snoozes what is named of the session until the instant given: asks, all of them or none, which the CLI refuses
     /// with no time; or its turn, with none until it moves.
     public func snooze(_ named: Snoozable, of session: String, until: Date?) async -> WriteAnswer {
@@ -170,7 +112,8 @@ public struct SitRepCLI: Sendable {
         return written(await sitrep(words, limit: Self.sessionLimit), by: "wake")
     }
 
-    /// What a snooze or a wake names, as the CLI takes it: asks after `--`, as an answer's are; a turn by its end.
+    /// What a snooze or a wake names, as the CLI takes it: asks after `--`, so none is read as a flag; a turn by its
+    /// end.
     private static func words(naming named: Snoozable) -> [String] {
         switch named {
         case let .asks(asks): ["--"] + asks

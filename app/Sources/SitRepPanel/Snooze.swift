@@ -1,8 +1,7 @@
 import Foundation
 
-/// Snooze's choices, as the card's and the sidebar's menus and a card's Snooze on the session page offer them, each
-/// worked out as it is pressed on the Gregorian calendar, as core's `snoozeAt` is, in the Mac's time zone, so 09:00 is
-/// 09:00 across a change of the clocks (DESIGN, "Snooze").
+/// Snooze's choices, as a card row's menu offers them, each worked out as it is pressed on the Gregorian calendar, as
+/// core's `snoozeAt` is, in the Mac's time zone, so 09:00 is 09:00 across a change of the clocks (DESIGN, "Snooze").
 public enum SnoozeChoice: CaseIterable, Sendable {
     case laterToday, tomorrow, nextWeek
 

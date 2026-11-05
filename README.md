@@ -112,7 +112,8 @@ A menu bar app with no Dock icon, on every Space. The notch and the strip step o
 - **Settings**, a window of its own (⌘,):
   - What stays on screen: Show (Notch, Strip or Nothing); its edge and display; for the notch, Style (Meniscus or Card); for the strip, Length (Grows or Full), and a Max slider at Grows; Black or Glass (from macOS 26); and Reduce motion.
   - Notifications: a test notification, Notify me of a new ask, and Play a sound for a new ask, on by default, its sound one of macOS's alert sounds, Glass unless you pick another.
-  - General: how soon Your turn folds, the plugin's state, Open at login and the leave to control Ghostty.
+  - General: Open at login and the leave to control Ghostty.
+  - Claude Code: the plugin's state.
 - **A new ask** plays the sound once, whichever session it lands in, and, with notifications on, posts a silent macOS notification whose click jumps to the session.
 - **The jump** brings forward the Ghostty window showing a session, selecting the session's tmux window where no client shows it. A terminal with no driver is brought forward whole.
 

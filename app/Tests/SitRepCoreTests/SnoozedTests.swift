@@ -3,9 +3,8 @@ import Foundation
 import SitRepLines
 import Testing
 
-/// What `watch` and `board --json` say of Snooze, from what the real CLI printed (`Lines.snoozed`): the Snoozed rows
-/// apart from the rest, each ask's `snoozedUntil`, each session's and project's `snoozed`; and what a CLI from before
-/// Snooze printed, without them.
+/// What `watch` says of Snooze, from what the real CLI printed (`Lines.snoozed`): the Snoozed rows apart from the
+/// rest; and what a CLI from before Snooze printed, without them.
 struct SnoozedTests {
     private static func line(_ place: Int) throws -> Board {
         try Board.read(Lines.snoozed[place])
@@ -38,21 +37,6 @@ struct SnoozedTests {
         #expect(board.head.needYou == 1)
     }
 
-    @Test func eachAskSaysWhenItWakesWhileItSleeps() throws {
-        let asks = try #require(try Self.line(0).projects.first?.sessions.first?.asks)
-
-        #expect(asks.map(\.snoozedUntil) == [at(1_792_741_532_000), at(1_792_745_127_000), nil])
-        #expect(try carried(Lines.snoozedBoard, of: "sr-4g01a7").asks.map(\.snoozedUntil) == asks.map(\.snoozedUntil))
-    }
-
-    @Test func aSessionAndItsProjectCountTheirAsksAsleepApartFromThoseWaiting() throws {
-        let project = try #require(try Self.line(0).projects.first)
-
-        #expect((project.waiting, project.snoozed) == (1, 2))
-        #expect(project.sessions.map { [$0.waiting, $0.snoozed] } == [[1, 2]])
-        #expect(try Self.line(2).projects.map { [$0.waiting, $0.snoozed] } == [[3, 0]])
-    }
-
     /// k1 woken at its time comes back to Needs you new; k2 woken by Lee comes back new on no line.
     @Test func aWakeAtItsTimeIsNewAndAWakeNowIsNot() throws {
         let timed = try Self.line(1), now = try Self.line(2)
@@ -66,13 +50,8 @@ struct SnoozedTests {
         #expect(now.snoozed.isEmpty)
     }
 
-    /// A CLI from before Snooze printed none of it: no Snoozed rows, no ask asleep, none counted.
+    /// A CLI from before Snooze printed none of it: no Snoozed rows.
     @Test func outputFromBeforeSnoozeReadsWithNoneAsleep() throws {
-        let board = try Board.read(Lines.watch[0])
-
-        #expect(board.snoozed.isEmpty)
-        #expect(board.projects.allSatisfy { $0.snoozed == 0 && $0.sessions.allSatisfy { $0.snoozed == 0 } })
-        #expect(board.projects.flatMap(\.sessions).flatMap(\.asks).allSatisfy { $0.snoozedUntil == nil })
-        #expect(try carried(Lines.board, of: "sr-macapp").asks.allSatisfy { $0.snoozedUntil == nil })
+        #expect(try Board.read(Lines.watch[0]).snoozed.isEmpty)
     }
 }

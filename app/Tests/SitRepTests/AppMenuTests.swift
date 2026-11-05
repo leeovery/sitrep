@@ -2,7 +2,7 @@ import AppKit
 @testable import SitRep
 import Testing
 
-/// The main menu no one sees: the key equivalents Settings and a SitRep window's editing, Settings' going back and
+/// The main menu no one sees: the key equivalents Settings, editing in SitRep's windows, Settings' going back and
 /// forward, and closing go through.
 @MainActor
 struct AppMenuTests {

@@ -131,7 +131,7 @@ public struct Session: Equatable, Sendable {
 
     /// What its row says, on every surface, on one line with its time: needing Lee, or in Snoozed, its name, and "+2"
     /// for the two lines after its first, none for one, its time its first line's, needing Lee the newest; else its one
-    /// line. A question's own "+2", which counts words not shown, shows nowhere on a row needing Lee.
+    /// line. A row needing Lee shows its session, not its asks, so a question's own "+2" shows nowhere on it.
     public var headline: Line {
         guard needsLee || isSnoozed else {
             return lines[0]

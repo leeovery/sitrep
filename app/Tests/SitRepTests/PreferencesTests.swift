@@ -36,4 +36,16 @@ struct PreferencesTests {
 
         #expect(SavedEdgeSettings(defaults).read().maxLength == StripMax(share: 0.6))
     }
+
+    /// The SitRep window's keys go as it starts; the rest stay.
+    @Test func whatTheWindowKeptIsTakenOutAtTheStart() {
+        let defaults = MemoryDefaults()
+
+        Preferences.retired.forEach { defaults.set(Data([1]), forKey: $0) }
+        defaults.set(Data([1]), forKey: SavedEdgeSettings.key)
+        _ = Preferences(defaults)
+
+        #expect(Preferences.retired.allSatisfy { defaults.object(forKey: $0) == nil })
+        #expect(defaults.object(forKey: SavedEdgeSettings.key) != nil)
+    }
 }

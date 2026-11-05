@@ -94,64 +94,6 @@ struct BoardTests {
         #expect(after.head.needYou == 7)
     }
 
-    @Test func theProjectsHoldTheirSessionsEachWithItsStateAndItsAsks() throws {
-        let projects = try Board.read(watched).projects
-
-        #expect(projects.map(\.id) == ["terrace", "switchboard-7a75d7ba", "code-84dbac88"])
-        #expect(projects.map(\.directory) == [nil, "/Users/leeovery/Code/switchboard", "/Users/leeovery/Code/sitrep"])
-
-        let terrace = try #require(projects.first?.sessions.first)
-
-        #expect(terrace.state == .needsYou)
-        #expect(terrace.next == nil)
-        #expect(terrace.since == at(1_791_991_983_206))
-        #expect(terrace.asks.map(\.id) == ["k1hs"])
-        #expect(terrace.asks.first?.wants == .yes)
-        #expect(terrace.asks.first?.yes == "Approve")
-        #expect(terrace.asks.first?.where == "In the chat: decision 3, what an approval binds to")
-        #expect(terrace.asks.first?.state == .waiting)
-        #expect(projects.last?.sessions.first?.state == .yourTurn)
-    }
-
-    @Test func eachSessionSaysWhatItIsDoingAsTheLineUnderItsNameSaysIt() throws {
-        let sessions = try Board.read(watched).projects.flatMap(\.sessions)
-
-        #expect(sessions.map(\.doing.kind) == [.yourTurn, .permission, .yourTurn])
-        #expect(sessions[1].doing == Board.Session.Doing(
-            kind: .permission,
-            line: Board.Row.Words(lead: "Allow Bash", mono: "gh pr create", more: nil),
-            since: at(1_792_445_500_000)
-        ))
-    }
-
-    /// The real CLI's line (`Lines.parked`): every session, followed or not, with when it started and what it parked,
-    /// oldest first.
-    @Test func eachSessionSaysWhenItStartedAndWhatItParked() throws {
-        let sessions = try Board.read(Lines.parked[0]).projects.flatMap(\.sessions)
-
-        #expect(sessions.map(\.id) == ["sr-ctnbd2", "sr-fbrs7k", "sr-nwdgr4"])
-        #expect(sessions.map(\.created) == [at(1_793_709_655_000), at(1_793_799_655_000), at(1_793_792_455_000)])
-        #expect(sessions.map(\.parked) == sessions.map(\.parkedItems.count))
-        #expect(sessions[2].parkedItems == [
-            SessionBoard.Parked(
-                id: "77k4",
-                title: "Handle multi-currency rows",
-                where: "After the first export ships",
-                ref: "docs/export.md",
-                at: at(1_793_803_255_257)
-            ),
-            SessionBoard.Parked(id: "3k0a", title: "Retry failed uploads", where: nil, ref: nil, at: at(1_793_803_255_326)),
-        ])
-    }
-
-    /// A CLI from before the feed said them printed neither: no start, and nothing parked listed, though counted.
-    @Test func outputFromBeforeTheFeedSaidThemReadsWithNoStartAndNoParkedItems() throws {
-        let sessions = try Board.read(Lines.watch[0]).projects.flatMap(\.sessions)
-
-        #expect(sessions.contains { $0.parked > 0 })
-        #expect(sessions.allSatisfy { $0.created == nil && $0.parkedItems.isEmpty })
-    }
-
     @Test func theWindowsSayWhereTheyAreWhatTheyAreDoingAndWhetherTheyNeedAReload() throws {
         let windows = try Board.read(watched).windows
 
@@ -176,45 +118,10 @@ struct BoardTests {
         #expect(board.newRows == ["sr-y4d0qj"])
     }
 
-    /// The real CLI's lines (`Lines.following`): none carried before the follow line, then the session followed and a
-    /// null for the one no project files, then only the board that changed.
-    @Test func aLineCarriesTheBoardsOfTheSessionsFollowedNewOrChangedAndANullForOneNotFound() throws {
-        let boards = try Lines.following.map { try Board.read($0).boards }
-
-        #expect(boards.map { $0.keys.sorted() } == [[], ["sr-h4rn3s", "sr-n0n3zz"], ["sr-h4rn3s"], ["sr-h4rn3s"]])
-        #expect(boards[1]["sr-n0n3zz"] == .notFound)
-        #expect(boards.map { $0["sr-h4rn3s"]?.board?.asks.map(\.id) } == [nil, ["ayh1", "vx3g"], ["ayh1", "vx3g", "0rzx"], ["ayh1", "vx3g", "0rzx"]])
-        #expect(boards[3]["sr-h4rn3s"]?.board?.asks.first?.reply?.standing == .onItsWay)
-    }
-
-    /// Each board is read on its own: one that does not read is unread alone, and the line, and the boards beside it,
-    /// read as usual.
-    @Test(arguments: [#"{"v":3}"#, Lines.dashboard.replacingOccurrences(of: #""session": {"#, with: #""work": {"#)])
-    func aBoardThatDoesNotReadIsUnreadAloneTheLineReadingAsUsual(_ unreadable: String) throws {
-        let line = try Board.read(Lines.carrying(["sr-dash02": unreadable, "sr-macapp": Lines.board], on: Lines.watch[0]))
-
-        #expect(line.boards["sr-dash02"] == .unread)
-        #expect(line.boards["sr-macapp"]?.board?.asks.map(\.id) == ["k2", "k3", "k1"])
-        #expect(line.rows == (try Board.read(Lines.watch[0])).rows)
-    }
-
-    @Test func aCarriedBoardIsTheSessionsBoardAsBoardJsonGivesIt() throws {
-        let board = try #require(try Board.read(Lines.following[1]).boards["sr-h4rn3s"]?.board)
-
-        #expect(board.project == SessionBoard.Project(key: "harness", name: "Harness"))
-        #expect(board.session.id == "sr-h4rn3s")
-        #expect(board.session.name == "Follow the boards")
-        #expect(board.session.now == ["Following the boards through the watch"])
-        #expect(board.parked.map(\.title) == ["Measure the line on a copy of Lee's board"])
-        #expect(board.log.map(\.text).contains("The watch hears what the window follows"))
-        #expect(board.resolved.isEmpty)
-    }
-
     /// The real CLI's line (`Lines.onItsWork`): Kit's window waiting on a wake, its row first, and SitRep's on three
     /// agents.
-    @Test func aWindowOnItsOwnWorkIsItsRowItsSessionsStateAndItsOwnWithWhatItWaitsOnOrWhenItsWakeIsDue() throws {
+    @Test func aWindowOnItsOwnWorkIsItsRowAndItsOwnWithWhatItWaitsOnOrWhenItsWakeIsDue() throws {
         let board = try Board.read(Lines.onItsWork)
-        let sessions = board.projects.flatMap(\.sessions)
 
         #expect(board.head.isAllClear)
         #expect(board.rows.map(\.id) == ["sr-k7bt2s", "sr-macapp"])
@@ -226,9 +133,6 @@ struct BoardTests {
             Board.Row.Words(lead: "Waiting on", subject: "3 agents"),
         ])
         #expect(board.rows.map(\.since) == [at(1_792_669_295_432), at(1_792_669_295_432)])
-        #expect(sessions.map(\.state) == [.onItsWork, .onItsWork])
-        #expect(sessions.map(\.doing.kind) == [.onItsWork, .onItsWork])
-        #expect(sessions.map(\.doing.line) == board.rows.map(\.newest.first))
         #expect(board.windows.map(\.state?.kind) == [.onItsWork, .onItsWork])
     }
 
@@ -254,12 +158,7 @@ struct BoardTests {
         "{\"v\":1,\"at\":17924455",
         #"{"head": {"needYou": 0, "sessions": 0}}"#,
         watchedEmpty.replacingOccurrences(of: #""windows":[],"#, with: ""),
-        watchedEmpty.replacingOccurrences(of: #","boards":{}"#, with: ""),
-        watchedEmpty.replacingOccurrences(of: #""boards":{}"#, with: #""changed":[]"#),
-        watchedEmpty.replacingOccurrences(of: #""boards":{}"#, with: #""boards":[]"#),
         watched.replacingOccurrences(of: #""is": "yourTurn""#, with: #""is": "napping""#),
-        watched.replacingOccurrences(of: #""doing": {"# + "\n" + #"            "is": "permission""#, with: #""doing": {"# + "\n" + #"            "is": "napping""#),
-        watched.replacingOccurrences(of: #""doing": {"#, with: #""doings": {"#),
         watched.replacingOccurrences(of: #""section": "yourTurn""#, with: #""section": "napping""#),
         watched.replacingOccurrences(of: #""name": "Plan the tool","# + "\n" + #"      "projectName""#, with: #""projectName""#),
         watched.replacingOccurrences(of: #""projectName": "Terrace","#, with: ""),
@@ -267,5 +166,17 @@ struct BoardTests {
     ])
     func aLineThatIsNotABoardIsUnread(line: String) {
         #expect(throws: Unread.shape) { try Board.read(line) }
+    }
+
+    /// What no surface shows is not read: the projects, the sessions' boards, or `changed` in their place, in any
+    /// shape or none, leave the board as it was.
+    @Test(arguments: [
+        watchedEmpty.replacingOccurrences(of: #","boards":{}"#, with: ""),
+        watchedEmpty.replacingOccurrences(of: #""boards":{}"#, with: #""changed":[]"#),
+        watchedEmpty.replacingOccurrences(of: #""projects":[]"#, with: #""projects":{"terrace":1}"#),
+        watchedEmpty.replacingOccurrences(of: #""projects":[],"#, with: ""),
+    ])
+    func whatNoSurfaceShowsIsNotRead(line: String) throws {
+        #expect(try Board.read(line) == (try Board.read(watchedEmpty)))
     }
 }

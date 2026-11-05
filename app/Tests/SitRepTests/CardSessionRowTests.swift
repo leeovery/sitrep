@@ -204,16 +204,19 @@ struct CardSessionRowTests {
         #expect(lines.allSatisfy { $0.contentsScale == 2 })
     }
 
-    /// Its time in the lane ending at 334, as tall as its figures, off the row and under the pointer alike: nothing
-    /// takes its place.
-    @Test(arguments: [false, true])
-    func itsTimeShowsUnderThePointerAsOffIt(highlighted: Bool) throws {
-        let row = Self.card(Self.harness(1, away: true))
+    /// Its time in the lane ending at 334, as tall as its figures, off the row and under the pointer alike, over the
+    /// lift of a row that jumps as over the bare black of an away one: nothing takes its place. Read against what is
+    /// drawn just left of the lane, inside the lift's corners.
+    @Test(arguments: [false, true], [false, true])
+    func itsTimeShowsUnderThePointerAsOffIt(highlighted: Bool, away: Bool) throws {
+        let row = Self.card(Self.harness(1, away: away))
 
         row.isHighlighted = highlighted
 
         let drawn = try Drawn(row.layer)
-        let time = try #require(drawn.drawnBox(in: CGRect(x: 290, y: 0, width: 54, height: 30), ground: Self.ground))
+        let time = try #require(drawn.drawnBox(
+            in: CGRect(x: 290, y: 4, width: 50, height: 22), ground: CGPoint(x: 292, y: 15)
+        ))
 
         #expect(time.height < 12 && abs(time.maxX - 334) <= 1.5)
     }

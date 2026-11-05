@@ -22,7 +22,7 @@ struct ShowRowTests {
     }
 
     /// The ground these pictures were measured over: under the card's fill, the white at 4.7% of the system's
-    /// tertiary fill, it brings the card to the SitRep window's raise, #141416, on which round 9 measured them. Over
+    /// tertiary fill, it brings the card to #141416, the raise round 9 measured them on. Over
     /// black, a notch's edge fades through the card's colour; over the window's grey, an unchosen picture's shadow
     /// darkens the card past what `spans` counts as the card, as Appearance's does.
     private static let raiseGround = Color(.sRGB, red: 8.4 / 255, green: 8.4 / 255, blue: 10.5 / 255)

@@ -1,11 +1,9 @@
 import SitRepCore
 
 /// The one `sitrep watch` the app runs, its child: started here, started again on another plugin's CLI as SitRep
-/// settles on one, and stopped as the app quits. Each board, as it changes, goes to what shows it. Nothing follows a
-/// session's board, so every run is told it follows none.
+/// settles on one, and stopped as the app quits. Each board, as it changes, goes to what shows it.
 @MainActor
 final class Feed {
-    private let following = Following()
     private var watching: Task<Void, Never>?
     /// A child once stopped stays so, so each start holds its own.
     private var child: RunningChild?
@@ -15,7 +13,7 @@ final class Feed {
         stop()
 
         let child = RunningChild()
-        let watch = SitRepWatch(cli: sitrep, following: following, watcher: watchProgram(holding: child))
+        let watch = SitRepWatch(cli: sitrep, watcher: watchProgram(holding: child))
 
         self.child = child
         watching = Task {

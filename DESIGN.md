@@ -2226,20 +2226,21 @@ truth. There is still no background service. None of it is built now. Lee:
 
     `created` (4 November 2026) is when the session started, as its
     `session.json` says; `board --json`'s `session` and `watch`'s sessions
-    carry it too, for the SitRep window to say when it started. A field
-    added: `v` did not move.
+    carry it too, built for the SitRep window to say when it started. A
+    field added: `v` did not move.
 
     `list` runs no program. Each session said `onScreen` until 27 October
     2026, whether a jump could reach it (see "The jump", step 2), which only
     `--json` worked out, asking tmux twice per socket; the app's plain menu
     was its only reader, and it went with the menu. `v` stayed 1: no reader
     is left to trip on the field's going. It came back on 4 November 2026 as
-    a command of its own, `screen` (below), for the SitRep window.
+    a command of its own, `screen` (below), built for the SitRep window.
   - `screen` (4 November 2026) says whether each session a window holds is
     on screen: whether a jump could reach it, a terminal window of this Mac
     showing it or tmux able to make one show it, exactly as the jump finds
-    it (see "The jump", step 2), by the same reading. It is the SitRep
-    window's, whose rows and pages say whether a session is on screen.
+    it (see "The jump", step 2), by the same reading. It was built for the
+    SitRep window's rows and pages, to say whether a session is on screen;
+    since the window went (5 November 2026) the app does not run it.
     - Three states, never two: `on`, a place shows the session or a select
       would make one; `off`, none does, every program asked of its windows
       having answered; `unknown`, none found, as tmux gave no answer for a
@@ -2285,9 +2286,8 @@ truth. There is still no background service. None of it is built now. Lee:
       nothing to the folder, so no change of the board would carry it, and
       `watch`, which runs for the app's whole life, would ask tmux and `ps`
       at every look, the window shut or not, for the one window that shows
-      it. `list` runs no program, and keeps so. The app
-      asks for it on its own cadence, only while its window shows (see "The
-      SitRep window", "On screen"). The reading stays in the CLI's
+      it. `list` runs no program, and keeps so. The window asked for it on
+      its own cadence, only while it showed. The reading stays in the CLI's
       `screen.ts`, one place, which a jump reads too, so zmx, should Lee move
       to it, comes in there behind the same states.
 
@@ -2327,12 +2327,12 @@ truth. There is still no background service. None of it is built now. Lee:
     rows and its head follow it, while its session's `asks` keep such an
     ask, its `reply` saying it is on its way. `watch` and `board --json`
     list a session's asks alike, by core's `openAsks`: those open, waiting
-    or replied. No reader reads those yet (the SitRep window is their
-    first), and a reader of the old meaning would only count fewer asks
-    waiting on Lee, never trip on a shape.
+    or replied. The SitRep window was their one reader, and a reader of the
+    old meaning would only count fewer asks waiting on Lee, never trip on a
+    shape.
   - `answer` (20 October 2026) answers a yes or a choice ask, or ignores
-    any ask, as Lee does on the board, for the SitRep window to answer
-    through: the ask by its id, then the answer in
+    any ask, as Lee does on the board, built for the SitRep window to answer
+    through, which the app no longer runs: the ask by its id, then the answer in
     the words of the button Lee pressed, a yes ask's yes (`sitrep answer k1
     Go`) or one of a choice ask's options (`sitrep answer k2 Keep it`),
     matched exactly, as the board shows them; or `--ignore` in their place,
@@ -2413,15 +2413,16 @@ truth. There is still no background service. None of it is built now. Lee:
       else `null`, with none sent, one gone void as its ask was edited under
       it before Claude had it (the ask can be answered again), or only a
       comment Claude has. `words` is the reply as the board shows it on one
-      row (`→ Go`, `ignored`, `comment: “Tighten the copy”`). Those are the
-      SitRep window's card: "on its way" on an open ask, "sent, and Claude
-      has it" on the ask the answer just closed, as the pane's Asks keep one
-      for a moment, and then Resolved, where `board --json` lists it.
+      row (`→ Go`, `ignored`, `comment: “Tighten the copy”`). Those were
+      built for the SitRep window's card: "on its way" on an open ask, "sent,
+      and Claude has it" on the ask the answer just closed, as the pane's
+      Asks keep one for a moment, and then Resolved, where `board --json`
+      lists it.
   - `finish` (20 October 2026) finishes a session no window holds, as the
-    pane's `✓ finish this session` does, for the SitRep window's `✓ Finish
-    this session`: Lee's finish, `{ "type": "finish", "who": "lee" }`, in the
-    CLI's own file, nothing in the inbox. It prints nothing. Asking first is
-    the window's. A session a live window holds is refused (`Dashboard
+    pane's `✓ finish this session` does, built for the SitRep window's `✓
+    Finish this session`, which the app no longer runs: Lee's finish, `{
+    "type": "finish", "who": "lee" }`, in the CLI's own file, nothing in the
+    inbox. It prints nothing. Asking first is the caller's. A session a live window holds is refused (`Dashboard
     redesign is open in a window: tell Claude there to finish it.`), as is
     one already finished (`This session is already finished.`); an unknown
     one is exit 2.
@@ -2434,8 +2435,9 @@ truth. There is still no background service. None of it is built now. Lee:
     SitRep app hears the board: one per Mac, which the app starts as its
     child, so it stops with the app, and the app starts it again if it
     exits: no daemon. It takes no words but `--help`; on its standard input
-    it hears which sessions the app follows, whose boards its lines carry
-    (below, **Following**). It reads the one folder that holds every project
+    it hears which sessions are followed, whose boards its lines carry
+    (below, **Following**): the app, since the SitRep window went (5
+    November 2026), gives it `/dev/null` and follows none. It reads the one folder that holds every project
     and session (see Storage), and what it prints is core's: a session's
     state and its rows (`core/rows.ts`); the board as every surface shows
     it, what is new, and when the board next changes by time alone
@@ -2455,9 +2457,8 @@ truth. There is still no background service. None of it is built now. Lee:
       once. A finished session is in no row and no project, though a
       window still live on it is among the windows; an away session is in
       both, its asks still counting. It carries no
-      project without a current session, nor does `list --json`, so the
-      SitRep window's Projects is every project it carries, those with
-      nothing open among them. A state folder not there yet, as
+      project without a current session, nor does `list --json`. A state
+      folder not there yet, as
       before any Claude window has written, is an empty board, and what
       comes into it shows.
 
@@ -2569,7 +2570,8 @@ truth. There is still no background service. None of it is built now. Lee:
       its asks snoozed as `snoozed`, which `waiting` leaves out, and each ask
       carries `snoozedUntil`, as in `board --json`. Fields added: `v` did not
       move.
-    - `projects`: those with a current session, in the SitRep window's order:
+    - `projects`: those with a current session, which the app does not
+      read (5 November 2026), in the order the SitRep window listed them:
       a session where its row sits, those with none after, the latest updated
       first; a project where its first session sits. Each session is as `list
       --json` gives it, with its `state` (`needsYou`, `working`, `onItsWork`,
@@ -2580,10 +2582,10 @@ truth. There is still no background service. None of it is built now. Lee:
       `openAsks`): waiting, on Lee or on a window to deliver Lee's reply, or
       replied, Claude's to act on, each with its `reply`, which tells them
       apart. So a reply going into a session's inbox is a line, its board
-      among `boards` where the app follows it, and its mark is another.
+      among `boards` where it is followed, and its mark is another.
       `doing` (20 October 2026) is
       what the session is doing, as the SitRep window's line under its name
-      says it, there for every session (core's `doingOf`): a window's
+      said it, there for every session (core's `doingOf`): a window's
       permission prompt or question, the one shown first; else the window its
       turn row comes from; each as that row's `is`, its `first` as `line`, and
       its `since`. With no window holding it, `away`, "No window holds it.
@@ -2594,7 +2596,7 @@ truth. There is still no background service. None of it is built now. Lee:
       first, in posting order, as `board --json`'s `parked`, each item as it
       lists one (`id`, `title`, `where`, `ref`, `at`): on every session,
       followed or not, where before only a followed session's board held
-      them. It is what the SitRep window's Parked list reads, every item on
+      them. It was what the SitRep window's Parked list read, every item on
       the board. An item picked up or closed leaves it. A field added: `v`
       did not move.
     - `windows`: every live window, the longest attached first, a finished
@@ -2609,9 +2611,8 @@ truth. There is still no background service. None of it is built now. Lee:
       line. Since rows went by session a row keeps its key through all
       three, so an arrival is this, not a key new to the app, as it was
       while each ask and stop was a row of its own (22 October 2026). An
-      arrival swells the notch, washes its row on the card and its line in
-      the SitRep window's list, the new line's time orange there, and on the strip moves its
-      mark into Needs you at once, flashing, or flashes it where it is
+      arrival swells the notch, washes its row on the card, and on the strip
+      moves its mark into Needs you at once, flashing, or flashes it where it is
       already in Needs you. A row **changes section** when its session
       comes into Needs you or leaves it: on the card, while it is out, it
       leaves its held place for its place in its new section (see "The
@@ -2629,8 +2630,11 @@ truth. There is still no background service. None of it is built now. Lee:
       it, is a line gone as any is, so taken back after its time it is not
       new.
     - **Following.** Each line `watch` reads on its standard input is JSON,
-      `{"follow": ["sr-k3f9qa", ...]}`: the whole set of sessions the SitRep
-      window follows now, in place of the set last given. Every such line,
+      `{"follow": ["sr-k3f9qa", ...]}`: the whole set of sessions followed
+      now, in place of the set last given. The SitRep window gave it the
+      sessions it showed; since it went (5 November 2026) the app writes
+      nothing there, its standard input `/dev/null`, so the watch follows
+      none and looks on its own cadence. Every such line,
       its set changed or not, wakes the watch for a look at once, cutting its
       wait short, or, heard while a look is under way, making the next come
       at once: so the app has it look straight after a write of its own.
@@ -2675,7 +2679,10 @@ truth. There is still no background service. None of it is built now. Lee:
       names one of a set (a row's `is`, a session's `state` and its
       `doing`'s `is`, an ask's `wants`, a window's state's `is`, and the
       like) is such a change: the app reads them strictly and refuses a
-      line holding a value it does not know. New words in a line, as an away ask's `second`, are not.
+      line holding a value it does not know. New words in a line, as an away ask's `second`, are not. Since the
+      SitRep window went (5 November 2026) the app reads only `head`, the
+      rows, `snoozed`, the windows and `new`, so a change to `projects` or
+      `boards` leaves it reading the board.
       On its own work breaks this once, by plan (22 October 2026):
       `onItsWork` came into the rows', the sessions', the doings' and the
       windows' kinds without `v` moving, the app taking it in the same
@@ -4181,19 +4188,14 @@ asked for the sessions back, and approved the redraw as it stands.
     or within a minute of the last renewal, is a failure, so a `watch` that
     keeps exiting cannot spin. A run's life counts from its child starting,
     not from asking Lee's shell for the PATH before it.
-  - **What the app follows** (27 October 2026) goes on `watch`'s
-    standard input, a pipe, as a follow line (see "Following", under
-    `watch`): each run is told the set first, as it starts, a run after a
-    back-off or a renewal among them. The SitRep window followed the
-    sessions it showed; since it went (5 November 2026) the set is empty.
-    The pipe is written on a queue of
-    its own, never on the main thread nor while the app waits on it, so a
-    `watch` that reads slowly, or not at all, holds up nothing; a write
-    after `watch` ended, or once it closed its standard input, is dropped,
-    the app ignoring the broken pipe (SIGPIPE) that would otherwise kill
-    it. A run stopped while it waits on Lee's PATH, as SitRep starts
-    another on the plugin it settles on, begins nothing once the PATH
-    comes, so it never takes the set from the run started in its place.
+  - **Its standard input is `/dev/null`** (5 November 2026), so `watch`
+    follows no session and looks on its own cadence (see "Following", under
+    `watch`). From 27 October 2026 the app wrote the sessions the SitRep
+    window showed there, a follow line to each run as it started and again
+    as the set changed, on a pipe written on a queue of its own; that went
+    with the window. A run stopped while it waits on Lee's PATH, as SitRep
+    starts another on the plugin it settles on, begins nothing once the
+    PATH comes, so only the run started in its place runs.
   - **The reason.** The last 20 lines of `watch`'s stderr are kept, each to
     1KB. The reason is the last that says anything: the CLI's own `sitrep:`
     line when it ended on its own error, else the error's own line when Bun
@@ -4614,8 +4616,8 @@ live changed, and how they group.
   **Sessions**, held "Your turn folds after", "Older ones fold into one
   line, which opens in place", a pop-up of An hour, the default, Four
   hours, Today or Never: how long a your-turn row stayed on the card
-  before it folded into "N earlier",
-  saved under "app" as `foldsAfter` (22 October 2026). It went with the
+  before it folded into "N earlier", saved under "app" as `foldsAfter`
+  (22 October 2026). It went with the
   card's "N earlier" (board J2; see "The sections"): a value saved for it
   is read and passed over, as the separate Settings window's `pane` is,
   and is not written again. **Ghostty:** the leave to
@@ -4797,7 +4799,7 @@ shape allows them. A jump made in Swift, in the app, stays parked too.
    took `true` to mean a jump could reach it read it as before. It went on
    27 October 2026, the plain menu its only reader (see "One engine, two
    front ends"), and came back on 4 November 2026 as `sitrep screen`, with
-   unknown beside on and off, for the SitRep window.
+   unknown beside on and off, built for the SitRep window.
 
    **Selecting the pane's window** (19 October 2026). Where no client a jump
    can reach has the pane's tmux window current, the tmux layer makes it
@@ -5658,7 +5660,9 @@ reaches a window only while that pane is on show).
         SitRep Window after them; the card's row keeps its time under the
         pointer, with no button in its place, and its menu has no Open in
         SitRep, its click jumping as before. The CLI keeps what was built
-        for it.
+        for it; the app's side of it went with the window: the follow input,
+        `screen`, `answer`, `finish`, and reading `projects` and `boards`.
+        Its saved keys are taken out at the app's start.
    9. **Installing the plugin**: the app's first start installs it, and its
       relaunch refreshes it (Installing and updating, under "Where it
       lives"). Built 20 October 2026, and reviewed twice the same day:

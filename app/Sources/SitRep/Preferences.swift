@@ -59,7 +59,13 @@ final class Preferences {
     @ObservationIgnored private let savedWelcome: SavedSettings<WelcomeSettings>
     @ObservationIgnored private let savedCallout: SavedSettings<CalloutSettings>
 
+    /// What the SitRep window kept, until it went on 5 November 2026: where it was left, where Lee last looked at each
+    /// session, and its frame.
+    static let retired = ["windowLocation", "windowLastSession", "windowLooked", "NSWindow Frame SitRepWindow"]
+
+    /// What it reads, and the window's keys taken out, quietly, at each start, which finds them gone after the first.
     init(_ defaults: UserDefaults = .standard) {
+        Self.retired.filter { defaults.object(forKey: $0) != nil }.forEach(defaults.removeObject(forKey:))
         savedEdge = SavedEdgeSettings(defaults)
         savedApp = SavedSettings(defaults)
         edge = savedEdge.read()

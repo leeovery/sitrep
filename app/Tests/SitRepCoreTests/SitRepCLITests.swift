@@ -27,12 +27,12 @@ struct SitRepCLITests {
     @Test func aRunIsThePluginsCLIWithLeesPathAndTheAppsEnvironment() async {
         let (cli, programs) = Self.cli(Self.exited(0))
 
-        _ = await cli.finish("sr-gs7kq2")
+        _ = await cli.wake(.asks(["k1"]), of: "sr-gs7kq2")
 
         #expect(programs.all == [
             Program(
                 executable: URL(fileURLWithPath: "/Users/lee/Code/sitrep/bin/sitrep"),
-                arguments: ["finish", "--session", "sr-gs7kq2"],
+                arguments: ["wake", "--session", "sr-gs7kq2", "--", "k1"],
                 environment: ["HOME": "/Users/lee", "PATH": Self.path],
                 limit: SitRepCLI.sessionLimit,
                 stopping: .group
@@ -43,13 +43,13 @@ struct SitRepCLITests {
     @Test func aRunThatFailsSayingNothingGivesItsStatus() async {
         let (cli, _) = Self.cli(Self.exited(127, stderr: "  \n"))
 
-        #expect(await cli.finish("sr-gs7kq2") == .refused("sitrep finish ended with status 127."))
+        #expect(await cli.wake(.asks(["k1"]), of: "sr-gs7kq2") == .refused("sitrep wake ended with status 127."))
     }
 
     @Test func aFailureNotFromTheCLIIsGivenWhole() async {
         let (cli, _) = Self.cli(Self.exited(127, stderr: "env: bun: No such file or directory\n"))
 
-        #expect(await cli.finish("sr-gs7kq2") == .refused("env: bun: No such file or directory"))
+        #expect(await cli.wake(.asks(["k1"]), of: "sr-gs7kq2") == .refused("env: bun: No such file or directory"))
     }
 
     @Test func ofAManyLinedFailureTheCLIsOwnLineIsGiven() async {
@@ -60,7 +60,7 @@ struct SitRepCLITests {
         """
         let (cli, _) = Self.cli(Self.exited(2, stderr: stderr))
 
-        #expect(await cli.finish("sr-zzzzzz") == .refused("There is no session sr-zzzzzz on the board, in any project."))
+        #expect(await cli.wake(.asks(["k1"]), of: "sr-zzzzzz") == .refused("There is no session sr-zzzzzz on the board, in any project."))
     }
 
     @Test func ofAManyLinedFailureNotTheCLIsTheFirstLineWithAnythingOnItIsGiven() async {
@@ -72,7 +72,7 @@ struct SitRepCLITests {
         """
         let (cli, _) = Self.cli(Self.exited(1, stderr: stderr))
 
-        #expect(await cli.finish("sr-gs7kq2") == .refused(#"error: Cannot find module "../cli/shell" from "/Users/lee/Code/sitrep/bin/sitrep""#))
+        #expect(await cli.wake(.asks(["k1"]), of: "sr-gs7kq2") == .refused(#"error: Cannot find module "../cli/shell" from "/Users/lee/Code/sitrep/bin/sitrep""#))
     }
 
     @Test func thePathIsAskedForAtEachRun() async {
@@ -84,8 +84,8 @@ struct SitRepCLITests {
             return Ran(status: 0, stdout: "", stderr: "")
         }
 
-        _ = await cli.finish("sr-gs7kq2")
-        _ = await cli.finish("sr-gs7kq2")
+        _ = await cli.wake(.asks(["k1"]), of: "sr-gs7kq2")
+        _ = await cli.wake(.asks(["k1"]), of: "sr-gs7kq2")
 
         #expect(programs.all.map { $0.environment["PATH"] } == ["/usr/bin:/bin", Self.path])
     }
@@ -93,7 +93,7 @@ struct SitRepCLITests {
     @Test func aCLIThatCannotStartSaysSo() async {
         let (cli, _) = Self.cli { _ in throw RunError.unstartable("no such file") }
 
-        #expect(await cli.finish("sr-gs7kq2") == .refused("sitrep finish could not start: no such file."))
+        #expect(await cli.wake(.asks(["k1"]), of: "sr-gs7kq2") == .refused("sitrep wake could not start: no such file."))
     }
 
     /// The whole jump gives up after 15 seconds, Bun's start and the board's read among it (4 November 2026).
@@ -112,9 +112,8 @@ struct SitRepCLITests {
 
         _ = await cli.jump(to: "sr-047c7y")
         _ = await cli.wake(.asks(["k2"]), of: "sr-4g01a7")
-        _ = await cli.screen()
 
-        #expect(programs.all.map(\.stopping) == [.gently(grace: 1), .group, .group])
+        #expect(programs.all.map(\.stopping) == [.gently(grace: 1), .group])
     }
 
     /// The CLI's own words for an app that gave no answer in time, as Ghostty killed at its 8 seconds, exiting 3: told
@@ -161,83 +160,10 @@ struct SitRepCLITests {
         #expect(await cli.jump(to: "sr-047c7y") == .stopped)
     }
 
-    @Test func screenRunsScreenForJSONAndReadsIt() async throws {
-        let (cli, programs) = Self.cli(Self.exited(0, stdout: Lines.screen))
-
-        #expect(await cli.screen() == .read(try ScreenReading.read(Lines.screen)))
-        #expect(programs.all.map(\.arguments) == [["screen", "--json"]])
-        #expect(programs.all.map(\.limit) == [SitRepCLI.screenLimit])
-    }
-
-    @Test func aScreenThatFailsGivesTheCLIsWordsAndNoReading() async {
-        let (cli, _) = Self.cli(Self.exited(1, stderr: "sitrep: There is no command screen. sitrep --help lists them.\n"))
-        let answer = await cli.screen()
-
-        #expect(answer == .failed("There is no command screen. sitrep --help lists them."))
-        #expect(answer.reading == nil)
-    }
-
-    @Test func aScreenThatNeverEndsSaysSo() async {
-        let (cli, _) = Self.cli { program in throw RunError.timedOut(program.limit) }
-
-        #expect(await cli.screen() == .failed("sitrep screen did not answer within 10 seconds."))
-    }
-
-    @Test func aScreenWhoseOutputDoesNotReadSaysSo() async {
-        let (cli, _) = Self.cli(Self.exited(0, stdout: #"{"v": 2}"#))
-
-        #expect(
-            await cli.screen() == .failed("sitrep screen gave output version 2, and this SitRep reads version 1.")
-        )
-    }
-
-    @Test func anAnswerGivesTheAskAndTheButtonsWordsAfterTheFlagsEnd() async {
-        let (cli, programs) = Self.cli(Self.exited(0))
-
-        #expect(await cli.answer("k2", of: "sr-macapp", with: .words("--Left, the notch's edge")) == .written)
-        #expect(programs.all.map(\.arguments) == [
-            ["answer", "--session", "sr-macapp", "--", "k2", "--Left, the notch's edge"],
-        ])
-        #expect(programs.all.map(\.limit) == [10])
-    }
-
-    @Test func anIgnoreGivesTheAskAfterTheFlagsEnd() async {
-        let (cli, programs) = Self.cli(Self.exited(0))
-
-        #expect(await cli.answer("k3", of: "sr-macapp", with: .ignore) == .written)
-        #expect(programs.all.map(\.arguments) == [["answer", "--session", "sr-macapp", "--ignore", "--", "k3"]])
-    }
-
-    /// The words the real CLI refused with on 20 October 2026 (`Lines`).
-    @Test(arguments: [
-        "k2 wants a choice: answer it with “Left, the notch's edge” or “Right”.",
-        "An answer to k1 is on its way already.",
-    ])
-    func anAnswerRefusedGivesTheCLIsWords(words: String) async {
-        let (cli, _) = Self.cli(Self.exited(1, stderr: "sitrep: \(words)\n"))
-
-        #expect(await cli.answer("k1", of: "sr-macapp", with: .words("Upward")) == .refused(words))
-    }
-
-    @Test func finishRunsFinishOnTheSession() async {
-        let (cli, programs) = Self.cli(Self.exited(0))
-
-        #expect(await cli.finish("sr-gs7kq2") == .written)
-        #expect(programs.all.map(\.arguments) == [["finish", "--session", "sr-gs7kq2"]])
-        #expect(programs.all.map(\.limit) == [10])
-    }
-
-    @Test func aFinishRefusedGivesTheCLIsWords() async {
-        let words = "The Mac app is open in a window: tell Claude there to finish it."
-        let (cli, _) = Self.cli(Self.exited(1, stderr: "sitrep: \(words)\n"))
-
-        #expect(await cli.finish("sr-macapp") == .refused(words))
-    }
-
     @Test func aWriteThatNeverEndsSaysSo() async {
         let (cli, _) = Self.cli { program in throw RunError.timedOut(program.limit) }
 
-        #expect(await cli.finish("sr-gs7kq2") == .refused("sitrep finish did not answer within 10 seconds."))
+        #expect(await cli.wake(.asks(["k1"]), of: "sr-gs7kq2") == .refused("sitrep wake did not answer within 10 seconds."))
     }
 
     /// The asks come after `--`, its time in whole milliseconds since the epoch.
