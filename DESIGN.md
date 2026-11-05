@@ -753,10 +753,11 @@ keeps the image's blocks and puts the new text in place of the typed text
   queued on the ask, which goes with it. It goes only while a send would
   carry it, the session read afresh first, as a send reads it: it fits the
   ask, the ask is open, and no answer is on its way to it. Else the prompt
-  is kept, a toast saying why (`Not sent: the ask has an answer on its way
-  already.`, `…has changed since your reply was queued.`, `Not sent: Claude
-  closed the ask.`). Where a send carries the ask's reply already, the mode
-  is over, and the prompt goes to Claude as it came.
+  is kept, a toast saying why, in Ready to send's words (`Not sent: already
+  answered.`, `Not sent: it changed since your reply was queued.`, `Not
+  sent: Claude closed it.`). Where a send carries the ask's reply already,
+  the mode is over, and the prompt goes on as any prompt of Lee's does, the
+  board's context with it.
 - **Only to this window's session.** The prompt goes into this window's
   Claude, so an item of another session can't take it: the prompt is kept,
   with `An attachment goes only to this window's session: take it out to
@@ -765,12 +766,19 @@ keeps the image's blocks and puts the new text in place of the typed text
   claimed as a message in flight, as a send is (see Delivery): its id fixed,
   its text the rewritten prompt, and the reply frozen in Ready to send in
   place of whatever was queued on its item, so no send carries that as well.
-  It is submitted already, by Lee's Enter: never held, so never taken back
-  (Ready to send says `⧗ Sending.`), and never submitted by the window. It
-  goes ahead of the sends the window holds, which wait for it to end, and
-  for its turn to start, as behind any message submitted first. The
-  heartbeat says it, so its ask is on its way to every reader at once, and
-  the mode ends.
+  What was queued there is kept on the claim, in `$.state`, to be put back
+  should it not go in (builds before read the claim as a send). It is
+  submitted already, by Lee's Enter: never held, so never taken back, and
+  never submitted by the window. Ready to send draws it whole, `⧗ Sending.`
+  under its reply, never as one of the held sends' rows: short of room it
+  keeps its rows as the first send does, and while the window is stopped the
+  first held send behind it still offers `↑ send now`. It goes ahead of the
+  sends the window holds, which wait for it to end and for its turn to
+  start, as behind any message submitted first; that wait counts its 30
+  seconds only from a moment between turns, as Claude's turn ending, since a
+  prompt typed while a turn runs waits in Claude Code's queue until it ends,
+  or is folded into that turn and starts none of its own. The heartbeat says
+  it, so its ask is on its way to every reader at once, and the mode ends.
 - **Taken**, the prompt's `next` resolving with no drop, or a turn starting
   with its text, it is written down as any taken message is, the lines a
   send writes, through the hold; a write that fails, or a load cutting it
@@ -778,11 +786,17 @@ keeps the image's blocks and puts the new text in place of the typed text
   hook that let it in still waits on Claude Code, which delivers it, not the
   window; one a load or the conversation's end leaves behind is let go as
   never taken once the window has gone quiet without its turn, as a
-  message submitted and not yet heard is.
+  message submitted and not yet heard is. So let go, what was queued on its
+  item is put back, and a toast says `Your answer with the image didn't go
+  in: write it again.`: its image went with the prompt, and nothing on the
+  board holds it.
 - **Dropped beneath**, by another plugin's hook or Claude Code, it is let go
   silently: what was queued on its item is put back as it was, and the mode
   stands again, unless Lee began another meanwhile. Claude Code puts the
-  prompt back in the box.
+  prompt back in the box. A failure beneath, a hook throwing or timing
+  out, lets it go too. A drop by a plugin whose hook runs above
+  sitrep's is never seen, `next` hearing only what is beneath: the reply is
+  written down delivered all the same, a gap the mod cannot close.
 - **Typed while Claude's turn runs**, `prompt.submit` fires at Enter, with
   that turn's id (2.1.318 queues the prompt with its screening begun, and
   the engine's types say so): `next` resolves then, and the reply is

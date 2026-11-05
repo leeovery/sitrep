@@ -11,6 +11,7 @@ import {
   TAKEN,
 } from '../hooks/answering'
 import { AROUND_MS } from '../hooks/around'
+import { QUIET_MS, RIDE_LOST } from '../hooks/deliver'
 import { C } from '../hooks/look'
 import { WATCH_MS } from '../hooks/window'
 import { rowsOf } from './drawn'
@@ -986,6 +987,106 @@ test('an answer with an image whose writing failed is written down once, by the 
   expect(writtenIn(w)).toEqual([{ item: id, verdict: 'answer', isDelivered: true }])
   expect(w.flights()).toEqual([])
   expect(w.prompts).toHaveLength(1)
+})
+
+test('an answer with an image whose prompt fails beneath is let go, what was queued put back, and nothing waits on it', async ($, on) => {
+  const w = world($, on)
+
+  await w.begin()
+
+  const id = await asked(w, GO)
+  const ui = await w.pane()
+
+  await ui.press({ key: `yes:${w.item(id)}` })
+  await ui.press({ key: `rewrite:${w.item(id)}` })
+  w.failPrompts('a hook timed out')
+  await entered(w, $, 'After the copy pass [Image #1]', { attachments: [IMAGE] }).catch(() => {})
+
+  expect(w.flights()).toEqual([])
+  expect(w.state.queue).toEqual([{ ...at(w, id), verdict: 'yes' }])
+  expect(writtenIn(w)).toEqual([])
+  expect(stateOf(w, id)).toBe('waiting')
+})
+
+test('an answer with an image is never let go as never taken while its hook waits on Claude Code, however long, nor after a turn ends', SLOW, async ($, on) => {
+  const w = world($, on)
+  const { id, held, typed } = await ridingHeld(w, $)
+
+  await w.turnEnds()
+  await w.clock.advance(3 * QUIET_MS)
+
+  expect(w.flights()).toMatchObject([{ isHeld: false, isTaken: false }])
+  expect(w.toasts).not.toContain(RIDE_LOST)
+
+  held.end()
+  await typed
+
+  expect(writtenIn(w)).toEqual([{ item: id, verdict: 'yes', isDelivered: true }])
+  expect(w.flights()).toEqual([])
+})
+
+/** Lee's comment with an image let in, its hook then gone with the load a reload replaced: the ask's id. */
+const leftByReload = async (w: World, engine: Engine) => {
+  const { id, held, typed } = await ridingHeld(w, engine)
+
+  held.lose()
+  // The kit settles a prompt no hook ever answered by rejecting it as the test ends.
+  void typed.catch(() => {})
+  await engine.session.start(CONVERSATION)
+
+  return id
+}
+
+test('an answer with an image a reload left waiting on its hook is let go once the window has gone quiet without it: what was queued put back, and a toast saying to write it again', SLOW, async ($, on) => {
+  const w = world($, on)
+  const id = await leftByReload(w, $)
+
+  await w.clock.advance(QUIET_MS + WATCH_MS)
+
+  expect(w.flights()).toEqual([])
+  expect(w.toasts).toContain(RIDE_LOST)
+  expect(w.toasts.filter(toast => toast.startsWith('Not sent'))).toEqual([])
+  expect(w.state.queue).toEqual([{ ...at(w, id), verdict: 'yes' }])
+  expect(writtenIn(w)).toEqual([])
+})
+
+test('an answer with an image a reload left waiting is written down once its turn starts after all', async ($, on) => {
+  const w = world($, on)
+  const id = await leftByReload(w, $)
+
+  await w.turnStarts(RODE_WITH_GO)
+
+  expect(writtenIn(w)).toEqual([{ item: id, verdict: 'yes', isDelivered: true }])
+  expect(w.flights()).toEqual([])
+})
+
+test('an answer with an image whose ask a send claims first goes to Claude as any prompt does, and the send carries the yes alone', async ($, on) => {
+  const w = world($, on)
+
+  await w.begin()
+
+  const id = await asked(w, GO)
+  const ui = await w.pane()
+
+  await ui.press({ key: `yes:${w.item(id)}` })
+  await ui.press({ key: `rewrite:${w.item(id)}` })
+
+  const held = w.holdPrompts()
+  const typed = entered(w, $, 'After the copy pass [Image #1]', { attachments: [IMAGE] })
+
+  await ui.press({ key: 'send' })
+  await held.arrived
+  held.end()
+  await typed
+  await w.clock.settle()
+
+  expect(w.submitted).toEqual([
+    'From the board:\n- Give the go for stage 3 → Go',
+    'After the copy pass [Image #1]',
+  ])
+  expect(w.prompts[1]?.attachments).toEqual([IMAGE])
+  expect(writtenIn(w)).toEqual([{ item: id, verdict: 'yes', isDelivered: true }])
+  expect(w.state.answering).toBeNull()
 })
 
 test('the mode begun at the terminal takes nothing from Claude’s app, whose band shows the counts', async ($, on) => {

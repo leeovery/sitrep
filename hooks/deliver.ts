@@ -35,11 +35,11 @@
  */
 import type { PromptOrigin, Timer } from 'claude-code'
 import { deliveredMark, isObject, sentLines, type Body, type Session } from '../core'
-import type { SitrepInFlight, SitrepSource, SitrepStoredFlights } from '../types'
+import type { SitrepInFlight, SitrepQueued, SitrepSource, SitrepStoredFlights } from '../types'
 import { betweenTurns } from './activity'
 import { logFailure, type Host } from './host'
 import { writeOwnFile } from './into'
-import { isCarriedBy } from './queue'
+import { isCarriedBy, queuing, unqueuing } from './queue'
 import { LINGER_MS, tickAfter } from './scene'
 import { postKnown } from './seen'
 import { flightNow, refresh, sayInFlight, serially } from './window'
@@ -62,6 +62,9 @@ export const FLASH_MS = 5_000
 export const QUIET_MS = 30_000
 
 export const STILL_THERE = 'Your replies are still on the board.'
+
+/** Why an answer that went with Lee's prompt is gone from the board: it never went in, and its image went with the prompt. */
+export const RIDE_LOST = "Your answer with the image didn't go in: write it again."
 
 const UNWRITTEN = 'Claude has your replies, but the board could not write them down yet.'
 
@@ -152,41 +155,60 @@ let inputs = 0
 let commands = 0
 
 /**
- * The message this load last submitted, by its text, while its turn is yet
- * to be heard starting, and the quiet that stops the wait should that start
- * never be heard. Its submit can resolve, and write it down, a few
- * milliseconds before its turn's start is heard, so the window would seem
- * between turns meanwhile: no message goes after it until its own turn
- * starts, another's never counting, it is let go, or the quiet passes.
+ * The message this load last submitted, or the answer it last let in with
+ * Lee's prompt, by its text, while its turn is yet to be heard starting, and
+ * the quiet that stops the wait should that start never be heard. Its submit
+ * can resolve, and write it down, a few milliseconds before its turn's start
+ * is heard, so the window would seem between turns meanwhile: no message
+ * goes after it until its own turn starts, another's never counting, it is
+ * let go, or the quiet passes. The quiet counts only from a moment between
+ * turns: Lee's prompt typed while a turn runs waits in Claude Code's queue
+ * until that turn ends, or is folded into it and starts no turn of its own.
  */
-let awaiting: { text: string; quiet: Timer } | undefined
+let awaiting: { text: string; quiet?: Timer } | undefined
 
-const awaitTurn = (host: Host, text: string) => {
-  awaiting?.quiet.cancel()
-  awaiting = { text, quiet: host.clock.after(QUIET_MS, () => (awaiting = undefined)) }
+/** Counts the wait's quiet from now, unless it counts one already. */
+const quietAwaiting = (host: Host) => {
+  const waiting = awaiting
+
+  if (waiting === undefined || waiting.quiet !== undefined) {
+    return
+  }
+
+  waiting.quiet = host.clock.after(QUIET_MS, () => {
+    if (awaiting === waiting) {
+      awaiting = undefined
+    }
+  })
+}
+
+const awaitTurn = (host: Host, text: string, isBetween: boolean) => {
+  awaiting?.quiet?.cancel()
+  awaiting = { text }
+
+  if (isBetween) {
+    quietAwaiting(host)
+  }
 }
 
 const stopAwaiting = () => {
-  awaiting?.quiet.cancel()
+  awaiting?.quiet?.cancel()
   awaiting = undefined
 }
 
+/** A claim's identity, as `isClaim` compares claims. */
+const claimKey = ({ claimedAt, text }: SitrepInFlight) => `${claimedAt}\n${text}`
+
 /**
- * The answer this load claimed as it went in with Lee's own prompt
- * (`claimRide`), while the hook that let it in waits on Claude Code: no
- * quiet lets it go meanwhile, since Claude Code, not the window, delivers
+ * The answers this load claimed as they went in with Lee's own prompt
+ * (`claimRide`), while the hook that let each in waits on Claude Code: no
+ * quiet lets one go meanwhile, since Claude Code, not the window, delivers
  * it. One a load or the conversation's end leaves behind waits as any
  * message submitted and not yet heard.
  */
-let riding: SitrepInFlight | undefined
+const hooked = new Set<string>()
 
-const isRiding = (current: SitrepInFlight) => riding !== undefined && isClaim(current, riding)
-
-const stopRiding = (ride: SitrepInFlight) => {
-  if (isRiding(ride)) {
-    riding = undefined
-  }
-}
+const isHooked = (current: SitrepInFlight) => hooked.has(claimKey(current))
 
 /** Whether a prompt is the board's own message: Lee's replies, from Ready to send or another session's inbox. */
 export const isBoardMessage = (origin: PromptOrigin) =>
@@ -288,19 +310,55 @@ const lessFrom = (flights: SitrepInFlight[], at: number) =>
  */
 const release = async (host: Host, delivery: SitrepInFlight, why: string) => {
   let isLet = false
+  let isAnyBehind = false
 
   await changeFlight(host, flights => {
     const at = flights.findIndex(each => isUnheard(each, delivery))
+    const left = at === -1 ? flights : lessFrom(flights, at)
 
     isLet = at !== -1
+    isAnyBehind = left.length < flights.length - 1
 
-    return isLet ? lessFrom(flights, at) : flights
+    return left
   })
 
   if (isLet) {
     stopAwaiting()
-    AFTER[delivery.source].notTaken(host, why)
+    sayNotTaken(host, delivery, why, isAnyBehind)
+    await putBack(host, delivery)
     await foldAgain(host)
+  }
+}
+
+/**
+ * Ready to send as it was before an answer went in with Lee's prompt, once
+ * it is let go without going in: the reply it displaced back on its item,
+ * else none there. Nothing for any other message.
+ */
+const putBack = async (host: Host, { ride, session, replies }: SitrepInFlight) => {
+  const item = replies[0]?.item
+
+  if (ride === undefined || item === undefined) {
+    return
+  }
+
+  await host.state.queue.update(queue =>
+    ride.was === undefined ? unqueuing(queue, session, item) : queuing(queue, ride.was),
+  )
+}
+
+/** Says a message went nowhere: an answer that went with Lee's prompt has to be written again, its image with it; the replies of sends let go behind it are still on the board. */
+const sayNotTaken = (host: Host, delivery: SitrepInFlight, why: string, isAnyBehind: boolean) => {
+  if (delivery.ride === undefined) {
+    AFTER[delivery.source].notTaken(host, why)
+
+    return
+  }
+
+  host.ui.toast(RIDE_LOST)
+
+  if (isAnyBehind) {
+    AFTER.send.notTaken(host, why)
   }
 }
 
@@ -562,7 +620,7 @@ export const sendHeld = async (host: Host) => {
     await liftStop(host).catch(logFailure(host, 'ending the wait on your input'))
   }
 
-  awaitTurn(host, going.text)
+  awaitTurn(host, going.text, true)
   quietFor(host, going)
   void submit(host, going).catch(logFailure(host, 'submitting the message'))
 
@@ -575,18 +633,24 @@ export const sendHeld = async (host: Host) => {
  * Lee, failed, refused), a `/clear`, or a load starting. The first goes
  * while the window holds it (`sendHeld`); submitted before and not taken,
  * it is let go once `QUIET_MS` pass with no turn starting, unless it is the
- * answer whose hook still waits on Claude Code (`riding`). Nothing while a
- * turn runs.
+ * answer whose hook still waits on Claude Code (`hooked`). The wait on a
+ * message's turn counts its quiet from here, should it count none yet.
+ * Nothing while a turn runs.
  */
 export const carryOn = async (host: Host) => {
+  const isBetween = await betweenTurns(host)
+
+  if (isBetween()) {
+    quietAwaiting(host)
+  }
+
   if (await sendHeld(host)) {
     return
   }
 
   const [first] = await flightNow(host)
-  const isBetween = await betweenTurns(host)
 
-  if (first !== undefined && !first.isHeld && !first.isTaken && !isRiding(first) && isBetween()) {
+  if (first !== undefined && !first.isHeld && !first.isTaken && !isHooked(first) && isBetween()) {
     quietFor(host, first)
   }
 }
@@ -644,20 +708,53 @@ export const deliver = async (
 }
 
 /**
- * Claims an answer going in with Lee's own prompt, rewritten as the board's
- * words for it (answering.ts): submitted by his Enter, so never held, nor
- * ever submitted by the window. It goes ahead of every message the window
- * holds, which wait for it to end as behind any message submitted first.
- * Undefined, claiming nothing, where a send in flight carries a reply to
- * its item already.
+ * Lets go of an answer that went with Lee's prompt but not in, silently:
+ * Ready to send as it was before (`putBack`), and its ask waiting on Lee
+ * again at once. Its hook waits no more, nor does anything on its turn.
+ * Whether it let it go.
  */
-export const claimRide = async (host: Host, outgoing: Outgoing) => {
+export const letRideGo = async (host: Host, ride: SitrepInFlight) => {
+  hooked.delete(claimKey(ride))
+
+  if (awaiting?.text === ride.text) {
+    stopAwaiting()
+  }
+
+  const isLet = await endIf(host, current => isClaim(current, ride))
+
+  if (isLet) {
+    await putBack(host, ride)
+    await foldAgain(host)
+  }
+
+  return isLet
+}
+
+/**
+ * Claims an answer going in with Lee's own prompt, rewritten as the board's
+ * words for it (answering.ts), and freezes `reply` in Ready to send in place
+ * of what was queued on its item (`was`), kept on the claim to be put back.
+ * Submitted by his Enter, it is never held, nor ever submitted by the
+ * window. It goes ahead of every message the window holds, which wait for it
+ * to end, and for its turn to start, as behind any message submitted first.
+ * While its hook waits on Claude Code no quiet lets it go (`hooked`).
+ * Undefined, claiming nothing, where a send in flight carries a reply to its
+ * item already; a claim whose freezing fails is let go again.
+ */
+export const claimRide = async (
+  host: Host,
+  outgoing: Outgoing,
+  reply: SitrepQueued,
+  was: SitrepQueued | undefined,
+) => {
   const ride: SitrepInFlight = {
     ...outgoing,
     claimedAt: await host.clock.now(),
     isHeld: false,
     isTaken: false,
+    ride: was === undefined ? {} : { was },
   }
+  const isBetween = await betweenTurns(host)
   let isClaimed = false
 
   await changeFlight(host, flights => {
@@ -666,40 +763,37 @@ export const claimRide = async (host: Host, outgoing: Outgoing) => {
 
     isClaimed = !flights.some(each => carriesAny(each, outgoing))
 
-    return isClaimed ? [...flights.slice(0, at), ride, ...flights.slice(at)] : flights
+    if (!isClaimed) {
+      hooked.delete(claimKey(ride))
+
+      return flights
+    }
+
+    hooked.add(claimKey(ride))
+
+    return [...flights.slice(0, at), ride, ...flights.slice(at)]
   })
 
   if (!isClaimed) {
     return undefined
   }
 
-  riding = ride
+  awaitTurn(host, ride.text, isBetween())
+
+  try {
+    await host.state.queue.update(queue => queuing(queue, reply))
+  } catch (error) {
+    await letRideGo(host, ride)
+    throw error
+  }
 
   return ride
 }
 
-/**
- * Claude Code took Lee's prompt carrying the answer: written down as any
- * message taken. Nothing goes after it until its turn is heard starting, as
- * after a submit; one that starts first has written it down already.
- */
+/** Claude Code took Lee's prompt carrying the answer: written down as any message taken, unless its turn, starting first, did that. */
 export const rideTaken = async (host: Host, ride: SitrepInFlight) => {
-  stopRiding(ride)
-  awaitTurn(host, ride.text)
+  hooked.delete(claimKey(ride))
   await heard(host, current => isClaim(current, ride))
-}
-
-/**
- * Lets go of the answer as Lee's prompt carrying it went nowhere, silently:
- * Claude Code puts the prompt back in his box. Its asks wait on Lee again
- * at once.
- */
-export const rideDropped = async (host: Host, ride: SitrepInFlight) => {
-  stopRiding(ride)
-
-  if (await endIf(host, current => isClaim(current, ride))) {
-    await foldAgain(host)
-  }
 }
 
 /**
@@ -745,7 +839,7 @@ export const letGoHeldOne = (host: Host, delivery: SitrepInFlight) =>
  * prompt among them, whatever its hook still waits on.
  */
 export const conversationEnded = async (host: Host, isCleared: boolean) => {
-  riding = undefined
+  hooked.clear()
 
   if (!isCleared) {
     await letGoHeld(host, () => true)
@@ -788,7 +882,8 @@ export const writeTaken = async (host: Host) => {
  * taken is written down, and those it left otherwise are carried on, still
  * held while a turn runs, or while the window is stopped, as a reload no
  * one typed leaves Claude Code's refusal standing. It knows nothing of a
- * submit before it, so goes by the turn the window's state says. The
+ * submit before it, so goes by the turn the window's state says, nor of a
+ * hook an earlier load let an answer in from, which died with that load. The
  * heartbeat learns the messages in flight from the window's first need of
  * them (window.ts), never from `writeTaken`'s read, which is as old as the
  * load's first hook and may predate a send claimed since.
@@ -797,6 +892,7 @@ export const takeUpDelivery = async (host: Host) => {
   quiet?.cancel()
   quiet = undefined
   stopAwaiting()
+  hooked.clear()
   await writeTaken(host)
   await carryOn(host)
 }

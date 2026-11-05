@@ -420,12 +420,9 @@ export const register: Register = on => {
     // Rewritten as the board's own message, which takes no board context,
     // its attachments passing through as Lee attached them.
     if (taken !== undefined) {
-      const entered = await next({ ...e, text: taken.text })
+      const entered = await taken.enter(text => next({ ...e, text }))
 
-      if (entered.drop === undefined) {
-        await taken.went().catch(logFailure(host, 'writing down the answer Claude has'))
-      } else {
-        await taken.dropped().catch(logFailure(host, 'letting go of the answer'))
+      if (entered.drop !== undefined) {
         await wentNowhere()
       }
 

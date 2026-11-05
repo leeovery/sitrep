@@ -229,8 +229,11 @@ const holdingOf = (scene: Scene, at: number): Holding => {
     return 'turn'
   }
 
-  return at === scene.inFlight.findIndex(each => each.source === 'send') ? 'stop' : 'behindStop'
+  return at === scene.inFlight.findIndex(isHeldSend) ? 'stop' : 'behindStop'
 }
+
+/** Whether a message in flight is a send of Lee's from Ready to send: not the inbox's, nor an answer that went in with his prompt, which is submitted already. */
+const isHeldSend = (flight: SitrepInFlight) => flight.source === 'send' && flight.ride === undefined
 
 /**
  * A send of Lee's on its way as a group of its own, `at` in the order
@@ -389,20 +392,27 @@ const fitted = (groups: readonly Group[], room: number, shown: string | null): G
     return [...groups]
   }
 
-  const [first, ...later] = groups.filter(isSend)
+  const [first, ...rest] = groups.filter(isSend)
   const toSend = groups.filter(group => !isSend(group))
 
   if (first === undefined) {
     return filled(toSend, room - MORE_ROWS)
   }
 
-  const left = room - MORE_ROWS - GROUP_ROWS - first.going.rows.length
+  // An answer that went in with Lee's prompt is submitted already, with no
+  // take-back to keep in reach: it shows whole, as the first send does.
+  const leading = [first, ...rest.filter(send => !isHeldSend(send.going.send))]
+  const later = rest.filter(send => isHeldSend(send.going.send))
+  const left = leading.reduce(
+    (rows, send) => rows - GROUP_ROWS - send.going.rows.length,
+    room - MORE_ROWS,
+  )
   const briefs = briefed(later, left, shown)
   // A brief send's replies count as shown, not as left off: its row names
   // them. Those of the sends a stepping row has yet to show count as left off.
-  const kept = filled([first, ...toSend], left - briefs.length * BRIEF_ROWS)
+  const kept = filled([...leading, ...toSend], left - briefs.length * BRIEF_ROWS)
 
-  return [...kept.slice(0, 1), ...briefs, ...kept.slice(1)]
+  return [...kept.slice(0, leading.length), ...briefs, ...kept.slice(leading.length)]
 }
 
 /**

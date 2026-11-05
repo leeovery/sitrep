@@ -201,6 +201,7 @@ function display(on: On) {
   const submitted: string[] = []
   let unplaced: string | undefined
   let dropping: string | undefined
+  let failing: string | undefined
   let holding: { arrive: () => void; turn: Promise<void> } | undefined
 
   on('ui.open', ($, e) => {
@@ -272,6 +273,10 @@ function display(on: On) {
       await holding.turn
     }
 
+    if (failing !== undefined) {
+      throw new Error(failing)
+    }
+
     if (dropping !== undefined) {
       return { drop: dropping }
     }
@@ -308,6 +313,10 @@ function display(on: On) {
     /** Prompts from here on do not enter, for that reason; or, given none, they enter again. */
     dropPrompts: (reason?: string) => {
       dropping = reason
+    },
+    /** Prompts from here on fail beneath the mod, as a hook there throwing or timing out; or, given nothing, they enter again. */
+    failPrompts: (error?: string) => {
+      failing = error
     },
     /**
      * Prompts from here on wait, as behind a running turn: `arrived` once

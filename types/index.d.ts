@@ -282,7 +282,12 @@ export type SitrepInFlight = SitrepSessionRef & {
   isHeld: boolean
   /** Whether Claude Code has taken the message, its lines still to write. */
   isTaken: boolean
+  /** Set on an answer that went in with Lee's own prompt, rewritten, an image with it: never held nor submitted by the window. Builds before it read it as a send. */
+  ride?: SitrepRide
 }
+
+/** What an answer going in with Lee's prompt displaced in Ready to send: the reply queued on its item before, if one was, put back should the answer not go in. */
+export type SitrepRide = { was?: SitrepQueued }
 
 /**
  * The messages in flight as `$.state` keeps them, in the order claimed: one

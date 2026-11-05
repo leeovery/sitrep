@@ -37,19 +37,11 @@ import {
   type Verdict,
 } from '../core'
 import type { SitrepAnswering, SitrepInFlight, SitrepQueued } from '../types'
-import { claimRide, rideDropped, rideTaken } from './deliver'
+import { claimRide, letRideGo, rideTaken } from './deliver'
 import { logFailure, type Host } from './host'
 import { unwrapPastes } from './paste'
 import { briefOf, filedAt } from './places'
-import {
-  isCarried,
-  queuedOn,
-  queuing,
-  replyBodies,
-  unqueuing,
-  whyLeft,
-  type LeftOut,
-} from './queue'
+import { isCarried, queuedOn, queuing, replyBodies, whyLeft, type LeftOut } from './queue'
 import { sceneOf, type Scene } from './scene'
 import { refresh, serially } from './window'
 
@@ -59,15 +51,19 @@ export type Answering = { answering: SitrepAnswering; item: Ask | Parked }
 /** The mode as the board reads its item: standing, or over once the item can take the reply no longer. */
 type Standing = Answering | 'over'
 
+/** What a hook's `next` settles to: entered, or dropped, and why. */
+type Entered = { drop?: string }
+
 /**
  * Lee's prompt let in as the board's words for the reply, its attachments
- * with it, the reply claimed as a message in flight: `went` once Claude Code
- * takes the prompt, `dropped` once it goes nowhere.
+ * with it, the reply claimed as a message in flight: `enter` passes the
+ * prompt on, rewritten, through `pass`, and settles the claim by what
+ * becomes of it.
  */
-export type Riding = { text: string; went: () => Promise<void>; dropped: () => Promise<void> }
+export type LetIn = { enter: <R extends Entered>(pass: (text: string) => Promise<R>) => Promise<R> }
 
-/** What the mode makes of Lee's prompt: dropped, taken or kept in the box, and why, for the transcript; or let in, riding. */
-export type Captured = { drop: string } | Riding
+/** What the mode makes of Lee's prompt: dropped, taken or kept in the box, and why, for the transcript; or let in. */
+export type Captured = { drop: string } | LetIn
 
 /** What the next Enter queues, by what the mode was entered for. */
 const VERDICT: Record<SitrepAnswering['as'], Verdict> = {
@@ -104,11 +100,11 @@ const EMPTY = 'Write your answer in the prompt first, or cancel it on the band.'
 export const ELSEWHERE =
   "An attachment goes only to this window's session: take it out to answer in words, or answer from that session's window."
 
-/** Why a reply can't go in with Lee's prompt, as Ready to send would leave it out, its session read afresh. */
+/** Why a reply can't go in with Lee's prompt, as Ready to send says it leaves one out, its session read afresh. */
 export const CANNOT_RIDE: Record<LeftOut, string> = {
-  changed: 'Not sent: the ask has changed since your reply was queued.',
-  answered: 'Not sent: the ask has an answer on its way already.',
-  resolved: 'Not sent: Claude closed the ask.',
+  changed: 'Not sent: it changed since your reply was queued.',
+  answered: 'Not sent: already answered.',
+  resolved: 'Not sent: Claude closed it.',
 }
 
 /** How long after a taken prompt is dropped the box is cleared: once the engine has put it back. */
@@ -312,37 +308,40 @@ const queued = async (host: Host, standing: Answering, words: string): Promise<C
 }
 
 /**
- * Lets go of the ride as Lee's prompt went nowhere: the reply queued on its
- * item put back as it was, frozen until the claim ends, and the mode
- * standing again, unless Lee began another meanwhile.
+ * Passes Lee's prompt on, rewritten as `text`, and settles the answer it
+ * carries by what becomes of it: taken, written down; dropped beneath, let
+ * go, the mode standing again unless Lee began another meanwhile; failed
+ * beneath, let go, the failure passed on.
  */
-const unride = async (
-  host: Host,
-  ride: SitrepInFlight,
-  answering: SitrepAnswering,
-  was: SitrepQueued | undefined,
-) => {
-  const { session, item } = answering
+const enterWith =
+  (host: Host, ride: SitrepInFlight, answering: SitrepAnswering, text: string) =>
+  async <R extends Entered>(pass: (text: string) => Promise<R>) => {
+    const entered = await pass(text).catch(async (error: unknown) => {
+      await letRideGo(host, ride)
+      throw error
+    })
 
-  await host.state.queue.update(queue =>
-    was === undefined ? unqueuing(queue, session, item) : queuing(queue, was),
-  )
-  await rideDropped(host, ride)
-  await host.state.answering.update(now => now ?? answering)
-}
+    if (entered.drop === undefined) {
+      await rideTaken(host, ride)
+    } else {
+      await letRideGo(host, ride)
+      await host.state.answering.update(now => now ?? answering)
+    }
+
+    return entered
+  }
 
 /**
  * Lee's prompt, carrying an attachment, let in as the board's words for the
  * reply, so the attachment goes with it: only for an item of the session the
  * window holds, whose Claude it goes into, and only while the item, read
  * afresh, takes the reply as a send would carry it; else it is kept, a toast
- * saying why. Claimed as a message in flight before it goes, the reply
- * frozen in Ready to send in place of what was queued on its item, so no
- * send carries that too; and the mode is over. Where a send carries the
- * item's reply already, the mode is over and the prompt goes to Claude as
- * ever.
+ * saying why. The mode is over, and the reply claimed as a message in flight
+ * before it goes, frozen in Ready to send in place of what was queued on
+ * its item, so no send carries that too. Where a send carries the item's
+ * reply already, the prompt goes on as any prompt does.
  */
-const riding = async (
+const letIn = async (
   host: Host,
   scene: Scene,
   { answering }: Answering,
@@ -368,30 +367,23 @@ const riding = async (
     return { drop: NOT_TAKEN }
   }
 
-  const ride = await claimRide(host, {
-    source: 'send',
-    project: held.project,
-    session: session.id,
-    writer: held.writer,
-    text: message.text,
-    replies: replyBodies(session, message.replies),
-  })
-
   await forget(host)
 
-  if (ride === undefined) {
-    return undefined
-  }
+  const ride = await claimRide(
+    host,
+    {
+      source: 'send',
+      project: held.project,
+      session: session.id,
+      writer: held.writer,
+      text: message.text,
+      replies: replyBodies(session, message.replies),
+    },
+    reply,
+    queuedOn(queue, answering.session, answering.item),
+  )
 
-  const was = queuedOn(queue, answering.session, answering.item)
-
-  await host.state.queue.update(waiting => queuing(waiting, reply))
-
-  return {
-    text: message.text,
-    went: () => rideTaken(host, ride),
-    dropped: () => unride(host, ride, answering, was),
-  }
+  return ride === undefined ? undefined : { enter: enterWith(host, ride, answering, message.text) }
 }
 
 /**
@@ -434,6 +426,6 @@ export const captured = async (
   }
 
   return attachments.length > 0
-    ? riding(host, scene, standing, words)
+    ? letIn(host, scene, standing, words)
     : queued(host, standing, words)
 }
