@@ -5,7 +5,8 @@ export type Environment = Readonly<Record<string, string | undefined>>
  * The environment the CLI's programs run in: its own, with a UTF-8
  * character type where it names no locale at all. SitRep starts the CLI
  * with none, and there `ps` mangles a path that isn't ASCII (an app at
- * `Café.app`), so a jump could not find its terminal. A locale set by
+ * `Café.app`), so the board would name the app wrongly and a jump could not
+ * bring it forward. A locale set by
  * `LC_ALL`, `LC_CTYPE` or `LANG` is left as it is.
  */
 export const childEnvironment = (env: Environment): Environment =>
