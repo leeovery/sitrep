@@ -17,8 +17,10 @@ import {
   checkNote,
   checkPark,
   checkSnooze,
+  checkSnoozeTurn,
   checkStatus,
   checkWake,
+  checkWakeTurn,
   inWords,
   WANTS,
   withId,
@@ -125,8 +127,30 @@ const idOf = (body: { id: string }) => body.id
 const quietly = (checked: Checked<Body[]>): Checked<Outcome> =>
   checked.ok ? { ok: true, value: { post: checked.value, print: '' } } : checked
 
-/** The asks a snooze or a wake names. */
-const ASKS: Arg = { field: 'ask', about: "each ask's id, as the board lists it", isMany: true }
+/** The asks a snooze or a wake names, or in their place the session's turn. */
+const ASKS_OR_TURN: Arg = {
+  field: 'ask',
+  about: "each ask's id, as the board lists it",
+  or: 'turn',
+  isMany: true,
+}
+
+/** In place of asks, the session's turn, which a snooze or a wake names by its end. */
+const TURN: Record<string, Flag> = {
+  turn: {
+    field: 'turn',
+    form: 'one',
+    value: '<ms>',
+    about: "in place of asks, the session's turn, by its end in milliseconds since the epoch, as watch gives its row's since",
+  },
+}
+
+/** Whether the words name the session's turn, not asks. */
+const isTurn = (input: Fields) => input.turn !== undefined
+
+/** The one line a check came to, as a command's lines come out. */
+const alone = <B extends Body>(checked: Checked<B>): Checked<Body[]> =>
+  checked.ok ? { ok: true, value: [checked.value] } : checked
 
 const note: SessionCommand = {
   name: 'note',
@@ -263,31 +287,38 @@ const answer: SessionCommand = {
 const snooze: SessionCommand = {
   name: 'snooze',
   about:
-    "Snooze asks until a time, as Lee does on the board: they count nowhere as waiting on Lee until it comes, then wait on Lee again. A line for each in the CLI's own file, none in the inbox; every ask named is snoozed, or none is. One snoozed already is snoozed again, to the new time. Prints nothing.",
+    "Snooze asks until a time, as Lee does on the board: they count nowhere as waiting on Lee until it comes, then wait on Lee again. A line for each in the CLI's own file, none in the inbox; every ask named is snoozed, or none is. One snoozed already is snoozed again, to the new time. With --turn, the session's turn waiting on Lee's message, in place of asks: it leaves Your turn for Snoozed until the time, or with none until the session takes another turn, and Claude is never told. Prints nothing.",
   grammar: {
-    args: [ASKS],
+    args: [ASKS_OR_TURN],
     flags: {
       until: {
         field: 'until',
         form: 'one',
         value: '<ms>',
-        about: 'when they wake, in milliseconds since the epoch: a time still to come',
-        isNeeded: true,
+        about:
+          'when they wake, in milliseconds since the epoch: a time still to come; asks need one, and a turn with none waits until it moves',
       },
+      ...TURN,
       ...SESSION,
     },
   },
   on: 'session',
-  act: ({ session }, input, { now }) => quietly(checkSnooze(session, input, now)),
+  act: ({ session }, input, { now }) =>
+    quietly(
+      isTurn(input)
+        ? alone(checkSnoozeTurn(session, input, now))
+        : checkSnooze(session, input, now),
+    ),
 }
 
 const wake: SessionCommand = {
   name: 'wake',
   about:
-    "Wake snoozed asks now, as Lee does on the board: they wait on Lee again. A line for each in the CLI's own file; every ask named is woken, or none is. Prints nothing.",
-  grammar: { args: [ASKS], flags: { ...SESSION } },
+    "Wake snoozed asks now, as Lee does on the board: they wait on Lee again. A line for each in the CLI's own file; every ask named is woken, or none is. With --turn, the session's turn Lee snoozed, in place of asks: it is back in Your turn. Prints nothing.",
+  grammar: { args: [ASKS_OR_TURN], flags: { ...TURN, ...SESSION } },
   on: 'session',
-  act: ({ session }, input) => quietly(checkWake(session, input)),
+  act: ({ session }, input) =>
+    quietly(isTurn(input) ? alone(checkWakeTurn(session, input)) : checkWake(session, input)),
 }
 
 const finish: SessionCommand = {

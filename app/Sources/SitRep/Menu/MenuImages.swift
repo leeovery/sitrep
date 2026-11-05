@@ -51,7 +51,7 @@ enum MenuImages {
         switch session.kind {
         case .needs: session.away ? awayRing : dot
         // the menu is given no Snoozed row (`PanelBoard.sessions`)
-        case .turn, .snoozed: ring
+        case .turn, .snoozed, .snoozedTurn: ring
         case .working: arc[frame % arc.count]
         case .onItsWork: dotted
         }

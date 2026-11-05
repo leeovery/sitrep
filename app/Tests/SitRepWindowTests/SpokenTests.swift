@@ -10,8 +10,8 @@ struct SpokenTests {
     /// A row of Working or Your turn, its one line as given.
     private static func row(_ section: BoardSection, _ mark: Mark, _ line: Listed.Line) -> PlaceList.Row {
         .session(Listed.Row(
-            id: "sr-macapp", name: "The Mac app", project: "SitRep", section: section, mark: mark, isAway: false,
-            since: minutes(before: 300), lines: [line]
+            id: "sr-macapp", session: "sr-macapp", name: "The Mac app", project: "SitRep", section: section,
+            mark: mark, isAway: false, since: minutes(before: 300), lines: [line]
         ))
     }
 
@@ -26,8 +26,8 @@ struct SpokenTests {
     private static func asking(_ words: String, isAway: Bool = false, since: Date = minutes(before: 90)) -> PlaceList.Row {
         let line = Listed.Line(id: "ask:sr-1:k1", ask: "k1", lead: words, code: nil, more: nil, since: since)
         let session = Listed.Row(
-            id: "sr-1", name: "The bootstrap", project: "Kit", section: .needsYou, mark: .needs, isAway: isAway,
-            since: minutes(before: 300), lines: [line]
+            id: "sr-1", session: "sr-1", name: "The bootstrap", project: "Kit", section: .needsYou, mark: .needs,
+            isAway: isAway, since: minutes(before: 300), lines: [line]
         )
 
         return .line(PlaceList.LineRow(session: session, line: line))

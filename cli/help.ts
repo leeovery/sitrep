@@ -3,7 +3,7 @@
  * from what they take: every command's usage in brief, and one command's
  * words in full.
  */
-import type { Arg, Flag } from './args'
+import type { Arg, Flag, Grammar } from './args'
 import { COMMANDS, SESSION_FLAG, type Command } from './commands'
 
 const GAP = 2
@@ -17,20 +17,26 @@ const flagUsage = ([name, flag]: [string, Flag]) => {
   return `${flag.isNeeded ? word : `[${word}]`}${flag.form === 'many' ? '...' : ''}`
 }
 
-/** An argument as its usage gives it: itself, one or more of it, or it or the switch given in its place. */
-const argUsage = ({ field, or, isMany }: Arg) => {
+/** An argument as its usage gives it: itself, one or more of it, or it or the flag given in its place, with its value. */
+const argUsage = ({ field, or, isMany }: Arg, flags: Grammar['flags']) => {
   const word = `<${field}>${isMany ? '...' : ''}`
 
-  return or === undefined ? word : `(${word} | --${or})`
+  if (or === undefined) {
+    return word
+  }
+
+  const instead = flags[or]
+
+  return `(${word} | ${instead === undefined ? `--${or}` : flagWord(or, instead)})`
 }
 
-/** A command's usage line, each switch an argument may stand in for beside it; in the brief, without the flag every command on a session takes. */
+/** A command's usage line, each flag an argument may stand in for beside it; in the brief, without the flag every command on a session takes. */
 const usageOf = ({ name, grammar }: Command, isBrief = false) => {
   const besideArgs = grammar.args.flatMap(arg => (arg.or === undefined ? [] : [arg.or]))
 
   return [
     `sitrep ${name}`,
-    ...grammar.args.map(argUsage),
+    ...grammar.args.map(arg => argUsage(arg, grammar.flags)),
     ...Object.entries(grammar.flags)
       .filter(([flag]) => !besideArgs.includes(flag) && (!isBrief || flag !== SESSION_FLAG))
       .map(flagUsage),

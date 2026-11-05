@@ -16,8 +16,7 @@ extension WindowModel {
         }
         return WindowModel(
             plugin: plugin, works: Works(banners: banners, plugin: plugin),
-            snoozes: Snoozes(plugin: plugin, banners: banners), following: Following(), period: .hour,
-            defaults: defaults
+            snoozes: Snoozes(plugin: plugin, banners: banners), following: Following(), defaults: defaults
         )
     }
 }

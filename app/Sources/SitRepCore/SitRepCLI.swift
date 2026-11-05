@@ -35,6 +35,26 @@ public enum Answer: Sendable, Hashable {
     case ignore
 }
 
+/// What a snooze or a wake names: asks of a session, by their ids, or its turn, by the instant the turn ended, as its
+/// row's time counts from.
+public enum Snoozable: Sendable, Equatable {
+    case asks([String])
+    case turn(ended: Date)
+
+    /// What a row's Snooze puts off: its turn, by the turn's end, where it is one; else the asks its lines show; none
+    /// with neither, as on a row of stops alone or a working one.
+    public static func of(isTurn: Bool, ended: Date, asks: [String]) -> Snoozable? {
+        if isTurn {
+            return .turn(ended: ended)
+        }
+        return asks.isEmpty ? nil : .asks(asks)
+    }
+
+    public var isTurn: Bool {
+        if case .turn = self { true } else { false }
+    }
+}
+
 /// The plugin's CLI, `<plugin>/bin/sitrep`, run as a child with Lee's PATH.
 /// The app watches the board, reads which sessions show on screen, and jumps, and writes only what the board's own
 /// buttons do: Lee's answers, finishes, snoozes and wakes.
@@ -134,18 +154,33 @@ public struct SitRepCLI: Sendable {
         written(await sitrep(["finish", "--session", session], limit: Self.sessionLimit), by: "finish")
     }
 
-    /// Snoozes asks of the session until the instant given, all of them or none. The asks come after `--`, as an
-    /// answer's do.
-    public func snooze(_ asks: [String], of session: String, until: Date) async -> WriteAnswer {
-        let until = String(Int64((until.timeIntervalSince1970 * 1000).rounded()))
-        let words = ["snooze", "--until", until, "--session", session, "--"] + asks
+    /// Snoozes what is named of the session until the instant given: asks, all of them or none, which the CLI refuses
+    /// with no time; or its turn, with none until it moves.
+    public func snooze(_ named: Snoozable, of session: String, until: Date?) async -> WriteAnswer {
+        let time = until.map { ["--until", Self.milliseconds($0)] } ?? []
+        let words = ["snooze"] + time + ["--session", session] + Self.words(naming: named)
 
         return written(await sitrep(words, limit: Self.sessionLimit), by: "snooze")
     }
 
-    /// Wakes snoozed asks of the session now, all of them or none.
-    public func wake(_ asks: [String], of session: String) async -> WriteAnswer {
-        written(await sitrep(["wake", "--session", session, "--"] + asks, limit: Self.sessionLimit), by: "wake")
+    /// Wakes what is named of the session now, asleep: asks, all of them or none, or its turn.
+    public func wake(_ named: Snoozable, of session: String) async -> WriteAnswer {
+        let words = ["wake", "--session", session] + Self.words(naming: named)
+
+        return written(await sitrep(words, limit: Self.sessionLimit), by: "wake")
+    }
+
+    /// What a snooze or a wake names, as the CLI takes it: asks after `--`, as an answer's are; a turn by its end.
+    private static func words(naming named: Snoozable) -> [String] {
+        switch named {
+        case let .asks(asks): ["--"] + asks
+        case let .turn(ended): ["--turn", milliseconds(ended)]
+        }
+    }
+
+    /// An instant in whole milliseconds since the epoch, as the board keeps every time.
+    private static func milliseconds(_ instant: Date) -> String {
+        String(Int64((instant.timeIntervalSince1970 * 1000).rounded()))
     }
 
     private func written(_ ended: Ended, by command: String) -> WriteAnswer {

@@ -186,14 +186,14 @@ struct SettingsModelTests {
         #expect(mac.reads == 1)
     }
 
-    /// A turn to a pane touches nothing else Lee sets: the SitRep window and the edge, which follow it, hear nothing,
-    /// and "app" is not saved again.
+    /// A turn to a pane touches nothing else Lee sets: the edge, which follows it, hears nothing, and "app" is not saved
+    /// again.
     @Test func aTurnToAPaneTellsNoFollower() {
         let defaults = MemoryDefaults()
         let settings = Self.settings(Mac(), defaults)
         var heard = 0
 
-        settings.preferences.follow { _ in heard += 1 }
+        settings.preferences.onEdge = { _ in heard += 1 }
         settings.turn(to: .edge)
         settings.goBack()
         settings.goForward()

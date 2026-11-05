@@ -17,21 +17,14 @@ final class NotchController: NSObject, CalloutShape {
     var onJump: (String, @escaping (Bool) -> Void) -> Void = { _, _ in }
     /// A row's button, or its menu's Open in SitRep: the session to open in the SitRep window.
     var onOpen: (String) -> Void = { _ in }
-    /// A row's menu's Snooze: the session, the asks its row showed, and the time chosen.
-    var onSnooze: (String, [String], SnoozeChoice) -> Void = { _, _, _ in }
-    /// A Snoozed row's menu's Wake now: the session, and the asks its row showed.
-    var onWake: (String, [String]) -> Void = { _, _ in }
+    /// A row's menu's Snooze: the session, what its row showed to snooze, its asks or its turn, and the time chosen.
+    var onSnooze: (String, Snoozable, SnoozeTime) -> Void = { _, _, _ in }
+    /// A Snoozed row's menu's Wake now: the session, and what its row showed asleep, its asks or its turn.
+    var onWake: (String, Snoozable) -> Void = { _, _ in }
     /// A drag let the notch go: the settings with its new place.
     var onMoved: (EdgeMove) -> Void = { _ in }
     /// Each frame drawn, with whether the pointer is over the notch, or its panel.
     var onDrawn: ((_ isPointedAt: Bool) -> Void)?
-
-    /// How long a your-turn row stays before it folds into "N earlier": the card refolds at once as it changes.
-    var period: FoldPeriod {
-        didSet {
-            wake()
-        }
-    }
 
     private var settings: EdgeSettings
     private var edge: ScreenEdge
@@ -57,11 +50,10 @@ final class NotchController: NSObject, CalloutShape {
     /// The slow refresh the light breathes on while frames are idle.
     private static let lightRate = CAFrameRateRange(minimum: 20, maximum: 30, preferred: 30)
 
-    init(_ settings: EdgeSettings, period: FoldPeriod, on display: Display, defaults: UserDefaults = .standard) {
+    init(_ settings: EdgeSettings, on display: Display, defaults: UserDefaults = .standard) {
         self.settings = settings
-        self.period = period
         edge = ScreenEdge(display, settings)
-        run = NotchRun(at: Displays.now, in: .on(edge, settings, period: period), kept: SavedSettings(defaults))
+        run = NotchRun(at: Displays.now, in: .on(edge, settings), kept: SavedSettings(defaults))
         window = EdgeWindow.onScreen(frame: edge.window, view: surface)
         super.init()
 
@@ -140,7 +132,7 @@ final class NotchController: NSObject, CalloutShape {
     private func moment(at time: Double = Displays.now, pointer: CGPoint? = nil) -> NotchRun.Moment {
         NotchRun.Moment(
             time: time, pointer: pointer ?? edge.stagePoint(NSEvent.mouseLocation), pointerAt: Displays.now,
-            isShown: isShown, setting: .on(edge, settings, period: period)
+            isShown: isShown, setting: .on(edge, settings)
         )
     }
 
@@ -191,7 +183,7 @@ final class NotchController: NSObject, CalloutShape {
     /// paced.
     private func draw() {
         let frame = run.frame, time = run.time, pointer = run.seen
-        let setting = NotchRun.Setting.on(edge, settings, period: period), shown = run.takeShown()
+        let setting = NotchRun.Setting.on(edge, settings), shown = run.takeShown()
 
         if shown.swappedEdge, let crossing {
             self.crossing = nil
@@ -244,8 +236,7 @@ final class NotchController: NSObject, CalloutShape {
         NotchSurface.drawn(settings.material) == .glass && washed.map { time - $0 < Wash.length } == true
     }
 
-    /// A frame as the first of the open panel's times next reads differently, or a your-turn row folds into "N
-    /// earlier", menus tracking or not.
+    /// A frame as the first of the open panel's times next reads differently, menus tracking or not.
     private func agesChange() {
         guard let wait = Self.wait(for: run, at: Displays.wallNow) else {
             return
@@ -292,22 +283,22 @@ final class NotchController: NSObject, CalloutShape {
     }
 
     /// A right-click on a row, away or not: its menu (`RowMenu`), which holds the card open while it shows. What it
-    /// snoozes or wakes is the asks the row showed.
+    /// snoozes or wakes is what the row showed: its asks, or its turn.
     private func menu(at screenPoint: CGPoint) -> NSMenu? {
         guard let point = edge.stagePoint(screenPoint),
-              let row = run.row(at: point, in: .on(edge, settings, period: period)), let session = row.session
+              let row = run.row(at: point, in: .on(edge, settings)), let session = row.session
         else {
             return nil
         }
 
-        let id = session.id, asks = session.asks, key = row.key
+        let id = session.id, key = row.key
         let menu = RowMenu.make(
             for: RowMenu.Row(session), at: Date(), in: run.calendar,
             RowMenu.Actions(
                 open: { [unowned self] in onOpen(id) },
                 jump: { [unowned self] in jumpFromMenu(to: key) },
-                snooze: { [unowned self] in onSnooze(id, asks, $0) },
-                wake: { [unowned self] in onWake(id, asks) }
+                snooze: { [unowned self] in onSnooze(id, $0, $1) },
+                wake: { [unowned self] in onWake(id, $0) }
             )
         )
 

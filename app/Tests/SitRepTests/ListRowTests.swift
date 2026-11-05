@@ -18,8 +18,8 @@ struct ListRowTests {
     nonisolated static func needs(away: Bool = false) -> PlaceList.Row {
         let since = now.addingTimeInterval(-3600)
         let session = Listed.Row(
-            id: "sr-4g01a7", name: "Harness modernisation", project: "Harness", section: .needsYou, mark: .needs,
-            isAway: away, since: since,
+            id: "sr-4g01a7", session: "sr-4g01a7", name: "Harness modernisation", project: "Harness",
+            section: .needsYou, mark: .needs, isAway: away, since: since,
             lines: (0 ..< 3).map { Listed.Line(id: "ask:\($0)", ask: "k\($0)", lead: "Ask \($0)", code: nil, more: nil, since: since) }
         )
 
@@ -27,12 +27,14 @@ struct ListRowTests {
     }
 
     nonisolated static let working = PlaceList.Row.session(Listed.Row(
-        id: "sr-macapp", name: "The Mac app", project: "SitRep", section: .working, mark: .working, isAway: false,
+        id: "sr-macapp", session: "sr-macapp", name: "The Mac app", project: "SitRep", section: .working,
+        mark: .working, isAway: false,
         since: now, lines: [Listed.Line(id: "turn:sr-macapp", lead: "Reading", code: "Board.swift", more: nil, since: now)]
     ))
 
     nonisolated static let turn = PlaceList.Row.session(Listed.Row(
-        id: "sr-v3t7a0", name: "Licensing", project: "Fumi", section: .yourTurn, mark: .turn, isAway: false, since: now,
+        id: "sr-v3t7a0", session: "sr-v3t7a0", name: "Licensing", project: "Fumi", section: .yourTurn, mark: .turn,
+        isAway: false, since: now,
         lines: [Listed.Line(id: "turn:sr-v3t7a0", lead: "Sketched", code: nil, more: nil, since: now)]
     ))
 
@@ -114,7 +116,8 @@ struct ListRowTests {
         line.wakesAt = now.addingTimeInterval(24 * 3600)
         return .line(PlaceList.LineRow(
             session: Listed.Row(
-                id: "sr-4g01a7", name: "Harness modernisation", project: "Harness", section: .snoozed, mark: .snoozed,
+                id: "sr-4g01a7", session: "sr-4g01a7", name: "Harness modernisation", project: "Harness",
+                section: .snoozed, mark: .snoozed,
                 isAway: away, since: now.addingTimeInterval(-3600), lines: [line], wakesAt: line.wakesAt
             ),
             line: line
@@ -141,6 +144,33 @@ struct ListRowTests {
         #expect(try asleep.brightest(in: words).isAlike(held.brightest(in: words)))
         #expect(wakes.width > age.width + 10 && (282.5 ... 284.5).contains(wakes.maxX))
         #expect(try asleep.brightest(in: wakes).isAlike(needs.brightest(in: age)))
+    }
+
+    /// Harness's turn asleep until it moves, its line what Claude left Lee.
+    nonisolated static let turnAsleep: PlaceList.Row = {
+        let line = Listed.Line(id: "turn:sr-4g01a7", lead: "Stage 2 is in", code: nil, more: nil, since: now)
+        let session = Listed.Row(
+            id: "turn:sr-4g01a7", session: "sr-4g01a7", name: "Harness modernisation", project: "Harness",
+            section: .snoozed, mark: .snoozed, isAway: false, since: now, lines: [line], isTurn: true
+        )
+
+        return .line(PlaceList.LineRow(session: session, line: line))
+    }()
+
+    /// A turn asleep is a line asleep whose mark is your turn's ring, faint (board I): hollow, in the clock's neutral
+    /// grey; and in its time's place "until it moves", its right where an age's is.
+    @Test func aTurnAsleepIsALineAsleepMarkedByTheFaintRingUntilItMoves() throws {
+        let drawn = try Self.drawn(Self.turnAsleep)
+        let ring = try #require(drawn.drawnBox(in: CGRect(x: 16, y: 10, width: 26, height: 16), ground: Self.ground))
+        let stroke = try drawn.brightest(in: ring)
+        let hole = try drawn.brightest(in: CGRect(x: ring.midX - 0.5, y: ring.midY - 0.5, width: 1, height: 1))
+        let time = try #require(Self.brighter(than: 0.14, in: CGRect(x: 205, y: 8, width: 95, height: 20), of: drawn))
+
+        #expect(abs(ring.width - 9) <= 1 && abs(ring.height - 9) <= 1)
+        #expect(hole.lightness < stroke.lightness - 0.2)
+        #expect(abs(stroke.redComponent - stroke.blueComponent) < 0.02)
+        #expect((282.5 ... 284.5).contains(time.maxX))
+        #expect(time.width > 50)
     }
 
     /// The button jumps to its session's window by itself, a press of its own, so the window's jump moves no pick.

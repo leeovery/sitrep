@@ -1,64 +1,40 @@
 import CoreGraphics
 import SitRepPanel
 
-/// Where a session's row in the panel lays its parts, as the prototype's rows lay them out, the same in black and in
-/// glass: its mark at the left, its title beside it and its time at the right; then the line under them. A row fills
-/// the row's 49 of `Content(laying:)`: 7 above, the two lines' 34, and 8 below. Under the pointer its button takes
-/// its time's place (`Opener`).
+/// Where a session's row on the card lays its parts, the same in black and in glass, every row on one line (board J):
+/// its mark, its words, its project in a lane at the right of them, its own width and 12 after the words, never cut
+/// while the words are, and its time in the 36 lane, or a Snoozed row's wider wake, which the lane grows to fit, each
+/// in a line of 18 on the row's middle. Under the pointer its button takes its time's place (`Opener`).
 struct SessionRowLayout {
     /// The mark's centre: where a working row's arc turns.
     let mark: CGPoint
-    let title, age, sub: CGRect
+    /// Its words, and its project's lane.
+    let title, age, project: CGRect
     /// The button that opens its session in the SitRep window.
     let opener: CGRect
 
-    static let radius = 14.0
-    /// A row on one line's, board D's, so the lifts of two meet, and "N earlier"'s.
-    static let lineRadius = 10.0
+    /// Board D's lift, so the lifts of two rows meet.
+    static let radius = 10.0
     /// Between a session's name and its "+2", board F's.
     static let countGap = 6.0
-    /// Between a row on one line's words and its project.
+    /// Between a row's words and its project.
     static let projectGap = 12.0
-    static let pad = (top: 7.0, side: 10.0), gap = 10.0
-    static let markBox = CGSize(width: 12, height: 18), ageWidth = 36.0
+    static let side = 10.0, gap = 10.0
+    static let markWidth = 12.0, ageWidth = 36.0
     static let titleLine = 18.0
-    private static let subLine = 16.0
 
-    /// The lift's corners of a row by its shape: on one line 10, board D's; drawn whole 14, as board I draws Your
-    /// turn's.
-    static func radius(oneLine: Bool) -> Double {
-        oneLine ? lineRadius : radius
-    }
-
-    /// A row whose time is this wide: the 36 lane, or a Snoozed row's wider wake, which the lane grows to fit.
-    init(size: CGSize, time: Double = 0) {
-        let lane = max(Self.ageWidth, time)
-        let textX = Self.pad.side + Self.markBox.width + Self.gap
-        let textWidth = size.width - textX - Self.gap - lane - Self.pad.side
-        let top = Self.pad.top
-
-        mark = CGPoint(x: Self.pad.side + Self.markBox.width / 2, y: top + Self.markBox.height / 2)
-        title = CGRect(x: textX, y: top, width: textWidth, height: Self.titleLine)
-        age = CGRect(x: size.width - Self.pad.side - lane, y: top, width: lane, height: Self.titleLine)
-        sub = CGRect(x: textX, y: title.maxY, width: textWidth, height: Self.subLine)
-        opener = Opener.frame(in: size)
-    }
-
-    /// A row on one line, Working's or Snoozed's, as board I lays it out on the card (board D's your-turn row): its
-    /// mark, its words, its project in a lane at the right of them, its own width and 12 after the words, never cut
-    /// while the words are, and its time in the 36 lane, or a Snoozed row's wider wake, which the lane grows to fit,
-    /// each in a line of 18 on the row's middle. `sub` is the project's lane.
-    init(line size: CGSize, project: Double, time: Double = 0) {
+    /// A row this big whose project is this wide, and its time too: the 36 lane, or a Snoozed row's wider wake.
+    init(size: CGSize, project: Double, time: Double = 0) {
         let lane = max(Self.ageWidth, time)
         let top = (size.height - Self.titleLine) / 2
-        let textX = Self.pad.side + Self.markBox.width + Self.gap
-        let middle = max(0, size.width - textX - Self.gap - lane - Self.pad.side)
-        let project = min(project, middle)
+        let textX = Self.side + Self.markWidth + Self.gap
+        let middle = max(0, size.width - textX - Self.gap - lane - Self.side)
+        let projectWidth = min(project, middle)
 
-        mark = CGPoint(x: Self.pad.side + Self.markBox.width / 2, y: size.height / 2)
-        title = CGRect(x: textX, y: top, width: max(0, middle - project - Self.projectGap), height: Self.titleLine)
-        age = CGRect(x: size.width - Self.pad.side - lane, y: top, width: lane, height: Self.titleLine)
-        sub = CGRect(x: textX + middle - project, y: top, width: project, height: Self.titleLine)
+        mark = CGPoint(x: Self.side + Self.markWidth / 2, y: size.height / 2)
+        title = CGRect(x: textX, y: top, width: max(0, middle - projectWidth - Self.projectGap), height: Self.titleLine)
+        age = CGRect(x: size.width - Self.side - lane, y: top, width: lane, height: Self.titleLine)
+        self.project = CGRect(x: textX + middle - projectWidth, y: top, width: projectWidth, height: Self.titleLine)
         opener = Opener.frame(in: size)
     }
 }
@@ -83,31 +59,8 @@ enum EyebrowLayout {
     }
 }
 
-/// "N earlier", as board D lays it out in its 34: its ring in a row's mark lane; "8 earlier" its own width, then 7
-/// after it its sessions' projects, cut short, each on a line of 18 on its middle; its chevron in a box of 15 by 24
-/// 7.5 in from the right.
-enum EarlierLayout {
-    static let gap = 7.0
-
-    static func mark(in size: CGSize) -> CGPoint {
-        CGPoint(x: SessionRowLayout.pad.side + SessionRowLayout.markBox.width / 2, y: size.height / 2)
-    }
-
-    /// The words' line, from the mark lane to the chevron's box.
-    static func words(in size: CGSize) -> CGRect {
-        let x = SessionRowLayout.pad.side + SessionRowLayout.markBox.width + SessionRowLayout.gap
-        let line = SessionRowLayout.titleLine
-
-        return CGRect(x: x, y: (size.height - line) / 2, width: chevron(in: size).minX - SessionRowLayout.gap - x, height: line)
-    }
-
-    static func chevron(in size: CGSize) -> CGRect {
-        CardChevron.placed(right: size.width - 7.5, middle: size.height / 2)
-    }
-}
-
-/// The chevron an eyebrow and "N earlier" end with, board D's: 10 by 6 pointing down while what it heads is open, 6
-/// by 10 pointing right while it is folded, centred in its box of 15 by 24, stroked 1.5 with round caps and joins.
+/// The chevron an eyebrow ends with, board D's: 10 by 6 pointing down while its section is open, 6 by 10 pointing
+/// right while it is folded, centred in its box of 15 by 24, stroked 1.5 with round caps and joins.
 enum CardChevron {
     static let box = CGSize(width: 15, height: 24), stroke = 1.5
 
@@ -152,9 +105,4 @@ enum OpenerGlyph {
             x: box.midX - size.width / 2, y: box.midY - size.height / 2, width: size.width, height: size.height
         )
     }
-}
-
-/// The rule between what needs Lee and the rest: a point high, inset as a row's text is.
-enum DividerLayout {
-    static func rule(width: Double) -> CGRect { CGRect(x: 10, y: 2, width: width - 20, height: 1) }
 }

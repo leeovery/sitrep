@@ -278,7 +278,7 @@ struct AppSettingsTests {
         #expect(read.notifiesNewAsks)
         #expect(read.playsSound)
         #expect(read.sound == "Glass")
-        #expect(Set(keys) == ["notifiesNewAsks", "playsSound", "sound", "foldsAfter"])
+        #expect(Set(keys) == ["notifiesNewAsks", "playsSound", "sound"])
     }
 
     /// As each window played Glass before SitRep played the sound.
@@ -303,37 +303,19 @@ struct AppSettingsTests {
         #expect(read.sound == "Tink")
     }
 
-    @Test func yourTurnFoldsAfterAnHourByDefault() {
+    /// "Your turn folds after", retired on 4 November 2026: a value saved with it reads what else it holds, and the next
+    /// save leaves it out.
+    @Test func aRetiredFoldPeriodIsReadAndIgnored() throws {
         let defaults = MemoryDefaults()
 
-        #expect(SavedSettings<AppSettings>(defaults).read().foldsAfter == .hour)
-    }
-
-    @Test(arguments: FoldPeriod.allCases)
-    func theFoldPeriodIsSavedAndReadBack(period: FoldPeriod) {
-        let defaults = MemoryDefaults()
-        var settings = AppSettings()
-
-        settings.foldsAfter = period
-        SavedSettings(defaults).save(settings)
-
-        #expect(SavedSettings<AppSettings>(defaults).read().foldsAfter == period)
-    }
-
-    /// A period another version saved that this one doesn't know is the default, and keeps what else it can.
-    @Test func aFoldPeriodItDoesNotKnowIsTheDefault() {
-        let defaults = MemoryDefaults()
-
-        defaults.set(Data(#"{"notifiesNewAsks":true,"foldsAfter":"week"}"#.utf8), forKey: "app")
+        defaults.set(Data(#"{"notifiesNewAsks":true,"sound":"Tink","foldsAfter":"fourHours"}"#.utf8), forKey: "app")
 
         let read = SavedSettings<AppSettings>(defaults).read()
 
-        #expect(read.foldsAfter == .hour)
-        #expect(read.notifiesNewAsks)
-    }
-
-    @Test func settingsNamesEachPeriod() {
-        #expect(FoldPeriod.allCases.map(\.title) == ["An hour", "Four hours", "Today", "Never"])
+        #expect(read.notifiesNewAsks && read.sound == "Tink")
+        SavedSettings(defaults).save(read)
+        let saved = try #require(defaults.data(forKey: "app"))
+        #expect(!String(decoding: saved, as: UTF8.self).contains("foldsAfter"))
     }
 
     @Test func aValueAnotherVersionSavedKeepsWhatItCan() {

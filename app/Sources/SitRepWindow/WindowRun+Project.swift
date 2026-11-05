@@ -8,7 +8,7 @@ extension WindowRun {
     /// is held; and which of them no terminal shows, as the last look at the screen says.
     func projectPage(_ project: Board.Project, at time: Date) -> ProjectPage {
         let listed = Listed(last)
-        let rows = listed.needsYou.filter { listed.homes[$0.id] == project.key }
+        let rows = listed.needsYou.filter { listed.homes[$0.session] == project.key }
         let cards = project.sessions.flatMap { details.cards(of: $0, at: time) }
         let waiting = (rows.flatMap { row in row.lines.map { waitingLine($0, of: row, cards: cards) } }
             + closedWhileHeld(cards, leaving: rows, of: project)).sorted { $0.order < $1.order }
@@ -40,10 +40,10 @@ extension WindowRun {
     private func waitingLine(_ line: Listed.Line, of row: Listed.Row, cards: [Card]) -> ProjectPage.Line {
         var shown = line
 
-        shown.washed = line.ask.flatMap { ask in cards.first { $0.id == AskAddress(session: row.id, ask: ask) }?.washed }
+        shown.washed = line.ask.flatMap { ask in cards.first { $0.id == AskAddress(session: row.session, ask: ask) }?.washed }
         return ProjectPage.Line(
-            line: shown, session: row.id, sessionName: row.name, isAway: row.isAway,
-            isOffScreen: isOffScreen(row.id, isAway: row.isAway),
+            line: shown, session: row.session, sessionName: row.name, isAway: row.isAway,
+            isOffScreen: isOffScreen(row.session, isAway: row.isAway),
             isClosed: false
         )
     }
@@ -51,7 +51,7 @@ extension WindowRun {
     /// The asks closed while the page is held, which their rows no longer have, each kept as a line, faint; not one
     /// that closed asleep, which was never among them.
     private func closedWhileHeld(_ cards: [Card], leaving rows: [Listed.Row], of project: Board.Project) -> [ProjectPage.Line] {
-        let open = Set(rows.flatMap { row in row.lines.compactMap { $0.ask.map { AskAddress(session: row.id, ask: $0) } } })
+        let open = Set(rows.flatMap { row in row.lines.compactMap { $0.ask.map { AskAddress(session: row.session, ask: $0) } } })
 
         return cards.filter { $0.isClosed && $0.wakesAt == nil && !open.contains($0.id) }.compactMap { card in
             project.sessions.first { $0.id == card.id.session }.map { session in

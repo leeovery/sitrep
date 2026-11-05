@@ -38,8 +38,7 @@ struct SettingsPaneContent: View {
     }
 }
 
-/// General: Startup, Open at login; Sessions, how long Your turn's rows stay out; Ghostty, the leave to bring a
-/// session's Ghostty window to the front.
+/// General: Startup, Open at login; Ghostty, the leave to bring a session's Ghostty window to the front.
 private struct GeneralPane: View {
     let settings: SettingsModel
 
@@ -49,22 +48,11 @@ private struct GeneralPane: View {
                 StatedRow(row: .login(settings.said.login), isOn: opensAtLogin, fix: settings.fix)
             }
         }
-        SettingsSection(name: "Sessions") {
-            SettingsCard {
-                CardRow(label: "Your turn folds after", line: "Older ones fold into one line, which opens in place") {
-                    PopUp(label: "Your turn folds after", sections: [FoldPeriod.allCases], title: \.title, selection: foldsAfter)
-                }
-            }
-        }
         SettingsSection(name: "Ghostty") {
             SettingsCard {
                 StatedRow(row: .ghostty(settings.said.ghostty), isBusy: settings.isAllowing, fix: settings.fix)
             }
         }
-    }
-
-    private var foldsAfter: Binding<FoldPeriod> {
-        Binding(get: { settings.preferences.app.foldsAfter }, set: { settings.preferences.app.foldsAfter = $0 })
     }
 
     private var opensAtLogin: Binding<Bool> {

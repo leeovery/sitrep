@@ -558,7 +558,7 @@ protocol StageShape: AnyObject {
     func pace(at time: Double, _ settings: EdgeSettings) -> StagePace
 }
 
-/// The notch on the stage, its folds never kept and nothing folding into "N earlier".
+/// The notch on the stage, its folds never kept.
 @MainActor
 final class StageNotch: StageShape {
     private let notch = NotchSurface()
@@ -672,7 +672,7 @@ final class StageNotch: StageShape {
     }
 
     private static func setting(_ edge: ScreenEdge, _ settings: EdgeSettings) -> NotchRun.Setting {
-        .on(edge, settings, period: .never)
+        .on(edge, settings)
     }
 }
 

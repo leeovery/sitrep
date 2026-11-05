@@ -1,9 +1,10 @@
 import Foundation
+import SitRepCore
 import SitRepPanel
 
 /// What a click or an arrow key picks in the middle list: a line waiting on Lee, by its key; a snoozed ask under
-/// "N snoozed", by its key, the one it has in Needs you; a session's row in Working or Your turn; a parked item, by its
-/// session and its id.
+/// "N snoozed", by its key, the one it has in Needs you, or a snoozed turn, by its own; a session's row in Working or
+/// Your turn; a parked item, by its session and its id.
 public enum ListPick: Hashable, Codable, Sendable {
     case line(String)
     case snoozed(String)
@@ -13,13 +14,14 @@ public enum ListPick: Hashable, Codable, Sendable {
 
 /// A place's list, the middle column. Needs you is a row per line waiting on Lee, each ask and each window's stop, not
 /// per session: the newest first, those of sessions a window holds before those of sessions none does; then
-/// "N snoozed", its asks asleep, the soonest to wake first. Your turn and Working are a row per session, in core's
-/// order, Your turn's past the fold period under "N earlier". A fold at the list's foot shows its rows only while it is
-/// open, and always while the filter holds text. The filter keeps a line while every word typed appears in its
-/// session's name, its project's or its own words; a session's row while every word appears in its name, its project's
-/// or its lines'.
+/// "N snoozed", its asks and turns asleep, the soonest to wake first. Your turn and Working are a row per session, in
+/// core's order, Your turn's past the fold period under "N earlier". A fold at the list's foot shows its rows only
+/// while it is open, and always while the filter holds text. The filter keeps a line while every word typed appears in
+/// its session's name, its project's or its own words; a session's row while every word appears in its name, its
+/// project's or its lines'.
 public struct PlaceList: Equatable, Sendable {
-    /// A line of a session's row in Needs you, an ask or a window's stop; or in Snoozed, an ask asleep.
+    /// A line of a session's row in Needs you, an ask or a window's stop; or in Snoozed, an ask asleep, or a turn,
+    /// keyed `turn:<session>` apart from its session's asks' keys.
     public struct LineRow: Equatable, Sendable, Identifiable {
         /// The session's row it is a line of, which has its names, its mark and whether a window holds it.
         public let session: Listed.Row
@@ -31,18 +33,28 @@ public struct PlaceList: Equatable, Sendable {
             isAsleep ? .snoozed(line.id) : .line(line.id)
         }
 
-        /// An ask asleep, under "N snoozed".
+        /// An ask asleep, or a turn, under "N snoozed".
         public var isAsleep: Bool { session.section == .snoozed }
 
-        /// Its mark: asleep, the snoozed mark; else the orange dot, or the away ring while no window holds its session.
+        /// A turn asleep, its line what Claude left Lee, its time the turn's end.
+        public var isTurn: Bool { session.isTurn }
+
+        /// Its mark: asleep, the snoozed mark, a turn's the faint ring; else the orange dot, or the away ring while no
+        /// window holds its session.
         public var mark: Mark {
-            isAsleep ? .snoozed : session.isAway ? .awayAsk : .needs
+            isAsleep ? (isTurn ? .snoozedTurn : .snoozed) : session.isAway ? .awayAsk : .needs
         }
 
-        /// The ask it is, by its id, none for a window's stop: all its menu snoozes or wakes, and VoiceOver speaks of,
-        /// never the other asks of its session's row.
+        /// The ask it is, by its id, none for a window's stop or a turn: all its menu snoozes or wakes, and VoiceOver
+        /// speaks of, never the other asks of its session's row.
         public var asks: [String] {
             line.ask.map { [$0] } ?? []
+        }
+
+        /// What its menu's Snooze puts off, or its Wake now brings back: its one ask, or its turn by the turn's end;
+        /// none for a window's stop.
+        public var snoozable: Snoozable? {
+            .of(isTurn: isTurn, ended: line.since, asks: asks)
         }
     }
 
@@ -55,7 +67,7 @@ public struct PlaceList: Equatable, Sendable {
         public var pick: ListPick {
             switch self {
             case let .line(line): line.pick
-            case let .session(row): .session(row.id)
+            case let .session(row): .session(row.session)
             }
         }
 
@@ -70,8 +82,22 @@ public struct PlaceList: Equatable, Sendable {
         /// A window holds its session: its button under the pointer, and VoiceOver's "Jump to the window", jump there.
         public var jumps: Bool { row.jumps }
 
+        /// A line under "N snoozed", which its menu wakes.
+        public var isAsleep: Bool {
+            if case let .line(line) = self { line.isAsleep } else { false }
+        }
+
+        /// What its menu's Snooze puts off, or its Wake now brings back: a line's (`LineRow.snoozable`); a Your turn
+        /// row's turn, by the turn's end; none for a Working row.
+        public var snoozable: Snoozable? {
+            switch self {
+            case let .line(line): line.snoozable
+            case let .session(row): row.section == .yourTurn ? .turn(ended: row.since) : nil
+            }
+        }
+
         /// The session it shows, which the page beside the list follows.
-        public var session: String { row.id }
+        public var session: String { row.session }
 
         /// What the filter reads of it.
         fileprivate var words: [String] {
@@ -241,6 +267,29 @@ public struct PlaceList: Equatable, Sendable {
 
         return picks.indices.contains(to) ? self.selection(of: picks[to]) : nil
     }
+}
+
+/// Your turn's "N earlier" at the foot of the SitRep window's middle list: the sessions whose turn ended longer ago
+/// than the fold period, in one line, which opens in place to show them. The card shows every your-turn row (board J).
+public struct Earlier: Equatable, Sendable {
+    public let count: Int
+    /// Their projects, each once, in the rows' order.
+    public let projects: [String]
+    public let isOpen: Bool
+
+    /// Of sessions in these projects, one each, in the rows' order.
+    public init(projects: [String], isOpen: Bool) {
+        count = projects.count
+        self.projects = projects.reduce(into: []) { once, project in
+            if !once.contains(project) {
+                once.append(project)
+            }
+        }
+        self.isOpen = isOpen
+    }
+
+    /// "8 earlier".
+    public var title: String { "\(count) earlier" }
 }
 
 private extension PlaceList.LineRow {

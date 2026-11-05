@@ -1,30 +1,34 @@
 import AppKit
+import SitRepCore
 import SitRepPanel
-import enum SitRepWindow.Words
+import SitRepWindow
 
-/// The menu a right-click on a session's row brings up, on the card as Paper's boards F and G have it, and in the
-/// sidebar as board H's: Open in SitRep, on the card, which opens the session in the SitRep window as its button does;
-/// Jump to the window, as a click on the card's row does, disabled on an away row, which no window holds; then, after a
-/// separator, Snooze and its times on a row whose lines hold asks, or Wake now on a row in Snoozed. A row of stops
-/// alone offers neither. What it snoozes or wakes is the asks the row showed as it was drawn, never read again, so an
-/// ask that landed since is never snoozed unseen.
+/// The menu a right-click on a session's row brings up, on the card as Paper's boards F and G have it, and on a row of
+/// the SitRep window's list as board H's: Open in SitRep, on the card, which opens the session in the SitRep window as
+/// its button does; Jump to the window, as a click on the card's row does, disabled on an away row, which no window
+/// holds; then, after a separator, Snooze and its times on a row whose lines hold asks, those and Until it moves on a
+/// your-turn row, as board I's menu has it, or Wake now on a row in Snoozed. A row of stops alone, or a working one,
+/// offers neither. What it snoozes or wakes is what the row showed as it was drawn, never read again: its asks, so an
+/// ask that landed since is never snoozed unseen, or its turn by the turn's end, so a turn ended since is never snoozed
+/// in its place.
 @MainActor
 enum RowMenu {
     /// What a row offers.
     struct Row: Equatable {
         let jumps: Bool
-        /// The asks its lines show, by their ids.
-        let asks: [String]
+        /// What its Snooze puts off, or its Wake now brings back; none on a row of stops alone, or a working one.
+        let snoozable: Snoozable?
         let isSnoozed: Bool
     }
 
-    /// What each choice does: the snooze with the time chosen, worked out as it is pressed.
+    /// What each choice does: the snooze of what the row showed, with the time chosen, worked out as it is pressed;
+    /// the wake of what it showed asleep.
     struct Actions {
         /// None in the SitRep window, where the row is its page already.
         var open: (() -> Void)?
         var jump: () -> Void
-        var snooze: (SnoozeChoice) -> Void
-        var wake: () -> Void
+        var snooze: (Snoozable, SnoozeTime) -> Void
+        var wake: (Snoozable) -> Void
     }
 
     static func make(for row: Row, at now: Date, in calendar: Calendar, _ actions: Actions) -> NSMenu {
@@ -35,42 +39,64 @@ enum RowMenu {
             menu.addItem(ActionItem(Words.openInSitRep, run: open))
         }
         menu.addItem(ActionItem(Words.jumpToWindow, isEnabled: row.jumps, run: actions.jump))
-        if !row.asks.isEmpty {
+        if let snoozable = row.snoozable {
             menu.addItem(.separator())
-            menu.addItem(row.isSnoozed ? ActionItem(Words.wakeNow, run: actions.wake) : snooze(now, calendar, actions.snooze))
+            menu.addItem(
+                row.isSnoozed
+                    ? ActionItem(Words.wakeNow) { actions.wake(snoozable) }
+                    : snooze(SnoozeTime.offered(forTurn: snoozable.isTurn), now, calendar) { actions.snooze(snoozable, $0) }
+            )
         }
         return menu
     }
 
     /// Snooze, its times in a menu of their own.
-    private static func snooze(_ now: Date, _ calendar: Calendar, _ choose: @escaping (SnoozeChoice) -> Void) -> NSMenuItem {
+    private static func snooze(
+        _ times: [SnoozeTime], _ now: Date, _ calendar: Calendar, _ choose: @escaping (SnoozeTime) -> Void
+    ) -> NSMenuItem {
         let item = NSMenuItem(title: Words.snooze, action: nil, keyEquivalent: "")
 
-        item.submenu = SnoozeMenu(at: now, in: calendar, choose: choose)
+        item.submenu = SnoozeMenu(times, at: now, in: calendar, choose: choose)
         return item
     }
 }
 
 extension RowMenu.Row {
-    /// A row on the card.
+    /// A row on the card: its turn, by the turn's end, its time, on Your turn or in Snoozed; else its asks.
     init(_ session: Session) {
-        self.init(jumps: session.jumps, asks: session.asks, isSnoozed: session.isSnoozed)
+        let ended = Date(timeIntervalSince1970: session.since / 1000)
+
+        self.init(
+            jumps: session.jumps, snoozable: .of(isTurn: session.isTurn, ended: ended, asks: session.asks),
+            isSnoozed: session.isSnoozed
+        )
+    }
+
+    /// A row of the window's list: a line that is an ask, its one ask, waiting or asleep; a Your turn row's turn, or a
+    /// turn asleep, by the turn's end; none for a window's stop, nor a Working row (`PlaceList.Row.snoozable`).
+    init(_ row: PlaceList.Row) {
+        self.init(jumps: row.jumps, snoozable: row.snoozable, isSnoozed: row.isAsleep)
     }
 }
 
 /// Snooze's times, each with when it would wake at the right, dimmer than its name, and brighter as it is highlighted
-/// (board G), on a right tab stop, as AppKit's menus set no second label at the right of their own. The menu is its own
-/// delegate, to brighten the time highlighted.
+/// (board G), on a right tab stop, as AppKit's menus set no second label at the right of their own; Until it moves, a
+/// turn's, after a separator, with no time. The menu is its own delegate, to brighten the time highlighted.
 @MainActor
 final class SnoozeMenu: NSMenu, NSMenuDelegate {
+    private let choices: [SnoozeTime]
     private let times: [String]
 
-    init(at now: Date, in calendar: Calendar, choose: @escaping (SnoozeChoice) -> Void) {
-        times = SnoozeChoice.allCases.map { WakeTime.words($0.wakes(after: now, in: calendar), at: now, in: calendar) }
+    init(_ choices: [SnoozeTime], at now: Date, in calendar: Calendar, choose: @escaping (SnoozeTime) -> Void) {
+        self.choices = choices
+        times = choices.map { $0.wakes(after: now, in: calendar).map { WakeTime.words($0, at: now, in: calendar) } ?? "" }
         super.init(title: Words.snooze)
         autoenablesItems = false
         delegate = self
-        for choice in SnoozeChoice.allCases {
+        for choice in choices {
+            if choice == .untilItMoves {
+                addItem(.separator())
+            }
             addItem(ActionItem(choice.title) { choose(choice) })
         }
         highlight(nil)
@@ -84,15 +110,15 @@ final class SnoozeMenu: NSMenu, NSMenuDelegate {
         highlight(item)
     }
 
-    /// Each choice's name and time, the time brighter on the one highlighted.
+    /// Each choice's name and time, the time brighter on the one highlighted; Until it moves its name alone.
     private func highlight(_ lit: NSMenuItem?) {
-        let names = SnoozeChoice.allCases.map(\.title)
+        let names = choices.map(\.title)
         let paragraph = NSMutableParagraphStyle()
 
         paragraph.tabStops = [NSTextTab(textAlignment: .right, location: Self.widest(names) + Self.gap + Self.widest(times))]
-        for (item, (name, time)) in zip(items, zip(names, times)) {
+        for (item, (name, time)) in zip(items.filter { !$0.isSeparatorItem }, zip(names, times)) {
             let words = [NSAttributedString.Key.font: Self.font, .paragraphStyle: paragraph]
-            let title = NSMutableAttributedString(string: "\(name)\t", attributes: words)
+            let title = NSMutableAttributedString(string: time.isEmpty ? name : "\(name)\t", attributes: words)
 
             title.append(NSAttributedString(
                 string: time, attributes: words.merging([.foregroundColor: item === lit ? Self.lit : Self.dim]) { $1 }

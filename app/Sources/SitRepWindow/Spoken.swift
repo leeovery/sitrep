@@ -19,10 +19,11 @@ public enum Spoken {
     /// A line waiting on Lee, one element: its words, its session's project and name, away where no window holds it,
     /// and how long it has waited, as "Allow Bash gh pr create, Switchboard, Dashboard redesign, 3 minutes"; asleep
     /// under "N snoozed", when it wakes in its time's place, as "Review the plan, Harness, Finish the Harness
-    /// modernisation, wakes Saturday 09:00".
+    /// modernisation, wakes Saturday 09:00", a turn as an ask, "until it moves" where it has no time.
     public static func line(_ row: PlaceList.LineRow, at now: Date, in calendar: Calendar) -> String {
         let away = row.session.isAway ? ["away"] : []
-        let time = row.line.wakesAt.map { wakes($0, at: now, in: calendar) } ?? age(row.line.since, at: now)
+        let time = row.line.wakesAt.map { wakes($0, at: now, in: calendar) }
+            ?? (row.isTurn ? WakeTime.untilItMoves : age(row.line.since, at: now))
 
         return ([row.line.words(at: now), row.session.project, row.session.name] + away + [time])
             .joined(separator: ", ")
@@ -33,20 +34,27 @@ public enum Spoken {
         "wakes \(WakeTime.words(wakes, at: now, in: calendar, spoken: true))"
     }
 
-    /// The actions VoiceOver offers on a line that is an ask waiting, one per choice of its menu's Snooze, each saying
-    /// when it would wake, as "Snooze tomorrow, wakes Saturday 09:00"; none on a window's stop, nor on an ask asleep.
+    /// The actions VoiceOver offers on a row of the list, one per choice of its menu's Snooze, each saying when it
+    /// would wake, as "Snooze tomorrow, wakes Saturday 09:00": on a line that is an ask waiting, Snooze's three times;
+    /// on a Your turn row, those and "Snooze until it moves"; none on a window's stop, a Working row, nor under
+    /// "N snoozed".
     public static func snooze(
-        _ choice: SnoozeChoice, of row: PlaceList.LineRow, at now: Date, in calendar: Calendar
+        _ time: SnoozeTime, of row: PlaceList.Row, at now: Date, in calendar: Calendar
     ) -> String? {
-        guard !row.isAsleep, !row.asks.isEmpty else {
+        guard !row.isAsleep, let snoozable = row.snoozable,
+              SnoozeTime.offered(forTurn: snoozable.isTurn).contains(time)
+        else {
             return nil
         }
 
-        return "Snooze \(choice.title.lowercased()), \(wakes(choice.wakes(after: now, in: calendar), at: now, in: calendar))"
+        let waking = time.wakes(after: now, in: calendar).map { ", \(wakes($0, at: now, in: calendar))" } ?? ""
+
+        return "Snooze \(time.title.lowercased())\(waking)"
     }
 
-    /// The action VoiceOver offers on an ask asleep under "N snoozed", which wakes it now, as its menu's Wake now does.
-    public static func wake(_ row: PlaceList.LineRow) -> String? {
+    /// The action VoiceOver offers on a row under "N snoozed", an ask or a turn asleep, which wakes it now, as its
+    /// menu's Wake now does.
+    public static func wake(_ row: PlaceList.Row) -> String? {
         row.isAsleep ? Words.wakeNow : nil
     }
 
@@ -104,7 +112,7 @@ public enum Spoken {
         case .working: "working"
         case .onItsWork: "on its own work"
         case .away: "away"
-        case .snoozed: "snoozed"
+        case .snoozed, .snoozedTurn: "snoozed"
         }
     }
 

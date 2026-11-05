@@ -1,6 +1,4 @@
 import Foundation
-import enum SitRepPanel.FoldPeriod
-import struct SitRepPanel.Earlier
 @testable import SitRepWindow
 import Testing
 
@@ -74,9 +72,9 @@ struct WindowRunFilterTests {
     }
 }
 
-/// Your turn's rows fold into "N earlier" as they pass the fold period, by the wall clock, and refold as time passes
-/// and as the period changes, nothing polling: the next row to pass it is the window's next change. The fold opens in
-/// place, shows open while the filter holds text, and is never kept.
+/// Your turn's rows fold into "N earlier" an hour after their turns ended, by the wall clock, and refold as time
+/// passes, nothing polling: the next row to pass the hour is the window's next change. The fold opens in place, shows
+/// open while the filter holds text, and is never kept.
 struct WindowRunPeriodTests {
     /// The wall clock, moved on by the test.
     private final class Wall {
@@ -89,8 +87,8 @@ struct WindowRunPeriodTests {
 
     /// On Your turn: the Mac app's and Dashboard redesign's turns ended 30 and 90 minutes before the board was seeded,
     /// Request ledger's 12: Dashboard redesign's is past the hour.
-    private static func run(_ wall: Wall, period: FoldPeriod = .hour) -> WindowRun {
-        let run = WindowRun(period: period, wall: { wall.now })
+    private static func run(_ wall: Wall) -> WindowRun {
+        let run = WindowRun(wall: { wall.now })
 
         run.show(heard(turned(["sr-macapp": 30, "sr-dash02": 90])), at: printedAt, reducesMotion: false)
         run.open()
@@ -118,37 +116,6 @@ struct WindowRunPeriodTests {
         wall.now = passes
         #expect(!Self.ids(run).contains(.pick(.session("sr-macapp"))))
         #expect(run.list(at: printedAt)?.fold?.earlier == Earlier(projects: ["SitRep", "Switchboard"], isOpen: false))
-    }
-
-    @Test func thePeriodChangingRefoldsAtOnce() {
-        let run = Self.run(Wall())
-
-        run.period = .never
-        #expect(!Self.ids(run).contains(.fold(.earlier)))
-        #expect(run.nextChange == nil)
-        run.period = .fourHours
-        #expect(!Self.ids(run).contains(.fold(.earlier)))
-        run.period = .hour
-        #expect(Self.ids(run).contains(.fold(.earlier)))
-    }
-
-    /// "Today" folds what ended before local midnight: Request ledger's turn ended at 9:41 in London.
-    @Test func todayFoldsWhatEndedBeforeMidnight() throws {
-        let wall = Wall()
-        var calendar = Calendar(identifier: .gregorian)
-
-        calendar.timeZone = try #require(TimeZone(identifier: "Europe/London"))
-
-        let midnight = calendar.startOfDay(for: printedAt)
-        let run = WindowRun(period: .today, wall: { wall.now }, calendar: calendar)
-
-        run.show(heard(line(0)), at: printedAt, reducesMotion: false)
-        run.open()
-        run.click(.place(.yourTurn))
-        wall.now = midnight.addingTimeInterval(24 * 3600 - 1)
-        #expect(!Self.ids(run).contains(.fold(.earlier)))
-        wall.now = midnight.addingTimeInterval(24 * 3600)
-        #expect(Self.ids(run).contains(.fold(.earlier)))
     }
 
     @Test func nEarlierOpensInPlaceAndFoldsAgainEachTimeTheWindowOpens() {

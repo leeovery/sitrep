@@ -1,3 +1,4 @@
+import enum SitRepPanel.SnoozeTime
 import enum SitRepPanel.WakeTime
 import SitRepWindow
 import SwiftUI
@@ -193,7 +194,9 @@ struct SnoozeButton: View {
         let snooze = act.snooze, ask = ask
 
         isOpen = true
-        anchor.popUp(SnoozeMenu(at: Date(), in: calendar) { snooze(ask, $0) }) { isOpen = false }
+        anchor.popUp(SnoozeMenu(SnoozeTime.offered(forTurn: false), at: Date(), in: calendar) { snooze(ask, $0) }) {
+            isOpen = false
+        }
     }
 }
 

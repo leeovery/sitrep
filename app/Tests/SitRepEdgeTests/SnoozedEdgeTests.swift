@@ -53,8 +53,8 @@ struct SnoozedEdgeTests {
     @Test func snoozedIsTheCardsLastSectionFoldedAtFirst() {
         let run = Self.opened()
 
-        #expect(Self.keys(run) == ["eyebrow:needsYou", "needs:sr-4g01a7", "divider", "eyebrow:snoozed"])
-        #expect(run.list.content.items.last == .eyebrow(Eyebrow(section: .snoozed, count: 2, isFolded: true, above: 0)))
+        #expect(Self.keys(run) == ["eyebrow:needsYou", "needs:sr-4g01a7", "eyebrow:snoozed"])
+        #expect(run.list.content.items.last == .eyebrow(Eyebrow(section: .snoozed, count: 2, isFolded: true, above: 14)))
     }
 
     /// Unfolded as Lee left it, the session has a row in each.
@@ -158,7 +158,7 @@ struct SnoozedEdgeTests {
 
     /// A run over the first line, its folds as kept, unless none are.
     private static func opened(kept: SavedSettings<CardSettings>? = nil) -> NotchRun {
-        let run = NotchRun(at: 1000, in: setting, kept: kept, wall: { 1_792_741_527_619 }, calendar: london)
+        let run = NotchRun(at: 1000, in: setting, kept: kept, calendar: london)
 
         _ = run.show(board(upTo: 0), at(run.time))
         return run

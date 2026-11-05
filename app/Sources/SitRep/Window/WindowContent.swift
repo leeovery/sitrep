@@ -1,5 +1,5 @@
 import SitRepCore
-import enum SitRepPanel.SnoozeChoice
+import enum SitRepPanel.SnoozeTime
 import enum SitRepPanel.WakeTime
 import SitRepWindow
 import SwiftUI
@@ -33,11 +33,12 @@ struct WindowActions: Sendable {
     /// To the session's window: "Open in Ghostty ↗", and a stop's "Answer in Claude ↗".
     var jump: @MainActor @Sendable (JumpPress) -> Void = { _ in }
     /// A card's ask snoozed until the time chosen on its Snooze, or woken by its Wake now.
-    var snooze: @MainActor @Sendable (AskAddress, SnoozeChoice) -> Void = { _, _ in }
+    var snooze: @MainActor @Sendable (AskAddress, SnoozeTime) -> Void = { _, _ in }
     var wake: @MainActor @Sendable (AskAddress) -> Void = { _ in }
-    /// A line's one ask snoozed from its row's menu, or woken from an ask asleep's.
-    var snoozeLine: @MainActor @Sendable (PlaceList.LineRow, SnoozeChoice) -> Void = { _, _ in }
-    var wakeLine: @MainActor @Sendable (PlaceList.LineRow) -> Void = { _ in }
+    /// What a row of the list showed, a line's one ask or a session's turn, snoozed from its menu, or woken from a row
+    /// asleep's: its session, what it showed, and the time chosen.
+    var snoozeRow: @MainActor @Sendable (String, Snoozable, SnoozeTime) -> Void = { _, _, _ in }
+    var wakeRow: @MainActor @Sendable (String, Snoozable) -> Void = { _, _ in }
     var askToFinish: @MainActor @Sendable (String) -> Void = { _ in }
     var cancelFinish: @MainActor @Sendable (String) -> Void = { _ in }
     var confirmFinish: @MainActor @Sendable (String) -> Void = { _ in }

@@ -17,7 +17,6 @@ final class Preferences {
         didSet {
             if app != oldValue {
                 savedApp.save(app)
-                appFollowers.forEach { $0(app) }
             }
         }
     }
@@ -54,8 +53,6 @@ final class Preferences {
     @ObservationIgnored var onCallout: (CalloutSettings) -> Void = { _ in }
     /// The edge, told of each change Lee makes in the menu or Settings.
     @ObservationIgnored var onEdge: (EdgeSettings) -> Void = { _ in }
-    /// The card and the SitRep window, each told of every change Lee makes to the rest, for the fold period.
-    @ObservationIgnored private var appFollowers: [(AppSettings) -> Void] = []
     @ObservationIgnored private let savedEdge: SavedEdgeSettings
     @ObservationIgnored private let savedApp: SavedSettings<AppSettings>
     @ObservationIgnored private let savedSettingsWindow: SavedSettings<SettingsWindowSettings>
@@ -73,11 +70,6 @@ final class Preferences {
         welcomed = savedWelcome.read().welcomed
         savedCallout = SavedSettings(defaults)
         callout = savedCallout.read()
-    }
-
-    /// Told of each change Lee makes to the rest, from now on.
-    func follow(app: @escaping (AppSettings) -> Void) {
-        appFollowers.append(app)
     }
 
     /// A change Lee makes to the edge's settings: the edge takes it, and it is saved, unless it is one step of a drag

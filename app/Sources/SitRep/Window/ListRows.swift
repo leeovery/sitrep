@@ -1,5 +1,4 @@
-import struct SitRepPanel.Earlier
-import enum SitRepPanel.SnoozeChoice
+import enum SitRepPanel.SnoozeTime
 import enum SitRepPanel.WakeTime
 import SitRepWindow
 import SwiftUI
@@ -58,7 +57,8 @@ struct ListRow: View {
 /// own, orange while it washes; under them its words, in white at 55%, a command in mono. While no window holds its
 /// session, its mark is the away ring and its words dim as one (`Away`). On the accent of the pick its name goes white,
 /// the rest white at 80%, away or not; its mark stays orange. An ask asleep, under "N snoozed", is the same row
-/// quieted: its mark the clock, its name at 60%, its words at 35%, and in its age's place when it wakes, soft.
+/// quieted: its mark the clock, its name at 60%, its words at 35%, and in its age's place when it wakes, soft; a turn
+/// asleep the same, its mark the faint ring, its words what Claude left Lee, and "until it moves" where it has no time.
 struct LineRowView: View {
     let row: PlaceList.LineRow
     let filter: Filter
@@ -102,9 +102,10 @@ struct LineRowView: View {
         Away.dimming(row.session.isAway && !row.isAsleep && !onPick)
     }
 
-    /// Its age, or asleep when it wakes.
+    /// Its age, or asleep when it wakes, "until it moves" for a turn with no time.
     private var time: String {
-        row.line.wakesAt.map { WakeTime.words($0, at: now, in: calendar) } ?? Words.age(row.line.since, at: now)
+        row.line.wakesAt.map { WakeTime.words($0, at: now, in: calendar) }
+            ?? (row.isTurn ? WakeTime.untilItMoves : Words.age(row.line.since, at: now))
     }
 }
 
@@ -386,8 +387,9 @@ private struct RowJump: View {
 }
 
 /// To VoiceOver, which reads the row as one element and never hovers it, a row of a session a window holds offers its
-/// button as an action, "Jump to the window", which jumps as the button does, moving no pick; an ask asleep, its menu's
-/// Wake now; an ask waiting, its menu's three snoozes (`Spoken.snooze`), each for that one ask.
+/// button as an action, "Jump to the window", which jumps as the button does, moving no pick; an ask or a turn asleep,
+/// its menu's Wake now; an ask waiting, its menu's three snoozes (`Spoken.snooze`), each for that one ask; a Your turn
+/// row, those and until it moves, for its turn.
 private struct SpokenActions: ViewModifier {
     let row: PlaceList.Row
     let now: Date
@@ -400,13 +402,13 @@ private struct SpokenActions: ViewModifier {
             if let jump = Spoken.jump(row) {
                 Button(jump) { act.jump(.row(row.session)) }
             }
-            if case let .line(line) = row {
-                if let wake = Spoken.wake(line) {
-                    Button(wake) { act.wakeLine(line) }
+            if let snoozable = row.snoozable {
+                if let wake = Spoken.wake(row) {
+                    Button(wake) { act.wakeRow(row.session, snoozable) }
                 }
-                ForEach(SnoozeChoice.allCases, id: \.self) { choice in
-                    if let snooze = Spoken.snooze(choice, of: line, at: now, in: calendar) {
-                        Button(snooze) { act.snoozeLine(line, choice) }
+                ForEach(SnoozeTime.offered(forTurn: snoozable.isTurn), id: \.self) { time in
+                    if let snooze = Spoken.snooze(time, of: row, at: now, in: calendar) {
+                        Button(snooze) { act.snoozeRow(row.session, snoozable, time) }
                     }
                 }
             }
@@ -415,9 +417,9 @@ private struct SpokenActions: ViewModifier {
 }
 
 /// A row's right-click, or Control-click: its menu (`RowMenu`), as the card's row's but for Open in SitRep, which the
-/// row is already: Jump to the window, and on a line that is an ask, Snooze for that one ask, or asleep, Wake now; never
-/// its session's other asks, which have rows of their own. A still has none: the menu's area is an AppKit view, which
-/// a still draws as a placeholder.
+/// row is already: Jump to the window; on a line that is an ask, Snooze for that one ask, on a Your turn row Snooze and
+/// Until it moves for its turn, or asleep, Wake now; never its session's other asks, which have rows of their own. A
+/// still has none: the menu's area is an AppKit view, which a still draws as a placeholder.
 private struct RowContextMenu: ViewModifier {
     let row: PlaceList.Row
 
@@ -436,12 +438,11 @@ private struct RowContextMenu: ViewModifier {
     private var menuArea: some View {
         ContextMenuArea { [row, act, calendar] in
             RowMenu.make(
-                for: RowMenu.Row(jumps: row.jumps, asks: row.line?.asks ?? [], isSnoozed: row.line?.isAsleep ?? false),
-                at: Date(), in: calendar,
+                for: RowMenu.Row(row), at: Date(), in: calendar,
                 RowMenu.Actions(
                     jump: { act.jump(.row(row.session)) },
-                    snooze: { choice in row.line.map { act.snoozeLine($0, choice) } },
-                    wake: { row.line.map(act.wakeLine) }
+                    snooze: { act.snoozeRow(row.session, $0, $1) },
+                    wake: { act.wakeRow(row.session, $0) }
                 )
             )
         }
@@ -486,7 +487,8 @@ extension EnvironmentValues {
 
 /// A session's mark in its slot, shared by the sidebar and the list: needs you an orange dot, and away a hollow orange
 /// ring; your turn a soft ring; working the arc turning on its faint track; on its own work the dotted ring, still;
-/// away with nothing waiting a faint dot; an ask asleep the clock, faint and unlit.
+/// away with nothing waiting a faint dot; an ask asleep the clock, faint and unlit; a turn asleep your turn's ring,
+/// faint, as on the card (board I).
 struct RowMark: View {
     let mark: Mark
 
@@ -509,6 +511,7 @@ struct RowMark: View {
             case .onItsWork: DottedRingView(ring: .sidebar, ink: WindowStyle.sidebarDotted)
             case .away: Circle().fill(.tertiary).frame(width: 5, height: 5)
             case .snoozed: SnoozedClock()
+            case .snoozedTurn: Circle().stroke(.tertiary, lineWidth: 1.5).frame(width: 7.5, height: 7.5)
             }
         }
         .frame(width: WindowStyle.slot.width, height: WindowStyle.slot.height)

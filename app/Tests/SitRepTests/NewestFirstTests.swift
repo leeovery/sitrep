@@ -34,7 +34,7 @@ struct NewestFirstTests {
     }
 
     @Test func theCardListsNorthwindFirstAtItsNewestLinesTime() {
-        let items = Item.card(PanelBoard(Self.last).sessions, folds: CardFolds(), isEarlier: { _ in false })
+        let items = Item.card(PanelBoard(Self.last).sessions, folds: CardFolds())
 
         Self.expectNewestFirst(items.compactMap(\.session))
     }

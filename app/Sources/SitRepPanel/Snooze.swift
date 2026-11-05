@@ -48,12 +48,39 @@ public enum SnoozeChoice: CaseIterable, Sendable {
     }
 }
 
+/// When a snooze chosen from a row's menu wakes: at one of Snooze's times, or, for a turn alone, never by the clock,
+/// until the session takes another turn (DESIGN, "Snooze").
+public enum SnoozeTime: Hashable, Sendable {
+    case at(SnoozeChoice)
+    case untilItMoves
+
+    /// What a row's Snooze offers: Snooze's times, and on a turn's row, then until it moves.
+    public static func offered(forTurn isTurn: Bool) -> [SnoozeTime] {
+        SnoozeChoice.allCases.map(SnoozeTime.at) + (isTurn ? [.untilItMoves] : [])
+    }
+
+    public var title: String {
+        switch self {
+        case let .at(choice): choice.title
+        case .untilItMoves: "Until it moves"
+        }
+    }
+
+    /// When it wakes, chosen at `now`; none until it moves.
+    public func wakes(after now: Date, in calendar: Calendar) -> Date? {
+        switch self {
+        case let .at(choice): choice.wakes(after: now, in: calendar)
+        case .untilItMoves: nil
+        }
+    }
+}
+
 extension Session {
     /// What its row says in its time's place at this time on the wall clock, ms: how long it has stood, or in Snoozed,
-    /// when it wakes.
+    /// when it wakes, or for a turn snoozed with no time, that it waits until it moves.
     public func timeText(at now: Double, in calendar: Calendar) -> String {
         guard let wakesAt else {
-            return ageText(at: now)
+            return kind == .snoozedTurn ? WakeTime.untilItMoves : ageText(at: now)
         }
 
         let wakes = Date(timeIntervalSince1970: wakesAt / 1000)
@@ -66,6 +93,9 @@ extension Session {
 /// the six days after today, tomorrow among them, its weekday and time, `Sat 09:00`; further out, its date and time,
 /// `3 Nov 09:00`. Spoken, VoiceOver's, the weekday and month whole: `Saturday 09:00`, `3 November 09:00`.
 public enum WakeTime {
+    /// What a turn snoozed with no time says in a wake's place, on the card and to VoiceOver.
+    public static let untilItMoves = "until it moves"
+
     public static func words(_ wakes: Date, at now: Date, in calendar: Calendar, spoken: Bool = false) -> String {
         let calendar = gregorian(like: calendar)
         let parts = calendar.dateComponents([.weekday, .day, .month, .hour, .minute], from: wakes)

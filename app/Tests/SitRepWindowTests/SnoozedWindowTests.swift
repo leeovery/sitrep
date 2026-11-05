@@ -100,20 +100,23 @@ struct SnoozedWindowTests {
 
         #expect(Spoken.line(asleep, at: Self.now, in: Self.london)
             == "Review the plan, Harness, Finish the Harness modernisation, away, wakes 08:45")
-        #expect(Spoken.wake(asleep) == "Wake now")
-        #expect(Spoken.wake(try Self.line(Self.k3, in: run)) == nil)
+        #expect(Spoken.wake(.line(asleep)) == "Wake now")
+        #expect(Spoken.wake(.line(try Self.line(Self.k3, in: run))) == nil)
     }
 
-    /// A line that is an ask offers its menu's three snoozes, each saying when it would wake; an ask asleep and a
-    /// window's stop offer none.
+    /// A line that is an ask offers its menu's three snoozes, each saying when it would wake, never until it moves, a
+    /// turn's alone; an ask asleep and a window's stop offer none.
     @Test func voiceOverOffersALineThatIsAnAskItsSnoozes() throws {
         let run = Self.opened()
         let stopped = Listed.Row(
-            id: "sr-kit", name: "Kit", project: "Kit", section: .needsYou, mark: .needs, isAway: false, since: Self.now,
+            id: "sr-kit", session: "sr-kit", name: "Kit", project: "Kit", section: .needsYou, mark: .needs,
+            isAway: false, since: Self.now,
             lines: [Listed.Line(id: "stop:sr-kit:w1", lead: "Allow Bash", code: "gh pr create", more: nil, since: Self.now)]
         )
         let snoozes = { (line: PlaceList.LineRow) in
-            SnoozeChoice.allCases.compactMap { Spoken.snooze($0, of: line, at: Self.now, in: Self.london) }
+            SnoozeTime.offered(forTurn: true).compactMap {
+                Spoken.snooze($0, of: .line(line), at: Self.now, in: Self.london)
+            }
         }
 
         run.toggleFold(of: .needsYou)

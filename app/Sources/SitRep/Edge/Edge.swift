@@ -32,7 +32,7 @@ final class Edge {
 
         self.preferences = preferences
         self.settings = settings
-        notch = NotchController(settings, period: preferences.app.foldsAfter, on: display)
+        notch = NotchController(settings, on: display)
         strip = StripController(settings, on: display)
         notch.onJump = jump
         notch.onOpen = open
@@ -43,7 +43,6 @@ final class Edge {
         strip.onMoved = { [unowned self] in moved($0) }
         fullScreen.onChange = { [unowned self] in show() }
         preferences.onEdge = { [unowned self] in apply($0) }
-        preferences.follow { [unowned self] in notch.period = $0.foldsAfter }
         listen()
         show()
     }

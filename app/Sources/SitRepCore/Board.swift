@@ -197,19 +197,33 @@ public struct Board: Versioned, Sendable, Equatable {
         }
     }
 
-    /// A session's row in Snoozed: its asks Lee snoozed, a line each, the soonest to wake first, then the oldest; and
-    /// when the soonest wakes. Its session, project and names as a Needs you row's.
+    /// A session's row in Snoozed: its asks Lee snoozed, a line each, the soonest to wake first, then the oldest, or its
+    /// turn Lee snoozed, a row of its own; and when the soonest wakes, nil for a turn snoozed until it moves. Its
+    /// session, project and names as a Needs you row's.
     public struct SnoozedRow: Decodable, Sendable, Equatable, Identifiable {
-        /// One of its asks: its key, the one it has in Needs you; the ask by its id; its title; the instant its time
-        /// counts from; and when it wakes.
+        /// One of its lines: its key, the one it has in Needs you, or in Your turn for a turn; what it is; the ask by
+        /// its id, nil for a turn; its words; the instant its time counts from; and when it wakes, nil for a turn
+        /// snoozed until it moves.
         public struct Line: Decodable, Sendable, Equatable, Identifiable {
+            public enum Kind: String, Decodable, Sendable, AddedValue {
+                case ask, yourTurn
+
+                /// A CLI from before a turn could be snoozed held asks alone in Snoozed.
+                public static var absent: Kind { .ask }
+            }
+
             public let key: String
-            public let ask: String
+            @Added public var kind: Kind
+            public let ask: String?
             public let first: Row.Words
             public let since: Date
-            public let wakesAt: Date
+            public let wakesAt: Date?
 
             public var id: String { key }
+
+            private enum CodingKeys: String, CodingKey {
+                case key, kind = "is", ask, first, since, wakesAt
+            }
         }
 
         public let session: String
@@ -220,10 +234,14 @@ public struct Board: Versioned, Sendable, Equatable {
         public let letters: String
         public let lines: [Line]
         public let second: String
-        /// When its soonest line wakes.
-        public let wakesAt: Date
+        /// When its soonest line wakes; nil for a turn snoozed until it moves.
+        public let wakesAt: Date?
 
-        public var id: String { session }
+        /// Its session's turn, not its asks.
+        public var isTurn: Bool { lines.allSatisfy { $0.kind == .yourTurn } }
+
+        /// A session's two rows in Snoozed, its asks' and its turn's, are each its own.
+        public var id: String { isTurn ? "turn:\(session)" : session }
 
         public init(from decoder: any Decoder) throws {
             let given = try decoder.container(keyedBy: CodingKeys.self)
@@ -236,7 +254,7 @@ public struct Board: Versioned, Sendable, Equatable {
             letters = try given.decode(String.self, forKey: .letters)
             lines = try given.decode([Line].self, forKey: .lines)
             second = try given.decode(String.self, forKey: .second)
-            wakesAt = try given.decode(Date.self, forKey: .wakesAt)
+            wakesAt = try given.decodeIfPresent(Date.self, forKey: .wakesAt)
             guard !lines.isEmpty else {
                 throw DecodingError.dataCorruptedError(forKey: .lines, in: given, debugDescription: "A row has a line.")
             }

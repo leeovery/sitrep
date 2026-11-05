@@ -126,6 +126,8 @@ const SHAPES: { [T in Body['type']]: Record<string, Check> } = {
   unfinish: {},
   snooze: { item: isText, until: isTime },
   wake: { item: isText },
+  snoozeTurn: { turn: isTime, until: maybe(isTime) },
+  wakeTurn: { turn: isTime },
 }
 
 /** What a kind of line needs beyond its fields one by one: an ask says what it wants back, or, written before asks did, its kind. */
