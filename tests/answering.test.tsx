@@ -1,6 +1,6 @@
 import type { PromptSubmitAttachment } from 'claude-code'
 import { expect, test, tier } from 'claude-code/testing'
-import { parseEntries, sessionPaths, type SessionMeta } from '../core'
+import { parseEntries, parsePresence, sessionPaths, type SessionMeta } from '../core'
 import {
   CANNOT_RIDE,
   CLEAR_AFTER_DROP_MS,
@@ -882,7 +882,7 @@ test('a comment with an image going with a queued yes is kept once another answe
   expect(w.state.answering).toMatchObject({ item: id })
 })
 
-test('an answer with an image dropped beneath, by another plugin or Claude Code, writes nothing, and the mode stands', async ($, on) => {
+test('an answer with an image dropped beneath, by another plugin or Claude Code, writes nothing, puts back what was queued, and the mode stands', async ($, on) => {
   const w = world($, on)
 
   await w.begin()
@@ -897,9 +897,95 @@ test('an answer with an image dropped beneath, by another plugin or Claude Code,
     drop: 'Blocked by a hook',
   })
   expect(writtenIn(w)).toEqual([])
+  expect(w.flights()).toEqual([])
   expect(stateOf(w, id)).toBe('waiting')
   expect(w.state.queue).toEqual([{ ...at(w, id), verdict: 'yes' }])
   expect(w.state.answering).toMatchObject({ item: id, as: 'comment' })
+  expect(w.toasts.filter(toast => toast.startsWith('Not sent'))).toEqual([])
+})
+
+/** Lee's comment with an image on the ask whose yes is queued, entered while every prompt waits beneath: the board, the ask's id, and Lee's prompt, still to settle. */
+const ridingHeld = async (w: World, engine: Engine) => {
+  await w.begin()
+
+  const id = await asked(w, GO)
+  const ui = await w.pane()
+
+  await ui.press({ key: `yes:${w.item(id)}` })
+  await ui.press({ key: `rewrite:${w.item(id)}` })
+
+  const held = w.holdPrompts()
+  const typed = entered(w, engine, 'After the copy pass [Image #1]', { attachments: [IMAGE] })
+
+  await held.arrived
+
+  return { id, ui, held, typed }
+}
+
+const RODE_WITH_GO =
+  'From the board:\n- Give the go for stage 3 → Go, with a comment: “After the copy pass [Image #1]”'
+
+test('an answer with an image is on its way from the moment it goes: frozen in Ready to send, with no take-back, and a send meanwhile carries none of it', async ($, on) => {
+  const w = world($, on)
+  const { id, ui, held, typed } = await ridingHeld(w, $)
+
+  await w.clock.settle()
+  expect(rowsOf(await ui.find({ key: 'ready' })).map(row => row.trim())).toContain('⧗ Sending.')
+  expect(await ui.find({ key: w.takeBack() })).toBeUndefined()
+  expect(
+    parsePresence(w.text(heldPaths(w).heartbeat(W1)), W1)?.sending?.map(each =>
+      each.replies.map(reply => reply.item),
+    ),
+  ).toEqual([[id]])
+  expect(w.state.answering).toBeNull()
+
+  const other = await asked(w, { wants: 'yes', yes: 'Approve', title: 'Review round 1' })
+
+  await ui.press({ key: `yes:${w.item(other)}` })
+  await ui.press({ key: 'send' })
+  held.end()
+  await typed
+  await w.turnStarts(RODE_WITH_GO)
+  await w.turnEnds()
+  await w.clock.settle()
+
+  expect(w.submitted).toEqual([RODE_WITH_GO, 'From the board:\n- Review round 1 → Approve'])
+  expect(writtenIn(w)).toEqual([
+    { item: id, verdict: 'yes', isDelivered: true },
+    { item: other, verdict: 'yes', isDelivered: true },
+  ])
+  expect(w.state.queue).toEqual([])
+})
+
+test('✎ on another ask while the answer with an image goes in begins the mode for it, which stands once it has gone', async ($, on) => {
+  const w = world($, on)
+  const { ui, held, typed } = await ridingHeld(w, $)
+  const list = await asked(w, LIST)
+
+  w.box.text = ''
+  await ui.press({ key: `answer:${w.item(list)}` })
+  held.end()
+  await typed
+
+  expect(w.state.answering).toMatchObject({ item: list, as: 'answer' })
+})
+
+test('an answer with an image whose writing failed is written down once, by the next load', async ($, on) => {
+  const w = world($, on)
+  const { id } = await answering(w)
+
+  w.refuseWrites(path => path === heldPaths(w).log(W1))
+  await entered(w, $, 'v1.2.3 [Image #1]', { attachments: [IMAGE] })
+  expect(writtenIn(w)).toEqual([])
+  expect(w.flights()).toMatchObject([{ isTaken: true }])
+
+  w.refuseWrites()
+  await $.session.start(CONVERSATION)
+  await w.clock.advance(4 * WATCH_MS)
+
+  expect(writtenIn(w)).toEqual([{ item: id, verdict: 'answer', isDelivered: true }])
+  expect(w.flights()).toEqual([])
+  expect(w.prompts).toHaveLength(1)
 })
 
 test('the mode begun at the terminal takes nothing from Claude’s app, whose band shows the counts', async ($, on) => {

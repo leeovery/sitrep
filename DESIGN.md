@@ -740,8 +740,7 @@ is not dropped: Lee's own prompt goes in now, its text rewritten as the
 board's words for that one reply (`From the board:` and the reply's line,
 as a send words it), its attachments passing through untouched. Claude Code
 keeps the image's blocks and puts the new text in place of the typed text
-(read from 2.1.318's code). If Claude is mid-turn, Claude Code queues it as
-any prompt Lee types.
+(read from 2.1.318's code).
 
 - **The words.** The submitted text keeps `[Image #1]` where each image sits
   (2.1.318 expands pasted text in place, an image's placeholder as typed),
@@ -752,20 +751,46 @@ any prompt Lee types.
 - **The reply** is built as a queued one is: an answer, a comment, a
   pick-up's note, or a comment going as the note of a yes or a choice
   queued on the ask, which goes with it. It goes only while a send would
-  carry it: it fits the ask, and no answer is on its way to it. Else the
-  prompt is kept, a toast saying why (`Not sent: the ask has an answer on
-  its way already.`, `…has changed since your reply was queued.`).
+  carry it, the session read afresh first, as a send reads it: it fits the
+  ask, the ask is open, and no answer is on its way to it. Else the prompt
+  is kept, a toast saying why (`Not sent: the ask has an answer on its way
+  already.`, `…has changed since your reply was queued.`, `Not sent: Claude
+  closed the ask.`). Where a send carries the ask's reply already, the mode
+  is over, and the prompt goes to Claude as it came.
 - **Only to this window's session.** The prompt goes into this window's
   Claude, so an item of another session can't take it: the prompt is kept,
   with `An attachment goes only to this window's session: take it out to
   answer in words, or answer from that session's window.`
-- **Once Claude Code takes it**, the prompt's `next` resolving with no
-  drop, the reply is written down as delivered in its session, the lines a
-  taken send writes, through the hold, as lines Claude knows of. Whatever
-  was queued on its item leaves Ready to send, and the mode ends. It never
-  waits in Ready to send, and can't be taken back.
-- **Dropped beneath**, by another plugin's hook or Claude Code, nothing is
-  written and the mode stands; Claude Code puts the prompt back in the box.
+- **On its way from the start.** Before the prompt goes on, the reply is
+  claimed as a message in flight, as a send is (see Delivery): its id fixed,
+  its text the rewritten prompt, and the reply frozen in Ready to send in
+  place of whatever was queued on its item, so no send carries that as well.
+  It is submitted already, by Lee's Enter: never held, so never taken back
+  (Ready to send says `⧗ Sending.`), and never submitted by the window. It
+  goes ahead of the sends the window holds, which wait for it to end, and
+  for its turn to start, as behind any message submitted first. The
+  heartbeat says it, so its ask is on its way to every reader at once, and
+  the mode ends.
+- **Taken**, the prompt's `next` resolving with no drop, or a turn starting
+  with its text, it is written down as any taken message is, the lines a
+  send writes, through the hold; a write that fails, or a load cutting it
+  short, is written at the next look or load. No quiet lets it go while the
+  hook that let it in still waits on Claude Code, which delivers it, not the
+  window; one a load or the conversation's end leaves behind is let go as
+  never taken once the window has gone quiet without its turn, as a
+  message submitted and not yet heard is.
+- **Dropped beneath**, by another plugin's hook or Claude Code, it is let go
+  silently: what was queued on its item is put back as it was, and the mode
+  stands again, unless Lee began another meanwhile. Claude Code puts the
+  prompt back in the box.
+- **Typed while Claude's turn runs**, `prompt.submit` fires at Enter, with
+  that turn's id (2.1.318 queues the prompt with its screening begun, and
+  the engine's types say so): `next` resolves then, and the reply is
+  written down while the prompt waits in Claude Code's queue for the turn to
+  end. A prompt Lee pulls back out of that queue never goes in, though the
+  board has it delivered; nor does one whose hooks an interrupt cancels
+  (`wasCancelled`), which still resolves `next` with no drop. Sends share
+  the second gap.
 - Like the board's own message it takes no board-change context, which
   rides in with the next prompt. It is still Lee's input: a prompt that goes
   on leaves the window stopped until its turn starts, and one dropped lifts

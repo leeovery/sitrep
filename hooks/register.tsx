@@ -422,9 +422,12 @@ export const register: Register = on => {
     if (taken !== undefined) {
       const entered = await next({ ...e, text: taken.text })
 
-      await (entered.drop === undefined
-        ? taken.rode().catch(logFailure(host, 'writing down the answer Claude has'))
-        : wentNowhere())
+      if (entered.drop === undefined) {
+        await taken.went().catch(logFailure(host, 'writing down the answer Claude has'))
+      } else {
+        await taken.dropped().catch(logFailure(host, 'letting go of the answer'))
+        await wentNowhere()
+      }
 
       return entered
     }

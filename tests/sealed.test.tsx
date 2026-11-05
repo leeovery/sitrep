@@ -1131,6 +1131,46 @@ test('an answer with an image dropped beneath lifts the stop, though no turn fol
   expect(w.state.answering).toMatchObject({ item: words })
 })
 
+test("an answer going in with an image while a send is held goes ahead of it, and the send goes once the answer's own turn has ended", SLOW, async ($, on) => {
+  const w = world($, on)
+  const { paths, ids, ui } = await asking(w)
+  const [first = ''] = ids
+  const words = postedId(await w.call('ask', { wants: 'words', title: 'Name the release' }))
+
+  await holding(w, ui, ids)
+
+  if ((await ui.find({ key: `answer:${w.item(words)}` })) === undefined) {
+    await ui.press({ key: `pick:${w.item(words)}` })
+  }
+
+  await ui.press({ key: `answer:${w.item(words)}` })
+
+  const held = w.holdPrompts()
+  const typed = answeredWithImage($)
+
+  await held.arrived
+
+  expect(flightsIn(w)).toEqual([
+    { items: [words], isHeld: false },
+    { items: [first], isHeld: true },
+  ])
+
+  held.end()
+  await typed
+
+  expect(repliedIn(w, paths)).toEqual([words])
+
+  await turnEnded(w)
+
+  expect(w.submitted, 'nothing goes until the answer’s turn is heard').toEqual([RODE])
+
+  await w.turnStarts(RODE)
+  await turnEnded(w)
+
+  expect(w.submitted).toEqual([RODE, message(1)])
+  expect(repliedIn(w, paths)).toEqual([words, first])
+})
+
 test("a prompt another plugin submits, or the SDK's, lifts nothing: only Lee's own input counts", SLOW, async ($, on) => {
   const w = world($, on)
   const { ids, ui } = await asking(w)

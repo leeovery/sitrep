@@ -17,9 +17,11 @@
  * A prompt carrying an attachment, an image, can't wait in Ready to send:
  * a plugin is given its kind, never its bytes or its path, and its own
  * prompts carry none. So Lee's prompt goes in at once, rewritten as the
- * board's own words for that one reply, its attachments with it, and the
- * reply is written down as delivered once Claude Code has it. It goes into
- * this window's Claude, so only for an item of the session the window holds.
+ * board's own words for that one reply, its attachments with it: a message
+ * in flight from the moment it is decided, as a send is from its claim, but
+ * submitted by Lee's Enter, and written down once Claude Code takes it. It
+ * goes into this window's Claude, so only for an item of the session the
+ * window holds.
  *
  * Ended with nothing taken, the mode takes back the words it put in the
  * prompt box, so none of the board's words go to Claude unasked.
@@ -29,15 +31,13 @@ import {
   barredBy,
   boardMessage,
   isAnswer,
-  sentLines,
   takes,
   type Ask,
   type Parked,
-  type ReplyBody,
   type Verdict,
 } from '../core'
-import type { SitrepAnswering, SitrepAttachment, SitrepQueued } from '../types'
-import { writeGiven } from './deliver'
+import type { SitrepAnswering, SitrepInFlight, SitrepQueued } from '../types'
+import { claimRide, rideDropped, rideTaken } from './deliver'
 import { logFailure, type Host } from './host'
 import { unwrapPastes } from './paste'
 import { briefOf, filedAt } from './places'
@@ -51,7 +51,7 @@ import {
   type LeftOut,
 } from './queue'
 import { sceneOf, type Scene } from './scene'
-import { attached } from './window'
+import { refresh, serially } from './window'
 
 /** The mode as it stands: what it writes, and the item it writes to. */
 export type Answering = { answering: SitrepAnswering; item: Ask | Parked }
@@ -59,8 +59,12 @@ export type Answering = { answering: SitrepAnswering; item: Ask | Parked }
 /** The mode as the board reads its item: standing, or over once the item can take the reply no longer. */
 type Standing = Answering | 'over'
 
-/** Lee's prompt let in as the board's words for the reply, its attachments with it: `rode` writes the reply down once Claude Code has it. */
-export type Riding = { text: string; rode: () => Promise<void> }
+/**
+ * Lee's prompt let in as the board's words for the reply, its attachments
+ * with it, the reply claimed as a message in flight: `went` once Claude Code
+ * takes the prompt, `dropped` once it goes nowhere.
+ */
+export type Riding = { text: string; went: () => Promise<void>; dropped: () => Promise<void> }
 
 /** What the mode makes of Lee's prompt: dropped, taken or kept in the box, and why, for the transcript; or let in, riding. */
 export type Captured = { drop: string } | Riding
@@ -100,14 +104,12 @@ const EMPTY = 'Write your answer in the prompt first, or cancel it on the band.'
 export const ELSEWHERE =
   "An attachment goes only to this window's session: take it out to answer in words, or answer from that session's window."
 
-/** Why a reply can't go in with Lee's prompt, as Ready to send would leave it out. */
+/** Why a reply can't go in with Lee's prompt, as Ready to send would leave it out, its session read afresh. */
 export const CANNOT_RIDE: Record<LeftOut, string> = {
   changed: 'Not sent: the ask has changed since your reply was queued.',
   answered: 'Not sent: the ask has an answer on its way already.',
   resolved: 'Not sent: Claude closed the ask.',
 }
-
-const UNWRITTEN = 'Claude has your answer, but the board could not write it down.'
 
 /** How long after a taken prompt is dropped the box is cleared: once the engine has put it back. */
 export const CLEAR_AFTER_DROP_MS = 100
@@ -310,32 +312,43 @@ const queued = async (host: Host, standing: Answering, words: string): Promise<C
 }
 
 /**
- * The reply gone in with Lee's prompt, written down as delivered: Claude has
- * it. Ready to send loses whatever was queued on its item, which went with
- * it, and the mode is over.
+ * Lets go of the ride as Lee's prompt went nowhere: the reply queued on its
+ * item put back as it was, frozen until the claim ends, and the mode
+ * standing again, unless Lee began another meanwhile.
  */
-const rodeIn = async (
+const unride = async (
   host: Host,
-  held: SitrepAttachment,
-  { session, item }: SitrepAnswering,
-  replies: readonly ReplyBody[],
+  ride: SitrepInFlight,
+  answering: SitrepAnswering,
+  was: SitrepQueued | undefined,
 ) => {
-  await writeGiven(host, held, written => sentLines(written, replies)).catch(error => {
-    logFailure(host, 'writing down the answer Claude has')(error)
-    host.ui.toast(UNWRITTEN)
-  })
-  await host.state.queue.update(queue => unqueuing(queue, session, item))
-  await forget(host)
+  const { session, item } = answering
+
+  await host.state.queue.update(queue =>
+    was === undefined ? unqueuing(queue, session, item) : queuing(queue, was),
+  )
+  await rideDropped(host, ride)
+  await host.state.answering.update(now => now ?? answering)
 }
 
 /**
  * Lee's prompt, carrying an attachment, let in as the board's words for the
  * reply, so the attachment goes with it: only for an item of the session the
- * window holds, whose Claude it goes into, and only while the item takes the
- * reply as a send would carry it. Else it is kept, a toast saying why.
+ * window holds, whose Claude it goes into, and only while the item, read
+ * afresh, takes the reply as a send would carry it; else it is kept, a toast
+ * saying why. Claimed as a message in flight before it goes, the reply
+ * frozen in Ready to send in place of what was queued on its item, so no
+ * send carries that too; and the mode is over. Where a send carries the
+ * item's reply already, the mode is over and the prompt goes to Claude as
+ * ever.
  */
-const riding = (host: Host, scene: Scene, { answering }: Answering, words: string): Captured => {
-  const held = attached()
+const riding = async (
+  host: Host,
+  scene: Scene,
+  { answering }: Answering,
+  words: string,
+): Promise<Captured | undefined> => {
+  const held = await host.state.attachment.read()
 
   if (held?.session !== answering.session) {
     host.ui.toast(ELSEWHERE)
@@ -343,9 +356,11 @@ const riding = (host: Host, scene: Scene, { answering }: Answering, words: strin
     return { drop: NOT_TAKEN }
   }
 
-  const reply = replyOf(answering, scene.queue, words)
-  const why = whyLeft(scene.session, reply)
-  const message = why === undefined ? boardMessage(scene.session, [reply]) : undefined
+  const [now, queue] = await Promise.all([serially(() => refresh(host)), host.state.queue.read()])
+  const session = now ?? scene.session
+  const reply = replyOf(answering, queue, words)
+  const why = whyLeft(session, reply)
+  const message = why === undefined ? boardMessage(session, [reply]) : undefined
 
   if (message === undefined) {
     host.ui.toast(CANNOT_RIDE[why ?? 'changed'])
@@ -353,9 +368,30 @@ const riding = (host: Host, scene: Scene, { answering }: Answering, words: strin
     return { drop: NOT_TAKEN }
   }
 
-  const replies = replyBodies(scene.session, message.replies)
+  const ride = await claimRide(host, {
+    source: 'send',
+    project: held.project,
+    session: session.id,
+    writer: held.writer,
+    text: message.text,
+    replies: replyBodies(session, message.replies),
+  })
 
-  return { text: message.text, rode: () => rodeIn(host, held, answering, replies) }
+  await forget(host)
+
+  if (ride === undefined) {
+    return undefined
+  }
+
+  const was = queuedOn(queue, answering.session, answering.item)
+
+  await host.state.queue.update(waiting => queuing(waiting, reply))
+
+  return {
+    text: message.text,
+    went: () => rideTaken(host, ride),
+    dropped: () => unride(host, ride, answering, was),
+  }
 }
 
 /**
@@ -378,14 +414,14 @@ export const captured = async (
   const scene = await sceneOf(host)
   const standing = scene === undefined ? 'over' : standingIn(scene)
 
-  if (standing === 'over') {
+  if (scene === undefined || standing === 'over') {
     // The prompt in the box is the one going to Claude now: nothing to take back.
     await forget(host)
 
     return undefined
   }
 
-  if (scene === undefined || standing?.answering.surface !== surface || surveyed.has(surface)) {
+  if (standing?.answering.surface !== surface || surveyed.has(surface)) {
     return undefined
   }
 

@@ -38,7 +38,7 @@ import { deliveredMark, isObject, sentLines, type Body, type Session } from '../
 import type { SitrepInFlight, SitrepSource, SitrepStoredFlights } from '../types'
 import { betweenTurns } from './activity'
 import { logFailure, type Host } from './host'
-import { writeOwnFile, type Into, type LinesOf } from './into'
+import { writeOwnFile } from './into'
 import { isCarriedBy } from './queue'
 import { LINGER_MS, tickAfter } from './scene'
 import { postKnown } from './seen'
@@ -125,7 +125,7 @@ export const storedFlights = (flights: SitrepInFlight[]): SitrepStoredFlights =>
 }
 
 /** A message as its source hands it over, to be claimed. */
-type Outgoing = Omit<SitrepInFlight, 'claimedAt' | 'isHeld' | 'isTaken'>
+export type Outgoing = Omit<SitrepInFlight, 'claimedAt' | 'isHeld' | 'isTaken'>
 
 /**
  * What follows a message, by its source: `written`, as each write puts it
@@ -169,6 +169,23 @@ const awaitTurn = (host: Host, text: string) => {
 const stopAwaiting = () => {
   awaiting?.quiet.cancel()
   awaiting = undefined
+}
+
+/**
+ * The answer this load claimed as it went in with Lee's own prompt
+ * (`claimRide`), while the hook that let it in waits on Claude Code: no
+ * quiet lets it go meanwhile, since Claude Code, not the window, delivers
+ * it. One a load or the conversation's end leaves behind waits as any
+ * message submitted and not yet heard.
+ */
+let riding: SitrepInFlight | undefined
+
+const isRiding = (current: SitrepInFlight) => riding !== undefined && isClaim(current, riding)
+
+const stopRiding = (ride: SitrepInFlight) => {
+  if (isRiding(ride)) {
+    riding = undefined
+  }
 }
 
 /** Whether a prompt is the board's own message: Lee's replies, from Ready to send or another session's inbox. */
@@ -381,14 +398,6 @@ const linesOf = (session: Session, delivery: SitrepInFlight): Body[] =>
       )
 
 /**
- * Writes down what Claude has just been sent in the session it went to:
- * through the hold, as lines Claude knows of, where it is the window's, else
- * into the writer's file there. False when the session no longer folds.
- */
-export const writeGiven = (host: Host, into: Into, given: LinesOf) =>
-  writeOwnFile(host, into, given, (session, lines) => postKnown(host, session, lines))
-
-/**
  * Writes a taken message down in the session it went to, then ends it; what
  * follows its claim's end follows once, by whichever write ended it. Two loads
  * may both write one down: a file-watch reload can cut short a write the
@@ -396,7 +405,13 @@ export const writeGiven = (host: Host, into: Into, given: LinesOf) =>
  * writes it again, finding its lines there or not.
  */
 const writeDown = async (host: Host, delivery: SitrepInFlight) => {
-  const isThere = await writeGiven(host, delivery, session => linesOf(session, delivery))
+  // Through the hold, as lines Claude knows of: the replies it has just been sent.
+  const isThere = await writeOwnFile(
+    host,
+    delivery,
+    session => linesOf(session, delivery),
+    (session, lines) => postKnown(host, session, lines),
+  )
 
   if (!isThere) {
     host.log(`sitrep: Claude has replies to ${delivery.session}, whose session.json is gone`)
@@ -559,7 +574,8 @@ export const sendHeld = async (host: Host) => {
  * between turns: a turn of it ending however it ends (answered, stopped by
  * Lee, failed, refused), a `/clear`, or a load starting. The first goes
  * while the window holds it (`sendHeld`); submitted before and not taken,
- * it is let go once `QUIET_MS` pass with no turn starting. Nothing while a
+ * it is let go once `QUIET_MS` pass with no turn starting, unless it is the
+ * answer whose hook still waits on Claude Code (`riding`). Nothing while a
  * turn runs.
  */
 export const carryOn = async (host: Host) => {
@@ -570,10 +586,14 @@ export const carryOn = async (host: Host) => {
   const [first] = await flightNow(host)
   const isBetween = await betweenTurns(host)
 
-  if (first !== undefined && !first.isHeld && !first.isTaken && isBetween()) {
+  if (first !== undefined && !first.isHeld && !first.isTaken && !isRiding(first) && isBetween()) {
     quietFor(host, first)
   }
 }
+
+/** Whether a message in flight carries a reply to an item the outgoing one replies to. */
+const carriesAny = (flight: SitrepInFlight, outgoing: Outgoing) =>
+  outgoing.replies.some(({ item }) => isCarriedBy(flight, { session: outgoing.session, item }))
 
 /**
  * The message in flight a message is not claimed behind: for the inbox's,
@@ -584,13 +604,7 @@ export const carryOn = async (host: Host) => {
 const aheadOf = (flights: readonly SitrepInFlight[], outgoing: Outgoing) =>
   outgoing.source === 'inbox'
     ? flights[0]
-    : flights.find(
-        each =>
-          each.source === 'inbox' ||
-          outgoing.replies.some(({ item }) =>
-            isCarriedBy(each, { session: outgoing.session, item }),
-          ),
-      )
+    : flights.find(each => each.source === 'inbox' || carriesAny(each, outgoing))
 
 /**
  * Claims a message, held behind any in flight, and sends it at once while it
@@ -627,6 +641,65 @@ export const deliver = async (
   await sendHeld(host)
 
   return undefined
+}
+
+/**
+ * Claims an answer going in with Lee's own prompt, rewritten as the board's
+ * words for it (answering.ts): submitted by his Enter, so never held, nor
+ * ever submitted by the window. It goes ahead of every message the window
+ * holds, which wait for it to end as behind any message submitted first.
+ * Undefined, claiming nothing, where a send in flight carries a reply to
+ * its item already.
+ */
+export const claimRide = async (host: Host, outgoing: Outgoing) => {
+  const ride: SitrepInFlight = {
+    ...outgoing,
+    claimedAt: await host.clock.now(),
+    isHeld: false,
+    isTaken: false,
+  }
+  let isClaimed = false
+
+  await changeFlight(host, flights => {
+    const held = flights.findIndex(each => each.isHeld)
+    const at = held === -1 ? flights.length : held
+
+    isClaimed = !flights.some(each => carriesAny(each, outgoing))
+
+    return isClaimed ? [...flights.slice(0, at), ride, ...flights.slice(at)] : flights
+  })
+
+  if (!isClaimed) {
+    return undefined
+  }
+
+  riding = ride
+
+  return ride
+}
+
+/**
+ * Claude Code took Lee's prompt carrying the answer: written down as any
+ * message taken. Nothing goes after it until its turn is heard starting, as
+ * after a submit; one that starts first has written it down already.
+ */
+export const rideTaken = async (host: Host, ride: SitrepInFlight) => {
+  stopRiding(ride)
+  awaitTurn(host, ride.text)
+  await heard(host, current => isClaim(current, ride))
+}
+
+/**
+ * Lets go of the answer as Lee's prompt carrying it went nowhere, silently:
+ * Claude Code puts the prompt back in his box. Its asks wait on Lee again
+ * at once.
+ */
+export const rideDropped = async (host: Host, ride: SitrepInFlight) => {
+  stopRiding(ride)
+
+  if (await endIf(host, current => isClaim(current, ride))) {
+    await foldAgain(host)
+  }
 }
 
 /**
@@ -668,9 +741,12 @@ export const letGoHeldOne = (host: Host, delivery: SitrepInFlight) =>
  * this one's place, which their replies are not for, and an exit or a
  * logout ends the process. So there each is let go, as a take-back lets it
  * go, and nothing is submitted. One submitted already is Claude Code's, its
- * quiet counted as at a turn's end.
+ * quiet counted as at a turn's end, an answer that went in with Lee's
+ * prompt among them, whatever its hook still waits on.
  */
 export const conversationEnded = async (host: Host, isCleared: boolean) => {
+  riding = undefined
+
   if (!isCleared) {
     await letGoHeld(host, () => true)
   }
