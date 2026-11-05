@@ -182,8 +182,8 @@ const MISSING = (path: string) => ({ deny: `ENOENT: no such file or directory, $
 
 const isUnder = (dir: string, path: string) => path.startsWith(`${dir}/`)
 
-/** What reaches the model as a prompt: the text, what rode beside it, and whose it is. */
-type Submitted = Pick<PromptSubmitInput, 'text' | 'context' | 'origin'>
+/** What reaches the model as a prompt: the text, what rode beside it, whose it is, and what was attached. */
+type Submitted = Pick<PromptSubmitInput, 'text' | 'context' | 'origin' | 'attachments'>
 
 /**
  * The display beneath the mod: the panes it opens, as placed or waiting;
@@ -201,6 +201,7 @@ function display(on: On) {
   const submitted: string[] = []
   let unplaced: string | undefined
   let dropping: string | undefined
+  let failing: string | undefined
   let holding: { arrive: () => void; turn: Promise<void> } | undefined
 
   on('ui.open', ($, e) => {
@@ -272,11 +273,20 @@ function display(on: On) {
       await holding.turn
     }
 
+    if (failing !== undefined) {
+      throw new Error(failing)
+    }
+
     if (dropping !== undefined) {
       return { drop: dropping }
     }
 
-    prompts.push({ text: e.text, context: e.context, origin: e.origin })
+    prompts.push({
+      text: e.text,
+      context: e.context,
+      origin: e.origin,
+      ...(e.attachments !== undefined && { attachments: e.attachments }),
+    })
 
     return { text: e.text, context: e.context, origin: e.origin }
   })
@@ -303,6 +313,10 @@ function display(on: On) {
     /** Prompts from here on do not enter, for that reason; or, given none, they enter again. */
     dropPrompts: (reason?: string) => {
       dropping = reason
+    },
+    /** Prompts from here on fail beneath the mod, as a hook there throwing or timing out; or, given nothing, they enter again. */
+    failPrompts: (error?: string) => {
+      failing = error
     },
     /**
      * Prompts from here on wait, as behind a running turn: `arrived` once

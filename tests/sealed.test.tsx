@@ -9,6 +9,7 @@ import type { RenderPropsOf } from 'claude-code'
 import { expect, test, tier } from 'claude-code/testing'
 import { parseEntries, parsePresence, type SessionPaths } from '../core'
 import { QUIET_MS } from '../hooks/deliver'
+import { SEND_NOW } from '../hooks/draw/ready'
 import { WATCH_MS } from '../hooks/window'
 import { rowsOf } from './drawn'
 import { MIN, SLOW, W1 } from './support'
@@ -1058,6 +1059,201 @@ test("a prompt of Lee's going on to start a turn leaves the window stopped until
 
   expect(isStopped(w)).toBe(true)
   expect(w.submitted).toEqual([message(1), 'Look at the failing test instead.'])
+})
+
+/** The answer to "Name the release" that goes in with an image: Lee's prompt, rewritten. */
+const RODE = 'From the board:\n- Name the release → answer: “Harbour [Image #1]”'
+
+/** The session stopped with the first round's send held, and Lee answering a words ask in the prompt: its id. */
+const answeringStopped = async (w: World, ui: Pane, ids: readonly string[]) => {
+  const words = postedId(await w.call('ask', { wants: 'words', title: 'Name the release' }))
+
+  await holding(w, ui, ids)
+  await interrupted(w)
+
+  if ((await ui.find({ key: `answer:${w.item(words)}` })) === undefined) {
+    await ui.press({ key: `pick:${w.item(words)}` })
+  }
+
+  await ui.press({ key: `answer:${w.item(words)}` })
+
+  return words
+}
+
+/** Lee's answer, an image attached, entered at the prompt. */
+const answeredWithImage = ($: Engine) =>
+  $.prompt.submit({
+    text: 'Harbour [Image #1]',
+    attachments: [{ type: 'image' }],
+    wait: false,
+    origin: { kind: 'composer' },
+  })
+
+test("an answer going in with an image is a prompt of Lee's going on: the window stays stopped until its turn starts, then the send held goes as that turn ends", SLOW, async ($, on) => {
+  const w = world($, on)
+  const { paths, ids, ui } = await asking(w)
+  const [first = ''] = ids
+  const words = await answeringStopped(w, ui, ids)
+
+  w.dropPrompts()
+  await answeredWithImage($)
+  await w.clock.advance(4 * WATCH_MS)
+
+  expect(isStopped(w)).toBe(true)
+  expect(w.submitted).toEqual([message(1), RODE])
+  expect(repliedIn(w, paths)).toEqual([words])
+
+  await w.turnStarts(RODE)
+
+  expect(isStopped(w)).toBe(false)
+
+  await turnEnded(w)
+
+  expect(w.submitted).toEqual([message(1), RODE, message(1)])
+  expect(repliedIn(w, paths)).toEqual([words, first])
+})
+
+test('an answer with an image dropped beneath lifts the stop, though no turn follows: the send held goes at the next look, and the answer still waits on Lee', SLOW, async ($, on) => {
+  const w = world($, on)
+  const { paths, ids, ui } = await asking(w)
+  const [first = ''] = ids
+  const words = await answeringStopped(w, ui, ids)
+
+  w.dropPrompts('Blocked by a hook')
+  await answeredWithImage($)
+
+  expect(isStopped(w)).toBe(false)
+
+  w.dropPrompts()
+  await w.clock.advance(WATCH_MS)
+
+  expect(w.submitted).toEqual([message(1), RODE, message(1)])
+  expect(repliedIn(w, paths)).toEqual([first])
+  expect(w.state.answering).toMatchObject({ item: words })
+})
+
+/** The first round's send held for Claude's turn, and Lee answering a words ask in the prompt meanwhile: its id. */
+const answeringWhileHeld = async (w: World, ui: Pane, ids: readonly string[]) => {
+  const words = postedId(await w.call('ask', { wants: 'words', title: 'Name the release' }))
+
+  await holding(w, ui, ids)
+
+  if ((await ui.find({ key: `answer:${w.item(words)}` })) === undefined) {
+    await ui.press({ key: `pick:${w.item(words)}` })
+  }
+
+  await ui.press({ key: `answer:${w.item(words)}` })
+
+  return words
+}
+
+test("an answer going in with an image while a send is held goes ahead of it, and the send goes once the answer's own turn has ended", SLOW, async ($, on) => {
+  const w = world($, on)
+  const { paths, ids, ui } = await asking(w)
+  const [first = ''] = ids
+  const words = await answeringWhileHeld(w, ui, ids)
+  const held = w.holdPrompts()
+  const typed = answeredWithImage($)
+
+  await held.arrived
+
+  expect(flightsIn(w)).toEqual([
+    { items: [words], isHeld: false },
+    { items: [first], isHeld: true },
+  ])
+
+  held.end()
+  await typed
+
+  expect(repliedIn(w, paths)).toEqual([words])
+
+  await turnEnded(w)
+
+  expect(w.submitted, 'nothing goes until the answer’s turn is heard').toEqual([RODE])
+
+  await w.turnStarts(RODE)
+  await turnEnded(w)
+
+  expect(w.submitted).toEqual([RODE, message(1)])
+  expect(repliedIn(w, paths)).toEqual([words, first])
+})
+
+test("an answer typed while Claude's turn runs holds the send behind it however long that turn runs, until the answer's own turn has started and ended", SLOW, async ($, on) => {
+  const w = world($, on)
+  const { paths, ids, ui } = await asking(w)
+  const [first = ''] = ids
+  const words = await answeringWhileHeld(w, ui, ids)
+
+  await answeredWithImage($)
+  await w.clock.advance(2 * QUIET_MS)
+  await turnEnded(w)
+
+  expect(w.submitted).toEqual([RODE])
+
+  await w.turnStarts(RODE)
+  await turnEnded(w)
+
+  expect(w.submitted).toEqual([RODE, message(1)])
+  expect(repliedIn(w, paths)).toEqual([words, first])
+})
+
+test("an answer folded into Claude's running turn, starting no turn of its own, holds the send behind it until the window has been quiet a while after that turn", SLOW, async ($, on) => {
+  const w = world($, on)
+  const { ids, ui } = await asking(w)
+
+  await answeringWhileHeld(w, ui, ids)
+  await answeredWithImage($)
+  await w.clock.advance(2 * QUIET_MS)
+  await turnEnded(w)
+  await w.clock.advance(QUIET_MS - WATCH_MS)
+
+  expect(w.submitted).toEqual([RODE])
+
+  await w.clock.advance(2 * WATCH_MS)
+
+  expect(w.submitted).toEqual([RODE, message(1)])
+})
+
+test("an answer whose turn starts before its hook hears back holds the send behind it only until that turn ends", SLOW, async ($, on) => {
+  const w = world($, on)
+  const { paths, ids, ui } = await asking(w)
+  const [first = ''] = ids
+  const words = await answeringWhileHeld(w, ui, ids)
+  const held = w.holdPrompts()
+  const typed = answeredWithImage($)
+
+  await held.arrived
+  await turnEnded(w)
+  await w.turnStarts(RODE)
+
+  expect(repliedIn(w, paths)).toEqual([words])
+
+  held.end()
+  await typed
+  await turnEnded(w)
+
+  expect(w.submitted).toEqual([RODE, message(1)])
+  expect(repliedIn(w, paths)).toEqual([words, first])
+})
+
+test('while the window is stopped, the first send held behind an answer going in with an image offers no send now, which could not send it', SLOW, async ($, on) => {
+  const w = world($, on)
+  const { ids, ui } = await asking(w)
+
+  await answeringStopped(w, ui, ids)
+  w.dropPrompts()
+
+  const held = w.holdPrompts()
+  const typed = answeredWithImage($)
+
+  await held.arrived
+
+  expect(flightsIn(w).map(each => each.isHeld)).toEqual([false, true])
+  expect(await ui.find({ key: SEND_NOW })).toBeUndefined()
+  expect(await box(ui)).toContain('⧗ Goes after your next message. ↺ take back')
+
+  held.end()
+  await typed
 })
 
 test("a prompt another plugin submits, or the SDK's, lifts nothing: only Lee's own input counts", SLOW, async ($, on) => {

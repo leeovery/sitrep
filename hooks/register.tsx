@@ -411,10 +411,22 @@ export const register: Register = on => {
     // A prompt the answering mode takes goes no further, so it takes no board context either.
     const taken = await captured(host, e)
 
-    if (taken !== undefined) {
+    if (taken !== undefined && 'drop' in taken) {
       await wentNowhere()
 
-      return { drop: taken }
+      return taken
+    }
+
+    // Rewritten as the board's own message, which takes no board context,
+    // its attachments passing through as Lee attached them.
+    if (taken !== undefined) {
+      const entered = await taken.enter(text => next({ ...e, text }))
+
+      if (entered.drop !== undefined) {
+        await wentNowhere()
+      }
+
+      return entered
     }
 
     const change = await serially(() => boardChange(host))

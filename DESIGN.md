@@ -661,7 +661,9 @@ shape is ever shown as a word:
   Claude to act on.
 
 **Lee writes in Claude Code's own prompt box**, where a paste works, and the
-words still wait in Ready to send with everything else, sent in one go.
+words still wait in Ready to send with everything else, sent in one go. An
+answer with an image attached goes at once instead (see "An answer with an
+image", below).
 
 1. `✎ Answer` (a words ask) or `✎ comment` (a yes or a choice) puts the
    window in **answering** mode for that ask; `✎ with a comment` puts it in
@@ -715,9 +717,9 @@ words still wait in Ready to send with everything else, sent in one go.
    A paste arrives in the submitted prompt wrapped
    `<pasted_content id="…">…</pasted_content id="…">` (live, 2.1.295;
    undocumented): it is unwrapped onto lines of its own, the words typed
-   around it kept in place. An empty Enter, or one with something attached,
-   is not taken: a toast says why, the prompt stays in the box, and the mode
-   stands.
+   around it kept in place. An empty Enter is not taken: a toast says why,
+   the prompt stays in the box, and the mode stands. One with something
+   attached goes in at once (below).
 4. **Queued, the reply shows on one row**, under the ask and in Ready to
    send: its words clipped to a line, `+3 lines` when there are more, then,
    under the ask, `· not sent yet ↺ undo ✎ edit`. `✎ edit` enters the mode
@@ -726,6 +728,93 @@ words still wait in Ready to send with everything else, sent in one go.
    offers `✎ comment` there instead, which adds its note; a bare pick-up,
    neither.
 5. **One send carries everything**, as ever.
+
+**An answer with an image** (5 November 2026). Lee answered an ask in the
+prompt with a screenshot attached, and the board refused it as words alone;
+Lee: "they're just paths that pass through. We need to make that work." An
+image can't wait in Ready to send: `prompt.submit` gives a plugin each
+attachment's kind, type and file name, never its bytes or a path; a
+plugin's own `$.prompt.submit` expands no pasted image; and Claude Code
+caches only pasted text. So an Enter the mode takes with something attached
+is not dropped: Lee's own prompt goes in now, its text rewritten as the
+board's words for that one reply (`From the board:` and the reply's line,
+as a send words it), its attachments passing through untouched. Claude Code
+keeps the image's blocks and puts the new text in place of the typed text
+(read from 2.1.318's code).
+
+- **The words.** The submitted text keeps `[Image #1]` where each image sits
+  (2.1.318 expands pasted text in place, an image's placeholder as typed),
+  so the reply's note keeps it too, and Claude reads where each image
+  belongs. An image alone answers as its placeholder: `answer: “[Image #1]”`.
+  One with no text at all, as nothing marks where it sits, is an empty
+  Enter, not taken.
+- **The reply** is built as a queued one is: an answer, a comment, a
+  pick-up's note, or a comment going as the note of a yes or a choice
+  queued on the ask, which goes with it. It goes only while a send would
+  carry it, the session read afresh first, as a send reads it: it fits the
+  ask, the ask is open, and no answer is on its way to it. Else the prompt
+  is kept, a toast saying why, in Ready to send's words (`Not sent: already
+  answered.`, `Not sent: it has changed since.`, `Not sent: Claude closed
+  it.`). Where a send carries the ask's reply already,
+  the mode is over, and the prompt goes on as any prompt of Lee's does, the
+  board's context with it.
+- **Only to this window's session.** The prompt goes into this window's
+  Claude, so an item of another session can't take it: the prompt is kept,
+  with `An attachment goes only to this window's session: take it out to
+  answer in words, or answer from that session's window.`
+- **On its way from the start.** Before the prompt goes on, the reply is
+  claimed as a message in flight, as a send is (see Delivery): its id fixed,
+  its text the rewritten prompt, and the reply frozen in Ready to send in
+  place of whatever was queued on its item, so no send carries that as well.
+  What was queued there is kept on the claim, in `$.state`, to be put back
+  should it not go in (builds before read the claim as a send). It is
+  submitted already, by Lee's Enter: never held, so never taken back, and
+  never submitted by the window. Ready to send draws it whole, `⧗ Sending.`
+  under its reply, never as one of the held sends' rows: short of room it
+  keeps its rows as the first send does. While the window is stopped, the
+  sends behind it offer no `↑ send now`, which could submit nothing ahead of
+  it: they say `⧗ Goes after your next message.`. It goes ahead of the
+  sends the window holds, which wait for it to end and for its turn to
+  start, as behind any message submitted first; that wait counts its 30
+  seconds only from a moment between turns, as Claude's turn ending, since a
+  prompt typed while a turn runs waits in Claude Code's queue until it ends,
+  or is folded into that turn and starts none of its own. The heartbeat says
+  it, so its ask is on its way to every reader at once, and the mode ends.
+- **Taken**, the prompt's `next` resolving with no drop, or a turn starting
+  with its text, it is written down as any taken message is, the lines a
+  send writes, through the hold; a write that fails, or a load cutting it
+  short, is written at the next look or load. No quiet lets it go while the
+  hook that let it in still waits on Claude Code, which delivers it, not the
+  window; one a load or the conversation's end leaves behind is let go as
+  never taken once the window has gone quiet without its turn, as a
+  message submitted and not yet heard is. So let go, what was queued on its
+  item is put back, and a toast says `Your answer with the image didn't go
+  in: write it again.`: its image went with the prompt, and nothing on the
+  board holds it.
+- **Dropped beneath**, by another plugin's hook or Claude Code, it is let go
+  silently: what was queued on its item is put back as it was, and the mode
+  stands again, unless Lee began another meanwhile. Claude Code puts the
+  prompt back in the box. A failure beneath, a hook throwing or timing
+  out, lets it go too, the mode not standing again, the prompt having gone
+  on in some form. Failing to freeze the reply in Ready to send before the
+  prompt goes on lets it go as well, and Lee's words and image go in as a
+  plain prompt, nothing on the board recording them; failing to put back
+  what was queued, once it is let go, can leave its reply in Ready to send,
+  no longer frozen. A drop by a plugin whose hook runs above
+  sitrep's is never seen, `next` hearing only what is beneath: the reply is
+  written down delivered all the same, a gap the mod cannot close.
+- **Typed while Claude's turn runs**, `prompt.submit` fires at Enter, with
+  that turn's id (2.1.318 queues the prompt with its screening begun, and
+  the engine's types say so): `next` resolves then, and the reply is
+  written down while the prompt waits in Claude Code's queue for the turn to
+  end. A prompt Lee pulls back out of that queue never goes in, though the
+  board has it delivered; nor does one whose hooks an interrupt cancels
+  (`wasCancelled`), which still resolves `next` with no drop. Sends share
+  the second gap.
+- Like the board's own message it takes no board-change context, which
+  rides in with the next prompt. It is still Lee's input: a prompt that goes
+  on leaves the window stopped until its turn starts, and one dropped lifts
+  the mark (see "Held for Lee's input", under Delivery).
 
 **The mode is safe to be in:**
 
@@ -1048,10 +1137,16 @@ app (see "The menu bar").
   behind the inbox's message: while that is in flight a send claims nothing
   and says it waits for the inbox's replies, Lee's replies left in Ready to
   send. The inbox's is claimed only with nothing in flight: while anything
-  is, a look takes in nothing more. A claim an older load left, which
-  submitted as it claimed, reads as held no more; one not shaped as a
-  claim, as the object an older build makes of a list (see Storage), is
-  none.
+  is, a look takes in nothing more. An answer that went in with Lee's
+  prompt (see "An answer with an image", under "Answering an ask") is the
+  one exception to both: it is claimed as his Enter goes on, after any
+  message submitted already, the inbox's among them, and ahead of every one
+  held, the inbox's too. That is safe: Lee's prompt is Claude Code's to
+  deliver, the window submits nothing for it, and what it holds behind it
+  waits for it as behind any message submitted first. A claim an older
+  load left, which submitted as it claimed, reads as held no more; one not
+  shaped as a claim, as the object an older build makes of a list (see
+  Storage), is none.
   Until 5 November 2026 the
   window held one message in flight, and a send claimed while one was took
   nothing.
@@ -1091,13 +1186,17 @@ app (see "The menu bar").
     after a submit, nothing more is submitted until the start of that
     message's own turn is heard, its text the message's, the message is let
     go, or 30 seconds pass from the submit, should that start never be
-    heard. A turn another prompt starts meanwhile, as one Lee typed that
+    heard; for an answer that went in with Lee's prompt, 30 seconds from
+    the first moment between turns after its claim. A turn another prompt starts meanwhile, as one Lee typed that
     went in first, counts for nothing: its end submits nothing. A press of
     send or a look in that gap submits nothing; the next goes as the first's
     turn ends. A load knows nothing of a submit an earlier load made, and
     goes by the turn the window's state says: a reload landing in those
     milliseconds can still submit the next early, into Claude Code's queue,
-    its own prompt after the first's still, only past taking back. A load
+    its own prompt after the first's still, only past taking back. For an
+    answer Lee typed with an image while Claude's turn ran, that window is
+    the rest of the turn: a reload then forgets the wait on its turn, and a
+    send behind it may go as that turn ends, past taking back. A load
     finding several held carries the first on, and the rest in turn.
   - The conversation's end ends any turn of it, but only a `/clear` goes on in
     this process with a next conversation, so only a `/clear` submits held
