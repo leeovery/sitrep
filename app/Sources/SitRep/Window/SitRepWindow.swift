@@ -59,6 +59,11 @@ final class SitRepWindow: NSObject, NSWindowDelegate, NSMenuItemValidation {
         model.closed()
     }
 
+    /// The app quits, which tells the window no close.
+    func quitting() {
+        model.quitting()
+    }
+
     func windowDidBecomeKey(_ notification: Notification) {
         model.window(isKey: true)
     }

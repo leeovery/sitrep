@@ -76,11 +76,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// `watch` stops with the app, and a welcome open closes as its close button would close it, which quitting
-    /// never tells it.
+    /// `watch` stops with the app, a welcome open closes as its close button would close it, which quitting never
+    /// tells it, and the SitRep window keeps when Lee looked at the session whose page shows.
     func applicationWillTerminate(_ notification: Notification) {
         feed.stop()
         welcome?.closeIfOpen()
+        window.quitting()
     }
 
     /// The welcome at its first step, made as it first opens.
