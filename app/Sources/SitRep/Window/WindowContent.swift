@@ -94,7 +94,7 @@ struct PageColumn: View {
                 .id(Pick.session(session.id))
         case let .parked(item):
             Scrolling { ParkedPageView(page: item, now: now).padding(.horizontal, WindowStyle.detailInset) }
-                .id(Pick.parked(session: item.from.id, id: item.item.id))
+                .id(item.pick)
         case let .session(session):
             Scrolling { SessionPageView(page: session, now: now).padding(.horizontal, WindowStyle.pageInset) }
                 .id(Pick.session(session.id))

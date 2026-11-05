@@ -294,12 +294,25 @@ public struct PlaceList: Equatable, Sendable {
     func ordered(by order: [ListPick]) -> PlaceList {
         var ordered = self
 
-        ordered.rows = rows.held(by: order, \.pick)
-        ordered.fold?.rows = fold?.rows.held(by: order, \.pick) ?? []
+        ordered.rows = Hold.order(rows, by: order, \.pick)
+        ordered.fold?.rows = Hold.order(fold?.rows ?? [], by: order, \.pick)
         if place == .parked {
             ordered.rows = Self.byProject(ordered.rows).flatMap { $0.map(Row.parked) }
         }
         return ordered
+    }
+
+    /// The heading over the pick's row, where its row is the first under one: what the list scrolls into view with
+    /// it, so a project's first item never shows without its project.
+    public func heading(over pick: ListPick) -> Item.ID? {
+        let items = items
+
+        guard let at = items.firstIndex(where: { $0.id == .pick(pick) }), at > 0,
+              case let .heading(heading) = items[at - 1]
+        else {
+            return nil
+        }
+        return .heading(heading.project)
     }
 
     /// The rows it shows, which a click or an arrow key picks, in order.

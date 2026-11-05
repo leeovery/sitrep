@@ -52,6 +52,16 @@ struct Hold: Equatable, Sendable {
         endsAt = nil
     }
 
+    /// The elements in an order held, by each one's key; any the order lacks after those it has, as they were.
+    static func order<Element, Key: Hashable>(
+        _ elements: [Element], by order: [Key], _ key: (Element) -> Key
+    ) -> [Element] {
+        let rank = Dictionary(order.enumerated().map { ($1, $0) }) { first, _ in first }
+        let ranked = elements.enumerated().map { (rank: (rank[key($1)] ?? order.count, $0), element: $1) }
+
+        return ranked.sorted { $0.rank < $1.rank }.map(\.element)
+    }
+
     /// An order held, taking `watch`'s: what `watch` no longer has gone, and what is moving or new to it put where
     /// `watch` has it, after the nearest of those `watch` has before it that the held order already holds.
     static func merge<Key: Hashable>(_ held: [Key], into core: [Key], moving: Set<Key>) -> [Key] {

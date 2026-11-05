@@ -42,8 +42,8 @@ public struct ParkedPage: Equatable, Sendable {
     /// The lines since it was parked opened in place.
     public let opened: Set<Item>
 
-    /// Its pick in Parked's list, by its session and its id, as its id is unique only within its session.
-    public var id: ListPick { .parked(session: from.id, id: item.id) }
+    /// Which page it is, by its session and its id, as its id is unique only within its session.
+    public var pick: Pick { .parked(session: from.id, id: item.id) }
 }
 
 extension ParkedPage {

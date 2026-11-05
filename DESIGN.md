@@ -4988,8 +4988,8 @@ stands).
     turn row by today's rule; a parked item by its title, its session's
     name or its project's; a project by its name.
   - **Parked** lists every item parked, by project in `watch`'s order, each
-    project's the oldest first, as parked where two are as old; each run
-    of a project's items under its heading. Its count is core's, every
+    project's the oldest first, as parked where two are as old; each
+    project's items under its one heading. Its count is core's, every
     item on the board. Held under the pointer, an item new to the board
     goes in after the one `watch` has before it, which may be another
     project's, so the held rows are kept together by project, the
@@ -5051,10 +5051,11 @@ stands).
     the list it stood in is gone (closed on a line since answered, it opens
     on Needs you, nothing picked, not on an empty list beside that line's
     page); else Needs you, nothing picked. A Parked pick is kept while its
-    list, narrowed as it was, lists its item. Opened before `watch`'s first
-    line, it opens where it was left, then, with the first board, as that
-    board says,
-    unless Lee has gone somewhere meanwhile: a window opened on a project's
+    list, narrowed as the narrowing now stands, lists its item: every item
+    where the narrowed project or session has left the board. Opened
+    before `watch`'s first line, it opens where it was left, then, with the
+    first board, as that board says, unless Lee has gone somewhere
+    meanwhile: a window opened on a project's
     page a moment before the board comes still opens on what needs Lee.
     Where it was left is kept across launches, but not where its pick stood
     in a list. "Where it stood" holds only while the window is open.

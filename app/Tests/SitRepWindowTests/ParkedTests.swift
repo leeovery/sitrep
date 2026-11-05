@@ -294,6 +294,37 @@ struct ParkedTests {
         #expect(run.toolbar.listing?.position?.text == "2 / 2")
     }
 
+    /// Parked narrowed to Northwind, an item picked, and the board drops Northwind: the narrowing falls back to every
+    /// item, the pick of a session gone dropping, the title Parked, and the list, its position and its steps over
+    /// every item, though the board was first kept against the narrowing it had.
+    @Test func narrowedToAProjectTheBoardDropsItFallsBackToEveryItem() {
+        let north = Built(id: "n1", project: "northwind", parked: [100, 50])
+        let contoso = Built(id: "c1", project: "contoso", parked: [90, 30])
+        let run = Self.opened(on: Built.printed([north, contoso]))
+
+        run.go(to: .place(.parked, scope: .project("northwind")), by: .projectParked)
+        run.pickInList(north.parkedPick(1), at: printedAt)
+        run.settle(at: printedAt.addingTimeInterval(2))
+        run.show(heard(Built.printed([contoso])), at: printedAt.addingTimeInterval(2), reducesMotion: false)
+
+        #expect(run.location == .place(.parked))
+        #expect(run.toolbar.title == "Parked")
+        #expect(run.list(at: printedAt)?.picks == [contoso.parkedPick(0), contoso.parkedPick(1)])
+        #expect(run.toolbar.listing?.position == nil)
+        run.step(down: true, at: printedAt.addingTimeInterval(2))
+        #expect(run.toolbar.listing?.position?.text == "1 / 2")
+    }
+
+    /// The list scrolls a project's first item into view with its heading; any other row alone.
+    @Test func aProjectsFirstItemIsRevealedWithItsHeading() {
+        let list = Self.parked()
+
+        #expect(list.heading(over: Self.welcome) == .heading("contoso"))
+        #expect(list.heading(over: Self.currency) == .heading("northwind"))
+        #expect(list.heading(over: Self.retry) == nil)
+        #expect(PlaceList(.needsYou, in: Listed(heard(line(0)))).heading(over: macAppK1) == nil)
+    }
+
     // MARK: The item's page
 
     /// The item picked shows beside the list: its title, `where` and `ref`, its project, and the session it was
@@ -307,7 +338,7 @@ struct ParkedTests {
 
         let page = try #require(run.page(at: printedAt).parked)
 
-        #expect(page.id == Self.currency)
+        #expect(page.pick == .parked(session: "sr-nwdgr4", id: "77k4"))
         #expect(page.item.title == "Handle multi-currency rows")
         #expect(page.item.where == "After the first export ships")
         #expect(page.item.ref == "docs/export.md")
@@ -369,7 +400,7 @@ struct ParkedTests {
 
         let page = try #require(run.page(at: printedAt).parked)
 
-        #expect(page.id == .parked(session: "n2", id: "p1"))
+        #expect(page.pick == .parked(session: "n2", id: "p1"))
         #expect(page.item.title == "Parked 1 of n2")
         #expect(page.from.name == "Session n2")
     }
@@ -391,7 +422,7 @@ struct ParkedTests {
         run.goBack()
         #expect(run.location == narrowed)
         #expect(run.toolbar.listing?.position?.text == "2 / 2")
-        #expect(run.page(at: printedAt).parked?.id == Self.retry)
+        #expect(run.page(at: printedAt).parked?.pick == .parked(session: "sr-nwdgr4", id: "3k0a"))
     }
 
     /// A parked item's page is a page of its own: another item of the same session picked turns the page, closing what

@@ -52,7 +52,8 @@ struct ListColumn: View {
 /// system, and which never empties while a row of it is picked. A click picks a row as a step replacing the last; ↓
 /// and ↑, bare, step through the rows as the window's run says (`WindowRun.step(down:at:)`), from where the pick stood
 /// where the list no longer shows it, and nowhere past either end; with a modifier held they are the list's own. The
-/// row picked is scrolled into view whenever it or the order changes, only as far as it needs. The pointer over its
+/// row picked is scrolled into view whenever it or the order changes, only as far as it needs, with its project's
+/// heading where it is the first under one. The pointer over its
 /// column holds its order (`ListColumn`).
 private struct PlaceListView: View {
     let list: PlaceList
@@ -114,10 +115,16 @@ private struct PlaceListView: View {
         return .handled
     }
 
-    /// The row picked scrolled into view, only as far as it needs.
+    /// The row picked scrolled into view, only as far as it needs; a project's first item in Parked with its heading,
+    /// which, scrolled to after the row, shows above it, the row staying in view.
     private func reveal(in scroller: ScrollViewProxy) {
-        if let shown {
-            scroller.scrollTo(PlaceList.Item.ID.pick(shown))
+        guard let shown else {
+            return
+        }
+
+        scroller.scrollTo(PlaceList.Item.ID.pick(shown))
+        if let heading = list.heading(over: shown) {
+            scroller.scrollTo(heading)
         }
     }
 }
