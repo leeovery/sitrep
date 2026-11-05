@@ -8,11 +8,12 @@ import Testing
 
 /// The SitRep window's key states, drawn offscreen over what the real CLI printed, as Paper's drawing has them: a line
 /// of Needs you and its session beside it, its ask's card leading, a permission prompt leading as the line picked, an
-/// away session and its finish, a project, and one with a session of each kind, a session pushed from it, a session's page with its meta line, and the
-/// moments of an answer and of a board changing under Lee; a session's long name, and the window as narrow as it goes;
-/// Your turn, Working, the asks asleep opened and one leading, filtered, and a filter that keeps nothing; Parked, an
-/// item picked beside it, at the window's size and at its narrowest; and the
-/// sidebar as the window itself lays it out. Each draws whole at the window's size, or at its narrowest.
+/// away session and its finish, a project, and one with a session of each kind, a session pushed from it, a session's
+/// page with its meta line and where Lee last looked, and the moments of an answer and of a board changing under Lee; a
+/// session's long name, and the window as narrow as it goes; Your turn, Working, the asks asleep opened and one leading,
+/// filtered, and a filter that keeps nothing; Parked, an item picked beside it, its lines from before Lee last looked
+/// dimmer, at the window's size and at its narrowest; and the sidebar as the window itself lays it out. Each draws whole
+/// at the window's size, or at its narrowest.
 /// With `SITREP_WINDOW_STILLS` naming a folder, each is kept there as a PNG, to read beside the drawing; nothing opens
 /// on the screen.
 /// When the real `watch` printed its first line.
@@ -41,6 +42,20 @@ struct WindowStillsTests {
         #expect(image.width == Int(still.width * 2))
         #expect(image.height == 1440)
         try keep(image, as: still.rawValue)
+    }
+
+    /// A2's session page draws its divider under its second ask, and A4's item dims its older line since.
+    @Test func theSessionPageAndTheParkedItemDrawWhereLeeLastLooked() {
+        let (session, sessionAt) = Still.sessionPage.run()
+        let (parked, parkedAt) = Still.parked.run()
+
+        guard case let .session(page) = session.page(at: sessionAt), case let .parked(item) = parked.page(at: parkedAt)
+        else {
+            Issue.record("Not a session's page and a parked item's")
+            return
+        }
+        #expect(page.looked?.newer == 2)
+        #expect(item.looked?.newer == 1)
     }
 
     /// The sidebar as the window lays it out, its list running to the glass's foot, over black where the glass would
@@ -118,7 +133,7 @@ struct WindowStillsTests {
         /// The window's run in the state, and the time it is drawn at.
         func run() -> (WindowRun, Date) {
             let now = printed
-            let run = Self.opened(Self.line(of: self))
+            let run = Self.opened(Self.line(of: self), looked: Self.looked(of: self))
 
             switch self {
             case .session, .longTitle, .longTitleNarrow, .narrow:
@@ -208,8 +223,18 @@ struct WindowStillsTests {
             }
         }
 
-        private static func opened(_ line: String) -> WindowRun {
-            let run = WindowRun(wall: { printed })
+        /// When Lee last looked, as A2 and A4 draw it: at the Mac app four hours before, between its asks; at Ledger
+        /// export between its two lines since it parked its items.
+        private static func looked(of still: Still) -> LastLooked {
+            switch still {
+            case .sessionPage: LastLooked(["sr-macapp": printed.addingTimeInterval(-4 * 3600)])
+            case .parked, .parkedNarrow: LastLooked(["sr-nwdgr4": parkedAt.addingTimeInterval(3 * 3600 - 90 * 60)])
+            default: LastLooked()
+            }
+        }
+
+        private static func opened(_ line: String, looked: LastLooked) -> WindowRun {
+            let run = WindowRun(looked: looked, wall: { printed })
 
             run.show(heard(line), at: printed, reducesMotion: false)
             run.open()

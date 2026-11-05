@@ -65,8 +65,8 @@ struct NowSection: View {
 
 /// A session page's What happened: one thread, the newest first, filling the window its asks, "Asked …", on hollow
 /// marks, and its log's lines on dots, on one line down their marks; each line opens in place to the whole of it and
-/// its detail. At its end "N resolved", folded, opens in place to its resolved asks, the newest closed first, each
-/// opening to how it closed.
+/// its detail. Where Lee last looked, "You looked 2h ago" divides it, the entries under it dimmer. At its end "N
+/// resolved", folded, opens in place to its resolved asks, the newest closed first, each opening to how it closed.
 struct HappenedSection: View {
     let page: SessionPage
     let now: Date
@@ -87,7 +87,10 @@ struct HappenedSection: View {
             PageHeading(name: "What happened")
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(Array(page.happened.enumerated()), id: \.element.id) { offset, entry in
-                    line(entry, along: OnThread(isFirst: offset == 0, isLast: offset == page.happened.count - 1))
+                    if let looked = page.looked, offset == looked.newer {
+                        LookedDivider(at: looked.at, now: now, height: size.row)
+                    }
+                    line(entry, along: OnThread(offset, of: page.happened.count, looked: page.looked))
                 }
             }
             .padding(.leading, WindowStyle.sectionIndent)
@@ -146,8 +149,9 @@ struct HappenedSection: View {
 }
 
 /// A parked item's "Since it was parked" (A4 revised): its session's log lines written since, the newest first, on one
-/// line down their marks as What happened's, each in a row of 26, opening in place to the whole of it and its detail;
-/// under them, where its session's board carries no line from before it was parked, that only the newest show.
+/// line down their marks as What happened's, each in a row of 26, opening in place to the whole of it and its detail,
+/// those from before Lee last looked at its session dimmer, with no divider, as A4 draws none; under them, where its
+/// session's board carries no line from before it was parked, that only the newest show.
 struct SinceParkedSection: View {
     let page: ParkedPage
     let now: Date
@@ -161,7 +165,7 @@ struct SinceParkedSection: View {
                 ForEach(Array(page.since.enumerated()), id: \.element.id) { offset, note in
                     NoteLine(
                         note: note, opened: page.opened, size: size, now: now,
-                        thread: OnThread(isFirst: offset == 0, isLast: offset == page.since.count - 1)
+                        thread: OnThread(offset, of: page.since.count, looked: page.looked)
                     )
                 }
                 if page.isSinceCut {
@@ -205,17 +209,55 @@ private struct LineSize {
     let row: CGFloat
 }
 
-/// Where a line of What happened stands on the thread's line: the first's runs down from its mark, the last's up to it.
+/// Where a line of What happened stands on the thread's line: the first's runs down from its mark, the last's up to it;
+/// and whether it is from before Lee last looked, drawn dimmer.
 private struct OnThread {
     let isFirst: Bool
     let isLast: Bool
+    let isOlder: Bool
+
+    /// The line at this place of so many, against where Lee last looked, if it divides them.
+    init(_ place: Int, of count: Int, looked: YouLooked?) {
+        isFirst = place == 0
+        isLast = place == count - 1
+        isOlder = looked?.isOlder(place) ?? false
+    }
+}
+
+/// Where Lee last looked, between two lines of What happened, as A2 revised draws it: "You looked 2h ago", 11 medium
+/// in white at 35% from the words' edge, then a hairline in white at 8% to the trailing edge, the thread's line
+/// running on through it unbroken; to VoiceOver its words, in whole words.
+private struct LookedDivider: View {
+    let at: Date
+    let now: Date
+    let height: CGFloat
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Text(Words.youLooked(at, at: now))
+                .font(WindowStyle.ui(11, .medium))
+                .foregroundStyle(WindowStyle.dim)
+                .lineLimit(1)
+                .fixedSize()
+            Rectangle().fill(WindowStyle.lookedRule).frame(height: 1)
+        }
+        .padding(.leading, WindowStyle.wordsEdge)
+        .frame(height: height)
+        .background(alignment: .leading) {
+            ThreadRule(from: nil, to: nil)
+                .stroke(WindowStyle.threadRule, lineWidth: 1)
+                .frame(width: WindowStyle.lane.width)
+        }
+        .spoken(Spoken.youLooked(at, at: now))
+    }
 }
 
 /// A line of a session's Now or What happened, as A1 and A2 revised draw them: its mark in its lane, Now's dot, next's
 /// ring or later's diamond, or on the thread's line an ask's hollow ring or a log line's dot, each ringed in the page's
 /// black so the line breaks round it; a quieter word before its words, "next", "later" or "Asked"; its words; and on
-/// the thread its time in a lane of its own. Opened, its words wrap whole, and its detail sits close under them, as a
-/// section's line's. To VoiceOver its words and its time are one element.
+/// the thread its time in a lane of its own, all three dimmer where it is from before Lee last looked. Opened, its
+/// words wrap whole, and its detail sits close under them, as a section's line's. To VoiceOver its words and its time
+/// are one element.
 private struct MarkedLine<Detail: View>: View {
     enum Mark {
         case now, next, later, asked, line
@@ -234,11 +276,13 @@ private struct MarkedLine<Detail: View>: View {
 
     private var padding: CGFloat { (size.row - size.line) / 2 }
 
+    private var isOlder: Bool { thread?.isOlder ?? false }
+
     var body: some View {
         HStack(alignment: .top, spacing: WindowStyle.wordsEdge - WindowStyle.lane.width) {
             marked.frame(width: WindowStyle.lane.width, height: size.line)
             VStack(alignment: .leading, spacing: 3) {
-                Text(text).foregroundStyle(textColour).after(word)
+                Text(text).foregroundStyle(isOlder ? WindowStyle.olderText : textColour).after(word)
                     .font(WindowStyle.ui(13))
                     .lineLimit(isOpen ? nil : 1)
                     .fixedSize(horizontal: false, vertical: isOpen)
@@ -254,7 +298,7 @@ private struct MarkedLine<Detail: View>: View {
             if let at {
                 Text(Words.age(at, at: now))
                     .font(WindowStyle.ui(12).monospacedDigit())
-                    .foregroundStyle(WindowStyle.dim)
+                    .foregroundStyle(isOlder ? WindowStyle.olderAge : WindowStyle.dim)
                     .frame(width: WindowStyle.turnTimeLane, height: size.line, alignment: .trailing)
                     .accessibilityLabel(Spoken.age(at, at: now))
             }
@@ -284,13 +328,17 @@ private struct MarkedLine<Detail: View>: View {
                     .frame(width: 8, height: 8)
             case .asked:
                 Circle().fill(WindowStyle.black).frame(width: 9, height: 9)
-                Circle().strokeBorder(WindowStyle.threadMark, lineWidth: 1.3).frame(width: 7, height: 7)
+                Circle().strokeBorder(threadMark, lineWidth: 1.3).frame(width: 7, height: 7)
             case .line:
                 Circle().fill(WindowStyle.black).frame(width: 11, height: 11)
-                Circle().fill(WindowStyle.threadMark).frame(width: 5, height: 5)
+                Circle().fill(threadMark).frame(width: 5, height: 5)
             }
         }
         .accessibilityHidden(true)
+    }
+
+    private var threadMark: Color {
+        isOlder ? WindowStyle.olderMark : WindowStyle.threadMark
     }
 }
 
