@@ -26,7 +26,8 @@ const MESSAGE = 'From the board:\n- Review Sessions & Runway, round 1 → Approv
 
 const HELD = "⧗ Waiting for Claude's turn to end."
 
-const TAKE_BACK = 'take-back'
+/** A held send's take-back, by its words: found by its key (`w.takeBack()`) where it must be that send's. */
+const TAKE_BACK = '↺ take back'
 
 /** What the window's own file holds once the message is written down, by its source. */
 const WRITTEN: Record<Source, string[]> = {
@@ -327,7 +328,7 @@ test("send: while held, Ready to send says it waits for Claude's turn to end, wi
 
   expectHeld(w, 'send')
   expect(await ui.find({ type: 'Text', text: HELD }), 'what it waits for').toBeDefined()
-  expect(await ui.find({ key: TAKE_BACK, text: '↺ take back' }), 'its take-back').toBeDefined()
+  expect(await ui.find({ key: w.takeBack(), text: TAKE_BACK }), 'its take-back').toBeDefined()
   expect(await ui.find({ type: 'Text', text: '· on its way' }), 'its reply, on its way').toBeDefined()
   expect(await ui.find({ key: `unready:${key}` }), 'frozen while it goes').toBeUndefined()
   expect(await ui.find({ key: 'send' })).toBeUndefined()
@@ -335,12 +336,12 @@ test("send: while held, Ready to send says it waits for Claude's turn to end, wi
   expect(w.state.board?.waiting).toBe(0)
   expect(await asksOnBand(w, '0 asks'), 'none on the band').toBeDefined()
 
-  await ui.press({ key: TAKE_BACK })
+  await ui.press({ key: w.takeBack() })
 
   expect(w.state.inFlight).toBeNull()
   expect(w.state.queue).toEqual(queued)
   expect(await ui.find({ type: 'Text', text: HELD })).toBeUndefined()
-  expect(await ui.find({ key: TAKE_BACK })).toBeUndefined()
+  expect(await ui.find({ text: TAKE_BACK })).toBeUndefined()
   expect(await ui.find({ type: 'Text', text: '· not sent yet' }), 'its reply, not sent').toBeDefined()
   expect(await ui.find({ key: `unready:${key}` }), 'removable').toBeDefined()
   expect(await ui.find({ key: `undo:${key}` }), 'undone from its ask').toBeDefined()
@@ -363,7 +364,7 @@ test("send: held mid-turn, it is taken back while a subagent's run is under way:
   await w.turnStarts('Carry on.')
   await claim()
   await w.agentRunStarts(AGENT)
-  await ui.press({ key: TAKE_BACK })
+  await ui.press({ key: w.takeBack() })
 
   expect(w.state.inFlight).toBeNull()
   expect(w.state.queue).toEqual(queued)
@@ -380,7 +381,7 @@ test('send: taken back, it can be sent again, held again while Claude is mid-tur
 
   await w.turnStarts('Carry on.')
   await ui.press({ key: 'send' })
-  await ui.press({ key: TAKE_BACK })
+  await ui.press({ key: w.takeBack() })
   await ui.press({ key: 'send' })
   expectHeld(w, 'send')
 
@@ -394,14 +395,14 @@ test('send: once submitted it cannot be taken back: the control is gone, and Rea
 
   await w.turnStarts('Carry on.')
   await claim()
-  expect(await ui.find({ key: TAKE_BACK })).toBeDefined()
+  expect(await ui.find({ key: w.takeBack() })).toBeDefined()
 
   const turn = w.holdPrompts()
   const ended = turnEnded(w)
 
   await turn.arrived
   expect(w.state.inFlight).toMatchObject({ isHeld: false, isTaken: false })
-  expect(await ui.find({ key: TAKE_BACK })).toBeUndefined()
+  expect(await ui.find({ text: TAKE_BACK })).toBeUndefined()
   expect(await ui.find({ type: 'Text', text: '⧗ Sending.' })).toBeDefined()
   expect(sendingIn(w, paths), 'still on its way').toBeDefined()
 
@@ -420,7 +421,7 @@ test("the turn's end landing before a take-back it raced: the take-back finds th
   await claim()
   takingBack.hold(value => value === null)
 
-  const pressed = ui.press({ key: TAKE_BACK })
+  const pressed = ui.press({ key: w.takeBack() })
 
   await takingBack.arrived
 
@@ -452,7 +453,7 @@ test("a take-back landing before the turn's end it raced: the turn's end finds t
   const ended = turnEnded(w)
 
   await going.arrived
-  await ui.press({ key: TAKE_BACK })
+  await ui.press({ key: w.takeBack() })
   going.open()
   await ended
   await w.clock.advance(QUIET_MS + WATCH_MS)
@@ -497,7 +498,7 @@ test("a load that finds the send held between turns, its last load's going cut s
   await claim()
   await turnEnded(w)
   expect(w.submitted).toEqual([])
-  expect(await ui.find({ key: TAKE_BACK }), 'still held').toBeDefined()
+  expect(await ui.find({ key: w.takeBack() }), 'still held').toBeDefined()
 
   isCut = false
   await $.session.start(CONVERSATION)
@@ -521,7 +522,7 @@ test("a send left held between turns, its update as the turn ended refused, goes
   await claim()
   await turnEnded(w)
   expect(w.submitted).toEqual([])
-  expect(await ui.find({ key: TAKE_BACK }), 'still held').toBeDefined()
+  expect(await ui.find({ key: w.takeBack() }), 'still held').toBeDefined()
 
   isRefused = false
   await w.clock.advance(WATCH_MS)
@@ -628,7 +629,7 @@ test('inbox: a held message offers no take-back, though the window holds it as i
   await claim()
 
   expectHeld(w, 'inbox')
-  expect(await ui.find({ key: TAKE_BACK })).toBeUndefined()
+  expect(await ui.find({ text: TAKE_BACK })).toBeUndefined()
   expect(await ui.find({ type: 'Text', text: HELD })).toBeUndefined()
 })
 

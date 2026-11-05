@@ -3,7 +3,7 @@
  * in its inbox, and those its live windows' messages in flight carry, not
  * written down yet, each dated at its claim, merged into one order (time,
  * then writer, then a writer's own file before its letters before its
- * message in flight, then the count within each) and read into the board.
+ * messages in flight, then the count within each) and read into the board.
  */
 import { parseEntries } from './entries'
 import { parseMeta } from './meta'
@@ -59,7 +59,7 @@ export type SessionFiles = {
   presence?: Readonly<Record<string, string>>
 }
 
-/** Where a writer's reads come from, in the order those of one moment are read: its own file, its letters in the inbox, then the replies its message in flight carries. */
+/** Where a writer's reads come from, in the order those of one moment are read: its own file, its letters in the inbox, then the replies its messages in flight carry. */
 const FROM = { file: 0, letters: 1, sending: 2 } as const
 
 type From = keyof typeof FROM
@@ -126,7 +126,7 @@ const written = (files: Readonly<Record<string, string>>, from: Written['from'])
     parseEntries(text).map((entry): Written => ({ ...entry, by, from })),
   )
 
-/** A writer's own file, its letters and its message in flight count apart, so of its reads at one moment the file's come first, then the letters', whatever the counts. */
+/** A writer's own file, its letters and its messages in flight count apart, so of its reads at one moment the file's come first, then the letters', whatever the counts. */
 const inOrder = (a: Read, b: Read) =>
   a.at - b.at || compareText(a.by, b.by) || FROM[a.from] - FROM[b.from] || a.seq - b.seq
 
@@ -662,26 +662,26 @@ const logOf = (fold: Fold) =>
 
 /**
  * The replies live windows' messages carry to the session, claimed and not
- * written down yet, each read as a line of its window's dated at the claim.
- * One whose line is written by now is that line, read once. None is a reply
- * of the session's own: no inbox delivers it, and its id is no line's.
+ * written down yet, each read as a line of its window's dated at its
+ * message's claim. One whose line is written by now is that line, read once.
+ * None is a reply of the session's own: no inbox delivers it, and its id is
+ * no line's.
  */
 const carriedIn = (presence: readonly Presence[], lines: readonly Written[], now: number) => {
   const ids = new Set(lines.flatMap(line => ('id' in line ? [line.id] : [])))
 
-  const carried = ({ writer, sending }: Presence): Carried[] =>
-    sending === undefined
-      ? []
-      : sending.replies
-          .filter(sent => !ids.has(sent.id))
-          .map((sent, i) => ({
-            type: 'carried',
-            at: sending.at,
-            by: writer,
-            from: 'sending',
-            seq: i + 1,
-            sent,
-          }))
+  const carried = ({ writer, sending = [] }: Presence): Carried[] =>
+    sending
+      .flatMap(({ at, replies }) => replies.map(sent => ({ at, sent })))
+      .filter(({ sent }) => !ids.has(sent.id))
+      .map(({ at, sent }, i) => ({
+        type: 'carried',
+        at,
+        by: writer,
+        from: 'sending',
+        seq: i + 1,
+        sent,
+      }))
 
   return presence.filter(each => isLive(each, now)).flatMap(carried)
 }

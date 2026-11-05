@@ -115,7 +115,8 @@ export type Host = {
     others: Slot<SitrepOther[]>
     queue: Slot<SitrepQueued[]>
     sent: Slot<SitrepSent[]>
-    inFlight: Slot<SitrepInFlight | null>
+    /** The messages in flight, in the order claimed, however `$.state` keeps them. */
+    inFlight: Slot<SitrepInFlight[]>
     pane: Slot<SitrepPane>
     scroll: Slot<SitrepScroll | null>
     answering: Slot<SitrepAnswering | null>

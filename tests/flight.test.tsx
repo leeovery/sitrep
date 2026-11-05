@@ -12,7 +12,7 @@
  */
 import { expect, test, tier } from 'claude-code/testing'
 import { HEARTBEAT_MS, parseEntries, parsePresence, sessionPaths, type SessionPaths } from '../core'
-import { QUIET_MS } from '../hooks/deliver'
+import { keptFlights, QUIET_MS } from '../hooks/deliver'
 import { WATCH_MS } from '../hooks/window'
 import { file, MIN, reply, SENDER, SLOW, W1 } from './support'
 import { postedId, PROJECT, CONVERSATION, ROOT, startedId, world } from './world'
@@ -289,12 +289,11 @@ const sentHeld = async (w: World) => {
 test("send: from its claim the heartbeat says the yes it carries, and the ask needs Lee no more; taken and written down, the heartbeat drops it and the session's lines carry it", async ($, on) => {
   const w = world($, on)
   const { paths, id, claimedAt } = await sentHeld(w)
-  const [carried] = w.state.inFlight?.replies ?? []
+  const [carried] = keptFlights(w.state.inFlight ?? null)[0]?.replies ?? []
 
-  expect(sendingIn(w, paths)).toEqual({
-    at: claimedAt,
-    replies: [{ id: carried?.id, item: id, verdict: 'yes' }],
-  })
+  expect(sendingIn(w, paths)).toEqual([
+    { at: claimedAt, replies: [{ id: carried?.id, item: id, verdict: 'yes' }] },
+  ])
   expect(w.state.board?.waiting).toBe(0)
   expect(await asksOnBand(w, '0 asks')).toBeDefined()
 
@@ -422,17 +421,16 @@ test('a load whose read of $.state predates a send claimed since keeps the newer
 
   const w = world($, on)
   const { paths, id, claimedAt } = await sentHeld(w)
-  const [carried] = w.state.inFlight?.replies ?? []
+  const [carried] = keptFlights(w.state.inFlight ?? null)[0]?.replies ?? []
 
   isStale = true
   await $.session.start(CONVERSATION)
   isStale = false
   await w.clock.advance(WATCH_MS)
 
-  expect(sendingIn(w, paths)).toEqual({
-    at: claimedAt,
-    replies: [{ id: carried?.id, item: id, verdict: 'yes' }],
-  })
+  expect(sendingIn(w, paths)).toEqual([
+    { at: claimedAt, replies: [{ id: carried?.id, item: id, verdict: 'yes' }] },
+  ])
   expect(w.state.board?.waiting).toBe(0)
 })
 

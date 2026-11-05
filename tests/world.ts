@@ -31,6 +31,8 @@ import {
   type SessionMeta,
   type SessionPaths,
 } from '../core'
+import { keptFlights } from '../hooks/deliver'
+import { takeBackKey } from '../hooks/draw/ready'
 import { PANE } from '../hooks/pane'
 import { itemKey } from '../hooks/places'
 import { MANIFEST } from '../hooks/version'
@@ -736,6 +738,20 @@ export function world(engine: Engine, on: On, options: Options = {}) {
   /** An item's address on the board, as its buttons are keyed (`pick:<address>`): in the held session, unless another is named. */
   const item = (id: string, session = state.attachment?.session ?? '') => itemKey(session, id)
 
+  /** The window's messages in flight, in the order claimed, however `$.state` keeps them. */
+  const flights = () => keptFlights(state.inFlight ?? null)
+
+  /** The key of the take-back of the window's message in flight at `at`, the first unless told otherwise. */
+  const takeBack = (at = 0) => {
+    const send = flights()[at]
+
+    if (send === undefined) {
+      throw new Error(`no message in flight at ${at}`)
+    }
+
+    return takeBackKey(send)
+  }
+
   /** The band drawn on a surface, `columns` across, on a screen that measured as `viewport` where given. */
   const band = (
     surface: Surface = 'terminal',
@@ -789,6 +805,8 @@ export function world(engine: Engine, on: On, options: Options = {}) {
     pane,
     band,
     item,
+    flights,
+    takeBack,
   }
 }
 

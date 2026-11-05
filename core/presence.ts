@@ -4,7 +4,7 @@
  * open while at least one heartbeat is fresh. A mod cannot delete a file
  * either, so a window that lets go says so in its heartbeat. A heartbeat
  * also says where its window is, the sitrep version it runs, what it is
- * doing (state.ts), the replies its message in flight carries to the
+ * doing (state.ts), the replies its messages in flight carry to the
  * session, and when the load of the mod that wrote it began.
  */
 import { isFilled, isObject, isTime, parseSentReply } from './entries'
@@ -36,10 +36,20 @@ export const leave = (presence: Presence, at: number): Presence => ({
   leftAt: at,
 })
 
-export const presenceText = (presence: Presence) => `${JSON.stringify(presence)}\n`
+/**
+ * A heartbeat's text. A window sending one message says it alone, as builds
+ * before several messages said it, so a reader on such a build still reads
+ * it; several go as a list.
+ */
+export const presenceText = (presence: Presence) => {
+  const { sending } = presence
+  const said = sending?.length === 1 ? sending[0] : sending
 
-/** What a heartbeat says its window sends: its claim's time and each reply that reads; undefined without the time, or with no reply that reads. */
-const parseSending = (value: unknown): Sending | undefined => {
+  return `${JSON.stringify({ ...presence, sending: said })}\n`
+}
+
+/** One message a heartbeat says its window sends: its claim's time and each reply that reads; undefined without the time, or with no reply that reads. */
+const parseMessage = (value: unknown): Sending | undefined => {
   if (!isObject(value) || !isTime(value.at) || !Array.isArray(value.replies)) {
     return undefined
   }
@@ -47,6 +57,15 @@ const parseSending = (value: unknown): Sending | undefined => {
   const replies = value.replies.flatMap(reply => parseSentReply(reply) ?? [])
 
   return replies.length === 0 ? undefined : { at: value.at, replies }
+}
+
+/** What a heartbeat says its window sends: one message alone, or a list of them; undefined where none reads. */
+const parseSending = (value: unknown): Sending[] | undefined => {
+  const messages = (Array.isArray(value) ? value : [value]).flatMap(
+    message => parseMessage(message) ?? [],
+  )
+
+  return messages.length === 0 ? undefined : messages
 }
 
 /**

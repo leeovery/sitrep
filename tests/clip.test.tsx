@@ -734,7 +734,7 @@ test(
 
     await w.turnStarts('Carry on.')
     await ui.press({ key: 'send' })
-    expect(await ui.find({ key: 'take-back' })).toBeDefined()
+    expect(await ui.find({ key: w.takeBack() })).toBeDefined()
     await expectHeightKept(ui, 'a send held for the turn to end, its take-back beside it')
 
     const turn = w.holdPrompts()
@@ -849,5 +849,47 @@ test(
     expect(await listed()).toHaveLength(6)
     expect(await ui.find({ type: 'Text', text: /more$/ })).toBeUndefined()
     await expectHeightKept(ui, 'room for every one', 60)
+  },
+)
+
+test(
+  'a send held and the queue under it keep the box as tall as it draws; too long for under half the window, each send keeps its heading, its line and its take-back, what fits is listed, then how many more',
+  SLOW,
+  async ($, on) => {
+    const w = world($, on)
+    const { ids, ui } = await asking(w, 6)
+    const cap = Math.floor((BODY_ROWS - 1) / 2)
+
+    for (const id of ids.slice(0, 3)) {
+      await approve(ui, w.item(id))
+    }
+
+    await w.turnStarts('Carry on.')
+    await ui.press({ key: 'send' })
+
+    for (const id of ids.slice(3)) {
+      await approve(ui, w.item(id))
+    }
+
+    expect(await ui.find({ key: w.takeBack() })).toBeDefined()
+    expect(await ui.find({ key: 'send' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: '… 4 more' })).toBeDefined()
+    expect(await drawnRows(ui)).toBeLessThanOrEqual(cap)
+    await expectHeightKept(ui, 'a send held, and the queue under it, cut short')
+
+    await ui.press({ key: 'send' })
+
+    expect(await ui.find({ key: w.takeBack(0) })).toBeDefined()
+    expect(
+      await ui.find({ key: w.takeBack(1) }),
+      'the second, though none of its replies fit',
+    ).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: '… 4 more' })).toBeDefined()
+    expect(await drawnRows(ui)).toBeLessThanOrEqual(cap)
+    await expectHeightKept(ui, 'two sends held, cut short')
+
+    await ui.redraw(docked(60))
+    expect(await ui.find({ type: 'Text', text: /more$/ })).toBeUndefined()
+    await expectHeightKept(ui, 'two sends held, room for both', 60)
   },
 )

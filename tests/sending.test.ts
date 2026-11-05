@@ -90,14 +90,14 @@ const sidebarWords = (session: Session) => {
   return board.asks.find(ask => ask.id === 'k2')?.reply?.words
 }
 
-/** A window's heartbeat, live at NOW unless the times say otherwise, sending what it is given. */
-const windowOn = (writer: string, what?: Sending, times: Partial<Presence> = {}) => ({
+/** A window's heartbeat, live at NOW unless the times say otherwise, sending what it is given: one message, or several. */
+const windowOn = (writer: string, what?: Sending | Sending[], times: Partial<Presence> = {}) => ({
   [writer]: beat(writer, {
     attachedAt: T0,
     seenAt: NOW,
     version: '0.2.0',
     state: { is: 'working', since: CLAIMED },
-    sending: what,
+    sending: what === undefined ? undefined : [what].flat(),
     ...times,
   }),
 })
@@ -211,6 +211,24 @@ test("an answer in flight takes its place in the fold's order at its claim: an i
   ).toEqual(['r9'])
 
   expect([after.waiting, before.waiting]).toEqual([0, 0])
+})
+
+test("one window's messages each take their place at their own claim: an inbox answer written between them bars the later's answer, and the earlier's bars the inbox's", () => {
+  const keep = { ...KEEP, id: 'r5' }
+  const between = CLAIMED - MIN / 2
+  const session = sessionOf(
+    [REVIEW, SIDEBAR],
+    windowOn(W1, [claimed(CLAIMED - MIN, YES), claimed(CLAIMED, keep)]),
+    { [CLI]: file([between, DROP], [between, reply('r8', 'k1', 'ignore')]) },
+  )
+
+  expect(askIn(session, 'k1').answerOnItsWay?.id, 'the earlier claim first').toBe('r1')
+  expect(session.replies.find(each => each.id === 'r8')).toMatchObject({
+    delivery: 'void',
+    voided: 'answered',
+  })
+  expect(askIn(session, 'k2').answerOnItsWay?.id, 'the inbox before the later claim').toBe('r9')
+  expect(askIn(session, 'k2').replies.map(each => each.id), 'the later, barred').toEqual(['r9'])
 })
 
 test('the ask needs Lee again once the heartbeat drops the claim, goes stale, or says its window let go', () => {
@@ -443,19 +461,34 @@ test('a heartbeat says what its window sends field by field: a bad reply is drop
   const read = (value: unknown) =>
     parsePresence(JSON.stringify({ attachedAt: T0, seenAt: NOW, sending: value }), W1)
 
-  expect(read({ at: CLAIMED, replies: [YES, { id: 'r2', item: 'k2' }, 'yes'] })?.sending).toEqual(
+  expect(read({ at: CLAIMED, replies: [YES, { id: 'r2', item: 'k2' }, 'yes'] })?.sending).toEqual([
     sending(YES),
-  )
+  ])
   expect(read({ replies: [YES] })).toMatchObject({ writer: W1, sending: undefined })
   expect(
     read({ at: CLAIMED, replies: [{ verdict: 'shrug', id: 'r1', item: 'k1' }] })?.sending,
   ).toBe(undefined)
-  expect(read({ at: CLAIMED, replies: [{ ...COMMENT, extra: 1 }] })?.sending).toEqual(
+  expect(read({ at: CLAIMED, replies: [{ ...COMMENT, extra: 1 }] })?.sending).toEqual([
     sending(COMMENT),
-  )
+  ])
+  expect(read([{ replies: [YES] }, sending(COMMENT)])?.sending, 'of several, each').toEqual([
+    sending(COMMENT),
+  ])
+  expect(read([{ replies: [YES] }])).toMatchObject({ writer: W1, sending: undefined })
 })
 
-test('a send in flight never holds back the replies it carries for its own answer, on its way from the claim: a send pressed meanwhile finds them going, not answered', () => {
+test('a window sending one message says it alone, as builds before several messages said it; several go as a list, in the order claimed, and both read back', () => {
+  const earlier = claimed(CLAIMED - MIN, YES)
+  const one = attach(W1, T0, { sending: [sending(YES)] })
+  const two = attach(W1, T0, { sending: [earlier, sending(COMMENT)] })
+
+  expect(JSON.parse(presenceText(one)).sending).toEqual(sending(YES))
+  expect(JSON.parse(presenceText(two)).sending).toEqual([earlier, sending(COMMENT)])
+  expect(parsePresence(presenceText(one), W1)?.sending).toEqual([sending(YES)])
+  expect(parsePresence(presenceText(two), W1)?.sending).toEqual([earlier, sending(COMMENT)])
+})
+
+test('a send in flight never holds back the replies it carries for its own answer, on its way from the claim, nor carries them again: a send pressed meanwhile finds them going, not answered, and carries the rest', () => {
   const session = sessionOf([REVIEW, SIDEBAR], windowOn(W1, sending(YES)))
   const carried = {
     project: SWITCHBOARD.key,
@@ -476,13 +509,13 @@ test('a send in flight never holds back the replies it carries for its own answe
     isTaken: false,
   }
 
-  expect(sendable(session, [carried, other], inFlight)).toEqual([carried, other])
-  expect(leftOut(session, [carried, other], inFlight)).toEqual([])
-  expect(leftOut(session, [carried], null), "another's answer bars it").toEqual(['answered'])
+  expect(sendable(session, [carried, other], [inFlight])).toEqual([other])
+  expect(leftOut(session, [carried, other], [inFlight])).toEqual([])
+  expect(leftOut(session, [carried], []), "another's answer bars it").toEqual(['answered'])
 })
 
 test('a window that lets go sends nothing', () => {
-  const sent = attach(W1, T0, { sending: sending(YES) })
+  const sent = attach(W1, T0, { sending: [sending(YES)] })
 
   expect(JSON.parse(presenceText(sent))).toMatchObject({ sending: sending(YES) })
   expect(JSON.parse(presenceText(leave(sent, NOW)))).not.toHaveProperty('sending')

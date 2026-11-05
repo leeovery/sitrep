@@ -1,9 +1,11 @@
 /**
  * Ready to send, at the foot of every view while anything waits in it or
- * is on its way: the replies grouped by where each goes, this session
- * first, each hung from its item with its own ✕, then send and cancel all;
- * or, while a send is on its way, the line saying so in their place, with
- * its take-back while the window holds it for Claude's turn to end.
+ * is on its way. Each send of Lee's on its way leads, a group of its own in
+ * the order sent: the replies it carries, frozen, then the line saying where
+ * it stands, with its take-back while the window holds it for its turn.
+ * Under them, the replies still to send, grouped by where each goes, this
+ * session first, each hung from its item with its own ✕, then send and
+ * cancel all, which reach only those.
  *
  * Replies sent into another session's inbox stay in their group until Claude
  * has them, and a while after: the group says where they stand there, and
@@ -29,7 +31,17 @@ import {
 import type { SitrepInFlight, SitrepQueued } from '../../types'
 import { agoWords, C, counted, GLYPH, wrapped } from '../look'
 import { filedAt, itemKey, sessionLabel } from '../places'
-import { answered, destinations, heldBack, isCarried, isShowing, queuedFor, sentIn } from '../queue'
+import {
+  answered,
+  destinations,
+  heldBack,
+  isCarried,
+  isCarriedBy,
+  isShowing,
+  queuedFor,
+  sentIn,
+  unsent,
+} from '../queue'
 import type { Filed, Scene } from '../scene'
 import { drawReplyRow, drawRewrite, NOT_SENT, type Drawing } from './kit'
 
@@ -70,14 +82,19 @@ const STANDING: Record<Delivery, { text: string; color: string }> = {
 /** The keys of the box's own buttons. */
 const SEND = 'send'
 const CANCEL_ALL = 'cancel-all'
-const TAKE_BACK = 'take-back'
 const UNREADY = 'unready:'
+
+/** What tells one send on its way from another in the box, as two claimed in one millisecond would not be told by their time: the ids of the replies it carries, fixed at its claim. */
+const sendKey = (send: SitrepInFlight) => send.replies.map(reply => reply.id).join(',')
+
+/** The key of a held send's take-back. */
+export const takeBackKey = (send: SitrepInFlight) => `take-back:${sendKey(send)}`
 
 /** The rows the box takes besides its lines: its border, top and bottom. */
 const BORDER_ROWS = 2
 /** The heading: the box's name and how many replies wait. */
 const HEAD_ROWS = 1
-/** The blank row above each group, and above send and cancel all or the line saying a send is on its way. */
+/** The blank row above each group, and above send and cancel all. */
 const GAP_ROWS = 1
 /** A group's rows before its replies: the blank row, and the line saying where they go. */
 const GROUP_ROWS = GAP_ROWS + 1
@@ -88,7 +105,7 @@ const MORE_ROWS = 1
 /** The cells across the box keeps from its lines: its border and its padding, each side. */
 const BOX_SIDES = 4
 
-/** A reply waiting for a send, the item it answers, and what holds it back from one, if anything does. */
+/** A reply waiting for a send, or carried by one on its way, the item it answers, and what holds it back from a send, if anything does. */
 type Queued = { item: Ask | Parked; queued: SitrepQueued; barred?: Barred }
 
 /** A reply sent into its session's inbox, and the item it answers. */
@@ -96,33 +113,37 @@ type Sent = { item: Ask | Parked; sent: Reply }
 
 type Listed = Queued | Sent
 
-/** One destination: the session, where the replies sent to it stand there, and the replies listed for it. */
-type Group = { filed: Filed; standing?: Delivery; listed: Listed[] }
+/** A send of Lee's on its way, and the line saying where it stands, as the rows it takes: held for its turn, to be taken back, or submitted. */
+type Going = { send: SitrepInFlight; rows: readonly string[]; isHeld: boolean }
 
-/** The line saying a send of Lee's is on its way, as the rows it takes, and whether the window holds it for Claude's turn to end, to be taken back. */
-type Sending = { rows: readonly string[]; isHeld: boolean }
+/**
+ * One group of the box: the replies a send on its way carries, over its
+ * line; or one destination's replies still to send, with where those sent
+ * into its inbox stand there.
+ */
+type Group = { filed: Filed; listed: Listed[]; standing?: Delivery; going?: Going }
 
 /** Ready to send as the box draws it. */
 export type Ready = {
   groups: readonly Group[]
-  /** How many replies wait for a send, any left off for room among them. */
+  /** How many replies are not yet with Claude: those the sends on their way carry, and those still to send, any left off for room among them. */
   waiting: number
+  /** How many replies wait for a send, any left off for room among them. */
+  toSend: number
   /** How many replies are left off for room. */
   more: number
-  /** While a send is on its way, the line saying so; else none. */
-  sending?: Sending
 }
 
 /** A session's queued replies that fit their items, each with what holds it back from a send, if anything does. */
 const queuedIn = (
   { session }: Filed,
   queue: readonly SitrepQueued[],
-  inFlight: SitrepInFlight | null,
+  flights: readonly SitrepInFlight[],
 ): Queued[] =>
   queuedFor(queue, session.id).flatMap(queued => {
     const item = answered(session, queued)
 
-    return item === undefined ? [] : [{ item, queued, barred: heldBack(inFlight, item, queued) }]
+    return item === undefined ? [] : [{ item, queued, barred: heldBack(flights, item, queued) }]
   })
 
 const sentTo = ({ session }: Filed, replies: readonly Reply[]): Sent[] =>
@@ -132,10 +153,29 @@ const sentTo = ({ session }: Filed, replies: readonly Reply[]): Sent[] =>
     return item === undefined || item.type === 'note' ? [] : [{ item, sent }]
   })
 
-/** Each destination, this session first, then as first queued, then those only sent to. */
-const groupsOf = (scene: Scene): Group[] => {
-  const held = scene.session.id
-  const queued = [...queuedFor(scene.queue, held), ...scene.queue]
+/** Where a send on its way stands, as its line says it: held, one row cut short beside its take-back; submitted, wrapped. */
+const goingOf = (send: SitrepInFlight, width: number): Going =>
+  send.isHeld
+    ? { send, rows: [HELD], isHeld: true }
+    : { send, rows: wrapped(SENDING, width - BOX_SIDES), isHeld: false }
+
+/** A send of Lee's on its way as a group of its own: the replies it carries, and its line. None for the inbox's message, whose replies Lee sent from elsewhere. */
+const goingGroup = (scene: Scene, send: SitrepInFlight, width: number): Group[] => {
+  const filed = send.source === 'send' ? filedAt(scene, send.session) : undefined
+
+  if (filed === undefined) {
+    return []
+  }
+
+  const carried = scene.queue.filter(queued => isCarriedBy(send, queued))
+
+  return [{ filed, listed: queuedIn(filed, carried, scene.inFlight), going: goingOf(send, width) }]
+}
+
+/** Each destination of the replies still to send, this session first, then as first queued, then those only sent to. */
+const unsentGroups = (scene: Scene): Group[] => {
+  const queue = unsent(scene.queue, scene.inFlight)
+  const queued = [...queuedFor(queue, scene.session.id), ...queue]
 
   return destinations([...queued, ...scene.sent]).flatMap(({ session }): Group[] => {
     const filed = filedAt(scene, session)
@@ -145,7 +185,7 @@ const groupsOf = (scene: Scene): Group[] => {
       return []
     }
 
-    const waiting = queuedIn(filed, scene.queue, scene.inFlight)
+    const waiting = queuedIn(filed, queue, scene.inFlight)
 
     if (sent === undefined || !isShowing(filed.session, sent, scene.now)) {
       return waiting.length > 0 ? [{ filed, listed: waiting }] : []
@@ -161,19 +201,32 @@ const groupsOf = (scene: Scene): Group[] => {
   })
 }
 
+/** The box's groups: each send on its way, in the order sent, then the replies still to send. */
+const groupsOf = (scene: Scene, width: number): Group[] => [
+  ...scene.inFlight.flatMap(send => goingGroup(scene, send, width)),
+  ...unsentGroups(scene),
+]
+
 const listedIn = (groups: readonly Group[]) =>
   groups.reduce((sum, group) => sum + group.listed.length, 0)
 
+/** How many replies the groups list that are not yet with Claude: queued, not sent into an inbox. */
+const countQueued = (groups: readonly Group[]) =>
+  groups.reduce((sum, group) => sum + group.listed.filter(listed => 'queued' in listed).length, 0)
+
+/** The rows of a send's line: none for a group still to send. */
+const goingRows = ({ going }: Group) => going?.rows.length ?? 0
+
+/** The rows a group always takes, however few it is given: a send's heading and line; none for one still to send, which shows with a reply or not at all. */
+const fixedRows = (group: Group) => (group.going === undefined ? 0 : GROUP_ROWS + goingRows(group))
+
 const groupRows = (groups: readonly Group[]) =>
-  groups.length * GROUP_ROWS + listedIn(groups) * REPLY_ROWS
+  groups.reduce(
+    (sum, group) => sum + GROUP_ROWS + group.listed.length * REPLY_ROWS + goingRows(group),
+    0,
+  )
 
-const controlsRows = ({ waiting, sending }: Ready) => {
-  if (waiting === 0) {
-    return 0
-  }
-
-  return GAP_ROWS + (sending?.rows.length ?? 1)
-}
+const controlsRows = ({ toSend }: Ready) => (toSend === 0 ? 0 : GAP_ROWS + 1)
 
 /** The rows the box takes: each of its lines one, and its border. */
 export const readyRows = (ready: Ready) =>
@@ -184,9 +237,11 @@ export const readyRows = (ready: Ready) =>
   controlsRows(ready)
 
 /**
- * The groups that fit in `room` rows: all of them, or those up to the first
- * that will not fit whole, it cut short, with a row kept for the count of
- * what was left off. A group listing replies shows with one of them at least.
+ * The groups that fit in `room` rows: all of them, or what fits of them in
+ * order, a row kept for the count of what was left off. A send's group
+ * always shows, its heading and its line, and so its take-back, with what
+ * fits of its replies; a group still to send shows with one of its replies
+ * at least, or neither it nor any after it does.
  */
 const fitted = (groups: readonly Group[], room: number) => {
   if (groupRows(groups) <= room) {
@@ -194,44 +249,34 @@ const fitted = (groups: readonly Group[], room: number) => {
   }
 
   const kept: Group[] = []
-  let left = room - MORE_ROWS
+  let left = room - MORE_ROWS - groups.reduce((sum, group) => sum + fixedRows(group), 0)
+  let isFull = false
 
   for (const group of groups) {
-    const fits = Math.min(group.listed.length, Math.floor((left - GROUP_ROWS) / REPLY_ROWS))
+    // A send's heading is kept already, with its line.
+    const headingRows = group.going === undefined ? GROUP_ROWS : 0
+    const share = isFull ? 0 : Math.floor((left - headingRows) / REPLY_ROWS)
+    const fits = Math.max(0, Math.min(group.listed.length, share))
 
-    if (fits < Math.min(1, group.listed.length)) {
+    if (group.going === undefined && fits === 0) {
       break
     }
 
     kept.push({ ...group, listed: group.listed.slice(0, fits) })
-    left -= GROUP_ROWS + fits * REPLY_ROWS
-
-    if (fits < group.listed.length) {
-      break
-    }
+    left -= headingRows + fits * REPLY_ROWS
+    isFull = isFull || fits < group.listed.length
   }
 
   return kept
 }
 
-/** The line saying a send of Lee's is on its way: held, one row cut short beside its take-back; submitted, wrapped. None with no send on its way. */
-const sendingOf = (inFlight: SitrepInFlight | null, width: number): Sending | undefined => {
-  if (inFlight?.source !== 'send') {
-    return undefined
-  }
-
-  return inFlight.isHeld
-    ? { rows: [HELD], isHeld: true }
-    : { rows: wrapped(SENDING, width - BOX_SIDES), isHeld: false }
-}
-
 /**
  * Ready to send as it draws `width` cells across in at most `rows` rows,
- * however few: its heading and buttons always show. Undefined while
- * nothing waits in it or is on its way.
+ * however few: its heading, each send's line and the buttons always show.
+ * Undefined while nothing waits in it or is on its way.
  */
 export const readyOf = (scene: Scene, width: number, rows = Infinity): Ready | undefined => {
-  const groups = groupsOf(scene)
+  const groups = groupsOf(scene, width)
 
   if (groups.length === 0) {
     return undefined
@@ -239,12 +284,9 @@ export const readyOf = (scene: Scene, width: number, rows = Infinity): Ready | u
 
   const frame: Ready = {
     groups: [],
-    waiting: groups.reduce(
-      (sum, group) => sum + group.listed.filter(listed => 'queued' in listed).length,
-      0,
-    ),
+    waiting: countQueued(groups),
+    toSend: countQueued(groups.filter(group => group.going === undefined)),
     more: 0,
-    sending: sendingOf(scene.inFlight, width),
   }
   const kept = fitted(groups, rows - readyRows(frame))
 
@@ -342,64 +384,66 @@ const drawSentEntry = (d: Drawing, { item, sent }: Sent) => {
   )
 }
 
-const drawGroup = (d: Drawing, { filed, standing, listed }: Group) => {
-  const { Box } = d.els
-  const label =
-    filed.session === d.scene.session ? 'to this session' : `to ${sessionLabel(d.scene, filed)}`
-  const stands = standing === undefined ? undefined : STANDING[standing]
-
-  return (
-    <Box key={`group:${filed.session.id}`} flexDirection="column" paddingTop={GAP_ROWS}>
-      <Box flexDirection="row" gap={1}>
-        <Box flexGrow={1} flexShrink={1}>
-          {line(d, label, C.grey)}
-        </Box>
-        {stands !== undefined && line(d, stands.text, stands.color)}
-      </Box>
-      {listed.map(each => ('queued' in each ? drawQueuedEntry(d, each) : drawSentEntry(d, each)))}
-    </Box>
-  )
-}
-
-/** The line saying a send is on its way, in the controls' place; held, its take-back beside it. */
-const drawSending = (d: Drawing, { rows, isHeld }: Sending) => {
+/** The line saying where a send on its way stands, under its replies; held, its take-back beside it. */
+const drawGoing = (d: Drawing, { send, rows, isHeld }: Going) => {
   const { Box, Text, Button } = d.els
   const lines = rows.map((row, i) => (
-    <Text key={`sending:${i}`} color={C.grey} italic wrap="truncate-end">
+    <Text key={`going:${i}`} color={C.grey} italic wrap="truncate-end">
       {row}
     </Text>
   ))
 
   if (!isHeld) {
-    return (
-      <Box flexDirection="column" paddingTop={GAP_ROWS}>
-        {lines}
-      </Box>
-    )
+    return <Box flexDirection="column">{lines}</Box>
   }
 
   return (
-    <Box flexDirection="row" columnGap={1} paddingTop={GAP_ROWS}>
+    <Box flexDirection="row" columnGap={1}>
       <Box flexGrow={1} flexShrink={1}>
         {lines}
       </Box>
       <Button
-        key={TAKE_BACK}
+        key={takeBackKey(send)}
         plain
         dimColor
         label="↺ take back"
-        onPress={() => d.act.takeBack()}
+        onPress={() => d.act.takeBack(send)}
       />
     </Box>
   )
 }
 
-const drawControls = (d: Drawing, { sending }: Ready) => {
-  const { Box, Button } = d.els
+/** Where a group's replies go, as its heading says it: on their way there, for a send's. */
+const headingOf = (d: Drawing, { filed, going }: Group) => {
+  const to =
+    filed.session === d.scene.session ? 'to this session' : `to ${sessionLabel(d.scene, filed)}`
 
-  if (sending !== undefined) {
-    return drawSending(d, sending)
-  }
+  return going === undefined ? to : `on its way ${to}`
+}
+
+const drawGroup = (d: Drawing, group: Group) => {
+  const { Box } = d.els
+  const { filed, standing, listed, going } = group
+  const stands = standing === undefined ? undefined : STANDING[standing]
+  const key = going === undefined ? `group:${filed.session.id}` : `going:${sendKey(going.send)}`
+
+  return (
+    <Box key={key} flexDirection="column" paddingTop={GAP_ROWS}>
+      <Box flexDirection="row" gap={1}>
+        <Box flexGrow={1} flexShrink={1}>
+          {line(d, headingOf(d, group), C.grey)}
+        </Box>
+        {stands !== undefined && line(d, stands.text, stands.color)}
+      </Box>
+      {listed.map(each => ('queued' in each ? drawQueuedEntry(d, each) : drawSentEntry(d, each)))}
+      {going !== undefined && drawGoing(d, going)}
+    </Box>
+  )
+}
+
+/** Send and cancel all, for the replies still to send. */
+const drawControls = (d: Drawing) => {
+  const { Box, Button } = d.els
 
   return (
     <Box flexDirection="row" columnGap={1} paddingTop={GAP_ROWS}>
@@ -417,7 +461,7 @@ const drawControls = (d: Drawing, { sending }: Ready) => {
 /** The box, `readyRows(ready)` rows tall. */
 export const drawReady = (d: Drawing, ready: Ready) => {
   const { Box, Text } = d.els
-  const { groups, waiting, more } = ready
+  const { groups, waiting, toSend, more } = ready
 
   return (
     <Box key="ready" flexDirection="column" borderStyle="round" borderColor={C.ok} paddingX={1}>
@@ -429,7 +473,7 @@ export const drawReady = (d: Drawing, ready: Ready) => {
       </Box>
       {groups.map(group => drawGroup(d, group))}
       {more > 0 && line(d, `… ${more} more`, C.grey)}
-      {waiting > 0 && drawControls(d, ready)}
+      {toSend > 0 && drawControls(d)}
     </Box>
   )
 }

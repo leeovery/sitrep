@@ -11,7 +11,8 @@
  * A message sent while Claude is mid-turn the window holds until that turn
  * ends, which can take minutes, and Lee can take it back until then
  * (deliver.ts); the replies it carries stay frozen in the queue, and taken
- * back are there as they were.
+ * back are there as they were. Replies queued meanwhile are no part of it:
+ * a send carries them as a message of their own, which goes in after it.
  */
 import { boardMessage } from '../core'
 import { deliver, STILL_THERE } from './deliver'
@@ -31,7 +32,7 @@ const heldNow = (host: Host) =>
     return session === undefined || held === undefined ? undefined : { session, held }
   })
 
-/** What a send did with the held session's replies: claimed their message, waited on one in flight, or carried none, leaving each for why. */
+/** What a send did with the held session's replies: claimed their message, met one in flight it is not claimed behind, or carried none, leaving each for why. */
 type Here = { is: 'claimed' } | { is: 'heldBack' } | { is: 'none'; left: readonly LeftOut[] }
 
 /** Why a send carried nothing at all, by why it left the replies it held: their items changed, or answered or closed, or both. */
@@ -45,8 +46,9 @@ const nothingSent = (left: readonly LeftOut[]) => {
 }
 
 /**
- * Sends the held session's replies in Ready to send that its items take
- * now (`sendable`), `claimed` running once their message is claimed.
+ * Sends the held session's replies in Ready to send that no send in flight
+ * carries and its items take now (`sendable`), `claimed` running once their
+ * message is claimed.
  */
 const sendHere = async (host: Host, claimed: () => Promise<void>): Promise<Here> => {
   const here = await heldNow(host)
@@ -56,11 +58,11 @@ const sendHere = async (host: Host, claimed: () => Promise<void>): Promise<Here>
   }
 
   const { session, held } = here
-  const [queue, inFlight] = await Promise.all([host.state.queue.read(), host.state.inFlight.read()])
-  const message = boardMessage(session, sendable(session, queue, inFlight))
+  const [queue, flights] = await Promise.all([host.state.queue.read(), host.state.inFlight.read()])
+  const message = boardMessage(session, sendable(session, queue, flights))
 
   if (message === undefined) {
-    return { is: 'none', left: leftOut(session, queue, inFlight) }
+    return { is: 'none', left: leftOut(session, queue, flights) }
   }
 
   const ahead = await deliver(
