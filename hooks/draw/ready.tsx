@@ -49,8 +49,14 @@ import { drawReplyRow, drawRewrite, NOT_SENT, type Drawing } from './kit'
 /** A send the window holds while Claude is mid-turn, which Lee can take back until it goes. */
 const HELD = "⧗ Waiting for Claude's turn to end."
 
+/** A send Claude Code refused as Lee had stopped Claude's turn, held until his next message, which Lee can take back until it goes. */
+const AWAITS_INPUT = '⧗ Claude was interrupted: this goes in after your next message.'
+
 /** A send submitted, beyond taking back. */
 const SENDING = '⧗ Sending.'
+
+/** The take-back's label, whose cells a held send's line leaves it. */
+const TAKE_BACK_LABEL = '↺ take back'
 
 /** Why a sent reply never went in: its item changed under it, took another answer of Lee's first, or Claude closed it; or its session was finished. */
 const NOT_DELIVERED: Record<Voided, string> = {
@@ -110,6 +116,8 @@ const MORE_ROWS = 1
 const BRIEF_ROWS = 1
 /** The cells across the box keeps from its lines: its border and its padding, each side. */
 const BOX_SIDES = 4
+/** The cells across a held send's line gives its take-back: the button, and the gap before it. */
+const TAKE_BACK_CELLS = TAKE_BACK_LABEL.length + 1
 
 /** A reply waiting for a send, or carried by one on its way, the item it answers, and what holds it back from a send, if anything does. */
 type Queued = { item: Ask | Parked; queued: SitrepQueued; barred?: Barred }
@@ -170,11 +178,20 @@ const sentTo = ({ session }: Filed, replies: readonly Reply[]): Sent[] =>
     return item === undefined || item.type === 'note' ? [] : [{ item, sent }]
   })
 
-/** Where a send on its way stands, as its line says it: held, one row cut short beside its take-back; submitted, wrapped. */
-const goingOf = (send: SitrepInFlight, width: number): Going =>
-  send.isHeld
-    ? { send, rows: [HELD], isHeld: true }
-    : { send, rows: wrapped(SENDING, width - BOX_SIDES), isHeld: false }
+/**
+ * Where a send on its way stands, as its line says it: held for Claude's
+ * turn, one row cut short beside its take-back; held for Lee's next
+ * message, wrapped beside it; submitted, wrapped.
+ */
+const goingOf = (send: SitrepInFlight, width: number): Going => {
+  if (!send.isHeld) {
+    return { send, rows: wrapped(SENDING, width - BOX_SIDES), isHeld: false }
+  }
+
+  return send.awaitsInput === true
+    ? { send, rows: wrapped(AWAITS_INPUT, width - BOX_SIDES - TAKE_BACK_CELLS), isHeld: true }
+    : { send, rows: [HELD], isHeld: true }
+}
 
 /** A send of Lee's on its way as a group of its own: the replies it carries, and its line. None for the inbox's message, whose replies Lee sent from elsewhere. */
 const goingGroup = (scene: Scene, send: SitrepInFlight, width: number): SendGroup[] => {
@@ -483,7 +500,7 @@ const drawGoing = (d: Drawing, { send, rows, isHeld }: Going, step?: Step) => {
 
   return (
     <Box flexDirection="row" columnGap={1}>
-      <Box flexGrow={1} flexShrink={1}>
+      <Box flexDirection="column" flexGrow={1} flexShrink={1}>
         {lines}
       </Box>
       {step !== undefined && drawStep(d, step)}
@@ -491,7 +508,7 @@ const drawGoing = (d: Drawing, { send, rows, isHeld }: Going, step?: Step) => {
         key={takeBackKey(send)}
         plain
         dimColor
-        label="↺ take back"
+        label={TAKE_BACK_LABEL}
         onPress={() => d.act.takeBack(send)}
       />
     </Box>

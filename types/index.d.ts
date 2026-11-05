@@ -282,6 +282,8 @@ export type SitrepInFlight = SitrepSessionRef & {
   isHeld: boolean
   /** Whether Claude Code has taken the message, its lines still to write. */
   isTaken: boolean
+  /** Whether Claude Code refused it as Lee had stopped Claude's turn, so the window holds it again until Lee's next message: absent, as on a claim before 5 November 2026, it does not. */
+  awaitsInput?: boolean
 }
 
 /**

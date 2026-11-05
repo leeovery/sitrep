@@ -839,7 +839,8 @@ is claimed: the message to this session claimed, or, with none, the replies
 written into other sessions' inboxes. It never waits for Claude's turn to
 end, which can take minutes, nor for Claude Code to take the message. A
 send that Claude Code refuses still toasts and leaves its replies queued,
-and the pane, opened again, shows them; a send that sent nothing leaves the
+and the pane, opened again, shows them, save one refused as Lee had stopped
+Claude's turn, which waits for his next message (see Delivery); a send that sent nothing leaves the
 pane open. A docked pane stays open.
 
 **Taking a send back** (22 October 2026). While the window holds Lee's send
@@ -853,7 +854,10 @@ November 2026 a second line said when Claude's turn seemed only to wait on
 its background work; see "Held behind a subagent's run", under Delivery.)
 Once the window has submitted it, it is Claude Code's, and nothing takes it
 back out of Claude Code's queue: the line says `⧗ Sending.` and the
-take-back is gone. The inbox's message offers none: Lee sent its replies
+take-back is gone. One Claude Code refused as Lee had stopped Claude's turn
+is held again until his next message (see "Held for Lee's input", under
+Delivery), its line `⧗ Claude was interrupted: this goes in after your next
+message.`, wrapped beside its take-back. The inbox's message offers none: Lee sent its replies
 from elsewhere. Until 5 November 2026 the line stood where send and cancel
 all were, for the whole box.
 
@@ -1231,7 +1235,28 @@ app (see "The menu bar").
   at the next look.
 - **Refused** (a drop, or a throw): let go at once, its replies left as they
   were, and its asks wait on Lee again; the next look, or Lee's next send,
-  tries again.
+  tries again. One refused because Lee stopped Claude's turn is held
+  instead (below).
+- **Held for Lee's input** (5 November 2026). Once Lee stops Claude's turn,
+  Claude Code (2.1.318) refuses every plugin's prompt until he next sends
+  input in that window: `the session was stopped and nobody has sent input
+  since`, given as text alone. That day Lee sent while Claude's turn ran,
+  then stopped it; the stopped turn's end submitted the send, Claude Code
+  refused it, and it was let go with a toast, as was each press of send
+  after, until he typed in Claude. A message refused for that reason is not
+  let go: the window holds it again, marked as waiting on Lee's input
+  (`awaitsInput` on its claim), with no toast, its quiet and the wait on
+  its turn undone, so nothing lets it go as never taken and nothing behind
+  it goes early. Nothing submits it while it waits, and the sends behind it
+  stay behind it. The window's next turn of its own starting, never a
+  subagent's run, is Lee's message, and ends the wait on every claim; as
+  that turn ends the first goes, the rest in turn. Refused so again, it
+  waits again; refused otherwise, it is let go as any refusal is. Still
+  claimed, it is on its way, its asks needing Lee nowhere, and Lee can take
+  it back as any held send. A reload leaves it waiting, Claude Code's
+  refusal standing; a `/clear` ends the wait, Claude Code refusing only in
+  the conversation stopped, and it goes into the next conversation at once.
+  The inbox's message waits the same way, no look submitting it meanwhile.
 - **Those behind it, let go with it** (5 November 2026). A message refused
   or never taken lets go of every send held behind it in the same update of
   the claims, one toast saying so: their replies are all back among those

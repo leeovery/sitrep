@@ -24,7 +24,8 @@
  * nothing. A message refused is let go at once; one never heard is let go
  * once the window has been quiet a while without it since its submit. Either
  * way, and taken back, its replies are left as they were, for Lee's next
- * send or the inbox's next look.
+ * send or the inbox's next look. One refused because Lee stopped Claude's
+ * turn is held again instead, until his next message in the window.
  *
  * Every change to the claims goes to the heartbeat as well, which says the
  * replies each send carries to its own session from its claim to its end, so
@@ -63,6 +64,18 @@ export const STILL_THERE = 'Your replies are still on the board.'
 const UNWRITTEN = 'Claude has your replies, but the board could not write them down yet.'
 
 const NEVER_WENT_IN = 'the message never went in'
+
+/**
+ * Claude Code's refusal of every plugin's prompt once Lee has stopped
+ * Claude's turn, until he next sends input in the window: proven live 5
+ * November 2026, Claude Code 2.1.318, whose `$.prompt.submit` gives the
+ * reason as text alone.
+ */
+const STOPPED = 'the session was stopped and nobody has sent input since'
+
+const isStoppedRefusal = (refusal: string) => refusal.includes(STOPPED)
+
+const isAwaitingInput = (current: SitrepInFlight) => current.awaitsInput === true
 
 /** The messages in flight `$.state` kept, in the order claimed: one alone, as builds before several sends kept it, or a list. */
 const listed = (kept: SitrepStoredFlights): unknown[] => {
@@ -188,6 +201,10 @@ const AFTER: Record<SitrepSource, After> = {
 const isClaim = (current: SitrepInFlight, delivery: SitrepInFlight) =>
   current.claimedAt === delivery.claimedAt && current.text === delivery.text
 
+/** Whether `current` is the claim of a message submitted and not yet heard taken. */
+const isUnheard = (current: SitrepInFlight, delivery: SitrepInFlight) =>
+  isClaim(current, delivery) && !current.isHeld && !current.isTaken
+
 /** Has the heartbeat say what the messages in flight carry now; never waited on. */
 const say = (host: Host, flights: SitrepInFlight[]) =>
   void sayInFlight(host, flights).catch(logFailure(host, 'saying the messages in flight'))
@@ -241,7 +258,7 @@ const release = async (host: Host, delivery: SitrepInFlight, why: string) => {
   let isLet = false
 
   await changeFlight(host, flights => {
-    const at = flights.findIndex(each => isClaim(each, delivery) && !each.isTaken)
+    const at = flights.findIndex(each => isUnheard(each, delivery))
 
     isLet = at !== -1
 
@@ -253,6 +270,43 @@ const release = async (host: Host, delivery: SitrepInFlight, why: string) => {
     AFTER[delivery.source].notTaken(host, why)
     await foldAgain(host)
   }
+}
+
+/**
+ * Holds again a message Claude Code refused because Lee stopped Claude's
+ * turn, marked to wait on his input: neither it nor any send behind it is
+ * let go, and nothing submits it until the window's next turn starts. What
+ * its submit set up is undone: no quiet lets it go as never taken, and no
+ * wait on its turn keeps the window from carrying on.
+ */
+const holdForInput = async (host: Host, delivery: SitrepInFlight) => {
+  let isMarked = false
+
+  await changeFlight(host, flights => {
+    const at = flights.findIndex(each => isUnheard(each, delivery))
+
+    isMarked = at !== -1
+
+    return isMarked
+      ? flights.map((each, i) => (i === at ? { ...each, isHeld: true, awaitsInput: true } : each))
+      : flights
+  })
+
+  if (isMarked) {
+    stopAwaiting()
+    quiet?.cancel()
+    quiet = undefined
+    host.log(`sitrep: Claude was interrupted; the message waits for Lee's next one`)
+  }
+}
+
+/** Clears the mark on every message waiting on Lee's input, as Claude Code takes input again; nothing written where none waits. */
+const inputTaken = async (host: Host) => {
+  if (!(await flightNow(host)).some(isAwaitingInput)) {
+    return
+  }
+
+  await changeFlight(host, flights => flights.map(({ awaitsInput, ...each }) => each))
 }
 
 /** The lines a taken message is written down as, in its session as it stands: none once they are there. */
@@ -343,12 +397,18 @@ const refusalOf = async (host: Host, text: string) => {
   }
 }
 
-/** Submits a message the window no longer holds: written down once Claude Code takes it, let go if refused. */
+/**
+ * Submits a message the window no longer holds: written down once Claude
+ * Code takes it, held again for Lee's input if refused as he stopped
+ * Claude's turn, else let go.
+ */
 const submit = async (host: Host, delivery: SitrepInFlight) => {
   const refusal = await refusalOf(host, delivery.text)
 
   if (refusal === undefined) {
     await heard(host, current => isClaim(current, delivery))
+  } else if (isStoppedRefusal(refusal)) {
+    await holdForInput(host, delivery)
   } else {
     await release(host, delivery, refusal)
   }
@@ -369,7 +429,8 @@ const quietFor = (host: Host, waiting: SitrepInFlight) => {
 /**
  * Submits the first message in flight while the window holds it, should the
  * main conversation be between turns as the window has heard it, and not
- * while a turn runs, stopped on Lee or not. One behind a message submitted
+ * while a turn runs, stopped on Lee or not, nor while it waits on Lee's
+ * input, Claude Code refusing it until then. One behind a message submitted
  * and not yet ended stays held: it goes once that one has, and its turn has
  * been heard starting (`awaiting`), at the next between turns. A
  * single update ends the hold, so a take-back racing it lands first or
@@ -386,7 +447,10 @@ const quietFor = (host: Host, waiting: SitrepInFlight) => {
 export const sendHeld = async (host: Host) => {
   const isBetween = await betweenTurns(host)
   const isGoing = (flights: readonly SitrepInFlight[]) =>
-    awaiting === undefined && flights[0]?.isHeld === true && isBetween()
+    awaiting === undefined &&
+    flights[0]?.isHeld === true &&
+    !isAwaitingInput(flights[0]) &&
+    isBetween()
 
   if (!isGoing(await flightNow(host))) {
     return false
@@ -523,10 +587,14 @@ export const takeBack = (host: Host, send: SitrepInFlight) =>
  * this one's place, which their replies are not for, and an exit or a
  * logout ends the process. So there each is let go, as a take-back lets it
  * go, and nothing is submitted. One submitted already is Claude Code's, its
- * quiet counted as at a turn's end.
+ * quiet counted as at a turn's end. Claude Code refuses prompts after Lee
+ * stops a turn only in the conversation he stopped, so after a `/clear` none
+ * waits on his input any more.
  */
 export const conversationEnded = async (host: Host, isCleared: boolean) => {
-  if (!isCleared) {
+  if (isCleared) {
+    await inputTaken(host)
+  } else {
     await letGoHeld(host, () => true)
   }
 
@@ -534,10 +602,11 @@ export const conversationEnded = async (host: Host, isCleared: boolean) => {
 }
 
 /**
- * The window's turn starts: it is no longer quiet, and a message submitted
- * whose text it carries has gone in. After a `/reload-plugins` typed
- * mid-turn the last load's submit never resolves (settled live), and this
- * is all that hears it.
+ * The window's turn starts: it is no longer quiet, a message submitted
+ * whose text it carries has gone in, and Claude Code takes input again, so
+ * none waits on Lee's: the turn is his message, and as it ends the first
+ * held goes. After a `/reload-plugins` typed mid-turn the last load's submit
+ * never resolves (settled live), and this is all that hears it.
  */
 export const heardTurn = async (host: Host, text: string) => {
   turns += 1
@@ -548,6 +617,7 @@ export const heardTurn = async (host: Host, text: string) => {
 
   quiet?.cancel()
   await heard(host, current => current.text === text)
+  await inputTaken(host)
 }
 
 /** Writes down the message in flight Claude Code has taken: a write that failed, or one a reload cut short. */
@@ -562,11 +632,12 @@ export const writeTaken = async (host: Host) => {
 /**
  * A load starting: no quiet of an earlier one runs on, a message it left
  * taken is written down, and those it left otherwise are carried on, still
- * held while a turn runs. It knows nothing of a submit before it, so goes
- * by the turn the window's state says. The heartbeat learns the messages in
- * flight from the window's first need of them (window.ts), never from
- * `writeTaken`'s read, which is as old as the load's first hook and may
- * predate a send claimed since.
+ * held while a turn runs; one waiting on Lee's input waits on, as a reload
+ * leaves Claude Code's refusal standing. It knows nothing of a submit
+ * before it, so goes by the turn the window's state says. The heartbeat
+ * learns the messages in flight from the window's first need of them
+ * (window.ts), never from `writeTaken`'s read, which is as old as the load's
+ * first hook and may predate a send claimed since.
  */
 export const takeUpDelivery = async (host: Host) => {
   quiet?.cancel()
