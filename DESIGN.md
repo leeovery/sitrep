@@ -2034,8 +2034,9 @@ truth. There is still no background service. None of it is built now. Lee:
       lines (`hooks/draw/measure.tsx`), drawing nothing, and posts the rows
       the block takes whenever they change. It is keyed by its block, a
       session's item by its address; a line in Notes by its note's id, a
-      status change by its time, and a pick-up by its parked item, since
-      one send logs every pick-up it carries at the same time. Claude Code
+      status change by its time, and a pick-up by its parked item and its
+      time, since one send logs every pick-up it carries at the same time
+      and an item reopened can be picked up again. Claude Code
       draws nothing of a tree holding two `Client`s under one key: keyed by
       their time, a send of several pick-ups left the docked pane blank
       until newer lines pushed all but one out of Notes (8 October to 5

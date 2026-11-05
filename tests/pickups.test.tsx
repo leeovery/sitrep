@@ -73,7 +73,8 @@ test('opening one pick-up line of a send opens only that one', async ($, on) => 
   const { ids, ui } = await pickedUp(w, $)
 
   await ui.press({ key: 'send' })
-  await ui.press({ key: `log:${w.item(`pickup-${ids[1]}`)}` })
+  const second = (await pickUpRows(ui)).find(key => key.includes(`:pickup-${ids[1]}-`)) ?? 'none'
+  await ui.press({ key: second })
 
   expect(await ui.find({ type: 'Text', text: /Before the release/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /After the bug fixes/ })).toBeUndefined()

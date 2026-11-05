@@ -27,14 +27,15 @@ const MARK: Record<LogLine['kind'], Mark> = {
 }
 
 /**
- * What a log line is opened by, and its block keyed: a note's id; a pick-up,
- * its parked item, since one send logs all it carries at the same time; a
- * status change, its kind and time. The docked board measures each block
- * with a `Client` keyed by it, and Claude Code draws nothing of a tree that
- * holds two `Client`s under one key.
+ * What a log line is opened by, and its block keyed: a note's id; a line the
+ * board derived, its kind and time, and a pick-up its parked item too, since
+ * one send logs all it carries at the same time and an item reopened can be
+ * picked up again. The docked board measures each block with a `Client`
+ * keyed by it, and Claude Code draws nothing of a tree that holds two
+ * `Client`s under one key.
  */
 export const logKey = (line: LogLine) =>
-  line.id ?? `${line.kind}-${line.item ?? line.at}`
+  line.id ?? [line.kind, line.item, line.at].filter(part => part !== undefined).join('-')
 
 /** A line of a log line's detail as its branch: a status change's opens with its label, in the line's colour; any other is soft. */
 const branchOf = (line: LogLine, text: string): Branch => {
