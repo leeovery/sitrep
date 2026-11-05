@@ -22,7 +22,12 @@ declare const Bun: {
   readonly env: Readonly<Record<string, string | undefined>>
   spawn(
     command: readonly string[],
-    options: { stdin: 'ignore'; stdout: 'pipe'; stderr: 'pipe' },
+    options: {
+      stdin: 'ignore'
+      stdout: 'pipe'
+      stderr: 'pipe'
+      env?: Readonly<Record<string, string | undefined>>
+    },
   ): BunChild
 }
 

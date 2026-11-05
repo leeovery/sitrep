@@ -50,7 +50,7 @@ export type Place = { app: App; device?: string; select?: Select }
 export const PS = ['ps', '-A', '-o', 'pid=,ppid=,comm=']
 
 /** `ps`'s line: the id and the parent's, right-aligned, then the command, spaces and all. */
-const PROCESS_LINE = /^\s*(\d+)\s+(\d+)\s+(.*)$/
+const PROCESS_LINE = /^\s*(\d+)\s+(\d+)\s+(.*)$/s
 
 /** `ps`'s snapshot as every process, by its id. */
 export const parseProcesses = (output: string): Processes =>

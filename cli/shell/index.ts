@@ -9,6 +9,7 @@ import { constants, readdirSync, readFileSync, statSync } from 'node:fs'
 import { appendFile, mkdir, open } from 'node:fs/promises'
 import { endOf, type Signals } from '../ending'
 import { TimedOut, type Io, type Listed, type Ran, type Waiting } from '../io'
+import { childEnvironment } from '../locale'
 import { main } from '../main'
 
 /** Errors a listing means "not there" by: the folder is missing, or is a file. */
@@ -24,6 +25,9 @@ const folderOf = (path: string) => path.slice(0, path.lastIndexOf('/'))
 const MANIFEST = import.meta.dir.startsWith('/$bunfs/')
   ? `${folderOf(process.execPath)}/../.claude-plugin/plugin.json`
   : `${import.meta.dir}/../../.claude-plugin/plugin.json`
+
+/** The environment the CLI's programs run in (`childEnvironment`). */
+const CHILDREN = childEnvironment(Bun.env)
 
 /** The program that started the run, as the CLI loads: before anything could miss it going. */
 const PARENT = process.ppid
@@ -85,7 +89,7 @@ const list = async (dir: string): Promise<Listed[]> => {
 }
 
 const run = async (command: readonly string[], limitMs?: number): Promise<Ran> => {
-  const child = Bun.spawn(command, { stdin: 'ignore', stdout: 'pipe', stderr: 'pipe' })
+  const child = Bun.spawn(command, { stdin: 'ignore', stdout: 'pipe', stderr: 'pipe', env: CHILDREN })
   let isKilled = false
   const timer =
     limitMs === undefined

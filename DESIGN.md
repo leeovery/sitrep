@@ -5083,6 +5083,12 @@ shape allows them. A jump made in Swift, in the app, stays parked too.
    locale and no `$TMUX`, a tmux 3.8 server writes each tab of a `-F` format
    as `_`, and every session read as off screen, so no jump from the app went
    anywhere (live, 22 October 2026, the first restart after brew's tmux 3.8).
+   Every program the CLI runs gets a UTF-8 character type
+   (`LC_CTYPE=UTF-8`) where the CLI was started with no locale at all, as
+   SitRep starts it (`cli/locale.ts`, 5 November 2026): with none, `ps`
+   mangles a path that isn't ASCII, so an app at `Café.app` was named
+   `CafM-CM-)` and a jump could not bring it forward (checked live). A locale
+   Lee set is left as it is.
    One `ps` snapshot settles each
    client's app, the nearest app among its ancestors: a Ghostty window's
    client runs `tmux < zsh < login < ghostty`, a phone's or iPad's `tmux < zsh
