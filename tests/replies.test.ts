@@ -272,6 +272,25 @@ test("a comment on its way to an old decide still closes it once delivered, thou
   })
 })
 
+test('each pick-up one send delivers is logged with its parked item, though all share its time', () => {
+  const session = fold({
+    logs: {
+      [W1]: file(
+        [T0, park('p1', 'One')],
+        [T0, park('p2', 'Two')],
+        [T0 + MIN, reply('r1', 'p1', 'pickup')],
+        [T0 + MIN, reply('r2', 'p2', 'pickup', { note: 'After the fix' })],
+        [T0 + MIN, delivered('r1', 'r2')],
+      ),
+    },
+  })
+
+  expect(session.log.map(line => [line.item, line.at])).toEqual([
+    ['p2', T0 + MIN],
+    ['p1', T0 + MIN],
+  ])
+})
+
 test('a delivered pick-up marks a parked item picked up, and it leaves the parked list', () => {
   const session = fold({ logs: { [W1]: file(...POSTED, ...sent(T0 + MIN, 'r1', 'p1', 'pickup')) } })
 
@@ -300,6 +319,7 @@ test('the board logs a delivered pick-up itself, with Lee’s note as its detail
       kind: 'pickup',
       at: T0 + 4 * MIN,
       by: W1,
+      item: 'p2',
       text: 'Picked up from parked: Paper thumbnails inline in Ghostty',
       detail: [],
     },
@@ -307,6 +327,7 @@ test('the board logs a delivered pick-up itself, with Lee’s note as its detail
       kind: 'pickup',
       at: T0 + 2 * MIN,
       by: SENDER,
+      item: 'p1',
       text: 'Picked up from parked: A tmux indicator across sessions',
       detail: ['Before the release'],
     },

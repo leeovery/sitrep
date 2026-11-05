@@ -2033,7 +2033,13 @@ truth. There is still no background service. None of it is built now. Lee:
       spans each block down the column the pane keeps free beside its
       lines (`hooks/draw/measure.tsx`), drawing nothing, and posts the rows
       the block takes whenever they change. It is keyed by its block, a
-      session's item by its address. The list is as tall as its blocks, and a block sits as far
+      session's item by its address; a line in Notes by its note's id, a
+      status change by its time, and a pick-up by its parked item, since
+      one send logs every pick-up it carries at the same time. Claude Code
+      draws nothing of a tree holding two `Client`s under one key: keyed by
+      their time, a send of several pick-ups left the docked pane blank
+      until newer lines pushed all but one out of Notes (8 October to 5
+      November 2026). The list is as tall as its blocks, and a block sits as far
       down as those above it; one not measured yet counts a row. Each
       measures once as it is laid out, and again as it grows or the width
       changes (about 140 posts over a long live run). The rows and the list
