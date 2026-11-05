@@ -159,6 +159,43 @@ struct YouLookedTests {
         #expect(run.looked == LastLooked(["sr-macapp": clock.now.addingTimeInterval(-60)]))
     }
 
+    /// Hidden, then visible again for under a second, then left: the thread's second starts again as it shows again,
+    /// so nothing more is written.
+    @Test func shownAgainForUnderASecondWritesNothingMore() {
+        let clock = Clock()
+        let run = Self.shown(clock: clock)
+
+        clock.passes(60)
+        run.window(isVisible: false)
+        let hidden = clock.now
+        clock.passes(60)
+        run.window(isVisible: true)
+        clock.passes(0.5)
+        run.click(.project("kit"))
+        #expect(run.looked == LastLooked(["sr-macapp": hidden]))
+    }
+
+    /// While the page shows, its session's board failing on a line, then the board going stale as `watch` ends, then
+    /// coming back as it starts again: its board as last kept still shows, so its thread showed throughout, and
+    /// leaving a little over a second after it first did writes.
+    @Test func itsBoardFailingOrStaleWhileItShowsKeepsItsThreadShowing() {
+        let clock = Clock()
+        let run = Self.shown(clock: clock)
+        let ended = Heard.exited(.status(1), stderr: "")
+
+        run.pickInList(.line("ask:sr-dash02:k1"), at: clock.now)
+        take(["sr-dash02": Lines.dashboard], in: run, at: clock.now)
+        clock.passes(0.4)
+        take(["sr-dash02": nil], in: run, at: clock.now)
+        clock.passes(0.4)
+        run.show(heard(carrying(["sr-dash02": Lines.dashboard]), ended), at: clock.now, reducesMotion: false)
+        clock.passes(0.4)
+        take(["sr-dash02": Lines.dashboard], in: run, at: clock.now)
+        clock.passes(0.1)
+        run.pickInList(macAppK1, at: clock.now)
+        #expect(run.looked["sr-dash02"] == clock.now)
+    }
+
     /// Forward to the page Back left is its page showing again, read from then.
     @Test func forwardShowsThePageAgainAndLeavingItWrites() {
         let clock = Clock()
@@ -250,17 +287,22 @@ struct YouLookedTests {
         #expect(run.looked == LastLooked(["sr-dash02": printedAt]))
     }
 
-    /// A session leaving the board while its page shows: its page stops showing, and its look goes with it.
+    /// A session leaving the board while its page shows, read for a minute: its page stops showing, and its look goes
+    /// with it, never kept for a session off the board.
     @Test func aSessionLeavingTheBoardWhileItShowsLeavesNoLook() {
+        let clock = Clock()
         let first = Built(id: "s1", project: "p1", waiting: [5])
         let second = Built(id: "s2", project: "p1", waiting: [10])
-        let run = WindowRun()
+        let run = WindowRun(wall: { clock.now })
 
         run.show(heard(Built.printed([first, second])), at: printedAt, reducesMotion: false)
         run.open()
         run.land("s1")
         run.window(isVisible: true)
-        run.show(heard(Built.printed([second])), at: printedAt, reducesMotion: false)
+        run.show(heard(carrying(["s1": Lines.board], on: Built.printed([first, second]))), at: clock.now, reducesMotion: false)
+        #expect(run.page(at: clock.now).session?.hasBoard == true)
+        clock.passes(60)
+        run.show(heard(Built.printed([second])), at: clock.now, reducesMotion: false)
         #expect(run.looked == LastLooked())
     }
 

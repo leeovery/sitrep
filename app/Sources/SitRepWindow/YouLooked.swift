@@ -3,13 +3,13 @@ import SitRepEdge
 import SitRepPanel
 
 /// When Lee last looked at each session, by its id: the time its page, beside a place's list or filling the window,
-/// last stopped showing after he read it (`Reading`), kept across launches as one value of its own under "windowLooked", and only for the sessions
-/// on the board. Written only as the page stops showing, so it holds still while he reads it, and what comes meanwhile
-/// stands newer than it.
+/// last stopped showing after he read it (`Reading`), kept across launches as one value of its own under
+/// "windowLooked", and only for the sessions on the board. Written only as the page stops showing, so it holds still
+/// while he reads it, and what comes meanwhile stands newer than it.
 public struct LastLooked: SavedValue {
     public static let key = "windowLooked"
 
-    /// When each session's page last stopped showing.
+    /// When each session's page last stopped showing after he read it.
     public private(set) var sessions: [String: Date] = [:]
 
     public init() {}

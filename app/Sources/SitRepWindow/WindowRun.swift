@@ -93,10 +93,10 @@ public final class WindowRun {
 
     /// The board as `watch` last printed it, heard at this time: the columns take it, held or not, a line new on it
     /// moving in at once, washed unless motion is reduced. Where the window is stays wherever it still stands on it
-    /// (`History.keep(on:arranged:)`), and a session opened from outside before any board lands; when Lee last looked
-    /// at a session is kept only while it is on the board. Then the sessions' boards the line carries are taken, each
-    /// printed once, so only as the line comes, never again from the board kept stale; and stale, every answer written
-    /// is on its way. The page's session's board come, its thread shows.
+    /// (`History.keep(on:arranged:)`), and a session opened from outside before any board lands. Then the sessions'
+    /// boards the line carries are taken, each printed once, so only as the line comes, never again from the board
+    /// kept stale; and stale, every answer written is on its way. The page's session's board come, its thread shows;
+    /// and when Lee last looked at a session is kept only while it is on the board.
     public func show(_ last: LastBoard, at time: Date, reducesMotion: Bool) {
         let fresh = last.stale == nil ? last.board : nil
         let isFirstBoard = !given.hasBoard
@@ -110,9 +110,6 @@ public final class WindowRun {
             details.keepFinishingAway(on: board)
         }
         keepOnTheBoard(isFirstBoard: isFirstBoard)
-        if given.hasBoard {
-            looked.keep(only: Set(given.homes.keys))
-        }
         if let fresh {
             for (session, carried) in fresh.boards {
                 details.take(carried, of: session, lookedAt: fresh.at, washingAt: reducesMotion ? nil : time)
@@ -120,6 +117,10 @@ public final class WindowRun {
         }
         keepOnItsWayUnwatched()
         keepLooked()
+        // after every write, so a session this board dropped while its page showed is never kept
+        if given.hasBoard {
+            looked.keep(only: Set(given.homes.keys))
+        }
     }
 
     /// While the board is stale no board can come, so an answer written is on its way, as the write proved.

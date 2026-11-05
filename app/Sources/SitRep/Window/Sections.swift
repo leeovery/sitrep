@@ -256,8 +256,8 @@ private struct LookedDivider: View {
 /// ring or later's diamond, or on the thread's line an ask's hollow ring or a log line's dot, each ringed in the page's
 /// black so the line breaks round it; a quieter word before its words, "next", "later" or "Asked"; its words; and on
 /// the thread its time in a lane of its own, all three dimmer where it is from before Lee last looked. Opened, its
-/// words wrap whole, and its detail sits close under them, as a section's line's. To VoiceOver its words and its time
-/// are one element.
+/// words wrap whole, and its detail sits close under them, as a section's line's, dimmer as they are. To VoiceOver its
+/// words and its time are one element.
 private struct MarkedLine<Detail: View>: View {
     enum Mark {
         case now, next, later, asked, line
@@ -290,7 +290,7 @@ private struct MarkedLine<Detail: View>: View {
                 if isOpen {
                     VStack(alignment: .leading, spacing: 2) { detail() }
                         .font(WindowStyle.ui(12))
-                        .foregroundStyle(WindowStyle.soft)
+                        .foregroundStyle(isOlder ? WindowStyle.olderDetail : WindowStyle.soft)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }

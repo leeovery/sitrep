@@ -292,8 +292,10 @@ extension WindowStyle {
     static let threadText = Color.white.opacity(Double(0xB3) / 255)
     static let threadMark = Color(hex: 0x8E8E95)
     static let threadRule = Color.white.opacity(Double(0x1F) / 255)
-    /// An entry from before Lee last looked, dimmer: its words white at 45%, its age at 30%, its mark darker.
+    /// An entry from before Lee last looked, dimmer: its words white at 45%, its age at 30%, its mark darker; opened,
+    /// its detail white at 35%, the words' step down from the secondary colour's 60%.
     static let olderText = Color.white.opacity(Double(0x73) / 255)
+    static let olderDetail = Color.white.opacity(0.35)
     static let olderAge = Color.white.opacity(Double(0x4D) / 255)
     static let olderMark = Color(hex: 0x5C5C63)
     /// The hairline of "You looked 2h ago", white at 8%.
