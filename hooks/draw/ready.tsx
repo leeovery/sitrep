@@ -223,17 +223,27 @@ const goingOf = (send: SitrepInFlight, width: number, holding: Holding): Going =
   return { send, rows: [holding === 'turn' ? HELD : BEHIND_STOP], isHeld: true, sendsNow: false }
 }
 
-/** What the send `at` in the order claimed waits on while held. */
+/**
+ * What the send `at` in the order claimed waits on while held. An answer
+ * that went in with Lee's prompt goes ahead of every held message, and
+ * nothing is submitted until it has ended and its turn started, so no send
+ * behind it can go now.
+ */
 const holdingOf = (scene: Scene, at: number): Holding => {
   if (!scene.isStopped) {
     return 'turn'
   }
 
-  return at === scene.inFlight.findIndex(isHeldSend) ? 'stop' : 'behindStop'
+  const isFirst = at === scene.inFlight.findIndex(isQueuedSend) && !scene.inFlight.some(isRide)
+
+  return isFirst ? 'stop' : 'behindStop'
 }
 
-/** Whether a message in flight is a send of Lee's from Ready to send: not the inbox's, nor an answer that went in with his prompt, which is submitted already. */
-const isHeldSend = (flight: SitrepInFlight) => flight.source === 'send' && flight.ride === undefined
+/** Whether a message in flight is an answer that went in with Lee's prompt, submitted already. */
+const isRide = (flight: SitrepInFlight) => flight.ride !== undefined
+
+/** Whether a message in flight is a send of Lee's from Ready to send: not the inbox's, nor an answer that went in with his prompt. */
+const isQueuedSend = (flight: SitrepInFlight) => flight.source === 'send' && !isRide(flight)
 
 /**
  * A send of Lee's on its way as a group of its own, `at` in the order
@@ -401,8 +411,8 @@ const fitted = (groups: readonly Group[], room: number, shown: string | null): G
 
   // An answer that went in with Lee's prompt is submitted already, with no
   // take-back to keep in reach: it shows whole, as the first send does.
-  const leading = [first, ...rest.filter(send => !isHeldSend(send.going.send))]
-  const later = rest.filter(send => isHeldSend(send.going.send))
+  const leading = [first, ...rest.filter(send => !isQueuedSend(send.going.send))]
+  const later = rest.filter(send => isQueuedSend(send.going.send))
   const left = leading.reduce(
     (rows, send) => rows - GROUP_ROWS - send.going.rows.length,
     room - MORE_ROWS,

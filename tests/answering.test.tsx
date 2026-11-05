@@ -1060,6 +1060,44 @@ test('an answer with an image a reload left waiting is written down once its tur
   expect(w.flights()).toEqual([])
 })
 
+test("an answer with an image a reload left, let go with the inbox's replies held behind it, says only that the answer didn't go in", SLOW, async ($, on) => {
+  const w = world($, on)
+  const { paths } = await w.begin()
+  const id = await asked(w, GO)
+  const other = await asked(w, { wants: 'yes', yes: 'Approve', title: 'Review round 1' })
+  const ui = await w.pane()
+
+  await w.clock.advance(MIN)
+  await w.turnStarts('Carry on.')
+  w.put(paths.letters(W3), file([w.clock.now(), reply('r9', other, 'yes')]))
+  await w.clock.advance(2 * WATCH_MS)
+  expect(w.flights()).toMatchObject([{ source: 'inbox', isHeld: true }])
+
+  if ((await ui.find({ key: `yes:${w.item(id)}` })) === undefined) {
+    await ui.press({ key: `pick:${w.item(id)}` })
+  }
+
+  await ui.press({ key: `yes:${w.item(id)}` })
+  await ui.press({ key: `rewrite:${w.item(id)}` })
+
+  const held = w.holdPrompts()
+  const typed = entered(w, $, 'After the copy pass [Image #1]', { attachments: [IMAGE] })
+
+  await held.arrived
+  expect(w.flights()).toMatchObject([{ source: 'send', isHeld: false }, { source: 'inbox' }])
+
+  held.lose()
+  // The kit settles a prompt no hook ever answered by rejecting it as the test ends.
+  void typed.catch(() => {})
+  await $.session.start(CONVERSATION)
+  await w.turnEnds()
+  await w.clock.advance(QUIET_MS + WATCH_MS)
+
+  expect(w.toasts).toContain(RIDE_LOST)
+  expect(w.toasts.filter(toast => toast.startsWith('Not sent'))).toEqual([])
+  expect(w.state.queue).toEqual([{ ...at(w, id), verdict: 'yes' }])
+})
+
 test('an answer with an image whose ask a send claims first goes to Claude as any prompt does, and the send carries the yes alone', async ($, on) => {
   const w = world($, on)
 

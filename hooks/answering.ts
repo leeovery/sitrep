@@ -102,7 +102,7 @@ export const ELSEWHERE =
 
 /** Why a reply can't go in with Lee's prompt, as Ready to send says it leaves one out, its session read afresh. */
 export const CANNOT_RIDE: Record<LeftOut, string> = {
-  changed: 'Not sent: it changed since your reply was queued.',
+  changed: 'Not sent: it has changed since.',
   answered: 'Not sent: already answered.',
   resolved: 'Not sent: Claude closed it.',
 }

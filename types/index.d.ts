@@ -286,8 +286,8 @@ export type SitrepInFlight = SitrepSessionRef & {
   ride?: SitrepRide
 }
 
-/** What an answer going in with Lee's prompt displaced in Ready to send: the reply queued on its item before, if one was, put back should the answer not go in. */
-export type SitrepRide = { was?: SitrepQueued }
+/** The item an answer going in with Lee's prompt replies to, and what it displaced in Ready to send there: the reply queued before, if one was, put back should the answer not go in. */
+export type SitrepRide = { item: string; was?: SitrepQueued }
 
 /**
  * The messages in flight as `$.state` keeps them, in the order claimed: one

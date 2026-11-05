@@ -1236,7 +1236,7 @@ test("an answer whose turn starts before its hook hears back holds the send behi
   expect(repliedIn(w, paths)).toEqual([words, first])
 })
 
-test('while the window is stopped, the first send held behind an answer going in with an image still offers send now', SLOW, async ($, on) => {
+test('while the window is stopped, the first send held behind an answer going in with an image offers no send now, which could not send it', SLOW, async ($, on) => {
   const w = world($, on)
   const { ids, ui } = await asking(w)
 
@@ -1249,7 +1249,8 @@ test('while the window is stopped, the first send held behind an answer going in
   await held.arrived
 
   expect(flightsIn(w).map(each => each.isHeld)).toEqual([false, true])
-  expect(await ui.find({ key: SEND_NOW })).toBeDefined()
+  expect(await ui.find({ key: SEND_NOW })).toBeUndefined()
+  expect(await box(ui)).toContain('⧗ Goes after your next message. ↺ take back')
 
   held.end()
   await typed

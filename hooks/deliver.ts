@@ -310,21 +310,21 @@ const lessFrom = (flights: SitrepInFlight[], at: number) =>
  */
 const release = async (host: Host, delivery: SitrepInFlight, why: string) => {
   let isLet = false
-  let isAnyBehind = false
+  let behind: SitrepSource[] = []
 
   await changeFlight(host, flights => {
     const at = flights.findIndex(each => isUnheard(each, delivery))
     const left = at === -1 ? flights : lessFrom(flights, at)
 
     isLet = at !== -1
-    isAnyBehind = left.length < flights.length - 1
+    behind = flights.filter((each, i) => i > at && !left.includes(each)).map(each => each.source)
 
     return left
   })
 
   if (isLet) {
     stopAwaiting()
-    sayNotTaken(host, delivery, why, isAnyBehind)
+    sayNotTaken(host, delivery, why, behind)
     await putBack(host, delivery)
     await foldAgain(host)
   }
@@ -335,20 +335,28 @@ const release = async (host: Host, delivery: SitrepInFlight, why: string) => {
  * it is let go without going in: the reply it displaced back on its item,
  * else none there. Nothing for any other message.
  */
-const putBack = async (host: Host, { ride, session, replies }: SitrepInFlight) => {
-  const item = replies[0]?.item
-
-  if (ride === undefined || item === undefined) {
+const putBack = async (host: Host, { ride, session }: SitrepInFlight) => {
+  if (ride === undefined) {
     return
   }
 
   await host.state.queue.update(queue =>
-    ride.was === undefined ? unqueuing(queue, session, item) : queuing(queue, ride.was),
+    ride.was === undefined ? unqueuing(queue, session, ride.item) : queuing(queue, ride.was),
   )
 }
 
-/** Says a message went nowhere: an answer that went with Lee's prompt has to be written again, its image with it; the replies of sends let go behind it are still on the board. */
-const sayNotTaken = (host: Host, delivery: SitrepInFlight, why: string, isAnyBehind: boolean) => {
+/**
+ * Says a message went nowhere, one way for each source: an answer that went
+ * with Lee's prompt has to be written again, its image with it, and what was
+ * let go behind it says so as its source does, sends' replies still on the
+ * board and the inbox's tried again.
+ */
+const sayNotTaken = (
+  host: Host,
+  delivery: SitrepInFlight,
+  why: string,
+  behind: readonly SitrepSource[],
+) => {
   if (delivery.ride === undefined) {
     AFTER[delivery.source].notTaken(host, why)
 
@@ -357,8 +365,8 @@ const sayNotTaken = (host: Host, delivery: SitrepInFlight, why: string, isAnyBeh
 
   host.ui.toast(RIDE_LOST)
 
-  if (isAnyBehind) {
-    AFTER.send.notTaken(host, why)
+  for (const source of new Set(behind)) {
+    AFTER[source].notTaken(host, why)
   }
 }
 
@@ -752,7 +760,7 @@ export const claimRide = async (
     claimedAt: await host.clock.now(),
     isHeld: false,
     isTaken: false,
-    ride: was === undefined ? {} : { was },
+    ride: was === undefined ? { item: reply.item } : { item: reply.item, was },
   }
   const isBetween = await betweenTurns(host)
   let isClaimed = false
