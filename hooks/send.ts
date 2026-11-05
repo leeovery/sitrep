@@ -15,7 +15,7 @@
  * a send carries them as a message of their own, which goes in after it.
  */
 import { boardMessage } from '../core'
-import { deliver, STILL_THERE } from './deliver'
+import { deliver, sendHeld, STILL_THERE } from './deliver'
 import type { Host } from './host'
 import { sendLetters } from './letters'
 import { leftOut, replyBodies, sendable, type LeftOut } from './queue'
@@ -90,11 +90,15 @@ const sendHere = async (host: Host, claimed: () => Promise<void>): Promise<Here>
  * sessions' into their inboxes, then the held session's. `claimed` runs
  * once, as soon as any of it has gone: the held session's message claimed,
  * else the letters written; never once nothing went. A send that carried
- * nothing at all says why it left what it held.
+ * nothing at all says why it left what it held. Whatever it claimed, the
+ * first message in flight goes as it can: from Lee's press, though he
+ * stopped Claude's turn.
  */
 export const send = async (host: Host, claimed: () => Promise<void>) => {
   const letters = await sendLetters(host)
   const here = await sendHere(host, claimed)
+
+  await sendHeld(host)
 
   if (letters.isLettered && here.is !== 'claimed') {
     await claimed()

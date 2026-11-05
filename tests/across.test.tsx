@@ -528,3 +528,36 @@ test(
     expect(await ui.find({ type: 'Text', text: '· not delivered: Claude closed it' })).toBeDefined()
   },
 )
+
+test("a send of letters alone, pressed while Lee has stopped Claude's turn, carries the send held for this session on from the press", SLOW, async ($, on) => {
+  const w = world($, on)
+  const { asked, paths, ui } = await threeSessions(w)
+  const own = 'From the board:\n- Review Sessions & Runway, round 1 → Approve'
+
+  if ((await ui.find({ key: `yes:${w.item(asked)}` })) === undefined) {
+    await ui.press({ key: `pick:${w.item(asked)}` })
+  }
+
+  await ui.press({ key: `yes:${w.item(asked)}` })
+  await w.turnStarts('Carry on.')
+  await ui.press({ key: 'send' })
+  w.dropPrompts('the session was stopped and nobody has sent input since')
+  await w.turnEnds({ isAborted: true })
+  await w.clock.settle()
+
+  expect(w.state.stopped).toBe(true)
+
+  w.dropPrompts()
+  await answer(ui, LEDGER, 'k3')
+  await ui.press({ key: 'send' })
+  await w.clock.settle()
+
+  expect(repliesIn(w, LETTERS)).toMatchObject([{ item: 'k3', verdict: 'yes' }])
+  expect(w.submitted).toEqual([own, own])
+  expect(w.state.stopped).toBe(false)
+  expect(parseEntries(w.text(paths.log(W1))).map(line => line.type)).toEqual([
+    'ask',
+    'reply',
+    'delivered',
+  ])
+})

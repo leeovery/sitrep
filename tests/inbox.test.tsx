@@ -279,6 +279,94 @@ test('a send Lee presses while inbox replies are in flight waits for them: a toa
   expect(kindsIn(w, paths)).toEqual(['ask', 'ask', 'delivered', 'reply', 'delivered'])
 })
 
+/** Claude Code's refusal of every plugin's prompt once Lee has stopped Claude's turn, until he next types in the window (live, 2.1.318). */
+const STOPPED = 'the session was stopped and nobody has sent input since'
+
+test("a send Lee presses while the window is stopped behind the inbox's message carries that message on from his press, his own replies waiting for it, a toast saying so", async ($, on) => {
+  const w = world($, on)
+  const { paths, asked, send } = await asking(w)
+  const own = postedId(
+    await w.call('ask', { wants: 'yes', yes: 'Done', title: 'Run the production apply' }),
+  )
+  const ui = await w.opened()
+
+  w.dropPrompts(STOPPED)
+  send(['r1', asked, 'yes'])
+  await w.clock.advance(TAKE_IN)
+
+  expect(w.state.inFlight).toMatchObject({ source: 'inbox', isHeld: true })
+  expect(w.state.stopped).toBe(true)
+
+  w.dropPrompts()
+  await ui.press({ key: `yes:${w.item(own)}` })
+  await ui.press({ key: 'send' })
+  await w.clock.settle()
+
+  expect(w.submitted).toEqual([MESSAGE, MESSAGE])
+  expect(kindsIn(w, paths)).toEqual(['ask', 'ask', 'delivered'])
+  expect(w.toasts.filter(toast => toast.startsWith('Not sent'))).toEqual([
+    'Not sent yet: replies from another session are going in first. Your replies are still on the board.',
+  ])
+  expect(w.state.queue).toMatchObject([{ item: own, verdict: 'yes' }])
+})
+
+test("inbox replies arriving while the window is stopped are claimed but not submitted, no refusal spent on them; they go once Lee's turn ends", async ($, on) => {
+  const w = world($, on)
+  const { paths, asked, send } = await asking(w)
+  const own = postedId(
+    await w.call('ask', { wants: 'yes', yes: 'Done', title: 'Run the production apply' }),
+  )
+  const ui = await w.opened()
+
+  await ui.press({ key: `yes:${w.item(own)}` })
+  await w.turnStarts('Carry on.')
+  await ui.press({ key: 'send' })
+  w.dropPrompts(STOPPED)
+  await w.turnEnds({ isAborted: true })
+  await w.clock.settle()
+  await ui.press({ key: w.takeBack() })
+  send(['r1', asked, 'yes'])
+  await w.clock.advance(TAKE_IN + 4 * WATCH_MS)
+
+  expect(w.state.stopped).toBe(true)
+  expect(w.state.inFlight).toMatchObject({ source: 'inbox', isHeld: true })
+  expect(w.submitted, 'only the send refused as Claude was stopped').toHaveLength(1)
+
+  w.dropPrompts()
+  await w.turnStarts('Look at the failing test instead.')
+  await w.turnEnds()
+  await w.clock.settle()
+
+  expect(w.submitted.at(-1)).toBe(MESSAGE)
+  expect(kindsIn(w, paths)).toEqual(['ask', 'ask', 'delivered'])
+})
+
+test("inbox replies held while the window is stopped are let go once another window delivers for the session, left in the inbox for it", async ($, on) => {
+  const w = world($, on)
+  const { paths, asked, send } = await asking(w)
+  const longer = () =>
+    w.beat(w.state.attachment?.session ?? '', { writer: W2, attachedAt: 0, seenAt: w.clock.now() })
+
+  w.dropPrompts(STOPPED)
+  send(['r1', asked, 'yes'])
+  await w.clock.advance(TAKE_IN)
+
+  expect(w.state.inFlight).toMatchObject({ source: 'inbox', isHeld: true })
+  expect(w.state.stopped).toBe(true)
+
+  for (let look = 0; look < 4; look++) {
+    longer()
+    await w.clock.advance(WATCH_MS)
+  }
+
+  expect(w.state.board?.deliverer).toBe(W2)
+  expect(w.state.inFlight).toBeNull()
+  expect(w.submitted).toEqual([MESSAGE])
+  expect(w.state.board?.replies).toMatchObject([{ id: 'r1', delivery: 'waiting' }])
+  expect(kindsIn(w, paths)).toEqual(['ask'])
+  expect(w.logs.some(line => line.includes('not taken'))).toBe(false)
+})
+
 test('an inline board whose send waits behind inbox replies stays open: nothing of it went', async ($, on) => {
   const w = world($, on)
   const { asked, send } = await asking(w)

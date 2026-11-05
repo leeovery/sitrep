@@ -94,6 +94,7 @@ const delivering = (board: Session, inFlight: SitrepInFlight[]) => {
           state.inFlight = change(state.inFlight)
         },
       },
+      stopped: { read: async () => false },
       // Nothing heard: the window between turns, so a message claimed goes at once.
       activity: { get: async () => ({ value: undefined, version: 0 }) },
     },

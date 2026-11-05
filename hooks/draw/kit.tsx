@@ -529,6 +529,9 @@ export const drawRewrite = (d: Drawing, key: string, item: Ask | Parked, queued:
   )
 }
 
+/** A press answered by the `ui.press` hook, inside the press itself, where its calls carry Lee's press; the button's own closure does nothing. */
+export const answeredByTheHook = () => undefined
+
 /** Why a reply in Ready to send stays as a send goes: its item took another answer of Lee's first, or Claude closed it. */
 export const NOT_SENT: Record<Barred, string> = {
   answered: '· not sent: already answered',

@@ -389,6 +389,8 @@ declare module 'claude-code' {
       sent: SitrepSent[]
       /** The messages on their way to Claude. */
       inFlight: SitrepStoredFlights
+      /** Whether Lee stopped Claude's turn and Claude Code refuses the window's prompts until his input, as its last refusal said. */
+      stopped: boolean
       pane: SitrepPane
       /** How far down the docked board's list stands, or null at its top. */
       scroll: SitrepScroll | null

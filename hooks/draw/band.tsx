@@ -22,16 +22,13 @@ import { C, clip, CLOSE, counted, GLYPH } from '../look'
 import { BAND, placementOn } from '../pane'
 import { waitingElsewhere } from '../places'
 import { countMark, type Scene } from '../scene'
-import type { Els } from './kit'
+import { answeredByTheHook, type Els } from './kit'
 
 /** The band's own rows: one line. */
 export const BAND_ROWS = 1
 
 /** Narrower than this, the band keeps its counts and drops their words, and the answering line its "Your next". */
 const NARROW = 64
-
-/** Every press on the band is answered by the `ui.press` hook, inside the press itself. */
-const answeredByTheHook = () => undefined
 
 /** What the next Enter does, by what Lee is writing: an answer where it closes the ask. */
 const NEXT_ENTER = { answer: 'answers', comment: 'comments on', pickup: 'picks up' } as const

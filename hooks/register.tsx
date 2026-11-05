@@ -31,16 +31,22 @@
  */
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
-import { actionsOf } from './actions'
+import { actionsOf, sendReady } from './actions'
 import { captured, heardSurvey } from './answering'
 import { lookAround, lookEvery } from './around'
 import { clipOf, heardRows, revealFocus, scrollList } from './clip'
 import {
   carryOn,
   conversationEnded,
+  duringCommand,
+  heardInput,
   heardTurn,
+  inputArriving,
   isBoardMessage,
+  isLeesInput,
   keptFlights,
+  liftStop,
+  sendHeld,
   storedFlights,
   takeUpDelivery,
 } from './deliver'
@@ -57,6 +63,7 @@ import {
 } from './doing'
 import { BAND_ROWS, drawBand } from './draw/band'
 import { drawPane } from './draw/board'
+import { SEND, SEND_NOW } from './draw/ready'
 import { drawToolResult, drawToolRow, toolLine } from './draw/tool-row'
 import { logFailure, TOAST_MS, type Host } from './host'
 import { loadedNow } from './load'
@@ -66,6 +73,7 @@ import {
   heardPlacement,
   openBoard,
   PANE,
+  placementOn,
   pressBand,
   syncBoard,
 } from './pane'
@@ -89,6 +97,7 @@ const others = atom({ plugin: 'sitrep', key: 'others' } as const, [])
 const queue = atom({ plugin: 'sitrep', key: 'queue' } as const, [])
 const sent = atom({ plugin: 'sitrep', key: 'sent' } as const, [])
 const inFlight = atom({ plugin: 'sitrep', key: 'inFlight' } as const, null)
+const stopped = atom({ plugin: 'sitrep', key: 'stopped' } as const, false)
 const pane = atom({ plugin: 'sitrep', key: 'pane' } as const, {
   isOpen: false,
   place: null,
@@ -198,6 +207,11 @@ const hostOf = ($: EngineInterface): Host => ({
       write: value => update($, inFlight, () => storedFlights(value)),
       update: change =>
         update($, inFlight, value => storedFlights(change(keptFlights(value)))),
+    },
+    stopped: {
+      read: () => read($, stopped),
+      write: value => update($, stopped, () => value),
+      update: change => update($, stopped, change),
     },
     pane: {
       read: () => read($, pane),
@@ -377,22 +391,40 @@ export const register: Register = on => {
     }
 
     const host = hostOf($)
+    const isLees = isLeesInput(e.origin)
+    // Lee's input lifts Claude Code's refusal after a stop before any hook
+    // hears it. The window stays marked stopped while it may yet start a
+    // turn, whose start lifts the mark, so no look puts the board's message
+    // in ahead of it; it lifts here only should the prompt go no further.
+    // Where no turn follows, the next look carries on: a submit made inside
+    // this hook hangs on the prompt it hears (in the test kit).
+    const wentNowhere = async () => {
+      if (isLees) {
+        await liftStop(host).catch(logFailure(host, 'ending the wait on your input'))
+      }
+    }
+
+    if (isLees) {
+      inputArriving()
+    }
+
     // A prompt the answering mode takes goes no further, so it takes no board context either.
     const taken = await captured(host, e)
 
     if (taken !== undefined) {
+      await wentNowhere()
+
       return { drop: taken }
     }
 
     const change = await serially(() => boardChange(host))
+    const entered = await next(
+      change === undefined ? e : { ...e, context: [...(e.context ?? []), change.context] },
+    )
 
-    if (change === undefined) {
-      return next(e)
-    }
-
-    const entered = await next({ ...e, context: [...(e.context ?? []), change.context] })
-
-    if (entered.drop === undefined) {
+    if (entered.drop !== undefined) {
+      await wentNowhere()
+    } else if (change !== undefined) {
       await markSeen(host, change.session)
     }
 
@@ -402,6 +434,10 @@ export const register: Register = on => {
   on('session.end', async ($, e, next) => {
     const host = hostOf($)
 
+    // Claude Code refuses the window's prompts after a stop only in the
+    // conversation stopped; lifted first, so no look meanwhile lets the
+    // inbox's message go, as one held for a stop gone stale.
+    await liftStop(host).catch(logFailure(host, 'ending the wait on your input'))
     await serially(() => letGo(host)).catch(logFailure(host, 'letting go of the attached session'))
     await heardConversationEnd(host)
     await conversationEnded(host, e.reason === 'clear')
@@ -425,11 +461,40 @@ export const register: Register = on => {
     return next(e)
   }).catch(($, e, next) => next(e))
 
+  // A slash command Lee types lifts Claude Code's refusal after a stop, as a
+  // prompt does, lifted here before it runs, as a /reload-plugins ends this
+  // load. Nothing is submitted while it runs: a prompt would wait on it, as
+  // on a /compact, its quiet passing, or land in a conversation a /resume
+  // replaces. The next look carries on, a submit from this hook being
+  // refused.
+  on('command.run', async ($, e, next) => {
+    if (!isLeesInput(e.origin)) {
+      return next(e)
+    }
+
+    await heardInput(hostOf($))
+
+    return duringCommand(() => next(e))
+  }).catch(($, e, next) => next(e))
+
   on('command.run', { command: 'sitrep' }, async $ => {
     await openBoard(hostOf($))
 
     return {}
   }).catch(() => ({ text: 'The sitrep board could not open.' }))
+
+  // Inside Lee's press, whose submit Claude Code takes though Lee stopped
+  // Claude's turn: the hook's own $ carries the press, which the board's
+  // own buttons, bound to the $ it was drawn with, do not.
+  on('ui.press', { plugin: 'sitrep', element: [SEND, SEND_NOW] }, async ($, e) => {
+    const host: Host = { ...hostOf($), isPress: true }
+    const isDock = placementOn(await host.state.pane.read(), e.surface) !== 'inline'
+    const pressed = e.element === SEND ? sendReady(host, isDock) : sendHeld(host)
+
+    await pressed.catch(logFailure(host, 'sending'))
+
+    return { element: e.element }
+  }).catch(($, e, next) => next(e))
 
   on('ui.press', { plugin: 'sitrep', element: BAND_KEYS }, async ($, e) => {
     await pressBand(hostOf($), e.element)

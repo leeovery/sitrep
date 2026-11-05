@@ -56,6 +56,8 @@ export type Versioned<T> = {
 export const TOAST_MS = 10_000
 
 export type Host = {
+  /** Set where the host is a press hook's `$`: its calls carry Lee's press, whose submit Claude Code takes though Lee stopped Claude's turn. */
+  isPress?: true
   fs: {
     read: (path: string) => Promise<string>
     /** Writes the whole file, making its folders as needed. */
@@ -117,6 +119,8 @@ export type Host = {
     sent: Slot<SitrepSent[]>
     /** The messages in flight, in the order claimed, however `$.state` keeps them. */
     inFlight: Slot<SitrepInFlight[]>
+    /** Whether Lee stopped Claude's turn and Claude Code refuses the window's prompts until his input, as its last refusal said. */
+    stopped: Slot<boolean>
     pane: Slot<SitrepPane>
     scroll: Slot<SitrepScroll | null>
     answering: Slot<SitrepAnswering | null>

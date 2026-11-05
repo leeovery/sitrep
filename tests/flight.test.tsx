@@ -28,6 +28,9 @@ const REVIEW = { wants: 'yes', yes: 'Approve', title: 'Review Sessions & Runway,
 
 const MESSAGE = 'From the board:\n- Review Sessions & Runway, round 1 → Approve'
 
+/** Claude Code's refusal of every plugin's prompt once Lee has stopped Claude's turn, until he next types in the window (live, 2.1.318). */
+const STOPPED = 'the session was stopped and nobody has sent input since'
+
 /** What the window's own file holds once the message is written down, by its source. */
 const WRITTEN: Record<Source, string[]> = {
   send: ['ask', 'reply', 'delivered'],
@@ -197,6 +200,37 @@ for (const source of ['send', 'inbox'] as const) {
     expect(w.state.attachment ?? null).toBeNull()
     expect(kindsIn(w, paths)).toEqual(WRITTEN[source])
     expect(w.state.inFlight).toBeNull()
+  })
+
+  test(`${source}: refused as Lee stopped Claude's turn, the message is held and the window marked stopped; no look, quiet or reload submits it again or lets it go, and it goes once his turn ends`, SLOW, async ($, on) => {
+    const w = world($, on)
+    const { paths, submit } = await replying[source](w)
+
+    w.dropPrompts(STOPPED)
+    submit()
+    await w.clock.advance(WATCH_MS)
+
+    expect(w.submitted).toEqual([MESSAGE])
+    expect(w.state.inFlight).toMatchObject({ source, isHeld: true })
+    expect(w.state.stopped).toBe(true)
+
+    await $.session.start(CONVERSATION)
+    await w.clock.advance(QUIET_MS + 4 * WATCH_MS)
+
+    expect(w.submitted).toEqual([MESSAGE])
+    expect(w.state.inFlight).toMatchObject({ source, isHeld: true })
+    expect(w.state.stopped).toBe(true)
+    expect(w.toasts.filter(toast => toast.startsWith('Not sent'))).toEqual([])
+    expect(w.logs.some(line => line.includes('were not taken'))).toBe(false)
+    expect(kindsIn(w, paths)).toEqual(['ask'])
+
+    w.dropPrompts()
+    await w.turnStarts('Look at the failing test instead.')
+    await w.turnEnds()
+    await w.clock.settle()
+
+    expect(w.submitted).toEqual([MESSAGE, MESSAGE])
+    expectWrittenOnce(w, paths, source)
   })
 }
 
