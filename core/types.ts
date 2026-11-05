@@ -279,6 +279,8 @@ export type LogLine = {
   ref?: string
   /** The note's id; a line the board derived has none. */
   id?: string
+  /** A pick-up's parked item: every pick-up one send carries is logged at the same time, so this tells them apart. */
+  item?: string
 }
 
 /** A finished session: when, by which writer, and whether Lee or Claude, with why. */

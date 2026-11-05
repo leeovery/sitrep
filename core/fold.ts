@@ -168,7 +168,7 @@ const settleParked = (fold: Fold, parked: Parked, reply: Reply, at: number) => {
   parked.closedAt = at
   parked.closedBy = 'answer'
   parked.answer = reply
-  fold.log.push({ kind: 'pickup', at, by: reply.by, ...pickUpLog(parked, reply) })
+  fold.log.push({ kind: 'pickup', at, by: reply.by, item: parked.id, ...pickUpLog(parked, reply) })
 }
 
 /** A reply on its way no more, delivered or void: its item's answer on its way no longer. */
