@@ -1,18 +1,22 @@
 import Foundation
 import SitRepCore
 
-/// What the page shows: beside a place's list, the session of the row its list picked, the detail; filling the
-/// window, a project's page or a session's; else a line saying why there is none, as the head does before the board is
-/// read or with nothing picked, or that no session is open at all.
+/// What the page shows: beside a place's list, the session of the row its list picked, the detail, or on Parked the
+/// item picked; filling the window, a project's page or a session's; else a line saying why there is none, as the head
+/// does before the board is read or with nothing picked, or that no session is open at all.
 public enum Page: Equatable, Sendable {
     case empty(String)
     /// Beside a place's list: the session its picked row shows, kept as the row leaves the list.
     case detail(SessionPage)
+    /// Beside Parked's list: the item picked.
+    case parked(ParkedPage)
     /// A session's page, filling the window, pushed from a place or a project.
     case session(SessionPage)
     case project(ProjectPage)
 
     static let nothingOpen = Page.empty("No session is open.")
+    /// The item picked on Parked has left the board, picked up or dropped by its session.
+    static let noLongerParked = Page.empty("No longer parked.")
 }
 
 /// Which page shows, a session's or a project's, whichever way the window came to it: what the page is drawn afresh

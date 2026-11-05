@@ -82,6 +82,14 @@ public enum Location: Hashable, Codable, Sendable {
         return nil
     }
 
+    /// What Parked's list is narrowed to; all on any other place and on a page that fills the window.
+    public var scope: ParkedScope {
+        if case let .place(place, _, scope) = self {
+            return scope.on(place)
+        }
+        return .all
+    }
+
     /// What the place's list has picked.
     public var picked: Selection? {
         if case let .place(_, picked, _) = self {
@@ -194,14 +202,13 @@ public enum Location: Hashable, Codable, Sendable {
         return .location(.place(place, picked: PlaceList(place, in: listed, isFoldOpen: true).selection(of: pick)))
     }
 
-    /// A place with its pick dropped where its list, folds open, lists no row for it. Parked's passes as it is, as its
-    /// list lists no items yet.
+    /// A place with its pick dropped where its list, folds open and Parked's narrowed to its scope, lists no row for it.
     private func listing(on listed: Listed) -> Location {
-        guard case let .place(place, picked?, scope) = self, place != .parked else {
+        guard case let .place(place, picked?, scope) = self else {
             return self
         }
 
-        let list = PlaceList(place, in: listed, isFoldOpen: true)
+        let list = PlaceList(place, in: listed, isFoldOpen: true, scope: scope)
 
         return .place(place, picked: list.selection(of: picked.pick), scope: scope)
     }

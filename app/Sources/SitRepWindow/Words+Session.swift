@@ -101,8 +101,13 @@ extension Spoken {
 
     /// When a session's status last changed, in words: "updated just now", "updated 1 hour ago".
     public static func updated(_ since: Date, at now: Date) -> String {
+        "updated \(ago(since, at: now))"
+    }
+
+    /// How long ago something was, in whole words: "just now", "1 hour ago".
+    static func ago(_ since: Date, at now: Date) -> String {
         let age = age(since, at: now)
 
-        return age == "just now" ? "updated \(age)" : "updated \(age) ago"
+        return age == "just now" ? age : "\(age) ago"
     }
 }

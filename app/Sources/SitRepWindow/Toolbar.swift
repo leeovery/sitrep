@@ -2,7 +2,8 @@ import SitRepCore
 
 /// The window's toolbar as the run has it: the window's title, Back and Forward, each with a step to go to or not; and
 /// on a place, over the page, where the pick stands in the list, "1 / 5", with up and down, each with a row to step to
-/// or not. On a place the title is the place's, shown over its list; on a project's page and a session's, which fill
+/// or not. On a place the title is the place's, shown over its list, Parked's with what its list is narrowed to, as
+/// "Parked · Contoso"; on a project's page and a session's, which fill
 /// the window and have Back and Forward alone, it is the page's, not shown, but naming the window to Mission Control,
 /// App Exposé and VoiceOver, as Finder's folder does.
 public struct Toolbar: Equatable, Sendable {
@@ -54,13 +55,31 @@ extension WindowRun {
         )
     }
 
-    /// The place's name; a project's page its project's; a session's page its session's.
+    /// The place's name, Parked's narrowed with the name of what it is narrowed to, "Parked · Contoso"; a project's
+    /// page its project's; a session's page its session's.
     private var title: String {
         switch location {
-        case let .place(place, _, _): place.title
-        case let .project(key): last.board?.projects.first { $0.key == key }?.name ?? Toolbar.untitled
-        case let .session(id, _): last.board?.session(id)?.session.name ?? Toolbar.untitled
+        case let .place(place, _, _): [place.title, scopeName].compactMap { $0 }.joined(separator: " · ")
+        case let .project(key): projectName(key) ?? Toolbar.untitled
+        case let .session(id, _): sessionName(id) ?? Toolbar.untitled
         }
+    }
+
+    /// The name of the project or the session Parked's list is narrowed to; none narrowed to nothing.
+    private var scopeName: String? {
+        switch location.scope {
+        case .all: nil
+        case let .project(key): projectName(key)
+        case let .session(id): sessionName(id)
+        }
+    }
+
+    private func projectName(_ key: String) -> String? {
+        last.board?.projects.first { $0.key == key }?.name
+    }
+
+    private func sessionName(_ id: String) -> String? {
+        last.board?.session(id)?.session.name
     }
 
     private func listing(of place: Place) -> Toolbar.Listing {

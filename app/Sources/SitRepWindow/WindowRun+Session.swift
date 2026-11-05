@@ -92,9 +92,9 @@ extension WindowRun {
         return Self.line(key, of: session, on: board).flatMap(SessionPage.Stop.init).map(SessionPage.Lead.stop)
     }
 
-    /// What a session's page with no board kept says while the board is stale, so no board can come: the head's
-    /// words for it, and why.
-    private var unwatched: String? {
+    /// What a session's page, or a parked item's, with no board kept says while the board is stale, so no board can
+    /// come: the head's words for it, and why.
+    var unwatched: String? {
         last.stale.map { "\(PanelBoard.unread.title). \($0)" }
     }
 }
