@@ -4,15 +4,14 @@ import SitRepMenu
 @testable import SitRepCore
 import SitRepEdge
 @testable import SitRepPanel
-@testable import SitRepWindow
 import SwiftUI
 import Testing
 
 /// A session no window holds with an ask waiting, alike on every surface (`Away`): its mark a hollow orange ring 7
 /// across, unglowed, where a held one's is the orange dot; its title and the line under it, or on the card's one line
 /// its "+N", dimmed by the one factor, so the title stays the brighter of the two, and its time, and on the card its
-/// project, never brighter than its title. On the black card and the strip's, on glass, in the window's list and on its
-/// pages, each read from its pixels at 2×.
+/// project, never brighter than its title. On the black card and the strip's, and on glass, each read from its pixels
+/// at 2×.
 @MainActor
 struct AwayRowsTests {
     private static func asking(away: Bool, lines: Int = 1) -> Session {
@@ -154,84 +153,6 @@ struct AwayRowsTests {
         )
     }
 
-    // MARK: The window
-
-    private static func line(away: Bool) -> PlaceList.LineRow {
-        let line = Listed.Line(id: "ask:sr-ask001:k1", lead: Sample.needsYou, code: nil, more: nil, since: .now)
-
-        return PlaceList.LineRow(
-            session: Listed.Row(
-                id: "sr-ask001", session: "sr-ask001", name: "Session", project: Sample.project, section: .needsYou,
-                mark: away ? .awayAsk : .needs, isAway: away, since: Date(timeIntervalSince1970: 0), lines: [line]
-            ),
-            line: line
-        )
-    }
-
-    private static func listed(away: Bool) throws -> Drawn {
-        try Drawn(
-            LineRowView(row: line(away: away), filter: Filter(), now: Date(timeIntervalSince1970: 60)),
-            size: CGSize(width: 268, height: WindowStyle.lineHeight)
-        )
-    }
-
-    /// The mark's slot, 26 wide, from the row's left; its first line's middle 10 + 8 down.
-    @Test func inTheListAnAwayAskIsAHollowOrangeRing() throws {
-        try Self.expectRing(Self.listed(away: true), centre: CGPoint(x: 13, y: 18))
-        try Self.expectDot(Self.listed(away: false), centre: CGPoint(x: 13, y: 18), glows: false)
-    }
-
-    /// Its session's name and its words under it, each by the one factor; its time dimmed with them, where it would
-    /// read brighter than its name.
-    @Test func inTheListAnAwayLinesTwoLinesDimAsOne() throws {
-        let title = CGRect(x: 30, y: 10, width: 150, height: 16)
-
-        try Self.expectDimmedAsOne(
-            Self.listed(away: true), Self.listed(away: false),
-            title: title, sub: CGRect(x: 30, y: 28, width: 60, height: 16)
-        )
-        try Self.expectTimeNoBrighter(
-            Self.listed(away: true), title: title, time: CGRect(x: 218, y: 10, width: 50, height: 16)
-        )
-    }
-
-    @Test func onAPageAnAwayAsksMarkIsTheRing() throws {
-        let size = CGSize(width: WindowStyle.lane.width, height: WindowStyle.lane.height)
-        let centre = CGPoint(x: size.width / 2, y: size.height / 2)
-
-        try Self.expectRing(Drawn(MarkView(mark: .awayAsk), size: size), centre: centre)
-        try Self.expectDot(Drawn(MarkView(mark: .needs), size: size), centre: centre, glows: false)
-    }
-
-    private static let projectRowSize = CGSize(width: 600, height: 32)
-
-    /// A session with two asks waiting, its window there or not, so the words where it stands are the same either way.
-    private static func projectRow(away: Bool) throws -> Drawn {
-        let session = ProjectPage.Session(
-            id: "sr-ask001", name: "Session", mark: away ? .awayAsk : .needs, isAway: away, isOffScreen: false,
-            standing: .waits(stop: nil, asks: 2), since: Date(timeIntervalSince1970: 0), now: nil, next: nil,
-            updated: Date(timeIntervalSince1970: 0), log: []
-        )
-
-        return try Drawn(
-            ProjectSessionRow(session: session, now: Date(timeIntervalSince1970: 60)), size: projectRowSize
-        )
-    }
-
-    /// A project page's row of a session no window holds: its name and where it stands, each by the one factor; its
-    /// time, in the faint ink, never brighter than its name.
-    @Test func onAProjectPageAnAwayRowsNameAndStandingDimAsOne() throws {
-        let title = CGRect(x: 22, y: 8, width: 60, height: 16)
-
-        try Self.expectDimmedAsOne(
-            Self.projectRow(away: true), Self.projectRow(away: false),
-            title: title, sub: CGRect(x: 312, y: 8, width: 100, height: 16)
-        )
-        try Self.expectTimeNoBrighter(
-            Self.projectRow(away: true), title: title, time: CGRect(x: 560, y: 8, width: 40, height: 16)
-        )
-    }
-
     // MARK: Reading them
 
     /// A ring 7 across, its stroke 1.5 inside it: orange at its middle, 2.75 out; the black at its centre; nothing past
@@ -246,13 +167,13 @@ struct AwayRowsTests {
         #expect(outside.lightness < 0.1)
     }
 
-    /// The orange dot: orange at its centre too, and on the card, its glow past it.
-    private static func expectDot(_ drawn: Drawn, centre: CGPoint, glows: Bool = true) throws {
+    /// The orange dot: orange at its centre too, and its glow past it.
+    private static func expectDot(_ drawn: Drawn, centre: CGPoint) throws {
         let inside = try #require(drawn.pixel(at: centre))
         let outside = try #require(drawn.pixel(at: CGPoint(x: centre.x, y: centre.y - 4.5)))
 
         #expect(inside.redComponent > 0.75 && inside.blueComponent < 0.35)
-        #expect(!glows || outside.lightness > 0.05)
+        #expect(outside.lightness > 0.05)
     }
 
     /// The away row's title and the line under it each dimmed from the held row's by the one factor, about

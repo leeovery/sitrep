@@ -1,8 +1,8 @@
 import AppKit
 import SitRepPanel
 
-/// The card's parts beside its rows, in black, as Paper's board D draws them: a section's eyebrow, and a row's button.
-/// Each is drawn once, in a box the size of what its item draws.
+/// The card's parts beside its rows, in black, as Paper's board D draws them: a section's eyebrow, drawn once, in a box
+/// the size of what its item draws.
 @MainActor
 enum CardParts {
     /// An eyebrow: its name in white at 55%, its count 6 after it, in orange for Needs you, the faint grey for Snoozed
@@ -25,24 +25,6 @@ enum CardParts {
         layer.addSublayer(chevron(isOpen: !eyebrow.isFolded, in: EyebrowLayout.chevron(in: size)))
 
         return layer
-    }
-
-    /// A row's button that opens its session in the SitRep window, board F's: white at 10%, its corners 7, its glyph
-    /// in white at 80% on its middle.
-    static func opener(in box: CGRect) -> CALayer {
-        let button = CALayer(), glyph = CAShapeLayer()
-
-        button.frame = box
-        button.cornerRadius = Opener.radius
-        button.backgroundColor = EdgeStyle.opener
-        glyph.frame = OpenerGlyph.placed(in: CGRect(origin: .zero, size: box.size))
-        glyph.path = OpenerGlyph.path
-        glyph.fillColor = nil
-        glyph.strokeColor = EdgeStyle.openerGlyph
-        glyph.lineWidth = OpenerGlyph.stroke
-        button.addSublayer(glyph)
-
-        return button
     }
 
     private static func chevron(isOpen: Bool, in box: CGRect) -> CAShapeLayer {

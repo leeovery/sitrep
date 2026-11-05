@@ -6,7 +6,6 @@ import SitRepEdge
 import SitRepLines
 import SitRepMenu
 import SitRepPanel
-@testable import SitRepWindow
 import SwiftUI
 import Testing
 

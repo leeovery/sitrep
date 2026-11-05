@@ -1,6 +1,6 @@
 import AppKit
 
-/// A window of SitRep's own, the SitRep window or About SitRep, which goes to the Space Lee is on only as SitRep
+/// A window of SitRep's own, Settings, the welcome or About SitRep, which goes to the Space Lee is on only as SitRep
 /// brings it forward (`comeForward()`). Otherwise it stays on its own Space, however SitRep is activated: a window
 /// always moving to the active Space went to Lee's with a notification's click, ahead of the jump, when SitRep posted
 /// them itself.

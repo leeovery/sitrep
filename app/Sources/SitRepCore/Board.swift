@@ -1,11 +1,10 @@
 import Foundation
-import os
 
 /// The board as every surface shows it: a line of `sitrep watch`, which
-/// prints one at its start and another whenever the board changes or it
-/// carries a board of a session the window follows (cli/output.ts's
-/// `watchLine`). Finished sessions are not on it; away ones are, their asks
-/// still counting.
+/// prints one at its start and another whenever the board changes
+/// (cli/output.ts's `watchLine`). Finished sessions are not on it; away ones
+/// are, their asks still counting. Only what the app shows is read, so a
+/// change to the rest of the line leaves the board reading.
 public struct Board: Versioned, Sendable, Equatable {
     static let version = 3
 
@@ -14,22 +13,16 @@ public struct Board: Versioned, Sendable, Equatable {
     /// The CLI's own version, which a window behind needs `/reload-plugins` to catch up to.
     public let version: String?
     public let head: Head
-    /// The panel's, the strip's, the menu's and the sidebar's rows, a session each, in their order.
+    /// The panel's, the strip's and the menu's rows, a session each, in their order.
     public let rows: [Row]
-    /// The card's and the sidebar's Snoozed rows, a session each, the soonest to wake first: apart from `rows`, as a
+    /// The card's Snoozed rows, a session each, the soonest to wake first: apart from `rows`, as a
     /// session may have one in both. None from a CLI before Snooze.
     public let snoozed: [SnoozedRow]
-    /// Those with a current session, in the SitRep window's order.
-    public let projects: [Project]
     /// Every live window, the longest attached first, a finished session's among them.
     public let windows: [Window]
     /// The keys of the lines needing Lee that the last line had not, an ask's or a window's stop: the notch's swell,
     /// the strip's flash. None on the first line.
     public let new: [String]
-    /// By session id, the board of each session the window follows that is new to what it follows or changed since
-    /// the watch last printed it, folded as the line is. Each is printed once, so only the line that carries it says
-    /// it.
-    public let boards: [String: Carried]
 
     /// The rows holding a line new on this board, by their sessions.
     public var newRows: Set<String> {
@@ -46,46 +39,12 @@ public struct Board: Versioned, Sendable, Equatable {
         head = try given.decode(Head.self, forKey: .head)
         rows = try given.decode([Row].self, forKey: .rows)
         snoozed = try given.decodeIfPresent([SnoozedRow].self, forKey: .snoozed) ?? []
-        projects = try given.decode([Project].self, forKey: .projects)
         windows = try given.decode([Window].self, forKey: .windows)
         new = try given.decode([String].self, forKey: .new)
-        boards = try given.decode([String: Carried].self, forKey: .boards)
     }
 
     private enum CodingKeys: String, CodingKey {
-        case at, version, head, rows, snoozed, projects, windows, new, boards
-    }
-
-    /// A session's board as a line carries it, each read on its own, so one this app cannot read leaves the rest of
-    /// the line to read.
-    public enum Carried: Decodable, Sendable, Equatable {
-        case board(SessionBoard)
-        /// The watch finds no such session: none a project files, or one whose `session.json` does not fold.
-        case notFound
-        /// A board this app cannot read.
-        case unread
-
-        /// The board, where it was found and reads.
-        public var board: SessionBoard? {
-            if case let .board(board) = self {
-                return board
-            }
-            return nil
-        }
-
-        public init(from decoder: any Decoder) throws {
-            if try decoder.singleValueContainer().decodeNil() {
-                self = .notFound
-                return
-            }
-
-            do {
-                self = .board(try SessionBoard(from: decoder))
-            } catch {
-                Logger.watch.error("sitrep watch carried a board this SitRep cannot read: \(error, privacy: .public)")
-                self = .unread
-            }
-        }
+        case at, version, head, rows, snoozed, windows, new
     }
 
     /// How many lines need Lee, away ones among them, and how many sessions the rows hold.
@@ -265,116 +224,6 @@ public struct Board: Versioned, Sendable, Equatable {
         }
     }
 
-    public struct Project: Decodable, Sendable, Equatable, Identifiable {
-        public let key: String
-        public let name: String
-        public let directory: String?
-        public let open: Int
-        public let waiting: Int
-        /// Its asks snoozed; none from a CLI before Snooze.
-        @Added public var snoozed: Int
-        public let parked: Int
-        public let updatedAt: Date
-        public let sessions: [Session]
-
-        public var id: String { key }
-    }
-
-    /// A session as `list --json` gives it, with its state, what it is doing, its open asks (waiting, on Lee or on a
-    /// window to deliver Lee's reply, or replied, Claude's to act on) and what it parked.
-    public struct Session: Decodable, Sendable, Equatable, Identifiable {
-        public enum State: String, Decodable, Sendable {
-            case needsYou, working, onItsWork, yourTurn, away, finished
-        }
-
-        /// What a session is doing, as the line under its name says it: a window's permission prompt or question,
-        /// else its window working, on its own work or waiting on Lee's message, each as its row's first line, since
-        /// its state began; else away, since its latest line.
-        public struct Doing: Decodable, Sendable, Equatable {
-            public enum Kind: String, Decodable, Sendable {
-                case permission, question, working, onItsWork, yourTurn, away
-            }
-
-            public let kind: Kind
-            public let line: Row.Words
-            public let since: Date
-
-            private enum CodingKeys: String, CodingKey {
-                case kind = "is", line, since
-            }
-        }
-
-        public let id: String
-        public let name: String
-        public let summary: String
-        public let now: [String]
-        public let next: String?
-        public let isOpen: Bool
-        public let waiting: Int
-        /// Its asks snoozed; none from a CLI before Snooze.
-        @Added public var snoozed: Int
-        public let parked: Int
-        /// When it started; nil from a CLI before the feed said it.
-        public let created: Date?
-        public let updatedAt: Date
-        public let state: State
-        /// When its state began: its row's oldest line's time, else its latest line's.
-        public let since: Date
-        public let doing: Doing
-        /// Oldest first.
-        public let asks: [Ask]
-        /// What it parked, oldest first; none from a CLI before the feed carried them.
-        @Added public var parkedItems: [SessionBoard.Parked]
-    }
-
-    /// An ask as a session's board gives it.
-    public struct Ask: Decodable, Sendable, Equatable, Identifiable {
-        public enum Wants: String, Decodable, Sendable {
-            case yes, choice, words
-        }
-
-        public enum State: String, Decodable, Sendable {
-            case waiting, replied, closed, ignored
-        }
-
-        public let id: String
-        public let wants: Wants
-        /// The yes button's words, on an ask that wants a yes.
-        public let yes: String?
-        public let title: String
-        public let `where`: String?
-        public let options: [String]
-        public let needs: String?
-        public let ref: String?
-        public let state: State
-        public let at: Date
-        /// Where Lee's reply to it stands; nil with none sent, one gone void as it was edited under it, or only a
-        /// comment Claude has.
-        public let reply: Reply?
-        /// When Lee's snooze of it wakes it, while one holds on it as it waits on Lee; nil from a CLI before Snooze.
-        public let snoozedUntil: Date?
-    }
-
-    /// Where Lee's reply to an ask stands, as core's `replyState` says: on its way, in the session's inbox; with
-    /// Claude; or never delivered, as Claude closed the ask first.
-    public struct Reply: Decodable, Sendable, Equatable {
-        public enum Standing: String, Decodable, Sendable {
-            case onItsWay, delivered, notDelivered
-        }
-
-        public let standing: Standing
-        /// It is Lee's answer, which bars another, and not a comment, which bars nothing.
-        public let isAnswer: Bool
-        /// The reply as the board shows it on one row: `→ Go`, `ignored`, `comment: “Tighten the copy”`.
-        public let words: String
-        /// When it last moved: delivered, gone void, or else sent.
-        public let since: Date
-
-        private enum CodingKeys: String, CodingKey {
-            case standing = "is", isAnswer, words, since
-        }
-    }
-
     /// A live window, and the session it holds.
     public struct Window: Decodable, Sendable, Equatable, Identifiable {
         /// The terminal device Claude Code is on, the terminal program, and its tmux pane when it runs in tmux.
@@ -455,14 +304,6 @@ extension Added: Sendable where Value: Sendable {}
 /// What an added field reads as where the output is from a CLI before it.
 public protocol AddedValue: Decodable, Equatable {
     static var absent: Self { get }
-}
-
-extension Int: AddedValue {
-    public static var absent: Int { 0 }
-}
-
-extension Array: AddedValue where Element: Decodable & Equatable {
-    public static var absent: [Element] { [] }
 }
 
 extension KeyedDecodingContainer {

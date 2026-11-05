@@ -8,13 +8,6 @@ func at(_ milliseconds: Double) -> Date {
     Date(timeIntervalSince1970: milliseconds / 1000)
 }
 
-/// A session's board as `board --json` printed it, read as a line of `watch` carries it.
-func carried(_ board: String, of session: String) throws -> SessionBoard {
-    let line = try Board.read(Lines.carrying([session: board], on: Lines.watch[0]))
-
-    return try #require(line.boards[session]?.board)
-}
-
 /// A line of `sitrep watch`, as cli/output.ts's `watchLine` prints it but
 /// pretty: Lee's board of 19 October 2026 cut to three sessions, an ask, a
 /// permission prompt and a turn, the prompt new on it. Every field always

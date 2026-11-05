@@ -108,12 +108,12 @@ A menu bar app with no Dock icon, on every Space. The notch and the strip step o
 
 - **The notch** sits at the screen's left or right edge, a little above the middle, and opens on hover into a panel of your sessions: Needs you, Working, Your turn and Snoozed. It swells and lights when something needs you, and never takes the keyboard. Drag it along the edge, or across the middle to the other side.
 - **The strip** can stand in its place: a narrow column along the edge, a mark for each session, that grows with what's on it or runs the screen's height.
-- **The SitRep window** shows the whole board. Down the left, the panel's sections in one list, then Projects, which folds and opens each project's page. On the right, a session's page: its asks, status, notes, parked items and resolved asks. It answers asks that want a yes or a choice, ignores any ask, snoozes and wakes them, and finishes a session no window holds.
-- **The menu bar item** lists the panel's sessions, up to twelve rows and then "N more…", each a click to its window but an away session's. Then come Open SitRep Window, Show (Notch, Strip or Nothing), Settings… and Quit SitRep. Above the list it speaks up, in this order, when the plugin is in trouble, when a window needs `/reload-plugins`, and when SitRep can't read the board.
-- **Settings**, a page of the SitRep window (⌘,):
+- **The menu bar item** lists the panel's sessions, each a click to its window but an away session's. Then come Show (Notch, Strip or Nothing), Show Welcome Window, Settings… and Quit SitRep. Above the list it speaks up, in this order, when the plugin is in trouble, when a window needs `/reload-plugins`, and when SitRep can't read the board.
+- **Settings**, a window of its own (⌘,):
   - What stays on screen: Show (Notch, Strip or Nothing); its edge and display; for the notch, Style (Meniscus or Card); for the strip, Length (Grows or Full), and a Max slider at Grows; Black or Glass (from macOS 26); and Reduce motion.
   - Notifications: a test notification, Notify me of a new ask, and Play a sound for a new ask, on by default, its sound one of macOS's alert sounds, Glass unless you pick another.
-  - General: how soon Your turn folds, the plugin's state, Open at login and the leave to control Ghostty.
+  - General: Open at login and the leave to control Ghostty.
+  - Claude Code: the plugin's state.
 - **A new ask** plays the sound once, whichever session it lands in, and, with notifications on, posts a silent macOS notification whose click jumps to the session.
 - **The jump** brings forward the Ghostty window showing a session, selecting the session's tmux window where no client shows it. A terminal with no driver is brought forward whole.
 

@@ -140,10 +140,10 @@ private struct WindowBehind: View {
             .frame(height: 24)
             .background(Color(hex: 0x1F1F23))
             VStack(alignment: .leading, spacing: 4) {
-                Text("✻ Claude Code").foregroundStyle(WindowStyle.orange)
+                Text("✻ Claude Code").foregroundStyle(PictureStyle.orange)
                 Text(Sample.terminalAsk).foregroundStyle(Self.grey)
             }
-            .font(WindowStyle.mono(11))
+            .font(PictureStyle.mono(11))
             .lineLimit(1)
             .padding(.vertical, 12)
             .padding(.horizontal, 14)

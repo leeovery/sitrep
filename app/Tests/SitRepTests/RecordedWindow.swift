@@ -87,3 +87,13 @@ final class RecordedWindow: ForwardWindow {
         steps.append(.activate(movesToActiveSpace: movesToActiveSpace))
     }
 }
+
+extension NSViewController {
+    /// A controller over this view, for a window made in a test.
+    static func with(_ view: NSView) -> NSViewController {
+        let controller = NSViewController()
+
+        controller.view = view
+        return controller
+    }
+}

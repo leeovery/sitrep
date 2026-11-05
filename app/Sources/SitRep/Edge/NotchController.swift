@@ -15,8 +15,6 @@ import SitRepPanel
 final class NotchController: NSObject, CalloutShape {
     /// A click on a row: the session to jump to, and what to tell once the jump answers, whether it jumped.
     var onJump: (String, @escaping (Bool) -> Void) -> Void = { _, _ in }
-    /// A row's button, or its menu's Open in SitRep: the session to open in the SitRep window.
-    var onOpen: (String) -> Void = { _ in }
     /// A row's menu's Snooze: the session, what its row showed to snooze, its asks or its turn, and the time chosen.
     var onSnooze: (String, Snoozable, SnoozeTime) -> Void = { _, _, _ in }
     /// A Snoozed row's menu's Wake now: the session, and what its row showed asleep, its asks or its turn.
@@ -256,18 +254,15 @@ final class NotchController: NSObject, CalloutShape {
         run.nextAgeChange(after: now).map { ($0 - now) / 1000 }
     }
 
-    /// A press on a row's button opens its session in the SitRep window; on a row that jumps, presses it in and jumps
-    /// to its session, in place of any jump under way, and once the jump has jumped, the caption says where; on an
-    /// eyebrow, its section folds or unfolds, kept; anywhere else on the black, it may become a drag
-    /// (`NotchRun.press`).
+    /// A press on a row that jumps presses it in and jumps to its session, in place of any jump under way, and once the
+    /// jump has jumped, the caption says where; on an eyebrow, its section folds or unfolds, kept; anywhere else on
+    /// the black, it may become a drag (`NotchRun.press`).
     private func press(at screenPoint: CGPoint) {
         guard let point = edge.stagePoint(screenPoint) else {
             return
         }
 
         switch run.press(moment(pointer: point)) {
-        case let .open(session)?:
-            onOpen(session)
         case let .jump(session, to: target, click: click)?:
             jump(from: session, to: target, click: click)
         case .fold?, .carry?, nil:
@@ -295,7 +290,6 @@ final class NotchController: NSObject, CalloutShape {
         let menu = RowMenu.make(
             for: RowMenu.Row(session), at: Date(), in: run.calendar,
             RowMenu.Actions(
-                open: { [unowned self] in onOpen(id) },
                 jump: { [unowned self] in jumpFromMenu(to: key) },
                 snooze: { [unowned self] in onSnooze(id, $0, $1) },
                 wake: { [unowned self] in onWake(id, $0) }

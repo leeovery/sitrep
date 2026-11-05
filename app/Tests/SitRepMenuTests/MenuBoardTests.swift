@@ -72,25 +72,13 @@ struct MenuBoardTests {
         #expect(menu.unread == nil)
     }
 
-    @Test func pastTwelveRowsItListsTwelveAndSaysHowManyMore() {
+    @Test func itListsEverySessionHoweverMany() {
         let rows = (0 ..< 16).map {
             Watched.row("turn:s\($0)", "yourTurn", session: "s\($0)", project: "kit", lead: "Turn \($0)", second: "Kit · \($0)", since: 1_792_445_000_000)
         }
         let menu = Self.menu(heard([.line(Watched.line(needYou: 0, rows: rows))]))
 
-        #expect(menu.items.count == 12)
-        #expect(menu.more == 4)
-        #expect(menu.moreTitle == "4 more…")
-    }
-
-    @Test func twelveRowsOrFewerSayNoMore() {
-        let rows = (0 ..< 12).map {
-            Watched.row("turn:s\($0)", "yourTurn", session: "s\($0)", project: "kit", lead: "Turn \($0)", second: "Kit · \($0)", since: 1_792_445_000_000)
-        }
-        let menu = Self.menu(heard([.line(Watched.line(needYou: 0, rows: rows))]))
-
-        #expect(menu.items.count == 12)
-        #expect(menu.moreTitle == nil)
+        #expect(menu.items.compactMap(\.session?.id) == (0 ..< 16).map { "s\($0)" })
     }
 
     @Test func itSpeaksUpWithEachWindowThatNeedsReloadPluginsAJumpToItsSession() {

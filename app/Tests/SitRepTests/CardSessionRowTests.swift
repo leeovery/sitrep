@@ -5,8 +5,8 @@ import Testing
 
 /// A row on the black card, on one line as Paper's board J draws it, taken relative to the built row: a Needs you row
 /// is its session, one row of standard height whatever its count, its name and a quiet "+2" 6 after it for its lines
-/// after the first, its project at the right; under the pointer any row's time gives way to its button, 24 square on
-/// the row's middle (its right-click menu is `RowMenuTests`'). Read from its pixels at 2×.
+/// after the first, its project at the right, its time at the right under the pointer as off it (its right-click menu
+/// is `RowMenuTests`'). Read from its pixels at 2×.
 @MainActor
 struct CardSessionRowTests {
     private static let width = 344.0
@@ -103,50 +103,16 @@ struct CardSessionRowTests {
         #expect(count.maxX <= 32 + words + 0.5)
     }
 
-    /// Under the pointer the time gives way to the button: 24 square, its right at 334, on the row's middle, its
-    /// glyph 13 by 11 on its middle.
-    @Test func underThePointerTheButtonTakesTheTimesPlace() throws {
-        let row = Self.card(Self.harness(1, away: true))
-
-        row.isHighlighted = true
-
-        let drawn = try Drawn(row.layer)
-        let button = try #require(drawn.drawnBox(in: CGRect(x: 290, y: 0, width: 54, height: 30), ground: Self.ground))
-        let glyph = try #require(drawn.drawnBox(
-            in: button.insetBy(dx: 2, dy: 2), ground: CGPoint(x: button.minX + 2, y: button.midY)
-        ))
-
-        #expect(abs(button.width - 24) <= 1 && abs(button.height - 24) <= 1)
-        #expect(abs(button.maxX - 334) <= 0.5 && abs(button.midY - 15) <= 0.5)
-        #expect(abs(glyph.width - 13) <= 1 && abs(glyph.height - 11) <= 1)
-        #expect(abs(glyph.midX - button.midX) <= 0.5 && abs(glyph.midY - button.midY) <= 0.5)
-    }
-
-    /// Board F's button on every row, on its 30's middle.
-    @Test func aRowsButtonSitsOnItsMiddle() {
-        let working = Session(id: "w", project: "Fumi", kind: .working, title: "Sketching", sub: "", since: 0)
-        let row = Self.card(working)
-
-        #expect(row.opener.frame == CGRect(x: 310, y: 3, width: 24, height: 24))
-        #expect(row.opener.cornerRadius == 7 && row.opener.backgroundColor == EdgeStyle.opener)
-    }
-
-    /// A row a window holds lifts under the pointer as before, its button over the lift; an away row takes no fill,
-    /// but shows its button. Pressed in, the button gives way to the spinner.
+    /// A row a window holds lifts under the pointer; an away row, which jumps nowhere, takes no fill.
     @Test(arguments: [false, true])
     func underThePointerOnlyARowThatJumpsLifts(away: Bool) {
         let row = Self.card(Self.harness(1, away: away))
 
         row.isHighlighted = true
         #expect(row.layer.backgroundColor == (away ? nil : EdgeStyle.hover))
-        #expect(!row.opener.isHidden)
 
-        row.isPressed = true
-        #expect(row.opener.isHidden)
-
-        row.isPressed = false
         row.isHighlighted = false
-        #expect(row.opener.isHidden)
+        #expect(row.layer.backgroundColor == nil)
     }
 
     /// Harness's two asks asleep, the sooner waking a day after the time the rows are drawn at; away, or a window
@@ -238,11 +204,19 @@ struct CardSessionRowTests {
         #expect(lines.allSatisfy { $0.contentsScale == 2 })
     }
 
-    /// Off the row, its time in the lane ending at 334, as tall as its figures; under the pointer, the button's glyph
-    /// alone on the button, the time gone from under it (`underThePointerTheButtonTakesTheTimesPlace`).
-    @Test func offTheRowItsTimeShows() throws {
-        let drawn = try Drawn(Self.card(Self.harness(1, away: true)).layer)
-        let time = try #require(drawn.drawnBox(in: CGRect(x: 290, y: 0, width: 54, height: 30), ground: Self.ground))
+    /// Its time in the lane ending at 334, as tall as its figures, off the row and under the pointer alike, over the
+    /// lift of a row that jumps as over the bare black of an away one: nothing takes its place. Read against what is
+    /// drawn just left of the lane, inside the lift's corners.
+    @Test(arguments: [false, true], [false, true])
+    func itsTimeShowsUnderThePointerAsOffIt(highlighted: Bool, away: Bool) throws {
+        let row = Self.card(Self.harness(1, away: away))
+
+        row.isHighlighted = highlighted
+
+        let drawn = try Drawn(row.layer)
+        let time = try #require(drawn.drawnBox(
+            in: CGRect(x: 290, y: 4, width: 50, height: 22), ground: CGPoint(x: 292, y: 15)
+        ))
 
         #expect(time.height < 12 && abs(time.maxX - 334) <= 1.5)
     }

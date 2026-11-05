@@ -1,7 +1,6 @@
 import Foundation
 
-/// A new row's orange wash, as the prototype washes it: held at its full, then easing out. The panel's rows and the
-/// SitRep window's take the one wash.
+/// A new row's orange wash, as the prototype washes it: held at its full, then easing out.
 public enum Wash {
     /// How long it lasts, ms, and how long of that it is held.
     public static let length = 2000.0, held = 300.0

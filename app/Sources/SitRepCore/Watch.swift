@@ -14,28 +14,25 @@ public enum Heard: Sendable, Equatable {
     case unstartable(String)
 }
 
-/// Starts a program meant to run for the app's life, writes each line given
-/// to its standard input, and gives what it says, as it says it. Ending the
-/// iteration of what it says stops it.
-public typealias Watcher = @Sendable (Program, _ input: AsyncStream<String>) -> AsyncStream<Heard>
+/// Starts a program meant to run for the app's life and gives what it says,
+/// as it says it. Ending the iteration of what it says stops it.
+public typealias Watcher = @Sendable (Program) -> AsyncStream<Heard>
 
 /// How the app hears the board: one `sitrep watch`, its child, started again
 /// after a back-off whenever it ends, or at once, the board not stale, when
-/// it made way for a new version. Each run is told what the window follows.
+/// it made way for a new version.
 public struct SitRepWatch<C: Clock>: Sendable where C.Duration == Duration {
     let cli: SitRepCLI
-    let following: Following
     let watcher: Watcher
     let clock: C
     /// The time of day, for when the board went stale.
     let now: @Sendable () -> Date
 
     public init(
-        cli: SitRepCLI, following: Following, watcher: @escaping Watcher = watchProgram, clock: C,
+        cli: SitRepCLI, watcher: @escaping Watcher = watchProgram, clock: C,
         now: @escaping @Sendable () -> Date = Date.init
     ) {
         self.cli = cli
-        self.following = following
         self.watcher = watcher
         self.clock = clock
         self.now = now
@@ -62,14 +59,12 @@ public struct SitRepWatch<C: Clock>: Sendable where C.Duration == Duration {
         while !Task.isCancelled {
             let program = await cli.program(["watch"], limit: .infinity)
 
-            // Stopped while Lee's PATH was asked for: it begins nothing, so it never takes the set from the run
-            // started in its place.
+            // Stopped while Lee's PATH was asked for: it begins nothing, so only the run started in its place runs.
             guard !Task.isCancelled else {
                 break
             }
 
-            let input = following.begin()
-            let run = watcher(program, input.lines)
+            let run = watcher(program)
             let started = clock.now
             var isRenewal = false
             var isReaderGone = false
@@ -85,8 +80,6 @@ public struct SitRepWatch<C: Clock>: Sendable where C.Duration == Duration {
                     break
                 }
             }
-
-            following.end(input)
 
             guard !isReaderGone, !Task.isCancelled else {
                 break
@@ -123,7 +116,7 @@ public struct SitRepWatch<C: Clock>: Sendable where C.Duration == Duration {
 }
 
 extension SitRepWatch where C == ContinuousClock {
-    public init(cli: SitRepCLI, following: Following, watcher: @escaping Watcher = watchProgram) {
-        self.init(cli: cli, following: following, watcher: watcher, clock: ContinuousClock())
+    public init(cli: SitRepCLI, watcher: @escaping Watcher = watchProgram) {
+        self.init(cli: cli, watcher: watcher, clock: ContinuousClock())
     }
 }

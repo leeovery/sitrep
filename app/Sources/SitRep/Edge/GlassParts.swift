@@ -32,9 +32,9 @@ enum GlassInk {
     static let orangeArc = NSColor(cgColor: EdgeStyle.color(LiveLight.orange)) ?? .systemOrange
 }
 
-/// An arc turning round a track, once in a period, or held still with none: a working row's mark, on the glass and in
-/// the SitRep window. Black's arc, turned by Core Animation in the render server: the app does no work as it turns, and
-/// no update of the views round it, animated or not, restarts it.
+/// An arc turning round a track, once in a period, or held still with none: a working row's mark on the glass. Black's
+/// arc, turned by Core Animation in the render server: the app does no work as it turns, and no update of the views
+/// round it, animated or not, restarts it.
 struct Spinner: NSViewRepresentable {
     /// In the label colours, which the view resolves for the glass's appearance.
     let track: NSColor?
@@ -134,7 +134,7 @@ struct Shimmering: View {
     }
 }
 
-/// The lit title in a view of its own, masked by the band of light: on the glass, and in the SitRep window.
+/// The lit title in a view of its own, masked by the band of light, on the glass.
 struct Sweep: NSViewRepresentable {
     let lit: AnyView
     let width: Double

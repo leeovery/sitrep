@@ -4,14 +4,12 @@ import SitRepPanel
 /// Where a session's row on the card lays its parts, the same in black and in glass, every row on one line (board J):
 /// its mark, its words, its project in a lane at the right of them, its own width and 12 after the words, never cut
 /// while the words are, and its time in the 36 lane, or a Snoozed row's wider wake, which the lane grows to fit, each
-/// in a line of 18 on the row's middle. Under the pointer its button takes its time's place (`Opener`).
+/// in a line of 18 on the row's middle.
 struct SessionRowLayout {
     /// The mark's centre: where a working row's arc turns.
     let mark: CGPoint
     /// Its words, and its project's lane.
     let title, age, project: CGRect
-    /// The button that opens its session in the SitRep window.
-    let opener: CGRect
 
     /// Board D's lift, so the lifts of two rows meet.
     static let radius = 10.0
@@ -35,7 +33,6 @@ struct SessionRowLayout {
         title = CGRect(x: textX, y: top, width: max(0, middle - projectWidth - Self.projectGap), height: Self.titleLine)
         age = CGRect(x: size.width - Self.side - lane, y: top, width: lane, height: Self.titleLine)
         self.project = CGRect(x: textX + middle - projectWidth, y: top, width: projectWidth, height: Self.titleLine)
-        opener = Opener.frame(in: size)
     }
 }
 
@@ -79,30 +76,5 @@ enum CardChevron {
 
         path.addLines(between: points.map { CGPoint(x: origin.x + $0.x, y: origin.y + $0.y) })
         return path
-    }
-}
-
-/// The glyph on a row's button that opens its session in the SitRep window, board F's: a window with its sidebar, a
-/// rounded rect 11.5 by 9.5, its corners 2, and a line down it 4.75 in, stroked 1.5, 13 by 11 overall.
-enum OpenerGlyph {
-    static let size = CGSize(width: 13, height: 11), stroke = 1.5
-
-    /// Its path in its own 13 by 11.
-    static var path: CGPath {
-        let path = CGMutablePath(), inset = stroke / 2
-
-        path.addRoundedRect(
-            in: CGRect(x: inset, y: inset, width: 11.5, height: 9.5), cornerWidth: 2, cornerHeight: 2
-        )
-        path.move(to: CGPoint(x: 4.75, y: inset))
-        path.addLine(to: CGPoint(x: 4.75, y: size.height - inset))
-        return path
-    }
-
-    /// Centred in a box.
-    static func placed(in box: CGRect) -> CGRect {
-        CGRect(
-            x: box.midX - size.width / 2, y: box.midY - size.height / 2, width: size.width, height: size.height
-        )
     }
 }

@@ -131,8 +131,7 @@ public struct Session: Equatable, Sendable {
 
     /// What its row says, on every surface, on one line with its time: needing Lee, or in Snoozed, its name, and "+2"
     /// for the two lines after its first, none for one, its time its first line's, needing Lee the newest; else its one
-    /// line. Its lines' words are read on its page in the SitRep window, so a question's own "+2", which counts words
-    /// not shown, shows nowhere on a row needing Lee.
+    /// line. A row needing Lee shows its session, not its asks, so a question's own "+2" shows nowhere on it.
     public var headline: Line {
         guard needsLee || isSnoozed else {
             return lines[0]
@@ -422,31 +421,5 @@ public struct Content: Equatable, Sendable {
         }
     }
 
-    /// Whether a point in the content's own frame is on the button of the item at this index that opens its session
-    /// in the SitRep window: a row's, whole or on one line (`Opener`).
-    public func opens(_ index: Int, at point: CGPoint) -> Bool {
-        let item = entries[index].item
-
-        guard item.session != nil else {
-            return false
-        }
-
-        let frame = itemFrame(index), box = item.box(width: frame.width)
-
-        return Opener.frame(in: box.size).offsetBy(dx: frame.minX, dy: frame.minY + box.minY).contains(point)
-    }
-
     private static let width = Tuning.panelDepth - 2 * paddingSide
-}
-
-/// The button a row on the card shows in its time's place under the pointer, which opens its session in the SitRep
-/// window, as Paper's board F draws it: 24 square, its corners 7, its right where the time's lane ends, 10 in from the
-/// row's, on the row's middle.
-public enum Opener {
-    public static let side = 24.0, radius = 7.0, inset = 10.0
-
-    /// Its box in a row's box of this size.
-    public static func frame(in row: CGSize) -> CGRect {
-        CGRect(x: row.width - inset - side, y: (row.height - side) / 2, width: side, height: side)
-    }
 }

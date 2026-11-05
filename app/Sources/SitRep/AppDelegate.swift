@@ -1,7 +1,6 @@
 import AppKit
 import SitRepCore
 import SitRepMenu
-import SitRepWindow
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -26,7 +25,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Window. A Mac long welcomed makes none until Lee asks for it.
     private var welcome: WelcomeWindow?
     private var quitOnSignal: QuitOnSignal?
-    private lazy var window = SitRepWindow(plugin: plugin, works: works, snoozes: snoozes, following: feed.following)
 
     /// The notices helper is listened to before launching ends, so a click that starts the app is heard; and a SIGTERM
     /// quits as Quit SitRep does.
@@ -41,12 +39,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let edge = Edge(
             preferences,
             jump: { [works] session, answered in works.jump(to: session, answered: answered) },
-            open: { [window] in window.open(session: $0) },
             snoozes: snoozes
         )
         let menu = StatusMenu(
-            works: works, preferences: preferences, openWindow: { [window] in window.open() },
-            openSettings: { [unowned self] in settings.show() }, openAbout: { [about] in about.show() },
+            works: works, preferences: preferences, openSettings: { [unowned self] in settings.show() },
+            openAbout: { [about] in about.show() },
             openWelcome: { [unowned self] in openWelcome() }
         )
 
@@ -72,16 +69,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else if let trouble = standing.trouble, watching == nil {
             edge?.unrun(trouble.line)
             menu?.unrun(trouble)
-            window.unrun(trouble.line)
         }
     }
 
-    /// `watch` stops with the app, a welcome open closes as its close button would close it, which quitting never
-    /// tells it, and the SitRep window keeps when Lee looked at the session whose page shows.
+    /// `watch` stops with the app, and a welcome open closes as its close button would close it, which quitting never
+    /// tells it.
     func applicationWillTerminate(_ notification: Notification) {
         feed.stop()
         welcome?.closeIfOpen()
-        window.quitting()
     }
 
     /// The welcome at its first step, made as it first opens.
@@ -108,7 +103,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         live.last = last
         edge?.show(last)
         menu?.show(last)
-        window.show(last)
 
         Chime.due(last, preferences.app).map(sounds.play)
         Notices.due(last, isOn: preferences.app.notifiesNewAsks).forEach(banners.post)

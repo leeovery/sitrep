@@ -4,7 +4,7 @@ import SitRepMenu
 import SwiftUI
 
 /// The Settings window (DESIGN, "Settings"), laid out as Xcode 27's: one, made as it first opens, which the menu's
-/// Settings…, ⌘, and the SitRep window's foot open, bringing it forward again where it shows. It opens centred in the
+/// Settings… and ⌘, open, bringing it forward again where it shows. It opens centred in the
 /// upper part of the screen on the Space Lee is on, and otherwise stays on its own (`ForwardWindow`); ⌘W or its close
 /// button shuts it. The system's sidebar lists the panes; back and forward in the toolbar step through those shown, the
 /// pane's name the window's title beside them. What macOS says is read as a pane comes into sight while it is key

@@ -15,10 +15,9 @@ let package = Package(
         .target(name: "SitRepRelay"),
         .target(name: "SitRepEdge", dependencies: ["SitRepCore", "SitRepPanel"]),
         .target(name: "SitRepMenu", dependencies: ["SitRepCore", "SitRepPanel", "SitRepEdge", "SitRepRelay"]),
-        .target(name: "SitRepWindow", dependencies: ["SitRepCore", "SitRepPanel", "SitRepEdge"]),
         .executableTarget(
             name: "SitRep",
-            dependencies: ["SitRepCore", "SitRepPanel", "SitRepEdge", "SitRepMenu", "SitRepWindow", "SitRepRelay"]
+            dependencies: ["SitRepCore", "SitRepPanel", "SitRepEdge", "SitRepMenu", "SitRepRelay"]
         ),
         /// The notices helper, inside SitRep.app: macOS's notifications and the relay, and nothing of SitRep's own.
         .executableTarget(name: "SitRepNotices", dependencies: ["SitRepRelay"]),
@@ -33,12 +32,9 @@ let package = Package(
             dependencies: ["SitRepMenu", "SitRepEdge", "SitRepCore", "SitRepPanel", "SitRepRelay", "SitRepLines"]
         ),
         .testTarget(
-            name: "SitRepWindowTests", dependencies: ["SitRepWindow", "SitRepCore", "SitRepPanel", "SitRepLines"]
-        ),
-        .testTarget(
             name: "SitRepTests",
             dependencies: [
-                "SitRep", "SitRepEdge", "SitRepPanel", "SitRepMenu", "SitRepWindow", "SitRepCore", "SitRepRelay", "SitRepLines",
+                "SitRep", "SitRepEdge", "SitRepPanel", "SitRepMenu", "SitRepCore", "SitRepRelay", "SitRepLines",
             ]
         ),
         .testTarget(name: "SitRepNoticesTests", dependencies: ["SitRepNotices", "SitRepRelay"]),

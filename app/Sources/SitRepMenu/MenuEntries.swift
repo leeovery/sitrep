@@ -15,9 +15,6 @@ public enum MenuEntry: Equatable, Sendable {
     case unread(why: String)
     /// A session's row, and the session a click jumps to; nil for an away one, disabled.
     case row(Session, jump: String?)
-    /// "4 more…", opening the SitRep window.
-    case more(String)
-    case openWindow
     case show(EdgeSettings.Show, isTicked: Bool)
     /// The welcome window, at its first step.
     case welcome
@@ -34,8 +31,6 @@ public enum MenuEntry: Equatable, Sendable {
         case .trouble: "trouble"
         case .unread: "unread"
         case let .row(session, _): "row:\(session.id)"
-        case .more: "more"
-        case .openWindow: "openWindow"
         case let .show(show, _): "show:\(show.rawValue)"
         case .welcome: "welcome"
         case .settings: "settings"
@@ -46,10 +41,9 @@ public enum MenuEntry: Equatable, Sendable {
 
 extension MenuBoard {
     /// The whole menu, top to bottom, with this shown at the edge: the header; what it speaks up with; the sessions
-    /// under their heading, the hairline among them and "N more…" past twelve; the SitRep window; Show; the welcome,
-    /// Settings and Quit.
+    /// under their heading, the hairline among them; Show; the welcome, Settings and Quit.
     public func entries(showing shown: EdgeSettings.Show) -> [MenuEntry] {
-        let commands: [MenuEntry] = [.openWindow, .separator("window"), .heading("show", title: "Show")]
+        let commands: [MenuEntry] = [.heading("show", title: "Show")]
             + EdgeSettings.Show.allCases.map { .show($0, isTicked: $0 == shown) }
             + [.separator("show"), .welcome, .settings, .separator("settings"), .quit]
 
@@ -71,9 +65,8 @@ extension MenuBoard {
         }
 
         let rows = items.map { item in item.session.map { MenuEntry.row($0, jump: jump($0)) } ?? .separator("hairline") }
-        let more = moreTitle.map { [MenuEntry.more($0)] } ?? []
 
-        return [.heading("sessions", title: heading)] + rows + more + [.separator("sessions")]
+        return [.heading("sessions", title: heading)] + rows + [.separator("sessions")]
     }
 
     /// When on the wall clock, ms, a row's time or a wake's countdown next reads differently, for an open menu; nil with

@@ -44,7 +44,7 @@ struct MenuWidthTests {
             MenuWords.row(item, session, jump: session.id, age: MenuChrome.widestAge, now: 0, isHighlighted: false)
             menu.addItem(item)
         }
-        menu.addItem(NSMenuItem(title: "Open SitRep Window", action: #selector(NSApplication.terminate(_:)), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Show Welcome Window", action: #selector(NSApplication.terminate(_:)), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Settings…", action: #selector(NSApplication.terminate(_:)), keyEquivalent: ","))
         menu.addItem(NSMenuItem(title: "Quit SitRep", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         return menu

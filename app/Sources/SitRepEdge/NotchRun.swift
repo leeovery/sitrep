@@ -50,8 +50,6 @@ public final class NotchRun: Framed {
     public enum Press: Equatable, Sendable {
         /// A row that jumps, pressed in: its session, the session to jump to, and which click it is.
         case jump(Session, to: String, click: Int)
-        /// A row's button in its time's place (`Opener`), away or not: the session to open in the SitRep window.
-        case open(String)
         /// An eyebrow: its section folded or unfolded, at once (`folded`).
         case fold
         /// The black off a row, which a move makes a drag.
@@ -203,9 +201,9 @@ public final class NotchRun: Framed {
 
     /// A press at the pointer. The model takes a frame first, so the row under the press and the row it presses in
     /// are found in the one list, the list as drawn, even when the board changed it since the model's last frame. On
-    /// a row's button in its time's place, its session opens in the SitRep window; on a row that jumps, the model
-    /// presses it in, whatever jump runs, as the latest click wins; on an eyebrow, its section folds or unfolds;
-    /// anywhere else on the black, a drag may begin, unless the notch is still crossing to the other edge.
+    /// a row that jumps, the model presses it in, whatever jump runs, as the latest click wins; on an eyebrow, its
+    /// section folds or unfolds; anywhere else on the black, a drag may begin, unless the notch is still crossing to
+    /// the other edge.
     public func press(_ moment: Moment) -> Press? {
         upToNow(moment)
         guard let point = moment.pointer else {
@@ -213,9 +211,6 @@ public final class NotchRun: Framed {
         }
 
         if let index = item(at: point, in: moment.setting) {
-            if let session = list.item(index)?.session, opens(index, at: point, in: moment.setting) {
-                return .open(session.id)
-            }
             return click(index, in: moment.setting)
         }
         guard frame.hits(point), notch.mayCarry else {
@@ -365,16 +360,6 @@ public final class NotchRun: Framed {
         }
 
         return panel.contentPoint(point, mirror: setting.mirror, scroll: scroll)
-    }
-
-    /// Whether a point on the stage is on the button of the row at this index that opens its session.
-    /// While the row is pressed in, jumping, its spinner stands where the button was, and takes no press of its own.
-    private func opens(_ index: Int, at point: CGPoint, in setting: Setting) -> Bool {
-        guard list.item(index)?.key != frame.panel?.pressed else {
-            return false
-        }
-
-        return contentPoint(point, in: setting).map { list.content.opens(index, at: $0) } ?? false
     }
 
     /// A click on an item: an eyebrow folds its section or unfolds it, at once; a row jumps.

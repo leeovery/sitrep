@@ -150,7 +150,7 @@ private struct GhosttyWindow: View {
             .frame(height: 22)
             .background(Color(hex: 0x222226))
             VStack(alignment: .leading, spacing: 6) {
-                Text("✻ Claude Code").foregroundStyle(WindowStyle.orange)
+                Text("✻ Claude Code").foregroundStyle(PictureStyle.orange)
                 Text(Sample.terminalAsk).foregroundStyle(Color(hex: 0xC8C8CC))
                 Text(Sample.terminalTool).foregroundStyle(WelcomeStyle.faint)
                 Text(Sample.terminalAnswer)
@@ -158,7 +158,7 @@ private struct GhosttyWindow: View {
                     .padding(.top, 4)
                     .animation(Self.fade) { $0.opacity(session.isAnswered ? 1 : 0) }
             }
-            .font(WindowStyle.mono(9))
+            .font(PictureStyle.mono(9))
             .lineLimit(1)
             .padding(.vertical, 10)
             .padding(.horizontal, 12)

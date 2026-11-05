@@ -13,7 +13,6 @@ struct MenuEntriesTests {
             "header", "separator:header",
             "heading:sessions", "row:sr-ledger", "row:sr-dash", "row:sr-plan",
             "row:sr-boot", "separator:hairline", "row:sr-diff", "separator:sessions",
-            "openWindow", "separator:window",
             "heading:show", "show:notch", "show:strip", "show:nothing", "separator:show", "welcome",
             "settings", "separator:settings", "quit",
         ])
@@ -46,7 +45,7 @@ struct MenuEntriesTests {
     @Test func withNoPluginToRunTheTroubleIsAllItSpeaksUpWith() {
         let keys = MenuBoard(unrun: .noClaude).entries(showing: .notch).map(\.key)
 
-        #expect(Array(keys.prefix(5)) == ["header", "separator:header", "trouble", "separator:trouble", "openWindow"])
+        #expect(Array(keys.prefix(5)) == ["header", "separator:header", "trouble", "separator:trouble", "heading:show"])
     }
 
     @Test func showTicksTheOneInUse() {
@@ -108,7 +107,7 @@ struct MenuEntriesTests {
         let new = Self.entries(show: .strip)
         let changes = MenuChanges(from: Self.entries(), to: new)
 
-        #expect(changes.changes.map(\.offset) == [13, 14])
+        #expect(changes.changes.map(\.offset) == [11, 12])
         #expect(changes.insertions.isEmpty && changes.removals.isEmpty)
     }
 

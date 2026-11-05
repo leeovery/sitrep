@@ -6,12 +6,9 @@ import os
 private let saidLines = 20
 
 /// The longest line of stdout read whole, 16MB; one longer is cut here, and
-/// so does not read. A line carries the board of each session the window
-/// follows: on a copy of Lee's board on 27 October 2026, following all 81
-/// sessions made a line of 626KB, and the largest session's board alone is
-/// some 90KB, growing with its Resolved. `watch` counts a board printed once
-/// it has written it, so a line refused here loses its boards until each
-/// changes: the limit stands far above any board Lee's would come to.
+/// so does not read. A line carries every session's parked items, 70KB over
+/// a copy of Lee's board on 4 November 2026: the limit stands far above any
+/// board Lee's would come to.
 let longestLine = 16 << 20
 
 /// The longest line of stderr kept: what it says fits a menu item.
@@ -69,26 +66,24 @@ public final class RunningChild: Sendable {
     }
 }
 
-/// The watcher for real programs: no shell between, each line given written
-/// to its standard input, and no time limit, the program's own aside.
-/// Stopped with SIGTERM, which `watch` ends on, exit 0.
-public let watchProgram: Watcher = { program, input in watch(program, writing: input, holding: RunningChild()) }
+/// The watcher for real programs: no shell between, nothing on its standard
+/// input, and no time limit, the program's own aside. Stopped with SIGTERM,
+/// which `watch` ends on, exit 0.
+public let watchProgram: Watcher = { program in watch(program, holding: RunningChild()) }
 
 /// The watcher for real programs, each held by `running` while it runs.
 public func watchProgram(holding running: RunningChild) -> Watcher {
-    { program, input in watch(program, writing: input, holding: running) }
+    { program in watch(program, holding: running) }
 }
 
-private func watch(_ program: Program, writing input: AsyncStream<String>, holding running: RunningChild) -> AsyncStream<Heard> {
+private func watch(_ program: Program, holding running: RunningChild) -> AsyncStream<Heard> {
     AsyncStream { heard in
         let process = Process()
-        let stdin = Writer()
         let stdout = Reader(longest: longestLine)
         let stderr = Reader(longest: longestSaid)
         let exited = AsyncStream<Exit> { exited in
             process.terminationHandler = { process in
                 running.release(process)
-                stdin.close()
                 exited.yield(process.exit)
                 exited.finish()
                 DispatchQueue.global().asyncAfter(deadline: .now() + drainSeconds) {
@@ -101,7 +96,7 @@ private func watch(_ program: Program, writing input: AsyncStream<String>, holdi
         process.executableURL = program.executable
         process.arguments = program.arguments
         process.environment = program.environment
-        process.standardInput = stdin.pipe
+        process.standardInput = FileHandle.nullDevice
         process.standardOutput = stdout.pipe
         process.standardError = stderr.pipe
 
@@ -115,7 +110,6 @@ private func watch(_ program: Program, writing input: AsyncStream<String>, holdi
             try process.run()
             running.hold(process)
         } catch {
-            stdin.close()
             stdout.close()
             stderr.close()
             heard.yield(.unstartable(error.localizedDescription))
@@ -123,8 +117,6 @@ private func watch(_ program: Program, writing input: AsyncStream<String>, holdi
 
             return
         }
-
-        stdin.write(input)
 
         Task {
             async let said = last(saidLines, of: stderr.lines)
@@ -181,61 +173,6 @@ private final class Reader: Sendable {
             }
 
             line.finish()
-        }
-    }
-}
-
-/// A program's standard input, written a line at a time, each in turn, on a
-/// queue of its own: a write to a pipe the program is slow to read waits,
-/// and must never hold the main actor nor one of Swift's threads. Closed, as
-/// the program ends or the lines given do, it writes nothing more. The pipe
-/// never sends SIGPIPE, which would end the app: a write that finds the
-/// program gone, its end of the pipe closed, fails with EPIPE, and is
-/// dropped.
-final class Writer: Sendable {
-    let pipe = Pipe()
-    private let queue = DispatchQueue(label: "com.leeovery.sitrep.watch.input")
-    /// Only `queue` reads or sets it, so no write crosses the close.
-    private let isOpen = OSAllocatedUnfairLock(initialState: true)
-
-    init() {
-        _ = fcntl(pipe.fileHandleForWriting.fileDescriptor, F_SETNOSIGPIPE, 1)
-    }
-
-    /// Writes each line given, with its newline, then closes once they end: the writing, done once it has.
-    @discardableResult
-    func write(_ lines: AsyncStream<String>) -> Task<Void, Never> {
-        Task {
-            for await line in lines {
-                await write(Data("\(line)\n".utf8))
-            }
-
-            close()
-        }
-    }
-
-    func close() {
-        queue.async { [self] in
-            let wasOpen = isOpen.withLock { isOpen in
-                defer { isOpen = false }
-                return isOpen
-            }
-
-            if wasOpen {
-                try? pipe.fileHandleForWriting.close()
-            }
-        }
-    }
-
-    private func write(_ data: Data) async {
-        await withCheckedContinuation { written in
-            queue.async { [self] in
-                if isOpen.withLock({ $0 }) {
-                    try? pipe.fileHandleForWriting.write(contentsOf: data)
-                }
-
-                written.resume()
-            }
         }
     }
 }

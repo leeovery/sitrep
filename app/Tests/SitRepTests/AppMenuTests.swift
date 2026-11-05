@@ -2,8 +2,8 @@ import AppKit
 @testable import SitRep
 import Testing
 
-/// The main menu no one sees: the key equivalents Settings and a SitRep window's editing, going back and forward and
-/// closing go through.
+/// The main menu no one sees: the key equivalents Settings, editing in SitRep's windows, Settings' going back and
+/// forward, and closing go through.
 @MainActor
 struct AppMenuTests {
     /// Each item of the built menu by its keys, as ⌘ and ⇧ with the key, and what it sends.
@@ -44,10 +44,10 @@ struct AppMenuTests {
         #expect(Self.keys.count == 11)
     }
 
-    /// As Finder's Go menu and Safari's History have them, to the SitRep window, which goes as its toolbar's do.
-    @Test func commandBracketsGoBackAndForwardThroughTheSitRepWindow() {
-        #expect(Self.keys["⌘["] == #selector(SitRepWindow.goBack(_:)))
-        #expect(Self.keys["⌘]"] == #selector(SitRepWindow.goForward(_:)))
+    /// As Finder's Go menu and Safari's History have them, to Settings, which goes as its toolbar's do.
+    @Test func commandBracketsGoBackAndForwardThroughSettings() {
+        #expect(Self.keys["⌘["] == #selector(SettingsWindow.goBack(_:)))
+        #expect(Self.keys["⌘]"] == #selector(SettingsWindow.goForward(_:)))
     }
 
     /// About SitRep is the menu bar item's header's: an accessory app never shows this menu.
