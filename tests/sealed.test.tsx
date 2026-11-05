@@ -711,23 +711,23 @@ test('should the turn a submitted send started never be heard, the send behind i
 /** Claude Code's refusal of every plugin's prompt once Lee has stopped Claude's turn, until he next types in the window (live, 2.1.318). */
 const STOPPED = 'the session was stopped and nobody has sent input since'
 
-/** The line under a send Claude Code refused as Lee stopped Claude's turn, wrapped beside its send now and take-back. */
-const AWAITS_INPUT = [
+/** The line under the first send held while the window is stopped, wrapped beside its send now and take-back. */
+const STOPPED_LINE = [
   '⧗ Interrupted: goes after ↑ send now ↺ take back',
   'your next message.',
 ]
 
-/** The rows a send waiting on Lee's next message draws in Ready to send: its heading, each round's reply frozen, and its line. */
-const awaiting = (...rounds: number[]) => [...held(...rounds).slice(0, -1), ...AWAITS_INPUT]
+/** The rows the first send held while the window is stopped draws in Ready to send: its heading, each round's reply frozen, and its line. */
+const stopped = (...rounds: number[]) => [...held(...rounds).slice(0, -1), ...STOPPED_LINE]
 
-/** The rows a send held behind one waiting on Lee's next message draws: its heading, each round's reply frozen, and its line. */
-const behindInput = (...rounds: number[]) => [
+/** The rows a send held behind it draws: its heading, each round's reply frozen, and its line. */
+const behindStop = (...rounds: number[]) => [
   ...held(...rounds).slice(0, -1),
   '⧗ Goes after your next message. ↺ take back',
 ]
 
-/** Whether each message in flight waits on Lee's next message. */
-const awaitsInputIn = (w: World) => w.flights().map(each => each.awaitsInput === true)
+/** Whether the window is marked stopped, Claude Code refusing its prompts until Lee's input. */
+const isStopped = (w: World) => w.state.stopped === true
 
 /** Lee stops Claude's turn, and from then Claude Code refuses the board's prompts until he types in the window. */
 const interrupted = async (w: World) => {
@@ -742,7 +742,16 @@ const leeTypes = async (w: World) => {
   await w.turnStarts('Look at the failing test instead.')
 }
 
-test("a send Claude Code refuses as Lee stopped Claude's turn is not let go: held, marked as waiting on Lee's next message, no toast, its line drawn, its asks on their way still; it goes once Lee's next turn ends", SLOW, async ($, on) => {
+/** Lee types a slash command, as Claude Code raises it to the mod. */
+const typedCommand = ($: Engine, command: string) =>
+  $.command.run({
+    command,
+    args: '',
+    origin: { kind: 'composer' },
+    presentation: { isFullscreen: true, columns: 160 },
+  })
+
+test("a send Claude Code refuses as Lee stopped Claude's turn is not let go: held, the window marked stopped, no toast, its line drawn with send now, its asks on their way still; it goes once Lee's next turn ends", SLOW, async ($, on) => {
   const w = world($, on)
   const { paths, ids, ui } = await asking(w)
   const [first = ''] = ids
@@ -753,20 +762,20 @@ test("a send Claude Code refuses as Lee stopped Claude's turn is not let go: hel
   expect(w.submitted).toEqual([message(1)])
   expect(notSent(w)).toEqual([])
   expect(flightsIn(w)).toEqual([{ items: [first], isHeld: true }])
-  expect(awaitsInputIn(w)).toEqual([true])
-  expect(await box(ui)).toEqual([...heading(1), ...awaiting(1)])
+  expect(isStopped(w)).toBe(true)
+  expect(await box(ui)).toEqual([...heading(1), ...stopped(1)])
   expect(await ui.find({ key: w.takeBack() })).toBeDefined()
   expect(sendingIn(w, paths), 'still on its way').toEqual([[first]])
 
   await w.clock.advance(QUIET_MS + 4 * WATCH_MS)
 
   expect(w.submitted, 'no look submits it, nor does its quiet let it go').toEqual([message(1)])
-  expect(awaitsInputIn(w)).toEqual([true])
+  expect(isStopped(w)).toBe(true)
   expect(w.state.board?.waiting, 'its ask waits on Lee nowhere').toBe(2)
 
   await leeTypes(w)
 
-  expect(awaitsInputIn(w), "Lee's turn clears the mark").toEqual([false])
+  expect(isStopped(w), "Lee's turn lifts the mark").toBe(false)
   expect(w.submitted, 'held to the end of his turn').toEqual([message(1)])
 
   await turnEnded(w)
@@ -777,7 +786,7 @@ test("a send Claude Code refuses as Lee stopped Claude's turn is not let go: hel
   expect(notSent(w)).toEqual([])
 })
 
-test("a subagent's run starting and ending leaves a send waiting on Lee's next message marked and unsent", SLOW, async ($, on) => {
+test("a subagent's run starting and ending leaves the window stopped and the send unsent", SLOW, async ($, on) => {
   const w = world($, on)
   const { ids, ui } = await asking(w)
 
@@ -788,12 +797,12 @@ test("a subagent's run starting and ending leaves a send waiting on Lee's next m
   await w.turnEnds({ agentId: 'agent-1' })
   await w.clock.advance(4 * WATCH_MS)
 
-  expect(awaitsInputIn(w)).toEqual([true])
+  expect(isStopped(w)).toBe(true)
   expect(w.submitted).toEqual([message(1)])
-  expect(await box(ui)).toEqual([...heading(1), ...awaiting(1)])
+  expect(await box(ui)).toEqual([...heading(1), ...stopped(1)])
 })
 
-test("a send sealed behind one waiting on Lee's next message stays behind it: the first goes once Lee's turn ends, the second once the first's own turn has ended", SLOW, async ($, on) => {
+test("a send sealed behind the first while the window is stopped stays behind it, saying it goes after Lee's next message: the first goes once his turn ends, the second once the first's own turn has ended", SLOW, async ($, on) => {
   const w = world($, on)
   const { paths, ids, ui } = await asking(w)
   const [first = '', second = ''] = ids
@@ -806,8 +815,8 @@ test("a send sealed behind one waiting on Lee's next message stays behind it: th
     { items: [first], isHeld: true },
     { items: [second], isHeld: true },
   ])
-  expect(awaitsInputIn(w)).toEqual([true, false])
-  expect(await box(ui)).toEqual([...heading(2), ...awaiting(1), ...behindInput(2)])
+  expect(await box(ui)).toEqual([...heading(2), ...stopped(1), ...behindStop(2)])
+  expect(await ui.findAll({ key: 'send-now' })).toHaveLength(1)
 
   await leeTypes(w)
   await turnEnded(w)
@@ -823,46 +832,107 @@ test("a send sealed behind one waiting on Lee's next message stays behind it: th
   expect(notSent(w)).toEqual([])
 })
 
-test("a send pressed while Claude Code refuses the board's prompts, Lee having stopped Claude's turn, waits on his next message as well, no toast", SLOW, async ($, on) => {
+test('taking back the first send while the window is stopped leaves the second held, unsubmitted, now first, with send now', SLOW, async ($, on) => {
+  const w = world($, on)
+  const { ids, ui } = await asking(w)
+  const [first = '', second = ''] = ids
+
+  await twoHeld(w, ui, ids)
+  await interrupted(w)
+  await w.clock.advance(WATCH_MS)
+  await ui.press({ key: w.takeBack(0) })
+  await w.clock.advance(4 * WATCH_MS)
+
+  expect(w.submitted).toEqual([message(1)])
+  expect(flightsIn(w)).toEqual([{ items: [second], isHeld: true }])
+  expect(w.state.queue).toMatchObject([{ item: first }, { item: second }])
+  expect(await box(ui)).toEqual([...heading(2), ...stopped(2), ...toSend(1), ...CONTROLS])
+  expect(w.state.board?.waiting, "the first's ask waits on Lee again at once").toBe(2)
+})
+
+test("send pressed while the window is stopped submits from within Lee's press, whatever is first going: refused all the same, it waits, the window stopped again, silently; taken, it goes in", SLOW, async ($, on) => {
   const w = world($, on)
   const { paths, ids, ui } = await asking(w)
-  const [first = ''] = ids
+  const [first = '', second = ''] = ids
 
-  await w.turnStarts('Carry on.')
+  await holding(w, ui, ids)
   await interrupted(w)
-  await approve(w, ui, first)
+  await approve(w, ui, second)
   await ui.press({ key: 'send' })
   await w.clock.settle()
 
-  expect(w.submitted).toEqual([message(1)])
+  expect(w.submitted, 'the first goes from the press').toEqual([message(1), message(1)])
+  expect(isStopped(w)).toBe(true)
+  expect(flightsIn(w)).toEqual([
+    { items: [first], isHeld: true },
+    { items: [second], isHeld: true },
+  ])
   expect(notSent(w)).toEqual([])
-  expect(awaitsInputIn(w)).toEqual([true])
-  expect(await box(ui)).toEqual([...heading(1), ...awaiting(1)])
 
-  await leeTypes(w)
+  w.dropPrompts()
+  await ui.press({ key: 'send-now' })
+  await w.clock.settle()
+
+  expect(w.submitted).toEqual([message(1), message(1), message(1)])
+  expect(isStopped(w)).toBe(false)
+  expect(repliedIn(w, paths)).toEqual([first])
+
+  await w.turnStarts(message(1))
   await turnEnded(w)
 
-  expect(w.submitted).toEqual([message(1), message(1)])
-  expect(repliedIn(w, paths)).toEqual([first])
+  expect(w.submitted.at(-1)).toBe(message(2))
+  expect(repliedIn(w, paths)).toEqual([first, second])
 })
 
-test("refused again for the same reason after Lee's turn, the send is marked again, nothing lost; it goes once a later turn of his ends", SLOW, async ($, on) => {
+test('send pressed while the window is stopped and nothing is in flight goes in at once from the press', SLOW, async ($, on) => {
+  const w = world($, on)
+  const { paths, ids, ui } = await asking(w)
+  const [first = '', second = ''] = ids
+
+  await holding(w, ui, ids)
+  await interrupted(w)
+  await ui.press({ key: w.takeBack() })
+  w.dropPrompts()
+  await approve(w, ui, second)
+  await ui.press({ key: 'send' })
+  await w.clock.settle()
+
+  expect(w.submitted).toEqual([message(1), message(1, 2)])
+  expect(isStopped(w)).toBe(false)
+  expect(repliedIn(w, paths)).toEqual([first, second])
+})
+
+test('send now shows only while the window is stopped, beside the first send held', SLOW, async ($, on) => {
+  const w = world($, on)
+  const { ids, ui } = await asking(w)
+
+  await twoHeld(w, ui, ids)
+  expect(await ui.find({ key: 'send-now' })).toBeUndefined()
+
+  await interrupted(w)
+  expect(await ui.findAll({ key: 'send-now' })).toHaveLength(1)
+
+  await leeTypes(w)
+  expect(await ui.find({ key: 'send-now' })).toBeUndefined()
+})
+
+test("refused again for the same reason after Lee's turn, the window is marked stopped again, nothing lost; the send goes once a later turn of his ends", SLOW, async ($, on) => {
   const w = world($, on)
   const { paths, ids, ui } = await asking(w)
   const [first = ''] = ids
 
   await holding(w, ui, ids)
   await interrupted(w)
-  await w.turnStarts('A prompt Claude Code did not count as input.')
+  await w.turnStarts('A task notification, which Claude Code does not count as input.')
   await turnEnded(w)
 
   expect(w.submitted).toEqual([message(1), message(1)])
   expect(flightsIn(w)).toEqual([{ items: [first], isHeld: true }])
-  expect(awaitsInputIn(w)).toEqual([true])
+  expect(isStopped(w)).toBe(true)
   expect(notSent(w)).toEqual([])
 
   await w.clock.advance(QUIET_MS + 4 * WATCH_MS)
-  expect(awaitsInputIn(w), 'no quiet lets it go').toEqual([true])
+  expect(flightsIn(w), 'no quiet lets it go').toEqual([{ items: [first], isHeld: true }])
 
   await leeTypes(w)
   await turnEnded(w)
@@ -871,7 +941,7 @@ test("refused again for the same reason after Lee's turn, the send is marked aga
   expect(repliedIn(w, paths)).toEqual([first])
 })
 
-test("a send that waited on Lee's next message, refused for another reason once his turn ends, is let go as any refusal is, with the send behind it, one toast saying so", SLOW, async ($, on) => {
+test("a send held while the window was stopped, refused for another reason once Lee's turn ends, is let go as any refusal is, with the send behind it, one toast saying so", SLOW, async ($, on) => {
   const w = world($, on)
   const { paths, ids, ui } = await asking(w)
   const [first = '', second = ''] = ids
@@ -892,7 +962,7 @@ test("a send that waited on Lee's next message, refused for another reason once 
   expect(repliedIn(w, paths)).toEqual([])
 })
 
-test("taking back a send waiting on Lee's next message puts its replies back among those still to send, its ask waiting on Lee again at once", SLOW, async ($, on) => {
+test("taking back the only send while the window is stopped puts its replies back among those still to send, its ask waiting on Lee again at once", SLOW, async ($, on) => {
   const w = world($, on)
   const { paths, ids, ui } = await asking(w)
   const [first = ''] = ids
@@ -915,7 +985,7 @@ test("taking back a send waiting on Lee's next message puts its replies back amo
   expect(notSent(w)).toEqual([])
 })
 
-test("a file-watch reload keeps a send waiting on Lee's next message, the session still stopped; a /clear ends the wait, and it goes into the next conversation at once", SLOW, async ($, on) => {
+test("a file-watch reload keeps the window stopped and the send held, the refusal standing; a /clear lifts it, and the send goes into the next conversation at once", SLOW, async ($, on) => {
   const w = world($, on)
   const { paths, ids, ui } = await asking(w)
   const [first = ''] = ids
@@ -926,28 +996,20 @@ test("a file-watch reload keeps a send waiting on Lee's next message, the sessio
   await w.clock.advance(4 * WATCH_MS)
 
   expect(w.submitted).toEqual([message(1)])
-  expect(awaitsInputIn(w)).toEqual([true])
+  expect(isStopped(w)).toBe(true)
   expect(sendingIn(w, paths)).toEqual([[first]])
 
   w.dropPrompts()
   await $.session.end({ reason: 'clear', sessionId: W1, resume: { id: W1 } })
   await w.clock.settle()
 
+  expect(isStopped(w)).toBe(false)
   expect(w.submitted).toEqual([message(1), message(1)])
   expect(repliedIn(w, paths)).toEqual([first])
   expect(w.state.inFlight).toBeNull()
 })
 
-/** Lee types a slash command, as Claude Code raises it to the mod. */
-const typedCommand = ($: Engine, command: string) =>
-  $.command.run({
-    command,
-    args: '',
-    origin: { kind: 'composer' },
-    presentation: { isFullscreen: true, columns: 160 },
-  })
-
-test("a prompt Lee types that the answering mode takes ends the wait on his input, though no turn follows: the send waiting goes at the next look, and his answer's send after it", SLOW, async ($, on) => {
+test("a prompt Lee types that the answering mode takes lifts the stop, though no turn follows: the send held goes at the next look, and his answer's send after it", SLOW, async ($, on) => {
   const w = world($, on)
   const { paths, ids, ui } = await asking(w)
   const [first = ''] = ids
@@ -963,6 +1025,9 @@ test("a prompt Lee types that the answering mode takes ends the wait on his inpu
 
   await ui.press({ key: `answer:${w.item(words)}` })
   await $.prompt.submit({ text: 'Harbour', wait: false, origin: { kind: 'composer' } })
+
+  expect(isStopped(w)).toBe(false)
+
   await w.clock.advance(WATCH_MS)
 
   expect(w.submitted).toEqual([message(1), message(1)])
@@ -977,7 +1042,53 @@ test("a prompt Lee types that the answering mode takes ends the wait on his inpu
   expect(repliedIn(w, paths)).toEqual([first, words])
 })
 
-test("a slash command Lee types ends the wait on his input, though no turn follows: the send waiting goes at the next look", SLOW, async ($, on) => {
+test("a prompt of Lee's going on to start a turn leaves the window stopped until that turn starts, so no look puts the send in ahead of it", SLOW, async ($, on) => {
+  const w = world($, on)
+  const { ids, ui } = await asking(w)
+
+  await holding(w, ui, ids)
+  await interrupted(w)
+  w.dropPrompts()
+  await $.prompt.submit({
+    text: 'Look at the failing test instead.',
+    wait: false,
+    origin: { kind: 'composer' },
+  })
+  await w.clock.advance(4 * WATCH_MS)
+
+  expect(isStopped(w)).toBe(true)
+  expect(w.submitted).toEqual([message(1), 'Look at the failing test instead.'])
+})
+
+test("a prompt another plugin submits, or the SDK's, lifts nothing: only Lee's own input counts", SLOW, async ($, on) => {
+  const w = world($, on)
+  const { ids, ui } = await asking(w)
+
+  await holding(w, ui, ids)
+  await interrupted(w)
+  w.dropPrompts('another reason')
+  await $.prompt.submit({
+    text: 'Run the linter.',
+    wait: false,
+    origin: { kind: 'plugin', name: 'linter' },
+  })
+  await $.prompt.submit({ text: 'Run the linter.', wait: false, origin: { kind: 'sdk' } })
+
+  expect(isStopped(w)).toBe(true)
+})
+
+test("a slash command Lee types lifts the stop, though no turn follows; nothing is submitted while it runs, and the send held goes at the next look after it", SLOW, async ($, on) => {
+  let finish = () => {}
+  const compacting = new Promise<void>(resolve => {
+    finish = resolve
+  })
+
+  on('command.run', { command: 'compact' }, async () => {
+    await compacting
+
+    return {}
+  })
+
   const w = world($, on)
   const { paths, ids, ui } = await asking(w)
   const [first = ''] = ids
@@ -985,17 +1096,23 @@ test("a slash command Lee types ends the wait on his input, though no turn follo
   await holding(w, ui, ids)
   await interrupted(w)
   w.dropPrompts()
-  await typedCommand($, 'sitrep')
 
-  expect(awaitsInputIn(w)).toEqual([false])
+  const ran = typedCommand($, 'compact')
 
+  await w.clock.advance(QUIET_MS + 4 * WATCH_MS)
+
+  expect(isStopped(w)).toBe(false)
+  expect(w.submitted, 'nothing while it runs').toEqual([message(1)])
+
+  finish()
+  await ran
   await w.clock.advance(WATCH_MS)
 
   expect(w.submitted).toEqual([message(1), message(1)])
   expect(repliedIn(w, paths)).toEqual([first])
 })
 
-test("a /reload-plugins Lee types ends the wait on his input: the load after it sends the send waiting at once", SLOW, async ($, on) => {
+test('a /reload-plugins Lee types lifts the stop: the load after it sends the send held at once', SLOW, async ($, on) => {
   on('command.run', { command: 'reload-plugins' }, () => ({}))
 
   const w = world($, on)
@@ -1013,42 +1130,7 @@ test("a /reload-plugins Lee types ends the wait on his input: the load after it 
   expect(repliedIn(w, paths)).toEqual([first])
 })
 
-test("send now submits a send waiting on Lee's next message from within his press: refused all the same it waits again, marked, no toast; taken, it goes in at once", SLOW, async ($, on) => {
-  const w = world($, on)
-  const { paths, ids, ui } = await asking(w)
-  const [first = ''] = ids
-
-  await holding(w, ui, ids)
-  await interrupted(w)
-  await ui.press({ key: 'send-now' })
-  await w.clock.settle()
-
-  expect(w.submitted).toEqual([message(1), message(1)])
-  expect(awaitsInputIn(w)).toEqual([true])
-  expect(notSent(w)).toEqual([])
-
-  w.dropPrompts()
-  await ui.press({ key: 'send-now' })
-  await w.clock.settle()
-
-  expect(w.submitted).toEqual([message(1), message(1), message(1)])
-  expect(repliedIn(w, paths)).toEqual([first])
-  expect(await ui.find({ key: 'send-now' })).toBeUndefined()
-})
-
-test("a send waiting on its own turn shows no send now; nor does one held behind a send waiting on Lee's next message", SLOW, async ($, on) => {
-  const w = world($, on)
-  const { ids, ui } = await asking(w)
-
-  await twoHeld(w, ui, ids)
-  expect(await ui.find({ key: 'send-now' })).toBeUndefined()
-
-  await interrupted(w)
-  expect(await box(ui)).toEqual([...heading(2), ...awaiting(1), ...behindInput(2)])
-  expect(await ui.findAll({ key: 'send-now' })).toHaveLength(1)
-})
-
-test("Lee's turn starting between a submit and Claude Code's refusal of it leaves the send held unmarked, to go as that turn ends", SLOW, async ($, on) => {
+test("Lee's turn starting between a submit and Claude Code's refusal of it leaves the window unmarked, the send held to go as that turn ends", SLOW, async ($, on) => {
   const w = world($, on)
   const { paths, ids, ui } = await asking(w)
   const [first = ''] = ids
@@ -1065,8 +1147,51 @@ test("Lee's turn starting between a submit and Claude Code's refusal of it leave
   await w.clock.settle()
 
   expect(flightsIn(w)).toEqual([{ items: [first], isHeld: true }])
-  expect(awaitsInputIn(w)).toEqual([false])
+  expect(isStopped(w)).toBe(false)
   expect(await box(ui)).toEqual([...heading(1), ...held(1)])
+
+  w.dropPrompts()
+  await turnEnded(w)
+
+  expect(w.submitted).toEqual([message(1), message(1)])
+  expect(repliedIn(w, paths)).toEqual([first])
+})
+
+test("Lee's turn starting while the stop is being written lifts it once written", SLOW, async ($, on) => {
+  let arrive = () => {}
+  let open = () => {}
+  const arrived = new Promise<void>(resolve => {
+    arrive = resolve
+  })
+  const opened = new Promise<void>(resolve => {
+    open = resolve
+  })
+
+  on('state.set', { plugin: 'sitrep', key: 'stopped' }, async ($, e, next) => {
+    if (e.value === true) {
+      arrive()
+      await opened
+    }
+
+    return next(e)
+  })
+
+  const w = world($, on)
+  const { paths, ids, ui } = await asking(w)
+  const [first = ''] = ids
+
+  await holding(w, ui, ids)
+  w.dropPrompts(STOPPED)
+
+  const ended = w.turnEnds({ isAborted: true })
+
+  await arrived
+  await w.turnStarts('Look at the failing test instead.')
+  open()
+  await ended
+  await w.clock.settle()
+
+  expect(isStopped(w)).toBe(false)
 
   w.dropPrompts()
   await turnEnded(w)

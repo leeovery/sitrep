@@ -47,8 +47,6 @@ export type Actions = {
   cancelAll: () => void
   /** Has the next Enter in the prompt box answer an ask, comment on it, or pick a parked item up with a comment; `text` fills the box first, to edit the words already queued. */
   answer: (answering: SitrepAnswering, text?: string) => void
-  /** Sends Ready to send; a board drawn inline closes once the send is claimed, as on a phone. */
-  send: (isDock: boolean) => void
   /** Takes back a send the window holds for its turn, its replies back in Ready to send among those still to send; none once it has gone. */
   takeBack: (send: SitrepInFlight) => void
   /** Has Ready to send's one row for several held sends show the one named, by the ids of the replies it carries. */
@@ -64,6 +62,22 @@ export type Actions = {
   /** Wakes a snoozed ask now: it waits on Lee again. */
   wake: (at: SitrepItemRef) => void
 }
+
+/**
+ * Sends Ready to send, from the `ui.press` hook, inside Lee's press: so its
+ * submit carries the press, which Claude Code takes though Lee stopped
+ * Claude's turn. A board drawn inline closes once the send is claimed, as
+ * on a phone.
+ */
+export const sendReady = (host: Host, isDock: boolean) =>
+  send(host, async () => {
+    // A send carrying the reply the mode would write ends it now, before its Enter.
+    await settleAnswering(host)
+
+    if (!isDock) {
+      await closeBoard(host)
+    }
+  })
 
 const changePane = (host: Host, change: (pane: SitrepPane) => Partial<SitrepPane>) =>
   host.state.pane.update(pane => ({ ...pane, ...change(pane) }))
@@ -206,17 +220,6 @@ export const actionsOf = (host: Host): Actions => {
       }),
     answer: (answering, text) =>
       run('answering in the prompt', () => answer(host, answering, text)),
-    send: isDock =>
-      run('sending', () =>
-        send(host, async () => {
-          // A send carrying the reply the mode would write ends it now, before its Enter.
-          await settleAnswering(host)
-
-          if (!isDock) {
-            await closeBoard(host)
-          }
-        }),
-      ),
     takeBack: send => run('taking a send back', () => takeBack(host, send)),
     showHeld: send =>
       run('stepping to the next held send', () => changePane(host, () => ({ heldShown: send }))),

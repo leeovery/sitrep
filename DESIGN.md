@@ -854,11 +854,11 @@ November 2026 a second line said when Claude's turn seemed only to wait on
 its background work; see "Held behind a subagent's run", under Delivery.)
 Once the window has submitted it, it is Claude Code's, and nothing takes it
 back out of Claude Code's queue: the line says `⧗ Sending.` and the
-take-back is gone. One Claude Code refused as Lee had stopped Claude's turn
-is held again until his next message (see "Held for Lee's input", under
-Delivery), its line `⧗ Interrupted: goes after your next message.`,
-wrapped beside `↑ send now` and its take-back; a send held behind it says
-`⧗ Goes after your next message.`, no turn of Claude's holding it. The
+take-back is gone. While Lee has stopped Claude's turn and Claude Code
+refuses the window's prompts (see "Held for Lee's input", under Delivery),
+the first send held says `⧗ Interrupted: goes after your next message.`,
+wrapped beside `↑ send now` and its take-back, and each send behind it
+`⧗ Goes after your next message.`, no turn of Claude's holding them. The
 inbox's message offers none: Lee sent its replies from elsewhere. Until 5
 November 2026 the line stood where send and cancel all were, for the
 whole box.
@@ -1246,46 +1246,61 @@ app (see "The menu bar").
   then stopped it; the stopped turn's end submitted the send, Claude Code
   refused it, and it was let go with a toast, as was each press of send
   after, until he typed in Claude. A message refused for that reason is not
-  let go: the window holds it again, marked as waiting on Lee's input
-  (`awaitsInput` on its claim), with no toast, its quiet and the wait on
-  its turn undone, so nothing lets it go as never taken and nothing behind
-  it goes early. Nothing submits it while it waits, and the sends behind it
-  stay behind it.
-  - **What ends the wait.** Claude Code lifts its refusal for any input
-    Lee types in the window that was not queued before the stop, a slash
-    command among them, as the input arrives, before any hook hears it; and
-    for a plugin's call made from within a press of Lee's after the stop.
-    So the window ends the wait on every claim as it hears Lee's input: a
-    prompt of his (any not the board's own) at its `prompt.submit` hook,
-    whether or not a turn follows, as one the answering mode takes; a slash
-    command he types at its `command.run` hook; a turn of the window's own
-    starting, never a subagent's run; or a `/clear`. A turn's end carries on
-    the first as ever, the rest in turn; where no turn follows, the next
-    look does: `command.run` holds the turn, so a submit from it is
-    refused, and one from `prompt.submit` hangs there on the prompt the
-    hook hears (in the test kit). Input that leaves the refusal standing,
-    as a turn a task's notification starts, costs only a submit refused
+  let go: the window holds it again and marks itself stopped (`stopped` in
+  `$.state`, beside the claims, kept across a reload), with no toast, its
+  quiet and the wait on its turn undone, so nothing lets it go as never
+  taken and nothing behind it goes early. Stopped is the window's, not a
+  claim's: while it is, nothing is submitted, no look and no turn's end,
+  so a send claimed meanwhile, the inbox's message taken in meanwhile, or
+  the send behind one taken back spends no submit on a refusal sure to
+  come.
+  - **What lifts it.** Claude Code lifts its refusal for any input Lee
+    types or sends from the Remote Control bridge that was not queued
+    before the stop, a slash command among them, as the input arrives,
+    before any hook hears it (its human origin, which reaches a plugin as
+    `composer` or `bridge`; another plugin's prompt, the SDK's or a task's
+    notification lifts nothing); and for a plugin's call made from within a
+    press of Lee's after the stop. So the window lifts its mark at a slash
+    command of his, at its `command.run` hook, before it runs; at a prompt
+    of his that goes no further, taken by the answering mode or dropped
+    beneath; as a turn of the window's own starts, never a subagent's run;
+    and as the conversation ends. A prompt of his that goes on stays marked
+    until its turn starts, so no look puts the board's message in ahead of
+    it. A turn's end carries on the first as ever, the rest in turn; where
+    no turn follows, the next look does: `command.run` holds the turn, so a
+    submit from it is refused, and one from `prompt.submit` hangs there on
+    the prompt the hook hears (in the test kit). A turn that leaves the
+    refusal standing, as a task's notification's, costs one submit refused
     again, which marks it again. Input heard between a submit and its
-    refusal coming back leaves the message held unmarked, the refusal
-    predating it.
-  - **Send now.** The marked send's line offers `↑ send now`, answered by
-    the mod's `ui.press` hook inside Lee's press, whose submit Claude Code
-    takes after a stop: the hook's own `$` carries the press, which
-    vouches for it, where the pane's buttons, bound to the `$` the board
+    refusal coming back, or while the mark is written, leaves the window
+    unmarked, the refusal predating it.
+  - **While a slash command runs** nothing is submitted, stopped or not: a
+    prompt would wait on a `/compact`, its quiet passing and its claim let
+    go as never taken before it went in, then written down by no one; or
+    land in, or wait across, the conversation a `/resume` or `/rewind`
+    replaces. The next look carries on once it ends.
+  - **Send and send now.** Ready to send's send is answered by the mod's
+    `ui.press` hook, inside Lee's press, as the band's buttons are, so its
+    submit carries the press, which vouches for it: the hook's own `$`
+    carries the press, where the pane's buttons, bound to the `$` the board
     was drawn with, carry none (read from 2.1.318's code, not yet seen
-    live). Refused all the same, the send waits again.
-  - Still claimed, it is on its way, its asks needing Lee nowhere, and Lee
-    can take it back as any held send. A `/reload-plugins` he types ends
-    the wait, so the load after it sends at once; a file-watch reload,
-    typed by no one, leaves it waiting, the refusal standing. A `/clear`
-    ends it too, Claude Code refusing only in the conversation stopped, and
-    it goes into the next conversation at once.
-  - The inbox's message waits the same way, no look submitting it
-    meanwhile, and a send Lee presses behind it toasts that Claude was
-    interrupted and those replies go in first, after his next message. A
-    wait can be long, so a look lets the inbox's message go, silently, once
-    this window no longer delivers for its session, its replies left in the
-    inbox for the window that does.
+    live). Pressed while the window is stopped, it takes the first message
+    in flight as going, then lifts the mark, then submits, before the hook
+    returns, so no look submits it unvouched meanwhile; whatever is first
+    goes, the inbox's message included, and the send pressed follows in
+    turn. While stopped, the first send held offers `↑ send now` beside
+    its take-back, which does the same with nothing new to send. Refused
+    all the same, the window is marked stopped again, silently.
+  - Still claimed, a message held is on its way, its asks needing Lee
+    nowhere, and Lee can take it back as any held send. A `/reload-plugins`
+    he types lifts the mark, so the load after it sends at once; a
+    file-watch reload, typed by no one, leaves it, the refusal standing. A
+    `/clear` lifts it, Claude Code refusing only in the conversation
+    stopped, before the window lets go of its session, and the first goes
+    into the next conversation at once.
+  - A wait can be long, so a look lets the inbox's message go, silently,
+    once the window is stopped and no longer delivers for its session, its
+    replies left in the inbox for the window that does.
 - **Those behind it, let go with it** (5 November 2026). A message refused
   or never taken lets go of every send held behind it in the same update of
   the claims, one toast saying so: their replies are all back among those

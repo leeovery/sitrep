@@ -45,6 +45,8 @@ export type Scene = {
   queue: readonly SitrepQueued[]
   /** The messages on their way to Claude, in the order claimed: sends of Lee's, their replies frozen in the queue, or the inbox's. */
   inFlight: readonly SitrepInFlight[]
+  /** Whether Lee stopped Claude's turn and Claude Code refuses the window's prompts until his input. */
+  isStopped: boolean
   sent: readonly SitrepSent[]
   pane: SitrepPane
   /** How far down the docked board's list stands, at the place it was moved at. */
@@ -67,6 +69,7 @@ export const sceneOf = async (host: Host): Promise<Scene | undefined> => {
     others,
     queue,
     inFlight,
+    isStopped,
     sent,
     pane,
     scroll,
@@ -81,6 +84,7 @@ export const sceneOf = async (host: Host): Promise<Scene | undefined> => {
     host.state.others.read(),
     host.state.queue.read(),
     host.state.inFlight.read(),
+    host.state.stopped.read(),
     host.state.sent.read(),
     host.state.pane.read(),
     host.state.scroll.read(),
@@ -106,6 +110,7 @@ export const sceneOf = async (host: Host): Promise<Scene | undefined> => {
     ),
     queue,
     inFlight,
+    isStopped,
     sent,
     pane,
     scroll,

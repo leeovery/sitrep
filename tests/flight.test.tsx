@@ -202,7 +202,7 @@ for (const source of ['send', 'inbox'] as const) {
     expect(w.state.inFlight).toBeNull()
   })
 
-  test(`${source}: refused as Lee stopped Claude's turn, the message is held for his next one; no look, quiet or reload submits it again or lets it go, and it goes once his turn ends`, SLOW, async ($, on) => {
+  test(`${source}: refused as Lee stopped Claude's turn, the message is held and the window marked stopped; no look, quiet or reload submits it again or lets it go, and it goes once his turn ends`, SLOW, async ($, on) => {
     const w = world($, on)
     const { paths, submit } = await replying[source](w)
 
@@ -211,13 +211,15 @@ for (const source of ['send', 'inbox'] as const) {
     await w.clock.advance(WATCH_MS)
 
     expect(w.submitted).toEqual([MESSAGE])
-    expect(w.state.inFlight).toMatchObject({ source, isHeld: true, awaitsInput: true })
+    expect(w.state.inFlight).toMatchObject({ source, isHeld: true })
+    expect(w.state.stopped).toBe(true)
 
     await $.session.start(CONVERSATION)
     await w.clock.advance(QUIET_MS + 4 * WATCH_MS)
 
     expect(w.submitted).toEqual([MESSAGE])
-    expect(w.state.inFlight).toMatchObject({ source, isHeld: true, awaitsInput: true })
+    expect(w.state.inFlight).toMatchObject({ source, isHeld: true })
+    expect(w.state.stopped).toBe(true)
     expect(w.toasts.filter(toast => toast.startsWith('Not sent'))).toEqual([])
     expect(w.logs.some(line => line.includes('were not taken'))).toBe(false)
     expect(kindsIn(w, paths)).toEqual(['ask'])

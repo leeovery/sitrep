@@ -15,17 +15,13 @@
  * a send carries them as a message of their own, which goes in after it.
  */
 import { boardMessage } from '../core'
-import { deliver, STILL_THERE } from './deliver'
+import { deliver, sendHeld, STILL_THERE } from './deliver'
 import type { Host } from './host'
 import { sendLetters } from './letters'
 import { leftOut, replyBodies, sendable, type LeftOut } from './queue'
 import { attached, refresh, serially } from './window'
 
 const BEHIND = `Not sent yet: replies from another session are going in first. ${STILL_THERE}`
-
-/** The same while those replies wait, Claude interrupted, for Lee's next message. */
-const BEHIND_INPUT =
-  `Not sent yet: Claude was interrupted, and replies from another session go in first, after your next message. ${STILL_THERE}`
 
 /** The held session as it stands, and the window's hold on it. */
 const heldNow = (host: Host) =>
@@ -83,7 +79,9 @@ const sendHere = async (host: Host, claimed: () => Promise<void>): Promise<Here>
   )
 
   if (ahead?.source === 'inbox') {
-    host.ui.toast(ahead.awaitsInput === true ? BEHIND_INPUT : BEHIND)
+    // A press of Lee's carries them on, though he stopped Claude's turn.
+    await sendHeld(host)
+    host.ui.toast(BEHIND)
   }
 
   return ahead === undefined ? { is: 'claimed' } : { is: 'heldBack' }
