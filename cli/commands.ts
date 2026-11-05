@@ -317,8 +317,8 @@ const wake: SessionCommand = {
     "Wake snoozed asks now, as Lee does on the board: they wait on Lee again. A line for each in the CLI's own file; every ask named is woken, or none is. With --turn, the session's turn Lee snoozed, in place of asks: it is back in Your turn. Prints nothing.",
   grammar: { args: [ASKS_OR_TURN], flags: { ...TURN, ...SESSION } },
   on: 'session',
-  act: ({ session }, input, { now }) =>
-    quietly(isTurn(input) ? alone(checkWakeTurn(session, input, now)) : checkWake(session, input)),
+  act: ({ session }, input) =>
+    quietly(isTurn(input) ? alone(checkWakeTurn(session, input)) : checkWake(session, input)),
 }
 
 const finish: SessionCommand = {

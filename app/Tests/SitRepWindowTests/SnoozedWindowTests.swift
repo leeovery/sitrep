@@ -109,7 +109,8 @@ struct SnoozedWindowTests {
     @Test func voiceOverOffersALineThatIsAnAskItsSnoozes() throws {
         let run = Self.opened()
         let stopped = Listed.Row(
-            id: "sr-kit", name: "Kit", project: "Kit", section: .needsYou, mark: .needs, isAway: false, since: Self.now,
+            id: "sr-kit", session: "sr-kit", name: "Kit", project: "Kit", section: .needsYou, mark: .needs,
+            isAway: false, since: Self.now,
             lines: [Listed.Line(id: "stop:sr-kit:w1", lead: "Allow Bash", code: "gh pr create", more: nil, since: Self.now)]
         )
         let snoozes = { (line: PlaceList.LineRow) in

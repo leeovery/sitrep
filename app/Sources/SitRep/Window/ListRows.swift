@@ -1,4 +1,3 @@
-import struct SitRepPanel.Earlier
 import enum SitRepPanel.SnoozeTime
 import enum SitRepPanel.WakeTime
 import SitRepWindow

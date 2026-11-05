@@ -431,13 +431,19 @@ struct WelcomeWindowTests {
         #expect(made.welcome.chimes == 1)
     }
 
-    /// Followers hear one change, Play a sound and the sound together, never a half-made one.
+    /// A sound's click saves one change to the settings, Play a sound and the sound together, never a half-made one.
     @Test func aSoundsClickIsOneChangeToTheSettings() {
-        let made = Made()
-        var changes: [AppSettings] = []
+        let defaults = MemoryDefaults()
+        let made = Made(defaults: defaults)
+        nonisolated(unsafe) var changes: [AppSettings] = []
 
-        made.preferences.follow { changes.append($0) }
         made.at(.sound)
+
+        let saves = NotificationCenter.default.addObserver(
+            forName: UserDefaults.didChangeNotification, object: defaults, queue: nil
+        ) { _ in changes.append(SavedSettings<AppSettings>(defaults).read()) }
+
+        defer { NotificationCenter.default.removeObserver(saves) }
         made.welcome.choose(sound: nil)
         made.welcome.choose(sound: "Pop")
         #expect(changes.map(\.playsSound) == [false, true])

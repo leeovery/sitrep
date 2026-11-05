@@ -17,4 +17,16 @@ struct TextLineTests {
 
         #expect(line.width <= width && line.width > width - 12)
     }
+
+    /// Narrower than the ellipsis, where Core Text cuts none, nothing is drawn; as wide as the ellipsis, the ellipsis
+    /// alone: never the whole line, overrunning its box.
+    @Test func narrowerThanAnyCutItIsTheEllipsisAloneOrNothing() {
+        let font = EdgeStyle.lineMedium
+        let ellipsis = TextLine.width(TextLine.text("…", font, EdgeStyle.ink, kern: EdgeStyle.tightKern(font)))
+        let none = TextLine(Self.long, in: CGRect(x: 0, y: 0, width: ellipsis - 1, height: 18))
+        let alone = TextLine(Self.long, in: CGRect(x: 0, y: 0, width: ellipsis + 0.5, height: 18))
+
+        #expect(none.width == 0)
+        #expect(abs(alone.width - ellipsis) < 0.01)
+    }
 }

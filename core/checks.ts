@@ -12,7 +12,7 @@ import { isSessionId, newItemId, type Random } from './ids'
 import { directoryOf, isNameable } from './project'
 import { needsReload } from './release'
 import { isSnoozed, replyOnItsWay, yesOf } from './replies'
-import { snoozedTurnOf, turnEndOf } from './rows'
+import { turnEndOf } from './rows'
 import { WANTS } from './shapes'
 import type { StatusFields } from './status'
 import { inWords, oneLine } from './text'
@@ -739,19 +739,20 @@ export const checkSnoozeTurn = (
     : refuse('That time has come already: give one still to come.')
 }
 
-/** Lee's waking now of the session's turn Lee snoozed, named by its end: a snooze of it holds at `now`, or nothing is woken. */
-export const checkWakeTurn = (
-  session: Session,
-  input: unknown,
-  now: number,
-): Checked<WakeTurnBody> => {
+/**
+ * Lee's waking now of the session's turn Lee snoozed, named by its end: the
+ * snooze Lee last wrote names it, holding or not, since one run out at its
+ * time, or ended by a later turn, leaves nothing to wake and says so by no
+ * refusal; or nothing is woken.
+ */
+export const checkWakeTurn = (session: Session, input: unknown): Checked<WakeTurnBody> => {
   const turn = turnNamed(fieldsOf(input))
 
   if (!turn.ok) {
     return turn
   }
 
-  return snoozedTurnOf(session, now)?.turn === turn.value
+  return session.turnSnooze?.turn === turn.value
     ? ok({ type: 'wakeTurn', turn: turn.value })
     : refuse('That turn is not snoozed.')
 }

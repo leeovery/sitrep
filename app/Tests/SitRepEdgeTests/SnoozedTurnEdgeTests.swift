@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 @testable import SitRepCore
 @testable import SitRepEdge
@@ -7,7 +8,7 @@ import Testing
 
 /// A turn snoozed at the edge, over what the real CLI printed (`Lines.snoozedTurn`): a row of its own in the card's
 /// Snoozed, counted there and gone from Your turn and its count, saying when it wakes or that it waits until it moves;
-/// back on Your turn woken.
+/// back on Your turn woken; and held apart from its session's asks asleep, two rows, while the panel is out.
 @MainActor
 struct SnoozedTurnEdgeTests {
     /// When the real `watch` printed its first line here: 19:19 in London on Wednesday 4 November 2026.
@@ -65,6 +66,30 @@ struct SnoozedTurnEdgeTests {
         #expect(Self.eyebrows(run).map(\.count) == [3])
     }
 
+    /// Out, the panel holds a session's asks asleep and its turn asleep as two rows, each kept in its place as core
+    /// turns their order; in again, they take core's.
+    @Test func outThePanelHoldsASessionsAsksAndItsTurnAsleepApart() {
+        let run = Self.opened(Self.bothAsleep(asksFirst: true))
+        let asleep = ["snoozedTurn:sr-ctnbd2", "snoozed:sr-nwtrn5", "snoozedTurn:sr-nwtrn5"]
+        let onTheNotch = CGPoint(x: 3, y: 491), away = CGPoint(x: 900, y: 491)
+        let at = { (time: Double, pointer: CGPoint?) in
+            NotchRun.Moment(time: time, pointer: pointer, setting: Self.setting)
+        }
+
+        while run.phase != .open, run.time < 5000 {
+            run.step(at(run.time + 1000 / 60, onTheNotch))
+        }
+        _ = run.show(Self.bothAsleep(asksFirst: false), at(run.time, onTheNotch))
+        #expect(run.phase == .open)
+        #expect(Array(Self.keys(run).suffix(3)) == asleep)
+
+        run.clickElsewhere(at(run.time, nil))
+        while run.phase != .closed, run.time < 15000 {
+            run.step(at(run.time + 1000 / 60, away))
+        }
+        #expect(Array(Self.keys(run).suffix(3)) == [asleep[0], asleep[2], asleep[1]])
+    }
+
     // MARK: Helpers
 
     private static let setting = NotchRun.Setting(
@@ -93,6 +118,29 @@ struct SnoozedTurnEdgeTests {
 
     private static func keys(_ run: NotchRun) -> [String] {
         run.list.content.entries.map(\.item.key)
+    }
+
+    /// The first line with Northwind's asks asleep too, a row in Snoozed of their own, before its turn's or after it.
+    private static func bothAsleep(asksFirst: Bool) -> PanelBoard {
+        var line = try! JSONSerialization.jsonObject(with: Data(Lines.snoozedTurn[0].utf8)) as! [String: Any]
+        var rows = line["snoozed"] as! [[String: Any]]
+        var asks = rows[1]
+        var last = LastBoard()
+
+        asks["lines"] = [[
+            "key": "ask:sr-nwtrn5:k1", "is": "ask", "ask": "k1", "since": 1_793_818_000_000,
+            "wakesAt": 1_793_869_200_000,
+            "first": ["lead": "Pick the export's columns", "mono": NSNull(), "subject": NSNull(), "more": NSNull(),
+                      "until": NSNull()],
+        ]]
+        asks["wakesAt"] = 1_793_869_200_000
+        rows.insert(asks, at: asksFirst ? 1 : 2)
+        line["snoozed"] = rows
+
+        let text = String(decoding: try! JSONSerialization.data(withJSONObject: line), as: UTF8.self)
+
+        _ = last.hear(.line(text), at: .now)
+        return PanelBoard(last)
     }
 
     private static func eyebrows(_ run: NotchRun) -> [Eyebrow] {

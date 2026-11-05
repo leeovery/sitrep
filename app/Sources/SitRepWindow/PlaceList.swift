@@ -67,7 +67,7 @@ public struct PlaceList: Equatable, Sendable {
         public var pick: ListPick {
             switch self {
             case let .line(line): line.pick
-            case let .session(row): .session(row.id)
+            case let .session(row): .session(row.session)
             }
         }
 
@@ -97,7 +97,7 @@ public struct PlaceList: Equatable, Sendable {
         }
 
         /// The session it shows, which the page beside the list follows.
-        public var session: String { row.id }
+        public var session: String { row.session }
 
         /// What the filter reads of it.
         fileprivate var words: [String] {
@@ -267,6 +267,29 @@ public struct PlaceList: Equatable, Sendable {
 
         return picks.indices.contains(to) ? self.selection(of: picks[to]) : nil
     }
+}
+
+/// Your turn's "N earlier" at the foot of the SitRep window's middle list: the sessions whose turn ended longer ago
+/// than the fold period, in one line, which opens in place to show them. The card shows every your-turn row (board J).
+public struct Earlier: Equatable, Sendable {
+    public let count: Int
+    /// Their projects, each once, in the rows' order.
+    public let projects: [String]
+    public let isOpen: Bool
+
+    /// Of sessions in these projects, one each, in the rows' order.
+    public init(projects: [String], isOpen: Bool) {
+        count = projects.count
+        self.projects = projects.reduce(into: []) { once, project in
+            if !once.contains(project) {
+                once.append(project)
+            }
+        }
+        self.isOpen = isOpen
+    }
+
+    /// "8 earlier".
+    public var title: String { "\(count) earlier" }
 }
 
 private extension PlaceList.LineRow {

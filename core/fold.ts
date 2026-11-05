@@ -94,9 +94,27 @@ type Fold = {
   carried: Set<Reply>
   /** When Lee's latest snooze of each ask wakes, by ask, until a line ends it. */
   snoozes: Map<string, number>
-  /** Lee's latest snooze of the session's turn, until Lee wakes it. */
+  /** Lee's latest snooze of the session's turn, until Lee wakes it, or something needs Lee in the session or Lee replies there. */
   turnSnooze?: TurnSnooze
 }
+
+/** Whether an ask's snooze, running out at `until`, woke it by `at` and after Lee snoozed the turn: it needed Lee since. */
+const wokeSinceTurnSnooze = (fold: Fold, until: number | undefined, at: number) =>
+  until !== undefined && fold.turnSnooze !== undefined && fold.turnSnooze.at < until && until <= at
+
+/** An ask's snooze ended by a line at `at`; one that had woken it since Lee snoozed the turn ends the turn's too. */
+const endSnooze = (fold: Fold, id: string, at: number) => {
+  if (wokeSinceTurnSnooze(fold, fold.snoozes.get(id), at)) {
+    fold.turnSnooze = undefined
+  }
+  fold.snoozes.delete(id)
+}
+
+/** Lee's snooze of the turn as it stands at `now`: none once an ask Lee snoozed has woken since it was written. */
+const turnSnoozeAt = (fold: Fold, now: number) =>
+  [...fold.snoozes.values()].some(until => wokeSinceTurnSnooze(fold, until, now))
+    ? undefined
+    : fold.turnSnooze
 
 type Handler<T extends Body['type']> = (fold: Fold, entry: Extract<Written, { type: T }>) => void
 
@@ -420,7 +438,10 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
     }
 
     fitShape(ask)
-    post(fold, ask)
+
+    if (post(fold, ask)) {
+      fold.turnSnooze = undefined
+    }
   },
 
   note: (fold, { id, text, detail, ref, at, by }) => {
@@ -454,7 +475,7 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
     }
 
     item.reason = reason
-    fold.snoozes.delete(id)
+    endSnooze(fold, id, at)
 
     if (item.closedBy === undefined) {
       item.state = 'closed'
@@ -473,6 +494,10 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
     if (item !== undefined) {
       reopen(fold, item, at)
       item.reason = reason
+    }
+
+    if (item?.type === 'ask') {
+      fold.turnSnooze = undefined
     }
   },
 
@@ -518,6 +543,7 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
     arrive(fold, item, reply, at)
     fold.replies.set(id, reply)
     item.replies.push(reply)
+    fold.turnSnooze = undefined
 
     if (early !== undefined) {
       deliver(fold, reply, early)
@@ -559,11 +585,14 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
   },
 
   wake: (fold, { item: id }) => {
+    if (fold.snoozes.has(id)) {
+      fold.turnSnooze = undefined
+    }
     fold.snoozes.delete(id)
   },
 
-  snoozeTurn: (fold, { turn, until }) => {
-    fold.turnSnooze = until === undefined ? { turn } : { turn, until }
+  snoozeTurn: (fold, { turn, until, at }) => {
+    fold.turnSnooze = until === undefined ? { turn, at } : { turn, until, at }
   },
 
   wakeTurn: (fold, { turn }) => {
@@ -807,7 +836,7 @@ export const foldSession = (
     deliverer: deliverer(presence, now),
     waiting: waitingOnLee({ asks, finished: fold.finished }).length,
     finished: fold.finished,
-    turnSnooze: fold.turnSnooze,
+    turnSnooze: turnSnoozeAt(fold, now),
     ids: fold.ids,
     updatedAt,
   }

@@ -301,7 +301,7 @@ final class SessionRow {
         arc(in: CGRect(x: lane.maxX - 11, y: lane.midY - 5.5, width: 11, height: 11))
     }
 
-    /// An open ring this wide, its stroke 1.5 inside it: your turn's, an away ask's, and "N earlier"'s.
+    /// An open ring this wide, its stroke 1.5 inside it: your turn's, an away ask's, and a turn asleep's.
     static func ring(_ size: CGFloat, at centre: CGPoint, colour: CGColor) -> CALayer {
         let ring = disc(size, at: centre, fill: CGColor.clear)
 

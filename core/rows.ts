@@ -463,16 +463,20 @@ export const turnEndOf = (session: Session, now: number) =>
 
 /**
  * Lee's snooze of a session's turn, while it holds at `now`: the session
- * stands at your turn on the turn the snooze names, by its end, and the
- * snooze's time, if it has one, is still to come. Another turn, whether Lee
- * starts it or Claude's own work wakes it, ends it, and the next turn's end
- * comes back to Your turn; an ask waiting puts the session in Needs you.
+ * stands at your turn, its turn ending no later than the turn the snooze
+ * names, and the snooze's time, if it has one, is still to come. Of several
+ * windows, one letting go leaves it holding, and any turn ending later, a
+ * window's next or one joining, ends it: the next turn's end comes back to
+ * Your turn. An ask waiting puts the session in Needs you, and the fold
+ * ends the snooze once anything needs Lee there or Lee replies.
  */
 export const snoozedTurnOf = (session: Session, now: number): TurnSnooze | undefined => {
   const snooze = session.turnSnooze
+  const end = turnEndOf(session, now)
 
   return snooze !== undefined &&
-    turnEndOf(session, now) === snooze.turn &&
+    end !== undefined &&
+    end <= snooze.turn &&
     (snooze.until === undefined || now < snooze.until)
     ? snooze
     : undefined

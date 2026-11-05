@@ -371,8 +371,8 @@ export type Presence = {
  */
 export type Sending = { at: number; replies: SentReply[] }
 
-/** Lee's latest snooze of a session's turn: the turn it holds, by its end, and when it wakes, none until the turn moves. */
-export type TurnSnooze = { turn: number; until?: number }
+/** Lee's latest snooze of a session's turn: the turn it holds, by its end; when it wakes, none until the turn moves; and when Lee wrote it. */
+export type TurnSnooze = { turn: number; until?: number; at: number }
 
 /** A session as it stands, every writer's lines read together. */
 export type Session = {
@@ -401,7 +401,7 @@ export type Session = {
   waiting: number
   /** Set once the session is finished, until a window joins it again. */
   finished?: Finished
-  /** Lee's latest snooze of its turn, as written, until Lee wakes it: whether it holds at a moment is the rows' to say. */
+  /** Lee's latest snooze of its turn, as written, until Lee wakes it, or something needs Lee in the session or Lee replies there: whether it holds at a moment is the rows' to say. */
   turnSnooze?: TurnSnooze
   /** Every id the session's lines use, items and replies alike. */
   ids: ReadonlySet<string>

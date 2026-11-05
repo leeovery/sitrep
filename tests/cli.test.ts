@@ -526,9 +526,9 @@ test("snooze --turn writes Lee's snooze of the session's turn, named by its end,
   const done = { exit: EXIT.done, out: '', err: '' }
 
   expect(await t.run('snooze', ...turn, ...SESSION)).toEqual(done)
-  expect(folded(t, paths).turnSnooze).toEqual({ turn: NOW })
+  expect(folded(t, paths).turnSnooze).toEqual({ turn: NOW, at: NOW })
   expect(await t.run('snooze', ...turn, '--until', String(WAKES), ...SESSION)).toEqual(done)
-  expect(folded(t, paths).turnSnooze).toEqual({ turn: NOW, until: WAKES })
+  expect(folded(t, paths).turnSnooze).toEqual({ turn: NOW, until: WAKES, at: NOW })
   expect(await t.run('wake', ...turn, ...SESSION)).toEqual(done)
   expect(folded(t, paths).turnSnooze).toBeUndefined()
   expect(cliLines(t, paths)).toEqual([
@@ -537,6 +537,37 @@ test("snooze --turn writes Lee's snooze of the session's turn, named by its end,
     { v: VERSION, at: NOW, seq: 3, type: 'wakeTurn', turn: NOW },
   ])
   expect(t.files.has(paths.letters(WRITER)), 'nothing goes to its inbox').toBe(false)
+})
+
+test("snooze --turn names the turn ended last across the windows at Lee's turn: another window's, ended earlier, is over", async () => {
+  const t = terminal()
+  const paths = t.seed(META)
+
+  t.window(paths, W1, NOW, undefined, undefined, { is: 'yourTurn', since: NOW })
+  t.window(paths, W2, NOW, undefined, undefined, { is: 'yourTurn', since: NOW - MIN })
+  expect(await t.run('snooze', '--turn', String(NOW - MIN), ...SESSION)).toEqual({
+    exit: EXIT.refused,
+    out: '',
+    err: 'sitrep: That turn is over: the session has taken another since.\n',
+  })
+  expect(await t.run('snooze', '--turn', String(NOW), ...SESSION)).toEqual({
+    exit: EXIT.done,
+    out: '',
+    err: '',
+  })
+})
+
+test('wake --turn on a turn whose snooze has just run out is no refusal: nothing is left to wake, and it ends as done', async () => {
+  let now = NOW
+  const t = terminal({ now: () => now })
+  const paths = t.seed(META, { seenAt: NOW })
+  const turn = ['--turn', String(NOW)]
+  const done = { exit: EXIT.done, out: '', err: '' }
+
+  expect(await t.run('snooze', ...turn, '--until', String(NOW + 30_000), ...SESSION)).toEqual(done)
+  now = NOW + 40_000
+  expect(await t.run('wake', ...turn, ...SESSION)).toEqual(done)
+  expect(folded(t, paths).turnSnooze).toBeUndefined()
 })
 
 test("a snooze or a wake of a turn refused ends as refused, in the check's words, and writes nothing: no turn, asks with it, a turn over, a time come, a turn not snoozed, a session not waiting on Lee's message", async () => {

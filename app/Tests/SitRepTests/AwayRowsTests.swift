@@ -161,7 +161,7 @@ struct AwayRowsTests {
 
         return PlaceList.LineRow(
             session: Listed.Row(
-                id: "sr-ask001", name: "Session", project: Sample.project, section: .needsYou,
+                id: "sr-ask001", session: "sr-ask001", name: "Session", project: Sample.project, section: .needsYou,
                 mark: away ? .awayAsk : .needs, isAway: away, since: Date(timeIntervalSince1970: 0), lines: [line]
             ),
             line: line

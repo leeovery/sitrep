@@ -18,8 +18,8 @@ struct ListRowTests {
     nonisolated static func needs(away: Bool = false) -> PlaceList.Row {
         let since = now.addingTimeInterval(-3600)
         let session = Listed.Row(
-            id: "sr-4g01a7", name: "Harness modernisation", project: "Harness", section: .needsYou, mark: .needs,
-            isAway: away, since: since,
+            id: "sr-4g01a7", session: "sr-4g01a7", name: "Harness modernisation", project: "Harness",
+            section: .needsYou, mark: .needs, isAway: away, since: since,
             lines: (0 ..< 3).map { Listed.Line(id: "ask:\($0)", ask: "k\($0)", lead: "Ask \($0)", code: nil, more: nil, since: since) }
         )
 
@@ -27,12 +27,14 @@ struct ListRowTests {
     }
 
     nonisolated static let working = PlaceList.Row.session(Listed.Row(
-        id: "sr-macapp", name: "The Mac app", project: "SitRep", section: .working, mark: .working, isAway: false,
+        id: "sr-macapp", session: "sr-macapp", name: "The Mac app", project: "SitRep", section: .working,
+        mark: .working, isAway: false,
         since: now, lines: [Listed.Line(id: "turn:sr-macapp", lead: "Reading", code: "Board.swift", more: nil, since: now)]
     ))
 
     nonisolated static let turn = PlaceList.Row.session(Listed.Row(
-        id: "sr-v3t7a0", name: "Licensing", project: "Fumi", section: .yourTurn, mark: .turn, isAway: false, since: now,
+        id: "sr-v3t7a0", session: "sr-v3t7a0", name: "Licensing", project: "Fumi", section: .yourTurn, mark: .turn,
+        isAway: false, since: now,
         lines: [Listed.Line(id: "turn:sr-v3t7a0", lead: "Sketched", code: nil, more: nil, since: now)]
     ))
 
@@ -114,7 +116,8 @@ struct ListRowTests {
         line.wakesAt = now.addingTimeInterval(24 * 3600)
         return .line(PlaceList.LineRow(
             session: Listed.Row(
-                id: "sr-4g01a7", name: "Harness modernisation", project: "Harness", section: .snoozed, mark: .snoozed,
+                id: "sr-4g01a7", session: "sr-4g01a7", name: "Harness modernisation", project: "Harness",
+                section: .snoozed, mark: .snoozed,
                 isAway: away, since: now.addingTimeInterval(-3600), lines: [line], wakesAt: line.wakesAt
             ),
             line: line
@@ -147,8 +150,8 @@ struct ListRowTests {
     nonisolated static let turnAsleep: PlaceList.Row = {
         let line = Listed.Line(id: "turn:sr-4g01a7", lead: "Stage 2 is in", code: nil, more: nil, since: now)
         let session = Listed.Row(
-            id: "sr-4g01a7", name: "Harness modernisation", project: "Harness", section: .snoozed, mark: .snoozed,
-            isAway: false, since: now, lines: [line], isTurn: true
+            id: "turn:sr-4g01a7", session: "sr-4g01a7", name: "Harness modernisation", project: "Harness",
+            section: .snoozed, mark: .snoozed, isAway: false, since: now, lines: [line], isTurn: true
         )
 
         return .line(PlaceList.LineRow(session: session, line: line))

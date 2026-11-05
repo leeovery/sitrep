@@ -276,6 +276,25 @@ struct SitRepCLITests {
         ])
     }
 
+    /// A turn's end with milliseconds no binary fraction holds, as `watch` gives its row's `since`, comes back to the
+    /// CLI as the very millisecond the board gave, which the CLI matches exactly: the row's `Date` is rounded to it,
+    /// never cut short.
+    @Test func aTurnsEndIsNamedToTheMillisecondTheBoardGaveIt() async throws {
+        let (cli, programs) = Self.cli(Self.exited(0))
+        let line = Lines.snoozedTurn[0].replacingOccurrences(of: "1793817590000", with: "1793817590123")
+        var last = LastBoard()
+
+        _ = last.hear(.line(line), at: .now)
+
+        let ended = try #require(last.board?.rows.first?.since)
+
+        #expect(await cli.snooze(.turn(ended: ended), of: "sr-fbrk3m", until: nil) == .written)
+        #expect(await cli.wake(.turn(ended: ended), of: "sr-fbrk3m") == .written)
+        #expect(programs.all.map { Array($0.arguments.suffix(2)) } == [
+            ["--turn", "1793817590123"], ["--turn", "1793817590123"],
+        ])
+    }
+
     @Test(arguments: [
         "k1 is not snoozed.", "Lee's reply to k1 is on its way: it waits on Lee no more.",
     ])

@@ -1572,8 +1572,13 @@ aside. The rules for asks above stand beside this one, unchanged.
   your-turn row counts from. It ends at its time, or for Until it moves
   never by the clock, and as soon as the session takes another turn: the
   next turn's end comes back to Your turn unsnoozed, at the top, as any
-  turn ending does. An ask posted meanwhile goes to Needs you as any does.
-  Only Lee snoozes a turn, as only Lee snoozes an ask.
+  turn ending does. It ends for good, too, once anything in the session
+  needs Lee after it, or Lee replies there: as board I's note has it, what
+  goes on behind a turn put aside supersedes its snooze, and Lee replying
+  overrides it. So an ask posted, reopened, or asleep and woken, by Lee or
+  by its time, goes to Needs you as any does, and the turn, once nothing
+  waits, to Your turn, never back to Snoozed. Only Lee snoozes a turn, as
+  only Lee snoozes an ask.
 - **Where it lives:** two more kinds of line in the CLI's own file in the
   session, `cli.jsonl`, the format's version staying 1; the app writes them
   through the plugin's CLI, as it writes an ask's snooze. From the run that
@@ -1589,13 +1594,19 @@ aside. The rules for asks above stand beside this one, unchanged.
   `until`, none for Until it moves; `wakeTurn` names the turn Lee woke now.
   An old reader skips both, as it skips any line it does not know.
 - **The fold:** a session keeps Lee's latest `snoozeTurn`, in place of any
-  before (`turnSnooze`), and a `wakeTurn` naming its turn ends it. It holds
-  while the session stands at Lee's turn on that same end, the turn merged
-  across its windows (`turnOf`), and while `now` is before its `until`
-  (core's `snoozedTurnOf`). A turn taken since needs no line to end it: the
-  snooze names an end no window stands at, so it holds nowhere. Its `until`
-  counts among the instants the board next changes by time alone
-  (`nextBoardChange`).
+  before, with when it was written (`turnSnooze`), and a `wakeTurn` naming
+  its turn ends it. So does any line after it that needs Lee or is Lee's
+  reply: an `ask` posted, a `reopen` of an ask, a `wake` of an ask asleep,
+  a `reply` to any of the session's items; and an ask's snooze whose time
+  came after it was written and by `now`, judged as the session is folded.
+  It holds while the session stands at Lee's turn, the turn merged across
+  its windows (`turnOf`), ending no later than the end it names
+  (`turnEndOf`), and while `now` is before its `until` (core's
+  `snoozedTurnOf`). Of several windows, one letting go leaves it holding,
+  though the turn's end is then another's, earlier; a turn ending later,
+  a window's next or one joining at its own, ends it, so a turn taken since
+  needs no line to end it. Its `until` counts among the instants the board
+  next changes by time alone (`nextBoardChange`).
 - **Never told to Claude:** the lines are Lee's alone, and no change to
   Claude's board. They leave the session's `updatedAt` as it was (`UNTOLD`,
   `core/fold.ts`), so its told summary does not move and nothing rides into
@@ -1615,20 +1626,25 @@ aside. The rules for asks above stand beside this one, unchanged.
     9 across, its stroke 1.5, in the faint grey, #5C5C63 (on glass the
     tertiary); its session's name 13 in the soft grey, its project in the
     lane at its right, and in its time's place, in the soft grey too, when
-    it wakes, or "until it moves". Its menu offers Wake now.
-  - VoiceOver reads it as it reads a snoozed ask, its time "until it moves"
-    where it has none, and offers Wake now; a your-turn row's actions are
-    its menu's snoozes, "Snooze until it moves" last.
+    it wakes, or "until it moves". Its menu offers Wake now, and a
+    your-turn row's Snooze its three times, then after a separator Until it
+    moves, with no time beside it.
   - In the SitRep window it is a row under Needs you's "N snoozed", among
     the asks asleep in Snoozed's order and counted with them, an ask asleep
     quieted as the list draws one, but for its mark, your turn's ring in
     the tertiary, its words what Claude left Lee, and "until it moves" in
-    its time's place where it has no time. Its pick is its own key,
-    `turn:<session>`, so a session with its asks and its turn both asleep
-    has a row for each, no two alike. Its menu and VoiceOver offer Wake
-    now, and a Your turn row's offer Snooze with Until it moves, as the
-    card's do. Woken, its row goes back to Your turn, and a pick on it is
-    let go, as any pick whose row leaves the list.
+    its time's place where it has no time. Its row and its pick are keyed
+    its own, `turn:<session>`, so a session with its asks and its turn both
+    asleep has a row for each, no two alike; its jump, its menu and the page
+    beside the list act on its session. Its menu offers Wake now, and a
+    Your turn row's Snooze with Until it moves, as the card's do. VoiceOver
+    reads it as it reads an ask asleep, its time "until it moves" where it
+    has none, and offers Wake now; a Your turn row's actions are its menu's
+    snoozes, "Snooze until it moves" last. The card's rows are not read by
+    VoiceOver, so this is the window's alone. Snoozed or woken, its row
+    moves between Your turn and "N snoozed", and a pick on it is let go, as
+    any pick whose row leaves the list: the list shows it picked no more,
+    and the page stays on its session.
 - **The CLI:** `snooze` and `wake` name the turn by `--turn <ms>`, its end as
   `watch` gives its row's `since`, in place of asks:
 
@@ -1643,11 +1659,16 @@ aside. The rules for asks above stand beside this one, unchanged.
   milliseconds since the epoch, as watch gives its row's since.`); asks
   named with it (`Name the asks or the turn, not both.`); for `snooze`, a
   session not at Lee's turn (`<name> is not waiting on Lee's message: only
-  a turn Claude has ended snoozes.`), a turn ended since (`That turn is
-  over: the session has taken another since.`), then `--until` no time
+  a turn Claude has ended snoozes.`), a turn other than the one ended last
+  across its windows (`That turn is over: the session has taken another
+  since.`), then `--until` no time
   (`A snooze wakes at a time in milliseconds since the epoch.`) or come
-  already; for `wake`, a turn not snoozed (`That turn is not snoozed.`). A
-  turn snoozed already is snoozed again, to the new time or to none.
+  already; for `wake`, a turn no snooze of Lee's names (`That turn is not
+  snoozed.`): the latest Lee wrote, unless something since ended it (see
+  the fold). One whose time has come, or whose session has moved on since,
+  is woken with no refusal, as one woken already, so a Wake now pressed as
+  its time comes is never refused. A turn snoozed already is snoozed
+  again, to the new time or to none.
 - **The JSON:** each line of `watch`'s `snoozed` gains `is`, `ask` for an
   ask, `yourTurn` for a turn; a turn's line holds `ask` and `wakesAt` null,
   and so may a row's `wakesAt`. This breaks a reader once, by plan, with no
@@ -4887,8 +4908,9 @@ stands).
     those too; two as old as each other by their keys. At its foot,
     "N snoozed" counts the asks asleep and folds them, a row per ask, the
     soonest to wake first, then the oldest, then by key, as core orders
-    them; and the turns asleep among them, since 4 November 2026. Your turn's rows past the fold period sit under "N earlier" at its
-    foot, as now. A fold opens in place, is never kept, and shows open while
+    them; and the turns asleep among them, since 4 November 2026. Your
+    turn's rows past the fold period sit under "N earlier" at its foot, as
+    now. A fold opens in place, is never kept, and shows open while
     the filter holds text. A line row offers only its own ask to snooze or
     wake, never its session's others, which have rows of their own.
   - **The filter** keeps a line while every word typed appears in its

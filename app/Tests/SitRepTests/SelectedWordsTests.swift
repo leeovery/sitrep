@@ -19,8 +19,8 @@ struct SelectedWordsTests {
 
     private static func row(_ section: BoardSection, _ mark: Mark, _ line: Listed.Line) -> Listed.Row {
         Listed.Row(
-            id: "sr-1", name: "Name", project: "Mono", section: section, mark: mark, isAway: false, since: since,
-            lines: [line]
+            id: "sr-1", session: "sr-1", name: "Name", project: "Mono", section: section, mark: mark, isAway: false,
+            since: since, lines: [line]
         )
     }
 
@@ -160,8 +160,8 @@ struct SelectedWordsTests {
     @Test func nEarliersWordsAreSofterThanARowsItsProjectsFaint() throws {
         let earlier = { (project: String) in
             PlaceList.Row.session(Listed.Row(
-                id: project, name: "Name", project: project, section: .yourTurn, mark: .turn, isAway: false,
-                since: Self.since, lines: [Self.line("Name")], isEarlier: true
+                id: project, session: project, name: "Name", project: project, section: .yourTurn, mark: .turn,
+                isAway: false, since: Self.since, lines: [Self.line("Name")], isEarlier: true
             ))
         }
         let fold = PlaceList.Fold(kind: .earlier, rows: [earlier("Kit"), earlier("Fumi")], isOpen: false)

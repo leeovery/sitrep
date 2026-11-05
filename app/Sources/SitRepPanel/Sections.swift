@@ -79,62 +79,6 @@ public struct Eyebrow: Equatable, Sendable {
     public static let first = 4.0, after = 14.0
 }
 
-/// Your turn's "N earlier" in the SitRep window's sidebar: the sessions whose turn ended longer ago than the fold
-/// period, in one line, which opens in place to show them. The card shows every your-turn row (board J).
-public struct Earlier: Equatable, Sendable {
-    public let count: Int
-    /// Their projects, each once, in the rows' order.
-    public let projects: [String]
-    public let isOpen: Bool
-
-    public init(_ sessions: [Session], isOpen: Bool) {
-        self.init(projects: sessions.map(\.project), isOpen: isOpen)
-    }
-
-    /// Of sessions in these projects, one each, in the rows' order.
-    public init(projects: [String], isOpen: Bool) {
-        count = projects.count
-        self.projects = projects.reduce(into: []) { once, project in
-            if !once.contains(project) {
-                once.append(project)
-            }
-        }
-        self.isOpen = isOpen
-    }
-
-    /// "8 earlier".
-    public var title: String { "\(count) earlier" }
-}
-
-/// How long a your-turn row stays in the SitRep window's sidebar before it folds into "N earlier".
-public enum FoldPeriod: String, CaseIterable, Codable, Sendable {
-    case hour, fourHours, today, never
-
-    /// When on the wall clock, ms, a turn that ended at `since` folds: an hour or four after it, at the local midnight
-    /// after it, or never.
-    public func folds(_ since: Double, in calendar: Calendar) -> Double? {
-        switch self {
-        case .hour: since + Self.anHour
-        case .fourHours: since + 4 * Self.anHour
-        case .today: Self.midnight(after: since, in: calendar)
-        case .never: nil
-        }
-    }
-
-    /// Whether a turn that ended at `since` is folded at `now`, both ms on the wall clock.
-    public func isPast(_ since: Double, at now: Double, in calendar: Calendar) -> Bool {
-        folds(since, in: calendar).map { $0 <= now } ?? false
-    }
-
-    private static let anHour = 3_600_000.0
-
-    private static func midnight(after time: Double, in calendar: Calendar) -> Double? {
-        let day = calendar.startOfDay(for: Date(timeIntervalSince1970: time / 1000))
-
-        return calendar.date(byAdding: .day, value: 1, to: day).map { $0.timeIntervalSince1970 * 1000 }
-    }
-}
-
 /// What Lee folded on the card: the sections folded to their eyebrows.
 public struct CardFolds: Equatable, Sendable {
     public var sections: Set<BoardSection>

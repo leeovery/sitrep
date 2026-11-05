@@ -2,7 +2,6 @@ import AppKit
 import Observation
 import SitRepCore
 import SitRepEdge
-import enum SitRepPanel.FoldPeriod
 import enum SitRepPanel.SnoozeTime
 import SitRepWindow
 
@@ -64,11 +63,8 @@ final class WindowModel {
     /// How often the ages are drawn again while nothing else changes.
     private static let tick: TimeInterval = 30
 
-    /// `period`, how long a your-turn row stays before it folds into "N earlier": the window's own, an hour, since
-    /// Settings' "Your turn folds after" went with the card's "N earlier" (board J2, 4 November 2026).
     init(
-        plugin: Plugin, works: Works, snoozes: Snoozes, following: Following, period: FoldPeriod = .hour,
-        defaults: UserDefaults = .standard
+        plugin: Plugin, works: Works, snoozes: Snoozes, following: Following, defaults: UserDefaults = .standard
     ) {
         self.plugin = plugin
         self.works = works
@@ -77,7 +73,7 @@ final class WindowModel {
         self.defaults = defaults
         reducesMotion = Self.readReducesMotion(defaults)
         left = WhereLeft.read(defaults)
-        run = WindowRun(remembered: left, period: period)
+        run = WindowRun(remembered: left)
         actions = makeActions()
         listen()
     }

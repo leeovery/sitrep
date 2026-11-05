@@ -22,11 +22,6 @@ public final class WindowRun {
     public private(set) var isOpen = false
     /// The answers waiting out their two seconds.
     public var answers: Answers { details.answers }
-    /// How long a your-turn row stays in Your turn before it folds into "N earlier": the list refolds at once as it
-    /// changes.
-    public var period: FoldPeriod {
-        didSet { keepTheList() }
-    }
     /// What the Filter field holds, which narrows the list and the projects and never moves where the window is. A
     /// fold at the list's foot shows open while it holds text, and a click on it then changes nothing; as it clears,
     /// the folds are as they were, but the fold holding the pick opens, so the pick shows. Lee typing in it is Lee
@@ -53,8 +48,8 @@ public final class WindowRun {
     /// How many times a session opened from outside while no board had come has landed, on the board that came: the
     /// window puts focus on the list for each, as for any open from outside.
     public private(set) var landedLater = 0
-    /// The wall clock, against which a your-turn row passes the fold period, and the calendar its days are in, which
-    /// the window's wake times are worded on too.
+    /// The wall clock, against which a your-turn row passes the fold period; and the calendar the window's wake times
+    /// are worded in.
     private let wall: () -> Date
     public let calendar: Calendar
     /// The board as `watch` gives it, before it is held.
@@ -68,15 +63,12 @@ public final class WindowRun {
     /// Which sessions show on screen, read while the window shows.
     private var looks = ScreenLooks()
 
-    /// Opened where it was left, as given, a your-turn row folding into "N earlier" after the period given, against
-    /// this wall clock, its days in the Gregorian calendar in the Mac's time zone, followed as it changes
-    /// (`WakeTime.calendar`).
+    /// Opened where it was left, as given, a your-turn row folding into "N earlier" against this wall clock, its wake
+    /// times worded in the Gregorian calendar in the Mac's time zone, followed as it changes (`WakeTime.calendar`).
     public init(
-        remembered: Location? = nil, period: FoldPeriod = .hour, wall: @escaping () -> Date = Date.init,
-        calendar: Calendar = WakeTime.calendar
+        remembered: Location? = nil, wall: @escaping () -> Date = Date.init, calendar: Calendar = WakeTime.calendar
     ) {
         self.remembered = remembered
-        self.period = period
         self.wall = wall
         self.calendar = calendar
     }
@@ -619,27 +611,31 @@ public final class WindowRun {
         return shown
     }
 
+    /// How long a your-turn row stays in Your turn before it folds into "N earlier", from its turn's end: the window's
+    /// own, since Settings' "Your turn folds after" went with the card's "N earlier" (board J2, 4 November 2026).
+    private static let foldPeriod: TimeInterval = 3600
+
     /// The board, its your-turn rows marked where they have passed the fold period by the wall clock.
     private var listed: Listed {
-        let now = Self.ms(wall())
+        let now = wall()
         var marked = given
 
         marked.changeRows { row in
-            row.isEarlier = row.section == .yourTurn && period.isPast(Self.ms(row.since), at: now, in: calendar)
+            row.isEarlier = row.section == .yourTurn && Self.folds(row) <= now
         }
         return marked
     }
 
     /// When on the wall clock the next of Your turn's rows passes the fold period, folding into "N earlier".
     private var nextRefold: Date? {
-        let now = Self.ms(wall())
-        let folds = given.rows(in: .yourTurn).compactMap { period.folds(Self.ms($0.since), in: calendar) }
+        let now = wall()
 
-        return folds.filter { $0 > now }.min().map { Date(timeIntervalSince1970: $0 / 1000) }
+        return given.rows(in: .yourTurn).map(Self.folds).filter { $0 > now }.min()
     }
 
-    private static func ms(_ date: Date) -> Double {
-        date.timeIntervalSince1970 * 1000
+    /// When a your-turn row folds into "N earlier".
+    private static func folds(_ row: Listed.Row) -> Date {
+        row.since.addingTimeInterval(foldPeriod)
     }
 
     /// The page at this time, its washes under way: beside a place's list, the session its pick shows, led by the

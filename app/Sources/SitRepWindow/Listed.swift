@@ -33,9 +33,9 @@ public enum Mark: Sendable, Equatable {
 }
 
 /// The board as the window takes it, as the card lists it: a row for each session core has one for, in its section,
-/// Needs you, Your turn or Working, in core's order, each session once; a row in Snoozed for each with asks asleep,
-/// beside any it has in another; and every project, quiet ones too. The window's places and projects are drawn from it
-/// (`Places`, `PlaceList`).
+/// Needs you, Your turn or Working, in core's order, each session once; a row in Snoozed for each with asks asleep, and
+/// one for each turn asleep, beside any it has in another; and every project, quiet ones too. The window's places and
+/// projects are drawn from it (`Places`, `PlaceList`).
 public struct Listed: Equatable, Sendable {
     /// A project, a row of the sidebar, which opens its page: its sessions, those no window holds among them, and their
     /// notes as their boards are read.
@@ -59,7 +59,11 @@ public struct Listed: Equatable, Sendable {
     /// line with its project; in Snoozed, as under Needs you, its asks asleep its lines, or its turn's, and when the
     /// soonest wakes.
     public struct Row: Equatable, Sendable, Identifiable {
+        /// Its own: its session's, but for a turn in Snoozed, `turn:<session>`, so a session's two rows there never
+        /// share one.
         public let id: String
+        /// Its session's id, which its jump, its menu and the page beside the list act on.
+        public let session: String
         public let name: String
         /// Its project's name.
         public let project: String
@@ -205,18 +209,18 @@ extension Listed.Row {
     /// Core's row, with its lines and time.
     init(_ row: Board.Row) {
         self.init(
-            id: row.session, name: row.name, project: row.projectName, section: BoardSection(row.section),
-            mark: Mark(row.newest.kind, isAway: row.isAway), isAway: row.isAway, since: row.since,
-            lines: row.lines.map(Listed.Line.init), isTurn: row.section == .yourTurn
+            id: row.session, session: row.session, name: row.name, project: row.projectName,
+            section: BoardSection(row.section), mark: Mark(row.newest.kind, isAway: row.isAway), isAway: row.isAway,
+            since: row.since, lines: row.lines.map(Listed.Line.init), isTurn: row.section == .yourTurn
         )
     }
 
     /// Core's Snoozed row, its asks asleep its lines, or its turn's, its time its oldest's, and when its soonest wakes.
     init(_ row: Board.SnoozedRow) {
         self.init(
-            id: row.session, name: row.name, project: row.projectName, section: .snoozed, mark: .snoozed,
-            isAway: row.isAway, since: row.lines.map(\.since).min()!, lines: row.lines.map(Listed.Line.init),
-            wakesAt: row.wakesAt, isTurn: row.isTurn
+            id: row.id, session: row.session, name: row.name, project: row.projectName, section: .snoozed,
+            mark: .snoozed, isAway: row.isAway, since: row.lines.map(\.since).min()!,
+            lines: row.lines.map(Listed.Line.init), wakesAt: row.wakesAt, isTurn: row.isTurn
         )
     }
 }

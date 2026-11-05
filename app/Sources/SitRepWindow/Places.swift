@@ -78,7 +78,7 @@ public struct Places: Equatable, Sendable {
     /// holds, else the away ring.
     private static func marks(_ listed: Listed) -> [String: ProjectMark] {
         listed.needsYou.reduce(into: [:]) { marks, row in
-            guard let project = listed.homes[row.id], marks[project] != .needs else {
+            guard let project = listed.homes[row.session], marks[project] != .needs else {
                 return
             }
             marks[project] = row.isAway ? .awayAsk : .needs

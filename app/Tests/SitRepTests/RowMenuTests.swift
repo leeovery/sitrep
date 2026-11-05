@@ -133,6 +133,19 @@ struct RowMenuTests {
         #expect(timed.map(ink) == [SnoozeMenu.dim, SnoozeMenu.dim, SnoozeMenu.lit])
     }
 
+    /// Past the separator, which takes no title of its own, Until it moves is its name alone, highlighted or not: no
+    /// tab, and no time.
+    @Test func untilItMovesIsDrawnWithNoTabAndNoTime() {
+        let snooze = SnoozeMenu(SnoozeTime.offered(forTurn: true), at: Self.now, in: Self.london) { _ in }
+        let separator = snooze.items[3], moves = snooze.items[4]
+
+        #expect(separator.isSeparatorItem && separator.attributedTitle == nil)
+        for lit in [nil, moves] {
+            snooze.menu(snooze, willHighlight: lit)
+            #expect(moves.attributedTitle?.string == "Until it moves")
+        }
+    }
+
     /// The card's row offers what it shows: its asks, a window's stops aside; its turn, by the turn's end, on Your turn
     /// and in Snoozed; Wake now in Snoozed.
     @Test func theCardsRowOffersWhatItShows() {
