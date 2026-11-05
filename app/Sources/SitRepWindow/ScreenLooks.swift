@@ -66,8 +66,10 @@ struct ScreenLooks {
         due = Self.atOnce
     }
 
+    /// The window closes: it is visible again only once macOS says so, as it opens afresh.
     mutating func close() {
         window = .closed
+        isVisible = false
         generation += 1
         reading = nil
         lastLook = nil

@@ -65,8 +65,10 @@ final class WindowModel {
     /// How often the ages are drawn again while nothing else changes.
     private static let tick: TimeInterval = 30
 
+    /// Its run's wall clock as given (`WindowRun.init`), the Mac's unless a test's.
     init(
-        plugin: Plugin, works: Works, snoozes: Snoozes, following: Following, defaults: UserDefaults = .standard
+        plugin: Plugin, works: Works, snoozes: Snoozes, following: Following, defaults: UserDefaults = .standard,
+        wall: @escaping () -> Date = Date.init
     ) {
         self.plugin = plugin
         self.works = works
@@ -76,7 +78,7 @@ final class WindowModel {
         reducesMotion = Self.readReducesMotion(defaults)
         left = WhereLeft.read(defaults)
         looked = LastLooked.read(defaults)
-        run = WindowRun(remembered: left, looked: looked)
+        run = WindowRun(remembered: left, looked: looked, wall: wall)
         actions = makeActions()
         listen()
     }

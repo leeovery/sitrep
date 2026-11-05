@@ -3,7 +3,7 @@ import SitRepEdge
 import SitRepPanel
 
 /// When Lee last looked at each session, by its id: the time its page, beside a place's list or filling the window,
-/// last stopped showing, kept across launches as one value of its own under "windowLooked", and only for the sessions
+/// last stopped showing after he read it (`Reading`), kept across launches as one value of its own under "windowLooked", and only for the sessions
 /// on the board. Written only as the page stops showing, so it holds still while he reads it, and what comes meanwhile
 /// stands newer than it.
 public struct LastLooked: SavedValue {
@@ -50,6 +50,31 @@ public struct LastLooked: SavedValue {
 
     private enum CodingKeys: String, CodingKey {
         case sessions
+    }
+}
+
+/// The session whose page shows, and since when its thread has shown, its board kept: Lee read it only where its
+/// thread showed for a second at least, so a page passed in a run of ↓ or ↑, followed only once the run stops
+/// (`PickFollows`), or left before its board comes, or shown from a board kept for a moment, is not looked at.
+struct Reading: Equatable {
+    /// How long a thread shows for Lee to have read it.
+    static let long: TimeInterval = 1
+
+    let session: String
+    private(set) var since: Date?
+
+    init(session: String) {
+        self.session = session
+    }
+
+    /// Its thread shows at this time, unless it showed already.
+    mutating func threadShows(at time: Date) {
+        since = since ?? time
+    }
+
+    /// Lee read it, its page stopping showing at this time.
+    func wasRead(stopping time: Date) -> Bool {
+        since.map { time.timeIntervalSince($0) >= Self.long } ?? false
     }
 }
 

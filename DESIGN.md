@@ -5058,7 +5058,8 @@ stands).
     session of a project, or the session pushed.
   - **Where Lee last looked** at each session (5 November 2026, built as
     the last piece of the window's rebuild, as Lee chose on 4 November):
-    the time its page last stopped showing, which What happened's "You
+    the time its page last stopped showing after he read it, which What
+    happened's "You
     looked 2h ago" says. Its detail beside the list and its page filling
     the window are both its page, so going between them, or picking
     another line of the same session, writes nothing. Its page stops
@@ -5068,8 +5069,17 @@ stands).
     another Space, and as the app quits; back from the Dock or uncovered,
     it shows again and writes nothing until it stops once more. Not key,
     the window still shows it. A parked item's page is not its session's:
-    it never counts as looking at the session. Written only as the page
-    stops showing, the look holds still while Lee reads, and entries
+    it never counts as looking at the session. A page counts only where
+    Lee could read its thread: once its board is kept, which may come
+    after the page does, for a second at least, on the wall clock. A run
+    of ↓ or ↑ follows only its first session until it stops, so the
+    sessions it passes, their boards never carried, are not looked at,
+    nor is one passed in under a second on a board kept from before, nor a
+    page left before its board comes, however long it showed. Freshly
+    opened, the window shows nothing until macOS says it is visible, so
+    where it opens before landing elsewhere is not looked at either.
+    Written only as the page stops showing, the look holds still while
+    Lee reads, and entries
     arriving meanwhile land above the divider. Kept across launches in the
     app's defaults under "windowLooked", for the sessions on the board
     only, each board heard dropping the rest; with no board heard, none is

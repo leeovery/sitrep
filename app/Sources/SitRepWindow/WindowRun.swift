@@ -48,10 +48,10 @@ public final class WindowRun {
     /// How many times a session opened from outside while no board had come has landed, on the board that came: the
     /// window puts focus on the list for each, as for any open from outside.
     public private(set) var landedLater = 0
-    /// When Lee last looked at each session on the board: the time its page last stopped showing.
+    /// When Lee last looked at each session on the board: the time its page last stopped showing after he read it.
     public private(set) var looked: LastLooked
-    /// The session whose page shows, as the window last changed.
-    private var showing: String?
+    /// The session whose page shows, as the window last changed, and since when its thread has.
+    private var reading: Reading?
     /// The wall clock, against which a your-turn row passes the fold period and a session's page stops showing; and the
     /// calendar the window's wake times are worded in.
     private let wall: () -> Date
@@ -96,7 +96,7 @@ public final class WindowRun {
     /// (`History.keep(on:arranged:)`), and a session opened from outside before any board lands; when Lee last looked
     /// at a session is kept only while it is on the board. Then the sessions' boards the line carries are taken, each
     /// printed once, so only as the line comes, never again from the board kept stale; and stale, every answer written
-    /// is on its way.
+    /// is on its way. The page's session's board come, its thread shows.
     public func show(_ last: LastBoard, at time: Date, reducesMotion: Bool) {
         let fresh = last.stale == nil ? last.board : nil
         let isFirstBoard = !given.hasBoard
@@ -119,6 +119,7 @@ public final class WindowRun {
             }
         }
         keepOnItsWayUnwatched()
+        keepLooked()
     }
 
     /// While the board is stale no board can come, so an answer written is on its way, as the write proved.
@@ -460,13 +461,28 @@ public final class WindowRun {
         keepLooked(showing: sessionShowing)
     }
 
-    /// The session whose page shows now, as given: a session's page showing before and not now, Lee looked at it now,
-    /// by the wall clock. Only then, so while it shows its look holds still.
+    /// The session whose page shows now, as given, by the wall clock: a session's page showing before and not now, Lee
+    /// looked at it now, where he read it (`Reading`); only then, so while it shows its look holds still. Its thread
+    /// shows once its board is kept, as it may be only after the page does.
     private func keepLooked(showing now: String?) {
-        if let showing, showing != now {
-            looked.stopped(showing: showing, at: wall())
+        let time = wall()
+
+        if let reading, reading.session != now {
+            if reading.wasRead(stopping: time) {
+                looked.stopped(showing: reading.session, at: time)
+            }
+            self.reading = nil
         }
-        showing = now
+        guard let now else {
+            return
+        }
+
+        var shown = reading ?? Reading(session: now)
+
+        if details.board(of: now) != nil {
+            shown.threadShows(at: time)
+        }
+        reading = shown
     }
 
     /// The fold at the list's foot holding the pick, opened, so the pick shows: as a session opened from outside lands

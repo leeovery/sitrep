@@ -5,9 +5,9 @@ import SitRepLines
 import Testing
 
 /// Where Lee last looked at a session: written as its page stops showing, beside a place's list or filling the window
-/// alike, and as the window closes, is minimised or hidden, or the app quits, never for a parked item's page, and kept
-/// only for the sessions on the board; then on its page's What happened, the divider above the newest entry from at or
-/// before the look, only with entries on both sides of it.
+/// alike, and as the window closes, is minimised or hidden, or the app quits, never for a parked item's page, and only
+/// where its thread showed for a second at least; kept only for the sessions on the board; then on its page's What
+/// happened, the divider above the newest entry from at or before the look, only with entries on both sides of it.
 struct YouLookedTests {
     /// A wall clock the test moves.
     private final class Clock {
@@ -101,6 +101,7 @@ struct YouLookedTests {
         run.window(isVisible: true)
         clock.passes(60)
         run.go(to: .session("sr-nwdgr4", from: .place(.parked)), by: .backToSession)
+        run.show(heard(.line(Lines.parked[1])), at: clock.now, reducesMotion: false)
         #expect(run.looked == LastLooked())
         clock.passes(60)
         run.goBack()
@@ -156,6 +157,88 @@ struct YouLookedTests {
         clock.passes(60)
         run.window(isVisible: true)
         #expect(run.looked == LastLooked(["sr-macapp": clock.now.addingTimeInterval(-60)]))
+    }
+
+    /// Forward to the page Back left is its page showing again, read from then.
+    @Test func forwardShowsThePageAgainAndLeavingItWrites() {
+        let clock = Clock()
+        let run = Self.shown(clock: clock)
+
+        clock.passes(60)
+        run.click(.project("kit"))
+        clock.passes(60)
+        run.goBack()
+        clock.passes(60)
+        run.goForward()
+        #expect(run.looked == LastLooked(["sr-macapp": clock.now]))
+    }
+
+    /// Closed on Dashboard redesign's page, its board kept, and opened afresh on it, Needs you's first line, the window
+    /// is visible only once macOS says so: landing on the Mac app before then stamps nothing for Dashboard redesign.
+    @Test func aFreshOpenLandingElsewhereStampsNothingForWhereItOpened() {
+        let clock = Clock()
+        let run = Self.shown(clock: clock)
+        let stop = ListPick.line("stop:sr-dash02:w2:1792486361000")
+
+        run.pickInList(stop, at: clock.now)
+        take(["sr-dash02": Lines.dashboard], in: run, at: clock.now)
+        clock.passes(60)
+        run.close()
+        let closed = clock.now
+        clock.passes(60)
+        run.open()
+        #expect(run.location.picked?.pick == stop)
+        clock.passes(60)
+        run.land("sr-macapp")
+        run.window(isVisible: true)
+        #expect(run.looked["sr-dash02"] == closed)
+    }
+
+    // MARK: Read, not passed
+
+    /// A run of ↓ through Needs you, a fifth of a second a row, follows only its first session until it stops: past
+    /// Dashboard redesign, whose board never comes, the Mac app's lines again, from its board kept, and on to
+    /// Goosemates', where it stops. Only the Mac app's page, read before the run, is written, as the run left it.
+    @Test func aRunOfPicksPastSessionsWritesNothingForThem() {
+        let clock = Clock()
+        let run = Self.shown(clock: clock)
+
+        clock.passes(60)
+        let left = clock.now
+        for _ in 0 ..< 4 {
+            run.step(down: true, at: clock.now)
+            clock.passes(0.2)
+        }
+        #expect(run.location.picked?.pick == .line("ask:sr-gs7kq2:k1"))
+        clock.passes(3600)
+        run.click(.project("kit"))
+        #expect(run.looked == LastLooked(["sr-macapp": left]))
+    }
+
+    /// A session's page left before its board comes, however long it showed, is not looked at: its thread never showed.
+    @Test func aPageLeftBeforeItsBoardComesWritesNothing() {
+        let clock = Clock()
+        let run = Self.shown(clock: clock)
+
+        run.pickInList(.line("ask:sr-dash02:k1"), at: clock.now)
+        clock.passes(60)
+        run.pickInList(macAppK1, at: clock.now)
+        #expect(run.looked["sr-dash02"] == nil)
+    }
+
+    /// Its thread showing for under a second is passed, not read, however long the page showed waiting for its board;
+    /// for a second or more, read, and written as it stops.
+    @Test(arguments: [(0.5, false), (1.5, true), (3, true)])
+    func aPageIsReadOnlyOnceItsThreadShowedForASecond(withBoard seconds: TimeInterval, isRead: Bool) {
+        let clock = Clock()
+        let run = Self.shown(clock: clock)
+
+        run.pickInList(.line("ask:sr-dash02:k1"), at: clock.now)
+        clock.passes(30)
+        take(["sr-dash02": Lines.dashboard], in: run, at: clock.now)
+        clock.passes(seconds)
+        run.pickInList(macAppK1, at: clock.now)
+        #expect(run.looked["sr-dash02"] == (isRead ? clock.now : nil))
     }
 
     // MARK: Pruned
