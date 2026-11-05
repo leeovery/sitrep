@@ -180,6 +180,20 @@ for (const source of ['send', 'inbox'] as const) {
     expectWrittenOnce(w, paths, source)
   })
 
+  test(`${source}: held mid-turn, the message stays held through a subagent's run starting and ending, and goes as Claude's turn ends`, async ($, on) => {
+    const w = world($, on)
+    const { paths, claim } = await replying[source](w)
+
+    await w.turnStarts('Carry on.')
+    await claim()
+    await w.agentRunStarts(AGENT)
+    await turnEnded(w, { agentId: AGENT })
+    expectHeld(w, source)
+
+    await turnEnded(w)
+    expectWrittenOnce(w, paths, source)
+  })
+
   test(`${source}: a turn that starts as the last one ends, before the held message goes, keeps it held to its own end`, async ($, on) => {
     const w = world($, on)
     let isRacing = false
@@ -338,6 +352,25 @@ test("send: while held, Ready to send says it waits for Claude's turn to end, wi
 
   await turnEnded(w)
   expect(w.submitted, 'nothing goes as the turn ends').toEqual([])
+  expect(kindsIn(w, paths)).toEqual(['ask'])
+})
+
+test("send: held mid-turn, it is taken back while a subagent's run is under way: nothing goes as that run or Claude's turn ends", async ($, on) => {
+  const w = world($, on)
+  const { paths, ui, claim } = await replying.send(w)
+  const queued = w.state.queue
+
+  await w.turnStarts('Carry on.')
+  await claim()
+  await w.agentRunStarts(AGENT)
+  await ui.press({ key: TAKE_BACK })
+
+  expect(w.state.inFlight).toBeNull()
+  expect(w.state.queue).toEqual(queued)
+
+  await turnEnded(w, { agentId: AGENT })
+  await turnEnded(w)
+  expect(w.submitted).toEqual([])
   expect(kindsIn(w, paths)).toEqual(['ask'])
 })
 

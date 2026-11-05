@@ -1023,11 +1023,14 @@ app (see "The menu bar").
     the engine's code reads, Claude Code does not hold a turn open while
     background agents run: its turn ends as ever, and a held message goes
     in then.
-    - What was suspected first: each such run ends on a second notice that
-      the agent waits on its own background work, which Claude Code takes
-      into the transcript alone, with no model request and no
-      `turn.complete`. It starts no turn: 2.1.318 raises the main
-      conversation's `turn.start` only for a prompt it sends the model.
+    - First suspected: each such run ends on a second notice that the agent
+      waits on its own background work, which Claude Code takes into the
+      transcript alone, with no model request and no `turn.complete`, and
+      that notice started the window's turn. It does not: 2.1.318 raises the
+      main conversation's `turn.start` only for a prompt it sends the model.
+      Nor is Claude Code's `✳ Waiting for N background agents to finish` a
+      turn running: it is a note at the idle prompt, shown once Claude's
+      turn has ended while background agents still work.
     - So a `turn.start` carrying an `agentId` is a subagent's, and the
       window hears no turn of its own in it: it holds no message, clears
       none of the main loop's tools, candidates or stops, leaves what the

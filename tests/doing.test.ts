@@ -364,6 +364,9 @@ test("a subagent's turns neither start nor end the window's, and its tools do no
   await w.turnStarts('Review it.')
 
   const agent = w.calls('Agent', REVIEW)
+
+  await w.agentRunStarts(AGENT)
+
   const inside = w.calls('Read', { file_path: '/repo/core/state.ts' }, { agentId: AGENT })
 
   await w.turnEnds({ agentId: AGENT })
