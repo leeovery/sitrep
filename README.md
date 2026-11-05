@@ -205,10 +205,10 @@ A release is cut and built on a Mac, by mint:
 
 mint sets the version in `.claude-plugin/plugin.json`, which the app takes too. The app is built, signed and notarized before mint's tag, so a failure in any of that stops the release with nothing public yet. Its `pre_tag` hook runs every gate above, since no CI does, then `app/release-build`, which:
 
-1. stops when the working tree differs from HEAD in anything but mint's bookkeeping (the version in `plugin.json`, `CHANGELOG.md`, `.mint.toml`);
+1. stops when the working tree differs from HEAD in anything but mint's bookkeeping (the version in `plugin.json`, `CHANGELOG.md`, `.mint.toml`), untracked files included, since mint commits whatever `pre_tag` leaves into the tag; so a `--notes-file` lives outside the repository;
 2. builds the app from HEAD, in a worktree of its own, by HEAD's own `app/bundle`, stamped with the version mint is about to tag;
 3. notarizes and staples it (`app/notarize`), and checks that Gatekeeper accepts the zip as a download;
-4. keeps the zip, its sha256 and the commit built in `~/Library/Caches/SitRep/release/<version>/`.
+4. checks the working tree again, and that HEAD is still the commit built, then keeps the zip, its sha256 and the commit built in `~/Library/Caches/SitRep/release/<version>/`, where other versions' builds are kept a month.
 
 Then mint writes the notes, commits the version and the changelog, tags `v<version>`, pushes, and makes the GitHub release. Its `post_release` hook runs `app/release-upload`, which builds nothing:
 

@@ -6219,28 +6219,40 @@ reaches a window only while that pane is on show).
      CI (28 October 2026).
    - **Built before the tag** (`app/release-build`), the last of mint's
      `pre_tag`, once every gate has passed: from HEAD, which mint tags once
-     it commits its bookkeeping, in a git worktree of its own in a temporary
-     folder, by HEAD's own `app/bundle --release`. mint's `pre_tag` runs
+     it commits its bookkeeping, in a git worktree of its own outside the
+     repository, by HEAD's own `app/bundle --release`. mint's `pre_tag` runs
      before mint writes the new version into `plugin.json`, so `app/bundle`
      takes the version from `MINT_NEW_VERSION` when mint sets it, else from
      `plugin.json`, stamps it into the app's and the helper's Info.plist and
      writes it into the bundled plugin's `plugin.json`, as mint's
      `version_pattern` writes it; `app/release-build` checks the app and the
-     bundled plugin carry it. The working tree may differ from HEAD only in
-     mint's bookkeeping, `plugin.json` in its version alone, `CHANGELOG.md`
-     and `.mint.toml`: anything else would be built from HEAD without it,
-     or committed by mint as `pre_tag`'s artifacts and tagged unbuilt, so it
-     stops the release. Files git doesn't track never reach a worktree of
-     HEAD, so they stop nothing. A tag already there for the version stops
-     it too: HEAD isn't then what's to be tagged. Then notarised and stapled
+     bundled plugin carry it. mint commits whatever `pre_tag` leaves in the
+     working tree, untracked files included, into the tag as `pre_tag`'s
+     artifacts, so the tree may differ from HEAD only in mint's
+     bookkeeping, `plugin.json` in its version alone, `CHANGELOG.md` and
+     `.mint.toml`, untracked files counted: anything else would be tagged
+     unbuilt, so it stops the release. The check runs before the build and
+     again once Apple has answered, before the build is kept, with HEAD
+     still the commit built, as the build and Apple's wait take minutes in
+     which the clone can change. So a `--notes-file` for mint lives outside
+     the repository. A tag already there for the version stops it too: HEAD
+     isn't then what's to be tagged. Then notarised and stapled
      (`app/notarize`), and the zip of the stapled app, its sha256 and the
-     commit built kept in `~/Library/Caches/SitRep/release/<version>/`, in
-     place of any other version's, as one release is made at a time. A
-     failure anywhere in that, the build, the signing, the certificate or
-     the notary's login gone, or Apple refusing, stops the release before
-     its tag, for mint to be run again once it's put right: nothing is
-     public yet. By hand, `app/release-build <version> [<ref>]` builds the
-     version given, from HEAD or from the ref, as a tag's tree.
+     commit built kept in `~/Library/Caches/SitRep/release/<version>/`,
+     replacing that version's; other versions' builds are kept a month, so
+     a trial build, as `app/release-build 0.0.0-check`, never takes the one
+     a failed upload still needs. The worktree and the bundle are made in
+     `.sitrep-release-work` there, which each run clears first, as mint's
+     cancel kills a hook before its own cleanup, which would leave a signed
+     SitRep.app for macOS to launch by its bundle id. `SITREP_RELEASE_CACHE`,
+     an absolute path, keeps the builds elsewhere, as a trial run's scratch
+     folder; a run removes nothing there but the version folders and the
+     work folder it makes. A failure anywhere in that, the build, the
+     signing, the certificate or the notary's login gone, or Apple
+     refusing, stops the release before its tag, for mint to be run again
+     once it's put right: nothing is public yet. By hand, `app/release-build
+     <version> [<ref>]` builds the version given, from HEAD or from the
+     ref, as a tag's tree.
    - **Uploaded after it** (`app/release-upload`), mint's `post_release`,
      once the tag and the release are pushed: the zip kept uploaded to the
      release as `SitRep-<version>.zip`, replacing one there, and the cask

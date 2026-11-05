@@ -55,7 +55,8 @@ A release (`./release`) is built before mint's tag and uploaded after it.
 worktree of its own, the bundle stamped with the version mint is about to
 tag, notarizes and staples it (`app/notarize`), and keeps the zip in
 `~/Library/Caches/SitRep/release/<version>/`; anything dirty beyond mint's
-bookkeeping (`plugin.json`, `CHANGELOG.md`, `.mint.toml`) stops it.
+bookkeeping (`plugin.json`, `CHANGELOG.md`, `.mint.toml`), untracked files
+included, or HEAD moving before the zip is kept, stops it.
 `app/release-upload`, mint's `post_release`, uploads that zip to the GitHub
 release and, for the latest release, sends the cask in
 `leeovery/homebrew-tools` the new zip and waits on the tap's update; it
