@@ -1019,9 +1019,10 @@ app (see "The menu bar").
     window heard until Claude's next turn ended. A Portal session on 5
     November 2026 shows the rest: Claude's turn ended at 12:22:58 with two
     background agents at work, no subagent's run started after it, and Lee's
-    answer at 12:27:55 went in at once. Claude Code does not hold a turn
-    open while background agents run: its turn ends as ever, and a held
-    message goes in then.
+    answer at 12:27:55 went in at once. So, as seen there once live and as
+    the engine's code reads, Claude Code does not hold a turn open while
+    background agents run: its turn ends as ever, and a held message goes
+    in then.
     - What was suspected first: each such run ends on a second notice that
       the agent waits on its own background work, which Claude Code takes
       into the transcript alone, with no model request and no
@@ -1032,6 +1033,10 @@ app (see "The menu bar").
       none of the main loop's tools, candidates or stops, leaves what the
       last Stop left pending (the heartbeat stays on its own work), and
       leaves a message's quiet counting (see "Never taken", below).
+    - A window that kept such a turn when it reloaded into this fix keeps
+      it until Claude's next turn ends: its message held, and its heartbeat
+      and the board saying working. Nothing on loading tells that turn from
+      a real one, so it is left to heal there, once.
     - From 4 to 5 November 2026, Ready to send said `⧗ Claude is waiting on
       its background work: this goes in when that ends.` while the turn the
       window heard seemed only to wait on that work: its main loop done, by
