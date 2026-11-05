@@ -94,7 +94,7 @@ struct DottedRingTests {
 
         run.click(.place(.working))
 
-        let row = try #require(run.list(at: HostedSidebar.printed)?.rows.first { $0.row.name == "The bootstrap" })
+        let row = try #require(run.list(at: HostedSidebar.printed)?.rows.first { $0.row?.name == "The bootstrap" })
         let drawn = try Drawn(
             ListLine(item: .row(row), place: .working, picked: row.pick, filter: Filter(), now: HostedSidebar.printed)
                 .environment(\.isStill, true),
@@ -106,7 +106,7 @@ struct DottedRingTests {
         let ring = try #require(drawn.drawnBox(in: lane, ground: ground))
         let under = try #require(drawn.stored(at: ground))
 
-        #expect(row.row.mark == .onItsWork)
+        #expect(row.row?.mark == .onItsWork)
         #expect(abs(ring.midX - 29) <= 0.5 && abs(ring.midY - middle) <= 0.5)
         #expect(abs(ring.width - 10) <= 1 && abs(ring.height - 10) <= 1)
         #expect(abs(Self.colour(drawn, in: ring)[0] - (0.45 + 0.55 * under.redComponent)) <= 0.02)

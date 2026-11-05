@@ -240,14 +240,17 @@ struct LocationTests {
         #expect(Location.place(.parked, scope: .project("kit")).picking(nil) == .place(.parked, scope: .project("kit")))
     }
 
-    /// Until Parked lists its items, a remembered Parked pick passes a fresh open as it is.
-    @Test func aRememberedParkedPickSurvivesAFreshOpen() {
+    /// A remembered Parked pick its list, narrowed as it was, still lists passes a fresh open as it is; one whose item
+    /// went drops, the narrowing staying.
+    @Test func aRememberedParkedPickSurvivesAFreshOpenWhileItsItemStays() {
         let parked = Location.place(
             .parked, picked: Selection(pick: .parked(session: "w1", id: "p1"), session: "w1"), scope: .session("w1")
         )
-        let quiet = Built.listed([Built(id: "w1", project: "northwind", parked: 1)])
+        let quiet = Built.listed([Built(id: "w1", project: "northwind", parked: [30])])
+        let unparked = Built.listed([Built(id: "w1", project: "northwind")])
 
         #expect(Location.opening(on: quiet, remembered: parked) == parked)
+        #expect(Location.opening(on: unparked, remembered: parked) == .place(.parked, scope: .session("w1")))
     }
 
     // MARK: Kept across launches

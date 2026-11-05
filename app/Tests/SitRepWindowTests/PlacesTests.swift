@@ -68,7 +68,7 @@ struct PlacesTests {
 
     /// Something parked keeps a project from being quiet, with nothing open or waiting.
     @Test func somethingParkedKeepsAProjectFromBeingQuiet() throws {
-        let parked = Built(id: "a1", project: "contoso", isAway: true, parked: 2)
+        let parked = Built(id: "a1", project: "contoso", isAway: true, parked: [40, 20])
         let places = Places(Built.listed([parked]))
         let project = try #require(places.projects.first)
 

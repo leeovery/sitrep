@@ -118,11 +118,6 @@ struct PlaceListTests {
         #expect(PlaceList(.yourTurn, in: listed, isFoldOpen: true).picks == all)
     }
 
-    /// Parked's list comes with the parked items on `watch`'s line: for now it lists nothing.
-    @Test func parkedListsNothingYet() {
-        #expect(PlaceList(.parked, in: Self.listed).isEmpty)
-    }
-
     // MARK: The filter
 
     /// A line stays while every word appears in its session's name, its project's or its own words: only SitRep's

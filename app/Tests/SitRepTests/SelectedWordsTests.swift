@@ -1,5 +1,6 @@
 import AppKit
 @testable import SitRep
+@testable import SitRepCore
 import enum SitRepPanel.BoardSection
 @testable import SitRepWindow
 import SwiftUI
@@ -42,6 +43,12 @@ struct SelectedWordsTests {
         return PlaceList.Row.line(PlaceList.LineRow(session: row(.snoozed, .snoozed, sleeping), line: sleeping))
     }()
 
+    /// An item parked, under Parked.
+    private static let parked = PlaceList.Row.parked(Listed.Parked(
+        item: SessionBoard.Parked(id: "p1", title: "Try a shorter welcome", where: nil, ref: nil, at: since),
+        session: "sr-1", sessionName: "Name", project: "mono", projectName: "Mono"
+    ))
+
     private static let working = PlaceList.Row.session(row(.working, .working, line("Running", code: "swift test")))
     private static let waiting = PlaceList.Row.session(row(.working, .onItsWork, line("Waiting on", subject: "agents")))
     private static let turn = PlaceList.Row.session(row(.yourTurn, .turn, line("Name")))
@@ -54,7 +61,7 @@ struct SelectedWordsTests {
 
     private static func drawn(_ row: PlaceList.Row, on prominence: BackgroundProminence = .standard) throws -> Drawn {
         let height = switch row {
-        case .line: WindowStyle.lineHeight
+        case .line, .parked: WindowStyle.lineHeight
         case let .session(session): session.section == .yourTurn ? WindowStyle.oneLineHeight : WindowStyle.twoLineHeight
         }
 
@@ -115,6 +122,20 @@ struct SelectedWordsTests {
     @Test(arguments: [lineWords, lineAge])
     func aLinesWordsAndAgeAreWhiteAt55PercentElsewhere(part: CGRect) throws {
         Self.expectGrey(try Self.drawn(Self.asking()).brightest(in: part), 0.55)
+    }
+
+    /// A parked item's title, as a line's name, white at 85% and white on the selection; its session under it and its
+    /// age at 55%, and on the selection at 80%.
+    @Test func aParkedItemsTitleIsWhiteOnTheSelectionItsSessionAndAgeSofter() throws {
+        let rest = try Self.drawn(Self.parked)
+        let picked = try Self.drawn(Self.parked, on: .increased)
+
+        Self.expectGrey(try rest.brightest(in: Self.lineName), 0.85)
+        #expect(try picked.brightest(in: Self.lineName).isWhite)
+        for part in [Self.lineWords, Self.lineAge] {
+            Self.expectGrey(try rest.brightest(in: part), 0.55)
+            Self.expectGrey(try picked.brightest(in: part), 0.8)
+        }
     }
 
     @Test(arguments: [project, age])
