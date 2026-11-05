@@ -160,12 +160,10 @@ export type SitrepStop = { call: string; at: number; agentId?: string } & (
   { is: 'permission'; tool: SitrepToolShown } | { is: 'question'; question?: SitrepQuestionShown }
 )
 
-/** What this window has heard of its own doing, its heartbeat's state worked out from it, and whether its turn only waits on background work: core's `Activity`, with when the load that kept it began. */
+/** What this window has heard of its own doing, its heartbeat's state worked out from it: core's `Activity`, with when the load that kept it began. */
 export type SitrepActivity = {
   loadedAt?: number
   turnAt?: number
-  /** The running turn's id, as its start gave it. */
-  turnId?: string
   endedAt?: number
   tools: { call: string; tool: SitrepToolShown }[]
   asked: { call: string; tool: string; input: { [argument: string]: string }; agentId?: string }[]
@@ -173,10 +171,6 @@ export type SitrepActivity = {
   work?: SitrepWork
   /** The monitors heard started: core's `Watch`. */
   watches: { task: string; isPersistent: boolean }[]
-  /** The subagents' loops heard running, by id. */
-  loops: string[]
-  /** The window's own loop done inside its running turn, its latest request asking for no tool. */
-  isDone?: true
 }
 
 /** A finished session: core's `Finished`. */

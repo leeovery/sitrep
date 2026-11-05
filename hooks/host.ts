@@ -10,7 +10,6 @@
  * window started in, which writer this window is, and random bytes.
  */
 import type {
-  AgentInfo,
   FsEntry,
   PaneOpenArgs,
   ProcessRunResult,
@@ -80,8 +79,6 @@ export type Host = {
     /** Walks up from a shell Claude Code starts to the first process with a terminal: the tty name it printed (`ttys043`), if any, and how it exited. */
     tty: () => Promise<Pick<ProcessRunResult, 'exitCode' | 'stdout' | 'stderr'>>
   }
-  /** The session's agents as the engine lists them, each with where its loop stands. */
-  agents: () => Promise<readonly AgentInfo[]>
   /** The plugin as the engine loaded it. */
   plugin: {
     /** Its manifest's text, as it stands on disk. */
