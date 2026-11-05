@@ -36,6 +36,7 @@ import { takeBackKey } from '../hooks/draw/ready'
 import { PANE } from '../hooks/pane'
 import { itemKey } from '../hooks/places'
 import { MANIFEST } from '../hooks/version'
+import type { SitrepInFlight, SitrepStoredFlights } from '../types'
 import { file, T0, W1, W2, type Line } from './support'
 
 type Sitrep = PluginState['sitrep']
@@ -51,6 +52,43 @@ export const HOME = '/Users/lee'
 
 /** The sitrep version the plugin's manifest gives, unless a test says otherwise. */
 export const PLUGIN_VERSION = '0.2.0'
+
+/**
+ * A door on the writes of the messages in flight, set up before the test
+ * first calls the engine: once `hold` picks one, by the claims it writes,
+ * the next write it picks waits there until `open()`, an update read and
+ * decided, not yet landed, so another can land first. `arrived` once one
+ * waits there.
+ */
+export const writeDoor = (on: On) => {
+  let isIt: ((flights: SitrepInFlight[]) => boolean) | undefined
+  let arrive = () => {}
+  let open = () => {}
+  const arrived = new Promise<void>(resolve => {
+    arrive = resolve
+  })
+  const opened = new Promise<void>(resolve => {
+    open = resolve
+  })
+
+  on('state.set', { plugin: 'sitrep', key: 'inFlight' }, async ($, e, next) => {
+    if (isIt?.(keptFlights(e.value as SitrepStoredFlights)) === true) {
+      isIt = undefined
+      arrive()
+      await opened
+    }
+
+    return next(e)
+  })
+
+  return {
+    hold: (pick: (flights: SitrepInFlight[]) => boolean) => {
+      isIt = pick
+    },
+    arrived,
+    open: () => open(),
+  }
+}
 
 /** The plugin's manifest, giving `version`. */
 export const manifestOf = (version: unknown) =>

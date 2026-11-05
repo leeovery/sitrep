@@ -5,14 +5,14 @@
  * two, so a take-back and the turn's end racing never both win, and never
  * lose the message.
  */
-import type { On, SessionEndReason } from 'claude-code'
+import type { SessionEndReason } from 'claude-code'
 import { expect, test, tier } from 'claude-code/testing'
 import { parseEntries, parsePresence, type SessionPaths } from '../core'
 import { QUIET_MS } from '../hooks/deliver'
 import { WATCH_MS } from '../hooks/window'
 import type { SitrepInFlight } from '../types'
 import { AGENT, file, MIN, reply, SENDER, SLOW, W1 } from './support'
-import { CONVERSATION, postedId, world } from './world'
+import { CONVERSATION, postedId, world, writeDoor } from './world'
 
 tier('user')
 
@@ -102,41 +102,6 @@ const turnEnded = async (w: World, how?: Parameters<World['turnEnds']>[0]) => {
   await w.clock.settle()
 }
 
-/**
- * A door on the writes of the message in flight, set up before the test
- * first calls the engine: once `hold` picks one, the next write it picks
- * waits there until `open()`, an update read and decided, not yet landed, so
- * another can land first. `arrived` once one waits there.
- */
-const writeDoor = (on: On) => {
-  let isIt: ((value: SitrepInFlight | null) => boolean) | undefined
-  let arrive = () => {}
-  let open = () => {}
-  const arrived = new Promise<void>(resolve => {
-    arrive = resolve
-  })
-  const opened = new Promise<void>(resolve => {
-    open = resolve
-  })
-
-  on('state.set', { plugin: 'sitrep', key: 'inFlight' }, async ($, e, next) => {
-    if (isIt?.(e.value as SitrepInFlight | null) === true) {
-      isIt = undefined
-      arrive()
-      await opened
-    }
-
-    return next(e)
-  })
-
-  return {
-    hold: (pick: (value: SitrepInFlight | null) => boolean) => {
-      isIt = pick
-    },
-    arrived,
-    open: () => open(),
-  }
-}
 
 for (const source of ['send', 'inbox'] as const) {
   test(`${source}: claimed while Claude is mid-turn, the message is held, nothing submitted however long the turn runs; as it ends it goes in, written down once`, SLOW, async ($, on) => {
@@ -419,7 +384,7 @@ test("the turn's end landing before a take-back it raced: the take-back finds th
 
   await w.turnStarts('Carry on.')
   await claim()
-  takingBack.hold(value => value === null)
+  takingBack.hold(flights => flights.length === 0)
 
   const pressed = ui.press({ key: w.takeBack() })
 
@@ -448,7 +413,7 @@ test("a take-back landing before the turn's end it raced: the turn's end finds t
 
   await w.turnStarts('Carry on.')
   await claim()
-  going.hold(value => value?.isHeld === false)
+  going.hold(([first]) => first?.isHeld === false)
 
   const ended = turnEnded(w)
 

@@ -284,6 +284,13 @@ export type SitrepInFlight = SitrepSessionRef & {
   isTaken: boolean
 }
 
+/**
+ * The messages in flight as `$.state` keeps them, in the order claimed: one
+ * alone, as builds before several sends kept it, several in a list, none as
+ * null, so a build switched back to still reads one.
+ */
+export type SitrepStoredFlights = SitrepInFlight | SitrepInFlight[] | null
+
 /** A session in brief: core's `SessionSummary`. */
 export type SitrepSummary = {
   id: string
@@ -378,12 +385,8 @@ declare module 'claude-code' {
       queue: SitrepQueued[]
       /** Where replies written into other sessions' inboxes went, until Claude has them. */
       sent: SitrepSent[]
-      /**
-       * The messages on their way to Claude, in the order claimed: one alone,
-       * as builds before several sends kept it, several in a list, none as
-       * null, so a build switched back to still reads one.
-       */
-      inFlight: SitrepInFlight | SitrepInFlight[] | null
+      /** The messages on their way to Claude. */
+      inFlight: SitrepStoredFlights
       pane: SitrepPane
       /** How far down the docked board's list stands, or null at its top. */
       scroll: SitrepScroll | null

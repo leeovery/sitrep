@@ -14,6 +14,7 @@ import { expect, test, tier } from 'claude-code/testing'
 import { HEARTBEAT_MS, parseEntries, parsePresence, sessionPaths, type SessionPaths } from '../core'
 import { keptFlights, QUIET_MS } from '../hooks/deliver'
 import { WATCH_MS } from '../hooks/window'
+import type { SitrepInFlight, SitrepStoredFlights } from '../types'
 import { file, MIN, reply, SENDER, SLOW, W1 } from './support'
 import { postedId, PROJECT, CONVERSATION, ROOT, startedId, world } from './world'
 
@@ -452,4 +453,32 @@ test('a claim another load ended leaves the heartbeat at its next beat, though t
 
   expect(sendingIn(w, paths)).toBeUndefined()
   expect(w.state.board?.waiting).toBe(1)
+})
+
+/** A send of one reply, claimed at `claimedAt` and held. */
+const claimAt = (claimedAt: number): SitrepInFlight => ({
+  source: 'send',
+  project: PROJECT.key,
+  session: 'sr-k3p9xw',
+  writer: W1,
+  text: MESSAGE,
+  replies: [{ type: 'reply', id: `r${claimedAt}`, item: 'k1', verdict: 'yes' }],
+  claimedAt,
+  isHeld: true,
+  isTaken: false,
+})
+
+test("keptFlights: the claims $.state kept, none, one alone or a list, in the order claimed; the object a build before several sends made of a list, spreading it, is read as no claim, nor as those inside it", () => {
+  const first = claimAt(1)
+  const second = claimAt(2)
+  const older = { ...claimAt(3), isHeld: undefined } as unknown as SitrepInFlight
+  const spread = { ...[first, second], isHeld: false } as unknown as SitrepStoredFlights
+
+  expect(keptFlights(null)).toEqual([])
+  expect(keptFlights(first)).toEqual([first])
+  expect(keptFlights([first, second])).toEqual([first, second])
+  expect(keptFlights(older), 'kept before the window held messages: submitted as claimed').toEqual([
+    { ...claimAt(3), isHeld: false },
+  ])
+  expect(keptFlights(spread)).toEqual([])
 })

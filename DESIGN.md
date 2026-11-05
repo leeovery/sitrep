@@ -809,9 +809,13 @@ list, which scrolls between it and the header; the list's last
 line scrolls clear of it. **Inline** (the phone) it sits at the end of the
 content. Each of its lines keeps to one row, cut short, so its height
 follows from what it holds. Docked it takes under half the window: a queue
-too long for that lists what fits and ends `… 3 more`, still one box. Each
-send on its way keeps its heading, its line and its take-back however
-little room is left, its replies listed as far as they fit. Only
+too long for that lists what fits and ends `… 3 more`, still one box. The
+first send on its way keeps its heading, its line and its take-back however
+little room is left, its replies listed as far as they fit; each send after
+it, short of room, is one row under it, `⧗ Then: Review round 4 +2` with
+its own `↺ take back`, the replies it names counted as shown, as many as
+fit (5 November 2026). A send to a session the board has not read still
+shows, headed `on its way`, its line and take-back under it. Only
 Lee moves the list: queuing a reply, sending, a new ask arriving and the
 pane drawing again leave it where Lee had it, and only a list that shrank
 under it stops it short at its new end. Each place starts at its top,
@@ -852,8 +856,10 @@ queue), they should not be put into that ready-to-go list. They should
 create another queue, which I can then separately send to Claude, and it
 will go separately." A send the window holds is a group of its own,
 headed `on its way to this session`, its replies frozen under the heading
-and its line under them. A reply Lee queues after it, an answer, a comment
-or a pick-up, joins none of it: it starts the queue still to send, under
+and its line under them, however they were written, on the board or in
+the prompt, and with nothing else queued as with more. A reply Lee queues
+after it, an answer, a comment or a pick-up, on the board or in the
+prompt, joins none of it: it starts the queue still to send, under
 the held send, headed `to this session` as ever, each reply with its `✕`,
 `↺ undo` and `✎ edit`, and send and cancel all under it all. Send makes
 that queue a second send, sealed and held as the first, with its own
@@ -861,8 +867,10 @@ take-back; each goes in as its own prompt, in the order sent, the second
 once Claude's turn on the first has ended (see Delivery). Taking back
 either puts its replies back among those still to send, in the order Lee
 replied, the queue there already or not; a send behind it stays held, and
-goes in its place. A send that goes in at once leaves nothing behind, and
-replies after it start the queue afresh.
+goes in its place. Refused or never taken, a send lets go of every send
+behind it too, all their replies back among those still to send, one toast
+saying so (see Delivery). A send that goes in at once leaves nothing
+behind, and replies after it start the queue afresh.
 
 ```
 ╭───────────────────────────────────────────────────────╮
@@ -1027,7 +1035,10 @@ app (see "The menu bar").
   and says it waits for the inbox's replies, Lee's replies left in Ready to
   send. The inbox's is claimed only with nothing in flight: while anything
   is, a look takes in nothing more. A claim an older load left, which
-  submitted as it claimed, reads as held no more. Until 5 November 2026 the
+  submitted as it claimed, reads as held no more; one not shaped as a
+  claim, as the object an older build makes of a list (see Storage), is
+  none.
+  Until 5 November 2026 the
   window held one message in flight, and a send claimed while one was took
   nothing.
 - **Held while Claude is mid-turn** (22 October 2026, Lee's choice: "Hold
@@ -1061,11 +1072,17 @@ app (see "The menu bar").
     would have queued it there, its own turn still (a plugin's submit runs
     once the session is idle, never inside a running turn), but past taking
     back. A submit's resolving and its turn's start come within a few
-    milliseconds of each other, either first (live probes): should a look
-    land after the first's resolving and before its turn's start is heard,
-    the next goes then, into Claude Code's queue, its own prompt after the
-    first's still, only past taking back. A load finding several held
-    carries the first on, and the rest in turn.
+    milliseconds of each other, either first (live probes), so the first can
+    be written down and ended while the window still seems between turns:
+    after a submit, nothing more is submitted until a turn's start is heard,
+    the message is let go, or its quiet (see "Never taken") passes with no
+    turn starting, should that start never be heard. A press of send or a
+    look in that gap submits nothing; the next goes as the first's turn
+    ends. A load knows nothing of a submit an earlier load made, and goes by
+    the turn the window's state says: a reload landing in those milliseconds
+    can still submit the next early, into Claude Code's queue, its own
+    prompt after the first's still, only past taking back. A load finding
+    several held carries the first on, and the rest in turn.
   - The conversation's end ends any turn of it, but only a `/clear` goes on in
     this process with a next conversation, so only a `/clear` submits held
     messages, into that conversation, the first at once and the rest in turn,
@@ -1205,6 +1222,13 @@ app (see "The menu bar").
 - **Refused** (a drop, or a throw): let go at once, its replies left as they
   were, and its asks wait on Lee again; the next look, or Lee's next send,
   tries again.
+- **Those behind it, let go with it** (5 November 2026). A message refused
+  or never taken lets go of every send held behind it in the same update of
+  the claims, one toast saying so: their replies are all back among those
+  still to send, in the order Lee replied, and Lee's next send carries them
+  as one. None goes in ahead of the replies it would have followed, and
+  none is spent on a refusal sure to come again, as a session closing
+  refuses every prompt.
 - **Never taken** (Lee deleted the queued prompt, or the submit was lost): let
   go once the window has gone quiet without it, 30 seconds after its submit,
   or after a later end of a turn of the main conversation (or of the
@@ -2078,9 +2102,18 @@ truth. There is still no background service. None of it is built now. Lee:
     message, and reads either: so a window reloaded into this build mid-send
     keeps its send, and one switched back to an older build (`app/plugin
     app` after a live test) reads a lone send, and none, as it always did. A
-    list of several it reads as a message it cannot place: it takes nothing
-    from the inbox meanwhile, and lets it go once a turn has ended and its
-    quiet time passed, the replies in Ready to send all along.
+    list of several it reads as one message it cannot place, carrying
+    nothing, so their replies show in its Ready to send as still to send;
+    it takes nothing from the inbox meanwhile, and once a turn has ended and
+    its quiet time passed it lets the list go, then throws on what follows,
+    the message naming no source, so no toast says so. An update of its
+    that leaves the message as it stands, as a press of send does, writes
+    back an object spread from the list,
+    `{ "0": …, "1": …, "isHeld": false }`: this build reads that as no
+    claim, nor as the claims inside it, since that build may have let Lee
+    cancel their replies or send them again. A reader on an older build drops a heartbeat's `sending` list, as
+    it drops any `sending` it cannot read, so it has those replies waiting
+    on Lee, not on their way, while several are said.
   - Drawing lives in modules of its own (`hooks/draw`): pure functions from
     a surface's element table and plain data to a tree, what a button does
     handed in as actions bound to the host. JSX's `h` is global in every
