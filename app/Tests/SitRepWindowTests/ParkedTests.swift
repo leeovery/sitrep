@@ -229,6 +229,31 @@ struct ParkedTests {
         #expect(run.list(at: printedAt).map(Self.headings) == ["Contoso 1", "Northwind 3"])
     }
 
+    /// Held under the pointer, an item new to the board that is its project's oldest goes in after the one `watch` has
+    /// before it, another project's: still each project's items show together, under one heading, and step as they
+    /// show.
+    @Test func anItemNewToTheBoardOlderThanItsProjectsOthersStaysWithThemWhileHeld() throws {
+        let alpha = Built(id: "a1", project: "alpha", parked: [100])
+        let yankee = Built(id: "y1", project: "yankee", parked: [80])
+        let reopened = Built(id: "a2", project: "alpha", parked: [150])
+        let run = Self.opened(on: Built.printed([alpha, yankee]))
+
+        run.click(.place(.parked))
+        run.pointer(over: .list, isIn: true, at: printedAt)
+        run.show(heard(Built.printed([yankee, reopened, alpha])), at: printedAt, reducesMotion: false)
+
+        let held = try #require(run.list(at: printedAt))
+
+        #expect(held.items.map(\.id) == [
+            .heading("alpha"), .pick(alpha.parkedPick(0)), .pick(reopened.parkedPick(0)), .heading("yankee"),
+            .pick(yankee.parkedPick(0)),
+        ])
+        #expect(held.picks == [alpha.parkedPick(0), reopened.parkedPick(0), yankee.parkedPick(0)])
+        run.pointer(over: .list, isIn: false, at: printedAt)
+        run.settle(at: printedAt.addingTimeInterval(1))
+        #expect(run.list(at: printedAt)?.picks == [yankee.parkedPick(0), reopened.parkedPick(0), alpha.parkedPick(0)])
+    }
+
     // MARK: Opened narrowed
 
     /// A project's "N parked" opens Parked narrowed to it, a step: its items alone, the toolbar's title naming the
@@ -331,6 +356,56 @@ struct ParkedTests {
         #expect(cut.isSinceCut)
         #expect(whole.since.count == 7)
         #expect(!whole.isSinceCut)
+    }
+
+    /// Two sessions parked items of one id: the second's picked, its page is its item, of its session.
+    @Test func ofTwoSessionsSharingAnIdThePageIsThePickedSessionsItem() throws {
+        let first = Built(id: "n1", project: "northwind", parked: [100])
+        let second = Built(id: "n2", project: "northwind", parked: [50])
+        let run = Self.opened(on: Built.printed([first, second]))
+
+        run.click(.place(.parked))
+        run.pickInList(second.parkedPick(0), at: printedAt)
+
+        let page = try #require(run.page(at: printedAt).parked)
+
+        #expect(page.id == .parked(session: "n2", id: "p1"))
+        #expect(page.item.title == "Parked 1 of n2")
+        #expect(page.from.name == "Session n2")
+    }
+
+    /// From an item picked on Parked narrowed, Back to its session pushes the session's page, Parked staying picked in
+    /// the sidebar; Back returns to Parked narrowed, the item picked as it was.
+    @Test func backToItsSessionIsAStepBackReturnsFromToTheItem() {
+        let run = Self.opened()
+        let narrowed = Location.place(
+            .parked, picked: Selection(pick: Self.retry, session: "sr-nwdgr4"), scope: .project("northwind")
+        )
+
+        run.go(to: .place(.parked, scope: .project("northwind")), by: .projectParked)
+        run.pickInList(Self.retry, at: printedAt)
+        run.go(to: .session("sr-nwdgr4", from: .place(.parked)), by: .backToSession)
+        #expect(run.location.root == .place(.parked))
+        #expect(run.page(at: printedAt).session?.id == "sr-nwdgr4")
+
+        run.goBack()
+        #expect(run.location == narrowed)
+        #expect(run.toolbar.listing?.position?.text == "2 / 2")
+        #expect(run.page(at: printedAt).parked?.id == Self.retry)
+    }
+
+    /// A parked item's page is a page of its own: another item of the same session picked turns the page, closing what
+    /// the last one opened, as a session's detail and its item's are two pages too.
+    @Test func anotherItemOfTheSameSessionTurnsThePage() throws {
+        let run = Self.pickedCurrency(carrying: [60, 30])
+        let note = Item.note("sr-nwdgr4:n0")
+
+        run.toggle(note)
+        #expect(try #require(run.page(at: printedAt).parked).opened == [note])
+        run.pickInList(Self.retry, at: printedAt)
+        #expect(try #require(run.page(at: printedAt).parked).opened.isEmpty)
+        #expect(Location.place(.needsYou, picked: Selection(pick: .line("ask:sr-nwdgr4:k1"), session: "sr-nwdgr4")).leaf
+            != Location.place(.parked, picked: Selection(pick: Self.retry, session: "sr-nwdgr4")).leaf)
     }
 
     /// The item gone from the board, picked up or dropped, the page says so, the pick standing.

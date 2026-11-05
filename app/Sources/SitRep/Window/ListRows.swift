@@ -260,14 +260,21 @@ struct ParkedRow: View {
     private var onPick: Bool { prominence == .increased }
 }
 
-/// A parked item's mark in its slot, the diamond stroked in the secondary colour, white on the accent of its pick.
+/// A parked item's mark in its slot, the diamond stroked in the secondary colour; on the accent of its pick white, as
+/// its title, as A4 revised draws it.
 private struct ParkedMark: View {
+    @Environment(\.backgroundProminence) private var prominence
+
     var body: some View {
         Diamond()
-            .stroke(.secondary, style: StrokeStyle(lineWidth: 1.4, lineJoin: .round))
+            .stroke(ink, style: StrokeStyle(lineWidth: 1.4, lineJoin: .round))
             .frame(width: 7.5, height: 7.5)
             .frame(width: WindowStyle.slot.width, height: WindowStyle.slot.height)
             .accessibilityHidden(true)
+    }
+
+    private var ink: AnyShapeStyle {
+        prominence == .increased ? AnyShapeStyle(WindowStyle.picked(.text)) : AnyShapeStyle(.secondary)
     }
 }
 

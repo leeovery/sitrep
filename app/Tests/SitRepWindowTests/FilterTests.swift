@@ -88,7 +88,7 @@ struct FilterTests {
     }
 
     @Test func noMatchSaysWhatWasTyped() {
-        #expect(Words.noMatch(Filter("ledg")) == "No sessions match “ledg”")
-        #expect(Words.noMatch(Filter(" led g ")) == "No sessions match “led g”")
+        #expect(Words.noMatch(Filter("ledg"), on: .needsYou) == "No sessions match “ledg”")
+        #expect(Words.noMatch(Filter(" led g "), on: .yourTurn) == "No sessions match “led g”")
     }
 }

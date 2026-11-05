@@ -207,6 +207,8 @@ public final class WindowRun {
         let listed = listed
         let before = location
 
+        // arranged narrows Parked by the scope before the change, which a scope dropped by the board may have been;
+        // move ends by standing the pick in the list as it now narrows (`keepTheList()`)
         move { $0.keep(on: listed, arranged: { self.arranged($0) }) }
         if location != before || isFirstBoard {
             openTheFoldOverThePick()

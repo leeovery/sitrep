@@ -264,26 +264,42 @@ public struct PlaceList: Equatable, Sendable {
         return rows.map(Item.row) + (fold.map { [.fold($0)] + ($0.isOpen ? $0.rows.map(Item.row) : []) } ?? [])
     }
 
-    /// Parked's rows, each run of a project's under its heading. A project's items are always one run: they come so
-    /// from the board, and a held order never parts them, as each project's keep their order and an item new to it
-    /// goes in after the one `watch` has before it (`Hold.merge`).
+    /// Parked's rows, each project's under its heading.
     private static func headed(_ rows: [Row]) -> [Item] {
-        let runs = rows.reduce(into: [[Listed.Parked]]()) { runs, row in
-            guard case let .parked(item) = row else {
-                return
-            }
-
-            if runs.last?.last?.project == item.project {
-                runs[runs.count - 1].append(item)
-            } else {
-                runs.append([item])
-            }
+        byProject(rows).flatMap { items in
+            [Item.heading(Heading(project: items[0].project, name: items[0].projectName, count: items.count))]
+                + items.map { Item.row(.parked($0)) }
         }
+    }
 
-        return runs.flatMap { run in
-            [Item.heading(Heading(project: run[0].project, name: run[0].projectName, count: run.count))]
-                + run.map { Item.row(.parked($0)) }
+    /// Parked's items by project, the projects in the order each first comes, each one's items in their order. An
+    /// order held can part a project's items, as an item new to the board goes in after the one `watch` has before it
+    /// (`Hold.merge`), which may be another project's; so the rows are kept together so, and each project has one
+    /// heading.
+    private static func byProject(_ rows: [Row]) -> [[Listed.Parked]] {
+        var projects: [String] = []
+        var items: [String: [Listed.Parked]] = [:]
+
+        for case let .parked(item) in rows {
+            if items[item.project] == nil {
+                projects.append(item.project)
+            }
+            items[item.project, default: []].append(item)
         }
+        return projects.compactMap { items[$0] }
+    }
+
+    /// The list with its rows, its fold's too, in this order, by their picks, any the order lacks after those it has,
+    /// as they were; Parked's then kept together by project (`byProject(_:)`), so the rows step as they show.
+    func ordered(by order: [ListPick]) -> PlaceList {
+        var ordered = self
+
+        ordered.rows = rows.held(by: order, \.pick)
+        ordered.fold?.rows = fold?.rows.held(by: order, \.pick) ?? []
+        if place == .parked {
+            ordered.rows = Self.byProject(ordered.rows).flatMap { $0.map(Row.parked) }
+        }
+        return ordered
     }
 
     /// The rows it shows, which a click or an arrow key picks, in order.

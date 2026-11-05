@@ -186,9 +186,10 @@ struct WindowStillsTests {
             case .noMatch:
                 run.filter = Filter("ledgr")
             case .parked, .parkedNarrow:
-                run.click(.place(.parked))
-                run.pickInList(.parked(session: "sr-nwdgr4", id: "77k4"), at: now)
-                Self.take(in: run, on: Lines.parked[0], boards: ["sr-nwdgr4": Self.ledgerSinceParked])
+                Self.pick(
+                    .parked(session: "sr-nwdgr4", id: "77k4"), in: run, on: Lines.parked[0],
+                    boards: ["sr-nwdgr4": Self.ledgerSinceParked]
+                )
                 return (run, Self.parkedAt.addingTimeInterval(3 * 3600))
             }
             return (run, now)
@@ -216,14 +217,18 @@ struct WindowStillsTests {
             return run
         }
 
-        /// Landed on a session, as Open in SitRep lands, or on a project's page, as its row in the sidebar opens it,
-        /// on the line given, `watch`'s first unless another, which then carries the boards it follows.
+        /// Landed on a session, as Open in SitRep lands, on a project's page, as its row in the sidebar opens it, or on a
+        /// parked item, picked in Parked's list, on the line given, `watch`'s first unless another, which then carries
+        /// the boards it follows.
         private static func pick(
             _ pick: Pick, in run: WindowRun, on line: String = Lines.watch[0], boards given: [String: String] = [:]
         ) {
             switch pick {
             case let .session(session): run.land(session)
             case let .project(project): run.click(.project(project))
+            case let .parked(session, id):
+                run.click(.place(.parked))
+                run.pickInList(.parked(session: session, id: id), at: printed)
             }
             take(in: run, on: line, boards: given)
         }

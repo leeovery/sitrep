@@ -3,9 +3,9 @@ import SitRepCore
 /// The window's toolbar as the run has it: the window's title, Back and Forward, each with a step to go to or not; and
 /// on a place, over the page, where the pick stands in the list, "1 / 5", with up and down, each with a row to step to
 /// or not. On a place the title is the place's, shown over its list, Parked's with what its list is narrowed to, as
-/// "Parked · Contoso"; on a project's page and a session's, which fill
-/// the window and have Back and Forward alone, it is the page's, not shown, but naming the window to Mission Control,
-/// App Exposé and VoiceOver, as Finder's folder does.
+/// "Parked · Contoso"; on a project's page and a session's, which fill the window and have Back and Forward alone, it
+/// is the page's, not shown, but naming the window to Mission Control, App Exposé and VoiceOver, as Finder's folder
+/// does.
 public struct Toolbar: Equatable, Sendable {
     /// What the toolbar has of a place's list.
     public struct Listing: Equatable, Sendable {

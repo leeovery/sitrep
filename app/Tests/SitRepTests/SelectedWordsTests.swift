@@ -124,14 +124,16 @@ struct SelectedWordsTests {
         Self.expectGrey(try Self.drawn(Self.asking()).brightest(in: part), 0.55)
     }
 
-    /// A parked item's title, as a line's name, white at 85% and white on the selection; its session under it and its
-    /// age at 55%, and on the selection at 80%.
+    /// A parked item's title, as a line's name, white at 85% and white on the selection, its diamond white with it; its
+    /// session under it and its age at 55%, and on the selection at 80%.
     @Test func aParkedItemsTitleIsWhiteOnTheSelectionItsSessionAndAgeSofter() throws {
         let rest = try Self.drawn(Self.parked)
         let picked = try Self.drawn(Self.parked, on: .increased)
 
         Self.expectGrey(try rest.brightest(in: Self.lineName), 0.85)
         #expect(try picked.brightest(in: Self.lineName).isWhite)
+        #expect(try picked.brightest(in: Self.lineSlot).isWhite)
+        #expect(try !rest.brightest(in: Self.lineSlot).isWhite)
         for part in [Self.lineWords, Self.lineAge] {
             Self.expectGrey(try rest.brightest(in: part), 0.55)
             Self.expectGrey(try picked.brightest(in: part), 0.8)

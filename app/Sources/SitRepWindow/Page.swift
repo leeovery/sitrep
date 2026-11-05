@@ -19,22 +19,35 @@ public enum Page: Equatable, Sendable {
     static let noLongerParked = Page.empty("No longer parked.")
 }
 
-/// Which page shows, a session's or a project's, whichever way the window came to it: what the page is drawn afresh
-/// by, and with where it shows, what turning to another lets go of the last one's asks kept in place by (`Leaf`).
+/// Which page shows, a session's, a parked item's or a project's, whichever way the window came to it: what the page
+/// is drawn afresh by, and with where it shows, what turning to another lets go of the last one's asks kept in place
+/// and what it opened by (`Leaf`).
 public enum Pick: Hashable, Sendable {
     case session(String)
+    /// A parked item's page, a page of its own, apart from its session's and from its session's other items'.
+    case parked(session: String, id: String)
     case project(String)
 }
 
 extension Location {
-    /// Which page shows here: the session of the row the list picked, kept as the row leaves the list; a project's;
-    /// a session's pushed. None for a place with nothing picked.
+    /// Which page shows here: the session of the row the list picked, kept as the row leaves the list, or the parked
+    /// item it picked; a project's; a session's pushed. None for a place with nothing picked.
     public var page: Pick? {
         switch self {
-        case let .place(_, picked, _): picked.map { .session($0.session) }
+        case let .place(_, picked, _): picked.map(\.page)
         case let .project(key): .project(key)
         case let .session(id, _): .session(id)
         }
+    }
+}
+
+private extension Selection {
+    /// The page it shows: its parked item's, or its session's.
+    var page: Pick {
+        if case let .parked(session, id) = pick {
+            return .parked(session: session, id: id)
+        }
+        return .session(session)
     }
 }
 

@@ -140,7 +140,7 @@ public enum Words {
 
     /// The list's one line in its place where the filter keeps nothing, the field's text in the quotes: on Parked,
     /// whose rows are items, "Nothing parked matches “…”".
-    public static func noMatch(_ filter: Filter, on place: Place = .needsYou) -> String {
+    public static func noMatch(_ filter: Filter, on place: Place) -> String {
         let typed = "“\(filter.text.trimmingCharacters(in: .whitespacesAndNewlines))”"
 
         return place == .parked ? "Nothing parked matches \(typed)" : "No sessions match \(typed)"
