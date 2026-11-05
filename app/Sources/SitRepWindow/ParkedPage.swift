@@ -35,6 +35,9 @@ public struct ParkedPage: Equatable, Sendable {
     /// Every line its session's board carries came after it was parked, so more may have come since than show: a board
     /// carries a session's newest lines only (`SessionPage.logLines`).
     public let isSinceCut: Bool
+    /// Where among those lines Lee last looked at its session, where lines stand on both sides of it: those from
+    /// before are drawn dimmer, with no divider.
+    public let looked: YouLooked?
     /// A board of its session is kept: its lines since show as last kept.
     public let hasBoard: Bool
     /// Why the latest line to carry its session's board carried none, over its board as last kept, if there is one.

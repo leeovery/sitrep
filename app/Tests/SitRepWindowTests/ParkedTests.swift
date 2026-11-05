@@ -33,8 +33,8 @@ struct ParkedTests {
     }
 
     /// The window open on `watch`'s first line over the parked board, or the line given.
-    private static func opened(on line: Heard = .line(Lines.parked[0])) -> WindowRun {
-        let run = WindowRun(wall: { printedAt })
+    private static func opened(on line: Heard = .line(Lines.parked[0]), looked: LastLooked = LastLooked()) -> WindowRun {
+        let run = WindowRun(looked: looked, wall: { printedAt })
 
         run.show(heard(line), at: printedAt, reducesMotion: false)
         run.open()
@@ -389,6 +389,17 @@ struct ParkedTests {
         #expect(!whole.isSinceCut)
     }
 
+    /// Of the lines since the item was parked, 60, 30 and 10 seconds after it, those from at or before Lee last looked
+    /// at its session are dimmer, as What happened's under its divider; a look before them all, or after, dims none.
+    @Test(arguments: [(20.0, 2), (5, nil), (90, nil)])
+    func sinceItWasParkedDimsTheLinesFromBeforeLeeLastLooked(after seconds: Double, newer: Int?) throws {
+        let looked = LastLooked(["sr-nwdgr4": Self.currencyAt.addingTimeInterval(seconds)])
+        let page = try #require(Self.pickedCurrency(carrying: [60, 30, 10], looked: looked).page(at: printedAt).parked)
+
+        #expect(page.since.count == 3)
+        #expect(page.looked?.newer == newer)
+    }
+
     /// Two sessions parked items of one id: the second's picked, its page is its item, of its session.
     @Test func ofTwoSessionsSharingAnIdThePageIsThePickedSessionsItem() throws {
         let first = Built(id: "n1", project: "northwind", parked: [100])
@@ -455,9 +466,9 @@ struct ParkedTests {
     }
 
     /// Ledger export's Handle multi-currency rows picked, then `watch`'s second line, its board carrying log lines, the
-    /// newest first, each so many seconds after the item was parked.
-    private static func pickedCurrency(carrying seconds: [Double]) -> WindowRun {
-        let run = opened()
+    /// newest first, each so many seconds after the item was parked; with when Lee last looked at each session as given.
+    private static func pickedCurrency(carrying seconds: [Double], looked: LastLooked = LastLooked()) -> WindowRun {
+        let run = opened(looked: looked)
 
         run.click(.place(.parked))
         run.pickInList(currency, at: printedAt)

@@ -39,7 +39,8 @@ struct ScreenLooks {
     /// Due at once, whatever the time.
     private static let atOnce = Date.distantPast
 
-    private var isShowing: Bool {
+    /// The window is open, and macOS has it visible.
+    var isShowing: Bool {
         window == .open && isVisible
     }
 
