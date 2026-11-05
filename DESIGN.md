@@ -4454,7 +4454,10 @@ stands).
       have come since than show, and a faint line under them says "Only its
       newest lines show." An item gone from the board, picked up or
       dropped by its session while picked, leaves its pick standing, as an
-      answered ask does, and the page says "No longer parked.";
+      answered ask does, and the page says "No longer parked.". An item's
+      page is a page of its own: another item picked, of the same session
+      or not, turns the page, as does going between it and its session's
+      detail, closing what was opened;
   - **the toolbar** fills the band beside the traffic lights (4 November
     2026, A1 to A3 revised; until then it stayed empty on every page,
     nothing of the page in it). On a place: past the sidebar, **Back and
@@ -4772,20 +4775,25 @@ stands).
   - a mark reads its meaning, a closed ask's tick "closed"; a section's
     bullets, which say what its heading says, are not read, nor the ↗ of
     "Open in Ghostty".
-- **Items that open.** A note, a parked item and a resolved ask open in
-  place on a press, and close on a second: the line whole, wrapping, and
-  under it a note's detail, where a parked item was parked from, or how an
-  ask closed: Lee's answer as the
-  board words it, or Claude's resolve and its reason. A status line opens
-  only while it is cut short. A line with nothing more to show is not a
-  button, and takes no keyboard stop. Lee, 20 October 2026, of an opened
-  item with a box behind it, its title in a narrow column hanging from its
-  session's name and its detail under the bullet: "a bit shit". So every
-  line of a session's Now, What happened and resolved asks, and of a
-  project's Notes and Parked, opened or closed, keeps one grid:
+- **Items that open.** A line of a session's Now, a log line or an ask of
+  its What happened, a resolved ask, and a log line under a parked item's
+  Since it was parked open in place on a press, and close on a second: the
+  line whole, wrapping, and under it a note's detail, or how an ask
+  closed: Lee's answer as the board words it, or Claude's resolve and its
+  reason. A status line, a next and a log line with no detail open only
+  while cut short. A line with nothing more to show is not a button, and
+  takes no keyboard stop. Neither a session's page nor a project's lists
+  parked items: a session's "◇ later N parked ›" and a project's "◇ N
+  parked ›" open Parked narrowed to it (see "Opened narrowed"), where an
+  item is a page of its own beside the list; until 4 November 2026 a
+  page's Parked lines opened in place to where each was parked from.
+  Lee, 20 October 2026, of an opened item with a box behind it, its title
+  in a narrow column hanging from its session's name and its detail under
+  the bullet: "a bit shit". So every line that opens, opened or closed,
+  keeps one grid:
   - the marker in its lane, then the words, then the time on the first line;
-  - a session's name is a quieter lead-in in the words' own flow, wrapping
-    to their left edge, never a column of its own;
+  - a quieter word, "next", "later" or "Asked", leads in the words' own
+    flow, wrapping to their left edge, never a column of its own;
   - opened, the words wrap whole in their column, and the detail sits close
     under them from the same left edge, a size smaller, in the secondary
     colour. Nothing behind it, no fill and no ring; the hover fill shows
@@ -4982,9 +4990,11 @@ stands).
   - **Parked** lists every item parked, by project in `watch`'s order, each
     project's the oldest first, as parked where two are as old; each run
     of a project's items under its heading. Its count is core's, every
-    item on the board. Held under the pointer, a project's items stay
-    together: each project's keep their order, and an item new to the
-    board goes in after the one `watch` has before it.
+    item on the board. Held under the pointer, an item new to the board
+    goes in after the one `watch` has before it, which may be another
+    project's, so the held rows are kept together by project, the
+    projects in the order each first comes: each project has one heading,
+    and ↑ and ↓ step the rows as they show.
   - **Opened narrowed.** A session's "later N parked ›" and a project's
     "N parked ›" open Parked narrowed to it, a step Back returns from,
     nothing picked, as any place opens: its items alone, the toolbar's
