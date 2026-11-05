@@ -61,7 +61,7 @@ const SENT: SitrepInFlight = {
  * when made. So the reads of one look can land on either side of a send
  * being written down. Its own file, so the mod's modules start afresh for it.
  */
-const delivering = (board: Session, inFlight: SitrepInFlight | null) => {
+const delivering = (board: Session, inFlight: SitrepInFlight[]) => {
   const state = { board: boardOf(board), inFlight }
   const submitted: string[] = []
   let landed = () => {}
@@ -90,7 +90,7 @@ const delivering = (board: Session, inFlight: SitrepInFlight | null) => {
 
           return state.inFlight
         },
-        update: async (change: (value: SitrepInFlight | null) => SitrepInFlight | null) => {
+        update: async (change: (value: SitrepInFlight[]) => SitrepInFlight[]) => {
           state.inFlight = change(state.inFlight)
         },
       },
@@ -120,7 +120,7 @@ const settled = async () => {
 }
 
 test('a look with nothing in flight delivers the inbox replies on their way', async () => {
-  const window = delivering(UNWRITTEN, null)
+  const window = delivering(UNWRITTEN, [])
 
   window.look()
   window.land()
@@ -130,12 +130,12 @@ test('a look with nothing in flight delivers the inbox replies on their way', as
 })
 
 test('a look reads the board only once it finds no message in flight, so a send written down meanwhile is on it: an answer the send voided is never delivered too', async () => {
-  const window = delivering(UNWRITTEN, SENT)
+  const window = delivering(UNWRITTEN, [SENT])
 
   window.look()
   await settled()
   window.state.board = boardOf(WRITTEN)
-  window.state.inFlight = null
+  window.state.inFlight = []
   window.land()
   await settled()
 

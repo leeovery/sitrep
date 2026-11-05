@@ -66,7 +66,7 @@ test("a reload mid-send says the claim in the load's first heartbeat, so no read
 
   expect(beats.length).toBeGreaterThan(0)
   expect(beats.map(text => parsePresence(text, W1)?.sending)).toEqual(
-    beats.map(() => ({ at: LEFT.claimedAt, replies: [{ id: 'r7', item: 'k1', verdict: 'yes' }] })),
+    beats.map(() => [{ at: LEFT.claimedAt, replies: [{ id: 'r7', item: 'k1', verdict: 'yes' }] }]),
   )
   expect(w.state.board?.waiting).toBe(0)
 })

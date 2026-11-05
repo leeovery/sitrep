@@ -10,9 +10,9 @@
  *
  * Lee sees it on the board pane and the band above the prompt, answers its
  * asks there, writing words in the prompt box itself, which the board takes
- * as the answer, and sends the replies as Lee's own message, one message in
- * flight at a time, held while Claude is mid-turn and written down once
- * Claude Code takes it. The board also reads the sessions around the held
+ * as the answer, and sends the replies as Lee's own message, one message
+ * submitted at a time, each held while Claude is mid-turn and written down
+ * once Claude Code takes it. The board also reads the sessions around the held
  * one: its project's, and every project's, each a view of its own, where
  * Lee answers other sessions' asks too; those replies go into the other
  * session's inbox, and the window there submits them. What changed on the
@@ -40,7 +40,8 @@ import {
   conversationEnded,
   heardTurn,
   isBoardMessage,
-  keptInFlight,
+  keptFlights,
+  storedFlights,
   takeUpDelivery,
 } from './deliver'
 import {
@@ -93,6 +94,7 @@ const pane = atom({ plugin: 'sitrep', key: 'pane' } as const, {
   place: null,
   selected: null,
   resolvedInFull: null,
+  heldShown: null,
   placement: {},
 })
 const scroll = atom({ plugin: 'sitrep', key: 'scroll' } as const, null)
@@ -192,9 +194,10 @@ const hostOf = ($: EngineInterface): Host => ({
       update: change => update($, sent, change),
     },
     inFlight: {
-      read: async () => keptInFlight(await read($, inFlight)),
-      write: value => update($, inFlight, () => value),
-      update: change => update($, inFlight, value => change(keptInFlight(value))),
+      read: async () => keptFlights(await read($, inFlight)),
+      write: value => update($, inFlight, () => storedFlights(value)),
+      update: change =>
+        update($, inFlight, value => storedFlights(change(keptFlights(value)))),
     },
     pane: {
       read: () => read($, pane),

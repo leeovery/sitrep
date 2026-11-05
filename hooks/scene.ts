@@ -43,8 +43,8 @@ export type Scene = {
   others: ReadonlyMap<string, Filed>
   /** Ready to send: every session's replies, in the order queued. */
   queue: readonly SitrepQueued[]
-  /** The message on its way to Claude: a send of Lee's, its replies frozen in the queue, or the inbox's. */
-  inFlight: SitrepInFlight | null
+  /** The messages on their way to Claude, in the order claimed: sends of Lee's, their replies frozen in the queue, or the inbox's. */
+  inFlight: readonly SitrepInFlight[]
   sent: readonly SitrepSent[]
   pane: SitrepPane
   /** How far down the docked board's list stands, at the place it was moved at. */

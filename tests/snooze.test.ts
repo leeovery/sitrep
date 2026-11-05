@@ -190,7 +190,7 @@ const sendingYes = (now: number): Sending => ({
 
 /** A window live at `now`, sending what it is given. */
 const windowAt = (now: number, sending?: Sending) => ({
-  [W2]: beat(W2, { attachedAt: T0, seenAt: now, sending }),
+  [W2]: beat(W2, { attachedAt: T0, seenAt: now, sending: sending && [sending] }),
 })
 
 test("Lee's reply on its way takes the ask out of Snoozed as out of Needs you, its snooze standing; taken back or void, it is snoozed again while its time is to come, else woken", () => {

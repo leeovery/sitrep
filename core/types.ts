@@ -361,15 +361,15 @@ export type Presence = {
   state?: WindowState
   /** When the load of the mod that wrote it began, so a load a reload superseded writes no heartbeat over a newer one's; none where the clock failed, or before heartbeats said it. */
   loadedAt?: number
-  /** Lee's replies the window's message in flight carries to this session, from its claim until it ends; none while it sends none, nor from a window that let go. */
-  sending?: Sending
+  /** Lee's replies the window's messages in flight carry to this session, each message's from its claim until it ends, in the order claimed; none while it sends none, nor from a window that let go. */
+  sending?: Sending[]
 }
 
 /**
- * Lee's replies a window sends its own session as Lee's message, published
- * in its heartbeat from the claim until the message ends, written down or
- * let go: on their way from the claim, as an inbox reply is. `at` is when
- * the message was claimed.
+ * Lee's replies a window sends its own session as one message of Lee's,
+ * published in its heartbeat from the claim until the message ends, written
+ * down or let go: on their way from the claim, as an inbox reply is. `at` is
+ * when the message was claimed.
  */
 export type Sending = { at: number; replies: SentReply[] }
 

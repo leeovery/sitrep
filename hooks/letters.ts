@@ -13,7 +13,6 @@ import { counted } from './look'
 import {
   afterSend,
   destinations,
-  isCarried,
   leftOut,
   replyBodies,
   restoring,
@@ -60,13 +59,13 @@ const write = async (
  * the rest.
  */
 const take = async (host: Host, session: Session) => {
-  const inFlight = await host.state.inFlight.read()
+  const flights = await host.state.inFlight.read()
   let taken: SitrepQueued[] = []
   let left: LeftOut[] = []
 
   await host.state.queue.update(waiting => {
-    taken = sendable(session, waiting, inFlight).filter(reply => !isCarried(inFlight, reply))
-    left = leftOut(session, waiting, inFlight)
+    taken = sendable(session, waiting, flights)
+    left = leftOut(session, waiting, flights)
 
     return afterSend(waiting, taken)
   })

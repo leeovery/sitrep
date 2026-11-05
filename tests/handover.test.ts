@@ -40,7 +40,7 @@ const heartbeat = (sending?: Sending): Presence => ({
   attachedAt: T0,
   seenAt: NOW,
   version: '0.2.0',
-  sending,
+  sending: sending && [sending],
 })
 
 /** The session as the window leaves it mid-send: its ask, and its heartbeat saying the yes. */

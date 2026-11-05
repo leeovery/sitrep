@@ -11,6 +11,7 @@ import { expect, test, tier } from 'claude-code/testing'
 import type { SessionMeta } from '../core'
 import { stepOf, topShowing } from '../hooks/clip'
 import Measure from '../hooks/draw/measure'
+import { STEP_HELD } from '../hooks/draw/ready'
 import { PANE } from '../hooks/pane'
 import { rowsOf } from './drawn'
 import { MIN, SLOW, T0, W2, yesAsk } from './support'
@@ -734,7 +735,7 @@ test(
 
     await w.turnStarts('Carry on.')
     await ui.press({ key: 'send' })
-    expect(await ui.find({ key: 'take-back' })).toBeDefined()
+    expect(await ui.find({ key: w.takeBack() })).toBeDefined()
     await expectHeightKept(ui, 'a send held for the turn to end, its take-back beside it')
 
     const turn = w.holdPrompts()
@@ -849,5 +850,146 @@ test(
     expect(await listed()).toHaveLength(6)
     expect(await ui.find({ type: 'Text', text: /more$/ })).toBeUndefined()
     await expectHeightKept(ui, 'room for every one', 60)
+  },
+)
+
+test(
+  'a send held and the queue under it keep the box as tall as it draws; too long for under half the window, the send keeps its heading, its line and its take-back, what fits is listed, then how many more; a second send is one row under it, with its own take-back',
+  SLOW,
+  async ($, on) => {
+    const w = world($, on)
+    const { ids, ui } = await asking(w, 6)
+    const cap = Math.floor((BODY_ROWS - 1) / 2)
+
+    for (const id of ids.slice(0, 3)) {
+      await approve(ui, w.item(id))
+    }
+
+    await w.turnStarts('Carry on.')
+    await ui.press({ key: 'send' })
+
+    for (const id of ids.slice(3)) {
+      await approve(ui, w.item(id))
+    }
+
+    expect(await ui.find({ key: w.takeBack() })).toBeDefined()
+    expect(await ui.find({ key: 'send' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: '… 4 more' })).toBeDefined()
+    expect(await drawnRows(ui)).toBeLessThanOrEqual(cap)
+    await expectHeightKept(ui, 'a send held, and the queue under it, cut short')
+
+    await ui.press({ key: 'send' })
+
+    expect(await ui.find({ key: w.takeBack(0) })).toBeDefined()
+    expect(await ui.find({ key: w.takeBack(1) })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: '⧗ Then: Review round 4 +2' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /more$/ }), 'the brief row names them').toBeUndefined()
+    expect(await drawnRows(ui)).toBeLessThanOrEqual(cap)
+    await expectHeightKept(ui, 'two sends held, cut short')
+
+    await ui.redraw(docked(60))
+    expect(await ui.find({ type: 'Text', text: /more$/ })).toBeUndefined()
+    await expectHeightKept(ui, 'two sends held, room for both', 60)
+  },
+)
+
+test(
+  'three sends held and a reply under them, too long for under half the window: the first send in full as far as it fits, each after it one row with its own take-back, then how many more; a take-back of one of those puts its replies back',
+  SLOW,
+  async ($, on) => {
+    const w = world($, on)
+    const { ids, ui } = await asking(w, 10)
+    const cap = Math.floor((BODY_ROWS - 1) / 2)
+    const approveAll = async (from: number, to: number) => {
+      for (const id of ids.slice(from, to)) {
+        await approve(ui, w.item(id))
+      }
+    }
+
+    await approveAll(0, 3)
+    await w.turnStarts('Carry on.')
+    await ui.press({ key: 'send' })
+    await approveAll(3, 6)
+    await ui.press({ key: 'send' })
+    await approveAll(6, 9)
+    await ui.press({ key: 'send' })
+    await approveAll(9, 10)
+
+    expect(w.flights()).toHaveLength(3)
+
+    for (const at of [0, 1, 2]) {
+      expect(await ui.find({ key: w.takeBack(at) }), `the take-back of send ${at + 1}`).toBeDefined()
+    }
+
+    expect(await ui.find({ type: 'Text', text: "⧗ Waiting for Claude's turn to end." })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: '⧗ Then: Review round 4 +2' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: '⧗ Then: Review round 7 +2' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: '… 3 more' })).toBeDefined()
+    expect(await ui.find({ key: 'send' })).toBeDefined()
+    expect(await drawnRows(ui)).toBeLessThanOrEqual(cap)
+    await expectHeightKept(ui, 'three sends held and a reply, cut short')
+
+    await ui.press({ key: w.takeBack(2) })
+
+    expect(w.flights()).toHaveLength(2)
+    expect(await ui.find({ type: 'Text', text: /^⧗ Then: Review round 7/ })).toBeUndefined()
+    expect(await drawnRows(ui)).toBeLessThanOrEqual(cap)
+    await expectHeightKept(ui, 'two sends held and four replies, cut short')
+
+    await ui.redraw(docked(80))
+    expect(await ui.find({ type: 'Text', text: /^⧗ Then/ })).toBeUndefined()
+    expect(await ui.find({ type: 'Text', text: /more$/ })).toBeUndefined()
+    await expectHeightKept(ui, 'room for every send', 80)
+  },
+)
+
+test(
+  'five sends held in a window too short for a row each: the first in full, a row for each after it that fits but one, then one row standing for the rest, stepping through them, so every take-back is in reach; a take-back from it puts that send back',
+  SLOW,
+  async ($, on) => {
+    const w = world($, on)
+    const short = docked(22)
+    const { ids, ui } = await asking(w, 5, short)
+    const cap = Math.floor((22 - 1) / 2)
+    const [first = '', ...later] = ids
+    const then = (text: string) => ui.find({ type: 'Text', text: `⧗ Then: ${text}` })
+
+    await approve(ui, w.item(first))
+    await w.turnStarts('Carry on.')
+    await ui.press({ key: 'send' })
+
+    for (const id of later) {
+      await approve(ui, w.item(id))
+      await ui.press({ key: 'send' })
+    }
+
+    expect(w.flights()).toHaveLength(5)
+    expect(await ui.find({ key: w.takeBack(0) }), 'the first, in full').toBeDefined()
+    expect(await then('Review round 2')).toBeDefined()
+    expect(await then('Review round 3')).toBeDefined()
+    expect(await then('Review round 4 · 1 of 2')).toBeDefined()
+    expect(await ui.find({ key: w.takeBack(3) })).toBeDefined()
+    expect(await ui.find({ key: w.takeBack(4) }), 'behind the step').toBeUndefined()
+    expect(await ui.find({ type: 'Text', text: '… 2 more' })).toBeDefined()
+    expect(await drawnRows(ui)).toBeLessThanOrEqual(cap)
+    await expectHeightKept(ui, 'five sends held, cut short', 22)
+
+    await ui.press({ key: STEP_HELD })
+
+    expect(await then('Review round 5 · 2 of 2')).toBeDefined()
+    expect(await ui.find({ key: w.takeBack(4) })).toBeDefined()
+    expect(await ui.find({ key: w.takeBack(3) })).toBeUndefined()
+    await expectHeightKept(ui, 'stepped to the last', 22)
+
+    await ui.press({ key: STEP_HELD })
+    expect(await then('Review round 4 · 1 of 2'), 'round again').toBeDefined()
+
+    await ui.press({ key: w.takeBack(3) })
+
+    expect(w.flights()).toHaveLength(4)
+    expect(await ui.find({ key: 'send' }), 'its reply still to send').toBeDefined()
+    expect(await then('Review round 2 · 1 of 3')).toBeDefined()
+    expect(await drawnRows(ui)).toBeLessThanOrEqual(cap)
+    await expectHeightKept(ui, 'four sends held and a reply, cut short', 22)
   },
 )

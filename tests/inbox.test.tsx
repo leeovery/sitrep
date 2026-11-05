@@ -270,6 +270,8 @@ test('a send Lee presses while inbox replies are in flight waits for them: a toa
   expect(await ui.find({ key: `undo:${w.item(own)}` })).toBeDefined()
 
   turn.end()
+  await w.turnStarts(MESSAGE)
+  await w.turnEnds()
   await w.clock.advance(WATCH_MS)
   await ui.press({ key: 'send' })
 

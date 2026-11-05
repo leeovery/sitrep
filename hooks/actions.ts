@@ -15,6 +15,7 @@ import {
 } from '../core'
 import type {
   SitrepAnswering,
+  SitrepInFlight,
   SitrepItemRef,
   SitrepPane,
   SitrepPlace,
@@ -42,14 +43,16 @@ export type Actions = {
   reply: (reply: SitrepQueued) => void
   /** Takes the reply to one item out of the queue. */
   unqueue: (session: string, item: string) => void
-  /** Empties the queue, but for what a send is carrying. */
+  /** Empties the queue, but for what the sends in flight carry. */
   cancelAll: () => void
   /** Has the next Enter in the prompt box answer an ask, comment on it, or pick a parked item up with a comment; `text` fills the box first, to edit the words already queued. */
   answer: (answering: SitrepAnswering, text?: string) => void
   /** Sends Ready to send; a board drawn inline closes once the send is claimed, as on a phone. */
   send: (isDock: boolean) => void
-  /** Takes back the send the window holds for Claude's turn to end, its replies back in Ready to send; none once it has gone. */
-  takeBack: () => void
+  /** Takes back a send the window holds for its turn, its replies back in Ready to send among those still to send; none once it has gone. */
+  takeBack: (send: SitrepInFlight) => void
+  /** Has Ready to send's one row for several held sends show the one named, by the ids of the replies it carries. */
+  showHeld: (send: string) => void
   /** Takes the board somewhere in the tree, at its top there: elsewhere, or where it already is. */
   go: (place: SitrepPlace) => void
   /** Closes the board, by its own close where it sits inline. */
@@ -197,9 +200,9 @@ export const actionsOf = (host: Host): Actions => {
       ),
     cancelAll: () =>
       run('cancelling every reply', async () => {
-        const inFlight = await host.state.inFlight.read()
+        const flights = await host.state.inFlight.read()
 
-        await host.state.queue.update(replies => clearing(replies, inFlight))
+        await host.state.queue.update(replies => clearing(replies, flights))
       }),
     answer: (answering, text) =>
       run('answering in the prompt', () => answer(host, answering, text)),
@@ -214,7 +217,9 @@ export const actionsOf = (host: Host): Actions => {
           }
         }),
       ),
-    takeBack: () => run('taking a send back', () => takeBack(host)),
+    takeBack: send => run('taking a send back', () => takeBack(host, send)),
+    showHeld: send =>
+      run('stepping to the next held send', () => changePane(host, () => ({ heldShown: send }))),
     go: place => run('going elsewhere on the board', () => go(host, place)),
     close: () => run('closing the board', () => closeBoard(host)),
     finish: at => run('finishing a session', () => finish(host, at)),
