@@ -218,6 +218,8 @@ Then mint writes the notes, commits the version and the changelog, tags `v<versi
 
 Both log everything to `~/Library/Logs/SitRep/release-<version>.log`. mint only warns when `post_release` fails, so run it again by hand, `app/release-upload` or `app/release-upload <version>`: it uploads what's kept and sends the cask again. When nothing fitting is kept, it says to build the tag again first, `app/release-build <version> v<version>`, which notarizes again. When the upload went and a step before the tap's run failed (finding the latest release, listing the tap's runs, sending the cask) or the tap started no run within a minute, it prints the command that sends the cask again. When the tap's run started, it prints the run's URL, and if that run fails, the URL and the command.
 
+Leave the clone alone while mint runs. `pre_tag`'s checks end with it, and mint then writes the notes and waits at the review gate before it tags: a commit or a pull made then, or an edit to `plugin.json` beyond its version, is tagged unbuilt, and `app/release-upload` refuses the zip. `app/release-build <version> v<version>`, then `app/release-upload <version>`, finish that release. Closing the gap needs a mint hook nearer the tag.
+
 A rerun replaces the zip, and GitHub deletes the asset it replaces. Until the tap's workflow commits the new asset's id, about a minute later, the cask names a deleted asset, so installs fail; if the sending or the update fails in between, the cask stays broken until a rerun or the printed command sends it again.
 
 Once per Mac that releases, beside the Developer ID certificate:

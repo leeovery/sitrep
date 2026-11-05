@@ -6242,17 +6242,24 @@ reaches a window only while that pane is on show).
      replacing that version's; other versions' builds are kept a month, so
      a trial build, as `app/release-build 0.0.0-check`, never takes the one
      a failed upload still needs. The worktree and the bundle are made in
-     `.sitrep-release-work` there, which each run clears first, as mint's
-     cancel kills a hook before its own cleanup, which would leave a signed
-     SitRep.app for macOS to launch by its bundle id. `SITREP_RELEASE_CACHE`,
-     an absolute path, keeps the builds elsewhere, as a trial run's scratch
-     folder; a run removes nothing there but the version folders and the
-     work folder it makes. A failure anywhere in that, the build, the
-     signing, the certificate or the notary's login gone, or Apple
-     refusing, stops the release before its tag, for mint to be run again
-     once it's put right: nothing is public yet. By hand, `app/release-build
-     <version> [<ref>]` builds the version given, from HEAD or from the
-     ref, as a tag's tree.
+     `.sitrep-release-work` there, which each run clears first, its
+     worktree removed even when locked or gone, as mint's cancel kills a
+     hook before its own cleanup, which would leave a signed SitRep.app for
+     macOS to launch by its bundle id, and a kill during `git worktree add`
+     leaves the worktree locked. As runs share that folder, one runs at a
+     time, holding `.sitrep-release-lock` there, which names its process;
+     another refuses while that process lives, and takes the lock over once
+     it's gone. A cleanup that fails after a good build only says so, so it
+     never costs the release another wait on Apple. `SITREP_RELEASE_CACHE`,
+     an absolute path with no `.` or `..`, never `/`, keeps the builds
+     elsewhere, as a trial run's scratch folder; a run removes nothing there
+     but builds as it keeps them, a folder named as a version whose `commit`
+     names a commit, and the work folder and lock it makes.
+     A failure anywhere in that, the build, the signing, the certificate or
+     the notary's login gone, or Apple refusing, stops the release before
+     its tag, for mint to be run again once it's put right: nothing is
+     public yet. By hand, `app/release-build <version> [<ref>]` builds the
+     version given, from HEAD or from the ref, as a tag's tree.
    - **Uploaded after it** (`app/release-upload`), mint's `post_release`,
      once the tag and the release are pushed: the zip kept uploaded to the
      release as `SitRep-<version>.zip`, replacing one there, and the cask
@@ -6276,6 +6283,16 @@ reaches a window only while that pane is on show).
      never published that can't have its zip, and what's left after it is
      moving a file already right. Waiting on Apple costs nothing: a tag
      without its zip reaches no Mac, as the cask follows the tap.
+   - **The gap after `pre_tag`,** known and left open: `pre_tag`'s checks
+     end with it, and mint then writes the notes, runs its check on their
+     files and waits at the review gate before it commits and tags. A
+     commit, or a pull, made in the clone then is tagged unbuilt, and so is
+     an uncommitted edit to `plugin.json` beyond its version, as mint's
+     bookkeeping commit takes the file from the working tree by its path.
+     The release is published, and `app/release-upload` refuses the zip as
+     not of the tag; `app/release-build <version> v<version>`, then
+     `app/release-upload <version>`, finish it. Closing it needs a mint
+     hook nearer the tag. So the clone is left alone while mint runs.
    - **Logged.** mint shows nothing of a hook that succeeds, and only its
      stderr when it fails, so both stages write everything to stderr and
      to `~/Library/Logs/SitRep/release-<version>.log`, naming the log as

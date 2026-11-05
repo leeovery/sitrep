@@ -57,9 +57,13 @@ sign() {
   codesign --force --options runtime "$timestamp" -s "$signer" "$@"
 }
 
-# One version covers the plugin and the app: plugin.json's, or, as mint's
-# pre_tag runs before mint writes it there, the version mint is releasing.
-version=${MINT_NEW_VERSION:-$(plutil -extract version raw -o - "$repo/.claude-plugin/plugin.json")}
+# One version covers the plugin and the app: plugin.json's, or, for a
+# release, as mint's pre_tag runs before mint writes it there, the version
+# mint is releasing.
+version=$(plutil -extract version raw -o - "$repo/.claude-plugin/plugin.json")
+if $release; then
+  version=${MINT_NEW_VERSION:-$version}
+fi
 
 # The link is given the SDK as -isysroot. SwiftPM hands it to clang's link
 # only as --sysroot and with no SDKROOT, so clang records the deployment

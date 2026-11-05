@@ -38,10 +38,10 @@ else
 fi
 release_valid_version "$version" || release_fail "$version isn't a version, as 0.3.1."
 asset=$(release_asset "$version")
-kept=$(release_kept "$version")
-zip="$kept/$asset"
 
 release_log app/release-upload "$version"
+kept=$(release_kept "$version")
+zip="$kept/$asset"
 
 if ! git rev-parse -q --verify "refs/tags/$tag" > /dev/null; then
   release_fail "No tag $tag: app/release-upload uploads to a tagged release."

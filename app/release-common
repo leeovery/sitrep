@@ -14,9 +14,15 @@ release_asset() {
 # trial run's scratch folder. app/release-build removes nothing in it but the
 # folders it makes there: never the folder itself, nor anything else in it.
 release_cache() {
-  local cache=${SITREP_RELEASE_CACHE:-$HOME/Library/Caches/SitRep/release}
-  cache=${cache%/}
-  [[ $cache == /?* ]] || release_fail "SITREP_RELEASE_CACHE is \"${SITREP_RELEASE_CACHE-}\": builds are kept in a folder given by its absolute path."
+  local given=${SITREP_RELEASE_CACHE:-$HOME/Library/Caches/SitRep/release} cache
+  cache=$given
+  while [[ $cache == */ ]]; do
+    cache=${cache%/}
+  done
+  if [[ $cache != /* || /$cache/ == */./* || /$cache/ == */../* ]] ||
+    { [[ -d $cache ]] && [[ $(cd "$cache" && pwd -P) == / ]]; }; then
+    release_fail "The release cache is \"$given\": builds are kept in a folder given by its absolute path, with no . or .., and never /."
+  fi
   printf '%s\n' "$cache"
 }
 
@@ -59,19 +65,32 @@ release_bookkeeping=("$release_version_file" CHANGELOG.md .mint.toml)
 # release_bookkeeping_only reports whether the tree $2 differs from commit $1
 # in mint's bookkeeping alone, and plugin.json in its version alone, saying
 # what else differs in $why. With no $2 it's the working tree, its untracked
-# files counted, as mint commits whatever pre_tag leaves into the tag.
+# files counted, as mint commits whatever pre_tag leaves into the tag. Its
+# callers test it, so errexit is off in it, and a git that fails fails it.
 # shellcheck disable=SC2034 # why is read by the scripts that source this
 release_bookkeeping_only() {
-  local others excludes=("${release_bookkeeping[@]/#/:(top,exclude)}")
-  others=$(
-    git diff --name-only "$1" ${2:+"$2"} -- . "${excludes[@]}"
-    [[ -n ${2-} ]] || git ls-files --others --exclude-standard -- . "${excludes[@]}"
-  )
+  local others untracked="" before after excludes=("${release_bookkeeping[@]/#/:(top,exclude)}")
+  local cant="git couldn't compare ${2:-the working tree} with $1, as it says above"
+  others=$(git diff --name-only "$1" ${2:+"$2"} -- . "${excludes[@]}") || {
+    why=$cant
+    return 1
+  }
+  if [[ -z ${2-} ]]; then
+    untracked=$(git ls-files --others --exclude-standard -- . "${excludes[@]}") || {
+      why=$cant
+      return 1
+    }
+  fi
+  others=$(printf '%s\n%s' "$others" "$untracked" | sed '/^$/d')
   if [[ -n $others ]]; then
     why="changes beyond mint's bookkeeping:"$'\n'"$others"
     return 1
   fi
-  if [[ $(release_unversioned "$1") != "$(release_unversioned "${2-}")" ]]; then
+  if ! before=$(release_unversioned "$1") || ! after=$(release_unversioned "${2-}"); then
+    why="$cant, reading $release_version_file"
+    return 1
+  fi
+  if [[ $before != "$after" ]]; then
     why="changes $release_version_file beyond its version"
     return 1
   fi
