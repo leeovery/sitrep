@@ -1130,6 +1130,32 @@ test('a /reload-plugins Lee types lifts the stop: the load after it sends the se
   expect(repliedIn(w, paths)).toEqual([first])
 })
 
+test('a /clear Lee types lifts the stop, and the send held goes into the next conversation at the first look once the command has ended', SLOW, async ($, on) => {
+  on('command.run', { command: 'clear' }, async () => {
+    await $.session.end({ reason: 'clear', sessionId: W1, resume: { id: W1 } })
+
+    return {}
+  })
+
+  const w = world($, on)
+  const { paths, ids, ui } = await asking(w)
+  const [first = ''] = ids
+
+  await holding(w, ui, ids)
+  await interrupted(w)
+  w.dropPrompts()
+  await typedCommand($, 'clear')
+  await w.clock.settle()
+
+  expect(isStopped(w)).toBe(false)
+  expect(w.submitted, 'nothing while the command ran').toEqual([message(1)])
+
+  await w.clock.advance(WATCH_MS)
+
+  expect(w.submitted).toEqual([message(1), message(1)])
+  expect(repliedIn(w, paths)).toEqual([first])
+})
+
 test("Lee's turn starting between a submit and Claude Code's refusal of it leaves the window unmarked, the send held to go as that turn ends", SLOW, async ($, on) => {
   const w = world($, on)
   const { paths, ids, ui } = await asking(w)

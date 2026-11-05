@@ -297,14 +297,16 @@ export const liftStop = async (host: Host) => {
 /**
  * Holds again a message Claude Code refused because Lee stopped Claude's
  * turn, the window marked stopped first, so no look submits it meanwhile:
- * neither it nor any send behind it is let go. Lee's input heard since the
+ * neither it nor any send behind it is let go. One gone by then marks
+ * nothing. Lee's input heard since the
  * submit (`at`) leaves the window unmarked, the refusal predating it, and
  * so does input heard while the mark was being written. What its submit set
  * up is undone: no quiet lets it go as never taken, and no wait on its turn
  * keeps the window from carrying on.
  */
 const holdForInput = async (host: Host, delivery: SitrepInFlight, at: number) => {
-  const isStopped = inputs === at
+  const isThere = (await flightNow(host)).some(each => isUnheard(each, delivery))
+  const isStopped = isThere && inputs === at
   let isHeldAgain = false
 
   if (isStopped) {
@@ -539,7 +541,8 @@ export const sendHeld = async (host: Host) => {
   }
 
   if (isPress) {
-    await liftStop(host)
+    // A refusal marks the window again, so the submit goes whether or not this lands.
+    await liftStop(host).catch(logFailure(host, 'ending the wait on your input'))
   }
 
   awaitTurn(host, going.text)

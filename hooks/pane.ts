@@ -33,16 +33,6 @@ export const BAND = {
 
 export const BAND_KEYS = Object.values(BAND)
 
-/** How the board was last drawn on each surface, as its render's props said: what a press on it, answered by a hook, goes by. */
-const drawnAs = new Map<string, SitrepPlacement>()
-
-export const heardPaneDrawn = (surface: string, placement: SitrepPlacement) => {
-  drawnAs.set(surface, placement)
-}
-
-/** Whether the board was drawn docked on a surface, as it is unless drawn inline there. */
-export const isDrawnDocked = (surface: string) => drawnAs.get(surface) !== 'inline'
-
 /** Where the board opens: where it looks, and the item opened under its line. */
 export type Focus = Partial<Pick<SitrepPane, 'place' | 'selected'>>
 

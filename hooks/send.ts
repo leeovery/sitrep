@@ -79,8 +79,6 @@ const sendHere = async (host: Host, claimed: () => Promise<void>): Promise<Here>
   )
 
   if (ahead?.source === 'inbox') {
-    // A press of Lee's carries them on, though he stopped Claude's turn.
-    await sendHeld(host)
     host.ui.toast(BEHIND)
   }
 
@@ -92,11 +90,15 @@ const sendHere = async (host: Host, claimed: () => Promise<void>): Promise<Here>
  * sessions' into their inboxes, then the held session's. `claimed` runs
  * once, as soon as any of it has gone: the held session's message claimed,
  * else the letters written; never once nothing went. A send that carried
- * nothing at all says why it left what it held.
+ * nothing at all says why it left what it held. Whatever it claimed, the
+ * first message in flight goes as it can: from Lee's press, though he
+ * stopped Claude's turn.
  */
 export const send = async (host: Host, claimed: () => Promise<void>) => {
   const letters = await sendLetters(host)
   const here = await sendHere(host, claimed)
+
+  await sendHeld(host)
 
   if (letters.isLettered && here.is !== 'claimed') {
     await claimed()

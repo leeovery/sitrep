@@ -44,7 +44,7 @@ import {
   unsent,
 } from '../queue'
 import type { Filed, Scene } from '../scene'
-import { drawReplyRow, drawRewrite, NOT_SENT, type Drawing } from './kit'
+import { answeredByTheHook, drawReplyRow, drawRewrite, NOT_SENT, type Drawing } from './kit'
 
 /** A send the window holds while Claude is mid-turn, which Lee can take back until it goes. */
 const HELD = "⧗ Waiting for Claude's turn to end."
@@ -213,7 +213,9 @@ const goingOf = (send: SitrepInFlight, width: number, holding: Holding): Going =
   }
 
   if (holding === 'stop') {
-    const rows = wrapped(STOPPED, width - BOX_SIDES - TAKE_BACK_CELLS - SEND_NOW_CELLS)
+    // Never narrower than its longest word, which a board too narrow cuts short rather than splits.
+    const beside = width - BOX_SIDES - TAKE_BACK_CELLS - SEND_NOW_CELLS
+    const rows = wrapped(STOPPED, Math.max(beside, ...STOPPED.split(' ').map(word => word.length)))
 
     return { send, rows, isHeld: true, sendsNow: true }
   }
@@ -525,9 +527,6 @@ const drawStep = (d: Drawing, { next }: Step) => {
     <Button key={STEP_HELD} plain dimColor label="› next" onPress={() => d.act.showHeld(next)} />
   )
 }
-
-/** Every press on send and send now is answered by the `ui.press` hook, inside the press itself. */
-const answeredByTheHook = () => undefined
 
 /** The line saying where a send on its way stands, under its replies; held, its take-back beside it, after its send now, or the step to the next held send where the row stands for several. */
 const drawGoing = (d: Drawing, { send, rows, isHeld, sendsNow }: Going, step?: Step) => {

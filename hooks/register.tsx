@@ -70,11 +70,10 @@ import { loadedNow } from './load'
 import {
   BAND_KEYS,
   boardClosed,
-  heardPaneDrawn,
   heardPlacement,
-  isDrawnDocked,
   openBoard,
   PANE,
+  placementOn,
   pressBand,
   syncBoard,
 } from './pane'
@@ -489,7 +488,8 @@ export const register: Register = on => {
   // own buttons, bound to the $ it was drawn with, do not.
   on('ui.press', { plugin: 'sitrep', element: [SEND, SEND_NOW] }, async ($, e) => {
     const host: Host = { ...hostOf($), isPress: true }
-    const pressed = e.element === SEND ? sendReady(host, isDrawnDocked(e.surface)) : sendHeld(host)
+    const isDock = placementOn(await host.state.pane.read(), e.surface) !== 'inline'
+    const pressed = e.element === SEND ? sendReady(host, isDock) : sendHeld(host)
 
     await pressed.catch(logFailure(host, 'sending'))
 
@@ -530,8 +530,6 @@ export const register: Register = on => {
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     const host = hostOf($)
     const scene = await sceneOf(host)
-
-    heardPaneDrawn(e.surface, e.props.placement)
 
     return drawPane(
       $.ui.resolve(e),
