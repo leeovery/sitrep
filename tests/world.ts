@@ -182,8 +182,8 @@ const MISSING = (path: string) => ({ deny: `ENOENT: no such file or directory, $
 
 const isUnder = (dir: string, path: string) => path.startsWith(`${dir}/`)
 
-/** What reaches the model as a prompt: the text, what rode beside it, and whose it is. */
-type Submitted = Pick<PromptSubmitInput, 'text' | 'context' | 'origin'>
+/** What reaches the model as a prompt: the text, what rode beside it, whose it is, and what was attached. */
+type Submitted = Pick<PromptSubmitInput, 'text' | 'context' | 'origin' | 'attachments'>
 
 /**
  * The display beneath the mod: the panes it opens, as placed or waiting;
@@ -276,7 +276,12 @@ function display(on: On) {
       return { drop: dropping }
     }
 
-    prompts.push({ text: e.text, context: e.context, origin: e.origin })
+    prompts.push({
+      text: e.text,
+      context: e.context,
+      origin: e.origin,
+      ...(e.attachments !== undefined && { attachments: e.attachments }),
+    })
 
     return { text: e.text, context: e.context, origin: e.origin }
   })

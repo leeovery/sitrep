@@ -38,7 +38,7 @@ import { deliveredMark, isObject, sentLines, type Body, type Session } from '../
 import type { SitrepInFlight, SitrepSource, SitrepStoredFlights } from '../types'
 import { betweenTurns } from './activity'
 import { logFailure, type Host } from './host'
-import { writeOwnFile } from './into'
+import { writeOwnFile, type Into, type LinesOf } from './into'
 import { isCarriedBy } from './queue'
 import { LINGER_MS, tickAfter } from './scene'
 import { postKnown } from './seen'
@@ -381,6 +381,14 @@ const linesOf = (session: Session, delivery: SitrepInFlight): Body[] =>
       )
 
 /**
+ * Writes down what Claude has just been sent in the session it went to:
+ * through the hold, as lines Claude knows of, where it is the window's, else
+ * into the writer's file there. False when the session no longer folds.
+ */
+export const writeGiven = (host: Host, into: Into, given: LinesOf) =>
+  writeOwnFile(host, into, given, (session, lines) => postKnown(host, session, lines))
+
+/**
  * Writes a taken message down in the session it went to, then ends it; what
  * follows its claim's end follows once, by whichever write ended it. Two loads
  * may both write one down: a file-watch reload can cut short a write the
@@ -388,13 +396,7 @@ const linesOf = (session: Session, delivery: SitrepInFlight): Body[] =>
  * writes it again, finding its lines there or not.
  */
 const writeDown = async (host: Host, delivery: SitrepInFlight) => {
-  // Through the hold, as lines Claude knows of: the replies it has just been sent.
-  const isThere = await writeOwnFile(
-    host,
-    delivery,
-    session => linesOf(session, delivery),
-    (session, lines) => postKnown(host, session, lines),
-  )
+  const isThere = await writeGiven(host, delivery, session => linesOf(session, delivery))
 
   if (!isThere) {
     host.log(`sitrep: Claude has replies to ${delivery.session}, whose session.json is gone`)

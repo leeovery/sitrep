@@ -111,7 +111,7 @@ export const answered = (session: Session, reply: SitrepQueued): Ask | Parked | 
 export type LeftOut = 'changed' | Barred
 
 /** Why a send leaves a queued reply no send in flight carries; undefined for one it carries: one that fits its item, which takes it now. */
-const whyLeft = (session: Session, reply: SitrepQueued): LeftOut | undefined => {
+export const whyLeft = (session: Session, reply: SitrepQueued): LeftOut | undefined => {
   const item = answered(session, reply)
 
   return item === undefined ? 'changed' : barredBy(item, reply.verdict)

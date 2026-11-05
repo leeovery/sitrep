@@ -14,23 +14,56 @@
  * ends. An item whose session the board has not read yet leaves it standing,
  * unshown.
  *
+ * A prompt carrying an attachment, an image, can't wait in Ready to send:
+ * a plugin is given its kind, never its bytes or its path, and its own
+ * prompts carry none. So Lee's prompt goes in at once, rewritten as the
+ * board's own words for that one reply, its attachments with it, and the
+ * reply is written down as delivered once Claude Code has it. It goes into
+ * this window's Claude, so only for an item of the session the window holds.
+ *
  * Ended with nothing taken, the mode takes back the words it put in the
  * prompt box, so none of the board's words go to Claude unasked.
  */
 import type { PromptOrigin, PromptSubmitInput, RenderSurface } from 'claude-code'
-import { barredBy, isAnswer, takes, type Ask, type Parked, type Verdict } from '../core'
-import type { SitrepAnswering, SitrepQueued } from '../types'
+import {
+  barredBy,
+  boardMessage,
+  isAnswer,
+  sentLines,
+  takes,
+  type Ask,
+  type Parked,
+  type ReplyBody,
+  type Verdict,
+} from '../core'
+import type { SitrepAnswering, SitrepAttachment, SitrepQueued } from '../types'
+import { writeGiven } from './deliver'
 import { logFailure, type Host } from './host'
 import { unwrapPastes } from './paste'
 import { briefOf, filedAt } from './places'
-import { isCarried, queuedOn, queuing } from './queue'
+import {
+  isCarried,
+  queuedOn,
+  queuing,
+  replyBodies,
+  unqueuing,
+  whyLeft,
+  type LeftOut,
+} from './queue'
 import { sceneOf, type Scene } from './scene'
+import { attached } from './window'
 
 /** The mode as it stands: what it writes, and the item it writes to. */
 export type Answering = { answering: SitrepAnswering; item: Ask | Parked }
 
 /** The mode as the board reads its item: standing, or over once the item can take the reply no longer. */
 type Standing = Answering | 'over'
+
+/** Lee's prompt let in as the board's words for the reply, its attachments with it: `rode` writes the reply down once Claude Code has it. */
+export type Riding = { text: string; rode: () => Promise<void> }
+
+/** What the mode makes of Lee's prompt: dropped, taken or kept in the box, and why, for the transcript; or let in, riding. */
+export type Captured = { drop: string } | Riding
 
 /** What the next Enter queues, by what the mode was entered for. */
 const VERDICT: Record<SitrepAnswering['as'], Verdict> = {
@@ -63,8 +96,18 @@ export const LEFT =
 
 const EMPTY = 'Write your answer in the prompt first, or cancel it on the band.'
 
-const ATTACHED =
-  'An answer is words alone: take the attachment out, or cancel answering on the band.'
+/** Why a prompt carrying an attachment is kept: it can go only into this window's Claude. */
+export const ELSEWHERE =
+  "An attachment goes only to this window's session: take it out to answer in words, or answer from that session's window."
+
+/** Why a reply can't go in with Lee's prompt, as Ready to send would leave it out. */
+export const CANNOT_RIDE: Record<LeftOut, string> = {
+  changed: 'Not sent: the ask has changed since your reply was queued.',
+  answered: 'Not sent: the ask has an answer on its way already.',
+  resolved: 'Not sent: Claude closed the ask.',
+}
+
+const UNWRITTEN = 'Claude has your answer, but the board could not write it down.'
 
 /** How long after a taken prompt is dropped the box is cleared: once the engine has put it back. */
 export const CLEAR_AFTER_DROP_MS = 100
@@ -247,17 +290,85 @@ const wordsOf = (text: string) =>
     .replace(/^\s*\n/, '')
     .trimEnd()
 
+/** Lee's words queued in Ready to send as the reply, nothing of them going to Claude; the prompt dropped, saying where they wait. */
+const queued = async (host: Host, standing: Answering, words: string): Promise<Captured> => {
+  const queue = await host.state.queue.read()
+  const taken = TAKEN[writtenAs(standing, queue)]
+
+  await host.state.queue.update(waiting =>
+    queuing(waiting, replyOf(standing.answering, waiting, words)),
+  )
+  await forget(host)
+  // The engine puts a dropped prompt back in the box, over a clear made while
+  // the hook runs (live), so the box is cleared once the drop has settled.
+  host.clock.after(
+    CLEAR_AFTER_DROP_MS,
+    () => void host.prompt.clear().catch(logFailure(host, 'clearing the prompt')),
+  )
+
+  return { drop: taken }
+}
+
 /**
- * Lee's prompt, taken as the words the mode waits for, and why it went no
- * further, for the transcript; undefined where it goes to Claude as ever:
- * a prompt not of Lee's own, one from a surface the mode is not shown on,
- * or one while a survey holds the band there. One with nothing in it, or
- * with something attached, is not taken, and the mode stands.
+ * The reply gone in with Lee's prompt, written down as delivered: Claude has
+ * it. Ready to send loses whatever was queued on its item, which went with
+ * it, and the mode is over.
+ */
+const rodeIn = async (
+  host: Host,
+  held: SitrepAttachment,
+  { session, item }: SitrepAnswering,
+  replies: readonly ReplyBody[],
+) => {
+  await writeGiven(host, held, written => sentLines(written, replies)).catch(error => {
+    logFailure(host, 'writing down the answer Claude has')(error)
+    host.ui.toast(UNWRITTEN)
+  })
+  await host.state.queue.update(queue => unqueuing(queue, session, item))
+  await forget(host)
+}
+
+/**
+ * Lee's prompt, carrying an attachment, let in as the board's words for the
+ * reply, so the attachment goes with it: only for an item of the session the
+ * window holds, whose Claude it goes into, and only while the item takes the
+ * reply as a send would carry it. Else it is kept, a toast saying why.
+ */
+const riding = (host: Host, scene: Scene, { answering }: Answering, words: string): Captured => {
+  const held = attached()
+
+  if (held?.session !== answering.session) {
+    host.ui.toast(ELSEWHERE)
+
+    return { drop: NOT_TAKEN }
+  }
+
+  const reply = replyOf(answering, scene.queue, words)
+  const why = whyLeft(scene.session, reply)
+  const message = why === undefined ? boardMessage(scene.session, [reply]) : undefined
+
+  if (message === undefined) {
+    host.ui.toast(CANNOT_RIDE[why ?? 'changed'])
+
+    return { drop: NOT_TAKEN }
+  }
+
+  const replies = replyBodies(scene.session, message.replies)
+
+  return { text: message.text, rode: () => rodeIn(host, held, answering, replies) }
+}
+
+/**
+ * What the mode makes of Lee's prompt; undefined where it goes to Claude as
+ * ever: a prompt not of Lee's own, one from a surface the mode is not shown
+ * on, or one while a survey holds the band there. Words alone are queued,
+ * the prompt dropped; words with an attachment ride in with it. One with
+ * nothing in it is kept, and the mode stands.
  */
 export const captured = async (
   host: Host,
   { text, attachments = [], origin }: Pick<PromptSubmitInput, 'text' | 'attachments' | 'origin'>,
-) => {
+): Promise<Captured | undefined> => {
   const surface = SURFACE_OF[origin.kind]
 
   if (surface === undefined || (await host.state.answering.read()) === null) {
@@ -274,31 +385,19 @@ export const captured = async (
     return undefined
   }
 
-  if (standing?.answering.surface !== surface || surveyed.has(surface)) {
+  if (scene === undefined || standing?.answering.surface !== surface || surveyed.has(surface)) {
     return undefined
   }
 
   const words = wordsOf(text)
 
-  if (attachments.length > 0 || words.trim() === '') {
-    host.ui.toast(attachments.length > 0 ? ATTACHED : EMPTY)
+  if (words.trim() === '') {
+    host.ui.toast(EMPTY)
 
-    return NOT_TAKEN
+    return { drop: NOT_TAKEN }
   }
 
-  const queue = await host.state.queue.read()
-  const taken = TAKEN[writtenAs(standing, queue)]
-
-  await host.state.queue.update(waiting =>
-    queuing(waiting, replyOf(standing.answering, waiting, words)),
-  )
-  await forget(host)
-  // The engine puts a dropped prompt back in the box, over a clear made while
-  // the hook runs (live), so the box is cleared once the drop has settled.
-  host.clock.after(
-    CLEAR_AFTER_DROP_MS,
-    () => void host.prompt.clear().catch(logFailure(host, 'clearing the prompt')),
-  )
-
-  return taken
+  return attachments.length > 0
+    ? riding(host, scene, standing, words)
+    : queued(host, standing, words)
 }

@@ -661,7 +661,9 @@ shape is ever shown as a word:
   Claude to act on.
 
 **Lee writes in Claude Code's own prompt box**, where a paste works, and the
-words still wait in Ready to send with everything else, sent in one go.
+words still wait in Ready to send with everything else, sent in one go. An
+answer with an image attached goes at once instead (see "An answer with an
+image", below).
 
 1. `✎ Answer` (a words ask) or `✎ comment` (a yes or a choice) puts the
    window in **answering** mode for that ask; `✎ with a comment` puts it in
@@ -715,9 +717,9 @@ words still wait in Ready to send with everything else, sent in one go.
    A paste arrives in the submitted prompt wrapped
    `<pasted_content id="…">…</pasted_content id="…">` (live, 2.1.295;
    undocumented): it is unwrapped onto lines of its own, the words typed
-   around it kept in place. An empty Enter, or one with something attached,
-   is not taken: a toast says why, the prompt stays in the box, and the mode
-   stands.
+   around it kept in place. An empty Enter is not taken: a toast says why,
+   the prompt stays in the box, and the mode stands. One with something
+   attached goes in at once (below).
 4. **Queued, the reply shows on one row**, under the ask and in Ready to
    send: its words clipped to a line, `+3 lines` when there are more, then,
    under the ask, `· not sent yet ↺ undo ✎ edit`. `✎ edit` enters the mode
@@ -726,6 +728,48 @@ words still wait in Ready to send with everything else, sent in one go.
    offers `✎ comment` there instead, which adds its note; a bare pick-up,
    neither.
 5. **One send carries everything**, as ever.
+
+**An answer with an image** (5 November 2026). Lee answered an ask in the
+prompt with a screenshot attached, and the board refused it as words alone;
+Lee: "they're just paths that pass through. We need to make that work." An
+image can't wait in Ready to send: `prompt.submit` gives a plugin each
+attachment's kind, type and file name, never its bytes or a path; a
+plugin's own `$.prompt.submit` expands no pasted image; and Claude Code
+caches only pasted text. So an Enter the mode takes with something attached
+is not dropped: Lee's own prompt goes in now, its text rewritten as the
+board's words for that one reply (`From the board:` and the reply's line,
+as a send words it), its attachments passing through untouched. Claude Code
+keeps the image's blocks and puts the new text in place of the typed text
+(read from 2.1.318's code). If Claude is mid-turn, Claude Code queues it as
+any prompt Lee types.
+
+- **The words.** The submitted text keeps `[Image #1]` where each image sits
+  (2.1.318 expands pasted text in place, an image's placeholder as typed),
+  so the reply's note keeps it too, and Claude reads where each image
+  belongs. An image alone answers as its placeholder: `answer: “[Image #1]”`.
+  One with no text at all, as nothing marks where it sits, is an empty
+  Enter, not taken.
+- **The reply** is built as a queued one is: an answer, a comment, a
+  pick-up's note, or a comment going as the note of a yes or a choice
+  queued on the ask, which goes with it. It goes only while a send would
+  carry it: it fits the ask, and no answer is on its way to it. Else the
+  prompt is kept, a toast saying why (`Not sent: the ask has an answer on
+  its way already.`, `…has changed since your reply was queued.`).
+- **Only to this window's session.** The prompt goes into this window's
+  Claude, so an item of another session can't take it: the prompt is kept,
+  with `An attachment goes only to this window's session: take it out to
+  answer in words, or answer from that session's window.`
+- **Once Claude Code takes it**, the prompt's `next` resolving with no
+  drop, the reply is written down as delivered in its session, the lines a
+  taken send writes, through the hold, as lines Claude knows of. Whatever
+  was queued on its item leaves Ready to send, and the mode ends. It never
+  waits in Ready to send, and can't be taken back.
+- **Dropped beneath**, by another plugin's hook or Claude Code, nothing is
+  written and the mode stands; Claude Code puts the prompt back in the box.
+- Like the board's own message it takes no board-change context, which
+  rides in with the next prompt. It is still Lee's input: a prompt that goes
+  on leaves the window stopped until its turn starts, and one dropped lifts
+  the mark (see "Held for Lee's input", under Delivery).
 
 **The mode is safe to be in:**
 

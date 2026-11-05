@@ -1,16 +1,27 @@
+import type { PromptSubmitAttachment } from 'claude-code'
 import { expect, test, tier } from 'claude-code/testing'
-import { sessionPaths, type SessionMeta } from '../core'
-import { CLEAR_AFTER_DROP_MS, DRAFT, LEFT, NOT_TAKEN, TAKEN } from '../hooks/answering'
+import { parseEntries, sessionPaths, type SessionMeta } from '../core'
+import {
+  CANNOT_RIDE,
+  CLEAR_AFTER_DROP_MS,
+  DRAFT,
+  ELSEWHERE,
+  LEFT,
+  NOT_TAKEN,
+  TAKEN,
+} from '../hooks/answering'
 import { AROUND_MS } from '../hooks/around'
 import { C } from '../hooks/look'
 import { WATCH_MS } from '../hooks/window'
 import { rowsOf } from './drawn'
 import {
+  beat,
   delivered,
   file,
   finish,
   kindAsk,
   MIN,
+  note,
   park,
   reply,
   SLOW,
@@ -63,7 +74,7 @@ const entered = (
   engine: Engine,
   text: string,
   extra: {
-    attachments?: readonly { type: 'image' }[]
+    attachments?: readonly PromptSubmitAttachment[]
     origin?: { kind: 'composer' | 'bridge' | 'task-notification' }
   } = {},
 ) => {
@@ -71,6 +82,27 @@ const entered = (
 
   return engine.prompt.submit({ text, wait: false, origin: { kind: 'composer' }, ...extra })
 }
+
+/** An image Lee pasted, as a plugin is given it: its kind, never its bytes or its path. */
+const IMAGE: PromptSubmitAttachment = { type: 'image', mediaType: 'image/png' }
+
+/** The held session's folder. */
+const heldPaths = (w: World) => sessionPaths(ROOT, PROJECT.key, w.state.attachment?.session ?? '')
+
+/** The replies written in the window's own file, by item, and whether a delivered mark names each. */
+const writtenIn = (w: World) => {
+  const lines = parseEntries(w.text(heldPaths(w).log(W1)))
+  const marked = lines.flatMap(line => (line.type === 'delivered' ? line.replies : []))
+
+  return lines.flatMap(line =>
+    line.type === 'reply'
+      ? [{ item: line.item, verdict: line.verdict, isDelivered: marked.includes(line.id) }]
+      : [],
+  )
+}
+
+/** The state of an ask of the held session, as the board reads it. */
+const stateOf = (w: World, id: string) => w.state.board?.asks.find(ask => ask.id === id)?.state
 
 /** Where a reply to an ask of the held session goes. */
 const at = (w: World, item: string) => ({
@@ -317,20 +349,18 @@ test('a paste is taken unwrapped, the words typed around it in their place', asy
   expect(w.box.text).toBe('')
 })
 
-test('an empty Enter, or one with something attached, is not taken: a toast, the prompt kept, the mode still on', async ($, on) => {
+test('an empty Enter, an image attached or not, is not taken: a toast, the prompt kept, the mode still on', async ($, on) => {
   const w = world($, on)
   const { id } = await answering(w)
 
   expect(await entered(w, $, '  \n ')).toEqual({ drop: NOT_TAKEN })
-  expect(await entered(w, $, 'See the screenshot', { attachments: [{ type: 'image' }] })).toEqual({
-    drop: NOT_TAKEN,
-  })
+  expect(await entered(w, $, '', { attachments: [IMAGE] })).toEqual({ drop: NOT_TAKEN })
   await w.clock.advance(CLEAR_AFTER_DROP_MS)
-  expect(w.box.text).toBe('See the screenshot')
-  expect(w.toasts).toContain('Write your answer in the prompt first, or cancel it on the band.')
-  expect(w.toasts).toContain(
-    'An answer is words alone: take the attachment out, or cancel answering on the band.',
-  )
+  expect(
+    w.toasts.filter(
+      toast => toast === 'Write your answer in the prompt first, or cancel it on the band.',
+    ),
+  ).toHaveLength(2)
   expect(w.prompts).toEqual([])
   expect(w.state.queue ?? []).toEqual([])
   expect(w.state.answering).toMatchObject({ item: id })
@@ -708,6 +738,168 @@ test("answering another session's ask has the board read that session in full at
   await ui.press({ key: `pick:${there}` })
   await ui.press({ key: `answer:${there}` })
   expect(w.state.others?.map(other => other.board.id)).toEqual([LEDGER.id])
+})
+
+test('an answer with an image goes in at once as Lee’s own prompt, rewritten as the board’s words for it, the image with it, and is written down delivered', async ($, on) => {
+  const w = world($, on)
+  const { id } = await answering(w)
+
+  expect(
+    (await entered(w, $, 'It prints this: [Image #1]', { attachments: [IMAGE] })).drop,
+  ).toBeUndefined()
+  expect(w.prompts).toEqual([
+    {
+      text: `From the board:\n- ${LIST.title} → ${OUTPUT}: “It prints this: [Image #1]”`,
+      context: undefined,
+      origin: { kind: 'composer' },
+      attachments: [IMAGE],
+    },
+  ])
+  expect(writtenIn(w)).toEqual([{ item: id, verdict: 'answer', isDelivered: true }])
+  expect(stateOf(w, id)).toBe('closed')
+  expect(w.state.board?.waiting).toBe(0)
+  expect(w.state.queue ?? []).toEqual([])
+  expect(w.state.answering).toBeNull()
+  expect(w.toasts).not.toContain(NOT_TAKEN)
+})
+
+test('an image with no words answers a words ask as the placeholder Claude Code leaves where it sits', async ($, on) => {
+  const w = world($, on)
+
+  await answering(w)
+  await entered(w, $, '[Image #1]', { attachments: [IMAGE] })
+  expect(w.prompts.map(each => each.text)).toEqual([
+    `From the board:\n- ${LIST.title} → ${OUTPUT}: “[Image #1]”`,
+  ])
+})
+
+test('a comment with an image on an ask whose yes is queued goes in with the yes, as its note, and Ready to send loses the yes', async ($, on) => {
+  const w = world($, on)
+
+  await w.begin()
+
+  const id = await asked(w, GO)
+  const ui = await w.pane()
+
+  await ui.press({ key: `yes:${w.item(id)}` })
+  await ui.press({ key: `rewrite:${w.item(id)}` })
+  await entered(w, $, 'After the copy pass [Image #1]', { attachments: [IMAGE] })
+  expect(w.prompts.map(each => each.text)).toEqual([
+    'From the board:\n- Give the go for stage 3 → Go, with a comment: “After the copy pass [Image #1]”',
+  ])
+  expect(writtenIn(w)).toEqual([{ item: id, verdict: 'yes', isDelivered: true }])
+  expect(stateOf(w, id)).toBe('closed')
+  expect(w.state.queue).toEqual([])
+  expect(await ui.find({ type: 'Text', text: /READY TO SEND/ })).toBeUndefined()
+})
+
+test('a comment with an image on an ask with nothing queued goes in as a comment, leaving the ask open for Claude', async ($, on) => {
+  const w = world($, on)
+
+  await w.begin()
+
+  const id = await asked(w, FRAMES)
+  const ui = await w.pane()
+
+  await ui.press({ key: `comment:${w.item(id)}` })
+  await entered(w, $, 'Frame 2 looks like this [Image #1]', { attachments: [IMAGE] })
+  expect(w.prompts.map(each => each.text)).toEqual([
+    `From the board:\n- ${FRAMES.title} → comment: “Frame 2 looks like this [Image #1]”`,
+  ])
+  expect(writtenIn(w)).toEqual([{ item: id, verdict: 'comment', isDelivered: true }])
+  expect(stateOf(w, id)).toBe('replied')
+})
+
+test('an answer with an image takes no board context, which waits for the next prompt', async ($, on) => {
+  const w = world($, on)
+  const { id } = await answering(w)
+
+  w.writer(heldPaths(w))(note('n9', 'Merged the band'))
+  await entered(w, $, 'v1.2.3 [Image #1]', { attachments: [IMAGE] })
+  await entered(w, $, 'Carry on.')
+  expect(w.prompts.map(each => each.context?.length ?? 0)).toEqual([0, 1])
+  expect(stateOf(w, id)).toBe('closed')
+})
+
+test("an answer with an image to another session's ask is kept: it can go only into this window's Claude", async ($, on) => {
+  const w = world($, on)
+  const ui = await onLedgersAsks(w)
+  const there = w.item('k3', LEDGER.id)
+
+  await ui.press({ key: `pick:${there}` })
+  await ui.press({ key: `answer:${there}` })
+  expect(await entered(w, $, 'id, at, by [Image #1]', { attachments: [IMAGE] })).toEqual({
+    drop: NOT_TAKEN,
+  })
+  expect(w.toasts).toContain(ELSEWHERE)
+  expect(w.prompts).toEqual([])
+  expect(w.state.queue ?? []).toEqual([])
+  expect(w.state.answering).toMatchObject({ session: LEDGER.id, item: 'k3' })
+})
+
+test('a comment with an image going with a queued yes the ask no longer fits is kept, a toast saying why', async ($, on) => {
+  const w = world($, on)
+
+  await w.begin()
+
+  const id = await asked(w, GO)
+  const ui = await w.pane()
+
+  await ui.press({ key: `yes:${w.item(id)}` })
+  await ui.press({ key: `rewrite:${w.item(id)}` })
+  await w.call('edit', { item: id, wants: 'choice', options: ['Now', 'Later'] })
+  expect(await entered(w, $, 'After the copy pass [Image #1]', { attachments: [IMAGE] })).toEqual({
+    drop: NOT_TAKEN,
+  })
+  expect(w.toasts).toContain(CANNOT_RIDE.changed)
+  expect(w.prompts).toEqual([])
+  expect(w.state.queue).toEqual([{ ...at(w, id), verdict: 'yes' }])
+  expect(w.state.answering).toMatchObject({ item: id })
+})
+
+test('a comment with an image going with a queued yes is kept once another answer is on its way to the ask, a toast saying why', SLOW, async ($, on) => {
+  const w = world($, on)
+
+  await w.begin()
+
+  const id = await asked(w, GO)
+  const ui = await w.pane()
+  const paths = heldPaths(w)
+
+  await ui.press({ key: `yes:${w.item(id)}` })
+  await ui.press({ key: `rewrite:${w.item(id)}` })
+  // Another window, attached first, delivers the session's inbox, so its yes stays on its way.
+  w.put(paths.heartbeat(W2), beat(W2, { attachedAt: T0 - MIN, seenAt: w.clock.now() }))
+  w.writer(paths)(reply('r9', id, 'yes'))
+  await w.clock.advance(WATCH_MS)
+  expect(w.state.answering, 'a comment barred by no answer').toMatchObject({ item: id })
+
+  expect(await entered(w, $, 'After the copy pass [Image #1]', { attachments: [IMAGE] })).toEqual({
+    drop: NOT_TAKEN,
+  })
+  expect(w.toasts).toContain(CANNOT_RIDE.answered)
+  expect(w.prompts).toEqual([])
+  expect(w.state.answering).toMatchObject({ item: id })
+})
+
+test('an answer with an image dropped beneath, by another plugin or Claude Code, writes nothing, and the mode stands', async ($, on) => {
+  const w = world($, on)
+
+  await w.begin()
+
+  const id = await asked(w, GO)
+  const ui = await w.pane()
+
+  await ui.press({ key: `yes:${w.item(id)}` })
+  await ui.press({ key: `rewrite:${w.item(id)}` })
+  w.dropPrompts('Blocked by a hook')
+  expect(await entered(w, $, 'After the copy pass [Image #1]', { attachments: [IMAGE] })).toEqual({
+    drop: 'Blocked by a hook',
+  })
+  expect(writtenIn(w)).toEqual([])
+  expect(stateOf(w, id)).toBe('waiting')
+  expect(w.state.queue).toEqual([{ ...at(w, id), verdict: 'yes' }])
+  expect(w.state.answering).toMatchObject({ item: id, as: 'comment' })
 })
 
 test('the mode begun at the terminal takes nothing from Claude’s app, whose band shows the counts', async ($, on) => {
