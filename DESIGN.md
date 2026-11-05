@@ -2437,8 +2437,9 @@ truth. There is still no background service. None of it is built now. Lee:
     exits: no daemon. It takes no words but `--help`; on its standard input
     it hears which sessions are followed, whose boards its lines carry
     (below, **Following**): the app, since the SitRep window went (5
-    November 2026), gives it `/dev/null` and follows none. It reads the one folder that holds every project
-    and session (see Storage), and what it prints is core's: a session's
+    November 2026), gives it `/dev/null` and follows none. It reads the
+    one folder that holds every project and session (see Storage), and
+    what it prints is core's: a session's
     state and its rows (`core/rows.ts`); the board as every surface shows
     it, what is new, and when the board next changes by time alone
     (`core/feed.ts`).
@@ -2447,9 +2448,9 @@ truth. There is still no background service. None of it is built now. Lee:
       session was picked, for each session of a project opened, again
       whenever the line named one shown changed, and after each of its own
       writes. Each run read and folded again a session the app's one
-      `watch` held folded already. So the app tells the watch what the
-      window follows, and the watch prints those boards in its lines: no
-      process per read, and a session's board and its row always come from
+      `watch` held folded already. So the app told the watch what the
+      window followed, and the watch printed those boards in its lines: no
+      process per read, and a session's board and its row always came from
       the same look.
     - **A line per change.** A line of JSON at its start, then one only when
       the board it shows differs from the last line's, its own time aside,
@@ -2679,8 +2680,9 @@ truth. There is still no background service. None of it is built now. Lee:
       names one of a set (a row's `is`, a session's `state` and its
       `doing`'s `is`, an ask's `wants`, a window's state's `is`, and the
       like) is such a change: the app reads them strictly and refuses a
-      line holding a value it does not know. New words in a line, as an away ask's `second`, are not. Since the
-      SitRep window went (5 November 2026) the app reads only `head`, the
+      line holding a value it does not know. New words in a line, as an
+      away ask's `second`, are not. Since the SitRep window went (5
+      November 2026) the app reads only `head`, the
       rows, `snoozed`, the windows and `new`, so a change to `projects` or
       `boards` leaves it reading the board.
       On its own work breaks this once, by plan (22 October 2026):
@@ -4160,9 +4162,9 @@ asked for the sessions back, and approved the redraw as it stands.
   dim, and its ring with them, as macOS dims a disabled item's image and
   AppKit has no switch for it, where the panel keeps the ring orange
   (accepted, 20 October 2026, of the dot it had until 3 November 2026).
-  The list holds every session the panel has: past twelve rows it ended
-  with "4 more…", which opened the SitRep window, until the window went (5
-  November 2026).
+- **Every session** the panel has is listed. Past twelve rows the list
+  ended with "4 more…", which opened the SitRep window, until the window
+  went (5 November 2026).
 - **One lane on the left** holds the marks, the tick and an SF Symbol for
   each command, as macOS 26's own menus carry icons. The tick is drawn as
   the item's image, so the menu has no state column.
@@ -4491,8 +4493,9 @@ live changed, and how they group.
   scroll edge; a short one leaves the rest of the window empty, as Xcode's
   do. The window's colours are the system's: Paper drew them as Lee's
   screenshots show them on his Mac, the window #292D3A, the sidebar
-  #252831, a card #323541, the accent #2E70D4, not the card's black. The window has a least size at which every row's control keeps
-  its place beside its words.
+  #252831, a card #323541, the accent #2E70D4, not the card's black. The
+  window has a least size at which every row's control keeps its place
+  beside its words.
 - **Its rows:** cards at radius 12, as Xcode's, split by the system's
   separator, half a point, 10 in from both ends, one box deep: rows of
   SitRep's own at the form's metrics, not SwiftUI's grouped Form, whose
@@ -5186,9 +5189,9 @@ reaches a window only while that pane is on show).
       (below).
    2. **The spikes**, felt on the display over sample data (PR #5): the
       notch, Meniscus and the card; the strip; Material, Reduce motion, and
-      nothing over full screen. The SitRep window has none: it is an
-      ordinary window, its design taken as it stands, and its hard part,
-      answering, is plumbing a spike over sample data would not test. PR #5
+      nothing over full screen. The SitRep window had none: it was an
+      ordinary window, its design taken as it stood, and its hard part,
+      answering, was plumbing a spike over sample data would not test. PR #5
       closes unmerged once the build has taken its model.
    3. **The words and the versions**, in the plugin (see "Words" and
       "Versions side by side"):
@@ -5495,7 +5498,8 @@ reaches a window only while that pane is on show).
       build settled:
       - **One feed.** The menu's sessions are the panel's, from the board
         the edge reads (`PanelBoard`), in core's order with the panel's
-        marks and its hairline, the first twelve of them; its heading the
+        marks and its hairline, the first twelve of them (every one since
+        the window went, 5 November 2026); its heading the
         panel head's words, "4 need you · as of 12:04" while the board is
         stale. `sitrep list` is no longer read by the menu, nor the listing
         it kept. The app's `list()` and its `Listing`, left behind for their
