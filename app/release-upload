@@ -1,9 +1,12 @@
 #!/bin/bash
-# Builds SitRep's release on this Mac and uploads it to the GitHub release:
-# mint's post_release runs it from the repository's root, once the tag and
-# the release are pushed. The app is built from the tagged tree (app/bundle),
-# notarized and stapled (app/notarize), and uploaded as SitRep-<version>.zip,
-# and the cask in leeovery/homebrew-tools is sent the new zip.
+# Uploads SitRep's release, which app/release-build built, notarized and kept
+# before the tag, to the GitHub release mint made, and sends the cask in
+# leeovery/homebrew-tools the new zip: mint's post_release runs it, from the
+# repository's root, with the version in MINT_NEW_VERSION and its tag in
+# MINT_VERSION_TAG. Nothing is built after the tag: the zip kept is uploaded
+# only where the commit built lies under the tag with nothing but mint's
+# bookkeeping changed since; otherwise it stops, saying how to build the
+# tag's tree again.
 #
 # mint shows nothing a hook prints when it goes well, and only what it prints
 # to stderr when it fails, so everything goes to stderr and to a log,
@@ -11,73 +14,78 @@
 # its sha256 and, when sending the cask fails, the command that sends it.
 #
 # mint only warns when it fails, so it can be run again by hand: with no mint
-# environment, it releases the version plugin.json names, or the one given,
+# environment, it uploads the version plugin.json names, or the one given,
 # tagged v<version>, and its upload replaces one already there.
 set -euo pipefail
 
 if [[ $# -gt 1 ]]; then
-  echo "Usage: app/release [<version>]" >&2
+  echo "Usage: app/release-upload [<version>]" >&2
   exit 1
 fi
 
 app=$(cd "$(dirname "$0")" && pwd)
 repo=$(dirname "$app")
+# shellcheck source=app/release-common
+. "$app/release-common"
 cd "$repo"
 
 if [[ $# -eq 1 ]]; then
   version=$1
   tag=v$version
 else
-  version=${MINT_NEW_VERSION:-$(plutil -extract version raw -o - .claude-plugin/plugin.json)}
+  version=${MINT_NEW_VERSION:-$(plutil -extract version raw -o - "$release_version_file")}
   tag=${MINT_VERSION_TAG:-v$version}
 fi
-asset="SitRep-$version.zip"
+release_valid_version "$version" || release_fail "$version isn't a version, as 0.3.1."
+asset=$(release_asset "$version")
+kept=$(release_kept "$version")
+zip="$kept/$asset"
 
-log="$HOME/Library/Logs/SitRep/release-$version.log"
-mkdir -p "$(dirname "$log")"
-exec > >(tee -a "$log" >&2) 2>&1
-echo "== app/release $tag, $(date), logged to $log"
-
-work=$(mktemp -d)
-tree="$work/tree"
-finish() {
-  git worktree remove --force "$tree" 2> /dev/null || true
-  rm -rf "$work"
-  echo "Logged to $log"
-}
-trap finish EXIT
+release_log app/release-upload "$version"
 
 if ! git rev-parse -q --verify "refs/tags/$tag" > /dev/null; then
-  echo "No tag $tag: app/release builds a release from its tag."
-  exit 1
+  release_fail "No tag $tag: app/release-upload uploads to a tagged release."
 fi
 if ! gh release view "$tag" > /dev/null; then
-  echo "No GitHub release $tag to upload SitRep to."
-  exit 1
+  release_fail "No GitHub release $tag to upload SitRep to."
 fi
 
-# Built outside the repository, from the tag's tree as git holds it, by the
-# tag's own app/bundle.
-git worktree add --quiet --detach "$tree" "$tag"
-"$tree/app/bundle" --release "$work"
-built=$(plutil -extract CFBundleShortVersionString raw -o - "$work/SitRep.app/Contents/Info.plist")
-if [[ $built != "$version" ]]; then
-  echo "$tag builds SitRep $built, not $version."
-  exit 1
+# Whether the build kept is whole and of what the tag holds, saying why not
+# in $why.
+kept_fits() {
+  local file commit
+  for file in "$zip" "$zip.sha256" "$kept/commit"; do
+    if [[ ! -f $file ]]; then
+      why="$kept has no $(basename "$file")"
+      return 1
+    fi
+  done
+  if ! (cd "$kept" && shasum -a 256 --check --status "$asset.sha256"); then
+    why="$asset doesn't match its sha256"
+    return 1
+  fi
+  commit=$(< "$kept/commit")
+  if ! git merge-base --is-ancestor "$commit" "$tag" 2> /dev/null; then
+    why="$commit, the commit built, isn't under $tag"
+    return 1
+  fi
+  if ! release_bookkeeping_only "$commit" "$tag"; then
+    why="the tag, since $commit, the commit built, $why"
+    return 1
+  fi
+}
+if ! kept_fits; then
+  release_fail "Nothing to upload for $tag, as $why"$'\n'"Build the tag again, which notarizes it, with app/release-build $version $tag; then app/release-upload $version uploads it."
 fi
 
-zip="$work/$asset"
-"$app/notarize" "$work/SitRep.app" "$zip"
-sha=$(shasum -a 256 "$zip" | cut -d ' ' -f 1)
-echo "$asset: sha256 $sha"
+sha=$(cut -d ' ' -f 1 "$zip.sha256")
+echo "$asset: sha256 $sha, built from $(< "$kept/commit")"
 if ! gh release upload "$tag" "$zip" --clobber; then
-  echo "Uploading $asset to $tag failed: app/release, run again, builds and notarizes it again."
-  exit 1
+  release_fail "Uploading $asset to $tag failed: app/release-upload $version, run again, uploads it from $kept."
 fi
 id=$(gh api "repos/{owner}/{repo}/releases/tags/$tag" --jq ".assets[] | select(.name == \"$asset\") | .id")
 if [[ ! $id =~ ^[0-9]+$ ]]; then
-  echo "GitHub lists no asset $asset on $tag after its upload."
-  exit 1
+  release_fail "GitHub lists no asset $asset on $tag after its upload."
 fi
 echo "Uploaded $asset to $tag: asset $id, sha256 $sha"
 
@@ -111,7 +119,7 @@ fi
 # another tool's run started beside it isn't taken for it. The workflow's own
 # timeout bounds the wait on it.
 title="Update sitrep to v$version"
-runs=(gh run list -R "$tap" --workflow update-formula.yml --event repository_dispatch --limit 20 --json databaseId,displayTitle)
+runs=(gh run list -R "$tap" --workflow update-formula.yml --event repository_dispatch --limit 20 --json "databaseId,displayTitle")
 if ! before=$("${runs[@]}" --jq '[.[].databaseId] | max // 0'); then
   failed "Listing $tap's update-formula runs failed"
 fi

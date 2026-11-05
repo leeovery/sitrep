@@ -3185,10 +3185,11 @@ October 2026 went back to `brew upgrade` while the repository is private.
   app, and skips livecheck, which can't read a private repository. Its
   uninstall quits the app and its notices helper. Its zap takes SitRep's
   preferences, caches, saved state and its copy of the plugin; never the
-  board's folder, nor `~/Library/Logs/SitRep`, where `app/release` logs on
-  a Mac that releases. A zap leaves Claude Code with the plugin registered
-  from the folder it removed, so the README says to uninstall it there. The tap's `update-formula` workflow writes each release's
-  version, sha256 and asset id into it, sent by `app/release`. All three
+  board's folder, nor `~/Library/Logs/SitRep`, where a release logs on a
+  Mac that releases. A zap leaves Claude Code with the plugin registered
+  from the folder it removed, so the README says to uninstall it there.
+  The tap's `update-formula` workflow writes each release's version,
+  sha256 and asset id into it, sent by `app/release-upload`. All three
   were placeholders until the first release, 0.3.0 on 28 October 2026.
 - **The cask starts SitRep after every install and upgrade** (28 October
   2026): its `postflight` opens `/Applications/SitRep.app`. An upgrade
@@ -6208,27 +6209,67 @@ reaches a window only while that pane is on show).
      app meanwhile (see "Installing and updating").
    - **mint cuts a release** (`./release`): the version, in `plugin.json`,
      which the app takes, the tag `v<version>`, and the GitHub release. Its
-     `pre_tag` runs every gate, since no CI does.
+     `pre_tag` runs every gate, since no CI does, then builds the release
+     (`app/release-build`); its `post_release` uploads it
+     (`app/release-upload`).
    - **Built on this Mac, not in CI** (Lee's choice): with the Xcode Lee
      tests with, no certificate in GitHub, and no macOS runner's minutes.
      It builds on a Mac only because the Developer ID's key and the notary
      login live in this Mac's keychain; Lee's other tools rightly build in
      CI (28 October 2026).
-     mint's `post_release` runs `app/release` once the tag and the release
-     are pushed. It builds the app from the tag's tree, a git worktree in a
-     temporary folder, by the tag's own `app/bundle --release`; notarises
-     it (`app/notarize`); uploads `SitRep-<version>.zip` to the release,
-     replacing one there; and gives the zip's sha256 and the asset's id,
-     which the cask needs. mint shows nothing of a hook that succeeds, and
-     only its stderr when it fails, so `app/release` writes everything to
-     stderr and to `~/Library/Logs/SitRep/release-<version>.log`, naming the
-     log as it starts and ends; the log keeps the asset's id, its sha256
-     and, when sending the cask fails, the command that sends it. mint
+   - **Built before the tag** (`app/release-build`), the last of mint's
+     `pre_tag`, once every gate has passed: from HEAD, which mint tags once
+     it commits its bookkeeping, in a git worktree of its own in a temporary
+     folder, by HEAD's own `app/bundle --release`. mint's `pre_tag` runs
+     before mint writes the new version into `plugin.json`, so `app/bundle`
+     takes the version from `MINT_NEW_VERSION` when mint sets it, else from
+     `plugin.json`, stamps it into the app's and the helper's Info.plist and
+     writes it into the bundled plugin's `plugin.json`, as mint's
+     `version_pattern` writes it; `app/release-build` checks the app and the
+     bundled plugin carry it. The working tree may differ from HEAD only in
+     mint's bookkeeping, `plugin.json` in its version alone, `CHANGELOG.md`
+     and `.mint.toml`: anything else would be built from HEAD without it,
+     or committed by mint as `pre_tag`'s artifacts and tagged unbuilt, so it
+     stops the release. Files git doesn't track never reach a worktree of
+     HEAD, so they stop nothing. A tag already there for the version stops
+     it too: HEAD isn't then what's to be tagged. Then notarised and stapled
+     (`app/notarize`), and the zip of the stapled app, its sha256 and the
+     commit built kept in `~/Library/Caches/SitRep/release/<version>/`, in
+     place of any other version's, as one release is made at a time. A
+     failure anywhere in that, the build, the signing, the certificate or
+     the notary's login gone, or Apple refusing, stops the release before
+     its tag, for mint to be run again once it's put right: nothing is
+     public yet. By hand, `app/release-build <version> [<ref>]` builds the
+     version given, from HEAD or from the ref, as a tag's tree.
+   - **Uploaded after it** (`app/release-upload`), mint's `post_release`,
+     once the tag and the release are pushed: the zip kept uploaded to the
+     release as `SitRep-<version>.zip`, replacing one there, and the cask
+     sent its sha256 and the asset's id (below). Nothing is built after the
+     tag: the zip is taken only where its sha256 matches, the commit built
+     lies under the tag, and the tag changes nothing since but mint's
+     bookkeeping, as its commits of the version, the changelog and its
+     answers in `.mint.toml` change nothing a build reads but the version,
+     which the build already carries. Otherwise it stops, saying to build
+     the tag again with `app/release-build <version> v<version>`, which
+     notarises, then upload it with `app/release-upload <version>`. mint
      only warns when `post_release` fails, so run again by hand, with no
-     mint environment, `app/release` releases the version `plugin.json`
-     names, or the version given (`app/release 0.3.0`), tagged
-     `v<version>`. A re-run builds and notarises again, so its zip, and the
-     asset's id, are new. A dry run does nothing: mint runs no hooks then.
+     mint environment, `app/release-upload` uploads the version
+     `plugin.json` names, or the version given (`app/release-upload
+     0.3.1`), tagged `v<version>`, from what's kept, which needs no signing
+     or Apple again. A re-run's upload replaces the asset, so the asset's id
+     is new.
+   - **Why before the tag** (Lee, 5 November 2026, as Switchboard had
+     adopted that day): every failure about the app, or the means of
+     signing it, comes before mint's point of no return, so a release is
+     never published that can't have its zip, and what's left after it is
+     moving a file already right. Waiting on Apple costs nothing: a tag
+     without its zip reaches no Mac, as the cask follows the tap.
+   - **Logged.** mint shows nothing of a hook that succeeds, and only its
+     stderr when it fails, so both stages write everything to stderr and
+     to `~/Library/Logs/SitRep/release-<version>.log`, naming the log as
+     they start; the log keeps the zip's sha256, the commit built, the
+     asset's id and, when sending the cask fails, the command that sends
+     it. A dry run does nothing: mint runs no hooks then.
    - **Signed with Lee's Developer ID**, `Developer ID Application:
      PointsBox Limited (CQKZZ4FN6V)` in the login keychain, by `app/bundle`
      for every build, `app/build`'s too, so a build from a checkout and a
@@ -6246,7 +6287,8 @@ reaches a window only while that pane is on show).
      `--deep` checks only as a file it seals.
    - **Notarised and stapled for a release only.** `app/notarize` zips the
      app with `ditto`, sends it with `notarytool submit --wait` under the
-     keychain profile `sitrep`, waits again with `notarytool wait` when a
+     keychain profile `notarytool`, the Mac's one login for notarising,
+     shared by every app built here, waits again with `notarytool wait` when a
      wait ends in progress, as a dropped connection leaves it, prints
      `notarytool log` when Apple refuses it, staples the ticket and
      validates it, and zips the stapled app for download. Then that zip as
@@ -6271,7 +6313,7 @@ reaches a window only while that pane is on show).
      zip through GitHub's API by its asset id (see "Installing and
      updating"); it needs macOS 14 and an arm64 Mac, as the app and its CLI
      are arm64 only, so an Intel Mac needs an x64 build beside them. Once
-     it has uploaded, `app/release` sends the tap's `update-formula`
+     it has uploaded, `app/release-upload` sends the tap's `update-formula`
      workflow, through `gh api`, the event `update-formula` with `tool`
      `sitrep`, the version, the zip's sha256 and the asset's id, which the
      workflow checks (`X.Y.Z`, 64 hex digits, a number), writes into the
@@ -6279,7 +6321,7 @@ reaches a window only while that pane is on show).
      that uploads, since each changes both, but only for the latest
      release: Homebrew takes any version other than the one installed as
      an upgrade, so the cask on an older one would downgrade every Mac. A
-     204 from GitHub only says the dispatch was taken, so `app/release`
+     204 from GitHub only says the dispatch was taken, so `app/release-upload`
      then finds the run it started, the first of the tap's `update-formula`
      runs with a newer id than the last before it (an id, unlike a time,
      doesn't hang on this Mac's clock) and named by the workflow's
@@ -6294,12 +6336,12 @@ reaches a window only while that pane is on show).
      id, about a minute, or until a rerun or the command sends it, if the
      send or the update fails. Unlike Stitch's formula, with its table of
      asset ids by version, the cask holds only the current one.
-   - **Where the build runs** (Lee, 28 October 2026): in `post_release`,
-     after the tag and the push, as built. A failure there leaves the
-     release without its zip and the cask on the last version, and
-     `app/release <version>` run again fixes it. Moving the build and the
-     notarising into `pre_tag`, so a failure stops the release before its
-     tag, was weighed and not taken.
+   - **Where the build runs**: in `pre_tag`, before the tag, since 5
+     November 2026 (see "Why before the tag"). On 28 October 2026 Lee chose
+     `post_release`, after the tag and the push, where `app/release` built,
+     notarised and uploaded, a failure leaving the release without its zip
+     and the cask on the last version until `app/release <version>`, run
+     again, built and notarised again.
    - **The first release:** 0.3.0, cut on 28 October 2026, once the tap's
      branch with the cask and the workflow's `sitrep` had merged in
      `leeovery/homebrew-tools`; its dispatch replaced the cask's

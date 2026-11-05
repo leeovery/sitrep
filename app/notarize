@@ -1,8 +1,8 @@
 #!/bin/bash
 # Notarizes a SitRep.app that app/bundle made, staples the ticket to it and
-# zips it for download: app/release runs it. notarytool's login is the Mac's
-# one keychain profile "notarytool", shared by every app built here, which
-# kit's shared step of that name makes from 1Password.
+# zips the stapled app for download: app/release-build runs it. notarytool's
+# login is the Mac's one keychain profile "notarytool", shared by every app
+# built here, which kit's shared step of that name makes from 1Password.
 set -euo pipefail
 
 if [[ $# -ne 2 ]]; then

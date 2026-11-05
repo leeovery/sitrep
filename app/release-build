@@ -1,0 +1,90 @@
+#!/bin/bash
+# Builds SitRep's release on this Mac, signed with Lee's Developer ID,
+# notarized and stapled, before mint tags it: mint's pre_tag runs it after the
+# gates, from the repository's root, with the version about to be tagged in
+# MINT_NEW_VERSION. It builds HEAD, which mint tags once its bookkeeping is
+# committed, in a git worktree outside the repository, by HEAD's own
+# app/bundle --release, the bundle and its plugin stamped with that version;
+# notarizes and staples it (app/notarize), and keeps the zip of the stapled
+# app, its sha256 and the commit built in
+# ~/Library/Caches/SitRep/release/<version>/, in place of any other
+# version's, for app/release-upload once the release is made. Any failure
+# exits non-zero, so mint stops before the tag, with nothing public.
+#
+# By hand it builds the version given, from HEAD, or from the ref given after
+# it, as app/release-build 0.3.1 v0.3.1 builds a tag's tree again for
+# app/release-upload. Each run logs to
+# ~/Library/Logs/SitRep/release-<version>.log.
+set -euo pipefail
+
+if [[ $# -gt 2 ]]; then
+  echo "Usage: app/release-build [<version> [<ref>]]" >&2
+  exit 1
+fi
+
+app=$(cd "$(dirname "$0")" && pwd)
+repo=$(dirname "$app")
+# shellcheck source=app/release-common
+. "$app/release-common"
+cd "$repo"
+
+if [[ $# -ge 1 ]]; then
+  version=$1
+  tag=v$version
+else
+  version=${MINT_NEW_VERSION:-}
+  tag=${MINT_VERSION_TAG:-v$version}
+fi
+ref=${2:-}
+[[ -n $version ]] || release_fail "No version to build: mint gives it as MINT_NEW_VERSION; by hand, give it, as app/release-build 0.3.1."
+release_valid_version "$version" || release_fail "$version isn't a version, as 0.3.1."
+asset=$(release_asset "$version")
+
+release_log app/release-build "$version"
+
+# HEAD is what mint tags, once it commits the new version and the changelog,
+# so the working tree may differ from it in those alone: anything else would
+# be built from HEAD without it, or committed by mint as pre_tag's artifacts
+# and tagged unbuilt. Files git doesn't track never reach a worktree of HEAD,
+# so they stop nothing.
+if [[ -z $ref ]]; then
+  if git rev-parse -q --verify "refs/tags/$tag" > /dev/null; then
+    release_fail "$tag is tagged already, so HEAD isn't what's to be tagged: build the tag, as app/release-build $version $tag."
+  fi
+  if ! release_bookkeeping_only HEAD; then
+    release_fail "The working tree $why"$'\n'"app/release-build builds HEAD, which mint tags: commit or remove them."
+  fi
+  ref=HEAD
+fi
+commit=$(git rev-parse -q --verify "$ref^{commit}") || release_fail "$ref names no commit to build."
+
+work=$(mktemp -d)
+tree="$work/tree"
+finish() {
+  git worktree remove --force "$tree" 2> /dev/null || true
+  rm -rf "$work"
+}
+trap finish EXIT
+
+git worktree add --quiet --detach "$tree" "$commit"
+echo "Building SitRep $version from $commit"
+mkdir "$work/build" "$work/out"
+MINT_NEW_VERSION=$version "$tree/app/bundle" --release "$work/build"
+bundle="$work/build/SitRep.app"
+built=$(plutil -extract CFBundleShortVersionString raw -o - "$bundle/Contents/Info.plist")
+[[ $built == "$version" ]] || release_fail "$commit builds SitRep $built, not $version."
+plugin=$(plutil -extract version raw -o - "$bundle/Contents/Resources/Plugin/$release_version_file")
+[[ $plugin == "$version" ]] || release_fail "$commit builds SitRep $version carrying the plugin $plugin."
+
+zip="$work/out/$asset"
+"$app/notarize" "$bundle" "$zip"
+(cd "$work/out" && shasum -a 256 "$asset" > "$asset.sha256")
+echo "$commit" > "$work/out/commit"
+echo "$asset: sha256 $(cut -d ' ' -f 1 "$zip.sha256")"
+
+# One release is made at a time, so only the latest build is kept.
+kept=$(release_kept "$version")
+rm -rf "$(dirname "$kept")"
+mkdir -p "$(dirname "$kept")"
+mv "$work/out" "$kept"
+echo "Kept in $kept for app/release-upload $version"

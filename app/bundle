@@ -1,9 +1,10 @@
 #!/bin/bash
 # Builds SitRep.app into the folder given, signed with Lee's Developer ID,
 # carrying the plugin and the notices helper: app/build runs it, then installs
-# what it made, and app/release, with --release, notarizes it. The folder must
-# be outside the repository, and the bundle gone once installed: a second
-# signed copy left about could be the one macOS launches by its bundle id.
+# what it made, and app/release-build, with --release, notarizes it. The
+# folder must be outside the repository, and the bundle gone once installed: a
+# second signed copy left about could be the one macOS launches by its bundle
+# id.
 set -euo pipefail
 
 release=false
@@ -56,8 +57,9 @@ sign() {
   codesign --force --options runtime "$timestamp" -s "$signer" "$@"
 }
 
-# One version covers the plugin and the app.
-version=$(plutil -extract version raw -o - "$repo/.claude-plugin/plugin.json")
+# One version covers the plugin and the app: plugin.json's, or, as mint's
+# pre_tag runs before mint writes it there, the version mint is releasing.
+version=${MINT_NEW_VERSION:-$(plutil -extract version raw -o - "$repo/.claude-plugin/plugin.json")}
 
 # The link is given the SDK as -isysroot. SwiftPM hands it to clang's link
 # only as --sysroot and with no SDKROOT, so clang records the deployment
@@ -106,6 +108,14 @@ git -C "$repo" ls-files -z --cached --others --exclude-standard -- .claude-plugi
       cp -p "$repo/$file" "$plugin/$file"
     fi
   done
+# Its version is the app's, which plugin.json doesn't hold yet under mint's
+# pre_tag, written as mint's version_pattern writes it.
+manifest="$plugin/.claude-plugin/plugin.json"
+sed -E -i '' "s/\"version\": \"[^\"]*\"/\"version\": \"$version\"/" "$manifest"
+if [[ $(plutil -extract version raw -o - "$manifest") != "$version" ]]; then
+  echo "$manifest names no version $version once written." >&2
+  exit 1
+fi
 # Bun makes the binary in the folder it runs in, then moves it; one it cannot
 # move, to another volume, it copies and leaves behind.
 cli="$plugin/bin/sitrep"

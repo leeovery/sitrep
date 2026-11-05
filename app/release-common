@@ -1,0 +1,72 @@
+# shellcheck shell=bash
+#
+# What app/release-build and app/release-upload, which source it, agree on:
+# the zip's name, where a build is kept, what may change between the commit
+# built and its tag, and where each run logs.
+
+# release_asset names version $1's zip, as the cask downloads it.
+release_asset() {
+  printf 'SitRep-%s.zip\n' "$1"
+}
+
+# release_kept is the folder version $1's build is kept in. SITREP_RELEASE_CACHE
+# puts the folder of kept builds elsewhere, as a trial run's scratch folder.
+release_kept() {
+  printf '%s/%s\n' "${SITREP_RELEASE_CACHE:-$HOME/Library/Caches/SitRep/release}" "$1"
+}
+
+# release_valid_version reports whether $1 is a version as mint tags one,
+# without its v.
+release_valid_version() {
+  [[ $1 =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]
+}
+
+# release_fail says why the run stops, and stops it.
+release_fail() {
+  echo "$1" >&2
+  exit 1
+}
+
+# release_log sends everything the script $1 prints for version $2 to stderr
+# and to its log, as mint shows nothing of a hook that succeeds and only the
+# stderr of one that fails.
+release_log() {
+  local log=$HOME/Library/Logs/SitRep/release-$2.log
+  mkdir -p "$(dirname "$log")"
+  exec > >(tee -a "$log" >&2) 2>&1
+  echo "== $1 $2, $(date), logged to $log"
+}
+
+# The files mint's bookkeeping writes for a release, which no build reads as
+# they stand: the version in plugin.json, which app/bundle takes from
+# MINT_NEW_VERSION before mint writes it, the changelog, and .mint.toml for
+# the answers of its check on the notes' files.
+release_version_file=.claude-plugin/plugin.json
+release_bookkeeping=("$release_version_file" CHANGELOG.md .mint.toml)
+
+# release_bookkeeping_only reports whether the tree $2, the working tree when
+# none is given, differs from commit $1 in mint's bookkeeping alone, and
+# plugin.json in its version alone, saying what else differs in $why.
+# shellcheck disable=SC2034 # why is read by the scripts that source this
+release_bookkeeping_only() {
+  local others
+  others=$(git diff --name-only "$1" ${2:+"$2"} -- . "${release_bookkeeping[@]/#/:(top,exclude)}")
+  if [[ -n $others ]]; then
+    why="changes beyond mint's bookkeeping:"$'\n'"$others"
+    return 1
+  fi
+  if [[ $(release_unversioned "$1") != $(release_unversioned "${2-}") ]]; then
+    why="changes $release_version_file beyond its version"
+    return 1
+  fi
+}
+
+# release_unversioned is plugin.json at commit $1, or in the working tree,
+# its version blanked, as mint's version_pattern writes it.
+release_unversioned() {
+  if [[ -n $1 ]]; then
+    git show "$1:$release_version_file"
+  else
+    cat "$release_version_file"
+  fi | sed -E 's/"version": "[^"]*"/"version": ""/'
+}
