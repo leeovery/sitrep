@@ -8,7 +8,15 @@ import {
   LOOK_EVERY_MS,
   WATCH_MS,
 } from '../cli/front'
-import { ANSWER_SECONDS, FOCUS, FOCUSED, isTooOld, LEAST_VERSION, PROGRAM_MS } from '../cli/ghostty'
+import {
+  ANSWER_SECONDS,
+  FOCUS,
+  FOCUSED,
+  isTooOld,
+  LEAST_VERSION,
+  PAUSE_SECONDS,
+  PROGRAM_MS,
+} from '../cli/ghostty'
 import { LOOK_MS } from '../cli/look'
 import { EXIT } from '../cli/main'
 import { PS } from '../cli/screen'
@@ -20,6 +28,7 @@ import {
   ENV,
   ghosttyClient,
   NOW,
+  ownWindows,
   phoneClient,
   SOCKET,
   sshClient,
@@ -27,6 +36,7 @@ import {
   TERMINAL_APP,
   type FakeServer,
   type FakeTerminal,
+  type FakeWindow,
 } from './terminal'
 import { ROOT } from './world'
 
@@ -50,11 +60,11 @@ const IN_GHOSTTY: Where = { device: '/dev/ttys041', terminal: 'ghostty' }
 const WINDOW = '/dev/ttys000'
 const PHONE = '/dev/ttys067'
 
-const TERMINALS: FakeTerminal[] = [
+const TERMINALS = ownWindows(
   { id: 'KIT-TERMINAL', device: IN_GHOSTTY.device ?? '' },
   { id: 'SWITCHBOARD-TERMINAL', device: WINDOW },
   { id: 'HOME-TERMINAL', device: '/dev/ttys090' },
-]
+)
 
 /** The session's tmux server: its tmux session shown by the clients given, and another beside it. */
 const serverShowing = (...clients: FakeServer['clients']): Record<string, FakeServer> => ({
@@ -131,6 +141,54 @@ test('jump outside tmux asks Ghostty for the terminal on the window’s own devi
   ])
 })
 
+/** The session's terminal, in Ghostty. */
+const SWITCHBOARD: FakeTerminal = { id: 'SWITCHBOARD-TERMINAL', device: WINDOW }
+
+/** One Ghostty window of two tabs, the first selected: `held`, the tab holding the session's terminal, at `place`, and a spare tab at the other. */
+const twoTabs = (place: 0 | 1, held: FakeTerminal[] = [SWITCHBOARD]): FakeWindow => {
+  const tabs = [[{ id: 'SPARE-TERMINAL', device: '/dev/ttys091' }]]
+
+  tabs.splice(place, 0, held)
+
+  return { id: 'TABBED-WINDOW', tabs, selected: 0 }
+}
+
+// The fake Ghostty plays the program's tab rule rather than running it: these tests show what a jump does with
+// what Ghostty is told; the test pinning the program's lines, further down, guards the rule in the program itself.
+test('a jump to a terminal in its window’s selected tab tells Ghostty only to focus it', async () => {
+  const t = oneWindow(IN_TMUX, { tmux: SHOWN, ghostty: [twoTabs(0)] })
+
+  expect(await t.run('jump', ...SESSION)).toEqual(FOCUSED_RUN)
+  expect(t.screen.told).toEqual([['focus', 'SWITCHBOARD-TERMINAL']])
+})
+
+test('a jump to a terminal in a tab not selected, alone in it or in a split, tells Ghostty to activate its window, pause, then focus it, in the one program within its limit', async () => {
+  const cases: [string, FakeTerminal[]][] = [
+    ['alone in its tab', [SWITCHBOARD]],
+    ['in a split', [{ id: 'SPLIT-TERMINAL', device: '/dev/ttys092' }, SWITCHBOARD]],
+  ]
+
+  for (const [why, held] of cases) {
+    const t = oneWindow(IN_TMUX, { tmux: SHOWN, ghostty: [twoTabs(1, held)] })
+
+    expect(await t.run('jump', ...SESSION), why).toEqual(FOCUSED_RUN)
+    expect(t.screen.told, why).toEqual([
+      ['activate window', 'TABBED-WINDOW'],
+      ['delay', PAUSE_SECONDS],
+      ['focus', 'SWITCHBOARD-TERMINAL'],
+    ])
+    expect(runsOf(t, 'osascript'), why).toEqual([focusing(WINDOW)])
+    expect(
+      t.screen.limits.filter(each => each.name === 'osascript').map(each => each.limitMs),
+      why,
+    ).toEqual([PROGRAM_MS])
+  }
+})
+
+test('the pause before focusing a tab not selected is half a second, which was enough live where none was not', () => {
+  expect(PAUSE_SECONDS).toBe(0.5)
+})
+
 test('with no client on the session’s tmux server, the snapshot goes unused: ps failing then is no matter', async () => {
   const t = oneWindow(IN_TMUX, { tmux: serverShowing(), ghostty: TERMINALS, slow: ['ps'] })
 
@@ -140,7 +198,7 @@ test('with no client on the session’s tmux server, the snapshot goes unused: p
 test('a tmux session the phone and a Ghostty window both show goes to the Ghostty window, and Ghostty is never asked for the phone’s device', async () => {
   const t = oneWindow(IN_TMUX, {
     tmux: serverShowing(phoneClient(PHONE, CLAUDES), ghosttyClient(WINDOW, CLAUDES)),
-    ghostty: [...TERMINALS, { id: 'NOT-THE-PHONE', device: PHONE }],
+    ghostty: [...TERMINALS, ...ownWindows({ id: 'NOT-THE-PHONE', device: PHONE })],
   })
 
   expect(await t.run('jump', ...SESSION)).toEqual(FOCUSED_RUN)
@@ -210,7 +268,7 @@ test('a session no Ghostty window shows is not on screen, and nothing is focused
       'a tmux session only a Ghostty on another Mac shows, over ssh',
       oneWindow(IN_TMUX, {
         tmux: serverShowing(sshClient('/dev/ttys080', CLAUDES)),
-        ghostty: [...TERMINALS, { id: 'LOOKALIKE', device: '/dev/ttys080' }],
+        ghostty: [...TERMINALS, ...ownWindows({ id: 'LOOKALIKE', device: '/dev/ttys080' })],
       }),
     ],
     ['tmux gone', oneWindow(IN_TMUX, { tmux: {}, ghostty: TERMINALS })],
@@ -344,7 +402,7 @@ test('a Ghostty before 1.4, whose terminals do not say their device, or before i
 
 test('only the words of a Ghostty not knowing the program’s terms read as too old: a term unknown as it runs (-2753), or as it compiles (-2741)', () => {
   expect(isTooOld('179:183: execution error: The variable tty is not defined. (-2753)')).toBe(true)
-  expect(isTooOld('8: error: Expected end of line, etc. but found class name. (-2741)')).toBe(true)
+  expect(isTooOld('12: error: Expected end of line, etc. but found class name. (-2741)')).toBe(true)
   expect(isTooOld(REFUSAL)).toBe(false)
   expect(isTooOld(TIMED_OUT)).toBe(false)
   expect(isTooOld('Ghostty got an error: Can’t get terminal 1. (-1728)')).toBe(false)
@@ -364,6 +422,21 @@ test('the Ghostty program asks Ghostty within the time limit, its running checke
   expect(FOCUS, 'never the device it was given, which tmux gives empty for a control-mode client').not.toContain(
     'return wanted',
   )
+})
+
+// The guard of the tab rule: the fake Ghostty only plays it.
+test('the Ghostty program, once a terminal is found, activates its window and pauses only where its tab is not selected, then focuses it either way', () => {
+  const lines = FOCUS.split('\n')
+  const found = lines.indexOf('if found is {} then return ""')
+
+  expect(lines.slice(found, found + 6)).toEqual([
+    'if found is {} then return ""',
+    'if selected of (tabs of (windows whose tty of terminals contains wanted) whose tty of terminals contains wanted) is {{false}} then',
+    'activate window (first window whose tty of terminals contains wanted)',
+    `delay ${PAUSE_SECONDS}`,
+    'end if',
+    'focus item 1 of found',
+  ])
 })
 
 test('a device no Ghostty terminal is on is passed over for the next, which is focused', async () => {
@@ -1197,7 +1270,7 @@ const ghosttyThenTerminal = (options: Parameters<typeof terminal>[0]) =>
 const OPENING_TERMINAL = ['open', '-a', '/System/Applications/Utilities/Terminal.app']
 
 test('clients ps finds in Ghostty, on devices none of its terminals is on, each give way in turn, and the next app is brought forward', async () => {
-  const t = ghosttyThenTerminal({ ghostty: [{ id: 'ELSEWHERE', device: '/dev/ttys090' }] })
+  const t = ghosttyThenTerminal({ ghostty: ownWindows({ id: 'ELSEWHERE', device: '/dev/ttys090' }) })
 
   expect(await t.run('jump', ...SESSION)).toEqual(FOCUSED_RUN)
   expect(runsOf(t, 'osascript')).toEqual([focusing(WINDOW), focusing('/dev/ttys031')])
