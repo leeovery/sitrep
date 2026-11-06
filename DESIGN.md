@@ -449,10 +449,10 @@ and named it in internal shorthand):
   almost as if the board doesn't exist… If I ignore an ask and it's
   required, Claude brings it back into focus as if the board isn't there").
 - The turn's order: every board call of a turn comes before Claude's
-  message to Lee, never after it; before any tool call Claude writes Lee a
-  line at most, as longer words before a tool call can reach him as a short
-  summary, or not at all; what Lee must read goes after the turn's last tool
-  call (below).
+  closing message to Lee, never after it; before any tool call Claude writes
+  Lee a line at most, as longer words before a tool call can reach him as a
+  short summary, or not at all; what Lee must read goes after the turn's
+  last tool call (below).
 
 Wording rules, in the tool descriptions:
 
@@ -513,7 +513,10 @@ turn (hooks/summarised.ts):
 - **The signature.** Base64 for a protobuf envelope: the block is field 2,
   its header field 1, and the header's field 8 the block's kind,
   `narration` or `thinking`. Only the signature's head is decoded, its first
-  128 characters, as every thinking block's is read. As Claude Code reads
+  256 characters, as every thinking block's is read: the header ends some
+  twenty bytes in on Opus 5.5's envelope (`CAQS…`), and some 175 on Fable
+  5's (`CAIS…`), within the head's 192 bytes; every Fable signature in 627
+  transcripts of three days read within it. As Claude Code reads
   it, anything that does not parse that far, the header whole, is no
   narration. Every one of 5,444 signatures in a live transcript of that day
   read as one or the other. Words do not tell them apart: narrations with
@@ -533,8 +536,7 @@ turn (hooks/summarised.ts):
 - **What carries it.** An errored result (a failed command, a permission
   refused, Esc) carries it as an answered one does, so where the turn ends
   there, the line is lost. A refused call carries nothing and leaves it for
-  the next call, in the same request or the next. A narration between two
-  calls of one message is told on the call after it. A subagent's rows and
+  the next call, in the same request or the next. A subagent's rows and
   calls are left alone, as Lee reads only the main chat, and so is another
   plugin's own `$.tool.call`, whose added context the engine drops.
 - **Never in the way.** The hook adds to the result `next` gave, its `ref`,

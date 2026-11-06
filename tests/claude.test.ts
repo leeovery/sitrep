@@ -187,7 +187,7 @@ test('a conversation starts knowing how to keep the board and talk to Lee beside
     "An ask Lee hasn't answered that you still need, raise again in the chat.",
   )
   expect(guide, "the turn's order").toContain(
-    "Every board call of a turn comes before your message to Lee, never after it. Before any tool call, write Lee a line at most: longer words before a tool call can reach him as a short summary, or not at all. What he must read goes after the turn's last tool call.",
+    "Every board call of a turn comes before your closing message to Lee, never after it. Before any tool call, write Lee a line at most: longer words before a tool call can reach him as a short summary, or not at all. What he must read goes after the turn's last tool call.",
   )
   expect(guide, 'sessions, never pieces of work').not.toMatch(/\bpieces? of work\b/i)
   expect(

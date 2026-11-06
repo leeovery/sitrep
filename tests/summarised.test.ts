@@ -1,5 +1,5 @@
 import type { On, ToolCallResult } from 'claude-code'
-import { expect, test, tier, type Engine } from 'claude-code/testing'
+import { expect, test, tier, type Engine, type Plugin } from 'claude-code/testing'
 import { blockKindOf, forgetUntold, heardRow, retold, summarisedLine } from '../hooks/summarised'
 import { AGENT } from './support'
 import { world } from './world'
@@ -11,6 +11,24 @@ const NARRATION = 'CAQS6QcKEQgTGAI4AUIJbmFycmF0aW9uEgwjUJy2LNEyXvAf'
 
 /** Ordinary thinking's signature, cut likewise. */
 const THINKING = 'CAQS0RIKEAgTGAI4AUIIdGhpbmtpbmcSDJj5yxu6XU6dRD/V'
+
+/** A narration's signature on Fable 5, whose envelope's header ends some 175 bytes in, cut to the 256 characters read of it: from a live transcript. */
+const FABLE_NARRATION =
+  'CAISjwQKqAEIERgCKkDft0G0qDcL9bwdVJwZdLJ/Df6EkXNx2p1nyssp9cp/OSiNGd17qsvCYF1j4zGOM7y5g2WjDrpkGhUN76hQPVJmMg5jbGF1ZGUtZmFibGUtNTgBQgluYXJyYXRpb25aJDM3YWJjNzhjLTdiMjUtNDM4Yy05MGQ2LTY4OGFhMGE4Yjk1NnIQ4z/gznuGJGYNKWzGTl1aj4gBAagB5LXA1AawAQISDEt8ImpG5WfgvsZ0MhoM'
+
+const varint = (value: number) => (value < 0x80 ? [value] : [(value & 0x7f) | 0x80, value >> 7])
+
+/** A whole signature naming `kind`, its header widened by a field of `filler` bytes ahead of the kind. */
+const signedWide = (kind: string, filler: number) => {
+  const text = [...kind].map(char => char.charCodeAt(0))
+  const header = [0x0a, ...varint(filler), ...Array(filler).fill(0x41), 0x42, text.length, ...text]
+  const block = [0x0a, ...varint(header.length), ...header, 0x12, 12, ...Array(12).fill(0x42)]
+  const tail = Array(600).fill(0x43)
+
+  return btoa(
+    String.fromCharCode(0x08, 0x02, 0x12, ...varint(block.length + tail.length), ...block, ...tail),
+  )
+}
 
 /** The summary Lee saw in place of a live test's numbered steps. */
 const SUMMARY =
@@ -74,6 +92,14 @@ test("blockKindOf reads the kind off a signature's envelope, and nothing off one
   expect(blockKindOf(`${NARRATION}${'A'.repeat(2_000)}`), 'whole, read by its head').toBe(
     'narration',
   )
+  expect(blockKindOf(FABLE_NARRATION), "Fable's wider header").toBe('narration')
+  expect(blockKindOf(signedWide('narration', 150)), 'a header ending 172 bytes in').toBe(
+    'narration',
+  )
+  expect(
+    blockKindOf(signedWide('narration', 200)),
+    "a header ending 222 bytes in, past the head's 192",
+  ).toBeUndefined()
   expect(blockKindOf(''), 'empty').toBeUndefined()
   expect(blockKindOf('not base64!'), 'not base64').toBeUndefined()
   expect(blockKindOf('CAQSsgcKEAgTGAI4AUII'), 'its header cut short').toBeUndefined()
@@ -172,7 +198,7 @@ test('ordinary thinking, with words or without, a signature that does not parse,
   expect(contextOf(await w.call('note', { text: 'Weighed the edges' }))).toBeUndefined()
 })
 
-test("a refused call carries nothing, and what it left untold rides the next request's call", async ($, on) => {
+test('a refused call carries nothing, and what it left untold rides the next call that settles', async ($, on) => {
   const w = world($, on)
   const m = model($, on)
 
@@ -252,6 +278,38 @@ test("a subagent's narrations and calls tell Claude nothing, and leave the main 
     summarisedLine([SUMMARY]),
   ])
 })
+
+/** Another plugin, whose `/probe` makes a call of its own: a Read, as the model's below. */
+const PROBE: Plugin = {
+  name: 'probe',
+  register(on) {
+    on('command.run', { command: 'probe' }, async $ => {
+      await $.tool.call({ tool: 'Read', file_path: '/notes.md' })
+
+      return {}
+    })
+  },
+}
+
+test(
+  "another plugin's own call, raised through the hooks, leaves what is untold for the engine's next call",
+  { plugins: [PROBE] },
+  async ($, on) => {
+    const w = world($, on)
+    const m = model($, on)
+
+    await w.begin()
+    await m.streams(thinking(SUMMARY, NARRATION))
+    await $.command.run({
+      command: 'probe',
+      args: '',
+      origin: { kind: 'composer' },
+      presentation: { isFullscreen: true, columns: 160 },
+    })
+
+    expect(contextOf(await m.reads(READ))).toEqual([summarisedLine([SUMMARY])])
+  },
+)
 
 test("another plugin's own call gets nothing, the engine dropping what it adds, and leaves it for the engine's next call", () => {
   const answered: ToolCallResult = { result: 'done' }

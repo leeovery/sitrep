@@ -104,11 +104,12 @@ const bytesField = (bytes: Uint8Array, from: number, to: number, number: number)
 
 /**
  * How much of a signature is decoded: its envelope's header lies near the
- * front, some twenty bytes in, and every thinking block's signature is read,
- * a few thousand characters each. A multiple of four, so the head is base64
- * whole.
+ * front, ending some twenty bytes in on Opus 5.5 (`CAQS…`) and some 175 on
+ * Fable 5 (`CAIS…`), and every thinking block's signature is read, a few
+ * thousand characters each. 256 characters are 192 bytes. A multiple of
+ * four, so the head is base64 whole.
  */
-const SIGNATURE_HEAD = 128
+const SIGNATURE_HEAD = 256
 
 /** The bytes base64 gives, or undefined where it is not base64. */
 const bytesOf = (base64: string) => {
