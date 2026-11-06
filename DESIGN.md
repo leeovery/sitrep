@@ -5378,16 +5378,19 @@ shape allows them. A jump made in Swift, in the app, stays parked too.
    lookup fails that lookup (-1719); either is a jump refused in
    osascript's words, for a window that has just gone.
 
-   **Unwatched: the front watch on a tab not selected.** The watch below
-   ("The front kept") was timed from the focus: Ghostty in front at about
-   0.2s, the app Lee was in taking the front back at about 0.5s. For a tab
-   not selected the slide now begins at `activate window`, half a second
-   before the focus, so the hand-back may come between the focus and the
-   watch's first look, 60–120ms after it. The watch would then see the
-   other app first, never Ghostty, and bring nothing forward: Lee on the
-   right tab, on its Space, with the other app holding the keys. To look
-   for at Lee's first live jump to a tab not selected, Finder in front as
-   it begins: whether typing reaches the terminal. Not changed until then.
+   **The front watch on a tab not selected, watched live** (6 November
+   2026). The watch below ("The front kept") was timed from the focus:
+   Ghostty in front at about 0.2s, the app Lee was in taking the front back
+   at about 0.5s. For a tab not selected the slide begins at `activate
+   window`, half a second before the focus, so the hand-back might have
+   come between the focus and the watch's first look, 60–120ms after it,
+   the watch then seeing the other app first, never Ghostty, and bringing
+   nothing forward. Lee's two notch jumps from SitRep's build of #100, each
+   from Space 7 with Finder in front to a tab not selected in a window on
+   Space 12, slid to Space 12 and showed the right tab, the tab changing
+   about 300ms after the slide, and he went on typing into that terminal
+   after each, with no click reported: the front held, as far as two runs
+   show. A rare miss is not ruled out.
 
    **The instant Space switch, tried and not built** (6 November 2026). A
    throwaway tool posted Spaceman's synthetic Dock-swipe gesture before
