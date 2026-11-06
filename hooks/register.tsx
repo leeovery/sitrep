@@ -22,8 +22,8 @@
  * its session up again; one that ends lets go of its session. Its heartbeat
  * says what the window is doing, as hooks that only observe hear it:
  * working, with the tool it runs; stopped on Lee at a permission prompt or
- * a question; or Lee's turn. A tool call made by a message of Claude's
- * that Lee saw only as a summary tells Claude so.
+ * a question; or Lee's turn. Words of Claude's that Lee saw only as a
+ * summary, or not at all, Claude is told of with its next tool call.
  *
  * Every call on `$` is spelled here, in `hostOf`: the engine reads them off
  * this file's source, and refuses a module that hands `$` to an import.
@@ -82,7 +82,7 @@ import { receiveEvery } from './receive'
 import { heldSession, sceneOf, tickEvery } from './scene'
 import { boardChange, markSeen } from './seen'
 import { rejoin, startListing } from './start'
-import { heardRow, heardStep, retold } from './summarised'
+import { forgetUntold, heardRow, retold } from './summarised'
 import { answerCall, nameKept, SPECS, TOOL_NAMES } from './tools'
 import { MANIFEST, versionNow } from './version'
 import { TTY_WALK, TTY_WALK_MS } from './where'
@@ -318,6 +318,8 @@ export const register: Register = on => {
     if (isWindowTurn(e)) {
       const host = hostOf($)
 
+      forgetUntold()
+
       await heardTurnStart(host)
       await heardTurn(host, e.text)
     }
@@ -341,16 +343,8 @@ export const register: Register = on => {
     return next(e)
   }).catch(($, e, next) => next(e))
 
-  // Words of the main conversation's that Lee saw only as a summary: each
-  // model request starts a message, a narration row stored as it streams
-  // gives the message its summary, and the first of its calls to answer
-  // tells Claude so (summarised.ts).
-  on('turn.step', async function* ($, e, next) {
-    heardStep(e)
-
-    return yield* next(e)
-  })
-
+  // A narration of the main conversation's, stored as it streams, waits
+  // untold until a call carries it (summarised.ts).
   on('session.append', { door: 'response' }, async ($, e, next) => {
     heardRow(e)
 
@@ -359,11 +353,11 @@ export const register: Register = on => {
 
   // Every call, the window's own and its subagents', sitrep's among them,
   // heard as it starts and ends, and passed on as it came, but for the line
-  // added where its message reached Lee only as a summary. Outer to
-  // sitrep's own tools, whose calls end most turns.
+  // added where the main conversation's words reached Lee only as a summary.
+  // Outer to sitrep's own tools, whose calls end most turns.
   on('tool.call', async ($, e, next) =>
     retold(
-      e,
+      { agentId: e.agentId, origin: next.origin },
       await throughCall(
         hostOf($),
         { id: e.tool_use_id, tool: e.tool, input: e, agentId: e.agentId },

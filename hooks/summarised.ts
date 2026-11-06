@@ -1,19 +1,20 @@
 /**
- * Words Lee saw only as a summary. Claude Code asks the API for its
- * thinking shown as "updates", and on Opus 5.5 a message whose prose comes
- * before a tool call can arrive with that prose inside its thinking and no
- * text block: the server sends a one-line summary in its place, a thinking
- * block whose signature marks it narration, and that summary is all Lee sees
- * (anthropics/claude-code#96288). A tool call of the main conversation made
- * by such a message tells Claude so with its result, once a message, for
- * Claude to write the words again after its last tool call.
+ * Words Lee saw only as a summary, or not at all. Claude Code asks the API
+ * for its thinking shown as "updates", and on Opus 5.5 a message whose prose
+ * comes before a tool call can arrive with that prose inside its thinking
+ * and no text block: a thinking block whose signature marks it narration
+ * comes in its place, holding a one-line summary, all Lee sees of it, or
+ * nothing at all (anthropics/claude-code#96288). The next tool call of the
+ * main conversation that the engine runs and answers tells Claude so with
+ * its result, for Claude to say again what Lee still needs.
  *
- * The model's requests mark where one message ends and the next begins; a
- * narration row of the main conversation, stored as it streams and so before
- * any tool call it makes, gives the message its summary. A subagent's
- * requests, rows and calls are left alone: Lee reads only the main chat.
+ * Each narration row of the main conversation, stored as it streams, so
+ * before any call after it, waits untold until a call carries it; a new turn
+ * of the main conversation lets go of what is still untold. A subagent's
+ * rows and calls, and another plugin's calls, are left alone: Lee reads only
+ * the main chat, and the engine drops what a plugin's own call adds.
  */
-import type { AgentLoop, Args, ToolCallResult } from 'claude-code'
+import type { AgentLoop, Args, Origin, ToolCallResult } from 'claude-code'
 
 type Block = Args<'session.append'>['message']['content'][number]
 
@@ -101,6 +102,14 @@ const bytesField = (bytes: Uint8Array, from: number, to: number, number: number)
   return undefined
 }
 
+/**
+ * How much of a signature is decoded: its envelope's header lies near the
+ * front, some twenty bytes in, and every thinking block's signature is read,
+ * a few thousand characters each. A multiple of four, so the head is base64
+ * whole.
+ */
+const SIGNATURE_HEAD = 128
+
 /** The bytes base64 gives, or undefined where it is not base64. */
 const bytesOf = (base64: string) => {
   try {
@@ -113,75 +122,88 @@ const bytesOf = (base64: string) => {
 /**
  * The block kind a thinking block's signature names: field 8 of the header,
  * field 1 of the block, field 2 of the envelope (`narration`, `thinking`).
- * Undefined for anything that does not parse that far, the header whole, as
- * Claude Code itself reads it: an unreadable signature is no narration.
+ * Undefined for anything that does not parse that far, the header whole
+ * within the signature's head, as Claude Code itself reads it: an unreadable
+ * signature is no narration.
  */
 export const blockKindOf = (signature: string) => {
-  const bytes = bytesOf(signature)
+  const bytes = bytesOf(signature.slice(0, SIGNATURE_HEAD))
 
   if (bytes === undefined) {
     return undefined
   }
 
   const block = bytesField(bytes, 0, bytes.length, 2)
-  const header = block && bytesField(bytes, block.start, Math.min(block.end, bytes.length), 1)
-  const kind =
-    header && header.end <= bytes.length && bytesField(bytes, header.start, header.end, 8)
+  const within = block && Math.min(block.end, bytes.length)
+  const header = within && bytesField(bytes, block.start, within, 1)
+  const kind = header && header.end <= within && bytesField(bytes, header.start, header.end, 8)
 
   return kind && kind.end <= header.end
     ? new TextDecoder().decode(bytes.subarray(kind.start, kind.end))
     : undefined
 }
 
-/** A block's text where it is a narration with some: the summary Lee saw in place of the words. */
+/** A block's words where it is a narration: the summary Lee saw in their place, '' where he saw nothing. */
 const narrationOf = (block: Block) =>
   block.type === 'thinking' &&
-  typeof block.thinking === 'string' &&
   typeof block.signature === 'string' &&
-  block.thinking.trim() !== '' &&
   blockKindOf(block.signature) === NARRATION
-    ? block.thinking.trim()
+    ? (typeof block.thinking === 'string' ? block.thinking : '').trim()
     : undefined
 
-/** What Claude reads with a call's result when its message reached Lee only as `summary`. */
-export const summarisedLine = (summary: string) =>
-  `Your words before this tool call reached Lee only as this summary: “${summary}”. He never saw the rest. Write them again in full in your message after your last tool call.`
+/** What Claude is asked, whichever way its words were lost. */
+const SAY_AGAIN =
+  'Say again, after your last tool call, whatever of them Lee still needs: a question, steps, a finding, a decision.'
 
-/** The main conversation's message now streaming: the summaries Lee saw in place of its words, and whether Claude was told. */
-let streaming: { summaries: readonly string[]; isTold: boolean } = { summaries: [], isTold: false }
+/** What Claude reads with a call's result when its words reached Lee only as `summaries`, or, with none that has words, not at all. */
+export const summarisedLine = (summaries: readonly string[]) => {
+  const summary = summaries.filter(text => text !== '').join(' ')
 
-/** A model request of a loop: one of the main conversation's starts its message afresh. */
-export const heardStep = ({ agentId }: AgentLoop) => {
-  if (agentId === undefined) {
-    streaming = { summaries: [], isTold: false }
-  }
+  return summary === ''
+    ? `Your words before this tool call never reached Lee: he saw none of them. ${SAY_AGAIN}`
+    : `Your words before this tool call reached Lee only as this summary: “${summary}”. He never saw the rest. ${SAY_AGAIN}`
 }
 
-/** A response row stored: a narration of the main conversation's adds to its message's summaries. */
+/** The main conversation's narrations not yet told to Claude, in the order they came: each the summary Lee saw, '' for none. */
+let untold: readonly string[] = []
+
+/** The main conversation's turn starting: what is still untold belongs to a turn gone by. */
+export const forgetUntold = () => {
+  untold = []
+}
+
+/** A response row stored: a narration of the main conversation's waits to be told. */
 export const heardRow = ({
   agentId,
   message,
 }: Pick<Args<'session.append'>, 'agentId' | 'message'>) => {
   if (agentId === undefined) {
-    const summaries = message.content.flatMap(block => narrationOf(block) ?? [])
-
-    streaming = { ...streaming, summaries: [...streaming.summaries, ...summaries] }
+    untold = [...untold, ...message.content.flatMap(block => narrationOf(block) ?? [])]
   }
 }
 
-/**
- * A call's result, telling Claude where the main conversation's message that
- * made it reached Lee only as a summary: the first result of that message's
- * calls that can carry it. A refusal carries nothing.
- */
-export const retold = <R extends ToolCallResult>({ agentId }: AgentLoop, result: R): R => {
-  const { summaries, isTold } = streaming
+/** Who raises a call the model made: the engine, where a plugin's own `$.tool.call` names the plugin. */
+const ENGINE = 'engine'
 
-  if (agentId !== undefined || summaries.length === 0 || isTold || result.deny !== undefined) {
+/** A tool call as the catch sees it: its loop, and who raised it (`next.origin`). */
+export type Call = AgentLoop & { origin: Origin }
+
+/**
+ * A call's result, telling Claude of the main conversation's narrations
+ * still untold: the first call the engine makes on the main loop that is
+ * answered, an errored answer among them, carries them all. A refusal
+ * carries nothing and leaves them for the next.
+ */
+export const retold = <R extends ToolCallResult>({ agentId, origin }: Call, result: R): R => {
+  const isMain = origin.plugin === ENGINE && agentId === undefined
+
+  if (!isMain || untold.length === 0 || result.deny !== undefined) {
     return result
   }
 
-  streaming = { ...streaming, isTold: true }
+  const line = summarisedLine(untold)
 
-  return { ...result, context: [...(result.context ?? []), summarisedLine(summaries.join(' '))] }
+  untold = []
+
+  return { ...result, context: [...(result.context ?? []), line] }
 }

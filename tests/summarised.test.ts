@@ -1,6 +1,6 @@
-import type { On } from 'claude-code'
+import type { On, ToolCallResult } from 'claude-code'
 import { expect, test, tier, type Engine } from 'claude-code/testing'
-import { blockKindOf, summarisedLine } from '../hooks/summarised'
+import { blockKindOf, forgetUntold, heardRow, retold, summarisedLine } from '../hooks/summarised'
 import { AGENT } from './support'
 import { world } from './world'
 
@@ -16,7 +16,14 @@ const THINKING = 'CAQS0RIKEAgTGAI4AUIIdGhpbmtpbmcSDJj5yxu6XU6dRD/V'
 const SUMMARY =
   "SitRep is running with the new tty lookup, so I'm running the first live test now: switching to another Space and opening the row from SitRep's card."
 
+/** What every form of the line asks of Claude. */
+const SAY_AGAIN =
+  'Say again, after your last tool call, whatever of them Lee still needs: a question, steps, a finding, a decision.'
+
 const BUN_TEST = { command: 'bun test', description: 'Run the tests' }
+
+/** Who raises a call the model made. */
+const ENGINE = { plugin: 'engine', tier: 'core' } as const
 
 const thinking = (text: string, signature: string) => ({
   type: 'thinking',
@@ -26,37 +33,24 @@ const thinking = (text: string, signature: string) => ({
 
 type Block = ReturnType<typeof thinking> | { type: string; [field: string]: unknown }
 
-/** The model, beneath the mod: each request answered with no tool asked for, the test standing in for its rows and calls. */
-const model = (engine: Engine, on: On) => {
-  on('turn.step', async function* ($, e) {
-    return {
-      turnId: e.turnId,
-      index: e.index,
-      answer: '',
-      toolUses: [],
-      stopReason: 'tool_use' as const,
-      usage: null,
-    }
-  })
+/** A Read of a file whose path says how it ends beneath the mod: in an error, or answered with core's extras. */
+const READ_FAILS = { tool: 'Read', file_path: '/missing' }
+const READ = { tool: 'Read', file_path: '/notes.md' }
 
-  let requests = 0
+/** Core's answer to a Read, with the extras only core sets. */
+const READ_ANSWER = { result: 'notes', ref: 7, text: 'notes', isReadOnly: true }
+
+/** The model's rows, and core answering the Reads, beneath the mod; registered before the test first calls the engine. */
+const model = (engine: Engine, on: On) => {
+  on('tool.call', { tool: 'Read' }, ($, e) =>
+    (e as { file_path?: string }).file_path === READ_FAILS.file_path
+      ? ({ isError: true, result: 'File does not exist.', text: 'File does not exist.' } as never)
+      : (READ_ANSWER as never),
+  )
+
   let rows = 0
 
   return {
-    /** A model request of the main conversation, or of a subagent given its id, read to its end. */
-    steps: async (agentId?: string) => {
-      const response = engine.turn.step({
-        turnId: 'turn-1',
-        index: requests++,
-        model: 'claude-opus-5-5',
-        messageCount: 1,
-        ...(agentId === undefined ? {} : { agentId }),
-      })
-
-      for await (const _ of response) {
-        // Read to its end, as the engine does.
-      }
-    },
     /** A block of the response stored as its row, in the main conversation or a subagent's given its id. */
     streams: (block: Block, agentId?: string) =>
       engine.session.append({
@@ -66,6 +60,8 @@ const model = (engine: Engine, on: On) => {
         uuid: `row-${rows++}`,
         ...(agentId === undefined ? {} : { agentId }),
       }),
+    /** A call the engine runs from the main conversation, as the model made it. */
+    reads: (read: typeof READ) => engine.tool.call(read as never),
   }
 }
 
@@ -75,6 +71,9 @@ const contextOf = (answer: unknown) => (answer as { context?: readonly string[] 
 test("blockKindOf reads the kind off a signature's envelope, and nothing off one that does not parse", () => {
   expect(blockKindOf(NARRATION)).toBe('narration')
   expect(blockKindOf(THINKING)).toBe('thinking')
+  expect(blockKindOf(`${NARRATION}${'A'.repeat(2_000)}`), 'whole, read by its head').toBe(
+    'narration',
+  )
   expect(blockKindOf(''), 'empty').toBeUndefined()
   expect(blockKindOf('not base64!'), 'not base64').toBeUndefined()
   expect(blockKindOf('CAQSsgcKEAgTGAI4AUII'), 'its header cut short').toBeUndefined()
@@ -82,12 +81,23 @@ test("blockKindOf reads the kind off a signature's envelope, and nothing off one
   expect(blockKindOf('Bw=='), 'a wire type no envelope has').toBeUndefined()
 })
 
-test("a call made by a message Lee saw only as a summary tells Claude so with its result, in the summary's words, and Lee nothing", async ($, on) => {
+test('the line quotes what Lee saw of the words, or says he saw none of them, and asks for what he still needs', () => {
+  expect(summarisedLine([SUMMARY])).toBe(
+    `Your words before this tool call reached Lee only as this summary: “${SUMMARY}”. He never saw the rest. ${SAY_AGAIN}`,
+  )
+  expect(summarisedLine(['', 'Merged it.', '', 'Testing it live.'])).toBe(
+    `Your words before this tool call reached Lee only as this summary: “Merged it. Testing it live.”. He never saw the rest. ${SAY_AGAIN}`,
+  )
+  expect(summarisedLine(['', ''])).toBe(
+    `Your words before this tool call never reached Lee: he saw none of them. ${SAY_AGAIN}`,
+  )
+})
+
+test("a call after words Lee saw only as a summary tells Claude so with its result, in the summary's words", async ($, on) => {
   const w = world($, on)
   const m = model($, on)
 
   await w.begin()
-  await m.steps()
   await m.streams(thinking('', THINKING))
   await m.streams(thinking(`${SUMMARY}\n\n`, NARRATION))
   await m.streams({ type: 'tool_use', id: 'toolu_1', name: 'Bash', input: BUN_TEST })
@@ -99,99 +109,138 @@ test("a call made by a message Lee saw only as a summary tells Claude so with it
   const answer = await bash.done
 
   expect(answer.result).toBe('2 pass')
-  expect(contextOf(answer)).toEqual([summarisedLine(SUMMARY)])
-  expect(summarisedLine(SUMMARY)).toBe(
-    `Your words before this tool call reached Lee only as this summary: “${SUMMARY}”. He never saw the rest. Write them again in full in your message after your last tool call.`,
-  )
+  expect(contextOf(answer)).toEqual([summarisedLine([SUMMARY])])
 })
 
-test("sitrep's own tools, whose calls end most turns, carry it too", async ($, on) => {
+test('a narration with no words tells Claude that Lee saw none of them', async ($, on) => {
   const w = world($, on)
   const m = model($, on)
 
   await w.begin()
-  await m.steps()
+  await m.streams(thinking('', THINKING))
+  await m.streams(thinking('', NARRATION))
+
+  const answer = await w.call('ask', { wants: 'yes', yes: 'Go', title: 'Give the go' })
+
+  expect(contextOf(answer)).toEqual([summarisedLine([''])])
+})
+
+test("sitrep's own tools, whose calls end most turns, carry it", async ($, on) => {
+  const w = world($, on)
+  const m = model($, on)
+
+  await w.begin()
   await m.streams(thinking(SUMMARY, NARRATION))
 
   const answer = await w.call('ask', { wants: 'yes', yes: 'It works', title: 'Try the jump' })
 
-  expect(contextOf(answer)).toEqual([summarisedLine(SUMMARY)])
+  expect(contextOf(answer)).toEqual([summarisedLine([SUMMARY])])
 })
 
-test("a message's calls tell Claude once, and the next message starts afresh", async ($, on) => {
+test('two summarised messages in one turn are each told once, on the call after them', async ($, on) => {
   const w = world($, on)
   const m = model($, on)
 
   await w.begin()
-  await m.steps()
-  await m.streams(thinking(SUMMARY, NARRATION))
+  await w.turnStarts('Carry on.')
+  await m.streams(thinking('Merged it.', NARRATION))
 
   const first = await w.call('status', { now: ['Testing the jump'] })
   const second = await w.call('note', { text: 'Started the live test' })
 
-  await m.steps()
-
-  const next = await w.call('note', { text: 'Finished the live test' })
-
-  expect(contextOf(first)).toEqual([summarisedLine(SUMMARY)])
-  expect(contextOf(second), 'the same message').toBeUndefined()
-  expect(contextOf(next), 'a message with no summary').toBeUndefined()
-})
-
-test('a message with several summaries tells Claude them all, in the order they came', async ($, on) => {
-  const w = world($, on)
-  const m = model($, on)
-
-  await w.begin()
-  await m.steps()
-  await m.streams(thinking('Merged it.', NARRATION))
   await m.streams(thinking('Testing it live.', NARRATION))
 
-  expect(contextOf(await w.call('note', { text: 'Merged the jump' }))).toEqual([
-    summarisedLine('Merged it. Testing it live.'),
-  ])
+  const third = await w.call('note', { text: 'Finished the live test' })
+  const fourth = await w.call('note', { text: 'Wrote it up' })
+
+  expect(contextOf(first)).toEqual([summarisedLine(['Merged it.'])])
+  expect(contextOf(second), 'told already').toBeUndefined()
+  expect(contextOf(third)).toEqual([summarisedLine(['Testing it live.'])])
+  expect(contextOf(fourth), 'told already').toBeUndefined()
 })
 
-test('ordinary thinking, a narration with no words, and a signature that does not parse tell Claude nothing', async ($, on) => {
+test('ordinary thinking, with words or without, a signature that does not parse, and text tell Claude nothing', async ($, on) => {
   const w = world($, on)
   const m = model($, on)
 
   await w.begin()
-  await m.steps()
   await m.streams(thinking('Weighing the two edges.', THINKING))
-  await m.streams(thinking(' \n', NARRATION))
+  await m.streams(thinking('', THINKING))
   await m.streams(thinking(SUMMARY, 'not base64!'))
   await m.streams({ type: 'text', text: SUMMARY })
 
   expect(contextOf(await w.call('note', { text: 'Weighed the edges' }))).toBeUndefined()
 })
 
-test('a refused call carries nothing, and the next call of its message tells Claude', async ($, on) => {
+test("a refused call carries nothing, and what it left untold rides the next request's call", async ($, on) => {
   const w = world($, on)
   const m = model($, on)
 
   await w.begin()
-  await m.steps()
+  await w.turnStarts('Carry on.')
   await m.streams(thinking(SUMMARY, NARRATION))
 
-  const refused = await w.call('resolve', { item: 'zzzz' })
-  const bash = w.calls('Bash', BUN_TEST)
-
-  bash.finish()
+  const refused = await w.call('ask', { wants: 'choice', title: 'Keep it?', options: ['Keep'] })
+  const next = await w.call('ask', {
+    wants: 'choice',
+    title: 'Keep it?',
+    options: ['Keep', 'Drop'],
+  })
 
   expect(refused.deny).toBeDefined()
   expect(contextOf(refused)).toBeUndefined()
-  expect(contextOf(await bash.done)).toEqual([summarisedLine(SUMMARY)])
+  expect(contextOf(next)).toEqual([summarisedLine([SUMMARY])])
 })
 
-test("a subagent's summaries and calls tell Claude nothing, and leave the main conversation's message as it was", async ($, on) => {
+test('an errored call carries it, as an answered one does', async ($, on) => {
   const w = world($, on)
   const m = model($, on)
 
   await w.begin()
-  await m.steps()
   await m.streams(thinking(SUMMARY, NARRATION))
-  await m.steps(AGENT)
+
+  const failed = await m.reads(READ_FAILS)
+  const after = await m.reads(READ)
+
+  expect(failed).toMatchObject({ isError: true, text: 'File does not exist.' })
+  expect(contextOf(failed)).toEqual([summarisedLine([SUMMARY])])
+  expect(contextOf(after), 'told already').toBeUndefined()
+})
+
+test("the line rides core's answer as it came: its ref, text and read-only mark untouched", async ($, on) => {
+  const w = world($, on)
+  const m = model($, on)
+
+  await w.begin()
+  await m.streams(thinking(SUMMARY, NARRATION))
+
+  expect(await m.reads(READ)).toEqual({ ...READ_ANSWER, context: [summarisedLine([SUMMARY])] })
+})
+
+test("a turn of the main conversation starting lets go of what is still untold; a subagent's run does not", async ($, on) => {
+  const w = world($, on)
+  const m = model($, on)
+
+  await w.begin()
+  await m.streams(thinking(SUMMARY, NARRATION))
+  await w.agentRunStarts(AGENT)
+
+  expect(contextOf(await w.call('note', { text: 'Reviewed the diff' }))).toEqual([
+    summarisedLine([SUMMARY]),
+  ])
+
+  await m.streams(thinking('Testing it live.', NARRATION))
+  await w.turnStarts('Carry on.')
+
+  expect(contextOf(await w.call('note', { text: 'Started over' }))).toBeUndefined()
+})
+
+test("a subagent's narrations and calls tell Claude nothing, and leave the main conversation's untold as it was", async ($, on) => {
+  const w = world($, on)
+  const m = model($, on)
+
+  await w.begin()
+  await m.streams(thinking(SUMMARY, NARRATION))
   await m.streams(thinking('Reviewing the diff.', NARRATION), AGENT)
 
   const theirs = w.calls('Bash', BUN_TEST, { agentId: AGENT })
@@ -200,17 +249,19 @@ test("a subagent's summaries and calls tell Claude nothing, and leave the main c
 
   expect(contextOf(await theirs.done)).toBeUndefined()
   expect(contextOf(await w.call('note', { text: 'Reviewed the diff' }))).toEqual([
-    summarisedLine(SUMMARY),
+    summarisedLine([SUMMARY]),
   ])
 })
 
-test("a subagent's summary alone tells the main conversation nothing", async ($, on) => {
-  const w = world($, on)
-  const m = model($, on)
+test("another plugin's own call gets nothing, the engine dropping what it adds, and leaves it for the engine's next call", () => {
+  const answered: ToolCallResult = { result: 'done' }
 
-  await w.begin()
-  await m.steps()
-  await m.streams(thinking('Reviewing the diff.', NARRATION), AGENT)
+  forgetUntold()
+  heardRow({ message: { type: 'assistant', content: [thinking(SUMMARY, NARRATION)] } })
 
-  expect(contextOf(await w.call('note', { text: 'Reviewed the diff' }))).toBeUndefined()
+  expect(retold({ origin: { plugin: 'portal', tier: 'user' } }, answered)).toBe(answered)
+  expect(retold({ origin: ENGINE }, answered)).toEqual({
+    result: 'done',
+    context: [summarisedLine([SUMMARY])],
+  })
 })

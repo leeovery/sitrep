@@ -158,7 +158,7 @@ test('a conversation starts knowing how to keep the board and talk to Lee beside
   )
   expect(guide).toContain('Not for a quick question.')
   expect(guide).toContain(
-    "Keep it current, since it is what tells Lee, away from this window, that something waits on him; but talk to Lee as if it weren't there: the chat alone tells him all he needs.",
+    "Keep it current, since it tells Lee, away from this window, that something waits on him; but talk to Lee as if it weren't there: the chat alone tells him all he needs.",
   )
   expect(guide).toContain('resolve it yourself when Lee answers it in the chat')
   expect(guide).toContain(
@@ -178,7 +178,7 @@ test('a conversation starts knowing how to keep the board and talk to Lee beside
   )
   expect(guide).not.toContain('On the board')
   expect(guide, 'what Lee needs said in the chat, never by the board').toContain(
-    'In the chat, say all Lee needs, an ask\'s question and steps whole, and never point him to the board: no "it\'s on the board", no "check the board".',
+    'In the chat, give an ask\'s question and steps whole, and never point Lee to the board: no "it\'s on the board", no "check the board".',
   )
   expect(guide, 'saying what was parked, and naming the open asks now and then').toContain(
     "Saying you parked something is fine, as is naming the asks still open now and then, when several wait, though not at every turn's end.",
@@ -187,7 +187,7 @@ test('a conversation starts knowing how to keep the board and talk to Lee beside
     "An ask Lee hasn't answered that you still need, raise again in the chat.",
   )
   expect(guide, "the turn's order").toContain(
-    "A turn's board calls (ask, status, note, resolve, park, finish) come before your message to Lee, never after it. Before any tool call, write Lee a line at most: longer words before a tool call can reach him only as a short summary. What he must read goes after the turn's last tool call.",
+    "Every board call of a turn comes before your message to Lee, never after it. Before any tool call, write Lee a line at most: longer words before a tool call can reach him as a short summary, or not at all. What he must read goes after the turn's last tool call.",
   )
   expect(guide, 'sessions, never pieces of work').not.toMatch(/\bpieces? of work\b/i)
   expect(
