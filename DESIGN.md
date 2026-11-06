@@ -5233,7 +5233,8 @@ shape allows them. A jump made in Swift, in the app, stays parked too.
    which keeps its own rule, the one attached longest.
 3. Ghostty's driver asks Ghostty for the terminal on the device and focuses
    it, in one program (6 November 2026): `focus` the first of `terminals
-   whose tty is` the device. Since Ghostty 1.4.0 its AppleScript gives each
+   whose tty is` the device, its window activated first where its tab is
+   not selected (step 4). Since Ghostty 1.4.0 its AppleScript gives each
    terminal `tty`, the device it is on, in the form tmux gives a client's
    (`/dev/ttys041`), and `pid`, its foreground process's (checked on this
    Mac the same day, read-only, against 23 terminals and 19 tmux clients;
@@ -5314,10 +5315,44 @@ shape allows them. A jump made in Swift, in the app, stays parked too.
 4. sitrep focuses that terminal (Ghostty's `focus`). With macOS's "switch to
    a Space with open windows" on, macOS goes to its Space. Tried live: from
    Space 9 to the Fumi window on Space 12, then back to Space 1. It needs no
-   Accessibility permission and no window manager. A terminal in a tab not
-   selected is focused by the same command the knock's find used before 6
-   November 2026, which Ghostty's dictionary says brings its window to the
-   front; a jump to one is still to be watched live.
+   Accessibility permission and no window manager.
+
+   **A terminal in a tab not selected** has its window activated first
+   (Ghostty's `activate window`), then, after a pause of half a second, is
+   focused; one in the selected tab is focused at once, as before. With
+   macOS's native tabs, a tab not selected has a window on no Space, and
+   focusing its terminal brought that tab, and the whole tab group with it,
+   to the Space Lee was on, instead of taking Lee to the window's. Watched
+   live on 6 November 2026, Ghostty 1.4.0 on macOS 26.7.1, the jump of #98
+   doing it; the jump before it used the same `focus`, so it was no
+   regression. On the Space Lee is on, a tab not selected was focused
+   rightly all along. Four probes that day, each begun with the window's
+   other tab selected, Lee on another Space and Finder in front, each
+   finding the terminal by its tty and its window and tab among Ghostty's:
+   - `select tab` the tab, then `focus` the terminal: the window came to
+     Lee's Space. ✗
+   - `activate window`, then `focus` straight away: the window came to
+     Lee's Space. ✗
+   - `activate window`, `delay 1.0`, `focus`: macOS slid to the window's
+     Space and showed the right tab, the program taking 1.68s in all. ✓
+   - `activate window`, `delay 0.5`, `focus`: the same, in 1.16s. ✓
+
+   Half a second it is. The program asks, after finding the terminal,
+   whether its tab is selected, in one question: `selected of (tabs of
+   (windows whose tty of terminals contains` the device`) whose tty of
+   terminals contains` it`)`, which Ghostty answers as a list of lists, a
+   window's and its tab's, `{{false}}` for a tab not selected, and `{}` for
+   a terminal in no window, which is focused as one selected. Only then is
+   the window asked for, to activate it. Measured read-only on this Mac
+   the same day, 19 windows and 23 tabs, a program each, osascript's start
+   included: the lookup alone, as before, median 244ms; with the tab's
+   question, as for a tab selected, 275ms; with the window's too, as for
+   one not selected, 300ms. The probes' walk over every window's tabs,
+   asking each for its terminals' ids, took 850–1000ms.
+
+   **The cost accepted:** a tab not selected in a window on Lee's own Space
+   pays the half second too, where `focus` alone would do. Ghostty's
+   scripting cannot say which Space a window is on.
 
    **The instant Space switch, tried and not built** (6 November 2026). A
    throwaway tool posted Spaceman's synthetic Dock-swipe gesture before

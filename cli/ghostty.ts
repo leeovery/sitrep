@@ -2,8 +2,9 @@
  * Ghostty's driver. Since Ghostty 1.4 its AppleScript gives each terminal
  * the device it is on (`tty`, `/dev/ttys041`), so the terminal on a device
  * is asked for by it and focused, in one program, and Ghostty is kept in
- * front. An older Ghostty, which does not know the word, is refused in plain
- * words.
+ * front. A terminal in a tab not selected has its window activated first, so
+ * macOS takes Lee to the window's Space rather than bringing the tab to his.
+ * An older Ghostty, which does not know the word, is refused in plain words.
  *
  * A fixed program, run by osascript with its values as arguments and never
  * spliced into the text.
@@ -39,8 +40,23 @@ export const LEAST_VERSION = '1.4'
 export const FOCUSED = 'focused'
 
 /**
+ * How long the program waits between activating the window of a tab not
+ * selected and focusing its terminal. Focused straight away, or with the tab
+ * selected first, the terminal's window is brought to Lee's Space instead of
+ * macOS sliding to its own: half a second was enough, live, 6 November 2026.
+ */
+export const PAUSE_SECONDS = 0.5
+
+/** The Ghostty windows, or a window's tabs, holding the terminal on the wanted device: one, or none. */
+const HOLDING = 'whose tty of terminals contains wanted'
+
+/**
  * Given a device, focuses the Ghostty terminal on it and prints FOCUSED;
- * prints nothing when no terminal is on it, or Ghostty is not running.
+ * prints nothing when no terminal is on it, or Ghostty is not running. A
+ * terminal whose tab is not selected has its window activated, and a pause,
+ * before the focus. Ghostty answers whether that tab is selected as a list
+ * of lists, a window's and its tab's: `{{false}}` for one not selected, `{}`
+ * for a terminal in no window, which is focused as one selected.
  */
 export const FOCUS = [
   'on run argv',
@@ -50,6 +66,10 @@ export const FOCUS = [
   'tell application "Ghostty"',
   'set found to (terminals whose tty is wanted)',
   'if found is {} then return ""',
+  `if selected of (tabs of (windows ${HOLDING}) ${HOLDING}) is {{false}} then`,
+  `activate window (first window ${HOLDING})`,
+  `delay ${PAUSE_SECONDS}`,
+  'end if',
   'focus item 1 of found',
   'end tell',
   'end timeout',

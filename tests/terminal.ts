@@ -7,7 +7,7 @@
  * it runs. Nothing touches a real folder, terminal or window.
  */
 import { FRONT, GHOSTTY_BUNDLE } from '../cli/front'
-import { FOCUS, FOCUSED } from '../cli/ghostty'
+import { FOCUS, FOCUSED, PAUSE_SECONDS } from '../cli/ghostty'
 import { TimedOut, type Env, type Io, type Listed, type Ran } from '../cli/io'
 import { main } from '../cli/main'
 import { PS } from '../cli/screen'
@@ -81,6 +81,15 @@ type HeldServer = {
 /** A Ghostty terminal: its id, and the device it is on. */
 export type FakeTerminal = { id: string; device: string }
 
+/** A Ghostty window: its id, its tabs, each the terminals in it, and the place among them of the tab selected. */
+export type FakeWindow = { id: string; tabs: FakeTerminal[][]; selected: number }
+
+/** Terminals each in a Ghostty window of its own, its one tab selected. */
+export const ownWindows = (...terminals: FakeTerminal[]): FakeWindow[] =>
+  terminals.map(each => ({ id: `${each.id}-WINDOW`, tabs: [[each]], selected: 0 }))
+
+/** What the program told Ghostty to do, and to which window or terminal, by its id; or how long it paused, in seconds. */
+export type Told = ['activate window' | 'focus', string] | ['delay', number]
 
 /** The tmux server's socket a window runs under, unless a test says otherwise. */
 export const SOCKET = '/private/tmp/tmux-501/default'
@@ -164,8 +173,8 @@ type Options = {
   random?: Random
   /** tmux's servers, by socket; a socket missing has none running. */
   tmux?: Record<string, FakeServer>
-  /** Ghostty's terminals; with none given, Ghostty is not running. */
-  ghostty?: FakeTerminal[]
+  /** Ghostty's windows; with none given, Ghostty is not running. */
+  ghostty?: FakeWindow[]
   /** A Ghostty from before its terminals said their device, or before it could be scripted at all; one that knows `tty` unless a test says otherwise. */
   ghosttyBefore?: 'tty' | 'scripting'
   /** What osascript says as it fails its run of this count, from 1, as when macOS refuses it control of Ghostty; undefined while it runs. */
@@ -217,10 +226,10 @@ const latch = () => {
 
 /**
  * tmux, `ps`, lsappinfo, `open` and Ghostty as the CLI's programs find
- * them: what each run prints, and which terminals are focused.
+ * them: what each run prints, and what Ghostty is told.
  */
 function screen(options: Options) {
-  const terminals = options.ghostty
+  const windows = options.ghostty
   /** tmux's servers as they stand, a select changing which window a client shows. */
   const servers = new Map<string, HeldServer>(
     Object.entries(options.tmux ?? {}).map(([socket, server]) => [
@@ -243,8 +252,8 @@ function screen(options: Options) {
   const ran: string[][] = []
   /** Every program run, by its name, with the time it was given. */
   const limits: { name: string; limitMs?: number }[] = []
-  /** The id of every terminal focused, in order. */
-  const focused: string[] = []
+  /** What the program told Ghostty, in order. */
+  const told: Told[] = []
   /** The apps lsappinfo has named, each one's ASN its place here. */
   const apps: string[] = []
   /** Programs whose runs wait, by name, until the test lets them answer. */
@@ -368,15 +377,40 @@ function screen(options: Options) {
     return printed([])
   }
 
-  /** The terminal on the device focused, and FOCUSED printed; nothing for a device no terminal is on. */
-  const focus = (device: string | undefined) => {
-    const found = terminals?.find(each => each.device === device)
+  /** The terminal on the device, its window and the place of its tab in it; undefined for a device no terminal is on. */
+  const holding = (device: string | undefined) => {
+    for (const window of windows ?? []) {
+      for (const [tab, terminals] of window.tabs.entries()) {
+        const found = terminals.find(each => each.device === device)
 
-    if (found !== undefined) {
-      focused.push(found.id)
+        if (found !== undefined) {
+          return { window, tab, found }
+        }
+      }
     }
 
-    return found === undefined ? [] : [FOCUSED]
+    return undefined
+  }
+
+  /**
+   * The terminal on the device focused, its window activated and a pause
+   * first where its tab is not selected, and FOCUSED printed; nothing for a
+   * device no terminal is on.
+   */
+  const focus = (device: string | undefined) => {
+    const held = holding(device)
+
+    if (held === undefined) {
+      return []
+    }
+
+    if (held.tab !== held.window.selected) {
+      told.push(['activate window', held.window.id], ['delay', PAUSE_SECONDS])
+    }
+
+    told.push(['focus', held.found.id])
+
+    return [FOCUSED]
   }
 
   /** What osascript says of the program to a Ghostty that does not know its terms: one with no dictionary as it compiles, whether Ghostty runs or not; one with no `tty` as the lookup runs. */
@@ -385,7 +419,7 @@ function screen(options: Options) {
       return 'focus.applescript:8: error: Expected end of line, etc. but found class name. (-2741)'
     }
 
-    return options.ghosttyBefore === 'tty' && terminals !== undefined
+    return options.ghosttyBefore === 'tty' && windows !== undefined
       ? '179:183: execution error: The variable tty is not defined. (-2753)'
       : undefined
   }
@@ -406,7 +440,7 @@ function screen(options: Options) {
       return { exitCode: 1, stdout: '', stderr: `${refusal}\n` }
     }
 
-    return printed(terminals === undefined ? [] : focus(args.at(0)))
+    return printed(windows === undefined ? [] : focus(args.at(0)))
   }
 
   const run = async ([name = '', ...words]: readonly string[], limitMs?: number): Promise<Ran> => {
@@ -476,7 +510,17 @@ function screen(options: Options) {
     }
   }
 
-  return { run, ran, limits, focused, hold }
+  return {
+    run,
+    ran,
+    limits,
+    told,
+    /** The id of every terminal focused, in order. */
+    get focused() {
+      return told.flatMap(([command, subject]) => (command === 'focus' ? [subject] : []))
+    },
+    hold,
+  }
 }
 
 export function terminal(options: Options = {}) {
