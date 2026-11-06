@@ -187,7 +187,6 @@ test('screen asks tmux twice for each socket and ps once, however many sessions 
     ['tmux', SESSION_SOCKET, 'list-panes'],
   ])
   expect(t.screen.ran.filter(([name]) => name !== 'tmux')).toEqual([PS])
-  expect(t.screen.written).toEqual([])
   expect(t.screen.focused).toEqual([])
 })
 

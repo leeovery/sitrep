@@ -2,11 +2,10 @@
  * The CLI bound to Bun: the file system, the environment and the folder it
  * runs in, the clocks and waiting on them, random bytes, standard input,
  * standard output and error and when the run is to end, the plugin's
- * manifest, programs and terminal devices, and the exit code. bin/sitrep
- * runs it.
+ * manifest, programs, and the exit code. bin/sitrep runs it.
  */
-import { constants, readdirSync, readFileSync, statSync } from 'node:fs'
-import { appendFile, mkdir, open } from 'node:fs/promises'
+import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { appendFile, mkdir } from 'node:fs/promises'
 import { endOf, type Signals } from '../ending'
 import { TimedOut, type Io, type Listed, type Ran, type Waiting } from '../io'
 import { childEnvironment } from '../locale'
@@ -118,17 +117,6 @@ const run = async (command: readonly string[], limitMs?: number): Promise<Ran> =
   }
 }
 
-/** Opened without O_CREAT, so a device that is gone fails rather than becoming a file; O_NOCTTY, so it never becomes this process's terminal. */
-const writeTo = async (device: string, text: string) => {
-  const handle = await open(device, constants.O_WRONLY | constants.O_NOCTTY)
-
-  try {
-    await handle.writeFile(text)
-  } finally {
-    await handle.close()
-  }
-}
-
 const wait = (ms: number): Waiting => {
   let timer: ReturnType<typeof setTimeout> | undefined
   const waited = new Promise<void>(resolve => {
@@ -172,37 +160,6 @@ const signals: Signals = {
   },
 }
 
-/** What SIGTERM does before the run ends, while anything is held; listened for only then, so `watch`'s own end is as ever. */
-const undos = new Set<() => Promise<void>>()
-
-let isEnding = false
-
-/** Once, though SIGTERM comes again while the undos run. */
-const undoAndEnd = () => {
-  if (isEnding) {
-    return
-  }
-
-  isEnding = true
-  void Promise.allSettled([...undos].map(undo => undo())).then(() => process.exit(143))
-}
-
-export const atTerm = (undo: () => Promise<void>) => {
-  const held = () => undo()
-
-  if (undos.size === 0) {
-    process.on('SIGTERM', undoAndEnd)
-  }
-
-  undos.add(held)
-
-  return () => {
-    if (undos.delete(held) && undos.size === 0) {
-      process.off('SIGTERM', undoAndEnd)
-    }
-  }
-}
-
 const io: Io = {
   fs: {
     read: async path => readFileSync(path, 'utf8'),
@@ -220,10 +177,8 @@ const io: Io = {
   out: text => void process.stdout.write(text),
   err: text => void process.stderr.write(text),
   ending: () => endOf(signals, PARENT),
-  atTerm,
   manifest: MANIFEST,
   run,
-  writeTo,
 }
 
 /** Runs the CLI on the words it was given, and exits as it ends. */

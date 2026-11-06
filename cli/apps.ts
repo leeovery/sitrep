@@ -7,12 +7,12 @@
  * its bundle.
  *
  * An app with no driver is brought forward by `open`, within the time limit,
- * and nothing more: no knock, and no select beyond the tmux layer's. `open`
- * launches an app not running, so it runs only for one running. One told by
- * its `$TERM_PROGRAM`, which a program started from another terminal's shell
- * inherits, or by a helper that outlives the app, as iTerm2's server does, is
- * asked of lsappinfo first; one told by its bundle's path in `ps` is running,
- * its program among the client's ancestors.
+ * and nothing more: no window of it picked out, and no select beyond the tmux
+ * layer's. `open` launches an app not running, so it runs only for one
+ * running. One told by its `$TERM_PROGRAM`, which a program started from
+ * another terminal's shell inherits, or by a helper that outlives the app, as
+ * iTerm2's server does, is asked of lsappinfo first; one told by its bundle's
+ * path in `ps` is running, its program among the client's ancestors.
  */
 import type { App, Driver } from './driver'
 import { GHOSTTY } from './ghostty'

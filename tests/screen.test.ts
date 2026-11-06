@@ -1,15 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 import { appOfCommand, appOfProgram, DRIVERS, openWords } from '../cli/apps'
 import { GHOSTTY_BUNDLE, parseBundle } from '../cli/front'
-import {
-  directoryAfter,
-  GHOSTTY,
-  MARKER_FOLDER,
-  markerOf,
-  parseListing,
-  reportText,
-} from '../cli/ghostty'
-import { parseRemembered, rememberedText } from '../cli/remembered'
+import { GHOSTTY } from '../cli/ghostty'
 import {
   clientApps,
   parseProcesses,
@@ -24,7 +16,7 @@ import {
 } from '../cli/screen'
 import { parseClients, parsePanes, selectWords, type Client } from '../cli/tmux'
 import { attach, leave, presenceText, rowOf, type Where, type WindowState } from '../core'
-import { fold, MIN, scripted, T0, W1, W2 } from './support'
+import { fold, MIN, T0, W1, W2 } from './support'
 
 const SOCKET = '/private/tmp/tmux-501/default'
 const OTHER_SOCKET = '/private/tmp/tmux-501/session'
@@ -547,78 +539,6 @@ test("a window on its own work goes below one working and above one on its turn,
   expect(row?.lines[0]?.writer).toBe('a')
   expect(windowsAt(waiting, turn)).toEqual(['a', 'b'])
   expect(windowsAt(waiting, ['b', T0, { is: 'working', since: T0 + 5_000 }])).toEqual(['b', 'a'])
-})
-
-test('a report names its path at localhost, every character but / percent-encoded', () => {
-  expect(reportText('/Users/lee/Code/kit')).toBe('\x1b]7;file://localhost/Users/lee/Code/kit\x07')
-  expect(reportText('/tmp/a b%20é')).toBe('\x1b]7;file://localhost/tmp/a%20b%2520%C3%A9\x07')
-})
-
-test("a marker is a fresh path in the markers' folder, its random bytes in hex", () => {
-  expect(MARKER_FOLDER).toBe('/sitrep-knock')
-  expect(markerOf(scripted([0, 15, 16, 255]))).toBe('/sitrep-knock/000f10ff000f10ff')
-})
-
-test('a terminal goes back to the directory it reported, or home for none, or for a marker another knock left', () => {
-  expect(directoryAfter('/Users/lee/Code/a b', '/Users/lee')).toBe('/Users/lee/Code/a b')
-  expect(directoryAfter('', '/Users/lee')).toBe('/Users/lee')
-  expect(directoryAfter(undefined, '/Users/lee')).toBe('/Users/lee')
-  expect(directoryAfter('/sitrep-knock/0102030401020304', '/Users/lee')).toBe('/Users/lee')
-  expect(directoryAfter('/sitrep-knockout', '/Users/lee')).toBe('/sitrep-knockout')
-})
-
-test("Ghostty's listing reads as its terminals, one reporting no directory kept though its line is the last", () => {
-  expect(parseListing('31C806B1\tA1C829FD\n31C806B1\t/Users/lee/Code/a b\nA1C829FD\t\n')).toEqual([
-    { id: '31C806B1', directory: '/Users/lee/Code/a b' },
-    { id: 'A1C829FD', directory: '' },
-  ])
-  expect(parseListing('\n\n'), 'no terminals, or Ghostty not running').toEqual([])
-})
-
-test("a listing whose ids read last differ from its pairs' is no listing: a terminal opened or closed as it read", () => {
-  expect(parseListing('31C806B1\tNEW\n31C806B1\t/Users/lee\nA1C829FD\t/tmp\n')).toBeUndefined()
-  expect(parseListing('31C806B1\tA1C829FD\n\n'), 'the counts differed, so no pairs').toBeUndefined()
-})
-
-test("each device's remembered terminal reads from its file, the last line for a device winning", () => {
-  const text = [
-    rememberedText('/dev/ttys000', 'OLD-TERMINAL'),
-    rememberedText('/dev/ttys041', 'KIT-TERMINAL'),
-    rememberedText('/dev/ttys000', 'NEW-TERMINAL'),
-  ].join('')
-
-  expect(parseRemembered(text)).toEqual(
-    new Map([
-      ['/dev/ttys000', 'NEW-TERMINAL'],
-      ['/dev/ttys041', 'KIT-TERMINAL'],
-    ]),
-  )
-  expect(rememberedText('/dev/ttys000', 'NEW-TERMINAL')).toBe(
-    '{"device":"/dev/ttys000","terminal":"NEW-TERMINAL"}\n',
-  )
-})
-
-test('a remembered line torn, broken or not a pair is skipped, and the lines around it stand', () => {
-  const text = [
-    'not json\n',
-    '[1,2]\n',
-    '"/dev/ttys000"\n',
-    rememberedText('/dev/ttys000', 'GOOD-TERMINAL'),
-    '{"device":"/dev/ttys000"}\n',
-    '{"device":"/dev/ttys000","terminal":""}\n',
-    '{"device":"/dev/ttys000","terminal":7}\n',
-    '{"device":"","terminal":"NO-DEVICE"}\n',
-    rememberedText('/dev/ttys041', 'KIT-TERMINAL'),
-    '{"device":"/dev/ttys000","termi',
-  ].join('')
-
-  expect(parseRemembered(text)).toEqual(
-    new Map([
-      ['/dev/ttys000', 'GOOD-TERMINAL'],
-      ['/dev/ttys041', 'KIT-TERMINAL'],
-    ]),
-  )
-  expect(parseRemembered('')).toEqual(new Map())
 })
 
 test("lsappinfo's bundle id line reads as the id; an app gone, or nothing, as none", () => {

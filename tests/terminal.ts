@@ -4,11 +4,10 @@
  * environment, the clocks, which only waiting moves, random bytes, its
  * standard input, what it prints and its closing, the plugin's manifest,
  * and a fake tmux, `ps`, lsappinfo, `open` and Ghostty behind the programs
- * it runs and the devices it writes to. Nothing touches a real folder,
- * terminal or window.
+ * it runs. Nothing touches a real folder, terminal or window.
  */
 import { FRONT, GHOSTTY_BUNDLE } from '../cli/front'
-import { FIND_AND_FOCUS, FOCUS, LIST } from '../cli/ghostty'
+import { FOCUS } from '../cli/ghostty'
 import { TimedOut, type Env, type Io, type Listed, type Ran } from '../cli/io'
 import { main } from '../cli/main'
 import { PS } from '../cli/screen'
@@ -79,19 +78,11 @@ type HeldServer = {
   clients: Required<FakeClient>[]
 }
 
-/**
- * A Ghostty terminal: its id, the device it is on, and the working directory
- * it reports. One `isLate` takes a report only once the next Ghostty program
- * has answered, as a terminal slower than the find would; one `lateBy` only
- * once that many have, as one slower than the listing after it too would.
- */
-export type FakeTerminal = {
-  id: string
-  device: string
-  directory: string
-  isLate?: boolean
-  lateBy?: number
-}
+/** A Ghostty terminal: its id, and the device it is on. */
+export type FakeTerminal = { id: string; device: string }
+
+/** The Ghostty running, unless a test says otherwise: the first whose terminals say their device. */
+export const GHOSTTY_VERSION = '1.4.0'
 
 /** The tmux server's socket a window runs under, unless a test says otherwise. */
 export const SOCKET = '/private/tmp/tmux-501/default'
@@ -129,9 +120,6 @@ export const appClient = (tty: string, window: string, program: string): FakeCli
   window,
   from: ['-zsh', '/usr/bin/login', program, '/sbin/launchd'],
 })
-
-/** A report written to a device, as the fake reads one back: OSC 7, its host `localhost`, its path percent-encoded. */
-const REPORT = /^\x1b\]7;file:\/\/localhost(\/[^\x07]*)\x07$/
 
 /** Processes in every snapshot, whatever the clients: one a command with spaces. */
 const OTHER_PROCESSES = [
@@ -180,22 +168,18 @@ type Options = {
   tmux?: Record<string, FakeServer>
   /** Ghostty's terminals; with none given, Ghostty is not running. */
   ghostty?: FakeTerminal[]
+  /** The version of the Ghostty running: GHOSTTY_VERSION unless a test says otherwise. */
+  ghosttyVersion?: string
   /** What osascript says as it fails its run of this count, from 1, as when macOS refuses it control of Ghostty; undefined while it runs. */
   refused?: (run: number) => string | undefined
-  /** What changes Ghostty's terminals during each listing, the first's first, between its read of the ids and of the directories. */
-  changes?: ((terminals: FakeTerminal[]) => void)[]
   /** Programs not on PATH. */
   missing?: string[]
   /** Programs that never answer: a run with a limit is killed at it. */
   slow?: string[]
   /** osascript's runs that never end, by their count from 1, as under heavy load: one with a limit is killed at it. */
   stalls?: (run: number) => boolean
-  /** osascript's runs that hang until the run is told to end, by their count from 1: `hanging` once one has begun. */
-  hangs?: (run: number) => boolean
   /** How tmux answers a select: in these words, as it refuses one, or never, as a select that hangs; done, unless a test says otherwise. */
   select?: { said: string } | 'slow'
-  /** Devices gone, a write to which fails as a closed pty's does. */
-  closed?: string[]
   /**
    * The bundle id of the app in front at each of lsappinfo's looks, the
    * first's first and the last's ever after: Ghostty's unless a test says
@@ -235,14 +219,10 @@ const latch = () => {
 
 /**
  * tmux, `ps`, lsappinfo, `open` and Ghostty as the CLI's programs find
- * them: what each run prints, what is written to each device, and which
- * terminals are focused. A report written to a device sets the directory of
- * the terminal on it, and of no other.
+ * them: what each run prints, and which terminals are focused.
  */
 function screen(options: Options) {
-  const terminals = options.ghostty?.map(each => ({ ...each }))
-  /** The report each late terminal takes, and how many more Ghostty programs answer before it does. */
-  const late = new Map<FakeTerminal, { directory: string; programs: number }>()
+  const terminals = options.ghostty
   /** tmux's servers as they stand, a select changing which window a client shows. */
   const servers = new Map<string, HeldServer>(
     Object.entries(options.tmux ?? {}).map(([socket, server]) => [
@@ -265,33 +245,14 @@ function screen(options: Options) {
   const ran: string[][] = []
   /** Every program run, by its name, with the time it was given. */
   const limits: { name: string; limitMs?: number }[] = []
-  /** Every write to a device, in order. */
-  const written: { device: string; text: string }[] = []
   /** The id of every terminal focused, in order. */
   const focused: string[] = []
   /** The apps lsappinfo has named, each one's ASN its place here. */
   const apps: string[] = []
   /** Programs whose runs wait, by name, until the test lets them answer. */
   const holds = new Map<string, { arrive: () => void; released: Promise<void> }>()
-  /** Open once an osascript run that hangs has begun. */
-  const hung = latch()
-  /** Writes that wait, by what they write, until the test lets them land. */
-  const writeHolds: { matches: (text: string) => boolean; arrive: () => void; released: Promise<void> }[] =
-    []
 
   const pidOf = (client: Required<FakeClient>) => 1000 + clients.indexOf(client)
-
-  /** A Ghostty program answered: late terminals whose time has come take the reports they were given; with `all`, every one does. */
-  const settle = (all = false) => {
-    for (const [terminal, report] of late) {
-      report.programs -= 1
-
-      if (all || report.programs <= 0) {
-        terminal.directory = report.directory
-        late.delete(terminal)
-      }
-    }
-  }
 
   /** Makes the window current in the session, for every client attached to it; refused for a session not holding it. */
   const select = (server: HeldServer, words: readonly string[], limitMs?: number): Ran => {
@@ -362,20 +323,6 @@ function screen(options: Options) {
     ])
   }
 
-  /** The program as it runs: the ids, then the directories, then the ids again, a change of the run's between the first two. */
-  const list = (): string[] => {
-    const held = terminals ?? []
-    const change = options.changes?.[ran.filter(words => words[2] === LIST).length - 1]
-    const ids = held.map(each => each.id)
-
-    change?.(held)
-
-    const places = held.map(each => each.directory)
-    const rows = places.length === ids.length ? ids.map((id, i) => `${id}\t${places[i]}`) : []
-
-    return [held.map(each => each.id).join('\t'), ...rows]
-  }
-
   /** The app in front at this look, by its ASN. */
   const front = () => {
     const looks = ran.filter(words => isWords(words, FRONT)).length
@@ -423,39 +370,26 @@ function screen(options: Options) {
     return printed([])
   }
 
-  /** The terminal with the id focused, its id printed; nothing for an id no terminal has. */
-  const focus = (id: string | undefined) => {
-    const found = terminals?.find(each => each.id === id)
+  /** Whether the Ghostty running is older than the first whose terminals say their device, comparing each number in turn. */
+  const isOld = () => {
+    const [major = 0, minor = 0] = (options.ghosttyVersion ?? GHOSTTY_VERSION).split('.').map(Number)
+
+    return major < 1 || (major === 1 && minor < 4)
+  }
+
+  /** The terminal on the device focused, the device printed; nothing for a device no terminal is on; the version for a Ghostty too old to tell. */
+  const focus = (device: string | undefined) => {
+    if (isOld()) {
+      return [options.ghosttyVersion ?? GHOSTTY_VERSION]
+    }
+
+    const found = terminals?.find(each => each.device === device)
 
     if (found !== undefined) {
       focused.push(found.id)
     }
 
-    return found === undefined ? [] : [found.id]
-  }
-
-  const find = (marker: string | undefined) => {
-    const found = terminals?.find(each => each.directory === marker)
-
-    if (found !== undefined) {
-      focused.push(found.id)
-    }
-
-    return found === undefined ? [] : [found.id]
-  }
-
-  /** What Ghostty prints for each program, given its argument. */
-  const answerTo = (program: string | undefined, arg: string | undefined) => {
-    switch (program) {
-      case LIST:
-        return list()
-      case FIND_AND_FOCUS:
-        return find(arg)
-      case FOCUS:
-        return focus(arg)
-      default:
-        throw new Error('the fake Ghostty knows no such program')
-    }
+    return found === undefined ? [] : [device ?? '']
   }
 
   /** How many times osascript has run, this run included. */
@@ -464,21 +398,17 @@ function screen(options: Options) {
   const isStalled = () => options.stalls?.(osascriptRuns()) === true
 
   const osascript = (program: string | undefined, args: readonly string[]): Ran => {
+    if (program !== FOCUS) {
+      throw new Error('the fake Ghostty knows no such program')
+    }
+
     const refusal = options.refused?.(osascriptRuns())
 
     if (refusal !== undefined) {
       return { exitCode: 1, stdout: '', stderr: `${refusal}\n` }
     }
 
-    if (terminals === undefined) {
-      return printed([])
-    }
-
-    const answer = printed(answerTo(program, args.at(0)))
-
-    settle()
-
-    return answer
+    return printed(terminals === undefined ? [] : focus(args.at(0)))
   }
 
   const run = async ([name = '', ...words]: readonly string[], limitMs?: number): Promise<Ran> => {
@@ -498,11 +428,6 @@ function screen(options: Options) {
 
     if (options.slow?.includes(name) || (name === 'osascript' && isStalled())) {
       throw unended(name, limitMs)
-    }
-
-    if (name === 'osascript' && options.hangs?.(osascriptRuns()) === true) {
-      hung.open()
-      await never()
     }
 
     if (name === 'tmux') {
@@ -537,55 +462,6 @@ function screen(options: Options) {
     throw new Error(`Executable not found in $PATH: "${name}"`)
   }
 
-  const writeTo = async (device: string, text: string) => {
-    const path = REPORT.exec(text)?.[1]
-
-    if (path === undefined) {
-      throw new Error(`a write to ${device} that is not a working directory report`)
-    }
-
-    if (options.closed?.includes(device)) {
-      throw new Error(`ENXIO: no such device or address, open '${device}'`)
-    }
-
-    const held = writeHolds.find(each => each.matches(text))
-
-    if (held !== undefined) {
-      writeHolds.splice(writeHolds.indexOf(held), 1)
-      held.arrive()
-      await held.released
-    }
-
-    written.push({ device, text })
-
-    for (const terminal of (terminals ?? []).filter(each => each.device === device)) {
-      const programs = terminal.lateBy ?? (terminal.isLate === true ? 1 : 0)
-
-      if (programs > 0) {
-        late.set(terminal, { directory: decodeURIComponent(path), programs })
-      } else {
-        terminal.directory = decodeURIComponent(path)
-      }
-    }
-  }
-
-  /** The next write whose text matches waits until `release()`, landing then; `arrived` once it has begun. */
-  const holdWrite = (matches: (text: string) => boolean) => {
-    const arrival = latch()
-    const release = latch()
-
-    writeHolds.push({ matches, arrive: arrival.open, released: release.opened })
-
-    return { arrived: arrival.opened, release: release.open }
-  }
-
-  /** Each terminal's id and directory once every report has landed. */
-  const directories = () => {
-    settle(true)
-
-    return Object.fromEntries((terminals ?? []).map(each => [each.id, each.directory]))
-  }
-
   /** Runs of the program from here on wait until `release()`; `arrived` once one has begun. */
   const hold = (name: string) => {
     const arrival = latch()
@@ -602,18 +478,7 @@ function screen(options: Options) {
     }
   }
 
-  return {
-    run,
-    writeTo,
-    ran,
-    limits,
-    written,
-    focused,
-    directories,
-    hold,
-    holdWrite,
-    hanging: hung.opened,
-  }
+  return { run, ran, limits, focused, hold }
 }
 
 export function terminal(options: Options = {}) {
@@ -633,8 +498,6 @@ export function terminal(options: Options = {}) {
   const closing = latch()
   /** How many listenings for the run's end are not yet stopped. */
   let listening = 0
-  /** What the run holds to undo should it be told to end (SIGTERM), as the shell holds it. */
-  const undos = new Set<() => Promise<void>>()
   /** Standard input: what was written to it that nothing has heard yet, as a pipe holds it, and what hears it now. */
   const stdin: { held: string[]; heard?: (text: string) => void } = { held: [] }
 
@@ -720,18 +583,8 @@ export function terminal(options: Options = {}) {
         },
       }
     },
-    atTerm: undo => {
-      const held = () => undo()
-
-      undos.add(held)
-
-      return () => {
-        undos.delete(held)
-      }
-    },
     manifest: MANIFEST,
     run: shown.run,
-    writeTo: shown.writeTo,
   }
 
   /** Runs the CLI on these words: how it ended, and what it printed. */
@@ -842,10 +695,6 @@ export function terminal(options: Options = {}) {
     run,
     close: closing.open,
     listening: () => listening,
-    /** The run told to end (SIGTERM), as the app stopping a jump tells it: every undo it holds is done, as the shell does them before it exits. */
-    term: () => Promise.allSettled([...undos].map(undo => undo())),
-    /** How many undos the run holds now. */
-    held: () => undos.size,
     /** Writes to the run's standard input, as the app does: heard at once while it listens, else held until it does and `arrives` gives it. */
     send: (text: string) => {
       if (stdin.heard === undefined) {
