@@ -158,6 +158,9 @@ test('a conversation starts knowing how to keep the board, every session on it b
   )
   expect(guide).toContain('Not for a quick question.')
   expect(guide).toContain('say it in the chat as well')
+  expect(guide).toContain(
+    "in your words after the turn's last tool call, since words written before a tool call can reach Lee only as a short rewrite, their steps and questions lost",
+  )
   expect(guide).toContain('when Lee answers it in the chat, resolve the ask')
   expect(guide).toContain(
     'a turn that ends on a decision or a question for Lee posts it as an ask, so it shows in Needs you, never only in the status; plain conversation needs none',
