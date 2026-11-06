@@ -40,7 +40,7 @@ enum EdgeStyle {
     static let code = NSFont.monospacedSystemFont(ofSize: 13, weight: .medium)
     static let sub = NSFont.systemFont(ofSize: 12)
     static let age = NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .regular)
-    /// A Needs you row's "+2" after its session's name, in tabular figures (board F).
+    /// A Needs you row's count, "3", after its session's name, in tabular figures (board F).
     static let count = NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .medium)
     static let headTitle = NSFont.systemFont(ofSize: 13, weight: .semibold)
     static let headCount = NSFont.systemFont(ofSize: 12)

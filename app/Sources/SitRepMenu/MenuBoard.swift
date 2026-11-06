@@ -88,7 +88,7 @@ public struct MenuBoard: Equatable, Sendable {
 
 extension Session {
     /// The row's first line as one line of a menu item's title at this time on the wall clock, ms: its words, its
-    /// subject after them, and a question's "+2".
+    /// subject after them, and its count.
     public func menuTitle(at now: Double) -> String {
         menuLine(at: now).plain
     }

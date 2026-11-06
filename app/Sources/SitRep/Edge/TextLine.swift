@@ -38,8 +38,13 @@ final class TextLine: CALayer {
     /// The line cut short with the ellipsis to fit the width. Core Text's own cut overruns the width it is given by
     /// as much as the ellipsis (3.5 at 13 medium, measured), so it is cut again, narrower by the overrun, until it fits.
     /// Where Core Text cuts none, the room narrower than the ellipsis, the ellipsis alone, or nothing where even that
-    /// would overrun.
+    /// would overrun. A line that fits is kept whole first, as Core Text gives no line at all for a room narrower than
+    /// its ellipsis, even one the whole line fits: a count of one figure, "3".
     private static func cut(_ whole: CTLine, to width: CGFloat, with ellipsis: CTLine) -> CTLine {
+        guard CTLineGetTypographicBounds(whole, nil, nil, nil) > width else {
+            return whole
+        }
+
         var room = width
 
         while room > 0, let line = CTLineCreateTruncatedLine(whole, room, .end, ellipsis) {

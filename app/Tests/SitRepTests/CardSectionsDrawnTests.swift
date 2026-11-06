@@ -150,7 +150,7 @@ struct CardSectionsDrawnTests {
     }
 
     /// Its session's name from 32, 13 medium in the text colour, wider than a your-turn row's regular of the same
-    /// words; its "+2" 6 after it, in the soft grey.
+    /// words; its "3" 6 after it, in the soft grey.
     @Test func aNeedsYouRowsNameIs13MediumAndItsCount6After() throws {
         let name = "Licensing"
         let drawn = try Self.row(Self.needs(name, lines: 3)).drawn

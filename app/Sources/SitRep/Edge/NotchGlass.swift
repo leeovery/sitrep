@@ -255,7 +255,7 @@ private struct GlassHead: View {
 }
 
 /// A session's row on glass, on one line, laid out as the black's (board J): its mark, its title (`Session.headline`),
-/// a session's "+2" after its name, its project in the tertiary at the right of its words, never cut, and its time.
+/// a session's count after its name, its project in the tertiary at the right of its words, never cut, and its time.
 /// Under the pointer, a row that jumps lifts, and a click jumping from it presses it in with an arc spinning in its
 /// time's place. A row needing Lee is its name, in medium, an away one's dimmed; a your-turn row its ring and its
 /// words, in regular; a Working row its verb, then what follows it 6 on, shimmering while it works and still on its own
@@ -307,10 +307,10 @@ struct GlassSessionRow: View {
     /// Under the pointer, a row that jumps lifts; an away one, which jumps nowhere, does not.
     private var lit: Bool { hovered && session.jumps }
 
-    /// Its "+2": dimmer in Snoozed.
+    /// Its count: dimmer in Snoozed.
     private var soft: HierarchicalShapeStyle { session.isSnoozed ? .tertiary : .secondary }
 
-    /// Its title and its "+2", dimmed by the one factor while no window holds it, but in Snoozed, quieted already.
+    /// Its title and its count, dimmed by the one factor while no window holds it, but in Snoozed, quieted already.
     private var awayDim: Double { Away.dimming(session.away && !session.isSnoozed) }
 
     /// What its time's place says: its age, or in Snoozed when it wakes, or that it waits until it moves.
@@ -353,9 +353,9 @@ struct GlassSessionRow: View {
         }
     }
 
-    /// Its title in a box this wide, cut short before a session's "+2", which sits 6 after it on its baseline: a
+    /// Its title in a box this wide, cut short before a session's count, which sits 6 after it on its baseline: a
     /// Working one its verb, then 6 after it what follows it, which is cut short first, the verb shimmering while it
-    /// works and still on its own work; an away one dim, its "+2" with it.
+    /// works and still on its own work; an away one dim, its count with it.
     private func title(width: Double) -> some View {
         let line = session.headline
 

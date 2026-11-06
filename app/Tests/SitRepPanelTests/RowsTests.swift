@@ -16,14 +16,14 @@ struct RowsTests {
         sub: "Harness"
     )
 
-    /// A row needing Lee says its session, on every surface: its name, its newest line's time, and "+2" for the two
-    /// lines after it; none of its lines' words.
-    @Test func aRowNeedingLeeShowsItsSessionsNameThenHowManyMore() {
+    /// A row needing Lee says its session, on every surface: its name, its newest line's time, and "3" for its three
+    /// lines waiting; none of its lines' words.
+    @Test func aRowNeedingLeeShowsItsSessionsNameThenHowManyWait() {
         #expect(Self.harness.title == "Finish the Harness modernisation")
         #expect(Self.harness.code == nil && Self.harness.subject == nil)
         #expect(Self.harness.since == 120 * Self.minute)
         #expect(Self.harness.ageText(at: 180 * Self.minute) == "1h")
-        #expect(Self.harness.more == "+2")
+        #expect(Self.harness.more == "3")
     }
 
     /// One line waiting shows no count: a permission prompt's command and a question's own "+2", whose words the row

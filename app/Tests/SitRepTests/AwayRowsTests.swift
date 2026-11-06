@@ -25,7 +25,7 @@ struct AwayRowsTests {
     private static let cardSize = CGSize(width: 344, height: Item.lineHeight)
     /// The session's name, 13 medium, as the card sets it.
     private static let named = TextLine.width(TextLine.text("Session", EdgeStyle.lineMedium, EdgeStyle.ink))
-    /// A card row's title, its "+1" 6 after it, its project at the right, and its time.
+    /// A card row's title, its "2" 6 after it, its project at the right, and its time.
     private static let cardTitle = CGRect(x: 30, y: 6, width: 2 + named, height: 18)
     private static let cardCount = CGRect(x: 32 + named + 3, y: 6, width: 20, height: 18)
     private static let cardProject = CGRect(x: 200, y: 6, width: 88, height: 18)
@@ -40,7 +40,7 @@ struct AwayRowsTests {
         try Self.expectDot(held, centre: CGPoint(x: 16, y: 15))
     }
 
-    /// Its name and its "+1" dim as one; its project and its time, faint, are never brighter than its name.
+    /// Its name and its "2" dim as one; its project and its time, faint, are never brighter than its name.
     @Test func onTheBlackCardAnAwayRowsWordsDimAsOne() throws {
         let away = try Self.black(Self.asking(away: true, lines: 2))
         let held = try Self.black(Self.asking(away: false, lines: 2))

@@ -315,7 +315,7 @@ final class StripWordsLayer {
         return text
     }
 
-    /// A title's subject in code type after it, and its "+2" (`more`), dim, 6 further on, an away ask's dimmed with
+    /// A title's subject in code type after it, and its count (`more`), dim, 6 further on, an away ask's dimmed with
     /// it.
     private static func append(_ s: Session, to text: NSMutableAttributedString, _ ink: CGColor, more font: NSFont) {
         if let code = s.code {

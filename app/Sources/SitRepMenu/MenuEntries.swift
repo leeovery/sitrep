@@ -122,7 +122,7 @@ public struct MenuChanges: Equatable, Sendable {
 }
 
 /// A row's first line as the menu sets it (`Session.headline`): its words in the menu's font, a plain subject or a
-/// wake's countdown among them, its subject in mono after them, and a "+2"; a working row's, or one on its own work,
+/// wake's countdown among them, its subject in mono after them, and its count; a working row's, or one on its own work,
 /// fainter than the rest, since it needs nothing.
 public struct MenuTitle: Equatable, Sendable {
     public let words: String

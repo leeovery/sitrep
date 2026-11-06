@@ -97,8 +97,8 @@ public struct MenuCut: Sendable {
 }
 
 extension MenuTitle {
-    /// The title cut to the menu's width: its words and subject at their tail, a question's "+2" kept whole after
-    /// them, as it says there is more to the ask.
+    /// The title cut to the menu's width: its words and subject at their tail, its count kept whole after them, as
+    /// it says how many wait.
     public func cut(by cut: MenuCut) -> MenuTitle {
         let runs = [MenuRun(words, .words)] + (mono.map { [MenuRun($0, .mono)] } ?? [])
         let tail = more.map { [MenuRun($0, .words)] } ?? []

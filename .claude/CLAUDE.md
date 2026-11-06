@@ -25,8 +25,10 @@ clone on `main`, and work in a worktree.
   too: while SitRep's copy is the plugin, the build's start refreshes the
   copy from what the build carries, so every window runs the building
   checkout's mod from its next `/reload-plugins`. `brew reinstall --cask
-  sitrep` puts the release back, and the next release's `brew upgrade`
-  replaces the build.
+  sitrep` puts the release back, and SitRep then needs starting
+  (`app/open`): the cask's postflight that started it is being dropped, as
+  Homebrew 7 deprecates it and Homebrew's own reopen covers only `brew
+  upgrade`. The next release's `brew upgrade` replaces the build.
 
 ## Gates
 
