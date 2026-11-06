@@ -97,7 +97,7 @@ test('the terminal is $TERM_PROGRAM as given, and none without it', () => {
   expect(whereOf({ TERM_PROGRAM: '' })).toBeUndefined()
 })
 
-test('a device is kept only when it is a tty, since the jump writes to it', () => {
+test("a device is kept only when it is a tty, the form of Ghostty's `tty`, which the jump asks for", () => {
   const read = (device: string) => parsePresence(fileWith({ device }), W1)?.where
 
   expect(whereOf({}, '/dev/ttys043')).toEqual({ device: '/dev/ttys043' })

@@ -41,7 +41,7 @@ export HOMEBREW_GITHUB_API_TOKEN=...   # in your shell's profile, to keep it
 brew install --cask leeovery/tools/sitrep
 ```
 
-The install starts SitRep; macOS asks once whether to open an app downloaded from the internet. At its first start SitRep copies the plugin it carries to `~/Library/Application Support/sitrep` and installs it there through `claude plugin`. It leaves alone a sitrep it didn't install, such as a clone registered as the `sitrep` marketplace, and runs that one's CLI instead. It needs the `claude` CLI where Claude Code's installers put it, or on your login shell's PATH. Should the plugin's install fail, the menu bar item's menu says why under its header, and so does the Claude Code plugin row in Settings › General.
+The install leaves SitRep stopped, so open it from Applications; macOS asks once whether to open an app downloaded from the internet. At its first start SitRep copies the plugin it carries to `~/Library/Application Support/sitrep` and installs it there through `claude plugin`. It leaves alone a sitrep it didn't install, such as a clone registered as the `sitrep` marketplace, and runs that one's CLI instead. It needs the `claude` CLI where Claude Code's installers put it, or on your login shell's PATH. Should the plugin's install fail, the menu bar item's menu says why under its header, and so does the Claude Code plugin row in Settings › General.
 
 The install asks macOS for nothing. What SitRep can use, it asks for in Settings, under General and Notifications:
 
@@ -144,7 +144,7 @@ The CLI is `bin/sitrep` in the plugin's folder; the app's copy is `~/Library/App
 brew upgrade --cask sitrep
 ```
 
-The upgrade quits SitRep, swaps it and starts the new one, whether or not it was running. As it starts, the new app refreshes its copy of the plugin, so the two never part; each Claude window runs the new plugin from its next `/reload-plugins`.
+The upgrade quits SitRep, swaps it, and starts the new one if SitRep was running. As it starts, the new app refreshes its copy of the plugin, so the two never part; each Claude window runs the new plugin from its next `/reload-plugins`.
 
 ## Uninstalling
 
@@ -192,7 +192,7 @@ swift build --package-path app    # the app
 swift test --package-path app     # the app's tests
 ```
 
-`app/build` builds the app, signs it with the Developer ID, installs it to `/Applications/SitRep.app` over the cask's copy and starts it, replacing the one running, so the login item and macOS's permissions carry over. It doesn't notarize: a build installed from a checkout is never quarantined. It changes the plugin too: while SitRep's copy is the plugin, the build's start refreshes the copy from what the build carries, so every Claude window runs the building checkout's mod from its next `/reload-plugins`. `brew reinstall --cask sitrep` puts the release back, and the next release's `brew upgrade` replaces the build.
+`app/build` builds the app, signs it with the Developer ID, installs it to `/Applications/SitRep.app` over the cask's copy and starts it, replacing the one running, so the login item and macOS's permissions carry over. It doesn't notarize: a build installed from a checkout is never quarantined. It changes the plugin too: while SitRep's copy is the plugin, the build's start refreshes the copy from what the build carries, so every Claude window runs the building checkout's mod from its next `/reload-plugins`. `brew reinstall --cask sitrep` puts the release back, leaving SitRep stopped, so open it, or run `app/open`, after; the next release's `brew upgrade` replaces the build.
 
 ## Releasing
 

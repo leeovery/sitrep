@@ -182,7 +182,6 @@ test('list runs no program, plain or --json, whatever windows its sessions are i
   }
 
   expect(t.screen.ran).toEqual([])
-  expect(t.screen.written).toEqual([])
 })
 
 test('list: every project, the one the CLI runs in first, then the busiest, the idle last; one with no current session is left out', async () => {

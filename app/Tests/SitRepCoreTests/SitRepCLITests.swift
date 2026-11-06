@@ -105,8 +105,8 @@ struct SitRepCLITests {
         #expect(programs.all.map(\.limit) == [15])
     }
 
-    /// Stopped at its limit or by a later click, a jump is told to end, so it puts back its knock's marker, and is
-    /// killed with every program it started a second on; every other run of the CLI is killed with its group at once.
+    /// Stopped at its limit or by a later click, a jump is told to end, and is killed with every program it started a
+    /// second on; every other run of the CLI is killed with its group at once.
     @Test func aJumpIsStoppedGentlyAndEveryOtherRunWithItsGroup() async {
         let (cli, programs) = Self.cli(Self.exited(0))
 

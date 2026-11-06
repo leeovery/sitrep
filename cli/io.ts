@@ -2,7 +2,7 @@
  * What the CLI asks of the world: its file system, the environment and the
  * folder it runs in, the clocks and waiting on them, random bytes, standard
  * input, somewhere to print and when that is gone, the plugin's manifest,
- * and, for the jump, programs to run and terminal devices to write to.
+ * and, for the jump, programs to run.
  * cli/shell binds it to Bun; a test binds it to memory, with a fake tmux and
  * Ghostty.
  *
@@ -74,13 +74,6 @@ export type Io = {
    * and stops the listening however it ends (ending.ts).
    */
   ending: () => Ending
-  /**
-   * Holds `undo` while what it undoes is out, as a knock's marker is: told
-   * to end (SIGTERM) meanwhile, the run does every undo held, then ends,
-   * exiting 143. With nothing held, SIGTERM ends the run as ever. Gives
-   * what lets it go.
-   */
-  atTerm: (undo: () => Promise<void>) => () => void
   /** Where the plugin's manifest is, `.claude-plugin/plugin.json`, in the copy of the plugin the CLI runs from: it says the version the CLI runs. */
   manifest: string
   /**
@@ -89,6 +82,4 @@ export type Io = {
    * killed, and the rejection is a `TimedOut`.
    */
   run: (command: readonly string[], limitMs?: number) => Promise<Ran>
-  /** Writes the text to a terminal device, as a program running on it would print it; rejects when the device is gone, and never makes a file. */
-  writeTo: (device: string, text: string) => Promise<void>
 }

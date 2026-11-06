@@ -77,8 +77,8 @@ struct OneJumpTests {
         #expect(jumps.stopped == [1])
     }
 
-    /// The CLI stopped takes its grace to put back its knock's marker: the next jump runs only once it has ended, so
-    /// the two never knock at once.
+    /// The CLI stopped may take its grace to end: the next jump runs only once it has ended, so the two never run at
+    /// once.
     @Test func aJumpRunsOnlyOnceTheOneItStoppedHasEnded() async {
         let (oneJump, _) = Self.made()
         let jumps = Jumps(lingering: [1]), first = Heard(), second = Heard()
@@ -264,8 +264,8 @@ private final class TestClock: Sendable {
 }
 
 /// Jumps the test answers, each by its number: one waits until answered, or until its task is cancelled, when it
-/// answers stopped, as the CLI killed then does; one lingering waits on, as a CLI putting back its marker does, until
-/// the test answers it.
+/// answers stopped, as the CLI killed then does; one lingering waits on, as a CLI slow to end within its grace does,
+/// until the test answers it.
 private final class Jumps: Sendable {
     private struct State {
         var started: [Int] = []

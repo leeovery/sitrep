@@ -32,7 +32,7 @@ public enum Stopping: Sendable, Equatable {
     /// Killed with its process group, every program it started: the CLI's tmux, `ps` and osascript.
     case group
     /// Its process group told to end first (SIGTERM), so the CLI may put back what it changed, then killed once the
-    /// grace has passed: a jump, whose knock's marker is put back.
+    /// grace has passed: a jump, which put back its knock's marker until 6 November 2026 and now holds nothing.
     case gently(grace: TimeInterval)
 }
 

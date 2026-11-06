@@ -48,9 +48,9 @@ public struct SitRepCLI: Sendable {
     /// too busy for a jump to land while Lee still wants it. It was 180s, a backstop, until a jump under a load of 250
     /// ran all of it, and every click behind it waited.
     static let jumpLimit: TimeInterval = 15
-    /// How long a jump told to end has to put back its knock's marker, a write to a device, before it is killed. A CLI
-    /// holding the marker out exits once it is put back, and one holding nothing dies at the signal, so the grace costs
-    /// time only for a CLI stuck; under a load of 250, Bun can take longer than 300ms to run its listener and write.
+    /// How long a jump told to end has before it is killed. It was for the knock's marker, which the CLI put back
+    /// before it exited; since 6 November 2026 the CLI holds nothing to put back and dies at the signal, so the grace
+    /// buys nothing and costs time only for a CLI stuck. Kept as it was, as it harms nothing.
     static let jumpGrace: TimeInterval = 1
     /// How the CLI says an app gave a jump no answer in time, as when the Mac is too busy (cli/main.ts).
     static let unansweredStatus: Int32 = 3
@@ -75,8 +75,8 @@ public struct SitRepCLI: Sendable {
         self.run = run
     }
 
-    /// At its limit, or its task cancelled, the jump is told to end, so it puts back its knock's marker, then killed,
-    /// with every program it started. One an app gave no answer in time ends unanswered, as at the limit.
+    /// At its limit, or its task cancelled, the jump is told to end, then killed a grace later, with every program it
+    /// started. One an app gave no answer in time ends unanswered, as at the limit.
     public func jump(to work: String) async -> JumpAnswer {
         let ended = await sitrep(
             ["jump", "--session", work], limit: Self.jumpLimit, stopping: .gently(grace: Self.jumpGrace)

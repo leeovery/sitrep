@@ -17,7 +17,7 @@
 import type { Io } from './io'
 import { look } from './look'
 
-/** A tmux client: the device it is on, its process, the tmux window it shows, and the tmux session it is attached to, by their ids. */
+/** A tmux client: the device it is on, empty for a control-mode client over pipes, its process, the tmux window it shows, and the tmux session it is attached to, by their ids. */
 export type Client = { device: string; pid: number; window: string; session: string }
 
 /** A pane: its tmux window, and the tmux sessions holding that window, by their ids. */

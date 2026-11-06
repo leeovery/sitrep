@@ -58,13 +58,11 @@ const selecting = (io: Io) => {
 }
 
 /**
- * Why a place brought nothing forward: its window not answering; its app
- * with no window open; tmux not making its select; or its app unable to ask,
- * in the words it threw.
+ * Why a place brought nothing forward: its window not answering; tmux not
+ * making its select; or its app unable to ask, in the words it threw.
  */
 type Missed =
   | { is: 'unanswered'; place: Place }
-  | { is: 'none open' }
   | { is: 'unselected'; said?: string }
   | { is: 'failed'; error: unknown }
 
@@ -82,10 +80,6 @@ const tryPlace = async (
 
   try {
     const brought = await bringOf(place.app)(place.device)
-
-    if (brought === 'none open') {
-      return { is: 'none open' }
-    }
 
     return brought === 'forward' ? undefined : { is: 'unanswered', place }
   } catch (error) {
@@ -121,8 +115,8 @@ const refusal = (missed: readonly Missed[]): Jumped => {
 /**
  * Brings forward the window at the first of the places that answers. A
  * place that does not answer, or whose select tmux does not make, gives way
- * to the next; an app with no window open, or unable to ask, is passed over
- * at its places after. The jump is refused once no place is left.
+ * to the next; an app unable to ask is passed over at its places after. The
+ * jump is refused once no place is left.
  */
 const bringFirst = async (
   io: Io,
@@ -145,7 +139,7 @@ const bringFirst = async (
       return FOCUSED
     }
 
-    if (why.is === 'none open' || why.is === 'failed') {
+    if (why.is === 'failed') {
       passed.add(place.app)
     }
 
