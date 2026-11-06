@@ -1,7 +1,8 @@
 /**
  * Claude's tools: start or join a session, then post to its board and
  * read the board back, and name its project. Only the main conversation may
- * call them. An answer says what was done and names the item, and no more.
+ * call them. An answer says what was done and names the item, and no more,
+ * but for an ask's, which says when to put it to Lee.
  *
  * The descriptions carry the board's wording rules, and load into every
  * conversation, so they stay short.
@@ -359,7 +360,7 @@ const TOOLS = [
   posting(
     spec(
       'ask',
-      "Post an ask: something only Lee can do or decide. Ask only when you cannot go on without Lee, or Lee's judgement changes what happens next; say it in the chat as well. Want a yes when Lee gives a go, an approval, or word that it works or is done, its button the verb Lee gives (Go, Approve, Done); a choice when Lee picks one of options; words when Lee must write something back, such as a command's output (needs says what). Lee's answer arrives as a message from the board: a yes, a choice or an answer closes the ask by itself; a comment leaves it open for you to act on, then resolve. If Lee answers in the chat instead, resolve the ask yourself, saying so in the reason.",
+      "Post an ask: something only Lee can do or decide. Ask only when you cannot go on without Lee, or Lee's judgement changes what happens next; say it in full in the chat as well, after your last tool call: the board never stands in for the chat. Want a yes when Lee gives a go, an approval, or word that it works or is done, its button the verb Lee gives (Go, Approve, Done); a choice when Lee picks one of options; words when Lee must write something back, such as a command's output (needs says what). Lee's answer arrives as a message from the board: a yes, a choice or an answer closes the ask by itself; a comment leaves it open for you to act on, then resolve. If Lee answers in the chat instead, resolve the ask yourself, saying so in the reason.",
       {
         wants: WANTS_BACK,
         yes: YES,
@@ -372,7 +373,7 @@ const TOOLS = [
       ['wants', 'title'],
     ),
     (session, input) => withId(checkAsk(input), session, random),
-    ({ id }) => `Posted ask ${id}.`,
+    ({ id }) => `Posted ask ${id}. Put it to Lee in full after your last tool call.`,
   ),
   posting(
     spec(

@@ -149,7 +149,7 @@ test("Claude's listing counts an ask whose answer from Lee is on its way as wait
   expect(toldSummary(finished).waiting, 'a finished session waits on Lee for nothing').toBe(0)
 })
 
-test('a conversation starts knowing how to keep the board, every session on it by project, and which this window holds', () => {
+test('a conversation starts knowing how to keep the board and talk to Lee beside it, every session on it by project, and which this window holds', () => {
   const projects = [summariseProject('switchboard', [summarise(SESSION)])]
   const guide = startText([])
 
@@ -157,11 +157,10 @@ test('a conversation starts knowing how to keep the board, every session on it b
     'Start a session when the work will run across several turns or will need Lee',
   )
   expect(guide).toContain('Not for a quick question.')
-  expect(guide).toContain('say it in the chat as well')
   expect(guide).toContain(
-    "in your words after the turn's last tool call, since words written before a tool call can reach Lee only as a short rewrite, their steps and questions lost",
+    "Keep it current, since it tells Lee, away from this window, that something waits on him; but talk to Lee as if it weren't there: the chat alone tells him all he needs.",
   )
-  expect(guide).toContain('when Lee answers it in the chat, resolve the ask')
+  expect(guide).toContain('resolve it yourself when Lee answers it in the chat')
   expect(guide).toContain(
     'a turn that ends on a decision or a question for Lee posts it as an ask, so it shows in Needs you, never only in the status; plain conversation needs none',
   )
@@ -178,6 +177,18 @@ test('a conversation starts knowing how to keep the board, every session on it b
     'Item and session ids are yours alone: Lee sees none of them on the board or in the app, so never name one to him. Name an ask, a parked item or a session by its words.',
   )
   expect(guide).not.toContain('On the board')
+  expect(guide, 'what Lee needs said in the chat, never by the board').toContain(
+    'In the chat, give an ask\'s question and steps whole, and never point Lee to the board: no "it\'s on the board", no "check the board".',
+  )
+  expect(guide, 'saying what was parked, and naming the open asks now and then').toContain(
+    "Saying you parked something is fine, as is naming the asks still open now and then, when several wait, though not at every turn's end.",
+  )
+  expect(guide).toContain(
+    "An ask Lee hasn't answered that you still need, raise again in the chat.",
+  )
+  expect(guide, "the turn's order").toContain(
+    "Every board call of a turn comes before your closing message to Lee, never after it. Before any tool call, write Lee a line at most: longer words before a tool call can reach him as a short summary, or not at all. What he must read goes after the turn's last tool call.",
+  )
   expect(guide, 'sessions, never pieces of work').not.toMatch(/\bpieces? of work\b/i)
   expect(
     startText([summariseProject('quiet', [])]),

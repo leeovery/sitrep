@@ -879,9 +879,9 @@ export const startedId = (answer: { result?: unknown }) => {
   return id
 }
 
-/** The item id an answer names, after the words given. */
+/** The item id an answer names, ending its first sentence. */
 export const postedId = (answer: { result?: unknown }) => {
-  const id = String(answer.result).match(/ ([0-9a-z]{4,})\.$/)?.[1]
+  const id = String(answer.result).match(/^[^.]* ([0-9a-z]{4,})\./)?.[1]
 
   if (id === undefined) {
     throw new Error(`no item id in ${String(answer.result)}`)

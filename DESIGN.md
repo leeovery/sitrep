@@ -424,10 +424,12 @@ and named it in internal shorthand):
   carries on with a session on the board, join it; otherwise start one, naming
   its project as Lee would say it, by the name it has on the board when it
   is one there, with the project's directory once known.
+- Keep the board current, since it tells Lee, away from the window, that
+  something waits on him, but talk to Lee as if it weren't there.
 - As it goes: the status when what's under way changes, an ask whenever Lee is
-  needed (said in the chat as well), a note for what Lee would want later,
-  never running commentary; resolve what's done; finish the session once it
-  is complete, with nothing left on it.
+  needed (resolved by Claude when Lee answers it in the chat), a note for
+  what Lee would want later, never running commentary; resolve what's done;
+  finish the session once it is complete, with nothing left on it.
 - A turn that ends on a decision or a question for Lee posts it as an ask,
   so it shows in Needs you, never only in the status; plain conversation
   needs none (4 November 2026: two sessions ended turns with "Put to Lee:
@@ -438,11 +440,26 @@ and named it in internal shorthand):
   or a session by its words (6 November 2026; Lee: "I have no visibility on
   those codes, they're entirely private, and that needs to state clearly in
   the plug-in instructions to you").
+- The chat stands alone: it says all Lee needs, an ask's question and steps
+  whole, and never points him to the board ("it's on the board", "check the
+  board"). Saying what Claude parked is fine, as is naming the asks still
+  open now and then, when several wait, though not at every turn's end. An
+  ask Lee hasn't answered that Claude still needs is raised again in the
+  chat (6 November 2026; Lee: "the Claude conversation to just be natural,
+  almost as if the board doesn't exist… If I ignore an ask and it's
+  required, Claude brings it back into focus as if the board isn't there").
+- The turn's order: every board call of a turn comes before Claude's
+  closing message to Lee, never after it; before any tool call Claude writes
+  Lee a line at most, as longer words before a tool call can reach him as a
+  short summary, or not at all; what Lee must read goes after the turn's
+  last tool call (below).
 
 Wording rules, in the tool descriptions:
 
 - Ask only when Claude cannot go on without Lee, or Lee's judgement changes what
-  happens next. Say it in the chat as well.
+  happens next. Say it in full in the chat as well, after the last tool call:
+  the board never stands in for the chat. The ask's answer says the same:
+  `Posted ask k3f9. Put it to Lee in full after your last tool call.`
 - Choose the shape by what Lee gives back: a yes for a go, an approval, "it
   works" or "done"; a choice for one of options; words when Lee must write
   something back. A yes's button is the verb Lee is giving, a word or two
@@ -462,6 +479,83 @@ board back to repair it and Lee can ask for that in the chat; and a turn-end
 check for an ask Claude forgot to post. The board is best effort, and in use
 Claude has not drifted or forgotten, but for the turns that put a question
 to Lee in the status (above), met with a line of guidance, not a check.
+
+**Words Lee saw only as a summary** (6 November 2026). On Opus 5.5, prose
+written before a tool call in the same turn, often when it runs past about
+230 characters, though not always, comes back inside the model's thinking,
+and no text block is sent. Claude Code asks the API for its thinking shown
+as "updates", so a thinking block whose signature marks it narration comes
+in the prose's place, holding a one-line summary, all Lee sees of it, or
+nothing at all: Claude Code 2.1.285 gave only empty ones (187 of 187), and
+on 6 November a Portal session on 2.1.318 had an empty one before an ask,
+Lee seeing only "I've posted the same question to the board as well."
+Prose after a turn's last tool call always arrives as text. That day it
+lost a live test's numbered steps, the summary claiming Claude ran the test
+itself, and a note Lee was to send on. Lee reported it to Claude Code:
+https://github.com/anthropics/claude-code/issues/96288.
+
+sitrep's own guide made the pattern: it asked Claude to say an ask in the
+chat as well and then post it, set the status and so on at the turn's end,
+a long message followed by tool calls. A clause added earlier that day
+asked for the words after the last tool call; the guide now carries the
+turn's order and the chat standing alone (above) in its place. Lee: "It's not
+SitRep's responsibility to fix Claude Code, but we can at least make it not
+happen as much as a result of SitRep."
+
+What still slips through is caught on the next tool call, at no cost of a
+turn (hooks/summarised.ts):
+
+- **Untold.** A response row of the main conversation's (`session.append`,
+  door `response`) holding a thinking block whose signature names it
+  narration, words or none, waits untold. The main conversation's next
+  turn (`turn.start` with no `agentId`) lets go of what is still untold,
+  which belongs to a turn gone by.
+- **The signature.** Base64 for a protobuf envelope: the block is field 2,
+  its header field 1, and the header's field 8 the block's kind,
+  `narration` or `thinking`. Only the signature's head is decoded, its first
+  256 characters, as every thinking block's is read: the header ends some
+  twenty bytes in on Opus 5.5's envelope (`CAQS…`), and some 175 on Fable
+  5's (`CAIS…`), within the head's 192 bytes; every Fable signature in 627
+  transcripts of three days read within it. As Claude Code reads
+  it, anything that does not parse that far, the header whole, is no
+  narration. Every one of 5,444 signatures in a live transcript of that day
+  read as one or the other. Words do not tell them apart: narrations with
+  none come, as above, and ordinary thinking with words comes in some
+  sessions (2.1.309 and 2.1.317).
+- **The line.** The first call the engine makes on the main loop (its
+  `next.origin` the engine) that settles without a refusal, any tool's,
+  sitrep's among them, carries one line in its result's `context`, which
+  Claude reads after the result and Lee never sees, and everything untold
+  is then told. With words: "Your words before this tool call reached Lee
+  only as this summary: “…”. He never saw the rest." With none: "Your words
+  before this tool call never reached Lee: he saw none of them." Either
+  ends "Say again, after your last tool call, whatever of them Lee still
+  needs: a question, steps, a finding, a decision.", since most narrations
+  are mid-turn progress no longer worth restating (over three days, turns
+  with narration had a median of one narrated message, and as many as 32).
+- **What carries it.** An errored result (a failed command, a permission
+  refused, Esc) carries it as an answered one does, so where the turn ends
+  there, the line is lost. A refused call carries nothing and leaves it for
+  the next call, in the same request or the next. A subagent's rows and
+  calls are left alone, as Lee reads only the main chat, and so is another
+  plugin's own `$.tool.call`, whose added context the engine drops.
+- **Never in the way.** The hook adds to the result `next` gave, its `ref`,
+  `text` and `isReadOnly` kept, and changes nothing else; should it fail,
+  the result passes as it came.
+- **Seen.** A headless run of Claude Code 2.1.319 that day, through a
+  probe plugin, showed each block of a response stored as a row of its own
+  as it ends, its thinking signed, a tool use's row before its call starts;
+  a subagent's requests, rows and calls each carrying its id; and the model
+  reading a line so added and quoting it. A result carrying the line was
+  stored as one without it: a 223.5KB command output saved to its file
+  with the same preview, an image read the same, their records alike. No
+  narration came in that run, as none comes on demand, so a narration's row
+  is known only from transcripts, the same thinking block signed otherwise.
+- **Left.** A retry inside one request can leave a dead attempt's
+  narration untold, at worst one line too many.
+- **Not a Stop hook.** A Stop hook blocking the turn's end to ask for the
+  words again would cost a model turn each time; the line rides a result
+  Claude reads anyway, for only the words it restates.
 
 ## Lee's side
 
