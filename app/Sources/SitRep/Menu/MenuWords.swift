@@ -35,7 +35,13 @@ enum MenuWords {
             title.append(NSAttributedString(string: mono, attributes: [.font: MenuFonts.mono]))
         }
         if let more = line.more {
-            title.append(NSAttributedString(string: more, attributes: [.font: MenuFonts.words]))
+            // The count in the secondary ink, so a name ending in a figure ("Node 20") doesn't run into it.
+            var attributes: [NSAttributedString.Key: Any] = [.font: MenuFonts.words]
+
+            if !isHighlighted {
+                attributes[.foregroundColor] = NSColor.secondaryLabelColor
+            }
+            title.append(NSAttributedString(string: more, attributes: attributes))
         }
         if let ink {
             title.addAttribute(.foregroundColor, value: ink, range: NSRange(location: 0, length: title.length))

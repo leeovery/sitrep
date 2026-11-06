@@ -9,7 +9,7 @@ import Testing
 
 /// A session no window holds with an ask waiting, alike on every surface (`Away`): its mark a hollow orange ring 7
 /// across, unglowed, where a held one's is the orange dot; its title and the line under it, or on the card's one line
-/// its "+N", dimmed by the one factor, so the title stays the brighter of the two, and its time, and on the card its
+/// its count, dimmed by the one factor, so the title stays the brighter of the two, and its time, and on the card its
 /// project, never brighter than its title. On the black card and the strip's, and on glass, each read from its pixels
 /// at 2×.
 @MainActor

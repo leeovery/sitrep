@@ -172,7 +172,7 @@ test('a conversation starts knowing how to keep the board, every session on it b
     "Otherwise start one, naming its project as Lee would say it (SitRep, Switchboard), by the name it has on the board when it is one there, and giving the project's directory once you know it.",
   )
   expect(guide).toContain(
-    'Item and session ids are yours alone: Lee sees none of them anywhere in SitRep, so never name one to him. Name an ask, a parked item or a session by its words.',
+    'Item and session ids are yours alone: Lee sees none of them on the board or in the app, so never name one to him. Name an ask, a parked item or a session by its words.',
   )
   expect(guide).not.toContain('On the board')
   expect(guide, 'sessions, never pieces of work').not.toMatch(/\bpieces? of work\b/i)

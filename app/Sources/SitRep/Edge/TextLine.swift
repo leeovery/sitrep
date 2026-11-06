@@ -41,7 +41,7 @@ final class TextLine: CALayer {
     /// would overrun. A line that fits is kept whole first, as Core Text gives no line at all for a room narrower than
     /// its ellipsis, even one the whole line fits: a count of one figure, "3".
     private static func cut(_ whole: CTLine, to width: CGFloat, with ellipsis: CTLine) -> CTLine {
-        guard CTLineGetTypographicBounds(whole, nil, nil, nil) > width else {
+        if CTLineGetTypographicBounds(whole, nil, nil, nil) <= width {
             return whole
         }
 
