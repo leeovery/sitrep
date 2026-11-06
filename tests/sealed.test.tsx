@@ -712,11 +712,8 @@ test('should the turn a submitted send started never be heard, the send behind i
 /** Claude Code's refusal of every plugin's prompt once Lee has stopped Claude's turn, until he next types in the window (live, 2.1.318). */
 const STOPPED = 'the session was stopped and nobody has sent input since'
 
-/** The line under the first send held while the window is stopped, wrapped beside its send now and take-back. */
-const STOPPED_LINE = [
-  '⧗ Interrupted: goes after ↑ send now ↺ take back',
-  'your next message.',
-]
+/** The line under the first send held while the window is stopped, on a row across the box, its send now and take-back on the row under it. */
+const STOPPED_LINE = ['⧗ Interrupted: goes after your next message.', '↑ send now ↺ take back']
 
 /** The rows the first send held while the window is stopped draws in Ready to send: its heading, each round's reply frozen, and its line. */
 const stopped = (...rounds: number[]) => [...held(...rounds).slice(0, -1), ...STOPPED_LINE]
