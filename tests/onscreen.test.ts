@@ -150,6 +150,22 @@ test('screen --json names, of two apps whose tmux clients show a session, the on
   expect(await appWith([inGhostty, inTerminal])).toEqual(['Ghostty'])
 })
 
+test('a tmux client with no device, as a control-mode client in a Ghostty window, shows no session: on only by a client a jump can reach', async () => {
+  const screenWith = async (clients: FakeClient[]) => {
+    const t = terminal({ tmux: { [SOCKET]: { panes: [['%1', '@1']], clients } } })
+
+    t.seed(META, { seenAt: NOW, where: inTmux(SOCKET, '%1') })
+
+    return printed((await t.run('screen', '--json')).out).sessions.map(({ is, app }) => [is, app])
+  }
+  const control = ghosttyClient('', '@1')
+
+  expect(await screenWith([control])).toEqual([['off', null]])
+  expect(await screenWith([control, ghosttyClient('/dev/ttys000', '@1')])).toEqual([
+    ['on', 'Ghostty'],
+  ])
+})
+
 test('a session no live window holds is read no further than its heartbeats', async () => {
   const t = onScreens()
   const read: string[] = []
@@ -171,7 +187,7 @@ test('a session no live window holds is read no further than its heartbeats', as
   expect(read.some(path => path.includes(`/${META.id}/`) && !path.includes('/presence/'))).toBe(true)
 })
 
-test('screen asks tmux twice for each socket and ps once, however many sessions run under them, and selects, writes and focuses nothing', async () => {
+test('screen asks tmux twice for each socket and ps once, however many sessions run under them, and selects and focuses nothing', async () => {
   const t = onScreens()
 
   await t.run('screen', '--json')

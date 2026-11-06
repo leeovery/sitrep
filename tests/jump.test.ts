@@ -8,7 +8,7 @@ import {
   LOOK_EVERY_MS,
   WATCH_MS,
 } from '../cli/front'
-import { ANSWER_SECONDS, FOCUS, LEAST_VERSION, PROGRAM_MS } from '../cli/ghostty'
+import { ANSWER_SECONDS, FOCUS, FOCUSED, isTooOld, LEAST_VERSION, PROGRAM_MS } from '../cli/ghostty'
 import { LOOK_MS } from '../cli/look'
 import { EXIT } from '../cli/main'
 import { PS } from '../cli/screen'
@@ -146,6 +146,31 @@ test('a tmux session the phone and a Ghostty window both show goes to the Ghostt
   expect(await t.run('jump', ...SESSION)).toEqual(FOCUSED_RUN)
   expect(t.screen.focused).toEqual(['SWITCHBOARD-TERMINAL'])
   expect(runsOf(t, 'osascript')).toEqual([focusing(WINDOW)])
+})
+
+/** A control-mode client (`tmux -C` over pipes) started from a Ghostty window's shell: tmux gives it no device, and ps puts it in Ghostty. */
+const controlClient = (window: string, session?: string) => ({
+  ...ghosttyClient('', window),
+  ...(session === undefined ? {} : { session }),
+})
+
+test('a client tmux gives no device, as a control-mode client, is no place: the jump goes to the Ghostty window listed after it, and never asks Ghostty for an empty device', async () => {
+  const t = oneWindow(IN_TMUX, {
+    tmux: serverShowing(controlClient(CLAUDES), ghosttyClient(WINDOW, CLAUDES)),
+    ghostty: TERMINALS,
+  })
+
+  expect(await t.run('jump', ...SESSION)).toEqual(FOCUSED_RUN)
+  expect(runsOf(t, 'osascript')).toEqual([focusing(WINDOW)])
+  expect(t.screen.focused).toEqual(['SWITCHBOARD-TERMINAL'])
+})
+
+test('a client with no device alone on the pane’s window is off screen, never a jump landed, and Ghostty is asked nothing', async () => {
+  const t = oneWindow(IN_TMUX, { tmux: serverShowing(controlClient(CLAUDES)), ghostty: TERMINALS })
+
+  expect(await t.run('jump', ...SESSION)).toEqual({ exit: EXIT.refused, out: '', err: OFF_SCREEN })
+  expect(runsOf(t, 'osascript')).toEqual([])
+  expect(t.waits, 'no watch of the front').toEqual([])
 })
 
 test('a session no Ghostty window shows is not on screen, and nothing is focused', async () => {
@@ -296,26 +321,36 @@ test('a focus that never ends, as osascript under heavy load, is killed at its l
 })
 
 /** What the jump says of a Ghostty too old to say a terminal's device. */
-const tooOld = (version: string) =>
-  `sitrep: Ghostty ${version} cannot say which of its windows is on a device, so sitrep cannot jump to one: update Ghostty to ${LEAST_VERSION} or later.\n`
+const TOO_OLD = `sitrep: This Ghostty cannot say which of its windows is on a device, so sitrep cannot jump to one: update Ghostty to ${LEAST_VERSION} or later.\n`
 
-test('a Ghostty before 1.4, whose terminals do not say their device, is refused in plain words naming its version, with nothing focused', async () => {
-  for (const where of [IN_TMUX, IN_GHOSTTY]) {
-    const t = oneWindow(where, { tmux: SHOWN, ghostty: TERMINALS, ghosttyVersion: '1.3.1' })
+test('a Ghostty before 1.4, whose terminals do not say their device, or before it could be scripted, is refused in plain words, with nothing focused', async () => {
+  for (const before of ['tty', 'scripting'] as const) {
+    for (const where of [IN_TMUX, IN_GHOSTTY]) {
+      const why = `before ${before}, ${where.terminal}`
+      const t = oneWindow(where, { tmux: SHOWN, ghostty: TERMINALS, ghosttyBefore: before })
 
-    expect(await t.run('jump', ...SESSION), where.terminal).toEqual({
-      exit: EXIT.refused,
-      out: '',
-      err: tooOld('1.3.1'),
-    })
-    expect(runsOf(t, 'osascript'), where.terminal).toHaveLength(1)
-    expect(t.screen.focused, where.terminal).toEqual([])
+      expect(await t.run('jump', ...SESSION), why).toEqual({
+        exit: EXIT.refused,
+        out: '',
+        err: TOO_OLD,
+      })
+      expect(runsOf(t, 'osascript'), why).toHaveLength(1)
+      expect(t.screen.focused, why).toEqual([])
+    }
   }
 
   expect(LEAST_VERSION).toBe('1.4')
 })
 
-test('the Ghostty program asks Ghostty within the time limit, its running checked first, and its version before any terminal’s device', () => {
+test('only the words of a Ghostty not knowing the program’s terms read as too old: a term unknown as it runs (-2753), or as it compiles (-2741)', () => {
+  expect(isTooOld('179:183: execution error: The variable tty is not defined. (-2753)')).toBe(true)
+  expect(isTooOld('8: error: Expected end of line, etc. but found class name. (-2741)')).toBe(true)
+  expect(isTooOld(REFUSAL)).toBe(false)
+  expect(isTooOld(TIMED_OUT)).toBe(false)
+  expect(isTooOld('Ghostty got an error: Can’t get terminal 1. (-1728)')).toBe(false)
+})
+
+test('the Ghostty program asks Ghostty within the time limit, its running checked first, and prints its fixed word only once it has focused', () => {
   const lines = FOCUS.split('\n')
   const at = (line: string) => lines.indexOf(line)
 
@@ -324,13 +359,11 @@ test('the Ghostty program asks Ghostty within the time limit, its running checke
   )
   expect(at('tell application "Ghostty"')).toBe(at(`with timeout of ${ANSWER_SECONDS} seconds`) + 1)
   expect(at('end timeout')).toBe(at('end tell') + 1)
-  expect(at(`if version < "${LEAST_VERSION}" then return version`)).toBeGreaterThan(
-    at('considering numeric strings'),
-  )
-  expect(at('set found to (terminals whose tty is wanted)')).toBeGreaterThan(
-    at('end considering'),
-  )
   expect(at('focus item 1 of found')).toBeGreaterThan(at('if found is {} then return ""'))
+  expect(at(`return "${FOCUSED}"`)).toBeGreaterThan(at('focus item 1 of found'))
+  expect(FOCUS, 'never the device it was given, which tmux gives empty for a control-mode client').not.toContain(
+    'return wanted',
+  )
 })
 
 test('a device no Ghostty terminal is on is passed over for the next, which is focused', async () => {
@@ -687,6 +720,30 @@ test("a pane whose tmux window no client shows is shown by tmux selecting it in 
   ])
   expect(tmuxLimits(t)).toEqual([LOOK_MS, LOOK_MS, LOOK_MS])
   expect(t.screen.focused).toEqual(['SWITCHBOARD-TERMINAL'])
+})
+
+test("a client with no device on the pane's window does not stop the select that makes the session's Ghostty window show it", async () => {
+  const t = oneWindow(IN_TMUX, {
+    tmux: {
+      [SOCKET]: {
+        panes: [
+          [PANE, CLAUDES, CLAUDES_SESSION],
+          ['%149', BESIDE, CLAUDES_SESSION],
+          [PANE, CLAUDES, OTHER_SESSION],
+          ['%149', BESIDE, OTHER_SESSION],
+        ],
+        clients: [
+          controlClient(CLAUDES, OTHER_SESSION),
+          { ...ghosttyClient(WINDOW, BESIDE), session: CLAUDES_SESSION },
+        ],
+      },
+    },
+    ghostty: TERMINALS,
+  })
+
+  expect(await t.run('jump', ...SESSION)).toEqual(FOCUSED_RUN)
+  expect(selectsOf(t)).toEqual([selecting(CLAUDES_SESSION)])
+  expect(runsOf(t, 'osascript')).toEqual([focusing(WINDOW)])
 })
 
 test("a grouped session's Ghostty window on another window has the pane's window selected in its own session, never in the group's other, which the phone shows", async () => {
@@ -1148,10 +1205,11 @@ test('clients ps finds in Ghostty, on devices none of its terminals is on, each 
   expect(t.screen.focused).toEqual([])
 })
 
-test('Ghostty unable to ask, not answering or too old, is passed over at its places after, and the next app brought forward', async () => {
+test('Ghostty unable to ask, not answering, too old, or refused by macOS, is passed over at its places after, and the next app brought forward', async () => {
   const cases: [string, Parameters<typeof terminal>[0]][] = [
     ['not answering', { ghostty: TERMINALS, refused: () => TIMED_OUT }],
-    ['too old', { ghostty: TERMINALS, ghosttyVersion: '1.3.1' }],
+    ['too old', { ghostty: TERMINALS, ghosttyBefore: 'tty' }],
+    ['refused by macOS', { ghostty: TERMINALS, refused: () => REFUSAL }],
   ]
 
   for (const [why, options] of cases) {
@@ -1171,7 +1229,8 @@ test('what stopped Ghostty at the most wanted place is what the jump is refused 
       `sitrep: ${META.name} shows on ${WINDOW}, /dev/ttys031 and /dev/ttys030, but no Ghostty or Terminal window there answered.\n`,
     ],
     ['not answering', { ghostty: TERMINALS, refused: () => TIMED_OUT }, NO_ANSWER],
-    ['too old', { ghostty: TERMINALS, ghosttyVersion: '1.2.3' }, tooOld('1.2.3')],
+    ['too old', { ghostty: TERMINALS, ghosttyBefore: 'scripting' }, TOO_OLD],
+    ['refused by macOS', { ghostty: TERMINALS, refused: () => REFUSAL }, `sitrep: osascript: ${REFUSAL}\n`],
   ]
 
   for (const [why, options, err] of cases) {

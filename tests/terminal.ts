@@ -7,7 +7,7 @@
  * it runs. Nothing touches a real folder, terminal or window.
  */
 import { FRONT, GHOSTTY_BUNDLE } from '../cli/front'
-import { FOCUS } from '../cli/ghostty'
+import { FOCUS, FOCUSED } from '../cli/ghostty'
 import { TimedOut, type Env, type Io, type Listed, type Ran } from '../cli/io'
 import { main } from '../cli/main'
 import { PS } from '../cli/screen'
@@ -81,8 +81,6 @@ type HeldServer = {
 /** A Ghostty terminal: its id, and the device it is on. */
 export type FakeTerminal = { id: string; device: string }
 
-/** The Ghostty running, unless a test says otherwise: the first whose terminals say their device. */
-export const GHOSTTY_VERSION = '1.4.0'
 
 /** The tmux server's socket a window runs under, unless a test says otherwise. */
 export const SOCKET = '/private/tmp/tmux-501/default'
@@ -168,8 +166,8 @@ type Options = {
   tmux?: Record<string, FakeServer>
   /** Ghostty's terminals; with none given, Ghostty is not running. */
   ghostty?: FakeTerminal[]
-  /** The version of the Ghostty running: GHOSTTY_VERSION unless a test says otherwise. */
-  ghosttyVersion?: string
+  /** A Ghostty from before its terminals said their device, or before it could be scripted at all; one that knows `tty` unless a test says otherwise. */
+  ghosttyBefore?: 'tty' | 'scripting'
   /** What osascript says as it fails its run of this count, from 1, as when macOS refuses it control of Ghostty; undefined while it runs. */
   refused?: (run: number) => string | undefined
   /** Programs not on PATH. */
@@ -370,26 +368,26 @@ function screen(options: Options) {
     return printed([])
   }
 
-  /** Whether the Ghostty running is older than the first whose terminals say their device, comparing each number in turn. */
-  const isOld = () => {
-    const [major = 0, minor = 0] = (options.ghosttyVersion ?? GHOSTTY_VERSION).split('.').map(Number)
-
-    return major < 1 || (major === 1 && minor < 4)
-  }
-
-  /** The terminal on the device focused, the device printed; nothing for a device no terminal is on; the version for a Ghostty too old to tell. */
+  /** The terminal on the device focused, and FOCUSED printed; nothing for a device no terminal is on. */
   const focus = (device: string | undefined) => {
-    if (isOld()) {
-      return [options.ghosttyVersion ?? GHOSTTY_VERSION]
-    }
-
     const found = terminals?.find(each => each.device === device)
 
     if (found !== undefined) {
       focused.push(found.id)
     }
 
-    return found === undefined ? [] : [device ?? '']
+    return found === undefined ? [] : [FOCUSED]
+  }
+
+  /** What osascript says of the program to a Ghostty that does not know its terms: one with no dictionary as it compiles, whether Ghostty runs or not; one with no `tty` as the lookup runs. */
+  const unknownTerms = (): string | undefined => {
+    if (options.ghosttyBefore === 'scripting') {
+      return 'focus.applescript:8: error: Expected end of line, etc. but found class name. (-2741)'
+    }
+
+    return options.ghosttyBefore === 'tty' && terminals !== undefined
+      ? '179:183: execution error: The variable tty is not defined. (-2753)'
+      : undefined
   }
 
   /** How many times osascript has run, this run included. */
@@ -402,7 +400,7 @@ function screen(options: Options) {
       throw new Error('the fake Ghostty knows no such program')
     }
 
-    const refusal = options.refused?.(osascriptRuns())
+    const refusal = unknownTerms() ?? options.refused?.(osascriptRuns())
 
     if (refusal !== undefined) {
       return { exitCode: 1, stdout: '', stderr: `${refusal}\n` }

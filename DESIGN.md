@@ -3197,19 +3197,22 @@ October 2026 went back to `brew upgrade` while the repository is private.
   The tap's `update-formula` workflow writes each release's version,
   sha256 and asset id into it, sent by `app/release-upload`. All three
   were placeholders until the first release, 0.3.0 on 28 October 2026.
-- **The cask starts SitRep after every install and upgrade** (28 October
-  2026): its `postflight` opens `/Applications/SitRep.app`. An upgrade
-  quits SitRep to swap the bundle, and nothing else would start it again,
-  so the new app's start refreshes its copy of the plugin straight away
-  (see "After an update"), and the two never part. The open is tried up to
-  three times, a second apart, since an `open` straight after a bundle is
-  moved in has failed once with LaunchServices error -600 (seen with
-  `app/build`, 14 October 2026); and it never fails the install, as when
-  there is no screen to open it on. Leaving SitRep running through an
-  upgrade, to notice its newer self on disk, was weighed and ruled out:
-  brew would remove the bundle from under a running app and its notices
-  helper. Lee asked for it that day, since he restarts his Mac rarely and
-  the app and the plugin must never drift.
+- **`brew upgrade` reopens SitRep; an install or a reinstall does not**
+  (6 November 2026, leeovery/homebrew-tools#6). The cask has no
+  `postflight` now: Homebrew 7 deprecates it, and its own reopen, from the
+  cask's `uninstall quit:`, starts SitRep again after an upgrade that
+  quit it, so the new app's start refreshes its copy of the plugin
+  straight away (see "After an update"), and the two never part. A first
+  install and `brew reinstall --cask sitrep` leave SitRep stopped: open
+  it, or run `app/open`, after. From 28 October 2026 the cask's
+  `postflight` opened `/Applications/SitRep.app` after every install and
+  upgrade, tried three times a second apart, since an `open` straight
+  after a bundle is moved in once failed with LaunchServices error -600
+  (seen with `app/build`, 14 October 2026); Lee asked for it then, since
+  he restarts his Mac rarely and the app and the plugin must never drift.
+  Leaving SitRep running through an upgrade, to notice its newer self on
+  disk, was weighed and ruled out: brew would remove the bundle from under
+  a running app and its notices helper.
 - **The app installs the Claude plugin**, at each start that finds nothing
   of sitrep in either of Claude's lists. It copies the plugin it carries to
   `~/Library/Application Support/sitrep/`, outside its own bundle, since
@@ -3325,8 +3328,8 @@ Work happens in a worktree, the clone kept on `main`.
   `sitrep` from another marketplace is. Each window takes a switch up at
   its next `/reload-plugins`. SitRep looks at the plugin only as it starts,
   its looks ending at the first that runs, so either form ends with SitRep
-  running, as the cask's install always leaves it: started where it is not
-  running, and quit (`app/quit`, as `app/build` does) and started again
+  running, as the cask's install left it until 6 November 2026: started
+  where it is not running, and quit (`app/quit`, as `app/build` does) and started again
   where the switch changed anything. On a checkout, SitRep finds a
   marketplace not its own and runs the checkout's CLI, on Bun; back on its
   copy, its start refreshes the copy, which an update or `app/build` left
@@ -3353,7 +3356,7 @@ Work happens in a worktree, the clone kept on `main`.
     the helper after two seconds' grace to quit as SitRep ends and five
     after its own, about seven in all.
     `app/open` starts `/Applications/SitRep.app` for both scripts, three
-    tries a second apart, as the cask's `postflight` does.
+    tries a second apart, as the cask's `postflight` did.
   - Tested against the real `claude`, its config (`CLAUDE_CONFIG_DIR`) and
     the home in a scratch folder, with `pgrep`, `pkill` and `open` stood in
     for.
@@ -5234,11 +5237,25 @@ shape allows them. A jump made in Swift, in the app, stays parked too.
    terminal `tty`, the device it is on, in the form tmux gives a client's
    (`/dev/ttys041`), and `pid`, its foreground process's (checked on this
    Mac the same day, read-only, against 23 terminals and 19 tmux clients;
-   Lee ran the focus live that morning). The program prints the device once
-   its terminal is focused, and nothing for a device no terminal is on, or
-   Ghostty not running; the device goes in as an argument, never spliced
-   into the program's text. A device that prints nothing gives way to the
-   next place.
+   Lee ran the focus live that morning). The program prints a fixed word,
+   `focused`, once the terminal is focused, and nothing for a device no
+   terminal is on, or Ghostty not running; the device goes in as an
+   argument, never spliced into the program's text. A device that prints
+   nothing gives way to the next place. The word is fixed, not the device
+   echoed back, so that an empty device, printing nothing, can never read
+   as a terminal focused (review, the same day).
+   - **Only a tty is a device.** tmux gives a control-mode client
+     (`tmux -C` over pipes) an empty `client_tty`, and `ps` puts one started
+     from a Ghostty window's shell in Ghostty; such a client is no place
+     for a driver, so it neither shows the pane nor stops a select making
+     another client show it. Before the review, one listed first was asked
+     for and its empty answer taken for a landed jump, the real Ghostty
+     client after it never tried.
+   - **A relaying pty is not found, accepted.** A tmux client run inside
+     `script`, `asciinema rec`, `expect` or `unbuffer` in a Ghostty window
+     is on the relay's own pty, which no Ghostty terminal is on, so the
+     jump finds no window there; the knock's report passed through the
+     relay to Ghostty.
    - The program first checks Ghostty is running: telling it anything would
      launch it.
    - Each question to Ghostty, each Apple Event the program sends, waits at
@@ -5249,16 +5266,22 @@ shape allows them. A jump made in Swift, in the app, stays parked too.
      terminals, and AppleScript's own limit is two minutes (found live, 13
      October). The jump then refuses in plain words.
    - **An older Ghostty** is refused in plain words, not served another
-     way: the program reads Ghostty's `version` first, `considering numeric
-     strings`, and prints it for one before 1.4, so the jump says `Ghostty
-     1.3.1 cannot say which of its windows is on a device, so sitrep cannot
-     jump to one: update Ghostty to 1.4 or later.` An older Ghostty's terms
-     have no `tty`, so there the word reads as a variable, which compiles,
-     and the version is checked before it is reached (checked on this Mac
-     with a name Ghostty 1.4 does not know). Chosen over keeping the knock
-     (below) as a fallback for an older Ghostty, which would have kept all
-     of its code and tests for a Ghostty Lee no longer runs; Ghostty
-     updates itself.
+     way: `This Ghostty cannot say which of its windows is on a device, so
+     sitrep cannot jump to one: update Ghostty to 1.4 or later.` The
+     program itself is the check, with no question asked first: a Ghostty
+     whose dictionary has no `tty` reads the word as a variable, which
+     compiles and fails as the lookup runs (-2753), and one with no
+     dictionary at all, from before Ghostty could be scripted, fails to
+     compile (-2741), Ghostty running or not; osascript's words with
+     either code are the refusal (both checked on this Mac: the program
+     with a name Ghostty 1.4 does not know, and compiled against
+     Calculator, which has no dictionary). First built to read Ghostty's
+     `version` before the lookup, `considering numeric strings`; dropped in
+     review the same day, as a tip build's version may be a commit hash,
+     which no comparison of numbers reads, and it cost an Apple Event a
+     jump. Chosen over keeping the knock (below) as a fallback for an older
+     Ghostty, which would have kept all of its code and tests for a Ghostty
+     Lee no longer runs; Ghostty updates itself.
    - **`ps` stays**, and with it every rule of step 2. Skipping it was
      weighed and dropped on measurement the same day: a question to Ghostty
      costs more than `ps`. `tty of terminals` took 230–584ms and one `whose
@@ -6121,11 +6144,11 @@ open), and tmux passing an escape sequence through from Claude's own pane
    run live from the bare app (below). Two things to carry over from stage 2: an app started from the Finder has
    only `/usr/bin:/bin:/usr/sbin:/sbin` on its `PATH`, with no tmux, so it
    runs the CLI with Lee's; and its first jump asks macOS for leave to
-   control Ghostty. It runs one jump at a time: two knocking on one
-   terminal at once can leave it reporting `$HOME`, as the later one takes
-   the earlier one's marker for a directory it cannot know. Since 4
-   November 2026 the latest click wins, stopping the one running (see "The
-   jump").
+   control Ghostty. It ran one jump at a time: two knocking on one
+   terminal at once could leave it reporting `$HOME`, as the later one took
+   the earlier one's marker for a directory it could not know. Since 4
+   November 2026 the latest click wins, stopping the one running, and
+   since 6 November a jump knocks on nothing (see "The jump").
 
    The bare app was built on 14 October 2026, and proved live with Lee the
    same day:

@@ -13,12 +13,12 @@
  * Mac, attached over ssh, gives `xterm-ghostty` too; neither descends from an
  * app.
  */
-import { isLive, type Presence, type Session, type Where } from '../core'
+import { isDevice, isLive, type Presence, type Session, type Where } from '../core'
 import { appOfCommand, appOfProgram, isDriver } from './apps'
 import type { App } from './driver'
 import type { Io } from './io'
 import { look } from './look'
-import { readServer, showingPane, type Select, type Servers } from './tmux'
+import { readServer, showingPane, type Client, type Select, type Servers } from './tmux'
 
 /** A process: its parent's id, and its command as `ps` gives it, a path for most. */
 export type Process = { parent: number; command: string }
@@ -139,18 +139,25 @@ export const readScreen = async (io: Io, windows: readonly Where[]): Promise<Scr
   }
 }
 
+/** A tmux client's device; undefined for one that is no tty, as a control-mode client's empty one. */
+const deviceOf = (client: Client) => (isDevice(client.device) ? client.device : undefined)
+
+/** Whether a window in the app can be reached on the device: a driver needs one to find the window; an app with no driver is brought forward whole, so needs none. */
+const isReachable = (app: App, device: string | undefined) => device !== undefined || !isDriver(app)
+
 /**
  * Where one window can be brought forward: in tmux, the clients in a
  * terminal app that show its pane, or could be made to; outside it, its own
- * device, in the app its `$TERM_PROGRAM` names. A driver needs the device to
- * find the window; an app with no driver is brought forward whole, so needs
- * none.
+ * device, in the app its `$TERM_PROGRAM` names. A client's device counts
+ * only as a tty: tmux gives a control-mode client none (`tmux -C` over
+ * pipes), and it is no window a driver could find, so it neither shows the
+ * pane nor stops a select making another client show it.
  */
 const placesOf = (where: Where, { servers, apps }: Screen): Place[] => {
   if (where.tmux === undefined) {
     const app = appOfProgram(where.terminal)
 
-    return app === undefined || (where.device === undefined && isDriver(app))
+    return app === undefined || !isReachable(app, where.device)
       ? []
       : [{ app, device: where.device }]
   }
@@ -165,12 +172,12 @@ const placesOf = (where: Where, { servers, apps }: Screen): Place[] => {
   const inApps = server.clients.flatMap(client => {
     const app = apps.get(client.pid)
 
-    return app === undefined ? [] : [{ ...client, app }]
+    return app === undefined || !isReachable(app, deviceOf(client)) ? [] : [{ ...client, app }]
   })
 
   return showingPane(socket, server, pane, inApps).map(({ client, select }) => ({
     app: client.app,
-    device: client.device,
+    device: deviceOf(client),
     select,
   }))
 }

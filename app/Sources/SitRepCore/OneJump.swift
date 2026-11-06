@@ -8,12 +8,13 @@ public enum JumpNews: Sendable, Equatable {
 }
 
 /// Lets one jump run at a time, the latest click winning: a jump asked for while one runs stops it, and its CLI with
-/// every program it started, and runs once that one has ended, so the two never knock on one terminal at once (which
-/// can leave it reporting `$HOME`, as the later takes the earlier's marker for a directory it cannot know). Lee
-/// clicked again: he has changed his mind, or the first is stuck.
+/// every program it started, and runs once that one has ended, so the two never run at once. Until 6 November 2026
+/// that kept two from knocking on one terminal at once, which could leave it reporting `$HOME`; a jump now writes
+/// nothing to a terminal, and waiting costs only the moment the stopped one takes to die. Lee clicked again: he has
+/// changed his mind, or the first is stuck.
 ///
 /// A click on the session a jump runs to, before it says it is still jumping, joins it rather than starting it over: a
-/// double-click, or a quick second click, would otherwise kill it mid-knock and add a whole start of the CLI. Once it
+/// double-click, or a quick second click, would otherwise kill it midway and add a whole start of the CLI. Once it
 /// says it is still jumping, a click on it is Lee trying again, and starts it over.
 @MainActor
 public final class OneJump {

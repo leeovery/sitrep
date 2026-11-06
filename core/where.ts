@@ -10,8 +10,8 @@ import type { Where } from './types'
 /** The environment variables a window's whereabouts are read from. */
 export type WhereEnv = { TMUX?: string; TMUX_PANE?: string; TERM_PROGRAM?: string }
 
-/** A terminal device, `/dev/ttys043`: only a tty, since the jump writes to it. */
-const isDevice = (value: unknown): value is string =>
+/** A terminal device, `/dev/ttys043`: only a tty, the form Ghostty's terminals give as their `tty`, which the jump asks for. */
+export const isDevice = (value: unknown): value is string =>
   typeof value === 'string' && /^\/dev\/tty\w+$/.test(value)
 
 const isPane = (value: unknown): value is string =>
