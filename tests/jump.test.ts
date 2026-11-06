@@ -35,6 +35,8 @@ import {
   terminal,
   TERMINAL_APP,
   type FakeServer,
+  type FakeTerminal,
+  type FakeWindow,
 } from './terminal'
 import { ROOT } from './world'
 
@@ -139,35 +141,48 @@ test('jump outside tmux asks Ghostty for the terminal on the window’s own devi
   ])
 })
 
-/** One Ghostty window of two tabs, the session's terminal in the one at `place`, the other tab's at the other, and the first tab selected. */
-const twoTabs = (place: 0 | 1) => {
+/** The session's terminal, in Ghostty. */
+const SWITCHBOARD: FakeTerminal = { id: 'SWITCHBOARD-TERMINAL', device: WINDOW }
+
+/** One Ghostty window of two tabs, the first selected: `held`, the tab holding the session's terminal, at `place`, and a spare tab at the other. */
+const twoTabs = (place: 0 | 1, held: FakeTerminal[] = [SWITCHBOARD]): FakeWindow => {
   const tabs = [[{ id: 'SPARE-TERMINAL', device: '/dev/ttys091' }]]
 
-  tabs.splice(place, 0, [{ id: 'SWITCHBOARD-TERMINAL', device: WINDOW }])
+  tabs.splice(place, 0, held)
 
   return { id: 'TABBED-WINDOW', tabs, selected: 0 }
 }
 
-test('a terminal whose tab is the one selected in its window is focused alone, with no pause', async () => {
+// The fake Ghostty plays the program's tab rule rather than running it: these tests show what a jump does with
+// what Ghostty is told; the test pinning the program's lines, further down, guards the rule in the program itself.
+test('a jump to a terminal in its window’s selected tab tells Ghostty only to focus it', async () => {
   const t = oneWindow(IN_TMUX, { tmux: SHOWN, ghostty: [twoTabs(0)] })
 
   expect(await t.run('jump', ...SESSION)).toEqual(FOCUSED_RUN)
   expect(t.screen.told).toEqual([['focus', 'SWITCHBOARD-TERMINAL']])
 })
 
-test('a terminal whose tab is not selected has its window activated, then a pause, then the focus, all in the one program within its limit', async () => {
-  const t = oneWindow(IN_TMUX, { tmux: SHOWN, ghostty: [twoTabs(1)] })
+test('a jump to a terminal in a tab not selected, alone in it or in a split, tells Ghostty to activate its window, pause, then focus it, in the one program within its limit', async () => {
+  const cases: [string, FakeTerminal[]][] = [
+    ['alone in its tab', [SWITCHBOARD]],
+    ['in a split', [{ id: 'SPLIT-TERMINAL', device: '/dev/ttys092' }, SWITCHBOARD]],
+  ]
 
-  expect(await t.run('jump', ...SESSION)).toEqual(FOCUSED_RUN)
-  expect(t.screen.told).toEqual([
-    ['activate window', 'TABBED-WINDOW'],
-    ['delay', PAUSE_SECONDS],
-    ['focus', 'SWITCHBOARD-TERMINAL'],
-  ])
-  expect(runsOf(t, 'osascript')).toEqual([focusing(WINDOW)])
-  expect(
-    t.screen.limits.filter(each => each.name === 'osascript').map(each => each.limitMs),
-  ).toEqual([PROGRAM_MS])
+  for (const [why, held] of cases) {
+    const t = oneWindow(IN_TMUX, { tmux: SHOWN, ghostty: [twoTabs(1, held)] })
+
+    expect(await t.run('jump', ...SESSION), why).toEqual(FOCUSED_RUN)
+    expect(t.screen.told, why).toEqual([
+      ['activate window', 'TABBED-WINDOW'],
+      ['delay', PAUSE_SECONDS],
+      ['focus', 'SWITCHBOARD-TERMINAL'],
+    ])
+    expect(runsOf(t, 'osascript'), why).toEqual([focusing(WINDOW)])
+    expect(
+      t.screen.limits.filter(each => each.name === 'osascript').map(each => each.limitMs),
+      why,
+    ).toEqual([PROGRAM_MS])
+  }
 })
 
 test('the pause before focusing a tab not selected is half a second, which was enough live where none was not', () => {
@@ -387,7 +402,7 @@ test('a Ghostty before 1.4, whose terminals do not say their device, or before i
 
 test('only the words of a Ghostty not knowing the program’s terms read as too old: a term unknown as it runs (-2753), or as it compiles (-2741)', () => {
   expect(isTooOld('179:183: execution error: The variable tty is not defined. (-2753)')).toBe(true)
-  expect(isTooOld('8: error: Expected end of line, etc. but found class name. (-2741)')).toBe(true)
+  expect(isTooOld('12: error: Expected end of line, etc. but found class name. (-2741)')).toBe(true)
   expect(isTooOld(REFUSAL)).toBe(false)
   expect(isTooOld(TIMED_OUT)).toBe(false)
   expect(isTooOld('Ghostty got an error: Can’t get terminal 1. (-1728)')).toBe(false)
@@ -409,6 +424,7 @@ test('the Ghostty program asks Ghostty within the time limit, its running checke
   )
 })
 
+// The guard of the tab rule: the fake Ghostty only plays it.
 test('the Ghostty program, once a terminal is found, activates its window and pauses only where its tab is not selected, then focuses it either way', () => {
   const lines = FOCUS.split('\n')
   const found = lines.indexOf('if found is {} then return ""')

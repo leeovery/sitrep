@@ -29,7 +29,9 @@ export const ANSWER_SECONDS = 5
  * long enough for one question to go unanswered, so a Ghostty that does not
  * answer is told in its own words, with time over for osascript to start,
  * find Ghostty and read its terms, which under heavy load is slow and which
- * no `with timeout` covers.
+ * no `with timeout` covers. For a tab not selected it also holds the
+ * window's lookup, its activation and PAUSE_SECONDS, which no `with timeout`
+ * covers either.
  */
 export const PROGRAM_MS = 8_000
 

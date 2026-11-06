@@ -5334,10 +5334,19 @@ shape allows them. A jump made in Swift, in the app, stays parked too.
    - `activate window`, then `focus` straight away: the window came to
      Lee's Space. ✗
    - `activate window`, `delay 1.0`, `focus`: macOS slid to the window's
-     Space and showed the right tab, the program taking 1.68s in all. ✓
-   - `activate window`, `delay 0.5`, `focus`: the same, in 1.16s. ✓
+     Space and showed the right tab. ✓
+   - `activate window`, `delay 0.5`, `focus`: the same. ✓
 
-   Half a second it is. The program asks, after finding the terminal,
+   Each of the last two took, as a whole osascript run, 1.68s and 1.16s:
+   osascript's start, the probe's lookup (the terminal by its tty, then a
+   walk over Ghostty's windows in order, asking each tab for its
+   terminals' ids, stopping at the tab holding it), the pause and the
+   focus; so about 0.67s each beside the pause.
+
+   Half a second it is, on one run, and a second on one: the margin is
+   unmeasured. A slower slide, under load or onto a second display, could
+   bring the focus before the Space has changed, and the tab to Lee's
+   Space as before. The program asks, after finding the terminal,
    whether its tab is selected, in one question: `selected of (tabs of
    (windows whose tty of terminals contains` the device`) whose tty of
    terminals contains` it`)`, which Ghostty answers as a list of lists, a
@@ -5347,12 +5356,38 @@ shape allows them. A jump made in Swift, in the app, stays parked too.
    the same day, 19 windows and 23 tabs, a program each, osascript's start
    included: the lookup alone, as before, median 244ms; with the tab's
    question, as for a tab selected, 275ms; with the window's too, as for
-   one not selected, 300ms. The probes' walk over every window's tabs,
-   asking each for its terminals' ids, took 850–1000ms.
+   one not selected, 300ms. The probes' lookup, its walk included, as a
+   program with no pause and no focus, took 850–1000ms for the 18th and
+   the 19th of the 19 windows, the Mac at a load of about 90; it walks
+   further the later the window stands in Ghostty's order, which is why
+   the probes' own runs, on another window, spent less. A tab's
+   `terminals` include its split panes, and Ghostty has one window for
+   each tab group (both read in Ghostty 1.4.0's source, review, the same
+   day), so the question finds a terminal in a split as in a tab of its
+   own.
 
    **The cost accepted:** a tab not selected in a window on Lee's own Space
    pays the half second too, where `focus` alone would do. Ghostty's
-   scripting cannot say which Space a window is on.
+   scripting cannot say which Space a window is on. And `activate window`
+   raises the group's selected tab (Ghostty's `selectedController.window`),
+   so for the half second the other tab shows, after the slide, and on
+   Lee's own Space too, before the focus brings the right one.
+
+   **Left be:** a terminal closing during the pause fails the focus
+   (-1728), and one closing between the tab's question and the window's
+   lookup fails that lookup (-1719); either is a jump refused in
+   osascript's words, for a window that has just gone.
+
+   **Unwatched: the front watch on a tab not selected.** The watch below
+   ("The front kept") was timed from the focus: Ghostty in front at about
+   0.2s, the app Lee was in taking the front back at about 0.5s. For a tab
+   not selected the slide now begins at `activate window`, half a second
+   before the focus, so the hand-back may come between the focus and the
+   watch's first look, 60–120ms after it. The watch would then see the
+   other app first, never Ghostty, and bring nothing forward: Lee on the
+   right tab, on its Space, with the other app holding the keys. To look
+   for at Lee's first live jump to a tab not selected, Finder in front as
+   it begins: whether typing reaches the terminal. Not changed until then.
 
    **The instant Space switch, tried and not built** (6 November 2026). A
    throwaway tool posted Spaceman's synthetic Dock-swipe gesture before
@@ -5443,6 +5478,12 @@ shape allows them. A jump made in Swift, in the app, stays parked too.
    about 0.6s for a first jump before. With another app in front, the CLI
    stays up to a second more, watching, the window already forward.
 
+   The same day the program began asking whether the terminal's tab is
+   selected (step 4), which adds about 30ms to every jump (medians 244ms
+   for the lookup alone, 275ms with the tab's question); a tab not
+   selected adds the window's lookup and the half second's pause, about
+   0.55s more, and its activation.
+
 **The latest click wins** (4 November 2026). With the Mac's load near
 250 from parallel Swift builds, Lee could reach no Ghostty window by a jump
 for three minutes. SitRep's log: `sitrep jump --session sr-nq7651: did not
@@ -5489,7 +5530,8 @@ took 180, so some step ran unbounded. Lee's go, the same day: "Build it".
   accepted, as both need Ghostty answering only just too late.
 - **The whole jump gives up after 15 seconds**, Bun's start and the board's
   read among it, where it was 180, a backstop. A jump takes under a second
-  as Ghostty answers, and one Ghostty does not answer is refused at its
+  as Ghostty answers, a little over to a tab not selected, for its half
+  second's pause (step 4), and one Ghostty does not answer is refused at its
   first question, after 5 seconds; past 15, the Mac is too busy for a jump
   to land while Lee still wants it. The 15 run from the CLI's start, so
   they do not count the wait for a jump it stopped to end. The CLI's own
@@ -5508,7 +5550,9 @@ took 180, so some step ran unbounded. Lee's go, the same day: "Build it".
   ends the jump unanswered, exiting 3 with "Ghostty did not answer within 8
   seconds: most likely the Mac is too busy.", as for a question timing
   out; SitRep tells exit 3 as it tells its own limit. Since 6 November
-  2026 a jump runs one Ghostty program a device, a lookup and a focus.
+  2026 a jump runs one Ghostty program a device: a lookup, the question
+  whether its tab is selected, and a focus, with, for a tab not selected,
+  the window's lookup, its activation and a half second's pause before it.
   Bun's start and the board's read stay outside every step's limit,
   inside the 15 seconds.
   Which step ran the 180 seconds is not known, the log saying only that the

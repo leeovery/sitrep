@@ -416,7 +416,7 @@ function screen(options: Options) {
   /** What osascript says of the program to a Ghostty that does not know its terms: one with no dictionary as it compiles, whether Ghostty runs or not; one with no `tty` as the lookup runs. */
   const unknownTerms = (): string | undefined => {
     if (options.ghosttyBefore === 'scripting') {
-      return 'focus.applescript:8: error: Expected end of line, etc. but found class name. (-2741)'
+      return 'focus.applescript:12: error: Expected end of line, etc. but found class name. (-2741)'
     }
 
     return options.ghosttyBefore === 'tty' && windows !== undefined
