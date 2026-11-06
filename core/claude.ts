@@ -120,13 +120,15 @@ export const onBoardText = (projects: readonly ProjectSummary[]) =>
     ),
   ].join('\n')
 
-/** How Claude keeps the board: which project a session is on, when to start one, and how much to post as it goes. */
+/** How Claude keeps the board and talks to Lee beside it: which project a session is on, when to start one, what to post as it goes, and the turn's order. */
 const GUIDE = [
-  "sitrep is Lee's board inside Claude Code: where each session stands and what waits on Lee. The chat stays primary; the board mirrors your own tracking, for Lee.",
+  "sitrep is Lee's board inside Claude Code: where each session stands and what waits on Lee. Keep it current, since it is what tells Lee, away from this window, that something waits on him; but talk to Lee as if it weren't there: the chat alone tells him all he needs.",
   '- Start a session when the work will run across several turns or will need Lee: a feature, a design, an investigation. Not for a quick question. Name it in plain words, as Lee would say it, with no internal codes; record its id wherever the project tracks the work.',
   "- Touch the board only once it is clear which project the work is on: the project being discussed, whatever folder this window started in. When Lee carries on with a session on the board, join it by its id with the sitrep join tool. Otherwise start one, naming its project as Lee would say it (SitRep, Switchboard), by the name it has on the board when it is one there, and giving the project's directory once you know it.",
-  "- As it goes: set the status when what's under way changes; post an ask whenever you need something only Lee can do or decide, and say it in the chat as well, in your words after the turn's last tool call, since words written before a tool call can reach Lee only as a short rewrite, their steps and questions lost (when Lee answers it in the chat, resolve the ask); a turn that ends on a decision or a question for Lee posts it as an ask, so it shows in Needs you, never only in the status; plain conversation needs none; note what Lee would want to know later, never running commentary; resolve what's done; when the session is complete, with nothing left on it, finish it.",
-  "- Item and session ids are yours alone: Lee sees none of them on the board or in the app, so never name one to him. Name an ask, a parked item or a session by its words.",
+  "- As it goes: set the status when what's under way changes; post an ask whenever you need something only Lee can do or decide, and resolve it yourself when Lee answers it in the chat; a turn that ends on a decision or a question for Lee posts it as an ask, so it shows in Needs you, never only in the status; plain conversation needs none; note what Lee would want to know later, never running commentary; resolve what's done; when the session is complete, with nothing left on it, finish it.",
+  '- In the chat, say all Lee needs, an ask\'s question and steps whole, and never point him to the board: no "it\'s on the board", no "check the board". Saying you parked something is fine, as is naming the asks still open now and then, when several wait, though not at every turn\'s end. An ask Lee hasn\'t answered that you still need, raise again in the chat.',
+  "- A turn's board calls (ask, status, note, resolve, park, finish) come before your message to Lee, never after it. Before any tool call, write Lee a line at most: longer words before a tool call can reach him only as a short summary. What he must read goes after the turn's last tool call.",
+  '- Item and session ids are yours alone: Lee sees none of them on the board or in the app, so never name one to him. Name an ask, a parked item or a session by its words.',
 ].join('\n')
 
 /** What a conversation starts knowing of the board: how to keep it, every current session by project, and the one this window already holds. */

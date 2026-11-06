@@ -178,14 +178,14 @@ test('status sets what changed, keeps the rest, and the board logs the change it
   expect((await w.call('status', {})).deny).toContain('at least one of')
 })
 
-test('ask posts an ask with a fresh id; a choice ask with too few options is refused', async ($, on) => {
+test('ask posts an ask with a fresh id, its answer saying to put it to Lee after the last tool call; a choice ask with too few options is refused', async ($, on) => {
   const w = world($, on)
   const { paths } = await w.begin()
   const options = ['Keep it', 'Drop it']
   const answer = await w.call('ask', { wants: 'choice', title: 'Keep the band?', options })
   const id = postedId(answer)
 
-  expect(answer.result).toBe(`Posted ask ${id}.`)
+  expect(answer.result).toBe(`Posted ask ${id}. Put it to Lee in full after your last tool call.`)
   expect(w.state.board?.asks).toMatchObject([{ id, wants: 'choice', options, state: 'waiting' }])
   expect(w.state.board?.waiting).toBe(1)
   expect(linesOf(w, paths.log(W1)).at(-1)).toMatchObject({ type: 'ask', id, seq: 1 })
@@ -247,7 +247,7 @@ test('edit changes what an ask wants back under the same checks: to a yes with i
   expect(w.state.board?.asks[0]?.options).toBeUndefined()
 })
 
-test('the ask and edit tools take wants, yes, options and needs; the ask says how to choose a shape and word its yes', () => {
+test('the ask and edit tools take wants, yes, options and needs; the ask says how to choose a shape, word its yes, and say it in the chat', () => {
   const [ask, edit] = ['ask', 'edit'].map(name => SPECS.find(spec => spec.name === name))
 
   for (const field of ['wants', 'yes', 'options', 'needs']) {
@@ -259,6 +259,9 @@ test('the ask and edit tools take wants, yes, options and needs; the ask says ho
   expect(ask?.inputSchema?.properties).not.toHaveProperty('kind')
   expect(ask?.description).toContain(
     'Want a yes when Lee gives a go, an approval, or word that it works or is done, its button the verb Lee gives (Go, Approve, Done)',
+  )
+  expect(ask?.description).toContain(
+    'say it in full in the chat as well, after your last tool call: the board never stands in for the chat.',
   )
 })
 
