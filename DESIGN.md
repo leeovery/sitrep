@@ -1044,9 +1044,12 @@ Once the window has submitted it, it is Claude Code's, and nothing takes it
 back out of Claude Code's queue: the line says `⧗ Sending.` and the
 take-back is gone. While Lee has stopped Claude's turn and Claude Code
 refuses the window's prompts (see "Held for Lee's input", under Delivery),
-the first send held says `⧗ Interrupted: goes after your next message.`,
-wrapped beside `↑ send now` and its take-back, and each send behind it
-`⧗ Goes after your next message.`, no turn of Claude's holding them. The
+the first send held says `⧗ Interrupted: goes after your next message.`
+across the box, with `↑ send now` and its take-back on a row of their own
+under it, at the right where every take-back is, and each send behind it
+says `⧗ Goes after your next message.`, no turn of Claude's holding them.
+(Until 6 November 2026 the line wrapped beside the two buttons, over three
+rows on a docked board; Lee chose the row of their own.) The
 inbox's message offers none: Lee sent its replies from elsewhere. Until 5
 November 2026 the line stood where send and cancel all were, for the
 whole box.

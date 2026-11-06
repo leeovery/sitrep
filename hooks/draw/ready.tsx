@@ -134,10 +134,8 @@ const MORE_ROWS = 1
 const BRIEF_ROWS = 1
 /** The cells across the box keeps from its lines: its border and its padding, each side. */
 const BOX_SIDES = 4
-/** The cells across a held send's line gives its take-back: the button, and the gap before it. */
-const TAKE_BACK_CELLS = TAKE_BACK_LABEL.length + 1
-/** The cells across the first send held while the window is stopped gives its send now, as its take-back. */
-const SEND_NOW_CELLS = SEND_NOW_LABEL.length + 1
+/** The row under the first send held while the window is stopped, holding its send now and take-back. */
+const BUTTONS_ROWS = 1
 
 /** A reply waiting for a send, or carried by one on its way, the item it answers, and what holds it back from a send, if anything does. */
 type Queued = { item: Ask | Parked; queued: SitrepQueued; barred?: Barred }
@@ -203,9 +201,9 @@ type Holding = 'turn' | 'stop' | 'behindStop'
 
 /**
  * Where a send on its way stands, as its line says it: held as the first
- * while the window is stopped, wrapped beside its send now and take-back;
- * held otherwise, one row cut short beside its take-back; submitted,
- * wrapped.
+ * while the window is stopped, wrapped across the box, its send now and
+ * take-back on a row under it; held otherwise, one row cut short beside its
+ * take-back; submitted, wrapped.
  */
 const goingOf = (send: SitrepInFlight, width: number, holding: Holding): Going => {
   if (!send.isHeld) {
@@ -214,8 +212,8 @@ const goingOf = (send: SitrepInFlight, width: number, holding: Holding): Going =
 
   if (holding === 'stop') {
     // Never narrower than its longest word, which a board too narrow cuts short rather than splits.
-    const beside = width - BOX_SIDES - TAKE_BACK_CELLS - SEND_NOW_CELLS
-    const rows = wrapped(STOPPED, Math.max(beside, ...STOPPED.split(' ').map(word => word.length)))
+    const across = width - BOX_SIDES
+    const rows = wrapped(STOPPED, Math.max(across, ...STOPPED.split(' ').map(word => word.length)))
 
     return { send, rows, isHeld: true, sendsNow: true }
   }
@@ -311,13 +309,16 @@ const waitingIn = (group: Group) =>
 const countWaiting = (groups: readonly Group[]) =>
   groups.reduce((sum, group) => sum + waitingIn(group), 0)
 
+/** The rows a send's line takes, and the row of its buttons under it where it has one. */
+const goingRows = (going: Going) => going.rows.length + (going.sendsNow ? BUTTONS_ROWS : 0)
+
 /** The rows a group takes: its heading's, its replies' and a send's line; a brief send's one row. */
 const rowsOf = (group: Group) => {
   if (isSend(group) && group.isBrief) {
     return BRIEF_ROWS
   }
 
-  return GROUP_ROWS + group.listed.length * REPLY_ROWS + (group.going?.rows.length ?? 0)
+  return GROUP_ROWS + group.listed.length * REPLY_ROWS + (isSend(group) ? goingRows(group.going) : 0)
 }
 
 const groupRows = (groups: readonly Group[]) =>
@@ -414,7 +415,7 @@ const fitted = (groups: readonly Group[], room: number, shown: string | null): G
   const leading = [first, ...rest.filter(send => !isQueuedSend(send.going.send))]
   const later = rest.filter(send => isQueuedSend(send.going.send))
   const left = leading.reduce(
-    (rows, send) => rows - GROUP_ROWS - send.going.rows.length,
+    (rows, send) => rows - GROUP_ROWS - goingRows(send.going),
     room - MORE_ROWS,
   )
   const briefs = briefed(later, left, shown)
@@ -548,7 +549,13 @@ const drawStep = (d: Drawing, { next }: Step) => {
   )
 }
 
-/** The line saying where a send on its way stands, under its replies; held, its take-back beside it, after its send now, or the step to the next held send where the row stands for several. */
+/**
+ * The line saying where a send on its way stands, under its replies; held,
+ * its take-back beside it, after the step to the next held send where the
+ * row stands for several; held as the first while the window is stopped,
+ * its send now and take-back on a row of their own under it, at the right
+ * as every take-back is.
+ */
 const drawGoing = (d: Drawing, { send, rows, isHeld, sendsNow }: Going, step?: Step) => {
   const { Box, Text, Button } = d.els
   const lines = rows.map((row, i) => (
@@ -556,9 +563,36 @@ const drawGoing = (d: Drawing, { send, rows, isHeld, sendsNow }: Going, step?: S
       {row}
     </Text>
   ))
+  const takeBack = (
+    <Button
+      key={takeBackKey(send)}
+      plain
+      dimColor
+      label={TAKE_BACK_LABEL}
+      onPress={() => d.act.takeBack(send)}
+    />
+  )
 
   if (!isHeld) {
     return <Box flexDirection="column">{lines}</Box>
+  }
+
+  if (sendsNow) {
+    return (
+      <Box flexDirection="column">
+        {lines}
+        <Box flexDirection="row" columnGap={1} justifyContent="flex-end">
+          <Button
+            key={SEND_NOW}
+            plain
+            dimColor
+            label={SEND_NOW_LABEL}
+            onPress={answeredByTheHook}
+          />
+          {takeBack}
+        </Box>
+      </Box>
+    )
   }
 
   return (
@@ -567,22 +601,7 @@ const drawGoing = (d: Drawing, { send, rows, isHeld, sendsNow }: Going, step?: S
         {lines}
       </Box>
       {step !== undefined && drawStep(d, step)}
-      {sendsNow && (
-        <Button
-          key={SEND_NOW}
-          plain
-          dimColor
-          label={SEND_NOW_LABEL}
-          onPress={answeredByTheHook}
-        />
-      )}
-      <Button
-        key={takeBackKey(send)}
-        plain
-        dimColor
-        label={TAKE_BACK_LABEL}
-        onPress={() => d.act.takeBack(send)}
-      />
+      {takeBack}
     </Box>
   )
 }
