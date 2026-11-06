@@ -49,7 +49,7 @@ struct SectionsTests {
         #expect(items.map(\.key).suffix(2) == ["eyebrow:snoozed", "snoozed:harness"])
         #expect(items.map(\.key).contains("needs:harness"))
         #expect(items.last == .line(Self.asleep))
-        #expect(Self.asleep.headline.more == "+1")
+        #expect(Self.asleep.headline.more == "2")
     }
 
     /// Each section under its eyebrow in the sections' order, and nothing between them: no hairline.

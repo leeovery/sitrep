@@ -129,6 +129,6 @@ struct MenuEntriesTests {
         harness.lines.append(Session.Line(title: "Approve the batch", since: 1))
         #expect(rows[1].menuLine(at: 0) == MenuTitle(words: "Dashboard memory", mono: nil, more: nil, isFaint: false))
         #expect(rows[4].menuLine(at: 0) == MenuTitle(words: "Reading ", mono: "StatusMenu.swift", more: nil, isFaint: true))
-        #expect(harness.menuLine(at: 0) == MenuTitle(words: "Modernisation", mono: nil, more: " +1", isFaint: false))
+        #expect(harness.menuLine(at: 0) == MenuTitle(words: "Modernisation", mono: nil, more: " 2", isFaint: false))
     }
 }

@@ -13,7 +13,7 @@ struct SessionRowLayout {
 
     /// Board D's lift, so the lifts of two rows meet.
     static let radius = 10.0
-    /// Between a session's name and its "+2", board F's.
+    /// Between a session's name and its count, board F's.
     static let countGap = 6.0
     /// Between a row's words and its project.
     static let projectGap = 12.0

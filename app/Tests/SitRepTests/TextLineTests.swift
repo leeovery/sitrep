@@ -3,7 +3,8 @@ import AppKit
 import Testing
 
 /// A line of the card's words cut short with an ellipsis fits its box: Core Text's own cut runs past the width it is
-/// given by up to the ellipsis at many widths, so a name cut short before its "+2" or its project would run into them.
+/// given by up to the ellipsis at many widths, so a name cut short before its count or its project would run into
+/// them.
 @MainActor
 struct TextLineTests {
     private static let long = TextLine.text(
@@ -28,5 +29,16 @@ struct TextLineTests {
 
         #expect(none.width == 0)
         #expect(abs(alone.width - ellipsis) < 0.01)
+    }
+
+    /// A line that fits its box is drawn whole, though the box is narrower than the ellipsis, where Core Text cuts
+    /// none: a count of one figure, as wide as it is set.
+    @Test func aLineNarrowerThanTheEllipsisThatFitsIsWhole() {
+        let count = TextLine.text("3", EdgeStyle.count, EdgeStyle.ink2)
+        let set = TextLine.width(count)
+        let line = TextLine(count, in: CGRect(x: 0, y: 0, width: set, height: 18))
+
+        #expect(set < TextLine.width(TextLine.text("…", EdgeStyle.count, EdgeStyle.ink2)))
+        #expect(line.width == set)
     }
 }

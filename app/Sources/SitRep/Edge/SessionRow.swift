@@ -4,11 +4,11 @@ import SitRepPanel
 /// One session's row in black, every row on one line, as Paper's board J draws the card: its mark, its title
 /// (`Session.headline`), its project faint at the right of its words, never cut, and its time at the right; the lift
 /// under the pointer, and a new row's wash. A row needing Lee is its session, as board F draws it, its name in medium
-/// and a quiet "+2" for its lines after the first, an away one's words dimmed; a your-turn row its open ring and what
+/// and a quiet "3" for its three lines waiting, an away one's words dimmed; a your-turn row its open ring and what
 /// Claude left Lee in regular; a Working row its verb, then what it acts on or waits on, an arc turning and its verb
 /// shimmering in the render server, or on its own work its dotted ring and its words still, a wake's countdown set
 /// again as it reads differently; a row in Snoozed a row needing Lee quieted, as board G draws it, its dot grey and
-/// unlit, its name soft, its "+2" faint, and in its time's place when its soonest ask wakes, soft, the lane grown to
+/// unlit, its name soft, its count faint, and in its time's place when its soonest ask wakes, soft, the lane grown to
 /// fit it; a turn there the same, its mark the faint ring, and with no time, "until it moves".
 @MainActor
 final class SessionRow {
@@ -186,7 +186,7 @@ final class SessionRow {
         titleLayers = made
     }
 
-    /// A Snoozed row's words are soft, away or not, its "+2" faint; an away row's title and its "+2" dim as one
+    /// A Snoozed row's words are soft, away or not, its count faint; an away row's title and its count dim as one
     /// (`Away`), its project, faint already, never brighter than its title.
     private var titleColour: CGColor {
         session.isSnoozed ? EdgeStyle.ink2 : Away.dimmed(EdgeStyle.ink, session.away)
@@ -194,7 +194,7 @@ final class SessionRow {
 
     private var countColour: CGColor { session.isSnoozed ? EdgeStyle.ink3 : Away.dimmed(EdgeStyle.ink2, session.away) }
 
-    /// Its title's layers: the title, and a session's "+2" after it, board F's, quiet in the soft grey, in Snoozed
+    /// Its title's layers: the title, and a session's count after it, board F's, quiet in the soft grey, in Snoozed
     /// faint, 6 after the name on its baseline, which the name is cut short to leave room for.
     private func title() -> [CALayer] {
         let box = at.title

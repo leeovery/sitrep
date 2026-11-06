@@ -129,9 +129,9 @@ public struct Session: Equatable, Sendable {
         self.init(id: id, project: project, name: name, letters: letters, kind: kind, away: away, lines: [line], sub: sub)
     }
 
-    /// What its row says, on every surface, on one line with its time: needing Lee, or in Snoozed, its name, and "+2"
-    /// for the two lines after its first, none for one, its time its first line's, needing Lee the newest; else its one
-    /// line. A row needing Lee shows its session, not its asks, so a question's own "+2" shows nowhere on it.
+    /// What its row says, on every surface, on one line with its time: needing Lee, or in Snoozed, its name, and "3"
+    /// for three lines waiting, none for one, its time its first line's, needing Lee the newest; else its one line. A
+    /// row needing Lee shows its session, not its asks, so a question's own "+2" shows nowhere on it.
     public var headline: Line {
         guard needsLee || isSnoozed else {
             return lines[0]
@@ -140,10 +140,10 @@ public struct Session: Equatable, Sendable {
         return Line(title: name, more: Self.more(over: lines.count), since: lines[0].since)
     }
 
-    /// What follows a session's name on a row needing Lee of this many lines: "+2" for the two after its first, none
-    /// for one.
+    /// What follows a session's name on a row needing Lee of this many lines: their plain number, "3" for three, since
+    /// the name leads and no line does; none for one, the row itself saying something waits.
     public static func more(over lines: Int) -> String? {
-        lines > 1 ? "+\(lines - 1)" : nil
+        lines > 1 ? "\(lines)" : nil
     }
 
     public var title: String { headline.title }

@@ -37,19 +37,19 @@ struct MenuBoardTests {
         #expect(question.menuTitle(at: 0) == "Onboarding")
     }
 
-    /// A session with several lines waiting is one item, as on the panel: its name, then "+2" for the two lines after
-    /// its first, in place of a question's own count.
-    @Test func aSessionWithSeveralLinesIsOneItemItsNameThenHowManyMore() {
+    /// A session with several lines waiting is one item, as on the panel: its name, then "3" for its three lines
+    /// waiting, in place of a question's own count.
+    @Test func aSessionWithSeveralLinesIsOneItemItsNameThenHowManyWait() {
         let ledger = Watched.row(
             "ask:sr-ledger:k1", "ask", session: "sr-ledger", project: "switchboard", lead: "Choose how long it keeps",
-            more: "+3", second: "Switchboard · Usage", since: 1_792_445_000_000,
+            more: "+4", second: "Switchboard · Usage", since: 1_792_445_000_000,
             newer: [("ask:sr-ledger:k2", "Approve the schema", 1_792_445_100_000), ("ask:sr-ledger:k3", "Paste the log", 1_792_445_200_000)]
         )
         let menu = Self.menu(heard([.line(Watched.line(rows: [ledger] + Watched.rows.dropFirst()))]))
         let sessions = menu.items.compactMap(\.session)
 
         #expect(sessions.filter { $0.id == "sr-ledger" }.count == 1)
-        #expect(sessions.first?.menuTitle(at: 0) == "Usage +2")
+        #expect(sessions.first?.menuTitle(at: 0) == "Usage 3")
         #expect(sessions.first?.ageText(at: 1_792_445_000_000 + 60 * 60_000) == "1h")
     }
 

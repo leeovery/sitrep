@@ -4,8 +4,8 @@ import SitRepPanel
 import Testing
 
 /// A row on the black card, on one line as Paper's board J draws it, taken relative to the built row: a Needs you row
-/// is its session, one row of standard height whatever its count, its name and a quiet "+2" 6 after it for its lines
-/// after the first, its project at the right, its time at the right under the pointer as off it (its right-click menu
+/// is its session, one row of standard height whatever its count, its name and a quiet "3" 6 after it for its three
+/// lines waiting, its project at the right, its time at the right under the pointer as off it (its right-click menu
 /// is `RowMenuTests`'). Read from its pixels at 2×.
 @MainActor
 struct CardSessionRowTests {
@@ -65,13 +65,13 @@ struct CardSessionRowTests {
         #expect(Self.card(Self.harness(1)).layer.cornerRadius == 10)
     }
 
-    /// "+2" for two lines after the first: 13 medium in tabular figures, 6 after the name, on its baseline.
+    /// "3" for three lines waiting: 13 medium in tabular figures, 6 after the name, on its baseline.
     @Test func severalLinesShowACount6AfterTheNameOnItsBaseline() throws {
         let drawn = try Drawn(Self.card(Self.harness(3)).layer)
         let after = 32 + Self.nameWidth()
         let name = try #require(drawn.drawnBox(in: CGRect(x: 26, y: 4, width: after - 26, height: 22), ground: Self.ground))
         let count = try #require(drawn.drawnBox(in: CGRect(x: after + 2, y: 4, width: 40, height: 22), ground: Self.ground))
-        let set = TextLine.width(TextLine.text("+2", EdgeStyle.count, EdgeStyle.ink2))
+        let set = TextLine.width(TextLine.text("3", EdgeStyle.count, EdgeStyle.ink2))
 
         #expect(abs(count.minX - (after + 6)) <= 1.5)
         #expect(abs(count.width - set) <= 1.5)
@@ -84,7 +84,7 @@ struct CardSessionRowTests {
         let long = String(repeating: "Finish the Harness modernisation ", count: 3)
         let drawn = try Drawn(Self.card(Self.harness(2, name: long)).layer)
         let words = 256 - Self.projectWidth - SessionRowLayout.projectGap
-        let set = TextLine.width(TextLine.text("+1", EdgeStyle.count, EdgeStyle.ink2))
+        let set = TextLine.width(TextLine.text("2", EdgeStyle.count, EdgeStyle.ink2))
         let room = words - set - 6
         let cut = TextLine(
             TextLine.text(long, EdgeStyle.lineMedium, EdgeStyle.ink, kern: EdgeStyle.tightKern(EdgeStyle.lineMedium)),
@@ -126,7 +126,7 @@ struct CardSessionRowTests {
     }
 
     /// A Snoozed row is a Needs you row quieted (board G), the same away or not: its dot 7 across with no glow, on the
-    /// row's middle, in the faint grey its project takes; its name 13 in the soft grey a Needs you row's "+2" takes;
+    /// row's middle, in the faint grey its project takes; its name 13 in the soft grey a Needs you row's count takes;
     /// its project in a lane at its right, ending 10 before the time's; and in its time's place, in the soft grey too,
     /// when it wakes, its lane grown past the 36 to fit it, still ending at 334.
     @Test(arguments: [false, true])

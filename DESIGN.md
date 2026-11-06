@@ -433,6 +433,11 @@ and named it in internal shorthand):
   needs none (4 November 2026: two sessions ended turns with "Put to Lee:
   …" in their status line instead of posting an ask, so Lee's card showed
   them under Your turn, not Needs you).
+- Item and session ids are Claude's alone: Lee sees none anywhere in
+  SitRep, so Claude never names one to him, and names an ask, a parked item
+  or a session by its words (6 November 2026; Lee: "I have no visibility on
+  those codes, they're entirely private, and that needs to state clearly in
+  the plug-in instructions to you").
 
 Wording rules, in the tool descriptions:
 
@@ -1394,9 +1399,11 @@ app (see "The menu bar").
     `ui.press` hook, inside Lee's press, as the band's buttons are, so its
     submit carries the press, which vouches for it: the hook's own `$`
     carries the press, where the pane's buttons, bound to the `$` the board
-    was drawn with, carry none (read from 2.1.318's code, not yet seen
-    live). Pressed while the window is stopped, it takes the first message
-    in flight as going, then lifts the mark, then submits, before the hook
+    was drawn with, carry none (read from 2.1.318's code, and seen live on
+    6 November 2026: Lee pressed Esc mid-turn, the held send showed
+    "Interrupted: goes after your next message.", and `↑ send now` put it
+    in at once with nothing typed). Pressed while the window is stopped, it
+    takes the first message in flight as going, then lifts the mark, then submits, before the hook
     returns, so no look submits it unvouched meanwhile; whatever is first
     goes, the inbox's message included, whether the press claimed a send,
     wrote only letters to other sessions, or found nothing to send, and the
@@ -3751,9 +3758,13 @@ Paper's board F, "The session, and +2", which Lee approved, superseding
 board D's stack of lines and board E). Its title is the session's name, the
 line under it its project's name, the dot as before, on every surface that
 shows it: the card, the strip's tab and the menu. More than one line
-waiting adds a quiet "+N" after the name, N the lines after the first; one
-line shows none. No ask's words are on the row, so a question's own "+2" is
-not either.
+waiting adds a quiet count after the name, the plain number of lines
+waiting: "Build the Mac app 4" for four; one line shows none, the row itself
+saying something waits. No ask's words are on the row, so a question's own
+"+2" is not either. Until 6 November 2026 the count read "+N", N the lines
+after the first, left from when the row led with its first ask; with the
+name leading, Lee read "+3" for four as wrong: "it's not plus, it's not
+additional, it's just four." A Snoozed row's count is the same.
 
 Core decides the rows (`core/rows.ts`, 19 October 2026), and `sitrep
 watch` prints them in this order, for the app to draw as they come: a row
@@ -3801,7 +3812,7 @@ its own and the sections follow in their order, so each stays together under
 its eyebrow however core reorders it meanwhile (22 October 2026, rows by
 session, then the card's sections). A row is kept by its session, so one
 gaining or losing a line in Needs you, as a second ask comes, is the same
-row, its "+N" changed where it stands, at once, as is one going from working
+row, its count changed where it stands, at once, as is one going from working
 to on its own work, both Working. A row changing section, its session coming
 to need Lee, its asks answered, or its turn ending, leaves its held place and
 takes its place in its new section: it folds away where it was and unfolds in
@@ -3833,9 +3844,10 @@ right, Your turn's row alone on one line from 22 October 2026:
   its newest line has waited (its oldest until 4 November 2026). One row
   of 30 however many lines wait, an ask, a permission prompt or a question
   alike. Its window may still be working: needs you wins, so nothing else
-  shows. More than one line waiting adds "+N" after the name: 13, weight
-  500, in the soft grey, in tabular figures, 6 after the name on its
-  baseline; the name is cut short before it, never the count. Until board
+  shows. More than one line waiting adds their count after the name, "4"
+  for four: 13, weight 500, in the soft grey, in tabular figures, 6 after
+  the name on its baseline; the name is cut short before it, never the
+  count. Until board
   J2 it was drawn whole, 49 tall, the name 14 medium with its project's
   name under it (55 until 26 October 2026, when Lee found the two-line rows
   too spaced against Your turn's one-line rows: 7 above the two lines and 8
@@ -3847,7 +3859,7 @@ right, Your turn's row alone on one line from 22 October 2026:
   as Slack and Teams mark someone away. Lee: "Rather than the orange circle,
   we need a better icon to indicate that it's an ask, but there's no window
   open." Until then the dot stayed orange. Its words dim as one: its title,
-  its "+N", the line under it and, where it would read brighter than its
+  its count, the line under it and, where it would read brighter than its
   title, its time, each to 0.61 of its ink, so the title stays the brighter
   of its two lines and both sit below the rows round them. Lee: "The title
   and the project should be dimmed at the same ratio so that they're
@@ -3902,7 +3914,7 @@ right, Your turn's row alone on one line from 22 October 2026:
 - **snoozed** (Paper's board G, 23 October 2026): a needs you row quieted,
   on one line since board I (4 November 2026), 30 tall. Its dot 7 across in
   the faint grey, #5C5C63, with no glow; the session's name 13 in the soft
-  grey, #98989F, cut short, its "+N" faint after it; its project in a lane
+  grey, #98989F, cut short, its count faint after it; its project in a lane
   at its right, 12 in the faint grey. An away row is drawn the same, since
   an ask Lee put off urges nothing until it wakes; it still jumps nowhere.
   In its time's place, when it wakes, in the soft grey, 12 in tabular
@@ -4240,8 +4252,8 @@ were settled in the browser spike (below, "How the strip moves").
   mark takes a click. A click on the count opens its tab. A tab, or a
   count's row, has room for one line: a session needing Lee shows its name
   over its project, its newest line's time (its oldest's until 4 November
-  2026), and with several waiting "+N"
-  for the lines after the first, set dim 6 after the name, as a question's
+  2026), and with several waiting their count ("+N" for the lines after
+  the first until 6 November 2026), set dim 6 after the name, as a question's
   "+2" was (board F, 22 October 2026, after the proposal Lee agreed: "a row
   is a session on every surface"). An away one's name sits over "No window
   holds it. Carry it on in Claude.", its words dimming as one, as the
@@ -4421,9 +4433,8 @@ asked for the sessions back, and approved the redraw as it stands.
     then its project and session, and its time on the right as the item's
     badge. An item is a session, as a row is, with room for one line: one
     needing Lee shows its name over its project, its newest line's time,
-    and with several waiting "+N" for the lines after the first, as the
-    strip's tab does (board F, 22 October 2026). The line under each row
-    shows at rest, not only under the pointer (3 November 2026; Lee:
+    and with several waiting their count, as the strip's tab does (board
+    F, 22 October 2026). The line under each row shows at rest, not only under the pointer (3 November 2026; Lee:
     "default for the project name to show on all the menu items"; see the
     build's note on the rows, under "Stages"). A working row's arc turns
     while the menu is open, once a second as the panel's and in step with
@@ -5295,6 +5306,21 @@ shape allows them. A jump made in Swift, in the app, stays parked too.
    Space 9 to the Fumi window on Space 12, then back to Space 1. It needs no
    Accessibility permission and no window manager.
 
+   **The instant Space switch, tried and not built** (6 November 2026). A
+   throwaway tool posted Spaceman's synthetic Dock-swipe gesture before
+   Ghostty's focus, across 10 Spaces on one display. The Space arrived in
+   about 156ms, then the focus took about 200ms, focused at about 0.41s,
+   against the slide's focus at about 0.23s followed by macOS's quick
+   slide. Lee saw a difference but found both very quick, and kept the
+   slide. Building it would need an Accessibility grant and a private
+   gesture an update could break, would cover only the display under the
+   pointer, and would still slide on a first jump to each window. The jump
+   is instead to find its terminal by tty (Ghostty 1.4.0) and skip `ps` on
+   a remembered terminal, still to build. The switch is left for now, not
+   ruled out: the research, the live timings and the test tool's source
+   are kept in Lee's clone at `.scratch/space-switch/` (`README.md`,
+   `main.swift`).
+
    **The front kept** (14 October 2026). With another app in front as the
    jump begins (Lee clicked the desktop, so Finder), and the target's
    Space last showing that app in front, macOS hands the front back to it
@@ -5814,9 +5840,10 @@ reaches a window only while that pane is on show).
         set as attributed text, its words in the menu's font and its subject
         in the system's mono, a question's "+2" after (since rows by session,
         a row's newest line, its oldest until 4 November 2026, and "+N" for
-        its other lines in its place; since board F, a Needs you row's session's name and its "+N", its project
-        as its subtitle); core's second line as
-        its subtitle; its time as its badge. A working row's words are in
+        its other lines in its place; since board F, a Needs you row's
+        session's name and its count, "+N" until 6 November 2026 and the
+        plain number since, its project as its subtitle); core's second
+        line as its subtitle; its time as its badge. A working row's words are in
         the secondary label colour, its arc fainter than the other marks;
         under the pointer the colour is taken off, through the menu
         delegate's `willHighlight`, so the highlight's own ink shows. An away

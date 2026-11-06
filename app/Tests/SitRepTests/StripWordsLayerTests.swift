@@ -37,10 +37,10 @@ struct StripWordsLayerTests {
         #expect(StripWordsLayer.rowWidth(wake, at: 0) > StripWordsLayer.rowWidth(Self.wake(in: 2), at: 0))
     }
 
-    /// A session with three lines waiting is one tab, as one row of a count's: its name, then "+2" for the two lines
-    /// after its first, set as a row's "+2" is; one line waiting, a question with its own "+2" among them, its name
+    /// A session with three lines waiting is one tab, as one row of a count's: its name, then "3" for its three lines
+    /// waiting, set as a row's count is; one line waiting, a question with its own "+2" among them, its name
     /// alone.
-    @Test func aSessionOfSeveralLinesSaysItsNameThenHowManyMore() {
+    @Test func aSessionOfSeveralLinesSaysItsNameThenHowManyWait() {
         let name = "Finish the Harness modernisation"
         let three = Session(
             id: "h", project: "Harness", name: name, kind: .needs,
@@ -49,7 +49,7 @@ struct StripWordsLayerTests {
             },
             sub: "Harness"
         )
-        let counted = Session(id: "h", project: "Harness", kind: .turn, title: name, more: "+2", sub: "Harness", since: 0)
+        let counted = Session(id: "h", project: "Harness", kind: .turn, title: name, more: "3", sub: "Harness", since: 0)
         let question = Session(
             id: "h", project: "Harness", name: name, kind: .needs, title: "Which edge?", more: "+2", sub: "Harness",
             since: 0

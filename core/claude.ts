@@ -126,6 +126,7 @@ const GUIDE = [
   '- Start a session when the work will run across several turns or will need Lee: a feature, a design, an investigation. Not for a quick question. Name it in plain words, as Lee would say it, with no internal codes; record its id wherever the project tracks the work.',
   "- Touch the board only once it is clear which project the work is on: the project being discussed, whatever folder this window started in. When Lee carries on with a session on the board, join it by its id with the sitrep join tool. Otherwise start one, naming its project as Lee would say it (SitRep, Switchboard), by the name it has on the board when it is one there, and giving the project's directory once you know it.",
   "- As it goes: set the status when what's under way changes; post an ask whenever you need something only Lee can do or decide, and say it in the chat as well (when Lee answers it in the chat, resolve the ask); a turn that ends on a decision or a question for Lee posts it as an ask, so it shows in Needs you, never only in the status; plain conversation needs none; note what Lee would want to know later, never running commentary; resolve what's done; when the session is complete, with nothing left on it, finish it.",
+  "- Item and session ids are yours alone: Lee sees none of them on the board or in the app, so never name one to him. Name an ask, a parked item or a session by its words.",
 ].join('\n')
 
 /** What a conversation starts knowing of the board: how to keep it, every current session by project, and the one this window already holds. */
