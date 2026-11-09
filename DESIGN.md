@@ -6901,8 +6901,8 @@ open), and tmux passing an escape sequence through from Claude's own pane
        `NSRunningApplication` finds it running, never launched.
      - **tmux is still asked through its program**, `tmux -u` as now, 2
        seconds a run, and so is the select.
-     - **Which window first stays core's** (**proposed**, as SitRep repeats
-       no board rule): the order a jump tries a session's windows in
+     - **Which window first stays core's**, as SitRep repeats no board
+       rule: the order a jump tries a session's windows in
        (`windowsOf`, today the CLI's) moves into core, and `watch` carries
        it, so SitRep never ranks windows itself. SitRep
        jumps from the watch's last line, at most a look old, where the CLI
@@ -6940,9 +6940,9 @@ open), and tmux passing an escape sequence through from Claude's own pane
        checked against `comm` on 9 November 2026. Then jumps with Lee's go:
        under zmx through Portal, to a tab not selected on another Space,
        with Finder in front.
-   - **Open for Lee:** at A's merge, does SitRep switch to its own jump
-     outright, or keep the CLI's for a release behind a hidden setting, to
-     go back to should the new one miss?
+   - **Settled with Lee** (9 November 2026): at A's merge SitRep switches
+     to its own jump outright, with no hidden setting to go back to the
+     CLI's; the last release is a `brew reinstall` away.
    - **Risks:**
      - **An older Ghostty's refusal** must be found again: osascript's
        -2753 and -2741 were its words, and events built by hand fail
@@ -6978,8 +6978,9 @@ open), and tmux passing an escape sequence through from Claude's own pane
        `OneJump` is the one caller's lock, and no osascript runs.
      - **The mod is untouched**: it records `where` as now, and `watch`
        still carries each window's.
-   - **Open for Lee:** does anything of yours run `sitrep jump` from a
-     shell or a script? After B, a jump comes only from SitRep.
+   - **Settled with Lee** (9 November 2026): nothing of his runs `sitrep
+     jump` from a shell or a script, so after B a jump comes only from
+     SitRep.
    - **Risks:** few. The plugin and SitRep ship as one, so no SitRep runs a
      CLI without the jump it needs.
 
@@ -6987,15 +6988,24 @@ open), and tmux passing an escape sequence through from Claude's own pane
    holds, alive in its multiplexer with no client in a terminal app, which
    a jump refuses today as not on screen. Stage 6 is this step.
    - **Decided:**
-     - **An attach command for each multiplexer, a setting**, `{session}`
-       standing for the session: `zmx attach {session}` and `tmux attach -t
-       {session}` by default. Lee's zmx one will be `portal open -s
-       {session}`. The name goes in quoted for the shell, as zmx names hold
-       spaces and `·`.
-     - **The multiplexer adapter gives the session**: zmx's is the window's
-       `$ZMX_SESSION`; tmux's is the tmux session holding the pane, asked of
-       tmux as the window opens, since a heartbeat names the pane, not its
-       session.
+     - **An attach command for each multiplexer, a setting**, filled from
+       what the window's heartbeat holds: `zmx attach {session}` and `tmux
+       -S {socket} attach -t {pane}` by default, `{socket}` reaching a tmux
+       server off its default socket. Lee's zmx one is `portal open -s
+       {session}`: SitRep knows no Portal, only the command it is given.
+       Each value goes in quoted for the shell, as zmx names hold spaces
+       and `·`.
+     - **The session named by what cannot change under it**: a zmx
+       session's name is fixed for its life (zmx renames nothing, and
+       Portal's `rename` sets a label of Portal's own, leaving the name), so
+       zmx's `{session}` is the window's `$ZMX_SESSION`. A tmux session can
+       be renamed, so a heartbeat names the pane (`$TMUX_PANE`, an id fixed
+       for the pane's life, which is Claude's), and tmux's default attaches
+       by it, which also puts Claude's window and pane in front. A command
+       of Lee's own that wants tmux's `{session}` gets the name of the
+       session holding the pane, asked of tmux as the window opens, so a
+       rename since is followed. That tmux attaches by a pane id is checked
+       against a real tmux before C merges, as this Mac has none.
      - **The terminal driver opens a new window running it**: Ghostty's
        `new window with configuration`, a surface configuration (`new
        surface configuration`) whose `command` is the attach command.
@@ -7022,17 +7032,15 @@ open), and tmux passing an escape sequence through from Claude's own pane
        Ghostty, which opens a first window of its own as it starts.
        Whether a session is on screen is read as the card or the menu
        opens, where Open is offered, not at every look of `watch`.
-   - **Open for Lee:**
-     - Does a click on a session no terminal shows open its window at once,
-       where a jump is refused today, or does its row offer Open in a New
-       Window beside Jump, in its right-click menu?
-     - A new window, or a new tab in Ghostty's front window?
-     - tmux's default, `tmux attach -t {session}`, reaches only tmux's
-       default socket: should it be `tmux -S {socket} attach -t {session}`,
-       with `{socket}` given too?
-     - An away row: should a click open a new window running Claude in its
-       project's folder, told to carry the session on? Or does it stay
-       parked?
+   - **Settled with Lee** (9 November 2026):
+     - **A click on a session no terminal shows opens its window at once**,
+       through the Space picker (D), where a jump is refused today; no Open
+       in a New Window beside Jump.
+     - **A new window**, not a tab in Ghostty's front window, so it can
+       open on the Space picked.
+     - **tmux's default gives the socket**, as above.
+     - **An away row stays parked**: a Claude started to carry its session
+       on is a feature of its own.
    - **Risks:**
      - **How Ghostty runs the command, and with which PATH**: through a
        shell or directly, from launchd's PATH, which has no
@@ -7066,20 +7074,19 @@ open), and tmux passing an escape sequence through from Claude's own pane
        current Space, which needs no Accessibility.
      - **Proposed:** full-screen Spaces left out of the list, as a window
        cannot be opened into another app's.
-   - **Open for Lee:**
-     - The setting's default: ask, or the current Space?
-     - The instant switch, a cut in about 156ms, but only on the display
-       under the pointer, through a private gesture an update can break,
-       macOS 27 needing more of it; or the shortcuts' slide, macOS's own,
-       once the shortcuts are turned on in Keyboard settings, for Desktops
-       1 to 16?
-     - Naming a Space by its projects needs each session's window matched
-       to a window the window server knows, which Ghostty's scripting does
-       not give: its window ids name its tab groups (`tab-group-…`, checked
-       9 November 2026). SitRep can learn the windows it jumps to or opens,
-       the front window after each, and name a Space by those alone; or
-       name every window by its title, which needs a third leave, Screen
-       Recording. Which?
+   - **Settled with Lee** (9 November 2026):
+     - **The setting asks by default**; the current Space is the other
+       choice.
+     - **The shortcuts' slide**, macOS's own, as the jump slides, once the
+       shortcuts are turned on in Keyboard settings, for Desktops 1 to 16.
+       Not the instant switch: a cut in about 156ms, but only on the display
+       under the pointer, through a private gesture an update can break.
+     - **A Space is named by the windows SitRep knows**: those it has
+       jumped to or opened, the front window after each. Ghostty's window
+       ids name its tab groups (`tab-group-…`, checked 9 November 2026), so
+       a session's window is matched to the window server's no other way
+       short of every window's title, which needs Screen Recording, a third
+       leave, not asked for.
    - **Risks:**
      - **Private calls** list the Spaces and say which Space a window is
        on (`CGSCopySpacesForWindows`), and macOS may change them. They are
