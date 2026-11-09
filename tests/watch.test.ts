@@ -33,6 +33,7 @@ import {
   unfinish,
   W1,
   W2,
+  W3,
   wake,
   yesAsk,
   type Line,
@@ -90,6 +91,7 @@ type Printed = {
     needsReload: boolean
     where: unknown
     state: { is: string } | null
+    jumpOrder: number | null
   }[]
   new: string[]
   boards: Record<string, Board | null>
@@ -367,6 +369,7 @@ test('the first line is the board as every surface shows it, with nothing new, n
             question: null,
           },
           attachedAt: T0,
+          jumpOrder: 0,
         },
       ],
       new: [],
@@ -1455,4 +1458,20 @@ test("each window on a line says where it is, its tmux pane and its zmx session,
 
   expect(await whereOn(inZmx)).toEqual([{ ...WHERE, tmux: null, zmx: inZmx.zmx }])
   expect(await whereOn(inTmux)).toEqual([{ ...WHERE, tmux: inTmux.tmux, zmx: null }])
+})
+
+test("each window on a line carries its place in the order a jump tries its session's windows, core's, not the list's; null for one saying no where", async () => {
+  const t = terminal()
+  const paths = t.seed(META)
+  const working = { is: 'working', since: T0 } as const
+
+  beatOn(t, paths, W1, { is: 'yourTurn', since: T0 }, { where: WHERE })
+  beatOn(t, paths, W2, working, { attachedAt: T0 + MIN, where: { ...WHERE, device: '/dev/ttys099' } })
+  beatOn(t, paths, W3, working, { attachedAt: T0 + 2 * MIN })
+
+  expect((await watched(t, [])).lines[0]?.windows.map(window => [window.writer, window.jumpOrder])).toEqual([
+    [W1, 1],
+    [W2, 0],
+    [W3, null],
+  ])
 })

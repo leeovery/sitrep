@@ -51,8 +51,8 @@ struct OneJumpTests {
         #expect(heard.news == [.ended(.jumped)])
     }
 
-    /// The first is stopped, its CLI told to end as its task is cancelled, and ends stopped whatever its CLI answers
-    /// after, with no word of still jumping; the second, to another session, runs, and alone says it is still jumping.
+    /// The first is stopped as its task is cancelled, and ends stopped whatever it answers after, with no word of still
+    /// jumping; the second, to another session, runs, and alone says it is still jumping.
     @Test func aJumpToAnotherSessionStopsTheFirstAndRunsInItsPlace() async {
         let (oneJump, clock) = Self.made()
         let jumps = Jumps(), first = Heard(), second = Heard()
@@ -77,7 +77,7 @@ struct OneJumpTests {
         #expect(jumps.stopped == [1])
     }
 
-    /// The CLI stopped may take its grace to end: the next jump runs only once it has ended, so the two never run at
+    /// The jump stopped may take a moment to end: the next jump runs only once it has ended, so the two never run at
     /// once.
     @Test func aJumpRunsOnlyOnceTheOneItStoppedHasEnded() async {
         let (oneJump, _) = Self.made()
@@ -95,7 +95,7 @@ struct OneJumpTests {
         #expect(first.news == [.ended(.stopped)])
     }
 
-    /// A double-click, or a quick second click on the session, joins the jump under way: no second CLI, and both
+    /// A double-click, or a quick second click on the session, joins the jump under way: no second jump, and both
     /// clicks hear its news, which is told once a jump.
     @Test func aClickOnTheSameSessionBeforeStillJumpingJoinsTheJump() async {
         let (oneJump, clock) = Self.made()
@@ -190,8 +190,8 @@ struct OneJumpTests {
         #expect(c.news.isEmpty)
     }
 
-    /// A CLI that answers stopped, its run killed, ends the jump stopped, which no surface tells as a failure.
-    @Test func aJumpWhoseCLIIsStoppedEndsStopped() async {
+    /// A jump that answers stopped ends stopped, which no surface tells as a failure.
+    @Test func aJumpThatAnswersStoppedEndsStopped() async {
         let (oneJump, _) = Self.made()
         let jumps = Jumps(), heard = Heard()
 
@@ -264,7 +264,7 @@ private final class TestClock: Sendable {
 }
 
 /// Jumps the test answers, each by its number: one waits until answered, or until its task is cancelled, when it
-/// answers stopped, as the CLI killed then does; one lingering waits on, as a CLI slow to end within its grace does,
+/// answers stopped, as a jump stopped between its steps does; one lingering waits on, as a jump slow to end does,
 /// until the test answers it.
 private final class Jumps: Sendable {
     private struct State {

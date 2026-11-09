@@ -12,7 +12,7 @@ public struct Banner: Equatable, Sendable {
         self.work = work
     }
 
-    /// A jump that failed, in the CLI's words.
+    /// A jump that failed, in the words of its refusal.
     public static func unjumped(_ why: String) -> Banner {
         refused("SitRep could not jump", why)
     }
@@ -37,7 +37,7 @@ public struct Banner: Equatable, Sendable {
 }
 
 extension JumpAnswer {
-    /// The banner a jump that came to this posts: a refusal in the CLI's words, no answer in time as the Mac too busy;
+    /// The banner a jump that came to this posts: a refusal in its own words, no answer in time as the Mac too busy;
     /// none for one that jumped, nor for one a later click stopped, as that one goes on.
     public var banner: Banner? {
         switch self {

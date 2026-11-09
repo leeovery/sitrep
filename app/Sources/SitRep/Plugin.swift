@@ -9,7 +9,9 @@ import SitRepMenu
 @MainActor
 final class Plugin {
     private let setup: PluginSetup
-    private let path: @Sendable () async -> String
+    /// Lee's PATH: his login shell's, asked for once and kept, a fallback serving one asking until the shell answers
+    /// (`ShellPath`).
+    let path: @Sendable () async -> String
     private var standing: PluginStanding?
     private var waiting: [CheckedContinuation<PluginStanding, Never>] = []
 

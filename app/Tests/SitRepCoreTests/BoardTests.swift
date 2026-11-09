@@ -121,6 +121,69 @@ struct BoardTests {
         #expect(decoded == Board.Window.Where(device: "/dev/ttys087", terminal: "ghostty", zmx: .init(session: "kit · restore-card")))
     }
 
+    /// A window of a line, as the watch prints one: its writer, its session, its place in the jump's order, and the
+    /// device of its own Ghostty window.
+    private static func window(_ writer: String, of session: String, order: Int?, on device: String?) -> String {
+        let place = device.map { #"{"device":"\#($0)","terminal":"ghostty","tmux":null,"zmx":null}"# } ?? "null"
+
+        return #"{"writer":"\#(writer)","session":"\#(session)","name":"Fumi","project":"Fumi","version":"0.1.0","needsReload":false,"where":\#(place),"state":null,"attachedAt":1792445500000,"jumpOrder":\#(order.map(String.init) ?? "null")}"#
+    }
+
+    /// A line holding only the windows given.
+    private static func line(_ windows: [String]) throws -> Board {
+        try Board.read(watchedEmpty.replacingOccurrences(of: #""windows":[]"#, with: #""windows":[\#(windows.joined(separator: ","))]"#))
+    }
+
+    @Test func aWindowSaysItsPlaceInTheOrderAJumpTriesItsSessionsWindowsInNoneInALineFromBeforeIt() throws {
+        let board = try Self.line([
+            Self.window("w1", of: "sr-a", order: 1, on: "/dev/ttys041"), Self.window("w2", of: "sr-a", order: nil, on: nil),
+        ])
+
+        #expect(board.windows.map(\.jumpOrder) == [1, nil])
+        #expect(try Board.read(watched).windows.map(\.jumpOrder) == [nil, nil])
+    }
+
+    @Test func aSessionsWindowsAJumpTriesComeInCoresOrderNeverByTheirPlaceInTheLineThoseWithNoOrderLeftOut() throws {
+        let board = try Self.line([
+            Self.window("w1", of: "sr-a", order: 1, on: "/dev/ttys041"),
+            Self.window("w2", of: "sr-b", order: 0, on: "/dev/ttys042"),
+            Self.window("w3", of: "sr-a", order: nil, on: nil),
+            Self.window("w4", of: "sr-a", order: 0, on: "/dev/ttys043"),
+        ])
+
+        #expect(board.jumpWindows(of: "sr-a").map(\.device) == ["/dev/ttys043", "/dev/ttys041"])
+        #expect(board.jumpWindows(of: "sr-z").isEmpty)
+    }
+
+    /// A watch before the order (9 November 2026) gives no window one.
+    @Test func aLineCarryingNoOrderGivesTheSessionsWindowsSayingWhereTheyAreInTheLinesOwnOrder() throws {
+        let board = try Self.line([
+            Self.window("w1", of: "sr-a", order: nil, on: "/dev/ttys041"),
+            Self.window("w2", of: "sr-b", order: nil, on: "/dev/ttys042"),
+            Self.window("w3", of: "sr-a", order: nil, on: nil),
+            Self.window("w4", of: "sr-a", order: nil, on: "/dev/ttys043"),
+        ])
+
+        #expect(board.jumpWindows(of: "sr-a").map(\.device) == ["/dev/ttys041", "/dev/ttys043"])
+    }
+
+    @Test func aSessionIsNamedByItsRowItsSnoozedRowAWindowOfItOrItsProjectAndNoneOffTheBoard() throws {
+        let watching = try Board.read(watched)
+        let snoozed = try Board.read(Lines.snoozed[0])
+        let windowed = try Self.line([Self.window("w1", of: "sr-a", order: nil, on: nil)])
+        let rowless = try Board.read(watchedEmpty.replacingOccurrences(
+            of: #""projects":[]"#,
+            with: #""projects":[{"key":"terrace","name":"Terrace","sessions":[{"id":"sr-q1","name":"Quiet one"}]}]"#
+        ))
+
+        #expect(watching.name(of: "sr-7e68fj") == "Plan the tool")
+        #expect(snoozed.snoozed.first.map { snoozed.name(of: $0.session) } == snoozed.snoozed.first?.name)
+        #expect(windowed.name(of: "sr-a") == "Fumi")
+        #expect(rowless.name(of: "sr-q1") == "Quiet one", "a session with no row and no window, by its project")
+        #expect(windowed.name(of: "sr-z") == nil)
+        #expect(rowless.name(of: "sr-z") == nil)
+    }
+
     @Test func aLineSaysWhatIsNewOnIt() throws {
         let board = try Board.read(watched)
 
@@ -178,8 +241,8 @@ struct BoardTests {
         #expect(throws: Unread.shape) { try Board.read(line) }
     }
 
-    /// What no surface shows is not read: the projects, the sessions' boards, or `changed` in their place, in any
-    /// shape or none, leave the board as it was.
+    /// What no surface shows is not read: the projects, read only for the names a jump gives sessions, the sessions'
+    /// boards, or `changed` in their place, in any shape or none, leave the board as it was.
     @Test(arguments: [
         watchedEmpty.replacingOccurrences(of: #","boards":{}"#, with: ""),
         watchedEmpty.replacingOccurrences(of: #""boards":{}"#, with: #""changed":[]"#),

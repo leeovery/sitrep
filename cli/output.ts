@@ -370,6 +370,7 @@ const windowJson = (window: FeedWindow) => ({
   where: whereJson(window.where),
   state: stateJson(window.state),
   attachedAt: window.attachedAt,
+  jumpOrder: window.jumpOrder ?? null,
 })
 
 /** The board a watch line shows: all of it but the line's own time, what is new and the boards it carries. */

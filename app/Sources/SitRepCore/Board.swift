@@ -23,6 +23,10 @@ public struct Board: Versioned, Sendable, Equatable {
     /// The keys of the lines needing Lee that the last line had not, an ask's or a window's stop: the notch's swell,
     /// the strip's flash. None on the first line.
     public let new: [String]
+    /// Every session the projects list, a current one each, row or none, by its id: their names alone, which a jump
+    /// names a session by. Read in any shape or none, as no surface shows the projects: a line whose projects do not
+    /// read names none.
+    let named: [String: String]
 
     /// The rows holding a line new on this board, by their sessions.
     public var newRows: Set<String> {
@@ -41,10 +45,23 @@ public struct Board: Versioned, Sendable, Equatable {
         snoozed = try given.decodeIfPresent([SnoozedRow].self, forKey: .snoozed) ?? []
         windows = try given.decode([Window].self, forKey: .windows)
         new = try given.decode([String].self, forKey: .new)
+        named = (try? given.decodeIfPresent([Project].self, forKey: .projects))?
+            .flatMap(\.sessions)
+            .reduce(into: [:]) { $0[$1.id] = $1.name } ?? [:]
     }
 
     private enum CodingKeys: String, CodingKey {
-        case at, version, head, rows, snoozed, windows, new
+        case at, version, head, rows, snoozed, windows, new, projects
+    }
+
+    /// A project, for the names of its sessions.
+    private struct Project: Decodable {
+        struct Session: Decodable {
+            let id: String
+            let name: String
+        }
+
+        let sessions: [Session]
     }
 
     /// How many lines need Lee, away ones among them, and how many sessions the rows hold.
@@ -305,8 +322,36 @@ public struct Board: Versioned, Sendable, Equatable {
         public let `where`: Where?
         public let state: State?
         public let attachedAt: Date
+        /// Its place in the order a jump tries its session's windows, 0 first, as core ranks them; none for a window
+        /// saying no `where`, which no jump tries, and from a CLI from before the watch carried it (9 November 2026).
+        public let jumpOrder: Int?
 
         public var id: String { writer }
+    }
+
+    /// The session's windows a jump tries, by where each is, in core's order (`jumpOrder`), never by their place in
+    /// `windows`; one with no order is not tried. A line from a watch before the order, whose windows carry none,
+    /// gives every one saying where it is, in the line's order.
+    public func jumpWindows(of session: String) -> [Window.Where] {
+        let own = windows.filter { $0.session == session }
+
+        guard windows.contains(where: { $0.jumpOrder != nil }) else {
+            return own.compactMap(\.where)
+        }
+
+        return own
+            .compactMap { window in window.jumpOrder.map { (order: $0, where: window.where) } }
+            .sorted { $0.order < $1.order }
+            .compactMap(\.where)
+    }
+
+    /// The session's name, as its row, its Snoozed row, a window of it or its project says; nil for a session not on
+    /// the board, as a finished one holding no window is not.
+    public func name(of session: String) -> String? {
+        rows.first { $0.session == session }?.name
+            ?? snoozed.first { $0.session == session }?.name
+            ?? windows.first { $0.session == session }?.name
+            ?? named[session]
     }
 }
 
