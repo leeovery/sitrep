@@ -14,7 +14,7 @@
  *
  * Selecting happens only in a jump, never as the screen is read.
  */
-import type { Where } from '../core'
+import { isDevice, type Where } from '../core'
 import type { Io } from './io'
 import { look } from './look'
 import type { Multiplexer, Place, Reading } from './multiplexer'
@@ -23,8 +23,8 @@ import { seatOf, type Processes } from './processes'
 /** A tmux client: the device it is on, empty for a control-mode client over pipes, its process, the tmux window it shows, and the tmux session it is attached to, by their ids. */
 export type Client = { device: string; pid: number; window: string; session: string }
 
-/** A pane: its tmux window, and the tmux sessions holding that window, by their ids. */
-export type Pane = { window: string; sessions: readonly string[] }
+/** A pane: its tmux window, and the tmux sessions holding that window, by their ids, and the device it is on. */
+export type Pane = { window: string; sessions: readonly string[]; device: string }
 
 /** What a tmux server holds: each pane, by its id, and its clients. */
 export type Server = { panes: ReadonlyMap<string, Pane>; clients: readonly Client[] }
@@ -48,12 +48,17 @@ export type Showing<C extends Client> = { client: C; select?: Select }
 export type Selected = { isDone: true } | { isDone: false; said?: string }
 
 /**
- * tmux's words for every pane on a server with its tmux window and tmux
- * session, a pane once for each tmux session its window is in; and for
- * every client with the tmux window it shows and the tmux session it is
- * attached to.
+ * tmux's words for every pane on a server with its tmux window, tmux
+ * session and device, a pane once for each tmux session its window is in;
+ * and for every client with the tmux window it shows and the tmux session it
+ * is attached to.
  */
-export const PANES = ['list-panes', '-a', '-F', '#{pane_id}\t#{window_id}\t#{session_id}']
+export const PANES = [
+  'list-panes',
+  '-a',
+  '-F',
+  '#{pane_id}\t#{window_id}\t#{session_id}\t#{pane_tty}',
+]
 export const CLIENTS = [
   'list-clients',
   '-F',
@@ -88,10 +93,10 @@ const rows = (output: string, count: number) =>
 
 /** `list-panes -a` as each pane, the tmux sessions its window is in gathered from its lines. */
 export const parsePanes = (output: string): ReadonlyMap<string, Pane> => {
-  const panes = new Map<string, { window: string; sessions: string[] }>()
+  const panes = new Map<string, { window: string; sessions: string[]; device: string }>()
 
-  for (const [pane = '', window = '', session = ''] of rows(output, 3)) {
-    const held = panes.get(pane) ?? { window, sessions: [] }
+  for (const [pane = '', window = '', session = '', device = ''] of rows(output, 4)) {
+    const held = panes.get(pane) ?? { window, sessions: [], device }
 
     if (!held.sessions.includes(session)) {
       held.sessions.push(session)
@@ -194,8 +199,26 @@ const placesIn = (where: Where, servers: Servers, processes: Processes): Place[]
   )
 }
 
+const isInTmux = (where: Where) => where.tmux !== undefined
+
+/**
+ * Whether the window's device is its tmux pane's: undefined where that
+ * cannot be told, the pane gone, its server silent, or the window saying no
+ * device.
+ */
+const isOnPane = (where: Where, servers: Servers) => {
+  const { tmux } = where
+  const pane = tmux === undefined ? undefined : servers.get(tmux.socket)?.panes.get(tmux.pane)
+
+  return pane === undefined || !isDevice(pane.device) || where.device === undefined
+    ? undefined
+    : pane.device === where.device
+}
+
 /** What tmux said of its servers, by socket, and the sockets it gave no answer for, as a reading of the screen. */
 export const tmuxReading = (servers: Servers, unansweredSockets: ReadonlySet<string>): Reading => ({
+  isIn: isInTmux,
+  isOnItsPty: where => isOnPane(where, servers),
   places: (where, processes) => placesIn(where, servers, processes),
   unanswered: where =>
     where.tmux !== undefined && unansweredSockets.has(where.tmux.socket) ? ['tmux'] : [],
@@ -209,7 +232,7 @@ export const tmuxReading = (servers: Servers, unansweredSockets: ReadonlySet<str
  * not on PATH, makes its sockets' windows unknown, never off screen.
  */
 export const TMUX: Multiplexer = {
-  isIn: where => where.tmux !== undefined,
+  isIn: isInTmux,
   read: async (io, windows) => {
     const read = await Promise.all(
       socketsOf(windows).map(async socket => [socket, await readServer(io, socket)] as const),

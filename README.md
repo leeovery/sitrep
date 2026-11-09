@@ -25,7 +25,7 @@ With several Claude Code windows open across several projects, what waits on you
 - **The chat stays primary.** Claude talks to you in the chat as it always does, and also puts a line on the board. Nothing moves out of the chat, and Claude's real record stays wherever the project keeps one.
 - **What waits on you, in one place.** Every session's asks, across every project, counted above Claude Code's prompt and lit at the edge of your screen.
 - **Answer without hunting.** A yes or a choice is a button. Your reply reaches Claude as your own message, in its own window.
-- **A click takes you there.** A session, an ask or a notification brings forward the Ghostty window showing that session, on whatever Space it is, in tmux or not.
+- **A click takes you there.** A session, an ask or a notification brings forward the Ghostty window showing that session, on whatever Space it is, in tmux, in zmx or in neither.
 - **Sessions outlive their windows.** After a `/clear`, or in a new Claude told to carry on, it is the same session, with its asks and notes.
 - **Put an ask off.** Snooze one until later today, tomorrow or next week; it counts nowhere until it wakes.
 - **Best effort, and honest.** A missed update breaks nothing, and the board never says Claude knows something it wasn't told.
@@ -115,7 +115,7 @@ A menu bar app with no Dock icon, on every Space. The notch and the strip step o
   - General: Open at login and the leave to control Ghostty.
   - Claude Code: the plugin's state.
 - **A new ask** plays the sound once, whichever session it lands in, and, with notifications on, posts a silent macOS notification whose click jumps to the session.
-- **The jump** brings forward the Ghostty window showing a session, selecting the session's tmux window where no client shows it. A terminal with no driver is brought forward whole.
+- **The jump** brings forward the Ghostty window showing a session: in tmux, selecting the session's tmux window where no client shows it; in zmx, the window attached to the session. A terminal with no driver is brought forward whole.
 
 ## Commands
 

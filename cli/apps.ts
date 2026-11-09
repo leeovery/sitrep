@@ -111,16 +111,38 @@ export const appOfProgram = (program: string | undefined): App | undefined =>
   DRIVERS.find(driver => driver.program === program) ?? bundledOf(program)
 
 /**
- * The app a process is, by its program, the first word of its command line:
- * a driver's program, a known app's helper, else a program inside an app
- * bundle; undefined for one in none, a shell, `login`, mosh-server or sshd.
+ * Where a command line's arguments begin: at a space before an option or a
+ * path (` -x`, ` /x`). A space before a lone dash is no argument's:
+ * `/Applications/Visual Studio Code - Insiders.app` is one path.
  */
-export const appOfCommand = (command: string): App | undefined => {
-  const helper = HELPERS.find(([pattern]) => pattern.test(command))
-  const [, path, name = ''] = APP_PATH.exec(command) ?? []
+const ARGUMENT = / (?=\/|-\S)/
+
+/**
+ * A command line's program, as `ps -o comm` gives it but whole: the line up
+ * to its first argument that is an option or a path, its own path's spaces
+ * kept (`…/Code Helper (Plugin) --type=utility`). `ps` truncates every
+ * column but the last, so the program and its arguments never come whole
+ * together. A plain word after it stays on it (`…/ghostty launchd`).
+ */
+export const programOf = (args: string) => args.split(ARGUMENT)[0] ?? args
+
+/** Whether a program is a driver's: the last part of its path is the driver's executable, a plain word after it left aside. */
+const isDriversProgram = (program: string, driver: Driver) =>
+  program.split('/').at(-1)?.split(' ')[0] === driver.executable
+
+/**
+ * The app a process is, by its command line's program: a driver's, a known
+ * app's helper, else one inside an app bundle, the outermost; undefined for
+ * one in none, a shell, `login`, mosh-server or sshd, and for an app a
+ * program's arguments name.
+ */
+export const appOfCommand = (args: string): App | undefined => {
+  const program = programOf(args)
+  const helper = HELPERS.find(([pattern]) => pattern.test(program))
+  const [, path, name = ''] = APP_PATH.exec(program) ?? []
 
   return (
-    DRIVERS.find(driver => command.split('/').at(-1) === driver.executable) ??
+    DRIVERS.find(driver => isDriversProgram(program, driver)) ??
     (helper === undefined ? undefined : bundledOf(helper[1])) ??
     (path === undefined ? undefined : byPath(name, path))
   )

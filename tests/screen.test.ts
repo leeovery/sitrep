@@ -1,11 +1,11 @@
 import { expect, test } from 'claude-code/testing'
-import { appOfCommand, appOfProgram, DRIVERS, openWords } from '../cli/apps'
+import { appOfCommand, appOfProgram, DRIVERS, openWords, programOf } from '../cli/apps'
 import { GHOSTTY_BUNDLE, parseBundle } from '../cli/front'
 import { GHOSTTY } from '../cli/ghostty'
 import type { Place } from '../cli/multiplexer'
 import {
+  deviceOfNumbers,
   parseProcesses,
-  programOf,
   seatOf,
   type Process,
   type Processes,
@@ -20,6 +20,7 @@ import {
   type Client,
   type Servers,
 } from '../cli/tmux'
+import { ZMX } from '../cli/zmx'
 import { attach, leave, presenceText, rowOf, type Where, type WindowState } from '../core'
 import { fold, MIN, T0, W1, W2 } from './support'
 
@@ -54,41 +55,42 @@ const processes = (...each: [pid: number, parent: number, args: string, device?:
  * Four Ghostty windows (`tmux < zsh < login < ghostty`), the phone through
  * mosh-server, a Ghostty on another Mac over ssh, a Terminal window, and VS
  * Code's terminal, whose shell runs under a helper app inside VS Code's.
+ * Each app's own child, and those under it, are on its window's device.
  */
 const PROCESSES = processes(
   [1, 0, '/sbin/launchd'],
   [500, 1, GHOSTTY_APP],
-  [501, 500, '/usr/bin/login'],
-  [502, 501, '-zsh'],
-  [503, 502, 'tmux'],
-  [511, 500, '/usr/bin/login'],
-  [512, 511, '-zsh'],
-  [513, 512, 'tmux'],
-  [521, 500, '/usr/bin/login'],
-  [522, 521, '-zsh'],
-  [523, 522, 'tmux'],
-  [531, 500, '/usr/bin/login'],
-  [532, 531, '-zsh'],
-  [533, 532, 'tmux'],
+  [501, 500, '/usr/bin/login', '/dev/ttys000'],
+  [502, 501, '-zsh', '/dev/ttys000'],
+  [503, 502, 'tmux', '/dev/ttys000'],
+  [511, 500, '/usr/bin/login', '/dev/ttys055'],
+  [512, 511, '-zsh', '/dev/ttys055'],
+  [513, 512, 'tmux', '/dev/ttys055'],
+  [521, 500, '/usr/bin/login', '/dev/ttys041'],
+  [522, 521, '-zsh', '/dev/ttys041'],
+  [523, 522, 'tmux', '/dev/ttys041'],
+  [531, 500, '/usr/bin/login', '/dev/ttys056'],
+  [532, 531, '-zsh', '/dev/ttys056'],
+  [533, 532, 'tmux', '/dev/ttys056'],
   [600, 1, '/opt/homebrew/bin/mosh-server'],
-  [601, 600, '-zsh'],
-  [602, 601, 'tmux'],
+  [601, 600, '-zsh', '/dev/ttys067'],
+  [602, 601, 'tmux', '/dev/ttys067'],
   [700, 1, '/usr/sbin/sshd'],
-  [701, 700, '/usr/libexec/sshd-session'],
-  [702, 701, '-zsh'],
-  [703, 702, 'tmux'],
+  [701, 700, '/usr/libexec/sshd-session', '/dev/ttys080'],
+  [702, 701, '-zsh', '/dev/ttys080'],
+  [703, 702, 'tmux', '/dev/ttys080'],
   [800, 1, TERMINAL_APP],
-  [801, 800, '/usr/bin/login'],
-  [802, 801, '-zsh'],
-  [803, 802, 'tmux'],
+  [801, 800, '/usr/bin/login', '/dev/ttys030'],
+  [802, 801, '-zsh', '/dev/ttys030'],
+  [803, 802, 'tmux', '/dev/ttys030'],
   [900, 1, '/Applications/Visual Studio Code.app/Contents/MacOS/Electron'],
   [
     901,
     900,
     '/Applications/Visual Studio Code.app/Contents/Frameworks/Code Helper.app/Contents/MacOS/Code Helper',
   ],
-  [902, 901, '-zsh'],
-  [903, 902, 'tmux'],
+  [902, 901, '-zsh', '/dev/ttys090'],
+  [903, 902, 'tmux', '/dev/ttys090'],
 )
 
 /** A client on a device, its process, showing a window of the tmux session given, else of the one named for the window. */
@@ -99,13 +101,23 @@ const client = (device: string, pid: number, window: string, session = `$${windo
   session,
 })
 
-/** One server on the socket, with these panes, each in its tmux session, and these clients. */
-const serverOf = (
-  panes: [pane: string, window: string, session: string][],
-  clients: Client[],
-): Servers =>
+/** A pane in tmux's words: its tmux window, its tmux session, and its device, none unless given. */
+type PaneLine = [pane: string, window: string, session: string, device?: string]
+
+/** One server on the socket, with these panes and these clients. */
+const serverOf = (panes: PaneLine[], clients: Client[]): Servers =>
   new Map([
-    [SOCKET, { panes: parsePanes(panes.map(each => each.join('\t')).join('\n')), clients }],
+    [
+      SOCKET,
+      {
+        panes: parsePanes(
+          panes.map(([pane, window, session, device = '']) =>
+            [pane, window, session, device].join('\t'),
+          ).join('\n'),
+        ),
+        clients,
+      },
+    ],
   ])
 
 /** The screen tmux's servers give, read against the processes, and the sockets tmux gave no answer for. */
@@ -119,9 +131,9 @@ const screenWith = (
   unanswered: [],
 })
 
-/** The screen one server with these panes, each in its tmux session, and these clients gives, read against the processes. */
+/** The screen one server with these panes and these clients gives, read against the processes. */
 const screenOf = (
-  panes: [pane: string, window: string, session: string][],
+  panes: PaneLine[],
   clients: Client[],
   snapshot: Processes = PROCESSES,
 ): Screen => screenWith(serverOf(panes, clients), snapshot)
@@ -153,15 +165,22 @@ const SCREEN = screenWith(SERVERS)
 const seen = (places: readonly Place[]) =>
   places.map(place => [place.device, place.app.name, place.select?.session])
 
-test("tmux's panes read as each pane's tmux window and the tmux sessions it is in, a pane listed once for each", () => {
+test("tmux's panes read as each pane's tmux window, the tmux sessions it is in, a pane listed once for each, and its device", () => {
   expect(
     parsePanes(
-      `${PANE}\t${WINDOW}\t$7\n%54\t@52\t$9\n${PANE}\t${WINDOW}\t$8\n${PANE}\t${WINDOW}\t$7\n\n`,
+      [
+        `${PANE}\t${WINDOW}\t$7\t/dev/ttys043`,
+        '%54\t@52\t$9\t/dev/ttys044',
+        `${PANE}\t${WINDOW}\t$8\t/dev/ttys043`,
+        `${PANE}\t${WINDOW}\t$7\t/dev/ttys043`,
+        '%55\t@53\t$9',
+        '',
+      ].join('\n'),
     ),
   ).toEqual(
     new Map([
-      [PANE, { window: WINDOW, sessions: ['$7', '$8'] }],
-      ['%54', { window: '@52', sessions: ['$9'] }],
+      [PANE, { window: WINDOW, sessions: ['$7', '$8'], device: '/dev/ttys043' }],
+      ['%54', { window: '@52', sessions: ['$9'], device: '/dev/ttys044' }],
     ]),
   )
 })
@@ -186,15 +205,17 @@ test("tmux's select makes a window current in a tmux session by their ids, on th
   ])
 })
 
-test("ps's snapshot reads as each process's parent, its device, none for `??`, and its command line, spaces kept", () => {
+test("ps's snapshot reads as each process's parent, its device by its numbers, none for `??`, and its command line, spaces kept", () => {
   expect(
     parseProcesses(
       [
-        '    1     0 ??       /sbin/launchd',
-        ' 4168     1 ??       /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --flag',
-        '11796 11681 ttys032  /opt/homebrew/bin/zmx attach kit · restore-card',
+        '    1     0    ?? /sbin/launchd',
+        ' 4168     1    ?? /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --flag',
+        '11796 11681 16/32 /opt/homebrew/bin/zmx attach kit · restore-card',
+        '  700     1  16/7 /bin/zsh',
+        '  800     1   3/2 /bin/cat',
         'not a process',
-        '   12     1 ??       ',
+        '   12     1    ?? ',
         '',
       ].join('\n'),
     ),
@@ -203,11 +224,26 @@ test("ps's snapshot reads as each process's parent, its device, none for `??`, a
       [1, 0, '/sbin/launchd'],
       [4168, 1, '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome --flag'],
       [11796, 11681, '/opt/homebrew/bin/zmx attach kit · restore-card', '/dev/ttys032'],
+      [700, 1, '/bin/zsh', '/dev/ttys007'],
+      [800, 1, '/bin/cat'],
     ),
   )
 })
 
-test("a command line's program is its first word, up to the first argument that is an option or a path, its own path's spaces kept", () => {
+test("a terminal's numbers name a pty, major 16, as /dev/ttys and its minor to three places; anything else names none", () => {
+  expect(deviceOfNumbers('16/32')).toBe('/dev/ttys032')
+  expect(deviceOfNumbers('16/7')).toBe('/dev/ttys007')
+  expect(deviceOfNumbers('16/1024')).toBe('/dev/ttys1024')
+
+  for (const tdev of ['??', '3/2', '16/', '16/x', '116/32', '']) {
+    expect(deviceOfNumbers(tdev), tdev).toBeUndefined()
+  }
+})
+
+test("a command line's program is its first word, up to the first argument that is an option or a path, its own path's spaces and lone dashes kept", () => {
+  const INSIDERS =
+    '/Applications/Visual Studio Code - Insiders.app/Contents/Frameworks/Code - Insiders Helper (Plugin).app/Contents/MacOS/Code - Insiders Helper (Plugin)'
+
   expect(programOf(GHOSTTY_APP)).toBe(GHOSTTY_APP)
   expect(programOf('/usr/bin/login -flp lee /bin/bash --noprofile')).toBe('/usr/bin/login')
   expect(programOf('-/bin/zsh')).toBe('-/bin/zsh')
@@ -218,13 +254,32 @@ test("a command line's program is its first word, up to the first argument that 
   ).toBe(
     '/Applications/Visual Studio Code.app/Contents/Frameworks/Code Helper (Plugin).app/Contents/MacOS/Code Helper (Plugin)',
   )
+  expect(programOf(`${INSIDERS} --type=utility`)).toBe(INSIDERS)
   expect(
     programOf('/Users/lee/Library/Application Support/iTerm2/iTermServer-3.5.4 /Users/lee/s.socket'),
   ).toBe('/Users/lee/Library/Application Support/iTerm2/iTermServer-3.5.4')
+})
+
+test("the app a command line runs is told by its program: a driver's though a plain word follows it, an app by its outermost bundle though its name holds a dash, and none for an app only its arguments name", () => {
+  expect(appOfCommand(`${GHOSTTY_APP} launchd`)).toBe(GHOSTTY)
+  expect(appOfCommand(`${GHOSTTY_APP} --config-default-files=false`)).toBe(GHOSTTY)
   expect(
-    appOfCommand(programOf('/bin/zsh -c open /Applications/Foo.app/Contents/MacOS/foo')),
-    "an app named in a shell's arguments is not the shell's",
-  ).toBeUndefined()
+    appOfCommand(
+      '/Applications/Visual Studio Code - Insiders.app/Contents/Frameworks/Code - Insiders Helper (Plugin).app/Contents/MacOS/Code - Insiders Helper (Plugin) --type=utility',
+    )?.name,
+  ).toBe('Visual Studio Code - Insiders')
+  expect(
+    appOfCommand('/Users/lee/Library/Application Support/iTerm2/iTermServer-3.5.4 /Users/lee/s.socket')
+      ?.name,
+  ).toBe('iTerm2')
+
+  for (const args of [
+    '/bin/zsh -c open /Applications/Foo.app/Contents/MacOS/foo',
+    '/usr/bin/foo --path=/Applications/Foo.app/Contents/MacOS/foo',
+    '/usr/bin/login -flp lee /bin/bash --noprofile --norc -c exec -l /bin/zsh',
+  ]) {
+    expect(appOfCommand(args), args).toBeUndefined()
+  }
 })
 
 test("each client's terminal app is the nearest app it descends from: Ghostty's driver for Ghostty's, an app by its outermost bundle for another's, and none for the phone's or a Ghostty's over ssh", () => {
@@ -606,4 +661,60 @@ test("lsappinfo's bundle id line reads as the id; an app gone, or nothing, as no
   expect(parseBundle('"CFBundleIdentifier"="com.mitchellh.ghostty"\n')).toBe(GHOSTTY_BUNDLE)
   expect(parseBundle('"CFBundleIdentifier"=[ NULL ] \n')).toBeUndefined()
   expect(parseBundle('')).toBeUndefined()
+})
+
+/** The zmx session `kit`'s clients beside the fixture's: one in a Ghostty window, and one over pipes in a Terminal window's shell, on no tty of its own. */
+const WITH_ZMX: Processes = new Map([
+  ...PROCESSES,
+  ...processes(
+    [541, 500, '/usr/bin/login', '/dev/ttys060'],
+    [542, 541, '-zsh', '/dev/ttys060'],
+    [543, 542, '/opt/homebrew/bin/zmx attach kit', '/dev/ttys060'],
+    [804, 802, 'zmx attach kit'],
+  ),
+])
+
+/** The screen tmux's server and zmx give, read against the processes with zmx's clients. */
+const nestedScreen = async (paneDevice: string): Promise<Screen> => ({
+  readings: [
+    tmuxReading(
+      serverOf([[PANE, WINDOW, SESSION, paneDevice]], [client('/dev/ttys000', 503, WINDOW)]),
+      new Set(),
+    ),
+    await ZMX.read(undefined as never, []),
+  ],
+  processes: WITH_ZMX,
+  unanswered: [],
+})
+
+test('a zmx client counts only on a tty of its own: one over pipes is no place, though its app needs no device', async () => {
+  const screen = await nestedScreen('')
+
+  expect(seen(placesShowing([{ terminal: 'ghostty', zmx: { session: 'kit' } }], screen))).toEqual([
+    ['/dev/ttys060', 'Ghostty', undefined],
+  ])
+})
+
+test('a window recording tmux and zmx, one run inside the other, is in the innermost: tmux where its pane is on the window’s device, else zmx; both, tmux first, where tmux cannot tell', async () => {
+  const nested = (device: string): Where => ({
+    device,
+    terminal: 'tmux',
+    tmux: { socket: SOCKET, pane: PANE },
+    zmx: { session: 'kit' },
+  })
+  const tmuxInZmx = await nestedScreen('/dev/ttys043')
+
+  expect(seen(placesShowing([nested('/dev/ttys043')], tmuxInZmx)), 'tmux inside zmx').toEqual([
+    ['/dev/ttys000', 'Ghostty', undefined],
+  ])
+  expect(seen(placesShowing([nested('/dev/ttys087')], tmuxInZmx)), 'zmx inside tmux').toEqual([
+    ['/dev/ttys060', 'Ghostty', undefined],
+  ])
+  expect(
+    seen(placesShowing([nested('/dev/ttys087')], await nestedScreen(''))),
+    'the pane saying no device',
+  ).toEqual([
+    ['/dev/ttys000', 'Ghostty', undefined],
+    ['/dev/ttys060', 'Ghostty', undefined],
+  ])
 })

@@ -34,6 +34,25 @@ export type Screen = {
 const isMultiplexed = (where: Where) => MULTIPLEXERS.some(each => each.isIn(where))
 
 /**
+ * The readings of the multiplexer a window is innermost in: of those it
+ * runs in, the one whose own pty is its device; where none says so, each
+ * that cannot tell. A multiplexer run inside another passes its variables
+ * on (tmux started in zmx keeps `$ZMX_SESSION`, zmx started in tmux
+ * `$TMUX`), so the outer one's would name a session the window is not on.
+ */
+const innermostOf = (where: Where, readings: readonly Reading[]) => {
+  const inIt = readings.filter(reading => reading.isIn(where))
+
+  if (inIt.length < 2) {
+    return inIt
+  }
+
+  const onIts = inIt.filter(reading => reading.isOnItsPty(where) === true)
+
+  return onIts.length > 0 ? onIts : inIt.filter(reading => reading.isOnItsPty(where) === undefined)
+}
+
+/**
  * What gave no answer of the windows: what a multiplexer they run in asked,
  * as tmux for a socket one runs under; and `ps`, where their clients are
  * told only by it: a tmux server one runs under with clients, whose apps it
@@ -74,13 +93,13 @@ export const readScreen = async (io: Io, windows: readonly Where[]): Promise<Scr
 }
 
 /**
- * Where one window can be brought forward: in a multiplexer, the places each
- * it runs in finds for its clients; outside any, its own device, in the app
- * its `$TERM_PROGRAM` names.
+ * Where one window can be brought forward: in a multiplexer, the places the
+ * innermost it runs in finds for its clients; outside any, its own device,
+ * in the app its `$TERM_PROGRAM` names.
  */
 const placesOf = (where: Where, { readings, processes = new Map() }: Screen): Place[] => {
   if (isMultiplexed(where)) {
-    return readings.flatMap(reading => reading.places(where, processes))
+    return innermostOf(where, readings).flatMap(reading => reading.places(where, processes))
   }
 
   const app = appOfProgram(where.terminal)
@@ -181,8 +200,8 @@ export type OnScreen = { shown: Shown[]; unanswered: readonly string[] }
 /**
  * Whether a jump could reach each session a live window holds, as it stands
  * at `now`: the screen read once for every such window, so each tmux
- * socket is asked once however many sessions run under it, and `ps` once. A session no window holds
- * is away, and left out.
+ * socket is asked once however many sessions run under it, and `ps` once.
+ * A session no window holds is away, and left out.
  */
 export const readOnScreen = async (
   io: Io,

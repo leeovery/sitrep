@@ -2668,7 +2668,12 @@ truth. There is still no background service. None of it is built now. Lee:
       focuses nothing. Over a copy of Lee's board (4 November 2026: 107
       sessions, 18 held) a run took 0.2 seconds of CPU, against 0.27 while
       it folded every session, and 0.3 to 0.55 seconds' wall on a Mac at a
-      load of 230; Bun's start is 0.02 of it.
+      load of 230; Bun's start is 0.02 of it. Those runs read `ps`'s
+      `comm`. Since 9 November 2026 it reads `tdev` and `args` (see "The
+      jump", step 2), a median of 122ms a `ps` against `comm`'s 104 at a
+      load of 110, where `tty` in `tdev`'s place took 580; a run over one
+      window in zmx took 0.15 seconds of CPU and 0.23 to 0.33 seconds' wall
+      at a load of 70 to 90.
     - `--json`, `v` 1, the sessions by id, and `unanswered` naming what gave
       no answer, `tmux`, `ps`, or neither; plain `screen` says the same a line
       each (`sr-k3f9qa  Dashboard redesign: on screen`, `not on screen`, `not
@@ -5179,9 +5184,23 @@ every client of every multiplexer goes through **one step, its seat**
 app, the app its place is in, and the device of that app's own child, the
 terminal's pty, the device its driver is asked for (step 2). A window in no
 multiplexer stays as it was: Claude's own device and `$TERM_PROGRAM`.
-Another multiplexer, screen or Zellij, is one more adapter and nothing
-else; another terminal, one more driver: Terminal and iTerm2, both of which
-give each tab's tty by AppleScript, stay parked.
+Another multiplexer, screen or Zellij, is one more adapter, beside what
+every window records of where it is: zmx also needed its field in `Where`,
+`$ZMX_SESSION` read as the window attaches, and its line in `watch`'s
+windows. Another terminal is one more driver: Terminal and iTerm2, both of
+which give each tab's tty by AppleScript, stay parked.
+
+**A window in two multiplexers**, one run inside the other, is in the
+innermost (9 November 2026, from review): a multiplexer passes its
+variables on to what runs in it, tmux started in a zmx session keeping
+`$ZMX_SESSION` and zmx started in a tmux pane `$TMUX` and `$TMUX_PANE`, so
+the outer one's names a session the window is not on, and a jump could
+select a tmux window for nothing. The innermost is the one whose own pty
+is the window's device: tmux tells its pane's (`#{pane_tty}`, in the same
+`list-panes`), zmx none without a further program. So tmux is innermost
+where its pane is on the window's device, else zmx is; where tmux cannot
+tell, its pane gone or its server silent, both are asked, tmux first. Moot
+on Lee's Mac, which runs zmx alone.
 
 A driver declares what it can do beyond bringing a window forward, which
 every driver must: select a tab or a split, and show a session's state, in a
@@ -5202,8 +5221,9 @@ shape allows them. A jump made in Swift, in the app, stays parked too.
    the window attaches all the same.
 2. A click finds the places that can show the session, each a terminal app of
    this Mac and the device of its window, the session's windows in turn: the
-   one that needs Lee first, else the one active last (below). Without tmux it
-   is Claude's own device, when its `$TERM_PROGRAM` names an app sitrep knows;
+   one that needs Lee first, else the one active last (below). Outside a
+   multiplexer it is Claude's own device, when its `$TERM_PROGRAM` names an
+   app sitrep knows;
    an app with no driver is brought forward whole, so a window in one counts
    without knowing its device. With tmux it is each client tmux lists whose
    current window is the pane's window and which descends from a terminal app
@@ -5222,7 +5242,10 @@ shape allows them. A jump made in Swift, in the app, stays parked too.
    SitRep starts it (`cli/locale.ts`, 5 November 2026): with none, `ps`
    mangles a path that isn't ASCII, so an app at `Café.app` was named
    `CafM-CM-)` and a jump could not bring it forward (checked live). A locale
-   Lee set is left as it is.
+   Lee set is left as it is, so a CLI started with a locale that is not
+   UTF-8 (`LANG=C`) has `ps` print a zmx session's `·` as `M-BM-7`, and
+   every session whose name holds one reads off screen; SitRep starts it
+   with none, and Lee's shells name a UTF-8 one.
    One `ps` snapshot settles each
    client's app, the nearest app among its ancestors: a Ghostty window's
    client runs `tmux < zsh < login < ghostty`, a phone's or iPad's `tmux < zsh
@@ -5244,16 +5267,27 @@ shape allows them. A jump made in Swift, in the app, stays parked too.
    terminal's pty, through any relaying pty between them; where that child
    is on none, the client's own (tmux's `client_tty`, `ps`'s tty for zmx).
    A client on no tty of its own, a tmux control-mode client over pipes, is
-   on none, as before (step 3). `ps` is asked for `pid=,ppid=,tty=,args=`,
+   on none, as before (step 3). `ps` is asked for `pid=,ppid=,tdev=,args=`,
    once a look: the command line, as zmx's clients are told by it, where it
-   gave `comm` before. macOS's `ps` truncates every column but the last to
-   its width, so the program and its arguments cannot both come whole; a
-   process's program is read as its command line up to its first argument
-   that is an option or a path (` -` or ` /`), which keeps the spaces of
-   `/Applications/Visual Studio Code.app/…/Code Helper (Plugin)
-   --type=utility` and leaves out an app a shell's arguments name. A
-   program whose own path holds ` -` or ` /` would be misread: none is
-   known.
+   gave `comm` before, and the terminal by its device's numbers, `16/32` for
+   `/dev/ttys032` (major 16 is a pty; any other is no device), as asking
+   for its name (`tty`) made `ps` about five times slower, a median of
+   580ms against 122ms at a load of 110 (from review, measured the same
+   day). macOS's `ps` truncates every column but the last to its width, so
+   the program and its arguments cannot both come whole; a process's
+   program is read as its command line up to its first argument that is an
+   option or a path (a space, then `-` and more, or `/`). That keeps the
+   spaces of `/Applications/Visual Studio Code.app/…/Code Helper (Plugin)
+   --type=utility` and the lone dash of `/Applications/Visual Studio Code -
+   Insiders.app`, and leaves out an app only an argument names; the app is
+   then its program's outermost bundle, or a driver's where the last part of
+   its path is the driver's program, a plain word after it left aside
+   (`…/ghostty launchd`). A program whose own path holds ` /` or a ` -`
+   followed by more than a space would be misread: none is known. Over
+   live snapshots of Lee's Mac (about 1,390 processes, 258 of them in an
+   app) the app told from the command line was the one the released code
+   told from `comm` for every process but one caught as it started, whose
+   command line `ps` gives as `(name)` until it can read it.
    For tmux the seat replaced `client_tty` as the device, the same device
    wherever the client is on its terminal's pty, as each of Lee's Ghostty,
    Terminal and VS Code clients is (`tmux < zsh < login < ghostty`, login on
@@ -5277,19 +5311,34 @@ shape allows them. A jump made in Swift, in the app, stays parked too.
    `ttys036` < Ghostty; and Ghostty has a terminal on `ttys036`, none on
    `ttys032` or `ttys087`. So the device is the seat's, Ghostty's own
    child's, neither the client's nor the session's. zmx 1.0.1 lists no
-   session's clients (`zmx list` gives each session's name, its server's
-   pid and a count of clients), so they are read from `ps`: each process
-   whose command line is exactly `zmx attach <session>`, by any path to
-   zmx, on a tty, the name compared whole after `attach `, so a name's
-   spaces and `·` (`agentic-workflows-v2 · leeway-build`) need no parsing;
-   the server's own line has its command after the name, and no tty.
-   `ps` runs with a UTF-8 character type (above), so the `·` comes through.
-   A zmx session is one terminal, shown whole by each client: there is no
-   window or pane to select, and a session is on screen where a client of
-   it is in a terminal app with a place. `ps` giving no answer leaves it
-   unknown, never off, as only `ps` tells its clients. A client attached by
-   another form (`zmx a`, `zmx attach --labels …`) is not found: Portal
-   attaches every client as `zmx attach <session>` (11 clients, live).
+   session's clients (`zmx list` gives each session's name, a count of
+   clients, and a `pid` that is the shell on the session's pty, not its
+   server's), so they are read from `ps`: each process whose command line
+   is exactly `zmx attach <session>`, by any path to zmx, on a tty, the name
+   compared whole after `attach `, so a name's spaces and `·`
+   (`agentic-workflows-v2 · leeway-build`) need no parsing. The session's
+   server is no client by its tty and its parent: it runs on none, under
+   launchd, and in no terminal app, though its line may equal a client's,
+   as for a session a bare `zmx attach <session>` made; Portal's servers
+   have their command after the name. `ps` runs with a UTF-8 character type
+   where the CLI was started with no locale (above), so the `·` comes
+   through. A zmx session is one terminal, shown whole by each client:
+   there is no window or pane to select, and a session is on screen where a
+   client of it is in a terminal app with a place. `ps` giving no answer
+   leaves it unknown, never off, as only `ps` tells its clients.
+   - **Clients not found, accepted.** A client attached by another form,
+     `zmx a <session>`, `zmx attach --labels … <session>`, or `zmx attach
+     <session> <command>` from a terminal, is not found: Portal attaches
+     every client as `zmx attach <session>` (11 clients, live), and making
+     a session with a command it does in a server of its own.
+   - **A client switched in place keeps its first session's name**, a known
+     limit: `zmx attach B` typed inside an attach on A, or Portal's exec
+     fallback, switches the client without a new process, so its command
+     line still names A, and it reads as A's client, B's window off screen.
+     Portal records the same limit (`docs/design/zmx-backend.md` in its
+     repository). Its own switch starts a fresh `zmx attach B`, so the
+     normal path is right. Not guarded: telling it would cost a `zmx list`
+     a look, and that names no client either.
 
    `list --json`'s `onScreen` said whether a jump could reach the session: a
    place showed it, or a select would make one show it. Its name and `v`

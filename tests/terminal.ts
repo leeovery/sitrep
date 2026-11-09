@@ -51,15 +51,16 @@ export const manifestText = (version: string) => JSON.stringify({ name: 'sitrep'
 export const FIRST_ID = '1234'
 export const NEXT_ID = '5678'
 
-/** A process above a client, its parent's first: its command line, and the tty it is on as `ps` gives it, `??` for none. */
-export type Above = { args: string; tty: string }
+/** A process above a client, its parent's first: its command line, and the numbers of the terminal it is on as `ps` gives them, `??` for none. */
+export type Above = { args: string; tdev: string }
 
-/** A device's tty as `ps` gives it: `ttys000` for `/dev/ttys000`, `??` for none. */
-const ttyOf = (device: string) => (device === '' ? '??' : device.replace('/dev/', ''))
+/** A device's numbers as `ps` gives them: `16/36` for `/dev/ttys036`, `??` for none. */
+const numbersOf = (device: string) =>
+  device === '' ? '??' : `16/${Number.parseInt(device.replace('/dev/ttys', ''), 10)}`
 
 /** Processes on the device given; on none, for no device. */
 const on = (device: string, ...args: string[]): Above[] =>
-  args.map(each => ({ args: each, tty: ttyOf(device) }))
+  args.map(each => ({ args: each, tdev: numbersOf(device) }))
 
 /** Processes on no tty: an app, launchd. */
 const detached = (...args: string[]) => on('', ...args)
@@ -72,16 +73,17 @@ const detached = (...args: string[]) => on('', ...args)
  */
 export type FakeClient = { tty: string; window: string; from: readonly Above[]; session?: string }
 
-/** A zmx client, as `ps` gives it: the device it is on, and its process's ancestors, its parent's first. */
-export type FakeZmxClient = { tty: string; from: readonly Above[] }
+/** A zmx client, as `ps` gives it: the device it is on, its process's ancestors, its parent's first, and the path it ran zmx by. */
+export type FakeZmxClient = { tty: string; from: readonly Above[]; zmx: string }
 
 /**
- * A tmux server: each pane with its tmux window and tmux session, a pane
- * once for each session the window is in, the session the one named for its
- * window unless a test says otherwise; and its clients.
+ * A tmux server: each pane with its tmux window, tmux session and device, a
+ * pane once for each session the window is in, the session the one named
+ * for its window and the device none unless a test says otherwise; and its
+ * clients.
  */
 export type FakeServer = {
-  panes: [pane: string, window: string, session?: string][]
+  panes: [pane: string, window: string, session?: string, device?: string][]
   clients: FakeClient[]
 }
 
@@ -90,7 +92,7 @@ const sessionFor = (window: string) => `$${window.slice(1)}`
 
 /** A tmux server as the fake holds it while it runs: each pane in its session, and each client attached to its own, a select changing the window it shows. */
 type HeldServer = {
-  panes: { pane: string; window: string; session: string }[]
+  panes: { pane: string; window: string; session: string; device: string }[]
   clients: Required<FakeClient>[]
 }
 
@@ -175,12 +177,14 @@ export const portalClient = (relay: string, device: string): FakeZmxClient => ({
     ...on(device, 'portal open /sit', '-/bin/zsh', LOGIN),
     ...detached(GHOSTTY_APP, '/sbin/launchd'),
   ],
+  zmx: '/opt/homebrew/bin/zmx',
 })
 
-/** A window of a terminal app on `tty` attached to a zmx session straight from its shell: `zmx < zsh < login < the app's program`. */
+/** A window of a terminal app on `tty` attached to a zmx session straight from its shell, zmx run by its name alone: `zmx < zsh < login < the app's program`. */
 export const zmxClient = (tty: string, program: string): FakeZmxClient => ({
   tty,
   from: [...on(tty, '-zsh', LOGIN), ...detached(program, '/sbin/launchd')],
+  zmx: 'zmx',
 })
 
 /** Processes in every snapshot, whatever the clients: one a program with spaces, with arguments. */
@@ -198,8 +202,8 @@ const printed = (lines: readonly string[]): Ran => ({
 const isWords = (words: readonly string[], expected: readonly string[]) =>
   words.join('\0') === expected.join('\0')
 
-const processLine = (pid: number, parent: number, { args, tty }: Above) =>
-  `${String(pid).padStart(5)} ${String(parent).padStart(5)} ${tty.padEnd(8)} ${args}`
+const processLine = (pid: number, parent: number, { args, tdev }: Above) =>
+  `${String(pid).padStart(5)} ${String(parent).padStart(5)} ${tdev.padStart(5)} ${args}`
 
 /** A process and its ancestors, its parent's first, as `ps` gives them, each ancestor's id its place in the chain past the process's. */
 const chainLines = (pid: number, own: Above, from: readonly Above[]) => {
@@ -299,10 +303,11 @@ function screen(options: Options) {
     Object.entries(options.tmux ?? {}).map(([socket, server]) => [
       socket,
       {
-        panes: server.panes.map(([pane, window, session = sessionFor(window)]) => ({
+        panes: server.panes.map(([pane, window, session = sessionFor(window), device = '']) => ({
           pane,
           window,
           session,
+          device,
         })),
         clients: server.clients.map(client => ({
           ...client,
@@ -360,7 +365,9 @@ function screen(options: Options) {
     }
 
     if (isWords(words, PANES)) {
-      return printed(server.panes.map(each => `${each.pane}\t${each.window}\t${each.session}`))
+      return printed(
+        server.panes.map(each => [each.pane, each.window, each.session, each.device].join('\t')),
+      )
     }
 
     if (isWords(words, CLIENTS)) {
@@ -376,22 +383,23 @@ function screen(options: Options) {
     throw new Error(`the fake tmux knows no ${words.join(' ')}`)
   }
 
-  /** Each zmx session's server, on no tty, and each of its clients, by any path to zmx, with their ancestors. */
+  /**
+   * Each zmx session's server, on no tty under launchd, its line exactly a
+   * client's, as for a session a bare attach made; and each of its clients,
+   * by the path it ran zmx by, with their ancestors.
+   */
   const zmxLines = () => {
     const sessions = Object.entries(options.zmx ?? {})
     const attached = sessions.flatMap(([name, each]) => each.map(client => ({ name, client })))
 
     return [
       ...sessions.map(([name], i) =>
-        processLine(9000 + i, 1, {
-          args: `zmx attach ${name} /opt/homebrew/bin/portal state hydrate --session ${name}`,
-          tty: '??',
-        }),
+        processLine(9000 + i, 1, { args: `zmx attach ${name}`, tdev: '??' }),
       ),
       ...attached.flatMap(({ name, client }, i) =>
         chainLines(
           5000 + i,
-          { args: `/opt/homebrew/bin/zmx attach ${name}`, tty: ttyOf(client.tty) },
+          { args: `${client.zmx} attach ${name}`, tdev: numbersOf(client.tty) },
           client.from,
         ),
       ),
@@ -407,7 +415,11 @@ function screen(options: Options) {
     return printed([
       ...OTHER_PROCESSES,
       ...clients.flatMap(client =>
-        chainLines(pidOf(client), { args: 'tmux attach', tty: ttyOf(client.tty) }, client.from),
+        chainLines(
+          pidOf(client),
+          { args: 'tmux attach', tdev: numbersOf(client.tty) },
+          client.from,
+        ),
       ),
       ...zmxLines(),
     ])

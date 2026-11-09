@@ -1358,18 +1358,33 @@ test('jump in zmx focuses the Ghostty window holding its client, on the device o
   ])
 })
 
-test('a zmx session is matched by its whole name: a session whose name begins or ends as its does, and its own server, are not its clients', async () => {
-  const t = oneWindow(IN_ZMX, {
-    zmx: {
-      'agentic-workflows-v2': [portalClient('/dev/ttys041', '/dev/ttys040')],
-      'leeway-build': [portalClient('/dev/ttys042', '/dev/ttys040')],
-      [ZMX_SESSION]: [portalClient(PORTAL_RELAY, PORTAL_WINDOW)],
-    },
-    ghostty: ZMX_TERMINALS,
-  })
+test('a zmx session is matched by its whole name: the clients of a session whose name holds its own, begins as it does or ends as it does are not its clients, nor is its own server', async () => {
+  const elsewhere = (relay: string) => [portalClient(relay, '/dev/ttys040')]
+  const cases: [string, Record<string, FakeZmxClient[]>][] = [
+    [
+      'kit',
+      {
+        'kit · restore-card': elsewhere('/dev/ttys041'),
+        'x kit': elsewhere('/dev/ttys042'),
+        kit: [portalClient(PORTAL_RELAY, PORTAL_WINDOW)],
+      },
+    ],
+    [
+      ZMX_SESSION,
+      {
+        'agentic-workflows-v2': elsewhere('/dev/ttys041'),
+        'leeway-build': elsewhere('/dev/ttys042'),
+        [ZMX_SESSION]: [portalClient(PORTAL_RELAY, PORTAL_WINDOW)],
+      },
+    ],
+  ]
 
-  expect(await t.run('jump', ...SESSION)).toEqual(FOCUSED_RUN)
-  expect(runsOf(t, 'osascript')).toEqual([focusing(PORTAL_WINDOW)])
+  for (const [session, zmx] of cases) {
+    const t = oneWindow({ ...IN_ZMX, zmx: { session } }, { zmx, ghostty: ZMX_TERMINALS })
+
+    expect(await t.run('jump', ...SESSION), session).toEqual(FOCUSED_RUN)
+    expect(runsOf(t, 'osascript'), session).toEqual([focusing(PORTAL_WINDOW)])
+  }
 })
 
 test('a zmx session with no client, or only the clients of other sessions, is not on screen, and Ghostty is asked nothing', async () => {

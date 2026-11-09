@@ -9,7 +9,7 @@
  * from an app. Its window there is on the device of the app's own child,
  * the terminal's pty, which a relaying pty between them does not hide.
  */
-import { isDevice, parseDevice } from '../core'
+import { isDevice } from '../core'
 import { appOfCommand, isReachable } from './apps'
 import type { App } from './driver'
 
@@ -19,16 +19,31 @@ export type Process = { parent: number; device?: string; args: string }
 /** Every process, by its id. */
 export type Processes = ReadonlyMap<number, Process>
 
-/** Every process with its parent, its terminal and its command line, one line each: one `ps` a look. */
-export const PS = ['ps', '-A', '-o', 'pid=,ppid=,tty=,args=']
+/**
+ * Every process with its parent, its terminal and its command line, one line
+ * each: one `ps` a look. The terminal is its device's numbers (`tdev`), as
+ * its name (`tty`) made `ps` about five times slower (a median of 580ms
+ * against 122ms at a load of 110, 9 November 2026).
+ */
+export const PS = ['ps', '-A', '-o', 'pid=,ppid=,tdev=,args=']
 
-/** `ps`'s line: the id and the parent's, right-aligned, the tty, `??` for none, then the command line, spaces and all. */
+/** `ps`'s line: the id and the parent's, right-aligned, the terminal's numbers, `??` for none, then the command line, spaces and all. */
 const PROCESS_LINE = /^\s*(\d+)\s+(\d+)\s+(\S+)\s+(.*)$/s
+
+/** A pseudo-terminal's numbers, major 16: `16/32` for `/dev/ttys032`, as `ls -l` gives it `16, 32`. */
+const PTY = /^16\/(\d+)$/
+
+/** The device a terminal's numbers name, `/dev/ttys032` for `16/32`; none for `??`, or any device but a pty. */
+export const deviceOfNumbers = (tdev: string) => {
+  const [, minor] = PTY.exec(tdev) ?? []
+
+  return minor === undefined ? undefined : `/dev/ttys${minor.padStart(3, '0')}`
+}
 
 /** A line of `ps`'s as its process, by its id; none for a line that is no process. */
 const processOf = (line: string): [number, Process][] => {
-  const [, pid = '', parent = '', tty = '', args = ''] = PROCESS_LINE.exec(line) ?? []
-  const device = parseDevice(tty)
+  const [, pid = '', parent = '', tdev = '', args = ''] = PROCESS_LINE.exec(line) ?? []
+  const device = deviceOfNumbers(tdev)
   const process = {
     parent: Number.parseInt(parent, 10),
     ...(device === undefined ? {} : { device }),
@@ -42,34 +57,21 @@ const processOf = (line: string): [number, Process][] => {
 export const parseProcesses = (output: string): Processes =>
   new Map(output.split('\n').flatMap(processOf))
 
-/**
- * A command line's program, its first word, as `ps -o comm` would give it:
- * the line up to its first argument that is an option or a path. A program
- * is read whole though its path has spaces (`/Applications/Visual Studio
- * Code.app/…/Code Helper (Plugin) --type=utility`), as `ps` gives no column
- * of both the program and its arguments untruncated but the last.
- */
-export const programOf = (args: string) => /^(.*?)(?: [-/].*)?$/s.exec(args)?.[1] ?? args
-
 /** The nearest ancestor of a process that is a terminal app, and that app's own child among them, the process itself or one above it. */
 const appAbove = (pid: number, processes: Processes) => {
   const seen = new Set<number>()
   let child = processes.get(pid)
 
-  for (
-    let at = child?.parent;
-    child !== undefined && at !== undefined && !seen.has(at);
-    at = processes.get(at)?.parent
-  ) {
-    const process = processes.get(at)
-    const app = process === undefined ? undefined : appOfCommand(programOf(process.args))
+  while (child !== undefined && !seen.has(child.parent)) {
+    const parent = processes.get(child.parent)
+    const app = parent === undefined ? undefined : appOfCommand(parent.args)
 
     if (app !== undefined) {
       return { app, child }
     }
 
-    seen.add(at)
-    child = process
+    seen.add(child.parent)
+    child = parent
   }
 
   return undefined
