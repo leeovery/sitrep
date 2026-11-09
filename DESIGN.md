@@ -3073,6 +3073,14 @@ truth. There is still no background service. None of it is built now. Lee:
       `version`, and `needsReload` where it says none, or one behind the
       CLI's own `version`, dotted part by part. Not `seenAt`: every beat
       would be a line. Nor `loadedAt`, which only the mod's fence reads.
+      `jumpOrder` (9 November 2026) is the window's place in the order a
+      jump tries its session's windows, 0 first (core's `windowsOf`, see
+      "The jump"), counted among that session's windows alone; none on a
+      window saying no `where`, which no jump tries, so the windows of a
+      session with a `jumpOrder`, taken by it, are the jump's places to
+      try, each `where` in turn. A field of each window, not a reordering
+      of the list, which Settings reads as the longest attached first. A
+      field added: `v` did not move.
     - `new`: the keys of the lines needing Lee this watch has not shown, a
       new ask by its id or a window's new stop by when it showed. A row
       holding one **arrives**: a session new to the board, one coming to
@@ -5530,7 +5538,9 @@ it, the spec SitRep's is built to.
    before any turn. Each window's places are tried before the next window's,
    so one that needs Lee where no terminal shows it gives way to the other.
    The jump no longer goes by the window that delivers the session's inbox,
-   which keeps its own rule, the one attached longest.
+   which keeps its own rule, the one attached longest. The order is core's
+   (`core/windows.ts`, `windowsOf`, 9 November 2026), so `watch` carries it
+   to SitRep as each window's `jumpOrder` and the CLI's jump reads the same.
 3. Ghostty's driver asks Ghostty for the terminal on the device and focuses
    it, in one program (6 November 2026): `focus` the first of `terminals
    whose tty is` the device, its window activated first where its tab is
@@ -6903,8 +6913,9 @@ open), and tmux passing an escape sequence through from Claude's own pane
        seconds a run, and so is the select.
      - **Which window first stays core's**, as SitRep repeats no board
        rule: the order a jump tries a session's windows in
-       (`windowsOf`, today the CLI's) moves into core, and `watch` carries
-       it, so SitRep never ranks windows itself. SitRep
+       (`windowsOf`) is core's (`core/windows.ts`), and `watch` carries
+       it as each window's `jumpOrder`, so SitRep never ranks windows
+       itself (built 9 November 2026, as A1). SitRep
        jumps from the watch's last line, at most a look old, where the CLI
        read the board as it started.
      - **The limits carry over**: 2 seconds for each tmux run, 5 for each
@@ -6925,8 +6936,10 @@ open), and tmux passing an escape sequence through from Claude's own pane
        their own beside `SitRepCore`, with a test target of their own.
    - **Tests:**
      - **Today's TypeScript tests are the spec**: `tests/jump.test.ts`,
-       `tests/screen.test.ts` and `tests/onscreen.test.ts`, 113 between
-       them, each rule pinned again in Swift. They stay until step B.
+       `tests/screen.test.ts` and `tests/onscreen.test.ts`, 110 between
+       them, each rule pinned again in Swift. They stay until step B. The
+       window order's three went to `tests/windows.test.ts` with it (A1),
+       core's, so Swift pins none of them.
      - **Swift test doubles** for the process table, tmux, Ghostty, the
        front and the clock, each a protocol the real one fills.
      - **Fixtures small, or built in code**: a process tree made by a

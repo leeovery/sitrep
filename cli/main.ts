@@ -16,6 +16,7 @@ import {
   manifestVersion,
   rootOf,
   stamp,
+  windowsOf,
   type Body,
   type Checked,
 } from '../core'
@@ -33,7 +34,7 @@ import { commandHelp, HELP } from './help'
 import type { Env, Io } from './io'
 import { Unanswered } from './driver'
 import { jump } from './jump'
-import { readOnScreen, windowsOf } from './screen'
+import { readOnScreen } from './screen'
 import { watch } from './watch'
 
 /**
