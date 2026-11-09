@@ -138,13 +138,14 @@ const hostOf = ($: EngineInterface): Host => ({
   }),
   terminal: {
     env: async () => {
-      const [TMUX, TMUX_PANE, TERM_PROGRAM] = await Promise.all([
+      const [TMUX, TMUX_PANE, TERM_PROGRAM, ZMX_SESSION] = await Promise.all([
         $.env.get('TMUX'),
         $.env.get('TMUX_PANE'),
         $.env.get('TERM_PROGRAM'),
+        $.env.get('ZMX_SESSION'),
       ])
 
-      return { TMUX, TMUX_PANE, TERM_PROGRAM }
+      return { TMUX, TMUX_PANE, TERM_PROGRAM, ZMX_SESSION }
     },
     tty: () => $.process.run(['/bin/sh', '-c', TTY_WALK], { timeoutMs: TTY_WALK_MS }),
   },

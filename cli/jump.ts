@@ -1,16 +1,17 @@
 /**
  * What the CLI does on screen, through Io: finds where a session's windows
- * show, and brings the first that answers to the front, in two layers. The
- * tmux layer says which clients show a pane, and selects the pane's tmux
- * window where none does; a driver per terminal app finds the window on a
- * device and brings it forward, and an app with no driver is brought
- * forward as an app.
+ * show, and brings the first that answers to the front, along two axes. A
+ * multiplexer adapter says which clients show a window, and tmux's selects
+ * the pane's tmux window where none does; a driver per terminal app finds
+ * the window on a device and brings it forward, and an app with no driver
+ * is brought forward as an app.
  */
 import type { Where } from '../core'
 import type { App, Bring, FrontAtStart } from './driver'
 import { frontmost } from './front'
 import type { Io } from './io'
-import { reachOf, readScreen, type Place } from './screen'
+import type { Place } from './multiplexer'
+import { reachOf, readScreen } from './screen'
 import { select, selectWords, type Select, type Selected } from './tmux'
 
 /**

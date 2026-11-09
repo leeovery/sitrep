@@ -19,7 +19,7 @@ import {
 } from '../cli/ghostty'
 import { LOOK_MS } from '../cli/look'
 import { EXIT } from '../cli/main'
-import { PS } from '../cli/screen'
+import { PS } from '../cli/processes'
 import { CLIENTS, PANES, selectWords } from '../cli/tmux'
 import type { Where, WindowState } from '../core'
 import { META, MIN, T0, W2 } from './support'
@@ -30,13 +30,17 @@ import {
   NOW,
   ownWindows,
   phoneClient,
+  portalClient,
+  relayedClient,
   SOCKET,
   sshClient,
   terminal,
   TERMINAL_APP,
+  zmxClient,
   type FakeServer,
   type FakeTerminal,
   type FakeWindow,
+  type FakeZmxClient,
 } from './terminal'
 import { ROOT } from './world'
 
@@ -1311,5 +1315,121 @@ test('what stopped Ghostty at the most wanted place is what the jump is refused 
 
     expect(await t.run('jump', ...SESSION), why).toEqual({ exit: EXIT.refused, out: '', err })
     expect(openRuns(t), `${why}: Terminal was tried`).toHaveLength(1)
+  }
+})
+
+test('a tmux client behind a relaying pty in a Ghostty window jumps to the terminal on the device of Ghostty’s own child, not the relay’s', async () => {
+  const t = oneWindow(IN_TMUX, {
+    tmux: serverShowing(relayedClient('/dev/ttys050', WINDOW, CLAUDES)),
+    ghostty: TERMINALS,
+  })
+
+  expect(await t.run('jump', ...SESSION)).toEqual(FOCUSED_RUN)
+  expect(runsOf(t, 'osascript')).toEqual([focusing(WINDOW)])
+  expect(t.screen.focused).toEqual(['SWITCHBOARD-TERMINAL'])
+})
+
+/** Claude's zmx session, its name with spaces and `·`, as Portal names one. */
+const ZMX_SESSION = 'agentic-workflows-v2 · leeway-build'
+
+/** Claude in zmx: on the session's own pty, which no terminal is on, Ghostty's `$TERM_PROGRAM` passed on. */
+const IN_ZMX: Where = { device: '/dev/ttys087', terminal: 'ghostty', zmx: { session: ZMX_SESSION } }
+
+/** The Ghostty window Portal attached to Claude's zmx session, on its own pty, Portal's relay on another. */
+const PORTAL_WINDOW = '/dev/ttys036'
+const PORTAL_RELAY = '/dev/ttys032'
+
+const ZMX_TERMINALS = ownWindows(
+  { id: 'PORTAL-TERMINAL', device: PORTAL_WINDOW },
+  { id: 'OTHER-TERMINAL', device: '/dev/ttys040' },
+)
+
+test('jump in zmx focuses the Ghostty window holding its client, on the device of Ghostty’s own child through Portal’s relaying pty; it asks ps once and tmux nothing, and selects nothing', async () => {
+  const t = oneWindow(IN_ZMX, {
+    zmx: { [ZMX_SESSION]: [portalClient(PORTAL_RELAY, PORTAL_WINDOW)] },
+    ghostty: ZMX_TERMINALS,
+  })
+
+  expect(await t.run('jump', ...SESSION)).toEqual(FOCUSED_RUN)
+  expect(t.screen.focused).toEqual(['PORTAL-TERMINAL'])
+  expect(t.screen.ran.filter(([name]) => name !== 'lsappinfo')).toEqual([
+    PS,
+    focusing(PORTAL_WINDOW),
+  ])
+})
+
+test('a zmx session is matched by its whole name: the clients of a session whose name holds its own, begins as it does or ends as it does are not its clients, nor is its own server', async () => {
+  const elsewhere = (relay: string) => [portalClient(relay, '/dev/ttys040')]
+  const cases: [string, Record<string, FakeZmxClient[]>][] = [
+    [
+      'kit',
+      {
+        'kit · restore-card': elsewhere('/dev/ttys041'),
+        'x kit': elsewhere('/dev/ttys042'),
+        kit: [portalClient(PORTAL_RELAY, PORTAL_WINDOW)],
+      },
+    ],
+    [
+      ZMX_SESSION,
+      {
+        'agentic-workflows-v2': elsewhere('/dev/ttys041'),
+        'leeway-build': elsewhere('/dev/ttys042'),
+        [ZMX_SESSION]: [portalClient(PORTAL_RELAY, PORTAL_WINDOW)],
+      },
+    ],
+  ]
+
+  for (const [session, zmx] of cases) {
+    const t = oneWindow({ ...IN_ZMX, zmx: { session } }, { zmx, ghostty: ZMX_TERMINALS })
+
+    expect(await t.run('jump', ...SESSION), session).toEqual(FOCUSED_RUN)
+    expect(runsOf(t, 'osascript'), session).toEqual([focusing(PORTAL_WINDOW)])
+  }
+})
+
+test('a zmx session with no client, or only the clients of other sessions, is not on screen, and Ghostty is asked nothing', async () => {
+  const cases: Record<string, FakeZmxClient[]>[] = [
+    { [ZMX_SESSION]: [] },
+    { kit: [portalClient(PORTAL_RELAY, PORTAL_WINDOW)] },
+  ]
+
+  for (const zmx of cases) {
+    const t = oneWindow(IN_ZMX, { zmx, ghostty: ZMX_TERMINALS })
+
+    expect(await t.run('jump', ...SESSION), JSON.stringify(zmx)).toEqual({
+      exit: EXIT.refused,
+      out: '',
+      err: OFF_SCREEN,
+    })
+    expect(runsOf(t, 'osascript')).toEqual([])
+  }
+})
+
+test('a zmx client in a terminal app with no driver brings that app forward by its path', async () => {
+  const t = oneWindow(IN_ZMX, {
+    zmx: { [ZMX_SESSION]: [zmxClient('/dev/ttys030', TERMINAL_APP)] },
+    ghostty: ZMX_TERMINALS,
+  })
+
+  expect(await t.run('jump', ...SESSION)).toEqual(FOCUSED_RUN)
+  expect(openRuns(t)).toEqual([OPENING_TERMINAL])
+  expect(runsOf(t, 'osascript')).toEqual([])
+})
+
+test('in zmx, tmux missing changes nothing, as tmux is never asked; ps giving no answer leaves the session unknown, never off', async () => {
+  const zmx = { [ZMX_SESSION]: [portalClient(PORTAL_RELAY, PORTAL_WINDOW)] }
+  const missing = oneWindow(IN_ZMX, { zmx, ghostty: ZMX_TERMINALS, missing: ['tmux'] })
+
+  expect(await missing.run('jump', ...SESSION)).toEqual(FOCUSED_RUN)
+  expect(runsOf(missing, 'tmux')).toEqual([])
+
+  for (const options of [{ missing: ['ps'] }, { slow: ['ps'] }]) {
+    const t = oneWindow(IN_ZMX, { zmx, ghostty: ZMX_TERMINALS, ...options })
+
+    expect(await t.run('jump', ...SESSION), JSON.stringify(options)).toEqual({
+      exit: EXIT.refused,
+      out: '',
+      err: `sitrep: Could not tell whether ${META.name} is on screen: ps gave no answer.\n`,
+    })
   }
 })

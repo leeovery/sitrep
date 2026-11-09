@@ -1,185 +1,110 @@
 /**
  * Where a jump can bring a session's windows forward, from where they are,
- * what tmux says of its servers, and which processes descend from which. A
- * window in tmux shows in every terminal window of this Mac whose tmux
- * client is on the tmux window holding its pane, or could be made to show it
- * (the tmux layer); one outside tmux, in its own, when its terminal app is
- * known.
- *
- * A tmux client is in the terminal app it descends from: Ghostty's when
- * Ghostty's own program is the nearest app among its ancestors
- * (`tmux < zsh < login < ghostty`, live). Its terminal's name cannot tell:
- * Lee's phone and iPad attach through mosh-server, and a Ghostty on another
- * Mac, attached over ssh, gives `xterm-ghostty` too; neither descends from an
- * app.
+ * what each multiplexer they run in says of its clients, and which
+ * processes descend from which. A window in a multiplexer shows in every
+ * terminal window of this Mac holding a client of its session (for tmux, on
+ * the tmux window holding its pane, or which the tmux layer could make show
+ * it), each seated by one step (`seatOf`); one outside any, in its own, when
+ * its terminal app is known.
  */
-import { isDevice, isLive, type Presence, type Session, type Where } from '../core'
-import { appOfCommand, appOfProgram, isDriver } from './apps'
-import type { App } from './driver'
+import { isLive, type Presence, type Session, type Where } from '../core'
+import { appOfProgram, isReachable } from './apps'
 import type { Io } from './io'
 import { look } from './look'
-import { readServer, showingPane, type Client, type Select, type Servers } from './tmux'
+import type { Multiplexer, Place, Reading } from './multiplexer'
+import { parseProcesses, PS, type Processes } from './processes'
+import { TMUX } from './tmux'
+import { ZMX } from './zmx'
 
-/** A process: its parent's id, and its command as `ps` gives it, a path for most. */
-export type Process = { parent: number; command: string }
-
-/** Every process, by its id. */
-export type Processes = ReadonlyMap<number, Process>
+/** Every multiplexer a window may run in, by its adapter. */
+export const MULTIPLEXERS: readonly Multiplexer[] = [TMUX, ZMX]
 
 /**
- * What tells where a window shows: tmux's servers, the terminal app of each
- * of their clients that is in one, by the client's process, and the programs
- * asked that gave no answer, with the sockets tmux gave none for, so that
- * showing nowhere may mean only not knowing.
+ * What tells where windows show: what each multiplexer they run in read,
+ * `ps`'s snapshot, none where it gave no answer or none was needed, and what
+ * gave no answer, so that showing nowhere may mean only not knowing.
  */
 export type Screen = {
-  servers: Servers
-  apps: ReadonlyMap<number, App>
+  readings: readonly Reading[]
+  processes?: Processes
   unanswered: readonly string[]
-  unansweredSockets: ReadonlySet<string>
 }
 
-/**
- * Where a jump can bring a window forward: the terminal app, the device of
- * its window there, which only an app with no driver may lack, and the
- * select that makes that window show the pane first, where tmux must make one.
- */
-export type Place = { app: App; device?: string; select?: Select }
-
-/** Every process with its parent and command, one line each. */
-export const PS = ['ps', '-A', '-o', 'pid=,ppid=,comm=']
-
-/** `ps`'s line: the id and the parent's, right-aligned, then the command, spaces and all. */
-const PROCESS_LINE = /^\s*(\d+)\s+(\d+)\s+(.*)$/s
-
-/** `ps`'s snapshot as every process, by its id. */
-export const parseProcesses = (output: string): Processes =>
-  new Map(
-    output.split('\n').flatMap(line => {
-      const [, pid = '', parent = '', command = ''] = PROCESS_LINE.exec(line) ?? []
-
-      return command === ''
-        ? []
-        : [[Number.parseInt(pid, 10), { parent: Number.parseInt(parent, 10), command }] as const]
-    }),
-  )
+/** Whether a window runs in any multiplexer. */
+const isMultiplexed = (where: Where) => MULTIPLEXERS.some(each => each.isIn(where))
 
 /**
- * The terminal app a process runs in: its nearest ancestor that is one, as
- * far as the snapshot goes. A snapshot taken as processes come and go, their
- * ids reused, can loop, so each ancestor is looked at once.
+ * The readings of the multiplexer a window is innermost in: of those it
+ * runs in, the one whose own pty is its device; where none says so, each
+ * that cannot tell. A multiplexer run inside another passes its variables
+ * on (tmux started in zmx keeps `$ZMX_SESSION`, zmx started in tmux
+ * `$TMUX`), so the outer one's would name a session the window is not on.
  */
-const appAbove = (pid: number, processes: Processes) => {
-  const seen = new Set<number>()
+const innermostOf = (where: Where, readings: readonly Reading[]) => {
+  const inIt = readings.filter(reading => reading.isIn(where))
 
-  for (
-    let at = processes.get(pid)?.parent;
-    at !== undefined && !seen.has(at);
-    at = processes.get(at)?.parent
-  ) {
-    const process = processes.get(at)
-    const app = process === undefined ? undefined : appOfCommand(process.command)
-
-    if (app !== undefined) {
-      return app
-    }
-
-    seen.add(at)
+  if (inIt.length < 2) {
+    return inIt
   }
 
-  return undefined
+  const onIts = inIt.filter(reading => reading.isOnItsPty(where) === true)
+
+  return onIts.length > 0 ? onIts : inIt.filter(reading => reading.isOnItsPty(where) === undefined)
 }
 
-/** The terminal app of each of the servers' clients that is in one, by its process, each client's ancestry walked once. */
-export const clientApps = (servers: Servers, processes: Processes): ReadonlyMap<number, App> =>
-  new Map(
-    [...servers.values()]
-      .flatMap(server => server?.clients ?? [])
-      .flatMap(client => {
-        const app = appAbove(client.pid, processes)
+/**
+ * What gave no answer of the windows: what a multiplexer they run in asked,
+ * as tmux for a socket one runs under; and `ps`, where their clients are
+ * told only by it: a tmux server one runs under with clients, whose apps it
+ * tells, or a zmx session, whose clients it lists. A window in no
+ * multiplexer asks neither.
+ */
+const unansweredOf = (
+  windows: readonly Where[],
+  { readings, processes }: Omit<Screen, 'unanswered'>,
+) => {
+  const asked = windows.flatMap(where => readings.flatMap(reading => reading.unanswered(where)))
+  const isPsUnanswered =
+    processes === undefined &&
+    windows.some(where => readings.some(reading => reading.needsProcesses(where)))
 
-        return app === undefined ? [] : [[client.pid, app] as const]
-      }),
-  )
-
-/** The tmux sockets the windows run under, each once. */
-export const socketsOf = (windows: readonly Where[]) => [
-  ...new Set(windows.flatMap(where => (where.tmux === undefined ? [] : [where.tmux.socket]))),
-]
+  return [...new Set([...asked, ...(isPsUnanswered ? ['ps'] : [])])]
+}
 
 /**
- * What tells where the windows show: tmux asked twice for each socket they
- * run under, and `ps` once beside it, its snapshot used only when a server
- * has clients. Nothing that fails here fails the run: what gives no answer
- * shows nothing, and is named.
+ * What tells where the windows show: each multiplexer they run in read for
+ * them, and `ps` once beside, where any runs in one. Nothing that fails here
+ * fails the run: what gives no answer shows nothing, and is named.
  */
 export const readScreen = async (io: Io, windows: readonly Where[]): Promise<Screen> => {
-  const sockets = socketsOf(windows)
-  const [read, snapshot] = await Promise.all([
-    Promise.all(sockets.map(async socket => [socket, await readServer(io, socket)] as const)),
-    sockets.length === 0 ? undefined : look(io, PS),
-  ])
-  const servers = new Map(read.map(([socket, { server }]) => [socket, server]))
-  const hasClients = [...servers.values()].some(server => (server?.clients.length ?? 0) > 0)
-  const isSnapshot = snapshot?.exitCode === 0
-  const processes: Processes =
-    hasClients && isSnapshot ? parseProcesses(snapshot.stdout) : new Map()
-  const unansweredSockets = new Set(
-    read.flatMap(([socket, each]) => (each.isAnswered ? [] : [socket])),
-  )
+  const [readings, snapshot] = await Promise.all([
+    Promise.all(
+      MULTIPLEXERS.flatMap(multiplexer => {
+        const inIt = windows.filter(multiplexer.isIn)
 
-  return {
-    servers,
-    apps: clientApps(servers, processes),
-    unanswered: [
-      ...(unansweredSockets.size === 0 ? [] : ['tmux']),
-      ...(hasClients && !isSnapshot ? ['ps'] : []),
-    ],
-    unansweredSockets,
-  }
+        return inIt.length === 0 ? [] : [multiplexer.read(io, inIt)]
+      }),
+    ),
+    windows.some(isMultiplexed) ? look(io, PS) : undefined,
+  ])
+  const processes = snapshot?.exitCode === 0 ? parseProcesses(snapshot.stdout) : undefined
+
+  return { readings, processes, unanswered: unansweredOf(windows, { readings, processes }) }
 }
 
-/** A tmux client's device; undefined for one that is no tty, as a control-mode client's empty one. */
-const deviceOf = (client: Client) => (isDevice(client.device) ? client.device : undefined)
-
-/** Whether a window in the app can be reached on the device: a driver needs one to find the window; an app with no driver is brought forward whole, so needs none. */
-const isReachable = (app: App, device: string | undefined) => device !== undefined || !isDriver(app)
-
 /**
- * Where one window can be brought forward: in tmux, the clients in a
- * terminal app that show its pane, or could be made to; outside it, its own
- * device, in the app its `$TERM_PROGRAM` names. A client's device counts
- * only as a tty: tmux gives a control-mode client none (`tmux -C` over
- * pipes), and it is no window a driver could find, so it neither shows the
- * pane nor stops a select making another client show it.
+ * Where one window can be brought forward: in a multiplexer, the places the
+ * innermost it runs in finds for its clients; outside any, its own device,
+ * in the app its `$TERM_PROGRAM` names.
  */
-const placesOf = (where: Where, { servers, apps }: Screen): Place[] => {
-  if (where.tmux === undefined) {
-    const app = appOfProgram(where.terminal)
-
-    return app === undefined || !isReachable(app, where.device)
-      ? []
-      : [{ app, device: where.device }]
+const placesOf = (where: Where, { readings, processes = new Map() }: Screen): Place[] => {
+  if (isMultiplexed(where)) {
+    return innermostOf(where, readings).flatMap(reading => reading.places(where, processes))
   }
 
-  const { socket, pane } = where.tmux
-  const server = servers.get(socket)
+  const app = appOfProgram(where.terminal)
 
-  if (server === undefined) {
-    return []
-  }
-
-  const inApps = server.clients.flatMap(client => {
-    const app = apps.get(client.pid)
-
-    return app === undefined || !isReachable(app, deviceOf(client)) ? [] : [{ ...client, app }]
-  })
-
-  return showingPane(socket, server, pane, inApps).map(({ client, select }) => ({
-    app: client.app,
-    device: deviceOf(client),
-    select,
-  }))
+  return app === undefined || !isReachable(app, where.device) ? [] : [{ app, device: where.device }]
 }
 
 /** What tells places apart: the device, else, for an app with no driver, the app. */
@@ -203,22 +128,6 @@ export type Reach =
   | { is: 'on screen'; places: Place[] }
   | { is: 'off screen' }
   | { is: 'unknown'; unanswered: readonly string[] }
-
-/**
- * What gave no answer of the windows: tmux, for a socket one runs under;
- * `ps`, where a server one runs under has clients, whose apps it tells. A
- * window outside tmux asks neither.
- */
-const unansweredOf = (windows: readonly Where[], screen: Screen) => {
-  const sockets = socketsOf(windows)
-  const isTmux = sockets.some(socket => screen.unansweredSockets.has(socket))
-  const hasClients = sockets.some(socket => (screen.servers.get(socket)?.clients.length ?? 0) > 0)
-
-  return [
-    ...(isTmux ? ['tmux'] : []),
-    ...(hasClients && screen.unanswered.includes('ps') ? ['ps'] : []),
-  ]
-}
 
 /** Whether a jump can reach the windows, as the screen tells it. */
 export const reachOf = (windows: readonly Where[], screen: Screen): Reach => {
@@ -280,8 +189,8 @@ export const windowsOf = (session: Session, now: number): Where[] =>
 /**
  * A session a live window holds, whether a jump could reach it, and the
  * terminal app showing it, the first place a jump would bring forward: in
- * tmux the app its client descends from, which `$TERM_PROGRAM`, `tmux`
- * there, cannot tell. None where it is not on screen.
+ * a multiplexer the app its client descends from, which `$TERM_PROGRAM`,
+ * `tmux` in tmux, cannot tell. None where it is not on screen.
  */
 export type Shown = { session: Session; is: Reach['is']; app?: string }
 
@@ -290,9 +199,9 @@ export type OnScreen = { shown: Shown[]; unanswered: readonly string[] }
 
 /**
  * Whether a jump could reach each session a live window holds, as it stands
- * at `now`: the screen read once for every such window, so each socket is
- * asked once however many sessions run under it. A session no window holds
- * is away, and left out.
+ * at `now`: the screen read once for every such window, so each tmux
+ * socket is asked once however many sessions run under it, and `ps` once.
+ * A session no window holds is away, and left out.
  */
 export const readOnScreen = async (
   io: Io,

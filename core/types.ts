@@ -291,7 +291,7 @@ export type Finished = {
   reason?: string
 }
 
-/** Where a window is: the terminal device Claude Code is on, the terminal program, and its tmux pane when it runs in tmux. */
+/** Where a window is: the terminal device Claude Code is on, the terminal program, its tmux pane when it runs in tmux, and its zmx session when it runs in zmx. */
 export type Where = {
   /** `/dev/ttys043` */
   device?: string
@@ -299,6 +299,8 @@ export type Where = {
   terminal?: string
   /** The tmux server's socket (`/private/tmp/tmux-501/default`) and the pane (`%148`). */
   tmux?: { socket: string; pane: string }
+  /** The zmx session's name, `$ZMX_SESSION` as given: `sitrep-iFpz7T`, `kit · restore-card`. */
+  zmx?: { session: string }
 }
 
 /** A tool as a row shows it: its name, and what it acts on (a file's path, Bash's command), where the tool has one. */

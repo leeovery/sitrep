@@ -341,6 +341,7 @@ const whereJson = (where: Where | undefined) =>
         terminal: where.terminal ?? null,
         tmux:
           where.tmux === undefined ? null : { socket: where.tmux.socket, pane: where.tmux.pane },
+        zmx: where.zmx === undefined ? null : { session: where.zmx.session },
       }
 
 const stateJson = (state: WindowState | undefined) =>

@@ -2,9 +2,11 @@
  * A terminal app, as a jump brings its windows forward: one with a driver of
  * its own, which finds the window on a device and brings that window
  * forward, or one with none, brought forward as an app. A driver recognises
- * its windows: outside tmux by the `$TERM_PROGRAM` they give, in the
- * heartbeat's `where`; under tmux by its program among the tmux client's
- * ancestors. The tmux layer under every app makes the window show the pane.
+ * its windows: outside a multiplexer by the `$TERM_PROGRAM` they give, in the
+ * heartbeat's `where`; under one by its program among the client's
+ * ancestors. Drivers are one axis, multiplexer adapters the other
+ * (`multiplexer.ts`), and every client goes between them by one step, its
+ * seat (`processes.ts`).
  */
 import type { Front } from './front'
 import type { Io } from './io'
@@ -40,9 +42,9 @@ export type Capability = 'tab' | 'split' | 'state'
 
 /** A terminal app with a driver of its own. */
 export type Driver = App & {
-  /** `$TERM_PROGRAM` in its windows outside tmux. */
+  /** `$TERM_PROGRAM` in its windows outside a multiplexer. */
   program: string
-  /** The last part of its program's path, as `ps` gives it, which a tmux client in one of its windows descends from. */
+  /** The last part of its program's path, as `ps` gives it, which a multiplexer's client in one of its windows descends from. */
   executable: string
   can: readonly Capability[]
 }

@@ -38,8 +38,8 @@ const deviceOf = async (host: Host) => {
 
 /**
  * Where this window is, once its device is found: neither it nor the tmux
- * environment changes for the life of Claude Code's process, and a reload of
- * the mod loads this module afresh.
+ * and zmx environment changes for the life of Claude Code's process, and a
+ * reload of the mod loads this module afresh.
  */
 let found: Where | undefined
 

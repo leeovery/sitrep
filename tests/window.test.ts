@@ -217,6 +217,19 @@ test('attaching in tmux records the device, the terminal and the pane in the hea
   expect(w.runs, 'the walk ran once, as the window attached').toEqual([['/bin/sh', '-c', TTY_WALK]])
 })
 
+test('attaching in zmx records the device, the terminal and the zmx session in the heartbeat', async ($, on) => {
+  const w = world($, on, {
+    env: { ZMX_SESSION: 'kit · restore-card', TERM_PROGRAM: 'ghostty' },
+  })
+  const { paths } = await w.begin()
+
+  expect(parsePresence(w.text(paths.heartbeat(W1)), W1)?.where).toEqual({
+    device: `/dev/${TTY}`,
+    terminal: 'ghostty',
+    zmx: { session: 'kit · restore-card' },
+  })
+})
+
 test("every heartbeat says the version the plugin's manifest gave as the mod loaded, though the manifest changes after", async ($, on) => {
   const w = world($, on)
 

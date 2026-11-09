@@ -92,6 +92,25 @@ test('outside tmux, or with $TMUX and no pane, there is no tmux', () => {
   expect(whereOf({ TMUX: ',30249,129', TMUX_PANE: '%148' })).toBeUndefined()
 })
 
+test('in zmx, the session is $ZMX_SESSION whole, its spaces and · kept, beside the device and the terminal; none when empty', () => {
+  expect(
+    whereOf({ ZMX_SESSION: 'kit · restore-card', TERM_PROGRAM: 'ghostty' }, '/dev/ttys087'),
+  ).toEqual({ device: '/dev/ttys087', terminal: 'ghostty', zmx: { session: 'kit · restore-card' } })
+  expect(whereOf({ ZMX_SESSION: '', TERM_PROGRAM: 'ghostty' })).toEqual({ terminal: 'ghostty' })
+})
+
+test('a zmx session reads back from the heartbeat; one with no name, or not a session, is dropped and the rest kept', () => {
+  const read = (where: unknown) => parsePresence(fileWith(where), W1)?.where
+  const IN_ZMX: Where = { device: '/dev/ttys087', terminal: 'ghostty', zmx: { session: 'kit' } }
+
+  expect(read(IN_ZMX)).toEqual(IN_ZMX)
+  expect(read({ ...IN_ZMX, zmx: { session: 'kit', pane: '%1' } })).toEqual(IN_ZMX)
+
+  for (const zmx of ['kit', { session: '' }, { session: 7 }, null]) {
+    expect(read({ ...IN_ZMX, zmx }), JSON.stringify(zmx)).toEqual({ ...IN_ZMX, zmx: undefined })
+  }
+})
+
 test('the terminal is $TERM_PROGRAM as given, and none without it', () => {
   expect(whereOf({ TERM_PROGRAM: 'iTerm.app' })).toEqual({ terminal: 'iTerm.app' })
   expect(whereOf({ TERM_PROGRAM: '' })).toBeUndefined()
