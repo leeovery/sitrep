@@ -6960,6 +6960,26 @@ open), and tmux passing an escape sequence through from Claude's own pane
        mostly Ghostty's own 200–300ms.
      - **A window attached within the last look** is not yet in the
        watch's line, so not tried.
+   - **Built in three PRs**, SitRep unchanged until the last: A1 moves the
+     order a jump tries a session's windows in into core, carried by the
+     watch's line; A2 reads on screen in Swift; A3 brings Ghostty's driver
+     by Apple Events, the front and the jump, and switches SitRep to them.
+     - **A2, built on 9 November 2026**: `SitRepScreen`, a library target
+       beside `SitRepCore` with a test target of its own, which nothing
+       calls yet. The kernel's table, the seat, apps by their program's
+       path, the tmux and zmx adapters, the innermost of two, and the
+       three states, each rule of the TypeScript tests pinned again. One
+       thing the plan missed: `proc_pidpath` cannot tell the program of a
+       process whose program was replaced on disk as it ran, an app
+       updated under it (ENOENT, live: Claude's and Mac Performance
+       Monitor's), so there the program is the path it was started by,
+       from its command line; a Ghostty updated while running would
+       otherwise have read every session off screen. The parity check, run
+       live the same day: 1,365 processes in both the kernel's table and
+       `ps`, each with the same parent and device; the same app for each of
+       the 266 the CLI found in one, and 3 more the CLI's reading of `ps`
+       missed, helpers whose command line starts with no path; and the same
+       places for each of 12 zmx sessions, all through Portal's relay.
 
    **B. `sitrep jump` and `sitrep screen` retired** from the CLI once
    SitRep calls neither: `screen` has had no caller since the SitRep window
