@@ -3310,7 +3310,10 @@ October 2026 went back to `brew upgrade` while the repository is private.
   quit it, so the new app's start refreshes its copy of the plugin
   straight away (see "After an update"), and the two never part. A first
   install and `brew reinstall --cask sitrep` leave SitRep stopped: open
-  it, or run `app/open`, after. From 28 October 2026 the cask's
+  it, or run `app/open`, after. Proven live on 9 November 2026, 0.3.0 to
+  0.4.0: brew quit SitRep, swapped the bundle, and printed "Reopening 1
+  application closed during upgrade", and SitRep came back on its own,
+  with no warning. From 28 October 2026 the cask's
   `postflight` opened `/Applications/SitRep.app` after every install and
   upgrade, tried three times a second apart, since an `open` straight
   after a bundle is moved in once failed with LaunchServices error -600
@@ -5325,7 +5328,11 @@ shape allows them. A jump made in Swift, in the app, stays parked too.
    through. A zmx session is one terminal, shown whole by each client:
    there is no window or pane to select, and a session is on screen where a
    client of it is in a terminal app with a place. `ps` giving no answer
-   leaves it unknown, never off, as only `ps` tells its clients.
+   leaves it unknown, never off, as only `ps` tells its clients. Proven
+   live on 9 November 2026 with SitRep's build of #104: once the window had
+   reloaded the plugin, so that it recorded its zmx session, Lee's notch
+   jump to it from another Space, through Portal's relay, landed on the
+   window, and his typing went in.
    - **Clients not found, accepted.** A client attached by another form,
      `zmx a <session>`, `zmx attach --labels … <session>`, or `zmx attach
      <session> <command>` from a terminal, is not found: Portal attaches
