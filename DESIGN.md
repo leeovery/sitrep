@@ -2355,6 +2355,63 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   when it closes (see "The band"); a pane an older load saved, without any
   of these, reads as none. `$.store` is unused so far.
 
+## The structure
+
+Settled with Lee on 9 November 2026, from first principles, as Lee asked
+where the logic would live were SitRep designed afresh. Three lines open
+it:
+
+- **The board lives with Claude Code, and never depends on SitRep
+  running.** Quit SitRep and every window's pane, its band and Claude's
+  tools go on working; an upgrade quits SitRep, and so do a restart and a
+  crash.
+- **SitRep is a window onto the board, and does the Mac's own work.** The
+  notch, the strip, the menu bar item and the banners show the board;
+  finding a session's window and bringing it forward are the Mac's.
+- **The plugin ships inside SitRep.** Installing it alone is possible, but
+  not supported (27 October 2026; see "Where it lives").
+
+Then where each part lives:
+
+- **The board's rules live once, in core**, in TypeScript, shared by the
+  mod, which must be TypeScript, as Claude Code runs it, and the CLI.
+- **Files are the store**, the folder the truth, with no server (see
+  "Storage").
+- **SitRep reads the board through `sitrep watch`, and never repeats a
+  board rule**: what a row says, what needs Lee, what is new, and which of a
+  session's windows a jump tries first come worked out by core.
+- **The Mac's own work belongs in SitRep, in Swift**: finding where a
+  session's window shows, the jump, whether a session is on screen, opening
+  a window, and Spaces. It sits behind two interfaces, the two axes the jump
+  already has (see "The jump"):
+  - **terminal drivers**: focus the window on a device; open a new window
+    running a command;
+  - **multiplexer adapters**: list a session's clients; give the command
+    that attaches to it.
+- **The mod still records where its window is**, in its heartbeat's
+  `where`: only it sees its environment, its device, `$TMUX_PANE` and
+  `$ZMX_SESSION`.
+
+**The drift it corrects.** "The app holds no sitrep logic" (13 October
+2026) was there to keep the board's rules out of the app, and swept the
+Mac's own work into the CLI with them: the jump was built in TypeScript,
+asking `ps`, osascript and lsappinfo for what the app can ask macOS itself.
+The rule now reads "no board logic" (see "The menu bar"), and stage 7 moves
+the Mac's work into SitRep (see "Stages", under "The menu bar"). The CLI
+stops being a product of its own, as the plugin alone is not one, and
+becomes SitRep's bridge to core: `watch`, and the snoozes and wakes the
+card's row menu writes.
+
+**Considered and set aside:**
+- **Everything in Swift**, the mod calling SitRep for the board: every
+  window would stall whenever SitRep is down, as an upgrade quits it.
+- **A central engine**, one process every surface talks to: a server to
+  start, keep and restart, where files already share the state.
+- **Core run inside SitRep on JavaScriptCore**, and the Bun CLI dropped.
+  The purest form: the board's rules still written once, in TypeScript, and
+  no Bun in SitRep. Now the named later destination, since the CLI is only
+  SitRep's bridge; not planned now.
+
 ## One engine, two front ends
 
 The shape stays, decided again with Lee on 16 October 2026, when Lee
@@ -3651,17 +3708,25 @@ that takes Lee to the window a session is in.
   as it launches, perhaps before macOS's activation lands, so the helper
   not yet active hides as it next becomes active, within a second, and
   an activation later than that, of its own, is never hidden. A session no
-  window shows offers no jump: the app never opens a window (until stage 6).
-- **The app holds no sitrep logic.** It runs one `sitrep watch` as its
-  child, which tells it the board as it changes, and each jump is a one-off
-  call to the CLI (see "One engine, two front ends"). First written (13
-  October 2026) as the app watching the state folder and asking the CLI
-  for the board; changed on 16 October 2026 so that presence expiry and
-  what is new, which decides the notch's swell, are worked out in core, not
-  in the app. Once a remote surface exists, the app also hosts serving.
+  window shows offers no jump: the app never opens a window (until stage 7,
+  step C).
+- **The app holds no board logic** (9 November 2026; see "The structure").
+  It runs one `sitrep watch` as its child, which tells it the board as it
+  changes (see "One engine, two front ends"), and repeats none of the
+  board's rules. Each jump is a one-off call to the CLI until stage 7
+  moves the jump into the app, as the Mac's own work is the app's. Written
+  on 13 October 2026 as "the app holds no sitrep logic", which kept the
+  board's rules out of the app and swept the Mac's own work into the CLI
+  with them; corrected on 9 November 2026. First written as the app
+  watching the state folder and asking the CLI for the board; changed on
+  16 October 2026 so that presence expiry and what is new, which decides
+  the notch's swell, are worked out in core, not in the app. Once a remote
+  surface exists, the app also hosts serving.
 - **tmux, zmx and Ghostty stay at the edge.** Only the jump knows them;
-  core, the pane and the app never do, beyond a heartbeat's `where` naming
-  a tmux pane or a zmx session. Portal is not involved.
+  core and the pane never do, beyond a heartbeat's `where` naming a tmux
+  pane or a zmx session, and the app does once stage 7 moves the jump into
+  it, behind its drivers and adapters. Portal is not involved, but as the
+  command Lee may give for opening a window (stage 7, step C).
 
 ### The notch and its panel
 
@@ -5211,7 +5276,10 @@ tab's title or by OSC 7501. They are declared in the driver's shape and
 built for none: Ghostty's declares none yet. A terminal with no driver still
 has its sessions shown, and a click on one brings that terminal app forward
 (step 2). Other drivers, and Ghostty's tabs and splits, stay parked, and the
-shape allows them. A jump made in Swift, in the app, stays parked too.
+shape allows them. A jump made in Swift, in the app, was parked too, until
+Lee decided on 9 November 2026 that the jump and on screen move into SitRep
+(stage 7; see "The structure"): what follows is the jump as the CLI makes
+it, the spec SitRep's is built to.
 
 1. Each Claude window records, in its heartbeat, the terminal device it is
    on, the terminal program (`$TERM_PROGRAM`), its tmux socket and pane
@@ -5378,7 +5446,7 @@ shape allows them. A jump made in Swift, in the app, stays parked too.
    @1`, exiting 1. The phone showing the pane does not stop a select: it is
    no client a jump can reach. A pane whose window no reachable client's
    session holds has nothing selected, and is off screen: opening a window
-   for it is stage 6.
+   for it is stage 7, step C.
 
    The select runs only in a jump, after tmux, `ps` and the front are read
    and before the place's app is asked anything, within the 2 seconds
@@ -6794,7 +6862,240 @@ open), and tmux passing an escape sequence through from Claude's own pane
    swells and lights for a stop as for a new ask.
 6. **Opening what isn't on screen**: a new Ghostty window attached to a
    tmux session running with no window, as `code-OQWkFt · sitrep` and
-   `portal-rex` were on 13 October.
+   `portal-rex` were on 13 October. Folded into stage 7 as its step C (9
+   November 2026), for zmx as for tmux, the command that attaches a
+   setting.
+7. **The Mac's work moves into SitRep**, planned with Lee on 9 November
+   2026 (see "The structure"): the jump and on screen first, at parity with
+   the CLI's; then the CLI's retired; then a window opened for a session no
+   terminal shows; then a Space chosen to open it on. Each step is a PR of
+   its own, leaving SitRep working, with DESIGN brought up to date in it.
+
+   **A. The jump and on screen in SitRep**, at parity with the CLI's (see
+   "The jump"): the tmux and zmx adapters, the innermost of two, the seat,
+   Ghostty's driver by tty, a tab not selected activated with its half
+   second's pause, the front kept, an app with no driver brought forward
+   whole, the order places are tried in and a place that fails giving way,
+   unknown never taken for off, and the refusals in the same plain words.
+   The latest click still wins (`OneJump`), and the caption and banners
+   say what they say now.
+   - **Decided:**
+     - **Apple Events sent from Swift**, not through osascript. The leave to
+       control Ghostty is SitRep's already, though the CLI's osascript asks
+       (stage 3, step 1), so nothing new is asked. Ghostty is found running
+       by `NSRunningApplication`, not by asking it.
+     - **Processes from the kernel**, not `ps`: one `sysctl`
+       (`KERN_PROC_ALL`) gives every process's parent and terminal device,
+       `proc_pidpath` a process's program, exactly, and its command line
+       (`KERN_PROCARGS2`) is read only where it is needed, a zmx client's.
+       The program read from `ps`'s command line up to its first option or
+       path goes, and so do its known misreadings, and the UTF-8 character
+       type the CLI gives `ps`. This absorbs the parked "skip `ps`": the
+       seat still walks the ancestry, from the kernel's table.
+     - **The front heard, not polled**: the app in front as the jump begins
+       is NSWorkspace's `frontmostApplication`, and the hand-back is heard
+       as `didActivateApplicationNotification` within the same second, in
+       place of lsappinfo every 50ms. Ghostty is brought forward again
+       through LaunchServices (`NSWorkspace.openApplication`), as `open -b`
+       brings it now, with no Apple Event; so is an app with no driver, once
+       `NSRunningApplication` finds it running, never launched.
+     - **tmux is still asked through its program**, `tmux -u` as now, 2
+       seconds a run, and so is the select.
+     - **Which window first stays core's**, as SitRep repeats no board
+       rule: the order a jump tries a session's windows in
+       (`windowsOf`, today the CLI's) moves into core, and `watch` carries
+       it, so SitRep never ranks windows itself. SitRep
+       jumps from the watch's last line, at most a look old, where the CLI
+       read the board as it started.
+     - **The limits carry over**: 2 seconds for each tmux run, 5 for each
+       Apple Event, 15 for the whole jump. osascript's 8 seconds go with
+       osascript, and exit 3 with the CLI's jump.
+     - **On screen** is read in Swift as the jump reads it, its three states
+       as `sitrep screen` gives them. Nothing shows it until step C: SitRep
+       has not run `screen` since its window went (5 November 2026).
+     - **Proposed:** the events built by hand (`NSAppleEventDescriptor`,
+       each sent with its 5-second timeout, off the main thread), not
+       `NSAppleScript`, which runs on the main thread, where a Ghostty not
+       answering would freeze every surface for its 5 seconds. A jump
+       stopped by a later click is cancelled between its steps; an event in
+       flight is not recalled, as now, and the next jump does not wait on
+       it, since Ghostty handles events in the order sent, so the later
+       click's focus lands last, which a test and a live run must prove.
+       The drivers, the adapters and the reading in a library target of
+       their own beside `SitRepCore`, with a test target of their own.
+   - **Tests:**
+     - **Today's TypeScript tests are the spec**: `tests/jump.test.ts`,
+       `tests/screen.test.ts` and `tests/onscreen.test.ts`, 113 between
+       them, each rule pinned again in Swift. They stay until step B.
+     - **Swift test doubles** for the process table, tmux, Ghostty, the
+       front and the clock, each a protocol the real one fills.
+     - **Fixtures small, or built in code**: a process tree made by a
+       builder (an app, its child on a tty, a relay, a client), never a long
+       literal. Big Swift literal fixtures crashed the compiler three times
+       (20 and 22 October and 4 November 2026).
+     - **Parity, live and read-only**: SitRep's reading beside `sitrep
+       screen --json` over Lee's own windows, every session the same state
+       and app; and the kernel's table beside `ps`'s snapshot, each
+       process's parent, device and app the same, as the command line was
+       checked against `comm` on 9 November 2026. Then jumps with Lee's go:
+       under zmx through Portal, to a tab not selected on another Space,
+       with Finder in front.
+   - **Settled with Lee** (9 November 2026): at A's merge SitRep switches
+     to its own jump outright, with no hidden setting to go back to the
+     CLI's; the last release is a `brew reinstall` away.
+   - **Risks:**
+     - **An older Ghostty's refusal** must be found again: osascript's
+       -2753 and -2741 were its words, and events built by hand fail
+       otherwise. This Mac runs Ghostty 1.4.0, so it is found as those were,
+       by sending the events to an app without the terms.
+     - **Bringing forward from SitRep**: macOS 14's cooperative activation
+       may treat an activation SitRep asks for unlike `open`'s, so the front
+       kept is proven live before it replaces `open`.
+     - **Another user's processes**: `login` runs as root, and its command
+       line cannot be read; the seat needs only its parent and its device,
+       which `KERN_PROC_ALL` gives for every process. The parity check
+       confirms it.
+     - **What a jump costs is measured, not assumed**: it loses Bun's
+       start, `ps` (60–120ms) and osascript's start (60–74ms), leaving
+       mostly Ghostty's own 200–300ms.
+     - **A window attached within the last look** is not yet in the
+       watch's line, so not tried.
+
+   **B. `sitrep jump` and `sitrep screen` retired** from the CLI once
+   SitRep calls neither: `screen` has had no caller since the SitRep window
+   went, and is kept only for A's parity check; `jump` once SitRep's own
+   has replaced it.
+   - **Decided:**
+     - **What goes**: `cli/jump.ts`, `screen.ts`, `processes.ts`,
+       `tmux.ts`, `zmx.ts`, `ghostty.ts`, `front.ts`, `apps.ts`,
+       `driver.ts`, `multiplexer.ts`, `look.ts` and `locale.ts`, the Bun
+       binding's runner of programs, and their tests; in SitRep,
+       `SitRepCLI.jump`, and `Stopping.gently`, which only the jump used.
+       The CLI then runs no program at all.
+     - **It absorbs the parked "let the CLI own the jump's safety"**, a
+       lock every caller of `sitrep jump` takes and no AppleScript left
+       running when a jump is killed: no CLI jump is left to lock, SitRep's
+       `OneJump` is the one caller's lock, and no osascript runs.
+     - **The mod is untouched**: it records `where` as now, and `watch`
+       still carries each window's.
+   - **Settled with Lee** (9 November 2026): nothing of his runs `sitrep
+     jump` from a shell or a script, so after B a jump comes only from
+     SitRep.
+   - **Risks:** few. The plugin and SitRep ship as one, so no SitRep runs a
+     CLI without the jump it needs.
+
+   **C. A window opened for a session no window shows**: one a live window
+   holds, alive in its multiplexer with no client in a terminal app, which
+   a jump refuses today as not on screen. Stage 6 is this step.
+   - **Decided:**
+     - **An attach command for each multiplexer, a setting**, filled from
+       what the window's heartbeat holds: `zmx attach {session}` and `tmux
+       -S {socket} attach -t {pane}` by default, `{socket}` reaching a tmux
+       server off its default socket. Lee's zmx one is `portal open -s
+       {session}`: SitRep knows no Portal, only the command it is given.
+       Each value goes in quoted for the shell, as zmx names hold spaces
+       and `·`.
+     - **The session named by what cannot change under it**: a zmx
+       session's name is fixed for its life (zmx renames nothing, and
+       Portal's `rename` sets a label of Portal's own, leaving the name), so
+       zmx's `{session}` is the window's `$ZMX_SESSION`. A tmux session can
+       be renamed, so a heartbeat names the pane (`$TMUX_PANE`, an id fixed
+       for the pane's life, which is Claude's), and tmux's default attaches
+       by it, which also puts Claude's window and pane in front. A command
+       of Lee's own that wants tmux's `{session}` gets the name of the
+       session holding the pane, asked of tmux as the window opens, so a
+       rename since is followed. That tmux attaches by a pane id is checked
+       against a real tmux before C merges, as this Mac has none.
+     - **The terminal driver opens a new window running it**: Ghostty's
+       `new window with configuration`, a surface configuration (`new
+       surface configuration`) whose `command` is the attach command.
+       Ghostty 1.4.0's dictionary also gives a configuration `initial
+       working directory`, `environment variables` and `wait after
+       command`, and `new window` answers with the window it made (checked
+       with `sdef`, 9 November 2026). Then Ghostty is kept in front as a
+       jump keeps it.
+     - **Offered only where on screen is off**: never unknown, never for a
+       window in no multiplexer, which has nothing to attach, and never on
+       an away row (below).
+     - **The parked "what a click on an away row opens"** (16 October 2026:
+       for Lee, a new Ghostty window attached to its tmux session, where
+       there is one) splits in two. A session a live window holds that no
+       terminal shows is no away row: its row is Working, Your turn or
+       Needs you, and C answers it. An away row's session has no live
+       window, so no Claude to attach to, and a multiplexer session its
+       last window ran in, where one still lives, holds a shell, not
+       Claude. C gives it the means, the driver's new window running a
+       command, but not the command, which would start a Claude carrying
+       the session on. That stays parked, and is asked below.
+     - **Proposed:** a window opens only into a Ghostty already running,
+       and is refused in plain words otherwise: `new window` launches
+       Ghostty, which opens a first window of its own as it starts.
+       Whether a session is on screen is read as the card or the menu
+       opens, where Open is offered, not at every look of `watch`.
+   - **Settled with Lee** (9 November 2026):
+     - **A click on a session no terminal shows opens its window at once**,
+       through the Space picker (D), where a jump is refused today; no Open
+       in a New Window beside Jump.
+     - **A new window**, not a tab in Ghostty's front window, so it can
+       open on the Space picked.
+     - **tmux's default gives the socket**, as above.
+     - **An away row stays parked**: a Claude started to carry its session
+       on is a feature of its own.
+   - **Risks:**
+     - **How Ghostty runs the command, and with which PATH**: through a
+       shell or directly, from launchd's PATH, which has no
+       `/opt/homebrew/bin`, so `zmx` or `portal` may not be found. SitRep
+       knows Lee's login PATH (`LoginPath`) and can hand it in through the
+       configuration's `environment variables`, or give the program by its
+       full path. Checked before building.
+     - **A command that fails closes its window at once**, unless `wait
+       after command` holds it, which would also hold it after a normal
+       detach. Which is better is found live.
+     - **"Switch to a Space with open windows"**, which the jump needs,
+       may take Lee to a Space holding Ghostty's other windows as Ghostty
+       is activated to open one. Checked live, with Lee's go, before
+       building.
+
+   **D. A Space picker** on opening.
+   - **Decided:**
+     - **SitRep lists the Spaces** through the window server's private
+       call (`CGSCopyManagedDisplaySpaces`), each display's in order, each
+       named by the projects whose windows are on it (`Desktop 3 · Orchard,
+       Lantern`).
+     - **Lee picks one; SitRep goes there, then opens the window**, as a
+       new window opens on the Space showing.
+     - **Going there**: the instant switch researched on 6 November 2026
+       (a synthetic Dock swipe; `~/Code/sitrep/.scratch/space-switch/README.md`
+       in Lee's clone), or Mission Control's "Switch to Desktop N"
+       shortcuts, pressed by SitRep. Either needs Accessibility, a leave
+       SitRep asks for only once Lee turns the picker on.
+     - **No new Space**: macOS gives no way to make one.
+     - **A setting**: ask which Space as a window opens, or open it on the
+       current Space, which needs no Accessibility.
+     - **Proposed:** full-screen Spaces left out of the list, as a window
+       cannot be opened into another app's.
+   - **Settled with Lee** (9 November 2026):
+     - **The setting asks by default**; the current Space is the other
+       choice.
+     - **The shortcuts' slide**, macOS's own, as the jump slides, once the
+       shortcuts are turned on in Keyboard settings, for Desktops 1 to 16.
+       Not the instant switch: a cut in about 156ms, but only on the display
+       under the pointer, through a private gesture an update can break.
+     - **A Space is named by the windows SitRep knows**: those it has
+       jumped to or opened, the front window after each. Ghostty's window
+       ids name its tab groups (`tab-group-…`, checked 9 November 2026), so
+       a session's window is matched to the window server's no other way
+       short of every window's title, which needs Screen Recording, a third
+       leave, not asked for.
+   - **Risks:**
+     - **Private calls** list the Spaces and say which Space a window is
+       on (`CGSCopySpacesForWindows`), and macOS may change them. They are
+       only read: setting the current Space from outside the Dock leaves
+       the Dock out of step (found 5 November 2026).
+     - **"Switch to Desktop N" with a Space per display**: whether N counts
+       across displays is to be checked.
+     - **The window landing on the Space chosen**: as in C, activating
+       Ghostty may go back to a Space with its other windows.
 
 ## Later
 
@@ -6803,7 +7104,9 @@ what they're for); a **tmux indicator** reading the shared folder; **Paper
 thumbnails** inline in Ghostty; a **shy notch**, pulling away as the
 cursor nears before giving up and pouring open (Lee, 16 October 2026); a
 "re:" tag on Lee's transcript rows that
-came from the board. Jumping to a session's window is now "The menu bar".
+came from the board; and **core run inside SitRep on JavaScriptCore**, the
+Bun CLI dropped, the named later destination (9 November 2026; see "The
+structure"). Jumping to a session's window is now "The menu bar".
 
 Dropped: a standalone toast plugin (Claude Code has one), and a line in the
 new-ask toast saying the band opens it: Lee knows it does, and on the phone
