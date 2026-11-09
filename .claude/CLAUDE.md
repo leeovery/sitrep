@@ -46,7 +46,7 @@ git leaves out; `.worktreeinclude` copies them into a worktree.
 ## The app
 
 `app/` is a Swift package, no Xcode project: the menu bar app, which runs
-the plugin's CLI for the board and the jump. `app/bundle <folder>` makes the
+the plugin's CLI for the board, and makes the jump itself. `app/bundle <folder>` makes the
 bundle, the plugin inside it, into a folder, signed with Lee's Developer ID
 from the keychain; `app/build` runs it, installs the bundle to
 `/Applications/SitRep.app` over the cask's copy and starts it, replacing the
