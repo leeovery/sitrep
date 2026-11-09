@@ -1,4 +1,5 @@
 import Foundation
+import os
 import SitRepCore
 
 /// SitRep's jump: finds where a session's windows show, and brings the first that answers to the front, on whatever
@@ -10,14 +11,15 @@ import SitRepCore
 /// one after another: a jump stopped, by a later click or its limit, ends between them, letting go of any step it
 /// cannot stop, an Apple Event in flight.
 public struct Jump: Sendable {
-    /// How long a whole jump may take, the wait for the watch's first line among it. One takes under a second as
+    /// How long a whole jump may take, the wait for a board and for Lee's PATH among it. One takes under a second as
     /// Ghostty answers, a little over to a tab not selected, for its half second's pause, and one Ghostty does not
     /// answer at all, as with the screen locked, is refused at its first question, after 5s. Past this the Mac is too
     /// busy for a jump to land while Lee still wants it (4 November 2026).
     public static let limit = Duration.seconds(15)
 
-    /// What a refusal names a session by that is not on the board, as one finished since a banner told of it.
-    static let unnamed = "The session"
+    /// Why a jump to a session not on the board, as one finished since a banner told of it, is refused: the CLI's
+    /// words for no such session, but for its id, which Lee never sees.
+    static let noSuchSession = "There is no such session on the board, in any project."
 
     let reader: ScreenReader
     let tmux: any TmuxProgram
@@ -36,8 +38,15 @@ public struct Jump: Sendable {
         self.clock = clock
     }
 
-    /// The jump on this Mac: tmux found on the PATH given, Lee's, and Ghostty asked by Apple Events.
-    public static func live(path: String) -> Jump {
+    /// The jump on this Mac, to the session's window: tmux found on Lee's PATH, which `path` gives, asked for once the
+    /// board is in hand, within the jump's limit; Ghostty asked by Apple Events.
+    public static func live(
+        to session: String, on board: some JumpBoardSource, path: @escaping @Sendable () async -> String
+    ) async -> JumpAnswer {
+        await run(to: session, on: board, clock: SystemClock()) { await live(path: path()) }
+    }
+
+    private static func live(path: String) -> Jump {
         let tmux = TmuxOnPath(path: path)
         let workspace = MacWorkspace()
         let clock = SystemClock()
@@ -49,34 +58,56 @@ public struct Jump: Sendable {
         )
     }
 
-    /// Jumps to the session's window, on the board `board` gives once it has one, within `limit`: stopped, as its task
-    /// is cancelled; unanswered at the limit.
-    public func run(to session: String, on board: @escaping @Sendable () async -> JumpBoard.Read) async -> JumpAnswer {
-        let answered = await answer(within: Self.limit, on: clock) {
-            await jump(to: session, on: board())
-        }
-
-        return answered ?? (Task.isCancelled ? .stopped : .unanswered)
+    /// Jumps to the session's window, on the board once there is one, within `limit`: stopped, as its task is
+    /// cancelled; refused in plain words where no board came in time; unanswered at the limit.
+    public func run(to session: String, on board: some JumpBoardSource) async -> JumpAnswer {
+        await Self.run(to: session, on: board, clock: clock) { self }
     }
 
-    private func jump(to session: String, on read: JumpBoard.Read) async -> JumpAnswer {
-        switch read {
-        case let .unread(why):
-            return .refused(why)
-        case let .board(board):
-            let name = board.name(of: session) ?? Self.unnamed
-
-            do {
-                return try await jump(to: board.jumpWindows(of: session)).answer(named: name)
-            } catch {
-                return .stopped
+    /// The board read, then the jump `made` gives made and run: each step within `limit`, and stopped with the task,
+    /// so a wait for the board or for what the jump is made with ends as a later click comes.
+    static func run(
+        to session: String, on board: some JumpBoardSource, clock: any JumpClock,
+        made: @escaping @Sendable () async -> Jump
+    ) async -> JumpAnswer {
+        let isBoardRead = OSAllocatedUnfairLock(initialState: false)
+        let answered = await answer(within: limit, on: clock) { () async -> JumpAnswer in
+            switch await board.current() {
+            case let .unread(why):
+                return .refused(why)
+            case let .board(read):
+                isBoardRead.withLock { $0 = true }
+                return await made().jump(to: session, on: read)
             }
+        }
+
+        if let answered {
+            return answered
+        }
+        if Task.isCancelled {
+            return .stopped
+        }
+        return isBoardRead.withLock { $0 } ? .unanswered : .refused(await board.missing())
+    }
+
+    /// The jump to the session's windows on the board, a refusal naming it as the board does.
+    private func jump(to session: String, on board: Board) async -> JumpAnswer {
+        guard let name = board.name(of: session) else {
+            return .refused(Self.noSuchSession)
+        }
+
+        do {
+            return try await jump(to: board.jumpWindows(of: session)).answer(named: name)
+        } catch {
+            return .stopped
         }
     }
 
     /// Brings the first of the windows a jump can reach to the front. Which app is in front is read beside the screen,
     /// and settled before any select or focus, so it is never an app brought forward by the jump itself.
     func jump(to windows: [Board.Window.Where]) async throws -> Jumped {
+        try Task.checkCancellation()
+
         async let before = workspace.frontmost()
         let screen = await reader.read(windows)
         let front = await before
@@ -128,8 +159,8 @@ public struct Jump: Sendable {
                 selected = made
             } else {
                 selected = await select(wanted)
+                selects[wanted] = selected
             }
-            selects[wanted] = selected
 
             guard case .done = selected else {
                 return .unselected(said: selected.said)
@@ -214,17 +245,17 @@ enum Jumped: Equatable {
     /// Why no place brought the window forward: what stopped the first, the one most wanted; where its window did not
     /// answer, every place whose window did not.
     init(_ missed: [Missed]) {
-        let unanswered = missed.compactMap { each in
-            if case let .unanswered(place) = each { place } else { nil }
-        }
-        var named: Set<String> = []
-
         switch missed.first {
         case let .failed(words)?:
             self = .failed(words)
         case let .unselected(said)?:
             self = .unselected(said: said)
         case .unanswered?:
+            let unanswered = missed.compactMap { each in
+                if case let .unanswered(place) = each { place } else { nil }
+            }
+            var named: Set<String> = []
+
             self = .unanswered(
                 devices: unanswered.compactMap(\.device),
                 apps: unanswered.map(\.app.name).filter { named.insert($0).inserted }

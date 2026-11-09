@@ -6,15 +6,20 @@ import os
 import Testing
 
 /// A descriptor in words, as AEDebug prints it but shorter: a specifier or a test by its fields, a list by its items,
-/// a code as its four characters, text quoted.
+/// a code as its four characters, text quoted. Its whole data is read, the length before the value: a code not four
+/// bytes long, or a null or the examined object carrying any, AppleScript never sends, so it is rendered by its type
+/// and length alone, matching no expectation.
 func rendered(_ descriptor: NSAppleEventDescriptor?) -> String {
     guard let descriptor else {
         return "none"
     }
 
     let field = { (key: String) in rendered(descriptor.forKeyword(code(key))) }
+    let type = descriptor.descriptorType
+    let length = descriptor.data.count
+    let unlike = "\(fourCharacters(type))(\(length) bytes)"
 
-    switch descriptor.descriptorType {
+    switch type {
     case typeObjectSpecifier:
         return "obj{want:\(field("want")),from:\(field("from")),form:\(field("form")),seld:\(field("seld"))}"
     case typeCompDescriptor:
@@ -22,15 +27,19 @@ func rendered(_ descriptor: NSAppleEventDescriptor?) -> String {
     case typeAEList:
         return "[" + (0..<descriptor.numberOfItems).map { rendered(descriptor.atIndex($0 + 1)) }.joined(separator: ",") + "]"
     case typeNull:
-        return "null"
+        return length == 0 ? "null" : unlike
     case typeObjectBeingExamined:
-        return "exmn"
+        return length == 0 ? "exmn" : unlike
     case typeUnicodeText:
         return "\"\(descriptor.stringValue ?? "")\""
     case typeType, typeEnumerated, typeAbsoluteOrdinal:
+        guard length == MemoryLayout<FourCharCode>.size else {
+            return unlike
+        }
+
         return "'\(fourCharacters(descriptor.data.withUnsafeBytes { $0.loadUnaligned(as: FourCharCode.self) }))'"
     default:
-        return "\(fourCharacters(descriptor.descriptorType))(\(descriptor.stringValue ?? ""))"
+        return "\(fourCharacters(type))(\(descriptor.stringValue ?? ""))"
     }
 }
 
@@ -70,11 +79,11 @@ func named(_ type: String, _ id: String) -> NSAppleEventDescriptor {
 }
 
 /// Ghostty's side of the events: each event sent kept, in words, with its time limit and the process it went to; each
-/// answered in turn, a reply made as it is sent, or an error thrown.
+/// answered in turn, as made when it is sent.
 final class Answering: Sendable {
-    typealias Answer = @Sendable () throws -> NSAppleEventDescriptor
+    typealias Answer = @Sendable () -> GhosttyEvents.Sent
 
-    struct Sent: Equatable {
+    struct Asked: Equatable {
         let event: String
         let direct: String
         let seconds: TimeInterval
@@ -82,42 +91,48 @@ final class Answering: Sendable {
     }
 
     private let answers: [Answer]
-    private let state = OSAllocatedUnfairLock(initialState: [Sent]())
+    private let state = OSAllocatedUnfairLock(initialState: [Asked]())
 
-    init(_ answers: [Answer]) {
+    init(sending answers: [Answer]) {
         self.answers = answers
     }
 
-    var sent: [Sent] { state.withLock { $0 } }
+    /// Ghostty replying to each in turn, every send going through.
+    convenience init(_ replies: [@Sendable () -> NSAppleEventDescriptor]) {
+        self.init(sending: replies.map { reply in { GhosttyEvents.Sent(status: 0, reply: reply()) } })
+    }
+
+    var asked: [Asked] { state.withLock { $0 } }
 
     /// The events, sent to process 501.
     var events: GhosttyEvents {
-        GhosttyEvents(ghostty: { 501 }) { [self] event, seconds in try send(event, seconds) }
+        GhosttyEvents(ghostty: { 501 }) { [self] event, seconds in send(event, seconds) }
     }
 
-    private func send(_ event: NSAppleEventDescriptor, _ seconds: TimeInterval) throws -> NSAppleEventDescriptor {
+    private func send(_ event: NSAppleEventDescriptor, _ seconds: TimeInterval) -> GhosttyEvents.Sent {
         let pid = event.attributeDescriptor(forKeyword: keyAddressAttr)?.data.withUnsafeBytes { $0.loadUnaligned(as: pid_t.self) }
-        let sent = Sent(
+        let asked = Asked(
             event: fourCharacters(event.eventClass) + fourCharacters(event.eventID),
             direct: rendered(event.paramDescriptor(forKeyword: keyDirectObject)), seconds: seconds, pid: pid ?? 0
         )
         let index = state.withLock { state in
-            state.append(sent)
+            state.append(asked)
             return state.count - 1
         }
 
-        return try answers[min(index, answers.count - 1)]()
+        return answers[min(index, answers.count - 1)]()
     }
 }
 
-/// An error a send throws, by its number, as `sendEvent` throws one.
-func thrown(_ number: Int) -> Answering.Answer {
-    { throw NSError(domain: NSOSStatusErrorDomain, code: number) }
+/// A send the Apple Event Manager failed, by its error's number, as at the event's time limit or with the leave to
+/// control Ghostty refused: its reply empty, or, where Ghostty's handler gave the error, saying it with Ghostty's words.
+func unsent(_ number: Int, said: String? = nil) -> Answering.Answer {
+    { GhosttyEvents.Sent(status: number, reply: said.map { reply(error: Int32(number), said: $0) } ?? reply()) }
 }
 
-/// A reply that says an error, by its number, with any words, as a handler's failing gives one.
+/// A send that went through, its reply saying an error, by its number, with any words, as a handler's failing gives one.
 func replied(_ number: Int32, said: String? = nil) -> Answering.Answer {
-    { reply(error: number, said: said) }
+    { GhosttyEvents.Sent(status: 0, reply: reply(error: number, said: said)) }
 }
 
 /// Ghostty's events built by hand as AppleScript builds the CLI's program, each to the Ghostty running, within five
@@ -136,7 +151,7 @@ struct GhosttyEventsTests {
         let answering = Answering([{ reply(list([Self.terminal])) }])
 
         #expect(try await answering.events.terminal(on: Self.device) != nil)
-        #expect(answering.sent == [Answering.Sent(
+        #expect(answering.asked == [Answering.Asked(
             event: "coregetd",
             direct: "obj{want:'Gtrm',from:null,form:'test',seld:cmpd{relo:'=   ',obj1:obj{want:'prop',from:exmn,form:'prop',seld:'Gtty'},obj2:\"\(Self.device)\"}}",
             seconds: 5, pid: 501
@@ -149,8 +164,8 @@ struct GhosttyEventsTests {
 
         _ = try await answering.events.isTabSelected(holding: Self.device)
 
-        #expect(answering.sent.map(\.event) == ["coregetd"])
-        #expect(answering.sent.first?.direct == "obj{want:'prop',from:obj{want:'Gtab',from:obj{want:'Gwnd',from:null,form:'test',seld:\(Self.holding)},form:'test',seld:\(Self.holding)},form:'prop',seld:'GTsl'}")
+        #expect(answering.asked.map(\.event) == ["coregetd"])
+        #expect(answering.asked.first?.direct == "obj{want:'prop',from:obj{want:'Gtab',from:obj{want:'Gwnd',from:null,form:'test',seld:\(Self.holding)},form:'test',seld:\(Self.holding)},form:'prop',seld:'GTsl'}")
     }
 
     @Test func onlyATabAnsweredFalseInAListOfOneWindowsOneTabIsNotSelectedATerminalInNoWindowIsFocusedAsSelected() async throws {
@@ -173,8 +188,8 @@ struct GhosttyEventsTests {
 
         try await answering.events.focus(found)
 
-        #expect(answering.sent.map(\.event) == ["coregetd", "GhstFcus"])
-        #expect(answering.sent.last?.direct == "obj{want:'Gtrm',from:null,form:'ID  ',seld:\"T1\"}")
+        #expect(answering.asked.map(\.event) == ["coregetd", "GhstFcus"])
+        #expect(answering.asked.last?.direct == "obj{want:'Gtrm',from:null,form:'ID  ',seld:\"T1\"}")
     }
 
     @Test func aWindowIsActivatedAsGhosttyNamesTheWindowHoldingTheTerminalByActivateWindow() async throws {
@@ -182,9 +197,9 @@ struct GhosttyEventsTests {
 
         try await answering.events.activateWindow(holding: Self.device)
 
-        #expect(answering.sent.map(\.event) == ["coregetd", "GhstAcWn"])
-        #expect(answering.sent.first?.direct == "obj{want:'Gwnd',from:null,form:'test',seld:\(Self.holding)}")
-        #expect(answering.sent.last?.direct == "obj{want:'Gwnd',from:null,form:'ID  ',seld:\"tab-group-1\"}")
+        #expect(answering.asked.map(\.event) == ["coregetd", "GhstAcWn"])
+        #expect(answering.asked.first?.direct == "obj{want:'Gwnd',from:null,form:'test',seld:\(Self.holding)}")
+        #expect(answering.asked.last?.direct == "obj{want:'Gwnd',from:null,form:'ID  ',seld:\"tab-group-1\"}")
     }
 
     @Test func noWindowHoldingTheTerminalAsOneClosedSinceItWasFoundFailsAsAppleScriptFailsToFindTheFirstOfNothing() async {
@@ -197,7 +212,7 @@ struct GhosttyEventsTests {
         let sent = OSAllocatedUnfairLock(initialState: 0)
         let events = GhosttyEvents(ghostty: { nil }) { _, _ in
             sent.withLock { $0 += 1 }
-            return reply()
+            return GhosttyEvents.Sent(status: 0, reply: reply())
         }
 
         #expect(try await events.terminal(on: Self.device) == nil)
@@ -211,46 +226,53 @@ struct GhosttyEventsTests {
     }
 
     /// The errors a lookup, the first event, which names the terms a Ghostty before 1.4 lacks, is read as: too old
-    /// where it does not know the event (-1708) or a term in it (-1728); not answering in time (-1712); else its error.
+    /// where it does not know the event (-1708) or a term in it (-1728); not answering in time (-1712); else its error,
+    /// with the words Ghostty's reply gave, whether the send failed by it or went through saying it.
     @Test(arguments: [
-        (thrown(-1712), GhosttyFailure.noAnswer),
-        (thrown(-1743), .gave(-1743, said: nil)),
-        (thrown(-1708), .tooOld),
-        (thrown(-1728), .tooOld),
+        (unsent(-1712), GhosttyFailure.noAnswer),
+        (unsent(-1743), .gave(-1743, said: nil)),
+        (unsent(-1708), .tooOld),
+        (unsent(-1728), .tooOld),
+        (unsent(-10000, said: "AppleEvent handler failed."), .gave(-10000, said: "AppleEvent handler failed.")),
         (replied(-1728, said: "Can’t get every terminal whose tty = \"/dev/ttys041\"."), .tooOld),
         (replied(-1708), .tooOld),
         (replied(-10000, said: "AppleEvent handler failed."), .gave(-10000, said: "AppleEvent handler failed.")),
     ] as [(Answering.Answer, GhosttyFailure)])
     func aLookupsErrorsAreReadInPlainWords(answer: @escaping Answering.Answer, failure: GhosttyFailure) async {
         await #expect(throws: failure) {
-            try await Answering([answer]).events.terminal(on: Self.device)
+            try await Answering(sending: [answer]).events.terminal(on: Self.device)
         }
     }
 
-    /// A later event's no such object is a terminal gone since it was found, not a Ghostty too old.
-    @Test func onlyTheLookupsUnknownTermsReadAsTooOldAFocusFailingSoIsItsError() async throws {
-        let answering = Answering([{ reply(list([Self.terminal])) }, { reply(error: -1728, said: "Can’t get terminal id \"T1\".") }])
-        let found = try #require(try await answering.events.terminal(on: Self.device))
+    /// A later event's no such object is a terminal gone since it was found, not a Ghostty too old; its error keeps
+    /// Ghostty's words, however the send told it.
+    @Test func onlyTheLookupsUnknownTermsReadAsTooOldAFocusFailingSoIsItsErrorInGhosttysWords() async throws {
+        let gone = "Can’t get terminal id \"T1\"."
+        let found = try #require(try await Answering([{ reply(list([Self.terminal])) }]).events.terminal(on: Self.device))
 
-        await #expect(throws: GhosttyFailure.gave(-1728, said: "Can’t get terminal id \"T1\".")) {
-            try await answering.events.focus(found)
+        for failing in [replied(-1728, said: gone), unsent(-1728, said: gone)] {
+            await #expect(throws: GhosttyFailure.gave(-1728, said: gone)) {
+                try await Answering(sending: [failing]).events.focus(found)
+            }
         }
         await #expect(throws: GhosttyFailure.noAnswer) {
-            try await Answering([thrown(-1712)]).events.focus(found)
+            try await Answering(sending: [unsent(-1712)]).events.focus(found)
         }
     }
 
     @Test func aJumpStoppedLetsGoOfAnEventInFlightWhichRunsOnItsAnswerDropped() async {
+        let (entered, enter) = AsyncStream.makeStream(of: Void.self)
         let release = DispatchSemaphore(value: 0)
         let answered = OSAllocatedUnfairLock(initialState: false)
         let events = GhosttyEvents(ghostty: { 501 }) { _, _ in
+            enter.yield()
             release.wait()
             answered.withLock { $0 = true }
-            return reply(list([named("Gtrm", "T1")]))
+            return GhosttyEvents.Sent(status: 0, reply: reply(list([named("Gtrm", "T1")])))
         }
         let asking = Task { try await events.terminal(on: Self.device) }
 
-        try? await Task.sleep(for: .milliseconds(50))
+        _ = await entered.first { _ in true }
         asking.cancel()
 
         await #expect(throws: CancellationError.self) { try await asking.value }

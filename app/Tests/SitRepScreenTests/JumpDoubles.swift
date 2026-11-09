@@ -25,6 +25,30 @@ func ownWindows(_ terminals: FakeTerminal...) -> [FakeWindow] {
     terminals.map { FakeWindow(id: "\($0.id)-WINDOW", tabs: [[$0]]) }
 }
 
+/// The board a jump reads, as `read` gives it, and why there is none, as a watch that has printed none says it.
+struct GivenBoard: JumpBoardSource {
+    static let missing = "SitRep has no board yet: sitrep watch has printed none."
+
+    let read: @Sendable () async -> JumpBoard.Read
+
+    init(_ read: @escaping @Sendable () async -> JumpBoard.Read) {
+        self.read = read
+    }
+
+    /// The board, at once.
+    init(_ board: Board) {
+        read = { .board(board) }
+    }
+
+    func current() async -> JumpBoard.Read {
+        await read()
+    }
+
+    func missing() async -> String {
+        Self.missing
+    }
+}
+
 /// A gate a double waits at until the test opens it, as a program, or an event in flight, still answering: it never
 /// heeds a task cancelled.
 final class Gate: Sendable {

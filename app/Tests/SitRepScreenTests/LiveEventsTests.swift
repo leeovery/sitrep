@@ -31,15 +31,11 @@ struct LiveEventsTests {
             eventClass: kAECoreSuite, eventID: kAEGetData, direct: Specifier.whose(type, of: Specifier.application, test)
         ).addressed(to: pid)
 
-        do {
-            let reply = try event.sendEvent(options: [.waitForReply, .canInteract], timeout: GhosttyEvents.answerSeconds)
+        let sent = GhosttyEvents.sent(event, within: GhosttyEvents.answerSeconds)
+        let answer = "status \(sent.status), reply \(rendered(sent.reply.paramDescriptor(forKeyword: keyDirectObject))), "
+            + "error \(rendered(sent.reply.paramDescriptor(forKeyword: keyErrorNumber)))"
 
-            return (rendered(reply.paramDescriptor(forKeyword: keyDirectObject)), GhosttyEvent.failure(in: reply, isLookup: true))
-        } catch {
-            let number = (error as NSError).code
-
-            return ("error \(number)", GhosttyEvent.failure(number: number, said: nil, isLookup: true))
-        }
+        return (answer, GhosttyEvent.failure(in: sent, isLookup: true))
     }
 
     /// The app opened, not brought forward, once it has finished launching: its process.

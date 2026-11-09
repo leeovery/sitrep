@@ -15,16 +15,22 @@ public struct GhosttyEvents: GhosttyScripting {
     /// terminals, and an event's own limit is two minutes.
     public static let answerSeconds: TimeInterval = 5
 
-    /// Sends an event, blocking until its answer, or for at most the time given: the reply; throws as the send fails.
-    typealias Send = @Sendable (NSAppleEventDescriptor, TimeInterval) throws -> NSAppleEventDescriptor
+    /// What sending an event came to: the Apple Event Manager's status, an error of its own where the event went
+    /// unanswered, as at its time limit or with the leave to control Ghostty refused; and the reply, which holds
+    /// Ghostty's answer, or its error and the words it gave for it.
+    struct Sent {
+        let status: Int
+        let reply: NSAppleEventDescriptor
+    }
+
+    /// Sends an event, blocking until its answer, or for at most the time given.
+    typealias Send = @Sendable (NSAppleEventDescriptor, TimeInterval) -> Sent
 
     private let ghostty: @Sendable () -> pid_t?
     private let send: Send
 
     public init() {
-        self.init(ghostty: Self.running) { event, seconds in
-            try event.sendEvent(options: [.waitForReply, .canInteract], timeout: seconds)
-        }
+        self.init(ghostty: Self.running, send: Self.sent)
     }
 
     /// `ghostty` gives the Ghostty running, by its process; `send` sends an event to it.
@@ -78,7 +84,7 @@ public struct GhosttyEvents: GhosttyScripting {
         }
 
         let answered = await onThread { [send] in
-            Answered(Result { try send(made().addressed(to: pid), Self.answerSeconds) }, isLookup: isLookup)
+            Answered(send(made().addressed(to: pid), Self.answerSeconds), isLookup: isLookup)
         }
 
         guard let answered else {
@@ -97,6 +103,17 @@ public struct GhosttyEvents: GhosttyScripting {
         NSRunningApplication.runningApplications(withBundleIdentifier: GhosttyDriver.bundle)
             .first { !$0.isTerminated }?.processIdentifier
     }
+
+    /// Sends the event as `sendEvent` sends it, waiting for its reply, and keeps the reply whatever the status:
+    /// `sendEvent`, failing, gives no reply, and its error has no documented field for the words Ghostty's reply gave.
+    @Sendable static func sent(_ event: NSAppleEventDescriptor, within seconds: TimeInterval) -> Sent {
+        var reply = AEDesc(descriptorType: typeNull, dataHandle: nil)
+        let status = withExtendedLifetime(event) {
+            AESendMessage(event.aeDesc, &reply, AESendMode(kAEWaitReply | kAECanInteract), Int(seconds * 60))
+        }
+
+        return Sent(status: Int(status), reply: NSAppleEventDescriptor(aeDescNoCopy: &reply))
+    }
 }
 
 /// An answer, read on the thread that sent its event: what it says, or why it failed. Its descriptors are never changed
@@ -106,15 +123,9 @@ private struct Answered: @unchecked Sendable {
     let items: [NSAppleEventDescriptor]
     let failure: GhosttyFailure?
 
-    init(_ sent: Result<NSAppleEventDescriptor, any Error>, isLookup: Bool) {
-        switch sent {
-        case let .success(reply):
-            failure = GhosttyEvent.failure(in: reply, isLookup: isLookup)
-            items = failure == nil ? GhosttyEvent.items(of: reply.paramDescriptor(forKeyword: keyDirectObject)) : []
-        case let .failure(error):
-            failure = GhosttyEvent.failure(number: (error as NSError).code, said: nil, isLookup: isLookup)
-            items = []
-        }
+    init(_ sent: GhosttyEvents.Sent, isLookup: Bool) {
+        failure = GhosttyEvent.failure(in: sent, isLookup: isLookup)
+        items = failure == nil ? GhosttyEvent.items(of: sent.reply.paramDescriptor(forKeyword: keyDirectObject)) : []
     }
 }
 
@@ -203,15 +214,19 @@ struct GhosttyEvent {
         return !selected.booleanValue
     }
 
-    /// What a reply's error says: none where it gave none.
-    static func failure(in reply: NSAppleEventDescriptor, isLookup: Bool) -> GhosttyFailure? {
-        guard let number = reply.paramDescriptor(forKeyword: keyErrorNumber)?.int32Value, number != 0 else {
+    /// Why a send failed: the Apple Event Manager's error, else the one Ghostty's reply gives, with any words the reply
+    /// gave; none where neither says one.
+    static func failure(in sent: GhosttyEvents.Sent, isLookup: Bool) -> GhosttyFailure? {
+        let replied = sent.reply.paramDescriptor(forKeyword: keyErrorNumber).map { Int($0.int32Value) } ?? 0
+        let number = sent.status == noErr ? replied : sent.status
+
+        guard number != 0 else {
             return nil
         }
 
-        let said = reply.paramDescriptor(forKeyword: keyErrorString)?.stringValue
+        let said = sent.reply.paramDescriptor(forKeyword: keyErrorString)?.stringValue
 
-        return failure(number: Int(number), said: said, isLookup: isLookup)
+        return failure(number: number, said: said, isLookup: isLookup)
     }
 
     /// An error read in plain words where it can be: Ghostty not answering in time, or, for the lookup, the first
@@ -271,11 +286,12 @@ enum Specifier {
         NSAppleEventDescriptor(descriptorType: typeObjectBeingExamined, data: nil) ?? NSAppleEventDescriptor.null()
     }
 
-    /// `every` element of the class.
+    /// `every` element of the class. `kAEAll` imports as an `Int`, eight bytes, where AppleScript sends the ordinal's
+    /// four: it is taken as an `OSType`.
     static func every(_ type: FourCharCode, of container: NSAppleEventDescriptor) -> NSAppleEventDescriptor {
-        var all = kAEAll
+        var all = OSType(kAEAll)
         let ordinal = NSAppleEventDescriptor(
-            descriptorType: typeAbsoluteOrdinal, bytes: &all, length: MemoryLayout.size(ofValue: all)
+            descriptorType: typeAbsoluteOrdinal, bytes: &all, length: MemoryLayout<OSType>.size
         ) ?? NSAppleEventDescriptor.null()
 
         return object(type, of: container, form: DescType(formAbsolutePosition), ordinal)

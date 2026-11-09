@@ -17,7 +17,7 @@ final class Works {
     var heard: (JumpNews) -> Void = { _ in }
 
     /// A jump that fails is told in a banner (`JumpAnswer.banner`); tmux is found on Lee's PATH, `path`, as it stands
-    /// at each jump.
+    /// at each jump, asked for within its limit.
     init(banners: Banners, path: @escaping @Sendable () async -> String) {
         self.path = path
         oneJump.heard = { [weak self, logger] news in
@@ -55,7 +55,7 @@ final class Works {
         let jump: @Sendable () async -> JumpAnswer = { [board, path, logger] in
             let clock = ContinuousClock()
             let started = clock.now
-            let answer = await Jump.live(path: path()).run(to: work) { await board.current() }
+            let answer = await Jump.live(to: work, on: board, path: path)
             let took = (clock.now - started).formatted(.units(allowed: [.milliseconds], width: .narrow))
             let ended = String(describing: answer)
 

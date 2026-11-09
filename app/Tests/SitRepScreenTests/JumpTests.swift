@@ -162,8 +162,8 @@ struct JumpTests {
 
     @Test(arguments: [
         (GhosttyFailure.gave(-1743, said: nil), "Not authorized to send Apple events to Ghostty. (-1743)"),
-        (.noAnswer, "Ghostty did not answer within 5 seconds: most likely the screen is locked, or macOS is asking whether sitrep may control Ghostty."),
-        (.tooOld, "This Ghostty cannot say which of its windows is on a device, so sitrep cannot jump to one: update Ghostty to 1.4 or later."),
+        (.noAnswer, "Ghostty did not answer within 5 seconds: most likely the screen is locked, or macOS is asking whether SitRep may control Ghostty."),
+        (.tooOld, "This Ghostty cannot say which of its windows is on a device, so SitRep cannot jump to one: update Ghostty to 1.4 or later."),
         (.gave(-1728, said: "Can’t get terminal 1."), "Ghostty got an error: Can’t get terminal 1. (-1728)"),
         (.gave(-600, said: nil), "Ghostty got an error (-600)."),
     ])

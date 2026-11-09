@@ -5297,12 +5297,23 @@ says where SitRep's goes another way.
 `SitRepScreen`, beside the screen's reading it starts from:
 - **From the watch's last line**, never the board's files: the session's
   windows that say where they are, in core's order (`jumpOrder`, never
-  their place in the line), named by the session's row, its Snoozed row or
-  a window. A jump asked for before the watch's first line, as from a
-  banner clicked as SitRep starts, waits for it (`JumpBoard`); with none
-  coming, the watch failing first or no plugin to run it, it is refused in
-  the watch's or the plugin's words. A session not on the line at all, as
-  one finished since its banner, is named "The session".
+  their place in the line); from a watch older than the order, whose
+  windows carry none, every one saying where it is, in the line's order.
+  The session is named by its row, its Snoozed row, a window, or, with
+  none of those, its project's list on the line (`projects`, read for the
+  names alone and in any shape or none), as the CLI named it by its
+  status.
+- **One rule for the board** (`JumpBoard`): a jump reads the line of a
+  watch that is running and has printed. While the watch starts, starts
+  again or is stale, as from a banner clicked as SitRep starts, the jump
+  waits for its next line, within its 15 seconds. It is refused in the
+  watch's words only once they run out, "SitRep can't read the board:"
+  and why, as the views say it, or "SitRep has no board yet: sitrep watch
+  has printed none."; never as the Mac too busy, which is for a jump that
+  had its board. With no plugin to run the watch, it is refused at once in
+  the plugin's words.
+- **Lee's PATH**, for tmux, is asked for once the board is in hand, within
+  the jump's limit, so a later click ends that wait as any other.
 - **Off the main thread, one step after another**: the front and the
   screen read together, then each place's select and bringing forward in
   turn. A jump stopped, by a later click (`OneJump`) or its limit, is
@@ -5320,7 +5331,15 @@ says where SitRep's goes another way.
   device; whether the tab holding it is selected; for one not selected, the
   window holding it, then `activate window` on the window Ghostty named,
   where the program asked `first window whose …` in one event; the half
-  second's pause; then `focus` on the terminal the lookup named.
+  second's pause; then `focus` on the terminal the lookup named. Each is
+  sent by `AESendMessage`, waiting for its reply, as `sendEvent` sends it,
+  for the reply it keeps whatever the send's status: `sendEvent`, failing,
+  gives no reply, and its error has no documented field for the words
+  Ghostty gave, so an error of Ghostty's is read from its reply (`errn`,
+  `errs`), words and all, and the Apple Event Manager's own from the
+  status. Every code a specifier carries is four bytes, as AppleScript
+  sends it: `kAEAll`, the `every` ordinal, imports into Swift as an
+  eight-byte `Int`, and is sent as an `OSType`.
 - **The front heard, not polled** (`KeptInFront`): the app in front as the
   jump begins is NSWorkspace's `frontmostApplication`; each app coming to
   the front is heard (`didActivateApplicationNotification`) from before the
@@ -5334,15 +5353,27 @@ says where SitRep's goes another way.
   given that runs; by its bundle's path among the running apps, where the
   CLI took the client's ancestry as proof it ran.
 - **The limits**: 2 seconds for each tmux run and each bringing forward, 5
-  for each Apple Event, 15 for the whole jump, its wait for the watch's
-  first line among it. osascript's 8 seconds went with osascript, and with
-  them exit 3: a jump unanswered now is one at SitRep's own limit.
-- **The words** are the CLI's, but where no program now says them: the
-  process table giving no answer is "the process table", where it was
-  `ps`; macOS refusing control of Ghostty is "Not authorized to send Apple
-  events to Ghostty. (-1743)", osascript's sentence without its prefix; any
-  other error Ghostty gives is "Ghostty got an error: <its words> (<its
-  number>)".
+  for each Apple Event, 15 for the whole jump, its wait for a board and for
+  Lee's PATH among it. osascript's 8 seconds went with osascript, and with
+  them exit 3: a jump unanswered now is one at SitRep's own limit, its
+  board in hand.
+- **The words** are the CLI's, but where the CLI's no longer fit:
+  - the process table giving no answer is "the process table", where it
+    was `ps`;
+  - macOS refusing control of Ghostty is "Not authorized to send Apple
+    events to Ghostty. (-1743)", osascript's sentence without its prefix;
+    any other error Ghostty gives is "Ghostty got an error: <its words>
+    (<its number>)";
+  - Ghostty not answering, and a Ghostty too old, name SitRep where the
+    CLI's named sitrep: "… or macOS is asking whether SitRep may control
+    Ghostty.", "… so SitRep cannot jump to one: …";
+  - a session not on the board, as one finished since its banner, is "There
+    is no such session on the board, in any project.", the CLI's exit 2
+    but for its id, which Lee never sees; the CLI, reading every session's
+    files, named a finished one by its status and refused it as not on
+    screen;
+  - a jump that ran out of time waiting for a board says the board is not
+    there (above), which the CLI, reading the files, never waited for.
 - **A Ghostty too old** is still told apart, but by other errors:
   AppleScript's -2753 and -2741 came from compiling and running the
   program, and an event built by hand gets neither. The lookup, the first
@@ -5887,7 +5918,10 @@ took 180, so some step ran unbounded. Lee's go, the same day: "Build it".
   nothing: no banner, no caption. Until 4 November 2026 a click while a
   jump ran started none: the menu's jump items were disabled, and the
   card's, the strip's and the window's clicks refused.
-- **A jump is stopped gently, with everything it started.** At the limit,
+- **The CLI's jump was stopped gently, with everything it started**, until
+  A3 (9 November 2026), when SitRep's own jump took its place and is
+  stopped by its task (below); this stays for the record, and for the CLI's
+  runs. At the limit,
   or stopped by a click, the CLI's process group is told to end (SIGTERM):
   the CLI, and osascript, tmux, `ps`, lsappinfo and `open`, which share its
   group, and a second on the group is killed (SIGKILL), whatever is left
@@ -5956,8 +5990,10 @@ took 180, so some step ran unbounded. Lee's go, the same day: "Build it".
   says "Couldn't jump: the Mac is too busy.", played as a caption is: the
   15 seconds cover Bun, the board, tmux, `ps`, lsappinfo and `open`, and an
   app with no driver involves no Ghostty, so the words name none; since
-  A3 they cover the wait for the watch's first line, tmux, the process
-  table, Ghostty's events and LaunchServices, and the words are the same.
+  A3 they cover the wait for a board and for Lee's PATH, tmux, the process
+  table, Ghostty's events and LaunchServices, and the words are the same
+  once the jump has its board; one whose time ran out waiting for a board
+  is refused as the board not there, its banner saying why.
   Each caption comes in, or goes, from the pill's opacity as it is, so one
   taking another's place, or an answer cutting a coming in short, never
   jumps. A jump a later click stopped leaves the caption as it is, the
@@ -7089,7 +7125,10 @@ open), and tmux passing an escape sequence through from Claude's own pane
        switched to it outright: every click, from the notch, the strip, the
        menu, Settings or a banner, runs it through `OneJump`, and none runs
        `sitrep jump`, which step B deletes with `SitRepCLI.jump`. The
-       watch's windows are read with their `jumpOrder`. Each rule of
+       watch's windows are read with their `jumpOrder`, which the watch's
+       line did not print until A3's review found it missing (A1 had core
+       give each window one, but `watch` wrote none out); a line from a
+       watch before it is jumped from in its own order. Each rule of
        `tests/jump.test.ts` on the flow, the front, the focus's answers,
        the order, the limits and the words is pinned again in Swift, with
        doubles for Ghostty, the Mac's apps and the clock, fixtures built in
@@ -7105,14 +7144,22 @@ open), and tmux passing an escape sequence through from Claude's own pane
        - **An app with no driver found by its bundle's path** is looked
          for among the running apps before LaunchServices is asked, where
          the CLI took `ps` seeing its program as proof it ran.
-       - **The words** where no program says them now: "the process
-         table" for `ps`, osascript's sentence for -1743 without its
-         prefix, "Ghostty got an error: … (n)" for any other, and "The
-         session" for one not on the watch's line.
+       - **The words** where the CLI's no longer fit (listed under "SitRep's
+         own jump"): "the process table" for `ps`, osascript's sentence
+         for -1743 without its prefix, "Ghostty got an error: … (n)" for
+         any other, SitRep where Ghostty's refusals said sitrep, the CLI's
+         no such session without its id, and the board not there for a
+         jump that ran out of time waiting for one.
        - **A Ghostty too old** by -1708 or -1728 on the lookup, in place of
          AppleScript's -2753 and -2741; expected, not yet seen.
-       - **A jump waits for the watch's first line**, within its 15
-         seconds, or is refused in the watch's or the plugin's words.
+       - **A jump reads the board of a watch running and printed**, waiting
+         for the next line while the watch starts, starts again or is
+         stale, within its 15 seconds, then refused in the watch's words;
+         at once in the plugin's with none to run the watch.
+       - **A session with no row and no window** is named by its project's
+         list on the line, as the CLI named it by its status.
+       - **Events are sent by `AESendMessage`**, so an error Ghostty gives
+         keeps its words, which `sendEvent`, throwing, drops.
        - **No program limit beside the jump's own**: osascript's 8 seconds
          and the CLI's exit 3 went with them.
      - **To prove live, with Lee's go** (nothing of it was run in building
@@ -7132,6 +7179,14 @@ open), and tmux passing an escape sequence through from Claude's own pane
           Calculator and TextEdit, each read as too old.
        6. What a jump costs, from SitRep's log (`jump`): Bun's start, `ps`
           and osascript's start gone, so mostly Ghostty's own time.
+       7. Events sent by `AESendMessage` land as `sendEvent`'s did: the
+          lookup answers with the terminal, a selected tab's question with
+          `{{true}}`, and a jump to a terminal closed since it was found
+          shows Ghostty's own words in its banner.
+       8. A jump clicked as SitRep starts, before the watch's first line,
+          lands once the line comes; and a session in two windows, one
+          stopped on Lee, is jumped to that one, as the watch's line now
+          carries each window's `jumpOrder`.
 
    **B. `sitrep jump` and `sitrep screen` retired** from the CLI once
    SitRep calls neither: `screen` has had no caller since the SitRep window

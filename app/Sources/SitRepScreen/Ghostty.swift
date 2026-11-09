@@ -48,9 +48,9 @@ public enum GhosttyFailure: Error, Equatable, CustomStringConvertible {
     public var description: String {
         switch self {
         case .noAnswer:
-            "Ghostty did not answer within \(Int(GhosttyEvents.answerSeconds)) seconds: most likely the screen is locked, or macOS is asking whether sitrep may control Ghostty."
+            "Ghostty did not answer within \(Int(GhosttyEvents.answerSeconds)) seconds: most likely the screen is locked, or macOS is asking whether SitRep may control Ghostty."
         case .tooOld:
-            "This Ghostty cannot say which of its windows is on a device, so sitrep cannot jump to one: update Ghostty to \(Self.leastVersion) or later."
+            "This Ghostty cannot say which of its windows is on a device, so SitRep cannot jump to one: update Ghostty to \(Self.leastVersion) or later."
         case .gave(Self.notPermitted, _):
             "Not authorized to send Apple events to Ghostty. (\(Self.notPermitted))"
         case let .gave(number, said?):

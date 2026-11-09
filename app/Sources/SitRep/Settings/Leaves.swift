@@ -3,9 +3,11 @@ import os
 import ServiceManagement
 import SitRepCore
 import SitRepMenu
+import SitRepScreen
 
 /// What macOS lets SitRep do, read for Settings and the welcome and changed only where Lee chooses: starting at login,
-/// and the leave to control Ghostty, which the CLI's first jump asks for, or Allow… before it, Ghostty opened for it.
+/// and the leave to control Ghostty, which SitRep's first jump to a Ghostty window asks for, or Allow… before it,
+/// Ghostty opened for it.
 @MainActor
 enum Leaves {
     private static let loginLog = Logger(sitrep: "login")
@@ -56,20 +58,18 @@ enum Leaves {
         await ghosttyLeave(asking: true)
     }
 
-    nonisolated private static let ghosttyID = "com.mitchellh.ghostty"
-
     /// Whether Ghostty is installed, as Launch Services finds it.
     static var ghosttyInstalled: Bool {
         ghosttyApp != nil
     }
 
     private static var ghosttyApp: URL? {
-        NSWorkspace.shared.urlForApplication(withBundleIdentifier: ghosttyID)
+        NSWorkspace.shared.urlForApplication(withBundleIdentifier: GhosttyDriver.bundle)
     }
 
     /// Whether Ghostty runs, so macOS can ask for the leave to control it.
     static var ghosttyRuns: Bool {
-        !NSRunningApplication.runningApplications(withBundleIdentifier: ghosttyID).isEmpty
+        !NSRunningApplication.runningApplications(withBundleIdentifier: GhosttyDriver.bundle).isEmpty
     }
 
     /// Ghostty opened behind the window Lee is in, for macOS to ask for the leave, and what that came to: running once
@@ -99,7 +99,7 @@ enum Leaves {
     /// which a prompt would hold up. The descriptor is held for the call, as its `aeDesc` points into it.
     private static func ghosttyLeave(asking: Bool) async -> GhosttyLeave {
         await Task.detached {
-            let ghostty = NSAppleEventDescriptor(bundleIdentifier: ghosttyID)
+            let ghostty = NSAppleEventDescriptor(bundleIdentifier: GhosttyDriver.bundle)
 
             return withExtendedLifetime(ghostty) {
                 guard let target = ghostty.aeDesc else {
