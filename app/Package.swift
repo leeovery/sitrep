@@ -10,7 +10,8 @@ let package = Package(
     ],
     targets: [
         .target(name: "SitRepCore"),
-        /// Where a session's windows show on this Mac: the seat, the multiplexer adapters, and the three states.
+        /// Where a session's windows show on this Mac, and the jump to one: the seat, the multiplexer adapters, the
+        /// three states, the terminal drivers and the front.
         .target(name: "SitRepScreen", dependencies: ["SitRepCore"]),
         .target(name: "SitRepPanel"),
         /// The relay between SitRep and its notices helper, which both link.
@@ -19,7 +20,7 @@ let package = Package(
         .target(name: "SitRepMenu", dependencies: ["SitRepCore", "SitRepPanel", "SitRepEdge", "SitRepRelay"]),
         .executableTarget(
             name: "SitRep",
-            dependencies: ["SitRepCore", "SitRepPanel", "SitRepEdge", "SitRepMenu", "SitRepRelay"]
+            dependencies: ["SitRepCore", "SitRepScreen", "SitRepPanel", "SitRepEdge", "SitRepMenu", "SitRepRelay"]
         ),
         /// The notices helper, inside SitRep.app: macOS's notifications and the relay, and nothing of SitRep's own.
         .executableTarget(name: "SitRepNotices", dependencies: ["SitRepRelay"]),

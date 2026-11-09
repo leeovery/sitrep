@@ -9,7 +9,8 @@ import SitRepMenu
 @MainActor
 final class Plugin {
     private let setup: PluginSetup
-    private let path: @Sendable () async -> String
+    /// Lee's PATH, as it stands at each asking.
+    let path: @Sendable () async -> String
     private var standing: PluginStanding?
     private var waiting: [CheckedContinuation<PluginStanding, Never>] = []
 

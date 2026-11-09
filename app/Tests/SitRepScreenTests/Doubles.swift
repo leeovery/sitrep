@@ -118,28 +118,44 @@ struct FakeServer {
 }
 
 /// tmux, its servers by socket, answering as the real one does: a socket no server is on with an error; or, `silent`,
-/// giving no answer at all, as tmux missing or too slow does, for every socket or those given. It keeps every run it
-/// was asked for.
+/// giving no answer at all, as tmux missing or too slow does, for every socket or those given. A select it answers as
+/// `select` says, nil for no answer. It keeps every run it was asked for.
 final class FakeTmux: TmuxProgram {
     private let servers: [String: FakeServer]
     private let isSilent: Bool
     private let silentSockets: Set<String>
-    private let asked = OSAllocatedUnfairLock(initialState: [[String]]())
+    private let selected: Ran?
+    private let asked = OSAllocatedUnfairLock(initialState: (runs: [[String]](), selects: [[String]]()))
 
-    init(_ servers: [String: FakeServer] = [:], silent: Bool = false, silentOn sockets: Set<String> = []) {
+    init(
+        _ servers: [String: FakeServer] = [:], silent: Bool = false, silentOn sockets: Set<String> = [],
+        select: Ran? = Ran(status: 0, stdout: "", stderr: "")
+    ) {
         self.servers = servers
         isSilent = silent
         silentSockets = sockets
+        selected = select
     }
 
     /// Each run, its socket then its first word.
-    var runs: [[String]] { asked.withLock { $0 } }
+    var runs: [[String]] { asked.withLock(\.runs) }
+    /// Each select, its socket then its words after `select-window`.
+    var selects: [[String]] { asked.withLock(\.selects) }
 
     func run(on socket: String, _ words: [String]) async -> Ran? {
-        asked.withLock { $0.append([socket, words[0]]) }
+        asked.withLock { asked in
+            asked.runs.append([socket, words[0]])
+            if words[0] == "select-window" {
+                asked.selects.append([socket] + words.dropFirst())
+            }
+        }
 
         guard !isSilent, !silentSockets.contains(socket) else {
             return nil
+        }
+
+        if words[0] == "select-window" {
+            return selected
         }
 
         guard let server = servers[socket] else {

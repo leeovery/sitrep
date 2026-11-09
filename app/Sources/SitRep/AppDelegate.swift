@@ -6,7 +6,7 @@ import SitRepMenu
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let banners = Banners.live()
     private let plugin = Plugin()
-    private lazy var works = Works(banners: banners, plugin: plugin)
+    private lazy var works = Works(banners: banners, path: plugin.path)
     private lazy var snoozes = Snoozes(plugin: plugin, banners: banners)
     private let feed = Feed()
     /// The plugin folder `watch` runs on; nil before it first starts.
@@ -69,6 +69,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else if let trouble = standing.trouble, watching == nil {
             edge?.unrun(trouble.line)
             menu?.unrun(trouble)
+            works.unrun(trouble.line)
         }
     }
 
@@ -97,10 +98,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return services
     }
 
-    /// Each board, to everything that shows it; the sound Lee chose, once for the asks new on it, and a notification
-    /// for each, in core's order, each while Lee has it on.
+    /// Each board, to everything that shows it, and to the jump; the sound Lee chose, once for the asks new on it, and a
+    /// notification for each, in core's order, each while Lee has it on.
     private func heard(_ last: LastBoard) {
         live.last = last
+        works.show(last)
         edge?.show(last)
         menu?.show(last)
 

@@ -1,15 +1,6 @@
 import Foundation
 import os
 
-/// What `sitrep jump` came to: the window brought forward; why not, in the CLI's words; no answer in time, within
-/// SitRep's limit or an app's, as when the Mac is too busy; or stopped, as a later click's jump took its place.
-public enum JumpAnswer: Sendable, Equatable {
-    case jumped
-    case refused(String)
-    case unanswered
-    case stopped
-}
-
 /// What `sitrep snooze` or `wake` came to: written, or refused in the CLI's words, with nothing written.
 public enum WriteAnswer: Sendable, Equatable {
     case written

@@ -305,8 +305,27 @@ public struct Board: Versioned, Sendable, Equatable {
         public let `where`: Where?
         public let state: State?
         public let attachedAt: Date
+        /// Its place in the order a jump tries its session's windows, 0 first, as core ranks them; none for a window
+        /// saying no `where`, which no jump tries, and from a CLI from before the watch carried it (9 November 2026).
+        public let jumpOrder: Int?
 
         public var id: String { writer }
+    }
+
+    /// The session's windows a jump tries, by where each is, in core's order (`jumpOrder`), never by their place in
+    /// `windows`; one with no order is not tried.
+    public func jumpWindows(of session: String) -> [Window.Where] {
+        windows
+            .filter { $0.session == session && $0.jumpOrder != nil }
+            .sorted { ($0.jumpOrder ?? 0) < ($1.jumpOrder ?? 0) }
+            .compactMap(\.where)
+    }
+
+    /// The session's name, as its row, its Snoozed row or a window of it says; nil for a session not on the board.
+    public func name(of session: String) -> String? {
+        rows.first { $0.session == session }?.name
+            ?? snoozed.first { $0.session == session }?.name
+            ?? windows.first { $0.session == session }?.name
     }
 }
 

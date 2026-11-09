@@ -1,21 +1,25 @@
 import Foundation
 import os
 import SitRepCore
+import SitRepScreen
 
-/// The jump to a session's window, through the plugin's CLI: one at a time, the latest click winning (`OneJump`).
+/// The jump to a session's window, SitRep's own (`Jump`), from the watch's last line: one at a time, the latest click
+/// winning (`OneJump`).
 @MainActor
 final class Works {
     private let logger = Logger(sitrep: "jump")
     private let oneJump = OneJump()
-    private let plugin: Plugin
+    private let board = JumpBoard()
+    private let path: @Sendable () async -> String
 
     /// Every jump's news, once a jump, whichever surface asked for it, after each click's own `answered`: the edge's
     /// caption.
     var heard: (JumpNews) -> Void = { _ in }
 
-    /// A jump that fails is told in a banner (`JumpAnswer.banner`).
-    init(banners: Banners, plugin: Plugin) {
-        self.plugin = plugin
+    /// A jump that fails is told in a banner (`JumpAnswer.banner`); tmux is found on Lee's PATH, `path`, as it stands
+    /// at each jump.
+    init(banners: Banners, path: @escaping @Sendable () async -> String) {
+        self.path = path
         oneJump.heard = { [weak self, logger] news in
             guard let self else {
                 return
@@ -33,13 +37,30 @@ final class Works {
         }
     }
 
+    /// Each look of the watch, the board a jump goes from.
+    func show(_ last: LastBoard) {
+        board.heard(last)
+    }
+
+    /// No plugin to run the watch, so no board to jump from, for the reason given.
+    func unrun(_ why: String) {
+        board.unrun(why)
+    }
+
     /// Jumps to the work's window, in place of any jump under way but one to the same work not yet still jumping, which
     /// this joins; tells `answered` whether it jumped once it ends, and `refused` when it failed, as its banner says.
     func jump(
         to work: String, answered: @escaping (Bool) -> Void = { _ in }, refused: @escaping () -> Void = {}
     ) {
-        let jump: @Sendable () async -> JumpAnswer = { [plugin] in
-            await plugin.ask({ await $0.jump(to: work) }, unrun: JumpAnswer.refused)
+        let jump: @Sendable () async -> JumpAnswer = { [board, path, logger] in
+            let clock = ContinuousClock()
+            let started = clock.now
+            let answer = await Jump.live(path: path()).run(to: work) { await board.current() }
+            let took = (clock.now - started).formatted(.units(allowed: [.milliseconds], width: .narrow))
+            let ended = String(describing: answer)
+
+            logger.info("Jump to \(work, privacy: .public): \(ended, privacy: .public), in \(took, privacy: .public)")
+            return answer
         }
 
         oneJump.run(to: work, jump) { news in
