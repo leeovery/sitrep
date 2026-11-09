@@ -2,48 +2,37 @@ import Darwin
 import Foundation
 
 /// The kernel's process table, in place of `ps`: one `sysctl` (`KERN_PROC_ALL`) for every process's parent and
-/// terminal, `proc_pidpath` for each one's program, and a command line (`KERN_PROCARGS2`) only where asked, or where
-/// `proc_pidpath` cannot tell the program. `login` runs as root, and its command line cannot be read, but its parent
-/// and terminal can, which is all the seat needs.
+/// terminal, `proc_pidpath` for each one's program, and a command line (`KERN_PROCARGS2`), once at most, only where
+/// wanted, or where `proc_pidpath` cannot tell the program. `login` runs as root, and its command line cannot be read,
+/// but its parent and terminal can, which is all the seat needs.
 public struct KernelProcesses: ProcessTable {
     public init() {}
 
-    public func processes() -> [pid_t: Proc]? {
+    public func read(arguments wanted: (Proc) -> Bool) -> Processes? {
         guard let table = Self.table() else {
             return nil
         }
 
-        return Dictionary(
-            table.map { each in
-                let pid = each.kp_proc.p_pid
+        let reader = Reader()
+        var all: [pid_t: Proc] = [:]
+        var arguments: [pid_t: [String]] = [:]
 
-                return (pid, Proc(parent: each.kp_eproc.e_ppid, device: device(of: each.kp_eproc.e_tdev), program: Self.program(of: pid)))
-            },
-            uniquingKeysWith: { first, _ in first }
-        )
-    }
+        for each in table where all[each.kp_proc.p_pid] == nil {
+            let pid = each.kp_proc.p_pid
+            let path = reader.program(of: pid)
+            let started = path == nil ? reader.procArgs(of: pid) : nil
+            let process = Proc(
+                parent: each.kp_eproc.e_ppid, device: device(of: each.kp_eproc.e_tdev), program: path ?? started?.path
+            )
 
-    public func arguments(of pid: pid_t) -> [String]? {
-        Self.procArgs(of: pid)?.arguments
-    }
+            if wanted(process), let read = path == nil ? started : reader.procArgs(of: pid) {
+                arguments[pid] = read.arguments
+            }
 
-    /// A process's executable's path as it was started, and its command line; nil for one not to be read, as
-    /// another user's.
-    private static func procArgs(of pid: pid_t) -> ProcArgs? {
-        var mib: [Int32] = [CTL_KERN, KERN_PROCARGS2, pid]
-        var size = argumentsMax
-
-        guard size > 0 else {
-            return nil
+            all[pid] = process
         }
 
-        var buffer = [UInt8](repeating: 0, count: size)
-
-        guard sysctl(&mib, UInt32(mib.count), &buffer, &size, nil, 0) == 0 else {
-            return nil
-        }
-
-        return parseProcArgs(buffer.prefix(size))
+        return Processes(all, arguments: arguments)
     }
 
     /// Every process, as one `sysctl` gives them: asked how much room it needs, then given some over, as processes
@@ -75,17 +64,32 @@ public struct KernelProcesses: ProcessTable {
         return nil
     }
 
-    /// A process's program's path, exactly; else, for one whose program was replaced on disk as it ran, as an app
-    /// updated under it is, which `proc_pidpath` cannot tell (ENOENT), the path it was started by; nil for one gone.
-    private static func program(of pid: pid_t) -> String? {
-        var path = [CChar](repeating: 0, count: Int(MAXPATHLEN) * 4)
-        let length = proc_pidpath(pid, &path, UInt32(path.count))
+}
 
-        guard length > 0 else {
-            return procArgs(of: pid)?.path
-        }
+/// What reads each process's program and command line for one look at the table, into buffers made once for it: a
+/// command line may take `KERN_ARGMAX`, a mebibyte, which is left unfilled, as only what the kernel writes is read.
+private final class Reader {
+    private var path = [UInt8](repeating: 0, count: Int(MAXPATHLEN) * 4)
+    private var procArgs = [UInt8](unsafeUninitializedCapacity: Reader.argumentsMax) { _, count in
+        count = Reader.argumentsMax
+    }
 
-        return String(decoding: path.prefix(Int(length)).map { UInt8(bitPattern: $0) }, as: UTF8.self)
+    /// A process's program's path, exactly; nil for one gone, or whose program was replaced on disk as it ran, as an
+    /// app updated under it is, which `proc_pidpath` cannot tell (ENOENT).
+    func program(of pid: pid_t) -> String? {
+        let length = path.withUnsafeMutableBytes { proc_pidpath(pid, $0.baseAddress, UInt32($0.count)) }
+
+        return length > 0 ? String(decoding: path.prefix(Int(length)), as: UTF8.self) : nil
+    }
+
+    /// A process's executable's path as it was started, and its command line; nil for one not to be read, as another
+    /// user's.
+    func procArgs(of pid: pid_t) -> ProcArgs? {
+        var mib: [Int32] = [CTL_KERN, KERN_PROCARGS2, pid]
+        var size = procArgs.count
+        let read = procArgs.withUnsafeMutableBytes { sysctl(&mib, UInt32(mib.count), $0.baseAddress, &size, nil, 0) }
+
+        return size > 0 && read == 0 ? parseProcArgs(procArgs.prefix(size)) : nil
     }
 
     /// The most a command line and its environment may take, `KERN_ARGMAX`.

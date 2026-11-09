@@ -8,6 +8,9 @@ let terminalProgram = "/System/Applications/Utilities/Terminal.app/Contents/MacO
 let codeHelper = "/Applications/Visual Studio Code.app/Contents/Frameworks/Code Helper.app/Contents/MacOS/Code Helper"
 let zmxProgram = "/opt/homebrew/Cellar/zmx/1.0.1/bin/zmx"
 
+/// SitRepCore's `Where`, named shortly for the tests.
+typealias Where = Board.Window.Where
+
 /// A process tree built in code, each process given the next id: launchd at 1, and what is added under it.
 struct Tree: Sendable {
     private(set) var processes: [pid_t: Proc] = [1: Proc(parent: 0, program: "/sbin/launchd")]
@@ -77,16 +80,18 @@ final class FakeTable: ProcessTable {
     /// Whose command lines were read.
     var argumentsRead: [pid_t] { asked.withLock(\.arguments).sorted() }
 
-    func processes() -> [pid_t: Proc]? {
+    func read(arguments wanted: (Proc) -> Bool) -> Processes? {
         asked.withLock { $0.looks += 1 }
 
-        return tree?.processes
-    }
+        guard let tree else {
+            return nil
+        }
 
-    func arguments(of pid: pid_t) -> [String]? {
-        asked.withLock { $0.arguments.append(pid) }
+        let arguments = tree.arguments.filter { pid, _ in tree.processes[pid].map(wanted) == true }
 
-        return tree?.arguments[pid]
+        asked.withLock { $0.arguments += arguments.keys }
+
+        return Processes(tree.processes, arguments: arguments)
     }
 }
 

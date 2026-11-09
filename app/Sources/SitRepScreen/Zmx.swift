@@ -1,15 +1,20 @@
+import SitRepCore
+
 /// zmx's multiplexer adapter. A zmx session is one terminal, shown whole by every client attached to it, so there is no
 /// window or pane to select. zmx 1.0.1 lists no session's clients, so they are read from the process table: each
 /// process of zmx's program, on a tty, whose command line is exactly `zmx attach <session>`, by any path to zmx, the
-/// name compared whole. The session's own server is on no tty, under launchd (live, 9 November 2026), so it is no
-/// client, and its command line is never read.
+/// name compared whole, in order of process id: the oldest client first, until ids wrap round. The session's own server is on no tty, under launchd (live, 9
+/// November 2026), so it is no client, and its command line is never read.
+///
+/// Only a process whose program's file is named `zmx` has its command line read, which keeps the reads to a few a look;
+/// the CLI read every process's from `ps`. So a zmx installed under another name reads off screen.
 ///
 /// A client switched in place, `zmx attach B` typed inside an attach on A, keeps A's name in its command line, and so
 /// reads as A's: a known limit, as Portal's own switch starts a fresh `zmx attach B`.
 public struct ZmxAdapter: Multiplexer {
     public init() {}
 
-    public func isIn(_ where: Where) -> Bool {
+    public func isIn(_ where: Board.Window.Where) -> Bool {
         `where`.zmx != nil
     }
 
@@ -19,24 +24,24 @@ public struct ZmxAdapter: Multiplexer {
     }
 
     /// zmx asks nothing of its own: its clients, and so which apps show its windows, are told by the table alone.
-    public func read(_: [Where]) async -> any Reading {
+    public func read(_: [Board.Window.Where]) async -> any Reading {
         ZmxReading()
     }
 }
 
 struct ZmxReading: Reading {
-    func isIn(_ where: Where) -> Bool {
+    func isIn(_ where: Board.Window.Where) -> Bool {
         `where`.zmx != nil
     }
 
     /// zmx cannot tell its session's pty without a further program.
-    func isOnItsPty(_: Where) -> Bool? {
+    func isOnItsPty(_: Board.Window.Where) -> Bool? {
         nil
     }
 
     /// Each client of the window's zmx session on a tty that a jump can reach, by its process's id, on the device of
     /// its terminal's own pty.
-    func places(_ where: Where, _ processes: Processes) -> [Place] {
+    func places(_ where: Board.Window.Where, _ processes: Processes) -> [Place] {
         guard let session = `where`.zmx?.session else {
             return []
         }
@@ -50,11 +55,11 @@ struct ZmxReading: Reading {
         }
     }
 
-    func unanswered(_: Where) -> [Unanswered] {
+    func unanswered(_: Board.Window.Where) -> [Unanswered] {
         []
     }
 
-    func needsProcesses(_ where: Where) -> Bool {
+    func needsProcesses(_ where: Board.Window.Where) -> Bool {
         isIn(`where`)
     }
 

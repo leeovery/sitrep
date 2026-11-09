@@ -29,7 +29,7 @@ public struct TmuxAdapter: Multiplexer {
     static let panes = ["list-panes", "-a", "-F", "#{pane_id}\t#{window_id}\t#{session_id}\t#{pane_tty}"]
     static let clients = ["list-clients", "-F", "#{client_tty}\t#{client_pid}\t#{window_id}\t#{session_id}"]
 
-    public func isIn(_ where: Where) -> Bool {
+    public func isIn(_ where: Board.Window.Where) -> Bool {
         `where`.tmux != nil
     }
 
@@ -38,7 +38,7 @@ public struct TmuxAdapter: Multiplexer {
     }
 
     /// tmux, asked twice for each socket the windows run under, each socket once.
-    public func read(_ windows: [Where]) async -> any Reading {
+    public func read(_ windows: [Board.Window.Where]) async -> any Reading {
         let sockets = Set(windows.compactMap(\.tmux?.socket))
         let servers = await withTaskGroup(of: (String, ServerRead).self) { group in
             for socket in sockets {
@@ -131,7 +131,7 @@ func parseClients(_ output: String) -> [TmuxClient] {
 struct TmuxReading: Reading {
     let servers: [String: ServerRead]
 
-    private func server(_ where: Where) -> TmuxServer? {
+    private func server(_ where: Board.Window.Where) -> TmuxServer? {
         guard let socket = `where`.tmux?.socket, case let .server(server) = servers[socket] else {
             return nil
         }
@@ -139,15 +139,15 @@ struct TmuxReading: Reading {
         return server
     }
 
-    func isIn(_ where: Where) -> Bool {
+    func isIn(_ where: Board.Window.Where) -> Bool {
         `where`.tmux != nil
     }
 
     /// Whether the window's device is its tmux pane's: nil where that cannot be told, the pane gone, its server
-    /// silent, or the window saying no device.
-    func isOnItsPty(_ where: Where) -> Bool? {
+    /// silent, or the window saying no device, or one that is no tty.
+    func isOnItsPty(_ where: Board.Window.Where) -> Bool? {
         guard let pane = `where`.tmux.flatMap({ server(`where`)?.panes[$0.pane] }), isDevice(pane.device),
-              let device = `where`.device
+              let device = `where`.tty
         else {
             return nil
         }
@@ -159,7 +159,7 @@ struct TmuxReading: Reading {
     /// window is the pane's; else, where none is, those attached to a tmux session holding its window, each with the
     /// select that makes it show the pane. A client a jump cannot reach, Lee's phone, neither shows the pane nor stops
     /// a select making another client show it.
-    func places(_ where: Where, _ processes: Processes) -> [Place] {
+    func places(_ where: Board.Window.Where, _ processes: Processes) -> [Place] {
         guard let tmux = `where`.tmux, let server = server(`where`), let pane = server.panes[tmux.pane] else {
             return []
         }
@@ -180,57 +180,64 @@ struct TmuxReading: Reading {
 
     /// tmux, where it gave no answer for the window's socket: not starting, as when it is missing, is one, so a
     /// server outliving its program reads unknown, never off.
-    func unanswered(_ where: Where) -> [Unanswered] {
+    func unanswered(_ where: Board.Window.Where) -> [Unanswered] {
         `where`.tmux.flatMap { servers[$0.socket] } == .unanswered ? [.tmux] : []
     }
 
     /// A server with clients needs the table to tell which apps they are in.
-    func needsProcesses(_ where: Where) -> Bool {
+    func needsProcesses(_ where: Board.Window.Where) -> Bool {
         server(`where`)?.clients.isEmpty == false
     }
 }
 
-/// The real tmux, found on Lee's PATH as it stands at each run and told its client takes UTF-8 (`-u`): without it,
-/// run with no UTF-8 locale and no `$TMUX`, as SitRep runs, a tmux 3.8 server writes each tab of a `-F` format as `_`
-/// (live, 22 October 2026). Each run has 2 seconds.
+/// The real tmux, told its client takes UTF-8 (`-u`): without it, run with no UTF-8 locale and no `$TMUX`, as SitRep
+/// runs, a tmux 3.8 server writes each tab of a `-F` format as `_` (live, 22 October 2026). Each run has 2 seconds, and
+/// is ended with its process group at its limit, as the CLI's tmux was.
+///
+/// It is found once, on the PATH given, so one is made for each read with Lee's PATH as it then stands: a tmux
+/// installed or removed since shows at the next read. None found, every run gives no answer.
 public struct TmuxOnPath: TmuxProgram {
     static let limit: TimeInterval = 2
 
-    private let path: @Sendable () async -> String
+    private let executable: URL?
     private let environment: [String: String]
     private let runner: Runner
 
     public init(
-        path: @escaping @Sendable () async -> String,
+        path: String,
         environment: [String: String] = ProcessInfo.processInfo.environment,
         run: @escaping Runner = runProgram
     ) {
-        self.path = path
-        self.environment = environment
+        executable = Self.find("tmux", on: path)
+        self.environment = environment.merging(["PATH": path]) { _, given in given }
         runner = run
     }
 
     public func run(on socket: String, _ words: [String]) async -> Ran? {
-        let path = await path()
-
-        guard let tmux = Self.find("tmux", on: path) else {
+        guard let executable else {
             return nil
         }
 
         return try? await runner(
             Program(
-                executable: tmux,
+                executable: executable,
                 arguments: ["-u", "-S", socket] + words,
-                environment: environment.merging(["PATH": path]) { _, given in given },
-                limit: Self.limit
+                environment: environment,
+                limit: Self.limit,
+                stopping: .group
             )
         )
     }
 
-    /// The first executable of the name in the PATH's folders, as a shell finds it.
+    /// The first executable file of the name in the PATH's folders, as a shell finds it: never a folder.
     static func find(_ name: String, on path: String) -> URL? {
         path.split(separator: ":").lazy
             .map { URL(fileURLWithPath: String($0)).appending(path: name) }
-            .first { FileManager.default.isExecutableFile(atPath: $0.path) }
+            .first { file in
+                var isFolder: ObjCBool = false
+
+                return FileManager.default.fileExists(atPath: file.path, isDirectory: &isFolder) && !isFolder.boolValue
+                    && FileManager.default.isExecutableFile(atPath: file.path)
+            }
     }
 }

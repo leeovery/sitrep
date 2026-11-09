@@ -17,10 +17,9 @@ public struct Proc: Sendable, Equatable {
 
 /// Every process of this Mac: one look at the kernel's table, and a process's command line read only where needed.
 public protocol ProcessTable: Sendable {
-    /// Every process, by its id; nil where the kernel gave none.
-    func processes() -> [pid_t: Proc]?
-    /// A process's command line, its program first as it was started; nil where it cannot be read.
-    func arguments(of pid: pid_t) -> [String]?
+    /// Every process, by its id, and the command line, its program first as it was started, of each the predicate
+    /// wants and whose can be read; nil where the kernel gave none.
+    func read(arguments wanted: (Proc) -> Bool) -> Processes?
 }
 
 /// Every process, by its id, and the command line of each a multiplexer tells its clients by.
@@ -31,17 +30,6 @@ public struct Processes: Sendable {
     public init(_ all: [pid_t: Proc], arguments: [pid_t: [String]] = [:]) {
         self.all = all
         self.arguments = arguments
-    }
-
-    /// One look at the table, and the command line of each process wanted; nil where the table gave none.
-    static func read(_ table: any ProcessTable, arguments wanted: (Proc) -> Bool) -> Processes? {
-        table.processes().map { all in
-            let arguments = all.compactMap { pid, process in
-                wanted(process) ? table.arguments(of: pid).map { (pid, $0) } : nil
-            }
-
-            return Processes(all, arguments: Dictionary(uniqueKeysWithValues: arguments))
-        }
     }
 
     /// The nearest ancestor of a process that is a terminal app, and that app's own child among them, the process

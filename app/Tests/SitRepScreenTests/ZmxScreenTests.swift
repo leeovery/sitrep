@@ -69,6 +69,16 @@ struct ZmxScreenTests {
         ])
     }
 
+    @Test func aZmxSessionInTwoWindowsIsTriedOldestClientFirstByProcessIdNotByTerminal() async {
+        var mac = Mac()
+        let older = mac.throughPortal("kit", relay: "/dev/ttys061", window: "/dev/ttys060")
+        let newer = mac.throughPortal("kit", relay: "/dev/ttys032", window: "/dev/ttys036")
+        let screen = await read([inZmx("kit")], FakeTmux(), FakeTable(mac.tree))
+
+        #expect(older < newer)
+        #expect(screen.places(showing: [inZmx("kit")]).map(\.device) == ["/dev/ttys060", "/dev/ttys036"])
+    }
+
     @Test(arguments: [
         ["zmx", "attach", "kit"], ["/opt/homebrew/bin/zmx", "attach", "kit"], ["/Users/lee/bin/zmx", "attach", "kit"],
     ])

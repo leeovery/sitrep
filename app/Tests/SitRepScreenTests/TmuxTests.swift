@@ -48,10 +48,10 @@ struct TmuxTests {
         #expect(Set(tmux.runs) == [[Self.socket, "list-panes"], [Self.socket, "list-clients"], ["/private/tmp/tmux-501/gone", "list-panes"], ["/private/tmp/tmux-501/gone", "list-clients"]])
     }
 
-    @Test func tmuxIsFoundOnLeesPathToldItsClientTakesUTF8GivenTheSocketAndTwoSeconds() async throws {
+    @Test func tmuxIsFoundOnLeesPathToldItsClientTakesUTF8GivenTheSocketAndTwoSecondsAndStoppedWithItsGroup() async throws {
         let folder = try Self.folderHolding("tmux")
         let ran = OSAllocatedUnfairLock(initialState: [Program]())
-        let tmux = TmuxOnPath(path: { "/nowhere:\(folder.path)" }, environment: ["HOME": "/Users/lee", "PATH": "/usr/bin"]) { program in
+        let tmux = TmuxOnPath(path: "/nowhere:\(folder.path)", environment: ["HOME": "/Users/lee", "PATH": "/usr/bin"]) { program in
             ran.withLock { $0.append(program) }
 
             return Ran(status: 0, stdout: "", stderr: "")
@@ -64,16 +64,28 @@ struct TmuxTests {
                     executable: folder.appending(path: "tmux"),
                     arguments: ["-u", "-S", Self.socket, "list-clients"],
                     environment: ["HOME": "/Users/lee", "PATH": "/nowhere:\(folder.path)"],
-                    limit: 2
+                    limit: 2,
+                    stopping: .group
                 ),
             ]
         )
     }
 
+    @Test func aFolderNamedTmuxOnThePathIsPassedOverAsAShellPassesItOver() throws {
+        let folder = try Self.folderHolding("tmux")
+        let decoy = FileManager.default.temporaryDirectory.appending(path: "sitrep-screen-\(UUID().uuidString)")
+
+        try FileManager.default.createDirectory(at: decoy.appending(path: "tmux"), withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: decoy) }
+
+        #expect(TmuxOnPath.find("tmux", on: "\(decoy.path):\(folder.path)") == folder.appending(path: "tmux"))
+        #expect(TmuxOnPath.find("tmux", on: decoy.path) == nil)
+    }
+
     @Test func tmuxNotOnThePathOrNotAnsweringInTimeGivesNoAnswerNeverAnAnswerOfNoServer() async throws {
         let folder = try Self.folderHolding("tmux")
-        let missing = TmuxOnPath(path: { "/nowhere" }) { _ in Ran(status: 1, stdout: "", stderr: "") }
-        let slow = TmuxOnPath(path: { folder.path }) { program in throw RunError.timedOut(program.limit) }
+        let missing = TmuxOnPath(path: "/nowhere") { _ in Ran(status: 1, stdout: "", stderr: "") }
+        let slow = TmuxOnPath(path: folder.path) { program in throw RunError.timedOut(program.limit) }
 
         #expect(await missing.run(on: Self.socket, ["list-panes"]) == nil)
         #expect(await slow.run(on: Self.socket, ["list-panes"]) == nil)

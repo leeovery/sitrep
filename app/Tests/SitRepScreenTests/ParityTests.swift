@@ -75,7 +75,7 @@ struct ParityTests {
 
     @Test func theKernelsTableAgreesWithTheCLIsReadingOfPs() async throws {
         let cli = try await Self.cliRead()
-        let kernel = try #require(KernelProcesses().processes())
+        let kernel = try #require(KernelProcesses().read { _ in false }?.all)
         var compared = 0
         var apps = 0
         var foundBeyond: [String] = []
@@ -108,7 +108,7 @@ struct ParityTests {
         let cli = try await Self.cliRead()
         let sessions = cli.zmx.keys.sorted()
         let windows = sessions.map { Where(terminal: "ghostty", zmx: Where.Zmx(session: $0)) }
-        let screen = await ScreenReader(tmux: TmuxOnPath(path: { "" })).read(windows)
+        let screen = await ScreenReader(tmux: TmuxOnPath(path: "")).read(windows)
 
         for (session, window) in zip(sessions, windows) {
             #expect(seen(screen.places(showing: [window])).map { Array($0.prefix(2)) } == cli.zmx[session], "\(session)")

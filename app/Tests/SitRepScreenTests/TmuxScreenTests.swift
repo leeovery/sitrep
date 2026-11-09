@@ -135,6 +135,27 @@ struct TmuxScreenTests {
         #expect(places([Where(terminal: "iTerm.app"), Where(terminal: "iTerm.app")]) == [[nil, "iTerm2", nil]], "one app, once")
     }
 
+    @Test func aDeviceThatIsNoTtyIsNoneAsCoreDropsIt() async {
+        let (screen, _, _) = await Self.shown()
+        let places = { (windows: [Where]) in seen(screen.places(showing: windows)) }
+
+        #expect(places([Where(device: "/dev/null", terminal: "ghostty")]) == [])
+        #expect(places([Where(device: "/dev/null", terminal: "iTerm.app")]) == [[nil, "iTerm2", nil]])
+        #expect(
+            await Self.paneOnItsPty(device: "/dev/null") == nil,
+            "a window on no tty cannot be told on its pane's pty or off it"
+        )
+        #expect(await Self.paneOnItsPty(device: "/dev/ttys043") == true)
+    }
+
+    /// Whether tmux's reading says a window on the device is on its pane's pty, the pane on `/dev/ttys043`.
+    private static func paneOnItsPty(device: String) async -> Bool? {
+        let pane = FakePane(pane: "%148", window: "@45", session: "$45", device: "/dev/ttys043")
+        let window = inTmux(device: device)
+
+        return await TmuxAdapter(FakeTmux([socket: FakeServer(panes: [pane])])).read([window]).isOnItsPty(window)
+    }
+
     @Test func severalWindowsShowOnEachOnesDevicesTheFirstWindowsFirstEachDeviceOnce() async {
         let (screen, _, _) = await Self.shown()
         var mac = Mac()

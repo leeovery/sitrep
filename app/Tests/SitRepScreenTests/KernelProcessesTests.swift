@@ -1,5 +1,6 @@
 import Darwin
 import Foundation
+import SitRepCore
 @testable import SitRepScreen
 import Testing
 
@@ -52,18 +53,75 @@ struct KernelProcessesTests {
         #expect(parseProcArgs([1, 0]) == nil)
     }
 
-    @Test func theKernelGivesThisProcessItsParentItsProgramExactlyAndItsCommandLine() throws {
-        let table = KernelProcesses()
-        let processes = try #require(table.processes())
-        let own = try #require(processes[getpid()])
+    @Test func theKernelGivesThisProcessItsParentItsProgramExactlyAndItsCommandLineWhereWanted() throws {
+        let program = try #require(Bundle.main.executableURL?.resolvingSymlinksInPath().path)
+        let processes = try #require(KernelProcesses().read { $0.program == program })
+        let own = try #require(processes.all[getpid()])
 
         #expect(own.parent == getppid())
-        #expect(own.program == Bundle.main.executableURL?.resolvingSymlinksInPath().path)
-        #expect(table.arguments(of: getpid()) == CommandLine.arguments)
-        #expect(processes[1]?.program == "/sbin/launchd")
+        #expect(own.program == program)
+        #expect(processes.arguments[getpid()] == CommandLine.arguments)
+        #expect(processes.all[1]?.program == "/sbin/launchd")
+        #expect(processes.arguments[1] == nil, "not wanted, not read")
     }
 
-    @Test func aProcessGoneHasNoCommandLine() {
-        #expect(KernelProcesses().arguments(of: Int32.max) == nil)
+    /// A copy of a program of macOS's, signed afresh, as macOS kills a copy of its own program run from elsewhere.
+    private static func copy(_ program: String, to copy: URL) async throws {
+        for (tool, arguments) in [("/bin/cp", [program, copy.path]), ("/usr/bin/codesign", ["--force", "-s", "-", copy.path])] {
+            let ran = try await runProgram(
+                Program(executable: URL(fileURLWithPath: tool), arguments: arguments, environment: [:], limit: 10)
+            )
+
+            try #require(ran.status == 0, "\(tool): \(ran.stderr)")
+        }
+    }
+
+    @Test func aProcessWhoseProgramWasRemovedAsItRanIsTheProgramItWasStartedBy() async throws {
+        let folder = FileManager.default.temporaryDirectory.appending(path: "sitrep-screen-\(UUID().uuidString)")
+        let copy = folder.appending(path: "bash")
+        let running = Process()
+        let output = Pipe()
+
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        try await Self.copy("/bin/bash", to: copy)
+        running.executableURL = copy
+        running.arguments = ["-c", "echo running; read line"]
+        running.environment = [:]
+        running.standardOutput = output
+        running.standardInput = Pipe()
+        try running.run()
+        defer {
+            running.terminate()
+            running.waitUntilExit()
+        }
+
+        // Removed while macOS still loads it, it is killed; once it says it is running, it is loaded.
+        _ = output.fileHandleForReading.availableData
+        try FileManager.default.removeItem(at: copy)
+
+        let pid = running.processIdentifier
+        var path = [CChar](repeating: 0, count: Int(MAXPATHLEN) * 4)
+
+        try #require(proc_pidpath(pid, &path, UInt32(path.count)) <= 0, "proc_pidpath cannot tell it")
+
+        let processes = try #require(KernelProcesses().read { $0.program == copy.path })
+
+        #expect(running.isRunning)
+        #expect(processes.all[pid]?.program == copy.path)
+        #expect(processes.arguments[pid] == [copy.path, "-c", "echo running; read line"])
+    }
+
+    @Test(arguments: [
+        ("/dev/ttys001", true), ("/dev/ttys1000", true), ("/dev/tty_a", true), ("/dev/tty", false),
+        ("/dev/ttys0/x", false), ("", false), ("/tmp/ttys001", false), ("/dev/ttyé", false), ("/dev/ttys001\n", false),
+        ("/dev/null", false),
+    ])
+    func aDeviceIsWhatCoresIsDeviceAcceptsOnlyATty(value: String, isOne: Bool) {
+        #expect(isDevice(value) == isOne)
+    }
+
+    @Test func noValueIsNoDevice() {
+        #expect(!isDevice(nil))
     }
 }

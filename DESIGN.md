@@ -6968,18 +6968,32 @@ open), and tmux passing an escape sequence through from Claude's own pane
        beside `SitRepCore` with a test target of its own, which nothing
        calls yet. The kernel's table, the seat, apps by their program's
        path, the tmux and zmx adapters, the innermost of two, and the
-       three states, each rule of the TypeScript tests pinned again. One
-       thing the plan missed: `proc_pidpath` cannot tell the program of a
-       process whose program was replaced on disk as it ran, an app
-       updated under it (ENOENT, live: Claude's and Mac Performance
-       Monitor's), so there the program is the path it was started by,
-       from its command line; a Ghostty updated while running would
-       otherwise have read every session off screen. The parity check, run
-       live the same day: 1,365 processes in both the kernel's table and
-       `ps`, each with the same parent and device; the same app for each of
-       the 266 the CLI found in one, and 3 more the CLI's reading of `ps`
-       missed, helpers whose command line starts with no path; and the same
-       places for each of 12 zmx sessions, all through Portal's relay.
+       three states, each rule of the TypeScript tests pinned again, read
+       from the watch's own `Where`, which gained its zmx session. Where it
+       differs from the CLI's:
+       - **A program replaced on disk as it ran**, an app updated under
+         it, is one `proc_pidpath` cannot tell (ENOENT, live: Claude's and
+         Mac Performance Monitor's), which the plan missed: there the
+         program is the path it was started by, from its command line. A
+         Ghostty updated while running would otherwise have read every
+         session off screen.
+       - **A zmx client's command line is read only where its program's
+         file is named `zmx`**, which keeps the reads to a few a look, so
+         a zmx installed under another name reads off screen.
+       - **One zmx session's clients are tried oldest first**, by process
+         id, where `ps` listed them by terminal, then id.
+       - **Places with no device are told apart by their app**, so two
+         windows in iTerm2 bring it forward once. The CLI compared each
+         app as an object it made afresh, so it merged none.
+       - **A device that is no tty is none**, as core's `parseWhere` drops
+         it.
+
+       The parity check, run live the same day: 1,388 processes in both
+       the kernel's table and `ps`, each with the same parent and device;
+       the same app for each of the 260 the CLI found in one, and 3 more
+       the CLI's reading of `ps` missed, helpers whose command line starts
+       with no path; and the same places for each of 12 zmx sessions, all
+       through Portal's relay.
 
    **B. `sitrep jump` and `sitrep screen` retired** from the CLI once
    SitRep calls neither: `screen` has had no caller since the SitRep window
