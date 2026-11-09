@@ -11,6 +11,7 @@ import {
   type Body,
   type Presence,
   type SessionPaths,
+  type Where,
   type WindowState,
 } from '../core'
 import {
@@ -87,6 +88,7 @@ type Printed = {
     writer: string
     version: string | null
     needsReload: boolean
+    where: unknown
     state: { is: string } | null
   }[]
   new: string[]
@@ -357,7 +359,7 @@ test('the first line is the board as every surface shows it, with nothing new, n
           project: PROJECT.name,
           version: CLI_VERSION,
           needsReload: false,
-          where: { device: WHERE.device, terminal: WHERE.terminal, tmux: null },
+          where: { device: WHERE.device, terminal: WHERE.terminal, tmux: null, zmx: null },
           state: {
             is: 'working',
             since: T0,
@@ -1437,4 +1439,20 @@ test('however the watch ends, it stops listening to its standard input, which wo
   await watched(failing.t, looks(2), { fs: { stat } })
 
   expect([ended, updated, failing].map(({ t }) => t.isHearing())).toEqual([false, false, false])
+})
+
+test("each window on a line says where it is, its tmux pane and its zmx session, or null for either it is not in", async () => {
+  const inZmx = { ...WHERE, zmx: { session: 'kit · restore-card' } }
+  const inTmux = { ...WHERE, tmux: { socket: '/private/tmp/tmux-501/default', pane: '%148' } }
+  const whereOn = async (where: Where) => {
+    const t = terminal()
+    const paths = t.seed(META)
+
+    beatOn(t, paths, W1, { is: 'yourTurn', since: T0 }, { seenAt: NOW, where })
+
+    return (await watched(t, [])).lines[0]?.windows.map(window => window.where)
+  }
+
+  expect(await whereOn(inZmx)).toEqual([{ ...WHERE, tmux: null, zmx: inZmx.zmx }])
+  expect(await whereOn(inTmux)).toEqual([{ ...WHERE, tmux: inTmux.tmux, zmx: null }])
 })

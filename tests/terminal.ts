@@ -3,14 +3,14 @@
  * world's own, when a test shares it), the folder the CLI runs in, the
  * environment, the clocks, which only waiting moves, random bytes, its
  * standard input, what it prints and its closing, the plugin's manifest,
- * and a fake tmux, `ps`, lsappinfo, `open` and Ghostty behind the programs
- * it runs. Nothing touches a real folder, terminal or window.
+ * and a fake tmux, zmx, `ps`, lsappinfo, `open` and Ghostty behind the
+ * programs it runs. Nothing touches a real folder, terminal or window.
  */
 import { FRONT, GHOSTTY_BUNDLE } from '../cli/front'
 import { FOCUS, FOCUSED, PAUSE_SECONDS } from '../cli/ghostty'
 import { TimedOut, type Env, type Io, type Listed, type Ran } from '../cli/io'
 import { main } from '../cli/main'
-import { PS } from '../cli/screen'
+import { PS } from '../cli/processes'
 import { CLIENTS, PANES } from '../cli/tmux'
 import {
   digestOf,
@@ -51,13 +51,29 @@ export const manifestText = (version: string) => JSON.stringify({ name: 'sitrep'
 export const FIRST_ID = '1234'
 export const NEXT_ID = '5678'
 
+/** A process above a client, its parent's first: its command line, and the tty it is on as `ps` gives it, `??` for none. */
+export type Above = { args: string; tty: string }
+
+/** A device's tty as `ps` gives it: `ttys000` for `/dev/ttys000`, `??` for none. */
+const ttyOf = (device: string) => (device === '' ? '??' : device.replace('/dev/', ''))
+
+/** Processes on the device given; on none, for no device. */
+const on = (device: string, ...args: string[]): Above[] =>
+  args.map(each => ({ args: each, tty: ttyOf(device) }))
+
+/** Processes on no tty: an app, launchd. */
+const detached = (...args: string[]) => on('', ...args)
+
 /**
  * A tmux client, as the fake tmux holds it: its device, the tmux window it
- * shows, the commands of its process's ancestors, its parent's first, and
- * the tmux session it is attached to, unless a test says otherwise the one
- * named for its window, as each of Lee's tmux sessions has one window.
+ * shows, its process's ancestors, its parent's first, and the tmux session
+ * it is attached to, unless a test says otherwise the one named for its
+ * window, as each of Lee's tmux sessions has one window.
  */
-export type FakeClient = { tty: string; window: string; from: readonly string[]; session?: string }
+export type FakeClient = { tty: string; window: string; from: readonly Above[]; session?: string }
+
+/** A zmx client, as `ps` gives it: the device it is on, and its process's ancestors, its parent's first. */
+export type FakeZmxClient = { tty: string; from: readonly Above[] }
 
 /**
  * A tmux server: each pane with its tmux window and tmux session, a pane
@@ -97,25 +113,45 @@ export const SOCKET = '/private/tmp/tmux-501/default'
 /** Ghostty's own program, as `ps` gives it. */
 export const GHOSTTY_APP = '/Applications/Ghostty.app/Contents/MacOS/ghostty'
 
+/** Ghostty's own child in each of its windows, on that window's device. */
+const LOGIN = '/usr/bin/login -flp lee /bin/bash --noprofile --norc -c exec -l /bin/zsh'
+
 /** A Ghostty window of this Mac on `tty`, showing tmux's `window`: `tmux < zsh < login < ghostty`. */
 export const ghosttyClient = (tty: string, window: string): FakeClient => ({
   tty,
   window,
-  from: ['-zsh', '/usr/bin/login', GHOSTTY_APP, '/sbin/launchd'],
+  from: [...on(tty, '-zsh', LOGIN), ...detached(GHOSTTY_APP, '/sbin/launchd')],
+})
+
+/**
+ * A Ghostty window on `device` showing tmux's `window` through a relaying
+ * pty, the client on the relay's own, `relay`:
+ * `tmux < script < zsh < login < ghostty`.
+ */
+export const relayedClient = (relay: string, device: string, window: string): FakeClient => ({
+  tty: relay,
+  window,
+  from: [
+    ...on(device, '/usr/bin/script -q /dev/null tmux attach', '-zsh', LOGIN),
+    ...detached(GHOSTTY_APP, '/sbin/launchd'),
+  ],
 })
 
 /** Lee's phone or iPad showing tmux's `window`: `tmux < zsh < mosh-server`. */
 export const phoneClient = (tty: string, window: string): FakeClient => ({
   tty,
   window,
-  from: ['-zsh', '/opt/homebrew/bin/mosh-server', '/sbin/launchd'],
+  from: [...on(tty, '-zsh'), ...detached('/opt/homebrew/bin/mosh-server', '/sbin/launchd')],
 })
 
 /** A Ghostty on another Mac showing tmux's `window` over ssh: it gives xterm-ghostty, but descends from sshd. */
 export const sshClient = (tty: string, window: string): FakeClient => ({
   tty,
   window,
-  from: ['-zsh', '/usr/libexec/sshd-session', '/usr/sbin/sshd', '/sbin/launchd'],
+  from: [
+    ...on(tty, '-zsh', '/usr/libexec/sshd-session lee@ttys080'),
+    ...detached('/usr/sbin/sshd', '/sbin/launchd'),
+  ],
 })
 
 /** Terminal's own program, as `ps` gives it: an app with no driver. */
@@ -125,13 +161,32 @@ export const TERMINAL_APP = '/System/Applications/Utilities/Terminal.app/Content
 export const appClient = (tty: string, window: string, program: string): FakeClient => ({
   tty,
   window,
-  from: ['-zsh', '/usr/bin/login', program, '/sbin/launchd'],
+  from: [...on(tty, '-zsh', LOGIN), ...detached(program, '/sbin/launchd')],
 })
 
-/** Processes in every snapshot, whatever the clients: one a command with spaces. */
+/**
+ * A Ghostty window on `device` attached to a zmx session through Portal, as
+ * Lee's are (live, 9 November 2026): the client on Portal's own relaying
+ * pty, `relay`, `zmx < portal < zsh < login < ghostty`.
+ */
+export const portalClient = (relay: string, device: string): FakeZmxClient => ({
+  tty: relay,
+  from: [
+    ...on(device, 'portal open /sit', '-/bin/zsh', LOGIN),
+    ...detached(GHOSTTY_APP, '/sbin/launchd'),
+  ],
+})
+
+/** A window of a terminal app on `tty` attached to a zmx session straight from its shell: `zmx < zsh < login < the app's program`. */
+export const zmxClient = (tty: string, program: string): FakeZmxClient => ({
+  tty,
+  from: [...on(tty, '-zsh', LOGIN), ...detached(program, '/sbin/launchd')],
+})
+
+/** Processes in every snapshot, whatever the clients: one a program with spaces, with arguments. */
 const OTHER_PROCESSES = [
-  '    1     0 /sbin/launchd',
-  ' 4168     1 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  '    1     0 ??       /sbin/launchd',
+  ' 4168     1 ??       /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --flag',
 ]
 
 const printed = (lines: readonly string[]): Ran => ({
@@ -143,8 +198,15 @@ const printed = (lines: readonly string[]): Ran => ({
 const isWords = (words: readonly string[], expected: readonly string[]) =>
   words.join('\0') === expected.join('\0')
 
-const processLine = (pid: number, parent: number, command: string) =>
-  `${String(pid).padStart(5)} ${String(parent).padStart(5)} ${command}`
+const processLine = (pid: number, parent: number, { args, tty }: Above) =>
+  `${String(pid).padStart(5)} ${String(parent).padStart(5)} ${tty.padEnd(8)} ${args}`
+
+/** A process and its ancestors, its parent's first, as `ps` gives them, each ancestor's id its place in the chain past the process's. */
+const chainLines = (pid: number, own: Above, from: readonly Above[]) => {
+  const chain = [pid, ...from.map((_, i) => pid * 10 + i)]
+
+  return [own, ...from].map((each, i) => processLine(chain[i] ?? 0, chain[i + 1] ?? 0, each))
+}
 
 const isUnder = (dir: string, path: string) => path.startsWith(`${dir}/`)
 
@@ -173,6 +235,8 @@ type Options = {
   random?: Random
   /** tmux's servers, by socket; a socket missing has none running. */
   tmux?: Record<string, FakeServer>
+  /** zmx's sessions, by name, each with its clients; a session missing has none running. */
+  zmx?: Record<string, FakeZmxClient[]>
   /** Ghostty's windows; with none given, Ghostty is not running. */
   ghostty?: FakeWindow[]
   /** A Ghostty from before its terminals said their device, or before it could be scripted at all; one that knows `tty` unless a test says otherwise. */
@@ -312,7 +376,29 @@ function screen(options: Options) {
     throw new Error(`the fake tmux knows no ${words.join(' ')}`)
   }
 
-  /** Every client's process and its ancestors, each ancestor's id its place in the chain past the client's. */
+  /** Each zmx session's server, on no tty, and each of its clients, by any path to zmx, with their ancestors. */
+  const zmxLines = () => {
+    const sessions = Object.entries(options.zmx ?? {})
+    const attached = sessions.flatMap(([name, each]) => each.map(client => ({ name, client })))
+
+    return [
+      ...sessions.map(([name], i) =>
+        processLine(9000 + i, 1, {
+          args: `zmx attach ${name} /opt/homebrew/bin/portal state hydrate --session ${name}`,
+          tty: '??',
+        }),
+      ),
+      ...attached.flatMap(({ name, client }, i) =>
+        chainLines(
+          5000 + i,
+          { args: `/opt/homebrew/bin/zmx attach ${name}`, tty: ttyOf(client.tty) },
+          client.from,
+        ),
+      ),
+    ]
+  }
+
+  /** Every tmux and zmx client's process and its ancestors, and each zmx session's server. */
   const ps = (words: readonly string[]): Ran => {
     if (!isWords(words, PS.slice(1))) {
       throw new Error(`the fake ps knows no ${words.join(' ')}`)
@@ -320,13 +406,10 @@ function screen(options: Options) {
 
     return printed([
       ...OTHER_PROCESSES,
-      ...clients.flatMap(client => {
-        const chain = [pidOf(client), ...client.from.map((_, i) => pidOf(client) * 10 + i)]
-
-        return ['tmux', ...client.from].map((command, i) =>
-          processLine(chain[i] ?? 0, chain[i + 1] ?? 0, command),
-        )
-      }),
+      ...clients.flatMap(client =>
+        chainLines(pidOf(client), { args: 'tmux attach', tty: ttyOf(client.tty) }, client.from),
+      ),
+      ...zmxLines(),
     ])
   }
 

@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 import { EXIT } from '../cli/main'
-import { PS } from '../cli/screen'
+import { PS } from '../cli/processes'
 import { STALE_MS, type SessionMeta, type Where } from '../core'
 import { META, W2 } from './support'
 import {
@@ -9,10 +9,12 @@ import {
   ghosttyClient,
   NOW,
   phoneClient,
+  portalClient,
   SOCKET,
   sshClient,
   TERMINAL_APP,
   terminal,
+  zmxClient,
 } from './terminal'
 import { ELSEWHERE } from './world'
 
@@ -277,4 +279,79 @@ test('plain screen says each session a window holds, a line each by its id, and 
   expect(unanswered.endsWith(`${META.id}  ${META.name}: not known\ntmux gave no answer.\n`)).toBe(
     true,
   )
+})
+
+/**
+ * Sessions each with a live window in zmx: one Portal attached in a Ghostty
+ * window, one in a Terminal window, and one whose zmx session has no client;
+ * and one in tmux beside them.
+ */
+const inZmx = (options: Parameters<typeof terminal>[0] = {}) => {
+  const t = terminal({
+    zmx: {
+      'sitrep-iFpz7T': [portalClient('/dev/ttys032', '/dev/ttys036')],
+      'kit · restore-card': [zmxClient('/dev/ttys030', TERMINAL_APP)],
+      'agentic-workflows-v2 · leeway-build': [],
+    },
+    tmux: { [SOCKET]: { panes: [['%1', '@1']], clients: [ghosttyClient('/dev/ttys000', '@1')] } },
+    ...options,
+  })
+  const zmx = (session: string): Where => ({
+    device: '/dev/ttys087',
+    terminal: 'ghostty',
+    zmx: { session },
+  })
+
+  t.seed(META, { seenAt: NOW, where: zmx('sitrep-iFpz7T') })
+  t.seed(LOBBY, { seenAt: NOW, where: zmx('kit · restore-card') })
+  t.seed(LEDGER, { seenAt: NOW, where: zmx('agentic-workflows-v2 · leeway-build') })
+  t.seed(GOOSE, { project: ELSEWHERE.key, seenAt: NOW, where: inTmux(SOCKET, '%1') })
+
+  return t
+}
+
+test('screen --json says a session in zmx is on screen where a client of its zmx session is in a terminal app, naming that app, and off where its zmx session has none; tmux is asked only for the session in tmux', async () => {
+  const t = inZmx()
+  const { exit, out, err } = await t.run('screen', '--json')
+
+  expect([exit, err]).toEqual([EXIT.done, ''])
+  expect(printed(out)).toEqual({
+    v: 1,
+    sessions: [
+      { id: LOBBY.id, is: 'on', app: 'Terminal' },
+      { id: LEDGER.id, is: 'off', app: null },
+      { id: GOOSE.id, is: 'on', app: 'Ghostty' },
+      { id: META.id, is: 'on', app: 'Ghostty' },
+    ],
+    unanswered: [],
+  })
+  expect(t.screen.ran.filter(([name]) => name !== 'tmux')).toEqual([PS])
+})
+
+test('with tmux not on PATH, a session in zmx still says where it is, and only the one in tmux is unknown', async () => {
+  const { exit, out, err } = await inZmx({ missing: ['tmux'] }).run('screen', '--json')
+
+  expect([exit, err]).toEqual([EXIT.done, ''])
+  expect(isOf(out)).toEqual({
+    [LOBBY.id]: 'on',
+    [LEDGER.id]: 'off',
+    [GOOSE.id]: 'unknown',
+    [META.id]: 'on',
+  })
+  expect(printed(out).unanswered).toEqual(['tmux'])
+})
+
+test('a session in zmx is unknown, never off, when ps is not on PATH or does not answer, as only ps tells its clients', async () => {
+  for (const options of [{ missing: ['ps'] }, { slow: ['ps'] }]) {
+    const why = JSON.stringify(options)
+    const { out } = await inZmx(options).run('screen', '--json')
+
+    expect(isOf(out), why).toEqual({
+      [LOBBY.id]: 'unknown',
+      [LEDGER.id]: 'unknown',
+      [GOOSE.id]: 'unknown',
+      [META.id]: 'unknown',
+    })
+    expect(printed(out).unanswered, why).toEqual(['ps'])
+  }
 })

@@ -1,6 +1,6 @@
 /**
- * The tmux layer, under every driver: which tmux clients show a pane, and
- * selecting the pane's tmux window so that one does.
+ * tmux's multiplexer adapter, under every driver: which tmux clients show a
+ * pane, and selecting the pane's tmux window so that one does.
  *
  * A client's current tmux window, not its tmux session, is what it shows:
  * a tmux session of several windows shows one at a time, and those grouped or
@@ -14,8 +14,11 @@
  *
  * Selecting happens only in a jump, never as the screen is read.
  */
+import type { Where } from '../core'
 import type { Io } from './io'
 import { look } from './look'
+import type { Multiplexer, Place, Reading } from './multiplexer'
+import { seatOf, type Processes } from './processes'
 
 /** A tmux client: the device it is on, empty for a control-mode client over pipes, its process, the tmux window it shows, and the tmux session it is attached to, by their ids. */
 export type Client = { device: string; pid: number; window: string; session: string }
@@ -159,6 +162,64 @@ export const showingPane = <C extends Client>(
           client,
           select: { socket, session: client.session, window: at.window },
         }))
+}
+
+/** The tmux sockets the windows run under, each once. */
+export const socketsOf = (windows: readonly Where[]) => [
+  ...new Set(windows.flatMap(where => (where.tmux === undefined ? [] : [where.tmux.socket]))),
+]
+
+/**
+ * Where a window in tmux can be brought forward: the clients a jump can
+ * reach that show its pane, or could be made to, each seated by the
+ * snapshot, on the device of its terminal's own pty, else on its own. A
+ * client a jump cannot reach, Lee's phone, neither shows the pane nor stops
+ * a select making another client show it.
+ */
+const placesIn = (where: Where, servers: Servers, processes: Processes): Place[] => {
+  const server = where.tmux === undefined ? undefined : servers.get(where.tmux.socket)
+
+  if (where.tmux === undefined || server === undefined) {
+    return []
+  }
+
+  const seated = server.clients.flatMap(client => {
+    const seat = seatOf(processes, client.pid, client.device)
+
+    return seat === undefined ? [] : [{ ...client, seat }]
+  })
+
+  return showingPane(where.tmux.socket, server, where.tmux.pane, seated).map(
+    ({ client, select }) => ({ ...client.seat, select }),
+  )
+}
+
+/** What tmux said of its servers, by socket, and the sockets it gave no answer for, as a reading of the screen. */
+export const tmuxReading = (servers: Servers, unansweredSockets: ReadonlySet<string>): Reading => ({
+  places: (where, processes) => placesIn(where, servers, processes),
+  unanswered: where =>
+    where.tmux !== undefined && unansweredSockets.has(where.tmux.socket) ? ['tmux'] : [],
+  needsProcesses: where =>
+    where.tmux !== undefined && (servers.get(where.tmux.socket)?.clients.length ?? 0) > 0,
+})
+
+/**
+ * tmux, asked twice for each socket the windows run under; a server with
+ * clients needs `ps` to tell which apps they are in. tmux not answering, or
+ * not on PATH, makes its sockets' windows unknown, never off screen.
+ */
+export const TMUX: Multiplexer = {
+  isIn: where => where.tmux !== undefined,
+  read: async (io, windows) => {
+    const read = await Promise.all(
+      socketsOf(windows).map(async socket => [socket, await readServer(io, socket)] as const),
+    )
+
+    return tmuxReading(
+      new Map(read.map(([socket, { server }]) => [socket, server])),
+      new Set(read.flatMap(([socket, each]) => (each.isAnswered ? [] : [socket]))),
+    )
+  },
 }
 
 /** Makes the select, within the time tmux's reads have. */

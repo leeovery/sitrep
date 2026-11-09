@@ -2187,9 +2187,10 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   delete a file either, so a window that lets go adds `leftAt`. Of several
   windows on one session, the one attached longest submits its inbox, so two
   never both do. A heartbeat also says `where` its window is, as far as that
-  is known (see "The menu bar"): `device`, `terminal`, and `tmux` with its
-  `socket` and `pane`. It is read field by field, a bad one dropped, and a
-  heartbeat is never lost over it; one written before it reads as ever. It
+  is known (see "The menu bar"): `device`, `terminal`, `tmux` with its
+  `socket` and `pane`, and `zmx` with its `session` (9 November 2026). It is
+  read field by field, a bad one dropped, and a heartbeat is never lost
+  over it; one written before it reads as ever. It
   also says the sitrep `version` its window runs (19 October 2026): the
   `version` in the plugin's manifest, `.claude-plugin/plugin.json` under the
   plugin's folder, read once as the mod loads and kept for the load, a failure
@@ -2647,11 +2648,12 @@ truth. There is still no background service. None of it is built now. Lee:
       would make one; `off`, none does, every program asked of its windows
       having answered; `unknown`, none found, as tmux gave no answer for a
       socket one of its windows runs under, or `ps` none where that server
-      has clients, whose apps it tells. A jump that could not tell says so
-      rather than calling the session off screen, and so does `screen`:
-      unknown is never off. A window outside tmux asks neither, so is never
-      unknown; a live window saying not where it is is off, as no jump can
-      reach it.
+      has clients, whose apps it tells, or where a window runs in zmx, whose
+      clients only `ps` tells (9 November 2026). A jump that could not tell
+      says so rather than calling the session off screen, and so does
+      `screen`: unknown is never off. A window in no multiplexer asks
+      neither, so is never unknown; a live window saying not where it is is
+      off, as no jump can reach it.
     - Only the sessions a live window holds are listed: one no window holds
       is away, which the board says already. A finished session a window
       still holds is listed with the rest. Each session's heartbeats are
@@ -2659,20 +2661,21 @@ truth. There is still no background service. None of it is built now. Lee:
       folded, so a run costs what the open sessions do, not the board's
       history.
     - One reading for the run, over every listed session's windows: tmux
-      asked twice for each socket and `ps` once, beside it, each given 2
-      seconds, as for a jump, however many sessions run under them. Nothing
-      fails the run: what gives no answer makes its sessions unknown, and is
-      named. It selects, writes and focuses nothing. Over a copy of Lee's
-      board (4 November 2026: 107 sessions, 18 held) a run took 0.2 seconds
-      of CPU, against 0.27 while it folded every session, and 0.3 to 0.55
-      seconds' wall on a Mac at a load of 230; Bun's start is 0.02 of it.
+      asked twice for each socket and `ps` once, beside it, where any runs
+      in a multiplexer, each given 2 seconds, as for a jump, however many
+      sessions run under them. Nothing fails the run: what gives no answer
+      makes its sessions unknown, and is named. It selects, writes and
+      focuses nothing. Over a copy of Lee's board (4 November 2026: 107
+      sessions, 18 held) a run took 0.2 seconds of CPU, against 0.27 while
+      it folded every session, and 0.3 to 0.55 seconds' wall on a Mac at a
+      load of 230; Bun's start is 0.02 of it.
     - `--json`, `v` 1, the sessions by id, and `unanswered` naming what gave
       no answer, `tmux`, `ps`, or neither; plain `screen` says the same a line
       each (`sr-k3f9qa  Dashboard redesign: on screen`, `not on screen`, `not
       known`), then what gave no answer. Each session on screen names the
       app showing it, the first place a jump would bring forward, as
-      `"Ghostty"`: in tmux the app its client descends from, which
-      `$TERM_PROGRAM`, `tmux` there, cannot tell; `null` where it is not on
+      `"Ghostty"`: in a multiplexer the app its client descends from, which
+      `$TERM_PROGRAM`, `tmux` in tmux, cannot tell; `null` where it is not on
       screen (4 November 2026, for the session page's meta line; added to
       `v` 1, which a reader that ignores it reads as before).
 
@@ -2690,8 +2693,9 @@ truth. There is still no background service. None of it is built now. Lee:
       at every look, the window shut or not, for the one window that shows
       it. `list` runs no program, and keeps so. The window asked for it on
       its own cadence, only while it showed. The reading stays in the CLI's
-      `screen.ts`, one place, which a jump reads too, so zmx, should Lee move
-      to it, comes in there behind the same states.
+      `screen.ts`, one place, which a jump reads too, so zmx came in there
+      behind the same states (9 November 2026), as a multiplexer adapter
+      (see "The jump").
 
     `board --json` is
     `{ v, project: { key, name }, session, asks, parked, log, resolved }`:
@@ -2913,7 +2917,7 @@ truth. There is still no background service. None of it is built now. Lee:
             "name": "Dashboard redesign", "project": "Switchboard",
             "version": "0.2.0", "needsReload": false,
             "where": { "device": "/dev/ttys001", "terminal": "ghostty",
-                       "tmux": null },
+                       "tmux": null, "zmx": null },
             "state": { "is": "working", "since": 1760000000000,
                        "tool": { "name": "Read", "subject": "..." },
                        "question": null },
@@ -3647,8 +3651,9 @@ that takes Lee to the window a session is in.
   for the board; changed on 16 October 2026 so that presence expiry and
   what is new, which decides the notch's swell, are worked out in core, not
   in the app. Once a remote surface exists, the app also hosts serving.
-- **tmux and Ghostty stay at the edge.** Only the jump knows them; core, the
-  pane and the app never do. Portal is not involved.
+- **tmux, zmx and Ghostty stay at the edge.** Only the jump knows them;
+  core, the pane and the app never do, beyond a heartbeat's `where` naming
+  a tmux pane or a zmx session. Portal is not involved.
 
 ### The notch and its panel
 
@@ -5161,6 +5166,23 @@ in two layers:
   show a pane, and selecting the pane's tmux window where none does (step
   2). So tmux or not works for any terminal.
 
+**Two axes, and one step between them** (9 November 2026, as Lee moved
+from tmux to zmx). The tmux layer became the first of the **multiplexer
+adapters** (`cli/multiplexer.ts`): each has one job, given the session a
+window recorded, to list the client processes showing it, and, for tmux,
+the select that makes a client show the pane. tmux's is in `cli/tmux.ts`,
+zmx's in `cli/zmx.ts`. The **terminal drivers** are the other axis, as
+before: each brings forward the window on a device, Ghostty's the one
+built, and an app with no driver is brought forward whole. Between them
+every client of every multiplexer goes through **one step, its seat**
+(`seatOf`, `cli/processes.ts`): its ancestry walked to the nearest terminal
+app, the app its place is in, and the device of that app's own child, the
+terminal's pty, the device its driver is asked for (step 2). A window in no
+multiplexer stays as it was: Claude's own device and `$TERM_PROGRAM`.
+Another multiplexer, screen or Zellij, is one more adapter and nothing
+else; another terminal, one more driver: Terminal and iTerm2, both of which
+give each tab's tty by AppleScript, stay parked.
+
 A driver declares what it can do beyond bringing a window forward, which
 every driver must: select a tab or a split, and show a session's state, in a
 tab's title or by OSC 7501. They are declared in the driver's shape and
@@ -5170,13 +5192,14 @@ has its sessions shown, and a click on one brings that terminal app forward
 shape allows them. A jump made in Swift, in the app, stays parked too.
 
 1. Each Claude window records, in its heartbeat, the terminal device it is
-   on, the terminal program (`$TERM_PROGRAM`), and its tmux socket and pane
-   when it runs in tmux, worked out once as it attaches. A process Claude
-   Code starts has no terminal of its own (`ps` gives `??`, live), so the
-   mod runs a small shell walk up the processes from there to the first
-   with one, which is Claude Code's. A walk that finds none leaves the
-   device out and says so in the debug log; the window attaches all the
-   same.
+   on, the terminal program (`$TERM_PROGRAM`), its tmux socket and pane
+   when it runs in tmux, and its zmx session (`$ZMX_SESSION`, whole, spaces
+   and `·` kept) when it runs in zmx (9 November 2026), worked out once as
+   it attaches. A process Claude Code starts has no terminal of its own
+   (`ps` gives `??`, live), so the mod runs a small shell walk up the
+   processes from there to the first with one, which is Claude Code's. A
+   walk that finds none leaves the device out and says so in the debug log;
+   the window attaches all the same.
 2. A click finds the places that can show the session, each a terminal app of
    this Mac and the device of its window, the session's windows in turn: the
    one that needs Lee first, else the one active last (below). Without tmux it
@@ -5207,10 +5230,66 @@ shape allows them. A jump made in Swift, in the app, stays parked too.
    October; the terminal's name, `xterm-ghostty`, would count the ssh one
    too), and neither of the last two descends from an app. tmux and `ps` each
    get 2 seconds; one that cannot start, fails or does not answer shows
-   nothing, so nothing hangs over them. Lee's tmux
-   sessions are one window each, so for Lee every attached Ghostty window
-   shows its pane already. A jump that could not tell, tmux or `ps` giving no
-   answer in time, says so rather than calling the session off screen.
+   nothing, so nothing hangs over them. Lee's tmux sessions were one window
+   each, so for Lee every attached Ghostty window showed its pane already. A
+   jump that could not tell, tmux or `ps` giving no answer in time, says so
+   rather than calling the session off screen. A missing tmux is one that
+   cannot start: its sockets' windows are unknown, never off, as a tmux
+   server outlives its program being removed; a window in zmx or in none
+   never runs tmux, so tmux missing never touches it (checked 9 November
+   2026, tmux no longer installed on Lee's Mac).
+
+   **The seat** (9 November 2026). The same snapshot gives each client's
+   device: the tty of its app's own child among its ancestors, the
+   terminal's pty, through any relaying pty between them; where that child
+   is on none, the client's own (tmux's `client_tty`, `ps`'s tty for zmx).
+   A client on no tty of its own, a tmux control-mode client over pipes, is
+   on none, as before (step 3). `ps` is asked for `pid=,ppid=,tty=,args=`,
+   once a look: the command line, as zmx's clients are told by it, where it
+   gave `comm` before. macOS's `ps` truncates every column but the last to
+   its width, so the program and its arguments cannot both come whole; a
+   process's program is read as its command line up to its first argument
+   that is an option or a path (` -` or ` /`), which keeps the spaces of
+   `/Applications/Visual Studio Code.app/…/Code Helper (Plugin)
+   --type=utility` and leaves out an app a shell's arguments name. A
+   program whose own path holds ` -` or ` /` would be misread: none is
+   known.
+   For tmux the seat replaced `client_tty` as the device, the same device
+   wherever the client is on its terminal's pty, as each of Lee's Ghostty,
+   Terminal and VS Code clients is (`tmux < zsh < login < ghostty`, login on
+   the client's own tty). They differ only behind a relay: a client in
+   `script`, `asciinema rec`, `expect`, `unbuffer` or Portal sits on the
+   relay's pty, which no terminal is on, and the seat finds Ghostty's. A
+   client in no app has no place by either, so `client_tty` stays only as
+   the fallback for an app's child on no tty.
+
+   **zmx** (9 November 2026). Lee moved from tmux to zmx on 7 November 2026,
+   through Portal, his own session tool, and removed tmux; every jump then
+   failed (`… shows on /dev/ttys087, but no Ghostty window there
+   answered.`), as the window said no tmux and its own device, the zmx
+   session's pty, which no terminal is on. Seen live, read-only, on 9
+   November 2026: Claude runs on `ttys087`, the pty the session's server
+   holds, with `ZMX_SESSION=sitrep-iFpz7T`, `TERM_PROGRAM=ghostty` and no
+   `$TMUX`; the server is `zmx attach sitrep-iFpz7T /opt/homebrew/bin/portal
+   state hydrate …`, its parent launchd, on no tty; the client Lee sees is
+   `zmx attach sitrep-iFpz7T` on `ttys032`, Portal's own relaying pty, under
+   `portal open /sit` < `-/bin/zsh` < `/usr/bin/login -flp leeovery …` on
+   `ttys036` < Ghostty; and Ghostty has a terminal on `ttys036`, none on
+   `ttys032` or `ttys087`. So the device is the seat's, Ghostty's own
+   child's, neither the client's nor the session's. zmx 1.0.1 lists no
+   session's clients (`zmx list` gives each session's name, its server's
+   pid and a count of clients), so they are read from `ps`: each process
+   whose command line is exactly `zmx attach <session>`, by any path to
+   zmx, on a tty, the name compared whole after `attach `, so a name's
+   spaces and `·` (`agentic-workflows-v2 · leeway-build`) need no parsing;
+   the server's own line has its command after the name, and no tty.
+   `ps` runs with a UTF-8 character type (above), so the `·` comes through.
+   A zmx session is one terminal, shown whole by each client: there is no
+   window or pane to select, and a session is on screen where a client of
+   it is in a terminal app with a place. `ps` giving no answer leaves it
+   unknown, never off, as only `ps` tells its clients. A client attached by
+   another form (`zmx a`, `zmx attach --labels …`) is not found: Portal
+   attaches every client as `zmx attach <session>` (11 clients, live).
 
    `list --json`'s `onScreen` said whether a jump could reach the session: a
    place showed it, or a select would make one show it. Its name and `v`
@@ -5349,11 +5428,13 @@ shape allows them. A jump made in Swift, in the app, stays parked too.
      another client show it. Before the review, one listed first was asked
      for and its empty answer taken for a landed jump, the real Ghostty
      client after it never tried.
-   - **A relaying pty is not found, accepted.** A tmux client run inside
-     `script`, `asciinema rec`, `expect` or `unbuffer` in a Ghostty window
-     is on the relay's own pty, which no Ghostty terminal is on, so the
-     jump finds no window there; the knock's report passed through the
-     relay to Ghostty.
+   - **A relaying pty is found** (9 November 2026). A client run inside
+     `script`, `asciinema rec`, `expect`, `unbuffer` or Portal in a Ghostty
+     window is on the relay's own pty, which no Ghostty terminal is on; its
+     seat (step 2) is Ghostty's own child's device, so the jump asks for the
+     terminal there. Until then it was accepted as not found for tmux, the
+     device tmux's `client_tty`; zmx made it the common case, every one of
+     Lee's windows attached through Portal's relay.
    - The program first checks Ghostty is running: telling it anything would
      launch it.
    - Each question to Ghostty, each Apple Event the program sends, waits at

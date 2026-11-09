@@ -1,10 +1,11 @@
 /**
  * Which terminal app a window is in: one with a driver, else one brought
  * forward as an app, which shows the session but cannot pick out its window.
- * Outside tmux it is told by the window's `$TERM_PROGRAM`; under tmux, which
- * sets its own, by the tmux client's ancestors in `ps`: the nearest that is a
- * driver's program, or inside an app bundle, or a known app's helper outside
- * its bundle.
+ * Outside a multiplexer it is told by the window's `$TERM_PROGRAM`; under
+ * one, as tmux sets its own and zmx passes on the one its client started
+ * with, by the client's ancestors in `ps`: the nearest that is a driver's
+ * program, or inside an app bundle, or a known app's helper outside its
+ * bundle.
  *
  * An app with no driver is brought forward by `open`, within the time limit,
  * and nothing more: no window of it picked out, and no select beyond the tmux
@@ -101,14 +102,18 @@ const bundledOf = (program: string | undefined) => {
 /** Whether an app has a driver of its own. */
 export const isDriver = (app: App): app is Driver => DRIVERS.some(driver => driver === app)
 
-/** The app a window outside tmux is in, by its `$TERM_PROGRAM`: its driver, else one in the table; undefined for any other. */
+/** Whether a window in the app can be reached on the device: a driver needs one to find the window; an app with no driver is brought forward whole, so needs none. */
+export const isReachable = (app: App, device: string | undefined) =>
+  device !== undefined || !isDriver(app)
+
+/** The app a window outside a multiplexer is in, by its `$TERM_PROGRAM`: its driver, else one in the table; undefined for any other. */
 export const appOfProgram = (program: string | undefined): App | undefined =>
   DRIVERS.find(driver => driver.program === program) ?? bundledOf(program)
 
 /**
- * The app a process is, by its command as `ps` gives it: a driver's program,
- * a known app's helper, else a program inside an app bundle; undefined for
- * one in none, a shell, `login`, mosh-server or sshd.
+ * The app a process is, by its program, the first word of its command line:
+ * a driver's program, a known app's helper, else a program inside an app
+ * bundle; undefined for one in none, a shell, `login`, mosh-server or sshd.
  */
 export const appOfCommand = (command: string): App | undefined => {
   const helper = HELPERS.find(([pattern]) => pattern.test(command))

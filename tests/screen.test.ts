@@ -2,19 +2,24 @@ import { expect, test } from 'claude-code/testing'
 import { appOfCommand, appOfProgram, DRIVERS, openWords } from '../cli/apps'
 import { GHOSTTY_BUNDLE, parseBundle } from '../cli/front'
 import { GHOSTTY } from '../cli/ghostty'
+import type { Place } from '../cli/multiplexer'
 import {
-  clientApps,
   parseProcesses,
-  placesShowing,
-  reachOf,
-  socketsOf,
-  windowsOf,
-  type Place,
+  programOf,
+  seatOf,
   type Process,
   type Processes,
-  type Screen,
-} from '../cli/screen'
-import { parseClients, parsePanes, selectWords, type Client } from '../cli/tmux'
+} from '../cli/processes'
+import { placesShowing, reachOf, windowsOf, type Screen } from '../cli/screen'
+import {
+  parseClients,
+  parsePanes,
+  selectWords,
+  socketsOf,
+  tmuxReading,
+  type Client,
+  type Servers,
+} from '../cli/tmux'
 import { attach, leave, presenceText, rowOf, type Where, type WindowState } from '../core'
 import { fold, MIN, T0, W1, W2 } from './support'
 
@@ -36,9 +41,14 @@ const IN_TMUX: Where = {
 
 const IN_GHOSTTY: Where = { device: '/dev/ttys041', terminal: 'ghostty' }
 
-/** Every process, by id: `[id, parent, command]`. */
-const processes = (...each: [pid: number, parent: number, command: string][]) =>
-  new Map(each.map(([pid, parent, command]): [number, Process] => [pid, { parent, command }]))
+/** Every process, by id: `[id, parent, command line, device]`, on none unless given. */
+const processes = (...each: [pid: number, parent: number, args: string, device?: string][]) =>
+  new Map(
+    each.map(([pid, parent, args, device]): [number, Process] => [
+      pid,
+      { parent, args, ...(device === undefined ? {} : { device }) },
+    ]),
+  )
 
 /**
  * Four Ghostty windows (`tmux < zsh < login < ghostty`), the phone through
@@ -89,30 +99,39 @@ const client = (device: string, pid: number, window: string, session = `$${windo
   session,
 })
 
+/** One server on the socket, with these panes, each in its tmux session, and these clients. */
+const serverOf = (
+  panes: [pane: string, window: string, session: string][],
+  clients: Client[],
+): Servers =>
+  new Map([
+    [SOCKET, { panes: parsePanes(panes.map(each => each.join('\t')).join('\n')), clients }],
+  ])
+
+/** The screen tmux's servers give, read against the processes, and the sockets tmux gave no answer for. */
+const screenWith = (
+  servers: Servers,
+  snapshot: Processes = PROCESSES,
+  unansweredSockets: ReadonlySet<string> = new Set(),
+): Screen => ({
+  readings: [tmuxReading(servers, unansweredSockets)],
+  processes: snapshot,
+  unanswered: [],
+})
+
 /** The screen one server with these panes, each in its tmux session, and these clients gives, read against the processes. */
 const screenOf = (
   panes: [pane: string, window: string, session: string][],
   clients: Client[],
   snapshot: Processes = PROCESSES,
-): Screen => {
-  const servers = new Map([
-    [SOCKET, { panes: parsePanes(panes.map(each => each.join('\t')).join('\n')), clients }],
-  ])
-
-  return {
-    servers,
-    apps: clientApps(servers, snapshot),
-    unanswered: [],
-    unansweredSockets: new Set(),
-  }
-}
+): Screen => screenWith(serverOf(panes, clients), snapshot)
 
 /**
  * Claude's window shown by Ghostty windows, the phone and a Ghostty over
  * ssh; another of its tmux session by a Ghostty window; and a window of
  * another session by a Ghostty window.
  */
-const SCREEN = screenOf(
+const SERVERS = serverOf(
   [
     [PANE, WINDOW, SESSION],
     ['%149', '@46', SESSION],
@@ -127,6 +146,8 @@ const SCREEN = screenOf(
     client('/dev/ttys055', 513, WINDOW),
   ],
 )
+
+const SCREEN = screenWith(SERVERS)
 
 /** Each place as its device, its app's name, and the tmux session a select makes the pane's window current in, if any. */
 const seen = (places: readonly Place[]) =>
@@ -165,49 +186,96 @@ test("tmux's select makes a window current in a tmux session by their ids, on th
   ])
 })
 
-test("ps's snapshot reads as each process's parent and command, a command's spaces kept", () => {
+test("ps's snapshot reads as each process's parent, its device, none for `??`, and its command line, spaces kept", () => {
   expect(
     parseProcesses(
       [
-        '    1     0 /sbin/launchd',
-        ' 4168     1 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+        '    1     0 ??       /sbin/launchd',
+        ' 4168     1 ??       /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --flag',
+        '11796 11681 ttys032  /opt/homebrew/bin/zmx attach kit · restore-card',
         'not a process',
+        '   12     1 ??       ',
         '',
       ].join('\n'),
     ),
   ).toEqual(
     processes(
       [1, 0, '/sbin/launchd'],
-      [4168, 1, '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'],
+      [4168, 1, '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome --flag'],
+      [11796, 11681, '/opt/homebrew/bin/zmx attach kit · restore-card', '/dev/ttys032'],
     ),
   )
 })
 
+test("a command line's program is its first word, up to the first argument that is an option or a path, its own path's spaces kept", () => {
+  expect(programOf(GHOSTTY_APP)).toBe(GHOSTTY_APP)
+  expect(programOf('/usr/bin/login -flp lee /bin/bash --noprofile')).toBe('/usr/bin/login')
+  expect(programOf('-/bin/zsh')).toBe('-/bin/zsh')
+  expect(
+    programOf(
+      '/Applications/Visual Studio Code.app/Contents/Frameworks/Code Helper (Plugin).app/Contents/MacOS/Code Helper (Plugin) --type=utility',
+    ),
+  ).toBe(
+    '/Applications/Visual Studio Code.app/Contents/Frameworks/Code Helper (Plugin).app/Contents/MacOS/Code Helper (Plugin)',
+  )
+  expect(
+    programOf('/Users/lee/Library/Application Support/iTerm2/iTermServer-3.5.4 /Users/lee/s.socket'),
+  ).toBe('/Users/lee/Library/Application Support/iTerm2/iTermServer-3.5.4')
+  expect(
+    appOfCommand(programOf('/bin/zsh -c open /Applications/Foo.app/Contents/MacOS/foo')),
+    "an app named in a shell's arguments is not the shell's",
+  ).toBeUndefined()
+})
+
 test("each client's terminal app is the nearest app it descends from: Ghostty's driver for Ghostty's, an app by its outermost bundle for another's, and none for the phone's or a Ghostty's over ssh", () => {
-  const apps = clientApps(
-    new Map([
-      [
-        SOCKET,
-        {
-          panes: new Map(),
-          clients: [503, 513, 523, 533, 602, 703, 803, 903].map(pid =>
-            client(`/dev/ttys${pid}`, pid, WINDOW),
-          ),
-        },
-      ],
+  const apps = Object.fromEntries(
+    [503, 513, 523, 533, 602, 703, 803, 903].map(pid => [
+      pid,
+      seatOf(PROCESSES, pid, `/dev/ttys${pid}`)?.app.name,
     ]),
-    PROCESSES,
   )
 
-  expect(Object.fromEntries([...apps].map(([pid, app]) => [pid, app.name]))).toEqual({
+  expect(apps).toEqual({
     503: 'Ghostty',
     513: 'Ghostty',
     523: 'Ghostty',
     533: 'Ghostty',
+    602: undefined,
+    703: undefined,
     803: 'Terminal',
     903: 'Visual Studio Code',
   })
-  expect(apps.get(503)).toBe(GHOSTTY)
+  expect(seatOf(PROCESSES, 503, '/dev/ttys503')?.app).toBe(GHOSTTY)
+})
+
+test("a client's device is the tty of its terminal app's own child, through any relaying pty; that child on none, the client's own; the client on none of its own, none", () => {
+  const inGhostty = (...above: [pid: number, parent: number, args: string, device?: string][]) =>
+    processes([1, 0, '/sbin/launchd'], [500, 1, GHOSTTY_APP], ...above)
+  const direct = inGhostty(
+    [501, 500, '/usr/bin/login', '/dev/ttys036'],
+    [502, 501, '-zsh', '/dev/ttys036'],
+    [600, 502, 'tmux', '/dev/ttys036'],
+  )
+  const relayed = inGhostty(
+    [501, 500, '/usr/bin/login', '/dev/ttys036'],
+    [502, 501, '-zsh', '/dev/ttys036'],
+    [503, 502, 'portal open /sit', '/dev/ttys036'],
+    [600, 503, '/opt/homebrew/bin/zmx attach kit', '/dev/ttys032'],
+  )
+  const unseated = inGhostty(
+    [501, 500, '/usr/bin/login'],
+    [502, 501, '-zsh'],
+    [600, 502, 'tmux', '/dev/ttys040'],
+  )
+
+  expect(seatOf(direct, 600, '/dev/ttys036')).toEqual({ app: GHOSTTY, device: '/dev/ttys036' })
+  expect(seatOf(relayed, 600, '/dev/ttys032')).toEqual({ app: GHOSTTY, device: '/dev/ttys036' })
+  expect(seatOf(unseated, 600, '/dev/ttys040'), "the app's child on no tty").toEqual({
+    app: GHOSTTY,
+    device: '/dev/ttys040',
+  })
+  expect(seatOf(relayed, 600, ''), 'a control-mode client, on no tty').toBeUndefined()
+  expect(seatOf(relayed, 999, '/dev/ttys032'), 'a client the snapshot lacks').toBeUndefined()
 })
 
 test("Ghostty's driver is told by its program, `ghostty`, outside tmux and in ps, and declares nothing beyond bringing a window forward", () => {
@@ -318,7 +386,7 @@ test('a client whose process the snapshot lacks, or whose ancestry loops, shows 
 })
 
 test('a window in tmux shows nowhere when its pane, or its server, is gone', () => {
-  const gone: Screen = { ...SCREEN, servers: new Map([[OTHER_SOCKET, undefined]]) }
+  const gone = screenWith(new Map([[OTHER_SOCKET, undefined]]))
 
   expect(placesShowing([{ ...IN_TMUX, tmux: { socket: SOCKET, pane: '%9' } }], SCREEN)).toEqual([])
   expect(placesShowing([{ ...IN_TMUX, tmux: { socket: OTHER_SOCKET, pane: PANE } }], gone)).toEqual(
@@ -388,40 +456,33 @@ test('a jump reaches windows a place shows, the places with it; none where nothi
 })
 
 test('where nothing shows the windows, tmux giving no answer for a socket one runs under makes it unknown, never off screen; for another socket only, off screen', () => {
-  const silent = (...sockets: string[]): Screen => ({
-    ...SCREEN,
-    servers: new Map([[SOCKET, undefined]]),
-    unanswered: ['tmux'],
-    unansweredSockets: new Set(sockets),
-  })
+  const silent = (...sockets: string[]) =>
+    screenWith(new Map([[SOCKET, undefined]]), PROCESSES, new Set(sockets))
 
   expect(reachOf([IN_TMUX], silent(SOCKET))).toEqual({ is: 'unknown', unanswered: ['tmux'] })
   expect(reachOf([IN_TMUX], silent(OTHER_SOCKET))).toEqual({ is: 'off screen' })
   expect(
-    reachOf([IN_TMUX], { ...silent(OTHER_SOCKET), servers: SCREEN.servers }).is,
+    reachOf([IN_TMUX], screenWith(SERVERS, PROCESSES, new Set([OTHER_SOCKET]))).is,
     'a place found stands, whatever else gave no answer',
   ).toBe('on screen')
 })
 
 test("where nothing shows the windows, ps giving no answer makes them unknown where a server they run under has clients, whose apps it tells; off screen where it has none", () => {
   const clients = [client('/dev/ttys000', 503, WINDOW)]
-  const unsnapped = screenOf([[PANE, WINDOW, SESSION]], clients, new Map())
 
-  expect(reachOf([IN_TMUX], { ...unsnapped, unanswered: ['ps'] })).toEqual({
-    is: 'unknown',
-    unanswered: ['ps'],
+  const unsnapped = (each: Client[]): Screen => ({
+    ...screenOf([[PANE, WINDOW, SESSION]], each),
+    processes: undefined,
   })
-  expect(
-    reachOf([IN_TMUX], { ...screenOf([[PANE, WINDOW, SESSION]], []), unanswered: ['ps'] }),
-  ).toEqual({ is: 'off screen' })
+
+  expect(reachOf([IN_TMUX], unsnapped(clients))).toEqual({ is: 'unknown', unanswered: ['ps'] })
+  expect(reachOf([IN_TMUX], unsnapped([]))).toEqual({ is: 'off screen' })
 })
 
 test('a window outside tmux is never unknown: neither tmux nor ps is asked of it', () => {
   const silent: Screen = {
-    servers: new Map(),
-    apps: new Map(),
-    unanswered: ['tmux', 'ps'],
-    unansweredSockets: new Set([SOCKET]),
+    ...screenWith(new Map(), PROCESSES, new Set([SOCKET])),
+    processes: undefined,
   }
 
   expect(reachOf([IN_GHOSTTY], silent).is).toBe('on screen')
