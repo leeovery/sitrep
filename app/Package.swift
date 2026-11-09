@@ -10,6 +10,8 @@ let package = Package(
     ],
     targets: [
         .target(name: "SitRepCore"),
+        /// Where a session's windows show on this Mac: the seat, the multiplexer adapters, and the three states.
+        .target(name: "SitRepScreen", dependencies: ["SitRepCore"]),
         .target(name: "SitRepPanel"),
         /// The relay between SitRep and its notices helper, which both link.
         .target(name: "SitRepRelay"),
@@ -38,6 +40,7 @@ let package = Package(
             ]
         ),
         .testTarget(name: "SitRepNoticesTests", dependencies: ["SitRepNotices", "SitRepRelay"]),
+        .testTarget(name: "SitRepScreenTests", dependencies: ["SitRepScreen", "SitRepCore"]),
     ],
     swiftLanguageModes: [.v6]
 )

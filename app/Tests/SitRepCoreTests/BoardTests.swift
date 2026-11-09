@@ -102,6 +102,7 @@ struct BoardTests {
         #expect(windows.map(\.needsReload) == [true, false])
         #expect(windows.first?.where?.tmux == Board.Window.Where.Tmux(socket: "/private/tmp/tmux-501/default", pane: "%148"))
         #expect(windows.last?.where?.tmux == nil)
+        #expect(windows.map(\.where?.zmx) == [nil, nil], "lines from before windows said their zmx session")
         #expect(windows.first?.state == nil)
         #expect(windows.last?.state == Board.Window.State(
             kind: .permission,
@@ -109,6 +110,15 @@ struct BoardTests {
             tool: .init(name: "Bash", subject: "gh pr create"),
             question: nil
         ))
+    }
+
+    @Test func aWindowInZmxSaysItsSessionWhole() throws {
+        let printed = #"""
+        {"device":"/dev/ttys087","terminal":"ghostty","tmux":null,"zmx":{"session":"kit · restore-card"}}
+        """#
+        let decoded = try JSONDecoder().decode(Board.Window.Where.self, from: Data(printed.utf8))
+
+        #expect(decoded == Board.Window.Where(device: "/dev/ttys087", terminal: "ghostty", zmx: .init(session: "kit · restore-card")))
     }
 
     @Test func aLineSaysWhatIsNewOnIt() throws {

@@ -226,17 +226,42 @@ public struct Board: Versioned, Sendable, Equatable {
 
     /// A live window, and the session it holds.
     public struct Window: Decodable, Sendable, Equatable, Identifiable {
-        /// The terminal device Claude Code is on, the terminal program, and its tmux pane when it runs in tmux.
-        public struct Where: Decodable, Sendable, Equatable {
-            public struct Tmux: Decodable, Sendable, Equatable {
+        /// The terminal device Claude Code is on, the terminal program, its tmux pane when it runs in tmux, and its zmx
+        /// session when it runs in zmx.
+        public struct Where: Decodable, Sendable, Hashable {
+            public struct Tmux: Decodable, Sendable, Hashable {
                 public let socket: String
+                /// tmux's id for the pane, `%148`.
                 public let pane: String
+
+                public init(socket: String, pane: String) {
+                    self.socket = socket
+                    self.pane = pane
+                }
+            }
+
+            public struct Zmx: Decodable, Sendable, Hashable {
+                /// `$ZMX_SESSION` whole, spaces and `·` kept: `kit · restore-card`.
+                public let session: String
+
+                public init(session: String) {
+                    self.session = session
+                }
             }
 
             public let device: String?
             /// `$TERM_PROGRAM` as given: `ghostty`, `tmux`, `iTerm.app`.
             public let terminal: String?
             public let tmux: Tmux?
+            /// None from a CLI from before windows said it (9 November 2026).
+            public let zmx: Zmx?
+
+            public init(device: String? = nil, terminal: String? = nil, tmux: Tmux? = nil, zmx: Zmx? = nil) {
+                self.device = device
+                self.terminal = terminal
+                self.tmux = tmux
+                self.zmx = zmx
+            }
         }
 
         /// What the window is doing, and since when.
