@@ -6,9 +6,9 @@ import os
 import Testing
 
 /// A descriptor in words, as AEDebug prints it but shorter: a specifier or a test by its fields, a list by its items,
-/// a code as its four characters, text quoted. Its whole data is read, the length before the value: a code not four
-/// bytes long, or a null or the examined object carrying any, AppleScript never sends, so it is rendered by its type
-/// and length alone, matching no expectation.
+/// a code as its four characters after its type's (`type'Gtrm'`, `enum'test'`, `abso'all '`), text quoted. Its whole
+/// data is read, the length before the value: a code not four bytes long, or a null or the examined object carrying
+/// any, AppleScript never sends, so it is rendered by its type and length alone, matching no expectation.
 func rendered(_ descriptor: NSAppleEventDescriptor?) -> String {
     guard let descriptor else {
         return "none"
@@ -37,7 +37,9 @@ func rendered(_ descriptor: NSAppleEventDescriptor?) -> String {
             return unlike
         }
 
-        return "'\(fourCharacters(descriptor.data.withUnsafeBytes { $0.loadUnaligned(as: FourCharCode.self) }))'"
+        let value = descriptor.data.withUnsafeBytes { $0.loadUnaligned(as: FourCharCode.self) }
+
+        return "\(fourCharacters(type))'\(fourCharacters(value))'"
     default:
         return "\(fourCharacters(type))(\(descriptor.stringValue ?? ""))"
     }
@@ -141,7 +143,7 @@ struct GhosttyEventsTests {
     private static let device = "/dev/ttys041"
 
     /// `tty of terminals contains` the device, in a whose clause.
-    private static let holding = "cmpd{relo:'cont',obj1:obj{want:'prop',from:obj{want:'Gtrm',from:exmn,form:'indx',seld:'all '},form:'prop',seld:'Gtty'},obj2:\"\(device)\"}"
+    private static let holding = "cmpd{relo:enum'cont',obj1:obj{want:type'prop',from:obj{want:type'Gtrm',from:exmn,form:enum'indx',seld:abso'all '},form:enum'prop',seld:type'Gtty'},obj2:\"\(device)\"}"
 
     private static var terminal: NSAppleEventDescriptor {
         named("Gtrm", "T1")
@@ -153,7 +155,7 @@ struct GhosttyEventsTests {
         #expect(try await answering.events.terminal(on: Self.device) != nil)
         #expect(answering.asked == [Answering.Asked(
             event: "coregetd",
-            direct: "obj{want:'Gtrm',from:null,form:'test',seld:cmpd{relo:'=   ',obj1:obj{want:'prop',from:exmn,form:'prop',seld:'Gtty'},obj2:\"\(Self.device)\"}}",
+            direct: "obj{want:type'Gtrm',from:null,form:enum'test',seld:cmpd{relo:enum'=   ',obj1:obj{want:type'prop',from:exmn,form:enum'prop',seld:type'Gtty'},obj2:\"\(Self.device)\"}}",
             seconds: 5, pid: 501
         )])
         #expect(GhosttyEvents.answerSeconds == 5)
@@ -165,7 +167,7 @@ struct GhosttyEventsTests {
         _ = try await answering.events.isTabSelected(holding: Self.device)
 
         #expect(answering.asked.map(\.event) == ["coregetd"])
-        #expect(answering.asked.first?.direct == "obj{want:'prop',from:obj{want:'Gtab',from:obj{want:'Gwnd',from:null,form:'test',seld:\(Self.holding)},form:'test',seld:\(Self.holding)},form:'prop',seld:'GTsl'}")
+        #expect(answering.asked.first?.direct == "obj{want:type'prop',from:obj{want:type'Gtab',from:obj{want:type'Gwnd',from:null,form:enum'test',seld:\(Self.holding)},form:enum'test',seld:\(Self.holding)},form:enum'prop',seld:type'GTsl'}")
     }
 
     @Test func onlyATabAnsweredFalseInAListOfOneWindowsOneTabIsNotSelectedATerminalInNoWindowIsFocusedAsSelected() async throws {
@@ -189,7 +191,7 @@ struct GhosttyEventsTests {
         try await answering.events.focus(found)
 
         #expect(answering.asked.map(\.event) == ["coregetd", "GhstFcus"])
-        #expect(answering.asked.last?.direct == "obj{want:'Gtrm',from:null,form:'ID  ',seld:\"T1\"}")
+        #expect(answering.asked.last?.direct == "obj{want:type'Gtrm',from:null,form:enum'ID  ',seld:\"T1\"}")
     }
 
     @Test func aWindowIsActivatedAsGhosttyNamesTheWindowHoldingTheTerminalByActivateWindow() async throws {
@@ -198,8 +200,8 @@ struct GhosttyEventsTests {
         try await answering.events.activateWindow(holding: Self.device)
 
         #expect(answering.asked.map(\.event) == ["coregetd", "GhstAcWn"])
-        #expect(answering.asked.first?.direct == "obj{want:'Gwnd',from:null,form:'test',seld:\(Self.holding)}")
-        #expect(answering.asked.last?.direct == "obj{want:'Gwnd',from:null,form:'ID  ',seld:\"tab-group-1\"}")
+        #expect(answering.asked.first?.direct == "obj{want:type'Gwnd',from:null,form:enum'test',seld:\(Self.holding)}")
+        #expect(answering.asked.last?.direct == "obj{want:type'Gwnd',from:null,form:enum'ID  ',seld:\"tab-group-1\"}")
     }
 
     @Test func noWindowHoldingTheTerminalAsOneClosedSinceItWasFoundFailsAsAppleScriptFailsToFindTheFirstOfNothing() async {

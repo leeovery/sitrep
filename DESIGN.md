@@ -2983,7 +2983,7 @@ truth. There is still no background service. None of it is built now. Lee:
             "state": { "is": "working", "since": 1760000000000,
                        "tool": { "name": "Read", "subject": "..." },
                        "question": null },
-            "attachedAt": 1760000000000 } ],
+            "attachedAt": 1760000000000, "jumpOrder": 0 } ],
         "new": [],
         "boards": {
           "sr-k3f9qa": { "v": 3,
@@ -5311,7 +5311,8 @@ says where SitRep's goes another way.
   and why, as the views say it, or "SitRep has no board yet: sitrep watch
   has printed none."; never as the Mac too busy, which is for a jump that
   had its board. With no plugin to run the watch, it is refused at once in
-  the plugin's words.
+  the plugin's words, until a plugin is found and its watch starts, when a
+  jump waits as at any start.
 - **Lee's PATH**, for tmux, is asked for once the board is in hand, within
   the jump's limit, so a later click ends that wait as any other.
 - **Off the main thread, one step after another**: the front and the
@@ -7172,11 +7173,19 @@ open), and tmux passing an escape sequence through from Claude's own pane
           `NSWorkspace.openApplication` from SitRep under macOS 14's
           cooperative activation.
        3. The same to a tab not selected: the slide to the window's Space
-          and the right tab, not the tab brought to Lee's Space.
+          and the right tab, not the tab brought to Lee's Space. Watch the
+          hand-back there: one heard between `activate window` and the
+          focus, in the half second's pause, settles the hand-back's watch
+          before the focus, so Ghostty is brought forward again at once,
+          and a second hand-back after the focus is not put right. Should
+          the front be lost after that slide, the watch is to begin at the
+          focus, or hear more than one hand-back.
        4. Two clicks on two sessions in quick succession: the second
           lands, the first says nothing.
        5. The too old codes: `LiveEventsTests` sends the lookup to
-          Calculator and TextEdit, each read as too old.
+          Calculator and TextEdit, each read as too old: -1708 (no handler
+          takes Get Data) or -1728 (no specifier naming a terminal's `tty`
+          resolves) on the lookup alone, the reading not yet seen.
        6. What a jump costs, from SitRep's log (`jump`): Bun's start, `ps`
           and osascript's start gone, so mostly Ghostty's own time.
        7. Events sent by `AESendMessage` land as `sendEvent`'s did: the

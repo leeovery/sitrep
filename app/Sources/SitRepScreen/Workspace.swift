@@ -83,10 +83,12 @@ public struct MacWorkspace: Workspace {
     }
 
     /// LaunchServices sends a running app the reopen event, which makes one with no window open one; that does not
-    /// happen here, as a live window of the session is in the app.
+    /// happen here, as a live window of the session is in the app. A jump is no opening of Lee's: the app is not added
+    /// to his recent items.
     public func bringForward(_ app: RunningApp) async -> Bool {
         let configuration = NSWorkspace.OpenConfiguration()
 
+        configuration.addsToRecentItems = false
         return (try? await NSWorkspace.shared.openApplication(at: app.url, configuration: configuration)) != nil
     }
 }

@@ -42,7 +42,8 @@ func answer<Value: Sendable>(
 }
 
 /// A blocking call made on a thread of its own, never the main one nor Swift's: its answer, or nil once the task asking
-/// is cancelled, the call let go and its answer dropped. A task cancelled already makes no call.
+/// is cancelled, the call let go and its answer dropped. A task cancelled already makes no call. It runs as Lee waits on
+/// it, a click's.
 func onThread<Value: Sendable>(_ call: @escaping @Sendable () -> Value) async -> Value? {
     guard !Task.isCancelled else {
         return nil
@@ -50,7 +51,7 @@ func onThread<Value: Sendable>(_ call: @escaping @Sendable () -> Value) async ->
 
     let first = First<Value?>()
 
-    DispatchQueue.global().async { first.answer(call()) }
+    DispatchQueue.global(qos: .userInitiated).async { first.answer(call()) }
     return await first.value(onCancel: nil)
 }
 

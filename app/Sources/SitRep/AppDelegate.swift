@@ -64,6 +64,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             menu?.speak(of: standing.trouble)
             if folder != watching {
                 watching = folder
+                works.watchStarted()
                 feed.start(plugin.cli(at: folder)) { [unowned self] in heard($0) }
             }
         } else if let trouble = standing.trouble, watching == nil {

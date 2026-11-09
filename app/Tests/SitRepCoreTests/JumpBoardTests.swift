@@ -23,13 +23,17 @@ struct JumpBoardTests {
         return after
     }
 
-    /// A jump that asks once the task has run to its wait.
-    private static func asking(_ jumpBoard: JumpBoard) async -> Task<JumpBoard.Read, Never> {
+    /// A jump asking, once its wait has begun: all on the main actor, it begins as the test first yields to it.
+    private static func asking(
+        _ jumpBoard: JumpBoard, sourceLocation: SourceLocation = #_sourceLocation
+    ) async -> Task<JumpBoard.Read, Never> {
+        let waits = jumpBoard.waits
         let asking = Task { await jumpBoard.current() }
 
-        for _ in 0..<100 {
+        for _ in 0..<1000 where jumpBoard.waits == waits {
             await Task.yield()
         }
+        #expect(jumpBoard.waits == waits + 1, "the jump waits", sourceLocation: sourceLocation)
         return asking
     }
 
@@ -81,6 +85,21 @@ struct JumpBoardTests {
 
         jumpBoard.heard(Self.heard(watched))
         #expect(await jumpBoard.current() == .board(try Board.read(watched)))
+    }
+
+    /// The plugin found, its watch starting, a jump clicked before the watch's first line waits for it, as at any start,
+    /// never refused in the words of the plugin it lacked.
+    @Test func aJumpAskedForAsTheWatchStartsOnAPluginFoundWaitsForItsFirstLine() async throws {
+        let jumpBoard = JumpBoard()
+
+        jumpBoard.unrun("SitRep has no plugin to run.")
+        jumpBoard.watchStarted()
+
+        let waiting = await Self.asking(jumpBoard)
+
+        jumpBoard.heard(Self.heard(watched))
+
+        #expect(await waiting.value == .board(try Board.read(watched)))
     }
 
     @Test func aJumpWaitingAsTheWatchGivesUpForWantOfAPluginIsToldWhy() async {

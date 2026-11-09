@@ -46,6 +46,17 @@ public final class JumpBoard: JumpBoardSource {
         settle()
     }
 
+    /// A watch starts on the plugin found: a jump waits for its first line, as at any start, where it was refused for
+    /// want of a plugin.
+    public func watchStarted() {
+        unrun = nil
+    }
+
+    /// How many jumps wait for a board.
+    var waits: Int {
+        waiting.count
+    }
+
     public func current() async -> Read {
         if let read {
             return read

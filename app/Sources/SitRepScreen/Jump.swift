@@ -38,8 +38,9 @@ public struct Jump: Sendable {
         self.clock = clock
     }
 
-    /// The jump on this Mac, to the session's window: tmux found on Lee's PATH, which `path` gives, asked for once the
-    /// board is in hand, within the jump's limit; Ghostty asked by Apple Events.
+    /// The jump on this Mac, to the session's window: tmux found on Lee's PATH as `path` gives it, SitRep's keeping the
+    /// login shell's once found, asked for once the board is in hand, within the jump's limit; Ghostty asked by Apple
+    /// Events.
     public static func live(
         to session: String, on board: some JumpBoardSource, path: @escaping @Sendable () async -> String
     ) async -> JumpAnswer {

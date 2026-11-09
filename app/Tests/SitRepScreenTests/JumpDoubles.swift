@@ -3,6 +3,7 @@ import Foundation
 import os
 import SitRepCore
 @testable import SitRepScreen
+import Testing
 
 let finder = "com.apple.finder"
 let ghosttyBundle = GhosttyDriver.bundle
@@ -284,7 +285,8 @@ private struct FakeListening: Listening {
 }
 
 /// A clock the test moves: a sleep of a duration it lets pass, the pause and the watch of the front, returns at once,
-/// and any other, a limit, waits until the test passes it, or its task is cancelled. It keeps every sleep asked of it.
+/// and any other, a limit, waits until the test passes it, or its task is cancelled. It keeps every sleep asked of it,
+/// a held one kept as it is held, so a sleep seen is one `pass` ends.
 final class TestClock: JumpClock {
     private struct State {
         var sleeps: [Duration] = []
@@ -302,8 +304,8 @@ final class TestClock: JumpClock {
     var sleeps: [Duration] { state.withLock(\.sleeps) }
 
     func sleep(for duration: Duration) async throws {
-        state.withLock { $0.sleeps.append(duration) }
         guard !passing.contains(duration) else {
+            state.withLock { $0.sleeps.append(duration) }
             return try Task.checkCancellation()
         }
 
@@ -314,7 +316,10 @@ final class TestClock: JumpClock {
 
         try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
-                state.withLock { $0.held[id] = (duration, continuation) }
+                state.withLock { state in
+                    state.sleeps.append(duration)
+                    state.held[id] = (duration, continuation)
+                }
                 if Task.isCancelled {
                     end(id, throwing: true)
                 }
@@ -358,9 +363,21 @@ final class HeldTmux: TmuxProgram {
     }
 }
 
-/// Lets the tasks run until the condition holds, or long enough that it never will, on the caller's actor.
-func until(isolation: isolated (any Actor)? = #isolation, _ holds: () -> Bool) async {
-    for _ in 0..<100_000 where !holds() {
+/// Lets the tasks run until the condition holds, on the caller's actor; one that still does not after ten seconds fails
+/// the test, at the caller, rather than let it go on to wait on what never came.
+func until(
+    isolation: isolated (any Actor)? = #isolation, sourceLocation: SourceLocation = #_sourceLocation,
+    _ holds: () -> Bool
+) async {
+    let clock = ContinuousClock()
+    let deadline = clock.now + .seconds(10)
+
+    while !holds() {
+        guard clock.now < deadline else {
+            Issue.record("The condition waited for never held.", sourceLocation: sourceLocation)
+            return
+        }
+
         await Task.yield()
     }
 }

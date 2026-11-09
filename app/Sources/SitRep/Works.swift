@@ -16,8 +16,8 @@ final class Works {
     /// caption.
     var heard: (JumpNews) -> Void = { _ in }
 
-    /// A jump that fails is told in a banner (`JumpAnswer.banner`); tmux is found on Lee's PATH, `path`, as it stands
-    /// at each jump, asked for within its limit.
+    /// A jump that fails is told in a banner (`JumpAnswer.banner`); tmux is found on Lee's PATH, as `path` gives it,
+    /// the login shell's found once and kept, asked for at each jump within its limit.
     init(banners: Banners, path: @escaping @Sendable () async -> String) {
         self.path = path
         oneJump.heard = { [weak self, logger] news in
@@ -45,6 +45,11 @@ final class Works {
     /// No plugin to run the watch, so no board to jump from, for the reason given.
     func unrun(_ why: String) {
         board.unrun(why)
+    }
+
+    /// The watch starts on the plugin found: a jump waits for its first line.
+    func watchStarted() {
+        board.watchStarted()
     }
 
     /// Jumps to the work's window, in place of any jump under way but one to the same work not yet still jumping, which

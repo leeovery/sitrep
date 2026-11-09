@@ -28,7 +28,8 @@ public enum Snoozable: Sendable, Equatable {
 }
 
 /// The plugin's CLI, `<plugin>/bin/sitrep`, run as a child with Lee's PATH.
-/// The app watches the board and jumps, and writes only what the card's row menu does: Lee's snoozes and wakes.
+/// The app watches the board through it, and writes only what the card's row menu does: Lee's snoozes and wakes. It
+/// jumps itself (SitRepScreen's `Jump`); `jump` stays here until step B retires `sitrep jump`.
 public struct SitRepCLI: Sendable {
     /// `snooze` and `wake` read and write one session's files, and run no program.
     static let sessionLimit: TimeInterval = 10

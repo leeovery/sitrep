@@ -337,7 +337,10 @@ enum Specifier {
     private static func record(_ type: DescType, _ fields: [(AEKeyword, NSAppleEventDescriptor)])
         -> NSAppleEventDescriptor
     {
-        let record = NSAppleEventDescriptor.record().coerce(toDescriptorType: type) ?? NSAppleEventDescriptor.record()
+        // A plain record sent in its place would read as a Ghostty too old: an empty record coerces to both types.
+        guard let record = NSAppleEventDescriptor.record().coerce(toDescriptorType: type) else {
+            preconditionFailure("An empty record did not coerce to a specifier or a test (\(type))")
+        }
 
         fields.forEach { record.setDescriptor($1, forKeyword: $0) }
         return record
