@@ -13,8 +13,9 @@
  *   the SitRep window's order, the rows': a session where its row sits,
  *   those with none after, the latest updated first; a project where its
  *   first session sits.
- * - Every live window: its session, the version it runs, and whether that
- *   is behind the CLI's own.
+ * - Every live window: its session, the version it runs, whether that is
+ *   behind the CLI's own, and its place in the order a jump tries its
+ *   session's windows (windows.ts).
  * - What is new: a line needing Lee the watch has not shown, or not within a
  *   day of its own time; or one it showed asleep, in Snoozed, back as its
  *   snooze ran out.
@@ -57,6 +58,7 @@ import {
   type ProjectSummary,
   type SessionSummary,
 } from './views'
+import { inJumpOrder } from './windows'
 
 /** A project as read, with every session filed under it. */
 export type ProjectRead = { project: Project; sessions: readonly Session[] }
@@ -88,6 +90,8 @@ export type FeedWindow = {
   where?: Where
   state?: WindowState
   attachedAt: number
+  /** Its place in the order a jump tries its session's windows, 0 first; none where it says no `where`, which no jump tries. */
+  jumpOrder?: number
 }
 
 export type Feed = {
@@ -146,12 +150,18 @@ const feedProject = (
   }
 }
 
+/** Each of a session's windows a jump tries, by writer, and its place in the order it tries them. */
+const jumpOrders = (session: Session, now: number) =>
+  new Map(inJumpOrder(session, now).map((each, place) => [each.writer, place]))
+
 /** Every live window on the board, the longest attached first. */
 const liveWindows = (read: readonly ProjectRead[], now: number, own?: string): FeedWindow[] =>
   read
     .flatMap(({ project, sessions }) =>
-      sessions.flatMap(session =>
-        session.presence
+      sessions.flatMap(session => {
+        const orders = jumpOrders(session, now)
+
+        return session.presence
           .filter(each => isLive(each, now))
           .map((each): FeedWindow => ({
             writer: each.writer,
@@ -163,8 +173,9 @@ const liveWindows = (read: readonly ProjectRead[], now: number, own?: string): F
             where: each.where,
             state: each.state,
             attachedAt: each.attachedAt,
-          })),
-      ),
+            jumpOrder: orders.get(each.writer),
+          }))
+      }),
     )
     .sort((a, b) => a.attachedAt - b.attachedAt || compareText(a.writer, b.writer))
 

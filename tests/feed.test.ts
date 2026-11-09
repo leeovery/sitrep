@@ -25,6 +25,7 @@ import {
   snoozedTurnOf,
   STALE_MS,
   toldSummary,
+  windowsOf,
   type Feed,
   type Presence,
   type Project,
@@ -943,6 +944,127 @@ test('the feed lists every live window, the longest attached first, those behind
     },
   ])
   expect(feedOf(board(), NOW + STALE_MS + 1, '0.2.0').windows).toEqual([])
+})
+
+/** A window's whereabouts, by its writer: a device of its own. */
+const whereFor = (writer: string) => ({ where: { device: `/dev/tty${writer}`, terminal: 'ghostty' } })
+
+/** Each live window in the feed's order, by writer: its session and its place in the order a jump tries the session's windows. */
+const jumpPlaces = (read: ProjectRead[]) =>
+  feedOf(read, NOW).windows.map(each => [each.writer, each.session, each.jumpOrder])
+
+test("each window in the feed carries its place in the order a jump tries its session's windows: stopped on Lee, working, on its own work, then the rest; the windows still the longest attached first", () => {
+  const session = sessionOf({
+    presence: {
+      ...windowOn('rest', yourTurn(T0 + 50 * MIN), whereFor('rest')),
+      ...windowOn('own', onItsWork(T0 + 10 * MIN), { ...whereFor('own'), attachedAt: T0 + MIN }),
+      ...windowOn('busy', working(T0 + 5 * MIN), { ...whereFor('busy'), attachedAt: T0 + 2 * MIN }),
+      ...windowOn('stop', question(T0 + MIN, 'Which?', 1), {
+        ...whereFor('stop'),
+        attachedAt: T0 + 3 * MIN,
+      }),
+    },
+  })
+
+  expect(jumpPlaces([{ project: SWITCHBOARD, sessions: [session] }])).toEqual([
+    ['rest', META.id, 3],
+    ['own', META.id, 2],
+    ['busy', META.id, 1],
+    ['stop', META.id, 0],
+  ])
+})
+
+test('within a rank the window whose state began last goes first, then the one attached last; one saying no state goes by its attach', () => {
+  const session = sessionOf({
+    presence: {
+      ...windowOn('a', working(T0 + 10 * MIN), whereFor('a')),
+      ...windowOn('b', working(T0 + 20 * MIN), whereFor('b')),
+      ...windowOn('c', yourTurn(T0 + 30 * MIN), whereFor('c')),
+      ...windowOn('d', yourTurn(T0 + 30 * MIN), { ...whereFor('d'), attachedAt: T0 + MIN }),
+      ...windowOn('e', undefined, { ...whereFor('e'), attachedAt: T0 + 40 * MIN }),
+      ...windowOn('f', permission(T0 + 5 * MIN, 'Bash'), whereFor('f')),
+      ...windowOn('g', permission(T0 + 15 * MIN, 'Bash'), whereFor('g')),
+    },
+  })
+  const orders = Object.fromEntries(
+    jumpPlaces([{ project: SWITCHBOARD, sessions: [session] }]).map(([writer, , order]) => [
+      writer,
+      order,
+    ]),
+  )
+
+  expect(orders).toEqual({ g: 0, f: 1, b: 2, a: 3, e: 4, d: 5, c: 6 })
+})
+
+test('a window saying no `where` has no place in the order, which no jump tries; those after it close up', () => {
+  const session = sessionOf({
+    presence: {
+      ...windowOn('stop', permission(T0 + 5 * MIN, 'Bash')),
+      ...windowOn('busy', working(T0 + MIN), whereFor('busy')),
+      ...windowOn('rest', yourTurn(T0 + 2 * MIN), whereFor('rest')),
+    },
+  })
+
+  expect(jumpPlaces([{ project: SWITCHBOARD, sessions: [session] }])).toEqual([
+    ['busy', META.id, 0],
+    ['rest', META.id, 1],
+    ['stop', META.id, undefined],
+  ])
+})
+
+test("each session's windows are ordered among themselves alone, another session's never counted", () => {
+  const read: ProjectRead[] = [
+    {
+      project: SWITCHBOARD,
+      sessions: [
+        sessionOf({
+          meta: { id: 'sr-aaaaaa' },
+          presence: {
+            ...windowOn('a1', yourTurn(T0 + 10 * MIN), whereFor('a1')),
+            ...windowOn('a2', working(T0 + 20 * MIN), { ...whereFor('a2'), attachedAt: T0 + MIN }),
+          },
+        }),
+      ],
+    },
+    {
+      project: GOOSEMATES,
+      sessions: [
+        sessionOf({
+          meta: { id: 'sr-bbbbbb' },
+          presence: {
+            ...windowOn('b1', permission(T0 + 30 * MIN, 'Bash'), {
+              ...whereFor('b1'),
+              attachedAt: T0 + 2 * MIN,
+            }),
+            ...windowOn('b2', yourTurn(T0 + 40 * MIN), { ...whereFor('b2'), attachedAt: T0 + 3 * MIN }),
+          },
+        }),
+      ],
+    },
+  ]
+
+  expect(jumpPlaces(read)).toEqual([
+    ['a1', 'sr-aaaaaa', 1],
+    ['a2', 'sr-aaaaaa', 0],
+    ['b1', 'sr-bbbbbb', 0],
+    ['b2', 'sr-bbbbbb', 1],
+  ])
+})
+
+test("a window's place in the feed is the jump's: the CLI's jump tries the session's windows in that order", () => {
+  const session = sessionOf({
+    presence: {
+      ...windowOn('a', yourTurn(T0 + 10 * MIN), whereFor('a')),
+      ...windowOn('b', question(T0 + 5 * MIN, 'Which?', 1), whereFor('b')),
+      ...windowOn('c', working(T0 + 20 * MIN), whereFor('c')),
+      ...windowOn('d', working(T0 + 30 * MIN)),
+    },
+  })
+  const fed = feedOf([{ project: SWITCHBOARD, sessions: [session] }], NOW)
+    .windows.filter(each => each.jumpOrder !== undefined)
+    .sort((a, b) => (a.jumpOrder ?? 0) - (b.jumpOrder ?? 0))
+
+  expect(fed.map(each => each.where)).toEqual(windowsOf(session, NOW))
 })
 
 test('a window needs a reload when it says no version, or one behind the CLI’s own, dotted part by part', () => {

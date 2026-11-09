@@ -7,7 +7,7 @@
  * it), each seated by one step (`seatOf`); one outside any, in its own, when
  * its terminal app is known.
  */
-import { isLive, type Presence, type Session, type Where } from '../core'
+import { windowsOf, type Session, type Where } from '../core'
 import { appOfProgram, isReachable } from './apps'
 import type { Io } from './io'
 import { look } from './look'
@@ -141,50 +141,6 @@ export const reachOf = (windows: readonly Where[], screen: Screen): Reach => {
 
   return unanswered.length > 0 ? { is: 'unknown', unanswered } : { is: 'off screen' }
 }
-
-/** A window stopped on Lee: at a permission prompt or a question. */
-const needsLee = (presence: Presence) =>
-  presence.state?.is === 'permission' || presence.state?.is === 'question'
-
-/**
- * How a window ranks for a jump: stopped on Lee first; then working, as it is
- * active now, however long ago its turn began; then on its own work, as the
- * session's row prefers it (core's `turnOf`), so the jump goes to the window
- * the row describes; then the rest, on its turn, or saying no state.
- */
-const rankOf = (presence: Presence) => {
-  if (needsLee(presence)) {
-    return 0
-  }
-
-  switch (presence.state?.is) {
-    case 'working':
-      return 1
-    case 'onItsWork':
-      return 2
-    default:
-      return 3
-  }
-}
-
-/** When a window's state began; else, saying none, as one before any turn does, its attach. */
-const sinceOf = (presence: Presence) => presence.state?.since ?? presence.attachedAt
-
-/**
- * The window that needs Lee first, then one working, then one on its own
- * work, then the rest; within each, the latest to begin its state (the later
- * stop, the turn Lee started last, the later end of a turn), then the one
- * attached last.
- */
-const byJump = (a: Presence, b: Presence) =>
-  rankOf(a) - rankOf(b) || sinceOf(b) - sinceOf(a) || b.attachedAt - a.attachedAt
-
-/** The windows a session is in as it stands at `now`: where each live presence is, in the order a jump tries them. */
-export const windowsOf = (session: Session, now: number): Where[] =>
-  session.presence
-    .filter(each => isLive(each, now))
-    .sort(byJump)
-    .flatMap(each => (each.where === undefined ? [] : [each.where]))
 
 /**
  * A session a live window holds, whether a jump could reach it, and the
