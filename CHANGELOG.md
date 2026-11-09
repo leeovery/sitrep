@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2026-11-09
+
+Clicking a session, ask or notification now brings forward the Ghostty window for sessions running in zmx.
+
+✨ Added
+- Jump support for sessions in zmx — a click brings forward the Ghostty window attached to the session, as it already does for tmux.
+- Session output in JSON now includes a `zmx` field with the session name (null where not in zmx).
+
+🔧 Changed
+- Jumps find a window's terminal app from the full command line of its processes — apps whose paths contain spaces, such as Visual Studio Code - Insiders, are recognised more reliably.
+- Jumps into a window running tmux inside zmx, or zmx inside tmux, now use the innermost multiplexer's session.
+
 ## [0.4.0] - 2026-11-09
 
 A welcome window and a tabbed Settings window replace the old SitRep window, so setup and settings live in one place instead of a big in-app board.
