@@ -14,6 +14,8 @@ import SitRepCore
 public struct ZmxAdapter: Multiplexer {
     public init() {}
 
+    public let kind = MultiplexerKind.zmx
+
     public func isIn(_ where: Board.Window.Where) -> Bool {
         `where`.zmx != nil
     }
@@ -27,11 +29,24 @@ public struct ZmxAdapter: Multiplexer {
     public func read(_: [Board.Window.Where]) async -> any Reading {
         ZmxReading()
     }
+
+    /// The session's name, the window's `$ZMX_SESSION`, fixed for the session's life: zmx renames nothing, and
+    /// Portal's `rename` sets a label of its own. zmx is asked nothing.
+    public func facts(of where: Board.Window.Where, wanted _: Set<Fact>) async -> [Fact: String] {
+        `where`.zmx.map { [.session: $0.session] } ?? [:]
+    }
 }
 
 struct ZmxReading: Reading {
+    let kind = MultiplexerKind.zmx
+
     func isIn(_ where: Board.Window.Where) -> Bool {
         `where`.zmx != nil
+    }
+
+    /// A live window in zmx is its session's proof of life: SitRep asks zmx nothing.
+    func holds(_ where: Board.Window.Where) -> Bool {
+        isIn(`where`)
     }
 
     /// zmx cannot tell its session's pty without a further program.

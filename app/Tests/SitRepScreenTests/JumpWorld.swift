@@ -27,6 +27,27 @@ let terminalApp = "/System/Applications/Utilities/Terminal.app"
 /// The words of a session no terminal shows.
 let offScreen = JumpAnswer.refused("\(named) is not on screen: no terminal window on this Mac shows it.")
 
+extension Jump {
+    /// The jump to the session on the board, in the words it answers in: `.openable` where a window would be opened.
+    func answer(to session: String, on board: some JumpBoardSource) async -> JumpAnswer {
+        await run(to: session, on: board).answer
+    }
+}
+
+extension JumpOutcome {
+    /// Its answer: `.openable` for a window to open.
+    var answer: JumpAnswer {
+        switch self {
+        case let .answered(answer): answer
+        case .openable: .openable
+        }
+    }
+
+    var opening: Opening? {
+        if case let .openable(opening) = self { opening } else { nil }
+    }
+}
+
 /// The words of a jump no place answered, naming the devices and apps tried.
 func noneAnswered(_ devices: String, _ apps: String = "Ghostty") -> JumpAnswer {
     .refused("\(named) shows on \(devices), but no \(apps) window there answered.")
@@ -79,39 +100,74 @@ func shown() -> (FakeTmux, FakeTable) {
 }
 
 /// A jump on a Mac of doubles: tmux, the process table, Ghostty, the apps and the clock, Ghostty telling the apps of
-/// what it is told.
+/// what it is told; a window opened as the settings given say, none with no command as by default, and remembered among
+/// the openings given.
 struct Jumping {
     let tmux: FakeTmux
     let table: FakeTable
     let ghostty: FakeGhostty
     let workspace: FakeWorkspace
     let clock: TestClock
+    let opening: OpenSettings
+    let openings: RecentOpenings
     private let program: any TmuxProgram
 
     init(
         _ tmux: FakeTmux = FakeTmux(), _ table: FakeTable = FakeTable(Mac().tree), terminals: [FakeWindow] = terminals,
-        running: Bool = true, failing: GhosttyFailure? = nil, ghosttyHeld: Gate? = nil,
-        workspace: FakeWorkspace = FakeWorkspace(), clock: TestClock = TestClock(), tmuxHeld: Gate? = nil
+        running: Bool = true, failing: GhosttyFailure? = nil, windowFailing: GhosttyFailure? = nil,
+        windowHeld: Gate? = nil, ghosttyHeld: Gate? = nil,
+        workspace: FakeWorkspace = FakeWorkspace(), clock: TestClock = TestClock(), tmuxHeld: Gate? = nil,
+        command: String = "", openings: RecentOpenings = RecentOpenings()
     ) {
         self.tmux = tmux
         self.table = table
         self.workspace = workspace
         self.clock = clock
-        ghostty = FakeGhostty(terminals, running: running, failing: failing, held: ghosttyHeld, onTold: workspace.told)
+        opening = OpenSettings(command: command)
+        self.openings = openings
+        ghostty = FakeGhostty(
+            terminals, running: running, failing: failing, held: ghosttyHeld, windowFailing: windowFailing,
+            windowHeld: windowHeld, onTold: workspace.told
+        )
         program = tmuxHeld.map { HeldTmux(tmux, at: $0) } ?? tmux
+    }
+
+    var driver: GhosttyDriver {
+        GhosttyDriver(scripting: ghostty, workspace: workspace, clock: clock)
     }
 
     var jump: Jump {
         Jump(
-            reader: ScreenReader(tmux: program, table: table), tmux: program,
-            drivers: [.ghostty: GhosttyDriver(scripting: ghostty, workspace: workspace, clock: clock)],
-            workspace: workspace, clock: clock
+            reader: ScreenReader(tmux: program, table: table), tmux: program, drivers: [.ghostty: driver],
+            workspace: workspace, clock: clock, opening: opening, openings: openings
         )
     }
 
-    /// The jump to the windows, in the words it answers in.
+    /// The jump to the windows, in the words it answers in: `.openable` where a window would be opened.
     func run(_ windows: [Where]) async -> JumpAnswer {
         (try? await jump.jump(to: windows))?.answer(named: named) ?? .stopped
+    }
+
+    /// The jump to `sr-a`'s windows, as a click makes it: an answer, or the window to open for it.
+    func outcome(_ windows: [Where]) async -> JumpOutcome {
+        await jump.jump(to: "sr-a", named: named, at: windows)
+    }
+
+    /// The jump to `sr-a`'s windows, then the window it finds can be opened opened, as SitRep opens one once the jump
+    /// has answered.
+    func open(_ windows: [Where]) async -> JumpAnswer {
+        switch await outcome(windows) {
+        case let .answered(answer): answer
+        case let .openable(opening): await opening.open()
+        }
+    }
+
+    /// The opening of a window for `sr-a` typing the line.
+    func opening(_ line: String) -> Opening {
+        Opening(
+            session: "sr-a", name: named, line: line, terminal: .ghostty, driver: driver, workspace: workspace,
+            clock: clock, openings: openings
+        )
     }
 
     /// The selects tmux was asked for, each by the tmux session and window it names.

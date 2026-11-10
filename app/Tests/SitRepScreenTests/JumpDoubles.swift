@@ -86,34 +86,50 @@ final class Gate: Sendable {
 }
 
 /// A Ghostty of windows, tabs and terminals, playing what the real one does with what it is told: the terminal on a
-/// device found, its tab's selection told, its window activated, it focused. It keeps every device it was asked about
-/// and everything it was told, and, told something, tells `onTold`, as an app comes to the front when it is. Not
-/// running, it finds nothing; failing, its every question fails so; held, its first question waits at the gate.
+/// device found, its tab's selection told, its window activated, it focused; a new window opened, its terminal
+/// `NEW-TERMINAL`. It keeps every device it was asked about and everything it was told, and, told something, tells
+/// `onTold`, as an app comes to the front when it is. Not running, it finds nothing and opens nothing; failing, its
+/// every question fails so; held, its first question waits at the gate. Opening a window, as the real one does, it
+/// sends nothing once stopped, and says as `new window` goes; then that event may fail on its own, wait in flight at a
+/// gate of its own, or name no window; and its focus may fail on its own.
 final class FakeGhostty: GhosttyScripting {
+    static let opened = "NEW-TERMINAL"
+
     private let windows: [FakeWindow]
     private let isRunning: Bool
     private let failure: GhosttyFailure?
     private let gate: Gate?
+    private let namesNewWindow: Bool
+    private let windowFailure: GhosttyFailure?
+    private let windowGate: Gate?
+    private let focusFailure: GhosttyFailure?
     private let onTold: @Sendable (String) -> Void
     private let state = OSAllocatedUnfairLock(initialState: (asked: [String](), told: [String]()))
 
     init(
         _ windows: [FakeWindow] = [], running: Bool = true, failing failure: GhosttyFailure? = nil, held gate: Gate? = nil,
-        onTold: @escaping @Sendable (String) -> Void = { _ in }
+        namesNewWindow: Bool = true, windowFailing windowFailure: GhosttyFailure? = nil, windowHeld windowGate: Gate? = nil,
+        focusFailing focusFailure: GhosttyFailure? = nil, onTold: @escaping @Sendable (String) -> Void = { _ in }
     ) {
         self.windows = windows
         isRunning = running
         self.failure = failure
         self.gate = gate
+        self.namesNewWindow = namesNewWindow
+        self.windowFailure = windowFailure
+        self.windowGate = windowGate
+        self.focusFailure = focusFailure
         self.onTold = onTold
     }
 
     /// Each device it was asked for a terminal on.
     var asked: [String] { state.withLock(\.asked) }
-    /// What it was told: `activate window <id>`, `focus <id>`.
+    /// What it was told: `activate window <id>`, `focus <id>`, `open <command>`.
     var told: [String] { state.withLock(\.told) }
     /// The terminals it focused.
     var focused: [String] { told.filter { $0.hasPrefix("focus ") }.map { String($0.dropFirst("focus ".count)) } }
+    /// The commands each window it opened runs.
+    var opened: [String] { told.filter { $0.hasPrefix("open ") }.map { String($0.dropFirst("open ".count)) } }
 
     func terminal(on device: String) async throws -> GhosttyObject? {
         let isFirst = state.withLock { state in
@@ -149,7 +165,31 @@ final class FakeGhostty: GhosttyScripting {
     }
 
     func focus(_ terminal: GhosttyObject) async throws {
+        if let focusFailure {
+            throw focusFailure
+        }
+
         tell("focus \(terminal.descriptor.stringValue ?? "")")
+    }
+
+    func openWindow(running command: String, sending: @escaping @Sendable () -> Void) async throws -> NewWindow {
+        guard isRunning else {
+            return .notRunning
+        }
+        try Task.checkCancellation()
+        if let failure {
+            throw failure
+        }
+        try Task.checkCancellation()
+
+        sending()
+        tell("open \(command)")
+        await windowGate?.pass()
+        if let windowFailure {
+            throw windowFailure
+        }
+
+        return .opened(namesNewWindow ? GhosttyObject(descriptor: NSAppleEventDescriptor(string: Self.opened)) : nil)
     }
 
     private func tell(_ line: String) {
@@ -357,9 +397,9 @@ final class HeldTmux: TmuxProgram {
         self.gate = gate
     }
 
-    func run(on socket: String, _ words: [String]) async -> Ran? {
+    func run(on socket: String, _ words: [String]) async throws -> Ran {
         await gate.pass()
-        return await tmux.run(on: socket, words)
+        return try await tmux.run(on: socket, words)
     }
 }
 

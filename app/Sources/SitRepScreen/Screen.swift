@@ -67,6 +67,15 @@ public struct Screen: Sendable {
         return unanswered.isEmpty ? .offScreen : .unknown(unanswered)
     }
 
+    /// The window a new terminal window could attach to, where none shows the session: the first, in their order, that
+    /// the innermost multiplexer it runs in holds alive, with that multiplexer. None where no window runs in a
+    /// multiplexer, as closing its terminal ended its Claude, or none is held, as one whose tmux server has gone.
+    public func attachable(_ windows: [Board.Window.Where]) -> Attachable? {
+        windows.lazy.compactMap { each in
+            innermost(of: each).first { $0.holds(each) }.map { Attachable(where: each, kind: $0.kind) }
+        }.first
+    }
+
     /// What gave no answer of the windows: what a multiplexer they run in asked, as tmux for a socket one runs under;
     /// and the table, where their clients are told only by it. A window in no multiplexer asks neither.
     public func unanswered(for windows: [Board.Window.Where]) -> [Unanswered] {
@@ -121,6 +130,12 @@ public enum Reach: Sendable, Equatable {
 
         return places.first?.app
     }
+}
+
+/// A window a new terminal window can attach to, and the multiplexer that holds it alive.
+public struct Attachable: Sendable, Equatable {
+    public let `where`: Board.Window.Where
+    public let kind: MultiplexerKind
 }
 
 /// What tells places apart: the device, else, for an app with no driver, the app.

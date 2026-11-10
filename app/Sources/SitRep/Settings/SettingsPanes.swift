@@ -1,5 +1,6 @@
 import SitRepMenu
 import SitRepPanel
+import SitRepScreen
 import SwiftUI
 
 /// The pane shown, in the Settings window beside its sidebar (DESIGN, "Settings"): its sections in a column 20 in
@@ -38,7 +39,8 @@ struct SettingsPaneContent: View {
     }
 }
 
-/// General: Startup, Open at login; Ghostty, the leave to bring a session's Ghostty window to the front.
+/// General: Startup, Open at login; Ghostty, the leave to bring a session's Ghostty window to the front; New windows,
+/// how a window is opened for a session no window shows, the terminal and the open command.
 private struct GeneralPane: View {
     let settings: SettingsModel
 
@@ -53,10 +55,60 @@ private struct GeneralPane: View {
                 StatedRow(row: .ghostty(settings.said.ghostty), isBusy: settings.isAllowing, fix: settings.fix)
             }
         }
+        SettingsSection(name: "New windows") {
+            SettingsCard {
+                CardRow(label: "Terminal") {
+                    PopUp(label: "Terminal", sections: [Driver.all], title: \.name, selection: terminal)
+                }
+                CardSeparator()
+                CommandRow(command: openCommand)
+            }
+            CaptionRow(words: Text(CommandRow.caption))
+        }
     }
 
     private var opensAtLogin: Binding<Bool> {
         Binding(get: { settings.said.login?.isOn ?? false }, set: { _ in settings.chooseLogin() })
+    }
+
+    private var terminal: Binding<Driver> {
+        Binding(
+            get: { settings.preferences.app.openSettings.terminal },
+            set: { settings.preferences.app.terminal = $0.program }
+        )
+    }
+
+    /// The command as typed, saved at each keystroke.
+    private var openCommand: Binding<String> {
+        Binding(get: { settings.preferences.app.openCommand }, set: { settings.preferences.app.openCommand = $0 })
+    }
+}
+
+/// The open command's row: its label, and the command in a field against the card's right, in the label's size in the
+/// monospaced face, kept as typed (`LiteralField`), the two on one line of text. The field gives way before the label
+/// does, so the label keeps its one line, and the row its height, at the window's least width.
+struct CommandRow: View {
+    static let label = "Open command"
+    static let caption = "Clicking a session that isn't showing in a terminal opens a new window and runs this "
+        + "command. {session}, {socket} and {pane} are replaced with quoted values."
+    /// The field's width where the column has room.
+    static let fieldWidth: CGFloat = 360
+    /// The command's face: monospaced, at the label's size.
+    static let font = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+
+    @Binding var command: String
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 16) {
+            RowWords(label: Self.label)
+                .fixedSize(horizontal: true, vertical: false)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            LiteralField(label: Self.label, font: Self.font, text: $command)
+                .frame(maxWidth: Self.fieldWidth)
+                .layoutPriority(1)
+        }
+        .padding(.horizontal, SettingsStyle.inset)
+        .frame(minHeight: SettingsStyle.oneLineRow)
     }
 }
 

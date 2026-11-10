@@ -112,26 +112,41 @@ struct FakeClient {
     var session: String?
 }
 
+/// A tmux server: its panes, its clients, and its tmux sessions' names by their ids, a session not named there named
+/// by its id.
 struct FakeServer {
     var panes: [FakePane] = []
     var clients: [FakeClient] = []
+    var names: [String: String] = [:]
+
+    /// `display-message -p -t <pane> '#{session_name}'`: the name of the first tmux session holding the pane, or
+    /// tmux's error for a pane it has not.
+    func sessionName(holding pane: String) -> Ran {
+        guard let session = panes.first(where: { $0.pane == pane })?.session else {
+            return Ran(status: 1, stdout: "", stderr: "can't find pane: \(pane)\n")
+        }
+
+        return Ran(status: 0, stdout: (names[session] ?? session) + "\n", stderr: "")
+    }
 }
 
 /// tmux, its servers by socket, answering as the real one does: a socket no server is on with an error; or, `silent`,
-/// giving no answer at all, as tmux missing or too slow does, for every socket or those given. A select it answers as
-/// `select` says, nil for no answer. It keeps every run it was asked for.
+/// giving no answer at all, as tmux too slow does, for every socket or those given; or `missing`, not found on the
+/// PATH. A select it answers as `select` says, nil for no answer. It keeps every run it was asked for.
 final class FakeTmux: TmuxProgram {
     private let servers: [String: FakeServer]
+    private let isMissing: Bool
     private let isSilent: Bool
     private let silentSockets: Set<String>
     private let selected: Ran?
-    private let asked = OSAllocatedUnfairLock(initialState: (runs: [[String]](), selects: [[String]]()))
+    private let asked = OSAllocatedUnfairLock(initialState: (runs: [[String]](), words: [[String]](), selects: [[String]]()))
 
     init(
-        _ servers: [String: FakeServer] = [:], silent: Bool = false, silentOn sockets: Set<String> = [],
-        select: Ran? = Ran(status: 0, stdout: "", stderr: "")
+        _ servers: [String: FakeServer] = [:], missing: Bool = false, silent: Bool = false,
+        silentOn sockets: Set<String> = [], select: Ran? = Ran(status: 0, stdout: "", stderr: "")
     ) {
         self.servers = servers
+        isMissing = missing
         isSilent = silent
         silentSockets = sockets
         selected = select
@@ -139,27 +154,43 @@ final class FakeTmux: TmuxProgram {
 
     /// Each run, its socket then its first word.
     var runs: [[String]] { asked.withLock(\.runs) }
+    /// Each run's whole words, in turn.
+    var words: [[String]] { asked.withLock(\.words) }
     /// Each select, its socket then its words after `select-window`.
     var selects: [[String]] { asked.withLock(\.selects) }
 
-    func run(on socket: String, _ words: [String]) async -> Ran? {
+    static let unanswered = TmuxUnanswered.unanswered(.timedOut(2))
+
+    func run(on socket: String, _ words: [String]) async throws -> Ran {
         asked.withLock { asked in
             asked.runs.append([socket, words[0]])
+            asked.words.append(words)
             if words[0] == "select-window" {
                 asked.selects.append([socket] + words.dropFirst())
             }
         }
 
+        guard !isMissing else {
+            throw TmuxUnanswered.notFound
+        }
         guard !isSilent, !silentSockets.contains(socket) else {
-            return nil
+            throw Self.unanswered
         }
 
         if words[0] == "select-window" {
+            guard let selected else {
+                throw Self.unanswered
+            }
+
             return selected
         }
 
         guard let server = servers[socket] else {
             return Ran(status: 1, stdout: "", stderr: "no server running on \(socket)\n")
+        }
+
+        if words[0] == "display-message" {
+            return server.sessionName(holding: words[3])
         }
 
         let lines = switch words[0] {

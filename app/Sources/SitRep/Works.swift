@@ -1,40 +1,40 @@
 import Foundation
-import os
 import SitRepCore
+import SitRepMenu
 import SitRepScreen
 
-/// The jump to a session's window, SitRep's own (`Jump`), from the watch's last line: one at a time, the latest click
-/// winning (`OneJump`).
+/// The jump to a session's window, SitRep's own (`Jump`), from the watch's last line, or a window opened for a session
+/// no window shows: one at a time, the latest click winning (`Clicks`).
 @MainActor
 final class Works {
-    private let logger = Logger(sitrep: "jump")
-    private let oneJump = OneJump()
-    private let board = JumpBoard()
-    private let path: @Sendable () async -> String
+    private let board: JumpBoard
+    private let clicks: Clicks
 
     /// Every jump's news, once a jump, whichever surface asked for it, after each click's own `answered`: the edge's
     /// caption.
     var heard: (JumpNews) -> Void = { _ in }
 
     /// A jump that fails is told in a banner (`JumpAnswer.banner`); tmux is found on Lee's PATH, as `path` gives it,
-    /// the login shell's found once and kept, asked for at each jump within its limit.
-    init(banners: Banners, path: @escaping @Sendable () async -> String) {
-        self.path = path
-        oneJump.heard = { [weak self, logger] news in
-            guard let self else {
-                return
-            }
+    /// the login shell's found once and kept, asked for at each jump within its limit; a window is opened as `opening`
+    /// gives Lee's settings at the click.
+    init(banners: Banners, path: @escaping @Sendable () async -> String, opening: @escaping () -> OpenSettings) {
+        let board = JumpBoard()
+        let openings = RecentOpenings()
 
-            if case let .ended(answer) = news {
-                if let banner = answer.banner {
-                    banners.post(banner)
-                }
-                if answer == .stopped {
-                    logger.notice("A jump was stopped: a later one took its place")
+        self.board = board
+        clicks = Clicks(jump: { session in
+            let opening = opening()
+
+            return {
+                switch await Jump.live(to: session, on: board, path: path, opening: opening, openings: openings) {
+                case let .answered(answer):
+                    .answered(answer)
+                case let .openable(window):
+                    .openable(window.open)
                 }
             }
-            heard(news)
-        }
+        }, post: banners.post)
+        clicks.heard = { [weak self] news in self?.heard(news) }
     }
 
     /// Each look of the watch, the board a jump goes from.
@@ -52,29 +52,19 @@ final class Works {
         board.watchStarted()
     }
 
-    /// Jumps to the work's window, in place of any jump under way but one to the same work not yet still jumping, which
-    /// this joins; tells `answered` whether it jumped once it ends, and `refused` when it failed, as its banner says.
+    /// Jumps to the work's window, or opens one where none shows it (`Clicks`). Tells `answered` how it ended, and
+    /// `handBack` where the front is to be given back, as nothing of SitRep's comes forward.
     func jump(
-        to work: String, answered: @escaping (Bool) -> Void = { _ in }, refused: @escaping () -> Void = {}
+        to work: String, answered: @escaping (JumpAnswer) -> Void = { _ in }, handBack: @escaping () -> Void = {}
     ) {
-        let jump: @Sendable () async -> JumpAnswer = { [board, path, logger] in
-            let clock = ContinuousClock()
-            let started = clock.now
-            let answer = await Jump.live(to: work, on: board, path: path)
-            let took = (clock.now - started).formatted(.units(allowed: [.milliseconds], width: .narrow))
-            let ended = String(describing: answer)
+        clicks.click(work, answered: answered, handBack: handBack)
+    }
+}
 
-            logger.info("Jump to \(work, privacy: .public): \(ended, privacy: .public), in \(took, privacy: .public)")
-            return answer
-        }
-
-        oneJump.run(to: work, jump) { news in
-            if case let .ended(answer) = news {
-                answered(answer == .jumped)
-                if answer.banner != nil {
-                    refused()
-                }
-            }
-        }
+extension AppSettings {
+    /// How a window is opened for a session no window shows, as Lee set it: a terminal SitRep no longer has a driver
+    /// for read as Ghostty.
+    var openSettings: OpenSettings {
+        OpenSettings(terminal: Driver.all.first { $0.program == terminal } ?? .ghostty, command: openCommand)
     }
 }

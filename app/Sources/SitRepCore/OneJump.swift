@@ -1,16 +1,23 @@
-/// What a jump came to: the window brought forward; why not, in plain words; no answer in time, within the jump's limit,
-/// as when the Mac is too busy; or stopped, as a later click's jump took its place.
+/// What a jump came to: the window brought forward; no window showing the session, but one to open for it, which comes
+/// next; a window opened for it; one opened for it a moment ago, which no terminal shows it in yet; why not, in plain
+/// words, a jump's or an opening's; no answer in time, within the jump's limit, as when the Mac is too busy; or
+/// stopped, as a later click's jump took its place.
 public enum JumpAnswer: Sendable, Equatable {
     case jumped
+    case openable
+    case opened
+    case opening
     case refused(String)
+    case unopened(String)
     case unanswered
     case stopped
 }
 
 /// What a jump tells as it runs: still no answer after a while, then how it ended.
 public enum JumpNews: Sendable, Equatable {
-    /// No answer yet, `OneJump.stillAfter` on.
+    /// No answer yet, `OneJump.stillAfter` on: a jump's, or a window's opening's.
     case still
+    case stillOpening
     /// It ended: brought the window forward, was refused, gave no answer in time, or was stopped as a later click's
     /// jump took its place.
     case ended(JumpAnswer)
@@ -42,10 +49,10 @@ public final class OneJump {
 
     /// Runs a jump to the session, stopping any running, unless one to the same session runs that has not yet said it
     /// is still jumping, which this click joins. `told` hears this click's news: `.still` once the jump has run
-    /// `stillAfter` with no answer, then how it ended; one stopped by a later jump ends `.stopped`, whatever it came
-    /// to, and says no more.
+    /// `stillAfter` with no answer, `.stillOpening` for a window's opening, `isOpening`; then how it ended; one stopped
+    /// by a later jump ends `.stopped`, whatever it came to, and says no more.
     public func run(
-        to session: String, _ jump: @escaping @Sendable () async -> JumpAnswer,
+        to session: String, isOpening: Bool = false, _ jump: @escaping @Sendable () async -> JumpAnswer,
         told: @escaping @MainActor (JumpNews) -> Void
     ) {
         if let current, current.session == session, !current.isStill {
@@ -64,7 +71,7 @@ public final class OneJump {
             }
 
             running.isStill = true
-            self.tell(running, .still)
+            self.tell(running, isOpening ? .stillOpening : .still)
         }
         running.task = Task {
             await previous?.task?.value

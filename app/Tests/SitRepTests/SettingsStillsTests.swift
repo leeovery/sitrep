@@ -83,6 +83,14 @@ struct SettingsStillsTests {
         try Self.pane(pane, await Self.settings(Self.preferences(), windows: Self.current), pane.rawValue)
     }
 
+    /// New windows with an open command given.
+    @Test func generalWithACommandGiven() async throws {
+        let preferences = Self.preferences()
+
+        preferences.app.openCommand = "zmx attach {session}"
+        try Self.pane(.general, await Self.settings(preferences, windows: Self.current), "general-command")
+    }
+
     @Test(arguments: [EdgeSettings.Show.strip, .nothing])
     func edgeAtEachChoice(show: EdgeSettings.Show) async throws {
         let settings = await Self.settings(Self.preferences { $0.show = show }, windows: Self.current)

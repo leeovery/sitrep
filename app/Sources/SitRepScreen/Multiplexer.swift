@@ -8,6 +8,7 @@ import SitRepCore
 /// A window that records two, one run inside the other, is in the innermost: the one whose own pty is the window's
 /// device, where one can tell; else each that cannot tell, never one that says its pty is another.
 public protocol Multiplexer: Sendable {
+    var kind: MultiplexerKind { get }
     /// Whether a window runs in it, as its heartbeat says.
     func isIn(_ where: Board.Window.Where) -> Bool
     /// Whether it tells its clients by a process's command line, so the table reads that one's.
@@ -15,11 +16,18 @@ public protocol Multiplexer: Sendable {
     /// Reads what it needs for the windows that run in it, each program within its limit; nothing that fails here
     /// fails the read.
     func read(_ windows: [Board.Window.Where]) async -> any Reading
+    /// The facts wanted of those its window records (`MultiplexerKind.facts`), for a window in it: what can change
+    /// under the window asked of the multiplexer now, the rest from the heartbeat. Throws, in plain words (its
+    /// description), where what it was asked gave no answer.
+    func facts(of where: Board.Window.Where, wanted: Set<Fact>) async throws -> [Fact: String]
 }
 
 /// What a multiplexer read of the screen, for the windows in it.
 public protocol Reading: Sendable {
+    var kind: MultiplexerKind { get }
     func isIn(_ where: Board.Window.Where) -> Bool
+    /// Whether it holds the window's session alive, so a window attaching to it would show it.
+    func holds(_ where: Board.Window.Where) -> Bool
     /// Whether the window's device is this multiplexer's own pty for it, so the innermost of those it runs in; nil
     /// where that cannot be told.
     func isOnItsPty(_ where: Board.Window.Where) -> Bool?
@@ -31,6 +39,35 @@ public protocol Reading: Sendable {
     /// Whether the window's clients are told only by the process table: whether the table giving no answer leaves
     /// where the window shows unknown.
     func needsProcesses(_ where: Board.Window.Where) -> Bool
+}
+
+/// A multiplexer, as a window runs in one.
+public enum MultiplexerKind: String, Sendable, Hashable {
+    case tmux, zmx
+
+    /// The facts a window in it gives: a zmx session's name; a tmux server's socket, a pane's id and the name of the
+    /// tmux session holding the pane.
+    public var facts: [Fact] {
+        switch self {
+        case .zmx: [.session]
+        case .tmux: [.session, .socket, .pane]
+        }
+    }
+}
+
+/// A fact of where a window runs, as its multiplexer gives it: its session's name, its tmux server's socket, its tmux
+/// pane's id.
+public enum Fact: String, Sendable, Hashable, CaseIterable {
+    case session, socket, pane
+
+    /// What it is in words, in a multiplexer: `the zmx session's name`.
+    func words(in kind: MultiplexerKind) -> String {
+        switch self {
+        case .session: "the \(kind.rawValue) session's name"
+        case .socket: "the \(kind.rawValue) socket's path"
+        case .pane: "the \(kind.rawValue) pane's id"
+        }
+    }
 }
 
 /// What gave no answer, so that showing nowhere may mean only not knowing.

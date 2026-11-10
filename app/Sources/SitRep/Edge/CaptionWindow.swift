@@ -57,10 +57,10 @@ final class CaptionWindow {
         showWhenDue(at: time)
     }
 
-    /// A jump's news, whichever surface asked for it, after that surface's own `answered`: "Still jumping…" once it
-    /// has run on with no answer, held until it ends; the limit's words once it gives up at its limit. Any other end
-    /// lets a held caption go, unless a row's "Jumped to…" has taken its place; a jump stopped by a later one leaves
-    /// what shows, as the later one runs on.
+    /// A jump's news, whichever surface asked for it, after that surface's own `answered`: "Still jumping…", or
+    /// "Still opening…", once it has run on with no answer, held until it ends; the limit's words once it gives up
+    /// at its limit. Any other end lets a held caption go, unless a row's "Jumped to…" has taken its place; a jump
+    /// stopped by a later one leaves what shows, as the later one runs on.
     func heard(_ news: JumpNews) {
         guard mayShow else {
             return
@@ -69,21 +69,32 @@ final class CaptionWindow {
         switch news {
         case .still:
             show(JumpCaption.still, holding: true)
+        case .stillOpening:
+            show(JumpCaption.stillOpening, holding: true)
         case .ended(.unanswered):
             pending = nil
             show(JumpCaption.tooBusy)
-        case .ended(.stopped):
+        case .ended(.stopped), .ended(.openable):
             break
-        case .ended(.jumped), .ended(.refused):
+        case .ended(.jumped), .ended(.opened), .ended(.opening), .ended(.refused), .ended(.unopened):
             letGo()
         }
     }
 
-    /// The jump answered: whether it jumped. A jump refused leaves no caption.
-    func answered(jumped: Bool, at time: Double) {
-        if jumped {
-            pending?.jumped(at: time)
-        } else {
+    /// The jump answered how it landed, where it did: "Jumped to…", "Opened a window for…", or, for one asked for a
+    /// moment ago, "A window for… is opening". A jump refused leaves no caption; one with a window still to open, none
+    /// yet.
+    func answered(_ answer: JumpAnswer, at time: Double) {
+        switch answer {
+        case .jumped:
+            pending?.landed(.jumped, at: time)
+        case .opened:
+            pending?.landed(.opened, at: time)
+        case .opening:
+            pending?.landed(.opening, at: time)
+        case .openable:
+            return
+        case .refused, .unopened, .unanswered, .stopped:
             pending = nil
         }
         showWhenDue(at: time)

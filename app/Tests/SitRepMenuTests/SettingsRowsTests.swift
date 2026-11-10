@@ -278,7 +278,7 @@ struct AppSettingsTests {
         #expect(read.notifiesNewAsks)
         #expect(read.playsSound)
         #expect(read.sound == "Glass")
-        #expect(Set(keys) == ["notifiesNewAsks", "playsSound", "sound"])
+        #expect(Set(keys) == ["notifiesNewAsks", "playsSound", "sound", "terminal", "openCommand"])
     }
 
     /// As each window played Glass before SitRep played the sound.
@@ -301,6 +301,22 @@ struct AppSettingsTests {
 
         #expect(!read.playsSound)
         #expect(read.sound == "Tink")
+    }
+
+    /// No open command, as SitRep has no built-in way to attach, and Ghostty, by default and from a value saved before
+    /// them; Lee's own saved and read back.
+    @Test func theOpenCommandIsEmptyAndTheTerminalGhosttyByDefaultAndLeesAreSavedAndReadBack() {
+        let defaults = MemoryDefaults()
+        var settings = AppSettings()
+
+        defaults.set(Data(#"{"notifiesNewAsks":true}"#.utf8), forKey: "app")
+        #expect(SavedSettings<AppSettings>(defaults).read().openCommand.isEmpty)
+        #expect(SavedSettings<AppSettings>(defaults).read().terminal == "ghostty")
+
+        settings.openCommand = "portal open -s {session}"
+        SavedSettings(defaults).save(settings)
+
+        #expect(SavedSettings<AppSettings>(defaults).read().openCommand == "portal open -s {session}")
     }
 
     /// "Your turn folds after", retired on 4 November 2026: a value saved with it reads what else it holds, and the next

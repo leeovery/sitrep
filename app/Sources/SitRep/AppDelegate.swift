@@ -6,7 +6,9 @@ import SitRepMenu
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let banners = Banners.live()
     private let plugin = Plugin()
-    private lazy var works = Works(banners: banners, path: plugin.path)
+    private lazy var works = Works(banners: banners, path: plugin.path) { [preferences] in
+        preferences.app.openSettings
+    }
     private lazy var snoozes = Snoozes(plugin: plugin, banners: banners)
     private let feed = Feed()
     /// The plugin folder `watch` runs on; nil before it first starts.
@@ -30,7 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// quits as Quit SitRep does.
     func applicationWillFinishLaunching(_ notification: Notification) {
         quitOnSignal = QuitOnSignal()
-        banners.start { [works] work, refused in works.jump(to: work, refused: refused) }
+        banners.start { [works] work, handBack in works.jump(to: work, handBack: handBack) }
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {

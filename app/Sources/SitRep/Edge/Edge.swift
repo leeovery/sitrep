@@ -23,7 +23,7 @@ final class Edge {
 
     /// What Lee set, followed as it changes; `jump` jumps to a session, and tells once it answers whether it jumped;
     /// `snoozes` snoozes and wakes a row's asks from its menu.
-    init(_ preferences: Preferences, jump: @escaping (String, @escaping (Bool) -> Void) -> Void, snoozes: Snoozes) {
+    init(_ preferences: Preferences, jump: @escaping (String, @escaping (JumpAnswer) -> Void) -> Void, snoozes: Snoozes) {
         let settings = preferences.edge, display = Displays.chosen(settings)
 
         self.preferences = preferences

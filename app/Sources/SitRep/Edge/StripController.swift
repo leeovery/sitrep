@@ -14,7 +14,7 @@ import SitRepPanel
 @MainActor
 final class StripController: NSObject, CalloutShape {
     /// A click on a mark or a tab: the session to jump to, and what to tell once the jump answers, whether it jumped.
-    var onJump: (String, @escaping (Bool) -> Void) -> Void = { _, _ in }
+    var onJump: (String, @escaping (JumpAnswer) -> Void) -> Void = { _, _ in }
     /// A drag let the strip go: the settings with its new place.
     var onMoved: (EdgeMove) -> Void = { _ in }
     /// Each frame drawn, with whether the pointer is over the strip, or a tab out.
@@ -214,7 +214,7 @@ final class StripController: NSObject, CalloutShape {
         switch run.release(settings, moment()) {
         case let .jump(session, to: target, click: click):
             caption.jumping(to: session.project)
-            onJump(target) { [weak self] in self?.answered(jumped: $0, click: click) }
+            onJump(target) { [weak self] in self?.answered($0, click: click) }
         case let .dropped(dropped):
             ghost.dropped(across: dropped.isAcross)
             if dropped.isAcross {
@@ -234,13 +234,13 @@ final class StripController: NSObject, CalloutShape {
     }
 
     /// The jump a click asked for answered; an answer to an earlier click changes nothing.
-    private func answered(jumped: Bool, click: Int) {
+    private func answered(_ answer: JumpAnswer, click: Int) {
         guard run.isLatest(click) else {
             return
         }
 
         run.jumpAnswered(moment())
-        caption.answered(jumped: jumped, at: run.time)
+        caption.answered(answer, at: run.time)
         took()
     }
 
