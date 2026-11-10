@@ -20,6 +20,12 @@ public struct Banner: Equatable, Sendable {
     /// A jump that gave no answer in time: the caption's words, under the title that says it could not jump.
     public static let tooBusy = unjumped("The Mac is too busy to jump.")
 
+    /// A window for a session no window shows that could not be opened, in the words of its refusal, which name the
+    /// session.
+    public static func unopened(_ why: String) -> Banner {
+        refused("SitRep could not open a window", why)
+    }
+
     /// A snooze from a row's menu that the CLI refused, in its words, as the pane says it.
     public static func unsnoozed(_ why: String) -> Banner {
         refused("Not snoozed", why)
@@ -37,12 +43,14 @@ public struct Banner: Equatable, Sendable {
 }
 
 extension JumpAnswer {
-    /// The banner a jump that came to this posts: a refusal in its own words, no answer in time as the Mac too busy;
-    /// none for one that jumped or opened a window, nor for one a later click stopped, as that one goes on.
+    /// The banner a jump that came to this posts: a refusal in its own words, a window's under its own title; no
+    /// answer in time as the Mac too busy; none for one that jumped or opened a window, nor for one a later click
+    /// stopped, as that one goes on.
     public var banner: Banner? {
         switch self {
         case .jumped, .openable, .opened, .opening, .stopped: nil
         case let .refused(why): .unjumped(why)
+        case let .unopened(why): .unopened(why)
         case .unanswered: .tooBusy
         }
     }

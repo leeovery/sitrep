@@ -15,9 +15,10 @@ public protocol TerminalDriver: Sendable {
     func canOpen() async -> Bool
     /// Opens a new window on the Space showing, Lee's own login shell in it with the command typed in, and brings it
     /// forward, given the app in front as the opening began: whether it opened, false where the app is not running.
-    /// Once the app has answered that it opened one, it has, whatever follows; before then, it throws as
-    /// `bringForward` does.
-    func openWindow(running command: String, front: String?) async throws -> Bool
+    /// `sending` is called as the window is asked for, from when one may open whatever comes of the asking. Once the
+    /// app has answered that it opened one, it has, whatever follows; before then, it throws as `bringForward` does.
+    func openWindow(running command: String, front: String?, sending: @escaping @Sendable () -> Void) async throws
+        -> Bool
 }
 
 /// Ghostty, asked about its terminals by device, and told to bring one forward. The real one sends Apple Events
@@ -34,7 +35,8 @@ public protocol GhosttyScripting: Sendable {
     func focus(_ terminal: GhosttyObject) async throws
     /// Opens a new window whose shell has the command typed into it, with a return, once the shell starts; nothing for
     /// Ghostty not running, as `new window` would launch it, which opens a first window of its own as it starts.
-    func openWindow(running command: String) async throws -> NewWindow
+    /// `sending` is called as `new window` goes to Ghostty, and never where nothing asked for a window went.
+    func openWindow(running command: String, sending: @escaping @Sendable () -> Void) async throws -> NewWindow
 }
 
 /// What asking Ghostty for a new window came to: Ghostty not running, so nothing asked; or a window opened, with its
@@ -141,12 +143,14 @@ public struct GhosttyDriver: TerminalDriver {
     }
 
     /// The window opened, then its terminal focused, which makes it key, and Ghostty kept in front as a jump keeps it.
-    public func openWindow(running command: String, front: String?) async throws -> Bool {
+    public func openWindow(
+        running command: String, front: String?, sending: @escaping @Sendable () -> Void
+    ) async throws -> Bool {
         let kept = KeptInFront(Self.bundle, after: front, on: workspace)
 
         defer { kept?.end() }
 
-        guard case let .opened(terminal) = try await scripting.openWindow(running: command) else {
+        guard case let .opened(terminal) = try await scripting.openWindow(running: command, sending: sending) else {
             return false
         }
 

@@ -31,10 +31,10 @@ final class Banners {
         self.answerWithin = answerWithin
     }
 
-    /// Clicks told to `onClick`, with the session and what hands the front back should its jump be refused; SitRep
-    /// says it listens, and starts the helper. Before launching ends, so a click that started SitRep, held by the
-    /// helper, is heard.
-    func start(onClick: @escaping (_ work: String, _ refused: @escaping () -> Void) -> Void) {
+    /// Clicks told to `onClick`, with the session and what hands the front back should nothing come forward, its jump
+    /// refused or a window already opening; SitRep says it listens, and starts the helper. Before launching ends, so a
+    /// click that started SitRep, held by the helper, is heard.
+    func start(onClick: @escaping (_ work: String, _ handBack: @escaping () -> Void) -> Void) {
         self.onClick = onClick
         say(.ready)
         helperApp.open()
@@ -130,7 +130,7 @@ final class Banners {
         waiting = []
     }
 
-    /// The click relayed, with what hands the front back should its jump be refused: to the helper that relayed it
+    /// The click relayed, with what hands the front back should nothing come forward: to the helper that relayed it
     /// alone, while it listens, never queued for a later one, which it would hide mid-way through a click of its own.
     private func clicked(_ work: String, from helper: Int32?) {
         onClick(work) { [weak self] in

@@ -67,13 +67,13 @@ public struct Screen: Sendable {
         return unanswered.isEmpty ? .offScreen : .unknown(unanswered)
     }
 
-    /// The window a new terminal window would attach to, where none shows the session: the first of the windows that
-    /// the innermost multiplexer it runs in holds alive, with that multiplexer. None where no window runs in a
-    /// multiplexer, which has nothing to attach, or none is held, as one whose tmux server has gone.
-    public func attachable(_ windows: [Board.Window.Where]) -> Attachable? {
-        windows.lazy.compactMap { each in
+    /// The windows a new terminal window could attach to, where none shows the session, in their order: each that the
+    /// innermost multiplexer it runs in holds alive, with that multiplexer, the first to be tried first. None where no
+    /// window runs in a multiplexer, which has nothing to attach, or none is held, as one whose tmux server has gone.
+    public func attachables(_ windows: [Board.Window.Where]) -> [Attachable] {
+        windows.compactMap { each in
             innermost(of: each).first { $0.holds(each) }.map { Attachable(where: each, kind: $0.kind) }
-        }.first
+        }
     }
 
     /// What gave no answer of the windows: what a multiplexer they run in asked, as tmux for a socket one runs under;

@@ -57,11 +57,9 @@ private struct GeneralPane: View {
         }
         SettingsSection(name: "New windows") {
             SettingsCard {
-                AttachRow(kind: .zmx, command: command(\.zmxAttach))
-                CardSeparator()
-                AttachRow(kind: .tmux, command: command(\.tmuxAttach))
+                AttachRows(zmx: command(\.zmxAttach), tmux: command(\.tmuxAttach))
             }
-            CaptionRow(words: Text(AttachRow.caption))
+            CaptionRow(words: Text(AttachRows.caption))
         }
     }
 
@@ -78,55 +76,68 @@ private struct GeneralPane: View {
     }
 }
 
-/// A multiplexer's attach command: its name over the placeholders it fills, and the command in a field against the
-/// card's right, SitRep's own shown greyed in it while Lee has given none, and under it, as he types, what is wrong
-/// with what he typed. The field gives way before the row's words do, so they keep their one line, and the row its
-/// height, at the window's least width; the words stand as wide as the widest row's, so the fields line up at every
-/// width.
-struct AttachRow: View {
-    static let caption = "A click on a session no window shows opens a new Ghostty window and runs this command in "
-        + "it, each value filled in already quoted. Leave blank to use the default."
+/// The attach commands, a row for each multiplexer, zmx's over tmux's: its name over the placeholders it fills, and the
+/// command in a field against the card's right, in the label's size in the monospaced face, SitRep's own shown greyed
+/// in it while Lee has given none, and under it, as he types, what is wrong with what he typed, the row growing. The
+/// rows are a grid's, so the fields line up at every width, and the words of each stand centred on its field, never on
+/// the field and its warning. The fields give way before the words do, so the words keep their one line, and each row
+/// its height, at the window's least width.
+struct AttachRows: View {
+    static let caption = "Clicking a session that isn't showing in a terminal opens a new Ghostty window and runs the "
+        + "matching command. Placeholders are replaced with quoted values. Leave a field empty to use the default."
     /// Wide enough for the tmux default whole in the monospaced face.
     static let fieldWidth: CGFloat = 300
-    /// The least the field gives way to: still wide enough for zmx's default whole.
+    /// The least a field gives way to: still wide enough for zmx's default whole.
     static let leastFieldWidth: CGFloat = 200
+    /// Between a field and its warning.
+    private static let warningGap: CGFloat = 4
 
-    let kind: MultiplexerKind
-    @Binding var command: String
+    @Binding var zmx: String
+    @Binding var tmux: String
 
     var body: some View {
-        HStack(spacing: 0) {
-            ZStack(alignment: .leading) {
-                ForEach(MultiplexerKind.allCases, id: \.self) { each in
-                    Self.words(each).hidden()
-                }
-                Self.words(kind)
-            }
-            .fixedSize(horizontal: true, vertical: false)
-            Spacer(minLength: 16)
-            VStack(alignment: .leading, spacing: 4) {
-                TextField(kind.rawValue, text: $command, prompt: Text(AttachCommands.default(for: kind)))
-                    .font(.body.monospaced())
+        Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 0) {
+            row(.zmx, $zmx)
+            Rectangle().fill(SettingsStyle.separator).frame(height: 0.5).gridCellUnsizedAxes(.horizontal)
+            row(.tmux, $tmux)
+        }
+        .padding(.horizontal, SettingsStyle.inset)
+    }
+
+    private func row(_ kind: MultiplexerKind, _ command: Binding<String>) -> some View {
+        GridRow(alignment: .fieldCentre) {
+            RowWords(label: kind.rawValue, line: "Placeholders: \(kind.placeholderList)")
+                .fixedSize(horizontal: true, vertical: false)
+                .alignmentGuide(.fieldCentre) { $0[VerticalAlignment.center] }
+            VStack(alignment: .leading, spacing: Self.warningGap) {
+                TextField(kind.rawValue, text: command, prompt: Text(AttachCommands.default(for: kind)))
+                    .font(.system(size: NSFont.systemFontSize).monospaced())
                     .textFieldStyle(.roundedBorder)
                     .labelsHidden()
-                if let warning = AttachCommands.warning(about: command, for: kind) {
+                    .alignmentGuide(.fieldCentre) { $0[VerticalAlignment.center] }
+                if let warning = AttachCommands.warning(about: command.wrappedValue, for: kind) {
                     Text(warning)
                         .font(.subheadline)
                         .foregroundStyle(Color(nsColor: .systemRed))
                         .fixedSize(horizontal: false, vertical: true)
+                        .padding(.bottom, SettingsStyle.rowMargin)
                 }
             }
-            .padding(.vertical, 6)
             .frame(minWidth: Self.leastFieldWidth, maxWidth: Self.fieldWidth)
-            .layoutPriority(1)
+            .frame(maxWidth: .infinity, alignment: .trailing)
         }
-        .padding(.horizontal, SettingsStyle.inset)
-        .frame(minHeight: SettingsStyle.twoLineRow)
+    }
+}
+
+extension VerticalAlignment {
+    /// A row's words and its field, centre to centre, whatever shows under the field.
+    private enum FieldCentre: AlignmentID {
+        static func defaultValue(in context: ViewDimensions) -> CGFloat {
+            context[VerticalAlignment.center]
+        }
     }
 
-    private static func words(_ kind: MultiplexerKind) -> RowWords {
-        RowWords(label: kind.rawValue, line: "Use \(kind.placeholdersInWords)")
-    }
+    static let fieldCentre = VerticalAlignment(FieldCentre.self)
 }
 
 /// Notifications: the desktop corner a new ask's notification lands on, its caption and Send Test; Banners, the switch

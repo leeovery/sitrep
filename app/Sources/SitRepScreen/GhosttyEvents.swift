@@ -71,15 +71,15 @@ public struct GhosttyEvents: GhosttyScripting {
 
     /// A configuration Ghostty answers with none fails as AppleScript fails to find the first item of nothing (-1719).
     /// Once `new window` has answered, a window is open, whether or not its answer names it.
-    public func openWindow(running command: String) async throws -> NewWindow {
+    public func openWindow(running command: String, sending: @escaping @Sendable () -> Void) async throws -> NewWindow {
         guard ghostty() != nil else {
             return .notRunning
         }
 
         let configuration = try await made({ GhosttyEvent.newConfiguration }, at: .opening)
-        let window = try await ask(
-            { GhosttyEvent.newWindow(configuration, typing: command + "\n") }, at: .newWindow
-        ).first
+        let window = try await answer(
+            { GhosttyEvent.newWindow(configuration, typing: command + "\n") }, at: .newWindow, sending: sending
+        ).items.first
 
         return .opened(window.map { GhosttyObject(descriptor: Specifier.focusedTerminal(of: $0)) })
     }
@@ -106,17 +106,20 @@ public struct GhosttyEvents: GhosttyScripting {
         return made
     }
 
-    /// The event made and sent on a thread of its own, and its answer read there; throws Ghostty's failure, or
-    /// `CancellationError` once the jump is stopped, letting the event go.
-    private func answer(_ made: @escaping @Sendable () -> GhosttyEvent, at place: GhosttyEvent.Place) async throws
-        -> Answered
-    {
+    /// The event made and sent on a thread of its own, `sending` called there as it goes, and its answer read there;
+    /// throws Ghostty's failure, or `CancellationError` once the jump is stopped, letting the event go, or before it
+    /// went, which sends nothing.
+    private func answer(
+        _ made: @escaping @Sendable () -> GhosttyEvent, at place: GhosttyEvent.Place,
+        sending: @escaping @Sendable () -> Void = {}
+    ) async throws -> Answered {
         guard let pid = ghostty() else {
             throw GhosttyFailure.gave(GhosttyEvent.noProcess, said: nil)
         }
 
         let answered = await onThread { [send] in
-            Answered(send(made().addressed(to: pid), Self.answerSeconds), at: place)
+            sending()
+            return Answered(send(made().addressed(to: pid), Self.answerSeconds), at: place)
         }
 
         guard let answered else {

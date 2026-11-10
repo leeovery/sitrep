@@ -118,7 +118,8 @@ struct Jumping {
 
     init(
         _ tmux: FakeTmux = FakeTmux(), _ table: FakeTable = FakeTable(Mac().tree), terminals: [FakeWindow] = terminals,
-        running: Bool = true, failing: GhosttyFailure? = nil, ghosttyHeld: Gate? = nil,
+        running: Bool = true, failing: GhosttyFailure? = nil, windowFailing: GhosttyFailure? = nil,
+        windowHeld: Gate? = nil, ghosttyHeld: Gate? = nil,
         workspace: FakeWorkspace = FakeWorkspace(), clock: TestClock = TestClock(), tmuxHeld: Gate? = nil,
         zmx: FakeZmx = FakeZmx(), commands: AttachCommands = AttachCommands(),
         openings: RecentOpenings = RecentOpenings()
@@ -130,7 +131,10 @@ struct Jumping {
         self.clock = clock
         self.commands = commands
         self.openings = openings
-        ghostty = FakeGhostty(terminals, running: running, failing: failing, held: ghosttyHeld, onTold: workspace.told)
+        ghostty = FakeGhostty(
+            terminals, running: running, failing: failing, held: ghosttyHeld, windowFailing: windowFailing,
+            windowHeld: windowHeld, onTold: workspace.told
+        )
         program = tmuxHeld.map { HeldTmux(tmux, at: $0) } ?? tmux
     }
 
@@ -150,9 +154,9 @@ struct Jumping {
         (try? await jump.jump(to: windows))?.answer(named: named) ?? .stopped
     }
 
-    /// The jump to the windows, then the window it finds can be opened opened, on the Space showing, as SitRep opens
-    /// one once the jump has answered.
-    func open(_ windows: [Where]) async -> JumpAnswer {
+    /// The jump to the windows, then the window it finds can be opened opened where `choosing` says, the Space showing
+    /// unless it says otherwise, as SitRep opens one once the jump has answered.
+    func open(_ windows: [Where], choosing: @Sendable () async -> OpenOn? = { .current }) async -> JumpAnswer {
         guard let jumped = try? await jump.jump(to: windows) else {
             return .stopped
         }
@@ -160,7 +164,7 @@ struct Jumping {
             return jumped.answer(named: named)
         }
 
-        return await opening(command).open(on: .current)
+        return await opening(command).open(choosing: choosing)
     }
 
     /// The opening of a window for `sr-a` running the command.

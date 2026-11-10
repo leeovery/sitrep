@@ -14,9 +14,9 @@ public enum MultiplexerKind: String, Sendable, Hashable, CaseIterable {
         }
     }
 
-    /// Its placeholders in words, as Settings and a refusal list them: `{socket}, {pane} or {session}`.
-    public var placeholdersInWords: String {
-        inWords(placeholders.map(\.named), "or")
+    /// Its placeholders, as Settings lists them: `{socket}, {pane}, {session}`.
+    public var placeholderList: String {
+        placeholders.map(\.named).joined(separator: ", ")
     }
 }
 
@@ -26,6 +26,15 @@ public enum Placeholder: String, Sendable, Hashable, CaseIterable {
 
     /// As a command names it: `{session}`.
     public var named: String { "{\(rawValue)}" }
+
+    /// What its value is, as a refusal names it: `the zmx session's name`.
+    func value(in kind: MultiplexerKind) -> String {
+        switch self {
+        case .session: "the \(kind.rawValue) session's name"
+        case .socket: "the \(kind.rawValue) socket's path"
+        case .pane: "the \(kind.rawValue) pane's id"
+        }
+    }
 }
 
 /// The commands that attach a new terminal window to a session no window shows, one for each multiplexer, as Lee sets
@@ -65,7 +74,7 @@ public struct AttachCommands: Sendable, Equatable {
     /// What is wrong with a command as Lee types it, for Settings to say under its field as he types: nil for nothing,
     /// and for one left empty, which is SitRep's own.
     public static func warning(about given: String, for kind: MultiplexerKind) -> String? {
-        command(given, for: kind).problem(for: kind)?.warning(for: kind)
+        command(given, for: kind).problem(for: kind)?.warning
     }
 
     private static func command(_ given: String, for kind: MultiplexerKind) -> AttachCommand {
@@ -75,14 +84,23 @@ public struct AttachCommands: Sendable, Equatable {
     }
 }
 
-/// An attach command as the shell reads it, far enough to find its placeholders: each `{name}`, a name of letters and
-/// underscores, but none after `$` or `#`, the shell's `${…}` and tmux's `#{…}`, nor one escaped; and whether each sits
-/// inside quotes.
+/// An attach command as the shell reads it, far enough to find its placeholders and where each stands: each `{name}`,
+/// a name of letters and underscores, but none after an unescaped `$` or `#`, the shell's `${…}` and tmux's `#{…}`, nor
+/// one escaped, nor, inside quotes, one whose name is no placeholder's, as awk's `'{print}'`. A placeholder is filled
+/// only where it stands as a word of its own, outside quotes: anywhere else the quotes SitRep puts round its value
+/// would read otherwise than meant, or let the value out of them.
 struct AttachCommand: Equatable {
     /// Its words as written, between its placeholders.
     enum Piece: Equatable {
         case words(String)
-        case placeholder(String, isQuoted: Bool)
+        case placeholder(String, Standing)
+    }
+
+    /// Where a placeholder stands: a word of its own, outside quotes; inside quotes; or joined to other words.
+    enum Standing: Equatable {
+        case word
+        case quoted
+        case joined
     }
 
     let pieces: [Piece]
@@ -93,11 +111,7 @@ struct AttachCommand: Equatable {
 
     /// Each placeholder it names, in order, once, as written.
     var named: [String] {
-        var seen: Set<String> = []
-
-        return pieces.compactMap { piece in
-            if case let .placeholder(name, _) = piece, seen.insert(name).inserted { name } else { nil }
-        }
+        names { _ in true }
     }
 
     /// The placeholders it names that SitRep fills.
@@ -105,14 +119,13 @@ struct AttachCommand: Equatable {
         Set(named.compactMap(Placeholder.init(rawValue:)))
     }
 
-    /// What is wrong with it as written, for the multiplexer: a character that cannot be typed; a placeholder the
+    /// What is wrong with it as written, for the multiplexer: a character that can't be typed; a placeholder the
     /// multiplexer cannot fill, misspelt or another's, never typed as written, as `zmx attach` makes a session of a
-    /// name it does not have; or one inside quotes, which would put the quotes SitRep adds inside its own.
+    /// name it does not have; or one not standing as a word of its own, outside quotes.
     func problem(for kind: MultiplexerKind) -> CommandProblem? {
         let unknown = named.filter { name in !kind.placeholders.contains { $0.rawValue == name } }
-        let quoted = pieces.compactMap { piece in
-            if case let .placeholder(name, true) = piece { name } else { nil }
-        }
+        let quoted = names { $0 == .quoted }
+        let joined = names { $0 == .joined }
 
         if let scalar = unprintable(in: pieces.map(\.written).joined()) {
             return .unprintable(scalar)
@@ -120,24 +133,28 @@ struct AttachCommand: Equatable {
         if !unknown.isEmpty {
             return .unknown(unknown)
         }
-        return quoted.isEmpty ? nil : .quoted(quoted)
+        if !quoted.isEmpty {
+            return .quoted(quoted)
+        }
+        return joined.isEmpty ? nil : .joined(joined)
     }
 
     /// The line that attaches to the window, filled with what the multiplexer it runs in gives for it, each value it
     /// names printable, once the multiplexer confirms the session is there: refused, in plain words, where the command
     /// or a value is not fit to type, before the multiplexer is asked anything with a value that is not.
     func line(attaching where: Board.Window.Where, in multiplexer: any Multiplexer) async throws -> String {
-        if let problem = problem(for: multiplexer.kind) {
-            throw Unattachable(description: problem.refusal(for: multiplexer.kind))
+        let kind = multiplexer.kind
+
+        if let problem = problem(for: kind) {
+            throw Unattachable(description: problem.refusal(for: kind))
         }
 
         let values = try await multiplexer.attachValues(`where`, wanted: wanted)
-        let named = Placeholder.allCases.filter(wanted.contains)
 
-        for placeholder in named {
+        for placeholder in Placeholder.allCases.filter(wanted.contains) {
             if let scalar = values[placeholder].flatMap(unprintable(in:)) {
                 throw Unattachable(
-                    description: "its \(placeholder.named) holds a character that cannot be typed safely (\(scalar.code))."
+                    description: "\(placeholder.value(in: kind)) contains a character that can't be typed (\(scalar.code))."
                 )
             }
         }
@@ -157,6 +174,15 @@ struct AttachCommand: Equatable {
         }.joined()
     }
 
+    /// The names of the placeholders standing as given, in order, once.
+    private func names(standing: (Standing) -> Bool) -> [String] {
+        var seen: Set<String> = []
+
+        return pieces.compactMap { piece in
+            if case let .placeholder(name, stands) = piece, standing(stands), seen.insert(name).inserted { name } else { nil }
+        }
+    }
+
     private static func pieces(of text: String) -> [Piece] {
         var pieces: [Piece] = []
         var words = ""
@@ -164,9 +190,11 @@ struct AttachCommand: Equatable {
         var rest = Substring(text)
 
         while let character = rest.first {
-            if reading.mayStartPlaceholder, character == "{", let (name, after) = placeholder(at: rest) {
+            if reading.mayStartPlaceholder, character == "{", let (name, after) = placeholder(at: rest),
+               let standing = reading.standing(of: name, before: after.first)
+            {
                 pieces.append(.words(words))
-                pieces.append(.placeholder(name, isQuoted: reading.quote != nil))
+                pieces.append(.placeholder(name, standing))
                 words = ""
                 rest = after
                 reading.read("}")
@@ -206,7 +234,8 @@ extension AttachCommand.Piece {
 }
 
 /// Where the shell is in a command it reads, a character at a time: inside which quotes, if any; whether the next
-/// character is escaped; and the character before.
+/// character is escaped; whether the one before is an unescaped `$` that opens an expansion, `$'…'` or `${…}`, never
+/// the second of `$$`, the shell's own process id; whether it was an unescaped `#`; and whether a word starts here.
 private struct ShellReading {
     enum Quote {
         /// `'…'`, where nothing is escaped.
@@ -217,34 +246,57 @@ private struct ShellReading {
         case double
     }
 
-    private(set) var quote: Quote?
+    private var quote: Quote?
     private var isEscaped = false
-    private var previous: Character?
+    private var isAfterDollar = false
+    private var isAfterHash = false
+    private var isAtWordStart = true
 
-    /// Whether a `{` here may open a placeholder: not escaped, and not after `$` or `#`.
+    /// Whether a `{` here may open a placeholder: not escaped, and not after an unescaped `$` or `#`.
     var mayStartPlaceholder: Bool {
-        !isEscaped && previous != "$" && previous != "#"
+        !isEscaped && !isAfterDollar && !isAfterHash
+    }
+
+    /// Where a placeholder of the name, opening here and followed by the character given, stands; nil where it is
+    /// none, a name in quotes that is no placeholder's being only words.
+    func standing(of name: String, before next: Character?) -> AttachCommand.Standing? {
+        guard quote == nil else {
+            return Placeholder(rawValue: name) == nil ? nil : .quoted
+        }
+
+        return isAtWordStart && (next == nil || next == " " || next == "\t") ? .word : .joined
     }
 
     mutating func read(_ character: Character) {
-        defer { previous = character }
+        let wasAfterDollar = isAfterDollar
+        let isEscapedHere = isEscaped
 
-        if isEscaped {
-            isEscaped = false
+        isEscaped = false
+        isAfterDollar = false
+        isAfterHash = false
+        isAtWordStart = false
+
+        guard !isEscapedHere else {
             return
         }
 
         switch quote {
         case .single:
             quote = character == "'" ? nil : .single
-        case .ansi, .double:
+        case .ansi:
             isEscaped = character == "\\"
-            if character == (quote == .ansi ? "'" : "\"") {
-                quote = nil
-            }
+            quote = character == "'" ? nil : .ansi
+        case .double:
+            isEscaped = character == "\\"
+            isAfterDollar = character == "$" && !wasAfterDollar
+            isAfterHash = character == "#"
+            quote = character == "\"" ? nil : .double
         case nil:
             isEscaped = character == "\\"
-            quote = character == "'" ? (previous == "$" ? .ansi : .single) : character == "\"" ? .double : nil
+            isAfterDollar = character == "$" && !wasAfterDollar
+            isAfterHash = character == "#"
+            isAtWordStart = character == " " || character == "\t"
+            quote = character == "'" ? (wasAfterDollar ? .ansi : .single) : character == "\"" ? .double : nil
         }
     }
 }
@@ -258,42 +310,56 @@ enum CommandProblem: Equatable {
     case unknown([String])
     /// Placeholders inside quotes, by their names.
     case quoted([String])
+    /// Placeholders joined to other words, by their names.
+    case joined([String])
 
-    /// What it is, finishing a sentence about the command.
-    private func what(for kind: MultiplexerKind) -> String {
+    /// Under the command's field in Settings, as Lee types.
+    var warning: String {
         switch self {
         case let .unprintable(scalar):
-            "holds a character that cannot be typed safely (\(scalar.code))"
+            "Contains a character that can't be typed (\(scalar.code))."
         case let .unknown(names):
-            "names \(braced(names)), which SitRep cannot fill for \(kind.rawValue): use \(kind.placeholdersInWords)"
+            "Unknown \(Self.placeholders(names))."
         case let .quoted(names):
-            "puts \(braced(names)) in quotes: SitRep quotes each value itself"
+            "Remove the quotes around \(Self.braced(names)). Values are quoted automatically."
+        case let .joined(names):
+            "Put a space before and after \(Self.braced(names))."
         }
-    }
-
-    /// Under the command's field in Settings.
-    func warning(for kind: MultiplexerKind) -> String {
-        let what = what(for: kind)
-
-        return what.prefix(1).uppercased() + what.dropFirst() + "."
     }
 
     /// Ending a refusal's sentence, at the click.
     func refusal(for kind: MultiplexerKind) -> String {
-        "the \(kind.rawValue) attach command in Settings \(what(for: kind))."
+        let command = "the \(kind.rawValue) command in Settings"
+
+        return switch self {
+        case let .unprintable(scalar):
+            "\(command) contains a character that can't be typed (\(scalar.code))."
+        case let .unknown(names):
+            "\(command) has an unknown \(Self.placeholders(names, listed: ", "))."
+        case let .quoted(names):
+            "\(command) puts \(Self.braced(names)) in quotes, and values are quoted automatically."
+        case let .joined(names):
+            "\(command) joins \(Self.braced(names)) to other text, and a placeholder needs a space before and after it."
+        }
     }
 
-    private func braced(_ names: [String]) -> String {
+    /// `placeholder {a}`, or `placeholders {a} and {b}`, set off as given.
+    private static func placeholders(_ names: [String], listed: String = " ") -> String {
+        (names.count == 1 ? "placeholder" : "placeholders") + listed + braced(names)
+    }
+
+    private static func braced(_ names: [String]) -> String {
         inWords(names.map { "{\($0)}" })
     }
 }
 
 /// The first character in the text that is not fit to type into a shell: a control (C0, DEL, C1), a format character,
-/// a line or paragraph separator, or one unassigned; none for text that only prints.
+/// a line or paragraph separator, or one unassigned; none for text that only prints. A Swift string holds no lone
+/// surrogate, so none is looked for.
 func unprintable(in text: String) -> Unicode.Scalar? {
     text.unicodeScalars.first { scalar in
         switch scalar.properties.generalCategory {
-        case .control, .format, .lineSeparator, .paragraphSeparator, .surrogate, .unassigned: true
+        case .control, .format, .lineSeparator, .paragraphSeparator, .unassigned: true
         default: false
         }
     }

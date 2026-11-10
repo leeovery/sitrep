@@ -89,8 +89,9 @@ final class Gate: Sendable {
 /// device found, its tab's selection told, its window activated, it focused; a new window opened, its terminal
 /// `NEW-TERMINAL`. It keeps every device it was asked about and everything it was told, and, told something, tells
 /// `onTold`, as an app comes to the front when it is. Not running, it finds nothing and opens nothing; failing, its
-/// every question fails so; held, its first question waits at the gate. Opening a window, it may name none, and its
-/// focus may fail on its own.
+/// every question fails so; held, its first question waits at the gate. Opening a window, as the real one does, it
+/// sends nothing once stopped, and says as `new window` goes; then that event may fail on its own, wait in flight at a
+/// gate of its own, or name no window; and its focus may fail on its own.
 final class FakeGhostty: GhosttyScripting {
     static let opened = "NEW-TERMINAL"
 
@@ -99,20 +100,24 @@ final class FakeGhostty: GhosttyScripting {
     private let failure: GhosttyFailure?
     private let gate: Gate?
     private let namesNewWindow: Bool
+    private let windowFailure: GhosttyFailure?
+    private let windowGate: Gate?
     private let focusFailure: GhosttyFailure?
     private let onTold: @Sendable (String) -> Void
     private let state = OSAllocatedUnfairLock(initialState: (asked: [String](), told: [String]()))
 
     init(
         _ windows: [FakeWindow] = [], running: Bool = true, failing failure: GhosttyFailure? = nil, held gate: Gate? = nil,
-        namesNewWindow: Bool = true, focusFailing focusFailure: GhosttyFailure? = nil,
-        onTold: @escaping @Sendable (String) -> Void = { _ in }
+        namesNewWindow: Bool = true, windowFailing windowFailure: GhosttyFailure? = nil, windowHeld windowGate: Gate? = nil,
+        focusFailing focusFailure: GhosttyFailure? = nil, onTold: @escaping @Sendable (String) -> Void = { _ in }
     ) {
         self.windows = windows
         isRunning = running
         self.failure = failure
         self.gate = gate
         self.namesNewWindow = namesNewWindow
+        self.windowFailure = windowFailure
+        self.windowGate = windowGate
         self.focusFailure = focusFailure
         self.onTold = onTold
     }
@@ -167,15 +172,23 @@ final class FakeGhostty: GhosttyScripting {
         tell("focus \(terminal.descriptor.stringValue ?? "")")
     }
 
-    func openWindow(running command: String) async throws -> NewWindow {
+    func openWindow(running command: String, sending: @escaping @Sendable () -> Void) async throws -> NewWindow {
         guard isRunning else {
             return .notRunning
         }
+        try Task.checkCancellation()
         if let failure {
             throw failure
         }
+        try Task.checkCancellation()
 
+        sending()
         tell("open \(command)")
+        await windowGate?.pass()
+        if let windowFailure {
+            throw windowFailure
+        }
+
         return .opened(namesNewWindow ? GhosttyObject(descriptor: NSAppleEventDescriptor(string: Self.opened)) : nil)
     }
 
@@ -384,9 +397,9 @@ final class HeldTmux: TmuxProgram {
         self.gate = gate
     }
 
-    func run(on socket: String, _ words: [String]) async -> Ran? {
+    func run(on socket: String, _ words: [String]) async throws -> Ran {
         await gate.pass()
-        return await tmux.run(on: socket, words)
+        return try await tmux.run(on: socket, words)
     }
 }
 

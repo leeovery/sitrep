@@ -131,8 +131,8 @@ struct FakeServer {
 }
 
 /// tmux, its servers by socket, answering as the real one does: a socket no server is on with an error; or, `silent`,
-/// giving no answer at all, as tmux missing or too slow does, for every socket or those given. A select it answers as
-/// `select` says, nil for no answer. It keeps every run it was asked for.
+/// giving no answer at all, as tmux too slow does, for every socket or those given. A select it answers as `select`
+/// says, nil for no answer. It keeps every run it was asked for.
 final class FakeTmux: TmuxProgram {
     private let servers: [String: FakeServer]
     private let isSilent: Bool
@@ -157,7 +157,9 @@ final class FakeTmux: TmuxProgram {
     /// Each select, its socket then its words after `select-window`.
     var selects: [[String]] { asked.withLock(\.selects) }
 
-    func run(on socket: String, _ words: [String]) async -> Ran? {
+    static let unanswered = ProgramUnanswered.unanswered("tmux", why: "did not answer within 2 seconds")
+
+    func run(on socket: String, _ words: [String]) async throws -> Ran {
         asked.withLock { asked in
             asked.runs.append([socket, words[0]])
             asked.words.append(words)
@@ -167,10 +169,14 @@ final class FakeTmux: TmuxProgram {
         }
 
         guard !isSilent, !silentSockets.contains(socket) else {
-            return nil
+            throw Self.unanswered
         }
 
         if words[0] == "select-window" {
+            guard let selected else {
+                throw Self.unanswered
+            }
+
             return selected
         }
 
@@ -193,28 +199,32 @@ final class FakeTmux: TmuxProgram {
     }
 }
 
-/// zmx, listing the sessions given, one a line, as `zmx list --short` does, or answering as given, nil for no answer.
-/// It keeps every run it was asked for.
+/// zmx, listing the sessions given, one a line, as `zmx list --short` does, or answering as given, or giving no
+/// answer, as given. It keeps every run it was asked for.
 final class FakeZmx: ZmxProgram {
     /// The sessions these tests' windows run in.
     static let lees = ["kit", "leeway", "agentic-workflows-v2 · leeway-build", "kit · restore-card"]
 
-    private let answer: Ran?
+    private let answer: Result<Ran, ProgramUnanswered>
     private let asked = OSAllocatedUnfairLock(initialState: [[String]]())
 
     init(listing sessions: [String] = lees) {
-        answer = Ran(status: 0, stdout: sessions.map { $0 + "\n" }.joined(), stderr: "")
+        answer = .success(Ran(status: 0, stdout: sessions.map { $0 + "\n" }.joined(), stderr: ""))
     }
 
-    init(answering answer: Ran?) {
-        self.answer = answer
+    init(answering answer: Ran) {
+        self.answer = .success(answer)
+    }
+
+    init(failing unanswered: ProgramUnanswered) {
+        answer = .failure(unanswered)
     }
 
     var runs: [[String]] { asked.withLock { $0 } }
 
-    func run(_ words: [String]) async -> Ran? {
+    func run(_ words: [String]) async throws -> Ran {
         asked.withLock { $0.append(words) }
-        return answer
+        return try answer.get()
     }
 }
 

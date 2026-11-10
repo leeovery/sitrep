@@ -74,7 +74,7 @@ final class CaptionWindow {
             show(JumpCaption.tooBusy)
         case .ended(.stopped), .ended(.openable):
             break
-        case .ended(.jumped), .ended(.opened), .ended(.opening), .ended(.refused):
+        case .ended(.jumped), .ended(.opened), .ended(.opening), .ended(.refused), .ended(.unopened):
             letGo()
         }
     }
@@ -91,7 +91,7 @@ final class CaptionWindow {
             pending?.landed(.opening, at: time)
         case .openable:
             return
-        case .refused, .unanswered, .stopped:
+        case .refused, .unopened, .unanswered, .stopped:
             pending = nil
         }
         showWhenDue(at: time)

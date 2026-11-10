@@ -4,9 +4,9 @@ import SitRepCore
 
 /// tmux, asked through its program.
 public protocol TmuxProgram: Sendable {
-    /// tmux on the server at a socket, given the words: how it ran; nil where it could not start or did not answer in
-    /// its time.
-    func run(on socket: String, _ words: [String]) async -> Ran?
+    /// tmux on the server at a socket, given the words: how it ran. Throws `ProgramUnanswered` where it is not found,
+    /// could not start or did not answer in its time.
+    func run(on socket: String, _ words: [String]) async throws -> Ran
 }
 
 /// tmux's multiplexer adapter: which tmux clients show a pane, and the select that would make one show it.
@@ -61,8 +61,8 @@ public struct TmuxAdapter: Multiplexer {
     /// A server's panes and clients. tmux answers with an error, exiting non-zero, when no server runs on the
     /// socket: an answer, of no server.
     func readServer(_ socket: String) async -> ServerRead {
-        async let panes = tmux.run(on: socket, Self.panes)
-        async let clients = tmux.run(on: socket, Self.clients)
+        async let panes = try? tmux.run(on: socket, Self.panes)
+        async let clients = try? tmux.run(on: socket, Self.clients)
 
         guard let panes = await panes, let clients = await clients else {
             return .unanswered
@@ -98,16 +98,19 @@ public struct TmuxAdapter: Multiplexer {
 
     private func askSessionName(holding pane: Board.Window.Where.Tmux) async throws -> String {
         let asked = "tmux, asked which session holds its pane,"
+        let ran: Ran
 
-        guard let ran = await tmux.run(on: pane.socket, Self.sessionName(holding: pane.pane)) else {
-            throw Unattachable(description: "\(asked) gave no answer.")
+        do {
+            ran = try await tmux.run(on: pane.socket, Self.sessionName(holding: pane.pane))
+        } catch let unanswered as ProgramUnanswered {
+            throw Unattachable(description: unanswered.words(asked: asked))
         }
 
         let name = ran.stdout.trimmingCharacters(in: .newlines)
         let said = ran.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard ran.status == 0, !name.isEmpty else {
-            throw Unattachable(description: said.isEmpty ? "\(asked) named none." : "\(asked) said: \(said)")
+            throw Unattachable(description: said.isEmpty ? "\(asked) named none." : "\(asked) said \"\(said)\".")
         }
 
         return name
@@ -244,19 +247,15 @@ struct TmuxReading: Reading {
 
 /// The real tmux, told its client takes UTF-8 (`-u`): without it, run with no UTF-8 locale and no `$TMUX`, as SitRep
 /// runs, a tmux 3.8 server writes each tab of a `-F` format as `_` (live, 22 October 2026). Found on Lee's PATH, with
-/// 2 seconds a run (`ProgramOnPath`).
+/// 2 seconds a run, with his login shell's environment (`ProgramOnPath`).
 public struct TmuxOnPath: TmuxProgram {
     private let tmux: ProgramOnPath
 
-    public init(
-        path: String,
-        environment: [String: String] = ProcessInfo.processInfo.environment,
-        run: @escaping Runner = runProgram
-    ) {
-        tmux = ProgramOnPath("tmux", path: path, environment: environment, run: run)
+    public init(environment: [String: String], run: @escaping Runner = runProgram) {
+        tmux = ProgramOnPath("tmux", environment: environment, run: run)
     }
 
-    public func run(on socket: String, _ words: [String]) async -> Ran? {
-        await tmux.run(["-u", "-S", socket] + words)
+    public func run(on socket: String, _ words: [String]) async throws -> Ran {
+        try await tmux.run(["-u", "-S", socket] + words)
     }
 }

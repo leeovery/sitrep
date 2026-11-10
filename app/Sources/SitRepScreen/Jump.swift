@@ -50,27 +50,30 @@ public struct Jump: Sendable {
         self.openings = openings
     }
 
-    /// The jump on this Mac, to the session's window: tmux and zmx found on Lee's PATH as `path` gives it, SitRep's
-    /// keeping the login shell's once found, asked for once the board is in hand, within the jump's limit; Ghostty asked
-    /// by Apple Events. A session no window shows is answered openable, attached by Lee's commands, unless a window
-    /// was opened for it a moment ago, among `openings`.
+    /// The jump on this Mac, to the session's window: tmux and zmx found on Lee's PATH and run with his login shell's
+    /// environment, as `environment` gives it, SitRep's keeping the shell's once found, asked for once the board is in
+    /// hand, within the jump's limit; Ghostty asked by Apple Events. A session no window shows is answered openable,
+    /// attached by Lee's commands, unless a window was asked for it a moment ago, among `openings`.
     public static func live(
-        to session: String, on board: some JumpBoardSource, path: @escaping @Sendable () async -> String,
-        commands: AttachCommands, openings: RecentOpenings
+        to session: String, on board: some JumpBoardSource,
+        environment: @escaping @Sendable () async -> [String: String], commands: AttachCommands,
+        openings: RecentOpenings
     ) async -> JumpOutcome {
         await run(to: session, on: board, clock: SystemClock()) {
-            await live(path: path(), commands: commands, openings: openings)
+            await live(environment: environment(), commands: commands, openings: openings)
         }
     }
 
-    private static func live(path: String, commands: AttachCommands, openings: RecentOpenings) -> Jump {
-        let tmux = TmuxOnPath(path: path)
+    private static func live(
+        environment: [String: String], commands: AttachCommands, openings: RecentOpenings
+    ) -> Jump {
+        let tmux = TmuxOnPath(environment: environment)
         let workspace = MacWorkspace()
         let clock = SystemClock()
         let ghostty = GhosttyDriver(scripting: GhosttyEvents(), workspace: workspace, clock: clock)
 
         return Jump(
-            reader: ScreenReader(tmux: tmux, zmx: ZmxOnPath(path: path)), tmux: tmux, drivers: [.ghostty: ghostty],
+            reader: ScreenReader(tmux: tmux, zmx: ZmxOnPath(environment: environment)), tmux: tmux, drivers: [.ghostty: ghostty],
             workspace: workspace, clock: clock, commands: commands, openings: openings
         )
     }
@@ -108,7 +111,7 @@ public struct Jump: Sendable {
     }
 
     /// The jump to the session's windows on the board, a refusal naming it as the board does; where none shows, the
-    /// window to open for it, or, where one was opened for it a moment ago, that it is opening.
+    /// window to open for it, or, where one was asked for it a moment ago, that it is opening.
     private func jump(to session: String, on board: Board) async -> JumpOutcome {
         guard let name = board.name(of: session) else {
             return .answered(.refused(Self.noSuchSession))
@@ -150,7 +153,7 @@ public struct Jump: Sendable {
         case let .onScreen(places):
             try await bringFirst(places, front: front)
         case .offScreen:
-            try await openable(screen.attachable(windows))
+            try await openable(screen.attachables(windows))
         case let .unknown(unanswered):
             .unknown(unanswered)
         }
@@ -226,31 +229,34 @@ public struct Jump: Sendable {
         }
     }
 
-    /// The command that would open a window attached to the window held, checked: Ghostty running, the command and
-    /// its values fit to type, and the session still there. Not on screen where no window is held, or its session has
-    /// gone; refused, in plain words, otherwise.
-    private func openable(_ held: Attachable?) async throws -> Jumped {
-        guard let held, let multiplexer = reader.multiplexers.first(where: { $0.kind == held.kind }),
-              let driver = drivers[Self.opensIn]
-        else {
+    /// The command that would open a window attached to the first of the windows held whose session is still there,
+    /// checked: the command and its values fit to type, then Ghostty running. Not on screen where no window is held,
+    /// or each one's session has gone; refused, in plain words, otherwise.
+    private func openable(_ held: [Attachable]) async throws -> Jumped {
+        guard let driver = drivers[Self.opensIn] else {
             return .offScreen
         }
-        guard await driver.canOpen() else {
-            return .notRunning(Self.opensIn.name)
+
+        for each in held {
+            guard let multiplexer = reader.multiplexers.first(where: { $0.kind == each.kind }) else {
+                continue
+            }
+
+            do {
+                let command = try await commands.command(for: each.kind).line(attaching: each.where, in: multiplexer)
+
+                try Task.checkCancellation()
+                return await driver.canOpen() ? .openable(command: command) : .notRunning(Self.opensIn.name)
+            } catch let stopped as CancellationError {
+                throw stopped
+            } catch is SessionGone {
+                continue
+            } catch {
+                return .unattachable(String(describing: error))
+            }
         }
 
-        do {
-            let command = try await commands.command(for: held.kind).line(attaching: held.where, in: multiplexer)
-
-            try Task.checkCancellation()
-            return .openable(command: command)
-        } catch let stopped as CancellationError {
-            throw stopped
-        } catch is SessionGone {
-            return .offScreen
-        } catch {
-            return .unattachable(String(describing: error))
-        }
+        return .offScreen
     }
 
     private func bringWhole(_ app: RunningApp?) async -> Bool {
@@ -263,8 +269,9 @@ public struct Jump: Sendable {
 
     /// Makes the select: the tmux window current in the tmux session, by their ids, within tmux's time limit.
     private func select(_ wanted: Select) async -> Selected {
-        guard let ran = await tmux.run(on: wanted.socket, ["select-window", "-t", "\(wanted.session):\(wanted.window)"])
-        else {
+        guard let ran = try? await tmux.run(
+            on: wanted.socket, ["select-window", "-t", "\(wanted.session):\(wanted.window)"]
+        ) else {
             return .undone(said: nil)
         }
 
@@ -339,9 +346,9 @@ enum Jumped: Equatable {
         case .offScreen:
             .refused("\(name) is not on screen: no terminal window on this Mac shows it.")
         case let .unattachable(why):
-            .refused("\(name) is not on screen, and SitRep cannot open a window for it: \(why)")
+            .unopened("\(name) is not on screen, and SitRep cannot open a window for it: \(why)")
         case let .notRunning(app):
-            .refused("\(name) is not on screen, and SitRep can open a window for it only in a \(app) already running.")
+            .unopened("\(name) is not on screen, and SitRep can open a window for it only in a \(app) already running.")
         case let .unknown(unanswered):
             .refused("Could not tell whether \(name) is on screen: \(inWords(unanswered.map(\.words))) gave no answer.")
         case let .unanswered(devices, apps) where devices.isEmpty:
