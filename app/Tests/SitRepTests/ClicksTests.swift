@@ -100,6 +100,36 @@ struct ClicksTests {
         #expect(world.opened == ["sr-a"])
     }
 
+    /// Two clicks joined on an opening that failed: one banner, each click told.
+    @Test func aFailedOpeningTwoClicksJoinedPostsOneBanner() async {
+        let opening = Latch()
+        let world = World(opening: opening) { _ in .openable(.unopened("Set an open command.")) }
+
+        world.click("sr-a")
+        await world.until { world.opened == ["sr-a"] }
+        world.click("sr-a")
+        opening.open()
+        await world.until { world.handBacks == 2 }
+
+        #expect(world.answers["sr-a"] == [.unopened("Set an open command."), .unopened("Set an open command.")])
+        #expect(world.banners == [.unopened("Set an open command.")])
+    }
+
+    /// An opening with no answer two seconds on says it is still opening, where a jump says it is still jumping.
+    @Test func anOpeningTwoSecondsOnSaysItIsStillOpening() async {
+        let opening = Latch(), still = Latch()
+        let world = World(opening: opening, still: still) { _ in .openable(.opened) }
+
+        world.click("sr-a")
+        await world.until { world.opened == ["sr-a"] }
+        still.open()
+        await world.until { world.heard.contains(.stillOpening) }
+        opening.open()
+        await world.until { world.answers["sr-a"] == [.opened] }
+
+        #expect(world.heard == [.ended(.openable), .stillOpening, .ended(.opened)])
+    }
+
     /// The latest click wins: a click on another session stops the opening, which ends stopped whatever it came to, and
     /// its own runs once the opening's event in flight lets go.
     @Test func aClickOnAnotherSessionStopsTheOpening() async {
@@ -140,9 +170,17 @@ private final class World {
     private let done = OSAllocatedUnfairLock(initialState: Done())
     private var clicks: Clicks?
 
-    init(opening: Latch? = nil, _ reached: @escaping @Sendable (String) async -> Reach) {
+    /// `still` lets a jump or an opening's two seconds pass once it opens; never, without one.
+    init(opening: Latch? = nil, still: Latch? = nil, _ reached: @escaping @Sendable (String) async -> Reach) {
         let done = done
-        let clicks = Clicks(OneJump { _ in try await Task.sleep(for: .seconds(3600)) }, jump: { session in
+        let oneJump = OneJump { _ in
+            guard let still else {
+                return try await Task.sleep(for: .seconds(3600))
+            }
+
+            await still.wait()
+        }
+        let clicks = Clicks(oneJump, jump: { session in
             {
                 done.withLock { $0.jumps.append(session) }
                 switch await reached(session) {

@@ -9,8 +9,8 @@ import SitRepCore
 /// It is read as the shell reads it, far enough to find its placeholders and where each stands: each `{name}`, a name
 /// of letters and underscores, but none after an unescaped `$` or `#`, the shell's `${…}` and tmux's `#{…}`, nor one
 /// escaped, nor, inside quotes, one whose name is no placeholder's, as awk's `'{print}'`. A placeholder is filled only
-/// where it stands as a word of its own, outside quotes: anywhere else the quotes SitRep puts round its value would
-/// read otherwise than meant, or let the value out of them.
+/// where it stands as a word of its own, outside quotes and backticks: anywhere else the quotes SitRep puts round its
+/// value would read otherwise than meant, or let the value out of them.
 struct OpenCommand: Equatable {
     /// Its words as written, between its placeholders.
     enum Piece: Equatable {
@@ -18,7 +18,8 @@ struct OpenCommand: Equatable {
         case placeholder(String, Standing)
     }
 
-    /// Where a placeholder stands: a word of its own, outside quotes; inside quotes; or joined to other words.
+    /// Where a placeholder stands: a word of its own, outside quotes; inside quotes or backticks; or joined to other
+    /// words.
     enum Standing: Equatable {
         case word
         case quoted
@@ -87,9 +88,7 @@ struct OpenCommand: Equatable {
 
         for fact in Fact.allCases where wanted.contains(fact) {
             if let scalar = facts[fact].flatMap(unprintable(in:)) {
-                let words = fact.words(in: kind)
-
-                throw Unopenable(description: "For \(name), \(words) has a character that can't be typed (\(scalar.code)).")
+                throw Unopenable(description: "For \(name), \(fact.words(in: kind)) has \(scalar.untypable).")
             }
         }
 
@@ -166,10 +165,10 @@ extension OpenCommand.Piece {
     }
 }
 
-/// Where the shell is in a command it reads, a character at a time: inside which quotes, if any; whether the next
-/// character is escaped; whether the one before is an unescaped `$` that opens an expansion, `$'…'` or `${…}`, never
-/// the second of `$$`, the shell's own process id, nor one escaped, `\$`, a `$` as written; whether it was an unescaped
-/// `#`; and whether a word starts here.
+/// Where the shell is in a command it reads, a character at a time: inside which quotes, or backticks, if any, as one
+/// may hold another, backticks in double quotes; whether the next character is escaped; whether the one before is an
+/// unescaped `$` that opens an expansion, `$'…'` or `${…}`, never the second of `$$`, the shell's own process id, nor one
+/// escaped, `\$`, a `$` as written; whether it was an unescaped `#`; and whether a word starts here.
 private struct ShellReading {
     enum Quote {
         /// `'…'`, where nothing is escaped.
@@ -178,13 +177,21 @@ private struct ShellReading {
         case ansi
         /// `"…"`, where a backslash escapes.
         case double
+        /// `` `…` ``, a command substitution, which the shell scans for its closing backtick before any quoting inside
+        /// it, so a value quoted there could end it early; a backslash escapes.
+        case backtick
     }
 
-    private var quote: Quote?
+    private var quotes: [Quote] = []
+
     private var isEscaped = false
     private var isAfterDollar = false
     private var isAfterHash = false
     private var isAtWordStart = true
+
+    private var quote: Quote? {
+        quotes.last
+    }
 
     /// Whether a `{` here may open a placeholder: not escaped, and not after an unescaped `$` or `#`.
     var mayStartPlaceholder: Bool {
@@ -216,21 +223,47 @@ private struct ShellReading {
 
         switch quote {
         case .single:
-            quote = character == "'" ? nil : .single
+            close(at: character, "'")
         case .ansi:
             isEscaped = character == "\\"
-            quote = character == "'" ? nil : .ansi
+            close(at: character, "'")
+        case .backtick:
+            isEscaped = character == "\\"
+            close(at: character, "`")
         case .double:
             isEscaped = character == "\\"
             isAfterDollar = character == "$" && !wasAfterDollar
             isAfterHash = character == "#"
-            quote = character == "\"" ? nil : .double
+            close(at: character, "\"")
+            open(character == "`" ? .backtick : nil)
         case nil:
             isEscaped = character == "\\"
             isAfterDollar = character == "$" && !wasAfterDollar
             isAfterHash = character == "#"
             isAtWordStart = character == " " || character == "\t"
-            quote = character == "'" ? (wasAfterDollar ? .ansi : .single) : character == "\"" ? .double : nil
+            open(Self.opening(character, afterDollar: wasAfterDollar))
+        }
+    }
+
+    /// The quotes a character opens outside any: `$'`, `'`, `"` or a backtick.
+    private static func opening(_ character: Character, afterDollar: Bool) -> Quote? {
+        switch character {
+        case "'": afterDollar ? .ansi : .single
+        case "\"": .double
+        case "`": .backtick
+        default: nil
+        }
+    }
+
+    private mutating func open(_ opened: Quote?) {
+        if let opened {
+            quotes.append(opened)
+        }
+    }
+
+    private mutating func close(at character: Character, _ closing: Character) {
+        if character == closing {
+            quotes.removeLast()
         }
     }
 }
@@ -244,7 +277,7 @@ enum CommandProblem: Equatable {
     case unprintable(Unicode.Scalar)
     /// Placeholders SitRep does not know, by their names.
     case unknown([String])
-    /// Placeholders inside quotes, by their names.
+    /// Placeholders inside quotes or backticks, by their names.
     case quoted([String])
     /// Placeholders joined to other words, by their names.
     case joined([String])
@@ -259,11 +292,12 @@ enum CommandProblem: Equatable {
         case .empty:
             "No terminal window shows \(name). To open one for it, set an open command in Settings."
         case let .unprintable(scalar):
-            "\(command) has a character that can't be typed (\(scalar.code))."
+            "\(command) has \(scalar.untypable)."
         case let .unknown(names):
             "\(command) has \(Self.braced(names)), which SitRep doesn't know. It knows {session}, {socket} and {pane}."
         case let .quoted(names):
-            "\(command) puts \(Self.braced(names)) in quotes. Remove them: SitRep quotes each value itself."
+            "\(command) puts \(Self.braced(names)) in quotes or backticks. Remove them: SitRep quotes each value "
+                + "itself."
         case let .joined(names):
             "\(command) joins \(Self.braced(names)) to other text. Put a space before and after each placeholder."
         case let .noFact(names, kind):
@@ -290,21 +324,22 @@ func unprintable(in text: String) -> Unicode.Scalar? {
 }
 
 extension Unicode.Scalar {
-    /// As Unicode names it: `U+0015`.
-    var code: String {
-        String(format: "U+%04X", value)
+    /// As a refusal names it, one that can't be typed: the common ones by name, `a tab`; the rest by their code point,
+    /// `a character that can't be typed (U+0015)`.
+    var untypable: String {
+        switch value {
+        case 0x09: "a tab, which can't be typed"
+        case 0x0A, 0x0D, 0x85, 0x2028, 0x2029: "a line break, which can't be typed"
+        case 0x1B: "an escape, which can't be typed"
+        default: "a character that can't be typed (\(String(format: "U+%04X", value)))"
+        }
     }
 }
 
-/// A value as a POSIX shell, or zsh, reads it back whole: as it is where every character is one no shell treats
-/// specially, so a tmux socket and pane read as typed; else in single quotes, each of its own closed, escaped and
-/// opened again, as a zmx session's name holding a space or `·` needs. `=` is quoted, as zsh expands a word it starts.
+/// A value as a POSIX shell, or zsh, reads it back whole: always in single quotes, each of its own closed, escaped and
+/// opened again, never bare, as a bare word can be a zsh global alias, and a zmx session's name holds a space or `·`.
 func shellQuoted(_ value: String) -> String {
-    let plain = !value.isEmpty && value.unicodeScalars.allSatisfy { scalar in
-        scalar.isASCII && (CharacterSet.alphanumerics.contains(scalar) || "%+,-./:@_".unicodeScalars.contains(scalar))
-    }
-
-    return plain ? value : "'" + value.replacing("'", with: #"'\''"#) + "'"
+    "'" + value.replacing("'", with: #"'\''"#) + "'"
 }
 
 /// Why no window opens for a session, in plain words.

@@ -28,10 +28,11 @@ struct OpenCommandTests {
         #expect(OpenCommand(" portal open -s {session} ") == OpenCommand("portal open -s {session}"))
     }
 
+    /// Never bare, even where no character is special, as a bare word can be a zsh global alias.
     @Test(arguments: [
-        ("%148", "%148"),
-        ("/private/tmp/tmux-501/default", "/private/tmp/tmux-501/default"),
-        ("sitrep-iFpz7T", "sitrep-iFpz7T"),
+        ("%148", "'%148'"),
+        ("/private/tmp/tmux-501/default", "'/private/tmp/tmux-501/default'"),
+        ("sitrep-iFpz7T", "'sitrep-iFpz7T'"),
         (kit, "'kit · restore-card'"),
         ("lee's work", #"'lee'\''s work'"#),
         ("$HOME;rm", "'$HOME;rm'"),
@@ -39,7 +40,7 @@ struct OpenCommandTests {
         ("~/tmux", "'~/tmux'"),
         ("", "''"),
     ])
-    func eachValueIsQuotedForTheShellWhereItMustBeAndLeftAsTypedWhereNot(value: String, quoted: String) {
+    func eachValueIsAlwaysInSingleQuotesItsOwnEscaped(value: String, quoted: String) {
         #expect(shellQuoted(value) == quoted)
     }
 
@@ -59,7 +60,7 @@ struct OpenCommandTests {
         let tmux = FakeTmux()
         let line = try await Self.line("tmux -S {socket} attach -t {pane}", inTmux(), in: TmuxAdapter(tmux))
 
-        #expect(line == "tmux -S /private/tmp/tmux-501/default attach -t %148")
+        #expect(line == "tmux -S '/private/tmp/tmux-501/default' attach -t '%148'")
         #expect(tmux.runs.isEmpty)
     }
 
@@ -70,7 +71,7 @@ struct OpenCommandTests {
         let tmux = FakeTmux([socket: FakeServer(panes: panes, names: ["$45": "work · renamed"])])
         let line = try await Self.line("tmux -S {socket} attach -t {session}", inTmux(), in: TmuxAdapter(tmux))
 
-        #expect(line == "tmux -S /private/tmp/tmux-501/default attach -t 'work · renamed'")
+        #expect(line == "tmux -S '/private/tmp/tmux-501/default' attach -t 'work · renamed'")
         #expect(tmux.words == [["display-message", "-p", "-t", "%148", "#{session_name}"]])
     }
 
@@ -109,7 +110,7 @@ struct OpenCommandTests {
         let command = OpenCommand("{ zmx attach {session}; } && echo {a,b}")
 
         #expect(command.named == ["session"])
-        #expect(command.filled([.session: "kit"]) == "{ zmx attach kit; } && echo {a,b}")
+        #expect(command.filled([.session: "kit"]) == "{ zmx attach 'kit'; } && echo {a,b}")
     }
 
     /// The shell's `${…}`, tmux's `#{…}` and a brace escaped are never placeholders, so never refused nor filled.
@@ -147,6 +148,21 @@ struct OpenCommandTests {
         }
     }
 
+    /// Bash scans `` `…` `` for its closing backtick before any quoting inside it, so a backtick in a value quoted
+    /// there ends it, and what follows runs: a placeholder in backticks is refused, as in quotes (proven in bash, with
+    /// `` portal open -s `echo {session} ` `` and a session `` kit · card`;touch PWNED;` ``, in review, 10 November
+    /// 2026).
+    @Test(arguments: ["portal open -s `echo {session} `", #"portal open -s "`echo {session} `""#, "x `a` `{session}`"])
+    func aPlaceholderInBackticksIsRefused(command: String) async {
+        await #expect(throws: Unopenable(description: CommandProblem.quoted(["session"]).refusal(named: named))) {
+            try await Self.line(command, inZmx("kit · card`;touch PWNED;"), in: ZmxAdapter())
+        }
+    }
+
+    @Test func backticksClosedBeforeThePlaceholderLeaveItUnquoted() {
+        #expect(OpenCommand("cd `pwd` && zmx attach {session}").problem == nil)
+    }
+
     @Test(arguments: [
         #"echo "it's" && zmx attach {session}"#, #"echo 'say "hi"' && zmx attach {session}"#,
         #"echo "a\"b" && zmx attach {session}"#, #"echo $'it\'s' && zmx attach {session}"#,
@@ -164,14 +180,18 @@ struct OpenCommandTests {
 
     /// The terminal and the line editor act on a control byte before any quoting: ^U erases what was typed, ^C
     /// abandons the line, ESC starts an editor sequence, and a newline or a tab runs or completes it.
+    /// The common ones by name, the rest by their code point.
     @Test(arguments: [
-        ("\u{15}", "U+0015"), ("\u{03}", "U+0003"), ("\u{7F}", "U+007F"), ("\u{1B}", "U+001B"), ("\n", "U+000A"),
-        ("\t", "U+0009"), ("\u{85}", "U+0085"), ("\u{202E}", "U+202E"),
+        ("\u{15}", "a character that can't be typed (U+0015)"), ("\u{03}", "a character that can't be typed (U+0003)"),
+        ("\u{7F}", "a character that can't be typed (U+007F)"), ("\u{1B}", "an escape, which can't be typed"),
+        ("\n", "a line break, which can't be typed"), ("\r", "a line break, which can't be typed"),
+        ("\u{2028}", "a line break, which can't be typed"), ("\t", "a tab, which can't be typed"),
+        ("\u{85}", "a line break, which can't be typed"), ("\u{202E}", "a character that can't be typed (U+202E)"),
     ])
-    func aValueHoldingAControlOrOtherCharacterThatPrintsNothingIsRefused(character: String, code: String) async {
+    func aValueHoldingAControlOrOtherCharacterThatPrintsNothingIsRefused(character: String, words: String) async {
         let session = "x\(character)touch pwned; echo '"
 
-        await #expect(throws: Unopenable(description: "For \(named), the zmx session's name has a character that can't be typed (\(code)).")) {
+        await #expect(throws: Unopenable(description: "For \(named), the zmx session's name has \(words).")) {
             try await Self.line("zmx attach {session}", inZmx(session), in: ZmxAdapter())
         }
     }
@@ -186,7 +206,8 @@ struct OpenCommandTests {
 
     @Test(arguments: [
         (CommandProblem.unprintable("\u{15}"), "The open command in Settings has a character that can't be typed (U+0015)."),
-        (.quoted(["session"]), "The open command in Settings puts {session} in quotes. Remove them: SitRep quotes each value itself."),
+        (.unprintable("\t"), "The open command in Settings has a tab, which can't be typed."),
+        (.quoted(["session"]), "The open command in Settings puts {session} in quotes or backticks. Remove them: SitRep quotes each value itself."),
         (.joined(["session", "pane"]), "The open command in Settings joins {session} and {pane} to other text. Put a space before and after each placeholder."),
     ])
     func eachProblemIsRefusedInPlainWords(problem: CommandProblem, words: String) {

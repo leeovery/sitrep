@@ -101,6 +101,30 @@ struct CaptionWindowTests {
         #expect(caption.says == "Opened a window for SitRep")
     }
 
+    /// An opening with no answer two seconds on says it is still opening, held while it runs.
+    @Test func anOpeningWithNoAnswerSaysItIsStillOpening() {
+        let caption = Self.shown()
+
+        defer { caption.window.close() }
+        caption.heard(.stillOpening)
+        #expect(caption.says == "Still opening…")
+        #expect(caption.window.alphaValue == 1)
+    }
+
+    /// A click on a session a window was asked for a moment ago, none showing it yet: nothing opened, so it says the
+    /// window is opening.
+    @Test func aRowsClickOnAWindowAlreadyOpeningSaysItIsOpening() {
+        let caption = Self.shown()
+
+        defer { caption.window.close() }
+        caption.jumping(to: "SitRep")
+        caption.drained(at: 0)
+        caption.answered(.opening, at: 500)
+        caption.heard(.ended(.opening))
+
+        #expect(caption.says == "A window for SitRep is opening")
+    }
+
     /// An earlier jump's stop, heard after a row's click began its own, leaves that row's "Jumped to…" waiting for its
     /// own answer: a stale stop is no answer to the click under way.
     @Test func aStaleStopLeavesARowsJumpedToWaiting() {

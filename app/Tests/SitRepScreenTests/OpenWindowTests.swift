@@ -54,7 +54,7 @@ struct OpenWindowTests {
         let jumping = Jumping(Self.detachedTmux, FakeTable(Mac().tree), command: "tmux -S {socket} attach -t {pane}")
 
         #expect(await jumping.open([inTmux()]) == .opened)
-        #expect(jumping.ghostty.opened == ["tmux -S /private/tmp/tmux-501/default attach -t %148"])
+        #expect(jumping.ghostty.opened == ["tmux -S '/private/tmp/tmux-501/default' attach -t '%148'"])
         #expect(Set(jumping.tmux.runs) == [[socket, "list-panes"], [socket, "list-clients"]])
     }
 
@@ -65,7 +65,7 @@ struct OpenWindowTests {
         let jumping = Jumping(tmux, FakeTable(Mac().tree), command: "tmux attach -t {session}")
 
         #expect(await jumping.open([inTmux()]) == .opened)
-        #expect(jumping.ghostty.opened == ["tmux attach -t switchboard"])
+        #expect(jumping.ghostty.opened == ["tmux attach -t 'switchboard'"])
         #expect(tmux.runs.last == [socket, "display-message"])
     }
 
@@ -79,7 +79,7 @@ struct OpenWindowTests {
     }
 
     /// A window in tmux run inside zmx, or zmx inside tmux, is opened for the innermost, as a jump reads it.
-    @Test(arguments: [("/dev/ttys043", "attach work"), ("/dev/ttys087", "attach kit")])
+    @Test(arguments: [("/dev/ttys043", "attach 'work'"), ("/dev/ttys087", "attach 'kit'")])
     func aWindowInTwoMultiplexersIsOpenedForTheInnermost(device: String, line: String) async {
         let pane = FakePane(pane: "%148", window: claudes, session: "$45", device: "/dev/ttys043")
         let both = Where(device: device, terminal: "tmux", tmux: Where.Tmux(socket: socket, pane: "%148"), zmx: Where.Zmx(session: "kit"))
@@ -172,7 +172,7 @@ struct OpenWindowTests {
     /// Refused at the click, before anything is asked or sent.
     @Test(arguments: [
         ("attach {pane}", "\(named) runs in zmx, which gives no {pane}. A zmx session gives {session}."),
-        ("attach '{session}'", "The open command in Settings puts {session} in quotes. Remove them: SitRep quotes each value itself."),
+        ("attach '{session}'", "The open command in Settings puts {session} in quotes or backticks. Remove them: SitRep quotes each value itself."),
         ("attach {window}", "The open command in Settings has {window}, which SitRep doesn't know. It knows {session}, {socket} and {pane}."),
     ])
     func aCommandSitRepCannotFillOrTypeIsRefusedAtTheClick(command: String, words: String) async {
@@ -281,6 +281,25 @@ struct OpenWindowTests {
         #expect(await opened.value == .opened)
     }
 
+    /// Remembered again as the window is asked for, so a slow first event costs none of its ten seconds.
+    @Test func anOpeningIsRememberedAfreshAsTheWindowIsAskedFor() async {
+        let gate = Gate()
+        let clock = MovingClock()
+        let jumping = Jumping(
+            FakeTmux(), Self.detachedZmx(), workspace: FakeWorkspace(frontHeld: gate),
+            openings: RecentOpenings(now: clock.now)
+        )
+        let opened = Task { await jumping.opening("attach kit").open() }
+
+        await until { jumping.workspace.fronts == 1 }
+        clock.move(by: .seconds(9))
+        gate.open()
+        #expect(await opened.value == .opened)
+
+        clock.move(by: .seconds(2))
+        #expect(jumping.openings.isOpening("sr-a"))
+    }
+
     @Test func aSecondClickOnceTheWindowShowsItJumpsToIt() async throws {
         var mac = Mac()
 
@@ -293,10 +312,6 @@ struct OpenWindowTests {
         openings.remember("sr-a")
         #expect(await jumping.jump.answer(to: "sr-a", on: GivenBoard(line)) == .jumped)
         #expect(jumping.ghostty.focused == ["PORTAL-TERMINAL"])
-    }
-
-    @Test func anOpeningIsRememberedForTenSeconds() {
-        #expect(RecentOpenings.lasts == .seconds(10))
     }
 
     /// An opening that failed before its window was asked for forgets itself, never a later opening of the session.
@@ -388,6 +403,7 @@ struct OpenWindowTests {
         )
     }
 
+    /// Given up before the window was asked for, none can come.
     @Test func anOpeningHasALimitOfItsOwnApartFromTheJumps() async {
         let jumping = Jumping(FakeTmux(), Self.detachedZmx(), workspace: FakeWorkspace(frontHeld: Gate()))
         let opened = Task { await jumping.opening("attach kit").open() }
@@ -396,9 +412,25 @@ struct OpenWindowTests {
         jumping.clock.pass(Opening.limit)
         #expect(
             await opened.value
-                == .unopened("SitRep gave up waiting for Ghostty to open a window for \(named) after 20 seconds; one may still appear.")
+                == .unopened("SitRep gave up waiting for Ghostty to open a window for \(named) after 20 seconds.")
         )
         #expect(Opening.limit == .seconds(20))
+        #expect(jumping.ghostty.told.isEmpty)
+    }
+
+    /// Given up once the window was asked for, one may yet come, and says so.
+    @Test func anOpeningGivenUpOnceItsWindowWasAskedForSaysOneMayStillAppear() async {
+        let gate = Gate()
+        let jumping = Jumping(FakeTmux(), Self.detachedZmx(), windowHeld: gate)
+        let opened = Task { await jumping.opening("attach kit").open() }
+
+        await until { gate.arrived == 1 && jumping.clock.sleeps.contains(Opening.limit) }
+        jumping.clock.pass(Opening.limit)
+        #expect(
+            await opened.value
+                == .unopened("SitRep gave up waiting for Ghostty to open a window for \(named) after 20 seconds; one may still appear.")
+        )
+        gate.open()
     }
 }
 

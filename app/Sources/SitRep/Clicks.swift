@@ -82,7 +82,7 @@ final class Clicks {
         _ open: @escaping Open, for session: String, answered: @escaping (JumpAnswer) -> Void,
         handBack: @escaping () -> Void
     ) {
-        oneJump.run(to: session, { [logger] in
+        oneJump.run(to: session, isOpening: true, { [logger] in
             await logged("Opening for \(session)", stopped: "An opening", by: logger, open)
         }, told: { [weak self] news in
             guard case let .ended(answer) = news else {

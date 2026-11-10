@@ -41,9 +41,9 @@ public struct Opening: Sendable {
     let openings: RecentOpenings
 
     /// Opens the window, once its terminal is known to be running, within `limit`: opened; refused in plain words;
-    /// stopped, as its task is cancelled; or given up at the limit, where a window may yet come. The opening is
-    /// remembered as it begins, and forgotten only where it failed before the window was asked for, so a window asked
-    /// for is never opened twice.
+    /// stopped, as its task is cancelled; or given up at the limit, where, once the window was asked for, one may yet
+    /// come. The opening is remembered as it begins and again as the window is asked for, and forgotten only where it
+    /// failed before then, so a window asked for is never opened twice.
     public func open() async -> JumpAnswer {
         guard await driver.canOpen() else {
             return .unopened(notRunning)
@@ -52,36 +52,33 @@ public struct Opening: Sendable {
             return .stopped
         }
 
-        let remembered = openings.remember(session)
+        let asked = Remembered(session, among: openings)
 
-        if let answered = await answer(within: Self.limit, on: clock, { await opened(remembered) }) {
+        if let answered = await answer(within: Self.limit, on: clock, { await opened(asked) }) {
             return answered
         }
 
-        return Task.isCancelled ? .stopped : .unopened(
-            "SitRep gave up waiting for \(terminal.name) to open a window for \(name) after "
-                + "\(Self.limit.components.seconds) seconds; one may still appear."
-        )
+        let gaveUp = "SitRep gave up waiting for \(terminal.name) to open a window for \(name) after "
+            + "\(Self.limit.components.seconds) seconds"
+
+        return Task.isCancelled ? .stopped : .unopened(asked.isAsked ? gaveUp + "; one may still appear." : gaveUp + ".")
     }
 
     /// The app in front read as the opening begins, as a jump reads it, so the one it keeps the front from is never
-    /// one the opening brought forward; then the window asked for. Where it failed before then, the opening remembered
-    /// is forgotten, unless a later one has taken its place.
-    private func opened(_ remembered: ContinuousClock.Instant) async -> JumpAnswer {
-        let asked = Asked()
+    /// one the opening brought forward; then the window asked for. Where it failed before then, the opening is
+    /// forgotten.
+    private func opened(_ asked: Remembered) async -> JumpAnswer {
         let front = await workspace.frontmost()
 
         do {
-            guard try await driver.openWindow(running: line, front: front, sending: asked.mark) else {
-                openings.forget(session, remembered: remembered)
+            guard try await driver.openWindow(running: line, front: front, sending: asked.ask) else {
+                asked.forgetUnasked()
                 return .unopened(notRunning)
             }
 
             return .opened
         } catch {
-            if !asked.isMarked {
-                openings.forget(session, remembered: remembered)
-            }
+            asked.forgetUnasked()
             return error is CancellationError ? .stopped : .unopened(String(describing: error))
         }
     }
@@ -92,14 +89,34 @@ public struct Opening: Sendable {
     }
 }
 
-/// Whether the window was asked for: marked as the event asking for it is about to go.
-private final class Asked: Sendable {
-    private let marked = OSAllocatedUnfairLock(initialState: false)
+/// An opening, remembered among the openings as it begins, and again as its window is asked for, the event asking for
+/// it about to go, so a slow first event costs none of the time it is remembered. Forgotten only where its window was
+/// never asked for, and never in place of a later opening of its session.
+private final class Remembered: Sendable {
+    private let session: String
+    private let openings: RecentOpenings
+    private let state: OSAllocatedUnfairLock<(remembered: ContinuousClock.Instant, isAsked: Bool)>
 
-    var isMarked: Bool { marked.withLock { $0 } }
+    init(_ session: String, among openings: RecentOpenings) {
+        self.session = session
+        self.openings = openings
+        state = OSAllocatedUnfairLock(initialState: (openings.remember(session), false))
+    }
 
-    @Sendable func mark() {
-        marked.withLock { $0 = true }
+    var isAsked: Bool { state.withLock(\.isAsked) }
+
+    @Sendable func ask() {
+        let remembered = openings.remember(session)
+
+        state.withLock { $0 = (remembered, true) }
+    }
+
+    func forgetUnasked() {
+        let (remembered, isAsked) = state.withLock { $0 }
+
+        if !isAsked {
+            openings.forget(session, remembered: remembered)
+        }
     }
 }
 

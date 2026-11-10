@@ -22,8 +22,8 @@ struct GeneralPaneTests {
         return Hosted(Hosted.content(.general, settings), size: CGSize(width: 744, height: 620))
     }
 
-    /// Its one pop-up is New windows' terminal.
-    @Test func itOffersNoFoldPeriod() async throws {
+    /// No pop-up for a fold period: its one pop-up is New windows' terminal, and its one switch Open at login.
+    @Test func itsOnlyPopUpIsTheTerminalAndItsOnlySwitchOpenAtLogin() async throws {
         let hosted = await Self.general()
 
         #expect(hosted.all(NSPopUpButton.self).map(\.itemTitles) == [["Ghostty"]])
@@ -60,6 +60,30 @@ struct GeneralPaneTests {
 
         #expect(font.pointSize == NSFont.systemFontSize)
         #expect(width("iiii") == width("mmmm"))
+    }
+
+    /// What Lee types is what is kept, for a shell: macOS's smart quotes, smart dashes, text replacement and spelling
+    /// correction are off in the field's editor, and a `--` and a `'` typed, then checked as macOS checks typing, are
+    /// saved as typed.
+    @Test func theCommandIsKeptExactlyAsTyped() throws {
+        let typed = "portal open -s {session} -- 'x' \"y\""
+        var saved = ""
+        let row = CommandRow(command: Binding(get: { saved }, set: { saved = $0 }))
+        let hosted = Hosted(row, size: CGSize(width: Self.column, height: SettingsStyle.oneLineRow))
+        let field = try #require(hosted.all(NSTextField.self).first)
+
+        #expect(field.window?.makeFirstResponder(field) == true)
+
+        let editor = try #require(field.currentEditor() as? NSTextView)
+
+        #expect(!editor.isAutomaticQuoteSubstitutionEnabled)
+        #expect(!editor.isAutomaticDashSubstitutionEnabled)
+        #expect(!editor.isAutomaticTextReplacementEnabled)
+        #expect(!editor.isAutomaticSpellingCorrectionEnabled)
+
+        editor.insertText(typed, replacementRange: NSRange(location: NSNotFound, length: 0))
+        editor.checkTextInDocument(nil)
+        #expect(saved == typed)
     }
 
     /// The row, holding the command given, in a column of the width given: its height, its field, the field's first

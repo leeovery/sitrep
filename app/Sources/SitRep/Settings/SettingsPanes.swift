@@ -85,14 +85,16 @@ private struct GeneralPane: View {
 }
 
 /// The open command's row: its label, and the command in a field against the card's right, in the label's size in the
-/// monospaced face, the two on one line of text. The field gives way before the label does, so the label keeps its one
-/// line, and the row its height, at the window's least width.
+/// monospaced face, kept as typed (`LiteralField`), the two on one line of text. The field gives way before the label
+/// does, so the label keeps its one line, and the row its height, at the window's least width.
 struct CommandRow: View {
     static let label = "Open command"
     static let caption = "Clicking a session that isn't showing in a terminal opens a new window and runs this "
         + "command. {session}, {socket} and {pane} are replaced with quoted values."
     /// The field's width where the column has room.
     static let fieldWidth: CGFloat = 360
+    /// The command's face: monospaced, at the label's size.
+    static let font = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
 
     @Binding var command: String
 
@@ -101,11 +103,7 @@ struct CommandRow: View {
             RowWords(label: Self.label)
                 .fixedSize(horizontal: true, vertical: false)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            TextField("", text: $command)
-                .accessibilityLabel(Self.label)
-                .font(.body.monospaced())
-                .textFieldStyle(.roundedBorder)
-                .labelsHidden()
+            LiteralField(label: Self.label, font: Self.font, text: $command)
                 .frame(maxWidth: Self.fieldWidth)
                 .layoutPriority(1)
         }
