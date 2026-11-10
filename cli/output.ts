@@ -1,8 +1,8 @@
 /**
- * What the CLI prints of the projects and of a session: lines to
- * read, or JSON for tools such as the tmux indicator; and the lines of `watch`, the board as every surface shows it, its
- * Snoozed rows apart from its rows, with the boards of the sessions the
- * SitRep app follows.
+ * What the CLI prints of the projects and of a session: lines to read, or
+ * JSON for tools such as the tmux indicator; and the lines of `watch`, the
+ * board as every surface shows it, its Snoozed rows apart from its rows,
+ * with the boards of the sessions the SitRep app follows.
  *
  * The JSON is stable: every field is always there, a list empty and any
  * other value null where there is none, and `v`, the output's version,
@@ -11,8 +11,6 @@
 import {
   answerOf,
   brief,
-  compareText,
-  inWords,
   isSameName,
   listedProjects,
   projectAround,

@@ -146,7 +146,6 @@ final class Running: Sendable {
         var pid: pid_t?
         var isStopped = false
         var hasEnded = false
-        var isEnding = false
     }
 
     private let stopping: Stopping
@@ -176,33 +175,21 @@ final class Running: Sendable {
         end()
     }
 
-    /// Ends it as its `Stopping` says, while it runs, once however many ask, a stop and the limit together.
+    /// Kills it, or its group where the `Stopping` says so and the group is its own, while it runs.
     func end() {
-        let isFirst = state.withLock { state in
-            defer { state.isEnding = state.isEnding || state.pid != nil }
-            return !state.isEnding
-        }
+        let group = stopping == .group
 
-        guard isFirst else {
-            return
-        }
-
-        signal(SIGKILL, group: stopping == .group)
-    }
-
-    func ended() {
-        state.withLock { $0.hasEnded = true }
-    }
-
-    /// Signals it, or its group where the group is its own, while it runs.
-    private func signal(_ signal: Int32, group: Bool) {
         state.withLock { state in
             guard let pid = state.pid, !state.hasEnded else {
                 return
             }
 
-            _ = Darwin.kill(group && getpgid(pid) == pid ? -pid : pid, signal)
+            _ = Darwin.kill(group && getpgid(pid) == pid ? -pid : pid, SIGKILL)
         }
+    }
+
+    func ended() {
+        state.withLock { $0.hasEnded = true }
     }
 }
 

@@ -2737,15 +2737,15 @@ truth. There is still no background service. None of it is built now. Lee:
       load of 110, where `tty` in `tdev`'s place took 580; a run over one
       window in zmx took 0.15 seconds of CPU and 0.23 to 0.33 seconds' wall
       at a load of 70 to 90.
-    - `--json`, `v` 1, the sessions by id, and `unanswered` naming what gave
-      no answer, `tmux`, `ps`, or neither; plain `screen` says the same a line
-      each (`sr-k3f9qa  Dashboard redesign: on screen`, `not on screen`, `not
-      known`), then what gave no answer. Each session on screen names the
-      app showing it, the first place a jump would bring forward, as
-      `"Ghostty"`: in a multiplexer the app its client descends from, which
-      `$TERM_PROGRAM`, `tmux` in tmux, cannot tell; `null` where it is not on
-      screen (4 November 2026, for the session page's meta line; added to
-      `v` 1, which a reader that ignores it reads as before).
+    - `--json` was `v` 1, the sessions by id, and `unanswered` naming what
+      gave no answer, `tmux`, `ps`, or neither; plain `screen` said the same
+      a line each (`sr-k3f9qa  Dashboard redesign: on screen`, `not on
+      screen`, `not known`), then what gave no answer. Each session on
+      screen named the app showing it, the first place a jump would bring
+      forward, as `"Ghostty"`: in a multiplexer the app its client descended
+      from, which `$TERM_PROGRAM`, `tmux` in tmux, cannot tell; `null` where
+      it was not on screen (4 November 2026, for the session page's meta
+      line; added to `v` 1, which a reader that ignored it read as before).
 
       ```
       { "v": 1,
@@ -2754,12 +2754,12 @@ truth. There is still no background service. None of it is built now. Lee:
         "unanswered": ["tmux"] }
       ```
 
-    - A command of its own, not a field of `list` or of `watch`'s lines:
-      on screen changes with Lee's tmux and terminal windows, which write
-      nothing to the folder, so no change of the board would carry it, and
-      `watch`, which runs for the app's whole life, would ask tmux and `ps`
-      at every look, the window shut or not, for the one window that shows
-      it. `list` runs no program, and keeps so. The window asked for it on
+    - It was a command of its own, not a field of `list` or of `watch`'s
+      lines: on screen changes with Lee's tmux and terminal windows, which
+      write nothing to the folder, so no change of the board would carry
+      it, and `watch`, which runs for the app's whole life, would have asked
+      tmux and `ps` at every look, the window shut or not, for the one
+      window that showed it. `list` runs no program, and keeps so. The window asked for it on
       its own cadence, only while it showed. The reading stayed in the
       CLI's `screen.ts`, one place, which a jump read too, so zmx came in
       there behind the same states (9 November 2026), as a multiplexer
@@ -6539,8 +6539,9 @@ open), and tmux passing an escape sequence through from Claude's own pane
         The menu now lists every session, with no "N more…" and no Open
         SitRep Window after them; the card's row keeps its time under the
         pointer, with no button in its place, and its menu has no Open in
-        SitRep, its click jumping as before. The CLI keeps what was built
-        for it; the app's side of it went with the window: the follow input,
+        SitRep, its click jumping as before. The CLI kept what was built
+        for it, `screen` until stage 7's step B retired it (10 November
+        2026); the app's side of it went with the window: the follow input,
         `screen`, `answer`, `finish`, and reading `projects` and `boards`.
         Its saved keys are taken out at the app's start.
    9. **Installing the plugin**: the app's first start installs it, and its
