@@ -6,29 +6,9 @@
 
 type BunEntry = { name: string; isFile(): boolean; isDirectory(): boolean }
 
-type BunChild = {
-  readonly stdout: ReadableStream<Uint8Array>
-  readonly stderr: ReadableStream<Uint8Array>
-  readonly exited: Promise<number>
-  /** Null until it has exited. */
-  readonly exitCode: number | null
-  kill(): void
-}
-
-type FileHandle = { writeFile(text: string): Promise<void>; close(): Promise<void> }
-
 declare const Bun: {
   readonly argv: readonly string[]
   readonly env: Readonly<Record<string, string | undefined>>
-  spawn(
-    command: readonly string[],
-    options: {
-      stdin: 'ignore'
-      stdout: 'pipe'
-      stderr: 'pipe'
-      env?: Readonly<Record<string, string | undefined>>
-    },
-  ): BunChild
 }
 
 interface ImportMeta {
@@ -64,7 +44,6 @@ declare const process: {
 }
 
 declare module 'node:fs' {
-  export const constants: { readonly O_WRONLY: number; readonly O_NOCTTY: number }
   export function readdirSync(path: string, options: { withFileTypes: true }): BunEntry[]
   export function readFileSync(path: string, encoding: 'utf8'): string
   /** Undefined for a path not there, given `throwIfNoEntry: false`. */
@@ -76,6 +55,5 @@ declare module 'node:fs' {
 
 declare module 'node:fs/promises' {
   export function appendFile(path: string, text: string): Promise<void>
-  export function open(path: string, flags: number): Promise<FileHandle>
   export function mkdir(path: string, options: { recursive: true }): Promise<string | undefined>
 }

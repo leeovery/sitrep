@@ -88,8 +88,7 @@ struct RunTests {
         #expect(RunError.stopped.description == "was stopped")
     }
 
-    /// Killed at its limit, a group stop takes its whole process group: nothing the CLI started, an osascript among
-    /// it, is left to send Ghostty a question late.
+    /// Killed at its limit, a group stop takes its whole process group: nothing the program started is left.
     @Test func aProgramOutlivingItsLimitIsKilledWithEveryProgramItStarted() async throws {
         let pidFile = Self.scratch()
         let (ended, _) = await Self.timed(
@@ -110,29 +109,6 @@ struct RunTests {
         defer { kill(left, SIGKILL) }
         #expect(throws: RunError.timedOut(0.5)) { try ended.get() }
         #expect(kill(left, 0) == 0)
-    }
-
-    /// Stopped gently, its group is told to end first, so it may put back what it changed before it ends, well inside
-    /// its grace.
-    @Test func aProgramStoppedGentlyIsToldToEndFirst() async throws {
-        let putBack = Self.scratch()
-        let script = "trap 'echo put back > \"\(putBack.path)\"; exit 0' TERM; sleep 30 & wait"
-        let (ended, took) = await Self.timed(Self.sh(script, limit: 0.5, stopping: .gently(grace: 5)))
-
-        #expect(throws: RunError.timedOut(0.5)) { try ended.get() }
-        #expect(String(decoding: try Data(contentsOf: putBack), as: UTF8.self) == "put back\n")
-        #expect(took < .seconds(4))
-    }
-
-    /// Told to end and ending not, it is killed with its group once the grace has passed.
-    @Test func aProgramStoppedGentlyThatWillNotEndIsKilledAfterItsGrace() async throws {
-        let pidFile = Self.scratch()
-        let script = "trap '' TERM; sleep 30 & echo $! > '\(pidFile.path)'; wait"
-        let (ended, took) = await Self.timed(Self.sh(script, limit: 0.3, stopping: .gently(grace: 0.3)))
-
-        #expect(throws: RunError.timedOut(0.3)) { try ended.get() }
-        #expect(took >= .milliseconds(600))
-        #expect(try await Self.isGone(Self.pid(in: pidFile)))
     }
 
     /// Its task cancelled, as a later click's jump stops this one, it is killed with every program it started, and
@@ -165,37 +141,6 @@ struct RunTests {
 
         await #expect(throws: RunError.stopped) { try await run.value }
         #expect(!FileManager.default.fileExists(atPath: touched.path))
-    }
-
-    /// Told to end, the leader goes at once while what it started ignores it: that is killed once the grace has
-    /// passed, with the group, though its leader has ended.
-    @Test func whatALeaderLeftIgnoringTheSignalIsKilledAfterTheGrace() async throws {
-        let pidFile = Self.scratch()
-        let script = "trap 'exit 0' TERM; (trap '' TERM; sleep 30) & echo $! > '\(pidFile.path)'; wait"
-        let (ended, _) = await Self.timed(Self.sh(script, limit: 0.3, stopping: .gently(grace: 0.3)))
-
-        #expect(throws: RunError.timedOut(0.3)) { try ended.get() }
-        #expect(try await Self.isGone(Self.pid(in: pidFile)))
-    }
-
-    /// A stop and the limit together tell the program to end once.
-    @Test func aProgramIsToldToEndOnceHoweverManyAsk() async throws {
-        let told = Self.scratch()
-        let process = Process()
-        let running = Running(.gently(grace: 30))
-
-        process.executableURL = URL(fileURLWithPath: "/bin/sh")
-        process.arguments = ["-c", "trap 'echo told >> \"\(told.path)\"' TERM; while :; do sleep 0.05; done"]
-        try process.run()
-        defer { kill(-process.processIdentifier, SIGKILL) }
-        try await Task.sleep(for: .milliseconds(300))
-
-        running.started(process.processIdentifier)
-        running.stop()
-        running.end()
-        try await Task.sleep(for: .milliseconds(500))
-
-        #expect(String(decoding: try Data(contentsOf: told), as: UTF8.self) == "told\n")
     }
 
     /// A file of the test's own, not there yet.

@@ -16,7 +16,7 @@ import {
   wordsAsk,
   yesAsk,
 } from './support'
-import { NOW, SOCKET, terminal } from './terminal'
+import { NOW, terminal } from './terminal'
 import { ELSEWHERE, HOME, PROJECT, REPO } from './world'
 
 const DAY = 24 * 60 * MIN
@@ -162,26 +162,6 @@ test('list --json: the project the CLI runs in, and each project with its curren
       },
     ],
   })
-})
-
-test('list runs no program, plain or --json, whatever windows its sessions are in', async () => {
-  const t = terminal()
-
-  t.seed(META, {
-    seenAt: NOW,
-    where: { device: '/dev/ttys043', terminal: 'tmux', tmux: { socket: SOCKET, pane: '%1' } },
-  })
-  t.seed(QUIETLY, {
-    project: QUIET.key,
-    seenAt: NOW,
-    where: { device: '/dev/ttys020', terminal: 'ghostty' },
-  })
-
-  for (const words of [['list'], ['list', '--json']]) {
-    expect((await t.run(...words)).exit, words.join(' ')).toBe(EXIT.done)
-  }
-
-  expect(t.screen.ran).toEqual([])
 })
 
 test('list: every project, the one the CLI runs in first, then the busiest, the idle last; one with no current session is left out', async () => {

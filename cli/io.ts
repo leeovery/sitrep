@@ -1,10 +1,9 @@
 /**
  * What the CLI asks of the world: its file system, the environment and the
  * folder it runs in, the clocks and waiting on them, random bytes, standard
- * input, somewhere to print and when that is gone, the plugin's manifest,
- * and, for the jump, programs to run.
- * cli/shell binds it to Bun; a test binds it to memory, with a fake tmux and
- * Ghostty.
+ * input, somewhere to print and when that is gone, and the plugin's
+ * manifest. It runs no program.
+ * cli/shell binds it to Bun; a test binds it to memory.
  *
  * The file system appends and never rewrites: the CLI's file may be written
  * by another run of it at the same moment, and an append keeps both runs'
@@ -19,16 +18,6 @@ export type Listed = { name: string; kind: 'file' | 'dir' }
 export type Stat = { size: number; mtimeMs: number }
 
 export type Env = { XDG_STATE_HOME?: string; HOME?: string; SITREP_SESSION?: string }
-
-/** How a program ran: its exit code, whatever it was, and what it printed. */
-export type Ran = { exitCode: number; stdout: string; stderr: string }
-
-/** What `run` rejects with for a program given a limit that had not ended by then, and was killed. */
-export class TimedOut extends Error {
-  constructor(program: string, limitMs: number) {
-    super(`${program} did not end within ${limitMs}ms`)
-  }
-}
 
 /** A wait under way: it resolves once its time has passed, unless `cancel` lets it go first, its timer with it, never to resolve. */
 export type Waiting = Promise<void> & { cancel: () => void }
@@ -53,7 +42,7 @@ export type Io = {
   now: () => number
   /** Milliseconds by a clock that does not run while the Mac sleeps, from some start: what tells `watch` a sleep from a stall. */
   uptime: () => number
-  /** Waits `ms` milliseconds: the pause between the jump's looks at which app is in front, and between `watch`'s looks. */
+  /** Waits `ms` milliseconds: the pause between `watch`'s looks. */
   wait: (ms: number) => Waiting
   random: Random
   /**
@@ -76,10 +65,4 @@ export type Io = {
   ending: () => Ending
   /** Where the plugin's manifest is, `.claude-plugin/plugin.json`, in the copy of the plugin the CLI runs from: it says the version the CLI runs. */
   manifest: string
-  /**
-   * Runs a program by its words, no shell between. Rejects when it cannot
-   * start, or, given `limitMs`, when it has not ended by then: it is
-   * killed, and the rejection is a `TimedOut`.
-   */
-  run: (command: readonly string[], limitMs?: number) => Promise<Ran>
 }

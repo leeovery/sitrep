@@ -1,13 +1,12 @@
 /**
  * The CLI's commands: the words each takes, and what each makes of a
- * session, of the projects, of which sessions show on screen, or of a jump
- * to a session's window; and the board watched, which runs until it is told
- * to end. A command on a session hands back the lines it posts, and what to
+ * session or of the projects; and the board watched, which runs until it is
+ * told to end. A command on a session hands back the lines it posts, and what to
  * print: a post's item id, so a script can keep it. Its lines are the CLI's
  * own, a snooze's and a wake's among them, but an answer's, which go into
  * the session's inbox as the CLI's letters, for the session's window to
- * deliver as it delivers any reply. Each is pure: what it needs of the
- * screen is looked at, and the jump made, before it acts.
+ * deliver as it delivers any reply. Each is pure: the files are read before
+ * it acts.
  */
 import {
   boardText,
@@ -21,7 +20,6 @@ import {
   checkStatus,
   checkWake,
   checkWakeTurn,
-  inWords,
   WANTS,
   withId,
   type Body,
@@ -31,9 +29,7 @@ import {
   type Session,
 } from '../core'
 import type { Arg, Fields, Flag, Grammar } from './args'
-import type { Jumped } from './jump'
-import { boardJson, listing, listJson, listText, screenJson, screenText } from './output'
-import type { OnScreen } from './screen'
+import { boardJson, listing, listJson, listText } from './output'
 
 /** A session, and the key of the project it is filed under. */
 export type Filed = { project: string; session: Session }
@@ -61,27 +57,10 @@ export type ProjectsCommand = About & {
   act: (projects: Projects, input: Fields) => Checked<string>
 }
 
-/** A command on the screen: which sessions a live window holds show there, in words. */
-export type ScreenCommand = About & {
-  on: 'screen'
-  act: (onScreen: OnScreen, input: Fields) => Checked<string>
-}
-
-/** A command on a session's window: what the jump to it came to, in words. */
-export type WindowCommand = About & {
-  on: 'window'
-  act: (filed: Filed, jumped: Jumped) => Checked<string>
-}
-
 /** The board watched, a line each time it changes, until the run is to end: the loop is `watch.ts`. */
 export type FeedCommand = About & { on: 'feed' }
 
-export type Command =
-  | SessionCommand
-  | ProjectsCommand
-  | ScreenCommand
-  | WindowCommand
-  | FeedCommand
+export type Command = SessionCommand | ProjectsCommand | FeedCommand
 
 /** The flag naming the session, which every command on one takes. */
 export const SESSION_FLAG = 'session'
@@ -371,55 +350,6 @@ const list: ProjectsCommand = {
   },
 }
 
-const screen: ScreenCommand = {
-  name: 'screen',
-  about:
-    'Say whether each session a window holds is on screen, as a jump would find it: a terminal window on this Mac shows it, or tmux can make one show it; unknown where tmux or ps gave no answer. Asks them, and moves nothing: the SitRep app runs it while its window shows.',
-  grammar: { args: [], flags: { ...JSON_OUT } },
-  on: 'screen',
-  act: (onScreen, input) => ({
-    ok: true,
-    value: input.json === true ? screenJson(onScreen) : screenText(onScreen),
-  }),
-}
-
-/** Why tmux did not select a pane's window, in words: in tmux's, where it said any. */
-const whyUnselected = (said: string | undefined) => {
-  if (said === undefined) {
-    return 'tmux gave no answer when asked to select it.'
-  }
-
-  return said === '' ? 'tmux would not select it.' : `tmux would not select it: ${said}`
-}
-
-/** Why a jump brought no window forward, in words, the session named. */
-const unjumped = (name: string, jumped: Exclude<Jumped, { is: 'focused' }>) => {
-  switch (jumped.is) {
-    case 'off screen':
-      return `${name} is not on screen: no terminal window on this Mac shows it.`
-    case 'unknown':
-      return `Could not tell whether ${name} is on screen: ${inWords(jumped.unanswered)} gave no answer.`
-    case 'unanswered':
-      return jumped.devices.length === 0
-        ? `${name} shows in ${inWords(jumped.apps)}, which did not come forward.`
-        : `${name} shows on ${inWords(jumped.devices)}, but no ${inWords(jumped.apps, 'or')} window there answered.`
-    case 'unselected':
-      return `${name} is in a tmux window no terminal shows, and ${whyUnselected(jumped.said)}`
-  }
-}
-
-const jump: WindowCommand = {
-  name: 'jump',
-  about:
-    'Bring the terminal window showing the session to the front, on whatever Space it is. Prints nothing.',
-  grammar: { args: [], flags: { ...SESSION } },
-  on: 'window',
-  act: ({ session }, jumped) =>
-    jumped.is === 'focused'
-      ? { ok: true, value: '' }
-      : { ok: false, error: unjumped(session.status.name, jumped) },
-}
-
 const watch: FeedCommand = {
   name: 'watch',
   about:
@@ -440,8 +370,6 @@ export const COMMANDS: readonly Command[] = [
   finish,
   board,
   list,
-  screen,
-  jump,
   watch,
 ]
 

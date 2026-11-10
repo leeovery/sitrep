@@ -63,13 +63,13 @@ The install asks macOS for nothing. What SitRep can use, it asks for in Settings
 Claude Code window ──tools──▶ the mod ──writes──▶ ~/.local/state/sitrep
   (every one)                  │                         │
                                ├─ the pane and the band  ├─ sitrep watch ─────▶ SitRep
-                               └─ delivers your replies  └─ sitrep answer, jump ◀─ a click
+                               └─ delivers your replies  └─ sitrep snooze, wake ◀─ a row's Snooze
 ```
 
 - **The mod runs in every Claude Code window.** It registers Claude's tools, draws the board in the window, and writes what Claude posts into the board's folder.
 - **The folder is the state.** `~/.local/state/sitrep` (or `$XDG_STATE_HOME/sitrep`) holds every project and session, a file for each writer. No database, no server, no background service.
 - **The core holds the rules**, shared by the mod and the CLI: what a reply does to an ask, what counts as waiting, what folds away.
-- **SitRep leaves the board's rules to the core**, and changes the board only through the CLI. It runs one `sitrep watch`, which prints the board as it changes, and calls the CLI for each answer, snooze, wake, finish and jump.
+- **SitRep leaves the board's rules to the core**, and changes the board only through the CLI. It runs one `sitrep watch`, which prints the board as it changes, and calls the CLI for each snooze and wake. A click's jump to a session's window is SitRep's own.
 - **Your replies arrive as your own message.** A reply for this session is sent as you, marked "From the board:"; while Claude is mid-turn it waits for the turn to end, and you can take it back until then.
 - **A reply for another session goes into its inbox.** That session's window sends it on, now or once a window takes the session up.
 
@@ -133,7 +133,6 @@ The CLI is `bin/sitrep` in the plugin's folder; the app's copy is `~/Library/App
 | `sitrep snooze` | Snoozes asks until a time |
 | `sitrep wake` | Wakes snoozed asks now |
 | `sitrep finish` | Finishes a session no window holds |
-| `sitrep jump` | Brings the terminal window showing a session to the front |
 | `sitrep watch` | Prints the board as a line of JSON at the start and at each change, for SitRep |
 
 `list` and `board` take `--json`. Exit codes: 0 done; 1 a usage error, a refused input or a failure; 2 no such session.

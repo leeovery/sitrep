@@ -29,23 +29,10 @@ public enum Snoozable: Sendable, Equatable {
 
 /// The plugin's CLI, `<plugin>/bin/sitrep`, run as a child with Lee's PATH.
 /// The app watches the board through it, and writes only what the card's row menu does: Lee's snoozes and wakes. It
-/// jumps itself (SitRepScreen's `Jump`); `jump` stays here until step B retires `sitrep jump`.
+/// jumps itself (SitRepScreen's `Jump`), as the CLI no longer does.
 public struct SitRepCLI: Sendable {
     /// `snooze` and `wake` read and write one session's files, and run no program.
     static let sessionLimit: TimeInterval = 10
-    /// How long a whole jump may take, Bun's start and the board's read among it (4 November 2026). One takes under a
-    /// second as Ghostty answers, and one Ghostty does not answer at all, as with the screen locked, is refused at its
-    /// first question, after 5s; each Ghostty program the CLI runs is killed at 8s, and each of tmux, `ps`, lsappinfo
-    /// and `open` at 2s (cli/jump.ts, cli/ghostty.ts, cli/front.ts, cli/tmux.ts, cli/apps.ts). Past this the Mac is
-    /// too busy for a jump to land while Lee still wants it. It was 180s, a backstop, until a jump under a load of 250
-    /// ran all of it, and every click behind it waited.
-    static let jumpLimit: TimeInterval = 15
-    /// How long a jump told to end has before it is killed. It was for the knock's marker, which the CLI put back
-    /// before it exited; since 6 November 2026 the CLI holds nothing to put back and dies at the signal, so the grace
-    /// buys nothing and costs time only for a CLI stuck. Kept as it was, as it harms nothing.
-    static let jumpGrace: TimeInterval = 1
-    /// How the CLI says an app gave a jump no answer in time, as when the Mac is too busy (cli/main.ts).
-    static let unansweredStatus: Int32 = 3
 
     private static let logger = Logger(sitrep: "cli")
 
@@ -65,27 +52,6 @@ public struct SitRepCLI: Sendable {
         self.path = path
         self.environment = environment
         self.run = run
-    }
-
-    /// At its limit, or its task cancelled, the jump is told to end, then killed a grace later, with every program it
-    /// started. One an app gave no answer in time ends unanswered, as at the limit.
-    public func jump(to work: String) async -> JumpAnswer {
-        let ended = await sitrep(
-            ["jump", "--session", work], limit: Self.jumpLimit, stopping: .gently(grace: Self.jumpGrace)
-        )
-
-        return switch ended {
-        case .success:
-            .jumped
-        case .failure(.unrun(.timedOut)):
-            .unanswered
-        case let .failure(.exited(ran)) where ran.status == Self.unansweredStatus:
-            .unanswered
-        case .failure(.unrun(.stopped)):
-            .stopped
-        case let .failure(unanswered):
-            .refused(unanswered.complaint(of: "jump"))
-        }
     }
 
     /// Snoozes what is named of the session until the instant given: asks, all of them or none, which the CLI refuses
@@ -128,9 +94,9 @@ public struct SitRepCLI: Sendable {
     }
 
     /// The CLI run on the words given; a run that exits other than 0 is a failure, as one that never ends is. Ended
-    /// early, it goes with every program it started.
-    private func sitrep(_ words: [String], limit: TimeInterval, stopping: Stopping = .group) async -> Ended {
-        let program = await self.program(words, limit: limit, stopping: stopping)
+    /// early, it is killed with its process group.
+    private func sitrep(_ words: [String], limit: TimeInterval) async -> Ended {
+        let program = await self.program(words, limit: limit)
         let clock = ContinuousClock()
         let started = clock.now
         let ended: Ended
@@ -153,11 +119,11 @@ public struct SitRepCLI: Sendable {
     }
 
     /// The CLI on the words given, with Lee's PATH as it stands now.
-    func program(_ words: [String], limit: TimeInterval, stopping: Stopping = .group) async -> Program {
+    func program(_ words: [String], limit: TimeInterval) async -> Program {
         let environment = environment.merging(["PATH": await path()]) { _, lees in lees }
 
         return Program(
-            executable: executable, arguments: words, environment: environment, limit: limit, stopping: stopping
+            executable: executable, arguments: words, environment: environment, limit: limit, stopping: .group
         )
     }
 }

@@ -3,8 +3,8 @@ import SitRepCore
 @testable import SitRepScreen
 import Testing
 
-/// SitRep's jump, each rule of the CLI's (tests/jump.test.ts) pinned again: where it looks, what it asks Ghostty, and
-/// the words it refuses in.
+/// SitRep's jump, each rule of the CLI's (tests/jump.test.ts, retired with it) pinned again: where it looks, what it
+/// asks Ghostty, and the words it refuses in.
 struct JumpTests {
     @Test func aJumpFocusesTheGhosttyWindowOnTheSessionsTmuxSession() async {
         let (tmux, table) = shown()
