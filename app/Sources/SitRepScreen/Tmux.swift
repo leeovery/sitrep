@@ -23,11 +23,18 @@ public struct TmuxAdapter: Multiplexer {
         self.tmux = tmux
     }
 
+    public let kind = MultiplexerKind.tmux
+
     /// tmux's words for every pane with its tmux window, tmux session and device, a pane once for each tmux session
     /// its window is in; and for every client with its device, its process, the tmux window it shows and the tmux
     /// session it is attached to.
     static let panes = ["list-panes", "-a", "-F", "#{pane_id}\t#{window_id}\t#{session_id}\t#{pane_tty}"]
     static let clients = ["list-clients", "-F", "#{client_tty}\t#{client_pid}\t#{window_id}\t#{session_id}"]
+
+    /// tmux's words for the name of the tmux session holding a pane.
+    static func sessionName(holding pane: String) -> [String] {
+        ["display-message", "-p", "-t", pane, "#{session_name}"]
+    }
 
     public func isIn(_ where: Board.Window.Where) -> Bool {
         `where`.tmux != nil
@@ -66,6 +73,41 @@ public struct TmuxAdapter: Multiplexer {
         }
 
         return .server(TmuxServer(panes: parsePanes(panes.stdout), clients: parseClients(clients.stdout)))
+    }
+
+    /// The socket and the pane, from the heartbeat; and, only where wanted, the name of the tmux session holding the
+    /// pane, asked of tmux now, so a session renamed since is followed.
+    public func attachValues(_ where: Board.Window.Where, wanted: Set<Placeholder>) async throws
+        -> [Placeholder: String]
+    {
+        guard let pane = `where`.tmux else {
+            return [:]
+        }
+
+        var values: [Placeholder: String] = [.socket: pane.socket, .pane: pane.pane]
+
+        if wanted.contains(.session) {
+            values[.session] = try await askSessionName(holding: pane)
+        }
+
+        return values
+    }
+
+    private func askSessionName(holding pane: Board.Window.Where.Tmux) async throws -> String {
+        let asked = "tmux, asked which session holds its pane,"
+
+        guard let ran = await tmux.run(on: pane.socket, Self.sessionName(holding: pane.pane)) else {
+            throw Unattachable(description: "\(asked) gave no answer.")
+        }
+
+        let name = ran.stdout.trimmingCharacters(in: .newlines)
+        let said = ran.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard ran.status == 0, !name.isEmpty else {
+            throw Unattachable(description: said.isEmpty ? "\(asked) named none." : "\(asked) said: \(said)")
+        }
+
+        return name
     }
 }
 
@@ -129,6 +171,7 @@ func parseClients(_ output: String) -> [TmuxClient] {
 
 /// What tmux said of its servers, by socket, as a reading of the screen.
 struct TmuxReading: Reading {
+    let kind = MultiplexerKind.tmux
     let servers: [String: ServerRead]
 
     private func server(_ where: Board.Window.Where) -> TmuxServer? {
@@ -141,6 +184,12 @@ struct TmuxReading: Reading {
 
     func isIn(_ where: Board.Window.Where) -> Bool {
         `where`.tmux != nil
+    }
+
+    /// Whether its server, as read, has the window's pane: none where no server runs on its socket, or tmux gave no
+    /// answer.
+    func holds(_ where: Board.Window.Where) -> Bool {
+        `where`.tmux.flatMap { server(`where`)?.panes[$0.pane] } != nil
     }
 
     /// Whether the window's device is its tmux pane's: nil where that cannot be told, the pane gone, its server

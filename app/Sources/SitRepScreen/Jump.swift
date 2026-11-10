@@ -10,6 +10,9 @@ import SitRepCore
 /// It jumps from the watch's last line, the session's windows in core's order, and runs off the main thread, its steps
 /// one after another: a jump stopped, by a later click or its limit, ends between them, letting go of any step it
 /// cannot stop, an Apple Event in flight.
+///
+/// A session no terminal window shows, that a multiplexer holds alive, it opens a window for instead, in the Ghostty
+/// running: the multiplexer's attach command, as Lee sets it, typed into Lee's own shell there.
 public struct Jump: Sendable {
     /// How long a whole jump may take, the wait for a board and for Lee's PATH among it. One takes under a second as
     /// Ghostty answers, a little over to a tab not selected, for its half second's pause, and one Ghostty does not
@@ -21,33 +24,43 @@ public struct Jump: Sendable {
     /// words for no such session, but for its id, which Lee never sees.
     static let noSuchSession = "There is no such session on the board, in any project."
 
+    /// The app a window is opened in: Ghostty, the one terminal app with a driver.
+    static let opensIn = Driver.ghostty
+
     let reader: ScreenReader
     let tmux: any TmuxProgram
     let drivers: [Driver: any TerminalDriver]
     let workspace: any Workspace
     let clock: any JumpClock
+    let commands: AttachCommands
+    let space: OpenOn
 
     init(
         reader: ScreenReader, tmux: any TmuxProgram, drivers: [Driver: any TerminalDriver], workspace: any Workspace,
-        clock: any JumpClock
+        clock: any JumpClock, commands: AttachCommands = AttachCommands(), space: OpenOn = .current
     ) {
         self.reader = reader
         self.tmux = tmux
         self.drivers = drivers
         self.workspace = workspace
         self.clock = clock
+        self.commands = commands
+        self.space = space
     }
 
     /// The jump on this Mac, to the session's window: tmux found on Lee's PATH as `path` gives it, SitRep's keeping the
     /// login shell's once found, asked for once the board is in hand, within the jump's limit; Ghostty asked by Apple
-    /// Events.
+    /// Events. A session no window shows has a window opened on the Space given, attached by Lee's commands.
     public static func live(
-        to session: String, on board: some JumpBoardSource, path: @escaping @Sendable () async -> String
+        to session: String, on board: some JumpBoardSource, path: @escaping @Sendable () async -> String,
+        commands: AttachCommands, space: OpenOn = .current
     ) async -> JumpAnswer {
-        await run(to: session, on: board, clock: SystemClock()) { await live(path: path()) }
+        await run(to: session, on: board, clock: SystemClock()) {
+            await live(path: path(), commands: commands, space: space)
+        }
     }
 
-    private static func live(path: String) -> Jump {
+    private static func live(path: String, commands: AttachCommands, space: OpenOn) -> Jump {
         let tmux = TmuxOnPath(path: path)
         let workspace = MacWorkspace()
         let clock = SystemClock()
@@ -55,7 +68,7 @@ public struct Jump: Sendable {
 
         return Jump(
             reader: ScreenReader(tmux: tmux), tmux: tmux, drivers: [.ghostty: ghostty], workspace: workspace,
-            clock: clock
+            clock: clock, commands: commands, space: space
         )
     }
 
@@ -104,8 +117,9 @@ public struct Jump: Sendable {
         }
     }
 
-    /// Brings the first of the windows a jump can reach to the front. Which app is in front is read beside the screen,
-    /// and settled before any select or focus, so it is never an app brought forward by the jump itself.
+    /// Brings the first of the windows a jump can reach to the front, or, where none shows, opens a window attached to
+    /// one. Which app is in front is read beside the screen, and settled before any select, focus or opening, so it is
+    /// never an app brought forward by the jump itself. Where what was asked gave no answer, nothing opens.
     func jump(to windows: [Board.Window.Where]) async throws -> Jumped {
         try Task.checkCancellation()
 
@@ -119,7 +133,7 @@ public struct Jump: Sendable {
         case let .onScreen(places):
             try await bringFirst(places, front: front)
         case .offScreen:
-            .offScreen
+            try await open(screen.attachable(windows), front: front)
         case let .unknown(unanswered):
             .unknown(unanswered)
         }
@@ -195,6 +209,42 @@ public struct Jump: Sendable {
         }
     }
 
+    /// Opens a window attached to the window held, on the Space the jump opens on, in the Ghostty running: not on
+    /// screen where no window is held, and refused, in plain words, where its command cannot be made or Ghostty is not
+    /// running.
+    private func open(_ held: Attachable?, front: String?) async throws -> Jumped {
+        guard let held, let multiplexer = reader.multiplexers.first(where: { $0.kind == held.kind }),
+              let driver = drivers[Self.opensIn]
+        else {
+            return .offScreen
+        }
+
+        do {
+            let command = try await commands.command(for: held.kind).line(attaching: held.where, in: multiplexer)
+
+            try Task.checkCancellation()
+            try await go(to: space)
+
+            let isOpen = try await driver.openWindow(running: command, front: front)
+
+            return isOpen ? .opened : .notRunning(Self.opensIn.name)
+        } catch let stopped as CancellationError {
+            throw stopped
+        } catch let unattachable as Unattachable {
+            return .unattachable(unattachable.description)
+        } catch {
+            return .failed(String(describing: error))
+        }
+    }
+
+    /// Goes to the Space a window opens on, as a new window opens on the Space showing: the current one is there.
+    private func go(to space: OpenOn) async throws {
+        switch space {
+        case .current:
+            return
+        }
+    }
+
     private func bringWhole(_ app: RunningApp?) async -> Bool {
         guard let app else {
             return false
@@ -232,12 +282,23 @@ enum Missed: Equatable {
     case failed(String)
 }
 
-/// What a jump came to: the window brought forward; no terminal window showing the session, nor any tmux could make
-/// show it; none found, as what was asked gave no answer; devices showing it, in the apps named, where no window
-/// answered; tmux not selecting the pane's window, in its words, or giving no answer; or its app unable to be asked.
+/// Where a window opened for a session no window shows goes: the Space showing, today the one choice; the Space picker
+/// (stage 7, D) adds a Space Lee picks, gone to before the window opens.
+public enum OpenOn: Sendable, Equatable {
+    case current
+}
+
+/// What a jump came to: the window brought forward; a window opened attached to it, where none showed it; no terminal
+/// window showing the session, nor any tmux could make show it, nor any multiplexer holding it to attach to; its attach
+/// command not made, in plain words; the app windows open in not running, by its name; none found, as what was asked
+/// gave no answer; devices showing it, in the apps named, where no window answered; tmux not selecting the pane's
+/// window, in its words, or giving no answer; or its app unable to be asked.
 enum Jumped: Equatable {
     case focused
+    case opened
     case offScreen
+    case unattachable(String)
+    case notRunning(String)
     case unknown([Unanswered])
     case unanswered(devices: [String], apps: [String])
     case unselected(said: String?)
@@ -269,10 +330,14 @@ enum Jumped: Equatable {
     /// What it came to, a refusal in plain words naming the session, as the CLI's jump said each.
     func answer(named name: String) -> JumpAnswer {
         switch self {
-        case .focused:
+        case .focused, .opened:
             .jumped
         case .offScreen:
             .refused("\(name) is not on screen: no terminal window on this Mac shows it.")
+        case let .unattachable(why):
+            .refused("\(name) is not on screen, and SitRep cannot open a window for it: \(why)")
+        case let .notRunning(app):
+            .refused("\(name) is not on screen, and SitRep can open a window for it only in a \(app) already running.")
         case let .unknown(unanswered):
             .refused("Could not tell whether \(name) is on screen: \(inWords(unanswered.map(\.words))) gave no answer.")
         case let .unanswered(devices, apps) where devices.isEmpty:

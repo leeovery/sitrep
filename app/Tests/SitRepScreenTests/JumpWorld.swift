@@ -27,6 +27,9 @@ let terminalApp = "/System/Applications/Utilities/Terminal.app"
 /// The words of a session no terminal shows.
 let offScreen = JumpAnswer.refused("\(named) is not on screen: no terminal window on this Mac shows it.")
 
+/// SitRep's own command attaching a new window to Claude's tmux pane, where none shows it.
+let attachingClaudesPane = "tmux -S /private/tmp/tmux-501/default attach -t %148"
+
 /// The words of a jump no place answered, naming the devices and apps tried.
 func noneAnswered(_ devices: String, _ apps: String = "Ghostty") -> JumpAnswer {
     .refused("\(named) shows on \(devices), but no \(apps) window there answered.")
@@ -79,24 +82,27 @@ func shown() -> (FakeTmux, FakeTable) {
 }
 
 /// A jump on a Mac of doubles: tmux, the process table, Ghostty, the apps and the clock, Ghostty telling the apps of
-/// what it is told.
+/// what it is told; a window opened attaching by the commands given, SitRep's own unless given.
 struct Jumping {
     let tmux: FakeTmux
     let table: FakeTable
     let ghostty: FakeGhostty
     let workspace: FakeWorkspace
     let clock: TestClock
+    let commands: AttachCommands
     private let program: any TmuxProgram
 
     init(
         _ tmux: FakeTmux = FakeTmux(), _ table: FakeTable = FakeTable(Mac().tree), terminals: [FakeWindow] = terminals,
         running: Bool = true, failing: GhosttyFailure? = nil, ghosttyHeld: Gate? = nil,
-        workspace: FakeWorkspace = FakeWorkspace(), clock: TestClock = TestClock(), tmuxHeld: Gate? = nil
+        workspace: FakeWorkspace = FakeWorkspace(), clock: TestClock = TestClock(), tmuxHeld: Gate? = nil,
+        commands: AttachCommands = AttachCommands()
     ) {
         self.tmux = tmux
         self.table = table
         self.workspace = workspace
         self.clock = clock
+        self.commands = commands
         ghostty = FakeGhostty(terminals, running: running, failing: failing, held: ghosttyHeld, onTold: workspace.told)
         program = tmuxHeld.map { HeldTmux(tmux, at: $0) } ?? tmux
     }
@@ -105,7 +111,7 @@ struct Jumping {
         Jump(
             reader: ScreenReader(tmux: program, table: table), tmux: program,
             drivers: [.ghostty: GhosttyDriver(scripting: ghostty, workspace: workspace, clock: clock)],
-            workspace: workspace, clock: clock
+            workspace: workspace, clock: clock, commands: commands
         )
     }
 

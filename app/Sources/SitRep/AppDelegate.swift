@@ -6,7 +6,9 @@ import SitRepMenu
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let banners = Banners.live()
     private let plugin = Plugin()
-    private lazy var works = Works(banners: banners, path: plugin.path)
+    private lazy var works = Works(banners: banners, path: plugin.path) { [preferences] in
+        preferences.app.attachCommands
+    }
     private lazy var snoozes = Snoozes(plugin: plugin, banners: banners)
     private let feed = Feed()
     /// The plugin folder `watch` runs on; nil before it first starts.

@@ -25,10 +25,10 @@ struct SettingsLayoutTests {
         pane - 2 * edge
     }
 
-    /// Each pane's controls at its rows' right, top to bottom: Open at login; Edge, Display,
+    /// Each pane's controls at its rows' right, top to bottom: Open at login, the zmx and tmux commands; Edge, Display,
     /// Style, Material, Reduce motion; Send Test, Notify me, Notification Settings…, Play a sound, Sound; the two
     /// windows' Show and Copy.
-    private static let controls: [(SettingsPane, Int)] = [(.general, 1), (.edge, 5), (.notifications, 5), (.claudeCode, 3)]
+    private static let controls: [(SettingsPane, Int)] = [(.general, 3), (.edge, 5), (.notifications, 5), (.claudeCode, 3)]
 
     /// The column fills the pane, less its insets, at any width: each card spans it, and every control at a row's
     /// right stands 10 in from the card's.
@@ -160,12 +160,13 @@ struct SettingsLayoutTests {
     }
 
     /// Down the column, each pane is black but for its cards and the desktop corner, its first 13 under the toolbar:
-    /// a section's header's line of 16 and 10 over its card, the sections 26 apart. General's two cards a row of 52
-    /// each; Edge's the Show row's 86, then Notch's four, 52, 38, 52 and 52, then Motion's 52; Notifications' corner of
-    /// 150 and the caption's row of 32, then Banners' two rows of 52 and Sound's 52 and 38. Within a pixel at the
-    /// screen's scale, which lays the pane out.
+    /// a section's header's line of 16 and 10 over its card, the sections 26 apart. General's first two cards a row of
+    /// 52 each, then New windows' two rows of 52 and its caption's words, which reach where the column is read; Edge's
+    /// the Show row's 86, then Notch's four, 52, 38, 52 and 52, then Motion's 52; Notifications' corner of 150 and the
+    /// caption's row of 32, then Banners' two rows of 52 and Sound's 52 and 38. Within a pixel at the screen's scale,
+    /// which lays the pane out.
     @Test(arguments: [
-        (SettingsPane.general, [39 ... 91, 143 ... 195]),
+        (SettingsPane.general, [39 ... 91, 143 ... 195, 247 ... 351.5, 364 ... 370.5]),
         (.edge, [13 ... 99, 151 ... 346.5, 398.5 ... 450.5]),
         (.notifications, [13 ... 163, 247 ... 351.5, 403.5 ... 494]),
     ] as [(SettingsPane, [ClosedRange<CGFloat>])])
@@ -179,12 +180,12 @@ struct SettingsLayoutTests {
         }
     }
 
-    /// Each header's line of 16 stands 10 over its card: General's Startup and Ghostty. Each header's
+    /// Each header's line of 16 stands 10 over its card: General's Startup, Ghostty and New windows. Each header's
     /// capitals stand alike in their line, so the same distance over what each heads.
     @Test func eachHeaderStands10OverWhatItHeads() async throws {
         let drawn = try await Hosted.drawn(.general, width: Self.drawingsPane)
-        let heads: [CGFloat] = [39, 143]
-        // the header's first word's first letters, which hang below no line: Star, Ghos
+        let heads: [CGFloat] = [39, 143, 247]
+        // the header's first word's first letters, which hang below no line: Star, Ghos, New
         let capitals = try heads.map { head in
             try #require(drawn.litRows(in: CGRect(x: Self.edge + 10, y: head - 30, width: 30, height: 24)))
         }
@@ -344,6 +345,7 @@ struct Hosted {
     func trailingControls() -> [CGRect] {
         let controls = all(NSSegmentedControl.self).map(frame(of:)) + all(NSPopUpButton.self).map(frame(of:))
             + all(NSSwitch.self).map(frame(of:)) + all(NSSlider.self).map(frame(of:))
+            + all(NSTextField.self).map(frame(of:))
 
         // a pop-up keeps a focus ring of its own too
         let all = (controls + buttons()).reduce(into: [CGRect]()) { found, frame in

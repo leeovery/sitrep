@@ -10,6 +10,10 @@ import CoreServices
 /// whether its tab is selected, `selected of (tabs of (windows whose tty of terminals contains` it`) whose tty of
 /// terminals contains` it`)`; and, for a tab not selected, the window holding it, then `activate window`; then
 /// `focus` the terminal found.
+///
+/// A window is opened as AppleScript opened one live (10 November 2026): `new surface configuration`, its `initial
+/// input` set to the command and a return, then `new window with configuration` it; the window's terminal is then
+/// `focused terminal of selected tab of` the window Ghostty answered with.
 public struct GhosttyEvents: GhosttyScripting {
     /// How long each event waits for Ghostty's answer. With the screen locked, Ghostty answers nothing about its
     /// terminals, and an event's own limit is two minutes.
@@ -44,7 +48,7 @@ public struct GhosttyEvents: GhosttyScripting {
             return nil
         }
 
-        return try await ask({ GhosttyEvent.terminals(on: device) }, isLookup: true).first.map(GhosttyObject.init)
+        return try await ask({ GhosttyEvent.terminals(on: device) }, at: .lookup).first.map(GhosttyObject.init)
     }
 
     public func isTabSelected(holding device: String) async throws -> Bool {
@@ -65,26 +69,52 @@ public struct GhosttyEvents: GhosttyScripting {
         try await tell { GhosttyEvent.focus(terminal) }
     }
 
+    /// A configuration or a window Ghostty answers with none fails as AppleScript fails to find the first item of
+    /// nothing (-1719).
+    public func openWindow(running command: String) async throws -> GhosttyObject? {
+        guard ghostty() != nil else {
+            return nil
+        }
+
+        let configuration = try await made({ GhosttyEvent.newConfiguration }, at: .opening)
+        let window = try await made { GhosttyEvent.newWindow(configuration, typing: command + "\n") }
+
+        return GhosttyObject(descriptor: Specifier.focusedTerminal(of: window.descriptor))
+    }
+
     /// What Ghostty answered a question, its direct object as a list's items.
     private func ask(
-        _ question: @escaping @Sendable () -> GhosttyEvent, isLookup: Bool = false
+        _ question: @escaping @Sendable () -> GhosttyEvent, at place: GhosttyEvent.Place = .later
     ) async throws -> [NSAppleEventDescriptor] {
-        try await answer(question, isLookup: isLookup).items
+        try await answer(question, at: place).items
     }
 
     private func tell(_ command: @escaping @Sendable () -> GhosttyEvent) async throws {
-        _ = try await answer(command, isLookup: false)
+        _ = try await answer(command, at: .later)
+    }
+
+    /// What a command that makes something answered with: the thing made, as Ghostty names it.
+    private func made(
+        _ command: @escaping @Sendable () -> GhosttyEvent, at place: GhosttyEvent.Place = .later
+    ) async throws -> GhosttyObject {
+        guard let made = try await ask(command, at: place).first.map(GhosttyObject.init) else {
+            throw GhosttyFailure.gave(GhosttyEvent.noSuchItem, said: nil)
+        }
+
+        return made
     }
 
     /// The event made and sent on a thread of its own, and its answer read there; throws Ghostty's failure, or
     /// `CancellationError` once the jump is stopped, letting the event go.
-    private func answer(_ made: @escaping @Sendable () -> GhosttyEvent, isLookup: Bool) async throws -> Answered {
+    private func answer(_ made: @escaping @Sendable () -> GhosttyEvent, at place: GhosttyEvent.Place) async throws
+        -> Answered
+    {
         guard let pid = ghostty() else {
             throw GhosttyFailure.gave(GhosttyEvent.noProcess, said: nil)
         }
 
         let answered = await onThread { [send] in
-            Answered(send(made().addressed(to: pid), Self.answerSeconds), isLookup: isLookup)
+            Answered(send(made().addressed(to: pid), Self.answerSeconds), at: place)
         }
 
         guard let answered else {
@@ -123,17 +153,25 @@ private struct Answered: @unchecked Sendable {
     let items: [NSAppleEventDescriptor]
     let failure: GhosttyFailure?
 
-    init(_ sent: GhosttyEvents.Sent, isLookup: Bool) {
-        failure = GhosttyEvent.failure(in: sent, isLookup: isLookup)
+    init(_ sent: GhosttyEvents.Sent, at place: GhosttyEvent.Place) {
+        failure = GhosttyEvent.failure(in: sent, at: place)
         items = failure == nil ? GhosttyEvent.items(of: sent.reply.paramDescriptor(forKeyword: keyDirectObject)) : []
     }
 }
 
-/// One Apple Event to Ghostty, as built, before it is addressed: its class and id, and its direct object.
+/// One Apple Event to Ghostty, as built, before it is addressed: its class and id, its direct object, where it takes
+/// one, and its other parameters, by keyword.
 struct GhosttyEvent {
     let eventClass: AEEventClass
     let eventID: AEEventID
-    let direct: NSAppleEventDescriptor
+    let direct: NSAppleEventDescriptor?
+    var parameters: [AEKeyword: NSAppleEventDescriptor] = [:]
+
+    /// Which event a failure came from, as its errors are read: the lookup, a jump's first; the new configuration, an
+    /// opening's first; or a later one.
+    enum Place {
+        case lookup, opening, later
+    }
 
     /// The event to the process.
     func addressed(to pid: pid_t) -> NSAppleEventDescriptor {
@@ -143,7 +181,8 @@ struct GhosttyEvent {
             returnID: AEReturnID(kAutoGenerateReturnID), transactionID: AETransactionID(kAnyTransactionID)
         )
 
-        event.setParam(direct, forKeyword: keyDirectObject)
+        direct.map { event.setParam($0, forKeyword: keyDirectObject) }
+        parameters.forEach { event.setParam($1, forKeyword: $0) }
         return event
     }
 
@@ -159,6 +198,16 @@ struct GhosttyEvent {
         static let tty = code("Gtty")
         /// Whether a tab is its window's selected one.
         static let selected = code("GTsl")
+        static let newConfiguration = code("NSCf")
+        static let newWindow = code("NWin")
+        /// `new window`'s `with configuration`.
+        static let withConfiguration = code("GNwS")
+        /// A surface configuration's text typed into its terminal once it starts.
+        static let initialInput = code("GScI")
+        /// A window's selected tab.
+        static let selectedTab = code("GWsT")
+        /// A tab's focused terminal.
+        static let focusedTerminal = code("GTfT")
     }
 
     /// AppleScript's error for an item of a list that has none: errAEIllegalIndex.
@@ -202,6 +251,23 @@ struct GhosttyEvent {
         GhosttyEvent(eventClass: Code.suite, eventID: Code.focus, direct: terminal.descriptor)
     }
 
+    /// `new surface configuration`, which answers with Ghostty's defaults as a record.
+    static var newConfiguration: GhosttyEvent {
+        GhosttyEvent(eventClass: Code.suite, eventID: Code.newConfiguration, direct: nil)
+    }
+
+    /// `new window with configuration` a copy of the configuration given, its `initial input` the text, as AppleScript
+    /// sets a record's field before sending it: never `command`, which Ghostty runs through `login` and `bash` with
+    /// launchd's PATH, and holds its window open once it ends (live, 10 November 2026).
+    static func newWindow(_ configuration: GhosttyObject, typing input: String) -> GhosttyEvent {
+        let typed = configuration.descriptor.copy() as? NSAppleEventDescriptor ?? configuration.descriptor
+
+        typed.setDescriptor(NSAppleEventDescriptor(string: input), forKeyword: Code.initialInput)
+        return GhosttyEvent(
+            eventClass: Code.suite, eventID: Code.newWindow, direct: nil, parameters: [Code.withConfiguration: typed]
+        )
+    }
+
     /// Ghostty's answer to whether a tab is selected is a list of lists, a window's and its tab's: `{{false}}` for one
     /// not selected; anything else, `{}` for a terminal in no window, is focused as one selected.
     static func isNotSelected(_ windows: [NSAppleEventDescriptor]) -> Bool {
@@ -216,7 +282,7 @@ struct GhosttyEvent {
 
     /// Why a send failed: the Apple Event Manager's error, else the one Ghostty's reply gives, with any words the reply
     /// gave; none where neither says one.
-    static func failure(in sent: GhosttyEvents.Sent, isLookup: Bool) -> GhosttyFailure? {
+    static func failure(in sent: GhosttyEvents.Sent, at place: Place) -> GhosttyFailure? {
         let replied = sent.reply.paramDescriptor(forKeyword: keyErrorNumber).map { Int($0.int32Value) } ?? 0
         let number = sent.status == noErr ? replied : sent.status
 
@@ -226,7 +292,7 @@ struct GhosttyEvent {
 
         let said = sent.reply.paramDescriptor(forKeyword: keyErrorString)?.stringValue
 
-        return failure(number: number, said: said, isLookup: isLookup)
+        return failure(number: number, said: said, at: place)
     }
 
     /// An error read in plain words where it can be: Ghostty not answering in time, or, for the lookup, the first
@@ -234,13 +300,16 @@ struct GhosttyEvent {
     /// AppleScript's own -2753 and -2741, which a hand-built event never gets: a Ghostty with no scripting is expected
     /// to take no Get Data (-1708), and one without a terminal's `tty` to resolve no specifier naming it (-1728). Both
     /// are unproven live until `LiveEventsTests` runs. Only the lookup's are read so, as a later event's no such object
-    /// is a terminal gone since it was found.
-    static func failure(number: Int, said: String?, isLookup: Bool) -> GhosttyFailure {
-        switch number {
-        case timedOut:
+    /// is a terminal gone since it was found. An opening's first event, naming no term, is too old to open a window
+    /// where Ghostty takes no `new surface configuration` (-1708), as one before 1.4 does not.
+    static func failure(number: Int, said: String?, at place: Place) -> GhosttyFailure {
+        switch (number, place) {
+        case (timedOut, _):
             .noAnswer
-        case notHandled where isLookup, noSuchObject where isLookup:
+        case (notHandled, .lookup), (noSuchObject, .lookup):
             .tooOld
+        case (notHandled, .opening):
+            .cannotOpen
         default:
             .gave(number, said: said)
         }
@@ -309,6 +378,11 @@ enum Specifier {
         -> NSAppleEventDescriptor
     {
         object(type, of: container, form: DescType(formTest), test)
+    }
+
+    /// `focused terminal of selected tab of` the window.
+    static func focusedTerminal(of window: NSAppleEventDescriptor) -> NSAppleEventDescriptor {
+        property(GhosttyEvent.Code.focusedTerminal, of: property(GhosttyEvent.Code.selectedTab, of: window))
     }
 
     /// A test: the object's value compared with the text.

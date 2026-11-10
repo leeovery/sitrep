@@ -278,7 +278,7 @@ struct AppSettingsTests {
         #expect(read.notifiesNewAsks)
         #expect(read.playsSound)
         #expect(read.sound == "Glass")
-        #expect(Set(keys) == ["notifiesNewAsks", "playsSound", "sound"])
+        #expect(Set(keys) == ["notifiesNewAsks", "playsSound", "sound", "zmxAttach", "tmuxAttach"])
     }
 
     /// As each window played Glass before SitRep played the sound.
@@ -301,6 +301,25 @@ struct AppSettingsTests {
 
         #expect(!read.playsSound)
         #expect(read.sound == "Tink")
+    }
+
+    /// Empty, SitRep's own, by default and from a value saved before them; Lee's own saved and read back.
+    @Test func theAttachCommandsAreEmptyByDefaultAndLeesAreSavedAndReadBack() {
+        let defaults = MemoryDefaults()
+        var settings = AppSettings()
+
+        defaults.set(Data(#"{"notifiesNewAsks":true}"#.utf8), forKey: "app")
+        #expect(SavedSettings<AppSettings>(defaults).read().zmxAttach.isEmpty)
+        #expect(SavedSettings<AppSettings>(defaults).read().tmuxAttach.isEmpty)
+
+        settings.zmxAttach = "portal open -s {session}"
+        settings.tmuxAttach = "tmux -S {socket} attach -t {session}"
+        SavedSettings(defaults).save(settings)
+
+        let read = SavedSettings<AppSettings>(defaults).read()
+
+        #expect(read.zmxAttach == "portal open -s {session}")
+        #expect(read.tmuxAttach == "tmux -S {socket} attach -t {session}")
     }
 
     /// "Your turn folds after", retired on 4 November 2026: a value saved with it reads what else it holds, and the next

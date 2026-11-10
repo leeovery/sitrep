@@ -1,5 +1,6 @@
 import SitRepMenu
 import SitRepPanel
+import SitRepScreen
 import SwiftUI
 
 /// The pane shown, in the Settings window beside its sidebar (DESIGN, "Settings"): its sections in a column 20 in
@@ -38,7 +39,8 @@ struct SettingsPaneContent: View {
     }
 }
 
-/// General: Startup, Open at login; Ghostty, the leave to bring a session's Ghostty window to the front.
+/// General: Startup, Open at login; Ghostty, the leave to bring a session's Ghostty window to the front; New windows,
+/// the command typed into a window opened for a session no window shows, one for each multiplexer.
 private struct GeneralPane: View {
     let settings: SettingsModel
 
@@ -53,10 +55,48 @@ private struct GeneralPane: View {
                 StatedRow(row: .ghostty(settings.said.ghostty), isBusy: settings.isAllowing, fix: settings.fix)
             }
         }
+        SettingsSection(name: "New windows") {
+            SettingsCard {
+                AttachRow(kind: .zmx, command: command(\.zmxAttach))
+                CardSeparator()
+                AttachRow(kind: .tmux, command: command(\.tmuxAttach))
+            }
+            CaptionRow(words: Text(AttachRow.caption))
+        }
     }
 
     private var opensAtLogin: Binding<Bool> {
         Binding(get: { settings.said.login?.isOn ?? false }, set: { _ in settings.chooseLogin() })
+    }
+
+    /// A command as typed, saved at each keystroke.
+    private func command(_ setting: WritableKeyPath<AppSettings, String>) -> Binding<String> {
+        Binding(
+            get: { settings.preferences.app[keyPath: setting] },
+            set: { settings.preferences.app[keyPath: setting] = $0 }
+        )
+    }
+}
+
+/// A multiplexer's attach command: its name over the placeholders it fills, and the command in a field, SitRep's own
+/// shown greyed in it while Lee has given none.
+struct AttachRow: View {
+    static let caption = "A click on a session no window shows opens a Ghostty window and types its command in. "
+        + "Left empty, SitRep's own."
+    /// Wide enough for the tmux default whole in the monospaced face.
+    static let fieldWidth: CGFloat = 300
+
+    let kind: MultiplexerKind
+    @Binding var command: String
+
+    var body: some View {
+        CardRow(label: kind.rawValue, line: "Fills \(kind.placeholdersInWords)") {
+            TextField(kind.rawValue, text: $command, prompt: Text(AttachCommands.default(for: kind)))
+                .font(.body.monospaced())
+                .textFieldStyle(.roundedBorder)
+                .labelsHidden()
+                .frame(width: Self.fieldWidth)
+        }
     }
 }
 

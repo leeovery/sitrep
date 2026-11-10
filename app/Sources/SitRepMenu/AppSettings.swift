@@ -14,6 +14,10 @@ public struct AppSettings: SavedValue {
     /// One of macOS's alert sounds, by name, as saved: `AlertSounds` reads one macOS lacks as Glass, the one the
     /// windows played, and the default.
     public var sound = "Glass"
+    /// The commands typed into a new Ghostty window for a session no window shows, attaching to its zmx session or its
+    /// tmux pane, as Lee gives them; empty for SitRep's own (`AttachCommands`).
+    public var zmxAttach = ""
+    public var tmuxAttach = ""
 
     public init() {}
 
@@ -27,5 +31,7 @@ public struct AppSettings: SavedValue {
         notifiesNewAsks = given.value(.notifiesNewAsks, or: defaults.notifiesNewAsks)
         playsSound = given.value(.playsSound, or: defaults.playsSound)
         sound = given.value(.sound, or: defaults.sound)
+        zmxAttach = given.value(.zmxAttach, or: defaults.zmxAttach)
+        tmuxAttach = given.value(.tmuxAttach, or: defaults.tmuxAttach)
     }
 }

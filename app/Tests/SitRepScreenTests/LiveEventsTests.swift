@@ -35,7 +35,7 @@ struct LiveEventsTests {
         let answer = "status \(sent.status), reply \(rendered(sent.reply.paramDescriptor(forKeyword: keyDirectObject))), "
             + "error \(rendered(sent.reply.paramDescriptor(forKeyword: keyErrorNumber)))"
 
-        return (answer, GhosttyEvent.failure(in: sent, isLookup: true))
+        return (answer, GhosttyEvent.failure(in: sent, at: .lookup))
     }
 
     /// The app opened, not brought forward, once it has finished launching: its process.

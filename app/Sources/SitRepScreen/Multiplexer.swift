@@ -8,6 +8,7 @@ import SitRepCore
 /// A window that records two, one run inside the other, is in the innermost: the one whose own pty is the window's
 /// device, where one can tell; else each that cannot tell, never one that says its pty is another.
 public protocol Multiplexer: Sendable {
+    var kind: MultiplexerKind { get }
     /// Whether a window runs in it, as its heartbeat says.
     func isIn(_ where: Board.Window.Where) -> Bool
     /// Whether it tells its clients by a process's command line, so the table reads that one's.
@@ -15,11 +16,18 @@ public protocol Multiplexer: Sendable {
     /// Reads what it needs for the windows that run in it, each program within its limit; nothing that fails here
     /// fails the read.
     func read(_ windows: [Board.Window.Where]) async -> any Reading
+    /// The values of the placeholders wanted, of its kind's, for a window in it, as a window attaching to it
+    /// opens: what can change under the window asked of the multiplexer then, the rest from the heartbeat. Throws
+    /// `Unattachable` where what it was asked gave no answer.
+    func attachValues(_ where: Board.Window.Where, wanted: Set<Placeholder>) async throws -> [Placeholder: String]
 }
 
 /// What a multiplexer read of the screen, for the windows in it.
 public protocol Reading: Sendable {
+    var kind: MultiplexerKind { get }
     func isIn(_ where: Board.Window.Where) -> Bool
+    /// Whether it holds the window's session alive, so a window attaching to it would show it.
+    func holds(_ where: Board.Window.Where) -> Bool
     /// Whether the window's device is this multiplexer's own pty for it, so the innermost of those it runs in; nil
     /// where that cannot be told.
     func isOnItsPty(_ where: Board.Window.Where) -> Bool?

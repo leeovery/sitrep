@@ -32,6 +32,8 @@ func rendered(_ descriptor: NSAppleEventDescriptor?) -> String {
         return length == 0 ? "exmn" : unlike
     case typeUnicodeText:
         return "\"\(descriptor.stringValue ?? "")\""
+    case typeAERecord:
+        return "reco{" + fields(of: descriptor).map { "\($0):\($1)" }.joined(separator: ",") + "}"
     case typeType, typeEnumerated, typeAbsoluteOrdinal:
         guard length == MemoryLayout<FourCharCode>.size else {
             return unlike
@@ -42,6 +44,16 @@ func rendered(_ descriptor: NSAppleEventDescriptor?) -> String {
         return "\(fourCharacters(type))'\(fourCharacters(value))'"
     default:
         return "\(fourCharacters(type))(\(descriptor.stringValue ?? ""))"
+    }
+}
+
+/// A record's fields, or an event's parameters, each by its keyword's four characters, in the order they are kept,
+/// rendered.
+func fields(of descriptor: NSAppleEventDescriptor) -> [(String, String)] {
+    (0..<descriptor.numberOfItems).map { index in
+        let keyword = descriptor.keywordForDescriptor(at: index + 1)
+
+        return (fourCharacters(keyword), rendered(descriptor.forKeyword(keyword)))
     }
 }
 
@@ -85,11 +97,14 @@ func named(_ type: String, _ id: String) -> NSAppleEventDescriptor {
 final class Answering: Sendable {
     typealias Answer = @Sendable () -> GhosttyEvents.Sent
 
+    /// An event: its class and id, its direct object, `none` for none, its time limit, its process, and any other
+    /// parameters, by keyword.
     struct Asked: Equatable {
         let event: String
         let direct: String
         let seconds: TimeInterval
         let pid: pid_t
+        var parameters: [String: String] = [:]
     }
 
     private let answers: [Answer]
@@ -115,7 +130,8 @@ final class Answering: Sendable {
         let pid = event.attributeDescriptor(forKeyword: keyAddressAttr)?.data.withUnsafeBytes { $0.loadUnaligned(as: pid_t.self) }
         let asked = Asked(
             event: fourCharacters(event.eventClass) + fourCharacters(event.eventID),
-            direct: rendered(event.paramDescriptor(forKeyword: keyDirectObject)), seconds: seconds, pid: pid ?? 0
+            direct: rendered(event.paramDescriptor(forKeyword: keyDirectObject)), seconds: seconds, pid: pid ?? 0,
+            parameters: Dictionary(uniqueKeysWithValues: fields(of: event).filter { $0.0 != "----" })
         )
         let index = state.withLock { state in
             state.append(asked)
@@ -260,6 +276,79 @@ struct GhosttyEventsTests {
         await #expect(throws: GhosttyFailure.noAnswer) {
             try await Answering(sending: [unsent(-1712)]).events.focus(found)
         }
+    }
+
+    // MARK: A window opened
+
+    /// Ghostty's defaults for a new surface, as `new surface configuration` answers: a record of its fields.
+    private static var configuration: NSAppleEventDescriptor {
+        let record = NSAppleEventDescriptor.record()
+
+        record.setDescriptor(NSAppleEventDescriptor(string: "/Users/lee"), forKeyword: code("GScD"))
+        return record
+    }
+
+    /// `focused terminal of selected tab of` the window Ghostty named.
+    private static let newTerminal = "obj{want:type'prop',from:obj{want:type'prop',from:obj{want:type'Gwnd',from:null,form:enum'ID  ',seld:\"tab-group-9\"},form:enum'prop',seld:type'GWsT'},form:enum'prop',seld:type'GTfT'}"
+
+    /// The probe's way, live on 10 November 2026: a new surface configuration, its `initial input` the command and a
+    /// return, Ghostty's other defaults kept, and a new window with it; never `command`.
+    @Test func aWindowIsOpenedWithANewConfigurationWhoseInitialInputIsTheCommandAndAReturn() async throws {
+        let answering = Answering([{ reply(Self.configuration) }, { reply(named("Gwnd", "tab-group-9")) }])
+
+        _ = try await answering.events.openWindow(running: "zmx attach 'kit · restore-card'")
+
+        #expect(answering.asked == [
+            Answering.Asked(event: "GhstNSCf", direct: "none", seconds: 5, pid: 501),
+            Answering.Asked(
+                event: "GhstNWin", direct: "none", seconds: 5, pid: 501,
+                parameters: ["GNwS": "reco{GScD:\"/Users/lee\",GScI:\"zmx attach 'kit · restore-card'\n\"}"]
+            ),
+        ])
+    }
+
+    @Test func theNewWindowsTerminalIsTheFocusedTerminalOfItsSelectedTabWhichTheFocusNames() async throws {
+        let answering = Answering([{ reply(Self.configuration) }, { reply(named("Gwnd", "tab-group-9")) }, { reply() }])
+        let terminal = try #require(try await answering.events.openWindow(running: "zmx attach kit"))
+
+        #expect(rendered(terminal.descriptor) == Self.newTerminal)
+
+        try await answering.events.focus(terminal)
+
+        #expect(answering.asked.map(\.event) == ["GhstNSCf", "GhstNWin", "GhstFcus"])
+        #expect(answering.asked.last?.direct == Self.newTerminal)
+    }
+
+    @Test func ghosttyNotRunningIsSentNothingAndOpensNothingAsANewWindowWouldLaunchIt() async throws {
+        let sent = OSAllocatedUnfairLock(initialState: 0)
+        let events = GhosttyEvents(ghostty: { nil }) { _, _ in
+            sent.withLock { $0 += 1 }
+            return GhosttyEvents.Sent(status: 0, reply: reply())
+        }
+
+        #expect(try await events.openWindow(running: "zmx attach kit") == nil)
+        #expect(sent.withLock { $0 } == 0)
+    }
+
+    /// No handler for `new surface configuration`, an opening's first event, is a Ghostty too old to open a window;
+    /// a later event's is Ghostty's error, as is a configuration or a window answered with nothing, AppleScript's first
+    /// of nothing.
+    @Test(arguments: [
+        ([replied(-1708)], GhosttyFailure.cannotOpen),
+        ([unsent(-1708)], .cannotOpen),
+        ([unsent(-1712)], .noAnswer),
+        ([{ GhosttyEvents.Sent(status: 0, reply: reply(GhosttyEventsTests.configuration)) }, replied(-1708)], .gave(-1708, said: nil)),
+        ([{ GhosttyEvents.Sent(status: 0, reply: reply()) }], .gave(-1719, said: nil)),
+        ([{ GhosttyEvents.Sent(status: 0, reply: reply(GhosttyEventsTests.configuration)) }, { GhosttyEvents.Sent(status: 0, reply: reply()) }], .gave(-1719, said: nil)),
+    ] as [([Answering.Answer], GhosttyFailure)])
+    func anOpeningsErrorsAreReadInPlainWords(answers: [Answering.Answer], failure: GhosttyFailure) async {
+        await #expect(throws: failure) {
+            try await Answering(sending: answers).events.openWindow(running: "zmx attach kit")
+        }
+    }
+
+    @Test func aGhosttyTooOldToOpenAWindowSaysSoInPlainWords() {
+        #expect(GhosttyFailure.cannotOpen.description == "This Ghostty cannot open a window for SitRep: update Ghostty to 1.4 or later.")
     }
 
     @Test func aJumpStoppedLetsGoOfAnEventInFlightWhichRunsOnItsAnswerDropped() async {

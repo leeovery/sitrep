@@ -86,10 +86,13 @@ final class Gate: Sendable {
 }
 
 /// A Ghostty of windows, tabs and terminals, playing what the real one does with what it is told: the terminal on a
-/// device found, its tab's selection told, its window activated, it focused. It keeps every device it was asked about
-/// and everything it was told, and, told something, tells `onTold`, as an app comes to the front when it is. Not
-/// running, it finds nothing; failing, its every question fails so; held, its first question waits at the gate.
+/// device found, its tab's selection told, its window activated, it focused; a new window opened, its terminal
+/// `NEW-TERMINAL`. It keeps every device it was asked about and everything it was told, and, told something, tells
+/// `onTold`, as an app comes to the front when it is. Not running, it finds nothing and opens nothing; failing, its
+/// every question fails so; held, its first question waits at the gate.
 final class FakeGhostty: GhosttyScripting {
+    static let opened = "NEW-TERMINAL"
+
     private let windows: [FakeWindow]
     private let isRunning: Bool
     private let failure: GhosttyFailure?
@@ -110,10 +113,12 @@ final class FakeGhostty: GhosttyScripting {
 
     /// Each device it was asked for a terminal on.
     var asked: [String] { state.withLock(\.asked) }
-    /// What it was told: `activate window <id>`, `focus <id>`.
+    /// What it was told: `activate window <id>`, `focus <id>`, `open <command>`.
     var told: [String] { state.withLock(\.told) }
     /// The terminals it focused.
     var focused: [String] { told.filter { $0.hasPrefix("focus ") }.map { String($0.dropFirst("focus ".count)) } }
+    /// The commands each window it opened runs.
+    var opened: [String] { told.filter { $0.hasPrefix("open ") }.map { String($0.dropFirst("open ".count)) } }
 
     func terminal(on device: String) async throws -> GhosttyObject? {
         let isFirst = state.withLock { state in
@@ -150,6 +155,18 @@ final class FakeGhostty: GhosttyScripting {
 
     func focus(_ terminal: GhosttyObject) async throws {
         tell("focus \(terminal.descriptor.stringValue ?? "")")
+    }
+
+    func openWindow(running command: String) async throws -> GhosttyObject? {
+        guard isRunning else {
+            return nil
+        }
+        if let failure {
+            throw failure
+        }
+
+        tell("open \(command)")
+        return GhosttyObject(descriptor: NSAppleEventDescriptor(string: Self.opened))
     }
 
     private func tell(_ line: String) {

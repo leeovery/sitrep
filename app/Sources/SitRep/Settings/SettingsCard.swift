@@ -57,18 +57,20 @@ struct SettingsCard<Content: View>: View {
     }
 }
 
-/// Words under what a section shows, in its line's style, with a push button against the column's right: the desktop
-/// corner's caption and Send Test, and Needs /reload-plugins' note and Copy.
+/// Words under what a section shows, in its line's style, with any push button against the column's right: the
+/// desktop corner's caption and Send Test, Needs /reload-plugins' note and Copy, and New windows' note alone.
 struct CaptionRow: View {
     let words: Text
-    let button: String
-    let action: () -> Void
+    var button: String?
+    var action: () -> Void = {}
 
     var body: some View {
         HStack(spacing: 16) {
             words.font(.subheadline).foregroundStyle(SettingsStyle.secondary)
             Spacer(minLength: 0)
-            Button(button, action: action).buttonStyle(.bordered).fixedSize()
+            if let button {
+                Button(button, action: action).buttonStyle(.bordered).fixedSize()
+            }
         }
         .padding(.top, 8)
         .padding(.horizontal, SettingsStyle.inset)
