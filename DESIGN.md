@@ -7328,6 +7328,14 @@ open), and tmux passing an escape sequence through from Claude's own pane
        its Claude, leaving nothing to attach to; never on an away row.
      - **A command that fails** shows its own error in the window it
        opened, at the user's prompt: SitRep does not watch it.
+     - **Only into a terminal already running**: SitRep never launches it
+       (Ghostty's `new window` would, and Ghostty opens a first window of
+       its own as it starts), and says so in plain words.
+     - **One window per click**: an opening is remembered for 10 seconds,
+       so a second click while the new window's shell starts opens no
+       second window.
+     - **What SitRep says**: the caption "Opened a window for <name>"; a
+       refusal's banner "SitRep could not open a window", with why.
      - **A session gone needs nothing new.** When its Claude ends, its
        window stops beating, and within 90 seconds (at once on a clean
        exit) no live window holds the session: it reads as no window
