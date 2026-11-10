@@ -2385,9 +2385,10 @@ Then where each part lives:
   a window, and Spaces. It sits behind two interfaces, the two axes the jump
   already has (see "The jump"):
   - **terminal drivers**: focus the window on a device; open a new window
-    running a command;
-  - **multiplexer adapters**: list a session's clients; give the command
-    that attaches to it.
+    and type a command into it;
+  - **multiplexer adapters**: list a session's clients; give the facts a
+    session's window recorded (its name, socket, pane). How to attach is
+    no adapter's: it is the user's open command (step C of stage 7).
 - **The mod still records where its window is**, in its heartbeat's
   `where`: only it sees its environment, its device, `$TMUX_PANE` and
   `$ZMX_SESSION`.
@@ -7006,13 +7007,13 @@ open), and tmux passing an escape sequence through from Claude's own pane
 6. **Opening what isn't on screen**: a new Ghostty window attached to a
    tmux session running with no window, as `code-OQWkFt · sitrep` and
    `portal-rex` were on 13 October. Folded into stage 7 as its step C (9
-   November 2026), for zmx as for tmux, the command that attaches a
-   setting.
+   November 2026), for zmx as for tmux: one open command, a setting.
 7. **The Mac's work moves into SitRep**, planned with Lee on 9 November
    2026 (see "The structure"): the jump and on screen first, at parity with
    the CLI's; then the CLI's retired; then a window opened for a session no
-   terminal shows; then a Space chosen to open it on. Each step is a PR of
-   its own, leaving SitRep working, with DESIGN brought up to date in it.
+   terminal shows (step D, a Space chosen to open it on, dropped with Lee
+   on 10 November 2026). Each step is a PR of its own, leaving SitRep
+   working, with DESIGN brought up to date in it.
 
    **A. The jump and on screen in SitRep**, at parity with the CLI's (see
    "The jump"): the tmux and zmx adapters, the innermost of two, the seat,
@@ -7281,116 +7282,96 @@ open), and tmux passing an escape sequence through from Claude's own pane
 
    **C. A window opened for a session no window shows**: one a live window
    holds, alive in its multiplexer with no client in a terminal app, which
-   a jump refuses today as not on screen. Stage 6 is this step.
-   - **Decided:**
-     - **An attach command for each multiplexer, a setting**, filled from
-       what the window's heartbeat holds: `zmx attach {session}` and `tmux
-       -S {socket} attach -t {pane}` by default, `{socket}` reaching a tmux
-       server off its default socket. Lee's zmx one is `portal open -s
-       {session}`: SitRep knows no Portal, only the command it is given.
-       Each value goes in quoted for the shell, as zmx names hold spaces
-       and `·`.
-     - **The session named by what cannot change under it**: a zmx
-       session's name is fixed for its life (zmx renames nothing, and
-       Portal's `rename` sets a label of Portal's own, leaving the name), so
-       zmx's `{session}` is the window's `$ZMX_SESSION`. A tmux session can
-       be renamed, so a heartbeat names the pane (`$TMUX_PANE`, an id fixed
-       for the pane's life, which is Claude's), and tmux's default attaches
-       by it, which also puts Claude's window and pane in front. A command
-       of Lee's own that wants tmux's `{session}` gets the name of the
-       session holding the pane, asked of tmux as the window opens, so a
-       rename since is followed. That tmux attaches by a pane id is checked
-       against a real tmux before C merges, as this Mac has none.
-     - **The terminal driver opens a new window running it**: Ghostty's
-       `new window with configuration`, a surface configuration (`new
-       surface configuration`) whose `command` is the attach command.
-       Ghostty 1.4.0's dictionary also gives a configuration `initial
-       working directory`, `environment variables` and `wait after
-       command`, and `new window` answers with the window it made (checked
-       with `sdef`, 9 November 2026). Then Ghostty is kept in front as a
-       jump keeps it.
-     - **Offered only where on screen is off**: never unknown, never for a
-       window in no multiplexer, which has nothing to attach, and never on
-       an away row (below).
-     - **The parked "what a click on an away row opens"** (16 October 2026:
-       for Lee, a new Ghostty window attached to its tmux session, where
-       there is one) splits in two. A session a live window holds that no
-       terminal shows is no away row: its row is Working, Your turn or
-       Needs you, and C answers it. An away row's session has no live
-       window, so no Claude to attach to, and a multiplexer session its
-       last window ran in, where one still lives, holds a shell, not
-       Claude. C gives it the means, the driver's new window running a
-       command, but not the command, which would start a Claude carrying
-       the session on. That stays parked, and is asked below.
-     - **Proposed:** a window opens only into a Ghostty already running,
-       and is refused in plain words otherwise: `new window` launches
-       Ghostty, which opens a first window of its own as it starts.
-       Whether a session is on screen is read as the card or the menu
-       opens, where Open is offered, not at every look of `watch`.
-   - **Settled with Lee** (9 November 2026):
-     - **A click on a session no terminal shows opens its window at once**,
-       through the Space picker (D), where a jump is refused today; no Open
-       in a New Window beside Jump.
-     - **A new window**, not a tab in Ghostty's front window, so it can
-       open on the Space picked.
-     - **tmux's default gives the socket**, as above.
-     - **An away row stays parked**: a Claude started to carry its session
-       on is a feature of its own.
-   - **Risks:**
-     - **How Ghostty runs the command, and with which PATH**: through a
-       shell or directly, from launchd's PATH, which has no
-       `/opt/homebrew/bin`, so `zmx` or `portal` may not be found. SitRep
-       knows Lee's login PATH (`LoginPath`) and can hand it in through the
-       configuration's `environment variables`, or give the program by its
-       full path. Checked before building.
-     - **A command that fails closes its window at once**, unless `wait
-       after command` holds it, which would also hold it after a normal
-       detach. Which is better is found live.
-     - **"Switch to a Space with open windows"**, which the jump needs,
-       may take Lee to a Space holding Ghostty's other windows as Ghostty
-       is activated to open one. Checked live, with Lee's go, before
-       building.
-
-   **D. A Space picker** on opening.
-   - **Decided:**
-     - **SitRep lists the Spaces** through the window server's private
-       call (`CGSCopyManagedDisplaySpaces`), each display's in order, each
-       named by the projects whose windows are on it (`Desktop 3 · Orchard,
-       Lantern`).
-     - **Lee picks one; SitRep goes there, then opens the window**, as a
-       new window opens on the Space showing.
-     - **Going there**: the instant switch researched on 6 November 2026
-       (a synthetic Dock swipe; `~/Code/sitrep/.scratch/space-switch/README.md`
-       in Lee's clone), or Mission Control's "Switch to Desktop N"
-       shortcuts, pressed by SitRep. Either needs Accessibility, a leave
-       SitRep asks for only once Lee turns the picker on.
-     - **No new Space**: macOS gives no way to make one.
-     - **A setting**: ask which Space as a window opens, or open it on the
-       current Space, which needs no Accessibility.
-     - **Proposed:** full-screen Spaces left out of the list, as a window
-       cannot be opened into another app's.
-   - **Settled with Lee** (9 November 2026):
-     - **The setting asks by default**; the current Space is the other
-       choice.
-     - **The shortcuts' slide**, macOS's own, as the jump slides, once the
-       shortcuts are turned on in Keyboard settings, for Desktops 1 to 16.
-       Not the instant switch: a cut in about 156ms, but only on the display
-       under the pointer, through a private gesture an update can break.
-     - **A Space is named by the windows SitRep knows**: those it has
-       jumped to or opened, the front window after each. Ghostty's window
-       ids name its tab groups (`tab-group-…`, checked 9 November 2026), so
-       a session's window is matched to the window server's no other way
-       short of every window's title, which needs Screen Recording, a third
-       leave, not asked for.
-   - **Risks:**
-     - **Private calls** list the Spaces and say which Space a window is
-       on (`CGSCopySpacesForWindows`), and macOS may change them. They are
-       only read: setting the current Space from outside the Dock leaves
-       the Dock out of step (found 5 November 2026).
-     - **"Switch to Desktop N" with a Space per display**: whether N counts
-       across displays is to be checked.
-     - **The window landing on the Space chosen**: as in C, activating
-       Ghostty may go back to a Space with its other windows.
+   a jump refuses today as not on screen. Stage 6 is this step. Its shape
+   was settled with Lee on 10 November 2026, replacing what the plan of 9
+   November said (an attach command for each multiplexer, and a Space
+   picker, step D, now dropped).
+   - **Two concerns, kept apart:**
+     - **Discovery is the multiplexers'**: the tmux and zmx adapters read
+       whether any terminal shows a session (step A), and give the facts a
+       session's window recorded: its zmx session's name, its tmux socket
+       and pane. They know nothing of opening.
+     - **Opening is the settings'**: SitRep has no built-in way to attach.
+       It opens a window in the terminal Lee chose and runs the one command
+       Lee gave it there.
+   - **Decided with Lee** (10 November 2026):
+     - **One open command, a setting**, empty until Lee gives one: for Lee,
+       `portal open -s {session}`. SitRep knows no Portal, no `zmx attach`
+       and no `tmux attach`: what the command does is the user's, and
+       whether it works is the user's too.
+     - **Placeholders**, filled from the facts of the session's live
+       window, each value quoted for the shell: `{session}` (the zmx
+       session's name, `$ZMX_SESSION`; in tmux, the name of the session
+       holding Claude's pane, asked of tmux as the window opens, as tmux
+       sessions can be renamed), `{socket}` and `{pane}` (tmux's). A
+       command naming one the session has no fact for, or one SitRep does
+       not know, is refused at the click in plain words.
+     - **The terminal, a setting**: a menu of the terminals SitRep has a
+       driver for, Ghostty alone today. Used only to open a window: a jump
+       reads which app shows a session from the processes, and needs no
+       setting. Inferring it was weighed and left: as a window is opened
+       no terminal shows the session, so it could only be the terminal the
+       session started in, which need not be the one wanted.
+     - **The terminal driver opens the window**: a new window running the
+       user's own login shell, with the filled command typed in as its
+       first line and a return (Ghostty's `initial input`), then focused,
+       and the terminal kept in front as a jump keeps it. So the command
+       runs with the user's own PATH and environment, as if typed by hand,
+       and a detach leaves the user at the prompt. SitRep closes no window,
+       ever, and sets nothing on how a window ends.
+     - **On the current Space.** No Space picker: SitRep takes Lee to a
+       window wherever it is, and choosing where a new one goes is outside
+       that. Lee moves the window after, or goes to the Space first.
+     - **Only where SitRep knows no terminal shows the session**: never on
+       unknown, which could make a second window of one already there;
+       never for a window in no multiplexer, as closing its terminal ended
+       its Claude, leaving nothing to attach to; never on an away row.
+     - **A command that fails** shows its own error in the window it
+       opened, at the user's prompt: SitRep does not watch it.
+     - **Only into a terminal already running**: SitRep never launches it
+       (Ghostty's `new window` would, and Ghostty opens a first window of
+       its own as it starts), and says so in plain words.
+     - **One window per click**: an opening is remembered for 10 seconds,
+       so a second click while the new window's shell starts opens no
+       second window.
+     - **What SitRep says**: the caption "Opened a window for <name>"; a
+       refusal's banner "SitRep could not open a window", with why.
+     - **A session gone needs nothing new.** When its Claude ends, its
+       window stops beating, and within 90 seconds (at once on a clean
+       exit) no live window holds the session: it reads as no window
+       holding it, and there is nothing to open. A click in those seconds
+       runs the command, and the command's own error says the session is
+       gone (Portal's `-s` never makes one). A new Claude that takes the
+       session up, by `claude --resume` or by joining it, beats with its
+       own window's facts, and the session can be jumped to or opened
+       again, by its new name.
+   - **Settled with Lee** (9 November 2026), still standing: a click opens
+     the window at once, where a jump is refused today, with no "Open in a
+     New Window" beside Jump; a new window, not a tab; an away row stays
+     parked (a Claude started to carry its session on is a feature of its
+     own).
+   - **Probed live** (10 November 2026, with Lee's go), which settled the
+     typing above: Ghostty runs a configuration's `command` as `login -flp
+     <user> /bin/bash --noprofile --norc -c "exec -l <command>"`, with
+     launchd's PATH (`/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin` and
+     Ghostty's own folder: no `zmx`, no `portal`), and keeps the window when
+     the command ends ("Process exited. Press any key to close the
+     terminal."). A window opened with `initial input` instead ran Lee's
+     own shell, his full PATH, the line once his prompt came, and came up
+     focused, on the Space he was on, with no Space switch. The typed line
+     also shows once above "Last login", echoed by the terminal before the
+     shell starts.
+   - **Safety, the typing's own**: the line goes through the terminal's
+     line discipline and the shell's line editor, which act on control
+     characters before any quoting, so a value holding one could erase the
+     line typed so far and run the rest. A command or value holding a
+     character that does not print is refused, and a placeholder must
+     stand as a whole word outside any quotes (found in review, 10 November
+     2026).
+   - **Risks:** a shell startup file that reads the terminal (an update
+     prompt) could take the typed line; tmux's attach by pane id and its
+     session name asked by pane are checked on a Mac with tmux before
+     relied on (this one has none).
 
 ## Later
 
