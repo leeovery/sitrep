@@ -78,8 +78,8 @@ struct TmuxTests {
         try FileManager.default.createDirectory(at: decoy.appending(path: "tmux"), withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: decoy) }
 
-        #expect(TmuxOnPath.find("tmux", on: "\(decoy.path):\(folder.path)") == folder.appending(path: "tmux"))
-        #expect(TmuxOnPath.find("tmux", on: decoy.path) == nil)
+        #expect(ProgramOnPath.find("tmux", on: "\(decoy.path):\(folder.path)") == folder.appending(path: "tmux"))
+        #expect(ProgramOnPath.find("tmux", on: decoy.path) == nil)
     }
 
     @Test func tmuxNotOnThePathOrNotAnsweringInTimeGivesNoAnswerNeverAnAnswerOfNoServer() async throws {

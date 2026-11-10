@@ -83,6 +83,15 @@ struct SettingsStillsTests {
         try Self.pane(pane, await Self.settings(Self.preferences(), windows: Self.current), pane.rawValue)
     }
 
+    /// New windows with Lee's own zmx command, and a tmux one SitRep cannot type, warned of under its field.
+    @Test func generalWithCommandsGiven() async throws {
+        let preferences = Self.preferences()
+
+        preferences.app.zmxAttach = "portal open -s {session}"
+        preferences.app.tmuxAttach = "tmux attach -t {sesion}"
+        try Self.pane(.general, await Self.settings(preferences, windows: Self.current), "general-commands")
+    }
+
     @Test(arguments: [EdgeSettings.Show.strip, .nothing])
     func edgeAtEachChoice(show: EdgeSettings.Show) async throws {
         let settings = await Self.settings(Self.preferences { $0.show = show }, windows: Self.current)

@@ -69,17 +69,19 @@ public struct GhosttyEvents: GhosttyScripting {
         try await tell { GhosttyEvent.focus(terminal) }
     }
 
-    /// A configuration or a window Ghostty answers with none fails as AppleScript fails to find the first item of
-    /// nothing (-1719).
-    public func openWindow(running command: String) async throws -> GhosttyObject? {
+    /// A configuration Ghostty answers with none fails as AppleScript fails to find the first item of nothing (-1719).
+    /// Once `new window` has answered, a window is open, whether or not its answer names it.
+    public func openWindow(running command: String) async throws -> NewWindow {
         guard ghostty() != nil else {
-            return nil
+            return .notRunning
         }
 
         let configuration = try await made({ GhosttyEvent.newConfiguration }, at: .opening)
-        let window = try await made { GhosttyEvent.newWindow(configuration, typing: command + "\n") }
+        let window = try await ask(
+            { GhosttyEvent.newWindow(configuration, typing: command + "\n") }, at: .newWindow
+        ).first
 
-        return GhosttyObject(descriptor: Specifier.focusedTerminal(of: window.descriptor))
+        return .opened(window.map { GhosttyObject(descriptor: Specifier.focusedTerminal(of: $0)) })
     }
 
     /// What Ghostty answered a question, its direct object as a list's items.
@@ -168,9 +170,9 @@ struct GhosttyEvent {
     var parameters: [AEKeyword: NSAppleEventDescriptor] = [:]
 
     /// Which event a failure came from, as its errors are read: the lookup, a jump's first; the new configuration, an
-    /// opening's first; or a later one.
+    /// opening's first; the new window, after which a window may be open; or a later one.
     enum Place {
-        case lookup, opening, later
+        case lookup, opening, newWindow, later
     }
 
     /// The event to the process.
@@ -301,9 +303,12 @@ struct GhosttyEvent {
     /// to take no Get Data (-1708), and one without a terminal's `tty` to resolve no specifier naming it (-1728). Both
     /// are unproven live until `LiveEventsTests` runs. Only the lookup's are read so, as a later event's no such object
     /// is a terminal gone since it was found. An opening's first event, naming no term, is too old to open a window
-    /// where Ghostty takes no `new surface configuration` (-1708), as one before 1.4 does not.
+    /// where Ghostty takes no `new surface configuration` (-1708), as one before 1.4 does not. A new window not answered
+    /// in time may open all the same, and is said so.
     static func failure(number: Int, said: String?, at place: Place) -> GhosttyFailure {
         switch (number, place) {
+        case (timedOut, .newWindow):
+            .windowUnanswered
         case (timedOut, _):
             .noAnswer
         case (notHandled, .lookup), (noSuchObject, .lookup):

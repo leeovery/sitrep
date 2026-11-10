@@ -14,7 +14,7 @@ import SitRepPanel
 @MainActor
 final class NotchController: NSObject, CalloutShape {
     /// A click on a row: the session to jump to, and what to tell once the jump answers, whether it jumped.
-    var onJump: (String, @escaping (Bool) -> Void) -> Void = { _, _ in }
+    var onJump: (String, @escaping (JumpAnswer) -> Void) -> Void = { _, _ in }
     /// A row's menu's Snooze: the session, what its row showed to snooze, its asks or its turn, and the time chosen.
     var onSnooze: (String, Snoozable, SnoozeTime) -> Void = { _, _, _ in }
     /// A Snoozed row's menu's Wake now: the session, and what its row showed asleep, its asks or its turn.
@@ -274,7 +274,7 @@ final class NotchController: NSObject, CalloutShape {
     /// A row pressed in jumps to its session; the caption says where once the jump has jumped.
     private func jump(from session: Session, to target: String, click: Int) {
         caption.jumping(to: session.project)
-        onJump(target) { [weak self] in self?.answered(jumped: $0, click: click) }
+        onJump(target) { [weak self] in self?.answered($0, click: click) }
     }
 
     /// A right-click on a row, away or not: its menu (`RowMenu`), which holds the card open while it shows. What it
@@ -315,13 +315,13 @@ final class NotchController: NSObject, CalloutShape {
     }
 
     /// The jump a click asked for answered; an answer to an earlier click changes nothing.
-    private func answered(jumped: Bool, click: Int) {
+    private func answered(_ answer: JumpAnswer, click: Int) {
         guard run.isLatest(click) else {
             return
         }
 
         run.jumpAnswered(moment())
-        caption.answered(jumped: jumped, at: run.time)
+        caption.answered(answer, at: run.time)
         took()
     }
 

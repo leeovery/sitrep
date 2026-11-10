@@ -72,18 +72,26 @@ final class CaptionWindow {
         case .ended(.unanswered):
             pending = nil
             show(JumpCaption.tooBusy)
-        case .ended(.stopped):
+        case .ended(.stopped), .ended(.openable):
             break
-        case .ended(.jumped), .ended(.refused):
+        case .ended(.jumped), .ended(.opened), .ended(.opening), .ended(.refused):
             letGo()
         }
     }
 
-    /// The jump answered: whether it jumped. A jump refused leaves no caption.
-    func answered(jumped: Bool, at time: Double) {
-        if jumped {
-            pending?.jumped(at: time)
-        } else {
+    /// The jump answered how it landed, where it did: "Jumped to…", or "Opened a window for…" and the like. A jump
+    /// refused leaves no caption; one with a window still to open, none yet.
+    func answered(_ answer: JumpAnswer, at time: Double) {
+        switch answer {
+        case .jumped:
+            pending?.landed(.jumped, at: time)
+        case .opened:
+            pending?.landed(.opened, at: time)
+        case .opening:
+            pending?.landed(.opening, at: time)
+        case .openable:
+            return
+        case .refused, .unanswered, .stopped:
             pending = nil
         }
         showWhenDue(at: time)

@@ -159,24 +159,32 @@ struct SettingsLayoutTests {
         #expect(abs(narrow.control.maxX - (300 - 10)) < 0.5)
     }
 
-    /// Down the column, each pane is black but for its cards and the desktop corner, its first 13 under the toolbar:
-    /// a section's header's line of 16 and 10 over its card, the sections 26 apart. General's first two cards a row of
-    /// 52 each, then New windows' two rows of 52 and its caption's words, which reach where the column is read; Edge's
-    /// the Show row's 86, then Notch's four, 52, 38, 52 and 52, then Motion's 52; Notifications' corner of 150 and the
-    /// caption's row of 32, then Banners' two rows of 52 and Sound's 52 and 38. Within a pixel at the screen's scale,
-    /// which lays the pane out.
+    /// Down the column, each pane is black but for its cards and the desktop corner, and the words of a caption under a
+    /// card, its first 13 under the toolbar: a section's header's line of 16 and 10 over its card, the sections 26
+    /// apart. General's first two cards a row of 52 each, then New windows' two rows of 52, its caption's words in the
+    /// 8 and two lines of 14 under it; Edge's the Show row's 86, then Notch's four, 52, 38, 52 and 52, then Motion's
+    /// 52; Notifications' corner of 150 and the caption's row of 32, then Banners' two rows of 52 and Sound's 52 and
+    /// 38. What is shorter than a row is a caption's words, and lies in its lines. Within a pixel at the screen's
+    /// scale, which lays the pane out.
     @Test(arguments: [
-        (SettingsPane.general, [39 ... 91, 143 ... 195, 247 ... 351.5, 364 ... 370.5]),
-        (.edge, [13 ... 99, 151 ... 346.5, 398.5 ... 450.5]),
-        (.notifications, [13 ... 163, 247 ... 351.5, 403.5 ... 494]),
-    ] as [(SettingsPane, [ClosedRange<CGFloat>])])
-    func eachPanesCardsStandAtTheirHeights(pane: SettingsPane, drawing: [ClosedRange<CGFloat>]) async throws {
+        (SettingsPane.general, [39 ... 91, 143 ... 195, 247 ... 351.5], [351.5 ... 389.5]),
+        (.edge, [13 ... 99, 151 ... 346.5, 398.5 ... 450.5], []),
+        (.notifications, [13 ... 163, 247 ... 351.5, 403.5 ... 494], [163 ... 195]),
+    ] as [(SettingsPane, [ClosedRange<CGFloat>], [ClosedRange<CGFloat>])])
+    func eachPanesCardsStandAtTheirHeights(
+        pane: SettingsPane, drawing: [ClosedRange<CGFloat>], captions: [ClosedRange<CGFloat>]
+    ) async throws {
         let drawn = try await Hosted.drawn(pane, width: Self.drawingsPane)
         let spans = drawn.litSpans(atX: Self.edge + 232)
+        let isCard = { (span: ClosedRange<CGFloat>) in span.upperBound - span.lowerBound >= SettingsStyle.oneLineRow }
+        let cards = spans.filter(isCard)
 
-        #expect(spans.count == drawing.count)
-        for (span, expected) in zip(spans, drawing) {
+        #expect(cards.count == drawing.count)
+        for (span, expected) in zip(cards, drawing) {
             #expect(expected.isWithinAPixel(of: span, at: drawn.scale))
+        }
+        for words in spans.filter({ !isCard($0) }) {
+            #expect(captions.contains { $0.contains(words.lowerBound) && $0.contains(words.upperBound) }, "\(words)")
         }
     }
 

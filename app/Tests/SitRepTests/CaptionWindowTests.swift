@@ -80,10 +80,25 @@ struct CaptionWindowTests {
         caption.jumping(to: "SitRep")
         caption.drained(at: 0)
         caption.heard(.still)
-        caption.answered(jumped: true, at: 2000)
+        caption.answered(.jumped, at: 2000)
         caption.heard(.ended(.jumped))
 
         #expect(caption.says == "Jumped to SitRep's window")
+    }
+
+    /// A row's click that opened a window, no window showing its session: "Opened a window for…", once the opening
+    /// ends; the jump that found it could, answering openable, ends nothing.
+    @Test func aRowsOpeningSaysItOpenedAWindow() {
+        let caption = Self.shown()
+
+        defer { caption.window.close() }
+        caption.jumping(to: "SitRep")
+        caption.drained(at: 0)
+        caption.heard(.ended(.openable))
+        caption.answered(.opened, at: 500)
+        caption.heard(.ended(.opened))
+
+        #expect(caption.says == "Opened a window for SitRep")
     }
 
     /// An earlier jump's stop, heard after a row's click began its own, leaves that row's "Jumped to…" waiting for its
@@ -95,7 +110,7 @@ struct CaptionWindowTests {
         caption.jumping(to: "SitRep")
         caption.drained(at: 0)
         caption.heard(.ended(.stopped))
-        caption.answered(jumped: true, at: 500)
+        caption.answered(.jumped, at: 500)
 
         #expect(caption.says == "Jumped to SitRep's window")
     }
@@ -141,7 +156,7 @@ struct CaptionWindowTests {
         caption.mayShow = true
         caption.jumping(to: "SitRep")
         caption.drained(at: 0)
-        caption.answered(jumped: true, at: 0)
+        caption.answered(.jumped, at: 0)
         return caption
     }
 }

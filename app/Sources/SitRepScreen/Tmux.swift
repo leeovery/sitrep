@@ -93,6 +93,9 @@ public struct TmuxAdapter: Multiplexer {
         return values
     }
 
+    /// Nothing more to ask: the screen's reading found the pane on its server (`TmuxReading.holds`).
+    public func confirm(_: Board.Window.Where) async throws {}
+
     private func askSessionName(holding pane: Board.Window.Where.Tmux) async throws -> String {
         let asked = "tmux, asked which session holds its pane,"
 
@@ -240,53 +243,20 @@ struct TmuxReading: Reading {
 }
 
 /// The real tmux, told its client takes UTF-8 (`-u`): without it, run with no UTF-8 locale and no `$TMUX`, as SitRep
-/// runs, a tmux 3.8 server writes each tab of a `-F` format as `_` (live, 22 October 2026). Each run has 2 seconds, and
-/// is ended with its process group at its limit, as the CLI's tmux was.
-///
-/// It is found once, on the PATH given, so one is made for each read with Lee's PATH as it then stands: a tmux
-/// installed or removed since shows at the next read. None found, every run gives no answer.
+/// runs, a tmux 3.8 server writes each tab of a `-F` format as `_` (live, 22 October 2026). Found on Lee's PATH, with
+/// 2 seconds a run (`ProgramOnPath`).
 public struct TmuxOnPath: TmuxProgram {
-    static let limit: TimeInterval = 2
-
-    private let executable: URL?
-    private let environment: [String: String]
-    private let runner: Runner
+    private let tmux: ProgramOnPath
 
     public init(
         path: String,
         environment: [String: String] = ProcessInfo.processInfo.environment,
         run: @escaping Runner = runProgram
     ) {
-        executable = Self.find("tmux", on: path)
-        self.environment = environment.merging(["PATH": path]) { _, given in given }
-        runner = run
+        tmux = ProgramOnPath("tmux", path: path, environment: environment, run: run)
     }
 
     public func run(on socket: String, _ words: [String]) async -> Ran? {
-        guard let executable else {
-            return nil
-        }
-
-        return try? await runner(
-            Program(
-                executable: executable,
-                arguments: ["-u", "-S", socket] + words,
-                environment: environment,
-                limit: Self.limit,
-                stopping: .group
-            )
-        )
-    }
-
-    /// The first executable file of the name in the PATH's folders, as a shell finds it: never a folder.
-    static func find(_ name: String, on path: String) -> URL? {
-        path.split(separator: ":").lazy
-            .map { URL(fileURLWithPath: String($0)).appending(path: name) }
-            .first { file in
-                var isFolder: ObjCBool = false
-
-                return FileManager.default.fileExists(atPath: file.path, isDirectory: &isFolder) && !isFolder.boolValue
-                    && FileManager.default.isExecutableFile(atPath: file.path)
-            }
+        await tmux.run(["-u", "-S", socket] + words)
     }
 }

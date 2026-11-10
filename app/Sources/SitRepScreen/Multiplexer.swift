@@ -16,10 +16,13 @@ public protocol Multiplexer: Sendable {
     /// Reads what it needs for the windows that run in it, each program within its limit; nothing that fails here
     /// fails the read.
     func read(_ windows: [Board.Window.Where]) async -> any Reading
-    /// The values of the placeholders wanted, of its kind's, for a window in it, as a window attaching to it
-    /// opens: what can change under the window asked of the multiplexer then, the rest from the heartbeat. Throws
+    /// The values of the placeholders wanted, of its kind's, for a window in it, as a jump finds the window to attach
+    /// to: what can change under the window asked of the multiplexer then, the rest from the heartbeat. Throws
     /// `Unattachable` where what it was asked gave no answer.
     func attachValues(_ where: Board.Window.Where, wanted: Set<Placeholder>) async throws -> [Placeholder: String]
+    /// Confirms the window's session is there to attach to, where reading the screen could not: throws `SessionGone`
+    /// where it has gone, and `Unattachable` where what it was asked gave no answer.
+    func confirm(_ where: Board.Window.Where) async throws
 }
 
 /// What a multiplexer read of the screen, for the windows in it.

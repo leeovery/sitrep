@@ -1,7 +1,12 @@
-/// What a jump came to: the window brought forward; why not, in plain words; no answer in time, within the jump's limit,
-/// as when the Mac is too busy; or stopped, as a later click's jump took its place.
+/// What a jump came to: the window brought forward; no window showing the session, but one to be opened for it, which
+/// comes next; a window opened for it; one opened for it a moment ago, which it is not on screen in yet; why not, in
+/// plain words; no answer in time, within the jump's limit, as when the Mac is too busy; or stopped, as a later click's
+/// jump took its place.
 public enum JumpAnswer: Sendable, Equatable {
     case jumped
+    case openable
+    case opened
+    case opening
     case refused(String)
     case unanswered
     case stopped

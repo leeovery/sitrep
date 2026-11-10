@@ -76,7 +76,7 @@ struct JumpTests {
     @Test func withNoClientOnTheSessionsTmuxServerTheTableGoesUnusedSoItGivingNoAnswerIsNoMatter() async {
         let jumping = Jumping(server([]), FakeTable(nil))
 
-        #expect(await jumping.run([inTmux()]) == .jumped)
+        #expect(await jumping.open([inTmux()]) == .opened)
         #expect(jumping.ghostty.opened == [attachingClaudesPane])
     }
 
@@ -106,7 +106,7 @@ struct JumpTests {
         let clients = [mac.controlClient(showing: claudes)]
         let jumping = Jumping(server(clients), FakeTable(mac.tree), workspace: FakeWorkspace(front: finder))
 
-        #expect(await jumping.run([inTmux()]) == .jumped)
+        #expect(await jumping.open([inTmux()]) == .opened)
         #expect(jumping.ghostty.asked.isEmpty)
         #expect(jumping.ghostty.focused == [FakeGhostty.opened])
     }
@@ -130,7 +130,7 @@ struct JumpTests {
         for (why, windows, tmux, table, opened) in Self.notShown() {
             let jumping = Jumping(tmux, table, terminals: terminals + ownWindows(FakeTerminal(id: "LOOKALIKE", device: "/dev/ttys080")))
 
-            #expect(await jumping.run(windows) == (opened.isEmpty ? offScreen : .jumped), "\(why)")
+            #expect(await jumping.open(windows) == (opened.isEmpty ? offScreen : .opened), "\(why)")
             #expect(jumping.ghostty.asked.isEmpty, "\(why)")
             #expect(jumping.ghostty.opened == opened, "\(why)")
         }
@@ -270,7 +270,7 @@ struct JumpTests {
 
         let jumping = Jumping(FakeTmux(), FakeTable(mac.tree))
 
-        #expect(await jumping.run([inZmx("leeway")]) == .jumped)
+        #expect(await jumping.open([inZmx("leeway")]) == .opened)
         #expect(jumping.ghostty.asked.isEmpty)
         #expect(jumping.ghostty.told == ["open zmx attach leeway", "focus \(FakeGhostty.opened)"])
     }

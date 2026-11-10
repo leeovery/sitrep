@@ -3,14 +3,14 @@ import SitRepCore
 /// Reads where windows show: a window in a multiplexer shows in every terminal window of this Mac holding a client of
 /// its session (for tmux, on the tmux window holding its pane, or which a select could make show it), each seated by
 /// one step (`Processes.seat`); one outside any, in its own, when its terminal app is known. One is made for each read,
-/// as its tmux is found once, on Lee's PATH as it stands (`TmuxOnPath`).
+/// as its tmux and zmx are found once, on Lee's PATH as it stands (`ProgramOnPath`).
 public struct ScreenReader: Sendable {
     let multiplexers: [any Multiplexer]
     let table: any ProcessTable
 
     /// Every multiplexer a window may run in, tmux first, beside the process table.
-    public init(tmux: any TmuxProgram, table: any ProcessTable = KernelProcesses()) {
-        self.init(multiplexers: [TmuxAdapter(tmux), ZmxAdapter()], table: table)
+    public init(tmux: any TmuxProgram, zmx: any ZmxProgram, table: any ProcessTable = KernelProcesses()) {
+        self.init(multiplexers: [TmuxAdapter(tmux), ZmxAdapter(zmx)], table: table)
     }
 
     init(multiplexers: [any Multiplexer], table: any ProcessTable) {

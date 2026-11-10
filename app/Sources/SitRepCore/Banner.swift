@@ -38,10 +38,10 @@ public struct Banner: Equatable, Sendable {
 
 extension JumpAnswer {
     /// The banner a jump that came to this posts: a refusal in its own words, no answer in time as the Mac too busy;
-    /// none for one that jumped, nor for one a later click stopped, as that one goes on.
+    /// none for one that jumped or opened a window, nor for one a later click stopped, as that one goes on.
     public var banner: Banner? {
         switch self {
-        case .jumped, .stopped: nil
+        case .jumped, .openable, .opened, .opening, .stopped: nil
         case let .refused(why): .unjumped(why)
         case .unanswered: .tooBusy
         }

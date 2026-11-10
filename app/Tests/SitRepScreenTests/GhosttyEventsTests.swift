@@ -309,7 +309,13 @@ struct GhosttyEventsTests {
 
     @Test func theNewWindowsTerminalIsTheFocusedTerminalOfItsSelectedTabWhichTheFocusNames() async throws {
         let answering = Answering([{ reply(Self.configuration) }, { reply(named("Gwnd", "tab-group-9")) }, { reply() }])
-        let terminal = try #require(try await answering.events.openWindow(running: "zmx attach kit"))
+
+        guard case let .opened(opened) = try await answering.events.openWindow(running: "zmx attach kit"),
+              let terminal = opened
+        else {
+            Issue.record("no window's terminal")
+            return
+        }
 
         #expect(rendered(terminal.descriptor) == Self.newTerminal)
 
@@ -319,6 +325,16 @@ struct GhosttyEventsTests {
         #expect(answering.asked.last?.direct == Self.newTerminal)
     }
 
+    /// Once `new window` has answered, a window is open, whether or not the answer names it.
+    @Test func aNewWindowAnsweredWithoutNamingItIsOpenedWithNoTerminalToFocus() async throws {
+        let answering = Answering([{ reply(Self.configuration) }, { reply() }])
+
+        guard case .opened(nil) = try await answering.events.openWindow(running: "zmx attach kit") else {
+            Issue.record("not opened, or a terminal named")
+            return
+        }
+    }
+
     @Test func ghosttyNotRunningIsSentNothingAndOpensNothingAsANewWindowWouldLaunchIt() async throws {
         let sent = OSAllocatedUnfairLock(initialState: 0)
         let events = GhosttyEvents(ghostty: { nil }) { _, _ in
@@ -326,20 +342,23 @@ struct GhosttyEventsTests {
             return GhosttyEvents.Sent(status: 0, reply: reply())
         }
 
-        #expect(try await events.openWindow(running: "zmx attach kit") == nil)
+        guard case .notRunning = try await events.openWindow(running: "zmx attach kit") else {
+            Issue.record("opened with Ghostty not running")
+            return
+        }
         #expect(sent.withLock { $0 } == 0)
     }
 
     /// No handler for `new surface configuration`, an opening's first event, is a Ghostty too old to open a window;
-    /// a later event's is Ghostty's error, as is a configuration or a window answered with nothing, AppleScript's first
-    /// of nothing.
+    /// a later event's is Ghostty's error, as is a configuration answered with nothing, AppleScript's first of nothing.
+    /// A new window not answered in time may still open, and is said so.
     @Test(arguments: [
         ([replied(-1708)], GhosttyFailure.cannotOpen),
         ([unsent(-1708)], .cannotOpen),
         ([unsent(-1712)], .noAnswer),
         ([{ GhosttyEvents.Sent(status: 0, reply: reply(GhosttyEventsTests.configuration)) }, replied(-1708)], .gave(-1708, said: nil)),
+        ([{ GhosttyEvents.Sent(status: 0, reply: reply(GhosttyEventsTests.configuration)) }, unsent(-1712)], .windowUnanswered),
         ([{ GhosttyEvents.Sent(status: 0, reply: reply()) }], .gave(-1719, said: nil)),
-        ([{ GhosttyEvents.Sent(status: 0, reply: reply(GhosttyEventsTests.configuration)) }, { GhosttyEvents.Sent(status: 0, reply: reply()) }], .gave(-1719, said: nil)),
     ] as [([Answering.Answer], GhosttyFailure)])
     func anOpeningsErrorsAreReadInPlainWords(answers: [Answering.Answer], failure: GhosttyFailure) async {
         await #expect(throws: failure) {

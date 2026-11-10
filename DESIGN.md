@@ -5136,8 +5136,12 @@ live changed, and how they group.
   with it: "Bring a session's Ghostty window to the front", "So a click on
   a session jumps to it". **New windows** (stage 7, C, 10 November 2026):
   the command typed into a Ghostty window opened for a session no window
-  shows, a field for zmx's over one for tmux's, each greyed with SitRep's
-  own until Lee gives one, and a caption under the card; not yet drawn in
+  shows, a field for zmx's over one for tmux's, each row's line naming what
+  it fills ("Use {session}"), each field greyed with SitRep's own until Lee
+  gives one, what is wrong with a command in red under its field as he
+  types it, and under the card "A click on a session no window shows opens
+  a new Ghostty window and runs this command in it, each value filled in
+  already quoted. Leave blank to use the default."; not yet drawn in
   Paper. No row carries an icon. Update automatically and Check Now join
   General with the first public release.
 - **Claude Code**, the plugin's pane. **Plugin:** the Claude Code plugin,
@@ -7371,39 +7375,83 @@ open), and tmux passing an escape sequence through from Claude's own pane
        was focused. The line also shows once above "Last login", echoed by
        the tty before the shell starts reading it: cosmetic, and left.
    - **Built on 10 November 2026**, in `SitRepScreen` beside the jump, which
-     runs it where it would have refused a session as not on screen:
+     answers where it would have refused a session as not on screen:
      - **The attach commands** (`AttachCommands`, `Attach.swift`): Settings'
        General gains **New windows**, a field for zmx's command over one for
-       tmux's, each row's line naming what it fills ("Fills {session}",
-       "Fills {socket}, {pane} and {session}"), the fields in the monospaced
-       face, 300 wide, SitRep's own greyed in each while Lee has given none,
-       and under the card "A click on a session no window shows opens a
-       Ghostty window and types its command in. Left empty, SitRep's own."
-       Saved under "app" as `zmxAttach` and `tmuxAttach`, empty by default:
-       one left empty, or only spaces, is SitRep's own, so a default changed
-       later reaches a Mac that never set one. A placeholder is `{` a name of
-       letters and underscores `}`, so the shell's `{a,b}` and `{ …; }` are
-       left as written. A value goes in as typed where every character is a
-       letter, a digit or one of `%+,-./:@_`, so a socket and a pane read as
-       themselves, and in single quotes otherwise, each `'` closed, escaped
-       and opened again; `=` is quoted, as zsh expands a word it starts.
-     - **A placeholder the multiplexer cannot fill refuses the window**, in
-       words naming it ("… names {pane}, which SitRep cannot fill for zmx:
-       it fills {session}."), never typed as written, as `zmx attach` makes
-       a session of a name it does not have.
-     - **The multiplexer adapters give the values**: zmx's `{session}` from
-       the heartbeat; tmux's `{socket}` and `{pane}` from it, and `{session}`,
-       only where the command names it, from `display-message -p -t <pane>
-       '#{session_name}'` as the window opens, tmux's words or its silence a
-       refusal. tmux's own default asks tmux nothing more.
+       tmux's, each row's line naming what it fills ("Use {session}", "Use
+       {socket}, {pane} or {session}"), the fields in the monospaced face,
+       300 wide where the column has room and giving way, down to 200,
+       before the rows' words do, so each row keeps its one line at the
+       window's least width, the two fields lined up at every width; SitRep's
+       own greyed in each while Lee has given none, and under the card "A
+       click on a session no window shows opens a new Ghostty window and runs
+       this command in it, each value filled in already quoted. Leave blank
+       to use the default." What is wrong with a command shows as Lee types
+       it, in red under its field ("Names {sesion}, which SitRep cannot fill
+       for tmux: use {socket}, {pane} or {session}."), growing the row; the
+       card is drawn as General's other cards are. Saved under "app" as
+       `zmxAttach` and `tmuxAttach`, empty by default: one left empty, or
+       only spaces, is SitRep's own, so a default changed later reaches a Mac
+       that never set one. Not yet drawn in Paper.
+     - **A placeholder** is `{` a name of letters and underscores `}`, read
+       as the shell reads the command, far enough to know where it stands:
+       never after `$` or `#`, so the shell's `${…}` and tmux's `#{…}` are
+       left as written, nor escaped, and the shell's `{a,b}` and `{ …; }`
+       are no placeholders. A value goes in as typed where every character
+       is a letter, a digit or one of `%+,-./:@_`, so a socket and a pane
+       read as themselves, and in single quotes otherwise, each `'` closed,
+       escaped and opened again; `=` is quoted, as zsh expands a word it
+       starts. A value starting with `-` is left bare: no heartbeat's does.
+     - **What is typed prints, and nothing else**: the line is typed into
+       Lee's shell, where a control acts before any quoting does (^U wipes
+       the line, ^C abandons it, a newline runs what came before it). So a
+       command, or a value it is filled with, holding a control (C0, DEL,
+       C1), a format character (U+202E among them), a line or paragraph
+       separator, or one unassigned refuses the window, "… holds a character
+       that cannot be typed safely (U+0015)."; the one newline is SitRep's,
+       added after. The command is checked before the multiplexer is asked
+       anything, and the values before zmx is asked whether the session is
+       there; tmux is handed a pane only as a word of its own, never
+       through a shell. Settings shows the same words under the field.
+     - **A command SitRep cannot fill refuses the window**, never typed as
+       written, as `zmx attach` makes a session of a name it does not have:
+       a placeholder the multiplexer cannot fill ("the zmx attach command in
+       Settings names {pane}, which SitRep cannot fill for zmx: use
+       {session}."), or one inside quotes, `"{session}"` or `'{session}'`,
+       which would put SitRep's quotes inside its own ("… puts {session} in
+       quotes: SitRep quotes each value itself.").
+     - **The multiplexer adapters give the values, and say the session is
+       there**: zmx's `{session}` from the heartbeat, and the session asked
+       of zmx, `zmx list --short`, a name a line, run on Lee's PATH as tmux
+       is, found once, within 2 seconds, in its own process group: a session
+       not listed has gone since the window last beat, and `zmx attach`
+       would make it anew, empty, so the click is refused as not on screen;
+       zmx not found, silent, or failing refuses it in plain words ("zmx,
+       asked which sessions it has, gave no answer."). tmux's `{socket}` and
+       `{pane}` from the heartbeat, and `{session}`, only where the command
+       names it, from `display-message -p -t <pane> '#{session_name}'` as
+       the window opens, tmux's words or its silence a refusal. tmux's own
+       default asks tmux nothing more, its server and pane read by the jump.
      - **Which window is attached to** (`Screen.attachable`): the first of
        the session's windows, in core's order, that the innermost
        multiplexer it runs in holds alive: zmx's always, a live window being
-       its session's proof of life; tmux's where its server, as the jump
-       read it, has the pane. A window in no multiplexer, a tmux server gone
-       from its socket, or a pane gone from it opens nothing, and the click
-       is refused as not on screen; so is a session with no live window, as
-       an away row's. An unknown reading opens nothing either.
+       its session's proof of life, then listed as above; tmux's where its
+       server, as the jump read it, has the pane. A window in no
+       multiplexer, a tmux server gone from its socket, or a pane gone from
+       it opens nothing, and the click is refused as not on screen; so is a
+       session with no live window, as an away row's. An unknown reading
+       opens nothing either.
+     - **The jump answers openable; SitRep opens apart from it**: the jump,
+       under its 15 seconds, checks all it can before a window opens, the
+       Ghostty running, the command and its values fit to type, the session
+       there, and answers openable with what to open (`JumpOutcome.openable`,
+       an `Opening`). `Works` then opens it, under a limit of its own, 20
+       seconds (`Opening.limit`), through `OneJump` again, so the latest
+       click still wins and a click on the same session joins it. Where it
+       opens (`OpenOn`) is asked there, outside both limits: today the Space
+       showing, the only choice; D's picker asks Lee there, then goes to the
+       Space chosen before the window opens. An opening stopped before
+       Ghostty is told opens nothing.
      - **Ghostty's driver opens it** (`TerminalDriver.openWindow`), three
        events built by hand as the jump's are: `GhstNSCf`, `new surface
        configuration`, whose answer, a record, gets its `GScI`, `initial
@@ -7411,17 +7459,30 @@ open), and tmux passing an escape sequence through from Claude's own pane
        `GhstNWin`, `new window`, given that as `GNwS`; then `GhstFcus` on
        `GTfT` of `GWsT` of the window it answered with. Ghostty is kept in
        front as a jump keeps it (`KeptInFront`). Ghostty not running is
-       refused, "<name> is not on screen, and SitRep can open a window for
-       it only in a Ghostty already running."; one taking no `new surface
-       configuration` (-1708 on that first event) as too old, "This Ghostty
-       cannot open a window for SitRep: update Ghostty to 1.4 or later.";
-       any other error in Ghostty's words, as a jump's.
-     - **Through the jump**: the same click, the same `OneJump`, the latest
-       click winning, its limits and its banners, a window opened counting
-       as a jump that landed; one stopped before Ghostty is told opens
-       nothing. Where it goes (`OpenOn`) is the Space showing, the only
-       choice until D, whose picker goes to the Space chosen before the
-       window opens.
+       refused, at the jump and again as the window opens, "<name> is not on
+       screen, and SitRep can open a window for it only in a Ghostty already
+       running."; one taking no `new surface configuration` (-1708 on that
+       first event) as too old, "This Ghostty cannot open a window for
+       SitRep: update Ghostty to 1.4 or later."; any other error in Ghostty's
+       words, as a jump's.
+     - **Once `new window` has answered, a window is open**: the click
+       answers opened, whether the answer names the window or not, and
+       whether its focus then works, fails, gives no answer or is stopped by
+       a later click; what went wrong with the focus is logged ("A window
+       opened, but its focus failed: …"), never a banner. A `new window`
+       given no answer in 5 seconds is said plainly: "Ghostty did not answer
+       within 5 seconds when asked to open a window; one may still appear."
+     - **Opened is an answer of its own** (`JumpAnswer.opened`): no banner;
+       the caption under the click says "Opened a window for <project>"; the
+       log says "Opening for <work>: opened, in … ms", after the jump's
+       "Jump to <work>: openable, in … ms".
+     - **A second click opens no second window**: a window's shell takes
+       half a second to two to start and run the line, and only then does
+       its client show on screen. So each session's opening is remembered
+       for 10 seconds (`RecentOpenings`): a click on it again within them
+       jumps where the screen now shows it, and otherwise answers opening,
+       no banner, its caption "A window for <project> is opening", and opens
+       nothing. One a click joins before it opened is the same opening.
    - **To prove live, with Lee's go** (nothing of it was run in building
      it: each opens a window on Lee's screen):
      1. A Portal session no window shows, its zmx command set to `portal
@@ -7429,18 +7490,53 @@ open), and tmux passing an escape sequence through from Claude's own pane
         Portal attached and Claude's screen in it.
      2. The same with zmx's own command left empty: `zmx attach` with the
         name quoted, spaces and `·` kept.
-     3. A detach in a window SitRep opened leaves Lee at his prompt, the
+     3. The caption and the log after an opening: "Opened a window for
+        <project>" under the click, no banner, and in Console (subsystem
+        com.leeovery.sitrep, category jump) "Jump to …: openable" then
+        "Opening for …: opened".
+     4. A second click on the same session within a second or two of the
+        first: one window, the second click captioned "A window for
+        <project> is opening"; a third, once the window shows the session,
+        jumps to it.
+     5. Ghostty running with no window open: the window opens, key, on the
+        Space showing.
+     6. A detach in a window SitRep opened leaves Lee at his prompt, the
         window open.
-     4. Ghostty quit: the click refused in its banner, and no Ghostty
+     7. Ghostty quit: the click refused in its banner, and no Ghostty
         launched.
-     5. A placeholder misspelt in Settings: the banner names it, and no
-        window opens.
-     6. Finder in front as the click comes: the new window keeps the front.
-     7. **tmux, checked against a real tmux before C is relied on**, as this
-        Mac has none: `tmux -S <socket> attach -t %<id>` attaches to the
-        session holding the pane, with Claude's window and pane current;
-        `display-message -p -t %<id> '#{session_name}'` names that session,
-        and follows a rename.
+     8. A zmx session gone (killed with `zmx kill` while its Claude window's
+        heartbeat still stands, before the board drops it): refused as not
+        on screen, and `zmx list` shows no session made anew.
+     9. A placeholder misspelt in Settings: the warning under the field as
+        it is typed, the banner naming it at the click, and no window
+        opens.
+     10. Finder in front as the click comes: the new window keeps the
+         front.
+     11. **tmux, checked against a real tmux before C is relied on**, as
+         this Mac has none: `tmux -S <socket> attach -t %<id>` attaches to
+         the session holding the pane, with Claude's window and pane
+         current; `display-message -p -t %<id> '#{session_name}'` names
+         that session, and follows a rename.
+     12. **The too old opening, unprovable here**: a Ghostty before 1.4
+         answering `new surface configuration` with -1708, and so "update
+         Ghostty to 1.4 or later", needs such a Ghostty, which this Mac
+         does not run; `LiveEventsTests` sends only the jump's lookup.
+   - **Known limits**, left as they are:
+     - `zmx list` runs with SitRep's own environment and Lee's PATH, so a
+       `ZMX_DIR` set only in Lee's shell's rc is not seen: zmx would then
+       list another folder's sessions and the click be refused as not on
+       screen. The window's own shell, which runs the attach, has it.
+     - A refused opening's banner is titled "SitRep could not jump", as a
+       jump's.
+     - A `new window` a later click stops while Ghostty is answering it may
+       still open a window, answered stopped and not remembered, so a click
+       straight after on its session may open a second.
+     - A click that joined another's opening is captioned as the latest
+       click is.
+     - At the window's least width the tmux field, given way, shows its
+       greyed default cut short by a character or two.
+     - That tmux attaches by a pane id is unchecked until the live check
+       above, as this Mac has no tmux.
    - **Risks:**
      - **"Switch to a Space with open windows"**, which the jump needs,
        may take Lee to a Space holding Ghostty's other windows as Ghostty

@@ -193,6 +193,31 @@ final class FakeTmux: TmuxProgram {
     }
 }
 
+/// zmx, listing the sessions given, one a line, as `zmx list --short` does, or answering as given, nil for no answer.
+/// It keeps every run it was asked for.
+final class FakeZmx: ZmxProgram {
+    /// The sessions these tests' windows run in.
+    static let lees = ["kit", "leeway", "agentic-workflows-v2 · leeway-build", "kit · restore-card"]
+
+    private let answer: Ran?
+    private let asked = OSAllocatedUnfairLock(initialState: [[String]]())
+
+    init(listing sessions: [String] = lees) {
+        answer = Ran(status: 0, stdout: sessions.map { $0 + "\n" }.joined(), stderr: "")
+    }
+
+    init(answering answer: Ran?) {
+        self.answer = answer
+    }
+
+    var runs: [[String]] { asked.withLock { $0 } }
+
+    func run(_ words: [String]) async -> Ran? {
+        asked.withLock { $0.append(words) }
+        return answer
+    }
+}
+
 /// A Mac built in code: Ghostty and Terminal running, and the clients each test adds, in their windows or elsewhere.
 struct Mac {
     var tree = Tree()

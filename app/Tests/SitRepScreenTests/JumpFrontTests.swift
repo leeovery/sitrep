@@ -101,13 +101,13 @@ struct JumpFrontTests {
         var mac = Mac(), other = Mac()
         let detached = server([mac.ghosttyClient(kitTerminal.device, showing: kit)])
         let elsewhere = server([other.ghosttyClient("/dev/ttys099", showing: claudes)])
-        let unopened = Jumping(detached, FakeTable(mac.tree), running: false, workspace: Self.handingBack)
+        let offScreen = Jumping(detached, FakeTable(mac.tree), workspace: Self.handingBack)
         let unanswered = Jumping(elsewhere, FakeTable(other.tree), workspace: Self.handingBack)
 
-        #expect(await unopened.run([inTmux()]) != .jumped)
+        #expect(await offScreen.run([inTmux()]) == .openable)
         #expect(await unanswered.run([inTmux()]) != .jumped)
 
-        for jumping in [unopened, unanswered] {
+        for jumping in [offScreen, unanswered] {
             #expect(jumping.clock.sleeps.isEmpty)
             #expect(jumping.workspace.brought.isEmpty)
             #expect(jumping.workspace.listening == 0)

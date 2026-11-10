@@ -17,7 +17,7 @@ let inGhosttyWindow = Where(device: "/dev/ttys041", terminal: "ghostty")
 
 /// The screen for the windows, read through tmux and the table given.
 func read(_ windows: [Where], _ tmux: FakeTmux, _ table: FakeTable) async -> Screen {
-    await ScreenReader(tmux: tmux, table: table).read(windows)
+    await ScreenReader(tmux: tmux, zmx: FakeZmx(), table: table).read(windows)
 }
 
 /// Each place as its device, its app's name, and the tmux session a select makes the pane's window current in.

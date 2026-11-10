@@ -78,25 +78,54 @@ private struct GeneralPane: View {
     }
 }
 
-/// A multiplexer's attach command: its name over the placeholders it fills, and the command in a field, SitRep's own
-/// shown greyed in it while Lee has given none.
+/// A multiplexer's attach command: its name over the placeholders it fills, and the command in a field against the
+/// card's right, SitRep's own shown greyed in it while Lee has given none, and under it, as he types, what is wrong
+/// with what he typed. The field gives way before the row's words do, so they keep their one line, and the row its
+/// height, at the window's least width; the words stand as wide as the widest row's, so the fields line up at every
+/// width.
 struct AttachRow: View {
-    static let caption = "A click on a session no window shows opens a Ghostty window and types its command in. "
-        + "Left empty, SitRep's own."
+    static let caption = "A click on a session no window shows opens a new Ghostty window and runs this command in "
+        + "it, each value filled in already quoted. Leave blank to use the default."
     /// Wide enough for the tmux default whole in the monospaced face.
     static let fieldWidth: CGFloat = 300
+    /// The least the field gives way to: still wide enough for zmx's default whole.
+    static let leastFieldWidth: CGFloat = 200
 
     let kind: MultiplexerKind
     @Binding var command: String
 
     var body: some View {
-        CardRow(label: kind.rawValue, line: "Fills \(kind.placeholdersInWords)") {
-            TextField(kind.rawValue, text: $command, prompt: Text(AttachCommands.default(for: kind)))
-                .font(.body.monospaced())
-                .textFieldStyle(.roundedBorder)
-                .labelsHidden()
-                .frame(width: Self.fieldWidth)
+        HStack(spacing: 0) {
+            ZStack(alignment: .leading) {
+                ForEach(MultiplexerKind.allCases, id: \.self) { each in
+                    Self.words(each).hidden()
+                }
+                Self.words(kind)
+            }
+            .fixedSize(horizontal: true, vertical: false)
+            Spacer(minLength: 16)
+            VStack(alignment: .leading, spacing: 4) {
+                TextField(kind.rawValue, text: $command, prompt: Text(AttachCommands.default(for: kind)))
+                    .font(.body.monospaced())
+                    .textFieldStyle(.roundedBorder)
+                    .labelsHidden()
+                if let warning = AttachCommands.warning(about: command, for: kind) {
+                    Text(warning)
+                        .font(.subheadline)
+                        .foregroundStyle(Color(nsColor: .systemRed))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .padding(.vertical, 6)
+            .frame(minWidth: Self.leastFieldWidth, maxWidth: Self.fieldWidth)
+            .layoutPriority(1)
         }
+        .padding(.horizontal, SettingsStyle.inset)
+        .frame(minHeight: SettingsStyle.twoLineRow)
+    }
+
+    private static func words(_ kind: MultiplexerKind) -> RowWords {
+        RowWords(label: kind.rawValue, line: "Use \(kind.placeholdersInWords)")
     }
 }
 

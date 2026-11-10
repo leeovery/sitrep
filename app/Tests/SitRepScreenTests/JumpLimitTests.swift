@@ -4,12 +4,22 @@ import SitRepCore
 import Testing
 
 /// A window of the watch's line: its writer, its session, its place in the jump's order, and the device of its own
-/// Ghostty window, where it says one.
+/// Ghostty window, where it says one; or the zmx session it runs in, on zmx's own pty.
 struct LineWindow {
     let writer: String
     let session: String
     var order: Int?
     var device: String?
+    var zmx: String?
+
+    /// Where it says it is, as the watch's line puts it.
+    var place: Any {
+        if let zmx {
+            return ["device": "/dev/ttys087", "terminal": "ghostty", "zmx": ["session": zmx]] as [String: Any]
+        }
+
+        return device.map { ["device": $0, "terminal": "ghostty"] } ?? NSNull()
+    }
 }
 
 /// A line of the watch holding only the windows given, and a project listing the sessions given by their ids and
@@ -19,8 +29,7 @@ func board(_ windows: [LineWindow], sessions: [String: String] = [:]) throws -> 
         [
             "writer": window.writer, "session": window.session, "name": named, "project": "Switchboard",
             "version": NSNull(), "needsReload": false, "state": NSNull(), "attachedAt": 0,
-            "where": window.device.map { ["device": $0, "terminal": "ghostty"] } ?? NSNull(),
-            "jumpOrder": window.order ?? NSNull(),
+            "where": window.place, "jumpOrder": window.order ?? NSNull(),
         ] as [String: Any]
     }
     let project: [String: Any] = [
@@ -48,7 +57,7 @@ struct JumpLimitTests {
         ])
         let jumping = Jumping()
 
-        #expect(await jumping.jump.run(to: "sr-a", on: GivenBoard(line)) == .jumped)
+        #expect(await jumping.jump.answer(to: "sr-a", on: GivenBoard(line)) == .jumped)
         #expect(jumping.ghostty.asked == ["/dev/ttys099", kitTerminal.device])
         #expect(jumping.ghostty.focused == ["KIT-TERMINAL"])
     }
@@ -57,11 +66,11 @@ struct JumpLimitTests {
     /// CLI named it by its status; one not on the board is no such session, in the CLI's words but for its id.
     @Test func aRefusalNamesTheSessionAsTheBoardDoesOneNotOnItIsNoSuchSessionNamingNoId() async throws {
         let line = try board([LineWindow(writer: "w1", session: "sr-a")], sessions: ["sr-q": "Quiet one"])
-        let unknown = await Jumping().jump.run(to: "sr-z", on: GivenBoard(line))
+        let unknown = await Jumping().jump.answer(to: "sr-z", on: GivenBoard(line))
 
-        #expect(await Jumping().jump.run(to: "sr-a", on: GivenBoard(line)) == offScreen)
+        #expect(await Jumping().jump.answer(to: "sr-a", on: GivenBoard(line)) == offScreen)
         #expect(
-            await Jumping().jump.run(to: "sr-q", on: GivenBoard(line))
+            await Jumping().jump.answer(to: "sr-q", on: GivenBoard(line))
                 == .refused("Quiet one is not on screen: no terminal window on this Mac shows it.")
         )
         #expect(unknown == .refused("There is no such session on the board, in any project."))
@@ -72,7 +81,7 @@ struct JumpLimitTests {
         let jumping = Jumping()
 
         #expect(
-            await jumping.jump.run(to: "sr-a", on: GivenBoard { .unread("SitRep has no plugin to run.") })
+            await jumping.jump.answer(to: "sr-a", on: GivenBoard { .unread("SitRep has no plugin to run.") })
                 == .refused("SitRep has no plugin to run.")
         )
         #expect(jumping.ghostty.asked.isEmpty)
@@ -84,7 +93,7 @@ struct JumpLimitTests {
         let gate = Gate()
         let jumping = Jumping()
         let jumped = Task {
-            await jumping.jump.run(to: "sr-a", on: GivenBoard {
+            await jumping.jump.answer(to: "sr-a", on: GivenBoard {
                 await gate.pass()
                 return .board(line)
             })
@@ -96,7 +105,7 @@ struct JumpLimitTests {
 
         let never = Jumping()
         let refused = Task {
-            await never.jump.run(to: "sr-a", on: GivenBoard {
+            await never.jump.answer(to: "sr-a", on: GivenBoard {
                 await Gate().pass()
                 return .unread("")
             })
@@ -123,7 +132,7 @@ struct JumpLimitTests {
 
         await until { atLimit.arrived == 1 && jumping.clock.sleeps.contains(Jump.limit) }
         jumping.clock.pass(Jump.limit)
-        #expect(await unanswered.value == .unanswered)
+        #expect(await unanswered.value.answer == .unanswered)
 
         let stopped = Task {
             await Jump.run(to: "sr-a", on: GivenBoard(line), clock: TestClock()) {
@@ -134,7 +143,7 @@ struct JumpLimitTests {
 
         await until { atStop.arrived == 1 }
         stopped.cancel()
-        #expect(await stopped.value == .stopped)
+        #expect(await stopped.value.answer == .stopped)
         #expect(jumping.ghostty.asked.isEmpty)
 
         atLimit.open()
@@ -145,7 +154,7 @@ struct JumpLimitTests {
         let line = try board([LineWindow(writer: "w1", session: "sr-a", order: 0, device: window)])
         let gate = Gate()
         let jumping = Jumping(ghosttyHeld: gate)
-        let jumped = Task { await jumping.jump.run(to: "sr-a", on: GivenBoard(line)) }
+        let jumped = Task { await jumping.jump.answer(to: "sr-a", on: GivenBoard(line)) }
 
         await until { gate.arrived == 1 && jumping.clock.sleeps.contains(Jump.limit) }
         jumping.clock.pass(Jump.limit)
@@ -159,7 +168,7 @@ struct JumpLimitTests {
         let line = try board([LineWindow(writer: "w1", session: "sr-a", order: 0, device: window)])
         let gate = Gate()
         let jumping = Jumping(ghosttyHeld: gate)
-        let jumped = Task { await jumping.jump.run(to: "sr-a", on: GivenBoard(line)) }
+        let jumped = Task { await jumping.jump.answer(to: "sr-a", on: GivenBoard(line)) }
 
         await until { gate.arrived == 1 }
         jumped.cancel()
@@ -250,9 +259,9 @@ struct JumpLimitTests {
         let oneJump = OneJump { _ in try await Task.sleep(for: .seconds(3600)) }
         let first = Told(), second = Told()
 
-        oneJump.run(to: "sr-a", { await jumping.jump.run(to: "sr-a", on: GivenBoard(line)) }, told: first.add)
+        oneJump.run(to: "sr-a", { await jumping.jump.answer(to: "sr-a", on: GivenBoard(line)) }, told: first.add)
         await until { gate.arrived == 1 }
-        oneJump.run(to: "sr-b", { await jumping.jump.run(to: "sr-b", on: GivenBoard(line)) }, told: second.add)
+        oneJump.run(to: "sr-b", { await jumping.jump.answer(to: "sr-b", on: GivenBoard(line)) }, told: second.add)
         await until { !second.news.isEmpty }
 
         #expect(first.news == [.ended(.stopped)])

@@ -12,13 +12,29 @@ public struct JumpCaption: Equatable, Sendable {
     /// A jump that gave no answer within its limit, played as a caption is.
     public static let tooBusy = "Couldn't jump: the Mac is too busy."
 
-    public let text: String
+    /// How a jump landed: on the session's window; on a window it opened for the session, no window showing it; or on
+    /// one opened for it a moment ago, which does not show it yet.
+    public enum Landing: Equatable, Sendable {
+        case jumped, opened, opening
+    }
+
+    private let project: String
+    private var landing = Landing.jumped
     private var drained: Double?
     private var jumped: Double?
 
     /// For a jump to a session on this project.
     public init(to project: String) {
-        text = "Jumped to \(project)'s window"
+        self.project = project
+    }
+
+    /// What it says, as the jump landed: "Jumped to SitRep's window" until it says otherwise.
+    public var text: String {
+        switch landing {
+        case .jumped: "Jumped to \(project)'s window"
+        case .opened: "Opened a window for \(project)"
+        case .opening: "A window for \(project) is opening"
+        }
     }
 
     /// The panel began to drain.
@@ -28,6 +44,14 @@ public struct JumpCaption: Equatable, Sendable {
 
     /// The jump answered that it jumped.
     public mutating func jumped(at time: Double) {
+        landed(.jumped, at: time)
+    }
+
+    /// The jump answered how it landed.
+    public mutating func landed(_ landing: Landing, at time: Double) {
+        if jumped == nil {
+            self.landing = landing
+        }
         jumped = jumped ?? time
     }
 

@@ -14,12 +14,13 @@ struct BannerTests {
         ))
     }
 
-    /// A failed jump posts a banner, refused or given no answer in time; one that jumped posts none, nor one a later
-    /// click stopped, as that one goes on.
+    /// A failed jump posts a banner, refused or given no answer in time; one that jumped or opened a window posts none,
+    /// nor one with a window still to open, one opening already, or one a later click stopped, as that one goes on.
     @Test func onlyAFailedJumpPostsABanner() {
         #expect(JumpAnswer.refused("Fumi is not on screen.").banner == .unjumped("Fumi is not on screen."))
         #expect(JumpAnswer.unanswered.banner == .tooBusy)
-        #expect(JumpAnswer.jumped.banner == nil)
-        #expect(JumpAnswer.stopped.banner == nil)
+        for answer in [JumpAnswer.jumped, .openable, .opened, .opening, .stopped] {
+            #expect(answer.banner == nil)
+        }
     }
 }
