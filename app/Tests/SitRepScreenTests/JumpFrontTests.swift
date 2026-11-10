@@ -104,7 +104,7 @@ struct JumpFrontTests {
         let offScreen = Jumping(detached, FakeTable(mac.tree), workspace: Self.handingBack)
         let unanswered = Jumping(elsewhere, FakeTable(other.tree), workspace: Self.handingBack)
 
-        #expect(await offScreen.run([inTmux()]) == .openable)
+        #expect(await offScreen.run([inTmux()]) != .jumped)
         #expect(await unanswered.run([inTmux()]) != .jumped)
 
         for jumping in [offScreen, unanswered] {

@@ -40,7 +40,7 @@ struct SettingsPaneContent: View {
 }
 
 /// General: Startup, Open at login; Ghostty, the leave to bring a session's Ghostty window to the front; New windows,
-/// the command typed into a window opened for a session no window shows, one for each multiplexer.
+/// how a window is opened for a session no window shows, the terminal and the open command.
 private struct GeneralPane: View {
     let settings: SettingsModel
 
@@ -57,9 +57,13 @@ private struct GeneralPane: View {
         }
         SettingsSection(name: "New windows") {
             SettingsCard {
-                AttachRows(zmx: command(\.zmxAttach), tmux: command(\.tmuxAttach))
+                CardRow(label: "Terminal") {
+                    PopUp(label: "Terminal", sections: [Driver.all], title: \.name, selection: terminal)
+                }
+                CardSeparator()
+                CommandRow(command: openCommand)
             }
-            CaptionRow(words: Text(AttachRows.caption))
+            CaptionRow(words: Text(CommandRow.caption))
         }
     }
 
@@ -67,77 +71,47 @@ private struct GeneralPane: View {
         Binding(get: { settings.said.login?.isOn ?? false }, set: { _ in settings.chooseLogin() })
     }
 
-    /// A command as typed, saved at each keystroke.
-    private func command(_ setting: WritableKeyPath<AppSettings, String>) -> Binding<String> {
+    private var terminal: Binding<Driver> {
         Binding(
-            get: { settings.preferences.app[keyPath: setting] },
-            set: { settings.preferences.app[keyPath: setting] = $0 }
+            get: { settings.preferences.app.openSettings.terminal },
+            set: { settings.preferences.app.terminal = $0.program }
         )
     }
+
+    /// The command as typed, saved at each keystroke.
+    private var openCommand: Binding<String> {
+        Binding(get: { settings.preferences.app.openCommand }, set: { settings.preferences.app.openCommand = $0 })
+    }
 }
 
-/// The attach commands, a row for each multiplexer, zmx's over tmux's: its name over the placeholders it fills, and the
-/// command in a field against the card's right, in the label's size in the monospaced face, SitRep's own shown greyed
-/// in it while Lee has given none, and under it, as he types, what is wrong with what he typed, the row growing. The
-/// rows are a grid's, so the fields line up at every width, and the words of each stand centred on its field, never on
-/// the field and its warning. The fields give way before the words do, so the words keep their one line, and each row
-/// its height, at the window's least width.
-struct AttachRows: View {
-    static let caption = "Clicking a session that isn't showing in a terminal opens a new Ghostty window and runs the "
-        + "matching command. Placeholders are replaced with quoted values. Leave a field empty to use the default."
-    /// Wide enough for the tmux default whole in the monospaced face.
-    static let fieldWidth: CGFloat = 300
-    /// The least a field gives way to: still wide enough for zmx's default whole.
-    static let leastFieldWidth: CGFloat = 200
-    /// Between a field and its warning.
-    private static let warningGap: CGFloat = 4
+/// The open command's row: its label, and the command in a field against the card's right, in the label's size in the
+/// monospaced face, the two on one line of text. The field gives way before the label does, so the label keeps its one
+/// line, and the row its height, at the window's least width.
+struct CommandRow: View {
+    static let label = "Open command"
+    static let caption = "Clicking a session that isn't showing in a terminal opens a new window and runs this "
+        + "command. {session}, {socket} and {pane} are replaced with quoted values."
+    /// The field's width where the column has room.
+    static let fieldWidth: CGFloat = 360
 
-    @Binding var zmx: String
-    @Binding var tmux: String
+    @Binding var command: String
 
     var body: some View {
-        Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 0) {
-            row(.zmx, $zmx)
-            Rectangle().fill(SettingsStyle.separator).frame(height: 0.5).gridCellUnsizedAxes(.horizontal)
-            row(.tmux, $tmux)
+        HStack(alignment: .firstTextBaseline, spacing: 16) {
+            RowWords(label: Self.label)
+                .fixedSize(horizontal: true, vertical: false)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            TextField("", text: $command)
+                .accessibilityLabel(Self.label)
+                .font(.body.monospaced())
+                .textFieldStyle(.roundedBorder)
+                .labelsHidden()
+                .frame(maxWidth: Self.fieldWidth)
+                .layoutPriority(1)
         }
         .padding(.horizontal, SettingsStyle.inset)
+        .frame(minHeight: SettingsStyle.oneLineRow)
     }
-
-    private func row(_ kind: MultiplexerKind, _ command: Binding<String>) -> some View {
-        GridRow(alignment: .fieldCentre) {
-            RowWords(label: kind.rawValue, line: "Placeholders: \(kind.placeholderList)")
-                .fixedSize(horizontal: true, vertical: false)
-                .alignmentGuide(.fieldCentre) { $0[VerticalAlignment.center] }
-            VStack(alignment: .leading, spacing: Self.warningGap) {
-                TextField(kind.rawValue, text: command, prompt: Text(AttachCommands.default(for: kind)))
-                    .font(.system(size: NSFont.systemFontSize).monospaced())
-                    .textFieldStyle(.roundedBorder)
-                    .labelsHidden()
-                    .alignmentGuide(.fieldCentre) { $0[VerticalAlignment.center] }
-                if let warning = AttachCommands.warning(about: command.wrappedValue, for: kind) {
-                    Text(warning)
-                        .font(.subheadline)
-                        .foregroundStyle(Color(nsColor: .systemRed))
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.bottom, SettingsStyle.rowMargin)
-                }
-            }
-            .frame(minWidth: Self.leastFieldWidth, maxWidth: Self.fieldWidth)
-            .frame(maxWidth: .infinity, alignment: .trailing)
-        }
-    }
-}
-
-extension VerticalAlignment {
-    /// A row's words and its field, centre to centre, whatever shows under the field.
-    private enum FieldCentre: AlignmentID {
-        static func defaultValue(in context: ViewDimensions) -> CGFloat {
-            context[VerticalAlignment.center]
-        }
-    }
-
-    static let fieldCentre = VerticalAlignment(FieldCentre.self)
 }
 
 /// Notifications: the desktop corner a new ask's notification lands on, its caption and Send Test; Banners, the switch

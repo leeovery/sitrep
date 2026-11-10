@@ -57,7 +57,7 @@ struct TmuxTests {
             return Ran(status: 0, stdout: "", stderr: "")
         }
 
-        #expect(await tmux.run(on: Self.socket, ["list-clients"]) == Ran(status: 0, stdout: "", stderr: ""))
+        #expect(try await tmux.run(on: Self.socket, ["list-clients"]) == Ran(status: 0, stdout: "", stderr: ""))
         #expect(
             ran.withLock { $0 } == [
                 Program(
@@ -78,17 +78,20 @@ struct TmuxTests {
         try FileManager.default.createDirectory(at: decoy.appending(path: "tmux"), withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: decoy) }
 
-        #expect(ProgramOnPath.find("tmux", on: "\(decoy.path):\(folder.path)") == folder.appending(path: "tmux"))
-        #expect(ProgramOnPath.find("tmux", on: decoy.path) == nil)
+        #expect(TmuxOnPath.find("tmux", on: "\(decoy.path):\(folder.path)") == folder.appending(path: "tmux"))
+        #expect(TmuxOnPath.find("tmux", on: decoy.path) == nil)
     }
 
+    /// Each told apart from the other, and from tmux's answer of no server.
     @Test func tmuxNotOnThePathOrNotAnsweringInTimeGivesNoAnswerNeverAnAnswerOfNoServer() async throws {
         let folder = try Self.folderHolding("tmux")
         let missing = TmuxOnPath(path: "/nowhere") { _ in Ran(status: 1, stdout: "", stderr: "") }
         let slow = TmuxOnPath(path: folder.path) { program in throw RunError.timedOut(program.limit) }
 
-        #expect(await missing.run(on: Self.socket, ["list-panes"]) == nil)
-        #expect(await slow.run(on: Self.socket, ["list-panes"]) == nil)
+        await #expect(throws: TmuxUnanswered.notFound) { try await missing.run(on: Self.socket, ["list-panes"]) }
+        await #expect(throws: TmuxUnanswered.unanswered(.timedOut(2))) {
+            try await slow.run(on: Self.socket, ["list-panes"])
+        }
     }
 
     /// A scratch folder holding an executable of the name.

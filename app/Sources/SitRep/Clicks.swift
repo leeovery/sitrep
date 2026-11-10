@@ -1,16 +1,15 @@
 import Foundation
 import os
 import SitRepCore
-import SitRepScreen
 
 /// A click on a session, from any surface: the jump to its window, and, where none shows it, the window opened for it
-/// next, apart from the jump, so where it opens may be asked of Lee outside the jump's limit; one at a time, the
-/// latest click winning (`OneJump`). A click on the same session before either says it is still under way joins it,
-/// so a quick second click opens the same window, never a second.
+/// next, apart from the jump; one at a time, the latest click winning (`OneJump`). A click on the same session before
+/// either says it is still under way joins it, so a quick second click opens the same window, never a second. A jump
+/// or an opening that fails posts its banner, once however many clicks joined it.
 @MainActor
 final class Clicks {
-    /// Opens a window, where `choosing` says.
-    typealias Open = @Sendable (_ choosing: @escaping @Sendable () async -> OpenOn?) async -> JumpAnswer
+    /// Opens a window, as a jump found one could be.
+    typealias Open = @Sendable () async -> JumpAnswer
 
     /// What a click's jump came to: an answer; or a window to open.
     enum Reached: Sendable {
@@ -18,30 +17,35 @@ final class Clicks {
         case openable(Open)
     }
 
+    /// Every jump's and opening's news, after each click's own: the edge's caption.
+    var heard: (JumpNews) -> Void = { _ in }
+
     private let oneJump: OneJump
     private let jump: (String) -> @Sendable () async -> Reached
-    private let choose: @Sendable () async -> OpenOn?
     private let logger = Logger(sitrep: "jump")
-    /// The window each session's last jump found could be opened, until it opens or is refused.
+    /// The window each session's last jump found could be opened, until its opening ends.
     private var openables: [String: Open] = [:]
 
-    /// `jump` makes the jump to a session's window, at the click, as Settings then stand; `choose` asks where a window
-    /// opens, as Lee may be asked, once its app is known to be running: nil for nowhere, as he put the choice aside.
+    /// `jump` makes the jump to a session's window at the click, as Settings then stand; `post` posts a failure's
+    /// banner.
     init(
-        _ oneJump: OneJump, jump: @escaping (String) -> @Sendable () async -> Reached,
-        choose: @escaping @Sendable () async -> OpenOn?
+        _ oneJump: OneJump = OneJump(), jump: @escaping (String) -> @Sendable () async -> Reached,
+        post: @escaping (Banner) -> Void
     ) {
         self.oneJump = oneJump
         self.jump = jump
-        self.choose = choose
+        oneJump.heard = { [weak self] news in
+            if case let .ended(answer) = news, let banner = answer.banner {
+                post(banner)
+            }
+            self?.heard(news)
+        }
     }
 
     /// Jumps to the session's window, or, where none shows it, opens one. Tells `answered` how it ended, and hands
     /// the front back, `handBack`, where nothing of SitRep's comes forward: refused, as its banner says, or a window
     /// already opening.
-    func click(
-        _ session: String, answered: @escaping (JumpAnswer) -> Void, handBack: @escaping () -> Void
-    ) {
+    func click(_ session: String, answered: @escaping (JumpAnswer) -> Void, handBack: @escaping () -> Void) {
         let found = Found()
         let jumping = jump(session)
 
@@ -72,17 +76,14 @@ final class Clicks {
         })
     }
 
-    /// Opens the window the jump found could be opened, where `choose` says, the word of still jumping held while it
-    /// is asked. A click on the same session before the opening says it is still under way joins it; any other stops
-    /// it, as a jump is stopped.
+    /// Opens the window the jump found could be opened. A click on the same session before the opening says it is
+    /// still under way joins it; any other stops it, as a jump is stopped.
     private func open(
         _ open: @escaping Open, for session: String, answered: @escaping (JumpAnswer) -> Void,
         handBack: @escaping () -> Void
     ) {
-        oneJump.run(to: session, { [choose, logger] hold in
-            await logged("Opening for \(session)", stopped: "An opening", by: logger) {
-                await open { await hold.whileWaitingOnLee(choose) }
-            }
+        oneJump.run(to: session, { [logger] in
+            await logged("Opening for \(session)", stopped: "An opening", by: logger, open)
         }, told: { [weak self] news in
             guard case let .ended(answer) = news else {
                 return

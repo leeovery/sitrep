@@ -1,7 +1,7 @@
-/// What a jump came to: the window brought forward; no window showing the session, but one to be opened for it, which
-/// comes next; a window opened for it; one opened for it a moment ago, which it is not on screen in yet; why not, in
-/// plain words, a jump's or a window's that could not be opened; no answer in time, within the jump's limit, as when
-/// the Mac is too busy; or stopped, as a later click's jump took its place.
+/// What a jump came to: the window brought forward; no window showing the session, but one to open for it, which comes
+/// next; a window opened for it; one opened for it a moment ago, which no terminal shows it in yet; why not, in plain
+/// words, a jump's or an opening's; no answer in time, within the jump's limit, as when the Mac is too busy; or
+/// stopped, as a later click's jump took its place.
 public enum JumpAnswer: Sendable, Equatable {
     case jumped
     case openable
@@ -29,8 +29,7 @@ public enum JumpNews: Sendable, Equatable {
 ///
 /// A click on the session a jump runs to, before it says it is still jumping, joins it rather than starting it over: a
 /// double-click, or a quick second click, would otherwise stop it midway and start it again. Once it says it is still
-/// jumping, a click on it is Lee trying again, and starts it over. A jump waiting on Lee, as for his choice of where a
-/// window opens, never says it is still jumping while it waits (`Hold`), so a click on its session joins it then.
+/// jumping, a click on it is Lee trying again, and starts it over.
 @MainActor
 public final class OneJump {
     /// How long a jump runs with no answer before it says it is still jumping.
@@ -47,20 +46,12 @@ public final class OneJump {
         self.sleep = sleep
     }
 
-    /// Runs a jump to the session, as `run(to:_:told:)` with a hold does, the jump never waiting on Lee.
-    public func run(
-        to session: String, _ jump: @escaping @Sendable () async -> JumpAnswer,
-        told: @escaping @MainActor (JumpNews) -> Void
-    ) {
-        run(to: session, { _ in await jump() }, told: told)
-    }
-
     /// Runs a jump to the session, stopping any running, unless one to the same session runs that has not yet said it
     /// is still jumping, which this click joins. `told` hears this click's news: `.still` once the jump has run
-    /// `stillAfter` with no answer, not counting what it waits on Lee through its `Hold`, then how it ended; one
-    /// stopped by a later jump ends `.stopped`, whatever it came to, and says no more.
+    /// `stillAfter` with no answer, then how it ended; one stopped by a later jump ends `.stopped`, whatever it came
+    /// to, and says no more.
     public func run(
-        to session: String, _ jump: @escaping @Sendable (Hold) async -> JumpAnswer,
+        to session: String, _ jump: @escaping @Sendable () async -> JumpAnswer,
         told: @escaping @MainActor (JumpNews) -> Void
     ) {
         if let current, current.session == session, !current.isStill {
@@ -70,28 +61,9 @@ public final class OneJump {
 
         let previous = current
         let running = UnderWay(session: session, told: told)
-        let hold = Hold { [weak self] isHeld in
-            await self?.hold(running, isHeld)
-        }
 
         previous?.stop()
         current = running
-        startStill(running)
-        running.task = Task {
-            await previous?.task?.value
-
-            let answer = Task.isCancelled ? .stopped : await jump(hold)
-
-            running.timer?.cancel()
-            if self.current === running {
-                self.current = nil
-            }
-            self.tell(running, .ended(Task.isCancelled ? .stopped : answer))
-        }
-    }
-
-    /// The word of still jumping, `stillAfter` from now, for a jump still running.
-    private func startStill(_ running: UnderWay) {
         running.timer = Task { [sleep] in
             guard (try? await sleep(Self.stillAfter)) != nil, !Task.isCancelled else {
                 return
@@ -100,13 +72,16 @@ public final class OneJump {
             running.isStill = true
             self.tell(running, .still)
         }
-    }
+        running.task = Task {
+            await previous?.task?.value
 
-    /// The word of still jumping held while the jump waits on Lee, and its time started afresh once he has answered.
-    private func hold(_ running: UnderWay, _ isHeld: Bool) {
-        running.timer?.cancel()
-        if !isHeld, current === running, !running.isStill {
-            startStill(running)
+            let answer = Task.isCancelled ? .stopped : await jump()
+
+            running.timer?.cancel()
+            if self.current === running {
+                self.current = nil
+            }
+            self.tell(running, .ended(Task.isCancelled ? .stopped : answer))
         }
     }
 
@@ -133,29 +108,6 @@ public final class OneJump {
         func stop() {
             task?.cancel()
             timer?.cancel()
-        }
-    }
-
-    /// What lets a jump wait on Lee without saying it is still jumping: his choice takes as long as he takes, and a
-    /// click on its session meanwhile joins it rather than starting it over. A click on another session still stops
-    /// it, its task cancelled, which what it waits on is to hear.
-    public struct Hold: Sendable {
-        private let held: @Sendable (Bool) async -> Void
-
-        init(_ held: @escaping @Sendable (Bool) async -> Void) {
-            self.held = held
-        }
-
-        /// What `asking` answers, the word of still jumping held while it is asked.
-        public func whileWaitingOnLee<Answer: Sendable>(
-            _ asking: @Sendable () async -> Answer
-        ) async -> Answer {
-            await held(true)
-
-            let answer = await asking()
-
-            await held(false)
-            return answer
         }
     }
 }

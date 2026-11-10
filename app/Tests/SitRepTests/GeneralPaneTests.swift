@@ -12,81 +12,90 @@ import Testing
 /// on 4 November 2026, as the card shows every your-turn row (board J).
 @MainActor
 struct GeneralPaneTests {
-    @Test func itOffersNoFoldPeriod() async throws {
-        let settings = await Hosted.settings(defaults: MemoryDefaults())
-        let hosted = Hosted(Hosted.content(.general, settings), size: CGSize(width: 744, height: 620))
+    /// The card's column at the window's least width, and at the drawings' 704.
+    nonisolated private static let leastColumn = SettingsWindow.smallest.width - 188 - 40
+    nonisolated private static let column: CGFloat = 704
 
-        #expect(hosted.all(NSPopUpButton.self).isEmpty)
+    private static func general(_ defaults: UserDefaults = MemoryDefaults()) async -> Hosted {
+        let settings = await Hosted.settings(defaults: defaults)
+
+        return Hosted(Hosted.content(.general, settings), size: CGSize(width: 744, height: 620))
+    }
+
+    /// Its one pop-up is New windows' terminal.
+    @Test func itOffersNoFoldPeriod() async throws {
+        let hosted = await Self.general()
+
+        #expect(hosted.all(NSPopUpButton.self).map(\.itemTitles) == [["Ghostty"]])
         #expect(hosted.all(NSSwitch.self).count == 1)
     }
 
-    /// New windows: zmx's command over tmux's, SitRep's own greyed in each while Lee has given none.
-    @Test func newWindowsHoldsZmxsCommandThenTmuxsEachShowingSitRepsOwnUntilOneIsGiven() async throws {
-        let settings = await Hosted.settings(defaults: MemoryDefaults())
-        let hosted = Hosted(Hosted.content(.general, settings), size: CGSize(width: 744, height: 620))
-        let fields = hosted.all(NSTextField.self)
+    /// The terminals SitRep has a driver for, Ghostty alone, chosen by default.
+    @Test func newWindowsTerminalIsAMenuOfTheTerminalsWithADriverGhosttyChosen() async throws {
+        let popUp = try #require(await Self.general().all(NSPopUpButton.self).first)
 
-        #expect(fields.map(\.placeholderString) == ["zmx attach {session}", "tmux -S {socket} attach -t {pane}"])
-        #expect(fields.map(\.stringValue) == ["", ""])
+        #expect(popUp.itemTitles == Driver.all.map(\.name))
+        #expect(popUp.titleOfSelectedItem == "Ghostty")
     }
 
-    @Test func eachFieldShowsTheCommandLeeGave() async throws {
+    /// Empty until Lee gives one, as SitRep has no built-in way to attach; his own once given.
+    @Test func theOpenCommandIsEmptyByDefaultAndShowsTheCommandGiven() async throws {
         let defaults = MemoryDefaults()
         var app = AppSettings()
 
-        app.zmxAttach = "portal open -s {session}"
+        let empty = await Self.general().all(NSTextField.self)
+
+        #expect(empty.map(\.stringValue) == [""])
+        #expect(empty.allSatisfy { $0.placeholderString?.isEmpty ?? true }, "nothing greyed in it, as there is no default")
+
+        app.openCommand = "zmx attach {session}"
         SavedSettings(defaults).save(app)
-
-        let settings = await Hosted.settings(defaults: defaults)
-        let hosted = Hosted(Hosted.content(.general, settings), size: CGSize(width: 744, height: 620))
-
-        #expect(hosted.all(NSTextField.self).map(\.stringValue) == ["portal open -s {session}", ""])
+        #expect(await Self.general(defaults).all(NSTextField.self).map(\.stringValue) == ["zmx attach {session}"])
     }
 
-    /// A row as the card holds it, its command given, laid out in a column of the width given.
-    private static func row(_ kind: MultiplexerKind, _ command: String = "", column: CGFloat)
-        -> (height: CGFloat, field: CGRect)
+    /// Every character as wide as the next, at the label's 13.
+    @Test func theCommandIsInTheLabelsSizeInTheMonospacedFace() async throws {
+        let font = try #require(await Self.general().all(NSTextField.self).first?.font)
+        let width = { (text: String) in (text as NSString).size(withAttributes: [.font: font]).width }
+
+        #expect(font.pointSize == NSFont.systemFontSize)
+        #expect(width("iiii") == width("mmmm"))
+    }
+
+    /// The row, holding the command given, in a column of the width given: its height, its field, the field's first
+    /// baseline from the row's top, and the row drawn.
+    private static func row(_ command: String = "", column: CGFloat) throws
+        -> (height: CGFloat, field: CGRect, baseline: CGFloat, drawn: Drawn)
     {
-        let row = AttachRow(kind: kind, command: .constant(command))
-        let hosted = Hosted(row.fixedSize(horizontal: false, vertical: true), size: CGSize(width: column, height: 400))
-        let field = hosted.all(NSTextField.self).first.map(hosted.frame(of:)) ?? .zero
+        let row = CommandRow(command: .constant(command)).background(.black)
+        let hosted = Hosted(row, size: CGSize(width: column, height: SettingsStyle.oneLineRow))
+        let field = try #require(hosted.all(NSTextField.self).first)
+        let frame = hosted.frame(of: field)
         let height = NSHostingController(rootView: row).sizeThatFits(in: CGSize(width: column, height: 400)).height
 
-        return (height, field)
+        return (height, frame, frame.minY + field.firstBaselineOffsetFromTop, try Drawn(hosted.hosting))
     }
 
-    /// The field takes its 300 where the column has room, and gives way before the row's words do, so each row keeps
-    /// its line, and its 52, at the window's least width, 476.
-    @Test(arguments: [MultiplexerKind.zmx, .tmux])
-    func theFieldGivesWayBeforeTheWordsSoTheRowKeepsItsHeightAtTheLeastWidth(kind: MultiplexerKind) {
-        let wide = Self.row(kind, column: 704)
-        let narrowest = Self.row(kind, column: Self.leastColumn)
+    /// The field takes its width where the column has room, and gives way before the label does at the window's least
+    /// width, so the label keeps its one line, and the row its height.
+    @Test func theFieldGivesWayAtTheLeastWidthAndTheRowKeepsItsHeight() throws {
+        let wide = try Self.row(column: Self.column)
+        let narrowest = try Self.row(column: Self.leastColumn)
 
-        #expect(wide.height == SettingsStyle.twoLineRow)
-        #expect(wide.field.width == AttachRow.fieldWidth)
-        #expect(narrowest.height == SettingsStyle.twoLineRow)
-        #expect(narrowest.field.width < AttachRow.fieldWidth)
-        #expect(narrowest.field.width >= AttachRow.leastFieldWidth)
+        #expect(wide.height == SettingsStyle.oneLineRow)
+        #expect(wide.field.width == CommandRow.fieldWidth)
+        #expect(narrowest.height == SettingsStyle.oneLineRow)
+        #expect(narrowest.field.width < CommandRow.fieldWidth)
+        #expect(abs(narrowest.field.maxX - (Self.leastColumn - SettingsStyle.inset)) < 0.5)
     }
 
-    /// zmx's words are the shorter, yet its field stands where tmux's does, so the two line up at every width.
-    @Test(arguments: [704, leastColumn])
-    func theFieldsLineUp(column: CGFloat) {
-        let zmx = Self.row(.zmx, column: column).field
-        let tmux = Self.row(.tmux, column: column).field
+    /// The label and the command stand on one line of text: the foot of the label's O, which hangs below no line, on
+    /// the field's first baseline, within a point.
+    @Test(arguments: [column, leastColumn])
+    func theLabelAndTheCommandStandOnOneLineOfText(column: CGFloat) throws {
+        let row = try Self.row(column: column)
+        let label = try #require(row.drawn.litRows(in: CGRect(x: SettingsStyle.inset, y: 0, width: 8, height: row.height)))
 
-        #expect(zmx.minX == tmux.minX)
-        #expect(zmx.width == tmux.width)
-    }
-
-    /// The card's column at the window's least width.
-    nonisolated private static let leastColumn = SettingsWindow.smallest.width - 188 - 40
-
-    /// What is wrong with a command shows under its field as Lee types it, growing the row; nothing for one fit to
-    /// type.
-    @Test(arguments: ["zmx attach {pane}", #"zmx attach "{session}""#])
-    func aCommandSitRepCannotTypeIsWarnedOfUnderItsField(command: String) {
-        #expect(Self.row(.zmx, command, column: 704).height > SettingsStyle.twoLineRow)
-        #expect(Self.row(.zmx, "portal open -s {session}", column: 704).height == SettingsStyle.twoLineRow)
+        #expect(abs(label.upperBound - row.baseline) <= 1, "\(label) \(row.baseline)")
     }
 }

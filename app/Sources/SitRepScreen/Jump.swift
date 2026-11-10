@@ -12,9 +12,9 @@ import SitRepCore
 /// cannot stop, an Apple Event in flight.
 ///
 /// A session no terminal window shows, that a multiplexer holds alive, it answers can have a window opened for it
-/// instead (`Opening`), in the Ghostty running: the multiplexer's attach command, as Lee sets it, checked fit to type,
-/// to be typed into Lee's own shell there. The opening is apart from the jump, so where it opens can be asked of Lee
-/// outside the jump's limit, and it never opens a second window for a session it opened one for a moment ago.
+/// instead (`Opening`), in the terminal Lee chose: his open command, its placeholders filled with the facts of the
+/// session's live window, checked fit to type. The opening is apart from the jump, and never opens a second window for
+/// a session it opened one for a moment ago.
 public struct Jump: Sendable {
     /// How long a whole jump may take, the wait for a board and for Lee's PATH among it. One takes under a second as
     /// Ghostty answers, a little over to a tab not selected, for its half second's pause, and one Ghostty does not
@@ -26,55 +26,49 @@ public struct Jump: Sendable {
     /// words for no such session, but for its id, which Lee never sees.
     static let noSuchSession = "There is no such session on the board, in any project."
 
-    /// The app a window is opened in: Ghostty, the one terminal app with a driver.
-    static let opensIn = Driver.ghostty
-
     let reader: ScreenReader
     let tmux: any TmuxProgram
     let drivers: [Driver: any TerminalDriver]
     let workspace: any Workspace
     let clock: any JumpClock
-    let commands: AttachCommands
+    let opening: OpenSettings
     let openings: RecentOpenings
 
     init(
         reader: ScreenReader, tmux: any TmuxProgram, drivers: [Driver: any TerminalDriver], workspace: any Workspace,
-        clock: any JumpClock, commands: AttachCommands = AttachCommands(), openings: RecentOpenings = RecentOpenings()
+        clock: any JumpClock, opening: OpenSettings = OpenSettings(), openings: RecentOpenings = RecentOpenings()
     ) {
         self.reader = reader
         self.tmux = tmux
         self.drivers = drivers
         self.workspace = workspace
         self.clock = clock
-        self.commands = commands
+        self.opening = opening
         self.openings = openings
     }
 
-    /// The jump on this Mac, to the session's window: tmux and zmx found on Lee's PATH and run with his login shell's
-    /// environment, as `environment` gives it, SitRep's keeping the shell's once found, asked for once the board is in
-    /// hand, within the jump's limit; Ghostty asked by Apple Events. A session no window shows is answered openable,
-    /// attached by Lee's commands, unless a window was asked for it a moment ago, among `openings`.
+    /// The jump on this Mac, to the session's window: tmux found on Lee's PATH as `path` gives it, SitRep's keeping the
+    /// login shell's once found, asked for once the board is in hand, within the jump's limit; Ghostty asked by Apple
+    /// Events. A session no window shows is answered openable, as `opening` says, unless a window was asked for it a
+    /// moment ago, among `openings`.
     public static func live(
-        to session: String, on board: some JumpBoardSource,
-        environment: @escaping @Sendable () async -> [String: String], commands: AttachCommands,
-        openings: RecentOpenings
+        to session: String, on board: some JumpBoardSource, path: @escaping @Sendable () async -> String,
+        opening: OpenSettings, openings: RecentOpenings
     ) async -> JumpOutcome {
         await run(to: session, on: board, clock: SystemClock()) {
-            await live(environment: environment(), commands: commands, openings: openings)
+            await live(path: path(), opening: opening, openings: openings)
         }
     }
 
-    private static func live(
-        environment: [String: String], commands: AttachCommands, openings: RecentOpenings
-    ) -> Jump {
-        let tmux = TmuxOnPath(environment: environment)
+    private static func live(path: String, opening: OpenSettings, openings: RecentOpenings) -> Jump {
+        let tmux = TmuxOnPath(path: path)
         let workspace = MacWorkspace()
         let clock = SystemClock()
         let ghostty = GhosttyDriver(scripting: GhosttyEvents(), workspace: workspace, clock: clock)
 
         return Jump(
-            reader: ScreenReader(tmux: tmux, zmx: ZmxOnPath(environment: environment)), tmux: tmux, drivers: [.ghostty: ghostty],
-            workspace: workspace, clock: clock, commands: commands, openings: openings
+            reader: ScreenReader(tmux: tmux), tmux: tmux, drivers: [.ghostty: ghostty], workspace: workspace,
+            clock: clock, opening: opening, openings: openings
         )
     }
 
@@ -110,36 +104,61 @@ public struct Jump: Sendable {
         return .answered(isBoardRead.withLock { $0 } ? .unanswered : .refused(await board.missing()))
     }
 
-    /// The jump to the session's windows on the board, a refusal naming it as the board does; where none shows, the
-    /// window to open for it, or, where one was asked for it a moment ago, that it is opening.
+    /// The jump to the session's windows on the board, a refusal naming it as the board does.
     private func jump(to session: String, on board: Board) async -> JumpOutcome {
         guard let name = board.name(of: session) else {
             return .answered(.refused(Self.noSuchSession))
         }
 
-        do {
-            let jumped = try await jump(to: board.jumpWindows(of: session))
+        return await jump(to: session, named: name, at: board.jumpWindows(of: session))
+    }
 
-            guard case let .openable(command) = jumped, let driver = drivers[Self.opensIn] else {
+    /// The jump to the session's windows, a refusal naming it as given; where none shows, the window to open for it.
+    func jump(to session: String, named name: String, at windows: [Board.Window.Where]) async -> JumpOutcome {
+        do {
+            let jumped = try await jump(to: windows)
+
+            guard case let .openable(attachable) = jumped else {
                 return .answered(jumped.answer(named: name))
             }
-            guard !openings.isOpening(session) else {
-                return .answered(.opening)
-            }
 
-            return .openable(Opening(
-                session: session, name: name, command: command, driver: driver, app: Self.opensIn.name,
-                workspace: workspace, clock: clock, openings: openings
-            ))
+            return try await open(attachable, for: session, named: name)
         } catch {
             return .answered(.stopped)
         }
     }
 
-    /// Brings the first of the windows a jump can reach to the front, or, where none shows, says what would open a
-    /// window attached to one. Which app is in front is read beside the screen, and settled before any select or
-    /// focus, so it is never an app brought forward by the jump itself. Where what was asked gave no answer, nothing is
-    /// openable.
+    /// The window to open for the session, a window of it in a multiplexer holding it: none where one was asked for it
+    /// a moment ago, which is opening; and none where the open command, filled with the window's facts, is not fit to
+    /// type, refused in plain words.
+    private func open(_ attachable: Attachable, for session: String, named name: String) async throws -> JumpOutcome {
+        guard !openings.isOpening(session) else {
+            return .answered(.opening)
+        }
+        guard let driver = drivers[opening.terminal],
+              let multiplexer = reader.multiplexers.first(where: { $0.kind == attachable.kind })
+        else {
+            return .answered(Jumped.offScreen.answer(named: name))
+        }
+
+        do {
+            let line = try await OpenCommand(opening.command).line(for: attachable.where, in: multiplexer, named: name)
+
+            try Task.checkCancellation()
+            return .openable(Opening(
+                session: session, name: name, line: line, terminal: opening.terminal, driver: driver,
+                workspace: workspace, clock: clock, openings: openings
+            ))
+        } catch {
+            try Task.checkCancellation()
+            return .answered(.unopened(String(describing: error)))
+        }
+    }
+
+    /// Brings the first of the windows a jump can reach to the front, or, where none shows, gives the first a
+    /// multiplexer holds, to open a window for. Which app is in front is read beside the screen, and settled before any
+    /// select or focus, so it is never an app brought forward by the jump itself. Where what was asked gave no answer,
+    /// nothing is openable.
     func jump(to windows: [Board.Window.Where]) async throws -> Jumped {
         try Task.checkCancellation()
 
@@ -153,7 +172,7 @@ public struct Jump: Sendable {
         case let .onScreen(places):
             try await bringFirst(places, front: front)
         case .offScreen:
-            try await openable(screen.attachables(windows))
+            screen.attachable(windows).map(Jumped.openable) ?? .offScreen
         case let .unknown(unanswered):
             .unknown(unanswered)
         }
@@ -229,36 +248,6 @@ public struct Jump: Sendable {
         }
     }
 
-    /// The command that would open a window attached to the first of the windows held whose session is still there,
-    /// checked: the command and its values fit to type, then Ghostty running. Not on screen where no window is held,
-    /// or each one's session has gone; refused, in plain words, otherwise.
-    private func openable(_ held: [Attachable]) async throws -> Jumped {
-        guard let driver = drivers[Self.opensIn] else {
-            return .offScreen
-        }
-
-        for each in held {
-            guard let multiplexer = reader.multiplexers.first(where: { $0.kind == each.kind }) else {
-                continue
-            }
-
-            do {
-                let command = try await commands.command(for: each.kind).line(attaching: each.where, in: multiplexer)
-
-                try Task.checkCancellation()
-                return await driver.canOpen() ? .openable(command: command) : .notRunning(Self.opensIn.name)
-            } catch let stopped as CancellationError {
-                throw stopped
-            } catch is SessionGone {
-                continue
-            } catch {
-                return .unattachable(String(describing: error))
-            }
-        }
-
-        return .offScreen
-    }
-
     private func bringWhole(_ app: RunningApp?) async -> Bool {
         guard let app else {
             return false
@@ -297,17 +286,14 @@ enum Missed: Equatable {
     case failed(String)
 }
 
-/// What a jump came to: the window brought forward; the command that would open a window attached to it, where none
-/// showed it; no terminal window showing the session, nor any tmux could make show it, nor any multiplexer holding it
-/// to attach to; its attach command not made, in plain words; the app windows open in not running, by its name; none
-/// found, as what was asked gave no answer; devices showing it, in the apps named, where no window answered; tmux not
-/// selecting the pane's window, in its words, or giving no answer; or its app unable to be asked.
+/// What a jump came to: the window brought forward; no terminal window showing the session, nor any tmux could make
+/// show it, but a window of it a multiplexer holds, to open a window for; none of those either; none found, as what
+/// was asked gave no answer; devices showing it, in the apps named, where no window answered; tmux not selecting the
+/// pane's window, in its words, or giving no answer; or its app unable to be asked.
 enum Jumped: Equatable {
     case focused
-    case openable(command: String)
+    case openable(Attachable)
     case offScreen
-    case unattachable(String)
-    case notRunning(String)
     case unknown([Unanswered])
     case unanswered(devices: [String], apps: [String])
     case unselected(said: String?)
@@ -345,10 +331,6 @@ enum Jumped: Equatable {
             .openable
         case .offScreen:
             .refused("\(name) is not on screen: no terminal window on this Mac shows it.")
-        case let .unattachable(why):
-            .unopened("\(name) is not on screen, and SitRep cannot open a window for it: \(why)")
-        case let .notRunning(app):
-            .unopened("\(name) is not on screen, and SitRep can open a window for it only in a \(app) already running.")
         case let .unknown(unanswered):
             .refused("Could not tell whether \(name) is on screen: \(inWords(unanswered.map(\.words))) gave no answer.")
         case let .unanswered(devices, apps) where devices.isEmpty:

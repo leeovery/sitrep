@@ -72,12 +72,9 @@ struct JumpTests {
         #expect(GhosttyDriver.pause == .milliseconds(500))
     }
 
-    /// Not on screen, never unknown, so a window is opened for it.
+    /// Not on screen, never unknown, so a window can be opened for its pane.
     @Test func withNoClientOnTheSessionsTmuxServerTheTableGoesUnusedSoItGivingNoAnswerIsNoMatter() async {
-        let jumping = Jumping(server([]), FakeTable(nil))
-
-        #expect(await jumping.open([inTmux()]) == .opened)
-        #expect(jumping.ghostty.opened == [attachingClaudesPane])
+        #expect(await Jumping(server([]), FakeTable(nil)).run([inTmux()]) == .openable)
     }
 
     @Test func aTmuxSessionThePhoneAndAGhosttyWindowBothShowGoesToTheGhosttyWindowAndGhosttyIsNeverAskedForThePhonesDevice() async {
@@ -100,39 +97,37 @@ struct JumpTests {
         #expect(jumping.ghostty.focused == ["SWITCHBOARD-TERMINAL"])
     }
 
-    /// Not on screen, so a window is opened for it, and no jump lands on the control client's.
     @Test func aClientWithNoDeviceAloneOnThePanesWindowIsOffScreenNeverAJumpLandedAndGhosttyIsAskedNothing() async {
         var mac = Mac()
         let clients = [mac.controlClient(showing: claudes)]
         let jumping = Jumping(server(clients), FakeTable(mac.tree), workspace: FakeWorkspace(front: finder))
 
-        #expect(await jumping.open([inTmux()]) == .opened)
+        #expect(await jumping.run([inTmux()]) == .openable)
         #expect(jumping.ghostty.asked.isEmpty)
-        #expect(jumping.ghostty.focused == [FakeGhostty.opened])
+        #expect(jumping.workspace.listened == 0, "no watch of the front")
     }
 
-    /// The sessions no Ghostty window shows, each by why: the windows, their tmux and table, and what a click opens,
-    /// nothing where no multiplexer holds them.
-    private static func notShown() -> [(String, [Where], FakeTmux, FakeTable, opened: [String])] {
+    /// The sessions no Ghostty window shows, each by why, and what the jump answers: a window to open where tmux holds
+    /// the pane, else not on screen.
+    private static func notShown() -> [(String, [Where], FakeTmux, FakeTable, JumpAnswer)] {
         var detached = Mac(), phoned = Mac(), sshed = Mac()
 
         return [
-            ("no window saying where it is", [], FakeTmux(), FakeTable(Mac().tree), []),
-            ("a detached tmux session", [inTmux()], server([detached.ghosttyClient(kitTerminal.device, showing: kit)]), FakeTable(detached.tree), [attachingClaudesPane]),
-            ("a tmux session only the phone shows", [inTmux()], server([phoned.phoneClient(phone, showing: claudes)]), FakeTable(phoned.tree), [attachingClaudesPane]),
-            ("only a Ghostty on another Mac shows it, over ssh", [inTmux()], server([sshed.sshClient("/dev/ttys080", showing: claudes)]), FakeTable(sshed.tree), [attachingClaudesPane]),
-            ("tmux answering that no server runs on the socket", [inTmux()], FakeTmux(), FakeTable(Mac().tree), []),
-            ("a window in a terminal app unknown to sitrep", [Where(device: "/dev/ttys041", terminal: "Unknown")], FakeTmux(), FakeTable(Mac().tree), []),
+            ("no window saying where it is", [], FakeTmux(), FakeTable(Mac().tree), offScreen),
+            ("a detached tmux session", [inTmux()], server([detached.ghosttyClient(kitTerminal.device, showing: kit)]), FakeTable(detached.tree), .openable),
+            ("a tmux session only the phone shows", [inTmux()], server([phoned.phoneClient(phone, showing: claudes)]), FakeTable(phoned.tree), .openable),
+            ("only a Ghostty on another Mac shows it, over ssh", [inTmux()], server([sshed.sshClient("/dev/ttys080", showing: claudes)]), FakeTable(sshed.tree), .openable),
+            ("tmux answering that no server runs on the socket", [inTmux()], FakeTmux(), FakeTable(Mac().tree), offScreen),
+            ("a window in a terminal app unknown to sitrep", [Where(device: "/dev/ttys041", terminal: "Unknown")], FakeTmux(), FakeTable(Mac().tree), offScreen),
         ]
     }
 
-    @Test func aSessionNoGhosttyWindowShowsIsNotOnScreenAndGhosttyIsAskedNothingOpeningAWindowWhereAMultiplexerHoldsIt() async {
-        for (why, windows, tmux, table, opened) in Self.notShown() {
+    @Test func aSessionNoGhosttyWindowShowsIsNotOnScreenAndGhosttyIsAskedNothing() async {
+        for (why, windows, tmux, table, answer) in Self.notShown() {
             let jumping = Jumping(tmux, table, terminals: terminals + ownWindows(FakeTerminal(id: "LOOKALIKE", device: "/dev/ttys080")))
 
-            #expect(await jumping.open(windows) == (opened.isEmpty ? offScreen : .opened), "\(why)")
+            #expect(await jumping.run(windows) == answer, "\(why)")
             #expect(jumping.ghostty.asked.isEmpty, "\(why)")
-            #expect(jumping.ghostty.opened == opened, "\(why)")
         }
     }
 
@@ -261,8 +256,7 @@ struct JumpTests {
         #expect(jumping.tmux.runs.isEmpty)
     }
 
-    /// Not on screen, so a window is opened for it, never the other session's.
-    @Test func aZmxSessionWithNoClientOrOnlyOtherSessionsClientsIsNotOnScreenAndGhosttyIsAskedForNoTerminal() async {
+    @Test func aZmxSessionWithNoClientOrOnlyOtherSessionsClientsIsNotOnScreenAndGhosttyIsAskedNothing() async {
         var mac = Mac()
 
         mac.throughPortal("kit", relay: "/dev/ttys032", window: "/dev/ttys036")
@@ -270,9 +264,8 @@ struct JumpTests {
 
         let jumping = Jumping(FakeTmux(), FakeTable(mac.tree))
 
-        #expect(await jumping.open([inZmx("leeway")]) == .opened)
+        #expect(await jumping.run([inZmx("leeway")]) == .openable)
         #expect(jumping.ghostty.asked.isEmpty)
-        #expect(jumping.ghostty.told == ["open zmx attach leeway", "focus \(FakeGhostty.opened)"])
     }
 
     @Test func inZmxTmuxMissingChangesNothingAsTmuxIsNeverAskedAndTheTableGivingNoAnswerLeavesItUnknownNeverOff() async {

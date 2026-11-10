@@ -14,39 +14,27 @@ final class Works {
     /// caption.
     var heard: (JumpNews) -> Void = { _ in }
 
-    /// A jump that fails is told in a banner (`JumpAnswer.banner`); tmux and zmx are run with Lee's login shell's
-    /// environment, as `environment` gives it, found once and kept, asked for at each jump within its limit; a window
-    /// opened attaches by the commands Lee sets, as `commands` gives them at the click, on the Space showing, the one
-    /// choice until the Space picker (stage 7, D) asks Lee here.
-    init(
-        banners: Banners, environment: @escaping @Sendable () async -> [String: String],
-        commands: @escaping () -> AttachCommands
-    ) {
+    /// A jump that fails is told in a banner (`JumpAnswer.banner`); tmux is found on Lee's PATH, as `path` gives it,
+    /// the login shell's found once and kept, asked for at each jump within its limit; a window is opened as `opening`
+    /// gives Lee's settings at the click.
+    init(banners: Banners, path: @escaping @Sendable () async -> String, opening: @escaping () -> OpenSettings) {
         let board = JumpBoard()
         let openings = RecentOpenings()
-        let oneJump = OneJump()
 
         self.board = board
-        clicks = Clicks(oneJump, jump: { session in
-            let commands = commands()
+        clicks = Clicks(jump: { session in
+            let opening = opening()
 
             return {
-                switch await Jump.live(
-                    to: session, on: board, environment: environment, commands: commands, openings: openings
-                ) {
+                switch await Jump.live(to: session, on: board, path: path, opening: opening, openings: openings) {
                 case let .answered(answer):
                     .answered(answer)
-                case let .openable(opening):
-                    .openable { choosing in await opening.open(choosing: choosing) }
+                case let .openable(window):
+                    .openable(window.open)
                 }
             }
-        }, choose: { .current })
-        oneJump.heard = { [weak self] news in
-            if case let .ended(answer) = news, let banner = answer.banner {
-                banners.post(banner)
-            }
-            self?.heard(news)
-        }
+        }, post: banners.post)
+        clicks.heard = { [weak self] news in self?.heard(news) }
     }
 
     /// Each look of the watch, the board a jump goes from.
@@ -74,8 +62,9 @@ final class Works {
 }
 
 extension AppSettings {
-    /// The attach commands Lee set, each empty for SitRep's own.
-    var attachCommands: AttachCommands {
-        AttachCommands(zmx: zmxAttach, tmux: tmuxAttach)
+    /// How a window is opened for a session no window shows, as Lee set it: a terminal SitRep no longer has a driver
+    /// for read as Ghostty.
+    var openSettings: OpenSettings {
+        OpenSettings(terminal: Driver.all.first { $0.program == terminal } ?? .ghostty, command: openCommand)
     }
 }

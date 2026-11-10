@@ -48,9 +48,6 @@ extension JumpOutcome {
     }
 }
 
-/// SitRep's own command attaching a new window to Claude's tmux pane, where none shows it.
-let attachingClaudesPane = "tmux -S /private/tmp/tmux-501/default attach -t %148"
-
 /// The words of a jump no place answered, naming the devices and apps tried.
 func noneAnswered(_ devices: String, _ apps: String = "Ghostty") -> JumpAnswer {
     .refused("\(named) shows on \(devices), but no \(apps) window there answered.")
@@ -103,16 +100,15 @@ func shown() -> (FakeTmux, FakeTable) {
 }
 
 /// A jump on a Mac of doubles: tmux, the process table, Ghostty, the apps and the clock, Ghostty telling the apps of
-/// what it is told; zmx listing Lee's sessions; a window opened attaching by the commands given, SitRep's own unless
-/// given, and remembered among the openings given.
+/// what it is told; a window opened as the settings given say, none with no command as by default, and remembered among
+/// the openings given.
 struct Jumping {
     let tmux: FakeTmux
-    let zmx: FakeZmx
     let table: FakeTable
     let ghostty: FakeGhostty
     let workspace: FakeWorkspace
     let clock: TestClock
-    let commands: AttachCommands
+    let opening: OpenSettings
     let openings: RecentOpenings
     private let program: any TmuxProgram
 
@@ -121,15 +117,13 @@ struct Jumping {
         running: Bool = true, failing: GhosttyFailure? = nil, windowFailing: GhosttyFailure? = nil,
         windowHeld: Gate? = nil, ghosttyHeld: Gate? = nil,
         workspace: FakeWorkspace = FakeWorkspace(), clock: TestClock = TestClock(), tmuxHeld: Gate? = nil,
-        zmx: FakeZmx = FakeZmx(), commands: AttachCommands = AttachCommands(),
-        openings: RecentOpenings = RecentOpenings()
+        command: String = "", openings: RecentOpenings = RecentOpenings()
     ) {
         self.tmux = tmux
-        self.zmx = zmx
         self.table = table
         self.workspace = workspace
         self.clock = clock
-        self.commands = commands
+        opening = OpenSettings(command: command)
         self.openings = openings
         ghostty = FakeGhostty(
             terminals, running: running, failing: failing, held: ghosttyHeld, windowFailing: windowFailing,
@@ -138,14 +132,14 @@ struct Jumping {
         program = tmuxHeld.map { HeldTmux(tmux, at: $0) } ?? tmux
     }
 
-    private var driver: GhosttyDriver {
+    var driver: GhosttyDriver {
         GhosttyDriver(scripting: ghostty, workspace: workspace, clock: clock)
     }
 
     var jump: Jump {
         Jump(
-            reader: ScreenReader(tmux: program, zmx: zmx, table: table), tmux: program, drivers: [.ghostty: driver],
-            workspace: workspace, clock: clock, commands: commands, openings: openings
+            reader: ScreenReader(tmux: program, table: table), tmux: program, drivers: [.ghostty: driver],
+            workspace: workspace, clock: clock, opening: opening, openings: openings
         )
     }
 
@@ -154,23 +148,24 @@ struct Jumping {
         (try? await jump.jump(to: windows))?.answer(named: named) ?? .stopped
     }
 
-    /// The jump to the windows, then the window it finds can be opened opened where `choosing` says, the Space showing
-    /// unless it says otherwise, as SitRep opens one once the jump has answered.
-    func open(_ windows: [Where], choosing: @Sendable () async -> OpenOn? = { .current }) async -> JumpAnswer {
-        guard let jumped = try? await jump.jump(to: windows) else {
-            return .stopped
-        }
-        guard case let .openable(command) = jumped else {
-            return jumped.answer(named: named)
-        }
-
-        return await opening(command).open(choosing: choosing)
+    /// The jump to `sr-a`'s windows, as a click makes it: an answer, or the window to open for it.
+    func outcome(_ windows: [Where]) async -> JumpOutcome {
+        await jump.jump(to: "sr-a", named: named, at: windows)
     }
 
-    /// The opening of a window for `sr-a` running the command.
-    func opening(_ command: String) -> Opening {
+    /// The jump to `sr-a`'s windows, then the window it finds can be opened opened, as SitRep opens one once the jump
+    /// has answered.
+    func open(_ windows: [Where]) async -> JumpAnswer {
+        switch await outcome(windows) {
+        case let .answered(answer): answer
+        case let .openable(opening): await opening.open()
+        }
+    }
+
+    /// The opening of a window for `sr-a` typing the line.
+    func opening(_ line: String) -> Opening {
         Opening(
-            session: "sr-a", name: named, command: command, driver: driver, app: "Ghostty", workspace: workspace,
+            session: "sr-a", name: named, line: line, terminal: .ghostty, driver: driver, workspace: workspace,
             clock: clock, openings: openings
         )
     }

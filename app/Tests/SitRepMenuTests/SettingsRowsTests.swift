@@ -278,7 +278,7 @@ struct AppSettingsTests {
         #expect(read.notifiesNewAsks)
         #expect(read.playsSound)
         #expect(read.sound == "Glass")
-        #expect(Set(keys) == ["notifiesNewAsks", "playsSound", "sound", "zmxAttach", "tmuxAttach"])
+        #expect(Set(keys) == ["notifiesNewAsks", "playsSound", "sound", "terminal", "openCommand"])
     }
 
     /// As each window played Glass before SitRep played the sound.
@@ -303,23 +303,20 @@ struct AppSettingsTests {
         #expect(read.sound == "Tink")
     }
 
-    /// Empty, SitRep's own, by default and from a value saved before them; Lee's own saved and read back.
-    @Test func theAttachCommandsAreEmptyByDefaultAndLeesAreSavedAndReadBack() {
+    /// No open command, as SitRep has no built-in way to attach, and Ghostty, by default and from a value saved before
+    /// them; Lee's own saved and read back.
+    @Test func theOpenCommandIsEmptyAndTheTerminalGhosttyByDefaultAndLeesAreSavedAndReadBack() {
         let defaults = MemoryDefaults()
         var settings = AppSettings()
 
         defaults.set(Data(#"{"notifiesNewAsks":true}"#.utf8), forKey: "app")
-        #expect(SavedSettings<AppSettings>(defaults).read().zmxAttach.isEmpty)
-        #expect(SavedSettings<AppSettings>(defaults).read().tmuxAttach.isEmpty)
+        #expect(SavedSettings<AppSettings>(defaults).read().openCommand.isEmpty)
+        #expect(SavedSettings<AppSettings>(defaults).read().terminal == "ghostty")
 
-        settings.zmxAttach = "portal open -s {session}"
-        settings.tmuxAttach = "tmux -S {socket} attach -t {session}"
+        settings.openCommand = "portal open -s {session}"
         SavedSettings(defaults).save(settings)
 
-        let read = SavedSettings<AppSettings>(defaults).read()
-
-        #expect(read.zmxAttach == "portal open -s {session}")
-        #expect(read.tmuxAttach == "tmux -S {socket} attach -t {session}")
+        #expect(SavedSettings<AppSettings>(defaults).read().openCommand == "portal open -s {session}")
     }
 
     /// "Your turn folds after", retired on 4 November 2026: a value saved with it reads what else it holds, and the next

@@ -8,12 +8,8 @@ struct JumpCaptionTests {
         #expect(JumpCaption(to: "SitRep").text == "Jumped to SitRep's window")
     }
 
-    /// A window opened for a session no window shows, or one opened a moment ago that does not show it yet, says so,
-    /// as it landed first: a later answer changes nothing.
-    @Test(arguments: [
-        (JumpCaption.Landing.jumped, "Jumped to SitRep's window"), (.opened, "Opened a window for SitRep"),
-        (.opening, "A window for SitRep is opening"),
-    ])
+    /// A window opened for a session no window shows says so, as it landed first: a later answer changes nothing.
+    @Test(arguments: [(JumpCaption.Landing.jumped, "Jumped to SitRep's window"), (.opened, "Opened a window for SitRep")])
     func itSaysHowTheJumpLanded(landing: JumpCaption.Landing, text: String) {
         var caption = JumpCaption(to: "SitRep")
 

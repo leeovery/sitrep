@@ -4,7 +4,7 @@ import SitRepCore
 
 /// tmux, asked through its program.
 public protocol TmuxProgram: Sendable {
-    /// tmux on the server at a socket, given the words: how it ran. Throws `ProgramUnanswered` where it is not found,
+    /// tmux on the server at a socket, given the words: how it ran. Throws `TmuxUnanswered` where it is not found,
     /// could not start or did not answer in its time.
     func run(on socket: String, _ words: [String]) async throws -> Ran
 }
@@ -76,45 +76,52 @@ public struct TmuxAdapter: Multiplexer {
     }
 
     /// The socket and the pane, from the heartbeat; and, only where wanted, the name of the tmux session holding the
-    /// pane, asked of tmux now, so a session renamed since is followed.
-    public func attachValues(_ where: Board.Window.Where, wanted: Set<Placeholder>) async throws
-        -> [Placeholder: String]
-    {
+    /// pane, asked of tmux now, as a tmux session can be renamed.
+    public func facts(of where: Board.Window.Where, wanted: Set<Fact>) async throws -> [Fact: String] {
         guard let pane = `where`.tmux else {
             return [:]
         }
 
-        var values: [Placeholder: String] = [.socket: pane.socket, .pane: pane.pane]
+        var facts: [Fact: String] = [.socket: pane.socket, .pane: pane.pane]
 
         if wanted.contains(.session) {
-            values[.session] = try await askSessionName(holding: pane)
+            facts[.session] = try await sessionName(holding: pane)
         }
 
-        return values
+        return facts
     }
 
-    /// Nothing more to ask: the screen's reading found the pane on its server (`TmuxReading.holds`).
-    public func confirm(_: Board.Window.Where) async throws {}
-
-    private func askSessionName(holding pane: Board.Window.Where.Tmux) async throws -> String {
-        let asked = "tmux, asked which session holds its pane,"
+    /// The name of the tmux session holding the pane, as tmux names it; tmux not answering, or answering with an
+    /// error or no name, throws in plain words.
+    private func sessionName(holding pane: Board.Window.Where.Tmux) async throws -> String {
+        let asked = "tmux, asked which session holds Claude's pane,"
         let ran: Ran
 
         do {
             ran = try await tmux.run(on: pane.socket, Self.sessionName(holding: pane.pane))
-        } catch let unanswered as ProgramUnanswered {
-            throw Unattachable(description: unanswered.words(asked: asked))
+        } catch TmuxUnanswered.notFound {
+            throw TmuxFailure(
+                description: "tmux is not on your login shell's PATH, so SitRep cannot ask which session holds Claude's "
+                    + "pane."
+            )
+        } catch let TmuxUnanswered.unanswered(why) {
+            throw TmuxFailure(description: "\(asked) \(why).")
         }
 
         let name = ran.stdout.trimmingCharacters(in: .newlines)
         let said = ran.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard ran.status == 0, !name.isEmpty else {
-            throw Unattachable(description: said.isEmpty ? "\(asked) named none." : "\(asked) said \"\(said)\".")
+            throw TmuxFailure(description: said.isEmpty ? "\(asked) named none." : "\(asked) said \"\(said)\".")
         }
 
         return name
     }
+}
+
+/// tmux not answering what it was asked, or answering with an error, in plain words.
+struct TmuxFailure: Error, Equatable, CustomStringConvertible {
+    let description: String
 }
 
 /// What tmux said of a server: its panes and clients, that none runs on the socket, or nothing in time.
@@ -245,17 +252,64 @@ struct TmuxReading: Reading {
     }
 }
 
-/// The real tmux, told its client takes UTF-8 (`-u`): without it, run with no UTF-8 locale and no `$TMUX`, as SitRep
-/// runs, a tmux 3.8 server writes each tab of a `-F` format as `_` (live, 22 October 2026). Found on Lee's PATH, with
-/// 2 seconds a run, with his login shell's environment (`ProgramOnPath`).
-public struct TmuxOnPath: TmuxProgram {
-    private let tmux: ProgramOnPath
+/// Why tmux gave no answer: not on Lee's PATH; or found, but it could not start, outran its time or was stopped.
+public enum TmuxUnanswered: Error, Equatable {
+    case notFound
+    case unanswered(RunError)
+}
 
-    public init(environment: [String: String], run: @escaping Runner = runProgram) {
-        tmux = ProgramOnPath("tmux", environment: environment, run: run)
+/// The real tmux, told its client takes UTF-8 (`-u`): without it, run with no UTF-8 locale and no `$TMUX`, as SitRep
+/// runs, a tmux 3.8 server writes each tab of a `-F` format as `_` (live, 22 October 2026). Each run has 2 seconds, and
+/// is ended with its process group at its limit, as the CLI's tmux was.
+///
+/// It is found once, on the PATH given, so one is made for each read with Lee's PATH as it then stands: a tmux
+/// installed or removed since shows at the next read.
+public struct TmuxOnPath: TmuxProgram {
+    static let limit: TimeInterval = 2
+
+    private let executable: URL?
+    private let environment: [String: String]
+    private let runner: Runner
+
+    public init(
+        path: String,
+        environment: [String: String] = ProcessInfo.processInfo.environment,
+        run: @escaping Runner = runProgram
+    ) {
+        executable = Self.find("tmux", on: path)
+        self.environment = environment.merging(["PATH": path]) { _, given in given }
+        runner = run
     }
 
     public func run(on socket: String, _ words: [String]) async throws -> Ran {
-        try await tmux.run(["-u", "-S", socket] + words)
+        guard let executable else {
+            throw TmuxUnanswered.notFound
+        }
+
+        do {
+            return try await runner(
+                Program(
+                    executable: executable,
+                    arguments: ["-u", "-S", socket] + words,
+                    environment: environment,
+                    limit: Self.limit,
+                    stopping: .group
+                )
+            )
+        } catch {
+            throw TmuxUnanswered.unanswered(error as? RunError ?? .unstartable(String(describing: error)))
+        }
+    }
+
+    /// The first executable file of the name in the PATH's folders, as a shell finds it: never a folder.
+    static func find(_ name: String, on path: String) -> URL? {
+        path.split(separator: ":").lazy
+            .map { URL(fileURLWithPath: String($0)).appending(path: name) }
+            .first { file in
+                var isFolder: ObjCBool = false
+
+                return FileManager.default.fileExists(atPath: file.path, isDirectory: &isFolder) && !isFolder.boolValue
+                    && FileManager.default.isExecutableFile(atPath: file.path)
+            }
     }
 }

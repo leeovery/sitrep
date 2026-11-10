@@ -131,20 +131,22 @@ struct FakeServer {
 }
 
 /// tmux, its servers by socket, answering as the real one does: a socket no server is on with an error; or, `silent`,
-/// giving no answer at all, as tmux too slow does, for every socket or those given. A select it answers as `select`
-/// says, nil for no answer. It keeps every run it was asked for.
+/// giving no answer at all, as tmux too slow does, for every socket or those given; or `missing`, not found on the
+/// PATH. A select it answers as `select` says, nil for no answer. It keeps every run it was asked for.
 final class FakeTmux: TmuxProgram {
     private let servers: [String: FakeServer]
+    private let isMissing: Bool
     private let isSilent: Bool
     private let silentSockets: Set<String>
     private let selected: Ran?
     private let asked = OSAllocatedUnfairLock(initialState: (runs: [[String]](), words: [[String]](), selects: [[String]]()))
 
     init(
-        _ servers: [String: FakeServer] = [:], silent: Bool = false, silentOn sockets: Set<String> = [],
-        select: Ran? = Ran(status: 0, stdout: "", stderr: "")
+        _ servers: [String: FakeServer] = [:], missing: Bool = false, silent: Bool = false,
+        silentOn sockets: Set<String> = [], select: Ran? = Ran(status: 0, stdout: "", stderr: "")
     ) {
         self.servers = servers
+        isMissing = missing
         isSilent = silent
         silentSockets = sockets
         selected = select
@@ -157,7 +159,7 @@ final class FakeTmux: TmuxProgram {
     /// Each select, its socket then its words after `select-window`.
     var selects: [[String]] { asked.withLock(\.selects) }
 
-    static let unanswered = ProgramUnanswered.unanswered("tmux", why: "did not answer within 2 seconds")
+    static let unanswered = TmuxUnanswered.unanswered(.timedOut(2))
 
     func run(on socket: String, _ words: [String]) async throws -> Ran {
         asked.withLock { asked in
@@ -168,6 +170,9 @@ final class FakeTmux: TmuxProgram {
             }
         }
 
+        guard !isMissing else {
+            throw TmuxUnanswered.notFound
+        }
         guard !isSilent, !silentSockets.contains(socket) else {
             throw Self.unanswered
         }
@@ -196,35 +201,6 @@ final class FakeTmux: TmuxProgram {
         }
 
         return Ran(status: 0, stdout: lines.map { $0.joined(separator: "\t") + "\n" }.joined(), stderr: "")
-    }
-}
-
-/// zmx, listing the sessions given, one a line, as `zmx list --short` does, or answering as given, or giving no
-/// answer, as given. It keeps every run it was asked for.
-final class FakeZmx: ZmxProgram {
-    /// The sessions these tests' windows run in.
-    static let lees = ["kit", "leeway", "agentic-workflows-v2 · leeway-build", "kit · restore-card"]
-
-    private let answer: Result<Ran, ProgramUnanswered>
-    private let asked = OSAllocatedUnfairLock(initialState: [[String]]())
-
-    init(listing sessions: [String] = lees) {
-        answer = .success(Ran(status: 0, stdout: sessions.map { $0 + "\n" }.joined(), stderr: ""))
-    }
-
-    init(answering answer: Ran) {
-        self.answer = .success(answer)
-    }
-
-    init(failing unanswered: ProgramUnanswered) {
-        answer = .failure(unanswered)
-    }
-
-    var runs: [[String]] { asked.withLock { $0 } }
-
-    func run(_ words: [String]) async throws -> Ran {
-        asked.withLock { $0.append(words) }
-        return try answer.get()
     }
 }
 

@@ -106,20 +106,22 @@ public struct GhosttyEvents: GhosttyScripting {
         return made
     }
 
-    /// The event made and sent on a thread of its own, `sending` called there as it goes, and its answer read there;
-    /// throws Ghostty's failure, or `CancellationError` once the jump is stopped, letting the event go, or before it
-    /// went, which sends nothing.
+    /// The event made and sent on a thread of its own, and its answer read there, `sending` called first, as it is
+    /// about to go; throws Ghostty's failure, or `CancellationError` once the jump is stopped, letting the event go, or
+    /// before `sending`, which sends nothing.
     private func answer(
         _ made: @escaping @Sendable () -> GhosttyEvent, at place: GhosttyEvent.Place,
-        sending: @escaping @Sendable () -> Void = {}
+        sending: @Sendable () -> Void = {}
     ) async throws -> Answered {
         guard let pid = ghostty() else {
             throw GhosttyFailure.gave(GhosttyEvent.noProcess, said: nil)
         }
+        try Task.checkCancellation()
+
+        sending()
 
         let answered = await onThread { [send] in
-            sending()
-            return Answered(send(made().addressed(to: pid), Self.answerSeconds), at: place)
+            Answered(send(made().addressed(to: pid), Self.answerSeconds), at: place)
         }
 
         guard let answered else {

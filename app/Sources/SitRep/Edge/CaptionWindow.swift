@@ -79,16 +79,14 @@ final class CaptionWindow {
         }
     }
 
-    /// The jump answered how it landed, where it did: "Jumped to…", or "Opened a window for…" and the like. A jump
-    /// refused leaves no caption; one with a window still to open, none yet.
+    /// The jump answered how it landed, where it did: "Jumped to…", or "Opened a window for…", for a window opened now
+    /// or a moment ago. A jump refused leaves no caption; one with a window still to open, none yet.
     func answered(_ answer: JumpAnswer, at time: Double) {
         switch answer {
         case .jumped:
             pending?.landed(.jumped, at: time)
-        case .opened:
+        case .opened, .opening:
             pending?.landed(.opened, at: time)
-        case .opening:
-            pending?.landed(.opening, at: time)
         case .openable:
             return
         case .refused, .unopened, .unanswered, .stopped:

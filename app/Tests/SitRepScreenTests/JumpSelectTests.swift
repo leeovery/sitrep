@@ -58,14 +58,12 @@ struct JumpSelectTests {
         #expect(jumping.selects == ["$8:@45"])
     }
 
-    /// Off screen, so a window is opened attaching to the pane, nothing selected in the other session.
     @Test func aClientAttachedToASessionNotHoldingThePanesWindowHasNothingSelectedOffScreen() async {
         var mac = Mac()
         let jumping = Jumping(server([mac.ghosttyClient(window, showing: kit, in: "$52")], sessions: ["$7"]), FakeTable(mac.tree))
 
-        #expect(await jumping.open([inTmux()]) == .opened)
+        #expect(await jumping.run([inTmux()]) == .openable)
         #expect(jumping.selects.isEmpty)
-        #expect(jumping.ghostty.opened == [attachingClaudesPane])
     }
 
     @Test(arguments: [

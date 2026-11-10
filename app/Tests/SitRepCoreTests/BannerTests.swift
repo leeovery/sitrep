@@ -23,4 +23,12 @@ struct BannerTests {
             #expect(answer.banner == nil)
         }
     }
+
+    /// A window that could not be opened says so, with why.
+    @Test func aWindowNotOpenedPostsABannerSayingSoWithWhy() {
+        #expect(
+            JumpAnswer.unopened("Set an open command.").banner
+                == Banner(title: "SitRep could not open a window", subtitle: nil, body: "Set an open command.", work: nil)
+        )
+    }
 }

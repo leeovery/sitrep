@@ -12,10 +12,10 @@ public struct JumpCaption: Equatable, Sendable {
     /// A jump that gave no answer within its limit, played as a caption is.
     public static let tooBusy = "Couldn't jump: the Mac is too busy."
 
-    /// How a jump landed: on the session's window; on a window it opened for the session, no window showing it; or on
-    /// one opened for it a moment ago, which does not show it yet.
+    /// How a jump landed: on the session's window; or on a window opened for the session, no window showing it, now
+    /// or a moment ago.
     public enum Landing: Equatable, Sendable {
-        case jumped, opened, opening
+        case jumped, opened
     }
 
     private let project: String
@@ -33,7 +33,6 @@ public struct JumpCaption: Equatable, Sendable {
         switch landing {
         case .jumped: "Jumped to \(project)'s window"
         case .opened: "Opened a window for \(project)"
-        case .opening: "A window for \(project) is opening"
         }
     }
 

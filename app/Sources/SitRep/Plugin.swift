@@ -9,18 +9,16 @@ import SitRepMenu
 @MainActor
 final class Plugin {
     private let setup: PluginSetup
-    /// Lee's environment, and the PATH in it: his login shell's, asked for once and kept, a fallback serving one
-    /// asking until the shell answers (`ShellEnvironment`).
-    let environment: @Sendable () async -> [String: String]
+    /// Lee's PATH: his login shell's, asked for once and kept, a fallback serving one asking until the shell answers
+    /// (`ShellPath`).
     let path: @Sendable () async -> String
     private var standing: PluginStanding?
     private var waiting: [CheckedContinuation<PluginStanding, Never>] = []
 
     init() {
-        let shell = ShellEnvironment()
-        let path: @Sendable () async -> String = { await shell.path() }
+        let shellPath = ShellPath()
+        let path: @Sendable () async -> String = { await shellPath.path() }
 
-        environment = { await shell.environment() }
         self.path = path
         setup = PluginSetup(copies: .app, path: path)
     }

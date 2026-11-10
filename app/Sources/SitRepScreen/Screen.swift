@@ -3,14 +3,14 @@ import SitRepCore
 /// Reads where windows show: a window in a multiplexer shows in every terminal window of this Mac holding a client of
 /// its session (for tmux, on the tmux window holding its pane, or which a select could make show it), each seated by
 /// one step (`Processes.seat`); one outside any, in its own, when its terminal app is known. One is made for each read,
-/// as its tmux and zmx are found once, on Lee's PATH as it stands (`ProgramOnPath`).
+/// as its tmux is found once, on Lee's PATH as it stands (`TmuxOnPath`).
 public struct ScreenReader: Sendable {
     let multiplexers: [any Multiplexer]
     let table: any ProcessTable
 
     /// Every multiplexer a window may run in, tmux first, beside the process table.
-    public init(tmux: any TmuxProgram, zmx: any ZmxProgram, table: any ProcessTable = KernelProcesses()) {
-        self.init(multiplexers: [TmuxAdapter(tmux), ZmxAdapter(zmx)], table: table)
+    public init(tmux: any TmuxProgram, table: any ProcessTable = KernelProcesses()) {
+        self.init(multiplexers: [TmuxAdapter(tmux), ZmxAdapter()], table: table)
     }
 
     init(multiplexers: [any Multiplexer], table: any ProcessTable) {
@@ -67,13 +67,13 @@ public struct Screen: Sendable {
         return unanswered.isEmpty ? .offScreen : .unknown(unanswered)
     }
 
-    /// The windows a new terminal window could attach to, where none shows the session, in their order: each that the
-    /// innermost multiplexer it runs in holds alive, with that multiplexer, the first to be tried first. None where no
-    /// window runs in a multiplexer, which has nothing to attach, or none is held, as one whose tmux server has gone.
-    public func attachables(_ windows: [Board.Window.Where]) -> [Attachable] {
-        windows.compactMap { each in
+    /// The window a new terminal window could attach to, where none shows the session: the first, in their order, that
+    /// the innermost multiplexer it runs in holds alive, with that multiplexer. None where no window runs in a
+    /// multiplexer, as closing its terminal ended its Claude, or none is held, as one whose tmux server has gone.
+    public func attachable(_ windows: [Board.Window.Where]) -> Attachable? {
+        windows.lazy.compactMap { each in
             innermost(of: each).first { $0.holds(each) }.map { Attachable(where: each, kind: $0.kind) }
-        }
+        }.first
     }
 
     /// What gave no answer of the windows: what a multiplexer they run in asked, as tmux for a socket one runs under;
@@ -132,7 +132,7 @@ public enum Reach: Sendable, Equatable {
     }
 }
 
-/// A window a new terminal window can attach to, and the multiplexer that holds it.
+/// A window a new terminal window can attach to, and the multiplexer that holds it alive.
 public struct Attachable: Sendable, Equatable {
     public let `where`: Board.Window.Where
     public let kind: MultiplexerKind

@@ -5122,7 +5122,8 @@ live changed, and how they group.
   which are silent. It plays as an ordinary sound, at the output volume,
   never as a notification's or an alert sound, which follow the alert
   volume.
-- **General**, in two sections. **Startup:** Open at login, its line
+- **General**, in three sections since 10 November 2026. **Startup:** Open
+  at login, its line
   "SitRep is only of use while it runs". Until 4 November 2026 a third,
   **Sessions**, held "Your turn folds after", "Older ones fold into one
   line, which opens in place", a pop-up of An hour, the default, Four
@@ -5134,8 +5135,20 @@ live changed, and how they group.
   and is not written again. **Ghostty:** the leave to
   control it, worded as macOS words a permission, by what SitRep can do
   with it: "Bring a session's Ghostty window to the front", "So a click on
-  a session jumps to it". No row carries an icon. Update automatically and
-  Check Now join General with the first public release.
+  a session jumps to it". **New windows** (stage 7, C): how a window is
+  opened for a session no window shows. Terminal, a pop-up of the
+  terminals SitRep has a driver for, Ghostty alone; and Open command, a
+  field empty until Lee gives one, its text monospaced at the label's 13,
+  the label and the command on one line of text, the field 360 wide where
+  the column has room and giving way before the label at the window's
+  least width, so the row keeps its 38. Under the card, "Clicking a session
+  that isn't showing in a terminal opens a new window and runs this
+  command. {session}, {socket} and {pane} are replaced with quoted
+  values." Saved under "app" as `terminal` (its `$TERM_PROGRAM`,
+  `ghostty`) and `openCommand`, the command saved as it is typed; nothing
+  is said of it until a click. Not yet drawn in Paper. No row carries an
+  icon. Update automatically and Check Now join General with the first
+  public release.
 - **Claude Code**, the plugin's pane. **Plugin:** the Claude Code plugin,
   "Puts each Claude Code session on the board", up to date; with every
   window current, that row is the pane. The plugin's folder and its version
@@ -5309,6 +5322,9 @@ Only step 1, the mod recording where its window is, is the plugin's still.
 
 **SitRep's own jump** (9 November 2026, stage 7, A3). `Jump`, in
 `SitRepScreen`, beside the screen's reading it starts from:
+- **A session no terminal shows that a multiplexer holds** has a window
+  opened for it, where the jump refused it as not on screen, since 10
+  November 2026 (stage 7, C, under "Stages").
 - **From the watch's last line**, never the board's files: the session's
   windows that say where they are, in core's order (`jumpOrder`, never
   their place in the line); from a watch older than the order, whose
@@ -7372,6 +7388,78 @@ open), and tmux passing an escape sequence through from Claude's own pane
      prompt) could take the typed line; tmux's attach by pane id and its
      session name asked by pane are checked on a Mac with tmux before
      relied on (this one has none).
+   - **Built on 10 November 2026**, nothing of it run live (each opens a
+     window on Lee's screen):
+     - **The jump answers what it can open**: where no terminal shows the
+       session, the first of its windows, in core's order, that the
+       innermost multiplexer it runs in holds alive (`Screen.attachable`: a
+       tmux pane on its server, a live window's zmx session) is openable,
+       and the jump fills the open command for it (`OpenCommand`). Then
+       `Clicks`, in SitRep, opens the window (`Opening`) under `OneJump`,
+       as a jump of its own: the latest click wins, and a click on the same
+       session before the jump or the opening says it is still under way
+       joins it, so a double-click opens one window. An opening has 20
+       seconds of its own, past which "SitRep gave up waiting for Ghostty to
+       open a window for <name> after 20 seconds; one may still appear."
+     - **The facts are the adapters'** (`Multiplexer.facts`): zmx's
+       `{session}` is the window's `$ZMX_SESSION`, and zmx is never run;
+       tmux's `{socket}` and `{pane}` are the heartbeat's, and its
+       `{session}` is asked of tmux (`display-message -p -t <pane>
+       '#{session_name}'`) at the click, only where the command names it.
+       tmux not on the PATH is told apart from tmux not answering in its 2
+       seconds, and from its error, in its words.
+     - **The command is read as the shell reads it**: `{name}`, a name of
+       letters and underscores, but never after an unescaped `$` or `#`
+       (`${…}`, tmux's `#{…}`), nor escaped, nor, in quotes, one whose
+       name is no placeholder's; an escaped `$` and `$$` open no `$'…'`.
+       Each value is quoted for the shell, single quotes round any but the
+       plainest. Refused at the click, before anything is asked or sent,
+       each under the banner "SitRep could not open a window": none given
+       ("No terminal window shows <name>. To open one for it, set an open
+       command in Settings."); a character in it that does not print; a
+       placeholder SitRep does not know; one in quotes, or joined to other
+       text; one the session's multiplexer gives no fact for ("<name> runs
+       in zmx, which gives no {pane}. A zmx session gives {session}."); and
+       a fact holding a character that does not print.
+     - **Ghostty's driver** opens the window as probed: `new surface
+       configuration` (`GhstNSCf`), its `initial input` (`GScI`) the line
+       and a return, then `new window with configuration` it (`GhstNWin`,
+       `GNwS`); then `focus` on `focused terminal of selected tab of` the
+       window Ghostty answered with (`GTfT` of `GWsT`), and Ghostty kept in
+       front as a jump keeps it. Once `new window` answers, the window is
+       opened, whatever the focus does. Whether Ghostty runs is read as the
+       opening begins; one quit since is sent nothing. A Ghostty that takes
+       no `new surface configuration` (-1708) is too old to open a window,
+       in plain words; `new window` unanswered in its 5 seconds says a
+       window may still appear.
+     - **One window per click** (`RecentOpenings`): an opening is
+       remembered as it begins, before `new window` is sent, for 10
+       seconds, and forgotten only where it failed before it was sent:
+       Ghostty not running, its first event refused, or the opening stopped
+       before then. A click on the session meanwhile, with no terminal yet
+       showing it, opens nothing, posts no banner and hands the front back.
+     - **The caption** "Opened a window for <project>", as "Jumped to
+       <project>'s window" names it, for a window opened, or opening
+       already.
+     - **Settings**, General's New windows (see "Settings"); the terminal
+       chosen is the driver the opening goes through.
+   - **To prove live, with Lee's go:**
+     1. With no open command, a click on a session no window shows: the
+        banner says to set one in Settings, and nothing opens.
+     2. With `portal open -s {session}`, a Portal session detached from
+        every window: a new Ghostty window on the Space showing, his
+        shell's prompt, the line typed and run, and the session attached,
+        focused, typing going in with no click, Finder in front as it
+        began.
+     3. A double-click on it, and a click again within 10 seconds: one
+        window.
+     4. Ghostty quit, a click: the banner says to open Ghostty, and Ghostty
+        does not start.
+     5. A notification's click on a session no window shows, from another
+        Space: the window opens on the Space showing.
+     6. On a Mac with tmux, `tmux attach -t {session}` and `tmux -S
+        {socket} attach -t {pane}`: tmux names the session by the pane, and
+        attaches by the pane's id.
 
 ## Later
 

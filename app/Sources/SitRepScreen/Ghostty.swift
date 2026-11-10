@@ -15,8 +15,9 @@ public protocol TerminalDriver: Sendable {
     func canOpen() async -> Bool
     /// Opens a new window on the Space showing, Lee's own login shell in it with the command typed in, and brings it
     /// forward, given the app in front as the opening began: whether it opened, false where the app is not running.
-    /// `sending` is called as the window is asked for, from when one may open whatever comes of the asking. Once the
-    /// app has answered that it opened one, it has, whatever follows; before then, it throws as `bringForward` does.
+    /// `sending` is called as the window is about to be asked for: from then, one may open whatever comes of the
+    /// asking, and before it, none can. Once the app has answered that it opened one, it has, whatever follows; before
+    /// then, it throws as `bringForward` does.
     func openWindow(running command: String, front: String?, sending: @escaping @Sendable () -> Void) async throws
         -> Bool
 }
@@ -35,7 +36,7 @@ public protocol GhosttyScripting: Sendable {
     func focus(_ terminal: GhosttyObject) async throws
     /// Opens a new window whose shell has the command typed into it, with a return, once the shell starts; nothing for
     /// Ghostty not running, as `new window` would launch it, which opens a first window of its own as it starts.
-    /// `sending` is called as `new window` goes to Ghostty, and never where nothing asked for a window went.
+    /// `sending` is called as `new window` is about to go to Ghostty: where it was not, no window was asked for.
     func openWindow(running command: String, sending: @escaping @Sendable () -> Void) async throws -> NewWindow
 }
 
