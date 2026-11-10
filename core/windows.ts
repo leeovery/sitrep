@@ -1,7 +1,7 @@
 /**
- * The order a jump tries a session's windows in: a board rule, so the CLI's
- * jump and SitRep, through the feed, read it here, and neither ranks windows
- * itself (see "The structure" in DESIGN.md).
+ * The order a jump tries a session's windows in: a board rule, so SitRep
+ * reads it through the feed, and ranks no windows itself (see "The
+ * structure" in DESIGN.md).
  */
 import { isLive } from './presence'
 import type { Presence, Session, Where } from './types'

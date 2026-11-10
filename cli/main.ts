@@ -1,7 +1,6 @@
 /**
- * The CLI, from its words to its exit code: the words read, then the files
- * and, where a command needs it, the screen, then the command's rules, then
- * a line appended or a window brought forward, and the answer printed.
+ * The CLI, from its words to its exit code: the words read, then the files,
+ * then the command's rules, then a line appended, and the answer printed.
  *
  * It writes as the writer `cli`, appending to `<session>/cli.jsonl` and
  * never rewriting it, and an answer to its letters in the session's inbox,
@@ -16,7 +15,6 @@ import {
   manifestVersion,
   rootOf,
   stamp,
-  windowsOf,
   type Body,
   type Checked,
 } from '../core'
@@ -25,24 +23,15 @@ import {
   commandNamed,
   type Command,
   type ProjectsCommand,
-  type ScreenCommand,
-  type WindowCommand,
   type SessionCommand,
 } from './commands'
-import { findSession, readHeldSessions, readProjects, textAt, type Found } from './files'
+import { findSession, readProjects, textAt, type Found } from './files'
 import { commandHelp, HELP } from './help'
 import type { Env, Io } from './io'
-import { Unanswered } from './driver'
-import { jump } from './jump'
-import { readOnScreen } from './screen'
 import { watch } from './watch'
 
-/**
- * How a run ends: done; a usage error, a refused input or a failure; no
- * such session; or a jump an app gave no answer to in time, as when the Mac
- * is too busy, which SitRep tells as it tells its own limit.
- */
-export const EXIT = { done: 0, refused: 1, noSession: 2, unanswered: 3 } as const
+/** How a run ends: done; a usage error, a refused input or a failure; or no such session. */
+export const EXIT = { done: 0, refused: 1, noSession: 2 } as const
 
 export type Exit = (typeof EXIT)[keyof typeof EXIT]
 
@@ -170,22 +159,6 @@ const onProjects = async (io: Io, command: ProjectsCommand, input: Fields) => {
   return told(io, command.act({ read, cwd: io.cwd, now }, input))
 }
 
-const onScreen = async (io: Io, command: ScreenCommand, input: Fields) => {
-  const now = io.now()
-  const sessions = await readHeldSessions(io, rootOf(io.env), now)
-
-  return told(io, command.act(await readOnScreen(io, sessions, now), input))
-}
-
-const onWindow = async (io: Io, command: WindowCommand, input: Fields) => {
-  const now = io.now()
-  const found = await namedSession(io, input, now)
-
-  return typeof found === 'number'
-    ? found
-    : told(io, command.act(found, await jump(io, windowsOf(found.session, now))))
-}
-
 /** A command on the rest of its words: its help, or its run once they read. */
 const runCommand = async (io: Io, command: Command, words: readonly string[]) => {
   if (wantsHelp(words)) {
@@ -203,10 +176,6 @@ const runCommand = async (io: Io, command: Command, words: readonly string[]) =>
       return onSession(io, command, input.value)
     case 'projects':
       return onProjects(io, command, input.value)
-    case 'screen':
-      return onScreen(io, command, input.value)
-    case 'window':
-      return onWindow(io, command, input.value)
     case 'feed':
       await watch(io)
 
@@ -232,11 +201,11 @@ const answer = async (io: Io, words: readonly string[]): Promise<Exit> => {
   return command === undefined ? unknown(io, name) : runCommand(io, command, rest)
 }
 
-/** Runs the CLI on its words; a failure the files or the world threw is told, and ends it as refused, or as unanswered for an app that gave no answer in time. */
+/** Runs the CLI on its words; a failure the files or the world threw is told, and ends it as refused. */
 export const main = async (words: readonly string[], io: Io): Promise<Exit> => {
   try {
     return await answer(io, words)
   } catch (error) {
-    return fail(io, error instanceof Unanswered ? EXIT.unanswered : EXIT.refused, messageOf(error))
+    return fail(io, EXIT.refused, messageOf(error))
   }
 }

@@ -24,16 +24,12 @@ public struct Program: Sendable, Equatable {
     }
 }
 
-/// How a program is ended early: killed outright (SIGKILL), as an interactive shell ignores SIGTERM; or, gently, told
-/// to end first.
+/// How a program is ended early: killed outright (SIGKILL), as an interactive shell ignores SIGTERM.
 public enum Stopping: Sendable, Equatable {
     /// It alone, killed, as a login shell is: what its startup files started, an ssh-agent among it, is not its to end.
     case alone
-    /// Killed with its process group, every program it started: the CLI's tmux, `ps` and osascript.
+    /// Killed with its process group, every program it started: tmux, as a jump runs it, and the CLI.
     case group
-    /// Its process group told to end first (SIGTERM), so the CLI may put back what it changed, then killed once the
-    /// grace has passed: a jump, which put back its knock's marker until 6 November 2026 and now holds nothing.
-    case gently(grace: TimeInterval)
 }
 
 /// How a program ended: its exit status, and what it printed.
@@ -141,10 +137,10 @@ private func runWaiting(_ program: Program, _ running: Running) throws -> Ran {
 /// A program as it runs, which a stop from another thread ends as its `Stopping` says: before it starts, it is never
 /// started; once it has ended, it is told nothing, so no pid reused since is.
 ///
-/// A group stop takes its process group, so nothing it started outlives it: the CLI's osascript, tmux and `ps` share
-/// its group, and an osascript left running could send Ghostty a question late. `Process` makes each child the leader
-/// of a group of its own (checked on macOS 26, 4 November 2026); a group not the child's own, which would be SitRep's,
-/// is never signalled, and the child alone is.
+/// A group stop takes its process group, so nothing it started outlives it: until SitRep made its own jump, the CLI's
+/// osascript, tmux and `ps` shared its group, and an osascript left running could have sent Ghostty a question late.
+/// `Process` makes each child the leader of a group of its own (checked on macOS 26, 4 November 2026); a group not the
+/// child's own, which would be SitRep's, is never signalled, and the child alone is.
 final class Running: Sendable {
     private struct State {
         var pid: pid_t?
@@ -180,10 +176,7 @@ final class Running: Sendable {
         end()
     }
 
-    /// Ends it as its `Stopping` says, while it runs, once however many ask, a stop and the limit together: a gentle
-    /// stop kills its group once the grace has passed, without waiting on it. The group is killed then though its
-    /// leader has ended, as what it started may not have: a pid is not given out again while a group of that id has
-    /// members, and an empty group takes no signal.
+    /// Ends it as its `Stopping` says, while it runs, once however many ask, a stop and the limit together.
     func end() {
         let isFirst = state.withLock { state in
             defer { state.isEnding = state.isEnding || state.pid != nil }
@@ -194,42 +187,21 @@ final class Running: Sendable {
             return
         }
 
-        switch stopping {
-        case .alone:
-            signal(SIGKILL, group: false)
-        case .group:
-            signal(SIGKILL, group: true)
-        case let .gently(grace):
-            guard let group = signal(SIGTERM, group: true) else {
-                return
-            }
-
-            DispatchQueue.global().asyncAfter(deadline: .now() + grace) { [self] in
-                if group < 0 {
-                    _ = Darwin.kill(group, SIGKILL)
-                } else {
-                    signal(SIGKILL, group: false)
-                }
-            }
-        }
+        signal(SIGKILL, group: stopping == .group)
     }
 
     func ended() {
         state.withLock { $0.hasEnded = true }
     }
 
-    /// Signals it, or its group where the group is its own, while it runs: what was signalled, nil for nothing.
-    @discardableResult
-    private func signal(_ signal: Int32, group: Bool) -> pid_t? {
+    /// Signals it, or its group where the group is its own, while it runs.
+    private func signal(_ signal: Int32, group: Bool) {
         state.withLock { state in
             guard let pid = state.pid, !state.hasEnded else {
-                return nil
+                return
             }
 
-            let target = group && getpgid(pid) == pid ? -pid : pid
-
-            _ = Darwin.kill(target, signal)
-            return target
+            _ = Darwin.kill(group && getpgid(pid) == pid ? -pid : pid, signal)
         }
     }
 }

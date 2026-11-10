@@ -2,13 +2,12 @@
  * The CLI bound to Bun: the file system, the environment and the folder it
  * runs in, the clocks and waiting on them, random bytes, standard input,
  * standard output and error and when the run is to end, the plugin's
- * manifest, programs, and the exit code. bin/sitrep runs it.
+ * manifest, and the exit code. bin/sitrep runs it.
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { appendFile, mkdir } from 'node:fs/promises'
 import { endOf, type Signals } from '../ending'
-import { TimedOut, type Io, type Listed, type Ran, type Waiting } from '../io'
-import { childEnvironment } from '../locale'
+import type { Io, Listed, Waiting } from '../io'
 import { main } from '../main'
 
 /** Errors a listing means "not there" by: the folder is missing, or is a file. */
@@ -24,9 +23,6 @@ const folderOf = (path: string) => path.slice(0, path.lastIndexOf('/'))
 const MANIFEST = import.meta.dir.startsWith('/$bunfs/')
   ? `${folderOf(process.execPath)}/../.claude-plugin/plugin.json`
   : `${import.meta.dir}/../../.claude-plugin/plugin.json`
-
-/** The environment the CLI's programs run in (`childEnvironment`). */
-const CHILDREN = childEnvironment(Bun.env)
 
 /** The program that started the run, as the CLI loads: before anything could miss it going. */
 const PARENT = process.ppid
@@ -84,36 +80,6 @@ const list = async (dir: string): Promise<Listed[]> => {
     }
 
     throw error
-  }
-}
-
-const run = async (command: readonly string[], limitMs?: number): Promise<Ran> => {
-  const child = Bun.spawn(command, { stdin: 'ignore', stdout: 'pipe', stderr: 'pipe', env: CHILDREN })
-  let isKilled = false
-  const timer =
-    limitMs === undefined
-      ? undefined
-      : setTimeout(() => {
-          if (child.exitCode === null) {
-            isKilled = true
-            child.kill()
-          }
-        }, limitMs)
-
-  try {
-    const [stdout, stderr, exitCode] = await Promise.all([
-      new Response(child.stdout).text(),
-      new Response(child.stderr).text(),
-      child.exited,
-    ])
-
-    if (isKilled && limitMs !== undefined) {
-      throw new TimedOut(command[0] ?? '', limitMs)
-    }
-
-    return { exitCode, stdout, stderr }
-  } finally {
-    clearTimeout(timer)
   }
 }
 
@@ -178,7 +144,6 @@ const io: Io = {
   err: text => void process.stderr.write(text),
   ending: () => endOf(signals, PARENT),
   manifest: MANIFEST,
-  run,
 }
 
 /** Runs the CLI on the words it was given, and exits as it ends. */

@@ -2627,10 +2627,13 @@ truth. There is still no background service. None of it is built now. Lee:
   sitrep finish
   sitrep board [--json]
   sitrep list [--project <name>] [--json]
-  sitrep screen [--json]
-  sitrep jump
   sitrep watch
   ```
+
+  - It runs no program (10 November 2026, stage 7, step B): `screen` and
+    `jump`, below, were retired once SitRep read on screen and made its
+    own jump, and the CLI's readings of tmux, zmx, `ps` and Ghostty, and
+    the Bun binding's runner of programs, went with them.
 
   - It writes as the writer `cli`, appending to `<session>/cli.jsonl`, a
     snooze and a wake among its lines (see "Snooze"), and an answer to its
@@ -2694,31 +2697,34 @@ truth. There is still no background service. None of it is built now. Lee:
     `--json` worked out, asking tmux twice per socket; the app's plain menu
     was its only reader, and it went with the menu. `v` stayed 1: no reader
     is left to trip on the field's going. It came back on 4 November 2026 as
-    a command of its own, `screen` (below), built for the SitRep window.
-  - `screen` (4 November 2026) says whether each session a window holds is
-    on screen: whether a jump could reach it, a terminal window of this Mac
-    showing it or tmux able to make one show it, exactly as the jump finds
-    it (see "The jump", step 2), by the same reading. It was built for the
-    SitRep window's rows and pages, to say whether a session is on screen;
-    since the window went (5 November 2026) the app does not run it.
+    a command of its own, `screen` (below), built for the SitRep window, and
+    went again on 10 November 2026.
+  - `screen` (4 to 10 November 2026) said whether each session a window
+    held was on screen: whether a jump could reach it, a terminal window of
+    this Mac showing it or tmux able to make one show it, exactly as the
+    jump found it (see "The jump", step 2), by the same reading. It was
+    built for the SitRep window's rows and pages, to say whether a session
+    was on screen; once the window went (5 November 2026) the app ran it no
+    more, and it was kept only for stage 7's parity check (A2), then
+    retired with the jump in step B. What follows is the record of it.
     - Three states, never two: `on`, a place shows the session or a select
       would make one; `off`, none does, every program asked of its windows
       having answered; `unknown`, none found, as tmux gave no answer for a
       socket one of its windows runs under, or `ps` none where that server
       has clients, whose apps it tells, or where a window runs in zmx, whose
       clients only `ps` tells (9 November 2026). A jump that could not tell
-      says so rather than calling the session off screen, and so does
-      `screen`: unknown is never off. A window in no multiplexer asks
+      said so rather than calling the session off screen, and so did
+      `screen`: unknown was never off. A window in no multiplexer asks
       neither, so is never unknown; a live window saying not where it is is
       off, as no jump can reach it.
-    - Only the sessions a live window holds are listed: one no window holds
+    - Only the sessions a live window held were listed: one no window holds
       is away, which the board says already. A finished session a window
       still holds is listed with the rest. Each session's heartbeats are
       read first, and only one with a live window is read past them and
       folded, so a run costs what the open sessions do, not the board's
       history.
     - One reading for the run, over every listed session's windows: tmux
-      asked twice for each socket and `ps` once, beside it, where any runs
+      was asked twice for each socket and `ps` once, beside it, where any runs
       in a multiplexer, each given 2 seconds, as for a jump, however many
       sessions run under them. Nothing fails the run: what gives no answer
       makes its sessions unknown, and is named. It selects, writes and
@@ -2754,10 +2760,11 @@ truth. There is still no background service. None of it is built now. Lee:
       `watch`, which runs for the app's whole life, would ask tmux and `ps`
       at every look, the window shut or not, for the one window that shows
       it. `list` runs no program, and keeps so. The window asked for it on
-      its own cadence, only while it showed. The reading stays in the CLI's
-      `screen.ts`, one place, which a jump reads too, so zmx came in there
-      behind the same states (9 November 2026), as a multiplexer adapter
-      (see "The jump").
+      its own cadence, only while it showed. The reading stayed in the
+      CLI's `screen.ts`, one place, which a jump read too, so zmx came in
+      there behind the same states (9 November 2026), as a multiplexer
+      adapter (see "The jump"), until SitRep read on screen itself (stage
+      7, A2).
 
     `board --json` is
     `{ v, project: { key, name }, session, asks, parked, log, resolved }`:
@@ -2894,11 +2901,14 @@ truth. There is still no background service. None of it is built now. Lee:
     redesign is open in a window: tell Claude there to finish it.`), as is
     one already finished (`This session is already finished.`); an unknown
     one is exit 2.
-  - `jump` brings the terminal window showing the session to the front, on
-    whatever Space it is (see "The jump"), and prints nothing. A session no
-    jump can reach is refused (`Dashboard redesign is not on screen: no
-    terminal window on this Mac shows it.`), as is one whose devices no
-    terminal answered, or whose pane's window tmux would not select.
+  - `jump` (13 October to 10 November 2026) brought the terminal window
+    showing the session to the front, on whatever Space it was (see "The
+    jump"), and printed nothing. A session no jump could reach was refused
+    (`Dashboard redesign is not on screen: no terminal window on this Mac
+    shows it.`), as was one whose devices no terminal answered, or whose
+    pane's window tmux would not select. One an app gave no answer in time
+    ended with exit 3. SitRep made its own jump from 9 November 2026
+    (stage 7, A3), and step B retired this one.
   - `watch`, designed 16 October 2026 and built 19 October 2026, is how the
     SitRep app hears the board: one per Mac, which the app starts as its
     child, so it stops with the app, and the app starts it again if it
@@ -5237,8 +5247,9 @@ The boards for rounds 4 and 5 still show round 4's placeholder.
 ### The jump
 
 **Terminal drivers**, decided with Lee on 16 October 2026 and built on 19
-October 2026 (stage 3, step 5). The jump stays in the CLI, in TypeScript,
-in two layers:
+October 2026 (stage 3, step 5). The jump stayed in the CLI, in TypeScript,
+until stage 7 moved it into SitRep, in two layers (each `cli/` file named
+in this section went in step B, 10 November 2026):
 - **a driver per terminal app**, Ghostty's the one built (`cli/ghostty.ts`:
   steps 3 and 4, every behaviour as it was): it recognises its windows, by
   the `$TERM_PROGRAM` in the heartbeat's `where` outside tmux and by its
@@ -5289,9 +5300,11 @@ shape allows them. A jump made in Swift, in the app, was parked too, until
 Lee decided on 9 November 2026 that the jump and on screen move into SitRep
 (stage 7; see "The structure"). **SitRep makes its own jump since then**
 (A3, below), at parity with the CLI's, and runs `sitrep jump` no more,
-which stays in the CLI until step B retires it. What follows is the jump as
-the CLI makes it, the spec SitRep's is built to; "SitRep's own jump", next,
-says where SitRep's goes another way.
+which step B retired from the CLI on 10 November 2026, with `sitrep
+screen`. Steps 1 to 4, after "SitRep's own jump", are the jump as the CLI
+made it, written as it stood then: the spec SitRep's was built to, and the
+record; "SitRep's own jump", next, says where SitRep's goes another way.
+Only step 1, the mod recording where its window is, is the plugin's still.
 
 **SitRep's own jump** (9 November 2026, stage 7, A3). `Jump`, in
 `SitRepScreen`, beside the screen's reading it starts from:
@@ -5415,9 +5428,10 @@ says where SitRep's goes another way.
    locale and no `$TMUX`, a tmux 3.8 server writes each tab of a `-F` format
    as `_`, and every session read as off screen, so no jump from the app went
    anywhere (live, 22 October 2026, the first restart after brew's tmux 3.8).
-   Every program the CLI runs gets a UTF-8 character type
+   Every program the CLI ran got a UTF-8 character type
    (`LC_CTYPE=UTF-8`) where the CLI was started with no locale at all, as
-   SitRep starts it (`cli/locale.ts`, 5 November 2026): with none, `ps`
+   SitRep starts it (`cli/locale.ts`, 5 November 2026, until step B left
+   the CLI no program to run): with none, `ps`
    mangles a path that isn't ASCII, so an app at `Café.app` was named
    `CafM-CM-)` and a jump could not bring it forward (checked live). A locale
    Lee set is left as it is, so a CLI started with a locale that is not
@@ -5528,13 +5542,15 @@ says where SitRep's goes another way.
    took `true` to mean a jump could reach it read it as before. It went on
    27 October 2026, the plain menu its only reader (see "One engine, two
    front ends"), and came back on 4 November 2026 as `sitrep screen`, with
-   unknown beside on and off, built for the SitRep window. It reads the
-   screen as the jump does, tmux and `ps`, and asks Ghostty nothing, as
-   decided on 6 November 2026 when the jump began asking Ghostty by device
-   (step 3): `ps` answers in about 60ms where any question to Ghostty takes
-   230ms or more, it sends no Apple Event, so it can neither raise macOS's
-   prompt for leave to control Ghostty nor wait 5 seconds on a locked
-   screen, and SitRep runs it while its window shows.
+   unknown beside on and off, built for the SitRep window, until step B
+   retired it on 10 November 2026. It read the screen as the jump did, tmux
+   and `ps`, and asked Ghostty nothing, as decided on 6 November 2026 when
+   the jump began asking Ghostty by device (step 3): `ps` answers in about
+   60ms where any question to Ghostty takes 230ms or more, it sent no Apple
+   Event, so it could neither raise macOS's prompt for leave to control
+   Ghostty nor wait 5 seconds on a locked screen, and SitRep ran it while
+   its window showed. SitRep's own reading (stage 7, A2) asks Ghostty
+   nothing either.
 
    **Selecting the pane's window** (19 October 2026). Where no client a jump
    can reach has the pane's tmux window current, the tmux layer makes it
@@ -5694,7 +5710,8 @@ says where SitRep's goes another way.
      jump. Chosen over keeping the knock (below) as a fallback for an older
      Ghostty, which would have kept all of its code and tests for a Ghostty
      Lee no longer runs; Ghostty updates itself.
-   - **`ps` stays**, and with it every rule of step 2. Skipping it was
+   - **`ps` stayed**, and with it every rule of step 2, until SitRep read
+     the kernel's table in its place (stage 7, A2). Skipping it was
      weighed and dropped on measurement the same day: a question to Ghostty
      costs more than `ps`. `tty of terminals` took 230–584ms and one `whose
      tty` lookup 231–296ms a program, where `ps` takes 58–63ms beside
@@ -5813,7 +5830,7 @@ says where SitRep's goes another way.
    gesture an update could break, would cover only the display under the
    pointer, and would still slide on a first jump to each window. The jump
    instead finds its terminal by tty (Ghostty 1.4.0), built the same day
-   (step 3); `ps` stays, as measured there. The switch is left for now, not
+   (step 3); `ps` stayed, as measured there. The switch is left for now, not
    ruled out: the research, the live timings and the test tool's source
    are kept in Lee's clone at `.scratch/space-switch/` (`README.md`,
    `main.swift`).
@@ -5921,8 +5938,9 @@ took 180, so some step ran unbounded. Lee's go, the same day: "Build it".
   card's, the strip's and the window's clicks refused.
 - **The CLI's jump was stopped gently, with everything it started**, until
   A3 (9 November 2026), when SitRep's own jump took its place and is
-  stopped by its task (below); this stays for the record, and for the CLI's
-  runs. At the limit,
+  stopped by its task (below); this stays for the record. `SitRepCLI.jump`
+  and its gentle stop (`Stopping.gently`) went in step B (10 November
+  2026). At the limit,
   or stopped by a click, the CLI's process group is told to end (SIGTERM):
   the CLI, and osascript, tmux, `ps`, lsappinfo and `open`, which share its
   group, and a second on the group is killed (SIGKILL), whatever is left
@@ -5952,7 +5970,7 @@ took 180, so some step ran unbounded. Lee's go, the same day: "Build it".
   first question, after 5 seconds; past 15, the Mac is too busy for a jump
   to land while Lee still wants it. The 15 run from the CLI's start, so
   they do not count the wait for a jump it stopped to end. The CLI's own
-  limits stand: 2 seconds
+  limits stood, until step B retired its jump: 2 seconds
   for each of tmux, `ps`, lsappinfo and `open`, 5 for each question to
   Ghostty, and 8 for its program (below).
 - **The step that ran unbounded: each Ghostty program.** osascript ran with
@@ -5966,7 +5984,8 @@ took 180, so some step ran unbounded. Lee's go, the same day: "Build it".
   told in its own words, and for osascript's start under load. One killed
   ends the jump unanswered, exiting 3 with "Ghostty did not answer within 8
   seconds: most likely the Mac is too busy.", as for a question timing
-  out; SitRep tells exit 3 as it tells its own limit. Since 6 November
+  out; SitRep told exit 3 as it told its own limit, until A3, and exit 3
+  went with the CLI's jump in step B. Since 6 November
   2026 a jump runs one Ghostty program a device: a lookup, the question
   whether its tab is selected, and a focus, with, for a tab not selected,
   the window's lookup, its activation and a half second's pause before it.
@@ -6023,7 +6042,8 @@ open), and tmux passing an escape sequence through from Claude's own pane
    pane. Built 13 October 2026.
 2. **`sitrep jump --work <id>`** in the CLI, the whole jump, runnable from a
    shell; and `list --json` says whether each session is on screen, so the
-   panel knows what to offer. Built 13 October 2026, reviewed at xhigh,
+   panel knows what to offer (the jump retired in stage 7, step B, on 10
+   November 2026). Built 13 October 2026, reviewed at xhigh,
    and run live twice with Lee watching: Finder in front, to the Fumi
    window on its Space and back, about half a second a jump, every
    directory as it was. Stages 1 and 2 landed together (kit-config #2);
@@ -7035,7 +7055,7 @@ open), and tmux passing an escape sequence through from Claude's own pane
        Apple Event, 15 for the whole jump. osascript's 8 seconds go with
        osascript, and exit 3 with the CLI's jump.
      - **On screen** is read in Swift as the jump reads it, its three states
-       as `sitrep screen` gives them. Nothing shows it until step C: SitRep
+       as `sitrep screen` gave them. Nothing shows it until step C: SitRep
        has not run `screen` since its window went (5 November 2026).
      - **Proposed, and built (A3):** the events built by hand
        (`NSAppleEventDescriptor`, each sent with its 5-second timeout, off
@@ -7051,7 +7071,8 @@ open), and tmux passing an escape sequence through from Claude's own pane
    - **Tests:**
      - **Today's TypeScript tests are the spec**: `tests/jump.test.ts`,
        `tests/screen.test.ts` and `tests/onscreen.test.ts`, 110 between
-       them, each rule pinned again in Swift. They stay until step B. The
+       them, each rule pinned again in Swift. They went in step B, with
+       what they tested (10 November 2026). The
        window order's three went to `tests/windows.test.ts` with it (A1),
        core's, so Swift pins none of them.
      - **Swift test doubles** for the process table, tmux, Ghostty, the
@@ -7125,7 +7146,7 @@ open), and tmux passing an escape sequence through from Claude's own pane
        own jump", under "The jump"), `Jump` in `SitRepScreen`, and SitRep
        switched to it outright: every click, from the notch, the strip, the
        menu, Settings or a banner, runs it through `OneJump`, and none runs
-       `sitrep jump`, which step B deletes with `SitRepCLI.jump`. The
+       `sitrep jump`, which step B deleted with `SitRepCLI.jump`. The
        watch's windows are read with their `jumpOrder`, which the watch's
        line did not print until A3's review found it missing (A1 had core
        give each window one, but `watch` wrote none out); a line from a
@@ -7197,10 +7218,46 @@ open), and tmux passing an escape sequence through from Claude's own pane
           stopped on Lee, is jumped to that one, as the watch's line now
           carries each window's `jumpOrder`.
 
+       **Proven live on 10 November 2026**, by Lee, with this Mac's build:
+       - **1 and 2, 6 too**: no new Automation prompt, and a Portal session
+         on another Space reached with Finder in front, several times: about
+         40ms of the jump's own work, then the second's watch for the
+         hand-back (SitRep's log: "jumped, in 1,041ms").
+       - **3**: a session in a tab not selected, on another Space: macOS
+         slid there, the tab showed, and his typing went in.
+       - **A session no window shows** was refused as "SitRep could not
+         jump / <name> is not on screen: no terminal window on this Mac
+         shows it.", and reached again once its window was reopened.
+       - **A notification's click** from another Space brought him to the
+         session.
+       - **4, dropped**: a jump acts in about 40ms, so a second click
+         cannot overtake it by hand; the tests cover the latest click
+         winning.
+       - **5, parked**: `LiveEventsTests`, the too old codes, not run.
+       - **Ghostty already in front** as a jump begins was not run on its
+         own.
+
    **B. `sitrep jump` and `sitrep screen` retired** from the CLI once
-   SitRep calls neither: `screen` has had no caller since the SitRep window
-   went, and is kept only for A's parity check; `jump` once SitRep's own
-   has replaced it.
+   SitRep calls neither: `screen` had had no caller since the SitRep window
+   went, and was kept only for A's parity check; `jump` once SitRep's own
+   had replaced it.
+   - **Built on 10 November 2026**: every file the list below names went,
+     with its tests (`tests/jump.test.ts`, `tests/screen.test.ts`,
+     `tests/onscreen.test.ts` and `tests/locale.test.ts`), and the CLI's
+     test world lost its fake tmux, zmx, `ps`, lsappinfo, `open` and
+     Ghostty. The CLI's `Io` has no `run`, so it runs no program, and `list`
+     needs no test that it runs none; `jump` and `screen` left its commands,
+     its help and its exit codes (exit 3, an app unanswered, with them), and
+     `screen --json`, which only the on-screen reading filled, went whole;
+     `list --json` and `watch` lost no field. In SitRep, `SitRepCLI.jump`,
+     its limit, grace and exit status, and `Stopping.gently` went; so did
+     A2's parity check (`ParityTests`), which ran the CLI's reading of
+     `ps`. What stays: core's `where.ts` and the mod recording `where`, as
+     the watch carries each window's and SitRep jumps from it; core's
+     `windows.ts`, the order the watch's `jumpOrder` gives, and its
+     `windowsOf`, which only the tests read now, as the order's statement;
+     and `Stopping.group`, which SitRep's tmux and every run of the CLI
+     are still ended by.
    - **Decided:**
      - **What goes**: `cli/jump.ts`, `screen.ts`, `processes.ts`,
        `tmux.ts`, `zmx.ts`, `ghostty.ts`, `front.ts`, `apps.ts`,
@@ -7208,7 +7265,8 @@ open), and tmux passing an escape sequence through from Claude's own pane
        binding's runner of programs, and their tests; in SitRep,
        `SitRepCLI.jump`, and `Stopping.gently`, which only the jump used.
        The CLI then runs no program at all.
-     - **It absorbs the parked "let the CLI own the jump's safety"**, a
+     - **It absorbs the parked "let the CLI own the jump's safety"**
+       (nothing built for it: it went with the jump), a
        lock every caller of `sitrep jump` takes and no AppleScript left
        running when a jump is killed: no CLI jump is left to lock, SitRep's
        `OneJump` is the one caller's lock, and no osascript runs.
