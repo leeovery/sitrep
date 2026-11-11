@@ -85,11 +85,13 @@ const sessionLine = (session: SessionSummary) => {
   return `  ${session.id}  ${session.name}${facts.length === 0 ? '' : ` (${facts.join(', ')})`}`
 }
 
+/** A project with no current session's line: what is parked in it, where something is, being why it is listed. */
+const noneLine = ({ parked }: ProjectSummary) =>
+  `  no current sessions${parked > 0 ? ` (${parked} parked)` : ''}`
+
 const projectLines = (project: ProjectSummary) => [
   project.name,
-  ...(project.sessions.length === 0
-    ? ['  no current sessions']
-    : project.sessions.map(sessionLine)),
+  ...(project.sessions.length === 0 ? [noneLine(project)] : project.sessions.map(sessionLine)),
 ]
 
 /** Each project's name, then its sessions, a line each: the id, the name, and what it holds. */

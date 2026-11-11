@@ -1,8 +1,23 @@
 import { expect, test, tier } from 'claude-code/testing'
 import { CURRENT_MS, parseEntries, parsePresence, sessionPaths, type SessionMeta } from '../core'
 import { WATCH_MS } from '../hooks/window'
-import { file, finish, MIN, park, SLOW, T0, W1, W2, W3, yesAsk, type Line } from './support'
-import { ELSEWHERE, postedId, PROJECT, ROOT, toProject, world } from './world'
+import {
+  delivered,
+  file,
+  finish,
+  MIN,
+  note,
+  park,
+  reply,
+  SLOW,
+  T0,
+  W1,
+  W2,
+  W3,
+  yesAsk,
+  type Line,
+} from './support'
+import { ELSEWHERE, postedId, PROJECT, PROMPT, ROOT, toProject, world } from './world'
 
 tier('user')
 
@@ -121,6 +136,9 @@ const meta = (id: string, name: string, by: string, project = PROJECT): SessionM
 /** The ledger's file this window writes. */
 const LEDGER_LOG = sessionPaths(ROOT, PROJECT.key, LEDGER).log(W1)
 
+/** The ledger's own file, which its window writes. */
+const LEDGER_OWN = sessionPaths(ROOT, PROJECT.key, LEDGER).log(W2)
+
 /** The ledger's inbox file this window writes. */
 const LETTERS = sessionPaths(ROOT, PROJECT.key, LEDGER).letters(W1)
 
@@ -160,11 +178,11 @@ async function besideLedger(w: World, { lines, isOpen }: Standing) {
 
 type Board = Awaited<ReturnType<World['opened']>>
 
-/** Lee picks up the ledger's parked item from the project's view, then goes home. */
-const pickUpLedgers = async (ui: Board) => {
+/** Lee picks up the ledger's parked item, `item`, from the project's view, then goes home. */
+const pickUpLedgers = async (ui: Board, item = 'p1') => {
   await toProject(ui)
-  await ui.press({ key: `ppick:${LEDGER}:p1` })
-  await ui.press({ key: `pickup:${LEDGER}:p1` })
+  await ui.press({ key: `ppick:${LEDGER}:${item}` })
+  await ui.press({ key: `pickup:${LEDGER}:${item}` })
   await ui.press({ key: 'tab:session' })
 }
 
@@ -334,5 +352,91 @@ test(
     await w.clock.settle()
     expect(w.submitted).toEqual([])
     expect(w.files.has(LEDGER_LOG), 'the item stays parked').toBe(false)
+  },
+)
+
+test(
+  "a pick-up written down in the session that parked its item is Claude's own: the next prompt takes no board for it, though it does for what that session parked meanwhile",
+  SLOW,
+  async ($, on) => {
+    const w = world($, on)
+    const lines: Line[] = [
+      [T0, park('p1', EXPORT)],
+      [T0, park('p2', 'Archive old requests')],
+    ]
+    const { ui } = await besideLedger(w, { lines, isOpen: true })
+
+    expect((await $.prompt.submit(PROMPT)).context?.[0], 'told of what it parked').toContain(EXPORT)
+
+    await pickUpLedgers(ui)
+    await ui.press({ key: 'send' })
+    expect(w.prompts.at(-1)?.text).toBe(PICKED)
+    await w.turnStarts(PICKED)
+    await w.turnEnds()
+    expect((await $.prompt.submit(PROMPT)).context, 'its own pick-up').toBeUndefined()
+
+    await pickUpLedgers(ui, 'p2')
+    w.put(LEDGER_OWN, file(...lines, [T0, park('p3', 'Retry the export')]))
+    await ui.press({ key: 'send' })
+
+    const context = (await $.prompt.submit(PROMPT)).context?.[0]
+
+    expect(context).toContain(
+      '- p3, parked by "Request ledger" (session: sr-1edger): Retry the export',
+    )
+    expect(context).not.toContain('Archive old requests')
+  },
+)
+
+/** The ledger open, its item picked up and sent while Claude is mid-turn, held: the reply id its claim drew. */
+const heldPickUp = async (w: World) => {
+  const { ui } = await besideLedger(w, STANDING['a session open in another window'] ?? FINISHED)
+
+  await pickUpLedgers(ui)
+  await w.turnStarts('Carry on.')
+  await ui.press({ key: 'send' })
+
+  return { ui, id: w.flights()[0]?.replies[0]?.id ?? '' }
+}
+
+test(
+  "a pick-up's reply id another writer of the parking session took while the send was held is drawn again as it is written down, the item picked up all the same",
+  SLOW,
+  async ($, on) => {
+    const w = world($, on)
+    const { ui, id } = await heldPickUp(w)
+
+    w.put(LEDGER_OWN, file([T0, park('p1', EXPORT)], [T0 + MIN, note(id, 'Took the same id')]))
+    await w.turnEnds()
+    await w.clock.settle()
+
+    const written = parseEntries(w.text(LEDGER_LOG))
+    const picked = written.find(line => line.type === 'reply')
+
+    expect(picked).toMatchObject({ item: 'p1', verdict: 'pickup' })
+    expect(picked?.id).not.toBe(id)
+    expect(written.at(-1)).toMatchObject({ type: 'delivered', replies: [picked?.id] })
+
+    await toProject(ui)
+    expect(await ui.find({ type: 'Text', text: 'PARKED' }), 'the item left Parked').toBeUndefined()
+  },
+)
+
+test(
+  'a pick-up this window already wrote down in the parking session, its write cut short before the claim ended, is not written again',
+  SLOW,
+  async ($, on) => {
+    const w = world($, on)
+    const { id } = await heldPickUp(w)
+
+    w.put(LEDGER_LOG, file([T0 + MIN, reply(id, 'p1', 'pickup')], [T0 + MIN, delivered(id)]))
+
+    const kept = w.text(LEDGER_LOG)
+
+    await w.turnEnds()
+    await w.clock.settle()
+
+    expect(w.submitted).toEqual([PICKED])
+    expect(w.text(LEDGER_LOG)).toBe(kept)
   },
 )

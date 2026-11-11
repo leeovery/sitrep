@@ -13,6 +13,7 @@ import {
   checkStatus,
   checkWake,
   withId,
+  withParkId,
   type Checked,
 } from '../core'
 import {
@@ -322,6 +323,14 @@ test('a checked post is given a fresh item id, unlike any its session uses; a re
   expect(refusal(withId(checkPark({}), SESSION, random))).toBe(
     'A parked item needs a title: one line.',
   )
+})
+
+test("a park's id is unlike any its session uses and any its project's other sessions parked, so no two share one in Claude's Parked", () => {
+  const random = scripted([19, 3, 15, 9], [20, 2, 22, 8])
+
+  expect(
+    value(withParkId(checkPark({ title: 'Later' }), { ids: new Set() }, [{ id: 'k3f9' }], random)),
+  ).toMatchObject({ id: 'm2p8' })
 })
 
 test("an answer from outside Claude Code is a yes in its button's words, or one of a choice's options", () => {

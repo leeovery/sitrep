@@ -7,6 +7,7 @@ import {
   projectPaths,
   sessionPaths,
 } from '../core'
+import { AROUND_MS } from '../hooks/around'
 import { SPECS } from '../hooks/tools'
 import { file, finish, META, MIN, note, park, T0, W1, W2, yesAsk } from './support'
 import {
@@ -18,6 +19,7 @@ import {
   CONVERSATION,
   startedId,
   postedId,
+  PROMPT,
   world,
 } from './world'
 
@@ -402,6 +404,47 @@ test("edit corrects an item's own fields; a field its kind has not is refused", 
   expect((await w.call('edit', { item: id, text: 'Merged the band' })).result).toBe(`Edited ${id}.`)
   expect(w.state.board?.log[0]?.text).toBe('Merged the band')
   expect((await w.call('edit', { item: id, title: 'Merged' })).deny).toContain('not title')
+})
+
+/** The ledger, open and parking `parked`, beside this session, whose Claude has been told of them by its first prompt: the ledger's own file. */
+const toldOfLedgers = async (w: ReturnType<typeof world>, $: Parameters<typeof world>[0]) => {
+  const ledger = w.elsewhere(LEDGER)
+
+  ledger.write(park('p1', 'Export the ledger as CSV'), park('p2', 'Archive old requests'))
+  await w.begin()
+  await w.clock.advance(AROUND_MS)
+
+  return { ledger, told: (await $.prompt.submit(PROMPT)).context?.[0] }
+}
+
+test("a session Claude starts counts as seen with what Claude gave it alone: what its project's other sessions parked rides into the next prompt", async ($, on) => {
+  const w = world($, on)
+  const { told } = await toldOfLedgers(w, $)
+
+  expect(told).toContain(
+    '- p1, parked by "Request ledger" (session: sr-1edger): Export the ledger as CSV',
+  )
+  expect(told).toContain(
+    '- p2, parked by "Request ledger" (session: sr-1edger): Archive old requests',
+  )
+})
+
+test("Claude's own act on another session's parked item is known: the next prompt takes no board for it, though it does for what that session parked meanwhile", async ($, on) => {
+  const w = world($, on)
+  const { ledger } = await toldOfLedgers(w, $)
+
+  await w.call('resolve', { item: 'p2', session: LEDGER.id })
+  expect((await $.prompt.submit(PROMPT)).context, 'its own resolve').toBeUndefined()
+
+  ledger.write(park('p3', 'Retry the export'))
+  await w.call('resolve', { item: 'p1', session: LEDGER.id })
+
+  const context = (await $.prompt.submit(PROMPT)).context?.[0]
+
+  expect(context).toContain(
+    '- p3, parked by "Request ledger" (session: sr-1edger): Retry the export',
+  )
+  expect(context).not.toContain('Export the ledger as CSV')
 })
 
 test('finish finishes the attached session with its reason, the window staying attached; a second is refused', async ($, on) => {

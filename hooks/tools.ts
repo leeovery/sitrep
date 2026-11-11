@@ -30,6 +30,7 @@ import {
   projectNamed,
   reopenedText,
   withId,
+  withParkId,
   WANTS,
   sessionPaths,
   type Body,
@@ -49,7 +50,7 @@ import {
   readProjects,
   sessionIdsIn,
 } from './projects'
-import { boardTextOf, changeKnown, markSeen, postKnown } from './seen'
+import { changedKnown, markSeen, markStarted, parkedAround, postKnown, seenHere } from './seen'
 import { attachTo, attached, refresh, serially } from './window'
 
 type Fields = { readonly [key: string]: unknown }
@@ -157,13 +158,13 @@ const onSession =
  */
 const posting = <N extends string, B extends Body>(
   toolSpec: Spec<N>,
-  check: (session: Session, input: Fields) => Checked<B>,
+  check: (session: Session, input: Fields, host: Host) => Checked<B> | Promise<Checked<B>>,
   said: (body: B) => string,
   names: (session: Session, body: B) => string | undefined = () => undefined,
 ): Tool<N> => ({
   spec: toolSpec,
   answer: onSession(async (host, session, input) => {
-    const checked = check(session, input)
+    const checked = await check(session, input, host)
 
     if (!checked.ok) {
       return { deny: checked.error }
@@ -280,13 +281,18 @@ const parkedElsewhere = async <B extends Body & { item: string }>(
     return { deny: into.error }
   }
 
-  const written = await changeKnown(host, () => writeParked(host, into.value, input, check))
+  const seen = await seenHere(host)
+  const written = await writeParked(host, into.value, input, check)
 
   if (!written.ok) {
     return { deny: written.error }
   }
 
   const after = await foldAt(host, await rootFor(host), into.value, await host.clock.now())
+
+  if (seen !== undefined && after !== undefined) {
+    await changedKnown(host, seen, [{ there: after, items: [written.value.item] }])
+  }
 
   return {
     result: said(written.value),
@@ -316,12 +322,12 @@ const onItem = <N extends string, B extends Body & { item: string }>(
 }
 
 /**
- * Attaches the window to a session, and counts its board as seen: Claude
- * gave a session it starts all it holds, and a join answers with the board.
- * A session other than the one held brings the board home to it, and the
- * sessions around it are read.
+ * Attaches the window to a session: one other than the one held brings the
+ * board home to it, and the sessions around it are read. What Claude has
+ * seen of its board its caller keeps: all a session it starts holds, or the
+ * board a join answers with.
  */
-const attachKnown = async (host: Host, root: string, attaching: SitrepAttachment) => {
+const attachHere = async (host: Host, root: string, attaching: SitrepAttachment) => {
   const before = attached()?.session
   const session = await attachTo(host, root, attaching)
 
@@ -330,10 +336,6 @@ const attachKnown = async (host: Host, root: string, attaching: SitrepAttachment
   }
 
   await lookAround(host)
-
-  if (session !== undefined) {
-    await markSeen(host, session)
-  }
 
   return session
 }
@@ -377,7 +379,16 @@ const start: Tool<'start'> = {
 
     await host.fs.write(sessionPaths(root, key, id).meta, metaText(meta))
 
-    await attachKnown(host, root, { project: key, session: id, writer, attachedAt: created })
+    const started = await attachHere(host, root, {
+      project: key,
+      session: id,
+      writer,
+      attachedAt: created,
+    })
+
+    if (started !== undefined) {
+      await markStarted(host, started)
+    }
 
     return {
       result: `Started ${meta.name} as ${id}, ${filing.said}. Record ${id} wherever the project tracks this work, so a later window can join it.`,
@@ -408,14 +419,14 @@ const join: Tool<'join'> = {
     }
 
     const attachedAt = await host.clock.now()
-    const session = await attachKnown(host, root, { project, session: id, writer, attachedAt })
+    const session = await attachHere(host, root, { project, session: id, writer, attachedAt })
 
     if (session === undefined) {
       return { deny: UNREADABLE }
     }
 
     const joined = await reopening(host, session)
-    const board = await boardTextOf(host, joined.session)
+    const board = await markSeen(host, joined.session)
 
     return {
       result: `Joined ${session.status.name} (${id}).${joined.said} Correct anything on it that is stale against what you know. The board as it stands:\n${board}`,
@@ -530,7 +541,8 @@ const TOOLS = [
       { title: text(LINE), where: WHERE, ref: REF },
       ['title'],
     ),
-    (session, input) => withId(checkPark(input), session, random),
+    async (session, input, host) =>
+      withParkId(checkPark(input), session, await parkedAround(host), random),
     ({ id }) => `Parked ${id}.`,
   ),
   onItem(

@@ -448,7 +448,7 @@ test("list --json: a project's parked counts every item parked in it, finished a
       '  sr-k3f9qa  Dashboard redesign (open, 1 waiting, 1 parked)',
       '  sr-cccccc  Old but waiting (1 waiting)',
       'Stale',
-      '  no current sessions',
+      '  no current sessions (1 parked)',
       '',
     ].join('\n'),
   )
