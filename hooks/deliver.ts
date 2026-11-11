@@ -35,7 +35,7 @@
  * every reader has them on their way as soon as Lee sends them.
  */
 import type { PromptOrigin, Timer } from 'claude-code'
-import { deliveredMark, isObject, sentLines, type Body, type Session } from '../core'
+import { deliveredMark, isObject, sentLines, type Body, type Entry, type Session } from '../core'
 import type {
   SitrepInFlight,
   SitrepQueued,
@@ -517,18 +517,23 @@ const linesOf = (
         replies.map(reply => reply.id),
       )
 
-/** Whether this window's own reply to the item, by the id its claim drew, is in the session: in a file only this window writes. */
-const isWritten = (session: Session, writer: string, { id, item }: SitrepReplyBody) =>
-  session.replies.some(reply => reply.id === id && reply.item === item && reply.by === writer)
+/**
+ * Whether this window's reply to the item, by the id its claim drew, is
+ * among its own lines in the session, a file only it writes. Not the fold:
+ * it keeps one reply to an id, so a second claim's by the same id, written,
+ * would never show there.
+ */
+const isWritten = (own: readonly Entry[], { id, item }: SitrepReplyBody) =>
+  own.some(line => line.type === 'reply' && line.id === id && line.item === item)
 
 /**
  * The lines a taken message's pick-ups of items another session parked are
- * written down as, in that session as it stands, in this window's own file
- * there, by the ids the claim drew: each reply not there yet as this window
- * wrote it, and the mark naming them; none once every one is.
+ * written down as, in this window's own file in that session, as it stands,
+ * by the ids the claim drew: each reply not there yet, and the mark naming
+ * them; none once every one is.
  */
-const pickUpLines = (session: Session, { writer, replies }: Writing): Body[] => {
-  const unwritten = replies.filter(reply => !isWritten(session, writer, reply))
+const pickUpLines = (own: readonly Entry[], replies: readonly SitrepReplyBody[]): Body[] => {
+  const unwritten = replies.filter(reply => !isWritten(own, reply))
 
   return unwritten.length === 0
     ? []
@@ -538,10 +543,10 @@ const pickUpLines = (session: Session, { writer, replies }: Writing): Body[] => 
 /** The lines a taken message is written down as in the session of `writing`. */
 const linesFor =
   (delivery: SitrepInFlight, writing: Writing) =>
-  (session: Session): Body[] =>
+  (session: Session, own: readonly Entry[]): Body[] =>
     writing.session === delivery.session
       ? linesOf(session, delivery.source, writing.replies)
-      : pickUpLines(session, writing)
+      : pickUpLines(own, writing.replies)
 
 /** Logs a session a taken message went to whose session.json is gone. */
 const goneUnless = (host: Host, isThere: boolean, { session }: Writing) => {
@@ -571,10 +576,10 @@ const writeThere = async (
 ): Promise<ChangedThere[]> => {
   const lines = linesFor(delivery, writing)
   let before = undefined as Session | undefined
-  const isThere = await writeInto(host, writing, session => {
+  const isThere = await writeInto(host, writing, (session, own) => {
     before = session
 
-    return lines(session)
+    return lines(session, own)
   })
 
   goneUnless(host, isThere, writing)

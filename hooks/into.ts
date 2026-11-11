@@ -7,17 +7,25 @@
  * as it stands with that file, so a line already there is not written
  * again.
  */
-import { append, foldSession, sessionPaths, type Body, type Session } from '../core'
+import {
+  append,
+  foldSession,
+  parseEntries,
+  sessionPaths,
+  type Body,
+  type Entry,
+  type Session,
+} from '../core'
 import type { SitrepSessionRef } from '../types'
 import { rootFor, type Host } from './host'
 import { createReader, ownText } from './reader'
-import { attached, isHoldOn, refresh, serially } from './window'
+import { attached, heldLines, isHoldOn, refresh, serially } from './window'
 
 /** A session, and the writer whose file there is written. */
 export type Into = SitrepSessionRef & { writer: string }
 
-/** What a write makes of a session as it stands: the lines it writes there. */
-export type LinesOf = (session: Session) => readonly Body[]
+/** What a write makes of a session as it stands, and of the writer's own lines there, its file as read: the lines it writes there. */
+export type LinesOf = (session: Session, own: readonly Entry[]) => readonly Body[]
 
 /** How the hold posts lines made from the held session: as lines Claude knows of, or as a change it did not make. */
 export type PostHeld = (session: Session, bodies: readonly Body[]) => Promise<unknown>
@@ -35,7 +43,7 @@ export const writeInto = async (
     host.clock.now(),
   ])
   const session = foldSession({ ...files, logs: { ...files.logs, [writer]: text } }, now)
-  const lines = session === undefined ? [] : linesOf(session)
+  const lines = session === undefined ? [] : linesOf(session, parseEntries(text))
 
   if (lines.length > 0) {
     await host.fs.write(paths.log(writer), append(text, lines, now).text)
@@ -47,7 +55,7 @@ export const writeInto = async (
 /** Writes what `linesOf` makes of the held session as it stands, posted by `postHeld`; false when the session no longer folds. */
 export const writeHeld = async (host: Host, linesOf: LinesOf, postHeld: PostHeld) => {
   const session = await refresh(host)
-  const lines = session === undefined ? [] : linesOf(session)
+  const lines = session === undefined ? [] : linesOf(session, heldLines())
 
   if (session !== undefined && lines.length > 0) {
     await postHeld(session, lines)

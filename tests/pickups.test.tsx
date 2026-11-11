@@ -476,12 +476,15 @@ const drawnAlike = <E extends { value: unknown }>(e: E): E => {
 }
 
 test(
-  'two sends held at once, each picking up an item one session parked, by the same reply id, are each written down there: a reply counts as written by its id to its own item alone',
+  'two sends held at once, each picking up an item one session parked, by the same reply id, are each written down there once, a write taken up again adding nothing; the second, its id taken, stays parked, the rare clash left',
   SLOW,
   async ($, on) => {
     const w = world($, on)
+    let isCut = true
 
-    on('state.set', { plugin: 'sitrep', key: 'inFlight' }, ($, e, next) => next(drawnAlike(e)))
+    on('state.set', { plugin: 'sitrep', key: 'inFlight' }, ($, e, next) =>
+      isCut && e.value === null ? { deny: 'the load was cut short' } : next(drawnAlike(e)),
+    )
 
     const lines: Line[] = [
       [T0, park('p1', EXPORT)],
@@ -501,7 +504,43 @@ test(
     await w.turnEnds()
     await w.clock.settle()
 
+    const written = w.text(LEDGER_LOG)
+
     expect(repliesIn(w, LEDGER_LOG).map(line => line.item)).toEqual(['p1', 'p2'])
+
+    isCut = false
+    await $.session.start(CONVERSATION)
+    await w.clock.settle()
+
+    expect(w.text(LEDGER_LOG), 'taken up again, the second writes nothing more').toBe(written)
+    expect(w.flights()).toEqual([])
+    expect(
+      w.state.projects
+        ?.find(project => project.key === PROJECT.key)
+        ?.parked?.map(parked => parked.id),
+    ).toEqual(['p2'])
+  },
+)
+
+test(
+  "a pick-up a send carried, held for the turn's end, goes in as sent once the window holds a session of another project, written down in the session that parked its item",
+  SLOW,
+  async ($, on) => {
+    const w = world($, on)
+    const { ui } = await besideLedger(w, FINISHED)
+
+    w.elsewhere(meta('sr-0rders', 'Standing orders', W3, ELSEWHERE), ELSEWHERE.key)
+    await w.clock.advance(MIN)
+    await pickUpLedgers(ui)
+    await w.turnStarts('Carry on.')
+    await ui.press({ key: 'send' })
+    await w.call('join', { session: 'sr-0rders' })
+    await w.turnEnds()
+    await w.clock.settle()
+
+    expect(w.submitted).toEqual([PICKED])
+    expect(kindsIn(w, LEDGER_LOG)).toEqual(['reply', 'delivered'])
+    expect(w.toasts.filter(toast => toast.includes('pick-up'))).toEqual([])
   },
 )
 

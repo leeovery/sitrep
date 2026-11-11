@@ -22,6 +22,7 @@ import {
   checkWakeTurn,
   WANTS,
   withId,
+  withParkId,
   type Body,
   type Checked,
   type ProjectParked,
@@ -209,7 +210,9 @@ const park: SessionCommand = {
   about: 'Park something raised and put off, to come back to. Prints its id.',
   grammar: { args: [{ field: 'title', about: LINE }], flags: { ...WHERE, ...REF, ...SESSION } },
   on: 'session',
-  act: ({ session }, input, { random }) => posted(withId(checkPark(input), session, random), idOf),
+  readsProject: true,
+  act: ({ session }, input, { random, parked }) =>
+    posted(withParkId(checkPark(input), session, parked, random), idOf),
 }
 
 const status: SessionCommand = {

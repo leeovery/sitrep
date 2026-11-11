@@ -21,6 +21,7 @@ import {
   HEARTBEAT_MS,
   isOpen,
   leave,
+  parseEntries,
   parsePresence,
   presenceText,
   sessionPaths,
@@ -28,6 +29,7 @@ import {
   stateOf,
   waitingOnLee,
   type Body,
+  type Entry,
   type Presence,
   type Sending,
   type Session,
@@ -219,6 +221,9 @@ export const refresh = async (host: Host): Promise<Session | undefined> => {
 
   return session
 }
+
+/** This window's own lines in the held session, as the hold keeps its file; none with none held. */
+export const heldLines = (): Entry[] => parseEntries(current?.text ?? '')
 
 /** What the window is doing, as its heartbeat says it: from what it has heard, before any turn your turn since `attachedAt`. */
 const stateNow = async (host: Host, attachedAt: number) =>
