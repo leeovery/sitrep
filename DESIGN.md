@@ -27,18 +27,18 @@ Settled with Lee on 16 October 2026.
 | Word | Means | On screen |
 |---|---|---|
 | **project** | The top level: what a session is on, named by Claude as Lee would say it (`SitRep`, `Switchboard`), and where it lives once known. Roughly a repository. Never the folder a window started in. | |
-| **session** | One line of discussion, with its status, asks, notes and parked items. It outlives its window: after a `/clear`, or in a new Claude told to carry on, it is the same session. | |
+| **session** | One line of discussion, with its status, asks and notes, and the items it parked, which are its project's. It outlives its window: after a `/clear`, or in a new Claude told to carry on, it is the same session. | |
 | **window** | One running Claude Code, wherever it shows: a Ghostty window, a tab, a tmux pane. Where working, your turn and a permission prompt come from, and what the jump brings forward. A word for the code and for the design. | Rarely shown. |
 | **session id** | The board's internal id for a session (`sr-k3f9qa`). Not Claude Code's session id, which names a conversation and changes on `/clear`. | Never shown. |
 | **the board** | The content: projects, sessions and their items, the state any surface shows. Putting something on the board is like putting it in a database. | |
 | **status** | Where a session stands: its name, a one-line summary, what is under way now (one line each), and what comes next. | |
 | **ask** | Something only Lee can do or decide, posted by Claude. Counted on the band, unless snoozed. | |
 | **note** | A line under Notes: something that happened that Lee may want to know. Not counted. | |
-| **parked** | Something raised and put off, to circle back to. Not counted, not dismissable. | |
+| **parked** | Something raised and put off, to circle back to. Its project's, naming the session that parked it (11 November 2026; see "Parked items are the project's"). Not counted, not dismissable. | |
 | **reply** | Lee's answer to an ask, or a pick-up of a parked item, waiting in Ready to send. | |
 | **resolved** | An item done with: an ask a reply closed, or any item Claude resolved. Resolved lists a session's resolved asks. | |
 | **snoozed** | An ask Lee put off until a time (23 October 2026; see "Snooze"): it counts nowhere as waiting on Lee until then, and is back in Needs you as it wakes, or as Lee wakes it. | Snoozed |
-| **finished** | A session Claude or Lee finished, once it was complete with nothing left on it. | |
+| **finished** | A session Claude or Lee finished, once it was complete with nothing left on it; what it parked is its project's, and stays. | |
 | **notch** | The SitRep notch, where it needs telling from the camera's: the black shape at the edge of the screen that opens into the panel. | |
 | **panel** | What the notch opens, the notch panel or the SitRep panel: a glance at the board, and a jump. | |
 | **strip** | The alternative to the notch and its panel: a narrow strip the height of the screen. | |
@@ -143,16 +143,54 @@ discussed. So `start` names its project, as Lee would say it and cased
 
 A session is **current**, and shows in the project view, All projects and
 the first message's listing, while it is open, has an ask waiting (on Lee,
-snoozed or not, or on a window to deliver Lee's answer), has something
-parked, or was updated in the last 7 days. An older idle session
-stays on disk and out of the views; a project left with none drops out of
-All projects altogether.
+snoozed or not, or on a window to deliver Lee's answer), or was updated in
+the last 7 days. An older idle session stays on disk and out of the views;
+a project left with none drops out of All projects altogether, unless
+something is parked in it (below). Something parked kept its session
+current until 11 November 2026, whatever its age.
 
 A session is **finished** once Claude or Lee finishes it, and is then never
 current, whatever it holds: a window can close with things still open on
 its session. Its waiting asks count nowhere (tabs, band, projects). A line
 posted to it later, by the CLI or anyone, leaves it finished; only joining
 it again reopens it.
+
+**Parked items are the project's.** A parked item is parked from a session,
+on that session's project, and names the session that parked it. Any
+session of the project sees it and acts on it: Claude's board text lists
+it, Claude's tools resolve, edit or reopen it, and Lee picks it up from the
+pane in any window of the project, the pick-up going to the Claude in that
+window (see Delivery). A session's view lists the items it parked; a
+project's view lists every one, each naming its session by name. Finishing
+a session hides none of them, and a session going idle takes none with it.
+Asks and notes stay their session's. Decided with Lee, 11 November 2026;
+until then a parked item was its session's, and a finished session's
+vanished from every view, though still stored.
+
+- **Nothing is rewritten.** Each item stays in its session's files, where it
+  was parked, and the views read a project's parked items from every
+  session filed under it, finished and idle ones included (see Storage). So
+  every item parked before is its project's as if it always was. At the
+  release, 31 items in 6 finished sessions come back: Switchboard 18, mint
+  11, Kit 1, Dotfiles 1.
+- **Parked items keep no session current.** An idle session leaves the
+  session lists after its 7 days, and its items stay in the project's
+  Parked; a project with something parked stays listed, though none of its
+  sessions is current. On Lee's board that day, 11 sessions holding 25
+  items stood on the board for those items alone.
+- **No line about a parked item moves its session's time**, its park aside:
+  a pick-up, its delivered mark, and a resolve, an edit or a reopen of a
+  parked item leave the session as recent as it was (`updatedAt`), whoever
+  writes them. So an act on a parked item from another session never brings
+  the session that parked it back onto the board. A mark counts as about
+  parked items where every reply it names is a pick-up. The fold judges each
+  line by the item it names once every line is read, so a mark read before
+  its reply is judged too; a line naming an item or a reply the session does
+  not have moves the time as any line does. It is the simplest rule a build
+  meets with no change of format, as every such line names its item already.
+  It holds for the session's own window: while the window is live the
+  session is open, and current whatever its time; once the window goes, its
+  7 days count from its last line about anything else, its status or a note.
 
 **Two windows are two sessions** (16 October 2026). Two terminals on one
 tmux session show one window twice, and the jump picks either. If two
@@ -405,11 +443,11 @@ orchestrator decides what reaches the board.
 | `status` | set the name, summary, the list of what is under way, and what is next |
 | `ask` | post an ask: what it wants back (`wants`: a yes, a choice or words), its title, and where to look; a yes's button (`yes`: the verb Lee gives, `Go`, `Approve`, `It works`), a choice's `options`, or what a words ask's words are (`needs`: "the command's output"), each only on its own shape |
 | `note` | add a note, with optional detail lines and a pointer |
-| `park` | park something to come back to |
-| `resolve` / `reopen` / `edit` | close, reopen or correct an item, with a reason. An edit may change what an ask wants, its `yes`, `options` and `needs`, under the checks `ask` makes; an empty `needs` clears it |
-| `finish` | finish the attached session, with a reason, once it is complete and nothing is left on it; the window stays attached, and joining it again reopens it |
+| `park` | park something to come back to, on the attached session's project |
+| `resolve` / `reopen` / `edit` | close, reopen or correct an item, with a reason. An edit may change what an ask wants, its `yes`, `options` and `needs`, under the checks `ask` makes; an empty `needs` clears it. An item of the attached session, or a parked item another session of its project parked, named with that session's id (`session`) and written into that session, in this window's own file there; another session's ask or note, or a session of another project, is refused |
+| `finish` | finish the attached session, with a reason, once it is complete and nothing is left on it; what it parked stays its project's and holds no finish back. The window stays attached, and joining it again reopens it |
 | `project` | rename the attached session's project, or say where it lives, or both; a name another project has is refused. It never moves a session to another project |
-| `board` | read back the board's open items, what each ask wants back among them (`k1 wants a yes (Go)`), so Claude can check and repair it |
+| `board` | read back the board's open items, what each ask wants back among them (`k1 wants a yes (Go)`), and the project's parked items, so Claude can check and repair it |
 
 **When to start a session**, in every conversation's first message
 (added once a conversation started one with nothing to go on but the tools,
@@ -429,7 +467,8 @@ and named it in internal shorthand):
 - As it goes: the status when what's under way changes, an ask whenever Lee is
   needed (resolved by Claude when Lee answers it in the chat), a note for
   what Lee would want later, never running commentary; resolve what's done;
-  finish the session once it is complete, with nothing left on it.
+  finish the session once it is complete, with nothing left on it. What it
+  parked stays its project's and holds no finish back (11 November 2026).
 - A turn that ends on a decision or a question for Lee posts it as an ask,
   so it shows in Needs you, never only in the status; plain conversation
   needs none (4 November 2026: two sessions ended turns with "Put to Lee:
@@ -474,6 +513,14 @@ Wording rules, in the tool descriptions:
 When the board changes, its open items ride into Claude's next turn as unseen
 context, so drift is noticed. A join answers with the whole board, and asks
 Claude to correct anything on it that is stale against what it knows.
+
+**The board text's Parked** is the project's (11 November 2026): what the
+session parked first, then what the project's other sessions parked,
+finished and idle ones included, the oldest first, each naming its session
+by name, its id given only as the `session` the tools take to resolve, edit
+or reopen the item. So another session of the project parking or resolving
+something changes the board, which rides into the next turn as any change
+does.
 Dropped: a `/sitrep check` command, since the `board` tool already reads the
 board back to repair it and Lee can ask for that in the chat; and a turn-end
 check for an ask Claude forgot to post. The board is best effort, and in use
@@ -631,14 +678,17 @@ show all 4
   Notes, Parked, Resolved. What waits on Lee comes first.
 - **All projects**: this project first, then the busiest. Each project's open
   sessions hang off it as a tree. A project with nothing open, waiting or parked
-  folds into one line at the bottom. A project opens its view.
+  folds into one line at the bottom. A project opens its view. What a project
+  has parked counts for it from every session filed under it, finished and
+  idle ones included, so a project with something parked stays listed, and
+  unfolded, though none of its sessions is current (11 November 2026).
 - **A project**, reached from All projects, named as it is (`SitRep` stays
   `SitRep`): its sessions, this one first (`⌂`), each with what it is doing
   and its waiting count; Asks, every current session's asks, the newest
   first, each naming its session (`Request ledger: Keep the ledger…`) and
   answered right there as in a session's view; the project's Notes; and
-  Parked, every session's parked items, each naming its session. A project
-  has no Resolved.
+  Parked, every item parked in the project, finished and idle sessions'
+  included, each naming its session by name. A project has no Resolved.
 
   ```
    ⌂ Dashboard redesign 3  ≡ All projects 8
@@ -665,8 +715,8 @@ show all 4
   ```
 
 - **Another session** is the same view as this one, in the same order: its
-  asks with buttons that answer them, its status, its notes, its parked, its
-  resolved. While no window has it, its foot (above Ready to send) has
+  asks with buttons that answer them, its status, its notes, what it parked,
+  its resolved. While no window has it, its foot (above Ready to send) has
   `✓ finish this session`, for a session Lee left with things open by
   closing the window. It asks first, in place:
   `Finish <name>? Its open asks stop counting.`, `[ yes, finish it ]`
@@ -717,15 +767,21 @@ show all 4
   it soft. A note's own detail lines, as Claude wrote them, carry no label.
 - **Parked:** a section of every session's view, under Notes, and of every
   project's, drawn only while something is parked there, its heading
-  counting it (`2 to come back to`). A session's lists only its own items,
-  a project's every session's, each naming its session; the oldest first.
-  Each is a list's row: a purple `◇`, its title, and its age. Opened, its
-  tree hangs from the mark: where to look, its `see`, and the pick-up once
-  one waits or is on its way; `pick it up` and `✎ with a comment` sit under
-  the tree until then. The pick-up queues in Ready to send like any reply;
-  its comment is written in the prompt as an ask's is, and goes with it as
-  its note (see "Answering an ask"). It is never counted: not on a tab, nor
-  on the band.
+  counting it (`2 to come back to`). A session's lists only the items it
+  parked, and counts them; a project's lists every item parked in the
+  project, finished and idle sessions' included, each naming its session by
+  name, never by id, and counts them all (11 November 2026; see "Parked
+  items are the project's"). The oldest first. A finished session's item
+  shows as any other, with no mark of its own. Each is a list's row: a
+  purple `◇`, its title, and its age. Opened, its tree hangs from the mark:
+  where to look, its `see`, and the pick-up once one waits or is on its way;
+  `pick it up` and `✎ with a comment` sit under the tree until then, in a
+  window holding a session of the item's project: another project's parked
+  items show there without them. The pick-up queues in Ready to send like
+  any reply, to this session whichever session of the project parked the
+  item (see Delivery); its comment is written in the prompt as an ask's is,
+  and goes with it as its note (see "Answering an ask"). It is never
+  counted: not on a tab, nor on the band.
 
 ### Answering an ask
 
@@ -858,9 +914,11 @@ keeps the image's blocks and puts the new text in place of the typed text
   the mode is over, and the prompt goes on as any prompt of Lee's does, the
   board's context with it.
 - **Only to this window's session.** The prompt goes into this window's
-  Claude, so an item of another session can't take it: the prompt is kept,
+  Claude, so an ask of another session can't take it: the prompt is kept,
   with `An attachment goes only to this window's session: take it out to
-  answer in words, or answer from that session's window.`
+  answer in words, or answer from that session's window.` A pick-up takes
+  one whichever session of the project parked its item, since every pick-up
+  goes to this window's Claude (11 November 2026; see Delivery).
 - **On its way from the start.** Before the prompt goes on, the reply is
   claimed as a message in flight, as a send is (see Delivery): its id fixed,
   its text the rewritten prompt, and the reply frozen in Ready to send in
@@ -922,8 +980,9 @@ keeps the image's blocks and puts the new text in place of the typed text
 - **Always shown.** The band shows it the whole time it stands, on the surface
   it was begun on, and it stands exactly while the next Enter there would be
   taken. Once its ask can take the reply no longer (closed, or a parked item
-  picked up, its session finished, for an answer another already on its way,
-  a send carrying the reply its comment would join) the band is back to its
+  picked up or closed, an ask's session finished (a parked item's session
+  finished ends nothing), for an answer another already on its way, a send
+  carrying the reply its comment would join) the band is back to its
   counts, the next Enter goes to Claude, and the next look ends the mode, so
   the ask, reopened, does not take it up again. Its session is read at every
   look, the pane open or not, for that.
@@ -936,7 +995,7 @@ keeps the image's blocks and puts the new text in place of the typed text
   go of its own, the conversation's end among them. A reload keeps it, in
   `$.state`, and the band still shows it.
 - **It leaves nothing behind.** Ended without taking an Enter (cancel, its ask
-  closing, its session finished, a send carrying its reply, another ✎, the
+  closing, an ask's session finished, a send carrying its reply, another ✎, the
   window letting go), the mode takes back the words it put in the prompt for
   `✎ edit`: still just those, the box is emptied, so no Enter sends the pane's
   words to Claude; changed since, they are left as Lee has them, and a toast
@@ -982,8 +1041,9 @@ replies queued for it, or on their way, keep their meaning.
 Everything Lee does on the pane queues here first; nothing goes one press at
 a time. The box sits at the foot of **every** view of the pane while anything
 waits in it, grouped by where each reply goes (`to this session`,
-`to Request ledger`, a session of another project with its project's name).
-Each reply hangs off its item with a `└`, on one row: its words clipped to a
+`to Request ledger`, a session of another project with its project's name);
+a pick-up is always `to this session`, whichever session of the project
+parked its item (11 November 2026; see Delivery). Each reply hangs off its item with a `└`, on one row: its words clipped to a
 line, `+3 lines` where there are more, and `✎ edit` to write them again in
 the prompt (`✎ comment` on a bare yes or choice). Each has its own `✕`, and
 the ask shows `↺ undo`. **send to Claude** sends them; **cancel all** clears
@@ -1208,7 +1268,7 @@ app (see "The menu bar").
   inbox reply is: the window's heartbeat says them (`sending`, under
   "Storage") until the claim ends.
 - Replies for **another** session go into that session's inbox in the shared
-  folder, and so do `sitrep answer`'s (see
+  folder, a pick-up aside (below), and so do `sitrep answer`'s (see
   "One engine, two front ends"). The sitrep mod in that session's window
   picks them up and submits them as Lee's message (not as a message between
   agents, which Claude would give less weight). It writes back a delivered
@@ -1217,6 +1277,41 @@ app (see "The menu bar").
   - mid-turn: the window holds it until the turn ends;
   - no window open: waits in the inbox, goes in when the session is joined
     again.
+- **A pick-up goes to the window it was pressed in**: to the Claude there,
+  whichever session of the project parked the item, live, idle or finished
+  (see "Parked items are the project's"). It goes in that window's own
+  message with this session's replies, held for Claude's turn, taken back
+  and sealed as they are. Once Claude Code has taken the message, the window
+  writes the pick-up down in the session that parked the item, the reply and
+  its delivered mark together, in its own file there, as the pane writes
+  Lee's finish; the reply's id is unlike any that session uses. The item
+  leaves Parked. Claude's line names the session that parked it where that
+  is another (`- Pick up from parked, Request ledger's: Export the ledger as
+  CSV`). The board's line for it, `Picked up from parked: …`, is in that
+  session's Notes, so a finished session's shows nowhere: Claude has the
+  message, and the item has left Parked. Decided with Lee, 11 November
+  2026. Until then a pick-up of another session's item went into that
+  session's inbox, for its own Claude, and a finished session's could not be
+  picked up at all; that route went. A window on an older build still sends
+  one that way until it is reloaded, and the parking session's window
+  delivers it as any inbox reply.
+  - **No heartbeat says it.** Two sessions' items can share an id, so a
+    pick-up of another session's item said in the window's `sending` would
+    have every reader carry it onto the held session's item of that id. It
+    is left out: from its claim until it is written down only its own window
+    shows it, frozen in Ready to send, and no other reader sees it on its
+    way.
+  - **An older build mid-send.** In the window's `$.state`, the pick-up names
+    its item by its address (`sr-q7rx01:k3f9`), the line written down by the
+    item's own id. Should an older build take the message over before it is
+    written down (`app/plugin app` after a live test), it writes it down in
+    the held session, as it writes every reply it sends, naming an item no
+    session has, and every reader passes over it: Claude had the pick-up,
+    and the item stays parked, for Claude or Lee to close. Its heartbeat
+    saying it names no item either.
+  - **Two windows, one item.** Each pick-up goes in to its own window's
+    Claude: a mark lets in a reply its item's close voided `answered` (see
+    "Which replies go in"), so both Claudes are told.
 - The send box shows each destination's state (`✓ delivered`, `⧗ waiting for its
   turn to end`, `○ closed: goes in when it reopens`, `✕ not delivered` once
   every reply went void), each ask shows
@@ -1582,7 +1677,11 @@ app (see "The menu bar").
     void, `finished`, and so is one reaching a finished session: none goes
     in stale when a window takes the session up again. A resolve after Lee's
     close closes nothing, the first close standing, and the comments still
-    on their way go void by that close, `answered`.
+    on their way go void by that close, `answered`. A pick-up pressed in
+    another session's window is never on its way in the session that parked
+    its item: its line is written only once Claude has it, with the mark
+    that lets it in (below), so a finished session's item is picked up all
+    the same, its reply void `finished` and delivered (11 November 2026).
   - **Edits.** A reply that fits its item no more is void, `changed`: one
     not yet delivered, void or not, when an edit reshapes its item (an ask
     wanting a yes made to want a choice under Lee's yes), and one reaching
@@ -2121,6 +2220,18 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   The format's version stays 1: a new reader reads every old line, and an
   old reader skips an ask line it cannot read, as it skips any.
 
+  **Parked items as the project's** (11 November 2026; see "Parked items
+  are the project's") change no format and rewrite nothing. A `park` line
+  stays in the file of the session that parked it, and its replies, marks,
+  resolves, edits and reopens go into that session's folder, whichever
+  session's window or Claude writes them, each writer in its own file
+  there. A project's parked items are read, not stored: the views gather
+  them from every session filed under the project. Moving them to the
+  project was set aside: an item's history is spread over its session's
+  files and folded as one session, item ids are unique only within a
+  session, and neither a mod nor the CLI can remove a line, so a move would
+  have left every reader reading both places.
+
   **Asks written before they said what they want back** have a `kind` in
   place of `wants` (`review`, `decide`, `try` or `do`), and some a `needs`.
   They still read, by the shape their kind maps to: one with `needs` wants
@@ -2172,7 +2283,10 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   writes the reply and the mark together, once Claude Code has taken the
   message. For another session, the sender writes the reply into that
   session's inbox, and the window that submits it there writes the mark to
-  its own file. The CLI's answers go in as another session's replies do, as
+  its own file. A pick-up of another session's item goes to the window it
+  was pressed in, which writes the reply and the mark together in the
+  session that parked the item, in its own file there (11 November 2026;
+  see Delivery). The CLI's answers go in as another session's replies do, as
   its letters, `inbox/cli.jsonl`, appended to; the window's mark is the
   trace the CLI reads them delivered by (20 October 2026). A reply is void
   where "Which replies go in" (under Delivery) says so, its reason kept with
@@ -2265,7 +2379,9 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   - `sending` (22 October 2026) is the replies the window's messages carry
     to the session, each send's from its claim until the claim ends (see
     "Its replies on their way from the claim", under Delivery), each reply
-    as its line will hold it, with when its message was claimed:
+    as its line will hold it, with when its message was claimed. A pick-up
+    of another session's item is never said here (11 November 2026; see "A
+    pick-up goes to the window it was pressed in", under Delivery):
 
     ```
     "sending": { "at": 1760000005000,
@@ -2688,6 +2804,14 @@ truth. There is still no background service. None of it is built now. Lee:
     leaves out (see "Snooze"); plain `list` says it among a session's facts,
     `(open, 1 waiting, 1 snoozed)`.
 
+    `parked` (11 November 2026; see "Parked items are the project's"):
+    a session's counts the items it parked; a project's counts every item
+    parked in the project, from every session filed under it, finished and
+    idle ones included, and a project with something parked is listed though
+    none of its sessions is current, its `sessions` empty. Until then a
+    project's counted its current sessions' alone. A meaning changed, no
+    shape: `v` did not move.
+
     `created` (4 November 2026) is when the session started, as its
     `session.json` says; `board --json`'s `session` and `watch`'s sessions
     carry it too, built for the SitRep window to say when it started. A
@@ -2772,6 +2896,9 @@ truth. There is still no background service. None of it is built now. Lee:
     the session as `list` gives it, its open asks, what it parked, its latest
     log lines, and its resolved asks (20 October 2026), closed, the ignored
     aside, the newest closed first, as a session's Resolved lists them.
+    `parked` stays what the session parked, as its view lists it; plain
+    `board` prints Claude's board text, so it lists the project's (11
+    November 2026; see "The board text's Parked", under "Claude's side").
     `watch` carries it too, in this shape, for each session the app follows,
     folded as the watch folds (below). Its `v` is 3 since its session is `session` (27 October 2026),
     `work` before; 2 since its asks say what they want back (`wants`, `yes`,
@@ -2937,7 +3064,8 @@ truth. There is still no background service. None of it is built now. Lee:
       once. A finished session is in no row and no project, though a
       window still live on it is among the windows; an away session is in
       both, its asks still counting. It carries no
-      project without a current session, nor does `list --json`. A state
+      project without a current session, nor does `list --json`, but one
+      with something parked (11 November 2026). A state
       folder not there yet, as
       before any Claude window has written, is an empty board, and what
       comes into it shows.
@@ -3050,8 +3178,9 @@ truth. There is still no background service. None of it is built now. Lee:
       its asks snoozed as `snoozed`, which `waiting` leaves out, and each ask
       carries `snoozedUntil`, as in `board --json`. Fields added: `v` did not
       move.
-    - `projects`: those with a current session, which the app does not
-      read (5 November 2026), in the order the SitRep window listed them:
+    - `projects`: those with a current session, or with something parked,
+      which the app does not read (5 November 2026), each counting what is
+      parked in it as `list --json` does (11 November 2026), in the order the SitRep window listed them:
       a session where its row sits, those with none after, the latest updated
       first; a project where its first session sits. Each session is as `list
       --json` gives it, with its `state` (`needsYou`, `working`, `onItsWork`,
@@ -3078,7 +3207,9 @@ truth. There is still no background service. None of it is built now. Lee:
       followed or not, where before only a followed session's board held
       them. It was what the SitRep window's Parked list read, every item on
       the board. An item picked up or closed leaves it. A field added: `v`
-      did not move.
+      did not move. It stays the session's own (11 November 2026): a
+      finished session's, in no project's `sessions`, are on no line, and no
+      surface of the app shows parked items.
     - `windows`: every live window, the longest attached first, a finished
       session's among them, with its session's name and project, its
       `version`, and `needsReload` where it says none, or one behind the
