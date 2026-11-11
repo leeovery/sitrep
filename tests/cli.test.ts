@@ -15,6 +15,7 @@ import {
   META,
   MIN,
   note,
+  park,
   snooze,
   status,
   T0,
@@ -229,6 +230,16 @@ test('park prints its id, and the session counts it parked', async () => {
   expect(folded(t, paths).parked.map(each => [each.id, each.title, each.where])).toEqual([
     [FIRST_ID, 'A tmux indicator', 'DESIGN.md, Later'],
   ])
+})
+
+test("park draws an id apart from every item parked in the session's project, as Claude's park does", async () => {
+  const t = terminal()
+  const paths = t.seed(META)
+
+  t.seed(LOBBY, { lines: [[T0, park(FIRST_ID, 'Export the ledger as CSV')]] })
+
+  expect((await t.run('park', 'A tmux indicator', ...SESSION)).out).toBe(`${NEXT_ID}\n`)
+  expect(folded(t, paths).parked.map(each => each.id)).toEqual([NEXT_ID])
 })
 
 test('a status gives only what changed, the rest kept as it stands, and prints nothing', async () => {

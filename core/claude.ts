@@ -1,16 +1,16 @@
 /**
- * The board as Claude reads it: a session's open items with their ids, for
- * the board tool and for the context a turn takes when the board changed;
- * and every project's sessions with their ids, for the start of a
- * conversation. Undelivered replies are left out: Claude has not been told
- * them, so an ask with a reply of Lee's on its way still waits on Lee here,
- * or stays snoozed. A snoozed ask says until when, whole and local, so the
- * words change only as the snooze does.
+ * The board as Claude reads it: a session's open items with their ids, and
+ * what its project's other sessions parked, for the board tool and for the
+ * context a turn takes when the board changed; and every project's sessions
+ * with their ids, for the start of a conversation. Undelivered replies are
+ * left out: Claude has not been told them, so an ask with a reply of Lee's
+ * on its way still waits on Lee here, or stays snoozed. A snoozed ask says
+ * until when, whole and local, so the words change only as the snooze does.
  */
 import { answerOf, isOpen, yesOf } from './replies'
 import { wholeTime } from './snooze'
 import type { Ask, Finished, Finisher, LogLine, Parked, Session } from './types'
-import { summarise, type ProjectSummary, type SessionSummary } from './views'
+import { summarise, type ProjectParked, type ProjectSummary, type SessionSummary } from './views'
 
 /** How many of the latest notes the board text lists, for Claude to correct. */
 const RECENT_NOTES = 5
@@ -63,15 +63,26 @@ const askLine = (ask: Ask) =>
     ref: ask.ref,
   })}`
 
-const parkedLine = (parked: Parked) =>
-  `${parked.id}: ${withExtras(parked.title, { where: parked.where, ref: parked.ref })}`
+const parkedText = (parked: Parked) =>
+  withExtras(parked.title, { where: parked.where, ref: parked.ref })
+
+const parkedLine = (parked: Parked) => `${parked.id}: ${parkedText(parked)}`
+
+/** An item another session of the project parked: by its session's name, its id given as the `session` the tools take to act on it. */
+const parkedElsewhereLine = (parked: ProjectParked) =>
+  `${parked.id}, parked by "${parked.name}" (session: ${parked.session}): ${parkedText(parked)}`
 
 const noteLine = (note: LogLine) => `${note.id}: ${note.text}`
 
-/** A session's open items with their ids, for Claude to check against what it knows and repair. */
-export const boardText = (session: Session) => {
+/**
+ * A session's open items with their ids, for Claude to check against what
+ * it knows and repair. Parked lists what the session parked, then what the
+ * project's other sessions parked, of `projectParked`, the project's.
+ */
+export const boardText = (session: Session, projectParked: readonly ProjectParked[] = []) => {
   const { name, summary, now, next } = session.status
   const notes = session.log.filter(line => line.id !== undefined).slice(0, RECENT_NOTES)
+  const elsewhere = projectParked.filter(parked => parked.session !== session.id)
 
   return [
     `sitrep board: ${name} (${session.id})`,
@@ -79,7 +90,7 @@ export const boardText = (session: Session) => {
     section('Now', now),
     `Next: ${next ?? 'none'}`,
     section('Open asks', session.asks.filter(isOpen).map(askLine)),
-    section('Parked', session.parked.map(parkedLine)),
+    section('Parked', [...session.parked.map(parkedLine), ...elsewhere.map(parkedElsewhereLine)]),
     section('Latest notes', notes.map(noteLine)),
   ].join('\n')
 }
@@ -125,7 +136,7 @@ const GUIDE = [
   "sitrep is Lee's board inside Claude Code: where each session stands and what waits on Lee. Keep it current, since it tells Lee, away from this window, that something waits on him; but talk to Lee as if it weren't there: the chat alone tells him all he needs.",
   '- Start a session when the work will run across several turns or will need Lee: a feature, a design, an investigation. Not for a quick question. Name it in plain words, as Lee would say it, with no internal codes; record its id wherever the project tracks the work.',
   "- Touch the board only once it is clear which project the work is on: the project being discussed, whatever folder this window started in. When Lee carries on with a session on the board, join it by its id with the sitrep join tool. Otherwise start one, naming its project as Lee would say it (SitRep, Switchboard), by the name it has on the board when it is one there, and giving the project's directory once you know it.",
-  "- As it goes: set the status when what's under way changes; post an ask whenever you need something only Lee can do or decide, and resolve it yourself when Lee answers it in the chat; a turn that ends on a decision or a question for Lee posts it as an ask, so it shows in Needs you, never only in the status; plain conversation needs none; note what Lee would want to know later, never running commentary; resolve what's done; when the session is complete, with nothing left on it, finish it.",
+  "- As it goes: set the status when what's under way changes; post an ask whenever you need something only Lee can do or decide, and resolve it yourself when Lee answers it in the chat; a turn that ends on a decision or a question for Lee posts it as an ask, so it shows in Needs you, never only in the status; plain conversation needs none; note what Lee would want to know later, never running commentary; resolve what's done; when the session is complete, with nothing left on it, finish it: what it parked stays its project's, and holds no finish back.",
   '- In the chat, give an ask\'s question and steps whole, and never point Lee to the board: no "it\'s on the board", no "check the board". Saying you parked something is fine, as is naming the asks still open now and then, when several wait, though not at every turn\'s end. An ask Lee hasn\'t answered that you still need, raise again in the chat.',
   "- Every board call of a turn comes before your closing message to Lee, never after it. Before any tool call, write Lee a line at most: longer words before a tool call can reach him as a short summary, or not at all. What he must read goes after the turn's last tool call.",
   '- Item and session ids are yours alone: Lee sees none of them on the board or in the app, so never name one to him. Name an ask, a parked item or a session by its words.',

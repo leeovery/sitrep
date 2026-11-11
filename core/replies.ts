@@ -293,10 +293,18 @@ export const answerOf = (item: Ask | Parked, reply: ReplyFields) => {
   return ARROWED.includes(reply.verdict) ? `→ ${answer}` : answer
 }
 
-/** A reply as Lee's message carries it: the item's title and the answer on a line, a note of several lines under it; no ids, since Lee sends it as their own. */
-export const replyLine = (item: Ask | Parked, reply: ReplyFields) =>
+/** Whose a picked-up item was, as Lee's message says it: the name of the session that parked it, where that is another than the message's. */
+const parkedBy = (name: string | undefined) => (name === undefined ? '' : `, ${name}'s`)
+
+/**
+ * A reply as Lee's message carries it: the item's title and the answer on a
+ * line, a note of several lines under it; no ids, since Lee sends it as
+ * their own. A pick-up of an item another session of the project parked
+ * names that session, `elsewhere`.
+ */
+export const replyLine = (item: Ask | Parked, reply: ReplyFields, elsewhere?: string) =>
   item.type === 'park'
-    ? `- Pick up from parked: ${item.title}${reply.note ? `.${PICK_UP_NOTE(reply.note)}` : ''}`
+    ? `- Pick up from parked${parkedBy(elsewhere)}: ${item.title}${reply.note ? `.${PICK_UP_NOTE(reply.note)}` : ''}`
     : `- ${item.title} → ${words(item, reply, IN_MESSAGE)}`
 
 /** The log line a delivered pick-up earns: what was picked up, and Lee's note with it. */
@@ -305,12 +313,25 @@ export const pickUpLog = (parked: Parked, reply: ReplyFields) => ({
   detail: reply.note ? [reply.note] : [],
 })
 
-/** Lee's message carrying replies to a session's items, and the replies it carries: those that fit an item the session has; undefined when none does. */
-export const boardMessage = <R extends ReplyFields>(session: Session, replies: readonly R[]) => {
+/**
+ * Lee's message to a session carrying replies, and the replies it carries:
+ * those that fit an item of the session `answered` reads each in, the
+ * message's own unless it says another, as for a pick-up of an item another
+ * session of the project parked; undefined when none does.
+ */
+export const boardMessage = <R extends ReplyFields>(
+  session: Session,
+  replies: readonly R[],
+  answered: (reply: R) => Session | undefined = () => session,
+) => {
   const carried = replies.flatMap(reply => {
-    const item = session.items.get(reply.item)
+    const holding = answered(reply)
+    const item = holding?.items.get(reply.item)
+    const elsewhere = holding?.id === session.id ? undefined : holding?.status.name
 
-    return item !== undefined && fits(item, reply) ? [{ reply, line: replyLine(item, reply) }] : []
+    return item !== undefined && fits(item, reply)
+      ? [{ reply, line: replyLine(item, reply, elsewhere) }]
+      : []
   })
 
   return carried.length === 0

@@ -80,7 +80,7 @@ import {
 } from './pane'
 import { receiveEvery } from './receive'
 import { heldSession, sceneOf, tickEvery } from './scene'
-import { boardChange, markSeen } from './seen'
+import { boardChange, markTold } from './seen'
 import { rejoin, startListing } from './start'
 import { forgetUntold, heardRow, retold } from './summarised'
 import { answerCall, nameKept, SPECS, TOOL_NAMES } from './tools'
@@ -457,7 +457,7 @@ export const register: Register = on => {
     if (entered.drop !== undefined) {
       await wentNowhere()
     } else if (change !== undefined) {
-      await markSeen(host, change.session)
+      await markTold(host, change)
     }
 
     return entered

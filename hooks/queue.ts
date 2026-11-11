@@ -2,7 +2,10 @@
  * Ready to send: Lee's replies waiting on the board, one to an item, until
  * a send carries them. Each names the session it answers and the project
  * that session is filed under, so it waits for that session whichever one
- * the window holds, and a send knows where to write it.
+ * the window holds, and a send knows where to write it. A pick-up goes to
+ * the held session, whichever session of its project parked the item: its
+ * claim names the item by its address, and it is written down in the
+ * session that parked it.
  *
  * The held session's replies a send carries stay in the queue, frozen, until
  * Claude Code has taken the message, or Lee takes the send back while the
@@ -21,20 +24,58 @@ import {
   type Ask,
   type Barred,
   type Parked,
+  type Random,
   type Reply,
   type ReplyBody,
   type Session,
 } from '../core'
-import type { SitrepInFlight, SitrepQueued, SitrepSent, SitrepSessionRef } from '../types'
+import type {
+  SitrepInFlight,
+  SitrepItemRef,
+  SitrepQueued,
+  SitrepSent,
+  SitrepSessionRef,
+} from '../types'
 import { random } from './host'
+import { addressed, itemKey } from './places'
 
 type Queue = readonly SitrepQueued[]
+
+/** The sessions replies answer items of, by id, as read now. */
+export type Folded = ReadonlyMap<string, Session>
 
 /** How long Ready to send shows where replies went once Claude has them all, so `delivered 2m ago` can be read. */
 export const SENT_LINGER_MS = 10 * 60_000
 
-const isFor = (reply: SitrepQueued, session: string, item: string) =>
+const isFor = (reply: Pick<SitrepQueued, 'session' | 'item'>, session: string, item: string) =>
   reply.session === session && reply.item === item
+
+/**
+ * The session a queued reply goes to from a window holding `held`: a
+ * pick-up to the held session, whichever session of its project parked the
+ * item; any other reply to its item's session. A pick-up of another
+ * project's item goes to none.
+ */
+export const goesTo = (
+  held: SitrepSessionRef,
+  reply: SitrepQueued,
+): SitrepSessionRef | undefined => {
+  if (reply.verdict !== 'pickup') {
+    return { project: reply.project, session: reply.session }
+  }
+
+  return reply.project === held.project ? held : undefined
+}
+
+/** The item a reply names in a message to the session `to`: by its own id where it is that session's, else by its address. */
+export const namedIn = (to: string, { session, item }: Pick<SitrepItemRef, 'session' | 'item'>) =>
+  session === to ? item : itemKey(session, item)
+
+/** The session and the item a reply a message in flight carries answers, as its claim names it: by its address, another session's of its project; by its own id, the message's own session's. */
+export const repliedTo = (flight: SitrepSessionRef, item: string): SitrepItemRef => ({
+  project: flight.project,
+  ...(addressed(item) ?? { session: flight.session, item }),
+})
 
 /** The queue with `reply` in place of any reply its item had, else at its end. */
 export const queuing = (queue: Queue, reply: SitrepQueued) =>
@@ -55,8 +96,7 @@ export const isCarriedBy = (
   reply: Pick<SitrepQueued, 'session' | 'item'>,
 ) =>
   flight.source === 'send' &&
-  flight.session === reply.session &&
-  flight.replies.some(each => each.item === reply.item)
+  flight.replies.some(each => isFor(repliedTo(flight, each.item), reply.session, reply.item))
 
 /** Whether a queued reply is one a send of Lee's in flight carries. */
 export const isCarried = (flights: Flights, reply: SitrepQueued) =>
@@ -87,9 +127,9 @@ export const restoring = (queue: Queue, replies: Queue) => [
   ...replies.filter(reply => queuedOn(queue, reply.session, reply.item) === undefined),
 ]
 
-/** The replies waiting for a session, in the order queued. */
-export const queuedFor = (queue: Queue, session: string) =>
-  queue.filter(each => each.session === session)
+/** The replies waiting for a session, in the order queued, as each goes from a window holding `held`. */
+export const queuedFor = (queue: Queue, held: SitrepSessionRef, session: string) =>
+  queue.filter(each => goesTo(held, each)?.session === session)
 
 /** The reply waiting on an item, if one is. */
 export const queuedOn = (queue: Queue, session: string, item: string) =>
@@ -110,40 +150,64 @@ export const answered = (session: Session, reply: SitrepQueued): Ask | Parked | 
 /** Why a send leaves a queued reply in Ready to send: its item changed past it, or is gone; or holds another answer of Lee's, or closed (`Barred`). */
 export type LeftOut = 'changed' | Barred
 
-/** Why a send leaves a queued reply no send in flight carries; undefined for one it carries: one that fits its item, which takes it now. */
-export const whyLeft = (session: Session, reply: SitrepQueued): LeftOut | undefined => {
+/** Why a send leaves a queued reply no send in flight carries, its item read in `session`; undefined for one it carries: one that fits its item, which takes it now. */
+const whyLeft = (session: Session, reply: SitrepQueued): LeftOut | undefined => {
   const item = answered(session, reply)
 
   return item === undefined ? 'changed' : barredBy(item, reply.verdict)
 }
 
-/** A session's replies in the queue that no send in flight carries: those carried go in their own message already. */
-const unsentFor = (session: Session, queue: Queue, flights: Flights) =>
-  queuedFor(unsent(queue, flights), session.id)
+/** Why a send leaves a queued reply, its item read in its own session as `folded` has it: one whose session is gone has changed. */
+const whyLeftIn = (folded: Folded, reply: SitrepQueued) => {
+  const session = folded.get(reply.session)
+
+  return session === undefined ? 'changed' : whyLeft(session, reply)
+}
+
+/** The replies a send to a session would carry from a window holding `held`: those no send in flight carries, which go in their own message already. */
+export const unsentTo = (queue: Queue, flights: Flights, held: SitrepSessionRef, to: string) =>
+  queuedFor(unsent(queue, flights), held, to)
 
 /**
- * A session's replies a send carries: those no send in flight carries
- * already. One whose item changed under it, or closed, or holds another
- * answer of Lee's on its way, stays in Ready to send, unsent: Claude has
- * one answer to an item, the first to reach it.
+ * Of a send's replies, those it carries, each item read in its own session
+ * as `folded` has it. One whose item changed under it, or closed, or holds
+ * another answer of Lee's on its way, stays in Ready to send, unsent:
+ * Claude has one answer to an item, the first to reach it.
  */
-export const sendable = (session: Session, queue: Queue, flights: Flights) =>
-  unsentFor(session, queue, flights).filter(reply => whyLeft(session, reply) === undefined)
+export const sendable = (folded: Folded, replies: Queue) =>
+  replies.filter(reply => whyLeftIn(folded, reply) === undefined)
 
-/** Why a send leaves each of a session's replies it does not carry, those going already aside. */
-export const leftOut = (session: Session, queue: Queue, flights: Flights): LeftOut[] =>
-  unsentFor(session, queue, flights).flatMap(reply => whyLeft(session, reply) ?? [])
+/** Why a send leaves each of its replies it does not carry. */
+export const leftOut = (folded: Folded, replies: Queue): LeftOut[] =>
+  replies.flatMap(reply => whyLeftIn(folded, reply) ?? [])
 
-/** The replies as lines of the session, each with an id unlike any the session uses. */
-export const replyBodies = (session: Session, replies: Queue): ReplyBody[] => {
-  const taken = new Set(session.ids)
+/** Where a message's reply ids are drawn apart from: the sessions its items are in, and the messages in flight. */
+export type Around = { folded?: Folded; flights?: Flights }
 
-  return replies.map(({ item, verdict, option, note }) => {
-    const id = newItemId(random, taken)
+/**
+ * The replies as lines of a message to the session `to`, each naming its
+ * item as the message does (`namedIn`), with an id unlike any `to` uses,
+ * nor any of the sessions `folded` holds, among them each item's own, nor
+ * any the messages `flights` carry, not written down yet.
+ */
+export const replyBodies = (
+  to: Session,
+  replies: Queue,
+  { folded = new Map(), flights = [] }: Around = {},
+  draw: Random = random,
+): ReplyBody[] => {
+  const taken = new Set([
+    ...[to, ...folded.values()].flatMap(session => [...session.ids]),
+    ...flights.flatMap(flight => flight.replies.map(each => each.id)),
+  ])
+
+  return replies.map(reply => {
+    const { verdict, option, note } = reply
+    const id = newItemId(draw, taken)
 
     taken.add(id)
 
-    return { type: 'reply', id, item, verdict, option, note }
+    return { type: 'reply', id, item: namedIn(to.id, reply), verdict, option, note }
   })
 }
 

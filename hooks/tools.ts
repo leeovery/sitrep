@@ -2,20 +2,23 @@
  * Claude's tools: start or join a session, then post to its board and
  * read the board back, and name its project. Only the main conversation may
  * call them. An answer says what was done and names the item, and no more,
- * but for an ask's, which says when to put it to Lee.
+ * but for an ask's, which says when to put it to Lee. What another session
+ * of the project parked is the project's: resolve, reopen and edit act on
+ * it, named with that session's id, written into that session in this
+ * window's own file there.
  *
  * The descriptions carry the board's wording rules, and load into every
  * conversation, so they stay short.
  */
 import type { ToolSpec } from 'claude-code'
 import {
-  boardText,
   checkAsk,
   checkEdit,
   checkFinish,
   checkJoin,
   checkNote,
   checkPark,
+  checkParkedIn,
   checkProject,
   checkReopen,
   checkResolve,
@@ -27,6 +30,7 @@ import {
   projectNamed,
   reopenedText,
   withId,
+  withParkId,
   WANTS,
   sessionPaths,
   type Body,
@@ -35,8 +39,9 @@ import {
   type Session,
 } from '../core'
 import type { SitrepAttachment } from '../types'
-import { lookAround } from './around'
-import { bearingsOf, random, type Host } from './host'
+import { foldAt, lookAround } from './around'
+import { bearingsOf, random, rootFor, type Host } from './host'
+import { writeInto, type Into } from './into'
 import {
   changeProject,
   filingFor,
@@ -45,7 +50,7 @@ import {
   readProjects,
   sessionIdsIn,
 } from './projects'
-import { markSeen, postKnown } from './seen'
+import { changedKnown, markSeen, markStarted, parkedAround, postKnown } from './seen'
 import { attachTo, attached, refresh, serially } from './window'
 
 type Fields = { readonly [key: string]: unknown }
@@ -89,6 +94,9 @@ const DIRECTORY = text(
   'Where the project lives, as an absolute path, once you know it: not the folder this window started in.',
 )
 const ITEM = text('The item’s id, as the board lists it.')
+const PARKED_BY = text(
+  'Only for an item another session of this project parked: that session’s id, as the board lists it with the item.',
+)
 const REASON = text('Why, in a few words.')
 const WHERE = text(
   'Where Lee should look, in words: In Paper: the dashboard file, page "round 1", frames 1–6.',
@@ -150,13 +158,13 @@ const onSession =
  */
 const posting = <N extends string, B extends Body>(
   toolSpec: Spec<N>,
-  check: (session: Session, input: Fields) => Checked<B>,
+  check: (session: Session, input: Fields, host: Host) => Checked<B> | Promise<Checked<B>>,
   said: (body: B) => string,
   names: (session: Session, body: B) => string | undefined = () => undefined,
 ): Tool<N> => ({
   spec: toolSpec,
   answer: onSession(async (host, session, input) => {
-    const checked = check(session, input)
+    const checked = await check(session, input, host)
 
     if (!checked.ok) {
       return { deny: checked.error }
@@ -174,19 +182,156 @@ const posting = <N extends string, B extends Body>(
 /** The title of the item a line is about, as a session has it. */
 const itemNamed = (session: Session, { item }: { item: string }) => itemTitle(session, item)
 
+/** A check of a line about an item, against the session it names as that stands. */
+type ItemCheck<B extends Body> = (session: Session, input: Fields) => Checked<B>
+
+/** Writes into this window's own file in a session the line `check` makes of it as it stands: the line, or why it was refused. */
+const writeChecked = async <B extends Body>(
+  host: Host,
+  into: Into,
+  check: (session: Session) => Checked<B>,
+): Promise<Checked<B>> => {
+  let checked: Checked<B> = {
+    ok: false,
+    error: `${into.session}'s session.json is missing or torn.`,
+  }
+
+  await writeInto(host, into, session => {
+    checked = check(session)
+
+    return checked.ok ? [checked.value] : []
+  })
+
+  return checked
+}
+
+/** Where this window writes into the session `input.session` names, while it is another of the attached session's project; else why it does not. */
+const otherOfProject = async (
+  host: Host,
+  input: Fields,
+  held: SitrepAttachment,
+): Promise<Checked<Into>> => {
+  const named = checkJoin(input)
+
+  if (!named.ok) {
+    return named
+  }
+
+  const { session } = named.value
+  const project = await projectFiling(host, await rootFor(host), session)
+
+  if (project === undefined) {
+    return { ok: false, error: `There is no session ${session} on the board, in any project.` }
+  }
+
+  return project === held.project
+    ? { ok: true, value: { project, session, writer: held.writer } }
+    : {
+        ok: false,
+        error: `${session} is a session of another project: only what a session of this one's project parked is yours to act on.`,
+      }
+}
+
 /**
- * Attaches the window to a session, and counts its board as seen: Claude
- * gave a session it starts all it holds, and a join answers with the board.
- * A session other than the one held brings the board home to it, and the
- * sessions around it are read.
+ * Writes a line about a parked item of another session into that session,
+ * as `check` makes it of the session as it stands: only about what it
+ * parked, which is the project's. The sessions around are read again after
+ * it, so the board text lists the item as it now stands.
  */
-const attachKnown = async (host: Host, root: string, attaching: SitrepAttachment) => {
+const writeParked = async <B extends Body>(
+  host: Host,
+  into: Into,
+  input: Fields,
+  check: ItemCheck<B>,
+) => {
+  const written = await writeChecked(host, into, session => {
+    const parked = checkParkedIn(session, input)
+
+    return parked.ok ? check(session, input) : parked
+  })
+
+  if (written.ok) {
+    await lookAround(host, [into.session])
+  }
+
+  return written
+}
+
+/**
+ * A line about a parked item another session of the attached session's
+ * project parked, written into that session, in this window's own file
+ * there: a change Claude knows of. Another session's ask or note is
+ * refused, as is a session of another project.
+ */
+const parkedElsewhere = async <B extends Body & { item: string }>(
+  host: Host,
+  input: Fields,
+  check: ItemCheck<B>,
+  said: (body: B) => string,
+): Promise<Answer> => {
+  const held = attached()
+
+  if (held === undefined) {
+    return { deny: NOT_ATTACHED }
+  }
+
+  const into = await otherOfProject(host, input, held)
+
+  if (!into.ok) {
+    return { deny: into.error }
+  }
+
+  const root = await rootFor(host)
+  const before = await foldAt(host, root, into.value, await host.clock.now())
+  const written = await writeParked(host, into.value, input, check)
+
+  if (!written.ok) {
+    return { deny: written.error }
+  }
+
+  // In the tool's own turn of the window's queue, after the look that read the change in.
+  if (before !== undefined) {
+    await changedKnown(host, [{ before, items: [written.value.item] }])
+  }
+
+  const after = await foldAt(host, root, into.value, await host.clock.now())
+
+  return {
+    result: said(written.value),
+    names: after === undefined ? undefined : itemNamed(after, written.value),
+  }
+}
+
+/**
+ * A tool on an item by its id: one of the attached session's, posted to it;
+ * or, given another session of its project (`session`), a parked item that
+ * session parked (`parkedElsewhere`).
+ */
+const onItem = <N extends string, B extends Body & { item: string }>(
+  toolSpec: Spec<N>,
+  check: ItemCheck<B>,
+  said: (body: B) => string,
+): Tool<N> => {
+  const here = posting(toolSpec, check, said, itemNamed)
+
+  return {
+    spec: toolSpec,
+    answer: (host, input) =>
+      input.session === undefined || input.session === attached()?.session
+        ? here.answer(host, input)
+        : parkedElsewhere(host, input, check, said),
+  }
+}
+
+/**
+ * Attaches the window to a session: one other than the one held brings the
+ * board home to it, and the sessions around it are read. What Claude has
+ * seen of its board its caller keeps: all a session it starts holds, or the
+ * board a join answers with.
+ */
+const attachHere = async (host: Host, root: string, attaching: SitrepAttachment) => {
   const before = attached()?.session
   const session = await attachTo(host, root, attaching)
-
-  if (session !== undefined) {
-    await markSeen(host, session)
-  }
 
   if (attaching.session !== before) {
     await host.state.pane.update(pane => ({ ...pane, place: null, selected: null }))
@@ -236,7 +381,16 @@ const start: Tool<'start'> = {
 
     await host.fs.write(sessionPaths(root, key, id).meta, metaText(meta))
 
-    await attachKnown(host, root, { project: key, session: id, writer, attachedAt: created })
+    const started = await attachHere(host, root, {
+      project: key,
+      session: id,
+      writer,
+      attachedAt: created,
+    })
+
+    if (started !== undefined) {
+      await markStarted(host, started)
+    }
 
     return {
       result: `Started ${meta.name} as ${id}, ${filing.said}. Record ${id} wherever the project tracks this work, so a later window can join it.`,
@@ -267,16 +421,17 @@ const join: Tool<'join'> = {
     }
 
     const attachedAt = await host.clock.now()
-    const session = await attachKnown(host, root, { project, session: id, writer, attachedAt })
+    const session = await attachHere(host, root, { project, session: id, writer, attachedAt })
 
     if (session === undefined) {
       return { deny: UNREADABLE }
     }
 
     const joined = await reopening(host, session)
+    const board = await markSeen(host, joined.session)
 
     return {
-      result: `Joined ${session.status.name} (${id}).${joined.said} Correct anything on it that is stale against what you know. The board as it stands:\n${boardText(joined.session)}`,
+      result: `Joined ${session.status.name} (${id}).${joined.said} Correct anything on it that is stale against what you know. The board as it stands:\n${board}`,
       names: joined.session.status.name,
     }
   },
@@ -331,13 +486,9 @@ const project: Tool<'project'> = {
 const board: Tool<'board'> = {
   spec: spec(
     'board',
-    'Read the board back: the status, open asks, parked items and latest notes, with their ids, to check against what you know and repair.',
+    "Read the board back: the status, open asks, the project's parked items and latest notes, with their ids, to check against what you know and repair.",
   ),
-  answer: onSession(async (host, session) => {
-    await markSeen(host, session)
-
-    return { result: boardText(session) }
-  }),
+  answer: onSession(async (host, session) => ({ result: await markSeen(host, session) })),
 }
 
 const TOOLS = [
@@ -388,36 +539,41 @@ const TOOLS = [
   posting(
     spec(
       'park',
-      'Park something raised and put off, to come back to.',
+      "Park something raised and put off, to come back to, on the attached session's project: any session of it sees it.",
       { title: text(LINE), where: WHERE, ref: REF },
       ['title'],
     ),
-    (session, input) => withId(checkPark(input), session, random),
+    async (session, input, host) =>
+      withParkId(checkPark(input), session, await parkedAround(host), random),
     ({ id }) => `Parked ${id}.`,
   ),
-  posting(
+  onItem(
     spec(
       'resolve',
-      'Close an item on the board, an ask, a note or a parked item, by its id.',
-      { item: ITEM, reason: REASON },
+      "Close an item on the board, an ask, a note or a parked item, by its id; a parked item another session of this project parked, with that session's id.",
+      { item: ITEM, session: PARKED_BY, reason: REASON },
       ['item'],
     ),
     checkResolve,
     ({ item }) => `Resolved ${item}.`,
-    itemNamed,
   ),
-  posting(
-    spec('reopen', 'Reopen a closed item by its id.', { item: ITEM, reason: REASON }, ['item']),
+  onItem(
+    spec(
+      'reopen',
+      "Reopen a closed item by its id; a parked item another session of this project parked, with that session's id.",
+      { item: ITEM, session: PARKED_BY, reason: REASON },
+      ['item'],
+    ),
     checkReopen,
     ({ item }) => `Reopened ${item}.`,
-    itemNamed,
   ),
-  posting(
+  onItem(
     spec(
       'edit',
-      'Correct an item by its id, giving only the fields to change. An ask changed to want a yes needs yes; to want a choice, options.',
+      "Correct an item by its id, giving only the fields to change; a parked item another session of this project parked, with that session's id. An ask changed to want a yes needs yes; to want a choice, options.",
       {
         item: ITEM,
+        session: PARKED_BY,
         wants: WANTS_BACK,
         yes: YES,
         title: text(LINE),
@@ -433,12 +589,11 @@ const TOOLS = [
     ),
     checkEdit,
     ({ item }) => `Edited ${item}.`,
-    itemNamed,
   ),
   posting(
     spec(
       'finish',
-      "Finish the attached session, when it is complete and nothing is left on it. It leaves the board's views, and its open asks stop counting.",
+      "Finish the attached session, when it is complete and nothing is left on it; what it parked stays its project's, and holds no finish back. It leaves the board's views, and its open asks stop counting.",
       { reason: REASON },
     ),
     (session, input) => checkFinish(session, 'claude', input),

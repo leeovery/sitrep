@@ -1,5 +1,31 @@
 import { expect, test, tier } from 'claude-code/testing'
-import { postedId, PROJECT, toProject, world } from './world'
+import {
+  CURRENT_MS,
+  parseEntries,
+  parsePresence,
+  sessionPaths,
+  sessionsDir,
+  type SessionMeta,
+} from '../core'
+import type { SitrepInFlight } from '../types'
+import { WATCH_MS } from '../hooks/window'
+import {
+  delivered,
+  file,
+  finish,
+  MIN,
+  note,
+  park,
+  reply,
+  SLOW,
+  T0,
+  W1,
+  W2,
+  W3,
+  yesAsk,
+  type Line,
+} from './support'
+import { CONVERSATION, ELSEWHERE, postedId, PROJECT, PROMPT, ROOT, toProject, world } from './world'
 
 tier('user')
 
@@ -90,3 +116,551 @@ test("a project's NOTES draws a send's several pick-ups, each its own line", asy
   await expect(ui.drawn()).resolves.toBeDefined()
   expect(new Set(await pickUpRows(ui)).size).toBe(PARKED.length)
 })
+
+const LEDGER = 'sr-1edger'
+
+const REVIEW = { wants: 'yes', yes: 'Approve', title: 'Review Sessions & Runway, round 1' }
+
+/** What the ledger parked. */
+const EXPORT = 'Export the ledger as CSV'
+
+/** The message a pick-up of the ledger's item goes in as. */
+const PICKED = `From the board:\n- Pick up from parked, Request ledger's: ${EXPORT}`
+
+/** Long enough ago that a session idle since is past the views. */
+const OLD = T0 - CURRENT_MS - MIN
+
+/** A session of the project, started by `by` long ago. */
+const meta = (id: string, name: string, by: string, project = PROJECT): SessionMeta => ({
+  id,
+  name,
+  summary: `${name}, area by area`,
+  project: project.name,
+  root: `/Users/lee/Code/${project.key}`,
+  created: OLD,
+  by,
+})
+
+/** The ledger's file this window writes. */
+const LEDGER_LOG = sessionPaths(ROOT, PROJECT.key, LEDGER).log(W1)
+
+/** The ledger's own file, which its window writes. */
+const LEDGER_OWN = sessionPaths(ROOT, PROJECT.key, LEDGER).log(W2)
+
+/** The ledger's inbox file this window writes. */
+const LETTERS = sessionPaths(ROOT, PROJECT.key, LEDGER).letters(W1)
+
+/** The ledger as it stands once it parked something: its lines, and whether a window holds it. */
+type Standing = { lines: Line[]; isOpen: boolean }
+
+const OPEN: Standing = { lines: [[T0, park('p1', EXPORT)]], isOpen: true }
+
+const FINISHED: Standing = {
+  lines: [
+    [T0, park('p1', EXPORT)],
+    [T0, finish('claude', 'Shipped')],
+  ],
+  isOpen: false,
+}
+
+const STANDING: Record<string, Standing> = {
+  'a session open in another window': OPEN,
+  'a finished session': FINISHED,
+  'a session idle past the views': { lines: [[OLD, park('p1', EXPORT)]], isOpen: false },
+}
+
+/** This session beside the ledger, its lines `lines`, held by another window where `isOpen`: a minute on, Lee opens the board. */
+async function besideLedger(w: World, { lines, isOpen }: Standing) {
+  const ledger = w.elsewhere(meta(LEDGER, 'Request ledger', W2))
+
+  w.put(ledger.paths.log(W2), file(...lines))
+
+  const { id, paths } = await w.begin()
+
+  await w.clock.advance(MIN)
+
+  if (isOpen) {
+    ledger.beat()
+  }
+
+  return { id, paths, ui: await w.opened() }
+}
+
+type Board = Awaited<ReturnType<World['opened']>>
+
+/** Lee picks up the ledger's parked item, `item`, from the project's view, then goes home. */
+const pickUpLedgers = async (ui: Board, item = 'p1') => {
+  await toProject(ui)
+  await ui.press({ key: `ppick:${LEDGER}:${item}` })
+  await ui.press({ key: `pickup:${LEDGER}:${item}` })
+  await ui.press({ key: 'tab:session' })
+}
+
+/** The kinds of line a file holds, in order. */
+const kindsIn = (w: World, path: string) => parseEntries(w.text(path)).map(line => line.type)
+
+for (const [standing, ledger] of Object.entries(STANDING)) {
+  test(
+    `a pick-up of what ${standing} parked goes in this window's own message, and is written down in that session, in this window's own file there: the item leaves Parked`,
+    SLOW,
+    async ($, on) => {
+      const w = world($, on)
+      const { id, paths, ui } = await besideLedger(w, ledger)
+
+      await pickUpLedgers(ui)
+      expect(
+        (await ui.findAll({ type: 'Text' }))
+          .map(each => each.text)
+          .filter(text => text.startsWith('to ')),
+      ).toEqual(['to this session'])
+
+      await ui.press({ key: 'send' })
+
+      const written = parseEntries(w.text(LEDGER_LOG))
+      const picked = written.find(line => line.type === 'reply')
+
+      expect(w.prompts.map(prompt => prompt.text)).toEqual([PICKED])
+      expect(written.map(line => line.type)).toEqual(['reply', 'delivered'])
+      expect(picked).toMatchObject({ item: 'p1', verdict: 'pickup' })
+      expect(written.at(-1)).toMatchObject({ replies: [picked?.id] })
+      expect(w.files.has(LETTERS), 'nothing in its inbox').toBe(false)
+      expect(w.files.has(paths.log(W1)), 'nothing written in this session').toBe(false)
+      expect(w.state.queue).toEqual([])
+
+      await toProject(ui)
+      expect(
+        await ui.find({ type: 'Text', text: 'PARKED' }),
+        'the item left Parked',
+      ).toBeUndefined()
+      expect(
+        (await ui.findAll({ type: 'Button' }))
+          .map(each => each.key)
+          .filter(key => key?.startsWith('go:')),
+        'the pick-up brings no session back onto the board',
+      ).toEqual(ledger.isOpen ? [`go:${id}`, `go:${LEDGER}`] : [`go:${id}`])
+    },
+  )
+}
+
+test(
+  "held mid-turn, a pick-up of another session's item is named by its address in the claim and said in no heartbeat; taken back it is as it was, and sent again it goes in as the turn ends",
+  SLOW,
+  async ($, on) => {
+    const w = world($, on)
+    const { paths, ui } = await besideLedger(w, FINISHED)
+    const asked = postedId(await w.call('ask', REVIEW))
+
+    await w.clock.advance(MIN)
+    await pickUpLedgers(ui)
+    await ui.press({ key: `pick:${w.item(asked)}` })
+    await ui.press({ key: `yes:${w.item(asked)}` })
+
+    const queued = w.state.queue
+
+    await w.turnStarts('Carry on.')
+    await ui.press({ key: 'send' })
+    await w.clock.advance(WATCH_MS)
+
+    expect(w.state.inFlight).toMatchObject({
+      source: 'send',
+      session: w.state.attachment?.session,
+      isHeld: true,
+      replies: [
+        { item: `${LEDGER}:p1`, verdict: 'pickup' },
+        { item: asked, verdict: 'yes' },
+      ],
+    })
+    expect(parsePresence(w.text(paths.heartbeat(W1)), W1)?.sending).toMatchObject([
+      { replies: [{ item: asked, verdict: 'yes' }] },
+    ])
+
+    await ui.press({ key: w.takeBack() })
+    expect(w.state.inFlight).toBeNull()
+    expect(w.state.queue).toEqual(queued)
+    expect(await ui.find({ key: `unready:${LEDGER}:p1` }), 'removable again').toBeDefined()
+
+    await ui.press({ key: 'send' })
+    await w.turnEnds()
+    await w.clock.settle()
+
+    expect(w.submitted).toEqual([`${PICKED}\n- Review Sessions & Runway, round 1 → Approve`])
+    expect(kindsIn(w, LEDGER_LOG)).toEqual(['reply', 'delivered'])
+    expect(kindsIn(w, paths.log(W1))).toEqual(['ask', 'reply', 'delivered'])
+  },
+)
+
+test(
+  'a pick-up still in Ready to send when the window takes up a session of another project leaves it, a toast saying so; a session of this project keeps it, and every other reply stays',
+  SLOW,
+  async ($, on) => {
+    const w = world($, on)
+    const ledger = w.elsewhere(meta(LEDGER, 'Request ledger', W2))
+    const pickUpsLeft = () => w.toasts.filter(toast => toast.includes('pick-up'))
+
+    ledger.write(yesAsk('k3', 'Review the ledger schema'), park('p1', EXPORT))
+    w.elsewhere(meta('sr-themes', 'Themes', W3))
+    w.elsewhere(meta('sr-0rders', 'Standing orders', W3, ELSEWHERE), ELSEWHERE.key)
+
+    await w.begin()
+    await w.clock.advance(MIN)
+    ledger.beat()
+
+    const ui = await w.opened()
+
+    await pickUpLedgers(ui)
+    await toProject(ui)
+    await ui.press({ key: `go:${LEDGER}` })
+    await ui.press({ key: `pick:${LEDGER}:k3` })
+    await ui.press({ key: `yes:${LEDGER}:k3` })
+
+    const queued = w.state.queue
+
+    await w.call('join', { session: 'sr-themes' })
+    expect(w.state.queue, 'a session of this project').toEqual(queued)
+    expect(pickUpsLeft()).toEqual([])
+
+    await w.call('join', { session: 'sr-0rders' })
+    expect(w.state.queue).toEqual([
+      { project: PROJECT.key, session: LEDGER, item: 'k3', verdict: 'yes' },
+    ])
+    expect(pickUpsLeft()).toEqual([
+      '1 pick-up of another project left Ready to send: pick up from a window of that project.',
+    ])
+    expect(w.files.has(LEDGER_LOG), 'the item stays parked').toBe(false)
+  },
+)
+
+test(
+  'a pick-up a send carried, taken back once the window holds a session of another project, leaves Ready to send as on a join: never left undrawn',
+  SLOW,
+  async ($, on) => {
+    const w = world($, on)
+    const { ui } = await besideLedger(w, FINISHED)
+    const asked = postedId(await w.call('ask', REVIEW))
+    const pickUpsLeft = () => w.toasts.filter(toast => toast.includes('pick-up'))
+
+    w.elsewhere(meta('sr-0rders', 'Standing orders', W3, ELSEWHERE), ELSEWHERE.key)
+    await w.clock.advance(MIN)
+    await pickUpLedgers(ui)
+    await ui.press({ key: `pick:${w.item(asked)}` })
+    await ui.press({ key: `yes:${w.item(asked)}` })
+    await w.turnStarts('Carry on.')
+    await ui.press({ key: 'send' })
+
+    const [own] = w.state.queue?.filter(reply => reply.verdict === 'yes') ?? []
+
+    await w.call('join', { session: 'sr-0rders' })
+    expect(pickUpsLeft(), 'carried, it stays as the window joins').toEqual([])
+
+    await ui.press({ key: w.takeBack() })
+    expect(w.state.queue).toEqual([own])
+    expect(pickUpsLeft()).toEqual([
+      '1 pick-up of another project left Ready to send: pick up from a window of that project.',
+    ])
+
+    await w.turnEnds()
+    await w.clock.settle()
+    expect(w.submitted).toEqual([])
+    expect(w.files.has(LEDGER_LOG), 'the item stays parked').toBe(false)
+  },
+)
+
+test(
+  "a pick-up written down in the session that parked its item is Claude's own: the next prompt takes no board for it, though it does for what that session parked meanwhile",
+  SLOW,
+  async ($, on) => {
+    const w = world($, on)
+    const lines: Line[] = [
+      [T0, park('p1', EXPORT)],
+      [T0, park('p2', 'Archive old requests')],
+    ]
+    const { ui } = await besideLedger(w, { lines, isOpen: true })
+
+    expect((await $.prompt.submit(PROMPT)).context?.[0], 'told of what it parked').toContain(EXPORT)
+
+    await pickUpLedgers(ui)
+    await ui.press({ key: 'send' })
+    expect(w.prompts.at(-1)?.text).toBe(PICKED)
+    await w.turnStarts(PICKED)
+    await w.turnEnds()
+    expect((await $.prompt.submit(PROMPT)).context, 'its own pick-up').toBeUndefined()
+
+    await pickUpLedgers(ui, 'p2')
+    w.put(LEDGER_OWN, file(...lines, [T0, park('p3', 'Retry the export')]))
+    await ui.press({ key: 'send' })
+
+    const context = (await $.prompt.submit(PROMPT)).context?.[0]
+
+    expect(context).toContain(
+      '- p3, parked by "Request ledger" (session: sr-1edger): Retry the export',
+    )
+    expect(context).not.toContain('Archive old requests')
+  },
+)
+
+/** The ledger open, its item picked up and sent while Claude is mid-turn, held: the reply id its claim drew. */
+const heldPickUp = async (w: World) => {
+  const { ui } = await besideLedger(w, OPEN)
+
+  await pickUpLedgers(ui)
+  await w.turnStarts('Carry on.')
+  await ui.press({ key: 'send' })
+
+  return { ui, id: w.flights()[0]?.replies[0]?.id ?? '' }
+}
+
+test(
+  'a pick-up this window already wrote down in the parking session, its write cut short before the claim ended, is not written again',
+  SLOW,
+  async ($, on) => {
+    const w = world($, on)
+    const { id } = await heldPickUp(w)
+
+    w.put(LEDGER_LOG, file([T0 + MIN, reply(id, 'p1', 'pickup')], [T0 + MIN, delivered(id)]))
+
+    const kept = w.text(LEDGER_LOG)
+
+    await w.turnEnds()
+    await w.clock.settle()
+
+    expect(w.submitted).toEqual([PICKED])
+    expect(w.text(LEDGER_LOG)).toBe(kept)
+  },
+)
+
+/** The replies a file holds, in order. */
+const repliesIn = (w: World, path: string) =>
+  parseEntries(w.text(path)).flatMap(line => (line.type === 'reply' ? [line] : []))
+
+test(
+  'a pick-up written down in the parking session, its load cut short before the claim ended, is written once by its claimed id, however often the claim is taken up again',
+  SLOW,
+  async ($, on) => {
+    const w = world($, on)
+    let isCut = true
+
+    on('state.set', { plugin: 'sitrep', key: 'inFlight' }, ($, e, next) =>
+      isCut && e.value === null ? { deny: 'the load was cut short' } : next(e),
+    )
+
+    const { id } = await heldPickUp(w)
+
+    await w.turnEnds()
+    await w.clock.advance(WATCH_MS)
+    expect(repliesIn(w, LEDGER_LOG)).toMatchObject([{ id, item: 'p1', verdict: 'pickup' }])
+
+    await $.session.start(CONVERSATION)
+    await w.clock.settle()
+    isCut = false
+    await $.session.start(CONVERSATION)
+    await w.clock.settle()
+
+    expect(kindsIn(w, LEDGER_LOG)).toEqual(['reply', 'delivered'])
+    expect(w.flights()).toEqual([])
+  },
+)
+
+/** Messages in flight as `$.state` keeps them, a second's replies taking the first's ids, as two claims drawing alike would. */
+const drawnAlike = <E extends { value: unknown }>(e: E): E => {
+  if (!Array.isArray(e.value) || e.value.length !== 2) {
+    return e
+  }
+
+  const [first, second] = e.value as [SitrepInFlight, SitrepInFlight]
+  const replies = second.replies.map((reply, at) => ({
+    ...reply,
+    id: first.replies[at]?.id ?? reply.id,
+  }))
+
+  return { ...e, value: [first, { ...second, replies }] }
+}
+
+test(
+  'two sends held at once, each picking up an item one session parked, by the same reply id, are each written down there once, a write taken up again adding nothing; the second, its id taken, stays parked, the rare clash left',
+  SLOW,
+  async ($, on) => {
+    const w = world($, on)
+    let isCut = true
+
+    on('state.set', { plugin: 'sitrep', key: 'inFlight' }, ($, e, next) =>
+      isCut && e.value === null ? { deny: 'the load was cut short' } : next(drawnAlike(e)),
+    )
+
+    const lines: Line[] = [
+      [T0, park('p1', EXPORT)],
+      [T0, park('p2', 'Archive old requests')],
+    ]
+    const { ui } = await besideLedger(w, { lines, isOpen: true })
+
+    await pickUpLedgers(ui)
+    await w.turnStarts('Carry on.')
+    await ui.press({ key: 'send' })
+    await pickUpLedgers(ui, 'p2')
+    await ui.press({ key: 'send' })
+
+    await w.turnEnds()
+    await w.clock.settle()
+    await w.turnStarts(w.submitted[0] ?? '')
+    await w.turnEnds()
+    await w.clock.settle()
+
+    const written = w.text(LEDGER_LOG)
+
+    expect(repliesIn(w, LEDGER_LOG).map(line => line.item)).toEqual(['p1', 'p2'])
+
+    isCut = false
+    await $.session.start(CONVERSATION)
+    await w.clock.settle()
+
+    expect(w.text(LEDGER_LOG), 'taken up again, the second writes nothing more').toBe(written)
+    expect(w.flights()).toEqual([])
+    expect(
+      w.state.projects
+        ?.find(project => project.key === PROJECT.key)
+        ?.parked?.map(parked => parked.id),
+    ).toEqual(['p2'])
+  },
+)
+
+test(
+  "a pick-up a send carried, held for the turn's end, goes in as sent once the window holds a session of another project, written down in the session that parked its item",
+  SLOW,
+  async ($, on) => {
+    const w = world($, on)
+    const { ui } = await besideLedger(w, FINISHED)
+
+    w.elsewhere(meta('sr-0rders', 'Standing orders', W3, ELSEWHERE), ELSEWHERE.key)
+    await w.clock.advance(MIN)
+    await pickUpLedgers(ui)
+    await w.turnStarts('Carry on.')
+    await ui.press({ key: 'send' })
+    await w.call('join', { session: 'sr-0rders' })
+    await w.turnEnds()
+    await w.clock.settle()
+
+    expect(w.submitted).toEqual([PICKED])
+    expect(kindsIn(w, LEDGER_LOG)).toEqual(['reply', 'delivered'])
+    expect(w.toasts.filter(toast => toast.includes('pick-up'))).toEqual([])
+  },
+)
+
+test(
+  "a tool call of Claude's while a pick-up is written down in the session that parked its item waits for the write: the next prompt takes no board for either",
+  SLOW,
+  async ($, on) => {
+    const w = world($, on)
+    const { ui } = await besideLedger(w, OPEN)
+    let noted: ReturnType<typeof w.call> | undefined
+
+    expect((await $.prompt.submit(PROMPT)).context?.[0], 'told of what it parked').toContain(EXPORT)
+
+    await pickUpLedgers(ui)
+    w.after('read', LEDGER_LOG, () => {
+      noted = w.call('note', { text: 'Picking the export up' })
+    })
+    await ui.press({ key: 'send' })
+    await w.turnStarts(PICKED)
+    expect(await noted, 'a note as the pick-up is written').toHaveProperty('result')
+    await w.turnEnds()
+
+    expect(kindsIn(w, LEDGER_LOG)).toEqual(['reply', 'delivered'])
+    expect((await $.prompt.submit(PROMPT)).context, 'its own note and pick-up').toBeUndefined()
+  },
+)
+
+test(
+  'a prompt while a pick-up is written down in the session that parked its item, before the board reads that session again, finds the board as Claude saw it: it takes none, then or after',
+  SLOW,
+  async ($, on) => {
+    const w = world($, on)
+    const { ui } = await besideLedger(w, OPEN)
+    let prompted: ReturnType<typeof $.prompt.submit> | undefined
+
+    expect((await $.prompt.submit(PROMPT)).context?.[0], 'told of what it parked').toContain(EXPORT)
+
+    await pickUpLedgers(ui)
+    w.after('list', sessionsDir(ROOT, PROJECT.key), () => {
+      prompted = $.prompt.submit(PROMPT)
+    })
+    await ui.press({ key: 'send' })
+
+    expect(kindsIn(w, LEDGER_LOG)).toEqual(['reply', 'delivered'])
+    expect(prompted, 'a prompt as the board reads it again').toBeDefined()
+    expect((await prompted)?.context, 'meanwhile').toBeUndefined()
+    expect((await $.prompt.submit(PROMPT)).context, 'after').toBeUndefined()
+  },
+)
+
+test(
+  'a pick-up whose write-down waits behind a join of the session that parked its item is written through the hold: the next post there keeps it',
+  SLOW,
+  async ($, on) => {
+    const w = world($, on)
+    let ending: Promise<unknown> | undefined
+
+    await heldPickUp(w)
+    w.after('exists', LEDGER_LOG, async () => {
+      ending = w.turnEnds()
+      await w.clock.settle()
+    })
+    await w.call('join', { session: LEDGER })
+    await ending
+    await w.clock.settle()
+
+    expect(w.state.attachment?.session).toBe(LEDGER)
+    expect(kindsIn(w, LEDGER_LOG)).toEqual(['reply', 'delivered'])
+
+    await w.call('note', { text: 'Carrying on here' })
+    expect(kindsIn(w, LEDGER_LOG)).toEqual(['reply', 'delivered', 'note'])
+  },
+)
+
+test(
+  "a pick-up the receive timer takes up again while its write-down is under way is written once: the second write finds the first's lines",
+  SLOW,
+  async ($, on) => {
+    const w = world($, on)
+    let ticked = () => {}
+    const isTicked = new Promise<void>(resolve => {
+      ticked = resolve
+    })
+
+    await heldPickUp(w)
+    w.after('read', LEDGER_OWN, async () => {
+      await w.clock.advance(WATCH_MS)
+      ticked()
+    })
+    await w.turnEnds()
+    await isTicked
+    await w.clock.settle()
+
+    expect(kindsIn(w, LEDGER_LOG)).toEqual(['reply', 'delivered'])
+    expect(w.flights()).toEqual([])
+  },
+)
+
+test(
+  'a pick-up written down is written down though keeping the board as seen after it fails: the claim ends, and the send says nothing went wrong',
+  SLOW,
+  async ($, on) => {
+    const w = world($, on)
+    let isRefused = false
+
+    on('state.set', { plugin: 'sitrep', key: 'seen' }, ($, e, next) =>
+      isRefused ? { deny: 'the state is read-only' } : next(e),
+    )
+
+    const { ui } = await besideLedger(w, OPEN)
+
+    expect((await $.prompt.submit(PROMPT)).context?.[0], 'told of what it parked').toContain(EXPORT)
+
+    await pickUpLedgers(ui)
+    isRefused = true
+    await ui.press({ key: 'send' })
+    await w.clock.settle()
+
+    expect(kindsIn(w, LEDGER_LOG)).toEqual(['reply', 'delivered'])
+    expect(w.flights()).toEqual([])
+    expect(w.toasts).toEqual([])
+  },
+)

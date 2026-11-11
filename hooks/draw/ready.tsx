@@ -4,7 +4,8 @@
  * the order sent: the replies it carries, frozen, then the line saying where
  * it stands, with its take-back while the window holds it for its turn.
  * Under them, the replies still to send, grouped by where each goes, this
- * session first, each hung from its item with its own ✕, then send and
+ * session first, a pick-up always to it whichever session of the project
+ * parked its item, each hung from its item with its own ✕, then send and
  * cancel all, which reach only those.
  *
  * Replies sent into another session's inbox stay in their group until Claude
@@ -35,6 +36,7 @@ import { briefOf, filedAt, itemKey, sessionLabel } from '../places'
 import {
   answered,
   destinations,
+  goesTo,
   heldBack,
   isCarried,
   isCarriedBy,
@@ -177,16 +179,15 @@ export type Ready = {
   more: number
 }
 
-/** A session's queued replies that fit their items, each with what holds it back from a send, if anything does. */
-const queuedIn = (
-  { session }: Filed,
-  queue: readonly SitrepQueued[],
-  flights: readonly SitrepInFlight[],
-): Queued[] =>
-  queuedFor(queue, session.id).flatMap(queued => {
-    const item = answered(session, queued)
+/** Queued replies that fit their items, each read in its own session where the board has that in full, with what holds it back from a send, if anything does. */
+const queuedIn = (scene: Scene, queue: readonly SitrepQueued[]): Queued[] =>
+  queue.flatMap(queued => {
+    const filed = filedAt(scene, queued.session)
+    const item = filed === undefined ? undefined : answered(filed.session, queued)
 
-    return item === undefined ? [] : [{ item, queued, barred: heldBack(flights, item, queued) }]
+    return item === undefined
+      ? []
+      : [{ item, queued, barred: heldBack(scene.inFlight, item, queued) }]
   })
 
 const sentTo = ({ session }: Filed, replies: readonly Reply[]): Sent[] =>
@@ -254,8 +255,10 @@ const goingGroup = (scene: Scene, send: SitrepInFlight, at: number, width: numbe
   }
 
   const filed = filedAt(scene, send.session)
-  const carried = scene.queue.filter(queued => isCarriedBy(send, queued))
-  const listed = filed === undefined ? [] : queuedIn(filed, carried, scene.inFlight)
+  const listed = queuedIn(
+    scene,
+    scene.queue.filter(queued => isCarriedBy(send, queued)),
+  )
 
   return [{ going: goingOf(send, width, holdingOf(scene, at)), filed, listed, isBrief: false }]
 }
@@ -263,9 +266,11 @@ const goingGroup = (scene: Scene, send: SitrepInFlight, at: number, width: numbe
 /** Each destination of the replies still to send, this session first, then as first queued, then those only sent to. */
 const unsentGroups = (scene: Scene): ToSendGroup[] => {
   const queue = unsent(scene.queue, scene.inFlight)
-  const queued = [...queuedFor(queue, scene.session.id), ...queue]
+  const held = { project: scene.here, session: scene.session.id }
+  const to = queue.flatMap(reply => goesTo(held, reply) ?? [])
+  const here = to.filter(each => each.session === held.session)
 
-  return destinations([...queued, ...scene.sent]).flatMap(({ session }): ToSendGroup[] => {
+  return destinations([...here, ...to, ...scene.sent]).flatMap(({ session }): ToSendGroup[] => {
     const filed = filedAt(scene, session)
     const sent = scene.sent.find(each => each.session === session)
 
@@ -273,7 +278,7 @@ const unsentGroups = (scene: Scene): ToSendGroup[] => {
       return []
     }
 
-    const waiting = queuedIn(filed, queue, scene.inFlight)
+    const waiting = queuedIn(scene, queuedFor(queue, held, session))
 
     if (sent === undefined || !isShowing(filed.session, sent, scene.now)) {
       return waiting.length > 0 ? [{ filed, listed: waiting }] : []

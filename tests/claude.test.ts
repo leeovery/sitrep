@@ -2,6 +2,8 @@ import { expect, test } from 'claude-code/testing'
 import {
   boardText,
   onBoardText,
+  parkedBy,
+  projectParked,
   startText,
   summarise,
   summariseProject,
@@ -24,6 +26,7 @@ import {
   status,
   T0,
   W1,
+  W2,
   yesAsk,
   type Line,
 } from './support'
@@ -92,6 +95,48 @@ test("the board text lists the session's open items by id, for Claude to check a
       '- n3: Note 3',
       '- n2: Note 2',
     ].join('\n'),
+  )
+})
+
+test("the board text's Parked is the project's: what the session parked first, then what its other sessions parked, the oldest first, each by its session's name, its id given as the tools' session", () => {
+  const ledger = fold({
+    logs: {
+      [W1]: file(
+        [T0, status([], { name: 'Request ledger' })],
+        [T0 + 3 * MIN, park('p1', 'Export the ledger as CSV', { where: 'In the spec' })],
+        [T0 + 9 * MIN, park('p2', 'Archive old requests')],
+      ),
+    },
+  })
+  const themes = fold({
+    logs: {
+      [W1]: file(
+        [T0, status([], { name: 'Themes' })],
+        [T0 + 4 * MIN, park('m2p8', 'A dark theme')],
+      ),
+      [W2]: file([T0 + 5 * MIN, finish('claude', 'Shipped')]),
+    },
+  })
+  const parked = projectParked(
+    [SESSION, { ...ledger, id: 'sr-1edger' }, { ...themes, id: 'sr-themes' }].flatMap(parkedBy),
+  )
+
+  expect(boardText(SESSION, parked)).toContain(
+    [
+      'Parked:',
+      '- p1: A tmux indicator',
+      '- p1, parked by "Request ledger" (session: sr-1edger): Export the ledger as CSV; where: In the spec',
+      '- m2p8, parked by "Themes" (session: sr-themes): A dark theme',
+      '- p2, parked by "Request ledger" (session: sr-1edger): Archive old requests',
+      'Latest notes:',
+    ].join('\n'),
+  )
+  expect(boardText(SESSION, parkedBy(SESSION)), 'its own listed once').toBe(boardText(SESSION))
+})
+
+test('the guide has Claude finish a session whatever it parked: that stays its project’s', () => {
+  expect(startText([])).toContain(
+    "when the session is complete, with nothing left on it, finish it: what it parked stays its project's, and holds no finish back.",
   )
 })
 

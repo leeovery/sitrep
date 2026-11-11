@@ -22,8 +22,10 @@ import {
   checkWakeTurn,
   WANTS,
   withId,
+  withParkId,
   type Body,
   type Checked,
+  type ProjectParked,
   type ProjectSessions,
   type Random,
   type Session,
@@ -37,8 +39,18 @@ export type Filed = { project: string; session: Session }
 /** What a command on a session comes to: the lines it posts, and what it prints. */
 export type Outcome = { post: Body[]; print: string }
 
-/** What a command on a session is given beyond its words: random bytes, the version the CLI runs, as its plugin's manifest says it, where that reads, and the time the session was read at. */
-export type Given = { random: Random; version: string | undefined; now: number }
+/**
+ * What a command on a session is given beyond its words: random bytes, the
+ * version the CLI runs, as its plugin's manifest says it, where that reads,
+ * the time the session was read at, and, for one that reads its project,
+ * what every session of the project parked.
+ */
+export type Given = {
+  random: Random
+  version: string | undefined
+  now: number
+  parked: readonly ProjectParked[]
+}
 
 type About = { name: string; about: string; grammar: Grammar }
 
@@ -46,6 +58,8 @@ export type SessionCommand = About & {
   on: 'session'
   /** Where its lines go: the CLI's own file in the session, unless they are an answer, for the session's inbox. */
   into?: 'inbox'
+  /** Whether it reads every session of the session's project too, for what they parked. */
+  readsProject?: true
   act: (filed: Filed, input: Fields, given: Given) => Checked<Outcome>
 }
 
@@ -196,7 +210,9 @@ const park: SessionCommand = {
   about: 'Park something raised and put off, to come back to. Prints its id.',
   grammar: { args: [{ field: 'title', about: LINE }], flags: { ...WHERE, ...REF, ...SESSION } },
   on: 'session',
-  act: ({ session }, input, { random }) => posted(withId(checkPark(input), session, random), idOf),
+  readsProject: true,
+  act: ({ session }, input, { random, parked }) =>
+    posted(withParkId(checkPark(input), session, parked, random), idOf),
 }
 
 const status: SessionCommand = {
@@ -223,14 +239,16 @@ const status: SessionCommand = {
 
 const board: SessionCommand = {
   name: 'board',
-  about: 'Print the board: its status, open asks, parked items and latest notes, with their ids.',
+  about:
+    "Print the board: its status, open asks, the project's parked items and latest notes, with their ids.",
   grammar: { args: [], flags: { ...JSON_OUT, ...SESSION } },
   on: 'session',
-  act: ({ project, session }, input) => ({
+  readsProject: true,
+  act: ({ project, session }, input, { parked }) => ({
     ok: true,
     value: {
       post: [],
-      print: input.json === true ? boardJson(project, session) : boardText(session),
+      print: input.json === true ? boardJson(project, session) : boardText(session, parked),
     },
   }),
 }

@@ -7,12 +7,15 @@
 import {
   allProjects,
   brief,
+  NOTHING_PARKED,
+  parkedBy,
   projectLog,
   projectParked,
   snoozedUntilIn,
   summariseProject,
   type Ask,
   type Parked,
+  type Parking,
   type SessionBrief,
 } from '../core'
 import type { SitrepPlace, SitrepSessionRef } from '../types'
@@ -53,6 +56,13 @@ export type ParkedAt = { at: SitrepSessionRef; name: string; parked: Parked }
  * buttons' keys (`pick:<session>:<item>`), are made from it.
  */
 export const itemKey = (session: string, item: string) => `${session}:${item}`
+
+/** An item's address read back into its session's id and its own; undefined for an item named by its own id alone. */
+export const addressed = (key: string) => {
+  const at = key.indexOf(':')
+
+  return at === -1 ? undefined : { session: key.slice(0, at), item: key.slice(at + 1) }
+}
 
 /** This session: the held session, the board's home. */
 export const homeOf = ({ here, session }: Pick<Scene, 'here' | 'session'>): SitrepPlace => ({
@@ -105,26 +115,62 @@ const keysRead = (scene: Scene) => [
   ...new Set([scene.here, ...scene.projects.map(project => project.key)]),
 ]
 
+/** A project as the look around last read it. */
+const projectRead = (scene: Scene, key: string) =>
+  scene.projects.find(project => project.key === key)
+
 /** A project's current sessions in brief, the held one among them where it is filed. */
 const briefsIn = (scene: Scene, key: string): SessionBrief[] => [
   ...(key === scene.here ? [brief(scene.session)] : []),
-  ...(scene.projects.find(project => project.key === key)?.sessions ?? []),
+  ...(projectRead(scene, key)?.sessions ?? []),
 ]
 
-/** A project as its view draws it: its sessions in brief, its notes, what it parked. */
+/** Everything parked in a project, oldest first, from every session filed under it, finished and idle ones included, each naming its session by name. */
+export const parkedIn = (scene: Scene, key: string): ParkedAt[] => {
+  const held = key === scene.here ? parkedBy(scene.session) : []
+  const around = (projectRead(scene, key)?.parked ?? []).filter(
+    each => each.session !== scene.session.id,
+  )
+
+  return projectParked([...held, ...around]).map(({ session, name, ...parked }) => ({
+    at: { project: key, session },
+    name,
+    parked,
+  }))
+}
+
+/** What is parked in a project as the board has it: the look carries the items, not the times of the sessions holding them. */
+const parkingIn = (scene: Scene, key: string): Parking => ({
+  ...NOTHING_PARKED,
+  parked: parkedIn(scene, key).length,
+})
+
+/**
+ * A project in brief: its current sessions, what is parked in it, and its
+ * name, as its sessions read now name it; with none current, as the look
+ * read it.
+ */
+const summaryIn = (scene: Scene, key: string) => {
+  const sessions = briefsIn(scene, key)
+  const summary = summariseProject(key, sessions, parkingIn(scene, key))
+
+  return sessions.length > 0 ? summary : { ...summary, name: projectRead(scene, key)?.name ?? key }
+}
+
+/** A project as its view draws it: its sessions in brief, counting what is parked in it, and its notes. */
 export const projectAt = (scene: Scene, key: string) => {
   const sessions = briefsIn(scene, key)
 
-  return { summary: summariseProject(key, sessions), log: projectLog(sessions), sessions }
+  return { summary: summaryIn(scene, key), log: projectLog(sessions), sessions }
 }
 
 /** The name the board gives a project, as its sessions read now name it. */
-export const projectLabel = (scene: Scene, key: string) => projectAt(scene, key).summary.name
+export const projectLabel = (scene: Scene, key: string) => summaryIn(scene, key).name
 
 /** Every project read, ordered and folded as All projects shows them. */
 export const everyProject = (scene: Scene) =>
   allProjects(
-    keysRead(scene).map(key => summariseProject(key, briefsIn(scene, key))),
+    keysRead(scene).map(key => summaryIn(scene, key)),
     scene.here,
   )
 
@@ -191,18 +237,6 @@ export const parkedOf = (filed: Filed): ParkedAt[] =>
     name: filed.session.status.name,
     parked,
   }))
-
-/** What a project's sessions have parked, oldest first. */
-export const parkedIn = (scene: Scene, key: string): ParkedAt[] => {
-  const sessions = briefsIn(scene, key)
-  const names = new Map(sessions.map(session => [session.id, session.name]))
-
-  return projectParked(sessions).map(({ session, ...parked }) => ({
-    at: { project: key, session },
-    name: names.get(session) ?? session,
-    parked,
-  }))
-}
 
 /** A session's name, with its project's where the board's own project is another. */
 export const sessionLabel = (scene: Scene, filed: Filed) =>

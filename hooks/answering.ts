@@ -8,11 +8,12 @@
  * The mode is one-shot, and is the surface's it began on: only an Enter
  * there is taken, and only there does it show. It stands exactly while the
  * next Enter would be taken: while its item, as the board reads it, in full
- * or in its project's briefs, can still take the reply. Once it cannot
- * (closed or picked up, answered from elsewhere, its session finished, a send
- * carrying its reply) the next Enter goes to Claude as ever, and the mode
- * ends. An item whose session the board has not read yet leaves it standing,
- * unshown.
+ * or in its project's briefs and parked items, can still take the reply.
+ * Once it cannot (closed or picked up, answered from elsewhere, an ask's
+ * session finished, a send carrying its reply) the next Enter goes to
+ * Claude as ever, and the mode ends. A parked item's session finished ends
+ * nothing: the item is its project's. An item whose session the board has
+ * not read yet leaves it standing, unshown.
  *
  * A prompt carrying an attachment, an image, can't wait in Ready to send:
  * a plugin is given its kind, never its bytes or its path, and its own
@@ -20,8 +21,9 @@
  * board's own words for that one reply, its attachments with it: a message
  * in flight from the moment it is decided, as a send is from its claim, but
  * submitted by Lee's Enter, and written down once Claude Code takes it. It
- * goes into this window's Claude, so only for an item of the session the
- * window holds.
+ * goes into this window's Claude, so only for a reply that goes to the
+ * session the window holds: to an item of its own, or a pick-up of an item
+ * any session of its project parked.
  *
  * Ended with nothing taken, the mode takes back the words it put in the
  * prompt box, so none of the board's words go to Claude unasked.
@@ -33,17 +35,19 @@ import {
   isAnswer,
   takes,
   type Ask,
+  type Item,
   type Parked,
   type Verdict,
 } from '../core'
-import type { SitrepAnswering, SitrepInFlight, SitrepQueued } from '../types'
+import type { SitrepAnswering, SitrepAttachment, SitrepInFlight, SitrepQueued } from '../types'
+import { foldedFor } from './around'
 import { claimRide, letRideGo, rideTaken } from './deliver'
 import { logFailure, type Host } from './host'
 import { unwrapPastes } from './paste'
-import { briefOf, filedAt } from './places'
-import { isCarried, queuedOn, queuing, replyBodies, whyLeft, type LeftOut } from './queue'
+import { briefOf, filedAt, parkedIn } from './places'
+import { goesTo, isCarried, leftOut, queuedOn, queuing, replyBodies, type LeftOut } from './queue'
 import { sceneOf, type Scene } from './scene'
-import { refresh, serially } from './window'
+import { flightNow, refresh, serially } from './window'
 
 /** The mode as it stands: what it writes, and the item it writes to. */
 export type Answering = { answering: SitrepAnswering; item: Ask | Parked }
@@ -122,27 +126,47 @@ export const heardSurvey = (surface: RenderSurface, isHeld: boolean) => {
   }
 }
 
-/** The mode's item as the board reads it: in a session it has in full, else in its project's briefs, which list only open asks and what is still parked; undefined while it has read neither. */
-const seenIn = (scene: Scene, { session, item }: SitrepAnswering) => {
+/** The board has read none of what tells where the mode's item stands. */
+const UNREAD = 'unread'
+
+/** An item as it can take the mode's reply: no note, nor an ask of a finished session, where nothing waits on Lee; a parked item, its session finished or not, since it is its project's. */
+const answerable = (item: Item | undefined, isFinished: boolean) =>
+  item === undefined || item.type === 'note' || (item.type === 'ask' && isFinished)
+    ? undefined
+    : item
+
+/**
+ * The mode's item as the board reads it, where it can take the reply: in a
+ * session it has in full, else among its project's parked items, else in
+ * its session's brief, which lists only its open asks; `UNREAD` while it has
+ * read none of them.
+ */
+const seenIn = (
+  scene: Scene,
+  { project, session, item }: SitrepAnswering,
+): Ask | Parked | undefined | typeof UNREAD => {
   const filed = filedAt(scene, session)
 
   if (filed !== undefined) {
-    const found = filed.session.items.get(item)
+    return answerable(filed.session.items.get(item), filed.session.finished !== undefined)
+  }
 
-    return {
-      item: found?.type === 'note' ? undefined : found,
-      isFinished: filed.session.finished !== undefined,
-    }
+  const parked = parkedIn(scene, project).find(
+    each => each.at.session === session && each.parked.id === item,
+  )
+
+  if (parked !== undefined) {
+    return parked.parked
   }
 
   const brief = briefOf(scene, session)
 
   return brief === undefined
-    ? undefined
-    : {
-        item: [...brief.asks, ...brief.parkedItems].find(each => each.id === item),
-        isFinished: brief.isFinished,
-      }
+    ? UNREAD
+    : answerable(
+        brief.asks.find(each => each.id === item),
+        brief.isFinished,
+      )
 }
 
 /** Whether the item can take the reply: open to it (`barredBy`), not carried by a send, and of a shape that takes it. */
@@ -156,18 +180,16 @@ const canTake = (scene: Scene, { session, as }: SitrepAnswering, item: Ask | Par
   )
 }
 
-/** Where the mode stands: over once its item, or the item's session, is finished; undefined while the window is not answering, or the board has not read the item's session yet. */
+/** Where the mode stands: over once its item can take the reply no longer; undefined while the window is not answering, or the board has not read the item's session yet. */
 const standingIn = (scene: Scene): Standing | undefined => {
   const { answering } = scene
-  const seen = answering === null ? undefined : seenIn(scene, answering)
+  const seen = answering === null ? UNREAD : seenIn(scene, answering)
 
-  if (answering === null || seen === undefined) {
+  if (answering === null || seen === UNREAD) {
     return undefined
   }
 
-  return seen.item !== undefined && !seen.isFinished && canTake(scene, answering, seen.item)
-    ? { answering, item: seen.item }
-    : 'over'
+  return seen !== undefined && canTake(scene, answering, seen) ? { answering, item: seen } : 'over'
 }
 
 /** The mode, while it stands, as the surface it began on shows it; undefined anywhere else, and while it does not stand. */
@@ -331,15 +353,20 @@ const enterWith =
     return entered
   }
 
+/** Whether a reply to the mode's item goes to the session the window holds, whose Claude takes Lee's prompt: one to its own item, or a pick-up of an item of its project. */
+const goesHere = (held: SitrepAttachment, { project, session, item, as }: SitrepAnswering) =>
+  goesTo(held, { project, session, item, verdict: VERDICT[as] })?.session === held.session
+
 /**
  * Lee's prompt, carrying an attachment, let in as the board's words for the
- * reply, so the attachment goes with it: only for an item of the session the
- * window holds, whose Claude it goes into, and only while the item, read
- * afresh, takes the reply as a send would carry it; else it is kept, a toast
- * saying why. The mode is over, and the reply claimed as a message in flight
- * before it goes, frozen in Ready to send in place of what was queued on
- * its item, so no send carries that too. Where a send carries the item's
- * reply already, the prompt goes on as any prompt does.
+ * reply, so the attachment goes with it: only for a reply that goes to the
+ * session the window holds, whose Claude it goes into, and only while the
+ * item, read afresh in its own session, takes the reply as a send would
+ * carry it; else it is kept, a toast saying why. The mode is over, and the
+ * reply claimed as a message in flight before it goes, frozen in Ready to
+ * send in place of what was queued on its item, so no send carries that
+ * too. Where a send carries the item's reply already, the prompt goes on as
+ * any prompt does.
  */
 const letIn = async (
   host: Host,
@@ -349,7 +376,7 @@ const letIn = async (
 ): Promise<Captured | undefined> => {
   const held = await host.state.attachment.read()
 
-  if (held?.session !== answering.session) {
+  if (held === null || !goesHere(held, answering)) {
     host.ui.toast(ELSEWHERE)
 
     return { drop: NOT_TAKEN }
@@ -358,8 +385,10 @@ const letIn = async (
   const [now, queue] = await Promise.all([serially(() => refresh(host)), host.state.queue.read()])
   const session = now ?? scene.session
   const reply = replyOf(answering, queue, words)
-  const why = whyLeft(session, reply)
-  const message = why === undefined ? boardMessage(session, [reply]) : undefined
+  const folded = await foldedFor(host, session, [reply])
+  const [why] = leftOut(folded, [reply])
+  const message =
+    why === undefined ? boardMessage(session, [reply], each => folded.get(each.session)) : undefined
 
   if (message === undefined) {
     host.ui.toast(CANNOT_RIDE[why ?? 'changed'])
@@ -377,7 +406,7 @@ const letIn = async (
       session: session.id,
       writer: held.writer,
       text: message.text,
-      replies: replyBodies(session, message.replies),
+      replies: replyBodies(session, message.replies, { folded, flights: await flightNow(host) }),
     },
     reply,
     queuedOn(queue, answering.session, answering.item),

@@ -520,7 +520,14 @@ finished and idle ones included, the oldest first, each naming its session
 by name, its id given only as the `session` the tools take to resolve, edit
 or reopen the item. So another session of the project parking or resolving
 something changes the board, which rides into the next turn as any change
-does.
+does. A start counts as seen only what Claude gave the session, so a session
+started in a project with something parked is told it with its first prompt.
+What Claude changes itself is never told back to it: a pick-up written down
+in the session that parked the item, or a resolve, an edit or a reopen there,
+counts as seen, the rest of the board as Claude last saw it. A new park, by
+the tool or the CLI, draws an id apart from every item open in the
+project's Parked as last read, so two items seldom share one there; where
+they do, the `session` tells them apart.
 Dropped: a `/sitrep check` command, since the `board` tool already reads the
 board back to repair it and Lee can ask for that in the chat; and a turn-end
 check for an ask Claude forgot to post. The board is best effort, and in use
@@ -1301,7 +1308,17 @@ app (see "The menu bar").
     have every reader carry it onto the held session's item of that id. It
     is left out: from its claim until it is written down only its own window
     shows it, frozen in Ready to send, and no other reader sees it on its
-    way.
+    way. So its reply's id is drawn as the message is claimed, apart from
+    every id the session that parked the item holds and every id the
+    window's messages carry, and never drawn again. A pick-up is written
+    down once: written means a reply by this window, by that id, to that
+    item, judged in the same turn of the window's queue that writes it, so
+    a write cut short and taken up again, or two write-downs of one
+    message, write nothing twice. Another writer of that session drawing
+    the same id before the pick-up is written down is left, as rare as any
+    two ids meeting (one in about a million): drawing again at the write
+    was tried, and every way of keeping it safe cost more than the clash it
+    met (found in review, 11 November 2026).
   - **An older build mid-send.** In the window's `$.state`, the pick-up names
     its item by its address (`sr-q7rx01:k3f9`), the line written down by the
     item's own id. Should an older build take the message over before it is
@@ -1314,7 +1331,9 @@ app (see "The menu bar").
     when its window takes up a session of another project leaves the
     queue, and a toast says so: no Claude of another project is given it,
     and the item stays parked, to be picked up from a window of its
-    project.
+    project. A message already sent, held for the turn's end, goes in as
+    sent, to the conversation Lee pressed send in; taken back, its pick-up
+    leaves the queue the same way.
   - **Two windows, one item.** Each pick-up goes in to its own window's
     Claude: a mark lets in a reply its item's close voided `answered` (see
     "Which replies go in"), so both Claudes are told.
@@ -2814,9 +2833,10 @@ truth. There is still no background service. None of it is built now. Lee:
     a session's counts the items it parked; a project's counts every item
     parked in the project, from every session filed under it, finished and
     idle ones included, and a project with something parked is listed though
-    none of its sessions is current, its `sessions` empty. Until then a
-    project's counted its current sessions' alone. A meaning changed, no
-    shape: `v` did not move.
+    none of its sessions is current, its `sessions` empty, and dated by the
+    latest of the sessions holding its parked items; plain `list` says
+    `no current sessions (2 parked)`. Until then a project's counted its
+    current sessions' alone. A meaning changed, no shape: `v` did not move.
 
     `created` (4 November 2026) is when the session started, as its
     `session.json` says; `board --json`'s `session` and `watch`'s sessions

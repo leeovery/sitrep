@@ -266,15 +266,16 @@ export type SitrepSource = 'send' | 'inbox'
  * Lee's replies submitted as Lee's own message, one message submitted at a
  * time whatever its source: held by the window while Claude is mid-turn, or
  * behind a message ahead of it, then on their way until Claude Code has
- * taken it and its lines are written into the session it went to.
+ * taken it and its lines are written into the session it went to, and a
+ * pick-up of another session's item into that session.
  */
 export type SitrepInFlight = SitrepSessionRef & {
   source: SitrepSource
-  /** The window's writer as it claimed the message: whose file in the session records it. */
+  /** The window's writer as it claimed the message: whose file in the session records it, and in the session of each item another session of its project parked. */
   writer: string
   /** The message, exactly as submitted: the text the turn it starts carries. */
   text: string
-  /** The replies the message carries, their ids fixed as it was claimed. */
+  /** The replies the message carries, their ids fixed as it was claimed: each naming its item by its own id, or a pick-up of another session's item by its address (`sr-q7rx01:k3f9`), its session's id first, since two sessions' items can share an id. */
   replies: SitrepReplyBody[]
   /** When it was claimed, which tells this claim from a later one of the same text. */
   claimedAt: number
@@ -286,7 +287,7 @@ export type SitrepInFlight = SitrepSessionRef & {
   ride?: SitrepRide
 }
 
-/** The item an answer going in with Lee's prompt replies to, and what it displaced in Ready to send there: the reply queued before, if one was, put back should the answer not go in. */
+/** The item an answer going in with Lee's prompt replies to, named as its claim's reply names it, and what it displaced in Ready to send there: the reply queued before, if one was, put back should the answer not go in. */
 export type SitrepRide = { item: string; was?: SitrepQueued }
 
 /**
@@ -321,10 +322,17 @@ export type SitrepBrief = SitrepSummary & {
   asks: SitrepAsk[]
 }
 
-/** A project as last read: its key, and its current sessions other than the held one, in brief. */
+/** A parked item of a project's, and the session that parked it, by its id and its name: core's `ProjectParked`. */
+export type SitrepProjectParked = SitrepParked & { session: string; name: string }
+
+/** A project as last read: its key, its current sessions other than the held one, in brief, and what every session of it but the held one parked. */
 export type SitrepProject = {
   key: string
+  /** Its name, as its sessions read name it; none from a load before parked items were the project's. */
+  name?: string
   sessions: SitrepBrief[]
+  /** Oldest first, finished and idle sessions' included; none from a load before parked items were the project's. */
+  parked?: SitrepProjectParked[]
 }
 
 /** Another session the board draws in full, and the project it is filed under. */
@@ -384,7 +392,7 @@ declare module 'claude-code' {
       board: SitrepBoard | null
       /** `boardText` as Claude last saw it: a start, a join, a read, its own post, or a turn's context. */
       seen: string | null
-      /** Every project holding a current session, and the held session's, as last read. */
+      /** Every project holding a current session or something parked, and the held session's, as last read. */
       projects: SitrepProject[]
       /** The other sessions the board draws in full: the session it looks at, and those replies wait for or went to. */
       others: SitrepOther[]
