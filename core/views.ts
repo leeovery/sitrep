@@ -172,11 +172,35 @@ export const brief = (session: Session): SessionBrief => ({
   asks: openAsks(session),
 })
 
-/** A project from its sessions, named as its most recently updated session names it, and what is `parked` in it. */
+/**
+ * What is parked in a project, from every session filed under it: how many
+ * items, and the latest time among the sessions holding them, as the time
+ * rule leaves it, which dates a project none of whose sessions is current;
+ * 0 where it is not known.
+ */
+export type Parking = { parked: number; updatedAt: number }
+
+export const NOTHING_PARKED: Parking = { parked: 0, updatedAt: 0 }
+
+/** What the sessions filed under a project, finished and idle ones included, hold parked. */
+export const parkingOf = (sessions: readonly SessionSummary[]): Parking => {
+  const holding = sessions.filter(session => session.parked > 0)
+
+  return {
+    parked: total(holding, session => session.parked),
+    updatedAt: Math.max(0, ...holding.map(session => session.updatedAt)),
+  }
+}
+
+/**
+ * A project from its current sessions, named as its most recently updated
+ * one names it, and what is parked in it: updated when its latest current
+ * session was, else as what is parked dates it.
+ */
 export const summariseProject = (
   key: string,
   sessions: readonly SessionSummary[],
-  parked: number,
+  parking: Parking = NOTHING_PARKED,
 ): ProjectSummary => {
   const summaries = [...sessions].sort(openFirst)
   const latest = [...sessions].sort(byRecency).at(0)
@@ -189,8 +213,8 @@ export const summariseProject = (
     waiting: total(summaries, session => session.waiting),
     snoozed: total(summaries, session => session.snoozed),
     asked: total(summaries, session => session.asked),
-    parked,
-    updatedAt: latest?.updatedAt ?? 0,
+    parked: parking.parked,
+    updatedAt: latest?.updatedAt ?? parking.updatedAt,
   }
 }
 
@@ -226,11 +250,11 @@ export const listedProjects = (
 ): ProjectSummary[] => {
   const summaries = read.flatMap(({ project, sessions }) => {
     const current = sessions.filter(session => isCurrent(session, now))
-    const parked = total(sessions, session => session.parked)
+    const parking = parkingOf(sessions)
     const { name, directory } = project
 
-    return current.length > 0 || parked > 0 || kept.includes(project.key)
-      ? [{ ...summariseProject(project.key, current, parked), name, directory }]
+    return current.length > 0 || parking.parked > 0 || kept.includes(project.key)
+      ? [{ ...summariseProject(project.key, current, parking), name, directory }]
       : []
   })
   const { projects, folded } = allProjects(summaries)

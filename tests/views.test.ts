@@ -9,6 +9,7 @@ import {
   listedProjects,
   metaText,
   parkedBy,
+  parkingOf,
   projectLog,
   projectParked,
   summarise,
@@ -110,15 +111,9 @@ test('a project adds up its sessions, those with a window first, then the most r
   })
   const older = sessionOf('sr-cccccc', 'switchboard', { logs: {} })
 
-  const sessions = [older, quiet, open]
+  const summaries = [older, quiet, open].map(summarise)
 
-  expect(
-    summariseProject(
-      'switchboard-1a2b3c4d',
-      sessions.map(summarise),
-      sessions.flatMap(parkedBy).length,
-    ),
-  ).toMatchObject({
+  expect(summariseProject('switchboard-1a2b3c4d', summaries, parkingOf(summaries))).toMatchObject({
     key: 'switchboard-1a2b3c4d',
     name: 'Switchboard',
     sessions: [{ id: 'sr-bbbbbb' }, { id: 'sr-aaaaaa' }, { id: 'sr-cccccc' }],
@@ -163,7 +158,7 @@ test("a project whose asks wait only on a window to deliver Lee's answers is not
     logs: { [W1]: file([T0, yesAsk('k1', 'Run it', 'Done')]) },
     inbox: { [CLI]: file([T0 + MIN, reply('r1', 'k1', 'yes')]) },
   })
-  const summary = summariseProject('switchboard-1a2b3c4d', [summarise(answered)], 0)
+  const summary = summariseProject('switchboard-1a2b3c4d', [summarise(answered)])
   const view = allProjects([summary, project('here')], 'here')
 
   expect(summary).toMatchObject({ waiting: 0, asked: 1 })
@@ -267,6 +262,43 @@ test('a project with something parked is listed, unfolded, counting it from ever
   expect(allProjects(listed).folded).toEqual([])
 })
 
+test('a project none of whose sessions is current is dated by the latest of the sessions holding what is parked in it, as the time rule leaves them', () => {
+  const finished = sessionOf('sr-aaaaaa', 'switchboard', {
+    logs: {
+      [W1]: file(
+        [T0, park('p1', 'Export the ledger as CSV')],
+        [T0 + MIN, finish('claude', 'Shipped')],
+      ),
+    },
+  })
+  const idle = sessionOf('sr-bbbbbb', 'switchboard', {
+    logs: {
+      [W2]: file(
+        [T0, park('p2', 'Archive old requests')],
+        [T0, park('p3', 'Retry the export')],
+        [T0 + 5 * MIN, resolve('p3')],
+      ),
+    },
+  })
+  const noted = sessionOf('sr-cccccc', 'switchboard', {
+    logs: { [W1]: file([T0 + 9 * MIN, note('n1', 'Wrote the schema')]) },
+  })
+  const listed = listedProjects(
+    [
+      {
+        project: { key: 'switchboard', name: 'Switchboard' },
+        sessions: [finished, idle, noted].map(summarise),
+      },
+    ],
+    '/Users/lee',
+    T0 + 30 * CURRENT_MS,
+  )
+
+  expect(listed).toMatchObject([
+    { key: 'switchboard', parked: 2, sessions: [], updatedAt: T0 + MIN },
+  ])
+})
+
 test('an ask whose answer from Lee is on its way keeps its session current as an ask waiting on Lee does, however long the answer waits; delivered, it ages out', () => {
   const later = NOW + 30 * CURRENT_MS
   const asked: Line = [T0, yesAsk('k1', 'Run it', 'Done')]
@@ -301,7 +333,7 @@ test('a finished session is out of the views whatever it holds, and its asks cou
 
   expect(summary).toMatchObject({ isOpen: true, isFinished: true, waiting: 0, parked: 1 })
   expect(isCurrent(summary, NOW)).toBe(false)
-  expect(summariseProject('switchboard-1a2b3c4d', [summary], 1).waiting).toBe(0)
+  expect(summariseProject('switchboard-1a2b3c4d', [summary]).waiting).toBe(0)
 })
 
 test('a brief carries the latest log lines a view shows, and what the session has parked', () => {

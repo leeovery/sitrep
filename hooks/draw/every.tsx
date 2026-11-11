@@ -6,7 +6,7 @@
 import type { ProjectSummary, SessionSummary } from '../../core'
 import { C, counted, GLYPH } from '../look'
 import { everyProject, hereFirst, projectPlace } from '../places'
-import { context, heading, spaced, waitingWords, type Block, type Drawing } from './kit'
+import { context, heading, NONE_OPEN, spaced, waitingWords, type Block, type Drawing } from './kit'
 
 const total = (projects: readonly ProjectSummary[], count: (project: ProjectSummary) => number) =>
   projects.reduce((sum, project) => sum + count(project), 0)
@@ -43,7 +43,7 @@ const branchesOf = (d: Drawing, project: ProjectSummary) => {
     ? open.map(session => drawSession(d, project.key, session))
     : [
         <Text key={`allnone:${project.key}`} color={C.soft}>
-          no sessions open{parked}
+          {`${NONE_OPEN}${parked}`}
         </Text>,
       ]
 }

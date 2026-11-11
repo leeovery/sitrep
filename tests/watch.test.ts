@@ -476,7 +476,7 @@ test('every session on a line carries what it parked, as board --json lists it, 
   ])
 })
 
-test("a line's projects count every item parked in them, finished and idle sessions' included, each session's parkedItems its own; one with only parked items is carried, its sessions empty", async () => {
+test("a line's projects count every item parked in them, finished and idle sessions' included, each session's parkedItems its own; one with only parked items is carried, its sessions empty, dated by the sessions holding them", async () => {
   const { t } = held([[T0 + MIN, park('p1', 'A tmux indicator')]])
   const old = T0 - 8 * 24 * HOUR
 
@@ -496,6 +496,7 @@ test("a line's projects count every item parked in them, finished and idle sessi
     projects: {
       key: string
       parked: number
+      updatedAt: number
       sessions: { id: string; parked: number; parkedItems: { title: string }[] }[]
     }[]
   }
@@ -508,7 +509,7 @@ test("a line's projects count every item parked in them, finished and idle sessi
         { id: META.id, parked: 1, parkedItems: [{ title: 'A tmux indicator' }] },
       ],
     },
-    { key: 'stale', parked: 1, sessions: [] },
+    { key: 'stale', parked: 1, sessions: [], updatedAt: old },
   ])
 })
 

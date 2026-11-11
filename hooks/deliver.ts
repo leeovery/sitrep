@@ -50,7 +50,7 @@ import { writeOwnFile, type Into } from './into'
 import { isCarriedBy, namedIn, queuing, repliedTo, unqueuing } from './queue'
 import { LINGER_MS, tickAfter } from './scene'
 import { postKnown } from './seen'
-import { flightNow, refresh, sayInFlight, serially } from './window'
+import { dropPickUpsElsewhere, flightNow, refresh, sayInFlight, serially } from './window'
 
 /** The name Claude Code knows the mod by: what a prompt it submitted carries as its origin. */
 const PLUGIN = 'sitrep'
@@ -298,12 +298,17 @@ const endIf = async (host: Host, isEnding: (current: SitrepInFlight) => boolean)
 }
 
 /**
- * Folds the held session again as a claim ends unwritten, once the heartbeat
- * says it no more: the rewrite waits ahead of this on the window's queue. So
- * a send's replies wait on Lee again at once, not on their way, its own
- * answer barring them, until the watch's next look.
+ * What follows a claim ending unwritten. The held session is folded again
+ * once the heartbeat says the claim no more: the rewrite waits ahead of this
+ * on the window's queue. So a send's replies wait on Lee again at once, not
+ * on their way, its own answer barring them, until the watch's next look.
+ * And a pick-up it carried leaves Ready to send where the window has since
+ * taken up a session of another project than the item's.
  */
-const foldAgain = (host: Host) => serially(() => refresh(host))
+const endedUnwritten = async (host: Host) => {
+  await serially(() => refresh(host))
+  await dropPickUpsElsewhere(host)
+}
 
 /** The messages in flight less the one at `at` and every one held behind it. */
 const lessFrom = (flights: SitrepInFlight[], at: number) =>
@@ -334,7 +339,7 @@ const release = async (host: Host, delivery: SitrepInFlight, why: string) => {
     stopAwaiting()
     sayNotTaken(host, delivery, why, behind)
     await putBack(host, delivery)
-    await foldAgain(host)
+    await endedUnwritten(host)
   }
 }
 
@@ -787,7 +792,7 @@ export const letRideGo = async (host: Host, ride: SitrepInFlight) => {
 
   if (isLet) {
     await putBack(host, ride)
-    await foldAgain(host)
+    await endedUnwritten(host)
   }
 
   return isLet
@@ -879,7 +884,7 @@ const letGoHeld = async (host: Host, isIt: (current: SitrepInFlight) => boolean)
   const isLet = await endIf(host, isPicked)
 
   if (isLet) {
-    await foldAgain(host)
+    await endedUnwritten(host)
   }
 
   return isLet

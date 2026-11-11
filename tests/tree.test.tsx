@@ -406,7 +406,7 @@ test("a finished session's files as a build before parked items were the project
   expect(filesThere()).toEqual(before)
 })
 
-test('All projects keeps a project whose sessions are finished or idle past the views while something is parked in it, unfolded and counting it; its items show without pick-up buttons in a window of another project', async ($, on) => {
+test('All projects keeps a project whose sessions are finished or idle past the views while something is parked in it, unfolded and counting it; its view says no sessions open, and its items show without pick-up buttons in a window of another project', async ($, on) => {
   const w = world($, on)
   const portal = w.elsewhere(meta('sr-p0rta1', 'Agent-aware Portal', 'portal', W3), PORTAL.key)
 
@@ -428,6 +428,8 @@ test('All projects keeps a project whose sessions are finished or idle past the 
   expect(await ui.find({ type: 'Text', text: /more, with nothing going on/ })).toBeUndefined()
 
   await ui.press({ key: `proj:${PORTAL.key}` })
+  expect(await ui.find({ type: 'Text', text: 'no sessions open' }), 'SESSIONS').toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /of 0 open/ })).toBeUndefined()
   expect(await ui.find({ type: 'Text', text: '2 to come back to' })).toBeDefined()
   expect(await parkedButtons(ui)).toEqual([
     ['ppick:sr-p0rta2:p1', 'Portal on zmx: Resume the zmx sessions'],

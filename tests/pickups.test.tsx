@@ -301,3 +301,38 @@ test(
     expect(w.files.has(LEDGER_LOG), 'the item stays parked').toBe(false)
   },
 )
+
+test(
+  'a pick-up a send carried, taken back once the window holds a session of another project, leaves Ready to send as on a join: never left undrawn',
+  SLOW,
+  async ($, on) => {
+    const w = world($, on)
+    const { ui } = await besideLedger(w, FINISHED)
+    const asked = postedId(await w.call('ask', REVIEW))
+    const pickUpsLeft = () => w.toasts.filter(toast => toast.includes('pick-up'))
+
+    w.elsewhere(meta('sr-0rders', 'Standing orders', W3, ELSEWHERE), ELSEWHERE.key)
+    await w.clock.advance(MIN)
+    await pickUpLedgers(ui)
+    await ui.press({ key: `pick:${w.item(asked)}` })
+    await ui.press({ key: `yes:${w.item(asked)}` })
+    await w.turnStarts('Carry on.')
+    await ui.press({ key: 'send' })
+
+    const [own] = w.state.queue?.filter(reply => reply.verdict === 'yes') ?? []
+
+    await w.call('join', { session: 'sr-0rders' })
+    expect(pickUpsLeft(), 'carried, it stays as the window joins').toEqual([])
+
+    await ui.press({ key: w.takeBack() })
+    expect(w.state.queue).toEqual([own])
+    expect(pickUpsLeft()).toEqual([
+      '1 pick-up of another project left Ready to send: pick up from a window of that project.',
+    ])
+
+    await w.turnEnds()
+    await w.clock.settle()
+    expect(w.submitted).toEqual([])
+    expect(w.files.has(LEDGER_LOG), 'the item stays parked').toBe(false)
+  },
+)

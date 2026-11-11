@@ -166,9 +166,9 @@ test('an empty board says so in every section', () => {
 test('the board listing gives each session a line: its project, its id, its name and what waits on Lee', () => {
   const closed = fold({ logs: { [W1]: file([T0, yesAsk('k1', 'Run it', 'Done')]) } })
   const ledger = { ...summarise(closed), id: 'sr-1edger', name: 'Request ledger', waiting: 0 }
-  const switchboard = summariseProject('switchboard', [toldSummary(SESSION), ledger], 0)
+  const switchboard = summariseProject('switchboard', [toldSummary(SESSION), ledger])
   const sitrep = {
-    ...summariseProject('sitrep', [{ ...ledger, id: 'sr-wdsqvn', name: 'sitrep' }], 0),
+    ...summariseProject('sitrep', [{ ...ledger, id: 'sr-wdsqvn', name: 'sitrep' }]),
     name: 'SitRep',
   }
 
@@ -195,7 +195,7 @@ test("Claude's listing counts an ask whose answer from Lee is on its way as wait
 })
 
 test('a conversation starts knowing how to keep the board and talk to Lee beside it, every session on it by project, and which this window holds', () => {
-  const projects = [summariseProject('switchboard', [summarise(SESSION)], 0)]
+  const projects = [summariseProject('switchboard', [summarise(SESSION)])]
   const guide = startText([])
 
   expect(guide).toContain(
@@ -236,7 +236,7 @@ test('a conversation starts knowing how to keep the board and talk to Lee beside
   )
   expect(guide, 'sessions, never pieces of work').not.toMatch(/\bpieces? of work\b/i)
   expect(
-    startText([summariseProject('quiet', [], 0)]),
+    startText([summariseProject('quiet', [])]),
     'a project with no sessions lists nothing',
   ).toBe(guide)
   expect(startText(projects)).toBe(`${guide}\n${onBoardText(projects)}`)
@@ -290,14 +290,14 @@ test("Claude's listing counts snoozed asks apart from those waiting on Lee, one 
 
   expect([told.waiting, told.snoozed]).toEqual([1, 3])
   expect([summarise(SNOOZED).waiting, summarise(SNOOZED).snoozed]).toEqual([1, 2])
-  expect(onBoardText([summariseProject('switchboard', [told], 0)])).toBe(
+  expect(onBoardText([summariseProject('switchboard', [told])])).toBe(
     [
       'On the board:',
       '- Switchboard: sr-k3f9qa "Dashboard redesign", 1 waiting on Lee, 3 snoozed by Lee',
     ].join('\n'),
   )
   expect(
-    onBoardText([summariseProject('switchboard', [{ ...told, waiting: 0 }], 0)]),
+    onBoardText([summariseProject('switchboard', [{ ...told, waiting: 0 }])]),
     'snoozed alone',
   ).toBe('On the board:\n- Switchboard: sr-k3f9qa "Dashboard redesign", 3 snoozed by Lee')
   expect(

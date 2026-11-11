@@ -364,11 +364,18 @@ const pickUpsLeft = (count: number) =>
 
 /**
  * Takes out of Ready to send each pick-up of a project other than the one
- * `held` is filed under, none a send in flight carries, a toast saying so:
- * a pick-up goes to the window's Claude, and none of another project is
- * given one.
+ * the held session is filed under, none a send in flight carries, a toast
+ * saying so: a pick-up goes to the window's Claude, and none of another
+ * project is given one. As the window takes up a session, and as a claim
+ * ends unwritten, its replies back in Ready to send.
  */
-const dropPickUpsElsewhere = async (host: Host, held: SitrepAttachment) => {
+export const dropPickUpsElsewhere = async (host: Host) => {
+  const held = attached()
+
+  if (held === undefined) {
+    return
+  }
+
   const flights = await flightNow(host)
   const isLeft = (reply: SitrepQueued) =>
     goesTo(held, reply) === undefined && !isCarried(flights, reply)
@@ -409,7 +416,7 @@ export const attachTo = async (host: Host, root: string, attaching: SitrepAttach
   await beat(host, hold, heartbeat(hold.presence, await host.clock.now()))
   current = hold
   await host.state.attachment.write(attaching)
-  await dropPickUpsElsewhere(host, attaching)
+  await dropPickUpsElsewhere(host)
   hold.timers = timersFor(host, hold)
 
   return refresh(host)

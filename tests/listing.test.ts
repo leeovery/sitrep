@@ -419,7 +419,7 @@ const parkedAround = () => {
   return t
 }
 
-test("list --json: a project's parked counts every item parked in it, finished and idle sessions' included, each session's its own; one with only parked items is listed, its sessions empty", async () => {
+test("list --json: a project's parked counts every item parked in it, finished and idle sessions' included, each session's its own; one with only parked items is listed, its sessions empty, dated by the sessions holding them", async () => {
   const { projects } = JSON.parse((await parkedAround().run('list', '--json')).out)
 
   expect(projects).toMatchObject([
@@ -438,7 +438,7 @@ test("list --json: a project's parked counts every item parked in it, finished a
       waiting: 0,
       snoozed: 0,
       parked: 1,
-      updatedAt: 0,
+      updatedAt: STALE_SESSION.created,
       sessions: [],
     },
   ])

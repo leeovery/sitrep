@@ -54,6 +54,7 @@ import {
   isCurrent,
   isIdle,
   openAsks,
+  parkingOf,
   summarise,
   summariseProject,
   type ProjectSummary,
@@ -125,8 +126,8 @@ const feedProject = (
   places: Places,
   now: number,
 ): FeedProject => {
-  const current = sessions
-    .map(session => ({ session, summary: summarise(session) }))
+  const summed = sessions.map(session => ({ session, summary: summarise(session) }))
+  const current = summed
     .filter(({ summary }) => isCurrent(summary, now))
     .map(({ session, summary }): FeedSession => ({
       ...summary,
@@ -143,10 +144,10 @@ const feedProject = (
         compareText(a.id, b.id),
     )
 
-  const parked = sessions.reduce((sum, session) => sum + session.parked.length, 0)
+  const parking = parkingOf(summed.map(({ summary }) => summary))
 
   return {
-    ...summariseProject(project.key, current, parked),
+    ...summariseProject(project.key, current, parking),
     name: project.name,
     directory: project.directory,
     sessions: current,

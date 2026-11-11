@@ -7,6 +7,7 @@
 import {
   allProjects,
   brief,
+  NOTHING_PARKED,
   parkedBy,
   projectLog,
   projectParked,
@@ -14,6 +15,7 @@ import {
   summariseProject,
   type Ask,
   type Parked,
+  type Parking,
   type SessionBrief,
 } from '../core'
 import type { SitrepPlace, SitrepSessionRef } from '../types'
@@ -137,6 +139,12 @@ export const parkedIn = (scene: Scene, key: string): ParkedAt[] => {
   }))
 }
 
+/** What is parked in a project as the board has it: the look carries the items, not the times of the sessions holding them. */
+const parkingIn = (scene: Scene, key: string): Parking => ({
+  ...NOTHING_PARKED,
+  parked: parkedIn(scene, key).length,
+})
+
 /**
  * A project in brief: its current sessions, what is parked in it, and its
  * name, as its sessions read now name it; with none current, as the look
@@ -144,7 +152,7 @@ export const parkedIn = (scene: Scene, key: string): ParkedAt[] => {
  */
 const summaryIn = (scene: Scene, key: string) => {
   const sessions = briefsIn(scene, key)
-  const summary = summariseProject(key, sessions, parkedIn(scene, key).length)
+  const summary = summariseProject(key, sessions, parkingIn(scene, key))
 
   return sessions.length > 0 ? summary : { ...summary, name: projectRead(scene, key)?.name ?? key }
 }

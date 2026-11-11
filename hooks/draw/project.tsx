@@ -8,7 +8,7 @@ import type { SessionSummary } from '../../core'
 import { C, clip, GLYPH } from '../look'
 import { askedIn, hereFirst, parkedIn, projectAt } from '../places'
 import { drawAsks } from './ask'
-import { context, heading, spaced, waitingWords, type Block, type Drawing } from './kit'
+import { context, heading, NONE_OPEN, spaced, waitingWords, type Block, type Drawing } from './kit'
 import { drawLog } from './log'
 import { drawParked } from './parked'
 
@@ -59,6 +59,10 @@ const drawSession = (d: Drawing, project: string, session: SessionSummary) => {
   )
 }
 
+/** How many of a project's sessions are open, as SESSIONS' heading says it: none open where it lists none, a project holding only what is parked. */
+const openWords = (open: number, count: number) =>
+  count === 0 ? NONE_OPEN : `${open} of ${count} open`
+
 /** SESSIONS' heading, then each session, a blank row between each and the next. */
 const drawSessions = (
   d: Drawing,
@@ -66,7 +70,7 @@ const drawSessions = (
   sessions: readonly SessionSummary[],
   open: number,
 ) => [
-  { key: 'sessions', element: heading(d, 'SESSIONS', C.log, `${open} of ${sessions.length} open`) },
+  { key: 'sessions', element: heading(d, 'SESSIONS', C.log, openWords(open, sessions.length)) },
   ...spaced(
     ...sessions.map(session => [
       { key: `sess:${session.id}`, element: drawSession(d, key, session) },

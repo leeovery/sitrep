@@ -122,6 +122,9 @@ export const context = (d: Drawing, title: string, aside: string, summary?: stri
   )
 }
 
+/** A project none of whose sessions is open, as All projects says it, and its view where it lists none. */
+export const NONE_OPEN = 'no sessions open'
+
 /** How much waits on Lee, as a view's line under the tabs says it. */
 export const waitingWords = (count: number) =>
   count > 0 ? `${count} waiting on you` : 'nothing waiting on you'
