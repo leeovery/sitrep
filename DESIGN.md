@@ -1307,13 +1307,17 @@ app (see "The menu bar").
     have every reader carry it onto the held session's item of that id. It
     is left out: from its claim until it is written down only its own window
     shows it, frozen in Ready to send, and no other reader sees it on its
-    way. So its reply's id is drawn apart from every id the session that
-    parked the item holds and every id the window's messages carry, and,
-    should another writer take it meanwhile, drawn again as it is written
-    down, the new id kept with the message before any line is written. A
-    pick-up is written down once: written means a reply by this window, by
-    that id, to that item, so a write cut short and taken up again by the
-    next load writes nothing twice.
+    way. So its reply's id is drawn as the message is claimed, apart from
+    every id the session that parked the item holds and every id the
+    window's messages carry, and never drawn again. A pick-up is written
+    down once: written means a reply by this window, by that id, to that
+    item, judged in the same turn of the window's queue that writes it, so
+    a write cut short and taken up again, or two write-downs of one
+    message, write nothing twice. Another writer of that session drawing
+    the same id before the pick-up is written down is left, as rare as any
+    two ids meeting (one in about a million): drawing again at the write
+    was tried, and every way of keeping it safe cost more than the clash it
+    met (found in review, 11 November 2026).
   - **An older build mid-send.** In the window's `$.state`, the pick-up names
     its item by its address (`sr-q7rx01:k3f9`), the line written down by the
     item's own id. Should an older build take the message over before it is
