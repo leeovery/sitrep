@@ -191,6 +191,13 @@ vanished from every view, though still stored.
   It holds for the session's own window: while the window is live the
   session is open, and current whatever its time; once the window goes, its
   7 days count from its last line about anything else, its status or a note.
+- **Proven live on 11 November 2026**, on Lee's own board: All projects
+  listed six projects for their parked items alone, `no sessions open · ◇
+  11 parked` for Mint among them, and Mint's Parked named each item's
+  session (`Build Mint's Rail look: …`), never an id. A new Mint session's
+  window picked up an item the finished "Build Mint's Rail look" had
+  parked: its Claude was given `Pick up from parked, Build Mint's Rail
+  look's: …`, Parked went from 11 to 10, and no old session came back.
 
 **Two windows are two sessions** (16 October 2026). Two terminals on one
 tmux session show one window twice, and the jump picks either. If two
