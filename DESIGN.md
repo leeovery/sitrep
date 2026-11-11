@@ -7478,6 +7478,15 @@ open), and tmux passing an escape sequence through from Claude's own pane
      6. On a Mac with tmux, `tmux attach -t {session}` and `tmux -S
         {socket} attach -t {pane}`: tmux names the session by the pane, and
         attaches by the pane's id.
+   - **Proven live on 11 November 2026** (this Mac's build of #112): 2,
+     twice, on Portal session `Portal-709WBV`: the window opened, the line
+     ran, the session attached; a click straight after closing a window
+     opens one, as the screen is read at the click, not from a heartbeat.
+     3: a double-click, both clicks taken, opened one window. Not run: 1
+     and 5 (the tests cover them); 4, as quitting Ghostty closes every
+     window Lee has; 6, as this Mac has no tmux. A row no terminal shows
+     looks as any other: rows show the board, and whether a terminal shows
+     a session is read at the click.
 
 ## Later
 
