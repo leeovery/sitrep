@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-11-11
+
+💥 Breaking
+- `sitrep jump` and `sitrep screen` are removed from the CLI — SitRep now does its own jumping to a session's window; scripts that called them have no replacement.
+
+✨ Added
+- Clicking a session no terminal window shows opens a new Ghostty window running your own command — set the terminal and the open command (with `{session}`, `{socket}` and `{pane}` placeholders) under Settings → General → New windows.
+- Captions and banners for opening a window — "Still opening…", "Opened a window for…", "A window for… is opening", and "SitRep could not open a window" when it fails.
+- Items a session parks now belong to its project — any session of the project sees them on its board, and can resolve, reopen or edit them with the session's id.
+- Picking up a parked item from a window sends the pick-up to that window's session, whichever session of the project parked it.
+- Projects with only parked items now show in the lists, as "no current sessions (N parked)" in `sitrep list`.
+- Windows in the board's JSON output carry `jumpOrder`, the order a jump tries a session's windows.
+
+🔧 Changed
+- Jumping to a session's window is now built into SitRep, rather than run through the CLI — it no longer starts the CLI for each click.
+- Parked items no longer keep a session current, and finishing a session leaves what it parked in place.
+- Jumps waiting on the watch's first board line wait for it, and are refused only if it never comes.
+
+🐛 Fixed
+- A quick second click on a session no longer opens a second window for it.
+
 ## [0.4.1] - 2026-11-09
 
 Clicking a session, ask or notification now brings forward the Ghostty window for sessions running in zmx.
