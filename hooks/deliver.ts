@@ -35,7 +35,7 @@
  * every reader has them on their way as soon as Lee sends them.
  */
 import type { PromptOrigin, Timer } from 'claude-code'
-import { deliveredMark, isObject, newItemId, sentLines, type Body, type Session } from '../core'
+import { deliveredMark, isObject, sentLines, type Body, type Session } from '../core'
 import type {
   SitrepInFlight,
   SitrepQueued,
@@ -44,9 +44,9 @@ import type {
   SitrepStoredFlights,
 } from '../types'
 import { betweenTurns } from './activity'
-import { foldAt, lookAround } from './around'
-import { logFailure, random, rootFor, type Host } from './host'
-import { writeInto, writeOwnFile, type Into } from './into'
+import { lookAround } from './around'
+import { logFailure, type Host } from './host'
+import { writeHeld, writeInto, type Into } from './into'
 import { isCarriedBy, namedIn, queuing, repliedTo, unqueuing } from './queue'
 import { LINGER_MS, tickAfter } from './scene'
 import { changedKnown, postKnown, type ChangedThere } from './seen'
@@ -517,15 +517,15 @@ const linesOf = (
         replies.map(reply => reply.id),
       )
 
-/** Whether this window's own reply to the item, by the id the claim records for it, is in the session: in a file only this window writes. */
+/** Whether this window's own reply to the item, by the id its claim drew, is in the session: in a file only this window writes. */
 const isWritten = (session: Session, writer: string, { id, item }: SitrepReplyBody) =>
   session.replies.some(reply => reply.id === id && reply.item === item && reply.by === writer)
 
 /**
  * The lines a taken message's pick-ups of items another session parked are
  * written down as, in that session as it stands, in this window's own file
- * there, by the ids the claim records: each reply not there yet as this
- * window wrote it, and the mark naming them; none once every one is.
+ * there, by the ids the claim drew: each reply not there yet as this window
+ * wrote it, and the mark naming them; none once every one is.
  */
 const pickUpLines = (session: Session, { writer, replies }: Writing): Body[] => {
   const unwritten = replies.filter(reply => !isWritten(session, writer, reply))
@@ -535,82 +535,13 @@ const pickUpLines = (session: Session, { writer, replies }: Writing): Body[] => 
     : [...unwritten, { type: 'delivered', replies: unwritten.map(reply => reply.id) }]
 }
 
-/** Whether a writing of a taken message is its pick-ups of items another session parked: written down in that session, not the message's own. */
-const isPickUps = (delivery: SitrepInFlight, writing: Writing) =>
-  writing.session !== delivery.session
-
 /** The lines a taken message is written down as in the session of `writing`. */
 const linesFor =
   (delivery: SitrepInFlight, writing: Writing) =>
   (session: Session): Body[] =>
-    isPickUps(delivery, writing)
-      ? pickUpLines(session, writing)
-      : linesOf(session, delivery.source, writing.replies)
-
-/** Records in the claim the ids a writing's replies are written down by. */
-const recordIds = (host: Host, delivery: SitrepInFlight, { session, replies }: Writing) => {
-  const ids = new Map(replies.map(reply => [reply.item, reply.id]))
-  const recorded = (flight: SitrepInFlight) => ({
-    ...flight,
-    replies: flight.replies.map(reply => {
-      const at = repliedTo(flight, reply.item)
-
-      return at.session === session ? { ...reply, id: ids.get(at.item) ?? reply.id } : reply
-    }),
-  })
-
-  return changeFlight(host, flights =>
-    flights.map(flight => (isClaim(flight, delivery) ? recorded(flight) : flight)),
-  )
-}
-
-/**
- * A writing of pick-ups by the ids it is written down by. The claim drew
- * each unlike any the parking session used and any message in flight
- * carried, but no reader there saw the claim, so one another writer took
- * since is drawn again, once, and recorded in the claim before any line
- * using it is written: a write taken up again reads the ids recorded, and
- * finds its own lines by them.
- */
-const settled = async (
-  host: Host,
-  delivery: SitrepInFlight,
-  writing: Writing,
-  there: Session,
-): Promise<Writing> => {
-  const isTaken = (reply: SitrepReplyBody) =>
-    there.ids.has(reply.id) && !isWritten(there, writing.writer, reply)
-
-  if (!writing.replies.some(isTaken)) {
-    return writing
-  }
-
-  const flights = await flightNow(host)
-  const taken = new Set([
-    ...there.ids,
-    ...flights.flatMap(flight => flight.replies.map(each => each.id)),
-  ])
-  const replies = writing.replies.map(reply => {
-    const id = isTaken(reply) ? newItemId(random, taken) : reply.id
-
-    taken.add(id)
-
-    return { ...reply, id }
-  })
-  const fixed = { ...writing, replies }
-
-  await recordIds(host, delivery, fixed)
-
-  return fixed
-}
-
-/** A writing as it is written down, and its session as it stood before: a pick-up's ids settled against it. */
-const readying = async (host: Host, delivery: SitrepInFlight, writing: Writing) => {
-  const there = await foldAt(host, await rootFor(host), writing, await host.clock.now())
-  const isSettled = there === undefined || !isPickUps(delivery, writing)
-
-  return { there, writing: isSettled ? writing : await settled(host, delivery, writing, there) }
-}
+    writing.session === delivery.session
+      ? linesOf(session, delivery.source, writing.replies)
+      : pickUpLines(session, writing)
 
 /** Logs a session a taken message went to whose session.json is gone. */
 const goneUnless = (host: Host, isThere: boolean, { session }: Writing) => {
@@ -620,70 +551,84 @@ const goneUnless = (host: Host, isThere: boolean, { session }: Writing) => {
 }
 
 /** Writes a taken message's lines into the held session, through the hold, as lines Claude knows of: the replies it has just been sent. */
-const writeHere = async (host: Host, delivery: SitrepInFlight, each: Writing) => {
-  const writing = isPickUps(delivery, each) ? (await readying(host, delivery, each)).writing : each
-  const isThere = await writeOwnFile(
-    host,
-    writing,
-    linesFor(delivery, writing),
-    (session, posted) => postKnown(host, session, posted),
+const writeHere = async (host: Host, delivery: SitrepInFlight, writing: Writing) => {
+  const isThere = await writeHeld(host, linesFor(delivery, writing), (session, posted) =>
+    postKnown(host, session, posted),
   )
 
   goneUnless(host, isThere, writing)
 }
 
 /**
- * Writes a taken message down in sessions the window does not hold, in one
- * turn of the window's queue: the session it went to once Claude moved on,
- * and the session that parked each item it picks up. They are read again
- * after, a pick-up's item having left Parked, and Claude's own message
- * having carried them, the board counts as seen after them where Claude
- * had seen it as it stood before.
+ * Writes a taken message's lines into a session the window does not hold,
+ * in this window's own file there: Claude's own change to it, as the
+ * session stood before, where it is another of the held session's project.
  */
-const writeAround = (host: Host, delivery: SitrepInFlight, writings: readonly Writing[]) =>
-  serially(async () => {
-    const changes: ChangedThere[] = []
+const writeThere = async (
+  host: Host,
+  delivery: SitrepInFlight,
+  writing: Writing,
+): Promise<ChangedThere[]> => {
+  const lines = linesFor(delivery, writing)
+  let before = undefined as Session | undefined
+  const isThere = await writeInto(host, writing, session => {
+    before = session
 
-    for (const each of writings) {
-      const { there, writing } = await readying(host, delivery, each)
-
-      goneUnless(host, await writeInto(host, writing, linesFor(delivery, writing)), writing)
-
-      if (there !== undefined && writing.project === attached()?.project) {
-        changes.push({ before: there, items: writing.replies.map(reply => reply.item) })
-      }
-    }
-
-    await lookAround(
-      host,
-      writings.map(({ session }) => session),
-    )
-    await changedKnown(host, changes)
+    return lines(session)
   })
 
+  goneUnless(host, isThere, writing)
+
+  return before === undefined || writing.project !== attached()?.project
+    ? []
+    : [{ before, items: writing.replies.map(reply => reply.item) }]
+}
+
 /**
- * Writes a taken message down in the session it went to, and each pick-up
- * of another session's item in that session, then ends it; what follows its
- * claim's end follows once, by whichever write ended it. Two loads may both
- * write one down: a file-watch reload can cut short a write the last load
- * began once the submit resolved (settled live), and the next load writes it
- * again, finding its lines there or not, by the ids its claim records. The
- * held session's lines go first, then the others'.
+ * Writes a taken message down in one turn of the window's queue, each
+ * choice made there, from the hold and the files as they are then: the
+ * session it went to, and the session that parked each item it picks up,
+ * each through the hold where the window holds it now, else into this
+ * window's own file there, and only the lines not there yet. The held
+ * session's lines go first. The sessions written around the hold are read
+ * again after, a pick-up's item having left Parked, and, Claude's own
+ * message having carried them, the board counts as seen after them where
+ * Claude had seen it as it stood before; a failure to keep it fails no
+ * write.
  */
-const writeDown = async (host: Host, delivery: SitrepInFlight) => {
+const writeTurn = async (host: Host, delivery: SitrepInFlight) => {
   const writings = writingsOf(delivery)
   const held = attached()
+  const around = writings.filter(each => !isHoldOn(held, each))
+  const changes: ChangedThere[] = []
 
   for (const writing of writings.filter(each => isHoldOn(held, each))) {
     await writeHere(host, delivery, writing)
   }
 
-  const around = writings.filter(each => !isHoldOn(held, each))
-
-  if (around.length > 0) {
-    await writeAround(host, delivery, around)
+  for (const writing of around) {
+    changes.push(...(await writeThere(host, delivery, writing)))
   }
 
+  if (around.length > 0) {
+    await lookAround(
+      host,
+      around.map(({ session }) => session),
+    )
+    await changedKnown(host, changes).catch(logFailure(host, 'keeping the board as seen'))
+  }
+}
+
+/**
+ * Writes a taken message down, then ends it; what follows its claim's end
+ * follows once, by whichever write ended it. One message may be written
+ * down twice: by two loads, as a file-watch reload can cut short a write
+ * the last load began once the submit resolved (settled live), or by one
+ * load hearing it as its receive timer takes it up. Each write finds what
+ * the other wrote, the lines judged in its own turn of the window's queue.
+ */
+const writeDown = async (host: Host, delivery: SitrepInFlight) => {
+  await serially(() => writeTurn(host, delivery))
   await AFTER[delivery.source].written(host, delivery)
 
   if (await endIf(host, current => isClaim(current, delivery))) {

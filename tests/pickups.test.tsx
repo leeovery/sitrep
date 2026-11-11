@@ -410,29 +410,6 @@ const heldPickUp = async (w: World) => {
 }
 
 test(
-  "a pick-up's reply id another writer of the parking session took while the send was held is drawn again as it is written down, the item picked up all the same",
-  SLOW,
-  async ($, on) => {
-    const w = world($, on)
-    const { ui, id } = await heldPickUp(w)
-
-    w.put(LEDGER_OWN, file([T0, park('p1', EXPORT)], [T0 + MIN, note(id, 'Took the same id')]))
-    await w.turnEnds()
-    await w.clock.settle()
-
-    const written = parseEntries(w.text(LEDGER_LOG))
-    const picked = written.find(line => line.type === 'reply')
-
-    expect(picked).toMatchObject({ item: 'p1', verdict: 'pickup' })
-    expect(picked?.id).not.toBe(id)
-    expect(written.at(-1)).toMatchObject({ type: 'delivered', replies: [picked?.id] })
-
-    await toProject(ui)
-    expect(await ui.find({ type: 'Text', text: 'PARKED' }), 'the item left Parked').toBeUndefined()
-  },
-)
-
-test(
   'a pick-up this window already wrote down in the parking session, its write cut short before the claim ended, is not written again',
   SLOW,
   async ($, on) => {
@@ -456,12 +433,11 @@ const repliesIn = (w: World, path: string) =>
   parseEntries(w.text(path)).flatMap(line => (line.type === 'reply' ? [line] : []))
 
 test(
-  "a pick-up's reply id drawn again as it is written down is recorded in the claim before its line is written: a load cut short after the write leaves it written once, however often the claim is taken up again",
+  'a pick-up written down in the parking session, its load cut short before the claim ended, is written once by its claimed id, however often the claim is taken up again',
   SLOW,
   async ($, on) => {
     const w = world($, on)
     let isCut = true
-    let recorded: string | undefined
 
     on('state.set', { plugin: 'sitrep', key: 'inFlight' }, ($, e, next) =>
       isCut && e.value === null ? { deny: 'the load was cut short' } : next(e),
@@ -469,18 +445,9 @@ test(
 
     const { id } = await heldPickUp(w)
 
-    w.put(LEDGER_OWN, file([T0, park('p1', EXPORT)], [T0 + MIN, note(id, 'Took the same id')]))
-    w.after('read', LEDGER_LOG, () => {
-      recorded = w.flights()[0]?.replies[0]?.id
-    })
     await w.turnEnds()
     await w.clock.advance(WATCH_MS)
-
-    const [picked] = repliesIn(w, LEDGER_LOG)
-
-    expect(picked).toMatchObject({ item: 'p1', verdict: 'pickup' })
-    expect(picked?.id).not.toBe(id)
-    expect(recorded, 'the claim records the id before the line is written').toBe(picked?.id)
+    expect(repliesIn(w, LEDGER_LOG)).toMatchObject([{ id, item: 'p1', verdict: 'pickup' }])
 
     await $.session.start(CONVERSATION)
     await w.clock.settle()
@@ -509,7 +476,7 @@ const drawnAlike = <E extends { value: unknown }>(e: E): E => {
 }
 
 test(
-  'two sends held at once, each picking up an item one session parked, by the same reply id, are both written down there: a reply is written by its id to its own item alone',
+  'two sends held at once, each picking up an item one session parked, by the same reply id, are each written down there: a reply counts as written by its id to its own item alone',
   SLOW,
   async ($, on) => {
     const w = world($, on)
@@ -534,11 +501,7 @@ test(
     await w.turnEnds()
     await w.clock.settle()
 
-    const replies = repliesIn(w, LEDGER_LOG)
-
-    expect(replies.map(line => line.item)).toEqual(['p1', 'p2'])
-    expect(new Set(replies.map(line => line.id)).size).toBe(2)
-    expect(w.state.projects?.find(project => project.key === PROJECT.key)?.parked).toEqual([])
+    expect(repliesIn(w, LEDGER_LOG).map(line => line.item)).toEqual(['p1', 'p2'])
   },
 )
 
@@ -586,5 +549,79 @@ test(
     expect(prompted, 'a prompt as the board reads it again').toBeDefined()
     expect((await prompted)?.context, 'meanwhile').toBeUndefined()
     expect((await $.prompt.submit(PROMPT)).context, 'after').toBeUndefined()
+  },
+)
+
+test(
+  'a pick-up whose write-down waits behind a join of the session that parked its item is written through the hold: the next post there keeps it',
+  SLOW,
+  async ($, on) => {
+    const w = world($, on)
+    let ending: Promise<unknown> | undefined
+
+    await heldPickUp(w)
+    w.after('exists', LEDGER_LOG, async () => {
+      ending = w.turnEnds()
+      await w.clock.settle()
+    })
+    await w.call('join', { session: LEDGER })
+    await ending
+    await w.clock.settle()
+
+    expect(w.state.attachment?.session).toBe(LEDGER)
+    expect(kindsIn(w, LEDGER_LOG)).toEqual(['reply', 'delivered'])
+
+    await w.call('note', { text: 'Carrying on here' })
+    expect(kindsIn(w, LEDGER_LOG)).toEqual(['reply', 'delivered', 'note'])
+  },
+)
+
+test(
+  "a pick-up the receive timer takes up again while its write-down is under way is written once: the second write finds the first's lines",
+  SLOW,
+  async ($, on) => {
+    const w = world($, on)
+    let ticked = () => {}
+    const isTicked = new Promise<void>(resolve => {
+      ticked = resolve
+    })
+
+    await heldPickUp(w)
+    w.after('read', LEDGER_OWN, async () => {
+      await w.clock.advance(WATCH_MS)
+      ticked()
+    })
+    await w.turnEnds()
+    await isTicked
+    await w.clock.settle()
+
+    expect(kindsIn(w, LEDGER_LOG)).toEqual(['reply', 'delivered'])
+    expect(w.flights()).toEqual([])
+  },
+)
+
+test(
+  'a pick-up written down is written down though keeping the board as seen after it fails: the claim ends, and the send says nothing went wrong',
+  SLOW,
+  async ($, on) => {
+    const w = world($, on)
+    let isRefused = false
+
+    on('state.set', { plugin: 'sitrep', key: 'seen' }, ($, e, next) =>
+      isRefused ? { deny: 'the state is read-only' } : next(e),
+    )
+
+    const { ui } = await besideLedger(w, OPEN)
+
+    expect((await $.prompt.submit(PROMPT)).context?.[0], 'told of what it parked').toContain(EXPORT)
+
+    await pickUpLedgers(ui)
+    isRefused = true
+    await ui.press({ key: 'send' })
+    await w.clock.settle()
+
+    expect(kindsIn(w, LEDGER_LOG)).toEqual(['reply', 'delivered'])
+    expect(w.flights()).toEqual([])
+    expect(w.toasts).toEqual([])
   },
 )

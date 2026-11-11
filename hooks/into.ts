@@ -45,7 +45,7 @@ export const writeInto = async (
 }
 
 /** Writes what `linesOf` makes of the held session as it stands, posted by `postHeld`; false when the session no longer folds. */
-const writeHeld = async (host: Host, linesOf: LinesOf, postHeld: PostHeld) => {
+export const writeHeld = async (host: Host, linesOf: LinesOf, postHeld: PostHeld) => {
   const session = await refresh(host)
   const lines = session === undefined ? [] : linesOf(session)
 
