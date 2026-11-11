@@ -33,13 +33,16 @@ import {
   type Session,
   type SessionPaths,
 } from '../core'
-import type { SitrepAttachment, SitrepInFlight, SitrepSessionRef } from '../types'
+import type { SitrepAttachment, SitrepInFlight, SitrepQueued, SitrepSessionRef } from '../types'
 import { activityNow } from './activity'
 import { endAnswering, settleAnswering } from './answering'
 import { boardOf } from './board'
 import { logFailure, rootFor, type Host } from './host'
 import { isLater, isSuperseded, loadedNow, supersede } from './load'
+import { counted } from './look'
 import { announce, type News } from './news'
+import { addressed } from './places'
+import { goesTo, isCarried } from './queue'
 import { createReader, ownText, type Reader } from './reader'
 import { versionNow } from './version'
 import { whereNow } from './where'
@@ -226,20 +229,25 @@ const stateNow = async (host: Host, attachedAt: number) =>
  * send of Lee's in flight carries there, with its claim, in the order
  * claimed; none while it sends none. None for the inbox's, which are on
  * their way there already, nor for a send to another session, or claimed as
- * another writer.
+ * another writer. Nor a pick-up of another session's item: its id may be
+ * one an item of the held session has too, which every reader would carry
+ * it onto.
  */
 const sendingTo = (
   held: SitrepAttachment,
   flights: readonly SitrepInFlight[],
 ): Sending[] | undefined => {
-  const sends = flights.filter(each => each.source === 'send' && isHoldOn(held, each))
+  const sends = flights
+    .filter(each => each.source === 'send' && isHoldOn(held, each))
+    .map(send => ({
+      at: send.claimedAt,
+      replies: send.replies
+        .filter(reply => addressed(reply.item) === undefined)
+        .map(({ type, ...reply }) => reply),
+    }))
+    .filter(send => send.replies.length > 0)
 
-  return sends.length === 0
-    ? undefined
-    : sends.map(send => ({
-        at: send.claimedAt,
-        replies: send.replies.map(({ type, ...reply }) => reply),
-      }))
+  return sends.length === 0 ? undefined : sends
 }
 
 /** What the heartbeat says of the window's doing on the session it holds as `held`: its state, and what it sends there. */
@@ -350,11 +358,34 @@ export const letGo = async (host: Host) => {
   }
 }
 
+/** Why pick-ups left Ready to send: the window took up a session of another project than theirs. */
+const pickUpsLeft = (count: number) =>
+  `${counted(count, 'pick-up', 'pick-ups')} of another project left Ready to send: pick up from a window of that project.`
+
+/**
+ * Takes out of Ready to send each pick-up of a project other than the one
+ * `held` is filed under, none a send in flight carries, a toast saying so:
+ * a pick-up goes to the window's Claude, and none of another project is
+ * given one.
+ */
+const dropPickUpsElsewhere = async (host: Host, held: SitrepAttachment) => {
+  const flights = await flightNow(host)
+  const isLeft = (reply: SitrepQueued) =>
+    goesTo(held, reply) === undefined && !isCarried(flights, reply)
+  const left = (await host.state.queue.read()).filter(isLeft).length
+
+  if (left > 0) {
+    await host.state.queue.update(queue => queue.filter(reply => !isLeft(reply)))
+    host.ui.toast(pickUpsLeft(left))
+  }
+}
+
 /**
  * Holds the session `attaching` names, letting go of any other first: reads
  * the window's own file back, works out where the window is, writes its
  * heartbeat, saying the version it runs and what it is doing as it stands,
- * starts the beat and the watch, and folds the session.
+ * starts the beat and the watch, and folds the session. A pick-up of
+ * another project's item leaves Ready to send.
  */
 export const attachTo = async (host: Host, root: string, attaching: SitrepAttachment) => {
   const { project, session, writer, attachedAt } = attaching
@@ -378,6 +409,7 @@ export const attachTo = async (host: Host, root: string, attaching: SitrepAttach
   await beat(host, hold, heartbeat(hold.presence, await host.clock.now()))
   current = hold
   await host.state.attachment.write(attaching)
+  await dropPickUpsElsewhere(host, attaching)
   hold.timers = timersFor(host, hold)
 
   return refresh(host)

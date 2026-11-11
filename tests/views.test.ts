@@ -6,7 +6,9 @@ import {
   CURRENT_MS,
   foldSession,
   isCurrent,
+  listedProjects,
   metaText,
+  parkedBy,
   projectLog,
   projectParked,
   summarise,
@@ -98,7 +100,7 @@ test('a session in brief: what it is doing, whether a window has it, what it hol
   })
 })
 
-test('a project adds up its sessions, those with a window first, then the most recently updated', () => {
+test('a project adds up its sessions, those with a window first, then the most recently updated, and counts what is parked in it', () => {
   const quiet = sessionOf('sr-aaaaaa', 'switchboard', {
     logs: { [W1]: file([T0 + 50 * MIN, yesAsk('k1', 'Try it', 'It works')]) },
   })
@@ -108,8 +110,14 @@ test('a project adds up its sessions, those with a window first, then the most r
   })
   const older = sessionOf('sr-cccccc', 'switchboard', { logs: {} })
 
+  const sessions = [older, quiet, open]
+
   expect(
-    summariseProject('switchboard-1a2b3c4d', [older, quiet, open].map(summarise)),
+    summariseProject(
+      'switchboard-1a2b3c4d',
+      sessions.map(summarise),
+      sessions.flatMap(parkedBy).length,
+    ),
   ).toMatchObject({
     key: 'switchboard-1a2b3c4d',
     name: 'Switchboard',
@@ -155,7 +163,7 @@ test("a project whose asks wait only on a window to deliver Lee's answers is not
     logs: { [W1]: file([T0, yesAsk('k1', 'Run it', 'Done')]) },
     inbox: { [CLI]: file([T0 + MIN, reply('r1', 'k1', 'yes')]) },
   })
-  const summary = summariseProject('switchboard-1a2b3c4d', [summarise(answered)])
+  const summary = summariseProject('switchboard-1a2b3c4d', [summarise(answered)], 0)
   const view = allProjects([summary, project('here')], 'here')
 
   expect(summary).toMatchObject({ waiting: 0, asked: 1 })
@@ -205,19 +213,58 @@ test('an idle session shows for 7 days after its last update, then drops out of 
   expect(isCurrent(idle, NOW + CURRENT_MS + 1)).toBe(false)
 })
 
-test('open, waiting on Lee or holding something parked, a session shows however long ago it was updated', () => {
+test('open or waiting on Lee, a session shows however long ago it was updated', () => {
   const later = T0 + 30 * CURRENT_MS
   const open = sessionOf('sr-aaaaaa', 'switchboard', { presence: { [W1]: seen(W1, NOW) } })
   const waiting = sessionOf('sr-bbbbbb', 'switchboard', {
     logs: { [W1]: file([T0, yesAsk('k1', 'Run it', 'Done')]) },
   })
-  const parked = sessionOf('sr-cccccc', 'switchboard', {
-    logs: { [W1]: file([T0, park('p1', 'Later')]) },
-  })
 
-  for (const session of [open, waiting, parked]) {
+  for (const session of [open, waiting]) {
     expect(isCurrent(summarise(session), later), session.id).toBe(true)
   }
+})
+
+test("something parked keeps no session current: it is its project's, and its session leaves the views after its 7 days", () => {
+  const parked = summarise(
+    sessionOf('sr-cccccc', 'switchboard', { logs: { [W1]: file([T0, park('p1', 'Later')]) } }),
+  )
+
+  expect(parked.parked).toBe(1)
+  expect(isCurrent(parked, T0 + CURRENT_MS)).toBe(true)
+  expect(isCurrent(parked, T0 + CURRENT_MS + 1)).toBe(false)
+})
+
+test('a project with something parked is listed, unfolded, counting it from every session filed under it, finished and idle ones included, though none of its sessions is current', () => {
+  const later = T0 + 30 * CURRENT_MS
+  const finished = sessionOf('sr-aaaaaa', 'switchboard', {
+    logs: {
+      [W1]: file(
+        [T0, park('p1', 'Export the ledger as CSV')],
+        [T0 + MIN, finish('claude', 'Shipped')],
+      ),
+    },
+  })
+  const idle = sessionOf('sr-bbbbbb', 'switchboard', {
+    logs: { [W2]: file([T0, park('p2', 'Archive old requests')]) },
+  })
+  const quiet = sessionOf('sr-cccccc', 'portal', { logs: {} })
+  const listed = listedProjects(
+    [
+      {
+        project: { key: 'switchboard', name: 'Switchboard' },
+        sessions: [finished, idle].map(summarise),
+      },
+      { project: { key: 'portal', name: 'Portal' }, sessions: [summarise(quiet)] },
+    ],
+    '/Users/lee',
+    later,
+  )
+
+  expect(listed.map(each => [each.key, each.parked, each.sessions])).toEqual([
+    ['switchboard', 2, []],
+  ])
+  expect(allProjects(listed).folded).toEqual([])
 })
 
 test('an ask whose answer from Lee is on its way keeps its session current as an ask waiting on Lee does, however long the answer waits; delivered, it ages out', () => {
@@ -254,7 +301,7 @@ test('a finished session is out of the views whatever it holds, and its asks cou
 
   expect(summary).toMatchObject({ isOpen: true, isFinished: true, waiting: 0, parked: 1 })
   expect(isCurrent(summary, NOW)).toBe(false)
-  expect(summariseProject('switchboard-1a2b3c4d', [summary]).waiting).toBe(0)
+  expect(summariseProject('switchboard-1a2b3c4d', [summary], 1).waiting).toBe(0)
 })
 
 test('a brief carries the latest log lines a view shows, and what the session has parked', () => {
@@ -293,16 +340,18 @@ test('a brief carries the asks still open, a replied one among them, and none cl
   ])
 })
 
-test("a project's parked items, oldest first, each naming the session that parked it", () => {
-  const first = brief(
-    sessionOf('sr-aaaaaa', 'switchboard', { logs: { [W1]: file([T0 + 2 * MIN, park('p1', 'B')]) } }),
-  )
-  const second = brief(
-    sessionOf('sr-bbbbbb', 'switchboard', { logs: { [W2]: file([T0 + MIN, park('p2', 'A')]) } }),
-  )
+test("a project's parked items, oldest first, each naming the session that parked it by its id and its name", () => {
+  const first = sessionOf('sr-aaaaaa', 'switchboard', {
+    logs: { [W1]: file([T0, status([], { name: 'Ledger' })], [T0 + 2 * MIN, park('p1', 'B')]) },
+  })
+  const second = sessionOf('sr-bbbbbb', 'switchboard', {
+    logs: { [W2]: file([T0 + MIN, park('p2', 'A')]) },
+  })
 
-  expect(projectParked([first, second]).map(each => [each.session, each.id])).toEqual([
-    ['sr-bbbbbb', 'p2'],
-    ['sr-aaaaaa', 'p1'],
+  const parked = projectParked([first, second].flatMap(parkedBy))
+
+  expect(parked.map(each => [each.session, each.name, each.id])).toEqual([
+    ['sr-bbbbbb', META.name, 'p2'],
+    ['sr-aaaaaa', 'Ledger', 'p1'],
   ])
 })

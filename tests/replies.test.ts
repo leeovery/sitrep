@@ -40,6 +40,7 @@ import {
   resolve,
   SENDER,
   seen,
+  status,
   T0,
   W1,
   W2,
@@ -652,6 +653,38 @@ test("Lee's message: one line per reply, in the spike's words, under From the bo
   )
   expect(message?.text).not.toMatch(/\b(k[1-4]|p1|r\d)\b/)
   expect(message?.replies).toHaveLength(10)
+})
+
+test("a pick-up of an item another session of the project parked goes in the message read in that session, naming whose it was; one of the session's own names none", () => {
+  const session = fold({ logs: { [W1]: file(...POSTED) } })
+  const ledger = {
+    ...fold({
+      logs: {
+        [W2]: file(
+          [T0, status([], { name: 'Request ledger' })],
+          [T0, park('p1', 'Export the ledger as CSV')],
+        ),
+      },
+    }),
+    id: 'sr-1edger',
+  }
+  const replies = [
+    { session: session.id, item: 'p1', verdict: 'pickup' },
+    { session: ledger.id, item: 'p1', verdict: 'pickup', note: 'With the totals' },
+  ] as const
+  const message = boardMessage(session, replies, reply =>
+    reply.session === ledger.id ? ledger : session,
+  )
+
+  expect(message?.text).toBe(
+    [
+      FROM_THE_BOARD,
+      '- Pick up from parked: A tmux indicator across sessions',
+      "- Pick up from parked, Request ledger's: Export the ledger as CSV. With the totals",
+    ].join('\n'),
+  )
+  expect(message?.text).not.toMatch(/sr-1edger/)
+  expect(message?.replies).toEqual(replies)
 })
 
 test('the message leaves out replies that fit no item, and says which it carries; it is nothing when none fits', () => {

@@ -1,12 +1,13 @@
 /**
  * Sending Ready to send. The replies to other sessions are written into their
  * inboxes first (letters.ts). The held session's go in as Lee's own message
- * (deliver.ts), their reply ids fixed as the send is claimed, and only once
- * Claude Code has taken it are they written, each reply and one delivered
- * mark together, into the session they answer. A send it refuses leaves
- * every reply queued. A send carries a reply only while its item takes it
- * (`sendable`): one to an item closed, or holding another answer of Lee's,
- * stays in Ready to send, saying why.
+ * (deliver.ts), and with them every pick-up, whichever session of the
+ * project parked its item, their reply ids fixed as the send is claimed, and
+ * only once Claude Code has taken it are they written, each reply and a
+ * delivered mark together, into the session whose item each answers. A send
+ * it refuses leaves every reply queued. A send carries a reply only while
+ * its item takes it (`sendable`): one to an item closed, or holding another
+ * answer of Lee's, stays in Ready to send, saying why.
  *
  * A message sent while Claude is mid-turn the window holds until that turn
  * ends, which can take minutes, and Lee can take it back until then
@@ -15,10 +16,11 @@
  * a send carries them as a message of their own, which goes in after it.
  */
 import { boardMessage } from '../core'
+import { foldedFor } from './around'
 import { deliver, sendHeld, STILL_THERE } from './deliver'
 import type { Host } from './host'
 import { sendLetters } from './letters'
-import { leftOut, replyBodies, sendable, type LeftOut } from './queue'
+import { leftOut, replyBodies, sendable, unsentTo, type LeftOut } from './queue'
 import { attached, refresh, serially } from './window'
 
 const BEHIND = `Not sent yet: replies from another session are going in first. ${STILL_THERE}`
@@ -46,9 +48,10 @@ const nothingSent = (left: readonly LeftOut[]) => {
 }
 
 /**
- * Sends the held session's replies in Ready to send that no send in flight
- * carries and its items take now (`sendable`), `claimed` running once their
- * message is claimed.
+ * Sends the replies in Ready to send that go to the held session, its own
+ * and every pick-up of its project's, that no send in flight carries and
+ * their items take now (`sendable`), `claimed` running once their message
+ * is claimed.
  */
 const sendHere = async (host: Host, claimed: () => Promise<void>): Promise<Here> => {
   const here = await heldNow(host)
@@ -59,10 +62,14 @@ const sendHere = async (host: Host, claimed: () => Promise<void>): Promise<Here>
 
   const { session, held } = here
   const [queue, flights] = await Promise.all([host.state.queue.read(), host.state.inFlight.read()])
-  const message = boardMessage(session, sendable(session, queue, flights))
+  const replies = unsentTo(queue, flights, held, session.id)
+  const folded = await foldedFor(host, session, replies)
+  const message = boardMessage(session, sendable(folded, replies), reply =>
+    folded.get(reply.session),
+  )
 
   if (message === undefined) {
-    return { is: 'none', left: leftOut(session, queue, flights) }
+    return { is: 'none', left: leftOut(folded, replies) }
   }
 
   const ahead = await deliver(
@@ -73,7 +80,7 @@ const sendHere = async (host: Host, claimed: () => Promise<void>): Promise<Here>
       session: session.id,
       writer: held.writer,
       text: message.text,
-      replies: replyBodies(session, message.replies),
+      replies: replyBodies(session, message.replies, folded),
     },
     claimed,
   )

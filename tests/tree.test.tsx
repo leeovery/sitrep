@@ -1,10 +1,25 @@
 import { expect, test, tier } from 'claude-code/testing'
-import { CURRENT_MS, type SessionMeta } from '../core'
+import { CURRENT_MS, sessionPaths, type Body, type SessionMeta } from '../core'
 import { AROUND_MS } from '../hooks/around'
 import { C, GLYPH } from '../hooks/look'
 import { rowsOf } from './drawn'
-import { choiceAsk, MIN, note, park, status, T0, W2, W3, W4, yesAsk } from './support'
-import { ELSEWHERE, postedId, PROJECT, toProject, WIDE, world } from './world'
+import {
+  choiceAsk,
+  file,
+  finish,
+  MIN,
+  note,
+  park,
+  PARKED_BEFORE,
+  status,
+  T0,
+  W2,
+  W3,
+  W4,
+  yesAsk,
+  type Line,
+} from './support'
+import { ELSEWHERE, postedId, PROJECT, ROOT, toProject, WIDE, world } from './world'
 
 tier('user')
 
@@ -312,6 +327,117 @@ test("the project view's PARKED holds every session's parked items, the oldest f
     await ui.find({ type: 'Text', text: 'PARKED' }),
     'All projects is the tree alone',
   ).toBeUndefined()
+})
+
+/** The parked items' buttons drawn, each with its text, in the order drawn. */
+const parkedButtons = async (ui: Awaited<ReturnType<World['pane']>>) =>
+  (await ui.findAll({ type: 'Button' }))
+    .filter(each => each.key?.startsWith('ppick:'))
+    .map(each => [each.key, each.text])
+
+/** A session started by `by` in a project, its lines `ago` before now: idle, past the views. */
+const longIdle = (w: World, meta: SessionMeta, project: string, ...bodies: Body[]) => {
+  const { paths } = w.elsewhere(meta, project)
+
+  w.put(paths.log(meta.by), file(...bodies.map((body): Line => [meta.created, body])))
+}
+
+test("the project view's PARKED holds a finished session's items and an idle one's past the views, each by its session's name, and counts them all; a session's view holds its own", async ($, on) => {
+  const w = world($, on)
+  const ledger = w.elsewhere(meta(LEDGER, 'Request ledger', 'switchboard', W2))
+
+  longIdle(
+    w,
+    meta(THEMES, 'Themes', 'switchboard', W3, CURRENT_MS + DAY),
+    PROJECT.key,
+    park('p1', 'Theme the lobby too'),
+  )
+  ledger.write(park('p2', 'Export the ledger as CSV'), finish('claude', 'Shipped'))
+
+  const { id } = await w.begin()
+
+  await w.clock.advance(MIN)
+
+  const tmux = postedId(await w.call('park', { title: 'A tmux indicator across sessions' }))
+  const ui = await w.opened(WIDE)
+
+  expect(await ui.find({ type: 'Text', text: '1 to come back to' })).toBeDefined()
+  expect(await parkedButtons(ui)).toEqual([
+    [`ppick:${w.item(tmux)}`, 'A tmux indicator across sessions'],
+  ])
+
+  await toProject(ui)
+  expect(await keysOf(ui, 'go:'), 'neither session is current').toEqual([`go:${id}`])
+  expect(await ui.find({ type: 'Text', text: '3 to come back to' })).toBeDefined()
+  expect(await parkedButtons(ui)).toEqual([
+    [`ppick:${THEMES}:p1`, 'Themes: Theme the lobby too'],
+    [`ppick:${LEDGER}:p2`, 'Request ledger: Export the ledger as CSV'],
+    [`ppick:${w.item(tmux)}`, 'Dashboard redesign: A tmux indicator across sessions'],
+  ])
+
+  await ui.press({ key: `ppick:${LEDGER}:p2` })
+  expect(await ui.find({ key: `pickup:${LEDGER}:p2` })).toBeDefined()
+  expect(await ui.find({ key: `comment:${LEDGER}:p2` })).toBeDefined()
+})
+
+test("a finished session's files as a build before parked items were the project's left them: its items show in the project's PARKED by its name, and no look rewrites a byte", async ($, on) => {
+  const w = world($, on)
+  const paths = sessionPaths(ROOT, PROJECT.key, PARKED_BEFORE.id)
+  const filesThere = () =>
+    [...w.files].flatMap(([path, { text }]) => (path.startsWith(paths.dir) ? [[path, text]] : []))
+
+  w.put(paths.meta, PARKED_BEFORE.meta)
+  w.put(paths.log(PARKED_BEFORE.writer), PARKED_BEFORE.log)
+
+  const before = filesThere()
+
+  await w.begin()
+
+  const ui = await w.opened(WIDE)
+
+  await toProject(ui)
+  expect(await ui.find({ type: 'Text', text: '2 to come back to' })).toBeDefined()
+  expect(await parkedButtons(ui)).toEqual([
+    [`ppick:${PARKED_BEFORE.id}:p1`, 'Request ledger: Export the ledger as CSV'],
+    [`ppick:${PARKED_BEFORE.id}:p2`, 'Request ledger: Archive old requests'],
+  ])
+
+  await w.clock.advance(4 * AROUND_MS)
+  expect(filesThere()).toEqual(before)
+})
+
+test('All projects keeps a project whose sessions are finished or idle past the views while something is parked in it, unfolded and counting it; its items show without pick-up buttons in a window of another project', async ($, on) => {
+  const w = world($, on)
+  const portal = w.elsewhere(meta('sr-p0rta1', 'Agent-aware Portal', 'portal', W3), PORTAL.key)
+
+  portal.write(park('p1', 'Thumbnails in the picker'), finish('lee'))
+  longIdle(
+    w,
+    meta('sr-p0rta2', 'Portal on zmx', 'portal', W4, CURRENT_MS + DAY),
+    PORTAL.key,
+    park('p1', 'Resume the zmx sessions'),
+  )
+  longIdle(w, meta('sr-d0sty0', 'An old idea', 'dusty', W3, CURRENT_MS + DAY), DUSTY.key)
+  await w.begin()
+
+  const ui = await w.opened(WIDE)
+
+  await ui.press({ key: 'tab:all' })
+  expect(await keysOf(ui, 'proj:')).toEqual([`proj:${PROJECT.key}`, `proj:${PORTAL.key}`])
+  expect(await ui.find({ type: 'Text', text: 'no sessions open · ◇ 2 parked' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /more, with nothing going on/ })).toBeUndefined()
+
+  await ui.press({ key: `proj:${PORTAL.key}` })
+  expect(await ui.find({ type: 'Text', text: '2 to come back to' })).toBeDefined()
+  expect(await parkedButtons(ui)).toEqual([
+    ['ppick:sr-p0rta2:p1', 'Portal on zmx: Resume the zmx sessions'],
+    ['ppick:sr-p0rta1:p1', 'Agent-aware Portal: Thumbnails in the picker'],
+  ])
+
+  await ui.press({ key: 'ppick:sr-p0rta1:p1' })
+  expect(w.state.pane).toMatchObject({ selected: 'sr-p0rta1:p1' })
+  expect(await keysOf(ui, 'pickup:'), 'no pick-up from another project').toEqual([])
+  expect(await keysOf(ui, 'comment:')).toEqual([])
 })
 
 test('the band counts what waits in every other session, in every project, and opens All projects on it', async ($, on) => {

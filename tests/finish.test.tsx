@@ -2,7 +2,7 @@ import type { RenderPropsOf } from 'claude-code'
 import { expect, test, tier } from 'claude-code/testing'
 import { parseEntries, sessionPaths, type SessionMeta } from '../core'
 import { rowsOf } from './drawn'
-import { file, finish, MIN, note, SLOW, T0, W1, W2, W3, W4, yesAsk } from './support'
+import { file, finish, MIN, note, park, SLOW, T0, W1, W2, W3, W4, yesAsk } from './support'
 import { ELSEWHERE, PROJECT, ROOT, toProject, WIDE, world } from './world'
 
 tier('user')
@@ -157,6 +157,26 @@ test("yes writes the finish into the session's folder as this window's writer, a
   expect(w.state.pane).toMatchObject({ place: { level: 'project', project: PROJECT.key } })
   expect(await keysOf(ui, 'go:')).toEqual([`go:${id}`, `go:${LEDGER}`])
   expect(await ui.find({ type: 'Text', text: '2 waiting on you' })).toBeDefined()
+})
+
+test("Lee's finish hides nothing parked: the session's items stay in the project's Parked, by its name", async ($, on) => {
+  const w = world($, on)
+
+  w.put(MINE, file([T0, park('p7', 'Theme the lobby too')]))
+
+  const { id, ui } = await around(w)
+
+  await visit(ui, THEMES)
+  expect(await ui.find({ key: `ppick:${THEMES}:p7`, text: 'Theme the lobby too' })).toBeDefined()
+
+  await ui.press({ key: `finish:${THEMES}` })
+  await ui.press({ key: `finish-yes:${THEMES}` })
+
+  expect(await keysOf(ui, 'go:')).toEqual([`go:${id}`, `go:${LEDGER}`])
+  expect(await ui.find({ type: 'Text', text: '1 to come back to' })).toBeDefined()
+  expect(
+    await ui.find({ key: `ppick:${THEMES}:p7`, text: 'Themes: Theme the lobby too' }),
+  ).toBeDefined()
 })
 
 test('a session Claude finished counts nothing in its own window: the band and the tab say none waits', async ($, on) => {

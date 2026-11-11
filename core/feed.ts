@@ -6,13 +6,14 @@
  * - The rows, a session each, in the panel's order, and the head (rows.ts);
  *   and, apart from them, the Snoozed rows, a session's asks and its turn
  *   each a row, soonest to wake first.
- * - Each project with a current session, and those sessions, away ones
- *   among them and never a finished one, each with its state, what it is
- *   doing as the line under its name says it, its open asks, as
- *   `board --json` lists them (`openAsks`), and what it parked. They are in
- *   the SitRep window's order, the rows': a session where its row sits,
- *   those with none after, the latest updated first; a project where its
- *   first session sits.
+ * - Each project with a current session or something parked, counting
+ *   what is parked in it from every session filed under it, and its current
+ *   sessions, away ones among them and never a finished one, each with its
+ *   state, what it is doing as the line under its name says it, its open
+ *   asks, as `board --json` lists them (`openAsks`), and what it parked.
+ *   They are in the SitRep window's order, the rows': a session where its
+ *   row sits, those with none after, the latest updated first; a project
+ *   where its first session sits.
  * - Every live window: its session, the version it runs, whether that is
  *   behind the CLI's own, and its place in the order a jump tries its
  *   session's windows (windows.ts).
@@ -118,7 +119,7 @@ const placeOf = (places: Places, id: string | undefined) => places.get(id ?? '')
 const sinceOf = (row: Row | undefined, session: Session) =>
   row === undefined ? session.updatedAt : oldestOf(row)
 
-/** A project's current sessions as the feed holds them: where their rows sit, those with none after, the latest updated first. */
+/** A project's current sessions as the feed holds them, where their rows sit, those with none after, the latest updated first; and what is parked in it, from every session. */
 const feedProject = (
   { project, sessions }: ProjectRead,
   places: Places,
@@ -142,8 +143,10 @@ const feedProject = (
         compareText(a.id, b.id),
     )
 
+  const parked = sessions.reduce((sum, session) => sum + session.parked.length, 0)
+
   return {
-    ...summariseProject(project.key, current),
+    ...summariseProject(project.key, current, parked),
     name: project.name,
     directory: project.directory,
     sessions: current,
@@ -199,7 +202,7 @@ export const feedOf = (read: readonly ProjectRead[], now: number, own?: string):
     ),
     projects: read
       .map(each => feedProject(each, places, now))
-      .filter(project => project.sessions.length > 0)
+      .filter(project => project.sessions.length > 0 || project.parked > 0)
       .sort(
         (a, b) =>
           projectPlace(a) - projectPlace(b) ||
@@ -262,7 +265,7 @@ export const newRows = (shown: Shown | undefined, feed: Feed, at: number) => {
   }
 }
 
-/** Whether a session stays current by its being recent alone, or a window: unfinished, and idle. */
+/** Whether a session stays current by its being recent alone, or a window: unfinished, and idle, whatever it parked. */
 const isAging = (session: Session) => {
   const summary = summarise(session)
 

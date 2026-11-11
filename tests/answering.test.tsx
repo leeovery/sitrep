@@ -1449,7 +1449,7 @@ test("picking up another session's parked item from the project's view stands fr
 })
 
 test(
-  "picking up another session's parked item ends once its session is finished",
+  "picking up another session's parked item stands once its session is finished: the item is its project's",
   SLOW,
   async ($, on) => {
     const w = world($, on)
@@ -1458,10 +1458,59 @@ test(
     expect(w.state.answering).toMatchObject({ session: LEDGER.id, item: 'p3', as: 'pickup' })
     ledger.write(finish('claude', 'Shipped'))
     await w.clock.advance(AROUND_MS)
+    expect(w.state.answering).toMatchObject({ session: LEDGER.id, item: 'p3', as: 'pickup' })
+    expect(await entered(w, $, 'With the totals')).toEqual({ drop: TAKEN.pickup })
+    expect(w.state.queue).toEqual([
+      {
+        project: PROJECT.key,
+        session: LEDGER.id,
+        item: 'p3',
+        verdict: 'pickup',
+        note: 'With the totals',
+      },
+    ])
+  },
+)
+
+test(
+  "answering another session's ask still ends once its session is finished",
+  SLOW,
+  async ($, on) => {
+    const w = world($, on)
+    const ui = await onLedgersAsks(w)
+    const there = w.item('k3', LEDGER.id)
+
+    await ui.press({ key: `pick:${there}` })
+    await ui.press({ key: `answer:${there}` })
+    expect(w.state.answering).toMatchObject({ session: LEDGER.id, item: 'k3' })
+    w.writer(sessionPaths(ROOT, PROJECT.key, LEDGER.id), W2)(finish('claude', 'Shipped'))
+    await w.clock.advance(AROUND_MS)
     expect(w.state.answering).toBeNull()
     expect((await entered(w, $, 'Carry on.')).drop).toBeUndefined()
   },
 )
+
+test("a pick-up with an image of another session's parked item goes in to this window's Claude, naming whose it was, and is written down in that session", async ($, on) => {
+  const w = world($, on)
+
+  await onLedgersParked(w)
+  expect(
+    (await entered(w, $, 'Like this [Image #1]', { attachments: [IMAGE] })).drop,
+  ).toBeUndefined()
+  expect(w.prompts.map(each => [each.text, each.attachments])).toEqual([
+    [
+      `From the board:\n- Pick up from parked, ${LEDGER.name}'s: ${EXPORT}. Like this [Image #1]`,
+      [IMAGE],
+    ],
+  ])
+
+  const ledger = parseEntries(w.text(sessionPaths(ROOT, PROJECT.key, LEDGER.id).log(W1)))
+
+  expect(ledger.map(line => line.type)).toEqual(['reply', 'delivered'])
+  expect(ledger[0]).toMatchObject({ item: 'p3', verdict: 'pickup', note: 'Like this [Image #1]' })
+  expect(w.toasts).not.toContain(ELSEWHERE)
+  expect(w.state.queue ?? []).toEqual([])
+})
 
 test('a queued pick-up with a note shows it, how many lines more, undo and ✎ edit; edit fills the prompt, and the next Enter replaces the note', async ($, on) => {
   const w = world($, on)

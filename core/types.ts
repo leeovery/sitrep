@@ -409,6 +409,6 @@ export type Session = {
   turnSnooze?: TurnSnooze
   /** Every id the session's lines use, items and replies alike. */
   ids: ReadonlySet<string>
-  /** The latest line's time, Lee's snoozes and wakes of a turn aside, which Claude is never told of; or when the session was started. */
+  /** The latest line's time, Lee's snoozes and wakes of a turn aside, which Claude is never told of, and lines about a parked item but its park, which is its project's; or when the session was started. */
   updatedAt: number
 }

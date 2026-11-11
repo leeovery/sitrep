@@ -1,9 +1,11 @@
 /**
- * PARKED: what a session raised and put off, or every session's in a
- * project's view, each to pick up. Drawn only while something is parked. A
- * pick-up queues in Ready to send like any reply, with a comment written in
- * the prompt box as its note where Lee wants one (DESIGN.md, "Answering an
- * ask").
+ * PARKED: what a session raised and put off, or everything parked in a
+ * project in its view, finished and idle sessions' included, each to pick
+ * up from a window holding a session of its project. Drawn only while
+ * something is parked. A pick-up queues in Ready to send like any reply, to
+ * this session whichever session of the project parked the item, with a
+ * comment written in the prompt box as its note where Lee wants one
+ * (DESIGN.md, "Answering an ask").
  */
 import { replyOnItsWay } from '../../core'
 import type { SitrepItemRef } from '../../types'
@@ -65,7 +67,10 @@ const drawButtons = (d: Drawing, entry: ParkedAt) => {
   )
 }
 
-/** A parked item: its row, its title after its session's name where the list names them, and, opened, the buttons that pick it up under its tree. */
+/** Whether the window can pick a parked item up: it holds a session of the item's project, whose Claude a pick-up goes to. */
+const isPickable = (d: Drawing, { at }: ParkedAt) => at.project === d.scene.here
+
+/** A parked item: its row, its title after its session's name where the list names them, and, opened, the buttons that pick it up under its tree, where the window can. */
 const drawItem = (d: Drawing, entry: ParkedAt, isNamed: boolean) => {
   const { name, parked } = entry
   const key = keyOf(entry)
@@ -73,6 +78,7 @@ const drawItem = (d: Drawing, entry: ParkedAt, isNamed: boolean) => {
   const isOpen = d.scene.pane.selected === key
   const pickUp = drawPickUp(d, entry)
   const isAnswering = isBeingAnswered(d, at)
+  const hasButtons = isOpen && pickUp === undefined && !isAnswering && isPickable(d, entry)
 
   return drawRow(d, {
     key: `parked:${key}`,
@@ -87,7 +93,7 @@ const drawItem = (d: Drawing, entry: ParkedAt, isNamed: boolean) => {
       pickUp,
       isAnswering && ANSWERING,
     ),
-    after: isOpen && pickUp === undefined && !isAnswering && drawButtons(d, entry),
+    after: hasButtons && drawButtons(d, entry),
   })
 }
 

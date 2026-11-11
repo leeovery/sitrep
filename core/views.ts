@@ -6,14 +6,16 @@
  *
  * A session shows while it is current: open, holding something for Lee, or
  * updated lately, and not finished. An older idle one, or a finished
- * one, stays on disk, out of every view.
+ * one, stays on disk, out of every view. What a session parked is its
+ * project's: it keeps no session current, and a project with something
+ * parked shows though none of its sessions does.
  */
 import { nearestFirst, type Project } from './project'
 import { isOpen, snoozedAsks } from './replies'
 import { compareText } from './text'
 import type { Ask, LogLine, Parked, Session } from './types'
 
-/** How long an idle session (no window, nothing waiting or parked) stays in the views after its last update. */
+/** How long an idle session (no window, nothing waiting) stays in the views after its last update. */
 export const CURRENT_MS = 7 * 24 * 60 * 60_000
 
 /** How many of its latest log lines a brief carries: as many as any view of the board shows. */
@@ -78,6 +80,7 @@ export type ProjectSummary = {
   snoozed: number
   /** Asks waiting as posted, as each session counts them: what keeps the project out of the folded line. */
   asked: number
+  /** What is parked in the project, from every session filed under it, finished and idle ones included. */
   parked: number
   updatedAt: number
 }
@@ -91,8 +94,8 @@ export type AllProjects = {
 /** A line of a project's log, and the session it came from. */
 export type ProjectLogLine = LogLine & { session: string }
 
-/** A parked item of a project's, and the session that parked it. */
-export type ProjectParked = Parked & { session: string }
+/** A parked item of a project's, and the session that parked it: its id, and its name. */
+export type ProjectParked = Parked & { session: string; name: string }
 
 type Dated = { updatedAt: number }
 
@@ -108,12 +111,12 @@ const busiest = (a: ProjectSummary, b: ProjectSummary) =>
   byRecency(a, b) ||
   compareText(a.name, b.name)
 
-/** Whether a session or a project holds nothing that keeps it current but a window or its being recent: no ask waiting, nothing parked. */
-export const isIdle = (counts: Pick<SessionSummary, 'asked' | 'parked'>) =>
-  counts.asked === 0 && counts.parked === 0
+/** Whether a session or a project holds nothing that keeps it current but a window or its being recent: no ask waiting. */
+export const isIdle = (counts: Pick<SessionSummary, 'asked'>) => counts.asked === 0
 
-/** A project folded into All projects' one line: no window, and idle. */
-const isFolded = (project: ProjectSummary) => project.open === 0 && isIdle(project)
+/** A project folded into All projects' one line: no window, idle, and nothing parked in it. */
+const isFolded = (project: ProjectSummary) =>
+  project.open === 0 && isIdle(project) && project.parked === 0
 
 const total = (sessions: readonly SessionSummary[], count: (session: SessionSummary) => number) =>
   sessions.reduce((sum, session) => sum + count(session), 0)
@@ -121,7 +124,7 @@ const total = (sessions: readonly SessionSummary[], count: (session: SessionSumm
 /**
  * Whether a session shows in the views: not finished, and open, with an ask
  * waiting (on Lee, snoozed or not, or on a window to deliver Lee's answer),
- * holding something parked, or updated within `CURRENT_MS`.
+ * or updated within `CURRENT_MS`.
  */
 export const isCurrent = (session: SessionSummary, now: number) =>
   !session.isFinished &&
@@ -169,10 +172,11 @@ export const brief = (session: Session): SessionBrief => ({
   asks: openAsks(session),
 })
 
-/** A project from its sessions, named as its most recently updated session names it. */
+/** A project from its sessions, named as its most recently updated session names it, and what is `parked` in it. */
 export const summariseProject = (
   key: string,
   sessions: readonly SessionSummary[],
+  parked: number,
 ): ProjectSummary => {
   const summaries = [...sessions].sort(openFirst)
   const latest = [...sessions].sort(byRecency).at(0)
@@ -185,7 +189,7 @@ export const summariseProject = (
     waiting: total(summaries, session => session.waiting),
     snoozed: total(summaries, session => session.snoozed),
     asked: total(summaries, session => session.asked),
-    parked: total(summaries, session => session.parked),
+    parked,
     updatedAt: latest?.updatedAt ?? 0,
   }
 }
@@ -208,9 +212,10 @@ export type ProjectSessions = { project: Project; sessions: readonly SessionSumm
 
 /**
  * The projects as the start of a conversation and the CLI list them, each
- * with its current sessions: those whose directory holds the folder first,
- * the nearest first, then the busiest, and those with nothing open, waiting
- * or parked last. A project with no current sessions is left out, but never
+ * with its current sessions, and counting what is parked in it from every
+ * session: those whose directory holds the folder first, the nearest first,
+ * then the busiest, and those with nothing open, waiting or parked last. A
+ * project with no current sessions and nothing parked is left out, but never
  * one `kept` names.
  */
 export const listedProjects = (
@@ -221,10 +226,11 @@ export const listedProjects = (
 ): ProjectSummary[] => {
   const summaries = read.flatMap(({ project, sessions }) => {
     const current = sessions.filter(session => isCurrent(session, now))
+    const parked = total(sessions, session => session.parked)
     const { name, directory } = project
 
-    return current.length > 0 || kept.includes(project.key)
-      ? [{ ...summariseProject(project.key, current), name, directory }]
+    return current.length > 0 || parked > 0 || kept.includes(project.key)
+      ? [{ ...summariseProject(project.key, current, parked), name, directory }]
       : []
   })
   const { projects, folded } = allProjects(summaries)
@@ -238,8 +244,10 @@ export const projectLog = (sessions: readonly Pick<Session, 'id' | 'log'>[]): Pr
     .flatMap(session => session.log.map(line => ({ ...line, session: session.id })))
     .sort((a, b) => b.at - a.at || compareText(a.session, b.session))
 
-/** What a project's sessions have parked, oldest first. */
-export const projectParked = (sessions: readonly SessionBrief[]): ProjectParked[] =>
-  sessions
-    .flatMap(session => session.parkedItems.map(parked => ({ ...parked, session: session.id })))
-    .sort((a, b) => a.at - b.at || compareText(a.session, b.session))
+/** What a session parked, each item naming the session by its id and its name. */
+export const parkedBy = (session: Pick<Session, 'id' | 'status' | 'parked'>): ProjectParked[] =>
+  session.parked.map(parked => ({ ...parked, session: session.id, name: session.status.name }))
+
+/** A project's parked items, from whichever of its sessions parked each, the oldest first. */
+export const projectParked = (parked: readonly ProjectParked[]): ProjectParked[] =>
+  [...parked].sort((a, b) => a.at - b.at || compareText(a.session, b.session))

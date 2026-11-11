@@ -317,6 +317,23 @@ const closeOrOpen = <T extends keyof typeof ALREADY>(
     : ok({ type, item: item.value.id, reason: line(fields.reason) })
 }
 
+/**
+ * The item a line Claude writes into another session of its project names:
+ * only a parked item, which is the project's, any session of it acting on
+ * it; that session's asks and notes are its own.
+ */
+export const checkParkedIn = (session: Session, input: unknown): Checked<Item> => {
+  const item = target(session, fieldsOf(input))
+
+  if (!item.ok || item.value.type === 'park') {
+    return item
+  }
+
+  return refuse(
+    `${item.value.id} is ${NOUNS[item.value.type]} of ${session.status.name}: of another session, only what it parked is yours to resolve, edit or reopen.`,
+  )
+}
+
 export const checkResolve = (session: Session, input: unknown): Checked<ResolveBody> =>
   closeOrOpen('resolve', session, input)
 

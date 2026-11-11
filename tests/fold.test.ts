@@ -3,6 +3,7 @@ import { foldSession, serialise, VERSION } from '../core'
 import {
   choiceAsk,
   CLI,
+  delivered,
   file,
   finish,
   fold,
@@ -271,4 +272,119 @@ test('a finish in the inbox, or by a finisher the format does not know, finishes
   })
 
   expect(session.finished).toBeUndefined()
+})
+
+test("no line about a parked item but its park moves its session's time: a pick-up, its mark, a resolve, an edit and a reopen leave it as recent as it was, whoever writes them", () => {
+  const parked = T0 + 2 * MIN
+  const session = fold({
+    logs: {
+      [W1]: file(
+        [T0, status(['Drawing the ledger'])],
+        [T0 + MIN, park('p1', 'Export the ledger as CSV')],
+        [parked, park('p2', 'Archive old requests')],
+        [parked, park('p3', 'A tmux indicator')],
+      ),
+      [W2]: file(
+        [T0 + 10 * MIN, reply('r1', 'p1', 'pickup')],
+        [T0 + 10 * MIN, delivered('r1')],
+        [T0 + 11 * MIN, resolve('p2', 'Done elsewhere')],
+        [T0 + 12 * MIN, { type: 'edit', item: 'p3', changes: { title: 'A tmux badge' } }],
+        [T0 + 13 * MIN, resolve('p3')],
+        [T0 + 14 * MIN, reopen('p3')],
+      ),
+    },
+  })
+  const noted = fold({
+    logs: {
+      [W1]: file([parked, park('p1', 'Later')], [T0 + 20 * MIN, note('n1', 'Drew it')]),
+    },
+  })
+
+  expect(session.parked.map(each => [each.id, each.title])).toEqual([['p3', 'A tmux badge']])
+  expect(session.updatedAt).toBe(parked)
+  expect(noted.updatedAt, 'a note moves it').toBe(T0 + 20 * MIN)
+})
+
+test('a mark moves the time unless every reply it names is a pick-up; a mark read before its reply is judged too', () => {
+  const asked: Line[] = [
+    [T0, yesAsk('k1', 'Run the apply', 'Done')],
+    [T0, park('p1', 'A tmux indicator')],
+  ]
+  const both = fold({
+    logs: {
+      [W1]: file(...asked, [T0 + 5 * MIN, delivered('r1', 'r2')]),
+      [W2]: file([T0 + MIN, reply('r1', 'k1', 'yes')], [T0 + MIN, reply('r2', 'p1', 'pickup')]),
+    },
+  })
+  const early = fold({
+    logs: {
+      [W1]: file(...asked, [T0 + 4 * MIN, delivered('r2')]),
+      [W2]: file([T0 + 5 * MIN, reply('r2', 'p1', 'pickup')]),
+    },
+  })
+
+  expect(both.updatedAt, 'a pick-up and an answer').toBe(T0 + 5 * MIN)
+  expect(early.parked, 'picked up by the mark read before it').toEqual([])
+  expect(early.updatedAt, 'a pick-up alone').toBe(T0)
+})
+
+test('a line naming an item or a reply the session does not have moves the time as any line does, and settles nothing', () => {
+  const session = fold({
+    logs: {
+      [W1]: file(
+        [T0, park('p1', 'A tmux indicator')],
+        [T0 + MIN, reply('r1', 'sr-q7rx01:p1', 'pickup')],
+        [T0 + MIN, delivered('r1')],
+        [T0 + 2 * MIN, resolve('zz99')],
+        [T0 + 3 * MIN, delivered('nope')],
+      ),
+    },
+  })
+
+  expect(
+    session.parked.map(each => each.id),
+    'an item named by its address is none',
+  ).toEqual(['p1'])
+  expect(session.replies).toEqual([])
+  expect(session.updatedAt).toBe(T0 + 3 * MIN)
+})
+
+test('a pick-up and its mark, written together into a finished session, pick its item up: void as it reaches the finished session, the mark lets it in', () => {
+  const session = fold({
+    logs: {
+      [W1]: file(
+        [T0, park('p1', 'Export the ledger as CSV')],
+        [T0 + MIN, finish('claude', 'Shipped')],
+      ),
+      [W2]: file(
+        [T0 + 5 * MIN, reply('r1', 'p1', 'pickup', { note: 'With the totals' })],
+        [T0 + 5 * MIN, delivered('r1')],
+      ),
+    },
+  })
+
+  expect(session.finished?.who).toBe('claude')
+  expect(session.parked).toEqual([])
+  expect(session.items.get('p1')).toMatchObject({ state: 'picked', closedBy: 'answer' })
+  expect(session.replies.map(each => [each.id, each.delivery, each.voided])).toEqual([
+    ['r1', 'delivered', undefined],
+  ])
+  expect(session.log[0]?.text).toBe('Picked up from parked: Export the ledger as CSV')
+  expect(session.updatedAt, 'nor does it move its time').toBe(T0 + MIN)
+})
+
+test('two windows picking up one item each give their Claude the pick-up: both delivered, the item picked once', () => {
+  const session = fold({
+    logs: {
+      [W1]: file([T0, park('p1', 'Export the ledger as CSV')]),
+      [W2]: file([T0 + MIN, reply('r1', 'p1', 'pickup')], [T0 + MIN, delivered('r1')]),
+      [SENDER]: file([T0 + 2 * MIN, reply('r2', 'p1', 'pickup')], [T0 + 2 * MIN, delivered('r2')]),
+    },
+  })
+
+  expect(session.replies.map(each => [each.id, each.delivery])).toEqual([
+    ['r1', 'delivered'],
+    ['r2', 'delivered'],
+  ])
+  expect(session.items.get('p1')).toMatchObject({ state: 'picked', closedAt: T0 + MIN })
 })

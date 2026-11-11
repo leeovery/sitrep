@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 import { EXIT } from '../cli/main'
-import type { SessionMeta } from '../core'
+import { sessionPaths, type SessionMeta } from '../core'
 import {
   choiceAsk,
   finish,
@@ -8,6 +8,7 @@ import {
   MIN,
   note,
   park,
+  PARKED_BEFORE,
   resolve,
   status,
   T0,
@@ -17,7 +18,7 @@ import {
   yesAsk,
 } from './support'
 import { NOW, terminal } from './terminal'
-import { ELSEWHERE, HOME, PROJECT, REPO } from './world'
+import { ELSEWHERE, HOME, PROJECT, REPO, ROOT } from './world'
 
 const DAY = 24 * 60 * MIN
 
@@ -397,4 +398,101 @@ test('board --json: the session as list gives it, its open asks, what it parked,
       },
     ],
   })
+})
+
+/** Switchboard as busyHere has it, the lobby having parked something and finished, the idle session from last week something too; and Stale, its one session idle past the views, with something parked. */
+const parkedAround = () => {
+  const t = busyHere()
+
+  t.seed(LOBBY, {
+    lines: [
+      [T0, park('p1', 'Theme the lobby')],
+      [T0 + MIN, finish('lee')],
+    ],
+  })
+  t.seed(OLD, { lines: [[OLD.created, park('p1', 'Archive old requests')]] })
+  t.seed(STALE_SESSION, {
+    project: STALE.key,
+    lines: [[STALE_SESSION.created, park('p1', 'Export the ledger as CSV')]],
+  })
+
+  return t
+}
+
+test("list --json: a project's parked counts every item parked in it, finished and idle sessions' included, each session's its own; one with only parked items is listed, its sessions empty", async () => {
+  const { projects } = JSON.parse((await parkedAround().run('list', '--json')).out)
+
+  expect(projects).toMatchObject([
+    {
+      key: PROJECT.key,
+      parked: 3,
+      sessions: [
+        { id: META.id, parked: 1 },
+        { id: OLD_WAITING.id, parked: 0 },
+      ],
+    },
+    {
+      key: STALE.key,
+      name: 'Stale',
+      open: 0,
+      waiting: 0,
+      snoozed: 0,
+      parked: 1,
+      updatedAt: 0,
+      sessions: [],
+    },
+  ])
+  expect((await parkedAround().run('list')).out).toBe(
+    [
+      'Switchboard',
+      '  sr-k3f9qa  Dashboard redesign (open, 1 waiting, 1 parked)',
+      '  sr-cccccc  Old but waiting (1 waiting)',
+      'Stale',
+      '  no current sessions',
+      '',
+    ].join('\n'),
+  )
+})
+
+test("board prints the project's parked items, this session's first, each other naming its session; board --json's parked stays the session's own", async () => {
+  const t = parkedAround()
+  const board = await t.run('board', '--session', META.id)
+
+  expect(board.out).toContain(
+    [
+      'Parked:',
+      '- p1: A tmux indicator',
+      '- p1, parked by "Old and idle" (session: sr-dddddd): Archive old requests',
+      '- p1, parked by "Lobby" (session: sr-bbbbbb): Theme the lobby',
+    ].join('\n'),
+  )
+  expect(JSON.parse((await t.run('board', '--json', '--session', META.id)).out).parked).toEqual([
+    { id: 'p1', title: 'A tmux indicator', where: null, ref: null, at: T0 },
+  ])
+})
+
+test("a finished session's files as a build before parked items were the project's left them: its items are listed and counted as the project's, and no run rewrites a byte", async () => {
+  const t = terminal()
+  const paths = sessionPaths(ROOT, PROJECT.key, PARKED_BEFORE.id)
+  const filesThere = () =>
+    [...t.files].flatMap(([path, { text }]) => (path.startsWith(paths.dir) ? [[path, text]] : []))
+
+  t.seed(META, { seenAt: NOW })
+  t.files.set(paths.meta, { text: PARKED_BEFORE.meta, mtimeMs: T0 })
+  t.files.set(paths.log(PARKED_BEFORE.writer), { text: PARKED_BEFORE.log, mtimeMs: T0 })
+
+  const before = filesThere()
+
+  expect(JSON.parse((await t.run('list', '--json')).out).projects).toMatchObject([
+    { key: PROJECT.key, parked: 2, sessions: [{ id: META.id, parked: 0 }] },
+  ])
+  expect((await t.run('board', '--session', META.id)).out).toContain(
+    [
+      'Parked:',
+      '- p1, parked by "Request ledger" (session: sr-1edger): Export the ledger as CSV; ref: PR #82',
+      '- p2, parked by "Request ledger" (session: sr-1edger): Archive old requests; where: After the release',
+      'Latest notes:',
+    ].join('\n'),
+  )
+  expect(filesThere()).toEqual(before)
 })

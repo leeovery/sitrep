@@ -476,6 +476,42 @@ test('every session on a line carries what it parked, as board --json lists it, 
   ])
 })
 
+test("a line's projects count every item parked in them, finished and idle sessions' included, each session's parkedItems its own; one with only parked items is carried, its sessions empty", async () => {
+  const { t } = held([[T0 + MIN, park('p1', 'A tmux indicator')]])
+  const old = T0 - 8 * 24 * HOUR
+
+  t.seed(LOBBY, {
+    lines: [
+      [T0, park('p1', 'Theme the lobby')],
+      [T0 + MIN, finish('lee')],
+    ],
+  })
+  t.seed(
+    { ...LOBBY, id: 'sr-cccccc', name: 'An old idea', project: 'stale', created: old },
+    { project: 'stale', lines: [[old, park('p1', 'Export the ledger as CSV')]] },
+  )
+
+  const [line] = (await watched(t, [])).lines
+  const printed = line as unknown as {
+    projects: {
+      key: string
+      parked: number
+      sessions: { id: string; parked: number; parkedItems: { title: string }[] }[]
+    }[]
+  }
+
+  expect(printed.projects).toMatchObject([
+    {
+      key: PROJECT.key,
+      parked: 2,
+      sessions: [
+        { id: META.id, parked: 1, parkedItems: [{ title: 'A tmux indicator' }] },
+      ],
+    },
+    { key: 'stale', parked: 1, sessions: [] },
+  ])
+})
+
 test('a post is a line at the next look, its board carried; a new ask is new on that line alone', async () => {
   const { t, paths } = held()
 

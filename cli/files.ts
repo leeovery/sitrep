@@ -157,6 +157,10 @@ const readProject = async (io: Io, root: string, key: string, read: SessionReade
     : { project, sessions: sessions.flatMap(each => each.session ?? []) }
 }
 
+/** Every session filed under a project, as it stands at `now`. */
+export const sessionsIn = async (io: Io, root: string, key: string, now: number) =>
+  (await readProject(io, root, key, readAt(io, root, now)))?.sessions ?? []
+
 /** Every project, and the sessions filed under it, each read by `read`. */
 export const readBoard = async (
   io: Io,

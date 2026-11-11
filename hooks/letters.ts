@@ -3,7 +3,9 @@
  * this window's letters: `inbox/<writer>.jsonl`, the window its single
  * writer, rewriting the whole file as it adds to it. Written, a reply has
  * left the queue: sent, not yet delivered, until the window delivering for
- * that session marks it. Ready to send shows where each went meanwhile.
+ * that session marks it. Ready to send shows where each went meanwhile. A
+ * pick-up never goes this way: it goes to this window's Claude, whichever
+ * session of the project parked its item (send.ts).
  */
 import { append, sessionPaths, type ReplyBody, type Session, type SessionPaths } from '../core'
 import type { SitrepAttachment, SitrepQueued, SitrepSessionRef } from '../types'
@@ -13,10 +15,12 @@ import { counted } from './look'
 import {
   afterSend,
   destinations,
+  goesTo,
   leftOut,
   replyBodies,
   restoring,
   sendable,
+  unsentTo,
   withSent,
   type LeftOut,
 } from './queue'
@@ -58,14 +62,17 @@ const write = async (
  * carries, which are on their way as Lee's own message. Says why it left
  * the rest.
  */
-const take = async (host: Host, session: Session) => {
+const take = async (host: Host, held: SitrepAttachment, session: Session) => {
   const flights = await host.state.inFlight.read()
+  const folded = new Map([[session.id, session]])
   let taken: SitrepQueued[] = []
   let left: LeftOut[] = []
 
   await host.state.queue.update(waiting => {
-    taken = sendable(session, waiting, flights)
-    left = leftOut(session, waiting, flights)
+    const replies = unsentTo(waiting, flights, held, session.id)
+
+    taken = sendable(folded, replies)
+    left = leftOut(folded, replies)
 
     return afterSend(waiting, taken)
   })
@@ -86,7 +93,7 @@ const sendTo = async (
     return { left: [] }
   }
 
-  const { taken: replies, left } = await take(host, session)
+  const { taken: replies, left } = await take(host, held, session)
 
   if (replies.length === 0) {
     return { left }
@@ -125,11 +132,12 @@ export const sendLetters = async (host: Host): Promise<Lettered> => {
   }
 
   const queue = await host.state.queue.read()
+  const to = destinations(queue.flatMap(reply => goesTo(held, reply) ?? []))
   const went: Went[] = []
   const left: LeftOut[] = []
 
-  for (const to of destinations(queue).filter(each => each.session !== held.session)) {
-    const one = await serially(() => sendTo(host, held, to))
+  for (const other of to.filter(each => each.session !== held.session)) {
+    const one = await serially(() => sendTo(host, held, other))
 
     if (one.went !== undefined) {
       went.push(one.went)

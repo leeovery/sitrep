@@ -33,6 +33,8 @@ import {
   isSameFiles,
   nextFoldChange,
   OFF_BOARD_MS,
+  parkedBy,
+  projectParked,
   sessionPaths,
   type Session,
   type SessionFiles,
@@ -51,7 +53,7 @@ import { settleAnswering } from './answering'
 import { boardOf } from './board'
 import { logFailure, rootFor, type Host, type Slot } from './host'
 import { projectKeys } from './projects'
-import { destinations, isShowing } from './queue'
+import { destinations, isShowing, type Folded } from './queue'
 import { createReader, filedIn, type Reader } from './reader'
 import type { Filed } from './scene'
 
@@ -141,6 +143,19 @@ const readAt = async (
 export const foldAt = (host: Host, root: string, at: SitrepSessionRef, now: number) =>
   readAt(host, root, at, now)
 
+/** The sessions replies answer items of, by id, as they stand now: the held `session` as given, and each other read afresh. */
+export const foldedFor = async (
+  host: Host,
+  session: Session,
+  replies: readonly SitrepSessionRef[],
+): Promise<Folded> => {
+  const [root, now] = await Promise.all([rootFor(host), host.clock.now()])
+  const others = destinations(replies).filter(each => each.session !== session.id)
+  const read = await Promise.all(others.map(at => foldAt(host, root, at, now)))
+
+  return new Map([session, ...read.flatMap(each => each ?? [])].map(each => [each.id, each]))
+}
+
 /** Reads a session filed under a project, given that project folder's listing: the session as it stands, undefined where it does not fold. */
 type ReadFiled = (at: SitrepSessionRef, listing: readonly FsEntry[]) => Promise<Session | undefined>
 
@@ -198,7 +213,7 @@ const aroundAt =
       : readAt(host, root, at, now, listing)
   }
 
-/** The sessions a look reads, by id: every one filed but the held one, and each other it reads in full. */
+/** The sessions a look reads, by id: every one filed but the held one, and each other it reads in full; those `fresh` names read afresh too, off the board or not. */
 const readAround = async (
   host: Host,
   root: string,
@@ -206,10 +221,12 @@ const readAround = async (
   full: readonly SitrepSessionRef[],
   now: number,
   isWhole: boolean,
+  fresh: readonly string[],
 ) => {
   const read = new Map<string, Filed>()
   const keys = await projectKeys(host, root)
-  const around = aroundAt(host, root, now, isWhole, new Set(full.map(each => each.session)))
+  const afresh = new Set([...full.map(each => each.session), ...fresh])
+  const around = aroundAt(host, root, now, isWhole, afresh)
 
   for (const project of keys) {
     for (const session of await foldFiled(host, root, project, around, held)) {
@@ -228,7 +245,15 @@ const readAround = async (
   return { keys, read }
 }
 
-/** The projects read, each with its current sessions; a project with none is dropped, but never the held session's. */
+/** A project's name, as the most recently updated of its sessions names it. */
+const nameOf = (key: string, sessions: readonly Session[]) =>
+  [...sessions].sort((a, b) => b.updatedAt - a.updatedAt).at(0)?.project ?? key
+
+/**
+ * The projects read, each with its current sessions, and what every session
+ * filed under it parked, finished and idle ones included; a project with
+ * neither is dropped, but never the held session's.
+ */
 const projectsOf = (
   held: SitrepAttachment,
   keys: readonly string[],
@@ -236,12 +261,15 @@ const projectsOf = (
   now: number,
 ): SitrepProject[] =>
   keys.flatMap(key => {
-    const sessions = [...read.values()]
+    const filed = [...read.values()]
       .filter(({ project }) => project === key)
-      .map(({ session }) => brief(session))
-      .filter(session => isCurrent(session, now))
+      .map(({ session }) => session)
+    const sessions = filed.map(brief).filter(session => isCurrent(session, now))
+    const parked = projectParked(filed.flatMap(parkedBy))
 
-    return sessions.length > 0 || key === held.project ? [{ key, sessions }] : []
+    return sessions.length > 0 || parked.length > 0 || key === held.project
+      ? [{ key, name: nameOf(key, filed), sessions, parked }]
+      : []
   })
 
 const othersOf = (
@@ -290,7 +318,7 @@ const prune = (root: string, read: ReadonlyMap<string, Filed>) => {
   }
 }
 
-const look = async (host: Host) => {
+const look = async (host: Host, fresh: readonly string[]) => {
   const held = await host.state.attachment.read()
 
   if (held === null) {
@@ -309,7 +337,8 @@ const look = async (host: Host) => {
     host.clock.now(),
   ])
   const full = fullOf(held, pane, { queue, sent, answering })
-  const { keys, read } = await readAround(host, root, held.session, full, now, isWholeLook(now))
+  const isWhole = isWholeLook(now)
+  const { keys, read } = await readAround(host, root, held.session, full, now, isWhole, fresh)
 
   await put(host.state.projects, 'projects', projectsOf(held, keys, read, now))
   await put(host.state.others, 'others', othersOf(full, read))
@@ -318,9 +347,15 @@ const look = async (host: Host) => {
   prune(root, read)
 }
 
-/** Reads the sessions around the held one now, once any look under way has settled; never fails, its failure logged. */
-export const lookAround = (host: Host) => {
-  looking = looking.then(() => look(host)).catch(logFailure(host, 'reading the sessions around'))
+/**
+ * Reads the sessions around the held one now, once any look under way has
+ * settled, those `fresh` names afresh, as after a write into them, where one
+ * off the board would wait for a whole look; never fails, its failure logged.
+ */
+export const lookAround = (host: Host, fresh: readonly string[] = []) => {
+  looking = looking
+    .then(() => look(host, fresh))
+    .catch(logFailure(host, 'reading the sessions around'))
 
   return looking
 }

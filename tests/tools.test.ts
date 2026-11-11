@@ -8,7 +8,7 @@ import {
   sessionPaths,
 } from '../core'
 import { SPECS } from '../hooks/tools'
-import { file, finish, META, MIN, T0, W1, W2 } from './support'
+import { file, finish, META, MIN, note, park, T0, W1, W2, yesAsk } from './support'
 import {
   DASHBOARD,
   ELSEWHERE,
@@ -311,6 +311,85 @@ test('resolve closes an item, reopen opens it again; each refuses where the item
   expect((await w.call('resolve', { item: 'zzzz' })).deny).toBe(
     'There is no item zzzz on this board.',
   )
+})
+
+/** Another session of this project, finished: what it parked is the project's, its ask and note its own. */
+const LEDGER = { ...META, id: 'sr-1edger', name: 'Request ledger', by: W2 }
+
+/** The ledger, with two things parked, an ask and a note, finished: its folder's paths. */
+const ledgerParked = (w: ReturnType<typeof world>) => {
+  const ledger = w.elsewhere(LEDGER)
+
+  ledger.write(
+    park('p1', 'Export the ledger as CSV'),
+    park('p2', 'Archive old requests'),
+    yesAsk('k1', 'Run the export', 'Done'),
+    note('n1', 'Wrote the schema'),
+    finish('claude', 'Shipped'),
+  )
+
+  return ledger.paths
+}
+
+test("resolve, edit and reopen act on what another session of the project parked, named with its session's id, written into that session in this window's own file there", async ($, on) => {
+  const w = world($, on)
+  const ledger = ledgerParked(w)
+  const kept = w.text(ledger.log(W2))
+
+  await w.clock.advance(MIN)
+  await w.begin()
+
+  expect(
+    (await w.call('edit', { item: 'p1', session: LEDGER.id, title: 'Export it as CSV' })).result,
+  ).toBe('Edited p1.')
+  expect((await w.call('resolve', { item: 'p2', session: LEDGER.id })).result).toBe('Resolved p2.')
+  expect((await w.call('resolve', { item: 'p2', session: LEDGER.id })).deny).toBe(
+    'p2 is already closed.',
+  )
+  expect(String((await w.call('board')).result)).toContain(
+    'Parked:\n- p1, parked by "Request ledger" (session: sr-1edger): Export it as CSV\nLatest notes:',
+  )
+  expect((await w.call('reopen', { item: 'p2', session: LEDGER.id })).result).toBe('Reopened p2.')
+  expect(linesOf(w, ledger.log(W1)).map(line => line.type)).toEqual(['edit', 'resolve', 'reopen'])
+  expect(w.text(ledger.log(W2)), "the ledger's own lines as they were").toBe(kept)
+  expect(String((await w.call('board')).result)).toContain(
+    '- p2, parked by "Request ledger" (session: sr-1edger): Archive old requests',
+  )
+})
+
+test('of another session, the tools act only on what it parked: its ask or note is refused, as is a session of another project, or one not on the board', async ($, on) => {
+  const w = world($, on)
+  const ledger = ledgerParked(w)
+  const orders = w.elsewhere({ ...META, id: 'sr-0rders', name: 'Standing orders' }, ELSEWHERE.key)
+
+  orders.write(park('p1', 'Later'))
+  await w.begin()
+
+  expect((await w.call('resolve', { item: 'k1', session: LEDGER.id })).deny).toBe(
+    'k1 is an ask of Request ledger: of another session, only what it parked is yours to resolve, edit or reopen.',
+  )
+  expect((await w.call('edit', { item: 'n1', session: LEDGER.id, text: 'Wrote it' })).deny).toBe(
+    'n1 is a note of Request ledger: of another session, only what it parked is yours to resolve, edit or reopen.',
+  )
+  expect((await w.call('resolve', { item: 'p1', session: 'sr-0rders' })).deny).toBe(
+    "sr-0rders is a session of another project: only what a session of this one's project parked is yours to act on.",
+  )
+  expect((await w.call('resolve', { item: 'p1', session: 'sr-n0ne00' })).deny).toBe(
+    'There is no session sr-n0ne00 on the board, in any project.',
+  )
+  expect((await w.call('reopen', { item: 'p1', session: 'ledger' })).deny).toBe(
+    'Name the session by the id start gave it: sr- and six characters.',
+  )
+  expect(w.files.has(ledger.log(W1)), 'nothing written there').toBe(false)
+})
+
+test("the attached session's own id as session acts on its own item, whatever it is", async ($, on) => {
+  const w = world($, on)
+  const { id } = await w.begin()
+  const asked = postedId(await w.call('ask', { wants: 'yes', yes: 'Go', title: 'Run it' }))
+
+  expect((await w.call('resolve', { item: asked, session: id })).result).toBe(`Resolved ${asked}.`)
+  expect(w.state.board?.asks[0]?.state).toBe('closed')
 })
 
 test("edit corrects an item's own fields; a field its kind has not is refused", async ($, on) => {

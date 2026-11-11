@@ -6,7 +6,7 @@
  */
 import { expect, test } from 'claude-code/testing'
 import { boardJson, listing } from '../cli/output'
-import { leftOut, sendable } from '../hooks/queue'
+import { leftOut, sendable, unsentTo } from '../hooks/queue'
 import type { SitrepInFlight } from '../types'
 import {
   attach,
@@ -509,9 +509,16 @@ test('a send in flight never holds back the replies it carries for its own answe
     isTaken: false,
   }
 
-  expect(sendable(session, [carried, other], [inFlight])).toEqual([other])
-  expect(leftOut(session, [carried, other], [inFlight])).toEqual([])
-  expect(leftOut(session, [carried], []), "another's answer bars it").toEqual(['answered'])
+  const folded = new Map([[session.id, session]])
+  const held = { project: SWITCHBOARD.key, session: META.id }
+  const unsent = unsentTo([carried, other], [inFlight], held, META.id)
+
+  expect(sendable(folded, unsent)).toEqual([other])
+  expect(leftOut(folded, unsent)).toEqual([])
+  expect(
+    leftOut(folded, unsentTo([carried], [], held, META.id)),
+    "another's answer bars it",
+  ).toEqual(['answered'])
 })
 
 test('a window that lets go sends nothing', () => {

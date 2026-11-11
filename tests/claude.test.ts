@@ -2,6 +2,8 @@ import { expect, test } from 'claude-code/testing'
 import {
   boardText,
   onBoardText,
+  parkedBy,
+  projectParked,
   startText,
   summarise,
   summariseProject,
@@ -24,6 +26,7 @@ import {
   status,
   T0,
   W1,
+  W2,
   yesAsk,
   type Line,
 } from './support'
@@ -95,6 +98,48 @@ test("the board text lists the session's open items by id, for Claude to check a
   )
 })
 
+test("the board text's Parked is the project's: what the session parked first, then what its other sessions parked, the oldest first, each by its session's name, its id given as the tools' session", () => {
+  const ledger = fold({
+    logs: {
+      [W1]: file(
+        [T0, status([], { name: 'Request ledger' })],
+        [T0 + 3 * MIN, park('p1', 'Export the ledger as CSV', { where: 'In the spec' })],
+        [T0 + 9 * MIN, park('p2', 'Archive old requests')],
+      ),
+    },
+  })
+  const themes = fold({
+    logs: {
+      [W1]: file(
+        [T0, status([], { name: 'Themes' })],
+        [T0 + 4 * MIN, park('m2p8', 'A dark theme')],
+      ),
+      [W2]: file([T0 + 5 * MIN, finish('claude', 'Shipped')]),
+    },
+  })
+  const parked = projectParked(
+    [SESSION, { ...ledger, id: 'sr-1edger' }, { ...themes, id: 'sr-themes' }].flatMap(parkedBy),
+  )
+
+  expect(boardText(SESSION, parked)).toContain(
+    [
+      'Parked:',
+      '- p1: A tmux indicator',
+      '- p1, parked by "Request ledger" (session: sr-1edger): Export the ledger as CSV; where: In the spec',
+      '- m2p8, parked by "Themes" (session: sr-themes): A dark theme',
+      '- p2, parked by "Request ledger" (session: sr-1edger): Archive old requests',
+      'Latest notes:',
+    ].join('\n'),
+  )
+  expect(boardText(SESSION, parkedBy(SESSION)), 'its own listed once').toBe(boardText(SESSION))
+})
+
+test('the guide has Claude finish a session whatever it parked: that stays its project’s', () => {
+  expect(startText([])).toContain(
+    "when the session is complete, with nothing left on it, finish it: what it parked stays its project's, and holds no finish back.",
+  )
+})
+
 test('the board text never tells Claude a reply it has not been delivered', () => {
   expect(boardText(SESSION)).not.toContain('Lovely')
   expect(boardText(SESSION)).not.toContain('approved')
@@ -121,9 +166,9 @@ test('an empty board says so in every section', () => {
 test('the board listing gives each session a line: its project, its id, its name and what waits on Lee', () => {
   const closed = fold({ logs: { [W1]: file([T0, yesAsk('k1', 'Run it', 'Done')]) } })
   const ledger = { ...summarise(closed), id: 'sr-1edger', name: 'Request ledger', waiting: 0 }
-  const switchboard = summariseProject('switchboard', [toldSummary(SESSION), ledger])
+  const switchboard = summariseProject('switchboard', [toldSummary(SESSION), ledger], 0)
   const sitrep = {
-    ...summariseProject('sitrep', [{ ...ledger, id: 'sr-wdsqvn', name: 'sitrep' }]),
+    ...summariseProject('sitrep', [{ ...ledger, id: 'sr-wdsqvn', name: 'sitrep' }], 0),
     name: 'SitRep',
   }
 
@@ -150,7 +195,7 @@ test("Claude's listing counts an ask whose answer from Lee is on its way as wait
 })
 
 test('a conversation starts knowing how to keep the board and talk to Lee beside it, every session on it by project, and which this window holds', () => {
-  const projects = [summariseProject('switchboard', [summarise(SESSION)])]
+  const projects = [summariseProject('switchboard', [summarise(SESSION)], 0)]
   const guide = startText([])
 
   expect(guide).toContain(
@@ -191,7 +236,7 @@ test('a conversation starts knowing how to keep the board and talk to Lee beside
   )
   expect(guide, 'sessions, never pieces of work').not.toMatch(/\bpieces? of work\b/i)
   expect(
-    startText([summariseProject('quiet', [])]),
+    startText([summariseProject('quiet', [], 0)]),
     'a project with no sessions lists nothing',
   ).toBe(guide)
   expect(startText(projects)).toBe(`${guide}\n${onBoardText(projects)}`)
@@ -245,14 +290,14 @@ test("Claude's listing counts snoozed asks apart from those waiting on Lee, one 
 
   expect([told.waiting, told.snoozed]).toEqual([1, 3])
   expect([summarise(SNOOZED).waiting, summarise(SNOOZED).snoozed]).toEqual([1, 2])
-  expect(onBoardText([summariseProject('switchboard', [told])])).toBe(
+  expect(onBoardText([summariseProject('switchboard', [told], 0)])).toBe(
     [
       'On the board:',
       '- Switchboard: sr-k3f9qa "Dashboard redesign", 1 waiting on Lee, 3 snoozed by Lee',
     ].join('\n'),
   )
   expect(
-    onBoardText([summariseProject('switchboard', [{ ...told, waiting: 0 }])]),
+    onBoardText([summariseProject('switchboard', [{ ...told, waiting: 0 }], 0)]),
     'snoozed alone',
   ).toBe('On the board:\n- Switchboard: sr-k3f9qa "Dashboard redesign", 3 snoozed by Lee')
   expect(

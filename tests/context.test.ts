@@ -1,5 +1,6 @@
 import { expect, test, tier } from 'claude-code/testing'
-import { file, note, W2 } from './support'
+import { AROUND_MS } from '../hooks/around'
+import { file, META, note, park, W2 } from './support'
 import { PROMPT, CONVERSATION, world } from './world'
 
 tier('user')
@@ -50,6 +51,25 @@ test("another writer's change rides into the next prompt once, as context Lee do
   expect(context).toHaveLength(1)
   expect(context?.[0]).toStartWith(`${CHANGED}\nsitrep board: Dashboard redesign`)
   expect(context?.[0]).toContain('- n9: Merged the band')
+  expect((await $.prompt.submit(PROMPT)).context).toBeUndefined()
+})
+
+test('another session of the project parking something changes the board: it rides into the next prompt, naming that session', async ($, on) => {
+  const w = world($, on)
+
+  await begun(w)
+
+  const ledger = w.elsewhere({ ...META, id: 'sr-1edger', name: 'Request ledger', by: W2 })
+
+  ledger.write(park('p1', 'Export the ledger as CSV'))
+  await w.clock.advance(AROUND_MS)
+
+  const context = (await $.prompt.submit(PROMPT)).context
+
+  expect(context?.[0]).toStartWith(`${CHANGED}\nsitrep board: Dashboard redesign`)
+  expect(context?.[0]).toContain(
+    '- p1, parked by "Request ledger" (session: sr-1edger): Export the ledger as CSV',
+  )
   expect((await $.prompt.submit(PROMPT)).context).toBeUndefined()
 })
 

@@ -748,6 +748,30 @@ const UNTOLD: ReadonlySet<Body['type']> = new Set(['snoozeTurn', 'wakeTurn'])
 
 const isTold = (entry: Written) => !UNTOLD.has(entry.type)
 
+/** Whether a reply the session has is a pick-up: one to a parked item. */
+const isPickUp = (fold: Fold, id: string) => {
+  const reply = fold.replies.get(id)
+
+  return reply !== undefined && fold.items.get(reply.item)?.type === 'park'
+}
+
+/**
+ * Whether a line is about parked items, judged by the item it names once
+ * every line is read: one naming a parked item, or a mark whose every reply
+ * is a pick-up. A line naming an item or a reply the session does not have
+ * is about none.
+ */
+const isAboutParked = (fold: Fold, entry: Written) => {
+  if (entry.type === 'delivered') {
+    return entry.replies.length > 0 && entry.replies.every(id => isPickUp(fold, id))
+  }
+
+  return 'item' in entry && fold.items.get(entry.item)?.type === 'park'
+}
+
+/** Whether a line moves the session's time: told to Claude, and about something but parked items, their parks aside, since a parked item is its project's. */
+const movesTime = (fold: Fold, entry: Written) => isTold(entry) && !isAboutParked(fold, entry)
+
 /**
  * An ask under Lee's latest snooze of it, as that stands at `now`: snoozed
  * while its time is to come, woken at it once it has. Only an ask waiting
@@ -799,11 +823,11 @@ export const foldSession = (
   const letters = written(files.inbox ?? {}, 'letters').filter(entry => entry.type === 'reply')
   const lines = [...written(files.logs, 'file'), ...letters].sort(inOrder)
 
-  const updatedAt = Math.max(meta.created, lines.findLast(isTold)?.at ?? 0)
-
   for (const entry of [...lines, ...carriedIn(presence, lines, now)].sort(inOrder)) {
     take(fold, entry)
   }
+
+  const updatedAt = Math.max(meta.created, lines.findLast(entry => movesTime(fold, entry))?.at ?? 0)
 
   const items = [...fold.items.values()]
 

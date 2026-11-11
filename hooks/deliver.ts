@@ -20,14 +20,15 @@
  * Claude Code taking it is heard from the submit resolving with no drop, or
  * from the turn it starts, whose text is the message's; whichever comes
  * first writes it down, into the session it went to, whatever the window
- * holds by then. Writing it down again finds its lines there and writes
- * nothing. A message refused is let go at once; one never heard is let go
- * once the window has been quiet a while without it since its submit. Either
- * way, and taken back, its replies are left as they were, for Lee's next
- * send or the inbox's next look. One refused because Lee stopped Claude's
- * turn is held again instead, and the window marked stopped: nothing is
- * submitted until Lee's input is heard, or he presses send or send now,
- * whose submit carries his press.
+ * holds by then, and a pick-up of an item another session of its project
+ * parked into that session. Writing it down again finds its lines there and
+ * writes nothing. A message refused is let go at once; one never heard is
+ * let go once the window has been quiet a while without it since its
+ * submit. Either way, and taken back, its replies are left as they were,
+ * for Lee's next send or the inbox's next look. One refused because Lee
+ * stopped Claude's turn is held again instead, and the window marked
+ * stopped: nothing is submitted until Lee's input is heard, or he presses
+ * send or send now, whose submit carries his press.
  *
  * Every change to the claims goes to the heartbeat as well, which says the
  * replies each send carries to its own session from its claim to its end, so
@@ -35,11 +36,18 @@
  */
 import type { PromptOrigin, Timer } from 'claude-code'
 import { deliveredMark, isObject, sentLines, type Body, type Session } from '../core'
-import type { SitrepInFlight, SitrepQueued, SitrepSource, SitrepStoredFlights } from '../types'
+import type {
+  SitrepInFlight,
+  SitrepQueued,
+  SitrepReplyBody,
+  SitrepSource,
+  SitrepStoredFlights,
+} from '../types'
 import { betweenTurns } from './activity'
+import { lookAround } from './around'
 import { logFailure, type Host } from './host'
-import { writeOwnFile } from './into'
-import { isCarriedBy, queuing, unqueuing } from './queue'
+import { writeOwnFile, type Into } from './into'
+import { isCarriedBy, namedIn, queuing, repliedTo, unqueuing } from './queue'
 import { LINGER_MS, tickAfter } from './scene'
 import { postKnown } from './seen'
 import { flightNow, refresh, sayInFlight, serially } from './window'
@@ -335,13 +343,17 @@ const release = async (host: Host, delivery: SitrepInFlight, why: string) => {
  * it is let go without going in: the reply it displaced back on its item,
  * else none there. Nothing for any other message.
  */
-const putBack = async (host: Host, { ride, session }: SitrepInFlight) => {
+const putBack = async (host: Host, delivery: SitrepInFlight) => {
+  const { ride } = delivery
+
   if (ride === undefined) {
     return
   }
 
+  const { session, item } = repliedTo(delivery, ride.item)
+
   await host.state.queue.update(queue =>
-    ride.was === undefined ? unqueuing(queue, session, ride.item) : queuing(queue, ride.was),
+    ride.was === undefined ? unqueuing(queue, session, item) : queuing(queue, ride.was),
   )
 }
 
@@ -454,39 +466,82 @@ export const duringCommand = async <T>(task: () => Promise<T>) => {
   }
 }
 
-/** The lines a taken message is written down as, in its session as it stands: none once they are there. */
-const linesOf = (session: Session, delivery: SitrepInFlight): Body[] =>
-  delivery.source === 'send'
-    ? sentLines(session, delivery.replies)
+/** Replies of a taken message, and the writer's file in the session they are written down in. */
+type Writing = Into & { replies: SitrepReplyBody[] }
+
+/**
+ * Where a taken message is written down: in the session it went to, and a
+ * pick-up of an item another session of its project parked in that
+ * session, each reply naming its item by its own id.
+ */
+const writingsOf = (delivery: SitrepInFlight): Writing[] => {
+  const bySession = new Map<string, SitrepReplyBody[]>()
+
+  for (const reply of delivery.replies) {
+    const { session, item } = repliedTo(delivery, reply.item)
+
+    bySession.set(session, [...(bySession.get(session) ?? []), { ...reply, item }])
+  }
+
+  return [...bySession].map(([session, replies]) => ({
+    project: delivery.project,
+    session,
+    writer: delivery.writer,
+    replies,
+  }))
+}
+
+/** The lines a taken message's replies are written down as, in their session as it stands: none once they are there. */
+const linesOf = (
+  session: Session,
+  source: SitrepSource,
+  replies: readonly SitrepReplyBody[],
+): Body[] =>
+  source === 'send'
+    ? sentLines(session, replies)
     : deliveredMark(
         session,
-        delivery.replies.map(reply => reply.id),
+        replies.map(reply => reply.id),
       )
 
 /**
- * Writes a taken message down in the session it went to, then ends it; what
- * follows its claim's end follows once, by whichever write ended it. Two loads
- * may both write one down: a file-watch reload can cut short a write the
- * last load began once the submit resolved (settled live), and the next load
- * writes it again, finding its lines there or not.
+ * Writes a taken message down in the session it went to, and each pick-up
+ * of another session's item in that session, then ends it; what follows its
+ * claim's end follows once, by whichever write ended it. Two loads may both
+ * write one down: a file-watch reload can cut short a write the last load
+ * began once the submit resolved (settled live), and the next load writes it
+ * again, finding its lines there or not. The sessions around are read again
+ * after a pick-up of another session's item, which leaves Parked.
  */
 const writeDown = async (host: Host, delivery: SitrepInFlight) => {
-  // Through the hold, as lines Claude knows of: the replies it has just been sent.
-  const isThere = await writeOwnFile(
-    host,
-    delivery,
-    session => linesOf(session, delivery),
-    (session, lines) => postKnown(host, session, lines),
-  )
+  const writings = writingsOf(delivery)
 
-  if (!isThere) {
-    host.log(`sitrep: Claude has replies to ${delivery.session}, whose session.json is gone`)
+  for (const writing of writings) {
+    // Through the hold, as lines Claude knows of: the replies it has just been sent.
+    const isThere = await writeOwnFile(
+      host,
+      writing,
+      session => linesOf(session, delivery.source, writing.replies),
+      (session, lines) => postKnown(host, session, lines),
+    )
+
+    if (!isThere) {
+      host.log(`sitrep: Claude has replies to ${writing.session}, whose session.json is gone`)
+    }
   }
 
   await AFTER[delivery.source].written(host, delivery)
 
   if (await endIf(host, current => isClaim(current, delivery))) {
     await AFTER[delivery.source].ended(host, delivery)
+  }
+
+  const elsewhere = writings.flatMap(({ session }) =>
+    session === delivery.session ? [] : [session],
+  )
+
+  if (elsewhere.length > 0) {
+    await lookAround(host, elsewhere)
   }
 }
 
@@ -665,7 +720,7 @@ export const carryOn = async (host: Host) => {
 
 /** Whether a message in flight carries a reply to an item the outgoing one replies to. */
 const carriesAny = (flight: SitrepInFlight, outgoing: Outgoing) =>
-  outgoing.replies.some(({ item }) => isCarriedBy(flight, { session: outgoing.session, item }))
+  outgoing.replies.some(({ item }) => isCarriedBy(flight, repliedTo(outgoing, item)))
 
 /**
  * The message in flight a message is not claimed behind: for the inbox's,
@@ -760,7 +815,10 @@ export const claimRide = async (
     claimedAt: await host.clock.now(),
     isHeld: false,
     isTaken: false,
-    ride: was === undefined ? { item: reply.item } : { item: reply.item, was },
+    ride: {
+      item: namedIn(outgoing.session, reply),
+      ...(was === undefined ? {} : { was }),
+    },
   }
   const isBetween = await betweenTurns(host)
   let isClaimed = false
