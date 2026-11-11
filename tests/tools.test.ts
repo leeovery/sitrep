@@ -447,6 +447,18 @@ test("Claude's own act on another session's parked item is known: the next promp
   expect(context).not.toContain('Export the ledger as CSV')
 })
 
+test("Claude's own edit or reopen of another session's parked item is known as well: the board as it stood before, each item in its place, is the one Claude had seen", async ($, on) => {
+  const w = world($, on)
+
+  await toldOfLedgers(w, $)
+  await w.call('edit', { item: 'p1', session: LEDGER.id, title: 'Export the ledger as JSON' })
+  expect((await $.prompt.submit(PROMPT)).context, 'its own edit').toBeUndefined()
+
+  await w.call('resolve', { item: 'p1', session: LEDGER.id })
+  await w.call('reopen', { item: 'p1', session: LEDGER.id })
+  expect((await $.prompt.submit(PROMPT)).context, 'its own reopen').toBeUndefined()
+})
+
 test('finish finishes the attached session with its reason, the window staying attached; a second is refused', async ($, on) => {
   const w = world($, on)
   const { id, paths } = await w.begin()

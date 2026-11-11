@@ -80,7 +80,7 @@ const sendHere = async (host: Host, claimed: () => Promise<void>): Promise<Here>
       session: session.id,
       writer: held.writer,
       text: message.text,
-      replies: replyBodies(session, message.replies, folded),
+      replies: replyBodies(session, message.replies, { folded, flights }),
     },
     claimed,
   )

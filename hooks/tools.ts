@@ -50,7 +50,7 @@ import {
   readProjects,
   sessionIdsIn,
 } from './projects'
-import { changedKnown, markSeen, markStarted, parkedAround, postKnown, seenHere } from './seen'
+import { changedKnown, markSeen, markStarted, parkedAround, postKnown } from './seen'
 import { attachTo, attached, refresh, serially } from './window'
 
 type Fields = { readonly [key: string]: unknown }
@@ -281,18 +281,20 @@ const parkedElsewhere = async <B extends Body & { item: string }>(
     return { deny: into.error }
   }
 
-  const seen = await seenHere(host)
+  const root = await rootFor(host)
+  const before = await foldAt(host, root, into.value, await host.clock.now())
   const written = await writeParked(host, into.value, input, check)
 
   if (!written.ok) {
     return { deny: written.error }
   }
 
-  const after = await foldAt(host, await rootFor(host), into.value, await host.clock.now())
-
-  if (seen !== undefined && after !== undefined) {
-    await changedKnown(host, seen, [{ there: after, items: [written.value.item] }])
+  // In the tool's own turn of the window's queue, after the look that read the change in.
+  if (before !== undefined) {
+    await changedKnown(host, [{ before, items: [written.value.item] }])
   }
+
+  const after = await foldAt(host, root, into.value, await host.clock.now())
 
   return {
     result: said(written.value),

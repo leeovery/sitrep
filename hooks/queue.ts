@@ -24,6 +24,7 @@ import {
   type Ask,
   type Barred,
   type Parked,
+  type Random,
   type Reply,
   type ReplyBody,
   type Session,
@@ -180,21 +181,29 @@ export const sendable = (folded: Folded, replies: Queue) =>
 export const leftOut = (folded: Folded, replies: Queue): LeftOut[] =>
   replies.flatMap(reply => whyLeftIn(folded, reply) ?? [])
 
+/** Where a message's reply ids are drawn apart from: the sessions its items are in, and the messages in flight. */
+export type Around = { folded?: Folded; flights?: Flights }
+
 /**
  * The replies as lines of a message to the session `to`, each naming its
  * item as the message does (`namedIn`), with an id unlike any `to` uses,
- * nor any of the sessions `folded` holds, among them each item's own.
+ * nor any of the sessions `folded` holds, among them each item's own, nor
+ * any the messages `flights` carry, not written down yet.
  */
 export const replyBodies = (
   to: Session,
   replies: Queue,
-  folded: Folded = new Map(),
+  { folded = new Map(), flights = [] }: Around = {},
+  draw: Random = random,
 ): ReplyBody[] => {
-  const taken = new Set([to, ...folded.values()].flatMap(session => [...session.ids]))
+  const taken = new Set([
+    ...[to, ...folded.values()].flatMap(session => [...session.ids]),
+    ...flights.flatMap(flight => flight.replies.map(each => each.id)),
+  ])
 
   return replies.map(reply => {
     const { verdict, option, note } = reply
-    const id = newItemId(random, taken)
+    const id = newItemId(draw, taken)
 
     taken.add(id)
 

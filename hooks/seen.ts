@@ -33,22 +33,12 @@ export const parkedAround = async (host: Host): Promise<readonly ProjectParked[]
   return (await host.state.projects.read()).find(project => project.key === key)?.parked ?? []
 }
 
-/** The board as Claude has seen it, as it still stands: the held session, and what the sessions around parked, as one read gave them. */
-export type Seen = { session: Session; parked: readonly ProjectParked[] }
-
-/** The held session's board as Claude has seen it, where it still stands so; undefined once it moved on. */
-const seenNow = async (host: Host, session: Session): Promise<Seen | undefined> => {
+/** What the sessions around parked, as one read gave them, where Claude has seen the held session's board as it stands so; undefined once it moved on. */
+const seenNow = async (host: Host, session: Session) => {
   const parked = await parkedAround(host)
   const text = await host.state.seen.read()
 
-  return boardText(session, parked) === text ? { session, parked } : undefined
-}
-
-/** The held session's board as Claude has seen it, where it still stands so; undefined once it moved on, or with none held. */
-export const seenHere = async (host: Host) => {
-  const session = await refresh(host)
-
-  return session === undefined ? undefined : seenNow(host, session)
+  return boardText(session, parked) === text ? parked : undefined
 }
 
 /** Keeps `text` as the board Claude has seen. */
@@ -76,29 +66,61 @@ export const markStarted = (host: Host, session: Session) => keepSeen(host, boar
  * what Claude last saw.
  */
 export const postKnown = async (host: Host, session: Session, bodies: readonly Body[]) => {
-  const seen = await seenNow(host, session)
+  const parked = await seenNow(host, session)
   const after = await post(host, bodies)
 
-  if (seen !== undefined && after !== undefined) {
-    await keepSeen(host, boardText(after, seen.parked))
+  if (parked !== undefined && after !== undefined) {
+    await keepSeen(host, boardText(after, parked))
   }
 
   return after
 }
 
-/** A change Claude made to items another session of the held session's project parked: that session as it stands after it, and the items it changed. */
-export type ChangedThere = { there: Session; items: readonly string[] }
+/** A change Claude made to items another session of the held session's project parked: that session as it stood before it, and the items it changed. */
+export type ChangedThere = { before: Session; items: readonly string[] }
 
-/** What the sessions around parked, each changed item as the change left it, and nothing else of theirs changed. */
-const changedIn = (parked: readonly ProjectParked[], { there, items }: ChangedThere) =>
-  projectParked([
-    ...parked.filter(each => each.session !== there.id || !items.includes(each.id)),
-    ...parkedBy(there).filter(each => items.includes(each.id)),
-  ])
+/**
+ * What the sessions around parked, each changed item as it was before the
+ * change, in its place among its session's, and the rest as they stand.
+ */
+const asBefore = (parked: readonly ProjectParked[], { before, items }: ChangedThere) => {
+  const isThere = (item: ProjectParked) => item.session === before.id
+  const isChanged = (item: ProjectParked) => items.includes(item.id)
+  const standing = parked.filter(isThere)
+  const was = parkedBy(before)
+  const isNew = (item: ProjectParked) => !was.some(({ id }) => id === item.id)
+  const there = [
+    ...was.flatMap(item =>
+      isChanged(item) ? [item] : standing.filter(({ id }) => id === item.id),
+    ),
+    ...standing.filter(item => !isChanged(item) && isNew(item)),
+  ]
 
-/** Keeps as seen the board Claude had seen, `seen`, as its own changes to items other sessions parked made it. */
-export const changedKnown = (host: Host, seen: Seen, changes: readonly ChangedThere[]) =>
-  keepSeen(host, boardText(seen.session, changes.reduce(changedIn, seen.parked)))
+  return projectParked([...parked.filter(item => !isThere(item)), ...there])
+}
+
+/**
+ * Keeps the board as it now stands as seen, after Claude's own changes to
+ * items other sessions of the project parked, where Claude had seen it as
+ * it stands but for them: each changed item as it was before. Run in the
+ * window's queue, after the look that read the changes in, so no post of
+ * Claude's lands between the reads and the keep, and a prompt meanwhile
+ * finds the board it had seen; read, compared and kept with no wait between
+ * the compare and the keep.
+ */
+export const changedKnown = async (host: Host, changes: readonly ChangedThere[]) => {
+  const session = changes.length === 0 ? undefined : await refresh(host)
+
+  if (session === undefined) {
+    return
+  }
+
+  const [parked, seen] = await Promise.all([parkedAround(host), host.state.seen.read()])
+
+  if (boardText(session, changes.reduce(asBefore, parked)) === seen) {
+    await keepSeen(host, boardText(session, parked))
+  }
+}
 
 /** The board's text as a turn takes it, when it moved on since Claude last saw it. */
 export type BoardChange = { text: string; context: string }

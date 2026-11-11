@@ -1,5 +1,13 @@
 import { expect, test, tier } from 'claude-code/testing'
-import { CURRENT_MS, parseEntries, parsePresence, sessionPaths, type SessionMeta } from '../core'
+import {
+  CURRENT_MS,
+  parseEntries,
+  parsePresence,
+  sessionPaths,
+  sessionsDir,
+  type SessionMeta,
+} from '../core'
+import type { SitrepInFlight } from '../types'
 import { WATCH_MS } from '../hooks/window'
 import {
   delivered,
@@ -17,7 +25,7 @@ import {
   yesAsk,
   type Line,
 } from './support'
-import { ELSEWHERE, postedId, PROJECT, PROMPT, ROOT, toProject, world } from './world'
+import { CONVERSATION, ELSEWHERE, postedId, PROJECT, PROMPT, ROOT, toProject, world } from './world'
 
 tier('user')
 
@@ -145,6 +153,8 @@ const LETTERS = sessionPaths(ROOT, PROJECT.key, LEDGER).letters(W1)
 /** The ledger as it stands once it parked something: its lines, and whether a window holds it. */
 type Standing = { lines: Line[]; isOpen: boolean }
 
+const OPEN: Standing = { lines: [[T0, park('p1', EXPORT)]], isOpen: true }
+
 const FINISHED: Standing = {
   lines: [
     [T0, park('p1', EXPORT)],
@@ -154,7 +164,7 @@ const FINISHED: Standing = {
 }
 
 const STANDING: Record<string, Standing> = {
-  'a session open in another window': { lines: [[T0, park('p1', EXPORT)]], isOpen: true },
+  'a session open in another window': OPEN,
   'a finished session': FINISHED,
   'a session idle past the views': { lines: [[OLD, park('p1', EXPORT)]], isOpen: false },
 }
@@ -390,7 +400,7 @@ test(
 
 /** The ledger open, its item picked up and sent while Claude is mid-turn, held: the reply id its claim drew. */
 const heldPickUp = async (w: World) => {
-  const { ui } = await besideLedger(w, STANDING['a session open in another window'] ?? FINISHED)
+  const { ui } = await besideLedger(w, OPEN)
 
   await pickUpLedgers(ui)
   await w.turnStarts('Carry on.')
@@ -438,5 +448,143 @@ test(
 
     expect(w.submitted).toEqual([PICKED])
     expect(w.text(LEDGER_LOG)).toBe(kept)
+  },
+)
+
+/** The replies a file holds, in order. */
+const repliesIn = (w: World, path: string) =>
+  parseEntries(w.text(path)).flatMap(line => (line.type === 'reply' ? [line] : []))
+
+test(
+  "a pick-up's reply id drawn again as it is written down is recorded in the claim before its line is written: a load cut short after the write leaves it written once, however often the claim is taken up again",
+  SLOW,
+  async ($, on) => {
+    const w = world($, on)
+    let isCut = true
+    let recorded: string | undefined
+
+    on('state.set', { plugin: 'sitrep', key: 'inFlight' }, ($, e, next) =>
+      isCut && e.value === null ? { deny: 'the load was cut short' } : next(e),
+    )
+
+    const { id } = await heldPickUp(w)
+
+    w.put(LEDGER_OWN, file([T0, park('p1', EXPORT)], [T0 + MIN, note(id, 'Took the same id')]))
+    w.after('read', LEDGER_LOG, () => {
+      recorded = w.flights()[0]?.replies[0]?.id
+    })
+    await w.turnEnds()
+    await w.clock.advance(WATCH_MS)
+
+    const [picked] = repliesIn(w, LEDGER_LOG)
+
+    expect(picked).toMatchObject({ item: 'p1', verdict: 'pickup' })
+    expect(picked?.id).not.toBe(id)
+    expect(recorded, 'the claim records the id before the line is written').toBe(picked?.id)
+
+    await $.session.start(CONVERSATION)
+    await w.clock.settle()
+    isCut = false
+    await $.session.start(CONVERSATION)
+    await w.clock.settle()
+
+    expect(kindsIn(w, LEDGER_LOG)).toEqual(['reply', 'delivered'])
+    expect(w.flights()).toEqual([])
+  },
+)
+
+/** Messages in flight as `$.state` keeps them, a second's replies taking the first's ids, as two claims drawing alike would. */
+const drawnAlike = <E extends { value: unknown }>(e: E): E => {
+  if (!Array.isArray(e.value) || e.value.length !== 2) {
+    return e
+  }
+
+  const [first, second] = e.value as [SitrepInFlight, SitrepInFlight]
+  const replies = second.replies.map((reply, at) => ({
+    ...reply,
+    id: first.replies[at]?.id ?? reply.id,
+  }))
+
+  return { ...e, value: [first, { ...second, replies }] }
+}
+
+test(
+  'two sends held at once, each picking up an item one session parked, by the same reply id, are both written down there: a reply is written by its id to its own item alone',
+  SLOW,
+  async ($, on) => {
+    const w = world($, on)
+
+    on('state.set', { plugin: 'sitrep', key: 'inFlight' }, ($, e, next) => next(drawnAlike(e)))
+
+    const lines: Line[] = [
+      [T0, park('p1', EXPORT)],
+      [T0, park('p2', 'Archive old requests')],
+    ]
+    const { ui } = await besideLedger(w, { lines, isOpen: true })
+
+    await pickUpLedgers(ui)
+    await w.turnStarts('Carry on.')
+    await ui.press({ key: 'send' })
+    await pickUpLedgers(ui, 'p2')
+    await ui.press({ key: 'send' })
+
+    await w.turnEnds()
+    await w.clock.settle()
+    await w.turnStarts(w.submitted[0] ?? '')
+    await w.turnEnds()
+    await w.clock.settle()
+
+    const replies = repliesIn(w, LEDGER_LOG)
+
+    expect(replies.map(line => line.item)).toEqual(['p1', 'p2'])
+    expect(new Set(replies.map(line => line.id)).size).toBe(2)
+    expect(w.state.projects?.find(project => project.key === PROJECT.key)?.parked).toEqual([])
+  },
+)
+
+test(
+  "a tool call of Claude's while a pick-up is written down in the session that parked its item waits for the write: the next prompt takes no board for either",
+  SLOW,
+  async ($, on) => {
+    const w = world($, on)
+    const { ui } = await besideLedger(w, OPEN)
+    let noted: ReturnType<typeof w.call> | undefined
+
+    expect((await $.prompt.submit(PROMPT)).context?.[0], 'told of what it parked').toContain(EXPORT)
+
+    await pickUpLedgers(ui)
+    w.after('read', LEDGER_LOG, () => {
+      noted = w.call('note', { text: 'Picking the export up' })
+    })
+    await ui.press({ key: 'send' })
+    await w.turnStarts(PICKED)
+    expect(await noted, 'a note as the pick-up is written').toHaveProperty('result')
+    await w.turnEnds()
+
+    expect(kindsIn(w, LEDGER_LOG)).toEqual(['reply', 'delivered'])
+    expect((await $.prompt.submit(PROMPT)).context, 'its own note and pick-up').toBeUndefined()
+  },
+)
+
+test(
+  'a prompt while a pick-up is written down in the session that parked its item, before the board reads that session again, finds the board as Claude saw it: it takes none, then or after',
+  SLOW,
+  async ($, on) => {
+    const w = world($, on)
+    const { ui } = await besideLedger(w, OPEN)
+    let prompted: ReturnType<typeof $.prompt.submit> | undefined
+
+    expect((await $.prompt.submit(PROMPT)).context?.[0], 'told of what it parked').toContain(EXPORT)
+
+    await pickUpLedgers(ui)
+    w.after('list', sessionsDir(ROOT, PROJECT.key), () => {
+      prompted = $.prompt.submit(PROMPT)
+    })
+    await ui.press({ key: 'send' })
+
+    expect(kindsIn(w, LEDGER_LOG)).toEqual(['reply', 'delivered'])
+    expect(prompted, 'a prompt as the board reads it again').toBeDefined()
+    expect((await prompted)?.context, 'meanwhile').toBeUndefined()
+    expect((await $.prompt.submit(PROMPT)).context, 'after').toBeUndefined()
   },
 )

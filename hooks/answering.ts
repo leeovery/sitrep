@@ -47,7 +47,7 @@ import { unwrapPastes } from './paste'
 import { briefOf, filedAt, parkedIn } from './places'
 import { goesTo, isCarried, leftOut, queuedOn, queuing, replyBodies, type LeftOut } from './queue'
 import { sceneOf, type Scene } from './scene'
-import { refresh, serially } from './window'
+import { flightNow, refresh, serially } from './window'
 
 /** The mode as it stands: what it writes, and the item it writes to. */
 export type Answering = { answering: SitrepAnswering; item: Ask | Parked }
@@ -406,7 +406,7 @@ const letIn = async (
       session: session.id,
       writer: held.writer,
       text: message.text,
-      replies: replyBodies(session, message.replies, folded),
+      replies: replyBodies(session, message.replies, { folded, flights: await flightNow(host) }),
     },
     reply,
     queuedOn(queue, answering.session, answering.item),

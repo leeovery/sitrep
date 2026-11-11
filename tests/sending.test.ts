@@ -6,7 +6,7 @@
  */
 import { expect, test } from 'claude-code/testing'
 import { boardJson, listing } from '../cli/output'
-import { leftOut, sendable, unsentTo } from '../hooks/queue'
+import { leftOut, replyBodies, sendable, unsentTo } from '../hooks/queue'
 import type { SitrepInFlight } from '../types'
 import {
   attach,
@@ -31,6 +31,7 @@ import {
   type Body,
   type Presence,
   type Project,
+  type ReplyBody,
   type Sending,
   type Session,
 } from '../core'
@@ -47,6 +48,7 @@ import {
   reopen,
   reply,
   resolve,
+  scripted,
   T0,
   unfinish,
   W1,
@@ -76,6 +78,19 @@ const COMMENT = { id: 'r2', item: 'k2', verdict: 'comment', note: 'Narrower firs
 const claimed = (at: number, ...replies: Sending['replies']): Sending => ({ at, replies })
 
 const sending = (...replies: Sending['replies']) => claimed(CLAIMED, ...replies)
+
+/** A send of this window's to the session, held for Claude's turn, carrying these replies. */
+const inFlight = (...replies: ReplyBody[]): SitrepInFlight => ({
+  source: 'send',
+  project: SWITCHBOARD.key,
+  session: META.id,
+  writer: W1,
+  text: 'From the board:\n- Review round 1 → Approve',
+  replies,
+  claimedAt: CLAIMED,
+  isHeld: true,
+  isTaken: false,
+})
 
 /** Lee's choice on the sidebar: "Keep it" as a send claims it, "Drop it" in the inbox. */
 const KEEP = { id: 'r1', item: 'k2', verdict: 'choose', option: 'Keep it' } as const
@@ -497,21 +512,9 @@ test('a send in flight never holds back the replies it carries for its own answe
     verdict: 'yes',
   } as const
   const other = { ...carried, item: 'k2', verdict: 'choose', option: 'Keep it' } as const
-  const inFlight: SitrepInFlight = {
-    source: 'send',
-    project: SWITCHBOARD.key,
-    session: META.id,
-    writer: W1,
-    text: 'From the board:\n- Review round 1 → Approve',
-    replies: [{ type: 'reply', ...YES }],
-    claimedAt: CLAIMED,
-    isHeld: true,
-    isTaken: false,
-  }
-
   const folded = new Map([[session.id, session]])
   const held = { project: SWITCHBOARD.key, session: META.id }
-  const unsent = unsentTo([carried, other], [inFlight], held, META.id)
+  const unsent = unsentTo([carried, other], [inFlight({ type: 'reply', ...YES })], held, META.id)
 
   expect(sendable(folded, unsent)).toEqual([other])
   expect(leftOut(folded, unsent)).toEqual([])
@@ -519,6 +522,24 @@ test('a send in flight never holds back the replies it carries for its own answe
     leftOut(folded, unsentTo([carried], [], held, META.id)),
     "another's answer bars it",
   ).toEqual(['answered'])
+})
+
+test("a message's replies take ids unlike any its session uses, and any a message in flight carries, not written down yet", () => {
+  const session = sessionOf([[T0, yesAsk('0000', 'Review round 1')], SIDEBAR], {})
+  const keep = {
+    project: SWITCHBOARD.key,
+    session: META.id,
+    item: 'k2',
+    verdict: 'choose',
+    option: 'Keep it',
+  } as const
+  const flight = inFlight({ type: 'reply', id: '1111', item: '0000', verdict: 'yes' })
+  const draws = () => scripted([0], [1], [2])
+
+  expect(replyBodies(session, [keep], {}, draws())).toMatchObject([{ id: '1111', item: 'k2' }])
+  expect(replyBodies(session, [keep], { flights: [flight] }, draws())).toMatchObject([
+    { id: '2222', item: 'k2' },
+  ])
 })
 
 test('a window that lets go sends nothing', () => {
