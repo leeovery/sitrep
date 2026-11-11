@@ -1043,9 +1043,10 @@ a time. The box sits at the foot of **every** view of the pane while anything
 waits in it, grouped by where each reply goes (`to this session`,
 `to Request ledger`, a session of another project with its project's name);
 a pick-up is always `to this session`, whichever session of the project
-parked its item (11 November 2026; see Delivery). Each reply hangs off its item with a `└`, on one row: its words clipped to a
-line, `+3 lines` where there are more, and `✎ edit` to write them again in
-the prompt (`✎ comment` on a bare yes or choice). Each has its own `✕`, and
+parked its item (11 November 2026; see Delivery). Each reply hangs off its
+item with a `└`, on one row: its words clipped to a line, `+3 lines` where
+there are more, and `✎ edit` to write them again in the prompt (`✎ comment`
+on a bare yes or choice). Each has its own `✕`, and
 the ask shows `↺ undo`. **send to Claude** sends them; **cancel all** clears
 them. Each send of Lee's the window holds for Claude's turn, or that is on
 its way to Claude Code, leads the box as a group of its own, sealed (see
@@ -1309,6 +1310,11 @@ app (see "The menu bar").
     session has, and every reader passes over it: Claude had the pick-up,
     and the item stays parked, for Claude or Lee to close. Its heartbeat
     saying it names no item either.
+  - **A window that changes project.** A pick-up still in Ready to send
+    when its window takes up a session of another project leaves the
+    queue, and a toast says so: no Claude of another project is given it,
+    and the item stays parked, to be picked up from a window of its
+    project.
   - **Two windows, one item.** Each pick-up goes in to its own window's
     Claude: a mark lets in a reply its item's close voided `answered` (see
     "Which replies go in"), so both Claudes are told.
@@ -3180,9 +3186,10 @@ truth. There is still no background service. None of it is built now. Lee:
       move.
     - `projects`: those with a current session, or with something parked,
       which the app does not read (5 November 2026), each counting what is
-      parked in it as `list --json` does (11 November 2026), in the order the SitRep window listed them:
-      a session where its row sits, those with none after, the latest updated
-      first; a project where its first session sits. Each session is as `list
+      parked in it as `list --json` does (11 November 2026), in the order
+      the SitRep window listed them: a session where its row sits, those
+      with none after, the latest updated first; a project where its first
+      session sits. Each session is as `list
       --json` gives it, with its `state` (`needsYou`, `working`, `onItsWork`,
       `yourTurn` or `away`), `since`, when its state began, its row's oldest
       line's (its row's own `since` its newest's, since 4 November 2026),
