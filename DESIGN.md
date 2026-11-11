@@ -524,9 +524,10 @@ does. A start counts as seen only what Claude gave the session, so a session
 started in a project with something parked is told it with its first prompt.
 What Claude changes itself is never told back to it: a pick-up written down
 in the session that parked the item, or a resolve, an edit or a reopen there,
-counts as seen, the rest of the board as Claude last saw it. A new park draws
-an id no other item parked in the project has, so the text never shows two
-items under one id.
+counts as seen, the rest of the board as Claude last saw it. A new park, by
+the tool or the CLI, draws an id apart from every item open in the
+project's Parked as last read, so two items seldom share one there; where
+they do, the `session` tells them apart.
 Dropped: a `/sitrep check` command, since the `board` tool already reads the
 board back to repair it and Lee can ask for that in the chat; and a turn-end
 check for an ask Claude forgot to post. The board is best effort, and in use
@@ -1330,7 +1331,9 @@ app (see "The menu bar").
     when its window takes up a session of another project leaves the
     queue, and a toast says so: no Claude of another project is given it,
     and the item stays parked, to be picked up from a window of its
-    project.
+    project. A message already sent, held for the turn's end, goes in as
+    sent, to the conversation Lee pressed send in; taken back, its pick-up
+    leaves the queue the same way.
   - **Two windows, one item.** Each pick-up goes in to its own window's
     Claude: a mark lets in a reply its item's close voided `answered` (see
     "Which replies go in"), so both Claudes are told.
