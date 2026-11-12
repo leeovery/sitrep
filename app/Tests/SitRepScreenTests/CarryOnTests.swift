@@ -56,11 +56,13 @@ struct CarryOnTests {
         #expect(jumping.ghostty.opened == ["portal open -s 'agentic-workflows-v2 · leeway-build'"])
     }
 
-    @Test func aTmuxPaneAliveAndUnshownIsOpenedByTheOpenCommand() async {
+    /// A pane id does not outlive its server, so a pane of the id the last window was in may be any pane now: never
+    /// attached, as core never names one (stage 8), the session resumed.
+    @Test func aTmuxPaneOfItsIdUnshownIsNeverAttachedButResumed() async {
         let jumping = Jumping(server([]), FakeTable(Mac().tree), command: "tmux -S {socket} attach -t {pane}", resume: Self.resume)
 
         #expect(await jumping.carryOn(from: Self.last(inTmux())) == .opened)
-        #expect(jumping.ghostty.opened == ["tmux -S '/private/tmp/tmux-501/default' attach -t '%148'"])
+        #expect(jumping.ghostty.opened == [Self.resumed])
     }
 
     /// Nothing left to attach to: its zmx session gone, its tmux server gone, its pane gone from its server, or its last

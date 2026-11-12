@@ -29,13 +29,21 @@ export const attach = (
 
 export const heartbeat = (presence: Presence, at: number): Presence => ({ ...presence, seenAt: at })
 
-/** The heartbeat of a window that let go: it is doing nothing on the session, so it says no state, and sends nothing. */
-export const leave = (presence: Presence, at: number): Presence => ({
+/**
+ * The heartbeat of a window that let go: it is doing nothing on the session,
+ * so it says no state, and sends nothing; and, where its Claude lives on into
+ * another conversation, says so (`livesOn`).
+ */
+export const leave = (presence: Presence, at: number, livesOn = false): Presence => ({
   ...presence,
   state: undefined,
   sending: undefined,
   leftAt: at,
+  livesOn: livesOn ? true : undefined,
 })
+
+/** When a window was last seen on a session: as it let go, else at its latest beat. */
+export const lastSeenAt = (presence: Presence) => presence.leftAt ?? presence.seenAt
 
 /**
  * A heartbeat's text. A window sending one message says it alone, as builds
@@ -73,13 +81,14 @@ const parseSending = (value: unknown): Sending[] | undefined => {
  * A heartbeat file's presence, its writer named by the file; undefined when
  * the file is torn or bad. A bad `where`, `directory`, `version`, `state`,
  * `sending` or `loadedAt`, or a bad field of one, is dropped and the presence
- * kept.
+ * kept, as is a `livesOn` other than true.
  */
 export const parsePresence = (text: string, writer: string): Presence | undefined => {
   let raw: {
     attachedAt?: unknown
     seenAt?: unknown
     leftAt?: unknown
+    livesOn?: unknown
     where?: unknown
     directory?: unknown
     version?: unknown
@@ -94,7 +103,18 @@ export const parsePresence = (text: string, writer: string): Presence | undefine
     return undefined
   }
 
-  const { attachedAt, seenAt, leftAt, where, directory, version, state, sending, loadedAt } = raw
+  const {
+    attachedAt,
+    seenAt,
+    leftAt,
+    livesOn,
+    where,
+    directory,
+    version,
+    state,
+    sending,
+    loadedAt,
+  } = raw
 
   if (!isTime(attachedAt) || !isTime(seenAt) || !(leftAt === undefined || isTime(leftAt))) {
     return undefined
@@ -105,6 +125,7 @@ export const parsePresence = (text: string, writer: string): Presence | undefine
     attachedAt,
     seenAt,
     leftAt,
+    livesOn: livesOn === true ? true : undefined,
     where: parseWhere(where),
     directory: isFilled(directory) ? directory : undefined,
     version: isFilled(version) ? version : undefined,

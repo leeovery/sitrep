@@ -202,6 +202,23 @@ test('the heartbeat is rewritten every 30 seconds while attached, and says when 
   expect(beat()?.seenAt).toBe(T0 + HEARTBEAT_MS)
 })
 
+for (const [reason, livesOn] of [
+  ['clear', true],
+  ['resume', true],
+  ['prompt_input_exit', undefined],
+  ['logout', undefined],
+  ['other', undefined],
+] as const) {
+  test(`a window letting go as its conversation ends by ${reason} says ${livesOn ? 'that its Claude lives on into the next' : 'nothing of its Claude living on'}`, async ($, on) => {
+    const w = world($, on)
+    const { paths } = await w.begin()
+
+    await $.session.end({ reason, sessionId: W1, resume: { id: W1 } })
+
+    expect(parsePresence(w.text(paths.heartbeat(W1)), W1)?.livesOn).toBe(livesOn)
+  })
+}
+
 test('attaching in tmux records the device, the terminal and the pane in the heartbeat, and every later beat keeps them', async ($, on) => {
   const w = world($, on, {
     env: { TMUX: `${SOCKET},30249,129`, TMUX_PANE: '%148', TERM_PROGRAM: 'tmux' },

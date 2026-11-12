@@ -124,7 +124,8 @@ public struct Jump: Sendable {
     /// The jump to the session's windows, a refusal naming it as given; where none shows, the window to open for it.
     func jump(to session: String, named name: String, at windows: [Board.Window.Where]) async -> JumpOutcome {
         await stoppable {
-            try await reach(windows, for: session, named: name) ?? .answered(Jumped.offScreen.answer(named: name))
+            try await reach(jump(to: windows), for: session, named: name)
+                ?? .answered(Jumped.offScreen.answer(named: name))
         }
     }
 
@@ -134,7 +135,9 @@ public struct Jump: Sendable {
     /// it is unknown, refused, and nothing opens.
     func carryOn(_ session: String, named name: String, from last: Board.LastWindow) async -> JumpOutcome {
         await stoppable {
-            if let left = multiplexed(last.where), let reached = try await reach([left], for: session, named: name) {
+            if let left = multiplexed(last.where),
+               let reached = try await reach(jump(toLast: left), for: session, named: name)
+            {
                 return reached
             }
 
@@ -150,12 +153,10 @@ public struct Jump: Sendable {
         `where`.flatMap { each in reader.multiplexers.contains { $0.isIn(each) } ? each : nil }
     }
 
-    /// The jump to the windows, or the window to open for the first a multiplexer holds, where none shows; nil where
-    /// none shows and none is held.
-    private func reach(_ windows: [Board.Window.Where], for session: String, named name: String) async throws
-        -> JumpOutcome?
-    {
-        switch try await jump(to: windows) {
+    /// What a jump came to as the session's answer, a window to open where it found one; nil where nothing shows the
+    /// session and there is nothing to attach to.
+    private func reach(_ jumped: Jumped, for session: String, named name: String) async throws -> JumpOutcome? {
+        switch jumped {
         case let .openable(attachable):
             try await open(attachable, for: session, named: name)
         case .offScreen:
@@ -212,11 +213,29 @@ public struct Jump: Sendable {
         }
     }
 
-    /// Brings the first of the windows a jump can reach to the front, or, where none shows, gives the first a
-    /// multiplexer holds, to open a window for. Which app is in front is read beside the screen, and settled before any
-    /// select or focus, so it is never an app brought forward by the jump itself. Where what was asked gave no answer,
-    /// nothing is openable.
+    /// Brings the first of the live windows a jump can reach to the front, or, where none shows, gives the first a
+    /// multiplexer holds, to open a window for.
     func jump(to windows: [Board.Window.Where]) async throws -> Jumped {
+        try await jump(to: windows) { screen in screen.attachable(windows).map(Jumped.openable) ?? .offScreen }
+    }
+
+    /// Brings an away session's last window to the front, or, where none shows it, gives it to open a window for where
+    /// its multiplexer session runs still, told by the table, as no live window proves it.
+    func jump(toLast where: Board.Window.Where) async throws -> Jumped {
+        try await jump(to: [`where`]) { screen in
+            switch screen.leftOf(`where`) {
+            case let .attachable(attachable): .openable(attachable)
+            case .gone: .offScreen
+            case let .unknown(unanswered): .unknown(unanswered)
+            }
+        }
+    }
+
+    /// Brings the first of the windows a jump can reach to the front, or, where none shows, gives what `offScreen`
+    /// finds on the screen to open a window for. Which app is in front is read beside the screen, and settled before
+    /// any select or focus, so it is never an app brought forward by the jump itself. Where what was asked gave no
+    /// answer, nothing is openable.
+    private func jump(to windows: [Board.Window.Where], offScreen: (Screen) -> Jumped) async throws -> Jumped {
         try Task.checkCancellation()
 
         async let before = workspace.frontmost()
@@ -229,7 +248,7 @@ public struct Jump: Sendable {
         case let .onScreen(places):
             try await bringFirst(places, front: front)
         case .offScreen:
-            screen.attachable(windows).map(Jumped.openable) ?? .offScreen
+            offScreen(screen)
         case let .unknown(unanswered):
             .unknown(unanswered)
         }

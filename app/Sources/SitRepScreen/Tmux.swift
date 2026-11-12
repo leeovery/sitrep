@@ -216,8 +216,14 @@ struct TmuxReading: Reading {
 
     /// Whether its server, as read, has the window's pane: none where no server runs on its socket, or tmux gave no
     /// answer.
-    func holds(_ where: Board.Window.Where, _: Processes) -> Bool {
+    func holds(_ where: Board.Window.Where) -> Bool {
         `where`.tmux.flatMap { server(`where`)?.panes[$0.pane] } != nil
+    }
+
+    /// Never, for an away window: tmux numbers its panes again from `%0` with each server, so a pane of the id it was
+    /// in may be any pane now, and the one it was in, if there still, holds a shell its Claude has ended in (stage 8).
+    func isAlive(_: Board.Window.Where, _: Processes) -> Bool? {
+        false
     }
 
     /// Whether the window's device is its tmux pane's: nil where that cannot be told, the pane gone, its server
@@ -257,7 +263,7 @@ struct TmuxReading: Reading {
 
     /// tmux, where it gave no answer for the window's socket, or an error other than no server, in its words: not
     /// starting, as when it is missing, is one, so a server outliving its program reads unknown, never off.
-    func unanswered(_ where: Board.Window.Where, _: Processes?) -> [Unanswered] {
+    func unanswered(_ where: Board.Window.Where) -> [Unanswered] {
         switch `where`.tmux.flatMap({ servers[$0.socket] }) {
         case .unanswered?: [.tmux]
         case let .failed(said)?: [.tmuxSaid(said)]

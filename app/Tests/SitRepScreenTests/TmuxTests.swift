@@ -145,9 +145,9 @@ struct TmuxTests {
         let said = "protocol version mismatch (client 8, server 7)"
         let reading = TmuxReading(servers: [Self.socket: .failed(said: said)])
 
-        #expect(reading.unanswered(inTmux(on: Self.socket), nil) == [.tmuxSaid(said)])
+        #expect(reading.unanswered(inTmux(on: Self.socket)) == [.tmuxSaid(said)])
         #expect(Screen(readings: [reading], processes: nil).reach(of: [inTmux(on: Self.socket)]) == .unknown([.tmuxSaid(said)]))
-        #expect(!reading.holds(inTmux(on: Self.socket), Processes([:])), "nothing to open a window onto")
+        #expect(!reading.holds(inTmux(on: Self.socket)), "nothing to open a window onto")
     }
 
     /// Each told apart from the other, and from tmux's answer of no server.

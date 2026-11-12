@@ -3,7 +3,7 @@
  * session was last in: board rules, so SitRep reads them through the feed,
  * and ranks no windows itself (see "The structure" in DESIGN.md).
  */
-import { isLive } from './presence'
+import { isLive, lastSeenAt } from './presence'
 import { rejoinable } from './rejoin'
 import type { Presence, Session, Where } from './types'
 
@@ -62,13 +62,14 @@ export type LastWindow = Pick<Presence, 'writer' | 'where' | 'directory'>
 
 /**
  * The window a session no window holds at `now` was last in, among every
- * session on the `board`: its latest heartbeat, by when it was last seen,
- * which a `/clear` moves on to the conversation after it. None while a live
- * window holds it, nor for one no window ever held; nor where that
- * conversation, resumed, would take up another session (`rejoinable`), as
- * one that let go of it for another does, live there or not, so a click
- * carries on only the session its conversation comes back to. Where it was
- * is left out where a live window is in its multiplexer session (`taken`).
+ * session on the `board`: its latest heartbeat, by when it was last seen
+ * (`lastSeenAt`, as `rejoinable` ranks), which a `/clear` moves on to the
+ * conversation after it. None while a live window holds it, nor for one no
+ * window ever held; nor where that conversation, resumed, would take up
+ * another session (`rejoinable`), as one that let go of it for another does,
+ * live there or not, so a click carries on only the session its conversation
+ * comes back to. Where it was is said only where a click can still reach the
+ * conversation there (`isThere`).
  */
 export const lastWindowOf = (
   session: Session,
@@ -79,7 +80,7 @@ export const lastWindowOf = (
     return undefined
   }
 
-  const last = [...session.presence].sort((a, b) => b.seenAt - a.seenAt).at(0)
+  const last = [...session.presence].sort((a, b) => lastSeenAt(b) - lastSeenAt(a)).at(0)
 
   if (last === undefined || rejoinable(board, last.writer) !== session.id) {
     return undefined
@@ -87,25 +88,27 @@ export const lastWindowOf = (
 
   return {
     writer: last.writer,
-    where: taken(last.where, board, now) ? undefined : last.where,
+    where: isThere(last, board, now) ? last.where : undefined,
     directory: last.directory,
   }
 }
 
-/** Whether two windows are in one multiplexer session: the same zmx session, or the same tmux server's pane. */
-const isSameMultiplexed = (a: Where, b: Where) =>
-  (a.zmx !== undefined && a.zmx.session === b.zmx?.session) ||
-  (a.tmux !== undefined && a.tmux.socket === b.tmux?.socket && a.tmux.pane === b.tmux?.pane)
-
 /**
- * Whether a live window on the board, of any session, is in the multiplexer
- * session a window was in: another Claude holds it now, after a `/clear` or
- * one started there, so it is no longer the window's to jump to or attach to.
+ * Whether a click could still find a last window's conversation where the
+ * window was: not where its Claude went on into another conversation
+ * (`livesOn`); nor in tmux, whose pane ids start again from `%0` with each
+ * server, so the pane it was in is any pane now, or a shell its Claude ended
+ * in; nor in a zmx session a live window of any session is in, another
+ * Claude's now (`taken`).
  */
-const taken = (where: Where | undefined, board: readonly Session[], now: number) =>
-  where !== undefined &&
+const isThere = (last: Presence, board: readonly Session[], now: number) =>
+  last.livesOn === undefined &&
+  last.where?.tmux === undefined &&
+  !taken(last.where?.zmx?.session, board, now)
+
+/** Whether a live window on the board, of any session, is in the zmx session named. */
+const taken = (zmx: string | undefined, board: readonly Session[], now: number) =>
+  zmx !== undefined &&
   board.some(session =>
-    session.presence.some(
-      each => isLive(each, now) && each.where !== undefined && isSameMultiplexed(where, each.where),
-    ),
+    session.presence.some(each => isLive(each, now) && each.where?.zmx?.session === zmx),
   )

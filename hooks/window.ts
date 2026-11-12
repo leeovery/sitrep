@@ -361,8 +361,12 @@ export const sayInFlight = (host: Host, flights: SitrepInFlight[]) => {
   return restate(host)
 }
 
-/** Lets go of the held session: the heartbeat says so, and the beat and the watch stop. */
-export const letGo = async (host: Host) => {
+/**
+ * Lets go of the held session: the heartbeat says so, and whether the
+ * window's Claude `livesOn` into another conversation, and the beat and the
+ * watch stop.
+ */
+export const letGo = async (host: Host, livesOn = false) => {
   const hold = current
 
   if (hold === undefined) {
@@ -376,7 +380,7 @@ export const letGo = async (host: Host) => {
   }
 
   try {
-    await beat(host, hold, leave(hold.presence, await host.clock.now()))
+    await beat(host, hold, leave(hold.presence, await host.clock.now(), livesOn))
   } finally {
     await forget(host)
   }

@@ -19,6 +19,7 @@ import {
   nextBoardChange,
   nextExpiry,
   nextFoldChange,
+  rejoinable,
   rowOf,
   sessionState,
   snoozedRowOf,
@@ -922,8 +923,8 @@ const inZmx = (name: string, device = 's041') => ({
   where: { device: `/dev/tty${device}`, terminal: 'ghostty', zmx: { session: name } },
 })
 
-const inTmux = (pane: string, socket = '/private/tmp/tmux-501/default') => ({
-  where: { device: '/dev/ttys041', terminal: 'tmux', tmux: { socket, pane } },
+const inTmux = (pane: string) => ({
+  where: { device: '/dev/ttys041', terminal: 'tmux', tmux: { socket: '/private/tmp/tmux-501/default', pane } },
 })
 
 test('a last window in a zmx session a live window is in, of another session, says no where, as another Claude holds it; the session is resumed', () => {
@@ -948,14 +949,31 @@ test('a last window in a zmx session a live window is in, of another session, sa
   })
 })
 
-test('a last window in a tmux pane a live window is in, on the same server, says no where; one in another pane, or on another server, keeps it', () => {
-  const left = another('sr-aaaaaa', windowOn(W1, yourTurn(T0), { seenAt: T0 + 50 * MIN, ...inTmux('%1') }))
-  const lastWith = (where: ReturnType<typeof inTmux>) =>
-    lastWindowsOf([left, another('sr-bbbbbb', windowOn(W2, working(T0), where))])['sr-aaaaaa']?.where
+test('a last window in tmux says no where, with no live window anywhere, as a pane id does not outlive its server: the session is resumed', () => {
+  const left = another('sr-aaaaaa', windowOn(W1, yourTurn(T0), { seenAt: T0 + 50 * MIN, directory: '/x', ...inTmux('%1') }))
 
-  expect(lastWith(inTmux('%1'))).toBeUndefined()
-  expect(lastWith(inTmux('%2'))).toEqual(inTmux('%1').where)
-  expect(lastWith(inTmux('%1', '/private/tmp/tmux-501/work'))).toEqual(inTmux('%1').where)
+  expect(lastWindowsOf([left])['sr-aaaaaa']).toEqual({ writer: W1, where: undefined, directory: '/x' })
+})
+
+test('a last window let go of at a /clear or a /resume, its Claude living on into another conversation, says no where: that window is the next conversation\'s, so the session is resumed', () => {
+  const left = (livesOn?: true) =>
+    another(
+      'sr-aaaaaa',
+      windowOn(W1, yourTurn(T0), { seenAt: T0 + 50 * MIN, leftAt: T0 + 50 * MIN, livesOn, directory: '/x', ...inZmx('kit') }),
+    )
+
+  expect(lastWindowsOf([left(true)])['sr-aaaaaa']).toEqual({ writer: W1, where: undefined, directory: '/x' })
+  expect(lastWindowsOf([left()])['sr-aaaaaa']).toEqual({ writer: W1, directory: '/x', ...inZmx('kit') })
+})
+
+test('a last window is the one last seen as a resume ranks them, by when it let go, else its latest beat: one that let go after another stopped beating is last, though it beat before', () => {
+  const session = another('sr-aaaaaa', {
+    ...windowOn(W1, yourTurn(T0), { seenAt: T0 + 18 * MIN, leftAt: T0 + 20 * MIN }),
+    ...windowOn(W2, yourTurn(T0), { seenAt: T0 + 19 * MIN }),
+  })
+
+  expect(lastWindowsOf([session])['sr-aaaaaa']?.writer).toBe(W1)
+  expect(rejoinable([session], W1)).toBe('sr-aaaaaa')
 })
 
 test("a Needs you row's time is its newest line's, while its session's state still counts from its oldest, as its first line came", () => {

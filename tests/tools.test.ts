@@ -155,6 +155,7 @@ test('starting or joining while attached lets go of the session held before', as
   const second = startedId(await w.call('start', { ...DASHBOARD, name: 'Lobby' }))
 
   expect(parsePresence(w.text(first.paths.heartbeat(W1)), W1)?.leftAt).toBe(w.clock.now())
+  expect(parsePresence(w.text(first.paths.heartbeat(W1)), W1)?.livesOn, 'the conversation goes on').toBeUndefined()
   expect(w.state.attachment?.session).toBe(second)
 
   await w.call('join', { session: first.id })

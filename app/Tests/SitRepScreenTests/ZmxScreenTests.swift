@@ -52,15 +52,31 @@ struct ZmxScreenTests {
         #expect(lees.table.argumentsRead == lees.zmx.sorted(), "its clients' and servers', never a shell's or tmux's")
     }
 
-    /// A zmx session runs while a process of zmx's attaches to it, its server or a client, so a window can be opened
-    /// onto it; one with none is gone, as after a restart Portal did not bring back, or a session ended (stage 8).
-    @Test func aZmxSessionIsHeldWhileItsServerOrAClientRunsAndGoneWithNeither() async {
+    /// An away session's last window has no live window to prove its zmx session alive: it runs while a process of
+    /// zmx's attaches to it, its server or a client, so a window can be opened onto it; one with neither is gone, as
+    /// after a restart Portal did not bring back, or a session ended (stage 8).
+    @Test func anAwayWindowsZmxSessionIsAliveWhileItsServerOrAClientRunsAndGoneWithNeither() async {
         let screen = await Self.lees().screen
 
-        #expect(screen.attachable([inZmx(Self.leeway)]) == Attachable(where: inZmx(Self.leeway), kind: .zmx))
-        #expect(screen.attachable([inZmx(Self.portals)])?.kind == .zmx)
-        #expect(screen.attachable([inZmx("gone · session")]) == nil)
-        #expect(await read([inZmx(Self.kit)], FakeTmux(), FakeTable(Mac().tree)).attachable([inZmx(Self.kit)]) == nil)
+        #expect(screen.leftOf(inZmx(Self.leeway)) == .attachable(Attachable(where: inZmx(Self.leeway), kind: .zmx)))
+        #expect(screen.leftOf(inZmx(Self.portals)) == .attachable(Attachable(where: inZmx(Self.portals), kind: .zmx)))
+        #expect(screen.leftOf(inZmx("gone · session")) == .gone)
+        #expect(await read([inZmx(Self.kit)], FakeTmux(), FakeTable(Mac().tree)).leftOf(inZmx(Self.kit)) == .gone)
+    }
+
+    /// A live window in zmx is its session's proof of life, as step C has it: the table is never asked, and a command
+    /// line that did not read, of zmx's or another's, leaves where it shows as it was.
+    @Test func aLiveWindowsZmxSessionIsHeldByTheWindowAloneAskingTheTableNothing() async {
+        var mac = Mac()
+
+        mac.zmxUnread()
+
+        let shell = Processes([5: Proc(parent: 1, program: "/bin/zsh")], unreadable: [5])
+
+        for screen in [Screen(readings: [ZmxReading()], processes: shell), await read([inZmx("kit")], FakeTmux(), FakeTable(mac.tree))] {
+            #expect(screen.attachable([inZmx("kit")]) == Attachable(where: inZmx("kit"), kind: .zmx))
+            #expect(screen.reach(of: [inZmx("kit")]) == .offScreen)
+        }
     }
 
     @Test func aZmxSessionIsMatchedByItsWholeName() async {
@@ -125,14 +141,14 @@ struct ZmxScreenTests {
         #expect(ZmxReading.sessionNamed(by: arguments) == nil)
     }
 
-    /// Held by a process naming it in any form, a client attached by `a` or with labels too, though only `zmx attach
+    /// Alive by a process naming it in any form, a client attached by `a` or with labels too, though only `zmx attach
     /// <session>` alone is a client a jump reaches.
-    @Test func aSessionIsHeldByAProcessNamingItInAnyForm() {
+    @Test func anAwayWindowsSessionIsAliveByAProcessNamingItInAnyForm() {
         let processes = Processes([:], arguments: [7: ["zmx", "a", "--labels=k=v", "kit"], 9: ["zmx", "run", "ledger", "-d"]])
 
-        #expect(ZmxReading().holds(inZmx("kit"), processes))
-        #expect(ZmxReading().holds(inZmx("ledger"), processes))
-        #expect(!ZmxReading().holds(inZmx("kit · restore-card"), processes))
+        #expect(ZmxReading().isAlive(inZmx("kit"), processes) == true)
+        #expect(ZmxReading().isAlive(inZmx("ledger"), processes) == true)
+        #expect(ZmxReading().isAlive(inZmx("kit · restore-card"), processes) == false)
     }
 
     @Test func aZmxClientCountsOnlyOnATtyOfItsOwnOneOverPipesIsNoPlaceThoughItsAppNeedsNoDevice() async {
@@ -165,20 +181,20 @@ struct ZmxScreenTests {
         #expect(tmux.runs.count == 2, "a window in zmx never asks tmux")
     }
 
-    /// A zmx process whose command line does not read may be the session's server or a client: whether it runs, and
-    /// where it shows, is unknown, never off; a client found still shows it, and a window in tmux asks nothing of zmx's.
-    @Test func aZmxProcessWhoseCommandLineDoesNotReadLeavesASessionInZmxUnknownNeverOff() async {
+    /// A process whose program is zmx, by its path, whose command line does not read may be an away session's server
+    /// or a client: whether it runs is unknown, never gone. Only such a process: one of another program's says nothing
+    /// of zmx's sessions.
+    @Test func aZmxProcessWhoseCommandLineDoesNotReadLeavesOnlyAnAwayWindowsSessionUnknown() async {
         var mac = Mac()
 
         mac.zmxUnread()
-        mac.throughPortal(Self.portals, relay: "/dev/ttys032", window: "/dev/ttys036")
 
-        let windows = [inZmx(Self.leeway), inZmx(Self.portals), inTmux("%1")]
-        let screen = await read(windows, FakeTmux(), FakeTable(mac.tree))
+        let screen = await read([inZmx(Self.leeway)], FakeTmux(), FakeTable(mac.tree))
+        let shell = Processes([5: Proc(parent: 1, program: "/bin/zsh")], unreadable: [5])
 
-        #expect(screen.reach(of: [windows[0]]) == .unknown([.commandLine(.zmx)]))
-        #expect(screen.reach(of: [windows[1]]).app == ghostty)
-        #expect(!screen.unanswered(for: [windows[2]]).contains(.commandLine(.zmx)))
+        #expect(screen.leftOf(inZmx(Self.leeway)) == .unknown([.commandLine(.zmx)]))
+        #expect(screen.reach(of: [inZmx(Self.leeway)]) == .offScreen)
+        #expect(ZmxReading().isAlive(inZmx(Self.leeway), shell) == false)
     }
 
     @Test func aSessionInZmxIsUnknownNeverOffWhenTheTableGivesNoAnswerAsOnlyTheTableTellsItsClients() async {
