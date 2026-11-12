@@ -78,8 +78,10 @@ struct ZmxReading: Reading {
         }
     }
 
-    func unanswered(_: Board.Window.Where) -> [Unanswered] {
-        []
+    /// A process of zmx's whose command line could not be read, for a window in zmx: it may be the session's server or
+    /// a client, so whether the session runs, and where it shows, cannot be told.
+    func unanswered(_ where: Board.Window.Where, _ processes: Processes?) -> [Unanswered] {
+        isIn(`where`) && processes?.unreadable.isEmpty == false ? [.commandLine(kind)] : []
     }
 
     func needsProcesses(_ where: Board.Window.Where) -> Bool {

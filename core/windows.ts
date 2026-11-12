@@ -4,6 +4,7 @@
  * and ranks no windows itself (see "The structure" in DESIGN.md).
  */
 import { isLive } from './presence'
+import { rejoinable } from './rejoin'
 import type { Presence, Session, Where } from './types'
 
 /** A window stopped on Lee: at a permission prompt or a question. */
@@ -56,34 +57,55 @@ export const inJumpOrder = (session: Session, now: number): Placed[] =>
 export const windowsOf = (session: Session, now: number): Where[] =>
   inJumpOrder(session, now).map(each => each.where)
 
+/** The window an away session was last in, as a click carries it on from: its writer, the Claude Code session it ran, where it was, and its folder. */
+export type LastWindow = Pick<Presence, 'writer' | 'where' | 'directory'>
+
 /**
- * The window a session no window holds at `now` was last in: its latest
- * heartbeat, by when it was last seen, which a `/clear` moves on to the
- * conversation after it. None while a live window holds it, nor for one no
- * window ever held; nor where that conversation runs on, its writer live on
- * another session (`live`, every writer live on the board), as a window
- * that let go of it for another does: it is carried on only where its
- * Claude ended, or the Mac restarted under it, never beside the Claude
- * still running it.
+ * The window a session no window holds at `now` was last in, among every
+ * session on the `board`: its latest heartbeat, by when it was last seen,
+ * which a `/clear` moves on to the conversation after it. None while a live
+ * window holds it, nor for one no window ever held; nor where that
+ * conversation, resumed, would take up another session (`rejoinable`), as
+ * one that let go of it for another does, live there or not, so a click
+ * carries on only the session its conversation comes back to. Where it was
+ * is left out where a live window is in its multiplexer session (`taken`).
  */
 export const lastWindowOf = (
   session: Session,
+  board: readonly Session[],
   now: number,
-  live: ReadonlySet<string>,
-): Presence | undefined => {
+): LastWindow | undefined => {
   if (session.presence.some(each => isLive(each, now))) {
     return undefined
   }
 
   const last = [...session.presence].sort((a, b) => b.seenAt - a.seenAt).at(0)
 
-  return last === undefined || live.has(last.writer) ? undefined : last
+  if (last === undefined || rejoinable(board, last.writer) !== session.id) {
+    return undefined
+  }
+
+  return {
+    writer: last.writer,
+    where: taken(last.where, board, now) ? undefined : last.where,
+    directory: last.directory,
+  }
 }
 
-/** Every writer a live window on the board is, on whichever session. */
-export const liveWriters = (sessions: readonly Session[], now: number): ReadonlySet<string> =>
-  new Set(
-    sessions.flatMap(session =>
-      session.presence.filter(each => isLive(each, now)).map(each => each.writer),
+/** Whether two windows are in one multiplexer session: the same zmx session, or the same tmux server's pane. */
+const isSameMultiplexed = (a: Where, b: Where) =>
+  (a.zmx !== undefined && a.zmx.session === b.zmx?.session) ||
+  (a.tmux !== undefined && a.tmux.socket === b.tmux?.socket && a.tmux.pane === b.tmux?.pane)
+
+/**
+ * Whether a live window on the board, of any session, is in the multiplexer
+ * session a window was in: another Claude holds it now, after a `/clear` or
+ * one started there, so it is no longer the window's to jump to or attach to.
+ */
+const taken = (where: Where | undefined, board: readonly Session[], now: number) =>
+  where !== undefined &&
+  board.some(session =>
+    session.presence.some(
+      each => isLive(each, now) && each.where !== undefined && isSameMultiplexed(where, each.where),
     ),
   )

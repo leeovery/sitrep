@@ -77,10 +77,10 @@ public struct Screen: Sendable {
         }.first
     }
 
-    /// What gave no answer of the windows: what a multiplexer they run in asked, as tmux for a socket one runs under;
-    /// and the table, where their clients are told only by it. A window in no multiplexer asks neither.
+    /// What gave no answer of the windows: what a multiplexer they run in asked, as tmux for a socket one runs under,
+    /// or the command line of a process zmx's are told by; and the table, where their clients are told only by it. A window in no multiplexer asks neither.
     public func unanswered(for windows: [Board.Window.Where]) -> [Unanswered] {
-        let asked = windows.flatMap { each in readings.flatMap { $0.unanswered(each) } }
+        let asked = windows.flatMap { each in readings.flatMap { $0.unanswered(each, processes) } }
         let isTableUnanswered = processes == nil
             && windows.contains { each in readings.contains { $0.needsProcesses(each) } }
         var seen: Set<Unanswered> = []

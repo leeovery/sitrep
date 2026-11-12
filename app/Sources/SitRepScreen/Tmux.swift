@@ -257,7 +257,7 @@ struct TmuxReading: Reading {
 
     /// tmux, where it gave no answer for the window's socket, or an error other than no server, in its words: not
     /// starting, as when it is missing, is one, so a server outliving its program reads unknown, never off.
-    func unanswered(_ where: Board.Window.Where) -> [Unanswered] {
+    func unanswered(_ where: Board.Window.Where, _: Processes?) -> [Unanswered] {
         switch `where`.tmux.flatMap({ servers[$0.socket] }) {
         case .unanswered?: [.tmux]
         case let .failed(said)?: [.tmuxSaid(said)]

@@ -49,7 +49,7 @@ import {
   type SnoozedRow,
 } from './rows'
 import { compareText } from './text'
-import type { Ask, Parked, Presence, Session, WindowState, Where } from './types'
+import type { Ask, Parked, Session, WindowState, Where } from './types'
 import {
   CURRENT_MS,
   isCurrent,
@@ -61,7 +61,7 @@ import {
   type ProjectSummary,
   type SessionSummary,
 } from './views'
-import { inJumpOrder, lastWindowOf, liveWriters } from './windows'
+import { inJumpOrder, lastWindowOf, type LastWindow } from './windows'
 
 /** A project as read, with every session filed under it. */
 export type ProjectRead = { project: Project; sessions: readonly Session[] }
@@ -76,12 +76,9 @@ export type FeedSession = SessionSummary & {
   asks: Ask[]
   /** What it parked, oldest first. */
   parkedItems: Parked[]
-  /** With no window holding it, the window it was last in (windows.ts); none while one holds it, or where none ever did. */
+  /** With no window holding it, the window it was last in (windows.ts); none while one holds it, where none ever did, or where its conversation would take up another. */
   lastWindow?: LastWindow
 }
-
-/** The window an away session was last in: its writer, the Claude Code session it ran, where it was, and its folder. */
-export type LastWindow = Pick<Presence, 'writer' | 'where' | 'directory'>
 
 export type FeedProject = Omit<ProjectSummary, 'sessions'> & { sessions: FeedSession[] }
 
@@ -126,12 +123,12 @@ const placeOf = (places: Places, id: string | undefined) => places.get(id ?? '')
 const sinceOf = (row: Row | undefined, session: Session) =>
   row === undefined ? session.updatedAt : oldestOf(row)
 
-/** A project's current sessions as the feed holds them, where their rows sit, those with none after, the latest updated first, an away one with its last window, given the writers `live` on the board; and what is parked in it, from every session. */
+/** A project's current sessions as the feed holds them, where their rows sit, those with none after, the latest updated first, an away one with its last window, read against every session on the `board`; and what is parked in it, from every session. */
 const feedProject = (
   { project, sessions }: ProjectRead,
   places: Places,
   now: number,
-  live: ReadonlySet<string>,
+  board: readonly Session[],
 ): FeedProject => {
   const summed = sessions.map(session => ({ session, summary: summarise(session) }))
   const current = summed
@@ -143,7 +140,7 @@ const feedProject = (
       doing: doingOf(project, session, now),
       asks: openAsks(session),
       parkedItems: session.parked,
-      lastWindow: lastWindow(session, now, live),
+      lastWindow: lastWindowOf(session, board, now),
     }))
     .sort(
       (a, b) =>
@@ -160,19 +157,6 @@ const feedProject = (
     directory: project.directory,
     sessions: current,
   }
-}
-
-/** The window a session no window holds was last in, as the feed carries it. */
-const lastWindow = (
-  session: Session,
-  now: number,
-  live: ReadonlySet<string>,
-): LastWindow | undefined => {
-  const last = lastWindowOf(session, now, live)
-
-  return last === undefined
-    ? undefined
-    : { writer: last.writer, where: last.where, directory: last.directory }
 }
 
 /** Each of a session's windows a jump tries, by writer, and its place in the order it tries them. */
@@ -212,10 +196,7 @@ export const feedOf = (read: readonly ProjectRead[], now: number, own?: string):
     ),
   )
   const places = placesOf(rows)
-  const live = liveWriters(
-    read.flatMap(({ sessions }) => sessions),
-    now,
-  )
+  const board = read.flatMap(({ sessions }) => sessions)
   const projectPlace = (project: FeedProject) => placeOf(places, project.sessions[0]?.id)
 
   return {
@@ -227,7 +208,7 @@ export const feedOf = (read: readonly ProjectRead[], now: number, own?: string):
       ),
     ),
     projects: read
-      .map(each => feedProject(each, places, now, live))
+      .map(each => feedProject(each, places, now, board))
       .filter(project => project.sessions.length > 0 || project.parked > 0)
       .sort(
         (a, b) =>

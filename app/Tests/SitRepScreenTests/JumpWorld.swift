@@ -171,10 +171,10 @@ struct Jumping {
     }
 
     /// The opening of a window for `sr-a` typing the line.
-    func opening(_ line: String) -> Opening {
+    func opening(_ line: String, as kind: RecentOpenings.Kind = .attach) -> Opening {
         Opening(
-            session: "sr-a", name: named, line: line, terminal: .ghostty, driver: driver, workspace: workspace,
-            clock: clock, openings: openings
+            session: "sr-a", name: named, line: line, terminal: .ghostty, kind: kind, driver: driver,
+            workspace: workspace, clock: clock, openings: openings
         )
     }
 

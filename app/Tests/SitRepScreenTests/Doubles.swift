@@ -87,11 +87,12 @@ final class FakeTable: ProcessTable {
             return nil
         }
 
-        let arguments = tree.arguments.filter { pid, _ in tree.processes[pid].map(wanted) == true }
+        let wanted = Set(tree.processes.filter { wanted($0.value) }.keys)
+        let arguments = tree.arguments.filter { wanted.contains($0.key) }
 
         asked.withLock { $0.arguments += arguments.keys }
 
-        return Processes(tree.processes, arguments: arguments)
+        return Processes(tree.processes, arguments: arguments, unreadable: wanted.subtracting(arguments.keys))
     }
 }
 
@@ -261,5 +262,11 @@ struct Mac {
     @discardableResult
     mutating func zmxServer(_ session: String, running command: [String] = []) -> pid_t {
         tree.add(under: 1, zmxProgram, arguments: ["zmx", "attach", session] + command)
+    }
+
+    /// A process of zmx's whose command line cannot be read, as one gone as it was read.
+    @discardableResult
+    mutating func zmxUnread() -> pid_t {
+        tree.add(under: 1, zmxProgram)
     }
 }

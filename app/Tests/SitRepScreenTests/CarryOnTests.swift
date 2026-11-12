@@ -86,12 +86,21 @@ struct CarryOnTests {
     @Test(arguments: [
         (inZmx(leeway), FakeTmux(), FakeTable(nil), "the process table gave no answer"),
         (inTmux(), FakeTmux(silent: true), FakeTable(Mac().tree), "tmux gave no answer"),
+        (inZmx(leeway), FakeTmux(), unread(), "a zmx process's command line gave no answer"),
     ])
     func whetherATerminalShowsItUnknownIsRefusedAndNothingOpens(where: Where, tmux: FakeTmux, table: FakeTable, why: String) async {
         let jumping = Jumping(tmux, table, command: Self.portal, resume: Self.resume)
 
         #expect(await jumping.carryOn(from: Self.last(`where`)) == .refused("Could not tell whether \(named) is on screen: \(why)."))
         #expect(jumping.ghostty.told.isEmpty)
+    }
+
+    /// A zmx process whose command line does not read, as one gone as it was read.
+    private static func unread() -> FakeTable {
+        var mac = Mac()
+
+        mac.zmxUnread()
+        return FakeTable(mac.tree)
     }
 
     // MARK: The resume command's refusals
@@ -127,18 +136,45 @@ struct CarryOnTests {
 
     // MARK: One window per click
 
-    @Test func aSecondClickWhileItsResumeOpensOpensNoOtherWindow() async {
+    /// A resumed Claude reaches the board only once it has started, its plugin loaded, taken the session up and beaten,
+    /// which can run past the open command's ten seconds: a resume is remembered until the board shows a window holding
+    /// the session, two minutes at most.
+    @Test func aSecondClickWhileItsResumeOpensOpensNoOtherWindowForTwoMinutes() async {
         let clock = MovingClock()
         let jumping = Jumping(resume: Self.resume, openings: RecentOpenings(now: clock.now))
 
         #expect(await jumping.carryOn(from: Self.last()) == .opened)
-        clock.move(by: .seconds(9))
+        clock.move(by: .seconds(11))
+        #expect(await jumping.carryOn(from: Self.last()) == .opening)
+        clock.move(by: .seconds(108))
         #expect(await jumping.carryOn(from: Self.last()) == .opening)
         #expect(jumping.ghostty.opened == [Self.resumed])
 
-        clock.move(by: .seconds(1))
-        #expect(await jumping.carryOn(from: Self.last()) == .opened, "forgotten after ten seconds")
+        clock.move(by: .seconds(1) + .milliseconds(1))
+        #expect(await jumping.carryOn(from: Self.last()) == .opened, "forgotten after two minutes")
         #expect(jumping.ghostty.opened == [Self.resumed, Self.resumed])
+    }
+
+    /// Its Claude back on the board, the resume is done: once away again, a click carries it on afresh. An open
+    /// command's opening keeps its ten seconds, as the board shows a window holding its session before its client shows.
+    @Test func aResumeIsForgottenOnceTheBoardShowsAWindowHoldingItsSession() async throws {
+        let clock = MovingClock()
+        let openings = RecentOpenings(now: clock.now)
+        let jumping = Jumping(resume: Self.resume, openings: openings)
+        let held = try board([LineWindow(writer: Self.claude, session: "sr-a", order: 0, zmx: Self.leeway)])
+
+        #expect(await jumping.carryOn(from: Self.last()) == .opened)
+        clock.move(by: .seconds(11))
+        openings.heard(try board([LineWindow(writer: "w2", session: "sr-b", order: 0, zmx: "other")]))
+        #expect(await jumping.carryOn(from: Self.last()) == .opening, "another session held tells nothing of this one")
+
+        openings.heard(held)
+        #expect(await jumping.carryOn(from: Self.last()) == .opened)
+        #expect(jumping.ghostty.opened == [Self.resumed, Self.resumed])
+
+        openings.remember("sr-a", as: .attach)
+        openings.heard(held)
+        #expect(openings.isOpening("sr-a"))
     }
 
     // MARK: From the board

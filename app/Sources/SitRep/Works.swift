@@ -8,6 +8,7 @@ import SitRepScreen
 @MainActor
 final class Works {
     private let board: JumpBoard
+    private let openings: RecentOpenings
     private let clicks: Clicks
 
     /// Every jump's news, once a jump, whichever surface asked for it, after each click's own `answered`: the edge's
@@ -22,6 +23,7 @@ final class Works {
         let openings = RecentOpenings()
 
         self.board = board
+        self.openings = openings
         clicks = Clicks(jump: { session in
             let opening = opening()
 
@@ -37,9 +39,10 @@ final class Works {
         clicks.heard = { [weak self] news in self?.heard(news) }
     }
 
-    /// Each look of the watch, the board a jump goes from.
+    /// Each look of the watch, the board a jump goes from, and which tells a session resumed back.
     func show(_ last: LastBoard) {
         board.heard(last)
+        last.board.map(openings.heard)
     }
 
     /// No plugin to run the watch, so no board to jump from, for the reason given.

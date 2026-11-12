@@ -3258,12 +3258,15 @@ truth. There is still no background service. None of it is built now. Lee:
       its `where`, as a window's; and its `directory`, the folder its
       Claude ran in, null from a window on a build from before heartbeats
       said it. Null for a session a live window holds, for one no window
-      ever held, and for one whose last window's conversation runs on, its
-      writer live on another session, as a window that let go of it for
-      another does: away is its Claude ended, or the Mac restarted under it,
-      and a resume beside the Claude still running it would be a second.
-      Time the Mac slept ages no heartbeat (core's `pauses.ts`), so a wake
-      reads no live session as away. A field of the session, as SitRep reads a session's
+      ever held, and for one whose last window's conversation would take up
+      another session as it resumed: its writer's latest heartbeat, across
+      the whole board, is on another session (core's `rejoinable`, which a
+      resumed conversation takes up by), as a window that let go of it for
+      another's is, live there or ended. Its `where` is null where a live
+      window, of any session, is in the same multiplexer session, the same
+      zmx session or the same tmux server's pane: another Claude holds it
+      now. Time the Mac slept ages no heartbeat (core's `pauses.ts`), so a
+      wake reads no live session as away. A field of the session, as SitRep reads a session's
       windows already by the session, not a list of its own: away windows
       are no live windows, and `windows` stays every live one. A field
       added: `v` did not move. SitRep reads it as it reads the projects'
@@ -7735,7 +7738,14 @@ open), and tmux passing an escape sequence through from Claude's own pane
      running the resume, which his hook then registers as any other; with
      no Portal, `cd {dir} && claude --resume {claude}`.
    - **What SitRep reads**: the session's latest window, by its heartbeat
-     last seen, gives every fact. The heartbeat starts saying its folder:
+     last seen, gives every fact. Only where its conversation would come
+     back to this session: a click on a session runs the conversation that
+     takes that session up again (`rejoinable`), so a session whose last
+     window moved on to another, live there or not, has nothing to carry on
+     from, and its click is refused in plain words. And where a live window
+     is in its last window's multiplexer session, after a `/clear` or a new
+     Claude started there, that session is another's now: the click resumes
+     the last window's conversation, never jumps to or attaches the other. The heartbeat starts saying its folder:
      the Claude process's own, which entering a worktree moves and a
      shell's `cd` does not (Lee's hook anchors the same way, for the same
      reason). A window on an older build says none, so a command naming
@@ -7747,7 +7757,15 @@ open), and tmux passing an escape sequence through from Claude's own pane
      says to set one in Settings ("No window holds <name>. To carry it on,
      set a resume command in Settings."); a terminal not running, as an
      opening's does; whether a terminal shows it unknown, as a jump's does,
-     and nothing opens.
+     and nothing opens, a zmx process whose command line does not read
+     among the unknowns, as it may be the session's.
+   - **One window per click**, for a resume as for an opening: a resumed
+     Claude reaches the board only once its terminal session is made,
+     Claude started, the plugin loaded, the session taken up and a beat
+     written, which can run past an opening's 10 seconds. So a resume is
+     remembered until the board shows a window holding the session, 2
+     minutes at most; the open command keeps its 10 seconds, as its client
+     makes the next click a jump.
    - **One limit**: a multiplexer session alive with a bare shell in it, as
      after Lee exited Claude himself and kept the session, is attached as
      any other: SitRep cannot tell a resume panel from a shell, and Lee
@@ -7768,13 +7786,20 @@ open), and tmux passing an escape sequence through from Claude's own pane
        window attaches and at each beat, so a worktree entered shows within
        30 seconds (see "Storage").
      - **The feed** carries each away session's `lastWindow` (see "One
-       engine, two front ends"), and SitRep's `Board` reads it. None where
-       the last window's writer is live on another session, its
-       conversation running on there (found in review, 12 November 2026):
-       a window in no multiplexer that let go of the session for another
-       would else have its conversation resumed beside it, and one in a
-       multiplexer jumped to, showing the other session. Such a session
-       is refused as any no window holds is ("<name> is not on screen").
+       engine, two front ends"), and SitRep's `Board` reads it. Only on the
+       session its writer's conversation takes up as it resumes, the one
+       its latest heartbeat on the whole board is in, by `rejoinable`
+       itself, never a copy of its rule (found in review, 12 November
+       2026): a window that held A, then joined B, then ended left both
+       naming it, so a click on A resumed it, and the resumed Claude took
+       up B; with B finished, nothing took it up, and each click started
+       another. Such a session is refused as any no window holds is
+       ("<name> is not on screen"). A first fix that day gave none only
+       while that writer was live elsewhere; this rule holds it too. And
+       its `where` is left out where a live window is in the same zmx
+       session, or the same tmux server's pane (found in the same review),
+       so the click resumes the conversation there, a conversation of its
+       own, beside the other Claude, never one showing the other session.
      - **The click** (`Jump.carryOn`): where the board names a last window,
        the session is away, and what is left of the window is read then.
        A window in a multiplexer is read as a jump reads it: on screen,
@@ -7797,7 +7822,13 @@ open), and tmux passing an escape sequence through from Claude's own pane
        only `zmx attach <session>` alone, as step A has it. So the table
        now reads the command line of every process whose program is named
        `zmx`, servers too, where step A read only those on a tty; a live
-       window's session is told the same way. zmx is still never run.
+       window's session is told the same way. zmx is still never run. A
+       zmx process whose command line does not read (`KERN_PROCARGS2`
+       failing, as for one gone as it is read) is told apart from one with
+       none: where nothing shows the session, it is unknown ("a zmx
+       process's command line gave no answer"), never gone, so the click is
+       refused, never resumed beside a Claude Portal may yet bring back
+       (found in review, 12 November 2026).
      - **One command reader for both** (`TypedCommand`): the open command
        and the resume command are read, checked and filled by the same
        rules, each knowing its own placeholders, so `{session}` in the
@@ -7807,9 +7838,13 @@ open), and tmux passing an escape sequence through from Claude's own pane
        say which folder it ran in, as a window on an older sitrep does not,
        so SitRep has nothing to put for {dir}."
      - **The resume opens as an opening does** (`Opening`), under its own
-       20 seconds, remembered among the openings, so a second click within
-       10 seconds opens no second window; its captions and banners are an
-       opening's.
+       20 seconds, remembered among the openings, so a second click opens
+       no second window; its captions and banners are an opening's.
+       Remembered until a watch line shows a window holding its session,
+       which forgets it (`RecentOpenings.heard`, from each line `Works`
+       hears), 2 minutes at most, where an opening's is 10 seconds (found
+       in review, 12 November 2026: a resume can take longer than 10
+       seconds to reach the board).
      - **Every surface clicks an away row**: the card's row and its menu's
        Jump, the strip's mark, its tab and a count's row, the menu bar
        menu's row and a notification's click, each lifting under the

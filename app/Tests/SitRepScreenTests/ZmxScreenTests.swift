@@ -165,6 +165,22 @@ struct ZmxScreenTests {
         #expect(tmux.runs.count == 2, "a window in zmx never asks tmux")
     }
 
+    /// A zmx process whose command line does not read may be the session's server or a client: whether it runs, and
+    /// where it shows, is unknown, never off; a client found still shows it, and a window in tmux asks nothing of zmx's.
+    @Test func aZmxProcessWhoseCommandLineDoesNotReadLeavesASessionInZmxUnknownNeverOff() async {
+        var mac = Mac()
+
+        mac.zmxUnread()
+        mac.throughPortal(Self.portals, relay: "/dev/ttys032", window: "/dev/ttys036")
+
+        let windows = [inZmx(Self.leeway), inZmx(Self.portals), inTmux("%1")]
+        let screen = await read(windows, FakeTmux(), FakeTable(mac.tree))
+
+        #expect(screen.reach(of: [windows[0]]) == .unknown([.commandLine(.zmx)]))
+        #expect(screen.reach(of: [windows[1]]).app == ghostty)
+        #expect(!screen.unanswered(for: [windows[2]]).contains(.commandLine(.zmx)))
+    }
+
     @Test func aSessionInZmxIsUnknownNeverOffWhenTheTableGivesNoAnswerAsOnlyTheTableTellsItsClients() async {
         let screen = await read([inZmx(Self.portals)], FakeTmux(), FakeTable(nil))
 

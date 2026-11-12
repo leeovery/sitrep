@@ -138,7 +138,7 @@ public struct Jump: Sendable {
                 return reached
             }
 
-            return try await openable(for: session, named: name) {
+            return try await openable(for: session, named: name, as: .resume) {
                 try await ResumeCommand(opening.resumeCommand).line(from: last, named: name)
             }
         }
@@ -181,16 +181,16 @@ public struct Jump: Sendable {
             return .answered(Jumped.offScreen.answer(named: name))
         }
 
-        return try await openable(for: session, named: name) {
+        return try await openable(for: session, named: name, as: .attach) {
             try await OpenCommand(opening.command).line(for: attachable.where, in: multiplexer, named: name)
         }
     }
 
-    /// The window to open for the session, typing the line `line` makes: none where one was asked for it a moment ago,
-    /// which is opening; and none where the line is not fit to type, refused in plain words.
-    private func openable(for session: String, named name: String, line: () async throws -> String) async throws
-        -> JumpOutcome
-    {
+    /// The window to open for the session, typing the line of the kind `line` makes: none where one was asked for it a
+    /// moment ago, which is opening; and none where the line is not fit to type, refused in plain words.
+    private func openable(
+        for session: String, named name: String, as kind: RecentOpenings.Kind, line: () async throws -> String
+    ) async throws -> JumpOutcome {
         guard !openings.isOpening(session) else {
             return .answered(.opening)
         }
@@ -203,7 +203,7 @@ public struct Jump: Sendable {
 
             try Task.checkCancellation()
             return .openable(Opening(
-                session: session, name: name, line: line, terminal: opening.terminal, driver: driver,
+                session: session, name: name, line: line, terminal: opening.terminal, kind: kind, driver: driver,
                 workspace: workspace, clock: clock, openings: openings
             ))
         } catch {
@@ -426,6 +426,7 @@ extension Unanswered {
         switch self {
         case .tmux: "tmux"
         case .processes: "the process table"
+        case let .commandLine(kind): "a \(kind.rawValue) process's command line"
         case .tmuxSaid: nil
         }
     }

@@ -34,8 +34,8 @@ public protocol Reading: Sendable {
     /// The places showing a window in it, or that a select would make show it, its clients seated by the table; none
     /// for a window not in it.
     func places(_ where: Board.Window.Where, _ processes: Processes) -> [Place]
-    /// What it asked that gave no answer, for the window.
-    func unanswered(_ where: Board.Window.Where) -> [Unanswered]
+    /// What it asked that gave no answer, for the window, the table read beside, nil where it gave no answer.
+    func unanswered(_ where: Board.Window.Where, _ processes: Processes?) -> [Unanswered]
     /// Whether the window's clients are told only by the process table: whether the table giving no answer leaves
     /// where the window shows unknown.
     func needsProcesses(_ where: Board.Window.Where) -> Bool
@@ -77,6 +77,9 @@ public enum Unanswered: Sendable, Hashable {
     case tmuxSaid(String)
     /// The kernel's process table, which only `sysctl` failing outright leaves unread.
     case processes
+    /// The command line of a process the multiplexer tells its sessions by, which could not be read: it may be the
+    /// session's, so whether the session runs, and where it shows, cannot be told.
+    case commandLine(MultiplexerKind)
 }
 
 /// A select: the tmux window to make current in a tmux session, by their ids, on the server at the socket.

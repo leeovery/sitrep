@@ -261,7 +261,7 @@ struct OpenWindowTests {
 
     // MARK: A second click
 
-    /// The window's shell takes a moment to start and attach: a click on the session within `RecentOpenings.lasts`
+    /// The window's shell takes a moment to start and attach: a click on the session within an opening's 10 seconds
     /// answers that its window is opening, and never opens another, nor asks tmux or Ghostty anything for one.
     @Test func aSecondClickWhileItsWindowOpensOpensNoOtherWindow() async throws {
         let line = try board([LineWindow(writer: "w1", session: "sr-a", order: 0, zmx: Self.leeway)])
