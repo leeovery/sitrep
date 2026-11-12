@@ -58,8 +58,8 @@ public struct TmuxAdapter: Multiplexer {
         return TmuxReading(servers: servers)
     }
 
-    /// A server's panes and clients. tmux answers with an error, exiting non-zero, when no server runs on the
-    /// socket: an answer, of no server.
+    /// A server's panes and clients. tmux exiting non-zero answers no server only where its words say none runs on
+    /// the socket; any other error, a server it could not talk to, leaves the server unknown, in tmux's words.
     func readServer(_ socket: String) async -> ServerRead {
         async let panes = try? tmux.run(on: socket, Self.panes)
         async let clients = try? tmux.run(on: socket, Self.clients)
@@ -68,11 +68,21 @@ public struct TmuxAdapter: Multiplexer {
             return .unanswered
         }
 
-        guard panes.status == 0, clients.status == 0 else {
-            return .noServer
+        guard let failed = [panes, clients].first(where: { $0.status != 0 }) else {
+            return .server(TmuxServer(panes: parsePanes(panes.stdout), clients: parseClients(clients.stdout)))
         }
 
-        return .server(TmuxServer(panes: parsePanes(panes.stdout), clients: parseClients(clients.stdout)))
+        let said = failed.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        return Self.saysNoServer(said) ? .noServer : .failed(said: said)
+    }
+
+    /// Whether tmux's error says no server runs on the socket, as its client words a failed connect (client.c): a
+    /// socket refusing, a stale file nothing listens on, is `no server running on`; no socket file at all, `error
+    /// connecting to` with `(No such file or directory)`.
+    static func saysNoServer(_ said: String) -> Bool {
+        said.hasPrefix("no server running on ")
+            || said.hasPrefix("error connecting to ") && said.hasSuffix(" (No such file or directory)")
     }
 
     /// The socket and the pane, from the heartbeat; and, only where wanted, the name of the tmux session holding the
@@ -124,10 +134,12 @@ struct TmuxFailure: Error, Equatable, CustomStringConvertible {
     let description: String
 }
 
-/// What tmux said of a server: its panes and clients, that none runs on the socket, or nothing in time.
+/// What tmux said of a server: its panes and clients, that none runs on the socket, any other error in its words, or
+/// nothing in time.
 enum ServerRead: Sendable, Equatable {
     case server(TmuxServer)
     case noServer
+    case failed(said: String)
     case unanswered
 }
 
@@ -240,10 +252,14 @@ struct TmuxReading: Reading {
         }
     }
 
-    /// tmux, where it gave no answer for the window's socket: not starting, as when it is missing, is one, so a
-    /// server outliving its program reads unknown, never off.
+    /// tmux, where it gave no answer for the window's socket, or an error other than no server, in its words: not
+    /// starting, as when it is missing, is one, so a server outliving its program reads unknown, never off.
     func unanswered(_ where: Board.Window.Where) -> [Unanswered] {
-        `where`.tmux.flatMap { servers[$0.socket] } == .unanswered ? [.tmux] : []
+        switch `where`.tmux.flatMap({ servers[$0.socket] }) {
+        case .unanswered?: [.tmux]
+        case let .failed(said)?: [.tmuxSaid(said)]
+        default: []
+        }
     }
 
     /// A server with clients needs the table to tell which apps they are in.

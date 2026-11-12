@@ -71,8 +71,10 @@ public enum Fact: String, Sendable, Hashable, CaseIterable {
 }
 
 /// What gave no answer, so that showing nowhere may mean only not knowing.
-public enum Unanswered: String, Sendable, Hashable {
+public enum Unanswered: Sendable, Hashable {
     case tmux
+    /// tmux answering with an error other than no server, in its words: a server it could not talk to.
+    case tmuxSaid(String)
     /// The kernel's process table, which only `sysctl` failing outright leaves unread.
     case processes
 }
