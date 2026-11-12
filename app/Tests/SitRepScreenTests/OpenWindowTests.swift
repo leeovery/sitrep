@@ -143,6 +143,11 @@ struct OpenWindowTests {
                 FakeTmux(failing: [socket: "protocol version mismatch (client 8, server 7)"]), FakeTable(Mac().tree),
                 .refused("Could not tell whether \(named) is on screen: tmux said \"protocol version mismatch (client 8, server 7)\"."),
             ),
+            (
+                "tmux failing on one window's socket, though zmx holds another of its windows with no client", [inTmux(on: otherSocket), inZmx(leeway)],
+                FakeTmux(failing: [otherSocket: "protocol version mismatch (client 8, server 7)"]), Self.detachedZmx(),
+                .refused("Could not tell whether \(named) is on screen: tmux said \"protocol version mismatch (client 8, server 7)\"."),
+            ),
         ]
     }
 

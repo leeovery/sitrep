@@ -129,13 +129,16 @@ struct TmuxTests {
 
     @Test func eitherListFailingFailsTheServerThoughTheOtherAnswered() async throws {
         let folder = try Self.folderHolding("tmux")
-        let tmux = TmuxOnPath(path: folder.path) { program in
-            program.arguments.contains("list-clients")
-                ? Ran(status: 1, stdout: "", stderr: "lost server\n")
-                : Ran(status: 0, stdout: "%1\t@1\t$1\t/dev/ttys000\n", stderr: "")
-        }
 
-        #expect(await TmuxAdapter(tmux).readServer(Self.socket) == .failed(said: "lost server"))
+        for failing in ["list-panes", "list-clients"] {
+            let tmux = TmuxOnPath(path: folder.path) { program in
+                program.arguments.contains(failing)
+                    ? Ran(status: 1, stdout: "", stderr: "lost server\n")
+                    : Ran(status: 0, stdout: "%1\t@1\t$1\t/dev/ttys000\n", stderr: "")
+            }
+
+            #expect(await TmuxAdapter(tmux).readServer(Self.socket) == .failed(said: "lost server"), "\(failing)")
+        }
     }
 
     @Test func aServerTmuxFailedOnMakesItsWindowsUnknownInItsWordsNeverOffScreen() {
