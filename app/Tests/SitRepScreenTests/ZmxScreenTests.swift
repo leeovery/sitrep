@@ -107,6 +107,34 @@ struct ZmxScreenTests {
         #expect(!ZmxReading.attaches(arguments, to: "kit"))
     }
 
+    /// A session is named by any of zmx's forms, so its server or any client of it tells it alive (stage 8).
+    @Test(arguments: [
+        ["zmx", "attach", "kit"], ["/opt/homebrew/bin/zmx", "attach", "kit", "/opt/homebrew/bin/portal", "state", "hydrate"],
+        ["zmx", "a", "kit"], ["zmx", "attach", "--labels", "k=v", "kit"], ["zmx", "a", "--labels=k=v", "kit", "/bin/zsh"],
+        ["zmx", "attach", "--labels", "k=v", "--labels=x=y", "kit"], ["zmx", "run", "kit"], ["zmx", "r", "kit", "-d", "make"],
+    ])
+    func eachOfZmxsFormsNamesItsSession(arguments: [String]) {
+        #expect(ZmxReading.sessionNamed(by: arguments) == "kit")
+    }
+
+    @Test(arguments: [
+        ["zmx", "list"], ["zmx", "kill", "kit"], ["zmx", "attach"], ["zmx", "attach", "--labels", "k=v"], ["zmx"],
+        ["notzmx", "attach", "kit"], [],
+    ])
+    func anyOtherCommandLineNamesNoSession(arguments: [String]) {
+        #expect(ZmxReading.sessionNamed(by: arguments) == nil)
+    }
+
+    /// Held by a process naming it in any form, a client attached by `a` or with labels too, though only `zmx attach
+    /// <session>` alone is a client a jump reaches.
+    @Test func aSessionIsHeldByAProcessNamingItInAnyForm() {
+        let processes = Processes([:], arguments: [7: ["zmx", "a", "--labels=k=v", "kit"], 9: ["zmx", "run", "ledger", "-d"]])
+
+        #expect(ZmxReading().holds(inZmx("kit"), processes))
+        #expect(ZmxReading().holds(inZmx("ledger"), processes))
+        #expect(!ZmxReading().holds(inZmx("kit · restore-card"), processes))
+    }
+
     @Test func aZmxClientCountsOnlyOnATtyOfItsOwnOneOverPipesIsNoPlaceThoughItsAppNeedsNoDevice() async {
         var mac = Mac()
 

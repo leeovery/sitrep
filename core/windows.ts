@@ -60,9 +60,30 @@ export const windowsOf = (session: Session, now: number): Where[] =>
  * The window a session no window holds at `now` was last in: its latest
  * heartbeat, by when it was last seen, which a `/clear` moves on to the
  * conversation after it. None while a live window holds it, nor for one no
- * window ever held.
+ * window ever held; nor where that conversation runs on, its writer live on
+ * another session (`live`, every writer live on the board), as a window
+ * that let go of it for another does: it is carried on only where its
+ * Claude ended, or the Mac restarted under it, never beside the Claude
+ * still running it.
  */
-export const lastWindowOf = (session: Session, now: number): Presence | undefined =>
-  session.presence.some(each => isLive(each, now))
-    ? undefined
-    : [...session.presence].sort((a, b) => b.seenAt - a.seenAt).at(0)
+export const lastWindowOf = (
+  session: Session,
+  now: number,
+  live: ReadonlySet<string>,
+): Presence | undefined => {
+  if (session.presence.some(each => isLive(each, now))) {
+    return undefined
+  }
+
+  const last = [...session.presence].sort((a, b) => b.seenAt - a.seenAt).at(0)
+
+  return last === undefined || live.has(last.writer) ? undefined : last
+}
+
+/** Every writer a live window on the board is, on whichever session. */
+export const liveWriters = (sessions: readonly Session[], now: number): ReadonlySet<string> =>
+  new Set(
+    sessions.flatMap(session =>
+      session.presence.filter(each => isLive(each, now)).map(each => each.writer),
+    ),
+  )

@@ -61,7 +61,7 @@ import {
   type ProjectSummary,
   type SessionSummary,
 } from './views'
-import { inJumpOrder, lastWindowOf } from './windows'
+import { inJumpOrder, lastWindowOf, liveWriters } from './windows'
 
 /** A project as read, with every session filed under it. */
 export type ProjectRead = { project: Project; sessions: readonly Session[] }
@@ -126,11 +126,12 @@ const placeOf = (places: Places, id: string | undefined) => places.get(id ?? '')
 const sinceOf = (row: Row | undefined, session: Session) =>
   row === undefined ? session.updatedAt : oldestOf(row)
 
-/** A project's current sessions as the feed holds them, where their rows sit, those with none after, the latest updated first; and what is parked in it, from every session. */
+/** A project's current sessions as the feed holds them, where their rows sit, those with none after, the latest updated first, an away one with its last window, given the writers `live` on the board; and what is parked in it, from every session. */
 const feedProject = (
   { project, sessions }: ProjectRead,
   places: Places,
   now: number,
+  live: ReadonlySet<string>,
 ): FeedProject => {
   const summed = sessions.map(session => ({ session, summary: summarise(session) }))
   const current = summed
@@ -142,7 +143,7 @@ const feedProject = (
       doing: doingOf(project, session, now),
       asks: openAsks(session),
       parkedItems: session.parked,
-      lastWindow: lastWindow(session, now),
+      lastWindow: lastWindow(session, now, live),
     }))
     .sort(
       (a, b) =>
@@ -162,8 +163,12 @@ const feedProject = (
 }
 
 /** The window a session no window holds was last in, as the feed carries it. */
-const lastWindow = (session: Session, now: number): LastWindow | undefined => {
-  const last = lastWindowOf(session, now)
+const lastWindow = (
+  session: Session,
+  now: number,
+  live: ReadonlySet<string>,
+): LastWindow | undefined => {
+  const last = lastWindowOf(session, now, live)
 
   return last === undefined
     ? undefined
@@ -207,6 +212,10 @@ export const feedOf = (read: readonly ProjectRead[], now: number, own?: string):
     ),
   )
   const places = placesOf(rows)
+  const live = liveWriters(
+    read.flatMap(({ sessions }) => sessions),
+    now,
+  )
   const projectPlace = (project: FeedProject) => placeOf(places, project.sessions[0]?.id)
 
   return {
@@ -218,7 +227,7 @@ export const feedOf = (read: readonly ProjectRead[], now: number, own?: string):
       ),
     ),
     projects: read
-      .map(each => feedProject(each, places, now))
+      .map(each => feedProject(each, places, now, live))
       .filter(project => project.sessions.length > 0 || project.parked > 0)
       .sort(
         (a, b) =>

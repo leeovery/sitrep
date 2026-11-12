@@ -98,8 +98,11 @@ private struct GeneralPane: View {
 struct CommandRow: View {
     static let openLabel = "Open command"
     static let resumeLabel = "Resume command"
-    static let caption = "Clicking a session that isn't showing in a terminal opens a new window and runs this "
-        + "command. {session}, {socket} and {pane} are replaced with quoted values."
+    /// What each command is for, and its placeholders.
+    static let caption = "Clicking a session that isn't showing in a terminal opens a new window. The open command "
+        + "attaches to a session still running, with {session}, {socket} and {pane}. The resume command starts Claude "
+        + "again where nothing is left, with {claude}, its session id, and {dir}, the folder it ran in. Each is "
+        + "replaced with a quoted value."
     /// The field's width where the column has room.
     static let fieldWidth: CGFloat = 360
     /// The command's face: monospaced, at the label's size.

@@ -3257,8 +3257,13 @@ truth. There is still no background service. None of it is built now. Lee:
       session on, and no more: the `writer`, the Claude Code session it ran;
       its `where`, as a window's; and its `directory`, the folder its
       Claude ran in, null from a window on a build from before heartbeats
-      said it. Null for a session a live window holds, and for one no
-      window ever held. A field of the session, as SitRep reads a session's
+      said it. Null for a session a live window holds, for one no window
+      ever held, and for one whose last window's conversation runs on, its
+      writer live on another session, as a window that let go of it for
+      another does: away is its Claude ended, or the Mac restarted under it,
+      and a resume beside the Claude still running it would be a second.
+      Time the Mac slept ages no heartbeat (core's `pauses.ts`), so a wake
+      reads no live session as away. A field of the session, as SitRep reads a session's
       windows already by the session, not a list of its own: away windows
       are no live windows, and `windows` stays every live one. A field
       added: `v` did not move. SitRep reads it as it reads the projects'
@@ -5340,13 +5345,18 @@ live changed, and how they group.
   least width, so the row keeps its 38. Under the card, "Clicking a session
   that isn't showing in a terminal opens a new window and runs this
   command. {session}, {socket} and {pane} are replaced with quoted
-  values." Saved under "app" as `terminal` (its `$TERM_PROGRAM`,
+  values." (until 12 November 2026; see below). Saved under "app" as `terminal` (its `$TERM_PROGRAM`,
   `ghostty`) and `openCommand`, the command saved as it is typed; nothing
   is said of it until a click. Under it, since stage 8 (12 November 2026),
   Resume command, the same literal field, empty until Lee gives one, saved
   as `resumeCommand`: what a window opened for an away session runs where
-  nothing is left of its last window. The caption under the card is as it
-  was, saying nothing of `{claude}` and `{dir}`. Not yet drawn in Paper. No row carries an
+  nothing is left of its last window. The caption under the card says
+  what each is for, in three lines at the drawings' width: "Clicking a
+  session that isn't showing in a terminal opens a new window. The open
+  command attaches to a session still running, with {session}, {socket}
+  and {pane}. The resume command starts Claude again where nothing is
+  left, with {claude}, its session id, and {dir}, the folder it ran in.
+  Each is replaced with a quoted value." Not yet drawn in Paper. No row carries an
   icon. Update automatically and Check Now join General with the first
   public release.
 - **Claude Code**, the plugin's pane. **Plugin:** the Claude Code plugin,
@@ -7758,7 +7768,13 @@ open), and tmux passing an escape sequence through from Claude's own pane
        window attaches and at each beat, so a worktree entered shows within
        30 seconds (see "Storage").
      - **The feed** carries each away session's `lastWindow` (see "One
-       engine, two front ends"), and SitRep's `Board` reads it.
+       engine, two front ends"), and SitRep's `Board` reads it. None where
+       the last window's writer is live on another session, its
+       conversation running on there (found in review, 12 November 2026):
+       a window in no multiplexer that let go of the session for another
+       would else have its conversation resumed beside it, and one in a
+       multiplexer jumped to, showing the other session. Such a session
+       is refused as any no window holds is ("<name> is not on screen").
      - **The click** (`Jump.carryOn`): where the board names a last window,
        the session is away, and what is left of the window is read then.
        A window in a multiplexer is read as a jump reads it: on screen,
@@ -7770,11 +7786,18 @@ open), and tmux passing an escape sequence through from Claude's own pane
        window of is jumped to as ever.
      - **A zmx session alive is told by the process table**, as a live
        window can no longer prove it: a process of zmx's whose command line
-       attaches to the session, its server (`zmx attach <session>` on no
-       tty, under launchd, with any command after) or a client. So the
-       table now reads the command line of every process whose program is
-       named `zmx`, servers too, where step A read only those on a tty; a
-       live window's session is told the same way. zmx is still never run.
+       names the session, its server (`zmx attach <session>` on no tty,
+       under launchd, with any command after) or a client. A command line
+       is read by zmx's own forms (`zmx help`): `[a]ttach [--labels kv]
+       <name> [command...]` and `[r]un <name> [-d] [command...]`, the name
+       the first argument after the subcommand and any `--labels`, with its
+       value or as `--labels=…`; any other subcommand names none (found in
+       review, 12 November 2026; every server on this Mac is `zmx attach
+       <name> …portal state hydrate`). A client a jump reaches is still
+       only `zmx attach <session>` alone, as step A has it. So the table
+       now reads the command line of every process whose program is named
+       `zmx`, servers too, where step A read only those on a tty; a live
+       window's session is told the same way. zmx is still never run.
      - **One command reader for both** (`TypedCommand`): the open command
        and the resume command are read, checked and filled by the same
        rules, each knowing its own placeholders, so `{session}` in the

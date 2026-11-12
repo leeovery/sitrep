@@ -1,9 +1,11 @@
 import { expect, test, tier } from 'claude-code/testing'
 import {
+  attach,
   HEARTBEAT_MS,
   metaText,
   parseEntries,
   parsePresence,
+  presenceText,
   sessionPaths,
   type SessionPaths,
 } from '../core'
@@ -262,6 +264,36 @@ test("a folder that does not read leaves the heartbeat's last, says so in the de
 
   expect(beat()?.seenAt).toBe(w.clock.now())
   expect(beat()?.directory).toBe(REPO)
+  expect(w.logs).toEqual([expect.stringContaining("sitrep: reading the window's folder failed")])
+})
+
+test("a reload's attach whose folder does not read keeps the folder the window's heartbeat said", async ($, on) => {
+  const w = world($, on, { now: T0 + 60_000 })
+  const paths = sessionPaths(ROOT, PROJECT.key, META.id)
+  const worktree = `${REPO}/.claude/worktrees/lobby`
+  let isReloaded = false
+
+  on('state.get', { plugin: 'sitrep', key: 'attachment' }, ($, e, next) => {
+    if (isReloaded) {
+      return next(e)
+    }
+
+    isReloaded = true
+
+    return {
+      value: {
+        value: { project: PROJECT.key, session: META.id, writer: W1, attachedAt: T0 },
+        version: 1,
+      },
+    }
+  })
+
+  w.put(paths.meta, metaText(META))
+  w.put(paths.heartbeat(W1), presenceText(attach(W1, T0, { directory: worktree })))
+  w.become({ root: null })
+  await $.session.start(CONVERSATION)
+
+  expect(parsePresence(w.text(paths.heartbeat(W1)), W1)?.directory).toBe(worktree)
   expect(w.logs).toEqual([expect.stringContaining("sitrep: reading the window's folder failed")])
 })
 

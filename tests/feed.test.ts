@@ -874,6 +874,20 @@ test('a session a live window holds carries no last window, though another windo
   expect(lastWindowIn(sessionOf({ lines: [[T0, yesAsk('k1', 'Review round 1')]] }))).toBeUndefined()
 })
 
+test('a session whose last window let go of it for another, its conversation live there, carries no last window, as its Claude runs on; once that window is gone too, it carries it', () => {
+  const left = sessionOf({
+    lines: [[T0, yesAsk('k1', 'Review round 1')]],
+    presence: windowOn(W1, yourTurn(T0), { seenAt: T0 + 50 * MIN, leftAt: T0 + 50 * MIN }),
+  })
+  const taken = sessionOf({ meta: { id: 'sr-bbbbbb', name: 'Lobby' }, presence: windowOn(W1) })
+  const read = [{ project: SWITCHBOARD, sessions: [left, taken] }]
+  const lastOf = (now: number) =>
+    feedOf(read, now).projects[0]?.sessions.find(each => each.id === META.id)?.lastWindow
+
+  expect(lastOf(NOW)).toBeUndefined()
+  expect(lastOf(NOW + STALE_MS + 1)).toEqual({ writer: W1, where: undefined, directory: undefined })
+})
+
 test("a Needs you row's time is its newest line's, while its session's state still counts from its oldest, as its first line came", () => {
   const feed = feedOf(
     [

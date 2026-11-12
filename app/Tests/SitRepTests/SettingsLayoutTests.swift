@@ -162,12 +162,12 @@ struct SettingsLayoutTests {
     /// Down the column, each pane is black but for its cards and the desktop corner, and the words of a caption under a
     /// card, its first 13 under the toolbar: a section's header's line of 16 and 10 over its card, the sections 26
     /// apart. General's first two cards a row of 52 each, then New windows' three rows of 38, its caption's words in the
-    /// 8 and two lines of 14 under it; Edge's the Show row's 86, then Notch's four, 52, 38, 52 and 52, then Motion's
+    /// 8 and three lines of 14 under it; Edge's the Show row's 86, then Notch's four, 52, 38, 52 and 52, then Motion's
     /// 52; Notifications' corner of 150 and the caption's row of 32, then Banners' two rows of 52 and Sound's 52 and
     /// 38. What is shorter than a row is a caption's words, and lies in its lines. Within a pixel at the screen's
     /// scale, which lays the pane out.
     @Test(arguments: [
-        (SettingsPane.general, [39 ... 91, 143 ... 195, 247 ... 362], [362 ... 400]),
+        (SettingsPane.general, [39 ... 91, 143 ... 195, 247 ... 362], [362 ... 414]),
         (.edge, [13 ... 99, 151 ... 346.5, 398.5 ... 450.5], []),
         (.notifications, [13 ... 163, 247 ... 351.5, 403.5 ... 494], [163 ... 195]),
     ] as [(SettingsPane, [ClosedRange<CGFloat>], [ClosedRange<CGFloat>])])

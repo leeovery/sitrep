@@ -270,6 +270,13 @@ const directoryNow = (host: Host) =>
     return undefined
   })
 
+/** The folder the heartbeat at `path` last said, as a reload's attach keeps it should its own read fail; none with none there. */
+const saidDirectory = (host: Host, path: string, writer: string) =>
+  host.fs.read(path).then(
+    text => parsePresence(text, writer)?.directory,
+    () => undefined,
+  )
+
 /** Whether a heartbeat already says this of the window's doing. */
 const isSaid = (presence: Presence, doing: Pick<Presence, 'state' | 'sending'>) =>
   JSON.stringify([presence.state, presence.sending]) ===
@@ -407,16 +414,17 @@ export const dropPickUpsElsewhere = async (host: Host) => {
 /**
  * Holds the session `attaching` names, letting go of any other first: reads
  * the window's own file back, works out where the window is, writes its
- * heartbeat, saying its folder, the version it runs and what it is doing as
- * it stands, starts the beat and the watch, and folds the session. A pick-up
- * of another project's item leaves Ready to send.
+ * heartbeat, saying its folder (the one its heartbeat there said, where the
+ * folder does not read), the version it runs and what it is doing as it
+ * stands, starts the beat and the watch, and folds the session. A pick-up of
+ * another project's item leaves Ready to send.
  */
 export const attachTo = async (host: Host, root: string, attaching: SitrepAttachment) => {
   const { project, session, writer, attachedAt } = attaching
   const paths = sessionPaths(root, project, session)
   const [where, directory, version, doing, loadedAt] = await Promise.all([
     whereNow(host),
-    directoryNow(host),
+    directoryNow(host).then(read => read ?? saidDirectory(host, paths.heartbeat(writer), writer)),
     versionNow(host),
     doingNow(host, attaching),
     loadedNow(host),
