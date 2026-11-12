@@ -83,20 +83,39 @@ public struct Board: Versioned, Sendable, Equatable {
     }
 
     /// The window an away session was last in, by its heartbeat last seen: its writer, the Claude Code session it ran,
-    /// which a `/clear` moves on; where it was, none where a click could no longer find its conversation there; the
-    /// device its Claude ran on, while no later conversation was seen on it; and the folder its Claude ran in, none from
-    /// a window on a sitrep from before heartbeats said it.
+    /// which a `/clear` moves on; where it was, as its heartbeat said, its device among it; whether a click may jump to
+    /// or attach it; whether its device is still its conversation's; and the folder its Claude ran in, none from a
+    /// window on a sitrep from before heartbeats said it. Either flag a line does not give is false.
     public struct LastWindow: Decodable, Sendable, Equatable {
         public let writer: String
         public let `where`: Window.Where?
-        public let device: String?
+        public let attaches: Bool
+        public let ownsDevice: Bool
         public let directory: String?
 
-        public init(writer: String, where: Window.Where? = nil, device: String? = nil, directory: String? = nil) {
+        public init(
+            writer: String, where: Window.Where? = nil, attaches: Bool = false, ownsDevice: Bool = false,
+            directory: String? = nil
+        ) {
             self.writer = writer
             self.where = `where`
-            self.device = device
+            self.attaches = attaches
+            self.ownsDevice = ownsDevice
             self.directory = directory
+        }
+
+        public init(from decoder: any Decoder) throws {
+            let given = try decoder.container(keyedBy: CodingKeys.self)
+
+            writer = try given.decode(String.self, forKey: .writer)
+            self.where = try given.decodeIfPresent(Window.Where.self, forKey: .where)
+            attaches = try given.decodeIfPresent(Bool.self, forKey: .attaches) ?? false
+            ownsDevice = try given.decodeIfPresent(Bool.self, forKey: .ownsDevice) ?? false
+            directory = try given.decodeIfPresent(String.self, forKey: .directory)
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case writer, `where`, attaches, ownsDevice, directory
         }
     }
 

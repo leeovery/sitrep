@@ -16,13 +16,18 @@ struct CarryOnTests {
     private static let resume = "portal open -p {dir} -- claude --resume {claude}"
     private static let resumed = "portal open -p '/Users/lee/Code/leeway' -- claude --resume '\(claude)'"
 
-    /// The last window, in the zmx session given, else where given, on the device given, its folder said unless none
-    /// is.
-    private static func last(_ where: Where? = inZmx(leeway), device: String? = nil, directory: String? = folder)
-        -> Board.LastWindow
-    {
-        Board.LastWindow(writer: claude, where: `where`, device: device, directory: directory)
+    /// The last window, in the zmx session given, else where given, its folder said unless none is: one a click may
+    /// attach, its device its conversation's, unless said.
+    private static func last(
+        _ where: Where? = inZmx(leeway), ownsDevice: Bool = true, directory: String? = folder
+    ) -> Board.LastWindow {
+        Board.LastWindow(writer: claude, where: `where`, attaches: true, ownsDevice: ownsDevice, directory: directory)
     }
+
+    /// A window in no multiplexer, on Kit's Ghostty window's device.
+    private static let inGhostty = Where(device: kitTerminal.device, terminal: "ghostty")
+
+    private static let suspended = "\(named) is suspended in this window: type fg to bring it back."
 
     /// The zmx session Portal shows in a Ghostty window, and that window's terminal.
     private static func shown() -> (FakeTable, [FakeWindow]) {
@@ -89,7 +94,6 @@ struct CarryOnTests {
     /// Whether a terminal shows it unknown, as a jump's, nothing opens: a window opened then could be a second of one
     /// already there.
     @Test(arguments: [
-        (inZmx(leeway), FakeTmux(), FakeTable(nil), "the process table gave no answer"),
         (inTmux(), FakeTmux(silent: true), FakeTable(Mac().tree), "tmux gave no answer"),
         (inZmx(leeway), FakeTmux(), unread(), "a zmx process's command line gave no answer"),
     ])
@@ -111,42 +115,103 @@ struct CarryOnTests {
     // MARK: A Claude still there
 
     /// A heartbeat gone stale says only that the beat stopped: its plugin no longer loading, or its process suspended,
-    /// stops it too. A Claude Code process on the device its Claude ran on refuses the resume, whichever installer's;
-    /// one with none there, a shell alone, resumes.
+    /// stops it too. A Claude Code process running on the device its conversation's Claude ran on refuses the resume,
+    /// whichever installer's, before any command is checked; one with none there, a shell alone, resumes.
     @Test(arguments: ["/Users/lee/.local/share/claude/versions/2.1.322", "/opt/homebrew/bin/claude"])
     func aClaudeStillOnItsDeviceRefusesTheResumeAndNothingOpens(program: String) async {
         var mac = Mac()
 
-        mac.claude(on: "/dev/ttys041", program: program)
+        mac.claude(on: kitTerminal.device, program: program)
+
+        let refusal = JumpAnswer.unopened(
+            "\(named)'s Claude may still be running in its window, on \(kitTerminal.device), so SitRep starts no second. "
+                + "Quit it there, or carry it on in that window."
+        )
+
+        for jumping in [Jumping(FakeTmux(), FakeTable(mac.tree), resume: Self.resume), Jumping(FakeTmux(), FakeTable(mac.tree))] {
+            #expect(await jumping.carryOn(from: Self.last(Self.inGhostty)) == refusal, "before the empty command too")
+            #expect(jumping.ghostty.told.isEmpty)
+        }
+    }
+
+    /// A device a later conversation was seen on is that one's: its Claude running there is no reason to refuse.
+    @Test func aRunningClaudeOfALaterConversationOnTheDeviceResumes() async {
+        var mac = Mac()
+
+        mac.claude(on: kitTerminal.device)
 
         let jumping = Jumping(FakeTmux(), FakeTable(mac.tree), resume: Self.resume)
 
-        #expect(await jumping.carryOn(from: Self.last(nil, device: "/dev/ttys041")) == .unopened(
-            "\(named)'s Claude may still be running in its window, on /dev/ttys041, so SitRep starts no second. Quit it "
-                + "there, or carry it on in that window."
-        ))
-        #expect(jumping.ghostty.told.isEmpty)
+        #expect(await jumping.carryOn(from: Self.last(Self.inGhostty, ownsDevice: false)) == .opened)
+        #expect(jumping.ghostty.opened == [Self.resumed])
     }
 
     @Test func noClaudeOnItsDeviceResumes() async {
         var mac = Mac()
 
         mac.claude(on: "/dev/ttys042")
-        _ = mac.tree.window(of: mac.ghostty, on: "/dev/ttys041")
+        _ = mac.tree.window(of: mac.ghostty, on: kitTerminal.device)
 
         let jumping = Jumping(FakeTmux(), FakeTable(mac.tree), resume: Self.resume)
 
-        #expect(await jumping.carryOn(from: Self.last(inTmux(), device: "/dev/ttys041")) == .opened)
+        #expect(await jumping.carryOn(from: Self.last(Self.inGhostty)) == .opened)
         #expect(jumping.ghostty.opened == [Self.resumed])
     }
 
-    @Test func aTableGivingNoAnswerRefusesTheResumeAsAJumpIsRefused() async {
-        let jumping = Jumping(FakeTmux(), FakeTable(nil), resume: Self.resume)
+    @Test func aTableGivingNoAnswerRefusesBeforeAnythingOpens() async {
+        let jumping = Jumping(FakeTmux(), FakeTable(nil), command: Self.portal, resume: Self.resume)
 
-        #expect(await jumping.carryOn(from: Self.last(nil, device: "/dev/ttys041")) == .unopened(
-            "Could not tell whether \(named)'s Claude is still running: the process table gave no answer."
-        ))
+        for last in [Self.last(Self.inGhostty), Self.last()] {
+            #expect(await jumping.carryOn(from: last) == .unopened(
+                "Could not tell whether \(named)'s Claude is still running: the process table gave no answer."
+            ))
+        }
         #expect(jumping.ghostty.told.isEmpty)
+    }
+
+    // MARK: A Claude suspended there
+
+    /// Lee suspended it, with Ctrl-Z: SitRep takes him to its window, starts nothing, never types `fg`, and says why,
+    /// whether a later conversation was seen on the device or not, and before any command is checked.
+    @Test(arguments: [true, false])
+    func aSuspendedClaudeInNoMultiplexerTakesLeeToItsWindowStartingNothing(ownsDevice: Bool) async {
+        var mac = Mac()
+
+        mac.claude(on: kitTerminal.device, isStopped: true)
+
+        for jumping in [Jumping(FakeTmux(), FakeTable(mac.tree), resume: Self.resume), Jumping(FakeTmux(), FakeTable(mac.tree))] {
+            let last = Self.last(Self.inGhostty, ownsDevice: ownsDevice)
+
+            #expect(await jumping.carryOn(from: last) == .jumpedSaying(Self.suspended))
+            #expect(jumping.ghostty.focused == [kitTerminal.id])
+            #expect(jumping.ghostty.opened.isEmpty)
+        }
+    }
+
+    /// In zmx, taken to the terminal showing its session; where none shows it, its session attached by the open
+    /// command, as for any window of it, the word said once it opens.
+    @Test func aSuspendedClaudeInZmxTakesLeeToItsSessionStartingNothing() async {
+        let pty = inZmx(Self.leeway).device ?? ""
+        var shownMac = Mac()
+        var detachedMac = Mac()
+
+        shownMac.throughPortal(Self.leeway, relay: "/dev/ttys032", window: "/dev/ttys036")
+        shownMac.claude(on: pty, isStopped: true)
+        detachedMac.zmxServer(Self.leeway)
+        detachedMac.claude(on: pty, isStopped: true)
+
+        let shown = Jumping(
+            FakeTmux(), FakeTable(shownMac.tree),
+            terminals: ownWindows(FakeTerminal(id: "PORTAL-TERMINAL", device: "/dev/ttys036")),
+            command: Self.portal, resume: Self.resume
+        )
+        let unshown = Jumping(FakeTmux(), FakeTable(detachedMac.tree), command: Self.portal, resume: Self.resume)
+
+        #expect(await shown.carryOn(from: Self.last()) == .jumpedSaying(Self.suspended))
+        #expect(shown.ghostty.focused == ["PORTAL-TERMINAL"])
+        #expect(shown.ghostty.opened.isEmpty)
+        #expect(await unshown.carryOn(from: Self.last()) == .jumpedSaying(Self.suspended))
+        #expect(unshown.ghostty.opened == ["portal open -s 'agentic-workflows-v2 · leeway-build'"])
     }
 
     // MARK: The resume command's refusals
@@ -229,7 +294,7 @@ struct CarryOnTests {
     @Test func anAwaySessionOnTheBoardIsCarriedOnFromItsLastWindow() async throws {
         let place: [String: Any] = ["device": "/dev/ttys087", "terminal": "ghostty", "tmux": NSNull(), "zmx": ["session": Self.leeway]]
         let line = try board([], sessions: ["sr-q": "Quiet one"], last: [
-            "sr-q": ["writer": Self.claude, "where": place, "directory": Self.folder],
+            "sr-q": ["writer": Self.claude, "where": place, "attaches": true, "ownsDevice": true, "directory": Self.folder],
         ])
         let jumping = Jumping(FakeTmux(), FakeTable(Mac().tree), command: Self.portal, resume: Self.resume)
         let opening = try #require(await jumping.jump.run(to: "sr-q", on: GivenBoard(line)).opening)

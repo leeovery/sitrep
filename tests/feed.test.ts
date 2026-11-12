@@ -28,6 +28,7 @@ import {
   toldSummary,
   windowsOf,
   type Feed,
+  type LastWindow,
   type Presence,
   type Project,
   type ProjectRead,
@@ -832,6 +833,12 @@ test('the feed: each project with its current sessions in the rows order, a fini
 const lastWindowIn = (session: Session, now = NOW) =>
   feedOf([{ project: SWITCHBOARD, sessions: [session] }], now).projects[0]?.sessions[0]?.lastWindow
 
+/** A last window as the feed carries it: where it was, attached to and its device its conversation's unless said. */
+const lastWindow = (
+  writer: string,
+  { where, directory, attaches = true, ownsDevice = true }: Partial<LastWindow> = {},
+): LastWindow => ({ writer, where, directory, attaches, ownsDevice })
+
 test('an away session carries the window it was last in, by its heartbeat last seen, a /clear moving it on: its writer, where it was and its folder', () => {
   const directory = `${SWITCHBOARD.directory}/.claude/worktrees/lobby`
   const session = sessionOf({
@@ -848,19 +855,14 @@ test('an away session carries the window it was last in, by its heartbeat last s
   })
 
   expect(sessionState(session, NOW)).toBe('needsYou')
-  expect(lastWindowIn(session)).toEqual({
-    writer: W2,
-    directory,
-    device: '/dev/ttys042',
-    ...whereFor('s042'),
-  })
+  expect(lastWindowIn(session)).toEqual(lastWindow(W2, { directory, ...whereFor('s042') }))
 })
 
 test("an away session's last window on a build before heartbeats said their folder carries none, and one saying no where none either", () => {
   const session = sessionOf({ presence: windowOn(W1, yourTurn(T0), { seenAt: T0 + 10 * MIN }) })
 
   expect(sessionState(session, NOW)).toBe('away')
-  expect(lastWindowIn(session)).toEqual({ writer: W1, where: undefined, directory: undefined })
+  expect(lastWindowIn(session)).toEqual(lastWindow(W1))
 })
 
 test('a session a live window holds carries no last window, though another window of it is gone; nor does one no window ever held', () => {
@@ -872,11 +874,9 @@ test('a session a live window holds carries no last window, though another windo
   })
 
   expect(lastWindowIn(held)).toBeUndefined()
-  expect(lastWindowIn(held, NOW + STALE_MS + 1)).toEqual({
-    writer: W1,
-    where: undefined,
-    directory: '/Users/lee/Code/switchboard',
-  })
+  expect(lastWindowIn(held, NOW + STALE_MS + 1)).toEqual(
+    lastWindow(W1, { directory: '/Users/lee/Code/switchboard' }),
+  )
   expect(lastWindowIn(sessionOf({ lines: [[T0, yesAsk('k1', 'Review round 1')]] }))).toBeUndefined()
 })
 
@@ -904,7 +904,7 @@ test('a session its last window let go of for another carries no last window, li
   expect(lastWindowsOf([left, joined])).toEqual({ 'sr-aaaaaa': undefined, 'sr-bbbbbb': undefined })
   expect(lastWindowsOf([left, joined], NOW + STALE_MS + 1)).toEqual({
     'sr-aaaaaa': undefined,
-    'sr-bbbbbb': { writer: W1, where: undefined, directory: undefined },
+    'sr-bbbbbb': lastWindow(W1),
   })
 })
 
@@ -918,10 +918,7 @@ test("a /clear moving a window on to another session leaves the last one its con
   const left = another('sr-aaaaaa', windowOn(W1, yourTurn(T0), { seenAt: T0 + 50 * MIN, leftAt: T0 + 50 * MIN }))
   const next = another('sr-bbbbbb', windowOn(W2, yourTurn(T0), { attachedAt: T0 + 50 * MIN, seenAt: T0 + 55 * MIN }))
 
-  expect(lastWindowsOf([left, next])).toEqual({
-    'sr-aaaaaa': { writer: W1, where: undefined, directory: undefined },
-    'sr-bbbbbb': { writer: W2, where: undefined, directory: undefined },
-  })
+  expect(lastWindowsOf([left, next])).toEqual({ 'sr-aaaaaa': lastWindow(W1), 'sr-bbbbbb': lastWindow(W2) })
 })
 
 const inZmx = (name: string, device = 's041') => ({
@@ -939,13 +936,13 @@ const leftKit = (id: string, writer: string, leftAt: number, device = 's041') =>
     windowOn(writer, yourTurn(T0), { attachedAt: leftAt - 5 * MIN, seenAt: leftAt, leftAt, ...inZmx('kit', device) }),
   )
 
-test("a zmx session is the latest conversation's seen in it: a last window in one a later Claude was seen in, of another session, says no where, as that Claude, or its resume panel, holds it now", () => {
+test("a zmx session is the latest conversation's seen in it: a last window in one a later Claude was seen in, of another session, attaches none, as that Claude, or its resume panel, holds it now", () => {
   const first = leftKit('sr-aaaaaa', W1, T0 + 10 * MIN)
   const second = leftKit('sr-bbbbbb', W2, T0 + 40 * MIN)
 
   expect(lastWindowsOf([first, second])).toEqual({
-    'sr-aaaaaa': { writer: W1, where: undefined, device: undefined, directory: undefined },
-    'sr-bbbbbb': { writer: W2, device: '/dev/ttys041', directory: undefined, ...inZmx('kit') },
+    'sr-aaaaaa': lastWindow(W1, { ...inZmx('kit'), attaches: false, ownsDevice: false }),
+    'sr-bbbbbb': lastWindow(W2, inZmx('kit')),
   })
 })
 
@@ -954,48 +951,47 @@ test('a heartbeat in the zmx session older than the last window takes it from no
   const older = leftKit('sr-bbbbbb', W2, T0 + 10 * MIN, 's042')
   const live = another('sr-cccccc', windowOn(W3, working(T0), inZmx('kit', 's043')))
 
-  expect(lastWindowsOf([last, older])['sr-aaaaaa']?.where).toEqual(inZmx('kit').where)
-  expect(lastWindowsOf([last, live])['sr-aaaaaa']?.where).toBeUndefined()
-  expect(lastWindowsOf([last, live], NOW + STALE_MS + 1)['sr-aaaaaa']?.where).toBeUndefined()
+  expect(lastWindowsOf([last, older])['sr-aaaaaa']?.attaches).toBe(true)
+  expect(lastWindowsOf([last, live])['sr-aaaaaa']?.attaches).toBe(false)
+  expect(lastWindowsOf([last, live], NOW + STALE_MS + 1)['sr-aaaaaa']?.attaches).toBe(false)
 })
 
-test("a last window's device rides with it while its conversation is the latest seen on it, for a resume to look for that Claude there; not once a later conversation was seen on it, nor where its Claude went on into the next", () => {
+test("a last window's device is always given, for a click to look for a Claude there; it is its conversation's only while no later conversation was seen on it, and not where its Claude went on into the next", () => {
   const last = (livesOn?: true) =>
     another('sr-aaaaaa', windowOn(W1, yourTurn(T0), { seenAt: T0 + 10 * MIN, leftAt: T0 + 10 * MIN, livesOn, ...whereFor('s041') }))
   const later = another('sr-bbbbbb', windowOn(W2, yourTurn(T0), { seenAt: T0 + 20 * MIN, ...whereFor('s041') }))
   const earlier = another('sr-bbbbbb', windowOn(W2, yourTurn(T0), { seenAt: T0 + 5 * MIN, ...whereFor('s041') }))
+  const ownsOf = (sessions: Session[]) => {
+    const window = lastWindowsOf(sessions)['sr-aaaaaa']
 
-  expect(lastWindowsOf([last()])['sr-aaaaaa']?.device).toBe('/dev/ttys041')
-  expect(lastWindowsOf([last(), earlier])['sr-aaaaaa']?.device).toBe('/dev/ttys041')
-  expect(lastWindowsOf([last(), later])['sr-aaaaaa']?.device).toBeUndefined()
-  expect(lastWindowsOf([last(true)])['sr-aaaaaa']?.device).toBeUndefined()
+    return [window?.where?.device, window?.ownsDevice]
+  }
+
+  expect(ownsOf([last()])).toEqual(['/dev/ttys041', true])
+  expect(ownsOf([last(), earlier])).toEqual(['/dev/ttys041', true])
+  expect(ownsOf([last(), later])).toEqual(['/dev/ttys041', false])
+  expect(ownsOf([last(true)])).toEqual(['/dev/ttys041', false])
 })
 
-test('a last window in tmux says no where, with no live window anywhere, as a pane id does not outlive its server: the session is resumed', () => {
+test('a last window in tmux attaches none, with no live window anywhere, as a pane id does not outlive its server: the session is resumed', () => {
   const left = another('sr-aaaaaa', windowOn(W1, yourTurn(T0), { seenAt: T0 + 50 * MIN, directory: '/x', ...inTmux('%1') }))
 
-  expect(lastWindowsOf([left])['sr-aaaaaa']).toEqual({
-    writer: W1,
-    where: undefined,
-    device: '/dev/ttys041',
-    directory: '/x',
-  })
+  expect(lastWindowsOf([left])['sr-aaaaaa']).toEqual(
+    lastWindow(W1, { ...inTmux('%1'), directory: '/x', attaches: false }),
+  )
 })
 
-test('a last window let go of at a /clear or a /resume, its Claude living on into another conversation, says no where: that window is the next conversation\'s, so the session is resumed', () => {
+test('a last window let go of at a /clear or a /resume, its Claude living on into another conversation, attaches none: that window is the next conversation\'s, so the session is resumed', () => {
   const left = (livesOn?: true) =>
     another(
       'sr-aaaaaa',
       windowOn(W1, yourTurn(T0), { seenAt: T0 + 50 * MIN, leftAt: T0 + 50 * MIN, livesOn, directory: '/x', ...inZmx('kit') }),
     )
 
-  expect(lastWindowsOf([left(true)])['sr-aaaaaa']).toEqual({ writer: W1, where: undefined, directory: '/x' })
-  expect(lastWindowsOf([left()])['sr-aaaaaa']).toEqual({
-    writer: W1,
-    device: '/dev/ttys041',
-    directory: '/x',
-    ...inZmx('kit'),
-  })
+  expect(lastWindowsOf([left(true)])['sr-aaaaaa']).toEqual(
+    lastWindow(W1, { ...inZmx('kit'), directory: '/x', attaches: false, ownsDevice: false }),
+  )
+  expect(lastWindowsOf([left()])['sr-aaaaaa']).toEqual(lastWindow(W1, { ...inZmx('kit'), directory: '/x' }))
 })
 
 test('a last window is the one last seen as a resume ranks them, by when it let go, else its latest beat: one that let go after another stopped beating is last, though it beat before', () => {

@@ -129,45 +129,84 @@ public struct Jump: Sendable {
         }
     }
 
-    /// An away session carried on from what is left of its last window, read now: the jump, where a terminal shows its
-    /// multiplexer session; the open command, where that is alive and no terminal shows it; the resume command, where
-    /// nothing is left to attach to, its multiplexer session gone or the window in none. Where whether a terminal shows
-    /// it is unknown, refused, and nothing opens.
+    /// An away session carried on from what is left of its last window, read now. First what runs on the device its
+    /// Claude ran on, as a heartbeat gone stale says only that its beat stopped, which a plugin no longer loading, or
+    /// its process suspended, does too: a Claude suspended there, Lee's own Ctrl-Z, is his to bring back, so the click
+    /// takes him to it, starting nothing (`suspended`); the table giving no answer refuses. Then the jump, where a
+    /// terminal shows its multiplexer session; the open command, where that is alive and no terminal shows it; the
+    /// resume command, where nothing is left to attach to, its multiplexer session gone or the window in none, unless
+    /// that conversation's Claude still runs on its device. Where whether a terminal shows it is unknown, refused, and
+    /// nothing opens.
     func carryOn(_ session: String, named name: String, from last: Board.LastWindow) async -> JumpOutcome {
         await stoppable {
-            if let left = multiplexed(last.where),
+            let there = claude(on: last.where?.device)
+
+            switch there {
+            case .unknown:
+                return .answered(.unopened(
+                    "Could not tell whether \(name)'s Claude is still running: the process table gave no answer."
+                ))
+            case .stopped:
+                return try await suspended(session, named: name, at: last.where)
+            case .running, .none:
+                break
+            }
+
+            if last.attaches, let left = multiplexed(last.where),
                let reached = try await reach(jump(toLast: left), for: session, named: name)
             {
                 return reached
             }
+            if there == .running, last.ownsDevice, let device = last.where?.device {
+                return .answered(.unopened(
+                    "\(name)'s Claude may still be running in its window, on \(device), so SitRep starts no second. "
+                        + "Quit it there, or carry it on in that window."
+                ))
+            }
 
             return try await openable(for: session, named: name, as: .resume) {
-                let line = try await ResumeCommand(opening.resumeCommand).line(from: last, named: name)
-
-                try checkGone(last, named: name)
-                return line
+                try await ResumeCommand(opening.resumeCommand).line(from: last, named: name)
             }
         }
     }
 
-    /// Refuses a resume where the last window's Claude may still run: a heartbeat gone stale says only that its beat
-    /// stopped, which its plugin no longer loading, or its process suspended, does too. So where a Claude Code process
-    /// is on the device that Claude ran on, nothing is resumed beside it; nor where the table gives no answer. A device
-    /// a later Claude is on refuses too, the safe way.
-    private func checkGone(_ last: Board.LastWindow, named name: String) throws {
-        guard let device = last.device else {
-            return
+    /// A Claude Code process on the device given, by the process table: one stopped, as Ctrl-Z leaves it, before one
+    /// running; none, there or with no device to look on; unknown, the table giving no answer.
+    private func claude(on device: String?) -> ClaudeThere {
+        guard let device else {
+            return .none
         }
         guard let processes = reader.table.read(arguments: { _ in false }) else {
-            throw Unopenable(
-                description: "Could not tell whether \(name)'s Claude is still running: the process table gave no answer."
-            )
+            return .unknown
         }
-        if processes.all.values.contains(where: { $0.device == device && $0.isClaudeCode }) {
-            throw Unopenable(
-                description: "\(name)'s Claude may still be running in its window, on \(device), so SitRep starts no "
-                    + "second. Quit it there, or carry it on in that window."
-            )
+
+        let there = processes.all.values.filter { $0.device == device && $0.isClaudeCode }
+
+        return there.contains(where: \.isStopped) ? .stopped : there.isEmpty ? .none : .running
+    }
+
+    /// Takes Lee to the window an away session's Claude is suspended in, as a jump to it, or the open command where its
+    /// multiplexer holds it and no terminal shows it, would: SitRep starts nothing, nor types `fg`, as Lee may be busy
+    /// in that shell, and says why.
+    private func suspended(_ session: String, named name: String, at where: Board.Window.Where?) async throws
+        -> JumpOutcome
+    {
+        let said = "\(name) is suspended in this window: type fg to bring it back."
+        let unreached = JumpOutcome.answered(.refused(
+            "\(name) is suspended in its window, which SitRep could not bring forward: type fg there to bring it back."
+        ))
+
+        guard let `where` else {
+            return unreached
+        }
+
+        switch try await jump(to: [`where`]) {
+        case .focused:
+            return .answered(.jumpedSaying(said))
+        case let .openable(attachable):
+            return try await open(attachable, for: session, named: name, saying: said)
+        default:
+            return unreached
         }
     }
 
@@ -200,13 +239,15 @@ public struct Jump: Sendable {
     }
 
     /// The window to open for the session, a window of it in a multiplexer holding it, typing the open command filled
-    /// with the window's facts.
-    private func open(_ attachable: Attachable, for session: String, named name: String) async throws -> JumpOutcome {
+    /// with the window's facts; saying what is given once it opens.
+    private func open(
+        _ attachable: Attachable, for session: String, named name: String, saying said: String? = nil
+    ) async throws -> JumpOutcome {
         guard let multiplexer = reader.multiplexers.first(where: { $0.kind == attachable.kind }) else {
             return .answered(Jumped.offScreen.answer(named: name))
         }
 
-        return try await openable(for: session, named: name, as: .attach) {
+        return try await openable(for: session, named: name, as: .attach, saying: said) {
             try await OpenCommand(opening.command).line(for: attachable.where, in: multiplexer, named: name)
         }
     }
@@ -214,7 +255,8 @@ public struct Jump: Sendable {
     /// The window to open for the session, typing the line of the kind `line` makes: none where one was asked for it a
     /// moment ago, which is opening; and none where the line is not fit to type, refused in plain words.
     private func openable(
-        for session: String, named name: String, as kind: RecentOpenings.Kind, line: () async throws -> String
+        for session: String, named name: String, as kind: RecentOpenings.Kind, saying said: String? = nil,
+        line: () async throws -> String
     ) async throws -> JumpOutcome {
         guard !openings.isOpening(session) else {
             return .answered(.opening)
@@ -229,7 +271,7 @@ public struct Jump: Sendable {
             try Task.checkCancellation()
             return .openable(Opening(
                 session: session, name: name, line: line, terminal: opening.terminal, kind: kind, driver: driver,
-                workspace: workspace, clock: clock, openings: openings
+                workspace: workspace, clock: clock, openings: openings, saying: said
             ))
         } catch {
             try Task.checkCancellation()
@@ -376,6 +418,12 @@ enum Selected: Equatable {
     var said: String? {
         if case let .undone(said) = self { said } else { nil }
     }
+}
+
+/// What runs on the device an away session's Claude ran on: a Claude Code process stopped there, one running, none;
+/// or unknown, the table giving no answer.
+enum ClaudeThere: Equatable {
+    case stopped, running, none, unknown
 }
 
 /// Why a place brought nothing forward: its window not answering; tmux not making its select, in its words; or its

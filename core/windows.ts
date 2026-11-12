@@ -59,11 +59,16 @@ export const windowsOf = (session: Session, now: number): Where[] =>
 
 /**
  * The window an away session was last in, as a click carries it on from: its
- * writer, the Claude Code session it ran, where it was, its folder, and the
- * device its Claude ran on while that is still its conversation's, for a
- * resume to look for that Claude running on it still.
+ * writer, the Claude Code session it ran; where it was, as its heartbeat said
+ * it, its device among it, for a click to look for that Claude there; its
+ * folder; whether a click may jump to or attach it (`attaches`); and whether
+ * its device is still its conversation's (`ownsDevice`), so a Claude running
+ * there is that one.
  */
-export type LastWindow = Pick<Presence, 'writer' | 'where' | 'directory'> & { device?: string }
+export type LastWindow = Pick<Presence, 'writer' | 'where' | 'directory'> & {
+  attaches: boolean
+  ownsDevice: boolean
+}
 
 /**
  * The window a session no window holds at `now` was last in, among every
@@ -73,8 +78,8 @@ export type LastWindow = Pick<Presence, 'writer' | 'where' | 'directory'> & { de
  * window ever held; nor where that conversation, resumed, would take up
  * another session (`rejoinable`), as one that let go of it for another does,
  * live or not, so a click carries on only the session its conversation
- * comes back to. Where it was is said only where a click can still reach the
- * conversation there (`isThere`), and its device only where no later
+ * comes back to. It attaches only where a click can still reach the
+ * conversation there (`isThere`), and owns its device only where no later
  * conversation was seen on it (`isLatestOn`).
  */
 export const lastWindowOf = (
@@ -94,8 +99,9 @@ export const lastWindowOf = (
 
   return {
     writer: last.writer,
-    where: isThere(last, board) ? last.where : undefined,
-    device: isLatestOn(last, board, each => each.where?.device) ? last.where?.device : undefined,
+    where: last.where,
+    attaches: isThere(last, board),
+    ownsDevice: isLatestOn(last, board, each => each.where?.device),
     directory: last.directory,
   }
 }

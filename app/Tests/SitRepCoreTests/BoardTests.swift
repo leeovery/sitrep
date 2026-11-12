@@ -192,20 +192,21 @@ struct BoardTests {
         ))
     }
 
-    /// An away session carries the window it was last in: its writer, where it was, its device and its folder, as the
-    /// watch prints them; a session a window holds, null.
+    /// An away session carries the window it was last in: its writer, where it was, whether a click may attach it,
+    /// whether its device is its conversation's, and its folder, as the watch prints them; a session a window holds,
+    /// null.
     @Test func anAwaySessionsLastWindowSaysItsWriterWhereItWasAndItsFolder() throws {
         let board = try Self.listing([
-            #"{"id":"sr-q1","name":"Quiet one","lastWindow":{"writer":"w9","where":{"device":"/dev/ttys087","terminal":"ghostty","tmux":null,"zmx":{"session":"kit · card"}},"device":"/dev/ttys087","directory":"/Users/lee/Code/kit"}}"#,
+            #"{"id":"sr-q1","name":"Quiet one","lastWindow":{"writer":"w9","where":{"device":"/dev/ttys087","terminal":"ghostty","tmux":null,"zmx":{"session":"kit · card"}},"attaches":true,"ownsDevice":true,"directory":"/Users/lee/Code/kit"}}"#,
             #"{"id":"sr-q2","name":"Older one","lastWindow":{"writer":"w8","where":null,"directory":null}}"#,
             #"{"id":"sr-h1","name":"Held one","lastWindow":null}"#,
         ])
 
         #expect(board.lastWindow(of: "sr-q1") == Board.LastWindow(
             writer: "w9", where: .init(device: "/dev/ttys087", terminal: "ghostty", zmx: .init(session: "kit · card")),
-            device: "/dev/ttys087", directory: "/Users/lee/Code/kit"
+            attaches: true, ownsDevice: true, directory: "/Users/lee/Code/kit"
         ))
-        #expect(board.lastWindow(of: "sr-q2") == Board.LastWindow(writer: "w8"), "a CLI before it said no device")
+        #expect(board.lastWindow(of: "sr-q2") == Board.LastWindow(writer: "w8"), "neither flag given, both false")
         #expect(board.lastWindow(of: "sr-h1") == nil)
         #expect(board.lastWindow(of: "sr-z") == nil)
     }

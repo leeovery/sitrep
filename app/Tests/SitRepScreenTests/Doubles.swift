@@ -19,13 +19,14 @@ struct Tree: Sendable {
 
     /// A process under the parent, on the device given, running the program with the command line given.
     @discardableResult
-    mutating func add(under parent: pid_t, _ program: String?, on device: String? = nil, arguments: [String]? = nil)
-        -> pid_t
-    {
+    mutating func add(
+        under parent: pid_t, _ program: String?, on device: String? = nil, arguments: [String]? = nil,
+        isStopped: Bool = false
+    ) -> pid_t {
         let pid = next
 
         next += 1
-        processes[pid] = Proc(parent: parent, device: device, program: program)
+        processes[pid] = Proc(parent: parent, device: device, program: program, isStopped: isStopped)
         arguments.map { self.arguments[pid] = $0 }
 
         return pid
@@ -264,13 +265,13 @@ struct Mac {
         tree.add(under: 1, zmxProgram, arguments: ["zmx", "attach", session] + command)
     }
 
-    /// Claude Code in a Ghostty window on the device, by its program's path: Claude Code's own installer's, named by
-    /// its version, unless another is given.
+    /// Claude Code on the device, by its program's path: Claude Code's own installer's, named by its version, unless
+    /// another is given; running, or stopped, as Ctrl-Z leaves it.
     @discardableResult
-    mutating func claude(on device: String, program: String = "/Users/lee/.local/share/claude/versions/2.1.322")
-        -> pid_t
-    {
-        tree.add(under: tree.window(of: ghostty, on: device), program, on: device)
+    mutating func claude(
+        on device: String, program: String = "/Users/lee/.local/share/claude/versions/2.1.322", isStopped: Bool = false
+    ) -> pid_t {
+        tree.add(under: 1, program, on: device, isStopped: isStopped)
     }
 
     /// A process of zmx's whose command line cannot be read, as one gone as it was read.

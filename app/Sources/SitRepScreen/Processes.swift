@@ -7,11 +7,14 @@ public struct Proc: Sendable, Equatable {
     public let device: String?
     /// Its program's path, exactly; nil where it could not be read, as for a process just gone.
     public let program: String?
+    /// Whether it is stopped (`SSTOP`), as Ctrl-Z leaves a job.
+    public let isStopped: Bool
 
-    public init(parent: pid_t, device: String? = nil, program: String? = nil) {
+    public init(parent: pid_t, device: String? = nil, program: String? = nil, isStopped: Bool = false) {
         self.parent = parent
         self.device = device
         self.program = program
+        self.isStopped = isStopped
     }
 
     /// Whether it runs Claude Code, told by its program's path: a file named `claude`, as Homebrew's is, or one in a

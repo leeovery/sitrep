@@ -23,7 +23,8 @@ public struct KernelProcesses: ProcessTable {
             let path = reader.program(of: pid)
             let started = path == nil ? reader.procArgs(of: pid) : nil
             let process = Proc(
-                parent: each.kp_eproc.e_ppid, device: device(of: each.kp_eproc.e_tdev), program: path ?? started?.path
+                parent: each.kp_eproc.e_ppid, device: device(of: each.kp_eproc.e_tdev), program: path ?? started?.path,
+                isStopped: Int32(each.kp_proc.p_stat) == SSTOP
             )
 
             if wanted(process) {

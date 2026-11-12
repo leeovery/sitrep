@@ -58,6 +58,19 @@ struct ClicksTests {
 
     /// A window opened for the session a moment ago comes forward of itself, if at all: the front is handed back, and
     /// no banner posted.
+    /// A window brought forward with a word for Lee, as for a Claude he suspended there: the word as a banner, and the
+    /// front left with the window, as for any jump that landed.
+    @Test func aJumpLandingWithAWordPostsItAndHandsNothingBack() async {
+        let said = "Fumi is suspended in this window: type fg to bring it back."
+        let world = World { _ in .answered(.jumpedSaying(said)) }
+
+        world.click("sr-a")
+        await world.until { world.answers["sr-a"] == [.jumpedSaying(said)] }
+
+        #expect(world.banners == [.startedNothing(said)])
+        #expect(world.handBacks == 0)
+    }
+
     @Test func aWindowAlreadyOpeningHandsTheFrontBackWithNoBanner() async {
         let world = World { _ in .answered(.opening) }
 
