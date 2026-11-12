@@ -108,13 +108,17 @@ export const lastWindowOf = (
 
 /**
  * Whether a click could still find a last window's conversation where the
- * window was: not in tmux, whose pane ids start again from `%0` with each
- * server, so the pane it was in is any pane now, or a shell its Claude ended
- * in; nor in a zmx session a later conversation was seen in, which holds that
- * one's Claude, or its resume panel, now.
+ * window was: only in a zmx session, which Portal brings back under its name,
+ * and only one no later conversation was seen in, which would hold that one's
+ * Claude, or its resume panel, now. Never in tmux, whose pane ids start again
+ * from `%0` with each server, so the pane it was in is any pane now, or a
+ * shell its Claude ended in; nor in no multiplexer, as closing its terminal
+ * ended its Claude.
  */
 const isThere = (last: Presence, board: readonly Session[]) =>
-  last.where?.tmux === undefined && isLatestOn(last, board, each => each.where?.zmx?.session)
+  last.where?.zmx !== undefined &&
+  last.where.tmux === undefined &&
+  isLatestOn(last, board, each => each.where?.zmx?.session)
 
 /**
  * Whether the last window's conversation is the latest seen at its place, as

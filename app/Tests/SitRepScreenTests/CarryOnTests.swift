@@ -210,8 +210,47 @@ struct CarryOnTests {
         #expect(await shown.carryOn(from: Self.last()) == .jumpedSaying(Self.suspended))
         #expect(shown.ghostty.focused == ["PORTAL-TERMINAL"])
         #expect(shown.ghostty.opened.isEmpty)
-        #expect(await unshown.carryOn(from: Self.last()) == .jumpedSaying(Self.suspended))
+        #expect(await unshown.carryOn(from: Self.last()) == .openedSaying(Self.suspended))
         #expect(unshown.ghostty.opened == ["portal open -s 'agentic-workflows-v2 · leeway-build'"])
+    }
+
+    /// Where its session in zmx cannot be opened onto, as with no open command, or no reader for zmx, it still says
+    /// the Claude is suspended, and where, and nothing opens.
+    @Test func aSuspendedClaudeInZmxThatCannotBeOpenedOntoStillSaysItIsSuspended() async {
+        var mac = Mac()
+
+        mac.zmxServer(Self.leeway)
+        mac.claude(on: inZmx(Self.leeway).device ?? "", isStopped: true)
+
+        let unset = Jumping(FakeTmux(), FakeTable(mac.tree), resume: Self.resume)
+        let world = Jumping(FakeTmux(), FakeTable(mac.tree), command: Self.portal, resume: Self.resume)
+        let unreached = JumpAnswer.refused(
+            "\(named) is suspended in its window, which SitRep could not bring forward: type fg there to bring it back."
+        )
+        let noZmx = Jump(
+            reader: ScreenReader(multiplexers: [TmuxAdapter(FakeTmux())], table: FakeTable(mac.tree)), tmux: FakeTmux(),
+            drivers: [.ghostty: world.driver], workspace: world.workspace, clock: world.clock,
+            opening: world.opening, openings: world.openings
+        )
+
+        #expect(await unset.carryOn(from: Self.last()) == unreached, "no open command")
+        #expect(await noZmx.carryOn("sr-a", named: named, from: Self.last()).answer == unreached, "no reader for zmx")
+        #expect(unset.ghostty.told.isEmpty)
+        #expect(world.ghostty.told.isEmpty)
+    }
+
+    /// In tmux, taken to the Ghostty window showing its pane's tmux window, by the pane.
+    @Test func aSuspendedClaudeInTmuxTakesLeeToItsPaneStartingNothing() async {
+        var mac = Mac()
+        let client = mac.ghosttyClient(window, showing: claudes)
+
+        mac.claude(on: inTmux().device ?? "", isStopped: true)
+
+        let jumping = Jumping(server([client]), FakeTable(mac.tree), command: Self.portal, resume: Self.resume)
+
+        #expect(await jumping.carryOn(from: Self.last(inTmux())) == .jumpedSaying(Self.suspended))
+        #expect(jumping.ghostty.focused == [switchboardTerminal.id])
+        #expect(jumping.ghostty.opened.isEmpty)
     }
 
     // MARK: The resume command's refusals

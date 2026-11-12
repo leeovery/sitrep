@@ -3261,7 +3261,8 @@ truth. There is still no background service. None of it is built now. Lee:
       the conversation after. It carries what a click needs to carry the
       session on, and no more: the `writer`, the Claude Code session it ran;
       its `where`, as its heartbeat said it, the pty its Claude ran on among
-      it; `attaches`, whether a click may jump to it or attach it;
+      it; `attaches`, whether a click may jump to it or attach it, true
+      only in zmx;
       `ownsDevice`, whether that pty is still its conversation's, so a
       Claude running on it is that one; and its `directory`, the folder its
       Claude ran in, null from a window on a build from before heartbeats
@@ -3274,7 +3275,8 @@ truth. There is still no background service. None of it is built now. Lee:
       is the latest conversation's seen at it: `attaches` is false where a
       click could not find the conversation there, as the window let go
       with `livesOn`, its Claude gone on into another conversation, it was
-      in tmux, whose pane ids start again from `%0` with each server, or a
+      in tmux, whose pane ids start again from `%0` with each server, in no
+      multiplexer, its Claude ended with its terminal, or a
       heartbeat on the board, of any session, live or let go, was seen in
       the same zmx session later (`lastSeenAt`); `ownsDevice` is false where
       the window let go with `livesOn`, or a heartbeat was seen on that
@@ -7797,9 +7799,12 @@ open), and tmux passing an escape sequence through from Claude's own pane
        its zmx session by the open command where no terminal shows it,
        then says "<name> is suspended in this window: type fg to bring it
        back." in a banner, "SitRep started nothing", the front left with
-       the window. Where it cannot bring the window forward: "<name> is
-       suspended in its window, which SitRep could not bring forward: type
-       fg there to bring it back."
+       the window, the caption saying "Opened a window for…" where an
+       opening is what took him there. Where it cannot bring the window
+       forward, the open command unset or refused, or no reader for its
+       multiplexer, among it, it still says so: "<name> is suspended in its
+       window, which SitRep could not bring forward: type fg there to bring
+       it back."
      - **Running**, on a pty still the conversation's (no later one seen
        on it): no resume ("<name>'s Claude may still be running in its
        window, on <device>, so SitRep starts no second. Quit it there, or
@@ -7955,7 +7960,9 @@ open), and tmux passing an escape sequence through from Claude's own pane
        taken to (`suspended`), its word a new answer, `jumpedSaying`, whose
        banner is "SitRep started nothing" and which hands no front back,
        as a jump that landed does; an opening for it says the word once it
-       opens (`Opening.saying`). Claude Code is told by
+       opens (`Opening.saying`), as `openedSaying`, so the caption says a
+       window was opened. An opening refused before anything opens falls
+       back to the suspended words (found in review, 12 November 2026). Claude Code is told by
        its program's path, as the screen reading told no Claude before: a
        file named `claude` (Homebrew's), or one in a `claude/versions`
        folder, as Claude Code's own installer keeps each version, its file

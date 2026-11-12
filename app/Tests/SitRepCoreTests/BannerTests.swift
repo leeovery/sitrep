@@ -24,15 +24,14 @@ struct BannerTests {
         }
     }
 
-    /// A window brought forward with a word for Lee, SitRep starting nothing there, says why.
+    /// A window brought forward, or opened, with a word for Lee, SitRep starting nothing there, says why.
     @Test func aJumpLandingWithAWordPostsItAsStartingNothing() {
-        #expect(
-            JumpAnswer.jumpedSaying("Fumi is suspended in this window: type fg to bring it back.").banner
-                == Banner(
-                    title: "SitRep started nothing", subtitle: nil,
-                    body: "Fumi is suspended in this window: type fg to bring it back.", work: nil
-                )
-        )
+        let said = "Fumi is suspended in this window: type fg to bring it back."
+
+        for answer in [JumpAnswer.jumpedSaying(said), .openedSaying(said)] {
+            #expect(answer.banner == Banner(title: "SitRep started nothing", subtitle: nil, body: said, work: nil))
+            #expect(!answer.handsBack)
+        }
     }
 
     /// A window that could not be opened says so, with why.

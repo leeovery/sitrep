@@ -29,6 +29,7 @@ import {
   windowsOf,
   type Feed,
   type LastWindow,
+  type Where,
   type Presence,
   type Project,
   type ProjectRead,
@@ -833,10 +834,10 @@ test('the feed: each project with its current sessions in the rows order, a fini
 const lastWindowIn = (session: Session, now = NOW) =>
   feedOf([{ project: SWITCHBOARD, sessions: [session] }], now).projects[0]?.sessions[0]?.lastWindow
 
-/** A last window as the feed carries it: where it was, attached to and its device its conversation's unless said. */
+/** A last window as the feed carries it: where it was, attached to where in zmx, its device its conversation's, unless said. */
 const lastWindow = (
   writer: string,
-  { where, directory, attaches = true, ownsDevice = true }: Partial<LastWindow> = {},
+  { where, directory, attaches = where?.zmx !== undefined, ownsDevice = true }: Partial<LastWindow> = {},
 ): LastWindow => ({ writer, where, directory, attaches, ownsDevice })
 
 test('an away session carries the window it was last in, by its heartbeat last seen, a /clear moving it on: its writer, where it was and its folder', () => {
@@ -929,6 +930,9 @@ const inTmux = (pane: string) => ({
   where: { device: '/dev/ttys041', terminal: 'tmux', tmux: { socket: '/private/tmp/tmux-501/default', pane } },
 })
 
+/** A window in tmux run inside a zmx session, which passes `$ZMX_SESSION` on. */
+const inZmxInTmux = { where: { ...inTmux('%1').where, zmx: { session: 'kit' } } }
+
 /** A session of its own id whose one window, the writer given, was in the zmx session `kit` on its own pty, let go at `leftAt`. */
 const leftKit = (id: string, writer: string, leftAt: number, device = 's041') =>
   another(
@@ -973,12 +977,14 @@ test("a last window's device is always given, for a click to look for a Claude t
   expect(ownsOf([last(true)])).toEqual(['/dev/ttys041', false])
 })
 
-test('a last window in tmux attaches none, with no live window anywhere, as a pane id does not outlive its server: the session is resumed', () => {
-  const left = another('sr-aaaaaa', windowOn(W1, yourTurn(T0), { seenAt: T0 + 50 * MIN, directory: '/x', ...inTmux('%1') }))
+test('only a last window in zmx attaches: not one in tmux, as a pane id does not outlive its server, nor one in no multiplexer, its Claude ended with its terminal; those are resumed', () => {
+  const left = (where: { where: Where }) =>
+    another('sr-aaaaaa', windowOn(W1, yourTurn(T0), { seenAt: T0 + 50 * MIN, directory: '/x', ...where }))
 
-  expect(lastWindowsOf([left])['sr-aaaaaa']).toEqual(
-    lastWindow(W1, { ...inTmux('%1'), directory: '/x', attaches: false }),
-  )
+  for (const where of [inTmux('%1'), whereFor('s041'), inZmxInTmux]) {
+    expect(lastWindowsOf([left(where)])['sr-aaaaaa']?.attaches, JSON.stringify(where)).toBe(false)
+  }
+  expect(lastWindowsOf([left(inZmx('kit'))])['sr-aaaaaa']?.attaches).toBe(true)
 })
 
 test('a last window let go of at a /clear or a /resume, its Claude living on into another conversation, attaches none: that window is the next conversation\'s, so the session is resumed', () => {

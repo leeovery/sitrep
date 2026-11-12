@@ -83,7 +83,7 @@ public struct Opening: Sendable {
                 return .unopened(notRunning)
             }
 
-            return saying.map(JumpAnswer.jumpedSaying) ?? .opened
+            return saying.map(JumpAnswer.openedSaying) ?? .opened
         } catch {
             asked.forgetUnasked()
             return error is CancellationError ? .stopped : .unopened(String(describing: error))

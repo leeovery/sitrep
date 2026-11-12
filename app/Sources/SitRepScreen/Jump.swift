@@ -187,7 +187,8 @@ public struct Jump: Sendable {
 
     /// Takes Lee to the window an away session's Claude is suspended in, as a jump to it, or the open command where its
     /// multiplexer holds it and no terminal shows it, would: SitRep starts nothing, nor types `fg`, as Lee may be busy
-    /// in that shell, and says why.
+    /// in that shell, and says why. Where neither can, the open command refused or unset among them, it still says the
+    /// Claude is suspended, and where.
     private func suspended(_ session: String, named name: String, at where: Board.Window.Where?) async throws
         -> JumpOutcome
     {
@@ -204,7 +205,12 @@ public struct Jump: Sendable {
         case .focused:
             return .answered(.jumpedSaying(said))
         case let .openable(attachable):
-            return try await open(attachable, for: session, named: name, saying: said)
+            switch try await open(attachable, for: session, named: name, saying: said) {
+            case .answered(.unopened), .answered(.refused):
+                return unreached
+            case let opening:
+                return opening
+            }
         default:
             return unreached
         }

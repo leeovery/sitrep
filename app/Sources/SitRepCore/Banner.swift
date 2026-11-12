@@ -54,7 +54,7 @@ extension JumpAnswer {
     public var banner: Banner? {
         switch self {
         case .jumped, .openable, .opened, .opening, .stopped: nil
-        case let .jumpedSaying(why): .startedNothing(why)
+        case let .jumpedSaying(why), let .openedSaying(why): .startedNothing(why)
         case let .refused(why): .unjumped(why)
         case let .unopened(why): .unopened(why)
         case .unanswered: .tooBusy
@@ -66,7 +66,7 @@ extension JumpAnswer {
     public var handsBack: Bool {
         switch self {
         case .refused, .unopened, .unanswered, .opening: true
-        case .jumped, .jumpedSaying, .openable, .opened, .stopped: false
+        case .jumped, .jumpedSaying, .openable, .opened, .openedSaying, .stopped: false
         }
     }
 }
