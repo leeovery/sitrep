@@ -308,6 +308,7 @@ const lastWindowJson = (window: LastWindow | undefined) =>
     : {
         writer: window.writer,
         where: whereJson(window.where),
+        device: window.device ?? null,
         directory: window.directory ?? null,
       }
 

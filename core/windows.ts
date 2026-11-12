@@ -57,8 +57,13 @@ export const inJumpOrder = (session: Session, now: number): Placed[] =>
 export const windowsOf = (session: Session, now: number): Where[] =>
   inJumpOrder(session, now).map(each => each.where)
 
-/** The window an away session was last in, as a click carries it on from: its writer, the Claude Code session it ran, where it was, and its folder. */
-export type LastWindow = Pick<Presence, 'writer' | 'where' | 'directory'>
+/**
+ * The window an away session was last in, as a click carries it on from: its
+ * writer, the Claude Code session it ran, where it was, its folder, and the
+ * device its Claude ran on while that is still its conversation's, for a
+ * resume to look for that Claude running on it still.
+ */
+export type LastWindow = Pick<Presence, 'writer' | 'where' | 'directory'> & { device?: string }
 
 /**
  * The window a session no window holds at `now` was last in, among every
@@ -67,9 +72,10 @@ export type LastWindow = Pick<Presence, 'writer' | 'where' | 'directory'>
  * conversation after it. None while a live window holds it, nor for one no
  * window ever held; nor where that conversation, resumed, would take up
  * another session (`rejoinable`), as one that let go of it for another does,
- * live there or not, so a click carries on only the session its conversation
+ * live or not, so a click carries on only the session its conversation
  * comes back to. Where it was is said only where a click can still reach the
- * conversation there (`isThere`).
+ * conversation there (`isThere`), and its device only where no later
+ * conversation was seen on it (`isLatestOn`).
  */
 export const lastWindowOf = (
   session: Session,
@@ -88,27 +94,43 @@ export const lastWindowOf = (
 
   return {
     writer: last.writer,
-    where: isThere(last, board, now) ? last.where : undefined,
+    where: isThere(last, board) ? last.where : undefined,
+    device: isLatestOn(last, board, each => each.where?.device) ? last.where?.device : undefined,
     directory: last.directory,
   }
 }
 
 /**
  * Whether a click could still find a last window's conversation where the
- * window was: not where its Claude went on into another conversation
- * (`livesOn`); nor in tmux, whose pane ids start again from `%0` with each
+ * window was: not in tmux, whose pane ids start again from `%0` with each
  * server, so the pane it was in is any pane now, or a shell its Claude ended
- * in; nor in a zmx session a live window of any session is in, another
- * Claude's now (`taken`).
+ * in; nor in a zmx session a later conversation was seen in, which holds that
+ * one's Claude, or its resume panel, now.
  */
-const isThere = (last: Presence, board: readonly Session[], now: number) =>
-  last.livesOn === undefined &&
-  last.where?.tmux === undefined &&
-  !taken(last.where?.zmx?.session, board, now)
+const isThere = (last: Presence, board: readonly Session[]) =>
+  last.where?.tmux === undefined && isLatestOn(last, board, each => each.where?.zmx?.session)
 
-/** Whether a live window on the board, of any session, is in the zmx session named. */
-const taken = (zmx: string | undefined, board: readonly Session[], now: number) =>
-  zmx !== undefined &&
-  board.some(session =>
-    session.presence.some(each => isLive(each, now) && each.where?.zmx?.session === zmx),
+/**
+ * Whether the last window's conversation is the latest seen at its place, as
+ * `placeOf` gives it (a zmx session, a device): its window did not let go as
+ * its Claude went on into another conversation (`livesOn`), and no heartbeat
+ * on the board, of any session, live or let go, was seen there later
+ * (`lastSeenAt`). One at no place has none to lose.
+ */
+const isLatestOn = (
+  last: Presence,
+  board: readonly Session[],
+  placeOf: (presence: Presence) => string | undefined,
+) => {
+  const place = placeOf(last)
+
+  return (
+    last.livesOn === undefined &&
+    (place === undefined ||
+      !board.some(session =>
+        session.presence.some(
+          each => placeOf(each) === place && lastSeenAt(each) > lastSeenAt(last),
+        ),
+      ))
   )
+}

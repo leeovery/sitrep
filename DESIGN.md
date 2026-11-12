@@ -3260,19 +3260,22 @@ truth. There is still no background service. None of it is built now. Lee:
       by `lastSeenAt` as `rejoinable` does), so a `/clear` moves it on to
       the conversation after. It carries what a click needs to carry the
       session on, and no more: the `writer`, the Claude Code session it ran;
-      its `where`, as a window's; and its `directory`, the folder its
-      Claude ran in, null from a window on a build from before heartbeats
-      said it. Null for a session a live window holds, for one no window
+      its `where`, as a window's; its `device`, the pty its Claude ran on, as
+      its `where` says it; and its `directory`, the folder its Claude ran
+      in, null from a window on a build from before heartbeats said it. Null for a session a live window holds, for one no window
       ever held, and for one whose last window's conversation would take up
       another session as it resumed: its writer's latest heartbeat, across
       the whole board, is on another session (core's `rejoinable`, which a
       resumed conversation takes up by), as a window that let go of it for
-      another's is, live there or ended. Its `where` is null where a click
-      could not find the conversation there: the window let go with
-      `livesOn`, its Claude gone on into another conversation; it was in
-      tmux, whose pane ids start again from `%0` with each server; or a live
-      window, of any session, is in the same zmx session, another Claude's
-      now. Time the Mac slept ages no heartbeat (core's `pauses.ts`), so a
+      another's is, live there or ended. A place, a zmx session or a device,
+      is the latest conversation's seen at it: its `where` is null where a
+      click could not find the conversation there, as the window let go
+      with `livesOn`, its Claude gone on into another conversation, it was
+      in tmux, whose pane ids start again from `%0` with each server, or a
+      heartbeat on the board, of any session, live or let go, was seen in
+      the same zmx session later (`lastSeenAt`); its `device` is null where
+      the window let go with `livesOn`, or a heartbeat was seen on that
+      device later. Time the Mac slept ages no heartbeat (core's `pauses.ts`), so a
       wake reads no live session as away. A field of the session, as SitRep reads a session's
       windows already by the session, not a list of its own: away windows
       are no live windows, and `windows` stays every live one. A field
@@ -7755,10 +7758,12 @@ open), and tmux passing an escape sequence through from Claude's own pane
      `/clear` or an in-process `/resume`, its Claude gone on into the next
      conversation there (its heartbeat says so); one in tmux, as a pane id
      does not outlive its server, and the pane it was in, if there still,
-     holds a shell its Claude ended in; and one whose zmx session a live
-     window, of any session, is in. Only zmx keeps the attach: Portal
-     brings its sessions back under the same names, holding the resume
-     panel that is the point of it. The heartbeat starts saying its folder:
+     holds a shell its Claude ended in; and one whose zmx session a later
+     conversation was seen in, live or let go, on any session: a zmx
+     session is the latest conversation's seen in it, which holds that
+     one's Claude, or, after a restart, its resume panel. Only zmx keeps
+     the attach: Portal brings its sessions back under the same names,
+     holding the resume panel that is the point of it. The heartbeat starts saying its folder:
      the Claude process's own, which entering a worktree moves and a
      shell's `cd` does not (Lee's hook anchors the same way, for the same
      reason). A window on an older build says none, so a command naming
@@ -7772,7 +7777,16 @@ open), and tmux passing an escape sequence through from Claude's own pane
      opening's does; whether a terminal shows it unknown, as a jump's does,
      and nothing opens, a zmx process whose command line does not read
      among the unknowns of an away window's session, as it may be that
-     session's.
+     session's. And a resume is refused where its Claude may still run: a
+     heartbeat gone stale says only that the beat stopped, which a plugin
+     no longer loading (as after `app/plugin app` once a worktree went, then
+     a `/reload-plugins`) or a process suspended does too. So before a
+     resume the process table is read, and a Claude Code process on the
+     device the last window's Claude ran on refuses it ("<name>'s Claude
+     may still be running in its window, on <device>, so SitRep starts no
+     second. Quit it there, or carry it on in that window."), as a table
+     giving no answer does ("Could not tell whether <name>'s Claude is still
+     running: the process table gave no answer.").
    - **One window per click**, for a resume as for an opening: a resumed
      Claude reaches the board only once its terminal session is made,
      Claude started, the plugin loaded, the session taken up and a beat
@@ -7800,7 +7814,16 @@ open), and tmux passing an escape sequence through from Claude's own pane
        any pane of it reads as in that zmx session, which can only miss an
        attach, never open a second Claude;
      - a zmx run by another user has a command line SitRep cannot read, so
-       an away window's session reads unknown while it runs.
+       an away window's session reads unknown while it runs;
+     - a device a later Claude Code took up with no board session, so no
+       heartbeat, refuses a resume wrongly, the safe way; and Claude Code
+       run by Node, as npm installs it, is not told by its program, so one
+       still running that way is resumed beside;
+     - for up to 10 seconds after a window joins a session it was off, the
+       watch's kept read of the session it left can still give that one's
+       last window with its `where`, so a click on it lands on the window
+       now running the other session; no second Claude starts. So too a
+       board line still stale at the click.
    - **Settings**, General's New windows: the resume command under the open
      command, the same literal field.
    - **Looked up in Portal** (12 November 2026), not built against:
@@ -7839,7 +7862,13 @@ open), and tmux passing an escape sequence through from Claude's own pane
        pane id does not outlive its server. The last window is ranked by
        `lastSeenAt`, the one function `rejoinable` ranks by, where it was
        by `seenAt`, so a window that let go after another stopped beating
-       is the last.
+       is the last. Narrowed again in a fourth review: a zmx session whose
+       last Claude belonged to another board session (W1 holding A in
+       `kit` exits; a fresh `claude` in `kit` starts B, then ends) was
+       attached from A, as only a live window took it, so after a restart
+       Enter on the resume panel carried B on. A zmx session is now the
+       latest conversation's seen in it, live or let go (`isLatestOn`, in
+       place of the live-only `taken`), and a device the same.
      - **The click** (`Jump.carryOn`): where the board names a last window,
        the session is away, and what is left of the window is read then.
        A window in a multiplexer is read as a jump reads it: on screen,
@@ -7884,6 +7913,16 @@ open), and tmux passing an escape sequence through from Claude's own pane
        `{dir}` the last window has none for: "<name>'s last window did not
        say which folder it ran in, as a window on an older sitrep does not,
        so SitRep has nothing to put for {dir}."
+     - **A Claude still on its device refuses the resume** (`Jump.checkGone`,
+       found in the fourth review): the feed carries the last window's
+       `device` while it is still that conversation's, and the click reads
+       the process table before typing the resume. Claude Code is told by
+       its program's path, as the screen reading told no Claude before: a
+       file named `claude` (Homebrew's), or one in a `claude/versions`
+       folder, as Claude Code's own installer keeps each version, its file
+       named by the version (`~/.local/share/claude/versions/2.1.322` on
+       this Mac, 12 November 2026, run through the `~/.local/bin/claude`
+       link). Its command line is never read.
      - **The resume opens as an opening does** (`Opening`), under its own
        20 seconds, remembered among the openings, so a second click opens
        no second window; its captions and banners are an opening's.

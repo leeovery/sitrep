@@ -13,6 +13,16 @@ public struct Proc: Sendable, Equatable {
         self.device = device
         self.program = program
     }
+
+    /// Whether it runs Claude Code, told by its program's path: a file named `claude`, as Homebrew's is, or one in a
+    /// `claude/versions` folder, as Claude Code's own installer keeps each version, its file named by the version
+    /// (`~/.local/share/claude/versions/2.1.322`, live 12 November 2026). Claude Code run by Node, as npm's is, is not
+    /// told.
+    var isClaudeCode: Bool {
+        let parts = program?.split(separator: "/") ?? []
+
+        return parts.last == "claude" || parts.dropLast().suffix(2) == ["claude", "versions"]
+    }
 }
 
 /// Every process of this Mac: one look at the kernel's table, and a process's command line read only where needed.

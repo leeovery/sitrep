@@ -142,8 +142,32 @@ public struct Jump: Sendable {
             }
 
             return try await openable(for: session, named: name, as: .resume) {
-                try await ResumeCommand(opening.resumeCommand).line(from: last, named: name)
+                let line = try await ResumeCommand(opening.resumeCommand).line(from: last, named: name)
+
+                try checkGone(last, named: name)
+                return line
             }
+        }
+    }
+
+    /// Refuses a resume where the last window's Claude may still run: a heartbeat gone stale says only that its beat
+    /// stopped, which its plugin no longer loading, or its process suspended, does too. So where a Claude Code process
+    /// is on the device that Claude ran on, nothing is resumed beside it; nor where the table gives no answer. A device
+    /// a later Claude is on refuses too, the safe way.
+    private func checkGone(_ last: Board.LastWindow, named name: String) throws {
+        guard let device = last.device else {
+            return
+        }
+        guard let processes = reader.table.read(arguments: { _ in false }) else {
+            throw Unopenable(
+                description: "Could not tell whether \(name)'s Claude is still running: the process table gave no answer."
+            )
+        }
+        if processes.all.values.contains(where: { $0.device == device && $0.isClaudeCode }) {
+            throw Unopenable(
+                description: "\(name)'s Claude may still be running in its window, on \(device), so SitRep starts no "
+                    + "second. Quit it there, or carry it on in that window."
+            )
         }
     }
 

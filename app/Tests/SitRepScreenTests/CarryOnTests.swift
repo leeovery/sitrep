@@ -16,9 +16,12 @@ struct CarryOnTests {
     private static let resume = "portal open -p {dir} -- claude --resume {claude}"
     private static let resumed = "portal open -p '/Users/lee/Code/leeway' -- claude --resume '\(claude)'"
 
-    /// The last window, in the zmx session given, else where given, its folder said unless none is.
-    private static func last(_ where: Where? = inZmx(leeway), directory: String? = folder) -> Board.LastWindow {
-        Board.LastWindow(writer: claude, where: `where`, directory: directory)
+    /// The last window, in the zmx session given, else where given, on the device given, its folder said unless none
+    /// is.
+    private static func last(_ where: Where? = inZmx(leeway), device: String? = nil, directory: String? = folder)
+        -> Board.LastWindow
+    {
+        Board.LastWindow(writer: claude, where: `where`, device: device, directory: directory)
     }
 
     /// The zmx session Portal shows in a Ghostty window, and that window's terminal.
@@ -103,6 +106,47 @@ struct CarryOnTests {
 
         mac.zmxUnread()
         return FakeTable(mac.tree)
+    }
+
+    // MARK: A Claude still there
+
+    /// A heartbeat gone stale says only that the beat stopped: its plugin no longer loading, or its process suspended,
+    /// stops it too. A Claude Code process on the device its Claude ran on refuses the resume, whichever installer's;
+    /// one with none there, a shell alone, resumes.
+    @Test(arguments: ["/Users/lee/.local/share/claude/versions/2.1.322", "/opt/homebrew/bin/claude"])
+    func aClaudeStillOnItsDeviceRefusesTheResumeAndNothingOpens(program: String) async {
+        var mac = Mac()
+
+        mac.claude(on: "/dev/ttys041", program: program)
+
+        let jumping = Jumping(FakeTmux(), FakeTable(mac.tree), resume: Self.resume)
+
+        #expect(await jumping.carryOn(from: Self.last(nil, device: "/dev/ttys041")) == .unopened(
+            "\(named)'s Claude may still be running in its window, on /dev/ttys041, so SitRep starts no second. Quit it "
+                + "there, or carry it on in that window."
+        ))
+        #expect(jumping.ghostty.told.isEmpty)
+    }
+
+    @Test func noClaudeOnItsDeviceResumes() async {
+        var mac = Mac()
+
+        mac.claude(on: "/dev/ttys042")
+        _ = mac.tree.window(of: mac.ghostty, on: "/dev/ttys041")
+
+        let jumping = Jumping(FakeTmux(), FakeTable(mac.tree), resume: Self.resume)
+
+        #expect(await jumping.carryOn(from: Self.last(inTmux(), device: "/dev/ttys041")) == .opened)
+        #expect(jumping.ghostty.opened == [Self.resumed])
+    }
+
+    @Test func aTableGivingNoAnswerRefusesTheResumeAsAJumpIsRefused() async {
+        let jumping = Jumping(FakeTmux(), FakeTable(nil), resume: Self.resume)
+
+        #expect(await jumping.carryOn(from: Self.last(nil, device: "/dev/ttys041")) == .unopened(
+            "Could not tell whether \(named)'s Claude is still running: the process table gave no answer."
+        ))
+        #expect(jumping.ghostty.told.isEmpty)
     }
 
     // MARK: The resume command's refusals

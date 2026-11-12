@@ -83,16 +83,19 @@ public struct Board: Versioned, Sendable, Equatable {
     }
 
     /// The window an away session was last in, by its heartbeat last seen: its writer, the Claude Code session it ran,
-    /// which a `/clear` moves on; where it was; and the folder its Claude ran in, none from a window on a sitrep from
-    /// before heartbeats said it.
+    /// which a `/clear` moves on; where it was, none where a click could no longer find its conversation there; the
+    /// device its Claude ran on, while no later conversation was seen on it; and the folder its Claude ran in, none from
+    /// a window on a sitrep from before heartbeats said it.
     public struct LastWindow: Decodable, Sendable, Equatable {
         public let writer: String
         public let `where`: Window.Where?
+        public let device: String?
         public let directory: String?
 
-        public init(writer: String, where: Window.Where? = nil, directory: String? = nil) {
+        public init(writer: String, where: Window.Where? = nil, device: String? = nil, directory: String? = nil) {
             self.writer = writer
             self.where = `where`
+            self.device = device
             self.directory = directory
         }
     }

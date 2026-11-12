@@ -264,6 +264,15 @@ struct Mac {
         tree.add(under: 1, zmxProgram, arguments: ["zmx", "attach", session] + command)
     }
 
+    /// Claude Code in a Ghostty window on the device, by its program's path: Claude Code's own installer's, named by
+    /// its version, unless another is given.
+    @discardableResult
+    mutating func claude(on device: String, program: String = "/Users/lee/.local/share/claude/versions/2.1.322")
+        -> pid_t
+    {
+        tree.add(under: tree.window(of: ghostty, on: device), program, on: device)
+    }
+
     /// A process of zmx's whose command line cannot be read, as one gone as it was read.
     @discardableResult
     mutating func zmxUnread() -> pid_t {

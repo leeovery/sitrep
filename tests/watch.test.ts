@@ -1524,6 +1524,7 @@ test("an away session on a line carries the window it was last in, its where and
       {
         writer: W1,
         where: { device: WHERE.device, terminal: WHERE.terminal, tmux: null, zmx: null },
+        device: WHERE.device,
         directory: REPO,
       },
     ],
