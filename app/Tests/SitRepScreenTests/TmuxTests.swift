@@ -112,6 +112,21 @@ struct TmuxTests {
         }
     }
 
+    @Test func tmuxsWordsAreItsLastLineSoAWarningAheadOfThemNeitherHidesNoServerNorIsQuoted() async throws {
+        let folder = try Self.folderHolding("tmux")
+        let warning = "dyld[4242]: warning: libevent was built for a newer macOS\n"
+        let cases: [(String, ServerRead)] = [
+            ("no server running on \(Self.socket)\n\n", .noServer),
+            ("protocol version mismatch (client 8, server 7) \n", .failed(said: "protocol version mismatch (client 8, server 7)")),
+        ]
+
+        for (said, read) in cases {
+            let tmux = TmuxOnPath(path: folder.path) { _ in Ran(status: 1, stdout: "", stderr: warning + said) }
+
+            #expect(await TmuxAdapter(tmux).readServer(Self.socket) == read, "\(said)")
+        }
+    }
+
     @Test func eitherListFailingFailsTheServerThoughTheOtherAnswered() async throws {
         let folder = try Self.folderHolding("tmux")
         let tmux = TmuxOnPath(path: folder.path) { program in

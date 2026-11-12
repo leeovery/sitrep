@@ -5642,12 +5642,13 @@ Only step 1, the mod recording where its window is, is the plugin's still.
    answers no server only where its own words say none runs on the socket:
    `no server running on`, a socket refusing, a stale file nothing listens
    on, or `error connecting to` it with `(No such file or directory)`, no
-   socket at all, as tmux's client words them. Any other error, a protocol
-   mismatch after an upgrade, a socket it may not open, a lost server, or
-   none in words, is a server tmux could not talk to: its sessions are
-   unknown, so a jump refuses them saying what tmux said (`tmux said
-   "protocol version mismatch (client 8, server 7)"`) and no window is
-   opened for them (12 November 2026).
+   socket at all, as tmux's client words them. Its words are the last line
+   it writes, as a wrapper or the loader may warn ahead of it. Any other
+   error, a protocol mismatch after an upgrade, a socket it may not open, a
+   lost server, or none in words, is a server tmux could not talk to: its
+   sessions are unknown, so a jump refuses them saying what tmux said
+   (`tmux said "protocol version mismatch (client 8, server 7)"`) and no
+   window is opened for them (12 November 2026).
 
    **The seat** (9 November 2026). The same snapshot gives each client's
    device: the tty of its app's own child among its ancestors, the

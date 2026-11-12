@@ -59,7 +59,8 @@ public struct TmuxAdapter: Multiplexer {
     }
 
     /// A server's panes and clients. tmux exiting non-zero answers no server only where its words say none runs on
-    /// the socket; any other error, a server it could not talk to, leaves the server unknown, in tmux's words.
+    /// the socket; any other error, a server it could not talk to, leaves the server unknown, in tmux's words. Its
+    /// words are its last line, as a wrapper or the loader may write ahead of it.
     func readServer(_ socket: String) async -> ServerRead {
         async let panes = try? tmux.run(on: socket, Self.panes)
         async let clients = try? tmux.run(on: socket, Self.clients)
@@ -72,7 +73,9 @@ public struct TmuxAdapter: Multiplexer {
             return .server(TmuxServer(panes: parsePanes(panes.stdout), clients: parseClients(clients.stdout)))
         }
 
-        let said = failed.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
+        let said = failed.stderr.split(whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .last { !$0.isEmpty } ?? ""
 
         return Self.saysNoServer(said) ? .noServer : .failed(said: said)
     }

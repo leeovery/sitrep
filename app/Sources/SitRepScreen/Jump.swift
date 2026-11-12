@@ -344,11 +344,13 @@ enum Jumped: Equatable {
         }
     }
 
-    /// Why a jump could not tell, in words: what gave no answer, then what tmux said instead.
+    /// Why a jump could not tell, in words: what gave no answer, then, after a comma, what tmux said instead.
     private static func whyUnknown(_ unanswered: [Unanswered]) -> String {
         let silent = unanswered.compactMap(\.silent)
+        let said = unanswered.compactMap(\.said)
 
-        return inWords((silent.isEmpty ? [] : ["\(inWords(silent)) gave no answer"]) + unanswered.compactMap(\.said))
+        return [silent.isEmpty ? nil : "\(inWords(silent)) gave no answer", said.isEmpty ? nil : inWords(said)]
+            .compactMap(\.self).joined(separator: ", and ")
     }
 
     /// Why tmux did not select a pane's window, in words: in tmux's, where it said any.

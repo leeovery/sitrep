@@ -150,7 +150,12 @@ struct JumpTests {
         let cases: [([Unanswered], String)] = [
             ([.tmuxSaid(mismatch)], "tmux said \"\(mismatch)\""),
             ([.tmuxSaid("")], "tmux failed without saying why"),
-            ([.tmuxSaid(mismatch), .processes], "the process table gave no answer and tmux said \"\(mismatch)\""),
+            ([.tmuxSaid(mismatch), .processes], "the process table gave no answer, and tmux said \"\(mismatch)\""),
+            ([.tmux, .tmuxSaid(mismatch)], "tmux gave no answer, and tmux said \"\(mismatch)\""),
+            (
+                [.tmux, .tmuxSaid(mismatch), .processes],
+                "tmux and the process table gave no answer, and tmux said \"\(mismatch)\""
+            ),
             ([.tmux, .processes], "tmux and the process table gave no answer"),
         ]
 
