@@ -3,6 +3,7 @@
  * resumes in a new process: the one its writer was last seen in. A window
  * leaves a heartbeat in every session it holds, and its own lines.
  */
+import { lastSeenAt } from './presence'
 import type { Session } from './types'
 
 /**
@@ -15,7 +16,7 @@ export const lastSeen = (session: Session, writer: string): number | undefined =
   const beat = session.presence.find(each => each.writer === writer)
 
   if (beat !== undefined) {
-    return beat.leftAt ?? beat.seenAt
+    return lastSeenAt(beat)
   }
 
   const times = [...session.items.values(), ...session.log.filter(line => line.kind === 'status')]

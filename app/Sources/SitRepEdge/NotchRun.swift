@@ -376,13 +376,11 @@ public final class NotchRun: Framed {
     private func jump(_ index: Int) -> Press? {
         let items = notch.items
 
-        guard items.indices.contains(index), let session = items[index].session,
-              let target = board.jump(session), notch.clickRow(index)
-        else {
+        guard items.indices.contains(index), let session = items[index].session, notch.clickRow(index) else {
             return nil
         }
 
-        return .jump(session, to: target, click: book.click())
+        return .jump(session, to: session.id, click: book.click())
     }
 
     /// The panel out or in: from its coming out the rows keep their places; as it goes in they take core's order.

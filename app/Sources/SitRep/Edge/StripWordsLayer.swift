@@ -3,7 +3,7 @@ import SitRepEdge
 import SitRepPanel
 
 /// A tab's words in black, laid out once as the prototype's `.tl` lays them out: a session's panel row (its title, the
-/// line under it, or why an away ask's takes no click, and its time at the right), a count's rows, or the notch
+/// line under it, an away ask's saying no window holds it, and its time at the right), a count's rows, or the notch
 /// at rest's two lines. Each frame sets only their opacity, their slide along the strip, how far a count's rows are
 /// scrolled, a click pressing them in, and the time, and a wake's countdown, as they tick.
 @MainActor
@@ -17,10 +17,9 @@ final class StripWordsLayer {
     private let content = CALayer()
     private let age = CALayer()
     private let spinner: Arc
-    /// A count's rows, by session, scrolled together; those of away asks never lift.
+    /// A count's rows, by session, scrolled together.
     private let list = CALayer()
     private(set) var rows: [String: CALayer] = [:]
-    private var away: Set<String> = []
     /// A count's rows waiting on a wake: each title, where it sits in its row, and what its countdown said.
     private var countdowns: [(session: Session, title: CALayer, box: CGRect, subject: String?)] = []
     private var session: Session?
@@ -74,7 +73,7 @@ final class StripWordsLayer {
         showAge(at: now)
         showCountdowns(at: now)
 
-        let id = words.pressedRow ?? hover.flatMap { away.contains($0) ? nil : $0 }
+        let id = words.pressedRow ?? hover
 
         light(id.flatMap { rows[$0] }, pressed: words.pressedRow != nil)
     }
@@ -213,9 +212,6 @@ final class StripWordsLayer {
             box.addSublayer(TextLine(Self.rowSub(session), in: at.sub))
             list.addSublayer(box)
             rows[session.id] = box
-            if session.away {
-                away.insert(session.id)
-            }
             if session.until != nil {
                 countdowns.append((session, title, at.title, session.subject(at: now)))
             }

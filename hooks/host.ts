@@ -73,6 +73,8 @@ export type Host = {
   conversation: {
     id: () => Promise<string>
     cwd: () => Promise<string>
+    /** The folder its Claude runs in: where it started, or where entering a worktree took it; never where a shell's `cd` went. */
+    root: () => Promise<string>
   }
   env: () => Promise<{ XDG_STATE_HOME?: string; HOME?: string }>
   /** What tells where this window is: read only as it attaches. */

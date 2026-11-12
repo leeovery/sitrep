@@ -53,12 +53,6 @@ struct MenuBoardTests {
         #expect(sessions.first?.ageText(at: 1_792_445_000_000 + 60 * 60_000) == "1h")
     }
 
-    @Test func aClickJumpsToTheRowsSessionButAnAwayRowJumpsNowhere() {
-        let sessions = Self.board.items.compactMap(\.session)
-
-        #expect(sessions.map(Self.board.jump) == ["sr-ledger", "sr-dash", nil, "sr-boot", "sr-diff"])
-    }
-
     @Test func theHeadingIsThePanelHeadsWords() {
         #expect(Self.board.heading == "3 need you")
         #expect(Self.menu(heard([.line(Watched.line(needYou: 0, rows: [Watched.rows[3]]))])).heading == "All clear")

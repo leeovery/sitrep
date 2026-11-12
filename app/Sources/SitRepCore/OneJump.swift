@@ -4,8 +4,12 @@
 /// stopped, as a later click's jump took its place.
 public enum JumpAnswer: Sendable, Equatable {
     case jumped
+    /// The window brought forward with a word for Lee: SitRep started nothing there, and says why.
+    case jumpedSaying(String)
     case openable
     case opened
+    /// A window opened onto it with a word for Lee, as `jumpedSaying`.
+    case openedSaying(String)
     case opening
     case refused(String)
     case unopened(String)

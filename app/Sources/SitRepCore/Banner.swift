@@ -26,6 +26,11 @@ public struct Banner: Equatable, Sendable {
         refused("SitRep could not open a window", why)
     }
 
+    /// A click that took Lee to a window and started nothing there, saying why.
+    public static func startedNothing(_ why: String) -> Banner {
+        refused("SitRep started nothing", why)
+    }
+
     /// A snooze from a row's menu that the CLI refused, in its words, as the pane says it.
     public static func unsnoozed(_ why: String) -> Banner {
         refused("Not snoozed", why)
@@ -44,14 +49,24 @@ public struct Banner: Equatable, Sendable {
 
 extension JumpAnswer {
     /// The banner a jump that came to this posts: a refusal in its own words, a window's under its own title; no
-    /// answer in time as the Mac too busy; none for one that jumped or opened a window, nor for one a later click
-    /// stopped, as that one goes on.
+    /// answer in time as the Mac too busy; a window brought forward with a word for Lee, that word; none for one that
+    /// jumped or opened a window, nor for one a later click stopped, as that one goes on.
     public var banner: Banner? {
         switch self {
         case .jumped, .openable, .opened, .opening, .stopped: nil
+        case let .jumpedSaying(why), let .openedSaying(why): .startedNothing(why)
         case let .refused(why): .unjumped(why)
         case let .unopened(why): .unopened(why)
         case .unanswered: .tooBusy
+        }
+    }
+
+    /// Whether the front goes back to the app in front before the click: nothing came forward, as for a refusal, or a
+    /// window is still opening.
+    public var handsBack: Bool {
+        switch self {
+        case .refused, .unopened, .unanswered, .opening: true
+        case .jumped, .jumpedSaying, .openable, .opened, .openedSaying, .stopped: false
         }
     }
 }

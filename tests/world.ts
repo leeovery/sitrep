@@ -375,6 +375,8 @@ export function world(engine: Engine, on: On, options: Options = {}) {
   const shown = display(on)
   let conversation = W1
   let cwd = options.cwd ?? REPO
+  /** The folder the window's Claude runs in, which a shell's `cd` never moves; none, as one that does not read. */
+  let root: string | undefined = cwd
   let isRefused: ((path: string) => boolean) | undefined
   let isUnread = false
   /** The plugin's manifest; none, as one that cannot be read. */
@@ -429,6 +431,7 @@ export function world(engine: Engine, on: On, options: Options = {}) {
   on('prompt.context', ($, e) => ({ blocks: e.blocks }))
   on('session.id', () => ({ value: conversation }))
   on('session.cwd', () => ({ value: cwd }))
+  on('session.root', () => (root === undefined ? { deny: 'no folder' } : { value: root }))
 
   on('tool.register', ($, e) => {
     registered.push({ name: e.name, isDeferred: e.isDeferred })
@@ -736,10 +739,11 @@ export function world(engine: Engine, on: On, options: Options = {}) {
     return { id, paths: sessionPaths(ROOT, PROJECT.key, id) }
   }
 
-  /** The conversation from here on: another id, as after a /clear, or another folder. */
-  const become = (next: { conversation?: string; cwd?: string }) => {
+  /** The conversation from here on: another id, as after a /clear; another folder, as a shell's `cd` takes it to; or another folder its Claude runs in, as entering a worktree moves it, null for one that does not read. */
+  const become = (next: { conversation?: string; cwd?: string; root?: string | null }) => {
     conversation = next.conversation ?? conversation
     cwd = next.cwd ?? cwd
+    root = next.root === null ? undefined : (next.root ?? root)
   }
 
   /** The board opened by /sitrep, as Lee opens it, then drawn docked unless told otherwise. */

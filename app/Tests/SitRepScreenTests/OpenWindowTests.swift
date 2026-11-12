@@ -132,7 +132,7 @@ struct OpenWindowTests {
         let couldNotTell = { (what: String) in JumpAnswer.refused("Could not tell whether \(named) is on screen: \(what) gave no answer.") }
 
         return [
-            ("no live window, as an away row's session has none", [], FakeTmux(), FakeTable(Mac().tree), offScreen),
+            ("no live window", [], FakeTmux(), FakeTable(Mac().tree), offScreen),
             ("a window in no multiplexer", [Where(device: "/dev/ttys041", terminal: "Unknown")], FakeTmux(), FakeTable(Mac().tree), offScreen),
             ("no tmux server on its socket", [inTmux()], FakeTmux(), FakeTable(Mac().tree), offScreen),
             ("its pane gone from its server", [inTmux("%9")], Self.detachedTmux, FakeTable(Mac().tree), offScreen),
@@ -169,8 +169,9 @@ struct OpenWindowTests {
         #expect(jumping.ghostty.opened.isEmpty)
     }
 
-    /// From the board: a session with no live window, as an away row's, has nothing to open a window for.
-    @Test func aSessionOnTheBoardWithNoLiveWindowIsRefusedAsNotOnScreen() async throws {
+    /// From the board: a session with no live window, nor any last one, as no window ever held it, has nothing to open
+    /// a window for.
+    @Test func aSessionOnTheBoardWithNoWindowAtAllIsRefusedAsNotOnScreen() async throws {
         let line = try board([], sessions: ["sr-q": "Quiet one"])
 
         #expect(
@@ -260,7 +261,7 @@ struct OpenWindowTests {
 
     // MARK: A second click
 
-    /// The window's shell takes a moment to start and attach: a click on the session within `RecentOpenings.lasts`
+    /// The window's shell takes a moment to start and attach: a click on the session within an opening's 10 seconds
     /// answers that its window is opening, and never opens another, nor asks tmux or Ghostty anything for one.
     @Test func aSecondClickWhileItsWindowOpensOpensNoOtherWindow() async throws {
         let line = try board([LineWindow(writer: "w1", session: "sr-a", order: 0, zmx: Self.leeway)])
@@ -441,19 +442,6 @@ struct OpenWindowTests {
                 == .unopened("SitRep gave up waiting for Ghostty to open a window for \(named) after 20 seconds; one may still appear.")
         )
         gate.open()
-    }
-}
-
-/// A clock the test moves by hand, for what is remembered a while.
-private final class MovingClock: Sendable {
-    private let at = OSAllocatedUnfairLock(initialState: ContinuousClock.now)
-
-    var now: @Sendable () -> ContinuousClock.Instant {
-        { [at] in at.withLock { $0 } }
-    }
-
-    func move(by duration: Duration) {
-        at.withLock { $0 += duration }
     }
 }
 

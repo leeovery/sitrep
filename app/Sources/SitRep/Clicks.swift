@@ -96,7 +96,7 @@ final class Clicks {
 
     private static func tell(_ answer: JumpAnswer, _ answered: (JumpAnswer) -> Void, _ handBack: () -> Void) {
         answered(answer)
-        if answer.banner != nil || answer == .opening {
+        if answer.handsBack {
             handBack()
         }
     }

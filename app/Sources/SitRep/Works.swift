@@ -4,10 +4,11 @@ import SitRepMenu
 import SitRepScreen
 
 /// The jump to a session's window, SitRep's own (`Jump`), from the watch's last line, or a window opened for a session
-/// no window shows: one at a time, the latest click winning (`Clicks`).
+/// no window shows, an away one's among them: one at a time, the latest click winning (`Clicks`).
 @MainActor
 final class Works {
     private let board: JumpBoard
+    private let openings: RecentOpenings
     private let clicks: Clicks
 
     /// Every jump's news, once a jump, whichever surface asked for it, after each click's own `answered`: the edge's
@@ -22,6 +23,7 @@ final class Works {
         let openings = RecentOpenings()
 
         self.board = board
+        self.openings = openings
         clicks = Clicks(jump: { session in
             let opening = opening()
 
@@ -37,9 +39,10 @@ final class Works {
         clicks.heard = { [weak self] news in self?.heard(news) }
     }
 
-    /// Each look of the watch, the board a jump goes from.
+    /// Each look of the watch, the board a jump goes from, and which tells a session resumed back.
     func show(_ last: LastBoard) {
         board.heard(last)
+        last.board.map(openings.heard)
     }
 
     /// No plugin to run the watch, so no board to jump from, for the reason given.
@@ -65,6 +68,9 @@ extension AppSettings {
     /// How a window is opened for a session no window shows, as Lee set it: a terminal SitRep no longer has a driver
     /// for read as Ghostty.
     var openSettings: OpenSettings {
-        OpenSettings(terminal: Driver.all.first { $0.program == terminal } ?? .ghostty, command: openCommand)
+        OpenSettings(
+            terminal: Driver.all.first { $0.program == terminal } ?? .ghostty, command: openCommand,
+            resumeCommand: resumeCommand
+        )
     }
 }

@@ -199,14 +199,9 @@ public final class StripRun: Framed {
         return frame.tabs.flatMap(\.words).compactMap { $0.changes(after: now) }.min()
     }
 
-    /// A click on a session: one no window holds ends its spin at once, as there is nowhere to jump.
-    private func jump(_ session: Session) -> Release? {
-        guard let target = board.jump(session) else {
-            strip.jumpAnswered()
-            return nil
-        }
-
-        return .jump(session, to: target, click: book.click())
+    /// A click on a session: its jump, or an away one carried on.
+    private func jump(_ session: Session) -> Release {
+        .jump(session, to: session.id, click: book.click())
     }
 
     private static func input(at time: Double, pointer: CGPoint?, _ setting: Setting) -> StripInput {

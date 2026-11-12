@@ -7,10 +7,11 @@
  * Whatever reads or changes the hold runs in turn (`serially`), so two tool
  * calls never write the window's file over each other, and a heartbeat never
  * lands after the window let go. The heartbeat says what the window is
- * doing as it attaches, and again whenever that changes (doing.ts), the
- * replies each send of Lee's in flight carries to the session, from its
- * claim to its end (deliver.ts), and which load wrote it: a load finding a
- * later one's there writes it no more (load.ts).
+ * doing as it attaches, and again whenever that changes (doing.ts); the
+ * folder its Claude runs in, read again at each beat, as entering a
+ * worktree moves it; the replies each send of Lee's in flight carries to
+ * the session, from its claim to its end (deliver.ts); and which load wrote
+ * it: a load finding a later one's there writes it no more (load.ts).
  */
 import type { Timer } from 'claude-code'
 import {
@@ -261,6 +262,21 @@ const doingNow = async (host: Host, held: SitrepAttachment) => ({
   sending: sendingTo(held, await flightNow(host)),
 })
 
+/** The folder this window's Claude runs in; undefined where it does not read, which the debug log says. */
+const directoryNow = (host: Host) =>
+  host.conversation.root().catch((error: unknown) => {
+    logFailure(host, "reading the window's folder")(error)
+
+    return undefined
+  })
+
+/** The folder the heartbeat at `path` last said, as a reload's attach keeps it should its own read fail; none with none there. */
+const saidDirectory = (host: Host, path: string, writer: string) =>
+  host.fs.read(path).then(
+    text => parsePresence(text, writer)?.directory,
+    () => undefined,
+  )
+
 /** Whether a heartbeat already says this of the window's doing. */
 const isSaid = (presence: Presence, doing: Pick<Presence, 'state' | 'sending'>) =>
   JSON.stringify([presence.state, presence.sending]) ===
@@ -281,11 +297,14 @@ const timersFor = (host: Host, hold: Hold) => {
 
       whileHeld('the heartbeat', async () => {
         await readFlight(host, since)
+
+        const directory = (await directoryNow(host)) ?? hold.presence.directory
+
         await beat(
           host,
           hold,
           heartbeat(
-            { ...hold.presence, ...(await doingNow(host, hold.attachment)) },
+            { ...hold.presence, directory, ...(await doingNow(host, hold.attachment)) },
             await host.clock.now(),
           ),
         )
@@ -342,8 +361,12 @@ export const sayInFlight = (host: Host, flights: SitrepInFlight[]) => {
   return restate(host)
 }
 
-/** Lets go of the held session: the heartbeat says so, and the beat and the watch stop. */
-export const letGo = async (host: Host) => {
+/**
+ * Lets go of the held session: the heartbeat says so, and whether the
+ * window's Claude `livesOn` into another conversation, and the beat and the
+ * watch stop.
+ */
+export const letGo = async (host: Host, livesOn = false) => {
   const hold = current
 
   if (hold === undefined) {
@@ -357,7 +380,7 @@ export const letGo = async (host: Host) => {
   }
 
   try {
-    await beat(host, hold, leave(hold.presence, await host.clock.now()))
+    await beat(host, hold, leave(hold.presence, await host.clock.now(), livesOn))
   } finally {
     await forget(host)
   }
@@ -395,15 +418,17 @@ export const dropPickUpsElsewhere = async (host: Host) => {
 /**
  * Holds the session `attaching` names, letting go of any other first: reads
  * the window's own file back, works out where the window is, writes its
- * heartbeat, saying the version it runs and what it is doing as it stands,
- * starts the beat and the watch, and folds the session. A pick-up of
+ * heartbeat, saying its folder (the one its heartbeat there said, where the
+ * folder does not read), the version it runs and what it is doing as it
+ * stands, starts the beat and the watch, and folds the session. A pick-up of
  * another project's item leaves Ready to send.
  */
 export const attachTo = async (host: Host, root: string, attaching: SitrepAttachment) => {
   const { project, session, writer, attachedAt } = attaching
   const paths = sessionPaths(root, project, session)
-  const [where, version, doing, loadedAt] = await Promise.all([
+  const [where, directory, version, doing, loadedAt] = await Promise.all([
     whereNow(host),
+    directoryNow(host).then(read => read ?? saidDirectory(host, paths.heartbeat(writer), writer)),
     versionNow(host),
     doingNow(host, attaching),
     loadedNow(host),
@@ -412,7 +437,7 @@ export const attachTo = async (host: Host, root: string, attaching: SitrepAttach
     attachment: attaching,
     paths,
     text: await ownText(host, paths.log(writer)),
-    presence: attach(writer, attachedAt, { where, version, ...doing, loadedAt }),
+    presence: attach(writer, attachedAt, { where, directory, version, ...doing, loadedAt }),
     read: createReader(),
     timers: [],
   }

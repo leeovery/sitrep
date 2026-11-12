@@ -1,9 +1,11 @@
 import { expect, test, tier } from 'claude-code/testing'
 import {
+  attach,
   HEARTBEAT_MS,
   metaText,
   parseEntries,
   parsePresence,
+  presenceText,
   sessionPaths,
   type SessionPaths,
 } from '../core'
@@ -30,6 +32,7 @@ import {
   manifestOf,
   PLUGIN_VERSION,
   PROJECT,
+  REPO,
   ROOT,
   CONVERSATION,
   startedId,
@@ -132,6 +135,7 @@ test('after a reload, the window takes up the session $.state names, reads its f
     attachedAt: T0,
     seenAt: T0 + 60_000,
     where: WHERE,
+    directory: REPO,
     version: PLUGIN_VERSION,
     state: { is: 'yourTurn', since: T0 },
     loadedAt: T0 + 60_000,
@@ -176,6 +180,7 @@ test('the heartbeat is rewritten every 30 seconds while attached, and says when 
     attachedAt: T0,
     seenAt: at,
     where: WHERE,
+    directory: REPO,
     version: PLUGIN_VERSION,
     state: { is: 'yourTurn', since: T0 },
     loadedAt: T0,
@@ -196,6 +201,23 @@ test('the heartbeat is rewritten every 30 seconds while attached, and says when 
 
   expect(beat()?.seenAt).toBe(T0 + HEARTBEAT_MS)
 })
+
+for (const [reason, livesOn] of [
+  ['clear', true],
+  ['resume', true],
+  ['prompt_input_exit', undefined],
+  ['logout', undefined],
+  ['other', undefined],
+] as const) {
+  test(`a window letting go as its conversation ends by ${reason} says ${livesOn ? 'that its Claude lives on into the next' : 'nothing of its Claude living on'}`, async ($, on) => {
+    const w = world($, on)
+    const { paths } = await w.begin()
+
+    await $.session.end({ reason, sessionId: W1, resume: { id: W1 } })
+
+    expect(parsePresence(w.text(paths.heartbeat(W1)), W1)?.livesOn).toBe(livesOn)
+  })
+}
 
 test('attaching in tmux records the device, the terminal and the pane in the heartbeat, and every later beat keeps them', async ($, on) => {
   const w = world($, on, {
@@ -228,6 +250,68 @@ test('attaching in zmx records the device, the terminal and the zmx session in t
     terminal: 'ghostty',
     zmx: { session: 'kit · restore-card' },
   })
+})
+
+test("the heartbeat says the folder its Claude runs in: a shell's cd moves it not, entering a worktree moves it at the next beat", async ($, on) => {
+  const w = world($, on)
+  const { paths } = await w.begin()
+  const directory = () => parsePresence(w.text(paths.heartbeat(W1)), W1)?.directory
+  const worktree = `${REPO}/.claude/worktrees/lobby`
+
+  expect(directory()).toBe(REPO)
+
+  w.become({ cwd: `${REPO}/hooks` })
+  await w.clock.advance(HEARTBEAT_MS)
+
+  expect(directory()).toBe(REPO)
+
+  w.become({ root: worktree })
+  await w.clock.advance(HEARTBEAT_MS)
+
+  expect(directory()).toBe(worktree)
+})
+
+test("a folder that does not read leaves the heartbeat's last, says so in the debug log, and the window beats all the same", async ($, on) => {
+  const w = world($, on)
+  const { paths } = await w.begin()
+  const beat = () => parsePresence(w.text(paths.heartbeat(W1)), W1)
+
+  w.become({ root: null })
+  await w.clock.advance(HEARTBEAT_MS)
+
+  expect(beat()?.seenAt).toBe(w.clock.now())
+  expect(beat()?.directory).toBe(REPO)
+  expect(w.logs).toEqual([expect.stringContaining("sitrep: reading the window's folder failed")])
+})
+
+test("a reload's attach whose folder does not read keeps the folder the window's heartbeat said", async ($, on) => {
+  const w = world($, on, { now: T0 + 60_000 })
+  const paths = sessionPaths(ROOT, PROJECT.key, META.id)
+  const worktree = `${REPO}/.claude/worktrees/lobby`
+  let isReloaded = false
+
+  on('state.get', { plugin: 'sitrep', key: 'attachment' }, ($, e, next) => {
+    if (isReloaded) {
+      return next(e)
+    }
+
+    isReloaded = true
+
+    return {
+      value: {
+        value: { project: PROJECT.key, session: META.id, writer: W1, attachedAt: T0 },
+        version: 1,
+      },
+    }
+  })
+
+  w.put(paths.meta, metaText(META))
+  w.put(paths.heartbeat(W1), presenceText(attach(W1, T0, { directory: worktree })))
+  w.become({ root: null })
+  await $.session.start(CONVERSATION)
+
+  expect(parsePresence(w.text(paths.heartbeat(W1)), W1)?.directory).toBe(worktree)
+  expect(w.logs).toEqual([expect.stringContaining("sitrep: reading the window's folder failed")])
 })
 
 test("every heartbeat says the version the plugin's manifest gave as the mod loaded, though the manifest changes after", async ($, on) => {

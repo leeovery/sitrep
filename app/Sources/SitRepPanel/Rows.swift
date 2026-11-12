@@ -92,7 +92,7 @@ public struct Session: Equatable, Sendable {
     /// The project's two letters, as its mark on the strip shows them.
     public var letters: String
     public var kind: Kind
-    /// Needing Lee with no window holding it: its row and its tab say so, and a click on them jumps nowhere.
+    /// Needing Lee with no window holding it: its row and its tab say so, and a click on them carries it on.
     public var away: Bool
     /// Needing Lee, the newest first, as core has them; in Snoozed, the soonest to wake first; never none.
     public var lines: [Line]
@@ -161,9 +161,6 @@ public struct Session: Equatable, Sendable {
         let caps = project.filter { $0.isASCII && $0.isUppercase }
         return caps.count >= 2 ? String(caps.prefix(2)) : String(project.prefix(2))
     }
-
-    /// A click on it jumps, unless no window holds it.
-    public var jumps: Bool { !away }
 
     /// Whether it is among needs you.
     public var needsLee: Bool { kind == .needs }
@@ -350,8 +347,8 @@ public struct Content: Equatable, Sendable {
             self.isGoing = isGoing
         }
 
-        /// Whether a click on it jumps: it is a session's row a window holds, and not folding away.
-        public var jumps: Bool { !isGoing && item.session?.jumps == true }
+        /// Whether a click on it jumps: it is a session's row, and not folding away.
+        public var jumps: Bool { !isGoing && item.session != nil }
     }
 
     /// The head's line and the room under it; 0 with no head, as on the card with its sections.

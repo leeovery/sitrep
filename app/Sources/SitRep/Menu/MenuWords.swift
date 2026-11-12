@@ -14,21 +14,20 @@ enum MenuWords {
     /// A session's row: its mark, a working one's arc at this frame of its turn, its time as its badge, and its words
     /// at this time on the wall clock, ms.
     static func row(
-        _ item: NSMenuItem, _ session: Session, jump: String?, age: String, now: Double, isHighlighted: Bool,
-        turn frame: Int = 0
+        _ item: NSMenuItem, _ session: Session, age: String, now: Double, isHighlighted: Bool, turn frame: Int = 0
     ) {
         item.image = MenuImages.mark(session, turn: frame)
         item.badge = NSMenuItemBadge(string: age)
-        describe(item, session, jump: jump, now: now, isHighlighted: isHighlighted)
+        describe(item, session, now: now, isHighlighted: isHighlighted)
     }
 
     /// A row's words at this time on the wall clock, ms: its first line, its subject in mono, a working row's fainter
-    /// but under the pointer, where the highlight's ink takes over; an away row's in the disabled ink, as macOS draws a
-    /// disabled item's.
-    static func describe(_ item: NSMenuItem, _ session: Session, jump: String?, now: Double, isHighlighted: Bool) {
+    /// and an away row's in the disabled ink, as macOS draws a disabled item's, but under the pointer, where the
+    /// highlight's ink takes over.
+    static func describe(_ item: NSMenuItem, _ session: Session, now: Double, isHighlighted: Bool) {
         let line = session.menuLine(at: now).cut(by: cut)
-        let ink: NSColor? = jump == nil ? .disabledControlTextColor
-            : line.isFaint && !isHighlighted ? .secondaryLabelColor : nil
+        let ink: NSColor? = isHighlighted ? nil
+            : session.away ? .disabledControlTextColor : line.isFaint ? .secondaryLabelColor : nil
         let title = NSMutableAttributedString(string: line.words, attributes: [.font: MenuFonts.words])
 
         if let mono = line.mono {

@@ -111,12 +111,10 @@ struct NotchRunTests {
         )
     }
 
-    /// A press on a row's time is a press on the row, which holds no button there: it jumps, pressing the row in, and
-    /// on an away row does nothing.
+    /// A press on a row's time is a press on the row, which holds no button there: it jumps, pressing the row in.
     @Test func aPressOnARowsTimeIsAPressOnTheRow() throws {
         let run = Self.openedWithAway()
 
-        #expect(run.press(Self.at(run.time, try Self.time(of: "needs:sr-k", in: run))) == nil)
         guard case let .jump(session, to: target, click: click)? = run.press(
             Self.at(run.time, try Self.time(of: "needs:sr-a", in: run))
         )
@@ -129,14 +127,12 @@ struct NotchRunTests {
         #expect(run.frame.panel?.pressed == "needs:sr-a")
     }
 
-    /// A right-click finds the row under it, away or not; its menu's jump presses that row in as a click does, and on
-    /// an away row, which no window holds, jumps nowhere.
+    /// A right-click finds the row under it, away or not; its menu's jump presses that row in as a click does.
     @Test func theMenusJumpIsAClickOnTheRow() throws {
         let run = Self.openedWithAway()
 
         #expect(run.row(at: try Self.point(of: "needs:sr-k", in: run), in: Self.setting)?.session?.id == "sr-k")
         #expect(run.row(at: try Self.point(of: "needs:sr-a", in: run), in: Self.setting)?.key == "needs:sr-a")
-        #expect(run.jump(to: "needs:sr-k", Self.at(run.time)) == nil)
 
         guard case let .jump(session, to: target, click: click)? = run.jump(
             to: "needs:sr-a", Self.at(run.time)
@@ -171,6 +167,24 @@ struct NotchRunTests {
         held.menuClosed()
         Self.frames(held, for: 5000, away) { held.phase == .closed }
         #expect(held.phase == .closed)
+    }
+
+    /// An away row is a session's row as any (stage 8): a press on it, and its menu's jump, press it in and go to its
+    /// session, which the jump carries on.
+    @Test func anAwayRowJumpsAsAnyRowFromAPressAndFromItsMenu() throws {
+        let pressed = Self.openedWithAway()
+        let chosen = Self.openedWithAway()
+
+        guard case let .jump(session, to: target, click: _)? = pressed.press(
+            Self.at(pressed.time, try Self.time(of: "needs:sr-k", in: pressed))
+        ), case let .jump(_, to: fromMenu, click: _)? = chosen.jump(to: "needs:sr-k", Self.at(chosen.time))
+        else {
+            Issue.record("the away row did not jump")
+            return
+        }
+        #expect(session.id == "sr-k" && target == "sr-k" && fromMenu == "sr-k")
+        pressed.step(Self.at(pressed.time + Self.frameMS))
+        #expect(pressed.frame.panel?.pressed == "needs:sr-k")
     }
 
     @Test func onlyTheLatestClicksAnswerIsHeard() throws {

@@ -107,9 +107,8 @@ extension Strip {
     }
 
     /// A click on the strip or an open tab, in stage coordinates: on a tab or its mark, it jumps, whether or not the
-    /// tab is out yet; on an away mark, nothing (its tab says why); on a count, its tab opens at once, and a row on its
-    /// tab jumps, but for an away one's. Crossing to the other edge, it takes none. The session it jumps to, if it
-    /// does.
+    /// tab is out yet; on a count, its tab opens at once, and a row on its tab jumps. Crossing to the other edge, it
+    /// takes none. The session it jumps to, if it does.
     @discardableResult
     public func click(at point: CGPoint) -> Session? {
         guard !crossing else {
@@ -129,7 +128,7 @@ extension Strip {
             openCount(key)
             return nil
         }
-        guard let session = session(id), session.jumps else {
+        guard let session = session(id) else {
             return nil
         }
 
@@ -251,10 +250,9 @@ extension Strip {
     }
 
     /// A click on an open tab, or one of a count's rows: it presses in and spins until the jump answers, 450ms at
-    /// most, then draws back. An away session's takes no click: no window holds it. The session it jumps to, if it
-    /// does.
+    /// most, then draws back. The session it jumps to, if it does.
     func jump(_ tab: StripTab, _ id: String, row: Bool) -> Session? {
-        guard jumping == nil, tab.phase == .open, let session = session(id), session.jumps else {
+        guard jumping == nil, tab.phase == .open, let session = session(id) else {
             return nil
         }
 

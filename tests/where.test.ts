@@ -37,6 +37,42 @@ test('a heartbeat written before windows said where they are reads as it always 
   expect(read?.where).toBeUndefined()
 })
 
+test('a heartbeat reads back with the folder its Claude runs in, through every beat and the leaving', () => {
+  const directory = '/Users/lee/Code/switchboard/.claude/worktrees/lobby'
+  const left = leave(heartbeat(attach(W1, T0, { directory }), T0 + 30_000), T0 + 40_000)
+
+  expect(parsePresence(presenceText(left), W1)).toEqual(left)
+  expect(parsePresence(presenceText(left), W1)?.directory).toBe(directory)
+})
+
+test('a leave whose Claude lives on into another conversation says so, and reads back so; any other value of it reads as none', () => {
+  const left = leave(attach(W1, T0), T0 + 40_000, true)
+
+  expect(left.livesOn).toBe(true)
+  expect(parsePresence(presenceText(left), W1)).toEqual(left)
+  expect(parsePresence(presenceText(leave(attach(W1, T0), T0 + 40_000)), W1)?.livesOn).toBeUndefined()
+
+  for (const livesOn of [false, 'true', 1, null]) {
+    const read = parsePresence(JSON.stringify({ attachedAt: T0, seenAt: T0, leftAt: T0, livesOn }), W1)
+
+    expect(read, JSON.stringify(livesOn)).toEqual({ writer: W1, attachedAt: T0, seenAt: T0, leftAt: T0 })
+  }
+})
+
+test('a heartbeat written before heartbeats said their folder reads as ever, with none; a bad one is dropped and the heartbeat kept', () => {
+  expect(parsePresence('{"attachedAt":1,"seenAt":2}\n', W1)).toEqual({
+    writer: W1,
+    attachedAt: 1,
+    seenAt: 2,
+  })
+
+  for (const directory of ['', 5, null, {}]) {
+    const read = parsePresence(JSON.stringify({ attachedAt: T0, seenAt: T0, directory }), W1)
+
+    expect(read, JSON.stringify(directory)).toEqual({ writer: W1, attachedAt: T0, seenAt: T0 })
+  }
+})
+
 test('with nothing known of where a window is, its heartbeat has no where at all', () => {
   expect(whereOf({})).toBeUndefined()
   expect(JSON.parse(presenceText(attach(W1, T0, { where: whereOf({}) })))).not.toHaveProperty(

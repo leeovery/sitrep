@@ -76,6 +76,21 @@ public struct Screen: Sendable {
         }.first
     }
 
+    /// What a new terminal window could attach to of an away session's last window, where none shows it: the window,
+    /// where the innermost multiplexer it runs in tells its session alive by the table, as no live window proves it;
+    /// gone, where none does; unknown, where one could not tell.
+    public func leftOf(_ where: Board.Window.Where) -> Left {
+        let told = innermost(of: `where`).map { ($0.kind, $0.isAlive(`where`, processes ?? Processes([:]))) }
+
+        if let alive = told.first(where: { $0.1 == true }) {
+            return .attachable(Attachable(where: `where`, kind: alive.0))
+        }
+
+        let unknown = told.filter { $0.1 == nil }.map { Unanswered.commandLine($0.0) }
+
+        return unknown.isEmpty ? .gone : .unknown(unknown)
+    }
+
     /// What gave no answer of the windows: what a multiplexer they run in asked, as tmux for a socket one runs under;
     /// and the table, where their clients are told only by it. A window in no multiplexer asks neither.
     public func unanswered(for windows: [Board.Window.Where]) -> [Unanswered] {
@@ -130,6 +145,14 @@ public enum Reach: Sendable, Equatable {
 
         return places.first?.app
     }
+}
+
+/// What is left of an away session's last window, nothing showing it: a session to attach to; nothing; or whether
+/// there is, unknown.
+public enum Left: Sendable, Equatable {
+    case attachable(Attachable)
+    case gone
+    case unknown([Unanswered])
 }
 
 /// A window a new terminal window can attach to, and the multiplexer that holds it alive.

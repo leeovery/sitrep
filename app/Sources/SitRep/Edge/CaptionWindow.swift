@@ -76,7 +76,8 @@ final class CaptionWindow {
             show(JumpCaption.tooBusy)
         case .ended(.stopped), .ended(.openable):
             break
-        case .ended(.jumped), .ended(.opened), .ended(.opening), .ended(.refused), .ended(.unopened):
+        case .ended(.jumped), .ended(.jumpedSaying), .ended(.opened), .ended(.openedSaying), .ended(.opening),
+             .ended(.refused), .ended(.unopened):
             letGo()
         }
     }
@@ -86,9 +87,9 @@ final class CaptionWindow {
     /// yet.
     func answered(_ answer: JumpAnswer, at time: Double) {
         switch answer {
-        case .jumped:
+        case .jumped, .jumpedSaying:
             pending?.landed(.jumped, at: time)
-        case .opened:
+        case .opened, .openedSaying:
             pending?.landed(.opened, at: time)
         case .opening:
             pending?.landed(.opening, at: time)

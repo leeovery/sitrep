@@ -103,13 +103,13 @@ struct CardSessionRowTests {
         #expect(count.maxX <= 32 + words + 0.5)
     }
 
-    /// A row a window holds lifts under the pointer; an away row, which jumps nowhere, takes no fill.
+    /// Every row lifts under the pointer, an away one too, as its click carries its session on (stage 8).
     @Test(arguments: [false, true])
-    func underThePointerOnlyARowThatJumpsLifts(away: Bool) {
+    func underThePointerEveryRowLifts(away: Bool) {
         let row = Self.card(Self.harness(1, away: away))
 
         row.isHighlighted = true
-        #expect(row.layer.backgroundColor == (away ? nil : EdgeStyle.hover))
+        #expect(row.layer.backgroundColor == EdgeStyle.hover)
 
         row.isHighlighted = false
         #expect(row.layer.backgroundColor == nil)

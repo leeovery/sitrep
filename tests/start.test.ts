@@ -1,7 +1,7 @@
 import { expect, test, tier, type Engine } from 'claude-code/testing'
 import { CURRENT_MS, parseEntries, parsePresence, startText, type SessionMeta } from '../core'
 import { CLI, file, finish, MIN, note, reply, T0, W1, W2, yesAsk } from './support'
-import { DASHBOARD, PROJECT, CONVERSATION, PLUGIN_VERSION, WHERE, world } from './world'
+import { DASHBOARD, PROJECT, CONVERSATION, PLUGIN_VERSION, REPO, WHERE, world } from './world'
 
 tier('user')
 
@@ -55,6 +55,7 @@ test('a conversation resumed in a new process takes up by itself the session it 
     attachedAt: NOW,
     seenAt: NOW,
     where: WHERE,
+    directory: REPO,
     version: PLUGIN_VERSION,
     state: { is: 'yourTurn', since: NOW },
     loadedAt: NOW,

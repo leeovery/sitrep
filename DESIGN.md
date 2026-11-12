@@ -2330,13 +2330,22 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
 - **Presence:** a mod can't tell that its own window died, so each attached
   window rewrites its heartbeat (`attachedAt`, `seenAt`) every 30 seconds, and
   a session is open while a heartbeat is under 90 seconds old. A mod can't
-  delete a file either, so a window that lets go adds `leftAt`. Of several
+  delete a file either, so a window that lets go adds `leftAt`, and, where
+  it lets go as its conversation ends while its Claude lives on into the
+  next (a `/clear`, or a `/resume` in the same process), `livesOn`, true
+  (12 November 2026, stage 8): that window is the ended conversation's no
+  longer. Other values read as none. Of several
   windows on one session, the one attached longest submits its inbox, so two
   never both do. A heartbeat also says `where` its window is, as far as that
   is known (see "The menu bar"): `device`, `terminal`, `tmux` with its
   `socket` and `pane`, and `zmx` with its `session` (9 November 2026). It is
   read field by field, a bad one dropped, and a heartbeat is never lost
-  over it; one written before it reads as ever. It
+  over it; one written before it reads as ever. It also says its
+  `directory` (12 November 2026, stage 8): the folder its Claude runs in,
+  the engine's `$.session.root()`, which entering a worktree or `/cd`
+  moves and a shell's `cd` does not, read as the window attaches and again
+  at each beat, a read that fails keeping the last; read as `where` is,
+  one written before it saying none. It
   also says the sitrep `version` its window runs (19 October 2026): the
   `version` in the plugin's manifest, `.claude-plugin/plugin.json` under the
   plugin's folder, read once as the mod loads and kept for the load, a failure
@@ -3145,7 +3154,8 @@ truth. There is still no background service. None of it is built now. Lee:
                                      "subject": null, "more": null,
                                      "until": null },
                            "since": 1760000000000 },
-                "asks": [ ... ] } ] } ],
+                "asks": [ ... ], "parkedItems": [],
+                "lastWindow": null } ] } ],
         "windows": [
           { "writer": "b1c2d3e4-...", "session": "sr-k3f9qa",
             "name": "Dashboard redesign", "project": "Switchboard",
@@ -3244,6 +3254,40 @@ truth. There is still no background service. None of it is built now. Lee:
       did not move. It stays the session's own (11 November 2026): a
       finished session's, in no project's `sessions`, are on no line, and no
       surface of the app shows parked items.
+      `lastWindow` (12 November 2026, stage 8) is, for an away session, the
+      window it was last in: its latest heartbeat by when it was last seen,
+      as it let go, else at its latest beat (core's `lastWindowOf`, ranking
+      by `lastSeenAt` as `rejoinable` does), so a `/clear` moves it on to
+      the conversation after. It carries what a click needs to carry the
+      session on, and no more: the `writer`, the Claude Code session it ran;
+      its `where`, as its heartbeat said it, the pty its Claude ran on among
+      it; `attaches`, whether a click may jump to it or attach it, true
+      only in zmx;
+      `ownsDevice`, whether that pty is still its conversation's, so a
+      Claude running on it is that one; and its `directory`, the folder its
+      Claude ran in, null from a window on a build from before heartbeats
+      said it. Null for a session a live window holds, for one no window
+      ever held, and for one whose last window's conversation would take up
+      another session as it resumed: its writer's latest heartbeat, across
+      the whole board, is on another session (core's `rejoinable`, which a
+      resumed conversation takes up by), as a window that let go of it for
+      another's is, live there or ended. A place, a zmx session or a device,
+      is the latest conversation's seen at it: `attaches` is false where a
+      click could not find the conversation there, as the window let go
+      with `livesOn`, its Claude gone on into another conversation, it was
+      in tmux, whose pane ids start again from `%0` with each server, in no
+      multiplexer, its Claude ended with its terminal, or a
+      heartbeat on the board, of any session, live or let go, was seen in
+      the same zmx session later (`lastSeenAt`); `ownsDevice` is false where
+      the window let go with `livesOn`, or a heartbeat was seen on that
+      device later. `where` is given whole either way, as a Claude
+      suspended there is looked for on its pty, whoever came after
+      (stage 8). Time the Mac slept ages no heartbeat (core's `pauses.ts`), so a
+      wake reads no live session as away. A field of the session, as SitRep reads a session's
+      windows already by the session, not a list of its own: away windows
+      are no live windows, and `windows` stays every live one. A field
+      added: `v` did not move. SitRep reads it as it reads the projects'
+      names, in any shape: one that does not read is none.
     - `windows`: every live window, the longest attached first, a finished
       session's among them, with its session's name and project, its
       `version`, and `needsReload` where it says none, or one behind the
@@ -3894,7 +3938,9 @@ that takes Lee to the window a session is in.
   not yet active hides as it next becomes active, within a second, and
   an activation later than that, of its own, is never hidden. A session no
   window shows, that a multiplexer holds, has a window opened for it in the
-  terminal Lee chose, running his open command (stage 7, step C).
+  terminal Lee chose, running his open command (stage 7, step C); an away
+  session is carried on from its last window, by the jump, the open
+  command or his resume command (stage 8).
 - **The app holds no board logic** (9 November 2026; see "The structure").
   It runs one `sitrep watch` as its child, which tells it the board as it
   changes (see "One engine, two front ends"), and repeats none of the
@@ -4613,8 +4659,10 @@ were settled in the browser spike (below, "How the strip moves").
   on the tab or on the mark itself (Lee, 18 October 2026: "I can hover to
   see the card but shouldn't have to click the expanded card"); with no tab
   out yet, the ring presses in and its own arc turns. An away mark's tab
-  says "No window holds it. Carry it on in Claude." and neither it nor the
-  mark takes a click. A click on the count opens its tab. A tab, or a
+  says "No window holds it. Carry it on in Claude.", and a click on it or
+  on the mark carries its session on, as an away row's does (stage 8;
+  until 12 November 2026 neither took a click). A click on the count opens
+  its tab. A tab, or a
   count's row, has room for one line: a session needing Lee shows its name
   over its project, its newest line's time (its oldest's until 4 November
   2026), and with several waiting their count ("+N" for the lines after
@@ -4834,10 +4882,13 @@ asked for the sessions back, and approved the redraw as it stands.
   draws, so a change to the menu bar's size in System Settings holds
   until SitRep starts again. A row cut short has its whole words as its
   tooltip.
-- **An away session** is disabled, with no window to jump to: its words
-  dim, and its ring with them, as macOS dims a disabled item's image and
-  AppKit has no switch for it, where the panel keeps the ring orange
-  (accepted, 20 October 2026, of the dot it had until 3 November 2026).
+- **An away session** is enabled since stage 8 (12 November 2026), its
+  click carrying it on: its words keep the disabled ink of their own, as
+  the panel's dim, but under the pointer, where the highlight's ink takes
+  over, and its ring stays orange, as the panel's. Until then it was
+  disabled, with no window to jump to, its ring dimmed with its words, as
+  macOS dims a disabled item's image (accepted, 20 October 2026, of the dot
+  it had until 3 November 2026).
 - **Every session** the panel has is listed. Past twelve rows the list
   ended with "4 more…", which opened the SitRep window, until the window
   went (5 November 2026).
@@ -5314,9 +5365,18 @@ live changed, and how they group.
   least width, so the row keeps its 38. Under the card, "Clicking a session
   that isn't showing in a terminal opens a new window and runs this
   command. {session}, {socket} and {pane} are replaced with quoted
-  values." Saved under "app" as `terminal` (its `$TERM_PROGRAM`,
+  values." (until 12 November 2026; see below). Saved under "app" as `terminal` (its `$TERM_PROGRAM`,
   `ghostty`) and `openCommand`, the command saved as it is typed; nothing
-  is said of it until a click. Not yet drawn in Paper. No row carries an
+  is said of it until a click. Under it, since stage 8 (12 November 2026),
+  Resume command, the same literal field, empty until Lee gives one, saved
+  as `resumeCommand`: what a window opened for an away session runs where
+  nothing is left of its last window. The caption under the card says
+  what each is for, in three lines at the drawings' width: "Clicking a
+  session that isn't showing in a terminal opens a new window. The open
+  command attaches to a session still running, with {session}, {socket}
+  and {pane}. The resume command starts Claude again where nothing is
+  left, with {claude}, its session id, and {dir}, the folder it ran in.
+  Each is replaced with a quoted value." Not yet drawn in Paper. No row carries an
   icon. Update automatically and Check Now join General with the first
   public release.
 - **Claude Code**, the plugin's pane. **Plugin:** the Claude Code plugin,
@@ -7673,9 +7733,9 @@ open), and tmux passing an escape sequence through from Claude's own pane
    screen:
    - **A terminal shows its multiplexer session**: the jump, to that
      window, as for any session.
-   - **Its multiplexer session is alive, no terminal showing it**: the open
+   - **Its zmx session is alive, no terminal showing it**: the open
      command, as step C of stage 7 runs it, filled from the last window's
-     facts (`{session}`, `{socket}`, `{pane}`). For Lee this is the case
+     facts (zmx gives `{session}`). For Lee this is the case
      after a restart: Portal brings each zmx session back in its folder,
      and one Claude ran in holds Portal's resume panel, its resume command
      registered by Lee's own Claude hook (`cd <folder> && claude --resume
@@ -7683,8 +7743,8 @@ open), and tmux passing an escape sequence through from Claude's own pane
      same Claude back, which takes its board session up again. SitRep
      knows none of this: it attaches, as it would to any session alive in
      its multiplexer.
-   - **Nothing is left to attach to**: its multiplexer session gone, or its
-     last window in none. The **resume command**, a second setting beside
+   - **Nothing is left to attach to**: its multiplexer session gone, its
+     last window in none, or no longer its conversation's (below). The **resume command**, a second setting beside
      the open command, empty until Lee gives one, run as the open command
      is: typed as the first line of a new window, on the current Space,
      only into a running terminal, one window per click. Its placeholders
@@ -7695,7 +7755,22 @@ open), and tmux passing an escape sequence through from Claude's own pane
      running the resume, which his hook then registers as any other; with
      no Portal, `cd {dir} && claude --resume {claude}`.
    - **What SitRep reads**: the session's latest window, by its heartbeat
-     last seen, gives every fact. The heartbeat starts saying its folder:
+     last seen, gives every fact. Only where its conversation would come
+     back to this session: a click on a session runs the conversation that
+     takes that session up again (`rejoinable`), so a session whose last
+     window moved on to another, live there or not, has nothing to carry on
+     from, and its click is refused in plain words. Where the last window is
+     no longer its conversation's, the click resumes that conversation in
+     a new window, never jumps to or attaches the window: one let go at a
+     `/clear` or an in-process `/resume`, its Claude gone on into the next
+     conversation there (its heartbeat says so); one in tmux, as a pane id
+     does not outlive its server, and the pane it was in, if there still,
+     holds a shell its Claude ended in; and one whose zmx session a later
+     conversation was seen in, live or let go, on any session: a zmx
+     session is the latest conversation's seen in it, which holds that
+     one's Claude, or, after a restart, its resume panel. Only zmx keeps
+     the attach: Portal brings its sessions back under the same names,
+     holding the resume panel that is the point of it. The heartbeat starts saying its folder:
      the Claude process's own, which entering a worktree moves and a
      shell's `cd` does not (Lee's hook anchors the same way, for the same
      reason). A window on an older build says none, so a command naming
@@ -7707,11 +7782,81 @@ open), and tmux passing an escape sequence through from Claude's own pane
      says to set one in Settings ("No window holds <name>. To carry it on,
      set a resume command in Settings."); a terminal not running, as an
      opening's does; whether a terminal shows it unknown, as a jump's does,
-     and nothing opens.
-   - **One limit**: a multiplexer session alive with a bare shell in it, as
-     after Lee exited Claude himself and kept the session, is attached as
-     any other: SitRep cannot tell a resume panel from a shell, and Lee
-     runs the resume himself.
+     and nothing opens, a zmx process whose command line does not read
+     among the unknowns of an away window's session, as it may be that
+     session's. A heartbeat gone stale says only that the beat stopped,
+     which a plugin no longer loading (as after `app/plugin app` once a
+     worktree went, then a `/reload-plugins`) or a process suspended does
+     too. So at the click, before anything is opened or resumed and before
+     any command is checked, the process table is read for Claude Code on
+     the pty the last window's Claude ran on:
+     - **Suspended** (Lee's, 12 November 2026): you suspended it, so SitRep
+       takes you to it and leaves bringing it back to you. A Claude Code
+       process there stopped (`SSTOP`, as Ctrl-Z leaves it) refuses
+       whoever was seen on that pty after, wrongly at worst, the safe way:
+       SitRep starts nothing, never types `fg`, as Lee may be busy in that
+       shell, and brings its terminal forward as a jump would, or attaches
+       its zmx session by the open command where no terminal shows it,
+       then says "<name> is suspended in this window: type fg to bring it
+       back." in a banner, "SitRep started nothing", the front left with
+       the window, the caption saying "Opened a window for…" where an
+       opening is what took him there. Where it cannot bring the window
+       forward, the open command unset or refused, or no reader for its
+       multiplexer, among it, it still says so: "<name> is suspended in its
+       window, which SitRep could not bring forward: type fg there to bring
+       it back."
+     - **Running**, on a pty still the conversation's (no later one seen
+       on it): no resume ("<name>'s Claude may still be running in its
+       window, on <device>, so SitRep starts no second. Quit it there, or
+       carry it on in that window."). One running on a pty a later
+       conversation was seen on is that one's, and refuses nothing. A zmx
+       session the click may attach is attached first, as before.
+     - **Unknown**, the table giving no answer: refused, as a jump is
+       ("Could not tell whether <name>'s Claude is still running: the
+       process table gave no answer."). No row is marked for a suspended
+       Claude: Lee parked that.
+   - **One window per click**, for a resume as for an opening: a resumed
+     Claude reaches the board only once its terminal session is made,
+     Claude started, the plugin loaded, the session taken up and a beat
+     written, which can run past an opening's 10 seconds. So a resume is
+     remembered until the board shows a window holding the session, 2
+     minutes at most; the open command keeps its 10 seconds, as its client
+     makes the next click a jump.
+   - **Limits**, accepted in review (12 November
+     2026):
+     - a zmx session alive with a bare shell in it, as after Lee exited
+       Claude himself and kept the session, is attached as any other:
+       SitRep cannot tell a resume panel from a shell, and Lee runs the
+       resume himself. So too a fresh `claude` started there that joined
+       no board session: it writes no heartbeat, so nothing says the zmx
+       session is another's;
+     - a resume slower than 2 minutes to reach the board can be clicked
+       again, a second window opening;
+     - a click after a restart, before Portal has made the zmx session
+       again, resumes in a new window, while Portal's resume panel still
+       waits in the old one;
+     - two sessions a conversation was last seen in within the same
+       millisecond are settled by the order they are listed in, the same
+       in the feed and the mod;
+     - tmux run inside zmx passes `$ZMX_SESSION` on, so a live window in
+       any pane of it reads as in that zmx session, which can only miss an
+       attach, never open a second Claude;
+     - a zmx run by another user has a command line SitRep cannot read, so
+       an away window's session reads unknown while it runs;
+     - a device a later Claude Code took up with no board session, so no
+       heartbeat, refuses a resume wrongly, the safe way; and Claude Code
+       run by Node, as npm installs it, is not told by its program, so one
+       still running that way is resumed beside;
+     - for up to 10 seconds after a window joins a session it was off, the
+       watch's kept read of the session it left can still give that one's
+       last window with its `where`, so a click on it lands on the window
+       now running the other session; no second Claude starts. So too a
+       board line still stale at the click;
+     - a `claude --resume` Lee runs himself elsewhere, clicked in the
+       seconds before it beats, is resumed beside;
+     - a window still on the old plugin that does a `/clear` before it
+       reloads writes no `livesOn`, so a click can attach the window now
+       showing the next conversation; no second Claude starts.
    - **Settings**, General's New windows: the resume command under the open
      command, the same literal field.
    - **Looked up in Portal** (12 November 2026), not built against:
@@ -7719,6 +7864,133 @@ open), and tmux passing an escape sequence through from Claude's own pane
      <dir> -- <cmd>` makes one in that folder running the command; a
      session Portal restores comes back holding its resume panel until
      answered.
+   - **Built on 12 November 2026**, nothing of it run live (each opens a
+     window on Lee's screen):
+     - **The folder** is the engine's `$.session.root()`: the session's
+       project root, where it started or where `/cd` or a worktree move
+       took it, which, by the engine's own word, a shell's `cd` does not
+       move; `$.session.cwd()` is the one that follows it. Read as the
+       window attaches and at each beat, so a worktree entered shows within
+       30 seconds (see "Storage").
+     - **The feed** carries each away session's `lastWindow` (see "One
+       engine, two front ends"), and SitRep's `Board` reads it. Only on the
+       session its writer's conversation takes up as it resumes, the one
+       its latest heartbeat on the whole board is in, by `rejoinable`
+       itself, never a copy of its rule (found in review, 12 November
+       2026): a window that held A, then joined B, then ended left both
+       naming it, so a click on A resumed it, and the resumed Claude took
+       up B; with B finished, nothing took it up, and each click started
+       another. Such a session is refused as any no window holds is
+       ("<name> is not on screen"). A first fix that day gave none only
+       while that writer was live elsewhere; this rule holds it too. And
+       its `where` is left out where a live window is in the same zmx
+       session, or the same tmux server's pane (found in the same review),
+       so the click resumes the conversation there, a conversation of its
+       own, beside the other Claude, never one showing the other session.
+       Narrowed in a third review the same day: a `/clear` with the next
+       conversation on no board session wrote nothing a live window could
+       show, so the click went to the window running it; the leave now
+       says `livesOn` (`session.end`'s reason `clear` or `resume`), and such
+       a last window says no `where`. A window in tmux says none either: a
+       pane id does not outlive its server. The last window is ranked by
+       `lastSeenAt`, the one function `rejoinable` ranks by, where it was
+       by `seenAt`, so a window that let go after another stopped beating
+       is the last. Narrowed again in a fourth review: a zmx session whose
+       last Claude belonged to another board session (W1 holding A in
+       `kit` exits; a fresh `claude` in `kit` starts B, then ends) was
+       attached from A, as only a live window took it, so after a restart
+       Enter on the resume panel carried B on. A zmx session is now the
+       latest conversation's seen in it, live or let go (`isLatestOn`, in
+       place of the live-only `taken`), and a device the same. A fifth
+       review found a Claude suspended with Ctrl-Z, a later `claude` in the
+       same shell then holding another session, resumed beside: its pty was
+       withheld as the later conversation's. So `where` is now given whole,
+       with two flags, `attaches` and `ownsDevice`, where `where` and a
+       `device` were each withheld before, and the click reads the pty
+       first (above).
+     - **The click** (`Jump.carryOn`): where the board names a last window,
+       the session is away, and what is left of the window is read then.
+       A window in a multiplexer is read as a jump reads it: on screen,
+       jumped to; off screen and held, opened by the open command; off
+       screen and not held, resumed; unknown, refused in a jump's words.
+       Only an away window's zmx session is checked against the table
+       (`Screen.leftOf`, `Reading.isAlive`); a live window's is held by the
+       window, as step C has it. A window in no multiplexer, or saying no
+       `where`, is resumed at once, never jumped to by its device, which a terminal may still
+       show with Claude gone from it. A session the board shows a live
+       window of is jumped to as ever.
+     - **An away window's zmx session alive is told by the process table**,
+       as no live window is there to prove it: a process of zmx's whose command line
+       names the session, its server (`zmx attach <session>` on no tty,
+       under launchd, with any command after) or a client. A command line
+       is read by zmx's own forms (`zmx help`): `[a]ttach [--labels kv]
+       <name> [command...]` and `[r]un <name> [-d] [command...]`, the name
+       the first argument after the subcommand and any `--labels`, with its
+       value or as `--labels=…`; any other subcommand names none (found in
+       review, 12 November 2026; every server on this Mac is `zmx attach
+       <name> …portal state hydrate`). A client a jump reaches is still
+       only `zmx attach <session>` alone, as step A has it. So the table
+       now reads the command line of every process whose program is named
+       `zmx`, servers too, where step A read only those on a tty. A
+       live window's is not: its heartbeat proves its zmx session alive,
+       as before stage 8, the table asked only where its clients show (a
+       second review found the first build asking it of live windows too,
+       which put step C, proven live, at the mercy of a server's command
+       line). zmx is still never run. A command line that does not read
+       (`KERN_PROCARGS2` failing, as for a process gone as it is read) is
+       told apart from one with none (`Processes.unreadable`): one of a
+       process whose program is zmx, by its path, leaves an away window's
+       session unknown where nothing names it ("a zmx process's command
+       line gave no answer"), never gone, so the click is refused, never
+       resumed beside a Claude Portal may yet bring back (found in review,
+       12 November 2026).
+     - **One command reader for both** (`TypedCommand`): the open command
+       and the resume command are read, checked and filled by the same
+       rules, each knowing its own placeholders, so `{session}` in the
+       resume command is one SitRep does not know there. Refused in the
+       open command's words, "The resume command in Settings …"; a
+       `{dir}` the last window has none for: "<name>'s last window did not
+       say which folder it ran in, as a window on an older sitrep does not,
+       so SitRep has nothing to put for {dir}."
+     - **The click reads the pty first** (`Jump.carryOn`'s `claude(on:)`,
+       found in the fourth review, the suspended case decided with Lee in
+       the fifth): before the jump, the open command or the resume, the
+       process table is read once for Claude Code on the last window's pty,
+       stopped (`kp_proc.p_stat`, `SSTOP`) or running. A suspended one is
+       taken to (`suspended`), its word a new answer, `jumpedSaying`, whose
+       banner is "SitRep started nothing" and which hands no front back,
+       as a jump that landed does; an opening for it says the word once it
+       opens (`Opening.saying`), as `openedSaying`, so the caption says a
+       window was opened. An opening refused before anything opens falls
+       back to the suspended words (found in review, 12 November 2026). Claude Code is told by
+       its program's path, as the screen reading told no Claude before: a
+       file named `claude` (Homebrew's), or one in a `claude/versions`
+       folder, as Claude Code's own installer keeps each version, its file
+       named by the version (`~/.local/share/claude/versions/2.1.322` on
+       this Mac, 12 November 2026, run through the `~/.local/bin/claude`
+       link). Its command line is never read.
+     - **The resume opens as an opening does** (`Opening`), under its own
+       20 seconds, remembered among the openings, so a second click opens
+       no second window; its captions and banners are an opening's.
+       Remembered until a watch line shows a window holding its session,
+       which forgets it (`RecentOpenings.heard`, from each line `Works`
+       hears), 2 minutes at most, where an opening's is 10 seconds (found
+       in review, 12 November 2026: a resume can take longer than 10
+       seconds to reach the board).
+     - **Every surface clicks an away row**: the card's row and its menu's
+       Jump, the strip's mark, its tab and a count's row, the menu bar
+       menu's row and a notification's click, each lifting under the
+       pointer as any row does; the notification names the session.
+   - **To prove live, with Lee's go:**
+     1. After a restart, Portal's sessions back: a click on an away row
+        attaches its zmx session by the open command, and Enter brings
+        the same Claude back.
+     2. With `portal open -p {dir} -- claude --resume {claude}`, a
+        session whose zmx session is gone: a new window, Portal starting a
+        session in the folder, and Claude resuming the conversation.
+     3. A session whose window is still showing its zmx session: the jump.
+     4. A notification's click and the menu's row on an away session go
+        the same way.
 
 ## Later
 

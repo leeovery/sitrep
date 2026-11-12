@@ -26,8 +26,11 @@ public protocol Multiplexer: Sendable {
 public protocol Reading: Sendable {
     var kind: MultiplexerKind { get }
     func isIn(_ where: Board.Window.Where) -> Bool
-    /// Whether it holds the window's session alive, so a window attaching to it would show it.
+    /// Whether it holds a live window's session alive, so a window attaching to it would show it.
     func holds(_ where: Board.Window.Where) -> Bool
+    /// Whether an away session's last window's session runs still, which no live window proves, the table read beside;
+    /// nil where a command line it tells by did not read, which may have been the session's (`.commandLine`).
+    func isAlive(_ where: Board.Window.Where, _ processes: Processes) -> Bool?
     /// Whether the window's device is this multiplexer's own pty for it, so the innermost of those it runs in; nil
     /// where that cannot be told.
     func isOnItsPty(_ where: Board.Window.Where) -> Bool?
@@ -77,6 +80,9 @@ public enum Unanswered: Sendable, Hashable {
     case tmuxSaid(String)
     /// The kernel's process table, which only `sysctl` failing outright leaves unread.
     case processes
+    /// The command line of a process of the multiplexer's, which could not be read: it may be an away session's, so
+    /// whether that session runs cannot be told.
+    case commandLine(MultiplexerKind)
 }
 
 /// A select: the tmux window to make current in a tmux session, by their ids, on the server at the socket.

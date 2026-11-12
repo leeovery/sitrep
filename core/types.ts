@@ -356,7 +356,11 @@ export type Presence = {
   attachedAt: number
   seenAt: number
   leftAt?: number
+  /** Set as the window let go because its conversation ended while its Claude lives on, into the next (a `/clear`, or a `/resume` in the same process): the window is that conversation's no longer. */
+  livesOn?: true
   where?: Where
+  /** The folder its Claude runs in, absolute: the process's own, which entering a worktree moves and a shell's `cd` does not; none from a window on a version before heartbeats said it. */
+  directory?: string
   /** The sitrep version the window runs, as its plugin's manifest gives it; none from a window on a version before heartbeats said it. */
   version?: string
   /** What the window is doing; none from a window on a version before heartbeats said it, nor from one that let go. */

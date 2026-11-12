@@ -61,7 +61,7 @@ final class SessionRow {
         return TextLine(project, in: at.project.offsetBy(dx: 0, dy: drop))
     }
 
-    /// Under the pointer, a row that jumps lifts; an away row, which jumps nowhere, does not.
+    /// Under the pointer, a row lifts.
     var isHighlighted = false {
         didSet {
             showBackground()
@@ -90,7 +90,7 @@ final class SessionRow {
     private static let pressedIn = CGAffineTransform(scaleX: 0.985, y: 0.985)
 
     private func showBackground() {
-        layer.backgroundColor = isPressed ? EdgeStyle.press : isHighlighted && session.jumps ? EdgeStyle.hover : nil
+        layer.backgroundColor = isPressed ? EdgeStyle.press : isHighlighted ? EdgeStyle.hover : nil
     }
 
     /// In the time's place, pressed, the spinner; else the time.

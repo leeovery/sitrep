@@ -13,7 +13,8 @@
  *   asks, as `board --json` lists them (`openAsks`), and what it parked.
  *   They are in the SitRep window's order, the rows': a session where its
  *   row sits, those with none after, the latest updated first; a project
- *   where its first session sits.
+ *   where its first session sits. An away one carries its last window, for
+ *   a click to carry it on from.
  * - Every live window: its session, the version it runs, whether that is
  *   behind the CLI's own, and its place in the order a jump tries its
  *   session's windows (windows.ts).
@@ -60,7 +61,7 @@ import {
   type ProjectSummary,
   type SessionSummary,
 } from './views'
-import { inJumpOrder } from './windows'
+import { inJumpOrder, lastWindowOf, type LastWindow } from './windows'
 
 /** A project as read, with every session filed under it. */
 export type ProjectRead = { project: Project; sessions: readonly Session[] }
@@ -75,6 +76,8 @@ export type FeedSession = SessionSummary & {
   asks: Ask[]
   /** What it parked, oldest first. */
   parkedItems: Parked[]
+  /** With no window holding it, the window it was last in (windows.ts); none while one holds it, where none ever did, or where its conversation would take up another. */
+  lastWindow?: LastWindow
 }
 
 export type FeedProject = Omit<ProjectSummary, 'sessions'> & { sessions: FeedSession[] }
@@ -120,11 +123,12 @@ const placeOf = (places: Places, id: string | undefined) => places.get(id ?? '')
 const sinceOf = (row: Row | undefined, session: Session) =>
   row === undefined ? session.updatedAt : oldestOf(row)
 
-/** A project's current sessions as the feed holds them, where their rows sit, those with none after, the latest updated first; and what is parked in it, from every session. */
+/** A project's current sessions as the feed holds them, where their rows sit, those with none after, the latest updated first, an away one with its last window, read against every session on the `board`; and what is parked in it, from every session. */
 const feedProject = (
   { project, sessions }: ProjectRead,
   places: Places,
   now: number,
+  board: readonly Session[],
 ): FeedProject => {
   const summed = sessions.map(session => ({ session, summary: summarise(session) }))
   const current = summed
@@ -136,6 +140,7 @@ const feedProject = (
       doing: doingOf(project, session, now),
       asks: openAsks(session),
       parkedItems: session.parked,
+      lastWindow: lastWindowOf(session, board, now),
     }))
     .sort(
       (a, b) =>
@@ -191,6 +196,7 @@ export const feedOf = (read: readonly ProjectRead[], now: number, own?: string):
     ),
   )
   const places = placesOf(rows)
+  const board = read.flatMap(({ sessions }) => sessions)
   const projectPlace = (project: FeedProject) => placeOf(places, project.sessions[0]?.id)
 
   return {
@@ -202,7 +208,7 @@ export const feedOf = (read: readonly ProjectRead[], now: number, own?: string):
       ),
     ),
     projects: read
-      .map(each => feedProject(each, places, now))
+      .map(each => feedProject(each, places, now, board))
       .filter(project => project.sessions.length > 0 || project.parked > 0)
       .sort(
         (a, b) =>

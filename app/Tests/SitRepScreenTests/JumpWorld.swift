@@ -100,8 +100,8 @@ func shown() -> (FakeTmux, FakeTable) {
 }
 
 /// A jump on a Mac of doubles: tmux, the process table, Ghostty, the apps and the clock, Ghostty telling the apps of
-/// what it is told; a window opened as the settings given say, none with no command as by default, and remembered among
-/// the openings given.
+/// what it is told; a window opened as the settings given say, the open command or the resume command, none with no
+/// command as by default, and remembered among the openings given.
 struct Jumping {
     let tmux: FakeTmux
     let table: FakeTable
@@ -117,13 +117,13 @@ struct Jumping {
         running: Bool = true, failing: GhosttyFailure? = nil, windowFailing: GhosttyFailure? = nil,
         windowHeld: Gate? = nil, ghosttyHeld: Gate? = nil,
         workspace: FakeWorkspace = FakeWorkspace(), clock: TestClock = TestClock(), tmuxHeld: Gate? = nil,
-        command: String = "", openings: RecentOpenings = RecentOpenings()
+        command: String = "", resume: String = "", openings: RecentOpenings = RecentOpenings()
     ) {
         self.tmux = tmux
         self.table = table
         self.workspace = workspace
         self.clock = clock
-        opening = OpenSettings(command: command)
+        opening = OpenSettings(command: command, resumeCommand: resume)
         self.openings = openings
         ghostty = FakeGhostty(
             terminals, running: running, failing: failing, held: ghosttyHeld, windowFailing: windowFailing,
@@ -162,11 +162,19 @@ struct Jumping {
         }
     }
 
+    /// `sr-a`, away, carried on from its last window, as a click makes it, then the window it finds can be opened opened.
+    func carryOn(from last: Board.LastWindow) async -> JumpAnswer {
+        switch await jump.carryOn("sr-a", named: named, from: last) {
+        case let .answered(answer): answer
+        case let .openable(opening): await opening.open()
+        }
+    }
+
     /// The opening of a window for `sr-a` typing the line.
-    func opening(_ line: String) -> Opening {
+    func opening(_ line: String, as kind: RecentOpenings.Kind = .attach) -> Opening {
         Opening(
-            session: "sr-a", name: named, line: line, terminal: .ghostty, driver: driver, workspace: workspace,
-            clock: clock, openings: openings
+            session: "sr-a", name: named, line: line, terminal: .ghostty, kind: kind, driver: driver,
+            workspace: workspace, clock: clock, openings: openings
         )
     }
 

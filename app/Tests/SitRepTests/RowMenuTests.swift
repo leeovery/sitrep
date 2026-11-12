@@ -4,7 +4,7 @@ import AppKit
 import SitRepPanel
 import Testing
 
-/// A row's right-click menu on the card (Paper's boards F, G and I): Jump to the window, disabled away; then Snooze and
+/// A row's right-click menu on the card (Paper's boards F, G and I): Jump to the window, away too; then Snooze and
 /// its three times on a row whose lines hold asks, those and Until it moves on a your-turn row, or Wake now on a row in
 /// Snoozed; neither on a row of stops alone. What it snoozes or wakes is what the row showed as it was drawn.
 @MainActor
@@ -45,21 +45,34 @@ struct RowMenuTests {
         menu.items.map { $0.isSeparatorItem ? "—" : $0.attributedTitle?.string }
     }
 
-    @Test(arguments: [false, true])
-    func aRowOfStopsAloneOffersJumpAloneDisabledAway(away: Bool) {
+    @Test func aRowOfStopsAloneOffersJumpAlone() {
         let heard = Heard()
-        let menu = Self.menu(RowMenu.Row(jumps: !away, snoozable: nil, isSnoozed: false), heard)
+        let menu = Self.menu(RowMenu.Row(snoozable: nil, isSnoozed: false), heard)
 
         #expect(Self.titles(menu) == ["Jump to the window"])
-        #expect(menu.items.map(\.isEnabled) == [!away])
+        #expect(menu.items.map(\.isEnabled) == [true])
 
         menu.performActionForItem(at: 0)
-        #expect(heard.said == (away ? [] : ["jump"]))
+        #expect(heard.said == ["jump"])
+    }
+
+    /// An away row's Jump carries its session on, as its click does (stage 8): its menu is any row's.
+    @Test func anAwayRowsMenuIsAnyRowsItsJumpEnabled() {
+        let line = Session.Line(ask: "k1", title: "Review the plan", since: 0)
+        let away = Session(id: "sr-4g01a7", project: "Harness", kind: .needs, away: true, lines: [line], sub: "Harness")
+        let heard = Heard()
+        let menu = Self.menu(RowMenu.Row(away), heard)
+
+        #expect(RowMenu.Row(away) == RowMenu.Row(snoozable: .asks(["k1"]), isSnoozed: false))
+        #expect(menu.items.first?.isEnabled == true)
+
+        menu.performActionForItem(at: 0)
+        #expect(heard.said == ["jump"])
     }
 
     @Test func aRowWithAsksOffersSnoozeItsThreeTimesEachWithWhenItWakes() throws {
         let heard = Heard()
-        let menu = Self.menu(RowMenu.Row(jumps: true, snoozable: .asks(["k1", "k3"]), isSnoozed: false), heard)
+        let menu = Self.menu(RowMenu.Row(snoozable: .asks(["k1", "k3"]), isSnoozed: false), heard)
         let snooze = try #require(menu.items.last?.submenu)
 
         #expect(Self.titles(menu) == ["Jump to the window", "—", "Snooze"])
@@ -74,7 +87,7 @@ struct RowMenuTests {
     /// what it snoozes is the turn the row showed, by the turn's end.
     @Test func aYourTurnRowOffersUntilItMovesAfterASeparator() throws {
         let heard = Heard()
-        let menu = Self.menu(RowMenu.Row(jumps: true, snoozable: .turn(ended: Self.ended), isSnoozed: false), heard)
+        let menu = Self.menu(RowMenu.Row(snoozable: .turn(ended: Self.ended), isSnoozed: false), heard)
         let snooze = try #require(menu.items.last?.submenu)
 
         #expect(Self.titles(menu) == ["Jump to the window", "—", "Snooze"])
@@ -91,7 +104,7 @@ struct RowMenuTests {
     @Test(arguments: [Snoozable.asks(["k1"]), .turn(ended: ended)])
     func aSnoozedRowOffersWakeNow(asleep: Snoozable) {
         let heard = Heard()
-        let menu = Self.menu(RowMenu.Row(jumps: false, snoozable: asleep, isSnoozed: true), heard)
+        let menu = Self.menu(RowMenu.Row(snoozable: asleep, isSnoozed: true), heard)
 
         #expect(Self.titles(menu) == ["Jump to the window", "—", "Wake now"])
 
@@ -152,9 +165,9 @@ struct RowMenuTests {
             lines: turn.lines, sub: "Harness"
         )
 
-        #expect(RowMenu.Row(needs) == RowMenu.Row(jumps: true, snoozable: .asks(["k1"]), isSnoozed: false))
-        #expect(RowMenu.Row(asleep) == RowMenu.Row(jumps: true, snoozable: .asks(["k1"]), isSnoozed: true))
-        #expect(RowMenu.Row(turn) == RowMenu.Row(jumps: true, snoozable: .turn(ended: Self.ended), isSnoozed: false))
-        #expect(RowMenu.Row(turnAsleep) == RowMenu.Row(jumps: true, snoozable: .turn(ended: Self.ended), isSnoozed: true))
+        #expect(RowMenu.Row(needs) == RowMenu.Row(snoozable: .asks(["k1"]), isSnoozed: false))
+        #expect(RowMenu.Row(asleep) == RowMenu.Row(snoozable: .asks(["k1"]), isSnoozed: true))
+        #expect(RowMenu.Row(turn) == RowMenu.Row(snoozable: .turn(ended: Self.ended), isSnoozed: false))
+        #expect(RowMenu.Row(turnAsleep) == RowMenu.Row(snoozable: .turn(ended: Self.ended), isSnoozed: true))
     }
 }

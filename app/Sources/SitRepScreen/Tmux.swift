@@ -220,6 +220,12 @@ struct TmuxReading: Reading {
         `where`.tmux.flatMap { server(`where`)?.panes[$0.pane] } != nil
     }
 
+    /// Never, for an away window: tmux numbers its panes again from `%0` with each server, so a pane of the id it was
+    /// in may be any pane now, and the one it was in, if there still, holds a shell its Claude has ended in (stage 8).
+    func isAlive(_: Board.Window.Where, _: Processes) -> Bool? {
+        false
+    }
+
     /// Whether the window's device is its tmux pane's: nil where that cannot be told, the pane gone, its server
     /// silent, or the window saying no device, or one that is no tty.
     func isOnItsPty(_ where: Board.Window.Where) -> Bool? {

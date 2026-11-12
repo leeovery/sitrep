@@ -15,6 +15,10 @@ import SitRepCore
 /// instead (`Opening`), in the terminal Lee chose: his open command, its placeholders filled with the facts of the
 /// session's live window, checked fit to type. The opening is apart from the jump, and never opens a second window for
 /// a session it opened one for a moment ago.
+///
+/// An away session, no window holding it, it carries on from what is left of its last window, read at the click: the
+/// jump, where a terminal shows its multiplexer session; the open command, where that is alive and none shows it; his
+/// resume command, where nothing is left to attach to.
 public struct Jump: Sendable {
     /// How long a whole jump may take, the wait for a board and for Lee's PATH among it. One takes under a second as
     /// Ghostty answers, a little over to a tab not selected, for its half second's pause, and one Ghostty does not
@@ -104,10 +108,14 @@ public struct Jump: Sendable {
         return .answered(isBoardRead.withLock { $0 } ? .unanswered : .refused(await board.missing()))
     }
 
-    /// The jump to the session's windows on the board, a refusal naming it as the board does.
+    /// The jump to the session's windows on the board, a refusal naming it as the board does; an away session's carried
+    /// on from the window it was last in.
     private func jump(to session: String, on board: Board) async -> JumpOutcome {
         guard let name = board.name(of: session) else {
             return .answered(.refused(Self.noSuchSession))
+        }
+        if let last = board.lastWindow(of: session) {
+            return await carryOn(session, named: name, from: last)
         }
 
         return await jump(to: session, named: name, at: board.jumpWindows(of: session))
@@ -115,39 +123,161 @@ public struct Jump: Sendable {
 
     /// The jump to the session's windows, a refusal naming it as given; where none shows, the window to open for it.
     func jump(to session: String, named name: String, at windows: [Board.Window.Where]) async -> JumpOutcome {
-        do {
-            let jumped = try await jump(to: windows)
+        await stoppable {
+            try await reach(jump(to: windows), for: session, named: name)
+                ?? .answered(Jumped.offScreen.answer(named: name))
+        }
+    }
 
-            guard case let .openable(attachable) = jumped else {
-                return .answered(jumped.answer(named: name))
+    /// An away session carried on from what is left of its last window, read now. First what runs on the device its
+    /// Claude ran on, as a heartbeat gone stale says only that its beat stopped, which a plugin no longer loading, or
+    /// its process suspended, does too: a Claude suspended there, Lee's own Ctrl-Z, is his to bring back, so the click
+    /// takes him to it, starting nothing (`suspended`); the table giving no answer refuses. Then the jump, where a
+    /// terminal shows its multiplexer session; the open command, where that is alive and no terminal shows it; the
+    /// resume command, where nothing is left to attach to, its multiplexer session gone or the window in none, unless
+    /// that conversation's Claude still runs on its device. Where whether a terminal shows it is unknown, refused, and
+    /// nothing opens.
+    func carryOn(_ session: String, named name: String, from last: Board.LastWindow) async -> JumpOutcome {
+        await stoppable {
+            let there = claude(on: last.where?.device)
+
+            switch there {
+            case .unknown:
+                return .answered(.unopened(
+                    "Could not tell whether \(name)'s Claude is still running: the process table gave no answer."
+                ))
+            case .stopped:
+                return try await suspended(session, named: name, at: last.where)
+            case .running, .none:
+                break
             }
 
-            return try await open(attachable, for: session, named: name)
+            if last.attaches, let left = multiplexed(last.where),
+               let reached = try await reach(jump(toLast: left), for: session, named: name)
+            {
+                return reached
+            }
+            if there == .running, last.ownsDevice, let device = last.where?.device {
+                return .answered(.unopened(
+                    "\(name)'s Claude may still be running in its window, on \(device), so SitRep starts no second. "
+                        + "Quit it there, or carry it on in that window."
+                ))
+            }
+
+            return try await openable(for: session, named: name, as: .resume) {
+                try await ResumeCommand(opening.resumeCommand).line(from: last, named: name)
+            }
+        }
+    }
+
+    /// A Claude Code process on the device given, by the process table: one stopped, as Ctrl-Z leaves it, before one
+    /// running; none, there or with no device to look on; unknown, the table giving no answer.
+    private func claude(on device: String?) -> ClaudeThere {
+        guard let device else {
+            return .none
+        }
+        guard let processes = reader.table.read(arguments: { _ in false }) else {
+            return .unknown
+        }
+
+        let there = processes.all.values.filter { $0.device == device && $0.isClaudeCode }
+
+        return there.contains(where: \.isStopped) ? .stopped : there.isEmpty ? .none : .running
+    }
+
+    /// Takes Lee to the window an away session's Claude is suspended in, as a jump to it, or the open command where its
+    /// multiplexer holds it and no terminal shows it, would: SitRep starts nothing, nor types `fg`, as Lee may be busy
+    /// in that shell, and says why. Where neither can, the open command refused or unset among them, it still says the
+    /// Claude is suspended, and where.
+    private func suspended(_ session: String, named name: String, at where: Board.Window.Where?) async throws
+        -> JumpOutcome
+    {
+        let said = "\(name) is suspended in this window: type fg to bring it back."
+        let unreached = JumpOutcome.answered(.refused(
+            "\(name) is suspended in its window, which SitRep could not bring forward: type fg there to bring it back."
+        ))
+
+        guard let `where` else {
+            return unreached
+        }
+
+        switch try await jump(to: [`where`]) {
+        case .focused:
+            return .answered(.jumpedSaying(said))
+        case let .openable(attachable):
+            switch try await open(attachable, for: session, named: name, saying: said) {
+            case .answered(.unopened), .answered(.refused):
+                return unreached
+            case let opening:
+                return opening
+            }
+        default:
+            return unreached
+        }
+    }
+
+    /// Where a window ran, where it ran in a multiplexer, which may hold its session still; none where it ran in none,
+    /// as closing its terminal ended its Claude.
+    private func multiplexed(_ where: Board.Window.Where?) -> Board.Window.Where? {
+        `where`.flatMap { each in reader.multiplexers.contains { $0.isIn(each) } ? each : nil }
+    }
+
+    /// What a jump came to as the session's answer, a window to open where it found one; nil where nothing shows the
+    /// session and there is nothing to attach to.
+    private func reach(_ jumped: Jumped, for session: String, named name: String) async throws -> JumpOutcome? {
+        switch jumped {
+        case let .openable(attachable):
+            try await open(attachable, for: session, named: name)
+        case .offScreen:
+            nil
+        case let jumped:
+            .answered(jumped.answer(named: name))
+        }
+    }
+
+    /// A jump stopped, as its task is cancelled, answers so.
+    private func stoppable(_ jump: () async throws -> JumpOutcome) async -> JumpOutcome {
+        do {
+            return try await jump()
         } catch {
             return .answered(.stopped)
         }
     }
 
-    /// The window to open for the session, a window of it in a multiplexer holding it: none where one was asked for it
-    /// a moment ago, which is opening; and none where the open command, filled with the window's facts, is not fit to
-    /// type, refused in plain words.
-    private func open(_ attachable: Attachable, for session: String, named name: String) async throws -> JumpOutcome {
+    /// The window to open for the session, a window of it in a multiplexer holding it, typing the open command filled
+    /// with the window's facts; saying what is given once it opens.
+    private func open(
+        _ attachable: Attachable, for session: String, named name: String, saying said: String? = nil
+    ) async throws -> JumpOutcome {
+        guard let multiplexer = reader.multiplexers.first(where: { $0.kind == attachable.kind }) else {
+            return .answered(Jumped.offScreen.answer(named: name))
+        }
+
+        return try await openable(for: session, named: name, as: .attach, saying: said) {
+            try await OpenCommand(opening.command).line(for: attachable.where, in: multiplexer, named: name)
+        }
+    }
+
+    /// The window to open for the session, typing the line of the kind `line` makes: none where one was asked for it a
+    /// moment ago, which is opening; and none where the line is not fit to type, refused in plain words.
+    private func openable(
+        for session: String, named name: String, as kind: RecentOpenings.Kind, saying said: String? = nil,
+        line: () async throws -> String
+    ) async throws -> JumpOutcome {
         guard !openings.isOpening(session) else {
             return .answered(.opening)
         }
-        guard let driver = drivers[opening.terminal],
-              let multiplexer = reader.multiplexers.first(where: { $0.kind == attachable.kind })
-        else {
+        guard let driver = drivers[opening.terminal] else {
             return .answered(Jumped.offScreen.answer(named: name))
         }
 
         do {
-            let line = try await OpenCommand(opening.command).line(for: attachable.where, in: multiplexer, named: name)
+            let line = try await line()
 
             try Task.checkCancellation()
             return .openable(Opening(
-                session: session, name: name, line: line, terminal: opening.terminal, driver: driver,
-                workspace: workspace, clock: clock, openings: openings
+                session: session, name: name, line: line, terminal: opening.terminal, kind: kind, driver: driver,
+                workspace: workspace, clock: clock, openings: openings, saying: said
             ))
         } catch {
             try Task.checkCancellation()
@@ -155,11 +285,29 @@ public struct Jump: Sendable {
         }
     }
 
-    /// Brings the first of the windows a jump can reach to the front, or, where none shows, gives the first a
-    /// multiplexer holds, to open a window for. Which app is in front is read beside the screen, and settled before any
-    /// select or focus, so it is never an app brought forward by the jump itself. Where what was asked gave no answer,
-    /// nothing is openable.
+    /// Brings the first of the live windows a jump can reach to the front, or, where none shows, gives the first a
+    /// multiplexer holds, to open a window for.
     func jump(to windows: [Board.Window.Where]) async throws -> Jumped {
+        try await jump(to: windows) { screen in screen.attachable(windows).map(Jumped.openable) ?? .offScreen }
+    }
+
+    /// Brings an away session's last window to the front, or, where none shows it, gives it to open a window for where
+    /// its multiplexer session runs still, told by the table, as no live window proves it.
+    func jump(toLast where: Board.Window.Where) async throws -> Jumped {
+        try await jump(to: [`where`]) { screen in
+            switch screen.leftOf(`where`) {
+            case let .attachable(attachable): .openable(attachable)
+            case .gone: .offScreen
+            case let .unknown(unanswered): .unknown(unanswered)
+            }
+        }
+    }
+
+    /// Brings the first of the windows a jump can reach to the front, or, where none shows, gives what `offScreen`
+    /// finds on the screen to open a window for. Which app is in front is read beside the screen, and settled before
+    /// any select or focus, so it is never an app brought forward by the jump itself. Where what was asked gave no
+    /// answer, nothing is openable.
+    private func jump(to windows: [Board.Window.Where], offScreen: (Screen) -> Jumped) async throws -> Jumped {
         try Task.checkCancellation()
 
         async let before = workspace.frontmost()
@@ -172,7 +320,7 @@ public struct Jump: Sendable {
         case let .onScreen(places):
             try await bringFirst(places, front: front)
         case .offScreen:
-            screen.attachable(windows).map(Jumped.openable) ?? .offScreen
+            offScreen(screen)
         case let .unknown(unanswered):
             .unknown(unanswered)
         }
@@ -278,6 +426,12 @@ enum Selected: Equatable {
     }
 }
 
+/// What runs on the device an away session's Claude ran on: a Claude Code process stopped there, one running, none;
+/// or unknown, the table giving no answer.
+enum ClaudeThere: Equatable {
+    case stopped, running, none, unknown
+}
+
 /// Why a place brought nothing forward: its window not answering; tmux not making its select, in its words; or its
 /// app unable to be asked, in plain words.
 enum Missed: Equatable {
@@ -369,6 +523,7 @@ extension Unanswered {
         switch self {
         case .tmux: "tmux"
         case .processes: "the process table"
+        case let .commandLine(kind): "a \(kind.rawValue) process's command line"
         case .tmuxSaid: nil
         }
     }

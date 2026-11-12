@@ -184,6 +184,42 @@ struct BoardTests {
         #expect(rowless.name(of: "sr-z") == nil)
     }
 
+    /// A line whose project lists the sessions given, each as the watch prints one, its `lastWindow` as given.
+    private static func listing(_ sessions: [String]) throws -> Board {
+        try Board.read(watchedEmpty.replacingOccurrences(
+            of: #""projects":[]"#,
+            with: #""projects":[{"key":"terrace","name":"Terrace","sessions":[\#(sessions.joined(separator: ","))]}]"#
+        ))
+    }
+
+    /// An away session carries the window it was last in: its writer, where it was, whether a click may attach it,
+    /// whether its device is its conversation's, and its folder, as the watch prints them; a session a window holds,
+    /// null.
+    @Test func anAwaySessionsLastWindowSaysItsWriterWhereItWasAndItsFolder() throws {
+        let board = try Self.listing([
+            #"{"id":"sr-q1","name":"Quiet one","lastWindow":{"writer":"w9","where":{"device":"/dev/ttys087","terminal":"ghostty","tmux":null,"zmx":{"session":"kit · card"}},"attaches":true,"ownsDevice":true,"directory":"/Users/lee/Code/kit"}}"#,
+            #"{"id":"sr-q2","name":"Older one","lastWindow":{"writer":"w8","where":null,"directory":null}}"#,
+            #"{"id":"sr-h1","name":"Held one","lastWindow":null}"#,
+        ])
+
+        #expect(board.lastWindow(of: "sr-q1") == Board.LastWindow(
+            writer: "w9", where: .init(device: "/dev/ttys087", terminal: "ghostty", zmx: .init(session: "kit · card")),
+            attaches: true, ownsDevice: true, directory: "/Users/lee/Code/kit"
+        ))
+        #expect(board.lastWindow(of: "sr-q2") == Board.LastWindow(writer: "w8"), "neither flag given, both false")
+        #expect(board.lastWindow(of: "sr-h1") == nil)
+        #expect(board.lastWindow(of: "sr-z") == nil)
+    }
+
+    /// From a CLI before it, or in a shape that does not read, a session has none, and is named all the same.
+    @Test(arguments: [#"{"id":"sr-q1","name":"Quiet one"}"#, #"{"id":"sr-q1","name":"Quiet one","lastWindow":{"where":5}}"#])
+    func aSessionsLastWindowMissingOrNotReadingIsNoneItsNameKept(session: String) throws {
+        let board = try Self.listing([session])
+
+        #expect(board.lastWindow(of: "sr-q1") == nil)
+        #expect(board.name(of: "sr-q1") == "Quiet one")
+    }
+
     @Test func aLineSaysWhatIsNewOnIt() throws {
         let board = try Board.read(watched)
 

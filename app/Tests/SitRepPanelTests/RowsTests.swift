@@ -170,7 +170,7 @@ struct RowsTests {
         #expect(!content.entries[0].jumps)
         #expect(content.entries[1].jumps)
         #expect(!content.entries[2].jumps)
-        #expect(!content.entries[7].jumps)
+        #expect(content.entries[7].jumps, "an away row's carries its session on")
     }
 
     @Test func aSessionTakesTheLettersItIsGivenElseMakesItsOwn() {

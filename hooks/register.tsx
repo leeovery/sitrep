@@ -131,6 +131,7 @@ const hostOf = ($: EngineInterface): Host => ({
   conversation: {
     id: () => $.session.id(),
     cwd: () => $.session.cwd(),
+    root: () => $.session.root(),
   },
   env: async () => ({
     XDG_STATE_HOME: await $.env.get('XDG_STATE_HOME'),
@@ -470,7 +471,11 @@ export const register: Register = on => {
     // conversation stopped; lifted first, so no look meanwhile lets the
     // inbox's message go, as one held for a stop gone stale.
     await liftStop(host).catch(logFailure(host, 'ending the wait on your input'))
-    await serially(() => letGo(host)).catch(logFailure(host, 'letting go of the attached session'))
+    // A /clear or an in-process /resume ends the conversation, its Claude
+    // living on into the next: the window is the ended one's no longer.
+    await serially(() => letGo(host, e.reason === 'clear' || e.reason === 'resume')).catch(
+      logFailure(host, 'letting go of the attached session'),
+    )
     await heardConversationEnd(host)
     await conversationEnded(host, e.reason === 'clear')
 
