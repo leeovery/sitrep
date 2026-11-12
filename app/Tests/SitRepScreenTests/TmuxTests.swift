@@ -82,6 +82,74 @@ struct TmuxTests {
         #expect(TmuxOnPath.find("tmux", on: decoy.path) == nil)
     }
 
+    @Test func tmuxExitingNonZeroAnswersNoServerOnlyWhereItsWordsSayNoneRunsOnTheSocket() async throws {
+        let folder = try Self.folderHolding("tmux")
+        let noServer = [
+            "no server running on \(Self.socket)\n",
+            "error connecting to \(Self.socket) (No such file or directory)\n",
+        ]
+
+        for said in noServer {
+            let tmux = TmuxOnPath(path: folder.path) { _ in Ran(status: 1, stdout: "", stderr: said) }
+
+            #expect(await TmuxAdapter(tmux).readServer(Self.socket) == .noServer, "\(said)")
+        }
+    }
+
+    @Test func anyOtherErrorFromTmuxLeavesTheServerUnknownInTmuxsWordsTrimmed() async throws {
+        let folder = try Self.folderHolding("tmux")
+        let failures = [
+            "protocol version mismatch (client 8, server 7)",
+            "error connecting to \(Self.socket) (Permission denied)",
+            "lost server",
+            "",
+        ]
+
+        for said in failures {
+            let tmux = TmuxOnPath(path: folder.path) { _ in Ran(status: 1, stdout: "", stderr: " \(said)\n") }
+
+            #expect(await TmuxAdapter(tmux).readServer(Self.socket) == .failed(said: said), "\(said)")
+        }
+    }
+
+    @Test func tmuxsWordsAreItsLastLineSoAWarningAheadOfThemNeitherHidesNoServerNorIsQuoted() async throws {
+        let folder = try Self.folderHolding("tmux")
+        let warning = "dyld[4242]: warning: libevent was built for a newer macOS\n"
+        let cases: [(String, ServerRead)] = [
+            ("no server running on \(Self.socket)\n\n", .noServer),
+            ("protocol version mismatch (client 8, server 7) \n", .failed(said: "protocol version mismatch (client 8, server 7)")),
+        ]
+
+        for (said, read) in cases {
+            let tmux = TmuxOnPath(path: folder.path) { _ in Ran(status: 1, stdout: "", stderr: warning + said) }
+
+            #expect(await TmuxAdapter(tmux).readServer(Self.socket) == read, "\(said)")
+        }
+    }
+
+    @Test func eitherListFailingFailsTheServerThoughTheOtherAnswered() async throws {
+        let folder = try Self.folderHolding("tmux")
+
+        for failing in ["list-panes", "list-clients"] {
+            let tmux = TmuxOnPath(path: folder.path) { program in
+                program.arguments.contains(failing)
+                    ? Ran(status: 1, stdout: "", stderr: "lost server\n")
+                    : Ran(status: 0, stdout: "%1\t@1\t$1\t/dev/ttys000\n", stderr: "")
+            }
+
+            #expect(await TmuxAdapter(tmux).readServer(Self.socket) == .failed(said: "lost server"), "\(failing)")
+        }
+    }
+
+    @Test func aServerTmuxFailedOnMakesItsWindowsUnknownInItsWordsNeverOffScreen() {
+        let said = "protocol version mismatch (client 8, server 7)"
+        let reading = TmuxReading(servers: [Self.socket: .failed(said: said)])
+
+        #expect(reading.unanswered(inTmux(on: Self.socket)) == [.tmuxSaid(said)])
+        #expect(Screen(readings: [reading], processes: nil).reach(of: [inTmux(on: Self.socket)]) == .unknown([.tmuxSaid(said)]))
+        #expect(!reading.holds(inTmux(on: Self.socket)), "nothing to open a window onto")
+    }
+
     /// Each told apart from the other, and from tmux's answer of no server.
     @Test func tmuxNotOnThePathOrNotAnsweringInTimeGivesNoAnswerNeverAnAnswerOfNoServer() async throws {
         let folder = try Self.folderHolding("tmux")

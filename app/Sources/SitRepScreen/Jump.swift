@@ -332,7 +332,7 @@ enum Jumped: Equatable {
         case .offScreen:
             .refused("\(name) is not on screen: no terminal window on this Mac shows it.")
         case let .unknown(unanswered):
-            .refused("Could not tell whether \(name) is on screen: \(inWords(unanswered.map(\.words))) gave no answer.")
+            .refused("Could not tell whether \(name) is on screen: \(Self.whyUnknown(unanswered)).")
         case let .unanswered(devices, apps) where devices.isEmpty:
             .refused("\(name) shows in \(inWords(apps)), which did not come forward.")
         case let .unanswered(devices, apps):
@@ -342,6 +342,15 @@ enum Jumped: Equatable {
         case let .failed(words):
             .refused(words)
         }
+    }
+
+    /// Why a jump could not tell, in words: what gave no answer, then, after a comma, what tmux said instead.
+    private static func whyUnknown(_ unanswered: [Unanswered]) -> String {
+        let silent = unanswered.compactMap(\.silent)
+        let said = unanswered.compactMap(\.said)
+
+        return [silent.isEmpty ? nil : "\(inWords(silent)) gave no answer", said.isEmpty ? nil : inWords(said)]
+            .compactMap(\.self).joined(separator: ", and ")
     }
 
     /// Why tmux did not select a pane's window, in words: in tmux's, where it said any.
@@ -355,12 +364,22 @@ enum Jumped: Equatable {
 }
 
 extension Unanswered {
-    /// What gave no answer, as a refusal names it.
-    var words: String {
+    /// What gave no answer, as a refusal names it; none for tmux's error.
+    var silent: String? {
         switch self {
         case .tmux: "tmux"
         case .processes: "the process table"
+        case .tmuxSaid: nil
         }
+    }
+
+    /// tmux's error, as a refusal gives it, in its words.
+    var said: String? {
+        guard case let .tmuxSaid(said) = self else {
+            return nil
+        }
+
+        return said.isEmpty ? "tmux failed without saying why" : "tmux said \"\(said)\""
     }
 }
 

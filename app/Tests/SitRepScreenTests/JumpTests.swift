@@ -145,6 +145,25 @@ struct JumpTests {
         }
     }
 
+    @Test func aJumpTmuxFailedForSaysWhatTmuxSaidWhereOnlyARealSilenceGaveNoAnswer() {
+        let mismatch = "protocol version mismatch (client 8, server 7)"
+        let cases: [([Unanswered], String)] = [
+            ([.tmuxSaid(mismatch)], "tmux said \"\(mismatch)\""),
+            ([.tmuxSaid("")], "tmux failed without saying why"),
+            ([.tmuxSaid(mismatch), .processes], "the process table gave no answer, and tmux said \"\(mismatch)\""),
+            ([.tmux, .tmuxSaid(mismatch)], "tmux gave no answer, and tmux said \"\(mismatch)\""),
+            (
+                [.tmux, .tmuxSaid(mismatch), .processes],
+                "tmux and the process table gave no answer, and tmux said \"\(mismatch)\""
+            ),
+            ([.tmux, .processes], "tmux and the process table gave no answer"),
+        ]
+
+        for (unanswered, why) in cases {
+            #expect(Jumped.unknown(unanswered).answer(named: named) == .refused("Could not tell whether \(named) is on screen: \(why)."))
+        }
+    }
+
     @Test func aDeviceNoGhosttyTerminalIsOnFailsSayingWhichWithNothingFocused() async {
         var mac = Mac()
         let elsewhere = server([mac.ghosttyClient("/dev/ttys099", showing: claudes)])

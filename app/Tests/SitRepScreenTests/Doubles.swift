@@ -131,24 +131,28 @@ struct FakeServer {
 }
 
 /// tmux, its servers by socket, answering as the real one does: a socket no server is on with an error; or, `silent`,
-/// giving no answer at all, as tmux too slow does, for every socket or those given; or `missing`, not found on the
-/// PATH. A select it answers as `select` says, nil for no answer. It keeps every run it was asked for.
+/// giving no answer at all, as tmux too slow does, for every socket or those given; or, `failing`, exiting with the
+/// error given for its socket; or `missing`, not found on the PATH. A select it answers as `select` says, nil for no
+/// answer. It keeps every run it was asked for.
 final class FakeTmux: TmuxProgram {
     private let servers: [String: FakeServer]
     private let isMissing: Bool
     private let isSilent: Bool
     private let silentSockets: Set<String>
+    private let failing: [String: String]
     private let selected: Ran?
     private let asked = OSAllocatedUnfairLock(initialState: (runs: [[String]](), words: [[String]](), selects: [[String]]()))
 
     init(
         _ servers: [String: FakeServer] = [:], missing: Bool = false, silent: Bool = false,
-        silentOn sockets: Set<String> = [], select: Ran? = Ran(status: 0, stdout: "", stderr: "")
+        silentOn sockets: Set<String> = [], failing: [String: String] = [:],
+        select: Ran? = Ran(status: 0, stdout: "", stderr: "")
     ) {
         self.servers = servers
         isMissing = missing
         isSilent = silent
         silentSockets = sockets
+        self.failing = failing
         selected = select
     }
 
@@ -175,6 +179,9 @@ final class FakeTmux: TmuxProgram {
         }
         guard !isSilent, !silentSockets.contains(socket) else {
             throw Self.unanswered
+        }
+        if let said = failing[socket] {
+            return Ran(status: 1, stdout: "", stderr: said + "\n")
         }
 
         if words[0] == "select-window" {
