@@ -4185,11 +4185,11 @@ it arrives and never as it folds away. Meanwhile a row gone folds away where it 
 one unfolds, washed if it needs Lee (20 October 2026). A row new to a
 section, new to the board or come from another, goes under the row core has
 above it in that section, or at the section's top where core has none there.
-A click on an away row does nothing; it is there, but there is no window to
-jump to. What a click on it opens is open for Lee, decided later: for Lee, a new Ghostty
-window attached to the session's tmux session, where there is one (Lee, 16
-October 2026, in place of "until the SitRep window exists; then it opens the
-session there"). This replaces the first list, needs you, your turn, working,
+A click on an away row carries its session on: it goes to the terminal
+showing what is left of its last window, opens a window onto it where it is
+still alive, or starts Claude again where nothing is left (stage 8, decided
+with Lee on 12 November 2026). Until then a click on it did nothing, and
+what it would open was left for later (Lee, 16 October 2026). This replaces the first list, needs you, your turn, working,
 quiet and not on screen: quiet was your turn, and not on screen is a fact
 about where a window is, for the jump.
 
@@ -4317,7 +4317,8 @@ gaining the line, gets an orange wash for 2 seconds. Lee set the swell on the di
 little too quiet, and Lee thought it might look nice twice.
 
 **A right-click on any row brings up its menu** (board F, 22 October
-2026): Jump to the window, as a click, disabled on an away row. While the
+2026): Jump to the window, as a click; on an away row, as its click does
+(stage 8; disabled until 12 November 2026). While the
 menu shows, the card holds open as if the pointer rested where it was
 opened, wherever the pointer goes on the menu, and its grace starts only
 once the menu closes, so a choice made on it finds its row still there.
@@ -7520,7 +7521,8 @@ open), and tmux passing an escape sequence through from Claude's own pane
      - **Only where SitRep knows no terminal shows the session**: never on
        unknown, which could make a second window of one already there;
        never for a window in no multiplexer, as closing its terminal ended
-       its Claude, leaving nothing to attach to; never on an away row.
+       its Claude, leaving nothing to attach to; never on an away row,
+       which stage 8 carries on.
      - **A command that fails** shows its own error in the window it
        opened, at the user's prompt: SitRep does not watch it.
      - **Only into a terminal already running**: SitRep never launches it
@@ -7544,7 +7546,7 @@ open), and tmux passing an escape sequence through from Claude's own pane
      the window at once, where a jump is refused today, with no "Open in a
      New Window" beside Jump; a new window, not a tab; an away row stays
      parked (a Claude started to carry its session on is a feature of its
-     own).
+     own: stage 8).
    - **Probed live** (10 November 2026, with Lee's go), which settled the
      typing above: Ghostty runs a configuration's `command` as `login -flp
      <user> /bin/bash --noprofile --norc -c "exec -l <command>"`, with
@@ -7662,6 +7664,61 @@ open), and tmux passing an escape sequence through from Claude's own pane
      window Lee has; 6, as this Mac has no tmux. A row no terminal shows
      looks as any other: rows show the board, and whether a terminal shows
      a session is read at the click.
+
+8. **An away row carried on**, decided with Lee on 12 November 2026. An
+   away session is one no window holds, still current: its Claude ended,
+   or the Mac restarted under it, with things still on it. A click on its
+   row, its menu's Jump or its notification's click carries it on, by what
+   is left of its last window, read at the click as a jump reads the
+   screen:
+   - **A terminal shows its multiplexer session**: the jump, to that
+     window, as for any session.
+   - **Its multiplexer session is alive, no terminal showing it**: the open
+     command, as step C of stage 7 runs it, filled from the last window's
+     facts (`{session}`, `{socket}`, `{pane}`). For Lee this is the case
+     after a restart: Portal brings each zmx session back in its folder,
+     and one Claude ran in holds Portal's resume panel, its resume command
+     registered by Lee's own Claude hook (`cd <folder> && claude --resume
+     <id>`), so `portal open -s {session}` attaches it and Enter brings the
+     same Claude back, which takes its board session up again. SitRep
+     knows none of this: it attaches, as it would to any session alive in
+     its multiplexer.
+   - **Nothing is left to attach to**: its multiplexer session gone, or its
+     last window in none. The **resume command**, a second setting beside
+     the open command, empty until Lee gives one, run as the open command
+     is: typed as the first line of a new window, on the current Space,
+     only into a running terminal, one window per click. Its placeholders
+     are `{claude}`, the Claude Code session id the last window ran (its
+     writer, which a `/clear` moves on, so the latest conversation), and
+     `{dir}`, the folder that Claude ran in. For Lee: `portal open -p {dir}
+     -- claude --resume {claude}`, Portal starting a session in that folder
+     running the resume, which his hook then registers as any other; with
+     no Portal, `cd {dir} && claude --resume {claude}`.
+   - **What SitRep reads**: the session's latest window, by its heartbeat
+     last seen, gives every fact. The heartbeat starts saying its folder:
+     the Claude process's own, which entering a worktree moves and a
+     shell's `cd` does not (Lee's hook anchors the same way, for the same
+     reason). A window on an older build says none, so a command naming
+     `{dir}` for its session is refused at the click in plain words, as a
+     placeholder with no fact is. Since Claude Code 2.1.28x, `claude
+     --resume <id>` finds its conversation from any folder: the folder
+     decides only where it lands.
+   - **Refusals**, in plain words, as step C's are: an empty resume command
+     says to set one in Settings ("No window holds <name>. To carry it on,
+     set a resume command in Settings."); a terminal not running, as an
+     opening's does; whether a terminal shows it unknown, as a jump's does,
+     and nothing opens.
+   - **One limit**: a multiplexer session alive with a bare shell in it, as
+     after Lee exited Claude himself and kept the session, is attached as
+     any other: SitRep cannot tell a resume panel from a shell, and Lee
+     runs the resume himself.
+   - **Settings**, General's New windows: the resume command under the open
+     command, the same literal field.
+   - **Looked up in Portal** (12 November 2026), not built against:
+     `portal open -s` attaches and never makes a session; `portal open -p
+     <dir> -- <cmd>` makes one in that folder running the command; a
+     session Portal restores comes back holding its resume panel until
+     answered.
 
 ## Later
 
