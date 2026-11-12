@@ -82,7 +82,7 @@ final class MenuTurn {
     }
 
     private static func working(_ entry: MenuEntry) -> Session? {
-        guard case let .row(session, _) = entry, session.kind == .working else {
+        guard case let .row(session) = entry, session.kind == .working else {
             return nil
         }
 

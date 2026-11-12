@@ -102,10 +102,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         for item in [was, item].compactMap(\.self) {
             let offset = menu.index(of: item)
 
-            if entries.indices.contains(offset), case let .row(session, jump) = entries[offset] {
-                MenuWords.describe(
-                    item, session, jump: jump, now: Displays.wallNow, isHighlighted: item === highlighted
-                )
+            if entries.indices.contains(offset), case let .row(session) = entries[offset] {
+                MenuWords.describe(item, session, now: Displays.wallNow, isHighlighted: item === highlighted)
             }
         }
     }
@@ -172,14 +170,14 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             warn(item, trouble.title, subtitle: trouble.detail)
         case let .unread(why):
             warn(item, MenuBoard.unreadTitle, subtitle: why)
-        case let .row(session, jump):
+        case let .row(session):
             item.target = self
-            item.action = jump == nil ? nil : #selector(jump(_:))
-            item.representedObject = jump
+            item.action = #selector(jump(_:))
+            item.representedObject = session.id
             let now = Displays.wallNow
 
             MenuWords.row(
-                item, session, jump: jump, age: session.ageText(at: now), now: now, isHighlighted: item === highlighted,
+                item, session, age: session.ageText(at: now), now: now, isHighlighted: item === highlighted,
                 turn: turn.frame
             )
         case let .show(show, isTicked):
@@ -218,7 +216,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         let now = Displays.wallNow
 
         for (offset, entry) in entries.enumerated() {
-            guard case let .row(session, jump) = entry, let item = menu.item(at: offset) else {
+            guard case let .row(session) = entry, let item = menu.item(at: offset) else {
                 continue
             }
 
@@ -228,7 +226,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
                 item.badge = NSMenuItemBadge(string: age)
             }
             if session.until != nil {
-                MenuWords.describe(item, session, jump: jump, now: now, isHighlighted: item === highlighted)
+                MenuWords.describe(item, session, now: now, isHighlighted: item === highlighted)
             }
         }
 

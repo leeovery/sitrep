@@ -131,6 +131,7 @@ const hostOf = ($: EngineInterface): Host => ({
   conversation: {
     id: () => $.session.id(),
     cwd: () => $.session.cwd(),
+    root: () => $.session.root(),
   },
   env: async () => ({
     XDG_STATE_HOME: await $.env.get('XDG_STATE_HOME'),

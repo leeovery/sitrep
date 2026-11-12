@@ -27,6 +27,8 @@ public struct Board: Versioned, Sendable, Equatable {
     /// names a session by. Read in any shape or none, as no surface shows the projects: a line whose projects do not
     /// read names none.
     let named: [String: String]
+    /// The window each away session was last in, by its id, which a click carries it on from; read as the names are.
+    let lastWindows: [String: LastWindow]
 
     /// The rows holding a line new on this board, by their sessions.
     public var newRows: Set<String> {
@@ -45,23 +47,54 @@ public struct Board: Versioned, Sendable, Equatable {
         snoozed = try given.decodeIfPresent([SnoozedRow].self, forKey: .snoozed) ?? []
         windows = try given.decode([Window].self, forKey: .windows)
         new = try given.decode([String].self, forKey: .new)
-        named = (try? given.decodeIfPresent([Project].self, forKey: .projects))?
-            .flatMap(\.sessions)
-            .reduce(into: [:]) { $0[$1.id] = $1.name } ?? [:]
+
+        let sessions = (try? given.decodeIfPresent([Project].self, forKey: .projects))?.flatMap(\.sessions) ?? []
+
+        named = sessions.reduce(into: [:]) { $0[$1.id] = $1.name }
+        lastWindows = sessions.reduce(into: [:]) { $0[$1.id] = $1.lastWindow }
     }
 
     private enum CodingKeys: String, CodingKey {
         case at, version, head, rows, snoozed, windows, new, projects
     }
 
-    /// A project, for the names of its sessions.
+    /// A project, for the names of its sessions and the windows its away ones were last in.
     private struct Project: Decodable {
         struct Session: Decodable {
             let id: String
             let name: String
+            /// None from a CLI from before the watch carried it (12 November 2026), or in a shape that does not read.
+            let lastWindow: LastWindow?
+
+            init(from decoder: any Decoder) throws {
+                let given = try decoder.container(keyedBy: CodingKeys.self)
+
+                id = try given.decode(String.self, forKey: .id)
+                name = try given.decode(String.self, forKey: .name)
+                lastWindow = try? given.decodeIfPresent(LastWindow.self, forKey: .lastWindow)
+            }
+
+            private enum CodingKeys: String, CodingKey {
+                case id, name, lastWindow
+            }
         }
 
         let sessions: [Session]
+    }
+
+    /// The window an away session was last in, by its heartbeat last seen: its writer, the Claude Code session it ran,
+    /// which a `/clear` moves on; where it was; and the folder its Claude ran in, none from a window on a sitrep from
+    /// before heartbeats said it.
+    public struct LastWindow: Decodable, Sendable, Equatable {
+        public let writer: String
+        public let `where`: Window.Where?
+        public let directory: String?
+
+        public init(writer: String, where: Window.Where? = nil, directory: String? = nil) {
+            self.writer = writer
+            self.where = `where`
+            self.directory = directory
+        }
     }
 
     /// How many lines need Lee, away ones among them, and how many sessions the rows hold.
@@ -343,6 +376,11 @@ public struct Board: Versioned, Sendable, Equatable {
             .compactMap { window in window.jumpOrder.map { (order: $0, where: window.where) } }
             .sorted { $0.order < $1.order }
             .compactMap(\.where)
+    }
+
+    /// The window the session was last in, where it is away, no window holding it; nil while one holds it.
+    public func lastWindow(of session: String) -> LastWindow? {
+        lastWindows[session]
     }
 
     /// The session's name, as its row, its Snoozed row, a window of it or its project says; nil for a session not on

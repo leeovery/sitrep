@@ -349,6 +349,7 @@ test('the first line is the board as every surface shows it, with nothing new, n
                 },
               ],
               parkedItems: [],
+              lastWindow: null,
             },
           ],
         },
@@ -1495,6 +1496,39 @@ test("each window on a line says where it is, its tmux pane and its zmx session,
 
   expect(await whereOn(inZmx)).toEqual([{ ...WHERE, tmux: null, zmx: inZmx.zmx }])
   expect(await whereOn(inTmux)).toEqual([{ ...WHERE, tmux: inTmux.tmux, zmx: null }])
+})
+
+test("an away session on a line carries the window it was last in, its where and its folder as heartbeats give them, null for what it said not", async () => {
+  const { t, paths } = held([[T0, yesAsk('k1', 'Review round 1')]])
+  const lobby = t.seed(LOBBY)
+
+  const gone = T0 - 2 * MIN
+
+  beatOn(t, paths, W1, { is: 'yourTurn', since: gone }, {
+    attachedAt: gone,
+    seenAt: gone,
+    where: WHERE,
+    directory: REPO,
+  })
+  beatOn(t, lobby, W2, { is: 'yourTurn', since: T0 }, { seenAt: NOW })
+
+  const [line] = (await watched(t, [])).lines
+  const printed = line as unknown as {
+    projects: { sessions: { id: string; state: string; lastWindow: unknown }[] }[]
+  }
+
+  expect(printed.projects[0]?.sessions.map(each => [each.id, each.state, each.lastWindow])).toEqual([
+    [
+      META.id,
+      'needsYou',
+      {
+        writer: W1,
+        where: { device: WHERE.device, terminal: WHERE.terminal, tmux: null, zmx: null },
+        directory: REPO,
+      },
+    ],
+    [LOBBY.id, 'yourTurn', null],
+  ])
 })
 
 test("each window on a line carries its place in the order a jump tries its session's windows, core's, not the list's; null for one saying no where", async () => {

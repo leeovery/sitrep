@@ -3,7 +3,8 @@
  * window died, so each attached window rewrites a heartbeat, and a session is
  * open while at least one heartbeat is fresh. A mod cannot delete a file
  * either, so a window that lets go says so in its heartbeat. A heartbeat
- * also says where its window is, the sitrep version it runs, what it is
+ * also says where its window is, the folder its Claude runs in, the sitrep
+ * version it runs, what it is
  * doing (state.ts), the replies its messages in flight carry to the
  * session, and when the load of the mod that wrote it began.
  */
@@ -19,11 +20,11 @@ export const HEARTBEAT_MS = 30_000
 /** How old a heartbeat may be before its window counts as gone: three missed beats. */
 export const STALE_MS = 3 * HEARTBEAT_MS
 
-/** A window's first heartbeat on a session, with where the window is, the version it runs, its state, what it sends and its load, as far as they are known. */
+/** A window's first heartbeat on a session, with where the window is, its folder, the version it runs, its state, what it sends and its load, as far as they are known. */
 export const attach = (
   writer: string,
   at: number,
-  known: Pick<Presence, 'where' | 'version' | 'state' | 'sending' | 'loadedAt'> = {},
+  known: Pick<Presence, 'where' | 'directory' | 'version' | 'state' | 'sending' | 'loadedAt'> = {},
 ): Presence => ({ writer, attachedAt: at, seenAt: at, ...known })
 
 export const heartbeat = (presence: Presence, at: number): Presence => ({ ...presence, seenAt: at })
@@ -70,8 +71,9 @@ const parseSending = (value: unknown): Sending[] | undefined => {
 
 /**
  * A heartbeat file's presence, its writer named by the file; undefined when
- * the file is torn or bad. A bad `where`, `version`, `state`, `sending` or
- * `loadedAt`, or a bad field of one, is dropped and the presence kept.
+ * the file is torn or bad. A bad `where`, `directory`, `version`, `state`,
+ * `sending` or `loadedAt`, or a bad field of one, is dropped and the presence
+ * kept.
  */
 export const parsePresence = (text: string, writer: string): Presence | undefined => {
   let raw: {
@@ -79,6 +81,7 @@ export const parsePresence = (text: string, writer: string): Presence | undefine
     seenAt?: unknown
     leftAt?: unknown
     where?: unknown
+    directory?: unknown
     version?: unknown
     state?: unknown
     sending?: unknown
@@ -91,7 +94,7 @@ export const parsePresence = (text: string, writer: string): Presence | undefine
     return undefined
   }
 
-  const { attachedAt, seenAt, leftAt, where, version, state, sending, loadedAt } = raw
+  const { attachedAt, seenAt, leftAt, where, directory, version, state, sending, loadedAt } = raw
 
   if (!isTime(attachedAt) || !isTime(seenAt) || !(leftAt === undefined || isTime(leftAt))) {
     return undefined
@@ -103,6 +106,7 @@ export const parsePresence = (text: string, writer: string): Presence | undefine
     seenAt,
     leftAt,
     where: parseWhere(where),
+    directory: isFilled(directory) ? directory : undefined,
     version: isFilled(version) ? version : undefined,
     state: parseState(state),
     sending: parseSending(sending),

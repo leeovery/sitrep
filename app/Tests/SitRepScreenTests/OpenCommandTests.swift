@@ -143,7 +143,7 @@ struct OpenCommandTests {
     /// value, quoted, would run as a command (found in review, 10 November 2026).
     @Test(arguments: [#"zmx attach \$'\'X'{session}'"#, #"zmx attach $$'\'X'{session}'"#])
     func aDollarEscapedOrDoubledOpensNoAnsiQuoteSoAPlaceholderAfterItIsRefused(command: String) async {
-        await #expect(throws: Unopenable(description: CommandProblem.quoted(["session"]).refusal(named: named))) {
+        await #expect(throws: Unopenable(description: CommandProblem<Fact>.quoted(["session"]).refusal(named: named))) {
             try await Self.line(command, inZmx("a; touch pwned; "), in: ZmxAdapter())
         }
     }
@@ -154,7 +154,7 @@ struct OpenCommandTests {
     /// 2026).
     @Test(arguments: ["portal open -s `echo {session} `", #"portal open -s "`echo {session} `""#, "x `a` `{session}`"])
     func aPlaceholderInBackticksIsRefused(command: String) async {
-        await #expect(throws: Unopenable(description: CommandProblem.quoted(["session"]).refusal(named: named))) {
+        await #expect(throws: Unopenable(description: CommandProblem<Fact>.quoted(["session"]).refusal(named: named))) {
             try await Self.line(command, inZmx("kit · card`;touch PWNED;"), in: ZmxAdapter())
         }
     }
@@ -205,12 +205,12 @@ struct OpenCommandTests {
     }
 
     @Test(arguments: [
-        (CommandProblem.unprintable("\u{15}"), "The open command in Settings has a character that can't be typed (U+0015)."),
+        (CommandProblem<Fact>.unprintable("\u{15}"), "The open command in Settings has a character that can't be typed (U+0015)."),
         (.unprintable("\t"), "The open command in Settings has a tab, which can't be typed."),
         (.quoted(["session"]), "The open command in Settings puts {session} in quotes or backticks. Remove them: SitRep quotes each value itself."),
         (.joined(["session", "pane"]), "The open command in Settings joins {session} and {pane} to other text. Put a space before and after each placeholder."),
     ])
-    func eachProblemIsRefusedInPlainWords(problem: CommandProblem, words: String) {
+    func eachProblemIsRefusedInPlainWords(problem: CommandProblem<Fact>, words: String) {
         #expect(problem.refusal(named: named) == words)
     }
 

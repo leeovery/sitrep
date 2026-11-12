@@ -22,6 +22,7 @@ import {
   type FeedProject,
   type FeedSession,
   type FeedWindow,
+  type LastWindow,
   type Line,
   type LogLine,
   type Parked,
@@ -254,6 +255,7 @@ const feedSessionJson = (session: FeedSession) => ({
   },
   asks: session.asks.map(ask => askJson(session, ask)),
   parkedItems: session.parkedItems.map(parkedJson),
+  lastWindow: lastWindowJson(session.lastWindow),
 })
 
 const snoozedLineJson = (line: SnoozedLine) => ({
@@ -298,6 +300,15 @@ const whereJson = (where: Where | undefined) =>
         tmux:
           where.tmux === undefined ? null : { socket: where.tmux.socket, pane: where.tmux.pane },
         zmx: where.zmx === undefined ? null : { session: where.zmx.session },
+      }
+
+const lastWindowJson = (window: LastWindow | undefined) =>
+  window === undefined
+    ? null
+    : {
+        writer: window.writer,
+        where: whereJson(window.where),
+        directory: window.directory ?? null,
       }
 
 const stateJson = (state: WindowState | undefined) =>

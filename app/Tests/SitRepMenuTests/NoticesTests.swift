@@ -31,11 +31,12 @@ struct NoticesTests {
         #expect(Notices.due(both, isOn: true).map(\.title) == ["Pick the plan's shape", "Choose how long the ledger keeps requests"])
     }
 
-    @Test func anAwayAsksNoticeNamesItsSessionAndJumpsNowhere() {
+    /// Its click goes to its session, as any notice's does, for the jump to carry it on (stage 8).
+    @Test func anAwayAsksNoticeNamesItsSessionAndJumpsToIt() {
         let away = heard([.line(Watched.line(rows: [])), .line(Watched.line(new: ["ask:sr-plan:k2"]))])
 
         #expect(Notices.due(away, isOn: true) == [
-            Banner(title: "Pick the plan's shape", subtitle: "Terrace · Plan the tool", body: "", work: nil),
+            Banner(title: "Pick the plan's shape", subtitle: "Terrace · Plan the tool", body: "", work: "sr-plan"),
         ])
     }
 

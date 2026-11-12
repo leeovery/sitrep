@@ -331,7 +331,7 @@ struct GlassRows: View {
     var body: some View {
         ZStack(alignment: .topLeading) {
             ForEach(Array(sessions.enumerated()), id: \.element.id) { i, session in
-                let at = StripRowsLayout(i, width: width), isLit = lit == session.id && !session.away
+                let at = StripRowsLayout(i, width: width), isLit = lit == session.id
                 ZStack(alignment: .topLeading) {
                     RoundedRectangle(cornerRadius: StripRowsLayout.radius)
                         .fill(.primary.opacity(isLit ? (pressed ? 0.14 : 0.08) : 0))

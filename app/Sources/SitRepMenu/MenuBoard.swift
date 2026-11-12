@@ -80,10 +80,6 @@ public struct MenuBoard: Equatable, Sendable {
         glyph = panel.needsLee ? .lit : .rest
     }
 
-    /// The session a click on this row jumps to; nil for an away one, which the menu shows disabled.
-    public func jump(_ row: Session) -> String? {
-        panel.jump(row)
-    }
 }
 
 extension Session {

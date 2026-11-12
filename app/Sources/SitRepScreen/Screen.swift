@@ -72,7 +72,8 @@ public struct Screen: Sendable {
     /// multiplexer, as closing its terminal ended its Claude, or none is held, as one whose tmux server has gone.
     public func attachable(_ windows: [Board.Window.Where]) -> Attachable? {
         windows.lazy.compactMap { each in
-            innermost(of: each).first { $0.holds(each) }.map { Attachable(where: each, kind: $0.kind) }
+            innermost(of: each).first { $0.holds(each, processes ?? Processes([:])) }
+                .map { Attachable(where: each, kind: $0.kind) }
         }.first
     }
 

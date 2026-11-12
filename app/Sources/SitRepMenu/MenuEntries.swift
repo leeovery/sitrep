@@ -13,8 +13,8 @@ public enum MenuEntry: Equatable, Sendable {
     case reload(MenuBoard.Reload)
     /// "SitRep can't read the board", and why.
     case unread(why: String)
-    /// A session's row, and the session a click jumps to; nil for an away one, disabled.
-    case row(Session, jump: String?)
+    /// A session's row, whose click jumps to its session, or carries an away one on.
+    case row(Session)
     case show(EdgeSettings.Show, isTicked: Bool)
     /// The welcome window, at its first step.
     case welcome
@@ -30,7 +30,7 @@ public enum MenuEntry: Equatable, Sendable {
         case let .reload(reload): "reload:\(reload.id)"
         case .trouble: "trouble"
         case .unread: "unread"
-        case let .row(session, _): "row:\(session.id)"
+        case let .row(session): "row:\(session.id)"
         case let .show(show, _): "show:\(show.rawValue)"
         case .welcome: "welcome"
         case .settings: "settings"
@@ -64,7 +64,7 @@ extension MenuBoard {
             return []
         }
 
-        let rows = items.map { item in item.session.map { MenuEntry.row($0, jump: jump($0)) } ?? .separator("hairline") }
+        let rows = items.map { item in item.session.map(MenuEntry.row) ?? .separator("hairline") }
 
         return [.heading("sessions", title: heading)] + rows + [.separator("sessions")]
     }

@@ -186,8 +186,8 @@ struct StripGrowsTests {
         #expect(scrolled.row(at: low) == "s4")
     }
 
-    /// Away rows in the count's tab take no click.
-    @Test func anAwayRowInTheCountsTabTakesNoClick() {
+    /// An away row in the count's tab jumps as any row does, its session carried on (stage 8).
+    @Test func anAwayRowInTheCountsTabJumps() {
         var lab = StripLab(length: .grows, maxMarks: 6)
         StripLab.asks.prefix(2).forEach(lab.newAsk)
         lab.settle()
@@ -196,9 +196,8 @@ struct StripGrowsTests {
         let away = CGPoint(x: tab.clip.midX, y: tab.box.minY + tab.words.last!.frame.minY + 8 + 45 + 20)
         #expect(tab.row(at: away) == "s4")
 
-        lab.model.click(at: away)
-
-        #expect(lab.model.jumping == nil)
+        #expect(lab.model.click(at: away)?.id == "s4")
+        #expect(lab.model.jumping != nil)
     }
 
     /// Nothing running: the strip draws back into the notch at rest, 7 deep and 76 long, centred where it was, its

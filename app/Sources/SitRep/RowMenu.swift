@@ -3,7 +3,7 @@ import SitRepCore
 import SitRepPanel
 
 /// The menu a right-click on a session's row on the card brings up, as Paper's boards F and G have it: Jump to the
-/// window, as a click on the row does, disabled on an away row, which no window holds; then, after a separator, Snooze
+/// window, as a click on the row does, an away row's carrying its session on; then, after a separator, Snooze
 /// and its times on a row whose lines hold asks, those and Until it moves on a your-turn row, as board I's menu has
 /// it, or Wake now on a row in Snoozed. A row of stops alone, or a working one, offers neither. What it snoozes or
 /// wakes is what the row showed as it was drawn, never read again: its asks, so an ask that landed since is never
@@ -12,7 +12,6 @@ import SitRepPanel
 enum RowMenu {
     /// What a row offers.
     struct Row: Equatable {
-        let jumps: Bool
         /// What its Snooze puts off, or its Wake now brings back; none on a row of stops alone, or a working one.
         let snoozable: Snoozable?
         let isSnoozed: Bool
@@ -34,7 +33,7 @@ enum RowMenu {
         let menu = NSMenu()
 
         menu.autoenablesItems = false
-        menu.addItem(ActionItem(jumpTitle, isEnabled: row.jumps, run: actions.jump))
+        menu.addItem(ActionItem(jumpTitle, run: actions.jump))
         if let snoozable = row.snoozable {
             menu.addItem(.separator())
             menu.addItem(
@@ -62,10 +61,7 @@ extension RowMenu.Row {
     init(_ session: Session) {
         let ended = Date(timeIntervalSince1970: session.since / 1000)
 
-        self.init(
-            jumps: session.jumps, snoozable: .of(isTurn: session.isTurn, ended: ended, asks: session.asks),
-            isSnoozed: session.isSnoozed
-        )
+        self.init(snoozable: .of(isTurn: session.isTurn, ended: ended, asks: session.asks), isSnoozed: session.isSnoozed)
     }
 }
 
@@ -141,11 +137,10 @@ final class SnoozeMenu: NSMenu, NSMenuDelegate {
 final class ActionItem: NSMenuItem {
     private let run: () -> Void
 
-    init(_ title: String, isEnabled: Bool = true, run: @escaping () -> Void) {
+    init(_ title: String, run: @escaping () -> Void) {
         self.run = run
         super.init(title: title, action: #selector(chosen), keyEquivalent: "")
         target = self
-        self.isEnabled = isEnabled
     }
 
     required init(coder: NSCoder) {

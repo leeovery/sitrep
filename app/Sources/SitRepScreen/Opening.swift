@@ -10,19 +10,22 @@ public enum JumpOutcome: Sendable {
 }
 
 /// How SitRep opens a window for a session no window shows, as Lee sets it in Settings: the terminal it opens in, by
-/// its driver, and the open command, empty until he gives one.
+/// its driver; the open command; and the resume command, for an away session nothing is left of; each empty until he
+/// gives one.
 public struct OpenSettings: Sendable, Equatable {
     public var terminal: Driver
     public var command: String
+    public var resumeCommand: String
 
-    public init(terminal: Driver = .ghostty, command: String = "") {
+    public init(terminal: Driver = .ghostty, command: String = "", resumeCommand: String = "") {
         self.terminal = terminal
         self.command = command
+        self.resumeCommand = resumeCommand
     }
 }
 
-/// A window to open for a session no window shows, as a jump found it: the line to type, the open command filled and
-/// fit to type, and the terminal it opens in. It opens apart from the jump, under a limit of its own, on the Space
+/// A window to open for a session no window shows, as a jump found it: the line to type, the open command or the resume
+/// command filled and fit to type, and the terminal it opens in. It opens apart from the jump, under a limit of its own, on the Space
 /// showing, only into a terminal already running; and it is remembered as it begins (`RecentOpenings`), so a click on
 /// its session meanwhile opens no second.
 public struct Opening: Sendable {

@@ -15,7 +15,7 @@ public enum Notices {
     }
 
     private static func newAsk(_ ask: Board.Row.Line, of row: Board.Row) -> Banner {
-        Banner(title: ask.first.lead, subtitle: placeOf(row), body: "", work: row.isAway ? nil : row.session)
+        Banner(title: ask.first.lead, subtitle: placeOf(row), body: "", work: row.session)
     }
 
     /// The row's project and session by name, an away row's too, whose second line says no window holds it.

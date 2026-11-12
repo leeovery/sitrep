@@ -97,11 +97,6 @@ public struct PanelBoard: Equatable, Sendable {
         }
     }
 
-    /// The session a click on this row jumps to; nil for an away one, which no window holds.
-    public func jump(_ row: Session) -> String? {
-        row.jumps ? row.id : nil
-    }
-
     /// The card's rows: core's, then Snoozed's.
     public var cardSessions: [Session] { sessions + snoozed }
 

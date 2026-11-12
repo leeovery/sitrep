@@ -38,19 +38,25 @@ struct GeneralPaneTests {
         #expect(popUp.titleOfSelectedItem == "Ghostty")
     }
 
-    /// Empty until Lee gives one, as SitRep has no built-in way to attach; his own once given.
-    @Test func theOpenCommandIsEmptyByDefaultAndShowsTheCommandGiven() async throws {
+    /// Empty until Lee gives one, as SitRep has no built-in way to attach or resume; his own once given, the resume
+    /// command under the open command, in the same literal field.
+    @Test func theOpenAndResumeCommandsAreEmptyByDefaultAndShowTheCommandsGiven() async throws {
         let defaults = MemoryDefaults()
         var app = AppSettings()
 
         let empty = await Self.general().all(NSTextField.self)
 
-        #expect(empty.map(\.stringValue) == [""])
+        #expect(empty.map(\.stringValue) == ["", ""])
         #expect(empty.allSatisfy { $0.placeholderString?.isEmpty ?? true }, "nothing greyed in it, as there is no default")
 
         app.openCommand = "zmx attach {session}"
+        app.resumeCommand = "cd {dir} && claude --resume {claude}"
         SavedSettings(defaults).save(app)
-        #expect(await Self.general(defaults).all(NSTextField.self).map(\.stringValue) == ["zmx attach {session}"])
+
+        let given = await Self.general(defaults).all(NSTextField.self)
+
+        #expect(given.map(\.stringValue) == ["zmx attach {session}", "cd {dir} && claude --resume {claude}"])
+        #expect(given.map(\.font) == empty.map(\.font))
     }
 
     /// Every character as wide as the next, at the label's 13.

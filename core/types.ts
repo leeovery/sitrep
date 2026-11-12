@@ -357,6 +357,8 @@ export type Presence = {
   seenAt: number
   leftAt?: number
   where?: Where
+  /** The folder its Claude runs in, absolute: the process's own, which entering a worktree moves and a shell's `cd` does not; none from a window on a version before heartbeats said it. */
+  directory?: string
   /** The sitrep version the window runs, as its plugin's manifest gives it; none from a window on a version before heartbeats said it. */
   version?: string
   /** What the window is doing; none from a window on a version before heartbeats said it, nor from one that let go. */

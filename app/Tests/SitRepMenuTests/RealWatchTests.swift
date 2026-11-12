@@ -8,9 +8,10 @@ import Testing
 struct RealWatchTests {
     private static let asked = heard(Lines.newAsk.map(Heard.line))
 
+    /// Its click goes to the away session, for the jump to carry it on (stage 8).
     @Test func aNewAskSendsANoticeNamingItsProjectAndSession() {
         #expect(Notices.due(Self.asked, isOn: true) == [
-            Banner(title: "Choose how long the ledger keeps requests", subtitle: "Switchboard · Usage", body: "", work: nil),
+            Banner(title: "Choose how long the ledger keeps requests", subtitle: "Switchboard · Usage", body: "", work: "sr-k3dg0r"),
         ])
     }
 
@@ -18,13 +19,13 @@ struct RealWatchTests {
         #expect(Notices.due(heard([.line(Lines.newAsk[0])]), isOn: true).isEmpty)
     }
 
-    @Test func theMenuListsTheAwayAskDisabledAndTheGlyphLights() {
+    @Test func theMenuListsTheAwayAskAndTheGlyphLights() {
         let menu = MenuBoard(Self.asked, clock: london)
         let rows = menu.items.compactMap(\.session)
 
         #expect(menu.heading == "1 needs you")
         #expect(rows.map { $0.menuTitle(at: 0) } == ["Usage"])
-        #expect(rows.map(menu.jump) == [nil])
+        #expect(rows.map(\.away) == [true])
         #expect(menu.glyph == .lit)
     }
 

@@ -86,7 +86,7 @@ public struct StripFrame {
     /// A tab's words, in its box, coming in or going out.
     public struct Words {
         public enum Content: Equatable, Sendable {
-            /// A session's row: its title, its project and session (or why an away ask's takes no click), its age.
+            /// A session's row: its title, its project and session (or, an away ask's, that no window holds it), its age.
             case row(Session)
             /// A count's: a row for each it holds.
             case rows([Session])
@@ -250,7 +250,7 @@ extension Strip {
             case .working: .working
             case .onItsWork: .onItsWork
             }
-            shown.append(paint(m, s.letters, look, lifted: lifted == m.key && !s.away, washes: s.kind == .needs))
+            shown.append(paint(m, s.letters, look, lifted: lifted == m.key, washes: s.kind == .needs))
         }
         if let more {
             shown.append(paint(more, "+\(more.count)", .count, lifted: lifted == .more, washes: false))

@@ -26,8 +26,8 @@ public protocol Multiplexer: Sendable {
 public protocol Reading: Sendable {
     var kind: MultiplexerKind { get }
     func isIn(_ where: Board.Window.Where) -> Bool
-    /// Whether it holds the window's session alive, so a window attaching to it would show it.
-    func holds(_ where: Board.Window.Where) -> Bool
+    /// Whether it holds the window's session alive, so a window attaching to it would show it, the table read beside.
+    func holds(_ where: Board.Window.Where, _ processes: Processes) -> Bool
     /// Whether the window's device is this multiplexer's own pty for it, so the innermost of those it runs in; nil
     /// where that cannot be told.
     func isOnItsPty(_ where: Board.Window.Where) -> Bool?

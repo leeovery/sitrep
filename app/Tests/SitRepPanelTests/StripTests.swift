@@ -293,7 +293,8 @@ struct StripTests {
         #expect(tab.key == .session("s5"))
     }
 
-    @Test func anAwayMarksTabSaysNoWindowHoldsItAndNeitherItNorTheMarkTakesAClick() {
+    /// Its tab says no window holds it, and a click on the tab or on the mark carries its session on (stage 8).
+    @Test func anAwayMarksTabSaysNoWindowHoldsItAndItAndTheMarkTakeAClick() {
         var lab = StripLab()
         lab.open("s4")
 
@@ -302,12 +303,13 @@ struct StripTests {
             return
         }
         #expect(session.sub == "No window holds it. Carry it on in Claude.")
-        lab.model.click(at: CGPoint(x: lab.frame.tabs[0].clip.midX, y: 170))
-        lab.model.click(at: CGPoint(x: 18, y: 170))
-        lab.step()
+        #expect(lab.model.click(at: CGPoint(x: lab.frame.tabs[0].clip.midX, y: 170))?.id == "s4")
+        #expect(lab.model.jumping != nil)
 
-        #expect(lab.model.jumping == nil)
-        #expect(lab.frame.marks[3].isLifted == false)
+        let marked = StripLab()
+
+        #expect(marked.model.click(at: CGPoint(x: 18, y: 170))?.id == "s4")
+        #expect(marked.model.jumping != nil)
     }
 
     @Test func aClickOnAMarkBeforeItsTabIsOutPressesTheRingIn450msThenNoTabWhileThePointerStays() {

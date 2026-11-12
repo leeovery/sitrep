@@ -191,7 +191,7 @@ extension NotchModel {
     /// The pointer's real whereabouts, against the notch and the panel as last drawn.
     func pointerInside() -> Bool { hoverOf(sp) != nil }
 
-    /// The row a click on this item jumps from, by its key: a session's row a window holds, and not folding away.
+    /// The row a click on this item jumps from, by its key: a session's row, and not folding away.
     func jumpingRow(_ index: Int) -> String? {
         content.entries.indices.contains(index) && content.entries[index].jumps ? items[index].key : nil
     }

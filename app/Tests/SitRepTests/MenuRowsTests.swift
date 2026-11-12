@@ -46,7 +46,7 @@ struct MenuRowsTests {
     @Test func aWorkingRowShowsTheFrameItsTurnHasReached() {
         let item = NSMenuItem()
 
-        MenuWords.row(item, Self.working, jump: "sr-work01", age: "2m", now: 0, isHighlighted: false, turn: 7)
+        MenuWords.row(item, Self.working, age: "2m", now: 0, isHighlighted: false, turn: 7)
         #expect(item.image === MenuImages.arc[7])
         #expect(MenuImages.mark(Self.working) === MenuImages.arc[0])
     }
@@ -130,12 +130,12 @@ struct MenuRowsTests {
     /// A menu of these sessions' rows, set as the status menu sets them, and its entries.
     private static func menu(_ sessions: Session...) -> (NSMenu, [MenuEntry]) {
         let menu = NSMenu()
-        let entries = sessions.map { MenuEntry.row($0, jump: $0.id) }
+        let entries = sessions.map { MenuEntry.row($0) }
 
         for session in sessions {
             let item = NSMenuItem()
 
-            MenuWords.row(item, session, jump: session.id, age: "2m", now: 0, isHighlighted: false)
+            MenuWords.row(item, session, age: "2m", now: 0, isHighlighted: false)
             menu.addItem(item)
         }
         return (menu, entries)
@@ -179,6 +179,20 @@ struct MenuRowsTests {
         #expect((lit.colorAt(x: 16, y: 7)?.alphaComponent ?? 0) > 0.05)
     }
 
+    /// Its click carries it on (stage 8), so macOS draws it enabled: its words keep the disabled ink of their own, as the
+    /// panel's dim, but under the pointer, where the highlight's ink takes over.
+    @Test func anAwayRowsWordsAreInTheDisabledInkButUnderThePointer() {
+        let ink = { (isHighlighted: Bool) -> NSColor? in
+            let item = NSMenuItem()
+
+            MenuWords.describe(item, Self.asking(away: true), now: 0, isHighlighted: isHighlighted)
+            return item.attributedTitle?.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor
+        }
+
+        #expect(ink(false) == .disabledControlTextColor)
+        #expect(ink(true) == nil)
+    }
+
     /// The image drawn at 2× into a clear bitmap, its top row first.
     private static func drawn(_ image: NSImage) throws -> NSBitmapImageRep {
         let bitmap = try #require(NSBitmapImageRep(
@@ -203,9 +217,9 @@ struct MenuRowsTests {
     @Test func aRowSetAgainAsItWasKeepsItsTitle() {
         let item = Recorded()
 
-        MenuWords.row(item, Self.asking(away: false), jump: "sr-ask001", age: "1h", now: 0, isHighlighted: false)
+        MenuWords.row(item, Self.asking(away: false), age: "1h", now: 0, isHighlighted: false)
         item.sets = []
-        MenuWords.describe(item, Self.asking(away: false), jump: "sr-ask001", now: 0, isHighlighted: true)
+        MenuWords.describe(item, Self.asking(away: false), now: 0, isHighlighted: true)
         #expect(item.sets == ["subtitle \(Sample.project)"])
     }
 
@@ -215,9 +229,9 @@ struct MenuRowsTests {
     @Test func aRowWhoseTitleChangesHasItsLinePutBackAfter() {
         let item = Recorded()
 
-        MenuWords.row(item, Self.working, jump: "sr-work01", age: "2m", now: 0, isHighlighted: false)
+        MenuWords.row(item, Self.working, age: "2m", now: 0, isHighlighted: false)
         item.sets = []
-        MenuWords.describe(item, Self.working, jump: "sr-work01", now: 0, isHighlighted: true)
+        MenuWords.describe(item, Self.working, now: 0, isHighlighted: true)
         #expect(item.sets == ["title", "subtitle nil", "subtitle \(Sample.place)"])
         #expect(item.subtitle == Sample.place)
     }

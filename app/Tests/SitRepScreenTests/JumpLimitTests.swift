@@ -23,8 +23,9 @@ struct LineWindow {
 }
 
 /// A line of the watch holding only the windows given, and a project listing the sessions given by their ids and
-/// names, decoded as SitRep decodes one: small, and built in code.
-func board(_ windows: [LineWindow], sessions: [String: String] = [:]) throws -> Board {
+/// names, each with the last window given for it, as the watch's line puts one, decoded as SitRep decodes one: small,
+/// and built in code.
+func board(_ windows: [LineWindow], sessions: [String: String] = [:], last: [String: Any] = [:]) throws -> Board {
     let windows: [[String: Any]] = windows.map { window in
         [
             "writer": window.writer, "session": window.session, "name": named, "project": "Switchboard",
@@ -34,7 +35,7 @@ func board(_ windows: [LineWindow], sessions: [String: String] = [:]) throws -> 
     }
     let project: [String: Any] = [
         "key": "switchboard", "name": "Switchboard",
-        "sessions": sessions.map { ["id": $0.key, "name": $0.value] },
+        "sessions": sessions.map { ["id": $0.key, "name": $0.value, "lastWindow": last[$0.key] ?? NSNull()] },
     ]
     let line: [String: Any] = [
         "v": 3, "at": 0, "head": ["needYou": 0, "sessions": 1], "rows": [], "projects": [project], "windows": windows,

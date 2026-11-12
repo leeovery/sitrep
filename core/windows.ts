@@ -1,7 +1,7 @@
 /**
- * The order a jump tries a session's windows in: a board rule, so SitRep
- * reads it through the feed, and ranks no windows itself (see "The
- * structure" in DESIGN.md).
+ * The order a jump tries a session's windows in, and the window an away
+ * session was last in: board rules, so SitRep reads them through the feed,
+ * and ranks no windows itself (see "The structure" in DESIGN.md).
  */
 import { isLive } from './presence'
 import type { Presence, Session, Where } from './types'
@@ -55,3 +55,14 @@ export const inJumpOrder = (session: Session, now: number): Placed[] =>
 /** The windows a session is in as it stands at `now`: where each live presence is, in the order a jump tries them. */
 export const windowsOf = (session: Session, now: number): Where[] =>
   inJumpOrder(session, now).map(each => each.where)
+
+/**
+ * The window a session no window holds at `now` was last in: its latest
+ * heartbeat, by when it was last seen, which a `/clear` moves on to the
+ * conversation after it. None while a live window holds it, nor for one no
+ * window ever held.
+ */
+export const lastWindowOf = (session: Session, now: number): Presence | undefined =>
+  session.presence.some(each => isLive(each, now))
+    ? undefined
+    : [...session.presence].sort((a, b) => b.seenAt - a.seenAt).at(0)

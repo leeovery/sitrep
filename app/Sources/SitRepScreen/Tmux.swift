@@ -216,7 +216,7 @@ struct TmuxReading: Reading {
 
     /// Whether its server, as read, has the window's pane: none where no server runs on its socket, or tmux gave no
     /// answer.
-    func holds(_ where: Board.Window.Where) -> Bool {
+    func holds(_ where: Board.Window.Where, _: Processes) -> Bool {
         `where`.tmux.flatMap { server(`where`)?.panes[$0.pane] } != nil
     }
 

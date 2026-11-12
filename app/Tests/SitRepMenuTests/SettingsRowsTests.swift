@@ -278,7 +278,7 @@ struct AppSettingsTests {
         #expect(read.notifiesNewAsks)
         #expect(read.playsSound)
         #expect(read.sound == "Glass")
-        #expect(Set(keys) == ["notifiesNewAsks", "playsSound", "sound", "terminal", "openCommand"])
+        #expect(Set(keys) == ["notifiesNewAsks", "playsSound", "sound", "terminal", "openCommand", "resumeCommand"])
     }
 
     /// As each window played Glass before SitRep played the sound.
@@ -317,6 +317,22 @@ struct AppSettingsTests {
         SavedSettings(defaults).save(settings)
 
         #expect(SavedSettings<AppSettings>(defaults).read().openCommand == "portal open -s {session}")
+    }
+
+    /// No resume command, as SitRep has no built-in way to resume, by default and from a value saved before it; Lee's
+    /// own saved and read back, as the open command is.
+    @Test func theResumeCommandIsEmptyByDefaultAndLeesIsSavedAndReadBack() {
+        let defaults = MemoryDefaults()
+        var settings = AppSettings()
+        let lees = "portal open -p {dir} -- claude --resume {claude}"
+
+        defaults.set(Data(#"{"openCommand":"portal open -s {session}"}"#.utf8), forKey: "app")
+        #expect(SavedSettings<AppSettings>(defaults).read().resumeCommand.isEmpty)
+
+        settings.resumeCommand = lees
+        SavedSettings(defaults).save(settings)
+
+        #expect(SavedSettings<AppSettings>(defaults).read().resumeCommand == lees)
     }
 
     /// "Your turn folds after", retired on 4 November 2026: a value saved with it reads what else it holds, and the next

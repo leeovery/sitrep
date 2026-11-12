@@ -138,14 +138,6 @@ struct PanelBoardTests {
         #expect(Self.board(Self.heard(.line(allClearLine))).new.isEmpty)
     }
 
-    @Test func aRowJumpsToItsSessionAndAnAwayOneNowhere() {
-        let board = Self.board(Self.heard(.line(watchLine)))
-
-        #expect(board.sessions.map(board.jump) == [
-            "sr-7e68fj", "sr-y4d0qj", "sr-j94s0e", nil, "sr-aw3bgs", "sr-q7njzv",
-        ])
-    }
-
     @Test func theRealWatchsFirstLineMapsRowForRow() {
         let board = Self.board(Self.heard(.line(realLine)))
 
@@ -163,7 +155,6 @@ struct PanelBoardTests {
         #expect(board.head == Head(title: "2 need you", count: "2 sessions"))
         #expect(board.needsLee)
         #expect(board.new.isEmpty)
-        #expect(board.sessions.map(board.jump) == ["sr-n0tch1", nil])
     }
 
     @Test func aRowNamesItsProjectAsTheBoardDoesWithCoresLetters() {

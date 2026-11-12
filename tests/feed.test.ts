@@ -827,6 +827,53 @@ test('the feed: each project with its current sessions in the rows order, a fini
   ])
 })
 
+/** The last window the feed carries for the session, folded at `now`. */
+const lastWindowIn = (session: Session, now = NOW) =>
+  feedOf([{ project: SWITCHBOARD, sessions: [session] }], now).projects[0]?.sessions[0]?.lastWindow
+
+test('an away session carries the window it was last in, by its heartbeat last seen, a /clear moving it on: its writer, where it was and its folder', () => {
+  const directory = `${SWITCHBOARD.directory}/.claude/worktrees/lobby`
+  const session = sessionOf({
+    lines: [[T0, yesAsk('k1', 'Review round 1')]],
+    presence: {
+      ...windowOn(W1, yourTurn(T0), {
+        seenAt: T0 + 10 * MIN,
+        leftAt: T0 + 10 * MIN,
+        ...whereFor('s041'),
+      }),
+      ...windowOn(W2, working(T0), { seenAt: T0 + 20 * MIN, directory, ...whereFor('s042') }),
+      ...windowOn(W3, yourTurn(T0), { seenAt: T0 + 5 * MIN, ...whereFor('s043') }),
+    },
+  })
+
+  expect(sessionState(session, NOW)).toBe('needsYou')
+  expect(lastWindowIn(session)).toEqual({ writer: W2, directory, ...whereFor('s042') })
+})
+
+test("an away session's last window on a build before heartbeats said their folder carries none, and one saying no where none either", () => {
+  const session = sessionOf({ presence: windowOn(W1, yourTurn(T0), { seenAt: T0 + 10 * MIN }) })
+
+  expect(sessionState(session, NOW)).toBe('away')
+  expect(lastWindowIn(session)).toEqual({ writer: W1, where: undefined, directory: undefined })
+})
+
+test('a session a live window holds carries no last window, though another window of it is gone; nor does one no window ever held', () => {
+  const held = sessionOf({
+    presence: {
+      ...windowOn(W1, yourTurn(T0), { directory: '/Users/lee/Code/switchboard' }),
+      ...windowOn(W2, working(T0), { seenAt: T0 + 50 * MIN, leftAt: T0 + 50 * MIN }),
+    },
+  })
+
+  expect(lastWindowIn(held)).toBeUndefined()
+  expect(lastWindowIn(held, NOW + STALE_MS + 1)).toEqual({
+    writer: W1,
+    where: undefined,
+    directory: '/Users/lee/Code/switchboard',
+  })
+  expect(lastWindowIn(sessionOf({ lines: [[T0, yesAsk('k1', 'Review round 1')]] }))).toBeUndefined()
+})
+
 test("a Needs you row's time is its newest line's, while its session's state still counts from its oldest, as its first line came", () => {
   const feed = feedOf(
     [

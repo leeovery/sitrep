@@ -13,7 +13,8 @@
  *   asks, as `board --json` lists them (`openAsks`), and what it parked.
  *   They are in the SitRep window's order, the rows': a session where its
  *   row sits, those with none after, the latest updated first; a project
- *   where its first session sits.
+ *   where its first session sits. An away one carries its last window, for
+ *   a click to carry it on from.
  * - Every live window: its session, the version it runs, whether that is
  *   behind the CLI's own, and its place in the order a jump tries its
  *   session's windows (windows.ts).
@@ -48,7 +49,7 @@ import {
   type SnoozedRow,
 } from './rows'
 import { compareText } from './text'
-import type { Ask, Parked, Session, WindowState, Where } from './types'
+import type { Ask, Parked, Presence, Session, WindowState, Where } from './types'
 import {
   CURRENT_MS,
   isCurrent,
@@ -60,7 +61,7 @@ import {
   type ProjectSummary,
   type SessionSummary,
 } from './views'
-import { inJumpOrder } from './windows'
+import { inJumpOrder, lastWindowOf } from './windows'
 
 /** A project as read, with every session filed under it. */
 export type ProjectRead = { project: Project; sessions: readonly Session[] }
@@ -75,7 +76,12 @@ export type FeedSession = SessionSummary & {
   asks: Ask[]
   /** What it parked, oldest first. */
   parkedItems: Parked[]
+  /** With no window holding it, the window it was last in (windows.ts); none while one holds it, or where none ever did. */
+  lastWindow?: LastWindow
 }
+
+/** The window an away session was last in: its writer, the Claude Code session it ran, where it was, and its folder. */
+export type LastWindow = Pick<Presence, 'writer' | 'where' | 'directory'>
 
 export type FeedProject = Omit<ProjectSummary, 'sessions'> & { sessions: FeedSession[] }
 
@@ -136,6 +142,7 @@ const feedProject = (
       doing: doingOf(project, session, now),
       asks: openAsks(session),
       parkedItems: session.parked,
+      lastWindow: lastWindow(session, now),
     }))
     .sort(
       (a, b) =>
@@ -152,6 +159,15 @@ const feedProject = (
     directory: project.directory,
     sessions: current,
   }
+}
+
+/** The window a session no window holds was last in, as the feed carries it. */
+const lastWindow = (session: Session, now: number): LastWindow | undefined => {
+  const last = lastWindowOf(session, now)
+
+  return last === undefined
+    ? undefined
+    : { writer: last.writer, where: last.where, directory: last.directory }
 }
 
 /** Each of a session's windows a jump tries, by writer, and its place in the order it tries them. */

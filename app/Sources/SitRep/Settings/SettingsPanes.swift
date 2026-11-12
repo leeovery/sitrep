@@ -40,7 +40,7 @@ struct SettingsPaneContent: View {
 }
 
 /// General: Startup, Open at login; Ghostty, the leave to bring a session's Ghostty window to the front; New windows,
-/// how a window is opened for a session no window shows, the terminal and the open command.
+/// how a window is opened for a session no window shows, the terminal, the open command and the resume command.
 private struct GeneralPane: View {
     let settings: SettingsModel
 
@@ -62,6 +62,8 @@ private struct GeneralPane: View {
                 }
                 CardSeparator()
                 CommandRow(command: openCommand)
+                CardSeparator()
+                CommandRow(label: CommandRow.resumeLabel, command: resumeCommand)
             }
             CaptionRow(words: Text(CommandRow.caption))
         }
@@ -82,13 +84,20 @@ private struct GeneralPane: View {
     private var openCommand: Binding<String> {
         Binding(get: { settings.preferences.app.openCommand }, set: { settings.preferences.app.openCommand = $0 })
     }
+
+    /// The command as typed, saved at each keystroke.
+    private var resumeCommand: Binding<String> {
+        Binding(get: { settings.preferences.app.resumeCommand }, set: { settings.preferences.app.resumeCommand = $0 })
+    }
 }
 
-/// The open command's row: its label, and the command in a field against the card's right, in the label's size in the
-/// monospaced face, kept as typed (`LiteralField`), the two on one line of text. The field gives way before the label
-/// does, so the label keeps its one line, and the row its height, at the window's least width.
+/// A command's row, the open command's or the resume command's: its label, and the command in a field against the
+/// card's right, in the label's size in the monospaced face, kept as typed (`LiteralField`), the two on one line of
+/// text. The field gives way before the label does, so the label keeps its one line, and the row its height, at the
+/// window's least width.
 struct CommandRow: View {
-    static let label = "Open command"
+    static let openLabel = "Open command"
+    static let resumeLabel = "Resume command"
     static let caption = "Clicking a session that isn't showing in a terminal opens a new window and runs this "
         + "command. {session}, {socket} and {pane} are replaced with quoted values."
     /// The field's width where the column has room.
@@ -96,14 +105,15 @@ struct CommandRow: View {
     /// The command's face: monospaced, at the label's size.
     static let font = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
 
+    var label = openLabel
     @Binding var command: String
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 16) {
-            RowWords(label: Self.label)
+            RowWords(label: label)
                 .fixedSize(horizontal: true, vertical: false)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            LiteralField(label: Self.label, font: Self.font, text: $command)
+            LiteralField(label: label, font: Self.font, text: $command)
                 .frame(maxWidth: Self.fieldWidth)
                 .layoutPriority(1)
         }

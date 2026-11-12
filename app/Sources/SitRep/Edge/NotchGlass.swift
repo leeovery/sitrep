@@ -279,7 +279,7 @@ struct GlassSessionRow: View {
         let at = layout, radius = SessionRowLayout.radius
         ZStack(alignment: .topLeading) {
             RoundedRectangle(cornerRadius: radius)
-                .fill(.primary.opacity(pressed ? 0.12 : lit ? 0.08 : 0))
+                .fill(.primary.opacity(pressed ? 0.12 : hovered ? 0.08 : 0))
                 .animation(.easeOut(duration: 0.11), value: pressed)
             RoundedRectangle(cornerRadius: radius)
                 .fill(GlassInk.orange.opacity(0.12))
@@ -299,13 +299,10 @@ struct GlassSessionRow: View {
             }
         }
         .frame(width: size.width, height: size.height, alignment: .topLeading)
-        .animation(.easeOut(duration: 0.11), value: lit)
+        .animation(.easeOut(duration: 0.11), value: hovered)
         .scaleEffect(pressed ? 0.985 : 1)
         .animation(.easeOut(duration: 0.14), value: pressed)
     }
-
-    /// Under the pointer, a row that jumps lifts; an away one, which jumps nowhere, does not.
-    private var lit: Bool { hovered && session.jumps }
 
     /// Its count: dimmer in Snoozed.
     private var soft: HierarchicalShapeStyle { session.isSnoozed ? .tertiary : .secondary }

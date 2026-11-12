@@ -3,7 +3,7 @@ import SitRepPanel
 
 /// What Lee sets beyond the edge, saved beside its settings as one value and read as leniently: whether a new ask
 /// sends a notification, and whether it plays a sound and which; and how a window is opened for a session no window
-/// shows, the terminal and the command. A key another version saved, as the Settings pane it
+/// shows, the terminal and the commands. A key another version saved, as the Settings pane it
 /// last showed, or a setting retired since, as "Your turn folds after" (4 November 2026), is passed over.
 public struct AppSettings: SavedValue {
     public static let key = "app"
@@ -20,6 +20,9 @@ public struct AppSettings: SavedValue {
     public var terminal = "ghostty"
     /// The command run in that window, as Lee gives it: empty until he does, as SitRep has no built-in way to attach.
     public var openCommand = ""
+    /// The command run in it for an away session nothing is left of to attach to: empty until he gives one, as SitRep
+    /// has no built-in way to resume.
+    public var resumeCommand = ""
 
     public init() {}
 
@@ -35,5 +38,6 @@ public struct AppSettings: SavedValue {
         sound = given.value(.sound, or: defaults.sound)
         terminal = given.value(.terminal, or: defaults.terminal)
         openCommand = given.value(.openCommand, or: defaults.openCommand)
+        resumeCommand = given.value(.resumeCommand, or: defaults.resumeCommand)
     }
 }
