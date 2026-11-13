@@ -8190,6 +8190,37 @@ open), and tmux passing an escape sequence through from Claude's own pane
    8. A dimmed working row and a dimmed your-turn row, seen by Lee, as
       neither is drawn in Paper.
 
+   **Proven live on 13 November 2026** (#121, this Mac's build, the
+   Portal one-liner as the resume command): all but 3, which waits on
+   Lee's next restart.
+   - 1: a Claude ended with `/exit`, its row dimmed with a hollow ring;
+     the click opened a Ghostty window, the one-liner found no Portal
+     session holding it and started one in the folder, and Claude resumed
+     the conversation; the row turned bright as it beat.
+   - 2: the same Claude, its window closed, Portal holding its session:
+     the row dimmed within a read, and the click attached that session,
+     the same Claude, nothing started.
+   - 4 and 7: a click on the row shown here jumped to its window; the
+     menu bar's row, the window closed, attached it; a new ask's
+     notification, the session open only on Lee's phone, attached it on
+     the Mac, Portal handing it over from the phone ("Taken by Ghostty on
+     this Mac").
+   - 5: with the default restored, the click on the hidden Claude opened
+     nothing, the banner "SitRep could not open a window" with "Away row
+     test's Claude is still running where this Mac doesn't show it: set a
+     resume command that can reach it, in Settings."
+   - 6: attached from the phone over SSH, the Mac's window closed, the
+     row stayed dimmed.
+   - 8: "Running sleep 90" dimmed in Working as its window closed, and
+     the session's your-turn row dimmed after it.
+
+   Lee's repeated runs of 1, each Claude ended with `/exit` before the
+   next click, left one Portal session each, a bare shell: Portal's
+   `open -p … -- <command>` keeps a shell after its command ends. Each
+   click resumed rightly, as the resume hook's log showed each Claude's
+   end (`prompt_input_exit`) before the next; one Claude ran the
+   conversation throughout.
+
    **As first decided and built** (12 November 2026), the record. An
    away session is one no window holds, still current: its Claude ended,
    or the Mac restarted under it, with things still on it. A click on its
