@@ -121,6 +121,16 @@ export const sceneOf = async (host: Host): Promise<Scene | undefined> => {
   }
 }
 
+/** Whether the scene stands, read without the rest of it, so a drawing that needs no more is not drawn again at every tick. */
+export const hasScene = async (host: Host) => {
+  const [board, held] = await Promise.all([
+    host.state.board.read(),
+    host.state.attachment.read(),
+  ])
+
+  return board !== null && held !== null
+}
+
 /** The held session, as the board in `$.state` has it. */
 export const heldSession = async (host: Host) => {
   const board = await host.state.board.read()

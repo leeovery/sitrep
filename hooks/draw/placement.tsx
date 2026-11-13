@@ -3,11 +3,10 @@
  * Claude Code seated the board, as the board was drawn with it, whenever
  * that changes, and the band learns from it which button closes the board.
  */
-import type { ClientModule } from 'claude-code'
-import type { SitrepPlacement } from '../../types'
+import type { ClientModule, RenderPropsOf } from 'claude-code'
 
 /** Where the board was drawn: as its props had it, and as last posted. */
-type Seated = { placement: SitrepPlacement }
+type Seated = { placement: RenderPropsOf['Pane']['placement'] }
 
 const Placement: ClientModule<Seated, Seated> = ({ placement }, surface) => {
   if (placement !== surface.state?.placement) {

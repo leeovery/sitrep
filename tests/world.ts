@@ -140,6 +140,7 @@ export const WIDE: RenderPropsOf['Pane'] = { ...DOCKED, bodyColumns: 67 }
 /** The band above the prompt, 100 columns across. */
 export const BAND: RenderPropsOf['AbovePrompt'] = {
   hasSurvey: false,
+  isCollapsed: false,
   isWorking: false,
   maxRows: 6,
   bodyColumns: 100,
@@ -147,8 +148,8 @@ export const BAND: RenderPropsOf['AbovePrompt'] = {
   view: {},
 }
 
-/** A drawing above the prompt that stands beneath the band. */
-type Beneath = (els: ElementTable, props: RenderPropsOf['AbovePrompt']) => RenderElement
+/** A drawing above the prompt that is not the band: another plugin's, or Claude Code's own. */
+type AbovePrompt = (els: ElementTable, props: RenderPropsOf['AbovePrompt']) => RenderElement
 
 /** The surfaces the tests draw the board and the band on. */
 export const SURFACES = ['terminal', 'desktop'] as const
@@ -235,11 +236,16 @@ function display(on: On) {
     return { value: undefined }
   })
 
-  /** What draws above the prompt beneath the mod: Claude Code, which draws nothing there outside a survey, unless a test stands another drawing there. */
-  let beneathBand: Beneath | undefined
+  /**
+   * What the test's own hooks draw above the prompt: Claude Code's drawing,
+   * nothing outside a survey, unless a test stands another plugin's there.
+   * From Claude Code 2.1.323 that is the test's own row, which the engine
+   * stacks with the band's; before, it was what the band found beneath it.
+   */
+  let abovePrompt: AbovePrompt | undefined
 
   on('ui.render', { component: 'AbovePrompt' }, ($, e) =>
-    beneathBand === undefined ? { type: 'engine', ref: 0 } : beneathBand($.ui.resolve(e), e.props),
+    abovePrompt === undefined ? { type: 'engine', ref: 0 } : abovePrompt($.ui.resolve(e), e.props),
   )
 
   on('audio.play', ($, e) => {
@@ -294,9 +300,9 @@ function display(on: On) {
   return {
     /** Lee's prompt box, which a test types or pastes into. */
     box,
-    /** From here on, `draw` stands beneath the band: another plugin drawing above the prompt, or Claude Code itself. */
-    drawBeneath: (draw: Beneath) => {
-      beneathBand = draw
+    /** From here on, `draw` is drawn above the prompt beside the band: another plugin's row, or Claude Code's own. */
+    drawAbovePrompt: (draw: AbovePrompt) => {
+      abovePrompt = draw
     },
     panes,
     toasts,
