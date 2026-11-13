@@ -60,6 +60,8 @@ export type AskBody = {
   where?: string
   /** A choice ask's options. */
   options?: string[]
+  /** The option of a choice ask Claude recommends, in its words. */
+  recommended?: string
   /** What the words of a words ask are, in Claude's words: "the command's output". */
   needs?: string
   ref?: string
@@ -92,6 +94,8 @@ export type Changes = {
   where?: string
   options?: string[]
   /** `''` clears it. */
+  recommended?: string
+  /** `''` clears it. */
   needs?: string
   ref?: string
   text?: string
@@ -100,7 +104,7 @@ export type Changes = {
 
 /** The fields an edit changes, by the type of item. */
 export const EDITABLE: Record<Item['type'], readonly (keyof Changes)[]> = {
-  ask: ['wants', 'yes', 'title', 'where', 'options', 'needs', 'ref'],
+  ask: ['wants', 'yes', 'title', 'where', 'options', 'recommended', 'needs', 'ref'],
   note: ['text', 'detail', 'ref'],
   park: ['title', 'where', 'ref'],
 }
@@ -255,6 +259,8 @@ export type Ask = Posted & {
   title: string
   where?: string
   options?: string[]
+  /** One of its options, while it is a choice that has it. */
+  recommended?: string
   needs?: string
   state: AskState
   /** The delivered reply that last moved it, since it was opened or reopened. */

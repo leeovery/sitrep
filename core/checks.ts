@@ -2,14 +2,15 @@
  * What Claude posts, checked and put right before it is written: each text
  * trimmed to one line, nothing empty where something is needed, and an ask
  * holding what its shape takes: a yes its button's words, a choice its
- * options, words what they are. A refusal says what to fix, in words Claude
- * can act on. Lee's answer to an ask from outside Claude Code, as the CLI
- * gives it, is checked here too, and Lee's snooze and waking of a
- * session.
+ * options and the one recommended, words what they are. A refusal says
+ * what to fix, in words Claude can act on. Lee's answer to an ask from
+ * outside Claude Code, as the CLI gives it, is checked here too, and Lee's
+ * snooze and waking of a session.
  */
 import { isTime } from './entries'
 import { isSessionId, newItemId, type Random } from './ids'
 import { directoryOf, isNameable } from './project'
+import { readOptions, unmarked } from './recommended'
 import { needsReload } from './release'
 import { waitingOnLee, waitsOnLee, yesOf } from './replies'
 import { turnEndOf } from './rows'
@@ -75,6 +76,53 @@ const lines = (value: unknown) => {
 
 const isWants = (value: unknown): value is Wants => WANTS.includes(value as Wants)
 
+/** A choice's options as given, as lines, each stripped of a marker typed at its end, and those that carried one; undefined when not text. */
+const optionsRead = (value: unknown) => {
+  const given = lines(value)
+
+  return given === undefined ? undefined : readOptions(given)
+}
+
+/** Each quoted, in plain words, the one recommended marked so: `“a” (recommended) or “b”`. */
+const quotedOr = (answers: readonly string[], recommended?: string) =>
+  inWords(
+    answers.map(each => (each === recommended ? `“${each}” (recommended)` : `“${each}”`)),
+    'or',
+  )
+
+const TWO_MARKED =
+  'Recommend one option: more than one is marked recommended. Give the one you lean toward as recommended, and leave the word out of the options.'
+
+/**
+ * The option recommended, from the options a marker marked and the field
+ * given: the field, else the one marked. Refused where they say different
+ * things: two options marked, or one marked and the field naming another,
+ * or clearing it.
+ */
+const recommendationOf = (
+  marked: readonly string[],
+  given: string | undefined,
+): Checked<string | undefined> => {
+  const [one, ...more] = marked
+
+  if (more.length > 0) {
+    return refuse(TWO_MARKED)
+  }
+
+  return one !== undefined && given !== undefined && given !== one
+    ? refuse(
+        `Recommend one option: “${one}” is marked recommended in the options, and recommended says otherwise.`,
+      )
+    : ok(given ?? one)
+}
+
+/** A recommended option as given, one line, a marker typed at its end stripped; empty where it comes to nothing; undefined when not text. */
+const recommendedIn = (value: unknown) => {
+  const given = clearable(value)
+
+  return given === undefined ? undefined : unmarked(given).text
+}
+
 /** A project's name: one line, with a letter or a digit to match it by; undefined when not. */
 const projectNameOf = (value: unknown) => {
   const name = line(value)
@@ -96,7 +144,13 @@ const directoryIn = (value: unknown): Checked<string | undefined> => {
 }
 
 /** An ask's shape as it would stand: what it wants back, and what goes with that. */
-type Shape = { wants: Wants; yes?: string; options: readonly string[]; needs?: string }
+type Shape = {
+  wants: Wants
+  yes?: string
+  options: readonly string[]
+  recommended?: string
+  needs?: string
+}
 
 /** What a shape must hold, each rule broken where it says, with what to fix. */
 const SHAPE_RULES: readonly [breaks: (shape: Shape) => boolean, error: string][] = [
@@ -123,8 +177,24 @@ const SHAPE_RULES: readonly [breaks: (shape: Shape) => boolean, error: string][]
   ],
 ]
 
+/** Why the option a shape recommends will not do: on an ask that is no choice, or naming none of its options; undefined when it will. */
+const recommendedMisfit = ({ wants, options, recommended }: Shape) => {
+  if (recommended === undefined) {
+    return undefined
+  }
+
+  if (wants !== 'choice') {
+    return 'Only a choice ask takes recommended: one of its options.'
+  }
+
+  return options.includes(recommended)
+    ? undefined
+    : `recommended names one of the options, in its words: ${quotedOr(options)}.`
+}
+
 /** Why a shape will not do; undefined when it will. */
-const misfitOf = (shape: Shape) => SHAPE_RULES.find(([breaks]) => breaks(shape))?.[1]
+const misfitOf = (shape: Shape) =>
+  SHAPE_RULES.find(([breaks]) => breaks(shape))?.[1] ?? recommendedMisfit(shape)
 
 /** A session to start: its name and summary, and its project's name and directory. */
 export type StartFields = { name: string; summary: string; project: string; directory?: string }
@@ -223,10 +293,18 @@ export const checkAsk = (input: unknown): Checked<Omit<AskBody, 'id'>> => {
     return refuse('An ask needs a title: one line, starting with the verb.')
   }
 
+  const read = optionsRead(fields.options) ?? { options: [], marked: [] }
+  const recommended = recommendationOf(read.marked, recommendedIn(fields.recommended) || undefined)
+
+  if (!recommended.ok) {
+    return recommended
+  }
+
   const shape = {
     wants: fields.wants,
     yes: line(fields.yes),
-    options: lines(fields.options) ?? [],
+    options: read.options,
+    recommended: recommended.value,
     needs: line(fields.needs),
   }
   const misfit = misfitOf(shape)
@@ -242,6 +320,7 @@ export const checkAsk = (input: unknown): Checked<Omit<AskBody, 'id'>> => {
     title,
     where: line(fields.where),
     options: shape.options.length === 0 ? undefined : shape.options,
+    recommended: shape.recommended,
     needs: shape.needs,
     ref: line(fields.ref),
   })
@@ -379,7 +458,8 @@ const READERS: { [K in keyof Changes]-?: (value: unknown) => Changes[K] | undefi
   yes: line,
   title: line,
   where: line,
-  options: lines,
+  options: value => optionsRead(value)?.options,
+  recommended: recommendedIn,
   needs: clearable,
   ref: line,
   text: line,
@@ -463,8 +543,46 @@ const editedMisfit = (item: Item, changes: Changes) => {
     wants,
     yes: kept(changes.yes, item.yes, wants === 'yes'),
     options: kept(changes.options, item.options, wants === 'choice') ?? [],
+    recommended: changes.recommended || undefined,
     needs: kept(changes.needs, item.needs, wants === 'words'),
   })
+}
+
+/**
+ * An edit's changes with the option its options mark recommended read as
+ * its field: refused where two are marked, or one is and the edit's
+ * recommended says otherwise.
+ */
+const markedIn = (changes: Changes, fields: Fields): Checked<Changes> => {
+  const marked = optionsRead(fields.options)?.marked ?? []
+  const recommended = recommendationOf(marked, changes.recommended)
+
+  if (!recommended.ok) {
+    return recommended
+  }
+
+  return ok(
+    recommended.value === undefined ? changes : { ...changes, recommended: recommended.value },
+  )
+}
+
+/**
+ * The option an ask recommended that an edit leaves it without, though the
+ * edit never named it: its option gone from the options, or the ask no
+ * choice now. Undefined where the ask keeps it, the edit names it or
+ * another, or it had none.
+ */
+export const droppedRecommendation = (session: Session, { item, changes }: EditBody) => {
+  const ask = session.items.get(item)
+
+  if (ask?.type !== 'ask' || ask.recommended === undefined || changes.recommended !== undefined) {
+    return undefined
+  }
+
+  const wants = changes.wants ?? ask.wants
+  const options = changes.options ?? ask.options ?? []
+
+  return wants === 'choice' && options.includes(ask.recommended) ? undefined : ask.recommended
 }
 
 /** The fields of an ask's shape: what it wants back, and what goes with that. */
@@ -491,7 +609,8 @@ export const checkEdit = (session: Session, input: unknown): Checked<EditBody> =
     return item
   }
 
-  const changes = changesFor(item.value, fields)
+  const read = changesFor(item.value, fields)
+  const changes = read.ok ? markedIn(read.value, fields) : read
 
   if (!changes.ok) {
     return changes
@@ -530,9 +649,6 @@ const answersOf = (ask: Ask): readonly string[] => {
       return []
   }
 }
-
-/** Each quoted, in plain words: `“a” or “b”`. */
-const quotedOr = (answers: readonly string[]) => inWords(answers.map(each => `“${each}”`), 'or')
 
 /** A rule an ask Lee acts on from outside Claude Code keeps, broken where it says, with why. */
 type AskRule = readonly [breaks: (ask: Ask) => boolean, error: (ask: Ask) => string]
@@ -592,7 +708,9 @@ const worded = (ask: Ask, given: string | undefined): Answer => {
   }
 
   if (given === undefined || !answers.includes(given)) {
-    return refuse(`${ask.id} wants ${wanted}: answer it with ${quotedOr(answers)}.`)
+    return refuse(
+      `${ask.id} wants ${wanted}: answer it with ${quotedOr(answers, ask.recommended)}.`,
+    )
   }
 
   return ok(

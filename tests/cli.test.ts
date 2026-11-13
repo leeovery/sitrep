@@ -656,7 +656,7 @@ test('help: every command in brief, how a session is named, and the exit codes',
 
   expect([exit, err]).toEqual([EXIT.done, ''])
   expect(out).toContain(
-    '  sitrep ask <title> --wants yes|choice|words [--yes <label>] [--option <choice>]... [--needs <words>] [--where <words>] [--ref <ref>]\n',
+    '  sitrep ask <title> --wants yes|choice|words [--yes <label>] [--option <choice>]... [--recommended <choice>] [--needs <words>] [--where <words>] [--ref <ref>]\n',
   )
   expect(out).toContain(
     '  sitrep answer <ask> (<answer> | --ignore)\n  sitrep snooze <ask>... [--until <ms>]\n  sitrep wake\n  sitrep finish\n',

@@ -350,8 +350,9 @@ const wantsOf = (body: AskBody | KindAskBody): Pick<Ask, 'wants' | 'yes' | 'kind
 
 /**
  * An ask holding only what its shape takes: a yes its label, a choice its
- * options, words what they are. One read from its kind takes its shape from
- * the kind and what it needs back, as they stand, and keeps its yes's words.
+ * options and the one recommended, while still among them, words what they
+ * are. One read from its kind takes its shape from the kind and what it
+ * needs back, as they stand, and keeps its yes's words.
  */
 const fitShape = (ask: Ask) => {
   if (ask.kind !== undefined) {
@@ -360,6 +361,9 @@ const fitShape = (ask: Ask) => {
 
   ask.yes = ask.wants === 'yes' || ask.kind !== undefined ? ask.yes : undefined
   ask.options = ask.wants === 'choice' ? ask.options : undefined
+  // An edit's empty `recommended` clears it, as one changing the options away from it does.
+  ask.recommended =
+    ask.recommended && ask.options?.includes(ask.recommended) ? ask.recommended : undefined
   // An edit's empty `needs` clears it.
   ask.needs = ask.wants === 'words' ? ask.needs || undefined : undefined
 }
@@ -412,7 +416,7 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
   },
 
   ask: (fold, entry) => {
-    const { id, title, where, options, needs, ref, at, by } = entry
+    const { id, title, where, options, recommended, needs, ref, at, by } = entry
     const ask: Ask = {
       type: 'ask',
       id,
@@ -420,6 +424,7 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
       title,
       where,
       options,
+      recommended,
       needs,
       ref,
       by,

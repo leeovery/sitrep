@@ -5,9 +5,9 @@
  * that one branch. Opened, it shows its whole title, its tree (what its
  * words are, where to look, Claude's own record of it, and where Lee's
  * reply stands) and its buttons, by what it wants back: a yes in its own
- * words, its options, or words, written in the prompt box (DESIGN.md,
- * "Answering an ask"). Any session's asks answer the same way; a reply
- * names the session it goes to.
+ * words, its options, the one Claude recommends marked beside it, or
+ * words, written in the prompt box (DESIGN.md, "Answering an ask"). Any
+ * session's asks answer the same way; a reply names the session it goes to.
  *
  * An ask waiting on Lee offers `snooze` among its buttons, which asks in
  * place until when, and snoozes its session: every ask of it, and Lee's
@@ -75,6 +75,34 @@ const refOf = ({ at, ask }: AskedAt): SitrepItemRef => ({ ...at, item: ask.id })
 /** The comment button's words: an answer's, on an ask read from its kind as a decide, where a comment closes it. */
 const commentLabel = (ask: Ask) => (isAnswer(ask, 'comment') ? '✎ answer' : '✎ comment')
 
+/** What follows the option Claude recommends, quiet as every secondary word beside a button. */
+const RECOMMENDED = 'recommended'
+
+/** The option pressed first: the one Claude recommends, else the first. */
+const primaryOf = (ask: Ask) => ask.recommended ?? ask.options?.[0]
+
+/** An option's button, and beside it, where Claude recommends it, the word saying so. */
+const drawOption = (d: Drawing, key: string, option: string, ask: Ask, onPress: () => void) => {
+  const { Box, Text, Button } = d.els
+  const button = (
+    <Button
+      key={key}
+      variant={option === primaryOf(ask) ? 'primary' : undefined}
+      label={option}
+      onPress={onPress}
+    />
+  )
+
+  return option === ask.recommended ? (
+    <Box key={`recommended:${key}`} flexDirection="row" columnGap={1}>
+      {button}
+      <Text color={C.grey}>{RECOMMENDED}</Text>
+    </Box>
+  ) : (
+    button
+  )
+}
+
 /** The buttons a verdict puts on an ask, each keyed by the ask's address: one for each option of a choice. */
 const buttonsFor = (d: Drawing, at: SitrepItemRef, ask: Ask, verdict: Verdict) => {
   const { Button } = d.els
@@ -93,14 +121,9 @@ const buttonsFor = (d: Drawing, at: SitrepItemRef, ask: Ask, verdict: Verdict) =
         />,
       ]
     case 'choose':
-      return (ask.options ?? []).map((option, i) => (
-        <Button
-          key={`choose:${key}:${i}`}
-          variant={i === 0 ? 'primary' : undefined}
-          label={option}
-          onPress={() => reply({ verdict, option })}
-        />
-      ))
+      return (ask.options ?? []).map((option, i) =>
+        drawOption(d, `choose:${key}:${i}`, option, ask, () => reply({ verdict, option })),
+      )
     case 'answer':
       return drawWrite(d, `answer:${key}`, '✎ Answer', answeringOf(d, at, ask, 'answer'), 'primary')
     case 'comment':

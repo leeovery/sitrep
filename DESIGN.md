@@ -459,10 +459,10 @@ orchestrator decides what reaches the board.
 |---|---|
 | `start` / `join` | begin a session (name, summary, its project's name, and its directory once known) and get its id; or join one by id, in whichever project it is filed |
 | `status` | set the name, summary, the list of what is under way, and what is next |
-| `ask` | post an ask: what it wants back (`wants`: a yes, a choice or words), its title, and where to look; a yes's button (`yes`: the verb Lee gives, `Go`, `Approve`, `It works`), a choice's `options`, or what a words ask's words are (`needs`: "the command's output"), each only on its own shape |
+| `ask` | post an ask: what it wants back (`wants`: a yes, a choice or words), its title, and where to look; a yes's button (`yes`: the verb Lee gives, `Go`, `Approve`, `It works`), a choice's `options` and the one Claude leans toward (`recommended`), or what a words ask's words are (`needs`: "the command's output"), each only on its own shape |
 | `note` | add a note, with optional detail lines and a pointer |
 | `park` | park something to come back to, on the attached session's project |
-| `resolve` / `reopen` / `edit` | close, reopen or correct an item, with a reason. Resolving what Lee closed, an ask he answered or ignored or a parked item he picked up, passes quietly, changing nothing (below). An edit takes an item's one line as `text` or `title` alike, whatever the item, and may change what an ask wants, its `yes`, `options` and `needs`, under the checks `ask` makes; an empty `needs` clears it. An item of the attached session, or a parked item another session of its project parked, named with that session's id (`session`) and written into that session, in this window's own file there; another session's ask or note, or a session of another project, is refused |
+| `resolve` / `reopen` / `edit` | close, reopen or correct an item, with a reason. Resolving what Lee closed, an ask he answered or ignored or a parked item he picked up, passes quietly, changing nothing (below). An edit takes an item's one line as `text` or `title` alike, whatever the item, and may change what an ask wants, its `yes`, `options`, `recommended` and `needs`, under the checks `ask` makes; an empty `needs` or `recommended` clears it. An item of the attached session, or a parked item another session of its project parked, named with that session's id (`session`) and written into that session, in this window's own file there; another session's ask or note, or a session of another project, is refused |
 | `finish` | finish the attached session, with a reason, once it is complete and nothing is left on it; what it parked stays its project's and holds no finish back. The window stays attached, and joining it again reopens it |
 | `project` | rename the attached session's project, or say where it lives, or both; a name another project has is refused. It never moves a session to another project |
 | `board` | read back the board's open items, what each ask wants back among them (`k1 wants a yes (Go)`), and the project's parked items, so Claude can check and repair it |
@@ -521,6 +521,9 @@ Wording rules, in the tool descriptions:
   works" or "done"; a choice for one of options; words when Lee must write
   something back. A yes's button is the verb Lee is giving, a word or two
   (`Go` for "Give the go for stage 3", never a stock `done`).
+- A choice Claude leans toward one option of gives that option as
+  `recommended`, whenever it leans, never the word in the option's text
+  (below, under "Answering an ask").
 - One line, plain words, starting with the verb. No internal codes (no P-numbers,
   no D-numbers). "Where" says where to look in words: "In Paper: the dashboard
   file, page "round 1", frames 1–6".
@@ -857,7 +860,7 @@ shape is ever shown as a word:
 | Claude asks for | Buttons |
 |---|---|
 | **a yes**: a go, an approval, "it works", "done" | `✓ <its yes>` · `✎ comment` · `✕ ignore` |
-| **a choice** | one button per option · `✎ comment` · `✕ ignore` |
+| **a choice** | one button per option, the one Claude recommends marked `recommended` · `✎ comment` · `✕ ignore` |
 | **words**: an answer, a command's output, feedback | `✎ Answer` · `✕ ignore` |
 
 - **The yes is in Claude's words.** Claude gives the button's label as the
@@ -868,6 +871,46 @@ shape is ever shown as a word:
   change". It hangs first from the ask's mark, in the ask's colour, as
   `needs: the command's output`, while the ask is opened. Only a words ask
   takes it.
+- **The option Claude recommends** (13 November 2026). Claude often leans
+  toward one option of a choice, and wrote "(recommended)" into the
+  option's text, so the word showed inside the option, and at times twice.
+  A choice ask takes `recommended` instead, on the ask tool and the CLI's
+  `ask` (`--recommended <choice>`), and the tool asks Claude to give it
+  whenever it leans:
+  - **What it is.** Optional, and a choice ask's alone: the text of one of
+    its options, as stored. Given on a yes or a words ask it is refused
+    (`Only a choice ask takes recommended: one of its options.`), and so
+    is one naming none of the options (`recommended names one of the
+    options, in its words: “Ship it” or “Redraw”.`).
+  - **A marker Claude still types** is read as the field and stripped from
+    the option's text: "recommended" at the option's end, any case, in
+    parentheses or brackets, or after a dash a space sets off ("Ship it
+    (Recommended)", "Ship it [recommended]", "Ship it — recommended",
+    "Ship it - Recommended"), with something before it. Nothing else is: an
+    option about recommendations ("Use the recommended defaults") is left
+    alone. Two options marked, or one marked and `recommended` naming
+    another or clearing it, is refused (`Recommend one option: …`); the
+    same option marked and named is fine. Options given in an edit are read
+    the same way.
+  - **Claude's order of options is kept**; nothing is reordered.
+  - **Drawn once, beside its option.** The pane draws the word
+    `recommended` after the option's button, dim grey as every secondary
+    word beside a button there (`[ Redraw ] recommended` in the terminal),
+    the same elements on every surface, each drawing them in its own way.
+    The option recommended is the primary button; with none, the first, as
+    before. The board text Claude reads names it once after the options
+    (`options: Ship it | Redraw; recommended: Redraw`), `board` prints that
+    text, `board --json` and `watch` carry it (`recommended`, null where
+    none), and the CLI's `answer`, refusing an answer, names it once among
+    the options (`answer it with “Ship it” (recommended) or “Redraw”.`).
+    No band, banner or row shows an ask's options, so none shows it. Lee's
+    reply when he picks the option is as ever (`→ Redraw`).
+  - **An edit** sets it, or clears it with an empty one. One changing the
+    options keeps it while its option is among them; where its option is
+    gone, or the ask wants a choice no more, it goes with it, and the
+    edit's answer says so (`Edited k3. Its recommended option “Ship it” is
+    gone, so it recommends none now.`), refusing nothing. Gone, it does not
+    come back with its option.
 - **Ignore** tells Claude Lee has seen it and won't act on it.
 - **Snooze** follows the buttons, dim, on an ask waiting on Lee: none while
   it waits on Claude (Lee's comment) or on a reply of Lee's on its way, once
@@ -2436,12 +2479,18 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
 
   An ask's line holds what it `wants` back (`yes`, `choice` or `words`) and
   its `title`; a yes ask its button's words, as `yes`; a choice its
-  `options`; a words ask, where it says, what its words are, as `needs`; and
-  `where` and `ref` where it has them. An edit's changes name the fields
-  they set; an empty `needs` clears it, where any other empty field is
-  refused. An edit leaves an ask holding only what its shape takes: one
-  made to want a choice drops its `yes`, one made to want a yes its
-  `options` and `needs`. A reply's verdict is `yes`, `choose` (with its
+  `options`, and the one Claude recommends, where it gives one, as
+  `recommended` (13 November 2026); a words ask, where it says, what its
+  words are, as `needs`; and `where` and `ref` where it has them. An
+  edit's changes name the fields they set; an empty `needs` or
+  `recommended` clears it, where any other empty field is refused. An edit
+  leaves an ask holding only what its shape takes: one made to want a
+  choice drops its `yes`, one made to want a yes its `options`,
+  `recommended` and `needs`, and one whose options leave out the option
+  recommended drops `recommended`, as the fold reads it, so an edit line
+  never names the drop. A line without `recommended` reads as before, and
+  an old reader passes over the field, skipping an edit that changes it
+  alone, as it skips any line it cannot read. A reply's verdict is `yes`, `choose` (with its
   `option`), `answer` (a words ask's words, as its `note`), `comment`,
   `ignore` or `pickup`; a yes or a choice may carry a comment as its note.
   The format's version stays 1: a new reader reads every old line, and an
@@ -2975,7 +3024,7 @@ truth. There is still no background service. None of it is built now. Lee:
 
   ```
   sitrep note <text> [--detail <line>]... [--ref <ref>]
-  sitrep ask <title> --wants yes|choice|words [--yes <label>] [--option <choice>]... [--needs <words>] [--where <words>] [--ref <ref>]
+  sitrep ask <title> --wants yes|choice|words [--yes <label>] [--option <choice>]... [--recommended <choice>] [--needs <words>] [--where <words>] [--ref <ref>]
   sitrep park <title> [--where <words>] [--ref <ref>]
   sitrep status [--name <words>] [--summary <line>] [--now <line>]... [--next <line>]
   sitrep answer <ask> (<answer> | --ignore)
@@ -3003,7 +3052,8 @@ truth. There is still no background service. None of it is built now. Lee:
   - What it posts is checked by core as Claude's tools' posts are, and a
     refusal prints the check's words. A post prints its item's id and nothing
     else, so a script can keep it. An ask says what it wants back with
-    `--wants`, as the ask tool does, and its `--yes`, `--option`s or
+    `--wants`, as the ask tool does, and its `--yes`, `--option`s, with
+    `--recommended` where Claude leans toward one (13 November 2026), or
     `--needs` with it. A status gives only what changed, as the
     status tool does; `--now ""` and `--next ""` clear. The last argument takes
     every word left, so a title needs no quotes.
@@ -3156,13 +3206,17 @@ truth. There is still no background service. None of it is built now. Lee:
 
     ```
     { "id": "k1", "wants": "yes", "yes": "Go", "title": "Give the go for stage 3",
-      "where": null, "options": [], "needs": null, "ref": null,
+      "where": null, "options": [], "recommended": null, "needs": null, "ref": null,
       "state": "closed", "at": 1760000000000,
       "reply": { "is": "delivered", "isAnswer": true, "words": "→ Go",
                  "since": 1760000090000 },
       "snoozedUntil": null,
       "closedAt": 1760000090000, "reason": null }
     ```
+
+    `recommended` (13 November 2026) is the option of a choice Claude
+    recommends, null where it recommends none, as on any other ask; a
+    field added: `v` did not move.
 
     No `v` moved for 20 October 2026's changes. `reply` and `resolved` are
     fields added, which a reader that does not know them passes over. One
