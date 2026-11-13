@@ -16,7 +16,6 @@ import {
 import type {
   SitrepAnswering,
   SitrepInFlight,
-  SitrepItemRef,
   SitrepPane,
   SitrepPlace,
   SitrepQueued,
@@ -27,7 +26,7 @@ import { lookAround } from './around'
 import { fromTheTop } from './clip'
 import { takeBack } from './deliver'
 import { logFailure, type Host } from './host'
-import { writeInto, writeOwnFile } from './into'
+import { writeHeld, writeInto, writeOwnFile } from './into'
 import { closeBoard } from './pane'
 import { projectPlace } from './places'
 import { clearing, queuing, unqueuing } from './queue'
@@ -57,10 +56,10 @@ export type Actions = {
   close: () => void
   /** Finishes another session, as Lee confirmed on its view, and takes the board up off it. */
   finish: (at: SitrepSessionRef) => void
-  /** Snoozes an ask until the time Lee chose, worked out at the press, the ask closed on the board. */
-  snooze: (at: SitrepItemRef, when: SnoozeChoice) => void
-  /** Wakes a snoozed ask now: it waits on Lee again. */
-  wake: (at: SitrepItemRef) => void
+  /** Snoozes a session, its asks and its turn, until the time Lee chose, worked out at the press, the ask it was pressed on closed on the board; `asks` are those the board shows waiting there. */
+  snooze: (at: SitrepSessionRef, asks: readonly string[], when: SnoozeChoice) => void
+  /** Wakes a snoozed session now: everything it needs of Lee counts again. */
+  wake: (at: SitrepSessionRef) => void
 }
 
 /**
@@ -146,8 +145,8 @@ const finish = async (host: Host, at: SitrepSessionRef) => {
 /** Why a press on an ask wrote nothing, its session no longer there to write into. */
 const GONE = 'its session is no longer on the board.'
 
-/** A check of Lee's press against an ask's session as it stands: the lines it writes, or why it is refused. */
-type Check = (session: Session) => Checked<readonly Body[]>
+/** A check of Lee's press against an ask's session as it stands: the line it writes, or why it is refused. */
+type Check = (session: Session) => Checked<Body>
 
 /**
  * Writes what Lee's press makes of an ask's session as it stands into this
@@ -169,7 +168,7 @@ const writeLee = async (host: Host, at: SitrepSessionRef, refused: string, check
         say(checked.error)
       }
 
-      return checked.ok ? checked.value : []
+      return checked.ok ? [checked.value] : []
     },
     (session, lines) => post(host, lines),
   )
@@ -181,18 +180,42 @@ const writeLee = async (host: Host, at: SitrepSessionRef, refused: string, check
   await readIfElsewhere(host, at)
 }
 
-/** Lee's snooze of an ask, its time worked out at the press, checked as the CLI checks it. */
-const snooze = async (host: Host, at: SitrepItemRef, when: SnoozeChoice) => {
+/** Lee's snooze of a session, its asks the board shows and its turn, its time worked out at the press, checked as the CLI checks it. */
+const snooze = async (
+  host: Host,
+  at: SitrepSessionRef,
+  asks: readonly string[],
+  when: SnoozeChoice,
+) => {
   const now = await host.clock.now()
-  const input = { ask: [at.item], until: snoozeAt(when, now) }
+  const input = { ask: asks, until: snoozeAt(when, now) }
 
   await changePane(host, () => ({ selected: null }))
   await writeLee(host, at, 'Not snoozed', session => checkSnooze(session, input, now))
 }
 
-/** Lee's waking of a snoozed ask, checked as the CLI checks it. */
-const wake = (host: Host, at: SitrepItemRef) =>
-  writeLee(host, at, 'Not woken', session => checkWake(session, { ask: [at.item] }))
+/** Lee's waking of a snoozed session, checked as the CLI checks it. */
+const wake = (host: Host, at: SitrepSessionRef) =>
+  writeLee(host, at, 'Not woken', checkWake)
+
+/**
+ * Lee's own prompt in the window wakes the session it holds, where he
+ * snoozed it: he has dealt with it. Its line goes through the hold, so
+ * Claude reads the session's asks waiting again with the prompt; nothing is
+ * written where no snooze of his stands.
+ */
+export const wakeByLeesPrompt = (host: Host) =>
+  serially(() =>
+    writeHeld(
+      host,
+      session => {
+        const checked = checkWake(session)
+
+        return checked.ok ? [checked.value] : []
+      },
+      (session, lines) => post(host, lines),
+    ),
+  )
 
 export const actionsOf = (host: Host): Actions => {
   const run = (what: string, act: () => Promise<unknown>) =>
@@ -226,7 +249,7 @@ export const actionsOf = (host: Host): Actions => {
     go: place => run('going elsewhere on the board', () => go(host, place)),
     close: () => run('closing the board', () => closeBoard(host)),
     finish: at => run('finishing a session', () => finish(host, at)),
-    snooze: (at, when) => run('snoozing an ask', () => snooze(host, at, when)),
-    wake: at => run('waking an ask', () => wake(host, at)),
+    snooze: (at, asks, when) => run('snoozing a session', () => snooze(host, at, asks, when)),
+    wake: at => run('waking a session', () => wake(host, at)),
   }
 }

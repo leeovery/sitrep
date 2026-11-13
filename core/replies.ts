@@ -139,10 +139,20 @@ export const waitsOnLee = (ask: Ask) => ask.state === 'waiting' && replyOnItsWay
 /** An ask snoozed, and when it wakes. */
 export type SnoozedAsk = Ask & { snoozedUntil: number }
 
+/** When Lee's snooze of a session wakes, while it holds at `now`; none once it has run out, or the session is finished. */
+export const snoozedUntilOf = (
+  session: Pick<Session, 'snooze' | 'finished'>,
+  now: number,
+): number | undefined =>
+  session.finished === undefined && session.snooze !== undefined && now < session.snooze.until
+    ? session.snooze.until
+    : undefined
+
 /**
- * Whether an ask is snoozed, on Lee's side: waiting on Lee, with a snooze of
- * Lee's holding on it. One Lee replied to while it slept waits on Lee no
- * more, and is no longer snoozed either, though its snooze stands.
+ * Whether an ask is snoozed, on Lee's side: waiting on Lee, with Lee's
+ * snooze of its session holding on it. One Lee's reply is on its way to
+ * waits on Lee no more, and is no longer snoozed either, though the snooze
+ * stands.
  */
 export const isSnoozed = (ask: Ask): ask is SnoozedAsk =>
   waitsOnLee(ask) && ask.snoozedUntil !== undefined

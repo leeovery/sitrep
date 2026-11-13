@@ -138,21 +138,37 @@ export type FinishBody = { type: 'finish'; who: Finisher; reason?: string }
 /** Takes a finished session up again: a window joined it. */
 export type UnfinishBody = { type: 'unfinish' }
 
-/** Lee's snooze of an ask: it counts nowhere as waiting on Lee until `until`, in place of any snooze before. */
+/**
+ * Lee's snooze of the session: everything it needs of Lee, its asks waiting
+ * and its turn, put off until `until`, in place of any snooze before. A new
+ * ask, Lee's reply to one, or his own prompt in its window wakes it sooner;
+ * its turn ending alone does not.
+ */
+export type SnoozeSessionBody = { type: 'snoozeSession'; until: number }
+
+/** Lee's waking of the session now: from the app or the pane, or by his own prompt in its window. */
+export type WakeSessionBody = { type: 'wakeSession' }
+
+/**
+ * Lee's snooze of an ask, from before a snooze was the session's (23
+ * October to 13 November 2026), which a window not reloaded still writes:
+ * read as his snooze of the session until `until`, where it names an ask
+ * waiting as posted.
+ */
 export type SnoozeBody = { type: 'snooze'; item: string; until: number }
 
-/** Lee's waking of a snoozed ask now: it waits on Lee again. */
+/** Lee's waking of a snoozed ask, from before a snooze was the session's: read as his waking of the session. */
 export type WakeBody = { type: 'wake'; item: string }
 
 /**
- * Lee's snooze of the session's turn, the one that ended at `turn`: it waits
- * in Snoozed, not Your turn, until `until`, or with none until the session
- * takes another turn; in place of any snooze of a turn before. Claude is
- * never told of it.
+ * Lee's snooze of the session's turn, the one that ended at `turn`, from
+ * before a snooze was the session's (4 to 13 November 2026), read as it was
+ * until it lapses: it waits in Snoozed until `until`, or with none until
+ * the session takes another turn; in place of any snooze of a turn before.
  */
 export type SnoozeTurnBody = { type: 'snoozeTurn'; turn: number; until?: number }
 
-/** Lee's waking now of the session's turn that ended at `turn`, which Lee snoozed: it is back in Your turn. */
+/** Lee's waking now of the session's turn that ended at `turn`, from before a snooze was the session's. */
 export type WakeTurnBody = { type: 'wakeTurn'; turn: number }
 
 /** What one line of a writer's file says. */
@@ -169,6 +185,8 @@ export type Body =
   | DeliveredBody
   | FinishBody
   | UnfinishBody
+  | SnoozeSessionBody
+  | WakeSessionBody
   | SnoozeBody
   | WakeBody
   | SnoozeTurnBody
@@ -243,9 +261,9 @@ export type Ask = Posted & {
   answerOnItsWay?: Reply
   /** Lee's replies to it, oldest first, those on their way in a live window's message, not written down yet, among them at their claim's time. */
   replies: Reply[]
-  /** When Lee's latest snooze of it wakes, while that is still to come at the fold's moment; only on one waiting as posted. */
+  /** When Lee's snooze of its session wakes, while that is still to come at the fold's moment; only on one waiting as posted. */
   snoozedUntil?: number
-  /** When Lee's latest snooze of it ran out, once it has, until a later line ends it; only on one waiting as posted. */
+  /** When Lee's snooze of its session ran out, once it has, until a later line ends it; only on one waiting as posted. */
   wokeAt?: number
 }
 
@@ -379,7 +397,10 @@ export type Presence = {
  */
 export type Sending = { at: number; replies: SentReply[] }
 
-/** Lee's latest snooze of a session's turn: the turn it holds, by its end; when it wakes, none until the turn moves; and when Lee wrote it. */
+/** Lee's latest snooze of a session: when it wakes, and when Lee wrote it. */
+export type SessionSnooze = { until: number; at: number }
+
+/** Lee's latest snooze of a session's turn, from an old line: the turn it holds, by its end; when it wakes, none until the turn moves; and when Lee wrote it. */
 export type TurnSnooze = { turn: number; until?: number; at: number }
 
 /** A session as it stands, every writer's lines read together. */
@@ -409,10 +430,12 @@ export type Session = {
   waiting: number
   /** Set once the session is finished, until a window joins it again. */
   finished?: Finished
-  /** Lee's latest snooze of its turn, as written, until Lee wakes it, or something needs Lee in the session or Lee replies there: whether it holds at a moment is the rows' to say. */
+  /** Lee's latest snooze of the session, as written, until a line wakes it: it holds while its time is to come (`snoozedUntilOf`). */
+  snooze?: SessionSnooze
+  /** Lee's latest snooze of its turn, from an old line, until a line wakes it: whether it holds at a moment is the rows' to say. */
   turnSnooze?: TurnSnooze
   /** Every id the session's lines use, items and replies alike. */
   ids: ReadonlySet<string>
-  /** The latest line's time, Lee's snoozes and wakes of a turn aside, which Claude is never told of, and lines about a parked item but its park, which is its project's; or when the session was started. */
+  /** The latest line's time, Lee's snoozes and wakes of a session or a turn aside, which Claude is never told of, and lines about a parked item but its park, which is its project's; or when the session was started. */
   updatedAt: number
 }

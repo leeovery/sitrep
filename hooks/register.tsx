@@ -32,7 +32,7 @@
  */
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
-import { actionsOf, sendReady } from './actions'
+import { actionsOf, sendReady, wakeByLeesPrompt } from './actions'
 import { captured, heardSurvey } from './answering'
 import { lookAround, lookEvery } from './around'
 import { clipOf, heardRows, revealFocus, scrollList } from './clip'
@@ -448,6 +448,11 @@ export const register: Register = on => {
       }
 
       return entered
+    }
+
+    // Lee's own prompt wakes the session he snoozed, before the board's change is read, so it rides in with it.
+    if (isLees) {
+      await wakeByLeesPrompt(host).catch(logFailure(host, 'waking the session on your prompt'))
     }
 
     const change = await serially(() => boardChange(host))

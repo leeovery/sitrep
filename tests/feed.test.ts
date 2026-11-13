@@ -54,6 +54,7 @@ import {
   reply,
   resolve,
   snooze,
+  snoozeSession,
   snoozeTurn,
   status,
   T0,
@@ -61,6 +62,7 @@ import {
   W2,
   W3,
   wake,
+  wakeSession,
   wakeTurn,
   yesAsk,
   type Line,
@@ -1383,122 +1385,217 @@ test('the board next changes by time alone as the first live heartbeat goes stal
 const WAKES = NOW + 120 * MIN
 const WAKES_LATER = NOW + 180 * MIN
 
-/** The review, posted at T0 and snoozed a minute after. */
+/** The review, posted at T0, and its session snoozed a minute after. */
 const SNOOZED_REVIEW: Line[] = [
   [T0, yesAsk('k1', 'Review round 1')],
-  [T0 + MIN, snooze('k1', WAKES)],
+  [T0 + MIN, snoozeSession(WAKES)],
 ]
 
 const feedAt = (now: number, ...sessions: Session[]) =>
   feedOf([{ project: SWITCHBOARD, sessions }], now)
 
-test('an ask Lee snoozed needs Lee no more: no line in Needs you, no count, nothing in the head; its session stands as its windows leave it, with a row in Snoozed', () => {
-  const held = sessionOf({ lines: SNOOZED_REVIEW, presence: windowOn(W1, yourTurn(T0)) })
-  const away = sessionOf({ lines: SNOOZED_REVIEW })
+/** The keys of a feed's rows' lines, and of its Snoozed rows'. */
+const placed = (feed: Feed) => ({
+  rows: feed.rows.flatMap(row => row.lines.map(each => each.key)),
+  snoozed: feed.snoozed.flatMap(row => row.lines.map(each => each.key)),
+})
+
+const K1 = `ask:${META.id}:k1`
+const K2 = `ask:${META.id}:k2`
+const K3 = `ask:${META.id}:k3`
+const TURN_KEY = `turn:${META.id}`
+
+/** The turn under test: W1's, ended at TURN, what Claude left Lee on the board. */
+const TURN = T0 + 10 * MIN
+const LEFT: Line = [T0, status(['Pick the palette'])]
+
+/** W1 on its turn, ended at `since`, its heartbeat seen at `seenAt`. */
+const onTurn = (since = TURN, seenAt = NOW) => windowOn(W1, yourTurn(since), { seenAt })
+
+/** The review's session at Lee's turn, snoozed, then the lines given, held as `presence` says. */
+const asleepWith = (more: Line[] = [], presence = onTurn(), inbox: SessionFiles['inbox'] = {}) =>
+  sessionOf({ lines: [LEFT, ...SNOOZED_REVIEW, ...more], presence, inbox })
+
+test('a session Lee snoozed needs Lee no more: its asks and its turn are one row in Snoozed, with no line in Needs you, no count and nothing in the head; it stands at your turn still', () => {
+  const held = asleepWith()
   const feed = feedAt(NOW, held)
 
-  expect([held.waiting, sessionState(held, NOW), lines(held).map(each => each.key)]).toEqual([
-    0,
-    'yourTurn',
-    [`turn:${META.id}`],
-  ])
-  expect([sessionState(away, NOW), rowFor(away)]).toEqual(['away', undefined])
-  expect(feed.head).toEqual({ needYou: 0, sessions: 1 })
+  expect([held.waiting, sessionState(held, NOW), rowFor(held)]).toEqual([0, 'yourTurn', undefined])
+  expect([feed.rows, feed.head]).toEqual([[], { needYou: 0, sessions: 0 }])
   expect(feed.projects).toMatchObject([
     { waiting: 0, snoozed: 1, sessions: [{ waiting: 0, snoozed: 1, asks: [{ id: 'k1' }] }] },
   ])
-  expect(feedAt(NOW, away).snoozed).toEqual([
+  expect(feed.snoozed).toEqual([
     {
       session: META.id,
-      isAway: true,
+      isAway: false,
       project: SWITCHBOARD.key,
       name: META.name,
       projectName: 'Switchboard',
       letters: 'Sw',
       lines: [
         {
-          key: `ask:${META.id}:k1`,
+          key: K1,
           is: 'ask',
           ask: 'k1',
           first: { lead: 'Review round 1' },
           since: T0,
           wakesAt: WAKES,
         },
+        {
+          key: TURN_KEY,
+          is: 'yourTurn',
+          first: { lead: 'Pick the palette' },
+          since: TURN,
+          wakesAt: WAKES,
+        },
       ],
-      second: 'No window holds it. Carry it on in Claude.',
+      second: 'Switchboard · Dashboard redesign',
       wakesAt: WAKES,
     },
   ])
-  expect(feed.snoozed[0]).toMatchObject({
-    isAway: false,
-    second: 'Switchboard · Dashboard redesign',
-  })
+  expect(snoozedTurnOf(held, NOW)).toEqual({ wakesAt: WAKES, end: TURN })
 })
 
-test('a session with an ask snoozed and another waiting shows in both: its row in Needs you holds the one waiting, its row in Snoozed the one asleep', () => {
-  const session = sessionOf({
-    lines: [...SNOOZED_REVIEW, [T0 + 2 * MIN, yesAsk('k2', 'Ship it', 'Go')]],
-    presence: windowOn(W1, yourTurn(T0)),
-  })
-  const feed = feedAt(NOW, session)
+test('an away session Lee snoozed has no row, and its row in Snoozed, its asks alone, says no window holds it', () => {
+  const away = sessionOf({ lines: SNOOZED_REVIEW })
 
-  expect(feed.rows.map(row => [row.session, row.section, row.lines.map(each => each.key)])).toEqual(
-    [[META.id, 'needsYou', [`ask:${META.id}:k2`]]],
-  )
-  expect(feed.snoozed.map(row => [row.session, row.lines.map(each => each.key)])).toEqual([
-    [META.id, [`ask:${META.id}:k1`]],
+  expect([sessionState(away, NOW), rowFor(away)]).toEqual(['away', undefined])
+  expect(feedAt(NOW, away).snoozed).toMatchObject([
+    { isAway: true, second: 'No window holds it. Carry it on in Claude.', lines: [{ key: K1 }] },
   ])
-  expect(feed.head).toEqual({ needYou: 1, sessions: 1 })
 })
 
-test("Snoozed's rows go soonest to wake first, then the oldest, whatever their ids, and so do a row's lines; a row wakes as its soonest line; a finished session has none", () => {
+test('a session at its turn alone snoozes the same: its turn leaves Needs you for Snoozed, its time among the instants the board next changes by, and back at its time on the same end', () => {
+  const asleep = (now: number) =>
+    sessionOf(
+      { lines: [LEFT, [TURN + MIN, snoozeSession(WAKES)]], presence: onTurn(TURN, now) },
+      now,
+    )
+  const before = WAKES - 30_000
+
+  expect(placed(feedAt(before, asleep(before)))).toEqual({ rows: [], snoozed: [TURN_KEY] })
+  expect(nextBoardChange(asleep(before), before)).toBe(WAKES)
+  expect(placed(feedAt(WAKES, asleep(WAKES)))).toEqual({ rows: [TURN_KEY], snoozed: [] })
+  expect(rowFor(asleep(WAKES), SWITCHBOARD, WAKES)).toMatchObject({
+    section: 'yourTurn',
+    since: TURN,
+  })
+})
+
+test("its turn ending alone never wakes it, however the turn began: working or on its own work, the session is in Working, its asks asleep beside it, and the next turn's end goes back to Snoozed", () => {
+  const busy = asleepWith([], windowOn(W1, working(T0 + 30 * MIN)))
+  const onItsOwn = asleepWith([], windowOn(W1, onItsWork(T0 + 40 * MIN)))
+  const ended = asleepWith([], onTurn(T0 + 50 * MIN))
+
+  expect(placed(feedAt(NOW, busy))).toEqual({ rows: [TURN_KEY], snoozed: [K1] })
+  expect(rowFor(busy)?.section).toBe('working')
+  expect(placed(feedAt(NOW, onItsOwn))).toEqual({ rows: [TURN_KEY], snoozed: [K1] })
+  expect(placed(feedAt(NOW, ended))).toEqual({ rows: [], snoozed: [K1, TURN_KEY] })
+  expect(feedAt(NOW, ended).snoozed[0]?.lines[1]).toMatchObject({
+    since: T0 + 50 * MIN,
+    wakesAt: WAKES,
+  })
+})
+
+test('a window joining wakes nothing: on a turn ended later, the session stays in Snoozed, its turn the later one', () => {
+  const joined = asleepWith([], {
+    ...onTurn(),
+    ...windowOn(W2, yourTurn(T0 + 40 * MIN), { attachedAt: T0 + 40 * MIN }),
+  })
+
+  expect(placed(feedAt(NOW, joined))).toEqual({ rows: [], snoozed: [K1, TURN_KEY] })
+  expect(feedAt(NOW, joined).snoozed[0]?.lines[1]?.since).toBe(T0 + 40 * MIN)
+})
+
+test("a new ask wakes it, and so do an ask's reopening and Lee's reply to one of its asks: back in Needs you, the asks it put off with it; a window's stop shows in Needs you beside it, never snoozed", () => {
+  const shipIt: Line = [T0, yesAsk('k2', 'Ship it')]
+  const at = (more: Line[], inbox: SessionFiles['inbox'] = {}) =>
+    placed(feedAt(NOW, asleepWith([shipIt, ...more], onTurn(), inbox)))
+  const stopped = asleepWith([], windowOn(W1, permission(T0 + 30 * MIN, 'Bash', 'git push')))
+
+  expect(at([]), 'asleep, k2 posted before it').toEqual({ rows: [], snoozed: [K1, K2, TURN_KEY] })
+  expect(at([[T0 + 2 * MIN, yesAsk('k3', 'Tag it')]]), 'an ask posted').toEqual({
+    rows: [K3, K1, K2],
+    snoozed: [],
+  })
+  expect(
+    at([
+      [T0 + 2 * MIN, resolve('k2')],
+      [T0 + 3 * MIN, reopen('k2')],
+    ]),
+    'an ask reopened',
+  ).toEqual({ rows: [K2, K1], snoozed: [] })
+  expect(
+    at([], { [CLI]: file([T0 + 2 * MIN, reply('r1', 'k2', 'yes')]) }),
+    'Lee replying to one',
+  ).toEqual({ rows: [K1], snoozed: [] })
+  expect(placed(feedAt(NOW, stopped))).toEqual({
+    rows: [`stop:${META.id}:${W1}:${T0 + 30 * MIN}`],
+    snoozed: [K1],
+  })
+})
+
+test("Lee's wake ends it before its time, back as it was; a snooze again stands in place of the last", () => {
+  expect(placed(feedAt(NOW, asleepWith([[T0 + 2 * MIN, wakeSession()]])))).toEqual({
+    rows: [K1],
+    snoozed: [],
+  })
+  expect(
+    feedAt(NOW, asleepWith([[T0 + 2 * MIN, snoozeSession(WAKES_LATER)]])).snoozed[0]?.wakesAt,
+  ).toBe(WAKES_LATER)
+})
+
+test("Snoozed's rows go soonest to wake first, those an old line snoozed until they move last, then the oldest, whatever their ids, and so do a row's lines; a row wakes as its soonest line; a finished session has none", () => {
   const sessions = [
     sessionOf({
       meta: { id: 'sr-bbbbbb' },
       lines: [
-        [T0, yesAsk('k1', 'Later')],
-        [T0 + 2 * MIN, yesAsk('k2', 'Sooner, newer')],
-        [T0 + MIN, yesAsk('k3', 'Sooner, older')],
-        [T0 + 3 * MIN, snooze('k1', WAKES_LATER)],
-        [T0 + 3 * MIN, snooze('k2', WAKES)],
-        [T0 + 3 * MIN, snooze('k3', WAKES)],
+        [T0, yesAsk('k1', 'Oldest')],
+        [T0 + 2 * MIN, yesAsk('k2', 'Newest')],
+        [T0 + MIN, yesAsk('k3', 'Between')],
+        [T0 + 3 * MIN, snoozeSession(WAKES)],
       ],
     }),
     sessionOf({
       meta: { id: 'sr-aaaaaa' },
       lines: [
         [T0 + 5 * MIN, yesAsk('k1', 'Newer row')],
-        [T0 + 6 * MIN, snooze('k1', WAKES)],
+        [T0 + 6 * MIN, snoozeSession(WAKES)],
       ],
     }),
     sessionOf({
       meta: { id: 'sr-cccccc' },
       lines: [
         [T0 + 9 * MIN, yesAsk('k1', 'Soonest')],
-        [T0 + 9 * MIN, snooze('k1', NOW + MIN)],
+        [T0 + 9 * MIN, snoozeSession(NOW + MIN)],
       ],
     }),
     sessionOf({
       meta: { id: 'sr-dddddd' },
       lines: [...SNOOZED_REVIEW, [T0 + 2 * MIN, finish('lee')]],
     }),
+    sessionOf({
+      meta: { id: 'sr-eeeeee' },
+      lines: [[T0 + 21 * MIN, snoozeTurn(T0 + 20 * MIN)]],
+      presence: windowOn(W1, yourTurn(T0 + 20 * MIN)),
+    }),
+    sessionOf({
+      meta: { id: 'sr-ffffff' },
+      lines: [[T0 + 21 * MIN, snoozeSession(WAKES_LATER)]],
+      presence: windowOn(W1, yourTurn(T0 + 20 * MIN)),
+    }),
   ]
   const snoozed = feedAt(NOW, ...sessions).snoozed
 
   expect(
-    snoozed.map(row => [row.session, row.wakesAt, row.lines.map(each => [each.ask, each.wakesAt])]),
+    snoozed.map(row => [row.session, row.wakesAt, row.lines.map(each => each.ask ?? each.is)]),
   ).toEqual([
-    ['sr-cccccc', NOW + MIN, [['k1', NOW + MIN]]],
-    [
-      'sr-bbbbbb',
-      WAKES,
-      [
-        ['k3', WAKES],
-        ['k2', WAKES],
-        ['k1', WAKES_LATER],
-      ],
-    ],
-    ['sr-aaaaaa', WAKES, [['k1', WAKES]]],
+    ['sr-cccccc', NOW + MIN, ['k1']],
+    ['sr-bbbbbb', WAKES, ['k1', 'k3', 'k2']],
+    ['sr-aaaaaa', WAKES, ['k1']],
+    ['sr-ffffff', WAKES_LATER, ['yourTurn']],
+    ['sr-eeeeee', undefined, ['yourTurn']],
   ])
   expect(snoozedRowOf(SWITCHBOARD, sessions[3]!, NOW)).toBeUndefined()
 })
@@ -1509,7 +1606,7 @@ test("a Snoozed line counts from its ask's posting or reopening, as in Needs you
       [T0, yesAsk('k1', 'Review round 1')],
       [T0 + MIN, resolve('k1')],
       [T0 + 5 * MIN, reopen('k1')],
-      [T0 + 6 * MIN, snooze('k1', WAKES)],
+      [T0 + 6 * MIN, snoozeSession(WAKES)],
     ],
   })
 
@@ -1517,10 +1614,9 @@ test("a Snoozed line counts from its ask's posting or reopening, as in Needs you
     T0 + 5 * MIN,
   ])
 })
-
 test('an ask back from its snooze at its time is a line in Needs you again, carrying when it woke; one Lee woke carries none', () => {
   const woke = sessionOf({ lines: SNOOZED_REVIEW }, WAKES)
-  const woken = sessionOf({ lines: [...SNOOZED_REVIEW, [T0 + 2 * MIN, wake('k1')]] })
+  const woken = sessionOf({ lines: [...SNOOZED_REVIEW, [T0 + 2 * MIN, wakeSession()]] })
 
   expect(lines(woke)).toEqual([
     {
@@ -1540,7 +1636,7 @@ test('a line in Snoozed is kept as shown however long it sleeps, its absence nev
   const waiting = feedAt(NOW, sessionOf({ lines: [[T0, yesAsk('k1', 'Review round 1')]] }))
   const asleep = feedAt(NOW, sessionOf({ lines: SNOOZED_REVIEW }))
   const woke = feedAt(WAKES, sessionOf({ lines: SNOOZED_REVIEW }, WAKES))
-  const woken = feedAt(NOW, sessionOf({ lines: [...SNOOZED_REVIEW, [T0 + 2 * MIN, wake('k1')]] }))
+  const woken = feedAt(NOW, sessionOf({ lines: [...SNOOZED_REVIEW, [T0 + 2 * MIN, wakeSession()]] }))
   const shown = newRows(newRows(undefined, waiting, 0).shown, asleep, 0)
   const slept = newRows(shown.shown, asleep, 9 * FORGET_MS).shown
 
@@ -1555,7 +1651,7 @@ test('a line in Snoozed is kept as shown however long it sleeps, its absence nev
   expect(newRows(newRows(slept, woke, 0).shown, woke, 0).news, 'new once').toEqual([])
 })
 
-test('an ask Lee replied to while asleep leaves Snoozed as a line gone; its reply taken back after its snooze ran out, it comes as shown, not new', () => {
+test('an ask Lee replied to while asleep, waking its session, leaves Snoozed as a line gone; back in Needs you as its snooze ran out, it comes as shown, not new', () => {
   const key = `ask:${META.id}:k1`
   const answered = { [CLI]: file([T0 + 2 * MIN, reply('r1', 'k1', 'yes')]) }
   const asleep = feedAt(NOW, sessionOf({ lines: SNOOZED_REVIEW }))
@@ -1572,7 +1668,7 @@ test('an ask Lee replied to while asleep leaves Snoozed as a line gone; its repl
   expect(newRows(gone.shown, takenBack, 2 * MIN).news).toEqual([])
 })
 
-test('a snooze running out changes the board by time alone: its time is among the instants it next changes, but for an ask Lee replied to, or in a finished session', () => {
+test('a snooze running out changes the board by time alone: its time is among the instants it next changes, but once Lee replied to an ask there, waking it, or in a finished session', () => {
   const read = (...sessions: Session[]): ProjectRead[] => [{ project: SWITCHBOARD, sessions }]
 
   expect(nextExpiry(read(sessionOf({ lines: SNOOZED_REVIEW })), NOW)).toBe(WAKES)
@@ -1584,7 +1680,7 @@ test('a snooze running out changes the board by time alone: its time is among th
           meta: { id: 'sr-bbbbbb' },
           lines: [
             [T0, yesAsk('k1', 'Sooner')],
-            [T0, snooze('k1', NOW + MIN)],
+            [T0, snoozeSession(NOW + MIN)],
           ],
         }),
       ),
@@ -1638,12 +1734,7 @@ test("a session's part of the board next changes by time alone at the first of i
   )
 })
 
-test("a session's fold next changes by time alone as its board does, and as any snooze standing on its asks runs out: over an ask Lee's reply is on its way to, or in a finished session", () => {
-  const replied = (now: number) =>
-    sessionOf(
-      { lines: SNOOZED_REVIEW, inbox: { [CLI]: file([T0 + 2 * MIN, reply('r1', 'k1', 'yes')]) } },
-      now,
-    )
+test("a session's fold next changes by time alone as its board does, and as Lee's snooze standing on its asks runs out, as in a finished session, whose board leaves it out", () => {
   const finished = (now: number) =>
     sessionOf({ lines: [...SNOOZED_REVIEW, [T0 + 2 * MIN, finish('lee')]] }, now)
   const stale = sessionOf({
@@ -1651,77 +1742,45 @@ test("a session's fold next changes by time alone as its board does, and as any 
     presence: windowOn(W1, yourTurn(T0), { seenAt: NOW - MIN }),
   })
 
-  for (const [fold, why] of [
-    [replied, "Lee's reply on its way"],
-    [finished, 'finished'],
-  ] as const) {
-    expect(nextBoardChange(fold(NOW), NOW), why).toBeUndefined()
-    expect(nextFoldChange(fold(NOW), NOW), why).toBe(WAKES)
-    expect(fold(WAKES - 1), `${why}: folded the same until then`).toEqual(fold(NOW))
-    expect(fold(WAKES), `${why}: folded otherwise then`).not.toEqual(fold(NOW))
-  }
-
+  expect(nextBoardChange(finished(NOW), NOW)).toBeUndefined()
+  expect(nextFoldChange(finished(NOW), NOW)).toBe(WAKES)
+  expect(finished(WAKES - 1), 'folded the same until then').toEqual(finished(NOW))
+  expect(finished(WAKES), 'folded otherwise then').not.toEqual(finished(NOW))
   expect(nextFoldChange(stale, NOW), 'its board changing first').toBe(NOW - MIN + STALE_MS + 1)
   expect(nextFoldChange(sessionOf({ lines: [[T0, yesAsk('k1', 'Keep me')]] }), NOW)).toBeUndefined()
 })
-
-/** The turn under test: W1's, ended at TURN, what Claude left Lee on the board. */
-const TURN = T0 + 10 * MIN
-const LEFT: Line = [T0, status(['Pick the palette'])]
-
-/** W1 on its turn, ended at `since`, its heartbeat seen at `seenAt`. */
-const onTurn = (since = TURN, seenAt = NOW) => windowOn(W1, yourTurn(since), { seenAt })
 
 /** The session at `now`, Claude's board as LEFT says it, then Lee's lines, held as `presence` says. */
 const turnAt = (now: number, snoozes: Line[], presence = onTurn(TURN, now)) =>
   sessionOf({ lines: [LEFT, ...snoozes], presence }, now)
 
+test("an old line's snooze of an ask is read as Lee's snooze of the session: its turn put off with its asks, in one row", () => {
+  const session = sessionOf({
+    lines: [LEFT, [T0, yesAsk('k1', 'Review round 1')], [T0 + MIN, snooze('k1', WAKES)]],
+    presence: onTurn(),
+  })
+
+  expect(placed(feedAt(NOW, session))).toEqual({ rows: [], snoozed: [K1, TURN_KEY] })
+  expect(
+    placed(
+      feedAt(
+        NOW,
+        turnAt(NOW, [
+          [T0, yesAsk('k1', 'Review')],
+          [T0 + MIN, snooze('k1', WAKES)],
+          [T0 + 2 * MIN, wake('k1')],
+        ]),
+      ),
+    ),
+  ).toEqual({ rows: [K1], snoozed: [] })
+})
+
 const SNOOZED_TURN: Line[] = [[TURN + MIN, snoozeTurn(TURN, WAKES)]]
 
-/** The keys of a feed's rows' lines, and of its Snoozed rows'. */
-const placed = (feed: Feed) => ({
-  rows: feed.rows.flatMap(row => row.lines.map(each => each.key)),
-  snoozed: feed.snoozed.flatMap(row => row.lines.map(each => each.key)),
-})
-
-const TURN_KEY = `turn:${META.id}`
-
-test("a turn Lee snoozed leaves Your turn for a row of its own in Snoozed: its line keyed as in Your turn, saying what Claude left Lee since the turn's end, and when it wakes; the session stands at your turn still", () => {
-  const session = turnAt(NOW, SNOOZED_TURN)
-  const feed = feedAt(NOW, session)
-
-  expect([rowFor(session), feed.rows, feed.head]).toEqual([
-    undefined,
-    [],
-    { needYou: 0, sessions: 0 },
-  ])
-  expect(feed.snoozed).toEqual([
-    {
-      session: META.id,
-      isAway: false,
-      project: SWITCHBOARD.key,
-      name: META.name,
-      projectName: 'Switchboard',
-      letters: 'Sw',
-      lines: [
-        {
-          key: TURN_KEY,
-          is: 'yourTurn',
-          first: { lead: 'Pick the palette' },
-          since: TURN,
-          wakesAt: WAKES,
-        },
-      ],
-      second: 'Switchboard · Dashboard redesign',
-      wakesAt: WAKES,
-    },
-  ])
-  expect(sessionState(session, NOW)).toBe('yourTurn')
-  expect(snoozedTurnOf(session, NOW)).toEqual({ turn: TURN, until: WAKES, at: TURN + MIN })
-})
-
-test("a turn's snooze ends at its time, the turn back in Your turn; until then its time is among the instants the board next changes by", () => {
+test("an old line's snooze of a turn holds as it always did: until its time, or with none until the session takes another turn, which comes back unsnoozed", () => {
   const before = WAKES - 30_000
+  const untilItMoves: Line[] = [[TURN + MIN, snoozeTurn(TURN)]]
+  const later = NOW + 30 * 24 * 60 * MIN
 
   expect(placed(feedAt(before, turnAt(before, SNOOZED_TURN)))).toEqual({
     rows: [],
@@ -1732,176 +1791,75 @@ test("a turn's snooze ends at its time, the turn back in Your turn; until then i
     rows: [TURN_KEY],
     snoozed: [],
   })
-  expect(rowFor(turnAt(WAKES, SNOOZED_TURN), SWITCHBOARD, WAKES)?.since).toBe(TURN)
-})
-
-test('a turn snoozed until it moves has no time: its line and row wake at none, and the clock alone never ends it', () => {
-  const later = NOW + 30 * 24 * 60 * MIN
-  const session = turnAt(later, [[TURN + MIN, snoozeTurn(TURN)]])
-  const [row] = feedAt(later, session).snoozed
+  const [row] = feedAt(later, turnAt(later, untilItMoves)).snoozed
 
   expect(row?.lines.map(each => each.key)).toEqual([TURN_KEY])
   expect(row).not.toHaveProperty('wakesAt')
   expect(row?.lines[0]).not.toHaveProperty('wakesAt')
-  expect(nextBoardChange(session, later)).toBe(later + STALE_MS + 1)
-})
-
-test('another turn ends it, whoever starts it, Lee or the work Claude left: working, the session is in Working, and the next turn ends back in Your turn unsnoozed, at its top', () => {
-  const snoozes: Line[] = [[TURN + MIN, snoozeTurn(TURN)]]
-  const next = T0 + 50 * MIN
-  const other = sessionOf({
-    meta: { id: 'sr-bbbbbb' },
-    presence: windowOn(W2, yourTurn(T0 + 40 * MIN)),
-  })
-  const busy = turnAt(NOW, snoozes, windowOn(W1, working(T0 + 30 * MIN)))
-  const ended = turnAt(NOW, snoozes, onTurn(next))
-
-  expect(placed(feedAt(NOW, busy))).toEqual({ rows: [TURN_KEY], snoozed: [] })
-  expect(rowFor(busy)?.section).toBe('working')
-  expect(feedAt(NOW, ended, other).rows.map(row => [row.session, row.section, row.since])).toEqual([
-    [META.id, 'yourTurn', next],
-    ['sr-bbbbbb', 'yourTurn', T0 + 40 * MIN],
-  ])
-  expect(feedAt(NOW, ended).snoozed).toEqual([])
-})
-
-test("Lee's wake ends it, back in Your turn; one naming another turn does nothing; a snooze again stands in place of the last", () => {
-  const then = (line: Line) => turnAt(NOW, [...SNOOZED_TURN, line])
-
-  expect(placed(feedAt(NOW, then([TURN + 2 * MIN, wakeTurn(TURN)])))).toEqual({
+  expect(
+    placed(feedAt(NOW, turnAt(NOW, untilItMoves, onTurn(T0 + 50 * MIN)))),
+    'another turn ended',
+  ).toEqual({
     rows: [TURN_KEY],
     snoozed: [],
   })
-  expect(placed(feedAt(NOW, then([TURN + 2 * MIN, wakeTurn(TURN - MIN)])))).toEqual({
+  expect(
+    placed(
+      feedAt(
+        NOW,
+        turnAt(NOW, untilItMoves, { ...onTurn(TURN), ...windowOn(W2, yourTurn(TURN + 7 * MIN)) }),
+      ),
+    ),
+    'a window joining on a turn ended later',
+  ).toEqual({ rows: [TURN_KEY], snoozed: [] })
+})
+
+test("an old line's snooze of a turn ends at Lee's wake of it, or of the session, at a new ask or his reply; Lee's snooze of the session stands in its place", () => {
+  const then = (...lines: Line[]) => placed(feedAt(NOW, turnAt(NOW, [...SNOOZED_TURN, ...lines])))
+  const back = { rows: [TURN_KEY], snoozed: [] }
+  const shipIt: Line = [TURN + 2 * MIN, yesAsk('k2', 'Ship it')]
+
+  expect(then([TURN + 2 * MIN, wakeTurn(TURN)])).toEqual(back)
+  expect(then([TURN + 2 * MIN, wakeTurn(TURN - MIN)]), 'naming another turn').toEqual({
     rows: [],
     snoozed: [TURN_KEY],
   })
-  expect(snoozedTurnOf(then([TURN + 2 * MIN, snoozeTurn(TURN)]), NOW)).toEqual({
-    turn: TURN,
-    at: TURN + 2 * MIN,
-  })
-})
-
-test("an ask from the session goes to Needs you whatever the turn's snooze: one posted, or one Lee snoozed waking at its time", () => {
-  const posted = turnAt(NOW, [...SNOOZED_TURN, [TURN + 2 * MIN, yesAsk('k1', 'Review round 1')]])
-  const asleep: Line[] = [
-    [T0, yesAsk('k1', 'Review round 1')],
-    [T0 + MIN, snooze('k1', NOW + MIN)],
-    [TURN + MIN, snoozeTurn(TURN)],
-  ]
-  const k1 = `ask:${META.id}:k1`
-
-  expect(placed(feedAt(NOW, posted))).toEqual({ rows: [k1], snoozed: [] })
-  expect(placed(feedAt(NOW, turnAt(NOW, asleep)))).toEqual({ rows: [], snoozed: [k1, TURN_KEY] })
-  expect(placed(feedAt(NOW + MIN, turnAt(NOW + MIN, asleep)))).toEqual({
-    rows: [k1],
-    snoozed: [],
-  })
-})
-
-test("a turn across several windows is the session's: the one whose turn ended last, the snooze holding while no turn ends later than the one it names", () => {
-  const both = (turn: number) =>
-    turnAt(NOW, [[TURN + 6 * MIN, snoozeTurn(turn)]], {
-      ...onTurn(TURN),
-      ...windowOn(W2, yourTurn(TURN + 5 * MIN)),
-    })
-
-  expect(placed(feedAt(NOW, both(TURN + 5 * MIN)))).toEqual({ rows: [], snoozed: [TURN_KEY] })
-  expect(placed(feedAt(NOW, both(TURN)))).toEqual({ rows: [TURN_KEY], snoozed: [] })
-})
-
-test("a window letting go leaves a turn's snooze holding, its turn ending earlier; one joining on a turn ended later ends it, one ended earlier does not, and one joining working puts the session in Working", () => {
-  const snoozed = (end: number, presence: SessionFiles['presence']) =>
-    placed(feedAt(NOW, turnAt(NOW, [[TURN + 6 * MIN, snoozeTurn(end)]], presence)))
-  const joined = (state: WindowState) => ({ ...onTurn(TURN), ...windowOn(W2, state) })
-  const asleep = { rows: [], snoozed: [TURN_KEY] }
-  const back = { rows: [TURN_KEY], snoozed: [] }
-
-  expect(snoozed(TURN + 5 * MIN, onTurn(TURN)), 'W2 gone, whose turn it named').toEqual(asleep)
-  expect(snoozed(TURN, joined(yourTurn(TURN + 7 * MIN)))).toEqual(back)
-  expect(snoozed(TURN, joined(yourTurn(TURN - 5 * MIN)))).toEqual(asleep)
-  expect(snoozed(TURN, joined(working(TURN + 7 * MIN)))).toEqual(back)
-})
-
-test("anything needing Lee in the session since ends a turn's snooze for good, or Lee replying there: back at its turn on the same end, the turn stays in Your turn", () => {
-  const woke = TURN + 5 * MIN
-  const asleep: Line[] = [
-    [T0 + 2 * MIN, yesAsk('k1', 'Review round 1')],
-    [TURN + MIN, snooze('k1', woke)],
-    [TURN + 2 * MIN, snoozeTurn(TURN)],
-  ]
-  const at = (lines: Line[], inbox: SessionFiles['inbox'] = {}) =>
-    sessionOf({ lines: [LEFT, ...asleep, ...lines], inbox, presence: onTurn(TURN) })
-  const answered = at([], { [CLI]: file([woke + MIN, reply('r1', 'k1', 'yes')]) })
-  const back = { rows: [TURN_KEY], snoozed: [] }
-  const k1 = `ask:${META.id}:k1`
-  const shipIt = yesAsk('k2', 'Ship it')
-  const k2: Line = [T0 + 2 * MIN, shipIt]
-  const resolved: Line = [TURN + 3 * MIN, resolve('k2')]
-  const around = (before: Line[], after: Line[]) =>
-    placed(feedAt(NOW, turnAt(NOW, [...before, ...SNOOZED_TURN, ...after])))
-  const replied = sessionOf({
-    lines: [LEFT, k2, [T0 + 3 * MIN, snooze('k2', WAKES)], ...SNOOZED_TURN],
-    inbox: { [CLI]: file([TURN + 2 * MIN, reply('r2', 'k2', 'yes')]) },
-    presence: onTurn(TURN),
-  })
-
-  expect(placed(feedAt(NOW, at([]))), 'k1 woken at its time').toEqual({ rows: [k1], snoozed: [] })
-  expect(at([]).turnSnooze).toBeUndefined()
-  expect(placed(feedAt(NOW, answered)), 'then answered').toEqual(back)
-  expect(placed(feedAt(NOW, at([[woke + MIN, resolve('k1')]]))), 'then resolved').toEqual(back)
-  expect(around([], [[TURN + 2 * MIN, shipIt], resolved]), 'an ask posted').toEqual(back)
+  expect(then([TURN + 2 * MIN, wakeSession()])).toEqual(back)
+  expect(then(shipIt, [TURN + 3 * MIN, resolve('k2')]), 'an ask posted, then resolved').toEqual(
+    back,
+  )
   expect(
-    around([k2, [T0 + 3 * MIN, resolve('k2')]], [[TURN + 2 * MIN, reopen('k2')], resolved]),
-    'an ask reopened',
-  ).toEqual(back)
+    turnAt(NOW, [...SNOOZED_TURN, [TURN + 2 * MIN, snoozeSession(WAKES_LATER)]]).turnSnooze,
+  ).toBeUndefined()
   expect(
-    around([k2, [T0 + 3 * MIN, snooze('k2', WAKES)]], [[TURN + 2 * MIN, wake('k2')], resolved]),
-    'an ask Lee woke',
-  ).toEqual(back)
-  expect(placed(feedAt(NOW, replied)), 'Lee replying to an ask asleep').toEqual(back)
-  expect(around([k2, [T0 + 3 * MIN, resolve('k2')]], []), 'what came before ends nothing').toEqual({
-    rows: [],
-    snoozed: [TURN_KEY],
-  })
+    snoozedTurnOf(
+      turnAt(NOW, [...SNOOZED_TURN, [TURN + 2 * MIN, snoozeSession(WAKES_LATER)]]),
+      NOW,
+    ),
+  ).toEqual({ wakesAt: WAKES_LATER, end: TURN })
 })
 
-test("Snoozed's rows go soonest to wake first, turns snoozed until they move last, then the oldest; a session's asks and its turn are two rows", () => {
-  const turnFor = (id: string, end: number, until?: number) =>
-    sessionOf({
-      meta: { id },
-      lines: [[end + MIN, snoozeTurn(end, until)]],
-      presence: windowOn(W1, yourTurn(end)),
-    })
-  const both = sessionOf({
-    meta: { id: 'sr-eeeeee' },
-    lines: [...SNOOZED_REVIEW, [T0 + 30 * MIN, snoozeTurn(T0 + 30 * MIN)]],
-    presence: windowOn(W1, yourTurn(T0 + 30 * MIN)),
-  })
-  const snoozed = feedAt(
-    NOW,
-    turnFor('sr-aaaaaa', T0 + 20 * MIN),
-    sessionOf({ meta: { id: 'sr-bbbbbb' }, lines: SNOOZED_REVIEW }),
-    turnFor('sr-cccccc', T0 + 25 * MIN, WAKES_LATER),
-    turnFor('sr-dddddd', T0 + 5 * MIN),
-    both,
-  ).snoozed
+test('a snooze of the session and an old one of its turn both holding, the turn wakes as the later does, none for one until it moves', () => {
+  const both = (turn: Line) =>
+    snoozedTurnOf(turnAt(NOW, [[T0 + MIN, snoozeSession(WAKES)], turn]), NOW)
 
-  expect(snoozed.map(row => [row.session, row.lines[0]?.is, row.wakesAt])).toEqual([
-    ['sr-bbbbbb', 'ask', WAKES],
-    ['sr-eeeeee', 'ask', WAKES],
-    ['sr-cccccc', 'yourTurn', WAKES_LATER],
-    ['sr-dddddd', 'yourTurn', undefined],
-    ['sr-aaaaaa', 'yourTurn', undefined],
-    ['sr-eeeeee', 'yourTurn', undefined],
-  ])
+  expect(both([TURN + MIN, snoozeTurn(TURN, WAKES_LATER)])).toEqual({
+    wakesAt: WAKES_LATER,
+    end: TURN,
+  })
+  expect(both([TURN + MIN, snoozeTurn(TURN, NOW + MIN)])).toEqual({ wakesAt: WAKES, end: TURN })
+  expect(both([TURN + MIN, snoozeTurn(TURN)])).toEqual({ end: TURN })
 })
 
-test("a turn's snooze is never told to Claude: its board text, its summary as Claude is told it and when it was last updated stand as with none, snoozed or woken", () => {
+test("Lee's snooze of a session at its turn alone is never told to Claude: its board text, its summary as Claude is told it and when it was last updated stand as with none, snoozed or woken", () => {
   const plain = turnAt(NOW, [])
-  const woken: Line[] = [...SNOOZED_TURN, [TURN + 2 * MIN, wakeTurn(TURN)]]
+  const snoozed: Line[] = [[TURN + MIN, snoozeSession(WAKES)]]
 
-  for (const session of [turnAt(NOW, SNOOZED_TURN), turnAt(NOW, woken)]) {
+  for (const session of [
+    turnAt(NOW, snoozed),
+    turnAt(NOW, [...snoozed, [TURN + 2 * MIN, wakeSession()]]),
+    turnAt(NOW, SNOOZED_TURN),
+  ]) {
     expect(boardText(session)).toBe(boardText(plain))
     expect(toldSummary(session)).toEqual(toldSummary(plain))
     expect(session.updatedAt).toBe(plain.updatedAt)
@@ -1909,8 +1867,9 @@ test("a turn's snooze is never told to Claude: its board text, its summary as Cl
 })
 
 test('a turn in Snoozed is never a line needing Lee: never kept asleep among those shown, and never new as it comes back', () => {
-  const asleep = feedAt(NOW, turnAt(NOW, SNOOZED_TURN))
-  const back = feedAt(WAKES, turnAt(WAKES, SNOOZED_TURN))
+  const snoozed: Line[] = [[TURN + MIN, snoozeSession(WAKES)]]
+  const asleep = feedAt(NOW, turnAt(NOW, snoozed))
+  const back = feedAt(WAKES, turnAt(WAKES, snoozed))
   const shown = newRows(newRows(undefined, asleep, 0).shown, asleep, MIN)
 
   expect([shown.news, [...shown.shown]]).toEqual([[], []])

@@ -4,8 +4,8 @@
  * in DESIGN.md), and what decides when it does.
  *
  * - The rows, a session each, in the panel's order, and the head (rows.ts);
- *   and, apart from them, the Snoozed rows, a session's asks and its turn
- *   each a row, soonest to wake first.
+ *   and, apart from them, the Snoozed rows, a session each, its asks and its
+ *   turn that Lee put off, soonest to wake first.
  * - Each project with a current session or something parked, counting
  *   what is parked in it from every session filed under it, and its current
  *   sessions, away ones among them and never a finished one, each with its
@@ -38,7 +38,7 @@ import {
   oldestOf,
   rowOf,
   sessionState,
-  snoozedRowsOf,
+  snoozedRowOf,
   snoozedTurnOf,
   type Doing,
   type Head,
@@ -207,7 +207,7 @@ export const feedOf = (read: readonly ProjectRead[], now: number, own?: string):
     rows,
     snoozed: inSnoozedOrder(
       read.flatMap(({ project, sessions }) =>
-        sessions.flatMap(session => snoozedRowsOf(project, session, now)),
+        sessions.flatMap(session => snoozedRowOf(project, session, now) ?? []),
       ),
     ),
     projects: read
@@ -291,8 +291,8 @@ const earliestAfter = (instants: readonly (number | undefined)[], now: number) =
 
 /**
  * When a session's part of the board next changes by time alone, after
- * `now`: the earliest one of its live heartbeats goes stale, a snooze of an
- * ask snoozed or of its turn runs out, or it drops out of the views, idle.
+ * `now`: the earliest one of its live heartbeats goes stale, Lee's snooze
+ * of its asks or its turn runs out, or it drops out of the views, idle.
  * None changes a file. A heartbeat goes stale as the session was folded: aged only while
  * its reader ran (pauses.ts); a snooze runs out on the wall clock.
  * Undefined while none will.
@@ -302,7 +302,7 @@ export const nextBoardChange = (session: Session, now: number) =>
     [
       ...session.presence.filter(each => isLive(each, now)).map(each => each.seenAt + STALE_MS + 1),
       ...snoozedAsks(session).map(ask => ask.snoozedUntil),
-      snoozedTurnOf(session, now)?.until,
+      snoozedTurnOf(session, now)?.wakesAt,
       isAging(session) ? session.updatedAt + CURRENT_MS + 1 : undefined,
     ],
     now,
@@ -310,8 +310,8 @@ export const nextBoardChange = (session: Session, now: number) =>
 
 /**
  * When a session folded at `now` is next to be folded again, no file
- * changed: as its part of the board changes, and as any snooze standing on
- * its asks runs out. That counts the snoozes the board leaves out: over an
+ * changed: as its part of the board changes, and as Lee's snooze standing
+ * on its asks runs out. That counts the snoozes the board leaves out: over an
  * ask Lee's reply is on its way to, or in a finished session, an ask still
  * goes from `snoozedUntil` to `wokeAt`. Undefined while none will.
  */

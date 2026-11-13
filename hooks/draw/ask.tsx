@@ -10,8 +10,10 @@
  * names the session it goes to.
  *
  * An ask waiting on Lee offers `snooze` among its buttons, which asks in
- * place until when. One snoozed comes after those waiting, quieted, and
- * hangs when it wakes, with `wake now`; opened, it answers as any does.
+ * place until when, and snoozes its session: every ask of it, and Lee's
+ * turn there. One snoozed comes after those waiting, quieted, and hangs
+ * when it wakes, with `wake now`, which wakes its session; opened, it
+ * answers as any does.
  */
 import {
   isAnswer,
@@ -55,7 +57,7 @@ const RESOLVED = { glyph: GLYPH.done, color: C.ok }
 const SNOOZED = { glyph: GLYPH.ask, color: C.grey }
 
 /** What snoozing an ask asks in place. */
-const SNOOZE_QUESTION = 'Snooze it? It stops counting until it wakes.'
+const SNOOZE_QUESTION = 'Snooze this session? Its asks, and your turn there, stop counting until it wakes.'
 
 /** Snooze's choices, each with its press's words. */
 const SNOOZE_CHOICES: readonly (readonly [SnoozeChoice, string])[] = [
@@ -121,9 +123,10 @@ const buttonsFor = (d: Drawing, at: SitrepItemRef, ask: Ask, verdict: Verdict) =
  * Where an ask stands as drawn: the reply it waits to send, or the one on
  * its way, whether Lee is answering it in the prompt, when it wakes while
  * snoozed, whether it can be snoozed, waiting on Lee in a session not
- * finished and not snoozed, and whether it is asking when to, opened still.
+ * finished and not snoozed, whether it is asking when to, opened still,
+ * and the asks of its session drawn waiting, which its snooze names.
  */
-const standingOf = (d: Drawing, asked: AskedAt) => {
+const standingOf = (d: Drawing, asked: AskedAt, waiting: readonly string[]) => {
   const { ask, snoozedUntil, isFinished } = asked
   const at = refOf(asked)
   const key = itemKey(at.session, ask.id)
@@ -142,6 +145,7 @@ const standingOf = (d: Drawing, asked: AskedAt) => {
     snoozedUntil,
     canSnooze: !isFinished && snoozedUntil === undefined && waitsOnLee(ask),
     isChoosing,
+    waiting,
     isOpen: (selected === key && !isClosed) || isChoosing,
   }
 }
@@ -230,7 +234,7 @@ const drawAnswers = (d: Drawing, ask: Ask, standing: Standing) => {
 }
 
 /** Snooze's question, in place of the ask's buttons: until when, each time worked out as it is pressed, or cancel, back to the buttons. */
-const drawSnoozing = (d: Drawing, { at, key }: Standing) => {
+const drawSnoozing = (d: Drawing, { at, key, waiting }: Standing) => {
   const { Box, Text, Button } = d.els
 
   return (
@@ -241,7 +245,7 @@ const drawSnoozing = (d: Drawing, { at, key }: Standing) => {
           <Button
             key={`snooze-${when}:${key}`}
             label={label}
-            onPress={() => d.act.snooze(at, when)}
+            onPress={() => d.act.snooze(at, waiting, when)}
           />
         ))}
         <Button
@@ -278,9 +282,15 @@ const markOf = (d: Drawing, ask: Ask, { isClosed, snoozedUntil }: Standing) => {
 }
 
 /** An ask's row, its title after its session's name where the list names them, quieted while snoozed. Its buttons stand while nothing waits on it but a comment on its way, which bars no answer. */
-const drawAsk = (d: Drawing, asked: AskedAt, isLast: boolean, isNamed: boolean) => {
+const drawAsk = (
+  d: Drawing,
+  asked: AskedAt,
+  waiting: readonly string[],
+  isLast: boolean,
+  isNamed: boolean,
+) => {
   const { ask, name } = asked
-  const standing = standingOf(d, asked)
+  const standing = standingOf(d, asked, waiting)
   const { key, queued, isAnswering, isClosed, isOpen, isChoosing, snoozedUntil } = standing
   const mark = markOf(d, ask, standing)
   // `select` toggles the key it is given, so the title gives the one the pane holds: one press closes the ask from Snooze's question too.
@@ -325,6 +335,14 @@ const noteOf = (d: Drawing, listing: AsksListed) => {
   return { note: countsOf(listing), color: C.grey }
 }
 
+/** The asks listed of a session that wait on Lee, not snoozed, by their ids: those a snooze from any of them names. */
+const waitingIn = (asked: readonly AskedAt[], session: string) =>
+  asked
+    .filter(
+      each => each.at.session === session && each.snoozedUntil === undefined && waitsOnLee(each.ask),
+    )
+    .map(each => each.ask.id)
+
 /** Asks' heading, then each ask, keyed by its address, since a project's view lists every session's. */
 export const drawAsks = (d: Drawing, asked: readonly AskedAt[], listing: AsksListed): Block[] => {
   const { Box } = d.els
@@ -342,7 +360,13 @@ export const drawAsks = (d: Drawing, asked: readonly AskedAt[], listing: AsksLis
     },
     ...asked.map((each, i) => ({
       key: `ask:${itemKey(each.at.session, each.ask.id)}`,
-      element: drawAsk(d, each, i === asked.length - 1, listing.isNamed),
+      element: drawAsk(
+        d,
+        each,
+        waitingIn(asked, each.at.session),
+        i === asked.length - 1,
+        listing.isNamed,
+      ),
     })),
   ]
 }

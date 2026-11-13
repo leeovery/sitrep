@@ -16,10 +16,8 @@ import {
   checkNote,
   checkPark,
   checkSnooze,
-  checkSnoozeTurn,
   checkStatus,
   checkWake,
-  checkWakeTurn,
   WANTS,
   withId,
   withParkId,
@@ -116,34 +114,16 @@ const posted = <B extends Body>(
 
 const idOf = (body: { id: string }) => body.id
 
-/** Lines that print nothing, as they come out. */
-const quietly = (checked: Checked<Body[]>): Checked<Outcome> =>
-  checked.ok ? { ok: true, value: { post: checked.value, print: '' } } : checked
+/** A line that prints nothing, as it comes out. */
+const quietly = (checked: Checked<Body>): Checked<Outcome> => posted(checked, () => '')
 
-/** The asks a snooze or a wake names, or in their place the session's turn. */
-const ASKS_OR_TURN: Arg = {
+/** The asks a snooze names: those its row shows. */
+const ASKS_SHOWN: Arg = {
   field: 'ask',
-  about: "each ask's id, as the board lists it",
-  or: 'turn',
+  about:
+    "each ask the session's row shows, by its id, as the board lists it: an ask waiting on Lee left out refuses the snooze, so none is snoozed unseen; none for a row of its turn alone",
   isMany: true,
 }
-
-/** In place of asks, the session's turn, which a snooze or a wake names by its end. */
-const TURN: Record<string, Flag> = {
-  turn: {
-    field: 'turn',
-    form: 'one',
-    value: '<ms>',
-    about: "in place of asks, the session's turn, by its end in milliseconds since the epoch, as watch gives its row's since",
-  },
-}
-
-/** Whether the words name the session's turn, not asks. */
-const isTurn = (input: Fields) => input.turn !== undefined
-
-/** The one line a check came to, as a command's lines come out. */
-const alone = <B extends Body>(checked: Checked<B>): Checked<Body[]> =>
-  checked.ok ? { ok: true, value: [checked.value] } : checked
 
 const note: SessionCommand = {
   name: 'note',
@@ -284,38 +264,31 @@ const answer: SessionCommand = {
 const snooze: SessionCommand = {
   name: 'snooze',
   about:
-    "Snooze asks until a time, as Lee does on the board: they count nowhere as waiting on Lee until it comes, then wait on Lee again. A line for each in the CLI's own file, none in the inbox; every ask named is snoozed, or none is. One snoozed already is snoozed again, to the new time. With --turn, the session's turn waiting on Lee's message, in place of asks: it leaves Your turn for Snoozed until the time, or with none until the session takes another turn, and Claude is never told. Prints nothing.",
+    "Snooze a session until a time, as Lee does from its row: everything it needs of Lee, its asks and its turn, counts nowhere until it comes, or until a new ask, Lee's reply to one, or his own prompt in its window wakes it. Its turn ending alone does not. One line in the CLI's own file, none in the inbox. Snoozed already, it is snoozed again, to the new time. Prints nothing.",
   grammar: {
-    args: [ASKS_OR_TURN],
+    args: [ASKS_SHOWN],
     flags: {
       until: {
         field: 'until',
         form: 'one',
         value: '<ms>',
-        about:
-          'when they wake, in milliseconds since the epoch: a time still to come; asks need one, and a turn with none waits until it moves',
+        about: 'when it wakes, in milliseconds since the epoch: a time still to come',
+        isNeeded: true,
       },
-      ...TURN,
       ...SESSION,
     },
   },
   on: 'session',
-  act: ({ session }, input, { now }) =>
-    quietly(
-      isTurn(input)
-        ? alone(checkSnoozeTurn(session, input, now))
-        : checkSnooze(session, input, now),
-    ),
+  act: ({ session }, input, { now }) => quietly(checkSnooze(session, input, now)),
 }
 
 const wake: SessionCommand = {
   name: 'wake',
   about:
-    "Wake snoozed asks now, as Lee does on the board: they wait on Lee again. A line for each in the CLI's own file; every ask named is woken, or none is. With --turn, the session's turn Lee snoozed, in place of asks: it is back in Your turn. Prints nothing.",
-  grammar: { args: [ASKS_OR_TURN], flags: { ...TURN, ...SESSION } },
+    "Wake a snoozed session now, as Lee does from its row: everything it needs of Lee counts again. One line in the CLI's own file. Prints nothing.",
+  grammar: { args: [], flags: { ...SESSION } },
   on: 'session',
-  act: ({ session }, input) =>
-    quietly(isTurn(input) ? alone(checkWakeTurn(session, input)) : checkWake(session, input)),
+  act: ({ session }) => quietly(checkWake(session)),
 }
 
 const finish: SessionCommand = {

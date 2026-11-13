@@ -10,6 +10,7 @@ import {
   toldSummary,
 } from '../core'
 import {
+  beat,
   choiceAsk,
   delivered,
   file,
@@ -22,7 +23,7 @@ import {
   resolve,
   SENDER,
   seen,
-  snooze,
+  snoozeSession,
   status,
   T0,
   W1,
@@ -245,26 +246,30 @@ test('a conversation starts knowing how to keep the board and talk to Lee beside
   )
 })
 
-/** Monday 26 October 2026, 09:00, local time: when the snoozes under test wake. */
+/** Monday 26 October 2026, 09:00, local time: when the snooze under test wakes. */
 const MONDAY = new Date(2026, 9, 26, 9).getTime()
 
-/** Four asks, three of them snoozed until Monday, and the fourth waiting. */
+/** Four asks, the session snoozed until Monday. */
 const SNOOZING: Line[] = [
   [T0, yesAsk('k1', 'Give the go for stage 3', 'Go')],
   [T0, yesAsk('k2', 'Review the plan')],
   [T0, choiceAsk('k3', 'Keep it, or drop it?', ['Keep it', 'Drop it'])],
   [T0, yesAsk('k4', 'Tag the release', 'Done')],
-  [T0 + MIN, snooze('k1', MONDAY)],
-  [T0 + MIN, snooze('k3', MONDAY)],
-  [T0 + MIN, snooze('k4', MONDAY)],
+  [T0 + MIN, snoozeSession(MONDAY)],
 ]
 
-/** The asks at `now`, Lee's answer to the last snoozed on its way. */
+/** The asks at `now`, Lee's answer to the last on its way in a window's message. */
 const snoozedAt = (now: number, ...more: Line[]) =>
   fold(
     {
       logs: { [W1]: file(...SNOOZING, ...more) },
-      inbox: { [SENDER]: file([T0 + 2 * MIN, reply('r1', 'k4', 'yes')]) },
+      presence: {
+        [W2]: beat(W2, {
+          attachedAt: T0,
+          seenAt: now,
+          sending: [{ at: T0 + 2 * MIN, replies: [{ id: 'r1', item: 'k4', verdict: 'yes' }] }],
+        }),
+      },
     },
     now,
   )
@@ -276,7 +281,7 @@ test("a snoozed ask reads as snoozed by Lee until its time, whole and local, in 
     [
       'Open asks:',
       '- k1 wants a yes (Go), snoozed by Lee until Mon 26 Oct 09:00 (leave it until then): Give the go for stage 3',
-      '- k2 wants a yes (Approve), waiting on Lee: Review the plan',
+      '- k2 wants a yes (Approve), snoozed by Lee until Mon 26 Oct 09:00 (leave it until then): Review the plan',
       '- k3 wants a choice, snoozed by Lee until Mon 26 Oct 09:00 (leave it until then): Keep it, or drop it?; options: Keep it | Drop it',
       '- k4 wants a yes (Done), snoozed by Lee until Mon 26 Oct 09:00 (leave it until then): Tag the release',
       'Parked:',
@@ -288,18 +293,17 @@ test("a snoozed ask reads as snoozed by Lee until its time, whole and local, in 
 test("Claude's listing counts snoozed asks apart from those waiting on Lee, one Lee's answer is on its way to among them, where Lee's counts leave that one out of both", () => {
   const told = toldSummary(SNOOZED)
 
-  expect([told.waiting, told.snoozed]).toEqual([1, 3])
-  expect([summarise(SNOOZED).waiting, summarise(SNOOZED).snoozed]).toEqual([1, 2])
+  expect([told.waiting, told.snoozed]).toEqual([0, 4])
+  expect([summarise(SNOOZED).waiting, summarise(SNOOZED).snoozed]).toEqual([0, 3])
   expect(onBoardText([summariseProject('switchboard', [told])])).toBe(
-    [
-      'On the board:',
-      '- Switchboard: sr-k3f9qa "Dashboard redesign", 1 waiting on Lee, 3 snoozed by Lee',
-    ].join('\n'),
+    'On the board:\n- Switchboard: sr-k3f9qa "Dashboard redesign", 4 snoozed by Lee',
   )
   expect(
-    onBoardText([summariseProject('switchboard', [{ ...told, waiting: 0 }])]),
-    'snoozed alone',
-  ).toBe('On the board:\n- Switchboard: sr-k3f9qa "Dashboard redesign", 3 snoozed by Lee')
+    onBoardText([summariseProject('switchboard', [{ ...told, waiting: 1, snoozed: 3 }])]),
+    'some waiting too',
+  ).toBe(
+    'On the board:\n- Switchboard: sr-k3f9qa "Dashboard redesign", 1 waiting on Lee, 3 snoozed by Lee',
+  )
   expect(
     toldSummary(snoozedAt(NOW, [T0 + 3 * MIN, finish('lee')])),
     'a finished session waits on Lee for nothing',
