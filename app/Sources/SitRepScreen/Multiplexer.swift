@@ -8,7 +8,6 @@ import SitRepCore
 /// A window that records two, one run inside the other, is in the innermost: the one whose own pty is the window's
 /// device, where one can tell; else each that cannot tell, never one that says its pty is another.
 public protocol Multiplexer: Sendable {
-    var kind: MultiplexerKind { get }
     /// Whether a window runs in it, as its heartbeat says.
     func isIn(_ where: Board.Window.Where) -> Bool
     /// Whether it tells its clients by a process's command line, so the table reads that one's.
@@ -16,21 +15,11 @@ public protocol Multiplexer: Sendable {
     /// Reads what it needs for the windows that run in it, each program within its limit; nothing that fails here
     /// fails the read.
     func read(_ windows: [Board.Window.Where]) async -> any Reading
-    /// The facts wanted of those its window records (`MultiplexerKind.facts`), for a window in it: what can change
-    /// under the window asked of the multiplexer now, the rest from the heartbeat. Throws, in plain words (its
-    /// description), where what it was asked gave no answer.
-    func facts(of where: Board.Window.Where, wanted: Set<Fact>) async throws -> [Fact: String]
 }
 
 /// What a multiplexer read of the screen, for the windows in it.
 public protocol Reading: Sendable {
-    var kind: MultiplexerKind { get }
     func isIn(_ where: Board.Window.Where) -> Bool
-    /// Whether it holds a live window's session alive, so a window attaching to it would show it.
-    func holds(_ where: Board.Window.Where) -> Bool
-    /// Whether an away session's last window's session runs still, which no live window proves, the table read beside;
-    /// nil where a command line it tells by did not read, which may have been the session's (`.commandLine`).
-    func isAlive(_ where: Board.Window.Where, _ processes: Processes) -> Bool?
     /// Whether the window's device is this multiplexer's own pty for it, so the innermost of those it runs in; nil
     /// where that cannot be told.
     func isOnItsPty(_ where: Board.Window.Where) -> Bool?
@@ -44,35 +33,6 @@ public protocol Reading: Sendable {
     func needsProcesses(_ where: Board.Window.Where) -> Bool
 }
 
-/// A multiplexer, as a window runs in one.
-public enum MultiplexerKind: String, Sendable, Hashable {
-    case tmux, zmx
-
-    /// The facts a window in it gives: a zmx session's name; a tmux server's socket, a pane's id and the name of the
-    /// tmux session holding the pane.
-    public var facts: [Fact] {
-        switch self {
-        case .zmx: [.session]
-        case .tmux: [.session, .socket, .pane]
-        }
-    }
-}
-
-/// A fact of where a window runs, as its multiplexer gives it: its session's name, its tmux server's socket, its tmux
-/// pane's id.
-public enum Fact: String, Sendable, Hashable, CaseIterable {
-    case session, socket, pane
-
-    /// What it is in words, in a multiplexer: `the zmx session's name`.
-    func words(in kind: MultiplexerKind) -> String {
-        switch self {
-        case .session: "the \(kind.rawValue) session's name"
-        case .socket: "the \(kind.rawValue) socket's path"
-        case .pane: "the \(kind.rawValue) pane's id"
-        }
-    }
-}
-
 /// What gave no answer, so that showing nowhere may mean only not knowing.
 public enum Unanswered: Sendable, Hashable {
     case tmux
@@ -80,9 +40,6 @@ public enum Unanswered: Sendable, Hashable {
     case tmuxSaid(String)
     /// The kernel's process table, which only `sysctl` failing outright leaves unread.
     case processes
-    /// The command line of a process of the multiplexer's, which could not be read: it may be an away session's, so
-    /// whether that session runs cannot be told.
-    case commandLine(MultiplexerKind)
 }
 
 /// A select: the tmux window to make current in a tmux session, by their ids, on the server at the socket.

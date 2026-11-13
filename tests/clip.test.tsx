@@ -180,7 +180,7 @@ const beneath = (on: On) => {
   const moved: UiScrollInput[] = []
 
   on('ui.scroll', ($, e) => (moved.push(e), {}))
-  on('ui.focus', () => ({}))
+  on('ui.focus', { plugin: 'sitrep' }, () => ({}))
 
   return moved
 }

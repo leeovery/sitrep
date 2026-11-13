@@ -83,39 +83,21 @@ public struct Board: Versioned, Sendable, Equatable {
     }
 
     /// The window an away session was last in, by its heartbeat last seen: its writer, the Claude Code session it ran,
-    /// which a `/clear` moves on; where it was, as its heartbeat said, its device among it; whether a click may jump to
-    /// or attach it; whether its device is still its conversation's; and the folder its Claude ran in, none from a
-    /// window on a sitrep from before heartbeats said it. Either flag a line does not give is false.
+    /// which a `/clear` moves on; where it was, as its heartbeat said, its device among it; whether its device is still
+    /// its conversation's, none from a line that does not say; and the folder its Claude ran in, none from a window on a
+    /// sitrep from before heartbeats said it. The live window a click carries a held session on from is one too, its
+    /// device its own.
     public struct LastWindow: Decodable, Sendable, Equatable {
         public let writer: String
         public let `where`: Window.Where?
-        public let attaches: Bool
-        public let ownsDevice: Bool
+        public let ownsDevice: Bool?
         public let directory: String?
 
-        public init(
-            writer: String, where: Window.Where? = nil, attaches: Bool = false, ownsDevice: Bool = false,
-            directory: String? = nil
-        ) {
+        public init(writer: String, where: Window.Where? = nil, ownsDevice: Bool? = nil, directory: String? = nil) {
             self.writer = writer
             self.where = `where`
-            self.attaches = attaches
             self.ownsDevice = ownsDevice
             self.directory = directory
-        }
-
-        public init(from decoder: any Decoder) throws {
-            let given = try decoder.container(keyedBy: CodingKeys.self)
-
-            writer = try given.decode(String.self, forKey: .writer)
-            self.where = try given.decodeIfPresent(Window.Where.self, forKey: .where)
-            attaches = try given.decodeIfPresent(Bool.self, forKey: .attaches) ?? false
-            ownsDevice = try given.decodeIfPresent(Bool.self, forKey: .ownsDevice) ?? false
-            directory = try given.decodeIfPresent(String.self, forKey: .directory)
-        }
-
-        private enum CodingKeys: String, CodingKey {
-            case writer, `where`, attaches, ownsDevice, directory
         }
     }
 
@@ -380,6 +362,9 @@ public struct Board: Versioned, Sendable, Equatable {
         /// Its place in the order a jump tries its session's windows, 0 first, as core ranks them; none for a window
         /// saying no `where`, which no jump tries, and from a CLI from before the watch carried it (9 November 2026).
         public let jumpOrder: Int?
+        /// The folder its Claude runs in, as its heartbeat says it; none from a window on a sitrep from before
+        /// heartbeats said it, and from a CLI from before the watch carried it (13 November 2026).
+        public let directory: String?
 
         public var id: String { writer }
     }
@@ -388,21 +373,37 @@ public struct Board: Versioned, Sendable, Equatable {
     /// `windows`; one with no order is not tried. A line from a watch before the order, whose windows carry none,
     /// gives every one saying where it is, in the line's order.
     public func jumpWindows(of session: String) -> [Window.Where] {
+        inJumpOrder(of: session).compactMap(\.where)
+    }
+
+    /// Whether a live window holds the session.
+    public func isHeld(_ session: String) -> Bool {
+        windows.contains { $0.session == session }
+    }
+
+    /// The window a click carries the session on from where no terminal on this Mac shows it: of its live windows, the
+    /// one a jump tries first, else the first listed, its device its own; with none, the window it was last in, as the
+    /// line names it. Nil where it has neither.
+    public func resumeWindow(of session: String) -> LastWindow? {
+        guard let live = inJumpOrder(of: session).first ?? windows.first(where: { $0.session == session }) else {
+            return lastWindows[session]
+        }
+
+        return LastWindow(writer: live.writer, where: live.where, ownsDevice: true, directory: live.directory)
+    }
+
+    /// The session's windows a jump tries, in its order; from a line before the order, every one saying where it is.
+    private func inJumpOrder(of session: String) -> [Window] {
         let own = windows.filter { $0.session == session }
 
         guard windows.contains(where: { $0.jumpOrder != nil }) else {
-            return own.compactMap(\.where)
+            return own.filter { $0.where != nil }
         }
 
         return own
-            .compactMap { window in window.jumpOrder.map { (order: $0, where: window.where) } }
+            .compactMap { window in window.jumpOrder.map { (order: $0, window: window) } }
             .sorted { $0.order < $1.order }
-            .compactMap(\.where)
-    }
-
-    /// The window the session was last in, where it is away, no window holding it; nil while one holds it.
-    public func lastWindow(of session: String) -> LastWindow? {
-        lastWindows[session]
+            .map(\.window)
     }
 
     /// The session's name, as its row, its Snoozed row, a window of it or its project says; nil for a session not on

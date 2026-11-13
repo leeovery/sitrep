@@ -20,8 +20,8 @@ public struct Banner: Equatable, Sendable {
     /// A jump that gave no answer in time: the caption's words, under the title that says it could not jump.
     public static let tooBusy = unjumped("The Mac is too busy to jump.")
 
-    /// A window for a session no window shows that could not be opened, in the words of its refusal, which name the
-    /// session.
+    /// A window for a session no terminal on this Mac shows that could not be opened, in the words of its refusal, which
+    /// name the session.
     public static func unopened(_ why: String) -> Banner {
         refused("SitRep could not open a window", why)
     }
@@ -54,7 +54,7 @@ extension JumpAnswer {
     public var banner: Banner? {
         switch self {
         case .jumped, .openable, .opened, .opening, .stopped: nil
-        case let .jumpedSaying(why), let .openedSaying(why): .startedNothing(why)
+        case let .jumpedSaying(why): .startedNothing(why)
         case let .refused(why): .unjumped(why)
         case let .unopened(why): .unopened(why)
         case .unanswered: .tooBusy
@@ -66,7 +66,7 @@ extension JumpAnswer {
     public var handsBack: Bool {
         switch self {
         case .refused, .unopened, .unanswered, .opening: true
-        case .jumped, .jumpedSaying, .openable, .opened, .openedSaying, .stopped: false
+        case .jumped, .jumpedSaying, .openable, .opened, .stopped: false
         }
     }
 }

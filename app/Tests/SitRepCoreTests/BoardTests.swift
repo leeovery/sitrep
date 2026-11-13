@@ -121,12 +121,15 @@ struct BoardTests {
         #expect(decoded == Board.Window.Where(device: "/dev/ttys087", terminal: "ghostty", zmx: .init(session: "kit · restore-card")))
     }
 
-    /// A window of a line, as the watch prints one: its writer, its session, its place in the jump's order, and the
-    /// device of its own Ghostty window.
-    private static func window(_ writer: String, of session: String, order: Int?, on device: String?) -> String {
+    /// A window of a line, as the watch prints one: its writer, its session, its place in the jump's order, the device
+    /// of its own Ghostty window, and its Claude's folder.
+    private static func window(
+        _ writer: String, of session: String, order: Int?, on device: String?, in folder: String? = nil
+    ) -> String {
         let place = device.map { #"{"device":"\#($0)","terminal":"ghostty","tmux":null,"zmx":null}"# } ?? "null"
+        let directory = folder.map { #""\#($0)""# } ?? "null"
 
-        return #"{"writer":"\#(writer)","session":"\#(session)","name":"Fumi","project":"Fumi","version":"0.1.0","needsReload":false,"where":\#(place),"state":null,"attachedAt":1792445500000,"jumpOrder":\#(order.map(String.init) ?? "null")}"#
+        return #"{"writer":"\#(writer)","session":"\#(session)","name":"Fumi","project":"Fumi","version":"0.1.0","needsReload":false,"where":\#(place),"state":null,"attachedAt":1792445500000,"jumpOrder":\#(order.map(String.init) ?? "null"),"directory":\#(directory)}"#
     }
 
     /// A line holding only the windows given.
@@ -192,23 +195,43 @@ struct BoardTests {
         ))
     }
 
-    /// An away session carries the window it was last in: its writer, where it was, whether a click may attach it,
-    /// whether its device is its conversation's, and its folder, as the watch prints them; a session a window holds,
-    /// null.
-    @Test func anAwaySessionsLastWindowSaysItsWriterWhereItWasAndItsFolder() throws {
+    /// An away session is carried on from the window it was last in: its writer, where it was, whether its device is
+    /// its conversation's, and its folder, as the watch prints them; one from a line that does not say whose its device
+    /// is says none. A session a window holds, null, and the `attaches` a line of 12 November 2026 printed, passed over.
+    @Test func anAwaySessionIsCarriedOnFromTheWindowItWasLastIn() throws {
         let board = try Self.listing([
-            #"{"id":"sr-q1","name":"Quiet one","lastWindow":{"writer":"w9","where":{"device":"/dev/ttys087","terminal":"ghostty","tmux":null,"zmx":{"session":"kit · card"}},"attaches":true,"ownsDevice":true,"directory":"/Users/lee/Code/kit"}}"#,
+            #"{"id":"sr-q1","name":"Quiet one","lastWindow":{"writer":"w9","where":{"device":"/dev/ttys087","terminal":"ghostty","tmux":null,"zmx":{"session":"kit · card"}},"attaches":true,"ownsDevice":false,"directory":"/Users/lee/Code/kit"}}"#,
             #"{"id":"sr-q2","name":"Older one","lastWindow":{"writer":"w8","where":null,"directory":null}}"#,
             #"{"id":"sr-h1","name":"Held one","lastWindow":null}"#,
         ])
 
-        #expect(board.lastWindow(of: "sr-q1") == Board.LastWindow(
+        #expect(board.resumeWindow(of: "sr-q1") == Board.LastWindow(
             writer: "w9", where: .init(device: "/dev/ttys087", terminal: "ghostty", zmx: .init(session: "kit · card")),
-            attaches: true, ownsDevice: true, directory: "/Users/lee/Code/kit"
+            ownsDevice: false, directory: "/Users/lee/Code/kit"
         ))
-        #expect(board.lastWindow(of: "sr-q2") == Board.LastWindow(writer: "w8"), "neither flag given, both false")
-        #expect(board.lastWindow(of: "sr-h1") == nil)
-        #expect(board.lastWindow(of: "sr-z") == nil)
+        #expect(board.resumeWindow(of: "sr-q2") == Board.LastWindow(writer: "w8"), "whose its device is not said")
+        #expect(board.resumeWindow(of: "sr-h1") == nil)
+        #expect(board.resumeWindow(of: "sr-z") == nil)
+        #expect(!board.isHeld("sr-q1"))
+    }
+
+    /// A held session is carried on from the live window a jump tries first, else, none saying where it is, the first
+    /// on the line: its device its own, and its folder as the watch prints it, none from a line before windows said it.
+    @Test func aHeldSessionIsCarriedOnFromTheWindowAJumpTriesFirst() throws {
+        let board = try Self.line([
+            Self.window("w1", of: "sr-a", order: 1, on: "/dev/ttys041", in: "/Users/lee/Code/fumi"),
+            Self.window("w2", of: "sr-a", order: 0, on: "/dev/ttys042", in: "/Users/lee/Code/fumi/.claude/worktrees/x"),
+            Self.window("w3", of: "sr-b", order: nil, on: nil),
+            Self.window("w4", of: "sr-b", order: nil, on: nil, in: "/Users/lee/Code/b"),
+        ])
+
+        #expect(board.isHeld("sr-a"))
+        #expect(board.resumeWindow(of: "sr-a") == Board.LastWindow(
+            writer: "w2", where: .init(device: "/dev/ttys042", terminal: "ghostty"), ownsDevice: true,
+            directory: "/Users/lee/Code/fumi/.claude/worktrees/x"
+        ))
+        #expect(board.resumeWindow(of: "sr-b") == Board.LastWindow(writer: "w3", ownsDevice: true))
+        #expect(try Board.read(watched).windows.allSatisfy { $0.directory == nil }, "a line from before windows said it")
     }
 
     /// From a CLI before it, or in a shape that does not read, a session has none, and is named all the same.
@@ -216,7 +239,7 @@ struct BoardTests {
     func aSessionsLastWindowMissingOrNotReadingIsNoneItsNameKept(session: String) throws {
         let board = try Self.listing([session])
 
-        #expect(board.lastWindow(of: "sr-q1") == nil)
+        #expect(board.resumeWindow(of: "sr-q1") == nil)
         #expect(board.name(of: "sr-q1") == "Quiet one")
     }
 

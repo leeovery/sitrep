@@ -61,12 +61,10 @@ export const windowsOf = (session: Session, now: number): Where[] =>
  * The window an away session was last in, as a click carries it on from: its
  * writer, the Claude Code session it ran; where it was, as its heartbeat said
  * it, its device among it, for a click to look for that Claude there; its
- * folder; whether a click may jump to or attach it (`attaches`); and whether
- * its device is still its conversation's (`ownsDevice`), so a Claude running
- * there is that one.
+ * folder; and whether its device is still its conversation's (`ownsDevice`),
+ * so a Claude running or suspended there is that one.
  */
 export type LastWindow = Pick<Presence, 'writer' | 'where' | 'directory'> & {
-  attaches: boolean
   ownsDevice: boolean
 }
 
@@ -78,9 +76,8 @@ export type LastWindow = Pick<Presence, 'writer' | 'where' | 'directory'> & {
  * window ever held; nor where that conversation, resumed, would take up
  * another session (`rejoinable`), as one that let go of it for another does,
  * live or not, so a click carries on only the session its conversation
- * comes back to. It attaches only where a click can still reach the
- * conversation there (`isThere`), and owns its device only where no later
- * conversation was seen on it (`isLatestOn`).
+ * comes back to. It owns its device only where no later conversation was
+ * seen on it (`isLatestOn`).
  */
 export const lastWindowOf = (
   session: Session,
@@ -100,46 +97,27 @@ export const lastWindowOf = (
   return {
     writer: last.writer,
     where: last.where,
-    attaches: isThere(last, board),
-    ownsDevice: isLatestOn(last, board, each => each.where?.device),
+    ownsDevice: isLatestOn(last, board),
     directory: last.directory,
   }
 }
 
 /**
- * Whether a click could still find a last window's conversation where the
- * window was: only in a zmx session, which Portal brings back under its name,
- * and only one no later conversation was seen in, which would hold that one's
- * Claude, or its resume panel, now. Never in tmux, whose pane ids start again
- * from `%0` with each server, so the pane it was in is any pane now, or a
- * shell its Claude ended in; nor in no multiplexer, as closing its terminal
- * ended its Claude.
+ * Whether the last window's conversation is the latest seen on its device:
+ * its window did not let go as its Claude went on into another conversation
+ * (`livesOn`), and no heartbeat on the board, of any session, live or let
+ * go, was seen on that device later (`lastSeenAt`). One on no device has none
+ * to lose.
  */
-const isThere = (last: Presence, board: readonly Session[]) =>
-  last.where?.zmx !== undefined &&
-  last.where.tmux === undefined &&
-  isLatestOn(last, board, each => each.where?.zmx?.session)
-
-/**
- * Whether the last window's conversation is the latest seen at its place, as
- * `placeOf` gives it (a zmx session, a device): its window did not let go as
- * its Claude went on into another conversation (`livesOn`), and no heartbeat
- * on the board, of any session, live or let go, was seen there later
- * (`lastSeenAt`). One at no place has none to lose.
- */
-const isLatestOn = (
-  last: Presence,
-  board: readonly Session[],
-  placeOf: (presence: Presence) => string | undefined,
-) => {
-  const place = placeOf(last)
+const isLatestOn = (last: Presence, board: readonly Session[]) => {
+  const device = last.where?.device
 
   return (
     last.livesOn === undefined &&
-    (place === undefined ||
+    (device === undefined ||
       !board.some(session =>
         session.presence.some(
-          each => placeOf(each) === place && lastSeenAt(each) > lastSeenAt(last),
+          each => each.where?.device === device && lastSeenAt(each) > lastSeenAt(last),
         ),
       ))
   )

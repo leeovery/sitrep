@@ -88,12 +88,11 @@ final class FakeTable: ProcessTable {
             return nil
         }
 
-        let wanted = Set(tree.processes.filter { wanted($0.value) }.keys)
-        let arguments = tree.arguments.filter { wanted.contains($0.key) }
+        let arguments = tree.arguments.filter { pid, _ in tree.processes[pid].map(wanted) == true }
 
         asked.withLock { $0.arguments += arguments.keys }
 
-        return Processes(tree.processes, arguments: arguments, unreadable: wanted.subtracting(arguments.keys))
+        return Processes(tree.processes, arguments: arguments)
     }
 }
 
@@ -114,22 +113,10 @@ struct FakeClient {
     var session: String?
 }
 
-/// A tmux server: its panes, its clients, and its tmux sessions' names by their ids, a session not named there named
-/// by its id.
+/// A tmux server: its panes and its clients.
 struct FakeServer {
     var panes: [FakePane] = []
     var clients: [FakeClient] = []
-    var names: [String: String] = [:]
-
-    /// `display-message -p -t <pane> '#{session_name}'`: the name of the first tmux session holding the pane, or
-    /// tmux's error for a pane it has not.
-    func sessionName(holding pane: String) -> Ran {
-        guard let session = panes.first(where: { $0.pane == pane })?.session else {
-            return Ran(status: 1, stdout: "", stderr: "can't find pane: \(pane)\n")
-        }
-
-        return Ran(status: 0, stdout: (names[session] ?? session) + "\n", stderr: "")
-    }
 }
 
 /// tmux, its servers by socket, answering as the real one does: a socket no server is on with an error; or, `silent`,
@@ -196,10 +183,6 @@ final class FakeTmux: TmuxProgram {
 
         guard let server = servers[socket] else {
             return Ran(status: 1, stdout: "", stderr: "no server running on \(socket)\n")
-        }
-
-        if words[0] == "display-message" {
-            return server.sessionName(holding: words[3])
         }
 
         let lines = switch words[0] {
@@ -272,11 +255,5 @@ struct Mac {
         on device: String, program: String = "/Users/lee/.local/share/claude/versions/2.1.322", isStopped: Bool = false
     ) -> pid_t {
         tree.add(under: 1, program, on: device, isStopped: isStopped)
-    }
-
-    /// A process of zmx's whose command line cannot be read, as one gone as it was read.
-    @discardableResult
-    mutating func zmxUnread() -> pid_t {
-        tree.add(under: 1, zmxProgram)
     }
 }

@@ -24,6 +24,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private var board = MenuBoard(LastBoard())
     private var last = LastBoard()
     private var trouble: PluginTrouble?
+    /// The sessions a window holds that this Mac does not show, which its rows dim.
+    private var notHere: Set<String> = []
     /// What the menu's items show, one entry to an item, in its order.
     private var entries: [MenuEntry] = []
     private var isOpen = false
@@ -55,14 +57,20 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     /// The board as `watch` last printed it.
     func show(_ last: LastBoard) {
         self.last = last
-        take(MenuBoard(last, trouble: trouble))
+        take(MenuBoard(last, trouble: trouble, notHere: notHere))
+    }
+
+    /// The sessions a window holds that this Mac does not show, dimmed at once.
+    func show(notHere: Set<String>) {
+        self.notHere = notHere
+        take(MenuBoard(last, trouble: trouble, notHere: notHere))
     }
 
     /// The trouble SitRep met seeing to the plugin, which it speaks up with first, over the board of the plugin it
     /// runs meanwhile; nil once it has none.
     func speak(of trouble: PluginTrouble?) {
         self.trouble = trouble
-        take(MenuBoard(last, trouble: trouble))
+        take(MenuBoard(last, trouble: trouble, notHere: notHere))
     }
 
     /// With no plugin to run, it speaks up with the trouble that left it none.

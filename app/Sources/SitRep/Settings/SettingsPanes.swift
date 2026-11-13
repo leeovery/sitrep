@@ -39,8 +39,9 @@ struct SettingsPaneContent: View {
     }
 }
 
-/// General: Startup, Open at login; Ghostty, the leave to bring a session's Ghostty window to the front; New windows,
-/// how a window is opened for a session no window shows, the terminal, the open command and the resume command.
+/// General: Startup, Open at login; Terminal, the terminal a window is opened in for a session this Mac doesn't show,
+/// and beneath it the leave to bring a session's Ghostty window to the front; Resume command, what that window types,
+/// with Restore Default.
 private struct GeneralPane: View {
     let settings: SettingsModel
 
@@ -50,22 +51,24 @@ private struct GeneralPane: View {
                 StatedRow(row: .login(settings.said.login), isOn: opensAtLogin, fix: settings.fix)
             }
         }
-        SettingsSection(name: "Ghostty") {
-            SettingsCard {
-                StatedRow(row: .ghostty(settings.said.ghostty), isBusy: settings.isAllowing, fix: settings.fix)
-            }
-        }
-        SettingsSection(name: "New windows") {
+        SettingsSection(name: "Terminal") {
             SettingsCard {
                 CardRow(label: "Terminal") {
                     PopUp(label: "Terminal", sections: [Driver.all], title: \.name, selection: terminal)
                 }
                 CardSeparator()
-                CommandRow(command: openCommand)
-                CardSeparator()
-                CommandRow(label: CommandRow.resumeLabel, command: resumeCommand)
+                StatedRow(row: .ghostty(settings.said.ghostty), isBusy: settings.isAllowing, fix: settings.fix)
             }
-            CaptionRow(words: Text(CommandRow.caption))
+        }
+        SettingsSection(name: "Resume command") {
+            SettingsCard {
+                CommandRow(command: resumeCommand)
+            }
+            CaptionRow(
+                words: Text(CommandRow.caption), button: "Restore Default",
+                isEnabled: !settings.preferences.app.resumesByDefault,
+                action: { settings.preferences.app.restoreResumeCommand() }
+            )
         }
     }
 
@@ -80,43 +83,49 @@ private struct GeneralPane: View {
         )
     }
 
-    /// The command as typed, saved at each keystroke.
-    private var openCommand: Binding<String> {
-        Binding(get: { settings.preferences.app.openCommand }, set: { settings.preferences.app.openCommand = $0 })
-    }
-
-    /// The command as typed, saved at each keystroke.
+    /// The command as typed, saved at each keystroke; the default until Lee gives one.
     private var resumeCommand: Binding<String> {
-        Binding(get: { settings.preferences.app.resumeCommand }, set: { settings.preferences.app.resumeCommand = $0 })
+        Binding(
+            get: { settings.preferences.app.openSettings.resumeCommand },
+            set: { settings.preferences.app.resumeCommand = $0 }
+        )
     }
 }
 
-/// A command's row, the open command's or the resume command's: its label, and the command in a field against the
-/// card's right, in the label's size in the monospaced face, kept as typed (`LiteralField`), the two on one line of
-/// text. The field gives way before the label does, so the label keeps its one line, and the row its height, at the
-/// window's least width.
+extension AppSettings {
+    /// Whether the resume command reads as the default, given or not, so Restore Default has nothing to put back.
+    var resumesByDefault: Bool {
+        openSettings.resumeCommand == OpenSettings.defaultResumeCommand
+    }
+
+    /// The resume command put back to the default: unset, as one never given.
+    mutating func restoreResumeCommand() {
+        resumeCommand = nil
+    }
+}
+
+/// The resume command's row: its label, and the command in a field against the card's right, in the label's size in
+/// the monospaced face, kept as typed (`LiteralField`), the two on one line of text. The field gives way before the
+/// label does, so the label keeps its one line, and the row its height, at the window's least width.
 struct CommandRow: View {
-    static let openLabel = "Open command"
-    static let resumeLabel = "Resume command"
-    /// What each command is for, and its placeholders.
-    static let caption = "Clicking a session that isn't showing in a terminal opens a new window. The open command "
-        + "attaches to a session still running, with {session}, {socket} and {pane}. The resume command starts Claude "
-        + "again where nothing is left, with {claude}, its session id, and {dir}, the folder it ran in. Each is "
-        + "replaced with a quoted value."
+    static let label = "Command"
+    /// What the command is for, and its placeholders.
+    static let caption = "Clicking a session this Mac doesn't show opens a new window and types this command into "
+        + "your login shell. {claude} is its Claude Code session id, {dir} the folder it ran in, and {tty} the "
+        + "terminal that Claude still runs on, empty unless it does. Each is replaced with a quoted value."
     /// The field's width where the column has room.
     static let fieldWidth: CGFloat = 360
     /// The command's face: monospaced, at the label's size.
     static let font = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
 
-    var label = openLabel
     @Binding var command: String
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 16) {
-            RowWords(label: label)
+            RowWords(label: Self.label)
                 .fixedSize(horizontal: true, vertical: false)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            LiteralField(label: label, font: Self.font, text: $command)
+            LiteralField(label: Self.label, font: Self.font, text: $command)
                 .frame(maxWidth: Self.fieldWidth)
                 .layoutPriority(1)
         }

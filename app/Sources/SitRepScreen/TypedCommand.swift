@@ -2,17 +2,17 @@ import Foundation
 import SitRepCore
 
 /// A command Lee sets in Settings that SitRep types as the first line of a new window, into his own shell there: the
-/// open command (`OpenCommand`), or the resume command (`ResumeCommand`). SitRep has no built-in way to attach or to
-/// resume, so none given, nothing opens. Its placeholders, those `Placeholder` names, are filled with the facts of the
+/// resume command (`ResumeCommand`). Its placeholders, those `Placeholder` names, are filled with the facts of the
 /// session's window, each quoted for the shell.
 ///
 /// It is read as the shell reads it, far enough to find its placeholders and where each stands: each `{name}`, a name
 /// of letters and underscores, but none after an unescaped `$` or `#`, the shell's `${…}` and tmux's `#{…}`, nor one
 /// escaped, nor, inside quotes, one whose name is no placeholder's, as awk's `'{print}'`. A placeholder is filled only
-/// where it stands as a word of its own, outside quotes and backticks: anywhere else the quotes SitRep puts round its
-/// value would read otherwise than meant, or let the value out of them.
+/// outside quotes and backticks: inside them its quoted value would end them early, letting the value out. Nor is one
+/// filled in arithmetic, `$((…))`, `((…))`, `$[…]`, or a subscript, `a[…]`, `${a[…]}`, where the shell evaluates even
+/// a quoted value, a `$(…)` in it run. Joined to unquoted text it is filled: `id={claude}` is `id='…'`, one shell word.
 struct TypedCommand<Placeholder: CommandPlaceholder>: Equatable {
-    /// Its words as written, between its placeholders.
+    /// Its words as written, between its placeholders, and where each placeholder stands.
     enum Piece: Equatable {
         case words(String)
         case placeholder(String, Standing)
@@ -36,11 +36,11 @@ struct TypedCommand<Placeholder: CommandPlaceholder>: Equatable {
     }
 
     /// What is wrong with it as written, whatever the session: none given; a character that can't be typed; a
-    /// placeholder SitRep does not know; or one not standing as a word of its own, outside quotes.
+    /// placeholder SitRep does not know; one in arithmetic or a subscript; or one inside quotes or backticks.
     var problem: CommandProblem<Placeholder>? {
         let unknown = named.filter { Placeholder(rawValue: $0) == nil }
+        let evaluated = names { $0 == .evaluated }
         let quoted = names { $0 == .quoted }
-        let joined = names { $0 == .joined }
 
         if pieces.isEmpty {
             return .empty
@@ -51,10 +51,10 @@ struct TypedCommand<Placeholder: CommandPlaceholder>: Equatable {
         if !unknown.isEmpty {
             return .unknown(unknown)
         }
-        if !quoted.isEmpty {
-            return .quoted(quoted)
+        if !evaluated.isEmpty {
+            return .evaluated(evaluated)
         }
-        return joined.isEmpty ? nil : .joined(joined)
+        return quoted.isEmpty ? nil : .quoted(quoted)
     }
 
     /// The line to type for a session, named as the board names it: its placeholders filled with the facts given,
@@ -94,12 +94,16 @@ struct TypedCommand<Placeholder: CommandPlaceholder>: Equatable {
         }.joined()
     }
 
-    /// The names of the placeholders standing as given, in order, once.
-    private func names(standing: (Standing) -> Bool) -> [String] {
+    /// The names of the placeholders standing as wanted, in order, once.
+    private func names(standing wanted: (Standing) -> Bool) -> [String] {
         var seen: Set<String> = []
 
         return pieces.compactMap { piece in
-            if case let .placeholder(name, stands) = piece, standing(stands), seen.insert(name).inserted { name } else { nil }
+            guard case let .placeholder(name, standing) = piece, wanted(standing), seen.insert(name).inserted else {
+                return nil
+            }
+
+            return name
         }
     }
 
@@ -111,13 +115,13 @@ struct TypedCommand<Placeholder: CommandPlaceholder>: Equatable {
 
         while let character = rest.first {
             if reading.mayStartPlaceholder, character == "{", let (name, after) = placeholder(at: rest),
-               let standing = reading.standing(isPlaceholder: Placeholder(rawValue: name) != nil, before: after.first)
+               let standing = reading.standing(isPlaceholder: Placeholder(rawValue: name) != nil)
             {
                 pieces.append(.words(words))
                 pieces.append(.placeholder(name, standing))
                 words = ""
                 rest = after
-                reading.read("}")
+                reading.readPlaceholder()
                 continue
             }
 
@@ -143,14 +147,6 @@ struct TypedCommand<Placeholder: CommandPlaceholder>: Equatable {
     }
 }
 
-/// Where a placeholder stands in a command: a word of its own, outside quotes; inside quotes or backticks; or joined to
-/// other words.
-enum Standing: Equatable {
-    case word
-    case quoted
-    case joined
-}
-
 extension TypedCommand.Piece {
     /// As it was written.
     var written: String {
@@ -161,12 +157,19 @@ extension TypedCommand.Piece {
     }
 }
 
-/// Where the shell is in a command it reads, a character at a time: inside which quotes, or backticks, if any, as one
-/// may hold another, backticks in double quotes; whether the next character is escaped; whether the one before is an
-/// unescaped `$` that opens an expansion, `$'…'` or `${…}`, never the second of `$$`, the shell's own process id, nor one
-/// escaped, `\$`, a `$` as written; whether it was an unescaped `#`; and whether a word starts here.
+/// Where a placeholder stands in a command: bare; inside quotes or backticks; or where the shell evaluates it, in
+/// arithmetic or a subscript.
+enum Standing: Equatable {
+    case bare, quoted, evaluated
+}
+
+/// Where the shell is in a command it reads, a character at a time: inside which quotes, backticks, arithmetic,
+/// subscripts or `${…}`, if any, as one may hold another; whether the next character is escaped; whether the one before
+/// is an unescaped `$` that opens an expansion, `$'…'`, `${…}`, `$[…]` or `$((…))`, never the second of `$$`, the
+/// shell's own process id, nor one escaped, `\$`, a `$` as written; whether it was an unescaped `#`, or `(`, and
+/// whether it ended a name, as a subscript's `[` follows one.
 private struct ShellReading {
-    enum Quote {
+    enum Context: Equatable {
         /// `'…'`, where nothing is escaped.
         case single
         /// `$'…'`, ANSI-C quoting, where a backslash escapes.
@@ -176,48 +179,105 @@ private struct ShellReading {
         /// `` `…` ``, a command substitution, which the shell scans for its closing backtick before any quoting inside
         /// it, so a value quoted there could end it early; a backslash escapes.
         case backtick
+        /// `$((…))` or `((…))`, open by as many parentheses as are unclosed.
+        case arithmetic(open: Int)
+        /// `$[…]`, or a subscript, `a[…]` or `${a[…]}`, which the shell evaluates as arithmetic, open by as many
+        /// brackets as are unclosed.
+        case subscripted(open: Int)
+        /// `${…}`, open by as many braces as are unclosed.
+        case expansion(open: Int)
+
+        var isQuote: Bool {
+            [.single, .ansi, .double, .backtick].contains(self)
+        }
+
+        var isEvaluated: Bool {
+            switch self {
+            case .arithmetic, .subscripted: true
+            default: false
+            }
+        }
+
+        var isExpansion: Bool {
+            if case .expansion = self { true } else { false }
+        }
+
+        /// What it nests by, and how many are open; none for quotes.
+        var nesting: (opens: Character, closes: Character, open: Int)? {
+            switch self {
+            case let .arithmetic(open): ("(", ")", open)
+            case let .subscripted(open): ("[", "]", open)
+            case let .expansion(open): ("{", "}", open)
+            default: nil
+            }
+        }
+
+        /// The same, open by as many as given.
+        func opened(_ open: Int) -> Context {
+            switch self {
+            case .arithmetic: .arithmetic(open: open)
+            case .subscripted: .subscripted(open: open)
+            case .expansion: .expansion(open: open)
+            default: self
+            }
+        }
     }
 
-    private var quotes: [Quote] = []
+    /// The `(` read last: none, a plain one, or `$(`'s.
+    private enum Paren {
+        case none, plain, dollar
+    }
+
+    private var contexts: [Context] = []
 
     private var isEscaped = false
     private var isAfterDollar = false
     private var isAfterHash = false
-    private var isAtWordStart = true
-
-    private var quote: Quote? {
-        quotes.last
-    }
+    private var isAfterName = false
+    private var paren = Paren.none
 
     /// Whether a `{` here may open a placeholder: not escaped, and not after an unescaped `$` or `#`.
     var mayStartPlaceholder: Bool {
         !isEscaped && !isAfterDollar && !isAfterHash
     }
 
-    /// Where a name opening here, followed by the character given, stands, whether or not it is a placeholder's; nil
-    /// where it is no placeholder, a name in quotes that is no placeholder's being only words.
-    func standing(isPlaceholder: Bool, before next: Character?) -> Standing? {
-        guard quote == nil else {
-            return isPlaceholder ? .quoted : nil
+    /// Where a name opening here, a placeholder's or not, stands; nil where it is no placeholder's and in quotes, a
+    /// name in quotes that is no placeholder's being only words.
+    func standing(isPlaceholder: Bool) -> Standing? {
+        if contexts.contains(where: \.isEvaluated) {
+            return .evaluated
+        }
+        guard contexts.contains(where: \.isQuote) else {
+            return .bare
         }
 
-        return isAtWordStart && (next == nil || next == " " || next == "\t") ? .word : .joined
+        return isPlaceholder ? .quoted : nil
+    }
+
+    /// A placeholder read whole: what follows it follows no `$`, `#`, `(` or name.
+    mutating func readPlaceholder() {
+        forgetBefore()
+    }
+
+    private mutating func forgetBefore() {
+        isAfterDollar = false
+        isAfterHash = false
+        isAfterName = false
+        paren = .none
     }
 
     mutating func read(_ character: Character) {
-        let wasAfterDollar = isAfterDollar
+        let wasAfterDollar = isAfterDollar, wasAfterName = isAfterName, wasParen = paren
         let isEscapedHere = isEscaped
 
         isEscaped = false
-        isAfterDollar = false
-        isAfterHash = false
-        isAtWordStart = false
+        forgetBefore()
 
         guard !isEscapedHere else {
             return
         }
 
-        switch quote {
+        switch contexts.last {
         case .single:
             close(at: character, "'")
         case .ansi:
@@ -228,21 +288,70 @@ private struct ShellReading {
             close(at: character, "`")
         case .double:
             isEscaped = character == "\\"
-            isAfterDollar = character == "$" && !wasAfterDollar
-            isAfterHash = character == "#"
-            close(at: character, "\"")
-            open(character == "`" ? .backtick : nil)
-        case nil:
+            if character == "\"" {
+                contexts.removeLast()
+            } else if character == "`" {
+                contexts.append(.backtick)
+            } else {
+                expand(character, afterDollar: wasAfterDollar, afterName: wasAfterName, paren: wasParen)
+            }
+        case nil, .arithmetic, .subscripted, .expansion:
             isEscaped = character == "\\"
-            isAfterDollar = character == "$" && !wasAfterDollar
-            isAfterHash = character == "#"
-            isAtWordStart = character == " " || character == "\t"
-            open(Self.opening(character, afterDollar: wasAfterDollar))
+            guard !closes(character) else {
+                return
+            }
+
+            if let quote = Self.opening(character, afterDollar: wasAfterDollar) {
+                contexts.append(quote)
+            } else {
+                expand(character, afterDollar: wasAfterDollar, afterName: wasAfterName, paren: wasParen)
+            }
         }
     }
 
+    /// A character outside quotes, or in double quotes: the expansions and evaluations it opens, and what it leaves the
+    /// next to follow. `((` opens arithmetic only outside quotes, where it is a command.
+    private mutating func expand(_ character: Character, afterDollar: Bool, afterName: Bool, paren: Paren) {
+        isAfterDollar = character == "$" && !afterDollar
+        isAfterHash = character == "#"
+        isAfterName = character == "_" || (character.isASCII && (character.isLetter || character.isNumber))
+
+        switch character {
+        case "(" where paren == .dollar || (paren == .plain && contexts.last != .double):
+            contexts.append(.arithmetic(open: 2))
+        case "(":
+            self.paren = afterDollar ? .dollar : .plain
+        case "[" where afterDollar || afterName || contexts.last?.isExpansion == true:
+            contexts.append(.subscripted(open: 1))
+        case "{" where afterDollar:
+            contexts.append(.expansion(open: 1))
+        default:
+            break
+        }
+    }
+
+    /// Whether the character closes, or nests deeper in, the arithmetic, subscript or `${…}` it is in: true where it
+    /// was only that.
+    private mutating func closes(_ character: Character) -> Bool {
+        guard let last = contexts.last, let nesting = last.nesting else {
+            return false
+        }
+
+        let open = character == nesting.opens ? nesting.open + 1 : character == nesting.closes ? nesting.open - 1 : nil
+
+        guard let open else {
+            return false
+        }
+
+        contexts.removeLast()
+        if open > 0 {
+            contexts.append(last.opened(open))
+        }
+        return true
+    }
+
     /// The quotes a character opens outside any: `$'`, `'`, `"` or a backtick.
-    private static func opening(_ character: Character, afterDollar: Bool) -> Quote? {
+    private static func opening(_ character: Character, afterDollar: Bool) -> Context? {
         switch character {
         case "'": afterDollar ? .ansi : .single
         case "\"": .double
@@ -251,22 +360,16 @@ private struct ShellReading {
         }
     }
 
-    private mutating func open(_ opened: Quote?) {
-        if let opened {
-            quotes.append(opened)
-        }
-    }
-
     private mutating func close(at character: Character, _ closing: Character) {
         if character == closing {
-            quotes.removeLast()
+            contexts.removeLast()
         }
     }
 }
 
 /// A placeholder of a command SitRep types, by its name, and the command, as Settings names it.
 protocol CommandPlaceholder: RawRepresentable<String>, CaseIterable, Hashable, Sendable {
-    /// The command, as Settings names it: `open command`.
+    /// The command, as Settings names it: `resume command`.
     static var command: String { get }
     /// Why no window opens, where none is given, for the session named.
     static func unset(named name: String) -> String
@@ -280,7 +383,7 @@ protocol CommandFacts<Placeholder> {
     var given: Set<Placeholder> { get }
     /// Why the command, naming these, opens no window for the session named.
     func none(of missing: [Placeholder], named name: String) -> String
-    /// What a fact is, as a refusal of one that can't be typed names it: `the zmx session's name`.
+    /// What a fact is, as a refusal of one that can't be typed names it: `the folder its Claude ran in`.
     func words(_ placeholder: Placeholder) -> String
     /// The facts wanted, each it has; throws, in plain words, where what it asked gave no answer.
     func values(wanted: Set<Placeholder>) async throws -> [Placeholder: String]
@@ -297,8 +400,8 @@ enum CommandProblem<Placeholder: CommandPlaceholder>: Equatable {
     case unknown([String])
     /// Placeholders inside quotes or backticks, by their names.
     case quoted([String])
-    /// Placeholders joined to other words, by their names.
-    case joined([String])
+    /// Placeholders in arithmetic or a subscript, by their names.
+    case evaluated([String])
 
     /// Why no window opens, in plain words, for the session named.
     func refusal(named name: String) -> String {
@@ -314,13 +417,14 @@ enum CommandProblem<Placeholder: CommandPlaceholder>: Equatable {
                 + "\(braced(Placeholder.allCases.map(\.rawValue)))."
         case let .quoted(names):
             "\(command) puts \(braced(names)) in quotes or backticks. Remove them: SitRep quotes each value itself."
-        case let .joined(names):
-            "\(command) joins \(braced(names)) to other text. Put a space before and after each placeholder."
+        case let .evaluated(names):
+            "\(command) puts \(braced(names)) in arithmetic or a subscript, where the shell runs what is in a value "
+                + "even quoted. Move it out."
         }
     }
 }
 
-/// Placeholders by their names, as a refusal names them: `{session} and {pane}`.
+/// Placeholders by their names, as a refusal names them: `{claude} and {dir}`.
 func braced(_ names: [String], _ conjunction: String = "and") -> String {
     inWords(names.map { "{\($0)}" }, conjunction)
 }
@@ -351,7 +455,7 @@ extension Unicode.Scalar {
 }
 
 /// A value as a POSIX shell, or zsh, reads it back whole: always in single quotes, each of its own closed, escaped and
-/// opened again, never bare, as a bare word can be a zsh global alias, and a zmx session's name holds a space or `·`.
+/// opened again, never bare, as a bare word can be a zsh global alias, and a folder's name may hold a space or `'`.
 func shellQuoted(_ value: String) -> String {
     "'" + value.replacing("'", with: #"'\''"#) + "'"
 }

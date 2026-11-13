@@ -92,7 +92,8 @@ public struct Session: Equatable, Sendable {
     /// The project's two letters, as its mark on the strip shows them.
     public var letters: String
     public var kind: Kind
-    /// Needing Lee with no window holding it: its row and its tab say so, and a click on them carries it on.
+    /// Not here: no window holding it, or none this Mac shows (DESIGN, stage 8). Its row and its tab are drawn away,
+    /// and a click on them carries it on.
     public var away: Bool
     /// Needing Lee, the newest first, as core has them; in Snoozed, the soonest to wake first; never none.
     public var lines: [Line]

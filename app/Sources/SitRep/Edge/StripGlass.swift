@@ -309,7 +309,9 @@ struct GlassRow: View {
     @ViewBuilder private func title(in box: CGRect) -> some View {
         let text = GlassWords.title(session, at: scene.now)
         if session.kind == .working, !scene.reducesMotion {
-            Shimmering(text: text, width: box.width).placed(in: box)
+            Shimmering(text: text, width: box.width)
+                .opacity(Away.dimming(session.away))
+                .placed(in: box)
         } else {
             text.foregroundStyle(session.kind == .onItsWork ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
                 .opacity(Away.dimming(session.away))

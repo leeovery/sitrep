@@ -297,14 +297,15 @@ final class StripWordsLayer {
         title(s, saying: s.subject(at: now), colour)
     }
 
-    /// A row's title saying this after its verb, in a colour where given; one on its own work as the card sets it.
+    /// A row's title saying this after its verb, in a colour where given, dimmed where it is away (`Away`); one on its
+    /// own work as the card sets it.
     private static func title(_ s: Session, saying subject: String?, _ colour: CGColor? = nil) -> NSAttributedString {
         if s.kind == .onItsWork {
             return WaitingTitle.text(s, subject: subject)
         }
 
         let font = EdgeStyle.title
-        let ink = colour ?? Away.dimmed(EdgeStyle.ink, s.away)
+        let ink = Away.dimmed(colour ?? EdgeStyle.ink, s.away)
         let text = TextLine.text(s.title, font, ink, kern: EdgeStyle.tightKern(font))
 
         append(s, to: text, ink, more: EdgeStyle.title)
@@ -337,10 +338,10 @@ final class StripWordsLayer {
     }
 
     /// One of a count's rows' titles saying this after its verb, where it has no command: needs you and your turn in
-    /// ink, an away ask's dimmed (`Away`), and working and on its own work grey, a wake's countdown in tabular figures.
+    /// ink, and working and on its own work grey, an away row's dimmed (`Away`), a wake's countdown in tabular figures.
     private static func rowTitle(_ s: Session, saying subject: String?) -> NSAttributedString {
         let isGrey = s.kind == .working || s.kind == .onItsWork
-        let ink = isGrey ? EdgeStyle.grey : Away.dimmed(EdgeStyle.ink, s.away)
+        let ink = Away.dimmed(isGrey ? EdgeStyle.grey : EdgeStyle.ink, s.away)
         let font = EdgeStyle.rowTitle
         let text = TextLine.text(s.title, font, ink)
 

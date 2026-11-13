@@ -8,8 +8,9 @@ import SitRepScreen
 import SwiftUI
 import Testing
 
-/// Settings' General: Startup, Ghostty and New windows, and no longer "Your turn folds after", retired with "N earlier"
-/// on 4 November 2026, as the card shows every your-turn row (board J).
+/// Settings' General: Startup, Terminal and Resume command, as stage 8's rethink regrouped it (13 November 2026), and no
+/// longer "Your turn folds after", retired with "N earlier" on 4 November 2026, as the card shows every your-turn row
+/// (board J).
 @MainActor
 struct GeneralPaneTests {
     /// The card's column at the window's least width, and at the drawings' 704.
@@ -22,7 +23,7 @@ struct GeneralPaneTests {
         return Hosted(Hosted.content(.general, settings), size: CGSize(width: 744, height: 620))
     }
 
-    /// No pop-up for a fold period: its one pop-up is New windows' terminal, and its one switch Open at login.
+    /// No pop-up for a fold period: its one pop-up is the terminal, and its one switch Open at login.
     @Test func itsOnlyPopUpIsTheTerminalAndItsOnlySwitchOpenAtLogin() async throws {
         let hosted = await Self.general()
 
@@ -31,32 +32,46 @@ struct GeneralPaneTests {
     }
 
     /// The terminals SitRep has a driver for, Ghostty alone, chosen by default.
-    @Test func newWindowsTerminalIsAMenuOfTheTerminalsWithADriverGhosttyChosen() async throws {
+    @Test func theTerminalIsAMenuOfTheTerminalsWithADriverGhosttyChosen() async throws {
         let popUp = try #require(await Self.general().all(NSPopUpButton.self).first)
 
         #expect(popUp.itemTitles == Driver.all.map(\.name))
         #expect(popUp.titleOfSelectedItem == "Ghostty")
     }
 
-    /// Empty until Lee gives one, as SitRep has no built-in way to attach or resume; his own once given, the resume
-    /// command under the open command, in the same literal field.
-    @Test func theOpenAndResumeCommandsAreEmptyByDefaultAndShowTheCommandsGiven() async throws {
+    /// One field, pre-filled with the default so Lee sees it; his own once given, and empty where he cleared it.
+    @Test(arguments: [
+        (String?.none, OpenSettings.defaultResumeCommand), ("portal open --claude {claude}", "portal open --claude {claude}"),
+        ("", ""),
+    ])
+    func theResumeCommandIsPrefilledWithTheDefaultAndShowsLeesOnceGiven(given: String?, shown: String) async throws {
         let defaults = MemoryDefaults()
         var app = AppSettings()
 
-        let empty = await Self.general().all(NSTextField.self)
-
-        #expect(empty.map(\.stringValue) == ["", ""])
-        #expect(empty.allSatisfy { $0.placeholderString?.isEmpty ?? true }, "nothing greyed in it, as there is no default")
-
-        app.openCommand = "zmx attach {session}"
-        app.resumeCommand = "cd {dir} && claude --resume {claude}"
+        app.resumeCommand = given
         SavedSettings(defaults).save(app)
 
-        let given = await Self.general(defaults).all(NSTextField.self)
+        let fields = await Self.general(defaults).all(NSTextField.self)
 
-        #expect(given.map(\.stringValue) == ["zmx attach {session}", "cd {dir} && claude --resume {claude}"])
-        #expect(given.map(\.font) == empty.map(\.font))
+        #expect(fields.map(\.stringValue) == [shown])
+    }
+
+    /// Restore Default is enabled only while the field differs from the default, a command saved the same as it among
+    /// those that do not; it puts the command back to one never given, the default.
+    @Test func restoreDefaultHasSomethingToPutBackOnlyWhileTheFieldDiffersFromTheDefault() {
+        var app = AppSettings()
+
+        #expect(app.resumesByDefault)
+        app.resumeCommand = OpenSettings.defaultResumeCommand
+        #expect(app.resumesByDefault)
+        for differing in ["", "portal open --claude {claude}", OpenSettings.defaultResumeCommand + " "] {
+            app.resumeCommand = differing
+            #expect(!app.resumesByDefault, "\(differing.debugDescription)")
+        }
+
+        app.restoreResumeCommand()
+        #expect(app.resumeCommand == nil)
+        #expect(app.openSettings.resumeCommand == OpenSettings.defaultResumeCommand)
     }
 
     /// Every character as wide as the next, at the label's 13.
@@ -106,17 +121,25 @@ struct GeneralPaneTests {
         return (height, frame, frame.minY + field.firstBaselineOffsetFromTop, try Drawn(hosted.hosting))
     }
 
-    /// The field takes its width where the column has room, and gives way before the label does at the window's least
-    /// width, so the label keeps its one line, and the row its height.
-    @Test func theFieldGivesWayAtTheLeastWidthAndTheRowKeepsItsHeight() throws {
-        let wide = try Self.row(column: Self.column)
-        let narrowest = try Self.row(column: Self.leastColumn)
+    /// The field takes its width where the column has room, the window's least width among them now its label is
+    /// Command, and gives way before the label does where it has not, so the label keeps its one line, and the row its
+    /// height.
+    @Test func theFieldGivesWayBeforeTheLabelAndTheRowKeepsItsHeight() throws {
+        let narrow = CommandRow.fieldWidth
 
-        #expect(wide.height == SettingsStyle.oneLineRow)
-        #expect(wide.field.width == CommandRow.fieldWidth)
-        #expect(narrowest.height == SettingsStyle.oneLineRow)
-        #expect(narrowest.field.width < CommandRow.fieldWidth)
-        #expect(abs(narrowest.field.maxX - (Self.leastColumn - SettingsStyle.inset)) < 0.5)
+        for column in [Self.column, Self.leastColumn] {
+            let row = try Self.row(column: column)
+
+            #expect(row.height == SettingsStyle.oneLineRow)
+            #expect(row.field.width == CommandRow.fieldWidth)
+            #expect(abs(row.field.maxX - (column - SettingsStyle.inset)) < 0.5)
+        }
+
+        let squeezed = try Self.row(column: narrow)
+
+        #expect(squeezed.height == SettingsStyle.oneLineRow)
+        #expect(squeezed.field.width < CommandRow.fieldWidth)
+        #expect(abs(squeezed.field.maxX - (narrow - SettingsStyle.inset)) < 0.5)
     }
 
     /// The label and the command stand on one line of text: the foot of the label's O, which hangs below no line, on

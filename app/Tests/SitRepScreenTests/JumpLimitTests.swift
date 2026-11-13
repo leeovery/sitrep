@@ -4,13 +4,15 @@ import SitRepCore
 import Testing
 
 /// A window of the watch's line: its writer, its session, its place in the jump's order, and the device of its own
-/// Ghostty window, where it says one; or the zmx session it runs in, on zmx's own pty.
+/// Ghostty window, where it says one; or the zmx session it runs in, on zmx's own pty; and its Claude's folder, where it
+/// says one.
 struct LineWindow {
     let writer: String
     let session: String
     var order: Int?
     var device: String?
     var zmx: String?
+    var directory: String?
 
     /// Where it says it is, as the watch's line puts it.
     var place: Any {
@@ -30,7 +32,7 @@ func board(_ windows: [LineWindow], sessions: [String: String] = [:], last: [Str
         [
             "writer": window.writer, "session": window.session, "name": named, "project": "Switchboard",
             "version": NSNull(), "needsReload": false, "state": NSNull(), "attachedAt": 0,
-            "where": window.place, "jumpOrder": window.order ?? NSNull(),
+            "where": window.place, "jumpOrder": window.order ?? NSNull(), "directory": window.directory ?? NSNull(),
         ] as [String: Any]
     }
     let project: [String: Any] = [
@@ -69,7 +71,7 @@ struct JumpLimitTests {
         let line = try board([LineWindow(writer: "w1", session: "sr-a")], sessions: ["sr-q": "Quiet one"])
         let unknown = await Jumping().jump.answer(to: "sr-z", on: GivenBoard(line))
 
-        #expect(await Jumping().jump.answer(to: "sr-a", on: GivenBoard(line)) == offScreen)
+        #expect(await Jumping().jump.answer(to: "sr-a", on: GivenBoard(line)) == justStopped)
         #expect(
             await Jumping().jump.answer(to: "sr-q", on: GivenBoard(line))
                 == .refused("Quiet one is not on screen: no terminal window on this Mac shows it.")

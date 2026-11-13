@@ -5,17 +5,23 @@ import SitRepCore
 @testable import SitRepScreen
 import Testing
 
-/// A click on a session a live window holds that no terminal shows opens a new window for it, in the terminal Lee chose,
-/// running his open command, where a jump refused it as not on screen (stage 7, C): the jump answers what is openable,
-/// checked, and the opening follows apart from it. Which sessions open, jump or are refused; the line typed; the
-/// terminal not running; a second click; the focus after opening; the front kept; and stopping.
+/// A click on a session no terminal on this Mac shows opens a new window for it, in the terminal Lee chose, typing his
+/// resume command (stage 8's rethink): the jump answers what is openable, checked, and the opening follows apart from
+/// it. The line typed; the terminal not running; whether a terminal shows it unknown; a second click; the focus after
+/// opening; the front kept; and stopping.
 struct OpenWindowTests {
     private static let leeway = "agentic-workflows-v2 · leeway-build"
+    private static let claude = "b1c2d3e4-0000-4000-8000-000000000001"
     /// Lee's own command, through Portal: SitRep knows no Portal, only the command it is given.
-    private static let portal = "portal open -s {session}"
-    private static let portalLine = "portal open -s 'agentic-workflows-v2 · leeway-build'"
+    private static let portal = "portal open --claude {claude}"
+    private static let portalLine = "portal open --claude '\(claude)'"
     private static let notRunning = JumpAnswer.unopened(
         "SitRep opens a window only in a Ghostty already running. Open Ghostty, then click \(named) again."
+    )
+
+    /// The window the session is carried on from: Claude in Leeway's zmx session.
+    private static let held = Board.LastWindow(
+        writer: claude, where: inZmx(leeway), ownsDevice: true, directory: "/Users/lee/Code/leeway"
     )
 
     /// A zmx session with no client, only its server.
@@ -27,83 +33,51 @@ struct OpenWindowTests {
         return FakeTable(mac.tree)
     }
 
-    /// Claude's tmux pane, on a server with no client.
-    private static var detachedTmux: FakeTmux {
-        server([])
+    /// A world whose `sr-a` runs in Leeway's zmx session with no client, Lee's command given.
+    private static func world(
+        workspace: FakeWorkspace = FakeWorkspace(), running: Bool = true, failing: GhosttyFailure? = nil,
+        windowFailing: GhosttyFailure? = nil, openings: RecentOpenings = RecentOpenings()
+    ) -> Jumping {
+        Jumping(
+            FakeTmux(), detachedZmx(), running: running, failing: failing, windowFailing: windowFailing,
+            workspace: workspace, resume: portal, openings: openings
+        )
+    }
+
+    /// A click on `sr-a`, held, no terminal showing it, then its window opened.
+    private static func open(_ jumping: Jumping) async -> JumpAnswer {
+        await jumping.open([inZmx(leeway)], from: held, isHeld: true)
     }
 
     // MARK: Openable, and opened
 
     /// The jump opens nothing itself: it answers openable, and the window opens apart from it.
-    @Test func aJumpToASessionNoWindowShowsAnswersOpenableOpeningNothingItself() async {
-        let jumping = Jumping(FakeTmux(), Self.detachedZmx(), command: Self.portal)
+    @Test func aClickOnASessionNoTerminalHereShowsAnswersOpenableOpeningNothingItself() async {
+        let jumping = Self.world()
 
-        #expect(await jumping.outcome([inZmx(Self.leeway)]).answer == .openable)
+        #expect(await jumping.outcome([inZmx(Self.leeway)], from: Self.held, isHeld: true).answer == .openable)
         #expect(jumping.ghostty.told.isEmpty)
     }
 
     @Test func theOpeningOpensAWindowTypingTheCommandFilledThenFocusesIt() async {
-        let jumping = Jumping(FakeTmux(), Self.detachedZmx(), command: Self.portal)
+        let jumping = Self.world()
 
-        #expect(await jumping.open([inZmx(Self.leeway)]) == .opened)
+        #expect(await Self.open(jumping) == .opened)
         #expect(jumping.ghostty.told == ["open \(Self.portalLine)", "focus \(FakeGhostty.opened)"])
         #expect(jumping.ghostty.asked.isEmpty, "no terminal looked for")
-    }
-
-    @Test func aTmuxPaneNoClientShowsOpensAWindowWithItsSocketAndPaneAskingTmuxNoMore() async {
-        let jumping = Jumping(Self.detachedTmux, FakeTable(Mac().tree), command: "tmux -S {socket} attach -t {pane}")
-
-        #expect(await jumping.open([inTmux()]) == .opened)
-        #expect(jumping.ghostty.opened == ["tmux -S '/private/tmp/tmux-501/default' attach -t '%148'"])
-        #expect(Set(jumping.tmux.runs) == [[socket, "list-panes"], [socket, "list-clients"]])
-    }
-
-    /// Asked of tmux at the click, as a tmux session can be renamed.
-    @Test func aTmuxCommandNamingTheSessionGetsTheNameOfTheSessionHoldingThePaneAtTheClick() async {
-        let panes = [FakePane(pane: "%148", window: claudes, session: "$45")]
-        let tmux = FakeTmux([socket: FakeServer(panes: panes, names: ["$45": "switchboard"])])
-        let jumping = Jumping(tmux, FakeTable(Mac().tree), command: "tmux attach -t {session}")
-
-        #expect(await jumping.open([inTmux()]) == .opened)
-        #expect(jumping.ghostty.opened == ["tmux attach -t 'switchboard'"])
-        #expect(tmux.runs.last == [socket, "display-message"])
-    }
-
-    /// The first window, in core's order, that a multiplexer holds: one in none passed over.
-    @Test func theWindowOpenedForIsTheFirstAMultiplexerHolds() async {
-        let jumping = Jumping(Self.detachedTmux, Self.detachedZmx(), terminals: [], command: "attach {session}")
-        let outside = Where(device: "/dev/ttys041", terminal: "Unknown")
-
-        #expect(await jumping.open([outside, inZmx(Self.leeway), inTmux()]) == .opened)
-        #expect(jumping.ghostty.opened == ["attach 'agentic-workflows-v2 · leeway-build'"])
-    }
-
-    /// A window in tmux run inside zmx, or zmx inside tmux, is opened for the innermost, as a jump reads it.
-    @Test(arguments: [("/dev/ttys043", "attach 'work'"), ("/dev/ttys087", "attach 'kit'")])
-    func aWindowInTwoMultiplexersIsOpenedForTheInnermost(device: String, line: String) async {
-        let pane = FakePane(pane: "%148", window: claudes, session: "$45", device: "/dev/ttys043")
-        let both = Where(device: device, terminal: "tmux", tmux: Where.Tmux(socket: socket, pane: "%148"), zmx: Where.Zmx(session: "kit"))
-        var mac = Mac()
-
-        mac.zmxServer("kit")
-
-        let jumping = Jumping(FakeTmux([socket: FakeServer(panes: [pane], names: ["$45": "work"])]), FakeTable(mac.tree), command: "attach {session}")
-
-        #expect(await jumping.open([both]) == .opened)
-        #expect(jumping.ghostty.opened == [line])
     }
 
     /// The opening goes through the driver of the terminal Lee chose, and its refusals name that terminal.
     @Test func theOpeningGoesThroughTheChosenTerminalsDriver() async {
         let other = Driver(name: "Other", program: "other", executable: "other")
         let driver = RecordingDriver()
-        let jumping = Jumping(FakeTmux(), Self.detachedZmx())
+        let jumping = Self.world()
         let jump = Jump(
             reader: ScreenReader(tmux: FakeTmux(), table: Self.detachedZmx()), tmux: FakeTmux(),
             drivers: [.ghostty: jumping.driver, other: driver], workspace: jumping.workspace, clock: jumping.clock,
-            opening: OpenSettings(terminal: other, command: Self.portal)
+            opening: OpenSettings(terminal: other, resumeCommand: Self.portal)
         )
-        let outcome = await jump.jump(to: "sr-a", named: named, at: [inZmx(Self.leeway)])
+        let outcome = await jump.click("sr-a", named: named, at: [inZmx(Self.leeway)], from: Self.held, isHeld: true)
 
         #expect(await outcome.opening?.open() == .opened)
         #expect(driver.opened == [Self.portalLine])
@@ -118,106 +92,51 @@ struct OpenWindowTests {
 
     // MARK: Refused, and nothing opened
 
-    /// SitRep has no built-in way to attach: with no command, the click says to set one, and nothing opens.
-    @Test func withNoOpenCommandTheClickSaysToSetOneInSettingsAndNothingOpens() async {
-        let jumping = Jumping(Self.detachedTmux, FakeTable(Mac().tree))
-
-        #expect(await jumping.open([inTmux()]) == .unopened("No terminal window shows \(named). To open one for it, set an open command in Settings."))
-        #expect(jumping.ghostty.told.isEmpty)
-    }
-
-    /// The sessions a jump still refuses, each by why, with nothing openable: none is held by a multiplexer, or whether
-    /// one shows is unknown, which could make a second window of one already there.
-    private static func refused() -> [(String, [Where], FakeTmux, FakeTable, JumpAnswer)] {
+    /// Whether a terminal shows it unknown, by any of its windows, though another shows nowhere: a window opened then
+    /// could be a second of one already there.
+    private static func unknown() -> [(String, [Where], FakeTmux, FakeTable, JumpAnswer)] {
         let couldNotTell = { (what: String) in JumpAnswer.refused("Could not tell whether \(named) is on screen: \(what) gave no answer.") }
+        let mismatch = JumpAnswer.refused(
+            "Could not tell whether \(named) is on screen: tmux said \"protocol version mismatch (client 8, server 7)\"."
+        )
 
         return [
-            ("no live window", [], FakeTmux(), FakeTable(Mac().tree), offScreen),
-            ("a window in no multiplexer", [Where(device: "/dev/ttys041", terminal: "Unknown")], FakeTmux(), FakeTable(Mac().tree), offScreen),
-            ("no tmux server on its socket", [inTmux()], FakeTmux(), FakeTable(Mac().tree), offScreen),
-            ("its pane gone from its server", [inTmux("%9")], Self.detachedTmux, FakeTable(Mac().tree), offScreen),
             ("its zmx session unknown, the table not answering", [inZmx(leeway)], FakeTmux(), FakeTable(nil), couldNotTell("the process table")),
             ("tmux not answering", [inTmux()], FakeTmux(silent: true), FakeTable(Mac().tree), couldNotTell("tmux")),
             (
                 "tmux failing on its socket, a server it could not talk to", [inTmux()],
-                FakeTmux(failing: [socket: "protocol version mismatch (client 8, server 7)"]), FakeTable(Mac().tree),
-                .refused("Could not tell whether \(named) is on screen: tmux said \"protocol version mismatch (client 8, server 7)\"."),
+                FakeTmux(failing: [socket: "protocol version mismatch (client 8, server 7)"]), FakeTable(Mac().tree), mismatch
             ),
             (
                 "tmux failing on one window's socket, though zmx holds another of its windows with no client", [inTmux(on: otherSocket), inZmx(leeway)],
-                FakeTmux(failing: [otherSocket: "protocol version mismatch (client 8, server 7)"]), Self.detachedZmx(),
-                .refused("Could not tell whether \(named) is on screen: tmux said \"protocol version mismatch (client 8, server 7)\"."),
+                FakeTmux(failing: [otherSocket: "protocol version mismatch (client 8, server 7)"]), Self.detachedZmx(), mismatch
             ),
         ]
     }
 
-    @Test func aSessionNoMultiplexerHoldsOrWhoseScreenIsUnknownIsRefusedAndNothingOpens() async {
-        for (why, windows, tmux, table, answer) in Self.refused() {
-            let jumping = Jumping(tmux, table, terminals: [], command: "attach {session}")
+    @Test func aSessionWhoseScreenIsUnknownIsRefusedAndNothingOpens() async {
+        for (why, windows, tmux, table, answer) in Self.unknown() {
+            let jumping = Jumping(tmux, table, terminals: [], resume: Self.portal)
 
-            #expect(await jumping.open(windows) == answer, "\(why)")
+            #expect(await jumping.open(windows, from: Self.held, isHeld: true) == answer, "\(why)")
             #expect(jumping.ghostty.told.isEmpty, "\(why)")
         }
     }
 
-    @Test func aSessionOnScreenIsJumpedToNeverOpened() async {
-        let (tmux, table) = shown()
-        let jumping = Jumping(tmux, table, command: "attach {session}")
-
-        #expect(await jumping.open([inTmux()]) == .jumped)
-        #expect(jumping.ghostty.focused == ["SWITCHBOARD-TERMINAL"])
-        #expect(jumping.ghostty.opened.isEmpty)
-    }
-
-    /// From the board: a session with no live window, nor any last one, as no window ever held it, has nothing to open
-    /// a window for.
-    @Test func aSessionOnTheBoardWithNoWindowAtAllIsRefusedAsNotOnScreen() async throws {
-        let line = try board([], sessions: ["sr-q": "Quiet one"])
-
-        #expect(
-            await Jumping(command: "attach {session}").jump.answer(to: "sr-q", on: GivenBoard(line))
-                == .refused("Quiet one is not on screen: no terminal window on this Mac shows it.")
-        )
-    }
-
-    /// Refused at the click, before anything is asked or sent.
-    @Test(arguments: [
-        ("attach {pane}", "\(named) runs in zmx, which gives no {pane}. A zmx session gives {session}."),
-        ("attach '{session}'", "The open command in Settings puts {session} in quotes or backticks. Remove them: SitRep quotes each value itself."),
-        ("attach {window}", "The open command in Settings has {window}, which SitRep doesn't know. It knows {session}, {socket} and {pane}."),
-    ])
-    func aCommandSitRepCannotFillOrTypeIsRefusedAtTheClick(command: String, words: String) async {
-        let jumping = Jumping(FakeTmux(), Self.detachedZmx(), command: command)
-
-        #expect(await jumping.open([inZmx(Self.leeway)]) == .unopened(words))
-        #expect(jumping.ghostty.told.isEmpty)
-    }
-
-    @Test func tmuxNotNamingTheSessionIsRefusedInItsWordsAndNothingOpens() async {
-        let jumping = Jumping(command: "tmux attach -t {session}")
-        let jump = Self.jump(jumping, tmux: NamingTmux(Self.detachedTmux, silent: true))
-
-        #expect(
-            await jump.jump(to: "sr-a", named: named, at: [inTmux()]).answer
-                == .unopened("tmux, asked which session holds Claude's pane, did not answer within 2 seconds.")
-        )
-        #expect(jumping.ghostty.told.isEmpty)
-    }
-
     /// `new window` would launch the terminal, which opens a first window of its own as it starts: never sent.
     @Test func withGhosttyNotRunningTheOpeningIsRefusedInPlainWordsAndNothingIsSent() async {
-        let jumping = Jumping(FakeTmux(), Self.detachedZmx(), workspace: FakeWorkspace(running: []), command: Self.portal)
+        let jumping = Self.world(workspace: FakeWorkspace(running: []))
 
-        #expect(await jumping.open([inZmx(Self.leeway)]) == Self.notRunning)
+        #expect(await Self.open(jumping) == Self.notRunning)
         #expect(jumping.ghostty.told.isEmpty)
         #expect(!jumping.openings.isOpening("sr-a"))
     }
 
     /// Quit between the check and the asking: refused in the same words, Ghostty sent nothing, nothing remembered.
     @Test func ghosttyQuitBeforeTheWindowIsAskedForIsRefusedInTheSameWords() async {
-        let jumping = Jumping(FakeTmux(), Self.detachedZmx(), running: false, command: Self.portal)
+        let jumping = Self.world(running: false)
 
-        #expect(await jumping.open([inZmx(Self.leeway)]) == Self.notRunning)
+        #expect(await Self.open(jumping) == Self.notRunning)
         #expect(jumping.ghostty.told.isEmpty)
         #expect(!jumping.openings.isOpening("sr-a"))
     }
@@ -228,18 +147,18 @@ struct OpenWindowTests {
         (.noAnswer, "Ghostty did not answer within 5 seconds: most likely the screen is locked, or macOS is asking whether SitRep may control Ghostty."),
     ])
     func ghosttyFailingBeforeTheWindowIsAskedForIsRefusedInItsWordsAndForgotten(failure: GhosttyFailure, words: String) async {
-        let jumping = Jumping(FakeTmux(), Self.detachedZmx(), failing: failure, command: Self.portal)
+        let jumping = Self.world(failing: failure)
 
-        #expect(await jumping.open([inZmx(Self.leeway)]) == .unopened(words))
+        #expect(await Self.open(jumping) == .unopened(words))
         #expect(jumping.ghostty.told.isEmpty)
         #expect(!jumping.openings.isOpening("sr-a"), "a click again may open one")
     }
 
     /// Once the window was asked for, one may open whatever Ghostty answers: refused in its words, and remembered.
     @Test func ghosttyFailingOnceTheWindowWasAskedForIsRefusedInItsWordsAndRemembered() async {
-        let jumping = Jumping(FakeTmux(), Self.detachedZmx(), windowFailing: .windowUnanswered, command: Self.portal)
+        let jumping = Self.world(windowFailing: .windowUnanswered)
 
-        #expect(await jumping.open([inZmx(Self.leeway)]) == .unopened("Ghostty did not answer within 5 seconds when asked to open a window; one may still appear."))
+        #expect(await Self.open(jumping) == .unopened("Ghostty did not answer within 5 seconds when asked to open a window; one may still appear."))
         #expect(jumping.ghostty.opened == [Self.portalLine])
         #expect(jumping.ghostty.focused.isEmpty)
         #expect(jumping.openings.isOpening("sr-a"))
@@ -261,21 +180,18 @@ struct OpenWindowTests {
 
     // MARK: A second click
 
-    /// The window's shell takes a moment to start and attach: a click on the session within an opening's 10 seconds
-    /// answers that its window is opening, and never opens another, nor asks tmux or Ghostty anything for one.
+    /// The window's shell takes a moment to start, and its Claude to reach the board: a click on the session meanwhile
+    /// answers that its window is opening, and never opens another, nor asks Ghostty anything for one.
     @Test func aSecondClickWhileItsWindowOpensOpensNoOtherWindow() async throws {
-        let line = try board([LineWindow(writer: "w1", session: "sr-a", order: 0, zmx: Self.leeway)])
-        let clock = MovingClock()
-        let jumping = Jumping(FakeTmux(), Self.detachedZmx(), command: Self.portal, openings: RecentOpenings(now: clock.now))
+        let line = try board([
+            LineWindow(writer: Self.claude, session: "sr-a", order: 0, zmx: Self.leeway, directory: "/Users/lee/Code/leeway"),
+        ])
+        let jumping = Self.world()
         let first = try #require(await jumping.jump.run(to: "sr-a", on: GivenBoard(line)).opening)
 
         #expect(await first.open() == .opened)
-        clock.move(by: .seconds(9))
         #expect(await jumping.jump.answer(to: "sr-a", on: GivenBoard(line)) == .opening)
-        #expect(jumping.ghostty.opened.count == 1)
-
-        clock.move(by: .seconds(1))
-        #expect(await jumping.jump.answer(to: "sr-a", on: GivenBoard(line)) == .openable, "forgotten after ten seconds")
+        #expect(jumping.ghostty.told.count == 2, "its open and its focus alone")
     }
 
     /// Remembered from before the window is asked for, so a click as Ghostty answers opens no second.
@@ -292,7 +208,7 @@ struct OpenWindowTests {
         #expect(await opened.value == .opened)
     }
 
-    /// Remembered again as the window is asked for, so a slow first event costs none of its ten seconds.
+    /// Remembered again as the window is asked for, so a slow first event costs none of its two minutes.
     @Test func anOpeningIsRememberedAfreshAsTheWindowIsAskedFor() async {
         let gate = Gate()
         let clock = MovingClock()
@@ -303,7 +219,7 @@ struct OpenWindowTests {
         let opened = Task { await jumping.opening("attach kit").open() }
 
         await until { jumping.workspace.fronts == 1 }
-        clock.move(by: .seconds(9))
+        clock.move(by: .seconds(119))
         gate.open()
         #expect(await opened.value == .opened)
 
@@ -343,34 +259,19 @@ struct OpenWindowTests {
     /// forward again, once.
     @Test func ghosttyIsKeptInFrontAfterOpeningAsAJumpKeepsIt() async {
         let workspace = FakeWorkspace(front: finder, focused: [ghosttyBundle, finder])
-        let jumping = Jumping(FakeTmux(), Self.detachedZmx(), workspace: workspace, command: Self.portal)
+        let jumping = Self.world(workspace: workspace)
 
-        #expect(await jumping.open([inZmx(Self.leeway)]) == .opened)
+        #expect(await Self.open(jumping) == .opened)
         #expect(workspace.brought == [bundled(ghosttyBundle).absoluteString])
         #expect(workspace.listening == 0)
     }
 
     @Test func withGhosttyInFrontNoWatchIsKept() async {
-        let jumping = Jumping(FakeTmux(), Self.detachedZmx(), command: Self.portal)
+        let jumping = Self.world()
 
-        #expect(await jumping.open([inZmx(Self.leeway)]) == .opened)
+        #expect(await Self.open(jumping) == .opened)
         #expect(jumping.workspace.listened == 0)
         #expect(jumping.workspace.brought.isEmpty)
-    }
-
-    /// Stopped by a later click while tmux names the session: nothing is openable, and nothing opens.
-    @Test func aJumpStoppedWhileTmuxNamesTheSessionIsStopped() async {
-        let gate = Gate()
-        let jumping = Jumping(command: "tmux attach -t {session}")
-        let jump = Self.jump(jumping, tmux: NamingTmux(Self.detachedTmux, held: gate))
-        let jumped = Task { await jump.jump(to: "sr-a", named: named, at: [inTmux()]) }
-
-        await until { gate.arrived == 1 }
-        jumped.cancel()
-        gate.open()
-
-        #expect(await jumped.value.answer == .stopped)
-        #expect(jumping.ghostty.told.isEmpty)
     }
 
     /// Stopped before the window is asked for: nothing is sent, and the opening is forgotten, so a click again opens it.
@@ -403,15 +304,6 @@ struct OpenWindowTests {
         await settle()
         #expect(jumping.ghostty.told == ["open attach kit"])
         #expect(jumping.openings.isOpening("sr-a"))
-    }
-
-    /// The jump of the world given, but asking the tmux given, on a Mac of no clients.
-    private static func jump(_ jumping: Jumping, tmux: any TmuxProgram) -> Jump {
-        Jump(
-            reader: ScreenReader(tmux: tmux, table: FakeTable(Mac().tree)), tmux: tmux,
-            drivers: [.ghostty: jumping.driver], workspace: jumping.workspace, clock: jumping.clock,
-            opening: jumping.opening, openings: jumping.openings
-        )
     }
 
     /// Given up before the window was asked for, none can come.
@@ -468,31 +360,5 @@ private final class RecordingDriver: TerminalDriver {
         sending()
         state.withLock { $0.opened.append(command) }
         return true
-    }
-}
-
-/// tmux answering as the tmux given, but in its naming of a session: held at the gate, where one is given, and giving
-/// no answer, where `silent`.
-private final class NamingTmux: TmuxProgram {
-    let tmux: FakeTmux
-    let gate: Gate?
-    let isSilent: Bool
-
-    init(_ tmux: FakeTmux, held gate: Gate? = nil, silent: Bool = false) {
-        self.tmux = tmux
-        self.gate = gate
-        isSilent = silent
-    }
-
-    func run(on socket: String, _ words: [String]) async throws -> Ran {
-        guard words.first == "display-message" else {
-            return try await tmux.run(on: socket, words)
-        }
-
-        await gate?.pass()
-        if isSilent {
-            throw FakeTmux.unanswered
-        }
-        return try await tmux.run(on: socket, words)
     }
 }

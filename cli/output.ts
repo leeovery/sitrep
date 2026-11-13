@@ -308,7 +308,6 @@ const lastWindowJson = (window: LastWindow | undefined) =>
     : {
         writer: window.writer,
         where: whereJson(window.where),
-        attaches: window.attaches,
         ownsDevice: window.ownsDevice,
         directory: window.directory ?? null,
       }
@@ -337,6 +336,7 @@ const windowJson = (window: FeedWindow) => ({
   version: window.version ?? null,
   needsReload: window.needsReload,
   where: whereJson(window.where),
+  directory: window.directory ?? null,
   state: stateJson(window.state),
   attachedAt: window.attachedAt,
   jumpOrder: window.jumpOrder ?? null,

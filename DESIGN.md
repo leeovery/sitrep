@@ -7856,9 +7856,16 @@ open), and tmux passing an escape sequence through from Claude's own pane
      under, the two at once, each with its 2 seconds. So a tmux user pays
      two runs of tmux a socket at each read, and a server that hangs costs
      its 2 seconds at each read, its sessions unknown meanwhile. On Lee's
-     Mac, with no tmux, none run. The Swift read is not measured yet: `ps`
-     answered in about 60ms (6 November 2026), and the kernel's table
-     replaced it. Measured before the cadence is chosen.
+     Mac, with no tmux, none run. Measured on Lee's Mac (an M1 Max, 13
+     November 2026), over its real table of 1,336 processes, 46 sessions
+     read at once, 33 of them in zmx and 14 here: the whole read 23ms in a
+     release build (30ms in a debug one), the table's own look 5ms of it,
+     where `ps` had answered in about 60ms (6 November 2026). So it runs
+     every **3 seconds** between the watch's lines, under 1% of a core,
+     and a row's look lags the screen by about that at most. A first cut
+     seated every process on a window's device, 120ms in a debug build;
+     the read seats only the processes on a device whose parent is on
+     another or none, through which all the rest descend.
    - **Where it can't tell.** The read's unknown, as the jump's (tmux not
      answering, or answering an error other than no server; the table
      giving no answer), is never taken for not here, as the jump never
@@ -7919,16 +7926,24 @@ open), and tmux passing an escape sequence through from Claude's own pane
      empty refuses, saying to set one or restore the default.
    - **The guard**: the default refuses while that session's Claude is
      still alive but not shown here: a window holds it on the board, or
-     SitRep sees its Claude on its device, running or suspended (the device
-     its own, `ownsDevice`). "<name>'s Claude is still running where this
+     SitRep sees its Claude on its device, running (the device its own,
+     `ownsDevice`) or suspended, whoever was seen there after, as a later
+     conversation started in the shell it was suspended in leaves it there.
+     With a Claude seen there: "<name>'s Claude is still running where this
      Mac doesn't show it: set a resume command that can reach it, in
-     Settings." A command Lee wrote always runs: what it does is his. The
-     default is told by its text, so a command saved the same as it is the
-     default.
+     Settings." Held, with none seen there, as a tab just closed whose
+     window holds the session until its heartbeat goes stale: "<name>'s
+     window has just stopped answering: try again in a moment." A command
+     Lee wrote always runs: what it does is his. The default is told by its
+     text, so a command saved the same as it is the default.
    - **One window per click**, kept from the build: a click while an
      opening is on its way opens no second window, until the session reads
-     as here or the board holds it, 120 seconds at most. A session a window
-     held at the click is held already, so only here forgets its opening.
+     as here or the board holds it. An away session's opening lasts 120
+     seconds at most. A session a window held at the click is held already,
+     so only here forgets its opening, and its command reaches a Claude
+     already running, which reads as here within a read or two: its
+     opening lasts 10 seconds, as the build's attach did, so a command that
+     failed holds back no click for long.
 
    **Examples**, recorded as examples, never as SitRep's knowledge:
    - **Lee's Portal one-liner.** Portal's `hook list` maps each Portal
@@ -7964,7 +7979,12 @@ open), and tmux passing an escape sequence through from Claude's own pane
    - the command's reading, as step C's, but for a placeholder joined to
      unquoted text, which the rethink allows (below): a character that does
      not print, a placeholder SitRep does not know, one inside quotes or
-     backticks;
+     backticks; and one in arithmetic, `$((…))`, `((…))` or `$[…]`, or a
+     subscript, `a[…]` or `${a[…]}`, which the shell evaluates as
+     arithmetic, running a `$(…)` even in a quoted value
+     (`$(( '/x$(cmd)' ))` runs `cmd` in zsh, bash and sh): "The resume
+     command in Settings puts {dir} in arithmetic or a subscript, where the
+     shell runs what is in a value even quoted. Move it out.";
    - the chosen terminal not running, as an opening's;
    - the process table giving no answer, as the build's: "Could not tell
      whether <name>'s Claude is still running: the process table gave no
@@ -8071,6 +8091,90 @@ open), and tmux passing an escape sequence through from Claude's own pane
        of its own, the old `resumeCommand` read where it holds a command
        and taken for unset where it is empty, so a saved empty one before
        the move reads as the default and one after it refuses.
+
+   **Built** (13 November 2026), the first of the next PR's two slices,
+   nothing of it run live: all the plan removes, and of what it adds all
+   but the continuous read and the dimmed rows. Until the second slice,
+   here is the jump's own reading of the screen at the click, as before
+   the rethink (`Jump.jumpIfHere`, the one place the continuous read is to
+   feed): a session a terminal shows is jumped to, one whether a terminal
+   shows it unknown is refused in the jump's words, and any other is
+   carried on (`Jump.carryOn`), held or away; no row is dimmed yet.
+   - **The window it is carried on from** (`Board.resumeWindow`): for a
+     held session the live window a jump tries first, else, none saying
+     where it is, the first on the line, its device its own; for an away
+     one its `lastWindow`. `MultiplexerKind` went with the open command's
+     facts, as nothing else read it.
+   - **A line from an older CLI**: a window with no `directory` gives no
+     `{dir}`, so a command naming it refuses; a last window with no
+     `ownsDevice` gives an empty `{tty}`, and the guard counts a Claude on
+     its device as the session's.
+   - **The suspended rule**: a Claude stopped on the window's device is
+     jumped to where its window shows; where none shows it the session is
+     carried on as any not here, the default refusing, as its Claude is
+     alive; whether one shows it unknown is refused in the jump's words.
+   - **One window per click**: an opening remembers whether a window held
+     its session at the click, and the board holding it forgets only one
+     that none held; a click that reads the session as here forgets it.
+     `openedSaying` went, with `Opening.saying`, though the plan kept it,
+     as nothing opens with a word now.
+   - **Settings**: the command is saved under "app" as `resume`, none
+     until Lee gives one, which reads as the default; Restore Default puts
+     it back to none.
+
+   **Built** (13 November 2026), the second slice, nothing of it run live:
+   the continuous read, the dimmed rows and the click by the read.
+   - **The read** (`HereReader`) is a reader of its own beside the jump's
+     `ScreenReader`, which is unchanged. It reads the table once, with zmx's
+     command lines, and each multiplexer for its windows, tmux only for
+     their sockets. A window in a multiplexer is here where the jump's own
+     reach finds a place for it (`Screen.reach`, its clients seated by
+     `Processes.seat`); one in none where a process on its device is
+     seated, only the device's top processes tried, those whose parent is
+     on another device or none. Remote logins (`sshd`, `sshd-session`,
+     `mosh-server`) are cut from their parents before any seat, so even an
+     sshd started from a terminal's shell shows none of its sessions here.
+   - **The click** reads afresh, by a reader made from the jump's own table
+     and tmux: here, the jump, whose every failure, its finding no screen
+     included, is refused in its words; not here, `carryOn`; unknown,
+     refused. So a click on a session here reads the table twice, the read
+     then the jump's. A held session whose table gives no answer is now
+     refused as unknown, where the jump's reading had carried on one over
+     ssh without the table.
+   - **The watch** (`HereWatch`, owned by `Works`) reads at each line,
+     after the read under way where one is, and every 3 seconds, skipping
+     a tick while one is under way; off the main thread, its result taken
+     on it. It keeps the sessions read as not here: unknown keeps the last
+     look, one never read is here, and a session no window holds drops its
+     look at the line that shows it so, and from any read that ends after.
+     A session read as here forgets its opening.
+   - **The rows**: the panel's board takes the sessions not here
+     (`PanelBoard(_:notHere:)`), each drawn with `away` set, its section,
+     words, lines and place as core gives them; the menu's likewise. A
+     change of here tells the notch and the strip the last board again with
+     nothing new on it (`retold`), so nothing swells or washes twice. On the
+     strip an ask's mark takes the away look, and other marks keep theirs.
+   - **The look**: no new styling. Working and on-its-own-work titles now
+     dim by `Away.dim` on the card, the strip's tab and count rows and on
+     glass, as a your-turn row's and an ask's did already; the menu dimmed
+     every away row's words already.
+   - **After review** (13 November 2026):
+     - the suspended rule goes by the read of here, never the jump's
+       `$TERM_PROGRAM` reading: a Claude suspended over ssh from another
+       Mac's Ghostty, its heartbeat carrying Ghostty's, is carried on as
+       any not here; one here whose window the jump finds on no screen is
+       refused as one that did not come forward;
+     - a Claude suspended on the device counts as alive whatever
+       `ownsDevice` says, so the default never resumes beside it; `{tty}`
+       is still filled only where the device is its own;
+     - the guard's words follow the table: a held session with no Claude
+       seen on its device has just stopped answering;
+     - a held session's opening lasts 10 seconds, an away one's 120;
+     - a placeholder in arithmetic or a subscript is refused;
+     - a held session's missing folder is its window's, not its last
+       window's;
+     - each board reaches the edge and the menu before the read of here,
+       so a change of here never redraws the board before.
 
    **To prove live, with Lee's go** (the rule's):
    1. A session whose Claude exited: the click resumes it by the command.
