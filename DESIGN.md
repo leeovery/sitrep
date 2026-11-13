@@ -280,9 +280,9 @@ notch and its panel").
   nothing of its own left running, and waits for Lee's message. Not orange:
   they are in a conversation, and Lee comes back when ready.
 - **away**: no window holds it, and it is still current. Dimmed. SitRep
-  dims a session a window holds but no Ghostty window on this Mac shows
-  too, keeping its state, which stays core's (stage 8's rethink, 13
-  November 2026; see "The rows").
+  dims a session a window holds but no terminal on this Mac shows too,
+  keeping its state, which stays core's (stage 8's rethink, 13 November
+  2026; see "The rows").
 - **finished**: off the panel.
 
 Working, on its own work, your turn and the stops on a permission prompt or
@@ -3949,7 +3949,7 @@ that takes Lee to the window a session is in.
   as it launches, perhaps before macOS's activation lands, so the helper
   not yet active hides as it next becomes active, within a second, and
   an activation later than that, of its own, is never hidden. A session no
-  Ghostty window on this Mac shows, held or away, is carried on by Lee's
+  terminal on this Mac shows, held or away, is carried on by Lee's
   resume command, in a new window of the terminal he chose, a Claude of it
   suspended where this Mac shows it jumped to instead (stage 8, rethought
   on 13 November 2026). Until then a session a multiplexer held had a
@@ -4048,8 +4048,8 @@ black background", with a little happening inside: subtle, and narrower.
 **The rows** (16 October 2026). The panel shows every session that needs
 Lee, away ones included, and every session a window holds, working, on its
 own work or your turn (see "A session's state"). An away session with
-nothing waiting stays off it. A session a window holds that no Ghostty
-window on this Mac shows, its Claude running hidden or attached only from
+nothing waiting stays off it. A session a window holds that no terminal
+on this Mac shows, its Claude running hidden or attached only from
 another device, stays on it dimmed, keeping its state and its place, as
 an away row is dimmed (stage 8's rethink, 13 November 2026, Lee's
 choice): SitRep reads which sessions this Mac shows every few seconds,
@@ -4255,13 +4255,13 @@ section, new to the board or come from another, goes under the row core has
 above it in that section, or at the section's top where core has none there.
 A click on a dimmed row, away or held where this Mac doesn't show it,
 carries its session on: a Claude of it suspended where this Mac shows it
-is jumped to, starting nothing; otherwise a new Ghostty window runs Lee's
-resume command (stage 8, rethought with Lee on 13 November 2026). From 12
-November 2026 an away row's click went by what was left of its last
-window instead: the terminal showing it, a window opened onto it where it
-was still alive, or Claude started again where nothing was left. Until
-then a click on it did nothing, and what it would open was left for later
-(Lee, 16 October 2026). This replaces the first list, needs you, your turn, working,
+is jumped to, starting nothing; otherwise a new window in the terminal Lee
+chose runs his resume command (stage 8, rethought with Lee on 13 November
+2026). From 12 November 2026 an away row's click went by what was left of
+its last window instead: the terminal showing it, a window opened onto it
+where it was still alive, or Claude started again where nothing was left.
+Until then a click on it did nothing, and what it would open was left for
+later (Lee, 16 October 2026). This replaces the first list, needs you, your turn, working,
 quiet and not on screen: quiet was your turn, and not on screen is a fact
 about where a window is, for the jump.
 
@@ -4293,8 +4293,8 @@ right, Your turn's row alone on one line from 22 October 2026:
   card, the strip and the menu. The filled dot and its glow stay for an ask whose window is
   there. Orange says an ask waits on Lee; hollow, that no window holds it,
   as Slack and Teams mark someone away. Since stage 8's rethink (13
-  November 2026) a session a window holds that no Ghostty window on this
-  Mac shows takes the ring and the dimming too: hollow, that no window
+  November 2026) a session a window holds that no terminal on this Mac
+  shows takes the ring and the dimming too: hollow, that no window
   here shows it. Lee: "Rather than the orange circle,
   we need a better icon to indicate that it's an ask, but there's no window
   open." Until then the dot stayed orange. Its words dim as one: its title,
@@ -5607,8 +5607,8 @@ Only step 1, the mod recording where its window is, is the plugin's still.
 - **A session no terminal shows that a multiplexer holds** has a window
   opened for it, where the jump refused it as not on screen, since 10
   November 2026 (stage 7, C, under "Stages"). Since stage 8's rethink (13
-  November 2026) a session no Ghostty window on this Mac shows, held or
-  away, runs the resume command instead, and the jump goes only to a
+  November 2026) a session no terminal on this Mac shows, held or away,
+  runs the resume command instead, and the jump, unchanged, goes only to a
   session here, or to a Claude suspended where this Mac shows it.
 - **From the watch's last line**, never the board's files: the session's
   windows that say where they are, in core's order (`jumpOrder`, never
@@ -7600,8 +7600,8 @@ open), and tmux passing an escape sequence through from Claude's own pane
    was settled with Lee on 10 November 2026, replacing what the plan of 9
    November said (an attach command for each multiplexer, and a Space
    picker, step D, now dropped). **Superseded on 13 November 2026** by
-   stage 8's rethink: a session no Ghostty window on this Mac shows, held
-   or away, is dimmed, and its click runs the one resume command, into
+   stage 8's rethink: a session no terminal on this Mac shows, held or
+   away, is dimmed, and its click runs the one resume command, into
    which the open command's attach folds; the open command, its
    placeholders and its separate path go. What follows is the record of
    what was decided, built and proven live, and stands as that.
@@ -7812,39 +7812,46 @@ open), and tmux passing an escape sequence through from Claude's own pane
 
    **The rule** (decided with Lee, 13 November 2026):
    - **Here.** A session is here only when its Claude is live, a window
-     holding it on the board, as now, and a Ghostty window on this Mac
-     shows that Claude. Shown is either:
-     - its terminal descends from this Mac's Ghostty; or
-     - a multiplexer client attached to its multiplexer session descends
-       from this Mac's Ghostty.
+     holding it on the board, as now, and a terminal on this Mac that
+     SitRep can take Lee to shows that Claude. Shown is either:
+     - its terminal's ancestry reaches a terminal app the jump can bring
+       forward; or
+     - the ancestry of a multiplexer client attached to its multiplexer
+       session does.
 
-     An attach from elsewhere does not count: Lee's phone or iPad over SSH,
-     rootshell, or Portal there. A Ghostty window behind others, on another
-     Space or minimized does, since the jump reaches it. An away session is
-     never here. Here is the app's alone: core's held and away are
-     unchanged, and the feed says nothing of it.
-   - **How it is read.** As the jump reads on screen (see "SitRep's own
-     jump"), for every live window on the board at once: one read of the
-     screen (`ScreenReader.read`) for all of them, and each session here
-     where it finds a place in Ghostty for any of its windows
-     (`Screen.reach`). In a multiplexer that is a client of the window's
-     session seated by its ancestry (`Processes.seat`), so a client under
-     sshd or mosh-server, in no terminal app, is no place, as for the jump;
-     a tmux pane in a tmux window no client has current counts where a
-     select would show it, as the jump makes one. Outside a multiplexer the
-     jump has trusted the heartbeat's `$TERM_PROGRAM` and device; the read,
-     and the click's with it, asks the table for a process on that device
-     descending from Ghostty, as the rule says, so a Claude reached over SSH
-     whose shell carries Ghostty's `$TERM_PROGRAM` is not here. Read every
-     few seconds and on each watch line, one read at a time, off the main
-     thread; and read again at the click, as the jump reads it, so a click
-     goes by what shows then, never by the row.
+     Any terminal app counts, not only Ghostty: Ghostty by its driver, the
+     others brought forward whole, as the jump brings them today. An
+     ancestry that reaches sshd or another remote login does not: Lee's
+     phone or iPad over SSH, rootshell, or Portal there. A window behind
+     others, on another Space or minimized counts, since the jump reaches
+     it. An away session is never here. Here is the app's alone: core's
+     held and away are unchanged, and the feed says nothing of it. New
+     windows still open in the terminal chosen in Settings.
+   - **How it is read.** From the process table, by a read of its own: the
+     jump's reading stays as it is, proven, and Lee wants it left alone.
+     For every live window on the board at once, the table read once, and
+     tmux asked for its clients where a window runs in it: a window in a
+     multiplexer is here where a client of its session is seated in a
+     terminal app (`Processes.seat`, the step the jump seats its clients
+     by), a tmux pane in a tmux window no client has current counting where
+     a select would show it, as the jump makes one; a window in no
+     multiplexer is here where a process on its device has a terminal app
+     among its ancestors. The heartbeat's `$TERM_PROGRAM`, which the jump
+     goes by outside a multiplexer, is not read: a Claude reached over SSH
+     whose shell carries Ghostty's is not here. Read every few seconds and
+     on each watch line, one read at a time, off the main thread; and read
+     again at the click, the same read, which picks the way: here, the
+     jump, exactly as today; not here, the command. Where the jump and the
+     read disagree, the heartbeat saying Ghostty and the ancestry sshd, the
+     read decides. A session here whose jump then fails is refused in the
+     jump's words, as today, and nothing starts.
    - **What the read costs.** It asks Ghostty nothing, as `sitrep screen`
      did not (6 November 2026): no Apple Event, so no prompt for leave to
      control Ghostty and no 5 seconds' wait on a locked screen. The
      kernel's table is read once: one `sysctl`, `proc_pidpath` for every
-     process, and the command line of each whose program is zmx. tmux is
-     asked through its program, a subprocess, as the jump asks it:
+     process, the command line of each whose program is zmx, and each
+     window's ancestry walked through it. tmux is asked through its
+     program, a subprocess, as the jump asks it:
      `list-panes -a` and `list-clients` for each socket a live window runs
      under, the two at once, each with its 2 seconds. So a tmux user pays
      two runs of tmux a socket at each read, and a server that hangs costs
@@ -7878,8 +7885,9 @@ open), and tmux passing an escape sequence through from Claude's own pane
        keeps the rule built on 12 November 2026 (b3ada08): the jump, saying
        "<name> is suspended in this window: type fg to bring it back.",
        starting nothing;
-     - otherwise SitRep opens a new Ghostty window and types the resume
-       command into Lee's own login shell there, with a Return, as step C
+     - otherwise SitRep opens a new window in the terminal chosen in
+       Settings, Ghostty, and types the resume command into Lee's own login
+       shell there, with a Return, as step C
        of stage 7 typed the open command. Typed at a prompt, a one-liner,
        an alias, a function or a script all work.
    - **One command, the resume command**, in place of the open command and
@@ -7942,13 +7950,6 @@ open), and tmux passing an escape sequence through from Claude's own pane
      ```
    - **Claude with no multiplexer:** the default.
 
-   As written, the first two join a placeholder to other text, `id={claude}`
-   and `d={tty}`, which the command's reading refuses today, a placeholder
-   standing as a whole word since step C (10 November 2026). Left open for
-   Lee: the reading takes an assignment's `name=` before a placeholder, or
-   the examples pass their values another way, as `set -- {claude} {tty}`
-   and then `"$1"` and `"$2"`.
-
    **Settings**, General (see "Settings"): Startup, unchanged; Terminal,
    the Terminal pop-up with Ghostty's leave beneath it in one card; and
    Resume command, a section of its own, its one field pre-filled, with
@@ -7960,10 +7961,11 @@ open), and tmux passing an escape sequence through from Claude's own pane
      <name> on, set one, or restore the default.";
    - the guard's, above;
    - a `{dir}` with no folder, in the words of 12 November 2026 (below);
-   - the command's reading, as step C's: a character that does not print,
-     a placeholder SitRep does not know, one in quotes or joined to other
-     text;
-   - Ghostty not running, as an opening's;
+   - the command's reading, as step C's, but for a placeholder joined to
+     unquoted text, which the rethink allows (below): a character that does
+     not print, a placeholder SitRep does not know, one inside quotes or
+     backticks;
+   - the chosen terminal not running, as an opening's;
    - the process table giving no answer, as the build's: "Could not tell
      whether <name>'s Claude is still running: the process table gave no
      answer.", as `{tty}`, the guard and the suspended rule all read it;
@@ -7982,9 +7984,6 @@ open), and tmux passing an escape sequence through from Claude's own pane
    **Limits**, of the rule:
    - a row's look lags the screen by up to the read's few seconds; the
      click reads again, so it never acts on a stale row;
-   - only Ghostty counts as here: a session shown only in a terminal app
-     with no driver, which the jump brings forward whole, reads as not
-     here, and its click runs the resume command;
    - Claude Code run by Node, as npm installs it, is not told by its
      program: one running that way gives no `{tty}`, and the guard misses
      it, so the default resumes beside it;
@@ -8052,13 +8051,19 @@ open), and tmux passing an escape sequence through from Claude's own pane
        of zmx's program on a tty, as only its clients' command lines are
        read for the jump.
    - **Added:**
-     - the continuous read of here, and the dimmed rows for sessions not
-       here, on the panel, the strip and the menu;
-     - the click by here, for held and away sessions alike: the jump, the
-       suspended rule, or the resume command;
+     - the continuous read of here, from the process table on its own, and
+       the dimmed rows for sessions not here, on the panel, the strip and
+       the menu;
+     - the click by that read, for held and away sessions alike: the jump,
+       untouched, the suspended rule, or the resume command;
      - each live window's `directory` in the watch's `windows`, so a held
        session's click has `{dir}`; its `writer` is there already;
      - `{tty}`;
+     - a placeholder joined to unquoted text read as allowed, so the
+       examples stand as written (`-v id={claude}`, `-v d={tty}`):
+       `id='uuid'` is one shell word, as is `--resume='uuid'`. One inside
+       quotes or backticks is still refused, as its quoted value would end
+       them early. Refused as joined since step C (10 November 2026);
      - the guard;
      - the Settings regroup, the pre-filled field and Restore Default.
        Settings saves every field of "app", so an untouched resume command
@@ -8078,6 +8083,8 @@ open), and tmux passing an escape sequence through from Claude's own pane
    5. The default command refusing while the Claude runs hidden.
    6. A session attached only from another device reads as not here.
    7. The notification's click and the menu bar row go the same way.
+   8. A dimmed working row and a dimmed your-turn row, seen by Lee, as
+      neither is drawn in Paper.
 
    **As first decided and built** (12 November 2026), the record. An
    away session is one no window holds, still current: its Claude ended,
