@@ -144,6 +144,22 @@ export const drawBand = (
   )
 }
 
+type BandProps = RenderPropsOf['AbovePrompt']
+
+/**
+ * What a row above the prompt is drawn with: another plugin's, while the band
+ * shows, the rows the band leaves it; the band's own, a row no plugin is
+ * named for, and every row while a survey holds the band or no session is
+ * held, as Claude Code gave them.
+ */
+export const besideBand = (plugin: string | undefined, props: BandProps, isHeld: boolean) => {
+  const isAnothers = plugin !== undefined && plugin !== 'sitrep'
+
+  return isAnothers && isHeld && !props.hasSurvey
+    ? { ...props, maxRows: props.maxRows - BAND_ROWS }
+    : props
+}
+
 type Row = RenderPropsOf['AbovePromptList']['rows'][number]
 
 const isBand = (row: Row) => row.plugin === 'sitrep'

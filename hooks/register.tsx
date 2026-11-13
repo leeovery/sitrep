@@ -62,7 +62,7 @@ import {
   isWindowTurn,
   throughCall,
 } from './doing'
-import { BAND_ROWS, bandLast, drawBand } from './draw/band'
+import { BAND_ROWS, bandLast, besideBand, drawBand } from './draw/band'
 import { drawPane } from './draw/board'
 import { SEND, SEND_NOW } from './draw/ready'
 import { drawToolResult, drawToolRow, toolLine } from './draw/tool-row'
@@ -568,14 +568,9 @@ export const register: Register = on => {
   // alone, the band's too, and a matcher on `plugin` matches nothing before
   // that. A plugin whose hooks sit beneath sitrep's is given the rows the band
   // leaves it, as the band's own chain gave them before.
-  on('ui.render', { component: 'AbovePrompt', plugin: '*' }, async ($, e, next) => {
-    const isAboveBand =
-      e.plugin !== 'sitrep' && !e.props.hasSurvey && (await hasScene(hostOf($)))
-
-    return isAboveBand
-      ? next({ ...e, props: { ...e.props, maxRows: e.props.maxRows - BAND_ROWS } })
-      : next(e)
-  })
+  on('ui.render', { component: 'AbovePrompt', plugin: '*' }, async ($, e, next) =>
+    next({ ...e, props: besideBand(e.plugin, e.props, await hasScene(hostOf($))) }),
+  )
 
   on('ui.render', { component: 'AbovePromptList' }, ($, e, next) =>
     next({ ...e, props: { ...e.props, rows: bandLast(e.props.rows) } }),

@@ -1,6 +1,6 @@
 import type { ClientSurface, JsonValue, RenderPropsOf, RenderViewport } from 'claude-code'
 import { expect, test, tier, type Mounted } from 'claude-code/testing'
-import { bandLast } from '../hooks/draw/band'
+import { bandLast, besideBand } from '../hooks/draw/band'
 import Placement from '../hooks/draw/placement'
 import { rowsOf } from './drawn'
 import { BAND, DOCKED, INLINE, postedId, CONVERSATION, SURFACES, world } from './world'
@@ -130,14 +130,41 @@ test('while the band draws nothing of its own, another plugin keeps every row ab
   expect(new Set(given)).toEqual(new Set([BAND.maxRows]))
 })
 
+/** A plugin's settled row above the prompt, its name its text. */
+const row = (plugin: string): RenderPropsOf['AbovePromptList']['rows'][number] => ({
+  plugin,
+  tree: { type: 'Text', props: {}, children: [plugin] },
+})
+
 test("the band's row goes to the foot, on the prompt, and the others keep their order", () => {
-  const row = (plugin: string): RenderPropsOf['AbovePromptList']['rows'][number] => ({
-    plugin,
-    tree: { type: 'Text', props: {}, children: [plugin] },
-  })
   const stacked = bandLast([row('sitrep'), row('gates'), row('ticker')])
 
   expect(stacked.map(({ plugin }) => plugin)).toEqual(['gates', 'ticker', 'sitrep'])
+})
+
+test("from Claude Code 2.1.323, the rows above the prompt are stacked with the band's at the foot", async ($, on) => {
+  world($, on)
+
+  const ui = await $.ui.mount({
+    plugin: 'sitrep',
+    surface: 'terminal',
+    component: 'AbovePromptList',
+    props: { ...BAND, rows: [row('sitrep'), row('gates'), row('ticker')] },
+  })
+
+  expect(rowsOf(await ui.find({ type: 'Box' }))).toEqual(['gates', 'ticker', 'sitrep'])
+})
+
+test("another plugin's row is given the rows the band leaves only while the band shows, and the band's own row, or one named for no plugin, never", () => {
+  const SURVEY = { ...BAND, hasSurvey: true }
+  const LEFT = BAND.maxRows - 1
+
+  expect(besideBand('gates', BAND, true).maxRows, 'another plugin, the band shown').toBe(LEFT)
+  expect(besideBand('gates', BAND, false).maxRows, 'no session held').toBe(BAND.maxRows)
+  expect(besideBand('gates', SURVEY, true).maxRows, 'a survey holding the band').toBe(BAND.maxRows)
+  expect(besideBand('sitrep', BAND, true).maxRows, "the band's own row").toBe(BAND.maxRows)
+  expect(besideBand(undefined, BAND, true).maxRows, 'a row named for no plugin').toBe(BAND.maxRows)
+  expect(besideBand('gates', BAND, true)).toEqual({ ...BAND, maxRows: LEFT })
 })
 
 test('the band shows or hides the board, and its label follows', async ($, on) => {

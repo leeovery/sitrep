@@ -1262,12 +1262,21 @@ it moves its row to the foot of the stack (`AbovePromptList`), whatever
 order the rows came in, the others keeping theirs, and gives the row of each
 plugin whose hooks sit beneath sitrep's `maxRows` less one, while the band
 shows. A plugin whose hooks sit above sitrep's keeps every row, as it did
-when it wrapped the band. A window on an older Claude Code (Lee's
-long-lived ones may be) has one drawing there and no list, and the band
-stacks what it finds beneath it, as before; the hooks on 2.1.323's rows and
-list match nothing an older one sends, so never run there (the band's tests
-pass under 2.1.321 and 2.1.322 as under 2.1.323, all but the one that draws
-in the band's own row by naming it, which only 2.1.323 can).
+when it wrapped the band. Each plugin beneath is given `maxRows` less one on
+its own, so they cannot share what the band leaves: two of them that each
+fill what they are given, or one above sitrep that fills every row, as on
+the older engine, make the stack taller than the band's window, and the
+band's row, at its foot, scrolls out of it. Every other plugin's row now
+draws again at each change to sitrep's board, since reading whether the
+band shows subscribes it, which is what keeps its `maxRows` current.
+
+A window on an older Claude Code (Lee's long-lived ones may be) has one
+drawing there and no list, and the band stacks what it finds beneath it, as
+before. The hooks on 2.1.323's rows and list match nothing an older one
+sends, so never run there, and a row named for no plugin is left its rows
+besides, should one ever reach them (the band's tests pass under 2.1.321
+and 2.1.322 as under 2.1.323, all but the two that only 2.1.323 can run: a
+drawing in the band's own row by naming it, and the list itself).
 
 When a new ask lands: the ◆ pulses and a toast names it, and SitRep, the Mac
 app, plays its sound (see "Settings", under "The menu bar"). Until 27
