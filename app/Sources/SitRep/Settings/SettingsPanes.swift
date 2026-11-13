@@ -142,7 +142,7 @@ private struct NotificationsPane: View {
     let settings: SettingsModel
 
     var body: some View {
-        let said = settings.said, show = settings.preferences.edge.show
+        let said = settings.said
 
         VStack(alignment: .leading, spacing: 0) {
             DesktopCorner()
@@ -153,9 +153,9 @@ private struct NotificationsPane: View {
         }
         SettingsSection(name: "Banners") {
             SettingsCard {
-                StatedRow(row: .notify(said.notices, show: show), isOn: notifies(.ask), fix: settings.fix)
+                StatedRow(row: notify(.ask), isOn: notifies(.ask), fix: settings.fix)
                 CardSeparator()
-                StatedRow(row: .notify(said.notices, show: show, for: .turn), isOn: notifies(.turn), fix: settings.fix)
+                StatedRow(row: notify(.turn), isOn: notifies(.turn), fix: settings.fix)
                 CardSeparator()
                 StatedRow(row: .allowed(said.notices), fix: settings.fix)
             }
@@ -184,6 +184,14 @@ private struct NotificationsPane: View {
                 }
             }
         }
+    }
+
+    private func notify(_ need: Need) -> SettingsRow {
+        let preferences = settings.preferences
+
+        return .notify(
+            settings.said.notices, show: preferences.edge.show, for: need, pulses: preferences.app.pulses.contains(need)
+        )
     }
 
     private func notifies(_ need: Need) -> Binding<Bool> {

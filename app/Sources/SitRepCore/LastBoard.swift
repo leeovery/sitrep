@@ -76,19 +76,22 @@ public struct LastBoard: Sendable, Equatable {
     }
 
     /// The sessions this board moved into Lee's turn after the last (DESIGN,
-    /// "Settings", Notifications): at his turn now, from a turn that ended
-    /// later than any it stood at his turn from before, and on the last
-    /// board's rows. So each turn moves in once: never again as its session
-    /// comes back to it, its asks answered or its snooze woken; never on a
-    /// run's first line, the first since SitRep started among them, whose
-    /// sessions at his turn were there already; and never for a session new
-    /// to the rows at his turn, as one a window attaches to is. The turns'
-    /// ends are kept for the sessions on this board's rows alone.
+    /// "Settings", Notifications): at his turn now, working or on its own
+    /// work on the last board, from a turn that ended later than any it stood
+    /// at his turn from before. So only Claude ending a turn moves a session
+    /// in, and each turn once: never as it comes to his turn from needing
+    /// him, an ask snoozed or answered elsewhere; never from his turn itself,
+    /// as a window joining a session there restarts its turn's time; never
+    /// from off the rows, as a snooze woken or a session new to them; never
+    /// again for a turn it flickered out of; and never on a run's first line,
+    /// the first since SitRep started among them, whose sessions at his turn
+    /// were there already. The turns' ends are kept for the sessions on this
+    /// board's rows alone.
     private mutating func turnsEnded(on board: Board, after last: Board?) -> Set<String> {
-        let wasOn = Set(last?.rows.map(\.session) ?? [])
+        let working = Set(last?.rows.filter { $0.section == .working }.map(\.session) ?? [])
         let turns = board.rows.filter { $0.section == .yourTurn }
         let ended = turns.filter { turn in
-            wasOn.contains(turn.session) && turnEnds[turn.session].map { turn.since > $0 } ?? true
+            working.contains(turn.session) && turnEnds[turn.session].map { turn.since > $0 } ?? true
         }
 
         turnEnds = board.rows.reduce(into: [:]) { ends, row in

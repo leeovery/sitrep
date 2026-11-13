@@ -96,6 +96,14 @@ struct NoticeRowsTests {
         ))
     }
 
+    /// With its pulse off, the notch lights for a new ask but doesn't swell, and the greyed line says so.
+    @Test func whileMacOSStopsItTheNotchSwellsInsteadOnlyWhileItsPulseIsOn() {
+        #expect(SettingsRow.notify(.denied, show: .notch, pulses: false).line
+            == "Can't while macOS stops it; the notch lights instead")
+        #expect(SettingsRow.notify(.denied, show: .notch, for: .turn, pulses: true).line
+            == "Can't while macOS stops it; the notch swells and lights blue instead")
+    }
+
     /// Lee's turn has its own switch, worded for it, greying as a new ask's does, saying what tells him instead.
     @Test(arguments: [
         (NoticeLeave?.some(.allowed(.banners)), EdgeSettings.Show.notch, nil),
@@ -106,7 +114,7 @@ struct NoticeRowsTests {
     func leesTurnHasItsOwnSwitch(leave: NoticeLeave?, show: EdgeSettings.Show, instead: String?) {
         let line = instead.map { "Can't while macOS stops it; \($0) instead" } ?? Self.silent
 
-        #expect(SettingsRow.notify(leave, show: show, for: .turn) == SettingsRow(
+        #expect(SettingsRow.notify(leave, show: show, for: .turn, pulses: false) == SettingsRow(
             label: "Notify me when it's my turn", line: line, side: .toggle(isEnabled: instead == nil)
         ))
     }

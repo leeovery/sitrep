@@ -5489,16 +5489,23 @@ live changed, and how they group.
   steady blue light shows it already.
 
   **What fires for Lee's turn** (13 November 2026): its notification, its
-  sound and its pulse fire once, as a session moves into his turn: at his
-  turn on a line of `watch`, from a turn that ended later than any it has
-  stood at his turn from, and on the line before's rows, working, needing
-  him or at an earlier turn. So never again for the same turn, as its asks are answered
-  or its snooze wakes; not for sessions at his turn as SitRep starts, nor
-  on any run's first line, as a new ask's are not; and not for a session
-  new to the board at his turn, as one a window attaches to is
-  (`LastBoard.newTurns`). Its notification says "Your turn", its project
-  and session, then what Claude left Lee, and its click carries the
-  session on, as an ask's does. The saved settings keep their meaning:
+  sound and its pulse fire once, as Claude ends a turn: a session at his
+  turn on a line of `watch`, which the line before showed working or on
+  its own work, from a turn that ended later than any it has stood at his
+  turn from. A move into his turn from anywhere else never fires: from
+  needing him, as when Claude asked and ended its turn as one and Lee
+  snoozes the ask or answers it from another window, the turn long
+  ended; from his turn itself, as when a window joins a session there, a
+  resume or a second Claude, which restarts its turn's time; or from off
+  the rows, a snooze woken or a session new to them. Nor does it fire
+  again for a turn flickered out of and back to, nor for sessions at his
+  turn as SitRep starts, nor on any run's first line, as a new ask's do
+  not (`LastBoard.newTurns`; until a review the same day, a move from
+  needing him or from an earlier turn fired too, which fired for an ask
+  Lee had snoozed and for a joining window). Its notification says "Your
+  turn", its project and session, then what Claude left Lee, and its click
+  carries the session on, as an ask's does. The saved settings keep their
+  meaning:
   `notifiesNewAsks`, `playsSound` and `sound` are a new ask's still, and
   his turn's are keys of their own, `notifiesTurns`, `playsTurnSound`,
   `turnSound` and `pulsesTurns`, beside the ask's `pulsesNewAsks`.
@@ -5596,7 +5603,10 @@ live changed, and how they group.
     lights instead", and macOS's row reads "Not allowed by macOS", "Turn
     SitRep on in System Settings › Notifications", with Notification
     Settings…. Notify me when it's my turn greys the same, "the notch
-    lights blue instead".
+    lights blue instead". Each says the notch swells only while its own
+    pulse is on, "the notch lights instead" with Pulse for a new ask off,
+    "the notch swells and lights blue instead" with Pulse when it's my
+    turn on (13 November 2026).
   - **Waiting on Lee's approval to open at login:** the switch gives way to
     Login Items Settings….
 
