@@ -705,7 +705,26 @@ test("an answer and a comment to one ask in one message say once, under the last
   ])
 })
 
-test("a comment on an ask whose answer is on its way from outside the message says that answer is coming, never that the ask is open; the answer's own message says it closes", () => {
+test('in one message, each ask says where the message leaves it alone: a yes closing one, a comment leaving another open', () => {
+  const session = fold({ logs: { [W1]: file(...POSTED) } })
+
+  expect(
+    boardMessage(session, [
+      { item: 'k1', verdict: 'yes' },
+      { item: 'k3', verdict: 'comment', note: 'It fails on the iPad mini' },
+    ])?.text,
+  ).toBe(
+    [
+      FROM_THE_BOARD,
+      '- Review Sessions & Runway, round 1 → Approve',
+      '  This closes the ask: nothing more to do with it.',
+      '- Try signing in on the iPad → comment: “It fails on the iPad mini”',
+      '  This leaves the ask open: act on it, then resolve it.',
+    ].join('\n'),
+  )
+})
+
+test("a comment on an ask whose answer is on its way apart from the message says that answer closes it, never that the ask is open; the answer's own message says it closes", () => {
   const session = fold({
     logs: { [W1]: file(...POSTED) },
     inbox: { [SENDER]: file([T0 + MIN, reply('r1', 'k1', 'yes')]) },
@@ -718,7 +737,7 @@ test("a comment on an ask whose answer is on its way from outside the message sa
     [
       FROM_THE_BOARD,
       '- Review Sessions & Runway, round 1 → comment: “Thinner bars”',
-      "  Lee's answer to this ask is on its way in a message of its own, which closes it.",
+      "  An answer of Lee's to this ask, sent apart from this message, closes it.",
     ].join('\n'),
   )
   expect(boardMessage(session, [{ item: 'k1', verdict: 'yes' }])?.text.split('\n').at(-1)).toBe(

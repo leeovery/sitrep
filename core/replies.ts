@@ -322,34 +322,37 @@ export const replyLine = (item: Ask | Parked, reply: ReplyFields, elsewhere?: st
     ? `- Pick up from parked${parkedBy(elsewhere)}: ${item.title}${reply.note ? `.${PICK_UP_NOTE(reply.note)}` : ''}`
     : `- ${item.title} → ${words(item, reply, IN_MESSAGE)}`
 
-/** What Claude is told a message leaves an ask as: closed, with nothing more to do; Lee's answer to it on its way in a message of its own; or open, Claude's to act on and resolve. */
+/** What Claude is told a message leaves an ask as: closed, with nothing more to do; closed by an answer of Lee's sent apart from it; or open, Claude's to act on and resolve. */
 const LEFT_AS = {
   closed: '  This closes the ask: nothing more to do with it.',
-  coming: "  Lee's answer to this ask is on its way in a message of its own, which closes it.",
+  apart: "  An answer of Lee's to this ask, sent apart from this message, closes it.",
   open: '  This leaves the ask open: act on it, then resolve it.',
 } as const
 
-/** Where a message leaves an ask, from every verdict it carries for it: closed by any answer among them, else waiting on an answer on its way from outside it, else open. */
+/** Where a message leaves an ask, from every verdict it carries for it: closed by any answer among them, else by an answer on its way apart from it, else open. */
 const leftAs = (ask: Ask, verdicts: readonly Verdict[]) => {
   if (verdicts.some(verdict => isAnswer(ask, verdict))) {
     return LEFT_AS.closed
   }
 
-  return ask.answerOnItsWay === undefined ? LEFT_AS.open : LEFT_AS.coming
+  return ask.answerOnItsWay === undefined ? LEFT_AS.open : LEFT_AS.apart
 }
 
 /** A reply a message carries, the item it answers, that item's address, and the reply's line. */
 type Carried<R> = { reply: R; item: Ask | Parked; key: string; line: string }
 
 /** A message's lines: each reply's, and under an ask's last reply in it, where the message leaves the ask. */
-const messageLines = <R extends ReplyFields>(carried: readonly Carried<R>[]) =>
-  carried.map(({ item, key, line }, at) => {
-    const own = carried.filter(each => each.key === key)
+const messageLines = <R extends ReplyFields>(carried: readonly Carried<R>[]) => {
+  const lastAt = new Map(carried.map(({ key }, at) => [key, at]))
+  const verdictsTo = (key: string) =>
+    carried.filter(each => each.key === key).map(each => each.reply.verdict)
 
-    return item.type === 'ask' && own.at(-1) === carried[at]
-      ? `${line}\n${leftAs(item, own.map(each => each.reply.verdict))}`
-      : line
-  })
+  return carried.map(({ item, key, line }, at) =>
+    item.type === 'ask' && lastAt.get(key) === at
+      ? `${line}\n${leftAs(item, verdictsTo(key))}`
+      : line,
+  )
+}
 
 /** The log line a delivered pick-up earns: what was picked up, and Lee's note with it. */
 export const pickUpLog = (parked: Parked, reply: ReplyFields) => ({

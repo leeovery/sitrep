@@ -96,6 +96,33 @@ test("a window that is not its session's deliverer submits nothing", async ($, o
   expect(kindsIn(w, paths)).toEqual(['ask'])
 })
 
+test("Lee's comment queued, then sent once an answer to the same ask waits in the inbox for another window, tells Claude that answer, sent apart, closes the ask", async ($, on) => {
+  const w = world($, on)
+  const { asked, send } = await asking(w)
+  const longer = () =>
+    w.beat(w.state.attachment?.session ?? '', { writer: W2, attachedAt: 0, seenAt: w.clock.now() })
+  const ui = await w.opened()
+
+  await ui.press({ key: `comment:${w.item(asked)}` })
+  await $.prompt.submit({ text: 'thinner bars', wait: false, origin: { kind: 'composer' } })
+  longer()
+  send(['r1', asked, 'yes'])
+  await w.clock.advance(TAKE_IN)
+  longer()
+  expect(w.state.board?.deliverer).toBe(W2)
+  expect(w.state.board?.asks[0]).toMatchObject({ answerOnItsWay: { id: 'r1' } })
+
+  await ui.press({ key: 'send' })
+
+  expect(w.prompts.map(prompt => prompt.text)).toEqual([
+    [
+      'From the board:',
+      '- Review Sessions & Runway, round 1 → comment: “thinner bars”',
+      "  An answer of Lee's to this ask, sent apart from this message, closes it.",
+    ].join('\n'),
+  ])
+})
+
 test('a refused submission leaves the replies undelivered, for the next look to try again', async ($, on) => {
   const w = world($, on)
   const { paths, asked, send } = await asking(w)

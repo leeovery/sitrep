@@ -406,11 +406,12 @@ const editableOf = (item: Item) =>
     .map(key => (key === LINE_FIELD[item.type] ? 'title or text' : key))
     .join(', ')
 
-/** Whether an edit gives its item's one line twice, as text and as title, in different words. */
-const isTwoLines = (fields: Fields) =>
-  fields.text !== undefined &&
-  fields.title !== undefined &&
-  line(fields.text) !== line(fields.title)
+/** Whether an edit gives its item's one line twice, as text and as title, each a line, in different words; an empty one is refused by its own name. */
+const isTwoLines = (fields: Fields) => {
+  const [text, title] = [line(fields.text), line(fields.title)]
+
+  return text !== undefined && title !== undefined && text !== title
+}
 
 /** An edit's changes as read, or a refusal naming the first field that will not do, by the name Claude gave it. */
 const changesFor = (item: Item, fields: Fields): Checked<Changes> => {

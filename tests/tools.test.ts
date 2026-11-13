@@ -485,6 +485,18 @@ test('of another session, the tools act only on what it parked: its ask or note 
   expect(w.files.has(ledger.log(W1)), 'nothing written there').toBe(false)
 })
 
+test("another session's ask Lee answered is refused all the same, named with its session's id: of another session, only what it parked is Claude's", async ($, on) => {
+  const w = world($, on)
+  const ledger = w.elsewhere(LEDGER)
+
+  ledger.write(yesAsk('k1', 'Run the export', 'Done'), reply('r1', 'k1', 'yes'), delivered('r1'))
+  await w.begin()
+  expect((await w.call('resolve', { item: 'k1', session: LEDGER.id })).deny).toBe(
+    'k1 is an ask of Request ledger: of another session, only what it parked is yours to resolve, edit or reopen.',
+  )
+  expect(w.files.has(ledger.paths.log(W1)), 'nothing written there').toBe(false)
+})
+
 test("the attached session's own id as session acts on its own item, whatever it is", async ($, on) => {
   const w = world($, on)
   const { id } = await w.begin()

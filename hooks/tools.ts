@@ -166,6 +166,7 @@ const posting = <N extends string, B extends Body>(
 ): Tool<N> => ({
   spec: toolSpec,
   answer: onSession(async (host, session, input) => {
+    // Read with the check, from the one read the post appends after: nothing re-reads in between.
     const quiet = unchanged(session, input)
 
     if (quiet !== undefined) {
@@ -196,24 +197,42 @@ const itemNamed = (session: Session, { item }: { item: string }) => itemTitle(se
 /** A check of a line about an item, against the session it names as that stands. */
 type ItemCheck<B extends Body> = (session: Session, input: Fields) => Checked<B>
 
-/** Writes into this window's own file in a session the line `check` makes of it as it stands: the line, or why it was refused. */
-const writeChecked = async <B extends Body>(
+/** A call on an item as decided on its session as it stands: the line to write, or why it is refused; or, where `unchanged` answers it, that answer, with nothing to write. */
+type Decided<B> = Checked<B> | { unchanged: Answer }
+
+const decide = <B extends Body>(
+  session: Session,
+  input: Fields,
+  check: ItemCheck<B>,
+  unchanged: Unchanged,
+): Decided<B> => {
+  const quiet = unchanged(session, input)
+
+  return quiet === undefined ? check(session, input) : { unchanged: quiet }
+}
+
+/** Whether a call was decided as a line to write. */
+const isWritten = <B>(decided: Decided<B>): decided is { ok: true; value: B } =>
+  'ok' in decided && decided.ok
+
+/** Writes into this window's own file in a session the line `decided` makes of it as it stands, read with the write; what was decided. */
+const writeDecided = async <B extends Body>(
   host: Host,
   into: Into,
-  check: (session: Session) => Checked<B>,
-): Promise<Checked<B>> => {
-  let checked: Checked<B> = {
+  decided: (session: Session) => Decided<B>,
+): Promise<Decided<B>> => {
+  let outcome: Decided<B> = {
     ok: false,
     error: `${into.session}'s session.json is missing or torn.`,
   }
 
   await writeInto(host, into, session => {
-    checked = check(session)
+    outcome = decided(session)
 
-    return checked.ok ? [checked.value] : []
+    return isWritten(outcome) ? [outcome.value] : []
   })
 
-  return checked
+  return outcome
 }
 
 /** Where this window writes into the session `input.session` names, while it is another of the attached session's project; else why it does not. */
@@ -245,23 +264,25 @@ const otherOfProject = async (
 
 /**
  * Writes a line about a parked item of another session into that session,
- * as `check` makes it of the session as it stands: only about what it
- * parked, which is the project's. The sessions around are read again after
- * it, so the board text lists the item as it now stands.
+ * as `check` makes it of the session as it stands, unless `unchanged`
+ * answers it there: only about what it parked, which is the project's. The
+ * sessions around are read again after a line, so the board text lists the
+ * item as it now stands.
  */
 const writeParked = async <B extends Body>(
   host: Host,
   into: Into,
   input: Fields,
   check: ItemCheck<B>,
+  unchanged: Unchanged,
 ) => {
-  const written = await writeChecked(host, into, session => {
+  const written = await writeDecided(host, into, session => {
     const parked = checkParkedIn(session, input)
 
-    return parked.ok ? check(session, input) : parked
+    return parked.ok ? decide(session, input, check, unchanged) : parked
   })
 
-  if (written.ok) {
+  if (isWritten(written)) {
     await lookAround(host, [into.session])
   }
 
@@ -280,7 +301,7 @@ const parkedElsewhere = async <B extends Body & { item: string }>(
   input: Fields,
   check: ItemCheck<B>,
   said: (body: B) => string,
-  unchanged: Unchanged = () => undefined,
+  unchanged: Unchanged,
 ): Promise<Answer> => {
   const held = attached()
 
@@ -296,14 +317,11 @@ const parkedElsewhere = async <B extends Body & { item: string }>(
 
   const root = await rootFor(host)
   const before = await foldAt(host, root, into.value, await host.clock.now())
-  const quiet =
-    before !== undefined && checkParkedIn(before, input).ok ? unchanged(before, input) : undefined
+  const written = await writeParked(host, into.value, input, check, unchanged)
 
-  if (quiet !== undefined) {
-    return quiet
+  if ('unchanged' in written) {
+    return written.unchanged
   }
-
-  const written = await writeParked(host, into.value, input, check)
 
   if (!written.ok) {
     return { deny: written.error }
@@ -332,7 +350,7 @@ const onItem = <N extends string, B extends Body & { item: string }>(
   toolSpec: Spec<N>,
   check: ItemCheck<B>,
   said: (body: B) => string,
-  unchanged?: Unchanged,
+  unchanged: Unchanged = () => undefined,
 ): Tool<N> => {
   const here = posting(toolSpec, check, said, itemNamed, unchanged)
 
@@ -545,7 +563,7 @@ const TOOLS = [
   posting(
     spec(
       'ask',
-      "Post an ask: something only Lee can do or decide. Ask only when you cannot go on without Lee, or Lee's judgement changes what happens next; say it in full in the chat as well, after your last tool call: the board never stands in for the chat. Want a yes when Lee gives a go, an approval, or word that it works or is done, its button the verb Lee gives (Go, Approve, Done); a choice when Lee picks one of options; words when Lee must write something back, such as a command's output (needs says what). Lee's answer arrives as a message from the board, each line saying whether it closed the ask: a yes, a choice, an answer or an ignore closes it by itself, a comment going with a yes or a choice too; a comment alone leaves it open for you to act on, then resolve. If Lee answers in the chat instead, resolve the ask yourself, saying so in the reason.",
+      "Post an ask: something only Lee can do or decide. Ask only when you cannot go on without Lee, or Lee's judgement changes what happens next; say it in full in the chat as well, after your last tool call: the board never stands in for the chat. Want a yes when Lee gives a go, an approval, or word that it works or is done, its button the verb Lee gives (Go, Approve, Done); a choice when Lee picks one of options; words when Lee must write something back, such as a command's output (needs says what). Lee's answer arrives as a message from the board, each line saying whether it closed the ask: a yes, a choice, an answer or an ignore closes it by itself, a comment going with a yes or a choice too; a comment alone leaves it open for you to act on, then resolve, unless Lee sent an answer to it apart from that message, which closes it. If Lee answers in the chat instead, resolve the ask yourself, saying so in the reason.",
       {
         wants: WANTS_BACK,
         yes: YES,

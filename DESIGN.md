@@ -537,7 +537,9 @@ a note has. So:
 - **A board answer says whether it closed the ask** (see "What Claude
   reads"): under each ask's last reply in Lee's message, a line says where
   the message leaves it, `This closes the ask: nothing more to do with it.`
-  or `This leaves the ask open: act on it, then resolve it.` Before, the
+  or `This leaves the ask open: act on it, then resolve it.`, or, under a
+  comment while an answer of Lee's is on its way apart, that the answer
+  closes it. Before, the
   line gave the reply alone, and a choice sent with a comment read as if
   the ask were open.
 - **Resolving what Lee closed passes quietly**: an ask whose yes, choice,
@@ -554,7 +556,9 @@ a note has. So:
   answer to it is on its way, the edit voids that answer as changed (see
   "Which replies go in", under Delivery), and the ask stays open, though
   the message that carried the answer said it closes. It takes an edit in
-  the same turn as Lee's send, so it is left as it is.
+  the same turn as Lee's send, so it is left as it is. So too a held send
+  Lee takes back: a comment's line, sent meanwhile, said the answer that
+  send carried closes the ask, and the ask stays open.
 - **An edit takes an item's one line as `text` or `title` alike**: an ask's,
   a note's or a parked item's, both given and saying different things
   refused (`An edit gives an item's one line as text or as title, not both
@@ -1086,11 +1090,14 @@ it: a yes, a choice, words or an ignore closes it, and so does a yes or a
 choice with a comment riding along from Ready to send, `This closes the
 ask: nothing more to do with it.`, whatever else the message carries to it;
 a comment alone leaves it open, `This leaves the ask open: act on it, then
-resolve it.`, unless Lee's answer to it is on its way from outside the
-message (from another board, or the CLI), when the line says so, `Lee's
-answer to this ask is on its way in a message of its own, which closes
-it.`, and that answer's own message says it closes. A pick-up has no such
-line. Until then the line gave the reply alone, and Claude, reading a choice
+resolve it.`, unless an answer of Lee's to it is on its way apart from the
+message, when the line says that answer closes it, `An answer of Lee's to
+this ask, sent apart from this message, closes it.`, saying nothing of
+where or when it arrives. That answer may be in another board's send to
+the inbox, or the CLI's; in a send already in flight from this window,
+ahead of this one in its queue, which Claude may have already; or in
+another live window's send, which reaches that window's Claude. Its own
+message says it closes. A pick-up has no such line. Until then the line gave the reply alone, and Claude, reading a choice
 with a comment as an ask still open, resolved it and was refused.
 
 ````

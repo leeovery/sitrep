@@ -330,6 +330,12 @@ test("an edit takes an item's one line as text or as title alike, whatever the i
   expect(refusal(checkEdit(SESSION, { item: 'p1', text: ' ' }))).toContain(
     'cannot leave text empty',
   )
+  expect(refusal(checkEdit(SESSION, { item: 'p1', text: '', title: 'Later' }))).toContain(
+    'cannot leave text empty',
+  )
+  expect(refusal(checkEdit(SESSION, { item: 'n1', text: 'Merged', title: 42 }))).toContain(
+    'cannot leave title empty or of the wrong kind',
+  )
 })
 
 test('an edit leaves an ask holding what its shape takes', () => {
