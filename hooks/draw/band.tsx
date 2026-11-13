@@ -13,9 +13,11 @@
  *
  * What another plugin draws above the prompt stays, stacked above the band in
  * the rows the band leaves it, so the band keeps the row on the prompt that
- * the answering line's ↓ points at.
+ * the answering line's ↓ points at. From Claude Code 2.1.323 each plugin
+ * draws a row of its own, which the engine stacks; before, the band's own
+ * drawing stacked what it found beneath it.
  */
-import type { RenderElement, RenderSurface } from 'claude-code'
+import type { RenderElement, RenderPropsOf, RenderSurface } from 'claude-code'
 import type { SitrepPane } from '../../types'
 import { answeringIn, writtenAs, type Answering } from '../answering'
 import { C, clip, CLOSE, counted, GLYPH } from '../look'
@@ -141,3 +143,13 @@ export const drawBand = (
     </Box>
   )
 }
+
+type Row = RenderPropsOf['AbovePromptList']['rows'][number]
+
+const isBand = (row: Row) => row.plugin === 'sitrep'
+
+/** The rows above the prompt as Claude Code stacks them, the band's moved to the foot, on the prompt, and the others kept in their order. */
+export const bandLast = (rows: readonly Row[]) => [
+  ...rows.filter(row => !isBand(row)),
+  ...rows.filter(isBand),
+]

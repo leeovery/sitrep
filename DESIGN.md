@@ -1250,11 +1250,24 @@ The band shares the area above the prompt. What another plugin draws there,
 such as the workflow-gates mod's gate rows, stays, stacked above the band,
 so the band keeps the row on the prompt, which the answering line's `↓` points
 at. The plugins beneath are given `maxRows` less the band's one row, so a
-gate sized to what it is given still fits whole beside it. A plugin
-loaded outside sitrep that stacks itself above what is beneath it lands in
-the same order. With nothing else drawn there, the band is the whole tree,
-as before (11 October 2026: until then the band dropped everything beneath
-it once it had a session to show).
+gate sized to what it is given still fits whole beside it. With nothing else
+drawn there, the band is the whole tree, as before (11 October 2026: until
+then the band dropped everything beneath it once it had a session to show).
+
+Claude Code 2.1.323 asks each plugin for a row of its own there and stacks
+the rows itself, in its chain's order, which put the gate rows under the
+band, each given every row (13 November 2026). The band's own drawing finds
+nothing of another plugin beneath it now, so it does both halves elsewhere:
+it moves its row to the foot of the stack (`AbovePromptList`), whatever
+order the rows came in, the others keeping theirs, and gives the row of each
+plugin whose hooks sit beneath sitrep's `maxRows` less one, while the band
+shows. A plugin whose hooks sit above sitrep's keeps every row, as it did
+when it wrapped the band. A window on an older Claude Code (Lee's
+long-lived ones may be) has one drawing there and no list, and the band
+stacks what it finds beneath it, as before; the hooks on 2.1.323's rows and
+list match nothing an older one sends, so never run there (the band's tests
+pass under 2.1.321 and 2.1.322 as under 2.1.323, all but the one that draws
+in the band's own row by naming it, which only 2.1.323 can).
 
 When a new ask lands: the ◆ pulses and a toast names it, and SitRep, the Mac
 app, plays its sound (see "Settings", under "The menu bar"). Until 27

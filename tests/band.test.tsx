@@ -1,7 +1,7 @@
 import type { ClientSurface, JsonValue, RenderPropsOf, RenderViewport } from 'claude-code'
 import { expect, test, tier, type Mounted } from 'claude-code/testing'
+import { bandLast } from '../hooks/draw/band'
 import Placement from '../hooks/draw/placement'
-import type { SitrepPlacement } from '../types'
 import { rowsOf } from './drawn'
 import { BAND, DOCKED, INLINE, postedId, CONVERSATION, SURFACES, world } from './world'
 
@@ -11,13 +11,13 @@ type World = ReturnType<typeof world>
 type Surface = (typeof SURFACES)[number]
 
 /** What the engine draws above the prompt with no plugin drawing there, as if it drew a line of its own. */
-const engineBand = (w: World) => w.drawBeneath(({ Text }) => <Text>the engine band</Text>)
+const engineBand = (w: World) => w.drawAbovePrompt(({ Text }) => <Text>the engine band</Text>)
 
-/** Another plugin's row above the prompt, drawn beneath sitrep's band; it keeps the rows it was given. */
+/** Another plugin's row above the prompt, beside sitrep's band; it keeps the rows it was given. */
 function gateBand(w: World) {
   const given: number[] = []
 
-  w.drawBeneath(({ Text }, props) => {
+  w.drawAbovePrompt(({ Text }, props) => {
     given.push(props.maxRows)
 
     return <Text>a gate row</Text>
@@ -90,6 +90,54 @@ test('what another plugin draws above the prompt stays, above the band, in the r
   }
 
   expect(new Set(given)).toEqual(new Set([BAND.maxRows - 1]))
+})
+
+test("from Claude Code 2.1.323, what a plugin draws in the band's own row stays above the band, in the rows the band leaves it", async ($, on) => {
+  const w = world($, on)
+  const given: number[] = []
+
+  on('ui.render', { component: 'AbovePrompt', plugin: 'sitrep' }, ($, e) => {
+    const { Text } = $.ui.resolve(e)
+
+    given.push(e.props.maxRows)
+
+    return <Text>a gate row</Text>
+  })
+  await w.begin()
+
+  const rows = rowsOf(await (await w.band()).find({ type: 'Box' }))
+
+  expect(rows[0]).toBe('a gate row')
+  expect(rows.at(-1)).toContain('▸ show board')
+  expect(new Set(given)).toEqual(new Set([BAND.maxRows - 1]))
+})
+
+test('while the band draws nothing of its own, another plugin keeps every row above the prompt', async ($, on) => {
+  const w = world($, on)
+  const given = gateBand(w)
+
+  await $.session.start(CONVERSATION)
+  await (await w.band()).unmount()
+
+  await w.begin()
+  await $.ui.mount({
+    plugin: 'sitrep',
+    surface: 'terminal',
+    component: 'AbovePrompt',
+    props: { ...BAND, hasSurvey: true },
+  })
+
+  expect(new Set(given)).toEqual(new Set([BAND.maxRows]))
+})
+
+test("the band's row goes to the foot, on the prompt, and the others keep their order", () => {
+  const row = (plugin: string): RenderPropsOf['AbovePromptList']['rows'][number] => ({
+    plugin,
+    tree: { type: 'Text', props: {}, children: [plugin] },
+  })
+  const stacked = bandLast([row('sitrep'), row('gates'), row('ticker')])
+
+  expect(stacked.map(({ plugin }) => plugin)).toEqual(['gates', 'ticker', 'sitrep'])
 })
 
 test('the band shows or hides the board, and its label follows', async ($, on) => {
@@ -299,24 +347,27 @@ test('the board saying again where it sits writes nothing', async ($, on) => {
   expect(w.writes.pane).toBe(writes)
 })
 
+/** Where Claude Code seated the board, as its props say. */
+type Seat = RenderPropsOf['Pane']['placement']
+
 /** The placement module as a surface calls it, drawn at each placement in turn: what it posts, its state kept from call to call. */
 const drawnAt = () => {
   const posts: JsonValue[] = []
-  let state: { placement: SitrepPlacement } | undefined
+  let state: { placement: Seat } | undefined
 
   return {
     posts,
-    at: (placement: SitrepPlacement) =>
+    at: (placement: Seat) =>
       Placement({ placement }, {
         get state() {
           return state
         },
-        setState: (next: { placement: SitrepPlacement }) => {
+        setState: (next: { placement: Seat }) => {
           state = next
         },
         post: (data: JsonValue) => posts.push(data),
         elements: { Box: () => ({ type: 'Box' }) },
-      } as unknown as ClientSurface<{ placement: SitrepPlacement }>),
+      } as unknown as ClientSurface<{ placement: Seat }>),
   }
 }
 

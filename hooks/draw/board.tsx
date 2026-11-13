@@ -12,7 +12,7 @@
  * up sits at the left of a row that is otherwise blank.
  */
 import type { ElementTable, RenderPropsOf, RenderSurface } from 'claude-code'
-import type { SitrepPlace, SitrepPlacement } from '../../types'
+import type { SitrepPlace } from '../../types'
 import type { Actions } from '../actions'
 import type { Clip } from '../clip'
 import { C, clip as clipText, CLOSE, GLYPH } from '../look'
@@ -209,7 +209,7 @@ const HEADER_ROWS = TAB_ROWS + BACK_ROWS
  * where the surface draws no `Client`. Named `Client` for the engine to find
  * it, as in `drawBlock`.
  */
-const drawPlacement = (d: Drawing, placement: SitrepPlacement) => {
+const drawPlacement = (d: Drawing, placement: PaneProps['placement']) => {
   if (!('Client' in d.els)) {
     return undefined
   }
@@ -232,7 +232,7 @@ const drawBack = (d: Drawing, back: Back) => {
 }
 
 /** The tabs over their rule, and under it the way back up, or a blank row where there is none. */
-const drawHeader = (d: Drawing, placement: SitrepPlacement) => {
+const drawHeader = (d: Drawing, placement: PaneProps['placement']) => {
   const { Box } = d.els
 
   return (

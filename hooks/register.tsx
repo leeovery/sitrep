@@ -62,7 +62,7 @@ import {
   isWindowTurn,
   throughCall,
 } from './doing'
-import { BAND_ROWS, drawBand } from './draw/band'
+import { BAND_ROWS, bandLast, drawBand } from './draw/band'
 import { drawPane } from './draw/board'
 import { SEND, SEND_NOW } from './draw/ready'
 import { drawToolResult, drawToolRow, toolLine } from './draw/tool-row'
@@ -79,7 +79,7 @@ import {
   syncBoard,
 } from './pane'
 import { receiveEvery } from './receive'
-import { heldSession, sceneOf, tickEvery } from './scene'
+import { hasScene, heldSession, sceneOf, tickEvery } from './scene'
 import { boardChange, markTold } from './seen'
 import { rejoin, startListing } from './start'
 import { forgetUntold, heardRow, retold } from './summarised'
@@ -563,6 +563,23 @@ export const register: Register = on => {
 
     return drawBand($.ui.resolve(e), e.surface, e.props.bodyColumns, scene, beneath)
   })
+
+  // From Claude Code 2.1.323 each plugin's row above the prompt is asked of it
+  // alone, the band's too, and a matcher on `plugin` matches nothing before
+  // that. A plugin whose hooks sit beneath sitrep's is given the rows the band
+  // leaves it, as the band's own chain gave them before.
+  on('ui.render', { component: 'AbovePrompt', plugin: '*' }, async ($, e, next) => {
+    const isAboveBand =
+      e.plugin !== 'sitrep' && !e.props.hasSurvey && (await hasScene(hostOf($)))
+
+    return isAboveBand
+      ? next({ ...e, props: { ...e.props, maxRows: e.props.maxRows - BAND_ROWS } })
+      : next(e)
+  })
+
+  on('ui.render', { component: 'AbovePromptList' }, ($, e, next) =>
+    next({ ...e, props: { ...e.props, rows: bandLast(e.props.rows) } }),
+  )
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     const host = hostOf($)
