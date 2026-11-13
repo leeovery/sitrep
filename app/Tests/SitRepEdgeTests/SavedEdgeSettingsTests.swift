@@ -73,18 +73,19 @@ struct CardSettingsTests {
     @Test func theFoldsAreSavedUnderCardAndReadBack() {
         let defaults = MemoryDefaults()
 
-        SavedSettings(defaults).save(CardSettings(folded: [.working, .yourTurn]))
+        SavedSettings(defaults).save(CardSettings(folded: [.working, .needsYou]))
 
         #expect(defaults.data(forKey: "card") != nil)
-        #expect(SavedSettings<CardSettings>(defaults).read().folded == [.working, .yourTurn])
+        #expect(SavedSettings<CardSettings>(defaults).read().folded == [.working, .needsYou])
     }
 
-    /// A section another version saved that this one doesn't know is passed over, and the folds it knows are kept;
-    /// Snoozed, of which a value saved before it says nothing, folded.
+    /// A section another version saved that this one doesn't know is passed over, Your turn among them since it joined
+    /// Needs you (13 November 2026), and the folds it knows are kept; Snoozed, of which a value saved before it says
+    /// nothing, folded.
     @Test func aSectionItDoesNotKnowIsPassedOverAndTheRestKept() {
         let defaults = MemoryDefaults()
 
-        defaults.set(Data(#"{"folded":["working","projects"]}"#.utf8), forKey: "card")
+        defaults.set(Data(#"{"folded":["working","projects","yourTurn"]}"#.utf8), forKey: "card")
 
         #expect(SavedSettings<CardSettings>(defaults).read().folded == [.working, .snoozed])
     }

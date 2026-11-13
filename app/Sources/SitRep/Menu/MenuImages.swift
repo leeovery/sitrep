@@ -6,13 +6,13 @@ import SitRepPanel
 /// of images on the left, each 16 points, holding a session's mark, Show's tick or a command's SF Symbol.
 @MainActor
 enum MenuImages {
-    /// Claude Code's orange, the needs-you mark's.
-    private static let orange = NSColor(srgbRed: 0xE9 / 255, green: 0x64 / 255, blue: 0x3D / 255, alpha: 1)
+    /// Claude Code's orange, an ask's mark's, and your turn's blue (`LiveLight.Palette`).
+    private static let orange = colour(LiveLight.orange), blue = colour(LiveLight.blue)
     private static let lane = NSSize(width: 16, height: 16)
 
     /// The light in its housing, an 18-point box: at rest a template image, its thin bar unlit, in the menu bar's ink;
-    /// lit, its bar orange and its housing drawn in the ink of the bar it is drawn on, light or dark, or in the ink
-    /// given, as a drawing of a menu bar sets it.
+    /// lit, its bar orange for an ask or blue for Lee's turn and its housing drawn in the ink of the bar it is drawn
+    /// on, light or dark, or in the ink given, as a drawing of a menu bar sets it.
     static func glyph(_ glyph: MenuBoard.Glyph, ink given: NSColor? = nil) -> NSImage {
         let image = NSImage(size: NSSize(width: glyphSide, height: glyphSide), flipped: true) { _ in
             let ink: NSColor = glyph == .rest ? .black : given ?? (NSAppearance.currentDrawing().isDark ? .white : .black)
@@ -25,8 +25,8 @@ enum MenuImages {
             case .rest:
                 ink.setFill()
                 NSBezierPath(roundedRect: NSRect(x: 8.3, y: 5.6, width: 1.4, height: 6.8), xRadius: 0.7, yRadius: 0.7).fill()
-            case .lit:
-                orange.setFill()
+            case .lit, .turn:
+                (glyph == .lit ? orange : blue).setFill()
                 NSBezierPath(roundedRect: NSRect(x: 7.55, y: 4.3, width: 2.9, height: 9.4), xRadius: 1.45, yRadius: 1.45).fill()
             }
 
@@ -43,46 +43,51 @@ enum MenuImages {
     static let glyphSide: CGFloat = 18
     static let glyphHousing = NSRect(x: 5.9, y: 2.5, width: 6.2, height: 13)
 
-    /// A session's mark: an orange dot for needs you, and for an away one a hollow orange ring; an open ring for your
-    /// turn; the arc, for working, at this frame of its turn, and the dotted ring, for on its own work, each fainter
-    /// than the rest. The orange marks are no template images, so a disabled item does not grey them to nothing; the
-    /// rest are, so they take the menu's ink, highlighted or not.
+    /// A session's mark: in Needs you a dot, orange for an ask and blue for Lee's turn, and for an away one the dot's
+    /// footprint hollow, a ring; the arc, for working, at this frame of its turn, and the dotted ring, for on its own
+    /// work, each fainter than the rest. The coloured marks are no template images, so a disabled item does not grey
+    /// them to nothing; the rest are, so they take the menu's ink, highlighted or not.
     static func mark(_ session: Session, turn frame: Int = 0) -> NSImage {
         switch session.kind {
         case .needs: session.away ? awayRing : dot
         // the menu is given no Snoozed row (`PanelBoard.sessions`)
-        case .turn, .snoozed, .snoozedTurn: ring
+        case .turn, .snoozed, .snoozedTurn: session.away ? awayTurnRing : turnDot
         case .working: arc[frame % arc.count]
         case .onItsWork: dotted
         }
     }
 
-    private static let dot = drawn(isTemplate: false) {
-        let glow = NSShadow()
+    private static let dot = disc(orange), turnDot = disc(blue)
 
-        glow.shadowColor = orange.withAlphaComponent(0.7)
-        glow.shadowBlurRadius = 4
-        glow.set()
-        orange.setFill()
-        NSBezierPath(ovalIn: NSRect(x: 4.5, y: 4.5, width: 7, height: 7)).fill()
+    /// A dot with its glow, in an ask's or a turn's colour.
+    private static func disc(_ colour: NSColor) -> NSImage {
+        drawn(isTemplate: false) {
+            let glow = NSShadow()
+
+            glow.shadowColor = colour.withAlphaComponent(0.7)
+            glow.shadowBlurRadius = 4
+            glow.set()
+            colour.setFill()
+            NSBezierPath(ovalIn: NSRect(x: 4.5, y: 4.5, width: 7, height: 7)).fill()
+        }
     }
 
-    /// An away ask's: the needs dot's footprint, hollow, unlit (`Away`).
-    private static let awayRing = drawn(isTemplate: false) {
-        let side = Away.ringSide - Away.ringLine, inset = (lane.width - side) / 2
-        let ring = NSBezierPath(ovalIn: NSRect(x: inset, y: inset, width: side, height: side))
+    private static let awayRing = hollow(orange), awayTurnRing = hollow(blue)
 
-        ring.lineWidth = Away.ringLine
-        orange.setStroke()
-        ring.stroke()
+    /// An away row's: the dot's footprint, hollow, unlit (`Away`).
+    private static func hollow(_ colour: NSColor) -> NSImage {
+        drawn(isTemplate: false) {
+            let side = Away.ringSide - Away.ringLine, inset = (lane.width - side) / 2
+            let ring = NSBezierPath(ovalIn: NSRect(x: inset, y: inset, width: side, height: side))
+
+            ring.lineWidth = Away.ringLine
+            colour.setStroke()
+            ring.stroke()
+        }
     }
 
-    private static let ring = drawn {
-        let ring = NSBezierPath(ovalIn: NSRect(x: 4.25, y: 4.25, width: 7.5, height: 7.5))
-
-        ring.lineWidth = 1.5
-        NSColor.black.setStroke()
-        ring.stroke()
+    private static func colour(_ rgb: LiveLight.RGB) -> NSColor {
+        NSColor(srgbRed: rgb.r / 255, green: rgb.g / 255, blue: rgb.b / 255, alpha: 1)
     }
 
     /// Working's arc round its track, a frame for each step of its turn, drawn once: the first, from the top, is the

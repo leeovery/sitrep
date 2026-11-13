@@ -21,7 +21,7 @@ struct MenuRowsTests {
     }
 
     private static let yourTurn = Session(
-        id: "sr-turn01", project: Sample.project, kind: .turn, title: Sample.yourTurn, sub: Sample.place, since: 0
+        id: "sr-turn01", project: Sample.project, kind: .turn, title: "Your turn to review", sub: Sample.place, since: 0
     )
 
     // MARK: The arc

@@ -15,7 +15,7 @@ enum CardParts {
         let ink = switch eyebrow.section {
         case .needsYou: EdgeStyle.orange
         case .snoozed: EdgeStyle.ink3
-        case .working, .yourTurn: EdgeStyle.eyebrowCount
+        case .working: EdgeStyle.eyebrowCount
         }
         let after = CGRect(x: box.minX + name.width + EyebrowLayout.gap, y: box.minY, width: 40, height: box.height)
 

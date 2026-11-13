@@ -7,8 +7,8 @@ import SitRepLines
 import Testing
 
 /// A turn snoozed at the edge, over what the real CLI printed (`Lines.snoozedTurn`): a row of its own in the card's
-/// Snoozed, counted there and gone from Your turn and its count, saying when it wakes or that it waits until it moves;
-/// back on Your turn woken; and held apart from its session's asks asleep, two rows, while the panel is out.
+/// Snoozed, counted there and gone from Needs you and its count, saying when it wakes or that it waits until it moves;
+/// back in Needs you woken; and held apart from its session's asks asleep, two rows, while the panel is out.
 @MainActor
 struct SnoozedTurnEdgeTests {
     /// When the real `watch` printed its first line here: 19:19 in London on Wednesday 4 November 2026.
@@ -45,24 +45,24 @@ struct SnoozedTurnEdgeTests {
         #expect(snoozed.map { $0.timeText(at: Self.now, in: Self.london) } == ["Thu 09:00", "until it moves"])
     }
 
-    /// Unfolded, Snoozed counts the turns and Your turn no longer does; each row its own key.
-    @Test func snoozedCountsItAndYourTurnNoLonger() {
+    /// Unfolded, Snoozed counts the turns and Needs you no longer does; each row its own key.
+    @Test func snoozedCountsItAndNeedsYouNoLonger() {
         let run = Self.opened(Self.board(upTo: 0))
 
         #expect(Self.keys(run) == [
-            "eyebrow:yourTurn", "turn:sr-fbrk3m", "eyebrow:snoozed", "snoozedTurn:sr-ctnbd2", "snoozedTurn:sr-nwtrn5",
+            "eyebrow:needsYou", "turn:sr-fbrk3m", "eyebrow:snoozed", "snoozedTurn:sr-ctnbd2", "snoozedTurn:sr-nwtrn5",
         ])
         #expect(Self.eyebrows(run) == [
-            Eyebrow(section: .yourTurn, count: 1, isFolded: false, above: Eyebrow.first),
+            Eyebrow(section: .needsYou, count: 1, isFolded: false, above: Eyebrow.first),
             Eyebrow(section: .snoozed, count: 2, isFolded: false, above: Eyebrow.after),
         ])
     }
 
-    /// Woken, or its session at another turn, it is back on Your turn, counted there.
-    @Test func wokenOrMovedOnItIsBackOnYourTurn() {
+    /// Woken, or its session at another turn, it is back in Needs you, counted there.
+    @Test func wokenOrMovedOnItIsBackInNeedsYou() {
         let run = Self.opened(Self.board(upTo: 2))
 
-        #expect(Self.keys(run) == ["eyebrow:yourTurn", "turn:sr-nwtrn5", "turn:sr-ctnbd2", "turn:sr-fbrk3m"])
+        #expect(Self.keys(run) == ["eyebrow:needsYou", "turn:sr-nwtrn5", "turn:sr-ctnbd2", "turn:sr-fbrk3m"])
         #expect(Self.eyebrows(run).map(\.count) == [3])
     }
 

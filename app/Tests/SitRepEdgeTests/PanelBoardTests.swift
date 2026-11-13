@@ -73,19 +73,23 @@ struct PanelBoardTests {
     }
 
     /// A session a window holds that this Mac does not show is drawn as an away one is, whatever its state, keeping its
-    /// section, its words and its place in core's order (stage 8's "The rows").
-    @Test func aHeldSessionNotHereIsDrawnAwayKeepingItsStateItsWordsAndItsPlace() {
+    /// section and its words (stage 8's "The rows"); in Needs you it leads the away ones of its kind (13 November
+    /// 2026), elsewhere it keeps its place in core's order.
+    @Test func aHeldSessionNotHereIsDrawnAwayKeepingItsStateAndItsWords() {
         let last = Self.heard(.line(watchLine))
         let here = Self.board(last).sessions
         let notHere = PanelBoard(
             last, notHere: ["sr-7e68fj", "sr-aw3bgs", "sr-q7njzv", "sr-gone00"], clock: Self.london
         )
+        let byId = { (sessions: [Session]) in sessions.sorted { $0.id < $1.id } }
 
-        #expect(notHere.sessions.map(\.away) == [true, false, false, true, true, true])
-        #expect(notHere.sessions.map(\.id) == here.map(\.id))
-        #expect(notHere.sessions.map(\.kind) == here.map(\.kind))
-        #expect(notHere.sessions.map(\.sub) == here.map(\.sub))
-        #expect(notHere.sessions.map(\.lines) == here.map(\.lines))
+        #expect(notHere.sessions.map(\.id) == [
+            "sr-y4d0qj", "sr-j94s0e", "sr-7e68fj", "sr-50f7g8", "sr-aw3bgs", "sr-q7njzv",
+        ])
+        #expect(notHere.sessions.map(\.away) == [false, false, true, true, true, true])
+        #expect(byId(notHere.sessions).map(\.kind) == byId(here).map(\.kind))
+        #expect(byId(notHere.sessions).map(\.sub) == byId(here).map(\.sub))
+        #expect(byId(notHere.sessions).map(\.lines) == byId(here).map(\.lines))
         #expect(notHere.head == Self.board(last).head)
     }
 
@@ -147,10 +151,11 @@ struct PanelBoardTests {
         #expect(question.more == nil)
     }
 
-    @Test func theHeadIsCoresCounts() {
+    /// Core's four asks and stops, and the session at Lee's turn: "5 need you".
+    @Test func theHeadIsCoresCountsWithTheTurns() {
         let board = Self.board(Self.heard(.line(watchLine)))
 
-        #expect(board.head == Head(title: "4 need you", count: "6 sessions"))
+        #expect(board.head == Head(title: "5 need you", count: "6 sessions"))
         #expect(board.needsLee)
     }
 
@@ -219,7 +224,7 @@ struct PanelBoardTests {
         #expect(board.head.title == "SitRep can't read the board")
     }
 
-    /// The menu's "4 need you · as of 12:04": the panel's head keeps its count of what needs Lee, and says in the
+    /// The menu's "5 need you · as of 12:04": the panel's head keeps its count of what needs Lee, and says in the
     /// count's place when the board was last known current, which is when `watch` was heard ending, not when it last
     /// printed (the line's own time is 22:32).
     @Test func withWatchStoppedTheLastBoardStaysItsHeadSayingAsOfWhen() {
@@ -230,7 +235,7 @@ struct PanelBoardTests {
         let board = Self.board(stopped)
 
         #expect(board.sessions == Self.board(Self.heard(.line(watchLine))).sessions)
-        #expect(board.head == Head(title: "4 need you", count: "as of 12:02"))
+        #expect(board.head == Head(title: "5 need you", count: "as of 12:02"))
         #expect(board.needsLee)
     }
 

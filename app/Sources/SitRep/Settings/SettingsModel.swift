@@ -161,9 +161,13 @@ final class SettingsModel {
         said.ghostty = await services.ghostty()
     }
 
-    /// Notify me of a new ask, turned on or off: on, macOS is asked for leave, unless Lee answered already.
-    func notify(_ isOn: Bool) {
-        preferences.app.notifiesNewAsks = isOn
+    /// Notify me of a new ask, or when it's my turn, turned on or off: on, macOS is asked for leave, unless Lee
+    /// answered already.
+    func notify(_ isOn: Bool, for need: Need = .ask) {
+        switch need {
+        case .ask: preferences.app.notifiesNewAsks = isOn
+        case .turn: preferences.app.notifiesTurns = isOn
+        }
         if isOn {
             Task {
                 await services.askForNotices()
@@ -172,9 +176,13 @@ final class SettingsModel {
         }
     }
 
-    /// A sound chosen for a new ask, saved and played once, as System Settings › Sound plays an alert sound chosen.
-    func choose(sound: String) {
-        preferences.app.sound = sound
+    /// A sound chosen for a new ask, or for Lee's turn, saved and played once, as System Settings › Sound plays an
+    /// alert sound chosen.
+    func choose(sound: String, for need: Need = .ask) {
+        switch need {
+        case .ask: preferences.app.sound = sound
+        case .turn: preferences.app.turnSound = sound
+        }
         services.sounds.play(sound)
     }
 

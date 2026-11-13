@@ -157,6 +157,45 @@ struct LiveLightTests {
         #expect(light.body.allSatisfy { $0.r > $0.g && $0.g > $0.b })
     }
 
+    // MARK: Lee's turn
+
+    /// Lit by Lee's turn, it is blue, breathing as the orange does: the same opacity and line, in its own palette.
+    @Test(arguments: [0.0, 1234.5, 20000])
+    func litByLeesTurnItIsBlueAndBreathesAsTheOrangeDoes(time: Double) {
+        let turn = LiveLight(time: time, sinceAsk: nil, need: .turn), ask = LiveLight(time: time, sinceAsk: nil)
+
+        #expect(turn.palette == .turn && ask.palette == .ask)
+        #expect(turn.opacity == ask.opacity && turn.line == ask.line)
+        #expect(turn.body.allSatisfy { $0.b > $0.g && $0.g > $0.r })
+    }
+
+    /// The blue matches the orange in strength, its OKLCH lightness and chroma the orange's, at the hue of macOS's
+    /// system blue, so neither shouts over the other.
+    @Test func theBlueIsTheOrangesLightnessAndChromaAtSystemBluesHue() {
+        let orange = Self.oklch(LiveLight.orange), blue = Self.oklch(LiveLight.blue)
+        let systemBlue = Self.oklch(LiveLight.RGB(r: 0x0A, g: 0x84, b: 0xFF))
+
+        #expect(abs(blue.l - orange.l) < 0.005 && abs(blue.c - orange.c) < 0.005)
+        #expect(abs(blue.h - systemBlue.h) < 1)
+    }
+
+    /// A colour's OKLCH lightness, chroma and hue in degrees, from its sRGB.
+    private static func oklch(_ colour: LiveLight.RGB) -> (l: Double, c: Double, h: Double) {
+        let linear = [colour.r, colour.g, colour.b].map { value -> Double in
+            let v = value / 255
+            return v <= 0.04045 ? v / 12.92 : pow((v + 0.055) / 1.055, 2.4)
+        }
+        let (r, g, b) = (linear[0], linear[1], linear[2])
+        let l = cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b)
+        let m = cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b)
+        let s = cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b)
+        let lightness = 0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s
+        let a = 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s
+        let bb = 0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s
+
+        return (lightness, hypot(a, bb), (atan2(bb, a) * 180 / .pi + 360).truncatingRemainder(dividingBy: 360))
+    }
+
     private static func css(_ c: LiveLight.RGB) -> String {
         "\(Int(c.r.rounded())) \(Int(c.g.rounded())) \(Int(c.b.rounded()))"
     }

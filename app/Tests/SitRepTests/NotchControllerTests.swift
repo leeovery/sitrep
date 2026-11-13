@@ -51,7 +51,7 @@ struct NotchControllerTests {
     @Test func aYourTurnHoursOldStillTicks() throws {
         let now = Self.midnight + 5 * 3_600_000 - 10_000
 
-        #expect(Self.run().list.content.items.map(\.key) == ["eyebrow:yourTurn", "turn:sr-a"])
+        #expect(Self.run().list.content.items.map(\.key) == ["eyebrow:needsYou", "turn:sr-a"])
         #expect(try #require(NotchController.wait(for: Self.run(), at: now)) == 40)
     }
 }

@@ -84,6 +84,8 @@ public final class NotchRun: Framed {
     private let kept: SavedSettings<CardSettings>?
     /// The light's own clock, apart from the frames': the latest it was drawn at.
     private var lit: Double
+    /// What lit the light last, whose colour it keeps as it goes out: an ask until anything has.
+    public private(set) var lightNeed = Need.ask
     private var rows = HeldRows()
     private var style: NotchStyle
     private var folds = Folds()
@@ -190,6 +192,7 @@ public final class NotchRun: Framed {
         upToNow(moment)
         board.tell(notch, after: self.board)
         self.board = board
+        lightNeed = board.need ?? lightNeed
         rows.take(board.cardSessions)
 
         if !board.new.isEmpty {

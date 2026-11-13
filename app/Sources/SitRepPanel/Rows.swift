@@ -163,7 +163,7 @@ public struct Session: Equatable, Sendable {
         return caps.count >= 2 ? String(caps.prefix(2)) : String(project.prefix(2))
     }
 
-    /// Whether it is among needs you.
+    /// Whether it is an ask's row in Needs you: its lines asks, permission prompts or questions, not its turn.
     public var needsLee: Bool { kind == .needs }
 
     /// Whether it is a row in Snoozed, its asks asleep or its turn.
@@ -236,10 +236,10 @@ public enum Item: Equatable, Sendable {
     case eyebrow(Eyebrow)
     case divider
 
-    /// The panel's list of these sessions, in the order given, which is core's: the hairline under what waits on Lee
-    /// that leads it, needs you and your turn, when anything follows them. The menu's; the card's is `card`.
+    /// The panel's list of these sessions, in the order given, the panel's: the hairline under what waits on Lee that
+    /// leads it, Needs you, when anything follows it. The menu's; the card's is `card`.
     public static func list(_ sessions: [Session]) -> [Item] {
-        let waiting = sessions.prefix(while: \.section.waitsOnLee).count
+        let waiting = sessions.prefix { $0.section == .needsYou }.count
         var items = sessions.map(Item.session)
         if waiting > 0, waiting < items.count {
             items.insert(.divider, at: waiting)
@@ -255,10 +255,11 @@ public enum Item: Equatable, Sendable {
         }
     }
 
-    /// What it is, the same for as long as it shows: a row by its session, marked by its section but for Working's, so
-    /// a row changing section folds away from one place and unfolds in the other, as two rows, and a session's row in
-    /// Snoozed is another than its row beside it, and its turn's row there another than its asks'; an eyebrow by its
-    /// section; the divider by itself.
+    /// What it is, the same for as long as it shows: a row by its session, marked by its section but for Working's, and
+    /// in Needs you and Snoozed by whether it is an ask's or a turn's, so a row changing section, or from ask to turn,
+    /// folds away from one place and unfolds in the other, as two rows, and a session's row in Snoozed is another than
+    /// its row beside it, and its turn's row there another than its asks'; an eyebrow by its section; the divider by
+    /// itself.
     public var key: String {
         switch self {
         case let .session(session), let .line(session): Self.key(of: session)
@@ -269,8 +270,7 @@ public enum Item: Equatable, Sendable {
 
     static func key(of session: Session) -> String {
         switch session.section {
-        case .needsYou: "needs:\(session.id)"
-        case .yourTurn: "turn:\(session.id)"
+        case .needsYou: session.isTurn ? "turn:\(session.id)" : "needs:\(session.id)"
         case .working: session.id
         case .snoozed: session.isTurn ? "snoozedTurn:\(session.id)" : "snoozed:\(session.id)"
         }

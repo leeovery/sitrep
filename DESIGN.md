@@ -277,8 +277,15 @@ notch and its panel").
   Known limit: a background shell that never ends, as `tail -f`, cannot be
   told from one that will. It counts while it runs.
 - **your turn**: its window finished its turn, or Lee stopped it, with
-  nothing of its own left running, and waits for Lee's message. Not orange:
-  they are in a conversation, and Lee comes back when ready.
+  nothing of its own left running, and waits for Lee's message. Blue, and
+  in Needs you under its asks, on SitRep's surfaces (13 November 2026,
+  Lee): an ask and a finished turn both mean "go back to this session",
+  Claude needing Lee explicitly or implicitly, and the white ring a
+  your-turn row had said nothing. So the Mac app's "need you" counts asks
+  and turns alike (see "The rows"). Core's state is unchanged, and so is
+  the plugin's band inside Claude Code, whose "◆ N asks" counts asks
+  alone. Until then it was not orange and had a section of its own: they
+  are in a conversation, and Lee comes back when ready.
 - **away**: no window holds it, and it is still current. Dimmed. SitRep
   dims a session a window holds but no terminal on this Mac shows too,
   keeping its state, which stays core's (stage 8's rethink, 13 November
@@ -2137,11 +2144,13 @@ aside. The rules for asks above stand beside this one, unchanged.
   turn's end, and `wakesAt` when it wakes, null until it moves; the row's
   `wakesAt` the same. Snoozed goes the soonest to wake first, those until it
   moves after every one with a time, then the oldest. Its row leaves Your
-  turn and its count, and counts in Snoozed's. The strip and the menu show
-  none, as for an ask asleep.
-  - On the card, black and glass, it is a Snoozed row whose mark is a ring:
-    9 across, its stroke 1.5, in the faint grey, #5C5C63 (on glass the
-    tertiary); its session's name 13 in the soft grey, its project in the
+  turn and its count (Needs you's since 13 November 2026), and counts in
+  Snoozed's. The strip and the menu show none, as for an ask asleep.
+  - On the card, black and glass, it is a Snoozed row whose mark is, since
+    13 November 2026, a snoozed ask's dot in blue, dimmed the same (see "How
+    each row reads"); until then a ring 9 across, its stroke 1.5, in the
+    faint grey, #5C5C63 (on glass the tertiary); its session's name 13 in
+    the soft grey, its project in the
     lane at its right, and in its time's place, in the soft grey too, when
     it wakes, or "until it moves". Its menu offers Wake now, and a
     your-turn row's Snooze its three times, then after a separator Until it
@@ -4014,7 +4023,8 @@ opening like a liquid, as iOS 27's Siri does. It was designed with Lee over
 
 **The notch.** At rest, a black notch flared into the display's black bezel,
 7 points deep and 76 long, its ends S-curves. While something needs Lee,
-it is 15 × 124, with the light inside. It opens into a black panel:
+an ask or, since 13 November 2026, Lee's turn, it is 15 × 124, with the
+light inside. It opens into a black panel:
 - 372 deep;
 - front corners of radius 24, and flares of 18 into the bezel;
 - kept 40 from the top and bottom of the screen's visible frame.
@@ -4063,6 +4073,20 @@ A new ask brightens it briefly. It shows only whether anything needs Lee,
 never how many asks, and dims out while the panel is out. Every needs-you
 mark is that orange: the light, the rows' dots, a new ask's wash.
 
+**Lit by what is needed** (13 November 2026, Lee). The light is orange
+while any ask waits; otherwise blue while any session stands at Lee's
+turn; otherwise unlit, as before. The blue is #3F93FB: the orange's
+OKLCH lightness and chroma, 0.663 and 0.174, at the hue of macOS's system
+blue, 255.5, so it matches the orange in strength and neither shouts over
+the other. The light's other colours are the orange's turned the same
+way, its tips #1F65B7, its breath's peak #7CB5FF and its spots #AED0FF,
+the two lightest with their chroma cut to what sRGB holds. Going out, it
+keeps the colour it last had. Every mark follows one grammar: colour says
+what is needed, orange for an ask and blue for Lee's turn; fill says where
+the session is, filled where this Mac shows it and hollow away (see "How
+each row reads"). Until then the light lit for asks alone, and orange was
+the only colour that waited on Lee.
+
 Six steps were tried, from a bloom to a glow inside the material. A bloom
 looked blurred from across the room. Lee wanted "the crisp edges on the
 black background", with a little happening inside: subtle, and narrower.
@@ -4072,16 +4096,38 @@ Lee, away ones included, and every session a window holds, working, on its
 own work or your turn (see "A session's state"). An away session with
 nothing waiting stays off it. A session a window holds that no terminal
 on this Mac shows, its Claude running hidden or attached only from
-another device, stays on it dimmed, keeping its state and its place, as
-an away row is dimmed (stage 8's rethink, 13 November 2026, Lee's
-choice): SitRep reads which sessions this Mac shows every few seconds,
-and core knows nothing of it. In this order:
-1. needs you, newest first, by each row's newest line, with away ones
-   last, newest first among them;
-2. your turn, newest first;
-3. working, longest running first;
-4. on its own work: those waiting on a wake first, the soonest due first,
+another device, stays on it dimmed, keeping its state, and its place
+outside Needs you, as an away row is dimmed (stage 8's rethink, 13
+November 2026, Lee's choice): SitRep reads which sessions this Mac shows every few seconds,
+and core knows nothing of it. In this order (13 November 2026):
+1. needs you: its asks first, an ask, a permission prompt or a question
+   waiting, then its turns, the sessions at Lee's turn; each the sessions
+   this Mac shows first, then the away ones, each newest first by its
+   row's newest line, as core orders them; a session held where this Mac
+   doesn't show it, which core has among those it shows, leads the away
+   ones;
+2. working, longest running first;
+3. on its own work: those waiting on a wake first, the soonest due first,
    then the rest, the longest waiting first.
+
+Your turn joined Needs you on 13 November 2026, decided with Lee: an ask
+and a finished turn both mean "go back to this session", Claude needing
+Lee explicitly or implicitly, so they share one section, on the card and
+the menu, and one count; the strip keeps its places (see "The strip").
+A session is one row in Needs you, never two (Lee, 13 November 2026): one
+at his turn with asks waiting, not snoozed, is an ask's row, orange,
+counted by its asks, its turn adding no row and no count; only one at his
+turn with none waiting is a your-turn row, blue, counted as 1. So three
+sessions with asks, one holding two, make 4, and seven others at his turn
+make "11 need you". Core's rows already were so, a session's asks winning
+over its windows' state.
+Core still orders the rows as before, asks, then turns, then working,
+and only `watch` reads that order; the app
+regroups Needs you itself (`inPanelOrder`), since only it knows which
+sessions this Mac shows, so core's feed and the plugin's own board are
+unchanged. Until then the order was: needs you, newest first, with away
+ones last, a session this Mac didn't show keeping its place; your turn,
+newest first; working; on its own work.
 
 Your turn came up under Needs you, over the hairline, on every surface (4
 November 2026, Paper's board I, "Yours, above the line"). Lee: a your-turn
@@ -4100,10 +4146,12 @@ comes in at the top; it was oldest first, by each row's oldest line, until
 from boards A, B and C). Lee, of the three boards: "A is kind of the base,
 but using B's flattened, one-line turn, and then using C's collapsing turns
 that move outside of the period." So the card lists its rows in sections,
-each under an eyebrow: Needs you, Your turn, Working (on its own work at
-its end), then Snoozed, in that order since 4 November 2026 (board I; see
-"The rows"). Working came before Your turn until then. A section with no
-rows is left out, its eyebrow with it.
+each under an eyebrow: Needs you, its asks then its turns, Working (on its
+own work at its end), then Snoozed, since 13 November 2026, when Your turn
+joined Needs you (see "The rows"). From 4 November 2026 they were Needs
+you, Your turn, Working, then Snoozed (board I), and Working came before
+Your turn until then. A section with no rows is left out, its eyebrow
+with it.
 - **The head goes.** "4 need you · 6 sessions" told what the eyebrows now
   carry. It stays only where there is nothing to list, as the empty card's
   "All clear", "Looking for sessions…" or why SitRep can't read the board,
@@ -4112,14 +4160,15 @@ rows is left out, its eyebrow with it.
   under the card's top padding of 12, so the first row stands at 44, where
   it stood under the head.
 - **An eyebrow** is 28 tall: the section's name 10 in, 11 semibold in white
-  at 55%; its count 6 after it, 11 semibold in tabular figures, in orange
-  for Needs you, the faint grey (#5C5C63) for Snoozed and white at 30% for
-  the others; and at its right a
+  at 55%, Needs you's too, its turns in it or not; its count 6 after it, 11
+  semibold in tabular figures, in orange for Needs you, the faint grey
+  (#5C5C63) for Snoozed and white at 30% for Working; and at its right a
   chevron, 10 by 6 and stroked 1.5 in white at 25% with round caps, in a box
   15 by 24 that stands 7.5 in, so the chevron ends where a row's time does.
-  Needs you counts its waiting lines, the asks and stops (Kit's one and
-  Harness's three are 4); Your turn and Working count their rows; Snoozed
-  counts its asks, as Needs you its lines. Every eyebrow after the first
+  Needs you counts what waits on Lee: its waiting lines, the asks and stops
+  (Kit's one and Harness's three are 4), and since 13 November 2026 its
+  turns, one each, so 4 asks and 7 turns are 11; Working counts its rows,
+  as Your turn did; Snoozed counts its lines, as Needs you its lines. Every eyebrow after the first
   sits 14 under the last row above it, or the eyebrow above where that
   section is folded: the space alone tells the sections apart (board J2,
   4 November 2026; see "No hairline"). Earlier that day, from board I, the
@@ -4148,7 +4197,9 @@ rows is left out, its eyebrow with it.
   across opens and launches, a value of their own in the app's defaults
   under "card", each section saved folded or unfolded, so one added later
   takes its own default: Snoozed, folded at first, reads folded from a value
-  saved before it was, and every other section open. An arrival unfolds
+  saved before it was, and every other section open. A fold of Your turn
+  saved before 13 November 2026 is passed over, as a section this version
+  does not know is, and Needs you takes its own. An arrival unfolds
   Needs you, at once: a row holding a line
   new to the board, as swells the notch, whether the session is new, comes
   to need Lee or gains a line. The unfold is kept, as a click's is: Needs
@@ -4261,10 +4312,13 @@ past its tab: "in 1h" becomes "in 59m". The row's time still counts from
 the turn's end, as every row's does, so the countdown never shows twice.
 
 Rows keep their places while the panel is open: a changed row moves only once
-it closes. Each section, Needs you, Your turn, Working or Snoozed, is held on
-its own and the sections follow in their order, so each stays together under
-its eyebrow however core reorders it meanwhile (22 October 2026, rows by
-session, then the card's sections). A row is kept by its session, so one
+it closes. Each part, Needs you's asks, its turns, Working or Snoozed, is held
+on its own and the parts follow in their order, so each section stays together
+under its eyebrow, and Needs you's asks over its turns, however the order
+changes meanwhile (22 October 2026, rows by session, then the card's sections;
+Needs you's asks and turns since 13 November 2026, Your turn a section of its
+own until then). A row going from an ask to a turn, its asks answered, or
+from a turn to an ask, changes part, as a row changing section does. A row is kept by its session, so one
 gaining or losing a line in Needs you, as a second ask comes, is the same
 row, its count changed where it stands, at once, as is one going from working
 to on its own work, both Working. A row changing section, its session coming
@@ -4312,14 +4366,15 @@ right, Your turn's row alone on one line from 22 October 2026:
   below, not 10 and 11);
 - **away, with an ask** (3 November 2026): its mark is a hollow orange ring,
   7 across, its stroke 1.5 inside it, with no glow, on every surface: the
-  card, the strip and the menu. The filled dot and its glow stay for an ask whose window is
-  there. Orange says an ask waits on Lee; hollow, that no window holds it,
+  card, the strip and the menu. The filled dot and its glow stay for an
+  ask whose window is there. Orange says an ask waits on Lee; hollow, that no window holds it,
   as Slack and Teams mark someone away. Since stage 8's rethink (13
   November 2026) a session a window holds that no terminal on this Mac
   shows takes the ring and the dimming too: hollow, that no window
   here shows it. Lee: "Rather than the orange circle,
   we need a better icon to indicate that it's an ask, but there's no window
-  open." Until then the dot stayed orange. Its words dim as one: its title,
+  open." Until then the dot stayed orange. A turn away takes the same
+  ring in blue (13 November 2026). Its words dim as one: its title,
   its count, the line under it and, where it would read brighter than its
   title, its time, each to 0.61 of its ink, so the title stays the brighter
   of its two lines and both sit below the rows round them. Lee: "The title
@@ -4337,9 +4392,13 @@ right, Your turn's row alone on one line from 22 October 2026:
   said "No window holds it. Carry it on in Claude." in place of its
   project;
 - **your turn**, on one line (board B's, in board D, 22 October 2026;
-  Lee: "B's flattened, one-line turn"): an open white ring 9 across with a
-  stroke of 1.5 in the 12 mark lane, so its shape differs from the dot,
-  not only its colour; what Claude left Lee, the board's "now", 13 regular
+  Lee: "B's flattened, one-line turn"): since 13 November 2026 a blue dot 7
+  across with its glow, an ask's dot in blue, and away a hollow blue ring 7
+  across, unlit, an away ask's ring in blue: colour says what is needed,
+  fill where the session is. Until then an open white ring 9 across with
+  a stroke of 1.5 in the 12 mark lane, so its shape differed from the dot,
+  not only its colour, which Lee found said nothing; what Claude left Lee,
+  the board's "now", 13 regular
   in the text colour, cut short, regular so Needs you keeps the heavier
   title; its project at its right; how long it has waited, faint, in the
   36 lane. It lifts, presses, jumps and washes as any row does. From board
@@ -4373,8 +4432,10 @@ right, Your turn's row alone on one line from 22 October 2026:
   Nothing of it runs: no shimmer, no turning, and only a wake's countdown
   is drawn again, as it reads differently.
 - **snoozed** (Paper's board G, 23 October 2026): a needs you row quieted,
-  on one line since board I (4 November 2026), 30 tall. Its dot 7 across in
-  the faint grey, #5C5C63, with no glow; the session's name 13 in the soft
+  on one line since board I (4 November 2026), 30 tall. Its dot 7 across
+  with no glow, its orange dimmed by the away rows' 0.61, which stands it
+  about as bright on the black as the faint grey, #5C5C63, it was until 13
+  November 2026 (on glass the orange at 0.61); the session's name 13 in the soft
   grey, #98989F, cut short, its count faint after it; its project in a lane
   at its right, 12 in the faint grey. An away row is drawn the same, since
   an ask Lee put off urges nothing until it wakes; it still jumps nowhere.
@@ -4387,13 +4448,14 @@ right, Your turn's row alone on one line from 22 October 2026:
   each minute. Until board I it had two lines, its project under its
   name.
 - **a turn snoozed** (board I, 4 November 2026; see "A turn snoozes too"): a
-  snoozed row whose mark is your turn's ring in the faint grey, 9 across,
-  its stroke 1.5, #5C5C63; its session's name 13 in the soft grey, its
+  snoozed row whose mark is the snoozed ask's dot in blue, dimmed the same,
+  since 13 November 2026; until then your turn's ring in the faint grey, 9
+  across, its stroke 1.5, #5C5C63; its session's name 13 in the soft grey, its
   project in the lane at its right, and in its time's place when it wakes,
   or "until it moves", in the soft grey.
 
-The shimmer stays neutral. Orange is for needs you only: the dot, the wash
-and a new row's "now". Lee had suggested working titles shimmer white or
+The shimmer stays neutral. Orange is for asks only: the dot, the wash and a
+new row's "now"; blue is for Lee's turn's dot alone (13 November 2026). Lee had suggested working titles shimmer white or
 grey to orange, then left it to Claude; it can change after a test. The
 sections are told apart by the space over their eyebrows and the eyebrows
 themselves, and their rows by their marks (board J2, 4 November 2026; a
@@ -4409,7 +4471,12 @@ click jumps: the row presses in and spins for up to 450ms in its time lane,
 the panel drains, and a caption says where it jumped. A new ask
 makes the notch over-swell twice, to 25 deep, about 450ms apart, as each
 comes back through its 15. The light flashes with each, and its row, new or
-gaining the line, gets an orange wash for 2 seconds. Lee set the swell on the display
+gaining the line, gets an orange wash for 2 seconds. Since 13 November 2026
+the swell and its flashes, the notch's pulse, are a setting, on for a new
+ask by default; a session moving into Lee's turn pulses it the same way
+where Lee turns that on, off by default, as the steady blue light shows it
+already (see Settings, Notifications). With a pulse off, what it would have
+pulsed for lights the notch with none. Lee set the swell on the display
 (15 October 2026). The prototype swells once, to 19, which Lee found a
 little too quiet, and Lee thought it might look nice twice.
 
@@ -4684,7 +4751,9 @@ were settled in the browser spike (below, "How the strip moves").
   - **just arrived**: washed orange inside the ring, its glow brighter, for
     two seconds, and the ring flashes twice, as the notch swells twice;
   - **away, with an ask**: orange, the letters dim;
-  - **your turn**: white;
+  - **your turn**: blue, with the glow, the letters white, and away the
+    letters dim, as an ask's mark in blue (13 November 2026; white, with no
+    glow, until then);
   - **working**: a grey track with a pale arc turning round it, the letters
     grey;
   - **on its own work** (3 November 2026): the dotted ring round the
@@ -4702,7 +4771,11 @@ were settled in the browser spike (below, "How the strip moves").
   moved under Your turn (board I) and went that day (board J2), but the
   strip's stays under needs you,
   where its places for needs you, its orange count among them, end, and
-  where every recording of the strip's motion has it. The letters are the
+  where every recording of the strip's motion has it. So when Your turn
+  joined Needs you (13 November 2026), the strip kept its places: a
+  your-turn mark, blue now, stays under the hairline, over working's, and
+  the orange count holds asks alone, since moving them needs the
+  prototype's timelines recorded again. The letters are the
   project's capitals where it has two (SitRep SR, DocMan DM), else its first
   two (Switchboard Sw, agntc ag); two sessions of one project share them.
   A session with several lines waiting is still one mark.
@@ -4897,7 +4970,8 @@ asked for the sessions back, and approved the redraw as it stands.
     stretched to the menu kept the widest the menu had ever been;
   - **the panel's sessions**, in its order and with its marks (see "The
     rows"), under a heading in the panel head's words, "4 need you" or "All
-    clear". Each is a native item with a subtitle (macOS 14.4): what it is,
+    clear", counting asks and turns alike since 13 November 2026: "11 need
+    you" where 4 asks and 7 turns wait. Each is a native item with a subtitle (macOS 14.4): what it is,
     then its project and session, and its time on the right as the item's
     badge. An item is a session, as a row is, with room for one line: one
     needing Lee shows its name over its project, its newest line's time,
@@ -4910,8 +4984,9 @@ asked for the sessions back, and approved the redraw as it stands.
     under Reduce motion it holds still (3 November 2026). A row on its own
     work is faint, as a working row is, its mark the dotted ring, and a
     wake's countdown is set again as it ticks, with the badges. An away
-    ask's mark is the away ring (see "The rows"). A separator sits after
-    what waits on Lee, where the panel's hairline was until board J2 (4
+    ask's mark is the away ring (see "The rows"), and a your-turn row's the
+    blue dot, or away the blue ring (13 November 2026; the template open
+    ring until then). A separator sits after Needs you, where the panel's hairline was until board J2 (4
     November 2026), which took it off the card; the menu keeps it, a
     menu's own idiom. A click jumps;
   - **Show**: Notch, Strip or Nothing, inline, the one in use ticked, so
@@ -5006,9 +5081,10 @@ asked for the sessions back, and approved the redraw as it stands.
     moved while `watch` was down. The app decides no rows of its own, so a row that needed Lee
     and came while `watch` was down gets no swell or flash: accepted.
 - **The icon** in the menu bar is the light's glyph (see "The icon"): white
-  on a dark menu bar and black on a light one, its bar lit orange while
-  anything needs Lee, since the notch is on one display and the menu bar on
-  every one. The header carries SitRep's app icon, which never changes.
+  on a dark menu bar and black on a light one, its bar lit as the notch's
+  light is, orange while an ask waits, else blue while Lee's turn does
+  (13 November 2026; lit orange for asks alone until then), since the
+  notch is on one display and the menu bar on every one. The header carries SitRep's app icon, which never changes.
   Round 4 drew a placeholder, a screen with a bar at its edge and a dot for
   needs you; round 6 replaced it.
 
@@ -5056,8 +5132,10 @@ does; the boards first drew it on a band of black.
      minute. Everything here is in Settings later.", went in the build
      (Lee, 3 November 2026: "It's like answering a question that nobody
      asked… Can you remove that line?"). The stage's panel is open on
-     Needs you, Your turn and Working (Working before Your turn until 4
-     November 2026), and the loop plays the notch at
+     Needs you and Working; until 13 November 2026 on Needs you, Your turn
+     and Working (Working before Your turn until 4 November 2026), when its
+     session at Lee's turn went, as it would light the resting notch blue.
+     The loop plays the notch at
      rest, an ask landing, the swell twice and the light, the pour into
      the panel and the close. Continue reads Continue here too; the
      board's "Show me" went in the build, as Lee couldn't tell what it did
@@ -5378,9 +5456,11 @@ live changed, and how they group.
   notification", "This is what SitRep's notifications look like", naming no
   session, so its click jumps nowhere and hands the front back (Lee, 26
   October 2026: a test of a real project's took him to its session, which a
-  test should not). Then two sections. **Banners:** Notify me of a new
-  ask, off by default, its line "Silent; a click on it jumps to the
-  session"; and
+  test should not). Then three sections, each setting a new ask and Lee's
+  turn apart (13 November 2026, Lee), the ask's rows first. **Banners:**
+  Notify me of a new ask, off by default, its line "Silent; a click on it
+  jumps to the session"; Notify me when it's my turn, off by default, its
+  line the same; and
   macOS's own answer, "Allowed by macOS, as banners", with Notification
   Settings… for SitRep's page in System Settings: the notices helper's,
   which macOS lists as SitRep (see "The menu bar"). Each is read, asked
@@ -5398,7 +5478,37 @@ live changed, and how they group.
   shows at the edge, Nothing included, and whether or not banners are on,
   which are silent. It plays as an ordinary sound, at the output volume,
   never as a notification's or an alert sound, which follow the alert
-  volume.
+  volume. Under them, since 13 November 2026, Play a sound when it's my
+  turn, off by default, its line "Once, as a session's turn ends", and its
+  own Sound, Tink by default, so the two are told apart by ear; it greys
+  as the ask's does. A board that brings both plays the ask's alone.
+  **Notch:** Pulse for a new ask, on by default, "It swells and its light
+  flashes", as it always had; and Pulse when it's my turn, off by default,
+  "It swells as a session's turn ends" (see "The notch and its panel").
+  Lee's turn is all off by default: Lee wants no sound for it, and the
+  steady blue light shows it already.
+
+  **What fires for Lee's turn** (13 November 2026): its notification, its
+  sound and its pulse fire once, as Claude ends a turn: a session at his
+  turn on a line of `watch`, which the line before showed working or on
+  its own work, from a turn that ended later than any it has stood at his
+  turn from. A move into his turn from anywhere else never fires: from
+  needing him, as when Claude asked and ended its turn as one and Lee
+  snoozes the ask or answers it from another window, the turn long
+  ended; from his turn itself, as when a window joins a session there, a
+  resume or a second Claude, which restarts its turn's time; or from off
+  the rows, a snooze woken or a session new to them. Nor does it fire
+  again for a turn flickered out of and back to, nor for sessions at his
+  turn as SitRep starts, nor on any run's first line, as a new ask's do
+  not (`LastBoard.newTurns`; until a review the same day, a move from
+  needing him or from an earlier turn fired too, which fired for an ask
+  Lee had snoozed and for a joining window). Its notification says "Your
+  turn", its project and session, then what Claude left Lee, and its click
+  carries the session on, as an ask's does. The saved settings keep their
+  meaning:
+  `notifiesNewAsks`, `playsSound` and `sound` are a new ask's still, and
+  his turn's are keys of their own, `notifiesTurns`, `playsTurnSound`,
+  `turnSound` and `pulsesTurns`, beside the ask's `pulsesNewAsks`.
 - **General**: Startup, Terminal and Resume command, as stage 8's
   rethink regroups it (13 November 2026; built in the PR after it). Until
   then Startup, Ghostty and, since 10 November 2026, New windows (below).
@@ -5492,7 +5602,11 @@ live changed, and how they group.
     left it in but greys, "Can't while macOS stops it; the notch swells and
     lights instead", and macOS's row reads "Not allowed by macOS", "Turn
     SitRep on in System Settings › Notifications", with Notification
-    Settings….
+    Settings…. Notify me when it's my turn greys the same, "the notch
+    lights blue instead". Each says the notch swells only while its own
+    pulse is on, "the notch lights instead" with Pulse for a new ask off,
+    "the notch swells and lights blue instead" with Pulse when it's my
+    turn on (13 November 2026).
   - **Waiting on Lee's approval to open at login:** the switch gives way to
     Login Items Settings….
 

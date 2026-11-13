@@ -1,11 +1,12 @@
 import SitRepEdge
 import SitRepPanel
 
-/// What Lee sets beyond the edge, saved beside its settings as one value and read as leniently: whether a new ask
-/// sends a notification, and whether it plays a sound and which; and how a window is opened for a session no terminal
-/// on this Mac shows, the terminal and the resume command. A key another version saved, as the Settings pane it last
-/// showed, or a setting retired since, as "Your turn folds after" (4 November 2026) and the open command (13 November
-/// 2026), is passed over.
+/// What Lee sets beyond the edge, saved beside its settings as one value and read as leniently: for a new ask and for
+/// his turn apart, whether it sends a notification, whether it plays a sound and which, and whether it pulses the
+/// notch; and how a window is opened for a session no terminal on this Mac shows, the terminal and the resume command.
+/// The keys from before his turn had its own (13 November 2026) are a new ask's still. A key another version saved, as
+/// the Settings pane it last showed, or a setting retired since, as "Your turn folds after" (4 November 2026) and the
+/// open command (13 November 2026), is passed over.
 public struct AppSettings: SavedValue {
     public static let key = "app"
 
@@ -16,6 +17,14 @@ public struct AppSettings: SavedValue {
     /// One of macOS's alert sounds, by name, as saved: `AlertSounds` reads one macOS lacks as Glass, the one the
     /// windows played, and the default.
     public var sound = "Glass"
+    /// On by default, as the notch swelled for every new ask before it was a setting.
+    public var pulsesNewAsks = true
+    /// Lee's turn's, each off by default: the notch's light, blue while a turn waits, says it already.
+    public var notifiesTurns = false
+    public var playsTurnSound = false
+    /// Another sound than a new ask's, so the two are told apart by ear.
+    public var turnSound = "Tink"
+    public var pulsesTurns = false
     /// The terminal a window for a session no terminal on this Mac shows opens in, by its `$TERM_PROGRAM`
     /// (`Driver.program`): Ghostty, the one with a driver.
     public var terminal = "ghostty"
@@ -36,13 +45,34 @@ public struct AppSettings: SavedValue {
         notifiesNewAsks = given.value(.notifiesNewAsks, or: defaults.notifiesNewAsks)
         playsSound = given.value(.playsSound, or: defaults.playsSound)
         sound = given.value(.sound, or: defaults.sound)
+        pulsesNewAsks = given.value(.pulsesNewAsks, or: defaults.pulsesNewAsks)
+        notifiesTurns = given.value(.notifiesTurns, or: defaults.notifiesTurns)
+        playsTurnSound = given.value(.playsTurnSound, or: defaults.playsTurnSound)
+        turnSound = given.value(.turnSound, or: defaults.turnSound)
+        pulsesTurns = given.value(.pulsesTurns, or: defaults.pulsesTurns)
         terminal = given.value(.terminal, or: defaults.terminal)
         resumeCommand = given.value(.resumeCommand, or: Self.retiredResumeCommand(in: decoder))
     }
 
     private enum CodingKeys: String, CodingKey {
-        case notifiesNewAsks, playsSound, sound, terminal
+        case notifiesNewAsks, playsSound, sound, pulsesNewAsks, notifiesTurns, playsTurnSound, turnSound, pulsesTurns
+        case terminal
         case resumeCommand = "resume"
+    }
+
+    /// What pulses the notch as it comes, as Lee set it.
+    public var pulses: Set<Need> {
+        Set(Need.allCases.filter { $0 == .ask ? pulsesNewAsks : pulsesTurns })
+    }
+
+    /// Whether a new ask, or Lee's turn, sends a notification, as he set it.
+    public func notifies(_ need: Need) -> Bool {
+        need == .ask ? notifiesNewAsks : notifiesTurns
+    }
+
+    /// The sound a new ask, or Lee's turn, plays, as saved.
+    public func sound(for need: Need) -> String {
+        need == .ask ? sound : turnSound
     }
 
     /// The resume command as saved before it had a key of its own: none where it was empty, as it was until Lee gave one.

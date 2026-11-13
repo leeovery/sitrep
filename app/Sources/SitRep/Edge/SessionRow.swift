@@ -4,12 +4,12 @@ import SitRepPanel
 /// One session's row in black, every row on one line, as Paper's board J draws the card: its mark, its title
 /// (`Session.headline`), its project faint at the right of its words, never cut, and its time at the right; the lift
 /// under the pointer, and a new row's wash. A row needing Lee is its session, as board F draws it, its name in medium
-/// and a quiet "3" for its three lines waiting, an away one's words dimmed; a your-turn row its open ring and what
+/// and a quiet "3" for its three lines waiting, an away one's words dimmed; a your-turn row its blue dot and what
 /// Claude left Lee in regular; a Working row its verb, then what it acts on or waits on, an arc turning and its verb
 /// shimmering in the render server, or on its own work its dotted ring and its words still, a wake's countdown set
-/// again as it reads differently; a row in Snoozed a row needing Lee quieted, as board G draws it, its dot grey and
+/// again as it reads differently; a row in Snoozed a row needing Lee quieted, as board G draws it, its dot dimmed and
 /// unlit, its name soft, its count faint, and in its time's place when its soonest ask wakes, soft, the lane grown to
-/// fit it; a turn there the same, its mark the faint ring, and with no time, "until it moves".
+/// fit it; a turn there the same, its dot blue, and with no time, "until it moves".
 @MainActor
 final class SessionRow {
     /// The row's box: its item's.
@@ -246,33 +246,34 @@ final class SessionRow {
         session.needsLee ? EdgeStyle.lineMedium : EdgeStyle.line
     }
 
-    /// Its mark: needs you an orange dot with its glow, and away a hollow orange ring, unlit (`Away`); your turn an
-    /// open white ring, board D's 9; working the arc turning; on its own work the dotted ring, still; in Snoozed a
-    /// faint dot, unlit, and a turn there the faint ring.
+    /// Its mark, in Needs you one grammar (13 November 2026): its colour what it waits on, an ask's orange or Lee's
+    /// turn's blue; filled, a dot with its glow, where this Mac shows it, and hollow, a ring unlit, away (`Away`).
+    /// Working the arc turning; on its own work the dotted ring, still; in Snoozed the dot dimmed, unlit, away or not.
     private func mark(at centre: CGPoint) -> CALayer {
+        let colour = EdgeStyle.colour(of: session.isTurn ? .turn : .ask)
+
         switch session.kind {
-        case .needs where session.away:
-            return Self.ring(Away.ringSide, at: centre, colour: EdgeStyle.orange)
-        case .needs:
-            let dot = Self.disc(7, at: centre, fill: EdgeStyle.orange)
-
-            dot.shadowColor = EdgeStyle.orange
-            dot.shadowOpacity = 0.75
-            dot.shadowRadius = 2
-            dot.shadowOffset = .zero
-
-            return dot
-        case .turn:
-            return Self.ring(9, at: centre, colour: EdgeStyle.ink)
+        case .needs, .turn:
+            return session.away ? Self.ring(Away.ringSide, at: centre, colour: colour) : Self.lit(at: centre, colour)
+        case .snoozed, .snoozedTurn:
+            return Self.disc(7, at: centre, fill: EdgeStyle.asleep(colour))
         case .working:
             return Self.arc(in: CGRect(x: centre.x - 5.5, y: centre.y - 5.5, width: 11, height: 11)).layer
         case .onItsWork:
             return DottedRing.card.layer(centredOn: centre, colour: EdgeStyle.grey)
-        case .snoozed:
-            return Self.disc(7, at: centre, fill: EdgeStyle.ink3)
-        case .snoozedTurn:
-            return Self.ring(9, at: centre, colour: EdgeStyle.ink3)
         }
+    }
+
+    /// A dot 7 across in a colour, with its glow.
+    private static func lit(at centre: CGPoint, _ colour: CGColor) -> CALayer {
+        let dot = disc(7, at: centre, fill: colour)
+
+        dot.shadowColor = colour
+        dot.shadowOpacity = 0.75
+        dot.shadowRadius = 2
+        dot.shadowOffset = .zero
+
+        return dot
     }
 
     /// The prototype's 11-point arc, turning once a second: a working row's mark, and a pressed row's spinner.
@@ -292,7 +293,7 @@ final class SessionRow {
         arc(in: CGRect(x: lane.maxX - 11, y: lane.midY - 5.5, width: 11, height: 11))
     }
 
-    /// An open ring this wide, its stroke 1.5 inside it: your turn's, an away ask's, and a turn asleep's.
+    /// An open ring this wide, its stroke 1.5 inside it: an away row's in Needs you.
     static func ring(_ size: CGFloat, at centre: CGPoint, colour: CGColor) -> CALayer {
         let ring = disc(size, at: centre, fill: CGColor.clear)
 

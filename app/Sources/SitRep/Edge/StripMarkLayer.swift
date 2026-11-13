@@ -2,7 +2,7 @@ import AppKit
 import SitRepPanel
 
 /// One mark on the strip in black, drawn as the prototype's `.mk`: the project's letters in a 24pt ring whose colour
-/// carries the state, a glow outside it while it needs Lee, the working arc turning round it, or on its own work the
+/// carries the state, a glow outside it in Needs you, the working arc turning round it, or on its own work the
 /// dotted ring in the ring's place, still, lifted under the pointer, and pressed in with its arc turning while a click
 /// on it jumps. Just arrived, it is washed orange and its ring flashes, and its lift eases as the model eases it, a
 /// frame at a time; any other change of look eases over 240ms, the letters' colour among it, as the prototype's
@@ -48,7 +48,6 @@ final class StripMarkLayer {
         layer.bounds = box
         glow.frame = box
         glow.shadowOffset = .zero
-        glow.shadowColor = EdgeStyle.orange
         outside.frame = box
         outside.mask = Self.outside(box)
         outside.addSublayer(glow)
@@ -100,13 +99,14 @@ final class StripMarkLayer {
 
     private func restyle(_ look: Look, eased: Bool) {
         let kind = look.kind
-        let glows = !look.jumping && [.needs, .away, .needsCount].contains(kind)
+        let glows = !look.jumping && [.needs, .away, .turn, .awayTurn, .needsCount].contains(kind)
 
         CATransaction.begin()
         CATransaction.setDisableActions(!eased)
         CATransaction.setAnimationDuration(Self.lookEase)
         ring.borderWidth = Self.line
         ring.borderColor = look.jumping ? EdgeStyle.track : Self.ringColour(kind)
+        glow.shadowColor = Self.ringColour(kind)
         glow.shadowPath = CGPath(ellipseIn: glow.bounds, transform: nil)
         glow.shadowRadius = Self.blur / 2
         glow.shadowOpacity = glows ? Float(Self.glowAlpha) : 0
@@ -114,7 +114,7 @@ final class StripMarkLayer {
         dotted.opacity = kind == .onItsWork && !look.jumping ? 1 : 0
         spinner.track.strokeColor = look.jumping ? nil : EdgeStyle.track
         spinner.arc.strokeColor = look.jumping && kind == .needs ? EdgeStyle.orange
-            : look.jumping && kind == .turn ? EdgeStyle.ink : EdgeStyle.arc
+            : look.jumping && kind == .turn ? EdgeStyle.blue : EdgeStyle.arc
         CATransaction.commit()
 
         CATransaction.begin()
@@ -134,10 +134,12 @@ final class StripMarkLayer {
         self.look = look
     }
 
-    /// Washed orange inside the ring and its glow brighter, for two seconds, the ring flashing: set each frame.
+    /// Washed orange inside the ring and its glow brighter, for two seconds, the ring flashing: set each frame. Only an
+    /// ask's arrives.
     private func arrive(wash: Double, flash: Double) {
         let spread = wash + 1.5 * flash
 
+        glow.shadowColor = EdgeStyle.orange
         ring.backgroundColor = EdgeStyle.color(LiveLight.orange, alpha: 0.2 * wash)
         ring.borderWidth = Self.line + 1.1 * flash
         ring.borderColor = EdgeStyle.color(LiveLight.orange.mix(Self.flashed, flash))
@@ -163,7 +165,7 @@ final class StripMarkLayer {
     private static func ringColour(_ kind: StripFrame.Mark.Look) -> CGColor? {
         switch kind {
         case .needs, .away, .needsCount: EdgeStyle.orange
-        case .turn: EdgeStyle.ink
+        case .turn, .awayTurn: EdgeStyle.blue
         case .working, .onItsWork: nil
         case .count: EdgeStyle.track
         }
@@ -172,7 +174,7 @@ final class StripMarkLayer {
     private static func letterColour(_ kind: StripFrame.Mark.Look) -> CGColor {
         switch kind {
         case .needs, .turn, .needsCount: EdgeStyle.ink
-        case .away: EdgeStyle.ink3
+        case .away, .awayTurn: EdgeStyle.ink3
         case .working, .onItsWork: EdgeStyle.grey
         case .count: EdgeStyle.ink2
         }

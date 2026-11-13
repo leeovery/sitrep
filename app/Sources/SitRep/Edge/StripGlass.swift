@@ -170,7 +170,7 @@ struct GlassMark: View {
                 if let ring {
                     Circle()
                         .strokeBorder(ring, lineWidth: Self.line + 1.1 * mark.flash)
-                        .shadow(color: GlassInk.orange.opacity(glow), radius: (9 + 3 * mark.wash + 7 * mark.flash) / 2)
+                        .shadow(color: glowColour.opacity(glow), radius: (9 + 3 * mark.wash + 7 * mark.flash) / 2)
                         .transition(.opacity)
                 }
                 Text(mark.text)
@@ -187,7 +187,13 @@ struct GlassMark: View {
         .opacity(mark.alpha)
     }
 
-    private var isNeeds: Bool { [.needs, .away, .needsCount].contains(mark.look) }
+    /// In Needs you: an ask's or Lee's turn's, or needs you's count.
+    private var isNeeds: Bool { [.needs, .away, .turn, .awayTurn, .needsCount].contains(mark.look) }
+
+    private var isTurn: Bool { [.turn, .awayTurn].contains(mark.look) }
+
+    /// Its glow's colour, Lee's turn's blue, or an ask's orange, as one arriving is.
+    private var glowColour: Color { isTurn ? GlassInk.blue : GlassInk.orange }
 
     private var fill: AnyShapeStyle {
         if mark.wash > 0 {
@@ -208,7 +214,7 @@ struct GlassMark: View {
             let flashed = LiveLight.orange.mix(StripMarkLayer.flashed, mark.flash)
 
             return AnyShapeStyle(Color(cgColor: EdgeStyle.color(flashed)))
-        case .turn: return AnyShapeStyle(.primary)
+        case .turn, .awayTurn: return AnyShapeStyle(GlassInk.blue)
         case .working, .onItsWork: return nil
         case .count: return AnyShapeStyle(.tertiary)
         }
@@ -223,13 +229,13 @@ struct GlassMark: View {
             return .secondaryLabelColor
         }
 
-        return mark.look == .needs ? GlassInk.orangeArc : mark.look == .turn ? .labelColor : .secondaryLabelColor
+        return mark.look == .needs ? GlassInk.orangeArc : mark.look == .turn ? GlassInk.blueArc : .secondaryLabelColor
     }
 
     private var letters: AnyShapeStyle {
         switch mark.look {
         case .needs, .turn, .needsCount: AnyShapeStyle(.primary)
-        case .away: AnyShapeStyle(.tertiary)
+        case .away, .awayTurn: AnyShapeStyle(.tertiary)
         case .working, .onItsWork, .count: AnyShapeStyle(.secondary)
         }
     }

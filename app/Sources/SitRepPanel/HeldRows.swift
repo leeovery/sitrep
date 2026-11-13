@@ -1,7 +1,8 @@
-/// The panel's sessions as it shows them: core's order while the panel is in; while it is out, each row keeps the
-/// place it had in its section, Needs you, Your turn, Working or Snoozed, so a changed row moves only once the panel
-/// closes (DESIGN, "The rows"), and each section stays together under its eyebrow. Core decides the rows and their
-/// order; this decides only when a new order shows.
+/// The panel's sessions as it shows them: the panel's order while the panel is in; while it is out, each row keeps the
+/// place it had in its part of the list, Needs you's asks, its turns, Working or Snoozed, so a changed row moves only
+/// once the panel closes (DESIGN, "The rows"), each section stays together under its eyebrow, and Needs you's asks
+/// above its turns. Core decides the rows, and the panel their order (`inPanelOrder`); this decides only when a new
+/// order shows.
 public struct HeldRows: Equatable, Sendable {
     public private(set) var shown: [Session] = []
     /// The board's latest, in core's order, which shows once the panel is in.
@@ -38,25 +39,36 @@ public struct HeldRows: Equatable, Sendable {
         return true
     }
 
-    /// Each section on its own, in the sections' order: its rows showing, in their places, each as it now is, those
-    /// gone from it left out; a row new to it, new to the board or come from another section, in under the row core
-    /// has above it in the section, or at the section's top where core has none there. Each row is known by its key,
-    /// so a session's asks and its turn in Snoozed are two rows.
+    /// Each part on its own, in the parts' order: its rows showing, in their places, each as it now is, those gone from
+    /// it left out; a row new to it, new to the board or come from another part, in under the row the panel's order
+    /// has above it in the part, or at the part's top where it has none there. Each row is known by its key, so a
+    /// session's asks and its turn in Snoozed are two rows.
     private func kept(_ sessions: [Session]) -> [Session] {
-        let core = Dictionary(grouping: sessions, by: Self.section)
-        let held = Dictionary(grouping: shown, by: Self.section)
+        let order = Dictionary(grouping: sessions, by: Part.init)
+        let held = Dictionary(grouping: shown, by: Part.init)
 
-        return core.keys.sorted().flatMap { section in
-            let rows = core[section] ?? []
+        return order.keys.sorted().flatMap { part in
+            let rows = order[part] ?? []
             let now = Dictionary(rows.map { (Item.key(of: $0), $0) }) { first, _ in first }
 
-            return (held[section] ?? []).compactMap { now[Item.key(of: $0)] }.merging(rows, by: Item.key(of:))
+            return (held[part] ?? []).compactMap { now[Item.key(of: $0)] }.merging(rows, by: Item.key(of:))
         }
     }
 
-    /// The section a row's place is held in, by the sections' order: Needs you, Your turn, Working, Snoozed.
-    static func section(_ session: Session) -> BoardSection {
-        session.section
+    /// The part of the list a row's place is held in, in their order: its section, and in Needs you its asks, then its
+    /// turns. Snoozed's asks and turns are one part, the soonest to wake first.
+    struct Part: Hashable, Comparable {
+        let section: BoardSection
+        let isTurn: Bool
+
+        init(_ session: Session) {
+            section = session.section
+            isTurn = section == .needsYou && session.isTurn
+        }
+
+        static func < (lhs: Part, rhs: Part) -> Bool {
+            (lhs.section, lhs.isTurn ? 1 : 0) < (rhs.section, rhs.isTurn ? 1 : 0)
+        }
     }
 }
 

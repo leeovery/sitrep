@@ -26,10 +26,18 @@ enum GlassThickness {
 
 /// The colours on glass beside its label colours.
 enum GlassInk {
-    /// Needs you: Claude's orange, as on the black.
+    /// An ask: Claude's orange, as on the black.
     static let orange = Color(cgColor: EdgeStyle.color(LiveLight.orange))
+    /// Lee's turn: its blue, as on the black.
+    static let blue = Color(cgColor: EdgeStyle.color(LiveLight.blue))
+
+    /// What a row in Needs you waits on, as its mark's colour says it.
+    static func colour(of need: Need) -> Color {
+        need == .ask ? orange : blue
+    }
     /// The same, for a spinner's arc.
     static let orangeArc = NSColor(cgColor: EdgeStyle.color(LiveLight.orange)) ?? .systemOrange
+    static let blueArc = NSColor(cgColor: EdgeStyle.color(LiveLight.blue)) ?? .systemBlue
 }
 
 /// An arc turning round a track, once in a period, or held still with none: a working row's mark on the glass. Black's

@@ -130,19 +130,26 @@ extension SettingsRow {
         }
     }
 
-    /// Notify me of a new ask: the switch keeps what Lee left it at, but greys while macOS stops SitRep's
-    /// notifications, its line saying what tells him instead, for what shows at the edge.
-    public static func notify(_ leave: NoticeLeave?, show: EdgeSettings.Show) -> SettingsRow {
-        let label = "Notify me of a new ask"
+    /// Notify me of a new ask, or when it's my turn: the switch keeps what Lee left it at, but greys while macOS stops
+    /// SitRep's notifications, its line saying what tells him instead, for what shows at the edge, the notch swelling
+    /// only while its pulse for that need is on.
+    public static func notify(
+        _ leave: NoticeLeave?, show: EdgeSettings.Show, for need: Need = .ask, pulses: Bool = true
+    ) -> SettingsRow {
+        let label = need == .ask ? "Notify me of a new ask" : "Notify me when it's my turn"
 
         guard leave?.stops == true else {
             return SettingsRow(label: label, line: "Silent; a click on it jumps to the session", side: .toggle(isEnabled: true))
         }
 
-        let instead = switch show {
-        case .notch: "the notch swells and lights"
-        case .strip: "the strip flashes"
-        case .nothing: "the menu bar's light comes on"
+        let lights = pulses ? "the notch swells and lights" : "the notch lights"
+        let instead = switch (need, show) {
+        case (.ask, .notch): lights
+        case (.ask, .strip): "the strip flashes"
+        case (.ask, .nothing): "the menu bar's light comes on"
+        case (.turn, .notch): "\(lights) blue"
+        case (.turn, .strip): "its mark on the strip turns blue"
+        case (.turn, .nothing): "the menu bar's light turns blue"
         }
 
         return SettingsRow(label: label, line: "Can't while macOS stops it; \(instead) instead", side: .toggle(isEnabled: false))

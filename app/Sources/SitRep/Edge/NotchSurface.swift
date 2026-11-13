@@ -45,10 +45,10 @@ final class NotchSurface: EdgeSurface<any NotchDrawing> {
         drawLight(run, at: run.lightTime(run.time), reducesMotion: setting.reducesMotion)
     }
 
-    /// The run's light at this time on its own clock, round the frame's outline.
+    /// The run's light at this time on its own clock, round the frame's outline, in the colour of what lights it.
     func drawLight(_ run: NotchRun, at time: Double, reducesMotion: Bool) {
         showLight(run.frame.light, outline: run.frame.outline, colours: LiveLight(
-            time: time, sinceAsk: run.sinceAsk(at: time), reducesMotion: reducesMotion
+            time: time, sinceAsk: run.sinceAsk(at: time), reducesMotion: reducesMotion, need: run.lightNeed
         ))
     }
 

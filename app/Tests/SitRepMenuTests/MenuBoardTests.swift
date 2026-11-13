@@ -10,8 +10,11 @@ struct MenuBoardTests {
 
     private static let board = menu(heard([.line(Watched.line())]))
 
-    @Test func itListsThePanelsSessionsInCoresOrderWithTheHairlineUnderWhatWaitsOnLee() {
-        #expect(Self.board.items.map(\.key) == ["needs:sr-ledger", "needs:sr-dash", "needs:sr-plan", "turn:sr-boot", "divider", "sr-diff"])
+    /// Needs you's asks, then its turn, the hairline under them, as the panel has them.
+    @Test func itListsThePanelsSessionsInThePanelsOrderWithTheHairlineUnderNeedsYou() {
+        #expect(Self.board.items.map(\.key) == [
+            "needs:sr-ledger", "needs:sr-dash", "needs:sr-plan", "turn:sr-boot", "divider", "sr-diff",
+        ])
     }
 
     @Test func eachRowCarriesThePanelsMark() {
@@ -21,17 +24,19 @@ struct MenuBoardTests {
         #expect(sessions.map(\.away) == [false, false, true, false, false])
     }
 
-    /// A session a window holds that this Mac does not show is drawn as an away one is, in its place, whatever its
-    /// state; the menu changes with it.
-    @Test func aHeldSessionNotHereIsDrawnAwayInItsPlace() {
+    /// A session a window holds that this Mac does not show is drawn as an away one is, whatever its state, and in
+    /// Needs you leads the away ones of its kind; the menu changes with it.
+    @Test func aHeldSessionNotHereIsDrawnAwayAmongTheAwayOnes() {
         let last = heard([.line(Watched.line())])
         let notHere = MenuBoard(last, notHere: ["sr-ledger", "sr-boot", "sr-diff"], clock: london)
         let sessions = notHere.items.compactMap(\.session)
+        let dash = MenuBoard(last, notHere: ["sr-dash"], clock: london)
 
-        #expect(notHere.items.map(\.key) == Self.board.items.map(\.key))
+        #expect(sessions.map(\.id) == ["sr-dash", "sr-ledger", "sr-plan", "sr-boot", "sr-diff"])
         #expect(sessions.map(\.kind) == [.needs, .needs, .needs, .turn, .working])
-        #expect(sessions.map(\.away) == [true, false, true, true, true])
+        #expect(sessions.map(\.away) == [false, true, true, true, true])
         #expect(notHere != Self.board)
+        #expect(dash.items.compactMap(\.session).map(\.id) == ["sr-ledger", "sr-dash", "sr-plan", "sr-boot", "sr-diff"])
     }
 
     /// A row needing Lee is titled by its session's name, away or not, a question's own "+2" nowhere; any other by its
@@ -66,9 +71,10 @@ struct MenuBoardTests {
         #expect(sessions.first?.ageText(at: 1_792_445_000_000 + 60 * 60_000) == "1h")
     }
 
+    /// Three asks and stops and one session at Lee's turn: "4 need you".
     @Test func theHeadingIsThePanelHeadsWords() {
-        #expect(Self.board.heading == "3 need you")
-        #expect(Self.menu(heard([.line(Watched.line(needYou: 0, rows: [Watched.rows[3]]))])).heading == "All clear")
+        #expect(Self.board.heading == "4 need you")
+        #expect(Self.menu(heard([.line(Watched.line(needYou: 0, rows: [Watched.rows[4]]))])).heading == "All clear")
     }
 
     @Test func beforeAnyBoardItSaysItIsLooking() {
@@ -110,7 +116,7 @@ struct MenuBoardTests {
         let menu = Self.menu(heard([.line(Watched.line()), .exited(.status(1), stderr: "sitrep: The state folder can't be read.\n")]))
 
         #expect(menu.unread == "The state folder can't be read.")
-        #expect(menu.heading == "3 need you · as of 12:01")
+        #expect(menu.heading == "4 need you · as of 12:01")
         #expect(menu.items.count == 6)
     }
 
@@ -141,7 +147,8 @@ struct MenuBoardTests {
 
     @Test func theGlyphLightsWhileAnythingNeedsLee() {
         #expect(Self.board.glyph == .lit)
-        #expect(Self.menu(heard([.line(Watched.line(needYou: 0, rows: [Watched.rows[3]]))])).glyph == .rest)
+        #expect(Self.menu(heard([.line(Watched.line(needYou: 0, rows: [Watched.rows[3]]))])).glyph == .turn)
+        #expect(Self.menu(heard([.line(Watched.line(needYou: 0, rows: [Watched.rows[4]]))])).glyph == .rest)
         #expect(Self.menu(LastBoard()).glyph == .rest)
     }
 
