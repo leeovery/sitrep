@@ -23,11 +23,7 @@ struct GlassEyebrow: View {
     }
 
     private func ink(of count: Eyebrow.Count) -> AnyShapeStyle {
-        if let need = count.need {
-            return AnyShapeStyle(GlassInk.colour(of: need))
-        }
-
-        return eyebrow.section == .needsYou ? AnyShapeStyle(GlassInk.orange) : AnyShapeStyle(.tertiary)
+        count.need.map { AnyShapeStyle(GlassInk.colour(of: $0)) } ?? AnyShapeStyle(.tertiary)
     }
 }
 

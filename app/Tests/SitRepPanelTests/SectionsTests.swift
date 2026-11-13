@@ -42,7 +42,7 @@ struct SectionsTests {
         let snoozed = Self.eyebrows(items).last
 
         #expect(items.map(\.key).suffix(2) == ["boot", "eyebrow:snoozed"])
-        #expect(snoozed == Eyebrow(section: .snoozed, count: 2, isFolded: true, above: 14))
+        #expect(snoozed == Eyebrow(section: .snoozed, counts: [Eyebrow.Count(2)], isFolded: true, above: 14))
     }
 
     /// Unfolded, its rows are on one line, each a row of its own beside the session's row elsewhere.
@@ -96,14 +96,9 @@ struct SectionsTests {
         }
     }
 
-    /// Needs you counts what waits on Lee: the asks and stops, Kit's one and Harness's three, and the two sessions at
-    /// his turn; Working counts its rows, on its own work among them.
-    @Test func needsYouCountsItsAsksAndItsTurnsAndWorkingItsRows() {
-        #expect(Self.eyebrows(Self.card()).map(\.count) == [6, 2])
-    }
-
-    /// Needs you's eyebrow counts its asks and its stopped apart, the asks first, each only above zero; with neither,
-    /// there is no Needs you and no eyebrow for it. Working's one counts its rows whole.
+    /// Needs you counts what waits on Lee in two, the asks first, each only above zero: its asks, the lines of Kit's
+    /// one and Harness's three, and its stopped, the two sessions at his turn; with neither, there is no Needs you and
+    /// no eyebrow for it. Working counts its rows whole, on its own work among them.
     @Test func needsYouCountsItsAsksAndItsStoppedApartEachAboveZero() {
         let asks = Self.board.filter { $0.kind == .needs }, stopped = Self.board.filter { $0.kind == .turn }
         let working = Self.board.filter { $0.section == .working }
@@ -111,9 +106,10 @@ struct SectionsTests {
 
         #expect(counts(asks) == [Eyebrow.Count(4, need: .ask)])
         #expect(counts(stopped) == [Eyebrow.Count(2, need: .turn)])
-        #expect(counts(Self.board) == [Eyebrow.Count(4, need: .ask), Eyebrow.Count(2, need: .turn)])
+        #expect(Self.eyebrows(Self.card()).map(\.counts) == [
+            [Eyebrow.Count(4, need: .ask), Eyebrow.Count(2, need: .turn)], [Eyebrow.Count(2)],
+        ])
         #expect(counts(working) == nil)
-        #expect(Self.eyebrows(Self.card(working)).map(\.counts) == [[Eyebrow.Count(2)]])
     }
 
     @Test func anEmptySectionIsLeftOutWithItsEyebrow() {
@@ -142,7 +138,7 @@ struct SectionsTests {
         let items = Self.card(folds: CardFolds(sections: [.working]))
         let working = try #require(Self.eyebrows(items).first { $0.section == .working })
 
-        #expect(working.isFolded && working.count == 2)
+        #expect(working.isFolded && working.counts == [Eyebrow.Count(2)])
         #expect(!items.contains { $0.session?.section == .working })
     }
 
@@ -162,7 +158,7 @@ struct SectionsTests {
         let items = Self.card(turns)
 
         #expect(items.map(\.key) == ["eyebrow:needsYou"] + turns.map { "turn:\($0.id)" })
-        #expect(Self.eyebrows(items)[0].count == 8)
+        #expect(Self.eyebrows(items)[0].counts == [Eyebrow.Count(8, need: .turn)])
     }
 
     /// A row's key says its section, whatever its shape, and in Needs you whether it is an ask's or a turn's, so one

@@ -14,8 +14,11 @@ struct CardSectionsDrawnTests {
     private static let ground = CGPoint(x: 1, y: 1)
     private static let size = CGSize(width: width, height: Item.lineHeight)
 
-    private static func eyebrow(_ section: BoardSection, count: Int = 5, isFolded: Bool = false) -> Eyebrow {
-        Eyebrow(section: section, count: count, isFolded: isFolded, above: 0)
+    /// A section's eyebrow counting 5: Needs you's asks, or another section whole.
+    private static func eyebrow(_ section: BoardSection, isFolded: Bool = false) -> Eyebrow {
+        let count = Eyebrow.Count(5, need: section == .needsYou ? .ask : nil)
+
+        return Eyebrow(section: section, counts: [count], isFolded: isFolded, above: 0)
     }
 
     private static func black(_ eyebrow: Eyebrow) throws -> Drawn {
@@ -62,7 +65,7 @@ struct CardSectionsDrawnTests {
         #expect(abs(count.minX - (10 + named + 6)) <= 1)
     }
 
-    /// Needs you's count in Claude's orange, its turns counted in it; Working's in white at 30%.
+    /// Needs you's asks in Claude's orange; Working's count in white at 30%.
     @Test(arguments: [(BoardSection.needsYou, true), (.working, false)])
     func anEyebrowsCountIsOrangeForNeedsYouElseFaint(section: BoardSection, isOrange: Bool) throws {
         let drawn = try Self.black(Self.eyebrow(section))
@@ -79,8 +82,9 @@ struct CardSectionsDrawnTests {
     }
 
     /// Needs you's two counts side by side, 6 after its name and 6 apart, its asks in orange then its stopped in blue,
-    /// each only above zero: 2 and 8, asks alone, stopped alone, and, with neither, no figure at all.
-    @Test(arguments: [(2, 8), (2, 0), (0, 8), (0, 0)])
+    /// each only above zero, each gap measured from the figures before it: 2 and 8, 24 and 305, asks alone and stopped
+    /// alone.
+    @Test(arguments: [(2, 8), (24, 305), (2, 0), (0, 8)])
     func needsYousCountsAreItsAsksInOrangeThenItsStoppedInBlue(asks: Int, stopped: Int) throws {
         let drawn = try Self.black(Self.needsYou(asks: asks, stopped: stopped))
         let named = TextLine.width(TextLine.text("Needs you", EdgeStyle.eyebrowTitle, EdgeStyle.eyebrow))

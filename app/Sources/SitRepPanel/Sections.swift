@@ -101,8 +101,8 @@ public struct Eyebrow: Equatable, Sendable {
 
     public let section: BoardSection
     /// Needs you's two, side by side, its asks then its stopped, each only above zero (13 November 2026): the asks
-    /// counting its waiting lines, the asks and stops, and the stopped its sessions at Lee's turn. Snoozed's one counts
-    /// the asks asleep, and the others' one their rows.
+    /// counting the lines of its ask rows, the asks and the windows stopped on a prompt, and the stopped its your-turn
+    /// rows, one a session. Snoozed's one counts the asks asleep, and the others' one their rows.
     public let counts: [Count]
     public let isFolded: Bool
     /// The room over its 28: 4 under the card's top, else 14 under the row or the eyebrow above it, which is all that
@@ -115,14 +115,6 @@ public struct Eyebrow: Equatable, Sendable {
         self.isFolded = isFolded
         self.above = above
     }
-
-    /// One counted whole.
-    public init(section: BoardSection, count: Int, isFolded: Bool, above: Double) {
-        self.init(section: section, counts: [Count(count)], isFolded: isFolded, above: above)
-    }
-
-    /// All it counts, its figures together.
-    public var count: Int { counts.map(\.value).reduce(0, +) }
 
     /// The room over the first eyebrow, under the card's top, and over each after it.
     public static let first = 4.0, after = 14.0
@@ -162,15 +154,17 @@ extension Item {
             }
     }
 
-    /// Needs you's asks and its stopped apart, those above zero; another section's rows, or lines, whole.
+    /// Needs you's asks, by their rows' lines, and its stopped, by their rows, apart, those above zero; another
+    /// section's rows, or lines, whole.
     private static func counts(_ rows: [Session], in section: BoardSection) -> [Eyebrow.Count] {
         guard section == .needsYou else {
             return [Eyebrow.Count(count(rows, in: section))]
         }
 
-        return Need.allCases
-            .map { need in Eyebrow.Count(count(rows.filter { $0.need == need }, in: section), need: need) }
-            .filter { $0.value > 0 }
+        let asks = rows.filter { $0.need == .ask }.map(\.lines.count).reduce(0, +)
+        let stopped = rows.filter { $0.need == .turn }.count
+
+        return [Eyebrow.Count(asks, need: .ask), Eyebrow.Count(stopped, need: .turn)].filter { $0.value > 0 }
     }
 
     private static func count(_ rows: [Session], in section: BoardSection) -> Int {

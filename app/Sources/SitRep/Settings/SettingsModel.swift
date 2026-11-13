@@ -161,7 +161,7 @@ final class SettingsModel {
         said.ghostty = await services.ghostty()
     }
 
-    /// Notify me of a new ask, or when it's my turn, turned on or off: on, macOS is asked for leave, unless Lee
+    /// Notify me of a new ask, or when Claude stops, turned on or off: on, macOS is asked for leave, unless Lee
     /// answered already.
     func notify(_ isOn: Bool, for need: Need = .ask) {
         switch need {

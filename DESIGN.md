@@ -4281,20 +4281,22 @@ with it.
   under the card's top padding of 12, so the first row stands at 44, where
   it stood under the head.
 - **An eyebrow** is 28 tall: the section's name 10 in, 11 semibold in white
-  at 55%, Needs you's too, its turns in it or not; its count 6 after it, 11
-  semibold in tabular figures, the faint grey (#5C5C63) for Snoozed and
-  white at 30% for Working; and at its right a
-  chevron, 10 by 6 and stroked 1.5 in white at 25% with round caps, in a box
-  15 by 24 that stands 7.5 in, so the chevron ends where a row's time does.
-  Needs you has two counts side by side, each 6 after what is before it
-  (Lee, 13 November 2026): its asks in orange, its waiting lines, the asks
-  and stops (Kit's one and Harness's three are 4), then its stopped in
-  #124's blue, its turns, one each; each is drawn only above zero, so 4
-  asks and 7 stopped read "4 7", asks alone the orange one, stopped alone
-  the blue. On glass the same, in Claude's orange and the blue. Until then
-  it had one count, in orange, the turns counted in it since they joined
-  Needs you that morning, so 4 asks and 7 turns read 11. Working counts its rows,
-  as Your turn did; Snoozed counts its lines, as Needs you its lines. Every eyebrow after the first
+  at 55%, Needs you's too, its turns in it or not; its count, or Needs
+  you's two (below), 6 after it, 11 semibold in tabular figures, the faint
+  grey (#5C5C63) for Snoozed and white at 30% for Working; and at its
+  right a chevron, 10 by 6 and stroked 1.5 in white at 25% with round
+  caps, in a box 15 by 24 that stands 7.5 in, so the chevron ends where a
+  row's time does. Needs you has two counts side by side, the second 6
+  after the first (Lee, 13 November 2026): its asks in orange, the lines
+  of its ask rows, the asks and the windows stopped on a prompt (Kit's one
+  and Harness's three are 4), then its stopped in #124's blue, its
+  your-turn rows, one a session; each is drawn only above zero, so 4 asks
+  and 7 stopped read "4 7", asks alone the orange one, stopped alone the
+  blue. On glass the same, in Claude's orange and the blue. Until then it
+  had one count, in orange, the turns counted in it since they joined
+  Needs you that morning, so 4 asks and 7 turns read 11. Working counts
+  its rows, as Your turn did; Snoozed counts its lines, as Needs you its
+  lines. Every eyebrow after the first
   sits 14 under the last row above it, or the eyebrow above where that
   section is folded: the space alone tells the sections apart (board J2,
   4 November 2026; see "No hairline"). Earlier that day, from board I, the

@@ -54,7 +54,7 @@ struct SnoozedEdgeTests {
         let run = Self.opened()
 
         #expect(Self.keys(run) == ["eyebrow:needsYou", "needs:sr-4g01a7", "eyebrow:snoozed"])
-        #expect(run.list.content.items.last == .eyebrow(Eyebrow(section: .snoozed, count: 2, isFolded: true, above: 14)))
+        #expect(run.list.content.items.last == .eyebrow(Eyebrow(section: .snoozed, counts: [Eyebrow.Count(2)], isFolded: true, above: 14)))
     }
 
     /// Unfolded as Lee left it, the session has a row in each.

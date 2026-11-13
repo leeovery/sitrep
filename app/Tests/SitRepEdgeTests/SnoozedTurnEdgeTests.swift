@@ -54,7 +54,7 @@ struct SnoozedTurnEdgeTests {
         ])
         #expect(Self.eyebrows(run) == [
             Eyebrow(section: .needsYou, counts: [Eyebrow.Count(1, need: .turn)], isFolded: false, above: Eyebrow.first),
-            Eyebrow(section: .snoozed, count: 2, isFolded: false, above: Eyebrow.after),
+            Eyebrow(section: .snoozed, counts: [Eyebrow.Count(2)], isFolded: false, above: Eyebrow.after),
         ])
     }
 
@@ -63,7 +63,7 @@ struct SnoozedTurnEdgeTests {
         let run = Self.opened(Self.board(upTo: 2))
 
         #expect(Self.keys(run) == ["eyebrow:needsYou", "turn:sr-nwtrn5", "turn:sr-ctnbd2", "turn:sr-fbrk3m"])
-        #expect(Self.eyebrows(run).map(\.count) == [3])
+        #expect(Self.eyebrows(run).map(\.counts) == [[Eyebrow.Count(3, need: .turn)]])
     }
 
     /// Out, the panel holds a session's asks asleep and its turn asleep as two rows, each kept in its place as core

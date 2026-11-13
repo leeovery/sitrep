@@ -103,7 +103,7 @@ struct CardSectionsRunTests {
         #expect(Self.keys(run) == ["eyebrow:needsYou", "needs:sr-a", "needs:sr-b", "turn:sr-t", "eyebrow:working"])
         #expect(!run.isFolding(at: run.time))
         #expect(run.list.content.entries.allSatisfy { $0.height == $0.item.height && $0.alpha == 1 })
-        #expect(run.list.content.items.contains(.eyebrow(Eyebrow(section: .working, count: 1, isFolded: true, above: 14))))
+        #expect(run.list.content.items.contains(.eyebrow(Eyebrow(section: .working, counts: [Eyebrow.Count(1)], isFolded: true, above: 14))))
 
         #expect(try Self.press("eyebrow:working", in: run) == .fold)
         #expect(run.folded.sections == [.snoozed])

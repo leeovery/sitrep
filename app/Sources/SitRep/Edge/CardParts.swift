@@ -28,13 +28,9 @@ enum CardParts {
         return layer
     }
 
-    /// The ink of a section's count where it is counted whole.
+    /// The ink of a section's count where it is counted whole, as Working and Snoozed are.
     private static func ink(of section: BoardSection) -> CGColor {
-        switch section {
-        case .needsYou: EdgeStyle.orange
-        case .snoozed: EdgeStyle.ink3
-        case .working: EdgeStyle.eyebrowCount
-        }
+        section == .snoozed ? EdgeStyle.ink3 : EdgeStyle.eyebrowCount
     }
 
     private static func chevron(isOpen: Bool, in box: CGRect) -> CAShapeLayer {
