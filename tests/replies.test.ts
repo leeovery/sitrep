@@ -102,6 +102,19 @@ for (const [id, verdict, extra, after] of EFFECTS) {
     expect(answered?.closedAt).toBe(after === 'replied' ? undefined : T0 + MIN)
     expect(session.waiting).toBe(2)
   })
+
+  const says = after === 'replied' ? 'open' : 'closed'
+
+  test(`Lee's message under a ${how} on an ask wanting ${SHAPES[id]} says it leaves the ask ${says}`, () => {
+    const session = fold({ logs: { [W1]: file(...SHAPED) } })
+    const lines = boardMessage(session, [{ item: id, verdict, ...extra }])?.text.split('\n')
+
+    expect(lines?.at(-1)).toBe(
+      says === 'open'
+        ? '  This leaves the ask open: act on it, then resolve it.'
+        : '  This closes the ask: nothing more to do with it.',
+    )
+  })
 }
 
 /** Asks as written before asks said what they want back, by their kinds, one needing something back. */
@@ -194,9 +207,13 @@ test("old replies read in their ask's words; a decide's comment is still its ans
     [
       FROM_THE_BOARD,
       '- Review Sessions & Runway, round 1 → Approve',
+      '  This closes the ask: nothing more to do with it.',
       '- Try signing in on the iPad → It works, with a comment: “On the iPad mini too”',
+      '  This closes the ask: nothing more to do with it.',
       '- Keep the ledger 400 days, or forever? → answer: “Two years, then archive”',
+      '  This closes the ask: nothing more to do with it.',
       "- Run the export → Done, with the command's output: “v1.2.3”",
+      '  This closes the ask: nothing more to do with it.',
     ].join('\n'),
   )
 })
@@ -640,13 +657,21 @@ test("Lee's message: one line per reply, in the spike's words, under From the bo
     [
       FROM_THE_BOARD,
       '- Review Sessions & Runway, round 1 → Approve',
+      '  This closes the ask: nothing more to do with it.',
       '- Review Sessions & Runway, round 1 → Approve, with a comment: “Tighten the gutters”',
+      '  This closes the ask: nothing more to do with it.',
       '- Try signing in on the iPad → It works',
+      '  This closes the ask: nothing more to do with it.',
       '- Run the production apply → Done',
+      '  This closes the ask: nothing more to do with it.',
       '- Keep the ledger 400 days, or forever? → Forever',
+      '  This closes the ask: nothing more to do with it.',
       '- Keep the ledger 400 days, or forever? → comment: “Two years, then archive”',
+      '  This leaves the ask open: act on it, then resolve it.',
       '- Review Sessions & Runway, round 1 → comment: “The runway bar is too tall”',
+      '  This leaves the ask open: act on it, then resolve it.',
       '- Run the production apply → ignored',
+      '  This closes the ask: nothing more to do with it.',
       '- Pick up from parked: A tmux indicator across sessions',
       '- Pick up from parked: A tmux indicator across sessions. Before the release',
     ].join('\n'),
@@ -702,7 +727,11 @@ test('the message leaves out replies that fit no item, and says which it carries
       { item: 'k1', verdict: 'yes' },
     ]),
   ).toEqual({
-    text: `${FROM_THE_BOARD}\n- Review Sessions & Runway, round 1 → Approve`,
+    text: [
+      FROM_THE_BOARD,
+      '- Review Sessions & Runway, round 1 → Approve',
+      '  This closes the ask: nothing more to do with it.',
+    ].join('\n'),
     replies: [{ item: 'k1', verdict: 'yes' }],
   })
 })

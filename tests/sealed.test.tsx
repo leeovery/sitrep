@@ -12,7 +12,7 @@ import { QUIET_MS } from '../hooks/deliver'
 import { SEND_NOW } from '../hooks/draw/ready'
 import { WATCH_MS } from '../hooks/window'
 import { rowsOf } from './drawn'
-import { MIN, SLOW, W1 } from './support'
+import { CLOSES, MIN, SLOW, W1 } from './support'
 import {
   CONVERSATION,
   DASHBOARD,
@@ -34,7 +34,9 @@ type Engine = Parameters<typeof world>[0]
 
 /** Lee's message carrying his yes to each of these rounds of review. */
 const message = (...rounds: number[]) =>
-  ['From the board:', ...rounds.map(round => `- Review round ${round} → Approve`)].join('\n')
+  ['From the board:', ...rounds.map(round => `- Review round ${round} → Approve${CLOSES}`)].join(
+    '\n',
+  )
 
 /** The line under a send waiting for Claude's turn, its take-back beside it. */
 const HELD = "⧗ Waiting for Claude's turn to end. ↺ take back"
@@ -1036,7 +1038,9 @@ test("a prompt Lee types that the answering mode takes lifts the stop, though no
   await w.turnStarts(message(1))
   await turnEnded(w)
 
-  expect(w.submitted.at(-1)).toBe('From the board:\n- Name the release → answer: “Harbour”')
+  expect(w.submitted.at(-1)).toBe(
+    `From the board:\n- Name the release → answer: “Harbour”${CLOSES}`,
+  )
   expect(repliedIn(w, paths)).toEqual([first, words])
 })
 
@@ -1059,7 +1063,7 @@ test("a prompt of Lee's going on to start a turn leaves the window stopped until
 })
 
 /** The answer to "Name the release" that goes in with an image: Lee's prompt, rewritten. */
-const RODE = 'From the board:\n- Name the release → answer: “Harbour [Image #1]”'
+const RODE = `From the board:\n- Name the release → answer: “Harbour [Image #1]”${CLOSES}`
 
 /** The session stopped with the first round's send held, and Lee answering a words ask in the prompt: its id. */
 const answeringStopped = async (w: World, ui: Pane, ids: readonly string[]) => {

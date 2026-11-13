@@ -2,7 +2,7 @@ import { expect, test, tier } from 'claude-code/testing'
 import { parseEntries, type SessionPaths } from '../core'
 import { FLASH_MS } from '../hooks/deliver'
 import { WATCH_MS } from '../hooks/window'
-import { file, MIN, reply, SENDER, W1, W2 } from './support'
+import { CLOSES, file, MIN, reply, SENDER, W1, W2 } from './support'
 import { INLINE, postedId, PROJECT, CONVERSATION, world } from './world'
 
 tier('user')
@@ -11,7 +11,7 @@ type World = ReturnType<typeof world>
 
 const FROM_THE_BOARD = { kind: 'plugin', name: 'sitrep', asUser: true }
 
-const MESSAGE = 'From the board:\n- Review Sessions & Runway, round 1 → Approve'
+const MESSAGE = `From the board:\n- Review Sessions & Runway, round 1 → Approve${CLOSES}`
 
 /** As long as the watch takes to fold a letter, and the next look to take it in. */
 const TAKE_IN = 2 * WATCH_MS
@@ -275,7 +275,10 @@ test('a send Lee presses while inbox replies are in flight waits for them: a toa
   await w.clock.advance(WATCH_MS)
   await ui.press({ key: 'send' })
 
-  expect(w.submitted).toEqual([MESSAGE, 'From the board:\n- Run the production apply → Done'])
+  expect(w.submitted).toEqual([
+    MESSAGE,
+    `From the board:\n- Run the production apply → Done${CLOSES}`,
+  ])
   expect(kindsIn(w, paths)).toEqual(['ask', 'ask', 'delivered', 'reply', 'delivered'])
 })
 

@@ -15,6 +15,12 @@ import {
   type SessionMeta,
 } from '../core'
 
+/** The line under a reply to an ask in Lee's message saying it closed the ask. */
+export const CLOSES = '\n  This closes the ask: nothing more to do with it.'
+
+/** The line under a comment in Lee's message saying it left its ask open. */
+export const LEAVES_OPEN = '\n  This leaves the ask open: act on it, then resolve it.'
+
 export const MIN = 60_000
 
 /** For a test that runs the clock through many of the watch's looks: past the default 5s on a loaded machine. */

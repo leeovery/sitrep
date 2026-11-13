@@ -17,10 +17,12 @@ import { WATCH_MS } from '../hooks/window'
 import { rowsOf } from './drawn'
 import {
   beat,
+  CLOSES,
   delivered,
   file,
   finish,
   kindAsk,
+  LEAVES_OPEN,
   MIN,
   note,
   park,
@@ -498,7 +500,9 @@ test('one send carries the yes with its comment, the choice and the answer, in o
     [
       'From the board:',
       '- Give the go for stage 3 → Go, with a comment: “After the copy pass”',
+      '  This closes the ask: nothing more to do with it.',
       '- Ship round 2, or redraw? → Redraw',
+      '  This closes the ask: nothing more to do with it.',
       `- ${LIST.title} → ${OUTPUT}:`,
       '  ```',
       '  Ran it:',
@@ -507,6 +511,7 @@ test('one send carries the yes with its comment, the choice and the answer, in o
       '  SitRep',
       '    sr-wdsqvn  sitrep',
       '  ```',
+      '  This closes the ask: nothing more to do with it.',
     ].join('\n'),
   ])
   expect(w.state.board?.asks.map(each => each.state)).toEqual(['closed', 'closed', 'closed'])
@@ -574,7 +579,7 @@ test('a send carrying the reply its comment would go with ends the mode: the ban
   held.end()
   expect((await typed).drop).toBeUndefined()
   expect(w.prompts.map(each => each.text)).toEqual([
-    'From the board:\n- Give the go for stage 3 → Go',
+    `From the board:\n- Give the go for stage 3 → Go${CLOSES}`,
     'Carry on.',
   ])
   expect(w.state.answering).toBeNull()
@@ -750,7 +755,7 @@ test('an answer with an image goes in at once as Lee’s own prompt, rewritten a
   ).toBeUndefined()
   expect(w.prompts).toEqual([
     {
-      text: `From the board:\n- ${LIST.title} → ${OUTPUT}: “It prints this: [Image #1]”`,
+      text: `From the board:\n- ${LIST.title} → ${OUTPUT}: “It prints this: [Image #1]”${CLOSES}`,
       context: undefined,
       origin: { kind: 'composer' },
       attachments: [IMAGE],
@@ -770,7 +775,7 @@ test('an image with no words answers a words ask as the placeholder Claude Code 
   await answering(w)
   await entered(w, $, '[Image #1]', { attachments: [IMAGE] })
   expect(w.prompts.map(each => each.text)).toEqual([
-    `From the board:\n- ${LIST.title} → ${OUTPUT}: “[Image #1]”`,
+    `From the board:\n- ${LIST.title} → ${OUTPUT}: “[Image #1]”${CLOSES}`,
   ])
 })
 
@@ -786,7 +791,7 @@ test('a comment with an image on an ask whose yes is queued goes in with the yes
   await ui.press({ key: `rewrite:${w.item(id)}` })
   await entered(w, $, 'After the copy pass [Image #1]', { attachments: [IMAGE] })
   expect(w.prompts.map(each => each.text)).toEqual([
-    'From the board:\n- Give the go for stage 3 → Go, with a comment: “After the copy pass [Image #1]”',
+    `From the board:\n- Give the go for stage 3 → Go, with a comment: “After the copy pass [Image #1]”${CLOSES}`,
   ])
   expect(writtenIn(w)).toEqual([{ item: id, verdict: 'yes', isDelivered: true }])
   expect(stateOf(w, id)).toBe('closed')
@@ -805,7 +810,7 @@ test('a comment with an image on an ask with nothing queued goes in as a comment
   await ui.press({ key: `comment:${w.item(id)}` })
   await entered(w, $, 'Frame 2 looks like this [Image #1]', { attachments: [IMAGE] })
   expect(w.prompts.map(each => each.text)).toEqual([
-    `From the board:\n- ${FRAMES.title} → comment: “Frame 2 looks like this [Image #1]”`,
+    `From the board:\n- ${FRAMES.title} → comment: “Frame 2 looks like this [Image #1]”${LEAVES_OPEN}`,
   ])
   expect(writtenIn(w)).toEqual([{ item: id, verdict: 'comment', isDelivered: true }])
   expect(stateOf(w, id)).toBe('replied')
@@ -924,7 +929,7 @@ const ridingHeld = async (w: World, engine: Engine) => {
 }
 
 const RODE_WITH_GO =
-  'From the board:\n- Give the go for stage 3 → Go, with a comment: “After the copy pass [Image #1]”'
+  `From the board:\n- Give the go for stage 3 → Go, with a comment: “After the copy pass [Image #1]”${CLOSES}`
 
 test('an answer with an image is on its way from the moment it goes: frozen in Ready to send, with no take-back, and a send meanwhile carries none of it', async ($, on) => {
   const w = world($, on)
@@ -950,7 +955,10 @@ test('an answer with an image is on its way from the moment it goes: frozen in R
   await w.turnEnds()
   await w.clock.settle()
 
-  expect(w.submitted).toEqual([RODE_WITH_GO, 'From the board:\n- Review round 1 → Approve'])
+  expect(w.submitted).toEqual([
+    RODE_WITH_GO,
+    `From the board:\n- Review round 1 → Approve${CLOSES}`,
+  ])
   expect(writtenIn(w)).toEqual([
     { item: id, verdict: 'yes', isDelivered: true },
     { item: other, verdict: 'yes', isDelivered: true },
@@ -1119,7 +1127,7 @@ test('an answer with an image whose ask a send claims first goes to Claude as an
   await w.clock.settle()
 
   expect(w.submitted).toEqual([
-    'From the board:\n- Give the go for stage 3 → Go',
+    `From the board:\n- Give the go for stage 3 → Go${CLOSES}`,
     'After the copy pass [Image #1]',
   ])
   expect(w.prompts[1]?.attachments).toEqual([IMAGE])

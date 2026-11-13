@@ -15,7 +15,7 @@ import { HEARTBEAT_MS, parseEntries, parsePresence, sessionPaths, type SessionPa
 import { keptFlights, QUIET_MS } from '../hooks/deliver'
 import { WATCH_MS } from '../hooks/window'
 import type { SitrepInFlight, SitrepStoredFlights } from '../types'
-import { file, MIN, reply, SENDER, SLOW, W1 } from './support'
+import { CLOSES, file, MIN, reply, SENDER, SLOW, W1 } from './support'
 import { postedId, PROJECT, CONVERSATION, ROOT, startedId, world } from './world'
 
 tier('user')
@@ -26,7 +26,7 @@ type Source = 'send' | 'inbox'
 
 const REVIEW = { wants: 'yes', yes: 'Approve', title: 'Review Sessions & Runway, round 1' }
 
-const MESSAGE = 'From the board:\n- Review Sessions & Runway, round 1 → Approve'
+const MESSAGE = `From the board:\n- Review Sessions & Runway, round 1 → Approve${CLOSES}`
 
 /** Claude Code's refusal of every plugin's prompt once Lee has stopped Claude's turn, until he next types in the window (live, 2.1.318). */
 const STOPPED = 'the session was stopped and nobody has sent input since'

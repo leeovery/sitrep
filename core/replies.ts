@@ -311,16 +311,25 @@ export const answerOf = (item: Ask | Parked, reply: ReplyFields) => {
 /** Whose a picked-up item was, as Lee's message says it: the name of the session that parked it, where that is another than the message's. */
 const parkedBy = (name: string | undefined) => (name === undefined ? '' : `, ${name}'s`)
 
+/** What Claude is told a reply leaves its ask as, under the reply's line: closed, with nothing more to do, or open, Claude's to act on and resolve. */
+const LEFT_AS = {
+  closed: '  This closes the ask: nothing more to do with it.',
+  open: '  This leaves the ask open: act on it, then resolve it.',
+} as const
+
+const leftAs = (ask: Ask, verdict: Verdict) => LEFT_AS[isAnswer(ask, verdict) ? 'closed' : 'open']
+
 /**
  * A reply as Lee's message carries it: the item's title and the answer on a
- * line, a note of several lines under it; no ids, since Lee sends it as
- * their own. A pick-up of an item another session of the project parked
- * names that session, `elsewhere`.
+ * line, a note of several lines under it, and, for an ask, a line saying
+ * whether the reply closed it; no ids, since Lee sends it as their own. A
+ * pick-up of an item another session of the project parked names that
+ * session, `elsewhere`.
  */
 export const replyLine = (item: Ask | Parked, reply: ReplyFields, elsewhere?: string) =>
   item.type === 'park'
     ? `- Pick up from parked${parkedBy(elsewhere)}: ${item.title}${reply.note ? `.${PICK_UP_NOTE(reply.note)}` : ''}`
-    : `- ${item.title} → ${words(item, reply, IN_MESSAGE)}`
+    : `- ${item.title} → ${words(item, reply, IN_MESSAGE)}\n${leftAs(item, reply.verdict)}`
 
 /** The log line a delivered pick-up earns: what was picked up, and Lee's note with it. */
 export const pickUpLog = (parked: Parked, reply: ReplyFields) => ({

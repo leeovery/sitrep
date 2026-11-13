@@ -9,7 +9,20 @@ import {
 } from '../core'
 import { AROUND_MS } from '../hooks/around'
 import { SPECS } from '../hooks/tools'
-import { file, finish, META, MIN, note, park, T0, W1, W2, yesAsk } from './support'
+import {
+  delivered,
+  file,
+  finish,
+  META,
+  MIN,
+  note,
+  park,
+  reply,
+  T0,
+  W1,
+  W2,
+  yesAsk,
+} from './support'
 import {
   DASHBOARD,
   ELSEWHERE,
@@ -316,6 +329,38 @@ test('resolve closes an item, reopen opens it again; each refuses where the item
   )
 })
 
+test("resolving an ask Lee's answer closed passes quietly, writing nothing; one he commented on resolves as ever", async ($, on) => {
+  const w = world($, on)
+  const { paths } = await w.begin()
+  const answered = postedId(
+    await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' }),
+  )
+  const commented = postedId(
+    await w.call('ask', { wants: 'yes', yes: 'Go', title: 'Give the go for stage 3' }),
+  )
+
+  w.writer(paths)(
+    reply('r1', answered, 'yes', { note: 'Tighten the gutters' }),
+    reply('r2', commented, 'comment', { note: 'After the copy pass' }),
+    delivered('r1', 'r2'),
+  )
+
+  const before = linesOf(w, paths.log(W1))
+
+  expect((await w.call('resolve', { item: answered, reason: 'Approved' })).result).toBe(
+    `${answered} was closed already by Lee's answer: nothing to resolve.`,
+  )
+  expect(linesOf(w, paths.log(W1))).toEqual(before)
+  expect(w.state.board?.asks.find(each => each.id === answered)).toMatchObject({
+    state: 'closed',
+  })
+  expect(w.state.board?.asks.find(each => each.id === answered)?.reason).toBeUndefined()
+  expect((await w.call('resolve', { item: commented })).result).toBe(`Resolved ${commented}.`)
+  expect((await w.call('resolve', { item: commented })).deny).toBe(
+    `${commented} is already closed.`,
+  )
+})
+
 /** Another session of this project, finished: what it parked is the project's, its ask and note its own. */
 const LEDGER = { ...META, id: 'sr-1edger', name: 'Request ledger', by: W2 }
 
@@ -404,7 +449,28 @@ test("edit corrects an item's own fields; a field its kind has not is refused", 
 
   expect((await w.call('edit', { item: id, text: 'Merged the band' })).result).toBe(`Edited ${id}.`)
   expect(w.state.board?.log[0]?.text).toBe('Merged the band')
-  expect((await w.call('edit', { item: id, title: 'Merged' })).deny).toContain('not title')
+  expect((await w.call('edit', { item: id, where: 'In the PR' })).deny).toContain('not where')
+})
+
+test("edit takes an item's one line as text or as title alike: a note's title, a parked item's text; both, saying different things, are refused", async ($, on) => {
+  const w = world($, on)
+
+  await w.begin()
+
+  const noted = postedId(await w.call('note', { text: 'Merged the bnad' }))
+  const parked = postedId(await w.call('park', { title: 'Look at the glanse again' }))
+
+  expect((await w.call('edit', { item: noted, title: 'Merged the band' })).result).toBe(
+    `Edited ${noted}.`,
+  )
+  expect(w.state.board?.log[0]?.text).toBe('Merged the band')
+  expect((await w.call('edit', { item: parked, text: 'Look at the glance again' })).result).toBe(
+    `Edited ${parked}.`,
+  )
+  expect(w.state.board?.parked[0]?.title).toBe('Look at the glance again')
+  expect((await w.call('edit', { item: parked, text: 'Later', title: 'Sooner' })).deny).toBe(
+    "An edit gives an item's one line as text or as title, not both with different words.",
+  )
 })
 
 /** The ledger, open and parking `parked`, beside this session, whose Claude has been told of them by its first prompt: the ledger's own file. */

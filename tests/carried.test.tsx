@@ -7,7 +7,7 @@ import { expect, test, tier } from 'claude-code/testing'
 import { metaText, parseEntries, parsePresence, sessionPaths } from '../core'
 import { WATCH_MS } from '../hooks/window'
 import type { SitrepInFlight } from '../types'
-import { file, META, SLOW, T0, W1, yesAsk } from './support'
+import { CLOSES, file, META, SLOW, T0, W1, yesAsk } from './support'
 import { CONVERSATION, PROJECT, ROOT, world } from './world'
 
 tier('user')
@@ -22,7 +22,7 @@ const held = (item: string, title: string, id: string, claimedAt: number): Sitre
   project: PROJECT.key,
   session: META.id,
   writer: W1,
-  text: `From the board:\n- ${title} → Approve`,
+  text: `From the board:\n- ${title} → Approve${CLOSES}`,
   replies: [{ type: 'reply', id, item, verdict: 'yes' }],
   claimedAt,
   isHeld: true,

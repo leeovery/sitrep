@@ -144,11 +144,17 @@ test("Lee's message gives an answer under what its words are, a yes in its butto
     [
       FROM_THE_BOARD,
       "- Run the export → the command's output: “v1.2.3”",
+      '  This closes the ask: nothing more to do with it.',
       '- Say how round 2 reads → answer: “It reads well”',
+      '  This closes the ask: nothing more to do with it.',
       '- Give the go for stage 3 → Go',
+      '  This closes the ask: nothing more to do with it.',
       '- Give the go for stage 3 → Go, with a comment: “After the copy pass”',
+      '  This closes the ask: nothing more to do with it.',
       '- Ship round 2, or redraw? → Redraw, with a comment: “Frames 2 and 5”',
+      '  This closes the ask: nothing more to do with it.',
       "- Run the apply → Done, with the command's output: “v1.2.3”",
+      '  This closes the ask: nothing more to do with it.',
     ].join('\n'),
   )
 })
@@ -171,22 +177,26 @@ test('words of several lines arrive fenced under their reply, every line kept; t
       '  ',
       '    exported 42 rows',
       '  ```',
+      '  This closes the ask: nothing more to do with it.',
       '- Give the go for stage 3 → comment:',
       '  ```',
       '  Thinner bars',
       '  and a lighter grey',
       '  ```',
+      '  This leaves the ask open: act on it, then resolve it.',
       '- Give the go for stage 3 → Go, with a comment:',
       '  ```',
       '  Ship it',
       '  after the copy pass',
       '  ```',
+      '  This closes the ask: nothing more to do with it.',
       '- Pick up from parked: A tmux indicator.',
       '  ```',
       '  Before the release',
       '  with the band',
       '  ```',
       '- Ship round 2, or redraw? → Ship it',
+      '  This closes the ask: nothing more to do with it.',
     ].join('\n'),
   )
 })
@@ -203,6 +213,7 @@ test('pasted words holding a fence of their own are fenced by a longer one, so n
       '  ok',
       '  ````',
       '  `````',
+      '  This closes the ask: nothing more to do with it.',
     ].join('\n'),
   )
 })
