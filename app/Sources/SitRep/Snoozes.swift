@@ -15,9 +15,10 @@ final class Snoozes {
         self.banners = banners
     }
 
-    /// A session snoozed, its row having shown `asks`, until the time chosen, worked out now: what it came to.
-    private func snooze(_ session: String, showing asks: [String], _ choice: SnoozeChoice) async -> WriteAnswer {
-        let until = choice.wakes(after: Date(), in: WakeTime.calendar)
+    /// A session snoozed, its row having shown `asks`, until the time chosen, worked out now, or until it moves: what it
+    /// came to.
+    private func snooze(_ session: String, showing asks: [String], _ time: SnoozeTime) async -> WriteAnswer {
+        let until = time.wakes(after: Date(), in: WakeTime.calendar)
 
         return await plugin.ask({ await $0.snooze(session, showing: asks, until: until) }, unrun: WriteAnswer.refused)
     }
@@ -27,11 +28,11 @@ final class Snoozes {
         await plugin.ask({ await $0.wake(session) }, unrun: WriteAnswer.refused)
     }
 
-    /// A row's session snoozed, its asks and its turn, until the time chosen, worked out now, a refusal told in a
-    /// banner. `asks` are those the row showed.
-    func snoozeRow(_ session: String, showing asks: [String], _ choice: SnoozeChoice) {
+    /// A row's session snoozed, its asks and its turn, until the time chosen, worked out now, or until it moves, a
+    /// refusal told in a banner. `asks` are those the row showed.
+    func snoozeRow(_ session: String, showing asks: [String], _ time: SnoozeTime) {
         Task {
-            if case let .refused(why) = await snooze(session, showing: asks, choice) {
+            if case let .refused(why) = await snooze(session, showing: asks, time) {
                 banners.post(.unsnoozed(why))
             }
         }

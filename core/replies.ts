@@ -6,21 +6,22 @@
  * A reply changes nothing until it is delivered: the board never claims
  * Claude knows something it was not told.
  */
-import type {
-  Ask,
-  AskKind,
-  AskState,
-  Barred,
-  Body,
-  DeliveredBody,
-  Delivery,
-  Item,
-  Parked,
-  Reply,
-  ReplyBody,
-  Verdict,
-  Wants,
-  Session,
+import {
+  UNTIL_IT_MOVES,
+  type Ask,
+  type AskKind,
+  type AskState,
+  type Barred,
+  type Body,
+  type DeliveredBody,
+  type Delivery,
+  type Item,
+  type Parked,
+  type Reply,
+  type ReplyBody,
+  type Verdict,
+  type Wants,
+  type Session,
 } from './types'
 
 /** What a reply says, whatever it is written as. */
@@ -147,6 +148,10 @@ export const snoozedUntilOf = (
   session.finished === undefined && session.snooze !== undefined && now < session.snooze.until
     ? session.snooze.until
     : undefined
+
+/** Whether Lee's snooze of the session holds until it moves, so its next turn ending wakes it, where one with a time sleeps through. */
+export const isUntilItMoves = (session: Pick<Session, 'snooze' | 'finished'>) =>
+  session.finished === undefined && session.snooze?.until === UNTIL_IT_MOVES
 
 /**
  * Whether an ask is snoozed, on Lee's side: waiting on Lee, with Lee's

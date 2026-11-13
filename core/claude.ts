@@ -9,7 +9,15 @@
  */
 import { answerOf, isOpen, yesOf } from './replies'
 import { wholeTime } from './snooze'
-import type { Ask, Finished, Finisher, LogLine, Parked, Session } from './types'
+import {
+  UNTIL_IT_MOVES,
+  type Ask,
+  type Finished,
+  type Finisher,
+  type LogLine,
+  type Parked,
+  type Session,
+} from './types'
 import { summarise, type ProjectParked, type ProjectSummary, type SessionSummary } from './views'
 
 /** How many of the latest notes the board text lists, for Claude to correct. */
@@ -50,9 +58,16 @@ const standingOf = (ask: Ask) => {
     return `${STANDING.replied} (${answerOf(ask, ask.answer)})`
   }
 
-  return ask.snoozedUntil === undefined
-    ? STANDING.waiting
-    : `snoozed by Lee until ${wholeTime(ask.snoozedUntil)} (leave it until then)`
+  if (ask.snoozedUntil === undefined) {
+    return STANDING.waiting
+  }
+
+  const until =
+    ask.snoozedUntil === UNTIL_IT_MOVES
+      ? "the session's next turn ends"
+      : wholeTime(ask.snoozedUntil)
+
+  return `snoozed by Lee until ${until} (leave it until then)`
 }
 
 const askLine = (ask: Ask) =>

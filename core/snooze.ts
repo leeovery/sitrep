@@ -6,6 +6,8 @@
  * as a local time again only to word it.
  */
 
+import { UNTIL_IT_MOVES } from './types'
+
 /** Snooze's choices: later today, tomorrow, or next week. */
 export type SnoozeChoice = 'later' | 'tomorrow' | 'week'
 
@@ -66,9 +68,13 @@ const daysTo = (at: number, now: number) => Math.round((onDay(at, 0) - onDay(now
 /**
  * When a snooze wakes, as the pane says it at `now`: today's time alone
  * (`15:42`), `tomorrow 09:00`, a weekday within the week (`Mon 09:00`), else
- * its date (`3 Nov 09:00`).
+ * its date (`3 Nov 09:00`); one with no time, `it moves`.
  */
 export const wakeWords = (until: number, now: number) => {
+  if (until === UNTIL_IT_MOVES) {
+    return 'it moves'
+  }
+
   const date = new Date(until)
   const days = daysTo(until, now)
   const clock = clockOf(date)

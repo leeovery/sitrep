@@ -34,10 +34,12 @@ public struct SitRepCLI: Sendable {
         self.run = run
     }
 
-    /// Snoozes the session, everything it needs of Lee, until the instant given. `asks` are those its row showed, after
-    /// `--` so none is read as a flag: the CLI refuses the snooze where another waits on Lee, so none is snoozed unseen.
-    public func snooze(_ session: String, showing asks: [String], until: Date) async -> WriteAnswer {
-        let words = ["snooze", "--until", Self.milliseconds(until), "--session", session, "--"] + asks
+    /// Snoozes the session, everything it needs of Lee, until the instant given, or with none until it moves. `asks` are
+    /// those its row showed, after `--` so none is read as a flag: the CLI refuses the snooze where another waits on
+    /// Lee, so none is snoozed unseen.
+    public func snooze(_ session: String, showing asks: [String], until: Date?) async -> WriteAnswer {
+        let time = until.map { ["--until", Self.milliseconds($0)] } ?? []
+        let words = ["snooze"] + time + ["--session", session, "--"] + asks
 
         return written(await sitrep(words, limit: Self.sessionLimit), by: "snooze")
     }

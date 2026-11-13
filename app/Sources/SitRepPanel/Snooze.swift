@@ -47,12 +47,37 @@ public enum SnoozeChoice: CaseIterable, Sendable {
     }
 }
 
+/// When a snooze chosen from a row's menu wakes: at one of Snooze's times, or never by the clock, until it moves, as
+/// the session's next turn ends (DESIGN, "The row snoozes").
+public enum SnoozeTime: Hashable, Sendable {
+    case at(SnoozeChoice)
+    case untilItMoves
+
+    /// What every row's Snooze offers: Snooze's times, then until it moves.
+    public static let offered = SnoozeChoice.allCases.map(SnoozeTime.at) + [.untilItMoves]
+
+    public var title: String {
+        switch self {
+        case let .at(choice): choice.title
+        case .untilItMoves: "Until it moves"
+        }
+    }
+
+    /// When it wakes, chosen at `now`; none until it moves.
+    public func wakes(after now: Date, in calendar: Calendar) -> Date? {
+        switch self {
+        case let .at(choice): choice.wakes(after: now, in: calendar)
+        case .untilItMoves: nil
+        }
+    }
+}
+
 extension Session {
     /// What its row says in its time's place at this time on the wall clock, ms: how long it has stood, or in Snoozed,
-    /// when it wakes, or for a turn an old line snoozed with no time, that it waits until it moves.
+    /// when it wakes, or for one snoozed with no time, that it waits until it moves.
     public func timeText(at now: Double, in calendar: Calendar) -> String {
         guard let wakesAt else {
-            return kind == .snoozedTurn ? WakeTime.untilItMoves : ageText(at: now)
+            return isSnoozed ? WakeTime.untilItMoves : ageText(at: now)
         }
 
         let wakes = Date(timeIntervalSince1970: wakesAt / 1000)
@@ -65,7 +90,7 @@ extension Session {
 /// the six days after today, tomorrow among them, its weekday and time, `Sat 09:00`; further out, its date and time,
 /// `3 Nov 09:00`. Spoken, VoiceOver's, the weekday and month whole: `Saturday 09:00`, `3 November 09:00`.
 public enum WakeTime {
-    /// What a turn an old line snoozed with no time says in a wake's place, on the card and to VoiceOver.
+    /// What a row snoozed with no time says in a wake's place, on the card and to VoiceOver.
     public static let untilItMoves = "until it moves"
 
     public static func words(_ wakes: Date, at now: Date, in calendar: Calendar, spoken: Bool = false) -> String {

@@ -7,11 +7,14 @@ import {
   checkFinish,
   checkSnooze,
   checkWake,
+  isAsleepAt,
+  isUntilItMoves,
   snoozeAt,
   type Body,
   type Checked,
   type Session,
   type SnoozeChoice,
+  type WakeSessionBody,
 } from '../core'
 import type {
   SitrepAnswering,
@@ -195,27 +198,31 @@ const snooze = async (
 }
 
 /** Lee's waking of a snoozed session, checked as the CLI checks it. */
-const wake = (host: Host, at: SitrepSessionRef) =>
-  writeLee(host, at, 'Not woken', checkWake)
+const wake = (host: Host, at: SitrepSessionRef) => writeLee(host, at, 'Not woken', checkWake)
+
+const WAKE: WakeSessionBody = { type: 'wakeSession' }
 
 /**
- * Lee's own prompt in the window wakes the session it holds, where he
- * snoozed it: he has dealt with it. Its line goes through the hold, so
- * Claude reads the session's asks waiting again with the prompt; nothing is
- * written where no snooze of his stands.
+ * Wakes the session the window holds where `isDue` finds what Lee snoozed
+ * of it to wake at the moment, through the hold, so Claude reads its asks
+ * waiting again with what comes next; nothing written otherwise.
  */
-export const wakeByLeesPrompt = (host: Host) =>
-  serially(() =>
-    writeHeld(
-      host,
-      session => {
-        const checked = checkWake(session)
+const wakeHeldIf = (host: Host, isDue: (session: Session, now: number) => boolean) =>
+  serially(async () => {
+    const now = await host.clock.now()
 
-        return checked.ok ? [checked.value] : []
-      },
+    return writeHeld(
+      host,
+      session => (isDue(session, now) ? [WAKE] : []),
       (session, lines) => post(host, lines),
-    ),
-  )
+    )
+  })
+
+/** Lee's own prompt in the window wakes what he snoozed of the session it holds, while it still holds: he has dealt with it. */
+export const wakeByLeesPrompt = (host: Host) => wakeHeldIf(host, isAsleepAt)
+
+/** The window's turn ending wakes the session it holds where Lee snoozed it until it moves; a snooze with a time sleeps through. */
+export const wakeByTurnEnd = (host: Host) => wakeHeldIf(host, isUntilItMoves)
 
 export const actionsOf = (host: Host): Actions => {
   const run = (what: string, act: () => Promise<unknown>) =>

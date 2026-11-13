@@ -32,6 +32,7 @@ import {
   resolve,
   scripted,
   SENDER,
+  snooze,
   snoozeSession,
   snoozeTurn,
   T0,
@@ -481,7 +482,8 @@ const SHOWN = ['k1', 'k2']
 
 const snoozeOf = (ask: unknown, until: unknown = LATER) => checkSnooze(BOARD, { ask, until }, NOW)
 
-const SNOOZED = { type: 'snoozeSession', until: LATER }
+/** The snooze, holding the asks waiting on Lee as it is checked. */
+const SNOOZED = { type: 'snoozeSession', until: LATER, asks: SHOWN }
 
 test("a snooze is one line, the session's, until a time still to come, naming the asks its row shows: every one waiting on Lee, those waiting on him no more as they please", () => {
   expect(value(snoozeOf(SHOWN))).toEqual(SNOOZED)
@@ -489,31 +491,32 @@ test("a snooze is one line, the session's, until a time still to come, naming th
   expect(
     value(snoozeOf(SHOWN, String(LATER + MIN))),
     'the time in digits, as the CLI gives it',
-  ).toEqual({ type: 'snoozeSession', until: LATER + MIN })
-  expect(value(snoozeOf(SHOWN, NOW + 1)), 'a moment on').toEqual({
-    type: 'snoozeSession',
-    until: NOW + 1,
-  })
+  ).toEqual({ ...SNOOZED, until: LATER + MIN })
+  expect(value(snoozeOf(SHOWN, NOW + 1)), 'a moment on').toEqual({ ...SNOOZED, until: NOW + 1 })
   expect(value(snoozeOf(SHOWN, 8.64e15)), 'the last time a Date holds').toEqual({
-    type: 'snoozeSession',
+    ...SNOOZED,
     until: 8.64e15,
+  })
+  expect(value(checkSnooze(BOARD, { ask: SHOWN }, NOW)), 'no time, until it moves').toEqual({
+    type: 'snoozeSession',
+    asks: SHOWN,
   })
 })
 
 test('a session snoozed already is snoozed again, to the new time, its asks asleep naming none; one at its turn alone names none, and one away with asks waiting snoozes too', () => {
-  const asleep = boardOf([[T0 + 2 * MIN, snoozeSession(LATER)]])
+  const asleep = boardOf([[T0 + 2 * MIN, snoozeSession(LATER, ...SHOWN)]])
   const turnAlone = fold({ presence: atTurn }, NOW)
   const away = boardOf([], {})
 
   expect(value(checkSnooze(asleep, { until: LATER + MIN }, NOW))).toEqual({
-    type: 'snoozeSession',
+    ...SNOOZED,
     until: LATER + MIN,
   })
-  expect(value(checkSnooze(turnAlone, { until: LATER }, NOW))).toEqual(SNOOZED)
+  expect(value(checkSnooze(turnAlone, { until: LATER }, NOW))).toEqual({ ...SNOOZED, asks: [] })
   expect(value(checkSnooze(away, { ask: SHOWN, until: LATER }, NOW))).toEqual(SNOOZED)
 })
 
-test("a snooze is refused, the first refusal in order saying why: the session finished; an id no item or no ask; an ask waiting on Lee its row did not show; nothing needing Lee, a window's stop its own; then its time missing, none, or come already", () => {
+test("a snooze is refused, the first refusal in order saying why: the session finished; an id no item or no ask; an ask waiting on Lee its row did not show; nothing needing Lee, a window's stop its own; then its time no time, or come already", () => {
   const finished = fold({
     logs: { [W1]: file([T0, yesAsk('k1', 'Review round 1')], [T0 + MIN, finish('lee')]) },
   })
@@ -529,10 +532,10 @@ test("a snooze is refused, the first refusal in order saying why: the session fi
       { ask: ['k1'], until: LATER },
       NOW,
     )
-  const unseen =
-    'An ask waits on Lee that the snooze did not name: look at it, then snooze again.'
+  const unseen = 'An ask waits on Lee that the snooze did not name: look at it, then snooze again.'
   const nothing = 'Dashboard redesign needs nothing of Lee: there is nothing to snooze.'
-  const noTime = 'A snooze needs its time: --until, in milliseconds since the epoch.'
+  const noTime =
+    'A snooze wakes at a time in milliseconds since the epoch, or with none until it moves.'
   const come = 'That time has come already: give one still to come.'
 
   for (const [why, refused, error] of [
@@ -550,7 +553,6 @@ test("a snooze is refused, the first refusal in order saying why: the session fi
     ['nothing waiting, away', settled({}), nothing],
     ['working', settled(windowIn('working')), nothing],
     ['a permission prompt alone', settled(windowIn('permission')), nothing],
-    ['no time', checkSnooze(BOARD, { ask: SHOWN }, NOW), noTime],
     ['not a time', snoozeOf(SHOWN, 'tomorrow'), noTime],
     ['not a whole time', snoozeOf(SHOWN, `${LATER}.5`), noTime],
     ['a number not whole', snoozeOf(SHOWN, LATER + 0.5), noTime],
@@ -567,8 +569,15 @@ test("a snooze is refused, the first refusal in order saying why: the session fi
 test("a wake is one line, the session's, wherever a snooze of Lee's stands, run out at its time or an old line's of a turn; refused in a finished session, or one not snoozed", () => {
   const woken = { type: 'wakeSession' }
 
-  expect(value(checkWake(boardOf([[T0 + 2 * MIN, snoozeSession(LATER)]])))).toEqual(woken)
-  expect(value(checkWake(boardOf([[T0 + 2 * MIN, snoozeSession(NOW)]]))), 'run out').toEqual(woken)
+  expect(value(checkWake(boardOf([[T0 + 2 * MIN, snoozeSession(LATER, ...SHOWN)]])))).toEqual(woken)
+  expect(
+    value(checkWake(boardOf([[T0 + 2 * MIN, snoozeSession(NOW, ...SHOWN)]]))),
+    'run out',
+  ).toEqual(woken)
+  expect(
+    value(checkWake(boardOf([[T0 + 2 * MIN, snooze('k1', LATER)]]))),
+    "an old line's of an ask",
+  ).toEqual(woken)
   expect(value(checkWake(boardOf([[T0 + 2 * MIN, snoozeTurn(T0)]]))), "an old line's").toEqual(
     woken,
   )
@@ -580,7 +589,7 @@ test("a wake is one line, the session's, wherever a snooze of Lee's stands, run 
     refusal(
       checkWake(
         boardOf([
-          [T0 + 2 * MIN, snoozeSession(LATER)],
+          [T0 + 2 * MIN, snoozeSession(LATER, ...SHOWN)],
           [T0 + 3 * MIN, wakeSession()],
         ]),
       ),

@@ -3,9 +3,9 @@ import SitRepCore
 import SitRepPanel
 
 /// The menu a right-click on a session's row on the card brings up, as Paper's boards F and G have it: Jump to the
-/// window, as a click on the row does, an away row's carrying its session on; then, after a separator, Snooze and its
-/// times on a Needs you row, its asks' or its turn's, which puts off everything the session needs of Lee (13 November
-/// 2026), or Wake now on a row in Snoozed. A row of stops alone, or a working one, offers neither. The asks a snooze
+/// window, as a click on the row does, an away row's carrying its session on; then, after a separator, Snooze, its
+/// times and Until it moves, on a Needs you row, its asks' or its turn's, which puts off everything the session needs
+/// of Lee (13 November 2026), or Wake now on a row in Snoozed. A row of stops alone, or a working one, offers neither. The asks a snooze
 /// names are those the row showed as it was drawn, never read again, so an ask that landed since is never snoozed
 /// unseen: the CLI refuses it.
 @MainActor
@@ -19,10 +19,10 @@ enum RowMenu {
     }
 
     /// What each choice does: the snooze of the row's session, naming the asks it showed, with the time chosen, worked
-    /// out as it is pressed; the wake of its session.
+    /// out as it is pressed, or until it moves; the wake of its session.
     struct Actions {
         var jump: () -> Void
-        var snooze: ([String], SnoozeChoice) -> Void
+        var snooze: ([String], SnoozeTime) -> Void
         var wake: () -> Void
     }
 
@@ -48,11 +48,11 @@ enum RowMenu {
 
     /// Snooze, its times in a menu of their own.
     private static func snooze(
-        _ now: Date, _ calendar: Calendar, _ choose: @escaping (SnoozeChoice) -> Void
+        _ now: Date, _ calendar: Calendar, _ choose: @escaping (SnoozeTime) -> Void
     ) -> NSMenuItem {
         let item = NSMenuItem(title: snoozeTitle, action: nil, keyEquivalent: "")
 
-        item.submenu = SnoozeMenu(SnoozeChoice.allCases, at: now, in: calendar, choose: choose)
+        item.submenu = SnoozeMenu(SnoozeTime.offered, at: now, in: calendar, choose: choose)
         return item
     }
 }
@@ -68,20 +68,23 @@ extension RowMenu.Row {
 }
 
 /// Snooze's times, each with when it would wake at the right, dimmer than its name, and brighter as it is highlighted
-/// (board G), on a right tab stop, as AppKit's menus set no second label at the right of their own. The menu is its
-/// own delegate, to brighten the time highlighted.
+/// (board G), on a right tab stop, as AppKit's menus set no second label at the right of their own; Until it moves after
+/// a separator, with no time. The menu is its own delegate, to brighten the time highlighted.
 @MainActor
 final class SnoozeMenu: NSMenu, NSMenuDelegate {
-    private let choices: [SnoozeChoice]
+    private let choices: [SnoozeTime]
     private let times: [String]
 
-    init(_ choices: [SnoozeChoice], at now: Date, in calendar: Calendar, choose: @escaping (SnoozeChoice) -> Void) {
+    init(_ choices: [SnoozeTime], at now: Date, in calendar: Calendar, choose: @escaping (SnoozeTime) -> Void) {
         self.choices = choices
-        times = choices.map { WakeTime.words($0.wakes(after: now, in: calendar), at: now, in: calendar) }
+        times = choices.map { $0.wakes(after: now, in: calendar).map { WakeTime.words($0, at: now, in: calendar) } ?? "" }
         super.init(title: RowMenu.snoozeTitle)
         autoenablesItems = false
         delegate = self
         for choice in choices {
+            if choice == .untilItMoves {
+                addItem(.separator())
+            }
             addItem(ActionItem(choice.title) { choose(choice) })
         }
         highlight(nil)
@@ -95,15 +98,15 @@ final class SnoozeMenu: NSMenu, NSMenuDelegate {
         highlight(item)
     }
 
-    /// Each choice's name and time, the time brighter on the one highlighted.
+    /// Each choice's name and time, the time brighter on the one highlighted; Until it moves its name alone.
     private func highlight(_ lit: NSMenuItem?) {
         let names = choices.map(\.title)
         let paragraph = NSMutableParagraphStyle()
 
         paragraph.tabStops = [NSTextTab(textAlignment: .right, location: Self.widest(names) + Self.gap + Self.widest(times))]
-        for (item, (name, time)) in zip(items, zip(names, times)) {
+        for (item, (name, time)) in zip(items.filter { !$0.isSeparatorItem }, zip(names, times)) {
             let words = [NSAttributedString.Key.font: Self.font, .paragraphStyle: paragraph]
-            let title = NSMutableAttributedString(string: "\(name)\t", attributes: words)
+            let title = NSMutableAttributedString(string: time.isEmpty ? name : "\(name)\t", attributes: words)
 
             title.append(NSAttributedString(
                 string: time, attributes: words.merging([.foregroundColor: item === lit ? Self.lit : Self.dim]) { $1 }

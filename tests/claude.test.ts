@@ -255,7 +255,7 @@ const SNOOZING: Line[] = [
   [T0, yesAsk('k2', 'Review the plan')],
   [T0, choiceAsk('k3', 'Keep it, or drop it?', ['Keep it', 'Drop it'])],
   [T0, yesAsk('k4', 'Tag the release', 'Done')],
-  [T0 + MIN, snoozeSession(MONDAY)],
+  [T0 + MIN, snoozeSession(MONDAY, 'k1', 'k2', 'k3', 'k4')],
 ]
 
 /** The asks at `now`, Lee's answer to the last on its way in a window's message. */

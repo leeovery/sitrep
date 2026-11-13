@@ -346,6 +346,7 @@ test('the first line is the board as every surface shows it, with nothing new, n
                   at: T0,
                   reply: null,
                   snoozedUntil: null,
+                  untilItMoves: false,
                 },
               ],
               parkedItems: [],
@@ -634,7 +635,7 @@ test('a snooze running out is a line the moment it does, though no file changed:
   const wakes = NOW + 2_500
   const { t } = held([
     [T0, yesAsk('k1', 'Review round 1')],
-    [T0 + MIN, snoozeSession(wakes)],
+    [T0 + MIN, snoozeSession(wakes, 'k1')],
   ])
 
   follow(t, META.id)
@@ -691,7 +692,7 @@ test('a snooze posted is a line, its ask and its turn in Snoozed and nothing new
   follow(t, META.id)
 
   const { lines } = await watched(t, [
-    () => post(t, paths, snoozeSession(NOW + 9 * HOUR)),
+    () => post(t, paths, snoozeSession(NOW + 9 * HOUR, 'k1')),
     still,
     () => post(t, paths, wakeSession()),
   ])

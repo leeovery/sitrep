@@ -27,7 +27,15 @@ import { directoryOf, type Project } from './project'
 import { snoozedAsks, snoozedUntilOf, waitingOnLee, type SnoozedAsk } from './replies'
 import { isPathSubject } from './subject'
 import { compareText } from './text'
-import type { Ask, Session, StateKind, ToolShown, WindowState, Work } from './types'
+import {
+  UNTIL_IT_MOVES,
+  type Ask,
+  type Session,
+  type StateKind,
+  type ToolShown,
+  type WindowState,
+  type Work,
+} from './types'
 
 /**
  * Where a session stands: needing Lee, as when an ask waits (while no window
@@ -405,19 +413,22 @@ export const rowOf = (project: Project, session: Session, now: number): Row | un
   }
 }
 
+type Waking = { wakesAt?: number }
+
+/** A snooze's time as a line or row says it: none until it moves. */
+const wakingAt = (until: number): Waking => (until === UNTIL_IT_MOVES ? {} : { wakesAt: until })
+
 const snoozedLine = (session: Session, ask: SnoozedAsk): SnoozedLine => ({
   key: askKey(session, ask),
   is: 'ask',
   ask: ask.id,
   first: { lead: ask.title },
   since: ask.openedAt,
-  wakesAt: ask.snoozedUntil,
+  ...wakingAt(ask.snoozedUntil),
 })
 
-type Waking = { wakesAt?: number }
-
 /** When a Snoozed line or row wakes; one snoozed until it moves, after any time. */
-const wakingOf = ({ wakesAt }: Waking) => wakesAt ?? Number.POSITIVE_INFINITY
+const wakingOf = ({ wakesAt }: Waking) => wakesAt ?? UNTIL_IT_MOVES
 
 /** The sooner to wake first, those snoozed until they move last. */
 const bySooner = (a: Waking, b: Waking) =>
@@ -465,14 +476,15 @@ const oldTurnSnooze = (session: Session, end: number, now: number): Waking | und
   return now < snooze.until ? { wakesAt: snooze.until } : undefined
 }
 
-/** A session's turn Lee put off: when it ended, and when it wakes, none for an old line's until it moves. */
+/** A session's turn Lee put off: when it ended, and when it wakes, none for one until it moves. */
 export type SnoozedTurn = Waking & { end: number }
 
 /**
  * A session's turn Lee put off at `now`: it stands at your turn while his
  * snooze of the session holds, on whatever turn, since a turn ending alone
- * never wakes it; or while an old line's snooze of that turn holds. Of
- * both, it wakes as the later does.
+ * never wakes it; while an old line's snooze of that turn holds; or while
+ * old lines' snoozes hold every ask waiting on him. Of several, it wakes as
+ * the latest does.
  */
 export const snoozedTurnOf = (session: Session, now: number): SnoozedTurn | undefined => {
   const end = turnEndOf(session, now)
@@ -483,12 +495,19 @@ export const snoozedTurnOf = (session: Session, now: number): SnoozedTurn | unde
 
   const until = snoozedUntilOf(session, now)
   const waking = latestWaking([
-    until === undefined ? undefined : { wakesAt: until },
+    until === undefined ? undefined : wakingAt(until),
     oldTurnSnooze(session, end, now),
+    session.turnWithAsks === undefined ? undefined : { wakesAt: session.turnWithAsks },
   ])
 
   return waking === undefined ? undefined : { ...waking, end }
 }
+
+/** Whether anything Lee snoozed of a session holds at `now`: his snooze of it, one of its asks, or its turn. */
+export const isAsleepAt = (session: Session, now: number) =>
+  snoozedUntilOf(session, now) !== undefined ||
+  snoozedAsks(session).length > 0 ||
+  snoozedTurnOf(session, now) !== undefined
 
 /** A turn put off, as its line in Snoozed: keyed as its turn's row is, saying what Claude left Lee as that row does, since the turn's end. */
 const snoozedTurnLine = (session: Session, { end, wakesAt }: SnoozedTurn): SnoozedLine => ({

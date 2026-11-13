@@ -115,13 +115,17 @@ struct SitRepCLITests {
         #expect(programs.all.map(\.limit) == [10])
     }
 
-    /// A turn's row shows no ask: its snooze names none.
-    @Test func aTurnsRowIsSnoozedNamingNoAsk() async {
+    /// A turn's row shows no ask: its snooze names none. Until it moves, it gives no time.
+    @Test func aTurnsRowIsSnoozedNamingNoAskAndUntilItMovesWithNoTime() async {
         let (cli, programs) = Self.cli(Self.exited(0))
         let until = Date(timeIntervalSince1970: 1_792_745_127)
 
         #expect(await cli.snooze("sr-4g01a7", showing: [], until: until) == .written)
-        #expect(programs.all.map(\.arguments) == [["snooze", "--until", "1792745127000", "--session", "sr-4g01a7", "--"]])
+        #expect(await cli.snooze("sr-4g01a7", showing: ["k1"], until: nil) == .written)
+        #expect(programs.all.map(\.arguments) == [
+            ["snooze", "--until", "1792745127000", "--session", "sr-4g01a7", "--"],
+            ["snooze", "--session", "sr-4g01a7", "--", "k1"],
+        ])
     }
 
     @Test func wakeRunsWakeOfTheSession() async {

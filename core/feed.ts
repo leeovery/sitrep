@@ -49,7 +49,14 @@ import {
   type SnoozedRow,
 } from './rows'
 import { compareText } from './text'
-import type { Ask, Parked, Session, WindowState, Where } from './types'
+import {
+  UNTIL_IT_MOVES,
+  type Ask,
+  type Parked,
+  type Session,
+  type WindowState,
+  type Where,
+} from './types'
 import {
   CURRENT_MS,
   isCurrent,
@@ -282,9 +289,11 @@ const isAging = (session: Session) => {
   return !summary.isFinished && isIdle(summary)
 }
 
-/** The earliest of `instants` after `now`; undefined while none is. */
+/** The earliest of `instants` after `now`, none until it moves; undefined while none is. */
 const earliestAfter = (instants: readonly (number | undefined)[], now: number) => {
-  const after = instants.filter((at): at is number => at !== undefined && at > now)
+  const after = instants.filter(
+    (at): at is number => at !== undefined && at > now && at !== UNTIL_IT_MOVES,
+  )
 
   return after.length === 0 ? undefined : Math.min(...after)
 }

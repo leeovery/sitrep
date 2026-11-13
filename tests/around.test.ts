@@ -90,7 +90,7 @@ test('a snooze running out in a session around, no window on it, shows within a 
   const w = world($, on)
   const wakes = T0 + 2 * AROUND_MS
 
-  w.elsewhere(LEDGER).write(yesAsk('k3', 'Review the ledger schema'), snoozeSession(wakes))
+  w.elsewhere(LEDGER).write(yesAsk('k3', 'Review the ledger schema'), snoozeSession(wakes, 'k3'))
   await w.begin()
   await w.clock.advance(AROUND_MS)
   expect(around(w, LEDGER.id)).toMatchObject({ waiting: 0, snoozed: 1 })
@@ -104,7 +104,7 @@ test("a snooze running out over an ask around that Lee's reply is on its way to 
   const wakes = T0 + 2 * AROUND_MS
   const ledger = w.elsewhere(LEDGER)
 
-  ledger.write(yesAsk('k3', 'Review the ledger schema'), snoozeSession(wakes))
+  ledger.write(yesAsk('k3', 'Review the ledger schema'), snoozeSession(wakes, 'k3'))
   w.put(
     ledger.paths.heartbeat(W3),
     beat(W3, {

@@ -15,8 +15,8 @@ import SitRepPanel
 final class NotchController: NSObject, CalloutShape {
     /// A click on a row: the session to jump to, and what to tell once the jump answers, whether it jumped.
     var onJump: (String, @escaping (JumpAnswer) -> Void) -> Void = { _, _ in }
-    /// A row's menu's Snooze: the session, the asks its row showed, and the time chosen.
-    var onSnooze: (String, [String], SnoozeChoice) -> Void = { _, _, _ in }
+    /// A row's menu's Snooze: the session, the asks its row showed, and the time chosen, or until it moves.
+    var onSnooze: (String, [String], SnoozeTime) -> Void = { _, _, _ in }
     /// A Snoozed row's menu's Wake now: the session.
     var onWake: (String) -> Void = { _ in }
     /// A drag let the notch go: the settings with its new place.

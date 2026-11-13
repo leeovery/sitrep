@@ -264,7 +264,7 @@ const answer: SessionCommand = {
 const snooze: SessionCommand = {
   name: 'snooze',
   about:
-    "Snooze a session until a time, as Lee does from its row: everything it needs of Lee, its asks and its turn, counts nowhere until it comes, or until a new ask, Lee's reply to one, or his own prompt in its window wakes it. Its turn ending alone does not. One line in the CLI's own file, none in the inbox. Snoozed already, it is snoozed again, to the new time. Prints nothing.",
+    "Snooze a session until a time, as Lee does from its row: everything it needs of Lee, its asks and its turn, counts nowhere until it comes, or until a new ask, Lee's reply to one it holds, or his own prompt in its window wakes it. Its turn ending alone does not; with no time, it holds until it moves, as its next turn ends. One line in the CLI's own file, none in the inbox. Snoozed already, it is snoozed again, to the new time. Prints nothing.",
   grammar: {
     args: [ASKS_SHOWN],
     flags: {
@@ -272,8 +272,8 @@ const snooze: SessionCommand = {
         field: 'until',
         form: 'one',
         value: '<ms>',
-        about: 'when it wakes, in milliseconds since the epoch: a time still to come',
-        isNeeded: true,
+        about:
+          'when it wakes, in milliseconds since the epoch: a time still to come; none, until it moves',
       },
       ...SESSION,
     },
