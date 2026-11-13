@@ -169,13 +169,20 @@ export const finish = (who: Finisher, reason?: string): Body => ({ type: 'finish
 
 export const unfinish = (): Body => ({ type: 'unfinish' })
 
-/** Lee's snooze of an ask until `until`. */
+/** Lee's snooze of the session until `until`, none until it moves, holding `asks` and its turn. */
+export const snoozeSession = (until: number | undefined, ...asks: string[]): Body =>
+  until === undefined ? { type: 'snoozeSession', asks } : { type: 'snoozeSession', until, asks }
+
+/** Lee's waking of the session now. */
+export const wakeSession = (): Body => ({ type: 'wakeSession' })
+
+/** An old line: Lee's snooze of an ask until `until`. */
 export const snooze = (item: string, until: number): Body => ({ type: 'snooze', item, until })
 
-/** Lee's waking of a snoozed ask now. */
+/** An old line: Lee's waking of a snoozed ask now. */
 export const wake = (item: string): Body => ({ type: 'wake', item })
 
-/** Lee's snooze of the session's turn that ended at `turn`, until `until`, or with none until it moves. */
+/** An old line: Lee's snooze of the session's turn that ended at `turn`, until `until`, or with none until it moves. */
 export const snoozeTurn = (turn: number, until?: number): Body =>
   until === undefined ? { type: 'snoozeTurn', turn } : { type: 'snoozeTurn', turn, until }
 

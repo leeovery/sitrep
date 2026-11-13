@@ -16,18 +16,26 @@
  * - A session no window holds, with nothing waiting, has none: the SitRep
  *   window shows it. Nor has a finished one.
  *
- * An ask Lee snoozed waits on Lee in none of them: the session's row in
- * Snoozed holds it, apart from the rows, so a session with an ask snoozed
- * and another waiting shows in both. A turn Lee snoozed leaves Your turn
- * for a row in Snoozed of its own while it holds.
+ * A session Lee snoozed needs Lee in none of them: its asks and its turn
+ * are its row in Snoozed, apart from the rows, while the snooze holds. Its
+ * windows' stops are theirs, and stay in Needs you; a session working is in
+ * Working, its asks asleep in Snoozed beside it.
  */
 import { isFilled } from './entries'
 import { isLive } from './presence'
 import { directoryOf, type Project } from './project'
-import { snoozedAsks, waitingOnLee, type SnoozedAsk } from './replies'
+import { snoozedAsks, snoozedUntilOf, waitingOnLee, type SnoozedAsk } from './replies'
 import { isPathSubject } from './subject'
 import { compareText } from './text'
-import type { Ask, Session, StateKind, ToolShown, TurnSnooze, WindowState, Work } from './types'
+import {
+  UNTIL_IT_MOVES,
+  type Ask,
+  type Session,
+  type StateKind,
+  type ToolShown,
+  type WindowState,
+  type Work,
+} from './types'
 
 /**
  * Where a session stands: needing Lee, as when an ask waits (while no window
@@ -99,23 +107,23 @@ export type Row = Named & {
 /** What a Snoozed row's line is: an ask snoozed, or the session's turn. */
 export type SnoozedKind = 'ask' | 'yourTurn'
 
-/** One of a Snoozed row's lines: an ask snoozed, by the key it has in Needs you, or a turn, by its key in Your turn; and when it wakes. */
+/** One of a Snoozed row's lines: an ask snoozed, by the key it has in Needs you, or the turn, by the key it has as a turn's row; and when it wakes. */
 export type SnoozedLine = {
   key: string
   is: SnoozedKind
   /** The ask, by its id; none on a turn. */
   ask?: string
   first: RowLine
-  /** An ask's posting or reopening, as in Needs you; a turn's end, as in Your turn. */
+  /** An ask's posting or reopening, as in Needs you; a turn's end, as a turn's row counts from. */
   since: number
-  /** None on a turn snoozed until it moves. */
+  /** None on a turn an old line snoozed until it moves. */
   wakesAt?: number
 }
 
 /**
  * A session's row in Snoozed, named as its Needs you row is: a line for each
- * ask snoozed, or its turn's alone, and when the soonest wakes, none for a
- * turn snoozed until it moves.
+ * ask snoozed, and its turn's where it stands at Lee's turn; and when the
+ * soonest wakes, none for a turn an old line snoozed until it moves.
  */
 export type SnoozedRow = Named & { lines: SnoozedLine[]; wakesAt?: number }
 
@@ -355,7 +363,7 @@ const byRecency = (a: Line, b: Line) => b.since - a.since || compareText(a.key, 
  * A session's row at `now`: in Needs you, its asks waiting on Lee and its
  * windows stopped on Lee; else one line for its windows working, on their own
  * work or waiting on Lee's message. None for a session no window holds with
- * nothing waiting, nor for a finished one, nor for a turn Lee snoozed while
+ * nothing waiting, nor for a finished one, nor for a turn Lee put off while
  * the snooze holds, which is in Snoozed.
  */
 export const rowOf = (project: Project, session: Session, now: number): Row | undefined => {
@@ -405,19 +413,22 @@ export const rowOf = (project: Project, session: Session, now: number): Row | un
   }
 }
 
+type Waking = { wakesAt?: number }
+
+/** A snooze's time as a line or row says it: none until it moves. */
+const wakingAt = (until: number): Waking => (until === UNTIL_IT_MOVES ? {} : { wakesAt: until })
+
 const snoozedLine = (session: Session, ask: SnoozedAsk): SnoozedLine => ({
   key: askKey(session, ask),
   is: 'ask',
   ask: ask.id,
   first: { lead: ask.title },
   since: ask.openedAt,
-  wakesAt: ask.snoozedUntil,
+  ...wakingAt(ask.snoozedUntil),
 })
 
-type Waking = { wakesAt?: number }
-
 /** When a Snoozed line or row wakes; one snoozed until it moves, after any time. */
-const wakingOf = ({ wakesAt }: Waking) => wakesAt ?? Number.POSITIVE_INFINITY
+const wakingOf = ({ wakesAt }: Waking) => wakesAt ?? UNTIL_IT_MOVES
 
 /** The sooner to wake first, those snoozed until they move last. */
 const bySooner = (a: Waking, b: Waking) =>
@@ -427,20 +438,103 @@ const bySooner = (a: Waking, b: Waking) =>
 const bySleep = (a: SnoozedLine, b: SnoozedLine) =>
   bySooner(a, b) || a.since - b.since || compareText(a.key, b.key)
 
+/** When it wakes, none for one snoozed until it moves: of several snoozes holding, the latest; undefined where none holds. */
+const latestWaking = (wakings: readonly (Waking | undefined)[]): Waking | undefined =>
+  wakings
+    .filter(waking => waking !== undefined)
+    .reduce<Waking | undefined>(
+      (last, waking) => (last === undefined || wakingOf(waking) > wakingOf(last) ? waking : last),
+      undefined,
+    )
+
 /**
- * A session's row in Snoozed of its asks at `now`, beside any row it has: a
- * line for each ask snoozed, the soonest to wake first, then the oldest, and
- * dimmed while no window holds it, as in Needs you. None with no ask
- * snoozed, so none for a finished session.
+ * When the turn a session stands at your turn on ended, at `now`, across its
+ * windows: its turn row's time, the one whose turn ended last. None while it
+ * stands anywhere else: needing Lee, working, on its own work, away or
+ * finished.
+ */
+export const turnEndOf = (session: Session, now: number) =>
+  sessionState(session, now) === 'yourTurn' ? turnOf(heldBy(session, now))?.state.since : undefined
+
+/**
+ * An old line's snooze of a session's turn, read as it always was, while it
+ * holds at `now` on the turn that ended at `end`: no later than the turn it
+ * names, and its time, if it has one, still to come. So any turn ending
+ * later, a window's next or one joining, ends it.
+ */
+const oldTurnSnooze = (session: Session, end: number, now: number): Waking | undefined => {
+  const snooze = session.turnSnooze
+
+  if (snooze === undefined || end > snooze.turn) {
+    return undefined
+  }
+
+  if (snooze.until === undefined) {
+    return {}
+  }
+
+  return now < snooze.until ? { wakesAt: snooze.until } : undefined
+}
+
+/** A session's turn Lee put off: when it ended, and when it wakes, none for one until it moves. */
+export type SnoozedTurn = Waking & { end: number }
+
+/**
+ * A session's turn Lee put off at `now`: it stands at your turn while his
+ * snooze of the session holds, on whatever turn, since a turn ending alone
+ * never wakes it; while an old line's snooze of that turn holds; or while
+ * old lines' snoozes hold every ask waiting on him. Of several, it wakes as
+ * the latest does.
+ */
+export const snoozedTurnOf = (session: Session, now: number): SnoozedTurn | undefined => {
+  const end = turnEndOf(session, now)
+
+  if (end === undefined) {
+    return undefined
+  }
+
+  const until = snoozedUntilOf(session, now)
+  const waking = latestWaking([
+    until === undefined ? undefined : wakingAt(until),
+    oldTurnSnooze(session, end, now),
+    session.turnWithAsks === undefined ? undefined : { wakesAt: session.turnWithAsks },
+  ])
+
+  return waking === undefined ? undefined : { ...waking, end }
+}
+
+/** Whether anything Lee snoozed of a session holds at `now`: his snooze of it, one of its asks, or its turn. */
+export const isAsleepAt = (session: Session, now: number) =>
+  snoozedUntilOf(session, now) !== undefined ||
+  snoozedAsks(session).length > 0 ||
+  snoozedTurnOf(session, now) !== undefined
+
+/** A turn put off, as its line in Snoozed: keyed as its turn's row is, saying what Claude left Lee as that row does, since the turn's end. */
+const snoozedTurnLine = (session: Session, { end, wakesAt }: SnoozedTurn): SnoozedLine => ({
+  key: `turn:${session.id}`,
+  is: 'yourTurn',
+  first: boardLine(session),
+  since: end,
+  ...(wakesAt === undefined ? {} : { wakesAt }),
+})
+
+/**
+ * A session's row in Snoozed at `now`, beside any row it has: a line for
+ * each ask snoozed and one for its turn put off, the soonest to wake first,
+ * then the oldest; dimmed while no window holds it, as in Needs you. It
+ * wakes as its soonest line does. None with nothing put off, so none for a
+ * finished session.
  */
 export const snoozedRowOf = (
   project: Project,
   session: Session,
   now: number,
 ): SnoozedRow | undefined => {
-  const lines = snoozedAsks(session)
-    .map(ask => snoozedLine(session, ask))
-    .sort(bySleep)
+  const turn = snoozedTurnOf(session, now)
+  const lines = [
+    ...snoozedAsks(session).map(ask => snoozedLine(session, ask)),
+    ...(turn === undefined ? [] : [snoozedTurnLine(session, turn)]),
+  ].sort(bySleep)
   const [soonest] = lines
 
   return soonest === undefined
@@ -448,95 +542,18 @@ export const snoozedRowOf = (
     : {
         ...namedRow(project, session, heldBy(session, now).length === 0),
         lines,
-        wakesAt: soonest.wakesAt,
+        ...(soonest.wakesAt === undefined ? {} : { wakesAt: soonest.wakesAt }),
       }
 }
-
-/**
- * When the turn a session stands at your turn on ended, at `now`, across its
- * windows: its Your turn row's time, the one whose turn ended last. None
- * while it stands anywhere else: needing Lee, working, on its own work, away
- * or finished.
- */
-export const turnEndOf = (session: Session, now: number) =>
-  sessionState(session, now) === 'yourTurn' ? turnOf(heldBy(session, now))?.state.since : undefined
-
-/**
- * Lee's snooze of a session's turn, while it holds at `now`: the session
- * stands at your turn, its turn ending no later than the turn the snooze
- * names, and the snooze's time, if it has one, is still to come. Of several
- * windows, one letting go leaves it holding, and any turn ending later, a
- * window's next or one joining, ends it: the next turn's end comes back to
- * Your turn. An ask waiting puts the session in Needs you, and the fold
- * ends the snooze once anything needs Lee there or Lee replies.
- */
-export const snoozedTurnOf = (session: Session, now: number): TurnSnooze | undefined => {
-  const snooze = session.turnSnooze
-  const end = turnEndOf(session, now)
-
-  return snooze !== undefined &&
-    end !== undefined &&
-    end <= snooze.turn &&
-    (snooze.until === undefined || now < snooze.until)
-    ? snooze
-    : undefined
-}
-
-/**
- * A session's turn Lee snoozed, as a row in Snoozed of its own at `now`,
- * while the snooze holds: its one line under the key it has in Your turn,
- * saying what Claude left Lee as Your turn's does, since the turn's end, and
- * when it wakes, none where it waits until the turn moves.
- */
-export const snoozedTurnRowOf = (
-  project: Project,
-  session: Session,
-  now: number,
-): SnoozedRow | undefined => {
-  const snooze = snoozedTurnOf(session, now)
-
-  if (snooze === undefined) {
-    return undefined
-  }
-
-  const wakes = snooze.until === undefined ? {} : { wakesAt: snooze.until }
-
-  return {
-    ...namedRow(project, session, false),
-    lines: [
-      {
-        key: `turn:${session.id}`,
-        is: 'yourTurn',
-        first: boardLine(session),
-        since: snooze.turn,
-        ...wakes,
-      },
-    ],
-    ...wakes,
-  }
-}
-
-/** A session's rows in Snoozed at `now`, beside any row it has: its asks', and its turn's, each where it has one. */
-export const snoozedRowsOf = (project: Project, session: Session, now: number): SnoozedRow[] =>
-  [snoozedRowOf(project, session, now), snoozedTurnRowOf(project, session, now)].filter(
-    row => row !== undefined,
-  )
 
 /** A row's oldest line's time: how long it has waited, in Needs you or Snoozed. */
 export const oldestOf = (row: { lines: readonly { since: number }[] }) =>
   Math.min(...row.lines.map(line => line.since))
 
-/** A Snoozed row's first line's key: of one session's two, its asks' before its turn's. */
-const firstKey = (row: SnoozedRow) => row.lines[0]?.key ?? ''
-
 /** Snoozed's rows, the soonest to wake first, those snoozed until they move last, then the oldest. */
 export const inSnoozedOrder = (rows: readonly SnoozedRow[]) =>
   [...rows].sort(
-    (a, b) =>
-      bySooner(a, b) ||
-      oldestOf(a) - oldestOf(b) ||
-      compareText(a.session, b.session) ||
-      compareText(firstKey(a), firstKey(b)),
+    (a, b) => bySooner(a, b) || oldestOf(a) - oldestOf(b) || compareText(a.session, b.session),
   )
 
 /** What a session is doing at `now`, across its live windows (`Doing`). */

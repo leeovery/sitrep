@@ -56,6 +56,19 @@ struct SnoozedTurnTests {
         #expect(moved.snoozed.isEmpty)
     }
 
+    /// A session snoozed whole since 13 November 2026 is one row, its asks and its turn among its lines: the session's
+    /// row, keyed as any, no turn's of its own.
+    @Test func aRowOfAsksAndATurnIsTheSessionsOwn() throws {
+        let turn = #"{"key":"turn:sr-4g01a7","is":"yourTurn","ask":null,"first":{"lead":"Stage 2 is in","mono":null,"subject":null,"more":null,"until":null},"since":1792741100000,"wakesAt":1792745127000}"#
+        let line = Lines.snoozed[0].replacingOccurrences(of: #""wakesAt":1792745127000}]"#, with: #""wakesAt":1792745127000},\#(turn)]"#)
+        let row = try #require(try Board.read(line).snoozed.first)
+
+        #expect(row.lines.map(\.kind) == [.ask, .ask, .yourTurn])
+        #expect(!row.isTurn)
+        #expect(row.id == "sr-4g01a7")
+        #expect(row.wakesAt == at(1_792_741_532_000))
+    }
+
     /// A CLI from before a turn could be snoozed said nothing of what a Snoozed line is: each is an ask.
     @Test func snoozedLinesFromBeforeTurnsAreAsks() throws {
         let row = try #require(try Board.read(Lines.snoozed[0]).snoozed.first)

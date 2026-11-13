@@ -1,16 +1,19 @@
 /**
- * Lee's snooze of an ask: when it wakes, as the fold reads the lines at a
- * moment, what ends it and what leaves it, where a snoozed ask counts, and
- * Snooze's times as they are worded (as they are worked out, in
- * wakes.test.ts).
+ * Lee's snooze of a session: when it wakes, as the fold reads the lines at a
+ * moment, what wakes it sooner and what leaves it, where its asks count, how
+ * the lines from before a snooze was the session's read, and Snooze's times
+ * as they are worded (as they are worked out, in wakes.test.ts).
  */
 import { expect, test } from 'claude-code/testing'
 import {
   isSnoozed,
+  isUntilItMoves,
   parseEntries,
   serialise,
   snoozedAsks,
+  snoozedUntilOf,
   summarise,
+  UNTIL_IT_MOVES,
   VERSION,
   waitingOnLee,
   wakeWords,
@@ -22,9 +25,7 @@ import {
 } from '../core'
 import {
   beat,
-  choiceAsk,
   CLI,
-  delivered,
   file,
   finish,
   fold,
@@ -35,11 +36,14 @@ import {
   reply,
   resolve,
   snooze,
+  snoozeSession,
+  status,
   T0,
   unfinish,
   W1,
   W2,
   wake,
+  wakeSession,
   yesAsk,
   type Line,
 } from './support'
@@ -55,131 +59,187 @@ const UNTIL = NOW + 2 * HOUR
 
 const REVIEW: Line = [T0, yesAsk('k1', 'Review round 1')]
 
-const SNOOZED: Line = [T0 + MIN, snooze('k1', UNTIL)]
+const SHIP: Line = [T0, yesAsk('k2', 'Ship it', 'Go')]
 
-/** Where k1 stands under its snooze, and what the session counts of it. */
-const standing = (session: Session) => {
-  const ask = session.asks.find(each => each.id === 'k1')
+const SNOOZED: Line = [T0 + MIN, snoozeSession(UNTIL, 'k1', 'k2')]
 
-  return {
-    snoozedUntil: ask?.snoozedUntil,
-    wokeAt: ask?.wokeAt,
-    waiting: session.waiting,
-    snoozed: snoozedAsks(session).length,
-  }
+/** Where the session's asks stand under its snooze, by id, and what it counts of them. */
+const standing = (session: Session) => ({
+  asks: session.asks.map(ask => [ask.id, ask.snoozedUntil, ask.wokeAt]),
+  waiting: session.waiting,
+  snoozed: snoozedAsks(session).length,
+})
+
+/** Both asks put off until UNTIL. */
+const ASLEEP = {
+  asks: [
+    ['k1', UNTIL, undefined],
+    ['k2', UNTIL, undefined],
+  ],
+  waiting: 0,
+  snoozed: 2,
 }
 
-const ASLEEP = { snoozedUntil: UNTIL, wokeAt: undefined, waiting: 0, snoozed: 1 }
+/** Both asks waiting on Lee, never woken by the time. */
+const AWAKE = {
+  asks: [
+    ['k1', undefined, undefined],
+    ['k2', undefined, undefined],
+  ],
+  waiting: 2,
+  snoozed: 0,
+}
 
-const AWAKE = { snoozedUntil: undefined, wokeAt: undefined, waiting: 1, snoozed: 0 }
+/** Both asks back, woken by the time. */
+const WOKE = {
+  asks: [
+    ['k1', undefined, UNTIL],
+    ['k2', undefined, UNTIL],
+  ],
+  waiting: 2,
+  snoozed: 0,
+}
 
 /** The session folded at `now` from the window's lines, with any other files. */
 const foldAt = (now: number, lines: Line[], files: Partial<SessionFiles> = {}) =>
   fold({ ...files, logs: { [W1]: file(...lines), ...files.logs } }, now)
 
-test('a snooze holds while its time is to come, the ask waiting on Lee nowhere; at its time it has run out, and the ask carries when it woke', () => {
-  const lines = [REVIEW, SNOOZED]
+/** The session with its two asks, snoozed, then the lines given, folded at `now`. */
+const asleepThen = (lines: Line[], now = NOW, files: Partial<SessionFiles> = {}) =>
+  foldAt(now, [REVIEW, SHIP, SNOOZED, ...lines], files)
 
-  expect(standing(foldAt(NOW, lines))).toEqual(ASLEEP)
-  expect(standing(foldAt(UNTIL - 1, lines))).toEqual(ASLEEP)
-  expect(standing(foldAt(UNTIL, lines))).toEqual({ ...AWAKE, wokeAt: UNTIL })
-  expect(
-    standing(foldAt(UNTIL + 9 * HOUR, lines)),
-    'woken at its time, however long after',
-  ).toEqual({ ...AWAKE, wokeAt: UNTIL })
+test("Lee's snooze of a session puts off every ask waiting as posted until its time, none waiting on Lee; at its time it has run out, and each carries when it woke", () => {
+  expect(standing(asleepThen([]))).toEqual(ASLEEP)
+  expect(standing(asleepThen([], UNTIL - 1))).toEqual(ASLEEP)
+  expect(standing(asleepThen([], UNTIL))).toEqual(WOKE)
+  expect(standing(asleepThen([], UNTIL + 9 * HOUR)), 'however long after').toEqual(WOKE)
+  expect(asleepThen([]).snooze).toEqual({ until: UNTIL, at: T0 + MIN, asks: ['k1', 'k2'] })
+  expect([
+    snoozedUntilOf(asleepThen([]), NOW),
+    snoozedUntilOf(asleepThen([], UNTIL), UNTIL),
+  ]).toEqual([UNTIL, undefined])
 })
 
-test('snoozing again moves the time, sooner or later, and snoozes afresh an ask whose snooze ran out', () => {
-  expect(
-    standing(foldAt(NOW, [REVIEW, SNOOZED, [T0 + 2 * MIN, snooze('k1', UNTIL + HOUR)]])),
-  ).toEqual({ ...ASLEEP, snoozedUntil: UNTIL + HOUR })
-  expect(standing(foldAt(NOW, [REVIEW, SNOOZED, [T0 + 2 * MIN, snooze('k1', NOW + MIN)]]))).toEqual(
-    {
-      ...ASLEEP,
-      snoozedUntil: NOW + MIN,
-    },
-  )
+test('snoozing again moves the time, sooner or later, and snoozes afresh a session whose snooze ran out', () => {
+  const again = (until: number, at = T0 + 2 * MIN) =>
+    asleepThen([[at, snoozeSession(until, 'k1', 'k2')]])
+
+  expect(standing(again(UNTIL + HOUR)).asks[0]).toEqual(['k1', UNTIL + HOUR, undefined])
+  expect(standing(again(NOW + MIN)).asks[0]).toEqual(['k1', NOW + MIN, undefined])
   expect(
     standing(
       foldAt(NOW, [
         REVIEW,
-        [T0 + MIN, snooze('k1', T0 + 10 * MIN)],
-        [T0 + 20 * MIN, snooze('k1', UNTIL)],
+        SHIP,
+        [T0 + MIN, snoozeSession(T0 + 10 * MIN, 'k1', 'k2')],
+        [T0 + 20 * MIN, snoozeSession(UNTIL, 'k1', 'k2')],
       ]),
     ),
   ).toEqual(ASLEEP)
 })
 
-test('a wake ends the snooze: the ask waits on Lee again, with no time it woke at, before its time or after', () => {
-  const lines = [REVIEW, SNOOZED]
-  const woken = { logs: { [CLI]: file([T0 + 2 * MIN, wake('k1')]) } }
+test("Lee's wake ends it, before its time or after: every ask waits on Lee again, with no time it woke at", () => {
+  const woken = { logs: { [CLI]: file([T0 + 2 * MIN, wakeSession()]) } }
 
-  expect(standing(foldAt(NOW, lines, woken))).toEqual(AWAKE)
-  expect(standing(foldAt(UNTIL + HOUR, lines, woken))).toEqual(AWAKE)
+  expect(standing(asleepThen([], NOW, woken))).toEqual(AWAKE)
+  expect(standing(asleepThen([], UNTIL + HOUR, woken))).toEqual(AWAKE)
+  expect(asleepThen([], NOW, woken).snooze).toBeUndefined()
 })
 
-test('a wake on an ask not snoozed does nothing: the ask stands as it would, and a snooze after it holds', () => {
-  expect(foldAt(NOW, [REVIEW, [T0 + MIN, wake('k1')]]).asks).toEqual(foldAt(NOW, [REVIEW]).asks)
+test('a new ask posted after the snooze wakes the session, the asks it put off back with it; one posted before it is put off too', () => {
+  const posted = asleepThen([[T0 + 2 * MIN, yesAsk('k3', 'Tag the release', 'Done')]])
+
+  expect(standing(posted)).toEqual({
+    asks: [...AWAKE.asks, ['k3', undefined, undefined]],
+    waiting: 3,
+    snoozed: 0,
+  })
+  expect(posted.snooze).toBeUndefined()
   expect(
-    standing(foldAt(NOW, [REVIEW, [T0 + MIN, wake('k1')], [T0 + 2 * MIN, snooze('k1', UNTIL)]])),
-  ).toEqual(ASLEEP)
+    standing(
+      foldAt(NOW, [
+        REVIEW,
+        SHIP,
+        [T0, yesAsk('k3', 'Tag the release')],
+        [T0 + MIN, snoozeSession(UNTIL, 'k1', 'k2', 'k3')],
+      ]),
+    ).snoozed,
+  ).toBe(3)
 })
 
-test("what settles the ask ends its snooze: Lee's answer or ignore delivered, closing it, or a comment delivered, leaving it replied", () => {
-  for (const [verdict, extra, state] of [
-    ['yes', {}, 'closed'],
-    ['ignore', {}, 'ignored'],
-    ['comment', { note: 'Tighten the copy' }, 'replied'],
-  ] as const) {
-    for (const now of [NOW, UNTIL]) {
-      const session = foldAt(now, [REVIEW, SNOOZED, [T0 + 3 * MIN, delivered('r1')]], {
-        inbox: { [CLI]: file([T0 + 2 * MIN, reply('r1', 'k1', verdict, extra)]) },
-      })
-
-      expect([session.asks[0]?.state, standing(session)], `${verdict}, folded at ${now}`).toEqual([
-        state,
-        { snoozedUntil: undefined, wokeAt: undefined, waiting: 0, snoozed: 0 },
-      ])
-    }
-  }
-})
-
-test("Claude's resolve ends the snooze: reopened after, the ask waits on Lee afresh", () => {
-  const resolved = [REVIEW, SNOOZED, [T0 + 2 * MIN, resolve('k1')]] satisfies Line[]
-
-  expect(standing(foldAt(NOW, resolved))).toEqual({ ...AWAKE, waiting: 0 })
-  expect(standing(foldAt(NOW, [...resolved, [T0 + 3 * MIN, reopen('k1')]]))).toEqual(AWAKE)
-})
-
-test('a reopen opens the ask afresh, ending its snooze: it waits on Lee since its reopening', () => {
-  const session = foldAt(NOW, [REVIEW, SNOOZED, [T0 + 2 * MIN, reopen('k1', 'Asked again')]])
-
-  expect(standing(session)).toEqual(AWAKE)
-  expect(session.asks[0]?.openedAt).toBe(T0 + 2 * MIN)
-})
-
-test('an edit leaves the snooze standing: the ask sleeps on, as edited', () => {
+test('a reopen of an ask wakes the session, Claude raising it again: it waits on Lee since its reopening', () => {
   const session = foldAt(NOW, [
     REVIEW,
+    SHIP,
+    [T0, yesAsk('k3', 'Tag the release')],
+    [T0, resolve('k3')],
     SNOOZED,
-    [T0 + 2 * MIN, { type: 'edit', item: 'k1', changes: { title: 'Review round 2' } }],
+    [T0 + 2 * MIN, reopen('k3', 'Asked again')],
   ])
 
-  expect(standing(session)).toEqual(ASLEEP)
-  expect(session.asks[0]?.title).toBe('Review round 2')
+  expect([session.waiting, session.snooze, session.asks[2]?.openedAt]).toEqual([
+    3,
+    undefined,
+    T0 + 2 * MIN,
+  ])
 })
 
-test('a finish leaves the snooze: nothing of a finished session counts, its snoozes among them, and a join before its time finds the ask still snoozed, after it woken', () => {
-  const finished = [REVIEW, SNOOZED, [T0 + 2 * MIN, finish('lee')]] satisfies Line[]
-  const joined = [...finished, [T0 + 3 * MIN, unfinish()]] satisfies Line[]
-  const session = foldAt(NOW, finished)
+test("Lee's reply to one of the asks it holds wakes the session, the rest back with it: he has dealt with it; a pick-up of something it parked does not", () => {
+  const answered = asleepThen([], NOW, {
+    inbox: { [CLI]: file([T0 + 2 * MIN, reply('r1', 'k1', 'comment', { note: 'Tighten it' })]) },
+  })
+  const pickedUp = foldAt(NOW, [REVIEW, SHIP, [T0, park('p1', 'Later')], SNOOZED], {
+    inbox: { [CLI]: file([T0 + 2 * MIN, reply('r1', 'p1', 'pickup')]) },
+  })
 
-  expect([standing(session), summarise(session).snoozed]).toEqual([
-    { snoozedUntil: UNTIL, wokeAt: undefined, waiting: 0, snoozed: 0 },
-    0,
+  expect([answered.snooze, answered.waiting, snoozedAsks(answered)]).toEqual([undefined, 1, []])
+  expect(standing(pickedUp)).toEqual(ASLEEP)
+})
+
+test("its turn ending alone, Claude's other lines and a window joining wake nothing: a status, a note, an edit, a resolve, a park, a heartbeat", () => {
+  const session = asleepThen(
+    [
+      [T0 + 2 * MIN, status(['Waiting on the agents'])],
+      [T0 + 2 * MIN, note('n1', 'Agents done')],
+      [T0 + 2 * MIN, { type: 'edit', item: 'k2', changes: { title: 'Ship it now' } }],
+      [T0 + 2 * MIN, resolve('k1')],
+      [T0 + 2 * MIN, park('p1', 'Later')],
+    ],
+    NOW,
+    {
+      presence: {
+        [W2]: beat(W2, {
+          attachedAt: T0 + 3 * MIN,
+          seenAt: NOW,
+          state: { is: 'yourTurn', since: T0 + 30 * MIN },
+        }),
+      },
+    },
+  )
+
+  expect(standing(session)).toEqual({
+    asks: [
+      ['k1', undefined, undefined],
+      ['k2', UNTIL, undefined],
+    ],
+    waiting: 0,
+    snoozed: 1,
+  })
+  expect(session.asks.map(ask => [ask.title, ask.state])).toEqual([
+    ['Review round 1', 'closed'],
+    ['Ship it now', 'waiting'],
   ])
-  expect(standing(foldAt(NOW, joined))).toEqual(ASLEEP)
-  expect(standing(foldAt(UNTIL, joined))).toEqual({ ...AWAKE, wokeAt: UNTIL })
+})
+
+test('a finish leaves the snooze: nothing of a finished session counts, its snooze among them, and a join before its time finds it still snoozed, after it woken', () => {
+  const finished: Line[] = [[T0 + 2 * MIN, finish('lee')]]
+  const joined: Line[] = [...finished, [T0 + 3 * MIN, unfinish()]]
+  const session = asleepThen(finished)
+
+  expect([session.waiting, snoozedAsks(session), summarise(session).snoozed]).toEqual([0, [], 0])
+  expect(snoozedUntilOf(session, NOW)).toBeUndefined()
+  expect(standing(asleepThen(joined))).toEqual(ASLEEP)
+  expect(standing(asleepThen(joined, UNTIL))).toEqual(WOKE)
 })
 
 /** Lee's yes to k1, as a window's send claims it a minute before `now`. */
@@ -193,58 +253,16 @@ const windowAt = (now: number, sending?: Sending) => ({
   [W2]: beat(W2, { attachedAt: T0, seenAt: now, sending: sending && [sending] }),
 })
 
-test("Lee's reply on its way takes the ask out of Snoozed as out of Needs you, its snooze standing; taken back or void, it is snoozed again while its time is to come, else woken", () => {
-  const lines = [REVIEW, SNOOZED]
-  const answered = { inbox: { [CLI]: file([T0 + 2 * MIN, reply('r1', 'k1', 'yes')]) } }
-  const unfit: Line = [
-    T0 + 3 * MIN,
-    { type: 'edit', item: 'k1', changes: { wants: 'choice', options: ['Now', 'Later'] } },
-  ]
-  const onItsWay = { snoozedUntil: UNTIL, wokeAt: undefined, waiting: 0, snoozed: 0 }
+test("Lee's reply in a window's message takes its ask out of Snoozed as out of Needs you from its claim, the snooze standing over the rest until it is written down; taken back, it is snoozed again while its time is to come, else woken", () => {
+  const onItsWay = asleepThen([], NOW, { presence: windowAt(NOW, sendingYes(NOW)) })
 
-  expect(standing(foldAt(NOW, lines, answered)), 'in the inbox').toEqual(onItsWay)
-  expect(isSnoozed(foldAt(NOW, lines, answered).asks[0]!)).toBe(false)
+  expect(standing(onItsWay)).toEqual({ ...ASLEEP, snoozed: 1 })
+  expect(isSnoozed(onItsWay.asks[0]!)).toBe(false)
+  expect(standing(asleepThen([], NOW, { presence: windowAt(NOW) })), 'taken back').toEqual(ASLEEP)
   expect(
-    standing(foldAt(NOW, lines, { presence: windowAt(NOW, sendingYes(NOW)) })),
-    "in a window's message, from its claim",
-  ).toEqual(onItsWay)
-  expect(standing(foldAt(NOW, lines, { presence: windowAt(NOW) })), 'taken back').toEqual(ASLEEP)
-  expect(
-    standing(foldAt(NOW, [...lines, unfit], answered)),
-    'void, its ask edited under it',
-  ).toEqual(ASLEEP)
-  expect(
-    standing(foldAt(UNTIL, lines, { presence: windowAt(UNTIL) })),
+    standing(asleepThen([], UNTIL, { presence: windowAt(UNTIL) })),
     'taken back after its time',
-  ).toEqual({
-    ...AWAKE,
-    wokeAt: UNTIL,
-  })
-})
-
-test('a snooze naming anything but an ask waiting as posted is passed over: an ask closed, ignored or replied, one not posted yet, a note, a parked item, an id that is none', () => {
-  const session = foldAt(NOW, [
-    [T0, snooze('k4', UNTIL)],
-    [T0, yesAsk('k1', 'Run the apply', 'Done')],
-    [T0, yesAsk('k2', 'Try it on the iPad', 'It works')],
-    [T0, choiceAsk('k3', 'Keep it, or drop it?', ['Keep it', 'Drop it'])],
-    [T0, note('n1', 'Merged')],
-    [T0, park('p1', 'Later')],
-    [T0 + MIN, resolve('k1')],
-    [T0 + MIN, reply('r1', 'k2', 'comment', { note: 'It fails' })],
-    [T0 + MIN, reply('r2', 'k3', 'ignore')],
-    [T0 + MIN, delivered('r1', 'r2')],
-    [T0 + MIN, yesAsk('k4', 'Tag the release', 'Done')],
-    ...['k1', 'k2', 'k3', 'n1', 'p1', 'zzzz'].map((id): Line => [T0 + 2 * MIN, snooze(id, UNTIL)]),
-  ])
-
-  expect(session.asks.map(ask => [ask.id, ask.state, ask.snoozedUntil])).toEqual([
-    ['k1', 'closed', undefined],
-    ['k2', 'replied', undefined],
-    ['k3', 'ignored', undefined],
-    ['k4', 'waiting', undefined],
-  ])
-  expect([snoozedAsks(session), session.waiting]).toEqual([[], 1])
+  ).toEqual(WOKE)
 })
 
 test("of two writers' lines at one moment the later in the fold's order wins, by writer, the same in every reader", () => {
@@ -255,58 +273,204 @@ test("of two writers' lines at one moment the later in the fold's order wins, by
         logs: Object.fromEntries(
           Object.entries(logs).map(([writer, bodies]) => [
             writer,
-            file(...(writer === W1 ? [REVIEW] : []), ...bodies.map((body): Line => [at, body])),
+            file(
+              ...(writer === W1 ? [REVIEW, SHIP] : []),
+              ...bodies.map((body): Line => [at, body]),
+            ),
           ]),
         ),
       }),
     )
 
-  expect(raced({ [W1]: [snooze('k1', UNTIL)], [W2]: [wake('k1')] })).toEqual(AWAKE)
-  expect(raced({ [W1]: [wake('k1')], [W2]: [snooze('k1', UNTIL)] })).toEqual(ASLEEP)
+  const snoozed = (until: number) => snoozeSession(until, 'k1', 'k2')
+
+  expect(raced({ [W1]: [snoozed(UNTIL)], [W2]: [wakeSession()] })).toEqual(AWAKE)
+  expect(raced({ [W1]: [wakeSession()], [W2]: [snoozed(UNTIL)] })).toEqual(ASLEEP)
   expect(
-    raced({ [W1]: [snooze('k1', UNTIL)], [CLI]: [wake('k1')] }),
+    raced({ [W1]: [snoozed(UNTIL)], [CLI]: [wakeSession()] }),
     "a window's, then the CLI's",
   ).toEqual(AWAKE)
-  expect(
-    raced({ [W1]: [snooze('k1', UNTIL + HOUR)], [W2]: [snooze('k1', UNTIL)] }),
-    'two snoozes',
-  ).toEqual(ASLEEP)
+  expect(raced({ [W1]: [snoozed(UNTIL + HOUR)], [W2]: [snoozed(UNTIL)] }), 'two snoozes').toEqual(
+    ASLEEP,
+  )
 })
 
 test('a session waits on Lee for what is not snoozed; every ask waiting as posted, snoozed or on its way, still counts as asked, which keeps the session current', () => {
-  const session = foldAt(
-    NOW,
-    [
-      REVIEW,
-      [T0, yesAsk('k2', 'Ship it', 'Go')],
-      [T0, yesAsk('k3', 'Tag it', 'Done')],
-      [T0 + MIN, snooze('k2', UNTIL)],
-    ],
-    { inbox: { [CLI]: file([T0 + 2 * MIN, reply('r1', 'k3', 'yes')]) } },
-  )
+  const session = asleepThen([], NOW, { presence: windowAt(NOW, sendingYes(NOW)) })
 
-  expect(waitingOnLee(session).map(ask => ask.id)).toEqual(['k1'])
+  expect(waitingOnLee(session)).toEqual([])
   expect(snoozedAsks(session).map(ask => ask.id)).toEqual(['k2'])
-  expect(summarise(session)).toMatchObject({ waiting: 1, snoozed: 1, asked: 3 })
+  expect(summarise(session)).toMatchObject({ waiting: 0, snoozed: 1, asked: 2 })
 })
 
-test("an old reader skips both kinds: lines at the format's version 1, of kinds it does not know, the rest of the file standing and the ask waiting", () => {
+/** Lee's answers to k1 in the inbox: his yes, at `at`, then any more. */
+const answeredAt = (at: number, ...more: Line[]) => ({
+  inbox: { [CLI]: file([at, reply('r1', 'k1', 'yes')], ...more) },
+})
+
+/** The snooze, written while Lee's answer to k1 was on its way, holding k2 alone. */
+const HOLDS_K2: Line = [T0 + MIN, snoozeSession(UNTIL, 'k2')]
+
+/** Where the asks stand with k1's answer on its way and k2 asleep. */
+const K2_ASLEEP = {
+  asks: [
+    ['k1', undefined, undefined],
+    ['k2', UNTIL, undefined],
+  ],
+  waiting: 0,
+  snoozed: 1,
+}
+
+test('a snooze holds the asks waiting on Lee as it was written, named on its line: his answer to another on its way then, written down after it, wakes nothing', () => {
+  const claimed = foldAt(NOW, [REVIEW, SHIP, HOLDS_K2], {
+    presence: windowAt(NOW, { ...sendingYes(NOW), at: T0 + MIN / 2 }),
+  })
+  const written = foldAt(NOW, [REVIEW, SHIP, HOLDS_K2], {
+    logs: { [W2]: file([T0 + 3 * MIN, reply('r1', 'k1', 'yes')]) },
+  })
+
+  expect(standing(claimed)).toEqual(K2_ASLEEP)
+  expect(standing(written)).toEqual(K2_ASLEEP)
+  expect(written.snooze?.asks).toEqual(['k2'])
+})
+
+test('an ask it does not hold waiting on Lee again, its answer on its way then voided or taken back, wakes the session while it waits; answered again, the snooze holds the rest', () => {
+  const edited: Line = [T0 + 2 * MIN, { type: 'edit', item: 'k1', changes: { wants: 'words' } }]
+  const voided = foldAt(NOW, [REVIEW, SHIP, HOLDS_K2, edited], answeredAt(T0 + MIN / 2))
+  const takenBack = foldAt(NOW, [REVIEW, SHIP, HOLDS_K2], { presence: windowAt(NOW) })
+  const again = foldAt(
+    NOW,
+    [REVIEW, SHIP, HOLDS_K2, edited],
+    answeredAt(T0 + MIN / 2, [T0 + 3 * MIN, reply('r2', 'k1', 'answer', { note: 'Done' })]),
+  )
+
+  expect(standing(voided)).toEqual(AWAKE)
+  expect(voided.snooze).toBeUndefined()
+  expect(standing(takenBack), 'taken back, never written').toEqual(AWAKE)
+  expect(standing(again)).toEqual(K2_ASLEEP)
+})
+
+test('a snooze with no time holds until it moves: no time wakes it, its asks sleeping after every time, until a line wakes it', () => {
+  const MOVES: Line = [T0 + MIN, snoozeSession(undefined, 'k1', 'k2')]
+  const later = UNTIL + 9 * HOUR
+  const moves = foldAt(later, [REVIEW, SHIP, MOVES])
+
+  expect(standing(moves).asks).toEqual([
+    ['k1', UNTIL_IT_MOVES, undefined],
+    ['k2', UNTIL_IT_MOVES, undefined],
+  ])
+  expect([snoozedUntilOf(moves, later), isUntilItMoves(moves)]).toEqual([UNTIL_IT_MOVES, true])
+  expect(isUntilItMoves(asleepThen([])), 'one with a time').toBe(false)
+  expect(standing(foldAt(later, [REVIEW, SHIP, MOVES, [T0 + 2 * MIN, wakeSession()]]))).toEqual(
+    AWAKE,
+  )
+  expect(
+    standing(foldAt(later, [REVIEW, SHIP, MOVES, [T0 + 2 * MIN, yesAsk('k3', 'Tag it')]])).snoozed,
+    'a new ask',
+  ).toBe(0)
+})
+
+/** k1 put off by an old line until UNTIL. */
+const OLD_K1: Line = [T0 + MIN, snooze('k1', UNTIL)]
+
+/** Harness's case: both asks put off by old lines, written together, k2 an hour later than k1. */
+const OLD_ROW: Line[] = [REVIEW, SHIP, OLD_K1, [T0 + MIN, snooze('k2', UNTIL + HOUR)]]
+
+test("an old line's snooze of an ask keeps its own time, ended as its ask closes, reopens or is woken; one naming anything else is passed over", () => {
+  const passedOver = foldAt(NOW, [
+    [T0, snooze('k4', UNTIL)],
+    REVIEW,
+    SHIP,
+    [T0, yesAsk('k3', 'Keep it', 'Keep')],
+    [T0, note('n1', 'Merged')],
+    [T0, park('p1', 'Later')],
+    [T0 + MIN, resolve('k3')],
+    [T0 + MIN, yesAsk('k4', 'Tag the release', 'Done')],
+    ...['k3', 'n1', 'p1', 'zzzz'].map((id): Line => [T0 + 2 * MIN, snooze(id, UNTIL)]),
+  ])
+  const k1Asleep = {
+    asks: [
+      ['k1', UNTIL, undefined],
+      ['k2', undefined, undefined],
+    ],
+    waiting: 1,
+    snoozed: 1,
+  }
+
+  expect(standing(foldAt(NOW, [REVIEW, SHIP, OLD_K1]))).toEqual(k1Asleep)
+  expect(foldAt(NOW, [REVIEW, SHIP, OLD_K1]).snooze).toBeUndefined()
+  expect(standing(foldAt(UNTIL, [REVIEW, SHIP, OLD_K1])).asks[0]).toEqual(['k1', undefined, UNTIL])
+  expect(standing(foldAt(NOW, OLD_ROW)).asks).toEqual([
+    ['k1', UNTIL, undefined],
+    ['k2', UNTIL + HOUR, undefined],
+  ])
+  expect([passedOver.waiting, snoozedAsks(passedOver)]).toEqual([3, []])
+  expect(standing(foldAt(NOW, [REVIEW, SHIP, OLD_K1, [T0 + 2 * MIN, wake('k1')]]))).toEqual(AWAKE)
+  expect(
+    standing(foldAt(NOW, [REVIEW, SHIP, OLD_K1, [T0 + 2 * MIN, resolve('k1')]])).snoozed,
+    'resolved',
+  ).toBe(0)
+  expect(
+    standing(foldAt(NOW, [...OLD_ROW, [T0 + 2 * MIN, wakeSession()]])),
+    "Lee's wake of the session",
+  ).toEqual(AWAKE)
+})
+
+test("old lines' snoozes holding every ask waiting on Lee put its turn off with them, until the first wakes or closes; an ask left showing leaves the turn as it was", () => {
+  const then = (now: number, ...lines: Line[]) => foldAt(now, [...OLD_ROW, ...lines]).turnWithAsks
+
+  expect(then(NOW)).toBe(UNTIL)
+  expect(then(UNTIL), 'the first woken').toBeUndefined()
+  expect(then(NOW, [T0 + 2 * MIN, resolve('k1')]), 'the first resolved').toBeUndefined()
+  expect(then(NOW, [T0 + 2 * MIN, yesAsk('k3', 'Tag it')]), 'a new ask').toBeUndefined()
+  expect(foldAt(NOW, [REVIEW, SHIP, OLD_K1]).turnWithAsks, 'k2 left showing').toBeUndefined()
+  expect(
+    foldAt(NOW, [REVIEW, SHIP, OLD_K1, [T0 + 2 * MIN, snooze('k2', UNTIL)]]).turnWithAsks,
+    'the pane snoozing one, then the other',
+  ).toBe(UNTIL)
+})
+
+test("Lee's snooze of the session stands in place of the old lines' snoozes of its asks, and of their turn", () => {
+  const replaced = foldAt(NOW, [
+    ...OLD_ROW,
+    [T0 + 2 * MIN, snoozeSession(UNTIL + 2 * HOUR, 'k1', 'k2')],
+  ])
+
+  expect(standing(replaced).asks).toEqual([
+    ['k1', UNTIL + 2 * HOUR, undefined],
+    ['k2', UNTIL + 2 * HOUR, undefined],
+  ])
+  expect(replaced.turnWithAsks).toBeUndefined()
+})
+
+test("an old reader skips the session's lines: kinds at the format's version 1 it does not know, the rest of the file standing and its asks waiting", () => {
   const text = file(
     REVIEW,
+    SHIP,
     SNOOZED,
-    [T0 + 2 * MIN, wake('k1')],
+    [T0 + 2 * MIN, wakeSession()],
     [T0 + 3 * MIN, note('n1', 'Merged')],
   )
-  const unknown = text.replace(/"type":"(snooze|wake)"/g, '"type":"later-kind"')
+  const unknown = text.replace(/"type":"(snoozeSession|wakeSession)"/g, '"type":"later-kind"')
 
-  expect(serialise({ v: VERSION, at: T0, seq: 9, ...snooze('k3f9', UNTIL) })).toBe(
-    `{"v":1,"at":${T0},"seq":9,"type":"snooze","item":"k3f9","until":${UNTIL}}\n`,
+  expect(serialise({ v: VERSION, at: T0, seq: 9, ...snoozeSession(UNTIL, 'k1', 'k2') })).toBe(
+    `{"v":1,"at":${T0},"seq":9,"type":"snoozeSession","until":${UNTIL},"asks":["k1","k2"]}\n`,
   )
-  expect(serialise({ v: VERSION, at: T0, seq: 10, ...wake('k3f9') })).toBe(
-    `{"v":1,"at":${T0},"seq":10,"type":"wake","item":"k3f9"}\n`,
+  expect(serialise({ v: VERSION, at: T0, seq: 9, ...snoozeSession(undefined) })).toBe(
+    `{"v":1,"at":${T0},"seq":9,"type":"snoozeSession","asks":[]}\n`,
   )
-  expect(parseEntries(unknown).map(entry => entry.type)).toEqual(['ask', 'note'])
+  expect(serialise({ v: VERSION, at: T0, seq: 10, ...wakeSession() })).toBe(
+    `{"v":1,"at":${T0},"seq":10,"type":"wakeSession"}\n`,
+  )
+  expect(parseEntries(unknown).map(entry => entry.type)).toEqual(['ask', 'ask', 'note'])
   expect(standing(fold({ logs: { [W1]: unknown } }))).toEqual(AWAKE)
+})
+
+test("Lee's snooze and wake of a session are never told to Claude by its time: they leave it as recently updated as it was", () => {
+  const plain = foldAt(NOW, [REVIEW, SHIP])
+
+  expect(asleepThen([]).updatedAt).toBe(plain.updatedAt)
+  expect(asleepThen([[T0 + 2 * MIN, wakeSession()]]).updatedAt).toBe(plain.updatedAt)
 })
 
 /** A time in local time, as the pane words it. */

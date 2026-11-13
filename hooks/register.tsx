@@ -32,7 +32,7 @@
  */
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
-import { actionsOf, sendReady } from './actions'
+import { actionsOf, sendReady, wakeByLeesPrompt, wakeByTurnEnd } from './actions'
 import { captured, heardSurvey } from './answering'
 import { lookAround, lookEvery } from './around'
 import { clipOf, heardRows, revealFocus, scrollList } from './clip'
@@ -59,6 +59,7 @@ import {
   heardStop,
   heardTurnEnd,
   heardTurnStart,
+  isTurnStop,
   isWindowTurn,
   throughCall,
 } from './doing'
@@ -260,6 +261,10 @@ const hostOf = ($: EngineInterface): Host => ({
   },
 })
 
+/** The window's turn ending wakes a snooze of Lee's until it moves, before the turn's end is heard, so the session comes back at its turn as any turn ends. */
+const wakeOnTurnEnd = (host: Host) =>
+  wakeByTurnEnd(host).catch(logFailure(host, 'waking the session as its turn ended'))
+
 export const register: Register = on => {
   // Also the first hook a reload of this code runs, `$.state` still naming
   // the session the window held, and the board as Lee left it.
@@ -336,6 +341,7 @@ export const register: Register = on => {
     const host = hostOf($)
 
     if (e.agentId === undefined) {
+      await wakeOnTurnEnd(host)
       await heardTurnEnd(host)
       await carryOn(host)
     } else {
@@ -392,8 +398,13 @@ export const register: Register = on => {
   // goes on with the turn. It and turn.complete come in either order.
   on('classic.Stop', async ($, e, next) => {
     const answer = await next(e)
+    const host = hostOf($)
 
-    await heardStop(hostOf($), e, answer)
+    if (isTurnStop(e, answer)) {
+      await wakeOnTurnEnd(host)
+    }
+
+    await heardStop(host, e, answer)
 
     return answer
   }).catch(($, e, next) => next(e))
@@ -448,6 +459,11 @@ export const register: Register = on => {
       }
 
       return entered
+    }
+
+    // Lee's own prompt wakes the session he snoozed, before the board's change is read, so it rides in with it.
+    if (isLees) {
+      await wakeByLeesPrompt(host).catch(logFailure(host, 'waking the session on your prompt'))
     }
 
     const change = await serially(() => boardChange(host))

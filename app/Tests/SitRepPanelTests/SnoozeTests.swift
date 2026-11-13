@@ -128,7 +128,8 @@ struct SnoozeTests {
         #expect(WakeTime.calendar.timeZone.identifier == TimeZone.current.identifier)
     }
 
-    /// A Snoozed row shows when it wakes in its time's place; any other row, its age.
+    /// A Snoozed row shows when it wakes in its time's place, or with none, that it waits until it moves, its asks' row
+    /// as a turn's; any other row, its age.
     @Test func aSnoozedRowsTimeIsWhenItWakes() {
         let now = Self.at(23, 14).timeIntervalSince1970 * 1000
         let line = Session.Line(ask: "k1", title: "Review the plan", since: now - 3_600_000)
@@ -138,9 +139,13 @@ struct SnoozeTests {
         )
         var waiting = asleep
 
+        var moves = asleep
+
         waiting.kind = .needs
         waiting.wakesAt = nil
+        moves.wakesAt = nil
         #expect(asleep.timeText(at: now, in: Self.london) == "Sat 09:00")
+        #expect(moves.timeText(at: now, in: Self.london) == "until it moves")
         #expect(waiting.timeText(at: now, in: Self.london) == "1h")
         #expect(asleep.title == "Finish the Harness modernisation")
         #expect(asleep.asks == ["k1"])

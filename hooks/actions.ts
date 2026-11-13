@@ -7,16 +7,18 @@ import {
   checkFinish,
   checkSnooze,
   checkWake,
+  isAsleepAt,
+  isUntilItMoves,
   snoozeAt,
   type Body,
   type Checked,
   type Session,
   type SnoozeChoice,
+  type WakeSessionBody,
 } from '../core'
 import type {
   SitrepAnswering,
   SitrepInFlight,
-  SitrepItemRef,
   SitrepPane,
   SitrepPlace,
   SitrepQueued,
@@ -27,7 +29,7 @@ import { lookAround } from './around'
 import { fromTheTop } from './clip'
 import { takeBack } from './deliver'
 import { logFailure, type Host } from './host'
-import { writeInto, writeOwnFile } from './into'
+import { writeHeld, writeInto, writeOwnFile } from './into'
 import { closeBoard } from './pane'
 import { projectPlace } from './places'
 import { clearing, queuing, unqueuing } from './queue'
@@ -57,10 +59,10 @@ export type Actions = {
   close: () => void
   /** Finishes another session, as Lee confirmed on its view, and takes the board up off it. */
   finish: (at: SitrepSessionRef) => void
-  /** Snoozes an ask until the time Lee chose, worked out at the press, the ask closed on the board. */
-  snooze: (at: SitrepItemRef, when: SnoozeChoice) => void
-  /** Wakes a snoozed ask now: it waits on Lee again. */
-  wake: (at: SitrepItemRef) => void
+  /** Snoozes a session, its asks and its turn, until the time Lee chose, worked out at the press, the ask it was pressed on closed on the board; `asks` are those the board shows waiting there. */
+  snooze: (at: SitrepSessionRef, asks: readonly string[], when: SnoozeChoice) => void
+  /** Wakes a snoozed session now: everything it needs of Lee counts again. */
+  wake: (at: SitrepSessionRef) => void
 }
 
 /**
@@ -146,8 +148,8 @@ const finish = async (host: Host, at: SitrepSessionRef) => {
 /** Why a press on an ask wrote nothing, its session no longer there to write into. */
 const GONE = 'its session is no longer on the board.'
 
-/** A check of Lee's press against an ask's session as it stands: the lines it writes, or why it is refused. */
-type Check = (session: Session) => Checked<readonly Body[]>
+/** A check of Lee's press against an ask's session as it stands: the line it writes, or why it is refused. */
+type Check = (session: Session) => Checked<Body>
 
 /**
  * Writes what Lee's press makes of an ask's session as it stands into this
@@ -169,7 +171,7 @@ const writeLee = async (host: Host, at: SitrepSessionRef, refused: string, check
         say(checked.error)
       }
 
-      return checked.ok ? checked.value : []
+      return checked.ok ? [checked.value] : []
     },
     (session, lines) => post(host, lines),
   )
@@ -181,18 +183,46 @@ const writeLee = async (host: Host, at: SitrepSessionRef, refused: string, check
   await readIfElsewhere(host, at)
 }
 
-/** Lee's snooze of an ask, its time worked out at the press, checked as the CLI checks it. */
-const snooze = async (host: Host, at: SitrepItemRef, when: SnoozeChoice) => {
+/** Lee's snooze of a session, its asks the board shows and its turn, its time worked out at the press, checked as the CLI checks it. */
+const snooze = async (
+  host: Host,
+  at: SitrepSessionRef,
+  asks: readonly string[],
+  when: SnoozeChoice,
+) => {
   const now = await host.clock.now()
-  const input = { ask: [at.item], until: snoozeAt(when, now) }
+  const input = { ask: asks, until: snoozeAt(when, now) }
 
   await changePane(host, () => ({ selected: null }))
   await writeLee(host, at, 'Not snoozed', session => checkSnooze(session, input, now))
 }
 
-/** Lee's waking of a snoozed ask, checked as the CLI checks it. */
-const wake = (host: Host, at: SitrepItemRef) =>
-  writeLee(host, at, 'Not woken', session => checkWake(session, { ask: [at.item] }))
+/** Lee's waking of a snoozed session, checked as the CLI checks it. */
+const wake = (host: Host, at: SitrepSessionRef) => writeLee(host, at, 'Not woken', checkWake)
+
+const WAKE: WakeSessionBody = { type: 'wakeSession' }
+
+/**
+ * Wakes the session the window holds where `isDue` finds what Lee snoozed
+ * of it to wake at the moment, through the hold, so Claude reads its asks
+ * waiting again with what comes next; nothing written otherwise.
+ */
+const wakeHeldIf = (host: Host, isDue: (session: Session, now: number) => boolean) =>
+  serially(async () => {
+    const now = await host.clock.now()
+
+    return writeHeld(
+      host,
+      session => (isDue(session, now) ? [WAKE] : []),
+      (session, lines) => post(host, lines),
+    )
+  })
+
+/** Lee's own prompt in the window wakes what he snoozed of the session it holds, while it still holds: he has dealt with it. */
+export const wakeByLeesPrompt = (host: Host) => wakeHeldIf(host, isAsleepAt)
+
+/** The window's turn ending wakes the session it holds where Lee snoozed it until it moves; a snooze with a time sleeps through. */
+export const wakeByTurnEnd = (host: Host) => wakeHeldIf(host, isUntilItMoves)
 
 export const actionsOf = (host: Host): Actions => {
   const run = (what: string, act: () => Promise<unknown>) =>
@@ -226,7 +256,7 @@ export const actionsOf = (host: Host): Actions => {
     go: place => run('going elsewhere on the board', () => go(host, place)),
     close: () => run('closing the board', () => closeBoard(host)),
     finish: at => run('finishing a session', () => finish(host, at)),
-    snooze: (at, when) => run('snoozing an ask', () => snooze(host, at, when)),
-    wake: at => run('waking an ask', () => wake(host, at)),
+    snooze: (at, asks, when) => run('snoozing a session', () => snooze(host, at, asks, when)),
+    wake: at => run('waking a session', () => wake(host, at)),
   }
 }

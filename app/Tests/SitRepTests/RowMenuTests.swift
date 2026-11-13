@@ -4,15 +4,16 @@ import AppKit
 import SitRepPanel
 import Testing
 
-/// A row's right-click menu on the card (Paper's boards F, G and I): Jump to the window, away too; then Snooze and
-/// its three times on a row whose lines hold asks, those and Until it moves on a your-turn row, or Wake now on a row in
-/// Snoozed; neither on a row of stops alone. What it snoozes or wakes is what the row showed as it was drawn.
+/// A row's right-click menu on the card (Paper's boards F, G and I): Jump to the window, away too; then Snooze, its
+/// three times and Until it moves, on a Needs you row, its asks' or its turn's, or Wake now on a row in Snoozed;
+/// neither on a row of stops alone. A snooze puts off the row's session, naming the asks the row showed as it was drawn
+/// (13 November 2026).
 @MainActor
 struct RowMenuTests {
     /// Friday 23 October 2026, 14:00 in London.
     private static let now = Date(timeIntervalSince1970: 1_792_760_400)
-    /// The turn a your-turn row shows, ended at 13:12:07.5.
-    private nonisolated static let ended = Date(timeIntervalSince1970: 1_792_757_527.5)
+    /// The turn a your-turn row shows, ended at 13:12:07.5, ms.
+    private static let ended = 1_792_757_527.5 * 1000
     private static let london: Calendar = {
         var calendar = Calendar(identifier: .gregorian)
 
@@ -20,10 +21,10 @@ struct RowMenuTests {
         return calendar
     }()
 
-    /// What each choice was asked for, in the order chosen, and what it snoozed or woke.
+    /// What each choice was asked for, in the order chosen, and the asks each snooze named.
     private final class Heard {
         var said: [String] = []
-        var named: [Snoozable] = []
+        var named: [[String]] = []
     }
 
     private static func menu(_ row: RowMenu.Row, _ heard: Heard) -> NSMenu {
@@ -32,7 +33,7 @@ struct RowMenuTests {
             RowMenu.Actions(
                 jump: { heard.said.append("jump") },
                 snooze: { heard.said.append("snooze \($1.title)"); heard.named.append($0) },
-                wake: { heard.said.append("wake"); heard.named.append($0) }
+                wake: { heard.said.append("wake") }
             )
         )
     }
@@ -47,7 +48,7 @@ struct RowMenuTests {
 
     @Test func aRowOfStopsAloneOffersJumpAlone() {
         let heard = Heard()
-        let menu = Self.menu(RowMenu.Row(snoozable: nil, isSnoozed: false), heard)
+        let menu = Self.menu(RowMenu.Row(asks: nil, isSnoozed: false), heard)
 
         #expect(Self.titles(menu) == ["Jump to the window"])
         #expect(menu.items.map(\.isEnabled) == [true])
@@ -63,31 +64,19 @@ struct RowMenuTests {
         let heard = Heard()
         let menu = Self.menu(RowMenu.Row(away), heard)
 
-        #expect(RowMenu.Row(away) == RowMenu.Row(snoozable: .asks(["k1"]), isSnoozed: false))
+        #expect(RowMenu.Row(away) == RowMenu.Row(asks: ["k1"], isSnoozed: false))
         #expect(menu.items.first?.isEnabled == true)
 
         menu.performActionForItem(at: 0)
         #expect(heard.said == ["jump"])
     }
 
-    @Test func aRowWithAsksOffersSnoozeItsThreeTimesEachWithWhenItWakes() throws {
+    /// Every row offers the same: Snooze's three times, each with when it wakes, then after a separator Until it moves,
+    /// with no time, on a row of asks, its Claude working or not, as on a your-turn row, which names no ask.
+    @Test(arguments: [["k1", "k3"], []])
+    func aRowOffersSnoozeItsThreeTimesThenUntilItMoves(asks: [String]) throws {
         let heard = Heard()
-        let menu = Self.menu(RowMenu.Row(snoozable: .asks(["k1", "k3"]), isSnoozed: false), heard)
-        let snooze = try #require(menu.items.last?.submenu)
-
-        #expect(Self.titles(menu) == ["Jump to the window", "—", "Snooze"])
-        #expect(Self.choices(snooze) == ["Later today\t17:00", "Tomorrow\tSat 09:00", "Next week\tMon 09:00"])
-
-        snooze.performActionForItem(at: 1)
-        #expect(heard.said == ["snooze Tomorrow"])
-        #expect(heard.named == [.asks(["k1", "k3"])])
-    }
-
-    /// A your-turn row's Snooze offers the same three times, then, after a separator, Until it moves, with no time;
-    /// what it snoozes is the turn the row showed, by the turn's end.
-    @Test func aYourTurnRowOffersUntilItMovesAfterASeparator() throws {
-        let heard = Heard()
-        let menu = Self.menu(RowMenu.Row(snoozable: .turn(ended: Self.ended), isSnoozed: false), heard)
+        let menu = Self.menu(RowMenu.Row(asks: asks, isSnoozed: false), heard)
         let snooze = try #require(menu.items.last?.submenu)
 
         #expect(Self.titles(menu) == ["Jump to the window", "—", "Snooze"])
@@ -95,28 +84,27 @@ struct RowMenuTests {
             "Later today\t17:00", "Tomorrow\tSat 09:00", "Next week\tMon 09:00", "—", "Until it moves",
         ])
 
+        snooze.performActionForItem(at: 1)
         snooze.performActionForItem(at: 4)
-        snooze.performActionForItem(at: 0)
-        #expect(heard.said == ["snooze Until it moves", "snooze Later today"])
-        #expect(heard.named == [.turn(ended: Self.ended), .turn(ended: Self.ended)])
+        #expect(heard.said == ["snooze Tomorrow", "snooze Until it moves"])
+        #expect(heard.named == [asks, asks])
     }
 
-    @Test(arguments: [Snoozable.asks(["k1"]), .turn(ended: ended)])
-    func aSnoozedRowOffersWakeNow(asleep: Snoozable) {
+    @Test(arguments: [["k1"], []])
+    func aSnoozedRowOffersWakeNow(asks: [String]) {
         let heard = Heard()
-        let menu = Self.menu(RowMenu.Row(snoozable: asleep, isSnoozed: true), heard)
+        let menu = Self.menu(RowMenu.Row(asks: asks, isSnoozed: true), heard)
 
         #expect(Self.titles(menu) == ["Jump to the window", "—", "Wake now"])
 
         menu.performActionForItem(at: 2)
         #expect(heard.said == ["wake"])
-        #expect(heard.named == [asleep])
     }
 
     /// The times sit on one right tab stop past the longest name, dim, and brighter on the one highlighted; Until it
     /// moves, past the separator, its name alone.
     @Test func theTimesSitAtTheRightBrighterHighlighted() throws {
-        let snooze = SnoozeMenu(SnoozeTime.offered(forTurn: true), at: Self.now, in: Self.london) { _ in }
+        let snooze = SnoozeMenu(SnoozeTime.offered, at: Self.now, in: Self.london) { _ in }
         let timed = Array(snooze.items.prefix(3))
         let stops = try timed.map { item in
             try #require(item.attributedTitle?.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle)
@@ -137,7 +125,7 @@ struct RowMenuTests {
     /// Past the separator, which takes no title of its own, Until it moves is its name alone, highlighted or not: no
     /// tab, and no time.
     @Test func untilItMovesIsDrawnWithNoTabAndNoTime() {
-        let snooze = SnoozeMenu(SnoozeTime.offered(forTurn: true), at: Self.now, in: Self.london) { _ in }
+        let snooze = SnoozeMenu(SnoozeTime.offered, at: Self.now, in: Self.london) { _ in }
         let separator = snooze.items[3], moves = snooze.items[4]
 
         #expect(separator.isSeparatorItem && separator.attributedTitle == nil)
@@ -147,27 +135,28 @@ struct RowMenuTests {
         }
     }
 
-    /// The card's row offers what it shows: its asks, a window's stops aside; its turn, by the turn's end, on Your turn
-    /// and in Snoozed; Wake now in Snoozed.
+    /// The card's row offers what it shows: its asks, a window's stops aside, on Needs you and in Snoozed; on a turn's
+    /// row, Snooze or Wake now naming no ask; on a row of stops alone, neither.
     @Test func theCardsRowOffersWhatItShows() {
         let lines = [
             Session.Line(ask: "k1", title: "Review the plan", since: 0),
             Session.Line(title: "Allow Bash", code: "gh pr create", since: 1),
         ]
         let needs = Session(id: "sr-4g01a7", project: "Harness", kind: .needs, lines: lines, sub: "Harness")
+        let stops = Session(id: "sr-4g01a7", project: "Harness", kind: .needs, lines: [lines[1]], sub: "Harness")
         let asleep = Session(id: "sr-4g01a7", project: "Harness", kind: .snoozed, lines: [lines[0]], sub: "Harness", wakesAt: 9)
         let turn = Session(
-            id: "sr-4g01a7", project: "Harness", kind: .turn, title: "Stage 2 is in", sub: "Harness",
-            since: Self.ended.timeIntervalSince1970 * 1000
+            id: "sr-4g01a7", project: "Harness", kind: .turn, title: "Stage 2 is in", sub: "Harness", since: Self.ended
         )
         let turnAsleep = Session(
             id: "sr-4g01a7", project: "Harness", name: "Finish the Harness modernisation", kind: .snoozedTurn,
             lines: turn.lines, sub: "Harness"
         )
 
-        #expect(RowMenu.Row(needs) == RowMenu.Row(snoozable: .asks(["k1"]), isSnoozed: false))
-        #expect(RowMenu.Row(asleep) == RowMenu.Row(snoozable: .asks(["k1"]), isSnoozed: true))
-        #expect(RowMenu.Row(turn) == RowMenu.Row(snoozable: .turn(ended: Self.ended), isSnoozed: false))
-        #expect(RowMenu.Row(turnAsleep) == RowMenu.Row(snoozable: .turn(ended: Self.ended), isSnoozed: true))
+        #expect(RowMenu.Row(needs) == RowMenu.Row(asks: ["k1"], isSnoozed: false))
+        #expect(RowMenu.Row(stops) == RowMenu.Row(asks: nil, isSnoozed: false))
+        #expect(RowMenu.Row(asleep) == RowMenu.Row(asks: ["k1"], isSnoozed: true))
+        #expect(RowMenu.Row(turn) == RowMenu.Row(asks: [], isSnoozed: false))
+        #expect(RowMenu.Row(turnAsleep) == RowMenu.Row(asks: [], isSnoozed: true))
     }
 }

@@ -4,14 +4,14 @@
  * holding what its shape takes: a yes its button's words, a choice its
  * options, words what they are. A refusal says what to fix, in words Claude
  * can act on. Lee's answer to an ask from outside Claude Code, as the CLI
- * gives it, is checked here too, and Lee's snooze and waking of asks and
- * of a turn.
+ * gives it, is checked here too, and Lee's snooze and waking of a
+ * session.
  */
 import { isTime } from './entries'
 import { isSessionId, newItemId, type Random } from './ids'
 import { directoryOf, isNameable } from './project'
 import { needsReload } from './release'
-import { isSnoozed, replyOnItsWay, yesOf } from './replies'
+import { waitingOnLee, waitsOnLee, yesOf } from './replies'
 import { turnEndOf } from './rows'
 import { WANTS } from './shapes'
 import type { StatusFields } from './status'
@@ -31,11 +31,9 @@ import {
   type ReopenBody,
   type ReplyBody,
   type ResolveBody,
-  type SnoozeBody,
-  type SnoozeTurnBody,
+  type SnoozeSessionBody,
   type StatusBody,
-  type WakeBody,
-  type WakeTurnBody,
+  type WakeSessionBody,
   type Wants,
   type Session,
 } from './types'
@@ -617,54 +615,32 @@ export const checkAnswer = (session: Session, input: unknown, version?: string):
 
   return fields.ignore === true ? ignored(ask, given) : worded(ask, given)
 }
-
-/** What a snooze needs of each ask it names: open, and waiting on Lee as posted. */
-const SNOOZE_RULES: readonly AskRule[] = [
-  ...OPEN_RULES,
-  [
-    ask => replyOnItsWay(ask) !== undefined,
-    ask => `Lee's reply to ${ask.id} is on its way: it waits on Lee no more.`,
-  ],
-  [
-    ask => ask.state === 'replied',
-    ask => `${ask.id} waits on Claude: Lee's comment is Claude's to act on.`,
-  ],
-]
-
-/** What a wake needs of each ask it names: snoozed. */
-const WAKE_RULES: readonly AskRule[] = [
-  [ask => !isSnoozed(ask), ask => `${ask.id} is not snoozed.`],
-]
-
 const isRefusal = <T>(checked: Checked<T>): checked is { ok: false; error: string } => !checked.ok
 
+/** Why a snooze is refused where an ask waits on Lee that the row did not show: it came in since, and is never snoozed unseen. */
+const UNSEEN = 'An ask waits on Lee that the snooze did not name: look at it, then snooze again.'
+
 /**
- * The asks a snooze or a wake names, by their ids, in a session not
- * finished, each an ask that keeps `rules`; or a refusal, the first that
- * applies saying why, whichever ask it is.
+ * Why the asks a snooze names, those its row showed, by their ids, will not
+ * do: an id that is no item, or no ask; or an ask waiting on Lee, not
+ * snoozed, that they leave out. Undefined while they do.
  */
-const asksNamed = (session: Session, fields: Fields, rules: readonly AskRule[]): Checked<Ask[]> => {
-  if (session.finished !== undefined) {
-    return refuse(FINISHED)
-  }
-
+const unshown = (session: Session, fields: Fields) => {
   const named = (lines(fields.ask) ?? []).map(id => askIn(session, id))
-
-  if (named.length === 0) {
-    return refuse('Name the asks by their ids, as the board lists them.')
-  }
-
   const refused = named.find(isRefusal)
 
   if (refused !== undefined) {
-    return refused
+    return refused.error
   }
 
-  const asks = named.flatMap(each => (each.ok ? [each.value] : []))
-  const broken = brokenBy(rules, asks)
+  const ids = new Set(named.flatMap(each => (each.ok ? [each.value.id] : [])))
 
-  return broken === undefined ? ok(asks) : refuse(broken)
+  return waitingOnLee(session).every(ask => ids.has(ask.id)) ? undefined : UNSEEN
 }
+
+/** Whether a session needs anything of Lee that a snooze puts off at `now`: an ask waiting on him, snoozed or not, or its turn. */
+const needsLeeAt = (session: Session, now: number) =>
+  session.asks.some(waitsOnLee) || turnEndOf(session, now) !== undefined
 
 /** When a snooze wakes, as given: whole milliseconds since the epoch, as a number or in digits, that a `Date` holds; undefined where it is no time. */
 const timeIn = (value: unknown) => {
@@ -674,115 +650,71 @@ const timeIn = (value: unknown) => {
 }
 
 /**
- * Lee's snooze of asks of the session until a time, a line for each, as the
- * CLI and the pane give it: every ask named takes it, or none does. Each is
- * open and waits on Lee as posted, with no reply of Lee's on its way to it
- * nor a comment of Lee's for Claude to act on; one snoozed already is
- * snoozed again, to the new time, which is still to come at `now`.
+ * Lee's snooze of the session until a time, as the app's row menu and the
+ * pane give it: everything it needs of Lee, its asks waiting and its turn,
+ * put off together. The asks named are those the row showed, so one that
+ * came in since is never snoozed unseen. Refused in a finished session, and
+ * in one needing nothing of Lee, a window's stops being its own; snoozed
+ * already, it is snoozed again, to the new time, still to come at `now`.
+ * With no time it holds until it moves, as the session's next turn ends.
+ * The line holds the asks waiting on Lee as it is checked, snoozed or not:
+ * one whose answer is on its way then is not his to put off.
  */
 export const checkSnooze = (
   session: Session,
   input: unknown,
   now: number,
-): Checked<SnoozeBody[]> => {
+): Checked<SnoozeSessionBody> => {
+  if (session.finished !== undefined) {
+    return refuse(FINISHED)
+  }
+
   const fields = fieldsOf(input)
-  const asks = asksNamed(session, fields, SNOOZE_RULES)
+  const unseen = unshown(session, fields)
 
-  if (!asks.ok) {
-    return asks
+  if (unseen !== undefined) {
+    return refuse(unseen)
   }
 
-  const until = timeIn(fields.until)
-
-  if (until === undefined) {
-    return refuse('A snooze needs its time: --until, in milliseconds since the epoch.')
+  if (!needsLeeAt(session, now)) {
+    return refuse(`${session.status.name} needs nothing of Lee: there is nothing to snooze.`)
   }
 
-  return until > now
-    ? ok(asks.value.map((ask): SnoozeBody => ({ type: 'snooze', item: ask.id, until })))
-    : refuse('That time has come already: give one still to come.')
-}
-
-/** Lee's waking of snoozed asks of the session now, a line for each: every ask named is snoozed, or none is woken. */
-export const checkWake = (session: Session, input: unknown): Checked<WakeBody[]> => {
-  const asks = asksNamed(session, fieldsOf(input), WAKE_RULES)
-
-  return asks.ok ? ok(asks.value.map((ask): WakeBody => ({ type: 'wake', item: ask.id }))) : asks
-}
-
-/** The turn a snooze or a wake of a turn names, by its end; or a refusal, where none is named or asks are named with it. */
-const turnNamed = (fields: Fields): Checked<number> => {
-  const turn = timeIn(fields.turn)
-
-  if (turn === undefined) {
-    return refuse(
-      "Name the turn by its end: --turn, in milliseconds since the epoch, as watch gives its row's since.",
-    )
-  }
-
-  return (lines(fields.ask) ?? []).length > 0
-    ? refuse('Name the asks or the turn, not both.')
-    : ok(turn)
-}
-
-/**
- * Lee's snooze of the session's turn, as the CLI gives it: the turn the
- * session stands at your turn on at `now`, named by its end, until a time
- * still to come, or with none until the session takes another turn.
- */
-export const checkSnoozeTurn = (
-  session: Session,
-  input: unknown,
-  now: number,
-): Checked<SnoozeTurnBody> => {
-  const fields = fieldsOf(input)
-  const turn = turnNamed(fields)
-
-  if (!turn.ok) {
-    return turn
-  }
-
-  const end = turnEndOf(session, now)
-
-  if (end === undefined) {
-    return refuse(
-      `${session.status.name} is not waiting on Lee's message: only a turn Claude has ended snoozes.`,
-    )
-  }
-
-  if (end !== turn.value) {
-    return refuse('That turn is over: the session has taken another since.')
-  }
+  const asks = session.asks.filter(waitsOnLee).map(ask => ask.id)
 
   if (fields.until === undefined) {
-    return ok({ type: 'snoozeTurn', turn: turn.value })
+    return ok({ type: 'snoozeSession', asks })
   }
 
   const until = timeIn(fields.until)
 
   if (until === undefined) {
-    return refuse('A snooze wakes at a time in milliseconds since the epoch.')
+    return refuse(
+      'A snooze wakes at a time in milliseconds since the epoch, or with none until it moves.',
+    )
   }
 
   return until > now
-    ? ok({ type: 'snoozeTurn', turn: turn.value, until })
+    ? ok({ type: 'snoozeSession', until, asks })
     : refuse('That time has come already: give one still to come.')
 }
 
 /**
- * Lee's waking now of the session's turn Lee snoozed, named by its end: the
- * snooze Lee last wrote names it, holding or not, since one run out at its
- * time, or ended by a later turn, leaves nothing to wake and says so by no
- * refusal; or nothing is woken.
+ * Lee's waking of the session now, whatever he snoozed of it: refused in a
+ * finished session, and with no snooze of his standing. One run out at its
+ * time, or an old line's of an ask, or of a turn the session has moved on
+ * from, still stands until woken, so a Wake now pressed as its time comes
+ * is never refused.
  */
-export const checkWakeTurn = (session: Session, input: unknown): Checked<WakeTurnBody> => {
-  const turn = turnNamed(fieldsOf(input))
-
-  if (!turn.ok) {
-    return turn
+export const checkWake = (session: Session): Checked<WakeSessionBody> => {
+  if (session.finished !== undefined) {
+    return refuse(FINISHED)
   }
 
-  return session.turnSnooze?.turn === turn.value
-    ? ok({ type: 'wakeTurn', turn: turn.value })
-    : refuse('That turn is not snoozed.')
+  const isAsleep =
+    session.snooze !== undefined ||
+    session.turnSnooze !== undefined ||
+    session.asks.some(ask => ask.snoozedUntil !== undefined || ask.wokeAt !== undefined)
+
+  return isAsleep ? ok({ type: 'wakeSession' }) : refuse(`${session.status.name} is not snoozed.`)
 }

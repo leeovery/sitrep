@@ -303,6 +303,14 @@ export const heardRequest = async (
   }
 }
 
+/** Whether a settings hook beneath blocked a Stop, which goes on with the turn. */
+const isBlocked = (answer: StopAnswer) =>
+  answer.block !== undefined && answer.preventContinuation !== true
+
+/** Whether a Stop ends the window's turn: not a subagent's, nor one blocked. */
+export const isTurnStop = (input: StopInput, answer: StopAnswer) =>
+  input.agent_id === undefined && !isBlocked(answer)
+
 /**
  * The window's turn stopping, unless a settings hook beneath blocked its
  * Stop, which goes on with the turn: what it lists pending replaces what
@@ -318,7 +326,7 @@ export const heardStop = async (
     return
   }
 
-  if (answer.block !== undefined && answer.preventContinuation !== true) {
+  if (isBlocked(answer)) {
     host.log('sitrep: a settings hook blocked the Stop, so the turn goes on: nothing pending heard')
 
     return

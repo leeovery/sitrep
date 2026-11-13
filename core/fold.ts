@@ -5,6 +5,18 @@
  * then writer, then a writer's own file before its letters before its
  * messages in flight, then the count within each) and read into the board.
  */
+import {
+  endAskSnooze,
+  newNeed,
+  nothingAsleep,
+  replied,
+  snoozeAsk,
+  snoozeSession,
+  standAsleep,
+  wakeAsk,
+  wakeSession,
+  type Asleep,
+} from './asleep'
 import { parseEntries } from './entries'
 import { parseMeta } from './meta'
 import { unpaused, type Pause } from './pauses'
@@ -26,6 +38,7 @@ import { statusChange } from './status'
 import { compareText } from './text'
 import {
   EDITABLE,
+  UNTIL_IT_MOVES,
   type Ask,
   type AskBody,
   type Body,
@@ -41,7 +54,6 @@ import {
   type Reply,
   type SentReply,
   type Status,
-  type TurnSnooze,
   type Session,
   type Voided,
 } from './types'
@@ -92,29 +104,9 @@ type Fold = {
   log: Array<LogLine | Note>
   /** The replies carried in flight that reached their items on their way. */
   carried: Set<Reply>
-  /** When Lee's latest snooze of each ask wakes, by ask, until a line ends it. */
-  snoozes: Map<string, number>
-  /** Lee's latest snooze of the session's turn, until Lee wakes it, or something needs Lee in the session or Lee replies there. */
-  turnSnooze?: TurnSnooze
+  /** What Lee's snoozes hold, as the lines so far say. */
+  asleep: Asleep
 }
-
-/** Whether an ask's snooze, running out at `until`, woke it by `at` and after Lee snoozed the turn: it needed Lee since. */
-const wokeSinceTurnSnooze = (fold: Fold, until: number | undefined, at: number) =>
-  until !== undefined && fold.turnSnooze !== undefined && fold.turnSnooze.at < until && until <= at
-
-/** An ask's snooze ended by a line at `at`; one that had woken it since Lee snoozed the turn ends the turn's too. */
-const endSnooze = (fold: Fold, id: string, at: number) => {
-  if (wokeSinceTurnSnooze(fold, fold.snoozes.get(id), at)) {
-    fold.turnSnooze = undefined
-  }
-  fold.snoozes.delete(id)
-}
-
-/** Lee's snooze of the turn as it stands at `now`: none once an ask Lee snoozed has woken since it was written. */
-const turnSnoozeAt = (fold: Fold, now: number) =>
-  [...fold.snoozes.values()].some(until => wokeSinceTurnSnooze(fold, until, now))
-    ? undefined
-    : fold.turnSnooze
 
 type Handler<T extends Body['type']> = (fold: Fold, entry: Extract<Written, { type: T }>) => void
 
@@ -141,7 +133,7 @@ const post = (fold: Fold, item: Item) => {
   return true
 }
 
-/** Lee's reply settles an ask still open, and ends its snooze; one closing it says how, and leaves it no reason of Claude's. */
+/** Lee's reply settles an ask still open, and ends an old line's snooze of it; one closing it says how, and leaves it no reason of Claude's. */
 const settleAsk = (fold: Fold, ask: Ask, reply: Reply, at: number) => {
   if (ask.closedBy !== undefined) {
     return
@@ -149,7 +141,7 @@ const settleAsk = (fold: Fold, ask: Ask, reply: Reply, at: number) => {
 
   ask.state = askAfter(ask, reply.verdict)
   ask.answer = reply
-  fold.snoozes.delete(ask.id)
+  endAskSnooze(fold.asleep, ask.id, at)
 
   if (!isOpen(ask)) {
     ask.closedAt = at
@@ -383,7 +375,7 @@ const reshape = (ask: Ask, { wants, kind }: EditBody['changes']) => {
   fitShape(ask)
 }
 
-/** An item opening again, afresh, an ask's snooze ended: where it stood closed, every reply then settled, void or delivered, is history from here; one on its way stays live. */
+/** An item opening again, afresh, an old line's snooze of an ask ended: where it stood closed, every reply then settled, void or delivered, is history from here; one on its way stays live. */
 const reopen = (fold: Fold, item: Item, at: number) => {
   if (item.type !== 'note' && item.closedBy !== undefined) {
     for (const reply of item.replies.filter(each => !isPending(each) && isLine(fold, each))) {
@@ -391,7 +383,7 @@ const reopen = (fold: Fold, item: Item, at: number) => {
     }
   }
 
-  fold.snoozes.delete(item.id)
+  endAskSnooze(fold.asleep, item.id, at)
   item.openedAt = at
   item.closedAt = undefined
   item.closedBy = undefined
@@ -440,7 +432,7 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
     fitShape(ask)
 
     if (post(fold, ask)) {
-      fold.turnSnooze = undefined
+      newNeed(fold.asleep, at)
     }
   },
 
@@ -475,7 +467,7 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
     }
 
     item.reason = reason
-    endSnooze(fold, id, at)
+    endAskSnooze(fold.asleep, id, at)
 
     if (item.closedBy === undefined) {
       item.state = 'closed'
@@ -497,7 +489,7 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
     }
 
     if (item?.type === 'ask') {
-      fold.turnSnooze = undefined
+      newNeed(fold.asleep, at)
     }
   },
 
@@ -543,7 +535,8 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
     arrive(fold, item, reply, at)
     fold.replies.set(id, reply)
     item.replies.push(reply)
-    fold.turnSnooze = undefined
+
+    replied(fold.asleep, item, at)
 
     if (early !== undefined) {
       deliver(fold, reply, early)
@@ -576,28 +569,28 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
     fold.finished = undefined
   },
 
+  snoozeSession: (fold, { until, asks, at }) =>
+    snoozeSession(fold.asleep, until ?? UNTIL_IT_MOVES, asks, at),
+
+  wakeSession: fold => wakeSession(fold.asleep),
+
   snooze: (fold, { item: id, until }) => {
     const item = fold.items.get(id)
 
-    if (item?.type === 'ask' && item.state === 'waiting') {
-      fold.snoozes.set(id, until)
+    if (item?.type === 'ask') {
+      snoozeAsk(fold.asleep, item, until, fold.items.values())
     }
   },
 
-  wake: (fold, { item: id }) => {
-    if (fold.snoozes.has(id)) {
-      fold.turnSnooze = undefined
-    }
-    fold.snoozes.delete(id)
-  },
+  wake: (fold, { item: id }) => wakeAsk(fold.asleep, id),
 
   snoozeTurn: (fold, { turn, until, at }) => {
-    fold.turnSnooze = until === undefined ? { turn, at } : { turn, until, at }
+    fold.asleep.turn = until === undefined ? { turn, at } : { turn, until, at }
   },
 
   wakeTurn: (fold, { turn }) => {
-    if (fold.turnSnooze?.turn === turn) {
-      fold.turnSnooze = undefined
+    if (fold.asleep.turn?.turn === turn) {
+      fold.asleep.turn = undefined
     }
   },
 }
@@ -743,8 +736,13 @@ const presenceOf = (files: Readonly<Record<string, string>>, pauses: readonly Pa
 const isAsk = (item: Item): item is Ask => item.type === 'ask'
 const isParked = (item: Item): item is Parked => item.type === 'park' && item.state === 'parked'
 
-/** Lee's snoozes and wakes of a turn are never told to Claude, so they leave a session as recent as it was. */
-const UNTOLD: ReadonlySet<Body['type']> = new Set(['snoozeTurn', 'wakeTurn'])
+/** Lee's snoozes and wakes of a session or a turn are never told to Claude, so they leave a session as recent as it was. */
+const UNTOLD: ReadonlySet<Body['type']> = new Set([
+  'snoozeSession',
+  'wakeSession',
+  'snoozeTurn',
+  'wakeTurn',
+])
 
 const isTold = (entry: Written) => !UNTOLD.has(entry.type)
 
@@ -771,24 +769,6 @@ const isAboutParked = (fold: Fold, entry: Written) => {
 
 /** Whether a line moves the session's time: told to Claude, and about something but parked items, their parks aside, since a parked item is its project's. */
 const movesTime = (fold: Fold, entry: Written) => isTold(entry) && !isAboutParked(fold, entry)
-
-/**
- * An ask under Lee's latest snooze of it, as that stands at `now`: snoozed
- * while its time is to come, woken at it once it has. Only an ask waiting
- * as posted has one, since whatever moves it on ends it. The wall clock's
- * instant, not a heartbeat's age: no pause holds it back.
- */
-const standSnooze = (ask: Ask, until: number | undefined, now: number) => {
-  if (until === undefined) {
-    return
-  }
-
-  if (now < until) {
-    ask.snoozedUntil = until
-  } else {
-    ask.wokeAt = until
-  }
-}
 
 /**
  * A session as it stands at `now`; undefined when its session.json is
@@ -818,7 +798,7 @@ export const foldSession = (
     ids: new Set(),
     log: [],
     carried: new Set(),
-    snoozes: new Map(),
+    asleep: nothingAsleep(),
   }
   const letters = written(files.inbox ?? {}, 'letters').filter(entry => entry.type === 'reply')
   const lines = [...written(files.logs, 'file'), ...letters].sort(inOrder)
@@ -838,10 +818,7 @@ export const foldSession = (
   }
 
   const asks = items.filter(isAsk)
-
-  for (const ask of asks) {
-    standSnooze(ask, fold.snoozes.get(ask.id), now)
-  }
+  const { snooze, turnSnooze, turnWithAsks } = standAsleep(fold.asleep, asks, now)
 
   return {
     id: meta.id,
@@ -860,7 +837,9 @@ export const foldSession = (
     deliverer: deliverer(presence, now),
     waiting: waitingOnLee({ asks, finished: fold.finished }).length,
     finished: fold.finished,
-    turnSnooze: turnSnoozeAt(fold, now),
+    snooze,
+    turnSnooze,
+    turnWithAsks,
     ids: fold.ids,
     updatedAt,
   }

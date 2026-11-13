@@ -124,6 +124,8 @@ const SHAPES: { [T in Body['type']]: Record<string, Check> } = {
   delivered: { replies: isTexts },
   finish: { who: isFinisher, reason: maybe(isText) },
   unfinish: {},
+  snoozeSession: { until: maybe(isTime), asks: isTexts },
+  wakeSession: {},
   snooze: { item: isText, until: isTime },
   wake: { item: isText },
   snoozeTurn: { turn: isTime, until: maybe(isTime) },

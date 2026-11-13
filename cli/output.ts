@@ -17,6 +17,7 @@ import {
   replyState,
   resolvedAsks,
   snoozedUntilIn,
+  UNTIL_IT_MOVES,
   type Ask,
   type Feed,
   type FeedProject,
@@ -157,7 +158,13 @@ const askJson = (session: SessionSummary, ask: Ask) => ({
   state: ask.state,
   at: ask.at,
   reply: replyJson(ask),
-  snoozedUntil: snoozedUntilIn(session, ask) ?? null,
+  ...snoozedJson(snoozedUntilIn(session, ask)),
+})
+
+/** When an ask's snooze wakes, null while it is not snoozed, and null too for one until it moves, which says so. */
+const snoozedJson = (until: number | undefined) => ({
+  snoozedUntil: until === undefined || until === UNTIL_IT_MOVES ? null : until,
+  untilItMoves: until === UNTIL_IT_MOVES,
 })
 
 /** A resolved ask: as an open one is, with when it closed, and Claude's reason, where Claude gave one as it resolved the ask. */

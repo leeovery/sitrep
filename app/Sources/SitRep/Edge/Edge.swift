@@ -35,8 +35,8 @@ final class Edge {
         notch = NotchController(settings, on: display)
         strip = StripController(settings, on: display)
         notch.onJump = jump
-        notch.onSnooze = { snoozes.snoozeRow($1, of: $0, $2) }
-        notch.onWake = { snoozes.wakeRow($1, of: $0) }
+        notch.onSnooze = { snoozes.snoozeRow($0, showing: $1, $2) }
+        notch.onWake = { snoozes.wakeRow($0) }
         strip.onJump = jump
         notch.onMoved = { [unowned self] in moved($0) }
         strip.onMoved = { [unowned self] in moved($0) }

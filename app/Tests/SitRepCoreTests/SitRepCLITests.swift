@@ -27,12 +27,12 @@ struct SitRepCLITests {
     @Test func aRunIsThePluginsCLIWithLeesPathAndTheAppsEnvironment() async {
         let (cli, programs) = Self.cli(Self.exited(0))
 
-        _ = await cli.wake(.asks(["k1"]), of: "sr-gs7kq2")
+        _ = await cli.wake("sr-gs7kq2")
 
         #expect(programs.all == [
             Program(
                 executable: URL(fileURLWithPath: "/Users/lee/Code/sitrep/bin/sitrep"),
-                arguments: ["wake", "--session", "sr-gs7kq2", "--", "k1"],
+                arguments: ["wake", "--session", "sr-gs7kq2"],
                 environment: ["HOME": "/Users/lee", "PATH": Self.path],
                 limit: SitRepCLI.sessionLimit,
                 stopping: .group
@@ -43,13 +43,13 @@ struct SitRepCLITests {
     @Test func aRunThatFailsSayingNothingGivesItsStatus() async {
         let (cli, _) = Self.cli(Self.exited(127, stderr: "  \n"))
 
-        #expect(await cli.wake(.asks(["k1"]), of: "sr-gs7kq2") == .refused("sitrep wake ended with status 127."))
+        #expect(await cli.wake("sr-gs7kq2") == .refused("sitrep wake ended with status 127."))
     }
 
     @Test func aFailureNotFromTheCLIIsGivenWhole() async {
         let (cli, _) = Self.cli(Self.exited(127, stderr: "env: bun: No such file or directory\n"))
 
-        #expect(await cli.wake(.asks(["k1"]), of: "sr-gs7kq2") == .refused("env: bun: No such file or directory"))
+        #expect(await cli.wake("sr-gs7kq2") == .refused("env: bun: No such file or directory"))
     }
 
     @Test func ofAManyLinedFailureTheCLIsOwnLineIsGiven() async {
@@ -60,7 +60,7 @@ struct SitRepCLITests {
         """
         let (cli, _) = Self.cli(Self.exited(2, stderr: stderr))
 
-        #expect(await cli.wake(.asks(["k1"]), of: "sr-zzzzzz") == .refused("There is no session sr-zzzzzz on the board, in any project."))
+        #expect(await cli.wake("sr-zzzzzz") == .refused("There is no session sr-zzzzzz on the board, in any project."))
     }
 
     @Test func ofAManyLinedFailureNotTheCLIsTheFirstLineWithAnythingOnItIsGiven() async {
@@ -72,7 +72,7 @@ struct SitRepCLITests {
         """
         let (cli, _) = Self.cli(Self.exited(1, stderr: stderr))
 
-        #expect(await cli.wake(.asks(["k1"]), of: "sr-gs7kq2") == .refused(#"error: Cannot find module "../cli/shell" from "/Users/lee/Code/sitrep/bin/sitrep""#))
+        #expect(await cli.wake("sr-gs7kq2") == .refused(#"error: Cannot find module "../cli/shell" from "/Users/lee/Code/sitrep/bin/sitrep""#))
     }
 
     @Test func thePathIsAskedForAtEachRun() async {
@@ -84,8 +84,8 @@ struct SitRepCLITests {
             return Ran(status: 0, stdout: "", stderr: "")
         }
 
-        _ = await cli.wake(.asks(["k1"]), of: "sr-gs7kq2")
-        _ = await cli.wake(.asks(["k1"]), of: "sr-gs7kq2")
+        _ = await cli.wake("sr-gs7kq2")
+        _ = await cli.wake("sr-gs7kq2")
 
         #expect(programs.all.map { $0.environment["PATH"] } == ["/usr/bin:/bin", Self.path])
     }
@@ -93,78 +93,56 @@ struct SitRepCLITests {
     @Test func aCLIThatCannotStartSaysSo() async {
         let (cli, _) = Self.cli { _ in throw RunError.unstartable("no such file") }
 
-        #expect(await cli.wake(.asks(["k1"]), of: "sr-gs7kq2") == .refused("sitrep wake could not start: no such file."))
+        #expect(await cli.wake("sr-gs7kq2") == .refused("sitrep wake could not start: no such file."))
     }
 
     @Test func aWriteThatNeverEndsSaysSo() async {
         let (cli, _) = Self.cli { program in throw RunError.timedOut(program.limit) }
 
-        #expect(await cli.wake(.asks(["k1"]), of: "sr-gs7kq2") == .refused("sitrep wake did not answer within 10 seconds."))
+        #expect(await cli.wake("sr-gs7kq2") == .refused("sitrep wake did not answer within 10 seconds."))
     }
 
-    /// The asks come after `--`, its time in whole milliseconds since the epoch.
-    @Test func snoozeRunsSnoozeWithItsTimeAndTheAsksAfterTheirDashes() async {
+    /// A snooze puts off the session, its time in whole milliseconds since the epoch, naming after `--` the asks its
+    /// row showed, so the CLI refuses one landed since.
+    @Test func snoozeRunsSnoozeWithItsTimeAndTheAsksShownAfterTheirDashes() async {
         let (cli, programs) = Self.cli(Self.exited(0))
         let until = Date(timeIntervalSince1970: 1_792_745_127)
 
-        #expect(await cli.snooze(.asks(["k1", "k3"]), of: "sr-4g01a7", until: until) == .written)
+        #expect(await cli.snooze("sr-4g01a7", showing: ["k1", "k3"], until: until) == .written)
         #expect(programs.all.map(\.arguments) == [
             ["snooze", "--until", "1792745127000", "--session", "sr-4g01a7", "--", "k1", "k3"],
         ])
         #expect(programs.all.map(\.limit) == [10])
     }
 
-    @Test func wakeRunsWakeWithTheAsksAfterTheirDashes() async {
+    /// A turn's row shows no ask: its snooze names none. Until it moves, it gives no time.
+    @Test func aTurnsRowIsSnoozedNamingNoAskAndUntilItMovesWithNoTime() async {
         let (cli, programs) = Self.cli(Self.exited(0))
-
-        #expect(await cli.wake(.asks(["k2"]), of: "sr-4g01a7") == .written)
-        #expect(programs.all.map(\.arguments) == [["wake", "--session", "sr-4g01a7", "--", "k2"]])
-    }
-
-    /// A turn is named by its end, in whole milliseconds since the epoch, as is its time; snoozed until it moves, with
-    /// none.
-    @Test func aTurnIsSnoozedAndWokenByItsEnd() async {
-        let (cli, programs) = Self.cli(Self.exited(0))
-        let ended = Date(timeIntervalSince1970: 1_792_741_527.619)
         let until = Date(timeIntervalSince1970: 1_792_745_127)
 
-        #expect(await cli.snooze(.turn(ended: ended), of: "sr-4g01a7", until: until) == .written)
-        #expect(await cli.snooze(.turn(ended: ended), of: "sr-4g01a7", until: nil) == .written)
-        #expect(await cli.wake(.turn(ended: ended), of: "sr-4g01a7") == .written)
+        #expect(await cli.snooze("sr-4g01a7", showing: [], until: until) == .written)
+        #expect(await cli.snooze("sr-4g01a7", showing: ["k1"], until: nil) == .written)
         #expect(programs.all.map(\.arguments) == [
-            ["snooze", "--until", "1792745127000", "--session", "sr-4g01a7", "--turn", "1792741527619"],
-            ["snooze", "--session", "sr-4g01a7", "--turn", "1792741527619"],
-            ["wake", "--session", "sr-4g01a7", "--turn", "1792741527619"],
+            ["snooze", "--until", "1792745127000", "--session", "sr-4g01a7", "--"],
+            ["snooze", "--session", "sr-4g01a7", "--", "k1"],
         ])
     }
 
-    /// A turn's end with milliseconds no binary fraction holds, as `watch` gives its row's `since`, comes back to the
-    /// CLI as the very millisecond the board gave, which the CLI matches exactly: the row's `Date` is rounded to it,
-    /// never cut short.
-    @Test func aTurnsEndIsNamedToTheMillisecondTheBoardGaveIt() async throws {
+    @Test func wakeRunsWakeOfTheSession() async {
         let (cli, programs) = Self.cli(Self.exited(0))
-        let line = Lines.snoozedTurn[0].replacingOccurrences(of: "1793817590000", with: "1793817590123")
-        var last = LastBoard()
 
-        _ = last.hear(.line(line), at: .now)
-
-        let ended = try #require(last.board?.rows.first?.since)
-
-        #expect(await cli.snooze(.turn(ended: ended), of: "sr-fbrk3m", until: nil) == .written)
-        #expect(await cli.wake(.turn(ended: ended), of: "sr-fbrk3m") == .written)
-        #expect(programs.all.map { Array($0.arguments.suffix(2)) } == [
-            ["--turn", "1793817590123"], ["--turn", "1793817590123"],
-        ])
+        #expect(await cli.wake("sr-4g01a7") == .written)
+        #expect(programs.all.map(\.arguments) == [["wake", "--session", "sr-4g01a7"]])
     }
 
     @Test(arguments: [
-        "k1 is not snoozed.", "Lee's reply to k1 is on its way: it waits on Lee no more.",
+        "Harness is not snoozed.", "An ask waits on Lee that the snooze did not name: look at it, then snooze again.",
     ])
     func aSnoozeOrAWakeRefusedGivesTheCLIsWords(words: String) async {
         let (cli, _) = Self.cli(Self.exited(1, stderr: "sitrep: \(words)\n"))
 
-        #expect(await cli.wake(.asks(["k1"]), of: "sr-4g01a7") == .refused(words))
-        #expect(await cli.snooze(.asks(["k1"]), of: "sr-4g01a7", until: Date()) == .refused(words))
+        #expect(await cli.wake("sr-4g01a7") == .refused(words))
+        #expect(await cli.snooze("sr-4g01a7", showing: ["k1"], until: Date()) == .refused(words))
     }
 }
 
