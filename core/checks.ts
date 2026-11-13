@@ -349,18 +349,20 @@ export const checkResolve = (session: Session, input: unknown): Checked<ResolveB
   closeOrOpen('resolve', session, input)
 
 /**
- * The ask a resolve names where Lee's answer closed it already, a yes, a
- * choice, words or an ignore: resolving it changes nothing, and passes
- * quietly rather than refused, since the message carrying the answer may
- * have read to Claude as leaving it open. Undefined for any other resolve,
- * which `checkResolve` decides.
+ * The item a resolve names where Lee closed it already: an ask by his yes,
+ * choice, words or ignore, a parked item by his pick-up. Resolving it
+ * changes nothing, and passes quietly rather than refused, since the
+ * message carrying his reply may have read to Claude as leaving it open,
+ * and a resolve written would put Claude's reason over Lee's reply.
+ * Undefined for any other resolve, which `checkResolve` decides.
  */
-export const answeredAlready = (session: Session, input: unknown): Ask | undefined => {
+export const closedByLee = (session: Session, input: unknown): Ask | Parked | undefined => {
   const item = target(session, fieldsOf(input))
 
   return item.ok &&
-    item.value.type === 'ask' &&
-    (item.value.closedBy === 'answer' || item.value.closedBy === 'ignore')
+    item.value.type !== 'note' &&
+    item.value.closedBy !== undefined &&
+    item.value.closedBy !== 'claude'
     ? item.value
     : undefined
 }
@@ -391,59 +393,57 @@ const LINE_FIELD: Record<Item['type'], 'text' | 'title'> = {
   park: 'title',
 }
 
-/**
- * An edit's fields with its item's one line under the name the item keeps
- * it by, given as text or as title alike, whatever the item; or a refusal
- * where both are given and say different things.
- */
-const oneLineNamed = (item: Item, fields: Fields): Checked<Fields> => {
-  const { text, title, ...rest } = fields
+/** The names an edit gives an item's one line by, either of them, whatever the item. */
+const ONE_LINE: readonly (keyof Changes)[] = ['text', 'title']
 
-  if (text !== undefined && title !== undefined && line(text) !== line(title)) {
+/** The field of the item an edit's key changes: its one line, by either name. */
+const fieldOf = (item: Item, key: keyof Changes) =>
+  ONE_LINE.includes(key) ? LINE_FIELD[item.type] : key
+
+/** The fields an edit to an item changes, as a refusal lists them, its one line as title or text. */
+const editableOf = (item: Item) =>
+  EDITABLE[item.type]
+    .map(key => (key === LINE_FIELD[item.type] ? 'title or text' : key))
+    .join(', ')
+
+/** Whether an edit gives its item's one line twice, as text and as title, in different words. */
+const isTwoLines = (fields: Fields) =>
+  fields.text !== undefined &&
+  fields.title !== undefined &&
+  line(fields.text) !== line(fields.title)
+
+/** An edit's changes as read, or a refusal naming the first field that will not do, by the name Claude gave it. */
+const changesFor = (item: Item, fields: Fields): Checked<Changes> => {
+  const named = (Object.keys(READERS) as (keyof Changes)[]).filter(key => fields[key] !== undefined)
+  const changes: Changes = {}
+
+  if (named.length === 0) {
+    return refuse(`An edit names a field to change: for ${NOUNS[item.type]}, ${editableOf(item)}.`)
+  }
+
+  if (isTwoLines(fields)) {
     return refuse(
       "An edit gives an item's one line as text or as title, not both with different words.",
     )
   }
 
-  const given = text ?? title
-
-  return ok(given === undefined ? rest : { ...rest, [LINE_FIELD[item.type]]: given })
-}
-
-/** An edit's changes as read, its one line named as its item keeps it, or a refusal naming the first field that will not do. */
-const changesOf = (item: Item, fields: Fields): Checked<Changes> => {
-  const allowed = EDITABLE[item.type]
-  const named = (Object.keys(READERS) as (keyof Changes)[]).filter(key => fields[key] !== undefined)
-  const changes: Changes = {}
-
-  if (named.length === 0) {
-    return refuse(
-      `An edit names a field to change: for ${NOUNS[item.type]}, ${allowed.join(', ')}.`,
-    )
-  }
-
   for (const key of named) {
-    if (!allowed.includes(key)) {
-      return refuse(`An edit to ${NOUNS[item.type]} changes ${allowed.join(', ')}; not ${key}.`)
+    const field = fieldOf(item, key)
+
+    if (!EDITABLE[item.type].includes(field)) {
+      return refuse(`An edit to ${NOUNS[item.type]} changes ${editableOf(item)}; not ${key}.`)
     }
 
-    const value = READERS[key](fields[key])
+    const value = READERS[field](fields[key])
 
     if (value === undefined) {
       return refuse(`An edit cannot leave ${key} empty or of the wrong kind.`)
     }
 
-    Object.assign(changes, { [key]: value })
+    Object.assign(changes, { [field]: value })
   }
 
   return ok(changes)
-}
-
-/** An edit's changes as read, its one line given as text or title alike, or a refusal saying why not. */
-const changesFor = (item: Item, given: Fields): Checked<Changes> => {
-  const fields = oneLineNamed(item, given)
-
-  return fields.ok ? changesOf(item, fields.value) : fields
 }
 
 /** What an edit leaves of a field: what it gives, an empty one clearing it, else what the ask had, where its shape keeps it. */

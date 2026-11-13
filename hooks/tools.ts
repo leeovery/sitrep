@@ -12,7 +12,6 @@
  */
 import type { ToolSpec } from 'claude-code'
 import {
-  answeredAlready,
   checkAsk,
   checkEdit,
   checkFinish,
@@ -25,6 +24,7 @@ import {
   checkResolve,
   checkStart,
   checkStatus,
+  closedByLee,
   itemTitle,
   metaText,
   newSessionId,
@@ -271,14 +271,16 @@ const writeParked = async <B extends Body>(
 /**
  * A line about a parked item another session of the attached session's
  * project parked, written into that session, in this window's own file
- * there: a change Claude knows of. Another session's ask or note is
- * refused, as is a session of another project.
+ * there: a change Claude knows of, unless `unchanged` answers it with
+ * nothing to write. Another session's ask or note is refused, as is a
+ * session of another project.
  */
 const parkedElsewhere = async <B extends Body & { item: string }>(
   host: Host,
   input: Fields,
   check: ItemCheck<B>,
   said: (body: B) => string,
+  unchanged: Unchanged = () => undefined,
 ): Promise<Answer> => {
   const held = attached()
 
@@ -294,6 +296,13 @@ const parkedElsewhere = async <B extends Body & { item: string }>(
 
   const root = await rootFor(host)
   const before = await foldAt(host, root, into.value, await host.clock.now())
+  const quiet =
+    before !== undefined && checkParkedIn(before, input).ok ? unchanged(before, input) : undefined
+
+  if (quiet !== undefined) {
+    return quiet
+  }
+
   const written = await writeParked(host, into.value, input, check)
 
   if (!written.ok) {
@@ -314,10 +323,10 @@ const parkedElsewhere = async <B extends Body & { item: string }>(
 }
 
 /**
- * A tool on an item by its id: one of the attached session's, posted to it,
- * unless `unchanged` answers it with nothing to post; or, given another
- * session of its project (`session`), a parked item that session parked
- * (`parkedElsewhere`).
+ * A tool on an item by its id: one of the attached session's, posted to it;
+ * or, given another session of its project (`session`), a parked item that
+ * session parked (`parkedElsewhere`). Either way `unchanged` may answer it
+ * with nothing to write.
  */
 const onItem = <N extends string, B extends Body & { item: string }>(
   toolSpec: Spec<N>,
@@ -332,19 +341,19 @@ const onItem = <N extends string, B extends Body & { item: string }>(
     answer: (host, input) =>
       input.session === undefined || input.session === attached()?.session
         ? here.answer(host, input)
-        : parkedElsewhere(host, input, check, said),
+        : parkedElsewhere(host, input, check, said, unchanged),
   }
 }
 
-/** A resolve of an ask Lee's answer closed already: nothing to post, and nothing refused. */
-const closedByLee: Unchanged = (session, input) => {
-  const ask = answeredAlready(session, input)
+/** A resolve of an item Lee closed already, an ask he answered or ignored, a parked item he picked up: nothing to write, and nothing refused. */
+const resolvedByLee: Unchanged = (session, input) => {
+  const item = closedByLee(session, input)
 
-  return ask === undefined
+  return item === undefined
     ? undefined
     : {
-        result: `${ask.id} was closed already by Lee's answer: nothing to resolve.`,
-        names: itemTitle(session, ask.id),
+        result: `${item.id} was closed already by Lee: nothing to resolve.`,
+        names: itemTitle(session, item.id),
       }
 }
 
@@ -536,7 +545,7 @@ const TOOLS = [
   posting(
     spec(
       'ask',
-      "Post an ask: something only Lee can do or decide. Ask only when you cannot go on without Lee, or Lee's judgement changes what happens next; say it in full in the chat as well, after your last tool call: the board never stands in for the chat. Want a yes when Lee gives a go, an approval, or word that it works or is done, its button the verb Lee gives (Go, Approve, Done); a choice when Lee picks one of options; words when Lee must write something back, such as a command's output (needs says what). Lee's answer arrives as a message from the board, each line saying whether it closed the ask: a yes, a choice or an answer closes it by itself, a comment going with one too; a comment alone leaves it open for you to act on, then resolve. If Lee answers in the chat instead, resolve the ask yourself, saying so in the reason.",
+      "Post an ask: something only Lee can do or decide. Ask only when you cannot go on without Lee, or Lee's judgement changes what happens next; say it in full in the chat as well, after your last tool call: the board never stands in for the chat. Want a yes when Lee gives a go, an approval, or word that it works or is done, its button the verb Lee gives (Go, Approve, Done); a choice when Lee picks one of options; words when Lee must write something back, such as a command's output (needs says what). Lee's answer arrives as a message from the board, each line saying whether it closed the ask: a yes, a choice, an answer or an ignore closes it by itself, a comment going with a yes or a choice too; a comment alone leaves it open for you to act on, then resolve. If Lee answers in the chat instead, resolve the ask yourself, saying so in the reason.",
       {
         wants: WANTS_BACK,
         yes: YES,
@@ -581,7 +590,7 @@ const TOOLS = [
     ),
     checkResolve,
     ({ item }) => `Resolved ${item}.`,
-    closedByLee,
+    resolvedByLee,
   ),
   onItem(
     spec(

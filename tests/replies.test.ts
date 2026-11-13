@@ -15,6 +15,7 @@ import {
   sentLines,
   STALE_MS,
   toDeliver,
+  type ReplyFields,
   type AskKind,
   type AskState,
   type Barred,
@@ -638,7 +639,7 @@ test('a delivered reply is never delivered again', () => {
   expect(toDeliver(session, W1).map(each => each.id)).toEqual(['r2'])
 })
 
-test("Lee's message: one line per reply, in the spike's words, under From the board", () => {
+test("Lee's message: one line per reply, in the spike's words, under From the board, and under each ask's last reply where the message leaves it", () => {
   const session = fold({ logs: { [W1]: file(...POSTED) } })
   const message = boardMessage(session, [
     { item: 'k1', verdict: 'yes' },
@@ -657,19 +658,15 @@ test("Lee's message: one line per reply, in the spike's words, under From the bo
     [
       FROM_THE_BOARD,
       '- Review Sessions & Runway, round 1 → Approve',
-      '  This closes the ask: nothing more to do with it.',
       '- Review Sessions & Runway, round 1 → Approve, with a comment: “Tighten the gutters”',
-      '  This closes the ask: nothing more to do with it.',
       '- Try signing in on the iPad → It works',
       '  This closes the ask: nothing more to do with it.',
       '- Run the production apply → Done',
-      '  This closes the ask: nothing more to do with it.',
       '- Keep the ledger 400 days, or forever? → Forever',
-      '  This closes the ask: nothing more to do with it.',
       '- Keep the ledger 400 days, or forever? → comment: “Two years, then archive”',
-      '  This leaves the ask open: act on it, then resolve it.',
+      '  This closes the ask: nothing more to do with it.',
       '- Review Sessions & Runway, round 1 → comment: “The runway bar is too tall”',
-      '  This leaves the ask open: act on it, then resolve it.',
+      '  This closes the ask: nothing more to do with it.',
       '- Run the production apply → ignored',
       '  This closes the ask: nothing more to do with it.',
       '- Pick up from parked: A tmux indicator across sessions',
@@ -678,6 +675,55 @@ test("Lee's message: one line per reply, in the spike's words, under From the bo
   )
   expect(message?.text).not.toMatch(/\b(k[1-4]|p1|r\d)\b/)
   expect(message?.replies).toHaveLength(10)
+})
+
+test("an answer and a comment to one ask in one message say once, under the last, that the message closes it, in either order", () => {
+  const session = fold({ logs: { [W1]: file(...POSTED) } })
+  const lines = (...replies: ReplyFields[]) => boardMessage(session, replies)?.text.split('\n')
+
+  expect(
+    lines(
+      { item: 'k1', verdict: 'yes' },
+      { item: 'k1', verdict: 'comment', note: 'Thinner bars' },
+    ),
+  ).toEqual([
+    FROM_THE_BOARD,
+    '- Review Sessions & Runway, round 1 → Approve',
+    '- Review Sessions & Runway, round 1 → comment: “Thinner bars”',
+    '  This closes the ask: nothing more to do with it.',
+  ])
+  expect(
+    lines(
+      { item: 'k1', verdict: 'comment', note: 'Thinner bars' },
+      { item: 'k1', verdict: 'yes' },
+    ),
+  ).toEqual([
+    FROM_THE_BOARD,
+    '- Review Sessions & Runway, round 1 → comment: “Thinner bars”',
+    '- Review Sessions & Runway, round 1 → Approve',
+    '  This closes the ask: nothing more to do with it.',
+  ])
+})
+
+test("a comment on an ask whose answer is on its way from outside the message says that answer is coming, never that the ask is open; the answer's own message says it closes", () => {
+  const session = fold({
+    logs: { [W1]: file(...POSTED) },
+    inbox: { [SENDER]: file([T0 + MIN, reply('r1', 'k1', 'yes')]) },
+  })
+
+  expect(session.items.get('k1')).toMatchObject({ answerOnItsWay: { id: 'r1' } })
+  expect(
+    boardMessage(session, [{ item: 'k1', verdict: 'comment', note: 'Thinner bars' }])?.text,
+  ).toBe(
+    [
+      FROM_THE_BOARD,
+      '- Review Sessions & Runway, round 1 → comment: “Thinner bars”',
+      "  Lee's answer to this ask is on its way in a message of its own, which closes it.",
+    ].join('\n'),
+  )
+  expect(boardMessage(session, [{ item: 'k1', verdict: 'yes' }])?.text.split('\n').at(-1)).toBe(
+    '  This closes the ask: nothing more to do with it.',
+  )
 })
 
 test("a pick-up of an item another session of the project parked goes in the message read in that session, naming whose it was; one of the session's own names none", () => {

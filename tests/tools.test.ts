@@ -329,27 +329,33 @@ test('resolve closes an item, reopen opens it again; each refuses where the item
   )
 })
 
-test("resolving an ask Lee's answer closed passes quietly, writing nothing; one he commented on resolves as ever", async ($, on) => {
+test("resolving what Lee closed, an ask he answered or ignored, a parked item he picked up, passes quietly, writing nothing; one he commented on, or whose answer is still on its way, resolves as ever", async ($, on) => {
   const w = world($, on)
   const { paths } = await w.begin()
-  const answered = postedId(
-    await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' }),
-  )
-  const commented = postedId(
-    await w.call('ask', { wants: 'yes', yes: 'Go', title: 'Give the go for stage 3' }),
-  )
+  const post = async (args: Record<string, unknown>) => postedId(await w.call('ask', args))
+  const answered = await post({ wants: 'yes', yes: 'Approve', title: 'Review round 1' })
+  const ignored = await post({ wants: 'yes', yes: 'Done', title: 'Run the apply' })
+  const commented = await post({ wants: 'yes', yes: 'Go', title: 'Give the go for stage 3' })
+  const coming = await post({ wants: 'yes', yes: 'Approve', title: 'Review round 2' })
+  const parked = postedId(await w.call('park', { title: 'Look at the glance again' }))
 
   w.writer(paths)(
     reply('r1', answered, 'yes', { note: 'Tighten the gutters' }),
-    reply('r2', commented, 'comment', { note: 'After the copy pass' }),
-    delivered('r1', 'r2'),
+    reply('r2', ignored, 'ignore'),
+    reply('r3', commented, 'comment', { note: 'After the copy pass' }),
+    reply('r4', parked, 'pickup'),
+    reply('r5', coming, 'yes'),
+    delivered('r1', 'r2', 'r3', 'r4'),
   )
 
   const before = linesOf(w, paths.log(W1))
 
-  expect((await w.call('resolve', { item: answered, reason: 'Approved' })).result).toBe(
-    `${answered} was closed already by Lee's answer: nothing to resolve.`,
-  )
+  for (const item of [answered, ignored, parked]) {
+    expect((await w.call('resolve', { item, reason: 'Done' })).result, item).toBe(
+      `${item} was closed already by Lee: nothing to resolve.`,
+    )
+  }
+
   expect(linesOf(w, paths.log(W1))).toEqual(before)
   expect(w.state.board?.asks.find(each => each.id === answered)).toMatchObject({
     state: 'closed',
@@ -359,6 +365,54 @@ test("resolving an ask Lee's answer closed passes quietly, writing nothing; one 
   expect((await w.call('resolve', { item: commented })).deny).toBe(
     `${commented} is already closed.`,
   )
+  expect((await w.call('resolve', { item: coming, reason: 'Approved in the chat' })).result).toBe(
+    `Resolved ${coming}.`,
+  )
+  expect(linesOf(w, paths.log(W1)).at(-1)).toMatchObject({ type: 'resolve', item: coming })
+})
+
+test('an ask Lee answered, then Claude reopened, resolves as ever; answered again, it passes quietly', async ($, on) => {
+  const w = world($, on)
+  const { paths } = await w.begin()
+  const id = postedId(
+    await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' }),
+  )
+  const write = w.writer(paths)
+  // Each line a minute on, so the fold reads Lee's lines and Claude's in the order they came.
+  const lee = async (...bodies: Parameters<typeof write>) => {
+    await w.clock.advance(MIN)
+    write(...bodies)
+    await w.clock.advance(MIN)
+  }
+
+  await lee(reply('r1', id, 'yes'), delivered('r1'))
+  expect((await w.call('reopen', { item: id })).result).toBe(`Reopened ${id}.`)
+  await w.clock.advance(MIN)
+  expect((await w.call('resolve', { item: id })).result).toBe(`Resolved ${id}.`)
+  expect(linesOf(w, paths.log(W1)).at(-1)).toMatchObject({ type: 'resolve', item: id })
+
+  await w.clock.advance(MIN)
+  expect((await w.call('reopen', { item: id })).result).toBe(`Reopened ${id}.`)
+  await lee(reply('r2', id, 'yes'), delivered('r2'))
+
+  const before = linesOf(w, paths.log(W1))
+
+  expect((await w.call('resolve', { item: id })).result).toBe(
+    `${id} was closed already by Lee: nothing to resolve.`,
+  )
+  expect(linesOf(w, paths.log(W1))).toEqual(before)
+})
+
+test("resolving another session's parked item Lee picked up passes quietly, writing nothing into that session", async ($, on) => {
+  const w = world($, on)
+  const ledger = w.elsewhere(LEDGER)
+
+  ledger.write(park('p1', 'Export the ledger as CSV'), reply('r1', 'p1', 'pickup'), delivered('r1'))
+  await w.begin()
+  expect((await w.call('resolve', { item: 'p1', session: LEDGER.id })).result).toBe(
+    'p1 was closed already by Lee: nothing to resolve.',
+  )
+  expect(() => w.text(ledger.paths.log(W1))).toThrow()
 })
 
 /** Another session of this project, finished: what it parked is the project's, its ask and note its own. */

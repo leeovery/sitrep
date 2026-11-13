@@ -311,25 +311,45 @@ export const answerOf = (item: Ask | Parked, reply: ReplyFields) => {
 /** Whose a picked-up item was, as Lee's message says it: the name of the session that parked it, where that is another than the message's. */
 const parkedBy = (name: string | undefined) => (name === undefined ? '' : `, ${name}'s`)
 
-/** What Claude is told a reply leaves its ask as, under the reply's line: closed, with nothing more to do, or open, Claude's to act on and resolve. */
-const LEFT_AS = {
-  closed: '  This closes the ask: nothing more to do with it.',
-  open: '  This leaves the ask open: act on it, then resolve it.',
-} as const
-
-const leftAs = (ask: Ask, verdict: Verdict) => LEFT_AS[isAnswer(ask, verdict) ? 'closed' : 'open']
-
 /**
  * A reply as Lee's message carries it: the item's title and the answer on a
- * line, a note of several lines under it, and, for an ask, a line saying
- * whether the reply closed it; no ids, since Lee sends it as their own. A
- * pick-up of an item another session of the project parked names that
- * session, `elsewhere`.
+ * line, a note of several lines under it; no ids, since Lee sends it as
+ * their own. A pick-up of an item another session of the project parked
+ * names that session, `elsewhere`.
  */
 export const replyLine = (item: Ask | Parked, reply: ReplyFields, elsewhere?: string) =>
   item.type === 'park'
     ? `- Pick up from parked${parkedBy(elsewhere)}: ${item.title}${reply.note ? `.${PICK_UP_NOTE(reply.note)}` : ''}`
-    : `- ${item.title} → ${words(item, reply, IN_MESSAGE)}\n${leftAs(item, reply.verdict)}`
+    : `- ${item.title} → ${words(item, reply, IN_MESSAGE)}`
+
+/** What Claude is told a message leaves an ask as: closed, with nothing more to do; Lee's answer to it on its way in a message of its own; or open, Claude's to act on and resolve. */
+const LEFT_AS = {
+  closed: '  This closes the ask: nothing more to do with it.',
+  coming: "  Lee's answer to this ask is on its way in a message of its own, which closes it.",
+  open: '  This leaves the ask open: act on it, then resolve it.',
+} as const
+
+/** Where a message leaves an ask, from every verdict it carries for it: closed by any answer among them, else waiting on an answer on its way from outside it, else open. */
+const leftAs = (ask: Ask, verdicts: readonly Verdict[]) => {
+  if (verdicts.some(verdict => isAnswer(ask, verdict))) {
+    return LEFT_AS.closed
+  }
+
+  return ask.answerOnItsWay === undefined ? LEFT_AS.open : LEFT_AS.coming
+}
+
+/** A reply a message carries, the item it answers, that item's address, and the reply's line. */
+type Carried<R> = { reply: R; item: Ask | Parked; key: string; line: string }
+
+/** A message's lines: each reply's, and under an ask's last reply in it, where the message leaves the ask. */
+const messageLines = <R extends ReplyFields>(carried: readonly Carried<R>[]) =>
+  carried.map(({ item, key, line }, at) => {
+    const own = carried.filter(each => each.key === key)
+
+    return item.type === 'ask' && own.at(-1) === carried[at]
+      ? `${line}\n${leftAs(item, own.map(each => each.reply.verdict))}`
+      : line
+  })
 
 /** The log line a delivered pick-up earns: what was picked up, and Lee's note with it. */
 export const pickUpLog = (parked: Parked, reply: ReplyFields) => ({
@@ -341,7 +361,8 @@ export const pickUpLog = (parked: Parked, reply: ReplyFields) => ({
  * Lee's message to a session carrying replies, and the replies it carries:
  * those that fit an item of the session `answered` reads each in, the
  * message's own unless it says another, as for a pick-up of an item another
- * session of the project parked; undefined when none does.
+ * session of the project parked; undefined when none does. Under its last
+ * reply to each ask, a line says where the message leaves the ask.
  */
 export const boardMessage = <R extends ReplyFields>(
   session: Session,
@@ -353,15 +374,22 @@ export const boardMessage = <R extends ReplyFields>(
     const item = holding?.items.get(reply.item)
     const elsewhere = holding?.id === session.id ? undefined : holding?.status.name
 
-    return item !== undefined && fits(item, reply)
-      ? [{ reply, line: replyLine(item, reply, elsewhere) }]
+    return holding !== undefined && item !== undefined && fits(item, reply)
+      ? [
+          {
+            reply,
+            item,
+            key: `${holding.id}/${item.id}`,
+            line: replyLine(item, reply, elsewhere),
+          },
+        ]
       : []
   })
 
   return carried.length === 0
     ? undefined
     : {
-        text: [FROM_THE_BOARD, ...carried.map(({ line }) => line)].join('\n'),
+        text: [FROM_THE_BOARD, ...messageLines(carried)].join('\n'),
         replies: carried.map(({ reply }) => reply),
       }
 }
