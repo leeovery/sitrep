@@ -105,6 +105,30 @@ struct TypedCommandTests {
         }
     }
 
+    /// Arithmetic, and a subscript, which the shell evaluates as arithmetic, run a `$(…)` even inside a quoted value:
+    /// `$(( '/x$(cmd)' ))` runs `cmd` in zsh, bash and sh. A placeholder there is refused, saying why.
+    @Test(arguments: [
+        "echo $(( {dir} ))", "(( x = {dir} ))", "echo $(( 1 + ({dir}) ))", "echo $[ {dir} ]", "echo ${a[{dir}]}",
+        "a[{dir}]=1", "echo $a[{dir}]", #"echo "$(( {dir} ))""#,
+    ])
+    func aPlaceholderInArithmeticOrASubscriptIsRefused(command: String) async {
+        await #expect(throws: Unopenable(description: CommandProblem<ResumeFact>.evaluated(["dir"]).refusal(named: named))) {
+            try await Self.line(command, folder: "/x$(touch pwned)")
+        }
+    }
+
+    /// Arithmetic and subscripts closed before a placeholder, a test's brackets, `$(…)`, and the shell's own `${…}`
+    /// leave it filled; the design's examples stand as written.
+    @Test(arguments: [
+        "echo $(( 1 + (2) )) && cd {dir}", "echo ${a[1]} && cd {dir}", "[ -d {dir} ] && cd {dir}",
+        "[[ -d {dir} ]] && cd {dir}", "cd $(echo x) {dir}", "cd ${x:-{dir}}",
+        #"s=$(portal hook list | awk -F'\t' -v id={claude} 'index($3, "--resume " id) {print $1; exit}'); [ -n "$s" ] && portal open -s "$s" || portal open -p {dir} -- claude --resume {claude}"#,
+        "t=$(tmux list-panes -a -F '#{pane_tty} #{session_name}' | awk -v d={tty} '$1==d {print $2; exit}'); [ -n \"$t\" ] && tmux attach -t \"$t\" || tmux new -c {dir} claude --resume {claude}",
+    ])
+    func aPlaceholderOutsideArithmeticAndSubscriptsIsFilled(command: String) {
+        #expect(ResumeCommand(command).problem == nil)
+    }
+
     @Test func backticksClosedBeforeThePlaceholderLeaveItUnquoted() {
         #expect(ResumeCommand("cd `pwd` && cd {dir}").problem == nil)
     }
@@ -145,6 +169,7 @@ struct TypedCommandTests {
         (CommandProblem<ResumeFact>.unprintable("\u{15}"), "The resume command in Settings has a character that can't be typed (U+0015)."),
         (.unprintable("\t"), "The resume command in Settings has a tab, which can't be typed."),
         (.quoted(["dir"]), "The resume command in Settings puts {dir} in quotes or backticks. Remove them: SitRep quotes each value itself."),
+        (.evaluated(["dir"]), "The resume command in Settings puts {dir} in arithmetic or a subscript, where the shell runs what is in a value even quoted. Move it out."),
         (.unknown(["session"]), "The resume command in Settings has {session}, which SitRep doesn't know. It knows {claude}, {dir} and {tty}."),
         (.empty, "The resume command in Settings is empty. To carry \(named) on, set one, or restore the default."),
     ])

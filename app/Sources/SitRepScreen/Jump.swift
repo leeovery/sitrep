@@ -164,8 +164,10 @@ public struct Jump: Sendable {
     /// window's device, by the process table, as a heartbeat gone stale says only that its beat stopped, which a plugin
     /// no longer loading, or its process suspended, does too: one suspended where a terminal here shows it, Lee's own
     /// Ctrl-Z, is his to bring back, so the click takes him to it, starting nothing (`suspended`); the table giving no
-    /// answer refuses. Otherwise the resume command; the default refused while the session's Claude is still alive: a
-    /// window holds it, or a Claude runs or is suspended on its device, unless a later conversation was seen there.
+    /// answer refuses. Otherwise the resume command; the default refused while the session's Claude may still be alive:
+    /// a window holds it, or a Claude is suspended on its device, whoever was seen there after, or runs there, unless a
+    /// later conversation was. A stopped Claude is never resumed beside, as a later conversation started in the shell
+    /// it was suspended in leaves it there.
     private func carryOn(
         _ session: String, named name: String, from window: Board.LastWindow, isHeld: Bool
     ) async throws -> JumpOutcome {
@@ -184,11 +186,12 @@ public struct Jump: Sendable {
             break
         }
 
-        let isOnItsDevice = there != .none && window.ownsDevice != false
+        let isOnItsDevice = there == .stopped || (there != .none && window.ownsDevice != false)
         let tty = there != .none && window.ownsDevice == true ? window.where?.device : nil
+        let alive: Alive? = isOnItsDevice ? .seen : isHeld ? .held : nil
 
         return try await resume(
-            session, named: name, from: ResumeFacts(window: window, tty: tty), isAlive: isHeld || isOnItsDevice,
+            session, named: name, from: ResumeFacts(window: window, tty: tty, isHeld: isHeld), alive: alive,
             wasHeld: isHeld
         )
     }
@@ -208,23 +211,31 @@ public struct Jump: Sendable {
         return there.contains(where: \.isStopped) ? .stopped : there.isEmpty ? .none : .running
     }
 
-    /// Takes Lee to the window a Claude of the session is suspended in, where a terminal on this Mac shows it: SitRep
-    /// starts nothing, nor types `fg`, as Lee may be busy in that shell, and says why. Nil where no terminal here shows
-    /// it, so the session is carried on as any other; refused where whether one does is unknown, in a jump's words, and
-    /// where its window does not come forward.
+    /// Takes Lee to the window a Claude of the session is suspended in, where its window is here, by the read of here,
+    /// never the jump's `$TERM_PROGRAM`, which ssh carries from another Mac: SitRep starts nothing, nor types `fg`, as
+    /// Lee may be busy in that shell, and says why. Nil where it is not here, so the session is carried on as any
+    /// other; refused where whether it is here is unknown, in a jump's words, and where its window does not come
+    /// forward, the jump finding it on no screen among them.
     private func suspended(named name: String, at where: Board.Window.Where?) async throws -> JumpOutcome? {
         guard let `where` else {
             return nil
         }
 
-        switch try await jump(to: [`where`]) {
-        case .focused:
-            return .answered(.jumpedSaying("\(name) is suspended in this window: type fg to bring it back."))
-        case .offScreen:
+        switch await here.read([`where`]) {
+        case .notHere:
             return nil
         case let .unknown(unanswered):
             return .answered(Jumped.unknown(unanswered).answer(named: name))
-        case .unanswered, .unselected, .failed:
+        case .here:
+            break
+        }
+
+        switch try await jump(to: [`where`]) {
+        case .focused:
+            return .answered(.jumpedSaying("\(name) is suspended in this window: type fg to bring it back."))
+        case let .unknown(unanswered):
+            return .answered(Jumped.unknown(unanswered).answer(named: name))
+        case .offScreen, .unanswered, .unselected, .failed:
             return .answered(.refused(
                 "\(name) is suspended in its window, which SitRep could not bring forward: type fg there to bring it back."
             ))
@@ -241,11 +252,11 @@ public struct Jump: Sendable {
     }
 
     /// The window to open for the session, typing the resume command filled with the facts given: none where one was
-    /// asked for it a moment ago, which is opening; none where the command is the default and the session's Claude is
-    /// still alive, which the default would resume beside; and none where the line is not fit to type, refused in plain
-    /// words. A command Lee wrote always runs: what it does is his.
+    /// asked for it a moment ago, which is opening; none where the command is the default and the session's Claude may
+    /// still be alive, which the default would resume beside; and none where the line is not fit to type, refused in
+    /// plain words. A command Lee wrote always runs: what it does is his.
     private func resume(
-        _ session: String, named name: String, from facts: ResumeFacts, isAlive: Bool, wasHeld: Bool
+        _ session: String, named name: String, from facts: ResumeFacts, alive: Alive?, wasHeld: Bool
     ) async throws -> JumpOutcome {
         guard !openings.isOpening(session) else {
             return .answered(.opening)
@@ -256,11 +267,8 @@ public struct Jump: Sendable {
 
         let command = ResumeCommand(opening.resumeCommand)
 
-        if isAlive, command.isDefault {
-            return .answered(.unopened(
-                "\(name)'s Claude is still running where this Mac doesn't show it: set a resume command that can reach "
-                    + "it, in Settings."
-            ))
+        if let alive, command.isDefault {
+            return .answered(.unopened(alive.refusal(named: name)))
         }
 
         do {
@@ -396,6 +404,23 @@ enum Selected: Equatable {
 
     var said: String? {
         if case let .undone(said) = self { said } else { nil }
+    }
+}
+
+/// Why the default resume command would resume beside the session's Claude: a Claude seen on its device; or none seen
+/// there, but a window still holding it, as one whose tab was closed holds it until its heartbeat goes stale.
+enum Alive: Equatable {
+    case seen, held
+
+    /// Why the default refuses, in plain words, for the session named.
+    func refusal(named name: String) -> String {
+        switch self {
+        case .seen:
+            "\(name)'s Claude is still running where this Mac doesn't show it: set a resume command that can reach it, "
+                + "in Settings."
+        case .held:
+            "\(name)'s window has just stopped answering: try again in a moment."
+        }
     }
 }
 

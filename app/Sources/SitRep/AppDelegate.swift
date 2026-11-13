@@ -105,13 +105,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return services
     }
 
-    /// Each board, to everything that shows it, and to the jump; the sound Lee chose, once for the asks new on it, and a
-    /// notification for each, in core's order, each while Lee has it on.
+    /// Each board, to everything that shows it, and then to the jump, whose read of here dims rows on the board they
+    /// already show; the sound Lee chose, once for the asks new on it, and a notification for each, in core's order,
+    /// each while Lee has it on.
     private func heard(_ last: LastBoard) {
         live.last = last
-        works.show(last)
         edge?.show(last)
         menu?.show(last)
+        works.show(last)
 
         Chime.due(last, preferences.app).map(sounds.play)
         Notices.due(last, isOn: preferences.app.notifiesNewAsks).forEach(banners.post)

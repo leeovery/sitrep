@@ -7926,16 +7926,24 @@ open), and tmux passing an escape sequence through from Claude's own pane
      empty refuses, saying to set one or restore the default.
    - **The guard**: the default refuses while that session's Claude is
      still alive but not shown here: a window holds it on the board, or
-     SitRep sees its Claude on its device, running or suspended (the device
-     its own, `ownsDevice`). "<name>'s Claude is still running where this
+     SitRep sees its Claude on its device, running (the device its own,
+     `ownsDevice`) or suspended, whoever was seen there after, as a later
+     conversation started in the shell it was suspended in leaves it there.
+     With a Claude seen there: "<name>'s Claude is still running where this
      Mac doesn't show it: set a resume command that can reach it, in
-     Settings." A command Lee wrote always runs: what it does is his. The
-     default is told by its text, so a command saved the same as it is the
-     default.
+     Settings." Held, with none seen there, as a tab just closed whose
+     window holds the session until its heartbeat goes stale: "<name>'s
+     window has just stopped answering: try again in a moment." A command
+     Lee wrote always runs: what it does is his. The default is told by its
+     text, so a command saved the same as it is the default.
    - **One window per click**, kept from the build: a click while an
      opening is on its way opens no second window, until the session reads
-     as here or the board holds it, 120 seconds at most. A session a window
-     held at the click is held already, so only here forgets its opening.
+     as here or the board holds it. An away session's opening lasts 120
+     seconds at most. A session a window held at the click is held already,
+     so only here forgets its opening, and its command reaches a Claude
+     already running, which reads as here within a read or two: its
+     opening lasts 10 seconds, as the build's attach did, so a command that
+     failed holds back no click for long.
 
    **Examples**, recorded as examples, never as SitRep's knowledge:
    - **Lee's Portal one-liner.** Portal's `hook list` maps each Portal
@@ -7971,7 +7979,12 @@ open), and tmux passing an escape sequence through from Claude's own pane
    - the command's reading, as step C's, but for a placeholder joined to
      unquoted text, which the rethink allows (below): a character that does
      not print, a placeholder SitRep does not know, one inside quotes or
-     backticks;
+     backticks; and one in arithmetic, `$((…))`, `((…))` or `$[…]`, or a
+     subscript, `a[…]` or `${a[…]}`, which the shell evaluates as
+     arithmetic, running a `$(…)` even in a quoted value
+     (`$(( '/x$(cmd)' ))` runs `cmd` in zsh, bash and sh): "The resume
+     command in Settings puts {dir} in arithmetic or a subscript, where the
+     shell runs what is in a value even quoted. Move it out.";
    - the chosen terminal not running, as an opening's;
    - the process table giving no answer, as the build's: "Could not tell
      whether <name>'s Claude is still running: the process table gave no
@@ -8145,6 +8158,23 @@ open), and tmux passing an escape sequence through from Claude's own pane
      dim by `Away.dim` on the card, the strip's tab and count rows and on
      glass, as a your-turn row's and an ask's did already; the menu dimmed
      every away row's words already.
+   - **After review** (13 November 2026):
+     - the suspended rule goes by the read of here, never the jump's
+       `$TERM_PROGRAM` reading: a Claude suspended over ssh from another
+       Mac's Ghostty, its heartbeat carrying Ghostty's, is carried on as
+       any not here; one here whose window the jump finds on no screen is
+       refused as one that did not come forward;
+     - a Claude suspended on the device counts as alive whatever
+       `ownsDevice` says, so the default never resumes beside it; `{tty}`
+       is still filled only where the device is its own;
+     - the guard's words follow the table: a held session with no Claude
+       seen on its device has just stopped answering;
+     - a held session's opening lasts 10 seconds, an away one's 120;
+     - a placeholder in arithmetic or a subscript is refused;
+     - a held session's missing folder is its window's, not its last
+       window's;
+     - each board reaches the edge and the menu before the read of here,
+       so a change of here never redraws the board before.
 
    **To prove live, with Lee's go** (the rule's):
    1. A session whose Claude exited: the click resumes it by the command.

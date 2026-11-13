@@ -132,10 +132,14 @@ private final class Remembered: Sendable {
 /// the command has made its terminal session, Claude has started, the plugin loaded and taken the session up and
 /// beaten, and the watch printed, which can take a while: so an opening is remembered until its session reads as here
 /// (`shown`), or the board shows a window holding it where none did at the click (`heard`), 2 minutes at most. A
-/// session a window held at the click is held already, so only being shown forgets its opening.
+/// session a window held at the click is held already, so only being shown forgets its opening, and its command
+/// reaches a Claude already running, which shows within a read or two: so its opening lasts 10 seconds, and a command
+/// that failed holds back no click for long.
 public final class RecentOpenings: Sendable {
     /// How long an opening is remembered at most.
     public static let lasts = Duration.seconds(120)
+    /// How long an opening for a session a window held is remembered at most.
+    public static let heldLasts = Duration.seconds(10)
 
     private struct Asked: Sendable {
         let at: ContinuousClock.Instant
@@ -185,12 +189,13 @@ public final class RecentOpenings: Sendable {
         }
     }
 
-    /// Whether a window was asked for the session within `lasts`; those asked for longer ago forgotten.
+    /// Whether a window was asked for the session within `lasts`, or `heldLasts` where a window held it; those asked
+    /// for longer ago forgotten.
     func isOpening(_ session: String) -> Bool {
         let now = now()
 
         return opened.withLock { opened in
-            opened = opened.filter { now - $0.value.at < Self.lasts }
+            opened = opened.filter { now - $0.value.at < ($0.value.wasHeld ? Self.heldLasts : Self.lasts) }
             return opened[session] != nil
         }
     }

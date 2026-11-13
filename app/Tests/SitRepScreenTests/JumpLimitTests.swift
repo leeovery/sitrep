@@ -71,7 +71,7 @@ struct JumpLimitTests {
         let line = try board([LineWindow(writer: "w1", session: "sr-a")], sessions: ["sr-q": "Quiet one"])
         let unknown = await Jumping().jump.answer(to: "sr-z", on: GivenBoard(line))
 
-        #expect(await Jumping().jump.answer(to: "sr-a", on: GivenBoard(line)) == stillRunning)
+        #expect(await Jumping().jump.answer(to: "sr-a", on: GivenBoard(line)) == justStopped)
         #expect(
             await Jumping().jump.answer(to: "sr-q", on: GivenBoard(line))
                 == .refused("Quiet one is not on screen: no terminal window on this Mac shows it.")

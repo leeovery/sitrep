@@ -26,18 +26,22 @@ extension TypedCommand where Placeholder == ResumeFact {
 
 /// What fills the resume command for a session: its window's writer and folder, the folder none from a window on a
 /// sitrep from before heartbeats said it, the one fact it may lack; and the device its Claude still runs on, none
-/// unless SitRep sees that Claude there, which is filled as empty.
+/// unless SitRep sees that Claude there, which is filled as empty. Its window is a live one where a window holds it,
+/// else the last it was in, as a refusal names it.
 struct ResumeFacts: CommandFacts {
     let window: Board.LastWindow
     let tty: String?
+    var isHeld = false
 
     var given: Set<ResumeFact> {
         window.directory == nil ? [.claude, .tty] : [.claude, .dir, .tty]
     }
 
     func none(of _: [ResumeFact], named name: String) -> String {
-        "\(name)'s last window did not say which folder it ran in, as a window on an older sitrep does not, so SitRep "
-            + "has nothing to put for {dir}."
+        let window = isHeld ? "window" : "last window"
+
+        return "\(name)'s \(window) did not say which folder it ran in, as a window on an older sitrep does not, so "
+            + "SitRep has nothing to put for {dir}."
     }
 
     func words(_ fact: ResumeFact) -> String {

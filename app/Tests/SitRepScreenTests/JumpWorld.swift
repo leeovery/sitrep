@@ -33,6 +33,9 @@ let stillRunning = JumpAnswer.unopened(
         + "Settings."
 )
 
+/// The default's refusal of a session a window still holds with no Claude seen on its device, as a tab just closed.
+let justStopped = JumpAnswer.unopened("\(named)'s window has just stopped answering: try again in a moment.")
+
 extension Jump {
     /// The jump to the session on the board, in the words it answers in: `.openable` where a window would be opened.
     func answer(to session: String, on board: some JumpBoardSource) async -> JumpAnswer {
