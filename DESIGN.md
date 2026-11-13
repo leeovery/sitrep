@@ -4223,7 +4223,18 @@ and core knows nothing of it. In this order (13 November 2026):
 Your turn joined Needs you on 13 November 2026, decided with Lee: an ask
 and a finished turn both mean "go back to this session", Claude needing
 Lee explicitly or implicitly, so they share one section, on the card and
-the menu, and one count; the strip keeps its places (see "The strip").
+the menu, and one total, "11 need you", which the card's eyebrow tells
+in two, its asks and its stopped (see "The sections"); the strip keeps its
+places (see "The strip").
+**Stopped** is what the Mac app calls a blue row to Lee (Lee, 13 November
+2026): Claude has stopped and waits on him. Settings' Notifications says
+"when Claude stops" for the turn's banner, sound and pulse, the turn's
+banner is titled "Stopped", and the eyebrow's blue count is the stopped;
+until then the app said "Your turn", and "when it's my turn". This design
+still says "your turn" where it names core's state, `yourTurn`, as the
+code, saved settings keys included (`notifiesTurns`, `playsTurnSound`,
+`turnSound`, `pulsesTurns`), keeps its names, so nothing stored changes
+meaning; the plugin's own board inside Claude Code is unchanged.
 A session is one row in Needs you, never two (Lee, 13 November 2026): one
 at his turn with asks waiting, not snoozed, is an ask's row, orange,
 counted by its asks, its turn adding no row and no count; only one at his
@@ -4271,13 +4282,18 @@ with it.
   it stood under the head.
 - **An eyebrow** is 28 tall: the section's name 10 in, 11 semibold in white
   at 55%, Needs you's too, its turns in it or not; its count 6 after it, 11
-  semibold in tabular figures, in orange for Needs you, the faint grey
-  (#5C5C63) for Snoozed and white at 30% for Working; and at its right a
+  semibold in tabular figures, the faint grey (#5C5C63) for Snoozed and
+  white at 30% for Working; and at its right a
   chevron, 10 by 6 and stroked 1.5 in white at 25% with round caps, in a box
   15 by 24 that stands 7.5 in, so the chevron ends where a row's time does.
-  Needs you counts what waits on Lee: its waiting lines, the asks and stops
-  (Kit's one and Harness's three are 4), and since 13 November 2026 its
-  turns, one each, so 4 asks and 7 turns are 11; Working counts its rows,
+  Needs you has two counts side by side, each 6 after what is before it
+  (Lee, 13 November 2026): its asks in orange, its waiting lines, the asks
+  and stops (Kit's one and Harness's three are 4), then its stopped in
+  #124's blue, its turns, one each; each is drawn only above zero, so 4
+  asks and 7 stopped read "4 7", asks alone the orange one, stopped alone
+  the blue. On glass the same, in Claude's orange and the blue. Until then
+  it had one count, in orange, the turns counted in it since they joined
+  Needs you that morning, so 4 asks and 7 turns read 11. Working counts its rows,
   as Your turn did; Snoozed counts its lines, as Needs you its lines. Every eyebrow after the first
   sits 14 under the last row above it, or the eyebrow above where that
   section is folded: the space alone tells the sections apart (board J2,
@@ -5087,7 +5103,8 @@ asked for the sessions back, and approved the redraw as it stands.
   - **the panel's sessions**, in its order and with its marks (see "The
     rows"), under a heading in the panel head's words, "4 need you" or "All
     clear", counting asks and turns alike since 13 November 2026: "11 need
-    you" where 4 asks and 7 turns wait. Each is a native item with a subtitle (macOS 14.4): what it is,
+    you" where 4 asks and 7 turns wait, one total in words where the card's
+    eyebrow has two counts. Each is a native item with a subtitle (macOS 14.4): what it is,
     then its project and session, and its time on the right as the item's
     badge. An item is a session, as a row is, with room for one line: one
     needing Lee shows its name over its project, its newest line's time,
@@ -5575,7 +5592,7 @@ live changed, and how they group.
   test should not). Then three sections, each setting a new ask and Lee's
   turn apart (13 November 2026, Lee), the ask's rows first. **Banners:**
   Notify me of a new ask, off by default, its line "Silent; a click on it
-  jumps to the session"; Notify me when it's my turn, off by default, its
+  jumps to the session"; Notify me when Claude stops, off by default, its
   line the same; and
   macOS's own answer, "Allowed by macOS, as banners", with Notification
   Settings… for SitRep's page in System Settings: the notices helper's,
@@ -5594,15 +5611,18 @@ live changed, and how they group.
   shows at the edge, Nothing included, and whether or not banners are on,
   which are silent. It plays as an ordinary sound, at the output volume,
   never as a notification's or an alert sound, which follow the alert
-  volume. Under them, since 13 November 2026, Play a sound when it's my
-  turn, off by default, its line "Once, as a session's turn ends", and its
+  volume. Under them, since 13 November 2026, Play a sound when Claude
+  stops, off by default, its line "Once, as a session's turn ends", and its
   own Sound, Tink by default, so the two are told apart by ear; it greys
   as the ask's does. A board that brings both plays the ask's alone.
   **Notch:** Pulse for a new ask, on by default, "It swells and its light
-  flashes", as it always had; and Pulse when it's my turn, off by default,
+  flashes", as it always had; and Pulse when Claude stops, off by default,
   "It swells as a session's turn ends" (see "The notch and its panel").
   Lee's turn is all off by default: Lee wants no sound for it, and the
-  steady blue light shows it already.
+  steady blue light shows it already. The turn's three labels said "when
+  it's my turn" until later on 13 November 2026, when the app named the
+  blue rows Stopped (see "The rows"); their lines, which speak of
+  Claude's turn ending, stayed.
 
   **What fires for Lee's turn** (13 November 2026): its notification, its
   sound and its pulse fire once, as Claude ends a turn: a session at his
@@ -5618,8 +5638,9 @@ live changed, and how they group.
   turn as SitRep starts, nor on any run's first line, as a new ask's do
   not (`LastBoard.newTurns`; until a review the same day, a move from
   needing him or from an earlier turn fired too, which fired for an ask
-  Lee had snoozed and for a joining window). Its notification says "Your
-  turn", its project and session, then what Claude left Lee, and its click
+  Lee had snoozed and for a joining window). Its notification says
+  "Stopped" ("Your turn" until later on 13 November 2026; see "The rows"),
+  its project and session, then what Claude left Lee, and its click
   carries the session on, as an ask's does. The saved settings keep their
   meaning:
   `notifiesNewAsks`, `playsSound` and `sound` are a new ask's still, and
@@ -5718,11 +5739,11 @@ live changed, and how they group.
     left it in but greys, "Can't while macOS stops it; the notch swells and
     lights instead", and macOS's row reads "Not allowed by macOS", "Turn
     SitRep on in System Settings › Notifications", with Notification
-    Settings…. Notify me when it's my turn greys the same, "the notch
+    Settings…. Notify me when Claude stops greys the same, "the notch
     lights blue instead". Each says the notch swells only while its own
     pulse is on, "the notch lights instead" with Pulse for a new ask off,
-    "the notch swells and lights blue instead" with Pulse when it's my
-    turn on (13 November 2026).
+    "the notch swells and lights blue instead" with Pulse when Claude
+    stops on (13 November 2026).
   - **Waiting on Lee's approval to open at login:** the switch gives way to
     Login Items Settings….
 

@@ -72,6 +72,36 @@ struct CardSectionsDrawnTests {
         #expect(Self.isClose(count, to: isOrange ? Self.orange : Self.white(0.30)))
     }
 
+    private static func needsYou(asks: Int, stopped: Int) -> Eyebrow {
+        let counts = [Eyebrow.Count(asks, need: .ask), Eyebrow.Count(stopped, need: .turn)].filter { $0.value > 0 }
+
+        return Eyebrow(section: .needsYou, counts: counts, isFolded: false, above: 0)
+    }
+
+    /// Needs you's two counts side by side, 6 after its name and 6 apart, its asks in orange then its stopped in blue,
+    /// each only above zero: 2 and 8, asks alone, stopped alone, and, with neither, no figure at all.
+    @Test(arguments: [(2, 8), (2, 0), (0, 8), (0, 0)])
+    func needsYousCountsAreItsAsksInOrangeThenItsStoppedInBlue(asks: Int, stopped: Int) throws {
+        let drawn = try Self.black(Self.needsYou(asks: asks, stopped: stopped))
+        let named = TextLine.width(TextLine.text("Needs you", EdgeStyle.eyebrowTitle, EdgeStyle.eyebrow))
+        let wanted = [(asks, Self.orange), (stopped, Self.rgb(0x3F93FB))].filter { $0.0 > 0 }
+        var start = 10 + named + 6
+
+        for (value, colour) in wanted {
+            let wide = TextLine.width(TextLine.text("\(value)", EdgeStyle.eyebrowFigures, EdgeStyle.orange))
+            let lane = CGRect(x: start - 2, y: 0, width: wide + 3, height: 28)
+            let figure = try #require(drawn.drawnBox(in: lane, ground: Self.ground))
+
+            #expect(abs(figure.minX - start) <= 1)
+            #expect(Self.isClose(Self.colour(drawn, in: figure), to: colour))
+            start += wide + 6
+        }
+
+        let rest = CGRect(x: start - 4, y: 0, width: Self.width - 30 - start, height: 28)
+
+        #expect(drawn.drawnBox(in: rest, ground: Self.ground) == nil)
+    }
+
     /// Its chevron in white at 25%, ending where a row's time does, 10 in: 10 by 6 pointing down while open, 6 by 10
     /// pointing right while folded, each with its stroke's round caps.
     @Test(arguments: [false, true])
@@ -318,6 +348,21 @@ struct CardSectionsDrawnTests {
         #expect(chevron.width > chevron.height)
         // the window stores its own colour space, so the orange reads as warm, the rest as grey
         #expect(count.count == 3 && (count[0] - count[2] > 0.3) == isOrange)
+    }
+
+    /// On glass, Needs you's two counts as the black's: its asks warm, then its stopped blue, 6 apart.
+    @available(macOS 26, *)
+    @Test func onGlassNeedsYousCountsAreItsAsksThenItsStopped() throws {
+        let size = CGSize(width: Self.width, height: Item.eyebrowHeight)
+        let drawn = try Drawn(GlassEyebrow(eyebrow: Self.needsYou(asks: 2, stopped: 8), size: size), size: size)
+        let named = TextLine.width(TextLine.text("Needs you", EdgeStyle.eyebrowTitle, EdgeStyle.eyebrow))
+        let wide = TextLine.width(TextLine.text("2", EdgeStyle.eyebrowFigures, EdgeStyle.orange))
+        let asks = Self.colour(drawn, in: CGRect(x: 10 + named + 6, y: 7, width: wide, height: 14))
+        let stopped = Self.colour(drawn, in: CGRect(x: 10 + named + 6 + wide + 6, y: 7, width: wide, height: 14))
+
+        // the window stores its own colour space, so each reads by its lean, warm or blue
+        #expect(asks.count == 3 && asks[0] - asks[2] > 0.3)
+        #expect(stopped.count == 3 && stopped[2] - stopped[0] > 0.3)
     }
 
     @available(macOS 26, *)

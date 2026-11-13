@@ -115,7 +115,7 @@ struct NoticeRowsTests {
         let line = instead.map { "Can't while macOS stops it; \($0) instead" } ?? Self.silent
 
         #expect(SettingsRow.notify(leave, show: show, for: .turn, pulses: false) == SettingsRow(
-            label: "Notify me when it's my turn", line: line, side: .toggle(isEnabled: instead == nil)
+            label: "Notify me when Claude stops", line: line, side: .toggle(isEnabled: instead == nil)
         ))
     }
 

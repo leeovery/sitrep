@@ -130,13 +130,13 @@ extension SettingsRow {
         }
     }
 
-    /// Notify me of a new ask, or when it's my turn: the switch keeps what Lee left it at, but greys while macOS stops
+    /// Notify me of a new ask, or when Claude stops: the switch keeps what Lee left it at, but greys while macOS stops
     /// SitRep's notifications, its line saying what tells him instead, for what shows at the edge, the notch swelling
     /// only while its pulse for that need is on.
     public static func notify(
         _ leave: NoticeLeave?, show: EdgeSettings.Show, for need: Need = .ask, pulses: Bool = true
     ) -> SettingsRow {
-        let label = need == .ask ? "Notify me of a new ask" : "Notify me when it's my turn"
+        let label = need == .ask ? "Notify me of a new ask" : "Notify me when Claude stops"
 
         guard leave?.stops == true else {
             return SettingsRow(label: label, line: "Silent; a click on it jumps to the session", side: .toggle(isEnabled: true))

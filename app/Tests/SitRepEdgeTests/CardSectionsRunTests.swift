@@ -123,13 +123,14 @@ struct CardSectionsRunTests {
         #expect(!run.list.content.items.contains(.divider))
     }
 
-    /// Folds Lee left are where the run starts: its eyebrow alone, pointing right, counting its asks and its turns.
+    /// Folds Lee left are where the run starts: its eyebrow alone, pointing right, counting its asks and its stopped.
     @Test func theFoldsSavedAreRestored() {
         let run = Self.opened(Self.mixed, kept: Self.kept([.needsYou]))
+        let counts = [Eyebrow.Count(2, need: .ask), Eyebrow.Count(1, need: .turn)]
 
         #expect(Self.keys(run) == ["eyebrow:needsYou", "eyebrow:working", "sr-w"])
         #expect(run.list.content.items.contains(.eyebrow(Eyebrow(
-            section: .needsYou, count: 3, isFolded: true, above: Eyebrow.first
+            section: .needsYou, counts: counts, isFolded: true, above: Eyebrow.first
         ))))
     }
 

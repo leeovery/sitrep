@@ -109,11 +109,11 @@ struct TurnNoticesTests {
 
     // MARK: What it sends and plays
 
-    /// "Your turn", its project and session, then what Claude left Lee, silently, a click on it carrying it on.
+    /// "Stopped", its project and session, then what Claude left Lee, silently, a click on it carrying it on.
     @Test func itsNotificationSaysItIsLeesTurnAndCarriesTheSessionOn() {
         #expect(Notices.due(Self.ended, Self.turnsOn) == [
             Banner(
-                title: "Your turn", subtitle: "Kit · The bootstrap", body: "Write round 4 into DESIGN.md",
+                title: "Stopped", subtitle: "Kit · The bootstrap", body: "Write round 4 into DESIGN.md",
                 work: "sr-boot"
             ),
         ])

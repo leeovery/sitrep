@@ -85,23 +85,44 @@ extension [Session] {
     }
 }
 
-/// A section's eyebrow: its name, its count, and whether it is folded to the eyebrow alone.
+/// A section's eyebrow: its name, its counts, and whether it is folded to the eyebrow alone.
 public struct Eyebrow: Equatable, Sendable {
+    /// One of its figures: how many it counts, and, in Needs you, what they wait on Lee for, which its colour says.
+    public struct Count: Equatable, Sendable {
+        public let value: Int
+        /// Needs you's asks or its stopped, apart; nil for a section counted whole.
+        public let need: Need?
+
+        public init(_ value: Int, need: Need? = nil) {
+            self.value = value
+            self.need = need
+        }
+    }
+
     public let section: BoardSection
-    /// Needs you's counts its waiting lines, the asks and stops, and Snoozed's the asks asleep; the others count their
-    /// rows.
-    public let count: Int
+    /// Needs you's two, side by side, its asks then its stopped, each only above zero (13 November 2026): the asks
+    /// counting its waiting lines, the asks and stops, and the stopped its sessions at Lee's turn. Snoozed's one counts
+    /// the asks asleep, and the others' one their rows.
+    public let counts: [Count]
     public let isFolded: Bool
     /// The room over its 28: 4 under the card's top, else 14 under the row or the eyebrow above it, which is all that
     /// tells the sections apart (board J).
     public let above: Double
 
-    public init(section: BoardSection, count: Int, isFolded: Bool, above: Double) {
+    public init(section: BoardSection, counts: [Count], isFolded: Bool, above: Double) {
         self.section = section
-        self.count = count
+        self.counts = counts
         self.isFolded = isFolded
         self.above = above
     }
+
+    /// One counted whole.
+    public init(section: BoardSection, count: Int, isFolded: Bool, above: Double) {
+        self.init(section: section, counts: [Count(count)], isFolded: isFolded, above: above)
+    }
+
+    /// All it counts, its figures together.
+    public var count: Int { counts.map(\.value).reduce(0, +) }
 
     /// The room over the first eyebrow, under the card's top, and over each after it.
     public static let first = 4.0, after = 14.0
@@ -135,10 +156,21 @@ extension Item {
                 let (section, rows) = shown
                 let isFolded = folds.sections.contains(section)
                 let above = index == 0 ? Eyebrow.first : Eyebrow.after
-                let eyebrow = Eyebrow(section: section, count: count(rows, in: section), isFolded: isFolded, above: above)
+                let eyebrow = Eyebrow(section: section, counts: counts(rows, in: section), isFolded: isFolded, above: above)
 
                 return [Item.eyebrow(eyebrow)] + (isFolded ? [] : rows.map(Item.line))
             }
+    }
+
+    /// Needs you's asks and its stopped apart, those above zero; another section's rows, or lines, whole.
+    private static func counts(_ rows: [Session], in section: BoardSection) -> [Eyebrow.Count] {
+        guard section == .needsYou else {
+            return [Eyebrow.Count(count(rows, in: section))]
+        }
+
+        return Need.allCases
+            .map { need in Eyebrow.Count(count(rows.filter { $0.need == need }, in: section), need: need) }
+            .filter { $0.value > 0 }
     }
 
     private static func count(_ rows: [Session], in section: BoardSection) -> Int {

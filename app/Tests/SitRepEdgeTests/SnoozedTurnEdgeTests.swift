@@ -53,7 +53,7 @@ struct SnoozedTurnEdgeTests {
             "eyebrow:needsYou", "turn:sr-fbrk3m", "eyebrow:snoozed", "snoozedTurn:sr-ctnbd2", "snoozedTurn:sr-nwtrn5",
         ])
         #expect(Self.eyebrows(run) == [
-            Eyebrow(section: .needsYou, count: 1, isFolded: false, above: Eyebrow.first),
+            Eyebrow(section: .needsYou, counts: [Eyebrow.Count(1, need: .turn)], isFolded: false, above: Eyebrow.first),
             Eyebrow(section: .snoozed, count: 2, isFolded: false, above: Eyebrow.after),
         ])
     }

@@ -102,6 +102,20 @@ struct SectionsTests {
         #expect(Self.eyebrows(Self.card()).map(\.count) == [6, 2])
     }
 
+    /// Needs you's eyebrow counts its asks and its stopped apart, the asks first, each only above zero; with neither,
+    /// there is no Needs you and no eyebrow for it. Working's one counts its rows whole.
+    @Test func needsYouCountsItsAsksAndItsStoppedApartEachAboveZero() {
+        let asks = Self.board.filter { $0.kind == .needs }, stopped = Self.board.filter { $0.kind == .turn }
+        let working = Self.board.filter { $0.section == .working }
+        let counts = { (board: [Session]) in Self.eyebrows(Self.card(board)).first { $0.section == .needsYou }?.counts }
+
+        #expect(counts(asks) == [Eyebrow.Count(4, need: .ask)])
+        #expect(counts(stopped) == [Eyebrow.Count(2, need: .turn)])
+        #expect(counts(Self.board) == [Eyebrow.Count(4, need: .ask), Eyebrow.Count(2, need: .turn)])
+        #expect(counts(working) == nil)
+        #expect(Self.eyebrows(Self.card(working)).map(\.counts) == [[Eyebrow.Count(2)]])
+    }
+
     @Test func anEmptySectionIsLeftOutWithItsEyebrow() {
         let noneWorking = Self.board.filter { $0.section != .working }
 
