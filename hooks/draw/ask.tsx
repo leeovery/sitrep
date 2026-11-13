@@ -93,10 +93,13 @@ const drawOption = (d: Drawing, key: string, option: string, ask: Ask, onPress: 
     />
   )
 
+  // The word keeps whole, and wraps under a long label on a narrow pane rather than breaking.
   return option === ask.recommended ? (
-    <Box key={`recommended:${key}`} flexDirection="row" columnGap={1}>
+    <Box key={`recommended:${key}`} flexDirection="row" columnGap={1} flexWrap="wrap">
       {button}
-      <Text color={C.grey}>{RECOMMENDED}</Text>
+      <Box flexShrink={0}>
+        <Text color={C.grey}>{RECOMMENDED}</Text>
+      </Box>
     </Box>
   ) : (
     button

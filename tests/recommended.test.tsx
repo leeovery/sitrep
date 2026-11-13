@@ -74,6 +74,55 @@ test('edit sets recommended or clears it; one changing the options keeps it whil
   expect(asksOf(w)[0]).toMatchObject({ options: ['Redraw', 'Hold off'], recommended: 'Redraw' })
 })
 
+test("edit's answer says the recommendation went exactly where the folded ask lost it unnamed: a reshape, an option removed; never where it moved or was cleared by name", async ($, on) => {
+  const w = world($, on)
+
+  await w.begin()
+
+  const cases: [edit: { [key: string]: unknown }, lost: boolean][] = [
+    [{ wants: 'words' }, true],
+    [{ options: ['Redraw', 'Hold off'] }, true],
+    [{ options: ['Redraw (recommended)', 'Hold off'] }, false],
+    [{ options: ['Ship it', 'Redraw (recommended)'] }, false],
+    [{ recommended: '' }, false],
+    [{ recommended: 'Redraw' }, false],
+    [{ options: ['Hold off', 'Ship it'] }, false],
+  ]
+
+  for (const [changes, lost] of cases) {
+    const id = await asked(w, { ...FRAMES, recommended: 'Ship it' })
+    const answer = String((await w.call('edit', { item: id, ...changes })).result)
+    const after = asksOf(w).find(ask => ask.id === id)?.recommended
+    const said = `Edited ${id}. Its recommended option “Ship it” is gone, so it recommends none now.`
+
+    expect(answer, JSON.stringify(changes)).toBe(lost ? said : `Edited ${id}.`)
+    expect(after === undefined && changes.recommended === undefined, JSON.stringify(changes)).toBe(
+      lost,
+    )
+  }
+})
+
+test('edit clearing recommended while its options mark one is refused', async ($, on) => {
+  const w = world($, on)
+
+  await w.begin()
+
+  const id = await asked(w, { ...FRAMES, recommended: 'Ship it' })
+
+  expect(
+    (
+      await w.call('edit', {
+        item: id,
+        options: ['Ship it', 'Redraw (recommended)'],
+        recommended: '',
+      })
+    ).deny,
+  ).toBe(
+    'Recommend one option: “Redraw” is marked recommended in the options, and recommended says otherwise.',
+  )
+  expect(asksOf(w)[0]).toMatchObject({ options: FRAMES.options, recommended: 'Ship it' })
+})
+
 test('the board tool reads back which option is recommended, once', async ($, on) => {
   const w = world($, on)
 
@@ -130,10 +179,18 @@ test('the pane marks the recommended option with the word once, quiet beside it,
   }
 
   const terminal = await w.pane()
+  const marked = await terminal.find({ key: `recommended:choose:${w.item(id)}:1` })
 
-  expect(rowsOf(await terminal.find({ key: `recommended:choose:${w.item(id)}:1` }))).toEqual([
-    '[ Redraw ] recommended',
-  ])
+  expect(rowsOf(marked)).toEqual(['[ Redraw ] recommended'])
+  expect(marked?.props.flexWrap, 'the word wraps under a long label').toBe('wrap')
+  expect(
+    marked?.children?.map(child =>
+      typeof child === 'object' && child !== null && 'props' in child
+        ? (child.props as { flexShrink?: number }).flexShrink
+        : undefined,
+    ),
+    'and keeps whole',
+  ).toEqual([undefined, 0])
 })
 
 test('a choice with nothing recommended draws no such word, its first option the primary one', async ($, on) => {

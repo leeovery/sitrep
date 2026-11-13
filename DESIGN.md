@@ -555,6 +555,11 @@ a note has. So:
   ask Lee closed was refused as any closed item is, and a parked item he
   picked up took the resolve, Claude's reason written over his pick-up.
   An ask whose answer is on its way, not yet delivered, resolves as ever.
+- **Accepted, not built**: an edit re-sending an option of an ask posted
+  before markers were read, its marker now stripped, changes the option's
+  stored words; a pick of it on its way is not voided, since a pick is
+  never checked against the options' words, and reaches Claude in the
+  words Lee picked (`→ Ship it (recommended)`) (13 November 2026).
 - **Accepted, not built**: where Claude edits an ask in the very turn Lee's
   answer to it is on its way, the edit voids that answer as changed (see
   "Which replies go in", under Delivery), and the ask stays open, though
@@ -881,17 +886,47 @@ shape is ever shown as a word:
     its options, as stored. Given on a yes or a words ask it is refused
     (`Only a choice ask takes recommended: one of its options.`), and so
     is one naming none of the options (`recommended names one of the
-    options, in its words: “Ship it” or “Redraw”.`).
+    options, in its words: “Ship it” or “Redraw”.`), and one that is not
+    text (`recommended is text: one of the options, in its words.`).
   - **A marker Claude still types** is read as the field and stripped from
-    the option's text: "recommended" at the option's end, any case, in
-    parentheses or brackets, or after a dash a space sets off ("Ship it
-    (Recommended)", "Ship it [recommended]", "Ship it — recommended",
-    "Ship it - Recommended"), with something before it. Nothing else is: an
-    option about recommendations ("Use the recommended defaults") is left
-    alone. Two options marked, or one marked and `recommended` naming
-    another or clearing it, is refused (`Recommend one option: …`); the
-    same option marked and named is fine. Options given in an edit are read
-    the same way.
+    the option's text, any case, one marker after another until none is
+    left ("Ship it (recommended) (recommended)" is "Ship it"):
+    - the word in parentheses or brackets ending the option, "strongly"
+      or "highly" before it there, a full stop or a bang after ("Ship it
+      (Recommended)", "Ship it [recommended]", "Ship it (strongly
+      recommended).");
+    - the word after a dash ending the option, a full stop or a bang
+      after: a hyphen with a space before it, an en or em dash with or
+      without ("Ship it - Recommended", "Ship it—recommended");
+    - the word in parentheses or brackets with more words after, the
+      spaces tidied ("Ship it (recommended) — ships today" is "Ship it —
+      ships today");
+    - brackets that start with the word and go on after a comma, a
+      semicolon, a colon or a dash, keeping what follows ("(recommended,
+      fastest)" is "(fastest)");
+    - "Recommended:" before the option ("Recommended: Ship it").
+
+    Each wants something left beside it. Nothing else is read: the word
+    negated or qualified ("(not recommended)", "– not recommended",
+    "(recommended by Apple)"), a hyphen with no space ("self-recommended",
+    "non-recommended"), and an option about recommendations ("Use the
+    recommended defaults") are left alone. Two options marked, or one
+    marked and `recommended` naming another or clearing it, is refused
+    (`Recommend one option: …`); the same option marked and named is fine.
+    Two options that become one once stripped, leaving fewer than two, are
+    refused naming it (`A choice ask needs at least 2 options: “Ship it”
+    is given twice, once marked recommended.`). Options given in an edit
+    are read the same way. (Until the review of 13 November 2026 only the
+    word ending the option was read, in brackets or after a dash a space
+    set off, so the rest showed it twice.)
+  - **Asks posted before markers were read** may keep one in an option's
+    stored text. An option is named by its exact words first, then by its
+    words without their markers, either way round: an edit's `recommended`
+    ("Ship it" for "Ship it (recommended)"), which takes the option in its
+    own stored words, so Claude is never refused in a loop; the fold's
+    reading of `recommended` against the options, so an edit re-sending
+    the option stripped keeps it recommended; and the CLI's `answer`, which
+    writes the option in its stored words.
   - **Claude's order of options is kept**; nothing is reordered.
   - **Drawn once, beside its option.** The pane draws the word
     `recommended` after the option's button, dim grey as every secondary
@@ -904,7 +939,10 @@ shape is ever shown as a word:
     none), and the CLI's `answer`, refusing an answer, names it once among
     the options (`answer it with “Ship it” (recommended) or “Redraw”.`).
     No band, banner or row shows an ask's options, so none shows it. Lee's
-    reply when he picks the option is as ever (`→ Redraw`).
+    reply when he picks the option is as ever (`→ Redraw`). The word and
+    its button wrap as a pair, the word kept whole, so on a narrow pane or
+    a phone a long label drops the word under the button rather than
+    breaking it.
   - **An edit** sets it, or clears it with an empty one. One changing the
     options keeps it while its option is among them; where its option is
     gone, or the ask wants a choice no more, it goes with it, and the

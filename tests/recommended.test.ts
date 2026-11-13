@@ -16,7 +16,19 @@ import {
   type Checked,
   type EditBody,
 } from '../core'
-import { choiceAsk, file, fold, META, MIN, T0, W1, wordsAsk, yesAsk, type Line } from './support'
+import {
+  choiceAsk,
+  file,
+  fold,
+  META,
+  MIN,
+  reply,
+  T0,
+  W1,
+  wordsAsk,
+  yesAsk,
+  type Line,
+} from './support'
 import { terminal } from './terminal'
 
 const OPTIONS = ['Ship it', 'Redraw', 'Hold off']
@@ -68,16 +80,48 @@ test('the marker read is "recommended" at the end of an option, any case, in par
   }
 })
 
-test('nothing else is read as a marker: the word elsewhere, without its parentheses, brackets or dash, or with nothing before it', () => {
+test('the forms Claude also types are read and stripped: a stop or a bang after, a dash with no space, an adverb, more words after, a leading Recommended:', () => {
+  for (const [option, text] of [
+    ['Ship it (recommended).', 'Ship it'],
+    ['Ship it [Recommended]!', 'Ship it'],
+    ['Ship it — recommended.', 'Ship it'],
+    ['Ship it—recommended', 'Ship it'],
+    ['Ship it–Recommended', 'Ship it'],
+    ['Ship it (strongly recommended)', 'Ship it'],
+    ['Ship it (Highly Recommended)', 'Ship it'],
+    ['Ship it (recommended, fastest)', 'Ship it (fastest)'],
+    ['Ship it (Recommended — fastest)', 'Ship it (fastest)'],
+    ['Ship it [recommended: fastest]', 'Ship it [fastest]'],
+    ['Ship it (recommended) — ships today', 'Ship it — ships today'],
+    ['Recommended: Ship it', 'Ship it'],
+  ] as const) {
+    expect(unmarked(option), option).toEqual({ text, isMarked: true })
+  }
+})
+
+test('markers are stripped one after another until none is left', () => {
+  expect(unmarked('Ship it (recommended) (recommended)')).toEqual({
+    text: 'Ship it',
+    isMarked: true,
+  })
+  expect(unmarked('Recommended: Ship it — recommended')).toEqual({
+    text: 'Ship it',
+    isMarked: true,
+  })
+})
+
+test('nothing else is read as a marker: the word elsewhere, negated or qualified, a hyphen with no space, or with nothing before it', () => {
   for (const option of [
     'Use the recommended defaults',
     'Recommended defaults',
     'Go with what is recommended',
     'Ship it, recommended',
-    'Ship it (recommended).',
+    'Ship it (not recommended)',
+    'Ship it – not recommended',
     'Ship it (recommended by Apple)',
     'Ship it ( recommended )',
     'Pick the non-recommended',
+    'Pick the self-recommended',
     'Ship it - recommendedly',
     '(recommended)',
     '- recommended',
@@ -86,12 +130,39 @@ test('nothing else is read as a marker: the word elsewhere, without its parenthe
   }
 })
 
-test('options are read with their markers stripped, an option given twice so kept once, and the ones marked named', () => {
+test('options are read with their markers stripped, an option given twice so kept once, the ones marked named, and the ones two became', () => {
   expect(readOptions(['Ship it (recommended)', 'Redraw', 'Ship it'])).toEqual({
     options: ['Ship it', 'Redraw'],
     marked: ['Ship it'],
+    collapsed: ['Ship it'],
   })
-  expect(readOptions(['Ship it', 'Redraw'])).toEqual({ options: ['Ship it', 'Redraw'], marked: [] })
+  expect(readOptions(['Ship it', 'Redraw'])).toEqual({
+    options: ['Ship it', 'Redraw'],
+    marked: [],
+    collapsed: [],
+  })
+})
+
+test('two options that become one once stripped, leaving too few, are refused naming the repeat, on post and on edit', () => {
+  const collapsing = { ...FRAMES, options: ['Ship it', 'Ship it (recommended)'] }
+  const refused =
+    'A choice ask needs at least 2 options: “Ship it” is given twice, once marked recommended.'
+
+  expect(refusal(checkAsk(collapsing))).toBe(refused)
+  expect(refusal(checkEdit(SESSION, { item: 'k2', options: collapsing.options }))).toBe(refused)
+  expect(value(checkAsk({ ...FRAMES, options: [...collapsing.options, 'Redraw'] }))).toMatchObject({
+    options: ['Ship it', 'Redraw'],
+    recommended: 'Ship it',
+  })
+})
+
+test('a recommended that is not text is refused on post, as on edit', () => {
+  expect(refusal(checkAsk({ ...FRAMES, recommended: 1 }))).toBe(
+    'recommended is text: one of the options, in its words.',
+  )
+  expect(refusal(checkEdit(SESSION, { item: 'k1', recommended: 1 }))).toBe(
+    'An edit cannot leave recommended empty or of the wrong kind.',
+  )
 })
 
 test("a choice ask takes recommended, one of its options in its words, and Claude's order of options is kept", () => {
@@ -264,6 +335,77 @@ test('a line naming an option it does not offer recommends none; an old line wit
   expect(parseEntries(file([T0, recommending('k1', 'Ship it')]))[0]).toMatchObject({
     recommended: 'Ship it',
   })
+})
+
+/** An ask posted before markers were read, its first option still carrying one. */
+const MARKED_BEFORE = choiceAsk('k1', FRAMES.title, ['Ship it (recommended)', 'Redraw'])
+
+test('on an ask posted before markers were read, edit names an option without its marker, and recommended takes the option in its own words', () => {
+  const old = fold({ logs: { [W1]: file([T0, MARKED_BEFORE]) } })
+
+  for (const recommended of ['Ship it', 'Ship it (recommended)']) {
+    expect(value(checkEdit(old, { item: 'k1', recommended }))?.changes, recommended).toEqual({
+      recommended: 'Ship it (recommended)',
+    })
+  }
+
+  expect(
+    askAfter([T0, MARKED_BEFORE], [T0 + MIN, edit('k1', { recommended: 'Ship it (recommended)' })])
+      ?.recommended,
+  ).toBe('Ship it (recommended)')
+})
+
+test('re-sending such an option stores it stripped and keeps it recommended; a pick of it on its way survives, in the words Lee picked', () => {
+  const old = fold({ logs: { [W1]: file([T0, MARKED_BEFORE]) } })
+  const stripped = checkEdit(old, { item: 'k1', options: ['Ship it (recommended)', 'Redraw'] })
+
+  expect(value(stripped)?.changes).toEqual({
+    options: ['Ship it', 'Redraw'],
+    recommended: 'Ship it',
+  })
+
+  const recommendedBefore = edit('k1', { recommended: 'Ship it (recommended)' })
+  const resent = edit('k1', { options: ['Ship it', 'Redraw'] })
+
+  expect(
+    askAfter([T0, MARKED_BEFORE], [T0 + MIN, recommendedBefore], [T0 + 2 * MIN, resent]),
+  ).toMatchObject({ options: ['Ship it', 'Redraw'], recommended: 'Ship it' })
+
+  const picked = fold({
+    logs: {
+      [W1]: file(
+        [T0, MARKED_BEFORE],
+        [T0 + MIN, reply('r1', 'k1', 'choose', { option: 'Ship it (recommended)' })],
+        [T0 + 2 * MIN, resent],
+      ),
+    },
+  })
+  const pick = (picked.items.get('k1') as Ask).replies[0]
+
+  expect(pick).toMatchObject({ option: 'Ship it (recommended)', voided: undefined })
+  expect(pick?.delivery).not.toBe('void')
+  expect(boardMessage(picked, pick === undefined ? [] : [pick])?.text).toContain(
+    '→ Ship it (recommended)',
+  )
+})
+
+test("the CLI's answer takes an option's exact words first, then its words without a marker, either way round", () => {
+  const old = fold({
+    logs: {
+      [W1]: file(
+        [T0, MARKED_BEFORE],
+        [T0, choiceAsk('k2', 'Keep it?', ['Keep it', 'Keep it (recommended)'])],
+      ),
+    },
+  })
+  const option = (session: typeof old, ask: string, answer: string) =>
+    value(checkAnswer(session, { ask, answer }))?.option
+
+  expect(option(old, 'k1', 'Ship it')).toBe('Ship it (recommended)')
+  expect(option(old, 'k1', 'Ship it (recommended)')).toBe('Ship it (recommended)')
+  expect(option(SESSION, 'k2', 'Keep it (recommended)')).toBe('Keep it')
+  expect(option(old, 'k2', 'Keep it')).toBe('Keep it')
+  expect(option(old, 'k2', 'Keep it (recommended)')).toBe('Keep it (recommended)')
 })
 
 test('an edit leaving an ask without its recommended option, unnamed, is told; one keeping it, or naming it, is not', () => {

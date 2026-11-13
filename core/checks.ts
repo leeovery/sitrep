@@ -10,7 +10,7 @@
 import { isTime } from './entries'
 import { isSessionId, newItemId, type Random } from './ids'
 import { directoryOf, isNameable } from './project'
-import { readOptions, unmarked } from './recommended'
+import { offeredAs, readOptions, unmarked } from './recommended'
 import { needsReload } from './release'
 import { waitingOnLee, waitsOnLee, yesOf } from './replies'
 import { turnEndOf } from './rows'
@@ -76,7 +76,7 @@ const lines = (value: unknown) => {
 
 const isWants = (value: unknown): value is Wants => WANTS.includes(value as Wants)
 
-/** A choice's options as given, as lines, each stripped of a marker typed at its end, and those that carried one; undefined when not text. */
+/** A choice's options as given, as lines, each stripped of the markers typed in it, those that carried one, and those two became; undefined when not text. */
 const optionsRead = (value: unknown) => {
   const given = lines(value)
 
@@ -116,7 +116,7 @@ const recommendationOf = (
     : ok(given ?? one)
 }
 
-/** A recommended option as given, one line, a marker typed at its end stripped; empty where it comes to nothing; undefined when not text. */
+/** A recommended option as given, one line, the markers typed in it stripped; empty where it comes to nothing; undefined when not text. */
 const recommendedIn = (value: unknown) => {
   const given = clearable(value)
 
@@ -150,6 +150,8 @@ type Shape = {
   options: readonly string[]
   recommended?: string
   needs?: string
+  /** The options two given ones became, once stripped of their markers. */
+  collapsed?: readonly string[]
 }
 
 /** What a shape must hold, each rule broken where it says, with what to fix. */
@@ -177,6 +179,12 @@ const SHAPE_RULES: readonly [breaks: (shape: Shape) => boolean, error: string][]
   ],
 ]
 
+/** Why a choice is left too few options by two of them becoming one once stripped of their markers, naming it; undefined where it is not. */
+const collapsedMisfit = ({ wants, options, collapsed = [] }: Shape) =>
+  wants === 'choice' && options.length < LEAST_OPTIONS && collapsed.length > 0
+    ? `A choice ask needs at least ${LEAST_OPTIONS} options: ${quotedOr(collapsed)} is given twice, once marked recommended.`
+    : undefined
+
 /** Why the option a shape recommends will not do: on an ask that is no choice, or naming none of its options; undefined when it will. */
 const recommendedMisfit = ({ wants, options, recommended }: Shape) => {
   if (recommended === undefined) {
@@ -187,14 +195,16 @@ const recommendedMisfit = ({ wants, options, recommended }: Shape) => {
     return 'Only a choice ask takes recommended: one of its options.'
   }
 
-  return options.includes(recommended)
+  return offeredAs(options, recommended) !== undefined
     ? undefined
     : `recommended names one of the options, in its words: ${quotedOr(options)}.`
 }
 
 /** Why a shape will not do; undefined when it will. */
 const misfitOf = (shape: Shape) =>
-  SHAPE_RULES.find(([breaks]) => breaks(shape))?.[1] ?? recommendedMisfit(shape)
+  collapsedMisfit(shape) ??
+  SHAPE_RULES.find(([breaks]) => breaks(shape))?.[1] ??
+  recommendedMisfit(shape)
 
 /** A session to start: its name and summary, and its project's name and directory. */
 export type StartFields = { name: string; summary: string; project: string; directory?: string }
@@ -293,7 +303,11 @@ export const checkAsk = (input: unknown): Checked<Omit<AskBody, 'id'>> => {
     return refuse('An ask needs a title: one line, starting with the verb.')
   }
 
-  const read = optionsRead(fields.options) ?? { options: [], marked: [] }
+  if (fields.recommended !== undefined && typeof fields.recommended !== 'string') {
+    return refuse('recommended is text: one of the options, in its words.')
+  }
+
+  const read = optionsRead(fields.options) ?? { options: [], marked: [], collapsed: [] }
   const recommended = recommendationOf(read.marked, recommendedIn(fields.recommended) || undefined)
 
   if (!recommended.ok) {
@@ -306,6 +320,7 @@ export const checkAsk = (input: unknown): Checked<Omit<AskBody, 'id'>> => {
     options: read.options,
     recommended: recommended.value,
     needs: line(fields.needs),
+    collapsed: read.collapsed,
   }
   const misfit = misfitOf(shape)
 
@@ -531,21 +546,44 @@ const changesFor = (item: Item, fields: Fields): Checked<Changes> => {
 const kept = <T>(given: T | undefined, had: T | undefined, isKept: boolean) =>
   given === undefined ? (isKept ? had : undefined) : given || undefined
 
+/** What an ask wants back once edited, and the options it then offers. */
+const editedChoice = (ask: Ask, changes: Changes) => {
+  const wants = changes.wants ?? ask.wants
+
+  return { wants, options: kept(changes.options, ask.options, wants === 'choice') ?? [] }
+}
+
 /** Why an ask, once edited, would not hold what its shape takes; undefined when it would. */
-const editedMisfit = (item: Item, changes: Changes) => {
+const editedMisfit = (item: Item, changes: Changes, collapsed: readonly string[]) => {
   if (item.type !== 'ask') {
     return undefined
   }
 
-  const wants = changes.wants ?? item.wants
+  const { wants, options } = editedChoice(item, changes)
 
   return misfitOf({
     wants,
     yes: kept(changes.yes, item.yes, wants === 'yes'),
-    options: kept(changes.options, item.options, wants === 'choice') ?? [],
+    options,
     recommended: changes.recommended || undefined,
     needs: kept(changes.needs, item.needs, wants === 'words'),
+    collapsed,
   })
+}
+
+/**
+ * An edit's changes with the option it recommends in the words the ask
+ * offers it in: an option posted before markers were read may still carry
+ * one, and is named without it.
+ */
+const offeredIn = (item: Item, changes: Changes): Changes => {
+  if (item.type !== 'ask' || !changes.recommended) {
+    return changes
+  }
+
+  const offered = offeredAs(editedChoice(item, changes).options, changes.recommended)
+
+  return offered === undefined ? changes : { ...changes, recommended: offered }
 }
 
 /**
@@ -582,7 +620,9 @@ export const droppedRecommendation = (session: Session, { item, changes }: EditB
   const wants = changes.wants ?? ask.wants
   const options = changes.options ?? ask.options ?? []
 
-  return wants === 'choice' && options.includes(ask.recommended) ? undefined : ask.recommended
+  return wants === 'choice' && offeredAs(options, ask.recommended) !== undefined
+    ? undefined
+    : ask.recommended
 }
 
 /** The fields of an ask's shape: what it wants back, and what goes with that. */
@@ -610,19 +650,20 @@ export const checkEdit = (session: Session, input: unknown): Checked<EditBody> =
   }
 
   const read = changesFor(item.value, fields)
-  const changes = read.ok ? markedIn(read.value, fields) : read
+  const marked = read.ok ? markedIn(read.value, fields) : read
 
-  if (!changes.ok) {
-    return changes
+  if (!marked.ok) {
+    return marked
   }
 
-  const misfit = editedMisfit(item.value, changes.value)
+  const changes = offeredIn(item.value, marked.value)
+  const misfit = editedMisfit(item.value, changes, optionsRead(fields.options)?.collapsed ?? [])
 
   return misfit === undefined
     ? ok({
         type: 'edit',
         item: item.value.id,
-        changes: written(item.value, changes.value),
+        changes: written(item.value, changes),
         reason: line(fields.reason),
       })
     : refuse(misfit)
@@ -707,7 +748,9 @@ const worded = (ask: Ask, given: string | undefined): Answer => {
     )
   }
 
-  if (given === undefined || !answers.includes(given)) {
+  const answer = given === undefined ? undefined : offeredAs(answers, given)
+
+  if (answer === undefined) {
     return refuse(
       `${ask.id} wants ${wanted}: answer it with ${quotedOr(answers, ask.recommended)}.`,
     )
@@ -716,7 +759,7 @@ const worded = (ask: Ask, given: string | undefined): Answer => {
   return ok(
     ask.wants === 'yes'
       ? { type: 'reply', item: ask.id, verdict: 'yes' }
-      : { type: 'reply', item: ask.id, verdict: 'choose', option: given },
+      : { type: 'reply', item: ask.id, verdict: 'choose', option: answer },
   )
 }
 

@@ -22,6 +22,7 @@ import { parseMeta } from './meta'
 import { unpaused, type Pause } from './pauses'
 import { deliverer, isLive, parsePresence } from './presence'
 import { parseProject, projectName } from './project'
+import { offeredAs } from './recommended'
 import {
   askAfter,
   closedReason,
@@ -363,7 +364,7 @@ const fitShape = (ask: Ask) => {
   ask.options = ask.wants === 'choice' ? ask.options : undefined
   // An edit's empty `recommended` clears it, as one changing the options away from it does.
   ask.recommended =
-    ask.recommended && ask.options?.includes(ask.recommended) ? ask.recommended : undefined
+    ask.recommended && ask.options ? offeredAs(ask.options, ask.recommended) : undefined
   // An edit's empty `needs` clears it.
   ask.needs = ask.wants === 'words' ? ask.needs || undefined : undefined
 }
