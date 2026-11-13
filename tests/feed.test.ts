@@ -292,6 +292,22 @@ test('a session with an ask and a window stopped on a permission prompt is one r
   expect(rowFor(session)?.since).toBe(T0 + 2 * MIN)
 })
 
+test("a session at Lee's turn with asks waiting is one row, in Needs you, counted by its asks: its turn adds no row, no line and no count", () => {
+  const session = sessionOf({
+    lines: [
+      [T0 + MIN, yesAsk('k1', 'Review round 1')],
+      [T0 + 2 * MIN, yesAsk('k2', 'Ship it')],
+    ],
+    presence: windowOn(W1, yourTurn(T0)),
+  })
+  const feed = feedAt(NOW, session)
+
+  expect(feed.rows.map(row => [row.session, row.section, row.lines.map(each => each.key)])).toEqual([
+    [META.id, 'needsYou', [`ask:${META.id}:k2`, `ask:${META.id}:k1`]],
+  ])
+  expect(feed.head).toEqual({ needYou: 2, sessions: 1 })
+})
+
 test('a reopened ask waits since its reopening; a closed one is no row', () => {
   const session = sessionOf({
     lines: [

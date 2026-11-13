@@ -19,9 +19,15 @@ public struct LastBoard: Sendable, Equatable {
     /// shows counts as shown, so only a later line's `new` is news. True only
     /// as the line comes.
     public private(set) var isRunsFirst = false
+    /// The sessions the line just heard moved into Lee's turn, by their ids
+    /// (`turnsEnded`). Only as the line comes, as `isRunsFirst` is.
+    public private(set) var newTurns: Set<String> = []
 
     /// A run has started and nothing it printed has been heard yet.
     private var awaitsRunsFirst = false
+    /// For each session on the board's rows, the end of the latest turn it
+    /// has stood at Lee's turn from, which moves it into his turn no more.
+    private var turnEnds: [String: Date] = [:]
 
     public init() {}
 
@@ -36,6 +42,7 @@ public struct LastBoard: Sendable, Equatable {
         let was = self
 
         isRunsFirst = false
+        newTurns = []
 
         switch heard {
         case let .line(line):
@@ -56,13 +63,40 @@ public struct LastBoard: Sendable, Equatable {
     /// no other kind until it or the app is updated.
     private mutating func read(_ line: String, at instant: Date) {
         do {
-            board = try Board.read(line)
+            let read = try Board.read(line)
+
+            newTurns = turnsEnded(on: read, after: isRunsFirst ? nil : board)
+            board = read
             stale = nil
             staleSince = nil
         } catch {
             Logger.watch.error("sitrep watch \(error, privacy: .public): \(line.prefix(200), privacy: .public)")
             goStale(.unread(error), at: instant)
         }
+    }
+
+    /// The sessions this board moved into Lee's turn after the last (DESIGN,
+    /// "Settings", Notifications): at his turn now, from a turn that ended
+    /// later than any it stood at his turn from before, and on the last
+    /// board's rows. So each turn moves in once: never again as its session
+    /// comes back to it, its asks answered or its snooze woken; never on a
+    /// run's first line, the first since SitRep started among them, whose
+    /// sessions at his turn were there already; and never for a session new
+    /// to the rows at his turn, as one a window attaches to is. The turns'
+    /// ends are kept for the sessions on this board's rows alone.
+    private mutating func turnsEnded(on board: Board, after last: Board?) -> Set<String> {
+        let wasOn = Set(last?.rows.map(\.session) ?? [])
+        let turns = board.rows.filter { $0.section == .yourTurn }
+        let ended = turns.filter { turn in
+            wasOn.contains(turn.session) && turnEnds[turn.session].map { turn.since > $0 } ?? true
+        }
+
+        turnEnds = board.rows.reduce(into: [:]) { ends, row in
+            let end = turnEnds[row.session]
+
+            ends[row.session] = row.section == .yourTurn ? max(row.since, end ?? row.since) : end
+        }
+        return Set(ended.map(\.session))
     }
 
     /// Stale for the reason given, since it first went stale.

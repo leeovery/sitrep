@@ -134,14 +134,15 @@ struct CommandRow: View {
     }
 }
 
-/// Notifications: the desktop corner a new ask's notification lands on, its caption and Send Test; Banners, the switch
-/// and macOS's own answer; Sound, what a new ask plays, which banners, silent, leave alone: its switch, and the sound,
-/// greyed while the switch is off.
+/// Notifications: the desktop corner a new ask's notification lands on, its caption and Send Test; then what a new
+/// ask and Lee's turn each do, set apart (13 November 2026): Banners, a switch for each and macOS's own answer; Sound,
+/// what each plays, which banners, silent, leave alone, its switch and the sound, greyed while the switch is off; and
+/// Notch, whether each pulses the notch.
 private struct NotificationsPane: View {
     let settings: SettingsModel
 
     var body: some View {
-        let said = settings.said
+        let said = settings.said, show = settings.preferences.edge.show
 
         VStack(alignment: .leading, spacing: 0) {
             DesktopCorner()
@@ -152,37 +153,77 @@ private struct NotificationsPane: View {
         }
         SettingsSection(name: "Banners") {
             SettingsCard {
-                StatedRow(row: .notify(said.notices, show: settings.preferences.edge.show), isOn: notifies, fix: settings.fix)
+                StatedRow(row: .notify(said.notices, show: show), isOn: notifies(.ask), fix: settings.fix)
+                CardSeparator()
+                StatedRow(row: .notify(said.notices, show: show, for: .turn), isOn: notifies(.turn), fix: settings.fix)
                 CardSeparator()
                 StatedRow(row: .allowed(said.notices), fix: settings.fix)
             }
         }
         SettingsSection(name: "Sound") {
             SettingsCard {
-                CardRow(label: "Play a sound for a new ask", line: "Once, whichever session it lands in") {
-                    MiniSwitch(label: "Play a sound for a new ask", isOn: playsSound)
+                SoundRows(
+                    label: "Play a sound for a new ask", line: "Once, whichever session it lands in",
+                    isOn: binding(\.playsSound), sound: sound(.ask), sounds: settings.services.sounds.names
+                )
+                CardSeparator()
+                SoundRows(
+                    label: "Play a sound when it's my turn", line: "Once, as a session's turn ends",
+                    isOn: binding(\.playsTurnSound), sound: sound(.turn), sounds: settings.services.sounds.names
+                )
+            }
+        }
+        SettingsSection(name: "Notch") {
+            SettingsCard {
+                CardRow(label: "Pulse for a new ask", line: "It swells and its light flashes") {
+                    MiniSwitch(label: "Pulse for a new ask", isOn: binding(\.pulsesNewAsks))
                 }
                 CardSeparator()
-                CardRow(label: "Sound") {
-                    PopUp(label: "Sound", sections: [settings.services.sounds.names], title: \.self, selection: sound)
+                CardRow(label: "Pulse when it's my turn", line: "It swells as a session's turn ends") {
+                    MiniSwitch(label: "Pulse when it's my turn", isOn: binding(\.pulsesTurns))
                 }
-                .disabled(!settings.preferences.app.playsSound)
             }
         }
     }
 
-    private var notifies: Binding<Bool> {
-        Binding(get: { settings.preferences.app.notifiesNewAsks }, set: settings.notify)
-    }
-
-    private var playsSound: Binding<Bool> {
-        Binding(get: { settings.preferences.app.playsSound }, set: { settings.preferences.app.playsSound = $0 })
-    }
-
-    private var sound: Binding<String> {
+    private func notifies(_ need: Need) -> Binding<Bool> {
         Binding(
-            get: { settings.services.sounds.chosen(settings.preferences.app.sound) }, set: settings.choose(sound:)
+            get: { settings.preferences.app.notifies(need) }, set: { settings.notify($0, for: need) }
         )
+    }
+
+    private func binding(_ setting: WritableKeyPath<AppSettings, Bool>) -> Binding<Bool> {
+        Binding(
+            get: { settings.preferences.app[keyPath: setting] },
+            set: { settings.preferences.app[keyPath: setting] = $0 }
+        )
+    }
+
+    private func sound(_ need: Need) -> Binding<String> {
+        Binding(
+            get: { settings.services.sounds.chosen(settings.preferences.app.sound(for: need)) },
+            set: { settings.choose(sound: $0, for: need) }
+        )
+    }
+}
+
+/// A sound's two rows: its switch, and the sound, a pop-up of macOS's alert sounds, greyed while the switch is off.
+private struct SoundRows: View {
+    let label: String
+    let line: String
+    @Binding var isOn: Bool
+    @Binding var sound: String
+    let sounds: [String]
+
+    var body: some View {
+        CardRow(label: label, line: line) {
+            MiniSwitch(label: label, isOn: $isOn)
+        }
+        CardSeparator()
+        CardRow(label: "Sound") {
+            PopUp(label: "Sound", sections: [sounds], title: \.self, selection: $sound)
+        }
+        .disabled(!isOn)
     }
 }
 

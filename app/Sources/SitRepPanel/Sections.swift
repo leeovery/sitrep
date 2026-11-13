@@ -1,10 +1,17 @@
 import Foundation
 
-/// The card's sections, in their order: Needs you, Your turn, Working, then Snoozed (DESIGN, "The rows", and
-/// "Snooze"). A row is in one, by its session's state; on its own work is in Working, at its end. A session with asks
-/// snoozed has a row in Snoozed too, beside any it has in another.
+/// What a row in Needs you waits on Lee for, which its mark's colour says (DESIGN, "The rows", 13 November 2026): an
+/// ask, a permission prompt or a question, in orange; or his turn, in blue, its window having finished its turn.
+public enum Need: Hashable, CaseIterable, Sendable {
+    case ask, turn
+}
+
+/// The card's sections, in their order: Needs you, Working, then Snoozed (DESIGN, "The rows", and "Snooze"). A row is
+/// in one, by its session's state: Needs you holds what waits on Lee, asks and turns alike (13 November 2026); on its
+/// own work is in Working, at its end. A session with asks snoozed has a row in Snoozed too, beside any it has in
+/// another. Your turn was a section of its own until then, whose saved fold is passed over as any name unknown is.
 public enum BoardSection: String, CaseIterable, Codable, Comparable, Sendable {
-    case needsYou, yourTurn, working, snoozed
+    case needsYou, working, snoozed
 
     public static func < (lhs: BoardSection, rhs: BoardSection) -> Bool {
         allCases.firstIndex(of: lhs)! < allCases.firstIndex(of: rhs)!
@@ -15,15 +22,12 @@ public enum BoardSection: String, CaseIterable, Codable, Comparable, Sendable {
         switch self {
         case .needsYou: "Needs you"
         case .working: "Working"
-        case .yourTurn: "Your turn"
         case .snoozed: "Snoozed"
         }
     }
 
-    /// Waiting on Lee, above the menu's separator: Needs you, and Your turn, Lee's to write in.
-    public var waitsOnLee: Bool { self == .needsYou || self == .yourTurn }
-
-    /// Counted by its lines, the asks and stops waiting or the asks asleep, not its rows.
+    /// Counted by its lines, not its rows: Needs you's asks and stops waiting, and its turns, a line each; Snoozed's
+    /// asks asleep, and its turns.
     public var countsLines: Bool { self == .needsYou || self == .snoozed }
 
     /// Folded until Lee unfolds it: Snoozed, which holds nothing waiting on Lee.
@@ -49,11 +53,35 @@ extension Session {
     /// The section its row is in.
     public var section: BoardSection {
         switch kind {
-        case .needs: .needsYou
+        case .needs, .turn: .needsYou
         case .working, .onItsWork: .working
-        case .turn: .yourTurn
         case .snoozed, .snoozedTurn: .snoozed
         }
+    }
+
+    /// What it waits on Lee for, needing him or snoozed: an ask, or his turn; nil while it works.
+    public var need: Need? {
+        switch kind {
+        case .needs, .snoozed: .ask
+        case .turn, .snoozedTurn: .turn
+        case .working, .onItsWork: nil
+        }
+    }
+}
+
+extension [Session] {
+    /// The board's rows in the panel's order, every surface's (13 November 2026): Needs you's asks first, then its
+    /// turns, each those this Mac shows before the away ones; then the rest. Each part keeps core's order, newest first
+    /// in Needs you, away by core's word last; so a session held where this Mac doesn't show it, which core puts among
+    /// those it shows, leads the away ones.
+    public func inPanelOrder() -> [Session] {
+        let waiting = Need.allCases.flatMap { need in
+            let rows = filter { $0.section == .needsYou && $0.need == need }
+
+            return rows.filter { !$0.away } + rows.filter(\.away)
+        }
+
+        return waiting + filter { $0.section != .needsYou }
     }
 }
 
@@ -97,8 +125,8 @@ public struct CardFolds: Equatable, Sendable {
 
 extension Item {
     /// The card's list of these sessions, in the order given: each section with any rows, in the sections' order,
-    /// under its eyebrow, or its eyebrow alone where it is folded, every row on one line, Your turn's every one. Only
-    /// the room over each eyebrow tells the sections apart, with no hairline (board J).
+    /// under its eyebrow, or its eyebrow alone where it is folded, every row on one line, every turn's however long
+    /// ago it ended. Only the room over each eyebrow tells the sections apart, with no hairline (board J).
     public static func card(_ sessions: [Session], folds: CardFolds) -> [Item] {
         BoardSection.allCases.map { section in (section, sessions.filter { $0.section == section }) }
             .filter { !$0.1.isEmpty }

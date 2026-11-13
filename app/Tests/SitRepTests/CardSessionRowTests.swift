@@ -126,7 +126,8 @@ struct CardSessionRowTests {
     }
 
     /// A Snoozed row is a Needs you row quieted (board G), the same away or not: its dot 7 across with no glow, on the
-    /// row's middle, in the faint grey its project takes; its name 13 in the soft grey a Needs you row's count takes;
+    /// row's middle, its orange dimmed (`NeedsYouMarksTests`); its name 13 in the soft grey a Needs you row's count
+    /// takes;
     /// its project in a lane at its right, ending 10 before the time's; and in its time's place, in the soft grey too,
     /// when it wakes, its lane grown past the 36 to fit it, still ending at 334.
     @Test(arguments: [false, true])
@@ -145,7 +146,6 @@ struct CardSessionRowTests {
 
         #expect(row.layer.bounds.height == 30 && row.layer.cornerRadius == 10)
         #expect(abs(dot.width - 7) <= 1 && abs(dot.height - 7) <= 1 && abs(dot.midY - 15) <= 0.5)
-        #expect(try drawn.brightest(in: dot).isAlike(drawn.brightest(in: project)))
         #expect(try drawn.brightest(in: project).lightness < soft.lightness - 0.3)
         #expect(abs(project.maxX - (324 - wide)) <= 1)
         #expect(try drawn.brightest(in: name).isAlike(soft))
@@ -162,27 +162,25 @@ struct CardSessionRowTests {
         )
     }
 
-    /// A turn snoozed, as board I draws it: a ring 9 across, its stroke 1.5, hollow, in the faint grey its project
-    /// takes; its session's name 13 in the soft grey; its project in the lane at its right; and in its time's place, in
-    /// the soft grey too, when it wakes, or "until it moves", its lane grown to fit, still ending at 334.
+    /// A turn snoozed, as board I draws it but for its mark: a dot 7 across, its blue dimmed (`NeedsYouMarksTests`), as
+    /// a snoozed ask's is its orange dimmed (13 November 2026; a ring 9 across in the faint grey until then); its
+    /// session's name 13 in the soft grey; its project in the lane at its right; and in its time's place, in the soft
+    /// grey too, when it wakes, or "until it moves", its lane grown to fit, still ending at 334.
     @Test(arguments: [nil, 29 * 3_600_000.0])
-    func aSnoozedTurnIsAFaintRingItsNameSoftAndWhenItWakesOrUntilItMoves(wakesAt: Double?) throws {
+    func aSnoozedTurnIsADimmedDotItsNameSoftAndWhenItWakesOrUntilItMoves(wakesAt: Double?) throws {
         let asleep = Self.turnAsleep(wakesAt: wakesAt)
         let drawn = try Drawn(Self.card(asleep).layer), needs = try Drawn(Self.card(Self.harness(2)).layer)
         let time = asleep.timeText(at: 5 * 3_600_000, in: WakeTime.calendar)
         let wide = TextLine.width(TextLine.text(time, EdgeStyle.age, EdgeStyle.ink2))
         let lane = CGRect(x: 324 - wide - Self.projectWidth - 1, y: 4, width: Self.projectWidth + 2, height: 22)
-        let ring = try #require(drawn.drawnBox(in: CGRect(x: 4, y: 4, width: 22, height: 22), ground: Self.ground))
-        let hole = CGRect(x: ring.midX - 1, y: ring.midY - 1, width: 2, height: 2)
+        let dot = try #require(drawn.drawnBox(in: CGRect(x: 4, y: 4, width: 22, height: 22), ground: Self.ground))
         let project = try #require(drawn.drawnBox(in: lane, ground: Self.ground))
         let wakes = try #require(drawn.drawnBox(in: CGRect(x: 330 - wide, y: 4, width: wide + 14, height: 22), ground: Self.ground))
         let soft = try needs.brightest(in: CGRect(x: 32 + Self.nameWidth() + 3, y: 4, width: 30, height: 22))
 
         #expect((time == WakeTime.untilItMoves) == (wakesAt == nil))
-        #expect(abs(ring.width - 9) <= 1 && abs(ring.height - 9) <= 1)
-        #expect(abs(ring.midX - 16) <= 0.5 && abs(ring.midY - 15) <= 0.5)
-        #expect(try drawn.brightest(in: hole).lightness < 0.1)
-        #expect(try drawn.brightest(in: ring).isAlike(drawn.brightest(in: project)))
+        #expect(abs(dot.width - 7) <= 1 && abs(dot.height - 7) <= 1)
+        #expect(abs(dot.midX - 16) <= 0.5 && abs(dot.midY - 15) <= 0.5)
         #expect(abs(project.maxX - (324 - wide)) <= 1)
         #expect(try drawn.brightest(in: CGRect(x: 32, y: 6, width: 100, height: 18)).isAlike(soft))
         #expect(try drawn.brightest(in: wakes).isAlike(soft))

@@ -10,13 +10,13 @@ struct RealWatchTests {
 
     /// Its click goes to the away session, for the jump to carry it on (stage 8).
     @Test func aNewAskSendsANoticeNamingItsProjectAndSession() {
-        #expect(Notices.due(Self.asked, isOn: true) == [
+        #expect(Notices.due(Self.asked, .notifyingAsks) == [
             Banner(title: "Choose how long the ledger keeps requests", subtitle: "Switchboard · Usage", body: "", work: "sr-k3dg0r"),
         ])
     }
 
     @Test func theRunsFirstLineSendsNothing() {
-        #expect(Notices.due(heard([.line(Lines.newAsk[0])]), isOn: true).isEmpty)
+        #expect(Notices.due(heard([.line(Lines.newAsk[0])]), .notifyingAsks).isEmpty)
     }
 
     @Test func theMenuListsTheAwayAskAndTheGlyphLights() {
@@ -43,22 +43,23 @@ struct RealWatchTests {
         #expect(menu.nextTick(after: due - 30_000) == due)
     }
 
-    @Test func theWindowsBoardListsCoresRowsWithNoHairlineWhileNothingFollowsWhatWaitsOnLee() {
+    /// Six asks and stops and one session at Lee's turn, all of it Needs you, in core's order.
+    @Test func theWindowsBoardListsItsRowsWithNoHairlineWhileNothingFollowsNeedsYou() {
         let menu = MenuBoard(heard([.line(Lines.watch[0])]), clock: london)
 
-        #expect(menu.heading == "6 need you")
+        #expect(menu.heading == "7 need you")
         #expect(menu.items.map(\.key) == ["needs:sr-macapp", "needs:sr-dash02", "needs:sr-gs7kq2", "turn:sr-rq7dgr"])
         #expect(menu.reloads.isEmpty)
     }
 
     /// Harness's three asks are one item, its session's name then "3"; Switchboard's ask and permission prompt one,
-    /// "2"; Goosemates' one away ask its name alone.
+    /// "2"; Goosemates' one away ask its name alone; then the session at Lee's turn, in Needs you, 7 needing him.
     @Test func aSessionWithSeveralLinesIsOneItemItsNameThenHowManyWait() {
         let menu = MenuBoard(heard([.line(Lines.bySession[0])]), clock: london)
         let rows = menu.items.compactMap(\.session)
 
-        #expect(menu.heading == "6 need you")
-        #expect(rows.map(\.id) == ["sr-4g01a7", "sr-dash02", "sr-gs7kq2", "sr-macapp", "sr-k7bt2s", "sr-v3t7a0"])
+        #expect(menu.heading == "7 need you")
+        #expect(rows.map(\.id) == ["sr-4g01a7", "sr-dash02", "sr-gs7kq2", "sr-v3t7a0", "sr-macapp", "sr-k7bt2s"])
         #expect(rows[0].menuTitle(at: 0) == "Finish the Harness modernisation 3")
         #expect(rows[1].menuTitle(at: 0) == "Dashboard redesign 2")
         #expect(rows[2].menuTitle(at: 0) == "Onboarding")
@@ -67,7 +68,7 @@ struct RealWatchTests {
 
     /// The fourth ask posted into Harness's session, its row's newest line: a notice of its own, naming the session.
     @Test func aNewAskInASessionWithOthersWaitingSendsANoticeOfItsOwn() {
-        #expect(Notices.due(heard(Lines.bySession.map(Heard.line)), isOn: true) == [
+        #expect(Notices.due(heard(Lines.bySession.map(Heard.line)), .notifyingAsks) == [
             Banner(
                 title: "Choose the branch the fixes land on", subtitle: "Harness · Finish the Harness modernisation",
                 body: "", work: "sr-4g01a7"

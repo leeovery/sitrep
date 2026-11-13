@@ -3,13 +3,16 @@ import Foundation
 @testable import SitRepPanel
 import Testing
 
-/// The card's sections, as board J lays them out: Needs you, Your turn, Working and Snoozed, each under its eyebrow with
-/// its count, an empty one left out, a folded one its eyebrow alone, every row on one line and every your-turn row
-/// shown, and nothing but the room over each eyebrow between them: no hairline.
+/// The card's sections, as board J lays them out: Needs you, its asks then its turns (13 November 2026), Working and
+/// Snoozed, each under its eyebrow with its count, an empty one left out, a folded one its eyebrow alone, every row on
+/// one line and every your-turn row shown, and nothing but the room over each eyebrow between them: no hairline.
 struct SectionsTests {
-    private static func session(_ id: String, _ kind: Session.Kind, project: String = "SitRep", lines: Int = 1, since: Double = 0) -> Session {
+    private static func session(
+        _ id: String, _ kind: Session.Kind, project: String = "SitRep", lines: Int = 1, since: Double = 0,
+        away: Bool = false
+    ) -> Session {
         Session(
-            id: id, project: project, kind: kind,
+            id: id, project: project, kind: kind, away: away,
             lines: (0 ..< lines).map { Session.Line(title: "\(id) \($0)", since: since + Double($0)) }, sub: ""
         )
     }
@@ -52,22 +55,39 @@ struct SectionsTests {
         #expect(Self.asleep.headline.more == "2")
     }
 
-    /// Each section under its eyebrow in the sections' order, and nothing between them: no hairline.
+    /// Each section under its eyebrow in the sections' order, your turns in Needs you under its asks, with no section
+    /// of their own, and nothing between them: no hairline.
     @Test func eachSectionFollowsItsEyebrowWithNoHairline() {
         #expect(Self.card().map(\.key) == [
-            "eyebrow:needsYou", "needs:kit", "needs:harness",
-            "eyebrow:yourTurn", "turn:fumi", "turn:folio",
+            "eyebrow:needsYou", "needs:kit", "needs:harness", "turn:fumi", "turn:folio",
             "eyebrow:working", "doc", "boot",
+        ])
+    }
+
+    /// Needs you's asks first, then its turns, each those this Mac shows before the away ones, in core's order, newest
+    /// first; so a session held where this Mac doesn't show it, which core has among those it shows, leads the away
+    /// ones. The rest after them, in core's order.
+    @Test func needsYouHoldsItsAsksThenItsTurnsEachHereBeforeAway() {
+        let rows = [
+            Self.session("newTurn", .turn, since: 8), Self.session("heldTurn", .turn, since: 7, away: true),
+            Self.session("oldTurn", .turn, since: 1),
+            Self.session("newAsk", .needs, since: 6), Self.session("heldAsk", .needs, since: 5, away: true),
+            Self.session("oldAsk", .needs, since: 4), Self.session("awayAsk", .needs, since: 9, away: true),
+            Self.session("doc", .working, since: 2), Self.session("boot", .onItsWork, since: 3),
+        ]
+
+        #expect(rows.inPanelOrder().map(\.id) == [
+            "newAsk", "oldAsk", "heldAsk", "awayAsk", "newTurn", "oldTurn", "heldTurn", "doc", "boot",
         ])
     }
 
     /// No hairline, whichever sections show and whichever are folded.
     @Test func noHairlineWhateverShowsOrFolds() {
         let boards = [
-            Self.board, Self.board + [Self.asleep], Self.board.filter { $0.section != .yourTurn },
-            Self.board.filter { $0.section != .needsYou }, Self.board.filter(\.section.waitsOnLee),
+            Self.board, Self.board + [Self.asleep], Self.board.filter { $0.kind != .turn },
+            Self.board.filter { $0.section != .needsYou }, Self.board.filter { $0.section == .needsYou },
         ]
-        let folds = [CardFolds(), CardFolds(sections: []), CardFolds(sections: [.needsYou, .yourTurn])]
+        let folds = [CardFolds(), CardFolds(sections: []), CardFolds(sections: [.needsYou, .working])]
 
         for board in boards {
             for folded in folds {
@@ -76,16 +96,16 @@ struct SectionsTests {
         }
     }
 
-    /// Needs you counts its waiting lines, the asks and stops, Kit's one and Harness's three; Your turn and Working
-    /// count their rows, on its own work among Working's.
-    @Test func needsYouCountsItsLinesAndTheOthersTheirRows() {
-        #expect(Self.eyebrows(Self.card()).map(\.count) == [4, 2, 2])
+    /// Needs you counts what waits on Lee: the asks and stops, Kit's one and Harness's three, and the two sessions at
+    /// his turn; Working counts its rows, on its own work among them.
+    @Test func needsYouCountsItsAsksAndItsTurnsAndWorkingItsRows() {
+        #expect(Self.eyebrows(Self.card()).map(\.count) == [6, 2])
     }
 
     @Test func anEmptySectionIsLeftOutWithItsEyebrow() {
         let noneWorking = Self.board.filter { $0.section != .working }
 
-        #expect(Self.eyebrows(Self.card(noneWorking)).map(\.section) == [.needsYou, .yourTurn])
+        #expect(Self.eyebrows(Self.card(noneWorking)).map(\.section) == [.needsYou])
         #expect(Self.card([]).isEmpty)
     }
 
@@ -93,12 +113,12 @@ struct SectionsTests {
     /// where that section is folded, whichever sections they are.
     @Test func everyEyebrowAfterTheFirstSits14UnderWhatIsAboveIt() {
         let eyebrows = Self.eyebrows(Self.card(Self.board + [Self.asleep]))
-        let folded = Self.eyebrows(Self.card(folds: CardFolds(sections: [.needsYou, .yourTurn])))
-        let noTurns = Self.eyebrows(Self.card(Self.board.filter { $0.section != .yourTurn }))
+        let folded = Self.eyebrows(Self.card(folds: CardFolds(sections: [.needsYou, .working])))
+        let noTurns = Self.eyebrows(Self.card(Self.board.filter { $0.kind != .turn }))
 
-        #expect(eyebrows.map(\.above) == [4, 14, 14, 14])
-        #expect(eyebrows.map { Item.eyebrow($0).height } == [32, 42, 42, 42])
-        #expect(folded.map(\.above) == [4, 14, 14])
+        #expect(eyebrows.map(\.above) == [4, 14, 14])
+        #expect(eyebrows.map { Item.eyebrow($0).height } == [32, 42, 42])
+        #expect(folded.map(\.above) == [4, 14])
         #expect(noTurns.map(\.above) == [4, 14])
         #expect(Self.eyebrows(Self.card(Self.board.filter { $0.section == .working })).map(\.above) == [4])
     }
@@ -122,38 +142,39 @@ struct SectionsTests {
         #expect(rows.allSatisfy { $0.height == 30 && $0.margins == (0, 0) })
     }
 
-    /// Your turn shows every row, however long ago its turn ended: no "N earlier".
-    @Test func yourTurnShowsEveryRow() {
+    /// Needs you shows every turn, however long ago it ended: no "N earlier".
+    @Test func needsYouShowsEveryTurn() {
         let turns = (0 ..< 8).map { Self.session("t\($0)", .turn, since: Double($0) * -86_400_000) }
         let items = Self.card(turns)
 
-        #expect(items.map(\.key) == ["eyebrow:yourTurn"] + turns.map { "turn:\($0.id)" })
+        #expect(items.map(\.key) == ["eyebrow:needsYou"] + turns.map { "turn:\($0.id)" })
         #expect(Self.eyebrows(items)[0].count == 8)
     }
 
-    /// A row's key says its section, whatever its shape, so one moving from Working to Your turn folds away from one
-    /// and in at the other.
-    @Test func aRowsKeyChangesWithItsSection() {
-        var ended = Self.board[4]
+    /// A row's key says its section, whatever its shape, and in Needs you whether it is an ask's or a turn's, so one
+    /// moving from Working to Lee's turn, or from his turn to an ask, folds away from one place and in at the other.
+    @Test func aRowsKeyChangesWithItsSectionAndItsNeed() {
+        var ended = Self.board[4], asked = Self.board[4]
         ended.kind = .turn
+        asked.kind = .needs
 
         #expect(Item.line(Self.board[4]).key == "doc" && Item.session(Self.board[4]).key == "doc")
-        #expect(Item.line(ended).key == "turn:doc")
-        #expect(Set([Item.line(Self.board[4]).key, Item.line(ended).key, "needs:doc"]).count == 3)
+        #expect(Item.line(ended).key == "turn:doc" && Item.line(asked).key == "needs:doc")
+        #expect(ended.section == asked.section)
     }
 
     // MARK: The menu's list
 
-    /// The menu keeps its separator, a menu's own idiom: under what waits on Lee, Needs you and Your turn; with no Your
-    /// turn, under Needs you; with neither, or nothing after them, none.
-    @Test func theMenusHairlineFollowsWhatWaitsOnLee() {
+    /// The menu keeps its separator, a menu's own idiom: under Needs you, its asks and its turns; with none in it, or
+    /// nothing after it, none.
+    @Test func theMenusHairlineFollowsNeedsYou() {
         let keys = { (sessions: [Session]) in Item.list(sessions).map(\.key) }
-        let noTurns = Self.board.filter { $0.section != .yourTurn }
+        let noTurns = Self.board.filter { $0.kind != .turn }
 
         #expect(keys(Self.board) == ["needs:kit", "needs:harness", "turn:fumi", "turn:folio", "divider", "doc", "boot"])
         #expect(keys(noTurns) == ["needs:kit", "needs:harness", "divider", "doc", "boot"])
         #expect(!Item.list(Self.board.filter { $0.section == .working }).contains(.divider))
-        #expect(!Item.list(Self.board.filter(\.section.waitsOnLee)).contains(.divider))
+        #expect(!Item.list(Self.board.filter { $0.section == .needsYou }).contains(.divider))
         #expect(Item.list(Self.board).allSatisfy { if case .line = $0 { false } else { true } })
     }
 
@@ -186,12 +207,12 @@ struct SectionsTests {
     /// A click on an eyebrow is on it, where it is drawn: never in the room over it.
     @Test func anEyebrowTakesAClickWhereItIsDrawn() {
         let content = Content(laying: Self.card(), headed: false)
-        let first = content.itemFrame(0), turn = content.itemFrame(3)
+        let first = content.itemFrame(0), working = content.itemFrame(5)
 
         #expect(content.item(at: CGPoint(x: 100, y: first.minY + 2)) == nil)
         #expect(content.item(at: CGPoint(x: 100, y: first.minY + 6)) == 0)
-        #expect(content.item(at: CGPoint(x: 100, y: turn.minY + 13)) == nil)
-        #expect(content.item(at: CGPoint(x: 100, y: turn.minY + 15)) == 3)
+        #expect(content.item(at: CGPoint(x: 100, y: working.minY + 13)) == nil)
+        #expect(content.item(at: CGPoint(x: 100, y: working.minY + 15)) == 5)
         #expect(content.item(at: CGPoint(x: 100, y: content.itemFrame(1).midY)) == 1)
     }
 }

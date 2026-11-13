@@ -4,7 +4,7 @@ import SitRepEdge
 import SitRepPanel
 
 /// What the menu shows of the board `watch` last printed (DESIGN, "The menu bar item"): first what it speaks up with,
-/// then the panel's sessions in core's order with its marks, every one of them, and the glyph. Core and the panel
+/// then the panel's sessions in its order with its marks, every one of them, and the glyph. Core and the panel
 /// decided the rows and their order; this decides only what the menu makes of them.
 public struct MenuBoard: Equatable, Sendable {
     /// Windows on an old sitrep, each a jump to the window to run `/reload-plugins` in, under "Needs /reload-plugins".
@@ -16,15 +16,15 @@ public struct MenuBoard: Equatable, Sendable {
     /// The sessions' heading, in the panel head's words, with when the board was last current while it is stale:
     /// "4 need you · as of 12:04". Nil with no board to list, while the menu speaks up instead.
     public let heading: String?
-    /// The sessions, with the panel's hairline under what waits on Lee that leads them.
+    /// The sessions, with the panel's hairline under Needs you, which leads them.
     public let items: [Item]
     public let glyph: Glyph
     private let panel: PanelBoard
 
-    /// The menu bar's glyph: the light in its housing, lit while anything needs Lee, the board's last word kept while
-    /// it is stale.
+    /// The menu bar's glyph: the light in its housing, lit as the notch's light is, orange while an ask waits, else
+    /// blue while Lee's turn does, the board's last word kept while it is stale.
     public enum Glyph: Equatable, Sendable {
-        case rest, lit
+        case rest, lit, turn
     }
 
     /// A window that needs `/reload-plugins`: its session's project and name, and the session a click jumps to.
@@ -81,7 +81,11 @@ public struct MenuBoard: Equatable, Sendable {
         self.unread = unread
         self.heading = heading
         items = Item.list(panel.sessions)
-        glyph = panel.needsLee ? .lit : .rest
+        glyph = switch panel.need {
+        case .ask: .lit
+        case .turn: .turn
+        case nil: .rest
+        }
     }
 
 }

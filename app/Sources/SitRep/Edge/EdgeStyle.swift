@@ -27,6 +27,7 @@ enum EdgeStyle {
     static let eyebrowCount = white(0.30)
     static let chevron = white(0.25)
     static let orange = color(LiveLight.orange)
+    static let blue = color(LiveLight.blue)
     /// A new row's wash, and the ring round it (the prototype's `--wash-bg` and `--wash-ring`).
     static let wash = color(LiveLight.orange, alpha: 0.12)
     static let washRing = color(LiveLight.orange, alpha: 0.26)
@@ -61,6 +62,17 @@ enum EdgeStyle {
     /// A wake's countdown in a count's row, in tabular figures, as `countdown`.
     static let rowCountdown = NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .medium)
     static let rowSub = NSFont.systemFont(ofSize: 11)
+
+    /// What a row in Needs you waits on, as its mark's colour says it: an ask's orange, or Lee's turn's blue.
+    static func colour(of need: Need) -> CGColor {
+        need == .ask ? orange : blue
+    }
+
+    /// A mark asleep in Snoozed: its colour dimmed as an away row's words are, which stands it about as bright on the
+    /// black as the faint grey it was until 13 November 2026.
+    static func asleep(_ colour: CGColor) -> CGColor {
+        colour.copy(alpha: colour.alpha * Away.dim) ?? colour
+    }
 
     /// The prototype's letter-spacing of -0.01em, as a kern in points.
     static func tightKern(_ font: NSFont) -> CGFloat { -0.01 * font.pointSize }

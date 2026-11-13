@@ -71,7 +71,8 @@ struct MenuEntriesTests {
         #expect(changes.changes == [MenuChanges.Placed(6, new[6])])
     }
 
-    @Test func aRowComeIsPutInAtItsPlaceAlone() {
+    /// A session come to Lee's turn is put in at its place, and the count over it, which holds it, set again.
+    @Test func aRowComeIsPutInAtItsPlaceAndCounted() {
         var rows = Watched.rows
 
         rows.insert(Watched.row("turn:sr-new", "yourTurn", session: "sr-new", project: "kit", lead: "New", second: "Kit · New", since: 1_792_445_400_000), at: 4)
@@ -81,7 +82,8 @@ struct MenuEntriesTests {
 
         #expect(changes.removals.isEmpty)
         #expect(changes.insertions == [MenuChanges.Placed(7, new[7])])
-        #expect(changes.changes.isEmpty)
+        #expect(changes.changes == [MenuChanges.Placed(2, new[2])])
+        #expect(new[2] == .heading("sessions", title: "5 need you"))
     }
 
     @Test func aRowGoneIsTakenOutAlone() {

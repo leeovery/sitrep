@@ -2,9 +2,10 @@ import CoreGraphics
 import Foundation
 
 /// The Live light's colours at a moment, ported from the prototype's `drawLive` (lights.js): the breath, the two
-/// spots swaying along the bar, the deeper tips and a new ask's brighten. The view draws the bar from these; they
-/// run on the display's clock, never the model's sim clock, so the light breathes while the model is idle. Under
-/// reduced motion it holds still, mid-breath with its spots at home, and a new ask is a shorter brighten.
+/// spots swaying along the bar, the deeper tips and a new ask's brighten, in the palette of what lights it, an ask's
+/// orange or your turn's blue. The view draws the bar from these; they run on the display's clock, never the model's
+/// sim clock, so the light breathes while the model is idle. Under reduced motion it holds still, mid-breath with its
+/// spots at home, and a new ask is a shorter brighten.
 public struct LiveLight: Equatable, Sendable {
     /// A colour as the prototype mixes it: red, green and blue from 0 to 255, unrounded.
     public struct RGB: Equatable, Sendable {
@@ -27,14 +28,35 @@ public struct LiveLight: Equatable, Sendable {
         }
     }
 
-    /// Claude Code's orange: the light's body, its halo, and every needs-you mark.
-    public static let orange = RGB(hex: 0xE9643D)
-    /// The orange, banked down: the tips.
-    static let deep = RGB(hex: 0xA93D24)
-    /// Lighter and a little yellower: the breath's peak.
-    static let warm = RGB(hex: 0xF7956A)
-    /// Lighter and yellower again: the spots, the brighten and the centre line.
-    public static let hot = RGB(hex: 0xFFBE8A)
+    /// The light's four colours: its body, its halo's and its marks' colour too; the body banked down, for the tips;
+    /// lighter, the breath's peak; and lighter again, the spots, the brighten and the centre line.
+    public struct Palette: Equatable, Sendable {
+        public let body, deep, warm, hot: RGB
+
+        /// Claude Code's orange, an ask's, the prototype's: its lighter colours a little yellower.
+        public static let ask = Palette(
+            body: RGB(hex: 0xE9643D), deep: RGB(hex: 0xA93D24), warm: RGB(hex: 0xF7956A), hot: RGB(hex: 0xFFBE8A)
+        )
+        /// Your turn's blue: each of the orange's colours at its OKLCH lightness and chroma, turned to the hue of
+        /// macOS's system blue, 255.5, so neither shouts over the other; the two lightest with their chroma cut to what
+        /// sRGB holds.
+        public static let turn = Palette(
+            body: RGB(hex: 0x3F93FB), deep: RGB(hex: 0x1F65B7), warm: RGB(hex: 0x7CB5FF), hot: RGB(hex: 0xAED0FF)
+        )
+
+        /// The palette of what lights it.
+        public static func of(_ need: Need) -> Palette {
+            switch need {
+            case .ask: ask
+            case .turn: turn
+            }
+        }
+    }
+
+    /// Claude Code's orange: an ask's light, and every ask's mark.
+    public static let orange = Palette.ask.body
+    /// Your turn's blue: its light, and every your-turn mark.
+    public static let blue = Palette.turn.body
 
     /// The bar: 2.5 wide and 36 long, set a quarter point toward the edge from the light's centre, so at 2x its
     /// sides land on whole pixels.
@@ -42,6 +64,8 @@ public struct LiveLight: Equatable, Sendable {
     /// The halo, a shadow of the bar alone: its σ, in points, and its alpha in orange.
     public static let haloSigma = 1.5, haloAlpha = 0.6
 
+    /// The colours it is drawn in.
+    public let palette: Palette
     /// How opaque the whole light is, before its level: 0.86 at the breath's trough to 1 at its peak, or the
     /// brighten's, whichever is more.
     public let opacity: Double
@@ -53,10 +77,11 @@ public struct LiveLight: Equatable, Sendable {
     static let bodyStops = 24
 
     /// The light at a time on the display's clock, ms, this long after the last new ask (nil when there has been
-    /// none).
-    public init(time t: Double, sinceAsk e: Double?, reducesMotion reduce: Bool = false) {
+    /// none), lit by an ask or by your turn.
+    public init(time t: Double, sinceAsk e: Double?, reducesMotion reduce: Bool = false, need: Need = .ask) {
+        let p = Palette.of(need)
         let b = reduce ? Self.held : Self.breath(t), k = reduce ? Self.brighten(e) : Self.brightenUp(e)
-        let base = Self.orange.mix(Self.warm, 0.38 * b).mix(Self.hot, 0.38 * k)
+        let base = p.body.mix(p.warm, 0.38 * b).mix(p.hot, 0.38 * k)
         let spots = Self.sways.map { $0.spot(at: reduce ? 0 : t) }
         let half = Self.bar.height / 2
 
@@ -68,8 +93,9 @@ public struct LiveLight: Equatable, Sendable {
                 return sum + p.strength * exp(-0.5 * z * z)
             }
             let tip = 1 - smooth(clamp((half - abs(y)) / 5, 0, 1))
-            return base.mix(Self.hot, 0.28 * clamp(heat, 0, 1.1)).mix(Self.deep, 0.16 * tip)
+            return base.mix(p.hot, 0.28 * clamp(heat, 0, 1.1)).mix(p.deep, 0.16 * tip)
         }
+        palette = p
         line = 0.14 + 0.08 * b + 0.1 * k
     }
 

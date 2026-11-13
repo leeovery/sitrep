@@ -327,26 +327,24 @@ struct GlassSessionRow: View {
         Spinner(track: .quaternaryLabelColor, arc: .labelColor, period: 1).frame(width: 11, height: 11)
     }
 
-    /// Needs you an orange dot with its glow, and away a hollow orange ring, unlit (`Away`); your turn an open ring;
-    /// working the arc turning; on its own work the dotted ring, still; in Snoozed a dot in the tertiary, unlit, and a
-    /// turn there a ring in it.
+    /// As on the black: in Needs you an ask's orange or Lee's turn's blue, a dot with its glow, and away a hollow ring,
+    /// unlit (`Away`); working the arc turning; on its own work the dotted ring, still; in Snoozed the dot dimmed,
+    /// unlit.
     @ViewBuilder private var mark: some View {
+        let colour = GlassInk.colour(of: session.isTurn ? .turn : .ask)
+
         switch session.kind {
-        case .needs where session.away:
-            AwayRing(ink: GlassInk.orange)
-        case .needs:
-            Circle().fill(GlassInk.orange).frame(width: 7, height: 7)
-                .shadow(color: GlassInk.orange.opacity(0.75), radius: 2)
-        case .turn:
-            Circle().strokeBorder(.primary, lineWidth: 1.5).frame(width: 9, height: 9)
+        case .needs where session.away, .turn where session.away:
+            AwayRing(ink: colour)
+        case .needs, .turn:
+            Circle().fill(colour).frame(width: 7, height: 7)
+                .shadow(color: colour.opacity(0.75), radius: 2)
         case .working:
             spinner
         case .onItsWork:
             DottedRingView(ring: .card, ink: .secondary)
-        case .snoozed:
-            Circle().fill(.tertiary).frame(width: 7, height: 7)
-        case .snoozedTurn:
-            Circle().strokeBorder(.tertiary, lineWidth: 1.5).frame(width: 9, height: 9)
+        case .snoozed, .snoozedTurn:
+            Circle().fill(colour.opacity(Away.dim)).frame(width: 7, height: 7)
         }
     }
 

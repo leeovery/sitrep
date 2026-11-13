@@ -79,7 +79,7 @@ struct EdgePicture: View {
 
 /// The strip as it stands at Length Grows, a 36-point strip drawn 9 wide: a black column out of the bezel, its ends
 /// curving back into the edge in the strip's own S, centred 0.42 of the way down; its rings in the panel's order,
-/// needs you lit orange with its glow, the hairline under it, your turn in white, then two working.
+/// an ask lit orange with its glow, the hairline under it, a turn lit blue with its glow, then two working.
 enum StripPicture {
     private enum Ring {
         case needs, turn, working
@@ -111,10 +111,10 @@ enum StripPicture {
         return column
     }()
 
-    /// A ring's line, in units, as drawn; the hairline under needs you is half as thick.
+    /// A ring's line, in units, as drawn; the hairline under the asks is half as thick.
     static let line: CGFloat = 0.5
 
-    /// The strip, its rings and the hairline under needs you, a ring's line `line` units thick.
+    /// The strip, its rings and the hairline under the asks, a ring's line `line` units thick.
     static func draw(_ context: GraphicsContext, line: CGFloat = line) {
         context.fill(column, with: .color(.black))
         context.fill(Path(CGRect(x: 5.5, y: 25.95, width: 4, height: line / 2)), with: .color(Color(hex: 0x3A3A40)))
@@ -123,13 +123,14 @@ enum StripPicture {
         }
     }
 
-    /// A ring whole in its colour, needs you's with its glow; or a working one's track and its quarter arc from `arc`.
+    /// A ring whole in its colour, an ask's and a turn's with its glow; or a working one's track and its quarter arc
+    /// from `arc`.
     private static func draw(_ ring: Ring, at middle: CGPoint, arc: Double?, line: CGFloat, in context: GraphicsContext) {
         let circle = Path(ellipseIn: CGRect(x: middle.x - radius, y: middle.y - radius, width: radius * 2, height: radius * 2))
 
         guard let arc else {
-            if ring == .needs {
-                glow(circle, line: line, in: context)
+            if ring != .working {
+                glow(circle, ink(ring), line: line, in: context)
             }
             context.stroke(circle, with: .color(ink(ring)), lineWidth: line)
             return
@@ -142,19 +143,19 @@ enum StripPicture {
         context.stroke(quarter, with: .color(ink(ring)), style: StrokeStyle(lineWidth: line, lineCap: .round))
     }
 
-    /// Needs you's glow: the same circle at 1.8 times the ring's line, at 0.75, blurred 1.4 times it.
-    private static func glow(_ circle: Path, line: CGFloat, in context: GraphicsContext) {
+    /// Needs you's glow: the same circle in its colour at 1.8 times the ring's line, at 0.75, blurred 1.4 times it.
+    private static func glow(_ circle: Path, _ colour: Color, line: CGFloat, in context: GraphicsContext) {
         var glow = context
 
         glow.opacity *= 0.75
         glow.addFilter(.blur(radius: line * 1.4))
-        glow.stroke(circle, with: .color(PictureStyle.orange), lineWidth: line * 1.8)
+        glow.stroke(circle, with: .color(colour), lineWidth: line * 1.8)
     }
 
     private static func ink(_ ring: Ring) -> Color {
         switch ring {
         case .needs: PictureStyle.orange
-        case .turn: PictureStyle.text
+        case .turn: PictureStyle.blue
         case .working: PictureStyle.arc
         }
     }

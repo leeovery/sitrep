@@ -5,6 +5,7 @@ import SwiftUI
 enum PictureStyle {
     static let text = Color(hex: 0xF5F5F7)
     static let orange = Color(hex: 0xE9643D)
+    static let blue = Color(hex: 0x3F93FB)
     /// The working arc's track, and the arc.
     static let track = Color(hex: 0x2C2C31)
     static let arc = Color(hex: 0xC9C9CF)

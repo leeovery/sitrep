@@ -100,7 +100,7 @@ struct CardSectionsRunTests {
 
         #expect(try Self.press("eyebrow:working", in: run) == .fold)
         #expect(run.folded.sections == [.working, .snoozed])
-        #expect(Self.keys(run) == ["eyebrow:needsYou", "needs:sr-a", "needs:sr-b", "eyebrow:yourTurn", "turn:sr-t", "eyebrow:working"])
+        #expect(Self.keys(run) == ["eyebrow:needsYou", "needs:sr-a", "needs:sr-b", "turn:sr-t", "eyebrow:working"])
         #expect(!run.isFolding(at: run.time))
         #expect(run.list.content.entries.allSatisfy { $0.height == $0.item.height && $0.alpha == 1 })
         #expect(run.list.content.items.contains(.eyebrow(Eyebrow(section: .working, count: 1, isFolded: true, above: 14))))
@@ -116,19 +116,21 @@ struct CardSectionsRunTests {
         let run = Self.opened(Self.mixed)
 
         _ = try Self.press("eyebrow:needsYou", in: run)
-        #expect(Self.keys(run).prefix(4) == ["eyebrow:needsYou", "eyebrow:yourTurn", "turn:sr-t", "eyebrow:working"])
+        #expect(Self.keys(run) == ["eyebrow:needsYou", "eyebrow:working", "sr-w"])
 
-        _ = try Self.press("eyebrow:yourTurn", in: run)
-        #expect(Self.keys(run).prefix(3) == ["eyebrow:needsYou", "eyebrow:yourTurn", "eyebrow:working"])
+        _ = try Self.press("eyebrow:working", in: run)
+        #expect(Self.keys(run) == ["eyebrow:needsYou", "eyebrow:working"])
         #expect(!run.list.content.items.contains(.divider))
     }
 
-    /// Folds Lee left are where the run starts: its eyebrow alone, pointing right.
+    /// Folds Lee left are where the run starts: its eyebrow alone, pointing right, counting its asks and its turns.
     @Test func theFoldsSavedAreRestored() {
-        let run = Self.opened(Self.mixed, kept: Self.kept([.yourTurn]))
+        let run = Self.opened(Self.mixed, kept: Self.kept([.needsYou]))
 
-        #expect(Self.keys(run).suffix(3) == ["eyebrow:yourTurn", "eyebrow:working", "sr-w"])
-        #expect(run.list.content.items.contains(.eyebrow(Eyebrow(section: .yourTurn, count: 1, isFolded: true, above: 14))))
+        #expect(Self.keys(run) == ["eyebrow:needsYou", "eyebrow:working", "sr-w"])
+        #expect(run.list.content.items.contains(.eyebrow(Eyebrow(
+            section: .needsYou, count: 3, isFolded: true, above: Eyebrow.first
+        ))))
     }
 
     /// A click on an eyebrow keeps the fold, and a click again keeps it unfolded.
@@ -188,14 +190,14 @@ struct CardSectionsRunTests {
 
         let going = try #require(run.list.content.entries.first { $0.item.key == "needs:sr-b" })
         #expect(going.isGoing && going.height > 0 && going.height < going.item.height)
-        #expect(Self.keys(run).suffix(3) == ["eyebrow:yourTurn", "turn:sr-t", "eyebrow:working"])
+        #expect(Self.keys(run).suffix(3) == ["needs:sr-b", "turn:sr-t", "eyebrow:working"])
     }
 
-    /// Your turn shows every row, however long ago its turn ended, each on one line, and keeps showing them as the
-    /// panel stays out: no "N earlier".
-    @Test func yourTurnShowsEveryRowHoweverOld() {
+    /// Needs you shows every turn, however long ago it ended, each on one line, and keeps showing them as the panel
+    /// stays out: no "N earlier".
+    @Test func needsYouShowsEveryTurnHoweverOld() {
         let run = Self.opened([Self.turn("sr-new", ago: 5), Self.turn("sr-old", ago: 90), Self.turn("sr-older", ago: 3000)])
-        let shown = ["eyebrow:yourTurn", "turn:sr-new", "turn:sr-old", "turn:sr-older"]
+        let shown = ["eyebrow:needsYou", "turn:sr-new", "turn:sr-old", "turn:sr-older"]
 
         #expect(Self.keys(run) == shown)
         Self.frames(run, for: 2000, Self.onTheNotch)
@@ -206,8 +208,8 @@ struct CardSectionsRunTests {
     // MARK: Held places
 
     /// A row whose turn ends while the card is out leaves its place in Working, folding away there, and folds in at
-    /// its place in Your turn.
-    @Test func aRowMovingFromWorkingToYourTurnFoldsOutAndIn() throws {
+    /// its place among Needs you's turns.
+    @Test func aRowMovingFromWorkingToLeesTurnFoldsOutAndIn() throws {
         let run = Self.opened([Self.turn("sr-t", ago: 5), Self.working("sr-w"), Self.working("sr-x")])
 
         _ = run.show(Self.board([Self.turn("sr-w", ago: 0), Self.turn("sr-t", ago: 5), Self.working("sr-x")]), Self.at(run.time))
@@ -216,10 +218,11 @@ struct CardSectionsRunTests {
         let entries = run.list.content.entries
         let going = try #require(entries.first { $0.item.key == "sr-w" })
         let coming = try #require(entries.firstIndex { $0.item.key == "turn:sr-w" })
-        let yourTurn = try #require(entries.firstIndex { $0.item.key == "eyebrow:yourTurn" })
+        let needsYou = try #require(entries.firstIndex { $0.item.key == "eyebrow:needsYou" })
+        let working = try #require(entries.firstIndex { $0.item.key == "eyebrow:working" })
 
         #expect(going.isGoing)
-        #expect(coming > yourTurn)
+        #expect(coming > needsYou && coming < working)
         #expect(run.isFolding(at: run.time))
     }
 

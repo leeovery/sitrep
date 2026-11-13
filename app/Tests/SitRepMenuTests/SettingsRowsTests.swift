@@ -96,6 +96,21 @@ struct NoticeRowsTests {
         ))
     }
 
+    /// Lee's turn has its own switch, worded for it, greying as a new ask's does, saying what tells him instead.
+    @Test(arguments: [
+        (NoticeLeave?.some(.allowed(.banners)), EdgeSettings.Show.notch, nil),
+        (.denied, .notch, "the notch lights blue"),
+        (.allowed(.none), .strip, "its mark on the strip turns blue"),
+        (.denied, .nothing, "the menu bar's light turns blue"),
+    ])
+    func leesTurnHasItsOwnSwitch(leave: NoticeLeave?, show: EdgeSettings.Show, instead: String?) {
+        let line = instead.map { "Can't while macOS stops it; \($0) instead" } ?? Self.silent
+
+        #expect(SettingsRow.notify(leave, show: show, for: .turn) == SettingsRow(
+            label: "Notify me when it's my turn", line: line, side: .toggle(isEnabled: instead == nil)
+        ))
+    }
+
     @Test func allowedItSaysHowAndTakesLeeToSitRepsPageInSystemSettings() {
         let settings = SettingsRow.Side.button("Notification Settings…", .notifications)
 
@@ -278,7 +293,47 @@ struct AppSettingsTests {
         #expect(read.notifiesNewAsks)
         #expect(read.playsSound)
         #expect(read.sound == "Glass")
-        #expect(Set(keys) == ["notifiesNewAsks", "playsSound", "sound", "terminal"], "a resume command never set saved as none")
+        #expect(Set(keys) == [
+            "notifiesNewAsks", "playsSound", "sound", "pulsesNewAsks", "notifiesTurns", "playsTurnSound", "turnSound",
+            "pulsesTurns", "terminal",
+        ], "a resume command never set saved as none")
+    }
+
+    /// A value saved before Lee's turn had settings of its own (13 November 2026) reads as it did: its keys a new
+    /// ask's, the notch pulsing for one as it always had, and his turn's all off.
+    @Test func aValueSavedBeforeLeesTurnHadItsOwnReadsAsBefore() {
+        let defaults = MemoryDefaults()
+
+        defaults.set(Data(#"{"notifiesNewAsks":true,"playsSound":false,"sound":"Submarine"}"#.utf8), forKey: "app")
+
+        let read = SavedSettings<AppSettings>(defaults).read()
+
+        #expect(read.notifies(.ask) && !read.playsSound && read.sound(for: .ask) == "Submarine")
+        #expect(read.pulses == [.ask])
+        #expect(!read.notifies(.turn) && !read.playsTurnSound && !read.pulsesTurns)
+    }
+
+    /// Lee's turn's settings, off by default, its sound Tink, apart from a new ask's Glass; each saved under a key of
+    /// its own and read back, leaving the ask's as they were.
+    @Test func leesTurnsSettingsAreItsOwnOffByDefaultSavedAndReadBack() {
+        let defaults = MemoryDefaults()
+        var settings = AppSettings()
+
+        #expect(!settings.notifiesTurns && !settings.playsTurnSound && !settings.pulsesTurns)
+        #expect(settings.sound(for: .turn) == "Tink" && settings.sound(for: .ask) == "Glass")
+
+        settings.notifiesTurns = true
+        settings.playsTurnSound = true
+        settings.turnSound = "Pop"
+        settings.pulsesTurns = true
+        settings.pulsesNewAsks = false
+        SavedSettings(defaults).save(settings)
+
+        let read = SavedSettings<AppSettings>(defaults).read()
+
+        #expect(read == settings)
+        #expect(read.pulses == [.turn])
+        #expect(!read.notifiesNewAsks && read.playsSound && read.sound == "Glass")
     }
 
     /// As each window played Glass before SitRep played the sound.

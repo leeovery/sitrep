@@ -6,7 +6,7 @@ import SwiftUI
 import Testing
 
 /// The card's sections as drawn, against Paper's boards D and J taken relative to the built rows: the eyebrows, and
-/// every row on one line, 30 tall, Needs you's, Your turn's and Working's, in black and in glass, each read from its
+/// every row on one line, 30 tall, Needs you's asks and turns and Working's, in black and in glass, each read from its
 /// pixels at 2×; and the card's content, with no hairline and no "N earlier".
 @MainActor
 struct CardSectionsDrawnTests {
@@ -62,8 +62,8 @@ struct CardSectionsDrawnTests {
         #expect(abs(count.minX - (10 + named + 6)) <= 1)
     }
 
-    /// Needs you's count in Claude's orange; Your turn's and Working's in white at 30%.
-    @Test(arguments: [(BoardSection.needsYou, true), (.working, false), (.yourTurn, false)])
+    /// Needs you's count in Claude's orange, its turns counted in it; Working's in white at 30%.
+    @Test(arguments: [(BoardSection.needsYou, true), (.working, false)])
     func anEyebrowsCountIsOrangeForNeedsYouElseFaint(section: BoardSection, isOrange: Bool) throws {
         let drawn = try Self.black(Self.eyebrow(section))
         let named = TextLine.width(TextLine.text(section.title, EdgeStyle.eyebrowTitle, EdgeStyle.eyebrow))
@@ -76,7 +76,7 @@ struct CardSectionsDrawnTests {
     /// pointing right while folded, each with its stroke's round caps.
     @Test(arguments: [false, true])
     func anEyebrowsChevronPointsDownOpenAndRightFolded(isFolded: Bool) throws {
-        let drawn = try Self.black(Self.eyebrow(.yourTurn, isFolded: isFolded))
+        let drawn = try Self.black(Self.eyebrow(.needsYou, isFolded: isFolded))
         let lane = CGRect(x: Self.width - 7.5 - 15, y: 2, width: 15, height: 24)
         let chevron = try #require(drawn.drawnBox(in: lane, ground: Self.ground))
         let (wide, tall) = isFolded ? (6.0, 10.0) : (10.0, 6.0)
@@ -185,16 +185,16 @@ struct CardSectionsDrawnTests {
         #expect((332.5 ... 334.5).contains(age.maxX))
     }
 
-    /// Your turn, today's one line: its open white ring 9 across at 16 by 15.
-    @Test func aYourTurnRowsRingIsOpenAndWhite() throws {
+    /// Your turn, today's one line: its blue dot, 7 across with its glow, as an ask's orange one, at 16 by 15 (13
+    /// November 2026; an open white ring 9 across until then).
+    @Test func aYourTurnRowsDotIsBlueOnItsMiddle() throws {
         let drawn = try Self.row(Self.turn("Licensing settled")).drawn
-        let ring = try #require(drawn.drawnBox(in: CGRect(x: 4, y: 2, width: 24, height: 26), ground: Self.ground))
-        let inside = try #require(drawn.pixel(at: CGPoint(x: 16, y: 15)))
+        let dot = try #require(drawn.pixel(at: CGPoint(x: 16, y: 15)))
+        let glow = try #require(drawn.pixel(at: CGPoint(x: 16, y: 10.5)))
 
-        #expect(abs(ring.midX - 16) <= 0.5 && abs(ring.midY - 15) <= 0.5)
-        #expect(abs(ring.width - 9) <= 0.5 && abs(ring.height - 9) <= 0.5)
-        #expect(Self.isClose(Self.colour(drawn, in: ring), to: Self.rgb(0xF5F5F7)))
-        #expect(inside.lightness < 0.1)
+        #expect(Self.isClose(Self.colour(drawn, in: CGRect(x: 14, y: 13, width: 4, height: 4)), to: Self.rgb(0x3F93FB)))
+        #expect(dot.blueComponent > 0.75 && dot.redComponent < 0.35)
+        #expect(glow.lightness > 0.05)
     }
 
     /// What Claude left Lee from 32, 13 regular in the text colour; its project in the lane, faint; its time faint.
@@ -284,8 +284,8 @@ struct CardSectionsDrawnTests {
         Session(id: "w", project: "DocMan", kind: .working, title: "Running the tests", sub: "DocMan · Fix", since: 0),
     ]
 
-    /// No head and no hairline: every row on one line, 30 tall, Your turn's every one, however old, each eyebrow after
-    /// the first 14 under the row above it.
+    /// No head and no hairline: every row on one line, 30 tall, every turn, however old, in Needs you under its ask,
+    /// each eyebrow after the first 14 under the row above it.
     @Test func theCardDrawsEveryRowOnOneLineWithNoHairline() throws {
         let content = PanelContent()
         let laid = Content(laying: Item.card(Self.mixed, folds: CardFolds()), headed: false)
@@ -294,8 +294,9 @@ struct CardSectionsDrawnTests {
 
         #expect(["needs:k", "turn:t", "turn:e", "w"].allSatisfy { content.rows[$0]?.row.layer.bounds.height == 30 })
         #expect(!laid.items.contains(.divider))
-        #expect(laid.itemFrame(2).minY == laid.itemFrame(1).maxY)
-        #expect(laid.itemFrame(2).height == CGFloat(14 + 28))
+        #expect(laid.items.map(\.key) == ["eyebrow:needsYou", "needs:k", "turn:t", "turn:e", "eyebrow:working", "w"])
+        #expect(laid.itemFrame(4).minY == laid.itemFrame(3).maxY)
+        #expect(laid.itemFrame(4).height == CGFloat(14 + 28))
     }
 
     // MARK: Glass
@@ -354,21 +355,18 @@ struct CardSectionsDrawnTests {
         #expect(medium.width - regular.width > 1)
     }
 
-    /// On glass, a turn snoozed is a ring 9 across, hollow, at 16 by 15, where a snoozed ask's is a dot; "until it
-    /// moves" in its time's place, ending at 334.
+    /// On glass, a turn snoozed is a dot 7 across at 16 by 15, as a snoozed ask's is, its blue dimmed
+    /// (`NeedsYouMarksTests`); "until it moves" in its time's place, ending at 334.
     @available(macOS 26, *)
-    @Test func onGlassASnoozedTurnIsAHollowRingUntilItMoves() throws {
+    @Test func onGlassASnoozedTurnIsADotUntilItMoves() throws {
         let turn = Session(id: "t", project: "Fumi", name: "Licensing", kind: .snoozedTurn, title: "Settled", sub: "Fumi", since: 0)
         let drawn = try Self.glass(turn)
-        let ring = try #require(drawn.drawnBox(in: CGRect(x: 4, y: 2, width: 24, height: 26), ground: Self.ground))
-        let hole = CGRect(x: ring.midX - 1, y: ring.midY - 1, width: 2, height: 2)
+        let dot = try #require(drawn.drawnBox(in: CGRect(x: 4, y: 2, width: 24, height: 26), ground: Self.ground))
         let wide = TextLine.width(TextLine.text(WakeTime.untilItMoves, EdgeStyle.age, EdgeStyle.ink2))
         let time = try #require(drawn.drawnBox(in: CGRect(x: 330 - wide, y: 4, width: wide + 14, height: 22), ground: Self.ground))
-        let stroke = try drawn.brightest(in: ring), inside = try drawn.brightest(in: hole)
 
-        #expect(abs(ring.width - 9) <= 1 && abs(ring.height - 9) <= 1)
-        #expect(abs(ring.midX - 16) <= 0.5 && abs(ring.midY - 15) <= 0.5)
-        #expect(inside.lightness < stroke.lightness - 0.3)
+        #expect(abs(dot.width - 7) <= 1 && abs(dot.height - 7) <= 1)
+        #expect(abs(dot.midX - 16) <= 0.5 && abs(dot.midY - 15) <= 0.5)
         #expect(abs(time.maxX - 334) <= 1.5 && abs(time.width - wide) <= 3)
     }
 }

@@ -46,10 +46,10 @@ final class Edge {
         show()
     }
 
-    /// The board as `watch` last printed it, for the notch and the strip.
+    /// The board as `watch` last printed it, for the notch and the strip, pulsing the notch as Lee set it.
     func show(_ last: LastBoard) {
         self.last = last
-        tell(PanelBoard(last, notHere: notHere))
+        tell(PanelBoard(last, notHere: notHere, pulses: preferences.app.pulses))
     }
 
     /// The sessions a window holds that this Mac does not show, dimmed at once on the board as last heard, nothing
@@ -57,7 +57,7 @@ final class Edge {
     func show(notHere: Set<String>) {
         self.notHere = notHere
         if let last {
-            tell(PanelBoard(last, notHere: notHere).retold)
+            tell(PanelBoard(last, notHere: notHere, pulses: preferences.app.pulses).retold)
         }
     }
 

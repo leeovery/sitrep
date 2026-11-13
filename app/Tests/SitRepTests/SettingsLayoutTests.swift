@@ -26,9 +26,11 @@ struct SettingsLayoutTests {
     }
 
     /// Each pane's controls at its rows' right, top to bottom: Open at login, Terminal, Command, Restore Default;
-    /// Edge, Display, Style, Material, Reduce motion; Send Test, Notify me, Notification Settings…, Play a sound, Sound;
-    /// the two windows' Show and Copy.
-    private static let controls: [(SettingsPane, Int)] = [(.general, 4), (.edge, 5), (.notifications, 5), (.claudeCode, 3)]
+    /// Edge, Display, Style, Material, Reduce motion; Send Test, the two Notify me's, Notification Settings…, the two
+    /// Play a sound's, each with its Sound, and the two Pulse's; the two windows' Show and Copy.
+    private static let controls: [(SettingsPane, Int)] = [
+        (.general, 4), (.edge, 5), (.notifications, 10), (.claudeCode, 3),
+    ]
 
     /// The column fills the pane, less its insets, at any width: each card spans it, and every control at a row's
     /// right stands 10 in from the card's.
@@ -63,8 +65,8 @@ struct SettingsLayoutTests {
         #expect(abs(popUp.width - SystemControlsTests.stock(button.itemArray).intrinsicContentSize.width) <= 0.5)
     }
 
-    /// Open at login; Reduce motion; Notify me of a new ask and Play a sound for a new ask.
-    @Test(arguments: [(SettingsPane.general, 1), (.edge, 1), (.notifications, 2), (.claudeCode, 0)])
+    /// Open at login; Reduce motion; for a new ask and for Lee's turn each, Notify me, Play a sound and Pulse.
+    @Test(arguments: [(SettingsPane.general, 1), (.edge, 1), (.notifications, 6), (.claudeCode, 0)])
     func eachSwitchIsTheMiniSwitch36By16(pane: SettingsPane, switches: Int) async throws {
         let hosted = await Hosted.pane(pane, width: 744)
 
@@ -163,13 +165,13 @@ struct SettingsLayoutTests {
     /// card, its first 13 under the toolbar: a section's header's line of 16 and 10 over its card, the sections 26
     /// apart. General's Startup a row of 52, Terminal's a row of 38 and one of 52, Resume command's a row of 38, its
     /// caption's words in the 8 and three lines of 14 under it; Edge's the Show row's 86, then Notch's four, 52, 38, 52 and 52, then Motion's
-    /// 52; Notifications' corner of 150 and the caption's row of 32, then Banners' two rows of 52 and Sound's 52 and
-    /// 38. What is shorter than a row is a caption's words, and lies in its lines. Within a pixel at the screen's
-    /// scale, which lays the pane out.
+    /// 52; Notifications' corner of 150 and the caption's row of 32, then Banners' three rows of 52, Sound's 52 and 38
+    /// twice, a new ask's and Lee's turn's, and Notch's two rows of 52. What is shorter than a row is a caption's
+    /// words, and lies in its lines. Within a pixel at the screen's scale, which lays the pane out.
     @Test(arguments: [
         (SettingsPane.general, [39 ... 91, 143 ... 233.5, 285.5 ... 323.5], [323.5 ... 375.5]),
         (.edge, [13 ... 99, 151 ... 346.5, 398.5 ... 450.5], []),
-        (.notifications, [13 ... 163, 247 ... 351.5, 403.5 ... 494], [163 ... 195]),
+        (.notifications, [13 ... 163, 247 ... 404, 456 ... 637.5, 689.5 ... 794], [163 ... 195]),
     ] as [(SettingsPane, [ClosedRange<CGFloat>], [ClosedRange<CGFloat>])])
     func eachPanesCardsStandAtTheirHeights(
         pane: SettingsPane, drawing: [ClosedRange<CGFloat>], captions: [ClosedRange<CGFloat>]

@@ -492,16 +492,16 @@ struct WelcomeStagePlayTests {
         let board = WelcomeBoard.calm(at: 0)
 
         #expect(!board.needsLee)
-        #expect(board.sessions.map(\.kind) == [.turn, .working, .working])
+        #expect(board.sessions.map(\.kind) == [.working, .working])
     }
 
-    /// Needs you 1, Your turn 1 and Working 2, in core's order.
+    /// Needs you 1 and Working 2, in the panel's order.
     @Test func theAskLandsInNeedsYouNewAsItLands() {
         let landing = WelcomeBoard.asked(at: 0, isNew: true), lit = WelcomeBoard.asked(at: 0, isNew: false)
 
         #expect(landing.needsLee)
-        #expect(landing.sessions.map(\.title) == [Sample.needsYou, Sample.yourTurn, "Running ", "Writing "])
-        #expect(landing.sessions.map(\.code) == [nil, nil, "the tests", "DESIGN.md"])
+        #expect(landing.sessions.map(\.title) == [Sample.needsYou, "Running ", "Writing "])
+        #expect(landing.sessions.map(\.code) == [nil, "the tests", "DESIGN.md"])
         #expect(landing.sessions.allSatisfy { $0.sub == "Project · Session" })
         #expect(landing.new == [WelcomeBoard.asking])
         #expect(lit.needsLee && lit.new.isEmpty)
@@ -729,7 +729,7 @@ struct SampleTests {
         let board = WelcomeBoard.asked(at: 0, isNew: true).sessions
         let lines = board.flatMap(\.lines).flatMap { [$0.ask, $0.title, $0.code].compactMap(\.self) }
         let words = [Sample.ask, Sample.project, Sample.place, Sample.terminal, Sample.terminalAsk, Sample.needsYou]
-            + [Sample.running, Sample.writing].flatMap { [$0.title, $0.code] } + [Sample.yourTurn]
+            + [Sample.running, Sample.writing].flatMap { [$0.title, $0.code] }
             + [Sample.answer, Sample.terminalAnswer]
             + board.flatMap { [$0.id, $0.project, $0.name, $0.sub] } + lines
         let projects = ["Switchboard", "Kit", "Portal", "Fabric", "ledger"]

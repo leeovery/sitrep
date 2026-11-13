@@ -1,11 +1,16 @@
 import SitRepCore
 
-/// The macOS notifications a board sends (DESIGN, "Settings", Notifications): one for each ask new on it, silent,
-/// with its title, then its project and session, a click jumping to it.
+/// The macOS notifications a board sends (DESIGN, "Settings", Notifications), each silent, a click jumping to its
+/// session: one for each ask new on it, with its title, then its project and session; and one for each session it
+/// moved into Lee's turn, saying so, with its project and session, then what Claude left him.
 public enum Notices {
-    /// What this board sends, with Lee's switch as it stands: none while it is off, else one for each of its new asks.
-    public static func due(_ last: LastBoard, isOn: Bool) -> [Banner] {
-        isOn ? last.newAsks.map { newAsk($0.ask, of: $0.row) } : []
+    /// What this board sends, with Lee's switches as they stand: a new ask's while its switch is on, then his turn's
+    /// while its own is.
+    public static func due(_ last: LastBoard, _ settings: AppSettings) -> [Banner] {
+        let asks = settings.notifiesNewAsks ? last.newAsks.map { newAsk($0.ask, of: $0.row) } : []
+        let turns = settings.notifiesTurns ? last.newTurnRows.map(turn) : []
+
+        return asks + turns
     }
 
     /// The test notification Settings sends: a sample, never a real session's, so a click on it jumps nowhere. Lee, 26
@@ -16,6 +21,10 @@ public enum Notices {
 
     private static func newAsk(_ ask: Board.Row.Line, of row: Board.Row) -> Banner {
         Banner(title: ask.first.lead, subtitle: placeOf(row), body: "", work: row.session)
+    }
+
+    private static func turn(_ row: Board.Row) -> Banner {
+        Banner(title: "Your turn", subtitle: placeOf(row), body: row.newest.first.lead, work: row.session)
     }
 
     /// The row's project and session by name, an away row's too, whose second line says no window holds it.
@@ -40,6 +49,19 @@ extension LastBoard {
         }
 
         return asks.enumerated().sorted { ($0.element.ask.since, $0.offset) < ($1.element.ask.since, $1.offset) }
+            .map(\.element)
+    }
+
+    /// The rows of the sessions this board moved into Lee's turn (`newTurns`), the turn that ended first first, as the
+    /// asks go; none for a stale board.
+    var newTurnRows: [Board.Row] {
+        guard stale == nil, let board else {
+            return []
+        }
+
+        return board.rows.enumerated()
+            .filter { newTurns.contains($0.element.session) }
+            .sorted { ($0.element.since, $0.offset) < ($1.element.since, $1.offset) }
             .map(\.element)
     }
 }

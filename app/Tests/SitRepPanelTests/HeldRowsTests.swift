@@ -86,8 +86,8 @@ struct HeldRowsTests {
     }
 
     /// Working to your turn crosses from one section to the one above it: the row leaves its place in Working for one
-    /// in Your turn, under the your turn core has above it, or at its top.
-    @Test func whileItIsOutARowWhoseTurnEndsTakesItsPlaceInYourTurn() {
+    /// among Needs you's turns, under the turn the panel's order has above it, or at their top.
+    @Test func whileItIsOutARowWhoseTurnEndsTakesItsPlaceAmongTheTurns() {
         var rows = HeldRows()
         rows.take(Self.by("s1", "s3", "s6", "s4", "s5"))
         rows.hold(true)
@@ -95,17 +95,23 @@ struct HeldRowsTests {
         rows.take(Self.by("s1", "s3") + [Self.answered(Self.by("s5")[0])] + Self.by("s6", "s4"))
 
         #expect(Self.ids(rows) == ["s1", "s3", "s5", "s6", "s4"])
-        #expect(HeldRows.section(rows.shown[2]) == .yourTurn)
+        #expect(HeldRows.Part(rows.shown[2]) == HeldRows.Part(Self.by("s3")[0]))
     }
 
-    /// The sections' order: Needs you, then Your turn, then Working, on its own work among it, then Snoozed.
-    @Test func aRowsPlaceIsHeldInItsSection() {
-        var waiting = Self.by("s4")[0]
+    /// The parts' order: Needs you's asks, then its turns, then Working, on its own work among it, then Snoozed, its
+    /// asks and turns as one.
+    @Test func aRowsPlaceIsHeldInItsPart() {
+        var waiting = Self.by("s4")[0], asleep = Self.by("s3")[0], askAsleep = Self.by("s1")[0]
         waiting.kind = .onItsWork
+        asleep.kind = .snoozedTurn
+        askAsleep.kind = .snoozed
+        let parts = Self.by("s1", "s3", "s4").map(HeldRows.Part.init)
 
-        #expect(Self.by("s1", "s3", "s4").map(HeldRows.section) == [.needsYou, .yourTurn, .working])
-        #expect(HeldRows.section(waiting) == .working)
-        #expect(BoardSection.allCases.sorted() == [.needsYou, .yourTurn, .working, .snoozed])
+        #expect(parts.map(\.section) == [.needsYou, .needsYou, .working] && parts.map(\.isTurn) == [false, true, false])
+        #expect(parts == parts.sorted())
+        #expect(HeldRows.Part(waiting) == parts[2])
+        #expect(HeldRows.Part(asleep) == HeldRows.Part(askAsleep))
+        #expect(BoardSection.allCases.sorted() == [.needsYou, .working, .snoozed])
     }
 
     /// A place is held within its section: a row coming to need Lee, from your turn or from working, leaves its place
@@ -126,8 +132,8 @@ struct HeldRowsTests {
         #expect(Self.needsYouIsTogether(rows))
     }
 
-    /// A needs you whose asks are answered leaves its place there, the first or one between, for its place in Your
-    /// turn, at its top where core has none above it there: needs you stays together over the hairline.
+    /// A needs you whose asks are answered leaves its place there, the first or one between, for its place among the
+    /// turns, at their top where the panel's order has none above it there: the asks stay together over them.
     @Test(arguments: ["s1", "s2"])
     func whileItIsOutANeedsYouAnsweredLeavesNeedsYouTogether(id: String) {
         var rows = HeldRows()
@@ -170,8 +176,8 @@ struct HeldRowsTests {
         #expect(Self.needsYouIsTogether(rows))
     }
 
-    /// Core orders needs you anew, s7 first, as s1 is answered: needs you keeps its held order, and s1 comes in at the
-    /// top of Your turn, where core has nothing above it there.
+    /// Core orders needs you anew, s7 first, as s1 is answered: the asks keep their held order, and s1 comes in at the
+    /// top of the turns, where the panel's order has nothing above it there.
     @Test func whileItIsOutAnAnsweredRowComesInAmongTheRestThoughNeedsYouMoved() {
         let s1 = Self.answered(Self.by("s1")[0])
 

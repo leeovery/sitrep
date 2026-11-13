@@ -58,10 +58,10 @@ final class LightLayer: CALayer {
         }
 
         let colours = look.colours, box = LiveLight.bar, bar = Self.capsule(box)
-        let line = [0, colours.line, 0].map { EdgeStyle.color(LiveLight.hot, alpha: $0) }
+        let line = [0, colours.line, 0].map { EdgeStyle.color(colours.palette.hot, alpha: $0) }
 
         context.setAlpha(look.level * colours.opacity)
-        halo(context, bar, inside: look.outline)
+        halo(context, bar, inside: look.outline, in: colours.palette.body)
         // the body down the bar, then the lighter line across it
         fill(context, bar, colours.body.map { EdgeStyle.color($0) }, from: CGPoint(x: 0, y: box.minY), to: CGPoint(x: 0, y: box.maxY))
         fill(context, bar, line, from: CGPoint(x: box.minX, y: 0), to: CGPoint(x: box.maxX, y: 0))
@@ -70,7 +70,7 @@ final class LightLayer: CALayer {
     /// The bar's shadow alone: clipped to the notch and to everything outside the bar, so the bar casting it never
     /// shows. The blur is twice σ, as canvas's is; in a layer's context it is in points, as the layer's scale is in
     /// the context's base space (seen rendering the layer at 12x, where the halo stayed 1.5 points).
-    private func halo(_ context: CGContext, _ bar: CGPath, inside outline: CGPath) {
+    private func halo(_ context: CGContext, _ bar: CGPath, inside outline: CGPath, in colour: LiveLight.RGB) {
         context.saveGState()
         context.addPath(outline)
         context.clip()
@@ -79,7 +79,7 @@ final class LightLayer: CALayer {
         context.clip(using: .evenOdd)
         context.setShadow(
             offset: .zero, blur: 2 * LiveLight.haloSigma,
-            color: EdgeStyle.color(LiveLight.orange, alpha: LiveLight.haloAlpha)
+            color: EdgeStyle.color(colour, alpha: LiveLight.haloAlpha)
         )
         context.addPath(bar)
         context.setFillColor(EdgeStyle.black)

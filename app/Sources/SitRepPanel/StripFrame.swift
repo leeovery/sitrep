@@ -120,10 +120,11 @@ public struct StripFrame {
     /// A mark: two letters, or a count, in a 24pt ring whose colour carries the state.
     public struct Mark {
         public enum Look: Sendable {
-            /// Orange, with the panel dot's glow, the letters white; away, the letters dim; your turn, white; working,
-            /// a grey track with a pale arc turning; on its own work, the dotted ring round the letters, still, in
-            /// working's grey; the grey count, a grey ring; needs you's count, orange with its glow, the letters white.
-            case needs, away, turn, working, onItsWork, count, needsCount
+            /// An ask's, orange, with the panel dot's glow, the letters white, and away the letters dim; your turn's
+            /// the same in blue; working, a grey track with a pale arc turning; on its own work, the dotted ring round
+            /// the letters, still, in working's grey; the grey count, a grey ring; needs you's count, orange with its
+            /// glow, the letters white.
+            case needs, away, turn, awayTurn, working, onItsWork, count, needsCount
         }
 
         public let key: MarkKey
@@ -246,7 +247,7 @@ extension Strip {
             let look: StripFrame.Mark.Look = switch s.kind {
             case .needs: s.away ? .away : .needs
             // the strip is given no Snoozed row (`PanelBoard.sessions`)
-            case .turn, .snoozed, .snoozedTurn: .turn
+            case .turn, .snoozed, .snoozedTurn: s.away ? .awayTurn : .turn
             case .working: .working
             case .onItsWork: .onItsWork
             }

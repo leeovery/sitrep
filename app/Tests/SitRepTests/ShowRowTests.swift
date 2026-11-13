@@ -201,13 +201,13 @@ struct ShowRowTests {
         try Drawn(EdgePicture(show: show), size: CGSize(width: 67, height: 44))
     }
 
-    /// The strip's rings drawn no finer than half a point, so your turn's, white, lights a whole pixel at 2× somewhere
-    /// round it, where its line drawn to scale, 0.27, would light at most about half of one.
+    /// The strip's rings drawn no finer than half a point, so your turn's, blue, lights a whole pixel at 2× somewhere
+    /// round it in full, where its line drawn to scale, 0.27, would light at most about half of one.
     @Test func theStripsRingsAreNoFinerThanHalfAPoint() throws {
         // round your turn's ring: its middle 4.05 in and 17.3 down, 1.5 out
         let turn = try Self.picture(.strip).brightest(in: CGRect(x: 2, y: 15.3, width: 4.1, height: 4))
 
-        #expect(turn.channels.allSatisfy { $0 > 0.7 })
+        #expect(turn.blueComponent > 0.9 && turn.redComponent < 0.4)
     }
 
     /// Nothing's menu bar seen closer, until the glyph's housing stands 5 tall: the orange bar in it 3.6 tall, its

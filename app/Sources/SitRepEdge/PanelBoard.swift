@@ -2,19 +2,27 @@ import Foundation
 import SitRepCore
 import SitRepPanel
 
-/// The board `watch` last printed, in the panel's terms: its rows as the panel's sessions, in core's order, its
-/// Snoozed rows apart from them, its head, whether anything needs Lee, and what is new. Core decided every one of them;
-/// this decides nothing, and only says them as the panel does.
+/// The board `watch` last printed, in the panel's terms: its rows as the panel's sessions, in the panel's order, its
+/// Snoozed rows apart from them, its head, what lights the notch, and what is new. Core decided the rows; this orders
+/// Needs you's asks and turns (`inPanelOrder`), counts what needs Lee, asks and turns alike, and says them as the panel
+/// does.
 public struct PanelBoard: Equatable, Sendable {
-    /// In core's order: the strip's and the menu's, and the card's but for Snoozed.
+    /// In the panel's order: the strip's and the menu's, and the card's but for Snoozed.
     public let sessions: [Session]
     /// The card's Snoozed rows, the soonest to wake first, which the strip and the menu leave out.
     public let snoozed: [Session]
+    /// "11 need you": the asks and stops waiting, and the sessions at Lee's turn.
     public let head: Head
-    public let needsLee: Bool
-    /// The rows holding a line needing Lee that is new on this board, by their sessions: the notch's swell, and each
+    /// What lights the notch: an ask while any waits, else Lee's turn while any session stands at it; nil with
+    /// neither (DESIGN, "The notch and its panel", 13 November 2026).
+    public let need: Need?
+    /// The rows holding a line needing Lee that is new on this board, by their sessions: the notch's pulse, and each
     /// row's wash.
     public let new: Set<String>
+    /// The sessions this board moved into Lee's turn, by their ids (`LastBoard.newTurns`): the notch's pulse.
+    public let newTurns: Set<String>
+    /// What pulses the notch as it comes, as Lee set it: a new ask, Lee's turn, or both.
+    public let pulses: Set<Need>
     /// The strip's words for the board, which it has no head to say: before any board, the head's title; while the
     /// board is stale, when it was last known current, "as of 12:04".
     public let unread: String?
@@ -32,83 +40,93 @@ public struct PanelBoard: Equatable, Sendable {
 
     /// With no `watch` to run, its head says why.
     public init(unrun why: String) {
-        self.init(
-            sessions: [], snoozed: [], head: Head(title: why, count: ""), needsLee: false, new: [], unread: why, asOf: nil
-        )
+        self.init(sessions: [], snoozed: [], head: Head(title: why, count: ""), unread: why)
     }
 
     /// The board as last heard, the sessions a window holds that this Mac does not show (`notHere`) drawn as away ones
-    /// are (DESIGN, stage 8, "The rows"). While it is stale, its rows stay as they were and its head says when it was
-    /// last known current, "as of 12:04", as the menu's does.
+    /// are (DESIGN, stage 8, "The rows"), and what pulses the notch, a new ask alone unless Lee set otherwise. While it
+    /// is stale, its rows stay as they were and its head says when it was last known current, "as of 12:04", as the
+    /// menu's does.
     public init(
-        _ last: LastBoard, notHere: Set<String> = [], clock: Date.FormatStyle = .init(date: .omitted, time: .shortened)
+        _ last: LastBoard, notHere: Set<String> = [], pulses: Set<Need> = [.ask],
+        clock: Date.FormatStyle = .init(date: .omitted, time: .shortened)
     ) {
         guard let board = last.board else {
             let head = last.stale == nil ? Self.looking : Self.unread
 
-            self.init(sessions: [], snoozed: [], head: head, needsLee: false, new: [], unread: head.title, asOf: nil)
+            self.init(sessions: [], snoozed: [], head: head, unread: head.title)
             return
         }
 
-        let head = Head(needYou: board.head.needYou, sessions: board.head.sessions)
+        let turns = board.rows.filter { $0.section == .yourTurn }.count
+        let head = Head(needYou: board.head.needYou + turns, sessions: board.head.sessions)
         let asOf = last.staleSince.map { "as of \($0.formatted(clock))" }
+        // stale, the last line's arrivals are not new again
+        let isCurrent = last.stale == nil
 
         self.init(
-            sessions: board.rows.map { Session($0, isHere: !notHere.contains($0.session)) },
+            sessions: board.rows.map { Session($0, isHere: !notHere.contains($0.session)) }.inPanelOrder(),
             snoozed: board.snoozed.map { Session($0, isHere: !notHere.contains($0.session)) },
             head: asOf.map { Head(title: head.title, count: $0) } ?? head,
-            needsLee: !board.head.isAllClear,
-            // stale, the last line's new rows are not new again
-            new: last.stale == nil ? board.newRows : [],
-            unread: nil,
+            need: board.head.needYou > 0 ? .ask : turns > 0 ? .turn : nil,
+            new: isCurrent ? board.newRows : [],
+            newTurns: isCurrent ? last.newTurns : [],
+            pulses: pulses,
             asOf: asOf
         )
     }
 
-    /// A board of these rows, in this order, none in Snoozed, as a picture of the edge shows one: its head from their
-    /// counts, and the rows new on it by their sessions.
+    /// A board of these rows, none in Snoozed, as a picture of the edge shows one, in the panel's order: its head from
+    /// their counts, and the rows new on it by their sessions, which pulse the notch.
     public init(rows: [Session], new: Set<String> = []) {
-        let needYou = rows.filter(\.needsLee).count
+        let waiting = rows.filter { $0.section == .needsYou }
 
         self.init(
-            sessions: rows, snoozed: [], head: Head(needYou: needYou, sessions: rows.count), needsLee: needYou > 0,
-            new: new, unread: nil, asOf: nil
+            sessions: rows.inPanelOrder(), snoozed: [],
+            head: Head(needYou: waiting.map(\.lines.count).reduce(0, +), sessions: rows.count),
+            need: waiting.contains(where: \.needsLee) ? .ask : waiting.isEmpty ? nil : .turn, new: new
         )
     }
 
     private init(
-        sessions: [Session], snoozed: [Session], head: Head, needsLee: Bool, new: Set<String>, unread: String?,
-        asOf: String?
+        sessions: [Session], snoozed: [Session], head: Head, need: Need? = nil, new: Set<String> = [],
+        newTurns: Set<String> = [], pulses: Set<Need> = [.ask], unread: String? = nil, asOf: String? = nil
     ) {
         self.sessions = sessions
         self.snoozed = snoozed
         self.head = head
-        self.needsLee = needsLee
+        self.need = need
         self.new = new
+        self.newTurns = newTurns
+        self.pulses = pulses
         self.unread = unread
         self.asOf = asOf
     }
 
-    /// Tells the notch what this board brings after the last: a row new on it swells the notch; something needing
-    /// Lee where nothing did, with nothing new, as on every run's first line, lights it with no swell. Nothing
-    /// needing Lee any more the notch hears from its frames' `needsLee`.
+    /// Whether anything needs Lee, an ask or his turn: the notch lit, at its size for it.
+    public var needsLee: Bool { need != nil }
+
+    /// Tells the notch what this board brings after the last: a row new on it, or a session moved into Lee's turn,
+    /// pulses the notch where Lee has that pulse on; something needing Lee where nothing did, with no pulse, as on
+    /// every run's first line, lights it with none. Nothing needing Lee any more the notch hears from its frames'
+    /// `needsLee`.
     public func tell(_ notch: any Notch, after last: PanelBoard) {
-        if !new.isEmpty {
+        if pulses.contains(.ask) && !new.isEmpty || pulses.contains(.turn) && !newTurns.isEmpty {
             notch.newAsk()
         } else if needsLee, !last.needsLee {
             notch.needsLeeQuietly()
         }
     }
 
-    /// The board told again, as what this Mac shows changes: nothing on it new again, so nothing swells or washes
+    /// The board told again, as what this Mac shows changes: nothing on it new again, so nothing pulses or washes
     /// twice for one line.
     public var retold: PanelBoard {
         PanelBoard(
-            sessions: sessions, snoozed: snoozed, head: head, needsLee: needsLee, new: [], unread: unread, asOf: asOf
+            sessions: sessions, snoozed: snoozed, head: head, need: need, pulses: pulses, unread: unread, asOf: asOf
         )
     }
 
-    /// The card's rows: core's, then Snoozed's.
+    /// The card's rows: the panel's, then Snoozed's.
     public var cardSessions: [Session] { sessions + snoozed }
 
     /// Nothing for the card to list: no row, nor any in Snoozed.

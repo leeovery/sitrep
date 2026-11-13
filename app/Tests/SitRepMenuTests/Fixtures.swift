@@ -1,5 +1,6 @@
 import Foundation
 @testable import SitRepCore
+import SitRepMenu
 
 /// Lines of `sitrep watch` as cli/output.ts's `watchLine` prints them, with the parts the menu, the notifications and
 /// Settings read: the rows, the projects naming their sessions, and the windows.
@@ -115,3 +116,13 @@ let london = Date.FormatStyle(
     date: .omitted, time: .shortened, locale: Locale(identifier: "en_GB"),
     timeZone: TimeZone(identifier: "Europe/London")!
 )
+
+extension AppSettings {
+    /// As Lee leaves them, but sending a notification for each new ask.
+    static var notifyingAsks: AppSettings {
+        var settings = AppSettings()
+
+        settings.notifiesNewAsks = true
+        return settings
+    }
+}

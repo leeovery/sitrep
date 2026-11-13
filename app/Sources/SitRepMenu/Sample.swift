@@ -24,9 +24,8 @@ public enum Sample {
     public static let answer = "One choice"
     public static let terminalAnswer = "› \(answer)"
 
-    /// The rows of a board, by the kind of row each is: Needs you's, two working, and Your turn's.
+    /// The rows of a board, by the kind of row each is: Needs you's and two working.
     public static let needsYou = "An ask that needs you"
     public static let running = Working(title: "Running ", code: "the tests")
     public static let writing = Working(title: "Writing ", code: "DESIGN.md")
-    public static let yourTurn = "Your turn to review"
 }
