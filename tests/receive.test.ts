@@ -6,6 +6,7 @@ import { receiveEvery } from '../hooks/receive'
 import type { SitrepInFlight } from '../types'
 import {
   CLI,
+  CLOSES,
   delivered,
   file,
   fold,
@@ -47,7 +48,7 @@ const SENT: SitrepInFlight = {
   project: META.project,
   session: META.id,
   writer: W1,
-  text: 'From the board:\n- Review round 1 → Approve',
+  text: `From the board:\n- Review round 1 → Approve${CLOSES}`,
   replies: [{ type: 'reply', id: 'r1', item: 'k1', verdict: 'yes' }],
   claimedAt: NOW,
   isHeld: false,
@@ -127,7 +128,7 @@ test('a look with nothing in flight delivers the inbox replies on their way', as
   window.land()
   await settled()
 
-  expect(window.submitted).toEqual(['From the board:\n- Review round 1 → Approve'])
+  expect(window.submitted).toEqual([`From the board:\n- Review round 1 → Approve${CLOSES}`])
 })
 
 test('a look reads the board only once it finds no message in flight, so a send written down meanwhile is on it: an answer the send voided is never delivered too', async () => {

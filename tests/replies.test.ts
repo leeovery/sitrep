@@ -15,6 +15,7 @@ import {
   sentLines,
   STALE_MS,
   toDeliver,
+  type ReplyFields,
   type AskKind,
   type AskState,
   type Barred,
@@ -101,6 +102,19 @@ for (const [id, verdict, extra, after] of EFFECTS) {
     expect(answered?.answer?.id).toBe('r1')
     expect(answered?.closedAt).toBe(after === 'replied' ? undefined : T0 + MIN)
     expect(session.waiting).toBe(2)
+  })
+
+  const says = after === 'replied' ? 'open' : 'closed'
+
+  test(`Lee's message under a ${how} on an ask wanting ${SHAPES[id]} says it leaves the ask ${says}`, () => {
+    const session = fold({ logs: { [W1]: file(...SHAPED) } })
+    const lines = boardMessage(session, [{ item: id, verdict, ...extra }])?.text.split('\n')
+
+    expect(lines?.at(-1)).toBe(
+      says === 'open'
+        ? '  This leaves the ask open: act on it, then resolve it.'
+        : '  This closes the ask: nothing more to do with it.',
+    )
   })
 }
 
@@ -194,9 +208,13 @@ test("old replies read in their ask's words; a decide's comment is still its ans
     [
       FROM_THE_BOARD,
       '- Review Sessions & Runway, round 1 → Approve',
+      '  This closes the ask: nothing more to do with it.',
       '- Try signing in on the iPad → It works, with a comment: “On the iPad mini too”',
+      '  This closes the ask: nothing more to do with it.',
       '- Keep the ledger 400 days, or forever? → answer: “Two years, then archive”',
+      '  This closes the ask: nothing more to do with it.',
       "- Run the export → Done, with the command's output: “v1.2.3”",
+      '  This closes the ask: nothing more to do with it.',
     ].join('\n'),
   )
 })
@@ -621,7 +639,7 @@ test('a delivered reply is never delivered again', () => {
   expect(toDeliver(session, W1).map(each => each.id)).toEqual(['r2'])
 })
 
-test("Lee's message: one line per reply, in the spike's words, under From the board", () => {
+test("Lee's message: one line per reply, in the spike's words, under From the board, and under each ask's last reply where the message leaves it", () => {
   const session = fold({ logs: { [W1]: file(...POSTED) } })
   const message = boardMessage(session, [
     { item: 'k1', verdict: 'yes' },
@@ -642,17 +660,89 @@ test("Lee's message: one line per reply, in the spike's words, under From the bo
       '- Review Sessions & Runway, round 1 → Approve',
       '- Review Sessions & Runway, round 1 → Approve, with a comment: “Tighten the gutters”',
       '- Try signing in on the iPad → It works',
+      '  This closes the ask: nothing more to do with it.',
       '- Run the production apply → Done',
       '- Keep the ledger 400 days, or forever? → Forever',
       '- Keep the ledger 400 days, or forever? → comment: “Two years, then archive”',
+      '  This closes the ask: nothing more to do with it.',
       '- Review Sessions & Runway, round 1 → comment: “The runway bar is too tall”',
+      '  This closes the ask: nothing more to do with it.',
       '- Run the production apply → ignored',
+      '  This closes the ask: nothing more to do with it.',
       '- Pick up from parked: A tmux indicator across sessions',
       '- Pick up from parked: A tmux indicator across sessions. Before the release',
     ].join('\n'),
   )
   expect(message?.text).not.toMatch(/\b(k[1-4]|p1|r\d)\b/)
   expect(message?.replies).toHaveLength(10)
+})
+
+test("an answer and a comment to one ask in one message say once, under the last, that the message closes it, in either order", () => {
+  const session = fold({ logs: { [W1]: file(...POSTED) } })
+  const lines = (...replies: ReplyFields[]) => boardMessage(session, replies)?.text.split('\n')
+
+  expect(
+    lines(
+      { item: 'k1', verdict: 'yes' },
+      { item: 'k1', verdict: 'comment', note: 'Thinner bars' },
+    ),
+  ).toEqual([
+    FROM_THE_BOARD,
+    '- Review Sessions & Runway, round 1 → Approve',
+    '- Review Sessions & Runway, round 1 → comment: “Thinner bars”',
+    '  This closes the ask: nothing more to do with it.',
+  ])
+  expect(
+    lines(
+      { item: 'k1', verdict: 'comment', note: 'Thinner bars' },
+      { item: 'k1', verdict: 'yes' },
+    ),
+  ).toEqual([
+    FROM_THE_BOARD,
+    '- Review Sessions & Runway, round 1 → comment: “Thinner bars”',
+    '- Review Sessions & Runway, round 1 → Approve',
+    '  This closes the ask: nothing more to do with it.',
+  ])
+})
+
+test('in one message, each ask says where the message leaves it alone: a yes closing one, a comment leaving another open', () => {
+  const session = fold({ logs: { [W1]: file(...POSTED) } })
+
+  expect(
+    boardMessage(session, [
+      { item: 'k1', verdict: 'yes' },
+      { item: 'k3', verdict: 'comment', note: 'It fails on the iPad mini' },
+    ])?.text,
+  ).toBe(
+    [
+      FROM_THE_BOARD,
+      '- Review Sessions & Runway, round 1 → Approve',
+      '  This closes the ask: nothing more to do with it.',
+      '- Try signing in on the iPad → comment: “It fails on the iPad mini”',
+      '  This leaves the ask open: act on it, then resolve it.',
+    ].join('\n'),
+  )
+})
+
+test("a comment on an ask whose answer is on its way apart from the message says that answer closes it, never that the ask is open; the answer's own message says it closes", () => {
+  const session = fold({
+    logs: { [W1]: file(...POSTED) },
+    inbox: { [SENDER]: file([T0 + MIN, reply('r1', 'k1', 'yes')]) },
+  })
+
+  expect(session.items.get('k1')).toMatchObject({ answerOnItsWay: { id: 'r1' } })
+  expect(
+    boardMessage(session, [{ item: 'k1', verdict: 'comment', note: 'Thinner bars' }])?.text,
+  ).toBe(
+    [
+      FROM_THE_BOARD,
+      '- Review Sessions & Runway, round 1 → comment: “Thinner bars”',
+      "  An answer of Lee's to this ask, sent apart from this message, closes it.",
+    ].join('\n'),
+  )
+  expect(boardMessage(session, [{ item: 'k1', verdict: 'yes' }])?.text.split('\n').at(-1)).toBe(
+    '  This closes the ask: nothing more to do with it.',
+  )
 })
 
 test("a pick-up of an item another session of the project parked goes in the message read in that session, naming whose it was; one of the session's own names none", () => {
@@ -702,7 +792,11 @@ test('the message leaves out replies that fit no item, and says which it carries
       { item: 'k1', verdict: 'yes' },
     ]),
   ).toEqual({
-    text: `${FROM_THE_BOARD}\n- Review Sessions & Runway, round 1 → Approve`,
+    text: [
+      FROM_THE_BOARD,
+      '- Review Sessions & Runway, round 1 → Approve',
+      '  This closes the ask: nothing more to do with it.',
+    ].join('\n'),
     replies: [{ item: 'k1', verdict: 'yes' }],
   })
 })

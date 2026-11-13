@@ -11,7 +11,7 @@ import { parseEntries, parsePresence, type SessionPaths } from '../core'
 import { QUIET_MS } from '../hooks/deliver'
 import { WATCH_MS } from '../hooks/window'
 import type { SitrepInFlight } from '../types'
-import { AGENT, file, MIN, reply, SENDER, SLOW, W1 } from './support'
+import { AGENT, CLOSES, file, MIN, reply, SENDER, SLOW, W1 } from './support'
 import { CONVERSATION, postedId, world, writeDoor } from './world'
 
 tier('user')
@@ -22,7 +22,7 @@ type Source = 'send' | 'inbox'
 
 const REVIEW = { wants: 'yes', yes: 'Approve', title: 'Review Sessions & Runway, round 1' }
 
-const MESSAGE = 'From the board:\n- Review Sessions & Runway, round 1 → Approve'
+const MESSAGE = `From the board:\n- Review Sessions & Runway, round 1 → Approve${CLOSES}`
 
 const HELD = "⧗ Waiting for Claude's turn to end."
 

@@ -12,6 +12,7 @@ import {
   checkStart,
   checkStatus,
   checkWake,
+  closedByLee,
   withId,
   withParkId,
   type Checked,
@@ -28,6 +29,7 @@ import {
   MIN,
   note,
   park,
+  reopen,
   reply,
   resolve,
   scripted,
@@ -223,6 +225,61 @@ test('resolving what is closed, or reopening what is open as posted, is refused'
   expect(value(checkReopen(SESSION, { item: 'k9' }))).toEqual({ type: 'reopen', item: 'k9' })
 })
 
+test('a resolve of an ask Lee answered or ignored, or a parked item he picked up, finds it closed by Lee; any other resolve finds none, and is checked as ever', () => {
+  const session = fold({
+    logs: {
+      [W1]: file(
+        [T0, yesAsk('k1', 'Review round 1')],
+        [T0, choiceAsk('k2', 'Keep it, or drop it?', ['Keep it', 'Drop it'])],
+        [T0, yesAsk('k3', 'Try it on the iPad', 'It works')],
+        [T0, yesAsk('k4', 'Run the apply', 'Done')],
+        [T0, yesAsk('k5', 'Ship it', 'Go')],
+        [T0, yesAsk('k6', 'Review round 2')],
+        [T0, yesAsk('k7', 'Review round 3')],
+        [T0, yesAsk('k8', 'Review round 4')],
+        [T0, note('n1', 'Merged')],
+        [T0, park('p1', 'Later')],
+        [T0, park('p2', 'Sooner')],
+        [T0 + MIN, reply('r1', 'k1', 'yes', { note: 'Tighten the gutters' })],
+        [T0 + MIN, reply('r2', 'k2', 'choose', { option: 'Keep it' })],
+        [T0 + MIN, reply('r3', 'k3', 'comment', { note: 'It fails' })],
+        [T0 + MIN, reply('r4', 'k4', 'ignore')],
+        [T0 + MIN, reply('r5', 'k6', 'yes')],
+        [T0 + MIN, reply('r6', 'k7', 'yes')],
+        [T0 + MIN, reply('r7', 'k8', 'yes')],
+        [T0 + MIN, reply('r8', 'p1', 'pickup')],
+        [T0 + MIN, delivered('r1', 'r2', 'r3', 'r4', 'r6', 'r7', 'r8')],
+        [T0 + MIN, resolve('k5')],
+        [T0 + MIN, resolve('n1')],
+        [T0 + MIN, resolve('p2')],
+        [T0 + 2 * MIN, reopen('k7')],
+        [T0 + 2 * MIN, reopen('k8')],
+        [T0 + 3 * MIN, reply('r9', 'k8', 'yes')],
+        [T0 + 3 * MIN, delivered('r9')],
+      ),
+    },
+  })
+
+  expect(closedByLee(session, { item: 'k1' })?.id).toBe('k1')
+  expect(closedByLee(session, { item: ' k2 ' })?.id).toBe('k2')
+  expect(closedByLee(session, { item: 'k4' })?.id, 'ignored').toBe('k4')
+  expect(closedByLee(session, { item: 'p1' })?.id, 'picked up').toBe('p1')
+  expect(closedByLee(session, { item: 'k8' })?.id, 'reopened, then answered again').toBe('k8')
+  expect(closedByLee(session, { item: 'k3' }), 'commented, still open').toBeUndefined()
+  expect(closedByLee(session, { item: 'k6' }), 'an answer on its way').toBeUndefined()
+  expect(closedByLee(session, { item: 'k7' }), 'answered, then reopened').toBeUndefined()
+  expect(closedByLee(session, { item: 'k5' }), 'resolved by Claude').toBeUndefined()
+  expect(closedByLee(session, { item: 'p2' }), 'parked, resolved by Claude').toBeUndefined()
+  expect(closedByLee(session, { item: 'n1' }), 'a note').toBeUndefined()
+  expect(closedByLee(session, { item: 'zz' })).toBeUndefined()
+  expect(value(checkResolve(session, { item: 'k3' }))).toEqual({ type: 'resolve', item: 'k3' })
+  expect(value(checkResolve(session, { item: 'k6' }))).toEqual({ type: 'resolve', item: 'k6' })
+  expect(value(checkResolve(session, { item: 'k7' }))).toEqual({ type: 'resolve', item: 'k7' })
+  expect(refusal(checkResolve(session, { item: 'k5' }))).toBe('k5 is already closed.')
+  expect(refusal(checkResolve(session, { item: 'n1' }))).toBe('n1 is already closed.')
+  expect(refusal(checkResolve(session, { item: 'p2' }))).toBe('p2 is already closed.')
+})
+
 test("an edit changes only the fields of its item's type, each put right", () => {
   expect(
     value(checkEdit(SESSION, { item: 'k1', title: ' Review\nround 2 ', reason: 'Round 2 is up' })),
@@ -238,14 +295,46 @@ test("an edit changes only the fields of its item's type, each put right", () =>
     text: 'Merged #82',
     detail: ['6 files'],
   })
-  expect(refusal(checkEdit(SESSION, { item: 'n1', title: 'A title' }))).toBe(
-    'An edit to a note changes text, detail, ref; not title.',
+  expect(refusal(checkEdit(SESSION, { item: 'n1', where: 'In the PR' }))).toBe(
+    'An edit to a note changes title or text, detail, ref; not where.',
   )
   expect(refusal(checkEdit(SESSION, { item: 'p1' }))).toBe(
-    'An edit names a field to change: for a parked item, title, where, ref.',
+    'An edit names a field to change: for a parked item, title or text, where, ref.',
   )
   expect(refusal(checkEdit(SESSION, { item: 'k1', title: ' ' }))).toContain(
     'cannot leave title empty',
+  )
+})
+
+test("an edit takes an item's one line as text or as title alike, whatever the item; both, saying different things, are refused", () => {
+  expect(value(checkEdit(SESSION, { item: 'p1', text: ' Later,\nafter the release ' }))).toEqual({
+    type: 'edit',
+    item: 'p1',
+    changes: { title: 'Later, after the release' },
+  })
+  expect(value(checkEdit(SESSION, { item: 'k1', text: 'Review round 2' }))?.changes).toEqual({
+    title: 'Review round 2',
+  })
+  expect(value(checkEdit(SESSION, { item: 'n1', title: 'Merged #82' }))?.changes).toEqual({
+    text: 'Merged #82',
+  })
+  expect(
+    value(checkEdit(SESSION, { item: 'n1', text: 'Merged #82', title: ' Merged\n#82 ' }))?.changes,
+  ).toEqual({ text: 'Merged #82' })
+  expect(refusal(checkEdit(SESSION, { item: 'p1', text: 'Later', title: 'Sooner' }))).toBe(
+    "An edit gives an item's one line as text or as title, not both with different words.",
+  )
+  expect(refusal(checkEdit(SESSION, { item: 'n1', title: ' ' }))).toContain(
+    'cannot leave title empty',
+  )
+  expect(refusal(checkEdit(SESSION, { item: 'p1', text: ' ' }))).toContain(
+    'cannot leave text empty',
+  )
+  expect(refusal(checkEdit(SESSION, { item: 'p1', text: '', title: 'Later' }))).toContain(
+    'cannot leave text empty',
+  )
+  expect(refusal(checkEdit(SESSION, { item: 'n1', text: 'Merged', title: 42 }))).toContain(
+    'cannot leave title empty or of the wrong kind',
   )
 })
 
@@ -292,7 +381,7 @@ test('an edit gives a words ask what its words are, an empty one clearing it; no
   })
   expect(refusal(checkEdit(SESSION, { item: 'k4', needs: 42 }))).toContain('cannot leave needs')
   expect(refusal(checkEdit(SESSION, { item: 'p1', needs: 'which frames' }))).toBe(
-    'An edit to a parked item changes title, where, ref; not needs.',
+    'An edit to a parked item changes title or text, where, ref; not needs.',
   )
 })
 

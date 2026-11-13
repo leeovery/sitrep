@@ -462,7 +462,7 @@ orchestrator decides what reaches the board.
 | `ask` | post an ask: what it wants back (`wants`: a yes, a choice or words), its title, and where to look; a yes's button (`yes`: the verb Lee gives, `Go`, `Approve`, `It works`), a choice's `options`, or what a words ask's words are (`needs`: "the command's output"), each only on its own shape |
 | `note` | add a note, with optional detail lines and a pointer |
 | `park` | park something to come back to, on the attached session's project |
-| `resolve` / `reopen` / `edit` | close, reopen or correct an item, with a reason. An edit may change what an ask wants, its `yes`, `options` and `needs`, under the checks `ask` makes; an empty `needs` clears it. An item of the attached session, or a parked item another session of its project parked, named with that session's id (`session`) and written into that session, in this window's own file there; another session's ask or note, or a session of another project, is refused |
+| `resolve` / `reopen` / `edit` | close, reopen or correct an item, with a reason. Resolving what Lee closed, an ask he answered or ignored or a parked item he picked up, passes quietly, changing nothing (below). An edit takes an item's one line as `text` or `title` alike, whatever the item, and may change what an ask wants, its `yes`, `options` and `needs`, under the checks `ask` makes; an empty `needs` clears it. An item of the attached session, or a parked item another session of its project parked, named with that session's id (`session`) and written into that session, in this window's own file there; another session's ask or note, or a session of another project, is refused |
 | `finish` | finish the attached session, with a reason, once it is complete and nothing is left on it; what it parked stays its project's and holds no finish back. The window stays attached, and joining it again reopens it |
 | `project` | rename the attached session's project, or say where it lives, or both; a name another project has is refused. It never moves a session to another project |
 | `board` | read back the board's open items, what each ask wants back among them (`k1 wants a yes (Go)`), and the project's parked items, so Claude can check and repair it |
@@ -527,6 +527,46 @@ Wording rules, in the tool descriptions:
 - Notes are things Lee would want to know later, not running commentary.
 - A changed status is logged by the board itself (it compares the new status
   with the last), so Claude does nothing extra for it.
+
+**No refusal for a call that does no harm** (13 November 2026). Live, Claude
+was refused for calls that did no harm, and each refusal cost a turn and
+confused Lee: it resolved asks Lee's answer had closed already, and was told
+`k3f9 is already closed.`; and it edited a parked item's `text`, which only
+a note has. So:
+
+- **A board answer says whether it closed the ask** (see "What Claude
+  reads"): under each ask's last reply in Lee's message, a line says where
+  the message leaves it, `This closes the ask: nothing more to do with it.`
+  or `This leaves the ask open: act on it, then resolve it.`, or, under a
+  comment while an answer of Lee's is on its way apart, that the answer
+  closes it. Before, the
+  line gave the reply alone, and a choice sent with a comment read as if
+  the ask were open.
+- **Resolving what Lee closed passes quietly**: an ask whose yes, choice,
+  words or ignore Claude has, or a parked item Lee picked up, the call
+  answers `k3f9 was closed already by Lee: nothing to resolve.` and writes
+  nothing, so Claude's reason never lands on Lee's reply. A parked item
+  another session of the project parked passes the same way. Every refusal
+  resolve and reopen made before stands for the rest: resolving an ask,
+  note or parked item Claude resolved; reopening what is open. Before, an
+  ask Lee closed was refused as any closed item is, and a parked item he
+  picked up took the resolve, Claude's reason written over his pick-up.
+  An ask whose answer is on its way, not yet delivered, resolves as ever.
+- **Accepted, not built**: where Claude edits an ask in the very turn Lee's
+  answer to it is on its way, the edit voids that answer as changed (see
+  "Which replies go in", under Delivery), and the ask stays open, though
+  the message that carried the answer said it closes. It takes an edit in
+  the same turn as Lee's send, so it is left as it is. So too a held send
+  Lee takes back: a comment's line, sent meanwhile, said the answer that
+  send carried closes the ask, and the ask stays open.
+- **An edit takes an item's one line as `text` or `title` alike**: an ask's,
+  a note's or a parked item's, both given and saying different things
+  refused (`An edit gives an item's one line as text or as title, not both
+  with different words.`). A refusal names the field as Claude gave it,
+  and lists the one line as `title or text` for every item (`An edit to a
+  note changes title or text, detail, ref; not where.`). Before, a note
+  took only `text`, and an ask or a parked item only `title`. The CLI has
+  no edit.
 
 When the board changes, its open items ride into Claude's next turn as unseen
 context, so drift is noticed. A join answers with the whole board, and asks
@@ -1044,6 +1084,21 @@ and a note as `with a comment`. A note of one line is quoted on the reply's
 line. Words of several lines (pasted output) go under it, fenced and
 indented, each line as typed, the fence longer than any run of backticks
 inside; so does any note of several lines, a comment's or a pick-up's alike.
+Under each ask's last reply in the message, one line says where the
+message leaves the ask (13 November 2026), from every reply it carries to
+it: a yes, a choice, words or an ignore closes it, and so does a yes or a
+choice with a comment riding along from Ready to send, `This closes the
+ask: nothing more to do with it.`, whatever else the message carries to it;
+a comment alone leaves it open, `This leaves the ask open: act on it, then
+resolve it.`, unless an answer of Lee's to it is on its way apart from the
+message, when the line says that answer closes it, `An answer of Lee's to
+this ask, sent apart from this message, closes it.`, saying nothing of
+where or when it arrives. That answer may be in another board's send to
+the inbox, or the CLI's; in a send already in flight from this window,
+ahead of this one in its queue, which Claude may have already; or in
+another live window's send, which reaches that window's Claude. Its own
+message says it closes. A pick-up has no such line. Until then the line gave the reply alone, and Claude, reading a choice
+with a comment as an ask still open, resolved it and was refused.
 
 ````
 - Run the export → the command's output:
@@ -1051,6 +1106,7 @@ inside; so does any note of several lines, a comment's or a pick-up's alike.
   exported 42 rows
   done in 3s
   ```
+  This closes the ask: nothing more to do with it.
 ````
 
 **Asks written before they said what they want back** read as the shape
@@ -3139,8 +3195,11 @@ truth. There is still no background service. None of it is built now. Lee:
       Claude's resolve. Until then the ask stays open, its answer on its
       way, and waits on Lee no more (see "A session's state"). An ignore,
       once delivered, drops the ask, as the pane's does: it leaves the asks,
-      with no moment of "sent, and Claude has it", and Resolved lists none,
-      though Claude resolves it after.
+      with no moment of "sent, and Claude has it", and Resolved lists none.
+      The message that delivers it tells Claude the ask is closed, and a
+      resolve of it after passes quietly, writing nothing (13 November
+      2026; until then Claude resolved it after, its reason over Lee's
+      ignore).
     - Refused, exit 1 and nothing written: words, a comment and a
       permission prompt, which need Claude Code's prompt (`k3 wants words,
       which need Claude Code's prompt: answer it there.`; a comment is no

@@ -7,7 +7,7 @@
 import { expect, test, tier } from 'claude-code/testing'
 import { metaText, parsePresence, sessionPaths } from '../core'
 import type { SitrepInFlight } from '../types'
-import { file, META, T0, W1, yesAsk } from './support'
+import { CLOSES, file, META, T0, W1, yesAsk } from './support'
 import { CONVERSATION, PROJECT, ROOT, world } from './world'
 
 tier('user')
@@ -22,7 +22,7 @@ const LEFT: SitrepInFlight = {
   project: PROJECT.key,
   session: META.id,
   writer: W1,
-  text: 'From the board:\n- Review round 1 → Approve',
+  text: `From the board:\n- Review round 1 → Approve${CLOSES}`,
   replies: [{ type: 'reply', id: 'r7', item: 'k1', verdict: 'yes' }],
   claimedAt: T0 + 30_000,
   isHeld: false,

@@ -2,7 +2,7 @@ import { expect, test, tier } from 'claude-code/testing'
 import { parseEntries, sessionPaths } from '../core'
 import { LINGER_MS } from '../hooks/scene'
 import { WATCH_MS } from '../hooks/window'
-import { note, W1 } from './support'
+import { CLOSES, LEAVES_OPEN, note, W1 } from './support'
 import { INLINE, postedId, PROJECT, PROMPT, ROOT, CONVERSATION, startedId, world } from './world'
 
 tier('user')
@@ -51,7 +51,7 @@ test("send delivers the replies as Lee's own message, and writes them only once 
 
   expect(w.prompts).toEqual([
     {
-      text: 'From the board:\n- Review Sessions & Runway, round 1 → Approve',
+      text: `From the board:\n- Review Sessions & Runway, round 1 → Approve${CLOSES}`,
       origin: FROM_THE_BOARD,
       context: undefined,
     },
@@ -145,7 +145,7 @@ test('a comment on a review leaves the ask open, replied, for Claude to act on',
   await ui.press({ key: 'send' })
 
   expect(w.prompts.at(-1)?.text).toBe(
-    'From the board:\n- Review Sessions & Runway, round 1 → comment: “thinner bars”',
+    `From the board:\n- Review Sessions & Runway, round 1 → comment: “thinner bars”${LEAVES_OPEN}`,
   )
   expect(w.state.board?.asks[0]?.state).toBe('replied')
   expect(w.state.board?.waiting).toBe(0)
@@ -263,7 +263,9 @@ test('a yes Claude made a choice while its send waited reaches Claude all the sa
   await w.turnEnds()
   await w.clock.settle()
 
-  expect(w.submitted).toEqual(['From the board:\n- Review Sessions & Runway, round 1 → Approve'])
+  expect(w.submitted).toEqual([
+    `From the board:\n- Review Sessions & Runway, round 1 → Approve${CLOSES}`,
+  ])
   expect(w.state.board?.replies).toMatchObject([
     { item: id, verdict: 'yes', delivery: 'delivered', voided: 'changed' },
   ])

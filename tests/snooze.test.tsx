@@ -23,6 +23,7 @@ import type { SitrepAttachment } from '../types'
 import { rowsOf } from './drawn'
 import {
   CLI,
+  CLOSES,
   delivered,
   file,
   META,
@@ -516,7 +517,7 @@ test('answering a snoozed ask answers it: the reply sent takes it out of Snoozed
   await ui.press({ key: 'send' })
 
   expect(w.prompts.at(-1)?.text).toBe(
-    'From the board:\n- Review Sessions & Runway, round 1 → Approve',
+    `From the board:\n- Review Sessions & Runway, round 1 → Approve${CLOSES}`,
   )
   expect(w.state.board?.asks[0]?.state).toBe('closed')
   expect(await ui.find({ type: 'Text', text: 'snoozed until tomorrow 09:00' })).toBeUndefined()

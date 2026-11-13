@@ -10,6 +10,7 @@ import {
 import type { SitrepInFlight } from '../types'
 import { WATCH_MS } from '../hooks/window'
 import {
+  CLOSES,
   delivered,
   file,
   finish,
@@ -283,7 +284,9 @@ test(
     await w.turnEnds()
     await w.clock.settle()
 
-    expect(w.submitted).toEqual([`${PICKED}\n- Review Sessions & Runway, round 1 → Approve`])
+    expect(w.submitted).toEqual([
+      `${PICKED}\n- Review Sessions & Runway, round 1 → Approve${CLOSES}`,
+    ])
     expect(kindsIn(w, LEDGER_LOG)).toEqual(['reply', 'delivered'])
     expect(kindsIn(w, paths.log(W1))).toEqual(['ask', 'reply', 'delivered'])
   },

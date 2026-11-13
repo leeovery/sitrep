@@ -2,7 +2,7 @@ import { expect, test, tier } from 'claude-code/testing'
 import { parseEntries, type SessionPaths } from '../core'
 import { FLASH_MS } from '../hooks/deliver'
 import { WATCH_MS } from '../hooks/window'
-import { file, MIN, reply, SENDER, W1, W2 } from './support'
+import { CLOSES, file, MIN, reply, SENDER, W1, W2 } from './support'
 import { INLINE, postedId, PROJECT, CONVERSATION, world } from './world'
 
 tier('user')
@@ -11,7 +11,7 @@ type World = ReturnType<typeof world>
 
 const FROM_THE_BOARD = { kind: 'plugin', name: 'sitrep', asUser: true }
 
-const MESSAGE = 'From the board:\n- Review Sessions & Runway, round 1 → Approve'
+const MESSAGE = `From the board:\n- Review Sessions & Runway, round 1 → Approve${CLOSES}`
 
 /** As long as the watch takes to fold a letter, and the next look to take it in. */
 const TAKE_IN = 2 * WATCH_MS
@@ -94,6 +94,33 @@ test("a window that is not its session's deliverer submits nothing", async ($, o
   expect(w.state.board?.deliverer).toBe(W2)
   expect(w.prompts).toEqual([])
   expect(kindsIn(w, paths)).toEqual(['ask'])
+})
+
+test("Lee's comment queued, then sent once an answer to the same ask waits in the inbox for another window, tells Claude that answer, sent apart, closes the ask", async ($, on) => {
+  const w = world($, on)
+  const { asked, send } = await asking(w)
+  const longer = () =>
+    w.beat(w.state.attachment?.session ?? '', { writer: W2, attachedAt: 0, seenAt: w.clock.now() })
+  const ui = await w.opened()
+
+  await ui.press({ key: `comment:${w.item(asked)}` })
+  await $.prompt.submit({ text: 'thinner bars', wait: false, origin: { kind: 'composer' } })
+  longer()
+  send(['r1', asked, 'yes'])
+  await w.clock.advance(TAKE_IN)
+  longer()
+  expect(w.state.board?.deliverer).toBe(W2)
+  expect(w.state.board?.asks[0]).toMatchObject({ answerOnItsWay: { id: 'r1' } })
+
+  await ui.press({ key: 'send' })
+
+  expect(w.prompts.map(prompt => prompt.text)).toEqual([
+    [
+      'From the board:',
+      '- Review Sessions & Runway, round 1 → comment: “thinner bars”',
+      "  An answer of Lee's to this ask, sent apart from this message, closes it.",
+    ].join('\n'),
+  ])
 })
 
 test('a refused submission leaves the replies undelivered, for the next look to try again', async ($, on) => {
@@ -275,7 +302,10 @@ test('a send Lee presses while inbox replies are in flight waits for them: a toa
   await w.clock.advance(WATCH_MS)
   await ui.press({ key: 'send' })
 
-  expect(w.submitted).toEqual([MESSAGE, 'From the board:\n- Run the production apply → Done'])
+  expect(w.submitted).toEqual([
+    MESSAGE,
+    `From the board:\n- Run the production apply → Done${CLOSES}`,
+  ])
   expect(kindsIn(w, paths)).toEqual(['ask', 'ask', 'delivered', 'reply', 'delivered'])
 })
 

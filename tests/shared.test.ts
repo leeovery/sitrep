@@ -2,7 +2,7 @@ import { expect, test, tier } from 'claude-code/testing'
 import { EXIT, main, WRITER } from '../cli/main'
 import { parseEntries, type SessionMeta } from '../core'
 import { WATCH_MS } from '../hooks/window'
-import { file, MIN, reply, T0, W1, W2, yesAsk } from './support'
+import { CLOSES, file, MIN, reply, T0, W1, W2, yesAsk } from './support'
 import { manifestText, terminal } from './terminal'
 import { CONVERSATION, PLUGIN_VERSION, postedId, PROMPT, world } from './world'
 
@@ -123,7 +123,7 @@ test("the CLI's answer goes in from the session's window as Lee's own message, o
 
   expect(w.prompts).toEqual([
     {
-      text: 'From the board:\n- Give the go for stage 3 → Go',
+      text: `From the board:\n- Give the go for stage 3 → Go${CLOSES}`,
       origin: FROM_THE_BOARD,
       context: undefined,
     },
@@ -203,7 +203,7 @@ test('two answers the CLI writes at once to one ask both land, but the window gi
   await w.clock.advance(4 * WATCH_MS)
 
   expect(w.prompts.map(prompt => prompt.text)).toEqual([
-    'From the board:\n- Keep the sidebar? → Keep it',
+    `From the board:\n- Keep the sidebar? → Keep it${CLOSES}`,
   ])
   expect(parseEntries(w.text(paths.log(W1))).at(-1)).toMatchObject({
     type: 'delivered',
@@ -255,7 +255,7 @@ test("a reply queued to an ask the CLI's answer reached first is not carried: Cl
   await w.clock.advance(4 * WATCH_MS)
 
   expect(w.prompts.map(prompt => prompt.text)).toEqual([
-    'From the board:\n- Keep the sidebar? → Drop it',
+    `From the board:\n- Keep the sidebar? → Drop it${CLOSES}`,
   ])
   expect(w.state.board?.asks[0]).toMatchObject({ state: 'closed', answer: { option: 'Drop it' } })
   expect(w.state.queue, 'left in Ready to send, unsent').toMatchObject([{ item: asked }])
@@ -289,7 +289,7 @@ test("while the window's send waits out Claude's turn, the CLI reads its answer 
   await w.clock.advance(4 * WATCH_MS)
 
   expect(w.prompts.map(prompt => prompt.text)).toEqual([
-    'From the board:\n- Keep the sidebar? → Keep it',
+    `From the board:\n- Keep the sidebar? → Keep it${CLOSES}`,
   ])
   expect(await replyIn(cli)).toMatchObject({
     asks: [],
@@ -322,7 +322,7 @@ test("an answer reaching the inbox while the window's send waits out Claude's tu
   const [letter] = parseEntries(w.text(paths.letters(WRITER))).map(line => 'id' in line && line.id)
 
   expect(w.prompts.map(prompt => prompt.text)).toEqual([
-    'From the board:\n- Keep the sidebar? → Keep it',
+    `From the board:\n- Keep the sidebar? → Keep it${CLOSES}`,
   ])
   expect(w.state.board?.replies.find(reply => reply.id === letter)).toMatchObject({
     delivery: 'void',
@@ -358,7 +358,7 @@ test("an answer landing as the window's send reads the board, unseen by it, goes
 
   expect(w.state.inFlight).toBeNull()
   expect(w.prompts.map(prompt => prompt.text)).toEqual([
-    'From the board:\n- Keep the sidebar? → Keep it',
+    `From the board:\n- Keep the sidebar? → Keep it${CLOSES}`,
   ])
   expect(w.state.board?.replies.find(each => each.id === 'r9')).toMatchObject({
     delivery: 'void',
@@ -395,7 +395,7 @@ test('an answer to a session no window holds waits in its inbox, and goes in onc
   await w.clock.advance(TAKE_IN)
 
   expect(w.prompts.map(prompt => prompt.text)).toEqual([
-    'From the board:\n- Review the ledger schema → Approve',
+    `From the board:\n- Review the ledger schema → Approve${CLOSES}`,
   ])
   expect(parseEntries(w.text(ledger.paths.log(W1))).at(-1)).toMatchObject({ type: 'delivered' })
   expect(await replyIn(cli)).toMatchObject({ asks: [], resolved: [{ is: 'delivered' }] })
