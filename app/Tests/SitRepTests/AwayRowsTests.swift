@@ -153,7 +153,70 @@ struct AwayRowsTests {
         )
     }
 
+    // MARK: Not here, in any state
+
+    /// A session a window holds that this Mac does not show keeps its state (stage 8's "The rows"): a turn, a working
+    /// row, one on its own work, drawn with the away look as an ask is, its words dimmed by the one factor.
+    private nonisolated static let states: [Session.Kind] = [.turn, .working, .onItsWork]
+
+    private static func line(_ kind: Session.Kind, away: Bool) -> Session {
+        let isTurn = kind == .turn
+
+        return Session(
+            id: "sr-row001", project: Sample.project, kind: kind, away: away,
+            title: isTurn ? "Over to you" : "Reading ", subject: isTurn ? nil : "notes.md",
+            sub: "\(Sample.project) · Session", since: 0
+        )
+    }
+
+    /// The card's title, up to its project's lane.
+    private static let cardLine = CGRect(x: 30, y: 6, width: 160, height: 18)
+
+    @Test(arguments: states)
+    func onTheBlackCardARowNotHereDimsItsWordsWhateverItsState(kind: Session.Kind) throws {
+        let away = try Self.black(Self.line(kind, away: true)), held = try Self.black(Self.line(kind, away: false))
+
+        try Self.expectDimmed(away, held, in: Self.cardLine)
+    }
+
+    @Test(arguments: states)
+    func onTheBlackStripARowNotHereDimsItsTwoLinesWhateverItsState(kind: Session.Kind) throws {
+        let away = Self.line(kind, away: true), held = Self.line(kind, away: false)
+        let tab = StripRowLayout(away, note: StripNote(), in: Self.tab.size, now: 0)
+        let rows = StripRowsLayout(0, width: Self.tab.width)
+
+        try Self.expectDimmed(Self.strip(away, .row(away)), Self.strip(held, .row(held)), in: tab.title)
+        try Self.expectDimmed(Self.strip(away, .row(away)), Self.strip(held, .row(held)), in: tab.sub)
+        try Self.expectDimmed(
+            Self.strip(away, .rows([away])), Self.strip(held, .rows([held])),
+            in: rows.title.offsetBy(dx: rows.box.minX, dy: rows.box.minY)
+        )
+    }
+
+    @available(macOS 26, *)
+    @Test(arguments: states)
+    func onGlassARowNotHereDimsItsWordsWhateverItsState(kind: Session.Kind) throws {
+        let away = Self.line(kind, away: true), held = Self.line(kind, away: false)
+        let at = StripRowLayout(away, note: StripNote(), in: Self.tab.size, now: 0)
+        let tab = { (session: Session) in
+            try Drawn(
+                GlassRow(session: session, size: Self.tab.size, pressed: false, scene: StripScene.resting()),
+                size: Self.tab.size
+            )
+        }
+
+        try Self.expectDimmed(Self.glass(away), Self.glass(held), in: Self.cardLine)
+        try Self.expectDimmed(tab(away), tab(held), in: at.title)
+    }
+
     // MARK: Reading them
+
+    /// The away row's words in the box dimmed from the held row's by about `Away.dim`, by their brightest pixels.
+    private static func expectDimmed(_ away: Drawn, _ held: Drawn, in box: CGRect) throws {
+        let dimmed = try away.brightest(in: box).lightness / held.brightest(in: box).lightness
+
+        #expect(abs(dimmed - Away.dim) < 0.1)
+    }
 
     /// A ring 7 across, its stroke 1.5 inside it: orange at its middle, 2.75 out; the black at its centre; nothing past
     /// it, 4.5 out, where the dot's glow, on the card, still shows.

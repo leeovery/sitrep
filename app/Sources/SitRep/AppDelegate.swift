@@ -50,6 +50,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
 
         works.heard = { [weak edge] in edge?.heard($0) }
+        works.notHereChanged = { [weak edge, weak menu] notHere in
+            edge?.show(notHere: notHere)
+            menu?.show(notHere: notHere)
+        }
         self.edge = edge
         self.menu = menu
         plugin.start { [unowned self] in settled($0) }

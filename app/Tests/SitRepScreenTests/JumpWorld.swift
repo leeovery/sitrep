@@ -60,6 +60,15 @@ func noneAnswered(_ devices: String, _ apps: String = "Ghostty") -> JumpAnswer {
 }
 
 extension Mac {
+    /// A Mac whose Ghostty shows the windows' terminals: a shell on each one's device, `zsh < login < ghostty`, as
+    /// every Ghostty terminal has.
+    init(showing windows: [FakeWindow]) {
+        self.init()
+        for terminal in windows.flatMap(\.tabs).flatMap(\.self) {
+            _ = tree.window(of: ghostty, on: terminal.device)
+        }
+    }
+
     /// A tmux client in a Ghostty window on the device, showing the tmux window, attached to the tmux session given,
     /// else the one named for its window.
     mutating func ghosttyClient(_ device: String, showing window: String, in session: String? = nil) -> FakeClient {
@@ -107,7 +116,7 @@ func shown() -> (FakeTmux, FakeTable) {
 
 /// A jump on a Mac of doubles: tmux, the process table, Ghostty, the apps and the clock, Ghostty telling the apps of
 /// what it is told; a window opened typing the resume command given, the default unless said, and remembered among the
-/// openings given.
+/// openings given. The table, unless given, holds a shell on each of Ghostty's terminals.
 struct Jumping {
     let tmux: FakeTmux
     let table: FakeTable
@@ -119,14 +128,14 @@ struct Jumping {
     private let program: any TmuxProgram
 
     init(
-        _ tmux: FakeTmux = FakeTmux(), _ table: FakeTable = FakeTable(Mac().tree), terminals: [FakeWindow] = terminals,
+        _ tmux: FakeTmux = FakeTmux(), _ table: FakeTable? = nil, terminals: [FakeWindow] = terminals,
         running: Bool = true, failing: GhosttyFailure? = nil, windowFailing: GhosttyFailure? = nil,
         windowHeld: Gate? = nil, ghosttyHeld: Gate? = nil,
         workspace: FakeWorkspace = FakeWorkspace(), clock: TestClock = TestClock(), tmuxHeld: Gate? = nil,
         resume: String = OpenSettings.defaultResumeCommand, openings: RecentOpenings = RecentOpenings()
     ) {
         self.tmux = tmux
-        self.table = table
+        self.table = table ?? FakeTable(Mac(showing: terminals).tree)
         self.workspace = workspace
         self.clock = clock
         opening = OpenSettings(resumeCommand: resume)

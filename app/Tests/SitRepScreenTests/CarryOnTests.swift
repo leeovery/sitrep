@@ -79,11 +79,39 @@ struct CarryOnTests {
 
     /// Shown, its window not coming forward: refused in the jump's words, and nothing starts.
     @Test func aSessionShownWhoseJumpFailsIsRefusedInTheJumpsWordsAndNothingOpens() async {
-        let jumping = Jumping(FakeTmux(), FakeTable(Mac().tree), terminals: [], resume: Self.lees)
+        var mac = Mac()
+
+        _ = mac.tree.window(of: mac.ghostty, on: "/dev/ttys080")
+
+        let jumping = Jumping(FakeTmux(), FakeTable(mac.tree), terminals: [], resume: Self.lees)
         let lost = Where(device: "/dev/ttys080", terminal: "ghostty")
 
         #expect(await jumping.open([lost], from: Self.last(lost), isHeld: true) == noneAnswered("/dev/ttys080"))
         #expect(jumping.ghostty.opened.isEmpty)
+    }
+
+    /// Where the read and the jump disagree, the read decides: a window whose heartbeat carries Ghostty's
+    /// `$TERM_PROGRAM`, reached over ssh, is not here, though Ghostty here holds a terminal on a device of its name, so
+    /// it is carried on, never jumped to.
+    @Test func aWindowReachedOverSshIsCarriedOnThoughItsTermProgramSaysGhostty() async {
+        var mac = Mac()
+
+        _ = mac.tree.shell(under: ["/usr/sbin/sshd", "/usr/libexec/sshd-session"], on: kitTerminal.device)
+
+        let jumping = Jumping(FakeTmux(), FakeTable(mac.tree), resume: Self.lees)
+
+        #expect(await jumping.open([Self.inGhostty], from: Self.last(Self.inGhostty), isHeld: true) == .opened)
+        #expect(jumping.ghostty.focused == [FakeGhostty.opened])
+    }
+
+    /// Here by its ancestry, in a terminal app its `$TERM_PROGRAM` does not name, so the jump's own reading finds it on
+    /// no screen: refused in the jump's words, and nothing opens.
+    @Test func aSessionHereTheJumpFindsOnNoScreenIsRefusedInItsWordsAndNothingOpens() async {
+        let unnamed = Where(device: kitTerminal.device)
+        let jumping = Jumping(resume: Self.lees)
+
+        #expect(await jumping.open([unnamed], from: Self.last(unnamed), isHeld: true) == offScreen)
+        #expect(jumping.ghostty.told.isEmpty)
     }
 
     /// A session read as here forgets the window opened for it: once its window is gone again, a click opens another.
@@ -240,17 +268,18 @@ struct CarryOnTests {
         #expect(await jumping.carryOn(from: Self.last(Self.inGhostty)) == stillRunning)
     }
 
-    /// Held or away, its Claude on its device is read before anything opens; a held one's window over ssh needs no table
-    /// to be read as not here.
+    /// Away, its Claude on its device is read before anything opens; held, whether it is here is read first, from the
+    /// same table, so unknown, refused in the jump's words.
     @Test func aTableGivingNoAnswerRefusesBeforeAnythingOpens() async {
         let jumping = Jumping(FakeTmux(), FakeTable(nil), resume: Self.lees)
         let overSsh = Where(device: "/dev/ttys080")
-        let refusal = JumpAnswer.unopened(
-            "Could not tell whether \(named)'s Claude is still running: the process table gave no answer."
-        )
 
-        #expect(await jumping.carryOn(from: Self.last(Self.inGhostty)) == refusal)
-        #expect(await jumping.open([overSsh], from: Self.last(overSsh), isHeld: true) == refusal)
+        #expect(await jumping.carryOn(from: Self.last(Self.inGhostty)) == .unopened(
+            "Could not tell whether \(named)'s Claude is still running: the process table gave no answer."
+        ))
+        #expect(await jumping.open([overSsh], from: Self.last(overSsh), isHeld: true) == .refused(
+            "Could not tell whether \(named) is on screen: the process table gave no answer."
+        ))
         #expect(jumping.ghostty.told.isEmpty)
     }
 

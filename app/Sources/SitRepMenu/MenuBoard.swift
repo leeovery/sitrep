@@ -51,9 +51,13 @@ public struct MenuBoard: Equatable, Sendable {
     /// ellipsis.
     public static let welcomeTitle = "Show Welcome Window"
 
-    /// The board as last heard, and any trouble with the plugin.
-    public init(_ last: LastBoard, trouble: PluginTrouble? = nil, clock: Date.FormatStyle = .init(date: .omitted, time: .shortened)) {
-        let panel = PanelBoard(last, clock: clock)
+    /// The board as last heard, the sessions a window holds that this Mac does not show drawn as away ones are, and
+    /// any trouble with the plugin.
+    public init(
+        _ last: LastBoard, trouble: PluginTrouble? = nil, notHere: Set<String> = [],
+        clock: Date.FormatStyle = .init(date: .omitted, time: .shortened)
+    ) {
+        let panel = PanelBoard(last, notHere: notHere, clock: clock)
         let heading: String? = switch (last.board, last.stale) {
         case (nil, nil): panel.head.title
         case (nil, _): nil

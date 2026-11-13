@@ -37,9 +37,12 @@ public struct PanelBoard: Equatable, Sendable {
         )
     }
 
-    /// The board as last heard. While it is stale, its rows stay as they were and its head says when it was last
-    /// known current, "as of 12:04", as the menu's does.
-    public init(_ last: LastBoard, clock: Date.FormatStyle = .init(date: .omitted, time: .shortened)) {
+    /// The board as last heard, the sessions a window holds that this Mac does not show (`notHere`) drawn as away ones
+    /// are (DESIGN, stage 8, "The rows"). While it is stale, its rows stay as they were and its head says when it was
+    /// last known current, "as of 12:04", as the menu's does.
+    public init(
+        _ last: LastBoard, notHere: Set<String> = [], clock: Date.FormatStyle = .init(date: .omitted, time: .shortened)
+    ) {
         guard let board = last.board else {
             let head = last.stale == nil ? Self.looking : Self.unread
 
@@ -51,8 +54,8 @@ public struct PanelBoard: Equatable, Sendable {
         let asOf = last.staleSince.map { "as of \($0.formatted(clock))" }
 
         self.init(
-            sessions: board.rows.map(Session.init),
-            snoozed: board.snoozed.map(Session.init),
+            sessions: board.rows.map { Session($0, isHere: !notHere.contains($0.session)) },
+            snoozed: board.snoozed.map { Session($0, isHere: !notHere.contains($0.session)) },
             head: asOf.map { Head(title: head.title, count: $0) } ?? head,
             needsLee: !board.head.isAllClear,
             // stale, the last line's new rows are not new again
@@ -97,6 +100,14 @@ public struct PanelBoard: Equatable, Sendable {
         }
     }
 
+    /// The board told again, as what this Mac shows changes: nothing on it new again, so nothing swells or washes
+    /// twice for one line.
+    public var retold: PanelBoard {
+        PanelBoard(
+            sessions: sessions, snoozed: snoozed, head: head, needsLee: needsLee, new: [], unread: unread, asOf: asOf
+        )
+    }
+
     /// The card's rows: core's, then Snoozed's.
     public var cardSessions: [Session] { sessions + snoozed }
 
@@ -107,23 +118,23 @@ public struct PanelBoard: Equatable, Sendable {
 extension Session {
     /// A row as the panel draws it, keyed by its session so it keeps its place: its project by name, and core's
     /// letters for it; its session's name; its lines; and beneath them, needing Lee, its project, else core's second
-    /// line, an away one's saying no window holds it.
-    init(_ row: Board.Row) {
+    /// line, an away one's saying no window holds it. Not here, a held one is drawn away, keeping its words.
+    init(_ row: Board.Row, isHere: Bool = true) {
         let isNamed = row.needsLee && !row.isAway
 
         self.init(
             id: row.session, project: row.projectName, name: row.name, letters: row.letters,
-            kind: Kind(row.newest.kind), away: row.isAway, lines: row.lines.map(Line.init),
+            kind: Kind(row.newest.kind), away: row.isAway || !isHere, lines: row.lines.map(Line.init),
             sub: isNamed ? row.projectName : row.second
         )
     }
 
     /// A Snoozed row as the card draws it, its asks' or its turn's, named as a Needs you row is: its project beneath
     /// its name; when its soonest line wakes in its time's place, none for a turn snoozed until it moves.
-    init(_ row: Board.SnoozedRow) {
+    init(_ row: Board.SnoozedRow, isHere: Bool = true) {
         self.init(
             id: row.session, project: row.projectName, name: row.name, letters: row.letters,
-            kind: row.isTurn ? .snoozedTurn : .snoozed, away: row.isAway, lines: row.lines.map(Line.init),
+            kind: row.isTurn ? .snoozedTurn : .snoozed, away: row.isAway || !isHere, lines: row.lines.map(Line.init),
             sub: row.projectName, wakesAt: row.wakesAt.map { $0.timeIntervalSince1970 * 1000 }
         )
     }

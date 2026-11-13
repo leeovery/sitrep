@@ -130,9 +130,9 @@ private final class Remembered: Sendable {
 /// The sessions a window was asked for a moment ago, opened or not yet, so a click on one again before it shows on this
 /// Mac, or its Claude is back on the board, opens no second. The resume command's Claude reaches the board only once
 /// the command has made its terminal session, Claude has started, the plugin loaded and taken the session up and
-/// beaten, and the watch printed, which can take a while: so an opening is remembered until a terminal on this Mac
-/// shows its session (`shown`), or the board shows a window holding it where none did at the click (`heard`), 2 minutes
-/// at most. A session a window held at the click is held already, so only being shown forgets its opening.
+/// beaten, and the watch printed, which can take a while: so an opening is remembered until its session reads as here
+/// (`shown`), or the board shows a window holding it where none did at the click (`heard`), 2 minutes at most. A
+/// session a window held at the click is held already, so only being shown forgets its opening.
 public final class RecentOpenings: Sendable {
     /// How long an opening is remembered at most.
     public static let lasts = Duration.seconds(120)
@@ -169,8 +169,8 @@ public final class RecentOpenings: Sendable {
         }
     }
 
-    /// Forgets the session's opening, a terminal on this Mac showing it now: a click on it is a jump, and one once it
-    /// shows no more carries it on afresh.
+    /// Forgets the session's opening, the session read as here, at a click or between them (`HereWatch`): a click on it
+    /// is a jump, and one once it is here no more carries it on afresh.
     func shown(_ session: String) {
         opened.withLock { $0[session] = nil }
     }

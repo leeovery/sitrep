@@ -21,6 +21,19 @@ struct MenuBoardTests {
         #expect(sessions.map(\.away) == [false, false, true, false, false])
     }
 
+    /// A session a window holds that this Mac does not show is drawn as an away one is, in its place, whatever its
+    /// state; the menu changes with it.
+    @Test func aHeldSessionNotHereIsDrawnAwayInItsPlace() {
+        let last = heard([.line(Watched.line())])
+        let notHere = MenuBoard(last, notHere: ["sr-ledger", "sr-boot", "sr-diff"], clock: london)
+        let sessions = notHere.items.compactMap(\.session)
+
+        #expect(notHere.items.map(\.key) == Self.board.items.map(\.key))
+        #expect(sessions.map(\.kind) == [.needs, .needs, .needs, .turn, .working])
+        #expect(sessions.map(\.away) == [true, false, true, true, true])
+        #expect(notHere != Self.board)
+    }
+
     /// A row needing Lee is titled by its session's name, away or not, a question's own "+2" nowhere; any other by its
     /// line, its subject in one with it.
     @Test func aRowsTitleIsItsSessionsNameOrElseItsLineAndItsSubjectInOne() {

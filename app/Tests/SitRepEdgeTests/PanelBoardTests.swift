@@ -72,6 +72,34 @@ struct PanelBoardTests {
         #expect(sessions.map(\.away) == [false, false, false, true, false, false])
     }
 
+    /// A session a window holds that this Mac does not show is drawn as an away one is, whatever its state, keeping its
+    /// section, its words and its place in core's order (stage 8's "The rows").
+    @Test func aHeldSessionNotHereIsDrawnAwayKeepingItsStateItsWordsAndItsPlace() {
+        let last = Self.heard(.line(watchLine))
+        let here = Self.board(last).sessions
+        let notHere = PanelBoard(
+            last, notHere: ["sr-7e68fj", "sr-aw3bgs", "sr-q7njzv", "sr-gone00"], clock: Self.london
+        )
+
+        #expect(notHere.sessions.map(\.away) == [true, false, false, true, true, true])
+        #expect(notHere.sessions.map(\.id) == here.map(\.id))
+        #expect(notHere.sessions.map(\.kind) == here.map(\.kind))
+        #expect(notHere.sessions.map(\.sub) == here.map(\.sub))
+        #expect(notHere.sessions.map(\.lines) == here.map(\.lines))
+        #expect(notHere.head == Self.board(last).head)
+    }
+
+    /// Told again as what this Mac shows changes, nothing on it is new again, so nothing swells or washes twice.
+    @Test func aBoardToldAgainHasNothingNewAndIsOtherwiseTheSame() {
+        let board = Self.board(Self.heard(.line(Lines.bySession[0]), .line(Lines.bySession[1])))
+
+        #expect(!board.new.isEmpty)
+        #expect(board.retold.new.isEmpty)
+        #expect(board.retold.sessions == board.sessions)
+        #expect(board.retold.head == board.head)
+        #expect(board.retold.needsLee == board.needsLee)
+    }
+
     @Test func aWorkingRowLeadsWithItsVerbItsPathInMono() {
         let working = Self.board(Self.heard(.line(watchLine))).sessions[5]
 

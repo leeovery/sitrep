@@ -20,6 +20,10 @@ final class Edge {
     ) { [unowned self] in placeCallout($0) }
     private lazy var fullScreen = FullScreenWatch { [unowned self] in Displays.bounds(of: settings) }
     private var observers: [any NSObjectProtocol] = []
+    /// The board as last heard, none before the first or with no `watch` to run, and the sessions on it a window holds
+    /// that this Mac does not show.
+    private var last: LastBoard?
+    private var notHere: Set<String> = []
 
     /// What Lee set, followed as it changes; `jump` jumps to a session, and tells once it answers whether it jumped;
     /// `snoozes` snoozes and wakes a row's asks from its menu.
@@ -44,7 +48,17 @@ final class Edge {
 
     /// The board as `watch` last printed it, for the notch and the strip.
     func show(_ last: LastBoard) {
-        tell(PanelBoard(last))
+        self.last = last
+        tell(PanelBoard(last, notHere: notHere))
+    }
+
+    /// The sessions a window holds that this Mac does not show, dimmed at once on the board as last heard, nothing
+    /// on it new again.
+    func show(notHere: Set<String>) {
+        self.notHere = notHere
+        if let last {
+            tell(PanelBoard(last, notHere: notHere).retold)
+        }
     }
 
     /// A drag let the notch or the strip go: where it left it lands on the settings as they stand, is kept, and both
@@ -65,6 +79,7 @@ final class Edge {
 
     /// With no `watch` to run, the notch's head says why, and the strip's notch at rest.
     func unrun(_ why: String) {
+        last = nil
         tell(PanelBoard(unrun: why))
     }
 

@@ -11,7 +11,8 @@ import SitRepCore
 /// one after another: a jump stopped, by a later click or its limit, ends between them, letting go of any step it
 /// cannot stop, an Apple Event in flight.
 ///
-/// A session no terminal on this Mac shows, held or away, it carries on instead: a Claude of it suspended where a
+/// Which way a click goes is read at the click by the read of here (`HereReader`), not by the jump's own reading: a
+/// session here is jumped to; one not here, held or away, it carries on instead: a Claude of it suspended where a
 /// terminal here shows it is Lee's to bring back, the jump taking him there; otherwise a window is opened for it
 /// (`Opening`), in the terminal Lee chose, typing his resume command, its placeholders filled from the window the
 /// session is carried on from, checked fit to type. The opening is apart from the jump, and never opens a second window
@@ -28,6 +29,8 @@ public struct Jump: Sendable {
     static let noSuchSession = "There is no such session on the board, in any project."
 
     let reader: ScreenReader
+    /// Whether the session is here, read from the jump's own table and tmux.
+    let here: HereReader
     let tmux: any TmuxProgram
     let drivers: [Driver: any TerminalDriver]
     let workspace: any Workspace
@@ -40,6 +43,7 @@ public struct Jump: Sendable {
         clock: any JumpClock, opening: OpenSettings = OpenSettings(), openings: RecentOpenings = RecentOpenings()
     ) {
         self.reader = reader
+        here = HereReader(multiplexers: reader.multiplexers, table: reader.table)
         self.tmux = tmux
         self.drivers = drivers
         self.workspace = workspace
@@ -118,7 +122,8 @@ public struct Jump: Sendable {
     }
 
     /// A click on a session: the jump to its windows, where it is here; else carried on from the window given, held or
-    /// away; refused as not on screen where there is none to carry it on from.
+    /// away; refused as not on screen where there is none to carry it on from, and in the jump's words where whether it
+    /// is here is unknown.
     func click(
         _ session: String, named name: String, at windows: [Board.Window.Where], from window: Board.LastWindow?,
         isHeld: Bool
@@ -135,18 +140,23 @@ public struct Jump: Sendable {
         }
     }
 
-    /// The jump to the session's windows where it is here, a terminal on this Mac showing it, which forgets any window
-    /// opened for it; or where whether one does is unknown, which is never taken for not here. Nil where it is not here.
-    /// Here is read by the jump itself, at the click, as it brings the window forward.
+    /// The jump to the session's windows where it is here, read afresh, which forgets any window opened for it; where
+    /// whether it is here is unknown, which is never taken for not here, that unknown. Nil where it is not here. Here
+    /// decides, so a session here the jump's own reading finds on no screen, as one in a terminal app whose
+    /// `$TERM_PROGRAM` names none, is refused in the jump's words, never carried on.
     private func jumpIfHere(_ session: String, at windows: [Board.Window.Where]) async throws -> Jumped? {
-        switch try await jump(to: windows) {
-        case .offScreen:
+        let read = await here.read(windows)
+
+        try Task.checkCancellation()
+
+        switch read {
+        case .notHere:
             return nil
         case let .unknown(unanswered):
             return .unknown(unanswered)
-        case let jumped:
+        case .here:
             openings.shown(session)
-            return jumped
+            return try await jump(to: windows)
         }
     }
 

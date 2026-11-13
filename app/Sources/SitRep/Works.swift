@@ -4,26 +4,35 @@ import SitRepMenu
 import SitRepScreen
 
 /// The jump to a session's window, SitRep's own (`Jump`), from the watch's last line, or a window opened for a session
-/// no terminal on this Mac shows, held or away: one at a time, the latest click winning (`Clicks`).
+/// no terminal on this Mac shows, held or away: one at a time, the latest click winning (`Clicks`). Between clicks, the
+/// read of whether each held session is here (`HereWatch`), for the rows.
 @MainActor
 final class Works {
     private let board: JumpBoard
     private let openings: RecentOpenings
     private let clicks: Clicks
+    private let here: HereWatch
 
     /// Every jump's news, once a jump, whichever surface asked for it, after each click's own `answered`: the edge's
     /// caption.
     var heard: (JumpNews) -> Void = { _ in }
 
+    /// The sessions a window holds that this Mac does not show, at each change, for the rows to dim.
+    var notHereChanged: (Set<String>) -> Void {
+        get { here.changed }
+        set { here.changed = newValue }
+    }
+
     /// A jump that fails is told in a banner (`JumpAnswer.banner`); tmux is found on Lee's PATH, as `path` gives it,
-    /// the login shell's found once and kept, asked for at each jump within its limit; a window is opened as `opening`
-    /// gives Lee's settings at the click.
+    /// the login shell's found once and kept, asked for at each jump, and each read of here, within its limit; a window
+    /// is opened as `opening` gives Lee's settings at the click.
     init(banners: Banners, path: @escaping @Sendable () async -> String, opening: @escaping () -> OpenSettings) {
         let board = JumpBoard()
         let openings = RecentOpenings()
 
         self.board = board
         self.openings = openings
+        here = HereWatch.live(path: path, openings: openings)
         clicks = Clicks(jump: { session in
             let opening = opening()
 
@@ -39,10 +48,12 @@ final class Works {
         clicks.heard = { [weak self] news in self?.heard(news) }
     }
 
-    /// Each look of the watch, the board a jump goes from, and which tells a session resumed back.
+    /// Each look of the watch, the board a jump goes from, which tells a session resumed back, and whose held sessions
+    /// are read for whether they are here.
     func show(_ last: LastBoard) {
         board.heard(last)
         last.board.map(openings.heard)
+        last.board.map(here.heard)
     }
 
     /// No plugin to run the watch, so no board to jump from, for the reason given.

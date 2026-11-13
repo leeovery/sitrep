@@ -7856,9 +7856,16 @@ open), and tmux passing an escape sequence through from Claude's own pane
      under, the two at once, each with its 2 seconds. So a tmux user pays
      two runs of tmux a socket at each read, and a server that hangs costs
      its 2 seconds at each read, its sessions unknown meanwhile. On Lee's
-     Mac, with no tmux, none run. The Swift read is not measured yet: `ps`
-     answered in about 60ms (6 November 2026), and the kernel's table
-     replaced it. Measured before the cadence is chosen.
+     Mac, with no tmux, none run. Measured on Lee's Mac (an M1 Max, 13
+     November 2026), over its real table of 1,336 processes, 46 sessions
+     read at once, 33 of them in zmx and 14 here: the whole read 23ms in a
+     release build (30ms in a debug one), the table's own look 5ms of it,
+     where `ps` had answered in about 60ms (6 November 2026). So it runs
+     every **3 seconds** between the watch's lines, under 1% of a core,
+     and a row's look lags the screen by about that at most. A first cut
+     seated every process on a window's device, 120ms in a debug build;
+     the read seats only the processes on a device whose parent is on
+     another or none, through which all the rest descend.
    - **Where it can't tell.** The read's unknown, as the jump's (tmux not
      answering, or answering an error other than no server; the table
      giving no answer), is never taken for not here, as the jump never
@@ -8101,6 +8108,43 @@ open), and tmux passing an escape sequence through from Claude's own pane
    - **Settings**: the command is saved under "app" as `resume`, none
      until Lee gives one, which reads as the default; Restore Default puts
      it back to none.
+
+   **Built** (13 November 2026), the second slice, nothing of it run live:
+   the continuous read, the dimmed rows and the click by the read.
+   - **The read** (`HereReader`) is a reader of its own beside the jump's
+     `ScreenReader`, which is unchanged. It reads the table once, with zmx's
+     command lines, and each multiplexer for its windows, tmux only for
+     their sockets. A window in a multiplexer is here where the jump's own
+     reach finds a place for it (`Screen.reach`, its clients seated by
+     `Processes.seat`); one in none where a process on its device is
+     seated, only the device's top processes tried, those whose parent is
+     on another device or none. Remote logins (`sshd`, `sshd-session`,
+     `mosh-server`) are cut from their parents before any seat, so even an
+     sshd started from a terminal's shell shows none of its sessions here.
+   - **The click** reads afresh, by a reader made from the jump's own table
+     and tmux: here, the jump, whose every failure, its finding no screen
+     included, is refused in its words; not here, `carryOn`; unknown,
+     refused. So a click on a session here reads the table twice, the read
+     then the jump's. A held session whose table gives no answer is now
+     refused as unknown, where the jump's reading had carried on one over
+     ssh without the table.
+   - **The watch** (`HereWatch`, owned by `Works`) reads at each line,
+     after the read under way where one is, and every 3 seconds, skipping
+     a tick while one is under way; off the main thread, its result taken
+     on it. It keeps the sessions read as not here: unknown keeps the last
+     look, one never read is here, and a session no window holds drops its
+     look at the line that shows it so, and from any read that ends after.
+     A session read as here forgets its opening.
+   - **The rows**: the panel's board takes the sessions not here
+     (`PanelBoard(_:notHere:)`), each drawn with `away` set, its section,
+     words, lines and place as core gives them; the menu's likewise. A
+     change of here tells the notch and the strip the last board again with
+     nothing new on it (`retold`), so nothing swells or washes twice. On the
+     strip an ask's mark takes the away look, and other marks keep theirs.
+   - **The look**: no new styling. Working and on-its-own-work titles now
+     dim by `Away.dim` on the card, the strip's tab and count rows and on
+     glass, as a your-turn row's and an ask's did already; the menu dimmed
+     every away row's words already.
 
    **To prove live, with Lee's go** (the rule's):
    1. A session whose Claude exited: the click resumes it by the command.

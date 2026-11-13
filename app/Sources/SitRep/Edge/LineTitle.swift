@@ -10,11 +10,13 @@ enum LineTitle {
     static let gap = 6.0
 
     /// Its title, its verb in this ink, with what follows it where `isFollowed`: its command, else its subject or a
-    /// wake's countdown, as `subject` says it at the time.
+    /// wake's countdown, as `subject` says it at the time; all of it dimmed as one where it is away (`Away`).
     static func text(_ s: Session, verb ink: CGColor, subject: String?, isFollowed: Bool = true) -> NSMutableAttributedString {
         let follows = isFollowed ? after(s, subject: subject) : nil
         let font = EdgeStyle.lineMedium
-        let verb = TextLine.text(follows == nil ? s.title : lead(s.title), font, ink, kern: EdgeStyle.tightKern(font))
+        let verb = TextLine.text(
+            follows == nil ? s.title : lead(s.title), font, Away.dimmed(ink, s.away), kern: EdgeStyle.tightKern(font)
+        )
 
         if let follows, verb.length > 0 {
             verb.addAttribute(.kern, value: gap, range: NSRange(location: verb.length - 1, length: 1))
@@ -29,12 +31,14 @@ enum LineTitle {
     }
 
     private static func after(_ s: Session, subject: String?) -> NSAttributedString? {
+        let grey = Away.dimmed(EdgeStyle.grey, s.away)
+
         if let code = s.code {
-            return TextLine.text(code, EdgeStyle.lineCode, EdgeStyle.grey)
+            return TextLine.text(code, EdgeStyle.lineCode, grey)
         }
 
         let plain = s.until == nil ? EdgeStyle.line : EdgeStyle.lineCountdown
 
-        return subject.map { TextLine.text($0, plain, EdgeStyle.grey, kern: EdgeStyle.tightKern(plain)) }
+        return subject.map { TextLine.text($0, plain, grey, kern: EdgeStyle.tightKern(plain)) }
     }
 }
