@@ -62,7 +62,7 @@ struct JumpSelectTests {
         var mac = Mac()
         let jumping = Jumping(server([mac.ghosttyClient(window, showing: kit, in: "$52")], sessions: ["$7"]), FakeTable(mac.tree))
 
-        #expect(await jumping.run([inTmux()]) == .openable)
+        #expect(await jumping.run([inTmux()]) == offScreen)
         #expect(jumping.selects.isEmpty)
     }
 

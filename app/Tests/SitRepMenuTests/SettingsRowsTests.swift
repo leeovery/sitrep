@@ -278,7 +278,7 @@ struct AppSettingsTests {
         #expect(read.notifiesNewAsks)
         #expect(read.playsSound)
         #expect(read.sound == "Glass")
-        #expect(Set(keys) == ["notifiesNewAsks", "playsSound", "sound", "terminal", "openCommand", "resumeCommand"])
+        #expect(Set(keys) == ["notifiesNewAsks", "playsSound", "sound", "terminal"], "a resume command never set saved as none")
     }
 
     /// As each window played Glass before SitRep played the sound.
@@ -303,36 +303,68 @@ struct AppSettingsTests {
         #expect(read.sound == "Tink")
     }
 
-    /// No open command, as SitRep has no built-in way to attach, and Ghostty, by default and from a value saved before
-    /// them; Lee's own saved and read back.
-    @Test func theOpenCommandIsEmptyAndTheTerminalGhosttyByDefaultAndLeesAreSavedAndReadBack() {
+    /// Ghostty, by default and from a value saved before it.
+    @Test func theTerminalIsGhosttyByDefault() {
         let defaults = MemoryDefaults()
-        var settings = AppSettings()
 
         defaults.set(Data(#"{"notifiesNewAsks":true}"#.utf8), forKey: "app")
-        #expect(SavedSettings<AppSettings>(defaults).read().openCommand.isEmpty)
         #expect(SavedSettings<AppSettings>(defaults).read().terminal == "ghostty")
-
-        settings.openCommand = "portal open -s {session}"
-        SavedSettings(defaults).save(settings)
-
-        #expect(SavedSettings<AppSettings>(defaults).read().openCommand == "portal open -s {session}")
     }
 
-    /// No resume command, as SitRep has no built-in way to resume, by default and from a value saved before it; Lee's
-    /// own saved and read back, as the open command is.
-    @Test func theResumeCommandIsEmptyByDefaultAndLeesIsSavedAndReadBack() {
+    /// Unset until Lee gives one, which reads as the default; his own saved under its key, `resume`, and read back, empty
+    /// where he cleared it.
+    @Test(arguments: ["portal open --claude {claude}", ""])
+    func theResumeCommandIsUnsetByDefaultAndLeesIsSavedUnderItsOwnKeyAndReadBack(lees: String) throws {
         let defaults = MemoryDefaults()
         var settings = AppSettings()
-        let lees = "portal open -p {dir} -- claude --resume {claude}"
 
-        defaults.set(Data(#"{"openCommand":"portal open -s {session}"}"#.utf8), forKey: "app")
-        #expect(SavedSettings<AppSettings>(defaults).read().resumeCommand.isEmpty)
+        #expect(SavedSettings<AppSettings>(defaults).read().resumeCommand == nil)
 
         settings.resumeCommand = lees
         SavedSettings(defaults).save(settings)
 
+        let data = try #require(defaults.data(forKey: "app"))
+        let saved = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+        #expect(saved["resume"] as? String == lees)
+        #expect(saved["resumeCommand"] == nil)
         #expect(SavedSettings<AppSettings>(defaults).read().resumeCommand == lees)
+    }
+
+    /// Settings saved every field, so a resume command saved before it had a key of its own was saved empty where Lee
+    /// never gave one: read where it holds a command, unset where it is empty, and saved under the new key from then.
+    @Test(arguments: [
+        (#"{"resumeCommand":"portal open -p {dir} -- claude --resume {claude}"}"#, "portal open -p {dir} -- claude --resume {claude}"),
+        (#"{"resumeCommand":""}"#, nil),
+        (#"{"resumeCommand":"","resume":""}"#, ""),
+        (#"{"resumeCommand":"old {claude}","resume":"new {claude}"}"#, "new {claude}"),
+    ] as [(String, String?)])
+    func aResumeCommandSavedBeforeItsOwnKeyIsReadOnlyWhereItHoldsOne(saved: String, read: String?) throws {
+        let defaults = MemoryDefaults()
+
+        defaults.set(Data(saved.utf8), forKey: "app")
+
+        let settings = SavedSettings<AppSettings>(defaults).read()
+
+        #expect(settings.resumeCommand == read)
+        SavedSettings(defaults).save(settings)
+        #expect(!String(decoding: try #require(defaults.data(forKey: "app")), as: UTF8.self).contains("resumeCommand"))
+        #expect(SavedSettings<AppSettings>(defaults).read().resumeCommand == read)
+    }
+
+    /// The open command, retired with stage 8's rethink (13 November 2026): a value saved with it reads what else it
+    /// holds, and the next save leaves it out.
+    @Test func aRetiredOpenCommandIsReadAndIgnored() throws {
+        let defaults = MemoryDefaults()
+
+        defaults.set(Data(#"{"sound":"Tink","openCommand":"portal open -s {session}"}"#.utf8), forKey: "app")
+
+        let read = SavedSettings<AppSettings>(defaults).read()
+
+        #expect(read.sound == "Tink")
+        SavedSettings(defaults).save(read)
+        let saved = try #require(defaults.data(forKey: "app"))
+        #expect(!String(decoding: saved, as: UTF8.self).contains("openCommand"))
     }
 
     /// "Your turn folds after", retired on 4 November 2026: a value saved with it reads what else it holds, and the next

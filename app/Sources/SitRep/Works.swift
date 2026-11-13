@@ -4,7 +4,7 @@ import SitRepMenu
 import SitRepScreen
 
 /// The jump to a session's window, SitRep's own (`Jump`), from the watch's last line, or a window opened for a session
-/// no window shows, an away one's among them: one at a time, the latest click winning (`Clicks`).
+/// no terminal on this Mac shows, held or away: one at a time, the latest click winning (`Clicks`).
 @MainActor
 final class Works {
     private let board: JumpBoard
@@ -65,12 +65,12 @@ final class Works {
 }
 
 extension AppSettings {
-    /// How a window is opened for a session no window shows, as Lee set it: a terminal SitRep no longer has a driver
-    /// for read as Ghostty.
+    /// How a window is opened for a session no terminal on this Mac shows, as Lee set it: a terminal SitRep no longer
+    /// has a driver for read as Ghostty, and a resume command never set as the default.
     var openSettings: OpenSettings {
         OpenSettings(
-            terminal: Driver.all.first { $0.program == terminal } ?? .ghostty, command: openCommand,
-            resumeCommand: resumeCommand
+            terminal: Driver.all.first { $0.program == terminal } ?? .ghostty,
+            resumeCommand: resumeCommand ?? OpenSettings.defaultResumeCommand
         )
     }
 }

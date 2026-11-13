@@ -83,11 +83,11 @@ struct SettingsStillsTests {
         try Self.pane(pane, await Self.settings(Self.preferences(), windows: Self.current), pane.rawValue)
     }
 
-    /// New windows with an open command given.
+    /// Resume command with a command of Lee's given, so Restore Default is enabled.
     @Test func generalWithACommandGiven() async throws {
         let preferences = Self.preferences()
 
-        preferences.app.openCommand = "zmx attach {session}"
+        preferences.app.resumeCommand = "portal open --claude {claude} -p {dir}"
         try Self.pane(.general, await Self.settings(preferences, windows: Self.current), "general-command")
     }
 

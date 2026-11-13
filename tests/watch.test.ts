@@ -260,7 +260,7 @@ test('the first line is the board as every surface shows it, with nothing new, n
       since: T0,
       tool: { name: 'Read', subject: `${REPO}/src/Limiter/Dispatcher.php` },
     },
-    { seenAt: NOW, where: WHERE, loadedAt: T0 },
+    { seenAt: NOW, where: WHERE, directory: REPO, loadedAt: T0 },
   )
 
   const { exit, err, lines } = await watched(t, [])
@@ -363,6 +363,7 @@ test('the first line is the board as every surface shows it, with nothing new, n
           version: CLI_VERSION,
           needsReload: false,
           where: { device: WHERE.device, terminal: WHERE.terminal, tmux: null, zmx: null },
+          directory: REPO,
           state: {
             is: 'working',
             since: T0,
@@ -1524,12 +1525,26 @@ test("an away session on a line carries the window it was last in, its where and
       {
         writer: W1,
         where: { device: WHERE.device, terminal: WHERE.terminal, tmux: null, zmx: null },
-        attaches: false,
         ownsDevice: true,
         directory: REPO,
       },
     ],
     [LOBBY.id, 'yourTurn', null],
+  ])
+})
+
+test("each window on a line carries the folder its Claude runs in, a held session's {dir}; null where its heartbeat says none", async () => {
+  const t = terminal()
+  const paths = t.seed(META)
+
+  beatOn(t, paths, W1, { is: 'yourTurn', since: T0 }, { where: WHERE, directory: REPO })
+  beatOn(t, paths, W2, { is: 'working', since: T0 }, { attachedAt: T0 + MIN, where: WHERE })
+
+  const printed = (await watched(t, [])).lines[0] as unknown as { windows: { writer: string; directory: unknown }[] }
+
+  expect(printed.windows.map(window => [window.writer, window.directory])).toEqual([
+    [W1, REPO],
+    [W2, null],
   ])
 })
 

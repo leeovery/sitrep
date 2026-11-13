@@ -20,8 +20,8 @@ public struct Banner: Equatable, Sendable {
     /// A jump that gave no answer in time: the caption's words, under the title that says it could not jump.
     public static let tooBusy = unjumped("The Mac is too busy to jump.")
 
-    /// A window for a session no window shows that could not be opened, in the words of its refusal, which name the
-    /// session.
+    /// A window for a session no terminal on this Mac shows that could not be opened, in the words of its refusal, which
+    /// name the session.
     public static func unopened(_ why: String) -> Banner {
         refused("SitRep could not open a window", why)
     }

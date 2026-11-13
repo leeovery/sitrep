@@ -8072,6 +8072,35 @@ open), and tmux passing an escape sequence through from Claude's own pane
        and taken for unset where it is empty, so a saved empty one before
        the move reads as the default and one after it refuses.
 
+   **Built** (13 November 2026), the first of the next PR's two slices,
+   nothing of it run live: all the plan removes, and of what it adds all
+   but the continuous read and the dimmed rows. Until the second slice,
+   here is the jump's own reading of the screen at the click, as before
+   the rethink (`Jump.jumpIfHere`, the one place the continuous read is to
+   feed): a session a terminal shows is jumped to, one whether a terminal
+   shows it unknown is refused in the jump's words, and any other is
+   carried on (`Jump.carryOn`), held or away; no row is dimmed yet.
+   - **The window it is carried on from** (`Board.resumeWindow`): for a
+     held session the live window a jump tries first, else, none saying
+     where it is, the first on the line, its device its own; for an away
+     one its `lastWindow`. `MultiplexerKind` went with the open command's
+     facts, as nothing else read it.
+   - **A line from an older CLI**: a window with no `directory` gives no
+     `{dir}`, so a command naming it refuses; a last window with no
+     `ownsDevice` gives an empty `{tty}`, and the guard counts a Claude on
+     its device as the session's.
+   - **The suspended rule**: a Claude stopped on the window's device is
+     jumped to where its window shows; where none shows it the session is
+     carried on as any not here, the default refusing, as its Claude is
+     alive; whether one shows it unknown is refused in the jump's words.
+   - **One window per click**: an opening remembers whether a window held
+     its session at the click, and the board holding it forgets only one
+     that none held; a click that reads the session as here forgets it.
+     `openedSaying` stays, though nothing opens with a word now.
+   - **Settings**: the command is saved under "app" as `resume`, none
+     until Lee gives one, which reads as the default; Restore Default puts
+     it back to none.
+
    **To prove live, with Lee's go** (the rule's):
    1. A session whose Claude exited: the click resumes it by the command.
    2. With the Portal one-liner, a Claude running in a Portal session whose

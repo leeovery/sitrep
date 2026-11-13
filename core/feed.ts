@@ -16,8 +16,8 @@
  *   where its first session sits. An away one carries its last window, for
  *   a click to carry it on from.
  * - Every live window: its session, the version it runs, whether that is
- *   behind the CLI's own, and its place in the order a jump tries its
- *   session's windows (windows.ts).
+ *   behind the CLI's own, the folder its Claude runs in, and its place in
+ *   the order a jump tries its session's windows (windows.ts).
  * - What is new: a line needing Lee the watch has not shown, or not within a
  *   day of its own time; or one it showed asleep, in Snoozed, back as its
  *   snooze ran out.
@@ -93,6 +93,8 @@ export type FeedWindow = {
   /** Whether it runs a sitrep behind the CLI's own, and needs `/reload-plugins`. */
   needsReload: boolean
   where?: Where
+  /** The folder its Claude runs in, as its heartbeat says it: a held session's `{dir}`. */
+  directory?: string
   state?: WindowState
   attachedAt: number
   /** Its place in the order a jump tries its session's windows, 0 first; none where it says no `where`, which no jump tries. */
@@ -180,6 +182,7 @@ const liveWindows = (read: readonly ProjectRead[], now: number, own?: string): F
             version: each.version,
             needsReload: needsReload(each.version, own),
             where: each.where,
+            directory: each.directory,
             state: each.state,
             attachedAt: each.attachedAt,
             jumpOrder: orders.get(each.writer),

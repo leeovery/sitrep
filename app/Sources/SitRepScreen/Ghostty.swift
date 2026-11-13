@@ -3,8 +3,8 @@ import os
 import SitRepCore
 
 /// A terminal app's driver: brings forward its window on a device, for a jump, and opens a new window running a
-/// command, for a session no window shows. One per terminal app with a driver (`Driver`); an app with none is brought
-/// forward whole.
+/// command, for a session no terminal here shows. One per terminal app with a driver (`Driver`); an app with none is
+/// brought forward whole.
 public protocol TerminalDriver: Sendable {
     /// Brings forward the window on the device, given the app in front as the jump began, by its bundle id: whether
     /// it came, false where nothing on the device answered, for the next place to be tried. Throws, in plain words (its

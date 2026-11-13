@@ -27,6 +27,12 @@ let terminalApp = "/System/Applications/Utilities/Terminal.app"
 /// The words of a session no terminal shows.
 let offScreen = JumpAnswer.refused("\(named) is not on screen: no terminal window on this Mac shows it.")
 
+/// The default resume command's refusal of a session whose Claude is still alive where this Mac doesn't show it.
+let stillRunning = JumpAnswer.unopened(
+    "\(named)'s Claude is still running where this Mac doesn't show it: set a resume command that can reach it, in "
+        + "Settings."
+)
+
 extension Jump {
     /// The jump to the session on the board, in the words it answers in: `.openable` where a window would be opened.
     func answer(to session: String, on board: some JumpBoardSource) async -> JumpAnswer {
@@ -100,8 +106,8 @@ func shown() -> (FakeTmux, FakeTable) {
 }
 
 /// A jump on a Mac of doubles: tmux, the process table, Ghostty, the apps and the clock, Ghostty telling the apps of
-/// what it is told; a window opened as the settings given say, the open command or the resume command, none with no
-/// command as by default, and remembered among the openings given.
+/// what it is told; a window opened typing the resume command given, the default unless said, and remembered among the
+/// openings given.
 struct Jumping {
     let tmux: FakeTmux
     let table: FakeTable
@@ -117,13 +123,13 @@ struct Jumping {
         running: Bool = true, failing: GhosttyFailure? = nil, windowFailing: GhosttyFailure? = nil,
         windowHeld: Gate? = nil, ghosttyHeld: Gate? = nil,
         workspace: FakeWorkspace = FakeWorkspace(), clock: TestClock = TestClock(), tmuxHeld: Gate? = nil,
-        command: String = "", resume: String = "", openings: RecentOpenings = RecentOpenings()
+        resume: String = OpenSettings.defaultResumeCommand, openings: RecentOpenings = RecentOpenings()
     ) {
         self.tmux = tmux
         self.table = table
         self.workspace = workspace
         self.clock = clock
-        opening = OpenSettings(command: command, resumeCommand: resume)
+        opening = OpenSettings(resumeCommand: resume)
         self.openings = openings
         ghostty = FakeGhostty(
             terminals, running: running, failing: failing, held: ghosttyHeld, windowFailing: windowFailing,
@@ -143,37 +149,35 @@ struct Jumping {
         )
     }
 
-    /// The jump to the windows, in the words it answers in: `.openable` where a window would be opened.
+    /// The jump to the windows, in the words it answers in.
     func run(_ windows: [Where]) async -> JumpAnswer {
         (try? await jump.jump(to: windows))?.answer(named: named) ?? .stopped
     }
 
-    /// The jump to `sr-a`'s windows, as a click makes it: an answer, or the window to open for it.
-    func outcome(_ windows: [Where]) async -> JumpOutcome {
-        await jump.jump(to: "sr-a", named: named, at: windows)
+    /// A click on `sr-a`, its live windows those given, carried on from the window given where none shows: an answer,
+    /// or the window to open for it.
+    func outcome(_ windows: [Where], from window: Board.LastWindow? = nil, isHeld: Bool = false) async -> JumpOutcome {
+        await jump.click("sr-a", named: named, at: windows, from: window, isHeld: isHeld)
     }
 
-    /// The jump to `sr-a`'s windows, then the window it finds can be opened opened, as SitRep opens one once the jump
-    /// has answered.
-    func open(_ windows: [Where]) async -> JumpAnswer {
-        switch await outcome(windows) {
+    /// A click on `sr-a`, as `outcome`, then the window it finds can be opened opened, as SitRep opens one once the
+    /// jump has answered.
+    func open(_ windows: [Where], from window: Board.LastWindow? = nil, isHeld: Bool = false) async -> JumpAnswer {
+        switch await outcome(windows, from: window, isHeld: isHeld) {
         case let .answered(answer): answer
         case let .openable(opening): await opening.open()
         }
     }
 
-    /// `sr-a`, away, carried on from its last window, as a click makes it, then the window it finds can be opened opened.
+    /// A click on `sr-a`, away, carried on from its last window, then the window it finds can be opened opened.
     func carryOn(from last: Board.LastWindow) async -> JumpAnswer {
-        switch await jump.carryOn("sr-a", named: named, from: last) {
-        case let .answered(answer): answer
-        case let .openable(opening): await opening.open()
-        }
+        await open([], from: last)
     }
 
     /// The opening of a window for `sr-a` typing the line.
-    func opening(_ line: String, as kind: RecentOpenings.Kind = .attach) -> Opening {
+    func opening(_ line: String, wasHeld: Bool = false) -> Opening {
         Opening(
-            session: "sr-a", name: named, line: line, terminal: .ghostty, kind: kind, driver: driver,
+            session: "sr-a", name: named, line: line, terminal: .ghostty, wasHeld: wasHeld, driver: driver,
             workspace: workspace, clock: clock, openings: openings
         )
     }

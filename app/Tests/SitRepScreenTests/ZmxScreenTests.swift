@@ -14,25 +14,23 @@ struct ZmxScreenTests {
 
     /// Sessions in zmx: one Portal attached in a Ghostty window, one attached in a Terminal window, and one with no
     /// client, only its server; beside a session in tmux a Ghostty window shows.
-    private static func lees() async -> (screen: Screen, tmux: FakeTmux, table: FakeTable, zmx: [pid_t]) {
+    private static func lees() async -> (screen: Screen, tmux: FakeTmux, table: FakeTable, clients: [pid_t]) {
         var mac = Mac()
         let clients = [
             mac.throughPortal(portals, relay: "/dev/ttys032", window: "/dev/ttys036"),
             mac.zmxInTerminal(kit, on: "/dev/ttys030"),
         ]
 
-        let servers = [
-            mac.zmxServer(portals, running: ["/opt/homebrew/bin/portal", "state", "hydrate"]),
-            mac.zmxServer(kit),
-            mac.zmxServer(leeway, running: ["/opt/homebrew/bin/portal", "state", "hydrate"]),
-        ]
+        mac.zmxServer(portals, running: ["/opt/homebrew/bin/portal", "state", "hydrate"])
+        mac.zmxServer(kit)
+        mac.zmxServer(leeway, running: ["/opt/homebrew/bin/portal", "state", "hydrate"])
 
         let client = FakeClient(device: "/dev/ttys000", pid: mac.inGhostty("/dev/ttys000"), window: "@1")
         let tmux = FakeTmux([socket: FakeServer(panes: [FakePane(pane: "%1", window: "@1", session: "$1")], clients: [client])])
         let table = FakeTable(mac.tree)
         let windows = [inZmx(portals), inZmx(kit), inZmx(leeway), inTmux("%1")]
 
-        return (await read(windows, tmux, table), tmux, table, clients + servers)
+        return (await read(windows, tmux, table), tmux, table, clients)
     }
 
     @Test func aSessionInZmxIsOnScreenWhereAClientIsInATerminalAppOnItsOwnChildsDeviceThroughPortalsRelay() async {
@@ -44,39 +42,12 @@ struct ZmxScreenTests {
         #expect(screen.reach(of: [inTmux("%1")]).app == ghostty)
     }
 
-    @Test func tmuxIsAskedOnlyForTheSessionInTmuxAndOnlyZmxsProcessesHaveTheirCommandLinesRead() async {
+    @Test func tmuxIsAskedOnlyForTheSessionInTmuxAndOnlyZmxsProcessesOnATtyHaveTheirCommandLinesRead() async {
         let lees = await Self.lees()
 
         #expect(lees.tmux.runs.map(\.[0]) == [socket, socket])
         #expect(lees.table.looks == 1)
-        #expect(lees.table.argumentsRead == lees.zmx.sorted(), "its clients' and servers', never a shell's or tmux's")
-    }
-
-    /// An away session's last window has no live window to prove its zmx session alive: it runs while a process of
-    /// zmx's attaches to it, its server or a client, so a window can be opened onto it; one with neither is gone, as
-    /// after a restart Portal did not bring back, or a session ended (stage 8).
-    @Test func anAwayWindowsZmxSessionIsAliveWhileItsServerOrAClientRunsAndGoneWithNeither() async {
-        let screen = await Self.lees().screen
-
-        #expect(screen.leftOf(inZmx(Self.leeway)) == .attachable(Attachable(where: inZmx(Self.leeway), kind: .zmx)))
-        #expect(screen.leftOf(inZmx(Self.portals)) == .attachable(Attachable(where: inZmx(Self.portals), kind: .zmx)))
-        #expect(screen.leftOf(inZmx("gone · session")) == .gone)
-        #expect(await read([inZmx(Self.kit)], FakeTmux(), FakeTable(Mac().tree)).leftOf(inZmx(Self.kit)) == .gone)
-    }
-
-    /// A live window in zmx is its session's proof of life, as step C has it: the table is never asked, and a command
-    /// line that did not read, of zmx's or another's, leaves where it shows as it was.
-    @Test func aLiveWindowsZmxSessionIsHeldByTheWindowAloneAskingTheTableNothing() async {
-        var mac = Mac()
-
-        mac.zmxUnread()
-
-        let shell = Processes([5: Proc(parent: 1, program: "/bin/zsh")], unreadable: [5])
-
-        for screen in [Screen(readings: [ZmxReading()], processes: shell), await read([inZmx("kit")], FakeTmux(), FakeTable(mac.tree))] {
-            #expect(screen.attachable([inZmx("kit")]) == Attachable(where: inZmx("kit"), kind: .zmx))
-            #expect(screen.reach(of: [inZmx("kit")]) == .offScreen)
-        }
+        #expect(lees.table.argumentsRead == lees.clients.sorted(), "never a server's, a shell's or tmux's")
     }
 
     @Test func aZmxSessionIsMatchedByItsWholeName() async {
@@ -123,34 +94,6 @@ struct ZmxScreenTests {
         #expect(!ZmxReading.attaches(arguments, to: "kit"))
     }
 
-    /// A session is named by any of zmx's forms, so its server or any client of it tells it alive (stage 8).
-    @Test(arguments: [
-        ["zmx", "attach", "kit"], ["/opt/homebrew/bin/zmx", "attach", "kit", "/opt/homebrew/bin/portal", "state", "hydrate"],
-        ["zmx", "a", "kit"], ["zmx", "attach", "--labels", "k=v", "kit"], ["zmx", "a", "--labels=k=v", "kit", "/bin/zsh"],
-        ["zmx", "attach", "--labels", "k=v", "--labels=x=y", "kit"], ["zmx", "run", "kit"], ["zmx", "r", "kit", "-d", "make"],
-    ])
-    func eachOfZmxsFormsNamesItsSession(arguments: [String]) {
-        #expect(ZmxReading.sessionNamed(by: arguments) == "kit")
-    }
-
-    @Test(arguments: [
-        ["zmx", "list"], ["zmx", "kill", "kit"], ["zmx", "attach"], ["zmx", "attach", "--labels", "k=v"], ["zmx"],
-        ["notzmx", "attach", "kit"], [],
-    ])
-    func anyOtherCommandLineNamesNoSession(arguments: [String]) {
-        #expect(ZmxReading.sessionNamed(by: arguments) == nil)
-    }
-
-    /// Alive by a process naming it in any form, a client attached by `a` or with labels too, though only `zmx attach
-    /// <session>` alone is a client a jump reaches.
-    @Test func anAwayWindowsSessionIsAliveByAProcessNamingItInAnyForm() {
-        let processes = Processes([:], arguments: [7: ["zmx", "a", "--labels=k=v", "kit"], 9: ["zmx", "run", "ledger", "-d"]])
-
-        #expect(ZmxReading().isAlive(inZmx("kit"), processes) == true)
-        #expect(ZmxReading().isAlive(inZmx("ledger"), processes) == true)
-        #expect(ZmxReading().isAlive(inZmx("kit · restore-card"), processes) == false)
-    }
-
     @Test func aZmxClientCountsOnlyOnATtyOfItsOwnOneOverPipesIsNoPlaceThoughItsAppNeedsNoDevice() async {
         var mac = Mac()
 
@@ -179,22 +122,6 @@ struct ZmxScreenTests {
         _ = await read([inZmx(Self.portals)], tmux, FakeTable(mac.tree))
 
         #expect(tmux.runs.count == 2, "a window in zmx never asks tmux")
-    }
-
-    /// A process whose program is zmx, by its path, whose command line does not read may be an away session's server
-    /// or a client: whether it runs is unknown, never gone. Only such a process: one of another program's says nothing
-    /// of zmx's sessions.
-    @Test func aZmxProcessWhoseCommandLineDoesNotReadLeavesOnlyAnAwayWindowsSessionUnknown() async {
-        var mac = Mac()
-
-        mac.zmxUnread()
-
-        let screen = await read([inZmx(Self.leeway)], FakeTmux(), FakeTable(mac.tree))
-        let shell = Processes([5: Proc(parent: 1, program: "/bin/zsh")], unreadable: [5])
-
-        #expect(screen.leftOf(inZmx(Self.leeway)) == .unknown([.commandLine(.zmx)]))
-        #expect(screen.reach(of: [inZmx(Self.leeway)]) == .offScreen)
-        #expect(ZmxReading().isAlive(inZmx(Self.leeway), shell) == false)
     }
 
     @Test func aSessionInZmxIsUnknownNeverOffWhenTheTableGivesNoAnswerAsOnlyTheTableTellsItsClients() async {

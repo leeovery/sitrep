@@ -63,17 +63,6 @@ struct KernelProcessesTests {
         #expect(processes.arguments[getpid()] == CommandLine.arguments)
         #expect(processes.all[1]?.program == "/sbin/launchd")
         #expect(processes.arguments[1] == nil, "not wanted, not read")
-        #expect(processes.unreadable.isEmpty)
-    }
-
-    /// launchd runs as root, so its command line cannot be read: wanted, it is unreadable, never a command line of none.
-    @Test func aCommandLineWantedThatCannotBeReadIsToldUnreadable() throws {
-        let program = try #require(Bundle.main.executableURL?.resolvingSymlinksInPath().path)
-        let processes = try #require(KernelProcesses().read { [program, "/sbin/launchd"].contains($0.program) })
-
-        #expect(processes.arguments[1] == nil)
-        #expect(processes.unreadable == [1])
-        #expect(processes.arguments[getpid()] == CommandLine.arguments)
     }
 
     /// A copy of a program of macOS's, signed afresh, as macOS kills a copy of its own program run from elsewhere.

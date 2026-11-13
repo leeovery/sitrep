@@ -1,27 +1,38 @@
 import SitRepCore
 
-/// The resume command, as Lee sets it in Settings: what a window opened for an away session runs where nothing is left
-/// of its last window to attach to, its multiplexer session gone or the window in none. Its placeholders, `{claude}`
-/// and `{dir}`, are filled with the facts of that window.
+/// The resume command, as Lee sets it in Settings: what a window opened for a session no terminal on this Mac shows
+/// runs, held or away. Its placeholders, `{claude}`, `{dir}` and `{tty}`, are filled with the facts of the window the
+/// click carries the session on from.
 typealias ResumeCommand = TypedCommand<ResumeFact>
 
-/// A fact of an away session's last window: the Claude Code session it ran, which a `/clear` moves on, so the latest
-/// conversation; and the folder that Claude ran in.
+/// A fact of the window a click carries a session on from: the Claude Code session it ran, which a `/clear` moves on,
+/// so the latest conversation; the folder that Claude ran in; and the terminal device that Claude still runs on.
 enum ResumeFact: String, CommandPlaceholder {
-    case claude, dir
+    case claude, dir, tty
 
     static let command = "resume command"
 
     static func unset(named name: String) -> String {
-        "No window holds \(name). To carry it on, set a resume command in Settings."
+        "The resume command in Settings is empty. To carry \(name) on, set one, or restore the default."
     }
 }
 
-/// Its writer is the Claude Code session it ran; its folder, none from a window on a sitrep from before heartbeats said
-/// it, the one fact it may lack.
-extension Board.LastWindow: CommandFacts {
+extension TypedCommand where Placeholder == ResumeFact {
+    /// Whether it is the default, told by its text, so one saved the same as it is the default.
+    var isDefault: Bool {
+        self == ResumeCommand(OpenSettings.defaultResumeCommand)
+    }
+}
+
+/// What fills the resume command for a session: its window's writer and folder, the folder none from a window on a
+/// sitrep from before heartbeats said it, the one fact it may lack; and the device its Claude still runs on, none
+/// unless SitRep sees that Claude there, which is filled as empty.
+struct ResumeFacts: CommandFacts {
+    let window: Board.LastWindow
+    let tty: String?
+
     var given: Set<ResumeFact> {
-        directory == nil ? [.claude] : [.claude, .dir]
+        window.directory == nil ? [.claude, .tty] : [.claude, .dir, .tty]
     }
 
     func none(of _: [ResumeFact], named name: String) -> String {
@@ -33,13 +44,14 @@ extension Board.LastWindow: CommandFacts {
         switch fact {
         case .claude: "the Claude Code session's id"
         case .dir: "the folder its Claude ran in"
+        case .tty: "the terminal its Claude runs on"
         }
     }
 
     func values(wanted _: Set<ResumeFact>) -> [ResumeFact: String] {
-        var values: [ResumeFact: String] = [.claude: writer]
+        var values: [ResumeFact: String] = [.claude: window.writer, .tty: tty ?? ""]
 
-        values[.dir] = directory
+        values[.dir] = window.directory
         return values
     }
 }

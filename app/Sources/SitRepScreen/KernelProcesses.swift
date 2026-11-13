@@ -16,7 +16,6 @@ public struct KernelProcesses: ProcessTable {
         let reader = Reader()
         var all: [pid_t: Proc] = [:]
         var arguments: [pid_t: [String]] = [:]
-        var unreadable: Set<pid_t> = []
 
         for each in table where all[each.kp_proc.p_pid] == nil {
             let pid = each.kp_proc.p_pid
@@ -27,18 +26,14 @@ public struct KernelProcesses: ProcessTable {
                 isStopped: Int32(each.kp_proc.p_stat) == SSTOP
             )
 
-            if wanted(process) {
-                if let read = path == nil ? started : reader.procArgs(of: pid) {
-                    arguments[pid] = read.arguments
-                } else {
-                    unreadable.insert(pid)
-                }
+            if wanted(process), let read = path == nil ? started : reader.procArgs(of: pid) {
+                arguments[pid] = read.arguments
             }
 
             all[pid] = process
         }
 
-        return Processes(all, arguments: arguments, unreadable: unreadable)
+        return Processes(all, arguments: arguments)
     }
 
     /// Every process, as one `sysctl` gives them: asked how much room it needs, then given some over, as processes

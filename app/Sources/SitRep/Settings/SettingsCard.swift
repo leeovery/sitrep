@@ -58,10 +58,12 @@ struct SettingsCard<Content: View>: View {
 }
 
 /// Words under what a section shows, in its line's style, with any push button against the column's right: the
-/// desktop corner's caption and Send Test, Needs /reload-plugins' note and Copy, and New windows' note alone.
+/// desktop corner's caption and Send Test, Needs /reload-plugins' note and Copy, and the resume command's note and
+/// Restore Default, which is enabled only while there is something to restore.
 struct CaptionRow: View {
     let words: Text
     var button: String?
+    var isEnabled = true
     var action: () -> Void = {}
 
     var body: some View {
@@ -69,7 +71,7 @@ struct CaptionRow: View {
             words.font(.subheadline).foregroundStyle(SettingsStyle.secondary)
             Spacer(minLength: 0)
             if let button {
-                Button(button, action: action).buttonStyle(.bordered).fixedSize()
+                Button(button, action: action).buttonStyle(.bordered).fixedSize().disabled(!isEnabled)
             }
         }
         .padding(.top, 8)

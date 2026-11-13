@@ -2,32 +2,32 @@ import Foundation
 import os
 import SitRepCore
 
-/// What a jump came to: an answer; or a window to open for a session no window shows, which the one who asked opens
-/// next, apart from the jump.
+/// What a jump came to: an answer; or a window to open for a session no terminal on this Mac shows, which the one who
+/// asked opens next, apart from the jump.
 public enum JumpOutcome: Sendable {
     case answered(JumpAnswer)
     case openable(Opening)
 }
 
-/// How SitRep opens a window for a session no window shows, as Lee sets it in Settings: the terminal it opens in, by
-/// its driver; the open command; and the resume command, for an away session nothing is left of; each empty until he
-/// gives one.
+/// How SitRep opens a window for a session no terminal on this Mac shows, as Lee sets it in Settings: the terminal it
+/// opens in, by its driver; and the resume command, the default until he gives another.
 public struct OpenSettings: Sendable, Equatable {
+    /// The resume command Settings starts with: Claude Code resuming the conversation in the folder it ran in.
+    public static let defaultResumeCommand = "cd {dir} && claude --resume {claude}"
+
     public var terminal: Driver
-    public var command: String
     public var resumeCommand: String
 
-    public init(terminal: Driver = .ghostty, command: String = "", resumeCommand: String = "") {
+    public init(terminal: Driver = .ghostty, resumeCommand: String = defaultResumeCommand) {
         self.terminal = terminal
-        self.command = command
         self.resumeCommand = resumeCommand
     }
 }
 
-/// A window to open for a session no window shows, as a jump found it: the line to type, the open command or the resume
-/// command filled and fit to type, and the terminal it opens in. It opens apart from the jump, under a limit of its own, on the Space
-/// showing, only into a terminal already running; and it is remembered as it begins (`RecentOpenings`), so a click on
-/// its session meanwhile opens no second.
+/// A window to open for a session no terminal on this Mac shows, as a jump found it: the line to type, the resume
+/// command filled and fit to type, and the terminal it opens in. It opens apart from the jump, under a limit of its
+/// own, on the Space showing, only into a terminal already running; and it is remembered as it begins
+/// (`RecentOpenings`), so a click on its session meanwhile opens no second.
 public struct Opening: Sendable {
     /// How long an opening may take: its two events, 5 seconds each at most, the focus's, and the second's watch of the
     /// front.
@@ -38,8 +38,8 @@ public struct Opening: Sendable {
     let name: String
     let line: String
     let terminal: Driver
-    /// What the line is, which says how long the opening is remembered.
-    let kind: RecentOpenings.Kind
+    /// Whether a live window held the session at the click, so the board holding it tells nothing of the opening.
+    let wasHeld: Bool
     let driver: any TerminalDriver
     let workspace: any Workspace
     let clock: any JumpClock
@@ -59,7 +59,7 @@ public struct Opening: Sendable {
             return .stopped
         }
 
-        let asked = Remembered(session, as: kind, among: openings)
+        let asked = Remembered(session, wasHeld: wasHeld, among: openings)
 
         if let answered = await answer(within: Self.limit, on: clock, { await opened(asked) }) {
             return answered
@@ -101,21 +101,21 @@ public struct Opening: Sendable {
 /// never asked for, and never in place of a later opening of its session.
 private final class Remembered: Sendable {
     private let session: String
-    private let kind: RecentOpenings.Kind
+    private let wasHeld: Bool
     private let openings: RecentOpenings
     private let state: OSAllocatedUnfairLock<(remembered: ContinuousClock.Instant, isAsked: Bool)>
 
-    init(_ session: String, as kind: RecentOpenings.Kind, among openings: RecentOpenings) {
+    init(_ session: String, wasHeld: Bool, among openings: RecentOpenings) {
         self.session = session
-        self.kind = kind
+        self.wasHeld = wasHeld
         self.openings = openings
-        state = OSAllocatedUnfairLock(initialState: (openings.remember(session, as: kind), false))
+        state = OSAllocatedUnfairLock(initialState: (openings.remember(session, wasHeld: wasHeld), false))
     }
 
     var isAsked: Bool { state.withLock(\.isAsked) }
 
     @Sendable func ask() {
-        let remembered = openings.remember(session, as: kind)
+        let remembered = openings.remember(session, wasHeld: wasHeld)
 
         state.withLock { $0 = (remembered, true) }
     }
@@ -129,32 +129,19 @@ private final class Remembered: Sendable {
     }
 }
 
-/// The sessions a window was asked for a moment ago, opened or not yet, so a click on one again before its window shows
-/// it, or its Claude is back on the board, opens no second.
+/// The sessions a window was asked for a moment ago, opened or not yet, so a click on one again before it shows on this
+/// Mac, or its Claude is back on the board, opens no second. The resume command's Claude reaches the board only once
+/// the command has made its terminal session, Claude has started, the plugin loaded and taken the session up and
+/// beaten, and the watch printed, which can take a while: so an opening is remembered until a terminal on this Mac
+/// shows its session (`shown`), or the board shows a window holding it where none did at the click (`heard`), 2 minutes
+/// at most. A session a window held at the click is held already, so only being shown forgets its opening.
 public final class RecentOpenings: Sendable {
-    /// What an opening's window runs, which says how long it is remembered.
-    public enum Kind: Sendable {
-        /// The open command: the window's shell takes 0.5 to 2 seconds to start and run it, and then the session's
-        /// client is on screen, which makes the next click a jump. Remembered 10 seconds.
-        case attach
-        /// The resume command: its Claude reaches the board only once the command has made its terminal session,
-        /// Claude has started, the plugin loaded and taken the session up and beaten, and the watch printed, which can
-        /// run past those seconds. Remembered until the board shows a window holding the session (`heard`), 2 minutes
-        /// at most.
-        case resume
-
-        /// How long an opening of it is remembered at most.
-        public var lasts: Duration {
-            switch self {
-            case .attach: .seconds(10)
-            case .resume: .seconds(120)
-            }
-        }
-    }
+    /// How long an opening is remembered at most.
+    public static let lasts = Duration.seconds(120)
 
     private struct Asked: Sendable {
         let at: ContinuousClock.Instant
-        let kind: Kind
+        let wasHeld: Bool
     }
 
     private let now: @Sendable () -> ContinuousClock.Instant
@@ -165,12 +152,13 @@ public final class RecentOpenings: Sendable {
         self.now = now
     }
 
-    /// Remembers an opening of the kind for the session as of now, which it gives, to forget it by.
+    /// Remembers an opening for the session as of now, which it gives, to forget it by, and whether a live window held
+    /// the session at the click.
     @discardableResult
-    func remember(_ session: String, as kind: Kind = .attach) -> ContinuousClock.Instant {
+    func remember(_ session: String, wasHeld: Bool = false) -> ContinuousClock.Instant {
         let now = now()
 
-        opened.withLock { $0[session] = Asked(at: now, kind: kind) }
+        opened.withLock { $0[session] = Asked(at: now, wasHeld: wasHeld) }
         return now
     }
 
@@ -183,22 +171,28 @@ public final class RecentOpenings: Sendable {
         }
     }
 
-    /// Forgets the resume of each session a window holds on the board, its Claude back: a click on it is a jump now,
-    /// and one once it is away again carries it on afresh.
+    /// Forgets the session's opening, a terminal on this Mac showing it now: a click on it is a jump, and one once it
+    /// shows no more carries it on afresh.
+    func shown(_ session: String) {
+        opened.withLock { $0[session] = nil }
+    }
+
+    /// Forgets the opening of each session a window holds on the board that none held at the click, its Claude back:
+    /// a click once it is away again carries it on afresh.
     public func heard(_ board: Board) {
         let held = Set(board.windows.map(\.session))
 
         opened.withLock { opened in
-            opened = opened.filter { $0.value.kind != .resume || !held.contains($0.key) }
+            opened = opened.filter { $0.value.wasHeld || !held.contains($0.key) }
         }
     }
 
-    /// Whether a window was asked for the session within its kind's `lasts`; those asked for longer ago forgotten.
+    /// Whether a window was asked for the session within `lasts`; those asked for longer ago forgotten.
     func isOpening(_ session: String) -> Bool {
         let now = now()
 
         return opened.withLock { opened in
-            opened = opened.filter { now - $0.value.at < $0.value.kind.lasts }
+            opened = opened.filter { now - $0.value.at < Self.lasts }
             return opened[session] != nil
         }
     }
