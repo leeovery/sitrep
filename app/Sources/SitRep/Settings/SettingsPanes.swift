@@ -168,7 +168,7 @@ private struct NotificationsPane: View {
                 )
                 CardSeparator()
                 SoundRows(
-                    label: "Play a sound when it's my turn", line: "Once, as a session's turn ends",
+                    label: "Play a sound when Claude stops", line: "Once, as a session's turn ends",
                     isOn: binding(\.playsTurnSound), sound: sound(.turn), sounds: settings.services.sounds.names
                 )
             }
@@ -179,8 +179,8 @@ private struct NotificationsPane: View {
                     MiniSwitch(label: "Pulse for a new ask", isOn: binding(\.pulsesNewAsks))
                 }
                 CardSeparator()
-                CardRow(label: "Pulse when it's my turn", line: "It swells as a session's turn ends") {
-                    MiniSwitch(label: "Pulse when it's my turn", isOn: binding(\.pulsesTurns))
+                CardRow(label: "Pulse when Claude stops", line: "It swells as a session's turn ends") {
+                    MiniSwitch(label: "Pulse when Claude stops", isOn: binding(\.pulsesTurns))
                 }
             }
         }

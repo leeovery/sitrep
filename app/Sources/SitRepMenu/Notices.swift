@@ -2,7 +2,7 @@ import SitRepCore
 
 /// The macOS notifications a board sends (DESIGN, "Settings", Notifications), each silent, a click jumping to its
 /// session: one for each ask new on it, with its title, then its project and session; and one for each session it
-/// moved into Lee's turn, saying so, with its project and session, then what Claude left him.
+/// moved into Lee's turn, "Stopped", with its project and session, then what Claude left him.
 public enum Notices {
     /// What this board sends, with Lee's switches as they stand: a new ask's while its switch is on, then his turn's
     /// while its own is.
@@ -24,7 +24,7 @@ public enum Notices {
     }
 
     private static func turn(_ row: Board.Row) -> Banner {
-        Banner(title: "Your turn", subtitle: placeOf(row), body: row.newest.first.lead, work: row.session)
+        Banner(title: "Stopped", subtitle: placeOf(row), body: row.newest.first.lead, work: row.session)
     }
 
     /// The row's project and session by name, an away row's too, whose second line says no window holds it.
