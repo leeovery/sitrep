@@ -44,8 +44,6 @@ public struct Opening: Sendable {
     let workspace: any Workspace
     let clock: any JumpClock
     let openings: RecentOpenings
-    /// A word for Lee once the window opens, as for a Claude suspended in it; none for most.
-    var saying: String?
 
     /// Opens the window, once its terminal is known to be running, within `limit`: opened; refused in plain words;
     /// stopped, as its task is cancelled; or given up at the limit, where, once the window was asked for, one may yet
@@ -83,7 +81,7 @@ public struct Opening: Sendable {
                 return .unopened(notRunning)
             }
 
-            return saying.map(JumpAnswer.openedSaying) ?? .opened
+            return .opened
         } catch {
             asked.forgetUnasked()
             return error is CancellationError ? .stopped : .unopened(String(describing: error))

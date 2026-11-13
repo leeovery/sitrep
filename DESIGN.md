@@ -8096,7 +8096,8 @@ open), and tmux passing an escape sequence through from Claude's own pane
    - **One window per click**: an opening remembers whether a window held
      its session at the click, and the board holding it forgets only one
      that none held; a click that reads the session as here forgets it.
-     `openedSaying` stays, though nothing opens with a word now.
+     `openedSaying` went, with `Opening.saying`, though the plan kept it,
+     as nothing opens with a word now.
    - **Settings**: the command is saved under "app" as `resume`, none
      until Lee gives one, which reads as the default; Restore Default puts
      it back to none.

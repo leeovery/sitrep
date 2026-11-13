@@ -101,14 +101,11 @@ struct CaptionWindowTests {
         #expect(caption.says == "Opened a window for SitRep")
     }
 
-    /// A window opened, or brought forward, with a word for Lee, as for a Claude he suspended there: the caption says
-    /// which happened, the word left to its banner.
-    @Test(arguments: [
-        (JumpAnswer.openedSaying("SitRep is suspended in this window: type fg to bring it back."), "Opened a window for SitRep"),
-        (.jumpedSaying("SitRep is suspended in this window: type fg to bring it back."), "Jumped to SitRep's window"),
-    ])
-    func aLandingWithAWordSaysHowItLanded(answer: JumpAnswer, says: String) {
+    /// A window brought forward with a word for Lee, as for a Claude he suspended there: the caption says it jumped,
+    /// the word left to its banner.
+    @Test func aJumpWithAWordSaysItJumped() {
         let caption = Self.shown()
+        let answer = JumpAnswer.jumpedSaying("SitRep is suspended in this window: type fg to bring it back.")
 
         defer { caption.window.close() }
         caption.jumping(to: "SitRep")
@@ -116,7 +113,7 @@ struct CaptionWindowTests {
         caption.answered(answer, at: 500)
         caption.heard(.ended(answer))
 
-        #expect(caption.says == says)
+        #expect(caption.says == "Jumped to SitRep's window")
     }
 
     /// An opening with no answer two seconds on says it is still opening, held while it runs.

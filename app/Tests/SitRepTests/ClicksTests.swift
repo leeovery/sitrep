@@ -9,6 +9,9 @@ import Testing
 /// once; and the front handed back where nothing of SitRep's comes forward (stage 7, C).
 @MainActor
 struct ClicksTests {
+    private nonisolated static let notRunning =
+        "SitRep opens a window only in a Ghostty already running. Open Ghostty, then click SitRep again."
+
     @Test func aJumpThatJumpedIsToldSoAndHandsNothingBack() async {
         let world = World { _ in .answered(.jumped) }
 
@@ -47,13 +50,13 @@ struct ClicksTests {
     }
 
     @Test func aWindowNotOpenedPostsItsBannerAndHandsTheFrontBack() async {
-        let world = World { _ in .openable(.unopened("Set an open command.")) }
+        let world = World { _ in .openable(.unopened(Self.notRunning)) }
 
         world.click("sr-a")
         await world.until { world.handBacks == 1 }
 
-        #expect(world.answers["sr-a"] == [.unopened("Set an open command.")])
-        #expect(world.banners == [.unopened("Set an open command.")])
+        #expect(world.answers["sr-a"] == [.unopened(Self.notRunning)])
+        #expect(world.banners == [.unopened(Self.notRunning)])
     }
 
     /// A window opened for the session a moment ago comes forward of itself, if at all: the front is handed back, and
@@ -116,7 +119,7 @@ struct ClicksTests {
     /// Two clicks joined on an opening that failed: one banner, each click told.
     @Test func aFailedOpeningTwoClicksJoinedPostsOneBanner() async {
         let opening = Latch()
-        let world = World(opening: opening) { _ in .openable(.unopened("Set an open command.")) }
+        let world = World(opening: opening) { _ in .openable(.unopened(Self.notRunning)) }
 
         world.click("sr-a")
         await world.until { world.opened == ["sr-a"] }
@@ -124,8 +127,8 @@ struct ClicksTests {
         opening.open()
         await world.until { world.handBacks == 2 }
 
-        #expect(world.answers["sr-a"] == [.unopened("Set an open command."), .unopened("Set an open command.")])
-        #expect(world.banners == [.unopened("Set an open command.")])
+        #expect(world.answers["sr-a"] == [.unopened(Self.notRunning), .unopened(Self.notRunning)])
+        #expect(world.banners == [.unopened(Self.notRunning)])
     }
 
     /// An opening with no answer two seconds on says it is still opening, where a jump says it is still jumping.
