@@ -4,9 +4,9 @@ import SitRepPanel
 /// One mark on the strip in black, drawn as the prototype's `.mk`: the project's letters in a 24pt ring whose colour
 /// carries the state, a glow outside it in Needs you, the working arc turning round it, or on its own work the
 /// dotted ring in the ring's place, still, lifted under the pointer, and pressed in with its arc turning while a click
-/// on it jumps. Just arrived, it is washed orange and its ring flashes, and its lift eases as the model eases it, a
-/// frame at a time; any other change of look eases over 240ms, the letters' colour among it, as the prototype's
-/// transitions do, and the pressed fill over 110.
+/// on it jumps. Just arrived, its ring flashes in its own colour, an ask's washed orange, and its lift eases as the
+/// model eases it, a frame at a time; any other change of look eases over 240ms, the letters' colour among it, as the
+/// prototype's transitions do, and the pressed fill over 110.
 @MainActor
 final class StripMarkLayer {
     let layer = CALayer()
@@ -26,8 +26,11 @@ final class StripMarkLayer {
     private static let size = StripFrame.Mark.size, line = 1.5
     /// The panel dot's glow: 9 across, at 0.45.
     private static let blur = 9.0, glowAlpha = 0.45
-    /// A new mark's ring at its brightest flash.
-    static let flashed = LiveLight.RGB(r: 255, g: 160, b: 120)
+    /// A new mark's ring at its brightest flash: an ask's orange lightened, as the prototype's; a stopped session's
+    /// blue, its light's warm.
+    static func flashed(_ need: Need) -> LiveLight.RGB {
+        need == .ask ? LiveLight.RGB(r: 255, g: 160, b: 120) : LiveLight.Palette.turn.warm
+    }
 
     /// How long a change of look eases, in seconds, the ring's colour, its glow and the letters', as the prototype's
     /// `.mk` transitions do; and the pressed fill, as its background's.
@@ -81,8 +84,8 @@ final class StripMarkLayer {
         if look != self.look {
             restyle(look, eased: self.look != nil)
         }
-        if mark.wash > 0 || mark.flash > 0 {
-            return arrive(wash: mark.wash, flash: mark.flash)
+        if let need = mark.look.need, mark.wash > 0 || mark.flash > 0 {
+            return arrive(need, wash: mark.wash, flash: mark.flash)
         }
 
         if glow.shadowRadius != Self.blur / 2 || ring.borderWidth != Self.line {
@@ -99,7 +102,7 @@ final class StripMarkLayer {
 
     private func restyle(_ look: Look, eased: Bool) {
         let kind = look.kind
-        let glows = !look.jumping && [.needs, .away, .turn, .awayTurn, .needsCount].contains(kind)
+        let glows = !look.jumping && kind.need != nil
 
         CATransaction.begin()
         CATransaction.setDisableActions(!eased)
@@ -134,15 +137,16 @@ final class StripMarkLayer {
         self.look = look
     }
 
-    /// Washed orange inside the ring and its glow brighter, for two seconds, the ring flashing: set each frame. Only an
-    /// ask's arrives.
-    private func arrive(wash: Double, flash: Double) {
+    /// Its ring flashing in its own colour and its glow brighter, for two seconds, and an ask's washed orange inside
+    /// the ring: set each frame.
+    private func arrive(_ need: Need, wash: Double, flash: Double) {
         let spread = wash + 1.5 * flash
+        let colour = LiveLight.Palette.of(need).body
 
-        glow.shadowColor = EdgeStyle.orange
+        glow.shadowColor = EdgeStyle.colour(of: need)
         ring.backgroundColor = EdgeStyle.color(LiveLight.orange, alpha: 0.2 * wash)
         ring.borderWidth = Self.line + 1.1 * flash
-        ring.borderColor = EdgeStyle.color(LiveLight.orange.mix(Self.flashed, flash))
+        ring.borderColor = EdgeStyle.color(colour.mix(Self.flashed(need), flash))
         glow.shadowPath = CGPath(ellipseIn: glow.bounds.insetBy(dx: -spread, dy: -spread), transform: nil)
         glow.shadowRadius = (Self.blur + 3 * wash + 7 * flash) / 2
         glow.shadowOpacity = Float(Self.glowAlpha + 0.2 * wash + 0.3 * flash)
@@ -163,17 +167,16 @@ final class StripMarkLayer {
     }
 
     private static func ringColour(_ kind: StripFrame.Mark.Look) -> CGColor? {
-        switch kind {
-        case .needs, .away, .needsCount: EdgeStyle.orange
-        case .turn, .awayTurn: EdgeStyle.blue
-        case .working, .onItsWork: nil
-        case .count: EdgeStyle.track
+        if let need = kind.need {
+            return EdgeStyle.colour(of: need)
         }
+
+        return kind == .count ? EdgeStyle.track : nil
     }
 
     private static func letterColour(_ kind: StripFrame.Mark.Look) -> CGColor {
         switch kind {
-        case .needs, .turn, .needsCount: EdgeStyle.ink
+        case .needs, .turn, .needsCount, .stoppedCount: EdgeStyle.ink
         case .away, .awayTurn: EdgeStyle.ink3
         case .working, .onItsWork: EdgeStyle.grey
         case .count: EdgeStyle.ink2

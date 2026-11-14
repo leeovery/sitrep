@@ -94,8 +94,8 @@ struct StripTimelineTests {
         expectMatches(played, StripRecorded.grows)
     }
 
-    /// Max 6, five new asks: nine asks and four others, four asks showing, the rest folding into needs you's orange
-    /// count, newest and away last, and the others into the grey one.
+    /// Max 6, five new asks: needs you's places already full, its two stopped folded into its count, each new ask
+    /// lands in the count, the four asks showing never moving, and the two working stay in the grey one.
     @Test func atMaxSixNineAsksFoldIntoTheirOwnCountAsThePrototypes() {
         var lab = StripLab(length: .grows, maxMarks: 6)
 
@@ -121,7 +121,8 @@ struct StripTimelineTests {
         #expect(abs(lab.model.moreNeeds!.arrived - start - StripRecorded.landed) < 1e-6)
     }
 
-    @Test func theOrangeCountsTabPoursItsAsksAsRowsAsThePrototypes() {
+    /// Needs you's count's tab: its rows the asks landed in it, then the stopped folded there.
+    @Test func needsYousCountsTabPoursWhatItHoldsAsRowsAsThePrototypes() {
         var lab = StripLab(length: .grows, maxMarks: 6)
 
         let played = lab.play(StripRecorded.countTab, marks: ["s4", "s9"], Self.asks(0 ..< 5, at: 0))
@@ -129,14 +130,15 @@ struct StripTimelineTests {
         expectMatches(played, StripRecorded.countTab)
     }
 
-    /// Max 6 and six asks: an answer to one in the count changes its row in place; a settle after the pointer leaves,
-    /// the count goes and the last folded ask takes its place.
+    /// Max 6 and two new asks, landing in needs you's count beside its stopped: an answer to the first there changes
+    /// its row in place; a settle after the pointer leaves, the marks re-sort, the answered one going into the grey
+    /// count.
     @Test func anAnswerOutOfTheCountReSortsOnceThePointerHasLeftAsThePrototypes() {
         var lab = StripLab(length: .grows, maxMarks: 6)
 
         let played = lab.play(
             StripRecorded.answerOut, marks: ["s4", "s5", "s9", "s10"],
-            Self.asks(0 ..< 2, at: 0) + [(1700, { $0.change(StripLab.answered(ask: "s10")) })]
+            Self.asks(0 ..< 2, at: 0) + [(1700, { $0.change(StripLab.answered(ask: "s9")) })]
         )
 
         expectMatches(played, StripRecorded.answerOut)
@@ -152,6 +154,47 @@ struct StripTimelineTests {
         ])
 
         expectMatches(played, StripRecorded.empty)
+    }
+
+    /// A turn ends: DocMan's mark leaves its place under the hairline and grows into needs you before the stopped, at
+    /// once, the marks between sliding down and the hairline with them.
+    @Test func aSessionStoppingMovesIntoNeedsYouAtOnceAsThePrototypes() {
+        var lab = StripLab(length: .grows)
+
+        let played = lab.play(
+            StripRecorded.stops, marks: ["s5", "s6", "s7", "s8"], [(0, { $0.stop(StripLab.stopped) })]
+        )
+
+        expectMatches(played, StripRecorded.stops)
+    }
+
+    /// Max 6, five new asks, then a turn ends: DocMan's lands in needs you's count, the marks showing never moving,
+    /// and the grey count, left holding one, goes as Turnstile's mark comes out of it.
+    @Test func aSessionStoppingPastItsRoomLandsInTheCountAsThePrototypes() {
+        var lab = StripLab(length: .grows, maxMarks: 6)
+
+        let played = lab.play(
+            StripRecorded.stopsLand, marks: ["s4", "s7", "s8", "s9"],
+            Self.asks(0 ..< 5, at: 0) + [(1000, { $0.stop(StripLab.stopped) })]
+        )
+
+        expectMatches(played, StripRecorded.stopsLand)
+        #expect(lab.model.layout.restNeeds.first == "s7")
+    }
+
+    /// Max 7: a turn ends and DocMan's lands in needs you's new count beside Goosemates's; a new ask takes its place,
+    /// pushing Fumi's stopped mark, the last showing, into the count, the marks between sliding down; a second, with
+    /// no stopped mark showing, lands in the count.
+    @Test func aNewAskOnAFullStripPushesTheLastStoppedMarkIntoTheCountAsThePrototypes() {
+        var lab = StripLab(length: .grows, maxMarks: 7)
+
+        let played = lab.play(StripRecorded.displace, marks: ["s4", "s5", "s9", "s10"], [
+            (0, { $0.stop(StripLab.stopped) }), (900, { $0.newAsk(StripLab.asks[0]) }),
+            (1800, { $0.newAsk(StripLab.asks[1]) }),
+        ])
+
+        expectMatches(played, StripRecorded.displace)
+        #expect(lab.model.layout.restNeeds == ["s10", "s5", "s7", "s6"])
     }
 
     @Test func aPressCarriedAlongTheEdgeDragsTheStripAsThePrototypes() {

@@ -204,10 +204,20 @@ struct ShowRowTests {
     /// The strip's rings drawn no finer than half a point, so your turn's, blue, lights a whole pixel at 2× somewhere
     /// round it in full, where its line drawn to scale, 0.27, would light at most about half of one.
     @Test func theStripsRingsAreNoFinerThanHalfAPoint() throws {
-        // round your turn's ring: its middle 4.05 in and 17.3 down, 1.5 out
-        let turn = try Self.picture(.strip).brightest(in: CGRect(x: 2, y: 15.3, width: 4.1, height: 4))
+        // round the lower half of your turn's ring: its middle 4.05 in and 15.5 down, 1.5 out
+        let turn = try Self.picture(.strip).brightest(in: CGRect(x: 2, y: 15.5, width: 4.1, height: 2.5))
 
         #expect(turn.blueComponent > 0.9 && turn.redComponent < 0.4)
+    }
+
+    /// The strip's picture has Needs you as the strip has it (14 November 2026): the ask's ring and the turn's over the
+    /// hairline, the working rings under it, spaced as the strip spaces its marks.
+    @Test func theStripsPictureHasTheTurnOverTheHairlineWithTheAsk() {
+        let rings = StripPicture.rings, hairline = StripPicture.hairline
+
+        #expect(rings.map(\.ring) == [.needs, .turn, .working, .working])
+        #expect(rings.prefix(2).allSatisfy { $0.y < hairline } && rings.suffix(2).allSatisfy { $0.y > hairline })
+        #expect(abs(rings[1].y - rings[0].y - 30 / 4) < 1e-9 && abs(rings[2].y - rings[1].y - 2 * 21.5 / 4) < 1e-9)
     }
 
     /// Nothing's menu bar seen closer, until the glyph's housing stands 5 tall: the orange bar in it 3.6 tall, its

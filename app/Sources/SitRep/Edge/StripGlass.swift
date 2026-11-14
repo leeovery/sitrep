@@ -188,12 +188,10 @@ struct GlassMark: View {
     }
 
     /// In Needs you: an ask's or Lee's turn's, or needs you's count.
-    private var isNeeds: Bool { [.needs, .away, .turn, .awayTurn, .needsCount].contains(mark.look) }
+    private var isNeeds: Bool { mark.look.need != nil }
 
-    private var isTurn: Bool { [.turn, .awayTurn].contains(mark.look) }
-
-    /// Its glow's colour, Lee's turn's blue, or an ask's orange, as one arriving is.
-    private var glowColour: Color { isTurn ? GlassInk.blue : GlassInk.orange }
+    /// Its glow's colour, Lee's turn's blue, or an ask's orange.
+    private var glowColour: Color { GlassInk.colour(of: mark.look.need ?? .ask) }
 
     private var fill: AnyShapeStyle {
         if mark.wash > 0 {
@@ -209,15 +207,12 @@ struct GlassMark: View {
         if mark.isJumping {
             return AnyShapeStyle(.quaternary)
         }
-        switch mark.look {
-        case .needs, .away, .needsCount:
-            let flashed = LiveLight.orange.mix(StripMarkLayer.flashed, mark.flash)
+        if let need = mark.look.need {
+            let flashed = LiveLight.Palette.of(need).body.mix(StripMarkLayer.flashed(need), mark.flash)
 
             return AnyShapeStyle(Color(cgColor: EdgeStyle.color(flashed)))
-        case .turn, .awayTurn: return AnyShapeStyle(GlassInk.blue)
-        case .working, .onItsWork: return nil
-        case .count: return AnyShapeStyle(.tertiary)
         }
+        return mark.look == .count ? AnyShapeStyle(.tertiary) : nil
     }
 
     private var glow: Double {
@@ -234,7 +229,7 @@ struct GlassMark: View {
 
     private var letters: AnyShapeStyle {
         switch mark.look {
-        case .needs, .turn, .needsCount: AnyShapeStyle(.primary)
+        case .needs, .turn, .needsCount, .stoppedCount: AnyShapeStyle(.primary)
         case .away, .awayTurn: AnyShapeStyle(.tertiary)
         case .working, .onItsWork, .count: AnyShapeStyle(.secondary)
         }

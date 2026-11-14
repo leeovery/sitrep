@@ -165,10 +165,33 @@ struct NeedsYouMarksTests {
         #expect(layer.letters.backgroundColor == (look == .turn ? EdgeStyle.ink : EdgeStyle.ink3))
     }
 
-    private static func mark(_ look: StripFrame.Mark.Look) -> StripFrame.Mark {
+    /// Needs you's count's two looks drawn: orange, while it holds any session not stopped, and blue, while all it
+    /// holds are stopped (14 November 2026).
+    @Test(arguments: [(StripFrame.Mark.Look.needsCount, Need.ask), (.stoppedCount, .turn)])
+    func theStripsNeedsYouCountIsOrangeOrBlue(look: StripFrame.Mark.Look, need: Need) {
+        let layer = StripMarkLayer()
+
+        layer.show(Self.mark(look), at: .zero)
+
+        #expect(layer.ring.borderColor == (need == .ask ? EdgeStyle.orange : EdgeStyle.blue))
+        #expect(layer.letters.backgroundColor == EdgeStyle.ink)
+    }
+
+    /// A stopped mark arriving flashes in its own blue, its ring at the flash's height its light's warm, and is not
+    /// washed orange, as only an ask's arrival is.
+    @Test func aStoppedMarksArrivalFlashesBlue() throws {
+        let layer = StripMarkLayer()
+
+        layer.show(Self.mark(.turn, flash: 1), at: .zero)
+
+        #expect(layer.ring.borderColor == EdgeStyle.color(LiveLight.Palette.turn.warm))
+        #expect(try #require(layer.ring.backgroundColor).alpha == 0)
+    }
+
+    private static func mark(_ look: StripFrame.Mark.Look, flash: Double = 0) -> StripFrame.Mark {
         StripFrame.Mark(
             key: .session("a"), text: "SR", look: look, centre: .zero, scale: 1, alpha: 1, isLifted: false, lift: 0,
-            isJumping: false, wash: 0, flash: 0
+            isJumping: false, wash: 0, flash: flash
         )
     }
 }

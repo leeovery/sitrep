@@ -62,6 +62,26 @@ struct StripLab {
         show(model.sessions.map { $0.id == session.id ? session : $0 })
     }
 
+    /// The board with a new ask on it, new on its line, with Lee's pulses so.
+    func newAsk(_ ask: Session, pulses: Set<Need>) {
+        model.show(Self.core(model.sessions + [ask]), new: [ask.id], pulses: pulses)
+    }
+
+    /// The board with a session's row changed, moved into Lee's turn on it, with Pulse when Claude stops on or off.
+    func stop(_ session: Session, pulses: Bool = false) {
+        model.show(
+            Self.core(model.sessions.map { $0.id == session.id ? session : $0 }), new: [], stopped: [session.id],
+            pulses: pulses ? [.ask, .turn] : [.ask]
+        )
+    }
+
+    /// The board with a session's row changed, back in Lee's turn but not moved into it anew, with every pulse on.
+    func turnBack(_ session: Session) {
+        model.show(
+            Self.core(model.sessions.map { $0.id == session.id ? session : $0 }), new: [], pulses: [.ask, .turn]
+        )
+    }
+
     /// The board with these gone from it.
     func remove(_ ids: [String]) {
         show(model.sessions.filter { !ids.contains($0.id) })
@@ -71,19 +91,19 @@ struct StripLab {
         model.show(Self.core(sessions), new: new)
     }
 
-    /// The rows in the order core gave them as the prototype's timelines were recorded, which the recordings hold
-    /// them to: needs you, oldest first, away ones last; your turn, newest first; working, longest running first; on
-    /// its own work, which they never had, last; on a tie, as they were. Core has since put needs you newest first,
-    /// and working before your turn from 22 October to 4 November 2026 (`core/rows.ts`), which the strip draws as it
-    /// comes.
+    /// The rows in the order the prototype's timelines were recorded in, which the recordings hold them to: needs you,
+    /// its asks oldest first, then its stopped, newest first, each with its away ones last, as the app puts them
+    /// (`inPanelOrder`); working, longest running first; on its own work, which they never had, last; on a tie, as
+    /// they were. Core has since put the asks newest first, and working before your turn from 22 October to 4
+    /// November 2026 (`core/rows.ts`).
     static func core(_ sessions: [Session]) -> [Session] {
         func key(_ row: (offset: Int, element: Session)) -> (Int, Double, Int) {
             let s = row.element
             return switch s.kind {
             case .needs: (s.away ? 1 : 0, s.since, row.offset)
-            case .turn: (2, -s.since, row.offset)
-            case .working: (3, s.since, row.offset)
-            case .onItsWork, .snoozed, .snoozedTurn: (4, s.since, row.offset)
+            case .turn: (s.away ? 3 : 2, -s.since, row.offset)
+            case .working: (4, s.since, row.offset)
+            case .onItsWork, .snoozed, .snoozedTurn: (5, s.since, row.offset)
             }
         }
         return sessions.enumerated().sorted { key($0) < key($1) }.map(\.element)
@@ -349,6 +369,16 @@ extension StripLab {
         var s = prototype[0]
         s.kind = .working
         s.lines[0].title = "Drawing the strip in Paper"
+        s.lines[0].since = 0
+        return s
+    }
+
+    /// The prototype's Turn ends, on its sessions: the longest running working session, DocMan's, stops, its turn
+    /// saying what its work did.
+    static var stopped: Session {
+        var s = prototype[6]
+        s.kind = .turn
+        s.lines[0].title = "The exception tests pass"
         s.lines[0].since = 0
         return s
     }
