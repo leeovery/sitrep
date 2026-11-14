@@ -75,6 +75,13 @@ struct StripLab {
         )
     }
 
+    /// The board with a session's row changed, back in Lee's turn but not moved into it anew, with every pulse on.
+    func turnBack(_ session: Session) {
+        model.show(
+            Self.core(model.sessions.map { $0.id == session.id ? session : $0 }), new: [], pulses: [.ask, .turn]
+        )
+    }
+
     /// The board with these gone from it.
     func remove(_ ids: [String]) {
         show(model.sessions.filter { !ids.contains($0.id) })
@@ -85,18 +92,18 @@ struct StripLab {
     }
 
     /// The rows in the order the prototype's timelines were recorded in, which the recordings hold them to: needs you,
-    /// its asks oldest first, away ones last, then its stopped, newest first; working, longest running first; on its
-    /// own work, which they never had, last; on a tie, as they were. Core has since put the asks newest first, and
-    /// working before your turn from 22 October to 4 November 2026 (`core/rows.ts`), and the app puts each part's
-    /// away ones last (`inPanelOrder`), which the strip draws as it comes.
+    /// its asks oldest first, then its stopped, newest first, each with its away ones last, as the app puts them
+    /// (`inPanelOrder`); working, longest running first; on its own work, which they never had, last; on a tie, as
+    /// they were. Core has since put the asks newest first, and working before your turn from 22 October to 4
+    /// November 2026 (`core/rows.ts`).
     static func core(_ sessions: [Session]) -> [Session] {
         func key(_ row: (offset: Int, element: Session)) -> (Int, Double, Int) {
             let s = row.element
             return switch s.kind {
             case .needs: (s.away ? 1 : 0, s.since, row.offset)
-            case .turn: (2, -s.since, row.offset)
-            case .working: (3, s.since, row.offset)
-            case .onItsWork, .snoozed, .snoozedTurn: (4, s.since, row.offset)
+            case .turn: (s.away ? 3 : 2, -s.since, row.offset)
+            case .working: (4, s.since, row.offset)
+            case .onItsWork, .snoozed, .snoozedTurn: (5, s.since, row.offset)
             }
         }
         return sessions.enumerated().sorted { key($0) < key($1) }.map(\.element)

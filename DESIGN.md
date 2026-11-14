@@ -5036,7 +5036,9 @@ were settled in the browser spike (below, "How the strip moves").
   - **just arrived**: washed orange inside the ring, its glow brighter, for
     two seconds, and the ring flashes twice, as the notch swells twice; a
     session stopping, where it flashes (below, "Moving"), flashes its blue,
-    its glow brighter, unwashed (14 November 2026);
+    its glow brighter, unwashed (14 November 2026), and a flash shows only
+    while the mark waits on Lee for what arrived, never running on in
+    another colour;
   - **away, with an ask**: orange, the letters dim;
   - **your turn**: blue, with the glow, the letters white, and away the
     letters dim, as an ask's mark in blue (13 November 2026; white, with no
@@ -5104,7 +5106,9 @@ were settled in the browser spike (below, "How the strip moves").
   decides it for the banner, moves into Needs you at once too, before the
   stopped, the marks below sliding down (14 November 2026); one still on
   the Needs you side, its ask answered or its turn ended before the
-  re-sort, stays where it is. Each flashes only as Settings' pulses say,
+  re-sort, stays where it is. One back at a turn whose end it stood at
+  before, so no stop for the banner, moves in at once all the same,
+  unflashed. Each flashes only as Settings' pulses say,
   as the notch's pulse follows them (14 November 2026): an ask arriving
   flashes twice and is washed while "Pulse for a new ask" is on, and a
   session stopping flashes twice, in its blue and unwashed, while "Pulse
@@ -5151,9 +5155,11 @@ were settled in the browser spike (below, "How the strip moves").
   never moving: only asks push stopped marks out. Until then every
   arrival past the room landed in the count, the marks showing never
   moving. One landing there flashes the count's ring twice in the count's
-  own colour, orange while it holds an ask, each only with its pulse on,
-  an ask washing it too; one landing there quietly ends a flash the count
-  still shows for that same session. An ask answered out of the count
+  own colour, orange while it holds any session not stopped, each only
+  with its pulse on, an ask washing it too; several landing in one update,
+  or folded there by another arriving, add up, an ask's showing over a
+  stop's; one landing there quietly ends a flash the count still shows for
+  that same session. A count going keeps its colour as it fades. An ask answered out of the count
   changes its row in place; at the re-sort the
   count shrinks, or goes and the last folded mark takes its place. Lee: "It
   works."

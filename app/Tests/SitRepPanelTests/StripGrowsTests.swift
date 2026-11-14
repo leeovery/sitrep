@@ -352,7 +352,7 @@ struct StripGrowsTests {
         )
 
         #expect(strip.fullPlaces(hairline: false) == 16 && strip.fullPlaces(hairline: true) == 15)
-        #expect(strip.allot(asks: 9, others: 9).places == places)
+        #expect(strip.allot(needs: 9, others: 9).places == places)
     }
 
     /// Asks numbered a0, a1 and so on, oldest first, and working sessions w0, w1.

@@ -267,18 +267,24 @@ extension Strip {
             shown.append(paint(more, "+\(more.count)", .count, lifted: lifted == .more))
         }
         if let moreNeeds {
-            shown.append(paint(moreNeeds, "+\(moreNeeds.count)", needsCountLook, lifted: lifted == .moreNeeds))
+            if !moreNeeds.removing {
+                moreNeeds.look = needsCountLook
+            }
+            let look = moreNeeds.look ?? .needsCount
+            shown.append(paint(moreNeeds, "+\(moreNeeds.count)", look, lifted: lifted == .moreNeeds))
         }
         return shown
     }
 
     /// Needs you's count: blue while every session it holds is stopped, else orange, an ask answered in it and working
-    /// until the re-sort among them.
+    /// until the re-sort among them. Going, it holds none, and keeps the look it had (`StripMark.look`).
     var needsCountLook: StripFrame.Mark.Look {
         layout.restNeeds.allSatisfy { session($0)?.need == .turn } ? .stoppedCount : .needsCount
     }
 
-    /// A mark as it shows now, its arrival showing only while it is in Needs you.
+    /// A mark as it shows now, its arrival showing only while it waits on Lee for what arrived, so a flash never runs
+    /// on in another colour; but a count, orange while it holds any session not stopped, shows a stop landing in it in
+    /// either colour.
     private func paint(_ m: StripMark, _ text: String, _ look: StripFrame.Mark.Look, lifted: Bool) -> StripFrame.Mark {
         let isJumping = if case let .mark(key) = jumping { key == m.key } else { false }
         let lift = lifted ? 1.0 : 0
@@ -286,8 +292,9 @@ extension Strip {
             to(&m.lift, lift, StripTuning.liftFade)
         }
         let e = t - m.arrived
-        let arriving = look.need != nil && e >= 0 && e < StripTuning.washHold + StripTuning.washFade
-        let washes = arriving && m.washes && look.need == .ask
+        let follows = look.need != nil && (look.need == m.shows.need || m.key == .moreNeeds && m.shows == .stop)
+        let arriving = follows && e >= 0 && e < StripTuning.washHold + StripTuning.washFade
+        let washes = arriving && m.shows == .ask
         let wash = e < StripTuning.washHold ? 1 : 1 - smooth((e - StripTuning.washHold) / StripTuning.washFade)
         // under reduced motion, a leaving ring fades where it was, with the old shape, though the strip has gone
         let shown = m.removing && reducesMotion ? 1 : marksShown * covered(m.y.x, StripTuning.mark / 2)

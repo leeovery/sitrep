@@ -230,7 +230,8 @@ public final class Strip {
     /// - one arriving off the needs you side, new to the strip or already on it, moves in at once, pointer or not; one
     ///   arriving on the needs you side stays where it is;
     /// - one stopping, moved into Lee's turn from working or on its own work, moves in at once too, or stays where it
-    ///   is when it is on the needs you side still, its turn's end come before the re-sort;
+    ///   is when it is on the needs you side still, its turn's end come before the re-sort; one back at a turn whose
+    ///   end it stood at before, so not stopping anew, moves in at once all the same, unflashed;
     /// - each arriving or stopping flashes its ring, or its count's, only where Lee has that pulse on (`pulses`), as
     ///   the notch pulses: a new ask washed too;
     /// - any other new to the strip comes in as the marks re-sort at once, unflashed: needs you with nothing new among
@@ -247,24 +248,29 @@ public final class Strip {
         let fresh = board.filter { was[$0.id] == nil }
         let arriving = board.filter { $0.needsLee && new.contains($0.id) }
         let stopping = board.filter { $0.kind == .turn && stopped.contains($0.id) }
-        let asks = arriving.filter { !needsSlot.contains($0.id) }
-        let stops = stopping.filter { !needsSlot.contains($0.id) }
-        let moving = asks + stops
-        let crossing = moving.filter { was[$0.id] != nil }
-        let changes = board.filter { session in was[session.id].map { $0 != session } ?? false }
         let ask = StripArrival(.ask, pulses: pulses), stop = StripArrival(.turn, pulses: pulses)
+        let asks = arriving.filter { !needsSlot.contains($0.id) }
+        let stops = board.filter { session in
+            session.kind == .turn && !needsSlot.contains(session.id)
+                && (was[session.id] != nil || stopped.contains(session.id))
+        }
+        let moving = asks.map { (session: $0, how: ask) }
+            + stops.map { (session: $0, how: stopped.contains($0.id) ? stop : .quiet) }
+        let crossing = moving.map(\.session).filter { was[$0.id] != nil }
+        let changes = board.filter { session in was[session.id].map { $0 != session } ?? false }
 
         sessions = board
         if !gone.isEmpty {
             leave(gone)
         }
         lift(crossing)
-        changes.filter { !crossing.contains($0) }.forEach(changed)
-        asks.forEach { insertNeeds($0, ask) }
-        stops.forEach { insertNeeds($0, stop) }
+        moving.forEach { insertNeeds($0.session, $0.how) }
+        // after them all, as one may fold another in that has shown its arrival on its own mark
+        moving.filter { layout.restNeeds.contains($0.session.id) }.forEach { landInCount($0.session, $0.how) }
         arriving.filter { !asks.contains($0) }.forEach { flashInPlace($0, ask) }
         stopping.filter { !stops.contains($0) }.forEach { flashInPlace($0, stop) }
-        let others = fresh.filter { !moving.contains($0) }
+        changes.filter { !crossing.contains($0) }.forEach(changed)
+        let others = fresh.filter { session in !moving.contains { $0.session == session } }
         if !others.isEmpty {
             add(others)
         }
