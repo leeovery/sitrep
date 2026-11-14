@@ -59,7 +59,8 @@ public final class Strip {
     /// ... and where each mark goes, from that order.
     var layout = StripLayout()
     var marks: [StripMark] = []
-    /// The grey count in the last place, when there are too many; and needs you's own, when its asks pass its room.
+    /// The grey count in the last place, when there are too many; and needs you's own, when its asks and its stopped
+    /// pass its room.
     var more: StripMark?
     var moreNeeds: StripMark?
     var tabs: [StripTab] = []
@@ -134,8 +135,7 @@ public final class Strip {
         yt = Spring(input.stage.menu)
         centre = clampCentre(stage.height * along)
 
-        display = sessions.map(\.id)
-        needsSlot = Set(sessions.filter(\.needsLee).map(\.id))
+        takeOrder()
         sessions.forEach { _ = markOf($0) }
         relayout(snapAll: true)
         hairOp.snap(layout.hair != nil ? 1 : 0)
@@ -222,24 +222,32 @@ public final class Strip {
     /// The counts there are, the grey one first.
     var counts: [StripMark] { [more, moreNeeds].compactMap(\.self) }
 
-    /// The board's sessions, in core's order, and those of them arriving, holding a line new on it that needs Lee:
+    /// The board's sessions, in the panel's order, those of them arriving, holding a line new on it that needs Lee,
+    /// and those it moved into Lee's turn (`stopped`):
     /// - one gone fades where it is, and the rest close up;
     /// - one changed shows in place, and moves once the pointer has been off the strip for Settle, as one whose asks
-    ///   were answered does;
+    ///   were answered, or whose turn ended, does;
     /// - one arriving off the needs you side, new to the strip or already on it, moves in at once, pointer or not, and
     ///   its ring flashes, or its count's; one arriving on the needs you side flashes where it is;
+    /// - one stopping, moved into Lee's turn from working or on its own work, moves in at once too, its ring flashing,
+    ///   or its count's, only where Lee has Pulse when Claude stops on (`pulsesStops`);
     /// - any other new to the strip comes in as the marks re-sort at once, unflashed: needs you with nothing new among
     ///   them, as on any run's first board.
     ///
     /// `reworded`, what the tabs say of the board changed with it, as when it goes stale: each open tab that says it
     /// takes its new words. A tab takes them once, though its row changed too.
-    public func show(_ board: [Session], new: Set<String>, reworded: Bool = false) {
+    public func show(
+        _ board: [Session], new: Set<String>, stopped: Set<String> = [], pulsesStops: Bool = false,
+        reworded: Bool = false
+    ) {
         let was = Dictionary(sessions.map { ($0.id, $0) }) { first, _ in first }
         let gone = Set(was.keys).subtracting(board.map(\.id))
         let fresh = board.filter { was[$0.id] == nil }
         let arriving = board.filter { $0.needsLee && new.contains($0.id) }
         let asks = arriving.filter { !needsSlot.contains($0.id) }
-        let crossing = asks.filter { was[$0.id] != nil }
+        let stops = board.filter { $0.kind == .turn && stopped.contains($0.id) && !needsSlot.contains($0.id) }
+        let moving = asks + stops
+        let crossing = moving.filter { was[$0.id] != nil }
         let changes = board.filter { session in was[session.id].map { $0 != session } ?? false }
 
         sessions = board
@@ -248,9 +256,10 @@ public final class Strip {
         }
         lift(crossing)
         changes.filter { !crossing.contains($0) }.forEach(changed)
-        asks.forEach(insertNeeds)
+        asks.forEach { insertNeeds($0, .ask) }
+        stops.forEach { insertNeeds($0, pulsesStops ? .stop : .quiet) }
         arriving.filter { !asks.contains($0) }.forEach(flashInPlace)
-        let others = fresh.filter { !asks.contains($0) }
+        let others = fresh.filter { !moving.contains($0) }
         if !others.isEmpty {
             add(others)
         }
@@ -320,9 +329,9 @@ public final class Strip {
 /// A mark on the strip, a session's or a count's; or, with nothing running, the notch at rest, whose tab says so.
 public enum MarkKey: Hashable, Sendable {
     case session(String)
-    /// The grey count, of your turn and working past their places, ...
+    /// The grey count, of working past its places, ...
     case more
-    /// ... and needs you's own orange one, of the asks past its room, the oldest and away ones.
+    /// ... and needs you's own, of those past its room, the end of its order: the stopped, then the away asks.
     case moreNeeds
     case empty
 

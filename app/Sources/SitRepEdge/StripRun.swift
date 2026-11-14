@@ -103,15 +103,19 @@ public final class StripRun: Framed {
         book.latch(swapsEdge: frame.swapsEdge, drained: !frame.isJumping, at: time)
     }
 
-    /// The board as `watch` last printed it: its rows, in core's order, become the marks, a needs you new on it
-    /// flashing; while it is stale, the tabs say since when, an open one taking its new words as it does.
+    /// The board as `watch` last printed it: its rows, in the panel's order, become the marks, a needs you new on it
+    /// flashing, and a session it moved into Lee's turn flashing where Lee has that pulse on, as the notch's pulse
+    /// does; while it is stale, the tabs say since when, an open one taking its new words as it does.
     public func show(_ board: PanelBoard, _ moment: Moment) {
         let note = StripNote(board), reworded = note != said.note
 
         upToNow(moment)
         said.note = note
         self.board = board
-        strip.show(board.sessions, new: board.new, reworded: reworded)
+        strip.show(
+            board.sessions, new: board.new, stopped: board.newTurns, pulsesStops: board.pulses.contains(.turn),
+            reworded: reworded
+        )
     }
 
     /// Where a session's own mark is going on the strip, while it has a place of its own (`Strip.markTarget`).

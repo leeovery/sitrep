@@ -145,6 +145,37 @@ struct NeedsYouTests {
         #expect(notch.told == [told])
     }
 
+    /// On the strip, a session moving into Lee's turn from working moves into Needs you at once, its ring flashing
+    /// while that pulse is on and not while it is off, as the notch's pulse follows it (14 November 2026).
+    @Test(arguments: [(Set<Need>([.ask, .turn]), true), (Set<Need>([.ask]), false)])
+    func onTheStripASessionMovingIntoLeesTurnFlashesWhileThatPulseIsOn(pulses: Set<Need>, flashes: Bool) {
+        let shown = Self.boards(
+            [[Self.working("sr-t"), Self.working()], [Self.turn(), Self.working()]], pulses: pulses
+        )
+        let stage = StripStage(width: 1512, height: 982, menu: 37)
+        let at = { (time: Double) in
+            StripRun.Moment(
+                time: time, pointer: nil, isShown: true,
+                setting: StripRun.Setting(stage: stage, reducesMotion: false)
+            )
+        }
+        let run = StripRun(at: 0, in: at(0).setting, EdgeSettings()) { _ in
+            StripMeasure(row: { _ in 230 }, rows: { _ in 230 }, idle: { 230 })
+        }
+        var flash = 0.0
+
+        run.show(shown[0], at(0))
+        run.show(shown[1], at(100))
+        for frame in 1 ... 120 {
+            run.step(at(100 + Double(frame) * 1000 / 60))
+            flash = max(flash, run.frame.marks.first { $0.key == .session("sr-t") }?.flash ?? 0)
+        }
+
+        let stopped = run.markTarget(of: "sr-t")?.y ?? .infinity, working = run.markTarget(of: "sr-w")?.y ?? 0
+        #expect(stopped < run.frame.hairline.y && run.frame.hairline.y < working && run.frame.hairline.alpha == 1)
+        #expect((flash > 0.5) == flashes)
+    }
+
     /// Told again as what this Mac shows changes, a board brings no pulse of its own.
     @Test func aBoardToldAgainPulsesNothing() {
         let shown = Self.boards([[Self.working("sr-t")], [Self.turn()]], pulses: [.turn])

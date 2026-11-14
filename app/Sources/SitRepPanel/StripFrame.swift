@@ -123,8 +123,18 @@ public struct StripFrame {
             /// An ask's, orange, with the panel dot's glow, the letters white, and away the letters dim; your turn's
             /// the same in blue; working, a grey track with a pale arc turning; on its own work, the dotted ring round
             /// the letters, still, in working's grey; the grey count, a grey ring; needs you's count, orange with its
-            /// glow, the letters white.
-            case needs, away, turn, awayTurn, working, onItsWork, count, needsCount
+            /// glow while it holds any ask, the letters white, and blue holding only the stopped (14 November 2026).
+            case needs, away, turn, awayTurn, working, onItsWork, count, needsCount, stoppedCount
+
+            /// What it waits on Lee for, which its ring's colour says: an ask, in orange, or his turn, the stopped,
+            /// in blue; nil outside Needs you.
+            public var need: Need? {
+                switch self {
+                case .needs, .away, .needsCount: .ask
+                case .turn, .awayTurn, .stoppedCount: .turn
+                case .working, .onItsWork, .count: nil
+                }
+            }
         }
 
         public let key: MarkKey
@@ -140,8 +150,8 @@ public struct StripFrame {
         public let lift: Double
         /// A click on it jumping: the ring presses in and its own arc turns.
         public let isJumping: Bool
-        /// Just arrived, or an ask just landed in it: how washed orange inside the ring, and how bright the ring
-        /// flashes, 0 to 1.
+        /// Just arrived, or one just landed in it: how washed orange inside the ring, as an ask's arrival is, and how
+        /// bright the ring flashes, in its own colour, 0 to 1.
         public let wash: Double
         public let flash: Double
 
@@ -223,9 +233,9 @@ extension Strip {
         )
     }
 
-    /// The marks: those gone faded out are dropped; a new one waiting grows once it's clear; one just arrived, and
-    /// needs you's count as an ask lands in it, is washed orange inside its ring, its glow brighter, for two seconds,
-    /// its ring flashing.
+    /// The marks: those gone faded out are dropped; a new one waiting grows once it's clear; one just arrived in Needs
+    /// you, and needs you's count as one lands in it, has its ring flashing and its glow brighter for two seconds, and
+    /// an ask's is washed orange inside its ring.
     func renderMarks() -> [StripFrame.Mark] {
         let live = liveTab()
         let lifted = hot ?? (live?.phase == .open ? live?.key : nil)
@@ -251,35 +261,39 @@ extension Strip {
             case .working: .working
             case .onItsWork: .onItsWork
             }
-            shown.append(paint(m, s.letters, look, lifted: lifted == m.key, washes: s.kind == .needs))
+            shown.append(paint(m, s.letters, look, lifted: lifted == m.key))
         }
         if let more {
-            shown.append(paint(more, "+\(more.count)", .count, lifted: lifted == .more, washes: false))
+            shown.append(paint(more, "+\(more.count)", .count, lifted: lifted == .more))
         }
         if let moreNeeds {
-            let lift = lifted == .moreNeeds
-            shown.append(paint(moreNeeds, "+\(moreNeeds.count)", .needsCount, lifted: lift, washes: true))
+            shown.append(paint(moreNeeds, "+\(moreNeeds.count)", needsCountLook, lifted: lifted == .moreNeeds))
         }
         return shown
     }
 
-    private func paint(
-        _ m: StripMark, _ text: String, _ look: StripFrame.Mark.Look, lifted: Bool, washes: Bool
-    ) -> StripFrame.Mark {
+    /// Needs you's count: orange while it holds any ask, blue holding only the stopped.
+    var needsCountLook: StripFrame.Mark.Look {
+        layout.restNeeds.contains { session($0)?.need == .ask } ? .needsCount : .stoppedCount
+    }
+
+    /// A mark as it shows now, its arrival showing only while it is in Needs you.
+    private func paint(_ m: StripMark, _ text: String, _ look: StripFrame.Mark.Look, lifted: Bool) -> StripFrame.Mark {
         let isJumping = if case let .mark(key) = jumping { key == m.key } else { false }
         let lift = lifted ? 1.0 : 0
         if m.lift.target != lift {
             to(&m.lift, lift, StripTuning.liftFade)
         }
         let e = t - m.arrived
-        let arriving = washes && e >= 0 && e < StripTuning.washHold + StripTuning.washFade
+        let arriving = look.need != nil && e >= 0 && e < StripTuning.washHold + StripTuning.washFade
+        let washes = arriving && m.washes && look.need == .ask
         let wash = e < StripTuning.washHold ? 1 : 1 - smooth((e - StripTuning.washHold) / StripTuning.washFade)
         // under reduced motion, a leaving ring fades where it was, with the old shape, though the strip has gone
         let shown = m.removing && reducesMotion ? 1 : marksShown * covered(m.y.x, StripTuning.mark / 2)
         return StripFrame.Mark(
             key: m.key, text: text, look: look, centre: CGPoint(x: front / 2, y: m.y.x), scale: m.sc.x,
             alpha: clamp(m.op.x, 0, 1) * clamp(mvis.x, 0, 1) * shown, isLifted: lifted, lift: clamp(m.lift.x, 0, 1),
-            isJumping: isJumping, wash: arriving ? wash : 0, flash: arriving ? flash(m) : 0
+            isJumping: isJumping, wash: washes ? wash : 0, flash: arriving ? flash(m) : 0
         )
     }
 

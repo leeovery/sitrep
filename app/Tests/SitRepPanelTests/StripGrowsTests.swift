@@ -40,8 +40,8 @@ struct StripGrowsTests {
         let lab = StripLab(length: .grows)
         let layout = lab.model.layout
 
-        // four asks, the hairline, four more, and the two ends with Room inside each
-        let marks = 3 * 30 + 2 * 21.5 + 3 * 30.0, ends = 2 * (28 + 2 + 12 + 12.0)
+        // four asks and two stopped, the hairline, two working, and the two ends with Room inside each
+        let marks = 5 * 30 + 2 * 21.5 + 1 * 30.0, ends = 2 * (28 + 2 + 12 + 12.0)
         #expect(layout.length == marks + ends)
         #expect(abs(layout.top + layout.length / 2 - 0.42 * 626) < 1e-9)
         #expect(lab.model.yt.x == layout.top && lab.model.yb.x == layout.bottom)
@@ -124,33 +124,37 @@ struct StripGrowsTests {
     }
 
     /// An answer to an ask in the count changes its row in place; the re-sort waits a settle after the pointer leaves,
-    /// and then the count goes and the last folded ask, the away one, takes its place.
+    /// and then the other ask that landed there takes the place the away one had, and the count holds the end of
+    /// needs you's order, the away ask and the stopped.
     @Test func anAnswerInTheCountShowsInPlaceAndReSortsASettleAfterThePointerLeaves() {
         var lab = StripLab(length: .grows, maxMarks: 6)
         StripLab.asks.prefix(2).forEach(lab.newAsk)
         lab.settle()
-        let count = lab.model.layout.moreNeeds!.y
-        #expect(lab.model.layout.restNeeds == ["s10", "s4"])
+        let fourth = lab.model.layout.y(of: "s4")
+        #expect(lab.model.layout.restNeeds == ["s9", "s10", "s5", "s6"])
         lab.open(.moreNeeds)
 
-        lab.change(StripLab.answered(ask: "s10"))
+        lab.change(StripLab.answered(ask: "s9"))
         lab.wait(200)
         guard case let .rows(rows) = lab.live!.current!.content else {
             Issue.record("the count's tab holds rows")
             return
         }
-        #expect(rows.map(\.lines[0].title) == ["Signing in to the dev account", "Approve the plan for the tool"])
-        #expect(lab.model.layout.restNeeds == ["s10", "s4"])
+        #expect(rows.map(\.lines[0].title) == [
+            "Sizing the diffs", "Allow Bash ", "The management window is sketched",
+            "Waiting for the next round of feedback",
+        ])
+        #expect(lab.model.layout.restNeeds == ["s9", "s10", "s5", "s6"])
 
         let left = lab.leave(by: 40)
         lab.wait(900)
-        #expect(lab.model.layout.moreNeeds != nil)
+        #expect(lab.model.layout.restNeeds.contains("s9"))
         lab.wait(400)
 
         #expect(lab.model.t - left > 1000)
-        #expect(lab.model.layout.moreNeeds == nil)
-        #expect(lab.model.layout.y(of: "s4") == count)
-        #expect(lab.model.layout.rest.contains("s10"))
+        #expect(lab.model.layout.restNeeds == ["s4", "s5", "s6"])
+        #expect(lab.model.layout.y(of: "s10") == fourth)
+        #expect(lab.model.layout.rest.contains("s9"))
     }
 
     /// The prototype's fix: an ask folding into its count while it is still growing in stays out of sight there.
@@ -176,20 +180,20 @@ struct StripGrowsTests {
         let tab = lab.frame.tabs.first { $0.isLive }!, words = tab.words.last!
         let low = CGPoint(x: tab.clip.midX, y: tab.box.minY + 170)
         #expect(words.frame.height == 215)
-        #expect(tab.row(at: low) == "s13")
+        #expect(tab.row(at: low) == "s12")
 
-        lab.model.scroll(by: 100, at: low)
+        lab.model.scroll(by: 200, at: low)
         lab.step()
 
         let scrolled = lab.frame.tabs.first { $0.isLive }!
-        #expect(scrolled.words.last!.scroll == 5 * 43 + 4 * 2 + 16 - 215)
-        #expect(scrolled.row(at: low) == "s4")
+        #expect(scrolled.words.last!.scroll == 7 * 43 + 6 * 2 + 16 - 215)
+        #expect(scrolled.row(at: low) == "s6")
     }
 
     /// An away row in the count's tab jumps as any row does, its session carried on (stage 8).
     @Test func anAwayRowInTheCountsTabJumps() {
         var lab = StripLab(length: .grows, maxMarks: 6)
-        StripLab.asks.prefix(2).forEach(lab.newAsk)
+        lab.add(Array(StripLab.asks.prefix(2)))
         lab.settle()
         lab.open(.moreNeeds)
         let tab = lab.frame.tabs.first { $0.isLive }!
@@ -314,7 +318,8 @@ struct StripGrowsTests {
         lab.model.length = .grows
         lab.model.maxLength = StripLab.maxLength(marks: 5)
         lab.settle()
-        #expect(lab.model.layout.places.count == 4 && lab.model.layout.more?.n == 4)
+        #expect(lab.model.layout.places.count == 3)
+        #expect(lab.model.layout.moreNeeds?.n == 3 && lab.model.layout.more?.n == 2)
     }
 
     /// On the recording's screen, 626 tall, Max's slider runs to 16 marks, Full, hairline or not; a Room of 0 holds

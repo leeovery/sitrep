@@ -46,6 +46,12 @@ extension StripRecorded {
     /// At Lee's settings. Its marks: s1, s8, s9.
     static let empty = recorded("empty")
 
+    /// At Lee's settings. Its marks: s5, s6, s7, s8.
+    static let stops = recorded("stops")
+
+    /// At max 6. Its marks: s4, s7, s8, s9.
+    static let stopsLand = recorded("stopsLand")
+
     /// At Lee's settings. Its marks: s1, s5, s8.
     static let drag = recorded("drag")
 
@@ -58,10 +64,10 @@ extension StripRecorded {
     /// When the ask landed in needs you's count, which flashed, since the first five asks.
     static let landed: Double = 1008
 
-    /// Max 6, the five asks in: the asks folded into needs you's count, newest first and the away one last, and the
-    /// rest into the grey one.
+    /// Max 6, the five asks in: those folded into needs you's count, the asks as they landed in it and the stopped
+    /// after them, and the rest into the grey one.
     static let maxSixFolded: (asks: [String], rest: [String]) = (
-        asks: ["s10", "s11", "s12", "s13", "s4"], rest: ["s5", "s6", "s7", "s8"]
+        asks: ["s9", "s10", "s11", "s12", "s13", "s5", "s6"], rest: ["s7", "s8"]
     )
 
     /// Each tab's width as the browser measured its words, by their lines.
@@ -73,9 +79,9 @@ extension StripRecorded {
         "Writing the bootstrap's tests|Kit · The bootstrap\nReading the Atlas logs|Fabric · Atlas overload from llm-manager\nReshaping the review workflow|Agentic Workflows · Reshape the workflows\nRunning the usage ledger tests|Switchboard · Usage\nBuilding the app|SitRep · Jump to session\nProfiling the dispatcher|Turnstile · Dispatcher limiter\nRunning the exception reporting tests|DocMan · Fix inverted exception reporting\nDrafting the release notes|Goosemates · Release 2.4\nSketching the tool|Terrace · The first cut\nWiring the management window|Fumi · Management window\nCounting tokens per hunk|Mint · Hunk budgets\nMapping the units|Aircon · Discovery\nTracing the jump outside tmux|SitRep · Jump test outside tmux\nRebasing onto main|DocMan · Upload limits\nFixing the limiter's reset|Turnstile · Exception reporting": 276,
         "Fixing the limiter's reset|Turnstile · Exception reporting": 240,
         "Probing the unit's local API|Aircon · Aircon local control": 252,
-        "Allow Bash aws sso login --profile dev|Fabric · Atlas overload from llm-manager\nGive the go for stage 3|Switchboard · Milestone 7 stages 4 to 14\nWhich unit is the bedroom?+2|Aircon · Aircon local control\nApprove the reshaped review workflow|Agentic Workflows · Reshape the workflows\nApprove the plan for the tool|No window holds it. Carry it on in Claude.": 326,
-        "Allow Bash aws sso login --profile dev|Fabric · Atlas overload from llm-manager\nApprove the plan for the tool|No window holds it. Carry it on in Claude.": 326,
-        "Signing in to the dev account|Fabric · Atlas overload from llm-manager\nApprove the plan for the tool|No window holds it. Carry it on in Claude.": 259,
+        "Choose the diff budget|Mint · Token-aware diff sizing\nAllow Bash aws sso login --profile dev|Fabric · Atlas overload from llm-manager\nGive the go for stage 3|Switchboard · Milestone 7 stages 4 to 14\nWhich unit is the bedroom?+2|Aircon · Aircon local control\nApprove the reshaped review workflow|Agentic Workflows · Reshape the workflows\nThe management window is sketched|Fumi · Management window discussion\nWaiting for the next round of feedback|Goosemates · Settle the older open questions": 326,
+        "Choose the diff budget|Mint · Token-aware diff sizing\nAllow Bash aws sso login --profile dev|Fabric · Atlas overload from llm-manager\nThe management window is sketched|Fumi · Management window discussion\nWaiting for the next round of feedback|Goosemates · Settle the older open questions": 326,
+        "Sizing the diffs|Mint · Token-aware diff sizing\nAllow Bash aws sso login --profile dev|Fabric · Atlas overload from llm-manager\nThe management window is sketched|Fumi · Management window discussion\nWaiting for the next round of feedback|Goosemates · Settle the older open questions": 326,
         "Nothing running|SitRep · sessions show here as they start": 274,
     ]
 

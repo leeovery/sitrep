@@ -4375,8 +4375,8 @@ Your turn joined Needs you on 13 November 2026, decided with Lee: an ask
 and a finished turn both mean "go back to this session", Claude needing
 Lee explicitly or implicitly, so they share one section, on the card and
 the menu, and one total, "11 need you", which the card's eyebrow tells
-in two, its asks and its stopped (see "The sections"); the strip keeps its
-places (see "The strip").
+in two, its asks and its stopped (see "The sections"); the strip followed
+the next day (see "The strip").
 **Stopped** is what the Mac app calls a blue row to Lee (Lee, 13 November
 2026): Claude has stopped and waits on him. Settings' Notifications says
 "when Claude stops" for the turn's banner, sound and pulse, the turn's
@@ -5034,7 +5034,9 @@ were settled in the browser spike (below, "How the strip moves").
   - **needs you**: orange, with the panel dot's glow, the letters white; the
     strip doesn't say which kind;
   - **just arrived**: washed orange inside the ring, its glow brighter, for
-    two seconds, and the ring flashes twice, as the notch swells twice;
+    two seconds, and the ring flashes twice, as the notch swells twice; a
+    session stopping, where it flashes (below, "Moving"), flashes its blue,
+    its glow brighter, unwashed (14 November 2026);
   - **away, with an ask**: orange, the letters dim;
   - **your turn**: blue, with the glow, the letters white, and away the
     letters dim, as an ask's mark in blue (13 November 2026; white, with no
@@ -5050,17 +5052,21 @@ were settled in the browser spike (below, "How the strip moves").
     showing with a frozen spinner"). A click's jump still turns an arc on
     it, in the ring's place, as on any mark, and the ring comes back after.
 
-  One hairline sits under needs you. Since 4 November 2026 the marks take
-  the panel's new order, your turn's under it and above working's, as the
-  prototype had them when its timelines were recorded; the card's hairline
-  moved under Your turn (board I) and went that day (board J2), but the
-  strip's stays under needs you,
-  where its places for needs you, its orange count among them, end, and
-  where every recording of the strip's motion has it. So when Your turn
-  joined Needs you (13 November 2026), the strip kept its places: a
-  your-turn mark, blue now, stays under the hairline, over working's, and
-  the orange count holds asks alone, since moving them needs the
-  prototype's timelines recorded again. The letters are the
+  One hairline sits under Needs you, and the strip's Needs you is one, as
+  the panel's is (14 November 2026, Lee's pick): its ask marks, then its
+  stopped marks, in the panel's Needs you order, all over the hairline;
+  working's and on its own work's under it. The prototype was brought to
+  these places and its timelines recorded again by the recorder that made
+  them, so the strip is still checked against it frame by frame. For a
+  day after Your turn joined Needs you (13 November 2026) the strip kept
+  its old places: a your-turn mark, blue, under the hairline and over
+  working's, and the orange count holding asks alone, since moving them
+  needed the timelines recorded again. From 4 November 2026 the marks had
+  taken the panel's order of then, your turn's under the hairline and
+  above working's, as the prototype had them; the card's hairline moved
+  under Your turn (board I) and went that day (board J2), but the strip's
+  stayed under needs you, where its places for needs you end. The letters
+  are the
   project's capitals where it has two (SitRep SR, DocMan DM), else its first
   two (Switchboard Sw, agntc ag); two sessions of one project share them.
   A session with several lines waiting is still one mark.
@@ -5090,28 +5096,43 @@ were settled in the browser spike (below, "How the strip moves").
   below sliding down to make room; any other change shows in place, and the
   marks re-sort a second after the pointer leaves the strip. A mark arrives
   when `new` names any of its lines (see "One engine, two front ends"): new
-  to the strip, or already on it, from working or your turn, it moves into
-  Needs you at once and its ring flashes twice, as a new one's does; one
-  already on the Needs you side, a second ask come, flashes where it is.
-  One whose asks are answered changes in place and moves at the re-sort,
-  as the prototype's answer does (below, "Too many"). The strip shows no
+  to the strip, or already on it, from working or on its own work, it
+  moves into Needs you at once and its ring flashes twice, as a new one's
+  does; one already on the Needs you side, a second ask come or a stopped
+  session asking, flashes where it is. A session stopping, moved from
+  working or on its own work into Lee's turn as `LastBoard.newTurns`
+  decides it for the banner, moves into Needs you at once too, before the
+  stopped, the marks below sliding down (14 November 2026); its ring
+  flashes twice, in its blue and unwashed, only while Settings' "Pulse
+  when Claude stops" is on, as the notch's pulse follows it. Until then a
+  turn ending changed in place under the hairline. One whose asks are
+  answered, or a stopped one whose turn ends, Claude working again,
+  changes in place and moves at the re-sort, as the prototype's answer
+  does (below, "Too many"). The strip shows no
   Snoozed (see "Snooze"): an ask asleep is no mark, and one its time wakes
   arrives as a new one does, flashing its ring; one Lee wakes changes in
   place.
 - **Too many.** The strip has as many places as Max gives it, or as the
   full height holds: about 30 (32 on a 1117pt screen, 27 on a 982pt one).
-  Needs you takes them first, keeping one for your turn and working
-  whenever there are any. Past its room, the sessions needing Lee last in
-  its order, the oldest since Needs you went newest first (4 November 2026;
-  the newest until then), fold into a count of their own: an orange "+N"
-  ring, the needs-you group's last place, over
-  the hairline; away asks fold first (Lee, 19 October 2026: "new asks
-  should collapse into a number of collapsed icons... in the bottom of
-  their own panel"). Your turn and working take the places left, and past
-  them the last place is the grey count ("+3"). Under the pointer each
-  count pours out what it holds as one tab of rows, which scroll on a short
-  strip. A new ask landing in the orange count flashes its ring twice and
-  washes it, as a new mark's, and the marks showing never move. An ask
+  Needs you, its asks and its stopped, takes them first, keeping one for
+  working whenever any is working, on its own work among it. Past its
+  room, the sessions last in its order fold into a count of their own, the
+  needs-you group's last place, over the hairline (Lee, 19 October 2026:
+  "new asks should collapse into a number of collapsed icons... in the
+  bottom of their own panel"): the stopped first, the away ones of them
+  before the rest, then the away asks, then the oldest asks. The count's
+  "+N" counts the sessions it holds, its ring orange while it holds any
+  ask and blue while it holds only the stopped, and its tab lists them as
+  rows, each as its own tab words it (14 November 2026). From 19 October
+  2026 the count held asks alone, always orange, the oldest folding since
+  Needs you went newest first (4 November 2026; the newest until then),
+  and your turn took its places with working, past them in the grey
+  count. Working takes the places left, and past them the last place is
+  the grey count ("+3"). Under the pointer each count pours out what it
+  holds as one tab of rows, which scroll on a short strip. A new ask
+  landing in needs you's count flashes its ring twice and washes it, as a
+  new mark's, and a session stopping there flashes it as its own mark
+  would, only with its pulse on; the marks showing never move. An ask
   answered out of the count changes its row in place; at the re-sort the
   count shrinks, or goes and the last folded mark takes its place. Lee: "It
   works."

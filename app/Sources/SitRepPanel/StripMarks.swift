@@ -18,9 +18,13 @@ final class StripMark {
     /// Gone into a count.
     var folded = false
     var removing = false
-    /// When it arrived as a new needs you, or an ask landed in it, and when its ring flashes.
+    /// When it arrived in Needs you, or one landed in it, when its ring flashes, and whether it is washed, as an ask's
+    /// arrival is.
     var arrived = -1e9
     var flashes: [Double] = []
+    var washes = false
+    /// How it shows its arrival once it has grown into its place.
+    var arrival = StripArrival.ask
     /// A new mark waiting to grow until the mark below has slid out of its way: which, and from where; ...
     var gap: (below: MarkKey, from: Double)?
     /// ... or until the strip has come out of the notch at rest.
@@ -40,6 +44,12 @@ final class StripMark {
     }
 }
 
+/// How a mark coming into Needs you shows it arrived (DESIGN, "The strip", 14 November 2026): an ask washed and its
+/// ring flashing; a session stopping, its ring flashing, where Lee has Pulse when Claude stops on; else neither.
+enum StripArrival {
+    case ask, stop, quiet
+}
+
 /// How the strip's places go: how many it has, and of needs you's and the rest's, how many marks show and whether
 /// each folds the rest into its count.
 struct StripAllotment: Equatable {
@@ -55,7 +65,7 @@ struct StripLayout {
     /// The grey count, in the last place, ...
     var more: (y: Double, n: Int)?
     var rest: [String] = []
-    /// ... and needs you's own orange one, at the end of its group.
+    /// ... and needs you's own, at the end of its group.
     var moreNeeds: (y: Double, n: Int)?
     var restNeeds: [String] = []
     var hair: Double?
@@ -77,9 +87,10 @@ struct StripLayout {
 
 extension Strip {
     /// The strip's places: what the full height holds, or Max, in Grows, if fewer, Max's slider running from five to
-    /// what it holds; never under two. Needs you gets them first, but for one for your turn and working when there are
-    /// any. Past its room, its first marks and, in its last place, its own count of the rest, the oldest and away ones
-    /// last; then your turn and working, past theirs, their marks and the grey count in the last place.
+    /// what it holds; never under two. Needs you, its asks and its stopped, gets them first, but for one for working
+    /// whenever any is. Past its room, its first marks and, in its last place, its own count of the rest, the end of
+    /// its order, so the stopped fold before the asks and the away before the rest; then working, past its own, its
+    /// marks and the grey count in the last place.
     func allot(asks: Int, others: Int) -> StripAllotment {
         let full = fullPlaces(hairline: asks > 0 && others > 0)
         var places = full
@@ -420,13 +431,19 @@ extension Strip {
         return bd <= StripTuning.near ? best : nil
     }
 
-    /// The strip takes core's order, the marks sliding to their places.
+    /// The strip takes the panel's order, the marks sliding to their places.
     func resort() {
         cancel(.settle)
-        display = sessions.map(\.id)
-        needsSlot = Set(sessions.filter(\.needsLee).map(\.id))
+        takeOrder()
         pendingSort = false
         relayout()
+    }
+
+    /// The marks in the panel's order, and those of them over the hairline: Needs you's, its asks and its stopped (14
+    /// November 2026; its asks alone until then).
+    func takeOrder() {
+        display = sessions.map(\.id)
+        needsSlot = Set(sessions.filter { $0.section == .needsYou }.map(\.id))
     }
 
     func settleLater() {
@@ -450,11 +467,11 @@ extension Strip {
         }
     }
 
-    /// A new needs you moves in at once, under the needs you core has above it, or first where core has none. Past
-    /// needs you's room it lands in its count, which flashes, and the marks showing stay where they are; else the
-    /// marks below slide down a step, and it grows into its place as the mark below gets out of the way, washed, its
-    /// ring flashing.
-    func insertNeeds(_ s: Session) {
+    /// A new needs you moves in at once, under the needs you the panel's order has above it, or first where it has
+    /// none. Past needs you's room it lands in its count, and the marks showing stay where they are; else the marks
+    /// below slide down a step, and it grows into its place as the mark below gets out of the way. It, or the count
+    /// it lands in, shows its arrival as `how` says.
+    func insertNeeds(_ s: Session, _ how: StripArrival) {
         let end = display.prefix { needsSlot.contains($0) }.count
         let above = sessions.prefix { $0.id != s.id }.last { needsSlot.contains($0.id) }
         var i = above.flatMap { display.firstIndex(of: $0.id) }.map { $0 + 1 } ?? 0
@@ -465,10 +482,11 @@ extension Strip {
         display.insert(s.id, at: i)
         needsSlot.insert(s.id)
         let m = markOf(s)
+        m.arrival = how
         relayout()
         if layout.restNeeds.contains(s.id) {
             if let count = moreNeeds {
-                arrive(count)
+                arrive(count, how)
             }
             return
         }
@@ -476,7 +494,7 @@ extension Strip {
         m.op.snap(0)
         guard !reducesMotion else {
             to(&m.op, 1, 160)
-            return arrive(m)
+            return arrive(m, how)
         }
 
         m.sc.snap(0.3)
@@ -502,12 +520,17 @@ extension Strip {
 
         springTo(&m.sc, 1, .arrive)
         to(&m.op, 1, 100)
-        arrive(m)
+        arrive(m, m.arrival)
     }
 
-    /// Just arrived: its ring flashes Swells times, 450ms apart.
-    func arrive(_ m: StripMark) {
+    /// Just arrived: its ring flashes Swells times, 450ms apart, and an ask's is washed; a quiet arrival shows neither.
+    func arrive(_ m: StripMark, _ how: StripArrival = .ask) {
+        guard how != .quiet else {
+            return
+        }
+
         m.arrived = t
+        m.washes = how == .ask
         m.flashes = (0 ..< Swift.max(0, feel.swells)).map { t + Double($0) * StripTuning.flashGap }
     }
 

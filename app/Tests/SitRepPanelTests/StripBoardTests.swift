@@ -20,21 +20,23 @@ struct StripBoardTests {
         #expect(lab.model.mark(.session("s9"))!.sc.x < 1)
     }
 
-    /// The marks are core's rows in core's order as it comes: needs you, the newest first, then your turn, then working
-    /// (4 November 2026). The hairline stays under needs you, where needs you's places end.
-    @Test func theMarksTakeCoresOrderYourTurnAboveWorkingTheHairlineUnderNeedsYou() throws {
-        let order = ["s3", "s2", "s1", "s4", "s5", "s6", "s7", "s8"]
-        let sessions = try order.map { id in try #require(StripLab.prototype.first { $0.id == id }) }
+    /// The marks are the rows in the panel's order as it comes, and Needs you's, its asks and then its stopped, are all
+    /// over the one hairline; working and on its own work under it (14 November 2026).
+    @Test func needsYouItsAsksThenItsStoppedIsAllOverTheHairlineWorkingUnderIt() throws {
+        let order = ["s3", "s2", "s1", "s4", "s5", "s6", "s7", "s8", "s9"]
+        let waiting = Session(id: "s9", project: "Kit", kind: .onItsWork, title: "Waiting on", sub: "Kit", since: 0)
+        let sessions = try order.map { id in try #require((StripLab.prototype + [waiting]).first { $0.id == id }) }
         let input = StripInput(time: 1000, pointer: nil, stage: StripLab.stage, reducesMotion: false)
         let strip = Strip(
             feel: .lees, length: .full, maxLength: .full, sessions: sessions, measure: StripLab.measure, input
         )
-        let y = { (id: String) in try #require(strip.layout.y(of: id)) }
+        let ys = try order.map { id in try #require(strip.layout.y(of: id)) }
         let hair = try #require(strip.layout.hair)
 
         #expect(strip.display == order)
-        #expect(try y("s4") < hair && hair < y("s5"))
-        #expect(try y("s6") < y("s7"))
+        #expect(ys == ys.sorted())
+        #expect(ys.prefix(6).allSatisfy { $0 < hair })
+        #expect(ys.suffix(3).allSatisfy { $0 > hair })
     }
 
     @Test func aNeedsYouNewOnTheLineFlashesTwice() {
@@ -46,22 +48,41 @@ struct StripBoardTests {
         #expect(lab.model.mark(.session("s9"))!.flashes.count == 2)
     }
 
-    /// A session on the strip coming to need Lee, from your turn or from working, arrives as a new needs you does: it
-    /// moves into needs you at once, under the needs you core has above it, and its ring flashes twice.
-    @Test(arguments: ["s5", "s7"])
-    func aMarkComingToNeedLeeMovesInAtOnceAndFlashesTwice(id: String) throws {
+    /// A session on the strip coming to need Lee from working arrives as a new needs you does: it moves into needs you
+    /// at once, under the needs you the panel's order has above it, and its ring flashes twice.
+    @Test func aWorkingMarkComingToNeedLeeMovesInAtOnceAndFlashesTwice() throws {
         var lab = StripLab()
-        var asking = try #require(lab.model.session(id))
+        var asking = try #require(lab.model.session("s7"))
         asking.kind = .needs
         asking.lines[0].title = "Approve the plan"
         asking.lines[0].since = -30 * Self.minute
 
         lab.arrive(asking)
 
-        #expect(lab.model.display.prefix(5) == ["s1", id, "s2", "s3", "s4"])
-        #expect(lab.model.needsSlot.contains(id))
-        #expect(lab.wait(1000) { $0.model.mark(.session(id))!.arrived > -1e8 })
-        #expect(lab.model.mark(.session(id))!.flashes.count == 2)
+        #expect(lab.model.display.prefix(5) == ["s1", "s7", "s2", "s3", "s4"])
+        #expect(lab.model.needsSlot.contains("s7"))
+        #expect(lab.wait(1000) { $0.model.mark(.session("s7"))!.arrived > -1e8 })
+        #expect(lab.model.mark(.session("s7"))!.flashes.count == 2)
+    }
+
+    /// A stopped session, already in Needs you, coming to ask flashes where it is, and moves up among the asks at the
+    /// re-sort, as any change in Needs you does.
+    @Test func aStoppedMarkComingToAskFlashesWhereItIsAndMovesAtTheReSort() throws {
+        var lab = StripLab()
+        var asking = try #require(lab.model.session("s5"))
+        asking.kind = .needs
+        asking.lines[0].title = "Approve the plan"
+        asking.lines[0].since = -30 * Self.minute
+
+        lab.arrive(asking)
+
+        #expect(lab.model.display == StripLab.core(StripLab.prototype).map(\.id))
+        #expect(lab.wait(1000) { $0.model.mark(.session("s5"))!.arrived > -1e8 })
+        #expect(lab.model.mark(.session("s5"))!.flashes.count == 2)
+
+        lab.wait(1500)
+
+        #expect(lab.model.display.prefix(3) == ["s1", "s5", "s2"])
     }
 
     /// A needs you gaining a line new on the board stays where it is, and its ring flashes twice.
@@ -179,7 +200,7 @@ struct StripBoardTests {
     }
 
     @Test func aClickOnAMarkNamesItsSessionAndItsSpinEndsAsTheJumpAnswers() {
-        var lab = StripLab(pointer: CGPoint(x: 18, y: 243))
+        var lab = StripLab(pointer: CGPoint(x: 18, y: 230))
         lab.wait(50)
 
         let jumps = lab.model.click(at: lab.pointer!)
@@ -208,18 +229,19 @@ struct StripBoardTests {
         #expect(lab.model.jumping == nil && lab.live == nil)
     }
 
-    @Test func anAwayMarkAndACountNameNoSession() {
+    /// A click on needs you's count, or where a mark folded into it would be, names no session: it opens the count.
+    @Test func aCountNamesNoSessionNorDoesAMarkFoldedIntoIt() {
         var lab = StripLab(length: .grows, maxMarks: 6)
         StripLab.asks.prefix(2).forEach(lab.newAsk)
         lab.settle()
 
-        #expect(lab.model.click(at: lab.on("s4")) == nil)
+        #expect(lab.model.click(at: lab.on("s9")) == nil)
         #expect(lab.model.click(at: lab.on(.moreNeeds)) == nil)
         #expect(lab.live?.key == .moreNeeds)
     }
 
     @Test func aReleaseThatIsNoDragIsAClick() {
-        var lab = StripLab(pointer: CGPoint(x: 18, y: 243))
+        var lab = StripLab(pointer: CGPoint(x: 18, y: 230))
         lab.wait(50)
 
         lab.model.press(at: lab.pointer!)
