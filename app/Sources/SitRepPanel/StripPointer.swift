@@ -107,35 +107,72 @@ extension Strip {
     }
 
     /// A click on the strip or an open tab, in stage coordinates: on a tab or its mark, it jumps, whether or not the
-    /// tab is out yet; on a count, its tab opens at once, and a row on its tab jumps. Crossing to the other edge, it
-    /// takes none. The session it jumps to, if it does.
+    /// tab is out yet; on a count past its section's room, its tab opens at once, and a row on its tab jumps; on a
+    /// section's count folded, the section unfolds (14 November 2026), as a click on its eyebrow on the card does.
+    /// Crossing to the other edge, it takes none. What it came to.
     @discardableResult
-    public func click(at point: CGPoint) -> Session? {
+    public func click(at point: CGPoint) -> StripRelease {
+        guard !crossing else {
+            return .nothing
+        }
+
+        if let (live, shown) = openTab(at: point) {
+            if case let .session(id) = live.key {
+                return StripRelease(jump(live, id, row: false))
+            }
+            return StripRelease(shown.row(at: point).flatMap { jump(live, $0, row: true) })
+        }
+        guard jumping == nil, inStrip(Vec(point.x, point.y)), let key = keyAt(point.y) else {
+            return .nothing
+        }
+        guard case let .session(id) = key else {
+            return key.section.map(clickCount) ?? .nothing
+        }
+
+        if let live = liveTab(), live.phase == .open, live.key == key {
+            return StripRelease(jump(live, id, row: false))
+        }
+        return StripRelease(jumpMark(key) ? session(id) : nil)
+    }
+
+    /// The menu's Jump to the window for a session, by its mark's key: as a click on its tab or on its row in a count's
+    /// tab, where that is out, else as a click on its mark. The session it jumps to, if it does.
+    public func jump(to id: String) -> Session? {
+        if jumping == nil, let live = liveTab(), live.phase == .open {
+            if live.key == .session(id) {
+                return jump(live, id, row: false)
+            }
+            if let section = live.key.section, layout.rest(of: section).contains(id) {
+                return jump(live, id, row: true)
+            }
+        }
+        return jumpMark(.session(id)) ? session(id) : nil
+    }
+
+    /// What a right-click at a point offers a menu for (14 November 2026): a session's mark, its tab, or its row on a
+    /// count's tab, the session; a count, its section, folded or past its room. Nil off them, and while the strip
+    /// crosses to the other edge.
+    public func target(at point: CGPoint) -> StripTarget? {
         guard !crossing else {
             return nil
         }
 
         if let (live, shown) = openTab(at: point) {
-            if case let .session(id) = live.key {
-                return jump(live, id, row: false)
-            }
-            return shown.row(at: point).flatMap { jump(live, $0, row: true) }
+            return shown.row(at: point).flatMap(session).map(StripTarget.session) ?? target(of: live.key)
         }
-        guard jumping == nil, inStrip(Vec(point.x, point.y)), let key = keyAt(point.y) else {
-            return nil
-        }
-        guard case let .session(id) = key else {
-            openCount(key)
-            return nil
-        }
-        guard let session = session(id) else {
+        guard inStrip(Vec(point.x, point.y)), let key = keyAt(point.y) else {
             return nil
         }
 
-        if let live = liveTab(), live.phase == .open, live.key == key {
-            return jump(live, id, row: false)
+        return target(of: key)
+    }
+
+    private func target(of key: MarkKey) -> StripTarget? {
+        switch key {
+        case let .session(id): session(id).map(StripTarget.session)
+        case let .count(section): layout.counts[section].map { .count(section, isFolded: $0.isFolded) }
+        case .empty: nil
         }
-        return jumpMark(key) ? session : nil
     }
 
     /// The jump answered: a click's spin ends now, rather than at its 450ms.
@@ -168,12 +205,12 @@ extension Strip {
 
         pressesTab = false
         guard let held = press else {
-            return onTab ? clicked(at: point) : .nothing
+            return onTab ? click(at: point) : .nothing
         }
 
         press = nil
         guard held.isCarrying else {
-            return clicked(at: point)
+            return click(at: point)
         }
 
         dragging = false
@@ -183,10 +220,6 @@ extension Strip {
             cross()
         }
         return .dropped(along: length == .grows ? centre / stage.height : nil, across: held.isAcross)
-    }
-
-    private func clicked(at point: CGPoint) -> StripRelease {
-        click(at: point).map(StripRelease.jump) ?? .nothing
     }
 
     /// The open tab under a point, and its words as last drawn.
@@ -231,22 +264,30 @@ extension Strip {
         relayout()
     }
 
-    /// A count's tab, at once, and no jump.
-    private func openCount(_ key: MarkKey) {
+    /// A section's count: folded, the section unfolds, its tab drawing back as the count goes; else its tab, at once,
+    /// and no jump.
+    private func clickCount(_ section: BoardSection) -> StripRelease {
         disarmed = nil
-        let live = liveTab()
+        guard !folded.contains(section) else {
+            folded.remove(section)
+            return .unfold(section)
+        }
+
+        let key = MarkKey.count(section), live = liveTab()
         if let live, live.phase == .open {
             if live.key != key {
                 glide(live, to: key)
             }
-            return
+            return .nothing
         }
         if let live, live.key == key {
-            return pour(live)
+            pour(live)
+            return .nothing
         }
 
         drawBack(live)
         pour(makeTab(key))
+        return .nothing
     }
 
     /// A click on an open tab, or one of a count's rows: it presses in and spins until the jump answers, 450ms at
@@ -308,7 +349,30 @@ public enum StripRelease: Equatable {
     case nothing
     /// A click that jumps to this session.
     case jump(Session)
+    /// A click on a section's count folded, which unfolded the section.
+    case unfold(BoardSection)
     /// A drag let the strip go: how far down the screen its centre was left, 0 to 1, where it went along the edge (at
     /// Grows); and whether it was let go past the screen's middle, for the other edge.
     case dropped(along: Double?, across: Bool)
+
+    /// A jump to a session, if there is one.
+    init(_ jump: Session?) {
+        self = jump.map(Self.jump) ?? .nothing
+    }
+
+    /// The session a click jumps to, if it does.
+    public var session: Session? {
+        if case let .jump(session) = self {
+            return session
+        }
+        return nil
+    }
+}
+
+/// What a right-click on the strip offers a menu for (14 November 2026).
+public enum StripTarget: Equatable {
+    /// A session's mark or its row: the menu its row gives on the card, and its section to fold.
+    case session(Session)
+    /// A section's count: folded, to unfold; past its room, to fold.
+    case count(BoardSection, isFolded: Bool)
 }

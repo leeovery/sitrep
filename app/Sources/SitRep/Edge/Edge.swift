@@ -5,8 +5,8 @@ import SitRepPanel
 
 /// What shows at the screen's edge, as Lee set it: the notch or the strip on the chosen display, following each change
 /// Lee makes at once and keeping where a drag moves either, the Mac's Reduce motion followed as it changes, and
-/// nothing over a full-screen app. Both take every board, so whichever Lee chooses shows it, and either shows the
-/// callout a welcome's Done leaves until Lee first points at it.
+/// nothing over a full-screen app. Both take every board, so whichever Lee chooses shows it, fold the same sections,
+/// and either shows the callout a welcome's Done leaves until Lee first points at it.
 @MainActor
 final class Edge {
     private let preferences: Preferences
@@ -28,16 +28,18 @@ final class Edge {
     /// What Lee set, followed as it changes; `jump` jumps to a session, and tells once it answers whether it jumped;
     /// `snoozes` snoozes and wakes a row's asks from its menu.
     init(_ preferences: Preferences, jump: @escaping (String, @escaping (JumpAnswer) -> Void) -> Void, snoozes: Snoozes) {
-        let settings = preferences.edge, display = Displays.chosen(settings)
+        let settings = preferences.edge, display = Displays.chosen(settings), folding = Folding(kept: SavedSettings())
 
         self.preferences = preferences
         self.settings = settings
-        notch = NotchController(settings, on: display)
-        strip = StripController(settings, on: display)
+        notch = NotchController(settings, on: display, folding: folding)
+        strip = StripController(settings, on: display, folding: folding)
         notch.onJump = jump
         notch.onSnooze = { snoozes.snoozeRow($0, showing: $1, $2) }
         notch.onWake = { snoozes.wakeRow($0) }
         strip.onJump = jump
+        strip.onSnooze = notch.onSnooze
+        strip.onWake = notch.onWake
         notch.onMoved = { [unowned self] in moved($0) }
         strip.onMoved = { [unowned self] in moved($0) }
         fullScreen.onChange = { [unowned self] in show() }

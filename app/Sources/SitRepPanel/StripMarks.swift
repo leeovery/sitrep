@@ -3,7 +3,8 @@ import Foundation
 
 /// A mark: its place along the strip, its scale and its opacity, each a spring.
 final class StripMark {
-    let key: MarkKey
+    /// What it is, which a snooze or a wake renames as the session's row moves into Snoozed or out of it.
+    var key: MarkKey
     /// Its session as last told; nil for a count, ...
     var session: Session?
     /// ... which holds this many.
@@ -27,8 +28,10 @@ final class StripMark {
     var arrivalOf: String?
     /// How it shows its arrival once it has grown into its place.
     var arrival = StripArrival.ask
-    /// A count's look as it last showed, which it keeps as it goes.
+    /// A count's look as it last showed, which it keeps as it goes; and whether it holds its section folded, which
+    /// says how many it holds with no "+".
     var look: StripFrame.Mark.Look?
+    var isFolded = false
     /// A new mark waiting to grow until the mark below has slid out of its way: which, and from where; ...
     var gap: (below: MarkKey, from: Double)?
     /// ... or until the strip has come out of the notch at rest.
@@ -76,25 +79,52 @@ enum StripArrival {
     }
 }
 
-/// How the strip's places go: how many it has, and of needs you's and the rest's, how many marks show and whether
-/// each folds the rest into its count.
+/// How the strip's places go: how many it has, and of each section, how many marks show and whether it has a count,
+/// of those past its room or, folded, of them all.
 struct StripAllotment: Equatable {
     let places: Int
-    let needs: Int, foldsNeeds: Bool
-    let others: Int, foldsOthers: Bool
+    let shown: [BoardSection: Int]
+    let counted: Set<BoardSection>
+
+    /// A section's marks showing.
+    func shown(_ section: BoardSection) -> Int {
+        shown[section, default: 0]
+    }
 }
 
-/// Where everything goes, from the strip's order: each mark's place, the counts' and what each holds, the hairline's,
-/// and where the strip runs.
+/// A section's count: its place, the sessions it holds by their marks' keys, and whether it holds the section
+/// folded, all of it, or those past its room.
+struct StripCount: Equatable {
+    let y: Double
+    let held: [String]
+    let isFolded: Bool
+
+    var n: Int { held.count }
+}
+
+/// One of the hairlines between two sections, and how much of it shows.
+struct StripHair {
+    var y = Spring(0)
+    var op = Spring(0)
+
+    mutating func step(_ dt: Double) {
+        y.step(dt)
+        op.step(dt)
+    }
+
+    /// At its place at once, as the screen changes.
+    mutating func snapToPlace() {
+        y.snap(y.target)
+    }
+}
+
+/// Where everything goes, from the strip's order: each mark's place, each section's count and what it holds, the
+/// hairlines', and where the strip runs.
 struct StripLayout {
     var places: [(id: String, y: Double)] = []
-    /// The grey count, in the last place, ...
-    var more: (y: Double, n: Int)?
-    var rest: [String] = []
-    /// ... and needs you's own, at the end of its group.
-    var moreNeeds: (y: Double, n: Int)?
-    var restNeeds: [String] = []
-    var hair: Double?
+    var counts: [BoardSection: StripCount] = [:]
+    /// The hairline over each section after the first showing, by the section under it.
+    var hairs: [BoardSection: Double] = [:]
     /// How many places it has.
     var count = 0
     /// The strip's top end, how long it runs, and its bottom end.
@@ -102,68 +132,85 @@ struct StripLayout {
     /// Nothing is running.
     var isEmpty = true
 
+    /// The sections a hairline can go over: any after the first.
+    static let hairlined = Array(BoardSection.allCases.dropFirst())
+
     func y(of id: String) -> Double? {
         places.first { $0.id == id }?.y
     }
 
-    func spec(of count: MarkKey) -> (y: Double, n: Int)? {
-        count == .more ? more : moreNeeds
+    /// The sessions a section's count holds, none where it has none.
+    func rest(of section: BoardSection) -> [String] {
+        counts[section]?.held ?? []
+    }
+
+    /// The count holding a session, past its section's room or folded, if one does.
+    func count(holding id: String) -> StripCount? {
+        counts.values.first { $0.held.contains(id) }
     }
 }
 
 extension Strip {
-    /// The strip's places: what the full height holds, or Max, in Grows, if fewer, Max's slider running from five to
-    /// what it holds; never under two. Needs you, its asks and its stopped, gets them first, but for one for working
-    /// whenever any is. Past its room, its first marks and, in its last place, its own count of the rest, the end of
-    /// its order, so the stopped fold before the asks and the away before the rest; then working, past its own, its
-    /// marks and the grey count in the last place.
-    func allot(needs: Int, others: Int) -> StripAllotment {
-        let full = fullPlaces(hairline: needs > 0 && others > 0)
+    /// The strip's places: what the full height holds, each hairline taking 13pt more than a step, or Max, in Grows,
+    /// if fewer, Max's slider running from five to what it holds; never under two, nor under one for each section
+    /// showing. Each section takes its places in its turn, keeping one for each after it that holds any (14 November
+    /// 2026): Needs you, its asks and its stopped, first, then Working, Snoozed last. A section folded takes one, its
+    /// count. Past its room a section shows its first marks and, in its last place, its own count of the rest, the end
+    /// of its order, so Needs you's stopped fold before its asks and its away before the rest.
+    func allot(_ sizes: [BoardSection: Int]) -> StripAllotment {
+        let showing = BoardSection.allCases.filter { sizes[$0, default: 0] > 0 }
+        let full = fullPlaces(hairlines: Swift.max(0, showing.count - 1))
         var places = full
         if length == .grows, let most = maxLength.places(longest: full) {
             places = min(places, most)
         }
-        places = Swift.max(2, places)
+        places = Swift.max(2, showing.count, places)
 
-        var shownNeeds = needs, foldsNeeds = false, shownOthers = others, foldsOthers = false
-        if needs + others > places {
-            let room = others > 0 ? places - 1 : places
-            if needs > room {
-                shownNeeds = room - 1
-                foldsNeeds = true
-            }
-            let left = places - shownNeeds - (foldsNeeds ? 1 : 0)
-            if others > left {
-                shownOthers = left - 1
-                foldsOthers = true
+        var shown: [BoardSection: Int] = [:], counted: Set<BoardSection> = [], left = places
+        for (i, section) in showing.enumerated() {
+            let room = left - (showing.count - 1 - i), n = sizes[section]!
+            if folded.contains(section) {
+                counted.insert(section)
+                left -= 1
+            } else if n <= room {
+                shown[section] = n
+                left -= n
+            } else {
+                shown[section] = room - 1
+                counted.insert(section)
+                left -= room
             }
         }
-        return StripAllotment(
-            places: places, needs: shownNeeds, foldsNeeds: foldsNeeds, others: shownOthers, foldsOthers: foldsOthers
-        )
+        return StripAllotment(places: places, shown: shown, counted: counted)
     }
 
-    /// A mark every 30pt from under the top end, the hairline under needs you, and past what fits, the counts. The
-    /// strip runs, at Grows, as long as its marks need (its two ends, Room inside each, the marks between), centred on
-    /// the notch's place and held inside the screen; with nothing running, the notch at rest; past the full strip, or
-    /// at Full, the full strip.
-    func computeLayout() -> StripLayout {
-        let needs = display.filter(needsSlot.contains), others = display.filter { !needsSlot.contains($0) }
-        let a = allot(needs: needs.count, others: others.count)
-        let shown: [MarkKey] = needs.prefix(a.needs).map(MarkKey.session) + (a.foldsNeeds ? [.moreNeeds] : [])
-            + others.prefix(a.others).map(MarkKey.session) + (a.foldsOthers ? [.more] : [])
-        func isNeeds(_ key: MarkKey) -> Bool {
-            if case let .session(id) = key {
-                return needsSlot.contains(id)
+    /// How many of the strip's marks each section holds, as its order stands, and this many more arriving in Needs
+    /// you.
+    func sizes(arriving: Int = 0) -> [BoardSection: Int] {
+        display.reduce(into: [.needsYou: arriving]) { sizes, id in
+            if let section = slot[id] {
+                sizes[section, default: 0] += 1
             }
-            return key == .moreNeeds
+        }
+    }
+
+    /// A mark every 30pt from under the top end, a hairline between each two sections, and in each section's last
+    /// place its count, past what fits or folded. The strip runs, at Grows, as long as its marks need (its two ends,
+    /// Room inside each, the marks between), centred on the notch's place and held inside the screen; with nothing
+    /// running, the notch at rest; past the full strip, or at Full, the full strip.
+    func computeLayout() -> StripLayout {
+        let groups = BoardSection.allCases.map { section in (section, display.filter { slot[$0] == section }) }
+        let a = allot(Dictionary(uniqueKeysWithValues: groups.map { ($0.0, $0.1.count) }))
+        let shown: [(key: MarkKey, section: BoardSection)] = groups.flatMap { section, ids in
+            ids.prefix(a.shown(section)).map { (MarkKey.session($0), section) }
+                + (a.counted.contains(section) ? [(MarkKey.count(section), section)] : [])
         }
 
-        var rel: [Double] = [], y = 0.0, hairRel: Double?
-        for (i, key) in shown.enumerated() {
-            if i > 0, isNeeds(shown[i - 1]), !isNeeds(key) {
+        var rel: [Double] = [], y = 0.0, hairRel: [BoardSection: Double] = [:]
+        for (i, place) in shown.enumerated() {
+            if i > 0, shown[i - 1].section != place.section {
                 let line = y + StripTuning.hair
-                hairRel = line
+                hairRel[place.section] = line
                 y = line + StripTuning.hair
             } else if i > 0 {
                 y += StripTuning.pitch
@@ -179,15 +226,19 @@ extension Strip {
         let y0 = grows ? top + endPad : firstY
 
         var layout = StripLayout(
-            rest: a.foldsOthers ? Array(others[a.others...]) : [],
-            restNeeds: a.foldsNeeds ? Array(needs[a.needs...]) : [], hair: hairRel.map { y0 + $0 }, count: a.places,
-            top: top, length: length, bottom: grows ? top + length : bottomEnd, isEmpty: display.isEmpty
+            hairs: hairRel.mapValues { y0 + $0 }, count: a.places, top: top, length: length,
+            bottom: grows ? top + length : bottomEnd, isEmpty: display.isEmpty
         )
-        for (key, y) in zip(shown, rel.map { y0 + $0 }) {
-            switch key {
+        let held = Dictionary(
+            uniqueKeysWithValues: groups.map { section, ids in (section, ids.dropFirst(a.shown(section))) }
+        )
+        for (place, y) in zip(shown, rel.map { y0 + $0 }) {
+            switch place.key {
             case let .session(id): layout.places.append((id, y))
-            case .more: layout.more = (y, others.count - a.others)
-            case .moreNeeds: layout.moreNeeds = (y, needs.count - a.needs)
+            case let .count(section):
+                layout.counts[section] = StripCount(
+                    y: y, held: Array(held[section] ?? []), isFolded: folded.contains(section)
+                )
             case .empty: break
             }
         }
@@ -216,7 +267,7 @@ extension Strip {
     func relayout(snapAll: Bool = false) {
         let before = layout
         layout = computeLayout()
-        let onStrip = Set(display), inNeedsCount = Set(layout.restNeeds)
+        let onStrip = Set(display)
         var moved = false
         func move(_ spring: inout Spring, _ y: Double) -> Bool {
             guard abs(spring.target - y) >= 0.01 || snapAll else {
@@ -260,24 +311,17 @@ extension Strip {
                 } else if reducesMotion, m.op.x < 1 {
                     to(&m.op, 1, 160)
                 }
-            } else if let into = inNeedsCount.contains(id) ? layout.moreNeeds : layout.more {
+            } else if let into = layout.count(holding: id) {
                 fold(m, into: into.y, move)
             }
         }
 
-        if let y = layout.hair {
-            if hairOp.target < 0.5 {
-                hair.snap(y)
-                to(&hairOp, 1, 220)
-            } else {
-                _ = move(&hair, y)
-            }
-        } else {
-            to(&hairOp, 0, 200)
+        for section in StripLayout.hairlined {
+            placeHair(section, move)
         }
-
-        placeCount(\.more, layout.more, .more, move)
-        placeCount(\.moreNeeds, layout.moreNeeds, .moreNeeds, move)
+        for section in BoardSection.allCases {
+            placeCount(section, move)
+        }
 
         if moved, let live = liveTab(), live.phase == .open {
             // Lee's choice: while marks slide, an open tab keeps with its mark
@@ -304,22 +348,34 @@ extension Strip {
         }
     }
 
-    /// A count: it arrives growing, slides, or goes.
-    private func placeCount(
-        _ slot: ReferenceWritableKeyPath<Strip, StripMark?>, _ spec: (y: Double, n: Int)?, _ key: MarkKey,
-        _ move: (inout Spring, Double) -> Bool
-    ) {
-        guard let spec else {
-            if let c = self[keyPath: slot], !c.removing {
+    /// The hairline over a section: it fades in where it comes, slides, or fades out where it goes.
+    private func placeHair(_ section: BoardSection, _ move: (inout Spring, Double) -> Bool) {
+        guard let y = layout.hairs[section] else {
+            return to(&hairs[section]!.op, 0, 200)
+        }
+
+        if hairs[section]!.op.target < 0.5 {
+            hairs[section]!.y.snap(y)
+            to(&hairs[section]!.op, 1, 220)
+        } else {
+            _ = move(&hairs[section]!.y, y)
+        }
+    }
+
+    /// A section's count: it arrives growing, slides, or goes.
+    private func placeCount(_ section: BoardSection, _ move: (inout Spring, Double) -> Bool) {
+        guard let spec = layout.counts[section] else {
+            if let c = counts[section], !c.removing {
                 c.removing = true
                 to(&c.op, 0, 200)
             }
             return
         }
 
-        let c = self[keyPath: slot] ?? StripMark(key, session: nil, opacity: 0)
-        self[keyPath: slot] = c
+        let c = counts[section] ?? StripMark(.count(section), session: nil, opacity: 0)
+        counts[section] = c
         c.count = spec.n
+        c.isFolded = spec.isFolded
         if c.removing || c.op.target < 0.5 {
             c.removing = false
             c.y.snap(spec.y)
@@ -338,14 +394,11 @@ extension Strip {
             return
         }
 
-        let holds = [(MarkKey.more, layout.rest, before.rest), (.moreNeeds, layout.restNeeds, before.restNeeds)]
-        for (key, held, was) in holds
-            where live.key == key && live.phase == .open
-        {
-            if layout.spec(of: key) == nil {
+        if let section = live.key.section, live.phase == .open {
+            if layout.counts[section] == nil {
                 drawBack(live)
-            } else if held != was {
-                relayer(live, key, 0)
+            } else if layout.rest(of: section) != before.rest(of: section) {
+                relayer(live, live.key, 0)
             }
         }
         if live.key == .empty, !(layout.isEmpty && length == .grows) {
@@ -403,11 +456,11 @@ extension Strip {
     }
 
     func markOf(_ s: Session) -> StripMark {
-        if let m = mark(.session(s.id)) {
+        if let m = mark(.session(s.markID)) {
             return m
         }
 
-        let m = StripMark(.session(s.id), session: s, opacity: 1)
+        let m = StripMark(.session(s.markID), session: s, opacity: 1)
         marks.append(m)
         return m
     }
@@ -415,8 +468,7 @@ extension Strip {
     func mark(_ key: MarkKey) -> StripMark? {
         switch key {
         case .session: marks.first { $0.key == key }
-        case .more: more
-        case .moreNeeds: moreNeeds
+        case let .count(section): counts[section]
         case .empty: nil
         }
     }
@@ -424,22 +476,15 @@ extension Strip {
     /// The y a key's mark sits at, by the layout (where marks are going): a folded session's, its count's.
     func yOf(_ key: MarkKey) -> Double {
         switch key {
-        case let .session(id):
-            if let y = layout.y(of: id) {
-                return y
-            }
-            if let into = layout.moreNeeds, layout.restNeeds.contains(id) {
-                return into.y
-            }
-            return layout.more?.y ?? 0
-        case .more, .moreNeeds: return layout.spec(of: key)?.y ?? 0
-        case .empty: return layout.top + layout.length / 2
+        case let .session(id): layout.y(of: id) ?? layout.count(holding: id)?.y ?? 0
+        case let .count(section): layout.counts[section]?.y ?? 0
+        case .empty: layout.top + layout.length / 2
         }
     }
 
-    /// Where a session's own mark is going, by the layout, never a place it slides through on the way: half the
-    /// strip's depth in, at its place's height. Nil while it has no place of its own, folded into a count or not yet
-    /// on the strip.
+    /// Where a session's own mark is going, by its key, by the layout, never a place it slides through on the way: half
+    /// the strip's depth in, at its place's height. Nil while it has no place of its own, folded into a count or not
+    /// yet on the strip.
     public func markTarget(of id: String) -> CGPoint? {
         layout.y(of: id).map { CGPoint(x: front / 2, y: $0) }
     }
@@ -447,8 +492,8 @@ extension Strip {
     /// The mark under the pointer's height: the nearest centre, within `near`.
     func keyAt(_ y: Double) -> MarkKey? {
         let sessions = layout.places.map { (MarkKey.session($0.id), $0.y) }
-        let counts = [(MarkKey.more, layout.more?.y), (.moreNeeds, layout.moreNeeds?.y)].compactMap { key, y in
-            y.map { (key, $0) }
+        let counts = BoardSection.allCases.compactMap { section in
+            layout.counts[section].map { (MarkKey.count(section), $0.y) }
         }
         var best: MarkKey?, bd = Double.infinity
         for (key, py) in sessions + counts where abs(py - y) < bd {
@@ -466,11 +511,11 @@ extension Strip {
         relayout()
     }
 
-    /// The marks in the panel's order, and those of them over the hairline: Needs you's, its asks and its stopped (14
-    /// November 2026; its asks alone until then).
+    /// The marks in the panel's order, and the section each sits in: Needs you's, its asks and its stopped, over the
+    /// hairline (14 November 2026; its asks alone until then), Working's under it, and Snoozed's under their own.
     func takeOrder() {
-        display = sessions.map(\.id)
-        needsSlot = Set(sessions.filter { $0.section == .needsYou }.map(\.id))
+        display = sessions.map(\.markID)
+        slot = Dictionary(sessions.map { ($0.markID, $0.section) }) { first, _ in first }
     }
 
     func settleLater() {
@@ -482,9 +527,9 @@ extension Strip {
     /// A change shown in place: a count's tab holding it takes its new words, and its own tab with what else changed
     /// (`show`).
     func changed(_ s: Session) {
-        mark(.session(s.id))?.session = s
-        if let live = liveTab(), live.phase == .open, live.key.isCount,
-           (live.key == .more ? layout.rest : layout.restNeeds).contains(s.id)
+        mark(.session(s.markID))?.session = s
+        if let live = liveTab(), live.phase == .open, let section = live.key.section,
+           layout.rest(of: section).contains(s.markID)
         {
             relayer(live, live.key, 0)
         }
@@ -501,23 +546,23 @@ extension Strip {
     /// below gets out of the way, showing its arrival as `how` says. Landing in the count, it leaves the count's flash
     /// to its caller, which knows what else the update put there.
     func insertNeeds(_ s: Session, _ how: StripArrival) {
-        let end = display.prefix { needsSlot.contains($0) }.count
-        let above = sessions.prefix { $0.id != s.id }.last { needsSlot.contains($0.id) }
-        var i = above.flatMap { display.firstIndex(of: $0.id) }.map { $0 + 1 } ?? 0
-        let a = allot(needs: end + 1, others: display.count - end)
-        if a.foldsNeeds, i < a.needs {
+        let end = display.prefix { slot[$0] == .needsYou }.count
+        let above = sessions.prefix { $0.markID != s.markID }.last { slot[$0.markID] == .needsYou }
+        var i = above.flatMap { display.firstIndex(of: $0.markID) }.map { $0 + 1 } ?? 0
+        let a = allot(sizes(arriving: 1))
+        if a.counted.contains(.needsYou), i < a.shown(.needsYou) {
             if s.need == .ask, let stop = lastStopShowing(from: i, end: end) {
                 pushOut(at: stop.at, shown: stop.shown)
             } else {
-                i = a.needs
+                i = a.shown(.needsYou)
             }
         }
-        display.insert(s.id, at: i)
-        needsSlot.insert(s.id)
+        display.insert(s.markID, at: i)
+        slot[s.markID] = .needsYou
         let m = markOf(s)
         m.arrival = how
         relayout()
-        guard !layout.restNeeds.contains(s.id) else {
+        guard !layout.rest(of: .needsYou).contains(s.markID) else {
             return
         }
 
@@ -529,7 +574,9 @@ extension Strip {
 
         m.sc.snap(0.3)
         let next = display[(i + 1)...].first { layout.y(of: $0) != nil }.map(MarkKey.session)
-        let below = next ?? [MarkKey.moreNeeds, .more].first { layout.spec(of: $0) != nil && mark($0) != nil }
+        let below = next ?? BoardSection.allCases.map(MarkKey.count).first { key in
+            key.section.flatMap { layout.counts[$0] } != nil && mark(key) != nil
+        }
         let spring = below.flatMap(mark)?.y
         m.gap = spring.flatMap { abs($0.target - $0.x) > 1 ? (below!, $0.x) : nil }
         if drawnIn.x > StripTuning.marksGo {
@@ -544,7 +591,7 @@ extension Strip {
     /// them show; nil with none. What shows is worked out from the order as it stands, never the layout, which a
     /// session lifted out to arrive has left stale: its place under the hairline gone, Needs you may have more room.
     private func lastStopShowing(from i: Int, end: Int) -> (at: Int, shown: Int)? {
-        let room = allot(needs: end, others: display.count - end), shown = room.foldsNeeds ? room.needs : end
+        let room = allot(sizes()), shown = room.counted.contains(.needsYou) ? room.shown(.needsYou) : end
 
         return display.prefix(shown).lastIndex { session($0)?.need == .turn }.flatMap { $0 >= i ? ($0, shown) : nil }
     }
@@ -619,7 +666,7 @@ extension Strip {
     /// Sessions on the strip arriving in needs you, taken from their places to move in as a new needs you does,
     /// unplaced and out of any count: any tab of theirs draws back, as a mark's leaving does.
     func lift(_ crossing: [Session]) {
-        let ids = Set(crossing.map(\.id))
+        let ids = Set(crossing.map(\.markID))
 
         for tab in tabs {
             if case let .session(id) = tab.key, ids.contains(id) {
@@ -627,32 +674,33 @@ extension Strip {
             }
         }
         for s in crossing {
-            if let m = mark(.session(s.id)) {
+            if let m = mark(.session(s.markID)) {
                 m.session = s
                 m.fresh = true
                 m.folded = false
             }
         }
         display.removeAll(where: ids.contains)
-        needsSlot.subtract(ids)
+        ids.forEach { slot[$0] = nil }
     }
 
     /// A mark already on the needs you side arriving again, a new line needing Lee or its session stopping: its ring
-    /// flashes where it is, or its count's, as `how` says; quiet, its own mark's earlier arrival ends.
+    /// flashes where it is, or its count's, past its room or folded, as `how` says; quiet, its own mark's earlier
+    /// arrival ends.
     func flashInPlace(_ s: Session, _ how: StripArrival) {
-        if layout.restNeeds.contains(s.id) {
+        if layout.rest(of: .needsYou).contains(s.markID) {
             landInCount(s, how)
-        } else if let m = mark(.session(s.id)) {
+        } else if let m = mark(.session(s.markID)) {
             m.arrival = how
             arrive(m, how)
         }
     }
 
-    /// One arriving in needs you's count: the count flashes as `how` says, for it, unless an ask's landing there in the
-    /// same moment outshows it; quiet, it keeps what an earlier arrival there shows, unless that was this session's
-    /// own, which ends.
+    /// One arriving in needs you's count, past its room or folded: the count flashes as `how` says, for it, unless an
+    /// ask's landing there in the same moment outshows it; quiet, it keeps what an earlier arrival there shows, unless
+    /// that was this session's own, which ends.
     func landInCount(_ s: Session, _ how: StripArrival) {
-        guard let count = moreNeeds, how != .quiet || count.arrivalOf == s.id else {
+        guard let count = counts[.needsYou], how != .quiet || count.arrivalOf == s.markID else {
             return
         }
 
@@ -660,7 +708,7 @@ extension Strip {
         if count.shows == .quiet {
             count.arrivalOf = nil
         } else if count.shows == how {
-            count.arrivalOf = s.id
+            count.arrivalOf = s.markID
         }
     }
 
@@ -673,14 +721,14 @@ extension Strip {
             }
         }
         for m in marks where !m.removing {
-            if let id = m.session?.id, gone.contains(id) {
+            if case let .session(id) = m.key, gone.contains(id) {
                 m.removing = true
                 to(&m.op, 0, 200)
                 springTo(&m.sc, 0.6, .slide)
             }
         }
         display.removeAll(where: gone.contains)
-        needsSlot.subtract(gone)
+        gone.forEach { slot[$0] = nil }
         relayout()
     }
 }

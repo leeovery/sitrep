@@ -15,7 +15,7 @@ struct StripNeedsYouTests {
         lab.stop(StripLab.stopped, pulses: pulses)
 
         #expect(lab.model.display == ["s1", "s2", "s3", "s4", "s7", "s5", "s6", "s8"])
-        #expect(lab.model.needsSlot.contains("s7"))
+        #expect(lab.model.slot["s7"] == .needsYou)
         var flash = 0.0, wash = 0.0
         lab.wait(2500) { lab in
             let mark = lab.frame.marks.first { $0.key == .session("s7") }!
@@ -24,7 +24,7 @@ struct StripNeedsYouTests {
             return false
         }
         let mark = lab.model.mark(.session("s7"))!
-        #expect(mark.sc.x == 1 && lab.model.layout.y(of: "s7")! < lab.model.layout.hair!)
+        #expect(mark.sc.x == 1 && lab.model.layout.y(of: "s7")! < lab.model.layout.hairs[.working]!)
         #expect(mark.flashes.count == (pulses ? 2 : 0))
         #expect((flash > 0.5) == pulses)
         #expect(wash == 0)
@@ -38,8 +38,8 @@ struct StripNeedsYouTests {
         lab.stop(StripLab.stopped, pulses: pulses)
         lab.wait(2500)
 
-        let count = lab.model.moreNeeds!
-        #expect(lab.model.layout.restNeeds == ["s7", "s5", "s6"])
+        let count = lab.model.counts[.needsYou]!
+        #expect(lab.model.layout.rest(of: .needsYou) == ["s7", "s5", "s6"])
         #expect(count.flashes.count == (pulses ? 2 : 0) && count.shows == (pulses ? .stop : .quiet))
     }
 
@@ -59,7 +59,7 @@ struct StripNeedsYouTests {
         lab.wait(1500)
 
         #expect(lab.model.display.suffix(2) == ["s8", "s7"])
-        #expect(lab.model.layout.y(of: "s7")! > lab.model.layout.hair!)
+        #expect(lab.model.layout.y(of: "s7")! > lab.model.layout.hairs[.working]!)
     }
 
     /// Past its room needs you folds the end of its order: the stopped while every ask still shows, then the away ask.
@@ -67,8 +67,8 @@ struct StripNeedsYouTests {
     func needsYouFoldsTheEndOfItsOrderTheStoppedFirst(max: Int, folded: [String]) {
         let lab = StripLab(length: .grows, maxMarks: max)
 
-        #expect(lab.model.layout.restNeeds == folded)
-        #expect(lab.model.layout.moreNeeds!.n == folded.count)
+        #expect(lab.model.layout.rest(of: .needsYou) == folded)
+        #expect(lab.model.layout.counts[.needsYou]!.n == folded.count)
     }
 
     /// Needs you's count is blue while all it holds are stopped, and orange holding an ask, with the stopped or alone.
@@ -81,21 +81,21 @@ struct StripNeedsYouTests {
         lab.add(added)
         lab.settle()
 
-        #expect(lab.frame.marks.first { $0.key == .moreNeeds }?.look == look)
+        #expect(lab.frame.marks.first { $0.key == .count(.needsYou) }?.look == look)
     }
 
     @Test func needsYousCountHoldingOnlyAsksIsOrange() {
         let asks = (0 ..< 8).map { Session(id: "a\($0)", project: "Ask", kind: .needs, title: "", sub: "", since: 0) }
         let lab = StripLab(sessions: asks, length: .grows, maxMarks: 5)
 
-        #expect(lab.frame.marks.first { $0.key == .moreNeeds }?.look == .needsCount)
+        #expect(lab.frame.marks.first { $0.key == .count(.needsYou) }?.look == .needsCount)
     }
 
     /// The count's tab lists what it holds as rows, the asks and the stopped each its own session's row.
     @Test func needsYousCountsTabListsItsAsksAndItsStoppedAsRows() {
         var lab = StripLab(length: .grows, maxMarks: 6)
         lab.add(Array(StripLab.asks.prefix(2)))
-        lab.open(.moreNeeds)
+        lab.open(.count(.needsYou))
 
         guard case let .rows(rows) = lab.live!.current!.content else {
             Issue.record("the count's tab holds rows")
@@ -122,8 +122,8 @@ struct StripNeedsYouTests {
         }
         lab.step()
 
-        #expect(ids.allSatisfy(lab.model.layout.restNeeds.contains))
-        #expect(lab.frame.marks.first { $0.key == .moreNeeds }?.look == .needsCount)
+        #expect(ids.allSatisfy(lab.model.layout.rest(of: .needsYou).contains))
+        #expect(lab.frame.marks.first { $0.key == .count(.needsYou) }?.look == .needsCount)
     }
 
     /// A session still on the needs you side, its turn ended or its ask answered before the re-sort, stopping again
@@ -160,8 +160,8 @@ struct StripNeedsYouTests {
         fumi.kind = .turn
         lab.stop(fumi, pulses: true)
 
-        #expect(lab.model.layout.restNeeds.contains("s5"))
-        #expect(lab.model.moreNeeds!.flashes.count == 2 && lab.model.moreNeeds!.shows == .stop)
+        #expect(lab.model.layout.rest(of: .needsYou).contains("s5"))
+        #expect(lab.model.counts[.needsYou]!.flashes.count == 2 && lab.model.counts[.needsYou]!.shows == .stop)
     }
 
     /// With "Pulse for a new ask" off, a new ask still moves in at once, but unflashed and unwashed, as a mark or landing
@@ -169,7 +169,7 @@ struct StripNeedsYouTests {
     @Test(arguments: [nil, 6])
     func withItsPulseOffANewAskMovesInUnflashed(marks: Int?) {
         var lab = StripLab(length: .grows, maxMarks: marks)
-        let count = lab.model.moreNeeds?.flashes
+        let count = lab.model.counts[.needsYou]?.flashes
 
         lab.newAsk(StripLab.ask, pulses: [.turn])
         var flash = 0.0, wash = 0.0
@@ -179,9 +179,10 @@ struct StripNeedsYouTests {
             return false
         }
 
-        #expect(lab.model.needsSlot.contains("s9"))
-        #expect(marks == nil ? lab.model.mark(.session("s9"))!.sc.x == 1 : lab.model.layout.restNeeds.contains("s9"))
-        #expect(lab.model.moreNeeds?.flashes == count)
+        #expect(lab.model.slot["s9"] == .needsYou)
+        let folded = lab.model.layout.rest(of: .needsYou)
+        #expect(marks == nil ? lab.model.mark(.session("s9"))!.sc.x == 1 : folded.contains("s9"))
+        #expect(lab.model.counts[.needsYou]?.flashes == count)
         #expect(flash == 0 && wash == 0)
     }
 
@@ -233,17 +234,17 @@ struct StripNeedsYouTests {
             lab.open("a0")
         }
         let places = lab.model.layout.places
-        let pushed = places.last!.id, folded = lab.model.layout.restNeeds
+        let pushed = places.last!.id, folded = lab.model.layout.rest(of: .needsYou)
         var shown = places.map(\.id).dropLast()
         shown.insert("n", at: asks)
 
         lab.newAsk(Self.newest)
 
         #expect(pushed.hasPrefix("t") && !folded.isEmpty)
-        #expect(lab.model.layout.restNeeds == [pushed] + folded)
+        #expect(lab.model.layout.rest(of: .needsYou) == [pushed] + folded)
         #expect(lab.model.layout.places.map(\.id) == Array(shown))
         #expect(lab.model.layout.places.map(\.y) == places.map(\.y))
-        #expect(lab.frame.marks.first { $0.key == .moreNeeds }?.look == .stoppedCount)
+        #expect(lab.frame.marks.first { $0.key == .count(.needsYou) }?.look == .stoppedCount)
     }
 
     /// The pointer on the stopped mark an ask pushes out: its tab draws back, as a mark's leaving does.
@@ -253,7 +254,7 @@ struct StripNeedsYouTests {
 
         lab.newAsk(Self.newest)
 
-        #expect(lab.model.layout.restNeeds.first == "t1")
+        #expect(lab.model.layout.rest(of: .needsYou).first == "t1")
         let tabs = lab.model.tabs.filter { $0.key == .session("t1") }
         #expect(!tabs.isEmpty && tabs.allSatisfy { $0.phase == .closing })
     }
@@ -277,13 +278,13 @@ struct StripNeedsYouTests {
 
         lab.newAsk(Self.newest)
 
-        #expect(lab.model.layout.restNeeds.first == pushed)
+        #expect(lab.model.layout.rest(of: .needsYou).first == pushed)
         #expect(lab.model.layout.y(of: "n") == places[3].y)
         #expect(stays.allSatisfy { lab.model.layout.places.map(\.id).contains($0.id) })
         if !working.isEmpty {
             #expect(lab.model.layout.y(of: working) == places.first { $0.id == working }!.y)
         } else {
-            #expect(lab.model.layout.restNeeds.last == "t0")
+            #expect(lab.model.layout.rest(of: .needsYou).last == "t0")
         }
     }
 
@@ -307,7 +308,7 @@ struct StripNeedsYouTests {
         lab.newAsk(ask)
 
         #expect(lab.model.layout.places.map(\.id) == places)
-        #expect(lab.model.layout.restNeeds.contains("n"))
+        #expect(lab.model.layout.rest(of: .needsYou).contains("n"))
     }
 
     /// The only working session asking, its place under the hairline gone: Needs you's room grows by it, so the
@@ -320,7 +321,7 @@ struct StripNeedsYouTests {
     ) {
         let working = Session(id: "w", project: "Work", kind: .working, title: "", sub: "", since: 0)
         let lab = StripLab(sessions: Self.full(asks: asks, stopped: stopped) + [working], length: .grows, maxMarks: max)
-        #expect(lab.model.layout.y(of: "w") != nil && lab.model.layout.moreNeeds != nil)
+        #expect(lab.model.layout.y(of: "w") != nil && lab.model.layout.counts[.needsYou] != nil)
         var asking = working
         asking.kind = .needs
         asking.lines[0].since = 100
@@ -329,7 +330,7 @@ struct StripNeedsYouTests {
 
         let asked = (0 ..< asks).map { "a\($0)" } + ["w"]
         #expect(Array(lab.model.layout.places.map(\.id).prefix(asks + 1)) == asked)
-        #expect(lab.model.layout.restNeeds == folded)
+        #expect(lab.model.layout.rest(of: .needsYou) == folded)
     }
 
     /// An ask whose landing the count flashes, answered there and stopping with the pulse off before the re-sort:
@@ -338,8 +339,8 @@ struct StripNeedsYouTests {
     func aQuietLandingEndsTheCountsFlashOnlyForItsOwnSession(same: Bool) {
         var lab = StripLab(length: .grows, maxMarks: 6)
         lab.newAsk(StripLab.ask)
-        let flashes = lab.model.moreNeeds!.flashes
-        #expect(lab.model.layout.restNeeds.contains("s9") && flashes.count == 2)
+        let flashes = lab.model.counts[.needsYou]!.flashes
+        #expect(lab.model.layout.rest(of: .needsYou).contains("s9") && flashes.count == 2)
 
         if same {
             var answered = StripLab.answered(ask: "s9")
@@ -351,7 +352,7 @@ struct StripNeedsYouTests {
             lab.stop(StripLab.stopped)
         }
 
-        #expect(lab.model.moreNeeds!.flashes == (same ? [] : flashes))
+        #expect(lab.model.counts[.needsYou]!.flashes == (same ? [] : flashes))
     }
 
     /// With only asks showing, a new ask lands in the count, and no mark showing moves.
@@ -363,7 +364,7 @@ struct StripNeedsYouTests {
 
         lab.newAsk(ask)
 
-        #expect(lab.model.layout.restNeeds.first == "n")
+        #expect(lab.model.layout.rest(of: .needsYou).first == "n")
         #expect(places.allSatisfy { lab.model.layout.y(of: $0.id) == $0.y })
     }
 
@@ -377,7 +378,7 @@ struct StripNeedsYouTests {
         lab.stop(StripLab.stopped)
 
         #expect(shown.contains("t1"))
-        #expect(lab.model.layout.restNeeds.first == "s7")
+        #expect(lab.model.layout.rest(of: .needsYou).first == "s7")
         #expect(needsYou() == shown)
     }
 
@@ -389,17 +390,17 @@ struct StripNeedsYouTests {
     @Test(arguments: [(7, 0, "a6", Need.ask), (3, 4, "t3", .turn)])
     func aCountGoingKeepsItsColour(asks: Int, stopped: Int, leaving: String, need: Need) {
         var lab = StripLab(sessions: Self.full(asks: asks, stopped: stopped), length: .grows, maxMarks: 6)
-        #expect(lab.model.layout.restNeeds.contains(leaving))
+        #expect(lab.model.layout.rest(of: .needsYou).contains(leaving))
 
         lab.remove([leaving])
 
         var looks: [Need?] = []
         lab.wait(400) { lab in
-            looks += lab.frame.marks.filter { $0.key == .moreNeeds }.map(\.look.need)
+            looks += lab.frame.marks.filter { $0.key == .count(.needsYou) }.map(\.look.need)
             return false
         }
         #expect(!looks.isEmpty && looks.allSatisfy { $0 == need })
-        #expect(lab.model.moreNeeds == nil)
+        #expect(lab.model.counts[.needsYou] == nil)
     }
 
     /// Two working sessions asking in one update while the grey count shows each take their place in Needs you at
@@ -409,7 +410,7 @@ struct StripNeedsYouTests {
             Session(id: "w\($0)", project: "Work", kind: .working, title: "", sub: "", since: Double($0))
         }
         let lab = StripLab(sessions: working)
-        #expect(lab.model.layout.more != nil)
+        #expect(lab.model.layout.counts[.working] != nil)
         let asking = working.prefix(2).map { session in
             var asking = session
             asking.kind = .needs
@@ -433,7 +434,7 @@ struct StripNeedsYouTests {
         lab.turnBack(StripLab.stopped)
 
         #expect(lab.model.display == ["s1", "s2", "s3", "s4", "s7", "s5", "s6", "s8"])
-        #expect(lab.model.needsSlot.contains("s7"))
+        #expect(lab.model.slot["s7"] == .needsYou)
         var flash = 0.0
         lab.wait(2500) { lab in
             flash = max(flash, lab.frame.marks.first { $0.key == .session("s7") }!.flash)
@@ -448,7 +449,7 @@ struct StripNeedsYouTests {
     @Test(arguments: [(7, true), (7, false), (5, true), (5, false)])
     func anAskAndAStopInOneUpdateShowTheAsksArrivalOnTheCount(asks: Int, pulses: Bool) {
         let lab = StripLab(sessions: Self.full(asks: asks, stopped: 0) + [Self.working], length: .grows, maxMarks: 6)
-        #expect((lab.model.layout.moreNeeds == nil) == (asks == 5))
+        #expect((lab.model.layout.counts[.needsYou] == nil) == (asks == 5))
         var stopping = Self.working
         stopping.kind = .turn
 
@@ -457,8 +458,8 @@ struct StripNeedsYouTests {
             stopped: ["w"], pulses: pulses ? [.ask, .turn] : [.ask]
         )
 
-        let count = lab.model.moreNeeds!
-        #expect(lab.model.layout.restNeeds.suffix(2) == ["n", "w"])
+        let count = lab.model.counts[.needsYou]!
+        #expect(lab.model.layout.rest(of: .needsYou).suffix(2) == ["n", "w"])
         #expect(count.shows == .ask && count.arrivalOf == "n" && count.flashes.count == 2)
     }
 
@@ -491,12 +492,12 @@ struct StripNeedsYouTests {
 
         var flash = 0.0, looks: Set<StripFrame.Mark.Look> = []
         lab.wait(2500) { lab in
-            let count = lab.frame.marks.first { $0.key == .moreNeeds }!
+            let count = lab.frame.marks.first { $0.key == .count(.needsYou) }!
             flash = max(flash, count.flash)
             looks.insert(count.look)
             return false
         }
-        #expect(lab.model.layout.restNeeds.last == "w")
+        #expect(lab.model.layout.rest(of: .needsYou).last == "w")
         #expect(flash > 0.5 && looks == [.needsCount])
     }
 }

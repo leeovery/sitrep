@@ -20,10 +20,10 @@ struct StripGrowsTests {
         let layout = lab.model.layout
 
         #expect(layout.places.filter { $0.id.hasPrefix("a") }.count == shownAsks)
-        #expect(layout.moreNeeds?.n ?? 0 == orange)
+        #expect(layout.counts[.needsYou]?.n ?? 0 == orange)
         #expect(layout.places.filter { $0.id.hasPrefix("w") }.count == shownOthers)
-        #expect(layout.more?.n ?? 0 == grey)
-        let counts = [layout.moreNeeds, layout.more].compactMap(\.self).count
+        #expect(layout.counts[.working]?.n ?? 0 == grey)
+        let counts = [layout.counts[.needsYou], layout.counts[.working]].compactMap(\.self).count
         #expect(layout.places.count + counts == min(asks + others, max == 0 ? 16 : Int(max)))
     }
 
@@ -32,8 +32,9 @@ struct StripGrowsTests {
         let lab = StripLab(sessions: Self.sessions(asks: 9, others: 4), length: .grows, maxMarks: 6)
         let layout = lab.model.layout
 
-        #expect(layout.moreNeeds!.y < layout.hair! && layout.hair! < layout.more!.y)
-        #expect(layout.places.allSatisfy { $0.y < layout.moreNeeds!.y })
+        let hairline = layout.hairs[.working]!
+        #expect(layout.counts[.needsYou]!.y < hairline && hairline < layout.counts[.working]!.y)
+        #expect(layout.places.allSatisfy { $0.y < layout.counts[.needsYou]!.y })
     }
 
     @Test func atGrowsTheStripIsAsLongAsItsMarksNeedCentred42PercentDown() {
@@ -94,7 +95,7 @@ struct StripGrowsTests {
         }
 
         #expect(still)
-        #expect(lab.model.layout.restNeeds.contains(StripLab.asks[before].id))
+        #expect(lab.model.layout.rest(of: .needsYou).contains(StripLab.asks[before].id))
         #expect(lab.model.yt.x == top && lab.model.yb.x == bottom)
     }
 
@@ -109,12 +110,12 @@ struct StripGrowsTests {
         lab.newAsk(StripLab.asks[5])
         var seen: [(t: Double, flash: Double, wash: Double)] = []
         lab.wait(2200) { lab in
-            let count = lab.frame.marks.first { $0.key == .moreNeeds }!
+            let count = lab.frame.marks.first { $0.key == .count(.needsYou) }!
             seen.append((lab.model.t - landed, count.flash, count.wash))
             return false
         }
 
-        #expect(lab.model.moreNeeds!.flashes == [landed, landed + 450])
+        #expect(lab.model.counts[.needsYou]!.flashes == [landed, landed + 450])
         let peaks = seen.indices.dropFirst().dropLast().filter {
             seen[$0].flash > seen[$0 - 1].flash && seen[$0].flash >= seen[$0 + 1].flash
         }
@@ -131,8 +132,8 @@ struct StripGrowsTests {
         StripLab.asks.prefix(2).forEach(lab.newAsk)
         lab.settle()
         let fourth = lab.model.layout.y(of: "s4")
-        #expect(lab.model.layout.restNeeds == ["s9", "s10", "s5", "s6"])
-        lab.open(.moreNeeds)
+        #expect(lab.model.layout.rest(of: .needsYou) == ["s9", "s10", "s5", "s6"])
+        lab.open(.count(.needsYou))
 
         lab.change(StripLab.answered(ask: "s9"))
         lab.wait(200)
@@ -144,17 +145,17 @@ struct StripGrowsTests {
             "Sizing the diffs", "Allow Bash ", "The management window is sketched",
             "Waiting for the next round of feedback",
         ])
-        #expect(lab.model.layout.restNeeds == ["s9", "s10", "s5", "s6"])
+        #expect(lab.model.layout.rest(of: .needsYou) == ["s9", "s10", "s5", "s6"])
 
         let left = lab.leave(by: 40)
         lab.wait(900)
-        #expect(lab.model.layout.restNeeds.contains("s9"))
+        #expect(lab.model.layout.rest(of: .needsYou).contains("s9"))
         lab.wait(400)
 
         #expect(lab.model.t - left > 1000)
-        #expect(lab.model.layout.restNeeds == ["s4", "s5", "s6"])
+        #expect(lab.model.layout.rest(of: .needsYou) == ["s4", "s5", "s6"])
         #expect(lab.model.layout.y(of: "s10") == fourth)
-        #expect(lab.model.layout.rest.contains("s9"))
+        #expect(lab.model.layout.rest(of: .working).contains("s9"))
     }
 
     /// The prototype's fix: an ask folding into its count while it is still growing in stays out of sight there.
@@ -164,7 +165,7 @@ struct StripGrowsTests {
         lab.newAsk(StripLab.ask)
         #expect(lab.model.mark(.session("s9"))!.gap != nil)
         lab.add([Session(id: "w0", project: "Kit", kind: .working, title: "", sub: "", since: 0)])
-        #expect(lab.model.layout.restNeeds == ["s9", "s4"])
+        #expect(lab.model.layout.rest(of: .needsYou) == ["s9", "s4"])
         lab.settle()
 
         let mark = lab.model.mark(.session("s9"))!
@@ -176,7 +177,7 @@ struct StripGrowsTests {
         var lab = StripLab(length: .grows, maxMarks: 6)
         StripLab.asks.prefix(5).forEach(lab.newAsk)
         lab.settle()
-        lab.open(.moreNeeds)
+        lab.open(.count(.needsYou))
         let tab = lab.frame.tabs.first { $0.isLive }!, words = tab.words.last!
         let low = CGPoint(x: tab.clip.midX, y: tab.box.minY + 170)
         #expect(words.frame.height == 215)
@@ -195,12 +196,12 @@ struct StripGrowsTests {
         var lab = StripLab(length: .grows, maxMarks: 6)
         lab.add(Array(StripLab.asks.prefix(2)))
         lab.settle()
-        lab.open(.moreNeeds)
+        lab.open(.count(.needsYou))
         let tab = lab.frame.tabs.first { $0.isLive }!
         let away = CGPoint(x: tab.clip.midX, y: tab.box.minY + tab.words.last!.frame.minY + 8 + 45 + 20)
         #expect(tab.row(at: away) == "s4")
 
-        #expect(lab.model.click(at: away)?.id == "s4")
+        #expect(lab.model.click(at: away).session?.id == "s4")
         #expect(lab.model.jumping != nil)
     }
 
@@ -319,7 +320,7 @@ struct StripGrowsTests {
         lab.model.maxLength = StripLab.maxLength(marks: 5)
         lab.settle()
         #expect(lab.model.layout.places.count == 3)
-        #expect(lab.model.layout.moreNeeds?.n == 3 && lab.model.layout.more?.n == 2)
+        #expect(lab.model.layout.counts[.needsYou]?.n == 3 && lab.model.layout.counts[.working]?.n == 2)
     }
 
     /// On the recording's screen, 626 tall, Max's slider runs to 16 marks, Full, hairline or not; a Room of 0 holds
@@ -330,13 +331,13 @@ struct StripGrowsTests {
         let taller = StripInput(time: 0, pointer: nil, stage: StripStage(width: 1512, height: 982, menu: 37))
         let model = StripLab().model
 
-        #expect(model.fullPlaces(hairline: false) == StripLab.longest)
-        #expect(model.fullPlaces(hairline: true) == StripLab.longest)
-        #expect(StripLab(feel: roomless).model.fullPlaces(hairline: false) == 17)
+        #expect(model.fullPlaces(hairlines: 0) == StripLab.longest)
+        #expect(model.fullPlaces(hairlines: 1) == StripLab.longest)
+        #expect(StripLab(feel: roomless).model.fullPlaces(hairlines: 0) == 17)
         let strip = Strip(
             length: .grows, maxLength: .full, along: Tuning.notchAt, sessions: [], measure: StripLab.measure, taller
         )
-        #expect(strip.fullPlaces(hairline: false) == 28)
+        #expect(strip.fullPlaces(hairlines: 0) == 28)
     }
 
     /// On a screen where the hairline costs the full strip a place, Max's slider runs to what holds with it: its top is
@@ -351,8 +352,8 @@ struct StripGrowsTests {
             measure: StripLab.measure, input
         )
 
-        #expect(strip.fullPlaces(hairline: false) == 16 && strip.fullPlaces(hairline: true) == 15)
-        #expect(strip.allot(needs: 9, others: 9).places == places)
+        #expect(strip.fullPlaces(hairlines: 0) == 16 && strip.fullPlaces(hairlines: 1) == 15)
+        #expect(strip.allot([.needsYou: 9, .working: 9]).places == places)
     }
 
     /// Asks numbered a0, a1 and so on, oldest first, and working sessions w0, w1.

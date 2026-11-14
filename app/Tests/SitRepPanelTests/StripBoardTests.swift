@@ -31,7 +31,7 @@ struct StripBoardTests {
             feel: .lees, length: .full, maxLength: .full, sessions: sessions, measure: StripLab.measure, input
         )
         let ys = try order.map { id in try #require(strip.layout.y(of: id)) }
-        let hair = try #require(strip.layout.hair)
+        let hair = try #require(strip.layout.hairs[.working])
 
         #expect(strip.display == order)
         #expect(ys == ys.sorted())
@@ -60,7 +60,7 @@ struct StripBoardTests {
         lab.arrive(asking)
 
         #expect(lab.model.display.prefix(5) == ["s1", "s7", "s2", "s3", "s4"])
-        #expect(lab.model.needsSlot.contains("s7"))
+        #expect(lab.model.slot["s7"] == .needsYou)
         #expect(lab.wait(1000) { $0.model.mark(.session("s7"))!.arrived > -1e8 })
         #expect(lab.model.mark(.session("s7"))!.flashes.count == 2)
     }
@@ -205,7 +205,7 @@ struct StripBoardTests {
 
         let jumps = lab.model.click(at: lab.pointer!)
         lab.wait(100)
-        #expect(jumps?.id == "s6")
+        #expect(jumps.session?.id == "s6")
         #expect(lab.frame.isJumping)
 
         lab.model.jumpAnswered()
@@ -225,7 +225,7 @@ struct StripBoardTests {
         lab.model.jumpAnswered()
         lab.step()
 
-        #expect(jumps?.id == "s5")
+        #expect(jumps.session?.id == "s5")
         #expect(lab.model.jumping == nil && lab.live == nil)
     }
 
@@ -235,9 +235,9 @@ struct StripBoardTests {
         StripLab.asks.prefix(2).forEach(lab.newAsk)
         lab.settle()
 
-        #expect(lab.model.click(at: lab.on("s9")) == nil)
-        #expect(lab.model.click(at: lab.on(.moreNeeds)) == nil)
-        #expect(lab.live?.key == .moreNeeds)
+        #expect(lab.model.click(at: lab.on("s9")) == .nothing)
+        #expect(lab.model.click(at: lab.on(.count(.needsYou))) == .nothing)
+        #expect(lab.live?.key == .count(.needsYou))
     }
 
     @Test func aReleaseThatIsNoDragIsAClick() {

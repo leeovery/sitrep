@@ -2,9 +2,11 @@ import CoreGraphics
 import Foundation
 
 /// The strip, ported from its prototype (strip.html) at Lee's choices: the bezel grown into a 36pt black strip on the
-/// screen's edge that never shuts, every session a mark on it in the panel's order, and a mark under the pointer
-/// pouring its panel row out of the strip as a tab. At Grows it is only as long as its marks need, centred where the
-/// notch sits, and with nothing running it draws back into the notch at rest; at Full it runs the screen's height.
+/// screen's edge that never shuts, every session a mark on it in the panel's order and its sections, Needs you, Working
+/// and Snoozed, a hairline between each two, each section folded to one count as Lee folds it on the card or here, and
+/// a mark under the pointer pouring its panel row out of the strip as a tab. At Grows it is only as long as its marks
+/// need, centred where the notch sits, and with nothing running it draws back into the notch at rest; at Full it runs
+/// the screen's height.
 /// The view tells it the board as core orders it, feeds it a frame at a time and draws what each gives back, as it
 /// does a notch. Core decides the marks and their order; the strip decides only how a change moves. Its coordinates
 /// are the edge's own: x into the screen from its edge, y down from its top.
@@ -24,6 +26,16 @@ public final class Strip {
         didSet {
             if maxLength != oldValue {
                 relayoutShape()
+            }
+        }
+    }
+
+    /// The sections folded, each to its count in one place, the card's setting as well (14 November 2026): changing it
+    /// lays the strip out again at once, the marks going into a count or coming out of it and those below sliding.
+    public var folded: Set<BoardSection> {
+        didSet {
+            if folded != oldValue {
+                relayout()
             }
         }
     }
@@ -52,17 +64,16 @@ public final class Strip {
     var trail = Trail()
     var timers = SimTimers<Strip, StripTimer>()
 
-    /// The marks' order on the strip: the panel's order as of the last sort, new needs you put in, ...
+    /// The marks' order on the strip, by their keys (`Session.markID`): the panel's order as of the last sort, new
+    /// needs you put in, ...
     var display: [String] = []
-    /// ... those of them on the needs you side of the hairline, as of then, ...
-    var needsSlot: Set<String> = []
+    /// ... the section each of them sits in, as of then, ...
+    var slot: [String: BoardSection] = [:]
     /// ... and where each mark goes, from that order.
     var layout = StripLayout()
     var marks: [StripMark] = []
-    /// The grey count in the last place, when there are too many; and needs you's own, when its asks and its stopped
-    /// pass its room.
-    var more: StripMark?
-    var moreNeeds: StripMark?
+    /// Each section's count, past its room or folded.
+    var counts: [BoardSection: StripMark] = [:]
     var tabs: [StripTab] = []
     /// The tabs as last drawn, which a click is hit-tested against, and the strip's black.
     var lastTabs: [StripFrame.Tab] = []
@@ -102,30 +113,31 @@ public final class Strip {
     var pressesTab = false
     var dragging = false
 
-    /// The hairline under needs you, and how much of it shows.
-    var hair = Spring(0)
-    var hairOp = Spring(0)
+    /// The hairline over each section after the first showing, by the section under it, and how much of it shows.
+    var hairs = Dictionary(uniqueKeysWithValues: StripLayout.hairlined.map { ($0, StripHair()) })
     /// Under reduced motion, a black cross-fading out from where it was, and since when.
     var fade: (outline: CGPath, t0: Double)?
 
-    /// At Lee's feel, from its first frame's input, its sessions in core's order.
+    /// At Lee's feel, from its first frame's input, its sessions in core's order, these sections folded.
     public convenience init(
-        length: StripLength, maxLength: StripMax, along: Double, sessions: [Session], measure: StripMeasure,
-        _ input: StripInput
+        length: StripLength, maxLength: StripMax, along: Double, folded: Set<BoardSection> = BoardSection.foldedAtFirst,
+        sessions: [Session], measure: StripMeasure, _ input: StripInput
     ) {
         self.init(
-            feel: .lees, length: length, maxLength: maxLength, along: along, sessions: sessions, measure: measure,
-            input
+            feel: .lees, length: length, maxLength: maxLength, along: along, folded: folded, sessions: sessions,
+            measure: measure, input
         )
     }
 
     init(
         feel: StripFeel, length: StripLength, maxLength: StripMax, along: Double = Tuning.notchAt,
-        sessions: [Session], measure: StripMeasure, _ input: StripInput
+        folded: Set<BoardSection> = BoardSection.foldedAtFirst, sessions: [Session], measure: StripMeasure,
+        _ input: StripInput
     ) {
         self.feel = feel
         self.length = length
         self.maxLength = maxLength
+        self.folded = folded
         self.along = along
         self.sessions = sessions
         self.measure = measure
@@ -138,7 +150,9 @@ public final class Strip {
         takeOrder()
         sessions.forEach { _ = markOf($0) }
         relayout(snapAll: true)
-        hairOp.snap(layout.hair != nil ? 1 : 0)
+        for section in StripLayout.hairlined {
+            hairs[section]?.op.snap(layout.hairs[section] != nil ? 1 : 0)
+        }
     }
 
     /// One frame: the view's news since the last, then the prototype's frame loop, in its order.
@@ -150,10 +164,13 @@ public final class Strip {
         t += dt
         runTimers()
         updateHover()
-        for key in [\Strip.hair, \.hairOp, \.yt, \.yb, \.drawnIn, \.sw, \.mvis] {
+        for key in [\Strip.yt, \.yb, \.drawnIn, \.sw, \.mvis] {
             self[keyPath: key].step(dt)
         }
-        for mark in marks + counts {
+        for section in StripLayout.hairlined {
+            hairs[section]?.step(dt)
+        }
+        for mark in marks + countMarks {
             mark.step(dt)
         }
         for tab in tabs {
@@ -202,8 +219,10 @@ public final class Strip {
             stage = input.stage
             centre = clampCentre(stage.height * along)
             relayout(snapAll: true)
-            hair.snap(hair.target)
-            for count in counts {
+            for section in StripLayout.hairlined {
+                hairs[section]?.snapToPlace()
+            }
+            for count in countMarks {
                 count.y.snap(count.y.target)
             }
         }
@@ -219,8 +238,8 @@ public final class Strip {
         }
     }
 
-    /// The counts there are, the grey one first.
-    var counts: [StripMark] { [more, moreNeeds].compactMap(\.self) }
+    /// The counts there are, in their sections' order.
+    var countMarks: [StripMark] { BoardSection.allCases.compactMap { counts[$0] } }
 
     /// The board's sessions, in the panel's order, those of them arriving, holding a line new on it that needs Lee,
     /// and those it moved into Lee's turn (`stopped`):
@@ -235,38 +254,47 @@ public final class Strip {
     /// - each arriving or stopping flashes its ring, or its count's, only where Lee has that pulse on (`pulses`), as
     ///   the notch pulses: a new ask washed too;
     /// - any other new to the strip comes in as the marks re-sort at once, unflashed: needs you with nothing new among
-    ///   them, as on any run's first board.
+    ///   them, as on any run's first board;
+    /// - one snoozed, or woken, its row in Snoozed coming as its row elsewhere goes or the other way round, keeps its
+    ///   mark, which changes in place and moves as any change does.
     ///
-    /// `reworded`, what the tabs say of the board changed with it, as when it goes stale: each open tab that says it
-    /// takes its new words. A tab takes them once, though its row changed too.
+    /// Its sessions are its rows, each a mark by its key (`Session.markID`), so a session with a row in Snoozed and
+    /// another in Needs you or Working has two. `reworded`, what the tabs say of the board changed with it, as when it
+    /// goes stale: each open tab that says it takes its new words. A tab takes them once, though its row changed too.
     public func show(
         _ board: [Session], new: Set<String>, stopped: Set<String> = [], pulses: Set<Need> = [.ask],
         reworded: Bool = false
     ) {
-        let was = Dictionary(sessions.map { ($0.id, $0) }) { first, _ in first }
-        let gone = Set(was.keys).subtracting(board.map(\.id))
-        let fresh = board.filter { was[$0.id] == nil }
+        let renamed = carry(into: board)
+        let was = Dictionary(sessions.map { (renamed[$0.markID] ?? $0.markID, $0) }) { first, _ in first }
+        let gone = Set(was.keys).subtracting(board.map(\.markID))
+        let fresh = board.filter { was[$0.markID] == nil }
         let arriving = board.filter { $0.needsLee && new.contains($0.id) }
         let stopping = board.filter { $0.kind == .turn && stopped.contains($0.id) }
         let ask = StripArrival(.ask, pulses: pulses), stop = StripArrival(.turn, pulses: pulses)
-        let asks = arriving.filter { !needsSlot.contains($0.id) }
+        let asks = arriving.filter { slot[$0.markID] != .needsYou }
         let stops = board.filter { session in
-            session.kind == .turn && !needsSlot.contains(session.id)
-                && (was[session.id] != nil || stopped.contains(session.id))
+            session.kind == .turn && slot[session.markID] != .needsYou
+                && (was[session.markID] != nil || stopped.contains(session.id))
         }
         let moving = asks.map { (session: $0, how: ask) }
             + stops.map { (session: $0, how: stopped.contains($0.id) ? stop : .quiet) }
-        let crossing = moving.map(\.session).filter { was[$0.id] != nil }
-        let changes = board.filter { session in was[session.id].map { $0 != session } ?? false }
+        let crossing = moving.map(\.session).filter { was[$0.markID] != nil }
+        let changes = board.filter { session in was[session.markID].map { $0 != session } ?? false }
 
         sessions = board
+        if !renamed.isEmpty {
+            relayout()
+        }
         if !gone.isEmpty {
             leave(gone)
         }
         lift(crossing)
         moving.forEach { insertNeeds($0.session, $0.how) }
         // after them all, as one may fold another in that has shown its arrival on its own mark
-        moving.filter { layout.restNeeds.contains($0.session.id) }.forEach { landInCount($0.session, $0.how) }
+        moving.filter { layout.rest(of: .needsYou).contains($0.session.markID) }.forEach {
+            landInCount($0.session, $0.how)
+        }
         arriving.filter { !asks.contains($0) }.forEach { flashInPlace($0, ask) }
         stopping.filter { !stops.contains($0) }.forEach { flashInPlace($0, stop) }
         changes.filter { !crossing.contains($0) }.forEach(changed)
@@ -276,9 +304,48 @@ public final class Strip {
         }
 
         let rewords = reworded ? tabsSayingTheBoard : tabs.filter { tab in
-            tab.phase == .open && changes.contains { tab.key == .session($0.id) }
+            tab.phase == .open && changes.contains { tab.key == .session($0.markID) }
         }
         rewords.forEach(reword)
+    }
+
+    /// Sessions this board snoozes or wakes, each one's row in Snoozed come as its row elsewhere goes, or the other way
+    /// round: its mark keeps its place, and everything that knows it by its key takes the new row's. The keys renamed,
+    /// each to its new one.
+    private func carry(into board: [Session]) -> [String: String] {
+        let onStrip = Set(sessions.map(\.markID)), onBoard = Set(board.map(\.markID))
+        var renamed: [String: String] = [:]
+
+        for session in board where !onStrip.contains(session.markID) {
+            let other = Session.markID(of: session.id, snoozed: !session.isSnoozed)
+
+            if onStrip.contains(other), !onBoard.contains(other) {
+                rekey(other, to: session.markID)
+                renamed[other] = session.markID
+            }
+        }
+        return renamed
+    }
+
+    /// A mark's key renamed: in the strip's order and its sections, on the mark, on any tab of it, under the pointer,
+    /// jumping, and as a count's arrival.
+    private func rekey(_ old: String, to new: String) {
+        let was = MarkKey.session(old), now = MarkKey.session(new)
+
+        display = display.map { $0 == old ? new : $0 }
+        slot[new] = slot.removeValue(forKey: old)
+        mark(was)?.key = now
+        tabs.filter { $0.key == was }.forEach { $0.key = now }
+        hot = hot == was ? now : hot
+        disarmed = disarmed == was ? now : disarmed
+        switch jumping {
+        case let .tab(tab, id) where id == old: jumping = .tab(tab, new)
+        case let .mark(key) where key == was: jumping = .mark(now)
+        default: break
+        }
+        for count in counts.values where count.arrivalOf == old {
+            count.arrivalOf = new
+        }
     }
 
     /// Sessions new to the strip, all at once, as the prototype's Too many brings them: the marks re-sort at once, and
@@ -303,8 +370,9 @@ public final class Strip {
         }
     }
 
+    /// The session whose mark goes by this key.
     func session(_ id: String) -> Session? {
-        sessions.first { $0.id == id }
+        sessions.first { $0.markID == id }
     }
 
     /// A spring to a target in a duration, critically damped; under reduced motion never longer than 140ms.
@@ -339,14 +407,22 @@ public final class Strip {
 
 /// A mark on the strip, a session's or a count's; or, with nothing running, the notch at rest, whose tab says so.
 public enum MarkKey: Hashable, Sendable {
+    /// A session's row, by its mark's key (`Session.markID`).
     case session(String)
-    /// The grey count, of working past its places, ...
-    case more
-    /// ... and needs you's own, of those past its room, the end of its order: the stopped, then the away asks.
-    case moreNeeds
+    /// A section's count: of those past its room, the end of its order, Needs you's stopped and then its away asks
+    /// first; or, the section folded, all of them, in its one place.
+    case count(BoardSection)
     case empty
 
-    public var isCount: Bool { self == .more || self == .moreNeeds }
+    public var isCount: Bool { section != nil }
+
+    /// A count's section.
+    public var section: BoardSection? {
+        if case let .count(section) = self {
+            return section
+        }
+        return nil
+    }
 }
 
 /// A click jumping, until its jump answers, 450ms at most: from a tab, to its session or one of a count's, or from a

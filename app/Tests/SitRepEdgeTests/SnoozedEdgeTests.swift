@@ -6,9 +6,10 @@ import Foundation
 import SitRepLines
 import Testing
 
-/// Snooze at the edge, over what the real CLI printed (`Lines.snoozed`): the card's Snoozed rows apart from the rows
-/// the strip and the menu show; Snoozed the card's last section, folded at first; and an ask woken at its time arriving
-/// as a new one does, the notch swelling, the strip flashing and Needs you unfolding, while one Lee wakes does not.
+/// Snooze at the edge, over what the real CLI printed (`Lines.snoozed`): the Snoozed rows the card and the strip show
+/// (the strip's since 14 November 2026) apart from the rows the menu shows; Snoozed the card's last section, folded at
+/// first; and an ask woken at its time arriving as a new one does, the notch swelling, the strip flashing and Needs you
+/// unfolding, while one Lee wakes does not.
 @MainActor
 struct SnoozedEdgeTests {
     /// `watch`'s lines up to this one, heard in order.
@@ -21,7 +22,7 @@ struct SnoozedEdgeTests {
         return PanelBoard(last)
     }
 
-    @Test func theCardsSnoozedRowsAreApartFromTheRowsTheStripAndTheMenuShow() throws {
+    @Test func theSnoozedRowsAreApartFromTheRowsTheMenuShows() throws {
         let board = Self.board(upTo: 0)
         let asleep = try #require(board.snoozed.first)
 
@@ -118,9 +119,9 @@ struct SnoozedEdgeTests {
         }
         let before = Self.board(upTo: place - 1), after = Self.board(upTo: place)
 
-        strip.show(before.sessions, new: [])
+        strip.show(before.cardSessions, new: [])
         _ = play(3000)
-        strip.show(after.sessions, new: after.new)
+        strip.show(after.cardSessions, new: after.new)
         #expect((play(1500) > 0.9) == flashes)
     }
 
@@ -158,7 +159,7 @@ struct SnoozedEdgeTests {
 
     /// A run over the first line, its folds as kept, unless none are.
     private static func opened(kept: SavedSettings<CardSettings>? = nil) -> NotchRun {
-        let run = NotchRun(at: 1000, in: setting, kept: kept, calendar: london)
+        let run = NotchRun(at: 1000, in: setting, folding: Folding(kept: kept), calendar: london)
 
         _ = run.show(board(upTo: 0), at(run.time))
         return run

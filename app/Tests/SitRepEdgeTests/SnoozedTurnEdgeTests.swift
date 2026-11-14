@@ -110,7 +110,7 @@ struct SnoozedTurnEdgeTests {
 
         kept.save(CardSettings(folded: []))
 
-        let run = NotchRun(at: 1000, in: setting, kept: kept, calendar: london)
+        let run = NotchRun(at: 1000, in: setting, folding: Folding(kept: kept), calendar: london)
 
         _ = run.show(board, NotchRun.Moment(time: run.time, pointer: nil, setting: setting))
         return run

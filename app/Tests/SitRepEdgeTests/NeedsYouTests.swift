@@ -155,7 +155,8 @@ struct NeedsYouTests {
         let (run, flash) = Self.stripShown(shown, flashing: "sr-t")
 
         let stopped = run.markTarget(of: "sr-t")?.y ?? .infinity, working = run.markTarget(of: "sr-w")?.y ?? 0
-        #expect(stopped < run.frame.hairline.y && run.frame.hairline.y < working && run.frame.hairline.alpha == 1)
+        let hairline = run.frame.hairlines[0]
+        #expect(stopped < hairline.y && hairline.y < working && hairline.alpha == 1)
         #expect((flash > 0.5) == flashes)
     }
 

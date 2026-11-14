@@ -67,6 +67,15 @@ extension Session {
         case .working, .onItsWork: nil
         }
     }
+
+    /// The key its mark goes by on the strip: its session's id, or in Snoozed, apart from the row a session working,
+    /// or stopped on a prompt, has beside it, `snoozed:` and the id.
+    public var markID: String { Self.markID(of: id, snoozed: isSnoozed) }
+
+    /// The key of a session's mark in Snoozed, or of its mark in any other section.
+    static func markID(of id: String, snoozed: Bool) -> String {
+        snoozed ? "snoozed:\(id)" : id
+    }
 }
 
 extension [Session] {
@@ -120,7 +129,8 @@ public struct Eyebrow: Equatable, Sendable {
     public static let first = 4.0, after = 14.0
 }
 
-/// What Lee folded on the card: the sections folded to their eyebrows.
+/// What Lee folded: the sections folded, on the card to their eyebrows, on the strip each to its count, the one
+/// setting for both (14 November 2026).
 public struct CardFolds: Equatable, Sendable {
     public var sections: Set<BoardSection>
 
@@ -130,8 +140,15 @@ public struct CardFolds: Equatable, Sendable {
 
     /// A section folded, or unfolded.
     public mutating func toggle(_ section: BoardSection) {
-        if sections.remove(section) == nil {
+        set(section, folded: !sections.contains(section))
+    }
+
+    /// A section folded, or unfolded, as it is chosen.
+    public mutating func set(_ section: BoardSection, folded isFolded: Bool) {
+        if isFolded {
             sections.insert(section)
+        } else {
+            sections.remove(section)
         }
     }
 }

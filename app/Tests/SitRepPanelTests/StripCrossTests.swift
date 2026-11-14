@@ -78,7 +78,7 @@ struct StripCrossTests {
         lab.step()
 
         #expect(!lab.frame.isHeld && !lab.model.isDragging)
-        #expect(lab.model.click(at: mark) == nil)
+        #expect(lab.model.click(at: mark) == .nothing)
 
         lab.wait(600)
 

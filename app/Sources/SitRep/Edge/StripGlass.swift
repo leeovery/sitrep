@@ -57,11 +57,15 @@ private struct StripGlass: View {
             let frame = shown.frame
             ZStack(alignment: .topLeading) {
                 StripGlassBody(scene: shown, height: scene.height)
-                Rectangle()
-                    .fill(.separator)
-                    .frame(width: 16, height: 1)
-                    .position(CGPoint(x: frame.hairline.x, y: frame.hairline.y).applying(shown.mirror))
-                    .opacity(frame.hairline.alpha)
+                ForEach(frame.hairlines.indices, id: \.self) { i in
+                    let line = frame.hairlines[i]
+
+                    Rectangle()
+                        .fill(.separator)
+                        .frame(width: 16, height: 1)
+                        .position(CGPoint(x: line.x, y: line.y).applying(shown.mirror))
+                        .opacity(line.alpha)
+                }
                 ForEach(frame.marks, id: \.key) { mark in
                     GlassMark(mark: mark).position(shown.centre(mark))
                 }
@@ -129,11 +133,12 @@ private struct StripGlassBody: View {
 
 // MARK: The marks
 
-/// A mark on glass: its letters in the glass's label colours, the ring in its state's colour, needs you orange with
-/// its glow, your turn the label colour so it reads on light glass as on dark; working, the arc turning round a faint
-/// track, and on its own work the dotted ring in the ring's place, still. Drawn as each frame has it, lift, wash and
-/// flash all, with no animation of its own for a frame's update to restart; only a change of look eases, each part on
-/// the prototype's timing: the ring, its glow and the letters over 240ms, the pressed fill over 110, and the arc in
+/// A mark on glass: its letters in the glass's label colours, the ring in its state's colour, needs you orange with its
+/// glow, your turn the label colour so it reads on light glass as on dark; working, the arc turning round a faint
+/// track, and on its own work the dotted ring in the ring's place, still; in Snoozed, the ring dimmed as a Snoozed
+/// row's dot is, the letters faint, and Snoozed's count fainter than Working's. Drawn as each frame has it, lift, wash
+/// and flash all, with no animation of its own for a frame's update to restart; only a change of look eases, each part
+/// on the prototype's timing: the ring, its glow and the letters over 240ms, the pressed fill over 110, and the arc in
 /// over 60 as a click's jump starts and out over 240 (`StripMarkLayer`).
 @available(macOS 26, *)
 struct GlassMark: View {
@@ -207,12 +212,18 @@ struct GlassMark: View {
         if mark.isJumping {
             return AnyShapeStyle(.quaternary)
         }
-        if let need = mark.look.need {
+        switch mark.look {
+        case .needs, .away, .turn, .awayTurn, .needsCount, .stoppedCount:
+            let need = mark.look.need ?? .ask
             let flashed = LiveLight.Palette.of(need).body.mix(StripMarkLayer.flashed(need), mark.flash)
 
             return AnyShapeStyle(Color(cgColor: EdgeStyle.color(flashed)))
+        case .snoozed: return AnyShapeStyle(GlassInk.colour(of: .ask).opacity(Away.dim))
+        case .snoozedTurn: return AnyShapeStyle(GlassInk.colour(of: .turn).opacity(Away.dim))
+        case .count: return AnyShapeStyle(.tertiary)
+        case .snoozedCount: return AnyShapeStyle(.quaternary)
+        case .working, .onItsWork: return nil
         }
-        return mark.look == .count ? AnyShapeStyle(.tertiary) : nil
     }
 
     private var glow: Double {
@@ -230,7 +241,7 @@ struct GlassMark: View {
     private var letters: AnyShapeStyle {
         switch mark.look {
         case .needs, .turn, .needsCount, .stoppedCount: AnyShapeStyle(.primary)
-        case .away, .awayTurn: AnyShapeStyle(.tertiary)
+        case .away, .awayTurn, .snoozed, .snoozedTurn, .snoozedCount: AnyShapeStyle(.tertiary)
         case .working, .onItsWork, .count: AnyShapeStyle(.secondary)
         }
     }
@@ -290,7 +301,7 @@ struct GlassRow: View {
             Text(session.sub)
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
-                .opacity(Away.dimming(session.away))
+                .opacity(awayDim)
                 .placed(in: at.sub)
             if pressed {
                 Spinner(track: .quaternaryLabelColor, arc: .labelColor, period: 1)
@@ -298,7 +309,7 @@ struct GlassRow: View {
             } else {
                 Text(scene.note.age(session, at: scene.now))
                     .font(.system(size: 12).monospacedDigit())
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(session.isSnoozed ? .secondary : .tertiary)
                     .placed(in: at.ageBox, alignment: .trailing)
             }
         }
@@ -311,14 +322,16 @@ struct GlassRow: View {
         let text = GlassWords.title(session, at: scene.now)
         if session.kind == .working, !scene.reducesMotion {
             Shimmering(text: text, width: box.width)
-                .opacity(Away.dimming(session.away))
+                .opacity(awayDim)
                 .placed(in: box)
         } else {
-            text.foregroundStyle(session.kind == .onItsWork ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
-                .opacity(Away.dimming(session.away))
+            text.foregroundStyle(GlassWords.isSoft(session) ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
+                .opacity(awayDim)
                 .placed(in: box)
         }
     }
+
+    private var awayDim: Double { GlassWords.awayDim(session) }
 }
 
 /// A count's rows: each the session's title and core's second line, lifting under the pointer but for an away ask's.
@@ -334,13 +347,13 @@ struct GlassRows: View {
     var body: some View {
         ZStack(alignment: .topLeading) {
             ForEach(Array(sessions.enumerated()), id: \.element.id) { i, session in
-                let at = StripRowsLayout(i, width: width), isLit = lit == session.id
+                let at = StripRowsLayout(i, width: width), isLit = lit == session.markID
                 ZStack(alignment: .topLeading) {
                     RoundedRectangle(cornerRadius: StripRowsLayout.radius)
                         .fill(.primary.opacity(isLit ? (pressed ? 0.14 : 0.08) : 0))
                     GlassWords.rowTitle(session, at: now).placed(in: at.title)
                     Text(session.sub).font(.system(size: 11)).foregroundStyle(.secondary)
-                        .opacity(Away.dimming(session.away))
+                        .opacity(GlassWords.awayDim(session))
                         .placed(in: at.sub)
                 }
                 .frame(width: at.box.width, height: at.box.height, alignment: .topLeading)
@@ -388,16 +401,22 @@ private enum GlassWords {
     }
 
     /// One of the count's rows' titles at this time on the wall clock: your turn and needs you in the primary label
-    /// colour, an away ask's dimmed with its second line (`Away`), working and on its own work in the secondary.
+    /// colour, an away ask's dimmed with its second line (`Away`), working, on its own work and Snoozed in the
+    /// secondary.
     static func rowTitle(_ s: Session, at now: Double) -> some View {
         let size = 13.0
         let text = Text(s.title).font(.system(size: size, weight: .medium))
-        let isDim = s.kind == .working || s.kind == .onItsWork
-        let ink: AnyShapeStyle = isDim ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary)
+        let ink: AnyShapeStyle = isSoft(s) || s.kind == .working ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary)
 
         return (text + subject(s, size: size, at: now) + more(s, size: size)).foregroundStyle(ink)
-            .opacity(Away.dimming(s.away))
+            .opacity(awayDim(s))
     }
+
+    /// A still title in the secondary label colour: on its own work, or in Snoozed, as the card's Snoozed rows.
+    static func isSoft(_ s: Session) -> Bool { s.kind == .onItsWork || s.isSnoozed }
+
+    /// Its words dimmed while no window holds it (`Away`), but in Snoozed, quieted already, as the card's.
+    static func awayDim(_ s: Session) -> Double { Away.dimming(s.away && !s.isSnoozed) }
 
     /// Its subject in code type; else, plain at the title's size, what it waits on, or a wake's countdown in tabular
     /// figures, as the black's measure leaves room for.

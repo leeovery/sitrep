@@ -10,11 +10,16 @@ import SitRepPanel
 /// anywhere while a tab is out, a press is held, or the strip has the pointer (`StripFrame.wakes`). While idle it costs
 /// nothing, but for an open tab's time, drawn again as it changes. Whatever comes between frames, a board or Lee's
 /// hand, goes to the run, which brings the strip up to now first; each is drawn, and frames show what it did. Its
-/// window is click-through but over the strip and an open tab.
+/// window is click-through but over the strip and an open tab. A right-click brings up the menu of what is under it
+/// (`StripMenu`).
 @MainActor
 final class StripController: NSObject, CalloutShape {
     /// A click on a mark or a tab: the session to jump to, and what to tell once the jump answers, whether it jumped.
     var onJump: (String, @escaping (JumpAnswer) -> Void) -> Void = { _, _ in }
+    /// A session's menu's Snooze: the session, the asks its row showed, and the time chosen, or until it moves.
+    var onSnooze: (String, [String], SnoozeTime) -> Void = { _, _, _ in }
+    /// A Snoozed session's menu's Wake now: the session.
+    var onWake: (String) -> Void = { _ in }
     /// A drag let the strip go: the settings with its new place.
     var onMoved: (EdgeMove) -> Void = { _ in }
     /// Each frame drawn, with whether the pointer is over the strip, or a tab out.
@@ -34,11 +39,16 @@ final class StripController: NSObject, CalloutShape {
     private let ghost = GhostEdge()
     private let caption = CaptionWindow()
     private var monitors: [Any] = []
+    /// Where on the stage the menu AppKit was last handed was asked for, which holds the strip as it is once it shows.
+    private var menuAt: CGPoint?
 
-    init(_ settings: EdgeSettings, on display: Display) {
+    /// On its display, its sections folded as `folding` has them, the card's setting as well.
+    init(_ settings: EdgeSettings, on display: Display, folding: Folding) {
         self.settings = settings
         edge = ScreenEdge(display, settings)
-        run = StripRun(at: Displays.now, in: .on(edge, settings), settings, measure: StripWordsLayer.measure)
+        run = StripRun(
+            at: Displays.now, in: .on(edge, settings), settings, folding: folding, measure: StripWordsLayer.measure
+        )
         window = EdgeWindow.onScreen(frame: edge.stripWindow, view: surface)
         super.init()
 
@@ -47,7 +57,8 @@ final class StripController: NSObject, CalloutShape {
             pressed: { [unowned self] in press(at: $0) },
             dragged: { [unowned self] in drag(to: $0) },
             released: { [unowned self] in release() },
-            scrolled: { [unowned self] in scroll(by: $0) }
+            scrolled: { [unowned self] in scroll(by: $0) },
+            menu: { [unowned self] in menu(at: $0) }
         )
         caption.over = edge.visible
         link = surface.displayLink(target: self, selector: #selector(tick))
@@ -213,8 +224,7 @@ final class StripController: NSObject, CalloutShape {
     private func release() {
         switch run.release(settings, moment()) {
         case let .jump(session, to: target, click: click):
-            caption.jumping(to: session.project)
-            onJump(target) { [weak self] in self?.answered($0, click: click) }
+            jump(from: session, to: target, click: click)
         case let .dropped(dropped):
             ghost.dropped(across: dropped.isAcross)
             if dropped.isAcross {
@@ -225,6 +235,53 @@ final class StripController: NSObject, CalloutShape {
         case nil:
             break
         }
+        took()
+    }
+
+    /// A mark or a row pressed in jumps to its session; the caption says where once the jump has jumped.
+    private func jump(from session: Session, to target: String, click: Int) {
+        caption.jumping(to: session.project)
+        onJump(target) { [weak self] in self?.answered($0, click: click) }
+    }
+
+    /// A right-click on a session's mark or row, or on a count: its menu (`StripMenu`), which holds the strip as it is
+    /// while it shows. It jumps, snoozes or wakes the session, a snooze naming the asks its row showed, and folds its
+    /// section, or unfolds it, here and on the card.
+    private func menu(at screenPoint: CGPoint) -> NSMenu? {
+        guard let point = edge.stagePoint(screenPoint), let target = run.target(moment(pointer: point)) else {
+            return nil
+        }
+
+        let menu = StripMenu.make(
+            for: target, at: Date(), in: WakeTime.calendar,
+            row: { [unowned self] session in
+                let id = session.id, mark = session.markID
+
+                return RowMenu.Actions(
+                    jump: { [unowned self] in jumpFromMenu(to: mark) },
+                    snooze: { [unowned self] in onSnooze(id, $0, $1) },
+                    wake: { [unowned self] in onWake(id) }
+                )
+            },
+            fold: { [unowned self] in fold($0, folded: $1) }
+        )
+
+        menuAt = point
+        menu.delegate = self
+        return menu
+    }
+
+    /// Jump to the window, as a click on the mark, or its row, would, the one the menu is for pressed in.
+    private func jumpFromMenu(to mark: String) {
+        if case let .jump(session, to: target, click: click) = run.jump(to: mark, moment()) {
+            jump(from: session, to: target, click: click)
+        }
+        took()
+    }
+
+    /// Collapse or Expand from a menu: at once, here and on the card.
+    private func fold(_ section: BoardSection, folded isFolded: Bool) {
+        run.fold(section, folded: isFolded, moment())
         took()
     }
 
@@ -294,5 +351,21 @@ final class StripController: NSObject, CalloutShape {
         } else if window.takesClicks || run.frame.wakes(pointer: edge.stagePoint(NSEvent.mouseLocation)) {
             wake()
         }
+    }
+}
+
+extension StripController: NSMenuDelegate {
+    /// A menu showing holds the strip as if the pointer rested where it was opened (`StripRun.menuOpened`).
+    func menuWillOpen(_ menu: NSMenu) {
+        if let menuAt {
+            run.menuOpened(at: menuAt)
+        }
+    }
+
+    /// Closed, before any choice on it runs: the strip follows the pointer again, its grace starting from now.
+    func menuDidClose(_ menu: NSMenu) {
+        menuAt = nil
+        run.menuClosed()
+        took()
     }
 }

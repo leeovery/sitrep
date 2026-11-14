@@ -3,9 +3,10 @@ import SitRepEdge
 import SitRepPanel
 
 /// A tab's words in black, laid out once as the prototype's `.tl` lays them out: a session's panel row (its title, the
-/// line under it, an away ask's saying no window holds it, and its time at the right), a count's rows, or the notch
-/// at rest's two lines. Each frame sets only their opacity, their slide along the strip, how far a count's rows are
-/// scrolled, a click pressing them in, and the time, and a wake's countdown, as they tick.
+/// line under it, an away ask's saying no window holds it, and its time at the right, or in Snoozed when it wakes, its
+/// words soft as the card's Snoozed rows are), a count's rows, or the notch at rest's two lines. Each frame sets only
+/// their opacity, their slide along the strip, how far a count's rows are scrolled, a click pressing them in, and the
+/// time, and a wake's countdown, as they tick.
 @MainActor
 final class StripWordsLayer {
     let layer = CALayer()
@@ -17,7 +18,7 @@ final class StripWordsLayer {
     private let content = CALayer()
     private let age = CALayer()
     private let spinner: Arc
-    /// A count's rows, by session, scrolled together.
+    /// A count's rows, by their marks' keys (`Session.markID`), scrolled together.
     private let list = CALayer()
     private(set) var rows: [String: CALayer] = [:]
     /// A count's rows waiting on a wake: each title, where it sits in its row, and what its countdown said.
@@ -177,7 +178,8 @@ final class StripWordsLayer {
         }
 
         let line = TextLine(
-            StripRowLayout.ageLine(text), in: CGRect(origin: .zero, size: at.ageBox.size), alignment: .right
+            StripRowLayout.ageLine(text, soft: session.isSnoozed), in: CGRect(origin: .zero, size: at.ageBox.size),
+            alignment: .right
         )
 
         line.contentsScale = layer.contentsScale
@@ -211,7 +213,7 @@ final class StripWordsLayer {
             box.addSublayer(title)
             box.addSublayer(TextLine(Self.rowSub(session), in: at.sub))
             list.addSublayer(box)
-            rows[session.id] = box
+            rows[session.markID] = box
             if session.until != nil {
                 countdowns.append((session, title, at.title, session.subject(at: now)))
             }
@@ -298,14 +300,14 @@ final class StripWordsLayer {
     }
 
     /// A row's title saying this after its verb, in a colour where given, dimmed where it is away (`Away`); one on its
-    /// own work as the card sets it.
+    /// own work as the card sets it, and one in Snoozed soft.
     private static func title(_ s: Session, saying subject: String?, _ colour: CGColor? = nil) -> NSAttributedString {
         if s.kind == .onItsWork {
             return WaitingTitle.text(s, subject: subject)
         }
 
         let font = EdgeStyle.title
-        let ink = Away.dimmed(colour ?? EdgeStyle.ink, s.away)
+        let ink = s.isSnoozed ? EdgeStyle.ink2 : Away.dimmed(colour ?? EdgeStyle.ink, s.away)
         let text = TextLine.text(s.title, font, ink, kern: EdgeStyle.tightKern(font))
 
         append(s, to: text, ink, more: EdgeStyle.title)
@@ -322,14 +324,17 @@ final class StripWordsLayer {
             if text.length > 0 {
                 text.addAttribute(.kern, value: 6, range: NSRange(location: text.length - 1, length: 1))
             }
-            text.append(TextLine.text(more, font, Away.dimmed(EdgeStyle.ink3, s.away)))
+            text.append(TextLine.text(more, font, Away.dimmed(EdgeStyle.ink3, dims(s))))
         }
     }
+
+    /// Whether its words dim as an away row's (`Away`): never in Snoozed, whose words are soft already, as the card's.
+    private static func dims(_ s: Session) -> Bool { s.away && !s.isSnoozed }
 
     /// Its second line (`Session.sub`): needing Lee, its project, or with no window holding it, why a click does
     /// nothing, dimmed with its title (`Away`); else its project and session.
     private static func sub(_ s: Session) -> NSAttributedString {
-        TextLine.text(s.sub, EdgeStyle.sub, Away.dimmed(EdgeStyle.ink2, s.away))
+        TextLine.text(s.sub, EdgeStyle.sub, Away.dimmed(EdgeStyle.ink2, dims(s)))
     }
 
     /// One of a count's rows' titles at this time on the wall clock.
@@ -338,10 +343,11 @@ final class StripWordsLayer {
     }
 
     /// One of a count's rows' titles saying this after its verb, where it has no command: needs you and your turn in
-    /// ink, and working and on its own work grey, an away row's dimmed (`Away`), a wake's countdown in tabular figures.
+    /// ink, working and on its own work grey, and Snoozed soft, an away row's dimmed (`Away`), a wake's countdown in
+    /// tabular figures.
     private static func rowTitle(_ s: Session, saying subject: String?) -> NSAttributedString {
         let isGrey = s.kind == .working || s.kind == .onItsWork
-        let ink = Away.dimmed(isGrey ? EdgeStyle.grey : EdgeStyle.ink, s.away)
+        let ink = s.isSnoozed ? EdgeStyle.ink2 : Away.dimmed(isGrey ? EdgeStyle.grey : EdgeStyle.ink, s.away)
         let font = EdgeStyle.rowTitle
         let text = TextLine.text(s.title, font, ink)
 
@@ -353,7 +359,7 @@ final class StripWordsLayer {
     }
 
     private static func rowSub(_ s: Session) -> NSAttributedString {
-        TextLine.text(s.sub, EdgeStyle.rowSub, Away.dimmed(EdgeStyle.ink2, s.away))
+        TextLine.text(s.sub, EdgeStyle.rowSub, Away.dimmed(EdgeStyle.ink2, dims(s)))
     }
 
     private static func idleTitle(_ note: StripNote) -> NSAttributedString {

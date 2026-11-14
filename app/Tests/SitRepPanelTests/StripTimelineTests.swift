@@ -104,8 +104,8 @@ struct StripTimelineTests {
         )
 
         expectMatches(played, StripRecorded.maxSix)
-        #expect(lab.model.layout.restNeeds == StripRecorded.maxSixFolded.asks)
-        #expect(lab.model.layout.rest == StripRecorded.maxSixFolded.rest)
+        #expect(lab.model.layout.rest(of: .needsYou) == StripRecorded.maxSixFolded.asks)
+        #expect(lab.model.layout.rest(of: .working) == StripRecorded.maxSixFolded.rest)
     }
 
     @Test func aNewAskPastItsRoomLandsInTheCountWhichFlashesAsThePrototypes() {
@@ -118,7 +118,7 @@ struct StripTimelineTests {
         )
 
         expectMatches(played, StripRecorded.lands)
-        #expect(abs(lab.model.moreNeeds!.arrived - start - StripRecorded.landed) < 1e-6)
+        #expect(abs(lab.model.counts[.needsYou]!.arrived - start - StripRecorded.landed) < 1e-6)
     }
 
     /// Needs you's count's tab: its rows the asks landed in it, then the stopped folded there.
@@ -179,7 +179,7 @@ struct StripTimelineTests {
         )
 
         expectMatches(played, StripRecorded.stopsLand)
-        #expect(lab.model.layout.restNeeds.first == "s7")
+        #expect(lab.model.layout.rest(of: .needsYou).first == "s7")
     }
 
     /// Max 7: a turn ends and DocMan's lands in needs you's new count beside Goosemates's; a new ask takes its place,
@@ -194,7 +194,7 @@ struct StripTimelineTests {
         ])
 
         expectMatches(played, StripRecorded.displace)
-        #expect(lab.model.layout.restNeeds == ["s10", "s5", "s7", "s6"])
+        #expect(lab.model.layout.rest(of: .needsYou) == ["s10", "s5", "s7", "s6"])
     }
 
     @Test func aPressCarriedAlongTheEdgeDragsTheStripAsThePrototypes() {
@@ -206,6 +206,90 @@ struct StripTimelineTests {
 
         expectMatches(played, StripRecorded.drag)
         #expect(lab.model.jumping == nil)
+    }
+
+    /// Working folds into its grey count, the strip shrinking and the hairline going; then Needs you folds into its
+    /// orange one, the counts sliding up, each section in its one place (14 November 2026).
+    @Test func aSectionFoldingTakesOnePlaceAtOnceAsThePrototypes() {
+        var lab = StripLab(length: .grows)
+
+        let played = lab.play(StripRecorded.fold, marks: ["s1", "s6", "s7", "s8"], [
+            (0, { $0.fold(.working) }), (1200, { $0.fold(.needsYou) }),
+        ])
+
+        expectMatches(played, StripRecorded.fold)
+        #expect(lab.model.layout.counts.values.allSatisfy(\.isFolded) && lab.model.layout.places.isEmpty)
+    }
+
+    /// Working folded: its count's tab pours its rows, and a click on the count unfolds it, the tab drawing back as
+    /// the count goes and the marks come out where it was.
+    @Test func aClickOnAFoldedCountUnfoldsItsSectionAsThePrototypes() {
+        var lab = StripLab(length: .grows)
+
+        let played = lab.play(StripRecorded.unfold, marks: ["s7", "s8"], [
+            (0, { $0.fold(.working) }), (1600, { $0.model.click(at: $0.pointer!) }),
+        ])
+
+        expectMatches(played, StripRecorded.unfold)
+        #expect(!lab.model.folded.contains(.working))
+    }
+
+    /// Three sessions snoozed land in Snoozed's count, folded at first, under a hairline of its own; Snoozed unfolds
+    /// and its marks come out, dimmed, and the first's tab pours.
+    @Test func snoozedSessionsComeInUnderTheirOwnHairlineAsThePrototypes() {
+        var lab = StripLab(length: .grows)
+
+        let played = lab.play(StripRecorded.snoozed, marks: ["s8", "s9", "s10", "s11"], Self.snoozes(3) + [
+            (900, { $0.fold(.snoozed) }),
+        ])
+
+        expectMatches(played, StripRecorded.snoozed)
+    }
+
+    /// Snoozed folded: its count's tab pours its sessions as rows, the soonest to wake first.
+    @Test func snoozedsFoldedCountPoursItsRowsAsThePrototypes() {
+        var lab = StripLab(length: .grows)
+
+        let played = lab.play(StripRecorded.snoozedTab, marks: ["s9", "s11"], Self.snoozes(3))
+
+        expectMatches(played, StripRecorded.snoozedTab)
+    }
+
+    /// Max 10 with all three sections: a new ask takes Working's last place, Working keeping one, and Snoozed's last
+    /// mark goes into its count; Working folds into its one place, and Snoozed's mark comes back out.
+    @Test func tooManyWithThreeSectionsKeepsAPlaceForEachAsThePrototypes() {
+        var lab = StripLab(length: .grows, maxMarks: 10)
+
+        let played = lab.play(
+            StripRecorded.manyAll, marks: ["s6", "s8", "s9", "s10", "s11", "s12"],
+            Self.snoozes(3) + [
+                (0, { $0.fold(.snoozed) }), (900, { $0.newAsk(StripLab.ask.with(id: "s12")) }),
+                (1900, { $0.fold(.working) }),
+            ]
+        )
+
+        expectMatches(played, StripRecorded.manyAll)
+        #expect(lab.model.layout.rest(of: .working) == StripRecorded.manyAllFolded.working)
+        let snoozed = lab.model.layout.rest(of: .snoozed).map { MarkKey.session($0).name }
+        #expect(snoozed == StripRecorded.manyAllFolded.snoozed)
+    }
+
+    /// Needs you folded: a new ask lands in its count, which flashes, washed.
+    @Test func aNewAskLandsInNeedsYouFoldedWhichFlashesAsThePrototypes() {
+        var lab = StripLab(length: .grows)
+        let start = lab.model.t
+
+        let played = lab.play(StripRecorded.foldedArrive, marks: ["s4", "s9"], [
+            (0, { $0.fold(.needsYou) }), (900, { $0.newAsk(StripLab.ask) }),
+        ])
+
+        expectMatches(played, StripRecorded.foldedArrive)
+        #expect(abs(lab.model.counts[.needsYou]!.arrived - start - StripRecorded.foldedLanded) < 1e-6)
+    }
+
+    /// The prototype's Snooze, this many times, all at once.
+    private static func snoozes(_ n: Int) -> [Act] {
+        Array(repeating: (0, { $0.snooze() }), count: n)
     }
 
     /// The prototype's new asks in its order, all at once.
