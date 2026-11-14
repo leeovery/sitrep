@@ -97,7 +97,7 @@ struct StripRunTests {
         _ board: PanelBoard = working(["w1", "w2", "w3", "w4", "w5", "w6", "w7", "w8"])
     ) -> StripRun {
         let run = shown(board, settings(.grows, max: StripMax(share: 0)))
-        let count = CGPoint(x: 18, y: run.strip.yOf(.more))
+        let count = CGPoint(x: 18, y: run.strip.yOf(.count(.working)))
 
         frames(run, for: 2000, count) { run.strip.liveTab()?.phase == .open }
         frames(run, for: 2000, count) { !run.frame.isMoving }
@@ -106,7 +106,7 @@ struct StripRunTests {
 
     /// Where a row of the open count's tab shows, by its index, as last drawn.
     private static func countRow(_ index: Int, in run: StripRun) throws -> CGPoint {
-        let tab = try #require(run.frame.tabs.first { $0.key == .more }), words = try #require(tab.words.last)
+        let tab = try #require(run.frame.tabs.first { $0.key == .count(.working) }), words = try #require(tab.words.last)
         let pitch = StripTuning.rowHeight + StripTuning.rowGap
         let y = tab.box.minY + words.frame.minY + StripTuning.rowsPad + Double(index) * pitch
             + StripTuning.rowHeight / 2 - words.scroll
@@ -118,7 +118,7 @@ struct StripRunTests {
     /// drawn lands on the row the strip now has there.
     @Test func aClickGoesToTheRowUnderItThoughTheBoardChangedTheCountSinceTheModelsLastFrame() throws {
         let run = Self.countOpen()
-        let rows = run.strip.layout.rest
+        let rows = run.strip.layout.rest(of: .working)
         #expect(rows.first == "sr-w5")
 
         run.show(Self.working(["w1", "w2", "w3", "w4", "w6", "w7", "w8", "w9"]), Self.at(run.time))
@@ -241,7 +241,8 @@ struct StripRunTests {
     }
 
     /// A drag along the pointer's path and let go across, a frame a refresh, its moves as given each refresh: the
-    /// strip's top end at every frame, and the frame it swaps edges at.
+    /// strip's top end at every frame, and the refresh whose drawing swaps edges, as the controller takes what the
+    /// frames showed (`takeShown`): a move at a frame's time may frame the swap before the refresh does.
     private static func dragAcross(movesPerRefresh: Int) -> (tops: [Double], swappedAt: Int?) {
         let run = shown(["a", "b"]), start = run.time, mark = on("a", in: run)
         var tops: [Double] = [], swappedAt: Int?
@@ -259,7 +260,7 @@ struct StripRunTests {
             }
             run.step(at(read + frameMS, nil))
             tops.append(run.strip.yt.x)
-            if swappedAt == nil, run.frame.swapsEdge {
+            if run.takeShown().swappedEdge, swappedAt == nil {
                 swappedAt = k
             }
         }
@@ -434,10 +435,10 @@ struct StripRunTests {
     @Test func aCountsTabKeepsItsWordsAsTheBoardGoesStale() throws {
         let run = Self.countOpen()
         let tab = try #require(run.strip.liveTab()), words = tab.words.count, width = tab.w.x
-        #expect(tab.key == .more)
+        #expect(tab.key == .count(.working))
 
         run.show(Self.working(["w1", "w2", "w3", "w4", "w5", "w6", "w7", "w8"], stale: true), Self.at(run.time))
-        Self.frames(run, for: 1000, CGPoint(x: 18, y: run.strip.yOf(.more)))
+        Self.frames(run, for: 1000, CGPoint(x: 18, y: run.strip.yOf(.count(.working))))
 
         #expect(run.note.asOf != nil)
         #expect(tab.words.count == words && abs(tab.w.x - width) < 0.01)
@@ -476,7 +477,7 @@ struct StripRunTests {
         let waking = Self.countOpen(PanelBoard(last)), working = Self.countOpen()
         let due = Double(until)
 
-        #expect(waking.strip.layout.rest.last == "sr-w8")
+        #expect(waking.strip.layout.rest(of: .working).last == "sr-w8")
         #expect(waking.nextAgeChange(after: due - 90_000) == due - 60_000)
         #expect(waking.nextAgeChange(after: due - 30_000) == due)
         #expect(waking.nextAgeChange(after: due) == nil)
@@ -505,10 +506,10 @@ struct StripRunTests {
         let run = Self.shown(["a", "b", "c", "d"], Self.settings(.full))
         var slid = false
 
-        #expect(run.markTarget(of: "sr-none") == nil)
+        #expect(run.markTarget(ofMark: "sr-none") == nil)
         run.place(Self.settings(.grows), Self.at(run.time))
         Self.frames(run, for: 3000, nil) {
-            let target = run.markTarget(of: "sr-d"), drawn = run.frame.marks.first { $0.key == .session("sr-d") }
+            let target = run.markTarget(ofMark: "sr-d"), drawn = run.frame.marks.first { $0.key == .session("sr-d") }
 
             #expect(target.map { Double($0.y) } == run.strip.yOf(.session("sr-d")))
             #expect(target?.x == drawn?.centre.x)
@@ -516,6 +517,6 @@ struct StripRunTests {
             return !run.frame.isMoving
         }
         #expect(slid)
-        #expect(run.markTarget(of: "sr-d") == run.frame.marks.first { $0.key == .session("sr-d") }?.centre)
+        #expect(run.markTarget(ofMark: "sr-d") == run.frame.marks.first { $0.key == .session("sr-d") }?.centre)
     }
 }

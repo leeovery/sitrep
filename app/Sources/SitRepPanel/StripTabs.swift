@@ -108,13 +108,13 @@ extension Strip {
     /// The tallest a tab's body may be: the count's, at its tallest, scrolls.
     var maxBody: Double { botClear - minCy(0, topClear) }
 
-    /// A tab's words: its panel row; for a count, what it holds, a row each, as the panel reads them; for the notch at
-    /// rest, that nothing is running.
+    /// A tab's words: its panel row; for a count, what it holds, past its section's room or the section folded, a row
+    /// each, as the panel reads them; for the notch at rest, that nothing is running.
     func buildWords(_ key: MarkKey) -> StripWords {
         let content: StripFrame.Words.Content, natural: Double, full: Double
         switch key {
-        case .more, .moreNeeds:
-            let rows = (key == .more ? layout.rest : layout.restNeeds).compactMap(session)
+        case let .count(section):
+            let rows = layout.rest(of: section).compactMap(session)
             let n = Double(rows.count)
             content = .rows(rows)
             natural = measure.rows(rows)

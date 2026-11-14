@@ -70,7 +70,7 @@ struct AwayRowsTests {
 
     private static func strip(_ session: Session, _ content: StripFrame.Words.Content) throws -> Drawn {
         let words = StripFrame.Words(
-            id: 1, key: .more, content: content, frame: tab, scroll: 0, alpha: 1, dy: 0, isPressed: false,
+            id: 1, key: .count(.working), content: content, frame: tab, scroll: 0, alpha: 1, dy: 0, isPressed: false,
             pressedRow: nil
         )
 

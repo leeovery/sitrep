@@ -94,7 +94,7 @@ struct SnoozedTurnEdgeTests {
 
     private static let setting = NotchRun.Setting(
         stage: Stage(height: 982, visibleTop: 24, visibleBottom: 982, notchY: 491), mirror: .identity,
-        style: .meniscus, reducesMotion: false
+        style: .meniscus, reducesMotion: false, isChosen: true
     )
 
     private static let london: Calendar = {
@@ -110,7 +110,7 @@ struct SnoozedTurnEdgeTests {
 
         kept.save(CardSettings(folded: []))
 
-        let run = NotchRun(at: 1000, in: setting, kept: kept, calendar: london)
+        let run = NotchRun(at: 1000, in: setting, folding: Folding(kept: kept), calendar: london)
 
         _ = run.show(board, NotchRun.Moment(time: run.time, pointer: nil, setting: setting))
         return run

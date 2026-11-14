@@ -25,10 +25,10 @@ struct StripRowLayout {
         max(ageMin, TextLine.width(ageLine(text)))
     }
 
-    /// A time as the black sets it.
+    /// A time as the black sets it, faint; soft, as a Snoozed row's wake is on the card.
     @MainActor
-    static func ageLine(_ text: String) -> NSAttributedString {
-        TextLine.text(text, EdgeStyle.age, EdgeStyle.ink3)
+    static func ageLine(_ text: String, soft: Bool = false) -> NSAttributedString {
+        TextLine.text(text, EdgeStyle.age, soft ? EdgeStyle.ink2 : EdgeStyle.ink3)
     }
 
     /// The notch at rest's two lines: as a row's, with no time.

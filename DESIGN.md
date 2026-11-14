@@ -2129,8 +2129,10 @@ it: Snoozed is an exception to "each session appears once", as Projects is.
   first, and so do a row's lines, then the oldest first.
 - It is the card's last section, under Your turn. It is folded at first, to
   its eyebrow and its count, the lines it holds (**proposed**), and a fold of
-  it is kept as any is; unfolded, each row says when it wakes. The strip and
-  the menu show none. How it looks is drawn in Paper.
+  it is kept as any is; unfolded, each row says when it wakes. The menu
+  shows none; the strip shows them, as marks under a hairline of their own
+  (14 November 2026; see "The strip"), and until then showed none either.
+  How it looks is drawn in Paper.
 - **Snooze, from a row:** a right-click on a card's Needs you row whose
   lines hold asks, or on a your-turn row, offers Snooze, then Later today,
   Tomorrow or Next week, and after a separator Until it moves, the same on
@@ -2147,13 +2149,16 @@ unremarked. So a line in Snoozed is kept among those shown however long it
 sleeps, and its absence alone never makes it new; once its time runs out,
 each ask's line in Needs you carries the snooze's `wokeAt`, and the watch
 takes it as new. Its row arrives as a new ask's does: the notch swells, the
-strip flashes, its row washes on the card, Needs you unfolds, and a macOS
-notification goes where they are on. Its time still counts from its
+strip flashes, its row washes on the card, Needs you unfolds on the card
+while Lee has the notch show the board, and a macOS notification goes where
+they are on; with the strip chosen, Needs you folded stays folded and its
+count on the strip flashes (see "Folding"). Its time still counts from its
 posting. A turn's line is never new, as on Your turn. Woken by Lee, or
-early, the asks come back as shown, and move as a row changing section does
-(**proposed**: Lee pressed it, and `new` means not yet shown to Lee); an ask
-new enough to wake it is new as any is. One woken while no `watch` ran, the
-app quit, brings no swell, as any line then.
+early, the asks come back as shown, unflashed, as Lee pressed it, and `new`
+means not yet shown to Lee; their row moves at once wherever the wake
+changes its group, as any row does (Lee, 14 November 2026; see "Moving"
+under the strip). An ask new enough to wake it is new as any is. One woken
+while no `watch` ran, the app quit, brings no swell, as any line then.
 
 **In the pane.**
 - It reads each ask's `snoozedUntil`, in the held session's fold and in the
@@ -4478,12 +4483,19 @@ with it.
   takes its own default: Snoozed, folded at first, reads folded from a value
   saved before it was, and every other section open. A fold of Your turn
   saved before 13 November 2026 is passed over, as a section this version
-  does not know is, and Needs you takes its own. An arrival unfolds
-  Needs you, at once: a row holding a line
+  does not know is, and Needs you takes its own. The folds are one setting
+  with the strip's (14 November 2026, Lee): a section folded on the card is
+  folded on the strip and the other way, each reading it as it lays out,
+  so switching Show between the notch and the strip shows the same folds.
+  An arrival unfolds Needs you, at once, while Lee has the notch show the
+  board: a row holding a line
   new to the board, as swells the notch, whether the session is new, comes
   to need Lee or gains a line. The unfold is kept, as a click's is: Needs
-  you stays open until Lee folds it again. At once is for what the fold
-  changes only, the section's rows coming or going; every other row keeps
+  you stays open until Lee folds it again. With the strip chosen, Needs
+  you folded stays folded, and its count on the strip flashes (14 November
+  2026; until then an arrival unfolded it whichever showed). At once is
+  for what the fold changes only, the section's rows coming or going;
+  every other row keeps
   its own motion, one folding away finishing and one arriving, the new
   ask's own row among them, folding in.
 - **One shape** (board J2, 4 November 2026): every row is one line, 30
@@ -4522,8 +4534,9 @@ with it.
   turn's apart from 4 November). A snoozed session whose window stopped on
   a prompt or a question has a row in Needs you as well, as two rows of
   the one session. It is folded at first, to its eyebrow and its count.
-  Its rows are the card's alone: the strip and the menu show none, nothing
-  in it lights or swells the notch, and none of its rows washes. With
+  Its rows are the card's and the strip's (the strip's since 14 November
+  2026, the card's alone until then): the menu shows none, nothing in it
+  lights or swells the notch, and none of its rows washes. With
   nothing else to list, the card lists Snoozed with no head.
 
 **A row is a session**, on every surface (22 October 2026, Paper's board D,
@@ -5053,13 +5066,23 @@ were settled in the browser spike (below, "How the strip moves").
     held still, which read as a frozen spinner (Lee: "four items that are
     showing with a frozen spinner"). A click's jump still turns an arc on
     it, in the ring's place, as on any mark, and the ring comes back after.
+  - **in Snoozed** (14 November 2026): an ask's ring orange and a turn's
+    blue, each dimmed as a Snoozed row's dot is, with no glow, the letters
+    faint, in black and on glass alike; it never flashes nor washes.
 
-  One hairline sits under Needs you, and the strip's Needs you is one, as
-  the panel's is (14 November 2026, Lee's pick): its ask marks, then its
-  stopped marks, in the panel's Needs you order, all over the hairline;
-  working's and on its own work's under it. The prototype was brought to
-  these places and its timelines recorded again by the recorder that made
-  them, so the strip is still checked against it frame by frame. For a
+  **Three sections**, as the panel's (14 November 2026, Lee): Needs you,
+  Working and Snoozed, in the panel's order, a hairline between each two
+  that show, so one over Working and one over Snoozed. Needs you's ask
+  marks, then its stopped marks, in the panel's Needs you order; Working's,
+  on its own work's among them; Snoozed's, the soonest to wake first, a
+  session with a row in Needs you and one in Snoozed a mark in each. The
+  prototype was brought to these places, and to Snoozed and the folds, and
+  its timelines recorded again by the recorder that made them, so the
+  strip is still checked against it frame by frame. Earlier that day the
+  strip's Needs you became one, as the panel's is (Lee's pick): "One
+  hairline sits under Needs you", its ask marks, then its stopped marks,
+  all over it, working's and on its own work's under it, and "The strip
+  shows no Snoozed". For a
   day after Your turn joined Needs you (13 November 2026) the strip kept
   its old places: a your-turn mark, blue, under the hairline and over
   working's, and the orange count holding asks alone, since moving them
@@ -5082,8 +5105,11 @@ were settled in the browser spike (below, "How the strip moves").
   until 12 November 2026 neither took a click). A session a window holds
   that this Mac doesn't show keeps its state's mark and tab, dimmed, an
   ask's mark the hollow ring, and its click runs as a dimmed row's (stage
-  8's rethink, 13 November 2026). A click on the count opens
-  its tab. A tab, or a
+  8's rethink, 13 November 2026). A click on a count past its section's
+  room opens its tab; on a section folded, it unfolds it (below, "Folded").
+  A Snoozed mark's tab says when it wakes, as its card row does, its words
+  soft as that row's, and a click on it, or on the mark, jumps to its
+  session, as any does. A tab, or a
   count's row, has room for one line: a session needing Lee shows its name
   over its project, its newest line's time (its oldest's until 4 November
   2026), and with several waiting their count ("+N" for the lines after
@@ -5093,76 +5119,147 @@ were settled in the browser spike (below, "How the strip moves").
   holds it. Carry it on in Claude.", its words dimming as one, as the
   panel's (see "The rows"; 3 November 2026), on the black and on glass, in
   a tab and in a count's rows alike.
-- **Moving.** The strip never shuts, so the panel's "a changed row moves only
-  once it closes" becomes: a needs you arriving moves in at once, the marks
-  below sliding down to make room; any other change shows in place, and the
-  marks re-sort a second after the pointer leaves the strip. A mark arrives
-  when `new` names any of its lines (see "One engine, two front ends"): new
-  to the strip, or already on it, from working or on its own work, it
-  moves into Needs you at once and its ring flashes twice, as a new one's
-  does; one already on the Needs you side, a second ask come or a stopped
-  session asking, flashes where it is. A session stopping, moved from
-  working or on its own work into Lee's turn as `LastBoard.newTurns`
-  decides it for the banner, moves into Needs you at once too, before the
-  stopped, the marks below sliding down (14 November 2026); one still on
-  the Needs you side, its ask answered or its turn ended before the
-  re-sort, stays where it is. One back at a turn whose end it stood at
-  before, so no stop for the banner, moves in at once all the same,
-  unflashed. Each flashes only as Settings' pulses say,
-  as the notch's pulse follows them (14 November 2026): an ask arriving
-  flashes twice and is washed while "Pulse for a new ask" is on, and a
-  session stopping flashes twice, in its blue and unwashed, while "Pulse
-  when Claude stops" is on; with its pulse off either moves all the same,
-  unflashed, and any flash its mark still showed ends. Until then a turn
-  ending changed in place under the hairline, and an ask flashed whatever
-  its pulse. One whose asks are
-  answered, or a stopped one whose turn ends, Claude working again,
-  changes in place and moves at the re-sort, as the prototype's answer
-  does (below, "Too many"). The strip shows no
-  Snoozed (see "Snooze"): an ask asleep is no mark, and one its time wakes
-  arrives as a new one does, flashing its ring; one Lee wakes changes in
-  place.
+- **Moving.** The strip never shuts, so the panel's "a changed row moves
+  only once it closes" becomes one rule (Lee, 14 November 2026): a mark
+  moves at once whenever its session changes group, pointer on the strip or
+  not, a menu open or not. The groups are the panel's, in its order: Needs
+  you's asks, its stopped, Working, those on their own work among it, and
+  Snoozed. Moving, a mark leaves its place and grows into the one the
+  panel's order gives it in its new group, under the one of its group above
+  it, the marks below sliding down to make room, or lands in its section's
+  count, folded or past its room. So an ask answered, or a stopped one's
+  turn ended, Claude working again, leaves Needs you for Working at once,
+  out of its count too; a stopped session asking moves up among the asks at
+  once, and an ask whose session comes to its turn down among the stopped; a
+  session Lee snoozes moves into Snoozed, and one he wakes, or its time
+  wakes, out of it, its row elsewhere moving too wherever the wake changes
+  its group, as a session stopped on a prompt whose ask wakes, the other of
+  its two asks still asleep. Only the order within a group waits: a change
+  that moves a row there, as an ask asked again, shows in place, and the
+  marks re-sort a second after the pointer leaves the strip, as the
+  prototype's settle does. A session new to the strip comes in at its place
+  in the same way, so nothing else re-sorts under the pointer or an open
+  menu: one `new` names, or one stopping, as below, and any other,
+  unflashed, as needs you with nothing new among them on a run's first
+  board, or a session's row new in Snoozed, its row elsewhere staying. One
+  gone fades where it is, and the rest close up. One update's moves are
+  placed together, each with the others counted for every section's room,
+  and laid out once, so each takes its final place at once, at launch too,
+  and grows in there. How a move shows is apart from whether it moves. A
+  mark arrives when `new` names any of its lines (see "One engine, two front
+  ends"): moving in, new to the strip or from another group, its ring
+  flashes twice, as a new one's does; one staying in its group, a second ask
+  come, flashes where it is. A session stopping, moved from working or on
+  its own work into Lee's turn as `LastBoard.newTurns` decides it for the
+  banner, moves in before the stopped, its ring flashing twice (14 November
+  2026). One its time wakes, which `new` names, arrives in Needs you as a
+  new one does, flashing its ring. Any other move is unflashed: one back at
+  a turn whose end it stood at before, so no stop for the banner, and one
+  Lee snoozes or wakes. Each flashes only as Settings' pulses say, as the
+  notch's pulse follows them (14 November 2026): an ask arriving flashes
+  twice and is washed while "Pulse for a new ask" is on, and a session
+  stopping flashes twice, in its blue and unwashed, while "Pulse when Claude
+  stops" is on; with its pulse off either moves all the same, unflashed, and
+  any flash its mark still showed ends. Until then a turn ending changed in
+  place under the hairline, and an ask flashed whatever its pulse. An ask
+  woken into a full Needs you pushes the last stopped mark showing into the
+  count, as any ask does; neither Needs you's count nor that push ever
+  counts a session Lee snoozed. Earlier on 14 November each mark was held to
+  its row's section, not its group: one crossing into Needs you, or into
+  Snoozed or out of it, moved at once, and any other change, one leaving
+  Needs you for Working among them, showed in place and moved at the
+  re-sort; a session new to the strip that nothing named came in as all the
+  marks re-sorted at once; and a wake was told by the session's row in
+  Snoozed going, which missed the first of a stopped session's two asks
+  asleep waking, its row in Snoozed staying: its mark flashed among the
+  stopped and moved up among the asks only at the re-sort. Before that a
+  session's moves were found three ways, by `new`, by a stop and by a snooze
+  or a wake renaming its mark, which missed a wake whose session's row
+  elsewhere stayed: an ask woken into a session working sat under Working's
+  hairline until the re-sort, which waited while the pointer stayed on the
+  strip. Before that a mark Lee snoozed or woke changed in place and moved
+  at the re-sort, which left an ask he woke inside Snoozed's folded count,
+  and one he snoozed over the hairline, while the pointer stayed on the
+  strip. Until then the strip showed no Snoozed (see "Snooze"): an ask
+  asleep was no mark, and one Lee woke changed in place.
+- **Folded** (14 November 2026, Lee). The strip folds a section as the
+  card does, by the one setting both read (see "Folding"), Snoozed folded
+  at first. A section folded is one count ring in exactly one place, its
+  number the section's sessions, with no plus, looking otherwise as a count
+  past the room, which itself has no plus while none of its section's
+  marks shows beside it: Needs you's orange while it holds an ask and blue
+  while all it holds are stopped, Working's grey, and Snoozed's
+  the faint grey of the rows' projects, on the track. Under the pointer it
+  pours the section's sessions as one tab of rows, each a click to its
+  session; a click on the ring unfolds the section, here and on the card.
+  Folding and unfolding lay the strip out again at once, the marks below
+  sliding. An arrival into Needs you folded lands in its count, which
+  flashes as a count past the room does, as Settings' pulses say.
+- **A right-click** (14 November 2026, Lee) on a session's mark, its tab,
+  or its row on a count's tab brings up its row's menu on the card, the
+  same one (Jump to the window; Snooze, or Wake now in Snoozed), each for
+  the session by its own id, with the fold of the section the strip has it
+  in at its foot after a separator: Collapse and the section's name, or
+  Expand where it is folded, as on its folded count's tab. On a section
+  folded, Expand and its name alone; on a count past its room, Collapse
+  and its name alone. While the menu shows the strip holds as if the
+  pointer rested where it was opened, its hover held on what it was opened
+  on however a board slides the marks under that point, so a tab out stays
+  out, no other pours, and nothing re-sorts under the choice; a board that
+  moves the session meanwhile leaves its Jump going to its mark as the strip
+  has it then, the count it is folded into pressing in where no tab is out.
+  A mark that a fold or a push puts into a count takes its tab back with it.
 - **Too many.** The strip has as many places as Max gives it, or as the
-  full height holds: about 30 (32 on a 1117pt screen, 27 on a 982pt one).
-  Needs you, its asks and its stopped, takes them first, keeping one for
-  working whenever any is working, on its own work among it. Past its
+  full height holds: about 30 (32 on a 1117pt screen, 27 on a 982pt one),
+  never fewer than one for each section showing. Each section takes its
+  places in its turn, keeping one for each after it that holds any (14
+  November 2026): Needs you, its asks and its stopped, first, keeping one
+  for Working whenever any is working, on its own work among it, and one
+  for Snoozed whenever any is snoozed; then Working, keeping Snoozed's;
+  Snoozed last. A section folded takes exactly one, its count. Until then
+  Needs you kept one for Working alone. Past its
   room, the sessions last in its order fold into a count of their own, the
   needs-you group's last place, over the hairline (Lee, 19 October 2026:
   "new asks should collapse into a number of collapsed icons... in the
   bottom of their own panel"), in this order: the away stopped, then the
   stopped, then the away asks, then the oldest asks. The count's "+N"
   counts the sessions it holds, its ring blue while all it holds are
-  stopped and orange while it holds any session not stopped, so an ask
-  answered in it, working until the re-sort, keeps it orange; its tab
-  lists them as
-  rows, each as its own tab words it (14 November 2026). From 19 October
+  stopped and orange while it holds an ask, the only other it can hold, as
+  a session working again leaves it at once; its tab lists them as rows,
+  each as its own tab words it (14 November 2026). From 19 October
   2026 the count held asks alone, always orange, the oldest folding since
   Needs you went newest first (4 November 2026; the newest until then),
   and your turn took its places with working, past them in the grey
-  count. Working takes the places left, and past them the last place is
-  the grey count ("+3"). Under the pointer each count pours out what it
-  holds as one tab of rows, which scroll on a short strip. A new ask
-  arriving past needs you's room while a stopped mark shows below its
+  count. Working takes the places left but Snoozed's, and past them its
+  last place is the grey count ("+3"); Snoozed takes the rest, past them
+  its last place its own faint count. Under the pointer each count pours
+  out what it holds as one tab of rows, which scroll on a short strip. A
+  new ask arriving past needs you's room while a stopped mark shows below its
   place takes its place among the asks all the same, under the one the
   panel's order has above it, the marks below sliding down, and the last
   stopped mark showing goes into the count, its tab drawing back if it
   has one out (Lee, 14 November 2026). What shows is judged as the strip
   stands once the arriving session has left its old place, so the only
-  working session asking frees its place for Needs you first. A stopped
-  mark showing above its place, as one can before a re-sort, stays. With
-  no stopped mark showing below its place, a new ask lands in the count,
-  and a session stopping lands there whatever shows, the marks showing
-  never moving: only asks push stopped marks out. Until then every
-  arrival past the room landed in the count, the marks showing never
-  moving. One landing there flashes the count's ring twice in the count's
-  own colour, orange while it holds any session not stopped, each only
-  with its pulse on, an ask washing it too; several landing in one update,
-  or folded there by another arriving, add up, an ask's showing over a
-  stop's; one landing there quietly ends a flash the count still shows for
-  that same session. A count going keeps its colour as it fades. An ask answered out of the count
-  changes its row in place; at the re-sort the
-  count shrinks, or goes and the last folded mark takes its place. Lee: "It
-  works."
+  working session asking frees its place for Needs you first. No stopped
+  mark shows above its place, as the stopped keep to their own run of
+  Needs you, under the asks; until the group rule one could, before a
+  re-sort, and stayed. With no stopped mark showing below its place, a new
+  ask lands in the count, and a session stopping lands there whatever shows,
+  the marks showing never moving: only asks push stopped marks out. Landing
+  so, out of the panel's order, it waits for the re-sort as any order within
+  a group does, and a second after the pointer leaves the strip the panel's
+  order comes back. Until then every arrival past the room landed in the
+  count, the marks showing never moving. One landing there flashes the
+  count's ring twice in the count's own colour, orange while it holds an
+  ask, each only with its pulse on, an ask washing it too; several landing
+  in one update, or folded there by another arriving, add up, an ask's
+  showing over a stop's; one landing there quietly ends a flash the count
+  still shows for that same session, as does that session leaving the count.
+  A count going keeps its colour as it fades. An ask answered in the count
+  leaves it at once for Working, its row going from the count's tab: the
+  count shrinks, or goes and the last folded mark takes its place (Lee, 14
+  November 2026). Until then its row changed in place, and the count shrank
+  at the re-sort; Lee: "It works."
 - **Windows and full screen:** macOS lets no app reserve screen space as the
   Dock does, so a window filling the screen goes under the strip's 36pt; Lee
   hasn't said how that reads. Nothing of SitRep's goes over a full-screen

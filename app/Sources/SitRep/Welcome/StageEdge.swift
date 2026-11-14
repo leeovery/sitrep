@@ -694,13 +694,21 @@ final class StageStrip: StageShape {
     /// The strip has no panel: its row is the session's mark, where the layout puts it, never a place it slides
     /// through, which may be by another's.
     func middle(of session: String, on edge: ScreenEdge, _ settings: EdgeSettings) -> CGPoint? {
-        run?.markTarget(of: session)
+        markTarget(of: session)
     }
 
     /// On the session's mark too, so only its own tab pours: every point along the marks is near enough one to pour
     /// it, so with no mark of its own, nowhere.
     func home(of session: String, on edge: ScreenEdge) -> CGPoint? {
-        run?.markTarget(of: session)
+        markTarget(of: session)
+    }
+
+    /// Where the mark of the session's row, by the mark's key, is going (`StripRun.markTarget`): its row in the
+    /// panel's sections, never Snoozed.
+    private func markTarget(of session: String) -> CGPoint? {
+        run.flatMap { run in
+            run.board.sessions.first { $0.id == session }.flatMap { run.markTarget(ofMark: $0.markID) }
+        }
     }
 
     func apply(_ settings: EdgeSettings, at time: Double, _ edge: ScreenEdge) {

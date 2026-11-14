@@ -93,7 +93,7 @@ struct NeedsYouTests {
 
     private static let setting = NotchRun.Setting(
         stage: Stage(height: 982, visibleTop: 24, visibleBottom: 982, notchY: 491), mirror: .identity,
-        style: .meniscus, reducesMotion: false
+        style: .meniscus, reducesMotion: false, isChosen: true
     )
 
     // MARK: The pulse
@@ -154,8 +154,9 @@ struct NeedsYouTests {
         )
         let (run, flash) = Self.stripShown(shown, flashing: "sr-t")
 
-        let stopped = run.markTarget(of: "sr-t")?.y ?? .infinity, working = run.markTarget(of: "sr-w")?.y ?? 0
-        #expect(stopped < run.frame.hairline.y && run.frame.hairline.y < working && run.frame.hairline.alpha == 1)
+        let stopped = run.markTarget(ofMark: "sr-t")?.y ?? .infinity, working = run.markTarget(ofMark: "sr-w")?.y ?? 0
+        let hairline = run.frame.hairlines[0]
+        #expect(stopped < hairline.y && hairline.y < working && hairline.alpha == 1)
         #expect((flash > 0.5) == flashes)
     }
 
@@ -171,7 +172,7 @@ struct NeedsYouTests {
         _ = last.hear(.line(asked), at: .now)
         let (run, flash) = Self.stripShown([before, PanelBoard(last, pulses: pulses)], flashing: "sr-a")
 
-        #expect(run.markTarget(of: "sr-a") != nil)
+        #expect(run.markTarget(ofMark: "sr-a") != nil)
         #expect((flash > 0.5) == flashes)
     }
 

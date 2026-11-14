@@ -32,12 +32,16 @@ public final class NotchRun: Framed {
         /// The notch Lee chose, which the model becomes once it is at rest.
         public var style: NotchStyle
         public var reducesMotion: Bool
+        /// Whether Lee chose the notch to show the board: an arrival unfolds Needs you on its card. With the strip
+        /// chosen, Needs you folded stays folded, its count on the strip flashing (14 November 2026).
+        public var isChosen: Bool
 
-        public init(stage: Stage, mirror: CGAffineTransform, style: NotchStyle, reducesMotion: Bool) {
+        public init(stage: Stage, mirror: CGAffineTransform, style: NotchStyle, reducesMotion: Bool, isChosen: Bool) {
             self.stage = stage
             self.mirror = mirror
             self.style = style
             self.reducesMotion = reducesMotion
+            self.isChosen = isChosen
         }
     }
 
@@ -71,17 +75,11 @@ public final class NotchRun: Framed {
     public private(set) var scroll = 0.0
     /// A press off a row, which a move makes a drag, until it lets go.
     public private(set) var drag: NotchDrag?
-    /// The sections Lee folded, kept as they change, by a click or an arrival unfolding Needs you.
-    public private(set) var folded: CardFolds {
-        didSet {
-            if folded.sections != oldValue.sections {
-                kept?.save(CardSettings(folded: folded.sections))
-            }
-        }
-    }
+    /// The sections Lee folded, here or on the strip, as they change, by a click or an arrival unfolding Needs you.
+    public var folded: CardFolds { folding.folds }
 
-    /// Where the sections folded are kept across opens and launches; none, they are not.
-    private let kept: SavedSettings<CardSettings>?
+    /// What Lee folded, the strip's setting as well.
+    private let folding: Folding
     /// The light's own clock, apart from the frames': the latest it was drawn at.
     private var lit: Double
     /// What lit the light last, whose colour it keeps as it goes out: an ask until anything has.
@@ -98,18 +96,16 @@ public final class NotchRun: Framed {
     /// What the list was last laid out from, which its folds are told apart from.
     private var laid: Laid
 
-    /// The sections folded as kept, if they are, the rows' wake times worded in the Gregorian calendar in the Mac's
+    /// The sections folded as `folding` has them, the rows' wake times worded in the Gregorian calendar in the Mac's
     /// time zone, followed as it changes (`WakeTime.calendar`).
     public init(
-        at time: Double, in setting: Setting, kept: SavedSettings<CardSettings>? = nil,
-        calendar: Calendar = WakeTime.calendar
+        at time: Double, in setting: Setting, folding: Folding = Folding(), calendar: Calendar = WakeTime.calendar
     ) {
         book = RunBook(at: time)
         lit = time
         style = setting.style
-        self.kept = kept
-        folded = CardFolds(sections: kept?.read().folded ?? BoardSection.foldedAtFirst)
-        laid = Laid(rows: [], folds: folded)
+        self.folding = folding
+        laid = Laid(rows: [], folds: folding.folds)
         self.calendar = calendar
         list = PanelList(head: board.head, content: Content(laying: []))
 
@@ -148,7 +144,8 @@ public final class NotchRun: Framed {
     }
 
     /// One frame: the list as it folds now, the model moved on with the pointer where it is, the rows taking core's
-    /// order once the panel is in, the notch Lee chose once it is at rest, and the scroll kept inside the content.
+    /// order once the panel is in, and the sections as folded on the strip meanwhile, the notch Lee chose once it is at
+    /// rest, and the scroll kept inside the content.
     public func step(_ moment: Moment) {
         let time = book.clock(moment.time), setting = moment.setting
 
@@ -161,7 +158,7 @@ public final class NotchRun: Framed {
         frame = notch.frame(input)
         seen = pointer
         latch(frame, at: time)
-        if hold(notch.phase != .closed) {
+        if hold(notch.phase != .closed) || laid.folds != folded {
             relist(at: time, in: setting)
         }
         restyle(input, to: setting.style)
@@ -187,7 +184,7 @@ public final class NotchRun: Framed {
 
     /// The board as `watch` last printed it, told to the notch, its rows held while the panel is out: the items
     /// arriving on it to wash, by their keys, while the panel is out; never one a row changing section leaves, folding
-    /// away. An arrival unfolds Needs you, at once.
+    /// away. An arrival unfolds Needs you, at once, while Lee has the notch show the board.
     public func show(_ board: PanelBoard, _ moment: Moment) -> Set<String> {
         upToNow(moment)
         board.tell(notch, after: self.board)
@@ -195,8 +192,8 @@ public final class NotchRun: Framed {
         lightNeed = board.need ?? lightNeed
         rows.take(board.cardSessions)
 
-        if !board.new.isEmpty {
-            folded.sections.remove(.needsYou)
+        if !board.new.isEmpty, moment.setting.isChosen {
+            folding.set(.needsYou, folded: false)
         }
         relist(at: time, in: moment.setting)
         return isOut ? Set(board.sessions.filter { board.new.contains($0.id) }.map { Item.line($0).key }) : []
@@ -371,7 +368,7 @@ public final class NotchRun: Framed {
             return jump(index)
         }
 
-        folded.toggle(eyebrow.section)
+        folding.toggle(eyebrow.section)
         relist(at: time, in: setting)
         return .fold
     }

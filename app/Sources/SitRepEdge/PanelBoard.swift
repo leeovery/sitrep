@@ -7,9 +7,10 @@ import SitRepPanel
 /// Needs you's asks and turns (`inPanelOrder`), counts what needs Lee, asks and turns alike, and says them as the panel
 /// does.
 public struct PanelBoard: Equatable, Sendable {
-    /// In the panel's order: the strip's and the menu's, and the card's but for Snoozed.
+    /// In the panel's order: the menu's, and the card's and the strip's but for Snoozed.
     public let sessions: [Session]
-    /// The card's Snoozed rows, the soonest to wake first, which the strip and the menu leave out.
+    /// The card's Snoozed rows, and the strip's (14 November 2026), the soonest to wake first, which the menu leaves
+    /// out.
     public let snoozed: [Session]
     /// "11 need you": the asks and stops waiting, and the sessions at Lee's turn.
     public let head: Head
@@ -126,7 +127,7 @@ public struct PanelBoard: Equatable, Sendable {
         )
     }
 
-    /// The card's rows: the panel's, then Snoozed's.
+    /// The card's rows and the strip's: the panel's, then Snoozed's.
     public var cardSessions: [Session] { sessions + snoozed }
 
     /// Nothing for the card to list: no row, nor any in Snoozed.

@@ -49,7 +49,9 @@ struct StripRecorded {
     let t: Double
     /// The pointer as the strip took it; nil off the page.
     let p: CGPoint?
+    /// The hairline over Working, and the one over Snoozed, none before it is first placed.
     let hair: Mark
+    let snoozedHair: Mark?
     let ends: Ends
     /// "mark s6" or "tab s7": a click jumping.
     let jumping: String?
@@ -58,23 +60,26 @@ struct StripRecorded {
     let marks: [Mark?]
     let more: Count?
     let moreNeeds: Count?
+    let moreSnoozed: Count?
 }
 
 extension StripRecorded: Decodable {
     private enum Keys: String, CodingKey {
-        case t, p, hair, ends, jumping, tabs, marks, more, moreNeeds
+        case t, p, hair, snoozedHair, ends, jumping, tabs, marks, more, moreNeeds, moreSnoozed
     }
 
     init(from decoder: any Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
         try self.init(
             t: c.decode(Double.self, forKey: .t), p: c.decode(Pointer?.self, forKey: .p)?.at,
-            hair: c.decode(Mark.self, forKey: .hair), ends: c.decode(Ends.self, forKey: .ends),
+            hair: c.decode(Mark.self, forKey: .hair), snoozedHair: c.decodeIfPresent(Mark.self, forKey: .snoozedHair),
+            ends: c.decode(Ends.self, forKey: .ends),
             jumping: c.decodeIfPresent(String.self, forKey: .jumping),
             tabs: c.decodeIfPresent([Tab].self, forKey: .tabs) ?? [],
             marks: c.decodeIfPresent([Mark?].self, forKey: .marks) ?? [],
             more: c.decodeIfPresent(Count.self, forKey: .more),
-            moreNeeds: c.decodeIfPresent(Count.self, forKey: .moreNeeds)
+            moreNeeds: c.decodeIfPresent(Count.self, forKey: .moreNeeds),
+            moreSnoozed: c.decodeIfPresent(Count.self, forKey: .moreSnoozed)
         )
     }
 }

@@ -17,8 +17,8 @@ struct StripTests {
         let ys = lab.model.layout.places.map(\.y)
 
         #expect(ys == [80, 110, 140, 170, 200, 230, 273, 303])
-        #expect(lab.model.layout.hair == 251.5)
-        #expect(lab.frame.hairline.y == 251.5 && lab.frame.hairline.alpha == 1)
+        #expect(lab.model.layout.hairs[.working] == 251.5)
+        #expect(lab.frame.hairlines[0].y == 251.5 && lab.frame.hairlines[0].alpha == 1)
         #expect(lab.frame.marks.allSatisfy { $0.centre.x == 18 && $0.scale == 1 && $0.alpha == 1 })
     }
 
@@ -256,11 +256,16 @@ struct StripTests {
         #expect(washed.filter { $0.t >= 2000 }.allSatisfy { $0.level == 0 })
     }
 
+    /// A change to the order within a group, SitRep asking again and so the newest ask, waits until the pointer has
+    /// been off the strip a second.
     @Test func aChangeWaitsUntilThePointerHasBeenOffTheStripASecond() {
         var lab = StripLab()
         lab.open("s6")
+        var askedAgain = StripLab.prototype[0]
+        askedAgain.lines[0].title = "Approve the round 3 drawings"
+        askedAgain.lines[0].since = 0
 
-        lab.change(StripLab.answered)
+        lab.change(askedAgain)
         lab.wait(1500)
         #expect(lab.model.display.first == "s1")
 
@@ -270,7 +275,7 @@ struct StripTests {
         lab.wait(2000) { $0.model.display.first != "s1" }
 
         #expect(abs(lab.model.t - left - 1000) < 17)
-        #expect(lab.model.display.last == "s1")
+        #expect(lab.model.display.prefix(4) == ["s2", "s3", "s1", "s4"])
     }
 
     @Test func aTabOutWhileTheMarksSlideStaysWithItsMarkThenGlidesToTheMarkUnderThePointer() {
@@ -303,12 +308,12 @@ struct StripTests {
             return
         }
         #expect(session.sub == "No window holds it. Carry it on in Claude.")
-        #expect(lab.model.click(at: CGPoint(x: lab.frame.tabs[0].clip.midX, y: 170))?.id == "s4")
+        #expect(lab.model.click(at: CGPoint(x: lab.frame.tabs[0].clip.midX, y: 170)).session?.id == "s4")
         #expect(lab.model.jumping != nil)
 
         let marked = StripLab()
 
-        #expect(marked.model.click(at: CGPoint(x: 18, y: 170))?.id == "s4")
+        #expect(marked.model.click(at: CGPoint(x: 18, y: 170)).session?.id == "s4")
         #expect(marked.model.jumping != nil)
     }
 
@@ -366,24 +371,24 @@ struct StripTests {
         lab.step()
         lab.model.click(at: lab.pointer!)
         lab.step()
-        #expect(lab.live?.key == .more && lab.live?.phase == .open)
+        #expect(lab.live?.key == .count(.working) && lab.live?.phase == .open)
         #expect(lab.model.jumping == nil)
 
         lab.settle()
         let tab = lab.frame.tabs[0], first = tab.box.minY + StripTuning.rowsPad + 20
-        #expect(tab.row(at: CGPoint(x: 100, y: first)) == lab.model.layout.rest[0])
+        #expect(tab.row(at: CGPoint(x: 100, y: first)) == lab.model.layout.rest(of: .working)[0])
         lab.model.click(at: CGPoint(x: 100, y: first))
         lab.step()
-        #expect(lab.frame.tabs[0].words.last!.pressedRow == lab.model.layout.rest[0])
+        #expect(lab.frame.tabs[0].words.last!.pressedRow == lab.model.layout.rest(of: .working)[0])
     }
 
     /// Pressed and let go on a row of an open count's tab, past the strip: the press is the tab's, and it jumps.
     @Test func aPressLetGoOnAnOpenTabsRowJumps() throws {
         var lab = StripLab()
         lab.add(StripLab.tooMany)
-        lab.open(.more)
+        lab.open(.count(.working))
         let tab = lab.frame.tabs[0], row = CGPoint(x: 100, y: tab.box.minY + StripTuning.rowsPad + 20)
-        let first = try #require(lab.model.layout.rest.first.flatMap(lab.model.session))
+        let first = try #require(lab.model.layout.rest(of: .working).first.flatMap(lab.model.session))
 
         lab.model.press(at: row)
 

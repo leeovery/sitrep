@@ -13,7 +13,7 @@ import Testing
 struct CardSectionsRunTests {
     private static let setting = NotchRun.Setting(
         stage: Stage(height: 982, visibleTop: 24, visibleBottom: 982, notchY: 491), mirror: .identity,
-        style: .meniscus, reducesMotion: false
+        style: .meniscus, reducesMotion: false, isChosen: true
     )
     private static let frameMS = 1000.0 / 60
     private static let onTheNotch = CGPoint(x: 3, y: 491)
@@ -58,7 +58,7 @@ struct CardSectionsRunTests {
     /// A run over this board, its folds kept in `kept`, in London's calendar, its panel opened by the pointer held on
     /// the notch.
     private static func opened(_ rows: [String], kept: SavedSettings<CardSettings>? = nil) -> NotchRun {
-        let run = NotchRun(at: 1000, in: setting, kept: kept, calendar: london)
+        let run = NotchRun(at: 1000, in: setting, folding: Folding(kept: kept), calendar: london)
 
         _ = run.show(board(rows), at(run.time))
         frames(run, for: 3000, onTheNotch) { run.phase == .open }

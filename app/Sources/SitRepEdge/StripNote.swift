@@ -1,3 +1,4 @@
+import Foundation
 import SitRepPanel
 
 /// What the strip's tabs say of the board, which it has no head to say: the notch at rest's title, nothing running or,
@@ -17,9 +18,9 @@ public struct StripNote: Equatable, Sendable {
     /// Under the notch at rest's title: where sessions show, or while the board is stale, when it was last current.
     public var idleLine2: String { asOf ?? StripFrame.Words.Content.idleLine2 }
 
-    /// A row's time: how long it has stood where it does at this time on the wall clock, or while the board is stale,
-    /// when it was last current.
-    public func age(_ session: Session, at now: Double) -> String {
-        asOf ?? session.ageText(at: now)
+    /// A row's time: how long it has stood where it does at this time on the wall clock, or in Snoozed when it wakes,
+    /// as the card's row says it; while the board is stale, when it was last current.
+    public func age(_ session: Session, at now: Double, in calendar: Calendar = WakeTime.calendar) -> String {
+        asOf ?? session.timeText(at: now, in: calendar)
     }
 }

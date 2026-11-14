@@ -2,11 +2,11 @@ import AppKit
 import SitRepPanel
 
 /// One mark on the strip in black, drawn as the prototype's `.mk`: the project's letters in a 24pt ring whose colour
-/// carries the state, a glow outside it in Needs you, the working arc turning round it, or on its own work the
-/// dotted ring in the ring's place, still, lifted under the pointer, and pressed in with its arc turning while a click
-/// on it jumps. Just arrived, its ring flashes in its own colour, an ask's washed orange, and its lift eases as the
-/// model eases it, a frame at a time; any other change of look eases over 240ms, the letters' colour among it, as the
-/// prototype's transitions do, and the pressed fill over 110.
+/// carries the state, a glow outside it in Needs you, the working arc turning round it, or on its own work the dotted
+/// ring in the ring's place, still, in Snoozed the ring dimmed and the letters faint, lifted under the pointer, and
+/// pressed in with its arc turning while a click on it jumps. Just arrived, its ring flashes in its own colour, an
+/// ask's washed orange, and its lift eases as the model eases it, a frame at a time; any other change of look eases
+/// over 240ms, the letters' colour among it, as the prototype's transitions do, and the pressed fill over 110.
 @MainActor
 final class StripMarkLayer {
     let layer = CALayer()
@@ -166,18 +166,22 @@ final class StripMarkLayer {
         still { letters.mask = line }
     }
 
-    private static func ringColour(_ kind: StripFrame.Mark.Look) -> CGColor? {
-        if let need = kind.need {
-            return EdgeStyle.colour(of: need)
+    /// Internal only for the tests, which read each look's.
+    static func ringColour(_ kind: StripFrame.Mark.Look) -> CGColor? {
+        switch kind {
+        case .needs, .away, .turn, .awayTurn, .needsCount, .stoppedCount: kind.need.map(EdgeStyle.colour(of:))
+        case .snoozed: EdgeStyle.asleep(EdgeStyle.orange)
+        case .snoozedTurn: EdgeStyle.asleep(EdgeStyle.blue)
+        case .count, .snoozedCount: EdgeStyle.track
+        case .working, .onItsWork: nil
         }
-
-        return kind == .count ? EdgeStyle.track : nil
     }
 
-    private static func letterColour(_ kind: StripFrame.Mark.Look) -> CGColor {
+    /// Internal only for the tests, which read each look's.
+    static func letterColour(_ kind: StripFrame.Mark.Look) -> CGColor {
         switch kind {
         case .needs, .turn, .needsCount, .stoppedCount: EdgeStyle.ink
-        case .away, .awayTurn: EdgeStyle.ink3
+        case .away, .awayTurn, .snoozed, .snoozedTurn, .snoozedCount: EdgeStyle.ink3
         case .working, .onItsWork: EdgeStyle.grey
         case .count: EdgeStyle.ink2
         }

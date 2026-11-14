@@ -26,10 +26,10 @@ extension Strip {
     /// The full strip's first mark's centre: Room further under the top end's S than the board has it.
     var firstY: Double { stage.menu + endPad }
 
-    /// How many places the full strip holds, the hairline taking 13pt more than a step when there is one: Full, where
-    /// Max's slider runs to.
-    func fullPlaces(hairline: Bool) -> Int {
-        let hair = hairline ? StripTuning.hairExtra : 0
+    /// How many places the full strip holds, each hairline between two sections taking 13pt more than a step: Full,
+    /// where Max's slider runs to.
+    func fullPlaces(hairlines: Int) -> Int {
+        let hair = Double(hairlines) * StripTuning.hairExtra
         var places = 1
         while firstY + Double(places) * StripTuning.pitch + hair <= bottomEnd - endPad {
             places += 1

@@ -14,7 +14,8 @@ public struct StripFrame {
     public let fading: Frame.Fading?
     /// Every mark, the counts last.
     public let marks: [Mark]
-    public let hairline: Hairline
+    /// The hairline over Working, then the one over Snoozed, each showing only between two sections.
+    public let hairlines: [Hairline]
     /// Whether anything can still change with the pointer held still.
     public let isMoving: Bool
     /// Whether the strip took the pointer as on it or its open tab, last frame: a frame off them tells it it left.
@@ -69,7 +70,8 @@ public struct StripFrame {
             frontRounded(clip, top: radius, bottom: radius, contains: point)
         }
 
-        /// A count's tab: the session whose row is under a point, as its rows lie scrolled, the newest words' first.
+        /// A count's tab: the session whose row is under a point, by its mark's key, as its rows lie scrolled, the
+        /// newest words' first.
         public func row(at point: CGPoint) -> String? {
             guard let words = words.last, case let .rows(rows) = words.content else {
                 return nil
@@ -79,7 +81,7 @@ public struct StripFrame {
             let y = point.y - box.minY - words.frame.minY - StripTuning.rowsPad + words.scroll
             let i = Int((y / pitch).rounded(.down))
             let onRow = y >= 0 && rows.indices.contains(i) && y - Double(i) * pitch <= StripTuning.rowHeight
-            return onRow ? rows[i].id : nil
+            return onRow ? rows[i].markID : nil
         }
     }
 
@@ -122,9 +124,12 @@ public struct StripFrame {
         public enum Look: Sendable {
             /// An ask's, orange, with the panel dot's glow, the letters white, and away the letters dim; your turn's
             /// the same in blue; working, a grey track with a pale arc turning; on its own work, the dotted ring round
-            /// the letters, still, in working's grey; the grey count, a grey ring; needs you's count, orange with its
-            /// glow, the letters white, and blue while all it holds are stopped (14 November 2026).
-            case needs, away, turn, awayTurn, working, onItsWork, count, needsCount, stoppedCount
+            /// the letters, still, in working's grey; in Snoozed (14 November 2026), an ask's or a turn's ring dimmed
+            /// as a Snoozed row's dot is, unlit, the letters faint; Working's count, a grey ring; needs you's count,
+            /// orange with its glow, the letters white, and blue while all it holds are stopped (14 November 2026);
+            /// Snoozed's, the faint grey.
+            case needs, away, turn, awayTurn, working, onItsWork, snoozed, snoozedTurn
+            case count, needsCount, stoppedCount, snoozedCount
 
             /// What it waits on Lee for, which its ring's colour says: an ask, in orange, or his turn, the stopped,
             /// in blue; nil outside Needs you.
@@ -132,9 +137,12 @@ public struct StripFrame {
                 switch self {
                 case .needs, .away, .needsCount: .ask
                 case .turn, .awayTurn, .stoppedCount: .turn
-                case .working, .onItsWork, .count: nil
+                case .working, .onItsWork, .snoozed, .snoozedTurn, .count, .snoozedCount: nil
                 }
             }
+
+            /// A session's in Snoozed, or Snoozed's count: dimmed.
+            public var isAsleep: Bool { self == .snoozed || self == .snoozedTurn || self == .snoozedCount }
         }
 
         public let key: MarkKey
@@ -159,7 +167,7 @@ public struct StripFrame {
         public static let size = StripTuning.mark
     }
 
-    /// The hairline under needs you: 16 long, centred across the strip.
+    /// A hairline between two sections: 16 long, centred across the strip.
     public struct Hairline {
         public let x: Double
         public let y: Double
@@ -181,12 +189,16 @@ extension Strip {
         let fading = renderFade()
         let swaps = swapsEdge
         swapsEdge = false
+        let hairlines = StripLayout.hairlined.map { section in
+            let hair = hairs[section, default: StripHair()]
+
+            return StripFrame.Hairline(
+                x: front / 2, y: hair.y.x,
+                alpha: clamp(hair.op.x, 0, 1) * clamp(mvis.x, 0, 1) * marksShown * covered(hair.y.x, 0.5)
+            )
+        }
         return StripFrame(
-            time: t, strip: strip, tabs: shown, fading: fading, marks: renderMarks(),
-            hairline: StripFrame.Hairline(
-                x: front / 2, y: hair.x,
-                alpha: clamp(hairOp.x, 0, 1) * clamp(mvis.x, 0, 1) * marksShown * covered(hair.x, 0.5)
-            ),
+            time: t, strip: strip, tabs: shown, fading: fading, marks: renderMarks(), hairlines: hairlines,
             isMoving: isMoving, isOver: over || hot != nil, isHeld: press != nil, isJumping: jumping != nil,
             swapsEdge: swaps, column: column, pointer: sp.map { CGPoint(x: $0.x, y: $0.y) }
         )
@@ -235,17 +247,13 @@ extension Strip {
 
     /// The marks: those gone faded out are dropped; a new one waiting grows once it's clear; one just arrived in Needs
     /// you, and needs you's count as one lands in it, has its ring flashing and its glow brighter for two seconds, and
-    /// an ask's is washed orange inside its ring.
+    /// an ask's is washed orange inside its ring. A count says how many it holds: "+3" past its section's room, and
+    /// "3" holding the section folded, nothing of it showing besides.
     func renderMarks() -> [StripFrame.Mark] {
         let live = liveTab()
         let lifted = hot ?? (live?.phase == .open ? live?.key : nil)
         marks.removeAll { $0.removing && $0.op.x < 0.01 && $0.op.target == 0 }
-        if let more, more.removing, more.op.x < 0.01 {
-            self.more = nil
-        }
-        if let moreNeeds, moreNeeds.removing, moreNeeds.op.x < 0.01 {
-            self.moreNeeds = nil
-        }
+        counts = counts.filter { !$0.value.removing || $0.value.op.x >= 0.01 }
 
         var shown: [StripFrame.Mark] = []
         for m in marks {
@@ -254,37 +262,44 @@ extension Strip {
                 continue
             }
 
-            let look: StripFrame.Mark.Look = switch s.kind {
-            case .needs: s.away ? .away : .needs
-            // the strip is given no Snoozed row (`PanelBoard.sessions`)
-            case .turn, .snoozed, .snoozedTurn: s.away ? .awayTurn : .turn
-            case .working: .working
-            case .onItsWork: .onItsWork
-            }
-            shown.append(paint(m, s.letters, look, lifted: lifted == m.key))
+            shown.append(paint(m, s.letters, Self.look(of: s), lifted: lifted == m.key))
         }
-        if let more {
-            shown.append(paint(more, "+\(more.count)", .count, lifted: lifted == .more))
-        }
-        if let moreNeeds {
-            if !moreNeeds.removing {
-                moreNeeds.look = needsCountLook
+        for (section, count) in BoardSection.allCases.compactMap({ section in counts[section].map { (section, $0) } }) {
+            if !count.removing {
+                count.look = countLook(section)
             }
-            let look = moreNeeds.look ?? .needsCount
-            shown.append(paint(moreNeeds, "+\(moreNeeds.count)", look, lifted: lifted == .moreNeeds))
+            let text = "\(count.holdsAll ? "" : "+")\(count.count)"
+            shown.append(paint(count, text, count.look ?? countLook(section), lifted: lifted == count.key))
         }
         return shown
     }
 
-    /// Needs you's count: blue while every session it holds is stopped, else orange, an ask answered in it and working
-    /// until the re-sort among them. Going, it holds none, and keeps the look it had (`StripMark.look`).
-    var needsCountLook: StripFrame.Mark.Look {
-        layout.restNeeds.allSatisfy { session($0)?.need == .turn } ? .stoppedCount : .needsCount
+    /// A session's mark's look, by where it stands.
+    static func look(of s: Session) -> StripFrame.Mark.Look {
+        switch s.kind {
+        case .needs: s.away ? .away : .needs
+        case .turn: s.away ? .awayTurn : .turn
+        case .working: .working
+        case .onItsWork: .onItsWork
+        case .snoozed: .snoozed
+        case .snoozedTurn: .snoozedTurn
+        }
+    }
+
+    /// A section's count's look: Needs you's blue while every session it holds is stopped, at Lee's turn, else
+    /// orange, holding an ask; Working's grey, Snoozed's faint. Going, it holds none, and keeps the look it had
+    /// (`StripMark.look`).
+    func countLook(_ section: BoardSection) -> StripFrame.Mark.Look {
+        switch section {
+        case .needsYou:
+            layout.rest(of: .needsYou).allSatisfy { session($0)?.kind == .turn } ? .stoppedCount : .needsCount
+        case .working: .count
+        case .snoozed: .snoozedCount
+        }
     }
 
     /// A mark as it shows now, its arrival showing only while it waits on Lee for what arrived, so a flash never runs
-    /// on in another colour; but a count, orange while it holds any session not stopped, shows a stop landing in it in
-    /// either colour.
+    /// on in another colour; but a count, orange while it holds an ask, shows a stop landing in it in either colour.
     private func paint(_ m: StripMark, _ text: String, _ look: StripFrame.Mark.Look, lifted: Bool) -> StripFrame.Mark {
         let isJumping = if case let .mark(key) = jumping { key == m.key } else { false }
         let lift = lifted ? 1.0 : 0
@@ -292,7 +307,7 @@ extension Strip {
             to(&m.lift, lift, StripTuning.liftFade)
         }
         let e = t - m.arrived
-        let follows = look.need != nil && (look.need == m.shows.need || m.key == .moreNeeds && m.shows == .stop)
+        let follows = look.need != nil && (look.need == m.shows.need || m.key == .count(.needsYou) && m.shows == .stop)
         let arriving = follows && e >= 0 && e < StripTuning.washHold + StripTuning.washFade
         let washes = arriving && m.shows == .ask
         let wash = e < StripTuning.washHold ? 1 : 1 - smooth((e - StripTuning.washHold) / StripTuning.washFade)
@@ -336,10 +351,10 @@ extension Strip {
     /// Anything still moving: a spring not at rest, a timer pending, a tab's words coming or going, a mark just
     /// arrived or waiting to grow, a cross-fade, or marks sliding under a tab that keeps with them.
     var isMoving: Bool {
-        let all = marks + counts
+        let all = marks + countMarks
         let markSprings: [Spring] = all.flatMap { [$0.y, $0.sc, $0.op, $0.lift] }
         let tabSprings: [Spring] = tabs.flatMap { [$0.w, $0.h, $0.y, $0.press, $0.alpha] }
-        let stripSprings = [hair, hairOp, yt, yb, drawnIn, sw, mvis]
+        let stripSprings = hairs.values.flatMap { [$0.y, $0.op] } + [yt, yb, drawnIn, sw, mvis]
         let springing = (stripSprings + markSprings + tabSprings).contains { !$0.isAtRest }
         let washing = all.contains { m in
             t - m.arrived < StripTuning.washHold + StripTuning.washFade || m.gap != nil || m.waitsForColumn

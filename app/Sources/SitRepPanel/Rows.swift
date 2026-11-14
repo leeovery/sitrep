@@ -1,8 +1,8 @@
 import CoreGraphics
 
 /// A session as the edge shows it: a row on the panel, a mark on the strip, and a mark's tab. One needing Lee has a
-/// line for each ask and stop waiting on Lee, the newest first; its row in Snoozed, on the card alone, a line for each
-/// ask asleep, or its turn's alone; any other has its one line.
+/// line for each ask and stop waiting on Lee, the newest first; its row in Snoozed, on the card and the strip, a line
+/// for each ask asleep, or its turn's alone; any other has its one line.
 public struct Session: Equatable, Sendable {
     /// Where it stands: its turn over but on its own work, which will wake it, among them; or, a row in Snoozed, its
     /// asks asleep, or its turn Lee snoozed.

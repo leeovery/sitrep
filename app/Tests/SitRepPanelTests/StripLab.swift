@@ -82,9 +82,38 @@ struct StripLab {
         )
     }
 
+    /// The board with a session Lee woke, none of it new: its row in Snoozed gone, and its row elsewhere this one.
+    func wake(_ session: Session) {
+        show(model.sessions.filter { $0.id != session.id } + [session])
+    }
+
     /// The board with these gone from it.
     func remove(_ ids: [String]) {
         show(model.sessions.filter { !ids.contains($0.id) })
+    }
+
+    /// The board with the prototype's next session Lee snoozed on it, in its `SNOOZED`'s turn, as its Snooze adds it:
+    /// none of it new, its id the next the prototype gives.
+    func snooze() {
+        let next = Self.snoozed[model.sessions.filter(\.isSnoozed).count % Self.snoozed.count]
+
+        add([next.with(id: "s\(model.sessions.count + 1)")])
+    }
+
+    /// A section folded, or unfolded, as the card's eyebrow or the prototype's Fold does it.
+    func fold(_ section: BoardSection) {
+        model.folded.formSymmetricDifference([section])
+    }
+
+    /// A click at a point, and the section it asks to unfold unfolded, as the run sets it (`StripRun.release`).
+    @discardableResult
+    func click(at point: CGPoint) -> StripRelease {
+        let release = model.click(at: point)
+
+        if case let .unfold(section) = release {
+            model.folded.remove(section)
+        }
+        return release
     }
 
     private func show(_ sessions: [Session], new: Set<String> = []) {
@@ -93,9 +122,9 @@ struct StripLab {
 
     /// The rows in the order the prototype's timelines were recorded in, which the recordings hold them to: needs you,
     /// its asks oldest first, then its stopped, newest first, each with its away ones last, as the app puts them
-    /// (`inPanelOrder`); working, longest running first; on its own work, which they never had, last; on a tie, as
-    /// they were. Core has since put the asks newest first, and working before your turn from 22 October to 4
-    /// November 2026 (`core/rows.ts`).
+    /// (`inPanelOrder`); working, longest running first; on its own work, which they never had; Snoozed last, the
+    /// soonest to wake first, as the card's; on a tie, as they were. Core has since put the asks newest first, and
+    /// working before your turn from 22 October to 4 November 2026 (`core/rows.ts`).
     static func core(_ sessions: [Session]) -> [Session] {
         func key(_ row: (offset: Int, element: Session)) -> (Int, Double, Int) {
             let s = row.element
@@ -103,7 +132,8 @@ struct StripLab {
             case .needs: (s.away ? 1 : 0, s.since, row.offset)
             case .turn: (s.away ? 3 : 2, -s.since, row.offset)
             case .working: (4, s.since, row.offset)
-            case .onItsWork, .snoozed, .snoozedTurn: (5, s.since, row.offset)
+            case .onItsWork: (5, s.since, row.offset)
+            case .snoozed, .snoozedTurn: (6, s.wakesAt ?? .infinity, row.offset)
             }
         }
         return sessions.enumerated().sorted { key($0) < key($1) }.map(\.element)
@@ -171,9 +201,13 @@ struct StripLab {
 
     var live: StripTab? { model.liveTab() }
 
-    /// The mark's spring's three as they are now.
+    /// The mark's spring's three as they are now, by the session's id, its mark's key in Snoozed (`Session.markID`)
+    /// or out of it, fading out as the recording has it too.
     func mark(_ id: String) -> StripRecorded.Mark? {
-        model.mark(.session(id)).map { StripRecorded.Mark(y: $0.y.x, sc: $0.sc.x, op: $0.op.x) }
+        let keys = [id, Session.markID(of: id, snoozed: true)].map(MarkKey.session)
+        let mark = keys.lazy.compactMap { key in model.marks.first { $0.key == key } }.first
+
+        return mark.map { StripRecorded.Mark(y: $0.y.x, sc: $0.sc.x, op: $0.op.x) }
     }
 
     /// The scenario's first action, then a frame at each of the recording's times after it, with the pointer as the
@@ -204,16 +238,22 @@ struct StripLab {
 struct StripPlayed {
     let t: Double
     let hair: StripRecorded.Mark
+    let snoozedHair: StripRecorded.Mark?
     let ends: StripRecorded.Ends
     let jumping: String?
     let tabs: [StripRecorded.Tab]
     let marks: [StripRecorded.Mark?]
-    let more, moreNeeds: StripRecorded.Count?
+    let more, moreNeeds, moreSnoozed: StripRecorded.Count?
 
     init(_ lab: StripLab, marks ids: [String]) {
         let model = lab.model
         t = lab.now
-        hair = StripRecorded.Mark(y: model.hair.x, sc: 1, op: model.hairOp.x)
+        func hairline(_ section: BoardSection) -> StripRecorded.Mark? {
+            model.hairs[section].map { StripRecorded.Mark(y: $0.y.x, sc: 1, op: $0.op.x) }
+        }
+        hair = hairline(.working)!
+        // as the recording has it: Snoozed's only once first placed, the prototype's starting at nought
+        snoozedHair = hairline(.snoozed).flatMap { $0.y == 0 ? nil : $0 }
         ends = StripRecorded.Ends(top: model.yt.x, bottom: model.yb.x, drawnIn: model.drawnIn.x)
         jumping = switch model.jumping {
         case let .tab(_, id): "tab \(id)"
@@ -233,17 +273,18 @@ struct StripPlayed {
         func count(_ m: StripMark?) -> StripRecorded.Count? {
             m.map { StripRecorded.Count(n: $0.count, mark: StripRecorded.Mark(y: $0.y.x, sc: $0.sc.x, op: $0.op.x)) }
         }
-        more = count(model.more)
-        moreNeeds = count(model.moreNeeds)
+        more = count(model.counts[.working])
+        moreNeeds = count(model.counts[.needsYou])
+        moreSnoozed = count(model.counts[.snoozed])
     }
 
     /// The same strip as the prototype's: the springs and the fillets to the recording's six decimals, the words'
     /// opacity to the browser's three.
     func matches(_ r: StripRecorded) -> Bool {
-        same(hair, r.hair) && same(ends, r.ends) && jumping == r.jumping
+        same(hair, r.hair) && same(snoozedHair, r.snoozedHair) && same(ends, r.ends) && jumping == r.jumping
             && tabs.count == r.tabs.count && zip(tabs, r.tabs).allSatisfy(same)
             && marks.count == r.marks.count && zip(marks, r.marks).allSatisfy(same)
-            && same(more, r.more) && same(moreNeeds, r.moreNeeds)
+            && same(more, r.more) && same(moreNeeds, r.moreNeeds) && same(moreSnoozed, r.moreSnoozed)
     }
 
     /// The worst gap between the two, over every spring.
@@ -255,7 +296,10 @@ struct StripPlayed {
             a.flatMap { a in b.map { b in [a.y - b.y, a.sc - b.sc, a.op - b.op] } } ?? []
         }
         let endGaps = [ends.top - r.ends.top, ends.bottom - r.ends.bottom, ends.drawnIn - r.ends.drawnIn]
-        return ([hair.y - r.hair.y, hair.op - r.hair.op] + endGaps + tabGaps + markGaps).map(abs).max() ?? 0
+        let hairGaps = zip([hair, snoozedHair], [r.hair, r.snoozedHair]).flatMap { a, b in
+            a.flatMap { a in b.map { b in [a.y - b.y, a.op - b.op] } } ?? []
+        }
+        return (hairGaps + endGaps + tabGaps + markGaps).map(abs).max() ?? 0
     }
 
     /// The worst gap between the two over the tabs' fillets: where each leaves the edge, its radius and its angle.
@@ -317,14 +361,26 @@ extension StripRecorded.End {
 }
 
 extension MarkKey {
-    /// As the recording names it: the session's id, "more", "moreNeeds", or "empty".
+    /// As the recording names it: the session's id, in Snoozed as well, "more", "moreNeeds", "moreSnoozed", or
+    /// "empty".
     var name: String {
         switch self {
-        case let .session(id): id
-        case .more: "more"
-        case .moreNeeds: "moreNeeds"
+        case let .session(id): id.hasPrefix("snoozed:") ? String(id.dropFirst("snoozed:".count)) : id
+        case .count(.working): "more"
+        case .count(.needsYou): "moreNeeds"
+        case .count(.snoozed): "moreSnoozed"
         case .empty: "empty"
         }
+    }
+}
+
+extension Session {
+    /// The same session under another id, as the prototype gives each it adds the next.
+    func with(id: String) -> Session {
+        Session(
+            id: id, project: project, name: name, letters: letters, kind: kind, away: away, lines: lines, sub: sub,
+            wakesAt: wakesAt
+        )
     }
 }
 
@@ -346,6 +402,20 @@ extension StripLab {
 
     /// The prototype's first new ask.
     static var ask: Session { asks[0] }
+
+    /// The prototype's sessions Lee snoozed (its `SNOOZED`), as long asleep as its Snooze has them, the soonest to
+    /// wake first; their ids are the next the prototype gives as each is snoozed (`snooze`).
+    static let snoozed = [
+        ("Contoso", Session.Kind.snoozed, "Pick the onboarding copy", "Contoso · Onboarding flow"),
+        ("Northwind", .snoozedTurn, "The ledger export is reviewed", "Northwind · Ledger export"),
+        ("Fabrikam", .snoozed, "Which region goes first?", "Fabrikam · Region rollout"),
+    ].enumerated().map { i, asleep in
+        var s = Session(
+            id: "z\(i)", project: asleep.0, kind: asleep.1, title: asleep.2, sub: asleep.3, since: -30 * minute
+        )
+        s.wakesAt = Double(i + 1) * hour
+        return s
+    }
 
     /// The prototype's new asks (its `ASKS`), round its five again to eight.
     static let asks = (0 ..< 8).map { i in

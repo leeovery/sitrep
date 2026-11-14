@@ -182,6 +182,18 @@ struct StripMarkLayerTests {
         #expect(after.spinner.layer.animationKeys() == nil)
     }
 
+    /// In Snoozed (14 November 2026), an ask's ring and a turn's dimmed as a Snoozed row's dot is, the letters faint;
+    /// Snoozed's count on the track, its letters fainter than Working's count's.
+    @Test func aSnoozedMarkIsDimmedAsItsSnoozedRow() {
+        #expect(StripMarkLayer.ringColour(.snoozed) == EdgeStyle.asleep(EdgeStyle.orange))
+        #expect(StripMarkLayer.ringColour(.snoozedTurn) == EdgeStyle.asleep(EdgeStyle.blue))
+        #expect(StripMarkLayer.ringColour(.snoozedCount) == EdgeStyle.track)
+        for look in [StripFrame.Mark.Look.snoozed, .snoozedTurn, .snoozedCount] {
+            #expect(StripMarkLayer.letterColour(look) == EdgeStyle.ink3)
+        }
+        #expect(StripMarkLayer.letterColour(.count) == EdgeStyle.ink2)
+    }
+
     @Test func itsFillPressesInAndLetsOutOver110() {
         let pressed = Self.eases(from: Self.mark(), to: Self.mark(jumping: true), "backgroundColor") { $0.ring }
         let letOut = Self.eases(from: Self.mark(jumping: true), to: Self.mark(), "backgroundColor") { $0.ring }

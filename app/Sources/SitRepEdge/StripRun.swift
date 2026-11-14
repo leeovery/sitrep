@@ -1,10 +1,12 @@
 import CoreGraphics
+import Foundation
 import SitRepPanel
 
 /// The strip as the controller runs it, with nothing of the screen in it: the model, the board it shows and what its
-/// tabs say of it, the frames and the clock they run on, and what a press let go means. Every input reaches the model
-/// through here, and each first brings it up to the input's moment, so it takes its time from the clock, and a click
-/// lands on the strip as it is drawn. The controller draws what this has, and paces its frames.
+/// tabs say of it, the sections Lee folded, shared with the card, the frames and the clock they run on, and what a
+/// press let go means. Every input reaches the model through here, and each first brings it up to the input's moment,
+/// so it takes its time from the clock, and a click lands on the strip as it is drawn. The controller draws what this
+/// has, and paces its frames.
 public final class StripRun: Framed {
     /// What the strip runs in, as it stands at each frame.
     public struct Setting: Equatable, Sendable {
@@ -35,23 +37,32 @@ public final class StripRun: Framed {
     public private(set) var frame: StripFrame
     private let said: Said
     private var book: RunBook
+    /// What Lee folded, the card's setting as well.
+    private let folding: Folding
+    /// Where the last right-click asked what is under it (`target`), and whether its menu shows (`menuOpened`).
+    private var menu: (at: CGPoint, isOpen: Bool)?
+    /// The calendar a session's menu words its snooze times on.
+    public let calendar: Calendar
 
     /// A pointer let go off the strip's screen, which lands on nothing.
     private static let offStage = CGPoint(x: -1, y: -1)
 
-    /// The strip at its length, Max and place along the edge, its tabs' words measured as the drawing sets them,
-    /// saying what the board's note says.
+    /// The strip at its length, Max and place along the edge, its sections folded as `folding` has them, its tabs'
+    /// words measured as the drawing sets them, saying what the board's note says, its menus' snooze times worded in
+    /// the Gregorian calendar in the Mac's time zone, followed as it changes (`WakeTime.calendar`).
     public init(
-        at time: Double, in setting: Setting, _ settings: EdgeSettings,
-        measure: (@escaping () -> StripNote) -> StripMeasure
+        at time: Double, in setting: Setting, _ settings: EdgeSettings, folding: Folding = Folding(),
+        calendar: Calendar = WakeTime.calendar, measure: (@escaping () -> StripNote) -> StripMeasure
     ) {
         let input = Self.input(at: time, pointer: nil, setting), said = Said()
 
         self.said = said
+        self.folding = folding
+        self.calendar = calendar
         book = RunBook(at: time)
         strip = Strip(
-            length: settings.length, maxLength: settings.maxLength, along: settings.along, sessions: [],
-            measure: measure { said.note }, input
+            length: settings.length, maxLength: settings.maxLength, along: settings.along,
+            folded: folding.folds.sections, sessions: [], measure: measure { said.note }, input
         )
         frame = strip.frame(input)
     }
@@ -78,23 +89,26 @@ public final class StripRun: Framed {
     /// While a drag carries the strip, whether letting go takes it to the other edge.
     public var isAcross: Bool { strip.isAcross }
 
-    /// One frame: the model moved on with the pointer where it is, what the drawing must show once latched.
+    /// One frame: the sections as folded on the card meanwhile, the model moved on with the pointer where it is, or
+    /// where a menu was opened while it shows, what the drawing must show once latched.
     public func step(_ moment: Moment) {
-        let time = book.clock(moment.time)
-        var input = Self.input(at: time, pointer: moment.pointer, moment.setting)
+        let time = book.clock(moment.time), held = menu.flatMap { $0.isOpen ? $0.at : nil }
+        var input = Self.input(at: time, pointer: held ?? moment.pointer, moment.setting)
 
-        input.pointerAt = moment.pointerAt
+        input.pointerAt = held == nil ? moment.pointerAt : nil
+        strip.folded = folding.folds.sections
         frame = strip.frame(input)
         latch(frame, at: time)
     }
 
-    /// Hidden, the strip's time ran on: it is taken on to now (`Strip.runOn`), the pointer away, and the frame after
-    /// shows it.
+    /// Hidden, the strip's time ran on: the sections as folded on the card meanwhile, it is taken on to now
+    /// (`Strip.runOn`), the pointer away, and the frame after shows it.
     public func catchUp(_ moment: Moment) {
         let from = time, to = book.clock(moment.time)
 
         let input = { (time: Double) in Self.input(at: time, pointer: nil, moment.setting) }
 
+        strip.folded = folding.folds.sections
         frame = strip.runOn(from: from, to: to, input) { latch($1, at: $0) }
     }
 
@@ -103,21 +117,67 @@ public final class StripRun: Framed {
         book.latch(swapsEdge: frame.swapsEdge, drained: !frame.isJumping, at: time)
     }
 
-    /// The board as `watch` last printed it: its rows, in the panel's order, become the marks, a needs you new on it
-    /// and a session it moved into Lee's turn each flashing where Lee has that pulse on, as the notch's pulse does;
-    /// while it is stale, the tabs say since when, an open one taking its new words as it does.
+    /// The board as `watch` last printed it: its rows, in the panel's order, Snoozed's last, the card's, become the
+    /// marks, a needs you new on it and a session it moved into Lee's turn each flashing where Lee has that pulse on,
+    /// as the notch's pulse does; while it is stale, the tabs say since when, an open one taking its new words as it
+    /// does.
     public func show(_ board: PanelBoard, _ moment: Moment) {
         let note = StripNote(board), reworded = note != said.note
 
         upToNow(moment)
         said.note = note
         self.board = board
-        strip.show(board.sessions, new: board.new, stopped: board.newTurns, pulses: board.pulses, reworded: reworded)
+        strip.show(
+            board.cardSessions, new: board.new, stopped: board.newTurns, pulses: board.pulses, reworded: reworded
+        )
     }
 
-    /// Where a session's own mark is going on the strip, while it has a place of its own (`Strip.markTarget`).
-    public func markTarget(of id: String) -> CGPoint? {
-        strip.markTarget(of: id)
+    /// A section folded, or unfolded, from a menu on the strip: at once, here and on the card.
+    public func fold(_ section: BoardSection, folded isFolded: Bool, _ moment: Moment) {
+        upToNow(moment)
+        set(section, folded: isFolded)
+    }
+
+    /// A fold set where both surfaces read it, and on the strip at once: the one place either changes.
+    private func set(_ section: BoardSection, folded isFolded: Bool) {
+        folding.set(section, folded: isFolded)
+        strip.folded = folding.folds.sections
+    }
+
+    /// What a right-click at the pointer offers a menu for, on the strip as it is now (`Strip.target`); the point it
+    /// asked at is where the strip holds while the menu shows (`menuOpened`).
+    public func target(_ moment: Moment) -> StripTarget? {
+        upToNow(moment)
+        menu = moment.pointer.map { (at: $0, isOpen: false) }
+        return moment.pointer.flatMap(strip.target)
+    }
+
+    /// The menu asked for showing: until it closes, the strip holds as if the pointer rested where the right-click
+    /// asked (`target`), wherever it goes on the menu, its hover held on what it was on (`Strip.holdHover`), so a tab
+    /// out stays out, no other pours, and nothing re-sorts under a choice made on it.
+    public func menuOpened() {
+        menu?.isOpen = true
+        strip.holdHover()
+    }
+
+    /// The menu closed: the pointer is where it is again.
+    public func menuClosed() {
+        menu = nil
+        strip.releaseHover()
+    }
+
+    /// A jump chosen from a session's menu, the session as the menu had it: as a click on its tab or its mark as the
+    /// strip has them now, a board while the menu showed having snoozed or woken it maybe; the jump goes though
+    /// nothing presses in, another jump spinning or the session gone from the strip (`Strip.jump`).
+    public func jump(to session: Session, _ moment: Moment) -> Release {
+        upToNow(moment)
+        return jump(strip.jump(to: session))
+    }
+
+    /// Where a session's own mark is going on the strip, by the mark's key, while it has a place of its own
+    /// (`Strip.markTarget`).
+    public func markTarget(ofMark key: String) -> CGPoint? {
+        strip.markTarget(ofMark: key)
     }
 
     /// Lee's settings for the strip: its length, Max, and where along the edge it sits.
@@ -142,8 +202,8 @@ public final class StripRun: Framed {
     }
 
     /// The press let go at the pointer, a drag with these settings: a click, whatever jump runs, as the latest click
-    /// wins, lands on the strip as it is now, the mark or row it presses in the one it jumps to; a drag leaves the
-    /// strip where it took it, or on the other edge.
+    /// wins, lands on the strip as it is now, the mark or row it presses in the one it jumps to, or a section folded
+    /// unfolding, here and on the card; a drag leaves the strip where it took it, or on the other edge.
     public func release(_ settings: EdgeSettings, _ moment: Moment) -> Release? {
         upToNow(moment)
         switch strip.release(at: moment.pointer ?? Self.offStage) {
@@ -151,6 +211,9 @@ public final class StripRun: Framed {
             return nil
         case let .jump(session):
             return jump(session)
+        case let .unfold(section):
+            set(section, folded: false)
+            return nil
         case let .dropped(along, across):
             return .dropped(Drop(move: settings.dropped(along: along, across: across), isAcross: across))
         }
@@ -183,7 +246,8 @@ public final class StripRun: Framed {
         }
     }
 
-    /// The count's row under the pointer as the last frame saw it, by its session, while its tab is out.
+    /// The count's row under the pointer as the last frame saw it, by its mark's key (`Session.markID`), while its tab
+    /// is out.
     public var hoverRow: String? {
         frame.pointer.flatMap { point in
             frame.tabs.first { $0.isLive && $0.key.isCount && $0.contains(point) }?.row(at: point)

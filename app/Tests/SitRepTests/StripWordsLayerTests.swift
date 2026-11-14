@@ -16,7 +16,7 @@ struct StripWordsLayerTests {
 
     private static func words(pressing pressed: String? = nil) -> StripFrame.Words {
         StripFrame.Words(
-            id: 1, key: .more, content: .rows([row("a"), row("b")]), frame: box, scroll: 0, alpha: 1, dy: 0,
+            id: 1, key: .count(.working), content: .rows([row("a"), row("b")]), frame: box, scroll: 0, alpha: 1, dy: 0,
             isPressed: false, pressedRow: pressed
         )
     }
@@ -83,6 +83,24 @@ struct StripWordsLayerTests {
 
         layer.show(Self.words(), in: Self.box, hover: nil, now: 0)
         #expect(layer.rows["b"]?.backgroundColor == nil)
+    }
+
+    /// Snoozed's count's rows go by their marks' keys, as the strip lights and presses them, apart from the same
+    /// sessions' rows in another section.
+    @Test func aSnoozedCountsRowsGoByTheirMarksKeys() {
+        let asleep = ["a", "b"].map { id in
+            Session(id: id, project: "Northwind", kind: .snoozed, title: "Pick", sub: "Northwind", since: 0)
+        }
+        let words = StripFrame.Words(
+            id: 1, key: .count(.snoozed), content: .rows(asleep), frame: Self.box, scroll: 0, alpha: 1, dy: 0,
+            isPressed: false, pressedRow: nil
+        )
+        let layer = StripWordsLayer(words, in: Self.box, StripScene.resting())
+
+        layer.show(words, in: Self.box, hover: "snoozed:a", now: 0)
+
+        #expect(Set(layer.rows.keys) == ["snoozed:a", "snoozed:b"])
+        #expect(layer.rows["snoozed:a"]?.backgroundColor == EdgeStyle.hover)
     }
 
     /// The row lifted under the pointer, clicked, presses in: the same row, lit again as pressed.

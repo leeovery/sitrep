@@ -1,5 +1,6 @@
 import AppKit
 @testable import SitRep
+import SitRepEdge
 import SitRepLines
 import SitRepPanel
 import Testing
@@ -14,7 +15,7 @@ struct HiddenEdgeTests {
     )
 
     @Test func theNotchStaysOnTheScreenHiddenAndShown() {
-        let notch = NotchController(EdgeSettings(), on: Self.display, defaults: MemoryDefaults())
+        let notch = NotchController(EdgeSettings(), on: Self.display, folding: Folding())
 
         defer { notch.window.close() }
         #expect(notch.window.isVisible)
@@ -25,7 +26,7 @@ struct HiddenEdgeTests {
     }
 
     @Test func theStripStaysOnTheScreenHiddenAndShown() {
-        let strip = StripController(EdgeSettings(), on: Self.display)
+        let strip = StripController(EdgeSettings(), on: Self.display, folding: Folding())
 
         defer { strip.window.close() }
         #expect(strip.window.isVisible)

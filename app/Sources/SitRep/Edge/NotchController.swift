@@ -48,10 +48,11 @@ final class NotchController: NSObject, CalloutShape {
     /// The slow refresh the light breathes on while frames are idle.
     private static let lightRate = CAFrameRateRange(minimum: 20, maximum: 30, preferred: 30)
 
-    init(_ settings: EdgeSettings, on display: Display, defaults: UserDefaults = .standard) {
+    /// On its display, its card's sections folded as `folding` has them, the strip's setting as well.
+    init(_ settings: EdgeSettings, on display: Display, folding: Folding) {
         self.settings = settings
         edge = ScreenEdge(display, settings)
-        run = NotchRun(at: Displays.now, in: .on(edge, settings), kept: SavedSettings(defaults))
+        run = NotchRun(at: Displays.now, in: .on(edge, settings), folding: folding)
         window = EdgeWindow.onScreen(frame: edge.window, view: surface)
         super.init()
 

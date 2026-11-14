@@ -1,7 +1,7 @@
 import AppKit
 import SitRepPanel
 
-/// The strip in black: its black, each tab's black, and the hairline, through the edge's mirror; over them the marks
+/// The strip in black: its black, each tab's black, and the hairlines, through the edge's mirror; over them the marks
 /// and each tab's words, placed through it but never mirrored themselves. All are layers in the stage's own coordinates
 /// (y down from the screen's top), hung from the menu bar the window starts under. A frame changes paths, places,
 /// opacities and clips; a tab's words and a mark's letters are laid out once.
@@ -11,7 +11,8 @@ final class StripView: StageHost, StripDrawing {
     private let stage = CALayer()
     private let fading = CAShapeLayer()
     private let strip = CAShapeLayer()
-    private let hairline = CALayer()
+    /// The hairlines, one made for each the frames have, over every tab's black.
+    private let rules = CALayer()
     /// ... and the marks, then the tabs' words, over them.
     private let over = CALayer()
     private let marks = CALayer()
@@ -35,8 +36,7 @@ final class StripView: StageHost, StripDrawing {
             stage.addSublayer(shape)
         }
         fading.isHidden = true
-        hairline.backgroundColor = EdgeStyle.rule
-        stage.addSublayer(hairline)
+        stage.addSublayer(rules)
         over.addSublayer(marks)
         root.addSublayer(stage)
         root.addSublayer(over)
@@ -67,9 +67,21 @@ final class StripView: StageHost, StripDrawing {
             fading.path = frame.fading?.outline
             fading.opacity = Float(frame.fading?.alpha ?? 0)
             showTabs(scene)
-            hairline.frame = CGRect(x: frame.hairline.x - 8, y: frame.hairline.y - 0.5, width: 16, height: 1)
-            hairline.opacity = Float(frame.hairline.alpha)
+            showHairlines(frame.hairlines)
             showMarks(scene)
+        }
+    }
+
+    private func showHairlines(_ lines: [StripFrame.Hairline]) {
+        while (rules.sublayers?.count ?? 0) < lines.count {
+            let made = CALayer()
+
+            made.backgroundColor = EdgeStyle.rule
+            rules.addSublayer(made)
+        }
+        for (rule, line) in zip(rules.sublayers ?? [], lines) {
+            rule.frame = CGRect(x: line.x - 8, y: line.y - 0.5, width: 16, height: 1)
+            rule.opacity = Float(line.alpha)
         }
     }
 
@@ -135,7 +147,7 @@ final class StripView: StageHost, StripDrawing {
 
         tab.shape.fillColor = EdgeStyle.black
         tab.box.mask = tab.clip
-        stage.insertSublayer(tab.shape, below: hairline)
+        stage.insertSublayer(tab.shape, below: rules)
         over.addSublayer(tab.box)
         return tab
     }

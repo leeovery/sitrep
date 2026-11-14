@@ -19,14 +19,14 @@ struct StripFitTests {
         lab.add(StripLab.asks)
         lab.settle()
 
-        #expect(lab.model.layout.more == nil)
+        #expect(lab.model.layout.counts[.working] == nil)
         #expect(lab.model.layout.places.count == 16)
         #expect(lab.model.layout.places.last!.y == 543)
         #expect(lab.model.bottomEnd - lab.model.endPad == 626 - 26 - 28 - 2 - 12 - 12)
 
         lab.add([Session(id: "s17", project: "Kit", kind: .working, title: "", sub: "", since: 0)])
         lab.settle()
-        #expect(lab.model.layout.more?.y == 543)
+        #expect(lab.model.layout.counts[.working]?.y == 543)
     }
 
     @Test func theEndsStayTheSWhateverTabIsOut() {
@@ -38,7 +38,7 @@ struct StripFitTests {
 
         lab.add(StripLab.tooMany)
         lab.settle()
-        lab.pointer = CGPoint(x: 18, y: lab.model.layout.more!.y)
+        lab.pointer = CGPoint(x: 18, y: lab.model.layout.counts[.working]!.y)
         lab.wait(1000) { $0.live?.phase == .open }
         lab.settle()
 
@@ -125,7 +125,7 @@ struct StripFitTests {
         lab.add(StripLab.tooMany)
         lab.settle()
 
-        lab.pointer = CGPoint(x: 18, y: lab.model.layout.more!.y)
+        lab.pointer = CGPoint(x: 18, y: lab.model.layout.counts[.working]!.y)
         lab.wait(1000) { $0.live?.phase == .open }
         lab.settle()
         let g = lab.model.tabGeometry(lab.live!), fit = lab.model.tabFit(g)

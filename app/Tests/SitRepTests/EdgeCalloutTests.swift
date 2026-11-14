@@ -1,5 +1,6 @@
 import AppKit
 @testable import SitRep
+import SitRepEdge
 import SitRepLines
 import SitRepMenu
 import SitRepPanel
@@ -173,7 +174,7 @@ struct EdgeCalloutTests {
             id: "A", frame: CGRect(x: -20000, y: -20000, width: 1512, height: 982),
             visible: CGRect(x: -20000, y: -20000, width: 1512, height: 958)
         )
-        let notch = NotchController(EdgeSettings(), on: display, defaults: MemoryDefaults())
+        let notch = NotchController(EdgeSettings(), on: display, folding: Folding())
         let now = Displays.wallNow
 
         defer { notch.window.close() }
