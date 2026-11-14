@@ -36,9 +36,7 @@ public final class NotchRun: Framed {
         /// chosen, Needs you folded stays folded, its count on the strip flashing (14 November 2026).
         public var isChosen: Bool
 
-        public init(
-            stage: Stage, mirror: CGAffineTransform, style: NotchStyle, reducesMotion: Bool, isChosen: Bool = true
-        ) {
+        public init(stage: Stage, mirror: CGAffineTransform, style: NotchStyle, reducesMotion: Bool, isChosen: Bool) {
             self.stage = stage
             self.mirror = mirror
             self.style = style

@@ -346,7 +346,7 @@ struct GlassRows: View {
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            ForEach(Array(sessions.enumerated()), id: \.element.id) { i, session in
+            ForEach(Array(sessions.enumerated()), id: \.element.markID) { i, session in
                 let at = StripRowsLayout(i, width: width), isLit = lit == session.markID
                 ZStack(alignment: .topLeading) {
                     RoundedRectangle(cornerRadius: StripRowsLayout.radius)

@@ -256,7 +256,8 @@ public final class Strip {
     /// - any other new to the strip comes in as the marks re-sort at once, unflashed: needs you with nothing new among
     ///   them, as on any run's first board;
     /// - one snoozed, or woken, its row in Snoozed coming as its row elsewhere goes or the other way round, keeps its
-    ///   mark, which changes in place and moves as any change does.
+    ///   mark, which moves into its new section at once, unflashed, whichever way it crosses (14 November 2026); one a
+    ///   wake at its time brings back, which `new` names, arrives as any new needs you does.
     ///
     /// Its sessions are its rows, each a mark by its key (`Session.markID`), so a session with a row in Snoozed and
     /// another in Needs you or Working has two. `reworded`, what the tabs say of the board changed with it, as when it
@@ -265,7 +266,7 @@ public final class Strip {
         _ board: [Session], new: Set<String>, stopped: Set<String> = [], pulses: Set<Need> = [.ask],
         reworded: Bool = false
     ) {
-        let renamed = carry(into: board)
+        let renamed = carry(into: board), carried = Set(renamed.values)
         let was = Dictionary(sessions.map { (renamed[$0.markID] ?? $0.markID, $0) }) { first, _ in first }
         let gone = Set(was.keys).subtracting(board.map(\.markID))
         let fresh = board.filter { was[$0.markID] == nil }
@@ -277,20 +278,19 @@ public final class Strip {
             session.kind == .turn && slot[session.markID] != .needsYou
                 && (was[session.markID] != nil || stopped.contains(session.id))
         }
+        let snoozing = board.filter { carried.contains($0.markID) && !asks.contains($0) && !stops.contains($0) }
         let moving = asks.map { (session: $0, how: ask) }
             + stops.map { (session: $0, how: stopped.contains($0.id) ? stop : .quiet) }
+            + snoozing.map { (session: $0, how: StripArrival.quiet) }
         let crossing = moving.map(\.session).filter { was[$0.markID] != nil }
         let changes = board.filter { session in was[session.markID].map { $0 != session } ?? false }
 
         sessions = board
-        if !renamed.isEmpty {
-            relayout()
-        }
         if !gone.isEmpty {
             leave(gone)
         }
         lift(crossing)
-        moving.forEach { insertNeeds($0.session, $0.how) }
+        moving.forEach { moveIn($0.session, $0.how) }
         // after them all, as one may fold another in that has shown its arrival on its own mark
         moving.filter { layout.rest(of: .needsYou).contains($0.session.markID) }.forEach {
             landInCount($0.session, $0.how)
@@ -310,8 +310,8 @@ public final class Strip {
     }
 
     /// Sessions this board snoozes or wakes, each one's row in Snoozed come as its row elsewhere goes, or the other way
-    /// round: its mark keeps its place, and everything that knows it by its key takes the new row's. The keys renamed,
-    /// each to its new one.
+    /// round: its mark is kept, and everything that knows it by its key takes the new row's, for it to move into its
+    /// new section. The keys renamed, each to its new one.
     private func carry(into board: [Session]) -> [String: String] {
         let onStrip = Set(sessions.map(\.markID)), onBoard = Set(board.map(\.markID))
         var renamed: [String: String] = [:]
@@ -327,15 +327,20 @@ public final class Strip {
         return renamed
     }
 
-    /// A mark's key renamed: in the strip's order and its sections, on the mark, on any tab of it, under the pointer,
-    /// jumping, and as a count's arrival.
+    /// A mark's key renamed: in the strip's order and its sections, on the mark, on any tab of it or row pressed in on
+    /// one, under the pointer, jumping, and as a count's arrival. A mark still fading out under the new key goes, so
+    /// no two marks share one.
     private func rekey(_ old: String, to new: String) {
         let was = MarkKey.session(old), now = MarkKey.session(new)
 
         display = display.map { $0 == old ? new : $0 }
         slot[new] = slot.removeValue(forKey: old)
-        mark(was)?.key = now
+        marks.removeAll { $0.key == now && $0.removing }
+        marks.first { $0.key == was && !$0.removing }?.key = now
         tabs.filter { $0.key == was }.forEach { $0.key = now }
+        for words in tabs.flatMap(\.words) where words.pressedRow == old {
+            words.pressedRow = new
+        }
         hot = hot == was ? now : hot
         disarmed = disarmed == was ? now : disarmed
         switch jumping {

@@ -28,10 +28,10 @@ final class StripMark {
     var arrivalOf: String?
     /// How it shows its arrival once it has grown into its place.
     var arrival = StripArrival.ask
-    /// A count's look as it last showed, which it keeps as it goes; and whether it holds its section folded, which
-    /// says how many it holds with no "+".
+    /// A count's look as it last showed, which it keeps as it goes; and whether it holds every session of its
+    /// section, folded or with none showing beside it, which says how many it holds with no "+".
     var look: StripFrame.Mark.Look?
-    var isFolded = false
+    var holdsAll = false
     /// A new mark waiting to grow until the mark below has slid out of its way: which, and from where; ...
     var gap: (below: MarkKey, from: Double)?
     /// ... or until the strip has come out of the notch at rest.
@@ -93,11 +93,12 @@ struct StripAllotment: Equatable {
 }
 
 /// A section's count: its place, the sessions it holds by their marks' keys, and whether it holds the section
-/// folded, all of it, or those past its room.
+/// folded, all of it, or those past its room; and whether it holds them all, folded or with no room for any to show.
 struct StripCount: Equatable {
     let y: Double
     let held: [String]
     let isFolded: Bool
+    let holdsAll: Bool
 
     var n: Int { held.count }
 }
@@ -168,7 +169,7 @@ extension Strip {
 
         var shown: [BoardSection: Int] = [:], counted: Set<BoardSection> = [], left = places
         for (i, section) in showing.enumerated() {
-            let room = left - (showing.count - 1 - i), n = sizes[section]!
+            let room = left - (showing.count - 1 - i), n = sizes[section, default: 0]
             if folded.contains(section) {
                 counted.insert(section)
                 left -= 1
@@ -237,7 +238,8 @@ extension Strip {
             case let .session(id): layout.places.append((id, y))
             case let .count(section):
                 layout.counts[section] = StripCount(
-                    y: y, held: Array(held[section] ?? []), isFolded: folded.contains(section)
+                    y: y, held: Array(held[section] ?? []), isFolded: folded.contains(section),
+                    holdsAll: a.shown(section) == 0
                 )
             case .empty: break
             }
@@ -350,15 +352,17 @@ extension Strip {
 
     /// The hairline over a section: it fades in where it comes, slides, or fades out where it goes.
     private func placeHair(_ section: BoardSection, _ move: (inout Spring, Double) -> Bool) {
+        var hair = hairs[section, default: StripHair()]
+        defer { hairs[section] = hair }
         guard let y = layout.hairs[section] else {
-            return to(&hairs[section]!.op, 0, 200)
+            return to(&hair.op, 0, 200)
         }
 
-        if hairs[section]!.op.target < 0.5 {
-            hairs[section]!.y.snap(y)
-            to(&hairs[section]!.op, 1, 220)
+        if hair.op.target < 0.5 {
+            hair.y.snap(y)
+            to(&hair.op, 1, 220)
         } else {
-            _ = move(&hairs[section]!.y, y)
+            _ = move(&hair.y, y)
         }
     }
 
@@ -375,7 +379,7 @@ extension Strip {
         let c = counts[section] ?? StripMark(.count(section), session: nil, opacity: 0)
         counts[section] = c
         c.count = spec.n
-        c.isFolded = spec.isFolded
+        c.holdsAll = spec.holdsAll
         if c.removing || c.op.target < 0.5 {
             c.removing = false
             c.y.snap(spec.y)
@@ -539,30 +543,23 @@ extension Strip {
         }
     }
 
-    /// A new needs you moves in at once, under the needs you the panel's order has above it, or first where it has
-    /// none. Past needs you's room an ask takes its place all the same while a stopped mark shows below it, the last
-    /// of them going into the count (Lee, 14 November 2026); else it lands in the count, and the marks showing stay
-    /// where they are. Taking a place, the marks below slide down a step, and it grows into its place as the mark
-    /// below gets out of the way, showing its arrival as `how` says. Landing in the count, it leaves the count's flash
-    /// to its caller, which knows what else the update put there.
-    func insertNeeds(_ s: Session, _ how: StripArrival) {
-        let end = display.prefix { slot[$0] == .needsYou }.count
-        let above = sessions.prefix { $0.markID != s.markID }.last { slot[$0.markID] == .needsYou }
-        var i = above.flatMap { display.firstIndex(of: $0.markID) }.map { $0 + 1 } ?? 0
-        let a = allot(sizes(arriving: 1))
-        if a.counted.contains(.needsYou), i < a.shown(.needsYou) {
-            if s.need == .ask, let stop = lastStopShowing(from: i, end: end) {
-                pushOut(at: stop.at, shown: stop.shown)
-            } else {
-                i = a.shown(.needsYou)
-            }
-        }
+    /// A session moves into its section at once: a new needs you, one stopping, or one Lee snoozed or woke (14
+    /// November 2026), under the one of its section the panel's order has above it, or first in its section where it
+    /// has none. Past needs you's room an ask takes its place all the same while a stopped mark shows below it, the
+    /// last of them going into the count (Lee, 14 November 2026); else it lands in the count, and the marks showing
+    /// stay where they are. Past another section's room, or into a section folded, it lands in its count as its order
+    /// puts it. Taking a place, the marks below slide down a step, and it grows into its place as the mark below gets
+    /// out of the way, showing its arrival as `how` says. Landing in needs you's count, it leaves the count's flash to
+    /// its caller, which knows what else the update put there.
+    func moveIn(_ s: Session, _ how: StripArrival) {
+        let section = s.section, placed = place(of: s, in: section)
+        let i = section == .needsYou ? needsPlace(for: s, at: placed) : placed
         display.insert(s.markID, at: i)
-        slot[s.markID] = .needsYou
+        slot[s.markID] = section
         let m = markOf(s)
         m.arrival = how
         relayout()
-        guard !layout.rest(of: .needsYou).contains(s.markID) else {
+        guard !layout.rest(of: section).contains(s.markID) else {
             return
         }
 
@@ -574,7 +571,7 @@ extension Strip {
 
         m.sc.snap(0.3)
         let next = display[(i + 1)...].first { layout.y(of: $0) != nil }.map(MarkKey.session)
-        let below = next ?? BoardSection.allCases.map(MarkKey.count).first { key in
+        let below = next ?? BoardSection.allCases.filter { $0 >= section }.map(MarkKey.count).first { key in
             key.section.flatMap { layout.counts[$0] } != nil && mark(key) != nil
         }
         let spring = below.flatMap(mark)?.y
@@ -587,13 +584,42 @@ extension Strip {
         }
     }
 
+    /// Where the panel's order puts a session in the strip's: under the one of its section above it, or first in its
+    /// section, after every section before it, where it has none.
+    private func place(of s: Session, in section: BoardSection) -> Int {
+        let above = sessions.prefix { $0.markID != s.markID }.last { slot[$0.markID] == section }
+        if let at = above.flatMap({ display.firstIndex(of: $0.markID) }) {
+            return at + 1
+        }
+
+        return display.lastIndex { slot[$0].map { $0 < section } ?? false }.map { $0 + 1 } ?? 0
+    }
+
+    /// Where a session coming into needs you at place `i` goes once it is full: an ask takes its place all the same
+    /// while a stopped mark shows below it, pushing the last of them into the count; else it lands in the count,
+    /// first there, the marks showing staying where they are.
+    private func needsPlace(for s: Session, at i: Int) -> Int {
+        let a = allot(sizes(arriving: 1))
+        guard a.counted.contains(.needsYou), i < a.shown(.needsYou) else {
+            return i
+        }
+
+        let end = display.prefix { slot[$0] == .needsYou }.count
+        if s.kind == .needs, let stop = lastStopShowing(from: i, end: end) {
+            pushOut(at: stop.at, shown: stop.shown)
+            return i
+        }
+        return a.shown(.needsYou)
+    }
+
     /// The last stopped mark showing at place `i` or under it, of the `end` on the needs you side, and how many of
     /// them show; nil with none. What shows is worked out from the order as it stands, never the layout, which a
     /// session lifted out to arrive has left stale: its place under the hairline gone, Needs you may have more room.
+    /// Only a session at Lee's turn is a stopped mark: never one whose turn he snoozed.
     private func lastStopShowing(from i: Int, end: Int) -> (at: Int, shown: Int)? {
         let room = allot(sizes()), shown = room.counted.contains(.needsYou) ? room.shown(.needsYou) : end
 
-        return display.prefix(shown).lastIndex { session($0)?.need == .turn }.flatMap { $0 >= i ? ($0, shown) : nil }
+        return display.prefix(shown).lastIndex { session($0)?.kind == .turn }.flatMap { $0 >= i ? ($0, shown) : nil }
     }
 
     /// The stopped mark at `at` made the last of the `shown` showing, so the ask going in above it pushes it into the

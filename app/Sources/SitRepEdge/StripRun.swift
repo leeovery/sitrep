@@ -1,4 +1,5 @@
 import CoreGraphics
+import Foundation
 import SitRepPanel
 
 /// The strip as the controller runs it, with nothing of the screen in it: the model, the board it shows and what its
@@ -40,20 +41,24 @@ public final class StripRun: Framed {
     private let folding: Folding
     /// While a menu is open, where it was opened (`menuOpened(at:)`).
     private var menuAt: CGPoint?
+    /// The calendar a session's menu words its snooze times on.
+    public let calendar: Calendar
 
     /// A pointer let go off the strip's screen, which lands on nothing.
     private static let offStage = CGPoint(x: -1, y: -1)
 
     /// The strip at its length, Max and place along the edge, its sections folded as `folding` has them, its tabs'
-    /// words measured as the drawing sets them, saying what the board's note says.
+    /// words measured as the drawing sets them, saying what the board's note says, its menus' snooze times worded in
+    /// the Gregorian calendar in the Mac's time zone, followed as it changes (`WakeTime.calendar`).
     public init(
         at time: Double, in setting: Setting, _ settings: EdgeSettings, folding: Folding = Folding(),
-        measure: (@escaping () -> StripNote) -> StripMeasure
+        calendar: Calendar = WakeTime.calendar, measure: (@escaping () -> StripNote) -> StripMeasure
     ) {
         let input = Self.input(at: time, pointer: nil, setting), said = Said()
 
         self.said = said
         self.folding = folding
+        self.calendar = calendar
         book = RunBook(at: time)
         strip = Strip(
             length: settings.length, maxLength: settings.maxLength, along: settings.along,
@@ -151,10 +156,11 @@ public final class StripRun: Framed {
         menuAt = nil
     }
 
-    /// A jump chosen from a session's menu, by its mark's key: as a click on its tab or its mark (`Strip.jump`).
-    public func jump(to id: String, _ moment: Moment) -> Release? {
+    /// A jump chosen from a session's menu, the session as the menu had it: as a click on its tab or its mark as the
+    /// strip has them now, a board while the menu showed having snoozed or woken it maybe (`Strip.jump`).
+    public func jump(to session: Session, _ moment: Moment) -> Release? {
         upToNow(moment)
-        return strip.jump(to: id).map(jump)
+        return strip.jump(to: session).map(jump)
     }
 
     /// Where a session's own mark is going on the strip, while it has a place of its own (`Strip.markTarget`).

@@ -5141,21 +5141,31 @@ were settled in the browser spike (below, "How the strip moves").
   its pulse. One whose asks are
   answered, or a stopped one whose turn ends, Claude working again,
   changes in place and moves at the re-sort, as the prototype's answer
-  does (below, "Too many"). A session Lee snoozes, or wakes, moves as any
-  other change does (14 November 2026): its row gone from Needs you or
-  Working and in Snoozed, or back, it keeps its mark, which changes in
-  place and moves at the re-sort; a session new to Snoozed, its row
-  elsewhere staying, comes
-  in as any session new to the strip does, the marks re-sorting at once
-  and it fading and growing in where it lands, unless it lands in a count.
-  One its time wakes arrives in Needs you as a new one does, flashing its
-  ring; one Lee wakes changes in place. Until then the strip showed no
-  Snoozed (see "Snooze"): an ask asleep was no mark.
+  does (below, "Too many"). A session Lee snoozes, or wakes, moves into
+  its new section at once, unflashed, whichever way it crosses, pointer or
+  not (14 November 2026): its row gone from Needs you or Working and in
+  Snoozed, or back, its mark leaves its place and grows into the one the
+  panel's order gives it, as a session stopping does with its pulse off,
+  or lands in its section's count, folded or past its room; an ask woken
+  into a full Needs you pushes the last stopped mark showing into the
+  count, as any ask does. Neither Needs you's count nor that push ever
+  counts a session Lee snoozed. Earlier that day the mark changed in
+  place and moved at the re-sort, which left an ask Lee woke inside
+  Snoozed's folded count, and one he snoozed over the hairline, while the
+  pointer stayed on the strip. A session new to Snoozed, its row
+  elsewhere staying, comes in as any session new to the strip does, the
+  marks re-sorting at once and it fading and growing in where it lands,
+  unless it lands in a count. One its time wakes, which `new` names,
+  arrives in Needs you as a new one does, flashing its ring. Until then
+  the strip showed no Snoozed (see "Snooze"): an ask asleep was no mark,
+  and one Lee woke changed in place.
 - **Folded** (14 November 2026, Lee). The strip folds a section as the
   card does, by the one setting both read (see "Folding"), Snoozed folded
   at first. A section folded is one count ring in exactly one place, its
   number the section's sessions, with no plus, looking otherwise as a count
-  past the room: Needs you's orange while it holds any session not stopped
+  past the room, which itself has no plus while none of its section's
+  marks shows beside it: Needs you's orange while it holds any session not
+  stopped
   and blue while all it holds are stopped, Working's grey, and Snoozed's
   the faint grey of the rows' projects, on the track. Under the pointer it
   pours the section's sessions as one tab of rows, each a click to its
@@ -5165,12 +5175,15 @@ were settled in the browser spike (below, "How the strip moves").
   flashes as a count past the room does, as Settings' pulses say.
 - **A right-click** (14 November 2026, Lee) on a session's mark, its tab,
   or its row on a count's tab brings up its row's menu on the card, the
-  same one (Jump to the window; Snooze, or Wake now in Snoozed), with
-  Collapse and its section's name at its foot after a separator; on a
-  section folded, Expand and its name alone; on a count past its room,
-  Collapse and its name alone. While the menu shows the strip holds as if
-  the pointer rested where it was opened, so a tab out stays out and
-  nothing re-sorts under the choice.
+  same one (Jump to the window; Snooze, or Wake now in Snoozed), each for
+  the session by its own id, with the fold of the section the strip has it
+  in at its foot after a separator: Collapse and the section's name, or
+  Expand where it is folded, as on its folded count's tab. On a section
+  folded, Expand and its name alone; on a count past its room, Collapse
+  and its name alone. While the menu shows the strip holds as if the
+  pointer rested where it was opened, so a tab out stays out and nothing
+  re-sorts under the choice; a board that moves the session meanwhile
+  leaves its Jump going to its mark as the strip has it then.
 - **Too many.** The strip has as many places as Max gives it, or as the
   full height holds: about 30 (32 on a 1117pt screen, 27 on a 982pt one),
   never fewer than one for each section showing. Each section takes its

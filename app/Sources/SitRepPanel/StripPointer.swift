@@ -135,9 +135,14 @@ extension Strip {
         return StripRelease(jumpMark(key) ? session(id) : nil)
     }
 
-    /// The menu's Jump to the window for a session, by its mark's key: as a click on its tab or on its row in a count's
-    /// tab, where that is out, else as a click on its mark. The session it jumps to, if it does.
-    public func jump(to id: String) -> Session? {
+    /// The menu's Jump to the window for a session, by its mark as it is now (`markID(of:)`): as a click on its tab or
+    /// on its row in a count's tab, where that is out, else as a click on its mark. The session it jumps to, if it
+    /// does.
+    public func jump(to menus: Session) -> Session? {
+        guard let id = markID(of: menus) else {
+            return nil
+        }
+
         if jumping == nil, let live = liveTab(), live.phase == .open {
             if live.key == .session(id) {
                 return jump(live, id, row: false)
@@ -149,16 +154,22 @@ extension Strip {
         return jumpMark(.session(id)) ? session(id) : nil
     }
 
+    /// A session's mark's key as the strip has it now: its row in Snoozed, or elsewhere, as the session given was,
+    /// else its other, a snooze or a wake since having moved it. Nil with neither on the strip.
+    func markID(of s: Session) -> String? {
+        [s.isSnoozed, !s.isSnoozed].map { Session.markID(of: s.id, snoozed: $0) }.first { session($0) != nil }
+    }
+
     /// What a right-click at a point offers a menu for (14 November 2026): a session's mark, its tab, or its row on a
-    /// count's tab, the session; a count, its section, folded or past its room. Nil off them, and while the strip
-    /// crosses to the other edge.
+    /// count's tab, the session, with the section the strip has it in and whether that is folded; a count, its
+    /// section, folded or past its room. Nil off them, and while the strip crosses to the other edge.
     public func target(at point: CGPoint) -> StripTarget? {
         guard !crossing else {
             return nil
         }
 
         if let (live, shown) = openTab(at: point) {
-            return shown.row(at: point).flatMap(session).map(StripTarget.session) ?? target(of: live.key)
+            return shown.row(at: point).flatMap { target(of: .session($0)) } ?? target(of: live.key)
         }
         guard inStrip(Vec(point.x, point.y)), let key = keyAt(point.y) else {
             return nil
@@ -169,7 +180,12 @@ extension Strip {
 
     private func target(of key: MarkKey) -> StripTarget? {
         switch key {
-        case let .session(id): session(id).map(StripTarget.session)
+        case let .session(id):
+            session(id).map { s in
+                let section = slot[id] ?? s.section
+
+                return .session(s, section: section, isFolded: folded.contains(section))
+            }
         case let .count(section): layout.counts[section].map { .count(section, isFolded: $0.isFolded) }
         case .empty: nil
         }
@@ -371,8 +387,9 @@ public enum StripRelease: Equatable {
 
 /// What a right-click on the strip offers a menu for (14 November 2026).
 public enum StripTarget: Equatable {
-    /// A session's mark or its row: the menu its row gives on the card, and its section to fold.
-    case session(Session)
+    /// A session's mark or its row: the menu its row gives on the card, and the section the strip has it in, folded or
+    /// not, to fold or unfold.
+    case session(Session, section: BoardSection, isFolded: Bool)
     /// A section's count: folded, to unfold; past its room, to fold.
     case count(BoardSection, isFolded: Bool)
 }

@@ -52,22 +52,34 @@ struct StripMenuTests {
     }
 
     @Test(arguments: [
-        (Session.Kind.needs, "Needs you"), (.turn, "Needs you"), (.working, "Working"), (.snoozed, "Snoozed"),
+        (Session.Kind.needs, BoardSection.needsYou), (.turn, .needsYou), (.working, .working), (.snoozed, .snoozed),
     ])
-    func aSessionsMarkOffersItsRowsMenuThenCollapseItsSection(_ kind: Session.Kind, _ section: String) throws {
+    func aSessionsMarkOffersItsRowsMenuThenCollapseItsSection(_ kind: Session.Kind, _ section: BoardSection) throws {
         let heard = Heard(), session = Self.session(kind)
-        let menu = Self.menu(.session(session), heard)
+        let menu = Self.menu(.session(session, section: section, isFolded: false), heard)
         let row = RowMenu.make(
             for: RowMenu.Row(session), at: Self.now, in: Self.london,
             RowMenu.Actions(jump: {}, snooze: { _, _ in }, wake: {})
         )
 
-        #expect(Self.titles(menu) == Self.titles(row) + ["—", "Collapse \(section)"])
+        #expect(Self.titles(menu) == Self.titles(row) + ["—", "Collapse \(section.title)"])
         #expect(menu.items.last?.isEnabled == true)
 
         try Self.choose(0, in: menu)
         try Self.choose(menu.items.count - 1, in: menu)
-        #expect(heard.said == ["jump sr-a", "fold \(section)"])
+        #expect(heard.said == ["jump sr-a", "fold \(section.title)"])
+    }
+
+    /// A row on a folded count's tab offers Expand its section at the foot, the section as the strip has it.
+    @Test(arguments: [BoardSection.needsYou, .working, .snoozed])
+    func aRowOfAFoldedSectionOffersExpandItAtItsFoot(_ section: BoardSection) throws {
+        let heard = Heard()
+        let menu = Self.menu(.session(Self.session(.working), section: section, isFolded: true), heard)
+
+        #expect(Self.titles(menu).suffix(2) == ["—", "Expand \(section.title)"])
+
+        try Self.choose(menu.items.count - 1, in: menu)
+        #expect(heard.said == ["unfold \(section.title)"])
     }
 
     @Test(arguments: [BoardSection.needsYou, .working, .snoozed])

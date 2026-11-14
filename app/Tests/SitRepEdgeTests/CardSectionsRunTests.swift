@@ -13,7 +13,7 @@ import Testing
 struct CardSectionsRunTests {
     private static let setting = NotchRun.Setting(
         stage: Stage(height: 982, visibleTop: 24, visibleBottom: 982, notchY: 491), mirror: .identity,
-        style: .meniscus, reducesMotion: false
+        style: .meniscus, reducesMotion: false, isChosen: true
     )
     private static let frameMS = 1000.0 / 60
     private static let onTheNotch = CGPoint(x: 3, y: 491)

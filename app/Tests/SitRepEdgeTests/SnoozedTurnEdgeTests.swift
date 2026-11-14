@@ -94,7 +94,7 @@ struct SnoozedTurnEdgeTests {
 
     private static let setting = NotchRun.Setting(
         stage: Stage(height: 982, visibleTop: 24, visibleBottom: 982, notchY: 491), mirror: .identity,
-        style: .meniscus, reducesMotion: false
+        style: .meniscus, reducesMotion: false, isChosen: true
     )
 
     private static let london: Calendar = {

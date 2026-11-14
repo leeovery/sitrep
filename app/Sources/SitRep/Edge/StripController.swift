@@ -253,16 +253,7 @@ final class StripController: NSObject, CalloutShape {
         }
 
         let menu = StripMenu.make(
-            for: target, at: Date(), in: WakeTime.calendar,
-            row: { [unowned self] session in
-                let id = session.id, mark = session.markID
-
-                return RowMenu.Actions(
-                    jump: { [unowned self] in jumpFromMenu(to: mark) },
-                    snooze: { [unowned self] in onSnooze(id, $0, $1) },
-                    wake: { [unowned self] in onWake(id) }
-                )
-            },
+            for: target, at: Date(), in: run.calendar, row: { [unowned self] in rowActions(for: $0) },
             fold: { [unowned self] in fold($0, folded: $1) }
         )
 
@@ -271,9 +262,22 @@ final class StripController: NSObject, CalloutShape {
         return menu
     }
 
+    /// A session's menu's choices, each for the session by its own id, in Snoozed or not: its jump goes to its mark as
+    /// the strip has it when chosen, a board while the menu showed having snoozed or woken it maybe. Internal only for
+    /// the tests, which choose them.
+    func rowActions(for session: Session) -> RowMenu.Actions {
+        let id = session.id
+
+        return RowMenu.Actions(
+            jump: { [unowned self] in jumpFromMenu(to: session) },
+            snooze: { [unowned self] in onSnooze(id, $0, $1) },
+            wake: { [unowned self] in onWake(id) }
+        )
+    }
+
     /// Jump to the window, as a click on the mark, or its row, would, the one the menu is for pressed in.
-    private func jumpFromMenu(to mark: String) {
-        if case let .jump(session, to: target, click: click) = run.jump(to: mark, moment()) {
+    private func jumpFromMenu(to session: Session) {
+        if case let .jump(session, to: target, click: click) = run.jump(to: session, moment()) {
             jump(from: session, to: target, click: click)
         }
         took()

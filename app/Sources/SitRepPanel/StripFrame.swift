@@ -190,7 +190,7 @@ extension Strip {
         let swaps = swapsEdge
         swapsEdge = false
         let hairlines = StripLayout.hairlined.map { section in
-            let hair = hairs[section]!
+            let hair = hairs[section, default: StripHair()]
 
             return StripFrame.Hairline(
                 x: front / 2, y: hair.y.x,
@@ -268,7 +268,7 @@ extension Strip {
             if !count.removing {
                 count.look = countLook(section)
             }
-            let text = "\(count.isFolded ? "" : "+")\(count.count)"
+            let text = "\(count.holdsAll ? "" : "+")\(count.count)"
             shown.append(paint(count, text, count.look ?? countLook(section), lifted: lifted == count.key))
         }
         return shown
@@ -286,13 +286,13 @@ extension Strip {
         }
     }
 
-    /// A section's count's look: Needs you's blue while every session it holds is stopped, else orange, an ask
-    /// answered in it and working until the re-sort among them; Working's grey, Snoozed's faint. Going, it holds none,
-    /// and keeps the look it had (`StripMark.look`).
+    /// A section's count's look: Needs you's blue while every session it holds is stopped, at Lee's turn, else
+    /// orange, an ask answered in it and working until the re-sort among them; Working's grey, Snoozed's faint. Going,
+    /// it holds none, and keeps the look it had (`StripMark.look`).
     func countLook(_ section: BoardSection) -> StripFrame.Mark.Look {
         switch section {
         case .needsYou:
-            layout.rest(of: .needsYou).allSatisfy { session($0)?.need == .turn } ? .stoppedCount : .needsCount
+            layout.rest(of: .needsYou).allSatisfy { session($0)?.kind == .turn } ? .stoppedCount : .needsCount
         case .working: .count
         case .snoozed: .snoozedCount
         }

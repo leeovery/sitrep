@@ -96,15 +96,50 @@ struct StripFoldingTests {
     @Test func aSessionInNeedsYouAndInSnoozedHasAMarkInEach() throws {
         let folding = Folding()
         folding.set(.snoozed, folded: false)
-        let strip = Self.strip(Self.snoozedBoard(), folding: folding)
+        let board = Self.snoozedBoard(), strip = Self.strip(board, folding: folding)
+        let asleep = try #require(board.snoozed.first)
 
         #expect(strip.strip.layout.places.map(\.id) == ["sr-4g01a7", "snoozed:sr-4g01a7"])
-        guard case let .jump(session, to: target, click: _)? = strip.jump(to: "snoozed:sr-4g01a7", Self.at(strip.time))
-        else {
+        guard case let .jump(session, to: target, click: _)? = strip.jump(to: asleep, Self.at(strip.time)) else {
             Issue.record("the menu's jump found no mark")
             return
         }
         #expect(session.isSnoozed && target == "sr-4g01a7")
+    }
+
+    /// A turn Lee wakes moves into Needs you at once, unflashed, though the pointer rests on the strip; a menu open on
+    /// its Snoozed mark as the board renames it still jumps, to its mark as the strip has it then, by the session's
+    /// own id (`Lines.snoozedTurn`: Contoso's turn woken by `sitrep wake --turn`).
+    @Test(arguments: [false, true])
+    func aTurnLeeWakesMovesIntoNeedsYouAtOnceAndAMenuOpenOnItStillJumps(snoozedFolded: Bool) throws {
+        let folding = Folding()
+        folding.set(.snoozed, folded: snoozedFolded)
+        let strip = Self.strip(Self.board(turns: 0), folding: folding)
+        let contoso = CGPoint(
+            x: 18, y: strip.strip.yOf(snoozedFolded ? .count(.snoozed) : .session("snoozed:sr-ctnbd2"))
+        )
+        let asleep = try #require(Self.board(turns: 0).snoozed.first { $0.id == "sr-ctnbd2" })
+        let opened = try #require(strip.target(Self.at(strip.time, contoso)))
+
+        #expect(opened == (snoozedFolded ? .count(.snoozed, isFolded: true) : .session(
+            asleep, section: .snoozed, isFolded: false
+        )))
+        strip.menuOpened(at: contoso)
+        strip.show(Self.board(turns: 1), Self.at(strip.time))
+
+        #expect(strip.strip.slot["sr-ctnbd2"] == .needsYou)
+        #expect(strip.strip.layout.rest(of: .snoozed).allSatisfy { $0 != "snoozed:sr-ctnbd2" })
+        var flash = 0.0
+        Self.frames(strip, for: 1500, nil) {
+            flash = max(flash, strip.frame.marks.map { max($0.flash, $0.wash) }.max() ?? 0)
+            return false
+        }
+        #expect(flash == 0)
+        guard case let .jump(session, to: target, click: _)? = strip.jump(to: asleep, Self.at(strip.time)) else {
+            Issue.record("the menu's jump found no mark")
+            return
+        }
+        #expect(!session.isSnoozed && target == "sr-ctnbd2")
     }
 
     /// A Snoozed mark's tab says when it wakes, as its row on the card does; any other its age.
@@ -126,7 +161,9 @@ struct StripFoldingTests {
         let ask = CGPoint(x: 18, y: strip.strip.yOf(.session("sr-a")))
         let count = CGPoint(x: 18, y: strip.strip.yOf(.count(.working)))
 
-        #expect(strip.target(Self.at(strip.time, ask)) == .session(try #require(strip.board.sessions.first)))
+        #expect(strip.target(Self.at(strip.time, ask)) == .session(
+            try #require(strip.board.sessions.first), section: .needsYou, isFolded: false
+        ))
         #expect(strip.target(Self.at(strip.time, count)) == .count(.working, isFolded: true))
         #expect(strip.target(Self.at(strip.time, CGPoint(x: 600, y: 400))) == nil)
     }
@@ -148,15 +185,17 @@ struct StripFoldingTests {
     }
 
     /// A menu's Jump to the window jumps as a click on the mark does, by the session's own id.
-    @Test func aMenusJumpJumpsAsAClickOnTheMark() {
+    @Test func aMenusJumpJumpsAsAClickOnTheMark() throws {
         let strip = Self.strip(folding: Folding())
+        let working = try #require(strip.board.sessions.first { $0.id == "sr-w" })
+        let gone = Session(id: "sr-gone", project: "P", kind: .working, title: "Gone", sub: "P", since: 0)
 
-        guard case let .jump(session, to: target, click: click)? = strip.jump(to: "sr-w", Self.at(strip.time)) else {
+        guard case let .jump(session, to: target, click: click)? = strip.jump(to: working, Self.at(strip.time)) else {
             Issue.record("the menu's jump found no mark")
             return
         }
         #expect(session.id == "sr-w" && target == "sr-w" && click == 1)
-        #expect(strip.jump(to: "sr-gone", Self.at(strip.time)) == nil)
+        #expect(strip.jump(to: gone, Self.at(strip.time)) == nil)
     }
 
     // MARK: Helpers
@@ -164,7 +203,7 @@ struct StripFoldingTests {
     private static let frameMS = 1000.0 / 60
     private static let setting = NotchRun.Setting(
         stage: Stage(height: 982, visibleTop: 24, visibleBottom: 982, notchY: 491), mirror: .identity,
-        style: .meniscus, reducesMotion: false
+        style: .meniscus, reducesMotion: false, isChosen: true
     )
     private static let stripSetting = StripRun.Setting(
         stage: StripStage(width: 1512, height: 982, menu: 37), reducesMotion: false
@@ -208,6 +247,16 @@ struct StripFoldingTests {
         var last = LastBoard()
 
         _ = last.hear(.line(Lines.snoozed[0]), at: .now)
+        return PanelBoard(last)
+    }
+
+    /// The real CLI's lines with turns snoozed (`Lines.snoozedTurn`), up to this one, heard in order.
+    private static func board(turns place: Int) -> PanelBoard {
+        var last = LastBoard()
+
+        for line in Lines.snoozedTurn.prefix(place + 1) {
+            _ = last.hear(.line(line), at: .now)
+        }
         return PanelBoard(last)
     }
 
