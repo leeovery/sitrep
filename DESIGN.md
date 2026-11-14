@@ -5102,10 +5102,16 @@ were settled in the browser spike (below, "How the strip moves").
   session asking, flashes where it is. A session stopping, moved from
   working or on its own work into Lee's turn as `LastBoard.newTurns`
   decides it for the banner, moves into Needs you at once too, before the
-  stopped, the marks below sliding down (14 November 2026); its ring
-  flashes twice, in its blue and unwashed, only while Settings' "Pulse
-  when Claude stops" is on, as the notch's pulse follows it. Until then a
-  turn ending changed in place under the hairline. One whose asks are
+  stopped, the marks below sliding down (14 November 2026); one still on
+  the Needs you side, its ask answered or its turn ended before the
+  re-sort, stays where it is. Each flashes only as Settings' pulses say,
+  as the notch's pulse follows them (14 November 2026): an ask arriving
+  flashes twice and is washed while "Pulse for a new ask" is on, and a
+  session stopping flashes twice, in its blue and unwashed, while "Pulse
+  when Claude stops" is on; with its pulse off either moves all the same,
+  unflashed, and any flash its mark still showed ends. Until then a turn
+  ending changed in place under the hairline, and an ask flashed whatever
+  its pulse. One whose asks are
   answered, or a stopped one whose turn ends, Claude working again,
   changes in place and moves at the re-sort, as the prototype's answer
   does (below, "Too many"). The strip shows no
@@ -5119,10 +5125,11 @@ were settled in the browser spike (below, "How the strip moves").
   room, the sessions last in its order fold into a count of their own, the
   needs-you group's last place, over the hairline (Lee, 19 October 2026:
   "new asks should collapse into a number of collapsed icons... in the
-  bottom of their own panel"): the stopped first, the away ones of them
-  before the rest, then the away asks, then the oldest asks. The count's
-  "+N" counts the sessions it holds, its ring orange while it holds any
-  ask and blue while it holds only the stopped, and its tab lists them as
+  bottom of their own panel"), in this order: the away stopped, then the
+  stopped, then the away asks, then the oldest asks. The count's "+N"
+  counts the sessions it holds, its ring blue while all it holds are
+  stopped and orange otherwise, so an ask answered in it, working until
+  the re-sort, keeps it orange; its tab lists them as
   rows, each as its own tab words it (14 November 2026). From 19 October
   2026 the count held asks alone, always orange, the oldest folding since
   Needs you went newest first (4 November 2026; the newest until then),
@@ -5130,9 +5137,17 @@ were settled in the browser spike (below, "How the strip moves").
   count. Working takes the places left, and past them the last place is
   the grey count ("+3"). Under the pointer each count pours out what it
   holds as one tab of rows, which scroll on a short strip. A new ask
-  landing in needs you's count flashes its ring twice and washes it, as a
-  new mark's, and a session stopping there flashes it as its own mark
-  would, only with its pulse on; the marks showing never move. An ask
+  arriving past needs you's room while a stopped mark shows takes its
+  place among the asks all the same, under the one the panel's order has
+  above it, the marks below sliding down, and the last stopped mark
+  showing goes into the count (Lee, 14 November 2026). With every Needs
+  you mark showing an ask, a new ask lands in the count, and a session
+  stopping lands there whatever shows, the marks showing never moving:
+  only asks push stopped marks out. Until then every arrival past the
+  room landed in the count, the marks showing never moving. One landing
+  there flashes the count's ring twice in the count's own colour, orange
+  while it holds an ask, each only with its pulse on, an ask washing it
+  too. An ask
   answered out of the count changes its row in place; at the re-sort the
   count shrinks, or goes and the last folded mark takes its place. Lee: "It
   works."
@@ -5792,6 +5807,8 @@ live changed, and how they group.
   **Notch:** Pulse for a new ask, on by default, "It swells and its light
   flashes", as it always had; and Pulse when Claude stops, off by default,
   "It swells as a session's turn ends" (see "The notch and its panel").
+  The strip follows each, an arriving mark flashing only while its pulse
+  is on (14 November 2026; see "The strip").
   Lee's turn is all off by default: Lee wants no sound for it, and the
   steady blue light shows it already. The turn's three labels said "when
   it's my turn" until later on 13 November 2026, when the app named the

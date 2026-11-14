@@ -123,7 +123,7 @@ public struct StripFrame {
             /// An ask's, orange, with the panel dot's glow, the letters white, and away the letters dim; your turn's
             /// the same in blue; working, a grey track with a pale arc turning; on its own work, the dotted ring round
             /// the letters, still, in working's grey; the grey count, a grey ring; needs you's count, orange with its
-            /// glow while it holds any ask, the letters white, and blue holding only the stopped (14 November 2026).
+            /// glow, the letters white, and blue while all it holds are stopped (14 November 2026).
             case needs, away, turn, awayTurn, working, onItsWork, count, needsCount, stoppedCount
 
             /// What it waits on Lee for, which its ring's colour says: an ask, in orange, or his turn, the stopped,
@@ -272,9 +272,10 @@ extension Strip {
         return shown
     }
 
-    /// Needs you's count: orange while it holds any ask, blue holding only the stopped.
+    /// Needs you's count: blue while every session it holds is stopped, else orange, an ask answered in it and working
+    /// until the re-sort among them.
     var needsCountLook: StripFrame.Mark.Look {
-        layout.restNeeds.contains { session($0)?.need == .ask } ? .needsCount : .stoppedCount
+        layout.restNeeds.allSatisfy { session($0)?.need == .turn } ? .stoppedCount : .needsCount
     }
 
     /// A mark as it shows now, its arrival showing only while it is in Needs you.

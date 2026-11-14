@@ -52,6 +52,9 @@ extension StripRecorded {
     /// At max 6. Its marks: s4, s7, s8, s9.
     static let stopsLand = recorded("stopsLand")
 
+    /// At max 7. Its marks: s4, s5, s9, s10.
+    static let displace = recorded("displace")
+
     /// At Lee's settings. Its marks: s1, s5, s8.
     static let drag = recorded("drag")
 

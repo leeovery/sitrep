@@ -227,28 +227,32 @@ public final class Strip {
     /// - one gone fades where it is, and the rest close up;
     /// - one changed shows in place, and moves once the pointer has been off the strip for Settle, as one whose asks
     ///   were answered, or whose turn ended, does;
-    /// - one arriving off the needs you side, new to the strip or already on it, moves in at once, pointer or not, and
-    ///   its ring flashes, or its count's; one arriving on the needs you side flashes where it is;
-    /// - one stopping, moved into Lee's turn from working or on its own work, moves in at once too, its ring flashing,
-    ///   or its count's, only where Lee has Pulse when Claude stops on (`pulsesStops`);
+    /// - one arriving off the needs you side, new to the strip or already on it, moves in at once, pointer or not; one
+    ///   arriving on the needs you side stays where it is;
+    /// - one stopping, moved into Lee's turn from working or on its own work, moves in at once too, or stays where it
+    ///   is when it is on the needs you side still, its turn's end come before the re-sort;
+    /// - each arriving or stopping flashes its ring, or its count's, only where Lee has that pulse on (`pulses`), as
+    ///   the notch pulses: a new ask washed too;
     /// - any other new to the strip comes in as the marks re-sort at once, unflashed: needs you with nothing new among
     ///   them, as on any run's first board.
     ///
     /// `reworded`, what the tabs say of the board changed with it, as when it goes stale: each open tab that says it
     /// takes its new words. A tab takes them once, though its row changed too.
     public func show(
-        _ board: [Session], new: Set<String>, stopped: Set<String> = [], pulsesStops: Bool = false,
+        _ board: [Session], new: Set<String>, stopped: Set<String> = [], pulses: Set<Need> = [.ask],
         reworded: Bool = false
     ) {
         let was = Dictionary(sessions.map { ($0.id, $0) }) { first, _ in first }
         let gone = Set(was.keys).subtracting(board.map(\.id))
         let fresh = board.filter { was[$0.id] == nil }
         let arriving = board.filter { $0.needsLee && new.contains($0.id) }
+        let stopping = board.filter { $0.kind == .turn && stopped.contains($0.id) }
         let asks = arriving.filter { !needsSlot.contains($0.id) }
-        let stops = board.filter { $0.kind == .turn && stopped.contains($0.id) && !needsSlot.contains($0.id) }
+        let stops = stopping.filter { !needsSlot.contains($0.id) }
         let moving = asks + stops
         let crossing = moving.filter { was[$0.id] != nil }
         let changes = board.filter { session in was[session.id].map { $0 != session } ?? false }
+        let ask = StripArrival(.ask, pulses: pulses), stop = StripArrival(.turn, pulses: pulses)
 
         sessions = board
         if !gone.isEmpty {
@@ -256,9 +260,10 @@ public final class Strip {
         }
         lift(crossing)
         changes.filter { !crossing.contains($0) }.forEach(changed)
-        asks.forEach { insertNeeds($0, .ask) }
-        stops.forEach { insertNeeds($0, pulsesStops ? .stop : .quiet) }
-        arriving.filter { !asks.contains($0) }.forEach(flashInPlace)
+        asks.forEach { insertNeeds($0, ask) }
+        stops.forEach { insertNeeds($0, stop) }
+        arriving.filter { !asks.contains($0) }.forEach { flashInPlace($0, ask) }
+        stopping.filter { !stops.contains($0) }.forEach { flashInPlace($0, stop) }
         let others = fresh.filter { !moving.contains($0) }
         if !others.isEmpty {
             add(others)

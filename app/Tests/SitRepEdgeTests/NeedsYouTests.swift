@@ -152,6 +152,31 @@ struct NeedsYouTests {
         let shown = Self.boards(
             [[Self.working("sr-t"), Self.working()], [Self.turn(), Self.working()]], pulses: pulses
         )
+        let (run, flash) = Self.stripShown(shown, flashing: "sr-t")
+
+        let stopped = run.markTarget(of: "sr-t")?.y ?? .infinity, working = run.markTarget(of: "sr-w")?.y ?? 0
+        #expect(stopped < run.frame.hairline.y && run.frame.hairline.y < working && run.frame.hairline.alpha == 1)
+        #expect((flash > 0.5) == flashes)
+    }
+
+    /// On the strip, a new ask flashes while its pulse is on, and moves in unflashed while it is off, as the notch
+    /// lights with no pulse.
+    @Test(arguments: [(Set<Need>([.ask]), true), (Set<Need>([.turn]), false)])
+    func onTheStripANewAskFlashesWhileItsPulseIsOn(pulses: Set<Need>, flashes: Bool) {
+        var last = LastBoard()
+
+        _ = last.hear(.line(line(needYou: 0, sessions: 1, new: [], rows: [Self.working()])), at: .now)
+        let before = PanelBoard(last, pulses: pulses)
+        let asked = line(needYou: 1, sessions: 2, new: ["ask:sr-a:k1"], rows: [Self.ask, Self.working()])
+        _ = last.hear(.line(asked), at: .now)
+        let (run, flash) = Self.stripShown([before, PanelBoard(last, pulses: pulses)], flashing: "sr-a")
+
+        #expect(run.markTarget(of: "sr-a") != nil)
+        #expect((flash > 0.5) == flashes)
+    }
+
+    /// A strip shown these boards, 100ms apart, then two seconds of frames: the brightest this session's ring flashed.
+    private static func stripShown(_ boards: [PanelBoard], flashing id: String) -> (StripRun, Double) {
         let stage = StripStage(width: 1512, height: 982, menu: 37)
         let at = { (time: Double) in
             StripRun.Moment(
@@ -164,16 +189,15 @@ struct NeedsYouTests {
         }
         var flash = 0.0
 
-        run.show(shown[0], at(0))
-        run.show(shown[1], at(100))
-        for frame in 1 ... 120 {
-            run.step(at(100 + Double(frame) * 1000 / 60))
-            flash = max(flash, run.frame.marks.first { $0.key == .session("sr-t") }?.flash ?? 0)
+        for (i, board) in boards.enumerated() {
+            run.show(board, at(Double(i) * 100))
         }
-
-        let stopped = run.markTarget(of: "sr-t")?.y ?? .infinity, working = run.markTarget(of: "sr-w")?.y ?? 0
-        #expect(stopped < run.frame.hairline.y && run.frame.hairline.y < working && run.frame.hairline.alpha == 1)
-        #expect((flash > 0.5) == flashes)
+        let start = Double(boards.count) * 100
+        for frame in 1 ... 120 {
+            run.step(at(start + Double(frame) * 1000 / 60))
+            flash = max(flash, run.frame.marks.first { $0.key == .session(id) }?.flash ?? 0)
+        }
+        return (run, flash)
     }
 
     /// Told again as what this Mac shows changes, a board brings no pulse of its own.

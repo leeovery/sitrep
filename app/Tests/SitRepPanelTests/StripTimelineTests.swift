@@ -182,6 +182,21 @@ struct StripTimelineTests {
         #expect(lab.model.layout.restNeeds.first == "s7")
     }
 
+    /// Max 7: a turn ends and DocMan's lands in needs you's new count beside Goosemates's; a new ask takes its place,
+    /// pushing Fumi's stopped mark, the last showing, into the count, the marks between sliding down; a second, with
+    /// no stopped mark showing, lands in the count.
+    @Test func aNewAskOnAFullStripPushesTheLastStoppedMarkIntoTheCountAsThePrototypes() {
+        var lab = StripLab(length: .grows, maxMarks: 7)
+
+        let played = lab.play(StripRecorded.displace, marks: ["s4", "s5", "s9", "s10"], [
+            (0, { $0.stop(StripLab.stopped) }), (900, { $0.newAsk(StripLab.asks[0]) }),
+            (1800, { $0.newAsk(StripLab.asks[1]) }),
+        ])
+
+        expectMatches(played, StripRecorded.displace)
+        #expect(lab.model.layout.restNeeds == ["s10", "s5", "s7", "s6"])
+    }
+
     @Test func aPressCarriedAlongTheEdgeDragsTheStripAsThePrototypes() {
         var lab = StripLab(length: .grows)
 

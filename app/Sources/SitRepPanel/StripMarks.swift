@@ -45,9 +45,14 @@ final class StripMark {
 }
 
 /// How a mark coming into Needs you shows it arrived (DESIGN, "The strip", 14 November 2026): an ask washed and its
-/// ring flashing; a session stopping, its ring flashing, where Lee has Pulse when Claude stops on; else neither.
+/// ring flashing; a session stopping, its ring flashing; or neither, where Lee has that pulse off.
 enum StripArrival {
     case ask, stop, quiet
+
+    /// What waits on Lee arriving, shown as his pulses say: flashing where he has its pulse on, else quiet.
+    init(_ need: Need, pulses: Set<Need>) {
+        self = !pulses.contains(need) ? .quiet : need == .ask ? .ask : .stop
+    }
 }
 
 /// How the strip's places go: how many it has, and of needs you's and the rest's, how many marks show and whether
@@ -468,16 +473,22 @@ extension Strip {
     }
 
     /// A new needs you moves in at once, under the needs you the panel's order has above it, or first where it has
-    /// none. Past needs you's room it lands in its count, and the marks showing stay where they are; else the marks
-    /// below slide down a step, and it grows into its place as the mark below gets out of the way. It, or the count
-    /// it lands in, shows its arrival as `how` says.
+    /// none. Past needs you's room an ask takes its place all the same while a stopped mark shows below it, the last
+    /// of them going into the count (Lee, 14 November 2026); else it lands in the count, and the marks showing stay
+    /// where they are. Taking a place, the marks below slide down a step, and it grows into its place as the mark
+    /// below gets out of the way. It, or the count it lands in, shows its arrival as `how` says.
     func insertNeeds(_ s: Session, _ how: StripArrival) {
         let end = display.prefix { needsSlot.contains($0) }.count
         let above = sessions.prefix { $0.id != s.id }.last { needsSlot.contains($0.id) }
         var i = above.flatMap { display.firstIndex(of: $0.id) }.map { $0 + 1 } ?? 0
         let a = allot(asks: end + 1, others: display.count - end)
         if a.foldsAsks, i < a.asks {
-            i = a.asks
+            if s.need == .ask, let stop = lastStopShowing(from: i, end: end) {
+                // made the last mark showing, the ask pushes it into the count
+                display.insert(display.remove(at: stop.at), at: stop.shown - 1)
+            } else {
+                i = a.asks
+            }
         }
         display.insert(s.id, at: i)
         needsSlot.insert(s.id)
@@ -485,10 +496,7 @@ extension Strip {
         m.arrival = how
         relayout()
         if layout.restNeeds.contains(s.id) {
-            if let count = moreNeeds {
-                arrive(count, how)
-            }
-            return
+            return landInCount(how)
         }
 
         m.op.snap(0)
@@ -510,6 +518,14 @@ extension Strip {
         }
     }
 
+    /// The last stopped mark showing at place `i` or under it, of the `end` on the needs you side, and how many of
+    /// them show; nil with none.
+    private func lastStopShowing(from i: Int, end: Int) -> (at: Int, shown: Int)? {
+        let shown = display.prefix(end).filter { layout.y(of: $0) != nil }.count
+
+        return display.prefix(shown).lastIndex { session($0)?.need == .turn }.flatMap { $0 >= i ? ($0, shown) : nil }
+    }
+
     func grow(_ m: StripMark) {
         m.gap = nil
         m.waitsForColumn = false
@@ -523,9 +539,13 @@ extension Strip {
         arrive(m, m.arrival)
     }
 
-    /// Just arrived: its ring flashes Swells times, 450ms apart, and an ask's is washed; a quiet arrival shows neither.
+    /// Just arrived: its ring flashes Swells times, 450ms apart, and an ask's is washed; a quiet arrival shows neither,
+    /// and ends any earlier one's still showing, so an ask's flash never runs on after its session stops.
     func arrive(_ m: StripMark, _ how: StripArrival = .ask) {
         guard how != .quiet else {
+            m.arrived = -1e9
+            m.flashes = []
+            m.washes = false
             return
         }
 
@@ -577,10 +597,22 @@ extension Strip {
         needsSlot.subtract(ids)
     }
 
-    /// A new line needing Lee on a mark already on the needs you side: its ring flashes where it is, or its count's.
-    func flashInPlace(_ s: Session) {
-        if let m = layout.restNeeds.contains(s.id) ? moreNeeds : mark(.session(s.id)) {
-            arrive(m)
+    /// A mark already on the needs you side arriving again, a new line needing Lee or its session stopping: its ring
+    /// flashes where it is, or its count's, as `how` says; quiet, its own mark's earlier arrival ends.
+    func flashInPlace(_ s: Session, _ how: StripArrival) {
+        if layout.restNeeds.contains(s.id) {
+            landInCount(how)
+        } else if let m = mark(.session(s.id)) {
+            m.arrival = how
+            arrive(m, how)
+        }
+    }
+
+    /// One arriving in needs you's count: the count flashes as `how` says; quiet, it keeps what an earlier arrival
+    /// there shows, which was another session's.
+    private func landInCount(_ how: StripArrival) {
+        if how != .quiet, let count = moreNeeds {
+            arrive(count, how)
         }
     }
 

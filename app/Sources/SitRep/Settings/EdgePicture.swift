@@ -79,17 +79,22 @@ struct EdgePicture: View {
 
 /// The strip as it stands at Length Grows, a 36-point strip drawn 9 wide: a black column out of the bezel, its ends
 /// curving back into the edge in the strip's own S, centred 0.42 of the way down; its rings in the panel's order,
-/// an ask lit orange with its glow, the hairline under it, a turn lit blue with its glow, then two working.
+/// Needs you's over the hairline, an ask lit orange with its glow and a turn lit blue with its glow, then two working
+/// under it (14 November 2026).
 enum StripPicture {
-    private enum Ring {
+    enum Ring {
         case needs, turn, working
     }
 
-    /// The rings, top to bottom, by their middles' height; the working rings' arcs standing at 12 o'clock and at 45°,
-    /// the others whole.
-    private static let rings: [(y: CGFloat, ring: Ring, arc: Double?)] = [
-        (20.7, .needs, nil), (31.45, .turn, nil), (38.95, .working, 0), (46.45, .working, 45),
+    /// The rings, top to bottom, by their middles' height, spaced as the strip spaces its marks, a quarter of 30
+    /// apart, and of 21.5 each side of the hairline; the working rings' arcs standing at 12 o'clock and at 45°, the
+    /// others whole.
+    static let rings: [(y: CGFloat, ring: Ring, arc: Double?)] = [
+        (20.7, .needs, nil), (28.2, .turn, nil), (38.95, .working, 0), (46.45, .working, 45),
     ]
+
+    /// The hairline's middle, under Needs you's rings.
+    static let hairline: CGFloat = 28.2 + 21.5 / 4
 
     private static let centre: CGFloat = 7.5
     private static let radius: CGFloat = 2.75
@@ -111,13 +116,15 @@ enum StripPicture {
         return column
     }()
 
-    /// A ring's line, in units, as drawn; the hairline under the asks is half as thick.
+    /// A ring's line, in units, as drawn; the hairline under Needs you is half as thick.
     static let line: CGFloat = 0.5
 
-    /// The strip, its rings and the hairline under the asks, a ring's line `line` units thick.
+    /// The strip, its rings and the hairline under Needs you, a ring's line `line` units thick.
     static func draw(_ context: GraphicsContext, line: CGFloat = line) {
         context.fill(column, with: .color(.black))
-        context.fill(Path(CGRect(x: 5.5, y: 25.95, width: 4, height: line / 2)), with: .color(Color(hex: 0x3A3A40)))
+        let rule = CGRect(x: 5.5, y: hairline - line / 4, width: 4, height: line / 2)
+
+        context.fill(Path(rule), with: .color(Color(hex: 0x3A3A40)))
         for (y, ring, arc) in rings {
             draw(ring, at: CGPoint(x: centre, y: y), arc: arc, line: line, in: context)
         }

@@ -62,11 +62,16 @@ struct StripLab {
         show(model.sessions.map { $0.id == session.id ? session : $0 })
     }
 
+    /// The board with a new ask on it, new on its line, with Lee's pulses so.
+    func newAsk(_ ask: Session, pulses: Set<Need>) {
+        model.show(Self.core(model.sessions + [ask]), new: [ask.id], pulses: pulses)
+    }
+
     /// The board with a session's row changed, moved into Lee's turn on it, with Pulse when Claude stops on or off.
     func stop(_ session: Session, pulses: Bool = false) {
         model.show(
             Self.core(model.sessions.map { $0.id == session.id ? session : $0 }), new: [], stopped: [session.id],
-            pulsesStops: pulses
+            pulses: pulses ? [.ask, .turn] : [.ask]
         )
     }
 
