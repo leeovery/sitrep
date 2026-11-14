@@ -64,8 +64,8 @@ public final class Strip {
     var trail = Trail()
     var timers = SimTimers<Strip, StripTimer>()
 
-    /// The marks' order on the strip, by their keys (`Session.markID`): the panel's order as of the last sort, new
-    /// needs you put in, ...
+    /// The marks' order on the strip, by their keys (`Session.markID`): the panel's order as of the last sort, each
+    /// session moved in since put in at its place, ...
     var display: [String] = []
     /// ... the section each of them sits in, as of then, ...
     var slot: [String: BoardSection] = [:]
@@ -98,6 +98,8 @@ public final class Strip {
 
     /// The mark under the pointer, or the open tab's.
     var hot: MarkKey?
+    /// While a menu shows, the hover as it opened (`holdHover`).
+    var heldHover: HeldHover?
     /// The pointer on the strip or its tab.
     var over = false
     /// A mark just jumped to: no tab again until the pointer leaves it.
@@ -274,11 +276,14 @@ public final class Strip {
             leave(gone)
         }
         lift(moving.filter { was[$0.markID] != nil })
-        moving.forEach { moveIn($0, news.look(of: $0)) }
-        // after them all, as one may fold another in that has shown its arrival on its own mark
+        moveIn(moving, news)
         moving.filter { layout.rest(of: .needsYou).contains($0.markID) }.forEach { landInCount($0, news.look(of: $0)) }
         staying.filter { news.need(of: $0) != nil }.forEach { flashInPlace($0, news.look(of: $0)) }
+        endFlashOfOneGone()
         inPlace.forEach(changed)
+        if display != board.map(\.markID) {
+            sortLater()
+        }
 
         let rewords = reworded ? tabsSayingTheBoard : tabs.filter { tab in
             tab.phase == .open && inPlace.contains { tab.key == .session($0.markID) }
@@ -319,6 +324,9 @@ public final class Strip {
             words.pressedRow = new
         }
         hot = hot == was ? now : hot
+        if heldHover?.key == was {
+            heldHover?.key = now
+        }
         disarmed = disarmed == was ? now : disarmed
         switch jumping {
         case let .tab(tab, id) where id == old: jumping = .tab(tab, new)

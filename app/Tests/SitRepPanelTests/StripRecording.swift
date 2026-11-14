@@ -93,10 +93,10 @@ extension StripRecorded {
         working: ["s7", "s8"], snoozed: ["s10", "s11"]
     )
 
-    /// Max 6, the five asks in: those folded into needs you's count, the asks as they landed in it and the stopped
-    /// after them, and the rest into the grey one.
+    /// Max 6, the five asks in and a settle after: those folded into needs you's count, the asks in the panel's
+    /// order, the away one last, and the stopped after them, and the rest into the grey one.
     static let maxSixFolded: (asks: [String], rest: [String]) = (
-        asks: ["s9", "s10", "s11", "s12", "s13", "s5", "s6"], rest: ["s7", "s8"]
+        asks: ["s10", "s11", "s12", "s13", "s4", "s5", "s6"], rest: ["s7", "s8"]
     )
 
     /// Each tab's width as the browser measured its words, by their lines.
@@ -112,7 +112,7 @@ extension StripRecorded {
         "Choose the diff budget|Mint · Token-aware diff sizing\nAllow Bash aws sso login --profile dev|Fabric · Atlas overload from llm-manager\nThe management window is sketched|Fumi · Management window discussion\nWaiting for the next round of feedback|Goosemates · Settle the older open questions": 326,
         "Allow Bash aws sso login --profile dev|Fabric · Atlas overload from llm-manager\nThe management window is sketched|Fumi · Management window discussion\nWaiting for the next round of feedback|Goosemates · Settle the older open questions": 326,
         "Nothing running|SitRep · sessions show here as they start": 274,
-        "Allow Bash aws sso login --profile dev|Fabric · Atlas overload from llm-manager\nThe management window is sketched|Fumi · Management window discussion\nThe exception tests pass|DocMan · Fix inverted exception reporting\nWaiting for the next round of feedback|Goosemates · Settle the older open questions": 326,
+        "Allow Bash aws sso login --profile dev|Fabric · Atlas overload from llm-manager\nThe exception tests pass|DocMan · Fix inverted exception reporting\nThe management window is sketched|Fumi · Management window discussion\nWaiting for the next round of feedback|Goosemates · Settle the older open questions": 326,
         "Running the exception reporting tests|DocMan · Fix inverted exception reporting\nFixing the limiter's reset|Turnstile · Exception reporting": 276,
         "Pick the onboarding copy|Contoso · Onboarding flow": 242,
         "Pick the onboarding copy|Contoso · Onboarding flow\nThe ledger export is reviewed|Northwind · Ledger export\nWhich region goes first?|Fabrikam · Region rollout": 240,

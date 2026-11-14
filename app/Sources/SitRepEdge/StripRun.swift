@@ -153,15 +153,17 @@ public final class StripRun: Framed {
     }
 
     /// The menu asked for showing: until it closes, the strip holds as if the pointer rested where the right-click
-    /// asked (`target`), wherever it goes on the menu, so a tab out stays out and nothing re-sorts under a choice made
-    /// on it.
+    /// asked (`target`), wherever it goes on the menu, its hover held on what it was on (`Strip.holdHover`), so a tab
+    /// out stays out, no other pours, and nothing re-sorts under a choice made on it.
     public func menuOpened() {
         menu?.isOpen = true
+        strip.holdHover()
     }
 
     /// The menu closed: the pointer is where it is again.
     public func menuClosed() {
         menu = nil
+        strip.releaseHover()
     }
 
     /// A jump chosen from a session's menu, the session as the menu had it: as a click on its tab or its mark as the

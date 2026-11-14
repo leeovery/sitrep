@@ -208,6 +208,24 @@ struct StripFoldingTests {
         #expect(strip.strip.liveTab() == nil)
     }
 
+    /// While a menu shows, the hover holds on what it was asked at: a board sliding another mark under the point pours
+    /// nothing, the tab out staying with its own mark.
+    @Test func aMenuHoldsTheHoverThoughABoardSlidesAnotherMarkUnderThePoint() throws {
+        let strip = Self.strip(folding: Folding())
+        let b = CGPoint(x: 18, y: strip.strip.yOf(.session("sr-b")))
+        Self.frames(strip, for: 2000, b) { strip.strip.liveTab()?.phase == .open }
+        _ = try #require(strip.target(Self.at(strip.time, b)))
+        strip.menuOpened()
+
+        let asks = ["sr-a", "sr-c", "sr-d", "sr-b"].map(Self.ask)
+        strip.show(Self.board(asks + [Self.working("sr-w")]), Self.at(strip.time))
+        Self.frames(strip, for: 2000, nil)
+
+        #expect(abs(strip.strip.yOf(.session("sr-d")) - b.y) < 0.01)
+        #expect(strip.strip.liveTab()?.key == .session("sr-b"))
+        #expect(!strip.strip.tabs.contains { $0.key == .session("sr-d") })
+    }
+
     /// A row new to the board while a menu is open comes in at its place, and nothing else re-sorts under the menu: the
     /// asks' order, changed a moment before, waits for the menu to close and the pointer to have been off the strip
     /// for Settle (Lee, 14 November 2026; until then a new row re-sorted them all).

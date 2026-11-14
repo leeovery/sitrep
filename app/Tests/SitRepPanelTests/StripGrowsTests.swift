@@ -129,7 +129,6 @@ struct StripGrowsTests {
     @Test func anAnswerInTheCountTakesItsRowOutOfTheCountsTabAtOnce() {
         var lab = StripLab(length: .grows, maxMarks: 6)
         StripLab.asks.prefix(2).forEach(lab.newAsk)
-        lab.settle()
         #expect(lab.model.layout.rest(of: .needsYou) == ["s9", "s10", "s5", "s6"])
         lab.open(.count(.needsYou))
 
@@ -160,7 +159,8 @@ struct StripGrowsTests {
         #expect(mark.op.x == 0 && mark.sc.x == 1 && mark.arrived < 0)
     }
 
-    /// The count's tab, taller than a short strip holds, scrolls its rows, as far as they run.
+    /// The count's tab, taller than a short strip holds, scrolls its rows, as far as they run, in the panel's order
+    /// once the settle has re-sorted the asks that landed in it.
     @Test func theCountsRowsScrollOnAShortStrip() {
         var lab = StripLab(length: .grows, maxMarks: 6)
         StripLab.asks.prefix(5).forEach(lab.newAsk)
@@ -169,7 +169,7 @@ struct StripGrowsTests {
         let tab = lab.frame.tabs.first { $0.isLive }!, words = tab.words.last!
         let low = CGPoint(x: tab.clip.midX, y: tab.box.minY + 170)
         #expect(words.frame.height == 215)
-        #expect(tab.row(at: low) == "s12")
+        #expect(tab.row(at: low) == "s13")
 
         lab.model.scroll(by: 200, at: low)
         lab.step()

@@ -20,6 +20,42 @@ struct StripBoardTests {
         #expect(lab.model.mark(.session("s9"))!.sc.x < 1)
     }
 
+    /// At launch, or whenever the strip goes from empty to several rows, each mark takes its final place at once, the
+    /// rest of the update counted, and grows in there: none slides from a place the marks still to come would change.
+    @Test func marksComingInTogetherEachTakeTheirFinalPlaceAtOnce() {
+        var lab = StripLab(sessions: [], length: .grows)
+
+        lab.add(StripLab.prototype)
+
+        let places = lab.model.layout.places
+        #expect(places.count == StripLab.prototype.count)
+        #expect(places.allSatisfy { lab.model.mark(.session($0.id))?.y.x == $0.y })
+        lab.settle()
+        #expect(lab.model.layout.places.map(\.y) == places.map(\.y))
+        #expect(places.allSatisfy { abs(lab.model.mark(.session($0.id))!.y.x - $0.y) < 0.01 })
+    }
+
+    /// An arrival placed out of the panel's order, a new ask landing in the count while an older away ask shows, waits
+    /// for the re-sort as any order within a group does: held while the pointer rests on the strip, and a settle after
+    /// it leaves, the strip takes the panel's order, the ask in the place the away one had.
+    @Test func anArrivalOutOfThePanelsOrderTakesItAtTheSettle() throws {
+        var lab = StripLab(length: .grows, maxMarks: 6)
+        lab.pointer = lab.on("s1")
+        lab.wait(400)
+        let fourth = try #require(lab.model.layout.y(of: "s4"))
+
+        lab.newAsk(StripLab.ask)
+        lab.wait(2000)
+        #expect(lab.model.layout.rest(of: .needsYou) == ["s9", "s5", "s6"])
+
+        lab.pointer = nil
+        lab.wait(StripFeel.lees.settle + 100)
+
+        #expect(lab.model.display == StripLab.core(lab.model.sessions).map(\.markID))
+        #expect(lab.model.layout.rest(of: .needsYou) == ["s4", "s5", "s6"])
+        #expect(lab.model.layout.y(of: "s9") == fourth)
+    }
+
     /// The marks are the rows in the panel's order as it comes, and Needs you's, its asks and then its stopped, are all
     /// over the one hairline; working and on its own work under it (14 November 2026).
     @Test func needsYouItsAsksThenItsStoppedIsAllOverTheHairlineWorkingUnderIt() throws {
@@ -234,7 +270,7 @@ struct StripBoardTests {
         StripLab.asks.prefix(2).forEach(lab.newAsk)
         lab.settle()
 
-        #expect(lab.model.click(at: lab.on("s9")) == .nothing)
+        #expect(lab.model.click(at: lab.on("s10")) == .nothing)
         #expect(lab.model.click(at: lab.on(.count(.needsYou))) == .nothing)
         #expect(lab.live?.key == .count(.needsYou))
     }

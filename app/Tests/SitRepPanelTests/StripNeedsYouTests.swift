@@ -108,7 +108,6 @@ struct StripNeedsYouTests {
     @Test func asksAnsweredInNeedsYousCountLeaveItAtOnce() {
         var lab = StripLab(length: .grows, maxMarks: 6)
         StripLab.asks.prefix(2).forEach(lab.newAsk)
-        lab.settle()
         #expect(lab.model.layout.rest(of: .needsYou) == ["s9", "s10", "s5", "s6"])
 
         for id in ["s9", "s10"] {
@@ -170,6 +169,7 @@ struct StripNeedsYouTests {
         let count = lab.model.counts[.needsYou]?.flashes
 
         lab.newAsk(StripLab.ask, pulses: [.turn])
+        #expect(marks == nil || lab.model.layout.rest(of: .needsYou).contains("s9"))
         var flash = 0.0, wash = 0.0
         lab.wait(2500) { lab in
             flash = max(flash, lab.frame.marks.map(\.flash).max() ?? 0)
@@ -178,8 +178,7 @@ struct StripNeedsYouTests {
         }
 
         #expect(lab.model.slot["s9"] == .needsYou)
-        let folded = lab.model.layout.rest(of: .needsYou)
-        #expect(marks == nil ? lab.model.mark(.session("s9"))!.sc.x == 1 : folded.contains("s9"))
+        #expect(marks != nil || lab.model.mark(.session("s9"))!.sc.x == 1)
         #expect(lab.model.counts[.needsYou]?.flashes == count)
         #expect(flash == 0 && wash == 0)
     }
@@ -385,6 +384,33 @@ struct StripNeedsYouTests {
         #expect(lab.model.counts[.needsYou] == nil)
     }
 
+    /// One update's moves judge needs you's room with them all counted. At Max 5 needs you shows three asks, its two
+    /// stopped in its count, and Working its one session; that session stops as the first ask is answered. Needs you's
+    /// room stays three, so the stop lands in the count and the stopped mark first there comes out in the answered
+    /// ask's place; a settle after, the panel's order shows the stop over it.
+    @Test func oneUpdatesMovesAreAllCountedForNeedsYousRoom() {
+        let asks = (1 ... 3).map { Session(id: "a\($0)", project: "Ask", kind: .needs, title: "", sub: "", since: 0) }
+        let stopped = (1 ... 2).map {
+            Session(id: "s\($0)", project: "Stop", kind: .turn, title: "", sub: "", since: -Double($0))
+        }
+        let x = Session(id: "x", project: "Work", kind: .working, title: "", sub: "", since: 0)
+        var lab = StripLab(sessions: asks + stopped + [x], length: .grows, maxMarks: 5)
+        #expect(lab.model.layout.places.map(\.id) == ["a1", "a2", "a3", "x"])
+        #expect(lab.model.layout.rest(of: .needsYou) == ["s1", "s2"])
+        var answered = asks[0], stopping = x
+        answered.kind = .working
+        stopping.kind = .turn
+        stopping.lines[0].since = 5
+
+        lab.model.show(StripLab.core([answered] + asks.dropFirst() + stopped + [stopping]), new: [], stopped: ["x"])
+
+        #expect(lab.model.layout.places.map(\.id) == ["a2", "a3", "s1", "a1"])
+        #expect(lab.model.layout.rest(of: .needsYou) == ["x", "s2"])
+        lab.wait(StripFeel.lees.settle + 100)
+        #expect(lab.model.layout.places.map(\.id) == ["a2", "a3", "x", "a1"])
+        #expect(lab.model.layout.rest(of: .needsYou) == ["s1", "s2"])
+    }
+
     /// Two working sessions asking in one update while the grey count shows each take their place in Needs you at
     /// once: the second never goes into the grey count as the first moves in.
     @Test func twoSessionsAskingInOneUpdateEachTakeTheirPlace() {
@@ -481,5 +507,28 @@ struct StripNeedsYouTests {
         }
         #expect(lab.model.layout.rest(of: .needsYou).last == "w")
         #expect(flash > 0.5 && looks == [.needsCount])
+    }
+
+    /// The stop's session working again within the flash leaves the count at once, and the count's flash for it ends:
+    /// a count left holding asks flashes for no session gone from it.
+    @Test func aCountsFlashForASessionGoneFromItEnds() throws {
+        var lab = StripLab(sessions: Self.full(asks: 7, stopped: 0) + [Self.working], length: .grows, maxMarks: 6)
+        var stopping = Self.working
+        stopping.kind = .turn
+        lab.stop(stopping, pulses: true)
+        let count = try #require(lab.model.counts[.needsYou])
+        #expect(count.shows == .stop && count.arrivalOf == "w")
+        lab.wait(200)
+
+        lab.change(Self.working)
+
+        #expect(!lab.model.layout.rest(of: .needsYou).contains("w"))
+        #expect(count.shows == .quiet && count.arrivalOf == nil && count.flashes.isEmpty)
+        var flash = 0.0
+        lab.wait(1500) { lab in
+            flash = max(flash, lab.frame.marks.first { $0.key == .count(.needsYou) }?.flash ?? 0)
+            return false
+        }
+        #expect(flash == 0)
     }
 }

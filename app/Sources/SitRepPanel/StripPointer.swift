@@ -33,6 +33,9 @@ extension Strip {
             // it keeps with its mark while the marks slide
             hot = live.key
         }
+        if let heldHover {
+            hot = heldHover.key.flatMap { hasPlace($0) ? $0 : nil }
+        }
         if disarmed != nil, hot != disarmed {
             disarmed = nil
         }
@@ -61,6 +64,28 @@ extension Strip {
             startDwell(live)
         } else if live.phase == .open, live.key != hot {
             glide(live, to: hot)
+        }
+    }
+
+    /// A menu shows: the hover, and any dwell, holds on what it was on as the menu opened, a mark, a count or nothing,
+    /// however a board slides the marks under the point it was asked at, so nothing else pours while it shows. It lets
+    /// go once that has no place of its own.
+    public func holdHover() {
+        heldHover = HeldHover(key: hot)
+    }
+
+    /// The menu closed: the hover follows the pointer again.
+    public func releaseHover() {
+        heldHover = nil
+    }
+
+    /// Whether what a key names has a place of its own on the strip now: a session's mark, a count, or the notch at
+    /// rest's tab.
+    private func hasPlace(_ key: MarkKey) -> Bool {
+        switch key {
+        case let .session(id): layout.y(of: id) != nil
+        case let .count(section): layout.counts[section] != nil
+        case .empty: layout.isEmpty
         }
     }
 
@@ -402,4 +427,9 @@ public enum StripTarget: Equatable {
     case session(Session, section: BoardSection, isFolded: Bool)
     /// A section's count: folded, to unfold; past its room, to fold.
     case count(BoardSection, isFolded: Bool)
+}
+
+/// The hover a menu holds while it shows: the key it was on as the menu opened, nil for none (`Strip.holdHover`).
+struct HeldHover {
+    var key: MarkKey?
 }

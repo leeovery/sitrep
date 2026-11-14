@@ -97,7 +97,8 @@ struct StripTimelineTests {
     }
 
     /// Max 6, five new asks: needs you's places already full, its two stopped folded into its count, each new ask
-    /// lands in the count, the four asks showing never moving, and the two working stay in the grey one.
+    /// lands in the count, the four asks showing never moving, and the two working stay in the grey one. A settle
+    /// after, the strip takes the panel's order, the oldest new ask showing where the away one did.
     @Test func atMaxSixNineAsksFoldIntoTheirOwnCountAsThePrototypes() {
         var lab = StripLab(length: .grows, maxMarks: 6)
 
@@ -133,7 +134,8 @@ struct StripTimelineTests {
     }
 
     /// Max 6 and two new asks, landing in needs you's count beside its stopped: an answer to the first there takes it
-    /// out at once, into the grey count, though the pointer rests on the orange one, whose tab takes its new rows.
+    /// out at once, into the grey count, though the pointer rests on the orange one, whose tab takes its new rows; a
+    /// settle after the pointer leaves, the strip takes the panel's order.
     @Test func anAnswerInTheCountTakesItOutAtOnceAsThePrototypes() {
         var lab = StripLab(length: .grows, maxMarks: 6)
 
@@ -170,8 +172,8 @@ struct StripTimelineTests {
     }
 
     /// Max 6, five new asks, then a turn ends: DocMan's lands in needs you's count, the marks showing never moving,
-    /// and the grey count, left holding one, goes as Turnstile's mark comes out of it. In the count it goes under the
-    /// asks that landed there, the stopped keeping to their own run of needs you, which the recording never shows.
+    /// and the grey count, left holding one, goes as Turnstile's mark comes out of it. A settle after each, the strip
+    /// takes the panel's order: the oldest new ask shows where the away one did, and DocMan's leads the stopped.
     @Test func aSessionStoppingPastItsRoomLandsInTheCountAsThePrototypes() {
         var lab = StripLab(length: .grows, maxMarks: 6)
 
@@ -181,12 +183,13 @@ struct StripTimelineTests {
         )
 
         expectMatches(played, StripRecorded.stopsLand)
-        #expect(lab.model.layout.rest(of: .needsYou) == ["s9", "s10", "s11", "s12", "s13", "s7", "s5", "s6"])
+        #expect(lab.model.layout.rest(of: .needsYou) == ["s10", "s11", "s12", "s13", "s4", "s7", "s5", "s6"])
     }
 
     /// Max 7: a turn ends and DocMan's lands in needs you's new count beside Goosemates's; a new ask takes its place,
     /// pushing Fumi's stopped mark, the last showing, into the count, the marks between sliding down; a second, with
-    /// no stopped mark showing, lands in the count.
+    /// no stopped mark showing, lands in the count. The settle between them puts the stopped in the panel's order,
+    /// DocMan's, the newest, first, which the recording never shows.
     @Test func aNewAskOnAFullStripPushesTheLastStoppedMarkIntoTheCountAsThePrototypes() {
         var lab = StripLab(length: .grows, maxMarks: 7)
 
@@ -196,7 +199,7 @@ struct StripTimelineTests {
         ])
 
         expectMatches(played, StripRecorded.displace)
-        #expect(lab.model.layout.rest(of: .needsYou) == ["s10", "s5", "s7", "s6"])
+        #expect(lab.model.layout.rest(of: .needsYou) == ["s10", "s7", "s5", "s6"])
     }
 
     @Test func aPressCarriedAlongTheEdgeDragsTheStripAsThePrototypes() {
