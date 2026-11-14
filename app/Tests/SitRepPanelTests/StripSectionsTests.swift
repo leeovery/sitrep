@@ -113,6 +113,8 @@ struct StripSectionsTests {
         #expect(sessions.map(\.id) == ids)
     }
 
+    /// A click on a folded count asks for its section to unfold, folding nothing itself: its caller sets the fold where
+    /// the card reads it too, and the section comes out.
     @Test(arguments: [BoardSection.needsYou, .working, .snoozed])
     func aClickOnAFoldedCountUnfoldsItsSection(_ section: BoardSection) {
         var lab = Self.snoozedUnfolded()
@@ -120,7 +122,8 @@ struct StripSectionsTests {
         lab.settle()
 
         #expect(lab.model.click(at: lab.on(.count(section))) == .unfold(section))
-        #expect(!lab.model.folded.contains(section))
+        #expect(lab.model.folded.contains(section))
+        lab.model.folded.remove(section)
         lab.settle()
         #expect(lab.model.layout.counts[section] == nil)
         #expect(lab.model.layout.places.map(\.id) == Self.prototypeIDs + Self.snoozedMarks)
@@ -320,6 +323,175 @@ struct StripSectionsTests {
         #expect(full.model.display.prefix(2) == ["a0", "n"])
     }
 
+    /// An ask Lee wakes into a full Needs you takes its place there as any ask does, pushing the stopped marks into
+    /// the count, unflashed; Snoozed, holding another, keeps its place.
+    @Test func anAskWokenIntoAFullNeedsYouPushesTheStoppedIntoTheCount() throws {
+        let z0 = Session(id: "z0", project: "Ask", kind: .needs, title: "", sub: "", since: 1)
+        let z1 = Session(id: "z1", project: "Ask", kind: .needs, title: "", sub: "", since: 2)
+        let sessions = Array(Self.asksAndTurns.prefix(3)) + [Self.asksAndTurns[4]] + [z0, z1].map {
+            Self.asleep($0, .snoozed)
+        }
+        var lab = StripLab(sessions: sessions, length: .grows, maxMarks: 5)
+        lab.settle()
+        #expect(lab.model.layout.places.map(\.id) == ["a0", "t0", "t1", "w0"])
+        lab.pointer = lab.on("a0")
+        lab.wait(400)
+
+        lab.change(z0)
+
+        #expect(lab.model.layout.places.map(\.id) == ["a0", "z0", "w0"])
+        #expect(lab.model.layout.rest(of: .needsYou) == ["t0", "t1"])
+        #expect(lab.model.layout.rest(of: .snoozed) == ["snoozed:z1"])
+        #expect(Self.flash(of: "z0", in: &lab, for: 1500) == 0)
+    }
+
+    /// An ask Lee wakes into Needs you folded lands in its count, which stays unflashed.
+    @Test func anAskWokenIntoNeedsYouFoldedLandsInItsCountUnflashed() {
+        var lab = StripLab(length: .grows)
+        lab.fold(.needsYou)
+        lab.snooze()
+        lab.settle()
+        lab.pointer = lab.on("s7")
+        lab.wait(400)
+
+        lab.change(Self.woken("s9", .needs))
+
+        #expect(lab.model.layout.rest(of: .needsYou).contains("s9"))
+        #expect(Self.flash(of: .count(.needsYou), in: &lab, for: 1500) == 0)
+    }
+
+    // MARK: One rule moves them
+
+    /// Lee wakes a session stopped on a prompt: its row in Snoozed goes, and its row in Needs you, its turn's until
+    /// then, becomes an ask's, nothing renamed: its mark moves among the asks at once, though the pointer rests on the
+    /// strip, unflashed.
+    @Test func aWakeTurningARowsTurnIntoAnAsksMovesItAmongTheAsksAtOnce() throws {
+        let prompt = Session(id: "p", project: "Prompt", kind: .turn, title: "", sub: "", since: -2)
+        var lab = StripLab(
+            sessions: Array(Self.asksAndTurns.prefix(2)) + [prompt, Self.asleep(prompt, .snoozed)], length: .grows
+        )
+        lab.settle()
+        #expect(lab.model.display == ["a0", "t0", "p", "snoozed:p"])
+        lab.pointer = lab.on("a0")
+        lab.wait(400)
+        let mark = try #require(lab.model.mark(.session("p")))
+        var asking = prompt
+        asking.kind = .needs
+
+        lab.wake(asking)
+
+        #expect(lab.model.mark(.session("p")) === mark)
+        #expect(lab.model.display == ["p", "a0", "t0"])
+        #expect(lab.model.layout.places.map(\.id) == ["p", "a0", "t0"])
+        #expect(Self.flash(of: "p", in: &lab, for: 1500) == 0)
+    }
+
+    /// A snooze ended by Lee's prompt is a wake: a turn Lee snoozed, its session back at work, moves into Working at
+    /// once, though the pointer rests on the strip, unflashed, out of Snoozed's count, folded or not.
+    @Test(arguments: [false, true])
+    func aSnoozedTurnGoingBackToWorkMovesIntoWorkingAtOnce(snoozedFolded: Bool) throws {
+        var lab = StripLab(length: .grows)
+        if !snoozedFolded {
+            lab.fold(.snoozed)
+        }
+        lab.snooze()
+        lab.snooze()
+        lab.settle()
+        lab.pointer = lab.on("s1")
+        lab.wait(400)
+        let mark = try #require(lab.model.mark(.session("snoozed:s10")))
+        #expect(mark.session?.kind == .snoozedTurn)
+
+        lab.change(Self.woken("s10", .working))
+
+        #expect(lab.model.mark(.session("s10")) === mark)
+        #expect(lab.model.slot["s10"] == .working)
+        #expect(lab.model.display == StripLab.core(lab.model.sessions).map(\.markID))
+        #expect(try #require(lab.model.layout.y(of: "s10")) > #require(lab.model.layout.hairs[.working]))
+        #expect(!lab.model.layout.rest(of: .snoozed).contains("snoozed:s10"))
+        #expect(Self.flash(of: "s10", in: &lab, for: 1500) == 0)
+    }
+
+    /// An ask answered, Claude working again, leaves Needs you for Working: its mark changes in place while the
+    /// pointer rests on the strip, and moves once the pointer has been off it for Settle.
+    @Test func anAskAnsweredStaysWhereItIsUntilTheReSort() throws {
+        var lab = StripLab(length: .grows)
+        lab.settle()
+        lab.pointer = lab.on("s7")
+        lab.wait(400)
+        let y = try #require(lab.model.layout.y(of: "s1"))
+        var answered = StripLab.prototype[0]
+        answered.kind = .working
+
+        lab.change(answered)
+        lab.wait(3000)
+
+        #expect(lab.model.slot["s1"] == .needsYou)
+        #expect(lab.model.layout.y(of: "s1") == y)
+
+        lab.pointer = nil
+        lab.wait(StripFeel.lees.settle + 100)
+        lab.settle()
+        #expect(lab.model.slot["s1"] == .working)
+        #expect(try #require(lab.model.layout.y(of: "s1")) > #require(lab.model.layout.hairs[.working]))
+    }
+
+    /// One board snoozing a stopped session and bringing a new ask, at Max 5 a full strip: Snoozed takes its place,
+    /// the ask takes one under the ask above it, and the stopped go into Needs you's count.
+    @Test func aSnoozeAndANewAskInOneBoardEachTakeTheirPlace() {
+        var lab = StripLab(sessions: Self.asksAndTurns, length: .grows, maxMarks: 5)
+        lab.settle()
+        lab.pointer = lab.on("a0")
+        lab.wait(400)
+        let n = Session(id: "n", project: "New", kind: .needs, title: "", sub: "", since: 1)
+        let snoozed = lab.model.sessions.map { $0.id == "t2" ? Self.asleep($0, .snoozedTurn) : $0 }
+
+        lab.model.show(StripLab.core(snoozed + [n]), new: ["n"])
+
+        #expect(lab.model.layout.places.map(\.id) == ["a0", "n", "w0"])
+        #expect(lab.model.layout.rest(of: .needsYou) == ["t0", "t1"])
+        #expect(lab.model.layout.rest(of: .snoozed) == ["snoozed:t2"])
+    }
+
+    /// A mark going into a count takes its tab back with it, the pointer still where it was: Collapse on its section,
+    /// or a snooze whose Snoozed takes a place, pushing it in.
+    @Test(arguments: [true, false])
+    func aMarkGoingIntoACountTakesItsTabBack(collapse: Bool) throws {
+        var lab = StripLab(sessions: Self.asksAndTurns, length: .grows, maxMarks: 5)
+        lab.settle()
+        lab.open("t2")
+        let tab = try #require(lab.model.liveTab())
+        #expect(tab.key == .session("t2") && tab.phase == .open)
+
+        if collapse {
+            lab.fold(.needsYou)
+        } else {
+            lab.snooze()
+        }
+
+        #expect(lab.model.layout.y(of: "t2") == nil)
+        #expect(tab.phase == .closing)
+        lab.wait(1000)
+        #expect(!lab.model.tabs.contains { $0.key == .session("t2") && $0.phase != .closing })
+    }
+
+    /// The menu's Jump on a session folded into a count, no tab out, presses the count in, never a mark unseen.
+    @Test func aMenusJumpOnASessionFoldedPressesItsCount() throws {
+        var lab = StripLab(length: .grows)
+        lab.fold(.needsYou)
+        lab.settle()
+        let s2 = try #require(lab.model.sessions.first { $0.id == "s2" })
+
+        #expect(lab.model.jump(to: s2) == s2)
+
+        guard case let .mark(key)? = lab.model.jumping else {
+            Issue.record("the menu's jump pressed nothing in")
+            return
+        }
+        #expect(key == .count(.needsYou))
+        #expect(lab.model.counts[.needsYou]?.sc.target == StripTuning.markPress)
+    }
+
     // MARK: Too many
 
     /// Max 6: each section takes its places in its turn, keeping one for each after it that holds any; folded, one.
@@ -410,11 +582,16 @@ struct StripSectionsTests {
         return s
     }
 
-    /// The brightest a mark's ring flashed, or its inside washed, over this long.
+    /// The brightest a session's mark's ring flashed, or its inside washed, over this long.
     private static func flash(of id: String, in lab: inout StripLab, for ms: Double) -> Double {
+        flash(of: .session(id), in: &lab, for: ms)
+    }
+
+    /// The brightest a mark's ring flashed, or its inside washed, over this long.
+    private static func flash(of key: MarkKey, in lab: inout StripLab, for ms: Double) -> Double {
         var flash = 0.0
         lab.wait(ms) { lab in
-            let mark = lab.frame.marks.first { $0.key == .session(id) }
+            let mark = lab.frame.marks.first { $0.key == key }
             flash = max(flash, mark.map { max($0.flash, $0.wash) } ?? 0)
             return false
         }

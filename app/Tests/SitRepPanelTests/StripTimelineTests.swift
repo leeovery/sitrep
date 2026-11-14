@@ -227,7 +227,7 @@ struct StripTimelineTests {
         var lab = StripLab(length: .grows)
 
         let played = lab.play(StripRecorded.unfold, marks: ["s7", "s8"], [
-            (0, { $0.fold(.working) }), (1600, { $0.model.click(at: $0.pointer!) }),
+            (0, { $0.fold(.working) }), (1600, { $0.click(at: $0.pointer!) }),
         ])
 
         expectMatches(played, StripRecorded.unfold)

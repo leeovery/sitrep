@@ -57,11 +57,30 @@ let allClearLine = line(
     ]
 )
 
-func line(needYou: Int, sessions: Int, new: [String], rows: [String]) -> String {
-    """
+/// A line of these rows, and of these in Snoozed (`snoozedRow`) beside them, where it has any.
+func line(needYou: Int, sessions: Int, new: [String], rows: [String], snoozed: [String] = []) -> String {
+    let asleep = snoozed.isEmpty ? "" : #""snoozed":[\#(snoozed.joined(separator: ","))],"#
+
+    return """
     {"v":3,"at":1792445574706,"version":"0.1.0","head":{"needYou":\(needYou),"sessions":\(sessions)},\
-    "rows":[\(rows.joined(separator: ","))],"projects":[],"windows":[],\
+    "rows":[\(rows.joined(separator: ","))],\(asleep)"projects":[],"windows":[],\
     "new":[\(new.map { "\"\($0)\"" }.joined(separator: ","))],"boards":{}}
+    """
+}
+
+/// A session's row in Snoozed of one line, its key `key`, the one it has in Needs you or Your turn: an ask asleep, by
+/// its id, or its turn (`yourTurn`), waking at `wakesAt`, nil for a turn snoozed until it moves.
+func snoozedRow(
+    _ key: String, _ kind: String = "ask", ask: String? = nil, session: String, lead: String, second: String,
+    since: Int, wakesAt: Int?
+) -> String {
+    let names = names(of: second), wakes = wakesAt.map(String.init) ?? "null"
+
+    return """
+    {"session":"\(session)","isAway":false,"project":"p","name":"\(names.session)","projectName":"\(names.project)",\
+    "letters":"Pr","lines":[{"key":"\(key)","is":"\(kind)","ask":\(json(ask)),"first":{"lead":"\(lead)",\
+    "mono":null,"more":null,"until":null},"since":\(since),"wakesAt":\(wakes)}],"second":"\(second)",\
+    "wakesAt":\(wakes)}
     """
 }
 

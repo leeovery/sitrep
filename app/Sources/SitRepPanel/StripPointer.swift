@@ -108,8 +108,9 @@ extension Strip {
 
     /// A click on the strip or an open tab, in stage coordinates: on a tab or its mark, it jumps, whether or not the
     /// tab is out yet; on a count past its section's room, its tab opens at once, and a row on its tab jumps; on a
-    /// section's count folded, the section unfolds (14 November 2026), as a click on its eyebrow on the card does.
-    /// Crossing to the other edge, it takes none. What it came to.
+    /// section's count folded, it asks for the section to unfold (14 November 2026), as a click on its eyebrow on the
+    /// card does, for its caller to set where both read the folds. Crossing to the other edge, it takes none. What it
+    /// came to.
     @discardableResult
     public func click(at point: CGPoint) -> StripRelease {
         guard !crossing else {
@@ -136,8 +137,8 @@ extension Strip {
     }
 
     /// The menu's Jump to the window for a session, by its mark as it is now (`markID(of:)`): as a click on its tab or
-    /// on its row in a count's tab, where that is out, else as a click on its mark. The session it jumps to, if it
-    /// does.
+    /// on its row in a count's tab, where that is out, else as a click on its mark, or on the count it is folded into.
+    /// The session it jumps to, if it does.
     public func jump(to menus: Session) -> Session? {
         guard let id = markID(of: menus) else {
             return nil
@@ -151,7 +152,7 @@ extension Strip {
                 return jump(live, id, row: true)
             }
         }
-        return jumpMark(.session(id)) ? session(id) : nil
+        return jumpMark(layout.section(holding: id).map(MarkKey.count) ?? .session(id)) ? session(id) : nil
     }
 
     /// A session's mark's key as the strip has it now: its row in Snoozed, or elsewhere, as the session given was,
@@ -280,12 +281,11 @@ extension Strip {
         relayout()
     }
 
-    /// A section's count: folded, the section unfolds, its tab drawing back as the count goes; else its tab, at once,
-    /// and no jump.
+    /// A section's count: folded, its unfolding, which its caller sets, the tab drawing back as the count goes; else
+    /// its tab, at once, and no jump.
     private func clickCount(_ section: BoardSection) -> StripRelease {
         disarmed = nil
         guard !folded.contains(section) else {
-            folded.remove(section)
             return .unfold(section)
         }
 
@@ -365,7 +365,7 @@ public enum StripRelease: Equatable {
     case nothing
     /// A click that jumps to this session.
     case jump(Session)
-    /// A click on a section's count folded, which unfolded the section.
+    /// A click on a section's count folded, which asks for the section to unfold.
     case unfold(BoardSection)
     /// A drag let the strip go: how far down the screen its centre was left, 0 to 1, where it went along the edge (at
     /// Grows); and whether it was let go past the screen's middle, for the other edge.

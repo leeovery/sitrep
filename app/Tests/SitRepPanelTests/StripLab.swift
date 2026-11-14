@@ -82,6 +82,11 @@ struct StripLab {
         )
     }
 
+    /// The board with a session Lee woke, none of it new: its row in Snoozed gone, and its row elsewhere this one.
+    func wake(_ session: Session) {
+        show(model.sessions.filter { $0.id != session.id } + [session])
+    }
+
     /// The board with these gone from it.
     func remove(_ ids: [String]) {
         show(model.sessions.filter { !ids.contains($0.id) })
@@ -98,6 +103,17 @@ struct StripLab {
     /// A section folded, or unfolded, as the card's eyebrow or the prototype's Fold does it.
     func fold(_ section: BoardSection) {
         model.folded.formSymmetricDifference([section])
+    }
+
+    /// A click at a point, and the section it asks to unfold unfolded, as the run sets it (`StripRun.release`).
+    @discardableResult
+    func click(at point: CGPoint) -> StripRelease {
+        let release = model.click(at: point)
+
+        if case let .unfold(section) = release {
+            model.folded.remove(section)
+        }
+        return release
     }
 
     private func show(_ sessions: [Session], new: Set<String> = []) {
@@ -389,9 +405,9 @@ extension StripLab {
     /// The prototype's sessions Lee snoozed (its `SNOOZED`), as long asleep as its Snooze has them, the soonest to
     /// wake first; their ids are the next the prototype gives as each is snoozed (`snooze`).
     static let snoozed = [
-        ("Kit", Session.Kind.snoozed, "Pick the bootstrap's shell", "Kit · The bootstrap"),
-        ("Agentic Skills", .snoozedTurn, "The Laravel skills are reviewed", "Agentic Skills · Review the Laravel skills"),
-        ("Aircon", .snoozed, "Which unit is the bedroom?", "Aircon · Aircon local control"),
+        ("Contoso", Session.Kind.snoozed, "Pick the onboarding copy", "Contoso · Onboarding flow"),
+        ("Northwind", .snoozedTurn, "The ledger export is reviewed", "Northwind · Ledger export"),
+        ("Fabrikam", .snoozed, "Which region goes first?", "Fabrikam · Region rollout"),
     ].enumerated().map { i, asleep in
         var s = Session(
             id: "z\(i)", project: asleep.0, kind: asleep.1, title: asleep.2, sub: asleep.3, since: -30 * minute

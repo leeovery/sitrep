@@ -114,8 +114,8 @@ extension StripRecorded {
         "Nothing running|SitRep · sessions show here as they start": 274,
         "Allow Bash aws sso login --profile dev|Fabric · Atlas overload from llm-manager\nThe management window is sketched|Fumi · Management window discussion\nThe exception tests pass|DocMan · Fix inverted exception reporting\nWaiting for the next round of feedback|Goosemates · Settle the older open questions": 326,
         "Running the exception reporting tests|DocMan · Fix inverted exception reporting\nFixing the limiter's reset|Turnstile · Exception reporting": 276,
-        "Pick the bootstrap's shell|Kit · The bootstrap": 242,
-        "Pick the bootstrap's shell|Kit · The bootstrap\nThe Laravel skills are reviewed|Agentic Skills · Review the Laravel skills\nWhich unit is the bedroom?|Aircon · Aircon local control": 250,
+        "Pick the onboarding copy|Contoso · Onboarding flow": 242,
+        "Pick the onboarding copy|Contoso · Onboarding flow\nThe ledger export is reviewed|Northwind · Ledger export\nWhich region goes first?|Fabrikam · Region rollout": 240,
     ]
 
     /// The strip prototype at Lee's settings, recorded in the browser a frame at a time by the strip's recorder, each

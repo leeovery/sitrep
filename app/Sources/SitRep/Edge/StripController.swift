@@ -39,8 +39,6 @@ final class StripController: NSObject, CalloutShape {
     private let ghost = GhostEdge()
     private let caption = CaptionWindow()
     private var monitors: [Any] = []
-    /// Where on the stage the menu AppKit was last handed was asked for, which holds the strip as it is once it shows.
-    private var menuAt: CGPoint?
 
     /// On its display, its sections folded as `folding` has them, the card's setting as well.
     init(_ settings: EdgeSettings, on display: Display, folding: Folding) {
@@ -257,7 +255,6 @@ final class StripController: NSObject, CalloutShape {
             fold: { [unowned self] in fold($0, folded: $1) }
         )
 
-        menuAt = point
         menu.delegate = self
         return menu
     }
@@ -359,16 +356,13 @@ final class StripController: NSObject, CalloutShape {
 }
 
 extension StripController: NSMenuDelegate {
-    /// A menu showing holds the strip as if the pointer rested where it was opened (`StripRun.menuOpened`).
+    /// A menu showing holds the strip as if the pointer rested where it was asked for (`StripRun.menuOpened`).
     func menuWillOpen(_ menu: NSMenu) {
-        if let menuAt {
-            run.menuOpened(at: menuAt)
-        }
+        run.menuOpened()
     }
 
     /// Closed, before any choice on it runs: the strip follows the pointer again, its grace starting from now.
     func menuDidClose(_ menu: NSMenu) {
-        menuAt = nil
         run.menuClosed()
         took()
     }

@@ -56,7 +56,8 @@ struct StripFoldingTests {
         #expect(Folding(kept: kept).folds.sections == [.working, .snoozed])
     }
 
-    /// A click on a folded count unfolds it on the card too, jumping nowhere.
+    /// A click on a folded count unfolds it on the card and the strip at once, jumping nowhere: the run sets the fold
+    /// where both read it, as a menu's Expand does.
     @Test func aClickOnAFoldedCountUnfoldsItForTheCardToo() {
         let folding = Folding()
         folding.set(.working, folded: true)
@@ -66,6 +67,8 @@ struct StripFoldingTests {
 
         #expect(strip.release(EdgeSettings(), Self.at(strip.time, count)) == nil)
         #expect(folding.folds.sections == [.snoozed])
+        #expect(strip.strip.folded == [.snoozed])
+        #expect(strip.strip.layout.counts[.working] == nil)
     }
 
     // MARK: An arrival
@@ -99,47 +102,67 @@ struct StripFoldingTests {
         let board = Self.snoozedBoard(), strip = Self.strip(board, folding: folding)
         let asleep = try #require(board.snoozed.first)
 
-        #expect(strip.strip.layout.places.map(\.id) == ["sr-4g01a7", "snoozed:sr-4g01a7"])
+        #expect(strip.strip.layout.places.map(\.id) == ["sr-qx81zt", "snoozed:sr-qx81zt"])
         guard case let .jump(session, to: target, click: _)? = strip.jump(to: asleep, Self.at(strip.time)) else {
             Issue.record("the menu's jump found no mark")
             return
         }
-        #expect(session.isSnoozed && target == "sr-4g01a7")
+        #expect(session.isSnoozed && target == "sr-qx81zt")
     }
 
     /// A turn Lee wakes moves into Needs you at once, unflashed, though the pointer rests on the strip; a menu open on
     /// its Snoozed mark as the board renames it still jumps, to its mark as the strip has it then, by the session's
-    /// own id (`Lines.snoozedTurn`: Contoso's turn woken by `sitrep wake --turn`).
+    /// own id.
     @Test(arguments: [false, true])
     func aTurnLeeWakesMovesIntoNeedsYouAtOnceAndAMenuOpenOnItStillJumps(snoozedFolded: Bool) throws {
         let folding = Folding()
         folding.set(.snoozed, folded: snoozedFolded)
-        let strip = Self.strip(Self.board(turns: 0), folding: folding)
+        let strip = Self.strip(Self.turnBoard(woken: false), folding: folding)
         let contoso = CGPoint(
-            x: 18, y: strip.strip.yOf(snoozedFolded ? .count(.snoozed) : .session("snoozed:sr-ctnbd2"))
+            x: 18, y: strip.strip.yOf(snoozedFolded ? .count(.snoozed) : .session("snoozed:sr-c7m2qa"))
         )
-        let asleep = try #require(Self.board(turns: 0).snoozed.first { $0.id == "sr-ctnbd2" })
+        let asleep = try #require(Self.turnBoard(woken: false).snoozed.first { $0.id == "sr-c7m2qa" })
         let opened = try #require(strip.target(Self.at(strip.time, contoso)))
 
         #expect(opened == (snoozedFolded ? .count(.snoozed, isFolded: true) : .session(
             asleep, section: .snoozed, isFolded: false
         )))
-        strip.menuOpened(at: contoso)
-        strip.show(Self.board(turns: 1), Self.at(strip.time))
+        strip.menuOpened()
+        strip.show(Self.turnBoard(woken: true), Self.at(strip.time))
 
-        #expect(strip.strip.slot["sr-ctnbd2"] == .needsYou)
-        #expect(strip.strip.layout.rest(of: .snoozed).allSatisfy { $0 != "snoozed:sr-ctnbd2" })
-        var flash = 0.0
-        Self.frames(strip, for: 1500, nil) {
-            flash = max(flash, strip.frame.marks.map { max($0.flash, $0.wash) }.max() ?? 0)
-            return false
-        }
-        #expect(flash == 0)
+        #expect(strip.strip.slot["sr-c7m2qa"] == .needsYou)
+        #expect(strip.strip.layout.rest(of: .snoozed).allSatisfy { $0 != "snoozed:sr-c7m2qa" })
+        #expect(Self.flash(in: strip, for: 1500) == 0)
         guard case let .jump(session, to: target, click: _)? = strip.jump(to: asleep, Self.at(strip.time)) else {
             Issue.record("the menu's jump found no mark")
             return
         }
-        #expect(!session.isSnoozed && target == "sr-ctnbd2")
+        #expect(!session.isSnoozed && target == "sr-c7m2qa")
+    }
+
+    /// Wake now, from a Snoozed mark's menu, on an ask of a session working: the board brings its row in Working into
+    /// Needs you, nothing renamed, and its mark moves there at once, unflashed, though the menu holds the pointer on
+    /// the strip.
+    @Test func anAskWokenFromTheMenuIntoASessionWorkingMovesItsMarkIntoNeedsYouAtOnce() throws {
+        let folding = Folding()
+        folding.set(.snoozed, folded: false)
+        let strip = Self.strip(Self.workingWithAskAsleep(woken: false), folding: folding)
+        let asleep = CGPoint(x: 18, y: strip.strip.yOf(.session("snoozed:sr-qx81zt")))
+        let working = try #require(strip.strip.mark(.session("sr-qx81zt")))
+
+        #expect(strip.strip.slot["sr-qx81zt"] == .working)
+        guard case .session(_, section: .snoozed, isFolded: false)? = strip.target(Self.at(strip.time, asleep)) else {
+            Issue.record("the right-click found no Snoozed mark")
+            return
+        }
+        strip.menuOpened()
+        strip.show(Self.workingWithAskAsleep(woken: true), Self.at(strip.time))
+
+        #expect(strip.strip.mark(.session("sr-qx81zt")) === working)
+        #expect(strip.strip.slot["sr-qx81zt"] == .needsYou)
+        #expect(try #require(strip.strip.layout.y(of: "sr-qx81zt")) < #require(strip.strip.layout.hairs[.working]))
+        #expect(Self.flash(in: strip, for: 1500) == 0)
+        #expect(strip.strip.over)
     }
 
     /// A Snoozed mark's tab says when it wakes, as its row on the card does; any other its age.
@@ -175,7 +198,8 @@ struct StripFoldingTests {
         let ask = CGPoint(x: 18, y: strip.strip.yOf(.session("sr-a")))
 
         Self.frames(strip, for: 2000, ask) { strip.strip.liveTab()?.phase == .open }
-        strip.menuOpened(at: ask)
+        _ = strip.target(Self.at(strip.time, ask))
+        strip.menuOpened()
         Self.frames(strip, for: 3000, nil)
         #expect(strip.strip.liveTab()?.phase == .open)
 
@@ -226,38 +250,85 @@ struct StripFoldingTests {
         StripRun.Moment(time: time, pointer: pointer, isShown: isShown, setting: stripSetting)
     }
 
+    private static let since = 1_792_445_000_000
+
     private static func ask(_ id: String) -> String {
-        row("ask:\(id)", "ask", session: id, lead: "Ask \(id)", second: "SitRep · \(id)", since: 1_792_445_000_000)
+        row("ask:\(id)", "ask", session: id, lead: "Ask \(id)", second: "Contoso · \(id)", since: since)
     }
 
     private static func working(_ id: String) -> String {
-        row("work:\(id)", "working", session: id, lead: "Running the tests", second: "DocMan · \(id)", since: 1_792_445_000_000)
+        row("work:\(id)", "working", session: id, lead: "Running the tests", second: "Northwind · \(id)", since: since)
     }
 
-    private static func board(_ rows: [String], new: [String] = []) -> PanelBoard {
+    private static func board(_ rows: [String], new: [String] = [], snoozed: [String] = []) -> PanelBoard {
         var last = LastBoard()
 
-        _ = last.hear(.line(line(needYou: 0, sessions: rows.count, new: new, rows: rows)), at: Date())
+        _ = last.hear(.line(line(needYou: 0, sessions: rows.count, new: new, rows: rows, snoozed: snoozed)), at: Date())
         return PanelBoard(last)
     }
 
-    /// The real CLI's first line with asks asleep (`Lines.snoozed`): a session with an ask in Needs you and two in
-    /// Snoozed.
+    /// Fabrikam's session, an ask waiting in Needs you and another asleep in Snoozed.
     private static func snoozedBoard() -> PanelBoard {
-        var last = LastBoard()
+        let second = "Fabrikam · Region rollout"
 
-        _ = last.hear(.line(Lines.snoozed[0]), at: .now)
-        return PanelBoard(last)
+        return board(
+            [row("ask:sr-qx81zt:k3", "ask", session: "sr-qx81zt", lead: "Give the go", second: second, since: since)],
+            snoozed: [Self.asleep("k1", lead: "Review the plan", second: second)]
+        )
     }
 
-    /// The real CLI's lines with turns snoozed (`Lines.snoozedTurn`), up to this one, heard in order.
-    private static func board(turns place: Int) -> PanelBoard {
-        var last = LastBoard()
+    /// Fabrikam's session working, an ask of it asleep in Snoozed, beside the asks and Northwind's session working;
+    /// then, `woken` by Lee, the ask back in Needs you by its key there, so new on no line.
+    private static func workingWithAskAsleep(woken: Bool) -> PanelBoard {
+        let second = "Fabrikam · Region rollout", key = "ask:sr-qx81zt:k1", lead = "Which region goes first?"
 
-        for line in Lines.snoozedTurn.prefix(place + 1) {
-            _ = last.hear(.line(line), at: .now)
+        guard woken else {
+            let work = row(
+                "work:sr-qx81zt", "working", session: "sr-qx81zt", lead: "Drafting", second: second, since: since
+            )
+
+            return board(rows + [work], snoozed: [Self.asleep("k1", lead: lead, second: second)])
         }
-        return PanelBoard(last)
+        return board([row(key, "ask", session: "sr-qx81zt", lead: lead, second: second, since: since)] + rows)
+    }
+
+    /// Fabrikam's ask asleep in Snoozed, by its id, waking in an hour.
+    private static func asleep(_ ask: String, lead: String, second: String) -> String {
+        snoozedRow(
+            "ask:sr-qx81zt:\(ask)", ask: ask, session: "sr-qx81zt", lead: lead, second: second, since: since,
+            wakesAt: since + 3_600_000
+        )
+    }
+
+    /// Northwind's session at its turn, and Contoso's turn Lee snoozed until it moves; then, `woken` by Lee, Contoso's
+    /// back at its turn in Needs you, by its turn's key there.
+    private static func turnBoard(woken: Bool) -> PanelBoard {
+        let contoso = "Contoso · Onboarding flow", key = "turn:sr-c7m2qa", lead = "The flow is drawn"
+        let northwind = row(
+            "turn:sr-n4w8rt", "yourTurn", session: "sr-n4w8rt", lead: "The export is done",
+            second: "Northwind · Ledger export", since: since + 60000
+        )
+
+        guard woken else {
+            let asleep = snoozedRow(
+                key, "yourTurn", session: "sr-c7m2qa", lead: lead, second: contoso, since: since, wakesAt: nil
+            )
+
+            return board([northwind], snoozed: [asleep])
+        }
+        return board([northwind, row(key, "yourTurn", session: "sr-c7m2qa", lead: lead, second: contoso, since: since)])
+    }
+
+    /// The brightest any mark's ring flashed, or its inside washed, over this long, the pointer away unless a menu
+    /// holds it.
+    private static func flash(in strip: StripRun, for ms: Double) -> Double {
+        var flash = 0.0
+
+        frames(strip, for: ms, nil) {
+            flash = max(flash, strip.frame.marks.map { max($0.flash, $0.wash) }.max() ?? 0)
+            return false
+        }
+        return flash
     }
 
     /// A notch over the board, folded as `folding` has it, its panel opened by the pointer held on it.

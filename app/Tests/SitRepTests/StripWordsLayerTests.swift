@@ -89,7 +89,7 @@ struct StripWordsLayerTests {
     /// sessions' rows in another section.
     @Test func aSnoozedCountsRowsGoByTheirMarksKeys() {
         let asleep = ["a", "b"].map { id in
-            Session(id: id, project: "Kit", kind: .snoozed, title: "Pick", sub: "Kit", since: 0)
+            Session(id: id, project: "Northwind", kind: .snoozed, title: "Pick", sub: "Northwind", since: 0)
         }
         let words = StripFrame.Words(
             id: 1, key: .count(.snoozed), content: .rows(asleep), frame: Self.box, scroll: 0, alpha: 1, dy: 0,

@@ -39,8 +39,8 @@ public final class StripRun: Framed {
     private var book: RunBook
     /// What Lee folded, the card's setting as well.
     private let folding: Folding
-    /// While a menu is open, where it was opened (`menuOpened(at:)`).
-    private var menuAt: CGPoint?
+    /// Where the last right-click asked what is under it (`target`), and whether its menu shows (`menuOpened`).
+    private var menu: (at: CGPoint, isOpen: Bool)?
     /// The calendar a session's menu words its snooze times on.
     public let calendar: Calendar
 
@@ -92,10 +92,10 @@ public final class StripRun: Framed {
     /// One frame: the sections as folded on the card meanwhile, the model moved on with the pointer where it is, or
     /// where a menu was opened while it shows, what the drawing must show once latched.
     public func step(_ moment: Moment) {
-        let time = book.clock(moment.time)
-        var input = Self.input(at: time, pointer: menuAt ?? moment.pointer, moment.setting)
+        let time = book.clock(moment.time), held = menu.flatMap { $0.isOpen ? $0.at : nil }
+        var input = Self.input(at: time, pointer: held ?? moment.pointer, moment.setting)
 
-        input.pointerAt = menuAt == nil ? moment.pointerAt : nil
+        input.pointerAt = held == nil ? moment.pointerAt : nil
         strip.folded = folding.folds.sections
         frame = strip.frame(input)
         latch(frame, at: time)
@@ -135,25 +135,33 @@ public final class StripRun: Framed {
     /// A section folded, or unfolded, from a menu on the strip: at once, here and on the card.
     public func fold(_ section: BoardSection, folded isFolded: Bool, _ moment: Moment) {
         upToNow(moment)
+        set(section, folded: isFolded)
+    }
+
+    /// A fold set where both surfaces read it, and on the strip at once: the one place either changes.
+    private func set(_ section: BoardSection, folded isFolded: Bool) {
         folding.set(section, folded: isFolded)
         strip.folded = folding.folds.sections
     }
 
-    /// What a right-click at the pointer offers a menu for, on the strip as it is now (`Strip.target`).
+    /// What a right-click at the pointer offers a menu for, on the strip as it is now (`Strip.target`); the point it
+    /// asked at is where the strip holds while the menu shows (`menuOpened`).
     public func target(_ moment: Moment) -> StripTarget? {
         upToNow(moment)
+        menu = moment.pointer.map { (at: $0, isOpen: false) }
         return moment.pointer.flatMap(strip.target)
     }
 
-    /// A menu opened at a point on the stage: until it closes, the strip holds as if the pointer rested there,
-    /// wherever it goes on the menu, so a tab out stays out and nothing re-sorts under a choice made on it.
-    public func menuOpened(at point: CGPoint) {
-        menuAt = point
+    /// The menu asked for showing: until it closes, the strip holds as if the pointer rested where the right-click
+    /// asked (`target`), wherever it goes on the menu, so a tab out stays out and nothing re-sorts under a choice made
+    /// on it.
+    public func menuOpened() {
+        menu?.isOpen = true
     }
 
     /// The menu closed: the pointer is where it is again.
     public func menuClosed() {
-        menuAt = nil
+        menu = nil
     }
 
     /// A jump chosen from a session's menu, the session as the menu had it: as a click on its tab or its mark as the
@@ -200,7 +208,7 @@ public final class StripRun: Framed {
         case let .jump(session):
             return jump(session)
         case let .unfold(section):
-            folding.set(section, folded: false)
+            set(section, folded: false)
             return nil
         case let .dropped(along, across):
             return .dropped(Drop(move: settings.dropped(along: along, across: across), isAcross: across))

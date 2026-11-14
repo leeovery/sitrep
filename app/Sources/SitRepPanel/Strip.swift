@@ -242,71 +242,80 @@ public final class Strip {
     var countMarks: [StripMark] { BoardSection.allCases.compactMap { counts[$0] } }
 
     /// The board's sessions, in the panel's order, those of them arriving, holding a line new on it that needs Lee,
-    /// and those it moved into Lee's turn (`stopped`):
+    /// and those it moved into Lee's turn (`stopped`). One rule moves them (14 November 2026): each session on the
+    /// strip is held to its row, and wherever the section its mark sits in is not its row's, it crosses
+    /// (`movesAtOnce`):
+    /// - one crossing into Needs you, or into Snoozed or out of it, moves in at once, pointer or not, a wake crossing
+    ///   out of Snoozed though its row elsewhere stays;
+    /// - one crossing out of Needs you into Working, its asks answered or its turn ended, changes in place, as any
+    ///   other change does, and moves once the pointer has been off the strip for Settle;
     /// - one gone fades where it is, and the rest close up;
-    /// - one changed shows in place, and moves once the pointer has been off the strip for Settle, as one whose asks
-    ///   were answered, or whose turn ended, does;
-    /// - one arriving off the needs you side, new to the strip or already on it, moves in at once, pointer or not; one
-    ///   arriving on the needs you side stays where it is;
-    /// - one stopping, moved into Lee's turn from working or on its own work, moves in at once too, or stays where it
-    ///   is when it is on the needs you side still, its turn's end come before the re-sort; one back at a turn whose
-    ///   end it stood at before, so not stopping anew, moves in at once all the same, unflashed;
-    /// - each arriving or stopping flashes its ring, or its count's, only where Lee has that pulse on (`pulses`), as
-    ///   the notch pulses: a new ask washed too;
-    /// - any other new to the strip comes in as the marks re-sort at once, unflashed: needs you with nothing new among
-    ///   them, as on any run's first board;
-    /// - one snoozed, or woken, its row in Snoozed coming as its row elsewhere goes or the other way round, keeps its
-    ///   mark, which moves into its new section at once, unflashed, whichever way it crosses (14 November 2026); one a
-    ///   wake at its time brings back, which `new` names, arrives as any new needs you does.
+    /// - one new to the strip moves in at once where it arrives or stops; any other comes in as the marks re-sort at
+    ///   once, unflashed: needs you with nothing new among them, as on any run's first board, or a row new in Snoozed.
+    ///
+    /// How a move shows is apart from whether it moves (`StripNews`): one arriving shows an ask's arrival, one
+    /// stopping a stop's, each only where Lee has that pulse on (`pulses`), as the notch pulses; any other moves
+    /// unflashed. One arriving or stopping on the needs you side that stays where it is flashes there, or its count
+    /// does.
     ///
     /// Its sessions are its rows, each a mark by its key (`Session.markID`), so a session with a row in Snoozed and
-    /// another in Needs you or Working has two. `reworded`, what the tabs say of the board changed with it, as when it
-    /// goes stale: each open tab that says it takes its new words. A tab takes them once, though its row changed too.
+    /// another in Needs you or Working has two; a snooze or a wake moving its one row into Snoozed or out of it keeps
+    /// its mark (`carry`). `reworded`, what the tabs say of the board changed with it, as when it goes stale: each open
+    /// tab that says it takes its new words. A tab takes them once, though its row changed too.
     public func show(
         _ board: [Session], new: Set<String>, stopped: Set<String> = [], pulses: Set<Need> = [.ask],
         reworded: Bool = false
     ) {
-        let renamed = carry(into: board), carried = Set(renamed.values)
+        let renamed = carry(into: board)
         let was = Dictionary(sessions.map { (renamed[$0.markID] ?? $0.markID, $0) }) { first, _ in first }
         let gone = Set(was.keys).subtracting(board.map(\.markID))
-        let fresh = board.filter { was[$0.markID] == nil }
-        let arriving = board.filter { $0.needsLee && new.contains($0.id) }
-        let stopping = board.filter { $0.kind == .turn && stopped.contains($0.id) }
-        let ask = StripArrival(.ask, pulses: pulses), stop = StripArrival(.turn, pulses: pulses)
-        let asks = arriving.filter { slot[$0.markID] != .needsYou }
-        let stops = board.filter { session in
-            session.kind == .turn && slot[session.markID] != .needsYou
-                && (was[session.markID] != nil || stopped.contains(session.id))
+        let woken = Set(gone.compactMap { was[$0] }.filter(\.isSnoozed).map(\.id))
+        let news = StripNews(new: new, stopped: stopped, pulses: pulses)
+        let moving = board.filter { s in
+            guard let before = was[s.markID] else {
+                return news.need(of: s) != nil
+            }
+
+            return movesAtOnce(s, was: before, woken: woken.contains(s.id))
         }
-        let snoozing = board.filter { carried.contains($0.markID) && !asks.contains($0) && !stops.contains($0) }
-        let moving = asks.map { (session: $0, how: ask) }
-            + stops.map { (session: $0, how: stopped.contains($0.id) ? stop : .quiet) }
-            + snoozing.map { (session: $0, how: StripArrival.quiet) }
-        let crossing = moving.map(\.session).filter { was[$0.markID] != nil }
-        let changes = board.filter { session in was[session.markID].map { $0 != session } ?? false }
+        let moves = Set(moving.map(\.markID))
+        let staying = board.filter { was[$0.markID] != nil && !moves.contains($0.markID) }
+        let inPlace = staying.filter { was[$0.markID] != $0 }
 
         sessions = board
         if !gone.isEmpty {
             leave(gone)
         }
-        lift(crossing)
-        moving.forEach { moveIn($0.session, $0.how) }
+        lift(moving.filter { was[$0.markID] != nil })
+        moving.forEach { moveIn($0, news.look(of: $0)) }
         // after them all, as one may fold another in that has shown its arrival on its own mark
-        moving.filter { layout.rest(of: .needsYou).contains($0.session.markID) }.forEach {
-            landInCount($0.session, $0.how)
-        }
-        arriving.filter { !asks.contains($0) }.forEach { flashInPlace($0, ask) }
-        stopping.filter { !stops.contains($0) }.forEach { flashInPlace($0, stop) }
-        changes.filter { !crossing.contains($0) }.forEach(changed)
-        let others = fresh.filter { session in !moving.contains { $0.session == session } }
+        moving.filter { layout.rest(of: .needsYou).contains($0.markID) }.forEach { landInCount($0, news.look(of: $0)) }
+        staying.filter { news.need(of: $0) != nil }.forEach { flashInPlace($0, news.look(of: $0)) }
+        inPlace.forEach(changed)
+        let others = board.filter { was[$0.markID] == nil && !moves.contains($0.markID) }
         if !others.isEmpty {
             add(others)
         }
 
         let rewords = reworded ? tabsSayingTheBoard : tabs.filter { tab in
-            tab.phase == .open && changes.contains { tab.key == .session($0.markID) }
+            tab.phase == .open && inPlace.contains { tab.key == .session($0.markID) }
         }
         rewords.forEach(reword)
+    }
+
+    /// Whether a session on the strip, its row as it `was` until this board, moves into its row's section at once
+    /// (14 November 2026): crossing into Needs you, or into Snoozed or out of it. A wake, its row in Snoozed gone this
+    /// board (`woken`) or renamed (`carry`), crosses out of Snoozed whichever way the session's rows go: its row
+    /// elsewhere moves at once wherever the wake changes what that row waits on Lee for, as a turn's row turning into
+    /// an ask's on a prompt it stopped on. One leaving Needs you for Working otherwise changes in place, as any other
+    /// change does, to move at the re-sort.
+    private func movesAtOnce(_ s: Session, was: Session, woken: Bool) -> Bool {
+        let from = slot[s.markID] ?? s.section
+        guard from != s.section || woken && was.need != s.need else {
+            return false
+        }
+
+        return s.section == .needsYou || from == .snoozed || s.section == .snoozed || woken
     }
 
     /// Sessions this board snoozes or wakes, each one's row in Snoozed come as its row elsewhere goes, or the other way

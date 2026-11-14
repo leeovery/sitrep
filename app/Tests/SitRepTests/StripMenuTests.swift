@@ -48,7 +48,7 @@ struct StripMenuTests {
     }
 
     private static func session(_ kind: Session.Kind) -> Session {
-        Session(id: "sr-a", project: "SitRep", kind: kind, ask: "k1", title: "Approve", sub: "SitRep", since: 0)
+        Session(id: "sr-a", project: "Contoso", kind: kind, ask: "k1", title: "Approve", sub: "Contoso", since: 0)
     }
 
     @Test(arguments: [
