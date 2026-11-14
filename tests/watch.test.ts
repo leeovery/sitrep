@@ -340,6 +340,7 @@ test('the first line is the board as every surface shows it, with nothing new, n
                   title: 'Review round 1',
                   where: null,
                   options: [],
+                  recommended: null,
                   needs: null,
                   ref: null,
                   state: 'waiting',

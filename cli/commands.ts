@@ -170,6 +170,13 @@ const ask: SessionCommand = {
         value: '<choice>',
         about: "a choice ask's option; one each, two at least",
       },
+      recommended: {
+        field: 'recommended',
+        form: 'one',
+        value: '<choice>',
+        about:
+          'the option you lean toward, in its words: give it whenever you lean toward one, rather than writing recommended into the option',
+      },
       needs: {
         field: 'needs',
         form: 'one',

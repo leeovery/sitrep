@@ -73,6 +73,7 @@ const standingOf = (ask: Ask) => {
 const askLine = (ask: Ask) =>
   `${ask.id} wants ${wantsWords(ask)}, ${standingOf(ask)}: ${withExtras(ask.title, {
     options: ask.options?.join(' | '),
+    recommended: ask.recommended,
     needs: ask.needs,
     where: ask.where,
     ref: ask.ref,

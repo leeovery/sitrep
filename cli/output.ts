@@ -153,6 +153,7 @@ const askJson = (session: SessionSummary, ask: Ask) => ({
   title: ask.title,
   where: ask.where ?? null,
   options: ask.options ?? [],
+  recommended: ask.recommended ?? null,
   needs: ask.needs ?? null,
   ref: ask.ref ?? null,
   state: ask.state,

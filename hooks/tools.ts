@@ -25,6 +25,7 @@ import {
   checkStart,
   checkStatus,
   closedByLee,
+  droppedRecommendation,
   itemTitle,
   metaText,
   newSessionId,
@@ -36,6 +37,7 @@ import {
   sessionPaths,
   type Body,
   type Checked,
+  type EditBody,
   type Project,
   type Session,
 } from '../core'
@@ -112,7 +114,12 @@ const WANTS_BACK = {
 const YES = text(
   "For wants yes: the button's words, the verb Lee is giving, a word or two: Go, Approve, It works, Done, Ship it.",
 )
-const OPTIONS = lines('For wants choice: the choices, one line each; two at least.')
+const OPTIONS = lines(
+  'For wants choice: the choices, one line each; two at least. Never write "recommended" into one: give it as recommended.',
+)
+const RECOMMENDED = text(
+  'For wants choice: the option you lean toward, in its words as in options. Give it whenever you lean toward one; Lee sees it marked beside that option.',
+)
 const NEEDS = text(
   "For wants words: what the words are, in a few words, such as the command's output.",
 )
@@ -160,7 +167,7 @@ const onSession =
 const posting = <N extends string, B extends Body>(
   toolSpec: Spec<N>,
   check: (session: Session, input: Fields, host: Host) => Checked<B> | Promise<Checked<B>>,
-  said: (body: B) => string,
+  said: Said<B>,
   names: (session: Session, body: B) => string | undefined = () => undefined,
   unchanged: Unchanged = () => undefined,
 ): Tool<N> => ({
@@ -182,11 +189,14 @@ const posting = <N extends string, B extends Body>(
     const after = await postKnown(host, session, [checked.value])
 
     return {
-      result: said(checked.value),
+      result: said(checked.value, session),
       names: after === undefined ? undefined : names(after, checked.value),
     }
   }),
 })
+
+/** What a tool's answer says it did, given the line it wrote and the session as it stood before, where that was read. */
+type Said<B extends Body> = (body: B, before: Session | undefined) => string
 
 /** The answer to a call that would change nothing, so posts nothing; undefined where it posts as checked. */
 type Unchanged = (session: Session, input: Fields) => Answer | undefined
@@ -300,7 +310,7 @@ const parkedElsewhere = async <B extends Body & { item: string }>(
   host: Host,
   input: Fields,
   check: ItemCheck<B>,
-  said: (body: B) => string,
+  said: Said<B>,
   unchanged: Unchanged,
 ): Promise<Answer> => {
   const held = attached()
@@ -335,7 +345,7 @@ const parkedElsewhere = async <B extends Body & { item: string }>(
   const after = await foldAt(host, root, into.value, await host.clock.now())
 
   return {
-    result: said(written.value),
+    result: said(written.value, before),
     names: after === undefined ? undefined : itemNamed(after, written.value),
   }
 }
@@ -349,7 +359,7 @@ const parkedElsewhere = async <B extends Body & { item: string }>(
 const onItem = <N extends string, B extends Body & { item: string }>(
   toolSpec: Spec<N>,
   check: ItemCheck<B>,
-  said: (body: B) => string,
+  said: Said<B>,
   unchanged: Unchanged = () => undefined,
 ): Tool<N> => {
   const here = posting(toolSpec, check, said, itemNamed, unchanged)
@@ -361,6 +371,15 @@ const onItem = <N extends string, B extends Body & { item: string }>(
         ? here.answer(host, input)
         : parkedElsewhere(host, input, check, said, unchanged),
   }
+}
+
+/** What an edit says it did: and where it left an ask without the option it recommended, that it recommends none now. */
+const editedText = (body: EditBody, before: Session | undefined) => {
+  const dropped = before === undefined ? undefined : droppedRecommendation(before, body)
+
+  return dropped === undefined
+    ? `Edited ${body.item}.`
+    : `Edited ${body.item}. Its recommended option “${dropped}” is gone, so it recommends none now.`
 }
 
 /** A resolve of an item Lee closed already, an ask he answered or ignored, a parked item he picked up: nothing to write, and nothing refused. */
@@ -563,13 +582,14 @@ const TOOLS = [
   posting(
     spec(
       'ask',
-      "Post an ask: something only Lee can do or decide. Ask only when you cannot go on without Lee, or Lee's judgement changes what happens next; say it in full in the chat as well, after your last tool call: the board never stands in for the chat. Want a yes when Lee gives a go, an approval, or word that it works or is done, its button the verb Lee gives (Go, Approve, Done); a choice when Lee picks one of options; words when Lee must write something back, such as a command's output (needs says what). Lee's answer arrives as a message from the board, each line saying whether it closed the ask: a yes, a choice, an answer or an ignore closes it by itself, a comment going with a yes or a choice too; a comment alone leaves it open for you to act on, then resolve, unless Lee sent an answer to it apart from that message, which closes it. If Lee answers in the chat instead, resolve the ask yourself, saying so in the reason.",
+      "Post an ask: something only Lee can do or decide. Ask only when you cannot go on without Lee, or Lee's judgement changes what happens next; say it in full in the chat as well, after your last tool call: the board never stands in for the chat. Want a yes when Lee gives a go, an approval, or word that it works or is done, its button the verb Lee gives (Go, Approve, Done); a choice when Lee picks one of options, giving recommended whenever you lean toward one, never the word in an option; words when Lee must write something back, such as a command's output (needs says what). Lee's answer arrives as a message from the board, each line saying whether it closed the ask: a yes, a choice, an answer or an ignore closes it by itself, a comment going with a yes or a choice too; a comment alone leaves it open for you to act on, then resolve, unless Lee sent an answer to it apart from that message, which closes it. If Lee answers in the chat instead, resolve the ask yourself, saying so in the reason.",
       {
         wants: WANTS_BACK,
         yes: YES,
         title: text(LINE),
         where: WHERE,
         options: OPTIONS,
+        recommended: RECOMMENDED,
         needs: NEEDS,
         ref: REF,
       },
@@ -623,7 +643,7 @@ const TOOLS = [
   onItem(
     spec(
       'edit',
-      "Correct an item by its id, giving only the fields to change; a parked item another session of this project parked, with that session's id. An item's one line is its title or its text alike, an ask's, a note's or a parked item's. An ask changed to want a yes needs yes; to want a choice, options.",
+      "Correct an item by its id, giving only the fields to change; a parked item another session of this project parked, with that session's id. An item's one line is its title or its text alike, an ask's, a note's or a parked item's. An ask changed to want a yes needs yes; to want a choice, options. An ask's recommended stays while its option is among the options.",
       {
         item: ITEM,
         session: PARKED_BY,
@@ -632,6 +652,7 @@ const TOOLS = [
         title: text(LINE),
         where: WHERE,
         options: OPTIONS,
+        recommended: text(`${RECOMMENDED.description} "" clears it.`),
         needs: text(`${NEEDS.description} "" clears it.`),
         ref: REF,
         text: text(LINE),
@@ -641,7 +662,7 @@ const TOOLS = [
       ['item'],
     ),
     checkEdit,
-    ({ item }) => `Edited ${item}.`,
+    editedText,
   ),
   posting(
     spec(
