@@ -86,6 +86,7 @@ extension StripRecorded {
         "Choose the diff budget|Mint · Token-aware diff sizing\nAllow Bash aws sso login --profile dev|Fabric · Atlas overload from llm-manager\nThe management window is sketched|Fumi · Management window discussion\nWaiting for the next round of feedback|Goosemates · Settle the older open questions": 326,
         "Sizing the diffs|Mint · Token-aware diff sizing\nAllow Bash aws sso login --profile dev|Fabric · Atlas overload from llm-manager\nThe management window is sketched|Fumi · Management window discussion\nWaiting for the next round of feedback|Goosemates · Settle the older open questions": 326,
         "Nothing running|SitRep · sessions show here as they start": 274,
+        "Allow Bash aws sso login --profile dev|Fabric · Atlas overload from llm-manager\nThe management window is sketched|Fumi · Management window discussion\nThe exception tests pass|DocMan · Fix inverted exception reporting\nWaiting for the next round of feedback|Goosemates · Settle the older open questions": 326,
     ]
 
     /// The strip prototype at Lee's settings, recorded in the browser a frame at a time by the strip's recorder, each

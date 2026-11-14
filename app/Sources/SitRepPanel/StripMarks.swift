@@ -23,6 +23,8 @@ final class StripMark {
     var arrived = -1e9
     var flashes: [Double] = []
     var washes = false
+    /// A count's: the session whose arrival it shows.
+    var arrivalOf: String?
     /// How it shows its arrival once it has grown into its place.
     var arrival = StripArrival.ask
     /// A new mark waiting to grow until the mark below has slid out of its way: which, and from where; ...
@@ -51,7 +53,15 @@ enum StripArrival {
 
     /// What waits on Lee arriving, shown as his pulses say: flashing where he has its pulse on, else quiet.
     init(_ need: Need, pulses: Set<Need>) {
-        self = !pulses.contains(need) ? .quiet : need == .ask ? .ask : .stop
+        guard pulses.contains(need) else {
+            self = .quiet
+            return
+        }
+
+        switch need {
+        case .ask: self = .ask
+        case .turn: self = .stop
+        }
     }
 }
 
@@ -484,8 +494,7 @@ extension Strip {
         let a = allot(asks: end + 1, others: display.count - end)
         if a.foldsAsks, i < a.asks {
             if s.need == .ask, let stop = lastStopShowing(from: i, end: end) {
-                // made the last mark showing, the ask pushes it into the count
-                display.insert(display.remove(at: stop.at), at: stop.shown - 1)
+                pushOut(at: stop.at, shown: stop.shown)
             } else {
                 i = a.asks
             }
@@ -496,7 +505,7 @@ extension Strip {
         m.arrival = how
         relayout()
         if layout.restNeeds.contains(s.id) {
-            return landInCount(how)
+            return landInCount(s, how)
         }
 
         m.op.snap(0)
@@ -519,11 +528,21 @@ extension Strip {
     }
 
     /// The last stopped mark showing at place `i` or under it, of the `end` on the needs you side, and how many of
-    /// them show; nil with none.
+    /// them show; nil with none. What shows is worked out from the order as it stands, never the layout, which a
+    /// session lifted out to arrive has left stale: its place under the hairline gone, Needs you may have more room.
     private func lastStopShowing(from i: Int, end: Int) -> (at: Int, shown: Int)? {
-        let shown = display.prefix(end).filter { layout.y(of: $0) != nil }.count
+        let now = allot(asks: end, others: display.count - end), shown = now.foldsAsks ? now.asks : end
 
         return display.prefix(shown).lastIndex { session($0)?.need == .turn }.flatMap { $0 >= i ? ($0, shown) : nil }
+    }
+
+    /// The stopped mark at `at` made the last of the `shown` showing, so the ask going in above it pushes it into the
+    /// count; any tab of its draws back, as a mark's leaving does.
+    private func pushOut(at index: Int, shown: Int) {
+        let id = display.remove(at: index)
+
+        display.insert(id, at: shown - 1)
+        tabs.filter { $0.key == .session(id) }.forEach(drawBack)
     }
 
     func grow(_ m: StripMark) {
@@ -541,7 +560,7 @@ extension Strip {
 
     /// Just arrived: its ring flashes Swells times, 450ms apart, and an ask's is washed; a quiet arrival shows neither,
     /// and ends any earlier one's still showing, so an ask's flash never runs on after its session stops.
-    func arrive(_ m: StripMark, _ how: StripArrival = .ask) {
+    func arrive(_ m: StripMark, _ how: StripArrival) {
         guard how != .quiet else {
             m.arrived = -1e9
             m.flashes = []
@@ -601,19 +620,22 @@ extension Strip {
     /// flashes where it is, or its count's, as `how` says; quiet, its own mark's earlier arrival ends.
     func flashInPlace(_ s: Session, _ how: StripArrival) {
         if layout.restNeeds.contains(s.id) {
-            landInCount(how)
+            landInCount(s, how)
         } else if let m = mark(.session(s.id)) {
             m.arrival = how
             arrive(m, how)
         }
     }
 
-    /// One arriving in needs you's count: the count flashes as `how` says; quiet, it keeps what an earlier arrival
-    /// there shows, which was another session's.
-    private func landInCount(_ how: StripArrival) {
-        if how != .quiet, let count = moreNeeds {
-            arrive(count, how)
+    /// One arriving in needs you's count: the count flashes as `how` says, for it; quiet, it keeps what an earlier
+    /// arrival there shows, unless that was this session's own, which ends.
+    private func landInCount(_ s: Session, _ how: StripArrival) {
+        guard let count = moreNeeds, how != .quiet || count.arrivalOf == s.id else {
+            return
         }
+
+        arrive(count, how)
+        count.arrivalOf = how == .quiet ? nil : s.id
     }
 
     /// Sessions leaving: each mark fades and shrinks where it is, and the rest close up; Grows, the strip shrinks with

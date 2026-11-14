@@ -165,7 +165,8 @@ struct NeedsYouMarksTests {
         #expect(layer.letters.backgroundColor == (look == .turn ? EdgeStyle.ink : EdgeStyle.ink3))
     }
 
-    /// Needs you's count is orange holding any ask, and blue holding only the stopped (14 November 2026).
+    /// Needs you's count's two looks drawn: orange, while it holds any session not stopped, and blue, while all it
+    /// holds are stopped (14 November 2026).
     @Test(arguments: [(StripFrame.Mark.Look.needsCount, Need.ask), (.stoppedCount, .turn)])
     func theStripsNeedsYouCountIsOrangeOrBlue(look: StripFrame.Mark.Look, need: Need) {
         let layer = StripMarkLayer()

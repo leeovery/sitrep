@@ -5128,8 +5128,9 @@ were settled in the browser spike (below, "How the strip moves").
   bottom of their own panel"), in this order: the away stopped, then the
   stopped, then the away asks, then the oldest asks. The count's "+N"
   counts the sessions it holds, its ring blue while all it holds are
-  stopped and orange otherwise, so an ask answered in it, working until
-  the re-sort, keeps it orange; its tab lists them as
+  stopped and orange while it holds any session not stopped, so an ask
+  answered in it, working until the re-sort, keeps it orange; its tab
+  lists them as
   rows, each as its own tab words it (14 November 2026). From 19 October
   2026 the count held asks alone, always orange, the oldest folding since
   Needs you went newest first (4 November 2026; the newest until then),
@@ -5137,18 +5138,23 @@ were settled in the browser spike (below, "How the strip moves").
   count. Working takes the places left, and past them the last place is
   the grey count ("+3"). Under the pointer each count pours out what it
   holds as one tab of rows, which scroll on a short strip. A new ask
-  arriving past needs you's room while a stopped mark shows takes its
-  place among the asks all the same, under the one the panel's order has
-  above it, the marks below sliding down, and the last stopped mark
-  showing goes into the count (Lee, 14 November 2026). With every Needs
-  you mark showing an ask, a new ask lands in the count, and a session
-  stopping lands there whatever shows, the marks showing never moving:
-  only asks push stopped marks out. Until then every arrival past the
-  room landed in the count, the marks showing never moving. One landing
-  there flashes the count's ring twice in the count's own colour, orange
-  while it holds an ask, each only with its pulse on, an ask washing it
-  too. An ask
-  answered out of the count changes its row in place; at the re-sort the
+  arriving past needs you's room while a stopped mark shows below its
+  place takes its place among the asks all the same, under the one the
+  panel's order has above it, the marks below sliding down, and the last
+  stopped mark showing goes into the count, its tab drawing back if it
+  has one out (Lee, 14 November 2026). What shows is judged as the strip
+  stands once the arriving session has left its old place, so the only
+  working session asking frees its place for Needs you first. A stopped
+  mark showing above its place, as one can before a re-sort, stays. With
+  no stopped mark showing below its place, a new ask lands in the count,
+  and a session stopping lands there whatever shows, the marks showing
+  never moving: only asks push stopped marks out. Until then every
+  arrival past the room landed in the count, the marks showing never
+  moving. One landing there flashes the count's ring twice in the count's
+  own colour, orange while it holds an ask, each only with its pulse on,
+  an ask washing it too; one landing there quietly ends a flash the count
+  still shows for that same session. An ask answered out of the count
+  changes its row in place; at the re-sort the
   count shrinks, or goes and the last folded mark takes its place. Lee: "It
   works."
 - **Windows and full screen:** macOS lets no app reserve screen space as the
