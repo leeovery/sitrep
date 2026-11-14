@@ -1,6 +1,8 @@
 <div align="center">
 
-# 📋 SitRep
+<img src="art/logo.webp" alt="SitRep's logo: a dark rounded square, a black bezel down its left edge with a notch in it, an orange light in the notch" width="128">
+
+# SitRep
 
 **A board for your Claude Code sessions**
 
@@ -23,11 +25,11 @@ Claude keeps a board as it works: where each session stands, what it needs from 
 With several Claude Code windows open across several projects, what waits on you is spread through their chats, and a question asked an hour ago in a window you've moved away from waits there unseen.
 
 - **The chat stays primary.** Claude talks to you in the chat as it always does, and also puts a line on the board. Nothing moves out of the chat, and Claude's real record stays wherever the project keeps one.
-- **What waits on you, in one place.** Every session's asks, across every project, counted above Claude Code's prompt and lit at the edge of your screen.
-- **Answer without hunting.** A yes or a choice is a button. Your reply reaches Claude as your own message, in its own window.
-- **A click takes you there.** A session, an ask or a notification brings forward the Ghostty window showing that session, on whatever Space it is, in tmux, in zmx or in neither.
-- **Sessions outlive their windows.** After a `/clear`, or in a new Claude told to carry on, it is the same session, with its asks and notes.
-- **Put an ask off.** Snooze one until later today, tomorrow or next week; it counts nowhere until it wakes.
+- **What waits on you, in one place.** Every session's asks, across every project, counted above Claude Code's prompt and lit at the edge of your screen, with every session where Claude has stopped and it's your turn.
+- **Answer without hunting.** A yes or a choice is a button, the option Claude recommends marked. Your reply reaches Claude as your own message, in its own window.
+- **A click takes you there.** A session, an ask or a notification brings forward the Ghostty window showing that session, on whatever Space it is, in tmux, in zmx or in neither. A session no terminal on this Mac shows is carried on in a new window by your resume command.
+- **Sessions outlive their windows.** After a `/clear`, or in a new Claude told to carry on, it is the same session, with its asks and notes. What a session parks is its project's, for any session of the project to pick up.
+- **Put a session off.** Snooze its row until later today, tomorrow, next week or until it moves; its asks and its turn count nowhere until it wakes.
 - **Best effort, and honest.** A missed update breaks nothing, and the board never says Claude knows something it wasn't told.
 
 ## Install
@@ -41,12 +43,12 @@ export HOMEBREW_GITHUB_API_TOKEN=...   # in your shell's profile, to keep it
 brew install --cask leeovery/tools/sitrep
 ```
 
-The install leaves SitRep stopped, so open it from Applications; macOS asks once whether to open an app downloaded from the internet. At its first start SitRep copies the plugin it carries to `~/Library/Application Support/sitrep` and installs it there through `claude plugin`. It leaves alone a sitrep it didn't install, such as a clone registered as the `sitrep` marketplace, and runs that one's CLI instead. It needs the `claude` CLI where Claude Code's installers put it, or on your login shell's PATH. Should the plugin's install fail, the menu bar item's menu says why under its header, and so does the Claude Code plugin row in Settings › General.
+The install leaves SitRep stopped, so open it from Applications; macOS asks once whether to open an app downloaded from the internet. At its first start SitRep copies the plugin it carries to `~/Library/Application Support/sitrep` and installs it there through `claude plugin`. It leaves alone a sitrep it didn't install, such as a clone registered as the `sitrep` marketplace, and runs that one's CLI instead. It needs the `claude` CLI where Claude Code's installers put it, or on your login shell's PATH. Should the plugin's install fail, the menu bar item's menu says why under its header, and so does the plugin's row in Settings › Claude Code.
 
 The install asks macOS for nothing. What SitRep can use, it asks for in Settings, under General and Notifications:
 
 - **Leave to control Ghostty**, so a click on a session brings its window forward: asked at the first jump, or with Allow… in General, and kept in System Settings › Privacy & Security › Automation.
-- **Notifications**, off until you turn on Notify me of a new ask, and kept in SitRep's row in System Settings › Notifications.
+- **Notifications**, off until you turn on Notify me of a new ask or Notify me when Claude stops, and kept in SitRep's row in System Settings › Notifications.
 - **Open at login**, a switch in General, which macOS may hold for your approval in System Settings › General › Login Items.
 
 ## Quick start
@@ -70,10 +72,10 @@ Claude Code window ──tools──▶ the mod ──writes──▶ ~/.local/s
 - **The folder is the state.** `~/.local/state/sitrep` (or `$XDG_STATE_HOME/sitrep`) holds every project and session, a file for each writer. No database, no server, no background service.
 - **The core holds the rules**, shared by the mod and the CLI: what a reply does to an ask, what counts as waiting, what folds away.
 - **SitRep leaves the board's rules to the core**, and changes the board only through the CLI. It runs one `sitrep watch`, which prints the board as it changes, and calls the CLI for each snooze and wake. A click's jump to a session's window is SitRep's own.
-- **Your replies arrive as your own message.** A reply for this session is sent as you, marked "From the board:"; while Claude is mid-turn it waits for the turn to end, and you can take it back until then.
+- **Your replies arrive as your own message.** A reply for this session is sent as you, marked "From the board:", and says under each ask whether it closes it or leaves it open for Claude to act on; while Claude is mid-turn it waits for the turn to end, and you can take it back until then.
 - **A reply for another session goes into its inbox.** That session's window sends it on, now or once a window takes the session up.
 
-The board has its own words: a **project**, roughly a repository, named as you'd say it; its **sessions**; and in each a **status**, **asks** (what only you can do or decide), **notes** (what you'd want to know later), **parked** items (put off, to come back to), **resolved** items and **snoozed** asks. A session Claude or you **finished** leaves the board.
+The board has its own words: a **project**, roughly a repository, named as you'd say it; its **sessions**; and in each a **status**, **asks** (what only you can do or decide), **notes** (what you'd want to know later), **parked** items (put off, to come back to, and the project's, not only the session's) and **resolved** items. Claude stopped, waiting on you with no ask, is your **turn**, which SitRep calls **Stopped**. A session you **snooze** counts nowhere until it wakes. A session Claude or you **finished** leaves the board, and what it parked stays with its project.
 
 ## Claude and sitrep
 
@@ -83,39 +85,46 @@ The mod gives Claude these tools. Only the main conversation can call them; a su
 |---|---|
 | `start` / `join` | Starts a session in a project, or joins one by its id |
 | `status` | Sets the session's name, summary, what is under way, and what is next |
-| `ask` | Posts an ask that wants a yes, a choice or words, with where to look |
+| `ask` | Posts an ask that wants a yes, a choice or words, with where to look, and for a choice the option Claude recommends |
 | `note` | Adds a note, with detail lines and a pointer |
-| `park` | Parks something to come back to |
-| `resolve` / `reopen` / `edit` | Closes, reopens or corrects an item, with a reason |
-| `finish` | Finishes the session once it is complete, with nothing left on it |
+| `park` | Parks something to come back to, on the session's project |
+| `resolve` / `reopen` / `edit` | Closes, reopens or corrects an item, with a reason: one of the session's, or something another session of the project parked |
+| `finish` | Finishes the session once it is complete, with nothing left on it; what it parked holds no finish back |
 | `project` | Renames the session's project, or says where it lives |
-| `board` | Reads the board back, so Claude can check and repair it |
+| `board` | Reads the board back, with the project's parked items, so Claude can check and repair it |
 
 - **Each conversation's first message tells Claude how to keep the board**, and lists every current session on it with its id, so Claude can join one you carry on with, or start a new one.
-- **Claude asks only when it needs you**, says it in the chat as well, and picks the shape by what you give back. A yes's button is the verb you're giving: `✓ Go`, `✓ Approve`, `✓ It works`.
+- **Claude asks only when it needs you**, says it in the chat as well, and picks the shape by what you give back. A yes's button is the verb you're giving: `✓ Go`, `✓ Approve`, `✓ It works`. A choice names the option Claude leans toward as `recommended`, and a "(recommended)" Claude types into an option's words is read as that and taken out.
+- **No refusals for what does no harm.** Resolving an ask you already closed, or a parked item you picked up, passes quietly, and an edit takes an item's line as `text` or `title` alike.
 - **Drift gets noticed.** When the board changes, its open items ride into Claude's next turn, and a join hands Claude the board as it stands (its status, open asks, parked items and latest notes) to correct anything stale.
-- **Claude has no tool for snoozing.** Snoozing an ask is yours.
+- **Claude has no tool for snoozing.** Snoozing a session is yours.
 
 ## The board in Claude Code
 
-- **The pane**, opened by `/sitrep` or the band, has two tabs: this session, and All projects. A session shows its asks first, then its status, notes, parked items and resolved asks. All projects opens each project, and each project its sessions.
+- **The pane**, opened by `/sitrep` or the band, has two tabs: this session, and All projects. A session shows its asks first, then its status, notes, the items it parked and resolved asks. All projects opens each project, and each project its sessions and every item parked in it, each naming the session that parked it. A parked item can be picked up from any window of its project, and goes to the Claude in that window.
 - **The band** is the line above the prompt: this session's asks, what waits elsewhere, and the pane's show or hide. A new ask pulses it and shows a toast.
-- **Ready to send.** Your replies queue at the pane's foot, grouped by the session each goes to, until you press **send to Claude** or **cancel all**. A words ask's answer, or a comment, is written in Claude Code's prompt. A snooze, a wake or a finish takes effect at once.
+- **Ready to send.** Your replies queue at the pane's foot, grouped by the session each goes to, until you press **send to Claude** or **cancel all**. A words ask's answer, or a comment, is written in Claude Code's prompt. A snooze, a wake or a finish takes effect at once; snoozing an ask snoozes its session.
 
 ## SitRep, the app
 
 A menu bar app with no Dock icon, on every Space. The notch and the strip step off the screen while a full-screen app has their display, and come back as it leaves.
 
-- **The notch** sits at the screen's left or right edge, a little above the middle, and opens on hover into a panel of your sessions: Needs you, Working, Your turn and Snoozed. It swells and lights when something needs you, and never takes the keyboard. Drag it along the edge, or across the middle to the other side.
-- **The strip** can stand in its place: a narrow column along the edge, a mark for each session, that grows with what's on it or runs the screen's height.
-- **The menu bar item** lists the panel's sessions, each a click to its window but an away session's. Then come Show (Notch, Strip or Nothing), Show Welcome Window, Settings… and Quit SitRep. Above the list it speaks up, in this order, when the plugin is in trouble, when a window needs `/reload-plugins`, and when SitRep can't read the board.
+- **The notch** sits at the screen's left or right edge, a little above the middle, and opens on hover into a panel of your sessions: Needs you, Working (those on their own work at its end) and Snoozed. It swells and lights when something needs you, and never takes the keyboard. Drag it along the edge, or across the middle to the other side.
+- **Needs you** holds a row per session: first those with asks, in orange, then those where Claude has stopped and it's your turn, in blue, which SitRep calls **Stopped**. A session with asks is one orange row, however its turn stands. The section's header counts the asks in orange and the stopped in blue. The notch's light is orange while any ask waits, else blue while any session has stopped.
+- **The strip** can stand in its place: a narrow column along the edge, a mark for each session, its ring carrying the session's state, that grows with what's on it or runs the screen's height.
+- **The menu bar item** lists the panel's sessions under one total, "3 need you", each a click to its session. Then come Show (Notch, Strip or Nothing), Show Welcome Window, Settings… and Quit SitRep. Above the list it speaks up, in this order, when the plugin is in trouble, when a window needs `/reload-plugins`, and when SitRep can't read the board. Its glyph lights as the notch does.
+- **A session this Mac doesn't show** is dimmed wherever rows are drawn, an ask's mark a hollow ring: its Claude has ended, runs where no terminal on this Mac shows it, or is reached only from another device. SitRep tells by reading which terminals each Claude descends from, every few seconds; a remote login, such as SSH, doesn't count.
+- **Snooze**, on a row's menu, puts the session off until later today, tomorrow, next week, or until it moves, its next turn ending. Its asks and its turn go together into Snoozed, and come back at their time, or sooner with a new ask, your reply to one of its asks, or your prompt in its window.
 - **Settings**, a window of its own (⌘,):
-  - What stays on screen: Show (Notch, Strip or Nothing); its edge and display; for the notch, Style (Meniscus or Card); for the strip, Length (Grows or Full), and a Max slider at Grows; Black or Glass (from macOS 26); and Reduce motion.
-  - Notifications: a test notification, Notify me of a new ask, and Play a sound for a new ask, on by default, its sound one of macOS's alert sounds, Glass unless you pick another.
-  - General: Open at login and the leave to control Ghostty.
-  - Claude Code: the plugin's state.
-- **A new ask** plays the sound once, whichever session it lands in, and, with notifications on, posts a silent macOS notification whose click jumps to the session.
-- **The jump** brings forward the Ghostty window showing a session: in tmux, selecting the session's tmux window where no client shows it; in zmx, the window attached to the session. A terminal with no driver is brought forward whole.
+  - General: Open at login; the terminal new windows open in, Ghostty, with the leave to control it; and the resume command, with Restore Default.
+  - Edge: Show (Notch, Strip or Nothing); its edge and display; for the notch, Style (Meniscus or Card); for the strip, Length (Grows or Full), and a Max slider at Grows; Black or Glass (from macOS 26); and Reduce motion.
+  - Notifications: a test notification; banners, a sound and a pulse at the edge, each set apart for a new ask and for Claude stopping. A new ask's sound and pulse are on by default, the sound one of macOS's alert sounds, Glass unless you pick another; its banner is off, and so is everything for Claude stopping.
+  - Claude Code: the plugin's state, and the windows that need `/reload-plugins`.
+- **A new ask** plays the sound once, whichever session it lands in, and, with banners on, posts a silent macOS notification whose click takes you to the session. Claude stopping does the same, with its own settings.
+- **A click on a session** goes by whether this Mac shows it, read again at the click:
+  - shown: the jump brings forward the Ghostty window showing it, on whatever Space it is: in tmux, selecting the session's tmux window where no client shows it; in zmx, the window attached to the session. A terminal with no driver is brought forward whole;
+  - its Claude suspended with Ctrl-Z in a window here: the jump, saying to type `fg`;
+  - otherwise SitRep opens a new Ghostty window and types your **resume command** into your login shell there. The default is `cd {dir} && claude --resume {claude}`; `{claude}` is the session's Claude Code session id, `{dir}` the folder it ran in, and `{tty}` the terminal that Claude still runs on, empty unless it does, each replaced with a quoted value. Set your own in Settings › General, such as one that attaches the tmux session holding the Claude. The default refuses while that Claude may still be running elsewhere, since it would resume a second beside it; a command you set always runs.
 
 ## Commands
 
@@ -124,18 +133,18 @@ The CLI is `bin/sitrep` in the plugin's folder; the app's copy is `~/Library/App
 | Command | What it does |
 |---|---|
 | `sitrep list` | Every project's current sessions, with their ids and what waits on you |
-| `sitrep board` | A session's status, open asks, parked items and latest notes, with their ids |
+| `sitrep board` | A session's status, open asks, its project's parked items and latest notes, with their ids |
 | `sitrep status` | Sets where a session stands, giving only what changed |
 | `sitrep ask` | Posts an ask, and prints its id |
 | `sitrep note` | Adds a note, and prints its id |
-| `sitrep park` | Parks something to come back to, and prints its id |
+| `sitrep park` | Parks something to come back to, on the session's project, and prints its id |
 | `sitrep answer` | Answers a yes or a choice ask, or ignores any ask, into the session's inbox |
-| `sitrep snooze` | Snoozes asks until a time |
-| `sitrep wake` | Wakes snoozed asks now |
+| `sitrep snooze` | Snoozes a session, its asks and its turn, until a time, or with no `--until` until it moves |
+| `sitrep wake` | Wakes a snoozed session now |
 | `sitrep finish` | Finishes a session no window holds |
 | `sitrep watch` | Prints the board as a line of JSON at the start and at each change, for SitRep |
 
-`list` and `board` take `--json`. Exit codes: 0 done; 1 a usage error, a refused input or a failure; 2 no such session.
+`ask` takes `--wants yes|choice|words`, then `--yes <label>` for a yes, `--option <choice>` for each of a choice's options with `--recommended <choice>` for the one you lean toward, or `--needs <words>` for words. `snooze` names each ask the session's row shows, and `--until` in milliseconds since the epoch. `list` and `board` take `--json`. Exit codes: 0 done; 1 a usage error, a refused input or a failure; 2 no such session.
 
 ## Updating
 
