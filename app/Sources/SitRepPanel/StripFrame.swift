@@ -287,8 +287,8 @@ extension Strip {
     }
 
     /// A section's count's look: Needs you's blue while every session it holds is stopped, at Lee's turn, else
-    /// orange, an ask answered in it and working until the re-sort among them; Working's grey, Snoozed's faint. Going,
-    /// it holds none, and keeps the look it had (`StripMark.look`).
+    /// orange, holding an ask; Working's grey, Snoozed's faint. Going, it holds none, and keeps the look it had
+    /// (`StripMark.look`).
     func countLook(_ section: BoardSection) -> StripFrame.Mark.Look {
         switch section {
         case .needsYou:
@@ -299,8 +299,7 @@ extension Strip {
     }
 
     /// A mark as it shows now, its arrival showing only while it waits on Lee for what arrived, so a flash never runs
-    /// on in another colour; but a count, orange while it holds any session not stopped, shows a stop landing in it in
-    /// either colour.
+    /// on in another colour; but a count, orange while it holds an ask, shows a stop landing in it in either colour.
     private func paint(_ m: StripMark, _ text: String, _ look: StripFrame.Mark.Look, lifted: Bool) -> StripFrame.Mark {
         let isJumping = if case let .mark(key) = jumping { key == m.key } else { false }
         let lift = lifted ? 1.0 : 0

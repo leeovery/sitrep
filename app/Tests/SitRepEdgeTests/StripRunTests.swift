@@ -241,7 +241,8 @@ struct StripRunTests {
     }
 
     /// A drag along the pointer's path and let go across, a frame a refresh, its moves as given each refresh: the
-    /// strip's top end at every frame, and the frame it swaps edges at.
+    /// strip's top end at every frame, and the refresh whose drawing swaps edges, as the controller takes what the
+    /// frames showed (`takeShown`): a move at a frame's time may frame the swap before the refresh does.
     private static func dragAcross(movesPerRefresh: Int) -> (tops: [Double], swappedAt: Int?) {
         let run = shown(["a", "b"]), start = run.time, mark = on("a", in: run)
         var tops: [Double] = [], swappedAt: Int?
@@ -259,7 +260,7 @@ struct StripRunTests {
             }
             run.step(at(read + frameMS, nil))
             tops.append(run.strip.yt.x)
-            if swappedAt == nil, run.frame.swapsEdge {
+            if run.takeShown().swappedEdge, swappedAt == nil {
                 swappedAt = k
             }
         }
@@ -505,10 +506,10 @@ struct StripRunTests {
         let run = Self.shown(["a", "b", "c", "d"], Self.settings(.full))
         var slid = false
 
-        #expect(run.markTarget(of: "sr-none") == nil)
+        #expect(run.markTarget(ofMark: "sr-none") == nil)
         run.place(Self.settings(.grows), Self.at(run.time))
         Self.frames(run, for: 3000, nil) {
-            let target = run.markTarget(of: "sr-d"), drawn = run.frame.marks.first { $0.key == .session("sr-d") }
+            let target = run.markTarget(ofMark: "sr-d"), drawn = run.frame.marks.first { $0.key == .session("sr-d") }
 
             #expect(target.map { Double($0.y) } == run.strip.yOf(.session("sr-d")))
             #expect(target?.x == drawn?.centre.x)
@@ -516,6 +517,6 @@ struct StripRunTests {
             return !run.frame.isMoving
         }
         #expect(slid)
-        #expect(run.markTarget(of: "sr-d") == run.frame.marks.first { $0.key == .session("sr-d") }?.centre)
+        #expect(run.markTarget(ofMark: "sr-d") == run.frame.marks.first { $0.key == .session("sr-d") }?.centre)
     }
 }

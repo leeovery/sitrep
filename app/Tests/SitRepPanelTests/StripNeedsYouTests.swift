@@ -2,8 +2,9 @@
 import Testing
 
 /// The strip's one Needs you (14 November 2026): the stopped join the asks over the hairline, a session stopping moves
-/// in at once as an ask does, flashing only where Lee has Pulse when Claude stops on, and needs you's count folds the
-/// end of its order, blue while all it holds are stopped and orange while it holds any session not stopped.
+/// in at once as an ask does, flashing only where Lee has Pulse when Claude stops on, one working again leaves at once,
+/// and needs you's count folds the end of its order, blue while all it holds are stopped and orange while it holds an
+/// ask.
 struct StripNeedsYouTests {
     /// A turn ends: DocMan's mark moves into needs you at once, before the stopped, and grows into its place there,
     /// its ring flashing twice where the pulse is on and not at all where it is off; it is never washed, as only an
@@ -43,9 +44,9 @@ struct StripNeedsYouTests {
         #expect(count.flashes.count == (pulses ? 2 : 0) && count.shows == (pulses ? .stop : .quiet))
     }
 
-    /// A stopped session whose turn ends, Claude working again, changes in place, and moves back under the hairline at
-    /// the re-sort, as an answered ask does.
-    @Test func aStoppedSessionWorkingAgainChangesInPlaceAndMovesAtTheReSort() {
+    /// A stopped session whose turn ends, Claude working again, changes group: it moves back under the hairline at
+    /// once, as an answered ask does (Lee, 14 November 2026; until then it changed in place and moved at the re-sort).
+    @Test func aStoppedSessionWorkingAgainMovesUnderTheHairlineAtOnce() {
         var lab = StripLab()
         lab.stop(StripLab.stopped)
         lab.settle()
@@ -53,12 +54,9 @@ struct StripNeedsYouTests {
         working.kind = .working
 
         lab.change(working)
-        lab.step()
-        #expect(lab.model.display == ["s1", "s2", "s3", "s4", "s7", "s5", "s6", "s8"])
 
-        lab.wait(1500)
-
-        #expect(lab.model.display.suffix(2) == ["s8", "s7"])
+        #expect(lab.model.display == ["s1", "s2", "s3", "s4", "s5", "s6", "s8", "s7"])
+        lab.settle()
         #expect(lab.model.layout.y(of: "s7")! > lab.model.layout.hairs[.working]!)
     }
 
@@ -93,8 +91,7 @@ struct StripNeedsYouTests {
 
     /// The count's tab lists what it holds as rows, the asks and the stopped each its own session's row.
     @Test func needsYousCountsTabListsItsAsksAndItsStoppedAsRows() {
-        var lab = StripLab(length: .grows, maxMarks: 6)
-        lab.add(Array(StripLab.asks.prefix(2)))
+        var lab = StripLab(sessions: StripLab.prototype + StripLab.asks.prefix(2), length: .grows, maxMarks: 6)
         lab.open(.count(.needsYou))
 
         guard case let .rows(rows) = lab.live!.current!.content else {
@@ -105,31 +102,31 @@ struct StripNeedsYouTests {
         #expect(rows.map(\.need) == [.ask, .ask, .turn, .turn])
     }
 
-    /// Blue only while every session it holds is stopped: asks answered in it, working until the re-sort, or a stopped
-    /// one working again, keep it orange.
-    @Test(arguments: [["s9", "s10"], ["s5"]])
-    func needsYousCountHoldingSessionsWorkingAgainIsOrange(working ids: [String]) {
+    /// Sessions working again leave needs you's count at once: the two asks that landed there answered, it holds the
+    /// stopped alone and turns blue (Lee, 14 November 2026; until then they stayed in it till the re-sort, keeping it
+    /// orange).
+    @Test func asksAnsweredInNeedsYousCountLeaveItAtOnce() {
         var lab = StripLab(length: .grows, maxMarks: 6)
-        if ids.contains("s9") {
-            StripLab.asks.prefix(2).forEach(lab.newAsk)
-            lab.settle()
-        }
+        StripLab.asks.prefix(2).forEach(lab.newAsk)
+        lab.settle()
+        #expect(lab.model.layout.rest(of: .needsYou) == ["s9", "s10", "s5", "s6"])
 
-        for id in ids {
+        for id in ["s9", "s10"] {
             var working = lab.model.session(id)!
             working.kind = .working
             lab.change(working)
         }
         lab.step()
 
-        #expect(ids.allSatisfy(lab.model.layout.rest(of: .needsYou).contains))
-        #expect(lab.frame.marks.first { $0.key == .count(.needsYou) }?.look == .needsCount)
+        #expect(lab.model.layout.rest(of: .needsYou) == ["s5", "s6"])
+        #expect(lab.model.slot["s9"] == .working && lab.model.slot["s10"] == .working)
+        #expect(lab.frame.marks.first { $0.key == .count(.needsYou) }?.look == .stoppedCount)
     }
 
-    /// A session still on the needs you side, its turn ended or its ask answered before the re-sort, stopping again
-    /// flashes where it is, with the pulse on, and stays quiet with it off.
+    /// A session gone back to work, its turn ended or its ask answered, stopping again moves back among the stopped at
+    /// once, flashing with the pulse on, and quiet with it off.
     @Test(arguments: [("s7", true), ("s7", false), ("s1", true)])
-    func aSessionStoppingOnTheNeedsYouSideFlashesWhereItIsWithThePulse(id: String, pulses: Bool) {
+    func aSessionWorkingAgainThenStoppingMovesBackAtOnceFlashingWithThePulse(id: String, pulses: Bool) {
         var lab = StripLab()
         if id == "s7" {
             lab.stop(StripLab.stopped)
@@ -139,17 +136,18 @@ struct StripNeedsYouTests {
         session.kind = .working
         lab.change(session)
         lab.step()
-        let order = lab.model.display
+        #expect(lab.model.slot[id] == .working)
 
         session.kind = .turn
         lab.stop(session, pulses: pulses)
-        lab.step()
+        lab.wait(1500)
 
-        #expect(lab.model.display == order)
+        #expect(lab.model.display == StripLab.core(lab.model.sessions).map(\.id))
+        #expect(lab.model.slot[id] == .needsYou)
         #expect(lab.model.mark(.session(id))!.flashes.count == (pulses ? 2 : 0))
     }
 
-    /// Folded into needs you's count, it flashes the count instead.
+    /// Landing back in needs you's count, it flashes the count instead.
     @Test func aSessionInTheCountStoppingAgainFlashesTheCount() {
         var lab = StripLab(length: .grows, maxMarks: 6)
         var fumi = lab.model.session("s5")!
@@ -186,8 +184,8 @@ struct StripNeedsYouTests {
         #expect(flash == 0 && wash == 0)
     }
 
-    /// Its ask answered before the re-sort, a session stopping with the pulse off ends its ask's flash, which never
-    /// runs on in its blue.
+    /// Its ask answered, a session stopping with the pulse off ends its ask's flash, which never runs on in its blue,
+    /// its mark kept through each move.
     @Test func aQuietStopEndsAnEarlierAsksFlash() {
         var lab = StripLab()
         var asking = lab.model.session("s7")!
@@ -259,56 +257,40 @@ struct StripNeedsYouTests {
         #expect(!tabs.isEmpty && tabs.allSatisfy { $0.phase == .closing })
     }
 
-    /// The stopped mark pushed out is the last stopped one showing, wherever it stands: over a session working again
-    /// before the re-sort, which stays where it is, or with the first stopped away, last of them and so in the count.
-    @Test(arguments: [(working: "t1", pushed: "t0"), (working: "", pushed: "t2")])
-    func theMarkPushedOutIsTheLastStoppedOneShowing(working: String, pushed: String) {
+    /// The stopped mark pushed out is the last stopped one showing, wherever its stop puts it: with the first stopped
+    /// away, last of them and so in the count, the third.
+    @Test func theMarkPushedOutIsTheLastStoppedOneShowing() {
         var sessions = Self.full(asks: 3, stopped: 4)
-        if working.isEmpty {
-            sessions[3].away = true
-        }
-        var lab = StripLab(sessions: sessions, length: .grows, maxMarks: 6)
-        if var again = lab.model.session(working) {
-            again.kind = .working
-            lab.change(again)
-            lab.step()
-        }
+        sessions[3].away = true
+        let lab = StripLab(sessions: sessions, length: .grows, maxMarks: 6)
         let places = lab.model.layout.places
-        let stays = places.filter { $0.id != pushed }.dropFirst(3)
+        let stays = places.filter { $0.id != "t2" }.dropFirst(3)
 
         lab.newAsk(Self.newest)
 
-        #expect(lab.model.layout.rest(of: .needsYou).first == pushed)
+        #expect(lab.model.layout.rest(of: .needsYou).first == "t2")
+        #expect(lab.model.layout.rest(of: .needsYou).last == "t0")
         #expect(lab.model.layout.y(of: "n") == places[3].y)
         #expect(stays.allSatisfy { lab.model.layout.places.map(\.id).contains($0.id) })
-        if !working.isEmpty {
-            #expect(lab.model.layout.y(of: working) == places.first { $0.id == working }!.y)
-        } else {
-            #expect(lab.model.layout.rest(of: .needsYou).last == "t0")
-        }
     }
 
-    /// A stopped mark showing above the new ask's place stays: the two stopped marks under it asking before the
-    /// re-sort, still in their places, the ask's place is between them, and with no stopped mark showing below it the
-    /// ask lands in the count.
-    @Test func aStoppedMarkShowingAboveTheAsksPlaceStays() {
-        var lab = StripLab(sessions: Self.full(asks: 2, stopped: 5), length: .grows, maxMarks: 6)
-        for (id, since) in [("t1", 5.0), ("t2", 6.0)] {
-            var asking = lab.model.session(id)!
-            asking.kind = .needs
-            asking.lines[0].since = since
-            lab.change(asking)
-        }
+    /// A session stopping while the asks' order waits for the re-sort goes under every ask, though the ask the panel's
+    /// order has above it stands first among them: the stopped keep to their own run of needs you.
+    @Test func aSessionStoppingWhileTheAsksOrderWaitsGoesUnderEveryAsk() {
+        let working = Session(id: "w", project: "Work", kind: .working, title: "", sub: "", since: 0)
+        var lab = StripLab(sessions: Self.full(asks: 2, stopped: 2) + [working])
+        var again = lab.model.session("a0")!
+        again.lines[0].since = 5
+        lab.change(again)
         lab.step()
-        let places = lab.model.layout.places.map(\.id)
-        #expect(places == ["a0", "a1", "t0", "t1", "t2"])
-        var ask = Self.newest
-        ask.lines[0].since = 5.5
+        #expect(lab.model.display.prefix(2) == ["a0", "a1"])
+        var stopping = working
+        stopping.kind = .turn
+        stopping.lines[0].since = 10
 
-        lab.newAsk(ask)
+        lab.stop(stopping)
 
-        #expect(lab.model.layout.places.map(\.id) == places)
-        #expect(lab.model.layout.rest(of: .needsYou).contains("n"))
+        #expect(lab.model.display == ["a0", "a1", "w", "t0", "t1"])
     }
 
     /// The only working session asking, its place under the hairline gone: Needs you's room grows by it, so the
@@ -333,8 +315,8 @@ struct StripNeedsYouTests {
         #expect(lab.model.layout.rest(of: .needsYou) == folded)
     }
 
-    /// An ask whose landing the count flashes, answered there and stopping with the pulse off before the re-sort:
-    /// the count's flash for it ends; another session landing quietly leaves it be.
+    /// An ask whose landing the count flashes, answered, and so out of it, then stopping with the pulse off, landing
+    /// there again: the count's flash for it ends; another session landing quietly leaves it be.
     @Test(arguments: [true, false])
     func aQuietLandingEndsTheCountsFlashOnlyForItsOwnSession(same: Bool) {
         var lab = StripLab(length: .grows, maxMarks: 6)

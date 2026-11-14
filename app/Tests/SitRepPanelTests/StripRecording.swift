@@ -11,7 +11,7 @@ extension StripRecorded {
     static let arrive = recorded("arrive")
 
     /// At length full. Its marks: s1, s2, s5, s8.
-    static let settle = recorded("settle")
+    static let answer = recorded("answer")
 
     /// At length full. Its marks: s6.
     static let jump = recorded("jump")
@@ -110,7 +110,7 @@ extension StripRecorded {
         "Probing the unit's local API|Aircon · Aircon local control": 252,
         "Choose the diff budget|Mint · Token-aware diff sizing\nAllow Bash aws sso login --profile dev|Fabric · Atlas overload from llm-manager\nGive the go for stage 3|Switchboard · Milestone 7 stages 4 to 14\nWhich unit is the bedroom?+2|Aircon · Aircon local control\nApprove the reshaped review workflow|Agentic Workflows · Reshape the workflows\nThe management window is sketched|Fumi · Management window discussion\nWaiting for the next round of feedback|Goosemates · Settle the older open questions": 326,
         "Choose the diff budget|Mint · Token-aware diff sizing\nAllow Bash aws sso login --profile dev|Fabric · Atlas overload from llm-manager\nThe management window is sketched|Fumi · Management window discussion\nWaiting for the next round of feedback|Goosemates · Settle the older open questions": 326,
-        "Sizing the diffs|Mint · Token-aware diff sizing\nAllow Bash aws sso login --profile dev|Fabric · Atlas overload from llm-manager\nThe management window is sketched|Fumi · Management window discussion\nWaiting for the next round of feedback|Goosemates · Settle the older open questions": 326,
+        "Allow Bash aws sso login --profile dev|Fabric · Atlas overload from llm-manager\nThe management window is sketched|Fumi · Management window discussion\nWaiting for the next round of feedback|Goosemates · Settle the older open questions": 326,
         "Nothing running|SitRep · sessions show here as they start": 274,
         "Allow Bash aws sso login --profile dev|Fabric · Atlas overload from llm-manager\nThe management window is sketched|Fumi · Management window discussion\nThe exception tests pass|DocMan · Fix inverted exception reporting\nWaiting for the next round of feedback|Goosemates · Settle the older open questions": 326,
         "Running the exception reporting tests|DocMan · Fix inverted exception reporting\nFixing the limiter's reset|Turnstile · Exception reporting": 276,

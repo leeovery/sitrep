@@ -202,9 +202,10 @@ struct StripLab {
     var live: StripTab? { model.liveTab() }
 
     /// The mark's spring's three as they are now, by the session's id, its mark's key in Snoozed (`Session.markID`)
-    /// or out of it.
+    /// or out of it, fading out as the recording has it too.
     func mark(_ id: String) -> StripRecorded.Mark? {
-        let mark = model.mark(.session(id)) ?? model.mark(.session(Session.markID(of: id, snoozed: true)))
+        let keys = [id, Session.markID(of: id, snoozed: true)].map(MarkKey.session)
+        let mark = keys.lazy.compactMap { key in model.marks.first { $0.key == key } }.first
 
         return mark.map { StripRecorded.Mark(y: $0.y.x, sc: $0.sc.x, op: $0.op.x) }
     }

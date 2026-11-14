@@ -272,7 +272,8 @@ final class StripController: NSObject, CalloutShape {
         )
     }
 
-    /// Jump to the window, as a click on the mark, or its row, would, the one the menu is for pressed in.
+    /// Jump to the window, as a click on the mark, or its row, would, the one the menu is for pressed in where it can
+    /// be.
     private func jumpFromMenu(to session: Session) {
         if case let .jump(session, to: target, click: click) = run.jump(to: session, moment()) {
             jump(from: session, to: target, click: click)

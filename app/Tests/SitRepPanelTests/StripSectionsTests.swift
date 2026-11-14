@@ -262,6 +262,28 @@ struct StripSectionsTests {
         #expect(lab.model.mark(.session("s9"))?.op.x == 1)
     }
 
+    /// A session's row in Snoozed going and coming back within its mark's fade, its other row kept, so nothing renamed:
+    /// the row back has a mark of its own, placed, which stays, never the fading one.
+    @Test func aSnoozedRowBackWithinItsMarksFadeHasAMarkOfItsOwn() throws {
+        let asking = Session(id: "x", project: "Ask", kind: .needs, title: "", sub: "", since: -2)
+        var lab = StripLab(sessions: Array(Self.asksAndTurns.prefix(2)) + [asking, Self.asleep(asking, .snoozed)])
+        lab.fold(.snoozed)
+        lab.settle()
+        let board = lab.model.sessions
+
+        lab.model.show(board.filter { $0.markID != "snoozed:x" }, new: [])
+        lab.wait(50)
+        #expect(lab.model.marks.contains { $0.key == .session("snoozed:x") && $0.removing })
+        lab.model.show(board, new: [])
+
+        let marks = lab.model.marks.filter { $0.key == .session("snoozed:x") }
+        #expect(marks.count == 1 && marks.allSatisfy { !$0.removing })
+        lab.settle()
+        #expect(lab.model.layout.y(of: "snoozed:x") != nil)
+        #expect(lab.model.mark(.session("snoozed:x"))?.op.x == 1)
+        #expect(lab.frame.marks.contains { $0.key == .session("snoozed:x") })
+    }
+
     /// A row pressed in on Snoozed's count's tab, its jump spinning, as a wake renames its mark: the press and the jump
     /// go by its new key.
     @Test func aWakeRenamesARowPressedOnACountsTab() throws {
@@ -412,28 +434,112 @@ struct StripSectionsTests {
         #expect(Self.flash(of: "s10", in: &lab, for: 1500) == 0)
     }
 
-    /// An ask answered, Claude working again, leaves Needs you for Working: its mark changes in place while the
-    /// pointer rests on the strip, and moves once the pointer has been off it for Settle.
-    @Test func anAskAnsweredStaysWhereItIsUntilTheReSort() throws {
+    /// An ask answered, Claude working again, leaves Needs you for Working at once, under the session the panel's
+    /// order has above it there, though the pointer rests on the strip (Lee, 14 November 2026; until then its mark
+    /// changed in place and moved once the pointer had been off the strip for Settle).
+    @Test func anAskAnsweredLeavesNeedsYouAtOnce() throws {
         var lab = StripLab(length: .grows)
         lab.settle()
         lab.pointer = lab.on("s7")
         lab.wait(400)
-        let y = try #require(lab.model.layout.y(of: "s1"))
         var answered = StripLab.prototype[0]
         answered.kind = .working
 
         lab.change(answered)
-        lab.wait(3000)
 
-        #expect(lab.model.slot["s1"] == .needsYou)
-        #expect(lab.model.layout.y(of: "s1") == y)
+        #expect(lab.model.slot["s1"] == .working)
+        #expect(lab.model.display == StripLab.core(lab.model.sessions).map(\.markID))
+        lab.settle()
+        #expect(try #require(lab.model.layout.y(of: "s1")) > #require(lab.model.layout.hairs[.working]))
+    }
+
+    /// The first of a stopped session's two asks asleep waking at its time: its row in Snoozed stays, holding the
+    /// other, and its row in Needs you becomes an ask's, which `new` names, nothing renamed: its mark moves among the
+    /// asks at once, though the pointer rests on the strip, flashing and washed as an ask's arrival is.
+    @Test func aPartialWakeOnAStoppedSessionMovesItAmongTheAsksAtOnceFlashing() throws {
+        let prompt = Session(id: "p", project: "Prompt", kind: .turn, title: "", sub: "", since: -2)
+        var both = Self.asleep(prompt, .snoozed)
+        both.lines.append(both.lines[0])
+        var lab = StripLab(sessions: Array(Self.asksAndTurns.prefix(2)) + [prompt, both], length: .grows)
+        lab.fold(.snoozed)
+        lab.settle()
+        lab.pointer = lab.on("a0")
+        lab.wait(400)
+        let mark = try #require(lab.model.mark(.session("p")))
+        var asking = prompt
+        asking.kind = .needs
+
+        lab.model.show(StripLab.core([asking, Self.asleep(prompt, .snoozed)] + Self.asksAndTurns.prefix(2)), new: ["p"])
+
+        #expect(lab.model.mark(.session("p")) === mark)
+        #expect(lab.model.display == ["p", "a0", "t0", "snoozed:p"])
+        var wash = 0.0
+        lab.wait(1500) { lab in
+            wash = max(wash, lab.frame.marks.first { $0.key == .session("p") }?.wash ?? 0)
+            return false
+        }
+        #expect(mark.flashes.count == 2 && wash > 0.9)
+        #expect(lab.model.layout.places.map(\.id) == ["p", "a0", "t0", "snoozed:p"])
+    }
+
+    /// A session's asleep ask answered as it stops, Claude working until then: its row in Snoozed goes, and its row in
+    /// Working becomes its turn's, nothing renamed: its mark moves among the stopped at once, flashing with the pulse,
+    /// as a stop's arrival does, and its asleep row's mark fades.
+    @Test func anAsleepAskAnsweredAsItsSessionStopsMovesItAmongTheStoppedAtOnce() throws {
+        let running = Session(id: "x", project: "Run", kind: .working, title: "", sub: "", since: -5)
+        let others = Array(Self.asksAndTurns.prefix(2)) + [Self.asksAndTurns[4]]
+        var lab = StripLab(sessions: others + [running, Self.asleep(running, .snoozed)], length: .grows)
+        lab.fold(.snoozed)
+        lab.settle()
+        lab.pointer = lab.on("a0")
+        lab.wait(400)
+        let mark = try #require(lab.model.mark(.session("x")))
+        var stopped = running
+        stopped.kind = .turn
+        stopped.lines[0].since = 0
+
+        lab.model.show(StripLab.core(others + [stopped]), new: [], stopped: ["x"], pulses: [.ask, .turn])
+
+        #expect(lab.model.mark(.session("x")) === mark)
+        #expect(lab.model.display == ["a0", "x", "t0", "w0"])
+        #expect(lab.model.marks.contains { $0.key == .session("snoozed:x") && $0.removing })
+        lab.wait(1500)
+        #expect(mark.flashes.count == 2)
+        #expect(lab.model.layout.places.map(\.id) == ["a0", "x", "t0", "w0"])
+    }
+
+    /// Lee snoozes a session's asks while Claude still works on it: its row in Needs you becomes a Working one, and its
+    /// asks' row comes into Snoozed, nothing renamed. Its mark moves into Working at once, the new row's comes in at
+    /// its place in Snoozed, and nothing else re-sorts, the asks' order changed a moment before waiting for the
+    /// pointer to have been off the strip for Settle.
+    @Test func aSnoozeOfASessionStillWorkingMovesItsMarkAloneAtOnce() throws {
+        var lab = StripLab(length: .grows)
+        lab.fold(.snoozed)
+        lab.settle()
+        lab.pointer = lab.on("s7")
+        lab.wait(400)
+        var askedAgain = StripLab.prototype[0]
+        askedAgain.lines[0].since = 0
+        lab.change(askedAgain)
+        let agntc = StripLab.prototype[2]
+        var working = agntc
+        working.kind = .working
+
+        lab.model.show(
+            StripLab.core(lab.model.sessions.map { $0.id == agntc.id ? working : $0 } + [Self.asleep(agntc, .snoozed)]),
+            new: []
+        )
+
+        #expect(lab.model.slot["s3"] == .working && lab.model.slot["snoozed:s3"] == .snoozed)
+        #expect(lab.model.display == ["s1", "s2", "s4", "s5", "s6", "s7", "s3", "s8", "snoozed:s3"])
+        lab.settle()
+        #expect(try #require(lab.model.layout.y(of: "snoozed:s3")) > #require(lab.model.layout.hairs[.snoozed]))
+        #expect(lab.model.display.prefix(2) == ["s1", "s2"])
 
         lab.pointer = nil
         lab.wait(StripFeel.lees.settle + 100)
-        lab.settle()
-        #expect(lab.model.slot["s1"] == .working)
-        #expect(try #require(lab.model.layout.y(of: "s1")) > #require(lab.model.layout.hairs[.working]))
+
+        #expect(lab.model.display.prefix(2) == ["s2", "s1"])
     }
 
     /// One board snoozing a stopped session and bringing a new ask, at Max 5 a full strip: Snoozed takes its place,

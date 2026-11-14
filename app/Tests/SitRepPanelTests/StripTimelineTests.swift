@@ -29,9 +29,11 @@ struct StripTimelineTests {
         #expect(abs(lab.model.mark(.session("s9"))!.arrived - start - StripRecorded.arrived) < 1e-6)
     }
 
-    @Test func aChangeShownInPlaceReSortsASettleAfterAsThePrototypes() {
+    /// An ask answered, Claude working again: SitRep's mark leaves needs you for working at once, its group changed,
+    /// the marks between sliding up (Lee, 14 November 2026).
+    @Test func anAnsweredAskLeavesNeedsYouAtOnceAsThePrototypes() {
         expectPlays(
-            StripRecorded.settle, marks: ["s1", "s2", "s5", "s8"], [(0, { $0.change(StripLab.answered) })]
+            StripRecorded.answer, marks: ["s1", "s2", "s5", "s8"], [(0, { $0.change(StripLab.answered) })]
         )
     }
 
@@ -130,10 +132,9 @@ struct StripTimelineTests {
         expectMatches(played, StripRecorded.countTab)
     }
 
-    /// Max 6 and two new asks, landing in needs you's count beside its stopped: an answer to the first there changes
-    /// its row in place; a settle after the pointer leaves, the marks re-sort, the answered one going into the grey
-    /// count.
-    @Test func anAnswerOutOfTheCountReSortsOnceThePointerHasLeftAsThePrototypes() {
+    /// Max 6 and two new asks, landing in needs you's count beside its stopped: an answer to the first there takes it
+    /// out at once, into the grey count, though the pointer rests on the orange one, whose tab takes its new rows.
+    @Test func anAnswerInTheCountTakesItOutAtOnceAsThePrototypes() {
         var lab = StripLab(length: .grows, maxMarks: 6)
 
         let played = lab.play(
@@ -169,7 +170,8 @@ struct StripTimelineTests {
     }
 
     /// Max 6, five new asks, then a turn ends: DocMan's lands in needs you's count, the marks showing never moving,
-    /// and the grey count, left holding one, goes as Turnstile's mark comes out of it.
+    /// and the grey count, left holding one, goes as Turnstile's mark comes out of it. In the count it goes under the
+    /// asks that landed there, the stopped keeping to their own run of needs you, which the recording never shows.
     @Test func aSessionStoppingPastItsRoomLandsInTheCountAsThePrototypes() {
         var lab = StripLab(length: .grows, maxMarks: 6)
 
@@ -179,7 +181,7 @@ struct StripTimelineTests {
         )
 
         expectMatches(played, StripRecorded.stopsLand)
-        #expect(lab.model.layout.rest(of: .needsYou).first == "s7")
+        #expect(lab.model.layout.rest(of: .needsYou) == ["s9", "s10", "s11", "s12", "s13", "s7", "s5", "s6"])
     }
 
     /// Max 7: a turn ends and DocMan's lands in needs you's new count beside Goosemates's; a new ask takes its place,

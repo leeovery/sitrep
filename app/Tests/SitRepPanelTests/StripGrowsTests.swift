@@ -124,14 +124,12 @@ struct StripGrowsTests {
         #expect(seen.last!.wash == 0)
     }
 
-    /// An answer to an ask in the count changes its row in place; the re-sort waits a settle after the pointer leaves,
-    /// and then the other ask that landed there takes the place the away one had, and the count holds the end of
-    /// needs you's order, the away ask and the stopped.
-    @Test func anAnswerInTheCountShowsInPlaceAndReSortsASettleAfterThePointerLeaves() {
+    /// An answer to an ask in the count takes it out at once, into Working, Lee's pointer on the count's tab, whose
+    /// rows lose it (Lee, 14 November 2026; until then its row changed in place, and it left at the re-sort).
+    @Test func anAnswerInTheCountTakesItsRowOutOfTheCountsTabAtOnce() {
         var lab = StripLab(length: .grows, maxMarks: 6)
         StripLab.asks.prefix(2).forEach(lab.newAsk)
         lab.settle()
-        let fourth = lab.model.layout.y(of: "s4")
         #expect(lab.model.layout.rest(of: .needsYou) == ["s9", "s10", "s5", "s6"])
         lab.open(.count(.needsYou))
 
@@ -142,20 +140,10 @@ struct StripGrowsTests {
             return
         }
         #expect(rows.map(\.lines[0].title) == [
-            "Sizing the diffs", "Allow Bash ", "The management window is sketched",
-            "Waiting for the next round of feedback",
+            "Allow Bash ", "The management window is sketched", "Waiting for the next round of feedback",
         ])
-        #expect(lab.model.layout.rest(of: .needsYou) == ["s9", "s10", "s5", "s6"])
-
-        let left = lab.leave(by: 40)
-        lab.wait(900)
-        #expect(lab.model.layout.rest(of: .needsYou).contains("s9"))
-        lab.wait(400)
-
-        #expect(lab.model.t - left > 1000)
-        #expect(lab.model.layout.rest(of: .needsYou) == ["s4", "s5", "s6"])
-        #expect(lab.model.layout.y(of: "s10") == fourth)
-        #expect(lab.model.layout.rest(of: .working).contains("s9"))
+        #expect(lab.model.layout.rest(of: .needsYou) == ["s10", "s5", "s6"])
+        #expect(lab.model.slot["s9"] == .working)
     }
 
     /// The prototype's fix: an ask folding into its count while it is still growing in stays out of sight there.
@@ -193,9 +181,7 @@ struct StripGrowsTests {
 
     /// An away row in the count's tab jumps as any row does, its session carried on (stage 8).
     @Test func anAwayRowInTheCountsTabJumps() {
-        var lab = StripLab(length: .grows, maxMarks: 6)
-        lab.add(Array(StripLab.asks.prefix(2)))
-        lab.settle()
+        var lab = StripLab(sessions: StripLab.prototype + StripLab.asks.prefix(2), length: .grows, maxMarks: 6)
         lab.open(.count(.needsYou))
         let tab = lab.frame.tabs.first { $0.isLive }!
         let away = CGPoint(x: tab.clip.midX, y: tab.box.minY + tab.words.last!.frame.minY + 8 + 45 + 20)

@@ -103,7 +103,7 @@ struct StripFoldingTests {
         let asleep = try #require(board.snoozed.first)
 
         #expect(strip.strip.layout.places.map(\.id) == ["sr-qx81zt", "snoozed:sr-qx81zt"])
-        guard case let .jump(session, to: target, click: _)? = strip.jump(to: asleep, Self.at(strip.time)) else {
+        guard case let .jump(session, to: target, click: _) = strip.jump(to: asleep, Self.at(strip.time)) else {
             Issue.record("the menu's jump found no mark")
             return
         }
@@ -133,7 +133,7 @@ struct StripFoldingTests {
         #expect(strip.strip.slot["sr-c7m2qa"] == .needsYou)
         #expect(strip.strip.layout.rest(of: .snoozed).allSatisfy { $0 != "snoozed:sr-c7m2qa" })
         #expect(Self.flash(in: strip, for: 1500) == 0)
-        guard case let .jump(session, to: target, click: _)? = strip.jump(to: asleep, Self.at(strip.time)) else {
+        guard case let .jump(session, to: target, click: _) = strip.jump(to: asleep, Self.at(strip.time)) else {
             Issue.record("the menu's jump found no mark")
             return
         }
@@ -208,18 +208,42 @@ struct StripFoldingTests {
         #expect(strip.strip.liveTab() == nil)
     }
 
-    /// A menu's Jump to the window jumps as a click on the mark does, by the session's own id.
+    /// A row new to the board while a menu is open comes in at its place, and nothing else re-sorts under the menu: the
+    /// asks' order, changed a moment before, waits for the menu to close and the pointer to have been off the strip
+    /// for Settle (Lee, 14 November 2026; until then a new row re-sorted them all).
+    @Test func aNewRowWhileAMenuIsOpenReSortsNothing() throws {
+        let strip = Self.strip(folding: Folding())
+        let mark = CGPoint(x: 18, y: strip.strip.yOf(.session("sr-w")))
+        _ = try #require(strip.target(Self.at(strip.time, mark)))
+        strip.menuOpened()
+        let again = row(
+            "ask:sr-a", "ask", session: "sr-a", lead: "Ask sr-a again", second: "Contoso · sr-a",
+            since: Self.since + 1000
+        )
+        let asks = [Self.ask("sr-b"), again, Self.working("sr-w")]
+        strip.show(Self.board(asks), Self.at(strip.time))
+
+        strip.show(Self.board(asks + [Self.working("sr-n")]), Self.at(strip.time))
+
+        #expect(strip.strip.display == ["sr-a", "sr-b", "sr-w", "sr-n"])
+        strip.menuClosed()
+        Self.frames(strip, for: 2000, nil)
+        #expect(strip.strip.display == ["sr-b", "sr-a", "sr-w", "sr-n"])
+    }
+
+    /// A menu's Jump to the window jumps as a click on the mark does, by the session's own id, its mark pressing in;
+    /// with another jump spinning, or the session gone from the strip, it jumps all the same, pressing nothing.
     @Test func aMenusJumpJumpsAsAClickOnTheMark() throws {
         let strip = Self.strip(folding: Folding())
         let working = try #require(strip.board.sessions.first { $0.id == "sr-w" })
+        let ask = try #require(strip.board.sessions.first { $0.id == "sr-a" })
         let gone = Session(id: "sr-gone", project: "P", kind: .working, title: "Gone", sub: "P", since: 0)
 
-        guard case let .jump(session, to: target, click: click)? = strip.jump(to: working, Self.at(strip.time)) else {
-            Issue.record("the menu's jump found no mark")
-            return
-        }
-        #expect(session.id == "sr-w" && target == "sr-w" && click == 1)
-        #expect(strip.jump(to: gone, Self.at(strip.time)) == nil)
+        #expect(strip.jump(to: working, Self.at(strip.time)) == .jump(working, to: "sr-w", click: 1))
+        #expect(Self.pressed(in: strip) == .session("sr-w"))
+        #expect(strip.jump(to: ask, Self.at(strip.time)) == .jump(ask, to: "sr-a", click: 2))
+        #expect(strip.jump(to: gone, Self.at(strip.time)) == .jump(gone, to: "sr-gone", click: 3))
+        #expect(Self.pressed(in: strip) == .session("sr-w"))
     }
 
     // MARK: Helpers
@@ -317,6 +341,15 @@ struct StripFoldingTests {
             return board([northwind], snoozed: [asleep])
         }
         return board([northwind, row(key, "yourTurn", session: "sr-c7m2qa", lead: lead, second: contoso, since: since)])
+    }
+
+    /// The mark a jump spinning pressed in, if one did.
+    private static func pressed(in strip: StripRun) -> MarkKey? {
+        guard case let .mark(key)? = strip.strip.jumping else {
+            return nil
+        }
+
+        return key
     }
 
     /// The brightest any mark's ring flashed, or its inside washed, over this long, the pointer away unless a menu

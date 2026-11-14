@@ -256,11 +256,16 @@ struct StripTests {
         #expect(washed.filter { $0.t >= 2000 }.allSatisfy { $0.level == 0 })
     }
 
+    /// A change to the order within a group, SitRep asking again and so the newest ask, waits until the pointer has
+    /// been off the strip a second.
     @Test func aChangeWaitsUntilThePointerHasBeenOffTheStripASecond() {
         var lab = StripLab()
         lab.open("s6")
+        var askedAgain = StripLab.prototype[0]
+        askedAgain.lines[0].title = "Approve the round 3 drawings"
+        askedAgain.lines[0].since = 0
 
-        lab.change(StripLab.answered)
+        lab.change(askedAgain)
         lab.wait(1500)
         #expect(lab.model.display.first == "s1")
 
@@ -270,7 +275,7 @@ struct StripTests {
         lab.wait(2000) { $0.model.display.first != "s1" }
 
         #expect(abs(lab.model.t - left - 1000) < 17)
-        #expect(lab.model.display.last == "s1")
+        #expect(lab.model.display.prefix(4) == ["s2", "s3", "s1", "s4"])
     }
 
     @Test func aTabOutWhileTheMarksSlideStaysWithItsMarkThenGlidesToTheMarkUnderThePointer() {

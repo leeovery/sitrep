@@ -165,15 +165,17 @@ public final class StripRun: Framed {
     }
 
     /// A jump chosen from a session's menu, the session as the menu had it: as a click on its tab or its mark as the
-    /// strip has them now, a board while the menu showed having snoozed or woken it maybe (`Strip.jump`).
-    public func jump(to session: Session, _ moment: Moment) -> Release? {
+    /// strip has them now, a board while the menu showed having snoozed or woken it maybe; the jump goes though
+    /// nothing presses in, another jump spinning or the session gone from the strip (`Strip.jump`).
+    public func jump(to session: Session, _ moment: Moment) -> Release {
         upToNow(moment)
-        return strip.jump(to: session).map(jump)
+        return jump(strip.jump(to: session))
     }
 
-    /// Where a session's own mark is going on the strip, while it has a place of its own (`Strip.markTarget`).
-    public func markTarget(of id: String) -> CGPoint? {
-        strip.markTarget(of: id)
+    /// Where a session's own mark is going on the strip, by the mark's key, while it has a place of its own
+    /// (`Strip.markTarget`).
+    public func markTarget(ofMark key: String) -> CGPoint? {
+        strip.markTarget(ofMark: key)
     }
 
     /// Lee's settings for the strip: its length, Max, and where along the edge it sits.
@@ -242,7 +244,8 @@ public final class StripRun: Framed {
         }
     }
 
-    /// The count's row under the pointer as the last frame saw it, by its session, while its tab is out.
+    /// The count's row under the pointer as the last frame saw it, by its mark's key (`Session.markID`), while its tab
+    /// is out.
     public var hoverRow: String? {
         frame.pointer.flatMap { point in
             frame.tabs.first { $0.isLive && $0.key.isCount && $0.contains(point) }?.row(at: point)

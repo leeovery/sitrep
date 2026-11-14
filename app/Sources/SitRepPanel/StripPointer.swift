@@ -136,29 +136,39 @@ extension Strip {
         return StripRelease(jumpMark(key) ? session(id) : nil)
     }
 
-    /// The menu's Jump to the window for a session, by its mark as it is now (`markID(of:)`): as a click on its tab or
-    /// on its row in a count's tab, where that is out, else as a click on its mark, or on the count it is folded into.
-    /// The session it jumps to, if it does.
-    public func jump(to menus: Session) -> Session? {
-        guard let id = markID(of: menus) else {
-            return nil
+    /// The menu's Jump to the window for a session: the session it jumps to, its row as the strip has it now
+    /// (`onStrip`), or as the menu had it once it has left the strip, so the jump goes all the same. What shows of it
+    /// presses in as a click would: its tab or its row on a count's tab, where that is out, else its mark, or the count
+    /// it is folded into; nothing while another jump spins.
+    public func jump(to menus: Session) -> Session {
+        guard let s = onStrip(menus) else {
+            return menus
         }
 
-        if jumping == nil, let live = liveTab(), live.phase == .open {
-            if live.key == .session(id) {
-                return jump(live, id, row: false)
-            }
-            if let section = live.key.section, layout.rest(of: section).contains(id) {
-                return jump(live, id, row: true)
-            }
-        }
-        return jumpMark(layout.section(holding: id).map(MarkKey.count) ?? .session(id)) ? session(id) : nil
+        pressIn(s.markID)
+        return s
     }
 
-    /// A session's mark's key as the strip has it now: its row in Snoozed, or elsewhere, as the session given was,
-    /// else its other, a snooze or a wake since having moved it. Nil with neither on the strip.
-    func markID(of s: Session) -> String? {
-        [s.isSnoozed, !s.isSnoozed].map { Session.markID(of: s.id, snoozed: $0) }.first { session($0) != nil }
+    /// A session's row as the strip has it now: in Snoozed, or elsewhere, as the session given was, else its other, a
+    /// snooze or a wake since having moved it. Nil with neither on the strip.
+    func onStrip(_ s: Session) -> Session? {
+        [s.isSnoozed, !s.isSnoozed].lazy.compactMap { self.session(Session.markID(of: s.id, snoozed: $0)) }.first
+    }
+
+    /// A menu's jump to the session by this mark's key pressing in what shows of it: its tab, its row on a count's
+    /// tab, its mark, or its count, none of them while another jump spins (`jump`, `jumpMark`).
+    private func pressIn(_ id: String) {
+        if let live = liveTab(), live.phase == .open {
+            if live.key == .session(id) {
+                _ = jump(live, id, row: false)
+                return
+            }
+            if let section = live.key.section, layout.rest(of: section).contains(id) {
+                _ = jump(live, id, row: true)
+                return
+            }
+        }
+        _ = jumpMark(layout.section(holding: id).map(MarkKey.count) ?? .session(id))
     }
 
     /// What a right-click at a point offers a menu for (14 November 2026): a session's mark, its tab, or its row on a

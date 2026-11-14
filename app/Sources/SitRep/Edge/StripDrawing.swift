@@ -12,7 +12,7 @@ protocol StripDrawing: NSView {
 /// through the edge's mirror, and hangs it from the menu bar its window starts under.
 struct StripScene {
     let frame: StripFrame
-    /// The count's row under the pointer, by its session.
+    /// The count's row under the pointer, by its mark's key (`Session.markID`).
     let hoverRow: String?
     let note: StripNote
     /// The wall clock, ms, which the rows' times count on.
