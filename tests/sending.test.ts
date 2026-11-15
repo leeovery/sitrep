@@ -4,7 +4,7 @@
  * as an inbox reply is, until the session's lines carry them or the message
  * is let go, or the window is gone.
  */
-import { expect, test } from 'claude-code/testing'
+import { expect, test } from './kit'
 import { boardJson, listing } from '../cli/output'
 import { leftOut, replyBodies, sendable, unsentTo } from '../hooks/queue'
 import type { SitrepInFlight } from '../types'

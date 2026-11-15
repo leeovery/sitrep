@@ -6,7 +6,7 @@
  * ask would flash back into Needs you, so the heartbeats are read first.
  */
 import type { FsEntry } from 'claude-code'
-import { expect, test } from 'claude-code/testing'
+import { expect, test } from './kit'
 import { readFolder } from '../cli/files'
 import type { Io } from '../cli/io'
 import {

@@ -1,4 +1,4 @@
-import { expect, test, tier } from 'claude-code/testing'
+import { expect, test, tier } from './kit'
 import { parseEntries, sessionPaths, type SessionMeta } from '../core'
 import { AROUND_MS } from '../hooks/around'
 import { SENT_LINGER_MS } from '../hooks/queue'

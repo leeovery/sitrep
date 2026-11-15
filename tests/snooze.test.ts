@@ -4,7 +4,7 @@
  * the lines from before a snooze was the session's read, and Snooze's times
  * as they are worded (as they are worked out, in wakes.test.ts).
  */
-import { expect, test } from 'claude-code/testing'
+import { expect, test } from './kit'
 import {
   isSnoozed,
   isUntilItMoves,

@@ -1,4 +1,4 @@
-import { expect, test, tier } from 'claude-code/testing'
+import { expect, test, tier } from './kit'
 import {
   CURRENT_MS,
   OFF_BOARD_MS,

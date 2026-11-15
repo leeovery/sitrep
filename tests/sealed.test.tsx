@@ -6,7 +6,7 @@
  * on the one before has ended.
  */
 import type { RenderPropsOf } from 'claude-code'
-import { expect, test, tier } from 'claude-code/testing'
+import { expect, test, tier } from './kit'
 import { parseEntries, parsePresence, type SessionPaths } from '../core'
 import { QUIET_MS } from '../hooks/deliver'
 import { SEND_NOW } from '../hooks/draw/ready'

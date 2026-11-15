@@ -1,4 +1,4 @@
-import { expect, test, tier } from 'claude-code/testing'
+import { expect, test, tier } from './kit'
 import { parseEntries, sessionPaths } from '../core'
 import { LINGER_MS } from '../hooks/scene'
 import { WATCH_MS } from '../hooks/window'

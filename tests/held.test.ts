@@ -1,4 +1,4 @@
-import { expect, test } from 'claude-code/testing'
+import { expect, test } from './kit'
 import { heldReads } from '../cli/held'
 import { T0 } from './support'
 import { terminal } from './terminal'

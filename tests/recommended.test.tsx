@@ -1,4 +1,4 @@
-import { expect, test, tier } from 'claude-code/testing'
+import { expect, test, tier } from './kit'
 import { parseEntries } from '../core'
 import { C } from '../hooks/look'
 import { SPECS } from '../hooks/tools'

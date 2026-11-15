@@ -1,5 +1,5 @@
 import type { Args } from 'claude-code'
-import { expect, test, tier } from 'claude-code/testing'
+import { expect, test, tier } from './kit'
 import type { SessionMeta } from '../core'
 import { rowsOf } from './drawn'
 import { MIN, SLOW, T0, W2, yesAsk } from './support'

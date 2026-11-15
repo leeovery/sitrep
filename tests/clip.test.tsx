@@ -7,7 +7,7 @@ import type {
   UiFocusOrigin,
   UiScrollInput,
 } from 'claude-code'
-import { expect, test, tier } from 'claude-code/testing'
+import { expect, test, tier } from './kit'
 import type { SessionMeta } from '../core'
 import { stepOf, topShowing } from '../hooks/clip'
 import Measure from '../hooks/draw/measure'

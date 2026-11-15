@@ -1,4 +1,4 @@
-import { expect, test } from 'claude-code/testing'
+import { expect, test } from './kit'
 import { readSession } from '../cli/files'
 import { EXIT, WRITER } from '../cli/main'
 import {

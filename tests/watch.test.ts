@@ -1,4 +1,4 @@
-import { expect, test } from 'claude-code/testing'
+import { expect, test } from './kit'
 import type { Io } from '../cli/io'
 import { EXIT, main } from '../cli/main'
 import { OFF_BOARD_MS, POLL_MS } from '../cli/watch'

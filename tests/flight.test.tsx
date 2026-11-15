@@ -10,7 +10,7 @@
  * file-watch reload it resolved, and what the last load did next can be cut
  * short, left here as the message taken but not written down.
  */
-import { expect, test, tier } from 'claude-code/testing'
+import { expect, test, tier } from './kit'
 import { HEARTBEAT_MS, parseEntries, parsePresence, sessionPaths, type SessionPaths } from '../core'
 import { keptFlights, QUIET_MS } from '../hooks/deliver'
 import { WATCH_MS } from '../hooks/window'

@@ -4,7 +4,7 @@
  * holds one test: any other before it would leave the module knowing the
  * message in flight.
  */
-import { expect, test, tier } from 'claude-code/testing'
+import { expect, test, tier } from './kit'
 import { metaText, parsePresence, sessionPaths } from '../core'
 import type { SitrepInFlight } from '../types'
 import { CLOSES, file, META, T0, W1, yesAsk } from './support'

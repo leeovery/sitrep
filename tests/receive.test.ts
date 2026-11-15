@@ -1,4 +1,4 @@
-import { expect, test } from 'claude-code/testing'
+import { expect, test } from './kit'
 import type { Session } from '../core'
 import { boardOf } from '../hooks/board'
 import type { Host } from '../hooks/host'
