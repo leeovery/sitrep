@@ -3,7 +3,7 @@
  * reload leaves it, and `$.state` keeping them as a list. The test kit loads
  * the mod once per file, so this file holds one test.
  */
-import { expect, test, tier } from 'claude-code/testing'
+import { expect, test, tier } from './kit'
 import { metaText, parseEntries, parsePresence, sessionPaths } from '../core'
 import { WATCH_MS } from '../hooks/window'
 import type { SitrepInFlight } from '../types'

@@ -1,5 +1,5 @@
 import type { ClientSurface, JsonValue, RenderPropsOf, RenderViewport } from 'claude-code'
-import { expect, test, tier, type Mounted } from 'claude-code/testing'
+import { expect, test, tier, type Mounted } from './kit'
 import { bandLast, besideBand } from '../hooks/draw/band'
 import Placement from '../hooks/draw/placement'
 import { rowsOf } from './drawn'

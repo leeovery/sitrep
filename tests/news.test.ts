@@ -1,4 +1,4 @@
-import { expect, test, tier } from 'claude-code/testing'
+import { expect, test, tier } from './kit'
 import { sessionPaths } from '../core'
 import { TOAST_MS } from '../hooks/host'
 import { C } from '../hooks/look'

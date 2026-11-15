@@ -1,5 +1,5 @@
 import type { PromptSubmitAttachment } from 'claude-code'
-import { expect, test, tier } from 'claude-code/testing'
+import { expect, test, tier } from './kit'
 import { parseEntries, parsePresence, sessionPaths, type SessionMeta } from '../core'
 import {
   CANNOT_RIDE,

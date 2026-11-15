@@ -1,4 +1,4 @@
-import { expect, test, tier, type Engine } from 'claude-code/testing'
+import { expect, test, tier, type Engine } from './kit'
 import {
   parseMeta,
   parseProject,

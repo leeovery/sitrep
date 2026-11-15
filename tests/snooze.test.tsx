@@ -6,7 +6,7 @@
  * ask its time wakes announced as a new one is, one Lee wakes not; and
  * Lee's own prompt in the window waking the session it holds.
  */
-import { expect, test, tier } from 'claude-code/testing'
+import { expect, test, tier } from './kit'
 import {
   HEARTBEAT_MS,
   LATER_MS,

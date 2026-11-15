@@ -1,5 +1,5 @@
 import type { On } from 'claude-code'
-import { expect, test, tier } from 'claude-code/testing'
+import { expect, test, tier } from './kit'
 import { HEARTBEAT_MS, parsePresence, presenceText, QUIET, type SessionPaths } from '../core'
 import { STATE_MS } from '../hooks/doing'
 import type { SitrepActivity } from '../types'

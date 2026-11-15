@@ -1,5 +1,5 @@
 import type { On } from 'claude-code'
-import { expect, test, tier } from 'claude-code/testing'
+import { expect, test, tier } from './kit'
 import { metaText, parseEntries, presenceText, type SessionMeta } from '../core'
 import { AROUND_MS } from '../hooks/around'
 import { WATCH_MS } from '../hooks/window'

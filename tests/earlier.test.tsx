@@ -1,4 +1,4 @@
-import { expect, test, tier } from 'claude-code/testing'
+import { expect, test, tier } from './kit'
 import type { Body } from '../core'
 import { C } from '../hooks/look'
 import { WATCH_MS } from '../hooks/window'

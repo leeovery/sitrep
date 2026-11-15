@@ -1,4 +1,4 @@
-import { expect, test, tier } from 'claude-code/testing'
+import { expect, test, tier } from './kit'
 import { AROUND_MS } from '../hooks/around'
 import type { SitrepProject, SitrepProjectParked } from '../types'
 import { file, META, note, park, T0, W2 } from './support'

@@ -1,4 +1,4 @@
-import { expect, test } from 'claude-code/testing'
+import { expect, test } from './kit'
 import { QUIET, type Activity } from '../core'
 import { activityNow } from '../hooks/activity'
 import { throughCall } from '../hooks/doing'

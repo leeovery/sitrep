@@ -1,4 +1,4 @@
-import { expect, test, tier } from 'claude-code/testing'
+import { expect, test, tier } from './kit'
 import { EXIT, main, WRITER } from '../cli/main'
 import { parseEntries, type SessionMeta } from '../core'
 import { WATCH_MS } from '../hooks/window'

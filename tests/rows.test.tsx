@@ -1,5 +1,5 @@
 import type { On } from 'claude-code'
-import { expect, test, tier, type Engine } from 'claude-code/testing'
+import { expect, test, tier, type Engine } from './kit'
 import { NAMES_KEPT } from '../hooks/tools'
 import { SLOW } from './support'
 import { postedId, PROJECT, startedId, world } from './world'

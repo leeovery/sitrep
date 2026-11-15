@@ -1,4 +1,4 @@
-import { expect, test } from 'claude-code/testing'
+import { expect, test } from './kit'
 import { EXIT } from '../cli/main'
 import { sessionPaths, type SessionMeta } from '../core'
 import {

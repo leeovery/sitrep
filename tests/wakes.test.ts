@@ -3,7 +3,7 @@
  * table the app's copy is held to as well, each in its own time zone; and the
  * zone the kit is given for a row, proven to be that zone.
  */
-import { expect, test } from 'claude-code/testing'
+import { expect, test } from './kit'
 import { snoozeAt } from '../core'
 import { WAKES } from './wakes'
 import { inZone, LOCAL_ZONE } from './zoned'

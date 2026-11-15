@@ -1,4 +1,4 @@
-import { expect, test, tier } from 'claude-code/testing'
+import { expect, test, tier } from './kit'
 import { C } from '../hooks/look'
 import { INLINE, DOCKED, postedId, CONVERSATION, SURFACES, toProject, world } from './world'
 import { SLOW } from './support'

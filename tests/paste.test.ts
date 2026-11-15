@@ -1,4 +1,4 @@
-import { expect, test } from 'claude-code/testing'
+import { expect, test } from './kit'
 import { unwrapPastes } from '../hooks/paste'
 
 /** A paste as the engine wraps it in a submitted prompt, the line breaks around it with it (live, 2.1.295). */

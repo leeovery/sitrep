@@ -1,5 +1,5 @@
 import type { RenderPropsOf } from 'claude-code'
-import { expect, test, tier } from 'claude-code/testing'
+import { expect, test, tier } from './kit'
 import { parseEntries, sessionPaths, type SessionMeta } from '../core'
 import { rowsOf } from './drawn'
 import { file, finish, MIN, note, park, SLOW, T0, W1, W2, W3, W4, yesAsk } from './support'

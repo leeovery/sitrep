@@ -1,4 +1,4 @@
-import { expect, test } from 'claude-code/testing'
+import { expect, test } from './kit'
 import { parseWords, wantsHelp, type Grammar } from '../cli/args'
 import type { Checked } from '../core'
 

@@ -1,4 +1,4 @@
-import { expect, test } from 'claude-code/testing'
+import { expect, test } from './kit'
 import { endOf, PARENT_MS, type Signals } from '../cli/ending'
 
 /** The app's pid, the run's parent as the CLI loaded. */

@@ -1,4 +1,4 @@
-import { expect, test, tier } from 'claude-code/testing'
+import { expect, test, tier } from './kit'
 import { hoverScope } from '../hooks/draw/kit'
 import { C, GLYPH } from '../hooks/look'
 import { rowsOf } from './drawn'

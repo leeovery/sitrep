@@ -1,4 +1,4 @@
-import { expect, test } from 'claude-code/testing'
+import { expect, test } from './kit'
 import { parseEntries, statusChange, type StatusFields } from '../core'
 import { file, fold, MIN, note, status, T0, W1, W2 } from './support'
 
