@@ -5,6 +5,8 @@ import SitRepLines
 import SitRepTestSupport
 import Testing
 
+/// `.timeLimit` beside the backstop: the reads of boards wait unbounded but heed cancellation, so the limit fails a hung
+/// one alone, where the backstop would end the run.
 @Suite(.backstop, .timeLimit(.minutes(1)))
 struct SitRepWatchTests {
     private static let path = "/Users/me/.bun/bin:/opt/homebrew/bin:/usr/bin:/bin"
@@ -110,7 +112,7 @@ struct SitRepWatchTests {
             await Self.watch(stopped, pathWaitsOn: gate).watch(into: AsyncStream<LastBoard>.makeStream().continuation)
         }
 
-        await gate.asked()
+        try await gate.asked()
         first.cancel()
 
         let (heard, hearing) = AsyncStream<Void>.makeStream()
@@ -131,7 +133,9 @@ struct SitRepWatchTests {
     }
 
     /// The reading of its boards ended while the watch waits on Lee's PATH, as `Feed` ends it, the watch's own task is
-    /// cancelled, so its loop, the PATH come, finds itself stopped, and begins no run (as above).
+    /// cancelled, so its loop, the PATH come, finds itself stopped, and begins no run (as above). The watch starts as
+    /// the stream is made, so its asking for the PATH tells nothing of the reading: the PATH comes once the cancellation
+    /// has reached the watch, whenever the reading got to it.
     @Test func aReadingEndedWhileTheWatchWaitsOnLeesPathCancelsTheWatch() async throws {
         let gate = Gate()
         let boards = Self.watch(Runs([Self.watching]), pathWaitsOn: gate).boards()
@@ -139,8 +143,9 @@ struct SitRepWatchTests {
             for await _ in boards {}
         }
 
-        await gate.asked()
+        try await gate.asked()
         reading.cancel()
+        try await gate.cancelled()
         gate.open()
         try await until(within: .seconds(10), "for the PATH's wait to be let go") { !gate.cancelledAsLetGo.isEmpty }
         #expect(gate.cancelledAsLetGo == [true])
@@ -300,28 +305,48 @@ private final class Runs: Sendable {
 }
 
 /// Lee's PATH held back until the test lets it go, as a login shell slow to answer holds it, deaf to cancellation as
-/// that ask is.
+/// that ask is, though it tells the test of one.
 private final class Gate: Sendable {
     private let waiting = OSAllocatedUnfairLock<CheckedContinuation<Void, Never>?>(initialState: nil)
     private let (asking, isAsked) = AsyncStream<Void>.makeStream()
+    private let (cancelling, isCancelled) = AsyncStream<Void>.makeStream()
     private let letGo = OSAllocatedUnfairLock(initialState: [Bool]())
 
     /// For each wait let go, whether its task was cancelled by then.
     var cancelledAsLetGo: [Bool] { letGo.withLock { $0 } }
 
     func wait() async {
-        await withCheckedContinuation { waiting in
-            self.waiting.withLock { $0 = waiting }
-            isAsked.yield()
+        await withTaskCancellationHandler {
+            await withCheckedContinuation { waiting in
+                self.waiting.withLock { $0 = waiting }
+                isAsked.yield()
+            }
+        } onCancel: {
+            isCancelled.yield()
         }
         letGo.withLock { $0.append(Task.isCancelled) }
     }
 
-    /// Once the PATH has been asked for.
-    func asked() async {
-        for await _ in asking {
-            return
+    /// Once the PATH has been asked for; not within the time, the test ends.
+    func asked(sourceLocation: SourceLocation = #_sourceLocation) async throws {
+        try await Self.first(of: asking, "for Lee's PATH to be asked for", sourceLocation: sourceLocation)
+    }
+
+    /// Once the task waiting on the PATH has been cancelled; not within the time, the test ends.
+    func cancelled(sourceLocation: SourceLocation = #_sourceLocation) async throws {
+        try await Self.first(of: cancelling, "for the wait on Lee's PATH to be cancelled", sourceLocation: sourceLocation)
+    }
+
+    private static func first(
+        of stream: AsyncStream<Void>, _ comment: Comment, sourceLocation: SourceLocation
+    ) async throws {
+        let first = Task {
+            for await _ in stream {
+                return
+            }
         }
+
+        try await value(of: first, within: .seconds(10), comment, sourceLocation: sourceLocation)
     }
 
     func open() {

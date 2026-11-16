@@ -4,20 +4,20 @@ import SitRepTestSupport
 import Testing
 
 /// Real programs watched, each as a child of the test's, every wait on one bounded; a program that may outlive its test
-/// first says its own pid, which leads its process group, and the group is killed however the test ends.
-@Suite(.backstop, .timeLimit(.minutes(1)), .tags(.thisMac))
+/// first says its own pid, which leads its process group, and starts a child only once the test has read it
+/// (`Handshake`), and the group is killed however the test ends.
+@Suite(.backstop, .tags(.thisMac))
 struct WatchProgramTests {
     private static func sh(_ script: String, environment: [String: String] = [:]) -> Program {
         Program(executable: URL(fileURLWithPath: "/bin/sh"), arguments: ["-c", script], environment: environment, limit: .infinity)
     }
 
-    /// What the program says, to its end, each heard as it comes; one not ended within the time is read no more, and
-    /// ends the test.
-    private static func heard(
-        _ program: Program, holding running: RunningChild = RunningChild(), within limit: Duration = .seconds(30),
-        sourceLocation: SourceLocation = #_sourceLocation, hearing: @escaping @Sendable (Heard) -> Void = { _ in }
-    ) async throws -> [Heard] {
-        let watching = Task {
+    /// The program watched to its end, what it says heard as it comes.
+    private static func watching(
+        _ program: Program, holding running: RunningChild = RunningChild(),
+        hearing: @escaping @Sendable (Heard) -> Void = { _ in }
+    ) -> Task<[Heard], Never> {
+        Task {
             var heard: [Heard] = []
 
             for await said in watchProgram(holding: running)(program) {
@@ -27,8 +27,22 @@ struct WatchProgramTests {
 
             return heard
         }
+    }
 
-        return try await value(of: watching, within: limit, "for the program to end", sourceLocation: sourceLocation)
+    /// What the program says, to its end; one not ended within the time is read no more, and ends the test.
+    private static func heard(
+        _ program: Program, holding running: RunningChild = RunningChild(), within limit: Duration = .seconds(30),
+        sourceLocation: SourceLocation = #_sourceLocation
+    ) async throws -> [Heard] {
+        try await value(
+            of: watching(program, holding: running), within: limit, "for the program to end", sourceLocation: sourceLocation
+        )
+    }
+
+    /// The watch read no more, and the program's group killed, whatever the test came to.
+    private static func end(_ watching: Task<[Heard], Never>, _ leader: pid_t?) {
+        watching.cancel()
+        endGroup(of: leader)
     }
 
     @Test func eachLineIsHeardAsItComesThenHowTheProgramEnded() async throws {
@@ -57,17 +71,23 @@ struct WatchProgramTests {
     }
 
     /// Its end heard as the program ends, its output read only to the drain's half second: the child it left, holding
-    /// that output open, would hold the end to the child's own, an hour on, where the drain was not cut.
+    /// that output open and still running, would hold the end to the child's own, an hour on, where the drain was not
+    /// cut.
     @Test func aChildLeftHoldingTheOutputOpenIsNotWaitedOn() async throws {
-        let group = try Handshake()
-        let program = Self.sh("echo $$ > '\(group.path)'; echo done; sleep 3600 &")
+        let (group, child) = (try Handshake(), try Handshake())
+        let watching = Self.watching(
+            Self.sh("echo $$ > '\(group.path)'; exec 3> '\(child.path)'; echo done; sleep 3600 & echo $! >&3")
+        )
         var leader: pid_t?
 
-        async let heard = Self.heard(program, within: .seconds(5))
-        defer { endGroup(of: leader) }
-        leader = try await group.pid()
+        defer { Self.end(watching, leader) }
+        leader = try await group.leader()
 
-        #expect(try await heard == [.line("done"), .exited(.status(0), stderr: "")])
+        let left = try await child.pid()
+        let heard = try await value(of: watching, within: .seconds(5), "for the program to end")
+
+        #expect(heard == [.line("done"), .exited(.status(0), stderr: "")])
+        #expect(isAlive(left))
     }
 
     /// A line is read whole to 16MB, and cut there.
@@ -101,11 +121,12 @@ struct WatchProgramTests {
     }
 
     /// Read no more once it says it is ready, it is told to end: stopped any other way, it never says it was told, and
-    /// the wait on its word runs out.
+    /// the wait on its word runs out. Its trap is set once its pid is read, so a program the test never heard from dies
+    /// of the SIGTERM rather than wait in its trap on a word no one reads.
     @Test func readingNoMoreStopsTheProgramWithSIGTERM() async throws {
         let (group, stopped) = (try Handshake(), try Handshake())
         let program = Self.sh(
-            "trap 'echo TERM > \"\(stopped.path)\"; exit 0' TERM; echo $$ > '\(group.path)'; echo ready; "
+            "echo $$ > '\(group.path)'; trap 'echo TERM > \"\(stopped.path)\"; exit 0' TERM; echo ready; "
                 + "while :; do sleep 0.05; done"
         )
         let first = Task { () -> Heard? in
@@ -117,8 +138,11 @@ struct WatchProgramTests {
         }
         var leader: pid_t?
 
-        defer { endGroup(of: leader) }
-        leader = try await group.pid()
+        defer {
+            first.cancel()
+            endGroup(of: leader)
+        }
+        leader = try await group.leader()
 
         #expect(try await value(of: first, within: .seconds(10), "for the program's first word") == .line("ready"))
         #expect(try await stopped.line() == "TERM")
@@ -131,17 +155,19 @@ struct WatchProgramTests {
         let group = try Handshake()
         let running = RunningChild()
         let program = Self.sh("echo $$ > '\(group.path)'; sleep 60 & trap 'exit 0' TERM; echo ready; wait")
-        var leader: pid_t?
-
-        async let heard = Self.heard(program, holding: running) { said in
+        let watching = Self.watching(program, holding: running) { said in
             if said == .line("ready") {
                 running.terminate()
             }
         }
-        defer { endGroup(of: leader) }
-        leader = try await group.pid()
+        var leader: pid_t?
 
-        #expect(try await heard == [.line("ready"), .exited(.status(0), stderr: "")])
+        defer { Self.end(watching, leader) }
+        leader = try await group.leader()
+
+        let heard = try await value(of: watching, within: .seconds(30), "for the program to end")
+
+        #expect(heard == [.line("ready"), .exited(.status(0), stderr: "")])
     }
 
     @Test func aHolderStoppedStopsAProgramHeldAfterAtOnce() async throws {

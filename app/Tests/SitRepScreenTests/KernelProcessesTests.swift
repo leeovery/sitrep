@@ -95,13 +95,21 @@ struct KernelProcessesTests {
         running.standardOutput = output
         running.standardInput = Pipe()
         try running.run()
+        // Killed with a signal it cannot ignore, so the wait on its end is short.
         defer {
-            running.terminate()
+            if running.isRunning {
+                kill(running.processIdentifier, SIGKILL)
+            }
             running.waitUntilExit()
         }
 
         // Removed while macOS still loads it, it is killed; once it says it is running, it is loaded.
-        _ = output.fileHandleForReading.availableData
+        _ = try await answer(within: .seconds(10), "for bash to say it is running") { said in
+            output.fileHandleForReading.readabilityHandler = { handle in
+                handle.readabilityHandler = nil
+                said(handle.availableData)
+            }
+        }
         try FileManager.default.removeItem(at: copy)
 
         let pid = running.processIdentifier

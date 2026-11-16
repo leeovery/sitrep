@@ -5,9 +5,10 @@ import SitRepTestSupport
 import Testing
 
 /// Real programs run, each as a child of the test's. Every wait on one is bounded, and a program that may leave a child
-/// first says its own pid, which leads its process group, so the group, the child in it, is killed however the test
-/// ends, and a run that never ends fails its test and leaves nothing behind.
-@Suite(.backstop, .timeLimit(.minutes(1)))
+/// first says its own pid, which leads its process group, and starts the child only once the test has read it
+/// (`Handshake`), so the group, the child in it, is killed however the test ends, and a run that never ends fails its
+/// test and leaves nothing behind.
+@Suite(.backstop)
 struct RunTests {
     private static func sh(
         _ script: String, environment: [String: String] = [:], limit: TimeInterval = 5, stopping: Stopping = .alone
@@ -77,25 +78,27 @@ struct RunTests {
     }
 
     /// At its limit, as at a stop, a program is killed with a signal it cannot ignore, and with `.group` every program
-    /// it started: the shell and its child here ignore SIGTERM, as an interactive shell does.
+    /// it started: the shell and its child here ignore SIGTERM, as an interactive shell does. The limit outlasts both
+    /// handshakes' ten seconds, so a starved Mac fails the test only where a handshake runs out of its own time, never
+    /// where the limit killed the program before it said its pids.
     @Test(.tags(.thisMac))
     func aProgramIgnoringTermIsKilledAtItsLimitWithEveryProgramItStarted() async throws {
         let (group, child) = (try Handshake(), try Handshake())
         let program = Self.sh(
-            "trap '' TERM; echo $$ > '\(group.path)'; sleep 3600 & echo $! > '\(child.path)'; wait", limit: 5,
+            "trap '' TERM; echo $$ > '\(group.path)'; exec 3> '\(child.path)'; sleep 3600 & echo $! >&3; wait", limit: 20,
             stopping: .group
         )
         let run = Task { try await runProgram(program) }
         var leader: pid_t?
 
         defer { Self.end(run, leader) }
-        leader = try await group.pid()
+        leader = try await group.leader()
 
         let shell = try #require(leader)
         let left = try await child.pid()
         let ran = try await result(of: run, within: .seconds(30))
 
-        #expect(throws: RunError.timedOut(5)) { try ran.get() }
+        #expect(throws: RunError.timedOut(20)) { try ran.get() }
         #expect(await Self.isGone(shell))
         #expect(await Self.isGone(left))
     }
@@ -110,28 +113,38 @@ struct RunTests {
         var leader: pid_t?
 
         defer { Self.end(run, leader) }
-        leader = try await group.pid()
+        leader = try await group.leader()
 
         let shell = try #require(leader)
 
         run.cancel()
-        await #expect(throws: RunError.stopped) { try await result(of: run, within: .seconds(5)).get() }
+
+        let ran = try await result(of: run, within: .seconds(5))
+
+        #expect(throws: RunError.stopped) { try ran.get() }
         #expect(await Self.isGone(shell))
     }
 
     /// The run ends as the program does, its output read only to the drain's half second: the child it left, holding
-    /// that output open, would hold the run to the child's end, an hour on, where the drain was not cut.
+    /// that output open and still running, would hold the run to the child's end, an hour on, where the drain was not
+    /// cut.
     @Test(.tags(.thisMac))
     func aChildLeftHoldingTheOutputOpenIsNotWaitedOn() async throws {
-        let group = try Handshake()
-        let program = Self.sh("echo $$ > '\(group.path)'; echo done; sleep 3600 &", limit: 20)
+        let (group, child) = (try Handshake(), try Handshake())
+        let program = Self.sh(
+            "echo $$ > '\(group.path)'; exec 3> '\(child.path)'; echo done; sleep 3600 & echo $! >&3", limit: 20
+        )
         let run = Task { try await runProgram(program) }
         var leader: pid_t?
 
         defer { Self.end(run, leader) }
-        leader = try await group.pid()
+        leader = try await group.leader()
 
-        #expect(try await result(of: run, within: .seconds(5)).get() == Ran(status: 0, stdout: "done\n", stderr: ""))
+        let left = try await child.pid()
+        let ran = try await result(of: run, within: .seconds(5))
+
+        #expect(try ran.get() == Ran(status: 0, stdout: "done\n", stderr: ""))
+        #expect(isAlive(left))
     }
 
     @Test func timingOutIsToldInWords() {
@@ -147,13 +160,16 @@ struct RunTests {
         var leader: pid_t?
 
         defer { Self.end(started.run, leader) }
-        leader = try await started.group.pid()
+        leader = try await started.group.leader()
 
         let left = try await started.child.pid()
 
         started.run.cancel()
-        await #expect(throws: RunError.stopped) { try await result(of: started.run, within: .seconds(5)).get() }
-        #expect(Self.isAlive(left))
+
+        let ran = try await result(of: started.run, within: .seconds(5))
+
+        #expect(throws: RunError.stopped) { try ran.get() }
+        #expect(isAlive(left))
     }
 
     /// Its task cancelled, as a later click's jump stops this one, it is killed with every program it started, and says
@@ -164,12 +180,15 @@ struct RunTests {
         var leader: pid_t?
 
         defer { Self.end(started.run, leader) }
-        leader = try await started.group.pid()
+        leader = try await started.group.leader()
 
         let left = try await started.child.pid()
 
         started.run.cancel()
-        await #expect(throws: RunError.stopped) { try await result(of: started.run, within: .seconds(5)).get() }
+
+        let ran = try await result(of: started.run, within: .seconds(5))
+
+        #expect(throws: RunError.stopped) { try ran.get() }
         #expect(await Self.isGone(left))
     }
 
@@ -183,12 +202,15 @@ struct RunTests {
         }
 
         defer { try? FileManager.default.removeItem(at: touched) }
-        await #expect(throws: RunError.stopped) { try await result(of: run, within: .seconds(5)).get() }
+
+        let ran = try await result(of: run, within: .seconds(5))
+
+        #expect(throws: RunError.stopped) { try ran.get() }
         #expect(!FileManager.default.fileExists(atPath: touched.path))
     }
 
-    /// A run, under a limit it never meets, of a program that says its pid, then starts a child to outlive it and says
-    /// the child's.
+    /// A run, under a limit it never meets, of a program that says its pid, then, asked for it, starts a child to
+    /// outlive it and says the child's.
     private struct Started {
         let group: Handshake
         let child: Handshake
@@ -198,7 +220,8 @@ struct RunTests {
             (group, child) = (try Handshake(), try Handshake())
 
             let program = RunTests.sh(
-                "echo $$ > '\(group.path)'; sleep 3600 & echo $! > '\(child.path)'; wait", limit: 60, stopping: stopping
+                "echo $$ > '\(group.path)'; exec 3> '\(child.path)'; sleep 3600 & echo $! >&3; wait", limit: 60,
+                stopping: stopping
             )
 
             run = Task { try await runProgram(program) }
@@ -209,14 +232,6 @@ struct RunTests {
     private static func end(_ run: Task<Ran, any Error>, _ leader: pid_t?) {
         run.cancel()
         endGroup(of: leader)
-    }
-
-    /// Whether the process runs: there, and no zombie, which `kill(pid, 0)` would count as running.
-    private static func isAlive(_ pid: pid_t) -> Bool {
-        var info = proc_bsdinfo()
-        let size = Int32(MemoryLayout<proc_bsdinfo>.size)
-
-        return proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &info, size) == size && info.pbi_status != SZOMB
     }
 
     /// Whether the process is gone: as soon as it is, or not within the generous time a loaded Mac may take to kill it.

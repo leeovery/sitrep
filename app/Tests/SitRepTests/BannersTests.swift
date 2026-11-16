@@ -201,7 +201,7 @@ struct BannersTests {
 
         banners.heard(Self.fromHelper(Self.ready))
 
-        async let leave = banners.leave()
+        let leave = Task { await banners.leave() }
         _ = try await sent.first(3)
         let id = sent.lastId!
 
@@ -209,7 +209,7 @@ struct BannersTests {
         banners.heard(Self.fromHelper(.status(.denied, id: id)))
 
         #expect(sent.messages.last == .status(id: id))
-        #expect(await leave == .denied)
+        #expect(try await value(of: leave, within: .seconds(10)) == .denied)
     }
 
     @Test func aLeaveTheHelperDoesNotAnswerInTimeIsUnknown() async {
@@ -223,13 +223,13 @@ struct BannersTests {
 
         banners.heard(Self.fromHelper(Self.ready))
 
-        async let asked: Void = banners.ask()
+        let asking = Task { await banners.ask() }
         _ = try await sent.first(3)
 
         #expect(sent.messages.last == .ask(id: sent.lastId!))
 
         banners.heard(Self.fromHelper(.status(.allowed(.banners), id: sent.lastId!)))
-        await asked
+        try await value(of: asking, within: .seconds(10))
     }
 
     /// What the helper had yet to answer is unknown, and what comes after waits for it, started again.
@@ -238,11 +238,11 @@ struct BannersTests {
 
         banners.heard(Self.fromHelper(Self.ready))
 
-        async let leave = banners.leave()
+        let leave = Task { await banners.leave() }
         _ = try await sent.first(3)
         banners.helperEnded(Self.ended(Self.first))
 
-        #expect(await leave == nil)
+        #expect(try await value(of: leave, within: .seconds(10)) == nil)
 
         let opened = app.opens
 
@@ -338,13 +338,13 @@ struct BannersTests {
 
         banners.heard(Self.fromHelper(Self.ready))
 
-        async let leave = banners.leave()
+        let leave = Task { await banners.leave() }
         _ = try await sent.first(3)
         let opened = app.opens
 
         banners.heard(Self.fromHelper(.ready(helper: Self.second)))
 
-        #expect(await leave == nil)
+        #expect(try await value(of: leave, within: .seconds(10)) == nil)
         #expect(sent.messages.last == .ready)
         #expect(app.opens == opened + 1)
 

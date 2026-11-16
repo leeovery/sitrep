@@ -77,7 +77,7 @@ func race<Value: Sendable>(
     defer { timer.cancel() }
     switch await first.value() {
     case let .given(value):
-        return (value, Slept(limit: limit, isDone: true, took: .zero))
+        return (value, Slept(limit: limit, end: .done, took: .zero))
     case let .ranOut(slept):
         return (nil, slept)
     }

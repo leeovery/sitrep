@@ -54,13 +54,11 @@ struct GivenBoard: JumpBoardSource {
 /// heeds a task cancelled.
 final class Gate: Sendable {
     private let state = OSAllocatedUnfairLock(
-        initialState: (isOpen: false, arrived: 0, passed: 0, waiting: [CheckedContinuation<Void, Never>]())
+        initialState: (isOpen: false, arrived: 0, waiting: [CheckedContinuation<Void, Never>]())
     )
 
     /// How many have come to it.
     var arrived: Int { state.withLock(\.arrived) }
-    /// How many have gone on through it, each counted as its caller takes up again.
-    var passed: Int { state.withLock(\.passed) }
 
     func pass() async {
         await withCheckedContinuation { continuation in
@@ -76,7 +74,6 @@ final class Gate: Sendable {
                 continuation.resume()
             }
         }
-        state.withLock { $0.passed += 1 }
     }
 
     func open() {

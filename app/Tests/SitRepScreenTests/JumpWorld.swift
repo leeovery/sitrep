@@ -197,11 +197,11 @@ struct Jumping {
         await open([], from: last)
     }
 
-    /// The opening of a window for `sr-a` typing the line.
-    func opening(_ line: String, wasHeld: Bool = false) -> Opening {
+    /// The opening of a window for `sr-a` typing the line, through Ghostty's driver unless another is given.
+    func opening(_ line: String, wasHeld: Bool = false, through driver: (any TerminalDriver)? = nil) -> Opening {
         Opening(
-            session: "sr-a", name: JumpWorld.named, line: line, terminal: .ghostty, wasHeld: wasHeld, driver: driver,
-            workspace: workspace, clock: clock, openings: openings
+            session: "sr-a", name: JumpWorld.named, line: line, terminal: .ghostty, wasHeld: wasHeld,
+            driver: driver ?? self.driver, workspace: workspace, clock: clock, openings: openings
         )
     }
 

@@ -292,19 +292,20 @@ struct OpenWindowTests {
     }
 
     /// Stopped once the window was asked for, its event in flight: the window opens all the same, unfocused, and is
-    /// remembered. With Ghostty in front as Lee clicked, nothing marks the opening's end: it goes on from the window's
-    /// event without a pause, so the checks follow the event let through.
+    /// remembered. With Ghostty in front as Lee clicked, nothing of the workspace's marks the opening's end, so the
+    /// checks wait on the driver's own: the focus it passes over comes after the window's event goes through.
     @Test func anOpeningStoppedOnceTheWindowWasAskedForIsRememberedAndLeftUnfocused() async throws {
         let gate = Gate()
         let jumping = Jumping(FakeTmux(), Self.detachedZmx(), windowHeld: gate)
-        let opened = Task { await jumping.opening("attach litware").open() }
+        let driver = EndedDriver(jumping.driver)
+        let opened = Task { await jumping.opening("attach litware", through: driver).open() }
 
         try await until(within: .seconds(10), "for the window's event to arrive") { gate.arrived == 1 }
         opened.cancel()
         #expect(try await value(of: opened, within: .seconds(10)) == .stopped)
 
         gate.open()
-        try await until(within: .seconds(10), "for the window's event to go through") { gate.passed == 1 }
+        try await until(within: .seconds(10), "for the opening to end") { driver.ended == 1 }
         #expect(jumping.ghostty.told == ["open attach litware"])
         #expect(jumping.openings.isOpening("sr-a"))
     }
@@ -356,6 +357,31 @@ struct OpenWindowTests {
                 == .unopened("SitRep gave up waiting for Ghostty to open a window for \(JumpWorld.named) after 20 seconds; one may still appear.")
         )
         gate.open()
+    }
+}
+
+/// The driver given, counting each opening of a window it has ended, however it ended.
+private final class EndedDriver: TerminalDriver {
+    private let driver: any TerminalDriver
+    private let count = OSAllocatedUnfairLock(initialState: 0)
+
+    init(_ driver: any TerminalDriver) {
+        self.driver = driver
+    }
+
+    var ended: Int { count.withLock { $0 } }
+
+    func bringForward(on device: String, front: String?) async throws -> Bool {
+        try await driver.bringForward(on: device, front: front)
+    }
+
+    func canOpen() async -> Bool {
+        await driver.canOpen()
+    }
+
+    func openWindow(running command: String, front: String?, sending: @escaping @Sendable () -> Void) async throws -> Bool {
+        defer { count.withLock { $0 += 1 } }
+        return try await driver.openWindow(running: command, front: front, sending: sending)
     }
 }
 

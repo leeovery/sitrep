@@ -1,10 +1,15 @@
 import Darwin
 import Foundation
+import SitRepTestSupport
 import Testing
 
 /// A named pipe that a child program writes a line to once it is ready, which the test reads, within a time, before it
 /// acts on the child. The pipe goes with the handshake, however the test ends, so long as no task outlives the test
 /// holding it: a task given the child's program, its path in it, holds a string, never the handshake.
+///
+/// A child's writing waits on the test opening the pipe to read, so a program that leaves a child of its own opens that
+/// child's pipe before starting it (`exec 3> pipe`): the child starts only once the test, its group's leader read
+/// (`leader(within:)`), asks for its pid, and a test that never learnt the leader leaves no child behind.
 final class Handshake: Sendable {
     let path: String
 
@@ -47,13 +52,26 @@ final class Handshake: Sendable {
         return try #require(pid_t(said), "the child wrote no pid: \(said)", sourceLocation: sourceLocation)
     }
 
+    /// The pid the child wrote, as `pid(within:)` reads it, of the leader of its process group, which the backstop
+    /// watches from now until `endGroup(of:)`.
+    func leader(within limit: Duration = .seconds(10), sourceLocation: SourceLocation = #_sourceLocation) async throws -> pid_t {
+        let leader = try await pid(within: limit, sourceLocation: sourceLocation)
+
+        watchGroup(of: leader)
+        return leader
+    }
+
     private struct Failed: Error {
         let words: String
     }
 
-    /// The pipe's first line, once whole. Opened without waiting on a writer: on macOS a poll then shows nothing until
-    /// a writer has written, even once one has come and gone with nothing said, so the read ends at the line or at the
-    /// time.
+    /// How long a poll of the pipe waits before the pipe is read all the same.
+    private static let slice = Duration.milliseconds(50)
+
+    /// The pipe's first line, once whole or once its writer lets the pipe go; none by the time, a failure. Opened
+    /// without waiting on a writer, the pipe reads, on macOS, as at its end (a read of 0) until a writer comes, open and
+    /// empty (EAGAIN) while one is there, and at its end again once it has gone, which a poll never shows: so it is
+    /// polled a slice at a time and read after each, and at its end once something was said, it has said all it will.
     private static func line(at path: String, by deadline: ContinuousClock.Instant) -> Result<String, Failed> {
         let pipe = open(path, O_RDONLY | O_NONBLOCK)
 
@@ -68,17 +86,19 @@ final class Handshake: Sendable {
         while !said.contains(UInt8(ascii: "\n")) {
             let left = deadline - ContinuousClock.now
             var ready = pollfd(fd: pipe, events: Int16(POLLIN), revents: 0)
-            let polled = left > .zero ? poll(&ready, 1, Int32(left / .milliseconds(1))) : 0
 
-            if polled < 0, errno == EINTR {
-                continue
+            guard left > .zero else {
+                return .failure(Failed(words: "none within the time"))
             }
-            guard polled > 0 else {
-                return .failure(Failed(words: polled == 0 ? "none within the time" : "poll: \(String(cString: strerror(errno)))"))
+            if poll(&ready, 1, Int32(min(left, slice) / .milliseconds(1))) < 0, errno != EINTR {
+                return .failure(Failed(words: "poll: \(String(cString: strerror(errno)))"))
             }
 
             let count = read(pipe, &chunk, chunk.count)
 
+            if count == 0, !said.isEmpty {
+                break
+            }
             if count < 0, errno != EINTR, errno != EAGAIN {
                 return .failure(Failed(words: "read: \(String(cString: strerror(errno)))"))
             }
@@ -89,10 +109,10 @@ final class Handshake: Sendable {
     }
 }
 
-/// Kills the process group the leader leads, with every program in it, as a test ends: `Process` makes each program
-/// it starts a group's leader, and what the program starts is in its group.
-func endGroup(of leader: pid_t?) {
-    if let leader {
-        kill(-leader, SIGKILL)
-    }
+/// Whether the process runs: there, and no zombie, which `kill(pid, 0)` would count as running.
+func isAlive(_ pid: pid_t) -> Bool {
+    var info = proc_bsdinfo()
+    let size = Int32(MemoryLayout<proc_bsdinfo>.size)
+
+    return proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &info, size) == size && info.pbi_status != SZOMB
 }

@@ -204,7 +204,9 @@ struct JumpLimitTests {
         jumped.cancel()
         gate.open()
 
-        await #expect(throws: CancellationError.self) { try await jumped.value }
+        let ended = try await result(of: jumped, within: .seconds(10))
+
+        #expect(throws: CancellationError.self) { try ended.get() }
         #expect(jumping.ghostty.asked == [JumpWorld.litwareTerminal.device])
         #expect(jumping.ghostty.told.isEmpty)
     }

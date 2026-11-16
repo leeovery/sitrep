@@ -33,18 +33,34 @@ public func until(
     try #require(heldInTime, slept.ranOut("for the condition to hold", comment), sourceLocation: sourceLocation)
 }
 
-/// How a time slept out ended: whether what it waited on came, and how long it took on the clock.
+/// How a time slept out ended, and how long it took on the clock.
 struct Slept: Sendable {
+    /// What ended it: what it waited on come; the time slept out; the clock's ceiling reached before it was, its actor
+    /// too slow to come back; or its task cancelled.
+    enum End: Sendable {
+        case done
+        case sleptOut
+        case ceiling
+        case cancelled
+    }
+
     let limit: Duration
-    let isDone: Bool
+    let end: End
     let took: Duration
 
-    /// The failure's words: what the wait was for, the caller's comment where given ("for the run to end"), and its
-    /// time, slept out and on the clock.
-    func ranOut(_ awaited: String, _ comment: Comment?) -> Comment {
-        let awaited = comment?.rawValue ?? awaited
+    var isDone: Bool { end == .done }
 
-        return "The wait \(awaited) ran out of time: \(Self.seconds(limit)) slept out, \(Self.seconds(took)) on the clock."
+    /// The failure's words: what the wait was for, the caller's comment where given ("for the run to end"), what ended
+    /// it, and its time on the clock.
+    func ranOut(_ awaited: String, _ comment: Comment?) -> Comment {
+        let wait = "The wait \(comment?.rawValue ?? awaited)"
+        let (limit, took) = (Self.seconds(limit), Self.seconds(took))
+
+        return switch end {
+        case .done, .sleptOut: "\(wait) ran out of time: \(limit) slept out, \(took) on the clock."
+        case .ceiling: "\(wait) reached its ceiling: \(took) on the clock, ten times its \(limit), not yet slept out."
+        case .cancelled: "\(wait) was cancelled: \(took) on the clock."
+        }
     }
 
     private static func seconds(_ duration: Duration) -> String {
@@ -56,7 +72,7 @@ struct Slept: Sendable {
 /// takes the caller back, so a busy actor holds the time back as it holds the work waited on: on a clock, the time ran
 /// out with a test's work still queued on the main actor behind every other test's, which on a loaded Mac took minutes
 /// to come round. A hot actor, never blocked but slow to come back, would hold it back without end, so it ends all the
-/// same at ten times the limit on the clock. Unloaded, the time is the clock's, near enough.
+/// same at its ceiling, ten times the limit on the clock. Unloaded, the time is the clock's, near enough.
 func sleepOut(
     _ limit: Duration, tick: Duration = .milliseconds(5), isolation: isolated (any Actor)? = #isolation,
     until done: () -> Bool
@@ -64,14 +80,27 @@ func sleepOut(
     let clock = ContinuousClock()
     let start = clock.now
     let ceiling = start + limit * 10
+    var ticks = max(1, Int(limit / tick))
 
-    for _ in 0 ..< max(1, Int(limit / tick)) {
-        guard !done(), !Task.isCancelled, clock.now < ceiling else {
-            break
-        }
-
-        try? await Task.sleep(for: tick)
+    func ended(_ end: Slept.End) -> Slept {
+        Slept(limit: limit, end: end, took: clock.now - start)
     }
 
-    return Slept(limit: limit, isDone: done(), took: clock.now - start)
+    while true {
+        if done() {
+            return ended(.done)
+        }
+        if Task.isCancelled {
+            return ended(.cancelled)
+        }
+        if clock.now >= ceiling {
+            return ended(.ceiling)
+        }
+        if ticks == 0 {
+            return ended(.sleptOut)
+        }
+
+        ticks -= 1
+        try? await Task.sleep(for: tick)
+    }
 }

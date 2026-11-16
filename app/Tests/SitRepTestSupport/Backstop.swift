@@ -1,25 +1,25 @@
+import Darwin
 import Foundation
 import os
 import Testing
 
 extension Trait where Self == Backstop {
-    /// A minute for each test, slept out on the main actor, which every suite carries (`BackstopTests`).
+    /// The backstop, which every suite carries (`BackstopTests`).
     public static var backstop: Self {
-        Backstop(limit: .seconds(60))
+        Backstop()
     }
 }
 
-/// Fails a test whose body runs past its limit, rather than let the run sit on it: a wait on what never comes, a
-/// double's continuation never resumed, hangs a test, and `.timeLimit` records the overrun only once the body ends,
-/// which a hung one never does. The limit is slept out on the main actor, which every app test shares, as
-/// `until(within:)` sleeps one out, so a loaded run stretches it.
+/// Ends a run that has stopped going forward, rather than let it sit on a hung test for ever: each test case under the
+/// trait is kept in flight from its start to its end (`InFlight`), and once no test has begun or ended for a while, with
+/// some still in flight, the run is ended, failed, naming them, and the process groups their programs lead are killed
+/// (`watchGroup(of:)`). SwiftPM runs each test target in a process of its own, so a run here is a target's. A hung test
+/// cannot be failed and let go alone: Swift Testing lends a scope its body only for the length of the call, so the run
+/// waits on the body however long it hangs.
 ///
-/// The hung body cannot be let go: Swift Testing lends a scope its body only for the length of the call, and one held
-/// past it (`withoutActuallyEscaping`) traps as the call returns. So the test is failed and left hanging, the rest of
-/// the run goes on, and once every other test has ended the run ends (`InFlight`), where it would sit idle for ever.
+/// It watches the run as a whole, never a test's own time: on a loaded Mac every test is slower, but tests go on
+/// ending, so only a hang, which in the end leaves nothing else to end, a blocked main thread among them, trips it.
 public struct Backstop: SuiteTrait, TestTrait, TestScoping {
-    let limit: Duration
-
     public var isRecursive: Bool { true }
 
     /// Each test case, never the suite as a whole.
@@ -30,93 +30,136 @@ public struct Backstop: SuiteTrait, TestTrait, TestScoping {
     public func provideScope(
         for test: Test, testCase: Test.Case?, performing function: @Sendable () async throws -> Void
     ) async throws {
-        let running = InFlight.shared.began()
-        let watch = Task { [limit] in
-            let slept = await sleepOut(limit, tick: .milliseconds(250), isolation: MainActor.shared) { running.hasEnded }
+        let flying = InFlight.shared.began(test.id.nameComponents.joined(separator: "/"))
 
-            guard !slept.isDone, !Task.isCancelled else {
-                return
-            }
-
-            let why = slept.ranOut("for the test to end", nil).rawValue
-
-            Issue.record(
-                "\(test.name) ran past its backstop: it is left hanging, and the run ends once every other test has. \(why)",
-                sourceLocation: test.sourceLocation
-            )
-            InFlight.shared.hung()
-        }
-
-        defer {
-            running.end()
-            watch.cancel()
-        }
+        defer { InFlight.shared.ended(flying) }
         try await function()
     }
 }
 
-/// The tests under way, and those of them hung past their backstop: once the hung are all that is left, and stay so
-/// for a while, as no test is still to start, the run ends, failed.
+/// Watches the process group the leader leads, a test's program and every program it started: should the backstop end
+/// the run, the group is killed with it. Until `endGroup(of:)`.
+public func watchGroup(of leader: pid_t) {
+    InFlight.shared.watch(group: leader)
+}
+
+/// Kills the process group the leader leads, with every program in it, as a test ends, and watches it no more.
+public func endGroup(of leader: pid_t?) {
+    if let leader {
+        InFlight.shared.end(group: leader)
+    }
+}
+
+/// The run's tests in flight and the process groups their programs lead, watched on a thread of its own: never one of
+/// Swift's nor the main one, which a hang may hold.
 final class InFlight: Sendable {
     static let shared = InFlight()
 
-    /// How long the hung must be all that is left before the run ends: tests still to start begin as others end.
-    private static let quiet = 10
+    /// How long the run may go with no test beginning or ending, while some are in flight, before it is ended. The
+    /// longest any target's run went so was 89 seconds, measured with 20 burners on a Mac already at a load of 80 to 130
+    /// (16 November 2026): SitRepTests' main actor, which most of its tests share, came round so seldom that none of
+    /// them ended. A healthy test of 90 seconds, left running alone, is as quiet. Five minutes is over three times either.
+    static let quiet = Duration.seconds(300)
+    /// How often the watch looks.
+    private static let every: TimeInterval = 5
 
-    private struct State {
-        var running = 0
-        var hung = 0
-        var isWatching = false
+    private let flight = OSAllocatedUnfairLock(initialState: Flight(at: .now))
+
+    private init() {
+        Thread.detachNewThread { [self] in watch() }
     }
 
-    /// A test under way, until it ends.
-    final class Running: Sendable {
-        private let ended = OSAllocatedUnfairLock(initialState: false)
-        private let inFlight: InFlight
-
-        fileprivate init(_ inFlight: InFlight) {
-            self.inFlight = inFlight
-        }
-
-        var hasEnded: Bool { ended.withLock { $0 } }
-
-        func end() {
-            ended.withLock { $0 = true }
-            inFlight.state.withLock { $0.running -= 1 }
-        }
+    func began(_ name: String) -> Int {
+        flight.withLock { $0.begin(name, at: .now) }
     }
 
-    private let state = OSAllocatedUnfairLock(initialState: State())
-
-    func began() -> Running {
-        state.withLock { $0.running += 1 }
-        return Running(self)
+    func ended(_ test: Int) {
+        flight.withLock { $0.end(test, at: .now) }
     }
 
-    /// A test hung past its backstop: from the first, the run is watched for the hung to be all that is left.
-    func hung() {
-        let watches = state.withLock { state in
-            state.hung += 1
-            defer { state.isWatching = true }
-            return !state.isWatching
-        }
+    func watch(group leader: pid_t) {
+        flight.withLock { _ = $0.groups.insert(leader) }
+    }
 
-        if watches {
-            Thread.detachNewThread { self.endOnceOnlyTheHungAreLeft() }
+    func end(group leader: pid_t) {
+        flight.withLock { _ = $0.groups.remove(leader) }
+        Self.kill(group: leader)
+    }
+
+    private func watch() {
+        while true {
+            Thread.sleep(forTimeInterval: Self.every)
+
+            let (stall, groups) = flight.withLock { ($0.stall(at: .now, quiet: Self.quiet), $0.groups) }
+
+            if let stall {
+                Self.end(saying: stall, killing: groups)
+            }
         }
     }
 
-    private func endOnceOnlyTheHungAreLeft() {
-        var quietFor = 0
+    /// Says why on stderr, after whatever Swift Testing has yet to write, kills the groups, and ends the process at
+    /// once: its tests are hung, so there is nothing to wait on.
+    private static func end(saying stall: String, killing groups: Set<pid_t>) -> Never {
+        fflush(nil)
+        FileHandle.standardError.write(Data(stall.utf8))
+        groups.forEach { kill(group: $0) }
+        fflush(nil)
+        _exit(EXIT_FAILURE)
+    }
 
-        while quietFor < Self.quiet {
-            Thread.sleep(forTimeInterval: 1)
-            quietFor = state.withLock { $0.running == $0.hung } ? quietFor + 1 : 0
+    /// Never 0 nor 1, which would signal this process's own group, or every process Lee runs.
+    private static func kill(group leader: pid_t) {
+        if leader > 1 {
+            Darwin.kill(-leader, SIGKILL)
+        }
+    }
+}
+
+/// The tests in flight, and when the run last went forward, a test beginning or ending; and the process groups their
+/// programs lead. On the suspending clock, which stands still while the Mac sleeps, as the run does.
+struct Flight {
+    private struct Flying {
+        let name: String
+        let began: SuspendingClock.Instant
+    }
+
+    private var flying: [Int: Flying] = [:]
+    private var given = 0
+    private var moved: SuspendingClock.Instant
+    var groups: Set<pid_t> = []
+
+    init(at start: SuspendingClock.Instant) {
+        moved = start
+    }
+
+    /// The test begun, by which it ends.
+    mutating func begin(_ name: String, at now: SuspendingClock.Instant) -> Int {
+        given += 1
+        flying[given] = Flying(name: name, began: now)
+        moved = now
+        return given
+    }
+
+    mutating func end(_ test: Int, at now: SuspendingClock.Instant) {
+        flying[test] = nil
+        moved = now
+    }
+
+    /// Nil while the run goes forward: no test in flight, or one begun or ended within `quiet`. Otherwise, what the run
+    /// is ended with: every test in flight, the longest first, and how long each has run.
+    func stall(at now: SuspendingClock.Instant, quiet: Duration) -> String? {
+        guard !flying.isEmpty, now - moved >= quiet else {
+            return nil
         }
 
-        let hung = state.withLock(\.hung)
+        let tests = flying.values.sorted { $0.began < $1.began }.map { "  \($0.name), \(Self.seconds(now - $0.began)) in\n" }
 
-        FileHandle.standardError.write(Data("Every other test has ended; \(hung) hung past the backstop, so the run ends.\n".utf8))
-        exit(EXIT_FAILURE)
+        return "The backstop ended the run: no test has begun or ended for \(Self.seconds(now - moved)). In flight:\n"
+            + tests.joined()
+    }
+
+    private static func seconds(_ duration: Duration) -> String {
+        "\(duration.components.seconds) s"
     }
 }
