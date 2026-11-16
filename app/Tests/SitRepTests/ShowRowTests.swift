@@ -1,12 +1,14 @@
 import AppKit
 @testable import SitRep
 import SitRepPanel
+import SitRepTestSupport
 import SwiftUI
 import Testing
 
 /// Edge's Show row, set as System Settings sets Appearance's on macOS 26: on the real pane, as the window lays it
 /// out (`Hosted`), and its tiles' edges, each in a window of its own.
 @MainActor
+@Suite(.backstop)
 struct ShowRowTests {
     /// The Show row's card's top, the pane's first, 13 under the toolbar, at any width.
     private static let top: CGFloat = 13
@@ -71,7 +73,8 @@ struct ShowRowTests {
 
     /// A choice changes the tiles at once, as Appearance's do: drawn as soon as Show is the strip, the ring is whole
     /// round the strip's picture and gone from the notch's.
-    @Test func aChoiceChangesTheTilesAtOnce() async throws {
+    @Test(.tags(.thisMac))
+    func aChoiceChangesTheTilesAtOnce() async throws {
         let settings = await Hosted.settings()
         let hosted = Hosted(Hosted.content(.edge, settings, over: Self.raiseGround), size: CGSize(width: 744, height: 620))
         let lefts = Self.lefts(744)
@@ -81,7 +84,6 @@ struct ShowRowTests {
             accent = NSColor.controlAccentColor.usingColorSpace(.sRGB) ?? accent
         }
         settings.preferences.edit { $0.show = .strip }
-        await Task.yield()
         hosted.hosting.layoutSubtreeIfNeeded()
 
         let drawn = try Drawn(hosted.hosting).atTwice()
@@ -114,7 +116,8 @@ struct ShowRowTests {
     }
 
     /// The ring is drawn in the accent, the system's, as Appearance's is.
-    @Test func theRingIsTheAccent() async throws {
+    @Test(.tags(.thisMac))
+    func theRingIsTheAccent() async throws {
         let drawn = try await Self.page(744)
         let ring = try #require(drawn.colour(at: CGPoint(x: Self.lefts(744)[0] - 2, y: Self.top + 35)))
         var accent = NSColor.controlAccentColor

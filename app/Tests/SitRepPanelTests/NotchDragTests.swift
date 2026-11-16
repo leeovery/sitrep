@@ -1,9 +1,11 @@
 import CoreGraphics
 @testable import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// A press on the notch carries it once it moves more than 4 points: along the edge with the pointer, and past the
 /// screen's middle to the other edge.
+@Suite(.backstop)
 struct NotchDragTests {
     private static let width = 1512.0, height = 982.0
     private static let press = CGPoint(x: 2, y: 400)

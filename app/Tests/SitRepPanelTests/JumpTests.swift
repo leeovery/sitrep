@@ -1,10 +1,12 @@
 import CoreGraphics
 @testable import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// A click on a row, Meniscus and the card alike (DESIGN, "The panel"): the row presses in and spins until the jump
 /// answers, for 450ms at most, and then the panel drains. Only an open or opening panel takes the click, one jump at
 /// a time, and nothing else closes the panel while the row is pressed in.
+@Suite(.backstop)
 struct JumpTests {
     @Test func aClickedRowIsPressedInUntilThePanelDrainsAt450() {
         pressesInAndDrainsAt450(Lab())

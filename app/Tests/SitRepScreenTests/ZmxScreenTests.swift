@@ -1,5 +1,6 @@
 import Darwin
 @testable import SitRepScreen
+import SitRepTestSupport
 import Testing
 
 /// Claude in zmx: on the session's own pty, which no terminal is on, Ghostty's `$TERM_PROGRAM` passed on.
@@ -7,6 +8,7 @@ func inZmx(_ session: String) -> Where {
     Where(device: "/dev/ttys087", terminal: "ghostty", zmx: Where.Zmx(session: session))
 }
 
+@Suite(.backstop)
 struct ZmxScreenTests {
     private static let portals = "proseware-Qm4tZ8"
     private static let litware = "litware · restore-card"

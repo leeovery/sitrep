@@ -13,6 +13,7 @@ import Testing
 /// The welcome window, made, never shown, over a Mac of its own: nothing is registered with macOS, asked of it, opened,
 /// copied or played.
 @MainActor
+@Suite(.backstop)
 struct WelcomeWindowTests {
     typealias Mac = WelcomeWorld.Mac
     typealias Made = WelcomeWorld.Made
@@ -98,10 +99,7 @@ struct WelcomeWindowTests {
             window?.becomeKey()
             #expect(window != nil && content != nil && stage != nil, "\(place)")
             closing(welcome, shown, window)
-            for _ in 0 ..< 10 where window != nil || content != nil || stage != nil {
-                await Task.yield()
-            }
-            #expect(window == nil && content == nil && stage == nil, "\(place)")
+            await until(turns: 1000, "\(place)") { window == nil && content == nil && stage == nil }
             #expect(!welcome.isVisiting && shown.stage == nil, "\(place)")
         }
     }

@@ -10,6 +10,7 @@ import Testing
 /// arrival unfolds Needs you, every your-turn row stays however old, no hairline comes as sections fold, and the head
 /// shows only with nothing to list or a stale board.
 @MainActor
+@Suite(.backstop)
 struct CardSectionsRunTests {
     private static let setting = NotchRun.Setting(
         stage: Stage(height: 982, visibleTop: 24, visibleBottom: 982, notchY: 491), mirror: .identity,

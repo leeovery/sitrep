@@ -1,5 +1,6 @@
 import Darwin
 @testable import SitRepScreen
+import SitRepTestSupport
 import Testing
 
 let socket = "/private/tmp/tmux-501/default"
@@ -25,6 +26,7 @@ func seen(_ places: [Place]) -> [[String?]] {
     places.map { [$0.device, $0.app.name, $0.select?.session] }
 }
 
+@Suite(.backstop)
 struct TmuxScreenTests {
     /// Claude's pane, the tmux window holding it, and its tmux session.
     private static let panes = [

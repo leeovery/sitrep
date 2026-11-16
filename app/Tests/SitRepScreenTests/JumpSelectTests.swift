@@ -1,9 +1,11 @@
 import Darwin
 import SitRepCore
 @testable import SitRepScreen
+import SitRepTestSupport
 import Testing
 
 /// tmux's select in a jump, and the order places are tried in, a place that fails giving way to the next.
+@Suite(.backstop)
 struct JumpSelectTests {
     /// Claude's tmux session `$7` of two windows, its Ghostty window on the other.
     private static func besideIt(select: Ran? = Ran(status: 0, stdout: "", stderr: "")) -> Jumping {

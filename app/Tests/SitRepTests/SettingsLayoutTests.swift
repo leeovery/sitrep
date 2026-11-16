@@ -12,6 +12,7 @@ import Testing
 /// their rows and the system's own controls, hosted offscreen in a window never shown, their frames measured. A pane's
 /// width is the window's right of the sidebar.
 @MainActor
+@Suite(.backstop)
 struct SettingsLayoutTests {
     /// The column's left, 20 in from the sidebar.
     private static let edge = CGFloat(20)
@@ -313,7 +314,10 @@ enum General: Int, Sendable {
     case login, terminal, ghostty
 }
 
-/// Settings over a world of its own, as the window hosts it.
+/// Settings over a world of its own, as the window hosts it. A change to Settings shows at the next
+/// `layoutSubtreeIfNeeded()`, with no turn of the main actor before it: SwiftUI hears the change as it is made, and draws
+/// it in the layout. A test turns the main actor only for a task the code itself posts, as the welcome's stage does
+/// (`WelcomeWorld.Made.settled()`).
 @MainActor
 struct Hosted {
     let hosting: NSView

@@ -1,15 +1,17 @@
 import AppKit
 @testable import SitRep
+import SitRepTestSupport
 import Testing
 
 /// A window of SitRep's own goes to the Space Lee is on from when SitRep brings it forward until Lee next changes Space.
 /// Never shown, nor SitRep activated: each step `comeForward()` takes is recorded with whether the window moves to the
 /// active Space then.
 @MainActor
+@Suite(.backstop)
 struct ForwardWindowTests {
-    /// What macOS posts as Lee changes Space, posted in this process alone.
-    private static func changeSpace() {
-        NSWorkspace.shared.notificationCenter.post(name: NSWorkspace.activeSpaceDidChangeNotification, object: nil)
+    /// What macOS posts as Lee changes Space, posted to the window's own centre alone.
+    private static func changeSpace(of window: ForwardWindow) {
+        window.spaces.post(name: NSWorkspace.activeSpaceDidChangeNotification, object: nil)
     }
 
     /// The proven order: front first, on Lee's Space, then SitRep activates.
@@ -55,7 +57,7 @@ struct ForwardWindowTests {
         let window = RecordedWindow.made()
 
         window.comeForward()
-        Self.changeSpace()
+        Self.changeSpace(of: window)
 
         #expect(!window.movesToActiveSpace)
     }
@@ -64,12 +66,12 @@ struct ForwardWindowTests {
         let window = RecordedWindow.made()
 
         window.comeForward()
-        Self.changeSpace()
+        Self.changeSpace(of: window)
         window.steps = []
         window.comeForward()
         #expect(window.steps == [.orderFront(movesToActiveSpace: true), .activate(movesToActiveSpace: true)])
 
-        Self.changeSpace()
+        Self.changeSpace(of: window)
         #expect(!window.movesToActiveSpace)
     }
 
@@ -79,7 +81,7 @@ struct ForwardWindowTests {
 
         window.comeForward()
         window.close()
-        Self.changeSpace()
+        Self.changeSpace(of: window)
         window.steps = []
         window.comeForward()
 

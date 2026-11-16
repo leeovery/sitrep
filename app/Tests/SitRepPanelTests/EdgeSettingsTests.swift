@@ -1,8 +1,10 @@
 import Foundation
 @testable import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// What Lee sets for the edge: the design's defaults, kept as JSON, and read leniently.
+@Suite(.backstop)
 struct EdgeSettingsTests {
     @Test func theDefaultsAreTheDesigns() {
         let settings = EdgeSettings()
@@ -126,6 +128,7 @@ struct EdgeSettingsTests {
 }
 
 /// Max on the strip: from five marks' length to Full, which leaves the strip all its full height holds.
+@Suite(.backstop)
 struct StripMaxTests {
     @Test func fullLeavesWhatFits() {
         #expect(StripMax.full.isFull)

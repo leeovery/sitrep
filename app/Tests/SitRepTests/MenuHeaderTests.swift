@@ -1,10 +1,12 @@
 import AppKit
 @testable import SitRep
 import SitRepMenu
+import SitRepTestSupport
 import Testing
 
 /// The menu's header, a click on which opens About SitRep: it takes the menu's own highlight, as wide as the menu.
 @MainActor
+@Suite(.backstop)
 struct MenuHeaderTests {
     final class Target: NSObject {
         var clicks = 0

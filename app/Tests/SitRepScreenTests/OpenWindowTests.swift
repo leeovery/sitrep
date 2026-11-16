@@ -10,6 +10,7 @@ import Testing
 /// resume command (stage 8's rethink): the jump answers what is openable, checked, and the opening follows apart from
 /// it. The line typed; the terminal not running; whether a terminal shows it unknown; a second click; the focus after
 /// opening; the front kept; and stopping.
+@Suite(.backstop)
 struct OpenWindowTests {
     private static let proseware = "adventure-works-v2 · proseware-build"
     private static let claude = "b1c2d3e4-0000-4000-8000-000000000001"
@@ -196,21 +197,21 @@ struct OpenWindowTests {
     }
 
     /// Remembered from before the window is asked for, so a click as Ghostty answers opens no second.
-    @Test func anOpeningIsRememberedBeforeTheWindowIsAskedFor() async {
+    @Test func anOpeningIsRememberedBeforeTheWindowIsAskedFor() async throws {
         let gate = Gate()
         let jumping = Jumping(FakeTmux(), Self.detachedZmx(), workspace: FakeWorkspace(frontHeld: gate))
         let opened = Task { await jumping.opening("attach litware").open() }
 
-        await until(within: .seconds(10)) { jumping.workspace.fronts == 1 }
+        try await until(within: .seconds(10)) { jumping.workspace.fronts == 1 }
         #expect(jumping.openings.isOpening("sr-a"))
         #expect(jumping.ghostty.told.isEmpty)
 
         gate.open()
-        #expect(await opened.value == .opened)
+        #expect(try await value(of: opened, within: .seconds(10)) == .opened)
     }
 
     /// Remembered again as the window is asked for, so a slow first event costs none of its two minutes.
-    @Test func anOpeningIsRememberedAfreshAsTheWindowIsAskedFor() async {
+    @Test func anOpeningIsRememberedAfreshAsTheWindowIsAskedFor() async throws {
         let gate = Gate()
         let clock = MovingClock()
         let jumping = Jumping(
@@ -219,10 +220,10 @@ struct OpenWindowTests {
         )
         let opened = Task { await jumping.opening("attach litware").open() }
 
-        await until(within: .seconds(10)) { jumping.workspace.fronts == 1 }
+        try await until(within: .seconds(10)) { jumping.workspace.fronts == 1 }
         clock.move(by: .seconds(119))
         gate.open()
-        #expect(await opened.value == .opened)
+        #expect(try await value(of: opened, within: .seconds(10)) == .opened)
 
         clock.move(by: .seconds(2))
         #expect(jumping.openings.isOpening("sr-a"))
@@ -276,46 +277,67 @@ struct OpenWindowTests {
     }
 
     /// Stopped before the window is asked for: nothing is sent, and the opening is forgotten, so a click again opens it.
-    @Test func anOpeningStoppedBeforeTheWindowIsAskedForSendsNothingAndIsForgotten() async {
+    @Test func anOpeningStoppedBeforeTheWindowIsAskedForSendsNothingAndIsForgotten() async throws {
         let gate = Gate()
         let jumping = Jumping(FakeTmux(), Self.detachedZmx(), workspace: FakeWorkspace(frontHeld: gate))
         let opened = Task { await jumping.opening("attach litware").open() }
 
-        await until(within: .seconds(10)) { jumping.workspace.fronts == 1 }
+        try await until(within: .seconds(10)) { jumping.workspace.fronts == 1 }
         opened.cancel()
-        #expect(await opened.value == .stopped)
+        #expect(try await value(of: opened, within: .seconds(10)) == .stopped)
 
         gate.open()
-        await until(within: .seconds(10)) { !jumping.openings.isOpening("sr-a") }
+        try await until(within: .seconds(10)) { !jumping.openings.isOpening("sr-a") }
         #expect(jumping.ghostty.told.isEmpty)
     }
 
     /// Stopped once the window was asked for, its event in flight: the window opens all the same, unfocused, and is
-    /// remembered.
-    @Test func anOpeningStoppedOnceTheWindowWasAskedForIsRememberedAndLeftUnfocused() async {
+    /// remembered. With Ghostty in front as Lee clicked, nothing of the workspace's marks the opening's end, so the
+    /// checks wait on the driver's own: the focus it passes over comes after the window's event goes through.
+    @Test func anOpeningStoppedOnceTheWindowWasAskedForIsRememberedAndLeftUnfocused() async throws {
         let gate = Gate()
         let jumping = Jumping(FakeTmux(), Self.detachedZmx(), windowHeld: gate)
-        let opened = Task { await jumping.opening("attach litware").open() }
+        let driver = EndedDriver(jumping.driver)
+        let opened = Task { await jumping.opening("attach litware", through: driver).open() }
 
-        await until(within: .seconds(10)) { gate.arrived == 1 }
+        try await until(within: .seconds(10), "for the window's event to arrive") { gate.arrived == 1 }
         opened.cancel()
-        #expect(await opened.value == .stopped)
+        #expect(try await value(of: opened, within: .seconds(10)) == .stopped)
 
         gate.open()
-        await settle()
+        try await until(within: .seconds(10), "for the opening to end") { driver.ended == 1 }
+        #expect(jumping.ghostty.told == ["open attach litware"])
+        #expect(jumping.openings.isOpening("sr-a"))
+    }
+
+    /// As it is with Ghostty in front, with Lee in Finder as he clicked: Ghostty is kept in front from the opening
+    /// until it ends, and that keeping's end marks the opening's.
+    @Test func anOpeningStoppedOnceTheWindowWasAskedForWithLeeInFinderIsRememberedAndLeftUnfocused() async throws {
+        let gate = Gate()
+        let jumping = Jumping(FakeTmux(), Self.detachedZmx(), windowHeld: gate, workspace: FakeWorkspace(front: finder))
+        let opened = Task { await jumping.opening("attach litware").open() }
+
+        try await until(within: .seconds(10), "for the window's event to arrive") { gate.arrived == 1 }
+        opened.cancel()
+        #expect(try await value(of: opened, within: .seconds(10)) == .stopped)
+
+        gate.open()
+        try await until(within: .seconds(10), "for Ghostty's keeping in front to end") {
+            jumping.workspace.listened == 1 && jumping.workspace.listening == 0
+        }
         #expect(jumping.ghostty.told == ["open attach litware"])
         #expect(jumping.openings.isOpening("sr-a"))
     }
 
     /// Given up before the window was asked for, none can come.
-    @Test func anOpeningHasALimitOfItsOwnApartFromTheJumps() async {
+    @Test func anOpeningHasALimitOfItsOwnApartFromTheJumps() async throws {
         let jumping = Jumping(FakeTmux(), Self.detachedZmx(), workspace: FakeWorkspace(frontHeld: Gate()))
         let opened = Task { await jumping.opening("attach litware").open() }
 
-        await until(within: .seconds(10)) { jumping.clock.sleeps.contains(Opening.limit) }
+        try await until(within: .seconds(10)) { jumping.clock.sleeps.contains(Opening.limit) }
         jumping.clock.pass(Opening.limit)
         #expect(
-            await opened.value
+            try await value(of: opened, within: .seconds(10))
                 == .unopened("SitRep gave up waiting for Ghostty to open a window for \(JumpWorld.named) after 20 seconds.")
         )
         #expect(Opening.limit == .seconds(20))
@@ -323,18 +345,43 @@ struct OpenWindowTests {
     }
 
     /// Given up once the window was asked for, one may yet come, and says so.
-    @Test func anOpeningGivenUpOnceItsWindowWasAskedForSaysOneMayStillAppear() async {
+    @Test func anOpeningGivenUpOnceItsWindowWasAskedForSaysOneMayStillAppear() async throws {
         let gate = Gate()
         let jumping = Jumping(FakeTmux(), Self.detachedZmx(), windowHeld: gate)
         let opened = Task { await jumping.opening("attach litware").open() }
 
-        await until(within: .seconds(10)) { gate.arrived == 1 && jumping.clock.sleeps.contains(Opening.limit) }
+        try await until(within: .seconds(10)) { gate.arrived == 1 && jumping.clock.sleeps.contains(Opening.limit) }
         jumping.clock.pass(Opening.limit)
         #expect(
-            await opened.value
+            try await value(of: opened, within: .seconds(10))
                 == .unopened("SitRep gave up waiting for Ghostty to open a window for \(JumpWorld.named) after 20 seconds; one may still appear.")
         )
         gate.open()
+    }
+}
+
+/// The driver given, counting each opening of a window it has ended, however it ended.
+private final class EndedDriver: TerminalDriver {
+    private let driver: any TerminalDriver
+    private let count = OSAllocatedUnfairLock(initialState: 0)
+
+    init(_ driver: any TerminalDriver) {
+        self.driver = driver
+    }
+
+    var ended: Int { count.withLock { $0 } }
+
+    func bringForward(on device: String, front: String?) async throws -> Bool {
+        try await driver.bringForward(on: device, front: front)
+    }
+
+    func canOpen() async -> Bool {
+        await driver.canOpen()
+    }
+
+    func openWindow(running command: String, front: String?, sending: @escaping @Sendable () -> Void) async throws -> Bool {
+        defer { count.withLock { $0 += 1 } }
+        return try await driver.openWindow(running: command, front: front, sending: sending)
     }
 }
 

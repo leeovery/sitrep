@@ -2,12 +2,14 @@ import AppKit
 @testable import SitRep
 import SitRepEdge
 import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// The light where the notch is, in black and in glass: drawn in an edge's window offscreen, on either edge, its bar
 /// lies inside the notch's outline in the window, where the black is drawn and the pointer touches it, at rest, as
 /// the notch reaches for the pointer and as the panel pours; and it is hidden once the panel is out.
 @MainActor
+@Suite(.backstop)
 struct NotchLightTests {
     private static let display = Display(
         id: "A", frame: CGRect(x: 0, y: 0, width: 1512, height: 982),

@@ -45,8 +45,11 @@ final class WelcomeModel {
     private(set) var hitches: [WelcomePermission: WelcomeHitch] = [:]
     /// Each row's reads, counted, so a read outdated while it waited writes nothing.
     @ObservationIgnored private var reads: [WelcomePermission: Int] = [:]
-    /// Each row's ask, and the last read of both leaves: internal only for the tests, which await them.
+    /// Each row's ask: internal only for the tests, which await them.
     @ObservationIgnored private(set) var asks: [WelcomePermission: Task<Void, Never>] = [:]
+    /// Each row's wait on its prompt, after which the row says where macOS put it: internal only for the tests.
+    @ObservationIgnored private(set) var waitsOnPrompt: [WelcomePermission: Task<Void, Never>] = [:]
+    /// The last read of both leaves: internal only for the tests.
     @ObservationIgnored private(set) var reading: Task<Void, Never>?
     /// How many sounds Lee has chosen this visit: the stage's notch swells with each.
     private(set) var chimes = 0
@@ -294,6 +297,7 @@ final class WelcomeModel {
             }
         }
 
+        waitsOnPrompt[permission] = waits
         hitches[permission] = nil
         outdate(permission)
         asking[permission] = false

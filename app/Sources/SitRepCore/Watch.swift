@@ -51,7 +51,9 @@ public struct SitRepWatch<C: Clock>: Sendable where C.Duration == Duration {
         }
     }
 
-    private func watch(into boards: AsyncStream<LastBoard>.Continuation) async {
+    /// `watch` run and run again, each board given to `boards`, until its task is cancelled or no one reads them:
+    /// internal only for the tests, which await its end.
+    func watch(into boards: AsyncStream<LastBoard>.Continuation) async {
         var last = LastBoard()
         var backoff = Backoff()
         var renewed: C.Instant?

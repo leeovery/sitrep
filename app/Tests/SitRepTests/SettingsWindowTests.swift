@@ -1,6 +1,7 @@
 import AppKit
 @testable import SitRep
 import SitRepMenu
+import SitRepTestSupport
 import SwiftUI
 import Testing
 
@@ -8,6 +9,7 @@ import Testing
 /// its least size; its close button and ⌘W shut it; the pane's name its title, and back and forward in its toolbar
 /// stepping through the panes shown.
 @MainActor
+@Suite(.backstop)
 struct SettingsWindowTests {
     /// The window and its Settings, its frame a recorded one, which never orders front.
     @MainActor
@@ -26,12 +28,6 @@ struct SettingsWindowTests {
                 return recorded
             }
             window.show()
-        }
-
-        /// What the window shows once the change to the pane has been heard, on the main actor's next turn.
-        func settled() async {
-            await Task.yield()
-            await Task.yield()
         }
     }
 
@@ -83,11 +79,9 @@ struct SettingsWindowTests {
 
         #expect(made.recorded.title == "General")
         made.settings.turn(to: .claudeCode)
-        await made.settled()
-        #expect(made.recorded.title == "Claude Code")
+        await until(turns: 100) { made.recorded.title == "Claude Code" }
         made.settings.goBack()
-        await made.settled()
-        #expect(made.recorded.title == "General")
+        await until(turns: 100) { made.recorded.title == "General" }
     }
 
     /// Back and forward lead the toolbar past the sidebar, before the title, as Xcode's do, with nothing to customise.
@@ -115,12 +109,10 @@ struct SettingsWindowTests {
 
         #expect(enabled() == [false, false])
         made.settings.turn(to: .edge)
-        await made.settled()
-        #expect(enabled() == [true, false])
+        await until(turns: 100) { enabled() == [true, false] }
         try press(0)
-        await made.settled()
         #expect(made.settings.pane == .general)
-        #expect(enabled() == [false, true])
+        await until(turns: 100) { enabled() == [false, true] }
         try press(1)
         #expect(made.settings.pane == .edge)
     }
@@ -167,6 +159,7 @@ struct SettingsWindowTests {
 
 /// The sidebar as the window hosts it: the system's list of the four panes, the one shown selected.
 @MainActor
+@Suite(.backstop)
 struct SettingsSidebarTests {
     @Test func itListsTheFourPanesTheOneShownSelected() async throws {
         let settings = await Hosted.settings()
@@ -184,6 +177,7 @@ struct SettingsSidebarTests {
 /// Claude Code's pane as the window draws it: the windows behind, each with Show, then Copy; none of it while every
 /// window is current.
 @MainActor
+@Suite(.backstop)
 struct ClaudeCodePaneViewTests {
     private static func hosted(needsReload: Bool) async -> Hosted {
         let settings = await Hosted.settings(live: Hosted.live(needsReload: needsReload))

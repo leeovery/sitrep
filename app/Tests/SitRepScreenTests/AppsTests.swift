@@ -1,6 +1,8 @@
 @testable import SitRepScreen
+import SitRepTestSupport
 import Testing
 
+@Suite(.backstop)
 struct AppsTests {
     @Test func ghosttysDriverIsToldByItsProgramOutsideAMultiplexerAndByItsExecutableAmongProcesses() {
         #expect(Driver.all == [.ghostty])

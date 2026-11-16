@@ -1,6 +1,7 @@
 import QuartzCore
 @testable import SitRep
 @testable import SitRepPanel
+import SitRepTestSupport
 import SwiftUI
 import Testing
 
@@ -8,6 +9,7 @@ import Testing
 /// answer still shows it, and out over the mark's 240, as it does in over 240 for a mark turning working; and its fill
 /// pressed in and let out over 110.
 @MainActor
+@Suite(.backstop)
 struct StripMarkLayerTests {
     private static func mark(_ look: StripFrame.Mark.Look = .turn, jumping: Bool = false) -> StripFrame.Mark {
         StripFrame.Mark(

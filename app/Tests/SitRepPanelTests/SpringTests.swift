@@ -1,6 +1,8 @@
 @testable import SitRepPanel
+import SitRepTestSupport
 import Testing
 
+@Suite(.backstop)
 struct SpringTests {
     /// The spring's places, a step of this long at a time, for this long.
     private static func run(_ spring: inout Spring, for ms: Double, step: Double = 1000.0 / 60) -> [Double] {

@@ -1,6 +1,7 @@
 import AppKit
 @testable import SitRep
 import SitRepPanel
+import SitRepTestSupport
 import SwiftUI
 import Testing
 
@@ -8,6 +9,7 @@ import Testing
 /// frame the Show row's tiles change in (Lee, 22 October 2026: "the animation on the panel when switching the notch
 /// mode is a bit jarring"). On the real pane in a window at 2×, drawn as soon as the choice changes.
 @MainActor
+@Suite(.backstop)
 struct EdgePaneChangeTests {
     /// A change to Edge's choices, from where it starts.
     enum Change: CaseIterable, Sendable {
@@ -62,7 +64,6 @@ struct EdgePaneChangeTests {
         let (settings, hosted) = await hosted(change.start)
 
         settings.preferences.edit(change.change)
-        await Task.yield()
         hosted.hosting.layoutSubtreeIfNeeded()
 
         return try Drawn(hosted.hosting).atTwice()
@@ -95,7 +96,6 @@ struct EdgePaneChangeTests {
 
         try #require(before.count == 3)
         settings.preferences.edit { $0.length = length }
-        await Task.yield()
         hosted.hosting.layoutSubtreeIfNeeded()
 
         let after = hosted.all(NSSegmentedControl.self)

@@ -19,7 +19,8 @@ public final class HereWatch {
     private let openings: RecentOpenings
     private let clock: any JumpClock
     private var board: Board?
-    private var reading: Task<Void, Never>?
+    /// The read under way, until its answer is taken: internal only for the tests, which wait on it.
+    private(set) var reading: Task<Void, Never>?
     /// A line came while a read was under way, so another follows it, of the board as it then is.
     private var isAskedAgain = false
     private var ticking: Task<Void, Never>?

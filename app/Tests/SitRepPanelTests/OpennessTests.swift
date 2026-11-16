@@ -1,9 +1,11 @@
 import CoreGraphics
 @testable import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// How far out the black is, which the glass eases its notch's mark by: none at the notch at rest, all of it with
 /// the panel out, and rising between as the panel comes, in Meniscus and the card alike.
+@Suite(.backstop)
 struct OpennessTests {
     @Test func theNotchAtRestIsNotOpenAtAll() {
         #expect(Lab().frame.openness == 0)

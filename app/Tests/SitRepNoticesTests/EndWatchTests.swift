@@ -1,5 +1,6 @@
 import AppKit
 import SitRepRelay
+import SitRepTestSupport
 import Testing
 
 /// The watch on a real running app, the Dock, as SitRep and the helper get one, by its pid: a fresh instance, owned
@@ -7,6 +8,7 @@ import Testing
 /// knows, so it has none of its own. An app freed while observed crashed SitRep and the helper as they started (26
 /// October 2026); here it crashes the test run. Only `isTerminated` is read: nothing is asked of the Dock.
 @MainActor
+@Suite(.backstop, .tags(.thisMac))
 struct EndWatchTests {
     /// A fresh instance of the Dock's app, which nothing else holds.
     private static func ownApp() throws -> NSRunningApplication {

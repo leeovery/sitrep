@@ -1,11 +1,13 @@
 import AppKit
 @testable import SitRep
+import SitRepTestSupport
 import SwiftUI
 import Testing
 
 /// About SitRep, made, never shown: its close button and the main menu's ⌘W shut it (`AppMenu`), which it validates by
 /// its style; it neither minimises nor zooms.
 @MainActor
+@Suite(.backstop)
 struct AboutWindowTests {
     private static let window = AboutWindow.window(NSViewController.with(NSView()))
 

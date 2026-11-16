@@ -36,6 +36,7 @@ func board(_ windows: [WatchLine.Window], sessions: [WatchLine.Session] = []) th
 }
 
 /// The jump from the watch's line, within its limit, and stopped between its steps, the latest click winning.
+@Suite(.backstop)
 struct JumpLimitTests {
     @Test func aJumpGoesFromTheWatchsLineTheSessionsWindowsInCoresOrderNeverTheirPlaceInItsWindows() async throws {
         let line = try board([
@@ -88,9 +89,9 @@ struct JumpLimitTests {
             })
         }
 
-        await until(within: .seconds(10)) { gate.arrived == 1 }
+        try await until(within: .seconds(10)) { gate.arrived == 1 }
         gate.open()
-        #expect(await jumped.value == .jumped)
+        #expect(try await value(of: jumped, within: .seconds(10)) == .jumped)
 
         let never = Jumping()
         let refused = Task {
@@ -100,9 +101,9 @@ struct JumpLimitTests {
             })
         }
 
-        await until(within: .seconds(10)) { never.clock.sleeps.contains(Jump.limit) }
+        try await until(within: .seconds(10)) { never.clock.sleeps.contains(Jump.limit) }
         never.clock.pass(Jump.limit)
-        #expect(await refused.value == .refused(GivenBoard.missing))
+        #expect(try await value(of: refused, within: .seconds(10)) == .refused(GivenBoard.missing))
     }
 
     /// The jump is made once the board is in hand, Lee's PATH asked for as it is, so that wait is within the limit,
@@ -119,9 +120,9 @@ struct JumpLimitTests {
             }
         }
 
-        await until(within: .seconds(10)) { atLimit.arrived == 1 && jumping.clock.sleeps.contains(Jump.limit) }
+        try await until(within: .seconds(10)) { atLimit.arrived == 1 && jumping.clock.sleeps.contains(Jump.limit) }
         jumping.clock.pass(Jump.limit)
-        #expect(await unanswered.value.answer == .unanswered)
+        #expect(try await value(of: unanswered, within: .seconds(10)).answer == .unanswered)
 
         let stopped = Task {
             await Jump.run(to: "sr-a", on: GivenBoard(line), clock: TestClock(passing: .jumpsPauses)) {
@@ -130,9 +131,9 @@ struct JumpLimitTests {
             }
         }
 
-        await until(within: .seconds(10)) { atStop.arrived == 1 }
+        try await until(within: .seconds(10)) { atStop.arrived == 1 }
         stopped.cancel()
-        #expect(await stopped.value.answer == .stopped)
+        #expect(try await value(of: stopped, within: .seconds(10)).answer == .stopped)
         #expect(jumping.ghostty.asked.isEmpty)
 
         atLimit.open()
@@ -145,9 +146,9 @@ struct JumpLimitTests {
         let jumping = Jumping(ghosttyHeld: gate)
         let jumped = Task { await jumping.jump.answer(to: "sr-a", on: GivenBoard(line)) }
 
-        await until(within: .seconds(10)) { gate.arrived == 1 && jumping.clock.sleeps.contains(Jump.limit) }
+        try await until(within: .seconds(10)) { gate.arrived == 1 && jumping.clock.sleeps.contains(Jump.limit) }
         jumping.clock.pass(Jump.limit)
-        #expect(await jumped.value == .unanswered)
+        #expect(try await value(of: jumped, within: .seconds(10)) == .unanswered)
         #expect(Jump.limit == .seconds(15))
 
         gate.open()
@@ -159,16 +160,16 @@ struct JumpLimitTests {
         let jumping = Jumping(ghosttyHeld: gate)
         let jumped = Task { await jumping.jump.answer(to: "sr-a", on: GivenBoard(line)) }
 
-        await until(within: .seconds(10)) { gate.arrived == 1 }
+        try await until(within: .seconds(10)) { gate.arrived == 1 }
         jumped.cancel()
-        #expect(await jumped.value == .stopped)
+        #expect(try await value(of: jumped, within: .seconds(10)) == .stopped)
 
         gate.open()
     }
 
     /// What a jump let go of, at its limit or stopped, is cancelled, and runs on to its end without being waited on.
     @Test(arguments: [false, true])
-    func atItsLimitOrStoppedAJumpCancelsWhatItLetsGoOf(isStopped: Bool) async {
+    func atItsLimitOrStoppedAJumpCancelsWhatItLetsGoOf(isStopped: Bool) async throws {
         let clock = TestClock(passing: .jumpsPauses)
         let gate = Gate()
         let (ended, end) = AsyncStream.makeStream(of: Bool.self)
@@ -180,58 +181,65 @@ struct JumpLimitTests {
             }
         }
 
-        await until(within: .seconds(10)) { gate.arrived == 1 && clock.sleeps.contains(Jump.limit) }
+        try await until(within: .seconds(10)) { gate.arrived == 1 && clock.sleeps.contains(Jump.limit) }
         if isStopped {
             answering.cancel()
         } else {
             clock.pass(Jump.limit)
         }
-        #expect(await answering.value == nil, "answered while what it let go of still runs")
+        let answered = try await value(of: answering, within: .seconds(10))
+
+        #expect(answered == nil, "answered while what it let go of still runs")
 
         gate.open()
-        #expect(await ended.first { _ in true } == true, "what it let go of, cancelled, ran on to its end")
+
+        let wasCancelled = try await first(of: ended, within: .seconds(10))
+
+        #expect(wasCancelled == true, "what it let go of, cancelled, ran on to its end")
     }
 
     /// The step after a question Ghostty has not answered is never taken once the jump is cancelled: the jump, run to
     /// its end, sends nothing more.
-    @Test func aJumpCancelledWhileGhosttyHoldsItsQuestionSendsNothingOnceItIsAnswered() async {
+    @Test func aJumpCancelledWhileGhosttyHoldsItsQuestionSendsNothingOnceItIsAnswered() async throws {
         let gate = Gate()
         let jumping = Jumping(ghosttyHeld: gate)
         let jumped = Task { try await jumping.jump.jump(to: [inGhosttyWindow]) }
 
-        await until(within: .seconds(10)) { gate.arrived == 1 }
+        try await until(within: .seconds(10)) { gate.arrived == 1 }
         jumped.cancel()
         gate.open()
 
-        await #expect(throws: CancellationError.self) { try await jumped.value }
+        let ended = try await result(of: jumped, within: .seconds(10))
+
+        #expect(throws: CancellationError.self) { try ended.get() }
         #expect(jumping.ghostty.asked == [JumpWorld.litwareTerminal.device])
         #expect(jumping.ghostty.told.isEmpty)
     }
 
-    @Test func aJumpStoppedInItsPauseNeverFocuses() async {
+    @Test func aJumpStoppedInItsPauseNeverFocuses() async throws {
         let (tmux, table) = shown()
         let tabbed = [FakeWindow(id: "TABBED-WINDOW", tabs: [[JumpWorld.litwareTerminal], [JumpWorld.woodgroveTerminal]], selected: 0)]
         let jumping = Jumping(tmux, table, terminals: tabbed, clock: TestClock(passing: []))
         let jumped = Task { await jumping.run([inTmux()]) }
 
-        await until(within: .seconds(10)) { jumping.clock.sleeps.contains(GhosttyDriver.pause) }
+        try await until(within: .seconds(10)) { jumping.clock.sleeps.contains(GhosttyDriver.pause) }
         jumped.cancel()
 
-        #expect(await jumped.value == .stopped)
+        #expect(try await value(of: jumped, within: .seconds(10)) == .stopped)
         #expect(jumping.ghostty.told == ["activate window TABBED-WINDOW"])
     }
 
-    @Test func aJumpStoppedWhileTmuxReadsAsksGhosttyNothing() async {
+    @Test func aJumpStoppedWhileTmuxReadsAsksGhosttyNothing() async throws {
         let (tmux, table) = shown()
         let gate = Gate()
         let jumping = Jumping(tmux, table, tmuxHeld: gate)
         let jumped = Task { await jumping.run([inTmux()]) }
 
-        await until(within: .seconds(10)) { gate.arrived == 2 }
+        try await until(within: .seconds(10)) { gate.arrived == 2 }
         jumped.cancel()
         gate.open()
 
-        #expect(await jumped.value == .stopped)
+        #expect(try await value(of: jumped, within: .seconds(10)) == .stopped)
         #expect(jumping.ghostty.asked.isEmpty)
     }
 
@@ -249,9 +257,9 @@ struct JumpLimitTests {
         let first = Told(), second = Told()
 
         oneJump.run(to: "sr-a", { await jumping.jump.answer(to: "sr-a", on: GivenBoard(line)) }, told: first.add)
-        await until(within: .seconds(10)) { gate.arrived == 1 }
+        try await until(within: .seconds(10)) { gate.arrived == 1 }
         oneJump.run(to: "sr-b", { await jumping.jump.answer(to: "sr-b", on: GivenBoard(line)) }, told: second.add)
-        await until(within: .seconds(10)) { !second.news.isEmpty }
+        try await until(within: .seconds(10)) { !second.news.isEmpty }
 
         #expect(first.news == [.ended(.stopped)])
         #expect(second.news == [.ended(.jumped)])

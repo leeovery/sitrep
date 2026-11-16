@@ -2,12 +2,14 @@ import AppKit
 @testable import SitRep
 import SitRepMenu
 import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// Steps 1 and 2's loops, on the notch and on the strip: the stage draws no pointer, so the only row its edge ever
 /// lights is the ask's, never one an unseen pointer passes over on its way to it or away. Read off what the stage's own
 /// surfaces were last told to draw, frame by frame, on the clock the test moves.
 @MainActor
+@Suite(.backstop)
 struct WelcomePointerTests {
     typealias Made = WelcomeWorld.Made
     typealias Clock = WelcomeWorld.Clock

@@ -6,16 +6,17 @@ import Testing
 /// The welcome's stage on the display's clock, as the app runs it: a wake it sets comes on the main run loop, and one
 /// called off never does.
 @MainActor
+@Suite(.backstop)
 struct StageClockTests {
-    @Test func aWakeComesOnTheMainRunLoop() async {
+    @Test func aWakeComesOnTheMainRunLoop() async throws {
         let woken = Woken()
         let wake = DisplayClock().wake(in: 10) { woken.count += 1 }
 
         defer { wake.invalidate() }
-        await until(within: .seconds(20)) { woken.count == 1 }
+        try await until(within: .seconds(20)) { woken.count == 1 }
     }
 
-    @Test func aWakeCalledOffNeverComes() async {
+    @Test func aWakeCalledOffNeverComes() async throws {
         let woken = Woken(), later = Woken()
         let clock = DisplayClock()
 
@@ -24,7 +25,7 @@ struct StageClockTests {
         let wake = clock.wake(in: 20) { later.count += 1 }
 
         defer { wake.invalidate() }
-        await until(within: .seconds(20)) { later.count == 1 }
+        try await until(within: .seconds(20)) { later.count == 1 }
         #expect(woken.count == 0)
     }
 

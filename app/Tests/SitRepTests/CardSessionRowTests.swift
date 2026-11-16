@@ -1,6 +1,7 @@
 import AppKit
 @testable import SitRep
 import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// A row on the black card, on one line as Paper's board J draws it, taken relative to the built row: a Needs you row
@@ -8,6 +9,7 @@ import Testing
 /// lines waiting, its project at the right, its time at the right under the pointer as off it (its right-click menu
 /// is `RowMenuTests`'). Read from its pixels at 2×.
 @MainActor
+@Suite(.backstop)
 struct CardSessionRowTests {
     private static let width = 344.0
     /// Without a descender, so its drawn box ends on its baseline, as the count's does.

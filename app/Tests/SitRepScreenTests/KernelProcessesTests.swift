@@ -2,8 +2,10 @@ import Darwin
 import Foundation
 import SitRepCore
 @testable import SitRepScreen
+import SitRepTestSupport
 import Testing
 
+@Suite(.backstop)
 struct KernelProcessesTests {
     private static func numbers(_ major: Int32, _ minor: Int32) -> dev_t {
         major << 24 | minor
@@ -53,7 +55,8 @@ struct KernelProcessesTests {
         #expect(parseProcArgs([1, 0]) == nil)
     }
 
-    @Test func theKernelGivesThisProcessItsParentItsProgramExactlyAndItsCommandLineWhereWanted() throws {
+    @Test(.tags(.thisMac))
+    func theKernelGivesThisProcessItsParentItsProgramExactlyAndItsCommandLineWhereWanted() throws {
         let program = try #require(Bundle.main.executableURL?.resolvingSymlinksInPath().path)
         let processes = try #require(KernelProcesses().read { $0.program == program })
         let own = try #require(processes.all[getpid()])
@@ -76,7 +79,8 @@ struct KernelProcessesTests {
         }
     }
 
-    @Test func aProcessWhoseProgramWasRemovedAsItRanIsTheProgramItWasStartedBy() async throws {
+    @Test(.tags(.thisMac))
+    func aProcessWhoseProgramWasRemovedAsItRanIsTheProgramItWasStartedBy() async throws {
         let folder = FileManager.default.temporaryDirectory.appending(path: "sitrep-screen-\(UUID().uuidString)")
         let copy = folder.appending(path: "bash")
         let running = Process()
@@ -91,13 +95,21 @@ struct KernelProcessesTests {
         running.standardOutput = output
         running.standardInput = Pipe()
         try running.run()
+        // Killed with a signal it cannot ignore, so the wait on its end is short.
         defer {
-            running.terminate()
+            if running.isRunning {
+                kill(running.processIdentifier, SIGKILL)
+            }
             running.waitUntilExit()
         }
 
         // Removed while macOS still loads it, it is killed; once it says it is running, it is loaded.
-        _ = output.fileHandleForReading.availableData
+        _ = try await answer(within: .seconds(10), "for bash to say it is running") { said in
+            output.fileHandleForReading.readabilityHandler = { handle in
+                handle.readabilityHandler = nil
+                said(handle.availableData)
+            }
+        }
         try FileManager.default.removeItem(at: copy)
 
         let pid = running.processIdentifier

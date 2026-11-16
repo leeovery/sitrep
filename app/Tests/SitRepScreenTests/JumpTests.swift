@@ -6,6 +6,7 @@ import Testing
 
 /// SitRep's jump, each rule of the CLI's (tests/jump.test.ts, retired with it) pinned again: where it looks, what it
 /// asks Ghostty, and the words it refuses in.
+@Suite(.backstop)
 struct JumpTests {
     @Test func aJumpFocusesTheGhosttyWindowOnTheSessionsTmuxSession() async {
         let (tmux, table) = shown()
@@ -217,35 +218,39 @@ struct JumpTests {
         #expect(jumping.ghostty.asked.count == 3)
     }
 
-    @Test func ghosttyIsAskedOnlyOnceTheScreenIsReadNothingGoesToGhosttyWhileTmuxIsStillAnswering() async {
+    @available(macOS 15, *)
+    @Test func ghosttyIsAskedOnlyOnceTheScreenIsReadNothingGoesToGhosttyWhileTmuxIsStillAnswering() async throws {
         let (tmux, table) = shown()
         let gate = Gate()
+        let idling = Idling()
         let jumping = Jumping(tmux, table, tmuxHeld: gate)
-        let jumped = Task { await jumping.run([inTmux()]) }
+        let jumped = Task(executorPreference: idling) { await jumping.run([inTmux()]) }
 
-        await until(within: .seconds(10)) { gate.arrived == 2 }
-        await settle()
+        try await until(
+            within: .seconds(10), "for tmux's two asks, the screen's read, the front's read, and the jump idle on tmux"
+        ) { gate.arrived == 2 && table.looks == 1 && jumping.workspace.fronts == 1 && idling.isIdle }
         #expect(jumping.ghostty.asked.isEmpty)
-        #expect(jumping.workspace.fronts == 1, "the front is read as the jump begins, before tmux answers")
 
         gate.open()
-        #expect(await jumped.value == .jumped)
+        #expect(try await value(of: jumped, within: .seconds(10)) == .jumped)
         #expect(jumping.ghostty.asked == [JumpWorld.window])
     }
 
-    @Test func theFocusWaitsForTheReadOfWhichAppIsInFrontHoweverSlowSoTheJumpNeverReadsItsOwnFocus() async {
+    @available(macOS 15, *)
+    @Test func theFocusWaitsForTheReadOfWhichAppIsInFrontHoweverSlowSoTheJumpNeverReadsItsOwnFocus() async throws {
         let (tmux, table) = shown()
         let gate = Gate()
+        let idling = Idling()
         let jumping = Jumping(tmux, table, workspace: FakeWorkspace(front: finder, frontHeld: gate))
-        let jumped = Task { await jumping.run([inTmux()]) }
+        let jumped = Task(executorPreference: idling) { await jumping.run([inTmux()]) }
 
-        await until(within: .seconds(10)) { gate.arrived == 1 && tmux.runs.count == 2 && table.looks == 1 }
-        await settle()
-        #expect(tmux.runs.count == 2)
+        try await until(within: .seconds(10), "for tmux's two runs, the screen's read, and the jump idle on the front") {
+            gate.arrived == 1 && tmux.runs.count == 2 && table.looks == 1 && idling.isIdle
+        }
         #expect(jumping.ghostty.asked.isEmpty, "nothing asked or focused yet")
 
         gate.open()
-        #expect(await jumped.value == .jumped)
+        #expect(try await value(of: jumped, within: .seconds(10)) == .jumped)
         #expect(jumping.workspace.listened == 1, "the watch ran: Finder was in front")
     }
 

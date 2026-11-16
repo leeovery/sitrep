@@ -2,8 +2,10 @@ import Foundation
 import os
 import SitRepCore
 @testable import SitRepScreen
+import SitRepTestSupport
 import Testing
 
+@Suite(.backstop)
 struct TmuxTests {
     private static let socket = "/private/tmp/tmux-501/default"
 

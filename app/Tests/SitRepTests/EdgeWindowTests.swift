@@ -1,11 +1,13 @@
 import AppKit
 @testable import SitRep
+import SitRepTestSupport
 import Testing
 
 /// The notch's and the strip's window stays on the screen, and so on every Space, from the moment it is made: hidden,
 /// as over a full-screen app, it is clear and takes no clicks, whatever the frame says, and its layers' time stands
 /// still; shown, it is drawn whole, takes the clicks the frame says, and its layers keep the display's time.
 @MainActor
+@Suite(.backstop)
 struct EdgeWindowTests {
     private static let frame = CGRect(x: 0, y: 0, width: 40, height: 40)
 

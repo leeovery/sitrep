@@ -1,10 +1,12 @@
 @testable import SitRepCore
 import SitRepLines
 import SitRepMenu
+import SitRepTestSupport
 import Testing
 
 /// What the real `sitrep watch` printed (`Lines`): a new ask on an away session, the board the window was built over,
 /// and a board of rows by session.
+@Suite(.backstop)
 struct RealWatchTests {
     private static let asked = heard(Lines.newAsk.map(Heard.line))
 

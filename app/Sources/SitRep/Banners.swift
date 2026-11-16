@@ -19,6 +19,8 @@ final class Banners {
     private var waiting: [ToHelper] = []
     /// Requests the helper has yet to answer, by id.
     private var answers: [String: CheckedContinuation<NoticeLeave?, Never>] = [:]
+    /// The ids of the requests the helper has yet to answer: internal only for the tests.
+    var unanswered: Set<String> { Set(answers.keys) }
     private var onClick: (String, @escaping () -> Void) -> Void = { _, _ in }
 
     init(

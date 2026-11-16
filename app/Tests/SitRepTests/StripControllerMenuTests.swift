@@ -10,6 +10,7 @@ import Testing
 /// the jump and the CLI with the session's own id, never its mark's key in Snoozed. The display is far off every
 /// screen, so nothing shows.
 @MainActor
+@Suite(.backstop)
 struct StripControllerMenuTests {
     private static let display = Display(
         id: "A", frame: CGRect(x: -20000, y: -20000, width: 1512, height: 982),

@@ -2,11 +2,13 @@ import CoreGraphics
 @testable import SitRep
 import SitRepEdge
 import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// A new row's wash, in black and in glass: it runs from the time it is given, never the last frame's, which after
 /// frames have slept is minutes old; and in black a row made anew mid-wash carries it on.
 @MainActor
+@Suite(.backstop)
 struct WashTests {
     private static let stage = Stage(height: 982, visibleTop: 24, visibleBottom: 982, notchY: 491)
     /// Ten minutes on from the last frame, at 0, ms.

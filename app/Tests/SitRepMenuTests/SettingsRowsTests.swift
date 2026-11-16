@@ -8,6 +8,7 @@ import SitRepTestSupport
 import Testing
 
 /// Edge's sections under the Show row's card: one named for the shape, holding the rows that tune it, then Motion.
+@Suite(.backstop)
 struct EdgePaneTests {
     private static func sections(
         _ show: EdgeSettings.Show, length: StripLength = .grows, hasGlass: Bool = true
@@ -50,6 +51,7 @@ struct EdgePaneTests {
     }
 }
 
+@Suite(.backstop)
 struct DisplayChoiceTests {
     private static let builtIn = DisplayChoice.Connected(id: "A", name: "Built-in Retina Display", isMain: true)
     private static let studio = DisplayChoice.Connected(id: "B", name: "Studio Display", isMain: false)
@@ -74,6 +76,7 @@ struct DisplayChoiceTests {
 }
 
 /// Notify me of a new ask, and macOS's own answer: a dot when it's fine, a button when it's Lee's.
+@Suite(.backstop)
 struct NoticeRowsTests {
     private static let silent = "Silent; a click on it jumps to the session"
 
@@ -151,6 +154,7 @@ struct NoticeRowsTests {
     }
 }
 
+@Suite(.backstop)
 struct PluginRowTests {
     private static let windows = [
         WatchLine.Window(writer: "w1", session: "sr-boot", name: "The installer", project: "Litware", version: "0.1.0", needsReload: true),
@@ -218,6 +222,7 @@ struct PluginRowTests {
     }
 }
 
+@Suite(.backstop)
 struct LoginRowTests {
     @Test func itIsTheSwitchOnceReadAndGreyBefore() {
         #expect(SettingsRow.login(LoginItem(.enabled)) == SettingsRow(
@@ -235,6 +240,7 @@ struct LoginRowTests {
     }
 }
 
+@Suite(.backstop)
 struct GhosttyRowTests {
     private static let label = "Bring a session's Ghostty window to the front"
 
@@ -267,6 +273,7 @@ struct GhosttyRowTests {
     }
 }
 
+@Suite(.backstop)
 struct AppSettingsTests {
     @Test func notificationsAreOffByDefault() {
         let defaults = MemoryDefaults()

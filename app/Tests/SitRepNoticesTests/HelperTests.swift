@@ -1,10 +1,12 @@
 @testable import SitRepNotices
 import SitRepRelay
+import SitRepTestSupport
 import Testing
 
 /// The helper between SitRep and macOS's notifications, over a SitRep and a macOS of its own: nothing is posted,
 /// launched or relayed for real.
 @MainActor
+@Suite(.backstop)
 struct HelperTests {
     private static let sitRep: Int32 = 4012
     private static let ownPid: Int32 = 5150
@@ -27,6 +29,12 @@ struct HelperTests {
                 await withCheckedContinuation { held = $0 }
             }
             posted.append(notice)
+        }
+
+        /// Once `count` banners are posted.
+        func posts(_ count: Int) async -> [Notice] {
+            await until(turns: 10_000) { posted.count >= count }
+            return posted
         }
 
         func leave() async -> NoticeLeave {
@@ -79,19 +87,21 @@ struct HelperTests {
     final class Sent {
         private(set) var messages: [ToSitRep] = []
         private(set) var pids: Set<Int32> = []
-        private var waiter: CheckedContinuation<Void, Never>?
+        private var waiter: (@Sendable (()) -> Void)?
 
         func put(_ letter: Letter<ToSitRep>) {
             messages.append(letter.message)
             pids.insert(letter.pid)
-            waiter?.resume()
+            waiter?(())
             waiter = nil
         }
 
-        /// Once `count` messages are sent.
-        func first(_ count: Int) async -> [ToSitRep] {
+        /// Once `count` messages are sent; the next not sent within the time ends the test.
+        func first(_ count: Int, sourceLocation: SourceLocation = #_sourceLocation) async throws -> [ToSitRep] {
             while messages.count < count {
-                await withCheckedContinuation { waiter = $0 }
+                try await answer(
+                    within: .seconds(10), "for message \(messages.count + 1) to be sent", sourceLocation: sourceLocation
+                ) { waiter = $0 }
             }
 
             return messages
@@ -237,17 +247,19 @@ struct HelperTests {
         #expect(sent.messages == [Self.ready, Self.ready, .clicked(work: "sr-a8n2xc"), Self.ready])
     }
 
+    /// Passed over, the other's banner is never posted: one of its own SitRep's, posted in order after it, is the first.
     @Test func aLetterFromAnotherSitRepIsPassedOver() async {
         let helper = helper(SitRep(isRunning: true))
+        let own = Notice(title: "Own", subtitle: nil, body: "", work: nil)
 
         await helper.start()
         helper.heard(Self.fromSitRep(.ready, pid: 977))
         helper.heard(Self.fromSitRep(.post(Notice(title: "Stale", subtitle: nil, body: "", work: nil)), pid: 977))
         helper.clicked("sr-a8n2xc")
-        await Task.yield()
+        helper.heard(Self.fromSitRep(.post(own)))
 
         #expect(sent.messages == [Self.ready])
-        #expect(mac.posted.isEmpty)
+        #expect(await mac.posts(1) == [own])
     }
 
     @Test func beforeItKnowsItsSitRepNoLetterIsHeard() {
@@ -267,39 +279,31 @@ struct HelperTests {
         await helper.start()
         helper.heard(Self.fromSitRep(.post(first)))
         helper.heard(Self.fromSitRep(.post(second)))
-        while !mac.isHolding {
-            await Task.yield()
-        }
-        for _ in 0 ..< 10 {
-            await Task.yield()
-        }
+        await until(turns: 10_000) { mac.isHolding }
         #expect(mac.posted.isEmpty)
 
         mac.release()
-        while mac.posted.count < 2 {
-            await Task.yield()
-        }
 
-        #expect(mac.posted == [first, second])
+        #expect(await mac.posts(2) == [first, second])
     }
 
-    @Test func itAnswersAStatusWithMacOSsLeaveUnderItsId() async {
+    @Test func itAnswersAStatusWithMacOSsLeaveUnderItsId() async throws {
         let helper = helper(SitRep(isRunning: true))
 
         await helper.start()
         helper.heard(Self.fromSitRep(.status(id: "a")))
 
-        #expect(await sent.first(2).last == .status(.allowed(.banners), id: "a"))
+        #expect(try await sent.first(2).last == .status(.allowed(.banners), id: "a"))
         #expect(mac.asks == 0)
     }
 
-    @Test func itAsksMacOSThenAnswersWithTheLeaveUnderItsId() async {
+    @Test func itAsksMacOSThenAnswersWithTheLeaveUnderItsId() async throws {
         let helper = helper(SitRep(isRunning: true))
 
         await helper.start()
         helper.heard(Self.fromSitRep(.ask(id: "b")))
 
-        #expect(await sent.first(2).last == .status(.denied, id: "b"))
+        #expect(try await sent.first(2).last == .status(.denied, id: "b"))
         #expect(mac.asks == 1)
     }
 }

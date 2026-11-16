@@ -56,7 +56,7 @@ enum WelcomeWorld {
                 displays: { [] }, hasGlass: true, jump: { self.jumps.append($0) }, sendTest: { self.tests += 1 },
                 copy: { self.copies.append($0) },
                 sounds: AlertSounds(
-                    names: AlertSounds.live.names, play: { self.played.append($0) }, stop: { self.stops += 1 }
+                    names: AlertSounds.macOSNames, play: { self.played.append($0) }, stop: { self.stops += 1 }
                 ),
                 noticeLeave: {
                     let said = self.notices
@@ -255,20 +255,27 @@ enum WelcomeWorld {
         }
 
         /// The window come forward, as AppKit tells its delegate, and what it read then read.
-        func key() async {
+        func key() async throws {
             window.windowDidBecomeKey(Notification(name: NSWindow.didBecomeKeyNotification, object: recorded))
-            await welcome.reading?.value
+            try await ended(welcome.reading, within: .seconds(10))
         }
 
-        /// The welcome at this step, from its first.
-        func at(_ step: WelcomeStep) {
-            while welcome.step != step {
+        /// The welcome at this step, from its first; one it never comes to fails the test, rather than go on for ever.
+        func at(_ step: WelcomeStep, sourceLocation: SourceLocation = #_sourceLocation) {
+            while welcome.step != step, !welcome.steps.isLast {
+                let was = welcome.step
+
                 welcome.goOn()
+                guard welcome.step != was else {
+                    break
+                }
             }
+            #expect(welcome.step == step, "never came to its step", sourceLocation: sourceLocation)
         }
 
-        /// What the window shows, laid out once SwiftUI has heard what changed, and what the layout told after it, the
-        /// callout's place, told.
+        /// What the window shows, laid out, the stage having followed what changed, and what the layout told after it,
+        /// the callout's place and the scene, told: the stage does each in a task it posts, which only the main actor's
+        /// turns run (`Hosted`).
         func settled() async -> NSView {
             await Task.yield()
             await Task.yield()

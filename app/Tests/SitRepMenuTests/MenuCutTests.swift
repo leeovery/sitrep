@@ -1,8 +1,10 @@
 import SitRepMenu
+import SitRepTestSupport
 import Testing
 
 /// The menu's words cut to their share of its width, measured run by run in each one's face: here a point a
 /// character, two in mono, half in a subtitle, and an ellipsis in the face it ends.
+@Suite(.backstop)
 struct MenuCutTests {
     private static let cut = MenuCut(title: 20, subtitle: 10) { text, face in
         Double(text.count) * (face == .mono ? 2 : face == .subtitle ? 0.5 : 1)

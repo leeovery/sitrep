@@ -1,9 +1,11 @@
 import Foundation
 @testable import SitRep
+import SitRepTestSupport
 import Testing
 
 /// The notices helper as an app, over a macOS of its own: nothing is started or watched for real.
 @MainActor
+@Suite(.backstop)
 struct HelperAppTests {
     private struct Refused: Error {}
 
@@ -32,12 +34,16 @@ struct HelperAppTests {
             )
         }
 
-        /// The open under way answered with this helper.
+        /// The open under way answered with this helper, once it is asked.
         func opened(_ pid: Int32) async {
-            while opening == nil {
-                await Task.yield()
-            }
+            await until(turns: 10_000) { opening != nil }
             opening?.resume(returning: pid)
+            opening = nil
+        }
+
+        /// The open under way refused.
+        func refused() {
+            opening?.resume(throwing: Refused())
             opening = nil
         }
     }
@@ -61,23 +67,18 @@ struct HelperAppTests {
     private func watching(_ app: HelperApp, _ pid: Int32) async {
         app.open()
         await mac.opened(pid)
-        while app.watched != pid {
-            await Task.yield()
-        }
+        await until(turns: 10_000) { mac.ends[pid] != nil }
     }
 
-    private static func settle() async {
-        for _ in 0 ..< 20 {
-            await Task.yield()
-        }
-    }
-
+    /// Two opens at once: the second, whose open would be asked as the first's is, asks none.
     @Test func itOpensOnceWhileAnOpenIsUnderWay() async {
         let app = helperApp()
 
         app.open()
+        #expect(app.isOpening)
         app.open()
-        await Self.settle()
+        await mac.opened(1)
+        await until(turns: 10_000) { !app.isOpening }
 
         #expect(mac.opens == 1)
     }
@@ -87,8 +88,8 @@ struct HelperAppTests {
 
         await watching(app, 5150)
         app.open()
-        await Self.settle()
 
+        #expect(!app.isOpening)
         #expect(mac.opens == 1)
     }
 
@@ -96,14 +97,12 @@ struct HelperAppTests {
         let app = helperApp()
 
         app.open()
-        await Self.settle()
-        mac.opening?.resume(throwing: Refused())
-        mac.opening = nil
-        await Self.settle()
+        await until(turns: 10_000) { mac.opening != nil }
+        mac.refused()
+        await until(turns: 10_000) { !app.isOpening }
         app.open()
-        await Self.settle()
+        await until(turns: 10_000) { mac.opens == 2 }
 
-        #expect(mac.opens == 2)
         #expect(app.watched == nil)
     }
 
@@ -117,9 +116,7 @@ struct HelperAppTests {
         #expect(app.watched == nil)
 
         app.open()
-        await Self.settle()
-
-        #expect(mac.opens == 2)
+        await until(turns: 10_000) { mac.opens == 2 }
     }
 
     /// An end told late, of a helper watched before, says nothing of the one watched now.

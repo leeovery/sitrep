@@ -1,10 +1,12 @@
 import Foundation
 @testable import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// The Live light against the prototype: every expected number here is what lights.js's own `drawLive`, run under
 /// node on a canvas that records what it is given, paints at the same moment, as the canvas's colour strings round
 /// it: each body stop's red, green and blue, the centre line's alpha to three places, and the opacity.
+@Suite(.backstop)
 struct LiveLightTests {
     struct Drawn: Sendable, CustomTestStringConvertible {
         let time: Double

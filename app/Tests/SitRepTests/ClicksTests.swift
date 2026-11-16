@@ -9,6 +9,7 @@ import Testing
 /// it, both under the latest-click rule; a quick second click joining either, so one window opens; a failure's banner,
 /// once; and the front handed back where nothing of SitRep's comes forward (stage 7, C).
 @MainActor
+@Suite(.backstop)
 struct ClicksTests {
     private nonisolated static let notRunning =
         "SitRep opens a window only in a Ghostty already running. Open Ghostty, then click Trey Research again."

@@ -32,6 +32,7 @@ final class Scratch {
     }
 }
 
+@Suite(.backstop)
 struct PluginCopiesTests {
     @Test func eachCopysVersionIsAsItsManifestSaysAndItsBuildAsItsStamp() throws {
         let scratch = Scratch()
@@ -157,6 +158,7 @@ struct PluginCopiesTests {
     }
 }
 
+@Suite(.backstop)
 struct MarketplaceEntryTests {
     private static func entry(_ json: String) throws -> MarketplaceEntry? {
         let scratch = Scratch()

@@ -1,11 +1,13 @@
 import CoreGraphics
 @testable import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// The strip's sections (14 November 2026): Needs you, Working and Snoozed in the panel's order, a hairline between
 /// each two that show; a section folded is one count of all its sessions, numbered without a plus and coloured as its
 /// section, which pours them all as rows and unfolds at a click; Snoozed's marks dimmed, each a click to its session;
 /// and past its room each section keeps a place for each after it, Snoozed last.
+@Suite(.backstop)
 struct StripSectionsTests {
     // MARK: The sections
 

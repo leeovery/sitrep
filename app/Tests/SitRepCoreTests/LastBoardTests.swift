@@ -1,8 +1,10 @@
 import Foundation
 @testable import SitRepCore
 import SitRepLines
+import SitRepTestSupport
 import Testing
 
+@Suite(.backstop)
 struct LastBoardTests {
     private static let noon = Date(timeIntervalSince1970: 1_792_445_600)
 

@@ -1,8 +1,10 @@
 import Foundation
 @testable import SitRepCore
 import os
+import SitRepTestSupport
 import Testing
 
+@Suite(.backstop)
 struct SitRepCLITests {
     private static let plugin = URL(fileURLWithPath: "/Users/me/Code/sitrep")
     private static let path = "/Users/me/.bun/bin:/opt/homebrew/bin:/usr/bin:/bin"

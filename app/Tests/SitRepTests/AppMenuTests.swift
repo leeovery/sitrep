@@ -1,10 +1,12 @@
 import AppKit
 @testable import SitRep
+import SitRepTestSupport
 import Testing
 
 /// The main menu no one sees: the key equivalents Settings, editing in SitRep's windows, Settings' going back and
 /// forward, and closing go through.
 @MainActor
+@Suite(.backstop)
 struct AppMenuTests {
     /// Each item of the built menu by its keys, as ⌘ and ⇧ with the key, and what it sends.
     private static let keys: [String: Selector] = {

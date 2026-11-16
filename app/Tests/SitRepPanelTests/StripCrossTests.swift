@@ -1,10 +1,12 @@
 import CoreGraphics
 @testable import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// The strip as the view meets it between frames and across edges: a drag let go past the screen's middle crosses as
 /// the prototype's `moveEdge` does, a re-grab meanwhile is refused, a hidden drag goes back, frames after a pause
 /// measure no false speed, and a board after a long idle still flashes in full.
+@Suite(.backstop)
 struct StripCrossTests {
     /// The strip at Grows, the pointer on the first turn's mark, a press carried past the screen's middle and let go.
     private static func droppedAcross(reducesMotion: Bool = false) -> StripLab {

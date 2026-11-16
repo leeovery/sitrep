@@ -1,8 +1,10 @@
 @testable import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// The caption a jump leaves, as the prototypes show it: where it jumped, 90ms into the drain once the jump has
 /// jumped; in over 160ms dropping 4 into place, held, and out from 1350, gone by 1600.
+@Suite(.backstop)
 struct JumpCaptionTests {
     @Test func itSaysWhichProjectsWindowItJumpedTo() {
         #expect(JumpCaption(to: "Trey Research").text == "Jumped to Trey Research's window")

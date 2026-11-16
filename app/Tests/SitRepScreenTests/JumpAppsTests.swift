@@ -6,6 +6,7 @@ import Testing
 
 /// Terminal apps with no driver, brought forward whole once found running, never launched; and an app that cannot be
 /// asked passed over for the next.
+@Suite(.backstop)
 struct JumpAppsTests {
     @Test(arguments: [
         ("iTerm.app", "com.googlecode.iterm2", [["com.googlecode.iterm2"]]),
@@ -76,16 +77,16 @@ struct JumpAppsTests {
         #expect(jumping.ghostty.asked == ["/dev/ttys098"])
     }
 
-    @Test func bringingAnAppForwardIsLetGoAtTwoSecondsAsTheCLIsOpenWasSoLaunchServicesNotAnsweringGivesWayToTheNextPlace() async {
+    @Test func bringingAnAppForwardIsLetGoAtTwoSecondsAsTheCLIsOpenWasSoLaunchServicesNotAnsweringGivesWayToTheNextPlace() async throws {
         var mac = Mac()
         let clients = [mac.terminalClient("/dev/ttys030", showing: JumpWorld.claudes), mac.ghosttyClient(JumpWorld.window, showing: JumpWorld.claudes)]
         let jumping = Jumping(server(clients), FakeTable(mac.tree), workspace: FakeWorkspace(at: [JumpWorld.terminalApp], forward: nil))
         let jumped = Task { await jumping.run([inTmux()]) }
 
-        await until(within: .seconds(10)) { jumping.clock.sleeps.contains(.seconds(2)) }
+        try await until(within: .seconds(10)) { jumping.clock.sleeps.contains(.seconds(2)) }
         jumping.clock.pass(.seconds(2))
 
-        #expect(await jumped.value == .jumped)
+        #expect(try await value(of: jumped, within: .seconds(10)) == .jumped)
         #expect(jumping.ghostty.focused == ["WOODGROVE-TERMINAL"])
     }
 

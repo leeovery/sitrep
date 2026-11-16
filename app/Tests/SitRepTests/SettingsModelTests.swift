@@ -8,6 +8,7 @@ import SitRepTestSupport
 import SwiftUI
 import Testing
 
+@Suite(.backstop)
 struct DesktopCornerTests {
     private static let evening = Date(timeIntervalSince1970: 1_792_524_000)
     private static let london = TimeZone(identifier: "Europe/London")!
@@ -25,6 +26,7 @@ struct DesktopCornerTests {
 
 /// Settings as the window keeps it between visits, over a Mac of its own.
 @MainActor
+@Suite(.backstop)
 struct SettingsModelTests {
     /// What the Mac was asked, and the prompt held up until `answer` lets it go.
     @MainActor
@@ -96,7 +98,7 @@ struct SettingsModelTests {
     }
 
     /// The notices helper may take up to its 2 seconds; Ghostty's row is read meanwhile.
-    @Test func aSlowReadOfNotificationsHoldsUpNoOtherRow() async {
+    @Test func aSlowReadOfNotificationsHoldsUpNoOtherRow() async throws {
         let mac = Mac()
         let settings = Self.settings(mac)
 
@@ -104,61 +106,56 @@ struct SettingsModelTests {
 
         let reading = Task { await settings.read() }
 
-        for _ in 0 ..< 100 where settings.said.ghostty == nil {
-            await Task.yield()
-        }
+        try await until(within: .seconds(10)) { settings.said.ghostty != nil && mac.noticesAnswer != nil }
         #expect(settings.said.ghostty == .unasked)
         #expect(settings.said.notices == nil)
 
-        while mac.noticesAnswer == nil {
-            await Task.yield()
-        }
         mac.noticesAnswer?.resume()
-        await reading.value
+        try await value(of: reading, within: .seconds(10))
         #expect(settings.said.notices == .allowed(.banners))
     }
 
     /// The window keyed as it opens reads once, however often it is told it is key.
-    @Test func itReadsWhatMacOSSaysOnceAsTheWindowOpens() async {
+    @Test func itReadsWhatMacOSSaysOnceAsTheWindowOpens() async throws {
         let mac = Mac()
         let settings = Self.settings(mac)
 
         settings.keys(true)
-        await settings.reading?.value
+        try await ended(settings.reading, within: .seconds(10))
         settings.keys(true)
-        await settings.reading?.value
+        try await ended(settings.reading, within: .seconds(10))
         #expect(mac.reads == 1)
     }
 
     /// Lee may have changed it in System Settings meanwhile.
-    @Test func itReadsAgainEachTimeTheWindowComesForward() async {
+    @Test func itReadsAgainEachTimeTheWindowComesForward() async throws {
         let mac = Mac()
         let settings = Self.settings(mac)
 
         settings.keys(true)
-        await settings.reading?.value
+        try await ended(settings.reading, within: .seconds(10))
         settings.keys(false)
         settings.keys(true)
-        await settings.reading?.value
+        try await ended(settings.reading, within: .seconds(10))
         #expect(mac.reads == 2)
     }
 
     /// A pane comes into sight as Lee turns to it, by the sidebar or by back and forward; the pane shown, picked again,
     /// stays in sight.
-    @Test func itReadsAsLeeTurnsToAPaneWhileTheWindowIsKey() async {
+    @Test func itReadsAsLeeTurnsToAPaneWhileTheWindowIsKey() async throws {
         let mac = Mac()
         let settings = Self.settings(mac)
 
         settings.keys(true)
-        await settings.reading?.value
+        try await ended(settings.reading, within: .seconds(10))
         settings.turn(to: .notifications)
-        await settings.reading?.value
+        try await ended(settings.reading, within: .seconds(10))
         settings.goBack()
-        await settings.reading?.value
+        try await ended(settings.reading, within: .seconds(10))
         settings.goForward()
-        await settings.reading?.value
+        try await ended(settings.reading, within: .seconds(10))
         settings.turn(to: .notifications)
-        await settings.reading?.value
+        try await ended(settings.reading, within: .seconds(10))
         #expect(mac.reads == 4)
     }
 
@@ -176,13 +173,13 @@ struct SettingsModelTests {
     }
 
     /// A click on a row of the window not key keys it, then turns it: one read, as a read takes in every pane.
-    @Test func aClickOnARowOfTheWindowNotKeyReadsOnce() async {
+    @Test func aClickOnARowOfTheWindowNotKeyReadsOnce() async throws {
         let mac = Mac()
         let settings = Self.settings(mac)
 
         settings.keys(true)
         settings.select(.notifications)
-        await settings.reading?.value
+        try await ended(settings.reading, within: .seconds(10))
         #expect(mac.reads == 1)
     }
 
@@ -240,21 +237,17 @@ struct SettingsModelTests {
         #expect(Self.settings(Mac(), defaults).pane == .edge)
     }
 
-    @Test func allowIsPressedOnceWhileMacOSsPromptIsUp() async {
+    @Test func allowIsPressedOnceWhileMacOSsPromptIsUp() async throws {
         let mac = Mac()
         let settings = Self.settings(mac)
 
         settings.fix(.allowGhostty)
         settings.fix(.allowGhostty)
-        while mac.answer == nil {
-            await Task.yield()
-        }
+        try await until(within: .seconds(10)) { mac.answer != nil }
         #expect(settings.isAllowing)
         #expect(mac.allows == 1)
         mac.answer?.resume(returning: .allowed)
-        while settings.isAllowing {
-            await Task.yield()
-        }
+        try await until(within: .seconds(10)) { !settings.isAllowing }
         #expect(settings.said.ghostty == .allowed)
     }
 

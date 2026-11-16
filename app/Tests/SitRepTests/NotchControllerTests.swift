@@ -9,6 +9,7 @@ import Testing
 /// The controller's frame while the open panel is idle: armed for when it next draws differently, a row's time, and
 /// nothing else, as no your-turn row folds away (board J).
 @MainActor
+@Suite(.backstop)
 struct NotchControllerTests {
     private static let midnight = 1_792_710_000_000.0 // 23 October 2026, 00:00 BST
 

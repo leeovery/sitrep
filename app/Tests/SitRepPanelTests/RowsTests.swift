@@ -1,7 +1,9 @@
 import CoreGraphics
 @testable import SitRepPanel
+import SitRepTestSupport
 import Testing
 
+@Suite(.backstop)
 struct RowsTests {
     private static let minute = 60_000.0
 

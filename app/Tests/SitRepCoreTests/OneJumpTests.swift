@@ -7,6 +7,7 @@ import Testing
 /// but a click on the same session before it says it is still jumping joins it; a jump with no answer two seconds on
 /// says it is still jumping, on a clock the test moves.
 @MainActor
+@Suite(.backstop)
 struct OneJumpTests {
     @Test func aJumpTellsHowItEnded() async {
         let (oneJump, _) = Self.made()
@@ -25,7 +26,7 @@ struct OneJumpTests {
         let jumps = Jumps(), heard = Heard()
 
         oneJump.run(to: "sr-a", jumps.jump(1), told: heard.add)
-        await until(turns: 100_000) { clock.sleeps.count == 1 }
+        await until(turns: 100_000) { jumps.started == [1] && clock.sleeps.count == 1 }
         #expect(clock.sleeps == [.seconds(2)])
         #expect(heard.news.isEmpty)
 
@@ -106,15 +107,14 @@ struct OneJumpTests {
         oneJump.run(to: "sr-a", jumps.jump(1), told: first.add)
         await until(turns: 100_000) { jumps.started == [1] && clock.sleeps.count == 1 }
         oneJump.run(to: "sr-a", jumps.jump(2), told: second.add)
-        await Self.settle()
-        #expect(jumps.started == [1])
-        #expect(jumps.stopped.isEmpty)
 
         clock.pass(OneJump.stillAfter)
         await until(turns: 100_000) { once.news == [.still] }
         jumps.answer(1, .jumped)
         await until(turns: 100_000) { once.news.count == 2 }
 
+        #expect(jumps.started == [1])
+        #expect(jumps.stopped.isEmpty, "the jump under way ran on")
         #expect(first.news == [.still, .ended(.jumped)])
         #expect(second.news == [.still, .ended(.jumped)])
         #expect(once.news == [.still, .ended(.jumped)])

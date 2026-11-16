@@ -10,6 +10,7 @@ import Testing
 /// lands on the strip as drawn and a drag follows; a drag hidden ends where it began; inputs between the frames leave
 /// it as the frames alone would; the pointer's speed is its own; the clock never goes back; and what a frame showed
 /// waits for the drawing once.
+@Suite(.backstop)
 struct StripRunTests {
     private static let stage = StripStage(width: 1512, height: 982, menu: 37)
     private static let setting = StripRun.Setting(stage: stage, reducesMotion: false)

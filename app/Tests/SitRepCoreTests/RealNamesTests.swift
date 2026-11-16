@@ -5,6 +5,7 @@ import Testing
 /// No test names Lee's real work, by `tests/real-names.txt`'s rule; the TypeScript kit's tests can't read files, so
 /// this one keeps both suites to it, and the prototypes their recordings are made from. The rule's own tests use
 /// made-up names, as this file is one it reads.
+@Suite(.backstop)
 struct RealNamesTests {
     private static let list = try! RealNames("""
     # A comment, then a blank line, which are nothing.

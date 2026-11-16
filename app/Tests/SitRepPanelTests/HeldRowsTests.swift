@@ -1,8 +1,10 @@
 @testable import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// Core orders the rows; the panel decides only when a new order shows: at once while it is in, and once it is in
 /// again after it was out.
+@Suite(.backstop)
 struct HeldRowsTests {
     private static let sessions = Item.prototype.compactMap(\.session)
 

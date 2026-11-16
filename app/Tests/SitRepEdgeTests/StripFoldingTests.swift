@@ -11,6 +11,7 @@ import Testing
 /// folded on one is folded on the other at its next frame, and kept; an arrival unfolding Needs you only while Lee
 /// has the notch show the board; and the strip's Snoozed marks, its right-click's targets, a menu's hold and its jump.
 @MainActor
+@Suite(.backstop)
 struct StripFoldingTests {
     // MARK: One setting
 

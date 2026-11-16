@@ -1,8 +1,10 @@
 import Foundation
 import os
 @testable import SitRepCore
+import SitRepTestSupport
 import Testing
 
+@Suite(.backstop)
 struct PluginSetupTests {
     private static let path = "/opt/homebrew/bin:/usr/bin:/bin"
 
@@ -188,11 +190,9 @@ struct PluginSetupTests {
             },
             entry: { _ in .within("./") }
         )
-        var standings: [PluginStanding] = []
-
-        for await standing in setup.standings(waiting: { wait in waits.withLock { $0.append(wait) } }) {
-            standings.append(standing)
-        }
+        let stream = setup.standings(waiting: { wait in waits.withLock { $0.append(wait) } })
+        let reading = Task { await stream.reduce(into: []) { $0.append($1) } }
+        let standings = try await value(of: reading, within: .seconds(10))
 
         #expect(standings.map(\.trouble) == [.noClaude, .noClaude, .noClaude, nil])
         #expect(waits.withLock { $0 } == [.seconds(1), .seconds(2), .seconds(4)])

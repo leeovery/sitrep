@@ -2,6 +2,7 @@ import AppKit
 @testable import SitRep
 import SitRepEdge
 import SitRepPanel
+import SitRepTestSupport
 import SwiftUI
 import Testing
 
@@ -9,6 +10,7 @@ import Testing
 /// every row on one line, 30 tall, Needs you's asks and turns and Working's, in black and in glass, each read from its
 /// pixels at 2×; and the card's content, with no hairline and no "N earlier".
 @MainActor
+@Suite(.backstop)
 struct CardSectionsDrawnTests {
     private static let width = 344.0
     private static let ground = CGPoint(x: 1, y: 1)

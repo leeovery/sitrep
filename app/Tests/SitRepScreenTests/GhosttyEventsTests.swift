@@ -3,6 +3,7 @@ import Darwin
 import Foundation
 import os
 @testable import SitRepScreen
+import SitRepTestSupport
 import Testing
 
 /// A descriptor in words, as AEDebug prints it but shorter: a specifier or a test by its fields, a list by its items,
@@ -155,6 +156,7 @@ func replied(_ number: Int32, said: String? = nil) -> Answering.Answer {
 
 /// Ghostty's events built by hand as AppleScript builds the CLI's program, each to the Ghostty running, within five
 /// seconds, and their answers read, the codes from Ghostty's dictionary.
+@Suite(.backstop)
 struct GhosttyEventsTests {
     private static let device = "/dev/ttys041"
 
@@ -390,7 +392,7 @@ struct GhosttyEventsTests {
         #expect(GhosttyFailure.cannotOpen.description == "This Ghostty cannot open a window for SitRep: update Ghostty to 1.4 or later.")
     }
 
-    @Test func aJumpStoppedLetsGoOfAnEventInFlightWhichRunsOnItsAnswerDropped() async {
+    @Test func aJumpStoppedLetsGoOfAnEventInFlightWhichRunsOnItsAnswerDropped() async throws {
         let (entered, enter) = AsyncStream.makeStream(of: Void.self)
         let release = DispatchSemaphore(value: 0)
         let answered = OSAllocatedUnfairLock(initialState: false)
@@ -402,13 +404,14 @@ struct GhosttyEventsTests {
         }
         let asking = Task { try await events.terminal(on: Self.device) }
 
-        _ = await entered.first { _ in true }
+        defer { release.signal() }
+        try await first(of: entered, within: .seconds(10))
         asking.cancel()
 
-        await #expect(throws: CancellationError.self) { try await asking.value }
-        #expect(!answered.withLock { $0 }, "let go before Ghostty answered")
+        let ended = try await result(of: asking, within: .seconds(10))
 
-        release.signal()
+        #expect(throws: CancellationError.self) { try ended.get() }
+        #expect(!answered.withLock { $0 }, "let go before Ghostty answered")
     }
 }
 

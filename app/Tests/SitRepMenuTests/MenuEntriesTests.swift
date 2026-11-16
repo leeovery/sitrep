@@ -4,6 +4,7 @@ import SitRepPanel
 import SitRepTestSupport
 import Testing
 
+@Suite(.backstop)
 struct MenuEntriesTests {
     private static func entries(
         _ rows: [WatchLine.Row] = Watched.rows, needYou: Int? = nil, windows: [WatchLine.Window] = [],

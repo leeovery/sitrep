@@ -9,6 +9,7 @@ import Testing
 /// suspended where a terminal here shows it is Lee's to bring back, the jump taking him there; otherwise a new window
 /// types the resume command, filled from the window a jump tries first, or the one an away session was last in. The
 /// default refuses while the session's Claude is still alive; a command Lee wrote always runs.
+@Suite(.backstop)
 struct CarryOnTests {
     private static let proseware = "adventure-works-v2 · proseware-build"
     private static let claude = "b1c2d3e4-0000-4000-8000-000000000001"

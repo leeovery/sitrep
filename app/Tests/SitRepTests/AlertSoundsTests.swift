@@ -7,22 +7,17 @@ import SitRepTestSupport
 import SwiftUI
 import Testing
 
-extension AlertSounds {
-    /// macOS's sounds by name, none of them ever played.
-    static var silent: AlertSounds {
-        AlertSounds(names: live.names, play: { _ in })
-    }
-}
-
 /// The sounds a new ask can play: macOS's own alert sounds, by name.
 @MainActor
+@Suite(.backstop)
 struct AlertSoundsTests {
-    @Test func theyAreMacOSsAlertSoundsByNameInOrder() {
+    /// Read from this Mac's macOS, in order, and holding every name the tests use in their place: a macOS that adds a
+    /// sound passes, one that drops or renames one the tests use fails.
+    @Test(.tags(.thisMac))
+    func theyAreMacOSsAlertSoundsByNameInOrder() {
         let names = AlertSounds.live.names
 
-        #expect(names.first == "Basso")
-        #expect(names.last == "Tink")
-        #expect(names.contains("Glass"))
+        #expect(Set(AlertSounds.macOSNames).isSubset(of: names))
         #expect(names == names.sorted())
     }
 
@@ -51,6 +46,7 @@ struct AlertSoundsTests {
 
 /// Settings' "Play a sound for a new ask" and "Sound", in Notifications' Sound, after Banners.
 @MainActor
+@Suite(.backstop)
 struct SoundRowsTests {
     /// What the page played, none of it aloud.
     @MainActor
@@ -127,13 +123,12 @@ struct SoundRowsTests {
             control.state = isOn ? .on : .off
             _ = control.sendAction(control.action, to: control.target)
             #expect(settings.preferences.app.playsSound == isOn)
-            await Task.yield()
             hosted.hosting.layoutSubtreeIfNeeded()
             return try Self.popUp(hosted).isEnabled
         }
 
-        #expect(try await !flipped(false))
-        #expect(try await flipped(true))
+        #expect(try !flipped(false))
+        #expect(try flipped(true))
     }
 
     @Test func theSoundIsGreyedWhileTheSwitchIsOff() async throws {

@@ -1,10 +1,12 @@
 import CoreGraphics
 @testable import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// The drag, as the prototypes have it, Meniscus and the card alike: the notch lifts off the edge over 140ms, 2
 /// deeper and shadowed, follows the drag along the edge on a 50ms spring, and sets down over 220. Let go across the
 /// screen's middle, it drains into this edge in 150ms, swaps edges at 160 and grows out of the other over 300.
+@Suite(.backstop)
 struct CarryTests {
     @Test func aDragLiftsTheNotchOver140AndItSetsDownOver220() {
         lifts(Lab())

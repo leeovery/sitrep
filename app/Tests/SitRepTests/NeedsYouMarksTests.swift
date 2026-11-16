@@ -2,6 +2,7 @@ import AppKit
 @testable import SitRep
 import SitRepMenu
 @testable import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// Needs you's marks in one grammar (13 November 2026): colour says what is needed, an ask's orange or Lee's turn's
@@ -9,6 +10,7 @@ import Testing
 /// in Snoozed its dot, its colour dimmed. On the card, black and glass, read from its pixels at 2×; the menu's marks
 /// and glyph; and the strip's rings.
 @MainActor
+@Suite(.backstop)
 struct NeedsYouMarksTests {
     private static let cardSize = CGSize(width: 344, height: Item.lineHeight)
     /// The mark's centre on a card's row, and 2.75 up, where an away ring's stroke runs.

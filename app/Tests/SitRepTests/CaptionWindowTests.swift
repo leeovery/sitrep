@@ -9,6 +9,7 @@ import Testing
 /// kept from showing, as over a full-screen app, or once it has played. It shows far off every screen, so nothing
 /// shows.
 @MainActor
+@Suite(.backstop)
 struct CaptionWindowTests {
     private static let over = CGRect(x: -20000, y: -20000, width: 1512, height: 958)
 
@@ -35,12 +36,12 @@ struct CaptionWindowTests {
     }
 
     /// Core Animation's own animations, as the app plays them: its real fade ends, and the window is clear.
-    @Test func onCoreAnimationItHidesAsItsFadeEnds() async {
+    @Test func onCoreAnimationItHidesAsItsFadeEnds() async throws {
         let caption = Self.showing(CoreAnimations())
 
         defer { caption.window.close() }
         #expect(caption.window.alphaValue == 1)
-        await until(within: .seconds(20)) { caption.window.alphaValue == 0 }
+        try await until(within: .seconds(20)) { caption.window.alphaValue == 0 }
         #expect(caption.says == nil)
     }
 

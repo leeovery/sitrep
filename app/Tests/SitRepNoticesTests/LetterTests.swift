@@ -1,8 +1,10 @@
 import Foundation
 import SitRepRelay
+import SitRepTestSupport
 import Testing
 
 /// The relay's letters, through the userInfo a distributed notification carries.
+@Suite(.backstop)
 struct LetterTests {
     private static let notice = Notice(title: "Pick a name", subtitle: "Trey Research · Build the desktop app", body: "", work: "sr-a8n2xc")
 

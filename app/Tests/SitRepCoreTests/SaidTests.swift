@@ -1,6 +1,8 @@
 @testable import SitRepCore
+import SitRepTestSupport
 import Testing
 
+@Suite(.backstop)
 struct SaidTests {
     @Test func theCLIsOwnLastLineIsGivenWithoutItsPrefix() {
         #expect(Said("sitrep: first\nsitrep: what ended it\n").reason == "what ended it")

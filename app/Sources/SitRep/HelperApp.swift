@@ -41,7 +41,8 @@ final class HelperApp: HelperStarting {
     private(set) var watched: Int32?
     private let mac: HelperMac
     private let logger = Logger(sitrep: "banner")
-    private var isOpening = false
+    /// Whether an open is under way: internal only for the tests.
+    private(set) var isOpening = false
     private var watch: AnyObject?
 
     init(_ mac: HelperMac) {

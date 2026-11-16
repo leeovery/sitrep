@@ -3,6 +3,7 @@ import SitRepTestSupport
 import Testing
 
 /// A test's defaults of its own: read back as set, apart from every other test's, and never on disk.
+@Suite(.backstop)
 struct MemoryDefaultsTests {
     @Test func whatIsSetIsReadBackAndRemoved() {
         let defaults = MemoryDefaults()

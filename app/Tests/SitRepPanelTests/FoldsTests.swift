@@ -1,10 +1,12 @@
 import CoreGraphics
 import Foundation
 @testable import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// Rows folding in and out as they come and go, as the prototypes' do: only while the panel is out, over 260ms on
 /// easeInOut (120 under reduced motion), a new one fading in over 220, one gone folding away where it was.
+@Suite(.backstop)
 struct FoldsTests {
     private static func row(_ id: String) -> Item {
         .session(Session(id: id, project: "Trey Research", kind: .working, title: id, sub: "", since: 0))

@@ -12,6 +12,7 @@ import Testing
 /// longer "Your turn folds after", retired with "N earlier" on 4 November 2026, as the card shows every your-turn row
 /// (board J).
 @MainActor
+@Suite(.backstop)
 struct GeneralPaneTests {
     /// The card's column at the window's least width, and at the drawings' 704.
     nonisolated private static let leastColumn = SettingsWindow.smallest.width - 188 - 40

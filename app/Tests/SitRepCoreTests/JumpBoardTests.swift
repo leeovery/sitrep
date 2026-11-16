@@ -1,11 +1,13 @@
 import Foundation
 @testable import SitRepCore
 import SitRepLines
+import SitRepTestSupport
 import Testing
 
 /// The board a jump goes from: the last line of a watch running and printed, waited for while the watch starts, starts
 /// again or is stale; at once why none will come with no plugin to run it.
 @MainActor
+@Suite(.backstop)
 struct JumpBoardTests {
     /// A look of a watch run that printed the line given.
     private static func heard(_ line: String) -> LastBoard {
@@ -31,10 +33,7 @@ struct JumpBoardTests {
         let waits = jumpBoard.waits
         let asking = Task { await jumpBoard.current() }
 
-        for _ in 0..<1000 where jumpBoard.waits == waits {
-            await Task.yield()
-        }
-        #expect(jumpBoard.waits == waits + 1, "the jump waits", sourceLocation: sourceLocation)
+        await until(turns: 1000, "the jump waits", sourceLocation: sourceLocation) { jumpBoard.waits == waits + 1 }
         return asking
     }
 
@@ -53,7 +52,7 @@ struct JumpBoardTests {
         jumpBoard.heard(LastBoard())
         jumpBoard.heard(Self.heard(Lines.pretty))
 
-        #expect(await waiting.value == .board(try Board.read(Lines.pretty)))
+        #expect(try await value(of: waiting, within: .seconds(10)) == .board(try Board.read(Lines.pretty)))
     }
 
     /// A stale board is not jumped from: the jump waits for the watch, started again, to print.
@@ -75,7 +74,7 @@ struct JumpBoardTests {
         _ = started.hear(.line(watchedEmpty), at: Date())
         jumpBoard.heard(started)
 
-        #expect(await waiting.value == .board(try Board.read(watchedEmpty)))
+        #expect(try await value(of: waiting, within: .seconds(10)) == .board(try Board.read(watchedEmpty)))
     }
 
     @Test func withNoPluginToRunTheWatchAJumpIsToldWhyAtOnceUntilAWatchRuns() async throws {
@@ -100,27 +99,29 @@ struct JumpBoardTests {
 
         jumpBoard.heard(Self.heard(Lines.pretty))
 
-        #expect(await waiting.value == .board(try Board.read(Lines.pretty)))
+        #expect(try await value(of: waiting, within: .seconds(10)) == .board(try Board.read(Lines.pretty)))
     }
 
-    @Test func aJumpWaitingAsTheWatchGivesUpForWantOfAPluginIsToldWhy() async {
+    @Test func aJumpWaitingAsTheWatchGivesUpForWantOfAPluginIsToldWhy() async throws {
         let jumpBoard = JumpBoard()
         let waiting = await Self.asking(jumpBoard)
 
         jumpBoard.unrun("SitRep has no plugin to run.")
 
-        #expect(await waiting.value == .unread("SitRep has no plugin to run."))
+        #expect(try await value(of: waiting, within: .seconds(10)) == .unread("SitRep has no plugin to run."))
     }
 
     /// A wait whose jump is stopped, by its limit or a later click, ends at once with why the board is not there,
     /// leaving none behind: a board heard after reaches nobody.
-    @Test func aWaitCancelledEndsAtOnceSayingWhyTheBoardIsNotThere() async {
+    @Test func aWaitCancelledEndsAtOnceSayingWhyTheBoardIsNotThere() async throws {
         let jumpBoard = JumpBoard()
         let waiting = await Self.asking(jumpBoard)
 
         waiting.cancel()
 
-        #expect(await waiting.value == .unread("SitRep has no board yet: sitrep watch has printed none."))
+        let read = try await value(of: waiting, within: .seconds(10))
+
+        #expect(read == .unread("SitRep has no board yet: sitrep watch has printed none."))
         jumpBoard.heard(Self.heard(Lines.pretty))
     }
 
