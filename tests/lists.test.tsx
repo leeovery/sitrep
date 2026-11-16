@@ -8,7 +8,6 @@ import { postedId, toProject, world, type Board, type World } from './world'
 
 tier('user')
 
-
 /** The board's rows, as drawn. */
 const boardRows = async (ui: Board) => rowsOf(await ui.find({ type: 'Box' }))
 
@@ -53,29 +52,26 @@ const PARKED = ['A priority badge', 'Thumbnails in the picker', 'Export the ledg
   title => ({ title }),
 )
 
-test(
-  'a session lists its notes and its closed asks with no blank row between their entries',
-  async ($, on) => {
-    const w = world($, on)
+test('a session lists its notes and its closed asks with no blank row between their entries', async ($, on) => {
+  const w = world($, on)
 
-    await w.begin()
-    await posted(w, 'note', ...NOTES)
+  await w.begin()
+  await posted(w, 'note', ...NOTES)
 
-    for (const id of await posted(w, 'ask', ...reviews('Review round 1', 'Review round 2'))) {
-      await w.call('resolve', { item: id, reason: 'Done in the chat' })
-      await w.clock.advance(MIN)
-    }
+  for (const id of await posted(w, 'ask', ...reviews('Review round 1', 'Review round 2'))) {
+    await w.call('resolve', { item: id, reason: 'Done in the chat' })
+    await w.clock.advance(MIN)
+  }
 
-    const rows = await boardRows(await w.opened())
+  const rows = await boardRows(await w.opened())
 
-    expect(listedUnder(rows, 'NOTES')).toEqual([
-      ' • The schema is drawn 5m',
-      ' • PR #82 merged 6m',
-      ' • PR #81 merged 7m',
-    ])
-    expect(listedUnder(rows, 'RESOLVED')).toEqual([' ✓ Review round 2 1m', ' ✓ Review round 1 2m'])
-  },
-)
+  expect(listedUnder(rows, 'NOTES')).toEqual([
+    ' • The schema is drawn 5m',
+    ' • PR #82 merged 6m',
+    ' • PR #81 merged 7m',
+  ])
+  expect(listedUnder(rows, 'RESOLVED')).toEqual([' ✓ Review round 2 1m', ' ✓ Review round 1 2m'])
+})
 
 test('PARKED lists its items with no blank row between them, in a session and in its project, each naming its session there', async ($, on) => {
   const w = world($, on)

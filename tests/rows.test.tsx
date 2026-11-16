@@ -76,11 +76,7 @@ function engineRows(on: On) {
 const LINES: [tool: string, input: { [key: string]: unknown }, line: string][] = [
   ['start', { name: 'Help desk redesign', summary: 'Redesign it' }, 'started: Help desk redesign'],
   ['status', { now: ['Drawing Inbox'] }, '• status set'],
-  [
-    'ask',
-    REVIEW,
-    '◆ asked: Review Tickets & Replies, round 1',
-  ],
+  ['ask', REVIEW, '◆ asked: Review Tickets & Replies, round 1'],
   ['note', { text: 'PR #82 merged' }, 'noted: PR #82 merged'],
   ['park', { title: 'A priority badge' }, '◇ parked: A priority badge'],
   ['finish', { reason: 'Shipped' }, '✓ finished a session'],
@@ -115,9 +111,7 @@ test('a call naming an item or a session, with no name kept, names it as the hel
   engineRows(on)
 
   const { id } = await w.begin()
-  const asked = postedId(
-    await w.call('ask', reviewRound(1)),
-  )
+  const asked = postedId(await w.call('ask', reviewRound(1)))
 
   const rows: [tool: string, input: { [key: string]: unknown }, line: string][] = [
     ['resolve', { item: asked }, 'resolved: Review round 1'],
@@ -143,9 +137,7 @@ test("a resolve, reopen or edit row keeps its item's title after Claude joins an
   engineRows(on)
   await w.begin()
 
-  const asked = postedId(
-    await w.call('ask', reviewRound(1)),
-  )
+  const asked = postedId(await w.call('ask', reviewRound(1)))
   const rows: [tool: string, input: { [key: string]: unknown }, line: string][] = [
     ['resolve', { item: asked }, 'resolved: Review round 1'],
     ['reopen', { item: asked }, 'reopened: Review round 1'],
@@ -172,9 +164,7 @@ test("an edit's row names the item's title as the edit left it", async ($, on) =
   engineRows(on)
   await w.begin()
 
-  const asked = postedId(
-    await w.call('ask', reviewRound(1)),
-  )
+  const asked = postedId(await w.call('ask', reviewRound(1)))
   const input = { item: asked, title: 'Review round 2' }
   const edited = await keeping(w, 'edit', input)
 
@@ -218,9 +208,7 @@ test('only the latest calls keep their names, the oldest let go', async ($, on) 
 
   await w.begin()
 
-  const asked = postedId(
-    await w.call('ask', reviewRound(1)),
-  )
+  const asked = postedId(await w.call('ask', reviewRound(1)))
   const first = await keeping(w, 'resolve', { item: asked })
 
   for (let i = 0; i < NAMES_KEPT; i += 1) {

@@ -146,7 +146,10 @@ test('the pane marks the recommended option with the word once, quiet beside it,
 
   await w.begin()
 
-  const id = await asked(w, { ...THREE_WAY, options: ['Ship it', 'Redraw (recommended)', 'Hold off'] })
+  const id = await asked(w, {
+    ...THREE_WAY,
+    options: ['Ship it', 'Redraw (recommended)', 'Hold off'],
+  })
 
   for (const surface of SURFACES) {
     const ui = await w.pane(surface)

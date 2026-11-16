@@ -1,4 +1,5 @@
 /** Steps the tests share, taken in a world: Claude asking, a turn ending, Lee moving about the board. */
+import type { RenderPropsOf } from 'claude-code'
 import type { Mounted } from 'claude-code/testing'
 import { PROJECT, REVIEW } from '../data'
 import { postedId } from './calls'
@@ -23,7 +24,7 @@ export const asking = async (
     asks = [REVIEW],
     props = DOCKED,
     advance,
-  }: { asks?: readonly Ask[]; props?: typeof DOCKED; advance?: number } = {},
+  }: { asks?: readonly Ask[]; props?: RenderPropsOf['Pane']; advance?: number } = {},
 ) => {
   const { paths } = await w.begin()
   const ids: string[] = []

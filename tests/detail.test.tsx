@@ -7,7 +7,6 @@ import { ACROSS, postedId, world, type Board } from './world'
 
 tier('user')
 
-
 const FOLD =
   "Move the pilot's results into the spreadsheet pages: contributors by team and level, owner by department, week tally, separate summaries"
 
@@ -22,8 +21,7 @@ const DECIDE = {
 }
 
 /** The rows the element keyed `key` is drawn on, as the docked board draws it. */
-const rows = async (ui: Board, key: string) =>
-  rowsOf(await ui.find({ key }))
+const rows = async (ui: Board, key: string) => rowsOf(await ui.find({ key }))
 
 /** A line of a tree as drawn: the colour of its text, and of the label it opens with where it has one. */
 const lineOn = async (ui: Board, line: string) => {

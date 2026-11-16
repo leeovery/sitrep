@@ -36,7 +36,6 @@ import {
 
 tier('user')
 
-
 /** A time in local time, as Snooze works it out. */
 const local = (year: number, month: number, day: number, hour: number, minute = 0) =>
   new Date(year, month - 1, day, hour, minute).getTime()
@@ -531,27 +530,24 @@ test('an ask its time wakes is announced as a new one is: the ◆ pulses, a toas
   expect(await ui.find({ key: `yes:${w.item(id)}` })).toBeDefined()
 })
 
-test(
-  'a woken ask is announced once: what changes the board after says nothing more of it',
-  async ($, on) => {
-    const w = fridayWorld($, on)
-    const { id, app } = await asking(w)
-    const back = '◆ Back from snooze: Review Tickets & Replies, round 1'
+test('a woken ask is announced once: what changes the board after says nothing more of it', async ($, on) => {
+  const w = fridayWorld($, on)
+  const { id, app } = await asking(w)
+  const back = '◆ Back from snooze: Review Tickets & Replies, round 1'
 
-    await w.pane()
-    app(snoozeSession(w.clock.now() + 2 * WATCH_MS, id))
-    await w.clock.advance(3 * WATCH_MS)
+  await w.pane()
+  app(snoozeSession(w.clock.now() + 2 * WATCH_MS, id))
+  await w.clock.advance(3 * WATCH_MS)
 
-    const toasts = w.toasts.length
+  const toasts = w.toasts.length
 
-    await w.call('note', { text: 'Drew round 2' })
-    app(yesAsk('k9', 'Try it at 80 columns', 'It works'))
-    await w.clock.advance(HEARTBEAT_MS + 5_000)
+  await w.call('note', { text: 'Drew round 2' })
+  app(yesAsk('k9', 'Try it at 80 columns', 'It works'))
+  await w.clock.advance(HEARTBEAT_MS + 5_000)
 
-    expect(w.toasts.filter(toast => toast === back)).toEqual([back])
-    expect(w.toasts.slice(toasts)).toEqual(['◆ New ask: Try it at 80 columns'])
-  },
-)
+  expect(w.toasts.filter(toast => toast === back)).toEqual([back])
+  expect(w.toasts.slice(toasts)).toEqual(['◆ New ask: Try it at 80 columns'])
+})
 
 test('asks their time wakes together make one toast, naming the latest', async ($, on) => {
   const w = fridayWorld($, on)

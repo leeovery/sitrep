@@ -68,28 +68,25 @@ const visit = async (ui: Board, session: string) => {
   await ui.press({ key: `go:${session}` })
 }
 
-test(
-  'a finished session drops out of the project and All projects, and its asks count nowhere',
-  async ($, on) => {
-    const w = world($, on)
-    const { id, ui } = await around(w, WIDE)
-    const band = await w.band()
+test('a finished session drops out of the project and All projects, and its asks count nowhere', async ($, on) => {
+  const w = world($, on)
+  const { id, ui } = await around(w, WIDE)
+  const band = await w.band()
 
-    expect(await band.find({ key: 'band:elsewhere', text: '2 elsewhere' })).toBeDefined()
+  expect(await band.find({ key: 'band:elsewhere', text: '2 elsewhere' })).toBeDefined()
 
-    await toProject(ui)
-    expect(await keysOf(ui, 'go:')).toEqual([`go:${id}`, `go:${LEDGER.id}`, `go:${THEMES.id}`])
-    expect(await ui.find({ type: 'Text', text: '3 waiting on you' })).toBeDefined()
+  await toProject(ui)
+  expect(await keysOf(ui, 'go:')).toEqual([`go:${id}`, `go:${LEDGER.id}`, `go:${THEMES.id}`])
+  expect(await ui.find({ type: 'Text', text: '3 waiting on you' })).toBeDefined()
 
-    await ui.press({ key: 'up' })
-    expect(await keysOf(ui, 'proj:')).toEqual([`proj:${PROJECT.key}`])
-    expect(await ui.find({ type: 'Text', text: '3 waiting on you' })).toBeDefined()
-    expect(
-      await ui.find({ type: 'Text', text: '3' }),
-      'the All projects tab counts three',
-    ).toBeDefined()
-  },
-)
+  await ui.press({ key: 'up' })
+  expect(await keysOf(ui, 'proj:')).toEqual([`proj:${PROJECT.key}`])
+  expect(await ui.find({ type: 'Text', text: '3 waiting on you' })).toBeDefined()
+  expect(
+    await ui.find({ type: 'Text', text: '3' }),
+    'the All projects tab counts three',
+  ).toBeDefined()
+})
 
 test("the button to finish a session is drawn only in another session's view with no window", async ($, on) => {
   const w = world($, on)

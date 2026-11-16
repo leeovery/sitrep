@@ -9,7 +9,6 @@ import { INLINE, postedId, toProject, world, type Board, type World } from './wo
 
 tier('user')
 
-
 /** The ledger's inbox file this window writes. */
 const LETTERS = sessionPaths(ROOT, PROJECT.key, LEDGER.id).letters(W1)
 
@@ -85,7 +84,9 @@ test("send writes another session's replies into its inbox as this window's lett
 
   expect(letter).toMatchObject({ item: 'k3', verdict: 'yes', seq: 1 })
   expect(w.state.queue).toEqual([])
-  expect(w.state.sent).toEqual([{ project: PROJECT.key, session: LEDGER.id, replies: [letter?.id] }])
+  expect(w.state.sent).toEqual([
+    { project: PROJECT.key, session: LEDGER.id, replies: [letter?.id] },
+  ])
   expect(w.toasts).toContain('Sent 1 reply to Invoice ledger.')
   expect(w.prompts.map(prompt => prompt.text)).toEqual([
     `From the board:\n- Review Tickets & Replies, round 1 → Approve${CLOSES}`,
@@ -129,39 +130,36 @@ test('a letter after a reload adds to the inbox file as it stands, its count goi
   ])
 })
 
-test(
-  'each destination says where its replies stand, and each reply whether Claude has it',
-  async ($, on) => {
-    const w = world($, on)
-    const { ledger, ui } = await threeSessions(w)
+test('each destination says where its replies stand, and each reply whether Claude has it', async ($, on) => {
+  const w = world($, on)
+  const { ledger, ui } = await threeSessions(w)
 
-    await answer(ui, LEDGER.id, 'k3')
-    await answer(ui, THEMES.id, 'k4')
-    await ui.press({ key: 'send' })
+  await answer(ui, LEDGER.id, 'k3')
+  await answer(ui, THEMES.id, 'k4')
+  await ui.press({ key: 'send' })
 
-    expect(w.toasts).toContain('Sent 1 reply to Invoice ledger and 1 reply to Themes.')
-    expect(await ui.find({ type: 'Text', text: '⧗ waiting for its turn to end' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: '○ closed: goes in when it reopens' })).toBeDefined()
-    expect(await ui.findAll({ type: 'Text', text: '· on its way' })).toHaveLength(2)
-    expect(await ui.find({ key: 'send' }), 'nothing waits to be sent').toBeUndefined()
+  expect(w.toasts).toContain('Sent 1 reply to Invoice ledger and 1 reply to Themes.')
+  expect(await ui.find({ type: 'Text', text: '⧗ waiting for its turn to end' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '○ closed: goes in when it reopens' })).toBeDefined()
+  expect(await ui.findAll({ type: 'Text', text: '· on its way' })).toHaveLength(2)
+  expect(await ui.find({ key: 'send' }), 'nothing waits to be sent').toBeUndefined()
 
-    const [letter] = repliesIn(w, LETTERS)
+  const [letter] = repliesIn(w, LETTERS)
 
-    ledger.write(delivered(letter?.id ?? ''))
-    ledger.beat()
-    await w.clock.advance(AROUND_MS)
-    expect(await ui.find({ type: 'Text', text: '✓ delivered' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: '· delivered just now' })).toBeDefined()
+  ledger.write(delivered(letter?.id ?? ''))
+  ledger.beat()
+  await w.clock.advance(AROUND_MS)
+  expect(await ui.find({ type: 'Text', text: '✓ delivered' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '· delivered just now' })).toBeDefined()
 
-    await w.clock.advance(2 * MIN)
-    expect(await ui.find({ type: 'Text', text: '· delivered 2m ago' })).toBeDefined()
+  await w.clock.advance(2 * MIN)
+  expect(await ui.find({ type: 'Text', text: '· delivered 2m ago' })).toBeDefined()
 
-    await w.clock.advance(SENT_LINGER_MS)
-    expect(await ui.find({ type: 'Text', text: 'to Invoice ledger' })).toBeUndefined()
-    expect(await ui.find({ type: 'Text', text: 'to Themes' })).toBeDefined()
-    expect(w.state.sent?.map(each => each.session)).toEqual([THEMES.id])
-  },
-)
+  await w.clock.advance(SENT_LINGER_MS)
+  expect(await ui.find({ type: 'Text', text: 'to Invoice ledger' })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: 'to Themes' })).toBeDefined()
+  expect(w.state.sent?.map(each => each.session)).toEqual([THEMES.id])
+})
 
 test("an ask whose reply went into its session's inbox waits on Lee no more: the band, the tab and the project count it nowhere", async ($, on) => {
   const w = world($, on)
@@ -179,7 +177,10 @@ test("an ask whose reply went into its session's inbox waits on Lee no more: the
 
   expect(await ui.find({ type: 'Text', text: '2 waiting on you' })).toBeDefined()
   expect(
-    await ui.find({ key: `pick:${LEDGER.id}:k3`, text: 'Invoice ledger: Review the ledger schema' }),
+    await ui.find({
+      key: `pick:${LEDGER.id}:k3`,
+      text: 'Invoice ledger: Review the ledger schema',
+    }),
     'its ask still shows',
   ).toBeDefined()
 })
@@ -225,42 +226,41 @@ test('two quick presses of send write each letter once', async ($, on) => {
   await Promise.all([ui.press({ key: 'send' }), ui.press({ key: 'send' })])
 
   expect(repliesIn(w, LETTERS)).toHaveLength(1)
-  expect(w.state.sent).toMatchObject([{ session: LEDGER.id, replies: [repliesIn(w, LETTERS)[0]?.id] }])
+  expect(w.state.sent).toMatchObject([
+    { session: LEDGER.id, replies: [repliesIn(w, LETTERS)[0]?.id] },
+  ])
   expect(w.toasts.filter(toast => toast.startsWith('Sent'))).toEqual([
     'Sent 1 reply to Invoice ledger.',
   ])
 })
 
-test(
-  'a sent reply whose item changed before it went in shows there as not delivered, offers its item again, and lingers out',
-  async ($, on) => {
-    const w = world($, on)
-    const { ledger, ui } = await threeSessions(w)
+test('a sent reply whose item changed before it went in shows there as not delivered, offers its item again, and lingers out', async ($, on) => {
+  const w = world($, on)
+  const { ledger, ui } = await threeSessions(w)
 
-    await answer(ui, LEDGER.id, 'k3')
-    await ui.press({ key: 'send' })
-    await w.clock.advance(MIN)
-    ledger.write({
-      type: 'edit',
-      item: 'k3',
-      changes: { wants: 'choice', options: ['Now', 'Later'] },
-    })
-    ledger.beat()
-    await w.clock.advance(AROUND_MS)
+  await answer(ui, LEDGER.id, 'k3')
+  await ui.press({ key: 'send' })
+  await w.clock.advance(MIN)
+  ledger.write({
+    type: 'edit',
+    item: 'k3',
+    changes: { wants: 'choice', options: ['Now', 'Later'] },
+  })
+  ledger.beat()
+  await w.clock.advance(AROUND_MS)
 
-    expect(await ui.find({ type: 'Text', text: '✕ not delivered' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: '· not delivered: it changed since' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '✕ not delivered' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '· not delivered: it changed since' })).toBeDefined()
 
-    await toProject(ui)
-    await ui.press({ key: `go:${LEDGER.id}` })
-    await ui.press({ key: `pick:${LEDGER.id}:k3` })
-    expect(await ui.find({ key: `choose:${LEDGER.id}:k3:0` })).toBeDefined()
+  await toProject(ui)
+  await ui.press({ key: `go:${LEDGER.id}` })
+  await ui.press({ key: `pick:${LEDGER.id}:k3` })
+  expect(await ui.find({ key: `choose:${LEDGER.id}:k3:0` })).toBeDefined()
 
-    await w.clock.advance(SENT_LINGER_MS)
-    expect(await ui.find({ type: 'Text', text: 'to Invoice ledger' })).toBeUndefined()
-    expect(w.state.sent).toEqual([])
-  },
-)
+  await w.clock.advance(SENT_LINGER_MS)
+  expect(await ui.find({ type: 'Text', text: 'to Invoice ledger' })).toBeUndefined()
+  expect(w.state.sent).toEqual([])
+})
 
 test("a reply queued to another session's ask that Lee answered from elsewhere first, or that Claude closed, is not sent: Ready to send keeps it, saying why", async ($, on) => {
   const w = world($, on)
@@ -468,31 +468,28 @@ test('a send that carries nothing, some of its replies changed under them and ot
   )
 })
 
-test(
-  "a sent reply that reached its ask after another of Lee's answers, or whose ask Claude closed before it went in, shows there as not delivered, saying which",
-  async ($, on) => {
-    const w = world($, on)
-    const { themes, ui } = await threeSessions(w)
+test("a sent reply that reached its ask after another of Lee's answers, or whose ask Claude closed before it went in, shows there as not delivered, saying which", async ($, on) => {
+  const w = world($, on)
+  const { themes, ui } = await threeSessions(w)
 
-    await answer(ui, LEDGER.id, 'k3')
-    await answer(ui, THEMES.id, 'k4')
-    await ui.press({ key: 'send' })
+  await answer(ui, LEDGER.id, 'k3')
+  await answer(ui, THEMES.id, 'k4')
+  await ui.press({ key: 'send' })
 
-    const [ours] = repliesIn(w, LETTERS)
+  const [ours] = repliesIn(w, LETTERS)
 
-    w.put(
-      sessionPaths(ROOT, PROJECT.key, LEDGER.id).letters(W3),
-      file([(ours?.at ?? 0) - 1, reply('r9', 'k3', 'yes', { note: 'From the other window' })]),
-    )
-    await w.clock.advance(MIN)
-    themes.write(resolve('k4'))
-    await w.clock.advance(AROUND_MS)
+  w.put(
+    sessionPaths(ROOT, PROJECT.key, LEDGER.id).letters(W3),
+    file([(ours?.at ?? 0) - 1, reply('r9', 'k3', 'yes', { note: 'From the other window' })]),
+  )
+  await w.clock.advance(MIN)
+  themes.write(resolve('k4'))
+  await w.clock.advance(AROUND_MS)
 
-    expect(await ui.findAll({ type: 'Text', text: '✕ not delivered' })).toHaveLength(2)
-    expect(await ui.find({ type: 'Text', text: '· not delivered: already answered' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: '· not delivered: Claude closed it' })).toBeDefined()
-  },
-)
+  expect(await ui.findAll({ type: 'Text', text: '✕ not delivered' })).toHaveLength(2)
+  expect(await ui.find({ type: 'Text', text: '· not delivered: already answered' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '· not delivered: Claude closed it' })).toBeDefined()
+})
 
 test("a send of letters alone, pressed while Lee has stopped Claude's turn, carries the send held for this session on from the press", async ($, on) => {
   const w = world($, on)

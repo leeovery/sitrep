@@ -77,30 +77,27 @@ const longAfter = async (w: World) => {
 }
 
 for (const source of ['send', 'inbox'] as const) {
-  test(
-    `${source}: after a /reload-plugins mid-turn the last submit never resolves; the turn its message starts writes it down once, and it never goes in again`,
-    async ($, on) => {
-      const w = world($, on)
-      const { paths, submit } = await replying[source](w)
-      const turn = w.holdPrompts()
+  test(`${source}: after a /reload-plugins mid-turn the last submit never resolves; the turn its message starts writes it down once, and it never goes in again`, async ($, on) => {
+    const w = world($, on)
+    const { paths, submit } = await replying[source](w)
+    const turn = w.holdPrompts()
 
-      submit()
-      await turn.arrived
-      turn.lose()
-      await $.session.start(CONVERSATION)
-      await w.clock.advance(4 * WATCH_MS)
+    submit()
+    await turn.arrived
+    turn.lose()
+    await $.session.start(CONVERSATION)
+    await w.clock.advance(4 * WATCH_MS)
 
-      expect(kindsIn(w, paths.log(W1))).toEqual(['ask'])
-      expect(w.state.inFlight).toMatchObject({ source, text: MESSAGE, isTaken: false })
+    expect(kindsIn(w, paths.log(W1))).toEqual(['ask'])
+    expect(w.state.inFlight).toMatchObject({ source, text: MESSAGE, isTaken: false })
 
-      await w.turnStarts(MESSAGE)
-      expectWrittenOnce(w, paths, source)
+    await w.turnStarts(MESSAGE)
+    expectWrittenOnce(w, paths, source)
 
-      await longAfter(w)
-      expect(w.submitted).toEqual([MESSAGE])
-      expectWrittenOnce(w, paths, source)
-    },
-  )
+    await longAfter(w)
+    expect(w.submitted).toEqual([MESSAGE])
+    expectWrittenOnce(w, paths, source)
+  })
 
   test(`${source}: after a file-watch reload the last submit resolved and its writing was cut short; the next load writes it down once`, async ($, on) => {
     const w = world($, on)
@@ -149,33 +146,30 @@ for (const source of ['send', 'inbox'] as const) {
     expectWrittenOnce(w, paths, source)
   })
 
-  test(
-    `${source}: a message that never goes in is let go once the window has been quiet a while, and no sooner`,
-    async ($, on) => {
-      const w = world($, on)
-      const { paths, submit } = await replying[source](w)
-      const turn = w.holdPrompts()
+  test(`${source}: a message that never goes in is let go once the window has been quiet a while, and no sooner`, async ($, on) => {
+    const w = world($, on)
+    const { paths, submit } = await replying[source](w)
+    const turn = w.holdPrompts()
 
-      submit()
-      await turn.arrived
-      turn.lose()
-      await w.turnEnds()
-      await w.clock.advance(QUIET_MS - 1)
-      expect(w.state.inFlight).toMatchObject({ isTaken: false })
+    submit()
+    await turn.arrived
+    turn.lose()
+    await w.turnEnds()
+    await w.clock.advance(QUIET_MS - 1)
+    expect(w.state.inFlight).toMatchObject({ isTaken: false })
 
-      await w.turnStarts('Carry on.')
-      await w.clock.advance(QUIET_MS)
-      expect(w.state.inFlight, 'a turn started: it could still carry the message').toMatchObject({
-        isTaken: false,
-      })
+    await w.turnStarts('Carry on.')
+    await w.clock.advance(QUIET_MS)
+    expect(w.state.inFlight, 'a turn started: it could still carry the message').toMatchObject({
+      isTaken: false,
+    })
 
-      await w.turnEnds()
-      await w.clock.advance(QUIET_MS)
-      expect(w.state.inFlight).toBeNull()
-      expect(kindsIn(w, paths.log(W1))).toEqual(['ask'])
-      expect(w.state.board?.asks[0]?.state).toBe('waiting')
-    },
-  )
+    await w.turnEnds()
+    await w.clock.advance(QUIET_MS)
+    expect(w.state.inFlight).toBeNull()
+    expect(kindsIn(w, paths.log(W1))).toEqual(['ask'])
+    expect(w.state.board?.asks[0]?.state).toBe('waiting')
+  })
 
   test(`${source}: a message in flight as the conversation ends is written into its session if it goes in after, though the window holds none`, async ($, on) => {
     const w = world($, on)

@@ -61,31 +61,28 @@ test('with no session held, the board says so in a line and says how Claude star
   ).toBeDefined()
 })
 
-test(
-  "this session's view: the name and summary, what is under way and next, each heading's few words",
-  async ($, on) => {
-    const w = world($, on)
+test("this session's view: the name and summary, what is under way and next, each heading's few words", async ($, on) => {
+  const w = world($, on)
 
-    await w.begin()
-    await w.call('status', { now: ['Drawing Inbox, round 2'], next: 'Inbox, round 3' })
-    await w.clock.advance(12 * 60_000)
+  await w.begin()
+  await w.call('status', { now: ['Drawing Inbox, round 2'], next: 'Inbox, round 3' })
+  await w.clock.advance(12 * 60_000)
 
-    const ui = await w.pane()
+  const ui = await w.pane()
 
-    expect(await ui.find({ key: 'tab:session', text: 'Help desk redesign' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: 'Help desk redesign' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: '· Northwind' })).toBeDefined()
-    expect(
-      await ui.find({ type: 'Text', text: 'Redesign the help desk, page by page' }),
-    ).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: 'Drawing Inbox, round 2' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: 'next: Inbox, round 3' })).toBeDefined()
+  expect(await ui.find({ key: 'tab:session', text: 'Help desk redesign' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'Help desk redesign' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '· Northwind' })).toBeDefined()
+  expect(
+    await ui.find({ type: 'Text', text: 'Redesign the help desk, page by page' }),
+  ).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'Drawing Inbox, round 2' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'next: Inbox, round 3' })).toBeDefined()
 
-    for (const note of ['updated 12m ago', 'nothing waiting', 'what happened']) {
-      expect(await ui.find({ type: 'Text', text: note }), note).toBeDefined()
-    }
-  },
-)
+  for (const note of ['updated 12m ago', 'nothing waiting', 'what happened']) {
+    expect(await ui.find({ type: 'Text', text: note }), note).toBeDefined()
+  }
+})
 
 /** The view's own line and section headings, in the order drawn. */
 const SECTIONS = new Set(['Help desk redesign', 'ASKS', 'STATUS', 'NOTES', 'PARKED', 'RESOLVED'])

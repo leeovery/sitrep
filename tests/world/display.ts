@@ -1,10 +1,4 @@
-import type {
-  ElementTable,
-  On,
-  PromptSubmitInput,
-  RenderElement,
-  RenderPropsOf,
-} from 'claude-code'
+import type { ElementTable, On, PromptSubmitInput, RenderElement, RenderPropsOf } from 'claude-code'
 
 /** A drawing above the prompt that is not the band: another plugin's, or Claude Code's own. */
 type AbovePrompt = (els: ElementTable, props: RenderPropsOf['AbovePrompt']) => RenderElement

@@ -50,9 +50,7 @@ const CLEARED = { reason: 'clear' as const, sessionId: W1, resume: { id: W1 } }
 test('a session started in one window and joined by a second writer is one session to both', async ($, on) => {
   const w = world($, on)
   const { id, paths } = await w.begin()
-  const asked = postedId(
-    await w.call('ask', reviewRound(1)),
-  )
+  const asked = postedId(await w.call('ask', reviewRound(1)))
 
   await $.session.end(CLEARED)
   w.become({ conversation: W2 })
@@ -499,9 +497,7 @@ test("another window's state changing puts nothing in $.state, so no pane redraw
 test("the watch reads another window's heartbeat and the letters in the inbox too", async ($, on) => {
   const w = world($, on)
   const { id, paths } = await w.begin()
-  const asked = postedId(
-    await w.call('ask', reviewRound(1)),
-  )
+  const asked = postedId(await w.call('ask', reviewRound(1)))
 
   await w.clock.advance(WATCH_MS)
   w.beat(id, { writer: W2, attachedAt: w.clock.now(), seenAt: w.clock.now() })

@@ -58,11 +58,7 @@ export function panes(engine: Engine) {
     },
 
     /** The band drawn on a surface, `columns` across, on a screen that measured as `viewport` where given. */
-    band: (
-      surface: Surface = 'terminal',
-      columns = BAND.bodyColumns,
-      viewport?: RenderViewport,
-    ) =>
+    band: (surface: Surface = 'terminal', columns = BAND.bodyColumns, viewport?: RenderViewport) =>
       engine.ui.mount({
         plugin: 'sitrep',
         surface,

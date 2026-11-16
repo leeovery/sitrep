@@ -302,9 +302,7 @@ test('resolve closes an item, reopen opens it again; each refuses where the item
 
   await w.begin()
 
-  const id = postedId(
-    await w.call('ask', reviewRound(1)),
-  )
+  const id = postedId(await w.call('ask', reviewRound(1)))
 
   expect((await w.call('reopen', { item: id })).deny).toBe(`${id} is already open.`)
   expect((await w.call('resolve', { item: id, reason: 'Approved in the chat' })).result).toBe(
@@ -364,9 +362,7 @@ test("resolving what Lee closed, an ask he answered or ignored, a parked item he
 test('an ask Lee answered, then Claude reopened, resolves as ever; answered again, it passes quietly', async ($, on) => {
   const w = world($, on)
   const { paths } = await w.begin()
-  const id = postedId(
-    await w.call('ask', reviewRound(1)),
-  )
+  const id = postedId(await w.call('ask', reviewRound(1)))
   const write = w.writer(paths)
   // Each line a minute on, so the fold reads Lee's lines and Claude's in the order they came.
   const lee = async (...bodies: Parameters<typeof write>) => {
@@ -642,9 +638,7 @@ test('a line posted to a finished session leaves it finished: only a join reopen
 test("board reads back the session's open items with their ids", async ($, on) => {
   const w = world($, on)
   const { id } = await w.begin()
-  const ask = postedId(
-    await w.call('ask', reviewRound(1)),
-  )
+  const ask = postedId(await w.call('ask', reviewRound(1)))
   const read = String((await w.call('board')).result)
 
   expect(read).toContain(`sitrep board: Help desk redesign (${id})`)

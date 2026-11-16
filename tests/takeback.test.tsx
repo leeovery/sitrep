@@ -71,7 +71,6 @@ const expectHeld = (w: World, source: Source) => {
   expect(w.state.inFlight).toMatchObject({ source, isHeld: true, isTaken: false })
 }
 
-
 for (const source of ['send', 'inbox'] as const) {
   test(`${source}: claimed while Claude is mid-turn, the message is held, nothing submitted however long the turn runs; as it ends it goes in, written down once`, async ($, on) => {
     const w = world($, on)

@@ -56,7 +56,6 @@ import {
 
 tier('user')
 
-
 const OUTPUT = "the command's output"
 
 const LIST = {
@@ -519,40 +518,34 @@ test('one send carries the yes with its comment, the choice and the answer, in o
   expect(w.state.board?.asks.map(each => each.state)).toEqual(['closed', 'closed', 'closed'])
 })
 
-test(
-  'the mode ends once its ask closes: the band shows the counts, and the next Enter goes to Claude',
-  async ($, on) => {
-    const w = world($, on)
-    const { id } = await answering(w)
+test('the mode ends once its ask closes: the band shows the counts, and the next Enter goes to Claude', async ($, on) => {
+  const w = world($, on)
+  const { id } = await answering(w)
 
-    await w.call('resolve', { item: id, reason: 'Ran it myself' })
-    expect(w.state.answering).toBeNull()
+  await w.call('resolve', { item: id, reason: 'Ran it myself' })
+  expect(w.state.answering).toBeNull()
 
-    const { band } = await bandRow(w)
+  const { band } = await bandRow(w)
 
-    expect(await band.find({ key: 'band:asks' })).toBeDefined()
-    expect((await entered(w, $, 'Carry on.')).drop).toBeUndefined()
-    expect(w.prompts).toHaveLength(1)
-  },
-)
+  expect(await band.find({ key: 'band:asks' })).toBeDefined()
+  expect((await entered(w, $, 'Carry on.')).drop).toBeUndefined()
+  expect(w.prompts).toHaveLength(1)
+})
 
-test(
-  'the mode ends once its ask closes in another window, and does not come back when it reopens',
-  async ($, on) => {
-    const w = world($, on)
-    const { id } = await answering(w)
-    const paths = sessionPaths(ROOT, PROJECT.key, w.state.attachment?.session ?? '')
-    const other = w.writer(paths)
+test('the mode ends once its ask closes in another window, and does not come back when it reopens', async ($, on) => {
+  const w = world($, on)
+  const { id } = await answering(w)
+  const paths = sessionPaths(ROOT, PROJECT.key, w.state.attachment?.session ?? '')
+  const other = w.writer(paths)
 
-    other({ type: 'resolve', item: id })
-    await w.clock.advance(WATCH_MS)
-    expect(w.state.answering).toBeNull()
+  other({ type: 'resolve', item: id })
+  await w.clock.advance(WATCH_MS)
+  expect(w.state.answering).toBeNull()
 
-    other({ type: 'reopen', item: id })
-    await w.clock.advance(WATCH_MS)
-    expect(w.state.answering).toBeNull()
-  },
-)
+  other({ type: 'reopen', item: id })
+  await w.clock.advance(WATCH_MS)
+  expect(w.state.answering).toBeNull()
+})
 
 test('a send carrying the reply its comment would go with ends the mode: the band shows the counts, and the next Enter goes to Claude', async ($, on) => {
   const w = world($, on)
@@ -1292,8 +1285,7 @@ const pickingUp = async (w: World) => {
 }
 
 /** The rows a parked item is drawn on. */
-const parkedRows = async (ui: Board, key: string) =>
-  rowsOf(await ui.find({ key: `parked:${key}` }))
+const parkedRows = async (ui: Board, key: string) => rowsOf(await ui.find({ key: `parked:${key}` }))
 
 test('an opened parked item offers pick it up and ✎ with a comment; neither once a pick-up is queued', async ($, on) => {
   const w = world($, on)
@@ -1384,20 +1376,17 @@ test('a reload keeps picking up: the band still names it, and the next Enter is 
   expect(w.state.queue).toEqual([{ ...at(w, id), verdict: 'pickup', note: 'Before the release' }])
 })
 
-test(
-  'picking up ends once the parked item is picked up from elsewhere: the counts are back, and the next Enter goes to Claude',
-  async ($, on) => {
-    const w = world($, on)
-    const { id, paths } = await pickingUp(w)
+test('picking up ends once the parked item is picked up from elsewhere: the counts are back, and the next Enter goes to Claude', async ($, on) => {
+  const w = world($, on)
+  const { id, paths } = await pickingUp(w)
 
-    w.writer(paths)(reply('r9', id, 'pickup'), delivered('r9'))
-    await w.clock.advance(WATCH_MS)
-    expect(w.state.answering).toBeNull()
-    expect(await (await w.band()).find({ key: 'band:asks' })).toBeDefined()
-    expect((await entered(w, $, 'Carry on.')).drop).toBeUndefined()
-    expect(w.prompts.map(each => each.text)).toEqual(['Carry on.'])
-  },
-)
+  w.writer(paths)(reply('r9', id, 'pickup'), delivered('r9'))
+  await w.clock.advance(WATCH_MS)
+  expect(w.state.answering).toBeNull()
+  expect(await (await w.band()).find({ key: 'band:asks' })).toBeDefined()
+  expect((await entered(w, $, 'Carry on.')).drop).toBeUndefined()
+  expect(w.prompts.map(each => each.text)).toEqual(['Carry on.'])
+})
 
 /** The ledger's parked item. */
 const EXPORT = 'Export the ledger as CSV'
@@ -1445,45 +1434,39 @@ test("picking up another session's parked item from the project's view stands fr
   expect(w.prompts).toEqual([])
 })
 
-test(
-  "picking up another session's parked item stands once its session is finished: the item is its project's",
-  async ($, on) => {
-    const w = world($, on)
-    const ledger = await onLedgersParked(w)
+test("picking up another session's parked item stands once its session is finished: the item is its project's", async ($, on) => {
+  const w = world($, on)
+  const ledger = await onLedgersParked(w)
 
-    expect(w.state.answering).toMatchObject({ session: LEDGER.id, item: 'p3', as: 'pickup' })
-    ledger.write(finish('claude', 'Shipped'))
-    await w.clock.advance(AROUND_MS)
-    expect(w.state.answering).toMatchObject({ session: LEDGER.id, item: 'p3', as: 'pickup' })
-    expect(await entered(w, $, 'With the totals')).toEqual({ drop: TAKEN.pickup })
-    expect(w.state.queue).toEqual([
-      {
-        project: PROJECT.key,
-        session: LEDGER.id,
-        item: 'p3',
-        verdict: 'pickup',
-        note: 'With the totals',
-      },
-    ])
-  },
-)
+  expect(w.state.answering).toMatchObject({ session: LEDGER.id, item: 'p3', as: 'pickup' })
+  ledger.write(finish('claude', 'Shipped'))
+  await w.clock.advance(AROUND_MS)
+  expect(w.state.answering).toMatchObject({ session: LEDGER.id, item: 'p3', as: 'pickup' })
+  expect(await entered(w, $, 'With the totals')).toEqual({ drop: TAKEN.pickup })
+  expect(w.state.queue).toEqual([
+    {
+      project: PROJECT.key,
+      session: LEDGER.id,
+      item: 'p3',
+      verdict: 'pickup',
+      note: 'With the totals',
+    },
+  ])
+})
 
-test(
-  "answering another session's ask still ends once its session is finished",
-  async ($, on) => {
-    const w = world($, on)
-    const ui = await onLedgersAsks(w)
-    const there = w.item('k3', LEDGER.id)
+test("answering another session's ask still ends once its session is finished", async ($, on) => {
+  const w = world($, on)
+  const ui = await onLedgersAsks(w)
+  const there = w.item('k3', LEDGER.id)
 
-    await ui.press({ key: `pick:${there}` })
-    await ui.press({ key: `answer:${there}` })
-    expect(w.state.answering).toMatchObject({ session: LEDGER.id, item: 'k3' })
-    w.writer(sessionPaths(ROOT, PROJECT.key, LEDGER.id), W2)(finish('claude', 'Shipped'))
-    await w.clock.advance(AROUND_MS)
-    expect(w.state.answering).toBeNull()
-    expect((await entered(w, $, 'Carry on.')).drop).toBeUndefined()
-  },
-)
+  await ui.press({ key: `pick:${there}` })
+  await ui.press({ key: `answer:${there}` })
+  expect(w.state.answering).toMatchObject({ session: LEDGER.id, item: 'k3' })
+  w.writer(sessionPaths(ROOT, PROJECT.key, LEDGER.id), W2)(finish('claude', 'Shipped'))
+  await w.clock.advance(AROUND_MS)
+  expect(w.state.answering).toBeNull()
+  expect((await entered(w, $, 'Carry on.')).drop).toBeUndefined()
+})
 
 test("a pick-up with an image of another session's parked item goes in to this window's Claude, naming whose it was, and is written down in that session", async ($, on) => {
   const w = world($, on)

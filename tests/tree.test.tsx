@@ -54,11 +54,18 @@ async function neighbourhood(w: World) {
   w.elsewhere({ ...THEMES, created: T0 - DAY })
   shifts.write(yesAsk('k5', 'Review the shift schedules'))
   shifts.beat()
-  w.elsewhere(meta('sr-0ff11e', 'Offline mode', W3, { project: 'fabrikam', created: T0 - 3 * DAY }), FABRIKAM.key).write(
-    park('p1', 'Thumbnails in the picker'),
+  w.elsewhere(
+    meta('sr-0ff11e', 'Offline mode', W3, { project: 'fabrikam', created: T0 - 3 * DAY }),
+    FABRIKAM.key,
+  ).write(park('p1', 'Thumbnails in the picker'))
+  w.elsewhere(
+    meta(NOTES, 'Shared notes', W3, { project: 'tailspin', created: T0 - 2 * DAY }),
+    TAILSPIN.key,
   )
-  w.elsewhere(meta(NOTES, 'Shared notes', W3, { project: 'tailspin', created: T0 - 2 * DAY }), TAILSPIN.key)
-  w.elsewhere(meta('sr-d0sty0', 'An old idea', W3, { project: 'dusty', created: T0 - (CURRENT_MS + DAY) }), DUSTY.key)
+  w.elsewhere(
+    meta('sr-d0sty0', 'An old idea', W3, { project: 'dusty', created: T0 - (CURRENT_MS + DAY) }),
+    DUSTY.key,
+  )
 
   const { id } = await w.begin()
 
@@ -389,16 +396,26 @@ test("a finished session's files as a build before parked items were the project
 
 test('All projects keeps a project whose sessions are finished or idle past the views while something is parked in it, unfolded and counting it; its view says no sessions open, and its items show without pick-up buttons in a window of another project', async ($, on) => {
   const w = world($, on)
-  const offline = w.elsewhere(meta('sr-0ff11e', 'Offline mode', W3, { project: 'fabrikam' }), FABRIKAM.key)
+  const offline = w.elsewhere(
+    meta('sr-0ff11e', 'Offline mode', W3, { project: 'fabrikam' }),
+    FABRIKAM.key,
+  )
 
   offline.write(park('p1', 'Thumbnails in the picker'), finish('lee'))
   longIdle(
     w,
-    meta('sr-5ync00', 'Offline sync', W4, { project: 'fabrikam', created: T0 - (CURRENT_MS + DAY) }),
+    meta('sr-5ync00', 'Offline sync', W4, {
+      project: 'fabrikam',
+      created: T0 - (CURRENT_MS + DAY),
+    }),
     FABRIKAM.key,
     park('p1', 'Resume the paused uploads'),
   )
-  longIdle(w, meta('sr-d0sty0', 'An old idea', W3, { project: 'dusty', created: T0 - (CURRENT_MS + DAY) }), DUSTY.key)
+  longIdle(
+    w,
+    meta('sr-d0sty0', 'An old idea', W3, { project: 'dusty', created: T0 - (CURRENT_MS + DAY) }),
+    DUSTY.key,
+  )
   await w.begin()
 
   const ui = await w.opened(WIDE)

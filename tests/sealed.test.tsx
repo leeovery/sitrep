@@ -29,8 +29,6 @@ import {
 
 tier('user')
 
-
-
 /** Lee's message carrying his yes to each of these rounds of review. */
 const message = (...rounds: number[]) =>
   ['From the board:', ...rounds.map(round => `- Review round ${round} → Approve${CLOSES}`)].join(
@@ -65,7 +63,8 @@ const CONTROLS = ['', '[ send to Claude ] [ cancel all ]']
 const TALL: RenderPropsOf['Pane'] = { ...DOCKED, scroll: { offset: 0, bodyRows: 60 } }
 
 /** The session begun with three reviews asked, the board drawn, a minute on: their ids, in round order. */
-const reviewing = (w: World, props = TALL) => asking(w, { asks: reviewRounds(3), props, advance: MIN })
+const reviewing = (w: World, props = TALL) =>
+  asking(w, { asks: reviewRounds(3), props, advance: MIN })
 
 /** Lee approves an ask, opening it first where it is not open. */
 const approve = async (w: World, ui: Board, id: string) => {
@@ -388,9 +387,7 @@ const answeredInPrompt = async (w: World, engine: Engine) => {
   const { paths } = await w.begin()
 
   const list = postedId(await w.call('ask', { wants: 'words', title: LIST }))
-  const review = postedId(
-    await w.call('ask', reviewRound(3)),
-  )
+  const review = postedId(await w.call('ask', reviewRound(3)))
   const ui = await w.pane('terminal', TALL)
 
   if ((await ui.find({ key: `answer:${w.item(list)}` })) === undefined) {
@@ -936,7 +933,7 @@ test("a send held while the window was stopped, refused for another reason once 
   expect(repliedIn(w, paths)).toEqual([])
 })
 
-test("taking back the only send while the window is stopped puts its replies back among those still to send, its ask waiting on Lee again at once", async ($, on) => {
+test('taking back the only send while the window is stopped puts its replies back among those still to send, its ask waiting on Lee again at once', async ($, on) => {
   const w = world($, on)
   const { paths, ids, ui } = await reviewing(w)
   const [first = ''] = ids
@@ -959,7 +956,7 @@ test("taking back the only send while the window is stopped puts its replies bac
   expect(notSent(w)).toEqual([])
 })
 
-test("a file-watch reload keeps the window stopped and the send held, the refusal standing; a /clear lifts it, and the send goes into the next conversation at once", async ($, on) => {
+test('a file-watch reload keeps the window stopped and the send held, the refusal standing; a /clear lifts it, and the send goes into the next conversation at once', async ($, on) => {
   const w = world($, on)
   const { paths, ids, ui } = await reviewing(w)
   const [first = ''] = ids
@@ -1189,7 +1186,7 @@ test("an answer folded into Claude's running turn, starting no turn of its own, 
   expect(w.submitted).toEqual([RODE, message(1)])
 })
 
-test("an answer whose turn starts before its hook hears back holds the send behind it only until that turn ends", async ($, on) => {
+test('an answer whose turn starts before its hook hears back holds the send behind it only until that turn ends', async ($, on) => {
   const w = world($, on)
   const { paths, ids, ui } = await reviewing(w)
   const [first = ''] = ids
@@ -1248,7 +1245,7 @@ test("a prompt another plugin submits, or the SDK's, lifts nothing: only Lee's o
   expect(isStopped(w)).toBe(true)
 })
 
-test("a slash command Lee types lifts the stop, though no turn follows; nothing is submitted while it runs, and the send held goes at the next look after it", async ($, on) => {
+test('a slash command Lee types lifts the stop, though no turn follows; nothing is submitted while it runs, and the send held goes at the next look after it', async ($, on) => {
   let finish = () => {}
   const compacting = new Promise<void>(resolve => {
     finish = resolve

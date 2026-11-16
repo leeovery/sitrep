@@ -220,62 +220,59 @@ test('docked, the tree is a row short of the window; the list is clipped between
   ).toBe(BODY_ROWS - 1 - HEADER)
 })
 
-test(
-  "docked, the header is the same in every view, the way back in its last row; every view's list holds Ready to send still and reaches its end",
-  async ($, on) => {
-    const w = world($, on)
+test("docked, the header is the same in every view, the way back in its last row; every view's list holds Ready to send still and reaches its end", async ($, on) => {
+  const w = world($, on)
 
-    beneath(on)
-    w.elsewhere(LEDGER).write(yesAsk('k3', 'Review the ledger schema'))
+  beneath(on)
+  w.elsewhere(LEDGER).write(yesAsk('k3', 'Review the ledger schema'))
 
-    const {
-      ids: [id = ''],
-      ui,
-    } = await long(w, () => w.opened())
+  const {
+    ids: [id = ''],
+    ui,
+  } = await long(w, () => w.opened())
 
-    await approve(ui, w.item(id))
+  await approve(ui, w.item(id))
 
-    const places = [
-      { name: 'home', reach: async () => undefined },
-      { name: 'All projects', reach: () => ui.press({ key: 'tab:all' }) },
-      { name: 'the project', reach: () => toProject(ui), back: '← All projects' },
-      {
-        name: 'another session',
-        reach: () => ui.press({ key: `go:${LEDGER.id}` }),
-        back: '← Northwind',
-      },
-    ]
-    let tabs: string | undefined
+  const places = [
+    { name: 'home', reach: async () => undefined },
+    { name: 'All projects', reach: () => ui.press({ key: 'tab:all' }) },
+    { name: 'the project', reach: () => toProject(ui), back: '← All projects' },
+    {
+      name: 'another session',
+      reach: () => ui.press({ key: `go:${LEDGER.id}` }),
+      back: '← Northwind',
+    },
+  ]
+  let tabs: string | undefined
 
-    for (const { name, reach, back } of places) {
-      await reach()
+  for (const { name, reach, back } of places) {
+    await reach()
 
-      // Blocks tall enough that every view, All projects' few among them, runs past the window.
-      const blocks = await measure(ui, () => 10)
-      const [row, rule, ...rest] = rowsOf(await ui.find({ key: 'header' }))
+    // Blocks tall enough that every view, All projects' few among them, runs past the window.
+    const blocks = await measure(ui, () => 10)
+    const [row, rule, ...rest] = rowsOf(await ui.find({ key: 'header' }))
 
-      tabs ??= row
-      expect([row, rest], `${name}: the tabs as at home, then the rule and the way back`).toEqual([
-        tabs,
-        [back ?? ''],
-      ])
-      expect(rule, name).toMatch(/^[━─]+$/)
-      expect(
-        rowsOf(await ui.find({ key: 'block:context' })).join('\n'),
-        `${name}: none on the title line`,
-      ).not.toContain('←')
-      await expectHeightKept(ui, name)
+    tabs ??= row
+    expect([row, rest], `${name}: the tabs as at home, then the rule and the way back`).toEqual([
+      tabs,
+      [back ?? ''],
+    ])
+    expect(rule, name).toMatch(/^[━─]+$/)
+    expect(
+      rowsOf(await ui.find({ key: 'block:context' })).join('\n'),
+      `${name}: none on the title line`,
+    ).not.toContain('←')
+    await expectHeightKept(ui, name)
 
-      await $.ui.scroll(scrolled({ by: 500, ...WHEEL }))
-      expect(await topOf(ui), `${name}: at the list's end`).toBe(sum(blocks) - (await listRows(ui)))
-      expect(rowsOf(await ui.find({ key: 'ready' }))[0], `${name}: Ready to send, still`).toMatch(
-        /READY TO SEND/,
-      )
-    }
+    await $.ui.scroll(scrolled({ by: 500, ...WHEEL }))
+    expect(await topOf(ui), `${name}: at the list's end`).toBe(sum(blocks) - (await listRows(ui)))
+    expect(rowsOf(await ui.find({ key: 'ready' }))[0], `${name}: Ready to send, still`).toMatch(
+      /READY TO SEND/,
+    )
+  }
 
-    expect(await ui.find({ type: 'Client', key: 'measure:header' })).toBeUndefined()
-  },
-)
+  expect(await ui.find({ type: 'Client', key: 'measure:header' })).toBeUndefined()
+})
 
 test('docked, each block of the list is measured by a Client spanning it, keyed by the block', async ($, on) => {
   const w = world($, on)
@@ -545,104 +542,98 @@ test('docked, a header button the focus reaches never moves the list: the lit ta
   expect(await topOf(ui), 'the way back, reached').toBe(4)
 })
 
-test(
-  'each place starts at its top, every time: by a tab, the way back, a session or a project, a band count though it lands where the board is; an item opened keeps it',
-  async ($, on) => {
-    const w = world($, on)
+test('each place starts at its top, every time: by a tab, the way back, a session or a project, a band count though it lands where the board is; an item opened keeps it', async ($, on) => {
+  const w = world($, on)
 
-    beneath(on)
-    w.elsewhere(LEDGER).write(yesAsk('k3', 'Review the ledger schema'))
+  beneath(on)
+  w.elsewhere(LEDGER).write(yesAsk('k3', 'Review the ledger schema'))
 
-    const { ids, ui } = await long(w, () => w.opened())
-    const band = await w.band()
-    // Blocks tall enough that every view, All projects' few among them, runs past the window.
-    const down = async () => {
-      await measure(ui, () => 10)
-      await $.ui.scroll(scrolled({ by: 5, ...WHEEL }))
-      expect(await topOf(ui)).toBe(5)
-    }
-    /** How far down the list stands once its blocks have posted their rows, as their Clients do as it draws. */
-    const settled = async () => {
-      await measure(ui, () => 10)
+  const { ids, ui } = await long(w, () => w.opened())
+  const band = await w.band()
+  // Blocks tall enough that every view, All projects' few among them, runs past the window.
+  const down = async () => {
+    await measure(ui, () => 10)
+    await $.ui.scroll(scrolled({ by: 5, ...WHEEL }))
+    expect(await topOf(ui)).toBe(5)
+  }
+  /** How far down the list stands once its blocks have posted their rows, as their Clients do as it draws. */
+  const settled = async () => {
+    await measure(ui, () => 10)
 
-      return topOf(ui)
-    }
+    return topOf(ui)
+  }
 
-    await down()
-    await ui.press({ key: 'tab:all' })
-    expect(await settled(), 'All projects').toBe(0)
-    await ui.press({ key: 'tab:session' })
-    expect(await settled(), 'home again, not where it was left').toBe(0)
+  await down()
+  await ui.press({ key: 'tab:all' })
+  expect(await settled(), 'All projects').toBe(0)
+  await ui.press({ key: 'tab:session' })
+  expect(await settled(), 'home again, not where it was left').toBe(0)
 
-    await down()
-    await ui.press({ key: 'tab:session' })
-    expect(await settled(), 'home, its tab pressed there').toBe(0)
+  await down()
+  await ui.press({ key: 'tab:session' })
+  expect(await settled(), 'home, its tab pressed there').toBe(0)
 
-    await ui.press({ key: 'tab:all' })
-    await down()
-    await ui.press({ key: `proj:${PROJECT.key}` })
-    expect(await settled(), 'the project').toBe(0)
+  await ui.press({ key: 'tab:all' })
+  await down()
+  await ui.press({ key: `proj:${PROJECT.key}` })
+  expect(await settled(), 'the project').toBe(0)
 
-    await down()
-    await ui.press({ key: `go:${LEDGER.id}` })
-    expect(await ui.find({ key: `pick:${LEDGER.id}:k3` }), 'the other session drawn').toBeDefined()
-    expect(await settled(), 'another session').toBe(0)
-    await ui.press({ key: 'up' })
-    expect(await settled(), 'the project again, by the way back').toBe(0)
+  await down()
+  await ui.press({ key: `go:${LEDGER.id}` })
+  expect(await ui.find({ key: `pick:${LEDGER.id}:k3` }), 'the other session drawn').toBeDefined()
+  expect(await settled(), 'another session').toBe(0)
+  await ui.press({ key: 'up' })
+  expect(await settled(), 'the project again, by the way back').toBe(0)
 
-    await ui.press({ key: 'tab:all' })
-    await down()
-    await ui.press({ key: 'tab:session' })
-    await band.press({ key: 'band:elsewhere' })
-    expect(await settled(), 'All projects again, by its count on the band').toBe(0)
+  await ui.press({ key: 'tab:all' })
+  await down()
+  await ui.press({ key: 'tab:session' })
+  await band.press({ key: 'band:elsewhere' })
+  expect(await settled(), 'All projects again, by its count on the band').toBe(0)
 
-    await ui.press({ key: 'tab:session' })
-    await down()
-    await band.press({ key: 'band:asks' })
-    expect(w.state.pane?.place ?? null, 'home already').toBeNull()
-    expect(await settled(), 'home, by its count on the band, though the board was home').toBe(0)
+  await ui.press({ key: 'tab:session' })
+  await down()
+  await band.press({ key: 'band:asks' })
+  expect(w.state.pane?.place ?? null, 'home already').toBeNull()
+  expect(await settled(), 'home, by its count on the band, though the board was home').toBe(0)
 
-    await down()
-    await ui.press({ key: `pick:${w.item(ids[0] ?? '')}` })
-    expect(await settled(), 'an item opened in place keeps it').toBe(5)
+  await down()
+  await ui.press({ key: `pick:${w.item(ids[0] ?? '')}` })
+  expect(await settled(), 'an item opened in place keeps it').toBe(5)
 
-    await band.press({ key: 'band:board' })
-    expect(w.state.scroll, 'closed').toBeNull()
-  },
-)
+  await band.press({ key: 'band:board' })
+  expect(w.state.scroll, 'closed').toBeNull()
+})
 
-test(
-  'queuing a reply, sending, a new ask arriving and the watch drawing again leave the list where Lee had it',
-  async ($, on) => {
-    const w = world($, on)
+test('queuing a reply, sending, a new ask arriving and the watch drawing again leave the list where Lee had it', async ($, on) => {
+  const w = world($, on)
 
-    beneath(on)
-    const {
-      ids: [first = '', second = ''],
-      ui,
-    } = await long(w)
+  beneath(on)
+  const {
+    ids: [first = '', second = ''],
+    ui,
+  } = await long(w)
 
-    await measure(ui)
-    await $.ui.scroll(scrolled({ by: 6, ...WHEEL }))
+  await measure(ui)
+  await $.ui.scroll(scrolled({ by: 6, ...WHEEL }))
 
-    const kept = w.state.scroll
+  const kept = w.state.scroll
 
-    await approve(ui, w.item(first))
-    expect(await topOf(ui), 'queued').toBe(6)
+  await approve(ui, w.item(first))
+  expect(await topOf(ui), 'queued').toBe(6)
 
-    await ui.press({ key: `pick:${w.item(second)}` })
-    await ui.press({ key: `ignore:${w.item(second)}` })
-    await ui.press({ key: 'send' })
-    expect(await topOf(ui), 'sent').toBe(6)
+  await ui.press({ key: `pick:${w.item(second)}` })
+  await ui.press({ key: `ignore:${w.item(second)}` })
+  await ui.press({ key: 'send' })
+  expect(await topOf(ui), 'sent').toBe(6)
 
-    await w.call('ask', { wants: 'yes', yes: 'Go', title: 'Give the go for stage 3' })
-    expect(await topOf(ui), 'a new ask').toBe(6)
+  await w.call('ask', { wants: 'yes', yes: 'Go', title: 'Give the go for stage 3' })
+  expect(await topOf(ui), 'a new ask').toBe(6)
 
-    await w.clock.advance(MIN)
-    expect(await topOf(ui), 'the watch').toBe(6)
-    expect(w.state.scroll).toEqual(kept)
-  },
-)
+  await w.clock.advance(MIN)
+  expect(await topOf(ui), 'the watch').toBe(6)
+  expect(w.state.scroll).toEqual(kept)
+})
 
 test('a list that shrinks under where it stands is stopped short at its new end', async ($, on) => {
   const w = world($, on)
@@ -680,44 +671,41 @@ test("inline, nothing is clipped or measured: Ready to send follows the view, an
   expect(w.writes.scroll).toBeUndefined()
 })
 
-test(
-  'Ready to send takes the rows it draws under the list: a row for each line, cut short, and its border',
-  async ($, on) => {
-    const w = world($, on)
-    const {
-      ids: [first = '', second = '', third = ''],
-      ui,
-    } = await asking(w, { asks: reviewRounds(3) })
+test('Ready to send takes the rows it draws under the list: a row for each line, cut short, and its border', async ($, on) => {
+  const w = world($, on)
+  const {
+    ids: [first = '', second = '', third = ''],
+    ui,
+  } = await asking(w, { asks: reviewRounds(3) })
 
-    await approve(ui, w.item(first))
-    await expectHeightKept(ui, 'one reply')
+  await approve(ui, w.item(first))
+  await expectHeightKept(ui, 'one reply')
 
-    await approve(ui, w.item(second))
-    await ui.press({ key: `pick:${w.item(third)}` })
-    await ui.press({ key: `comment:${w.item(third)}` })
-    await $.prompt.submit({
-      text: 'a comment long enough to run past the edge of the box\nand a second line',
-      wait: false,
-      origin: { kind: 'composer' },
-    })
-    await expectHeightKept(ui, 'three replies, a comment of two lines among them')
+  await approve(ui, w.item(second))
+  await ui.press({ key: `pick:${w.item(third)}` })
+  await ui.press({ key: `comment:${w.item(third)}` })
+  await $.prompt.submit({
+    text: 'a comment long enough to run past the edge of the box\nand a second line',
+    wait: false,
+    origin: { kind: 'composer' },
+  })
+  await expectHeightKept(ui, 'three replies, a comment of two lines among them')
 
-    await w.turnStarts('Carry on.')
-    await ui.press({ key: 'send' })
-    expect(await ui.find({ key: w.takeBack() })).toBeDefined()
-    await expectHeightKept(ui, 'a send held for the turn to end, its take-back beside it')
+  await w.turnStarts('Carry on.')
+  await ui.press({ key: 'send' })
+  expect(await ui.find({ key: w.takeBack() })).toBeDefined()
+  await expectHeightKept(ui, 'a send held for the turn to end, its take-back beside it')
 
-    const turn = w.holdPrompts()
-    const ended = w.turnEnds()
+  const turn = w.holdPrompts()
+  const ended = w.turnEnds()
 
-    await turn.arrived
-    expect(await ui.find({ type: 'Text', text: /⧗ Sending/ })).toBeDefined()
-    await expectHeightKept(ui, 'a send on its way')
+  await turn.arrived
+  expect(await ui.find({ type: 'Text', text: /⧗ Sending/ })).toBeDefined()
+  await expectHeightKept(ui, 'a send on its way')
 
-    turn.end()
-    await ended
-  },
-)
+  turn.end()
+  await ended
+})
 
 test('replies sent into another session keep the box as tall as it draws, where they stand on its lines', async ($, on) => {
   const w = world($, on)
@@ -792,169 +780,157 @@ test("a project's view keys each ask by its session too, so two sessions' asks o
   ])
 })
 
-test(
-  'a queue too long for under half the window is cut short: the box lists what fits, then how many more',
-  async ($, on) => {
-    const w = world($, on)
-    const { ids, ui } = await asking(w, { asks: reviewRounds(6) })
+test('a queue too long for under half the window is cut short: the box lists what fits, then how many more', async ($, on) => {
+  const w = world($, on)
+  const { ids, ui } = await asking(w, { asks: reviewRounds(6) })
 
-    for (const id of ids) {
+  for (const id of ids) {
+    await approve(ui, w.item(id))
+  }
+
+  const listed = async () =>
+    (await ui.findAll({ type: 'Text', text: /^Review round \d$/ }))
+      .filter(text => text.props.wrap === 'truncate-end')
+      .map(text => text.text)
+
+  expect(await listed()).toEqual(['Review round 1', 'Review round 2', 'Review round 3'])
+  expect(await ui.find({ type: 'Text', text: '… 3 more' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '6 replies' })).toBeDefined()
+  expect(await ui.find({ key: 'send' })).toBeDefined()
+  expect(await drawnRows(ui)).toBeLessThanOrEqual(Math.floor((BODY_ROWS - 1) / 2))
+  await expectHeightKept(ui, 'cut short')
+
+  await ui.redraw(docked(60))
+  expect(await listed()).toHaveLength(6)
+  expect(await ui.find({ type: 'Text', text: /more$/ })).toBeUndefined()
+  await expectHeightKept(ui, 'room for every one', 60)
+})
+
+test('a send held and the queue under it keep the box as tall as it draws; too long for under half the window, the send keeps its heading, its line and its take-back, what fits is listed, then how many more; a second send is one row under it, with its own take-back', async ($, on) => {
+  const w = world($, on)
+  const { ids, ui } = await asking(w, { asks: reviewRounds(6) })
+  const cap = Math.floor((BODY_ROWS - 1) / 2)
+
+  for (const id of ids.slice(0, 3)) {
+    await approve(ui, w.item(id))
+  }
+
+  await w.turnStarts('Carry on.')
+  await ui.press({ key: 'send' })
+
+  for (const id of ids.slice(3)) {
+    await approve(ui, w.item(id))
+  }
+
+  expect(await ui.find({ key: w.takeBack() })).toBeDefined()
+  expect(await ui.find({ key: 'send' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '… 4 more' })).toBeDefined()
+  expect(await drawnRows(ui)).toBeLessThanOrEqual(cap)
+  await expectHeightKept(ui, 'a send held, and the queue under it, cut short')
+
+  await ui.press({ key: 'send' })
+
+  expect(await ui.find({ key: w.takeBack(0) })).toBeDefined()
+  expect(await ui.find({ key: w.takeBack(1) })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '⧗ Then: Review round 4 +2' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /more$/ }), 'the brief row names them').toBeUndefined()
+  expect(await drawnRows(ui)).toBeLessThanOrEqual(cap)
+  await expectHeightKept(ui, 'two sends held, cut short')
+
+  await ui.redraw(docked(60))
+  expect(await ui.find({ type: 'Text', text: /more$/ })).toBeUndefined()
+  await expectHeightKept(ui, 'two sends held, room for both', 60)
+})
+
+test('three sends held and a reply under them, too long for under half the window: the first send in full as far as it fits, each after it one row with its own take-back, then how many more; a take-back of one of those puts its replies back', async ($, on) => {
+  const w = world($, on)
+  const { ids, ui } = await asking(w, { asks: reviewRounds(10) })
+  const cap = Math.floor((BODY_ROWS - 1) / 2)
+  const approveAll = async (from: number, to: number) => {
+    for (const id of ids.slice(from, to)) {
       await approve(ui, w.item(id))
     }
+  }
 
-    const listed = async () =>
-      (await ui.findAll({ type: 'Text', text: /^Review round \d$/ }))
-        .filter(text => text.props.wrap === 'truncate-end')
-        .map(text => text.text)
+  await approveAll(0, 3)
+  await w.turnStarts('Carry on.')
+  await ui.press({ key: 'send' })
+  await approveAll(3, 6)
+  await ui.press({ key: 'send' })
+  await approveAll(6, 9)
+  await ui.press({ key: 'send' })
+  await approveAll(9, 10)
 
-    expect(await listed()).toEqual(['Review round 1', 'Review round 2', 'Review round 3'])
-    expect(await ui.find({ type: 'Text', text: '… 3 more' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: '6 replies' })).toBeDefined()
-    expect(await ui.find({ key: 'send' })).toBeDefined()
-    expect(await drawnRows(ui)).toBeLessThanOrEqual(Math.floor((BODY_ROWS - 1) / 2))
-    await expectHeightKept(ui, 'cut short')
+  expect(w.flights()).toHaveLength(3)
 
-    await ui.redraw(docked(60))
-    expect(await listed()).toHaveLength(6)
-    expect(await ui.find({ type: 'Text', text: /more$/ })).toBeUndefined()
-    await expectHeightKept(ui, 'room for every one', 60)
-  },
-)
+  for (const at of [0, 1, 2]) {
+    expect(await ui.find({ key: w.takeBack(at) }), `the take-back of send ${at + 1}`).toBeDefined()
+  }
 
-test(
-  'a send held and the queue under it keep the box as tall as it draws; too long for under half the window, the send keeps its heading, its line and its take-back, what fits is listed, then how many more; a second send is one row under it, with its own take-back',
-  async ($, on) => {
-    const w = world($, on)
-    const { ids, ui } = await asking(w, { asks: reviewRounds(6) })
-    const cap = Math.floor((BODY_ROWS - 1) / 2)
+  expect(await ui.find({ type: 'Text', text: "⧗ Waiting for Claude's turn to end." })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '⧗ Then: Review round 4 +2' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '⧗ Then: Review round 7 +2' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '… 3 more' })).toBeDefined()
+  expect(await ui.find({ key: 'send' })).toBeDefined()
+  expect(await drawnRows(ui)).toBeLessThanOrEqual(cap)
+  await expectHeightKept(ui, 'three sends held and a reply, cut short')
 
-    for (const id of ids.slice(0, 3)) {
-      await approve(ui, w.item(id))
-    }
+  await ui.press({ key: w.takeBack(2) })
 
-    await w.turnStarts('Carry on.')
+  expect(w.flights()).toHaveLength(2)
+  expect(await ui.find({ type: 'Text', text: /^⧗ Then: Review round 7/ })).toBeUndefined()
+  expect(await drawnRows(ui)).toBeLessThanOrEqual(cap)
+  await expectHeightKept(ui, 'two sends held and four replies, cut short')
+
+  await ui.redraw(docked(80))
+  expect(await ui.find({ type: 'Text', text: /^⧗ Then/ })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /more$/ })).toBeUndefined()
+  await expectHeightKept(ui, 'room for every send', 80)
+})
+
+test('five sends held in a window too short for a row each: the first in full, a row for each after it that fits but one, then one row standing for the rest, stepping through them, so every take-back is in reach; a take-back from it puts that send back', async ($, on) => {
+  const w = world($, on)
+  const short = docked(22)
+  const { ids, ui } = await asking(w, { asks: reviewRounds(5), props: short })
+  const cap = Math.floor((22 - 1) / 2)
+  const [first = '', ...later] = ids
+  const then = (text: string) => ui.find({ type: 'Text', text: `⧗ Then: ${text}` })
+
+  await approve(ui, w.item(first))
+  await w.turnStarts('Carry on.')
+  await ui.press({ key: 'send' })
+
+  for (const id of later) {
+    await approve(ui, w.item(id))
     await ui.press({ key: 'send' })
+  }
 
-    for (const id of ids.slice(3)) {
-      await approve(ui, w.item(id))
-    }
+  expect(w.flights()).toHaveLength(5)
+  expect(await ui.find({ key: w.takeBack(0) }), 'the first, in full').toBeDefined()
+  expect(await then('Review round 2')).toBeDefined()
+  expect(await then('Review round 3')).toBeDefined()
+  expect(await then('Review round 4 · 1 of 2')).toBeDefined()
+  expect(await ui.find({ key: w.takeBack(3) })).toBeDefined()
+  expect(await ui.find({ key: w.takeBack(4) }), 'behind the step').toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: '… 2 more' })).toBeDefined()
+  expect(await drawnRows(ui)).toBeLessThanOrEqual(cap)
+  await expectHeightKept(ui, 'five sends held, cut short', 22)
 
-    expect(await ui.find({ key: w.takeBack() })).toBeDefined()
-    expect(await ui.find({ key: 'send' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: '… 4 more' })).toBeDefined()
-    expect(await drawnRows(ui)).toBeLessThanOrEqual(cap)
-    await expectHeightKept(ui, 'a send held, and the queue under it, cut short')
+  await ui.press({ key: STEP_HELD })
 
-    await ui.press({ key: 'send' })
+  expect(await then('Review round 5 · 2 of 2')).toBeDefined()
+  expect(await ui.find({ key: w.takeBack(4) })).toBeDefined()
+  expect(await ui.find({ key: w.takeBack(3) })).toBeUndefined()
+  await expectHeightKept(ui, 'stepped to the last', 22)
 
-    expect(await ui.find({ key: w.takeBack(0) })).toBeDefined()
-    expect(await ui.find({ key: w.takeBack(1) })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: '⧗ Then: Review round 4 +2' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /more$/ }), 'the brief row names them').toBeUndefined()
-    expect(await drawnRows(ui)).toBeLessThanOrEqual(cap)
-    await expectHeightKept(ui, 'two sends held, cut short')
+  await ui.press({ key: STEP_HELD })
+  expect(await then('Review round 4 · 1 of 2'), 'round again').toBeDefined()
 
-    await ui.redraw(docked(60))
-    expect(await ui.find({ type: 'Text', text: /more$/ })).toBeUndefined()
-    await expectHeightKept(ui, 'two sends held, room for both', 60)
-  },
-)
+  await ui.press({ key: w.takeBack(3) })
 
-test(
-  'three sends held and a reply under them, too long for under half the window: the first send in full as far as it fits, each after it one row with its own take-back, then how many more; a take-back of one of those puts its replies back',
-  async ($, on) => {
-    const w = world($, on)
-    const { ids, ui } = await asking(w, { asks: reviewRounds(10) })
-    const cap = Math.floor((BODY_ROWS - 1) / 2)
-    const approveAll = async (from: number, to: number) => {
-      for (const id of ids.slice(from, to)) {
-        await approve(ui, w.item(id))
-      }
-    }
-
-    await approveAll(0, 3)
-    await w.turnStarts('Carry on.')
-    await ui.press({ key: 'send' })
-    await approveAll(3, 6)
-    await ui.press({ key: 'send' })
-    await approveAll(6, 9)
-    await ui.press({ key: 'send' })
-    await approveAll(9, 10)
-
-    expect(w.flights()).toHaveLength(3)
-
-    for (const at of [0, 1, 2]) {
-      expect(await ui.find({ key: w.takeBack(at) }), `the take-back of send ${at + 1}`).toBeDefined()
-    }
-
-    expect(await ui.find({ type: 'Text', text: "⧗ Waiting for Claude's turn to end." })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: '⧗ Then: Review round 4 +2' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: '⧗ Then: Review round 7 +2' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: '… 3 more' })).toBeDefined()
-    expect(await ui.find({ key: 'send' })).toBeDefined()
-    expect(await drawnRows(ui)).toBeLessThanOrEqual(cap)
-    await expectHeightKept(ui, 'three sends held and a reply, cut short')
-
-    await ui.press({ key: w.takeBack(2) })
-
-    expect(w.flights()).toHaveLength(2)
-    expect(await ui.find({ type: 'Text', text: /^⧗ Then: Review round 7/ })).toBeUndefined()
-    expect(await drawnRows(ui)).toBeLessThanOrEqual(cap)
-    await expectHeightKept(ui, 'two sends held and four replies, cut short')
-
-    await ui.redraw(docked(80))
-    expect(await ui.find({ type: 'Text', text: /^⧗ Then/ })).toBeUndefined()
-    expect(await ui.find({ type: 'Text', text: /more$/ })).toBeUndefined()
-    await expectHeightKept(ui, 'room for every send', 80)
-  },
-)
-
-test(
-  'five sends held in a window too short for a row each: the first in full, a row for each after it that fits but one, then one row standing for the rest, stepping through them, so every take-back is in reach; a take-back from it puts that send back',
-  async ($, on) => {
-    const w = world($, on)
-    const short = docked(22)
-    const { ids, ui } = await asking(w, { asks: reviewRounds(5), props: short })
-    const cap = Math.floor((22 - 1) / 2)
-    const [first = '', ...later] = ids
-    const then = (text: string) => ui.find({ type: 'Text', text: `⧗ Then: ${text}` })
-
-    await approve(ui, w.item(first))
-    await w.turnStarts('Carry on.')
-    await ui.press({ key: 'send' })
-
-    for (const id of later) {
-      await approve(ui, w.item(id))
-      await ui.press({ key: 'send' })
-    }
-
-    expect(w.flights()).toHaveLength(5)
-    expect(await ui.find({ key: w.takeBack(0) }), 'the first, in full').toBeDefined()
-    expect(await then('Review round 2')).toBeDefined()
-    expect(await then('Review round 3')).toBeDefined()
-    expect(await then('Review round 4 · 1 of 2')).toBeDefined()
-    expect(await ui.find({ key: w.takeBack(3) })).toBeDefined()
-    expect(await ui.find({ key: w.takeBack(4) }), 'behind the step').toBeUndefined()
-    expect(await ui.find({ type: 'Text', text: '… 2 more' })).toBeDefined()
-    expect(await drawnRows(ui)).toBeLessThanOrEqual(cap)
-    await expectHeightKept(ui, 'five sends held, cut short', 22)
-
-    await ui.press({ key: STEP_HELD })
-
-    expect(await then('Review round 5 · 2 of 2')).toBeDefined()
-    expect(await ui.find({ key: w.takeBack(4) })).toBeDefined()
-    expect(await ui.find({ key: w.takeBack(3) })).toBeUndefined()
-    await expectHeightKept(ui, 'stepped to the last', 22)
-
-    await ui.press({ key: STEP_HELD })
-    expect(await then('Review round 4 · 1 of 2'), 'round again').toBeDefined()
-
-    await ui.press({ key: w.takeBack(3) })
-
-    expect(w.flights()).toHaveLength(4)
-    expect(await ui.find({ key: 'send' }), 'its reply still to send').toBeDefined()
-    expect(await then('Review round 2 · 1 of 3')).toBeDefined()
-    expect(await drawnRows(ui)).toBeLessThanOrEqual(cap)
-    await expectHeightKept(ui, 'four sends held and a reply, cut short', 22)
-  },
-)
+  expect(w.flights()).toHaveLength(4)
+  expect(await ui.find({ key: 'send' }), 'its reply still to send').toBeDefined()
+  expect(await then('Review round 2 · 1 of 3')).toBeDefined()
+  expect(await drawnRows(ui)).toBeLessThanOrEqual(cap)
+  await expectHeightKept(ui, 'four sends held and a reply, cut short', 22)
+})
