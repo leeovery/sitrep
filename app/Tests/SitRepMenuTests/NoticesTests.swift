@@ -9,7 +9,7 @@ struct NoticesTests {
 
     @Test func aNewAskSendsItsTitleItsProjectAndSessionSilentlyJumpingToIt() {
         #expect(Notices.due(Self.asked, .notifyingAsks) == [
-            Banner(title: "Choose how long the ledger keeps requests", subtitle: "Woodgrove · Usage", body: "", work: "sr-l5c9tz"),
+            Banner(title: "Choose how long the archive keeps reports", subtitle: "Woodgrove · Usage", body: "", work: "sr-l5c9tz"),
         ])
     }
 
@@ -29,7 +29,7 @@ struct NoticesTests {
         let both = heard([.line(Watched.line(rows: [])), .line(Watched.line(new: ["ask:sr-l5c9tz:k1", "ask:sr-plan:k2"]))])
 
         #expect(Notices.due(both, .notifyingAsks).map(\.title) == [
-            "Pick the plan's shape", "Choose how long the ledger keeps requests",
+            "Pick the plan's shape", "Choose how long the archive keeps reports",
         ])
     }
 
@@ -38,7 +38,7 @@ struct NoticesTests {
         let away = heard([.line(Watched.line(rows: [])), .line(Watched.line(new: ["ask:sr-plan:k2"]))])
 
         #expect(Notices.due(away, .notifyingAsks) == [
-            Banner(title: "Pick the plan's shape", subtitle: "Humongous · Plan the tool", body: "", work: "sr-plan"),
+            Banner(title: "Pick the plan's shape", subtitle: "Humongous · Plan the launch", body: "", work: "sr-plan"),
         ])
     }
 

@@ -11,7 +11,7 @@ import Testing
 @MainActor
 struct ClicksTests {
     private nonisolated static let notRunning =
-        "SitRep opens a window only in a Ghostty already running. Open Ghostty, then click SitRep again."
+        "SitRep opens a window only in a Ghostty already running. Open Ghostty, then click Trey Research again."
 
     @Test func aJumpThatJumpedIsToldSoAndHandsNothingBack() async {
         let world = World { _ in .answered(.jumped) }

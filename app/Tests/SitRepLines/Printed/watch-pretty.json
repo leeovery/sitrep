@@ -9,7 +9,7 @@
       "section": "needsYou",
       "isAway": false,
       "project": "humongous",
-      "name": "Plan the tool",
+      "name": "Plan the launch",
       "projectName": "Humongous",
       "letters": "Hu",
       "lines": [
@@ -19,14 +19,14 @@
           "ask": "k1hs",
           "writer": null,
           "first": {
-            "lead": "Approve saved plans for anything needing a human",
+            "lead": "Approve the rollout plan for each region",
             "mono": null,
             "more": null
           },
           "since": 1791991983206
         }
       ],
-      "second": "Humongous · Plan the tool",
+      "second": "Humongous · Plan the launch",
       "since": 1791991983206
     },
     {
@@ -34,7 +34,7 @@
       "section": "needsYou",
       "isAway": false,
       "project": "woodgrove-5c3e91f0",
-      "name": "Dashboard memory and snags",
+      "name": "Report caching and snags",
       "projectName": "Woodgrove",
       "letters": "Wo",
       "lines": [
@@ -47,7 +47,7 @@
           "since": 1792445500000
         }
       ],
-      "second": "Woodgrove · Dashboard memory and snags",
+      "second": "Woodgrove · Report caching and snags",
       "since": 1792445500000
     },
     {
@@ -65,7 +65,7 @@
           "ask": null,
           "writer": "00000000-0000-4000-8000-000000000001",
           "first": {
-            "lead": "Build phase 4b: the feed the app reads",
+            "lead": "Build phase 4b: the import",
             "mono": null,
             "more": null
           },
@@ -88,8 +88,8 @@
       "sessions": [
         {
           "id": "sr-7p4wd2",
-          "name": "Plan the tool",
-          "summary": "Settle the tool's open decisions, then write the spec and milestones",
+          "name": "Plan the launch",
+          "summary": "Agree the launch's open points, then write the plan",
           "now": [],
           "next": null,
           "isOpen": true,
@@ -101,7 +101,7 @@
           "doing": {
             "is": "yourTurn",
             "line": {
-              "lead": "Settle the tool's open decisions, then write the spec and milestones",
+              "lead": "Agree the launch's open points, then write the plan",
               "mono": null,
               "more": null
             },
@@ -112,8 +112,8 @@
               "id": "k1hs",
               "wants": "yes",
               "yes": "Approve",
-              "title": "Approve saved plans for anything needing a human",
-              "where": "In the chat: decision 3, what an approval binds to",
+              "title": "Approve the rollout plan for each region",
+              "where": "In the chat: question 3, who signs off",
               "options": [],
               "needs": null,
               "ref": "tool plan, decision 3",
@@ -135,10 +135,10 @@
       "sessions": [
         {
           "id": "sr-y6m1pr",
-          "name": "Dashboard memory and snags",
+          "name": "Report caching and snags",
           "summary": "Phase 1 merged; now phase 2: the dashboard loads from daily totals",
           "now": ["Close the small test gaps", "Build the daily totals"],
-          "next": "Merge the turn, then the guard",
+          "next": "Merge the totals, then the checks",
           "isOpen": true,
           "waiting": 0,
           "parked": 16,
@@ -167,8 +167,8 @@
           "id": "sr-a8n2xc",
           "name": "Build the desktop app",
           "summary": "Decide a desktop surface for what needs attention",
-          "now": ["Build phase 4b: the feed the app reads"],
-          "next": "Then the strip, the menu and Settings",
+          "now": ["Build phase 4b: the import"],
+          "next": "Then the settings and the help page",
           "isOpen": true,
           "waiting": 0,
           "parked": 13,
@@ -177,7 +177,7 @@
           "since": 1792259685462,
           "doing": {
             "is": "yourTurn",
-            "line": { "lead": "Build phase 4b: the feed the app reads", "mono": null, "more": null },
+            "line": { "lead": "Build phase 4b: the import", "mono": null, "more": null },
             "since": 1792259685462
           },
           "asks": []
@@ -204,7 +204,7 @@
     {
       "writer": "00000000-0000-4000-8000-000000000002",
       "session": "sr-y6m1pr",
-      "name": "Dashboard memory and snags",
+      "name": "Report caching and snags",
       "project": "Woodgrove",
       "version": "0.1.0",
       "needsReload": false,

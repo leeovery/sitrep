@@ -16,7 +16,7 @@ struct NeedsYouMarksTests {
 
     private static func session(_ kind: Session.Kind, away: Bool = false) -> Session {
         Session(
-            id: "sr-a", project: "Litware", name: "The bootstrap", kind: kind, away: away,
+            id: "sr-a", project: "Litware", name: "The installer", kind: kind, away: away,
             lines: [Session.Line(ask: kind == .needs || kind == .snoozed ? "k1" : nil, title: "Plan saved", since: 0)],
             sub: "Litware"
         )

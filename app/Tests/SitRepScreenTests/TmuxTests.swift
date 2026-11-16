@@ -10,10 +10,10 @@ struct TmuxTests {
     @Test func panesReadAsEachOnesWindowTheSessionsItIsInListedOnceForEachAndItsDevice() {
         let panes = parsePanes(
             [
-                "%148\t@45\t$7\t/dev/ttys043",
+                "%12\t@45\t$7\t/dev/ttys004",
                 "%54\t@52\t$9\t/dev/ttys044",
-                "%148\t@45\t$8\t/dev/ttys043",
-                "%148\t@45\t$7\t/dev/ttys043",
+                "%12\t@45\t$8\t/dev/ttys004",
+                "%12\t@45\t$7\t/dev/ttys004",
                 "%55\t@53\t$9",
                 "",
             ].joined(separator: "\n")
@@ -21,7 +21,7 @@ struct TmuxTests {
 
         #expect(
             panes == [
-                "%148": Pane(window: "@45", sessions: ["$7", "$8"], device: "/dev/ttys043"),
+                "%12": Pane(window: "@45", sessions: ["$7", "$8"], device: "/dev/ttys004"),
                 "%54": Pane(window: "@52", sessions: ["$9"], device: "/dev/ttys044"),
             ]
         )

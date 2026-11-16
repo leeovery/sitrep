@@ -388,10 +388,10 @@ test('inline, a send held while the pane was closed shows sealed when it opens a
   expect(await box(reopened)).toEqual([...heading(2), ...held(1), ...held(2)])
 })
 
-const LIST = 'Run sitrep list in a shell and paste what it prints'
+const LIST = 'Run report tool in a shell and paste what it prints'
 
 /** A shell session pasted whole, from a shell begun at home: its prompt's two lines, the first the folder, then what the command printed. */
-const SHELL = ['~', '❯ sitrep list', ...Array.from({ length: 19 }, (_, n) => `line ${n + 1}`)]
+const SHELL = ['~', '❯ report tool', ...Array.from({ length: 19 }, (_, n) => `line ${n + 1}`)]
 
 /** The paste as the engine wraps it in the prompt Lee submits (live, 2.1.295). */
 const PASTED = `\n\n<pasted_content id="08fd">\n${SHELL.join('\n')}\n</pasted_content id="08fd">\n`

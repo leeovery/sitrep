@@ -15,7 +15,7 @@ import Testing
 struct NeedsYouTests {
     private static func ask(_ id: String = "sr-a") -> WatchLine.Row {
         WatchLine.Row(
-            session: id, name: "Plan", projectName: "SitRep",
+            session: id, name: "Plan", projectName: "Trey Research",
             lines: [.init("ask:\(id):k1", .ask, first: "Approve the plan", since: 1_792_445_000_000)]
         )
     }
@@ -55,7 +55,7 @@ struct NeedsYouTests {
     /// its turn counts nothing.
     @Test func needYouCountsTheAsksAndTheTurnsEachSessionOneRow() {
         let held = WatchLine.Row(
-            session: "sr-a", name: "Plan", projectName: "SitRep",
+            session: "sr-a", name: "Plan", projectName: "Trey Research",
             lines: [
                 .init("ask:sr-a:k1", .ask, first: "One", since: 1_792_445_000_000),
                 .init("ask:sr-a:k2", .ask, first: "Two", since: 1_792_445_000_001),
@@ -63,7 +63,7 @@ struct NeedsYouTests {
         )
         let asks = [held] + ["sr-b", "sr-c"].map { id in
             WatchLine.Row(
-                session: id, name: id, projectName: "SitRep",
+                session: id, name: id, projectName: "Trey Research",
                 lines: [.init("ask:\(id):k1", .ask, first: "One", since: 1_792_445_000_000)]
             )
         }

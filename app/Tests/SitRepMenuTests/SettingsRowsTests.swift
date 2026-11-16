@@ -153,9 +153,9 @@ struct NoticeRowsTests {
 
 struct PluginRowTests {
     private static let windows = [
-        WatchLine.Window(writer: "w1", session: "sr-boot", name: "The bootstrap", project: "Litware", version: "0.1.0", needsReload: true),
+        WatchLine.Window(writer: "w1", session: "sr-boot", name: "The installer", project: "Litware", version: "0.1.0", needsReload: true),
         WatchLine.Window(writer: "w2", session: "sr-diff", name: "Diff", project: "Relecloud", version: "0.2.0", needsReload: false),
-        WatchLine.Window(writer: "w3", session: "sr-plan", name: "Plan the tool", project: "Humongous", version: "0.1.0", needsReload: true),
+        WatchLine.Window(writer: "w3", session: "sr-plan", name: "Plan the launch", project: "Humongous", version: "0.1.0", needsReload: true),
     ]
     private static let clone = PluginStanding.running(.folder("~/Code/sitrep"), folder: "/Users/me/Code/sitrep")
     private static let label = "Claude Code plugin"

@@ -161,8 +161,8 @@ struct StripBoardTests {
         #expect(lab.frame.marks.allSatisfy { $0.flash == 0 && $0.wash == 0 })
     }
 
-    /// Core puts DocMan's working row after Turnstile's: it shows in place, then the strip takes core's order, where
-    /// the panel's old sort, longest running first, would have kept DocMan's first.
+    /// Core puts s7's working row after s8's: it shows in place, then the strip takes core's order, where
+    /// the panel's old sort, longest running first, would have kept s7's first.
     @Test func aChangeShowsInPlaceThenTheMarksTakeCoresOrder() {
         var lab = StripLab()
         var docMan = StripLab.prototype[6]
@@ -186,10 +186,10 @@ struct StripBoardTests {
         var lab = StripLab()
         lab.open("s5")
         let was = try #require(lab.live).w.x
-        var fumi = StripLab.prototype[4]
-        fumi.lines[0].title = "Sketched"
+        var s5 = StripLab.prototype[4]
+        s5.lines[0].title = "Sketched"
 
-        lab.change(fumi)
+        lab.change(s5)
         lab.settle()
 
         #expect(was > StripTuning.tabMin)
@@ -201,10 +201,10 @@ struct StripBoardTests {
     @Test func underReducedMotionATabTakingItsNewMeasureCrossFades() throws {
         var lab = StripLab(reducesMotion: true)
         lab.open("s5")
-        var fumi = StripLab.prototype[4]
-        fumi.lines[0].title = "Sketched"
+        var s5 = StripLab.prototype[4]
+        s5.lines[0].title = "Sketched"
 
-        lab.change(fumi)
+        lab.change(s5)
         lab.step()
 
         #expect(lab.frame.fading != nil)

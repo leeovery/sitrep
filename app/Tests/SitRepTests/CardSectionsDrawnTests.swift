@@ -142,7 +142,7 @@ struct CardSectionsDrawnTests {
     }
 
     private static func turn(_ title: String, project: String = "Wingtip") -> Session {
-        Session(id: "a", project: project, kind: .turn, title: title, sub: "\(project) · Licensing", since: 0)
+        Session(id: "a", project: project, kind: .turn, title: title, sub: "\(project) · Pricing", since: 0)
     }
 
     private static func working(_ title: String, code: String? = nil, project: String = "Coho") -> Session {
@@ -163,7 +163,7 @@ struct CardSectionsDrawnTests {
 
     /// Every row 30 tall, its lift's corners 10, whatever its section, so two lifts side by side meet.
     @Test func everyRowIsOneLine30TallItsLift10() throws {
-        for session in [Self.needs("Licensing"), Self.turn("Licensing settled"), Self.working("Running ", code: "swift test")] {
+        for session in [Self.needs("Pricing"), Self.turn("Pricing settled"), Self.working("Running ", code: "swift test")] {
             let row = try Self.row(session).row
 
             #expect(row.layer.bounds.height == 30)
@@ -174,7 +174,7 @@ struct CardSectionsDrawnTests {
 
     /// Needs you: its orange dot, 7 across with its glow, in the mark lane on the row's middle, at 16 by 15.
     @Test func aNeedsYouRowsDotIsOrangeOnItsMiddle() throws {
-        let drawn = try Self.row(Self.needs("Licensing")).drawn
+        let drawn = try Self.row(Self.needs("Pricing")).drawn
         let dot = try #require(drawn.pixel(at: CGPoint(x: 16, y: 15)))
         let glow = try #require(drawn.pixel(at: CGPoint(x: 16, y: 10.5)))
 
@@ -186,7 +186,7 @@ struct CardSectionsDrawnTests {
     /// Its session's name from 32, 13 medium in the text colour, wider than a your-turn row's regular of the same
     /// words; its "3" 6 after it, in the soft grey.
     @Test func aNeedsYouRowsNameIs13MediumAndItsCount6After() throws {
-        let name = "Licensing"
+        let name = "Pricing"
         let drawn = try Self.row(Self.needs(name, lines: 3)).drawn
         let medium = Self.width(name, EdgeStyle.lineMedium)
         let title = try #require(drawn.drawnBox(in: CGRect(x: 26, y: 4, width: 6 + medium + 2, height: 22), ground: Self.ground))
@@ -222,7 +222,7 @@ struct CardSectionsDrawnTests {
     /// Your turn, today's one line: its blue dot, 7 across with its glow, as an ask's orange one, at 16 by 15 (13
     /// November 2026; an open white ring 9 across until then).
     @Test func aYourTurnRowsDotIsBlueOnItsMiddle() throws {
-        let drawn = try Self.row(Self.turn("Licensing settled")).drawn
+        let drawn = try Self.row(Self.turn("Pricing settled")).drawn
         let dot = try #require(drawn.pixel(at: CGPoint(x: 16, y: 15)))
         let glow = try #require(drawn.pixel(at: CGPoint(x: 16, y: 10.5)))
 
@@ -233,7 +233,7 @@ struct CardSectionsDrawnTests {
 
     /// What Claude left Lee from 32, 13 regular in the text colour; its project in the lane, faint; its time faint.
     @Test func aYourTurnRowsWordsAre13RegularWithItsProjectAtTheRight() throws {
-        let words = "Licensing settled"
+        let words = "Pricing settled"
         let drawn = try Self.row(Self.turn(words)).drawn
         let regular = Self.width(words, EdgeStyle.line)
         let box = try #require(drawn.drawnBox(in: CGRect(x: 26, y: 4, width: 6 + regular + 2, height: 22), ground: Self.ground))
@@ -312,8 +312,8 @@ struct CardSectionsDrawnTests {
     // MARK: The black card's content
 
     private static let mixed = [
-        Session(id: "k", project: "Litware", name: "The bootstrap", kind: .needs, ask: "k1", title: "Approve the plan", sub: "Litware", since: 0),
-        Session(id: "t", project: "Wingtip", kind: .turn, title: "Licensing settled", sub: "Wingtip · Licensing", since: 0),
+        Session(id: "k", project: "Litware", name: "The installer", kind: .needs, ask: "k1", title: "Approve the plan", sub: "Litware", since: 0),
+        Session(id: "t", project: "Wingtip", kind: .turn, title: "Pricing settled", sub: "Wingtip · Pricing", since: 0),
         Session(id: "e", project: "Humongous", kind: .turn, title: "Plan saved", sub: "Humongous · Plan", since: -86_400_000),
         Session(id: "w", project: "BlueYonder", kind: .working, title: "Running the tests", sub: "BlueYonder · Fix", since: 0),
     ]
@@ -396,7 +396,7 @@ struct CardSectionsDrawnTests {
             #expect(abs(drawnProject.maxX - 288) <= 1 && abs(drawnProject.width - whole) <= 1.5)
         }
 
-        let name = "Licensing"
+        let name = "Pricing"
         let line = CGRect(x: 26, y: 4, width: 6 + Self.width(name, EdgeStyle.lineMedium) + 2, height: 22)
         let medium = try #require(Self.glass(Self.needs(name)).drawnBox(in: line, ground: Self.ground))
         let regular = try #require(Self.glass(Self.turn(name)).drawnBox(in: line, ground: Self.ground))
@@ -408,7 +408,7 @@ struct CardSectionsDrawnTests {
     /// (`NeedsYouMarksTests`); "until it moves" in its time's place, ending at 334.
     @available(macOS 26, *)
     @Test func onGlassASnoozedTurnIsADotUntilItMoves() throws {
-        let turn = Session(id: "t", project: "Wingtip", name: "Licensing", kind: .snoozedTurn, title: "Settled", sub: "Wingtip", since: 0)
+        let turn = Session(id: "t", project: "Wingtip", name: "Pricing", kind: .snoozedTurn, title: "Settled", sub: "Wingtip", since: 0)
         let drawn = try Self.glass(turn)
         let dot = try #require(drawn.drawnBox(in: CGRect(x: 4, y: 2, width: 24, height: 26), ground: Self.ground))
         let wide = TextLine.width(TextLine.text(WakeTime.untilItMoves, EdgeStyle.age, EdgeStyle.ink2))

@@ -1515,7 +1515,7 @@ test('however the watch ends, it stops listening to its standard input, which wo
 
 test("each window on a line says where it is, its tmux pane and its zmx session, or null for either it is not in", async () => {
   const inZmx = { ...WHERE, zmx: { session: 'litware · invoice-card' } }
-  const inTmux = { ...WHERE, tmux: { socket: '/private/tmp/tmux-501/default', pane: '%148' } }
+  const inTmux = { ...WHERE, tmux: { socket: '/private/tmp/tmux-501/default', pane: '%12' } }
   const whereOn = async (where: Where) => {
     const t = terminal()
     const paths = t.seed(META)

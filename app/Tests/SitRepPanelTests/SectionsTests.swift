@@ -8,7 +8,7 @@ import Testing
 /// one line and every your-turn row shown, and nothing but the room over each eyebrow between them: no hairline.
 struct SectionsTests {
     private static func session(
-        _ id: String, _ kind: Session.Kind, project: String = "SitRep", lines: Int = 1, since: Double = 0,
+        _ id: String, _ kind: Session.Kind, project: String = "Trey Research", lines: Int = 1, since: Double = 0,
         away: Bool = false
     ) -> Session {
         Session(

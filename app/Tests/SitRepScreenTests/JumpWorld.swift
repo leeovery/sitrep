@@ -107,13 +107,13 @@ extension Mac {
     }
 }
 
-/// Claude's tmux server: its pane `%148` on Claude's tmux window, in the tmux sessions given, and a pane of another
+/// Claude's tmux server: its pane `%12` on Claude's tmux window, in the tmux sessions given, and a pane of another
 /// session; its clients as given.
 func server(_ clients: [FakeClient], sessions: [String] = ["$45"], select: Ran? = Ran(status: 0, stdout: "", stderr: ""))
     -> FakeTmux
 {
     let panes = sessions.flatMap { session in
-        [FakePane(pane: "%148", window: JumpWorld.claudes, session: session), FakePane(pane: "%149", window: JumpWorld.beside, session: session)]
+        [FakePane(pane: "%12", window: JumpWorld.claudes, session: session), FakePane(pane: "%13", window: JumpWorld.beside, session: session)]
     }
 
     return FakeTmux([socket: FakeServer(panes: panes + [FakePane(pane: "%54", window: JumpWorld.litware, session: "$52")], clients: clients)], select: select)

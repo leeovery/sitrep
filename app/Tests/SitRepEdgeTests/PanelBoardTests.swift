@@ -45,7 +45,7 @@ struct PanelBoardTests {
         #expect(tailspin.id == "sr-4t2kq8")
         #expect(tailspin.kind == .needs)
         #expect(tailspin.lines.map(\.title) == [
-            "Approve the first fix batch from the branch review", "Choose how the release notes are grouped",
+            "Approve the first change set from the branch review", "Choose how the release notes are grouped",
             "Paste the failing test's output",
         ])
         #expect(tailspin.lines.map(\.since) == line.rows[0].lines.map { $0.since.timeIntervalSince1970 * 1000 })
@@ -127,7 +127,7 @@ struct PanelBoardTests {
     @Test func aRowNeedingLeeReadsItsSessionsNameOverItsProject() {
         let prompt = Self.board(Self.heard(.line(watchLine))).sessions[1]
 
-        #expect(prompt.title == "Dashboard memory and snags")
+        #expect(prompt.title == "Report caching and snags")
         #expect(prompt.code == nil && prompt.more == nil)
         #expect(prompt.sub == "Woodgrove")
         #expect(prompt.since == 1_792_445_500_000)
@@ -138,7 +138,7 @@ struct PanelBoardTests {
     @Test func anAwayRowSaysNoWindowHoldsItUnderItsName() {
         let away = Self.board(Self.heard(.line(Lines.twoAsks))).sessions[1]
 
-        #expect(away.title == "Dashboard memory")
+        #expect(away.title == "Report caching")
         #expect(away.sub == "No window holds it. Carry it on in Claude.")
     }
 
@@ -180,7 +180,7 @@ struct PanelBoardTests {
                 ask: "k1ap", title: "Approve the caption", sub: "Trey Research", since: 1_792_452_732_636
             ),
             Session(
-                id: "sr-d6k1vt", project: "Woodgrove", name: "Dashboard memory", letters: "Wo", kind: .needs,
+                id: "sr-d6k1vt", project: "Woodgrove", name: "Report caching", letters: "Wo", kind: .needs,
                 away: true, ask: "k2pc", title: "Pick the cache size", sub: "No window holds it. Carry it on in Claude.",
                 since: 1_792_451_832_636
             ),
@@ -203,8 +203,8 @@ struct PanelBoardTests {
 
         #expect(sessions.map(\.project) == ["Humongous", "Woodgrove", "Lucerne", "Litware", "Trey Research", "BlueYonder"])
         #expect(sessions.map(\.name) == [
-            "Plan the tool", "Dashboard memory and snags", "Settle the older open questions", "The bootstrap",
-            "Build the desktop app", "Fix inverted exception reporting",
+            "Plan the launch", "Report caching and snags", "Close out the remaining questions", "The installer",
+            "Build the desktop app", "Fix the reversed error totals",
         ])
         #expect(sessions.allSatisfy { $0.letters == "Pr" })
     }

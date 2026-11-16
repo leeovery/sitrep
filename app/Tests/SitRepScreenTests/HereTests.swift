@@ -7,7 +7,7 @@ import Testing
 /// process table, and tmux where a window runs in it; never by the heartbeat's `$TERM_PROGRAM`; unknown where what was
 /// asked gave no answer.
 struct HereTests {
-    private static let portals = "sitrep-iFpz7T"
+    private static let portals = "proseware-Qm4tZ8"
 
     /// Whether the session the windows hold is here, read through tmux and the table given.
     private static func here(_ windows: [Where], _ tmux: FakeTmux = FakeTmux(), _ table: FakeTable) async -> Here {

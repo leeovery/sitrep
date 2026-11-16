@@ -12,9 +12,9 @@ struct BannersTests {
     private static let first: Int32 = 5150
     private static let second: Int32 = 5151
     private static let ready = ToSitRep.ready(helper: first)
-    private static let asked = Banner(title: "Pick a name", subtitle: "SitRep · Build the Mac app", body: "", work: "sr-a8n2xc")
+    private static let asked = Banner(title: "Pick a name", subtitle: "Trey Research · Build the desktop app", body: "", work: "sr-a8n2xc")
     private static let askedNotice = Notice(
-        title: "Pick a name", subtitle: "SitRep · Build the Mac app", body: "", work: "sr-a8n2xc"
+        title: "Pick a name", subtitle: "Trey Research · Build the desktop app", body: "", work: "sr-a8n2xc"
     )
 
     /// What SitRep sent the helper, waited on.

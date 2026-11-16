@@ -9,15 +9,15 @@ extension Item {
     /// The prototypes' seven sample sessions, in the order they list them, the hairline under the two that need Lee;
     /// their quiet one is Lee's turn, and the one no window shows an away ask. Their ages are as of the wall clock's 0.
     static let prototype: [Item] = [
-        .session(Session(id: "s1", project: "Woodgrove", kind: .needs, title: "Review the dashboard pages, round 1", sub: "Woodgrove · Milestone 7 stages 4 to 14", since: -2 * hour)),
-        .session(Session(id: "s2", project: "trey", kind: .needs, title: "Allow Bash: ", code: "gh release create v0.5.1", sub: "trey · v0.5.1 follow-ups", since: -4 * minute)),
+        .session(Session(id: "s1", project: "Woodgrove", kind: .needs, title: "Review the report pages, round 1", sub: "Woodgrove · Phase 2 steps 3 to 9", since: -2 * hour)),
+        .session(Session(id: "s2", project: "trey", kind: .needs, title: "Allow Bash: ", code: "gh release create v2.3.1", sub: "trey · v2.3.1 follow-ups", since: -4 * minute)),
         .divider,
-        .session(Session(id: "s3", project: "Wingtip", kind: .turn, title: "Your turn", sub: "Wingtip · Management window discussion", since: -20 * minute)),
-        .session(Session(id: "s4", project: "Trey Research", kind: .working, title: "Drawing the side panel in Paper", sub: "Trey Research · Menu bar and jump to session", since: -12 * minute)),
-        .session(Session(id: "s5", project: "BlueYonder", kind: .working, title: "Running the exception reporting tests", sub: "BlueYonder · Fix inverted exception reporting", since: -3 * minute)),
-        .session(Session(id: "s6", project: "Lucerne", kind: .turn, title: "Waiting for the next round of feedback", sub: "Lucerne · Settle the older open questions", since: -3 * hour)),
+        .session(Session(id: "s3", project: "Wingtip", kind: .turn, title: "Your turn", sub: "Wingtip · Admin page discussion", since: -20 * minute)),
+        .session(Session(id: "s4", project: "Trey Research", kind: .working, title: "Drawing the settings page", sub: "Trey Research · Settings and search", since: -12 * minute)),
+        .session(Session(id: "s5", project: "BlueYonder", kind: .working, title: "Running the error totals tests", sub: "BlueYonder · Fix the reversed error totals", since: -3 * minute)),
+        .session(Session(id: "s6", project: "Lucerne", kind: .turn, title: "Waiting for the next round of comments", sub: "Lucerne · Close out the remaining questions", since: -3 * hour)),
         // last, past the hairline, where the recordings have it, not where the design's order puts an away ask
-        .session(Session(id: "s7", project: "Litware", kind: .needs, away: true, title: "The bootstrap", sub: "Litware · no window shows it", since: -2 * day)),
+        .session(Session(id: "s7", project: "Litware", kind: .needs, away: true, title: "The installer", sub: "Litware · no window shows it", since: -2 * day)),
     ]
 }
 

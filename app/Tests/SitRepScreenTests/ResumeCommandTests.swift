@@ -39,8 +39,8 @@ struct ResumeCommandTests {
         #expect(try await Self.line("attach {tty}") == "attach ''")
     }
 
-    /// The examples DESIGN records, through the fill exactly as written: Lee's Portal one-liner, and tmux by `{tty}`.
-    @Test func leesPortalOneLinerFillsAsWritten() async throws {
+    /// The examples DESIGN records, through the fill exactly as written: its Portal one-liner, and tmux by `{tty}`.
+    @Test func thePortalOneLinerDesignRecordsFillsAsWritten() async throws {
         let command = #"s=$(portal hook list | awk -F'\t' -v id={claude} 'index($3, "--resume " id) {print $1; exit}'); [ -n "$s" ] && portal open -s "$s" || portal open -p {dir} -- claude --resume {claude}"#
         let window = Board.LastWindow(writer: Self.claude, directory: "/Users/me/Code/proseware")
 

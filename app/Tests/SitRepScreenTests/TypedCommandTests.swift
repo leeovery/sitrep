@@ -20,11 +20,11 @@ struct TypedCommandTests {
 
     /// Never bare, even where no character is special, as a bare word can be a zsh global alias.
     @Test(arguments: [
-        ("%148", "'%148'"),
+        ("%12", "'%12'"),
         ("/private/tmp/tmux-501/default", "'/private/tmp/tmux-501/default'"),
-        ("sitrep-iFpz7T", "'sitrep-iFpz7T'"),
+        ("proseware-Qm4tZ8", "'proseware-Qm4tZ8'"),
         ("litware · restore-card", "'litware · restore-card'"),
-        ("lee's work", #"'lee'\''s work'"#),
+        ("team's work", #"'team'\''s work'"#),
         ("$HOME;rm", "'$HOME;rm'"),
         ("=zmx", "'=zmx'"),
         ("~/tmux", "'~/tmux'"),

@@ -37,7 +37,7 @@ struct BoardTests {
 
         #expect(stop.lines.map(\.first) == [Board.Row.Words(lead: "Allow Bash", mono: "gh pr create", more: nil)])
         #expect(stop.newest.since == at(1_792_445_500_000))
-        #expect(stop.second == "Woodgrove · Dashboard memory and snags")
+        #expect(stop.second == "Woodgrove · Report caching and snags")
         #expect(stop.since == at(1_792_445_500_000))
         #expect(stop.letters == "Wo")
         #expect(stop.project == "woodgrove-5c3e91f0")
@@ -51,7 +51,7 @@ struct BoardTests {
         let rows = try Board.read(Lines.pretty).rows
         let byName = try Board.read(Lines.bySession[0]).rows
 
-        #expect(rows.map(\.name) == ["Plan the tool", "Dashboard memory and snags", "Build the desktop app"])
+        #expect(rows.map(\.name) == ["Plan the launch", "Report caching and snags", "Build the desktop app"])
         #expect(rows.map(\.projectName) == ["Humongous", "Woodgrove", "Trey Research"])
         #expect(byName[2].isAway && byName[2].name == "Onboarding" && byName[2].projectName == "Lucerne")
         #expect(byName[2].second == "No window holds it. Carry it on in Claude.")
@@ -69,7 +69,7 @@ struct BoardTests {
         #expect(board.rows.map(\.isAway) == [false, false, true, false, false, false])
         #expect(lines[0] == ["ask:sr-4t2kq8:k1", "ask:sr-4t2kq8:k2", "ask:sr-4t2kq8:k3"])
         #expect(board.rows[0].lines.map(\.first.lead) == [
-            "Approve the first fix batch from the branch review", "Choose how the release notes are grouped",
+            "Approve the first change set from the branch review", "Choose how the release notes are grouped",
             "Paste the failing test's output",
         ])
         #expect(board.rows[0].lines.map(\.since) == board.rows[0].lines.map(\.since).sorted())
@@ -153,10 +153,10 @@ struct BoardTests {
             Self.window("w1", of: "sr-a", order: 1, on: "/dev/ttys041"),
             Self.window("w2", of: "sr-b", order: 0, on: "/dev/ttys042"),
             Self.window("w3", of: "sr-a", order: nil, on: nil),
-            Self.window("w4", of: "sr-a", order: 0, on: "/dev/ttys043"),
+            Self.window("w4", of: "sr-a", order: 0, on: "/dev/ttys004"),
         ])
 
-        #expect(board.jumpWindows(of: "sr-a").map(\.device) == ["/dev/ttys043", "/dev/ttys041"])
+        #expect(board.jumpWindows(of: "sr-a").map(\.device) == ["/dev/ttys004", "/dev/ttys041"])
         #expect(board.jumpWindows(of: "sr-z").isEmpty)
     }
 
@@ -166,10 +166,10 @@ struct BoardTests {
             Self.window("w1", of: "sr-a", order: nil, on: "/dev/ttys041"),
             Self.window("w2", of: "sr-b", order: nil, on: "/dev/ttys042"),
             Self.window("w3", of: "sr-a", order: nil, on: nil),
-            Self.window("w4", of: "sr-a", order: nil, on: "/dev/ttys043"),
+            Self.window("w4", of: "sr-a", order: nil, on: "/dev/ttys004"),
         ])
 
-        #expect(board.jumpWindows(of: "sr-a").map(\.device) == ["/dev/ttys041", "/dev/ttys043"])
+        #expect(board.jumpWindows(of: "sr-a").map(\.device) == ["/dev/ttys041", "/dev/ttys004"])
     }
 
     @Test func aSessionIsNamedByItsRowItsSnoozedRowAWindowOfItOrItsProjectAndNoneOffTheBoard() throws {
@@ -181,7 +181,7 @@ struct BoardTests {
             with: #""projects":[{"key":"humongous","name":"Humongous","sessions":[{"id":"sr-q1","name":"Quiet one"}]}]"#
         ))
 
-        #expect(watching.name(of: "sr-7p4wd2") == "Plan the tool")
+        #expect(watching.name(of: "sr-7p4wd2") == "Plan the launch")
         #expect(snoozed.snoozed.first.map { snoozed.name(of: $0.session) } == snoozed.snoozed.first?.name)
         #expect(windowed.name(of: "sr-a") == "Wingtip")
         #expect(rowless.name(of: "sr-q1") == "Quiet one", "a session with no row and no window, by its project")
@@ -294,7 +294,7 @@ struct BoardTests {
         watchedEmpty.replacingOccurrences(of: #","windows":[]"#, with: ""),
         Lines.pretty.replacingOccurrences(of: #""is": "yourTurn""#, with: #""is": "napping""#),
         Lines.pretty.replacingOccurrences(of: #""section": "yourTurn""#, with: #""section": "napping""#),
-        Lines.pretty.replacingOccurrences(of: #""name": "Plan the tool","# + "\n" + #"      "projectName""#, with: #""projectName""#),
+        Lines.pretty.replacingOccurrences(of: #""name": "Plan the launch","# + "\n" + #"      "projectName""#, with: #""projectName""#),
         Lines.pretty.replacingOccurrences(of: #""projectName": "Humongous","#, with: ""),
         Lines.bySession[0].replacingOccurrences(of: #""lines":[{"key":"turn:sr-v9d2wj""#, with: #""lines":[],"was":[{"key":"turn:sr-v9d2wj""#),
     ])

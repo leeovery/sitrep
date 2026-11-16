@@ -8,7 +8,7 @@ import Testing
 /// longest rows with their marks, lines and badges, and its commands with keys, measured by AppKit.
 @MainActor
 struct MenuWidthTests {
-    private static let long = "Two Coho bug fixes from the code review, one PR each: the error report handler inverted, and the dispatcher rate limiter registered in a deferred provider."
+    private static let long = "Two Coho bug fixes from the code review, one PR each: the totals report reversed, and the import queue's retry limit read before its settings load."
     /// Words as wide as this many points in the face, to within a hair space: as wide as a cut can land.
     private static func filled(to points: Double, in face: MenuFace) -> String {
         var words = ""
@@ -20,7 +20,7 @@ struct MenuWidthTests {
         }
         return words + "."
     }
-    private static let longLine = "Coho · Exception reporting and dispatcher limiter fixes, and the queue's retry rules as well"
+    private static let longLine = "Coho · Report totals and import queue fixes, and the queue's retry rules as well"
 
     /// A row whose line is these words, as a your-turn row's is: a row needing Lee shows its session's name.
     private static func session(_ title: String, code: String? = nil, more: String? = nil, sub: String = longLine) -> Session {
@@ -100,8 +100,8 @@ struct MenuWidthTests {
     @Test func aShortRowIsLeftWholeWithNoTooltip() {
         let item = NSMenuItem()
 
-        MenuWords.row(item, Self.session("Wait for Lee to review PR #21", sub: "Coho · Fixes"), age: "2h", now: 0, isHighlighted: false)
-        #expect(item.attributedTitle?.string == "Wait for Lee to review PR #21")
+        MenuWords.row(item, Self.session("Wait for the review of PR #21", sub: "Coho · Fixes"), age: "2h", now: 0, isHighlighted: false)
+        #expect(item.attributedTitle?.string == "Wait for the review of PR #21")
         #expect(item.toolTip == nil)
     }
 

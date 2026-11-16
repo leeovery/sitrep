@@ -26,7 +26,7 @@ struct CardSectionsRunTests {
 
     private static func ask(_ id: String) -> WatchLine.Row {
         WatchLine.Row(
-            session: id, name: id, projectName: "SitRep",
+            session: id, name: id, projectName: "Trey Research",
             lines: [.init("ask:\(id)", .ask, first: "Ask \(id)", since: 1_792_445_000_000)]
         )
     }
@@ -41,7 +41,7 @@ struct CardSectionsRunTests {
     /// A your turn whose turn ended this many minutes before 1_792_445_574_706, ms on the wall clock.
     private static func turn(_ id: String, ago minutes: Int) -> WatchLine.Row {
         WatchLine.Row(
-            session: id, name: id, projectName: "SitRep",
+            session: id, name: id, projectName: "Trey Research",
             lines: [.init("turn:\(id)", .yourTurn, first: "Your turn", since: 1_792_445_574_706 - minutes * minute)]
         )
     }

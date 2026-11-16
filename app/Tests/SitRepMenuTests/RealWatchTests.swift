@@ -11,7 +11,7 @@ struct RealWatchTests {
     /// Its click goes to the away session, for the jump to carry it on (stage 8).
     @Test func aNewAskSendsANoticeNamingItsProjectAndSession() {
         #expect(Notices.due(Self.asked, .notifyingAsks) == [
-            Banner(title: "Choose how long the ledger keeps requests", subtitle: "Woodgrove · Usage", body: "", work: "sr-k3dg0r"),
+            Banner(title: "Choose how long the archive keeps reports", subtitle: "Woodgrove · Usage", body: "", work: "sr-k3dg0r"),
         ])
     }
 

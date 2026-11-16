@@ -5,17 +5,17 @@ import Testing
 /// jumped; in over 160ms dropping 4 into place, held, and out from 1350, gone by 1600.
 struct JumpCaptionTests {
     @Test func itSaysWhichProjectsWindowItJumpedTo() {
-        #expect(JumpCaption(to: "SitRep").text == "Jumped to SitRep's window")
+        #expect(JumpCaption(to: "Trey Research").text == "Jumped to Trey Research's window")
     }
 
     /// A window opened for a session no window shows says so, as does one asked for a moment ago that no terminal
     /// shows it in yet, as it landed first: a later answer changes nothing.
     @Test(arguments: [
-        (JumpCaption.Landing.jumped, "Jumped to SitRep's window"), (.opened, "Opened a window for SitRep"),
-        (.opening, "A window for SitRep is opening"),
+        (JumpCaption.Landing.jumped, "Jumped to Trey Research's window"), (.opened, "Opened a window for Trey Research"),
+        (.opening, "A window for Trey Research is opening"),
     ])
     func itSaysHowTheJumpLanded(landing: JumpCaption.Landing, text: String) {
-        var caption = JumpCaption(to: "SitRep")
+        var caption = JumpCaption(to: "Trey Research")
 
         caption.landed(landing, at: 1000)
         caption.landed(.jumped, at: 1100)
@@ -26,7 +26,7 @@ struct JumpCaptionTests {
     }
 
     @Test func itShows90msIntoTheDrainOnceTheJumpHasJumped() {
-        var caption = JumpCaption(to: "SitRep")
+        var caption = JumpCaption(to: "Trey Research")
         #expect(caption.showsAt == nil)
 
         caption.jumped(at: 1050)
@@ -37,7 +37,7 @@ struct JumpCaptionTests {
     }
 
     @Test func aJumpAnsweringAfterThatShowsItAsItAnswers() {
-        var caption = JumpCaption(to: "SitRep")
+        var caption = JumpCaption(to: "Trey Research")
 
         caption.drained(at: 1000)
         caption.jumped(at: 1500)
@@ -46,7 +46,7 @@ struct JumpCaptionTests {
     }
 
     @Test func theDrainCountsFromWhenItBegan() {
-        var caption = JumpCaption(to: "SitRep")
+        var caption = JumpCaption(to: "Trey Research")
 
         caption.drained(at: 1000)
         caption.drained(at: 1200)
@@ -56,7 +56,7 @@ struct JumpCaptionTests {
     }
 
     @Test func itShowsWhenItsMomentComesAndNeverOnceItHasPassed() {
-        var caption = JumpCaption(to: "SitRep")
+        var caption = JumpCaption(to: "Trey Research")
         #expect(caption.showsIn(at: 1000) == nil)
 
         caption.drained(at: 1000)

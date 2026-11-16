@@ -49,7 +49,7 @@ struct JumpSelectTests {
         var mac = Mac()
         let clients = [mac.ghosttyClient(JumpWorld.window, showing: JumpWorld.litware, in: "$8")]
         let panes = [
-            FakePane(pane: "%148", window: JumpWorld.claudes, session: "$7"), FakePane(pane: "%148", window: JumpWorld.claudes, session: "$8"),
+            FakePane(pane: "%12", window: JumpWorld.claudes, session: "$7"), FakePane(pane: "%12", window: JumpWorld.claudes, session: "$8"),
             FakePane(pane: "%54", window: JumpWorld.litware, session: "$8"),
         ]
         let jumping = Jumping(FakeTmux([socket: FakeServer(panes: panes, clients: clients)]), FakeTable(mac.tree))

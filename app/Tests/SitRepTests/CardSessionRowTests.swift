@@ -13,7 +13,7 @@ struct CardSessionRowTests {
     /// Without a descender, so its drawn box ends on its baseline, as the count's does.
     private static let name = "Finish the rollout"
     private static let titles = [
-        "Approve the first fix batch", "Choose how the release notes are grouped", "Paste the failing output",
+        "Approve the first change set", "Choose how the release notes are grouped", "Paste the failing output",
     ]
 
     private static func tailspin(_ count: Int, name: String = name, away: Bool = false) -> Session {

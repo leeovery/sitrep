@@ -44,14 +44,14 @@ struct MenuBoardTests {
     /// line, its subject in one with it.
     @Test func aRowsTitleIsItsSessionsNameOrElseItsLineAndItsSubjectInOne() {
         let question = Session(
-            id: "q", project: "Lucerne", name: "Onboarding", kind: .needs, title: "Which edge?", more: "+2", sub: "",
+            id: "q", project: "Lucerne", name: "Onboarding", kind: .needs, title: "Which page?", more: "+2", sub: "",
             since: 0
         )
         let titles = Self.board.items.compactMap(\.session).map { $0.menuTitle(at: 0) }
 
         #expect(titles[0] == "Usage")
-        #expect(titles[1] == "Dashboard memory")
-        #expect(titles[2] == "Plan the tool")
+        #expect(titles[1] == "Report caching")
+        #expect(titles[2] == "Plan the launch")
         #expect(titles[4] == "Reading StatusMenu.swift")
         #expect(question.menuTitle(at: 0) == "Onboarding")
     }
@@ -106,13 +106,13 @@ struct MenuBoardTests {
 
     @Test func itSpeaksUpWithEachWindowThatNeedsReloadPluginsAJumpToItsSession() {
         let windows = [
-            WatchLine.Window(writer: "w1", session: "sr-boot", name: "The bootstrap", project: "Litware", version: "0.1.0", needsReload: true),
-            WatchLine.Window(writer: "w2", session: "sr-diff", name: "Token-aware diff sizing", project: "Relecloud", version: "0.2.0", needsReload: false),
-            WatchLine.Window(writer: "w3", session: "sr-dash", name: "Dashboard memory", project: "Woodgrove", version: nil, needsReload: true),
+            WatchLine.Window(writer: "w1", session: "sr-boot", name: "The installer", project: "Litware", version: "0.1.0", needsReload: true),
+            WatchLine.Window(writer: "w2", session: "sr-diff", name: "Smaller diff batches", project: "Relecloud", version: "0.2.0", needsReload: false),
+            WatchLine.Window(writer: "w3", session: "sr-dash", name: "Report caching", project: "Woodgrove", version: nil, needsReload: true),
         ]
         let menu = Self.menu(heard([.line(Watched.line(windows: windows))]))
 
-        #expect(menu.reloads.map(\.label) == ["Litware · The bootstrap", "Woodgrove · Dashboard memory"])
+        #expect(menu.reloads.map(\.label) == ["Litware · The installer", "Woodgrove · Report caching"])
         #expect(menu.reloads.map(\.session) == ["sr-boot", "sr-dash"])
     }
 

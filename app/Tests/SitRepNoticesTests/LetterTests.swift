@@ -4,7 +4,7 @@ import Testing
 
 /// The relay's letters, through the userInfo a distributed notification carries.
 struct LetterTests {
-    private static let notice = Notice(title: "Pick a name", subtitle: "SitRep · Build the Mac app", body: "", work: "sr-a8n2xc")
+    private static let notice = Notice(title: "Pick a name", subtitle: "Trey Research · Build the desktop app", body: "", work: "sr-a8n2xc")
 
     private static func carried<M: Relayed>(_ letter: Letter<M>) -> Letter<M>? {
         Letter(userInfo: letter.userInfo)

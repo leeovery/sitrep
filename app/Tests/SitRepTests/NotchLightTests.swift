@@ -15,7 +15,7 @@ struct NotchLightTests {
     )
 
     private static let content = Content(laying: [.session(Session(
-        id: "a", project: "SitRep", kind: .needs, title: "Approve the plan", sub: "SitRep · Build", since: 0
+        id: "a", project: "Trey Research", kind: .needs, title: "Approve the plan", sub: "Trey Research · Build", since: 0
     ))])
 
     @Test(arguments: [EdgeSettings.Material.black, .glass], NotchApproach.Style.allCases)

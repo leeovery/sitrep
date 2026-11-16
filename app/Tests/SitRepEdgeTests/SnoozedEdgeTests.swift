@@ -194,7 +194,7 @@ struct SnoozedEdgeTests {
         let ask = WatchLine.Row(
             isAway: !held,
             lines: [
-                .init("ask:sr-nw0001:k3", .ask, ask: "k3", first: "Give the go for stage 3", since: 1_792_741_127_000),
+                .init("ask:sr-nw0001:k3", .ask, ask: "k3", first: "Sign off stage 3", since: 1_792_741_127_000),
             ]
         )
         let asleep = WatchLine.SnoozedRow(isAway: !held, lines: [

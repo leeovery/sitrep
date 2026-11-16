@@ -12,13 +12,13 @@ enum Watched {
             session: "sr-l5c9tz", name: "Usage", projectName: "Woodgrove",
             lines: [
                 .init(
-                    "ask:sr-l5c9tz:k1", .ask, first: "Choose how long the ledger keeps requests",
+                    "ask:sr-l5c9tz:k1", .ask, first: "Choose how long the archive keeps reports",
                     since: 1_792_445_000_000
                 ),
             ]
         ),
         WatchLine.Row(
-            session: "sr-dash", name: "Dashboard memory", projectName: "Woodgrove",
+            session: "sr-dash", name: "Report caching", projectName: "Woodgrove",
             lines: [
                 .init(
                     "stop:sr-dash:w1:1792445500000", .permission,
@@ -27,15 +27,15 @@ enum Watched {
             ]
         ),
         WatchLine.Row(
-            session: "sr-plan", isAway: true, name: "Plan the tool", projectName: "Humongous",
+            session: "sr-plan", isAway: true, name: "Plan the launch", projectName: "Humongous",
             lines: [.init("ask:sr-plan:k2", .ask, first: "Pick the plan's shape", since: 1_792_440_000_000)]
         ),
         WatchLine.Row(
-            session: "sr-boot", name: "The bootstrap", projectName: "Litware",
-            lines: [.init("turn:sr-boot", .yourTurn, first: "Write round 4 into DESIGN.md", since: 1_792_445_400_000)]
+            session: "sr-boot", name: "The installer", projectName: "Litware",
+            lines: [.init("turn:sr-boot", .yourTurn, first: "Write round 4 into the spec", since: 1_792_445_400_000)]
         ),
         WatchLine.Row(
-            session: "sr-diff", name: "Token-aware diff sizing", projectName: "Relecloud",
+            session: "sr-diff", name: "Smaller diff batches", projectName: "Relecloud",
             lines: [
                 .init(
                     "work:sr-diff", .working, first: .init(lead: "Reading", mono: "StatusMenu.swift"),
@@ -48,11 +48,11 @@ enum Watched {
     static let projects = [
         WatchLine.Project(
             name: "Woodgrove",
-            sessions: [.init(id: "sr-l5c9tz", name: "Usage"), .init(id: "sr-dash", name: "Dashboard memory")]
+            sessions: [.init(id: "sr-l5c9tz", name: "Usage"), .init(id: "sr-dash", name: "Report caching")]
         ),
-        WatchLine.Project(name: "Humongous", sessions: [.init(id: "sr-plan", name: "Plan the tool")]),
-        WatchLine.Project(name: "Litware", sessions: [.init(id: "sr-boot", name: "The bootstrap")]),
-        WatchLine.Project(name: "Relecloud", sessions: [.init(id: "sr-diff", name: "Token-aware diff sizing")]),
+        WatchLine.Project(name: "Humongous", sessions: [.init(id: "sr-plan", name: "Plan the launch")]),
+        WatchLine.Project(name: "Litware", sessions: [.init(id: "sr-boot", name: "The installer")]),
+        WatchLine.Project(name: "Relecloud", sessions: [.init(id: "sr-diff", name: "Smaller diff batches")]),
     ]
 
     /// The board of these rows, with these new on it, these windows, at this CLI version; `needYou` of their lines

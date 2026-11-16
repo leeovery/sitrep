@@ -55,8 +55,8 @@ const FRAMES = {
 
 const LIST = {
   wants: 'words',
-  title: 'Run sitrep list in a shell and paste what it prints',
-  where: 'Any terminal: type sitrep list',
+  title: 'Run report tool in a shell and paste what it prints',
+  where: 'Any terminal: type report tool',
   needs: OUTPUT,
 }
 
@@ -187,10 +187,10 @@ test('an ask wanting words offers an answer, an ignore and a snooze, and hangs w
   const ui = await w.pane()
 
   expect(rowsOf(await ui.find({ key: `ask:${w.item(id)}` })).slice(0, 5)).toEqual([
-    '◆ Run sitrep list in a shell and paste what it now',
+    '◆ Run report tool in a shell and paste what it now',
     '│ prints',
     `├ needs: ${OUTPUT}`,
-    '└ Any terminal: type sitrep list',
+    '└ Any terminal: type report tool',
     '  [ ✎ Answer ] [ ✕ ignore ] [ snooze ]',
   ])
   expect((await ui.find({ type: 'Text', text: `needs: ${OUTPUT}` }))?.props.color).toBe(C.ask)
@@ -228,7 +228,7 @@ test('✎ Answer has the next Enter in the prompt answer the ask: it says so und
   })
   expect(rowsOf(await ui.find({ key: `ask:${w.item(id)}` })).slice(2)).toEqual([
     `├ needs: ${OUTPUT}`,
-    '├ Any terminal: type sitrep list',
+    '├ Any terminal: type report tool',
     '└ answering in the prompt…',
   ])
   expect(await ui.find({ key: `answer:${w.item(id)}` })).toBeUndefined()
@@ -285,7 +285,7 @@ test('the band clips a long title to keep cancel on its line', async ($, on) => 
 
   await w.begin()
 
-  const id = await asked(w, { wants: 'words', title: 'Run sitrep list '.repeat(8).trim() })
+  const id = await asked(w, { wants: 'words', title: 'Run report tool '.repeat(8).trim() })
   const ui = await w.pane()
 
   await ui.press({ key: `answer:${w.item(id)}` })
@@ -293,7 +293,7 @@ test('the band clips a long title to keep cancel on its line', async ($, on) => 
   const { rows } = await bandRow(w)
 
   expect(rows).toHaveLength(1)
-  expect(rows[0]).toMatch(/^✎ Your next Enter answers "Run sitrep list .*…" {2}↓ +cancel$/)
+  expect(rows[0]).toMatch(/^✎ Your next Enter answers "Run report tool .*…" {2}↓ +cancel$/)
   expect([...(rows[0] ?? '')].length).toBeLessThanOrEqual(100)
 })
 

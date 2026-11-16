@@ -29,7 +29,7 @@ struct MenuEntriesTests {
     }
 
     @Test func itSpeaksUpFirstUnderTheHeader() {
-        let window = WatchLine.Window(writer: "w1", session: "sr-boot", name: "The bootstrap", project: "Litware", version: nil, needsReload: true)
+        let window = WatchLine.Window(writer: "w1", session: "sr-boot", name: "The installer", project: "Litware", version: nil, needsReload: true)
         let last = heard([.line(Watched.line(windows: [window])), .exited(.status(1), stderr: "")])
         let keys = MenuBoard(last, clock: london).entries(showing: .notch).map(\.key)
 
@@ -39,7 +39,7 @@ struct MenuEntriesTests {
     }
 
     @Test func troubleWithThePluginSpeaksUpFirstOfAll() {
-        let window = WatchLine.Window(writer: "w1", session: "sr-boot", name: "The bootstrap", project: "Litware", version: nil, needsReload: true)
+        let window = WatchLine.Window(writer: "w1", session: "sr-boot", name: "The installer", project: "Litware", version: nil, needsReload: true)
         let last = heard([.line(Watched.line(windows: [window])), .exited(.status(1), stderr: "")])
         let entries = MenuBoard(last, trouble: .noClaude, clock: london).entries(showing: .notch)
 
@@ -138,7 +138,7 @@ struct MenuEntriesTests {
         )
 
         tailspin.lines.append(Session.Line(title: "Approve the batch", since: 1))
-        #expect(rows[1].menuLine(at: 0) == MenuTitle(words: "Dashboard memory", mono: nil, more: nil, isFaint: false))
+        #expect(rows[1].menuLine(at: 0) == MenuTitle(words: "Report caching", mono: nil, more: nil, isFaint: false))
         #expect(rows[4].menuLine(at: 0) == MenuTitle(words: "Reading ", mono: "StatusMenu.swift", more: nil, isFaint: true))
         #expect(tailspin.menuLine(at: 0) == MenuTitle(words: "Migration", mono: nil, more: " 2", isFaint: false))
     }

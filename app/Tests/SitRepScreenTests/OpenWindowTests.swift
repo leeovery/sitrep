@@ -13,7 +13,7 @@ import Testing
 struct OpenWindowTests {
     private static let proseware = "adventure-works-v2 · proseware-build"
     private static let claude = "b1c2d3e4-0000-4000-8000-000000000001"
-    /// Lee's own command, through Portal: SitRep knows no Portal, only the command it is given.
+    /// The Portal one-liner DESIGN records: SitRep knows no Portal, only the command it is given.
     private static let portal = "portal open --claude {claude}"
     private static let portalLine = "portal open --claude '\(claude)'"
     private static let notRunning = JumpAnswer.unopened(

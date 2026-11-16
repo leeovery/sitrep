@@ -8,8 +8,8 @@ import Testing
 @MainActor
 struct DottedRingTests {
     private static let waiting = Session(
-        id: "a", project: "SitRep", kind: .onItsWork, title: "Waiting on ", subject: "3 agents",
-        sub: "SitRep · The Mac app", since: 0
+        id: "a", project: "Trey Research", kind: .onItsWork, title: "Waiting on ", subject: "3 agents",
+        sub: "Trey Research · The desktop app", since: 0
     )
 
     /// A row on the card, on one line.
@@ -41,7 +41,7 @@ struct DottedRingTests {
     /// meets its start: seven dashes. Your turn's ring, read the same way, is whole.
     @Test func theCardsRingIsDashed() throws {
         let waiting = try Self.card(Self.waiting).drawn
-        let turn = try Self.card(Session(id: "a", project: "SitRep", kind: .turn, title: "Your turn", sub: "", since: 0))
+        let turn = try Self.card(Session(id: "a", project: "Trey Research", kind: .turn, title: "Your turn", sub: "", since: 0))
         let lane = CGRect(x: 4, y: 2, width: 24, height: 26)
 
         #expect(try Self.dashes(waiting, in: lane, ground: Self.cardGround) == 7)
@@ -59,7 +59,7 @@ struct DottedRingTests {
     @Test func theCardsTitleSetsItsVerbBrighterThanItsSubject() throws {
         let drawn = try Self.card(Self.waiting).drawn
         let verb = TextLine.width(LineTitle.text(Self.waiting, verb: EdgeStyle.waitingVerb, subject: nil, isFollowed: false))
-        let title = Self.title(of: "SitRep")
+        let title = Self.title(of: "Trey Research")
 
         #expect(Self.colour(drawn, in: CGRect(x: title.minX, y: title.minY, width: verb, height: title.height))
             .isClose(to: 0xB4B4BA))
@@ -71,7 +71,7 @@ struct DottedRingTests {
     @Test func theCardsWakeCountsDownAsTheClockTicks() throws {
         let wake = Session(id: "a", project: "Litware", kind: .onItsWork, title: "Wakes ", until: 1_000_000, sub: "", since: 0)
         let row = SessionRow(wake, size: Self.cardSize)
-        let title = Self.title(of: "SitRep")
+        let title = Self.title(of: "Trey Research")
 
         row.showAge(at: 1_000_000 - 690_000)
         let early = try #require(try Drawn(row.layer).drawnBox(in: title, ground: Self.cardGround))

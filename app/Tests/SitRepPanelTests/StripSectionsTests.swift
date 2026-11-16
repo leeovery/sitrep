@@ -521,12 +521,12 @@ struct StripSectionsTests {
         var askedAgain = StripLab.prototype[0]
         askedAgain.lines[0].since = 0
         lab.change(askedAgain)
-        let agntc = StripLab.prototype[2]
-        var working = agntc
+        let s3 = StripLab.prototype[2]
+        var working = s3
         working.kind = .working
 
         lab.model.show(
-            StripLab.core(lab.model.sessions.map { $0.id == agntc.id ? working : $0 } + [Self.asleep(agntc, .snoozed)]),
+            StripLab.core(lab.model.sessions.map { $0.id == s3.id ? working : $0 } + [Self.asleep(s3, .snoozed)]),
             new: []
         )
 

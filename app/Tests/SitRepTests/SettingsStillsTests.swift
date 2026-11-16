@@ -37,10 +37,10 @@ struct SettingsStillsTests {
         return preferences
     }
 
-    /// A window on SitRep's The Mac app, on an older plugin or not.
+    /// A window on Trey Research's The desktop app, on an older plugin or not.
     private static func window(_ writer: String, needsReload: Bool) -> WatchLine.Window {
         WatchLine.Window(
-            writer: writer, session: "sr-a8n2xc", name: "The Mac app", project: "SitRep",
+            writer: writer, session: "sr-a8n2xc", name: "The desktop app", project: "Trey Research",
             version: needsReload ? "0.1.0" : "0.2.0", needsReload: needsReload
         )
     }

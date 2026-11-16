@@ -74,9 +74,9 @@ struct PaneHistoryTests {
 struct ClaudeCodePaneTests {
     private static let clone = PluginStanding.running(.folder("~/Code/sitrep"), folder: "/Users/me/Code/sitrep")
     private static let windows = [
-        WatchLine.Window(writer: "w1", session: "sr-boot", name: "The bootstrap", project: "Litware", version: "0.1.0", needsReload: true),
+        WatchLine.Window(writer: "w1", session: "sr-boot", name: "The installer", project: "Litware", version: "0.1.0", needsReload: true),
         WatchLine.Window(writer: "w2", session: "sr-diff", name: "Diff", project: "Relecloud", version: "0.2.0", needsReload: false),
-        WatchLine.Window(writer: "w3", session: "sr-plan", name: "Plan the tool", project: "Humongous", version: nil, needsReload: true),
+        WatchLine.Window(writer: "w3", session: "sr-plan", name: "Plan the launch", project: "Humongous", version: nil, needsReload: true),
     ]
 
     private static func pane(_ windows: [WatchLine.Window]) -> ClaudeCodePane {
@@ -88,7 +88,7 @@ struct ClaudeCodePaneTests {
     @Test func eachWindowBehindIsARowOfItsSessionOverItsProjectAndVersion() {
         let reloads = Self.pane(Self.windows).reloads
 
-        #expect(reloads.map(\.name) == ["The bootstrap", "Plan the tool"])
+        #expect(reloads.map(\.name) == ["The installer", "Plan the launch"])
         #expect(reloads.map(\.line) == ["Litware · 0.1.0", "Humongous"])
         #expect(reloads.map(\.session) == ["sr-boot", "sr-plan"])
     }
@@ -110,9 +110,9 @@ struct ClaudeCodePaneTests {
 /// The windows behind on the plugin, read once for the menu, the plugin's row, the pane and the sidebar's count.
 struct WindowsBehindTests {
     private static let windows = [
-        WatchLine.Window(writer: "w1", session: "sr-boot", name: "The bootstrap", project: "Litware", version: "0.1.0", needsReload: true),
+        WatchLine.Window(writer: "w1", session: "sr-boot", name: "The installer", project: "Litware", version: "0.1.0", needsReload: true),
         WatchLine.Window(writer: "w2", session: "sr-diff", name: "Diff", project: "Relecloud", version: "0.2.0", needsReload: false),
-        WatchLine.Window(writer: "w3", session: "sr-plan", name: "Plan the tool", project: "Humongous", version: nil, needsReload: true),
+        WatchLine.Window(writer: "w3", session: "sr-plan", name: "Plan the launch", project: "Humongous", version: nil, needsReload: true),
     ]
 
     @Test func theyAreTheWindowsThatNeedReloadingInWatchsOrder() {

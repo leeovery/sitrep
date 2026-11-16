@@ -11,7 +11,7 @@ struct StripWordsLayerTests {
     private static let box = CGRect(x: 0, y: 0, width: 220, height: 100)
 
     private static func row(_ id: String) -> Session {
-        Session(id: id, project: "SitRep", kind: .turn, title: "Your turn", sub: "SitRep · Build", since: 0)
+        Session(id: id, project: "Trey Research", kind: .turn, title: "Your turn", sub: "Trey Research · Build", since: 0)
     }
 
     private static func words(pressing pressed: String? = nil) -> StripFrame.Words {
@@ -44,14 +44,14 @@ struct StripWordsLayerTests {
         let name = "Finish the Tailspin migration"
         let three = Session(
             id: "h", project: "Tailspin", name: name, kind: .needs,
-            lines: ["Approve the first fix batch", "Choose", "Paste"].enumerated().map {
+            lines: ["Approve the first change set", "Choose", "Paste"].enumerated().map {
                 Session.Line(title: $1, since: Double($0))
             },
             sub: "Tailspin"
         )
         let counted = Session(id: "h", project: "Tailspin", kind: .turn, title: name, more: "3", sub: "Tailspin", since: 0)
         let question = Session(
-            id: "h", project: "Tailspin", name: name, kind: .needs, title: "Which edge?", more: "+2", sub: "Tailspin",
+            id: "h", project: "Tailspin", name: name, kind: .needs, title: "Which page?", more: "+2", sub: "Tailspin",
             since: 0
         )
         let alone = Session(id: "h", project: "Tailspin", kind: .turn, title: name, sub: "Tailspin", since: 0)

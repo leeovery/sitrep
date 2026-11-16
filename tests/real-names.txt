@@ -3,7 +3,8 @@
 # Microsoft's fictional companies (Northwind, Contoso, Fabrikam, Tailspin,
 # Woodgrove, Litware, Wingtip, Adventure Works, Proseware, Blue Yonder, and
 # where more are needed Coho, Humongous, Lucerne, Relecloud, Southridge,
-# Alpine and Trey Research), a home of /Users/me, and made-up ids.
+# Alpine, Trey Research, Wide World Importers and VanArsdel, or trey where a
+# name must be lowercase), a home of /Users/me, and made-up ids.
 #
 # The TypeScript kit's tests can't read files, so the app's
 # app/Tests/SitRepCoreTests/RealNamesTests.swift applies the rule to both
@@ -24,10 +25,14 @@
 #   quotes are boundaries: com.leeovery.sitrep is a hit of leeovery.
 # - Allow: a line `allow <path> <entry>` exempts every hit of <entry> in
 #   that one file, <path> from the repository's root, <entry> the rest of
-#   the line.
+#   the line, each after a single space. An allow that exempts nothing (its
+#   entry unlisted, its file missing, or no hit left in it) fails, as does a
+#   line starting `allow` that isn't one, and a list that names nothing.
+# - Failing: a hit is told as path:line: entry, and a text file that isn't
+#   UTF-8, or a symlinked folder, fails rather than going unread.
 #
-# The format: one entry per line; a line starting with # is a comment, and
-# a blank line is nothing.
+# The format: one entry per line, read trimmed; a line starting with # is a
+# comment, and a blank line is nothing.
 
 # Projects, as named
 Switchboard
@@ -82,7 +87,8 @@ sr-gs7kq2
 sr-ledger
 sr-nwtrn5
 
-# Claude sessions
+# Claude sessions, and a zmx session
+sitrep-iFpz7T
 408a755f-ed3a-4ee1-9cc0-c0208cf3e03b
 6c847b5b-722d-4343-88e0-42ece4662e7d
 
@@ -121,8 +127,8 @@ allow app/Tests/SitRepScreenTests/ZmxScreenTests.swift Portal
 
 # Allowed for now: the strip prototype's sessions, which the strip's
 # timelines were recorded from, its recorded tab widths keyed by their exact
-# words, and the strip tests that name them. The next slice renames them
-# with a fresh recording, and removes these allows.
+# words. The next slice renames them with a fresh recording, and removes
+# these allows; the test fails on any allow left that exempts nothing.
 allow app/Tests/SitRepPanelTests/StripLab.swift Agentic Skills
 allow app/Tests/SitRepPanelTests/StripLab.swift Agentic Workflows
 allow app/Tests/SitRepPanelTests/StripLab.swift Aircon
@@ -149,14 +155,3 @@ allow app/Tests/SitRepPanelTests/StripRecording.swift Mint
 allow app/Tests/SitRepPanelTests/StripRecording.swift Switchboard
 allow app/Tests/SitRepPanelTests/StripRecording.swift Terrace
 allow app/Tests/SitRepPanelTests/StripRecording.swift Turnstile
-allow app/Tests/SitRepPanelTests/StripBoardTests.swift DocMan
-allow app/Tests/SitRepPanelTests/StripBoardTests.swift Turnstile
-allow app/Tests/SitRepPanelTests/StripBoardTests.swift fumi
-allow app/Tests/SitRepPanelTests/StripCrossTests.swift Fumi
-allow app/Tests/SitRepPanelTests/StripNeedsYouTests.swift DocMan
-allow app/Tests/SitRepPanelTests/StripNeedsYouTests.swift fumi
-allow app/Tests/SitRepPanelTests/StripSectionsTests.swift agntc
-allow app/Tests/SitRepPanelTests/StripTimelineTests.swift DocMan
-allow app/Tests/SitRepPanelTests/StripTimelineTests.swift Fumi
-allow app/Tests/SitRepPanelTests/StripTimelineTests.swift Goosemates
-allow app/Tests/SitRepPanelTests/StripTimelineTests.swift Turnstile

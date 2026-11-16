@@ -8,7 +8,7 @@ func inZmx(_ session: String) -> Where {
 }
 
 struct ZmxScreenTests {
-    private static let portals = "sitrep-iFpz7T"
+    private static let portals = "proseware-Qm4tZ8"
     private static let litware = "litware · restore-card"
     private static let proseware = "adventure-works-v2 · proseware-build"
 
@@ -55,7 +55,7 @@ struct ZmxScreenTests {
 
         mac.throughPortal(Self.litware, relay: "/dev/ttys041", window: "/dev/ttys051")
         mac.throughPortal("x litware", relay: "/dev/ttys042", window: "/dev/ttys052")
-        mac.throughPortal("litware", relay: "/dev/ttys043", window: "/dev/ttys053")
+        mac.throughPortal("litware", relay: "/dev/ttys004", window: "/dev/ttys053")
         mac.throughPortal("adventure-works-v2", relay: "/dev/ttys044", window: "/dev/ttys054")
         mac.throughPortal("proseware-build", relay: "/dev/ttys045", window: "/dev/ttys055")
         mac.throughPortal(Self.proseware, relay: "/dev/ttys046", window: "/dev/ttys056")
@@ -138,16 +138,16 @@ struct ZmxScreenTests {
 
         mac.throughPortal("litware", relay: "/dev/ttys032", window: "/dev/ttys060")
 
-        let pane = FakePane(pane: "%148", window: "@45", session: "$45", device: paneDevice)
-        let window = Where(device: device, terminal: "tmux", tmux: Where.Tmux(socket: socket, pane: "%148"), zmx: Where.Zmx(session: "litware"))
+        let pane = FakePane(pane: "%12", window: "@45", session: "$45", device: paneDevice)
+        let window = Where(device: device, terminal: "tmux", tmux: Where.Tmux(socket: socket, pane: "%12"), zmx: Where.Zmx(session: "litware"))
         let screen = await read([window], FakeTmux([socket: FakeServer(panes: [pane], clients: [client])]), FakeTable(mac.tree))
 
         return seen(screen.places(showing: [window]))
     }
 
     @Test func aWindowInTmuxAndZmxIsInTheInnermostTmuxWhereItsPaneIsOnTheWindowsDeviceElseZmxBothTmuxFirstWhereTmuxCannotTell() async {
-        #expect(await Self.nestedPlaces(device: "/dev/ttys043", paneDevice: "/dev/ttys043") == [["/dev/ttys000", "Ghostty", nil]], "tmux inside zmx")
-        #expect(await Self.nestedPlaces(device: "/dev/ttys087", paneDevice: "/dev/ttys043") == [["/dev/ttys060", "Ghostty", nil]], "zmx inside tmux")
+        #expect(await Self.nestedPlaces(device: "/dev/ttys004", paneDevice: "/dev/ttys004") == [["/dev/ttys000", "Ghostty", nil]], "tmux inside zmx")
+        #expect(await Self.nestedPlaces(device: "/dev/ttys087", paneDevice: "/dev/ttys004") == [["/dev/ttys060", "Ghostty", nil]], "zmx inside tmux")
         #expect(
             await Self.nestedPlaces(device: "/dev/ttys087", paneDevice: "")
                 == [["/dev/ttys000", "Ghostty", nil], ["/dev/ttys060", "Ghostty", nil]],

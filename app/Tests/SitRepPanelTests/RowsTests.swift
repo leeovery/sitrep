@@ -11,7 +11,7 @@ struct RowsTests {
         lines: [
             Session.Line(title: "Which branch?", more: "+1", since: 120 * minute),
             Session.Line(title: "Choose the release notes' grouping", since: 60 * minute),
-            Session.Line(title: "Approve the first fix batch", since: 0),
+            Session.Line(title: "Approve the first change set", since: 0),
         ],
         sub: "Tailspin"
     )
@@ -30,23 +30,23 @@ struct RowsTests {
     /// does not show, show nowhere on it.
     @Test func aRowNeedingLeeOfOneLineShowsItsNameAlone() {
         let question = Session(
-            id: "q", project: "Litware", name: "The bootstrap", kind: .needs, title: "Which edge?", more: "+2", sub: "",
+            id: "q", project: "Litware", name: "The installer", kind: .needs, title: "Which page?", more: "+2", sub: "",
             since: 0
         )
         let prompt = Session(
-            id: "p", project: "Litware", name: "The bootstrap", kind: .needs, title: "Allow Bash ", code: "gh pr create",
+            id: "p", project: "Litware", name: "The installer", kind: .needs, title: "Allow Bash ", code: "gh pr create",
             sub: "", since: 0
         )
 
-        #expect(question.title == "The bootstrap" && question.more == nil)
-        #expect(prompt.title == "The bootstrap" && prompt.code == nil)
+        #expect(question.title == "The installer" && question.more == nil)
+        #expect(prompt.title == "The installer" && prompt.code == nil)
     }
 
     /// Any other row says its one line, as it did.
     @Test func anyOtherRowShowsItsOneLine() {
         let working = Session(
-            id: "w", project: "Litware", name: "The bootstrap", kind: .working, title: "Editing ", code: "app/Litware.swift",
-            sub: "Litware · The bootstrap", since: 0
+            id: "w", project: "Litware", name: "The installer", kind: .working, title: "Editing ", code: "app/Litware.swift",
+            sub: "Litware · The installer", since: 0
         )
 
         #expect(working.headline == working.lines[0])
@@ -174,16 +174,16 @@ struct RowsTests {
     }
 
     @Test func aSessionTakesTheLettersItIsGivenElseMakesItsOwn() {
-        let given = Session(id: "", project: "SitRep", letters: "Si", kind: .turn, title: "", sub: "", since: 0)
-        let made = Session(id: "", project: "SitRep", kind: .turn, title: "", sub: "", since: 0)
+        let given = Session(id: "", project: "Trey Research", letters: "Tr", kind: .turn, title: "", sub: "", since: 0)
+        let made = Session(id: "", project: "Trey Research", kind: .turn, title: "", sub: "", since: 0)
 
-        #expect(given.letters == "Si")
-        #expect(made.letters == "SR")
+        #expect(given.letters == "Tr")
+        #expect(made.letters == "TR")
     }
 
     @Test(arguments: [(0.0, 60_000.0), (59_999, 60_000), (60_000, 120_000), (-30_000, 60_000), (5_400_000, 5_460_000)])
     func aRowsTimeMayNextReadDifferentlyAtItsNextWholeMinute(_ age: Double, changes: Double) {
-        let session = Session(id: "", project: "SitRep", kind: .turn, title: "", sub: "", since: 1000)
+        let session = Session(id: "", project: "Trey Research", kind: .turn, title: "", sub: "", since: 1000)
 
         #expect(session.lines[0].ageChanges(after: 1000 + age) == 1000 + changes)
     }
@@ -199,7 +199,7 @@ struct RowsTests {
 
     @Test func aRowWaitingOnAWakeSaysItsCountdownElseItsSubject() {
         let wake = Session(id: "", project: "Litware", kind: .onItsWork, title: "Wakes ", until: 1_000_000, sub: "", since: 0)
-        let agents = Session(id: "", project: "SitRep", kind: .onItsWork, title: "Waiting on ", subject: "3 agents", sub: "", since: 0)
+        let agents = Session(id: "", project: "Trey Research", kind: .onItsWork, title: "Waiting on ", subject: "3 agents", sub: "", since: 0)
 
         #expect(wake.subject(at: 1_000_000 - 690_000) == "in 12m")
         #expect(wake.subject(at: 1_000_000) == "now")
@@ -218,7 +218,7 @@ struct RowsTests {
     }
 
     @Test func aRowWaitingOnNoWakeMayNextReadDifferentlyAsItsTimeTicks() {
-        let agents = Session(id: "", project: "SitRep", kind: .onItsWork, title: "Waiting on ", subject: "3", sub: "", since: 0)
+        let agents = Session(id: "", project: "Trey Research", kind: .onItsWork, title: "Waiting on ", subject: "3", sub: "", since: 0)
 
         #expect(agents.changes(after: 40_000) == agents.lines[0].ageChanges(after: 40_000))
         #expect(agents.countdownChanges(after: 40_000) == nil)

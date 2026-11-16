@@ -15,10 +15,13 @@ import Foundation
 /// Every line here printed before 27 October 2026 was moved to version 3 that day as the CLI moved, every other field
 /// as printed: a line's `changed` gave way to `boards`, `{}`, as nothing was followed.
 ///
-/// On 16 November 2026 every line here had Lee's real work renamed to placeholders, every other field as printed:
-/// its projects' names, keys and folders, and each row's `letters` and `second` after them, by core's `lettersOf`
-/// and `slug`; its session ids, and the keys that hold them; `pretty`'s window ids, ttys and tmux pane; and the
-/// titles, summaries and notes that named real work. No row moved: each line keeps the order it was printed in.
+/// On 16 November 2026 the lines lost Lee's real work to placeholders, every other field as printed. In all but
+/// `snoozedTurn` and `newest`, whose projects were placeholders already: the projects' names, keys and folders, each
+/// row's `letters` and `second` following them by core's `lettersOf` and `slug`, the sample SitRep among them. In all
+/// but `newAsk` and `newest`: the session ids, with the keys that hold them. In `pretty`, `watch`, `twoAsks`, `newAsk`,
+/// `bySession`, `onItsWork` and `snoozed`: the session names, summaries, now and next lines, ask titles and their
+/// `where` and `ref` lifted from real work, each a neutral one of its shape. In `pretty` too: its windows' ids, ttys
+/// and tmux pane. No row moved: each line keeps its printed order.
 public enum Lines {
     /// A line of `sitrep watch`, as the CLI printed it but pretty: Lee's board of 19 October 2026 cut to three
     /// sessions, an ask, a permission prompt and a turn, the prompt new on it, and moved to version 3 as the lines
@@ -34,7 +37,7 @@ public enum Lines {
     /// `sitrep watch`'s first two lines at version 2, rows by session, over a board of its own run on 22 October 2026:
     /// Tailspin's Finish the Tailspin migration, its window working, three asks waiting; Woodgrove's Dashboard
     /// redesign, a words ask and its window stopped on a permission prompt since; Lucerne's Onboarding, away, a choice
-    /// waiting; Trey Research's The desktop app working; Litware's The bootstrap on its own work; Wingtip's Licensing
+    /// waiting; Trey Research's The desktop app working; Litware's The installer on its own work; Wingtip's Pricing
     /// discussion on your turn. Then a fourth ask posted into Tailspin's session, new on the second line.
     public static let bySession = printed("watch-by-session.jsonl").split(separator: "\n").map(String.init)
 
@@ -46,7 +49,7 @@ public enum Lines {
     public static let newAsk = printed("watch-new-ask.jsonl").split(separator: "\n").map(String.init)
 
     /// `sitrep watch`'s first line over a board of its own, run on 22 October 2026: Trey Research's The desktop app,
-    /// its window on its own work waiting on three agents, and Litware's The bootstrap, its window waiting on a one-off
+    /// its window on its own work waiting on three agents, and Litware's The installer, its window waiting on a one-off
     /// wake 12 minutes off, its row first.
     public static let onItsWork = printed("watch-on-its-work.jsonl").trimmingCharacters(in: .newlines)
 
