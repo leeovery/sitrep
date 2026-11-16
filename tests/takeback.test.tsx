@@ -18,6 +18,7 @@ import {
   asksOnBand,
   CONVERSATION,
   kindsIn,
+  lost,
   sendingIn,
   turnEnded,
   world,
@@ -588,7 +589,7 @@ test('a held send is never let go as never taken: the 30 seconds count from its 
 
   const turn = w.holdPrompts()
 
-  void w.turnEnds()
+  lost(w.turnEnds())
   await turn.arrived
   turn.lose()
   await w.clock.advance(QUIET_MS - 1)
@@ -610,7 +611,7 @@ test('a message submitted between turns that never goes in is let go 30 seconds 
 
   // Half a look on, so the message is let go between the watch's looks.
   await w.clock.advance(WATCH_MS / 2)
-  void claim()
+  lost(claim())
   await turn.arrived
   turn.lose()
   await w.clock.advance(QUIET_MS - 1)
@@ -627,7 +628,7 @@ test("a message submitted between turns that never goes in is let go 30 seconds 
   const { claim } = await replying.send(w)
   const turn = w.holdPrompts()
 
-  void claim()
+  lost(claim())
   await turn.arrived
   turn.lose()
   await w.clock.advance(QUIET_MS / 2)

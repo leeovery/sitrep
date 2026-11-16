@@ -6,7 +6,7 @@
 import { expect, test } from './kit'
 import { snoozeAt } from '../core'
 import { WAKES } from './wakes'
-import { inZone, LOCAL_ZONE } from './zoned'
+import { inZone, LOCAL_ZONE, LONDON, NEW_YORK } from './zoned'
 
 /** Every hour of 2026, counted from its start: each of a zone's changes that year falls among them. */
 const HOURS_OF_2026 = Array.from({ length: 365 * 24 }, (_, hour) => hour)
@@ -33,15 +33,15 @@ test("each row's zone is that zone: its offset from UTC in winter and in summer,
       new Date(Date.UTC(2026, 6, 15)).getTimezoneOffset(),
     ])
 
-  expect(offsets('Europe/London')).toEqual([0, -60])
-  expect(offsets('America/New_York')).toEqual([300, 240])
+  expect(offsets(LONDON)).toEqual([0, -60])
+  expect(offsets(NEW_YORK)).toEqual([300, 240])
   expect(offsets('America/Santiago')).toEqual([180, 240])
   expect(offsets('Pacific/Auckland')).toEqual([-780, -720])
   expect(offsets('Asia/Kolkata')).toEqual([-330, -330])
   expect(new Set(WAKES.map(wake => wake.zone))).toEqual(
     new Set([
-      'Europe/London',
-      'America/New_York',
+      LONDON,
+      NEW_YORK,
       'America/Santiago',
       'Pacific/Auckland',
       'Asia/Kolkata',
@@ -78,7 +78,7 @@ testUnless(
 
 test("a local time the zone's clocks skip is read past the change, and one they pass twice as the first, as the real Date reads them", () => {
   expect(
-    inZone('Europe/London', () =>
+    inZone(LONDON, () =>
       [new Date(2026, 2, 29, 1, 30), new Date(2026, 9, 25, 1, 30)].map(date => date.getTime()),
     ),
   ).toEqual([Date.UTC(2026, 2, 29, 1, 30), Date.UTC(2026, 9, 25, 0, 30)])

@@ -32,7 +32,7 @@ import {
   type WindowState,
 } from '../core'
 import { T0, W1 } from './data'
-import { inZone, LONDON, wallClock } from './zoned'
+import { inZone, LONDON, NEW_YORK, wallClock } from './zoned'
 
 const PERMISSION: WindowState = {
   is: 'permission',
@@ -591,9 +591,6 @@ const TESTS = task('b1', 'shell', 'Run the tests', { command: 'bun test' })
 
 /** A time in London, the local time a wake's schedule names here. */
 const local = wallClock(LONDON)
-
-/** A zone whose clocks change a week after London's. */
-const NEW_YORK = 'America/New_York'
 
 /** Thursday 22 October 2026, 14:30 and 25 seconds, in London. */
 const NOW = local(2026, 10, 22, 14, 30) + 25_000

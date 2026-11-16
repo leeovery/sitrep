@@ -22,6 +22,7 @@ import {
   asksOnBand,
   CONVERSATION,
   kindsIn,
+  lost,
   sendingIn,
   startedId,
   world,
@@ -91,7 +92,7 @@ for (const source of ['send', 'inbox'] as const) {
     const { paths, submit } = await replying[source](w)
     const turn = w.holdPrompts()
 
-    void submit()
+    lost(submit())
     await turn.arrived
     turn.lose()
     await $.session.start(CONVERSATION)
@@ -160,7 +161,7 @@ for (const source of ['send', 'inbox'] as const) {
     const { paths, submit } = await replying[source](w)
     const turn = w.holdPrompts()
 
-    void submit()
+    lost(submit())
     await turn.arrived
     turn.lose()
     await w.turnEnds()
@@ -185,7 +186,7 @@ for (const source of ['send', 'inbox'] as const) {
     const { paths, submit } = await replying[source](w)
     const turn = w.holdPrompts()
 
-    void submit()
+    lost(submit())
     await turn.arrived
     turn.lose()
     await $.session.end({ reason: 'clear', sessionId: W1, resume: { id: W1 } })
@@ -238,7 +239,7 @@ test("send: let go, Lee's replies are back in Ready to send, and a toast says wh
   const turn = w.holdPrompts()
 
   await ui.press({ key: `yes:${w.item(id)}` })
-  void ui.press({ key: 'send' })
+  lost(ui.press({ key: 'send' }))
   await turn.arrived
   turn.lose()
   await w.turnEnds()
@@ -256,7 +257,7 @@ test('inbox: let go, its replies are taken in at a later look', async ($, on) =>
   const { paths, submit } = await replying.inbox(w)
   const turn = w.holdPrompts()
 
-  void submit()
+  lost(submit())
   await turn.arrived
   turn.lose()
   await w.turnEnds()
@@ -362,7 +363,7 @@ test('a claim a load from before held messages left, saying no isHeld, is let go
   const { submit } = await replying.send(w)
   const turn = w.holdPrompts()
 
-  void submit()
+  lost(submit())
   await turn.arrived
   turn.lose()
   isOlder = true
@@ -389,7 +390,7 @@ test('send never taken: let go once the window was quiet a while, the heartbeat 
 
   const turn = w.holdPrompts()
 
-  void w.turnEnds()
+  lost(w.turnEnds())
   await turn.arrived
   turn.lose()
   await w.clock.advance(QUIET_MS + WATCH_MS)

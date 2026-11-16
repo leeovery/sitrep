@@ -4,9 +4,11 @@
  * down from the shell, so a test that needs another zone puts a `Date` of
  * that zone in the global's place while it runs: its local fields and its
  * local constructor read the zone through `Intl`, as the real one reads the
- * Mac's, and everything else is the real `Date`'s. Only what `snoozeAt` and
- * `wakeWords` use is zoned: the seconds, the setters, `toString` and a local
- * time given as a string still read the Mac's zone.
+ * Mac's, and everything else is the real `Date`'s. Only what the code the
+ * tests run in a zone uses is zoned (`snoozeAt`, `wakeWords`, `wholeTime`
+ * and `boardText` through it, and `wakeAt` through `workOf` and
+ * `turnStopped`): the other setters, `toString` and a local time given as a
+ * string still read the Mac's zone.
  */
 
 const RealDate = Date
@@ -111,6 +113,11 @@ const zonedDate = (zone: string) =>
       return this.wall().getUTCMinutes()
     }
 
+    /** The seconds as `wakeAt` sets them: every zone's offset is whole minutes, so its seconds are UTC's. */
+    override setSeconds(seconds: number, ms?: number) {
+      return ms === undefined ? this.setUTCSeconds(seconds) : this.setUTCSeconds(seconds, ms)
+    }
+
     override getTimezoneOffset() {
       // `0 -` rather than a minus: UTC's offset is 0, as the real Date gives it, and never -0.
       return 0 - offsetIn(zone, this.getTime()) / 60_000
@@ -147,6 +154,9 @@ export const inZone = <T>(zone: string, body: () => T): T => {
 
 /** Lee's own zone, which a test of his local time pins. */
 export const LONDON = 'Europe/London'
+
+/** A zone of another offset, whose clocks change a week after London's. */
+export const NEW_YORK = 'America/New_York'
 
 /** The instant a wall-clock time in the zone comes to, its month counted from 1 as a test writes a date. */
 export const wallClock =

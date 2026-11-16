@@ -243,8 +243,11 @@ test('a conversation starts knowing how to keep the board and talk to Lee beside
   )
 })
 
+/** A time in London, where the board words a snooze's time here. */
+const local = wallClock(LONDON)
+
 /** Monday 26 October 2026, 09:00 in London: when the snooze under test wakes. */
-const MONDAY = wallClock(LONDON)(2026, 10, 26, 9)
+const MONDAY = local(2026, 10, 26, 9)
 
 /** Four asks, the session snoozed until Monday. */
 const SNOOZING: Line[] = [

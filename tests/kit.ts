@@ -11,6 +11,9 @@
  * the engine stops a hook of the test's still running, the mock clock's
  * held waits among them, and the mod's timers end with them: a test moving
  * the clock after that fails on the guard below, whatever it checks.
+ *
+ * And `drained`, the settling of a test that drives the mod's code through
+ * plain promises and fakes, with no engine and no mock clock beneath it.
  */
 import type { HookFailure, On } from 'claude-code'
 import {
@@ -139,10 +142,12 @@ const { setTimeout: realTimeout } = globalThis as unknown as {
 }
 
 /**
- * Resolves once everything under way that waits on no timer has run its
- * course, for a test with no mock clock to settle: a real timer's turn comes
- * only once every promise queued ahead of it has settled, however many steps
- * each chain takes, so no count of turns stands in for it.
+ * Resolves once every promise callback queued, and every one those queue in
+ * turn, has run: a real timer's turn comes only after them, however many
+ * steps each chain takes, so no count of turns stands in for it. It settles
+ * only code driven through plain promises and fakes in the test's own realm.
+ * It waits on nothing that crosses the engine, whose `$` work the mod runs
+ * in a realm of its own: a world test settles with its mock clock instead.
  */
 export const drained = () =>
   new Promise<void>(resolve => {

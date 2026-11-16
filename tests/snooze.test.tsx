@@ -37,10 +37,10 @@ import { LOCAL_ZONE, wallClock } from './zoned'
 tier('user')
 
 /**
- * A time in the Mac's own zone, the one Snooze works it out in here: the mod
- * reads the clock across awaits, which no zone put in the real one's place
- * outlasts. The zones' own arithmetic, London's change of the clocks among
- * it, is snooze.test.ts's and wakes.test.ts's.
+ * A time in the Mac's own zone. The mod reads the clock across awaits,
+ * after `inZone` has put the real `Date` back, so world tests run in the
+ * Mac's own zone. Snooze's arithmetic in a named zone, London's change of
+ * the clocks among it, is tested in snooze.test.ts and wakes.test.ts.
  */
 const local = wallClock(LOCAL_ZONE)
 

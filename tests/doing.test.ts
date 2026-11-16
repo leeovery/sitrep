@@ -1161,6 +1161,8 @@ test('a monitor the turn started counts as one, though its Stop lists it as a sh
 test('a recurring cron never ends and counts for nothing; a one-off wake puts the window on its own work until it is due', async ($, on) => {
   const w = world($, on)
   const { paths } = await w.begin()
+  // The mod reads the clock across awaits, after `inZone` would have put the real `Date`
+  // back, so this world test runs in the Mac's own zone, and writes the wake's schedule in it.
   const due = new Date(new Date(T0 + 30 * 60_000).setSeconds(0, 0))
   const wake = {
     id: 'c1',

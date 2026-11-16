@@ -47,6 +47,7 @@ import {
   BAND,
   CONVERSATION,
   DOCKED,
+  lost,
   openAsk,
   postedId,
   pressYes,
@@ -1023,8 +1024,7 @@ const leftByReload = async (w: World, engine: Engine) => {
   const { id, held, typed } = await ridingHeld(w, engine)
 
   held.lose()
-  // The kit settles a prompt no hook ever answered by rejecting it as the test ends.
-  void typed.catch(() => {})
+  lost(typed)
   await engine.session.start(CONVERSATION)
 
   return id
@@ -1066,7 +1066,7 @@ test("an answer with an image a reload left, let go with the inbox's replies hel
   await w.clock.advance(2 * WATCH_MS)
   expect(w.flights()).toMatchObject([{ source: 'inbox', isHeld: true }])
 
-  await openAsk(ui, w.item(id))
+  await openAsk(w, ui, w.item(id))
   await pressYes(ui, w.item(id))
   await ui.press({ key: `rewrite:${w.item(id)}` })
 
@@ -1077,8 +1077,7 @@ test("an answer with an image a reload left, let go with the inbox's replies hel
   expect(w.flights()).toMatchObject([{ source: 'send', isHeld: false }, { source: 'inbox' }])
 
   held.lose()
-  // The kit settles a prompt no hook ever answered by rejecting it as the test ends.
-  void typed.catch(() => {})
+  lost(typed)
   await $.session.start(CONVERSATION)
   await w.turnEnds()
   await w.clock.advance(QUIET_MS + WATCH_MS)
@@ -1111,6 +1110,12 @@ test('an answer with an image whose ask a send claims first goes to Claude as an
   await ui.press({ key: 'send' })
   await held.arrived
   riding.open()
+  await w.clock.settle()
+  expect(
+    w.flights().map(each => each.ride !== undefined),
+    "the send alone in flight, the ride's claim refused",
+  ).toEqual([false])
+
   held.end()
   await typed
   await w.clock.settle()

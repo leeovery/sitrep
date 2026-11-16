@@ -19,6 +19,7 @@ import {
   CONVERSATION,
   DOCKED,
   INLINE,
+  lost,
   openAsk,
   postedId,
   pressYes,
@@ -68,9 +69,9 @@ const TALL: RenderPropsOf['Pane'] = { ...DOCKED, scroll: { offset: 0, bodyRows: 
 /** The session begun with three reviews asked, and the board drawn: their ids, in round order. */
 const reviewing = (w: World, props = TALL) => asking(w, { asks: reviewRounds(3), props })
 
-/** Lee opens an ask the board shows closed, and approves it. */
+/** Lee opens an ask the board holds closed, and approves it. */
 const approve = async (w: World, ui: Board, id: string) => {
-  await openAsk(ui, w.item(id))
+  await openAsk(w, ui, w.item(id))
   await pressYes(ui, w.item(id))
 }
 
@@ -512,7 +513,7 @@ test('the first send never taken with a second held behind it: both are let go t
 
   const turn = w.holdPrompts()
 
-  void w.turnEnds()
+  lost(w.turnEnds())
   await turn.arrived
   turn.lose()
   await w.clock.advance(QUIET_MS - 1)

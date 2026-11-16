@@ -26,6 +26,7 @@ export {
   asking,
   asksOnBand,
   kindsIn,
+  lost,
   openAsk,
   pressYes,
   sendingIn,
