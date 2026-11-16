@@ -12,7 +12,7 @@ struct ResumeCommandTests {
     private static func line(
         _ command: String, _ window: Board.LastWindow = window, tty: String? = nil
     ) async throws -> String {
-        try await ResumeCommand(command).line(from: ResumeFacts(window: window, tty: tty), named: named)
+        try await ResumeCommand(command).line(from: ResumeFacts(window: window, tty: tty), named: JumpWorld.named)
     }
 
     @Test func theDefaultResumesTheConversationInItsFolder() async throws {
@@ -76,7 +76,7 @@ struct ResumeCommandTests {
 
     @Test(arguments: ["", "  "])
     func anEmptyCommandSaysToSetOneOrRestoreTheDefault(given: String) async {
-        await #expect(throws: Unopenable(description: "The resume command in Settings is empty. To carry \(named) on, set one, or restore the default.")) {
+        await #expect(throws: Unopenable(description: "The resume command in Settings is empty. To carry \(JumpWorld.named) on, set one, or restore the default.")) {
             try await Self.line(given)
         }
     }
@@ -85,7 +85,7 @@ struct ResumeCommandTests {
     @Test func aCommandNamingDirIsRefusedWhereTheWindowSaidNoFolder() async throws {
         let older = Board.LastWindow(writer: Self.claude)
 
-        await #expect(throws: Unopenable(description: "\(named)'s last window did not say which folder it ran in, as a window on an older sitrep does not, so SitRep has nothing to put for {dir}.")) {
+        await #expect(throws: Unopenable(description: "\(JumpWorld.named)'s last window did not say which folder it ran in, as a window on an older sitrep does not, so SitRep has nothing to put for {dir}.")) {
             try await Self.line("cd {dir} && claude --resume {claude}", older)
         }
         #expect(try await Self.line("claude --resume {claude} {tty}", older) == "claude --resume '\(Self.claude)' ''")
@@ -95,7 +95,7 @@ struct ResumeCommandTests {
     @Test func aFolderHoldingACharacterThatPrintsNothingIsRefused() async {
         let window = Board.LastWindow(writer: Self.claude, directory: "/tmp/x\u{15}; touch pwned")
 
-        await #expect(throws: Unopenable(description: "For \(named), the folder its Claude ran in has a character that can't be typed (U+0015).")) {
+        await #expect(throws: Unopenable(description: "For \(JumpWorld.named), the folder its Claude ran in has a character that can't be typed (U+0015).")) {
             try await Self.line("cd {dir}", window)
         }
     }

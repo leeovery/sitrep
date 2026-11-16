@@ -3,10 +3,10 @@ import Foundation
 import ServiceManagement
 import SitRepCore
 import SitRepEdge
-import SitRepLines
 import SitRepMenu
 import SitRepPanel
 import SitRepRelay
+import SitRepTestSupport
 import Testing
 
 /// The welcome's steps and its footer at each (DESIGN, "The welcome window").

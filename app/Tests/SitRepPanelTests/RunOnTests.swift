@@ -37,14 +37,14 @@ struct RunOnTests {
         #expect(frames == 1)
     }
 
-    private func swellsWhileHidden(_ notch: some Notch) {
+    private func swellsWhileHidden(_ notch: some Notch, sourceLocation: SourceLocation = #_sourceLocation) {
         notch.newAsk()
 
         let frame = notch.runOn(from: 0, to: 600_000) { Self.input($0) }
 
-        #expect(!frame.isMoving)
-        #expect(abs(frame.light.level - 1) < 1e-3)
-        #expect(abs(frame.outline.boundingBox.maxX - NotchShape.needs.w) < 0.01)
-        #expect(!notch.frame(Self.input(600_000 + 1000 / 60)).isMoving)
+        #expect(!frame.isMoving, sourceLocation: sourceLocation)
+        #expect(abs(frame.light.level - 1) < 1e-3, sourceLocation: sourceLocation)
+        #expect(abs(frame.outline.boundingBox.maxX - NotchShape.needs.w) < 0.01, sourceLocation: sourceLocation)
+        #expect(!notch.frame(Self.input(600_000 + 1000 / 60)).isMoving, sourceLocation: sourceLocation)
     }
 }

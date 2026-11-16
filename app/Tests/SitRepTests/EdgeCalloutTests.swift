@@ -1,9 +1,9 @@
 import AppKit
 @testable import SitRep
 import SitRepEdge
-import SitRepLines
 import SitRepMenu
 import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// The callout a welcome's Done leaves beside the real edge, as `Edge` wires it to the notch and the strip, over shapes

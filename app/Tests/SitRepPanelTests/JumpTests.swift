@@ -95,80 +95,90 @@ struct JumpTests {
         #expect(lab.frame.panel?.items[2].alpha == 1)
     }
 
-    private func pressesInAndDrainsAt450<M: NotchModel>(_ lab: NotchLab<M>) {
+    private func pressesInAndDrainsAt450<M: NotchModel>(
+        _ lab: NotchLab<M>, sourceLocation: SourceLocation = #_sourceLocation
+    ) {
         var lab = lab
         lab.openByTouch()
 
         let took = lab.model.clickRow(0)
         lab.step()
 
-        #expect(took)
-        #expect(lab.frame.panel?.pressed == "needs:s1")
+        #expect(took, sourceLocation: sourceLocation)
+        #expect(lab.frame.panel?.pressed == "needs:s1", sourceLocation: sourceLocation)
         let early = lab.wait(Tuning.jumpFor - 2 * NotchLab<M>.frameMS) { $0.phase != .open }
-        #expect(!early)
-        #expect(lab.frame.panel?.pressed == "needs:s1")
+        #expect(!early, sourceLocation: sourceLocation)
+        #expect(lab.frame.panel?.pressed == "needs:s1", sourceLocation: sourceLocation)
         let drained = lab.wait(3 * NotchLab<M>.frameMS) { $0.phase == .closing }
-        #expect(drained)
-        #expect(lab.frame.panel?.pressed == "needs:s1")
+        #expect(drained, sourceLocation: sourceLocation)
+        #expect(lab.frame.panel?.pressed == "needs:s1", sourceLocation: sourceLocation)
         let settled = lab.settle()
-        #expect(settled)
-        #expect(lab.phase == .closed)
-        #expect(lab.model.jumping == nil)
+        #expect(settled, sourceLocation: sourceLocation)
+        #expect(lab.phase == .closed, sourceLocation: sourceLocation)
+        #expect(lab.model.jumping == nil, sourceLocation: sourceLocation)
     }
 
-    private func drainsAsTheJumpAnswers<M: NotchModel>(_ lab: NotchLab<M>) {
+    private func drainsAsTheJumpAnswers<M: NotchModel>(
+        _ lab: NotchLab<M>, sourceLocation: SourceLocation = #_sourceLocation
+    ) {
         var lab = lab
         lab.openByTouch()
         lab.model.clickRow(0)
         lab.wait(100)
-        #expect(lab.phase == .open)
+        #expect(lab.phase == .open, sourceLocation: sourceLocation)
 
         lab.model.jumpAnswered()
 
-        #expect(lab.phase == .closing)
+        #expect(lab.phase == .closing, sourceLocation: sourceLocation)
     }
 
-    private func answerAfterTheDrain<M: NotchModel>(_ lab: NotchLab<M>) {
+    private func answerAfterTheDrain<M: NotchModel>(
+        _ lab: NotchLab<M>, sourceLocation: SourceLocation = #_sourceLocation
+    ) {
         var lab = lab
         lab.openByTouch()
         lab.model.clickRow(0)
         lab.wait(Tuning.jumpFor + 20)
-        #expect(lab.phase == .closing)
+        #expect(lab.phase == .closing, sourceLocation: sourceLocation)
 
         lab.model.jumpAnswered()
         lab.pointer = CGPoint(x: 600, y: lab.notchY)
         let settled = lab.settle()
 
-        #expect(settled)
-        #expect(lab.phase == .closed)
+        #expect(settled, sourceLocation: sourceLocation)
+        #expect(lab.phase == .closed, sourceLocation: sourceLocation)
     }
 
-    private func closingTakesNoClick<M: NotchModel>(_ lab: NotchLab<M>) {
+    private func closingTakesNoClick<M: NotchModel>(
+        _ lab: NotchLab<M>, sourceLocation: SourceLocation = #_sourceLocation
+    ) {
         var lab = lab
         lab.openByTouch()
         lab.model.clickElsewhere()
-        #expect(lab.phase == .closing)
+        #expect(lab.phase == .closing, sourceLocation: sourceLocation)
 
         let took = lab.model.clickRow(0)
         lab.step()
 
-        #expect(!took)
-        #expect(lab.model.jumping == nil)
-        #expect(lab.frame.panel?.pressed == nil)
+        #expect(!took, sourceLocation: sourceLocation)
+        #expect(lab.model.jumping == nil, sourceLocation: sourceLocation)
+        #expect(lab.frame.panel?.pressed == nil, sourceLocation: sourceLocation)
     }
 
-    private func oneAtATime<M: NotchModel>(_ lab: NotchLab<M>) {
+    private func oneAtATime<M: NotchModel>(_ lab: NotchLab<M>, sourceLocation: SourceLocation = #_sourceLocation) {
         var lab = lab
         lab.openByTouch()
 
         let first = lab.model.clickRow(0), second = lab.model.clickRow(1)
 
-        #expect(first)
-        #expect(!second)
-        #expect(lab.model.jumping == "needs:s1")
+        #expect(first, sourceLocation: sourceLocation)
+        #expect(!second, sourceLocation: sourceLocation)
+        #expect(lab.model.jumping == "needs:s1", sourceLocation: sourceLocation)
     }
 
-    private func foldingTakesNoClick<M: NotchModel>(_ lab: NotchLab<M>) {
+    private func foldingTakesNoClick<M: NotchModel>(
+        _ lab: NotchLab<M>, sourceLocation: SourceLocation = #_sourceLocation
+    ) {
         var lab = lab
         lab.openByTouch()
         lab.content.entries[0].isGoing = true
@@ -176,11 +186,13 @@ struct JumpTests {
 
         let took = lab.model.clickRow(0)
 
-        #expect(!took)
-        #expect(lab.model.clickRow(1))
+        #expect(!took, sourceLocation: sourceLocation)
+        #expect(lab.model.clickRow(1), sourceLocation: sourceLocation)
     }
 
-    private func holdsAsThePointerLeaves<M: NotchModel>(_ lab: NotchLab<M>) {
+    private func holdsAsThePointerLeaves<M: NotchModel>(
+        _ lab: NotchLab<M>, sourceLocation: SourceLocation = #_sourceLocation
+    ) {
         var lab = lab
         lab.openByTouch()
         lab.model.clickRow(0)
@@ -189,11 +201,11 @@ struct JumpTests {
         let closed = lab.move(to: CGPoint(x: 700, y: lab.notchY), speed: 3) { $0.phase != .open }
         let early = lab.wait(drainsAt - 2 * NotchLab<M>.frameMS - lab.now) { $0.phase != .open }
 
-        #expect(!closed && !early)
+        #expect(!closed && !early, sourceLocation: sourceLocation)
         let drained = lab.wait(3 * NotchLab<M>.frameMS) { $0.phase == .closing }
-        #expect(drained)
+        #expect(drained, sourceLocation: sourceLocation)
         let settled = lab.settle()
-        #expect(settled)
-        #expect(lab.phase == .closed)
+        #expect(settled, sourceLocation: sourceLocation)
+        #expect(lab.phase == .closed, sourceLocation: sourceLocation)
     }
 }

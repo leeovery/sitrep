@@ -1,8 +1,8 @@
 import Foundation
 @testable import SitRep
 import SitRepEdge
-import SitRepLines
 import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// What Lee sets, kept in one place: a change saves as it is made, but a drag's steps only once it ends.

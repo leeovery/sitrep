@@ -318,15 +318,20 @@ struct StripTimelineTests {
         #expect(lab.model.mark(.session("s9"))!.sc.target == 1)
     }
 
-    private func expectPlays(_ recorded: [StripRecorded], marks ids: [String] = [], _ actions: [Act] = []) {
+    private func expectPlays(
+        _ recorded: [StripRecorded], marks ids: [String] = [], _ actions: [Act] = [],
+        sourceLocation: SourceLocation = #_sourceLocation
+    ) {
         var lab = StripLab()
-        expectMatches(lab.play(recorded, marks: ids, actions), recorded)
+        expectMatches(lab.play(recorded, marks: ids, actions), recorded, sourceLocation: sourceLocation)
     }
 
-    private func expectMatches(_ played: [StripPlayed], _ recorded: [StripRecorded]) {
-        #expect(played.count == recorded.count)
+    private func expectMatches(
+        _ played: [StripPlayed], _ recorded: [StripRecorded], sourceLocation: SourceLocation = #_sourceLocation
+    ) {
+        #expect(played.count == recorded.count, sourceLocation: sourceLocation)
         for (frame, r) in zip(played, recorded) {
-            #expect(frame.matches(r), "at \(r.t)ms, off by \(frame.error(against: r))")
+            #expect(frame.matches(r), "at \(r.t)ms, off by \(frame.error(against: r))", sourceLocation: sourceLocation)
         }
     }
 }

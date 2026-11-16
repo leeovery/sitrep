@@ -11,7 +11,7 @@ struct TypedCommandTests {
     private static func line(_ command: String, folder: String = "/Users/lee/Code/kit") async throws -> String {
         let window = Board.LastWindow(writer: claude, directory: folder)
 
-        return try await ResumeCommand(command).line(from: ResumeFacts(window: window, tty: nil), named: named)
+        return try await ResumeCommand(command).line(from: ResumeFacts(window: window, tty: nil), named: JumpWorld.named)
     }
 
     @Test func theCommandIsTakenAsGivenLessTheSpacesAroundIt() {
@@ -90,7 +90,7 @@ struct TypedCommandTests {
     /// value, quoted, would run as a command (found in review, 10 November 2026).
     @Test(arguments: [#"cd \$'\'X'{dir}'"#, #"cd $$'\'X'{dir}'"#])
     func aDollarEscapedOrDoubledOpensNoAnsiQuoteSoAPlaceholderAfterItIsRefused(command: String) async {
-        await #expect(throws: Unopenable(description: CommandProblem<ResumeFact>.quoted(["dir"]).refusal(named: named))) {
+        await #expect(throws: Unopenable(description: CommandProblem<ResumeFact>.quoted(["dir"]).refusal(named: JumpWorld.named))) {
             try await Self.line(command, folder: "a; touch pwned; ")
         }
     }
@@ -100,7 +100,7 @@ struct TypedCommandTests {
     /// review, 10 November 2026).
     @Test(arguments: ["cd `echo {dir} `", #"cd "`echo {dir} `""#, "x `a` `{dir}`"])
     func aPlaceholderInBackticksIsRefused(command: String) async {
-        await #expect(throws: Unopenable(description: CommandProblem<ResumeFact>.quoted(["dir"]).refusal(named: named))) {
+        await #expect(throws: Unopenable(description: CommandProblem<ResumeFact>.quoted(["dir"]).refusal(named: JumpWorld.named))) {
             try await Self.line(command, folder: "kit · card`;touch PWNED;")
         }
     }
@@ -112,7 +112,7 @@ struct TypedCommandTests {
         "a[{dir}]=1", "echo $a[{dir}]", #"echo "$(( {dir} ))""#,
     ])
     func aPlaceholderInArithmeticOrASubscriptIsRefused(command: String) async {
-        await #expect(throws: Unopenable(description: CommandProblem<ResumeFact>.evaluated(["dir"]).refusal(named: named))) {
+        await #expect(throws: Unopenable(description: CommandProblem<ResumeFact>.evaluated(["dir"]).refusal(named: JumpWorld.named))) {
             try await Self.line(command, folder: "/x$(touch pwned)")
         }
     }
@@ -152,7 +152,7 @@ struct TypedCommandTests {
         ("\u{85}", "a line break, which can't be typed"), ("\u{202E}", "a character that can't be typed (U+202E)"),
     ])
     func aValueHoldingAControlOrOtherCharacterThatPrintsNothingIsRefused(character: String, words: String) async {
-        await #expect(throws: Unopenable(description: "For \(named), the folder its Claude ran in has \(words).")) {
+        await #expect(throws: Unopenable(description: "For \(JumpWorld.named), the folder its Claude ran in has \(words).")) {
             try await Self.line("cd {dir}", folder: "x\(character)touch pwned; echo '")
         }
     }
@@ -171,9 +171,9 @@ struct TypedCommandTests {
         (.quoted(["dir"]), "The resume command in Settings puts {dir} in quotes or backticks. Remove them: SitRep quotes each value itself."),
         (.evaluated(["dir"]), "The resume command in Settings puts {dir} in arithmetic or a subscript, where the shell runs what is in a value even quoted. Move it out."),
         (.unknown(["session"]), "The resume command in Settings has {session}, which SitRep doesn't know. It knows {claude}, {dir} and {tty}."),
-        (.empty, "The resume command in Settings is empty. To carry \(named) on, set one, or restore the default."),
+        (.empty, "The resume command in Settings is empty. To carry \(JumpWorld.named) on, set one, or restore the default."),
     ])
     func eachProblemIsRefusedInPlainWords(problem: CommandProblem<ResumeFact>, words: String) {
-        #expect(problem.refusal(named: named) == words)
+        #expect(problem.refusal(named: JumpWorld.named) == words)
     }
 }

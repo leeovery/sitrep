@@ -1,6 +1,7 @@
 @testable import SitRep
 import SitRepEdge
 @testable import SitRepPanel
+import SitRepTestSupport
 
 extension StripScene {
     /// A full strip on a 1512 by 982 screen, no session on it and nothing under the pointer, at time 0.
@@ -8,7 +9,7 @@ extension StripScene {
     static func resting() -> StripScene {
         let stage = StripStage(width: 1512, height: 982, menu: 37)
         let input = StripInput(time: 0, pointer: nil, stage: stage)
-        let measure = StripMeasure(row: { _ in 200 }, rows: { _ in 200 }, idle: { 200 })
+        let measure = StripMeasure.uniform(200)
         let strip = Strip(length: .full, maxLength: .full, along: 0.42, sessions: [], measure: measure, input)
 
         return StripScene(

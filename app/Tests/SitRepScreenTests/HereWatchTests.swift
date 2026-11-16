@@ -1,6 +1,7 @@
 import os
 import SitRepCore
 @testable import SitRepScreen
+import SitRepTestSupport
 import Testing
 
 /// The continuous read of here, for the rows (stage 8's "How it is read" and "Where it can't tell"): at each line and
@@ -55,14 +56,14 @@ struct HereWatchTests {
     }
 
     private static func watch(
-        _ reads: Reads, clock: TestClock = TestClock(), openings: RecentOpenings = RecentOpenings()
+        _ reads: Reads, clock: TestClock = TestClock(passing: .jumpsPauses), openings: RecentOpenings = RecentOpenings()
     ) -> HereWatch {
         HereWatch(openings: openings, clock: clock, read: reads.read)
     }
 
     /// Until the watch has made as many reads as given, and taken the last.
     private static func read(_ count: Int, by reads: Reads, of watch: HereWatch) async {
-        await until { reads.asked.count == count }
+        await until(within: .seconds(10)) { reads.asked.count == count }
         await settle()
     }
 
@@ -124,7 +125,7 @@ struct HereWatchTests {
         let racing = Self.watch(held)
 
         racing.heard(try Self.held("sr-a"))
-        await until { held.asked.count == 1 }
+        await until(within: .seconds(10)) { held.asked.count == 1 }
         racing.heard(try Self.held())
         gate.open()
         await settle()
@@ -143,7 +144,7 @@ struct HereWatchTests {
         let watch = Self.watch(reads, clock: clock)
 
         watch.heard(try Self.held("sr-a"))
-        await until { reads.asked.count == 1 && clock.sleeps == [HereWatch.every] }
+        await until(within: .seconds(10)) { reads.asked.count == 1 && clock.sleeps == [HereWatch.every] }
         watch.heard(try Self.held("sr-a"))
         watch.heard(try Self.held("sr-a", "sr-b"))
         clock.pass(HereWatch.every)
@@ -151,14 +152,14 @@ struct HereWatchTests {
         #expect(reads.asked.count == 1)
 
         gate.open()
-        await until { reads.asked.count == 2 }
+        await until(within: .seconds(10)) { reads.asked.count == 2 }
         await settle()
         #expect(reads.asked.last.map { Set($0.keys) } == ["sr-a", "sr-b"])
         #expect(reads.most == 1)
 
-        await until { clock.sleeps.count == 2 }
+        await until(within: .seconds(10)) { clock.sleeps.count == 2 }
         clock.pass(HereWatch.every)
-        await until { reads.asked.count == 3 }
+        await until(within: .seconds(10)) { reads.asked.count == 3 }
         #expect(HereWatch.every == .seconds(3))
         watch.stop()
     }

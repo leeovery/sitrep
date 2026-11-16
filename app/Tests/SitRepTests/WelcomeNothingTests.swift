@@ -8,7 +8,7 @@ import Testing
 /// shown.
 @MainActor
 struct WelcomeNothingTests {
-    typealias Made = WelcomeWindowTests.Made
+    typealias Made = WelcomeWorld.Made
 
     // MARK: Your edge
 

@@ -212,50 +212,68 @@ struct AwayRowsTests {
     // MARK: Reading them
 
     /// The away row's words in the box dimmed from the held row's by about `Away.dim`, by their brightest pixels.
-    private static func expectDimmed(_ away: Drawn, _ held: Drawn, in box: CGRect) throws {
+    private static func expectDimmed(
+        _ away: Drawn, _ held: Drawn, in box: CGRect, sourceLocation: SourceLocation = #_sourceLocation
+    ) throws {
         let dimmed = try away.brightest(in: box).lightness / held.brightest(in: box).lightness
 
-        #expect(abs(dimmed - Away.dim) < 0.1)
+        #expect(abs(dimmed - Away.dim) < 0.1, sourceLocation: sourceLocation)
     }
 
     /// A ring 7 across, its stroke 1.5 inside it: orange at its middle, 2.75 out; the black at its centre; nothing past
     /// it, 4.5 out, where the dot's glow, on the card, still shows.
-    private static func expectRing(_ drawn: Drawn, centre: CGPoint) throws {
-        let ring = try #require(drawn.pixel(at: CGPoint(x: centre.x, y: centre.y - 2.75)))
-        let inside = try #require(drawn.pixel(at: centre))
-        let outside = try #require(drawn.pixel(at: CGPoint(x: centre.x, y: centre.y - 4.5)))
+    private static func expectRing(
+        _ drawn: Drawn, centre: CGPoint, sourceLocation: SourceLocation = #_sourceLocation
+    ) throws {
+        let ring = try #require(
+            drawn.pixel(at: CGPoint(x: centre.x, y: centre.y - 2.75)), sourceLocation: sourceLocation
+        )
+        let inside = try #require(drawn.pixel(at: centre), sourceLocation: sourceLocation)
+        let outside = try #require(
+            drawn.pixel(at: CGPoint(x: centre.x, y: centre.y - 4.5)), sourceLocation: sourceLocation
+        )
 
-        #expect(ring.redComponent > 0.75 && ring.blueComponent < 0.35)
-        #expect(inside.lightness < 0.1)
-        #expect(outside.lightness < 0.1)
+        #expect(ring.redComponent > 0.75 && ring.blueComponent < 0.35, sourceLocation: sourceLocation)
+        #expect(inside.lightness < 0.1, sourceLocation: sourceLocation)
+        #expect(outside.lightness < 0.1, sourceLocation: sourceLocation)
     }
 
     /// The orange dot: orange at its centre too, and its glow past it.
-    private static func expectDot(_ drawn: Drawn, centre: CGPoint) throws {
-        let inside = try #require(drawn.pixel(at: centre))
-        let outside = try #require(drawn.pixel(at: CGPoint(x: centre.x, y: centre.y - 4.5)))
+    private static func expectDot(
+        _ drawn: Drawn, centre: CGPoint, sourceLocation: SourceLocation = #_sourceLocation
+    ) throws {
+        let inside = try #require(drawn.pixel(at: centre), sourceLocation: sourceLocation)
+        let outside = try #require(
+            drawn.pixel(at: CGPoint(x: centre.x, y: centre.y - 4.5)), sourceLocation: sourceLocation
+        )
 
-        #expect(inside.redComponent > 0.75 && inside.blueComponent < 0.35)
-        #expect(outside.lightness > 0.05)
+        #expect(inside.redComponent > 0.75 && inside.blueComponent < 0.35, sourceLocation: sourceLocation)
+        #expect(outside.lightness > 0.05, sourceLocation: sourceLocation)
     }
 
     /// The away row's title and the line under it each dimmed from the held row's by the one factor, about
     /// `Away.dim`: the words' brightest pixels, as Core Text draws fainter words a little darker than their colour,
     /// the same for both lines.
-    private static func expectDimmedAsOne(_ away: Drawn, _ held: Drawn, title: CGRect, sub: CGRect) throws {
+    private static func expectDimmedAsOne(
+        _ away: Drawn, _ held: Drawn, title: CGRect, sub: CGRect, sourceLocation: SourceLocation = #_sourceLocation
+    ) throws {
         let titles = try away.brightest(in: title).lightness / held.brightest(in: title).lightness
         let subs = try away.brightest(in: sub).lightness / held.brightest(in: sub).lightness
 
-        #expect(abs(titles - subs) < 0.05)
-        #expect(abs(titles - Away.dim) < 0.1)
-        #expect(try away.brightest(in: title).lightness > away.brightest(in: sub).lightness)
+        #expect(abs(titles - subs) < 0.05, sourceLocation: sourceLocation)
+        #expect(abs(titles - Away.dim) < 0.1, sourceLocation: sourceLocation)
+        #expect(
+            try away.brightest(in: title).lightness > away.brightest(in: sub).lightness, sourceLocation: sourceLocation
+        )
     }
 
     /// Its time, where it has one, no brighter than its title.
-    private static func expectTimeNoBrighter(_ away: Drawn, title: CGRect, time: CGRect) throws {
+    private static func expectTimeNoBrighter(
+        _ away: Drawn, title: CGRect, time: CGRect, sourceLocation: SourceLocation = #_sourceLocation
+    ) throws {
         let time = try away.brightest(in: time).lightness
 
-        #expect(time > 0.05)
-        #expect(try time <= away.brightest(in: title).lightness)
+        #expect(time > 0.05, sourceLocation: sourceLocation)
+        #expect(try time <= away.brightest(in: title).lightness, sourceLocation: sourceLocation)
     }
 }

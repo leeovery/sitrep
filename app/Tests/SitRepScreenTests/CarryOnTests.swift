@@ -30,9 +30,9 @@ struct CarryOnTests {
     }
 
     /// A window in no multiplexer, on Kit's Ghostty window's device.
-    private static let inGhostty = Where(device: kitTerminal.device, terminal: "ghostty")
+    private static let inGhostty = Where(device: JumpWorld.kitTerminal.device, terminal: "ghostty")
 
-    private static let suspended = "\(named) is suspended in this window: type fg to bring it back."
+    private static let suspended = "\(JumpWorld.named) is suspended in this window: type fg to bring it back."
 
     /// The zmx session Portal shows in a Ghostty window, and that window's terminal, with a Claude on the session's pty
     /// as given.
@@ -75,7 +75,7 @@ struct CarryOnTests {
         let jumping = Jumping(FakeTmux(silent: true), FakeTable(Mac().tree), resume: Self.lees)
 
         #expect(await jumping.open([inTmux()], from: Self.last(inTmux()), isHeld: true) == .refused(
-            "Could not tell whether \(named) is on screen: tmux gave no answer."
+            "Could not tell whether \(JumpWorld.named) is on screen: tmux gave no answer."
         ))
         #expect(jumping.ghostty.told.isEmpty)
     }
@@ -99,7 +99,7 @@ struct CarryOnTests {
     @Test func aWindowReachedOverSshIsCarriedOnThoughItsTermProgramSaysGhostty() async {
         var mac = Mac()
 
-        _ = mac.tree.shell(under: ["/usr/sbin/sshd", "/usr/libexec/sshd-session"], on: kitTerminal.device)
+        _ = mac.tree.shell(under: ["/usr/sbin/sshd", "/usr/libexec/sshd-session"], on: JumpWorld.kitTerminal.device)
 
         let jumping = Jumping(FakeTmux(), FakeTable(mac.tree), resume: Self.lees)
 
@@ -110,10 +110,10 @@ struct CarryOnTests {
     /// Here by its ancestry, in a terminal app its `$TERM_PROGRAM` does not name, so the jump's own reading finds it on
     /// no screen: refused in the jump's words, and nothing opens.
     @Test func aSessionHereTheJumpFindsOnNoScreenIsRefusedInItsWordsAndNothingOpens() async {
-        let unnamed = Where(device: kitTerminal.device)
+        let unnamed = Where(device: JumpWorld.kitTerminal.device)
         let jumping = Jumping(resume: Self.lees)
 
-        #expect(await jumping.open([unnamed], from: Self.last(unnamed), isHeld: true) == offScreen)
+        #expect(await jumping.open([unnamed], from: Self.last(unnamed), isHeld: true) == JumpWorld.offScreen)
         #expect(jumping.ghostty.told.isEmpty)
     }
 
@@ -143,7 +143,7 @@ struct CarryOnTests {
     @Test func aHeldSessionNoTerminalHereShowsIsRefusedByTheDefaultAndNothingOpens() async {
         let jumping = Jumping(FakeTmux(), Self.withClaude(on: inZmx(Self.leeway).device ?? ""))
 
-        #expect(await jumping.open([inZmx(Self.leeway)], from: Self.last(), isHeld: true) == stillRunning)
+        #expect(await jumping.open([inZmx(Self.leeway)], from: Self.last(), isHeld: true) == JumpWorld.stillRunning)
         #expect(jumping.ghostty.told.isEmpty)
     }
 
@@ -152,7 +152,7 @@ struct CarryOnTests {
     @Test func aHeldSessionWithNoClaudeOnItsDeviceIsRefusedByTheDefaultAsJustStopped() async {
         let jumping = Jumping(FakeTmux(), FakeTable(Mac().tree))
 
-        #expect(await jumping.open([inZmx(Self.leeway)], from: Self.last(), isHeld: true) == justStopped)
+        #expect(await jumping.open([inZmx(Self.leeway)], from: Self.last(), isHeld: true) == JumpWorld.justStopped)
         #expect(jumping.ghostty.told.isEmpty)
     }
 
@@ -179,7 +179,7 @@ struct CarryOnTests {
         let jumping = Jumping(FakeTmux(), FakeTable(Mac().tree), resume: Self.lees)
 
         #expect(await jumping.jump.answer(to: "sr-a", on: GivenBoard(line)) == .unopened(
-            "\(named)'s window did not say which folder it ran in, as a window on an older sitrep does not, so SitRep has nothing to put for {dir}."
+            "\(JumpWorld.named)'s window did not say which folder it ran in, as a window on an older sitrep does not, so SitRep has nothing to put for {dir}."
         ))
         #expect(jumping.ghostty.told.isEmpty)
     }
@@ -228,20 +228,20 @@ struct CarryOnTests {
     func aClaudeRunningOnItsDeviceRefusesTheDefaultAndFillsTty(program: String) async {
         var mac = Mac()
 
-        mac.claude(on: kitTerminal.device, program: program)
+        mac.claude(on: JumpWorld.kitTerminal.device, program: program)
 
         let byDefault = Jumping(FakeTmux(), FakeTable(mac.tree), terminals: [])
         let lees = Jumping(FakeTmux(), FakeTable(mac.tree), terminals: [], resume: Self.lees)
 
-        #expect(await byDefault.carryOn(from: Self.last(Self.inGhostty)) == stillRunning)
+        #expect(await byDefault.carryOn(from: Self.last(Self.inGhostty)) == JumpWorld.stillRunning)
         #expect(byDefault.ghostty.told.isEmpty)
         #expect(await lees.carryOn(from: Self.last(Self.inGhostty)) == .opened)
-        #expect(lees.ghostty.opened == [Self.leesLine(tty: kitTerminal.device)])
+        #expect(lees.ghostty.opened == [Self.leesLine(tty: JumpWorld.kitTerminal.device)])
     }
 
     /// A device a later conversation was seen on is that one's: its Claude refuses nothing, and is no `{tty}`.
     @Test func aClaudeOfALaterConversationOnTheDeviceIsNotTheSessions() async {
-        let table = Self.withClaude(on: kitTerminal.device)
+        let table = Self.withClaude(on: JumpWorld.kitTerminal.device)
         let byDefault = Jumping(FakeTmux(), table, terminals: [])
         let lees = Jumping(FakeTmux(), table, terminals: [], resume: Self.lees)
 
@@ -254,11 +254,11 @@ struct CarryOnTests {
     /// A line from a CLI that does not say whether the device is still the conversation's: its Claude may be the
     /// session's, so the default refuses, but whose it is is not known, so it is no `{tty}`.
     @Test func aClaudeOnADeviceNotSaidToBeTheConversationsMayBeAliveButIsNoTty() async {
-        let table = Self.withClaude(on: kitTerminal.device)
+        let table = Self.withClaude(on: JumpWorld.kitTerminal.device)
         let byDefault = Jumping(FakeTmux(), table, terminals: [])
         let lees = Jumping(FakeTmux(), table, terminals: [], resume: Self.lees)
 
-        #expect(await byDefault.carryOn(from: Self.last(Self.inGhostty, ownsDevice: nil)) == stillRunning)
+        #expect(await byDefault.carryOn(from: Self.last(Self.inGhostty, ownsDevice: nil)) == JumpWorld.stillRunning)
         #expect(await lees.carryOn(from: Self.last(Self.inGhostty, ownsDevice: nil)) == .opened)
         #expect(lees.ghostty.opened == [Self.leesLine()])
     }
@@ -275,9 +275,9 @@ struct CarryOnTests {
     /// The default is told by its text, so a command saved the same as it, spaces round it or not, is the default.
     @Test(arguments: [OpenSettings.defaultResumeCommand, "  \(OpenSettings.defaultResumeCommand) "])
     func aCommandSavedTheSameAsTheDefaultIsTheDefault(command: String) async {
-        let jumping = Jumping(FakeTmux(), Self.withClaude(on: kitTerminal.device), terminals: [], resume: command)
+        let jumping = Jumping(FakeTmux(), Self.withClaude(on: JumpWorld.kitTerminal.device), terminals: [], resume: command)
 
-        #expect(await jumping.carryOn(from: Self.last(Self.inGhostty)) == stillRunning)
+        #expect(await jumping.carryOn(from: Self.last(Self.inGhostty)) == JumpWorld.stillRunning)
     }
 
     /// Away, its Claude on its device is read before anything opens; held, whether it is here is read first, from the
@@ -287,10 +287,10 @@ struct CarryOnTests {
         let overSsh = Where(device: "/dev/ttys080")
 
         #expect(await jumping.carryOn(from: Self.last(Self.inGhostty)) == .unopened(
-            "Could not tell whether \(named)'s Claude is still running: the process table gave no answer."
+            "Could not tell whether \(JumpWorld.named)'s Claude is still running: the process table gave no answer."
         ))
         #expect(await jumping.open([overSsh], from: Self.last(overSsh), isHeld: true) == .refused(
-            "Could not tell whether \(named) is on screen: the process table gave no answer."
+            "Could not tell whether \(JumpWorld.named) is on screen: the process table gave no answer."
         ))
         #expect(jumping.ghostty.told.isEmpty)
     }
@@ -301,11 +301,11 @@ struct CarryOnTests {
     /// never types `fg`, and says why, whoever was seen on the device after, before any command is checked.
     @Test(arguments: [true, false])
     func aSuspendedClaudeATerminalHereShowsTakesLeeToItsWindowStartingNothing(ownsDevice: Bool) async {
-        let table = Self.withClaude(on: kitTerminal.device, isStopped: true, isShown: true)
+        let table = Self.withClaude(on: JumpWorld.kitTerminal.device, isStopped: true, isShown: true)
 
         for jumping in [Jumping(FakeTmux(), table, resume: Self.lees), Jumping(FakeTmux(), table, resume: "")] {
             #expect(await jumping.carryOn(from: Self.last(Self.inGhostty, ownsDevice: ownsDevice)) == .jumpedSaying(Self.suspended))
-            #expect(jumping.ghostty.focused == [kitTerminal.id])
+            #expect(jumping.ghostty.focused == [JumpWorld.kitTerminal.id])
             #expect(jumping.ghostty.opened.isEmpty)
         }
     }
@@ -323,14 +323,14 @@ struct CarryOnTests {
     /// In tmux, taken to the Ghostty window showing its pane's tmux window, by the pane.
     @Test func aSuspendedClaudeInTmuxTakesLeeToItsPane() async {
         var mac = Mac()
-        let client = mac.ghosttyClient(window, showing: claudes)
+        let client = mac.ghosttyClient(JumpWorld.window, showing: JumpWorld.claudes)
 
         mac.claude(on: inTmux().device ?? "", isStopped: true)
 
         let jumping = Jumping(server([client]), FakeTable(mac.tree), resume: Self.lees)
 
         #expect(await jumping.carryOn(from: Self.last(inTmux())) == .jumpedSaying(Self.suspended))
-        #expect(jumping.ghostty.focused == [switchboardTerminal.id])
+        #expect(jumping.ghostty.focused == [JumpWorld.switchboardTerminal.id])
         #expect(jumping.ghostty.opened.isEmpty)
     }
 
@@ -342,7 +342,7 @@ struct CarryOnTests {
         let byDefault = Jumping(FakeTmux(), table)
         let lees = Jumping(FakeTmux(), table, resume: Self.lees)
 
-        #expect(await byDefault.carryOn(from: Self.last()) == stillRunning)
+        #expect(await byDefault.carryOn(from: Self.last()) == JumpWorld.stillRunning)
         #expect(byDefault.ghostty.told.isEmpty)
         #expect(await lees.carryOn(from: Self.last()) == .opened)
         #expect(lees.ghostty.opened == [Self.leesLine(tty: device)])
@@ -355,7 +355,7 @@ struct CarryOnTests {
         let jumping = Jumping(FakeTmux(), table, terminals: [], resume: Self.lees)
 
         #expect(await jumping.carryOn(from: Self.last(lost)) == .refused(
-            "\(named) is suspended in its window, which SitRep could not bring forward: type fg there to bring it back."
+            "\(JumpWorld.named) is suspended in its window, which SitRep could not bring forward: type fg there to bring it back."
         ))
         #expect(jumping.ghostty.opened.isEmpty)
     }
@@ -365,14 +365,14 @@ struct CarryOnTests {
     /// as its Claude is alive.
     @Test func aSuspendedClaudeOverSshIsCarriedOnNeverJumpedTo() async {
         var mac = Mac()
-        let shell = mac.tree.shell(under: ["/usr/sbin/sshd", "/usr/libexec/sshd-session"], on: kitTerminal.device)
+        let shell = mac.tree.shell(under: ["/usr/sbin/sshd", "/usr/libexec/sshd-session"], on: JumpWorld.kitTerminal.device)
 
-        mac.tree.add(under: shell, "/opt/homebrew/bin/claude", on: kitTerminal.device, isStopped: true)
+        mac.tree.add(under: shell, "/opt/homebrew/bin/claude", on: JumpWorld.kitTerminal.device, isStopped: true)
 
         let byDefault = Jumping(FakeTmux(), FakeTable(mac.tree))
         let lees = Jumping(FakeTmux(), FakeTable(mac.tree), resume: Self.lees)
 
-        #expect(await byDefault.carryOn(from: Self.last(Self.inGhostty)) == stillRunning)
+        #expect(await byDefault.carryOn(from: Self.last(Self.inGhostty)) == JumpWorld.stillRunning)
         #expect(byDefault.ghostty.told.isEmpty)
         #expect(await lees.carryOn(from: Self.last(Self.inGhostty)) == .opened)
         #expect(lees.ghostty.focused == [FakeGhostty.opened])
@@ -385,7 +385,7 @@ struct CarryOnTests {
         let byDefault = Jumping(FakeTmux(), table)
         let lees = Jumping(FakeTmux(), table, resume: Self.lees)
 
-        #expect(await byDefault.carryOn(from: Self.last(ownsDevice: false)) == stillRunning)
+        #expect(await byDefault.carryOn(from: Self.last(ownsDevice: false)) == JumpWorld.stillRunning)
         #expect(byDefault.ghostty.told.isEmpty)
         #expect(await lees.carryOn(from: Self.last(ownsDevice: false)) == .opened)
         #expect(lees.ghostty.opened == [Self.leesLine()])
@@ -396,7 +396,7 @@ struct CarryOnTests {
         let jumping = Jumping(FakeTmux(silent: true), Self.withClaude(on: inTmux().device ?? "", isStopped: true), resume: Self.lees)
 
         #expect(await jumping.carryOn(from: Self.last(inTmux())) == .refused(
-            "Could not tell whether \(named) is on screen: tmux gave no answer."
+            "Could not tell whether \(JumpWorld.named) is on screen: tmux gave no answer."
         ))
         #expect(jumping.ghostty.told.isEmpty)
     }
@@ -409,7 +409,7 @@ struct CarryOnTests {
         let jumping = Jumping(resume: command)
 
         #expect(await jumping.carryOn(from: Self.last()) == .unopened(
-            "The resume command in Settings is empty. To carry \(named) on, set one, or restore the default."
+            "The resume command in Settings is empty. To carry \(JumpWorld.named) on, set one, or restore the default."
         ))
         #expect(jumping.ghostty.told.isEmpty)
     }
@@ -420,7 +420,7 @@ struct CarryOnTests {
         let running = Jumping(resume: "claude --resume {claude}")
 
         #expect(await refusing.carryOn(from: Self.last(directory: nil)) == .unopened(
-            "\(named)'s last window did not say which folder it ran in, as a window on an older sitrep does not, so SitRep has nothing to put for {dir}."
+            "\(JumpWorld.named)'s last window did not say which folder it ran in, as a window on an older sitrep does not, so SitRep has nothing to put for {dir}."
         ))
         #expect(refusing.ghostty.told.isEmpty)
         #expect(await running.carryOn(from: Self.last(directory: nil)) == .opened)
@@ -431,7 +431,7 @@ struct CarryOnTests {
         let jumping = Jumping(workspace: FakeWorkspace(running: []))
 
         #expect(await jumping.carryOn(from: Self.last()) == .unopened(
-            "SitRep opens a window only in a Ghostty already running. Open Ghostty, then click \(named) again."
+            "SitRep opens a window only in a Ghostty already running. Open Ghostty, then click \(JumpWorld.named) again."
         ))
         #expect(jumping.ghostty.told.isEmpty)
     }

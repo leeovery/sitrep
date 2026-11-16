@@ -4,6 +4,7 @@ import Foundation
 @testable import SitRepEdge
 @testable import SitRepPanel
 import SitRepLines
+import SitRepTestSupport
 import Testing
 
 /// A turn snoozed at the edge, over what the real CLI printed (`Lines.snoozedTurn`): a row of its own in the card's

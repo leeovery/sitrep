@@ -2,8 +2,8 @@ import CoreGraphics
 import Foundation
 @testable import SitRepCore
 @testable import SitRepEdge
-import SitRepLines
 @testable import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// The one fold setting the card and the strip share (14 November 2026), each reading it as it lays out, so a section
@@ -403,7 +403,7 @@ struct StripFoldingTests {
     }
 
     private static func measure(_ note: @escaping () -> StripNote) -> StripMeasure {
-        StripMeasure(row: { _ in 230 }, rows: { _ in 230 }, idle: { 230 })
+        StripMeasure.uniform(230)
     }
 
     private static func frames(

@@ -9,7 +9,7 @@ import Testing
 /// surfaces were last told to draw, frame by frame, on a clock of the test's own.
 @MainActor
 struct WelcomePointerTests {
-    typealias Made = WelcomeWindowTests.Made
+    typealias Made = WelcomeWorld.Made
 
     /// A shape as Lee may set it: the notch in either style, or the strip, on either edge, moving or reducing motion.
     struct Look: Sendable, CustomTestStringConvertible {

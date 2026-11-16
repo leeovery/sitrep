@@ -98,9 +98,9 @@ struct HereTests {
     /// it, where a select would show it; the phone's and an ssh client's are seated in none.
     @Test func aWindowInTmuxIsHereWhereAClientOfItsSessionIsSeatedInATerminalApp() async {
         var mac = Mac()
-        let showing = mac.ghosttyClient(window, showing: claudes)
-        let selectable = mac.terminalClient("/dev/ttys030", showing: beside, in: "$45")
-        let elsewhere = [mac.phoneClient(phone, showing: claudes), mac.sshClient("/dev/ttys080", showing: claudes)]
+        let showing = mac.ghosttyClient(JumpWorld.window, showing: JumpWorld.claudes)
+        let selectable = mac.terminalClient("/dev/ttys030", showing: JumpWorld.beside, in: "$45")
+        let elsewhere = [mac.phoneClient(JumpWorld.phone, showing: JumpWorld.claudes), mac.sshClient("/dev/ttys080", showing: JumpWorld.claudes)]
         let table = FakeTable(mac.tree)
 
         #expect(await Self.here([inTmux()], server([showing]), table) == .here)
@@ -114,7 +114,7 @@ struct HereTests {
     /// clients are told by it: unknown.
     @Test func aWindowInTmuxWhoseShowingIsNotToldIsUnknown() async {
         var mac = Mac()
-        let showing = mac.ghosttyClient(window, showing: claudes)
+        let showing = mac.ghosttyClient(JumpWorld.window, showing: JumpWorld.claudes)
 
         #expect(await Self.here([inTmux()], FakeTmux(silent: true), FakeTable(mac.tree)) == .unknown([.tmux]))
         #expect(await Self.here([inTmux()], FakeTmux(failing: [socket: "lost server"]), FakeTable(mac.tree))
@@ -129,9 +129,9 @@ struct HereTests {
 
         shown.throughPortal(Self.portals, relay: "/dev/ttys032", window: "/dev/ttys036")
         shown.zmxServer(Self.portals)
-        let mosh = phoned.tree.shell(under: ["/opt/homebrew/bin/mosh-server"], on: phone)
+        let mosh = phoned.tree.shell(under: ["/opt/homebrew/bin/mosh-server"], on: JumpWorld.phone)
 
-        phoned.tree.zmx(Self.portals, under: mosh, on: phone)
+        phoned.tree.zmx(Self.portals, under: mosh, on: JumpWorld.phone)
         phoned.zmxServer(Self.portals)
 
         #expect(await Self.here([inZmx(Self.portals)], FakeTmux(), FakeTable(shown.tree)) == .here)
@@ -164,7 +164,7 @@ struct HereTests {
 
         _ = mac.tree.window(of: mac.ghostty, on: inGhosttyWindow.device ?? "")
 
-        let showing = mac.ghosttyClient(window, showing: claudes)
+        let showing = mac.ghosttyClient(JumpWorld.window, showing: JumpWorld.claudes)
         let tmux = server([showing]), table = FakeTable(mac.tree)
         let read = await HereReader(tmux: tmux, table: table).read([
             "sr-a": [inTmux()], "sr-b": [inGhosttyWindow], "sr-c": [inTmux("%54"), Where(device: "/dev/ttys099")],

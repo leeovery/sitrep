@@ -141,11 +141,6 @@ extension NSColor {
         min(redComponent, greenComponent, blueComponent) > 0.9
     }
 
-    /// Whether it is no lighter than `grey` in any channel.
-    func isGrey(atMost grey: CGFloat) -> Bool {
-        max(redComponent, greenComponent, blueComponent) <= grey
-    }
-
     /// A system colour as the dark appearance gives it, in this colour space.
     func dark(in space: NSColorSpace) -> NSColor {
         var resolved = self

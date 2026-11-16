@@ -1,18 +1,18 @@
 import AppKit
 @testable import SitRep
-import SitRepLines
 import SitRepMenu
 import SitRepRelay
+import SitRepTestSupport
 import Testing
 
 /// Step 5, What it asks of macOS, and step 6's A click, over a Mac of the test's own: macOS is never asked, Ghostty never
 /// opened, and the ten seconds never waited.
 @MainActor
 struct WelcomeLeavesTests {
-    typealias Made = WelcomeWindowTests.Made
+    typealias Made = WelcomeWorld.Made
 
     /// The welcome at What it asks of macOS, both leaves read.
-    private static func atPermissions(_ change: (WelcomeWindowTests.Mac) -> Void = { _ in }) async -> Made {
+    private static func atPermissions(_ change: (WelcomeWorld.Mac) -> Void = { _ in }) async -> Made {
         let made = Made()
 
         change(made.mac)
@@ -25,17 +25,6 @@ struct WelcomeLeavesTests {
     private static func press(_ permission: WelcomePermission, on made: Made) async {
         made.welcome.press(permission)
         await made.welcome.asks[permission]?.value
-    }
-
-    /// The welcome's tasks let run until this holds, or, failing, a thousand turns have passed.
-    private static func until(_ holds: () -> Bool) async {
-        var turns = 0
-
-        while !holds(), turns < 1000 {
-            await Task.yield()
-            turns += 1
-        }
-        #expect(holds())
     }
 
     // MARK: To ask
@@ -86,11 +75,11 @@ struct WelcomeLeavesTests {
             }
 
             made.welcome.press(permission)
-            await Self.until { made.mac.isPrompting && made.mac.isWaiting }
+            await until(turns: 1000) { made.mac.isPrompting && made.mac.isWaiting }
             #expect(made.welcome.leave(permission) == .asking(waitedLong: false), "\(permission)")
             #expect(made.mac.waits.contains(.seconds(10)), "\(permission)")
             made.mac.waitEnds()
-            await Self.until { made.welcome.leave(permission) == .asking(waitedLong: true) }
+            await until(turns: 1000) { made.welcome.leave(permission) == .asking(waitedLong: true) }
             made.mac.answer()
             await made.welcome.asks[permission]?.value
             #expect(made.welcome.leave(permission) == .on, "\(permission)")
@@ -102,7 +91,7 @@ struct WelcomeLeavesTests {
         let made = await Self.atPermissions { $0.holdsWait = true }
 
         await Self.press(.notifications, on: made)
-        await Self.until { made.mac.isWaiting }
+        await until(turns: 1000) { made.mac.isWaiting }
         made.mac.waitEnds()
         await Task.yield()
         #expect(made.welcome.leave(.notifications) == .on)
@@ -113,7 +102,7 @@ struct WelcomeLeavesTests {
         let made = await Self.atPermissions { $0.holdsPrompt = true }
 
         made.welcome.press(.ghostty)
-        await Self.until { made.mac.isPrompting }
+        await until(turns: 1000) { made.mac.isPrompting }
         made.welcome.press(.ghostty)
         await Task.yield()
         #expect(made.mac.allows.count == 1)
@@ -193,7 +182,7 @@ struct WelcomeLeavesTests {
         #expect(made.welcome.leave(.notifications) == .toAsk)
         #expect(made.welcome.hitch(.notifications) == .noAnswer)
         made.mac.answer()
-        await Self.until { made.welcome.leave(.notifications) == .on }
+        await until(turns: 1000) { made.welcome.leave(.notifications) == .on }
         #expect(made.welcome.hitch(.notifications) == nil)
     }
 
@@ -207,7 +196,7 @@ struct WelcomeLeavesTests {
         }
 
         made.welcome.press(.notifications)
-        await Self.until { made.welcome.leave(.notifications) == .asking(waitedLong: true) }
+        await until(turns: 1000) { made.welcome.leave(.notifications) == .asking(waitedLong: true) }
         #expect(made.mac.waits.contains(WelcomePermission.limit) && made.mac.isPrompting)
         made.mac.waitEnds()
         made.mac.answer()
@@ -236,7 +225,7 @@ struct WelcomeLeavesTests {
 
         made.mac.holdsRead = true
         made.window.windowDidBecomeKey(Notification(name: NSWindow.didBecomeKeyNotification, object: made.recorded))
-        await Self.until { made.mac.isReading }
+        await until(turns: 1000) { made.mac.isReading }
         made.mac.holdsRead = false
         await Self.press(.notifications, on: made)
         #expect(made.welcome.leave(.notifications) == .on)
@@ -251,7 +240,7 @@ struct WelcomeLeavesTests {
 
         made.mac.holdsRead = true
         made.window.windowDidBecomeKey(Notification(name: NSWindow.didBecomeKeyNotification, object: made.recorded))
-        await Self.until { made.mac.isReading }
+        await until(turns: 1000) { made.mac.isReading }
         made.mac.holdsRead = false
         made.mac.notices = .denied
         await made.key()
@@ -359,7 +348,7 @@ struct WelcomeLeavesTests {
 /// The callout a welcome's Done leaves beside the real edge, and the welcome opening by itself at the first start.
 @MainActor
 struct WelcomeAfterTests {
-    typealias Made = WelcomeWindowTests.Made
+    typealias Made = WelcomeWorld.Made
 
     // MARK: The callout
 

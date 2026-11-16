@@ -11,7 +11,7 @@ struct SitRepWatchTests {
     /// gate given, if one is.
     private static func watch(
         _ runs: Runs, pathTakes: Duration = .zero, pathWaitsOn gate: Gate? = nil
-    ) -> SitRepWatch<TestClock> {
+    ) -> SitRepWatch<SteppedClock> {
         let clock = runs.clock
         let cli = SitRepCLI(plugin: URL(fileURLWithPath: "/Users/lee/Code/sitrep"), path: {
             await gate?.wait()
@@ -92,7 +92,7 @@ struct SitRepWatchTests {
 
         #expect(boards.map(\.board) == [try Board.read(watched), try Board.read(watched), try Board.read(watchedEmpty)])
         #expect(boards.map(\.stale) == [nil, .exited(.status(1), said: "the state folder went"), nil])
-        #expect(boards.map(\.staleSince) == [nil, TestClock.date(at: .seconds(5)), nil])
+        #expect(boards.map(\.staleSince) == [nil, SteppedClock.date(at: .seconds(5)), nil])
         #expect(runs.clock.slept == [.seconds(1)])
         #expect(runs.programs.count == 2)
     }
@@ -230,7 +230,7 @@ private struct Run {
 /// `watch` run as the script gives, a run each time it is started; once the
 /// script runs out, a run says nothing and never ends.
 private final class Runs: Sendable {
-    let clock = TestClock()
+    let clock = SteppedClock()
 
     private let script: OSAllocatedUnfairLock<[Run]>
     private let started = OSAllocatedUnfairLock<[Program]>(initialState: [])
@@ -311,7 +311,7 @@ private final class Gate: Sendable {
 }
 
 /// A clock that moves only as it is told to or slept on, each sleep kept.
-private final class TestClock: Clock, Sendable {
+private final class SteppedClock: Clock, Sendable {
     struct Instant: InstantProtocol {
         let offset: Duration
 

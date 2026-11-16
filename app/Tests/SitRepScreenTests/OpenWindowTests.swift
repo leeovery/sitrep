@@ -3,6 +3,7 @@ import Foundation
 import os
 import SitRepCore
 @testable import SitRepScreen
+import SitRepTestSupport
 import Testing
 
 /// A click on a session no terminal on this Mac shows opens a new window for it, in the terminal Lee chose, typing his
@@ -16,7 +17,7 @@ struct OpenWindowTests {
     private static let portal = "portal open --claude {claude}"
     private static let portalLine = "portal open --claude '\(claude)'"
     private static let notRunning = JumpAnswer.unopened(
-        "SitRep opens a window only in a Ghostty already running. Open Ghostty, then click \(named) again."
+        "SitRep opens a window only in a Ghostty already running. Open Ghostty, then click \(JumpWorld.named) again."
     )
 
     /// The window the session is carried on from: Claude in Leeway's zmx session.
@@ -77,7 +78,7 @@ struct OpenWindowTests {
             drivers: [.ghostty: jumping.driver, other: driver], workspace: jumping.workspace, clock: jumping.clock,
             opening: OpenSettings(terminal: other, resumeCommand: Self.portal)
         )
-        let outcome = await jump.click("sr-a", named: named, at: [inZmx(Self.leeway)], from: Self.held, isHeld: true)
+        let outcome = await jump.click("sr-a", named: JumpWorld.named, at: [inZmx(Self.leeway)], from: Self.held, isHeld: true)
 
         #expect(await outcome.opening?.open() == .opened)
         #expect(driver.opened == [Self.portalLine])
@@ -86,7 +87,7 @@ struct OpenWindowTests {
         driver.isRunning = false
         #expect(
             await outcome.opening?.open()
-                == .unopened("SitRep opens a window only in a Other already running. Open Other, then click \(named) again.")
+                == .unopened("SitRep opens a window only in a Other already running. Open Other, then click \(JumpWorld.named) again.")
         )
     }
 
@@ -95,9 +96,9 @@ struct OpenWindowTests {
     /// Whether a terminal shows it unknown, by any of its windows, though another shows nowhere: a window opened then
     /// could be a second of one already there.
     private static func unknown() -> [(String, [Where], FakeTmux, FakeTable, JumpAnswer)] {
-        let couldNotTell = { (what: String) in JumpAnswer.refused("Could not tell whether \(named) is on screen: \(what) gave no answer.") }
+        let couldNotTell = { (what: String) in JumpAnswer.refused("Could not tell whether \(JumpWorld.named) is on screen: \(what) gave no answer.") }
         let mismatch = JumpAnswer.refused(
-            "Could not tell whether \(named) is on screen: tmux said \"protocol version mismatch (client 8, server 7)\"."
+            "Could not tell whether \(JumpWorld.named) is on screen: tmux said \"protocol version mismatch (client 8, server 7)\"."
         )
 
         return [
@@ -171,7 +172,7 @@ struct OpenWindowTests {
     @Test(arguments: [(true, GhosttyFailure?.some(.noAnswer)), (true, .gave(-1728, said: "Can’t get terminal.")), (false, nil)])
     func aWindowGhosttyAnsweredItOpenedIsOpenedHoweverItsFocusWent(namesWindow: Bool, focusFailure: GhosttyFailure?) async throws {
         let ghostty = FakeGhostty(namesNewWindow: namesWindow, focusFailing: focusFailure)
-        let driver = GhosttyDriver(scripting: ghostty, workspace: FakeWorkspace(), clock: TestClock())
+        let driver = GhosttyDriver(scripting: ghostty, workspace: FakeWorkspace(), clock: TestClock(passing: .jumpsPauses))
 
         #expect(try await driver.openWindow(running: "attach kit", front: finder, sending: {}))
         #expect(ghostty.opened == ["attach kit"])
@@ -200,7 +201,7 @@ struct OpenWindowTests {
         let jumping = Jumping(FakeTmux(), Self.detachedZmx(), workspace: FakeWorkspace(frontHeld: gate))
         let opened = Task { await jumping.opening("attach kit").open() }
 
-        await until { jumping.workspace.fronts == 1 }
+        await until(within: .seconds(10)) { jumping.workspace.fronts == 1 }
         #expect(jumping.openings.isOpening("sr-a"))
         #expect(jumping.ghostty.told.isEmpty)
 
@@ -218,7 +219,7 @@ struct OpenWindowTests {
         )
         let opened = Task { await jumping.opening("attach kit").open() }
 
-        await until { jumping.workspace.fronts == 1 }
+        await until(within: .seconds(10)) { jumping.workspace.fronts == 1 }
         clock.move(by: .seconds(119))
         gate.open()
         #expect(await opened.value == .opened)
@@ -280,12 +281,12 @@ struct OpenWindowTests {
         let jumping = Jumping(FakeTmux(), Self.detachedZmx(), workspace: FakeWorkspace(frontHeld: gate))
         let opened = Task { await jumping.opening("attach kit").open() }
 
-        await until { jumping.workspace.fronts == 1 }
+        await until(within: .seconds(10)) { jumping.workspace.fronts == 1 }
         opened.cancel()
         #expect(await opened.value == .stopped)
 
         gate.open()
-        await until { !jumping.openings.isOpening("sr-a") }
+        await until(within: .seconds(10)) { !jumping.openings.isOpening("sr-a") }
         #expect(jumping.ghostty.told.isEmpty)
     }
 
@@ -296,7 +297,7 @@ struct OpenWindowTests {
         let jumping = Jumping(FakeTmux(), Self.detachedZmx(), windowHeld: gate)
         let opened = Task { await jumping.opening("attach kit").open() }
 
-        await until { gate.arrived == 1 }
+        await until(within: .seconds(10)) { gate.arrived == 1 }
         opened.cancel()
         #expect(await opened.value == .stopped)
 
@@ -311,11 +312,11 @@ struct OpenWindowTests {
         let jumping = Jumping(FakeTmux(), Self.detachedZmx(), workspace: FakeWorkspace(frontHeld: Gate()))
         let opened = Task { await jumping.opening("attach kit").open() }
 
-        await until { jumping.clock.sleeps.contains(Opening.limit) }
+        await until(within: .seconds(10)) { jumping.clock.sleeps.contains(Opening.limit) }
         jumping.clock.pass(Opening.limit)
         #expect(
             await opened.value
-                == .unopened("SitRep gave up waiting for Ghostty to open a window for \(named) after 20 seconds.")
+                == .unopened("SitRep gave up waiting for Ghostty to open a window for \(JumpWorld.named) after 20 seconds.")
         )
         #expect(Opening.limit == .seconds(20))
         #expect(jumping.ghostty.told.isEmpty)
@@ -327,11 +328,11 @@ struct OpenWindowTests {
         let jumping = Jumping(FakeTmux(), Self.detachedZmx(), windowHeld: gate)
         let opened = Task { await jumping.opening("attach kit").open() }
 
-        await until { gate.arrived == 1 && jumping.clock.sleeps.contains(Opening.limit) }
+        await until(within: .seconds(10)) { gate.arrived == 1 && jumping.clock.sleeps.contains(Opening.limit) }
         jumping.clock.pass(Opening.limit)
         #expect(
             await opened.value
-                == .unopened("SitRep gave up waiting for Ghostty to open a window for \(named) after 20 seconds; one may still appear.")
+                == .unopened("SitRep gave up waiting for Ghostty to open a window for \(JumpWorld.named) after 20 seconds; one may still appear.")
         )
         gate.open()
     }
