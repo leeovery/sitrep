@@ -30,7 +30,7 @@ struct SeatTests {
         var tree = Tree()
         let shell = tree.window(of: tree.app(ghosttyProgram), on: "/dev/ttys036")
         let direct = tree.tmux(under: shell, on: "/dev/ttys036")
-        let relayed = tree.zmx("kit", under: tree.relay(under: shell, on: "/dev/ttys036"), on: "/dev/ttys032")
+        let relayed = tree.zmx("litware", under: tree.relay(under: shell, on: "/dev/ttys036"), on: "/dev/ttys032")
         let scripted = tree.tmux(under: tree.relay(under: shell, on: "/dev/ttys036", "/usr/bin/script"), on: "/dev/ttys050")
         let processes = Processes(tree.processes)
 

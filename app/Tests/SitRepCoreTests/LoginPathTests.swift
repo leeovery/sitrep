@@ -4,9 +4,9 @@ import os
 import Testing
 
 struct LoginPathTests {
-    private static let path = "/Users/lee/.bun/bin:/opt/homebrew/bin:/usr/bin:/bin"
-    private static let home = "/Users/lee"
-    private static let fallback = "/opt/homebrew/bin:/usr/local/bin:/Users/lee/.bun/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+    private static let path = "/Users/me/.bun/bin:/opt/homebrew/bin:/usr/bin:/bin"
+    private static let home = "/Users/me"
+    private static let fallback = "/opt/homebrew/bin:/usr/local/bin:/Users/me/.bun/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 
     @Test func thePathIsWhatLiesBetweenTheMarkers() {
         #expect(LoginPath.parse("<sitrep-path>\(Self.path)</sitrep-path>") == Self.path)
@@ -15,7 +15,7 @@ struct LoginPathTests {
     @Test func whatTheShellsStartUpPrintsAroundThemIsLeftOut() {
         let output = """
         [oh-my-zsh] Would you like to update? [Y/n]
-        \u{1B}]7;file://localhost/Users/lee\u{07}<sitrep-path>\(Self.path)</sitrep-path>\u{1B}[?2004l
+        \u{1B}]7;file://localhost/Users/me\u{07}<sitrep-path>\(Self.path)</sitrep-path>\u{1B}[?2004l
         zsh: exit 0
         """
 
@@ -36,11 +36,11 @@ struct LoginPathTests {
     }
 
     @Test func theShellIsAskedAsALoginAndInteractiveShellWithItsOutputMarked() async throws {
-        let program = LoginPath.program(shell: "/bin/zsh", environment: ["HOME": "/Users/lee"])
+        let program = LoginPath.program(shell: "/bin/zsh", environment: ["HOME": "/Users/me"])
 
         #expect(program.executable.path == "/bin/zsh")
         #expect(program.arguments.prefix(3) == ["-l", "-i", "-c"])
-        #expect(program.environment == ["HOME": "/Users/lee"])
+        #expect(program.environment == ["HOME": "/Users/me"])
 
         let ran = try await runProgram(
             Program(executable: URL(fileURLWithPath: "/bin/sh"), arguments: ["-c", program.arguments[3]], environment: ["PATH": Self.path], limit: 5)

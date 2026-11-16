@@ -3,10 +3,10 @@ import Foundation
 import Testing
 
 struct ClaudeTests {
-    private static let path = "/Users/lee/.bun/bin:/opt/homebrew/bin:/usr/bin:/bin"
+    private static let path = "/Users/me/.bun/bin:/opt/homebrew/bin:/usr/bin:/bin"
 
     private static func claude(_ fake: FakeClaude) -> Claude {
-        Claude(executable: fake.executable, path: path, environment: ["HOME": "/Users/lee", "PATH": "/usr/bin:/bin"], run: fake.run)
+        Claude(executable: fake.executable, path: path, environment: ["HOME": "/Users/me", "PATH": "/usr/bin:/bin"], run: fake.run)
     }
 
     private static func failing(_ ran: Ran) -> Runner {
@@ -16,25 +16,25 @@ struct ClaudeTests {
     // MARK: Finding it
 
     @Test func itIsFoundWhereItsInstallersPutItBeforeLeesPath() {
-        let found = Claude.find(home: "/Users/lee", path: "/Users/lee/.local/share/switchboard/bin:/opt/homebrew/bin") { _ in true }
+        let found = Claude.find(home: "/Users/me", path: "/Users/me/.local/share/woodgrove/bin:/opt/homebrew/bin") { _ in true }
 
-        #expect(found?.path == "/Users/lee/.local/bin/claude")
+        #expect(found?.path == "/Users/me/.local/bin/claude")
     }
 
     @Test func eachInstallersPlaceIsTriedInTurn() {
-        let found = Claude.find(home: "/Users/lee", path: "/usr/bin") { $0 == "/usr/local/bin/claude" }
+        let found = Claude.find(home: "/Users/me", path: "/usr/bin") { $0 == "/usr/local/bin/claude" }
 
         #expect(found?.path == "/usr/local/bin/claude")
     }
 
     @Test func elseItIsFoundOnLeesPath() {
-        let found = Claude.find(home: "/Users/lee", path: "/Users/lee/.npm/bin:/opt/other/bin") { $0 == "/opt/other/bin/claude" }
+        let found = Claude.find(home: "/Users/me", path: "/Users/me/.npm/bin:/opt/other/bin") { $0 == "/opt/other/bin/claude" }
 
         #expect(found?.path == "/opt/other/bin/claude")
     }
 
     @Test func withNoneThereIsNone() {
-        #expect(Claude.find(home: "/Users/lee", path: "/usr/bin:/bin") { _ in false } == nil)
+        #expect(Claude.find(home: "/Users/me", path: "/usr/bin:/bin") { _ in false } == nil)
     }
 
     // MARK: What it runs
@@ -45,7 +45,7 @@ struct ClaudeTests {
 
         _ = try await claude.marketplaces()
         _ = try await claude.plugins()
-        try await claude.addMarketplace("/Users/lee/Library/Application Support/sitrep")
+        try await claude.addMarketplace("/Users/me/Library/Application Support/sitrep")
         try await claude.updateMarketplace("sitrep")
         try await claude.install("sitrep@sitrep")
         try await claude.update("sitrep@sitrep")
@@ -53,24 +53,24 @@ struct ClaudeTests {
         #expect(fake.programs.map(\.arguments) == [
             ["plugin", "marketplace", "list", "--json"],
             ["plugin", "list", "--json"],
-            ["plugin", "marketplace", "add", "/Users/lee/Library/Application Support/sitrep", "--json"],
+            ["plugin", "marketplace", "add", "/Users/me/Library/Application Support/sitrep", "--json"],
             ["plugin", "marketplace", "update", "sitrep", "--json"],
             ["plugin", "install", "sitrep@sitrep", "--json"],
             ["plugin", "update", "sitrep@sitrep", "--json"],
         ])
         #expect(fake.programs.allSatisfy {
-            $0.executable == fake.executable && $0.environment == ["HOME": "/Users/lee", "PATH": Self.path] && $0.limit == Claude.limit
+            $0.executable == fake.executable && $0.environment == ["HOME": "/Users/me", "PATH": Self.path] && $0.limit == Claude.limit
         })
     }
 
     @Test func theListsReadAsLeesMacPrintedThem() async throws {
-        let claude = Self.claude(FakeClaude(marketplaces: LeesClaude.marketplaces, plugins: LeesClaude.plugins))
+        let claude = Self.claude(FakeClaude(marketplaces: CloneClaude.marketplaces, plugins: CloneClaude.plugins))
         let sitrep = try await claude.marketplaces().first { $0.name == "sitrep" }
         let plugin = try await claude.plugins().first { $0.id == "sitrep@sitrep" }
 
         #expect(sitrep?.source == "directory")
-        #expect(sitrep?.path == "/Users/leeovery/Code/sitrep")
-        #expect(plugin?.readFromFolder == "/Users/leeovery/Code/sitrep")
+        #expect(sitrep?.path == "/Users/me/Code/sitrep")
+        #expect(plugin?.readFromFolder == "/Users/me/Code/sitrep")
         #expect(plugin?.version == "0.1.0")
     }
 

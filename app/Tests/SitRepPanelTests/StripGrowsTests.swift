@@ -151,7 +151,7 @@ struct StripGrowsTests {
 
         lab.newAsk(StripLab.ask)
         #expect(lab.model.mark(.session("s9"))!.gap != nil)
-        lab.add([Session(id: "w0", project: "Kit", kind: .working, title: "", sub: "", since: 0)])
+        lab.add([Session(id: "w0", project: "Litware", kind: .working, title: "", sub: "", since: 0)])
         #expect(lab.model.layout.rest(of: .needsYou) == ["s9", "s4"])
         lab.settle()
 

@@ -6,7 +6,7 @@ import Testing
 
 @Suite(.timeLimit(.minutes(1)))
 struct SitRepWatchTests {
-    private static let path = "/Users/lee/.bun/bin:/opt/homebrew/bin:/usr/bin:/bin"
+    private static let path = "/Users/me/.bun/bin:/opt/homebrew/bin:/usr/bin:/bin"
 
     /// The watch over the runs given, on their clock, Lee's PATH taking as long as given to find, and held back by the
     /// gate given, if one is.
@@ -14,12 +14,12 @@ struct SitRepWatchTests {
         _ runs: Runs, pathTakes: Duration = .zero, pathWaitsOn gate: Gate? = nil
     ) -> SitRepWatch<SteppedClock> {
         let clock = runs.clock
-        let cli = SitRepCLI(plugin: URL(fileURLWithPath: "/Users/lee/Code/sitrep"), path: {
+        let cli = SitRepCLI(plugin: URL(fileURLWithPath: "/Users/me/Code/sitrep"), path: {
             await gate?.wait()
             clock.advance(by: pathTakes)
 
             return path
-        }, environment: ["HOME": "/Users/lee"])
+        }, environment: ["HOME": "/Users/me"])
 
         return SitRepWatch(cli: cli, watcher: runs.watcher, clock: clock, now: { clock.date })
     }
@@ -55,9 +55,9 @@ struct SitRepWatchTests {
 
         #expect(runs.programs == [
             Program(
-                executable: URL(fileURLWithPath: "/Users/lee/Code/sitrep/bin/sitrep"),
+                executable: URL(fileURLWithPath: "/Users/me/Code/sitrep/bin/sitrep"),
                 arguments: ["watch"],
-                environment: ["HOME": "/Users/lee", "PATH": Self.path],
+                environment: ["HOME": "/Users/me", "PATH": Self.path],
                 limit: .infinity,
                 stopping: .group
             ),

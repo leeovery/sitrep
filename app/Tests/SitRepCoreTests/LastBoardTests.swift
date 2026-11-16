@@ -69,13 +69,13 @@ struct LastBoardTests {
     }
 
     @Test func watchEndingKeepsTheBoardStaleSinceItEndedSayingWhatEndedIt() throws {
-        let stderr = "sitrep: EACCES: permission denied, scandir '/Users/lee/.local/state/sitrep'\n"
+        let stderr = "sitrep: EACCES: permission denied, scandir '/Users/me/.local/state/sitrep'\n"
         let last = Self.after(.line(Lines.pretty), .exited(.status(1), stderr: stderr))
 
         #expect(last.board == (try Board.read(Lines.pretty)))
-        #expect(last.stale == .exited(.status(1), said: "EACCES: permission denied, scandir '/Users/lee/.local/state/sitrep'"))
+        #expect(last.stale == .exited(.status(1), said: "EACCES: permission denied, scandir '/Users/me/.local/state/sitrep'"))
         #expect(last.staleSince == Self.noon.addingTimeInterval(60))
-        #expect(last.stale?.description == "EACCES: permission denied, scandir '/Users/lee/.local/state/sitrep'.")
+        #expect(last.stale?.description == "EACCES: permission denied, scandir '/Users/me/.local/state/sitrep'.")
     }
 
     @Test func theBoardIsStaleSinceItFirstWentStale() {
@@ -87,13 +87,13 @@ struct LastBoardTests {
 
     @Test func aCrashIsToldByItsErrorNotBunsTrailer() {
         let stderr = """
-        error: Cannot find module '../cli/shell' from '/Users/lee/Code/sitrep/bin/sitrep'
+        error: Cannot find module '../cli/shell' from '/Users/me/Code/sitrep/bin/sitrep'
 
         Bun v1.4.2 (macOS arm64)
 
         """
 
-        #expect(Self.failed(stderr)?.description == "error: Cannot find module '../cli/shell' from '/Users/lee/Code/sitrep/bin/sitrep'.")
+        #expect(Self.failed(stderr)?.description == "error: Cannot find module '../cli/shell' from '/Users/me/Code/sitrep/bin/sitrep'.")
     }
 
     @Test func aCrashAfterALineOfTheCLIsOwnIsToldByTheCrash() {
@@ -103,8 +103,8 @@ struct LastBoardTests {
         2 |   throw new TypeError("boom")
                         ^
         TypeError: boom
-              at f (/Users/lee/Code/sitrep/cli/watch.ts:2:13)
-              at /Users/lee/Code/sitrep/cli/watch.ts:4:1
+              at f (/Users/me/Code/sitrep/cli/watch.ts:2:13)
+              at /Users/me/Code/sitrep/cli/watch.ts:4:1
 
         Bun v1.4.2 (macOS arm64)
 

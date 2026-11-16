@@ -153,11 +153,11 @@ struct NoticeRowsTests {
 
 struct PluginRowTests {
     private static let windows = [
-        WatchLine.Window(writer: "w1", session: "sr-boot", name: "The bootstrap", project: "Kit", version: "0.1.0", needsReload: true),
-        WatchLine.Window(writer: "w2", session: "sr-diff", name: "Diff", project: "Mint", version: "0.2.0", needsReload: false),
-        WatchLine.Window(writer: "w3", session: "sr-plan", name: "Plan the tool", project: "Terrace", version: "0.1.0", needsReload: true),
+        WatchLine.Window(writer: "w1", session: "sr-boot", name: "The bootstrap", project: "Litware", version: "0.1.0", needsReload: true),
+        WatchLine.Window(writer: "w2", session: "sr-diff", name: "Diff", project: "Relecloud", version: "0.2.0", needsReload: false),
+        WatchLine.Window(writer: "w3", session: "sr-plan", name: "Plan the tool", project: "Humongous", version: "0.1.0", needsReload: true),
     ]
-    private static let clone = PluginStanding.running(.folder("~/Code/sitrep"), folder: "/Users/lee/Code/sitrep")
+    private static let clone = PluginStanding.running(.folder("~/Code/sitrep"), folder: "/Users/me/Code/sitrep")
     private static let label = "Claude Code plugin"
     private static let line = "Puts each Claude Code session on the board"
 
@@ -178,7 +178,7 @@ struct PluginRowTests {
 
     @Test func oneWindowBehindIsSaidAsOneAndWindowsOnSeveralVersionsAsOlder() {
         let one = SettingsRow.plugin(heard([.line(Watched.line(windows: Array(Self.windows.prefix(2))))]), plugin: Self.clone)
-        let unsaid = WatchLine.Window(writer: "w4", session: "sr-ledger", name: "Usage", project: "Switchboard", version: nil, needsReload: true)
+        let unsaid = WatchLine.Window(writer: "w4", session: "sr-l5c9tz", name: "Usage", project: "Woodgrove", version: nil, needsReload: true)
         let several = SettingsRow.plugin(heard([.line(Watched.line(windows: [Self.windows[0], unsaid]))]), plugin: Self.clone)
 
         #expect(one.line == "Updated to 0.2.0. 1 window runs 0.1.0 until /reload-plugins")
@@ -211,7 +211,7 @@ struct PluginRowTests {
     ])
     func withTroubleItSaysWhatInTheMenusWordsWithNoDotEvenOverTheBoardItRunsMeanwhile(trouble: PluginTrouble, line: String) {
         let current = heard([.line(Watched.line(windows: [Self.windows[1]]))])
-        let row = SettingsRow.plugin(current, plugin: .trouble(trouble, folder: "/Users/lee/Library/Application Support/sitrep"))
+        let row = SettingsRow.plugin(current, plugin: .trouble(trouble, folder: "/Users/me/Library/Application Support/sitrep"))
 
         #expect(row == SettingsRow(label: Self.label, line: line, side: .none))
         #expect(SettingsRow.plugin(LastBoard(), plugin: .trouble(trouble, folder: nil)).line == line)

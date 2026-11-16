@@ -30,7 +30,7 @@ struct SnoozedTurnEdgeTests {
 
         #expect(board.sessions.map(\.id) == ["sr-fbrk3m"])
         #expect(board.sessions.map(\.kind) == [.turn])
-        #expect(board.snoozed.map(\.id) == ["sr-ctnbd2", "sr-nwtrn5"])
+        #expect(board.snoozed.map(\.id) == ["sr-ctnbd2", "sr-nx7bky"])
         #expect(board.snoozed.map(\.kind) == [.snoozedTurn, .snoozedTurn])
         #expect(board.snoozed.allSatisfy { $0.isSnoozed && $0.isTurn && $0.asks.isEmpty })
         #expect(board.snoozed.map(\.name) == ["Onboarding flow", "Ledger export"])
@@ -51,7 +51,7 @@ struct SnoozedTurnEdgeTests {
         let run = Self.opened(Self.board(upTo: 0))
 
         #expect(Self.keys(run) == [
-            "eyebrow:needsYou", "turn:sr-fbrk3m", "eyebrow:snoozed", "snoozedTurn:sr-ctnbd2", "snoozedTurn:sr-nwtrn5",
+            "eyebrow:needsYou", "turn:sr-fbrk3m", "eyebrow:snoozed", "snoozedTurn:sr-ctnbd2", "snoozedTurn:sr-nx7bky",
         ])
         #expect(Self.eyebrows(run) == [
             Eyebrow(section: .needsYou, counts: [Eyebrow.Count(1, need: .turn)], isFolded: false, above: Eyebrow.first),
@@ -63,7 +63,7 @@ struct SnoozedTurnEdgeTests {
     @Test func wokenOrMovedOnItIsBackInNeedsYou() {
         let run = Self.opened(Self.board(upTo: 2))
 
-        #expect(Self.keys(run) == ["eyebrow:needsYou", "turn:sr-nwtrn5", "turn:sr-ctnbd2", "turn:sr-fbrk3m"])
+        #expect(Self.keys(run) == ["eyebrow:needsYou", "turn:sr-nx7bky", "turn:sr-ctnbd2", "turn:sr-fbrk3m"])
         #expect(Self.eyebrows(run).map(\.counts) == [[Eyebrow.Count(3, need: .turn)]])
     }
 
@@ -71,7 +71,7 @@ struct SnoozedTurnEdgeTests {
     /// turns their order; in again, they take core's.
     @Test func outThePanelHoldsASessionsAsksAndItsTurnAsleepApart() {
         let run = Self.opened(Self.bothAsleep(asksFirst: true))
-        let asleep = ["snoozedTurn:sr-ctnbd2", "snoozed:sr-nwtrn5", "snoozedTurn:sr-nwtrn5"]
+        let asleep = ["snoozedTurn:sr-ctnbd2", "snoozed:sr-nx7bky", "snoozedTurn:sr-nx7bky"]
         let onTheNotch = CGPoint(x: 3, y: 491), away = CGPoint(x: 900, y: 491)
         let at = { (time: Double, pointer: CGPoint?) in
             NotchRun.Moment(time: time, pointer: pointer, setting: Self.setting)
@@ -144,19 +144,19 @@ struct SnoozedTurnEdgeTests {
             ]
         )
         let turn = WatchLine.SnoozedRow(
-            session: "sr-nwtrn5",
+            session: "sr-nx7bky",
             lines: [
                 .init(
-                    "turn:sr-nwtrn5", .yourTurn, first: "Export the ledger to CSV", since: 1_793_818_490_000,
+                    "turn:sr-nx7bky", .yourTurn, first: "Export the ledger to CSV", since: 1_793_818_490_000,
                     wakesAt: nil
                 ),
             ]
         )
         let asks = WatchLine.SnoozedRow(
-            session: "sr-nwtrn5",
+            session: "sr-nx7bky",
             lines: [
                 .init(
-                    "ask:sr-nwtrn5:k1", ask: "k1", first: "Pick the export's columns", since: 1_793_818_000_000,
+                    "ask:sr-nx7bky:k1", ask: "k1", first: "Pick the export's columns", since: 1_793_818_000_000,
                     wakesAt: 1_793_869_200_000
                 ),
             ]

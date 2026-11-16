@@ -17,10 +17,10 @@ struct SectionsTests {
         )
     }
 
-    /// Kit with one ask and Harness with three; two your turns; one working and one on its own work.
+    /// Litware with one ask and Tailspin with three; two your turns; one working and one on its own work.
     private static let board = [
-        session("kit", .needs), session("harness", .needs, lines: 3),
-        session("fumi", .turn, project: "Fumi"), session("folio", .turn, project: "Folio"),
+        session("litware", .needs), session("tailspin", .needs, lines: 3),
+        session("wingtip", .turn, project: "Wingtip"), session("alpine", .turn, project: "Alpine"),
         session("doc", .working), session("boot", .onItsWork),
     ]
 
@@ -32,8 +32,8 @@ struct SectionsTests {
         items.compactMap { if case let .eyebrow(eyebrow) = $0 { eyebrow } else { nil } }
     }
 
-    /// Harness's two asks asleep, in Snoozed, beside its row in Needs you.
-    private static let asleep = session("harness", .snoozed, lines: 2)
+    /// Tailspin's two asks asleep, in Snoozed, beside its row in Needs you.
+    private static let asleep = session("tailspin", .snoozed, lines: 2)
 
     /// Snoozed is the card's last section, under Working, and folded at first to its eyebrow, which counts the asks it
     /// holds.
@@ -49,8 +49,8 @@ struct SectionsTests {
     @Test func unfoldedSnoozedsRowsAreOtherThanTheirSessionsRowsElsewhere() {
         let items = Self.card(Self.board + [Self.asleep], folds: CardFolds(sections: []))
 
-        #expect(items.map(\.key).suffix(2) == ["eyebrow:snoozed", "snoozed:harness"])
-        #expect(items.map(\.key).contains("needs:harness"))
+        #expect(items.map(\.key).suffix(2) == ["eyebrow:snoozed", "snoozed:tailspin"])
+        #expect(items.map(\.key).contains("needs:tailspin"))
         #expect(items.last == .line(Self.asleep))
         #expect(Self.asleep.headline.more == "2")
     }
@@ -59,7 +59,7 @@ struct SectionsTests {
     /// of their own, and nothing between them: no hairline.
     @Test func eachSectionFollowsItsEyebrowWithNoHairline() {
         #expect(Self.card().map(\.key) == [
-            "eyebrow:needsYou", "needs:kit", "needs:harness", "turn:fumi", "turn:folio",
+            "eyebrow:needsYou", "needs:litware", "needs:tailspin", "turn:wingtip", "turn:alpine",
             "eyebrow:working", "doc", "boot",
         ])
     }
@@ -96,9 +96,9 @@ struct SectionsTests {
         }
     }
 
-    /// Needs you counts what waits on Lee in two, the asks first, each only above zero: its asks, the lines of Kit's
-    /// one and Harness's three, and its stopped, the two sessions at his turn; with neither, there is no Needs you and
-    /// no eyebrow for it. Working counts its rows whole, on its own work among them.
+    /// Needs you counts what waits on Lee in two, the asks first, each only above zero: its asks, the lines of
+    /// Litware's one and Tailspin's three, and its stopped, the two sessions at his turn; with neither, there is no
+    /// Needs you and no eyebrow for it. Working counts its rows whole, on its own work among them.
     @Test func needsYouCountsItsAsksAndItsStoppedApartEachAboveZero() {
         let asks = Self.board.filter { $0.kind == .needs }, stopped = Self.board.filter { $0.kind == .turn }
         let working = Self.board.filter { $0.section == .working }
@@ -148,7 +148,7 @@ struct SectionsTests {
         let rows = items.filter { $0.session != nil }
 
         #expect(rows.allSatisfy { if case .line = $0 { true } else { false } })
-        #expect(rows.compactMap(\.session?.id) == ["kit", "harness", "fumi", "folio", "doc", "boot", "harness"])
+        #expect(rows.compactMap(\.session?.id) == ["litware", "tailspin", "wingtip", "alpine", "doc", "boot", "tailspin"])
         #expect(rows.allSatisfy { $0.height == 30 && $0.margins == (0, 0) })
     }
 
@@ -181,8 +181,8 @@ struct SectionsTests {
         let keys = { (sessions: [Session]) in Item.list(sessions).map(\.key) }
         let noTurns = Self.board.filter { $0.kind != .turn }
 
-        #expect(keys(Self.board) == ["needs:kit", "needs:harness", "turn:fumi", "turn:folio", "divider", "doc", "boot"])
-        #expect(keys(noTurns) == ["needs:kit", "needs:harness", "divider", "doc", "boot"])
+        #expect(keys(Self.board) == ["needs:litware", "needs:tailspin", "turn:wingtip", "turn:alpine", "divider", "doc", "boot"])
+        #expect(keys(noTurns) == ["needs:litware", "needs:tailspin", "divider", "doc", "boot"])
         #expect(!Item.list(Self.board.filter { $0.section == .working }).contains(.divider))
         #expect(!Item.list(Self.board.filter { $0.section == .needsYou }).contains(.divider))
         #expect(Item.list(Self.board).allSatisfy { if case .line = $0 { false } else { true } })

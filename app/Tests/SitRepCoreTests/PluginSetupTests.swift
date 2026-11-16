@@ -9,7 +9,7 @@ struct PluginSetupTests {
     /// The setup over the scratch folder's copies, with the fake as the one `claude` there is, or none, and every
     /// folder marketplace's plugin at its root.
     private static func setup(
-        _ scratch: Scratch, _ fake: FakeClaude?, home: String = "/Users/lee", remembered: RememberedPlugin = RememberedPlugin.inMemory().remembered
+        _ scratch: Scratch, _ fake: FakeClaude?, home: String = "/Users/me", remembered: RememberedPlugin = RememberedPlugin.inMemory().remembered
     ) -> PluginSetup {
         let isThere = fake != nil
 
@@ -36,17 +36,17 @@ struct PluginSetupTests {
 
     @Test func onLeesMacOnlyTheListsRunAndNothingIsCopied() async throws {
         let scratch = Scratch()
-        let fake = FakeClaude(marketplaces: LeesClaude.marketplaces, plugins: LeesClaude.plugins)
+        let fake = FakeClaude(marketplaces: CloneClaude.marketplaces, plugins: CloneClaude.plugins)
         let (remembered, read) = RememberedPlugin.inMemory()
 
         try scratch.plugin("0.3.0", at: scratch.carried)
 
-        let standing = await Self.setup(scratch, fake, home: LeesClaude.home, remembered: remembered).look()
+        let standing = await Self.setup(scratch, fake, home: CloneClaude.home, remembered: remembered).look()
 
         #expect(fake.runs == ["plugin marketplace list --json", "plugin list --json"])
-        #expect(standing == .running(.folder("~/Code/sitrep"), folder: "/Users/leeovery/Code/sitrep"))
+        #expect(standing == .running(.folder("~/Code/sitrep"), folder: "/Users/me/Code/sitrep"))
         #expect(!FileManager.default.fileExists(atPath: scratch.own.deletingLastPathComponent().path))
-        #expect(read() == "/Users/leeovery/Code/sitrep")
+        #expect(read() == "/Users/me/Code/sitrep")
     }
 
     // MARK: Installing and refreshing its own
@@ -178,13 +178,13 @@ struct PluginSetupTests {
         let scratch = Scratch()
         let looks = OSAllocatedUnfairLock(initialState: 0)
         let waits = OSAllocatedUnfairLock<[Duration]>(initialState: [])
-        let fake = FakeClaude(marketplaces: LeesClaude.marketplaces, plugins: LeesClaude.plugins)
+        let fake = FakeClaude(marketplaces: CloneClaude.marketplaces, plugins: CloneClaude.plugins)
         let setup = PluginSetup(
-            copies: scratch.copies, remembered: RememberedPlugin.inMemory().remembered, home: LeesClaude.home,
+            copies: scratch.copies, remembered: RememberedPlugin.inMemory().remembered, home: CloneClaude.home,
             path: { Self.path }, environment: [:], run: fake.run,
             // `claude` comes at the fourth look, its installer's place the first each look tries.
             isExecutable: { place in
-                place == "\(LeesClaude.home)/.local/bin/claude" && looks.withLock { looks in looks += 1; return looks > 3 }
+                place == "\(CloneClaude.home)/.local/bin/claude" && looks.withLock { looks in looks += 1; return looks > 3 }
             },
             entry: { _ in .within("./") }
         )
@@ -196,6 +196,6 @@ struct PluginSetupTests {
 
         #expect(standings.map(\.trouble) == [.noClaude, .noClaude, .noClaude, nil])
         #expect(waits.withLock { $0 } == [.seconds(1), .seconds(2), .seconds(4)])
-        #expect(standings.last == .running(.folder("~/Code/sitrep"), folder: "/Users/leeovery/Code/sitrep"))
+        #expect(standings.last == .running(.folder("~/Code/sitrep"), folder: "/Users/me/Code/sitrep"))
     }
 }

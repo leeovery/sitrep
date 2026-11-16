@@ -22,14 +22,14 @@ struct NeedsYouTests {
 
     private static func turn(_ id: String = "sr-t", ended since: Int = 1_792_445_100_000) -> WatchLine.Row {
         WatchLine.Row(
-            session: id, name: id, projectName: "Kit",
+            session: id, name: id, projectName: "Litware",
             lines: [.init("turn:\(id)", .yourTurn, first: "Built it", since: since)]
         )
     }
 
     private static func working(_ id: String = "sr-w") -> WatchLine.Row {
         WatchLine.Row(
-            session: id, name: id, projectName: "DocMan",
+            session: id, name: id, projectName: "BlueYonder",
             lines: [.init("work:\(id)", .working, first: "Running", since: 1_792_445_000_000)]
         )
     }

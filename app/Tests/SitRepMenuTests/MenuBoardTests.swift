@@ -14,7 +14,7 @@ struct MenuBoardTests {
     /// Needs you's asks, then its turn, the hairline under them, as the panel has them.
     @Test func itListsThePanelsSessionsInThePanelsOrderWithTheHairlineUnderNeedsYou() {
         #expect(Self.board.items.map(\.key) == [
-            "needs:sr-ledger", "needs:sr-dash", "needs:sr-plan", "turn:sr-boot", "divider", "sr-diff",
+            "needs:sr-l5c9tz", "needs:sr-dash", "needs:sr-plan", "turn:sr-boot", "divider", "sr-diff",
         ])
     }
 
@@ -29,22 +29,22 @@ struct MenuBoardTests {
     /// Needs you leads the away ones of its kind; the menu changes with it.
     @Test func aHeldSessionNotHereIsDrawnAwayAmongTheAwayOnes() {
         let last = heard([.line(Watched.line())])
-        let notHere = MenuBoard(last, notHere: ["sr-ledger", "sr-boot", "sr-diff"], clock: london)
+        let notHere = MenuBoard(last, notHere: ["sr-l5c9tz", "sr-boot", "sr-diff"], clock: london)
         let sessions = notHere.items.compactMap(\.session)
         let dash = MenuBoard(last, notHere: ["sr-dash"], clock: london)
 
-        #expect(sessions.map(\.id) == ["sr-dash", "sr-ledger", "sr-plan", "sr-boot", "sr-diff"])
+        #expect(sessions.map(\.id) == ["sr-dash", "sr-l5c9tz", "sr-plan", "sr-boot", "sr-diff"])
         #expect(sessions.map(\.kind) == [.needs, .needs, .needs, .turn, .working])
         #expect(sessions.map(\.away) == [false, true, true, true, true])
         #expect(notHere != Self.board)
-        #expect(dash.items.compactMap(\.session).map(\.id) == ["sr-ledger", "sr-dash", "sr-plan", "sr-boot", "sr-diff"])
+        #expect(dash.items.compactMap(\.session).map(\.id) == ["sr-l5c9tz", "sr-dash", "sr-plan", "sr-boot", "sr-diff"])
     }
 
     /// A row needing Lee is titled by its session's name, away or not, a question's own "+2" nowhere; any other by its
     /// line, its subject in one with it.
     @Test func aRowsTitleIsItsSessionsNameOrElseItsLineAndItsSubjectInOne() {
         let question = Session(
-            id: "q", project: "Goosemates", name: "Onboarding", kind: .needs, title: "Which edge?", more: "+2", sub: "",
+            id: "q", project: "Lucerne", name: "Onboarding", kind: .needs, title: "Which edge?", more: "+2", sub: "",
             since: 0
         )
         let titles = Self.board.items.compactMap(\.session).map { $0.menuTitle(at: 0) }
@@ -60,20 +60,20 @@ struct MenuBoardTests {
     /// waiting, in place of a question's own count.
     @Test func aSessionWithSeveralLinesIsOneItemItsNameThenHowManyWait() {
         let ledger = WatchLine.Row(
-            session: "sr-ledger", name: "Usage", projectName: "Switchboard",
+            session: "sr-l5c9tz", name: "Usage", projectName: "Woodgrove",
             lines: [
                 .init(
-                    "ask:sr-ledger:k1", .ask, first: .init(lead: "Choose how long it keeps", more: "+4"),
+                    "ask:sr-l5c9tz:k1", .ask, first: .init(lead: "Choose how long it keeps", more: "+4"),
                     since: 1_792_445_000_000
                 ),
-                .init("ask:sr-ledger:k2", .ask, first: "Approve the schema", since: 1_792_444_900_000),
-                .init("ask:sr-ledger:k3", .ask, first: "Paste the log", since: 1_792_444_800_000),
+                .init("ask:sr-l5c9tz:k2", .ask, first: "Approve the schema", since: 1_792_444_900_000),
+                .init("ask:sr-l5c9tz:k3", .ask, first: "Paste the log", since: 1_792_444_800_000),
             ]
         )
         let menu = Self.menu(heard([.line(Watched.line(rows: [ledger] + Watched.rows.dropFirst()))]))
         let sessions = menu.items.compactMap(\.session)
 
-        #expect(sessions.filter { $0.id == "sr-ledger" }.count == 1)
+        #expect(sessions.filter { $0.id == "sr-l5c9tz" }.count == 1)
         #expect(sessions.first?.menuTitle(at: 0) == "Usage 3")
         #expect(sessions.first?.ageText(at: 1_792_445_000_000 + 60 * 60_000) == "1h")
     }
@@ -95,7 +95,7 @@ struct MenuBoardTests {
     @Test func itListsEverySessionHoweverMany() {
         let rows = (0 ..< 16).map {
             WatchLine.Row(
-                session: "s\($0)", name: "\($0)", projectName: "Kit",
+                session: "s\($0)", name: "\($0)", projectName: "Litware",
                 lines: [.init("turn:s\($0)", .yourTurn, first: "Turn \($0)", since: 1_792_445_000_000)]
             )
         }
@@ -106,18 +106,18 @@ struct MenuBoardTests {
 
     @Test func itSpeaksUpWithEachWindowThatNeedsReloadPluginsAJumpToItsSession() {
         let windows = [
-            WatchLine.Window(writer: "w1", session: "sr-boot", name: "The bootstrap", project: "Kit", version: "0.1.0", needsReload: true),
-            WatchLine.Window(writer: "w2", session: "sr-diff", name: "Token-aware diff sizing", project: "Mint", version: "0.2.0", needsReload: false),
-            WatchLine.Window(writer: "w3", session: "sr-dash", name: "Dashboard memory", project: "Switchboard", version: nil, needsReload: true),
+            WatchLine.Window(writer: "w1", session: "sr-boot", name: "The bootstrap", project: "Litware", version: "0.1.0", needsReload: true),
+            WatchLine.Window(writer: "w2", session: "sr-diff", name: "Token-aware diff sizing", project: "Relecloud", version: "0.2.0", needsReload: false),
+            WatchLine.Window(writer: "w3", session: "sr-dash", name: "Dashboard memory", project: "Woodgrove", version: nil, needsReload: true),
         ]
         let menu = Self.menu(heard([.line(Watched.line(windows: windows))]))
 
-        #expect(menu.reloads.map(\.label) == ["Kit · The bootstrap", "Switchboard · Dashboard memory"])
+        #expect(menu.reloads.map(\.label) == ["Litware · The bootstrap", "Woodgrove · Dashboard memory"])
         #expect(menu.reloads.map(\.session) == ["sr-boot", "sr-dash"])
     }
 
     @Test func withEveryWindowCurrentTheReloadHeadingGoes() {
-        let windows = [WatchLine.Window(writer: "w2", session: "sr-diff", name: "Diff", project: "Mint", version: "0.2.0", needsReload: false)]
+        let windows = [WatchLine.Window(writer: "w2", session: "sr-diff", name: "Diff", project: "Relecloud", version: "0.2.0", needsReload: false)]
 
         #expect(Self.menu(heard([.line(Watched.line(windows: windows))])).reloads.isEmpty)
     }

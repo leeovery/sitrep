@@ -24,11 +24,11 @@ struct StripTests {
     }
 
     @Test func aMarksLettersAreTheProjectsTwoCapitalsElseItsFirstTwo() {
-        let letters = ["SitRep", "DocMan", "Switchboard", "agntc", "Agentic Workflows"].map {
+        let letters = ["SitRep", "BlueYonder", "Woodgrove", "trey", "Adventure Works"].map {
             Session(id: "", project: $0, kind: .turn, title: "", sub: "", since: 0).letters
         }
 
-        #expect(letters == ["SR", "DM", "Sw", "ag", "AW"])
+        #expect(letters == ["SR", "BY", "Wo", "tr", "AW"])
     }
 
     @Test func aMarksRingCarriesItsState() {

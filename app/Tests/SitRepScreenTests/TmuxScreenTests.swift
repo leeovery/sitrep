@@ -260,7 +260,7 @@ struct TmuxScreenTests {
 
     @Test func aTmuxClientUnderITerm2sServerOutsideItsBundleIsITerm2s() async {
         var mac = Mac()
-        let server = mac.tree.app("/Users/lee/Library/Application Support/iTerm2/iTermServer-3.5.4")
+        let server = mac.tree.app("/Users/me/Library/Application Support/iTerm2/iTermServer-3.5.4")
         let pid = mac.tree.tmux(under: mac.tree.add(under: server, "/bin/zsh", on: "/dev/ttys070"), on: "/dev/ttys070")
         let clients = [FakeClient(device: "/dev/ttys070", pid: pid, window: "@45")]
         let screen = await read([inTmux()], FakeTmux([socket: FakeServer(panes: Self.panes, clients: clients)]), FakeTable(mac.tree))

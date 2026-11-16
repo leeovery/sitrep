@@ -1,0 +1,32 @@
+[
+  {
+    "name": "contoso-plugins",
+    "source": "github",
+    "repo": "contoso/claude-plugins",
+    "installLocation": "/Users/me/.claude/plugins/marketplaces/contoso-plugins"
+  },
+  {
+    "name": "litware",
+    "source": "directory",
+    "path": "/Users/me/.config/litware/plugins",
+    "installLocation": "/Users/me/.config/litware/plugins"
+  },
+  {
+    "name": "northwind",
+    "source": "github",
+    "repo": "northwind/review",
+    "installLocation": "/Users/me/.claude/plugins/marketplaces/northwind"
+  },
+  {
+    "name": "sitrep",
+    "source": "directory",
+    "path": "/Users/me/Code/sitrep",
+    "installLocation": "/Users/me/Code/sitrep"
+  },
+  {
+    "name": "wingtip",
+    "source": "github",
+    "repo": "wingtip/skills",
+    "installLocation": "/Users/me/.claude/plugins/marketplaces/wingtip"
+  }
+]

@@ -16,7 +16,7 @@ struct HereTests {
 
     /// A Claude outside any multiplexer on the device, under the shell given.
     private static func claude(under shell: pid_t, on device: String, in tree: inout Tree) {
-        tree.add(under: shell, "/Users/lee/.local/share/claude/versions/2.1.322", on: device)
+        tree.add(under: shell, "/Users/me/.local/share/claude/versions/2.1.322", on: device)
     }
 
     // MARK: Outside a multiplexer

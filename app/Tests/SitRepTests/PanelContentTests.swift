@@ -78,7 +78,7 @@ struct PanelContentTests {
     /// its name, and the row under it stays; still lifted, as one under the pointer was.
     @Test func aRowGainingALineIsMadeAnewInPlace() {
         let content = PanelContent()
-        let one = Session(id: "a", project: "Harness", kind: .needs, title: "Approve the batch", sub: "Harness · H", since: 0)
+        let one = Session(id: "a", project: "Tailspin", kind: .needs, title: "Approve the batch", sub: "Tailspin · H", since: 0)
         var two = one
         let frame = Self.open(Self.list(.session(one), Self.row("b")))
 

@@ -33,7 +33,7 @@ struct CardSectionsRunTests {
 
     private static func working(_ id: String) -> WatchLine.Row {
         WatchLine.Row(
-            session: id, name: id, projectName: "DocMan",
+            session: id, name: id, projectName: "BlueYonder",
             lines: [.init("work:\(id)", .working, first: "Running the tests", since: 1_792_445_000_000)]
         )
     }

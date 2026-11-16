@@ -60,7 +60,7 @@ struct StripBoardTests {
     /// over the one hairline; working and on its own work under it (14 November 2026).
     @Test func needsYouItsAsksThenItsStoppedIsAllOverTheHairlineWorkingUnderIt() throws {
         let order = ["s3", "s2", "s1", "s4", "s5", "s6", "s7", "s8", "s9"]
-        let waiting = Session(id: "s9", project: "Kit", kind: .onItsWork, title: "Waiting on", sub: "Kit", since: 0)
+        let waiting = Session(id: "s9", project: "Litware", kind: .onItsWork, title: "Waiting on", sub: "Litware", since: 0)
         let sessions = try order.map { id in try #require((StripLab.prototype + [waiting]).first { $0.id == id }) }
         let input = StripInput(time: 1000, pointer: nil, stage: StripLab.stage, reducesMotion: false)
         let strip = Strip(

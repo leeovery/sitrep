@@ -51,7 +51,7 @@ struct TmuxTests {
     @Test func tmuxIsFoundOnLeesPathToldItsClientTakesUTF8GivenTheSocketAndTwoSecondsAndStoppedWithItsGroup() async throws {
         let folder = try Self.folderHolding("tmux")
         let ran = OSAllocatedUnfairLock(initialState: [Program]())
-        let tmux = TmuxOnPath(path: "/nowhere:\(folder.path)", environment: ["HOME": "/Users/lee", "PATH": "/usr/bin"]) { program in
+        let tmux = TmuxOnPath(path: "/nowhere:\(folder.path)", environment: ["HOME": "/Users/me", "PATH": "/usr/bin"]) { program in
             ran.withLock { $0.append(program) }
 
             return Ran(status: 0, stdout: "", stderr: "")
@@ -63,7 +63,7 @@ struct TmuxTests {
                 Program(
                     executable: folder.appending(path: "tmux"),
                     arguments: ["-u", "-S", Self.socket, "list-clients"],
-                    environment: ["HOME": "/Users/lee", "PATH": "/nowhere:\(folder.path)"],
+                    environment: ["HOME": "/Users/me", "PATH": "/nowhere:\(folder.path)"],
                     limit: 2,
                     stopping: .group
                 ),

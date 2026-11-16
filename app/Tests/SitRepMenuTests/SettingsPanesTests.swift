@@ -72,11 +72,11 @@ struct PaneHistoryTests {
 /// Claude Code: the plugin's row, and while some windows run an older plugin, a row for each with Show, their number
 /// the sidebar's count.
 struct ClaudeCodePaneTests {
-    private static let clone = PluginStanding.running(.folder("~/Code/sitrep"), folder: "/Users/lee/Code/sitrep")
+    private static let clone = PluginStanding.running(.folder("~/Code/sitrep"), folder: "/Users/me/Code/sitrep")
     private static let windows = [
-        WatchLine.Window(writer: "w1", session: "sr-boot", name: "The bootstrap", project: "Kit", version: "0.1.0", needsReload: true),
-        WatchLine.Window(writer: "w2", session: "sr-diff", name: "Diff", project: "Mint", version: "0.2.0", needsReload: false),
-        WatchLine.Window(writer: "w3", session: "sr-plan", name: "Plan the tool", project: "Terrace", version: nil, needsReload: true),
+        WatchLine.Window(writer: "w1", session: "sr-boot", name: "The bootstrap", project: "Litware", version: "0.1.0", needsReload: true),
+        WatchLine.Window(writer: "w2", session: "sr-diff", name: "Diff", project: "Relecloud", version: "0.2.0", needsReload: false),
+        WatchLine.Window(writer: "w3", session: "sr-plan", name: "Plan the tool", project: "Humongous", version: nil, needsReload: true),
     ]
 
     private static func pane(_ windows: [WatchLine.Window]) -> ClaudeCodePane {
@@ -89,7 +89,7 @@ struct ClaudeCodePaneTests {
         let reloads = Self.pane(Self.windows).reloads
 
         #expect(reloads.map(\.name) == ["The bootstrap", "Plan the tool"])
-        #expect(reloads.map(\.line) == ["Kit · 0.1.0", "Terrace"])
+        #expect(reloads.map(\.line) == ["Litware · 0.1.0", "Humongous"])
         #expect(reloads.map(\.session) == ["sr-boot", "sr-plan"])
     }
 
@@ -110,9 +110,9 @@ struct ClaudeCodePaneTests {
 /// The windows behind on the plugin, read once for the menu, the plugin's row, the pane and the sidebar's count.
 struct WindowsBehindTests {
     private static let windows = [
-        WatchLine.Window(writer: "w1", session: "sr-boot", name: "The bootstrap", project: "Kit", version: "0.1.0", needsReload: true),
-        WatchLine.Window(writer: "w2", session: "sr-diff", name: "Diff", project: "Mint", version: "0.2.0", needsReload: false),
-        WatchLine.Window(writer: "w3", session: "sr-plan", name: "Plan the tool", project: "Terrace", version: nil, needsReload: true),
+        WatchLine.Window(writer: "w1", session: "sr-boot", name: "The bootstrap", project: "Litware", version: "0.1.0", needsReload: true),
+        WatchLine.Window(writer: "w2", session: "sr-diff", name: "Diff", project: "Relecloud", version: "0.2.0", needsReload: false),
+        WatchLine.Window(writer: "w3", session: "sr-plan", name: "Plan the tool", project: "Humongous", version: nil, needsReload: true),
     ]
 
     @Test func theyAreTheWindowsThatNeedReloadingInWatchsOrder() {
@@ -129,7 +129,7 @@ struct WindowsBehindTests {
     /// The menu's Needs /reload-plugins, the plugin's row and the pane all list the same windows.
     @Test func theMenuThePluginsRowAndThePaneAgree() {
         let last = heard([.line(Watched.line(windows: Self.windows))])
-        let clone = PluginStanding.running(.folder("~/Code/sitrep"), folder: "/Users/lee/Code/sitrep")
+        let clone = PluginStanding.running(.folder("~/Code/sitrep"), folder: "/Users/me/Code/sitrep")
 
         #expect(MenuBoard(last).reloads.map(\.session) == ["sr-boot", "sr-plan"])
         #expect(ClaudeCodePane(last, plugin: clone).reloads.map(\.session) == ["sr-boot", "sr-plan"])

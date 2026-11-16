@@ -8,7 +8,7 @@ struct TypedCommandTests {
     private static let claude = "b1c2d3e4-0000-4000-8000-000000000001"
 
     /// The line for a window whose folder is given, the command given.
-    private static func line(_ command: String, folder: String = "/Users/lee/Code/kit") async throws -> String {
+    private static func line(_ command: String, folder: String = "/Users/me/Code/litware") async throws -> String {
         let window = Board.LastWindow(writer: claude, directory: folder)
 
         return try await ResumeCommand(command).line(from: ResumeFacts(window: window, tty: nil), named: JumpWorld.named)
@@ -23,7 +23,7 @@ struct TypedCommandTests {
         ("%148", "'%148'"),
         ("/private/tmp/tmux-501/default", "'/private/tmp/tmux-501/default'"),
         ("sitrep-iFpz7T", "'sitrep-iFpz7T'"),
-        ("kit · restore-card", "'kit · restore-card'"),
+        ("litware · restore-card", "'litware · restore-card'"),
         ("lee's work", #"'lee'\''s work'"#),
         ("$HOME;rm", "'$HOME;rm'"),
         ("=zmx", "'=zmx'"),
@@ -37,7 +37,7 @@ struct TypedCommandTests {
     @Test func eachPlaceholderIsFilledQuotedEveryTimeItIsNamed() {
         let command = ResumeCommand("cd {dir} # {dir}")
 
-        #expect(command.filled([.dir: "kit · card"]) == "cd 'kit · card' # 'kit · card'")
+        #expect(command.filled([.dir: "litware · card"]) == "cd 'litware · card' # 'litware · card'")
     }
 
     /// `{a,b}` is the shell's own braces, and `{ x; }` its group: neither is a placeholder.
@@ -45,7 +45,7 @@ struct TypedCommandTests {
         let command = ResumeCommand("{ cd {dir}; } && echo {a,b}")
 
         #expect(command.named == ["dir"])
-        #expect(command.filled([.dir: "kit"]) == "{ cd 'kit'; } && echo {a,b}")
+        #expect(command.filled([.dir: "litware"]) == "{ cd 'litware'; } && echo {a,b}")
     }
 
     /// The shell's `${…}`, tmux's `#{…}` and a brace escaped are never placeholders, so never refused nor filled.
@@ -69,8 +69,8 @@ struct TypedCommandTests {
     @Test(arguments: [
         ("claude --resume={claude}", "claude --resume='\(claude)'"),
         ("awk -v id={claude}", "awk -v id='\(claude)'"),
-        ("cd x{dir}y;", "cd x'/Users/lee/Code/kit'y;"),
-        ("cd {dir}/sub", "cd '/Users/lee/Code/kit'/sub"),
+        ("cd x{dir}y;", "cd x'/Users/me/Code/litware'y;"),
+        ("cd {dir}/sub", "cd '/Users/me/Code/litware'/sub"),
         (#"echo "a"{claude}"#, #"echo "a"'\#(claude)'"#),
     ])
     func aPlaceholderJoinedToUnquotedTextIsFilled(command: String, line: String) async throws {
@@ -101,7 +101,7 @@ struct TypedCommandTests {
     @Test(arguments: ["cd `echo {dir} `", #"cd "`echo {dir} `""#, "x `a` `{dir}`"])
     func aPlaceholderInBackticksIsRefused(command: String) async {
         await #expect(throws: Unopenable(description: CommandProblem<ResumeFact>.quoted(["dir"]).refusal(named: JumpWorld.named))) {
-            try await Self.line(command, folder: "kit · card`;touch PWNED;")
+            try await Self.line(command, folder: "litware · card`;touch PWNED;")
         }
     }
 

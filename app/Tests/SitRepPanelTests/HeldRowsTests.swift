@@ -262,8 +262,8 @@ struct HeldRowsTests {
 
     /// A session's asks asleep and its turn snoozed are two rows in Snoozed, both held while the panel is out.
     @Test func aSessionsAsksAndItsTurnInSnoozedAreTwoRows() {
-        let asks = Session(id: "s9", project: "Harness", kind: .snoozed, ask: "k1", title: "Review the plan", sub: "", since: 1)
-        let turn = Session(id: "s9", project: "Harness", kind: .snoozedTurn, title: "Stage 2 is in", sub: "", since: 2)
+        let asks = Session(id: "s9", project: "Tailspin", kind: .snoozed, ask: "k1", title: "Review the plan", sub: "", since: 1)
+        let turn = Session(id: "s9", project: "Tailspin", kind: .snoozedTurn, title: "Stage 2 is in", sub: "", since: 2)
         let rows = Self.held([asks, turn], taking: [turn, asks])
 
         #expect(rows.shown.map(Item.key(of:)) == ["snoozed:s9", "snoozedTurn:s9"])

@@ -65,7 +65,7 @@ struct ClicksTests {
     /// A window brought forward with a word for Lee, as for a Claude he suspended there: the word as a banner, and the
     /// front left with the window, as for any jump that landed.
     @Test func aJumpLandingWithAWordPostsItAndHandsNothingBack() async {
-        let said = "Fumi is suspended in this window: type fg to bring it back."
+        let said = "Wingtip is suspended in this window: type fg to bring it back."
         let world = World { _ in .answered(.jumpedSaying(said)) }
 
         world.click("sr-a")

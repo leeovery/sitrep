@@ -134,8 +134,8 @@ struct SnoozeTests {
         let now = Self.at(23, 14).timeIntervalSince1970 * 1000
         let line = Session.Line(ask: "k1", title: "Review the plan", since: now - 3_600_000)
         let asleep = Session(
-            id: "sr-4g01a7", project: "Harness", name: "Finish the Harness modernisation", kind: .snoozed,
-            lines: [line], sub: "Harness", wakesAt: Self.at(24, 9).timeIntervalSince1970 * 1000
+            id: "sr-4t2kq8", project: "Tailspin", name: "Finish the Tailspin migration", kind: .snoozed,
+            lines: [line], sub: "Tailspin", wakesAt: Self.at(24, 9).timeIntervalSince1970 * 1000
         )
         var waiting = asleep
 
@@ -147,7 +147,7 @@ struct SnoozeTests {
         #expect(asleep.timeText(at: now, in: Self.london) == "Sat 09:00")
         #expect(moves.timeText(at: now, in: Self.london) == "until it moves")
         #expect(waiting.timeText(at: now, in: Self.london) == "1h")
-        #expect(asleep.title == "Finish the Harness modernisation")
+        #expect(asleep.title == "Finish the Tailspin migration")
         #expect(asleep.asks == ["k1"])
     }
 }

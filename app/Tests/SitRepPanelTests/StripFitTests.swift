@@ -24,7 +24,7 @@ struct StripFitTests {
         #expect(lab.model.layout.places.last!.y == 543)
         #expect(lab.model.bottomEnd - lab.model.endPad == 626 - 26 - 28 - 2 - 12 - 12)
 
-        lab.add([Session(id: "s17", project: "Kit", kind: .working, title: "", sub: "", since: 0)])
+        lab.add([Session(id: "s17", project: "Litware", kind: .working, title: "", sub: "", since: 0)])
         lab.settle()
         #expect(lab.model.layout.counts[.working]?.y == 543)
     }

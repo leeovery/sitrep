@@ -8,7 +8,7 @@ import Testing
 /// longest rows with their marks, lines and badges, and its commands with keys, measured by AppKit.
 @MainActor
 struct MenuWidthTests {
-    private static let long = "Two Turnstile bug fixes from the Laravel skills review, one PR each: Httpable::report() inverted, and the dispatcher rate limiter registered in a deferred provider."
+    private static let long = "Two Coho bug fixes from the code review, one PR each: the error report handler inverted, and the dispatcher rate limiter registered in a deferred provider."
     /// Words as wide as this many points in the face, to within a hair space: as wide as a cut can land.
     private static func filled(to points: Double, in face: MenuFace) -> String {
         var words = ""
@@ -20,11 +20,11 @@ struct MenuWidthTests {
         }
         return words + "."
     }
-    private static let longLine = "Turnstile · Exception reporting and dispatcher limiter fixes, and the queue's retry rules as well"
+    private static let longLine = "Coho · Exception reporting and dispatcher limiter fixes, and the queue's retry rules as well"
 
     /// A row whose line is these words, as a your-turn row's is: a row needing Lee shows its session's name.
     private static func session(_ title: String, code: String? = nil, more: String? = nil, sub: String = longLine) -> Session {
-        Session(id: title, project: "Turnstile", kind: .turn, title: title, code: code, more: more, sub: sub, since: 0)
+        Session(id: title, project: "Coho", kind: .turn, title: title, code: code, more: more, sub: sub, since: 0)
     }
 
     /// The menu: the header, these rows as the status menu sets them, each with the widest time, and its commands.
@@ -66,7 +66,7 @@ struct MenuWidthTests {
         let title = Self.filled(to: MenuChrome.title, in: .words)
         let line = Self.filled(to: MenuChrome.subtitle, in: .subtitle)
         let width = Self.menu([
-            Self.session(title, sub: "Turnstile · Fixes"), Self.session("Wait for review", sub: line),
+            Self.session(title, sub: "Coho · Fixes"), Self.session("Wait for review", sub: line),
         ]).size.width
 
         #expect(MenuFonts.measure(title, .words) > MenuChrome.title - 1)
@@ -75,7 +75,7 @@ struct MenuWidthTests {
     }
 
     @Test func noRowGrowsPastAOneLineRowsHeight() {
-        let short = Self.menu([Self.session("Wait for review", sub: "Turnstile · Fixes")], header: false).size.height
+        let short = Self.menu([Self.session("Wait for review", sub: "Coho · Fixes")], header: false).size.height
         let long = Self.menu([Self.session(Self.long)], header: false).size.height
 
         #expect(long == short)
@@ -100,7 +100,7 @@ struct MenuWidthTests {
     @Test func aShortRowIsLeftWholeWithNoTooltip() {
         let item = NSMenuItem()
 
-        MenuWords.row(item, Self.session("Wait for Lee to review PR #21", sub: "Turnstile · Fixes"), age: "2h", now: 0, isHighlighted: false)
+        MenuWords.row(item, Self.session("Wait for Lee to review PR #21", sub: "Coho · Fixes"), age: "2h", now: 0, isHighlighted: false)
         #expect(item.attributedTitle?.string == "Wait for Lee to review PR #21")
         #expect(item.toolTip == nil)
     }

@@ -91,9 +91,9 @@ struct NotchRunTests {
         #expect(run.frame.panel?.pressed == "needs:sr-a")
     }
 
-    /// A run over Kit's away ask and SitRep's held one, its panel opened.
+    /// A run over Litware's away ask and SitRep's held one, its panel opened.
     private static func openedWithAway() -> NotchRun {
-        let rows = [Self.ask("a"), Self.ask("k", isAway: true, of: "Kit")]
+        let rows = [Self.ask("a"), Self.ask("k", isAway: true, of: "Litware")]
         var last = LastBoard()
         let run = NotchRun(at: 1000, in: setting)
 

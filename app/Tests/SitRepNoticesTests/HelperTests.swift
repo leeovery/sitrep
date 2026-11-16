@@ -163,7 +163,7 @@ struct HelperTests {
 
         await helper.start()
         helper.heard(Self.fromSitRep(.ready))
-        helper.clicked("sr-aw3bgs")
+        helper.clicked("sr-a8n2xc")
 
         #expect(calls.handBacks == 0)
     }
@@ -192,9 +192,9 @@ struct HelperTests {
 
         await helper.start()
         helper.heard(Self.fromSitRep(.ready))
-        helper.clicked("sr-aw3bgs")
+        helper.clicked("sr-a8n2xc")
 
-        #expect(sent.messages.last == .clicked(work: "sr-aw3bgs"))
+        #expect(sent.messages.last == .clicked(work: "sr-a8n2xc"))
         #expect(sent.pids == [Self.sitRep])
     }
 
@@ -203,7 +203,7 @@ struct HelperTests {
         let sitRep = SitRep(isRunning: false)
         let helper = helper(sitRep)
 
-        helper.clicked("sr-aw3bgs")
+        helper.clicked("sr-a8n2xc")
         await helper.start()
 
         #expect(sitRep.launches == 1)
@@ -212,7 +212,7 @@ struct HelperTests {
 
         helper.heard(Self.fromSitRep(.ready))
 
-        #expect(sent.messages == [Self.ready, Self.ready, .clicked(work: "sr-aw3bgs")])
+        #expect(sent.messages == [Self.ready, Self.ready, .clicked(work: "sr-a8n2xc")])
     }
 
     @Test func withNoSitRepToStartItQuits() async {
@@ -229,12 +229,12 @@ struct HelperTests {
     @Test func itAnswersEachOfSitRepsReadies() async {
         let helper = helper(SitRep(isRunning: false))
 
-        helper.clicked("sr-aw3bgs")
+        helper.clicked("sr-a8n2xc")
         await helper.start()
         helper.heard(Self.fromSitRep(.ready))
         helper.heard(Self.fromSitRep(.ready))
 
-        #expect(sent.messages == [Self.ready, Self.ready, .clicked(work: "sr-aw3bgs"), Self.ready])
+        #expect(sent.messages == [Self.ready, Self.ready, .clicked(work: "sr-a8n2xc"), Self.ready])
     }
 
     @Test func aLetterFromAnotherSitRepIsPassedOver() async {
@@ -243,7 +243,7 @@ struct HelperTests {
         await helper.start()
         helper.heard(Self.fromSitRep(.ready, pid: 977))
         helper.heard(Self.fromSitRep(.post(Notice(title: "Stale", subtitle: nil, body: "", work: nil)), pid: 977))
-        helper.clicked("sr-aw3bgs")
+        helper.clicked("sr-a8n2xc")
         await Task.yield()
 
         #expect(sent.messages == [Self.ready])

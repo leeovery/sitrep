@@ -5,16 +5,16 @@
   "head": { "needYou": 2, "sessions": 3 },
   "rows": [
     {
-      "session": "sr-7e68fj",
+      "session": "sr-7p4wd2",
       "section": "needsYou",
       "isAway": false,
-      "project": "terrace",
+      "project": "humongous",
       "name": "Plan the tool",
-      "projectName": "Terrace",
-      "letters": "Te",
+      "projectName": "Humongous",
+      "letters": "Hu",
       "lines": [
         {
-          "key": "ask:sr-7e68fj:k1hs",
+          "key": "ask:sr-7p4wd2:k1hs",
           "is": "ask",
           "ask": "k1hs",
           "writer": null,
@@ -26,60 +26,60 @@
           "since": 1791991983206
         }
       ],
-      "second": "Terrace · Plan the tool",
+      "second": "Humongous · Plan the tool",
       "since": 1791991983206
     },
     {
-      "session": "sr-y4d0qj",
+      "session": "sr-y6m1pr",
       "section": "needsYou",
       "isAway": false,
-      "project": "switchboard-7a75d7ba",
+      "project": "woodgrove-5c3e91f0",
       "name": "Dashboard memory and snags",
-      "projectName": "Switchboard",
-      "letters": "Sw",
+      "projectName": "Woodgrove",
+      "letters": "Wo",
       "lines": [
         {
-          "key": "stop:sr-y4d0qj:6c847b5b-722d-4343-88e0-42ece4662e7d:1792445500000",
+          "key": "stop:sr-y6m1pr:00000000-0000-4000-8000-000000000002:1792445500000",
           "is": "permission",
           "ask": null,
-          "writer": "6c847b5b-722d-4343-88e0-42ece4662e7d",
+          "writer": "00000000-0000-4000-8000-000000000002",
           "first": { "lead": "Allow Bash", "mono": "gh pr create", "more": null },
           "since": 1792445500000
         }
       ],
-      "second": "Switchboard · Dashboard memory and snags",
+      "second": "Woodgrove · Dashboard memory and snags",
       "since": 1792445500000
     },
     {
-      "session": "sr-aw3bgs",
+      "session": "sr-a8n2xc",
       "section": "yourTurn",
       "isAway": false,
-      "project": "code-84dbac88",
-      "name": "Build the Mac app",
-      "projectName": "SitRep",
-      "letters": "SR",
+      "project": "code-2c4e6a80",
+      "name": "Build the desktop app",
+      "projectName": "Trey Research",
+      "letters": "TR",
       "lines": [
         {
-          "key": "turn:sr-aw3bgs",
+          "key": "turn:sr-a8n2xc",
           "is": "yourTurn",
           "ask": null,
-          "writer": "408a755f-ed3a-4ee1-9cc0-c0208cf3e03b",
+          "writer": "00000000-0000-4000-8000-000000000001",
           "first": {
-            "lead": "Build phase 4b: sitrep watch, the feed the app reads",
+            "lead": "Build phase 4b: the feed the app reads",
             "mono": null,
             "more": null
           },
           "since": 1792259685462
         }
       ],
-      "second": "SitRep · Build the Mac app",
+      "second": "Trey Research · Build the desktop app",
       "since": 1792259685462
     }
   ],
   "projects": [
     {
-      "key": "terrace",
-      "name": "Terrace",
+      "key": "humongous",
+      "name": "Humongous",
       "directory": null,
       "open": 1,
       "waiting": 1,
@@ -87,9 +87,9 @@
       "updatedAt": 1791991983206,
       "sessions": [
         {
-          "id": "sr-7e68fj",
+          "id": "sr-7p4wd2",
           "name": "Plan the tool",
-          "summary": "Settle terrace's open decisions, then write the spec and milestones",
+          "summary": "Settle the tool's open decisions, then write the spec and milestones",
           "now": [],
           "next": null,
           "isOpen": true,
@@ -101,7 +101,7 @@
           "doing": {
             "is": "yourTurn",
             "line": {
-              "lead": "Settle terrace's open decisions, then write the spec and milestones",
+              "lead": "Settle the tool's open decisions, then write the spec and milestones",
               "mono": null,
               "more": null
             },
@@ -116,7 +116,7 @@
               "where": "In the chat: decision 3, what an approval binds to",
               "options": [],
               "needs": null,
-              "ref": "infra-tooling-roadmap memory, decision 3",
+              "ref": "tool plan, decision 3",
               "state": "waiting",
               "at": 1791991983206
             }
@@ -125,19 +125,19 @@
       ]
     },
     {
-      "key": "switchboard-7a75d7ba",
-      "name": "Switchboard",
-      "directory": "/Users/leeovery/Code/switchboard",
+      "key": "woodgrove-5c3e91f0",
+      "name": "Woodgrove",
+      "directory": "/Users/me/Code/woodgrove",
       "open": 2,
       "waiting": 0,
       "parked": 16,
       "updatedAt": 1792441698646,
       "sessions": [
         {
-          "id": "sr-y4d0qj",
+          "id": "sr-y6m1pr",
           "name": "Dashboard memory and snags",
-          "summary": "Phase 1 merged; now phase 2: a session's page opens fast from day digests",
-          "now": ["Close the day back from rows' small test gaps", "Build a turn read from rows"],
+          "summary": "Phase 1 merged; now phase 2: the dashboard loads from daily totals",
+          "now": ["Close the small test gaps", "Build the daily totals"],
           "next": "Merge the turn, then the guard",
           "isOpen": true,
           "waiting": 0,
@@ -155,19 +155,19 @@
       ]
     },
     {
-      "key": "code-84dbac88",
-      "name": "SitRep",
-      "directory": "/Users/leeovery/Code/sitrep",
+      "key": "code-2c4e6a80",
+      "name": "Trey Research",
+      "directory": "/Users/me/Code/trey-research",
       "open": 1,
       "waiting": 0,
       "parked": 13,
       "updatedAt": 1792445247692,
       "sessions": [
         {
-          "id": "sr-aw3bgs",
-          "name": "Build the Mac app",
-          "summary": "Decide a desktop surface that pops what needs Lee",
-          "now": ["Build phase 4b: sitrep watch, the feed the app reads"],
+          "id": "sr-a8n2xc",
+          "name": "Build the desktop app",
+          "summary": "Decide a desktop surface for what needs attention",
+          "now": ["Build phase 4b: the feed the app reads"],
           "next": "Then the strip, the menu and Settings",
           "isOpen": true,
           "waiting": 0,
@@ -177,7 +177,7 @@
           "since": 1792259685462,
           "doing": {
             "is": "yourTurn",
-            "line": { "lead": "Build phase 4b: sitrep watch, the feed the app reads", "mono": null, "more": null },
+            "line": { "lead": "Build phase 4b: the feed the app reads", "mono": null, "more": null },
             "since": 1792259685462
           },
           "asks": []
@@ -187,28 +187,28 @@
   ],
   "windows": [
     {
-      "writer": "408a755f-ed3a-4ee1-9cc0-c0208cf3e03b",
-      "session": "sr-aw3bgs",
-      "name": "Build the Mac app",
-      "project": "SitRep",
+      "writer": "00000000-0000-4000-8000-000000000001",
+      "session": "sr-a8n2xc",
+      "name": "Build the desktop app",
+      "project": "Trey Research",
       "version": null,
       "needsReload": true,
       "where": {
-        "device": "/dev/ttys043",
+        "device": "/dev/ttys004",
         "terminal": "tmux",
-        "tmux": { "socket": "/private/tmp/tmux-501/default", "pane": "%148" }
+        "tmux": { "socket": "/private/tmp/tmux-501/default", "pane": "%12" }
       },
       "state": null,
       "attachedAt": 1792259685462
     },
     {
-      "writer": "6c847b5b-722d-4343-88e0-42ece4662e7d",
-      "session": "sr-y4d0qj",
+      "writer": "00000000-0000-4000-8000-000000000002",
+      "session": "sr-y6m1pr",
       "name": "Dashboard memory and snags",
-      "project": "Switchboard",
+      "project": "Woodgrove",
       "version": "0.1.0",
       "needsReload": false,
-      "where": { "device": "/dev/ttys052", "terminal": "ghostty", "tmux": null },
+      "where": { "device": "/dev/ttys005", "terminal": "ghostty", "tmux": null },
       "state": {
         "is": "permission",
         "since": 1792445500000,
@@ -218,6 +218,6 @@
       "attachedAt": 1792328734797
     }
   ],
-  "new": ["stop:sr-y4d0qj:6c847b5b-722d-4343-88e0-42ece4662e7d:1792445500000"],
+  "new": ["stop:sr-y6m1pr:00000000-0000-4000-8000-000000000002:1792445500000"],
   "boards": {}
 }

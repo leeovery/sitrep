@@ -7,7 +7,7 @@ import Testing
 /// shell, and nothing typed that is not fit to type (stage 8's rethink).
 struct ResumeCommandTests {
     private static let claude = "b1c2d3e4-0000-4000-8000-000000000001"
-    private static let window = Board.LastWindow(writer: claude, directory: "/Users/lee/Code/lee's work")
+    private static let window = Board.LastWindow(writer: claude, directory: "/Users/me/Code/team's work")
 
     private static func line(
         _ command: String, _ window: Board.LastWindow = window, tty: String? = nil
@@ -20,7 +20,7 @@ struct ResumeCommandTests {
         #expect(OpenSettings().resumeCommand == OpenSettings.defaultResumeCommand)
         #expect(
             try await Self.line(OpenSettings.defaultResumeCommand)
-                == #"cd '/Users/lee/Code/lee'\''s work' && claude --resume '\#(Self.claude)'"#
+                == #"cd '/Users/me/Code/team'\''s work' && claude --resume '\#(Self.claude)'"#
         )
     }
 
@@ -42,17 +42,17 @@ struct ResumeCommandTests {
     /// The examples DESIGN records, through the fill exactly as written: Lee's Portal one-liner, and tmux by `{tty}`.
     @Test func leesPortalOneLinerFillsAsWritten() async throws {
         let command = #"s=$(portal hook list | awk -F'\t' -v id={claude} 'index($3, "--resume " id) {print $1; exit}'); [ -n "$s" ] && portal open -s "$s" || portal open -p {dir} -- claude --resume {claude}"#
-        let window = Board.LastWindow(writer: Self.claude, directory: "/Users/lee/Code/leeway")
+        let window = Board.LastWindow(writer: Self.claude, directory: "/Users/me/Code/proseware")
 
         #expect(ResumeCommand(command).problem == nil)
-        #expect(try await Self.line(command, window) == #"s=$(portal hook list | awk -F'\t' -v id='\#(Self.claude)' 'index($3, "--resume " id) {print $1; exit}'); [ -n "$s" ] && portal open -s "$s" || portal open -p '/Users/lee/Code/leeway' -- claude --resume '\#(Self.claude)'"#)
+        #expect(try await Self.line(command, window) == #"s=$(portal hook list | awk -F'\t' -v id='\#(Self.claude)' 'index($3, "--resume " id) {print $1; exit}'); [ -n "$s" ] && portal open -s "$s" || portal open -p '/Users/me/Code/proseware' -- claude --resume '\#(Self.claude)'"#)
     }
 
     @Test func tmuxByTtyFillsAsWritten() async throws {
         let command = "t=$(tmux list-panes -a -F '#{pane_tty} #{session_name}' | awk -v d={tty} '$1==d {print $2; exit}'); [ -n \"$t\" ] && tmux attach -t \"$t\" || tmux new -c {dir} claude --resume {claude}"
-        let window = Board.LastWindow(writer: Self.claude, directory: "/Users/lee/Code/leeway")
+        let window = Board.LastWindow(writer: Self.claude, directory: "/Users/me/Code/proseware")
         let filled = { (tty: String) in
-            "t=$(tmux list-panes -a -F '#{pane_tty} #{session_name}' | awk -v d='\(tty)' '$1==d {print $2; exit}'); [ -n \"$t\" ] && tmux attach -t \"$t\" || tmux new -c '/Users/lee/Code/leeway' claude --resume '\(Self.claude)'"
+            "t=$(tmux list-panes -a -F '#{pane_tty} #{session_name}' | awk -v d='\(tty)' '$1==d {print $2; exit}'); [ -n \"$t\" ] && tmux attach -t \"$t\" || tmux new -c '/Users/me/Code/proseware' claude --resume '\(Self.claude)'"
         }
 
         #expect(ResumeCommand(command).problem == nil)

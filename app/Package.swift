@@ -27,11 +27,11 @@ let package = Package(
         /// What the real CLI printed over a board seeded in a scratch folder, for the tests to read.
         .target(name: "SitRepLines", path: "Tests/SitRepLines", resources: [.copy("Printed")]),
         /// What the tests share, of no target of the app's: defaults held in memory, a clock the test moves, the waits
-        /// on a condition, and the lines of `sitrep watch`, typed.
+        /// on a condition, the lines of `sitrep watch`, typed, and the names no test may use.
         .target(name: "SitRepTestSupport", path: "Tests/SitRepTestSupport"),
         /// What the tests that measure the strip share: its measure of one width.
         .target(name: "SitRepPanelTestSupport", dependencies: ["SitRepPanel"], path: "Tests/SitRepPanelTestSupport"),
-        /// What the real `claude plugin` printed on this Mac, read-only, for the plugin's setup.
+        /// `claude plugin`'s lists in the shape this Mac printed them, read-only, for the plugin's setup.
         .testTarget(
             name: "SitRepCoreTests", dependencies: ["SitRepCore", "SitRepLines", "SitRepTestSupport"],
             resources: [.copy("Claude")]

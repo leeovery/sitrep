@@ -160,7 +160,7 @@ struct CaptionWindowTests {
 
         defer { caption.window.close() }
         caption.heard(.still)
-        caption.heard(.ended(.refused("Fumi is not on screen.")))
+        caption.heard(.ended(.refused("Wingtip is not on screen.")))
         for _ in 0 ..< 40 where caption.says != nil {
             try await Task.sleep(for: .milliseconds(100))
         }

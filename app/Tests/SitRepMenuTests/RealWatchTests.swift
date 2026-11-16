@@ -11,7 +11,7 @@ struct RealWatchTests {
     /// Its click goes to the away session, for the jump to carry it on (stage 8).
     @Test func aNewAskSendsANoticeNamingItsProjectAndSession() {
         #expect(Notices.due(Self.asked, .notifyingAsks) == [
-            Banner(title: "Choose how long the ledger keeps requests", subtitle: "Switchboard · Usage", body: "", work: "sr-k3dg0r"),
+            Banner(title: "Choose how long the ledger keeps requests", subtitle: "Woodgrove · Usage", body: "", work: "sr-k3dg0r"),
         ])
     }
 
@@ -29,7 +29,7 @@ struct RealWatchTests {
         #expect(menu.glyph == .lit)
     }
 
-    /// Kit's window waiting on a wake due at 1_792_670_195_432, and SitRep's on three agents.
+    /// Litware's window waiting on a wake due at 1_792_670_195_432, and Trey Research's on three agents.
     @Test func aRowOnItsOwnWorkIsFaintItsSubjectPlainAndAWakeCountedDownAsItTicks() {
         let menu = MenuBoard(heard([.line(Lines.onItsWork)]), clock: london)
         let rows = menu.items.compactMap(\.session)
@@ -48,30 +48,30 @@ struct RealWatchTests {
         let menu = MenuBoard(heard([.line(Lines.watch[0])]), clock: london)
 
         #expect(menu.heading == "7 need you")
-        #expect(menu.items.map(\.key) == ["needs:sr-macapp", "needs:sr-dash02", "needs:sr-gs7kq2", "turn:sr-rq7dgr"])
+        #expect(menu.items.map(\.key) == ["needs:sr-m4h6qe", "needs:sr-d6k1vt", "needs:sr-g2r8mw", "turn:sr-rq7dgr"])
         #expect(menu.reloads.isEmpty)
     }
 
-    /// Harness's three asks are one item, its session's name then "3"; Switchboard's ask and permission prompt one,
-    /// "2"; Goosemates' one away ask its name alone; then the session at Lee's turn, in Needs you, 7 needing him.
+    /// Tailspin's three asks are one item, its session's name then "3"; Woodgrove's ask and permission prompt one,
+    /// "2"; Lucerne's one away ask its name alone; then the session at Lee's turn, in Needs you, 7 needing him.
     @Test func aSessionWithSeveralLinesIsOneItemItsNameThenHowManyWait() {
         let menu = MenuBoard(heard([.line(Lines.bySession[0])]), clock: london)
         let rows = menu.items.compactMap(\.session)
 
         #expect(menu.heading == "7 need you")
-        #expect(rows.map(\.id) == ["sr-4g01a7", "sr-dash02", "sr-gs7kq2", "sr-v3t7a0", "sr-macapp", "sr-k7bt2s"])
-        #expect(rows[0].menuTitle(at: 0) == "Finish the Harness modernisation 3")
+        #expect(rows.map(\.id) == ["sr-4t2kq8", "sr-d6k1vt", "sr-g2r8mw", "sr-v9d2wj", "sr-m4h6qe", "sr-k7bt2s"])
+        #expect(rows[0].menuTitle(at: 0) == "Finish the Tailspin migration 3")
         #expect(rows[1].menuTitle(at: 0) == "Dashboard redesign 2")
         #expect(rows[2].menuTitle(at: 0) == "Onboarding")
-        #expect(rows.prefix(3).map(\.sub) == ["Harness", "Switchboard", "No window holds it. Carry it on in Claude."])
+        #expect(rows.prefix(3).map(\.sub) == ["Tailspin", "Woodgrove", "No window holds it. Carry it on in Claude."])
     }
 
-    /// The fourth ask posted into Harness's session, its row's newest line: a notice of its own, naming the session.
+    /// The fourth ask posted into Tailspin's session, its row's newest line: a notice of its own, naming the session.
     @Test func aNewAskInASessionWithOthersWaitingSendsANoticeOfItsOwn() {
         #expect(Notices.due(heard(Lines.bySession.map(Heard.line)), .notifyingAsks) == [
             Banner(
-                title: "Choose the branch the fixes land on", subtitle: "Harness · Finish the Harness modernisation",
-                body: "", work: "sr-4g01a7"
+                title: "Choose the branch the fixes land on", subtitle: "Tailspin · Finish the Tailspin migration",
+                body: "", work: "sr-4t2kq8"
             ),
         ])
     }

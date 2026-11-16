@@ -69,7 +69,7 @@ struct DottedRingTests {
 
     /// The countdown is set again as it reads differently: "Wakes in 12m" narrows to "Wakes now" as the wake comes due.
     @Test func theCardsWakeCountsDownAsTheClockTicks() throws {
-        let wake = Session(id: "a", project: "Kit", kind: .onItsWork, title: "Wakes ", until: 1_000_000, sub: "", since: 0)
+        let wake = Session(id: "a", project: "Litware", kind: .onItsWork, title: "Wakes ", until: 1_000_000, sub: "", since: 0)
         let row = SessionRow(wake, size: Self.cardSize)
         let title = Self.title(of: "SitRep")
 

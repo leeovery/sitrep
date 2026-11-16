@@ -1,10 +1,10 @@
 import Foundation
 
 /// What the real CLI printed on 20 October 2026, run over a board seeded in a scratch `XDG_STATE_HOME` of its own
-/// (SitRep's "The Mac app", a window working on it, with a yes, a choice and a words ask waiting, one closed by Lee's
-/// answer and one Claude resolved; Switchboard's two windows, one stopped on a permission prompt; Goosemates' away
-/// session with a choice waiting; Kit's away one with nothing): `watch`, its four lines: the first; the yes answered
-/// and the words ask ignored, both on their way; both delivered; and Goosemates' session finished.
+/// (Trey Research's "The desktop app", a window working on it, with a yes, a choice and a words ask waiting, one
+/// closed by Lee's answer and one Claude resolved; Woodgrove's two windows, one stopped on a permission prompt;
+/// Lucerne's away session with a choice waiting; Litware's away one with nothing): `watch`, its four lines: the first;
+/// the yes answered and the words ask ignored, both on their way; both delivered; and Lucerne's session finished.
 ///
 /// `watch`'s lines printed before its version 2 (`watch`, `newAsk`, `onItsWork`) had their rows grouped by session on
 /// 22 October 2026 by core's own order and head, every other field as printed; the same regrouping of version 1's lines
@@ -14,6 +14,11 @@ import Foundation
 ///
 /// Every line here printed before 27 October 2026 was moved to version 3 that day as the CLI moved, every other field
 /// as printed: a line's `changed` gave way to `boards`, `{}`, as nothing was followed.
+///
+/// On 16 November 2026 every line here had Lee's real work renamed to placeholders, every other field as printed:
+/// its projects' names, keys and folders, and each row's `letters` and `second` after them, by core's `lettersOf`
+/// and `slug`; its session ids, and the keys that hold them; `pretty`'s window ids, ttys and tmux pane; and the
+/// titles, summaries and notes that named real work. No row moved: each line keeps the order it was printed in.
 public enum Lines {
     /// A line of `sitrep watch`, as the CLI printed it but pretty: Lee's board of 19 October 2026 cut to three
     /// sessions, an ask, a permission prompt and a turn, the prompt new on it, and moved to version 3 as the lines
@@ -22,31 +27,31 @@ public enum Lines {
     public static let pretty = printed("watch-pretty.json").trimmingCharacters(in: .newlines)
 
     /// The first line the real `sitrep watch` printed on 20 October 2026, run once over a board seeded in a scratch
-    /// `XDG_STATE_HOME`: SitRep's ask, which a window holds, and Switchboard's, which none does. Its rows grouped by
-    /// session as version 2 printed them, and moved to version 3 (above), every other field as printed.
+    /// `XDG_STATE_HOME`: Trey Research's ask, which a window holds, and Woodgrove's, which none does. Its rows grouped
+    /// by session as version 2 printed them, and moved to version 3 (above), every other field as printed.
     public static let twoAsks = printed("watch-two-asks.jsonl").trimmingCharacters(in: .newlines)
 
     /// `sitrep watch`'s first two lines at version 2, rows by session, over a board of its own run on 22 October 2026:
-    /// Harness's Finish the Harness modernisation, its window working, three asks waiting; Switchboard's Dashboard
-    /// redesign, a words ask and its window stopped on a permission prompt since; Goosemates' Onboarding, away, a
-    /// choice waiting; SitRep's The Mac app working; Kit's The bootstrap on its own work; Fumi's Licensing discussion
-    /// on your turn. Then a fourth ask posted into Harness's session, new on the second line.
+    /// Tailspin's Finish the Tailspin migration, its window working, three asks waiting; Woodgrove's Dashboard
+    /// redesign, a words ask and its window stopped on a permission prompt since; Lucerne's Onboarding, away, a choice
+    /// waiting; Trey Research's The desktop app working; Litware's The bootstrap on its own work; Wingtip's Licensing
+    /// discussion on your turn. Then a fourth ask posted into Tailspin's session, new on the second line.
     public static let bySession = printed("watch-by-session.jsonl").split(separator: "\n").map(String.init)
 
     /// `sitrep watch`'s lines, in the order it printed them.
     public static let watch = printed("watch.jsonl").split(separator: "\n").map(String.init)
 
-    /// `sitrep watch`'s first two lines over a board of its own, run the same day: Switchboard's Usage session, away,
+    /// `sitrep watch`'s first two lines over a board of its own, run the same day: Woodgrove's Usage session, away,
     /// then an ask posted into it, new on the second line.
     public static let newAsk = printed("watch-new-ask.jsonl").split(separator: "\n").map(String.init)
 
-    /// `sitrep watch`'s first line over a board of its own, run on 22 October 2026: SitRep's The Mac app, its window
-    /// on its own work waiting on three agents, and Kit's The bootstrap, its window waiting on a one-off wake 12
-    /// minutes off, its row first.
+    /// `sitrep watch`'s first line over a board of its own, run on 22 October 2026: Trey Research's The desktop app,
+    /// its window on its own work waiting on three agents, and Litware's The bootstrap, its window waiting on a one-off
+    /// wake 12 minutes off, its row first.
     public static let onItsWork = printed("watch-on-its-work.jsonl").trimmingCharacters(in: .newlines)
 
-    /// `sitrep watch`'s three lines over a board of its own, run on 23 October 2026: Harness's Finish the Harness
-    /// modernisation, away, three asks posted, k1 snoozed until five seconds on and k2 for an hour, k3 waiting, so the
+    /// `sitrep watch`'s three lines over a board of its own, run on 23 October 2026: Tailspin's Finish the Tailspin
+    /// migration, away, three asks posted, k1 snoozed until five seconds on and k2 for an hour, k3 waiting, so the
     /// session has a row in Needs you and one in Snoozed; then k1 woken at its time, new on the line; then k2 woken now
     /// by `sitrep wake`, back in Needs you and new on no line.
     public static let snoozed = printed("watch-snoozed.jsonl").split(separator: "\n").map(String.init)

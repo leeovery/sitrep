@@ -13,14 +13,14 @@ struct SnoozedTests {
     @Test func aSnoozedRowIsItsSessionItsAsksAsleepTheSoonestFirstAndWhenTheSoonestWakes() throws {
         let row = try #require(try Self.line(0).snoozed.first)
 
-        #expect(row.session == "sr-4g01a7")
+        #expect(row.session == "sr-4t2kq8")
         #expect(row.isAway)
-        #expect(row.project == "harness")
-        #expect(row.name == "Finish the Harness modernisation")
-        #expect(row.projectName == "Harness")
-        #expect(row.letters == "Ha")
+        #expect(row.project == "tailspin")
+        #expect(row.name == "Finish the Tailspin migration")
+        #expect(row.projectName == "Tailspin")
+        #expect(row.letters == "Ta")
         #expect(row.second == "No window holds it. Carry it on in Claude.")
-        #expect(row.lines.map(\.key) == ["ask:sr-4g01a7:k1", "ask:sr-4g01a7:k2"])
+        #expect(row.lines.map(\.key) == ["ask:sr-4t2kq8:k1", "ask:sr-4t2kq8:k2"])
         #expect(row.lines.map(\.ask) == ["k1", "k2"])
         #expect(row.lines.map(\.first.lead) == ["Review the plan", "Pick when stage 2 runs"])
         #expect(row.lines.map(\.since) == [at(1_792_740_927_000), at(1_792_741_027_000)])
@@ -32,7 +32,7 @@ struct SnoozedTests {
     @Test func theSnoozedRowsAreApartFromTheRows() throws {
         let board = try Self.line(0)
 
-        #expect(board.rows.map(\.session) == ["sr-4g01a7"])
+        #expect(board.rows.map(\.session) == ["sr-4t2kq8"])
         #expect(board.rows[0].lines.map(\.ask) == ["k3"])
         #expect(board.head.needYou == 1)
     }
@@ -41,8 +41,8 @@ struct SnoozedTests {
     @Test func aWakeAtItsTimeIsNewAndAWakeNowIsNot() throws {
         let timed = try Self.line(1), now = try Self.line(2)
 
-        #expect(timed.new == ["ask:sr-4g01a7:k1"])
-        #expect(timed.newRows == ["sr-4g01a7"])
+        #expect(timed.new == ["ask:sr-4t2kq8:k1"])
+        #expect(timed.newRows == ["sr-4t2kq8"])
         #expect(timed.snoozed.map { $0.lines.map(\.ask) } == [["k2"]])
         #expect(now.new.isEmpty)
         #expect(now.newRows.isEmpty)

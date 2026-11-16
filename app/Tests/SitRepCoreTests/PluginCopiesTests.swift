@@ -1,5 +1,6 @@
 import Foundation
 @testable import SitRepCore
+import SitRepTestSupport
 import Testing
 
 /// A folder of its own for a test, gone once the test is done with it.
@@ -166,13 +167,11 @@ struct MarketplaceEntryTests {
     }
 
     @Test func sitrepsOwnMarketplaceHasItAtItsRoot() throws {
-        let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appending(path: "../../..").standardizedFileURL
-
-        #expect(MarketplaceEntry.sitrep(in: repository.path) == .within("./"))
+        #expect(MarketplaceEntry.sitrep(in: Repository.root.path) == .within("./"))
     }
 
     @Test func aPathIsWhereItIsWithinTheFolder() throws {
-        #expect(try Self.entry(#"{"plugins": [{"name": "kit"}, {"name": "sitrep", "source": "./sitrep"}]}"#) == .within("./sitrep"))
+        #expect(try Self.entry(#"{"plugins": [{"name": "litware"}, {"name": "sitrep", "source": "./sitrep"}]}"#) == .within("./sitrep"))
     }
 
     @Test func aSourceClaudeFetchesIsFetched() throws {
@@ -180,7 +179,7 @@ struct MarketplaceEntryTests {
     }
 
     @Test func noSitrepNoFileOrOneThatDoesNotReadIsNone() throws {
-        #expect(try Self.entry(#"{"plugins": [{"name": "kit", "source": "./kit"}]}"#) == nil)
+        #expect(try Self.entry(#"{"plugins": [{"name": "litware", "source": "./litware"}]}"#) == nil)
         #expect(try Self.entry("{") == nil)
         #expect(MarketplaceEntry.sitrep(in: Scratch().folder.path) == nil)
     }

@@ -11,7 +11,7 @@ import Testing
 /// it. The line typed; the terminal not running; whether a terminal shows it unknown; a second click; the focus after
 /// opening; the front kept; and stopping.
 struct OpenWindowTests {
-    private static let leeway = "agentic-workflows-v2 · leeway-build"
+    private static let proseware = "adventure-works-v2 · proseware-build"
     private static let claude = "b1c2d3e4-0000-4000-8000-000000000001"
     /// Lee's own command, through Portal: SitRep knows no Portal, only the command it is given.
     private static let portal = "portal open --claude {claude}"
@@ -20,21 +20,21 @@ struct OpenWindowTests {
         "SitRep opens a window only in a Ghostty already running. Open Ghostty, then click \(JumpWorld.named) again."
     )
 
-    /// The window the session is carried on from: Claude in Leeway's zmx session.
+    /// The window the session is carried on from: Claude in Proseware's zmx session.
     private static let held = Board.LastWindow(
-        writer: claude, where: inZmx(leeway), ownsDevice: true, directory: "/Users/lee/Code/leeway"
+        writer: claude, where: inZmx(proseware), ownsDevice: true, directory: "/Users/me/Code/proseware"
     )
 
     /// A zmx session with no client, only its server.
     private static func detachedZmx() -> FakeTable {
         var mac = Mac()
 
-        mac.throughPortal("kit", relay: "/dev/ttys032", window: "/dev/ttys036")
-        mac.zmxServer(leeway)
+        mac.throughPortal("litware", relay: "/dev/ttys032", window: "/dev/ttys036")
+        mac.zmxServer(proseware)
         return FakeTable(mac.tree)
     }
 
-    /// A world whose `sr-a` runs in Leeway's zmx session with no client, Lee's command given.
+    /// A world whose `sr-a` runs in Proseware's zmx session with no client, Lee's command given.
     private static func world(
         workspace: FakeWorkspace = FakeWorkspace(), running: Bool = true, failing: GhosttyFailure? = nil,
         windowFailing: GhosttyFailure? = nil, openings: RecentOpenings = RecentOpenings()
@@ -47,7 +47,7 @@ struct OpenWindowTests {
 
     /// A click on `sr-a`, held, no terminal showing it, then its window opened.
     private static func open(_ jumping: Jumping) async -> JumpAnswer {
-        await jumping.open([inZmx(leeway)], from: held, isHeld: true)
+        await jumping.open([inZmx(proseware)], from: held, isHeld: true)
     }
 
     // MARK: Openable, and opened
@@ -56,7 +56,7 @@ struct OpenWindowTests {
     @Test func aClickOnASessionNoTerminalHereShowsAnswersOpenableOpeningNothingItself() async {
         let jumping = Self.world()
 
-        #expect(await jumping.outcome([inZmx(Self.leeway)], from: Self.held, isHeld: true).answer == .openable)
+        #expect(await jumping.outcome([inZmx(Self.proseware)], from: Self.held, isHeld: true).answer == .openable)
         #expect(jumping.ghostty.told.isEmpty)
     }
 
@@ -78,7 +78,7 @@ struct OpenWindowTests {
             drivers: [.ghostty: jumping.driver, other: driver], workspace: jumping.workspace, clock: jumping.clock,
             opening: OpenSettings(terminal: other, resumeCommand: Self.portal)
         )
-        let outcome = await jump.click("sr-a", named: JumpWorld.named, at: [inZmx(Self.leeway)], from: Self.held, isHeld: true)
+        let outcome = await jump.click("sr-a", named: JumpWorld.named, at: [inZmx(Self.proseware)], from: Self.held, isHeld: true)
 
         #expect(await outcome.opening?.open() == .opened)
         #expect(driver.opened == [Self.portalLine])
@@ -102,14 +102,14 @@ struct OpenWindowTests {
         )
 
         return [
-            ("its zmx session unknown, the table not answering", [inZmx(leeway)], FakeTmux(), FakeTable(nil), couldNotTell("the process table")),
+            ("its zmx session unknown, the table not answering", [inZmx(proseware)], FakeTmux(), FakeTable(nil), couldNotTell("the process table")),
             ("tmux not answering", [inTmux()], FakeTmux(silent: true), FakeTable(Mac().tree), couldNotTell("tmux")),
             (
                 "tmux failing on its socket, a server it could not talk to", [inTmux()],
                 FakeTmux(failing: [socket: "protocol version mismatch (client 8, server 7)"]), FakeTable(Mac().tree), mismatch
             ),
             (
-                "tmux failing on one window's socket, though zmx holds another of its windows with no client", [inTmux(on: otherSocket), inZmx(leeway)],
+                "tmux failing on one window's socket, though zmx holds another of its windows with no client", [inTmux(on: otherSocket), inZmx(proseware)],
                 FakeTmux(failing: [otherSocket: "protocol version mismatch (client 8, server 7)"]), Self.detachedZmx(), mismatch
             ),
         ]
@@ -174,8 +174,8 @@ struct OpenWindowTests {
         let ghostty = FakeGhostty(namesNewWindow: namesWindow, focusFailing: focusFailure)
         let driver = GhosttyDriver(scripting: ghostty, workspace: FakeWorkspace(), clock: TestClock(passing: .jumpsPauses))
 
-        #expect(try await driver.openWindow(running: "attach kit", front: finder, sending: {}))
-        #expect(ghostty.opened == ["attach kit"])
+        #expect(try await driver.openWindow(running: "attach litware", front: finder, sending: {}))
+        #expect(ghostty.opened == ["attach litware"])
         #expect(ghostty.focused.isEmpty)
     }
 
@@ -185,7 +185,7 @@ struct OpenWindowTests {
     /// answers that its window is opening, and never opens another, nor asks Ghostty anything for one.
     @Test func aSecondClickWhileItsWindowOpensOpensNoOtherWindow() async throws {
         let line = try board([
-            WatchLine.Window.jumping(Self.claude, session: "sr-a", order: 0, zmx: Self.leeway, directory: "/Users/lee/Code/leeway"),
+            WatchLine.Window.jumping(Self.claude, session: "sr-a", order: 0, zmx: Self.proseware, directory: "/Users/me/Code/proseware"),
         ])
         let jumping = Self.world()
         let first = try #require(await jumping.jump.run(to: "sr-a", on: GivenBoard(line)).opening)
@@ -199,7 +199,7 @@ struct OpenWindowTests {
     @Test func anOpeningIsRememberedBeforeTheWindowIsAskedFor() async {
         let gate = Gate()
         let jumping = Jumping(FakeTmux(), Self.detachedZmx(), workspace: FakeWorkspace(frontHeld: gate))
-        let opened = Task { await jumping.opening("attach kit").open() }
+        let opened = Task { await jumping.opening("attach litware").open() }
 
         await until(within: .seconds(10)) { jumping.workspace.fronts == 1 }
         #expect(jumping.openings.isOpening("sr-a"))
@@ -217,7 +217,7 @@ struct OpenWindowTests {
             FakeTmux(), Self.detachedZmx(), workspace: FakeWorkspace(frontHeld: gate),
             openings: RecentOpenings(now: clock.now)
         )
-        let opened = Task { await jumping.opening("attach kit").open() }
+        let opened = Task { await jumping.opening("attach litware").open() }
 
         await until(within: .seconds(10)) { jumping.workspace.fronts == 1 }
         clock.move(by: .seconds(119))
@@ -231,9 +231,9 @@ struct OpenWindowTests {
     @Test func aSecondClickOnceTheWindowShowsItJumpsToIt() async throws {
         var mac = Mac()
 
-        mac.throughPortal(Self.leeway, relay: "/dev/ttys032", window: "/dev/ttys036")
+        mac.throughPortal(Self.proseware, relay: "/dev/ttys032", window: "/dev/ttys036")
 
-        let line = try board([WatchLine.Window.jumping("w1", session: "sr-a", order: 0, zmx: Self.leeway)])
+        let line = try board([WatchLine.Window.jumping("w1", session: "sr-a", order: 0, zmx: Self.proseware)])
         let openings = RecentOpenings()
         let jumping = Jumping(FakeTmux(), FakeTable(mac.tree), terminals: ownWindows(FakeTerminal(id: "PORTAL-TERMINAL", device: "/dev/ttys036")), openings: openings)
 
@@ -279,7 +279,7 @@ struct OpenWindowTests {
     @Test func anOpeningStoppedBeforeTheWindowIsAskedForSendsNothingAndIsForgotten() async {
         let gate = Gate()
         let jumping = Jumping(FakeTmux(), Self.detachedZmx(), workspace: FakeWorkspace(frontHeld: gate))
-        let opened = Task { await jumping.opening("attach kit").open() }
+        let opened = Task { await jumping.opening("attach litware").open() }
 
         await until(within: .seconds(10)) { jumping.workspace.fronts == 1 }
         opened.cancel()
@@ -295,7 +295,7 @@ struct OpenWindowTests {
     @Test func anOpeningStoppedOnceTheWindowWasAskedForIsRememberedAndLeftUnfocused() async {
         let gate = Gate()
         let jumping = Jumping(FakeTmux(), Self.detachedZmx(), windowHeld: gate)
-        let opened = Task { await jumping.opening("attach kit").open() }
+        let opened = Task { await jumping.opening("attach litware").open() }
 
         await until(within: .seconds(10)) { gate.arrived == 1 }
         opened.cancel()
@@ -303,14 +303,14 @@ struct OpenWindowTests {
 
         gate.open()
         await settle()
-        #expect(jumping.ghostty.told == ["open attach kit"])
+        #expect(jumping.ghostty.told == ["open attach litware"])
         #expect(jumping.openings.isOpening("sr-a"))
     }
 
     /// Given up before the window was asked for, none can come.
     @Test func anOpeningHasALimitOfItsOwnApartFromTheJumps() async {
         let jumping = Jumping(FakeTmux(), Self.detachedZmx(), workspace: FakeWorkspace(frontHeld: Gate()))
-        let opened = Task { await jumping.opening("attach kit").open() }
+        let opened = Task { await jumping.opening("attach litware").open() }
 
         await until(within: .seconds(10)) { jumping.clock.sleeps.contains(Opening.limit) }
         jumping.clock.pass(Opening.limit)
@@ -326,7 +326,7 @@ struct OpenWindowTests {
     @Test func anOpeningGivenUpOnceItsWindowWasAskedForSaysOneMayStillAppear() async {
         let gate = Gate()
         let jumping = Jumping(FakeTmux(), Self.detachedZmx(), windowHeld: gate)
-        let opened = Task { await jumping.opening("attach kit").open() }
+        let opened = Task { await jumping.opening("attach litware").open() }
 
         await until(within: .seconds(10)) { gate.arrived == 1 && jumping.clock.sleeps.contains(Opening.limit) }
         jumping.clock.pass(Opening.limit)

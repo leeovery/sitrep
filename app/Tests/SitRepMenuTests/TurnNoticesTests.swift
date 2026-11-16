@@ -22,9 +22,9 @@ struct TurnNoticesTests {
         .init("ask:sr-boot:k1", .ask, first: "Approve round 4", since: 1_792_445_500_000)
     )
 
-    /// Kit's The bootstrap, its row of this line.
+    /// Litware's The bootstrap, its row of this line.
     private static func bootstrap(_ line: WatchLine.Row.Line) -> WatchLine.Row {
-        WatchLine.Row(session: "sr-boot", name: "The bootstrap", projectName: "Kit", lines: [line])
+        WatchLine.Row(session: "sr-boot", name: "The bootstrap", projectName: "Litware", lines: [line])
     }
 
     /// A board of these rows.
@@ -111,7 +111,7 @@ struct TurnNoticesTests {
     @Test func itsNotificationSaysItIsLeesTurnAndCarriesTheSessionOn() {
         #expect(Notices.due(Self.ended, Self.turnsOn) == [
             Banner(
-                title: "Stopped", subtitle: "Kit · The bootstrap", body: "Write round 4 into DESIGN.md",
+                title: "Stopped", subtitle: "Litware · The bootstrap", body: "Write round 4 into DESIGN.md",
                 work: "sr-boot"
             ),
         ])
@@ -140,12 +140,12 @@ struct TurnNoticesTests {
     /// A board bringing a new ask and Lee's turn plays the ask's sound alone, once.
     @Test func aNewAsksSoundPlaysOverNoTurnsOnTheSameBoard() {
         let other = WatchLine.Row(
-            session: "sr-other", name: "Other", projectName: "Kit",
+            session: "sr-other", name: "Other", projectName: "Litware",
             lines: [.init("work:sr-other", .working, first: "Writing", since: 1_792_445_000_000)]
         )
         let both = heard([
             Self.line(Self.working, other),
-            .line(Watched.line(rows: [Watched.rows[0], Self.turn(), other], new: ["ask:sr-ledger:k1"])),
+            .line(Watched.line(rows: [Watched.rows[0], Self.turn(), other], new: ["ask:sr-l5c9tz:k1"])),
         ])
 
         #expect(both.newTurns == ["sr-boot"])
