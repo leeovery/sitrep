@@ -1,6 +1,7 @@
 import AppKit
 @testable import SitRep
 import SitRepCore
+import SitRepTestSupport
 import Testing
 
 /// The jump's caption stays on the screen, and so on every Space, from the moment it is made, as the notch's window
@@ -31,6 +32,16 @@ struct CaptionWindowTests {
         #expect(caption.window.isVisible)
         #expect(caption.window.alphaValue == 0)
         #expect(caption.window.ignoresMouseEvents)
+    }
+
+    /// Core Animation's own animations, as the app plays them: its real fade ends, and the window is clear.
+    @Test func onCoreAnimationItHidesAsItsFadeEnds() async {
+        let caption = Self.showing(CoreAnimations())
+
+        defer { caption.window.close() }
+        #expect(caption.window.alphaValue == 1)
+        await until(within: .seconds(20)) { caption.window.alphaValue == 0 }
+        #expect(caption.says == nil)
     }
 
     @Test func playedToItsEndItStaysOnTheScreenClear() {
@@ -180,7 +191,7 @@ struct CaptionWindowTests {
     }
 
     /// Its animations played out only as the test says.
-    private static func shown(_ animations: SteppedAnimations = SteppedAnimations()) -> CaptionWindow {
+    private static func shown(_ animations: any LayerAnimations = SteppedAnimations()) -> CaptionWindow {
         let caption = CaptionWindow(animations: animations)
 
         caption.over = over
@@ -189,7 +200,7 @@ struct CaptionWindowTests {
     }
 
     /// A caption on its way, due 90ms from now as a jump from a row answers at once.
-    private static func showing(_ animations: SteppedAnimations = SteppedAnimations()) -> CaptionWindow {
+    private static func showing(_ animations: any LayerAnimations = SteppedAnimations()) -> CaptionWindow {
         let caption = shown(animations)
 
         caption.jumping(to: "Trey Research")
@@ -199,18 +210,22 @@ struct CaptionWindowTests {
     }
 }
 
-/// A layer's animations added to it, and played out, each taken off and its end told, only as the test says, as the
-/// render server would at their ends.
+/// A layer's animations added to it, and played out, each taken off and its end told, only as the test says. One added
+/// under the key of one playing takes its place, whose end is told at once, as Core Animation tells it.
 @MainActor
 private final class SteppedAnimations: LayerAnimations {
     private var playing: [(layer: CALayer, key: String, ended: @MainActor () -> Void)] = []
 
     func add(_ animation: CAAnimation, to layer: CALayer, forKey key: String, ended: @escaping @MainActor () -> Void) {
+        let replaced = playing.filter { $0.layer === layer && $0.key == key }
+
+        playing.removeAll { $0.layer === layer && $0.key == key }
         layer.add(animation, forKey: key)
         playing.append((layer, key, ended))
+        replaced.forEach { $0.ended() }
     }
 
-    /// Every animation added played to its end.
+    /// Every animation playing played to its end.
     func playOut() {
         let played = playing
 

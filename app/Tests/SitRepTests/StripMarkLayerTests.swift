@@ -157,15 +157,30 @@ struct StripMarkLayerTests {
     @Test(arguments: [1.0, 1.2, 0.9])
     func everyArcTurnsInStepByTheClock(period: Double) throws {
         let first = Arc(), later = Arc()
-        let now = CACurrentMediaTime(), after = 7.3
+        let now = 86_400.25, after = 7.3
 
         first.turn(every: period, at: now)
         later.turn(every: period, at: now + after)
+        #expect(try Self.offset(of: first) == Arc.phase(every: period, at: now))
 
         let gap = try Self.offset(of: later) - Self.offset(of: first) - after
-        let drift = abs(gap - (gap / period).rounded() * period)
 
-        #expect(drift < 1e-9)
+        #expect(abs(gap - (gap / period).rounded() * period) < 1e-9)
+    }
+
+    /// Unless told the time, an arc reads the display's clock, in seconds, as `MenuTurn` does: its turn starts where
+    /// that clock was in its period as it started, between the moments before and after.
+    @Test(arguments: [1.0, 1.2, 0.9])
+    func anArcTurnsByTheDisplaysClock(period: Double) throws {
+        let arc = Arc()
+        let before = CACurrentMediaTime()
+
+        arc.turn(every: period)
+
+        let after = CACurrentMediaTime()
+        let since = try Self.offset(of: arc) - Arc.phase(every: period, at: before)
+
+        #expect((since + period).truncatingRemainder(dividingBy: period) <= after - before + 1e-9)
     }
 
     /// Where in its turn an arc's turn starts.

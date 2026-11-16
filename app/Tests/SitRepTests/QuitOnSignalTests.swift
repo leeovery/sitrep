@@ -20,25 +20,36 @@ struct QuitOnSignalTests {
     /// default is back at once, so a second one ends SitRep, and, its three seconds' grace over, SitRep is ended in any
     /// case, and not before.
     @Test func aSignalToStopQuitsAsQuitDoesAndEndsItAfterItsGrace() async {
-        let clock = TestClock(passing: [])
+        let graces = Graces()
         let quits = Quits()
         let ends = Ends()
-        let quitting = QuitOnSignal(SIGUSR2) { quits.count += 1 } end: { ends.add($0) } sleep: {
-            try await clock.sleep(for: $0)
-        }
+        let quitting = QuitOnSignal(SIGUSR2) { quits.count += 1 } end: { ends.add($0) } after: { graces.add($0, $1) }
 
         defer { quitting.stop() }
         #expect(Self.handler(of: SIGUSR2) == 1)
         kill(getpid(), SIGUSR2)
-        // the grace begins off the main actor once the quit is sent to it: one waited on in time, the other in turns
-        await until(within: .seconds(10)) { clock.sleeps == [.seconds(3)] }
+        // The signal is heard on another thread, which sends the quit to the main actor and then sets the grace. So
+        // wait for the grace by the clock, then give the main actor turns to run the quit.
+        await until(within: .seconds(10)) { graces.waits == [.seconds(3)] }
         await until(turns: 100) { quits.count == 1 }
         #expect(Self.handler(of: SIGUSR2) == 0)
         #expect(ends.all.isEmpty)
-        clock.pass(.seconds(3))
-        await until(within: .seconds(10)) { !ends.all.isEmpty }
+        graces.pass()
         #expect(quits.count == 1)
         #expect(ends.all == [SIGUSR2])
+    }
+
+    /// Its grace runs off the main thread, so it ends a SitRep whose main thread never answers: here the main thread is
+    /// held from the signal until SitRep is ended, so the quit sent to it never runs.
+    @Test func theGraceEndsItWhileTheMainThreadIsStuck() {
+        let ended = DispatchSemaphore(value: 0)
+        let quits = Quits()
+        let quitting = QuitOnSignal(SIGUSR2, grace: .milliseconds(20)) { quits.count += 1 } end: { _ in ended.signal() }
+
+        defer { quitting.stop() }
+        kill(getpid(), SIGUSR2)
+        #expect(ended.wait(timeout: .now() + 10) == .success)
+        #expect(quits.count == 0)
     }
 
     /// Stopped, as a test stops it, it leaves the signal at its default, never ignored.
@@ -53,6 +64,28 @@ struct QuitOnSignalTests {
     @MainActor
     private final class Quits {
         var count = 0
+    }
+
+    /// The graces set, each ended only as the test passes them.
+    private final class Graces: @unchecked Sendable {
+        private let lock = NSLock()
+        private var set: [(wait: Duration, then: @Sendable () -> Void)] = []
+
+        var waits: [Duration] { lock.withLock { set.map(\.wait) } }
+
+        func add(_ wait: Duration, _ then: @escaping @Sendable () -> Void) {
+            lock.withLock { set.append((wait, then)) }
+        }
+
+        /// Every grace set passes, and what it waited to do is done.
+        func pass() {
+            let passing = lock.withLock {
+                defer { set = [] }
+                return set
+            }
+
+            passing.forEach { $0.then() }
+        }
     }
 
     /// The signals `end` was given, from the queue it runs on.

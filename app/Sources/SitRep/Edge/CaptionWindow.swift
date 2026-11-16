@@ -35,7 +35,7 @@ final class CaptionWindow {
     /// Its window: internal only for the tests, which read which way the pill drifts in it.
     let window: EdgeWindow
 
-    init(animations: any LayerAnimations = RenderServer()) {
+    init(animations: any LayerAnimations = CoreAnimations()) {
         let root = CALayer()
 
         self.animations = animations
@@ -217,16 +217,16 @@ final class CaptionWindow {
     private static let fill = CGColor(srgbRed: 16 / 255, green: 16 / 255, blue: 20 / 255, alpha: 0.84)
 }
 
-/// Where a layer's animations play: Core Animation's render server (`RenderServer`), or a test's own, which plays them
-/// out as the test says.
+/// Where a layer's animations play: Core Animation's (`CoreAnimations`), or a test's own, which plays them out as the
+/// test says.
 @MainActor
 protocol LayerAnimations {
     /// The animation added to the layer under the key, `ended` called once it has played out or been taken off.
     func add(_ animation: CAAnimation, to layer: CALayer, forKey key: String, ended: @escaping @MainActor () -> Void)
 }
 
-/// Core Animation's own, each animation's end its transaction's completion.
-struct RenderServer: LayerAnimations {
+/// Core Animation's own: each animation added in a transaction of its own, whose completion is its end.
+struct CoreAnimations: LayerAnimations {
     func add(_ animation: CAAnimation, to layer: CALayer, forKey key: String, ended: @escaping @MainActor () -> Void) {
         CATransaction.begin()
         CATransaction.setCompletionBlock {

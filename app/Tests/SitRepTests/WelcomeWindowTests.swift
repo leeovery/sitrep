@@ -669,6 +669,33 @@ struct WelcomeWindowTests {
         #expect(try #require(stage.row).x < Strip.restingWidth)
     }
 
+    /// The strip's length changed while the pointer rests on the ask's mark sends the mark elsewhere before the strip
+    /// has begun to move: the pointer goes where the mark now goes from the change's own frame, never where it was.
+    @Test func aChangeThatMovesTheMarkMovesThePointerAtOnce() throws {
+        let made = Made()
+        let stage = try made.stage
+
+        made.preferences.edit { $0.show = .strip }
+        Self.settle(stage, on: made.clock)
+        Self.key(made)
+        while stage.loopTime < WelcomeLoop.hello.onRow + 300 {
+            stage.step(at: made.clock.pass(1000 / 60))
+        }
+
+        let before = try #require(stage.row)
+
+        made.preferences.edit { $0.length = .full }
+        stage.step(at: made.clock.pass(1000 / 60))
+
+        let moved = try #require(stage.row)
+
+        for _ in 0 ..< 40 {
+            stage.step(at: made.clock.pass(1000 / 60))
+        }
+        #expect(moved != before)
+        #expect(stage.row == moved)
+    }
+
     /// The strip centres where the notch sits on the stage, Paper's place, wherever Lee dragged his own, so the
     /// callout points at it.
     @Test func theStagesStripCentresWhereTheCalloutPoints() async throws {

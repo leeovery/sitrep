@@ -182,10 +182,11 @@ enum WelcomeWorld {
 
         func run(_ link: CADisplayLink) {}
 
-        /// The clock moved on to the wake's time, a microsecond past it, and the wake fired: a timer never fires before
-        /// its time, so the stage wakes past what it woke for, however its sums round.
+        /// The clock moved on to a microsecond past the wake's time, never back, and the wake fired. Not to the very time:
+        /// the stage's `loopTime += time - lastTime` can round to a hair short of the beat it woke for, and it would set
+        /// a wake for that hair, which rounds to the same time, and so on for ever, as this clock moves only as told.
         func fire(_ wake: Wake) {
-            now = wake.due + 0.001
+            now = max(now, wake.due + 0.001)
             wake.fire()
         }
 
