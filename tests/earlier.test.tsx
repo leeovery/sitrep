@@ -4,10 +4,9 @@ import type { Body } from '../core'
 import { C } from '../hooks/look'
 import { WATCH_MS } from '../hooks/window'
 import { rowsOf } from './drawn'
-import { HOUR, MIN, T0, W2 } from './data'
+import { HELD, heldItem, HOUR, MIN, T0, W2 } from './data'
 import { choiceAsk, delivered, file, reply, resolve, yesAsk, type Line } from './lines'
-import { HELD } from './filing'
-import { heldItem, pane, sceneFrom, type Drawn } from './render'
+import { pane, sceneFrom, type Drawn } from './render'
 import { ACROSS, DOCKED, postedId, world, type World } from './world'
 
 tier('user')

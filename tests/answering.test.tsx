@@ -16,9 +16,9 @@ import {
   OUTPUT,
 } from './answers'
 import { rowsOf } from './drawn'
-import { CLOSES, FRAMES, GO, LEDGER, PROJECT, ROOT, T0, W1, W2, W3 } from './data'
+import { CLOSES, FRAMES, GO, heldItem, LEDGER, PROJECT, ROOT, T0, W1, W2, W3 } from './data'
 import { askOf, delivered, file, finish, kindAsk, note, park, reply, type Line } from './lines'
-import { heldItem, pane, sceneFrom } from './render'
+import { pane, sceneFrom } from './render'
 import { asked, BAND, CONVERSATION, DOCKED, postedId, world, type Board, type World } from './world'
 
 tier('user')

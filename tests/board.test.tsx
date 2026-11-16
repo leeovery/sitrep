@@ -1,9 +1,8 @@
 import { expect, test, tier } from './kit'
 import { C } from '../hooks/look'
 import { projectPlace } from '../hooks/places'
-import { MIN, PROJECT, REVIEW, T0, type Asked } from './data'
+import { HELD, MIN, PROJECT, REVIEW, T0, type Asked } from './data'
 import { askOf, park, resolve, status } from './lines'
-import { HELD } from './filing'
 import { pane, sceneFrom, type Drawn } from './render'
 import { asked, CONVERSATION, DOCKED, INLINE, postedId, SURFACES, world } from './world'
 

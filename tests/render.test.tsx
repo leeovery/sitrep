@@ -1,12 +1,24 @@
 import type { RenderPropsOf, RenderSurface } from 'claude-code'
 import type { ElementQuery, FoundElement } from 'claude-code/testing'
 import { expect, test, tier, type Engine } from './kit'
+import { STALE_MS } from '../core'
 import { PANE } from '../hooks/pane'
-import { ELSEWHERE, LEDGER, meta, REVIEW, SHIFTS, T0, THEMES, W3 } from './data'
-import { HELD } from './filing'
-import { askOf, note, park, resolve, yesAsk, type Line } from './lines'
-import { heldItem, pane, sceneFrom, type Desk, type Drawn } from './render'
-import { ACROSS, CONVERSATION, DOCKED, INLINE, toProject, WIDE, world, type World } from './world'
+import { itemKey } from '../hooks/places'
+import { TICK_MS } from '../hooks/scene'
+import { ELSEWHERE, HELD, heldItem, LEDGER, meta, REVIEW, SHIFTS, T0, THEMES, W3 } from './data'
+import { askOf, note, park, resolve, wordsAsk, yesAsk, type Line } from './lines'
+import { pane, sceneFrom, type Desk, type Drawn } from './render'
+import {
+  ACROSS,
+  CONVERSATION,
+  DOCKED,
+  INLINE,
+  toProject,
+  turnEnded,
+  WIDE,
+  world,
+  type World,
+} from './world'
 
 tier('user')
 
@@ -65,8 +77,8 @@ const closed = (id: string, title: string): Line[] => [
 ]
 
 /**
- * This session with something parked, four asks closed, one open and a
- * note; beside it, two more sessions of Northwind's, one of Contoso's and
+ * This session with something parked, four asks closed, two open, one
+ * wanting words, and a note; beside it, two more sessions of Northwind's, one of Contoso's and
  * one of Fabrikam's, each asking or parking or noting.
  */
 const DESK: Desk = {
@@ -77,6 +89,7 @@ const DESK: Desk = {
     ...closed('k4', 'Purge the cache'),
     ...closed('k5', 'Tag the release'),
     [T0, askOf('k2', REVIEW)],
+    [T0, wordsAsk('k6', 'Paste the build log', 'the log')],
     [T0, note('n1', 'PR #82 merged', ['6 files'])],
   ],
   around: [
@@ -112,17 +125,38 @@ async function joined($: Engine, w: World) {
   await w.call('join', { session: HELD.id })
 }
 
-/** The board drawn with no engine from the desk, the window's pane and Ready to send as the engine holds them now. */
-const pureOf = (
+/** The window's values in `$.state` as the engine holds them now, and its time. */
+const windowOf = (w: World): Desk => ({
+  pane: w.state.pane,
+  queue: w.state.queue,
+  sent: w.state.sent,
+  inFlight: w.flights(),
+  stopped: w.state.stopped,
+  answering: w.state.answering,
+  pulse: w.state.pulse,
+  flash: w.state.flash,
+  now: w.clock.now(),
+})
+
+/** The board drawn with no engine from the desk's files, the window's state as the engine holds it now. */
+const fromDesk = (
   w: World,
   props: RenderPropsOf['Pane'] = DOCKED,
   surface: RenderSurface = 'terminal',
-) =>
-  pane(
-    sceneFrom({ ...DESK, pane: w.state.pane, queue: w.state.queue, now: w.clock.now() }),
-    props,
-    surface,
-  )
+) => pane(sceneFrom({ ...DESK, ...windowOf(w) }), props, surface)
+
+/** The board drawn with no engine from the disk as the engine's window has left it, and its state as it holds it now. */
+const fromDisk = (w: World) => pane(sceneFrom({ files: w.files, ...windowOf(w) }))
+
+/**
+ * What Lee did, then a tick's time: the watch, the look and the board's tick
+ * all come round as it ends, so the engine's board is drawn from reads made
+ * at the moment the scene drawn with no engine reads the files.
+ */
+const settled = async (w: World, done: Promise<unknown>) => {
+  await done
+  await w.clock.advance(TICK_MS)
+}
 
 /** Each surface's board, docked and inline, and the terminal's at each width a test draws it: every way the board lays itself out, a `Client` measuring it or not. */
 const DRAWN: readonly (readonly [RenderSurface, RenderPropsOf['Pane']])[] = [
@@ -136,7 +170,7 @@ const DRAWN: readonly (readonly [RenderSurface, RenderPropsOf['Pane']])[] = [
   ]),
 ]
 
-test("the board drawn with no engine from a desk's files is the engine's on every surface, docked and inline, at every width", async ($, on) => {
+test("the board drawn with no engine from a desk's files is the engine's on every surface, docked and inline, and on the terminal at every width a test draws it", async ($, on) => {
   const w = world($, on)
 
   await joined($, w)
@@ -151,38 +185,60 @@ test("the board drawn with no engine from a desk's files is the engine's on ever
     })
     const said = `${surface}, ${props.placement}, ${props.bodyColumns}`
 
-    expect(unstamped(surface, await pureOf(w, props, surface).drawn()), said).toEqual(
+    expect(unstamped(surface, await fromDesk(w, props, surface).drawn()), said).toEqual(
       unstamped(surface, await ui.drawn()),
     )
     await ui.unmount()
   }
 })
 
-test("the board drawn with no engine is the engine's wherever Lee takes it: an ask opened, a reply ready to send, RESOLVED in full, every project, another project and its session", async ($, on) => {
+test("the board drawn with no engine is the engine's wherever Lee takes it and whatever he does there: home, an ask opened and its yes queued, RESOLVED in full, the project, the ledger's view and its ask answered, a turn under way, both replies sent while it works, gone in once it ends and taken, All projects, Contoso's view and its session, an ask being answered, and the sessions around gone stale", async ($, on) => {
   const w = world($, on)
 
   await joined($, w)
 
   const ui = await w.opened()
+  const ledgers = itemKey(LEDGER.id, 'k3')
 
   for (const [where, go] of [
     ['home', async () => {}],
     ['an ask opened', () => ui.press({ key: `pick:${heldItem('k2')}` })],
-    ['a reply ready to send', () => ui.press({ key: `yes:${heldItem('k2')}` })],
+    ['its yes ready to send', () => ui.press({ key: `yes:${heldItem('k2')}` })],
     ['RESOLVED in full', () => ui.press({ key: `earlier:${HELD.id}` })],
     ['the project', () => toProject(ui)],
     ["the ledger's view", () => ui.press({ key: `go:${LEDGER.id}` })],
+    [
+      "the ledger's ask answered",
+      async () => {
+        await ui.press({ key: `pick:${ledgers}` })
+        await ui.press({ key: `yes:${ledgers}` })
+      },
+    ],
+    ['a turn under way', () => w.turnStarts('Carry on.')],
+    ['both replies sent, held while Claude works', () => settled(w, ui.press({ key: 'send' }))],
+    ['the turn ended, the replies gone in', () => settled(w, turnEnded(w))],
+    ['the message taken', () => settled(w, w.turnStarts(w.prompts.at(-1)?.text ?? 'no prompt'))],
     ['All projects', () => ui.press({ key: 'tab:all' })],
     ["Contoso's view", () => ui.press({ key: `proj:${ELSEWHERE.key}` })],
     ["Contoso's session", () => ui.press({ key: `go:${SHIFTS.id}` })],
+    [
+      'an ask being answered',
+      async () => {
+        await ui.press({ key: 'tab:session' })
+        await ui.press({ key: `pick:${heldItem('k6')}` })
+        await ui.press({ key: `answer:${heldItem('k6')}` })
+      },
+    ],
+    ['the sessions around gone stale', () => settled(w, w.clock.advance(STALE_MS))],
   ] as const) {
     await go()
-    expect(unstamped('terminal', await pureOf(w).drawn()), where).toEqual(
+    expect(unstamped('terminal', await fromDisk(w).drawn()), where).toEqual(
       unstamped('terminal', await ui.drawn()),
     )
   }
 
-  expect(w.state.queue, 'the reply waits in Ready to send').toHaveLength(1)
+  expect(w.state.sent, 'a reply on its way to the ledger').toHaveLength(1)
+  expect(w.state.answering, 'an ask being answered').not.toBeNull()
 })
 
 /** What a query finds, as a test reads it. */
@@ -220,7 +276,7 @@ test("a drawing with no engine finds what the kit's find and findAll find, and f
 
   await ui.press({ key: `pick:${heldItem('k2')}` })
 
-  const drawn: Drawn = pureOf(w)
+  const drawn: Drawn = fromDesk(w)
 
   for (const [query, isFound] of [
     ...FINDING.map(query => [query, true] as const),

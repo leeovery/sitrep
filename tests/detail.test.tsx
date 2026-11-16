@@ -4,10 +4,9 @@ import type { Body } from '../core'
 import { hoverScope } from '../hooks/draw/kit'
 import { C, GLYPH } from '../hooks/look'
 import { rowsOf } from './drawn'
-import { MIN, PROJECT, REVIEW, T0, type Asked } from './data'
+import { HELD, heldItem, MIN, PROJECT, REVIEW, T0, type Asked } from './data'
 import { askOf, note, park, status, type Line } from './lines'
-import { HELD } from './filing'
-import { heldItem, pane, sceneFrom, type Drawn } from './render'
+import { pane, sceneFrom, type Drawn } from './render'
 import { ACROSS, asked, world } from './world'
 
 tier('user')

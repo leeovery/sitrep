@@ -1,13 +1,12 @@
 /**
  * What the answering tests share (answering.test.tsx, and
  * answering-image.test.tsx for an answer with an image): the words ask,
- * Lee's Enter at the prompt and an image pasted there, the replies the
- * window wrote, and the board on an ask or a parked item being answered.
+ * Lee's Enter at the prompt and an image pasted there, and the board on an
+ * ask or a parked item being answered.
  */
 import type { PromptSubmitAttachment } from 'claude-code'
 import type { Engine } from './kit'
-import { parseEntries, sessionPaths } from '../core'
-import { LEDGER, MIN, PROJECT, ROOT, W1, type Asked } from './data'
+import { LEDGER, MIN, type Asked } from './data'
 import { park, wordsAsk, yesAsk } from './lines'
 import { asked, toProject, type World } from './world'
 
@@ -39,26 +38,6 @@ export const entered = (
 
 /** An image Lee pasted, as a plugin is given it: its kind, never its bytes or its path. */
 export const IMAGE: PromptSubmitAttachment = { type: 'image', mediaType: 'image/png' }
-
-/** The held session's folder. */
-export const heldPaths = (w: World) =>
-  sessionPaths(ROOT, PROJECT.key, w.state.attachment?.session ?? '')
-
-/** The replies written in the window's own file, by item, and whether a delivered mark names each. */
-export const writtenIn = (w: World) => {
-  const lines = parseEntries(w.text(heldPaths(w).log(W1)))
-  const marked = lines.flatMap(line => (line.type === 'delivered' ? line.replies : []))
-
-  return lines.flatMap(line =>
-    line.type === 'reply'
-      ? [{ item: line.item, verdict: line.verdict, isDelivered: marked.includes(line.id) }]
-      : [],
-  )
-}
-
-/** The state of an ask of the held session, as the board reads it. */
-export const stateOf = (w: World, id: string) =>
-  w.state.board?.asks.find(ask => ask.id === id)?.state
 
 /** Where a reply to an ask of the held session goes. */
 export const at = (w: World, item: string) => ({

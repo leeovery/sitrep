@@ -3,11 +3,12 @@ import { expect, test, tier } from './kit'
 import { C } from '../hooks/look'
 import { EVERY_PROJECT, projectPlace } from '../hooks/places'
 import { rowsOf } from './drawn'
-import { ELSEWHERE, GO, LEDGER, PROJECT, SHIFTS, T0, W4 } from './data'
+import { ELSEWHERE, GO, HELD, LEDGER, PROJECT, SHIFTS, T0, W4 } from './data'
 import { askOf, note, park, status, yesAsk } from './lines'
-import { HELD, type Neighbour } from './filing'
+import type { Neighbour } from './filing'
+import type { Element } from './matching'
 import { pane, sceneFrom, type Desk, type Drawn } from './render'
-import { INLINE, WIDE, world, type Board, type World } from './world'
+import { INLINE, toProject, WIDE, world, type Board, type World } from './world'
 
 tier('user')
 
@@ -52,11 +53,13 @@ const reach = async (ui: Board, place: SitrepPlace | null) => {
     return
   }
 
-  await ui.press({ key: 'tab:all' })
+  if (place.level === 'all') {
+    await ui.press({ key: 'tab:all' })
 
-  if (place.level !== 'all') {
-    await ui.press({ key: `proj:${place.project}` })
+    return
   }
+
+  await toProject(ui, place.project)
 
   if (place.level === 'session') {
     await ui.press({ key: `go:${place.session}` })
@@ -179,15 +182,21 @@ test('the two tabs are drawn the same in every place: the first lit at home, All
   }
 })
 
-/** The colour of a tab's count, the last thing in its box. */
+/** The colour of a tab's count of what waits there: the Text in its box that is a number. */
 const countColour = async (ui: Drawn, tab: string) => {
   const box = await ui.find({ type: 'Box', key: `${tab}:box` })
-  const count = box?.children.at(-1) as { props: { color?: string } } | undefined
+  const count = (box?.children as Element[] | undefined)?.find(
+    child => child.type === 'Text' && /^\d+$/.test(child.children?.join('') ?? ''),
+  )
 
-  return count?.props.color
+  if (count === undefined) {
+    throw new Error(`${tab}: count not found`)
+  }
+
+  return count.props.color
 }
 
-test("a tab's count is in the asks' colour while the tab is lit, and grey while it is not, in every place", async () => {
+test("each tab's count of what waits there is in the asks' colour while its tab is lit, and grey while it is not, in every place the board goes", async () => {
   for (const { name, place } of PLACES) {
     const ui = pane(lookingAt(ASKS_AROUND, place), WIDE)
     const [home, all] = name === 'home' ? [C.ask, C.grey] : [C.grey, C.ask]

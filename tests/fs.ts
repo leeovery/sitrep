@@ -1,10 +1,9 @@
 /**
  * A file system in memory: its files by path, and what the folders hold as
  * the files under them imply it. The mod's world and the CLI's each keep one,
- * and a pure test's host answers the mod from one as the engine would.
+ * and a pure test's host answers the mod from one (host.ts).
  */
 import type { FsEntry } from 'claude-code'
-import type { Host } from '../hooks/host'
 
 export type File = { text: string; mtimeMs: number }
 
@@ -56,21 +55,3 @@ export const listingIn = (files: ReadonlyMap<string, File>, dir: string): FsEntr
         }),
     isLink: false,
   }))
-
-/** The mod's file system over `files`, answering as the engine does with no engine beneath, what it writes stamped at `now`. */
-export const fsOn = (files: Map<string, File>, now: number): Host['fs'] => {
-  const refused = (path: string) => Promise.reject(new Error(missing(path)))
-
-  return {
-    read: async path => files.get(path)?.text ?? refused(path),
-    write: async (path, text) => {
-      files.set(path, { text, mtimeMs: now })
-    },
-    list: async dir => {
-      const listing = listingIn(files, dir)
-
-      return listing.length === 0 ? refused(dir) : listing
-    },
-    exists: async path => isThere(files, path),
-  }
-}

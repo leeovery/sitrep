@@ -5,6 +5,8 @@
  * board a pure test draws is read from the files an engine test's is.
  */
 import {
+  attach,
+  heartbeat,
   metaText,
   presenceText,
   projectPaths,
@@ -15,17 +17,9 @@ import {
   type SessionMeta,
   type SessionPaths,
 } from '../core'
-import { HELP_DESK, PROJECT, REPO, ROOT, T0, W1 } from './data'
+import { HELD, PLUGIN_VERSION, PROJECT, REPO, ROOT, T0, W1 } from './data'
 import { file, type Line } from './lines'
-
-/** The held session of a desk: Help desk redesign, filed under Northwind, started by this window at T0. */
-export const HELD: SessionMeta = {
-  id: 'sr-he1d00',
-  ...HELP_DESK,
-  root: REPO,
-  created: T0,
-  by: W1,
-}
+import { WHERE } from './world/conversation'
 
 /**
  * A session beside the held one: its meta, the lines its window wrote, its
@@ -46,6 +40,19 @@ export type DeskFiles = {
   writer?: string
   around?: readonly Neighbour[]
 }
+
+/**
+ * This window's presence on the held session as the mod's attach makes it
+ * (window.ts) in the world: attached at T0 in a Ghostty window, from
+ * Northwind's repository, on the plugin's version, its turn Lee's since then.
+ */
+export const HELD_BEAT = attach(W1, T0, {
+  where: WHERE,
+  directory: REPO,
+  version: PLUGIN_VERSION,
+  state: { is: 'yourTurn', since: T0 },
+  loadedAt: T0,
+})
 
 /** Writes a file. */
 export type Put = (path: string, text: string) => void
@@ -99,7 +106,7 @@ export const filing = (put: Put) => {
   /**
    * A desk at `now`: the sessions beside the held one, then the held one,
    * its lines in the file of the window `writer` names, and this window's
-   * heartbeat, attached at T0 and seen now.
+   * heartbeat as the mod writes it (HELD_BEAT), seen now.
    */
   const desk = ({ lines = [], writer = W1, around = [] }: DeskFiles, now: number) => {
     around.forEach(neighbour)
@@ -110,7 +117,7 @@ export const filing = (put: Put) => {
       log(paths, writer, lines)
     }
 
-    beat(paths, { writer: W1, attachedAt: T0, seenAt: now })
+    beat(paths, heartbeat(HELD_BEAT, now))
   }
 
   return { seed, log, beat, project, neighbour, desk }

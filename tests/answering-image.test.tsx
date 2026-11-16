@@ -8,14 +8,11 @@ import {
   at,
   entered,
   EXPORT,
-  heldPaths,
   IMAGE,
   LIST,
   onLedgersAsks,
   onLedgersParked,
   OUTPUT,
-  stateOf,
-  writtenIn,
 } from './answers'
 import { rowsOf } from './drawn'
 import {
@@ -37,6 +34,24 @@ import { beat, delivered, file, note, reply } from './lines'
 import { asked, CONVERSATION, lost, openAsk, pressYes, world, writeDoor, type World } from './world'
 
 tier('user')
+
+/** The held session's folder. */
+const heldPaths = (w: World) => sessionPaths(ROOT, PROJECT.key, w.state.attachment?.session ?? '')
+
+/** The replies written in the window's own file, by item, and whether a delivered mark names each. */
+const writtenIn = (w: World) => {
+  const lines = parseEntries(w.text(heldPaths(w).log(W1)))
+  const marked = lines.flatMap(line => (line.type === 'delivered' ? line.replies : []))
+
+  return lines.flatMap(line =>
+    line.type === 'reply'
+      ? [{ item: line.item, verdict: line.verdict, isDelivered: marked.includes(line.id) }]
+      : [],
+  )
+}
+
+/** The state of an ask of the held session, as the board reads it. */
+const stateOf = (w: World, id: string) => w.state.board?.asks.find(ask => ask.id === id)?.state
 
 test('an answer with an image goes in at once as Lee’s own prompt, rewritten as the board’s words for it, the image with it, and is written down delivered', async ($, on) => {
   const w = world($, on)

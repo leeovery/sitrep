@@ -2,16 +2,17 @@
  * The board drawn with no engine beneath: the mod's own drawing, which is
  * pure, run on a stand-in for a surface's element table, from the scene the
  * window's own look and fold make of a desk's files, and read back as a
- * mounted drawing is. For a test whose subject is what the board draws from
- * a scene; what a press does, or how the window's state reaches the scene,
- * stays an engine test's.
+ * mounted drawing is (matching.ts). For a test whose subject is what the
+ * board draws from a scene; what a press does, or how the window's state
+ * reaches the scene, stays an engine test's.
  *
- * render.test.tsx holds all three to the engine: the scene and the tree, but
- * for what a surface stamps on it, a Button's press among them, and the
- * reading, to the kit's `find` and `findAll`.
+ * render.test.tsx holds the scene, and the tree but for what a surface
+ * stamps on it, a Button's press among them, to the engine's. What this
+ * path cannot draw: a docked board scrolled down its list, which it always
+ * shows from the top; and a look after the window's first, one that folds
+ * a session off the board from the files it last read.
  */
 import type { ElementTable, RenderPropsOf, RenderSurface } from 'claude-code'
-import type { ElementQuery, FoundElement, Mounted } from 'claude-code/testing'
 import { foldSession, sessionPaths } from '../core'
 import type {
   SitrepAnswering,
@@ -30,28 +31,26 @@ import type { Actions } from '../hooks/actions'
 import { forgetLooks, lookAround } from '../hooks/around'
 import { boardOf } from '../hooks/board'
 import { drawPane } from '../hooks/draw/board'
-import type { Host, Slot } from '../hooks/host'
-import { itemKey } from '../hooks/places'
+import type { Host } from '../hooks/host'
 import { createReader } from '../hooks/reader'
 import { sceneOf, type Scene } from '../hooks/scene'
-import { HOME, PROJECT, ROOT, STATE_HOME, T0, W1 } from './data'
-import { filing, HELD, type DeskFiles } from './filing'
-import { fsOn, type File } from './fs'
+import { HELD, HOME, PROJECT, ROOT, STATE_HOME, T0, W1 } from './data'
+import { filing, type DeskFiles } from './filing'
+import type { File } from './fs'
+import { fsOn, slot } from './host'
+import { reading, type Drawn, type Element } from './matching'
 import { DOCKED } from './world/panes'
+
+export type { Drawn } from './matching'
 
 type Props = Record<string, unknown>
 
-/** An element as a surface's table builds it, as `drawn()` has it: a Button's press and a hover out of its props, a Text's key, which a surface never keeps, and no children where it draws none. */
-type Element = { type: string; props: Props; hover?: unknown; children?: (Element | string)[] }
-
-/** What JSX hands an element as children, numbers already strings: nodes, strings, nested lists, and the falsy values a condition leaves. */
-const nodesOf = (children: unknown) =>
+/** What JSX hands an element as children: nodes, strings, numbers, nested lists, and the falsy values a condition leaves; a number shown as its digits, as a surface shows it. */
+const nodesOf = (children: unknown): (Element | string)[] =>
   [children]
     .flat(Infinity)
-    .filter(
-      (child): child is Element | string =>
-        child !== undefined && child !== null && typeof child !== 'boolean',
-    )
+    .filter(child => child !== undefined && child !== null && typeof child !== 'boolean')
+    .map(child => (typeof child === 'number' ? String(child) : (child as Element | string)))
 
 /** Children as a surface hands them on: none at all where it draws none. */
 const childrenOf = (nodes: (Element | string)[]) => (nodes.length === 0 ? {} : { children: nodes })
@@ -79,7 +78,7 @@ const fragment = ({ children }: Props): Element => ({
  * The elements the board draws with, as each surface's table has them: a
  * `Client`, as a fragment where the surface draws none. Any other is
  * refused, a Link, Markdown, Code, Input or Progress among them: the kit
- * reads each one's text from a prop of its own, which this reading does not.
+ * reads each one's text from a prop of its own, which matching.ts does not.
  */
 const tableOf = (surface: RenderSurface) => {
   const drawn: Props = {
@@ -100,65 +99,10 @@ const tableOf = (surface: RenderSurface) => {
   }) as unknown as ElementTable
 }
 
-/** What the board's buttons do, none of which a drawing alone runs. */
-const NO_ACTIONS = new Proxy({} as Actions, { get: () => () => undefined })
-
-/** The words an element shows: a Button's label, then its children's. */
-const textOf = (node: Element | string): string =>
-  typeof node === 'string'
-    ? node
-    : `${node.type === 'Button' ? String(node.props.label ?? '') : ''}${(node.children ?? []).map(textOf).join('')}`
-
-const found = (node: Element): FoundElement => ({
-  type: node.type,
-  key: node.props.key as string | undefined,
-  props: node.props,
-  text: textOf(node),
-  children: node.children ?? [],
+/** What the board's buttons do, none of which a drawing alone runs; not a promise, so nothing awaiting it waits. */
+const NO_ACTIONS = new Proxy({} as Actions, {
+  get: (_, name) => (name === 'then' ? undefined : () => undefined),
 })
-
-const matches = (node: Element, { type, key, text }: ElementQuery) =>
-  (type === undefined || node.type === type) &&
-  (key === undefined || node.props.key === key) &&
-  (text === undefined ||
-    (typeof text === 'string' ? textOf(node).includes(text) : text.test(textOf(node))))
-
-/** Every element of a tree, outermost first in document order. */
-const elementsOf = (node: Element | string): Element[] =>
-  typeof node === 'string' ? [] : [node, ...(node.children ?? []).flatMap(elementsOf)]
-
-/** A drawing read as a mounted one is: its tree, and `find` and `findAll` matching as the kit's do. */
-export type Drawn = Pick<Mounted, 'drawn' | 'find' | 'findAll'>
-
-/** Refuses a read in a `Client`'s module: the board's own tree is all a drawing here holds. */
-const inTree = (scope?: { in?: string }) => {
-  if (scope?.in !== undefined) {
-    throw new Error(`no Client's module is drawn here to read in: ${scope.in}`)
-  }
-}
-
-/** The tree `drawing` makes, read as a mounted drawing is. */
-const reading = (drawing: Promise<Element>): Drawn => {
-  const matching = async (query: ElementQuery) => {
-    inTree(query)
-
-    return elementsOf(await drawing).filter(node => matches(node, query))
-  }
-
-  return {
-    drawn: async scope => {
-      inTree(scope)
-
-      return (await drawing) as never
-    },
-    find: async query => {
-      const [first] = await matching(query)
-
-      return first === undefined ? undefined : found(first)
-    },
-    findAll: async query => (await matching(query)).map(found),
-  }
-}
 
 /**
  * The board pane as a surface draws it from the scene, or the scene once
@@ -177,9 +121,6 @@ export const pane = (
     ),
   )
 
-/** An item of the held session by its address, as its buttons' keys and the pane name it. */
-export const heldItem = (id: string) => itemKey(HELD.id, id)
-
 /** Where the window holds its session. */
 const ATTACHMENT: SitrepAttachment = {
   project: PROJECT.key,
@@ -188,7 +129,7 @@ const ATTACHMENT: SitrepAttachment = {
   attachedAt: T0,
 }
 
-/** The board open, home, nothing opened. */
+/** The board open, home, nothing opened: the mod's first pane (register.tsx), opened. */
 const OPEN: SitrepPane = {
   isOpen: true,
   place: null,
@@ -198,33 +139,31 @@ const OPEN: SitrepPane = {
   placement: {},
 }
 
-/** What the scene is made of: the desk's files, the board's pane, Ready to send, and the time. */
+/**
+ * What the scene is made of: the desk's files, or the disk as an engine
+ * test's window left it; the window's values in `$.state`, each as the mod
+ * starts it unless told, the board open at home; and the time.
+ */
 export type Desk = DeskFiles & {
+  files?: ReadonlyMap<string, File>
   pane?: Partial<SitrepPane>
   queue?: readonly SitrepQueued[]
+  sent?: readonly SitrepSent[]
+  inFlight?: readonly SitrepInFlight[]
+  stopped?: boolean
+  answering?: SitrepAnswering | null
+  pulse?: SitrepPulse
+  flash?: number
   now?: number
-}
-
-/** A value in `$.state`, held in memory. */
-const slot = <T>(value: T): Slot<T> => {
-  let held = value
-
-  return {
-    read: async () => held,
-    write: async next => {
-      held = next
-    },
-    update: async change => {
-      held = change(held)
-    },
-  }
 }
 
 /**
  * What the window's look and its scene ask of its host, answered with no
  * engine beneath: `files`, the clock stopped at `now`, and `$.state` holding
  * the window's values, its session held; what it logs, a look's failure,
- * kept in `logged`.
+ * kept in `logged`. The values the mod starts with restate the atoms
+ * register.tsx keeps them in, the hooks module the engine loads, which a
+ * pure test does not import.
  */
 const hostOver = (files: Map<string, File>, now: number, desk: Desk, logged: string[]) =>
   ({
@@ -238,33 +177,39 @@ const hostOver = (files: Map<string, File>, now: number, desk: Desk, logged: str
       projects: slot<SitrepProject[]>([]),
       others: slot<SitrepOther[]>([]),
       queue: slot([...(desk.queue ?? [])]),
-      sent: slot<SitrepSent[]>([]),
-      inFlight: slot<SitrepInFlight[]>([]),
-      stopped: slot(false),
+      sent: slot([...(desk.sent ?? [])]),
+      inFlight: slot([...(desk.inFlight ?? [])]),
+      stopped: slot(desk.stopped ?? false),
       pane: slot<SitrepPane>({ ...OPEN, ...desk.pane }),
       scroll: slot<SitrepScroll | null>(null),
-      answering: slot<SitrepAnswering | null>(null),
-      pulse: slot<SitrepPulse>({ asks: [], frames: 0 }),
-      flash: slot(0),
+      answering: slot(desk.answering ?? null),
+      pulse: slot(desk.pulse ?? { asks: [], frames: 0 }),
+      flash: slot(desk.flash ?? 0),
       tick: slot(0),
     },
   }) as unknown as Host
 
+/** The files a scene reads: the disk given, as it stands, else the desk's written as the world writes them, at `now`. */
+const filesOf = (desk: Desk, now: number) => {
+  const files = new Map(desk.files)
+
+  if (desk.files === undefined) {
+    filing((path, text) => files.set(path, { text, mtimeMs: now })).desk(desk, now)
+  }
+
+  return files
+}
+
 /**
- * The scene the window makes of a desk at `now`: its files written as the
- * world writes them, the held session folded from what the watch's reader
- * reads of them, the sessions around it read by the window's own look, its
- * first, and the scene read from `$.state` as the board's render hook reads
- * it.
+ * The scene the window makes of a desk at `now`: the held session folded
+ * from what the watch's reader reads of its files, the sessions around it
+ * read by the window's own look, its first, and the scene read from
+ * `$.state` as the board's render hook reads it.
  */
 const sceneOver = async (desk: Desk) => {
   const now = desk.now ?? T0
-  const files = new Map<string, File>()
   const logged: string[] = []
-
-  filing((path, text) => files.set(path, { text, mtimeMs: now })).desk(desk, now)
-
-  const host = hostOver(files, now, desk, logged)
+  const host = hostOver(filesOf(desk, now), now, desk, logged)
   const read = await createReader()(host, sessionPaths(ROOT, PROJECT.key, HELD.id))
   const session = foldSession(read, now)
 
@@ -273,7 +218,7 @@ const sceneOver = async (desk: Desk) => {
   }
 
   await host.state.board.write(boardOf(session))
-  forgetLooks()
+  await forgetLooks()
   await lookAround(host)
 
   if (logged.length > 0) {

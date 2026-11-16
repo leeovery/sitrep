@@ -3,9 +3,9 @@ import { expect, test, tier } from './kit'
 import type { Body, SessionMeta } from '../core'
 import { EVERY_PROJECT, projectPlace } from '../hooks/places'
 import { rowsOf } from './drawn'
-import { ELSEWHERE, MIN, PROJECT, T0, W2, type Asked } from './data'
+import { ELSEWHERE, heldItem, MIN, PROJECT, T0, W2, type Asked } from './data'
 import { askOf, note, park, resolve, yesAsk, type Line } from './lines'
-import { heldItem, pane, sceneFrom, type Desk, type Drawn } from './render'
+import { pane, sceneFrom, type Desk, type Drawn } from './render'
 import { postedId, world, type World } from './world'
 
 tier('user')

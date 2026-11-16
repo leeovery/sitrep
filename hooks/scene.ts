@@ -25,7 +25,7 @@ import { C, pulseOf } from './look'
 export const LINGER_MS = 8_000
 
 /** How often the board is drawn again for the time alone, so its ages move on. */
-const TICK_MS = 30_000
+export const TICK_MS = 30_000
 
 /** A session as folded, and the project it is filed under, by key. */
 export type Filed = { project: string; session: Session }

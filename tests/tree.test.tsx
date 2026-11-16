@@ -9,6 +9,7 @@ import { rowsOf } from './drawn'
 import {
   DAY,
   ELSEWHERE,
+  HELD,
   LEDGER,
   meta,
   MIN,
@@ -23,7 +24,7 @@ import {
   W4,
 } from './data'
 import { askOf, choiceAsk, file, finish, note, park, status, yesAsk, type Line } from './lines'
-import { HELD } from './filing'
+import type { Neighbour } from './filing'
 import { pane, sceneFrom, type Desk, type Drawn } from './render'
 import { asked, DOCKED, postedId, toProject, WIDE, world, type Board, type World } from './world'
 
@@ -260,6 +261,19 @@ test('All projects: this project first, then the busiest; the quiet fold into on
     await ui.find({ type: 'Text', text: '1 more, with nothing going on: Tailspin' }),
   ).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /Dusty/ })).toBeUndefined()
+})
+
+test("the project view's ASKS lists asks two sessions posted at the same moment by their sessions, whichever order the sessions are read in", async () => {
+  const around: readonly Neighbour[] = [
+    { meta: THEMES, lines: [[T0, yesAsk('k1', 'Approve the dark theme')]], seenAt: T0 },
+    { meta: LEDGER, lines: [[T0, yesAsk('k3', 'Review the ledger schema')]], seenAt: T0 },
+  ]
+  const asked = (read: readonly Neighbour[]) =>
+    keysOf(pane(sceneFrom({ around: read, pane: { place: projectPlace(PROJECT.key) } })), 'pick:')
+  const ledgerFirst = [`pick:${itemKey(LEDGER.id, 'k3')}`, `pick:${itemKey(THEMES.id, 'k1')}`]
+
+  expect(await asked(around)).toEqual(ledgerFirst)
+  expect(await asked([...around].reverse())).toEqual(ledgerFirst)
 })
 
 test("the project view's ASKS holds every session's asks, the newest first, each naming its session and answered from there", async ($, on) => {

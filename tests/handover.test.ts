@@ -21,7 +21,7 @@ import type { Host } from '../hooks/host'
 import { createReader } from '../hooks/reader'
 import { META, T0, W1 } from './data'
 import { delivered, file, reply, yesAsk, type Line } from './lines'
-import { fsOn } from './fs'
+import { fsOn } from './host'
 import { terminal } from './terminal'
 
 const ROOT = '/Users/me/.local/state/sitrep'

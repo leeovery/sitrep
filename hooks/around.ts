@@ -26,6 +26,7 @@
 import type { FsEntry, Timer } from 'claude-code'
 import {
   brief,
+  compareText,
   every,
   isCurrent,
   isOffBoard,
@@ -81,23 +82,26 @@ const shown: { projects?: string; others?: string } = {}
  * late leaves the one two looks on just short, and whole looks come every
  * three.
  */
-const wholeLooks = () => every(OFF_BOARD_MS - AROUND_MS / 2, -Infinity)
-
-let isWholeLook = wholeLooks()
-
-/**
- * Forgets every look so far, as a load of the mod starts with none: the next
- * is whole, reads every file afresh and puts what it finds. A pure test's
- * look over a host of its own starts so.
- */
-export const forgetLooks = () => {
-  kept.clear()
-  delete shown.projects
-  delete shown.others
-  isWholeLook = wholeLooks()
-}
+const isWholeLook = every(OFF_BOARD_MS - AROUND_MS / 2, -Infinity)
 
 let looking: Promise<unknown> = Promise.resolve()
+
+/**
+ * Forgets what the looks so far read and put, once any look under way has
+ * settled, so the next reads every session afresh and puts what it finds,
+ * whole or not: with nothing kept, a look reads every session it lists.
+ * Only tests call it, a pure test's look over a host of its own starting so;
+ * the mod never does.
+ */
+export const forgetLooks = () => {
+  looking = looking.then(() => {
+    kept.clear()
+    delete shown.projects
+    delete shown.others
+  })
+
+  return looking
+}
 
 let timer: Timer | undefined
 
@@ -232,9 +236,12 @@ const readAround = async (
   return { keys, read }
 }
 
+/** Sessions the most recently updated first, those updated at once by id. */
+const latestFirst = (a: Session, b: Session) => b.updatedAt - a.updatedAt || compareText(a.id, b.id)
+
 /** A project's name, as the most recently updated of its sessions names it. */
 const nameOf = (key: string, sessions: readonly Session[]) =>
-  [...sessions].sort((a, b) => b.updatedAt - a.updatedAt).at(0)?.project ?? key
+  [...sessions].sort(latestFirst).at(0)?.project ?? key
 
 /**
  * The projects read, each with its current sessions, and what every session
