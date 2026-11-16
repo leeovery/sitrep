@@ -16,7 +16,7 @@ struct MenuEntriesTests {
     @Test func theMenuRunsFromTheHeaderThroughTheSessionsToQuit() {
         #expect(Self.entries().map(\.key) == [
             "header", "separator:header",
-            "heading:sessions", "row:sr-ledger", "row:sr-dash", "row:sr-plan",
+            "heading:sessions", "row:sr-l5c9tz", "row:sr-dash", "row:sr-plan",
             "row:sr-boot", "separator:hairline", "row:sr-diff", "separator:sessions",
             "heading:show", "show:notch", "show:strip", "show:nothing", "separator:show", "welcome",
             "settings", "separator:settings", "quit",
@@ -29,7 +29,7 @@ struct MenuEntriesTests {
     }
 
     @Test func itSpeaksUpFirstUnderTheHeader() {
-        let window = WatchLine.Window(writer: "w1", session: "sr-boot", name: "The bootstrap", project: "Kit", version: nil, needsReload: true)
+        let window = WatchLine.Window(writer: "w1", session: "sr-boot", name: "The installer", project: "Litware", version: nil, needsReload: true)
         let last = heard([.line(Watched.line(windows: [window])), .exited(.status(1), stderr: "")])
         let keys = MenuBoard(last, clock: london).entries(showing: .notch).map(\.key)
 
@@ -39,7 +39,7 @@ struct MenuEntriesTests {
     }
 
     @Test func troubleWithThePluginSpeaksUpFirstOfAll() {
-        let window = WatchLine.Window(writer: "w1", session: "sr-boot", name: "The bootstrap", project: "Kit", version: nil, needsReload: true)
+        let window = WatchLine.Window(writer: "w1", session: "sr-boot", name: "The installer", project: "Litware", version: nil, needsReload: true)
         let last = heard([.line(Watched.line(windows: [window])), .exited(.status(1), stderr: "")])
         let entries = MenuBoard(last, trouble: .noClaude, clock: london).entries(showing: .notch)
 
@@ -80,7 +80,7 @@ struct MenuEntriesTests {
     @Test func aRowComeIsPutInAtItsPlaceAndCounted() {
         var rows = Watched.rows
         let turn = WatchLine.Row(
-            session: "sr-new", name: "New", projectName: "Kit",
+            session: "sr-new", name: "New", projectName: "Litware",
             lines: [.init("turn:sr-new", .yourTurn, first: "New", since: 1_792_445_400_000)]
         )
 
@@ -132,14 +132,14 @@ struct MenuEntriesTests {
 
     @Test func aRowsLineSetsItsSubjectApartAndAWorkingRowsFainter() {
         let rows = MenuBoard(heard([.line(Watched.line())]), clock: london).items.compactMap(\.session)
-        var harness = Session(
-            id: "h", project: "Harness", name: "Modernisation", kind: .needs, title: "Allow Bash ", code: "gh pr create",
+        var tailspin = Session(
+            id: "h", project: "Tailspin", name: "Migration", kind: .needs, title: "Allow Bash ", code: "gh pr create",
             more: "+2", sub: "", since: 0
         )
 
-        harness.lines.append(Session.Line(title: "Approve the batch", since: 1))
-        #expect(rows[1].menuLine(at: 0) == MenuTitle(words: "Dashboard memory", mono: nil, more: nil, isFaint: false))
+        tailspin.lines.append(Session.Line(title: "Approve the batch", since: 1))
+        #expect(rows[1].menuLine(at: 0) == MenuTitle(words: "Report caching", mono: nil, more: nil, isFaint: false))
         #expect(rows[4].menuLine(at: 0) == MenuTitle(words: "Reading ", mono: "StatusMenu.swift", more: nil, isFaint: true))
-        #expect(harness.menuLine(at: 0) == MenuTitle(words: "Modernisation", mono: nil, more: " 2", isFaint: false))
+        #expect(tailspin.menuLine(at: 0) == MenuTitle(words: "Migration", mono: nil, more: " 2", isFaint: false))
     }
 }

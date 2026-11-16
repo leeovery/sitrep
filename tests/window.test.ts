@@ -217,11 +217,11 @@ for (const [reason, livesOn] of [
 
 test('attaching in tmux records the device, the terminal and the pane in the heartbeat, and every later beat keeps them', async ($, on) => {
   const w = world($, on, {
-    env: { TMUX: `${SOCKET},30249,129`, TMUX_PANE: '%148', TERM_PROGRAM: 'tmux' },
+    env: { TMUX: `${SOCKET},4242,0`, TMUX_PANE: '%12', TERM_PROGRAM: 'tmux' },
   })
   const { paths } = await w.begin()
   const where = () => parsePresence(w.text(paths.heartbeat(W1)), W1)?.where
-  const inTmux = { device: `/dev/${TTY}`, terminal: 'tmux', tmux: { socket: SOCKET, pane: '%148' } }
+  const inTmux = { device: `/dev/${TTY}`, terminal: 'tmux', tmux: { socket: SOCKET, pane: '%12' } }
 
   expect(where()).toEqual(inTmux)
 

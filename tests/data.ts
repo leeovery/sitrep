@@ -109,7 +109,7 @@ export const PARKED_BEFORE = {
 
 /** The asks Claude posts with the ask tool: a review wanting a yes, a go wanting one in its own words, and a choice. */
 export const REVIEW = { wants: 'yes', yes: 'Approve', title: 'Review Tickets & Replies, round 1' }
-export const GO = { wants: 'yes', yes: 'Go', title: 'Give the go for stage 3' }
+export const GO = { wants: 'yes', yes: 'Go', title: 'Give the ok for phase 3' }
 export const FRAMES = {
   wants: 'choice',
   title: 'Ship round 2, or redraw?',

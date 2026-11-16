@@ -12,9 +12,9 @@ struct BannersTests {
     private static let first: Int32 = 5150
     private static let second: Int32 = 5151
     private static let ready = ToSitRep.ready(helper: first)
-    private static let asked = Banner(title: "Pick a name", subtitle: "SitRep · Build the Mac app", body: "", work: "sr-aw3bgs")
+    private static let asked = Banner(title: "Pick a name", subtitle: "Trey Research · Build the desktop app", body: "", work: "sr-a8n2xc")
     private static let askedNotice = Notice(
-        title: "Pick a name", subtitle: "SitRep · Build the Mac app", body: "", work: "sr-aw3bgs"
+        title: "Pick a name", subtitle: "Trey Research · Build the desktop app", body: "", work: "sr-a8n2xc"
     )
 
     /// What SitRep sent the helper, waited on.
@@ -165,16 +165,16 @@ struct BannersTests {
     @Test func aClickTheHelperRelaysReachesTheJump() {
         let banners = banners()
 
-        banners.heard(Self.fromHelper(.clicked(work: "sr-aw3bgs")))
+        banners.heard(Self.fromHelper(.clicked(work: "sr-a8n2xc")))
 
-        #expect(clicks.works == ["sr-aw3bgs"])
+        #expect(clicks.works == ["sr-a8n2xc"])
     }
 
     @Test func aLetterForAnotherSitRepIsPassedOver() {
         let banners = banners()
 
         banners.heard(Self.fromHelper(Self.ready, pid: 977))
-        banners.heard(Self.fromHelper(.clicked(work: "sr-aw3bgs"), pid: 977))
+        banners.heard(Self.fromHelper(.clicked(work: "sr-a8n2xc"), pid: 977))
         banners.post(Self.asked)
 
         #expect(clicks.works.isEmpty)

@@ -60,7 +60,7 @@ struct RowMenuTests {
     /// An away row's Jump carries its session on, as its click does (stage 8): its menu is any row's.
     @Test func anAwayRowsMenuIsAnyRowsItsJumpEnabled() {
         let line = Session.Line(ask: "k1", title: "Review the plan", since: 0)
-        let away = Session(id: "sr-4g01a7", project: "Harness", kind: .needs, away: true, lines: [line], sub: "Harness")
+        let away = Session(id: "sr-4t2kq8", project: "Tailspin", kind: .needs, away: true, lines: [line], sub: "Tailspin")
         let heard = Heard()
         let menu = Self.menu(RowMenu.Row(away), heard)
 
@@ -142,15 +142,15 @@ struct RowMenuTests {
             Session.Line(ask: "k1", title: "Review the plan", since: 0),
             Session.Line(title: "Allow Bash", code: "gh pr create", since: 1),
         ]
-        let needs = Session(id: "sr-4g01a7", project: "Harness", kind: .needs, lines: lines, sub: "Harness")
-        let stops = Session(id: "sr-4g01a7", project: "Harness", kind: .needs, lines: [lines[1]], sub: "Harness")
-        let asleep = Session(id: "sr-4g01a7", project: "Harness", kind: .snoozed, lines: [lines[0]], sub: "Harness", wakesAt: 9)
+        let needs = Session(id: "sr-4t2kq8", project: "Tailspin", kind: .needs, lines: lines, sub: "Tailspin")
+        let stops = Session(id: "sr-4t2kq8", project: "Tailspin", kind: .needs, lines: [lines[1]], sub: "Tailspin")
+        let asleep = Session(id: "sr-4t2kq8", project: "Tailspin", kind: .snoozed, lines: [lines[0]], sub: "Tailspin", wakesAt: 9)
         let turn = Session(
-            id: "sr-4g01a7", project: "Harness", kind: .turn, title: "Stage 2 is in", sub: "Harness", since: Self.ended
+            id: "sr-4t2kq8", project: "Tailspin", kind: .turn, title: "Stage 2 is in", sub: "Tailspin", since: Self.ended
         )
         let turnAsleep = Session(
-            id: "sr-4g01a7", project: "Harness", name: "Finish the Harness modernisation", kind: .snoozedTurn,
-            lines: turn.lines, sub: "Harness"
+            id: "sr-4t2kq8", project: "Tailspin", name: "Finish the Tailspin migration", kind: .snoozedTurn,
+            lines: turn.lines, sub: "Tailspin"
         )
 
         #expect(RowMenu.Row(needs) == RowMenu.Row(asks: ["k1"], isSnoozed: false))

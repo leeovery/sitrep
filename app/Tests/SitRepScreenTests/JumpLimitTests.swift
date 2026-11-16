@@ -5,7 +5,7 @@ import SitRepTestSupport
 import Testing
 
 extension WatchLine.Window {
-    /// A window of the jump's world, on Switchboard's session: its writer, its session, its place in the jump's order,
+    /// A window of the jump's world, on Woodgrove's session: its writer, its session, its place in the jump's order,
     /// and the device of its own Ghostty window, where it says one; or the zmx session it runs in, on zmx's own pty;
     /// and its Claude's folder, where it says one.
     static func jumping(
@@ -16,18 +16,18 @@ extension WatchLine.Window {
             ?? device.map { WatchLine.Where(device: $0) }
 
         return Self(
-            writer: writer, session: session, name: JumpWorld.named, project: "Switchboard", version: nil,
+            writer: writer, session: session, name: JumpWorld.named, project: "Woodgrove", version: nil,
             where: place, directory: directory, attachedAt: 0, jumpOrder: order
         )
     }
 }
 
-/// A line of the watch holding only the windows given, and Switchboard listing the sessions given, decoded as SitRep
+/// A line of the watch holding only the windows given, and Woodgrove listing the sessions given, decoded as SitRep
 /// decodes one.
 func board(_ windows: [WatchLine.Window], sessions: [WatchLine.Session] = []) throws -> Board {
     let line = WatchLine(
         at: 0, version: nil, head: .init(needYou: 0, sessions: 1),
-        projects: [.init(name: "Switchboard", sessions: sessions)], windows: windows
+        projects: [.init(name: "Woodgrove", sessions: sessions)], windows: windows
     )
     let decoder = JSONDecoder()
 
@@ -39,7 +39,7 @@ func board(_ windows: [WatchLine.Window], sessions: [WatchLine.Session] = []) th
 struct JumpLimitTests {
     @Test func aJumpGoesFromTheWatchsLineTheSessionsWindowsInCoresOrderNeverTheirPlaceInItsWindows() async throws {
         let line = try board([
-            WatchLine.Window.jumping("w1", session: "sr-a", order: 1, device: JumpWorld.kitTerminal.device),
+            WatchLine.Window.jumping("w1", session: "sr-a", order: 1, device: JumpWorld.litwareTerminal.device),
             WatchLine.Window.jumping("w2", session: "sr-b", order: 0, device: "/dev/ttys090"),
             WatchLine.Window.jumping("w3", session: "sr-a", order: nil, device: nil),
             WatchLine.Window.jumping("w4", session: "sr-a", order: 0, device: "/dev/ttys099"),
@@ -47,8 +47,8 @@ struct JumpLimitTests {
         let jumping = Jumping()
 
         #expect(await jumping.jump.answer(to: "sr-a", on: GivenBoard(line)) == .jumped)
-        #expect(jumping.ghostty.asked == ["/dev/ttys099", JumpWorld.kitTerminal.device])
-        #expect(jumping.ghostty.focused == ["KIT-TERMINAL"])
+        #expect(jumping.ghostty.asked == ["/dev/ttys099", JumpWorld.litwareTerminal.device])
+        #expect(jumping.ghostty.focused == ["LITWARE-TERMINAL"])
     }
 
     /// A session on the board is named as the board names it, one with no row and no window by its project, as the
@@ -204,13 +204,13 @@ struct JumpLimitTests {
         gate.open()
 
         await #expect(throws: CancellationError.self) { try await jumped.value }
-        #expect(jumping.ghostty.asked == [JumpWorld.kitTerminal.device])
+        #expect(jumping.ghostty.asked == [JumpWorld.litwareTerminal.device])
         #expect(jumping.ghostty.told.isEmpty)
     }
 
     @Test func aJumpStoppedInItsPauseNeverFocuses() async {
         let (tmux, table) = shown()
-        let tabbed = [FakeWindow(id: "TABBED-WINDOW", tabs: [[JumpWorld.kitTerminal], [JumpWorld.switchboardTerminal]], selected: 0)]
+        let tabbed = [FakeWindow(id: "TABBED-WINDOW", tabs: [[JumpWorld.litwareTerminal], [JumpWorld.woodgroveTerminal]], selected: 0)]
         let jumping = Jumping(tmux, table, terminals: tabbed, clock: TestClock(passing: []))
         let jumped = Task { await jumping.run([inTmux()]) }
 
@@ -240,7 +240,7 @@ struct JumpLimitTests {
     @MainActor
     @Test func aLaterClickStopsTheJumpUnderWayBetweenItsStepsAndJumpsWithoutWaitingOnItsQuestionInFlight() async throws {
         let line = try board([
-            WatchLine.Window.jumping("w1", session: "sr-a", order: 0, device: JumpWorld.kitTerminal.device),
+            WatchLine.Window.jumping("w1", session: "sr-a", order: 0, device: JumpWorld.litwareTerminal.device),
             WatchLine.Window.jumping("w2", session: "sr-b", order: 0, device: JumpWorld.window),
         ])
         let gate = Gate()
@@ -255,8 +255,8 @@ struct JumpLimitTests {
 
         #expect(first.news == [.ended(.stopped)])
         #expect(second.news == [.ended(.jumped)])
-        #expect(jumping.ghostty.asked == [JumpWorld.kitTerminal.device, JumpWorld.window])
-        #expect(jumping.ghostty.told == ["focus SWITCHBOARD-TERMINAL"])
+        #expect(jumping.ghostty.asked == [JumpWorld.litwareTerminal.device, JumpWorld.window])
+        #expect(jumping.ghostty.told == ["focus WOODGROVE-TERMINAL"])
 
         gate.open()
     }

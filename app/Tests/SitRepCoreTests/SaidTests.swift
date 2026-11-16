@@ -10,7 +10,7 @@ struct SaidTests {
         "",
         " \n\n",
         "Bun v1.4.2 (macOS arm64)\n",
-        "      at f (/Users/lee/Code/sitrep/cli/watch.ts:2:13)\n",
+        "      at f (/Users/me/Code/sitrep/cli/watch.ts:2:13)\n",
         "2 |   throw new TypeError(\"boom\")\n                ^\n",
     ])
     func noiseIsNeverAReason(stderr: String) {

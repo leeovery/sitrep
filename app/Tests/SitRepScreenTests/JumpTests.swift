@@ -12,7 +12,7 @@ struct JumpTests {
         let jumping = Jumping(tmux, table)
 
         #expect(await jumping.run([inTmux()]) == .jumped)
-        #expect(jumping.ghostty.focused == ["SWITCHBOARD-TERMINAL"])
+        #expect(jumping.ghostty.focused == ["WOODGROVE-TERMINAL"])
     }
 
     @Test func aJumpAsksTmuxOnlyToListTheTableOnceAndTheFrontOnceThenGhosttyOnceForTheTerminalOnTheClientsDevice() async {
@@ -26,21 +26,21 @@ struct JumpTests {
         #expect(table.looks == 1)
         #expect(jumping.workspace.fronts == 1)
         #expect(jumping.ghostty.asked == [JumpWorld.window])
-        #expect(jumping.ghostty.told == ["focus SWITCHBOARD-TERMINAL"])
+        #expect(jumping.ghostty.told == ["focus WOODGROVE-TERMINAL"])
     }
 
     @Test func aJumpOutsideTmuxAsksGhosttyForTheTerminalOnTheWindowsOwnDeviceAskingTmuxAndTheTableNothing() async {
         let jumping = Jumping()
 
         #expect(await jumping.run([inGhosttyWindow]) == .jumped)
-        #expect(jumping.ghostty.focused == ["KIT-TERMINAL"])
-        #expect(jumping.ghostty.asked == [JumpWorld.kitTerminal.device])
+        #expect(jumping.ghostty.focused == ["LITWARE-TERMINAL"])
+        #expect(jumping.ghostty.asked == [JumpWorld.litwareTerminal.device])
         #expect(jumping.tmux.runs.isEmpty)
         #expect(jumping.table.looks == 0)
     }
 
     /// One Ghostty window of two tabs, the first selected: the tab holding the session's terminal at `place`.
-    private static func twoTabs(_ place: Int, holding held: [FakeTerminal] = [JumpWorld.switchboardTerminal]) -> [FakeWindow] {
+    private static func twoTabs(_ place: Int, holding held: [FakeTerminal] = [JumpWorld.woodgroveTerminal]) -> [FakeWindow] {
         var tabs = [[FakeTerminal(id: "SPARE-TERMINAL", device: "/dev/ttys091")]]
 
         tabs.insert(held, at: place)
@@ -52,19 +52,19 @@ struct JumpTests {
         let jumping = Jumping(tmux, table, terminals: Self.twoTabs(0))
 
         #expect(await jumping.run([inTmux()]) == .jumped)
-        #expect(jumping.ghostty.told == ["focus SWITCHBOARD-TERMINAL"])
+        #expect(jumping.ghostty.told == ["focus WOODGROVE-TERMINAL"])
         #expect(jumping.clock.sleeps.isEmpty)
     }
 
     @Test(arguments: [
-        [JumpWorld.switchboardTerminal], [FakeTerminal(id: "SPLIT-TERMINAL", device: "/dev/ttys092"), JumpWorld.switchboardTerminal],
+        [JumpWorld.woodgroveTerminal], [FakeTerminal(id: "SPLIT-TERMINAL", device: "/dev/ttys092"), JumpWorld.woodgroveTerminal],
     ])
     func aTerminalInATabNotSelectedAloneOrInASplitHasItsWindowActivatedThenAPauseThenIsFocused(held: [FakeTerminal]) async {
         let (tmux, table) = shown()
         let jumping = Jumping(tmux, table, terminals: Self.twoTabs(1, holding: held))
 
         #expect(await jumping.run([inTmux()]) == .jumped)
-        #expect(jumping.ghostty.told == ["activate window TABBED-WINDOW", "focus SWITCHBOARD-TERMINAL"])
+        #expect(jumping.ghostty.told == ["activate window TABBED-WINDOW", "focus WOODGROVE-TERMINAL"])
         #expect(jumping.clock.sleeps == [GhosttyDriver.pause])
         #expect(jumping.ghostty.asked == [JumpWorld.window])
     }
@@ -83,7 +83,7 @@ struct JumpTests {
         let jumping = Jumping(server(clients), FakeTable(mac.tree), terminals: JumpWorld.terminals + ownWindows(FakeTerminal(id: "NOT-THE-PHONE", device: JumpWorld.phone)))
 
         #expect(await jumping.run([inTmux()]) == .jumped)
-        #expect(jumping.ghostty.focused == ["SWITCHBOARD-TERMINAL"])
+        #expect(jumping.ghostty.focused == ["WOODGROVE-TERMINAL"])
         #expect(jumping.ghostty.asked == [JumpWorld.window])
     }
 
@@ -94,7 +94,7 @@ struct JumpTests {
 
         #expect(await jumping.run([inTmux()]) == .jumped)
         #expect(jumping.ghostty.asked == [JumpWorld.window])
-        #expect(jumping.ghostty.focused == ["SWITCHBOARD-TERMINAL"])
+        #expect(jumping.ghostty.focused == ["WOODGROVE-TERMINAL"])
     }
 
     @Test func aClientWithNoDeviceAloneOnThePanesWindowIsOffScreenNeverAJumpLandedAndGhosttyIsAskedNothing() async {
@@ -113,7 +113,7 @@ struct JumpTests {
 
         return [
             ("no window saying where it is", [], FakeTmux(), FakeTable(Mac().tree)),
-            ("a detached tmux session", [inTmux()], server([detached.ghosttyClient(JumpWorld.kitTerminal.device, showing: JumpWorld.kit)]), FakeTable(detached.tree)),
+            ("a detached tmux session", [inTmux()], server([detached.ghosttyClient(JumpWorld.litwareTerminal.device, showing: JumpWorld.litware)]), FakeTable(detached.tree)),
             ("a tmux session only the phone shows", [inTmux()], server([phoned.phoneClient(JumpWorld.phone, showing: JumpWorld.claudes)]), FakeTable(phoned.tree)),
             ("only a Ghostty on another Mac shows it, over ssh", [inTmux()], server([sshed.sshClient("/dev/ttys080", showing: JumpWorld.claudes)]), FakeTable(sshed.tree)),
             ("tmux answering that no server runs on the socket", [inTmux()], FakeTmux(), FakeTable(Mac().tree)),
@@ -170,7 +170,7 @@ struct JumpTests {
         let cases: [(String, Jumping, Where, String)] = [
             ("a client of a Ghostty window on a device none of its terminals is on", Jumping(elsewhere, FakeTable(mac.tree)), inTmux(), "/dev/ttys099"),
             ("Ghostty not running", Jumping(tmux, table, running: false), inTmux(), JumpWorld.window),
-            ("Ghostty with no window open", Jumping(terminals: []), inGhosttyWindow, JumpWorld.kitTerminal.device),
+            ("Ghostty with no window open", Jumping(terminals: []), inGhosttyWindow, JumpWorld.litwareTerminal.device),
         ]
 
         for (why, jumping, place, device) in cases {
@@ -204,7 +204,7 @@ struct JumpTests {
         let jumping = Jumping(server(clients), FakeTable(mac.tree))
 
         #expect(await jumping.run([inTmux()]) == .jumped)
-        #expect(jumping.ghostty.focused == ["SWITCHBOARD-TERMINAL"])
+        #expect(jumping.ghostty.focused == ["WOODGROVE-TERMINAL"])
         #expect(jumping.ghostty.asked == ["/dev/ttys099", JumpWorld.window])
     }
 
@@ -257,17 +257,17 @@ struct JumpTests {
 
         #expect(await jumping.run([inTmux()]) == .jumped)
         #expect(jumping.ghostty.asked == [JumpWorld.window])
-        #expect(jumping.ghostty.focused == ["SWITCHBOARD-TERMINAL"])
+        #expect(jumping.ghostty.focused == ["WOODGROVE-TERMINAL"])
     }
 
     @Test func aWindowInZmxFocusesTheGhosttyWindowHoldingItsClientThroughPortalsRelayAskingTheTableOnceAndTmuxNothing() async {
         var mac = Mac()
 
-        mac.throughPortal("agentic-workflows-v2 · leeway-build", relay: "/dev/ttys032", window: "/dev/ttys036")
+        mac.throughPortal("adventure-works-v2 · proseware-build", relay: "/dev/ttys032", window: "/dev/ttys036")
 
         let jumping = Jumping(FakeTmux(), FakeTable(mac.tree), terminals: ownWindows(FakeTerminal(id: "PORTAL-TERMINAL", device: "/dev/ttys036")))
 
-        #expect(await jumping.run([inZmx("agentic-workflows-v2 · leeway-build")]) == .jumped)
+        #expect(await jumping.run([inZmx("adventure-works-v2 · proseware-build")]) == .jumped)
         #expect(jumping.ghostty.focused == ["PORTAL-TERMINAL"])
         #expect(jumping.ghostty.asked == ["/dev/ttys036"])
         #expect(jumping.table.looks == 1)
@@ -277,26 +277,26 @@ struct JumpTests {
     @Test func aZmxSessionWithNoClientOrOnlyOtherSessionsClientsIsNotOnScreenAndGhosttyIsAskedNothing() async {
         var mac = Mac()
 
-        mac.throughPortal("kit", relay: "/dev/ttys032", window: "/dev/ttys036")
-        mac.zmxServer("leeway")
+        mac.throughPortal("litware", relay: "/dev/ttys032", window: "/dev/ttys036")
+        mac.zmxServer("proseware")
 
         let jumping = Jumping(FakeTmux(), FakeTable(mac.tree))
 
-        #expect(await jumping.run([inZmx("leeway")]) == JumpWorld.offScreen)
+        #expect(await jumping.run([inZmx("proseware")]) == JumpWorld.offScreen)
         #expect(jumping.ghostty.asked.isEmpty)
     }
 
     @Test func inZmxTmuxMissingChangesNothingAsTmuxIsNeverAskedAndTheTableGivingNoAnswerLeavesItUnknownNeverOff() async {
         var mac = Mac()
 
-        mac.throughPortal("kit", relay: "/dev/ttys032", window: "/dev/ttys036")
+        mac.throughPortal("litware", relay: "/dev/ttys032", window: "/dev/ttys036")
 
         let missing = Jumping(FakeTmux(silent: true), FakeTable(mac.tree), terminals: ownWindows(FakeTerminal(id: "PORTAL-TERMINAL", device: "/dev/ttys036")))
 
-        #expect(await missing.run([inZmx("kit")]) == .jumped)
+        #expect(await missing.run([inZmx("litware")]) == .jumped)
         #expect(missing.tmux.runs.isEmpty)
         #expect(
-            await Jumping(FakeTmux(), FakeTable(nil)).run([inZmx("kit")])
+            await Jumping(FakeTmux(), FakeTable(nil)).run([inZmx("litware")])
                 == .refused("Could not tell whether \(JumpWorld.named) is on screen: the process table gave no answer.")
         )
     }

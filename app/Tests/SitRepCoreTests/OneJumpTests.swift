@@ -14,10 +14,10 @@ struct OneJumpTests {
 
         oneJump.run(to: "sr-a", jumps.jump(1), told: heard.add)
         await until(turns: 100_000) { jumps.started == [1] }
-        jumps.answer(1, .refused("Fumi is not on screen."))
+        jumps.answer(1, .refused("Wingtip is not on screen."))
         await until(turns: 100_000) { !heard.news.isEmpty }
 
-        #expect(heard.news == [.ended(.refused("Fumi is not on screen."))])
+        #expect(heard.news == [.ended(.refused("Wingtip is not on screen."))])
     }
 
     @Test func aJumpWithNoAnswerTwoSecondsOnSaysItIsStillJumpingThenHowItEnded() async {

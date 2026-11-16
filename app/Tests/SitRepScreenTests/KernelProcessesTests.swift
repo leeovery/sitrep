@@ -31,12 +31,12 @@ struct KernelProcessesTests {
     @Test func aCommandLineIsReadAsTheExecutablesPathAndItsArgumentsLeavingOutTheEnvironment() {
         let bytes = Self.procargs(
             count: 3,
-            [zmxProgram, "/opt/homebrew/bin/zmx", "attach", "kit · restore-card", "HOME=/Users/lee", "TERM=xterm"]
+            [zmxProgram, "/opt/homebrew/bin/zmx", "attach", "litware · restore-card", "HOME=/Users/me", "TERM=xterm"]
         )
 
         #expect(
             parseProcArgs(bytes)
-                == ProcArgs(path: zmxProgram, arguments: ["/opt/homebrew/bin/zmx", "attach", "kit · restore-card"])
+                == ProcArgs(path: zmxProgram, arguments: ["/opt/homebrew/bin/zmx", "attach", "litware · restore-card"])
         )
     }
 

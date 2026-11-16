@@ -43,7 +43,7 @@ tier('user')
 const PARKED = [
   { title: 'A priority badge across all tabs' },
   { title: 'Thumbnails inline in the gallery', note: 'Before the release' },
-  { title: 'Sign-in without the redirect', note: 'After the bug fixes' },
+  { title: 'Sign-in without the redirect', note: 'After the API fixes' },
 ]
 
 /** A session parking each item, the board docked, and each picked up, its note written in the prompt: the parked ids and the board. */
@@ -109,7 +109,7 @@ test('opening one pick-up line of a send opens only that one', async ($, on) => 
   await ui.press({ key: second })
 
   expect(await ui.find({ type: 'Text', text: /Before the release/ })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /After the bug fixes/ })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /After the API fixes/ })).toBeUndefined()
 })
 
 test("a project's NOTES draws a send's several pick-ups, each its own line", async ($, on) => {

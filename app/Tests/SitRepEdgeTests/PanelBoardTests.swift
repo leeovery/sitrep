@@ -32,36 +32,36 @@ struct PanelBoardTests {
     @Test func eachRowIsASessionInCoresOrderKeyedByItsSession() {
         let sessions = Self.board(Self.heard(.line(watchLine))).sessions
 
-        #expect(sessions.map(\.id) == ["sr-7e68fj", "sr-y4d0qj", "sr-j94s0e", "sr-50f7g8", "sr-aw3bgs", "sr-q7njzv"])
+        #expect(sessions.map(\.id) == ["sr-7p4wd2", "sr-y6m1pr", "sr-j3x7bn", "sr-5h1zr3", "sr-a8n2xc", "sr-q1f5hs"])
     }
 
-    /// The real CLI's line (`Lines.bySession`): Harness's three asks, the oldest first, each its words and its time;
-    /// Switchboard's ask and its window's permission prompt, the command in mono after a space.
+    /// The real CLI's line (`Lines.bySession`): Tailspin's three asks, the oldest first, each its words and its time;
+    /// Woodgrove's ask and its window's permission prompt, the command in mono after a space.
     @Test func aRowWithSeveralLinesKeepsEachInCoresOrderWithItsWordsAndItsTime() throws {
         let line = try Board.read(Lines.bySession[0])
         let sessions = Self.board(Self.heard(.line(Lines.bySession[0]))).sessions
-        let harness = try #require(sessions.first), switchboard = sessions[1]
+        let tailspin = try #require(sessions.first), woodgrove = sessions[1]
 
-        #expect(harness.id == "sr-4g01a7")
-        #expect(harness.kind == .needs)
-        #expect(harness.lines.map(\.title) == [
-            "Approve the first fix batch from the branch review", "Choose how the release notes are grouped",
+        #expect(tailspin.id == "sr-4t2kq8")
+        #expect(tailspin.kind == .needs)
+        #expect(tailspin.lines.map(\.title) == [
+            "Approve the first copy edit for the landing page", "Choose how the release notes are grouped",
             "Paste the failing test's output",
         ])
-        #expect(harness.lines.map(\.since) == line.rows[0].lines.map { $0.since.timeIntervalSince1970 * 1000 })
-        #expect(harness.since == harness.lines[0].since)
-        #expect(harness.name == "Finish the Harness modernisation")
-        #expect(harness.sub == "Harness")
-        #expect(switchboard.lines.map(\.title) == ["Paste the load test's output", "Allow Bash "])
-        #expect(switchboard.lines.map(\.code) == [nil, "gh pr create --draft"])
+        #expect(tailspin.lines.map(\.since) == line.rows[0].lines.map { $0.since.timeIntervalSince1970 * 1000 })
+        #expect(tailspin.since == tailspin.lines[0].since)
+        #expect(tailspin.name == "Finish the Tailspin migration")
+        #expect(tailspin.sub == "Tailspin")
+        #expect(woodgrove.lines.map(\.title) == ["Paste the load test's output", "Allow Bash "])
+        #expect(woodgrove.lines.map(\.code) == [nil, "gh pr create --draft"])
         #expect(sessions.map(\.lines.count) == [3, 2, 1, 1, 1, 1])
     }
 
-    /// The second line: a fourth ask in Harness's session, new on it, which washes its row.
+    /// The second line: a fourth ask in Tailspin's session, new on it, which washes its row.
     @Test func aRowHoldingALineNewOnTheBoardIsNewByItsSession() {
         let board = Self.board(Self.heard(.line(Lines.bySession[0]), .line(Lines.bySession[1])))
 
-        #expect(board.new == ["sr-4g01a7"])
+        #expect(board.new == ["sr-4t2kq8"])
         #expect(board.sessions.first?.lines.count == 4)
     }
 
@@ -79,12 +79,12 @@ struct PanelBoardTests {
         let last = Self.heard(.line(watchLine))
         let here = Self.board(last).sessions
         let notHere = PanelBoard(
-            last, notHere: ["sr-7e68fj", "sr-aw3bgs", "sr-q7njzv", "sr-gone00"], clock: Self.london
+            last, notHere: ["sr-7p4wd2", "sr-a8n2xc", "sr-q1f5hs", "sr-gone00"], clock: Self.london
         )
         let byId = { (sessions: [Session]) in sessions.sorted { $0.id < $1.id } }
 
         #expect(notHere.sessions.map(\.id) == [
-            "sr-y4d0qj", "sr-j94s0e", "sr-7e68fj", "sr-50f7g8", "sr-aw3bgs", "sr-q7njzv",
+            "sr-y6m1pr", "sr-j3x7bn", "sr-7p4wd2", "sr-5h1zr3", "sr-a8n2xc", "sr-q1f5hs",
         ])
         #expect(notHere.sessions.map(\.away) == [false, false, true, true, true, true])
         #expect(byId(notHere.sessions).map(\.kind) == byId(here).map(\.kind))
@@ -111,7 +111,7 @@ struct PanelBoardTests {
         #expect(working.code == "app/Report.php")
     }
 
-    /// The real CLI's line: Kit's window waiting on a wake, SitRep's on three agents.
+    /// The real CLI's line: Litware's window waiting on a wake, Trey Research's on three agents.
     @Test func aRowOnItsOwnWorkLeadsWithItsVerbThenItsPlainSubjectOrTheWakeItCountsDownTo() {
         let sessions = Self.board(Self.heard(.line(Lines.onItsWork))).sessions
 
@@ -127,9 +127,9 @@ struct PanelBoardTests {
     @Test func aRowNeedingLeeReadsItsSessionsNameOverItsProject() {
         let prompt = Self.board(Self.heard(.line(watchLine))).sessions[1]
 
-        #expect(prompt.title == "Dashboard memory and snags")
+        #expect(prompt.title == "Report caching and snags")
         #expect(prompt.code == nil && prompt.more == nil)
-        #expect(prompt.sub == "Switchboard")
+        #expect(prompt.sub == "Woodgrove")
         #expect(prompt.since == 1_792_445_500_000)
         #expect(prompt.lines[0].title == "Allow Bash: " && prompt.lines[0].code == "gh pr create")
     }
@@ -138,7 +138,7 @@ struct PanelBoardTests {
     @Test func anAwayRowSaysNoWindowHoldsItUnderItsName() {
         let away = Self.board(Self.heard(.line(Lines.twoAsks))).sessions[1]
 
-        #expect(away.title == "Dashboard memory")
+        #expect(away.title == "Report caching")
         #expect(away.sub == "No window holds it. Carry it on in Claude.")
     }
 
@@ -167,7 +167,7 @@ struct PanelBoardTests {
     }
 
     @Test func whatIsNewIsTheRowsHoldingTheLinesNew() {
-        #expect(Self.board(Self.heard(.line(watchLine))).new == ["sr-y4d0qj"])
+        #expect(Self.board(Self.heard(.line(watchLine))).new == ["sr-y6m1pr"])
         #expect(Self.board(Self.heard(.line(allClearLine))).new.isEmpty)
     }
 
@@ -176,11 +176,11 @@ struct PanelBoardTests {
 
         #expect(board.sessions == [
             Session(
-                id: "sr-n0tch1", project: "SitRep", name: "Build the Mac app", letters: "SR", kind: .needs,
-                ask: "k1ap", title: "Approve the caption", sub: "SitRep", since: 1_792_452_732_636
+                id: "sr-n0tch1", project: "Trey Research", name: "Build the desktop app", letters: "TR", kind: .needs,
+                ask: "k1ap", title: "Approve the caption", sub: "Trey Research", since: 1_792_452_732_636
             ),
             Session(
-                id: "sr-dash02", project: "Switchboard", name: "Dashboard memory", letters: "Sw", kind: .needs,
+                id: "sr-d6k1vt", project: "Woodgrove", name: "Report caching", letters: "Wo", kind: .needs,
                 away: true, ask: "k2pc", title: "Pick the cache size", sub: "No window holds it. Carry it on in Claude.",
                 since: 1_792_451_832_636
             ),
@@ -193,18 +193,18 @@ struct PanelBoardTests {
     @Test func aRowNamesItsProjectAsTheBoardDoesWithCoresLetters() {
         let sessions = Self.board(Self.heard(.line(Lines.twoAsks))).sessions
 
-        #expect(sessions.map(\.project) == ["SitRep", "Switchboard"])
-        #expect(sessions.map(\.letters) == ["SR", "Sw"])
+        #expect(sessions.map(\.project) == ["Trey Research", "Woodgrove"])
+        #expect(sessions.map(\.letters) == ["TR", "Wo"])
     }
 
     /// A row names its project and its session by core's own fields, whatever projects the line lists.
     @Test func aRowNamesItsProjectAndSessionByItsOwnFields() {
         let sessions = Self.board(Self.heard(.line(watchLine))).sessions
 
-        #expect(sessions.map(\.project) == ["Terrace", "Switchboard", "Goosemates", "Kit", "SitRep", "DocMan"])
+        #expect(sessions.map(\.project) == ["Humongous", "Woodgrove", "Lucerne", "Litware", "Trey Research", "BlueYonder"])
         #expect(sessions.map(\.name) == [
-            "Plan the tool", "Dashboard memory and snags", "Settle the older open questions", "The bootstrap",
-            "Build the Mac app", "Fix inverted exception reporting",
+            "Plan the launch", "Report caching and snags", "Close out the remaining questions", "The installer",
+            "Build the desktop app", "Fix the reversed error totals",
         ])
         #expect(sessions.allSatisfy { $0.letters == "Pr" })
     }

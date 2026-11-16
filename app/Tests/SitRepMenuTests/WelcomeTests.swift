@@ -723,22 +723,28 @@ struct WelcomeAskLoopTests {
 
 /// The words SitRep makes up where it shows what a place will hold.
 struct SampleTests {
-    /// Lee's real projects never stand in for a sample: Settings' notification, the welcome's terminal and its board.
-    /// The ask's tool keeps the plugin's own name, sitrep, and names no project.
-    @Test func noSampleNamesARealProject() {
+    /// Lee's real work never stands in for a sample, nor SitRep itself: Settings' notification, the welcome's terminal
+    /// and its board. Each sample is held to `tests/real-names.txt`'s rule, and, as samples are few and short, to
+    /// every listed name and its keyed form anywhere in it, case aside, and to the real request ledger. The ask's tool
+    /// keeps the plugin's own name, sitrep, and names no real work.
+    @Test func noSampleNamesARealProject() throws {
+        let real = try RealNames.listed()
         let board = WelcomeBoard.asked(at: 0, isNew: true).sessions
         let lines = board.flatMap(\.lines).flatMap { [$0.ask, $0.title, $0.code].compactMap(\.self) }
         let words = [Sample.ask, Sample.project, Sample.place, Sample.terminal, Sample.terminalAsk, Sample.needsYou]
             + [Sample.running, Sample.writing].flatMap { [$0.title, $0.code] }
             + [Sample.answer, Sample.terminalAnswer]
             + board.flatMap { [$0.id, $0.project, $0.name, $0.sub] } + lines
-        let projects = ["Switchboard", "Kit", "Portal", "Fabric", "ledger"]
+        let named = real.names.flatMap { [$0, $0.lowercased().replacingOccurrences(of: " ", with: "-")] } + ["ledger"]
 
-        for real in projects + ["SitRep"] {
-            #expect(!words.contains { $0.localizedCaseInsensitiveContains(real) }, "\(real)")
+        for word in words + [Sample.terminalTool] {
+            #expect(real.found(in: word).isEmpty, "\(word)")
+            for name in named {
+                #expect(!word.localizedCaseInsensitiveContains(name), "\(word) holds \(name)")
+            }
         }
-        for real in projects {
-            #expect(!Sample.terminalTool.localizedCaseInsensitiveContains(real), "\(real)")
+        for word in words {
+            #expect(!word.localizedCaseInsensitiveContains("SitRep"), "\(word) holds SitRep")
         }
     }
 }

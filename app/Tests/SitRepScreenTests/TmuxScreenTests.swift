@@ -8,7 +8,7 @@ let ghostty = TerminalApp.driven(.ghostty)
 let terminal = TerminalApp.atPath(name: "Terminal", path: "/System/Applications/Utilities/Terminal.app")
 
 /// Claude in tmux, on its pane's own device.
-func inTmux(_ pane: String = "%148", on socket: String = socket, device: String = "/dev/ttys043") -> Where {
+func inTmux(_ pane: String = "%12", on socket: String = socket, device: String = "/dev/ttys004") -> Where {
     Where(device: device, terminal: "tmux", tmux: Where.Tmux(socket: socket, pane: pane))
 }
 
@@ -28,8 +28,8 @@ func seen(_ places: [Place]) -> [[String?]] {
 struct TmuxScreenTests {
     /// Claude's pane, the tmux window holding it, and its tmux session.
     private static let panes = [
-        FakePane(pane: "%148", window: "@45", session: "$45"),
-        FakePane(pane: "%149", window: "@46", session: "$45"),
+        FakePane(pane: "%12", window: "@45", session: "$45"),
+        FakePane(pane: "%13", window: "@46", session: "$45"),
         FakePane(pane: "%54", window: "@52", session: "$52"),
     ]
 
@@ -60,7 +60,7 @@ struct TmuxScreenTests {
     @Test func aPanesWindowNoClientShowsIsShownByASelectInEachSessionHoldingItAClientInATerminalAppIsAttachedTo() async {
         var mac = Mac()
         let panes = ["$7", "$8"].flatMap { session in
-            [FakePane(pane: "%148", window: "@45", session: session), FakePane(pane: "%149", window: "@46", session: session)]
+            [FakePane(pane: "%12", window: "@45", session: session), FakePane(pane: "%13", window: "@46", session: session)]
         } + [FakePane(pane: "%54", window: "@52", session: "$9")]
         let clients = [
             FakeClient(device: "/dev/ttys067", pid: mac.onPhone("/dev/ttys067"), window: "@46", session: "$7"),
@@ -84,7 +84,7 @@ struct TmuxScreenTests {
             FakeClient(device: "/dev/ttys067", pid: mac.onPhone("/dev/ttys067"), window: "@45", session: "$7"),
             FakeClient(device: "/dev/ttys000", pid: mac.inGhostty("/dev/ttys000"), window: "@46", session: "$7"),
         ]
-        let panes = [FakePane(pane: "%148", window: "@45", session: "$7"), FakePane(pane: "%149", window: "@46", session: "$7")]
+        let panes = [FakePane(pane: "%12", window: "@45", session: "$7"), FakePane(pane: "%13", window: "@46", session: "$7")]
         let screen = await read([inTmux()], FakeTmux([socket: FakeServer(panes: panes, clients: clients)]), FakeTable(mac.tree))
 
         #expect(seen(screen.places(showing: [inTmux()])) == [["/dev/ttys000", "Ghostty", "$7"]])
@@ -94,7 +94,7 @@ struct TmuxScreenTests {
         var mac = Mac()
         let control = FakeClient(device: "", pid: mac.inGhostty("/dev/ttys040", own: ""), window: "@45")
         let window = FakeClient(device: "/dev/ttys000", pid: mac.inGhostty("/dev/ttys000"), window: "@46", session: "$45")
-        let panes = [FakePane(pane: "%148", window: "@45", session: "$45")]
+        let panes = [FakePane(pane: "%12", window: "@45", session: "$45")]
         let alone = await read([inTmux()], FakeTmux([socket: FakeServer(panes: panes, clients: [control])]), FakeTable(mac.tree))
         let beside = await read(
             [inTmux()], FakeTmux([socket: FakeServer(panes: panes, clients: [control, window])]), FakeTable(mac.tree)
@@ -145,12 +145,12 @@ struct TmuxScreenTests {
             await Self.paneOnItsPty(device: "/dev/null") == nil,
             "a window on no tty cannot be told on its pane's pty or off it"
         )
-        #expect(await Self.paneOnItsPty(device: "/dev/ttys043") == true)
+        #expect(await Self.paneOnItsPty(device: "/dev/ttys004") == true)
     }
 
-    /// Whether tmux's reading says a window on the device is on its pane's pty, the pane on `/dev/ttys043`.
+    /// Whether tmux's reading says a window on the device is on its pane's pty, the pane on `/dev/ttys004`.
     private static func paneOnItsPty(device: String) async -> Bool? {
-        let pane = FakePane(pane: "%148", window: "@45", session: "$45", device: "/dev/ttys043")
+        let pane = FakePane(pane: "%12", window: "@45", session: "$45", device: "/dev/ttys004")
         let window = inTmux(device: device)
 
         return await TmuxAdapter(FakeTmux([socket: FakeServer(panes: [pane])])).read([window]).isOnItsPty(window)
@@ -159,9 +159,9 @@ struct TmuxScreenTests {
     @Test func severalWindowsShowOnEachOnesDevicesTheFirstWindowsFirstEachDeviceOnce() async {
         let (screen, _, _) = await Self.shown()
         var mac = Mac()
-        let twoPanes = [FakePane(pane: "%148", window: "@45", session: "$45"), FakePane(pane: "%149", window: "@45", session: "$45")]
+        let twoPanes = [FakePane(pane: "%12", window: "@45", session: "$45"), FakePane(pane: "%13", window: "@45", session: "$45")]
         let client = FakeClient(device: "/dev/ttys000", pid: mac.inGhostty("/dev/ttys000"), window: "@45")
-        let windows = [inTmux(), inTmux("%149"), inGhosttyWindow, inTmux()]
+        let windows = [inTmux(), inTmux("%13"), inGhosttyWindow, inTmux()]
         let oneWindow = await read(windows, FakeTmux([socket: FakeServer(panes: twoPanes, clients: [client])]), FakeTable(mac.tree))
 
         #expect(screen.places(showing: [inGhosttyWindow, inTmux()]).map(\.device) == ["/dev/ttys041", "/dev/ttys000", "/dev/ttys055"])
@@ -260,7 +260,7 @@ struct TmuxScreenTests {
 
     @Test func aTmuxClientUnderITerm2sServerOutsideItsBundleIsITerm2s() async {
         var mac = Mac()
-        let server = mac.tree.app("/Users/lee/Library/Application Support/iTerm2/iTermServer-3.5.4")
+        let server = mac.tree.app("/Users/me/Library/Application Support/iTerm2/iTermServer-3.5.4")
         let pid = mac.tree.tmux(under: mac.tree.add(under: server, "/bin/zsh", on: "/dev/ttys070"), on: "/dev/ttys070")
         let clients = [FakeClient(device: "/dev/ttys070", pid: pid, window: "@45")]
         let screen = await read([inTmux()], FakeTmux([socket: FakeServer(panes: Self.panes, clients: clients)]), FakeTable(mac.tree))

@@ -148,7 +148,7 @@ test('a yes ask takes its button with --yes; a words ask what its words are with
   )
 
   await t.run('ask', 'Run the apply', '--wants', 'words', '--needs', ' ', ...SESSION)
-  await t.run('ask', 'Give the go for stage 3', '--wants', 'yes', '--yes', 'Go', ...SESSION)
+  await t.run('ask', 'Give the ok for phase 3', '--wants', 'yes', '--yes', 'Go', ...SESSION)
 
   expect(run).toEqual({ exit: EXIT.done, out: `${FIRST_ID}\n`, err: '' })
   expect(cliLines(t, paths).map(line => line.type === 'ask' && line.needs)).toEqual([

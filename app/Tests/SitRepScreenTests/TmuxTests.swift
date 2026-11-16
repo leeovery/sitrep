@@ -10,10 +10,10 @@ struct TmuxTests {
     @Test func panesReadAsEachOnesWindowTheSessionsItIsInListedOnceForEachAndItsDevice() {
         let panes = parsePanes(
             [
-                "%148\t@45\t$7\t/dev/ttys043",
+                "%12\t@45\t$7\t/dev/ttys004",
                 "%54\t@52\t$9\t/dev/ttys044",
-                "%148\t@45\t$8\t/dev/ttys043",
-                "%148\t@45\t$7\t/dev/ttys043",
+                "%12\t@45\t$8\t/dev/ttys004",
+                "%12\t@45\t$7\t/dev/ttys004",
                 "%55\t@53\t$9",
                 "",
             ].joined(separator: "\n")
@@ -21,7 +21,7 @@ struct TmuxTests {
 
         #expect(
             panes == [
-                "%148": Pane(window: "@45", sessions: ["$7", "$8"], device: "/dev/ttys043"),
+                "%12": Pane(window: "@45", sessions: ["$7", "$8"], device: "/dev/ttys004"),
                 "%54": Pane(window: "@52", sessions: ["$9"], device: "/dev/ttys044"),
             ]
         )
@@ -51,7 +51,7 @@ struct TmuxTests {
     @Test func tmuxIsFoundOnLeesPathToldItsClientTakesUTF8GivenTheSocketAndTwoSecondsAndStoppedWithItsGroup() async throws {
         let folder = try Self.folderHolding("tmux")
         let ran = OSAllocatedUnfairLock(initialState: [Program]())
-        let tmux = TmuxOnPath(path: "/nowhere:\(folder.path)", environment: ["HOME": "/Users/lee", "PATH": "/usr/bin"]) { program in
+        let tmux = TmuxOnPath(path: "/nowhere:\(folder.path)", environment: ["HOME": "/Users/me", "PATH": "/usr/bin"]) { program in
             ran.withLock { $0.append(program) }
 
             return Ran(status: 0, stdout: "", stderr: "")
@@ -63,7 +63,7 @@ struct TmuxTests {
                 Program(
                     executable: folder.appending(path: "tmux"),
                     arguments: ["-u", "-S", Self.socket, "list-clients"],
-                    environment: ["HOME": "/Users/lee", "PATH": "/nowhere:\(folder.path)"],
+                    environment: ["HOME": "/Users/me", "PATH": "/nowhere:\(folder.path)"],
                     limit: 2,
                     stopping: .group
                 ),

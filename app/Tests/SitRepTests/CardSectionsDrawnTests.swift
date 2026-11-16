@@ -134,23 +134,23 @@ struct CardSectionsDrawnTests {
     }
 
     /// A Needs you row: its session's name, and a line for each ask.
-    private static func needs(_ name: String, lines: Int = 1, project: String = "Kit", away: Bool = false) -> Session {
+    private static func needs(_ name: String, lines: Int = 1, project: String = "Litware", away: Bool = false) -> Session {
         Session(
             id: "n", project: project, name: name, kind: .needs, away: away,
             lines: (0 ..< lines).map { Session.Line(ask: "k\($0)", title: "Ask \($0)", since: 0) }, sub: project
         )
     }
 
-    private static func turn(_ title: String, project: String = "Fumi") -> Session {
-        Session(id: "a", project: project, kind: .turn, title: title, sub: "\(project) · Licensing", since: 0)
+    private static func turn(_ title: String, project: String = "Wingtip") -> Session {
+        Session(id: "a", project: project, kind: .turn, title: title, sub: "\(project) · Inventory", since: 0)
     }
 
-    private static func working(_ title: String, code: String? = nil, project: String = "DocMan") -> Session {
+    private static func working(_ title: String, code: String? = nil, project: String = "Coho") -> Session {
         Session(id: "w", project: project, kind: .working, title: title, code: code, sub: "\(project) · Fix", since: 0)
     }
 
     /// On its own work, still, so its colours read as drawn: "Waiting on" what it waits on.
-    private static func waiting(_ subject: String, project: String = "Kit") -> Session {
+    private static func waiting(_ subject: String, project: String = "Litware") -> Session {
         Session(
             id: "o", project: project, kind: .onItsWork, title: "Waiting on ", subject: subject, sub: "\(project) · Boot",
             since: 0
@@ -163,7 +163,7 @@ struct CardSectionsDrawnTests {
 
     /// Every row 30 tall, its lift's corners 10, whatever its section, so two lifts side by side meet.
     @Test func everyRowIsOneLine30TallItsLift10() throws {
-        for session in [Self.needs("Licensing"), Self.turn("Licensing settled"), Self.working("Running ", code: "swift test")] {
+        for session in [Self.needs("Inventory"), Self.turn("Inventory settled"), Self.working("Running ", code: "swift test")] {
             let row = try Self.row(session).row
 
             #expect(row.layer.bounds.height == 30)
@@ -174,7 +174,7 @@ struct CardSectionsDrawnTests {
 
     /// Needs you: its orange dot, 7 across with its glow, in the mark lane on the row's middle, at 16 by 15.
     @Test func aNeedsYouRowsDotIsOrangeOnItsMiddle() throws {
-        let drawn = try Self.row(Self.needs("Licensing")).drawn
+        let drawn = try Self.row(Self.needs("Inventory")).drawn
         let dot = try #require(drawn.pixel(at: CGPoint(x: 16, y: 15)))
         let glow = try #require(drawn.pixel(at: CGPoint(x: 16, y: 10.5)))
 
@@ -186,7 +186,7 @@ struct CardSectionsDrawnTests {
     /// Its session's name from 32, 13 medium in the text colour, wider than a your-turn row's regular of the same
     /// words; its "3" 6 after it, in the soft grey.
     @Test func aNeedsYouRowsNameIs13MediumAndItsCount6After() throws {
-        let name = "Licensing"
+        let name = "Inventory"
         let drawn = try Self.row(Self.needs(name, lines: 3)).drawn
         let medium = Self.width(name, EdgeStyle.lineMedium)
         let title = try #require(drawn.drawnBox(in: CGRect(x: 26, y: 4, width: 6 + medium + 2, height: 22), ground: Self.ground))
@@ -205,7 +205,7 @@ struct CardSectionsDrawnTests {
 
     /// Its project in the lane at the right, faint, never cut while its name is; its time in the 36 lane.
     @Test func aNeedsYouRowsProjectIsInItsLaneNeverCut() throws {
-        let project = "Agentic Workflows"
+        let project = "Wide World Importers"
         let drawn = try Self.row(Self.needs(Self.long, lines: 2, project: project)).drawn
         let whole = TextLine.width(TextLine.text(project, EdgeStyle.sub, EdgeStyle.ink3))
         let lane = CGRect(x: 288 - whole - 1, y: 4, width: whole + 2, height: 22)
@@ -222,7 +222,7 @@ struct CardSectionsDrawnTests {
     /// Your turn, today's one line: its blue dot, 7 across with its glow, as an ask's orange one, at 16 by 15 (13
     /// November 2026; an open white ring 9 across until then).
     @Test func aYourTurnRowsDotIsBlueOnItsMiddle() throws {
-        let drawn = try Self.row(Self.turn("Licensing settled")).drawn
+        let drawn = try Self.row(Self.turn("Inventory settled")).drawn
         let dot = try #require(drawn.pixel(at: CGPoint(x: 16, y: 15)))
         let glow = try #require(drawn.pixel(at: CGPoint(x: 16, y: 10.5)))
 
@@ -233,11 +233,11 @@ struct CardSectionsDrawnTests {
 
     /// What Claude left Lee from 32, 13 regular in the text colour; its project in the lane, faint; its time faint.
     @Test func aYourTurnRowsWordsAre13RegularWithItsProjectAtTheRight() throws {
-        let words = "Licensing settled"
+        let words = "Inventory settled"
         let drawn = try Self.row(Self.turn(words)).drawn
         let regular = Self.width(words, EdgeStyle.line)
         let box = try #require(drawn.drawnBox(in: CGRect(x: 26, y: 4, width: 6 + regular + 2, height: 22), ground: Self.ground))
-        let project = TextLine.width(TextLine.text("Fumi", EdgeStyle.sub, EdgeStyle.ink3))
+        let project = TextLine.width(TextLine.text("Wingtip", EdgeStyle.sub, EdgeStyle.ink3))
         let lane = try #require(drawn.drawnBox(in: CGRect(x: 288 - project - 1, y: 4, width: project + 2, height: 22), ground: Self.ground))
         let age = try #require(drawn.drawnBox(in: CGRect(x: 290, y: 4, width: 54, height: 22), ground: Self.ground))
 
@@ -288,7 +288,7 @@ struct CardSectionsDrawnTests {
     /// Its project in a lane at the right, its own width, ending 10 before the time lane, faint: never cut while the
     /// words before it are, which end 12 before it. The session's name shows nowhere on it.
     @Test func aWorkingRowsProjectIsNeverCutWhileItsWordsAre() throws {
-        let project = "Agentic Workflows"
+        let project = "Wide World Importers"
         let drawn = try Self.row(Self.waiting(Self.long, project: project)).drawn
         let whole = TextLine.width(TextLine.text(project, EdgeStyle.sub, EdgeStyle.ink3))
         let lane = CGRect(x: 288 - whole - 1, y: 4, width: whole + 2, height: 22)
@@ -312,10 +312,10 @@ struct CardSectionsDrawnTests {
     // MARK: The black card's content
 
     private static let mixed = [
-        Session(id: "k", project: "Kit", name: "The bootstrap", kind: .needs, ask: "k1", title: "Approve the plan", sub: "Kit", since: 0),
-        Session(id: "t", project: "Fumi", kind: .turn, title: "Licensing settled", sub: "Fumi · Licensing", since: 0),
-        Session(id: "e", project: "Terrace", kind: .turn, title: "Plan saved", sub: "Terrace · Plan", since: -86_400_000),
-        Session(id: "w", project: "DocMan", kind: .working, title: "Running the tests", sub: "DocMan · Fix", since: 0),
+        Session(id: "k", project: "Litware", name: "The installer", kind: .needs, ask: "k1", title: "Approve the plan", sub: "Litware", since: 0),
+        Session(id: "t", project: "Wingtip", kind: .turn, title: "Inventory settled", sub: "Wingtip · Inventory", since: 0),
+        Session(id: "e", project: "Humongous", kind: .turn, title: "Plan saved", sub: "Humongous · Plan", since: -86_400_000),
+        Session(id: "w", project: "BlueYonder", kind: .working, title: "Running the tests", sub: "BlueYonder · Fix", since: 0),
     ]
 
     /// No head and no hairline: every row on one line, 30 tall, every turn, however old, in Needs you under its ask,
@@ -380,7 +380,7 @@ struct CardSectionsDrawnTests {
     /// ending 10 before the time lane; a Needs you row's name in medium, wider than a your-turn row's regular.
     @available(macOS 26, *)
     @Test func onGlassEveryRowIsOneLineAsTheBlacks() throws {
-        let project = "Agentic Workflows"
+        let project = "Wide World Importers"
         let whole = TextLine.width(TextLine.text(project, EdgeStyle.sub, EdgeStyle.ink3))
         let lane = CGRect(x: 288 - whole - 1, y: 4, width: whole + 2, height: 22)
 
@@ -396,7 +396,7 @@ struct CardSectionsDrawnTests {
             #expect(abs(drawnProject.maxX - 288) <= 1 && abs(drawnProject.width - whole) <= 1.5)
         }
 
-        let name = "Licensing"
+        let name = "Inventory"
         let line = CGRect(x: 26, y: 4, width: 6 + Self.width(name, EdgeStyle.lineMedium) + 2, height: 22)
         let medium = try #require(Self.glass(Self.needs(name)).drawnBox(in: line, ground: Self.ground))
         let regular = try #require(Self.glass(Self.turn(name)).drawnBox(in: line, ground: Self.ground))
@@ -408,7 +408,7 @@ struct CardSectionsDrawnTests {
     /// (`NeedsYouMarksTests`); "until it moves" in its time's place, ending at 334.
     @available(macOS 26, *)
     @Test func onGlassASnoozedTurnIsADotUntilItMoves() throws {
-        let turn = Session(id: "t", project: "Fumi", name: "Licensing", kind: .snoozedTurn, title: "Settled", sub: "Fumi", since: 0)
+        let turn = Session(id: "t", project: "Wingtip", name: "Inventory", kind: .snoozedTurn, title: "Settled", sub: "Wingtip", since: 0)
         let drawn = try Self.glass(turn)
         let dot = try #require(drawn.drawnBox(in: CGRect(x: 4, y: 2, width: 24, height: 26), ground: Self.ground))
         let wide = TextLine.width(TextLine.text(WakeTime.untilItMoves, EdgeStyle.age, EdgeStyle.ink2))

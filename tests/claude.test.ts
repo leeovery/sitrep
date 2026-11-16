@@ -247,7 +247,7 @@ const MONDAY = new Date(2026, 9, 26, 9).getTime()
 
 /** Four asks, the session snoozed until Monday. */
 const SNOOZING: Line[] = [
-  [T0, yesAsk('k1', 'Give the go for stage 3', 'Go')],
+  [T0, yesAsk('k1', 'Give the ok for phase 3', 'Go')],
   [T0, yesAsk('k2', 'Review the plan')],
   [T0, choiceAsk('k3', 'Keep it, or drop it?', ['Keep it', 'Drop it'])],
   [T0, yesAsk('k4', 'Tag the release', 'Done')],
@@ -276,7 +276,7 @@ test("a snoozed ask reads as snoozed by Lee until its time, whole and local, in 
   expect(boardText(SNOOZED)).toContain(
     [
       'Open asks:',
-      '- k1 wants a yes (Go), snoozed by Lee until Mon 26 Oct 09:00 (leave it until then): Give the go for stage 3',
+      '- k1 wants a yes (Go), snoozed by Lee until Mon 26 Oct 09:00 (leave it until then): Give the ok for phase 3',
       '- k2 wants a yes (Approve), snoozed by Lee until Mon 26 Oct 09:00 (leave it until then): Review the plan',
       '- k3 wants a choice, snoozed by Lee until Mon 26 Oct 09:00 (leave it until then): Keep it, or drop it?; options: Keep it | Drop it',
       '- k4 wants a yes (Done), snoozed by Lee until Mon 26 Oct 09:00 (leave it until then): Tag the release',

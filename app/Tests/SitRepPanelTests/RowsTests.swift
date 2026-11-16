@@ -5,57 +5,57 @@ import Testing
 struct RowsTests {
     private static let minute = 60_000.0
 
-    /// Harness's three asks, an hour apart, the newest first, as core has them.
-    private static let harness = Session(
-        id: "sr-4g01a7", project: "Harness", name: "Finish the Harness modernisation", kind: .needs,
+    /// Tailspin's three asks, an hour apart, the newest first, as core has them.
+    private static let tailspin = Session(
+        id: "sr-4t2kq8", project: "Tailspin", name: "Finish the Tailspin migration", kind: .needs,
         lines: [
             Session.Line(title: "Which branch?", more: "+1", since: 120 * minute),
             Session.Line(title: "Choose the release notes' grouping", since: 60 * minute),
-            Session.Line(title: "Approve the first fix batch", since: 0),
+            Session.Line(title: "Approve the first copy edit", since: 0),
         ],
-        sub: "Harness"
+        sub: "Tailspin"
     )
 
     /// A row needing Lee says its session, on every surface: its name, its newest line's time, and "3" for its three
     /// lines waiting; none of its lines' words.
     @Test func aRowNeedingLeeShowsItsSessionsNameThenHowManyWait() {
-        #expect(Self.harness.title == "Finish the Harness modernisation")
-        #expect(Self.harness.code == nil && Self.harness.subject == nil)
-        #expect(Self.harness.since == 120 * Self.minute)
-        #expect(Self.harness.ageText(at: 180 * Self.minute) == "1h")
-        #expect(Self.harness.more == "3")
+        #expect(Self.tailspin.title == "Finish the Tailspin migration")
+        #expect(Self.tailspin.code == nil && Self.tailspin.subject == nil)
+        #expect(Self.tailspin.since == 120 * Self.minute)
+        #expect(Self.tailspin.ageText(at: 180 * Self.minute) == "1h")
+        #expect(Self.tailspin.more == "3")
     }
 
     /// One line waiting shows no count: a permission prompt's command and a question's own "+2", whose words the row
     /// does not show, show nowhere on it.
     @Test func aRowNeedingLeeOfOneLineShowsItsNameAlone() {
         let question = Session(
-            id: "q", project: "Kit", name: "The bootstrap", kind: .needs, title: "Which edge?", more: "+2", sub: "",
+            id: "q", project: "Litware", name: "The installer", kind: .needs, title: "Which page?", more: "+2", sub: "",
             since: 0
         )
         let prompt = Session(
-            id: "p", project: "Kit", name: "The bootstrap", kind: .needs, title: "Allow Bash ", code: "gh pr create",
+            id: "p", project: "Litware", name: "The installer", kind: .needs, title: "Allow Bash ", code: "gh pr create",
             sub: "", since: 0
         )
 
-        #expect(question.title == "The bootstrap" && question.more == nil)
-        #expect(prompt.title == "The bootstrap" && prompt.code == nil)
+        #expect(question.title == "The installer" && question.more == nil)
+        #expect(prompt.title == "The installer" && prompt.code == nil)
     }
 
     /// Any other row says its one line, as it did.
     @Test func anyOtherRowShowsItsOneLine() {
         let working = Session(
-            id: "w", project: "Kit", name: "The bootstrap", kind: .working, title: "Editing ", code: "app/Kit.swift",
-            sub: "Kit · The bootstrap", since: 0
+            id: "w", project: "Litware", name: "The installer", kind: .working, title: "Editing ", code: "app/Litware.swift",
+            sub: "Litware · The installer", since: 0
         )
 
         #expect(working.headline == working.lines[0])
-        #expect(working.title == "Editing " && working.code == "app/Kit.swift" && working.more == nil)
+        #expect(working.title == "Editing " && working.code == "app/Litware.swift" && working.more == nil)
     }
 
     /// Only its time shows: the row may next read differently as its newest line's ticks, not its others'.
     @Test func aRowsWordsMayNextReadDifferentlyAsItsTimeTicks() {
-        var staggered = Self.harness
+        var staggered = Self.tailspin
 
         staggered.lines[0].since = 0
         staggered.lines[1].since = 30_000
@@ -66,7 +66,7 @@ struct RowsTests {
     /// A row of three lines is one row of one line's height, 49 and the 4 under it, the pointer anywhere on it over
     /// the one row.
     @Test func aRowOfSeveralLinesIsOneRowOfOneLinesHeight() {
-        let content = Content(laying: [.session(Self.harness), .divider])
+        let content = Content(laying: [.session(Self.tailspin), .divider])
         let row = content.itemFrame(0)
 
         #expect(row.height == 53)
@@ -174,16 +174,16 @@ struct RowsTests {
     }
 
     @Test func aSessionTakesTheLettersItIsGivenElseMakesItsOwn() {
-        let given = Session(id: "", project: "SitRep", letters: "Si", kind: .turn, title: "", sub: "", since: 0)
-        let made = Session(id: "", project: "SitRep", kind: .turn, title: "", sub: "", since: 0)
+        let given = Session(id: "", project: "Trey Research", letters: "Tr", kind: .turn, title: "", sub: "", since: 0)
+        let made = Session(id: "", project: "Trey Research", kind: .turn, title: "", sub: "", since: 0)
 
-        #expect(given.letters == "Si")
-        #expect(made.letters == "SR")
+        #expect(given.letters == "Tr")
+        #expect(made.letters == "TR")
     }
 
     @Test(arguments: [(0.0, 60_000.0), (59_999, 60_000), (60_000, 120_000), (-30_000, 60_000), (5_400_000, 5_460_000)])
     func aRowsTimeMayNextReadDifferentlyAtItsNextWholeMinute(_ age: Double, changes: Double) {
-        let session = Session(id: "", project: "SitRep", kind: .turn, title: "", sub: "", since: 1000)
+        let session = Session(id: "", project: "Trey Research", kind: .turn, title: "", sub: "", since: 1000)
 
         #expect(session.lines[0].ageChanges(after: 1000 + age) == 1000 + changes)
     }
@@ -198,8 +198,8 @@ struct RowsTests {
     }
 
     @Test func aRowWaitingOnAWakeSaysItsCountdownElseItsSubject() {
-        let wake = Session(id: "", project: "Kit", kind: .onItsWork, title: "Wakes ", until: 1_000_000, sub: "", since: 0)
-        let agents = Session(id: "", project: "SitRep", kind: .onItsWork, title: "Waiting on ", subject: "3 agents", sub: "", since: 0)
+        let wake = Session(id: "", project: "Litware", kind: .onItsWork, title: "Wakes ", until: 1_000_000, sub: "", since: 0)
+        let agents = Session(id: "", project: "Trey Research", kind: .onItsWork, title: "Waiting on ", subject: "3 agents", sub: "", since: 0)
 
         #expect(wake.subject(at: 1_000_000 - 690_000) == "in 12m")
         #expect(wake.subject(at: 1_000_000) == "now")
@@ -212,13 +212,13 @@ struct RowsTests {
         (0.0, 40_000.0), (40_000, 60_000), (60_000, 100_000), (970_000, 1_000_000), (1_000_000, 1_020_000),
     ])
     func aRowWaitingOnAWakeMayNextReadDifferentlyAsItsCountdownOrItsTimeTicks(_ now: Double, changes: Double) {
-        let wake = Session(id: "", project: "Kit", kind: .onItsWork, title: "Wakes ", until: 1_000_000, sub: "", since: 0)
+        let wake = Session(id: "", project: "Litware", kind: .onItsWork, title: "Wakes ", until: 1_000_000, sub: "", since: 0)
 
         #expect(wake.changes(after: now) == changes)
     }
 
     @Test func aRowWaitingOnNoWakeMayNextReadDifferentlyAsItsTimeTicks() {
-        let agents = Session(id: "", project: "SitRep", kind: .onItsWork, title: "Waiting on ", subject: "3", sub: "", since: 0)
+        let agents = Session(id: "", project: "Trey Research", kind: .onItsWork, title: "Waiting on ", subject: "3", sub: "", since: 0)
 
         #expect(agents.changes(after: 40_000) == agents.lines[0].ageChanges(after: 40_000))
         #expect(agents.countdownChanges(after: 40_000) == nil)
@@ -232,7 +232,7 @@ struct RowsTests {
         (Self.wake - 3_540_000, ["in 59m"]), (Self.wake - 1, ["in 1m"]), (Self.wake, ["now"]),
     ] as [(Double, [String])])
     func aRowLeavesRoomForTheWidestItsWakesCountdownMayYetRead(_ now: Double, room: [String]) {
-        let wake = Session(id: "", project: "Kit", kind: .onItsWork, title: "Wakes ", until: Self.wake, sub: "", since: 0)
+        let wake = Session(id: "", project: "Litware", kind: .onItsWork, title: "Wakes ", until: Self.wake, sub: "", since: 0)
 
         #expect(wake.countdownRoom(after: now) == room)
     }
@@ -241,14 +241,14 @@ struct RowsTests {
     private static let wake = 3 * 86_400_000.0
 
     @Test func aRowWithNoWakeLeavesNoRoomForACountdown() {
-        #expect(Session(id: "", project: "Kit", kind: .onItsWork, title: "Waiting on ", subject: "3 agents", sub: "", since: 0)
+        #expect(Session(id: "", project: "Litware", kind: .onItsWork, title: "Waiting on ", subject: "3 agents", sub: "", since: 0)
             .countdownRoom(after: 0).isEmpty)
     }
 
     /// Alone, as a count's rows show no time: a minute before the wake, then as it comes due, then never.
     @Test(arguments: [(0.0, 40_000.0), (970_000, 1_000_000), (1_000_000, nil), (2_000_000, nil)] as [(Double, Double?)])
     func aWakesCountdownAloneNextReadsDifferentlyUntilItIsDue(_ now: Double, changes: Double?) {
-        let wake = Session(id: "", project: "Kit", kind: .onItsWork, title: "Wakes ", until: 1_000_000, sub: "", since: 0)
+        let wake = Session(id: "", project: "Litware", kind: .onItsWork, title: "Wakes ", until: 1_000_000, sub: "", since: 0)
 
         #expect(wake.countdownChanges(after: now) == changes)
     }

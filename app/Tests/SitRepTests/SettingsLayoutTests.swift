@@ -419,7 +419,7 @@ struct Hosted {
         let live = LiveBoard()
         let windows = ["w1", "w2"].map { writer in
             WatchLine.Window(
-                writer: writer, session: "sr-aw3bgs", name: "The Mac app", project: "SitRep",
+                writer: writer, session: "sr-a8n2xc", name: "The desktop app", project: "Trey Research",
                 version: needsReload ? "0.1.0" : "0.2.0", needsReload: needsReload
             )
         }
@@ -429,7 +429,7 @@ struct Hosted {
         last.begin()
         _ = last.hear(.line(line.text), at: Date())
         live.last = last
-        live.plugin = .running(.folder("~/Code/sitrep"), folder: "/Users/lee/Code/sitrep")
+        live.plugin = .running(.folder("~/Code/sitrep"), folder: "/Users/me/Code/sitrep")
         return live
     }
 

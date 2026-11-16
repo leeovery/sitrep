@@ -11,7 +11,7 @@ import Testing
 @MainActor
 struct ClicksTests {
     private nonisolated static let notRunning =
-        "SitRep opens a window only in a Ghostty already running. Open Ghostty, then click SitRep again."
+        "SitRep opens a window only in a Ghostty already running. Open Ghostty, then click Trey Research again."
 
     @Test func aJumpThatJumpedIsToldSoAndHandsNothingBack() async {
         let world = World { _ in .answered(.jumped) }
@@ -65,7 +65,7 @@ struct ClicksTests {
     /// A window brought forward with a word for Lee, as for a Claude he suspended there: the word as a banner, and the
     /// front left with the window, as for any jump that landed.
     @Test func aJumpLandingWithAWordPostsItAndHandsNothingBack() async {
-        let said = "Fumi is suspended in this window: type fg to bring it back."
+        let said = "Wingtip is suspended in this window: type fg to bring it back."
         let world = World { _ in .answered(.jumpedSaying(said)) }
 
         world.click("sr-a")

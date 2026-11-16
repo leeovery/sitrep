@@ -2,12 +2,13 @@ import Foundation
 import os
 @testable import SitRepCore
 
-/// What `claude plugin` printed on Lee's Mac on 20 October 2026, read-only, where the `sitrep` marketplace is the
-/// clone, `~/Code/sitrep`, as a folder marketplace, and `sitrep@sitrep` loads in place from it.
-enum LeesClaude {
-    static let home = "/Users/leeovery"
-    static let marketplaces = printed("marketplaces-lee.json")
-    static let plugins = printed("plugins-lee.json")
+/// `claude plugin`'s lists in the shape Lee's Mac printed them on 20 October 2026, read-only, where the `sitrep`
+/// marketplace is the clone, `~/Code/sitrep`, as a folder marketplace, and `sitrep@sitrep` loads in place from it;
+/// the home, the other marketplaces and their plugins are samples in the places his were.
+enum CloneClaude {
+    static let home = "/Users/me"
+    static let marketplaces = printed("marketplaces-clone.json")
+    static let plugins = printed("plugins-clone.json")
 
     private static func printed(_ name: String) -> String {
         guard let url = Bundle.module.url(forResource: "Claude/\(name)", withExtension: nil),
@@ -28,7 +29,7 @@ enum ClaudeLists {
     }
 
     static let github = #"""
-    {"name": "sitrep", "source": "github", "repo": "leeovery/sitrep", "installLocation": "/Users/lee/.claude/plugins/marketplaces/sitrep"}
+    {"name": "sitrep", "source": "github", "repo": "leeovery/sitrep", "installLocation": "/Users/me/.claude/plugins/marketplaces/sitrep"}
     """#
 
     static func plugin(_ id: String = "sitrep@sitrep", version: String = "0.2.0", readFrom folder: String? = nil) -> String {
@@ -36,7 +37,7 @@ enum ClaudeLists {
 
         return #"""
         {"id": "\#(id)", "version": "\#(version)", "scope": "user", "enabled": true, \#
-        "installPath": "/Users/lee/.claude/plugins/cache/sitrep/sitrep/\#(version)"\#(read), \#
+        "installPath": "/Users/me/.claude/plugins/cache/sitrep/sitrep/\#(version)"\#(read), \#
         "installedAt": "2026-10-20T11:38:42.238Z", "lastUpdated": "2026-10-20T11:38:42.238Z", "projectEnabled": false}
         """#
     }
@@ -46,7 +47,7 @@ enum ClaudeLists {
     static func unloaded(_ id: String = "sitrep@sitrep", version: String = "0.1.0") -> String {
         #"""
         {"id": "\#(id)", "version": "\#(version)", "scope": "user", "enabled": true, \#
-        "installPath": "/Users/lee/.claude/plugins/cache/sitrep/sitrep/\#(version)", \#
+        "installPath": "/Users/me/.claude/plugins/cache/sitrep/sitrep/\#(version)", \#
         "installedAt": "2026-10-13T20:31:34.339Z", "lastUpdated": "2026-10-13T20:31:34.339Z", \#
         "errors": ["Marketplace sitrep failed to load: cache-miss"], \#
         "errorDetails": [{"type": "marketplace-load-failed", "marketplace": "sitrep"}], "projectEnabled": false}
@@ -87,7 +88,7 @@ extension RememberedPlugin {
 /// A `claude` faked: each run answered by its words, `plugin marketplace list` and `plugin list` as given and every
 /// other run as given in `answers`, else done; the words of each run kept, in order.
 final class FakeClaude: Sendable {
-    let executable = URL(fileURLWithPath: "/Users/lee/.local/bin/claude")
+    let executable = URL(fileURLWithPath: "/Users/me/.local/bin/claude")
     private let marketplaces: String
     private let plugins: String
     private let answers: [String: Ran]

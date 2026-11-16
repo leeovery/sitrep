@@ -500,7 +500,7 @@ test('one send carries the yes with its comment, the choice and the answer, in o
   expect(w.prompts.map(each => each.text)).toEqual([
     [
       'From the board:',
-      '- Give the go for stage 3 → Go, with a comment: “After the copy pass”',
+      '- Give the ok for phase 3 → Go, with a comment: “After the copy pass”',
       '  This closes the ask: nothing more to do with it.',
       '- Ship round 2, or redraw? → Redraw',
       '  This closes the ask: nothing more to do with it.',
@@ -572,7 +572,7 @@ test('a send carrying the reply its comment would go with ends the mode: the ban
   held.end()
   expect((await typed).drop).toBeUndefined()
   expect(w.prompts.map(each => each.text)).toEqual([
-    `From the board:\n- Give the go for stage 3 → Go${CLOSES}`,
+    `From the board:\n- Give the ok for phase 3 → Go${CLOSES}`,
     'Carry on.',
   ])
   expect(w.state.answering).toBeNull()
@@ -773,7 +773,7 @@ test('a comment with an image on an ask whose yes is queued goes in with the yes
   await ui.press({ key: `rewrite:${w.item(id)}` })
   await entered(w, $, 'After the copy pass [Image #1]', { attachments: [IMAGE] })
   expect(w.prompts.map(each => each.text)).toEqual([
-    `From the board:\n- Give the go for stage 3 → Go, with a comment: “After the copy pass [Image #1]”${CLOSES}`,
+    `From the board:\n- Give the ok for phase 3 → Go, with a comment: “After the copy pass [Image #1]”${CLOSES}`,
   ])
   expect(writtenIn(w)).toEqual([{ item: id, verdict: 'yes', isDelivered: true }])
   expect(stateOf(w, id)).toBe('closed')
@@ -911,7 +911,7 @@ const ridingHeld = async (w: World, engine: Engine) => {
 }
 
 const RODE_WITH_GO =
-  `From the board:\n- Give the go for stage 3 → Go, with a comment: “After the copy pass [Image #1]”${CLOSES}`
+  `From the board:\n- Give the ok for phase 3 → Go, with a comment: “After the copy pass [Image #1]”${CLOSES}`
 
 test('an answer with an image is on its way from the moment it goes: frozen in Ready to send, with no take-back, and a send meanwhile carries none of it', async ($, on) => {
   const w = world($, on)
@@ -1109,7 +1109,7 @@ test('an answer with an image whose ask a send claims first goes to Claude as an
   await w.clock.settle()
 
   expect(w.submitted).toEqual([
-    `From the board:\n- Give the go for stage 3 → Go${CLOSES}`,
+    `From the board:\n- Give the ok for phase 3 → Go${CLOSES}`,
     'After the copy pass [Image #1]',
   ])
   expect(w.prompts[1]?.attachments).toEqual([IMAGE])

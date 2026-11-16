@@ -4,7 +4,7 @@ import Testing
 
 /// The relay's letters, through the userInfo a distributed notification carries.
 struct LetterTests {
-    private static let notice = Notice(title: "Pick a name", subtitle: "SitRep · Build the Mac app", body: "", work: "sr-aw3bgs")
+    private static let notice = Notice(title: "Pick a name", subtitle: "Trey Research · Build the desktop app", body: "", work: "sr-a8n2xc")
 
     private static func carried<M: Relayed>(_ letter: Letter<M>) -> Letter<M>? {
         Letter(userInfo: letter.userInfo)
@@ -20,7 +20,7 @@ struct LetterTests {
         #expect(Self.carried(letter) == letter)
     }
 
-    @Test(arguments: [ToSitRep.ready(helper: 5150), .clicked(work: "sr-aw3bgs")] + NoticeLeave.all.map { ToSitRep.status($0, id: "c") })
+    @Test(arguments: [ToSitRep.ready(helper: 5150), .clicked(work: "sr-a8n2xc")] + NoticeLeave.all.map { ToSitRep.status($0, id: "c") })
     func eachMessageToSitRepArrivesAsSent(message: ToSitRep) {
         let letter = Letter(message, pid: 4012)
 
@@ -34,9 +34,9 @@ struct LetterTests {
     }
 
     @Test func aLetterOpensOnlyForItsOwnSitRep() {
-        let letter = Letter(ToSitRep.clicked(work: "sr-aw3bgs"), pid: 4012)
+        let letter = Letter(ToSitRep.clicked(work: "sr-a8n2xc"), pid: 4012)
 
-        #expect(letter.message(for: 4012) == .clicked(work: "sr-aw3bgs"))
+        #expect(letter.message(for: 4012) == .clicked(work: "sr-a8n2xc"))
         #expect(letter.message(for: 977) == nil)
     }
 

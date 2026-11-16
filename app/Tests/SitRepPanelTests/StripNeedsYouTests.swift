@@ -6,9 +6,9 @@ import Testing
 /// and needs you's count folds the end of its order, blue while all it holds are stopped and orange while it holds an
 /// ask.
 struct StripNeedsYouTests {
-    /// A turn ends: DocMan's mark moves into needs you at once, before the stopped, and grows into its place there,
-    /// its ring flashing twice where the pulse is on and not at all where it is off; it is never washed, as only an
-    /// ask's arrival is.
+    /// A turn ends: the first working session's mark moves into needs you at once, before the stopped, and grows into
+    /// its place there, its ring flashing twice where the pulse is on and not at all where it is off; it is never
+    /// washed, as only an ask's arrival is.
     @Test(arguments: [true, false])
     func aSessionStoppingMovesIntoNeedsYouAtOnceFlashingOnlyWithThePulse(pulses: Bool) {
         var lab = StripLab()
@@ -149,13 +149,13 @@ struct StripNeedsYouTests {
     /// Landing back in needs you's count, it flashes the count instead.
     @Test func aSessionInTheCountStoppingAgainFlashesTheCount() {
         var lab = StripLab(length: .grows, maxMarks: 6)
-        var fumi = lab.model.session("s5")!
-        fumi.kind = .working
-        lab.change(fumi)
+        var s5 = lab.model.session("s5")!
+        s5.kind = .working
+        lab.change(s5)
         lab.step()
 
-        fumi.kind = .turn
-        lab.stop(fumi, pulses: true)
+        s5.kind = .turn
+        lab.stop(s5, pulses: true)
 
         #expect(lab.model.layout.rest(of: .needsYou).contains("s5"))
         #expect(lab.model.counts[.needsYou]!.flashes.count == 2 && lab.model.counts[.needsYou]!.shows == .stop)

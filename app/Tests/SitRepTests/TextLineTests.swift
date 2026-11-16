@@ -8,7 +8,7 @@ import Testing
 @MainActor
 struct TextLineTests {
     private static let long = TextLine.text(
-        String(repeating: "Finish the Harness modernisation ", count: 3), EdgeStyle.lineMedium, EdgeStyle.ink,
+        String(repeating: "Finish the Tailspin migration ", count: 3), EdgeStyle.lineMedium, EdgeStyle.ink,
         kern: EdgeStyle.tightKern(EdgeStyle.lineMedium)
     )
 

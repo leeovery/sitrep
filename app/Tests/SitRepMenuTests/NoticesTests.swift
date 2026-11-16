@@ -3,13 +3,13 @@ import SitRepMenu
 import Testing
 
 struct NoticesTests {
-    private static let newAsk = Watched.line(new: ["ask:sr-ledger:k1"])
+    private static let newAsk = Watched.line(new: ["ask:sr-l5c9tz:k1"])
     /// A board after the run's first, with the ask new on it.
     private static let asked = heard([.line(Watched.line(rows: [])), .line(newAsk)])
 
     @Test func aNewAskSendsItsTitleItsProjectAndSessionSilentlyJumpingToIt() {
         #expect(Notices.due(Self.asked, .notifyingAsks) == [
-            Banner(title: "Choose how long the ledger keeps requests", subtitle: "Switchboard · Usage", body: "", work: "sr-ledger"),
+            Banner(title: "Choose how long the archive keeps reports", subtitle: "Woodgrove · Usage", body: "", work: "sr-l5c9tz"),
         ])
     }
 
@@ -23,13 +23,13 @@ struct NoticesTests {
         #expect(Notices.due(stopped, .notifyingAsks).isEmpty)
     }
 
-    /// Each its own, the oldest first, so Notification Center stacks the newest on top: Terrace's ask, older, though
-    /// core lists it after Switchboard's.
+    /// Each its own, the oldest first, so Notification Center stacks the newest on top: Humongous's ask, older, though
+    /// core lists it after Woodgrove's.
     @Test func eachNewAskSendsItsOwnTheOldestFirst() {
-        let both = heard([.line(Watched.line(rows: [])), .line(Watched.line(new: ["ask:sr-ledger:k1", "ask:sr-plan:k2"]))])
+        let both = heard([.line(Watched.line(rows: [])), .line(Watched.line(new: ["ask:sr-l5c9tz:k1", "ask:sr-plan:k2"]))])
 
         #expect(Notices.due(both, .notifyingAsks).map(\.title) == [
-            "Pick the plan's shape", "Choose how long the ledger keeps requests",
+            "Pick the plan's shape", "Choose how long the archive keeps reports",
         ])
     }
 
@@ -38,7 +38,7 @@ struct NoticesTests {
         let away = heard([.line(Watched.line(rows: [])), .line(Watched.line(new: ["ask:sr-plan:k2"]))])
 
         #expect(Notices.due(away, .notifyingAsks) == [
-            Banner(title: "Pick the plan's shape", subtitle: "Terrace · Plan the tool", body: "", work: "sr-plan"),
+            Banner(title: "Pick the plan's shape", subtitle: "Humongous · Plan the launch", body: "", work: "sr-plan"),
         ])
     }
 
@@ -57,7 +57,7 @@ struct NoticesTests {
         let after = heard([.line(Watched.line(rows: [])), .exited(.status(1), stderr: "")], [.line("{"), .line(Self.newAsk)])
 
         #expect(!after.isRunsFirst)
-        #expect(Notices.due(after, .notifyingAsks).map(\.work) == ["sr-ledger"])
+        #expect(Notices.due(after, .notifyingAsks).map(\.work) == ["sr-l5c9tz"])
     }
 
     @Test func aStaleBoardSendsNothingAgain() {

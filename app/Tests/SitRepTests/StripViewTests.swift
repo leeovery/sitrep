@@ -15,7 +15,7 @@ struct StripViewTests {
     )
 
     private static let sessions = ["a", "b", "c"].map {
-        Session(id: $0, project: "SitRep", kind: .turn, title: "Your turn", sub: "SitRep · Build", since: 0)
+        Session(id: $0, project: "Trey Research", kind: .turn, title: "Your turn", sub: "Trey Research · Build", since: 0)
     }
 
     @Test(arguments: [EdgeSettings.Edge.left, .right])

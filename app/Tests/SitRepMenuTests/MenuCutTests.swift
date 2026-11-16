@@ -15,13 +15,13 @@ struct MenuCutTests {
     }
 
     @Test func aTitlePastTheWidthIsCutAtItsTailWithAnEllipsis() {
-        let title = MenuTitle(words: "Choose which edge the strip takes", mono: nil, more: nil, isFaint: true)
+        let title = MenuTitle(words: "Choose which page the guide opens", mono: nil, more: nil, isFaint: true)
 
-        #expect(title.cut(by: Self.cut) == MenuTitle(words: "Choose which edge t…", mono: nil, more: nil, isFaint: true))
+        #expect(title.cut(by: Self.cut) == MenuTitle(words: "Choose which page t…", mono: nil, more: nil, isFaint: true))
     }
 
     @Test func theCutDropsTheSpaceBeforeTheEllipsis() {
-        #expect(Self.cut.fit("Choose which edges  more", in: .words) == "Choose which edges…")
+        #expect(Self.cut.fit("Choose which pages  more", in: .words) == "Choose which pages…")
     }
 
     @Test func aSubjectIsMeasuredInMonoAndCutInIt() {
@@ -37,9 +37,9 @@ struct MenuCutTests {
     }
 
     @Test func aQuestionsCountIsKeptWholeAfterTheCut() {
-        let title = MenuTitle(words: "Which edge does the strip take?", mono: nil, more: " +2", isFaint: false)
+        let title = MenuTitle(words: "Which page does the guide open?", mono: nil, more: " +2", isFaint: false)
 
-        #expect(title.cut(by: Self.cut) == MenuTitle(words: "Which edge does…", mono: nil, more: " +2", isFaint: false))
+        #expect(title.cut(by: Self.cut) == MenuTitle(words: "Which page does…", mono: nil, more: " +2", isFaint: false))
     }
 
     @Test func everyCutFitsTheWidth() {
@@ -51,7 +51,7 @@ struct MenuCutTests {
     }
 
     @Test func aLineUnderTheTitleIsCutInItsOwnFaceToItsOwnWidth() {
-        #expect(Self.cut.fit("SitRep · Build the Mac app", in: .subtitle) == "SitRep · Build the…")
-        #expect(Self.cut.fit("SitRep · Build the Mac app and more", in: .words) == "SitRep · Build the…")
+        #expect(Self.cut.fit("Trey Research · Build the desktop app", in: .subtitle) == "Trey Research · Bui…")
+        #expect(Self.cut.fit("Trey Research · Build the desktop app and more", in: .words) == "Trey Research · Bui…")
     }
 }

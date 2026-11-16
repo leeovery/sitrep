@@ -7,13 +7,13 @@ import Testing
 struct StripTimelineTests {
     typealias Act = (at: Double, act: (inout StripLab) -> Void)
 
-    /// The pointer resting on Fumi's mark: the edge reaches, the dwell, the pour; then on to Goosemates's, the tab
-    /// gliding; then off the page, the grace and the draw back.
+    /// The pointer resting on the first turn's mark: the edge reaches, the dwell, the pour; then on to the next's, the
+    /// tab gliding; then off the page, the grace and the draw back.
     @Test func aTabPoursGlidesAndDrawsBackAsThePrototypes() {
         expectPlays(StripRecorded.hover)
     }
 
-    /// The pointer resting on SitRep's, the first mark: its tab's top fits into the top end's S as it pours, and
+    /// The pointer resting on the first mark, the first ask's: its tab's top fits into the top end's S as it pours, and
     /// leaves it again as it draws back, the S never moving.
     @Test func theFirstMarksTabFitsIntoTheTopEndAsThePrototypes() {
         expectPlays(StripRecorded.fit)
@@ -29,8 +29,8 @@ struct StripTimelineTests {
         #expect(abs(lab.model.mark(.session("s9"))!.arrived - start - StripRecorded.arrived) < 1e-6)
     }
 
-    /// An ask answered, Claude working again: SitRep's mark leaves needs you for working at once, its group changed,
-    /// the marks between sliding up (Lee, 14 November 2026).
+    /// An ask answered, Claude working again: the first ask's mark leaves needs you for working at once, its group
+    /// changed, the marks between sliding up (Lee, 14 November 2026).
     @Test func anAnsweredAskLeavesNeedsYouAtOnceAsThePrototypes() {
         expectPlays(
             StripRecorded.answer, marks: ["s1", "s2", "s5", "s8"], [(0, { $0.change(StripLab.answered) })]
@@ -57,8 +57,8 @@ struct StripTimelineTests {
         #expect(lab.model.display == StripRecorded.manyOrder)
     }
 
-    /// Eight new asks, sixteen marks, all that fit: the last, Turnstile's, on the last place, its tab's bottom fitting
-    /// into the bottom end's S.
+    /// Eight new asks, sixteen marks, all that fit: the last, the second working session's, on the last place, its
+    /// tab's bottom fitting into the bottom end's S.
     @Test func theLastMarksTabFitsIntoTheBottomEndAsThePrototypes() {
         var lab = StripLab()
 
@@ -159,8 +159,8 @@ struct StripTimelineTests {
         expectMatches(played, StripRecorded.empty)
     }
 
-    /// A turn ends: DocMan's mark leaves its place under the hairline and grows into needs you before the stopped, at
-    /// once, the marks between sliding down and the hairline with them.
+    /// A turn ends: the first working session's mark leaves its place under the hairline and grows into needs you
+    /// before the stopped, at once, the marks between sliding down and the hairline with them.
     @Test func aSessionStoppingMovesIntoNeedsYouAtOnceAsThePrototypes() {
         var lab = StripLab(length: .grows)
 
@@ -171,9 +171,10 @@ struct StripTimelineTests {
         expectMatches(played, StripRecorded.stops)
     }
 
-    /// Max 6, five new asks, then a turn ends: DocMan's lands in needs you's count, the marks showing never moving,
-    /// and the grey count, left holding one, goes as Turnstile's mark comes out of it. A settle after each, the strip
-    /// takes the panel's order: the oldest new ask shows where the away one did, and DocMan's leads the stopped.
+    /// Max 6, five new asks, then a turn ends: the first working session's lands in needs you's count, the marks
+    /// showing never moving, and the grey count, left holding one, goes as the second working session's mark comes out
+    /// of it. A settle after each, the strip takes the panel's order: the oldest new ask shows where the away one did,
+    /// and the newly stopped one leads the stopped.
     @Test func aSessionStoppingPastItsRoomLandsInTheCountAsThePrototypes() {
         var lab = StripLab(length: .grows, maxMarks: 6)
 
@@ -186,10 +187,10 @@ struct StripTimelineTests {
         #expect(lab.model.layout.rest(of: .needsYou) == ["s10", "s11", "s12", "s13", "s4", "s7", "s5", "s6"])
     }
 
-    /// Max 7: a turn ends and DocMan's lands in needs you's new count beside Goosemates's; a new ask takes its place,
-    /// pushing Fumi's stopped mark, the last showing, into the count, the marks between sliding down; a second, with
-    /// no stopped mark showing, lands in the count. The settle between them puts the stopped in the panel's order,
-    /// DocMan's, the newest, first, which the recording never shows.
+    /// Max 7: a turn ends and the first working session's lands in needs you's new count beside the second turn's; a
+    /// new ask takes its place, pushing the first turn's stopped mark, the last showing, into the count, the marks
+    /// between sliding down; a second, with no stopped mark showing, lands in the count. The settle between them puts
+    /// the stopped in the panel's order, the newly stopped one, the newest, first, which the recording never shows.
     @Test func aNewAskOnAFullStripPushesTheLastStoppedMarkIntoTheCountAsThePrototypes() {
         var lab = StripLab(length: .grows, maxMarks: 7)
 

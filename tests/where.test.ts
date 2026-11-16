@@ -14,9 +14,9 @@ import { T0, W1 } from './data'
 const SOCKET = '/private/tmp/tmux-501/default'
 
 const IN_TMUX: Where = {
-  device: '/dev/ttys043',
+  device: '/dev/ttys004',
   terminal: 'tmux',
-  tmux: { socket: SOCKET, pane: '%148' },
+  tmux: { socket: SOCKET, pane: '%12' },
 }
 
 /** A heartbeat file holding `where` as given, its times good. */
@@ -81,7 +81,7 @@ test('with nothing known of where a window is, its heartbeat has no where at all
 })
 
 test('a bad where is dropped and the heartbeat kept', () => {
-  for (const where of ['ghostty', 5, null, [], {}, { device: 'ttys043' }]) {
+  for (const where of ['ghostty', 5, null, [], {}, { device: 'ttys004' }]) {
     const read = parsePresence(fileWith(where), W1)
 
     expect(read, JSON.stringify(where)).toEqual({ writer: W1, attachedAt: T0, seenAt: T0 })
@@ -92,10 +92,10 @@ test('a bad where is dropped and the heartbeat kept', () => {
 test('a bad field of where is dropped, the good ones kept, and keys it does not know ignored', () => {
   const read = (where: unknown) => parsePresence(fileWith(where), W1)?.where
 
-  expect(read({ ...IN_TMUX, device: '/tmp/ttys043' })).toEqual({ ...IN_TMUX, device: undefined })
+  expect(read({ ...IN_TMUX, device: '/tmp/ttys004' })).toEqual({ ...IN_TMUX, device: undefined })
   expect(read({ ...IN_TMUX, terminal: '' })).toEqual({ ...IN_TMUX, terminal: undefined })
   expect(read({ ...IN_TMUX, terminal: 7 })).toEqual({ ...IN_TMUX, terminal: undefined })
-  expect(read({ ...IN_TMUX, tmux: { socket: '', pane: '%148' } })).toEqual({
+  expect(read({ ...IN_TMUX, tmux: { socket: '', pane: '%12' } })).toEqual({
     ...IN_TMUX,
     tmux: undefined,
   })
@@ -111,21 +111,21 @@ test('a bad field of where is dropped, the good ones kept, and keys it does not 
 
 test('in tmux, the socket is $TMUX up to its first comma, with $TMUX_PANE as the pane', () => {
   const where = whereOf(
-    { TMUX: `${SOCKET},30249,129`, TMUX_PANE: '%148', TERM_PROGRAM: 'tmux' },
-    '/dev/ttys043',
+    { TMUX: `${SOCKET},4242,0`, TMUX_PANE: '%12', TERM_PROGRAM: 'tmux' },
+    '/dev/ttys004',
   )
 
   expect(where).toEqual(IN_TMUX)
 })
 
 test('outside tmux, or with $TMUX and no pane, there is no tmux', () => {
-  expect(whereOf({ TERM_PROGRAM: 'ghostty' }, '/dev/ttys043')).toEqual({
-    device: '/dev/ttys043',
+  expect(whereOf({ TERM_PROGRAM: 'ghostty' }, '/dev/ttys004')).toEqual({
+    device: '/dev/ttys004',
     terminal: 'ghostty',
   })
-  expect(whereOf({ TMUX: `${SOCKET},30249,129` })).toBeUndefined()
-  expect(whereOf({ TMUX: `${SOCKET},30249,129`, TMUX_PANE: '' })).toBeUndefined()
-  expect(whereOf({ TMUX: ',30249,129', TMUX_PANE: '%148' })).toBeUndefined()
+  expect(whereOf({ TMUX: `${SOCKET},4242,0` })).toBeUndefined()
+  expect(whereOf({ TMUX: `${SOCKET},4242,0`, TMUX_PANE: '' })).toBeUndefined()
+  expect(whereOf({ TMUX: ',4242,0', TMUX_PANE: '%12' })).toBeUndefined()
 })
 
 test('in zmx, the session is $ZMX_SESSION whole, its spaces and · kept, beside the device and the terminal; none when empty', () => {
@@ -159,22 +159,22 @@ test('the terminal is $TERM_PROGRAM as given, and none without it', () => {
 test("a device is kept only when it is a tty, the form of Ghostty's `tty`, which the jump asks for", () => {
   const read = (device: string) => parsePresence(fileWith({ device }), W1)?.where
 
-  expect(whereOf({}, '/dev/ttys043')).toEqual({ device: '/dev/ttys043' })
-  expect(read('/dev/ttys043')).toEqual({ device: '/dev/ttys043' })
+  expect(whereOf({}, '/dev/ttys004')).toEqual({ device: '/dev/ttys004' })
+  expect(read('/dev/ttys004')).toEqual({ device: '/dev/ttys004' })
 
-  for (const device of ['/dev/../x', '/dev/null', '/dev/ttys043/x', '/dev/', 'ttys043', '']) {
+  for (const device of ['/dev/../x', '/dev/null', '/dev/ttys004/x', '/dev/', 'ttys004', '']) {
     expect(whereOf({}, device), device).toBeUndefined()
     expect(read(device), device).toBeUndefined()
   }
 })
 
 test("the walk's output names a device by its tty name; anything else, ?? and nothing among it, names none", () => {
-  expect(parseDevice('ttys043\n')).toBe('/dev/ttys043')
-  expect(parseDevice('  ttys043  ')).toBe('/dev/ttys043')
+  expect(parseDevice('ttys004\n')).toBe('/dev/ttys004')
+  expect(parseDevice('  ttys004  ')).toBe('/dev/ttys004')
   expect(parseDevice('??\n')).toBeUndefined()
   expect(parseDevice('')).toBeUndefined()
   expect(parseDevice('\n')).toBeUndefined()
   expect(parseDevice('ps: illegal option')).toBeUndefined()
-  expect(parseDevice('ttys043\nttys044')).toBeUndefined()
+  expect(parseDevice('ttys004\nttys044')).toBeUndefined()
   expect(parseDevice('../../etc/passwd')).toBeUndefined()
 })

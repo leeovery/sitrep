@@ -15,7 +15,7 @@ struct SnoozedTurnTests {
         let rows = try Self.line(0).snoozed
         let line = try #require(rows.first?.lines.first)
 
-        #expect(rows.map(\.id) == ["turn:sr-ctnbd2", "turn:sr-nwtrn5"])
+        #expect(rows.map(\.id) == ["turn:sr-ctnbd2", "turn:sr-nx7bky"])
         #expect(rows.allSatisfy { $0.isTurn })
         #expect(rows.map(\.name) == ["Onboarding flow", "Ledger export"])
         #expect(rows.map { $0.lines.count } == [1, 1])
@@ -31,7 +31,7 @@ struct SnoozedTurnTests {
     @Test func aTurnSnoozedUntilItMovesWakesAtNoTimeAndComesLast() throws {
         let row = try #require(try Self.line(0).snoozed.last)
 
-        #expect(row.session == "sr-nwtrn5")
+        #expect(row.session == "sr-nx7bky")
         #expect(row.wakesAt == nil)
         #expect(row.lines.map(\.wakesAt) == [nil])
     }
@@ -50,8 +50,8 @@ struct SnoozedTurnTests {
         let woken = try Self.line(1), moved = try Self.line(2)
 
         #expect(woken.rows.map(\.session) == ["sr-ctnbd2", "sr-fbrk3m"])
-        #expect(woken.snoozed.map(\.id) == ["turn:sr-nwtrn5"])
-        #expect(moved.rows.map(\.session) == ["sr-nwtrn5", "sr-ctnbd2", "sr-fbrk3m"])
+        #expect(woken.snoozed.map(\.id) == ["turn:sr-nx7bky"])
+        #expect(moved.rows.map(\.session) == ["sr-nx7bky", "sr-ctnbd2", "sr-fbrk3m"])
         #expect(moved.rows.map(\.section) == [.yourTurn, .yourTurn, .yourTurn])
         #expect(moved.snoozed.isEmpty)
     }
@@ -59,13 +59,13 @@ struct SnoozedTurnTests {
     /// A session snoozed whole since 13 November 2026 is one row, its asks and its turn among its lines: the session's
     /// row, keyed as any, no turn's of its own.
     @Test func aRowOfAsksAndATurnIsTheSessionsOwn() throws {
-        let turn = #"{"key":"turn:sr-4g01a7","is":"yourTurn","ask":null,"first":{"lead":"Stage 2 is in","mono":null,"subject":null,"more":null,"until":null},"since":1792741100000,"wakesAt":1792745127000}"#
+        let turn = #"{"key":"turn:sr-4t2kq8","is":"yourTurn","ask":null,"first":{"lead":"Stage 2 is in","mono":null,"subject":null,"more":null,"until":null},"since":1792741100000,"wakesAt":1792745127000}"#
         let line = Lines.snoozed[0].replacingOccurrences(of: #""wakesAt":1792745127000}]"#, with: #""wakesAt":1792745127000},\#(turn)]"#)
         let row = try #require(try Board.read(line).snoozed.first)
 
         #expect(row.lines.map(\.kind) == [.ask, .ask, .yourTurn])
         #expect(!row.isTurn)
-        #expect(row.id == "sr-4g01a7")
+        #expect(row.id == "sr-4t2kq8")
         #expect(row.wakesAt == at(1_792_741_532_000))
     }
 
@@ -75,6 +75,6 @@ struct SnoozedTurnTests {
 
         #expect(row.lines.map(\.kind) == [.ask, .ask])
         #expect(!row.isTurn)
-        #expect(row.id == "sr-4g01a7")
+        #expect(row.id == "sr-4t2kq8")
     }
 }

@@ -11,7 +11,7 @@ struct PanelContentTests {
     private static let stage = Stage(height: 982, visibleTop: 24, visibleBottom: 982, notchY: 491)
 
     private static func row(_ id: String, _ title: String = "Running the tests") -> Item {
-        .session(Session(id: id, project: "SitRep", kind: .working, title: title, sub: "SitRep · Build", since: 0))
+        .session(Session(id: id, project: "Trey Research", kind: .working, title: title, sub: "Trey Research · Build", since: 0))
     }
 
     private static func list(_ items: Item...) -> PanelList {
@@ -78,7 +78,7 @@ struct PanelContentTests {
     /// its name, and the row under it stays; still lifted, as one under the pointer was.
     @Test func aRowGainingALineIsMadeAnewInPlace() {
         let content = PanelContent()
-        let one = Session(id: "a", project: "Harness", kind: .needs, title: "Approve the batch", sub: "Harness · H", since: 0)
+        let one = Session(id: "a", project: "Tailspin", kind: .needs, title: "Approve the batch", sub: "Tailspin · H", since: 0)
         var two = one
         let frame = Self.open(Self.list(.session(one), Self.row("b")))
 
@@ -98,7 +98,7 @@ struct PanelContentTests {
     /// arriving in needs you, never on the one folding away.
     @Test func aRowCrossingTheHairlineWashesOnlyWhereItArrives() {
         let content = PanelContent()
-        let rest = Session(id: "x", project: "SitRep", kind: .turn, title: "Your turn", sub: "SitRep · Build", since: 0)
+        let rest = Session(id: "x", project: "Trey Research", kind: .turn, title: "Your turn", sub: "Trey Research · Build", since: 0)
         var asking = rest
         asking.kind = .needs
         asking.lines[0].title = "Approve the plan"
