@@ -203,9 +203,14 @@ function display(on: On) {
   let unplaced: string | undefined
   let dropping: string | undefined
   let failing: string | undefined
+  let refusingOpens: string | undefined
   let holding: { arrive: () => void; turn: Promise<void> } | undefined
 
   on('ui.open', ($, e) => {
+    if (refusingOpens !== undefined) {
+      return { deny: refusingOpens }
+    }
+
     panes.set(e.id, unplaced === undefined)
 
     return {
@@ -323,6 +328,10 @@ function display(on: On) {
     /** Prompts from here on fail beneath the mod, as a hook there throwing or timing out; or, given nothing, they enter again. */
     failPrompts: (error?: string) => {
       failing = error
+    },
+    /** Panes opened from here on are refused beneath the mod, for that reason; or, given none, they open again. */
+    refuseOpens: (reason?: string) => {
+      refusingOpens = reason
     },
     /**
      * Prompts from here on wait, as behind a running turn: `arrived` once

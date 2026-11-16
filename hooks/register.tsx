@@ -31,7 +31,7 @@
  * the scene.
  */
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, Register } from 'claude-code'
+import type { EngineInterface, HookFailure, Register } from 'claude-code'
 import { actionsOf, sendReady, wakeByLeesPrompt, wakeByTurnEnd } from './actions'
 import { captured, heardSurvey } from './answering'
 import { lookAround, lookEvery } from './around'
@@ -260,6 +260,17 @@ const hostOf = ($: EngineInterface): Host => ({
     },
   },
 })
+
+/**
+ * A press its hook failed ends there, logged: passed on, it reaches the
+ * button's own handler, which does nothing, and after a /reload-plugins the
+ * engine holds none, so the press fails a second time.
+ */
+const pressFailed = ($: EngineInterface, e: { element: string }, next: { error: HookFailure }) => {
+  logFailure(hostOf($), `pressing ${e.element}`)(next.error.message ?? next.error.kind)
+
+  return { element: e.element }
+}
 
 /** The window's turn ending wakes a snooze of Lee's until it moves, before the turn's end is heard, so the session comes back at its turn as any turn ends. */
 const wakeOnTurnEnd = (host: Host) =>
@@ -538,10 +549,7 @@ export const register: Register = on => {
 
   // Inside Lee's press, whose submit Claude Code takes though Lee stopped
   // Claude's turn: the hook's own $ carries the press, which the board's
-  // own buttons, bound to the $ it was drawn with, do not. A press these
-  // hooks fail ends there: the buttons' own handlers do nothing, and after
-  // a /reload-plugins the engine holds none for them, so passing the press
-  // on fails it a second time.
+  // own buttons, bound to the $ it was drawn with, do not.
   on('ui.press', { plugin: 'sitrep', element: [SEND, SEND_NOW] }, async ($, e) => {
     const host: Host = { ...hostOf($), isPress: true }
     const isDock = placementOn(await host.state.pane.read(), e.surface) !== 'inline'
@@ -550,13 +558,13 @@ export const register: Register = on => {
     await pressed.catch(logFailure(host, 'sending'))
 
     return { element: e.element }
-  }).catch(($, e) => ({ element: e.element }))
+  }).catch(pressFailed)
 
   on('ui.press', { plugin: 'sitrep', element: BAND_KEYS }, async ($, e) => {
     await pressBand(hostOf($), e.element)
 
     return { element: e.element }
-  }).catch(($, e) => ({ element: e.element }))
+  }).catch(pressFailed)
 
   on('ui.close', { id: PANE }, async ($, e, next) => {
     const closed = await next(e)
