@@ -31,7 +31,7 @@ import {
   type ToolCall,
   type WindowState,
 } from '../core'
-import { T0, W1 } from './support'
+import { T0, W1 } from './data'
 
 const PERMISSION: WindowState = {
   is: 'permission',

@@ -14,7 +14,7 @@ import {
   versionOf,
   type Upgrade,
 } from '../core'
-import { META, MIN, T0, W1 } from './support'
+import { META, MIN, T0, W1 } from './data'
 
 /** A made-up past: at version 1, an ask's title was its `heading`. */
 const headingToTitle: Upgrade = ({ heading, ...rest }) => ({ ...rest, title: heading })

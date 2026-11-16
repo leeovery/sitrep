@@ -7,8 +7,9 @@
 import { expect, test, tier } from './kit'
 import { metaText, parsePresence, sessionPaths } from '../core'
 import type { SitrepInFlight } from '../types'
-import { CLOSES, file, META, T0, W1, yesAsk } from './support'
-import { CONVERSATION, PROJECT, ROOT, world } from './world'
+import { CLOSES, META, PROJECT, ROOT, T0, W1 } from './data'
+import { file, yesAsk } from './lines'
+import { CONVERSATION, world } from './world'
 
 tier('user')
 

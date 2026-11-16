@@ -3,11 +3,21 @@ import { expect, test, tier, type Mounted } from './kit'
 import { bandLast, besideBand } from '../hooks/draw/band'
 import Placement from '../hooks/draw/placement'
 import { rowsOf } from './drawn'
-import { BAND, DOCKED, INLINE, postedId, CONVERSATION, SURFACES, world } from './world'
+import { reviewRound } from './data'
+import {
+  asked,
+  BAND,
+  CONVERSATION,
+  DOCKED,
+  INLINE,
+  postedId,
+  SURFACES,
+  world,
+  type World,
+} from './world'
 
 tier('user')
 
-type World = ReturnType<typeof world>
 type Surface = (typeof SURFACES)[number]
 
 /** What the engine draws above the prompt with no plugin drawing there, as if it drew a line of its own. */
@@ -41,7 +51,7 @@ async function busy(w: World) {
   await w.begin()
 
   return {
-    ask: postedId(await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' })),
+    ask: await asked(w, reviewRound(1)),
     parked: postedId(await w.call('park', { title: 'A priority badge' })),
   }
 }

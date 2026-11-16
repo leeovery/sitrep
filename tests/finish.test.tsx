@@ -1,32 +1,31 @@
 import type { RenderPropsOf } from 'claude-code'
 import { expect, test, tier } from './kit'
-import { parseEntries, sessionPaths, type SessionMeta } from '../core'
+import { parseEntries, sessionPaths } from '../core'
 import { rowsOf } from './drawn'
-import { file, finish, MIN, note, park, SLOW, T0, W1, W2, W3, W4, yesAsk } from './support'
-import { ELSEWHERE, PROJECT, ROOT, toProject, WIDE, world } from './world'
+import {
+  ELSEWHERE,
+  LEDGER,
+  meta,
+  MIN,
+  PROJECT,
+  REVIEW,
+  reviewRound,
+  ROOT,
+  SHIFTS,
+  T0,
+  THEMES,
+  W1,
+  W3,
+} from './data'
+import { file, finish, note, park, yesAsk } from './lines'
+import { toProject, WIDE, world, type Board, type World } from './world'
 
 tier('user')
 
-type World = ReturnType<typeof world>
-type Board = Awaited<ReturnType<World['opened']>>
-
-const LEDGER = 'sr-1edger'
-const THEMES = 'sr-themes'
 const LOBBY = 'sr-10bbyy'
-const SHIFTS = 'sr-0sh1ft'
-
-const meta = (id: string, name: string, by: string, project = 'northwind'): SessionMeta => ({
-  id,
-  name,
-  summary: `${name}, area by area`,
-  project,
-  root: `/Users/me/Code/${project}`,
-  created: T0,
-  by,
-})
 
 /** Themes' file this window writes, as Lee finishes it from its view. */
-const MINE = sessionPaths(ROOT, PROJECT.key, THEMES).log(W1)
+const MINE = sessionPaths(ROOT, PROJECT.key, THEMES.id).log(W1)
 
 /**
  * This session with an ask, beside three others of its project, each with
@@ -35,22 +34,22 @@ const MINE = sessionPaths(ROOT, PROJECT.key, THEMES).log(W1)
  * ask still open. A minute on, Lee opens the board, drawn as `props` say.
  */
 async function around(w: World, props?: RenderPropsOf['Pane']) {
-  const ledger = w.elsewhere(meta(LEDGER, 'Invoice ledger', W2))
+  const ledger = w.elsewhere(LEDGER)
 
   ledger.write(yesAsk('k3', 'Review the ledger schema'))
-  w.elsewhere(meta(THEMES, 'Themes', W3)).write(yesAsk('k4', 'Pick the dark palette', 'Done'))
+  w.elsewhere(THEMES).write(yesAsk('k4', 'Pick the dark palette', 'Done'))
   w.elsewhere(meta(LOBBY, 'Lobby', W3)).write(
     yesAsk('k5', 'Check the lobby', 'Done'),
     finish('lee'),
   )
-  w.elsewhere(meta(SHIFTS, 'Shift schedules', W4, 'contoso'), ELSEWHERE.key).write(
+  w.elsewhere(SHIFTS, ELSEWHERE.key).write(
     yesAsk('k6', 'Review the shift schedules'),
     finish('claude', 'Shipped'),
   )
 
   const { id } = await w.begin()
 
-  await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review Tickets & Replies, round 1' })
+  await w.call('ask', REVIEW)
   await w.clock.advance(MIN)
   ledger.beat()
 
@@ -69,29 +68,25 @@ const visit = async (ui: Board, session: string) => {
   await ui.press({ key: `go:${session}` })
 }
 
-test(
-  'a finished session drops out of the project and All projects, and its asks count nowhere',
-  SLOW,
-  async ($, on) => {
-    const w = world($, on)
-    const { id, ui } = await around(w, WIDE)
-    const band = await w.band()
+test('a finished session drops out of the project and All projects, and its asks count nowhere', async ($, on) => {
+  const w = world($, on)
+  const { id, ui } = await around(w, WIDE)
+  const band = await w.band()
 
-    expect(await band.find({ key: 'band:elsewhere', text: '2 elsewhere' })).toBeDefined()
+  expect(await band.find({ key: 'band:elsewhere', text: '2 elsewhere' })).toBeDefined()
 
-    await toProject(ui)
-    expect(await keysOf(ui, 'go:')).toEqual([`go:${id}`, `go:${LEDGER}`, `go:${THEMES}`])
-    expect(await ui.find({ type: 'Text', text: '3 waiting on you' })).toBeDefined()
+  await toProject(ui)
+  expect(await keysOf(ui, 'go:')).toEqual([`go:${id}`, `go:${LEDGER.id}`, `go:${THEMES.id}`])
+  expect(await ui.find({ type: 'Text', text: '3 waiting on you' })).toBeDefined()
 
-    await ui.press({ key: 'up' })
-    expect(await keysOf(ui, 'proj:')).toEqual([`proj:${PROJECT.key}`])
-    expect(await ui.find({ type: 'Text', text: '3 waiting on you' })).toBeDefined()
-    expect(
-      await ui.find({ type: 'Text', text: '3' }),
-      'the All projects tab counts three',
-    ).toBeDefined()
-  },
-)
+  await ui.press({ key: 'up' })
+  expect(await keysOf(ui, 'proj:')).toEqual([`proj:${PROJECT.key}`])
+  expect(await ui.find({ type: 'Text', text: '3 waiting on you' })).toBeDefined()
+  expect(
+    await ui.find({ type: 'Text', text: '3' }),
+    'the All projects tab counts three',
+  ).toBeDefined()
+})
 
 test("the button to finish a session is drawn only in another session's view with no window", async ($, on) => {
   const w = world($, on)
@@ -99,41 +94,41 @@ test("the button to finish a session is drawn only in another session's view wit
 
   expect(await keysOf(ui, 'finish:'), 'never in this session').toEqual([])
 
-  await visit(ui, LEDGER)
+  await visit(ui, LEDGER.id)
   expect(await keysOf(ui, 'finish:'), 'never while a window has it').toEqual([])
 
   await ui.press({ key: 'up' })
-  await ui.press({ key: `go:${THEMES}` })
+  await ui.press({ key: `go:${THEMES.id}` })
 
-  const button = await ui.find({ key: `finish:${THEMES}` })
+  const button = await ui.find({ key: `finish:${THEMES.id}` })
 
   expect(button?.props).toMatchObject({ label: '✓ finish this session', plain: true })
   expect(button?.props.dimColor).toBeUndefined()
 
   const buttons = await keysOf(ui, '')
 
-  expect(buttons.at(-1), 'at the foot of the view').toBe(`finish:${THEMES}`)
+  expect(buttons.at(-1), 'at the foot of the view').toBe(`finish:${THEMES.id}`)
 })
 
 test('finishing a session asks first; cancel writes nothing', async ($, on) => {
   const w = world($, on)
   const { ui } = await around(w)
 
-  await visit(ui, THEMES)
-  await ui.press({ key: `finish:${THEMES}` })
+  await visit(ui, THEMES.id)
+  await ui.press({ key: `finish:${THEMES.id}` })
 
   expect(
     await ui.find({ type: 'Text', text: 'Finish Themes? Its open asks stop counting.' }),
   ).toBeDefined()
-  expect(await ui.find({ key: `finish-yes:${THEMES}`, text: 'yes, finish it' })).toBeDefined()
-  expect(await ui.find({ key: `finish:${THEMES}` })).toBeUndefined()
+  expect(await ui.find({ key: `finish-yes:${THEMES.id}`, text: 'yes, finish it' })).toBeDefined()
+  expect(await ui.find({ key: `finish:${THEMES.id}` })).toBeUndefined()
 
-  await ui.press({ key: `finish-no:${THEMES}` })
+  await ui.press({ key: `finish-no:${THEMES.id}` })
 
-  expect(await ui.find({ key: `finish:${THEMES}` })).toBeDefined()
-  expect(await ui.find({ key: `finish-yes:${THEMES}` })).toBeUndefined()
+  expect(await ui.find({ key: `finish:${THEMES.id}` })).toBeDefined()
+  expect(await ui.find({ key: `finish-yes:${THEMES.id}` })).toBeUndefined()
   expect(w.files.has(MINE)).toBe(false)
-  expect(w.state.pane).toMatchObject({ place: { level: 'session', session: THEMES } })
+  expect(w.state.pane).toMatchObject({ place: { level: 'session', session: THEMES.id } })
 })
 
 test("yes writes the finish into the session's folder as this window's writer, and the board goes up to where it is gone", async ($, on) => {
@@ -142,11 +137,11 @@ test("yes writes the finish into the session's folder as this window's writer, a
   w.put(MINE, file([T0, note('n1', 'Looked in on the palette')]))
 
   const { id, ui } = await around(w)
-  const inbox = sessionPaths(ROOT, PROJECT.key, THEMES).letters(W1)
+  const inbox = sessionPaths(ROOT, PROJECT.key, THEMES.id).letters(W1)
 
-  await visit(ui, THEMES)
-  await ui.press({ key: `finish:${THEMES}` })
-  await ui.press({ key: `finish-yes:${THEMES}` })
+  await visit(ui, THEMES.id)
+  await ui.press({ key: `finish:${THEMES.id}` })
+  await ui.press({ key: `finish-yes:${THEMES.id}` })
 
   expect(parseEntries(w.text(MINE)).map(({ seq, type }) => [seq, type])).toEqual([
     [1, 'note'],
@@ -155,7 +150,7 @@ test("yes writes the finish into the session's folder as this window's writer, a
   expect(parseEntries(w.text(MINE)).at(-1)).toMatchObject({ who: 'lee', at: w.clock.now() })
   expect(w.files.has(inbox), 'nothing goes to its inbox').toBe(false)
   expect(w.state.pane).toMatchObject({ place: { level: 'project', project: PROJECT.key } })
-  expect(await keysOf(ui, 'go:')).toEqual([`go:${id}`, `go:${LEDGER}`])
+  expect(await keysOf(ui, 'go:')).toEqual([`go:${id}`, `go:${LEDGER.id}`])
   expect(await ui.find({ type: 'Text', text: '2 waiting on you' })).toBeDefined()
 })
 
@@ -166,16 +161,16 @@ test("Lee's finish hides nothing parked: the session's items stay in the project
 
   const { id, ui } = await around(w)
 
-  await visit(ui, THEMES)
-  expect(await ui.find({ key: `ppick:${THEMES}:p7`, text: 'Theme the lobby too' })).toBeDefined()
+  await visit(ui, THEMES.id)
+  expect(await ui.find({ key: `ppick:${THEMES.id}:p7`, text: 'Theme the lobby too' })).toBeDefined()
 
-  await ui.press({ key: `finish:${THEMES}` })
-  await ui.press({ key: `finish-yes:${THEMES}` })
+  await ui.press({ key: `finish:${THEMES.id}` })
+  await ui.press({ key: `finish-yes:${THEMES.id}` })
 
-  expect(await keysOf(ui, 'go:')).toEqual([`go:${id}`, `go:${LEDGER}`])
+  expect(await keysOf(ui, 'go:')).toEqual([`go:${id}`, `go:${LEDGER.id}`])
   expect(await ui.find({ type: 'Text', text: '1 to come back to' })).toBeDefined()
   expect(
-    await ui.find({ key: `ppick:${THEMES}:p7`, text: 'Themes: Theme the lobby too' }),
+    await ui.find({ key: `ppick:${THEMES.id}:p7`, text: 'Themes: Theme the lobby too' }),
   ).toBeDefined()
 })
 
@@ -183,7 +178,7 @@ test('a session Claude finished counts nothing in its own window: the band and t
   const w = world($, on)
 
   await w.begin()
-  await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' })
+  await w.call('ask', reviewRound(1))
 
   const band = await w.band()
   const ui = await w.opened(WIDE)

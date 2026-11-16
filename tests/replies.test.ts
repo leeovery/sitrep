@@ -1,9 +1,6 @@
 import { expect, test } from './kit'
 import {
   answerOf,
-  replyState,
-  askAfter,
-  waitsOnLee,
   barredBy,
   boardMessage,
   checkEdit,
@@ -12,43 +9,40 @@ import {
   deliveryOf,
   FROM_THE_BOARD,
   parseEntries,
+  replyState,
   sentLines,
   STALE_MS,
   toDeliver,
-  type ReplyFields,
+  waitsOnLee,
   type AskKind,
   type AskState,
   type Barred,
   type Body,
+  type ReplyFields,
   type Session,
   type SessionFiles,
   type Verdict,
 } from '../core'
+import { CLI, MIN, SENDER, T0, W1, W2 } from './data'
 import {
   beat,
   choiceAsk,
-  CLI,
   delivered,
   file,
   finish,
   fold,
   kindAsk,
-  MIN,
   note,
   park,
   reopen,
   reply,
   resolve,
-  SENDER,
   seen,
   status,
-  T0,
-  W1,
-  W2,
   wordsAsk,
   yesAsk,
   type Line,
-} from './support'
+} from './lines'
 
 /** When the folds below look: an hour in. */
 const NOW = T0 + 60 * MIN

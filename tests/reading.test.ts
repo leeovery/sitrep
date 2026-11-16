@@ -9,7 +9,8 @@ import {
   STALE_MS,
   type SessionFiles,
 } from '../core'
-import { file, finish, fold, META, MIN, note, seen, status, T0, W1, W2, yesAsk } from './support'
+import { META, MIN, T0, W1, W2 } from './data'
+import { file, finish, fold, note, seen, status, yesAsk } from './lines'
 
 const FILES: SessionFiles = {
   meta: metaText(META),

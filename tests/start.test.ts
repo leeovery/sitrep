@@ -1,25 +1,12 @@
 import { expect, test, tier, type Engine } from './kit'
 import { CURRENT_MS, parseEntries, parsePresence, startText, type SessionMeta } from '../core'
-import { CLI, file, finish, MIN, note, reply, T0, W1, W2, yesAsk } from './support'
-import { HELP_DESK, PROJECT, CONVERSATION, PLUGIN_VERSION, REPO, WHERE, world } from './world'
+import { CLI, DAY, HELP_DESK, meta, MIN, PLUGIN_VERSION, PROJECT, REPO, T0, W1, W2 } from './data'
+import { file, finish, note, reply, yesAsk } from './lines'
+import { CONVERSATION, WHERE, world, type World } from './world'
 
 tier('user')
 
-type World = ReturnType<typeof world>
-
-const DAY = 24 * 60 * MIN
-
 const NOW = T0 + DAY
-
-const meta = (id: string, name: string, by: string, created = T0): SessionMeta => ({
-  id,
-  name,
-  summary: `${name}, area by area`,
-  project: 'northwind',
-  root: '/Users/me/Code/northwind',
-  created,
-  by,
-})
 
 /** A session a conversation (this one, unless told) held before, letting go at `leftAt`, with a line of its own. */
 const heldBefore = (w: World, session: SessionMeta, leftAt: number, writer = W1) => {
@@ -96,7 +83,7 @@ test("the conversation's first message lists the current sessions by project and
 
   heldBefore(w, meta('sr-bbbbbb', 'Help desk redesign', W1), T0 + 5 * MIN)
   w.elsewhere(meta('sr-cccccc', 'Invoice ledger', W2)).beat()
-  w.elsewhere(meta('sr-dddddd', 'An old idea', W2, NOW - CURRENT_MS - DAY))
+  w.elsewhere(meta('sr-dddddd', 'An old idea', W2, { created: NOW - CURRENT_MS - DAY }))
   await $.session.start(CONVERSATION)
 
   const [block, ...more] = await firstMessage($)
@@ -128,7 +115,7 @@ test('with no current sessions on the board, the first message carries only how 
   const w = world($, on, { now: NOW })
 
   await $.session.start(CONVERSATION)
-  w.elsewhere(meta('sr-dddddd', 'An old idea', W2, NOW - CURRENT_MS - DAY))
+  w.elsewhere(meta('sr-dddddd', 'An old idea', W2, { created: NOW - CURRENT_MS - DAY }))
 
   const [block, ...more] = await firstMessage($)
 

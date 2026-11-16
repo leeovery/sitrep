@@ -35,28 +35,22 @@ import {
   type Sending,
   type Session,
 } from '../core'
+import { CLI, CLOSES, META, MIN, T0, W1, W2 } from './data'
 import {
   beat,
   choiceAsk,
-  CLI,
-  CLOSES,
   delivered,
   file,
   finish,
-  META,
-  MIN,
   park,
   reopen,
   reply,
   resolve,
   scripted,
-  T0,
   unfinish,
-  W1,
-  W2,
   yesAsk,
   type Line,
-} from './support'
+} from './lines'
 
 const NOW = T0 + 60 * MIN
 

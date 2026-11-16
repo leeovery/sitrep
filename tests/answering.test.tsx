@@ -1,6 +1,6 @@
 import type { PromptSubmitAttachment } from 'claude-code'
-import { expect, test, tier } from './kit'
-import { parseEntries, parsePresence, sessionPaths, type SessionMeta } from '../core'
+import { expect, test, tier, type Engine } from './kit'
+import { parseEntries, parsePresence, sessionPaths } from '../core'
 import {
   CANNOT_RIDE,
   CLEAR_AFTER_DROP_MS,
@@ -16,42 +16,47 @@ import { C } from '../hooks/look'
 import { WATCH_MS } from '../hooks/window'
 import { rowsOf } from './drawn'
 import {
-  beat,
   CLOSES,
-  delivered,
-  file,
-  finish,
-  kindAsk,
+  FRAMES,
+  GO,
   LEAVES_OPEN,
+  LEDGER,
   MIN,
-  note,
-  park,
-  reply,
-  SLOW,
+  PROJECT,
+  reviewRound,
+  ROOT,
   T0,
   W1,
   W2,
   W3,
+} from './data'
+import {
+  beat,
+  delivered,
+  file,
+  finish,
+  kindAsk,
+  note,
+  park,
+  reply,
   wordsAsk,
   yesAsk,
-} from './support'
-import { BAND, DOCKED, postedId, PROJECT, ROOT, CONVERSATION, toProject, world } from './world'
+} from './lines'
+import {
+  asked,
+  BAND,
+  CONVERSATION,
+  DOCKED,
+  postedId,
+  toProject,
+  world,
+  type Board,
+  type World,
+} from './world'
 
 tier('user')
 
-type World = ReturnType<typeof world>
-
-type Engine = Parameters<typeof world>[0]
-
 const OUTPUT = "the command's output"
-
-const GO = { wants: 'yes', yes: 'Go', title: 'Give the go for stage 3' }
-
-const FRAMES = {
-  wants: 'choice',
-  title: 'Ship round 2, or redraw?',
-  options: ['Ship it', 'Redraw'],
-}
 
 const LIST = {
   wants: 'words',
@@ -66,10 +71,6 @@ const FOUR_LINES =
 /** A paste as the engine wraps it in the prompt Lee submits, the line breaks around it with it (live, 2.1.295). */
 const pasted = (text: string, id = '08fd') =>
   `\n\n<pasted_content id="${id}">\n${text}\n</pasted_content id="${id}">\n`
-
-/** Claude posts an ask, which the board opens as it does a new one: its id. */
-const asked = async (w: World, ask: { [key: string]: unknown }) =>
-  postedId(await w.call('ask', ask))
 
 /** Lee pressing Enter at the prompt with `text` in it, the box holding what it showed. */
 const entered = (
@@ -517,42 +518,34 @@ test('one send carries the yes with its comment, the choice and the answer, in o
   expect(w.state.board?.asks.map(each => each.state)).toEqual(['closed', 'closed', 'closed'])
 })
 
-test(
-  'the mode ends once its ask closes: the band shows the counts, and the next Enter goes to Claude',
-  SLOW,
-  async ($, on) => {
-    const w = world($, on)
-    const { id } = await answering(w)
+test('the mode ends once its ask closes: the band shows the counts, and the next Enter goes to Claude', async ($, on) => {
+  const w = world($, on)
+  const { id } = await answering(w)
 
-    await w.call('resolve', { item: id, reason: 'Ran it myself' })
-    expect(w.state.answering).toBeNull()
+  await w.call('resolve', { item: id, reason: 'Ran it myself' })
+  expect(w.state.answering).toBeNull()
 
-    const { band } = await bandRow(w)
+  const { band } = await bandRow(w)
 
-    expect(await band.find({ key: 'band:asks' })).toBeDefined()
-    expect((await entered(w, $, 'Carry on.')).drop).toBeUndefined()
-    expect(w.prompts).toHaveLength(1)
-  },
-)
+  expect(await band.find({ key: 'band:asks' })).toBeDefined()
+  expect((await entered(w, $, 'Carry on.')).drop).toBeUndefined()
+  expect(w.prompts).toHaveLength(1)
+})
 
-test(
-  'the mode ends once its ask closes in another window, and does not come back when it reopens',
-  SLOW,
-  async ($, on) => {
-    const w = world($, on)
-    const { id } = await answering(w)
-    const paths = sessionPaths(ROOT, PROJECT.key, w.state.attachment?.session ?? '')
-    const other = w.writer(paths)
+test('the mode ends once its ask closes in another window, and does not come back when it reopens', async ($, on) => {
+  const w = world($, on)
+  const { id } = await answering(w)
+  const paths = sessionPaths(ROOT, PROJECT.key, w.state.attachment?.session ?? '')
+  const other = w.writer(paths)
 
-    other({ type: 'resolve', item: id })
-    await w.clock.advance(WATCH_MS)
-    expect(w.state.answering).toBeNull()
+  other({ type: 'resolve', item: id })
+  await w.clock.advance(WATCH_MS)
+  expect(w.state.answering).toBeNull()
 
-    other({ type: 'reopen', item: id })
-    await w.clock.advance(WATCH_MS)
-    expect(w.state.answering).toBeNull()
-  },
-)
+  other({ type: 'reopen', item: id })
+  await w.clock.advance(WATCH_MS)
+  expect(w.state.answering).toBeNull()
+})
 
 test('a send carrying the reply its comment would go with ends the mode: the band shows the counts, and the next Enter goes to Claude', async ($, on) => {
   const w = world($, on)
@@ -651,17 +644,6 @@ test('VS Code, whose prompts arrive some way unproven, offers nothing to write: 
   await ui.press({ key: `yes:${w.item(go)}` })
   expect(await ui.find({ key: `rewrite:${w.item(go)}` })).toBeUndefined()
 })
-
-/** Another session of the project, open in another window. */
-const LEDGER: SessionMeta = {
-  id: 'sr-1edger',
-  name: 'Invoice ledger',
-  summary: 'Invoice ledger, area by area',
-  project: PROJECT.key,
-  root: '/Users/me/Code/northwind',
-  created: T0,
-  by: W2,
-}
 
 /**
  * The board on the project's view, the ledger's asks drawn from its brief,
@@ -863,7 +845,7 @@ test('a comment with an image going with a queued yes the ask no longer fits is 
   expect(w.state.answering).toMatchObject({ item: id })
 })
 
-test('a comment with an image going with a queued yes is kept once another answer is on its way to the ask, a toast saying why', SLOW, async ($, on) => {
+test('a comment with an image going with a queued yes is kept once another answer is on its way to the ask, a toast saying why', async ($, on) => {
   const w = world($, on)
 
   await w.begin()
@@ -945,7 +927,7 @@ test('an answer with an image is on its way from the moment it goes: frozen in R
   ).toEqual([[id]])
   expect(w.state.answering).toBeNull()
 
-  const other = await asked(w, { wants: 'yes', yes: 'Approve', title: 'Review round 1' })
+  const other = await asked(w, reviewRound(1))
 
   await ui.press({ key: `yes:${w.item(other)}` })
   await ui.press({ key: 'send' })
@@ -1016,7 +998,7 @@ test('an answer with an image whose prompt fails beneath is let go, what was que
   expect(stateOf(w, id)).toBe('waiting')
 })
 
-test('an answer with an image is never let go as never taken while its hook waits on Claude Code, however long, nor after a turn ends', SLOW, async ($, on) => {
+test('an answer with an image is never let go as never taken while its hook waits on Claude Code, however long, nor after a turn ends', async ($, on) => {
   const w = world($, on)
   const { id, held, typed } = await ridingHeld(w, $)
 
@@ -1045,7 +1027,7 @@ const leftByReload = async (w: World, engine: Engine) => {
   return id
 }
 
-test('an answer with an image a reload left waiting on its hook is let go once the window has gone quiet without it: what was queued put back, and a toast saying to write it again', SLOW, async ($, on) => {
+test('an answer with an image a reload left waiting on its hook is let go once the window has gone quiet without it: what was queued put back, and a toast saying to write it again', async ($, on) => {
   const w = world($, on)
   const id = await leftByReload(w, $)
 
@@ -1068,11 +1050,11 @@ test('an answer with an image a reload left waiting is written down once its tur
   expect(w.flights()).toEqual([])
 })
 
-test("an answer with an image a reload left, let go with the inbox's replies held behind it, says only that the answer didn't go in", SLOW, async ($, on) => {
+test("an answer with an image a reload left, let go with the inbox's replies held behind it, says only that the answer didn't go in", async ($, on) => {
   const w = world($, on)
   const { paths } = await w.begin()
   const id = await asked(w, GO)
-  const other = await asked(w, { wants: 'yes', yes: 'Approve', title: 'Review round 1' })
+  const other = await asked(w, reviewRound(1))
   const ui = await w.pane()
 
   await w.clock.advance(MIN)
@@ -1302,8 +1284,7 @@ const pickingUp = async (w: World) => {
 }
 
 /** The rows a parked item is drawn on. */
-const parkedRows = async (ui: Awaited<ReturnType<World['pane']>>, key: string) =>
-  rowsOf(await ui.find({ key: `parked:${key}` }))
+const parkedRows = async (ui: Board, key: string) => rowsOf(await ui.find({ key: `parked:${key}` }))
 
 test('an opened parked item offers pick it up and ✎ with a comment; neither once a pick-up is queued', async ($, on) => {
   const w = world($, on)
@@ -1394,21 +1375,17 @@ test('a reload keeps picking up: the band still names it, and the next Enter is 
   expect(w.state.queue).toEqual([{ ...at(w, id), verdict: 'pickup', note: 'Before the release' }])
 })
 
-test(
-  'picking up ends once the parked item is picked up from elsewhere: the counts are back, and the next Enter goes to Claude',
-  SLOW,
-  async ($, on) => {
-    const w = world($, on)
-    const { id, paths } = await pickingUp(w)
+test('picking up ends once the parked item is picked up from elsewhere: the counts are back, and the next Enter goes to Claude', async ($, on) => {
+  const w = world($, on)
+  const { id, paths } = await pickingUp(w)
 
-    w.writer(paths)(reply('r9', id, 'pickup'), delivered('r9'))
-    await w.clock.advance(WATCH_MS)
-    expect(w.state.answering).toBeNull()
-    expect(await (await w.band()).find({ key: 'band:asks' })).toBeDefined()
-    expect((await entered(w, $, 'Carry on.')).drop).toBeUndefined()
-    expect(w.prompts.map(each => each.text)).toEqual(['Carry on.'])
-  },
-)
+  w.writer(paths)(reply('r9', id, 'pickup'), delivered('r9'))
+  await w.clock.advance(WATCH_MS)
+  expect(w.state.answering).toBeNull()
+  expect(await (await w.band()).find({ key: 'band:asks' })).toBeDefined()
+  expect((await entered(w, $, 'Carry on.')).drop).toBeUndefined()
+  expect(w.prompts.map(each => each.text)).toEqual(['Carry on.'])
+})
 
 /** The ledger's parked item. */
 const EXPORT = 'Export the ledger as CSV'
@@ -1456,47 +1433,39 @@ test("picking up another session's parked item from the project's view stands fr
   expect(w.prompts).toEqual([])
 })
 
-test(
-  "picking up another session's parked item stands once its session is finished: the item is its project's",
-  SLOW,
-  async ($, on) => {
-    const w = world($, on)
-    const ledger = await onLedgersParked(w)
+test("picking up another session's parked item stands once its session is finished: the item is its project's", async ($, on) => {
+  const w = world($, on)
+  const ledger = await onLedgersParked(w)
 
-    expect(w.state.answering).toMatchObject({ session: LEDGER.id, item: 'p3', as: 'pickup' })
-    ledger.write(finish('claude', 'Shipped'))
-    await w.clock.advance(AROUND_MS)
-    expect(w.state.answering).toMatchObject({ session: LEDGER.id, item: 'p3', as: 'pickup' })
-    expect(await entered(w, $, 'With the totals')).toEqual({ drop: TAKEN.pickup })
-    expect(w.state.queue).toEqual([
-      {
-        project: PROJECT.key,
-        session: LEDGER.id,
-        item: 'p3',
-        verdict: 'pickup',
-        note: 'With the totals',
-      },
-    ])
-  },
-)
+  expect(w.state.answering).toMatchObject({ session: LEDGER.id, item: 'p3', as: 'pickup' })
+  ledger.write(finish('claude', 'Shipped'))
+  await w.clock.advance(AROUND_MS)
+  expect(w.state.answering).toMatchObject({ session: LEDGER.id, item: 'p3', as: 'pickup' })
+  expect(await entered(w, $, 'With the totals')).toEqual({ drop: TAKEN.pickup })
+  expect(w.state.queue).toEqual([
+    {
+      project: PROJECT.key,
+      session: LEDGER.id,
+      item: 'p3',
+      verdict: 'pickup',
+      note: 'With the totals',
+    },
+  ])
+})
 
-test(
-  "answering another session's ask still ends once its session is finished",
-  SLOW,
-  async ($, on) => {
-    const w = world($, on)
-    const ui = await onLedgersAsks(w)
-    const there = w.item('k3', LEDGER.id)
+test("answering another session's ask still ends once its session is finished", async ($, on) => {
+  const w = world($, on)
+  const ui = await onLedgersAsks(w)
+  const there = w.item('k3', LEDGER.id)
 
-    await ui.press({ key: `pick:${there}` })
-    await ui.press({ key: `answer:${there}` })
-    expect(w.state.answering).toMatchObject({ session: LEDGER.id, item: 'k3' })
-    w.writer(sessionPaths(ROOT, PROJECT.key, LEDGER.id), W2)(finish('claude', 'Shipped'))
-    await w.clock.advance(AROUND_MS)
-    expect(w.state.answering).toBeNull()
-    expect((await entered(w, $, 'Carry on.')).drop).toBeUndefined()
-  },
-)
+  await ui.press({ key: `pick:${there}` })
+  await ui.press({ key: `answer:${there}` })
+  expect(w.state.answering).toMatchObject({ session: LEDGER.id, item: 'k3' })
+  w.writer(sessionPaths(ROOT, PROJECT.key, LEDGER.id), W2)(finish('claude', 'Shipped'))
+  await w.clock.advance(AROUND_MS)
+  expect(w.state.answering).toBeNull()
+  expect((await entered(w, $, 'Carry on.')).drop).toBeUndefined()
+})
 
 test("a pick-up with an image of another session's parked item goes in to this window's Claude, naming whose it was, and is written down in that session", async ($, on) => {
   const w = world($, on)

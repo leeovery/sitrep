@@ -1,7 +1,7 @@
 import type { On, ToolCallResult } from 'claude-code'
 import { expect, test, tier, type Engine, type Plugin } from './kit'
 import { blockKindOf, forgetUntold, heardRow, retold, summarisedLine } from '../hooks/summarised'
-import { AGENT } from './support'
+import { AGENT } from './data'
 import { world } from './world'
 
 tier('user')

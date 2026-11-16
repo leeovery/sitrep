@@ -16,7 +16,7 @@ import {
   type Body,
   type Entry,
 } from '../core'
-import { META, T0, W1 } from './support'
+import { META, T0, W1 } from './data'
 
 /** One line of every kind, as the format writes it, and the ask and edit lines written before asks said what they want back. */
 const EVERY_KIND: Body[] = [

@@ -1,14 +1,13 @@
 import { expect, test, tier } from './kit'
 import { AROUND_MS } from '../hooks/around'
 import type { SitrepProject, SitrepProjectParked } from '../types'
-import { file, META, note, park, T0, W2 } from './support'
-import { PROJECT, PROMPT, CONVERSATION, world } from './world'
+import { LEDGER, PROJECT, reviewRound, T0, W2 } from './data'
+import { file, note, park } from './lines'
+import { CONVERSATION, PROMPT, world, type World } from './world'
 
 tier('user')
 
 const CHANGED = 'The sitrep board changed since you last saw it. It now reads:'
-
-type World = ReturnType<typeof world>
 
 /** A session started, and a way for a second window on it to write a note. */
 async function begun(w: World) {
@@ -35,7 +34,7 @@ test('what Claude posted itself never rides in: it knows it', async ($, on) => {
   const w = world($, on)
 
   await begun(w)
-  await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' })
+  await w.call('ask', reviewRound(1))
   await w.call('status', { now: ['Drawing round 2'] })
 
   expect((await $.prompt.submit(PROMPT)).context).toBeUndefined()
@@ -60,7 +59,7 @@ test('another session of the project parking something changes the board: it rid
 
   await begun(w)
 
-  const ledger = w.elsewhere({ ...META, id: 'sr-1edger', name: 'Invoice ledger', by: W2 })
+  const ledger = w.elsewhere(LEDGER)
 
   ledger.write(park('p1', 'Export the ledger as CSV'))
   await w.clock.advance(AROUND_MS)
@@ -74,12 +73,9 @@ test('another session of the project parking something changes the board: it rid
   expect((await $.prompt.submit(PROMPT)).context).toBeUndefined()
 })
 
-/** Another session of the project, the invoice ledger, which parks things. */
-const LEDGER = { ...META, id: 'sr-1edger', name: 'Invoice ledger', by: W2 }
-
 /** The board's line for something the ledger parked. */
 const ledgers = (id: string, title: string) =>
-  `- ${id}, parked by "Invoice ledger" (session: sr-1edger): ${title}`
+  `- ${id}, parked by "Invoice ledger" (session: ${LEDGER.id}): ${title}`
 
 /** What the ledger parks as a look lands. */
 const MORE = {

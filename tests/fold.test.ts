@@ -1,27 +1,22 @@
 import { expect, test } from './kit'
 import { foldSession, serialise, VERSION } from '../core'
+import { CLI, MIN, SENDER, T0, W1, W2 } from './data'
 import {
   choiceAsk,
-  CLI,
   delivered,
   file,
   finish,
   fold,
-  MIN,
   note,
   park,
   reopen,
   reply,
   resolve,
-  SENDER,
   status,
-  T0,
   unfinish,
-  W1,
-  W2,
   yesAsk,
   type Line,
-} from './support'
+} from './lines'
 
 /** The log's notes, oldest first, as text. */
 const notesOf = (files: Parameters<typeof fold>[0]) =>

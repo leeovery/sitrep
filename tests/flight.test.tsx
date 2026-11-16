@@ -11,20 +11,26 @@
  * short, left here as the message taken but not written down.
  */
 import { expect, test, tier } from './kit'
-import { HEARTBEAT_MS, parseEntries, parsePresence, sessionPaths, type SessionPaths } from '../core'
+import { HEARTBEAT_MS, sessionPaths, type SessionPaths } from '../core'
 import { keptFlights, QUIET_MS } from '../hooks/deliver'
 import { WATCH_MS } from '../hooks/window'
 import type { SitrepInFlight, SitrepStoredFlights } from '../types'
-import { CLOSES, file, MIN, reply, SENDER, SLOW, W1 } from './support'
-import { postedId, PROJECT, CONVERSATION, ROOT, startedId, world } from './world'
+import { CLOSES, MIN, PROJECT, REVIEW, ROOT, SENDER, W1 } from './data'
+import { file, reply } from './lines'
+import {
+  asked,
+  asksOnBand,
+  CONVERSATION,
+  kindsIn,
+  sendingIn,
+  startedId,
+  world,
+  type World,
+} from './world'
 
 tier('user')
 
-type World = ReturnType<typeof world>
-
 type Source = 'send' | 'inbox'
-
-const REVIEW = { wants: 'yes', yes: 'Approve', title: 'Review Tickets & Replies, round 1' }
 
 const MESSAGE = `From the board:\n- Review Tickets & Replies, round 1 → Approve${CLOSES}`
 
@@ -37,10 +43,6 @@ const WRITTEN: Record<Source, string[]> = {
   inbox: ['ask', 'delivered'],
 }
 
-/** The kinds of line the window's own file holds, in order. */
-const kindsIn = (w: World, paths: SessionPaths) =>
-  parseEntries(w.text(paths.log(W1))).map(line => line.type)
-
 /**
  * This session with a review asked and Lee's yes to it, a minute on: queued
  * on the board, or in the inbox from another session's window. `submit` sends
@@ -50,7 +52,7 @@ const replying: Record<Source, (w: World) => Promise<{ paths: SessionPaths; subm
   {
     send: async w => {
       const { paths } = await w.begin()
-      const id = postedId(await w.call('ask', REVIEW))
+      const id = await asked(w, REVIEW)
       const ui = await w.pane()
 
       await w.clock.advance(MIN)
@@ -60,7 +62,7 @@ const replying: Record<Source, (w: World) => Promise<{ paths: SessionPaths; subm
     },
     inbox: async w => {
       const { paths } = await w.begin()
-      const id = postedId(await w.call('ask', REVIEW))
+      const id = await asked(w, REVIEW)
 
       await w.clock.advance(MIN)
       w.put(paths.letters(SENDER), file([w.clock.now(), reply('r1', id, 'yes')]))
@@ -71,7 +73,7 @@ const replying: Record<Source, (w: World) => Promise<{ paths: SessionPaths; subm
 
 /** Whether the session is as a message written down once leaves it: its lines, the ask closed, the queue empty. */
 const expectWrittenOnce = (w: World, paths: SessionPaths, source: Source) => {
-  expect(kindsIn(w, paths)).toEqual(WRITTEN[source])
+  expect(kindsIn(w, paths.log(W1))).toEqual(WRITTEN[source])
   expect(w.state.board?.asks[0]?.state).toBe('closed')
   expect(w.state.queue ?? []).toEqual([])
   expect(w.state.inFlight).toBeNull()
@@ -84,31 +86,27 @@ const longAfter = async (w: World) => {
 }
 
 for (const source of ['send', 'inbox'] as const) {
-  test(
-    `${source}: after a /reload-plugins mid-turn the last submit never resolves; the turn its message starts writes it down once, and it never goes in again`,
-    SLOW,
-    async ($, on) => {
-      const w = world($, on)
-      const { paths, submit } = await replying[source](w)
-      const turn = w.holdPrompts()
+  test(`${source}: after a /reload-plugins mid-turn the last submit never resolves; the turn its message starts writes it down once, and it never goes in again`, async ($, on) => {
+    const w = world($, on)
+    const { paths, submit } = await replying[source](w)
+    const turn = w.holdPrompts()
 
-      submit()
-      await turn.arrived
-      turn.lose()
-      await $.session.start(CONVERSATION)
-      await w.clock.advance(4 * WATCH_MS)
+    submit()
+    await turn.arrived
+    turn.lose()
+    await $.session.start(CONVERSATION)
+    await w.clock.advance(4 * WATCH_MS)
 
-      expect(kindsIn(w, paths)).toEqual(['ask'])
-      expect(w.state.inFlight).toMatchObject({ source, text: MESSAGE, isTaken: false })
+    expect(kindsIn(w, paths.log(W1))).toEqual(['ask'])
+    expect(w.state.inFlight).toMatchObject({ source, text: MESSAGE, isTaken: false })
 
-      await w.turnStarts(MESSAGE)
-      expectWrittenOnce(w, paths, source)
+    await w.turnStarts(MESSAGE)
+    expectWrittenOnce(w, paths, source)
 
-      await longAfter(w)
-      expect(w.submitted).toEqual([MESSAGE])
-      expectWrittenOnce(w, paths, source)
-    },
-  )
+    await longAfter(w)
+    expect(w.submitted).toEqual([MESSAGE])
+    expectWrittenOnce(w, paths, source)
+  })
 
   test(`${source}: after a file-watch reload the last submit resolved and its writing was cut short; the next load writes it down once`, async ($, on) => {
     const w = world($, on)
@@ -119,7 +117,7 @@ for (const source of ['send', 'inbox'] as const) {
     await w.clock.advance(WATCH_MS)
 
     expect(w.state.inFlight).toMatchObject({ source, isTaken: true })
-    expect(kindsIn(w, paths)).toEqual(['ask'])
+    expect(kindsIn(w, paths.log(W1))).toEqual(['ask'])
 
     w.refuseWrites()
     await $.session.start(CONVERSATION)
@@ -142,7 +140,7 @@ for (const source of ['send', 'inbox'] as const) {
 
     submit()
     await w.clock.advance(WATCH_MS)
-    expect(kindsIn(w, paths)).toEqual(WRITTEN[source])
+    expect(kindsIn(w, paths.log(W1))).toEqual(WRITTEN[source])
     expect(w.logs.some(line => line.includes('the load was cut short'))).toBe(true)
     expect(w.state.flash ?? 0).toBe(0)
     expect(w.state.queue ?? [], 'a send its lines written is out of the queue').toEqual([])
@@ -157,34 +155,30 @@ for (const source of ['send', 'inbox'] as const) {
     expectWrittenOnce(w, paths, source)
   })
 
-  test(
-    `${source}: a message that never goes in is let go once the window has been quiet a while, and no sooner`,
-    SLOW,
-    async ($, on) => {
-      const w = world($, on)
-      const { paths, submit } = await replying[source](w)
-      const turn = w.holdPrompts()
+  test(`${source}: a message that never goes in is let go once the window has been quiet a while, and no sooner`, async ($, on) => {
+    const w = world($, on)
+    const { paths, submit } = await replying[source](w)
+    const turn = w.holdPrompts()
 
-      submit()
-      await turn.arrived
-      turn.lose()
-      await w.turnEnds()
-      await w.clock.advance(QUIET_MS - 1)
-      expect(w.state.inFlight).toMatchObject({ isTaken: false })
+    submit()
+    await turn.arrived
+    turn.lose()
+    await w.turnEnds()
+    await w.clock.advance(QUIET_MS - 1)
+    expect(w.state.inFlight).toMatchObject({ isTaken: false })
 
-      await w.turnStarts('Carry on.')
-      await w.clock.advance(QUIET_MS)
-      expect(w.state.inFlight, 'a turn started: it could still carry the message').toMatchObject({
-        isTaken: false,
-      })
+    await w.turnStarts('Carry on.')
+    await w.clock.advance(QUIET_MS)
+    expect(w.state.inFlight, 'a turn started: it could still carry the message').toMatchObject({
+      isTaken: false,
+    })
 
-      await w.turnEnds()
-      await w.clock.advance(QUIET_MS)
-      expect(w.state.inFlight).toBeNull()
-      expect(kindsIn(w, paths)).toEqual(['ask'])
-      expect(w.state.board?.asks[0]?.state).toBe('waiting')
-    },
-  )
+    await w.turnEnds()
+    await w.clock.advance(QUIET_MS)
+    expect(w.state.inFlight).toBeNull()
+    expect(kindsIn(w, paths.log(W1))).toEqual(['ask'])
+    expect(w.state.board?.asks[0]?.state).toBe('waiting')
+  })
 
   test(`${source}: a message in flight as the conversation ends is written into its session if it goes in after, though the window holds none`, async ($, on) => {
     const w = world($, on)
@@ -198,11 +192,11 @@ for (const source of ['send', 'inbox'] as const) {
     await w.turnStarts(MESSAGE)
 
     expect(w.state.attachment ?? null).toBeNull()
-    expect(kindsIn(w, paths)).toEqual(WRITTEN[source])
+    expect(kindsIn(w, paths.log(W1))).toEqual(WRITTEN[source])
     expect(w.state.inFlight).toBeNull()
   })
 
-  test(`${source}: refused as Lee stopped Claude's turn, the message is held and the window marked stopped; no look, quiet or reload submits it again or lets it go, and it goes once his turn ends`, SLOW, async ($, on) => {
+  test(`${source}: refused as Lee stopped Claude's turn, the message is held and the window marked stopped; no look, quiet or reload submits it again or lets it go, and it goes once his turn ends`, async ($, on) => {
     const w = world($, on)
     const { paths, submit } = await replying[source](w)
 
@@ -222,7 +216,7 @@ for (const source of ['send', 'inbox'] as const) {
     expect(w.state.stopped).toBe(true)
     expect(w.toasts.filter(toast => toast.startsWith('Not sent'))).toEqual([])
     expect(w.logs.some(line => line.includes('were not taken'))).toBe(false)
-    expect(kindsIn(w, paths)).toEqual(['ask'])
+    expect(kindsIn(w, paths.log(W1))).toEqual(['ask'])
 
     w.dropPrompts()
     await w.turnStarts('Look at the failing test instead.')
@@ -239,7 +233,7 @@ test("send: let go, Lee's replies are back in Ready to send, and a toast says wh
 
   await w.begin()
 
-  const id = postedId(await w.call('ask', REVIEW))
+  const id = await asked(w, REVIEW)
   const ui = await w.pane()
   const turn = w.holdPrompts()
 
@@ -269,7 +263,7 @@ test('inbox: let go, its replies are taken in at a later look', async ($, on) =>
   await w.clock.advance(QUIET_MS + WATCH_MS)
 
   expect(w.submitted).toEqual([MESSAGE, MESSAGE])
-  expect(kindsIn(w, paths)).toEqual(['ask', 'delivered'])
+  expect(kindsIn(w, paths.log(W1))).toEqual(['ask', 'delivered'])
 })
 
 test('a message whose writing a reload cut short is written into its own session, though the window holds another by then', async ($, on) => {
@@ -289,24 +283,16 @@ test('a message whose writing a reload cut short is written into its own session
 
   await $.session.start(CONVERSATION)
 
-  expect(kindsIn(w, paths)).toEqual(WRITTEN.send)
+  expect(kindsIn(w, paths.log(W1))).toEqual(WRITTEN.send)
   expect(w.state.attachment?.session).toBe(startedId(themes))
   expect(w.state.board?.replies).toEqual([])
   expect(w.state.inFlight).toBeNull()
 })
 
-/** What the window's heartbeat says it sends its session. */
-const sendingIn = (w: World, paths: SessionPaths) =>
-  parsePresence(w.text(paths.heartbeat(W1)), W1)?.sending
-
-/** The band's count of what waits on Lee in this session, where it says `text`. */
-const asksOnBand = async (w: World, text: string) =>
-  (await w.band()).find({ key: 'band:asks', text })
-
 /** This session with a review asked, Lee's yes to it queued a minute on, and send pressed while Claude is mid-turn, the window holding the message for the turn to end. */
 const sentHeld = async (w: World) => {
   const { paths } = await w.begin()
-  const id = postedId(await w.call('ask', REVIEW))
+  const id = await asked(w, REVIEW)
   const ui = await w.pane()
 
   await w.clock.advance(MIN)
@@ -343,7 +329,7 @@ test("send: from its claim the heartbeat says the yes it carries, and the ask ne
 test('send refused: the heartbeat keeps no claim, and the ask waits on Lee again', async ($, on) => {
   const w = world($, on)
   const { paths } = await w.begin()
-  const id = postedId(await w.call('ask', REVIEW))
+  const id = await asked(w, REVIEW)
   const ui = await w.pane()
 
   w.dropPrompts('the session is closing')

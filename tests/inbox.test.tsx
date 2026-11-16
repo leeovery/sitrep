@@ -1,13 +1,12 @@
 import { expect, test, tier } from './kit'
-import { parseEntries, type SessionPaths } from '../core'
+import { parseEntries } from '../core'
 import { FLASH_MS } from '../hooks/deliver'
 import { WATCH_MS } from '../hooks/window'
-import { CLOSES, file, MIN, reply, SENDER, W1, W2 } from './support'
-import { INLINE, postedId, PROJECT, CONVERSATION, world } from './world'
+import { CLOSES, MIN, PROJECT, REVIEW, SENDER, W1, W2 } from './data'
+import { file, reply } from './lines'
+import { asked, CONVERSATION, INLINE, kindsIn, world, type World } from './world'
 
 tier('user')
-
-type World = ReturnType<typeof world>
 
 const FROM_THE_BOARD = { kind: 'plugin', name: 'sitrep', asUser: true }
 
@@ -17,15 +16,9 @@ const MESSAGE = `From the board:\n- Review Tickets & Replies, round 1 → Approv
 const TAKE_IN = 2 * WATCH_MS
 
 /** This session with an ask, a minute on; and another session's window, sending replies into its inbox. */
-async function asking(w: World) {
+async function fromSender(w: World) {
   const { paths } = await w.begin()
-  const asked = postedId(
-    await w.call('ask', {
-      wants: 'yes',
-      yes: 'Approve',
-      title: 'Review Tickets & Replies, round 1',
-    }),
-  )
+  const posted = await asked(w, REVIEW)
 
   await w.clock.advance(MIN)
 
@@ -36,19 +29,15 @@ async function asking(w: World) {
     w.put(paths.letters(SENDER), file(...lines))
   }
 
-  return { paths, asked, send }
+  return { paths, posted, send }
 }
-
-/** The kinds of line the window's own file holds, in order. */
-const kindsIn = (w: World, paths: SessionPaths) =>
-  parseEntries(w.text(paths.log(W1))).map(line => line.type)
 
 test("the window delivering for its session submits inbox replies as Lee's own message, once, and marks them once taken", async ($, on) => {
   const w = world($, on)
-  const { paths, asked, send } = await asking(w)
+  const { paths, posted, send } = await fromSender(w)
   const turn = w.holdPrompts()
 
-  send(['r1', asked, 'yes'])
+  send(['r1', posted, 'yes'])
   await w.clock.advance(TAKE_IN)
   await turn.arrived
 
@@ -60,7 +49,7 @@ test("the window delivering for its session submits inbox replies as Lee's own m
   })
 
   await w.clock.advance(4 * WATCH_MS)
-  expect(kindsIn(w, paths), 'no mark while Claude Code has not taken it').toEqual(['ask'])
+  expect(kindsIn(w, paths.log(W1)), 'no mark while Claude Code has not taken it').toEqual(['ask'])
 
   turn.end()
   await w.clock.advance(WATCH_MS)
@@ -79,12 +68,12 @@ test("the window delivering for its session submits inbox replies as Lee's own m
 
 test("a window that is not its session's deliverer submits nothing", async ($, on) => {
   const w = world($, on)
-  const { paths, asked, send } = await asking(w)
+  const { paths, posted, send } = await fromSender(w)
   const longer = () =>
     w.beat(w.state.attachment?.session ?? '', { writer: W2, attachedAt: 0, seenAt: w.clock.now() })
 
   longer()
-  send(['r1', asked, 'yes'])
+  send(['r1', posted, 'yes'])
 
   for (let look = 0; look < 4; look++) {
     await w.clock.advance(WATCH_MS)
@@ -93,20 +82,20 @@ test("a window that is not its session's deliverer submits nothing", async ($, o
 
   expect(w.state.board?.deliverer).toBe(W2)
   expect(w.prompts).toEqual([])
-  expect(kindsIn(w, paths)).toEqual(['ask'])
+  expect(kindsIn(w, paths.log(W1))).toEqual(['ask'])
 })
 
 test("Lee's comment queued, then sent once an answer to the same ask waits in the inbox for another window, tells Claude that answer, sent apart, closes the ask", async ($, on) => {
   const w = world($, on)
-  const { asked, send } = await asking(w)
+  const { posted, send } = await fromSender(w)
   const longer = () =>
     w.beat(w.state.attachment?.session ?? '', { writer: W2, attachedAt: 0, seenAt: w.clock.now() })
   const ui = await w.opened()
 
-  await ui.press({ key: `comment:${w.item(asked)}` })
+  await ui.press({ key: `comment:${w.item(posted)}` })
   await $.prompt.submit({ text: 'thinner bars', wait: false, origin: { kind: 'composer' } })
   longer()
-  send(['r1', asked, 'yes'])
+  send(['r1', posted, 'yes'])
   await w.clock.advance(TAKE_IN)
   longer()
   expect(w.state.board?.deliverer).toBe(W2)
@@ -125,13 +114,13 @@ test("Lee's comment queued, then sent once an answer to the same ask waits in th
 
 test('a refused submission leaves the replies undelivered, for the next look to try again', async ($, on) => {
   const w = world($, on)
-  const { paths, asked, send } = await asking(w)
+  const { paths, posted, send } = await fromSender(w)
 
   w.dropPrompts('the session is closing')
-  send(['r1', asked, 'yes'])
+  send(['r1', posted, 'yes'])
   await w.clock.advance(TAKE_IN)
 
-  expect(kindsIn(w, paths)).toEqual(['ask'])
+  expect(kindsIn(w, paths.log(W1))).toEqual(['ask'])
   expect(w.state.inFlight).toBeNull()
   expect(w.state.board?.replies).toMatchObject([{ id: 'r1', delivery: 'waiting' }])
   expect(w.logs.some(line => line.includes('not taken (the session is closing)'))).toBe(true)
@@ -140,19 +129,17 @@ test('a refused submission leaves the replies undelivered, for the next look to 
   await w.clock.advance(WATCH_MS)
 
   expect(w.prompts.map(prompt => prompt.text)).toEqual([MESSAGE])
-  expect(kindsIn(w, paths)).toEqual(['ask', 'delivered'])
+  expect(kindsIn(w, paths.log(W1))).toEqual(['ask', 'delivered'])
 })
 
 test('the receiving band flashes how many replies came in from the board, for a few seconds', async ($, on) => {
   const w = world($, on)
-  const { asked, send } = await asking(w)
-  const other = postedId(
-    await w.call('ask', { wants: 'yes', yes: 'Done', title: 'Run the production apply' }),
-  )
+  const { posted, send } = await fromSender(w)
+  const other = await asked(w, { wants: 'yes', yes: 'Done', title: 'Run the production apply' })
   const band = await w.band()
 
   await w.clock.advance(MIN)
-  send(['r1', asked, 'yes'], ['r2', other, 'yes'])
+  send(['r1', posted, 'yes'], ['r2', other, 'yes'])
   await w.clock.advance(TAKE_IN)
 
   expect(await band.find({ type: 'Text', text: '✦' })).toBeDefined()
@@ -164,10 +151,10 @@ test('the receiving band flashes how many replies came in from the board, for a 
 
 test('a delivery a reload left on its way is never submitted again, and is marked when its message starts its turn', async ($, on) => {
   const w = world($, on)
-  const { paths, asked, send } = await asking(w)
+  const { paths, posted, send } = await fromSender(w)
   const turn = w.holdPrompts()
 
-  send(['r1', asked, 'yes'])
+  send(['r1', posted, 'yes'])
   await w.clock.advance(TAKE_IN)
   await turn.arrived
 
@@ -175,29 +162,29 @@ test('a delivery a reload left on its way is never submitted again, and is marke
   await $.session.start(CONVERSATION)
   await w.clock.advance(4 * WATCH_MS)
   expect(w.submitted).toEqual([MESSAGE])
-  expect(kindsIn(w, paths)).toEqual(['ask'])
+  expect(kindsIn(w, paths.log(W1))).toEqual(['ask'])
 
   await $.turn.start({ text: MESSAGE, turnId: 'turn-1' })
-  expect(kindsIn(w, paths)).toEqual(['ask', 'delivered'])
+  expect(kindsIn(w, paths.log(W1))).toEqual(['ask', 'delivered'])
   expect(w.state.inFlight).toBeNull()
 
   turn.end()
   await w.clock.advance(4 * WATCH_MS)
   expect(w.submitted).toEqual([MESSAGE])
-  expect(kindsIn(w, paths), 'one mark, however it was heard').toEqual(['ask', 'delivered'])
+  expect(kindsIn(w, paths.log(W1)), 'one mark, however it was heard').toEqual(['ask', 'delivered'])
 })
 
 test('a turn that starts with some other message marks nothing', async ($, on) => {
   const w = world($, on)
-  const { paths, asked, send } = await asking(w)
+  const { paths, posted, send } = await fromSender(w)
   const turn = w.holdPrompts()
 
-  send(['r1', asked, 'yes'])
+  send(['r1', posted, 'yes'])
   await w.clock.advance(TAKE_IN)
   await turn.arrived
   await $.turn.start({ text: 'Carry on.', turnId: 'turn-1' })
 
-  expect(kindsIn(w, paths)).toEqual(['ask'])
+  expect(kindsIn(w, paths.log(W1))).toEqual(['ask'])
   expect(w.state.inFlight).toMatchObject({ isTaken: false })
 
   turn.end()
@@ -205,10 +192,10 @@ test('a turn that starts with some other message marks nothing', async ($, on) =
 
 test('replies Claude Code took but whose mark could not be written are never sent again, and are marked at the next look', async ($, on) => {
   const w = world($, on)
-  const { paths, asked, send } = await asking(w)
+  const { paths, posted, send } = await fromSender(w)
 
   w.refuseWrites(path => path === paths.log(W1))
-  send(['r1', asked, 'yes'])
+  send(['r1', posted, 'yes'])
   await w.clock.advance(TAKE_IN)
 
   expect(w.prompts.map(prompt => prompt.text)).toEqual([MESSAGE])
@@ -218,17 +205,17 @@ test('replies Claude Code took but whose mark could not be written are never sen
   await w.clock.advance(4 * WATCH_MS)
 
   expect(w.prompts, 'nothing goes in twice').toHaveLength(1)
-  expect(kindsIn(w, paths)).toEqual(['ask', 'delivered'])
+  expect(kindsIn(w, paths.log(W1))).toEqual(['ask', 'delivered'])
   expect(w.state.inFlight).toBeNull()
 })
 
 test('inbox replies taken after Claude moved to another session mid-turn are marked in their own session, and never go in again', async ($, on) => {
   const w = world($, on)
-  const { paths, asked, send } = await asking(w)
+  const { paths, posted, send } = await fromSender(w)
   const answered = w.state.attachment?.session ?? ''
 
   await w.turnStarts('Carry on.')
-  send(['r1', asked, 'yes'])
+  send(['r1', posted, 'yes'])
   await w.clock.advance(TAKE_IN)
   expect(w.state.inFlight).toMatchObject({ source: 'inbox', isHeld: true })
 
@@ -236,7 +223,7 @@ test('inbox replies taken after Claude moved to another session mid-turn are mar
   await w.turnEnds()
   await w.clock.advance(WATCH_MS)
 
-  expect(kindsIn(w, paths)).toEqual(['ask', 'delivered'])
+  expect(kindsIn(w, paths.log(W1))).toEqual(['ask', 'delivered'])
 
   await w.call('join', { session: answered })
   await w.clock.advance(4 * WATCH_MS)
@@ -247,13 +234,11 @@ test('inbox replies taken after Claude moved to another session mid-turn are mar
 
 test('the mark names only the replies the message carries: one whose item changed since goes in nowhere, and its item can be answered again', async ($, on) => {
   const w = world($, on)
-  const { paths, asked, send } = await asking(w)
-  const other = postedId(
-    await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review the band' }),
-  )
+  const { paths, posted, send } = await fromSender(w)
+  const other = await asked(w, { wants: 'yes', yes: 'Approve', title: 'Review the band' })
 
   await w.clock.advance(MIN)
-  send(['r1', asked, 'yes'], ['r2', other, 'yes'])
+  send(['r1', posted, 'yes'], ['r2', other, 'yes'])
   await w.clock.advance(1)
   await w.call('edit', { item: other, wants: 'choice', options: ['Now', 'Later'] })
   await w.clock.advance(TAKE_IN)
@@ -277,14 +262,12 @@ test('the mark names only the replies the message carries: one whose item change
 
 test('a send Lee presses while inbox replies are in flight waits for them: a toast says so, and the replies stay queued', async ($, on) => {
   const w = world($, on)
-  const { paths, asked, send } = await asking(w)
-  const own = postedId(
-    await w.call('ask', { wants: 'yes', yes: 'Done', title: 'Run the production apply' }),
-  )
+  const { paths, posted, send } = await fromSender(w)
+  const own = await asked(w, { wants: 'yes', yes: 'Done', title: 'Run the production apply' })
   const ui = await w.opened()
   const turn = w.holdPrompts()
 
-  send(['r1', asked, 'yes'])
+  send(['r1', posted, 'yes'])
   await w.clock.advance(TAKE_IN)
   await turn.arrived
   await ui.press({ key: `yes:${w.item(own)}` })
@@ -306,7 +289,7 @@ test('a send Lee presses while inbox replies are in flight waits for them: a toa
     MESSAGE,
     `From the board:\n- Run the production apply → Done${CLOSES}`,
   ])
-  expect(kindsIn(w, paths)).toEqual(['ask', 'ask', 'delivered', 'reply', 'delivered'])
+  expect(kindsIn(w, paths.log(W1))).toEqual(['ask', 'ask', 'delivered', 'reply', 'delivered'])
 })
 
 /** Claude Code's refusal of every plugin's prompt once Lee has stopped Claude's turn, until he next types in the window (live, 2.1.318). */
@@ -314,14 +297,12 @@ const STOPPED = 'the session was stopped and nobody has sent input since'
 
 test("a send Lee presses while the window is stopped behind the inbox's message carries that message on from his press, his own replies waiting for it, a toast saying so", async ($, on) => {
   const w = world($, on)
-  const { paths, asked, send } = await asking(w)
-  const own = postedId(
-    await w.call('ask', { wants: 'yes', yes: 'Done', title: 'Run the production apply' }),
-  )
+  const { paths, posted, send } = await fromSender(w)
+  const own = await asked(w, { wants: 'yes', yes: 'Done', title: 'Run the production apply' })
   const ui = await w.opened()
 
   w.dropPrompts(STOPPED)
-  send(['r1', asked, 'yes'])
+  send(['r1', posted, 'yes'])
   await w.clock.advance(TAKE_IN)
 
   expect(w.state.inFlight).toMatchObject({ source: 'inbox', isHeld: true })
@@ -333,7 +314,7 @@ test("a send Lee presses while the window is stopped behind the inbox's message 
   await w.clock.settle()
 
   expect(w.submitted).toEqual([MESSAGE, MESSAGE])
-  expect(kindsIn(w, paths)).toEqual(['ask', 'ask', 'delivered'])
+  expect(kindsIn(w, paths.log(W1))).toEqual(['ask', 'ask', 'delivered'])
   expect(w.toasts.filter(toast => toast.startsWith('Not sent'))).toEqual([
     'Not sent yet: replies from another session are going in first. Your replies are still on the board.',
   ])
@@ -342,10 +323,8 @@ test("a send Lee presses while the window is stopped behind the inbox's message 
 
 test("inbox replies arriving while the window is stopped are claimed but not submitted, no refusal spent on them; they go once Lee's turn ends", async ($, on) => {
   const w = world($, on)
-  const { paths, asked, send } = await asking(w)
-  const own = postedId(
-    await w.call('ask', { wants: 'yes', yes: 'Done', title: 'Run the production apply' }),
-  )
+  const { paths, posted, send } = await fromSender(w)
+  const own = await asked(w, { wants: 'yes', yes: 'Done', title: 'Run the production apply' })
   const ui = await w.opened()
 
   await ui.press({ key: `yes:${w.item(own)}` })
@@ -355,7 +334,7 @@ test("inbox replies arriving while the window is stopped are claimed but not sub
   await w.turnEnds({ isAborted: true })
   await w.clock.settle()
   await ui.press({ key: w.takeBack() })
-  send(['r1', asked, 'yes'])
+  send(['r1', posted, 'yes'])
   await w.clock.advance(TAKE_IN + 4 * WATCH_MS)
 
   expect(w.state.stopped).toBe(true)
@@ -368,17 +347,17 @@ test("inbox replies arriving while the window is stopped are claimed but not sub
   await w.clock.settle()
 
   expect(w.submitted.at(-1)).toBe(MESSAGE)
-  expect(kindsIn(w, paths)).toEqual(['ask', 'ask', 'delivered'])
+  expect(kindsIn(w, paths.log(W1))).toEqual(['ask', 'ask', 'delivered'])
 })
 
 test("inbox replies held while the window is stopped are let go once another window delivers for the session, left in the inbox for it", async ($, on) => {
   const w = world($, on)
-  const { paths, asked, send } = await asking(w)
+  const { paths, posted, send } = await fromSender(w)
   const longer = () =>
     w.beat(w.state.attachment?.session ?? '', { writer: W2, attachedAt: 0, seenAt: w.clock.now() })
 
   w.dropPrompts(STOPPED)
-  send(['r1', asked, 'yes'])
+  send(['r1', posted, 'yes'])
   await w.clock.advance(TAKE_IN)
 
   expect(w.state.inFlight).toMatchObject({ source: 'inbox', isHeld: true })
@@ -393,21 +372,19 @@ test("inbox replies held while the window is stopped are let go once another win
   expect(w.state.inFlight).toBeNull()
   expect(w.submitted).toEqual([MESSAGE])
   expect(w.state.board?.replies).toMatchObject([{ id: 'r1', delivery: 'waiting' }])
-  expect(kindsIn(w, paths)).toEqual(['ask'])
+  expect(kindsIn(w, paths.log(W1))).toEqual(['ask'])
   expect(w.logs.some(line => line.includes('not taken'))).toBe(false)
 })
 
 test('an inline board whose send waits behind inbox replies stays open: nothing of it went', async ($, on) => {
   const w = world($, on)
-  const { asked, send } = await asking(w)
-  const own = postedId(
-    await w.call('ask', { wants: 'yes', yes: 'Done', title: 'Run the production apply' }),
-  )
+  const { posted, send } = await fromSender(w)
+  const own = await asked(w, { wants: 'yes', yes: 'Done', title: 'Run the production apply' })
 
   const ui = await w.opened(INLINE)
   const turn = w.holdPrompts()
 
-  send(['r1', asked, 'yes'])
+  send(['r1', posted, 'yes'])
   await w.clock.advance(TAKE_IN)
   await turn.arrived
   await ui.press({ key: `yes:${w.item(own)}` })

@@ -17,7 +17,7 @@ import {
   type Project,
   type ProjectFile,
 } from '../core'
-import { META, T0, W1 } from './support'
+import { META, T0, W1 } from './data'
 
 const SITREP: ProjectFile = {
   name: 'SitRep',

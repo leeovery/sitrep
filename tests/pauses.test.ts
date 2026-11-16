@@ -16,9 +16,8 @@ import {
   type Presence,
   type Project,
 } from '../core'
-import { beat, META, MIN, T0, W1, W2 } from './support'
-
-const HOUR = 60 * MIN
+import { HOUR, META, MIN, T0, W1, W2 } from './data'
+import { beat } from './lines'
 
 const NORTHWIND: Project = { key: 'northwind', name: 'Northwind' }
 
