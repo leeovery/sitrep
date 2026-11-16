@@ -121,26 +121,53 @@ struct SnoozedTurnEdgeTests {
         run.list.content.entries.map(\.item.key)
     }
 
-    /// The first line with Northwind's asks asleep too, a row in Snoozed of their own, before its turn's or after it.
+    /// The sessions of the first line, their turns as it has them: Fabrikam's at Lee's turn, Contoso's asleep until
+    /// 09:00 tomorrow and Northwind's until it moves; and Northwind's asks asleep too, a row in Snoozed of their own,
+    /// before its turn's or after it.
     private static func bothAsleep(asksFirst: Bool) -> PanelBoard {
-        var line = try! JSONSerialization.jsonObject(with: Data(Lines.snoozedTurn[0].utf8)) as! [String: Any]
-        var rows = line["snoozed"] as! [[String: Any]]
-        var asks = rows[1]
+        let fabrikam = WatchLine.Row(
+            session: "sr-fbrk3m", name: "Release notes", projectName: "Fabrikam",
+            lines: [
+                .init(
+                    "turn:sr-fbrk3m", .yourTurn, writer: "w-sr-fbrk3m", first: "Write the release notes",
+                    since: 1_793_817_590_000
+                ),
+            ]
+        )
+        let contoso = WatchLine.SnoozedRow(
+            session: "sr-ctnbd2", name: "Onboarding flow", projectName: "Contoso",
+            lines: [
+                .init(
+                    "turn:sr-ctnbd2", .yourTurn, first: "Rework the onboarding flow", since: 1_793_819_270_000,
+                    wakesAt: 1_793_869_200_000
+                ),
+            ]
+        )
+        let turn = WatchLine.SnoozedRow(
+            session: "sr-nwtrn5",
+            lines: [
+                .init(
+                    "turn:sr-nwtrn5", .yourTurn, first: "Export the ledger to CSV", since: 1_793_818_490_000,
+                    wakesAt: nil
+                ),
+            ]
+        )
+        let asks = WatchLine.SnoozedRow(
+            session: "sr-nwtrn5",
+            lines: [
+                .init(
+                    "ask:sr-nwtrn5:k1", ask: "k1", first: "Pick the export's columns", since: 1_793_818_000_000,
+                    wakesAt: 1_793_869_200_000
+                ),
+            ]
+        )
+        let line = WatchLine(
+            at: 1_793_819_990_695, version: "0.3.0", rows: [fabrikam],
+            snoozed: [contoso] + (asksFirst ? [asks, turn] : [turn, asks])
+        )
         var last = LastBoard()
 
-        asks["lines"] = [[
-            "key": "ask:sr-nwtrn5:k1", "is": "ask", "ask": "k1", "since": 1_793_818_000_000,
-            "wakesAt": 1_793_869_200_000,
-            "first": ["lead": "Pick the export's columns", "mono": NSNull(), "subject": NSNull(), "more": NSNull(),
-                      "until": NSNull()],
-        ]]
-        asks["wakesAt"] = 1_793_869_200_000
-        rows.insert(asks, at: asksFirst ? 1 : 2)
-        line["snoozed"] = rows
-
-        let text = String(decoding: try! JSONSerialization.data(withJSONObject: line), as: UTF8.self)
-
-        _ = last.hear(.line(text), at: .now)
+        _ = last.hear(.line(line.text), at: .now)
         return PanelBoard(last)
     }
 

@@ -5,8 +5,12 @@ import SitRepTestSupport
 import Testing
 
 struct MenuEntriesTests {
-    private static func entries(_ rows: [WatchLine.Row] = Watched.rows, windows: [WatchLine.Window] = [], show: EdgeSettings.Show = .notch) -> [MenuEntry] {
-        MenuBoard(heard([.line(Watched.line(rows: rows, windows: windows))]), clock: london).entries(showing: show)
+    private static func entries(
+        _ rows: [WatchLine.Row] = Watched.rows, needYou: Int? = nil, windows: [WatchLine.Window] = [],
+        show: EdgeSettings.Show = .notch
+    ) -> [MenuEntry] {
+        MenuBoard(heard([.line(Watched.line(needYou: needYou, rows: rows, windows: windows))]), clock: london)
+            .entries(showing: show)
     }
 
     @Test func theMenuRunsFromTheHeaderThroughTheSessionsToQuit() {
@@ -96,7 +100,7 @@ struct MenuEntriesTests {
 
         rows.remove(at: 1)
 
-        let changes = MenuChanges(from: Self.entries(), to: Self.entries(rows))
+        let changes = MenuChanges(from: Self.entries(), to: Self.entries(rows, needYou: 3))
 
         #expect(changes.removals == [4])
         #expect(changes.insertions.isEmpty)

@@ -44,12 +44,12 @@ struct SnoozedEdgeTests {
 
     /// A Snoozed row's words change only at midnight, so the card is drawn again then for it, not each minute.
     @Test func aSnoozedRowIsDrawnAgainAtMidnight() throws {
-        let run = Self.opened(kept: Self.kept([]))
+        let run = Self.opened(Self.ledger(), kept: Self.kept([]))
         let now = 1_792_741_527_619.0
         let midnight = 1_792_796_400_000.0
 
         #expect(run.nextAgeChange(after: now).map { $0 < midnight } == true)
-        _ = run.show(Self.boardOfSnoozedAlone(), Self.at(run.time))
+        _ = run.show(Self.ledger(waiting: false), Self.at(run.time))
         #expect(run.nextAgeChange(after: now) == midnight)
     }
 
@@ -70,9 +70,9 @@ struct SnoozedEdgeTests {
 
     /// With nothing waiting but asks asleep, the card lists Snoozed with no head.
     @Test func aCardOfSnoozedAloneHasNoHead() {
-        let run = Self.opened()
+        let run = Self.opened(Self.ledger())
 
-        _ = run.show(Self.boardOfSnoozedAlone(), Self.at(run.time))
+        _ = run.show(Self.ledger(waiting: false), Self.at(run.time))
         #expect(run.list.head == nil)
         #expect(Self.keys(run) == ["eyebrow:snoozed"])
     }
@@ -129,20 +129,20 @@ struct SnoozedEdgeTests {
 
     /// The menu's jump from a session's Snoozed row presses that row in, not its row in Needs you.
     @Test func theMenusJumpFromASnoozedRowPressesThatRow() throws {
-        let run = Self.opened(kept: Self.kept([]))
+        let run = Self.opened(Self.ledger(), kept: Self.kept([]))
         let onTheNotch = CGPoint(x: 3, y: 491)
 
-        _ = run.show(Self.held(), Self.at(run.time))
+        _ = run.show(Self.ledger(held: true), Self.at(run.time))
         while run.phase != .open, run.time < 5000 {
             run.step(NotchRun.Moment(time: run.time + 1000 / 60, pointer: onTheNotch, setting: Self.setting))
         }
-        #expect(Self.keys(run).contains("needs:sr-4g01a7"))
-        guard case .jump? = run.jump(to: "snoozed:sr-4g01a7", Self.at(run.time)) else {
+        #expect(Self.keys(run).contains("needs:sr-nw0001"))
+        guard case .jump? = run.jump(to: "snoozed:sr-nw0001", Self.at(run.time)) else {
             Issue.record("the menu's jump found no row")
             return
         }
         run.step(Self.at(run.time + 1000 / 60))
-        #expect(run.frame.panel?.pressed == "snoozed:sr-4g01a7")
+        #expect(run.frame.panel?.pressed == "snoozed:sr-nw0001")
     }
 
     // MARK: Helpers
@@ -159,11 +159,13 @@ struct SnoozedEdgeTests {
         NotchRun.Moment(time: time, pointer: nil, setting: setting)
     }
 
-    /// A run over the first line, its folds as kept, unless none are.
-    private static func opened(kept: SavedSettings<CardSettings>? = nil) -> NotchRun {
+    /// A run over the board, the first line unless given, its folds as kept, unless none are.
+    private static func opened(
+        _ board: PanelBoard = SnoozedEdgeTests.board(upTo: 0), kept: SavedSettings<CardSettings>? = nil
+    ) -> NotchRun {
         let run = NotchRun(at: 1000, in: setting, folding: Folding(kept: kept), calendar: london)
 
-        _ = run.show(board(upTo: 0), at(run.time))
+        _ = run.show(board, at(run.time))
         return run
     }
 
@@ -185,69 +187,30 @@ struct SnoozedEdgeTests {
         run.list.content.entries.map(\.item.key)
     }
 
-    /// The first line with its Needs you row gone, as its last waiting ask snoozed would leave it.
-    private static func boardOfSnoozedAlone() -> PanelBoard {
-        var line = first()
-
-        line.rows = []
-        return board(line)
-    }
-
-    /// The first line with a window holding the session, its row in each section one that jumps.
-    private static func held() -> PanelBoard {
-        board(first(held: true))
-    }
-
-    private static func board(_ line: WatchLine) -> PanelBoard {
+    /// Northwind's Ledger export at the time of the real CLI's first line here, its asks as that line has them: one
+    /// waiting in Needs you, unless not `waiting`, as its last waiting ask snoozed would leave it, and two asleep, the
+    /// first waking five seconds on; away, unless `held` by a window.
+    private static func ledger(held: Bool = false, waiting: Bool = true) -> PanelBoard {
+        let ask = WatchLine.Row(
+            isAway: !held,
+            lines: [
+                .init("ask:sr-nw0001:k3", .ask, ask: "k3", first: "Give the go for stage 3", since: 1_792_741_127_000),
+            ]
+        )
+        let asleep = WatchLine.SnoozedRow(isAway: !held, lines: [
+            .init(
+                "ask:sr-nw0001:k1", ask: "k1", first: "Review the plan", since: 1_792_740_927_000,
+                wakesAt: 1_792_741_532_000
+            ),
+            .init(
+                "ask:sr-nw0001:k2", ask: "k2", first: "Pick when stage 2 runs", since: 1_792_741_027_000,
+                wakesAt: 1_792_745_127_000
+            ),
+        ])
+        let line = WatchLine(at: 1_792_741_527_619, version: "0.2.0", rows: waiting ? [ask] : [], snoozed: [asleep])
         var last = LastBoard()
 
         _ = last.hear(.line(line.text), at: .now)
         return PanelBoard(last)
-    }
-
-    /// The first line (`Lines.snoozed`), typed for a test to change; `held`, a window holding its session, so each of
-    /// its rows says its project where the away one says no window holds it.
-    private static func first(held: Bool = false) -> WatchLine {
-        let name = "Finish the Harness modernisation", away = "No window holds it. Carry it on in Claude."
-        let second = held ? "Harness" : away
-        let k3 = WatchLine.Row.Line(
-            "ask:sr-4g01a7:k3", .ask, ask: "k3", first: "Give the go for stage 3", since: 1_792_741_127_000
-        )
-        let asleep: [WatchLine.SnoozedRow.Line] = [
-            .init(
-                "ask:sr-4g01a7:k1", ask: "k1", first: "Review the plan", since: 1_792_740_927_000,
-                wakesAt: 1_792_741_532_000
-            ),
-            .init(
-                "ask:sr-4g01a7:k2", ask: "k2", first: "Pick when stage 2 runs", since: 1_792_741_027_000,
-                wakesAt: 1_792_745_127_000
-            ),
-        ]
-        let asks: [WatchLine.Ask] = [
-            .init(
-                id: "k1", yes: "Go", title: "Review the plan", at: 1_792_740_927_000, snoozedUntil: 1_792_741_532_000
-            ),
-            .init(
-                id: "k2", wants: .choice, title: "Pick when stage 2 runs", options: ["Now", "Later"],
-                at: 1_792_741_027_000, snoozedUntil: 1_792_745_127_000
-            ),
-            .init(id: "k3", yes: "Go", title: "Give the go for stage 3", at: 1_792_741_127_000),
-        ]
-        let session = WatchLine.Session(
-            id: "sr-4g01a7", name: name, summary: "Move the harness to the new runner", isOpen: false, waiting: 1,
-            snoozed: 2, updatedAt: 1_792_741_527_569, state: .needsYou, since: 1_792_741_127_000,
-            doing: .init(.away, line: .init(lead: away), since: 1_792_741_527_569), asks: asks
-        )
-        let row = WatchLine.Row(
-            session: "sr-4g01a7", isAway: !held, name: name, projectName: "Harness", second: second, lines: [k3]
-        )
-        let snoozed = WatchLine.SnoozedRow(
-            session: "sr-4g01a7", isAway: !held, name: name, projectName: "Harness", second: second, lines: asleep
-        )
-
-        return WatchLine(
-            at: 1_792_741_527_619, version: "0.2.0", rows: [row], snoozed: [snoozed],
-            projects: [.init(name: "Harness", directory: "/tmp/h", sessions: [session])]
-        )
     }
 }

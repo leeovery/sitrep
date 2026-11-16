@@ -312,7 +312,7 @@ struct StripFoldingTests {
         _ rows: [WatchLine.Row], new: [String] = [], snoozed: [WatchLine.SnoozedRow] = []
     ) -> PanelBoard {
         var last = LastBoard()
-        let line = WatchLine(head: .init(needYou: 0, sessions: rows.count), rows: rows, snoozed: snoozed, new: new)
+        let line = WatchLine(rows: rows, snoozed: snoozed, new: new)
 
         _ = last.hear(.line(line.text), at: Date())
         return PanelBoard(last)

@@ -66,8 +66,8 @@ struct MenuBoardTests {
                     "ask:sr-ledger:k1", .ask, first: .init(lead: "Choose how long it keeps", more: "+4"),
                     since: 1_792_445_000_000
                 ),
-                .init("ask:sr-ledger:k2", .ask, first: "Approve the schema", since: 1_792_445_100_000),
-                .init("ask:sr-ledger:k3", .ask, first: "Paste the log", since: 1_792_445_200_000),
+                .init("ask:sr-ledger:k2", .ask, first: "Approve the schema", since: 1_792_444_900_000),
+                .init("ask:sr-ledger:k3", .ask, first: "Paste the log", since: 1_792_444_800_000),
             ]
         )
         let menu = Self.menu(heard([.line(Watched.line(rows: [ledger] + Watched.rows.dropFirst()))]))
@@ -81,7 +81,7 @@ struct MenuBoardTests {
     /// Three asks and stops and one session at Lee's turn: "4 need you".
     @Test func theHeadingIsThePanelHeadsWords() {
         #expect(Self.board.heading == "4 need you")
-        #expect(Self.menu(heard([.line(Watched.line(needYou: 0, rows: [Watched.rows[4]]))])).heading == "All clear")
+        #expect(Self.menu(heard([.line(Watched.line(rows: [Watched.rows[4]]))])).heading == "All clear")
     }
 
     @Test func beforeAnyBoardItSaysItIsLooking() {
@@ -99,7 +99,7 @@ struct MenuBoardTests {
                 lines: [.init("turn:s\($0)", .yourTurn, first: "Turn \($0)", since: 1_792_445_000_000)]
             )
         }
-        let menu = Self.menu(heard([.line(Watched.line(needYou: 0, rows: rows))]))
+        let menu = Self.menu(heard([.line(Watched.line(rows: rows))]))
 
         #expect(menu.items.compactMap(\.session?.id) == (0 ..< 16).map { "s\($0)" })
     }
@@ -157,8 +157,8 @@ struct MenuBoardTests {
 
     @Test func theGlyphLightsWhileAnythingNeedsLee() {
         #expect(Self.board.glyph == .lit)
-        #expect(Self.menu(heard([.line(Watched.line(needYou: 0, rows: [Watched.rows[3]]))])).glyph == .turn)
-        #expect(Self.menu(heard([.line(Watched.line(needYou: 0, rows: [Watched.rows[4]]))])).glyph == .rest)
+        #expect(Self.menu(heard([.line(Watched.line(rows: [Watched.rows[3]]))])).glyph == .turn)
+        #expect(Self.menu(heard([.line(Watched.line(rows: [Watched.rows[4]]))])).glyph == .rest)
         #expect(Self.menu(LastBoard()).glyph == .rest)
     }
 

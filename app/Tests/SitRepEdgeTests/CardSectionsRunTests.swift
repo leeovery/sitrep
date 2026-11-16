@@ -48,7 +48,7 @@ struct CardSectionsRunTests {
 
     private static func board(_ rows: [WatchLine.Row], new: [String] = []) -> PanelBoard {
         var last = LastBoard()
-        let line = WatchLine(head: .init(needYou: 0, sessions: rows.count), rows: rows, new: new)
+        let line = WatchLine(rows: rows, new: new)
 
         _ = last.hear(.line(line.text), at: Date())
         return PanelBoard(last)

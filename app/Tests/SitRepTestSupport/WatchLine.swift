@@ -53,7 +53,8 @@ public struct WatchLine: Encodable, Sendable {
     public func encode(to encoder: any Encoder) throws {
         var line = encoder.container(keyedBy: Key.self)
         let counted = Head(
-            needYou: rows.filter { $0.section == .needsYou }.map(\.lines.count).reduce(0, +), sessions: rows.count
+            needYou: rows.filter { $0.printedSection == .needsYou }.map(\.lines.count).reduce(0, +),
+            sessions: rows.count
         )
 
         try line.encode(3, forKey: .v)

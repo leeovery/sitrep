@@ -29,7 +29,7 @@ struct TurnNoticesTests {
 
     /// A board of these rows.
     private static func line(_ rows: WatchLine.Row...) -> Heard {
-        .line(Watched.line(needYou: 0, rows: rows))
+        .line(Watched.line(rows: rows))
     }
 
     /// Working, then at Lee's turn: the board a session moves into his turn on.
@@ -95,7 +95,7 @@ struct TurnNoticesTests {
 
     /// A session new to the board at Lee's turn, as one a window attaches to, moved into nothing.
     @Test func aSessionNewToTheBoardAtLeesTurnIsNotNew() {
-        #expect(heard([.line(Watched.line(needYou: 0, rows: [])), Self.line(Self.turn())]).newTurns.isEmpty)
+        #expect(heard([.line(Watched.line(rows: [])), Self.line(Self.turn())]).newTurns.isEmpty)
     }
 
     @Test func aStaleBoardSendsNothing() {

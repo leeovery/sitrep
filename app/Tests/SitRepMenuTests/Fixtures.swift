@@ -28,7 +28,6 @@ enum Watched {
         ),
         WatchLine.Row(
             session: "sr-plan", isAway: true, name: "Plan the tool", projectName: "Terrace",
-            second: "No window holds it. Carry it on in Claude.",
             lines: [.init("ask:sr-plan:k2", .ask, first: "Pick the plan's shape", since: 1_792_440_000_000)]
         ),
         WatchLine.Row(
@@ -56,15 +55,15 @@ enum Watched {
         WatchLine.Project(name: "Mint", sessions: [.init(id: "sr-diff", name: "Token-aware diff sizing")]),
     ]
 
-    /// The board of these rows, `needYou` of their lines needing Lee, with these new on it, these windows, at this CLI
-    /// version.
+    /// The board of these rows, with these new on it, these windows, at this CLI version; `needYou` of their lines
+    /// needing Lee, counted from them unless given.
     static func line(
-        needYou: Int = 3, rows: [WatchLine.Row] = rows, new: [String] = [], windows: [WatchLine.Window] = [],
+        needYou: Int? = nil, rows: [WatchLine.Row] = rows, new: [String] = [], windows: [WatchLine.Window] = [],
         version: String? = "0.2.0"
     ) -> String {
         WatchLine(
-            version: version, head: .init(needYou: needYou, sessions: rows.count), rows: rows, projects: projects,
-            windows: windows, new: new
+            version: version, head: needYou.map { .init(needYou: $0, sessions: rows.count) }, rows: rows,
+            projects: projects, windows: windows, new: new
         ).text
     }
 }

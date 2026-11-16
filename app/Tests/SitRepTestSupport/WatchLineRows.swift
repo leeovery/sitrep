@@ -1,3 +1,5 @@
+import Foundation
+
 extension WatchLine {
     /// A line's words, in parts: `lead`; `mono`, the subject set in mono; `subject`, one set plain; `more`, a
     /// question's `+2`; `until`, when the wake a line on its own work waits on is due.
@@ -39,9 +41,14 @@ extension WatchLine {
         case needsYou, yourTurn, working
     }
 
-    /// A session's row: its lines, the newest first, in the section its newest's kind puts it in, named by its project
-    /// and session, its second line theirs and its time its newest line's, unless given.
-    public struct Row: Encodable, Sendable {
+    /// The line core's rows print where no window holds the session (`AWAY_LINE`).
+    public static let awayLine = "No window holds it. Carry it on in Claude."
+
+    /// A session's row: its lines, printed newest first as core orders them, whatever order they are given in. What
+    /// core derives is derived as it prints, from the row as it then stands, unless given: its section, its newest
+    /// line's kind's; its time, its newest line's; its project's key and letters, from the project's name; its second
+    /// line, the project and the session, or, away, that no window holds it.
+    public struct Row: Encodable, Sendable, Naming {
         /// One of a row's lines: an ask, a window's stop, or the session's turn.
         public struct Line: Encodable, Sendable {
             public var key: String
@@ -62,36 +69,60 @@ extension WatchLine {
                 self.first = first
                 self.since = since
             }
+
+            /// Core's `byRecency`: the newest first, then by key.
+            static func byRecency(_ a: Self, _ b: Self) -> Bool {
+                a.since != b.since ? a.since > b.since : a.key.utf16.lexicographicallyPrecedes(b.key.utf16)
+            }
         }
 
         public var session: String
-        public var section: Section
         public var isAway: Bool
-        /// Its project's key.
-        public var project: String
+        public var project: String?
         public var name: String
         public var projectName: String
-        public var letters: String
+        public var letters: String?
+        public var second: String?
+        public var section: Section?
+        public var since: Int?
         public var lines: [Line]
-        public var second: String
-        public var since: Int
 
-        /// Its project's key is its name in lower case, and its letters core's for that name, unless given.
         public init(
-            session: String = "sr-nw0001", section: Section? = nil, isAway: Bool = false, project: String? = nil,
-            name: String = "Ledger export", projectName: String = "Northwind", letters: String? = nil,
-            second: String? = nil, since: Int? = nil, lines: [Line]
+            session: String = "sr-nw0001", isAway: Bool = false, project: String? = nil, name: String = "Ledger export",
+            projectName: String = "Northwind", letters: String? = nil, second: String? = nil, section: Section? = nil,
+            since: Int? = nil, lines: [Line]
         ) {
             self.session = session
-            self.section = section ?? lines[0].is.section
             self.isAway = isAway
-            self.project = project ?? projectName.lowercased()
+            self.project = project
             self.name = name
             self.projectName = projectName
-            self.letters = letters ?? WatchLine.letters(of: projectName)
+            self.letters = letters
+            self.second = second
+            self.section = section
+            self.since = since
             self.lines = lines
-            self.second = second ?? "\(projectName) · \(name)"
-            self.since = since ?? lines[0].since
+        }
+
+        /// Its lines as core orders them, the newest first.
+        var newestFirst: [Line] {
+            precondition(!lines.isEmpty, "A row has a line: core prints no row for a session with none.")
+            return lines.sorted(by: Line.byRecency)
+        }
+
+        /// The section it prints in.
+        var printedSection: Section {
+            section ?? newestFirst[0].is.section
+        }
+
+        public func encode(to encoder: any Encoder) throws {
+            let lines = newestFirst
+            var row = encoder.container(keyedBy: RowKey.self)
+
+            try encodeNaming(into: &row)
+            try row.encode(printedSection, forKey: .section)
+            try row.encode(lines, forKey: .lines)
+            try row.encode(since ?? lines[0].since, forKey: .since)
         }
     }
 
@@ -100,10 +131,11 @@ extension WatchLine {
         case ask, yourTurn
     }
 
-    /// A session's row in Snoozed, named as its row is, waking when its soonest line does, unless given.
-    public struct SnoozedRow: Encodable, Sendable {
-        /// One of its lines, under the key it has in Needs you or Your turn, waking at `wakesAt`, none for a turn
-        /// snoozed until it moves.
+    /// A session's row in Snoozed, named as its row is: its lines, printed the soonest to wake first, those snoozed
+    /// until they move last, then the oldest, as core orders them; waking when its soonest line does.
+    public struct SnoozedRow: Encodable, Sendable, Naming {
+        /// One of its lines, under the key it has in Needs you or Your turn, waking at `wakesAt`, none for one snoozed
+        /// until it moves.
         public struct Line: Encodable, Sendable {
             public var key: String
             public var `is`: SnoozedKind
@@ -123,17 +155,26 @@ extension WatchLine {
                 self.since = since
                 self.wakesAt = wakesAt
             }
+
+            /// Core's `bySleep`: the soonest to wake first, those until they move last, then the oldest, then by key.
+            static func bySleep(_ a: Self, _ b: Self) -> Bool {
+                let wakes = (a.wakesAt ?? .max, b.wakesAt ?? .max)
+
+                if wakes.0 != wakes.1 {
+                    return wakes.0 < wakes.1
+                }
+                return a.since != b.since ? a.since < b.since : a.key.utf16.lexicographicallyPrecedes(b.key.utf16)
+            }
         }
 
         public var session: String
         public var isAway: Bool
-        public var project: String
+        public var project: String?
         public var name: String
         public var projectName: String
-        public var letters: String
+        public var letters: String?
+        public var second: String?
         public var lines: [Line]
-        public var second: String
-        @OrNull public var wakesAt: Int?
 
         public init(
             session: String = "sr-nw0001", isAway: Bool = false, project: String? = nil, name: String = "Ledger export",
@@ -141,22 +182,95 @@ extension WatchLine {
         ) {
             self.session = session
             self.isAway = isAway
-            self.project = project ?? projectName.lowercased()
+            self.project = project
             self.name = name
             self.projectName = projectName
-            self.letters = letters ?? WatchLine.letters(of: projectName)
+            self.letters = letters
+            self.second = second
             self.lines = lines
-            self.second = second ?? "\(projectName) · \(name)"
-            self.wakesAt = lines.compactMap(\.wakesAt).min()
+        }
+
+        public func encode(to encoder: any Encoder) throws {
+            precondition(!lines.isEmpty, "A Snoozed row has a line: core prints none with nothing put off.")
+
+            let lines = self.lines.sorted(by: Line.bySleep)
+            var row = encoder.container(keyedBy: RowKey.self)
+
+            try encodeNaming(into: &row)
+            try row.encode(lines, forKey: .lines)
+            try row.encode(lines[0].wakesAt, forKey: .wakesAt)
         }
     }
 
-    /// A project's two letters, as core's `lettersOf` gives them: its capitals where it has two, else its first two
-    /// letters or digits.
+    /// A project's two letters, as core's `lettersOf` gives them: its capitals (`\p{Lu}`) where it has two, else its
+    /// first two letters or digits (`[\p{L}\p{N}]`).
     static func letters(of name: String) -> String {
-        let capitals = name.filter(\.isUppercase)
-        let letters = capitals.count >= 2 ? capitals : name.filter { $0.isLetter || $0.isNumber }
+        let capitals = name.unicodeScalars.filter { $0.properties.generalCategory == .uppercaseLetter }
+        let letters = capitals.count >= 2 ? capitals : name.unicodeScalars.filter(isLetterOrDigit)
 
-        return String(letters.prefix(2))
+        return String(String.UnicodeScalarView(letters.prefix(2)))
+    }
+
+    /// A project's key, as core's `slug` makes one of its name: decomposed, its accents dropped, in lower case, each
+    /// run of anything but `a-z` and `0-9` a dash, cut to 32, no dash at either end; `project` where nothing is left.
+    static func key(of name: String) -> String {
+        let bare = name.decomposedStringWithCompatibilityMapping.unicodeScalars.filter { !isMark($0) }
+        let lower = String(String.UnicodeScalarView(bare)).lowercased()
+        let dashed = lower.unicodeScalars.reduce(into: "") { slug, scalar in
+            if ("a" ... "z").contains(scalar) || ("0" ... "9").contains(scalar) {
+                slug.unicodeScalars.append(scalar)
+            } else if !slug.hasSuffix("-") {
+                slug += "-"
+            }
+        }
+        let cut = String(dashed.prefix(32)).trimmingCharacters(in: CharacterSet(charactersIn: "-"))
+
+        return cut.isEmpty ? "project" : cut
+    }
+
+    private static func isLetterOrDigit(_ scalar: Unicode.Scalar) -> Bool {
+        switch scalar.properties.generalCategory {
+        case .uppercaseLetter, .lowercaseLetter, .titlecaseLetter, .modifierLetter, .otherLetter,
+             .decimalNumber, .letterNumber, .otherNumber:
+            true
+        default:
+            false
+        }
+    }
+
+    private static func isMark(_ scalar: Unicode.Scalar) -> Bool {
+        switch scalar.properties.generalCategory {
+        case .nonspacingMark, .spacingMark, .enclosingMark: true
+        default: false
+        }
+    }
+}
+
+/// The keys of a row and a Snoozed row, in one set, as both name their session alike.
+enum RowKey: String, CodingKey {
+    case session, section, isAway, project, name, projectName, letters, lines, second, since, wakesAt
+}
+
+/// What names a row, in Needs you or Snoozed, as core's `namedRow` gives it: its project's key and letters from the
+/// project's name, and its second line the project and the session, or, away, that no window holds it, unless given.
+protocol Naming {
+    var session: String { get }
+    var isAway: Bool { get }
+    var project: String? { get }
+    var name: String { get }
+    var projectName: String { get }
+    var letters: String? { get }
+    var second: String? { get }
+}
+
+extension Naming {
+    func encodeNaming(into row: inout KeyedEncodingContainer<RowKey>) throws {
+        try row.encode(session, forKey: .session)
+        try row.encode(isAway, forKey: .isAway)
+        try row.encode(project ?? WatchLine.key(of: projectName), forKey: .project)
+        try row.encode(name, forKey: .name)
+        try row.encode(projectName, forKey: .projectName)
+        try row.encode(letters ?? WatchLine.letters(of: projectName), forKey: .letters)
+        try row.encode(second ?? (isAway ? WatchLine.awayLine : "\(projectName) · \(name)"), forKey: .second)
     }
 }
