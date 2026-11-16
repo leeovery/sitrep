@@ -54,7 +54,7 @@ struct MenuWidthTests {
         let width = Self.menu([
             Self.session(Self.long),
             Self.session("Allow Bash: ", code: "swift test --package-path app --filter MenuWidthTests --parallel --num-workers 4"),
-            Self.session("Which of the three ways should the dispatcher's limiter be registered in the end?", more: "+2"),
+            Self.session("Which of the three ways should the import queue's retry rule be written in the end?", more: "+2"),
         ]).size.width
 
         #expect(width <= MenuCut.menuWidth)

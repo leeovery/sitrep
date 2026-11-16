@@ -3,7 +3,8 @@ import SitRepTestSupport
 import Testing
 
 /// No test names Lee's real work, by `tests/real-names.txt`'s rule; the TypeScript kit's tests can't read files, so
-/// this one keeps both suites to it. The rule's own tests use made-up names, as this file is one it reads.
+/// this one keeps both suites to it, and the prototypes their recordings are made from. The rule's own tests use
+/// made-up names, as this file is one it reads.
 struct RealNamesTests {
     private static let list = try! RealNames("""
     # A comment, then a blank line, which are nothing.
@@ -87,17 +88,19 @@ struct RealNamesTests {
         ])
     }
 
-    /// Every file under `tests/` and `app/Tests/` is read whole, but the list itself, a binary file, `.build` and
-    /// `.DS_Store`; a file elsewhere is not.
-    @Test func theRuleReadsEveryTextFileOfBothSuitesButTheListItself() throws {
+    /// Every file under `tests/`, `app/Tests/` and `prototypes/` is read whole, but the list itself, a binary file,
+    /// `.build`, `node_modules`, a `recording.json` and `.DS_Store`; a file elsewhere is not.
+    @Test func theRuleReadsEveryTextFileOfBothSuitesAndThePrototypesButTheListItself() throws {
         let scratch = try Self.checkout([
             "tests/a.test.ts", "tests/real-names.txt", "app/Tests/X/B.swift", "app/Tests/X/Printed/c.jsonl",
             "app/Tests/.build/d.swift", "app/Tests/X/.DS_Store", "app/Sources/E.swift", "README.md",
+            "prototypes/p/g.html", "prototypes/p/node_modules/h/i.js", "prototypes/p/recording.json",
         ])
         try Data("Quokka\0".utf8).write(to: scratch.folder.appending(path: "app/Tests/X/f.png"))
 
         #expect(try Self.list.scan(under: scratch.folder).hits.map(\.description) == [
-            "app/Tests/X/B.swift:2: Quokka", "app/Tests/X/Printed/c.jsonl:2: Quokka", "tests/a.test.ts:2: Quokka",
+            "app/Tests/X/B.swift:2: Quokka", "app/Tests/X/Printed/c.jsonl:2: Quokka", "prototypes/p/g.html:2: Quokka",
+            "tests/a.test.ts:2: Quokka",
         ])
     }
 

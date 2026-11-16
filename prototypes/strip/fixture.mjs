@@ -1,18 +1,24 @@
-// Writes the recording as SitRep's test fixture: node fixture.mjs recording.json
+// Writes the recording as SitRep's test fixture: bun fixture.mjs recording.json
 // A JSON file per scenario goes into app/Tests/SitRepPanelTests/Recorded/Strip, a frame to a line, and the
 // declarations StripRecording.swift makes of them, each scenario's and the values beside them, replace its own, the
 // rest of it kept. The frames are data, never Swift literals: as those they cost the compiler 20 GB and more.
+// It writes nothing unless the recording holds every scenario and StripRecording.swift has its declarations' place.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-if (!process.argv[2]) throw new Error('usage: node fixture.mjs recording.json');
+
+const refuse = (why) => {
+  console.error(`fixture.mjs: ${why}; nothing written.`);
+  process.exit(1);
+};
+if (!process.argv[2]) refuse('usage: bun fixture.mjs recording.json');
 const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
 const tests = fileURLToPath(new URL('../../app/Tests/SitRepPanelTests/', import.meta.url));
 const folder = path.join(tests, 'Recorded/Strip');
 const swift = path.join(tests, 'StripRecording.swift');
-fs.mkdirSync(folder, { recursive: true });
 
-// The marks each scenario checks, beyond the tabs, the hairline, the ends and the counts.
+// The marks each scenario checks, beyond the tabs, the hairline, the ends and the counts: every scenario the
+// recording must hold.
 const MARKS = {
   hover: [], fit: [], arrive: ['s4', 's5', 's9'], answer: ['s1', 's2', 's5', 's8'], jump: ['s6'], tabJump: [],
   many: ['s6', 's8', 's20'], last: ['s4', 's8', 's9', 's16'], bottom: ['s6', 's9'],
@@ -22,6 +28,15 @@ const MARKS = {
   fold: ['s1', 's6', 's7', 's8'], unfold: ['s7', 's8'], snoozed: ['s8', 's9', 's10', 's11'], snoozedTab: ['s9', 's11'],
   manyAll: ['s6', 's8', 's9', 's10', 's11', 's12'], foldedArrive: ['s4', 's9'],
 };
+const missing = Object.keys(MARKS).filter((name) => !(name in r));
+const unknown = Object.keys(r).filter((name) => !(name in MARKS));
+if (missing.length) refuse(`the recording lacks ${missing.join(', ')}: record every scenario`);
+if (unknown.length) refuse(`the recording holds ${unknown.join(', ')}, which this fixture doesn't know`);
+
+// The declarations run from the extension's opening to the loader's own comment, which is written by hand.
+const opens = 'extension StripRecorded {\n', loader = "\n    /// The strip prototype at Lee's settings, recorded";
+const was = fs.readFileSync(swift, 'utf8'), from = was.indexOf(opens), to = was.indexOf(loader);
+if (from < 0 || to < from) refuse(`${swift} has no declarations between "${opens.trim()}" and its loader`);
 const KEY = { more: 'more', moreN: 'moreNeeds', moreS: 'moreSnoozed', none: 'empty' };
 const num = (n) => String(+n.toFixed(6));
 const str = (s) => JSON.stringify(KEY[s] ?? s);
@@ -53,7 +68,7 @@ function fields(f, ids) {
   return out;
 }
 
-const out = [];
+const out = [], json = {};
 for (const [name, v] of Object.entries(r)) {
   const ids = MARKS[name];
   const seed = v.seed ? `At ${Object.entries(v.seed).map(([k, x]) => `${k} ${x}`).join(', ')}. ` : "At Lee's settings. ";
@@ -65,7 +80,7 @@ for (const [name, v] of Object.entries(r)) {
   let last = body.length - 1;
   while (last > 0 && body[last] === body[last - 1]) last--;
   const frames = v.frames.slice(0, last + 2).map((f) => `  ${object([['t', num(f.t)], ...fields(f, ids)])}`);
-  fs.writeFileSync(path.join(folder, `${name}.json`), `[\n${frames.join(',\n')}\n]\n`);
+  json[name] = `[\n${frames.join(',\n')}\n]\n`;
 }
 const many = r.many.frames.at(-1);
 const names = (ids) => list(ids.map((id) => `"${id}"`));
@@ -101,8 +116,6 @@ out.push(`
 ${Object.entries(W).map(([k, w]) => `        ${JSON.stringify(k)}: ${w},`).join('\n')}
     ]`);
 
-// The declarations run from the extension's opening to the loader's own comment, which is written by hand.
-const opens = 'extension StripRecorded {\n', loader = "\n    /// The strip prototype at Lee's settings, recorded";
-const was = fs.readFileSync(swift, 'utf8'), from = was.indexOf(opens), to = was.indexOf(loader);
-if (from < 0 || to < from) throw new Error(`${swift} has no declarations between "${opens.trim()}" and its loader`);
+fs.mkdirSync(folder, { recursive: true });
+for (const [name, text] of Object.entries(json)) fs.writeFileSync(path.join(folder, `${name}.json`), text);
 fs.writeFileSync(swift, `${was.slice(0, from + opens.length)}${out.join('\n')}\n${was.slice(to)}`);

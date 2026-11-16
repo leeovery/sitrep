@@ -17,7 +17,7 @@ recorded into the app's tests:
 
 ## Recording again
 
-On a Mac, from this folder, once:
+On a Mac, with Bun, from this folder, once:
 
 ```bash
 bun install
@@ -27,11 +27,14 @@ bunx playwright-core install chromium-headless-shell
 Then, after changing the prototype:
 
 ```bash
-node record.mjs > recording.json   # every scenario, or name some
-node fixture.mjs recording.json
+bun record.mjs > recording.json
+bun fixture.mjs recording.json
 ```
 
-and run the app's tests. `recording.json` is git's to ignore.
+and run the app's tests. `recording.json` is git's to ignore. The fixture
+needs every scenario: it writes nothing from a recording that lacks one, as
+`bun record.mjs hover` makes to look at, nor into a `StripRecording.swift`
+that has lost its declarations' place.
 
 ## Its sessions
 

@@ -1,7 +1,8 @@
 // Records strip.html every animation frame through scripted scenarios, each on a fresh page, its store seeded with the
 // scenario's settings (Lee's defaults where it has none). The clock is Playwright's fake one, run 16ms a frame, so every
 // frame's step is exactly 16ms, as the model's are.
-// node record.mjs [scenario...] > recording.json: every scenario, or those named
+// bun record.mjs > recording.json: every scenario, as fixture.mjs needs them; bun record.mjs <scenario>... records only
+// those named, to look at, which fixture.mjs refuses
 import { chromium } from 'playwright-core';
 const PAGE = new URL('strip.html', import.meta.url).href;
 const browser = await chromium.launch({ headless: true });
