@@ -6,6 +6,7 @@ import {
   isSameFiles,
   metaText,
   OFF_BOARD_MS,
+  refold,
   STALE_MS,
   type SessionFiles,
 } from '../core'
@@ -66,4 +67,20 @@ test('something done every OFF_BOARD_MS is due at its first time, and then once 
   expect(
     [T0, T0 + 1, T0 + OFF_BOARD_MS - 1, T0 + OFF_BOARD_MS, T0 + OFF_BOARD_MS + 1].map(isDue),
   ).toEqual([true, false, false, true, false])
+})
+
+test("a session's fold stands while its files read the same and time alone has not changed it; a text changed, or that time come, folds it again", () => {
+  const first = refold(undefined, FILES, T0)
+  const stale = T0 + STALE_MS + 1
+
+  expect(first.session?.isOpen).toBe(true)
+  expect(first.changesAt).toBe(stale)
+  expect(refold(first, { ...FILES, logs: { ...FILES.logs } }, stale - 1)).toBe(first)
+
+  const noted = { ...FILES, logs: { [W1]: file([T0, note('n1', 'Drew round 2')]) } }
+
+  expect(refold(first, noted, T0 + MIN).session?.items.get('n1')).toMatchObject({
+    text: 'Drew round 2',
+  })
+  expect(refold(first, FILES, stale).session?.isOpen, 'its window gone stale').toBe(false)
 })

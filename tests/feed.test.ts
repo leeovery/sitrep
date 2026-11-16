@@ -1758,6 +1758,25 @@ test("a session's fold next changes by time alone as its board does, and as Lee'
   expect(nextFoldChange(sessionOf({ lines: [[T0, yesAsk('k1', 'Keep me')]] }), NOW)).toBeUndefined()
 })
 
+test("a session's fold next changes as Lee's snooze of it runs out, though an ask it does not hold sets it aside meanwhile: it stands again then, its asks woken", () => {
+  const lines: Line[] = [
+    [T0, yesAsk('k1', 'Review round 1')],
+    [T0, yesAsk('k2', 'Review round 2')],
+    [T0 + MIN, snoozeSession(WAKES, 'k1')],
+  ]
+  // Lee's yes to k2 was on its way as he snoozed, W2's heartbeat carrying it; W2 has since gone stale.
+  const presence = windowOn(W2, undefined, {
+    seenAt: T0 + MIN,
+    sending: [{ at: T0 + MIN, replies: [{ id: 'r1', item: 'k2', verdict: 'yes' }] }],
+  })
+  const aside = (now: number) => sessionOf({ lines, presence }, now)
+
+  expect(aside(NOW).snooze, 'set aside, k2 waiting on Lee').toBeUndefined()
+  expect(nextFoldChange(aside(NOW), NOW)).toBe(WAKES)
+  expect(aside(WAKES - 1), 'folded the same until then').toEqual(aside(NOW))
+  expect(aside(WAKES).asks[0]?.wokeAt, 'folded otherwise then').toBe(WAKES)
+})
+
 /** The session at `now`, Claude's board as LEFT says it, then Lee's lines, held as `presence` says. */
 const turnAt = (now: number, snoozes: Line[], presence = onTurn(TURN, now)) =>
   sessionOf({ lines: [LEFT, ...snoozes], presence }, now)

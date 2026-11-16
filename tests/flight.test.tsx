@@ -15,7 +15,7 @@ import { HEARTBEAT_MS, sessionPaths, type SessionPaths } from '../core'
 import { keptFlights, QUIET_MS } from '../hooks/deliver'
 import { WATCH_MS } from '../hooks/window'
 import type { SitrepInFlight, SitrepStoredFlights } from '../types'
-import { CLOSES, MIN, PROJECT, REVIEW, ROOT, SENDER, W1 } from './data'
+import { CLOSES, PROJECT, REVIEW, ROOT, SENDER, W1 } from './data'
 import { file, reply } from './lines'
 import {
   asked,
@@ -43,33 +43,33 @@ const WRITTEN: Record<Source, string[]> = {
   inbox: ['ask', 'delivered'],
 }
 
+type Replying = { paths: SessionPaths; submit: () => Promise<unknown> }
+
 /**
- * This session with a review asked and Lee's yes to it, a minute on: queued
- * on the board, or in the inbox from another session's window. `submit` sends
- * it: a press of send, or the looks that take the letter in.
+ * This session with a review asked and Lee's yes to it: queued on the board,
+ * or in the inbox from another session's window. `submit` sends it: a press
+ * of send, or the looks that take the letter in; awaited, but where the
+ * test holds the turn it starts.
  */
-const replying: Record<Source, (w: World) => Promise<{ paths: SessionPaths; submit: () => void }>> =
-  {
-    send: async w => {
-      const { paths } = await w.begin()
-      const id = await asked(w, REVIEW)
-      const ui = await w.pane()
+const replying: Record<Source, (w: World) => Promise<Replying>> = {
+  send: async w => {
+    const { paths } = await w.begin()
+    const id = await asked(w, REVIEW)
+    const ui = await w.pane()
 
-      await w.clock.advance(MIN)
-      await ui.press({ key: `yes:${w.item(id)}` })
+    await ui.press({ key: `yes:${w.item(id)}` })
 
-      return { paths, submit: () => void ui.press({ key: 'send' }) }
-    },
-    inbox: async w => {
-      const { paths } = await w.begin()
-      const id = await asked(w, REVIEW)
+    return { paths, submit: () => ui.press({ key: 'send' }) }
+  },
+  inbox: async w => {
+    const { paths } = await w.begin()
+    const id = await asked(w, REVIEW)
 
-      await w.clock.advance(MIN)
-      w.put(paths.letters(SENDER), file([w.clock.now(), reply('r1', id, 'yes')]))
+    w.put(paths.letters(SENDER), file([w.clock.now(), reply('r1', id, 'yes')]))
 
-      return { paths, submit: () => void w.clock.advance(2 * WATCH_MS) }
-    },
-  }
+    return { paths, submit: () => w.clock.advance(2 * WATCH_MS) }
+  },
+}
 
 /** Whether the session is as a message written down once leaves it: its lines, the ask closed, the queue empty. */
 const expectWrittenOnce = (w: World, paths: SessionPaths, source: Source) => {
@@ -79,10 +79,10 @@ const expectWrittenOnce = (w: World, paths: SessionPaths, source: Source) => {
   expect(w.state.inFlight).toBeNull()
 }
 
-/** Turns the clock on past every look and quiet, a turn ending first. */
+/** Turns the clock on past the quiet and a look after it, a turn ending first. */
 const longAfter = async (w: World) => {
   await w.turnEnds()
-  await w.clock.advance(QUIET_MS + 4 * WATCH_MS)
+  await w.clock.advance(QUIET_MS + WATCH_MS)
 }
 
 for (const source of ['send', 'inbox'] as const) {
@@ -91,7 +91,7 @@ for (const source of ['send', 'inbox'] as const) {
     const { paths, submit } = await replying[source](w)
     const turn = w.holdPrompts()
 
-    submit()
+    void submit()
     await turn.arrived
     turn.lose()
     await $.session.start(CONVERSATION)
@@ -113,7 +113,7 @@ for (const source of ['send', 'inbox'] as const) {
     const { paths, submit } = await replying[source](w)
 
     w.refuseWrites(path => path === paths.log(W1))
-    submit()
+    await submit()
     await w.clock.advance(WATCH_MS)
 
     expect(w.state.inFlight).toMatchObject({ source, isTaken: true })
@@ -138,7 +138,7 @@ for (const source of ['send', 'inbox'] as const) {
 
     const { paths, submit } = await replying[source](w)
 
-    submit()
+    await submit()
     await w.clock.advance(WATCH_MS)
     expect(kindsIn(w, paths.log(W1))).toEqual(WRITTEN[source])
     expect(w.logs.some(line => line.includes('the load was cut short'))).toBe(true)
@@ -160,7 +160,7 @@ for (const source of ['send', 'inbox'] as const) {
     const { paths, submit } = await replying[source](w)
     const turn = w.holdPrompts()
 
-    submit()
+    void submit()
     await turn.arrived
     turn.lose()
     await w.turnEnds()
@@ -185,7 +185,7 @@ for (const source of ['send', 'inbox'] as const) {
     const { paths, submit } = await replying[source](w)
     const turn = w.holdPrompts()
 
-    submit()
+    void submit()
     await turn.arrived
     turn.lose()
     await $.session.end({ reason: 'clear', sessionId: W1, resume: { id: W1 } })
@@ -201,7 +201,7 @@ for (const source of ['send', 'inbox'] as const) {
     const { paths, submit } = await replying[source](w)
 
     w.dropPrompts(STOPPED)
-    submit()
+    await submit()
     await w.clock.advance(WATCH_MS)
 
     expect(w.submitted).toEqual([MESSAGE])
@@ -209,7 +209,7 @@ for (const source of ['send', 'inbox'] as const) {
     expect(w.state.stopped).toBe(true)
 
     await $.session.start(CONVERSATION)
-    await w.clock.advance(QUIET_MS + 4 * WATCH_MS)
+    await w.clock.advance(QUIET_MS + WATCH_MS)
 
     expect(w.submitted).toEqual([MESSAGE])
     expect(w.state.inFlight).toMatchObject({ source, isHeld: true })
@@ -256,7 +256,7 @@ test('inbox: let go, its replies are taken in at a later look', async ($, on) =>
   const { paths, submit } = await replying.inbox(w)
   const turn = w.holdPrompts()
 
-  submit()
+  void submit()
   await turn.arrived
   turn.lose()
   await w.turnEnds()
@@ -271,7 +271,7 @@ test('a message whose writing a reload cut short is written into its own session
   const { paths, submit } = await replying.send(w)
 
   w.refuseWrites(path => path === paths.log(W1))
-  submit()
+  await submit()
   await w.clock.advance(WATCH_MS)
   w.refuseWrites()
 
@@ -289,13 +289,12 @@ test('a message whose writing a reload cut short is written into its own session
   expect(w.state.inFlight).toBeNull()
 })
 
-/** This session with a review asked, Lee's yes to it queued a minute on, and send pressed while Claude is mid-turn, the window holding the message for the turn to end. */
+/** This session with a review asked, Lee's yes to it queued, and send pressed while Claude is mid-turn, the window holding the message for the turn to end. */
 const sentHeld = async (w: World) => {
   const { paths } = await w.begin()
   const id = await asked(w, REVIEW)
   const ui = await w.pane()
 
-  await w.clock.advance(MIN)
   await ui.press({ key: `yes:${w.item(id)}` })
   await w.turnStarts('Carry on.')
 
@@ -363,7 +362,7 @@ test('a claim a load from before held messages left, saying no isHeld, is let go
   const { submit } = await replying.send(w)
   const turn = w.holdPrompts()
 
-  submit()
+  void submit()
   await turn.arrived
   turn.lose()
   isOlder = true
@@ -405,7 +404,7 @@ test("inbox: the heartbeat says nothing of the inbox's message, its replies on t
   const { paths, submit } = await replying.inbox(w)
   const turn = w.holdPrompts()
 
-  submit()
+  void submit()
   await turn.arrived
   await w.clock.advance(WATCH_MS)
 

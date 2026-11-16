@@ -27,15 +27,14 @@ import type { FsEntry, Timer } from 'claude-code'
 import {
   brief,
   every,
-  foldSession,
   isCurrent,
   isOffBoard,
-  isSameFiles,
-  nextFoldChange,
   OFF_BOARD_MS,
   parkedBy,
   projectParked,
+  refold,
   sessionPaths,
+  type KeptFold,
   type Session,
   type SessionFiles,
 } from '../core'
@@ -65,18 +64,8 @@ import type { Filed } from './scene'
  */
 export const AROUND_MS = 5_000
 
-/**
- * A session as last read: its reader, the files it was folded from, what
- * they folded to, when that fold next changes by time alone, and whether it
- * is off the board.
- */
-type Kept = {
-  read: Reader
-  files: SessionFiles
-  session: Session | undefined
-  changesAt: number | undefined
-  isOff: boolean
-}
+/** A session as last read: its reader, its fold as kept, and whether it is off the board. */
+type Kept = KeptFold & { read: Reader; isOff: boolean }
 
 /** Each session as last read, by its folder. */
 const kept = new Map<string, Kept>()
@@ -98,27 +87,11 @@ let looking: Promise<unknown> = Promise.resolve()
 
 let timer: Timer | undefined
 
-/** A session folded afresh from `files` at `now`, kept with when its fold next changes and whether it is off the board. */
-const foldedFrom = (read: Reader, files: SessionFiles, now: number): Kept => {
-  const session = foldSession(files, now)
-
-  return {
-    read,
-    files,
-    session,
-    changesAt: session === undefined ? undefined : nextFoldChange(session, now),
-    isOff: isOffBoard(session, now),
-  }
-}
-
 /** A session folded from `files` at `now`: as last folded, where that was from the same files and its fold has not changed since by time alone. */
 const keep = (dir: string, read: Reader, files: SessionFiles, now: number) => {
   const last = kept.get(dir)
-  const isStanding =
-    last !== undefined &&
-    (last.changesAt === undefined || now < last.changesAt) &&
-    isSameFiles(last.files, files)
-  const standing = isStanding ? last : foldedFrom(read, files, now)
+  const fold = refold(last, files, now)
+  const standing = fold === last ? last : { ...fold, read, isOff: isOffBoard(fold.session, now) }
 
   kept.set(dir, standing)
 

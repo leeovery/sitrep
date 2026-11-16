@@ -5,7 +5,7 @@
  * folder.
  */
 import type { On } from 'claude-code'
-import { mock, type Engine } from 'claude-code/testing'
+import { mock, type Engine } from '../kit'
 import { sessionPaths } from '../../core'
 import { HELP_DESK, HOME, PROJECT, REPO, ROOT, STATE_HOME, T0 } from '../data'
 import { startedId, tools } from './calls'

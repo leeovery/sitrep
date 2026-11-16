@@ -52,14 +52,14 @@ type Asking = Awaited<ReturnType<typeof asking>>
 const replying: Record<Source, (w: World) => Promise<Asking & { claim: () => Promise<unknown> }>> =
   {
     send: async w => {
-      const at = await asking(w, { advance: MIN })
+      const at = await asking(w)
 
       await at.ui.press({ key: `yes:${w.item(at.id)}` })
 
       return { ...at, claim: () => at.ui.press({ key: 'send' }) }
     },
     inbox: async w => {
-      const at = await asking(w, { advance: MIN })
+      const at = await asking(w)
 
       w.put(at.paths.letters(SENDER), file([w.clock.now(), reply('r1', at.id, 'yes')]))
 
@@ -94,7 +94,7 @@ for (const source of ['send', 'inbox'] as const) {
     await turnEnded(w)
     expectWrittenOnce(w, paths, source)
 
-    await w.clock.advance(QUIET_MS + 4 * WATCH_MS)
+    await w.clock.advance(QUIET_MS + WATCH_MS)
     expectWrittenOnce(w, paths, source)
   })
 
@@ -471,7 +471,7 @@ test("a send left held between turns, its update as the turn ended refused, goes
   await w.clock.advance(WATCH_MS)
   expectWrittenOnce(w, paths, 'send')
 
-  await w.clock.advance(QUIET_MS + 4 * WATCH_MS)
+  await w.clock.advance(QUIET_MS + WATCH_MS)
   expectWrittenOnce(w, paths, 'send')
 })
 

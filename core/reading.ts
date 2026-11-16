@@ -10,7 +10,8 @@
  * rarely and only a join or a post brings back, again only every
  * OFF_BOARD_MS.
  */
-import type { SessionFiles } from './fold'
+import { nextFoldChange } from './feed'
+import { foldSession, type SessionFiles } from './fold'
 import type { Session } from './types'
 import { isCurrent, summarise } from './views'
 
@@ -31,6 +32,36 @@ export const isSameFiles = (a: SessionFiles, b: SessionFiles) =>
   isSameTexts(a.logs, b.logs) &&
   isSameTexts(a.inbox, b.inbox) &&
   isSameTexts(a.presence, b.presence)
+
+/** A session as a window last folded it: the files it was folded from, what they folded to, and when that fold next changes by time alone. */
+export type KeptFold = {
+  files: SessionFiles
+  session: Session | undefined
+  changesAt: number | undefined
+}
+
+/**
+ * A session's files folded at `now`: `last` where it still stands, folded
+ * from the same texts and not changed since by time alone
+ * (`nextFoldChange`); else folded afresh.
+ */
+export const refold = (last: KeptFold | undefined, files: SessionFiles, now: number): KeptFold => {
+  if (
+    last !== undefined &&
+    (last.changesAt === undefined || now < last.changesAt) &&
+    isSameFiles(last.files, files)
+  ) {
+    return last
+  }
+
+  const session = foldSession(files, now)
+
+  return {
+    files,
+    session,
+    changesAt: session === undefined ? undefined : nextFoldChange(session, now),
+  }
+}
 
 /** Whether a session folded is off the board at `now`: no live window to hear, and finished or idle past the views. One whose session.json does not fold is not. */
 export const isOffBoard = (session: Session | undefined, now: number) =>

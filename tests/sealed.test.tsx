@@ -12,7 +12,7 @@ import { QUIET_MS } from '../hooks/deliver'
 import { SEND_NOW } from '../hooks/draw/ready'
 import { WATCH_MS } from '../hooks/window'
 import { rowsOf } from './drawn'
-import { CLOSES, HELP_DESK, MIN, PROJECT, reviewRound, reviewRounds, W1 } from './data'
+import { CLOSES, HELP_DESK, PROJECT, reviewRound, reviewRounds, W1 } from './data'
 import {
   asked,
   asking,
@@ -63,9 +63,8 @@ const CONTROLS = ['', '[ send to Claude ] [ cancel all ]']
 /** The board docked over a window tall enough for Ready to send to list everything here, under half of it (its cut is clip.test.tsx's). */
 const TALL: RenderPropsOf['Pane'] = { ...DOCKED, scroll: { offset: 0, bodyRows: 60 } }
 
-/** The session begun with three reviews asked, the board drawn, a minute on: their ids, in round order. */
-const reviewing = (w: World, props = TALL) =>
-  asking(w, { asks: reviewRounds(3), props, advance: MIN })
+/** The session begun with three reviews asked, and the board drawn: their ids, in round order. */
+const reviewing = (w: World, props = TALL) => asking(w, { asks: reviewRounds(3), props })
 
 /** Lee approves an ask, opening it first where it is not open. */
 const approve = async (w: World, ui: Board, id: string) => {
@@ -495,7 +494,7 @@ test('the first send refused with a second held behind it: both are let go toget
   await twoHeld(w, ui, ids)
   w.dropPrompts('the session is closing')
   await turnEnded(w)
-  await w.clock.advance(QUIET_MS + 4 * WATCH_MS)
+  await w.clock.advance(QUIET_MS + WATCH_MS)
 
   expect(w.submitted).toEqual([message(1)])
   expect(notSent(w)).toEqual([
@@ -739,7 +738,7 @@ test("a send Claude Code refuses as Lee stopped Claude's turn is not let go: hel
   expect(await ui.find({ key: w.takeBack() })).toBeDefined()
   expect(sendingItems(w, paths), 'still on its way').toEqual([[first]])
 
-  await w.clock.advance(QUIET_MS + 4 * WATCH_MS)
+  await w.clock.advance(QUIET_MS + WATCH_MS)
 
   expect(w.submitted, 'no look submits it, nor does its quiet let it go').toEqual([message(1)])
   expect(isStopped(w)).toBe(true)
@@ -903,7 +902,7 @@ test("refused again for the same reason after Lee's turn, the window is marked s
   expect(isStopped(w)).toBe(true)
   expect(notSent(w)).toEqual([])
 
-  await w.clock.advance(QUIET_MS + 4 * WATCH_MS)
+  await w.clock.advance(QUIET_MS + WATCH_MS)
   expect(flightsIn(w), 'no quiet lets it go').toEqual([{ items: [first], isHeld: true }])
 
   await leeTypes(w)
@@ -923,7 +922,7 @@ test("a send held while the window was stopped, refused for another reason once 
   await w.turnStarts('Look at the failing test instead.')
   w.dropPrompts('the session is closing')
   await turnEnded(w)
-  await w.clock.advance(QUIET_MS + 4 * WATCH_MS)
+  await w.clock.advance(QUIET_MS + WATCH_MS)
 
   expect(w.submitted).toEqual([message(1), message(1)])
   expect(notSent(w)).toEqual([
@@ -1268,7 +1267,7 @@ test('a slash command Lee types lifts the stop, though no turn follows; nothing 
 
   const ran = typedCommand($, 'compact')
 
-  await w.clock.advance(QUIET_MS + 4 * WATCH_MS)
+  await w.clock.advance(QUIET_MS + WATCH_MS)
 
   expect(isStopped(w)).toBe(false)
   expect(w.submitted, 'nothing while it runs').toEqual([message(1)])
