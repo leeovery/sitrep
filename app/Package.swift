@@ -26,34 +26,38 @@ let package = Package(
         .executableTarget(name: "SitRepNotices", dependencies: ["SitRepRelay"]),
         /// What the real CLI printed over a board seeded in a scratch folder, for the tests to read.
         .target(name: "SitRepLines", path: "Tests/SitRepLines", resources: [.copy("Printed")]),
-        /// What the tests share: defaults held in memory, a clock the test moves, the waits on a condition and the
-        /// strip's measure of one width.
-        .target(
-            name: "SitRepTestSupport", dependencies: ["SitRepPanel", "SitRepScreen"], path: "Tests/SitRepTestSupport"
-        ),
+        /// What the tests share, of no target of the app's: defaults held in memory, a clock the test moves and the
+        /// waits on a condition.
+        .target(name: "SitRepTestSupport", path: "Tests/SitRepTestSupport"),
+        /// What the tests that measure the strip share: its measure of one width.
+        .target(name: "SitRepPanelTestSupport", dependencies: ["SitRepPanel"], path: "Tests/SitRepPanelTestSupport"),
         /// What the real `claude plugin` printed on this Mac, read-only, for the plugin's setup.
         .testTarget(
             name: "SitRepCoreTests", dependencies: ["SitRepCore", "SitRepLines", "SitRepTestSupport"],
             resources: [.copy("Claude")]
         ),
         .testTarget(
-            name: "SitRepPanelTests", dependencies: ["SitRepPanel", "SitRepTestSupport"], resources: [.copy("Recorded")]
+            name: "SitRepPanelTests", dependencies: ["SitRepPanel", "SitRepPanelTestSupport"],
+            resources: [.copy("Recorded")]
         ),
         .testTarget(
             name: "SitRepEdgeTests",
-            dependencies: ["SitRepEdge", "SitRepCore", "SitRepPanel", "SitRepLines", "SitRepTestSupport"]
+            dependencies: [
+                "SitRepEdge", "SitRepCore", "SitRepPanel", "SitRepLines", "SitRepTestSupport", "SitRepPanelTestSupport",
+            ]
         ),
         .testTarget(
             name: "SitRepMenuTests",
             dependencies: [
-                "SitRepMenu", "SitRepEdge", "SitRepCore", "SitRepPanel", "SitRepRelay", "SitRepLines", "SitRepTestSupport",
+                "SitRepMenu", "SitRepEdge", "SitRepCore", "SitRepPanel", "SitRepRelay", "SitRepLines",
+                "SitRepTestSupport",
             ]
         ),
         .testTarget(
             name: "SitRepTests",
             dependencies: [
                 "SitRep", "SitRepEdge", "SitRepPanel", "SitRepMenu", "SitRepCore", "SitRepRelay", "SitRepScreen", "SitRepLines",
-                "SitRepTestSupport",
+                "SitRepTestSupport", "SitRepPanelTestSupport",
             ]
         ),
         .testTarget(name: "SitRepNoticesTests", dependencies: ["SitRepNotices", "SitRepRelay"]),

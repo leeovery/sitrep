@@ -70,8 +70,12 @@ fi
 # target as the SDK the app was built with, and macOS draws an app in the
 # design of the SDK it records: linked without it, SitRep was drawn as on
 # macOS 14, with none of the system's Liquid Glass.
+#
+# Only what the bundle carries is built, a product a call, so no test support
+# target, which imports Testing, is ever built for a release.
 build=(-c release --package-path "$app" -Xswiftc -Xclang-linker -Xswiftc -isysroot -Xswiftc -Xclang-linker -Xswiftc "$(xcrun --show-sdk-path)")
-swift build "${build[@]}"
+swift build "${build[@]}" --product SitRep
+swift build "${build[@]}" --product SitRepNotices
 binaries=$(swift build "${build[@]}" --show-bin-path)
 
 mkdir -p "$bundle/Contents/MacOS" "$bundle/Contents/Resources"

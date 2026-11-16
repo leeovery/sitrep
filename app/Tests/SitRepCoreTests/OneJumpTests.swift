@@ -13,9 +13,9 @@ struct OneJumpTests {
         let jumps = Jumps(), heard = Heard()
 
         oneJump.run(to: "sr-a", jumps.jump(1), told: heard.add)
-        await until { jumps.started == [1] }
+        await until(turns: 100_000) { jumps.started == [1] }
         jumps.answer(1, .refused("Fumi is not on screen."))
-        await until { !heard.news.isEmpty }
+        await until(turns: 100_000) { !heard.news.isEmpty }
 
         #expect(heard.news == [.ended(.refused("Fumi is not on screen."))])
     }
@@ -25,16 +25,16 @@ struct OneJumpTests {
         let jumps = Jumps(), heard = Heard()
 
         oneJump.run(to: "sr-a", jumps.jump(1), told: heard.add)
-        await until { clock.sleeps.count == 1 }
+        await until(turns: 100_000) { clock.sleeps.count == 1 }
         #expect(clock.sleeps == [.seconds(2)])
         #expect(heard.news.isEmpty)
 
         clock.pass(OneJump.stillAfter)
-        await until { !heard.news.isEmpty }
+        await until(turns: 100_000) { !heard.news.isEmpty }
         #expect(heard.news == [.still])
 
         jumps.answer(1, .unanswered)
-        await until { heard.news.count == 2 }
+        await until(turns: 100_000) { heard.news.count == 2 }
         #expect(heard.news == [.still, .ended(.unanswered)])
     }
 
@@ -43,9 +43,9 @@ struct OneJumpTests {
         let jumps = Jumps(), heard = Heard()
 
         oneJump.run(to: "sr-a", jumps.jump(1), told: heard.add)
-        await until { jumps.started == [1] && clock.sleeps.count == 1 }
+        await until(turns: 100_000) { jumps.started == [1] && clock.sleeps.count == 1 }
         jumps.answer(1, .jumped)
-        await until { !heard.news.isEmpty }
+        await until(turns: 100_000) { !heard.news.isEmpty }
 
         clock.pass(OneJump.stillAfter)
         await Self.settle()
@@ -59,21 +59,21 @@ struct OneJumpTests {
         let jumps = Jumps(), first = Heard(), second = Heard()
 
         oneJump.run(to: "sr-a", jumps.jump(1), told: first.add)
-        await until { jumps.started == [1] && clock.sleeps.count == 1 }
+        await until(turns: 100_000) { jumps.started == [1] && clock.sleeps.count == 1 }
 
         oneJump.run(to: "sr-b", jumps.jump(2), told: second.add)
-        await until { jumps.started == [1, 2] && !first.news.isEmpty }
+        await until(turns: 100_000) { jumps.started == [1, 2] && !first.news.isEmpty }
         #expect(jumps.stopped == [1])
         #expect(first.news == [.ended(.stopped)])
 
         jumps.answer(1, .jumped)
         clock.pass(OneJump.stillAfter)
-        await until { !second.news.isEmpty }
+        await until(turns: 100_000) { !second.news.isEmpty }
         #expect(first.news == [.ended(.stopped)])
         #expect(second.news == [.still])
 
         jumps.answer(2, .jumped)
-        await until { second.news.count == 2 }
+        await until(turns: 100_000) { second.news.count == 2 }
         #expect(second.news == [.still, .ended(.jumped)])
         #expect(jumps.stopped == [1])
     }
@@ -85,14 +85,14 @@ struct OneJumpTests {
         let jumps = Jumps(lingering: [1]), first = Heard(), second = Heard()
 
         oneJump.run(to: "sr-a", jumps.jump(1), told: first.add)
-        await until { jumps.started == [1] }
+        await until(turns: 100_000) { jumps.started == [1] }
         oneJump.run(to: "sr-b", jumps.jump(2), told: second.add)
-        await until { jumps.stopped == [1] }
+        await until(turns: 100_000) { jumps.stopped == [1] }
         await Self.settle()
         #expect(jumps.started == [1])
 
         jumps.answer(1, .stopped)
-        await until { jumps.started == [1, 2] }
+        await until(turns: 100_000) { jumps.started == [1, 2] }
         #expect(first.news == [.ended(.stopped)])
     }
 
@@ -104,16 +104,16 @@ struct OneJumpTests {
 
         oneJump.heard = once.add
         oneJump.run(to: "sr-a", jumps.jump(1), told: first.add)
-        await until { jumps.started == [1] && clock.sleeps.count == 1 }
+        await until(turns: 100_000) { jumps.started == [1] && clock.sleeps.count == 1 }
         oneJump.run(to: "sr-a", jumps.jump(2), told: second.add)
         await Self.settle()
         #expect(jumps.started == [1])
         #expect(jumps.stopped.isEmpty)
 
         clock.pass(OneJump.stillAfter)
-        await until { once.news == [.still] }
+        await until(turns: 100_000) { once.news == [.still] }
         jumps.answer(1, .jumped)
-        await until { once.news.count == 2 }
+        await until(turns: 100_000) { once.news.count == 2 }
 
         #expect(first.news == [.still, .ended(.jumped)])
         #expect(second.news == [.still, .ended(.jumped)])
@@ -127,17 +127,17 @@ struct OneJumpTests {
         let jumps = Jumps(), first = Heard(), second = Heard()
 
         oneJump.run(to: "sr-a", jumps.jump(1), told: first.add)
-        await until { jumps.started == [1] && clock.sleeps.count == 1 }
+        await until(turns: 100_000) { jumps.started == [1] && clock.sleeps.count == 1 }
         clock.pass(OneJump.stillAfter)
-        await until { first.news == [.still] }
+        await until(turns: 100_000) { first.news == [.still] }
 
         oneJump.run(to: "sr-a", jumps.jump(2), told: second.add)
-        await until { jumps.started == [1, 2] }
+        await until(turns: 100_000) { jumps.started == [1, 2] }
         #expect(jumps.stopped == [1])
         #expect(first.news == [.still, .ended(.stopped)])
 
         jumps.answer(2, .jumped)
-        await until { !second.news.isEmpty }
+        await until(turns: 100_000) { !second.news.isEmpty }
         #expect(second.news == [.ended(.jumped)])
     }
 
@@ -147,9 +147,9 @@ struct OneJumpTests {
         let jumps = Jumps(), first = Heard(), second = Heard()
 
         oneJump.run(to: "sr-a", jumps.jump(1), told: first.add)
-        await until { jumps.started == [1] && clock.sleeps.count == 1 }
+        await until(turns: 100_000) { jumps.started == [1] && clock.sleeps.count == 1 }
         oneJump.run(to: "sr-b", jumps.jump(2), told: second.add)
-        await until { jumps.started == [1, 2] }
+        await until(turns: 100_000) { jumps.started == [1, 2] }
 
         #expect(jumps.stopped == [1])
         #expect(first.news == [.ended(.stopped)])
@@ -162,10 +162,10 @@ struct OneJumpTests {
         let jumps = Jumps(), first = Heard(), second = Heard(), other = Heard()
 
         oneJump.run(to: "sr-a", jumps.jump(1), told: first.add)
-        await until { jumps.started == [1] && clock.sleeps.count == 1 }
+        await until(turns: 100_000) { jumps.started == [1] && clock.sleeps.count == 1 }
         oneJump.run(to: "sr-a", jumps.jump(2), told: second.add)
         oneJump.run(to: "sr-b", jumps.jump(3), told: other.add)
-        await until { jumps.started == [1, 3] && second.news.count == 1 }
+        await until(turns: 100_000) { jumps.started == [1, 3] && second.news.count == 1 }
 
         #expect(first.news == [.ended(.stopped)])
         #expect(second.news == [.ended(.stopped)])
@@ -178,14 +178,14 @@ struct OneJumpTests {
         let jumps = Jumps(lingering: [1]), a = Heard(), b = Heard(), c = Heard()
 
         oneJump.run(to: "sr-a", jumps.jump(1), told: a.add)
-        await until { jumps.started == [1] }
+        await until(turns: 100_000) { jumps.started == [1] }
         oneJump.run(to: "sr-b", jumps.jump(2), told: b.add)
         oneJump.run(to: "sr-c", jumps.jump(3), told: c.add)
         await Self.settle()
         #expect(jumps.started == [1])
 
         jumps.answer(1, .stopped)
-        await until { jumps.started == [1, 3] && b.news.count == 1 }
+        await until(turns: 100_000) { jumps.started == [1, 3] && b.news.count == 1 }
         #expect(a.news == [.ended(.stopped)])
         #expect(b.news == [.ended(.stopped)])
         #expect(c.news.isEmpty)
@@ -197,15 +197,17 @@ struct OneJumpTests {
         let jumps = Jumps(), heard = Heard()
 
         oneJump.run(to: "sr-a", jumps.jump(1), told: heard.add)
-        await until { jumps.started == [1] }
+        await until(turns: 100_000) { jumps.started == [1] }
         jumps.answer(1, .stopped)
-        await until { !heard.news.isEmpty }
+        await until(turns: 100_000) { !heard.news.isEmpty }
 
         #expect(heard.news == [.ended(.stopped)])
     }
 
+    /// The clock holds a cancelled sleep until it is passed, so a stopped jump's wait on still jumping ends as one not
+    /// stopped would, and only OneJump's own check of the cancellation keeps it from saying it is still jumping.
     private static func made() -> (OneJump, TestClock) {
-        let clock = TestClock()
+        let clock = TestClock(passing: [], holdsCancelled: true)
 
         return (OneJump(sleep: { try await clock.sleep(for: $0) }), clock)
     }

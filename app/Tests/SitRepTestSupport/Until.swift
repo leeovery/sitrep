@@ -4,7 +4,7 @@ import Testing
 /// fails the test at the caller. Counted in turns, not time, where the actor is shared with every other test of the
 /// suite, as the main actor is.
 public func until(
-    turns: Int = 100_000, isolation: isolated (any Actor)? = #isolation,
+    turns: Int, isolation: isolated (any Actor)? = #isolation,
     sourceLocation: SourceLocation = #_sourceLocation, _ holds: () -> Bool
 ) async {
     for _ in 0 ..< turns where !holds() {

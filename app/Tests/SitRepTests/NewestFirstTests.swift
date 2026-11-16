@@ -5,7 +5,7 @@ import SitRepEdge
 import SitRepLines
 import SitRepMenu
 import SitRepPanel
-import SitRepTestSupport
+import SitRepPanelTestSupport
 import Testing
 
 /// Needs you newest first on every surface, over what the real CLI printed (`Lines.newest`): Northwind's Ledger export,

@@ -3,6 +3,7 @@ import Foundation
 import os
 import SitRepCore
 @testable import SitRepScreen
+import SitRepTestSupport
 
 let finder = "com.apple.finder"
 let ghosttyBundle = GhosttyDriver.bundle
@@ -322,6 +323,9 @@ private struct FakeListening: Listening {
         ended()
     }
 }
+
+/// The test's clock stands in for the jump's.
+extension TestClock: JumpClock {}
 
 extension Set<Duration> {
     /// The jump's own pauses, Ghostty's and the watch of the front, which a test's clock lets pass at once.

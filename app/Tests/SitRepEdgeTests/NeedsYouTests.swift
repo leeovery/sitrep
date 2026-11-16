@@ -3,7 +3,7 @@ import Foundation
 @testable import SitRepCore
 @testable import SitRepEdge
 import SitRepPanel
-import SitRepTestSupport
+import SitRepPanelTestSupport
 import Testing
 
 /// Needs you at the edge as Lee decided it on 13 November 2026: its count is the asks and stops waiting and the

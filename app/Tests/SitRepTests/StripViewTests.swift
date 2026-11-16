@@ -2,7 +2,7 @@ import AppKit
 @testable import SitRep
 import SitRepEdge
 import SitRepPanel
-import SitRepTestSupport
+import SitRepPanelTestSupport
 import Testing
 
 /// The black strip draws top-down, as the stage is, in an edge's window never shown, on either edge: its black and

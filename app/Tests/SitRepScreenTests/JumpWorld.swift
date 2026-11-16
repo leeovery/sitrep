@@ -144,7 +144,8 @@ struct Jumping {
         _ tmux: FakeTmux = FakeTmux(), _ table: FakeTable? = nil, terminals: [FakeWindow] = JumpWorld.terminals,
         running: Bool = true, failing: GhosttyFailure? = nil, windowFailing: GhosttyFailure? = nil,
         windowHeld: Gate? = nil, ghosttyHeld: Gate? = nil,
-        workspace: FakeWorkspace = FakeWorkspace(), clock: TestClock = TestClock(passing: .jumpsPauses), tmuxHeld: Gate? = nil,
+        workspace: FakeWorkspace = FakeWorkspace(), clock: TestClock = TestClock(passing: .jumpsPauses),
+        tmuxHeld: Gate? = nil,
         resume: String = OpenSettings.defaultResumeCommand, openings: RecentOpenings = RecentOpenings()
     ) {
         self.tmux = tmux

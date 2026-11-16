@@ -1,6 +1,6 @@
 import CoreGraphics
 @testable import SitRepPanel
-import SitRepTestSupport
+import SitRepPanelTestSupport
 import Testing
 
 struct StripTests {

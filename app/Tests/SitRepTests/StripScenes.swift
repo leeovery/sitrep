@@ -1,7 +1,7 @@
 @testable import SitRep
 import SitRepEdge
 @testable import SitRepPanel
-import SitRepTestSupport
+import SitRepPanelTestSupport
 
 extension StripScene {
     /// A full strip on a 1512 by 982 screen, no session on it and nothing under the pointer, at time 0.

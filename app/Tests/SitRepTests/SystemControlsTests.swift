@@ -35,22 +35,12 @@ struct SystemControlsTests {
         #expect(button.titleOfSelectedItem == "LG")
     }
 
-    /// A stock pop-up holding these items, as AppKit sizes one.
-    static func stock(_ items: [NSMenuItem]) -> NSPopUpButton {
-        let stock = NSPopUpButton(frame: .zero, pullsDown: false)
-
-        for item in items {
-            stock.menu?.addItem(item.isSeparatorItem ? .separator() : NSMenuItem(title: item.title, action: nil, keyEquivalent: ""))
-        }
-        return stock
-    }
-
     /// The system's own width for its items, its widest choice's, whichever is chosen.
     @Test func aPopUpIsTheSystemsOwnWidthForItsItems() throws {
         let main = try Self.popUp(choosing: "Main display")
         let wide = try Self.popUp(choosing: "Built-in Retina Display")
 
-        #expect(main.frame.size == Self.stock(main.itemArray).intrinsicContentSize)
+        #expect(main.frame.size == NSPopUpButton.stock(holding: main.itemArray).intrinsicContentSize)
         #expect(main.frame.height == 24)
         #expect(wide.frame.size == main.frame.size)
     }

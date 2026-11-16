@@ -1,13 +1,9 @@
 import AppKit
-import ServiceManagement
 @testable import SitRep
 import SitRepCore
-import SitRepEdge
 import SitRepMenu
-import SitRepPanel
 import SitRepRelay
 import SitRepTestSupport
-import SwiftUI
 import Testing
 
 /// The welcome window's world, for its suites: a Mac of its own, the windows the welcome makes, each a recorded one,

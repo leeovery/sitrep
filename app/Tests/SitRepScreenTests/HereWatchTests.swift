@@ -56,7 +56,8 @@ struct HereWatchTests {
     }
 
     private static func watch(
-        _ reads: Reads, clock: TestClock = TestClock(passing: .jumpsPauses), openings: RecentOpenings = RecentOpenings()
+        _ reads: Reads, clock: TestClock = TestClock(passing: .jumpsPauses),
+        openings: RecentOpenings = RecentOpenings()
     ) -> HereWatch {
         HereWatch(openings: openings, clock: clock, read: reads.read)
     }

@@ -3,6 +3,7 @@ import Foundation
 @testable import SitRepCore
 @testable import SitRepEdge
 @testable import SitRepPanel
+import SitRepPanelTestSupport
 import SitRepTestSupport
 import Testing
 

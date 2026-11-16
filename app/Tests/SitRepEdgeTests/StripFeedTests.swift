@@ -2,7 +2,7 @@ import CoreGraphics
 @testable import SitRepCore
 import SitRepEdge
 import SitRepPanel
-import SitRepTestSupport
+import SitRepPanelTestSupport
 import Testing
 
 /// The strip over the boards `watch` prints, as `PanelBoard` says them: a mark flashes for what a line's `new` says,

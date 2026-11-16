@@ -4,6 +4,7 @@ import Foundation
 @testable import SitRepEdge
 @testable import SitRepPanel
 import SitRepLines
+import SitRepPanelTestSupport
 import SitRepTestSupport
 import Testing
 
