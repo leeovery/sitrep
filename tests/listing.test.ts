@@ -37,21 +37,21 @@ const OLD_WAITING: SessionMeta = {
 
 const OLD: SessionMeta = { ...OLD_WAITING, id: 'sr-dddddd', name: 'Old and idle' }
 
-const GOOSE: SessionMeta = {
+const CONTOSO: SessionMeta = {
   ...META,
   id: 'sr-eeeeee',
   name: 'Onboarding',
   summary: 'The first-run flow',
-  project: 'goosemates',
-  root: '/Users/lee/Code/goosemates',
+  project: 'contoso',
+  root: '/Users/me/Code/contoso',
   by: W2,
 }
 
-const QUIETLY: SessionMeta = { ...GOOSE, id: 'sr-ffffff', name: 'Tidying', project: 'quiet' }
+const QUIETLY: SessionMeta = { ...CONTOSO, id: 'sr-ffffff', name: 'Tidying', project: 'quiet' }
 
 const STALE_SESSION: SessionMeta = { ...OLD, id: 'sr-gggggg', project: 'stale' }
 
-/** Switchboard, living where the CLI runs: an open session holding an ask and something parked, an idle one, and two from last week. */
+/** Northwind, living where the CLI runs: an open session holding an ask and something parked, an idle one, and two from last week. */
 const busyHere = (cwd = REPO) => {
   const t = terminal({ cwd })
 
@@ -72,11 +72,11 @@ const busyHere = (cwd = REPO) => {
   return t
 }
 
-/** Every project: Switchboard, one with asks waiting, one idle, and one with only an old session. */
+/** Every project: Northwind, one with asks waiting, one idle, and one with only an old session. */
 const everywhere = (cwd = REPO) => {
   const t = busyHere(cwd)
 
-  t.seed(GOOSE, {
+  t.seed(CONTOSO, {
     project: ELSEWHERE.key,
     lines: [
       [T0, choiceAsk('k1', 'Email or Apple?', ['Email', 'Apple'])],
@@ -93,7 +93,7 @@ test("list: each project's current sessions, an open one first, each with its id
   expect(await busyHere().run('list')).toEqual({
     exit: EXIT.done,
     out: [
-      'Switchboard',
+      'Northwind',
       '  sr-k3f9qa  Dashboard redesign (open, 1 waiting, 1 parked)',
       '  sr-bbbbbb  Lobby',
       '  sr-cccccc  Old but waiting (1 waiting)',
@@ -113,7 +113,7 @@ test('list --json: the project the CLI runs in, and each project with its curren
     projects: [
       {
         key: PROJECT.key,
-        name: 'Switchboard',
+        name: 'Northwind',
         open: 1,
         waiting: 2,
         snoozed: 0,
@@ -171,18 +171,18 @@ test('list: every project, the one the CLI runs in first, then the busiest, the 
   const projects = JSON.parse(out).projects as { key: string; name: string; sessions: unknown[] }[]
 
   expect(projects.map(project => [project.name, project.sessions.length])).toEqual([
-    ['Switchboard', 3],
-    ['Goosemates', 1],
+    ['Northwind', 3],
+    ['Contoso', 1],
     ['Quiet', 1],
   ])
   expect(projects.map(project => project.key)).toEqual([PROJECT.key, ELSEWHERE.key, QUIET.key])
   expect((await t.run('list')).out).toBe(
     [
-      'Switchboard',
+      'Northwind',
       '  sr-k3f9qa  Dashboard redesign (open, 1 waiting, 1 parked)',
       '  sr-bbbbbb  Lobby',
       '  sr-cccccc  Old but waiting (1 waiting)',
-      'Goosemates',
+      'Contoso',
       '  sr-eeeeee  Onboarding (2 waiting)',
       'Quiet',
       '  sr-ffffff  Tidying',
@@ -192,11 +192,11 @@ test('list: every project, the one the CLI runs in first, then the busiest, the 
 })
 
 test('here is the nearest project whose directory holds the folder the CLI runs in, listed first; else null', async () => {
-  const quietHome = '/Users/lee/Code/quiet'
+  const quietHome = '/Users/me/Code/quiet'
   const t = everywhere(`${quietHome}/docs`)
 
   t.project(QUIET.key, { name: 'Quiet', directory: quietHome, created: T0, by: W1 })
-  t.project('code', { name: 'Code', directory: '/Users/lee/Code', created: T0, by: W1 })
+  t.project('code', { name: 'Code', directory: '/Users/me/Code', created: T0, by: W1 })
 
   const listed = JSON.parse((await t.run('list', '--json')).out)
 
@@ -212,8 +212,8 @@ test('here is the nearest project whose directory holds the folder the CLI runs 
 test('list --project gives only that project, its name matched as start matches it', async () => {
   const t = everywhere(HOME)
 
-  expect((await t.run('list', '--project', 'goose mates')).out).toBe(
-    ['Goosemates', '  sr-eeeeee  Onboarding (2 waiting)', ''].join('\n'),
+  expect((await t.run('list', '--project', 'con toso')).out).toBe(
+    ['Contoso', '  sr-eeeeee  Onboarding (2 waiting)', ''].join('\n'),
   )
   expect(JSON.parse((await t.run('list', '--project=STALE', '--json')).out)).toEqual({
     v: 2,
@@ -231,10 +231,10 @@ test('list --project gives only that project, its name matched as start matches 
       },
     ],
   })
-  expect(await t.run('list', '--project', 'Portal')).toEqual({
+  expect(await t.run('list', '--project', 'Fabrikam')).toEqual({
     exit: EXIT.refused,
     out: '',
-    err: 'sitrep: There is no project named Portal.\n',
+    err: 'sitrep: There is no project named Fabrikam.\n',
   })
 })
 
@@ -253,7 +253,7 @@ test('list leaves out a finished session, whatever it holds, and a project left 
       [T0 + MIN, finish('lee')],
     ],
   })
-  t.seed(GOOSE, {
+  t.seed(CONTOSO, {
     project: ELSEWHERE.key,
     seenAt: NOW,
     lines: [
@@ -264,7 +264,7 @@ test('list leaves out a finished session, whatever it holds, and a project left 
 
   expect((await t.run('list')).out).toBe(
     [
-      'Switchboard',
+      'Northwind',
       '  sr-k3f9qa  Dashboard redesign (open, 1 waiting, 1 parked)',
       '  sr-cccccc  Old but waiting (1 waiting)',
       'Quiet',
@@ -286,11 +286,11 @@ test('list names the project the CLI runs in even with nothing current in it, an
 
   t.project(PROJECT.key, { name: PROJECT.name, directory: REPO, created: T0, by: W1 })
 
-  expect((await t.run('list')).out).toBe('Switchboard\n  no current sessions\n')
+  expect((await t.run('list')).out).toBe('Northwind\n  no current sessions\n')
   expect(JSON.parse((await t.run('list', '--json')).out).projects).toEqual([
     {
       key: PROJECT.key,
-      name: 'Switchboard',
+      name: 'Northwind',
       open: 0,
       waiting: 0,
       snoozed: 0,
@@ -322,7 +322,7 @@ test('board --json: the session as list gives it, its open asks, what it parked,
   expect(exit).toBe(EXIT.done)
   expect(JSON.parse(out)).toEqual({
     v: 3,
-    project: { key: PROJECT.key, name: 'Switchboard' },
+    project: { key: PROJECT.key, name: 'Northwind' },
     session: {
       id: META.id,
       name: META.name,
@@ -406,7 +406,7 @@ test('board --json: the session as list gives it, its open asks, what it parked,
   })
 })
 
-/** Switchboard as busyHere has it, the lobby having parked something and finished, the idle session from last week something too; and Stale, its one session idle past the views, with something parked. */
+/** Northwind as busyHere has it, the lobby having parked something and finished, the idle session from last week something too; and Stale, its one session idle past the views, with something parked. */
 const parkedAround = () => {
   const t = busyHere()
 
@@ -416,7 +416,7 @@ const parkedAround = () => {
       [T0 + MIN, finish('lee')],
     ],
   })
-  t.seed(OLD, { lines: [[OLD.created, park('p1', 'Archive old requests')]] })
+  t.seed(OLD, { lines: [[OLD.created, park('p1', 'Archive old invoices')]] })
   t.seed(STALE_SESSION, {
     project: STALE.key,
     lines: [[STALE_SESSION.created, park('p1', 'Export the ledger as CSV')]],
@@ -450,7 +450,7 @@ test("list --json: a project's parked counts every item parked in it, finished a
   ])
   expect((await parkedAround().run('list')).out).toBe(
     [
-      'Switchboard',
+      'Northwind',
       '  sr-k3f9qa  Dashboard redesign (open, 1 waiting, 1 parked)',
       '  sr-cccccc  Old but waiting (1 waiting)',
       'Stale',
@@ -468,7 +468,7 @@ test("board prints the project's parked items, this session's first, each other 
     [
       'Parked:',
       '- p1: A tmux indicator',
-      '- p1, parked by "Old and idle" (session: sr-dddddd): Archive old requests',
+      '- p1, parked by "Old and idle" (session: sr-dddddd): Archive old invoices',
       '- p1, parked by "Lobby" (session: sr-bbbbbb): Theme the lobby',
     ].join('\n'),
   )
@@ -495,8 +495,8 @@ test("a finished session's files as a build before parked items were the project
   expect((await t.run('board', '--session', META.id)).out).toContain(
     [
       'Parked:',
-      '- p1, parked by "Request ledger" (session: sr-1edger): Export the ledger as CSV; ref: PR #82',
-      '- p2, parked by "Request ledger" (session: sr-1edger): Archive old requests; where: After the release',
+      '- p1, parked by "Invoice ledger" (session: sr-1edger): Export the ledger as CSV; ref: PR #82',
+      '- p2, parked by "Invoice ledger" (session: sr-1edger): Archive old invoices; where: After the release',
       'Latest notes:',
     ].join('\n'),
   )

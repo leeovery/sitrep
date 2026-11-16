@@ -61,7 +61,7 @@ const LIST = {
 }
 
 const FOUR_LINES =
-  'Switchboard\n  sr-k3f9qa  Dashboard redesign (open, 1 waiting)\nSitRep\n  sr-wdsqvn  sitrep'
+  'Northwind\n  sr-k3f9qa  Dashboard redesign (open, 1 waiting)\nContoso\n  sr-eeeeee  Onboarding'
 
 /** A paste as the engine wraps it in the prompt Lee submits, the line breaks around it with it (live, 2.1.295). */
 const pasted = (text: string, id = '08fd') =>
@@ -436,10 +436,10 @@ test('a queued reply of several lines shows its first, how many more, then not s
 
   await entered(w, $, pasted(FOUR_LINES))
   expect(rowsOf(await ui.find({ key: `ask:${w.item(id)}` })).at(-1)).toBe(
-    '└ “Switchboard” +3 lines · not sent yet ↺ undo ✎ edit',
+    '└ “Northwind” +3 lines · not sent yet ↺ undo ✎ edit',
   )
   expect(rowsOf(await ui.find({ key: `readyanswer:${w.item(id)}` }))).toEqual([
-    '└ “Switchboard” +3 lines ✎ edit',
+    '└ “Northwind” +3 lines ✎ edit',
   ])
 })
 
@@ -506,10 +506,10 @@ test('one send carries the yes with its comment, the choice and the answer, in o
       `- ${LIST.title} → ${OUTPUT}:`,
       '  ```',
       '  Ran it:',
-      '  Switchboard',
+      '  Northwind',
       '    sr-k3f9qa  Dashboard redesign (open, 1 waiting)',
-      '  SitRep',
-      '    sr-wdsqvn  sitrep',
+      '  Contoso',
+      '    sr-eeeeee  Onboarding',
       '  ```',
       '  This closes the ask: nothing more to do with it.',
     ].join('\n'),
@@ -655,10 +655,10 @@ test('VS Code, whose prompts arrive some way unproven, offers nothing to write: 
 /** Another session of the project, open in another window. */
 const LEDGER: SessionMeta = {
   id: 'sr-1edger',
-  name: 'Request ledger',
-  summary: 'Request ledger, area by area',
+  name: 'Invoice ledger',
+  summary: 'Invoice ledger, area by area',
   project: PROJECT.key,
-  root: '/Users/lee/Code/switchboard',
+  root: '/Users/me/Code/northwind',
   created: T0,
   by: W2,
 }
@@ -1527,10 +1527,10 @@ test('a queued pick-up with a note shows it, how many lines more, undo and ✎ e
   await entered(w, $, pasted(FOUR_LINES))
   await w.clock.advance(CLEAR_AFTER_DROP_MS)
   expect((await parkedRows(ui, w.item(id))).at(-1)).toBe(
-    '└ pick it up, with a comment: “Switchboard” +3 lines · not sent yet ↺ undo ✎ edit',
+    '└ pick it up, with a comment: “Northwind” +3 lines · not sent yet ↺ undo ✎ edit',
   )
   expect(rowsOf(await ui.find({ key: `readyanswer:${w.item(id)}` }))).toEqual([
-    '└ pick it up, with a comment: “Switchboard” +3 lines ✎ edit',
+    '└ pick it up, with a comment: “Northwind” +3 lines ✎ edit',
   ])
 
   await ui.press({ key: `rewrite:${w.item(id)}` })

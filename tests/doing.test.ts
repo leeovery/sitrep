@@ -767,12 +767,12 @@ test('a failure keeping the state in $.state is logged, the turn, the call and i
     tool: { name: 'Bash', subject: 'gh pr create --fill' },
   })
 
-  pr.finish({ stdout: 'https://github.com/leeovery/sitrep/pull/8' })
+  pr.finish({ stdout: 'https://github.com/me/sitrep/pull/8' })
 
   const checked = await $.tool.check({ tool: 'Bash', input: PR_CREATE, tool_use_id: 'toolu_9' })
 
   expect(started).toEqual({ turnId: 'turn-9' })
-  expect((await pr.done).result).toEqual({ stdout: 'https://github.com/leeovery/sitrep/pull/8' })
+  expect((await pr.done).result).toEqual({ stdout: 'https://github.com/me/sitrep/pull/8' })
   expect(checked.decision).toBe('ask')
   expect(w.logs.length).toBeGreaterThan(0)
   expect(

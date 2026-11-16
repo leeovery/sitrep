@@ -220,7 +220,7 @@ test("an opened ask hangs where and its record from its mark; its buttons and hi
     await w.call('ask', {
       wants: 'yes',
       yes: 'Approve',
-      title: 'Review Sessions & Runway, round 1',
+      title: 'Review Orders & Invoices, round 1',
       where: 'In Paper: page round 1',
       ref: 'docs/dashboard.md',
     }),
@@ -277,9 +277,9 @@ test('a branch whose text wraps keeps the tree unbroken: a stem beside it under 
     await w.call('ask', {
       wants: 'yes',
       yes: 'Approve',
-      title: 'Review Sessions & Runway, round 1',
+      title: 'Review Orders & Invoices, round 1',
       where: 'In Paper: the dashboard file, page "round 1", frames 1–6, beside the brief',
-      ref: 'docs/dashboard.md, under "Sessions & Runway", the first round of three',
+      ref: 'docs/dashboard.md, under "Orders & Invoices", the first round of three',
     }),
   )
   const ui = await w.pane()
@@ -287,7 +287,7 @@ test('a branch whose text wraps keeps the tree unbroken: a stem beside it under 
   expect((await rows(ui, `ask:${w.item(id)}`)).slice(1, 5)).toEqual([
     '├ In Paper: the dashboard file, page "round 1", frames',
     '│ 1–6, beside the brief',
-    '└ see docs/dashboard.md, under "Sessions & Runway",',
+    '└ see docs/dashboard.md, under "Orders & Invoices",',
     '  the first round of three',
   ])
 })
@@ -299,8 +299,8 @@ test('an opened status change opens each detail line with its label in the statu
   await w.call('status', { now: ['Reviewing round 1', 'Drawing Usage'], next: 'Usage, round 2' })
   await w.clock.advance(MIN)
   await w.call('status', {
-    now: ['Drawing Usage', 'Drawing Runway'],
-    next: 'Runway, round 2',
+    now: ['Drawing Usage', 'Drawing Orders'],
+    next: 'Orders, round 2',
     name: 'Dashboard, round 2',
     summary: 'The second round of the dashboard',
   })
@@ -313,10 +313,10 @@ test('an opened status change opens each detail line with its label in the statu
   await ui.press({ key: latest?.key ?? 'no status line' })
 
   for (const [label, text] of [
-    ['Added:', 'Drawing Runway'],
+    ['Added:', 'Drawing Orders'],
     ['No longer:', 'Reviewing round 1'],
     ['Still there:', 'Drawing Usage'],
-    ['Next:', 'Runway, round 2'],
+    ['Next:', 'Orders, round 2'],
     ['Name:', 'Dashboard, round 2'],
     ['Summary:', 'The second round of the dashboard'],
   ]) {

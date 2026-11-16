@@ -10,7 +10,7 @@ type World = ReturnType<typeof world>
 const REVIEW = {
   wants: 'yes',
   yes: 'Approve',
-  title: 'Review Sessions & Runway, round 1',
+  title: 'Review Orders & Invoices, round 1',
   where: 'In Paper: the dashboard file, page "round 1", frames 1–6',
 }
 
@@ -85,7 +85,7 @@ test(
 
     expect(await ui.find({ key: 'tab:session', text: 'Dashboard redesign' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: 'Dashboard redesign' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: '· Switchboard' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: '· Northwind' })).toBeDefined()
     expect(
       await ui.find({ type: 'Text', text: 'Redesign the dashboard, area by area' }),
     ).toBeDefined()
@@ -206,7 +206,7 @@ test('a log line opens to what happened and where it is recorded, and closes aga
     await w.call('note', {
       text: 'PR #82 merged',
       detail: ['6 files, +214 −51'],
-      ref: 'github.com/leeovery/switchboard/pull/82',
+      ref: 'github.com/me/northwind/pull/82',
     }),
   )
   const ui = await w.pane()
@@ -217,7 +217,7 @@ test('a log line opens to what happened and where it is recorded, and closes aga
   await ui.press({ key: `log:${w.item(id)}` })
   expect(await ui.find({ type: 'Text', text: '6 files, +214 −51' })).toBeDefined()
   expect(
-    await ui.find({ type: 'Text', text: 'see github.com/leeovery/switchboard/pull/82' }),
+    await ui.find({ type: 'Text', text: 'see github.com/me/northwind/pull/82' }),
   ).toBeDefined()
 
   await ui.press({ key: `log:${w.item(id)}` })

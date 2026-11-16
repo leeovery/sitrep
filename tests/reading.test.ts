@@ -13,7 +13,7 @@ import { file, finish, fold, META, MIN, note, seen, status, T0, W1, W2, yesAsk }
 
 const FILES: SessionFiles = {
   meta: metaText(META),
-  project: '{"name":"Switchboard"}\n',
+  project: '{"name":"Northwind"}\n',
   logs: { [W1]: file([T0, note('n1', 'Drew round 1')]) },
   inbox: {},
   presence: { [W1]: seen(W1, T0) },

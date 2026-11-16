@@ -53,7 +53,7 @@ import {
 /** When the folds below look: an hour in. */
 const NOW = T0 + 60 * MIN
 
-const REVIEW = yesAsk('k1', 'Review Sessions & Runway, round 1', 'Approve')
+const REVIEW = yesAsk('k1', 'Review Orders & Invoices, round 1', 'Approve')
 const DECIDE = choiceAsk('k2', 'Keep the ledger 400 days, or forever?', ['400 days', 'Forever'])
 const TRY = yesAsk('k3', 'Try signing in on the iPad', 'It works')
 const DO = yesAsk('k4', 'Run the production apply', 'Done')
@@ -120,7 +120,7 @@ for (const [id, verdict, extra, after] of EFFECTS) {
 
 /** Asks as written before asks said what they want back, by their kinds, one needing something back. */
 const KINDS: Record<AskKind, Body> = {
-  review: kindAsk('o1', 'review', 'Review Sessions & Runway, round 1'),
+  review: kindAsk('o1', 'review', 'Review Orders & Invoices, round 1'),
   decide: kindAsk('o2', 'decide', 'Keep the ledger 400 days, or forever?', {
     options: ['400 days', 'Forever'],
   }),
@@ -150,7 +150,7 @@ const OLD_EFFECTS: Array<
   ['decide', 'choose', { option: 'Forever' }, 'closed'],
   ['decide', 'choose', { option: 'Forever', note: 'Storage is cheap' }, 'closed'],
   ['decide', 'comment', { note: 'Two years, then archive' }, 'closed'],
-  ['review', 'comment', { note: 'The runway bar is too tall' }, 'replied'],
+  ['review', 'comment', { note: 'The orders bar is too tall' }, 'replied'],
   ['try', 'comment', { note: 'It fails after the code' }, 'replied'],
   ['do', 'comment', { note: 'Not until Monday' }, 'replied'],
   ['review', 'ignore', {}, 'ignored'],
@@ -207,7 +207,7 @@ test("old replies read in their ask's words; a decide's comment is still its ans
   expect(message?.text).toBe(
     [
       FROM_THE_BOARD,
-      '- Review Sessions & Runway, round 1 → Approve',
+      '- Review Orders & Invoices, round 1 → Approve',
       '  This closes the ask: nothing more to do with it.',
       '- Try signing in on the iPad → It works, with a comment: “On the iPad mini too”',
       '  This closes the ask: nothing more to do with it.',
@@ -322,7 +322,7 @@ test('the board logs a delivered pick-up itself, with Lee’s note as its detail
     [W1]: file(
       ...POSTED,
       [T0 + 2 * MIN, delivered('r1')],
-      [T0 + 3 * MIN, park('p2', 'Paper thumbnails inline in Ghostty')],
+      [T0 + 3 * MIN, park('p2', 'Thumbnails inline in the gallery')],
       ...sent(T0 + 4 * MIN, 'r2', 'p2', 'pickup'),
     ),
   }
@@ -339,7 +339,7 @@ test('the board logs a delivered pick-up itself, with Lee’s note as its detail
       at: T0 + 4 * MIN,
       by: W1,
       item: 'p2',
-      text: 'Picked up from parked: Paper thumbnails inline in Ghostty',
+      text: 'Picked up from parked: Thumbnails inline in the gallery',
       detail: [],
     },
     {
@@ -648,7 +648,7 @@ test("Lee's message: one line per reply, in the spike's words, under From the bo
     { item: 'k4', verdict: 'yes' },
     { item: 'k2', verdict: 'choose', option: 'Forever' },
     { item: 'k2', verdict: 'comment', note: 'Two years, then archive' },
-    { item: 'k1', verdict: 'comment', note: 'The runway bar is too tall' },
+    { item: 'k1', verdict: 'comment', note: 'The orders bar is too tall' },
     { item: 'k4', verdict: 'ignore' },
     { item: 'p1', verdict: 'pickup' },
     { item: 'p1', verdict: 'pickup', note: 'Before the release' },
@@ -657,15 +657,15 @@ test("Lee's message: one line per reply, in the spike's words, under From the bo
   expect(message?.text).toBe(
     [
       FROM_THE_BOARD,
-      '- Review Sessions & Runway, round 1 → Approve',
-      '- Review Sessions & Runway, round 1 → Approve, with a comment: “Tighten the gutters”',
+      '- Review Orders & Invoices, round 1 → Approve',
+      '- Review Orders & Invoices, round 1 → Approve, with a comment: “Tighten the gutters”',
       '- Try signing in on the iPad → It works',
       '  This closes the ask: nothing more to do with it.',
       '- Run the production apply → Done',
       '- Keep the ledger 400 days, or forever? → Forever',
       '- Keep the ledger 400 days, or forever? → comment: “Two years, then archive”',
       '  This closes the ask: nothing more to do with it.',
-      '- Review Sessions & Runway, round 1 → comment: “The runway bar is too tall”',
+      '- Review Orders & Invoices, round 1 → comment: “The orders bar is too tall”',
       '  This closes the ask: nothing more to do with it.',
       '- Run the production apply → ignored',
       '  This closes the ask: nothing more to do with it.',
@@ -688,8 +688,8 @@ test("an answer and a comment to one ask in one message say once, under the last
     ),
   ).toEqual([
     FROM_THE_BOARD,
-    '- Review Sessions & Runway, round 1 → Approve',
-    '- Review Sessions & Runway, round 1 → comment: “Thinner bars”',
+    '- Review Orders & Invoices, round 1 → Approve',
+    '- Review Orders & Invoices, round 1 → comment: “Thinner bars”',
     '  This closes the ask: nothing more to do with it.',
   ])
   expect(
@@ -699,8 +699,8 @@ test("an answer and a comment to one ask in one message say once, under the last
     ),
   ).toEqual([
     FROM_THE_BOARD,
-    '- Review Sessions & Runway, round 1 → comment: “Thinner bars”',
-    '- Review Sessions & Runway, round 1 → Approve',
+    '- Review Orders & Invoices, round 1 → comment: “Thinner bars”',
+    '- Review Orders & Invoices, round 1 → Approve',
     '  This closes the ask: nothing more to do with it.',
   ])
 })
@@ -716,7 +716,7 @@ test('in one message, each ask says where the message leaves it alone: a yes clo
   ).toBe(
     [
       FROM_THE_BOARD,
-      '- Review Sessions & Runway, round 1 → Approve',
+      '- Review Orders & Invoices, round 1 → Approve',
       '  This closes the ask: nothing more to do with it.',
       '- Try signing in on the iPad → comment: “It fails on the iPad mini”',
       '  This leaves the ask open: act on it, then resolve it.',
@@ -736,7 +736,7 @@ test("a comment on an ask whose answer is on its way apart from the message says
   ).toBe(
     [
       FROM_THE_BOARD,
-      '- Review Sessions & Runway, round 1 → comment: “Thinner bars”',
+      '- Review Orders & Invoices, round 1 → comment: “Thinner bars”',
       "  An answer of Lee's to this ask, sent apart from this message, closes it.",
     ].join('\n'),
   )
@@ -751,7 +751,7 @@ test("a pick-up of an item another session of the project parked goes in the mes
     ...fold({
       logs: {
         [W2]: file(
-          [T0, status([], { name: 'Request ledger' })],
+          [T0, status([], { name: 'Invoice ledger' })],
           [T0, park('p1', 'Export the ledger as CSV')],
         ),
       },
@@ -770,7 +770,7 @@ test("a pick-up of an item another session of the project parked goes in the mes
     [
       FROM_THE_BOARD,
       '- Pick up from parked: A tmux indicator across sessions',
-      "- Pick up from parked, Request ledger's: Export the ledger as CSV. With the totals",
+      "- Pick up from parked, Invoice ledger's: Export the ledger as CSV. With the totals",
     ].join('\n'),
   )
   expect(message?.text).not.toMatch(/sr-1edger/)
@@ -794,7 +794,7 @@ test('the message leaves out replies that fit no item, and says which it carries
   ).toEqual({
     text: [
       FROM_THE_BOARD,
-      '- Review Sessions & Runway, round 1 → Approve',
+      '- Review Orders & Invoices, round 1 → Approve',
       '  This closes the ask: nothing more to do with it.',
     ].join('\n'),
     replies: [{ item: 'k1', verdict: 'yes' }],

@@ -71,7 +71,7 @@ const project = (key: string, counts: Partial<ProjectSummary> = {}): ProjectSumm
 const keys = (projects: readonly ProjectSummary[]) => projects.map(each => each.key)
 
 test('a session in brief: what it is doing, whether a window has it, what it holds for Lee, and when it started', () => {
-  const session = sessionOf('sr-aaaaaa', 'switchboard', {
+  const session = sessionOf('sr-aaaaaa', 'northwind', {
     logs: {
       [W1]: file(
         [T0 + MIN, status(['Drawing Usage, round 2'], { next: 'Usage, round 3' })],
@@ -87,7 +87,7 @@ test('a session in brief: what it is doing, whether a window has it, what it hol
     id: 'sr-aaaaaa',
     name: 'Dashboard redesign',
     summary: 'Redesign the dashboard, area by area in Paper',
-    project: 'Switchboard',
+    project: 'Northwind',
     now: ['Drawing Usage, round 2'],
     next: 'Usage, round 3',
     isOpen: true,
@@ -102,20 +102,20 @@ test('a session in brief: what it is doing, whether a window has it, what it hol
 })
 
 test('a project adds up its sessions, those with a window first, then the most recently updated, and counts what is parked in it', () => {
-  const quiet = sessionOf('sr-aaaaaa', 'switchboard', {
+  const quiet = sessionOf('sr-aaaaaa', 'northwind', {
     logs: { [W1]: file([T0 + 50 * MIN, yesAsk('k1', 'Try it', 'It works')]) },
   })
-  const open = sessionOf('sr-bbbbbb', 'switchboard', {
+  const open = sessionOf('sr-bbbbbb', 'northwind', {
     logs: { [W2]: file([T0 + 10 * MIN, park('p1', 'Later')]) },
     presence: { [W2]: seen(W2, NOW) },
   })
-  const older = sessionOf('sr-cccccc', 'switchboard', { logs: {} })
+  const older = sessionOf('sr-cccccc', 'northwind', { logs: {} })
 
   const summaries = [older, quiet, open].map(summarise)
 
-  expect(summariseProject('switchboard-1a2b3c4d', summaries, parkingOf(summaries))).toMatchObject({
-    key: 'switchboard-1a2b3c4d',
-    name: 'Switchboard',
+  expect(summariseProject('northwind-1a2b3c4d', summaries, parkingOf(summaries))).toMatchObject({
+    key: 'northwind-1a2b3c4d',
+    name: 'Northwind',
     sessions: [{ id: 'sr-bbbbbb' }, { id: 'sr-aaaaaa' }, { id: 'sr-cccccc' }],
     open: 1,
     waiting: 1,
@@ -154,15 +154,15 @@ test('a project with nothing open, waiting or parked folds into one line, the mo
 })
 
 test("a project whose asks wait only on a window to deliver Lee's answers is not folded: its sessions are current", () => {
-  const answered = sessionOf('sr-aaaaaa', 'switchboard', {
+  const answered = sessionOf('sr-aaaaaa', 'northwind', {
     logs: { [W1]: file([T0, yesAsk('k1', 'Run it', 'Done')]) },
     inbox: { [CLI]: file([T0 + MIN, reply('r1', 'k1', 'yes')]) },
   })
-  const summary = summariseProject('switchboard-1a2b3c4d', [summarise(answered)])
+  const summary = summariseProject('northwind-1a2b3c4d', [summarise(answered)])
   const view = allProjects([summary, project('here')], 'here')
 
   expect(summary).toMatchObject({ waiting: 0, asked: 1 })
-  expect(keys(view.projects)).toEqual(['here', 'switchboard-1a2b3c4d'])
+  expect(keys(view.projects)).toEqual(['here', 'northwind-1a2b3c4d'])
   expect(view.folded).toEqual([])
 })
 
@@ -184,10 +184,10 @@ test('equally busy projects order by their latest update, then by name', () => {
 })
 
 test("a project's log holds every session's lines, newest first, each naming its session", () => {
-  const first = sessionOf('sr-aaaaaa', 'switchboard', {
+  const first = sessionOf('sr-aaaaaa', 'northwind', {
     logs: { [W1]: file([T0 + 1 * MIN, note('n1', 'one')], [T0 + 4 * MIN, note('n4', 'four')]) },
   })
-  const second = sessionOf('sr-bbbbbb', 'switchboard', {
+  const second = sessionOf('sr-bbbbbb', 'northwind', {
     logs: { [W2]: file([T0 + 2 * MIN, note('n2', 'two')], [T0 + 3 * MIN, status(['Drawing'])]) },
   })
 
@@ -201,7 +201,7 @@ test("a project's log holds every session's lines, newest first, each naming its
 
 test('an idle session shows for 7 days after its last update, then drops out of the views', () => {
   const idle = summarise(
-    sessionOf('sr-aaaaaa', 'switchboard', { logs: { [W1]: file([NOW, note('n1', 'Drew it')]) } }),
+    sessionOf('sr-aaaaaa', 'northwind', { logs: { [W1]: file([NOW, note('n1', 'Drew it')]) } }),
   )
 
   expect(isCurrent(idle, NOW + CURRENT_MS)).toBe(true)
@@ -210,8 +210,8 @@ test('an idle session shows for 7 days after its last update, then drops out of 
 
 test('open or waiting on Lee, a session shows however long ago it was updated', () => {
   const later = T0 + 30 * CURRENT_MS
-  const open = sessionOf('sr-aaaaaa', 'switchboard', { presence: { [W1]: seen(W1, NOW) } })
-  const waiting = sessionOf('sr-bbbbbb', 'switchboard', {
+  const open = sessionOf('sr-aaaaaa', 'northwind', { presence: { [W1]: seen(W1, NOW) } })
+  const waiting = sessionOf('sr-bbbbbb', 'northwind', {
     logs: { [W1]: file([T0, yesAsk('k1', 'Run it', 'Done')]) },
   })
 
@@ -222,7 +222,7 @@ test('open or waiting on Lee, a session shows however long ago it was updated', 
 
 test("something parked keeps no session current: it is its project's, and its session leaves the views after its 7 days", () => {
   const parked = summarise(
-    sessionOf('sr-cccccc', 'switchboard', { logs: { [W1]: file([T0, park('p1', 'Later')]) } }),
+    sessionOf('sr-cccccc', 'northwind', { logs: { [W1]: file([T0, park('p1', 'Later')]) } }),
   )
 
   expect(parked.parked).toBe(1)
@@ -232,7 +232,7 @@ test("something parked keeps no session current: it is its project's, and its se
 
 test('a project with something parked is listed, unfolded, counting it from every session filed under it, finished and idle ones included, though none of its sessions is current', () => {
   const later = T0 + 30 * CURRENT_MS
-  const finished = sessionOf('sr-aaaaaa', 'switchboard', {
+  const finished = sessionOf('sr-aaaaaa', 'northwind', {
     logs: {
       [W1]: file(
         [T0, park('p1', 'Export the ledger as CSV')],
@@ -240,30 +240,30 @@ test('a project with something parked is listed, unfolded, counting it from ever
       ),
     },
   })
-  const idle = sessionOf('sr-bbbbbb', 'switchboard', {
-    logs: { [W2]: file([T0, park('p2', 'Archive old requests')]) },
+  const idle = sessionOf('sr-bbbbbb', 'northwind', {
+    logs: { [W2]: file([T0, park('p2', 'Archive old invoices')]) },
   })
-  const quiet = sessionOf('sr-cccccc', 'portal', { logs: {} })
+  const quiet = sessionOf('sr-cccccc', 'fabrikam', { logs: {} })
   const listed = listedProjects(
     [
       {
-        project: { key: 'switchboard', name: 'Switchboard' },
+        project: { key: 'northwind', name: 'Northwind' },
         sessions: [finished, idle].map(summarise),
       },
-      { project: { key: 'portal', name: 'Portal' }, sessions: [summarise(quiet)] },
+      { project: { key: 'fabrikam', name: 'Fabrikam' }, sessions: [summarise(quiet)] },
     ],
-    '/Users/lee',
+    '/Users/me',
     later,
   )
 
   expect(listed.map(each => [each.key, each.parked, each.sessions])).toEqual([
-    ['switchboard', 2, []],
+    ['northwind', 2, []],
   ])
   expect(allProjects(listed).folded).toEqual([])
 })
 
 test('a project none of whose sessions is current is dated by the latest of the sessions holding what is parked in it, as the time rule leaves them', () => {
-  const finished = sessionOf('sr-aaaaaa', 'switchboard', {
+  const finished = sessionOf('sr-aaaaaa', 'northwind', {
     logs: {
       [W1]: file(
         [T0, park('p1', 'Export the ledger as CSV')],
@@ -271,31 +271,31 @@ test('a project none of whose sessions is current is dated by the latest of the 
       ),
     },
   })
-  const idle = sessionOf('sr-bbbbbb', 'switchboard', {
+  const idle = sessionOf('sr-bbbbbb', 'northwind', {
     logs: {
       [W2]: file(
-        [T0, park('p2', 'Archive old requests')],
+        [T0, park('p2', 'Archive old invoices')],
         [T0, park('p3', 'Retry the export')],
         [T0 + 5 * MIN, resolve('p3')],
       ),
     },
   })
-  const noted = sessionOf('sr-cccccc', 'switchboard', {
+  const noted = sessionOf('sr-cccccc', 'northwind', {
     logs: { [W1]: file([T0 + 9 * MIN, note('n1', 'Wrote the schema')]) },
   })
   const listed = listedProjects(
     [
       {
-        project: { key: 'switchboard', name: 'Switchboard' },
+        project: { key: 'northwind', name: 'Northwind' },
         sessions: [finished, idle, noted].map(summarise),
       },
     ],
-    '/Users/lee',
+    '/Users/me',
     T0 + 30 * CURRENT_MS,
   )
 
   expect(listed).toMatchObject([
-    { key: 'switchboard', parked: 2, sessions: [], updatedAt: T0 + MIN },
+    { key: 'northwind', parked: 2, sessions: [], updatedAt: T0 + MIN },
   ])
 })
 
@@ -303,11 +303,11 @@ test('an ask whose answer from Lee is on its way keeps its session current as an
   const later = NOW + 30 * CURRENT_MS
   const asked: Line = [T0, yesAsk('k1', 'Run it', 'Done')]
   const letters = { [CLI]: file([NOW, reply('r1', 'k1', 'yes')]) }
-  const answered = sessionOf('sr-aaaaaa', 'switchboard', {
+  const answered = sessionOf('sr-aaaaaa', 'northwind', {
     logs: { [W1]: file(asked) },
     inbox: letters,
   })
-  const closed = sessionOf('sr-bbbbbb', 'switchboard', {
+  const closed = sessionOf('sr-bbbbbb', 'northwind', {
     logs: { [W1]: file(asked, [NOW, delivered('r1')]) },
     inbox: letters,
   })
@@ -319,7 +319,7 @@ test('an ask whose answer from Lee is on its way keeps its session current as an
 })
 
 test('a finished session is out of the views whatever it holds, and its asks count nowhere', () => {
-  const finished = sessionOf('sr-aaaaaa', 'switchboard', {
+  const finished = sessionOf('sr-aaaaaa', 'northwind', {
     logs: {
       [W1]: file(
         [NOW - MIN, yesAsk('k1', 'Run it', 'Done')],
@@ -333,7 +333,7 @@ test('a finished session is out of the views whatever it holds, and its asks cou
 
   expect(summary).toMatchObject({ isOpen: true, isFinished: true, waiting: 0, parked: 1 })
   expect(isCurrent(summary, NOW)).toBe(false)
-  expect(summariseProject('switchboard-1a2b3c4d', [summary]).waiting).toBe(0)
+  expect(summariseProject('northwind-1a2b3c4d', [summary]).waiting).toBe(0)
 })
 
 test('a brief carries the latest log lines a view shows, and what the session has parked', () => {
@@ -341,7 +341,7 @@ test('a brief carries the latest log lines a view shows, and what the session ha
     { length: BRIEF_LOG_LINES + 2 },
     (_, i): Line => [T0 + i * MIN, note(`n${i}`, `note ${i}`)],
   )
-  const session = sessionOf('sr-aaaaaa', 'switchboard', {
+  const session = sessionOf('sr-aaaaaa', 'northwind', {
     logs: { [W1]: file(...notes, [T0, park('p1', 'Later')]) },
   })
   const briefed = brief(session)
@@ -353,7 +353,7 @@ test('a brief carries the latest log lines a view shows, and what the session ha
 })
 
 test('a brief carries the asks still open, a replied one among them, and none closed', () => {
-  const session = sessionOf('sr-aaaaaa', 'switchboard', {
+  const session = sessionOf('sr-aaaaaa', 'northwind', {
     logs: {
       [W1]: file(
         [T0, yesAsk('k1', 'Review round 1')],
@@ -373,10 +373,10 @@ test('a brief carries the asks still open, a replied one among them, and none cl
 })
 
 test("a project's parked items, oldest first, each naming the session that parked it by its id and its name", () => {
-  const first = sessionOf('sr-aaaaaa', 'switchboard', {
+  const first = sessionOf('sr-aaaaaa', 'northwind', {
     logs: { [W1]: file([T0, status([], { name: 'Ledger' })], [T0 + 2 * MIN, park('p1', 'B')]) },
   })
-  const second = sessionOf('sr-bbbbbb', 'switchboard', {
+  const second = sessionOf('sr-bbbbbb', 'northwind', {
     logs: { [W2]: file([T0 + MIN, park('p2', 'A')]) },
   })
 

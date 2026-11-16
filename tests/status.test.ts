@@ -2,7 +2,7 @@ import { expect, test } from './kit'
 import { parseEntries, statusChange, type StatusFields } from '../core'
 import { file, fold, MIN, note, status, T0, W1, W2 } from './support'
 
-const REVIEWING = 'Waiting on your review of Sessions & Runway, round 1'
+const REVIEWING = 'Waiting on your review of Orders & Invoices, round 1'
 const DRAWING = 'Drawing Usage, round 2'
 
 const BEFORE: StatusFields = {
@@ -107,7 +107,7 @@ test('the board logs status changes itself as it folds, comparing each with the 
     [W1]: file(
       [T0 + 1 * MIN, status([REVIEWING])],
       [T0 + 3 * MIN, status([REVIEWING])],
-      [T0 + 4 * MIN, note('n1', 'Sessions & Runway drawn')],
+      [T0 + 4 * MIN, note('n1', 'Orders & Invoices drawn')],
     ),
     [W2]: file([T0 + 5 * MIN, status([REVIEWING, DRAWING])]),
   }
@@ -115,10 +115,10 @@ test('the board logs status changes itself as it folds, comparing each with the 
 
   expect(session.log.map(line => [line.kind, line.text, line.at, line.by])).toEqual([
     ['status', 'Status: now also drawing Usage, round 2', T0 + 5 * MIN, W2],
-    ['note', 'Sessions & Runway drawn', T0 + 4 * MIN, W1],
+    ['note', 'Orders & Invoices drawn', T0 + 4 * MIN, W1],
     [
       'status',
-      'Status: now waiting on your review of Sessions & Runway, round 1',
+      'Status: now waiting on your review of Orders & Invoices, round 1',
       T0 + 1 * MIN,
       W1,
     ],

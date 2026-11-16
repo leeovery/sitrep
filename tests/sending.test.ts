@@ -62,10 +62,10 @@ const NOW = T0 + 60 * MIN
 
 const CLAIMED = NOW - MIN
 
-const SWITCHBOARD: Project = {
-  key: 'switchboard',
-  name: 'Switchboard',
-  directory: '/Users/lee/Code/switchboard',
+const NORTHWIND: Project = {
+  key: 'northwind',
+  name: 'Northwind',
+  directory: '/Users/me/Code/northwind',
 }
 
 const REVIEW: Line = [T0, yesAsk('k1', 'Review round 1')]
@@ -83,7 +83,7 @@ const sending = (...replies: Sending['replies']) => claimed(CLAIMED, ...replies)
 /** A send of this window's to the session, held for Claude's turn, carrying these replies. */
 const inFlight = (...replies: ReplyBody[]): SitrepInFlight => ({
   source: 'send',
-  project: SWITCHBOARD.key,
+  project: NORTHWIND.key,
   session: META.id,
   writer: W1,
   text: `From the board:\n- Review round 1 → Approve${CLOSES}`,
@@ -99,7 +99,7 @@ const DROP: Body = reply('r9', 'k2', 'choose', { option: 'Drop it' })
 
 /** The words `board --json` gives the sidebar's reply. */
 const sidebarWords = (session: Session) => {
-  const board = JSON.parse(boardJson(SWITCHBOARD.key, session)) as {
+  const board = JSON.parse(boardJson(NORTHWIND.key, session)) as {
     asks: { id: string; reply: { words: string } | null }[]
   }
 
@@ -148,18 +148,18 @@ const askIn = (session: Session, id: string) => {
 
 /** What every reader of Lee's says waits on Lee: the session's count, its row's ask lines, the head, `list` and `board --json`. */
 const needingLee = (session: Session) => {
-  const listed = listing([{ project: SWITCHBOARD, sessions: [summarise(session)] }], '/', NOW)
-  const board = JSON.parse(boardJson(SWITCHBOARD.key, session)) as {
+  const listed = listing([{ project: NORTHWIND, sessions: [summarise(session)] }], '/', NOW)
+  const board = JSON.parse(boardJson(NORTHWIND.key, session)) as {
     session: { waiting: number }
     asks: { id: string; reply: { is: string; isAnswer: boolean; words: string } | null }[]
   }
 
   return {
     waiting: session.waiting,
-    rows: (rowOf(SWITCHBOARD, session, NOW)?.lines ?? [])
+    rows: (rowOf(NORTHWIND, session, NOW)?.lines ?? [])
       .filter(line => line.is === 'ask')
       .map(line => line.ask),
-    head: feedOf([{ project: SWITCHBOARD, sessions: [session] }], NOW).head.needYou,
+    head: feedOf([{ project: NORTHWIND, sessions: [session] }], NOW).head.needYou,
     list: listed.projects.map(project => [project.waiting, project.sessions[0]?.waiting]),
     board: board.session.waiting,
   }
@@ -184,7 +184,7 @@ test("an answer and a comment in a live window's message are on their way from t
 
 test("each still shows among its session's asks, saying its reply is on its way since the claim, in its words", () => {
   const session = sessionOf([REVIEW, SIDEBAR], windowOn(W1, sending(YES, COMMENT)))
-  const board = JSON.parse(boardJson(SWITCHBOARD.key, session)) as { asks: { reply: unknown }[] }
+  const board = JSON.parse(boardJson(NORTHWIND.key, session)) as { asks: { reply: unknown }[] }
 
   expect(board.asks.map(ask => ask.reply)).toEqual([
     { is: 'onItsWay', isAnswer: true, words: '→ Approve', since: CLAIMED },
@@ -260,7 +260,7 @@ test('the ask needs Lee again once the heartbeat drops the claim, goes stale, or
 
     expect(session.waiting, why).toBe(1)
     expect(
-      rowOf(SWITCHBOARD, session, NOW)?.lines.map(line => line.ask),
+      rowOf(NORTHWIND, session, NOW)?.lines.map(line => line.ask),
       why,
     ).toEqual(['k1'])
     expect(replyState(askIn(session, 'k1')), why).toBeUndefined()
@@ -507,14 +507,14 @@ test('a window sending one message says it alone, as builds before several messa
 test('a send in flight never holds back the replies it carries for its own answer, on its way from the claim, nor carries them again: a send pressed meanwhile finds them going, not answered, and carries the rest', () => {
   const session = sessionOf([REVIEW, SIDEBAR], windowOn(W1, sending(YES)))
   const carried = {
-    project: SWITCHBOARD.key,
+    project: NORTHWIND.key,
     session: META.id,
     item: 'k1',
     verdict: 'yes',
   } as const
   const other = { ...carried, item: 'k2', verdict: 'choose', option: 'Keep it' } as const
   const folded = new Map([[session.id, session]])
-  const held = { project: SWITCHBOARD.key, session: META.id }
+  const held = { project: NORTHWIND.key, session: META.id }
   const unsent = unsentTo([carried, other], [inFlight({ type: 'reply', ...YES })], held, META.id)
 
   expect(sendable(folded, unsent)).toEqual([other])
@@ -528,7 +528,7 @@ test('a send in flight never holds back the replies it carries for its own answe
 test("a message's replies take ids unlike any its session uses, and any a message in flight carries, not written down yet", () => {
   const session = sessionOf([[T0, yesAsk('0000', 'Review round 1')], SIDEBAR], {})
   const keep = {
-    project: SWITCHBOARD.key,
+    project: NORTHWIND.key,
     session: META.id,
     item: 'k2',
     verdict: 'choose',

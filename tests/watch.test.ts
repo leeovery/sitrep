@@ -53,7 +53,7 @@ type Board = {
 
 const HOUR = 60 * MIN
 
-/** Another session of Switchboard's, no window holding it. */
+/** Another session of Northwind's, no window holding it. */
 const LOBBY = { ...META, id: 'sr-bbbbbb', name: 'Lobby' }
 
 /**
@@ -226,7 +226,7 @@ const follow = (t: Terminal, ...ids: string[]) => t.send(`${JSON.stringify({ fol
 /** The sessions whose boards a watch line carries. */
 const carried = (line: Printed | undefined) => Object.keys(line?.boards ?? {})
 
-/** Switchboard, living in REPO, and the session under test there holding `lines`, its window W1 on screen and on your turn. */
+/** Northwind, living in REPO, and the session under test there holding `lines`, its window W1 on screen and on your turn. */
 const held = (lines: Line[] = [], options: Parameters<typeof terminal>[0] = {}) => {
   const t = terminal(options)
 
@@ -279,8 +279,8 @@ test('the first line is the board as every surface shows it, with nothing new, n
           isAway: false,
           project: PROJECT.key,
           name: 'Dashboard redesign',
-          projectName: 'Switchboard',
-          letters: 'Sw',
+          projectName: 'Northwind',
+          letters: 'No',
           lines: [
             {
               key: `ask:${META.id}:k1`,
@@ -291,7 +291,7 @@ test('the first line is the board as every surface shows it, with nothing new, n
               since: T0,
             },
           ],
-          second: 'Switchboard · Dashboard redesign',
+          second: 'Northwind · Dashboard redesign',
           since: T0,
         },
       ],
@@ -657,7 +657,7 @@ test('a snooze running out is a line the moment it does, though no file changed:
       project: PROJECT.key,
       name: META.name,
       projectName: PROJECT.name,
-      letters: 'Sw',
+      letters: 'No',
       lines: [
         {
           key: k1,
@@ -676,7 +676,7 @@ test('a snooze running out is a line the moment it does, though no file changed:
           wakesAt: wakes,
         },
       ],
-      second: 'Switchboard · Dashboard redesign',
+      second: 'Northwind · Dashboard redesign',
       wakesAt: wakes,
     },
   ])
@@ -750,7 +750,7 @@ test("an old line's snooze of a turn is a line, its row leaving the rows for Sno
       project: PROJECT.key,
       name: META.name,
       projectName: PROJECT.name,
-      letters: 'Sw',
+      letters: 'No',
       lines: [
         {
           key: turn,
@@ -761,7 +761,7 @@ test("an old line's snooze of a turn is a line, its row leaving the rows for Sno
           wakesAt: null,
         },
       ],
-      second: 'Switchboard · Dashboard redesign',
+      second: 'Northwind · Dashboard redesign',
       wakesAt: null,
     },
   ])
@@ -1514,7 +1514,7 @@ test('however the watch ends, it stops listening to its standard input, which wo
 })
 
 test("each window on a line says where it is, its tmux pane and its zmx session, or null for either it is not in", async () => {
-  const inZmx = { ...WHERE, zmx: { session: 'kit · restore-card' } }
+  const inZmx = { ...WHERE, zmx: { session: 'litware · invoice-card' } }
   const inTmux = { ...WHERE, tmux: { socket: '/private/tmp/tmux-501/default', pane: '%148' } }
   const whereOn = async (where: Where) => {
     const t = terminal()

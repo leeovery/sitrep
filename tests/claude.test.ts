@@ -103,9 +103,9 @@ test("the board text's Parked is the project's: what the session parked first, t
   const ledger = fold({
     logs: {
       [W1]: file(
-        [T0, status([], { name: 'Request ledger' })],
+        [T0, status([], { name: 'Invoice ledger' })],
         [T0 + 3 * MIN, park('p1', 'Export the ledger as CSV', { where: 'In the spec' })],
-        [T0 + 9 * MIN, park('p2', 'Archive old requests')],
+        [T0 + 9 * MIN, park('p2', 'Archive old invoices')],
       ),
     },
   })
@@ -126,9 +126,9 @@ test("the board text's Parked is the project's: what the session parked first, t
     [
       'Parked:',
       '- p1: A tmux indicator',
-      '- p1, parked by "Request ledger" (session: sr-1edger): Export the ledger as CSV; where: In the spec',
+      '- p1, parked by "Invoice ledger" (session: sr-1edger): Export the ledger as CSV; where: In the spec',
       '- m2p8, parked by "Themes" (session: sr-themes): A dark theme',
-      '- p2, parked by "Request ledger" (session: sr-1edger): Archive old requests',
+      '- p2, parked by "Invoice ledger" (session: sr-1edger): Archive old invoices',
       'Latest notes:',
     ].join('\n'),
   )
@@ -166,19 +166,19 @@ test('an empty board says so in every section', () => {
 
 test('the board listing gives each session a line: its project, its id, its name and what waits on Lee', () => {
   const closed = fold({ logs: { [W1]: file([T0, yesAsk('k1', 'Run it', 'Done')]) } })
-  const ledger = { ...summarise(closed), id: 'sr-1edger', name: 'Request ledger', waiting: 0 }
-  const switchboard = summariseProject('switchboard', [toldSummary(SESSION), ledger])
-  const sitrep = {
-    ...summariseProject('sitrep', [{ ...ledger, id: 'sr-wdsqvn', name: 'sitrep' }]),
-    name: 'SitRep',
+  const ledger = { ...summarise(closed), id: 'sr-1edger', name: 'Invoice ledger', waiting: 0 }
+  const northwind = summariseProject('northwind', [toldSummary(SESSION), ledger])
+  const contoso = {
+    ...summariseProject('contoso', [{ ...ledger, id: 'sr-eeeeee', name: 'Onboarding' }]),
+    name: 'Contoso',
   }
 
-  expect(onBoardText([sitrep, switchboard])).toBe(
+  expect(onBoardText([contoso, northwind])).toBe(
     [
       'On the board:',
-      '- SitRep: sr-wdsqvn "sitrep"',
-      '- Switchboard: sr-k3f9qa "Dashboard redesign", 2 waiting on Lee',
-      '- Switchboard: sr-1edger "Request ledger"',
+      '- Contoso: sr-eeeeee "Onboarding"',
+      '- Northwind: sr-k3f9qa "Dashboard redesign", 2 waiting on Lee',
+      '- Northwind: sr-1edger "Invoice ledger"',
     ].join('\n'),
   )
 })
@@ -196,7 +196,7 @@ test("Claude's listing counts an ask whose answer from Lee is on its way as wait
 })
 
 test('a conversation starts knowing how to keep the board and talk to Lee beside it, every session on it by project, and which this window holds', () => {
-  const projects = [summariseProject('switchboard', [summarise(SESSION)])]
+  const projects = [summariseProject('northwind', [summarise(SESSION)])]
   const guide = startText([])
 
   expect(guide).toContain(
@@ -295,14 +295,14 @@ test("Claude's listing counts snoozed asks apart from those waiting on Lee, one 
 
   expect([told.waiting, told.snoozed]).toEqual([0, 4])
   expect([summarise(SNOOZED).waiting, summarise(SNOOZED).snoozed]).toEqual([0, 3])
-  expect(onBoardText([summariseProject('switchboard', [told])])).toBe(
-    'On the board:\n- Switchboard: sr-k3f9qa "Dashboard redesign", 4 snoozed by Lee',
+  expect(onBoardText([summariseProject('northwind', [told])])).toBe(
+    'On the board:\n- Northwind: sr-k3f9qa "Dashboard redesign", 4 snoozed by Lee',
   )
   expect(
-    onBoardText([summariseProject('switchboard', [{ ...told, waiting: 1, snoozed: 3 }])]),
+    onBoardText([summariseProject('northwind', [{ ...told, waiting: 1, snoozed: 3 }])]),
     'some waiting too',
   ).toBe(
-    'On the board:\n- Switchboard: sr-k3f9qa "Dashboard redesign", 1 waiting on Lee, 3 snoozed by Lee',
+    'On the board:\n- Northwind: sr-k3f9qa "Dashboard redesign", 1 waiting on Lee, 3 snoozed by Lee',
   )
   expect(
     toldSummary(snoozedAt(NOW, [T0 + 3 * MIN, finish('lee')])),

@@ -30,14 +30,14 @@ tier('user')
 
 type World = ReturnType<typeof world>
 
-const LEDGER: SessionMeta = { ...META, id: 'sr-1edger', name: 'Request ledger', by: W2 }
+const LEDGER: SessionMeta = { ...META, id: 'sr-1edger', name: 'Invoice ledger', by: W2 }
 
-/** A session of Goosemates', with no window on it. */
+/** A session of Contoso', with no window on it. */
 const orders = (id: string): SessionMeta => ({
   ...META,
   id,
   name: 'Standing orders',
-  project: 'goosemates',
+  project: 'contoso',
   by: W3,
 })
 
@@ -173,10 +173,10 @@ test('a session off the board that the board looks at is read at every look', as
 test("a look lists each project's folder once for all its sessions, and each session's own on the board, though the look is not whole; a rename there shows within it", async ($, on) => {
   const w = world($, on)
   const ids = ['sr-0rders', 'sr-2staff', 'sr-3teams']
-  const goosemates = projectPaths(ROOT, ELSEWHERE.key).dir
-  const projectListings = () => w.listed.filter(path => path === goosemates).length
+  const contoso = projectPaths(ROOT, ELSEWHERE.key).dir
+  const projectListings = () => w.listed.filter(path => path === contoso).length
 
-  w.project(ELSEWHERE.key, { name: 'Goosemates', created: T0, by: W3 })
+  w.project(ELSEWHERE.key, { name: 'Contoso', created: T0, by: W3 })
 
   const sessions = ids.map(id => w.elsewhere(orders(id), ELSEWHERE.key))
 
@@ -196,9 +196,9 @@ test("a look lists each project's folder once for all its sessions, and each ses
     'each on the board, at a look that is not whole',
   ).toEqual(ids.map(() => 1))
 
-  w.project(ELSEWHERE.key, { name: 'Goose Mates', created: T0, by: W3 })
+  w.project(ELSEWHERE.key, { name: 'Contoso Ltd', created: T0, by: W3 })
   await w.clock.advance(AROUND_MS)
-  expect(ids.map(id => around(w, id)?.project)).toEqual(ids.map(() => 'Goose Mates'))
+  expect(ids.map(id => around(w, id)?.project)).toEqual(ids.map(() => 'Contoso Ltd'))
 })
 
 test('a look that reads the clock a few ms late, and the next two on time, leave a whole look every second look', async ($, on) => {

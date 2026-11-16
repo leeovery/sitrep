@@ -241,14 +241,14 @@ test('attaching in tmux records the device, the terminal and the pane in the hea
 
 test('attaching in zmx records the device, the terminal and the zmx session in the heartbeat', async ($, on) => {
   const w = world($, on, {
-    env: { ZMX_SESSION: 'kit · restore-card', TERM_PROGRAM: 'ghostty' },
+    env: { ZMX_SESSION: 'litware · invoice-card', TERM_PROGRAM: 'ghostty' },
   })
   const { paths } = await w.begin()
 
   expect(parsePresence(w.text(paths.heartbeat(W1)), W1)?.where).toEqual({
     device: `/dev/${TTY}`,
     terminal: 'ghostty',
-    zmx: { session: 'kit · restore-card' },
+    zmx: { session: 'litware · invoice-card' },
   })
 })
 
@@ -428,7 +428,7 @@ test('the walk runs once a load: later attaches take where the first found, and 
   await $.session.start(CONVERSATION)
 
   const first = await startAnother(w, 'Lobby')
-  const second = await startAnother(w, 'Request ledger')
+  const second = await startAnother(w, 'Invoice ledger')
 
   await w.call('join', { session: first.id })
   await w.clock.advance(HEARTBEAT_MS)
@@ -449,7 +449,7 @@ test('a walk that found no device is tried again at the next attach, until one f
 
   w.walkGives({ stdout: `${TTY}\n` })
 
-  const found = await startAnother(w, 'Request ledger')
+  const found = await startAnother(w, 'Invoice ledger')
   const after = await startAnother(w, 'Release notes')
 
   expect(failed.beat()?.where).toEqual({ terminal: 'ghostty' })

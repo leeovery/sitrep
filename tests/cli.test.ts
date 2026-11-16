@@ -412,7 +412,7 @@ test('a session whose session.json is torn is no such session', async () => {
 })
 
 test('a session is found in whichever project files it, whatever folder the CLI runs in', async () => {
-  const t = terminal({ cwd: '/Users/lee' })
+  const t = terminal({ cwd: '/Users/me' })
   const there = t.seed(LOBBY, { project: ELSEWHERE.key })
 
   t.seed(META)

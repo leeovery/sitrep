@@ -9,7 +9,7 @@ tier('user')
 
 type World = ReturnType<typeof world>
 
-const REVIEW = { wants: 'yes', yes: 'Approve', title: 'Review Sessions & Runway, round 1' }
+const REVIEW = { wants: 'yes', yes: 'Approve', title: 'Review Orders & Invoices, round 1' }
 
 const FROM_THE_BOARD = { kind: 'plugin', name: 'sitrep', asUser: true }
 
@@ -51,7 +51,7 @@ test("send delivers the replies as Lee's own message, and writes them only once 
 
   expect(w.prompts).toEqual([
     {
-      text: `From the board:\n- Review Sessions & Runway, round 1 → Approve${CLOSES}`,
+      text: `From the board:\n- Review Orders & Invoices, round 1 → Approve${CLOSES}`,
       origin: FROM_THE_BOARD,
       context: undefined,
     },
@@ -145,7 +145,7 @@ test('a comment on a review leaves the ask open, replied, for Claude to act on',
   await ui.press({ key: 'send' })
 
   expect(w.prompts.at(-1)?.text).toBe(
-    `From the board:\n- Review Sessions & Runway, round 1 → comment: “thinner bars”${LEAVES_OPEN}`,
+    `From the board:\n- Review Orders & Invoices, round 1 → comment: “thinner bars”${LEAVES_OPEN}`,
   )
   expect(w.state.board?.asks[0]?.state).toBe('replied')
   expect(w.state.board?.waiting).toBe(0)
@@ -190,7 +190,7 @@ test("the board's own message carries no board context; a change it did not carr
   const next = await $.prompt.submit(PROMPT)
 
   expect(next.context?.[0]).toContain('- n9: Merged the band')
-  expect(next.context?.[0]).not.toContain('Review Sessions & Runway')
+  expect(next.context?.[0]).not.toContain('Review Orders & Invoices')
 })
 
 test('with nothing else changed, what a send told Claude never rides in again', async ($, on) => {
@@ -264,7 +264,7 @@ test('a yes Claude made a choice while its send waited reaches Claude all the sa
   await w.clock.settle()
 
   expect(w.submitted).toEqual([
-    `From the board:\n- Review Sessions & Runway, round 1 → Approve${CLOSES}`,
+    `From the board:\n- Review Orders & Invoices, round 1 → Approve${CLOSES}`,
   ])
   expect(w.state.board?.replies).toMatchObject([
     { item: id, verdict: 'yes', delivery: 'delivered', voided: 'changed' },

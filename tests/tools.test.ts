@@ -81,14 +81,14 @@ test('start files the session under the project it names, attaches the window an
   const paths = sessionPaths(ROOT, PROJECT.key, id)
 
   expect(answer.result).toBe(
-    `Started Dashboard redesign as ${id}, in a new project, Switchboard. Record ${id} wherever the project tracks this work, so a later window can join it.`,
+    `Started Dashboard redesign as ${id}, in a new project, Northwind. Record ${id} wherever the project tracks this work, so a later window can join it.`,
   )
-  expect(parseProject(w.text(projectPaths(ROOT, PROJECT.key).file))?.name).toBe('Switchboard')
+  expect(parseProject(w.text(projectPaths(ROOT, PROJECT.key).file))?.name).toBe('Northwind')
   expect(parseMeta(w.text(paths.meta))).toEqual({
     id,
     name: DASHBOARD.name,
     summary: DASHBOARD.summary,
-    project: 'Switchboard',
+    project: 'Northwind',
     root: REPO,
     created: w.clock.now(),
     by: W1,
@@ -127,7 +127,7 @@ test('start refuses a session with no name, no summary or no project, and writes
 test('join attaches to a session by its id, in whichever project it is filed', async ($, on) => {
   const w = world($, on)
   const here = { ...META, id: 'sr-aaaaaa', by: 'cli' }
-  const there = { ...META, id: 'sr-bbbbbb', name: 'Lobby', project: 'goosemates', by: 'cli' }
+  const there = { ...META, id: 'sr-bbbbbb', name: 'Lobby', project: 'contoso', by: 'cli' }
 
   w.seed(here)
   w.seed(there, ELSEWHERE.key)
@@ -416,7 +416,7 @@ test("resolving another session's parked item Lee picked up passes quietly, writ
 })
 
 /** Another session of this project, finished: what it parked is the project's, its ask and note its own. */
-const LEDGER = { ...META, id: 'sr-1edger', name: 'Request ledger', by: W2 }
+const LEDGER = { ...META, id: 'sr-1edger', name: 'Invoice ledger', by: W2 }
 
 /** The ledger, with two things parked, an ask and a note, finished: its folder's paths. */
 const ledgerParked = (w: ReturnType<typeof world>) => {
@@ -424,7 +424,7 @@ const ledgerParked = (w: ReturnType<typeof world>) => {
 
   ledger.write(
     park('p1', 'Export the ledger as CSV'),
-    park('p2', 'Archive old requests'),
+    park('p2', 'Archive old invoices'),
     yesAsk('k1', 'Run the export', 'Done'),
     note('n1', 'Wrote the schema'),
     finish('claude', 'Shipped'),
@@ -449,13 +449,13 @@ test("resolve, edit and reopen act on what another session of the project parked
     'p2 is already closed.',
   )
   expect(String((await w.call('board')).result)).toContain(
-    'Parked:\n- p1, parked by "Request ledger" (session: sr-1edger): Export it as CSV\nLatest notes:',
+    'Parked:\n- p1, parked by "Invoice ledger" (session: sr-1edger): Export it as CSV\nLatest notes:',
   )
   expect((await w.call('reopen', { item: 'p2', session: LEDGER.id })).result).toBe('Reopened p2.')
   expect(linesOf(w, ledger.log(W1)).map(line => line.type)).toEqual(['edit', 'resolve', 'reopen'])
   expect(w.text(ledger.log(W2)), "the ledger's own lines as they were").toBe(kept)
   expect(String((await w.call('board')).result)).toContain(
-    '- p2, parked by "Request ledger" (session: sr-1edger): Archive old requests',
+    '- p2, parked by "Invoice ledger" (session: sr-1edger): Archive old invoices',
   )
 })
 
@@ -468,10 +468,10 @@ test('of another session, the tools act only on what it parked: its ask or note 
   await w.begin()
 
   expect((await w.call('resolve', { item: 'k1', session: LEDGER.id })).deny).toBe(
-    'k1 is an ask of Request ledger: of another session, only what it parked is yours to resolve, edit or reopen.',
+    'k1 is an ask of Invoice ledger: of another session, only what it parked is yours to resolve, edit or reopen.',
   )
   expect((await w.call('edit', { item: 'n1', session: LEDGER.id, text: 'Wrote it' })).deny).toBe(
-    'n1 is a note of Request ledger: of another session, only what it parked is yours to resolve, edit or reopen.',
+    'n1 is a note of Invoice ledger: of another session, only what it parked is yours to resolve, edit or reopen.',
   )
   expect((await w.call('resolve', { item: 'p1', session: 'sr-0rders' })).deny).toBe(
     "sr-0rders is a session of another project: only what a session of this one's project parked is yours to act on.",
@@ -492,7 +492,7 @@ test("another session's ask Lee answered is refused all the same, named with its
   ledger.write(yesAsk('k1', 'Run the export', 'Done'), reply('r1', 'k1', 'yes'), delivered('r1'))
   await w.begin()
   expect((await w.call('resolve', { item: 'k1', session: LEDGER.id })).deny).toBe(
-    'k1 is an ask of Request ledger: of another session, only what it parked is yours to resolve, edit or reopen.',
+    'k1 is an ask of Invoice ledger: of another session, only what it parked is yours to resolve, edit or reopen.',
   )
   expect(w.files.has(ledger.paths.log(W1)), 'nothing written there').toBe(false)
 })
@@ -543,7 +543,7 @@ test("edit takes an item's one line as text or as title alike: a note's title, a
 const toldOfLedgers = async (w: ReturnType<typeof world>, $: Parameters<typeof world>[0]) => {
   const ledger = w.elsewhere(LEDGER)
 
-  ledger.write(park('p1', 'Export the ledger as CSV'), park('p2', 'Archive old requests'))
+  ledger.write(park('p1', 'Export the ledger as CSV'), park('p2', 'Archive old invoices'))
   await w.begin()
   await w.clock.advance(AROUND_MS)
 
@@ -555,10 +555,10 @@ test("a session Claude starts counts as seen with what Claude gave it alone: wha
   const { told } = await toldOfLedgers(w, $)
 
   expect(told).toContain(
-    '- p1, parked by "Request ledger" (session: sr-1edger): Export the ledger as CSV',
+    '- p1, parked by "Invoice ledger" (session: sr-1edger): Export the ledger as CSV',
   )
   expect(told).toContain(
-    '- p2, parked by "Request ledger" (session: sr-1edger): Archive old requests',
+    '- p2, parked by "Invoice ledger" (session: sr-1edger): Archive old invoices',
   )
 })
 
@@ -575,7 +575,7 @@ test("Claude's own act on another session's parked item is known: the next promp
   const context = (await $.prompt.submit(PROMPT)).context?.[0]
 
   expect(context).toContain(
-    '- p3, parked by "Request ledger" (session: sr-1edger): Retry the export',
+    '- p3, parked by "Invoice ledger" (session: sr-1edger): Retry the export',
   )
   expect(context).not.toContain('Export the ledger as CSV')
 })

@@ -15,12 +15,12 @@ const THEMES = 'sr-themes'
 const LOBBY = 'sr-10bbyy'
 const ORDERS = 'sr-0rders'
 
-const meta = (id: string, name: string, by: string, project = 'switchboard'): SessionMeta => ({
+const meta = (id: string, name: string, by: string, project = 'northwind'): SessionMeta => ({
   id,
   name,
   summary: `${name}, area by area`,
   project,
-  root: `/Users/lee/Code/${project}`,
+  root: `/Users/me/Code/${project}`,
   created: T0,
   by,
 })
@@ -31,11 +31,11 @@ const MINE = sessionPaths(ROOT, PROJECT.key, THEMES).log(W1)
 /**
  * This session with an ask, beside three others of its project, each with
  * an ask: the ledger, open in another window; Themes, with no window; and
- * the lobby, already finished. Goosemates' one session is finished too, its
+ * the lobby, already finished. Contoso' one session is finished too, its
  * ask still open. A minute on, Lee opens the board, drawn as `props` say.
  */
 async function around(w: World, props?: RenderPropsOf['Pane']) {
-  const ledger = w.elsewhere(meta(LEDGER, 'Request ledger', W2))
+  const ledger = w.elsewhere(meta(LEDGER, 'Invoice ledger', W2))
 
   ledger.write(yesAsk('k3', 'Review the ledger schema'))
   w.elsewhere(meta(THEMES, 'Themes', W3)).write(yesAsk('k4', 'Pick the dark palette', 'Done'))
@@ -43,14 +43,14 @@ async function around(w: World, props?: RenderPropsOf['Pane']) {
     yesAsk('k5', 'Check the lobby', 'Done'),
     finish('lee'),
   )
-  w.elsewhere(meta(ORDERS, 'Standing orders', W4, 'goosemates'), ELSEWHERE.key).write(
+  w.elsewhere(meta(ORDERS, 'Standing orders', W4, 'contoso'), ELSEWHERE.key).write(
     yesAsk('k6', 'Review the standing orders'),
     finish('claude', 'Shipped'),
   )
 
   const { id } = await w.begin()
 
-  await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review Sessions & Runway, round 1' })
+  await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review Orders & Invoices, round 1' })
   await w.clock.advance(MIN)
   ledger.beat()
 

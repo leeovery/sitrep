@@ -213,7 +213,7 @@ const ORDERS: SessionMeta = {
   name: 'Standing orders',
   summary: 'Standing orders, area by area',
   project: ELSEWHERE.key,
-  root: '/Users/lee/Code/goosemates',
+  root: '/Users/me/Code/contoso',
   created: T0,
   by: W2,
 }
@@ -231,9 +231,9 @@ test('All projects keeps a blank row between its projects', async ($, on) => {
   await ui.press({ key: 'tab:all' })
 
   const rows = await boardRows(ui)
-  const goosemates = rows.findIndex(row => /^ Goosemates/.test(row))
+  const contoso = rows.findIndex(row => /^ Contoso/.test(row))
 
-  expect(goosemates).toBeGreaterThan(0)
-  expect(rows[goosemates - 1], 'the row above the second project').toBe('')
-  expect(rows[goosemates - 2]).toMatch(/└ Dashboard redesign/)
+  expect(contoso).toBeGreaterThan(0)
+  expect(rows[contoso - 1], 'the row above the second project').toBe('')
+  expect(rows[contoso - 2]).toMatch(/└ Dashboard redesign/)
 })

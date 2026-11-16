@@ -281,7 +281,7 @@ test("no line about a parked item but its park moves its session's time: a pick-
       [W1]: file(
         [T0, status(['Drawing the ledger'])],
         [T0 + MIN, park('p1', 'Export the ledger as CSV')],
-        [parked, park('p2', 'Archive old requests')],
+        [parked, park('p2', 'Archive old invoices')],
         [parked, park('p3', 'A tmux indicator')],
       ),
       [W2]: file(

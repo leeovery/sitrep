@@ -31,14 +31,14 @@ type Board = Awaited<ReturnType<World['opened']>>
 const LEDGER = 'sr-1edger'
 const THEMES = 'sr-themes'
 
-const REVIEW = { wants: 'yes', yes: 'Approve', title: 'Review Sessions & Runway, round 1' }
+const REVIEW = { wants: 'yes', yes: 'Approve', title: 'Review Orders & Invoices, round 1' }
 
 const meta = (id: string, name: string, by: string): SessionMeta => ({
   id,
   name,
   summary: `${name}, area by area`,
-  project: 'switchboard',
-  root: '/Users/lee/Code/switchboard',
+  project: 'northwind',
+  root: '/Users/me/Code/northwind',
   created: T0,
   by,
 })
@@ -56,7 +56,7 @@ const THEME_LETTERS = sessionPaths(ROOT, PROJECT.key, THEMES).letters(W1)
  * moment as the ask it answers.
  */
 async function threeSessions(w: World) {
-  const ledger = w.elsewhere(meta(LEDGER, 'Request ledger', W2))
+  const ledger = w.elsewhere(meta(LEDGER, 'Invoice ledger', W2))
   const themes = w.elsewhere(meta(THEMES, 'Themes', W3))
 
   ledger.write(yesAsk('k3', 'Review the ledger schema'))
@@ -96,7 +96,7 @@ test('Ready to send groups the replies by where each goes, this session first, a
     .map(each => each.text)
     .filter(text => text.startsWith('to '))
 
-  expect(groups).toEqual(['to this session', 'to Request ledger'])
+  expect(groups).toEqual(['to this session', 'to Invoice ledger'])
   expect(await ui.find({ type: 'Text', text: '2 replies' })).toBeDefined()
 
   for (const way of ['tab:all', `proj:${PROJECT.key}`]) {
@@ -119,9 +119,9 @@ test("send writes another session's replies into its inbox as this window's lett
   expect(letter).toMatchObject({ item: 'k3', verdict: 'yes', seq: 1 })
   expect(w.state.queue).toEqual([])
   expect(w.state.sent).toEqual([{ project: PROJECT.key, session: LEDGER, replies: [letter?.id] }])
-  expect(w.toasts).toContain('Sent 1 reply to Request ledger.')
+  expect(w.toasts).toContain('Sent 1 reply to Invoice ledger.')
   expect(w.prompts.map(prompt => prompt.text)).toEqual([
-    `From the board:\n- Review Sessions & Runway, round 1 → Approve${CLOSES}`,
+    `From the board:\n- Review Orders & Invoices, round 1 → Approve${CLOSES}`,
   ])
   expect(
     parseEntries(w.text(paths.log(W1))).map(line => line.type),
@@ -173,7 +173,7 @@ test(
     await answer(ui, THEMES, 'k4')
     await ui.press({ key: 'send' })
 
-    expect(w.toasts).toContain('Sent 1 reply to Request ledger and 1 reply to Themes.')
+    expect(w.toasts).toContain('Sent 1 reply to Invoice ledger and 1 reply to Themes.')
     expect(await ui.find({ type: 'Text', text: '⧗ waiting for its turn to end' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: '○ closed: goes in when it reopens' })).toBeDefined()
     expect(await ui.findAll({ type: 'Text', text: '· on its way' })).toHaveLength(2)
@@ -191,7 +191,7 @@ test(
     expect(await ui.find({ type: 'Text', text: '· delivered 2m ago' })).toBeDefined()
 
     await w.clock.advance(SENT_LINGER_MS)
-    expect(await ui.find({ type: 'Text', text: 'to Request ledger' })).toBeUndefined()
+    expect(await ui.find({ type: 'Text', text: 'to Invoice ledger' })).toBeUndefined()
     expect(await ui.find({ type: 'Text', text: 'to Themes' })).toBeDefined()
     expect(w.state.sent?.map(each => each.session)).toEqual([THEMES])
   },
@@ -213,7 +213,7 @@ test("an ask whose reply went into its session's inbox waits on Lee no more: the
 
   expect(await ui.find({ type: 'Text', text: '2 waiting on you' })).toBeDefined()
   expect(
-    await ui.find({ key: `pick:${LEDGER}:k3`, text: 'Request ledger: Review the ledger schema' }),
+    await ui.find({ key: `pick:${LEDGER}:k3`, text: 'Invoice ledger: Review the ledger schema' }),
     'its ask still shows',
   ).toBeDefined()
 })
@@ -261,7 +261,7 @@ test('two quick presses of send write each letter once', async ($, on) => {
   expect(repliesIn(w, LETTERS)).toHaveLength(1)
   expect(w.state.sent).toMatchObject([{ session: LEDGER, replies: [repliesIn(w, LETTERS)[0]?.id] }])
   expect(w.toasts.filter(toast => toast.startsWith('Sent'))).toEqual([
-    'Sent 1 reply to Request ledger.',
+    'Sent 1 reply to Invoice ledger.',
   ])
 })
 
@@ -292,7 +292,7 @@ test(
     expect(await ui.find({ key: `choose:${LEDGER}:k3:0` })).toBeDefined()
 
     await w.clock.advance(SENT_LINGER_MS)
-    expect(await ui.find({ type: 'Text', text: 'to Request ledger' })).toBeUndefined()
+    expect(await ui.find({ type: 'Text', text: 'to Invoice ledger' })).toBeUndefined()
     expect(w.state.sent).toEqual([])
   },
 )
@@ -533,7 +533,7 @@ test(
 test("a send of letters alone, pressed while Lee has stopped Claude's turn, carries the send held for this session on from the press", SLOW, async ($, on) => {
   const w = world($, on)
   const { asked, paths, ui } = await threeSessions(w)
-  const own = `From the board:\n- Review Sessions & Runway, round 1 → Approve${CLOSES}`
+  const own = `From the board:\n- Review Orders & Invoices, round 1 → Approve${CLOSES}`
 
   if ((await ui.find({ key: `yes:${w.item(asked)}` })) === undefined) {
     await ui.press({ key: `pick:${w.item(asked)}` })

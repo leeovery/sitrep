@@ -37,10 +37,10 @@ const ROWS = 3
 /** Another session of the project, started in another window. */
 const LEDGER: SessionMeta = {
   id: 'sr-1edger',
-  name: 'Request ledger',
-  summary: 'Request ledger, area by area',
-  project: 'switchboard',
-  root: '/Users/lee/Code/switchboard',
+  name: 'Invoice ledger',
+  summary: 'Invoice ledger, area by area',
+  project: 'northwind',
+  root: '/Users/me/Code/northwind',
   created: T0,
   by: W2,
 }
@@ -270,7 +270,7 @@ test(
       {
         name: 'another session',
         reach: () => ui.press({ key: `go:${LEDGER.id}` }),
-        back: '← Switchboard',
+        back: '← Northwind',
       },
     ]
     let tabs: string | undefined

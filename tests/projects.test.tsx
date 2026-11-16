@@ -15,10 +15,13 @@ tier('user')
 type World = ReturnType<typeof world>
 
 /** Where SitRep lives: not where any window here starts. */
-const SITREP_HOME = '/Users/lee/.config/kit/shared/plugins/sitrep'
+const SITREP_HOME = '/Users/me/.claude/plugins/sitrep'
+
+/** Where Fabrikam lives: apart from Northwind, so a window in either is around that one alone. */
+const FABRIKAM_HOME = '/Users/me/Work/fabrikam'
 
 /** A project folder from before projects were named, keyed from the folder a window started in. */
-const LEGACY = 'code-84dbac88'
+const LEGACY = 'code-1a2b3c4d'
 
 const BOARD = { name: 'sitrep', summary: "Lee's board inside Claude Code", project: 'SitRep' }
 
@@ -111,15 +114,15 @@ test("a directory given is the project's: a new one keeps it, one with none take
 
   const given = await w.call('start', { ...DASHBOARD, name: 'Lobby', directory: REPO })
 
-  expect(String(given.result)).toContain(', in the existing project Switchboard. Record ')
+  expect(String(given.result)).toContain(', in the existing project Northwind. Record ')
   expect(fileIn(w, PROJECT.key)).toEqual({
-    name: 'Switchboard',
+    name: 'Northwind',
     directory: REPO,
     created: T0,
     by: W1,
   })
 
-  const other = await w.call('start', { ...BOARD, name: 'Themes', directory: '/Users/lee/other' })
+  const other = await w.call('start', { ...BOARD, name: 'Themes', directory: '/Users/me/other' })
 
   expect(String(other.result)).toContain(
     `, in the existing project SitRep, which lives in ${SITREP_HOME}; the project tool changes that. Record `,
@@ -130,7 +133,7 @@ test("a directory given is the project's: a new one keeps it, one with none take
 test('a project folder with no project.json is named as its sessions recorded it, and a start by that name goes into it', async ($, on) => {
   const w = world($, on)
 
-  w.elsewhere(meta('sr-wdsqvn', 'sitrep', 'code'), LEGACY)
+  w.elsewhere(meta('sr-1egacy', 'Early days', 'code'), LEGACY)
   await $.session.start(CONVERSATION)
 
   const answer = await w.call('start', { ...BOARD, name: 'Lobby', project: 'Code' })
@@ -143,12 +146,12 @@ test('a project folder with no project.json is named as its sessions recorded it
 
 test('a project.json written into a folder from before relabels it, moving nothing', async ($, on) => {
   const w = world($, on)
-  const legacy = w.elsewhere(meta('sr-wdsqvn', 'sitrep', 'code'), LEGACY)
+  const legacy = w.elsewhere(meta('sr-1egacy', 'Early days', 'code'), LEGACY)
   const before = [...w.files.keys()]
 
   w.project(LEGACY, { name: 'SitRep', directory: SITREP_HOME, created: T0, by: W2 })
   await $.session.start(CONVERSATION)
-  await w.call('join', { session: 'sr-wdsqvn' })
+  await w.call('join', { session: 'sr-1egacy' })
 
   expect(w.state.board?.project).toBe('SitRep')
   expect(await boardProject(w)).toBe('SitRep')
@@ -169,15 +172,15 @@ test("the board's own project is the held session's, whatever folder the window 
   const w = world($, on)
 
   w.project(PROJECT.key, { name: PROJECT.name, directory: REPO, created: T0, by: W2 })
-  w.elsewhere(meta('sr-v1pwm9', 'Milestone 7 stage 1', 'Switchboard')).beat()
+  w.elsewhere(meta('sr-pr1ce5', 'Pricing page, stage 1', 'Northwind')).beat()
   await $.session.start(CONVERSATION)
   await w.call('start', BOARD)
 
   expect(await boardProject(w)).toBe('SitRep')
 
-  await w.call('join', { session: 'sr-v1pwm9' })
+  await w.call('join', { session: 'sr-pr1ce5' })
 
-  expect(await boardProject(w)).toBe('Switchboard')
+  expect(await boardProject(w)).toBe('Northwind')
 })
 
 test('the project tool renames the held session’s project and sets where it lives, the session staying where it is filed', async ($, on) => {
@@ -215,8 +218,8 @@ test('the project tool never takes the name of another project, nor changes noth
   await w.begin()
   await w.call('start', BOARD)
 
-  expect((await w.call('project', { name: 'switch board' })).deny).toBe(
-    "Another project is already named Switchboard. This renames the attached session's project; it moves no session to another.",
+  expect((await w.call('project', { name: 'north wind' })).deny).toBe(
+    "Another project is already named Northwind. This renames the attached session's project; it moves no session to another.",
   )
   expect((await w.call('project', {})).deny).toBe(
     'Give the project a new name, a directory, or both.',
@@ -224,16 +227,16 @@ test('the project tool never takes the name of another project, nor changes noth
   expect((await w.call('project', { name: 'Sit Rep' })).result, 'its own name, respelled').toBe(
     'Renamed the project SitRep to Sit Rep.',
   )
-  expect(fileIn(w, PROJECT.key)?.name).toBe('Switchboard')
+  expect(fileIn(w, PROJECT.key)?.name).toBe('Northwind')
 })
 
 test('the project tool gives a folder from before projects were named its first project.json', async ($, on) => {
   const w = world($, on)
 
-  w.elsewhere(meta('sr-wdsqvn', 'sitrep', 'code'), LEGACY)
+  w.elsewhere(meta('sr-1egacy', 'Early days', 'code'), LEGACY)
   await w.clock.advance(MIN)
   await $.session.start(CONVERSATION)
-  await w.call('join', { session: 'sr-wdsqvn' })
+  await w.call('join', { session: 'sr-1egacy' })
 
   expect((await w.call('project', { name: 'SitRep' })).result).toBe(
     'Renamed the project Code to SitRep.',
@@ -243,41 +246,46 @@ test('the project tool gives a folder from before projects were named its first 
   expect(await boardProject(w)).toBe('SitRep')
 })
 
-/** Three projects with current sessions: SitRep and Switchboard each living somewhere, and Goosemates from before. */
+/** Three projects with current sessions: Fabrikam and Northwind each living somewhere, and Contoso from before. */
 const threeProjects = (w: World) => {
-  const sitrep: ProjectFile = { name: 'SitRep', directory: SITREP_HOME, created: T0, by: W2 }
-  const switchboard: ProjectFile = { name: 'Switchboard', directory: REPO, created: T0, by: W3 }
+  const fabrikam: ProjectFile = {
+    name: 'Fabrikam',
+    directory: FABRIKAM_HOME,
+    created: T0,
+    by: W2,
+  }
+  const northwind: ProjectFile = { name: 'Northwind', directory: REPO, created: T0, by: W3 }
 
-  w.project('sitrep', sitrep)
-  w.project(PROJECT.key, switchboard)
-  w.elsewhere(meta('sr-wdsqvn', 'sitrep', 'SitRep'), 'sitrep').write(
+  w.project('fabrikam', fabrikam)
+  w.project(PROJECT.key, northwind)
+  w.elsewhere(meta('sr-fabr1k', 'Price list', 'Fabrikam'), 'fabrikam').write(
     yesAsk('k1', 'Review the plan'),
     yesAsk('k2', 'Try the board', 'Done'),
   )
-  w.elsewhere(meta('sr-v1pwm9', 'Milestone 7 stage 1', 'Switchboard', W3)).beat()
-  w.elsewhere(meta('sr-eeeeee', 'Onboarding', 'goosemates'), 'goosemates-1a2b3c4d').write(
+  w.elsewhere(meta('sr-pr1ce5', 'Pricing page, stage 1', 'Northwind', W3)).beat()
+  w.elsewhere(meta('sr-eeeeee', 'Onboarding', 'contoso'), 'contoso-1a2b3c4d').write(
     note('n1', 'Drew the flow'),
   )
 }
 
-const SITREP_LINE = '- SitRep: sr-wdsqvn "sitrep", 2 waiting on Lee'
-const SWITCHBOARD_LINE = '- Switchboard: sr-v1pwm9 "Milestone 7 stage 1"'
-const GOOSEMATES_LINE = '- Goosemates: sr-eeeeee "Onboarding"'
+const FABRIKAM_LINE = '- Fabrikam: sr-fabr1k "Price list", 2 waiting on Lee'
+const NORTHWIND_LINE = '- Northwind: sr-pr1ce5 "Pricing page, stage 1"'
+const CONTOSO_LINE = '- Contoso: sr-eeeeee "Onboarding"'
 
 test("the first message lists every project's current sessions, those living around the window's folder first", async ($, on) => {
   const w = world($, on)
 
   threeProjects(w)
-  w.become({ cwd: `${SITREP_HOME}/hooks` })
+  w.become({ cwd: `${FABRIKAM_HOME}/hooks` })
 
   expect(await firstMessage($)).toContain(
-    ['On the board:', SITREP_LINE, SWITCHBOARD_LINE, GOOSEMATES_LINE].join('\n'),
+    ['On the board:', FABRIKAM_LINE, NORTHWIND_LINE, CONTOSO_LINE].join('\n'),
   )
 
   w.become({ cwd: REPO })
 
   expect(await firstMessage($)).toContain(
-    ['On the board:', SWITCHBOARD_LINE, SITREP_LINE, GOOSEMATES_LINE].join('\n'),
+    ['On the board:', NORTHWIND_LINE, FABRIKAM_LINE, CONTOSO_LINE].join('\n'),
   )
 })
 
@@ -285,16 +293,16 @@ test('a conversation resumed in any folder takes up the session it was last seen
   const w = world($, on, { now: T0 + 10 * MIN })
 
   threeProjects(w)
-  w.beat('sr-wdsqvn', { writer: W1, attachedAt: T0, seenAt: T0 + MIN, leftAt: T0 + MIN }, 'sitrep')
+  w.beat('sr-fabr1k', { writer: W1, attachedAt: T0, seenAt: T0 + MIN, leftAt: T0 + MIN }, 'fabrikam')
   w.beat(
     'sr-eeeeee',
     { writer: W1, attachedAt: T0, seenAt: T0 + 5 * MIN, leftAt: T0 + 5 * MIN },
-    'goosemates-1a2b3c4d',
+    'contoso-1a2b3c4d',
   )
   w.become({ cwd: HOME })
 
   const listing = await firstMessage($)
 
-  expect(w.state.attachment).toMatchObject({ project: 'goosemates-1a2b3c4d', session: 'sr-eeeeee' })
+  expect(w.state.attachment).toMatchObject({ project: 'contoso-1a2b3c4d', session: 'sr-eeeeee' })
   expect(listing).toContain('This window already holds sr-eeeeee (Onboarding)')
 })

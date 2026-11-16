@@ -1,0 +1,44 @@
+# Names no test's sample data may use: Lee's real projects, and ids of his
+# real sessions and project folders. Samples use placeholders instead:
+# Microsoft's fictional companies (Northwind, Contoso, Fabrikam, Tailspin,
+# Woodgrove, Litware, Wingtip, Adventure Works, Proseware) and made-up ids.
+#
+# One name per line, as written; a line starting with # is a comment, and a
+# blank line is nothing. Kept plain, so a check in either suite reads it.
+
+# Projects
+Switchboard
+Fabric
+Kit
+Harness
+Portal
+Homelab
+DocMan
+Turnstile
+Stitch
+Folio
+Mint
+Agentic Workflows
+Agentic Skills
+Leeway
+rootshell
+Aircon
+Goosemates
+Fumi
+Terrace
+agntc
+
+# Sessions
+sr-4g01a7
+sr-aw3bgs
+sr-y4d0qj
+sr-7e68fj
+sr-v3t7a0
+sr-q7njzv
+sr-j94s0e
+sr-50f7g8
+sr-wdsqvn
+sr-v1pwm9
+
+# Project folders
+code-84dbac88

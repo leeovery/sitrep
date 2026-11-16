@@ -53,7 +53,7 @@ const local = (year: number, month: number, day: number, hour: number, minute = 
 /** Friday 23 October 2026, 14:00, local time: when the world starts. */
 const FRIDAY = local(2026, 10, 23, 14)
 
-const REVIEW = { wants: 'yes', yes: 'Approve', title: 'Review Sessions & Runway, round 1' }
+const REVIEW = { wants: 'yes', yes: 'Approve', title: 'Review Orders & Invoices, round 1' }
 
 const GO = { wants: 'yes', yes: 'Go', title: 'Give the go for stage 3' }
 
@@ -65,8 +65,8 @@ const THEMES_META: SessionMeta = {
   id: THEMES,
   name: 'Themes',
   summary: 'Themes, area by area',
-  project: 'switchboard',
-  root: '/Users/lee/Code/switchboard',
+  project: 'northwind',
+  root: '/Users/me/Code/northwind',
   created: FRIDAY,
   by: W3,
 }
@@ -517,7 +517,7 @@ test('answering a snoozed ask answers it: the reply sent takes it out of Snoozed
   await ui.press({ key: 'send' })
 
   expect(w.prompts.at(-1)?.text).toBe(
-    `From the board:\n- Review Sessions & Runway, round 1 → Approve${CLOSES}`,
+    `From the board:\n- Review Orders & Invoices, round 1 → Approve${CLOSES}`,
   )
   expect(w.state.board?.asks[0]?.state).toBe('closed')
   expect(await ui.find({ type: 'Text', text: 'snoozed until tomorrow 09:00' })).toBeUndefined()
@@ -537,7 +537,7 @@ test('an ask its time wakes is announced as a new one is: the ◆ pulses, a toas
 
   await w.clock.advance(2 * WATCH_MS)
 
-  expect(w.toasts.at(-1)).toBe('◆ Back from snooze: Review Sessions & Runway, round 1')
+  expect(w.toasts.at(-1)).toBe('◆ Back from snooze: Review Orders & Invoices, round 1')
   expect(w.sounds, 'SitRep, the Mac app, plays it').toEqual([])
   expect(w.state.pulse).toMatchObject({ asks: [id] })
   expect(w.state.pane?.selected).toBe(w.item(id))
@@ -550,7 +550,7 @@ test(
   async ($, on) => {
     const w = fridayWorld($, on)
     const { id, app } = await asking(w)
-    const back = '◆ Back from snooze: Review Sessions & Runway, round 1'
+    const back = '◆ Back from snooze: Review Orders & Invoices, round 1'
 
     await w.pane()
     app(snoozeSession(w.clock.now() + 2 * WATCH_MS, id))
@@ -693,7 +693,7 @@ test("a pane snooze rides to Claude as a change to the board in the context of t
 
   expect(context?.[0]).toStartWith('The sitrep board changed since you last saw it. It now reads:')
   expect(context?.[0]).toContain(
-    `- ${id} wants a yes (Approve), snoozed by Lee until Mon 26 Oct 09:00 (leave it until then): Review Sessions & Runway, round 1`,
+    `- ${id} wants a yes (Approve), snoozed by Lee until Mon 26 Oct 09:00 (leave it until then): Review Orders & Invoices, round 1`,
   )
   expect((await $.prompt.submit(TASK_DONE)).context).toBeUndefined()
 })
@@ -715,7 +715,7 @@ test("Lee's own prompt in the window wakes the session it holds while his snooze
   expect(linesOf(w, paths.log(W1), 'wakeSession')).toHaveLength(1)
   expect(w.state.board?.waiting).toBe(1)
   expect(context?.[0]).toContain(
-    `- ${id} wants a yes (Approve), waiting on Lee: Review Sessions & Runway, round 1`,
+    `- ${id} wants a yes (Approve), waiting on Lee: Review Orders & Invoices, round 1`,
   )
   expect(await ui.find({ type: 'Text', text: /snoozed/ })).toBeUndefined()
 

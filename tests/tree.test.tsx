@@ -27,11 +27,11 @@ type World = ReturnType<typeof world>
 
 const DAY = 24 * 60 * MIN
 
-const PORTAL = { key: 'portal-1a2b3c4d', name: 'Portal' }
+const FABRIKAM = { key: 'fabrikam-1a2b3c4d', name: 'Fabrikam' }
 const PIGEON = { key: 'pigeon', name: 'Pigeon' }
 const DUSTY = { key: 'dusty', name: 'Dusty' }
 
-const REVIEW = { wants: 'yes', yes: 'Approve', title: 'Review Sessions & Runway, round 1' }
+const REVIEW = { wants: 'yes', yes: 'Approve', title: 'Review Orders & Invoices, round 1' }
 
 const LEDGER = 'sr-1edger'
 const THEMES = 'sr-themes'
@@ -44,7 +44,7 @@ const meta = (id: string, name: string, project: string, by: string, ago = 0): S
   name,
   summary: `${name}, area by area`,
   project,
-  root: `/Users/lee/Code/${project}`,
+  root: `/Users/me/Code/${project}`,
   created: T0 - ago,
   by,
 })
@@ -52,28 +52,28 @@ const meta = (id: string, name: string, project: string, by: string, ago = 0): S
 /**
  * The sessions around this session's, modelled on the spike's: another open
  * session of this project with an ask and something parked, and a closed
- * one; Goosemates open with an ask; Portal closed with something parked;
+ * one; Contoso open with an ask; Fabrikam closed with something parked;
  * Pigeon closed and quiet, updated two days ago; Dusty quiet for longer
  * than a session stays current. Then this session starts its own and asks.
  */
 async function neighbourhood(w: World) {
-  const ledger = w.elsewhere(meta(LEDGER, 'Request ledger', 'switchboard', W2))
-  const orders = w.elsewhere(meta(ORDERS, 'Standing orders', 'goosemates', W4), ELSEWHERE.key)
+  const ledger = w.elsewhere(meta(LEDGER, 'Invoice ledger', 'northwind', W2))
+  const orders = w.elsewhere(meta(ORDERS, 'Standing orders', 'contoso', W4), ELSEWHERE.key)
 
   ledger.write(
     status(['Drawing the ledger schema'], {
-      name: 'Request ledger',
-      summary: 'Request ledger, area by area',
+      name: 'Invoice ledger',
+      summary: 'Invoice ledger, area by area',
     }),
     choiceAsk('k3', 'Keep the ledger 400 days, or forever?', ['400 days', 'Forever']),
     park('p2', 'Export the ledger as CSV'),
     note('n3', 'Wrote the schema'),
   )
   ledger.beat()
-  w.elsewhere(meta(THEMES, 'Themes', 'switchboard', W3, DAY))
+  w.elsewhere(meta(THEMES, 'Themes', 'northwind', W3, DAY))
   orders.write(yesAsk('k5', 'Review the standing orders'))
   orders.beat()
-  w.elsewhere(meta('sr-p0rta1', 'Agent-aware Portal', 'portal', W3, 3 * DAY), PORTAL.key).write(
+  w.elsewhere(meta('sr-0ff11e', 'Offline mode', 'fabrikam', W3, 3 * DAY), FABRIKAM.key).write(
     park('p1', 'Thumbnails in the picker'),
   )
   w.elsewhere(meta(NOTES, 'Space-aware notes', 'pigeon', W3, 2 * DAY), PIGEON.key)
@@ -104,7 +104,7 @@ test('the board walks from this session to every project, down into a project an
 
   // Down into another session of it, and back up to the project, then to every project.
   await ui.press({ key: `go:${LEDGER}` })
-  expect(await ui.find({ key: 'up', text: '← Switchboard' })).toBeDefined()
+  expect(await ui.find({ key: 'up', text: '← Northwind' })).toBeDefined()
   await ui.press({ key: 'up' })
   expect(w.state.pane).toMatchObject({ place: { level: 'project', project: PROJECT.key } })
   await ui.press({ key: 'up' })
@@ -114,10 +114,10 @@ test('the board walks from this session to every project, down into a project an
   // Quiet ones fold away; down into another project's session and back up twice.
   expect(await ui.find({ key: `proj:${ELSEWHERE.key}` })).toBeDefined()
   expect(await ui.find({ key: `proj:${PIGEON.key}` })).toBeUndefined()
-  expect(await ui.find({ key: `proj:${PORTAL.key}` })).toBeDefined()
+  expect(await ui.find({ key: `proj:${FABRIKAM.key}` })).toBeDefined()
   await ui.press({ key: `go:${ORDERS}` })
   expect(await ui.find({ key: `pick:${ORDERS}:k5` })).toBeDefined()
-  expect(await ui.find({ key: 'up', text: '← Goosemates' })).toBeDefined()
+  expect(await ui.find({ key: 'up', text: '← Contoso' })).toBeDefined()
   await ui.press({ key: 'up' })
   expect(await ui.find({ key: 'up', text: '← All projects' })).toBeDefined()
 
@@ -178,14 +178,14 @@ test("another session's view is the session view: its status, its asks with work
 
   await toProject(ui)
   await ui.press({ key: `go:${LEDGER}` })
-  expect(await ui.find({ type: 'Text', text: 'Request ledger' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'Invoice ledger' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: 'Drawing the ledger schema' })).toBeDefined()
   expect(
     (await ui.findAll({ type: 'Text' }))
       .map(each => each.text)
-      .filter(text => ['Request ledger', 'ASKS', 'STATUS', 'NOTES', 'PARKED'].includes(text)),
+      .filter(text => ['Invoice ledger', 'ASKS', 'STATUS', 'NOTES', 'PARKED'].includes(text)),
     'the same order as this session’s',
-  ).toEqual(['Request ledger', 'ASKS', 'STATUS', 'NOTES', 'PARKED'])
+  ).toEqual(['Invoice ledger', 'ASKS', 'STATUS', 'NOTES', 'PARKED'])
   expect(await ui.find({ key: `log:${LEDGER}:n3`, text: 'Wrote the schema' })).toBeDefined()
   expect(
     await ui.find({ key: `ppick:${LEDGER}:p2`, text: 'Export the ledger as CSV' }),
@@ -220,7 +220,7 @@ test("the project view lists its sessions, this one first, each with what it doe
   expect(await ui.find({ type: 'Text', text: '1 waiting' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: 'closed' })).toBeDefined()
   expect(
-    await ui.find({ key: `log:${LEDGER}:n3`, text: 'Request ledger: Wrote the schema' }),
+    await ui.find({ key: `log:${LEDGER}:n3`, text: 'Invoice ledger: Wrote the schema' }),
   ).toBeDefined()
 
   await ui.press({ key: `log:${LEDGER}:n3` })
@@ -238,7 +238,7 @@ test('All projects: this project first, then the busiest; the quiet fold into on
   expect(await keysOf(ui, 'proj:')).toEqual([
     `proj:${PROJECT.key}`,
     `proj:${ELSEWHERE.key}`,
-    `proj:${PORTAL.key}`,
+    `proj:${FABRIKAM.key}`,
   ])
   expect(await keysOf(ui, 'go:')).toEqual([`go:${id}`, `go:${LEDGER}`, `go:${ORDERS}`])
   expect(await ui.find({ type: 'Text', text: 'no sessions open · ◇ 1 parked' })).toBeDefined()
@@ -260,8 +260,8 @@ test("the project view's ASKS holds every session's asks, the newest first, each
       .filter(each => each.key?.startsWith('pick:'))
       .map(each => [each.key, each.text]),
   ).toEqual([
-    [`pick:${w.item(asked)}`, 'Dashboard redesign: Review Sessions & Runway, round 1'],
-    [`pick:${LEDGER}:k3`, 'Request ledger: Keep the ledger 400 days, or forever?'],
+    [`pick:${w.item(asked)}`, 'Dashboard redesign: Review Orders & Invoices, round 1'],
+    [`pick:${LEDGER}:k3`, 'Invoice ledger: Keep the ledger 400 days, or forever?'],
   ])
   expect(await ui.find({ type: 'Text', text: '2 waiting' })).toBeDefined()
 
@@ -269,8 +269,8 @@ test("the project view's ASKS holds every session's asks, the newest first, each
   const at = listed.findIndex(row => row.startsWith(' ASKS'))
 
   expect(listed.slice(at + 1, at + 3), 'no blank row between asks').toEqual([
-    expect.stringMatching(/^ ◆ Dashboard redesign: Review Sessions & Runway, round 1 +now$/),
-    expect.stringMatching(/^ ◆ Request ledger: Keep the ledger 400 days, or forever\? +now$/),
+    expect.stringMatching(/^ ◆ Dashboard redesign: Review Orders & Invoices, round 1 +now$/),
+    expect.stringMatching(/^ ◆ Invoice ledger: Keep the ledger 400 days, or forever\? +now$/),
   ])
 
   await ui.press({ key: `pick:${LEDGER}:k3` })
@@ -312,7 +312,7 @@ test("the project view's PARKED holds every session's parked items, the oldest f
       .filter(each => each.key?.startsWith('ppick:'))
       .map(each => [each.key, each.text]),
   ).toEqual([
-    [`ppick:${LEDGER}:p2`, 'Request ledger: Export the ledger as CSV'],
+    [`ppick:${LEDGER}:p2`, 'Invoice ledger: Export the ledger as CSV'],
     [`ppick:${w.item(tmux)}`, 'Dashboard redesign: A tmux indicator across sessions'],
   ])
 
@@ -344,11 +344,11 @@ const longIdle = (w: World, meta: SessionMeta, project: string, ...bodies: Body[
 
 test("the project view's PARKED holds a finished session's items and an idle one's past the views, each by its session's name, and counts them all; a session's view holds its own", async ($, on) => {
   const w = world($, on)
-  const ledger = w.elsewhere(meta(LEDGER, 'Request ledger', 'switchboard', W2))
+  const ledger = w.elsewhere(meta(LEDGER, 'Invoice ledger', 'northwind', W2))
 
   longIdle(
     w,
-    meta(THEMES, 'Themes', 'switchboard', W3, CURRENT_MS + DAY),
+    meta(THEMES, 'Themes', 'northwind', W3, CURRENT_MS + DAY),
     PROJECT.key,
     park('p1', 'Theme the lobby too'),
   )
@@ -371,7 +371,7 @@ test("the project view's PARKED holds a finished session's items and an idle one
   expect(await ui.find({ type: 'Text', text: '3 to come back to' })).toBeDefined()
   expect(await parkedButtons(ui)).toEqual([
     [`ppick:${THEMES}:p1`, 'Themes: Theme the lobby too'],
-    [`ppick:${LEDGER}:p2`, 'Request ledger: Export the ledger as CSV'],
+    [`ppick:${LEDGER}:p2`, 'Invoice ledger: Export the ledger as CSV'],
     [`ppick:${w.item(tmux)}`, 'Dashboard redesign: A tmux indicator across sessions'],
   ])
 
@@ -398,8 +398,8 @@ test("a finished session's files as a build before parked items were the project
   await toProject(ui)
   expect(await ui.find({ type: 'Text', text: '2 to come back to' })).toBeDefined()
   expect(await parkedButtons(ui)).toEqual([
-    [`ppick:${PARKED_BEFORE.id}:p1`, 'Request ledger: Export the ledger as CSV'],
-    [`ppick:${PARKED_BEFORE.id}:p2`, 'Request ledger: Archive old requests'],
+    [`ppick:${PARKED_BEFORE.id}:p1`, 'Invoice ledger: Export the ledger as CSV'],
+    [`ppick:${PARKED_BEFORE.id}:p2`, 'Invoice ledger: Archive old invoices'],
   ])
 
   await w.clock.advance(4 * AROUND_MS)
@@ -408,14 +408,14 @@ test("a finished session's files as a build before parked items were the project
 
 test('All projects keeps a project whose sessions are finished or idle past the views while something is parked in it, unfolded and counting it; its view says no sessions open, and its items show without pick-up buttons in a window of another project', async ($, on) => {
   const w = world($, on)
-  const portal = w.elsewhere(meta('sr-p0rta1', 'Agent-aware Portal', 'portal', W3), PORTAL.key)
+  const offline = w.elsewhere(meta('sr-0ff11e', 'Offline mode', 'fabrikam', W3), FABRIKAM.key)
 
-  portal.write(park('p1', 'Thumbnails in the picker'), finish('lee'))
+  offline.write(park('p1', 'Thumbnails in the picker'), finish('lee'))
   longIdle(
     w,
-    meta('sr-p0rta2', 'Portal on zmx', 'portal', W4, CURRENT_MS + DAY),
-    PORTAL.key,
-    park('p1', 'Resume the zmx sessions'),
+    meta('sr-5ync00', 'Offline sync', 'fabrikam', W4, CURRENT_MS + DAY),
+    FABRIKAM.key,
+    park('p1', 'Resume the paused uploads'),
   )
   longIdle(w, meta('sr-d0sty0', 'An old idea', 'dusty', W3, CURRENT_MS + DAY), DUSTY.key)
   await w.begin()
@@ -423,21 +423,21 @@ test('All projects keeps a project whose sessions are finished or idle past the 
   const ui = await w.opened(WIDE)
 
   await ui.press({ key: 'tab:all' })
-  expect(await keysOf(ui, 'proj:')).toEqual([`proj:${PROJECT.key}`, `proj:${PORTAL.key}`])
+  expect(await keysOf(ui, 'proj:')).toEqual([`proj:${PROJECT.key}`, `proj:${FABRIKAM.key}`])
   expect(await ui.find({ type: 'Text', text: 'no sessions open · ◇ 2 parked' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /more, with nothing going on/ })).toBeUndefined()
 
-  await ui.press({ key: `proj:${PORTAL.key}` })
+  await ui.press({ key: `proj:${FABRIKAM.key}` })
   expect(await ui.find({ type: 'Text', text: 'no sessions open' }), 'SESSIONS').toBeDefined()
   expect(await ui.find({ type: 'Text', text: /of 0 open/ })).toBeUndefined()
   expect(await ui.find({ type: 'Text', text: '2 to come back to' })).toBeDefined()
   expect(await parkedButtons(ui)).toEqual([
-    ['ppick:sr-p0rta2:p1', 'Portal on zmx: Resume the zmx sessions'],
-    ['ppick:sr-p0rta1:p1', 'Agent-aware Portal: Thumbnails in the picker'],
+    ['ppick:sr-5ync00:p1', 'Offline sync: Resume the paused uploads'],
+    ['ppick:sr-0ff11e:p1', 'Offline mode: Thumbnails in the picker'],
   ])
 
-  await ui.press({ key: 'ppick:sr-p0rta1:p1' })
-  expect(w.state.pane).toMatchObject({ selected: 'sr-p0rta1:p1' })
+  await ui.press({ key: 'ppick:sr-0ff11e:p1' })
+  expect(w.state.pane).toMatchObject({ selected: 'sr-0ff11e:p1' })
   expect(await keysOf(ui, 'pickup:'), 'no pick-up from another project').toEqual([])
   expect(await keysOf(ui, 'comment:')).toEqual([])
 })
@@ -452,7 +452,7 @@ test('the band counts what waits in every other session, in every project, and o
   expect(await band.find({ key: 'band:asks', text: '1 ask' })).toBeDefined()
   expect(
     await band.find({ key: 'band:elsewhere', text: '2 elsewhere' }),
-    "the ledger's ask and Goosemates'",
+    "the ledger's ask and Contoso'",
   ).toBeDefined()
 
   await band.press({ key: 'band:elsewhere' })
@@ -471,8 +471,8 @@ test('the band counts what waits in every other session, in every project, and o
 
 test("a new ask in another session, in this project or another, reaches the band's count at the slower pace, the board closed", async ($, on) => {
   const w = world($, on)
-  const ledger = w.elsewhere(meta(LEDGER, 'Request ledger', 'switchboard', W2))
-  const orders = w.elsewhere(meta(ORDERS, 'Standing orders', 'goosemates', W4), ELSEWHERE.key)
+  const ledger = w.elsewhere(meta(LEDGER, 'Invoice ledger', 'northwind', W2))
+  const orders = w.elsewhere(meta(ORDERS, 'Standing orders', 'contoso', W4), ELSEWHERE.key)
 
   ledger.beat()
   orders.beat()
@@ -515,7 +515,7 @@ test("the project view's sessions and All projects' trees hang from faint glyphs
 
 test('what the sessions around hold is put in $.state only when a look finds it changed', async ($, on) => {
   const w = world($, on)
-  const ledger = w.elsewhere(meta(LEDGER, 'Request ledger', 'switchboard', W2))
+  const ledger = w.elsewhere(meta(LEDGER, 'Invoice ledger', 'northwind', W2))
 
   await w.begin()
 

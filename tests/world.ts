@@ -44,11 +44,11 @@ type Sitrep = PluginState['sitrep']
 export const STATE_HOME = '/state'
 export const ROOT = `${STATE_HOME}/sitrep`
 
-/** The folder the window starts in: Switchboard's repository, though that decides nothing. */
-export const REPO = '/Users/lee/Code/switchboard'
+/** The folder the window starts in: Northwind's repository, though that decides nothing. */
+export const REPO = '/Users/me/Code/northwind'
 
 /** Lee's home folder, which a window may start in to talk of any project. */
-export const HOME = '/Users/lee'
+export const HOME = '/Users/me'
 
 /** The sitrep version the plugin's manifest gives, unless a test says otherwise. */
 export const PLUGIN_VERSION = '0.2.0'
@@ -104,10 +104,10 @@ export const WHERE: Where = { device: `/dev/${TTY}`, terminal: 'ghostty' }
 export type Walk = { stdout: string; exitCode?: number } | { refused: string }
 
 /** The project the sessions under test are on: named so by Claude as it starts one, its key the name's slug. */
-export const PROJECT: Project = { key: 'switchboard', name: 'Switchboard' }
+export const PROJECT: Project = { key: 'northwind', name: 'Northwind' }
 
 /** Another project, with a session of its own. */
-export const ELSEWHERE: Project = { key: 'goosemates', name: 'Goosemates' }
+export const ELSEWHERE: Project = { key: 'contoso', name: 'Contoso' }
 
 export const CONVERSATION = { cwd: REPO, surface: 'terminal' as const, isInteractive: true }
 

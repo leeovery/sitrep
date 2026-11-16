@@ -46,14 +46,14 @@ export const META: SessionMeta = {
   id: 'sr-k3f9qa',
   name: 'Dashboard redesign',
   summary: 'Redesign the dashboard, area by area in Paper',
-  project: 'switchboard',
-  root: '/Users/lee/Code/switchboard',
+  project: 'northwind',
+  root: '/Users/me/Code/northwind',
   created: T0,
   by: W1,
 }
 
 /**
- * A session of Switchboard's as a build before 11 November 2026 left it, its
+ * A session of Northwind's as a build before 11 November 2026 left it, its
  * files byte for byte, nine days idle and finished: two items still parked,
  * a third picked up. What its files say is literal, so no builder of today's
  * can make it look newer than it is.
@@ -61,11 +61,11 @@ export const META: SessionMeta = {
 export const PARKED_BEFORE = {
   id: 'sr-1edger',
   writer: W2,
-  meta: '{"v":1,"id":"sr-1edger","name":"Request ledger","summary":"The request ledger, area by area","project":"switchboard","root":"/Users/lee/Code/switchboard","created":1759136000000,"by":"b1c2d3e4-0000-4000-8000-000000000002"}\n',
+  meta: '{"v":1,"id":"sr-1edger","name":"Invoice ledger","summary":"The invoice ledger, area by area","project":"northwind","root":"/Users/me/Code/northwind","created":1759136000000,"by":"b1c2d3e4-0000-4000-8000-000000000002"}\n',
   log: [
-    '{"v":1,"at":1759136000000,"seq":1,"type":"status","name":"Request ledger","summary":"The request ledger, area by area","now":["Drawing the ledger schema"]}',
+    '{"v":1,"at":1759136000000,"seq":1,"type":"status","name":"Invoice ledger","summary":"The invoice ledger, area by area","now":["Drawing the ledger schema"]}',
     '{"v":1,"at":1759136060000,"seq":2,"type":"park","title":"Export the ledger as CSV","ref":"PR #82","id":"p1"}',
-    '{"v":1,"at":1759136120000,"seq":3,"type":"park","title":"Archive old requests","where":"After the release","id":"p2"}',
+    '{"v":1,"at":1759136120000,"seq":3,"type":"park","title":"Archive old invoices","where":"After the release","id":"p2"}',
     '{"v":1,"at":1759136180000,"seq":4,"type":"park","title":"Retry the export","id":"p3"}',
     '{"v":1,"at":1759222400000,"seq":5,"type":"reply","id":"r1","item":"p3","verdict":"pickup"}',
     '{"v":1,"at":1759222400000,"seq":6,"type":"delivered","replies":["r1"]}',

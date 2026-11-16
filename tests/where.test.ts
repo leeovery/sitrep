@@ -38,7 +38,7 @@ test('a heartbeat written before windows said where they are reads as it always 
 })
 
 test('a heartbeat reads back with the folder its Claude runs in, through every beat and the leaving', () => {
-  const directory = '/Users/lee/Code/switchboard/.claude/worktrees/lobby'
+  const directory = '/Users/me/Code/northwind/.claude/worktrees/lobby'
   const left = leave(heartbeat(attach(W1, T0, { directory }), T0 + 30_000), T0 + 40_000)
 
   expect(parsePresence(presenceText(left), W1)).toEqual(left)
@@ -130,19 +130,19 @@ test('outside tmux, or with $TMUX and no pane, there is no tmux', () => {
 
 test('in zmx, the session is $ZMX_SESSION whole, its spaces and · kept, beside the device and the terminal; none when empty', () => {
   expect(
-    whereOf({ ZMX_SESSION: 'kit · restore-card', TERM_PROGRAM: 'ghostty' }, '/dev/ttys087'),
-  ).toEqual({ device: '/dev/ttys087', terminal: 'ghostty', zmx: { session: 'kit · restore-card' } })
+    whereOf({ ZMX_SESSION: 'litware · invoice-card', TERM_PROGRAM: 'ghostty' }, '/dev/ttys087'),
+  ).toEqual({ device: '/dev/ttys087', terminal: 'ghostty', zmx: { session: 'litware · invoice-card' } })
   expect(whereOf({ ZMX_SESSION: '', TERM_PROGRAM: 'ghostty' })).toEqual({ terminal: 'ghostty' })
 })
 
 test('a zmx session reads back from the heartbeat; one with no name, or not a session, is dropped and the rest kept', () => {
   const read = (where: unknown) => parsePresence(fileWith(where), W1)?.where
-  const IN_ZMX: Where = { device: '/dev/ttys087', terminal: 'ghostty', zmx: { session: 'kit' } }
+  const IN_ZMX: Where = { device: '/dev/ttys087', terminal: 'ghostty', zmx: { session: 'litware' } }
 
   expect(read(IN_ZMX)).toEqual(IN_ZMX)
-  expect(read({ ...IN_ZMX, zmx: { session: 'kit', pane: '%1' } })).toEqual(IN_ZMX)
+  expect(read({ ...IN_ZMX, zmx: { session: 'litware', pane: '%1' } })).toEqual(IN_ZMX)
 
-  for (const zmx of ['kit', { session: '' }, { session: 7 }, null]) {
+  for (const zmx of ['litware', { session: '' }, { session: 7 }, null]) {
     expect(read({ ...IN_ZMX, zmx }), JSON.stringify(zmx)).toEqual({ ...IN_ZMX, zmx: undefined })
   }
 })

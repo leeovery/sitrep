@@ -15,8 +15,8 @@ const meta = (id: string, name: string, by: string, created = T0): SessionMeta =
   id,
   name,
   summary: `${name}, area by area`,
-  project: 'switchboard',
-  root: '/Users/lee/Code/switchboard',
+  project: 'northwind',
+  root: '/Users/me/Code/northwind',
   created,
   by,
 })
@@ -41,7 +41,7 @@ test('a conversation resumed in a new process takes up by itself the session it 
 
   const paths = heldBefore(w, meta('sr-bbbbbb', 'Dashboard redesign', W1), T0 + 5 * MIN)
 
-  w.elsewhere(meta('sr-cccccc', 'Request ledger', W2)).beat()
+  w.elsewhere(meta('sr-cccccc', 'Invoice ledger', W2)).beat()
   await $.session.start(CONVERSATION)
 
   expect(w.state.attachment).toEqual({
@@ -68,7 +68,7 @@ test('a conversation resumed in a new process takes up by itself the session it 
 test('a conversation seen in no session takes nothing up', async ($, on) => {
   const w = world($, on, { now: NOW })
 
-  w.elsewhere(meta('sr-cccccc', 'Request ledger', W2)).beat()
+  w.elsewhere(meta('sr-cccccc', 'Invoice ledger', W2)).beat()
   await $.session.start(CONVERSATION)
 
   expect(w.state.attachment ?? null).toBeNull()
@@ -95,7 +95,7 @@ test("the conversation's first message lists the current sessions by project and
   const w = world($, on, { now: NOW })
 
   heldBefore(w, meta('sr-bbbbbb', 'Dashboard redesign', W1), T0 + 5 * MIN)
-  w.elsewhere(meta('sr-cccccc', 'Request ledger', W2)).beat()
+  w.elsewhere(meta('sr-cccccc', 'Invoice ledger', W2)).beat()
   w.elsewhere(meta('sr-dddddd', 'An old idea', W2, NOW - CURRENT_MS - DAY))
   await $.session.start(CONVERSATION)
 
@@ -103,8 +103,8 @@ test("the conversation's first message lists the current sessions by project and
 
   expect(more).toEqual([])
   expect(block?.name).toBe('sitrep')
-  expect(block?.text).toContain('- Switchboard: sr-bbbbbb "Dashboard redesign"')
-  expect(block?.text).toContain('- Switchboard: sr-cccccc "Request ledger"')
+  expect(block?.text).toContain('- Northwind: sr-bbbbbb "Dashboard redesign"')
+  expect(block?.text).toContain('- Northwind: sr-cccccc "Invoice ledger"')
   expect(block?.text).not.toContain('sr-dddddd')
   expect(block?.text).toContain('This window already holds sr-bbbbbb (Dashboard redesign)')
   expect(block?.text).toContain('join it by its id with the sitrep join tool')
@@ -112,7 +112,7 @@ test("the conversation's first message lists the current sessions by project and
 
 test('the first message counts an ask whose answer from Lee is on its way as waiting on Lee: Claude has not been told the answer', async ($, on) => {
   const w = world($, on, { now: NOW })
-  const ledger = w.elsewhere(meta('sr-cccccc', 'Request ledger', W2))
+  const ledger = w.elsewhere(meta('sr-cccccc', 'Invoice ledger', W2))
 
   ledger.write(yesAsk('k3', 'Review the ledger schema'), yesAsk('k4', 'Run the apply', 'Done'))
   await w.clock.advance(MIN)
@@ -121,7 +121,7 @@ test('the first message counts an ask whose answer from Lee is on its way as wai
 
   const [block] = await firstMessage($)
 
-  expect(block?.text).toContain('- Switchboard: sr-cccccc "Request ledger", 2 waiting on Lee')
+  expect(block?.text).toContain('- Northwind: sr-cccccc "Invoice ledger", 2 waiting on Lee')
 })
 
 test('with no current sessions on the board, the first message carries only how to keep the board', async ($, on) => {

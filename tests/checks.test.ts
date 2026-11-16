@@ -81,7 +81,7 @@ test('what Claude posts is trimmed and kept to one line', () => {
       checkAsk({
         wants: 'yes',
         yes: ' Ship\n it ',
-        title: '  Review\n Sessions &   Runway ',
+        title: '  Review\n Orders &   Invoices ',
         where: '\tIn Paper:\n page 1 ',
         ref: ' ',
       }),
@@ -90,7 +90,7 @@ test('what Claude posts is trimmed and kept to one line', () => {
     type: 'ask',
     wants: 'yes',
     yes: 'Ship it',
-    title: 'Review Sessions & Runway',
+    title: 'Review Orders & Invoices',
     where: 'In Paper: page 1',
   })
   expect(

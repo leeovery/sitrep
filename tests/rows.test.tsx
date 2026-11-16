@@ -80,18 +80,18 @@ const LINES: [tool: string, input: { [key: string]: unknown }, line: string][] =
   ['status', { now: ['Drawing Usage'] }, '• status set'],
   [
     'ask',
-    { wants: 'yes', yes: 'Approve', title: 'Review Sessions & Runway, round 1' },
-    '◆ asked: Review Sessions & Runway, round 1',
+    { wants: 'yes', yes: 'Approve', title: 'Review Orders & Invoices, round 1' },
+    '◆ asked: Review Orders & Invoices, round 1',
   ],
   ['note', { text: 'PR #82 merged' }, 'noted: PR #82 merged'],
   ['park', { title: 'A tmux indicator' }, '◇ parked: A tmux indicator'],
   ['finish', { reason: 'Shipped' }, '✓ finished a session'],
   ['project', { name: 'SitRep' }, 'project renamed: SitRep'],
-  ['project', { directory: '/Users/lee/sitrep' }, 'project lives in /Users/lee/sitrep'],
+  ['project', { directory: '/Users/me/sitrep' }, 'project lives in /Users/me/sitrep'],
   [
     'project',
-    { name: 'SitRep', directory: '/Users/lee/sitrep' },
-    'project renamed: SitRep · project lives in /Users/lee/sitrep',
+    { name: 'SitRep', directory: '/Users/me/sitrep' },
+    'project renamed: SitRep · project lives in /Users/me/sitrep',
   ],
   ['board', {}, 'read the board back'],
 ]

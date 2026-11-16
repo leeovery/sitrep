@@ -41,7 +41,7 @@ const EVERY_KIND: Body[] = [
     id: 'n4m5',
     text: 'PR #82 merged',
     detail: ['6 files, +214 −51'],
-    ref: 'https://github.com/leeovery/switchboard/pull/82',
+    ref: 'https://github.com/me/northwind/pull/82',
   },
   {
     type: 'park',

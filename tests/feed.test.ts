@@ -70,13 +70,13 @@ import {
 
 const NOW = T0 + 60 * MIN
 
-const SWITCHBOARD: Project = {
-  key: 'switchboard',
-  name: 'Switchboard',
-  directory: '/Users/lee/Code/switchboard',
+const NORTHWIND: Project = {
+  key: 'northwind',
+  name: 'Northwind',
+  directory: '/Users/me/Code/northwind',
 }
 
-const GOOSEMATES: Project = { key: 'goosemates', name: 'Goosemates' }
+const CONTOSO: Project = { key: 'contoso', name: 'Contoso' }
 
 const working = (since: number, tool?: ToolShown): WindowState => ({ is: 'working', since, tool })
 
@@ -132,11 +132,11 @@ const sessionOf = (
   return session
 }
 
-const rowFor = (session: Session, project = SWITCHBOARD, now = NOW) =>
+const rowFor = (session: Session, project = NORTHWIND, now = NOW) =>
   rowOf(project, session, now)
 
 /** The lines of a session's row; none where it has no row. */
-const lines = (session: Session, project = SWITCHBOARD) => rowFor(session, project)?.lines ?? []
+const lines = (session: Session, project = NORTHWIND) => rowFor(session, project)?.lines ?? []
 
 const firstLines = (session: Session) => lines(session).map(line => line.first)
 
@@ -222,10 +222,10 @@ test("a session with an ask is a row in Needs you, the ask a line of it, its tit
     session: META.id,
     section: 'needsYou',
     isAway: false,
-    project: 'switchboard',
+    project: 'northwind',
     name: 'Dashboard redesign',
-    projectName: 'Switchboard',
-    letters: 'Sw',
+    projectName: 'Northwind',
+    letters: 'No',
     lines: [
       {
         key: `ask:${META.id}:k1`,
@@ -235,13 +235,13 @@ test("a session with an ask is a row in Needs you, the ask a line of it, its tit
         since: T0 + MIN,
       },
     ],
-    second: 'Switchboard · Dashboard redesign',
+    second: 'Northwind · Dashboard redesign',
     since: T0 + MIN,
   })
   expect(rowFor(away)).toMatchObject({
     isAway: true,
     name: 'Dashboard redesign',
-    projectName: 'Switchboard',
+    projectName: 'Northwind',
     lines: [{ key: `ask:${META.id}:k1` }],
     second: 'No window holds it. Carry it on in Claude.',
   })
@@ -256,7 +256,7 @@ test("a session with several asks is one row, a line for each, the newest first;
     ],
     presence: windowOn(W1, working(T0)),
   })
-  const row = rowFor(session, { key: 'harness', name: 'Harness' })
+  const row = rowFor(session, { key: 'fabrikam', name: 'Fabrikam' })
 
   expect(row?.lines.map(line => [line.key, line.first.lead, line.since])).toEqual([
     [`ask:${META.id}:k3`, 'Approve the second fix batch', T0 + 3 * MIN],
@@ -267,8 +267,8 @@ test("a session with several asks is one row, a line for each, the newest first;
     session: META.id,
     section: 'needsYou',
     name: 'Dashboard redesign',
-    projectName: 'Harness',
-    second: 'Harness · Dashboard redesign',
+    projectName: 'Fabrikam',
+    second: 'Fabrikam · Dashboard redesign',
     since: T0 + 3 * MIN,
   })
 })
@@ -406,33 +406,33 @@ test('while a tool runs, a working row leads with its verb, the subject after in
 })
 
 test("a file tool's path shows from the project's directory where it lies under it; any other subject as it is", () => {
-  const lineFor = (tool: ToolShown, project = SWITCHBOARD) =>
+  const lineFor = (tool: ToolShown, project = NORTHWIND) =>
     lines(sessionOf({ presence: windowOn(W1, working(T0, tool)) }), project)[0]?.first
 
   expect(
-    lineFor({ name: 'Read', subject: '/Users/lee/Code/switchboard/src/Limiter/Dispatcher.php' }),
+    lineFor({ name: 'Read', subject: '/Users/me/Code/northwind/src/Limiter/Dispatcher.php' }),
   ).toEqual({
     lead: 'Reading',
     mono: 'src/Limiter/Dispatcher.php',
   })
-  expect(lineFor({ name: 'Edit', subject: '/Users/lee/Code/switchboard-old/a.php' })).toEqual({
+  expect(lineFor({ name: 'Edit', subject: '/Users/me/Code/northwind-old/a.php' })).toEqual({
     lead: 'Editing',
-    mono: '/Users/lee/Code/switchboard-old/a.php',
+    mono: '/Users/me/Code/northwind-old/a.php',
   })
   expect(
-    lineFor({ name: 'Read', subject: '/Users/lee/Code/switchboard/a.php' }, GOOSEMATES),
+    lineFor({ name: 'Read', subject: '/Users/me/Code/northwind/a.php' }, CONTOSO),
   ).toEqual({
     lead: 'Reading',
-    mono: '/Users/lee/Code/switchboard/a.php',
+    mono: '/Users/me/Code/northwind/a.php',
   })
-  expect(lineFor({ name: 'Bash', subject: 'cat /Users/lee/Code/switchboard/a.php' })).toEqual({
+  expect(lineFor({ name: 'Bash', subject: 'cat /Users/me/Code/northwind/a.php' })).toEqual({
     lead: 'Running',
-    mono: 'cat /Users/lee/Code/switchboard/a.php',
+    mono: 'cat /Users/me/Code/northwind/a.php',
   })
   expect(
     lines(
       sessionOf({
-        presence: windowOn(W1, permission(T0, 'Write', '/Users/lee/Code/switchboard/b.ts')),
+        presence: windowOn(W1, permission(T0, 'Write', '/Users/me/Code/northwind/b.ts')),
       }),
     )[0]?.first,
   ).toEqual({ lead: 'Allow Write', mono: 'b.ts' })
@@ -443,7 +443,7 @@ test("with no tool running, working and your turn read the board's now, else its
     firstLines(sessionOf({ lines, presence: windowOn(W1, state) }))[0]
 
   for (const state of [working(T0), yourTurn(T0)]) {
-    expect(lineOf(state, [[T0, status(['Drawing Usage', 'Then Runway'])]])).toEqual({
+    expect(lineOf(state, [[T0, status(['Drawing Usage', 'Then Orders'])]])).toEqual({
       lead: 'Drawing Usage',
     })
     expect(lineOf(state, [[T0, status([])]])).toEqual({ lead: META.summary })
@@ -561,7 +561,7 @@ test('of several windows, the row is the one working, else the one on its own wo
 
 test("what a session is doing: its stop shown first, else its turn row's window, each worded as its row; away, since its latest line, with no window", () => {
   const doing = (presence: SessionFiles['presence'], lines: Line[] = []) =>
-    doingOf(SWITCHBOARD, sessionOf({ lines, presence }), NOW)
+    doingOf(NORTHWIND, sessionOf({ lines, presence }), NOW)
 
   expect(
     doing({
@@ -572,7 +572,7 @@ test("what a session is doing: its stop shown first, else its turn row's window,
   ).toEqual({ is: 'permission', line: { lead: 'Allow Bash', mono: 'ls' }, since: T0 + MIN })
   expect(
     doing({
-      ...windowOn(W1, working(T0, { name: 'Read', subject: '/Users/lee/Code/switchboard/a.ts' })),
+      ...windowOn(W1, working(T0, { name: 'Read', subject: '/Users/me/Code/northwind/a.ts' })),
       ...windowOn(W2, yourTurn(T0 + MIN)),
     }),
   ).toEqual({ is: 'working', line: { lead: 'Reading', mono: 'a.ts' }, since: T0 })
@@ -605,7 +605,7 @@ test("a session needing Lee for its asks alone, which has no row of its windows'
   })
 
   expect(lines(session).map(line => line.is)).toEqual(['ask'])
-  expect(doingOf(SWITCHBOARD, session, NOW)).toEqual({
+  expect(doingOf(NORTHWIND, session, NOW)).toEqual({
     is: 'working',
     line: { lead: 'Running', mono: 'bun test' },
     since: T0 + MIN,
@@ -621,7 +621,7 @@ const ANSWERED = {
 test("an ask with Lee's answer on its way needs Lee no more: no row, no count, nothing new, the session as its windows leave it, the ask still among its asks", () => {
   const away = sessionOf(ANSWERED)
   const held = sessionOf({ ...ANSWERED, presence: windowOn(W1, yourTurn(T0)) })
-  const feed = feedOf([{ project: SWITCHBOARD, sessions: [away] }], NOW)
+  const feed = feedOf([{ project: NORTHWIND, sessions: [away] }], NOW)
 
   expect(away.waiting).toBe(0)
   expect([sessionState(away, NOW), rowFor(away)]).toEqual(['away', undefined])
@@ -646,7 +646,7 @@ test("watch lists a session's asks as board --json does, a replied one among the
     ],
     inbox: { [CLI]: file([T0 + 2 * MIN, reply('r2', 'k2', 'yes')]) },
   })
-  const [watched] = feedOf([{ project: SWITCHBOARD, sessions: [session] }], NOW).projects
+  const [watched] = feedOf([{ project: NORTHWIND, sessions: [session] }], NOW).projects
 
   expect(watched?.sessions[0]?.asks.map(each => each.id)).toEqual(['k1', 'k2'])
   expect(watched?.sessions[0]?.asks).toEqual(brief(session).asks)
@@ -757,7 +757,7 @@ test("Needs you's rows in order by their newest lines, whatever their older ones
 test('the head counts the lines needing Lee, away ones among them, and the rows, a session each', () => {
   expect(
     headOf([
-      row('harness', 'ask', [T0, T0 + MIN, T0 + 2 * MIN]),
+      row('asking', 'ask', [T0, T0 + MIN, T0 + 2 * MIN]),
       row('away', 'ask', T0, true),
       row('stopped', 'permission', T0),
       row('working', 'working', T0),
@@ -768,14 +768,14 @@ test('the head counts the lines needing Lee, away ones among them, and the rows,
 
 test("a project's two letters: its capitals where it has two, else its first two", () => {
   expect(
-    ['SitRep', 'DocMan', 'Switchboard', 'agntc', 'Agentic Workflows', 'Kit 2'].map(lettersOf),
-  ).toEqual(['SR', 'DM', 'Sw', 'ag', 'AW', 'Ki'])
+    ['SitRep', 'LitWare', 'Northwind', 'contoso', 'Adventure Works', 'Wingtip 2'].map(lettersOf),
+  ).toEqual(['SR', 'LW', 'No', 'co', 'AW', 'Wi'])
 })
 
-/** Three sessions of Switchboard and one of Goosemates, each in a state of its own. */
+/** Three sessions of Northwind and one of Contoso, each in a state of its own. */
 const board = (now = NOW): ProjectRead[] => [
   {
-    project: SWITCHBOARD,
+    project: NORTHWIND,
     sessions: [
       sessionOf(
         { meta: { id: 'sr-aaaaaa', name: 'Working' }, presence: windowOn(W1, working(T0)) },
@@ -798,7 +798,7 @@ const board = (now = NOW): ProjectRead[] => [
     ],
   },
   {
-    project: GOOSEMATES,
+    project: CONTOSO,
     sessions: [
       sessionOf(
         {
@@ -834,9 +834,9 @@ test('the feed: each project with its current sessions in the rows order, a fini
       ]),
     ]),
   ).toEqual([
-    ['goosemates', 1, 1, [['sr-dddddd', 'needsYou', T0 + 10 * MIN, 'yourTurn', ['k2']]]],
+    ['contoso', 1, 1, [['sr-dddddd', 'needsYou', T0 + 10 * MIN, 'yourTurn', ['k2']]]],
     [
-      'switchboard',
+      'northwind',
       0,
       1,
       [
@@ -849,7 +849,7 @@ test('the feed: each project with its current sessions in the rows order, a fini
 
 /** The last window the feed carries for the session, folded at `now`. */
 const lastWindowIn = (session: Session, now = NOW) =>
-  feedOf([{ project: SWITCHBOARD, sessions: [session] }], now).projects[0]?.sessions[0]?.lastWindow
+  feedOf([{ project: NORTHWIND, sessions: [session] }], now).projects[0]?.sessions[0]?.lastWindow
 
 /** A last window as the feed carries it: where it was, its device its conversation's, unless said. */
 const lastWindow = (
@@ -858,7 +858,7 @@ const lastWindow = (
 ): LastWindow => ({ writer, where, directory, ownsDevice })
 
 test('an away session carries the window it was last in, by its heartbeat last seen, a /clear moving it on: its writer, where it was and its folder', () => {
-  const directory = `${SWITCHBOARD.directory}/.claude/worktrees/lobby`
+  const directory = `${NORTHWIND.directory}/.claude/worktrees/lobby`
   const session = sessionOf({
     lines: [[T0, yesAsk('k1', 'Review round 1')]],
     presence: {
@@ -886,14 +886,14 @@ test("an away session's last window on a build before heartbeats said their fold
 test('a session a live window holds carries no last window, though another window of it is gone; nor does one no window ever held', () => {
   const held = sessionOf({
     presence: {
-      ...windowOn(W1, yourTurn(T0), { directory: '/Users/lee/Code/switchboard' }),
+      ...windowOn(W1, yourTurn(T0), { directory: '/Users/me/Code/northwind' }),
       ...windowOn(W2, working(T0), { seenAt: T0 + 50 * MIN, leftAt: T0 + 50 * MIN }),
     },
   })
 
   expect(lastWindowIn(held)).toBeUndefined()
   expect(lastWindowIn(held, NOW + STALE_MS + 1)).toEqual(
-    lastWindow(W1, { directory: '/Users/lee/Code/switchboard' }),
+    lastWindow(W1, { directory: '/Users/me/Code/northwind' }),
   )
   expect(lastWindowIn(sessionOf({ lines: [[T0, yesAsk('k1', 'Review round 1')]] }))).toBeUndefined()
 })
@@ -901,7 +901,7 @@ test('a session a live window holds carries no last window, though another windo
 /** The last window the feed carries for each session given, by its id, the board read at `now`. */
 const lastWindowsOf = (sessions: Session[], now = NOW) =>
   Object.fromEntries(
-    feedOf([{ project: SWITCHBOARD, sessions }], now).projects.flatMap(project =>
+    feedOf([{ project: NORTHWIND, sessions }], now).projects.flatMap(project =>
       project.sessions.map(each => [each.id, each.lastWindow]),
     ),
   )
@@ -970,7 +970,7 @@ test("a Needs you row's time is its newest line's, while its session's state sti
   const feed = feedOf(
     [
       {
-        project: SWITCHBOARD,
+        project: NORTHWIND,
         sessions: [
           sessionOf({
             lines: [
@@ -992,7 +992,7 @@ test("a Needs you row's time is its newest line's, while its session's state sti
 test('every session in the feed carries what it parked, oldest first, and when it started, whether or not it has a row', () => {
   const read: ProjectRead[] = [
     {
-      project: SWITCHBOARD,
+      project: NORTHWIND,
       sessions: [
         sessionOf({
           meta: { id: 'sr-aaaaaa', name: 'Working', created: T0 - 90 * MIN },
@@ -1003,7 +1003,7 @@ test('every session in the feed carries what it parked, oldest first, and when i
       ],
     },
     {
-      project: GOOSEMATES,
+      project: CONTOSO,
       sessions: [
         sessionOf({
           meta: { id: 'sr-dddddd', name: 'Away' },
@@ -1048,7 +1048,7 @@ test("an item picked up or closed leaves the feed's parked items, and its count"
       [T0 + 2 * MIN, resolve('p2')],
     ],
   })
-  const [fed] = feedOf([{ project: SWITCHBOARD, sessions: [session] }], NOW).projects.flatMap(
+  const [fed] = feedOf([{ project: NORTHWIND, sessions: [session] }], NOW).projects.flatMap(
     project => project.sessions,
   )
 
@@ -1063,7 +1063,7 @@ test('the feed lists every live window, the longest attached first, those behind
       writer: W1,
       session: 'sr-aaaaaa',
       name: 'Working',
-      project: 'Switchboard',
+      project: 'Northwind',
       version: '0.2.0',
       needsReload: false,
       where: undefined,
@@ -1074,7 +1074,7 @@ test('the feed lists every live window, the longest attached first, those behind
       writer: W2,
       session: 'sr-dddddd',
       name: 'Onboarding',
-      project: 'Goosemates',
+      project: 'Contoso',
       version: undefined,
       needsReload: true,
       where: undefined,
@@ -1086,14 +1086,14 @@ test('the feed lists every live window, the longest attached first, those behind
 })
 
 test("each window in the feed carries the folder its Claude runs in, a held session's {dir}; none where its heartbeat says none", () => {
-  const directory = `${SWITCHBOARD.directory}/.claude/worktrees/lobby`
+  const directory = `${NORTHWIND.directory}/.claude/worktrees/lobby`
   const session = sessionOf({
     presence: {
       ...windowOn(W1, working(T0), { directory }),
       ...windowOn(W2, yourTurn(T0), { attachedAt: T0 + MIN }),
     },
   })
-  const windows = feedOf([{ project: SWITCHBOARD, sessions: [session] }], NOW).windows
+  const windows = feedOf([{ project: NORTHWIND, sessions: [session] }], NOW).windows
 
   expect(windows.map(each => [each.writer, each.directory])).toEqual([
     [W1, directory],
@@ -1121,7 +1121,7 @@ test("each window in the feed carries its place in the order a jump tries its se
     },
   })
 
-  expect(jumpPlaces([{ project: SWITCHBOARD, sessions: [session] }])).toEqual([
+  expect(jumpPlaces([{ project: NORTHWIND, sessions: [session] }])).toEqual([
     ['rest', META.id, 3],
     ['own', META.id, 2],
     ['busy', META.id, 1],
@@ -1142,7 +1142,7 @@ test('within a rank the window whose state began last goes first, then the one a
     },
   })
   const orders = Object.fromEntries(
-    jumpPlaces([{ project: SWITCHBOARD, sessions: [session] }]).map(([writer, , order]) => [
+    jumpPlaces([{ project: NORTHWIND, sessions: [session] }]).map(([writer, , order]) => [
       writer,
       order,
     ]),
@@ -1160,7 +1160,7 @@ test('a window saying no `where` has no place in the order, which no jump tries;
     },
   })
 
-  expect(jumpPlaces([{ project: SWITCHBOARD, sessions: [session] }])).toEqual([
+  expect(jumpPlaces([{ project: NORTHWIND, sessions: [session] }])).toEqual([
     ['busy', META.id, 0],
     ['rest', META.id, 1],
     ['stop', META.id, undefined],
@@ -1170,7 +1170,7 @@ test('a window saying no `where` has no place in the order, which no jump tries;
 test("each session's windows are ordered among themselves alone, another session's never counted", () => {
   const read: ProjectRead[] = [
     {
-      project: SWITCHBOARD,
+      project: NORTHWIND,
       sessions: [
         sessionOf({
           meta: { id: 'sr-aaaaaa' },
@@ -1182,7 +1182,7 @@ test("each session's windows are ordered among themselves alone, another session
       ],
     },
     {
-      project: GOOSEMATES,
+      project: CONTOSO,
       sessions: [
         sessionOf({
           meta: { id: 'sr-bbbbbb' },
@@ -1215,7 +1215,7 @@ test("a window's place in the feed is the jump's: the CLI's jump tries the sessi
       ...windowOn('d', working(T0 + 30 * MIN)),
     },
   })
-  const fed = feedOf([{ project: SWITCHBOARD, sessions: [session] }], NOW)
+  const fed = feedOf([{ project: NORTHWIND, sessions: [session] }], NOW)
     .windows.filter(each => each.jumpOrder !== undefined)
     .sort((a, b) => (a.jumpOrder ?? 0) - (b.jumpOrder ?? 0))
 
@@ -1248,7 +1248,7 @@ test('what is new: a line needing Lee the watch has not shown, by its key; nothi
     [
       ...board(),
       {
-        project: { key: 'kit', name: 'Kit' },
+        project: { key: 'litware', name: 'Litware' },
         sessions: [
           sessionOf({
             meta: { id: 'sr-eeeeee' },
@@ -1280,14 +1280,14 @@ test('a stop is new by its window and when it showed: the same stop again is not
     feedOf(
       [
         {
-          project: SWITCHBOARD,
+          project: NORTHWIND,
           sessions: [sessionOf({ presence: windowOn(W1, permission(since, 'Bash', 'ls')) })],
         },
       ],
       NOW,
     )
   const asked = (...lines: Line[]) =>
-    feedOf([{ project: SWITCHBOARD, sessions: [sessionOf({ lines })] }], NOW)
+    feedOf([{ project: NORTHWIND, sessions: [sessionOf({ lines })] }], NOW)
   const shownWith = (feed: Feed) => newRows(undefined, feed, NOW).shown
 
   expect(newRows(shownWith(stopped(T0)), stopped(T0), NOW).news).toEqual([])
@@ -1308,13 +1308,13 @@ test('a line needing Lee gone and back is not new again until it has been gone m
   const on = feedOf(
     [
       {
-        project: SWITCHBOARD,
+        project: NORTHWIND,
         sessions: [sessionOf({ presence: windowOn(W1, permission(T0, 'Bash', 'ls')) })],
       },
     ],
     NOW,
   )
-  const off = feedOf([{ project: SWITCHBOARD, sessions: [sessionOf()] }], NOW)
+  const off = feedOf([{ project: NORTHWIND, sessions: [sessionOf()] }], NOW)
   const shown = newRows(newRows(undefined, on, 0).shown, on, 2 * FORGET_MS).shown
   const gone = newRows(shown, off, 2 * FORGET_MS).shown
 
@@ -1327,7 +1327,7 @@ test('a line needing Lee gone and back is not new again until it has been gone m
 })
 
 test('the board next changes by time alone as the first live heartbeat goes stale, or an idle session drops out of the views', () => {
-  const read = (sessions: Session[]): ProjectRead[] => [{ project: SWITCHBOARD, sessions }]
+  const read = (sessions: Session[]): ProjectRead[] => [{ project: NORTHWIND, sessions }]
 
   expect(
     nextExpiry(
@@ -1392,7 +1392,7 @@ const SNOOZED_REVIEW: Line[] = [
 ]
 
 const feedAt = (now: number, ...sessions: Session[]) =>
-  feedOf([{ project: SWITCHBOARD, sessions }], now)
+  feedOf([{ project: NORTHWIND, sessions }], now)
 
 /** The keys of a feed's rows' lines, and of its Snoozed rows'. */
 const placed = (feed: Feed) => ({
@@ -1429,10 +1429,10 @@ test('a session Lee snoozed needs Lee no more: its asks and its turn are one row
     {
       session: META.id,
       isAway: false,
-      project: SWITCHBOARD.key,
+      project: NORTHWIND.key,
       name: META.name,
-      projectName: 'Switchboard',
-      letters: 'Sw',
+      projectName: 'Northwind',
+      letters: 'No',
       lines: [
         {
           key: K1,
@@ -1450,7 +1450,7 @@ test('a session Lee snoozed needs Lee no more: its asks and its turn are one row
           wakesAt: WAKES,
         },
       ],
-      second: 'Switchboard · Dashboard redesign',
+      second: 'Northwind · Dashboard redesign',
       wakesAt: WAKES,
     },
   ])
@@ -1477,7 +1477,7 @@ test('a session at its turn alone snoozes the same: its turn leaves Needs you fo
   expect(placed(feedAt(before, asleep(before)))).toEqual({ rows: [], snoozed: [TURN_KEY] })
   expect(nextBoardChange(asleep(before), before)).toBe(WAKES)
   expect(placed(feedAt(WAKES, asleep(WAKES)))).toEqual({ rows: [TURN_KEY], snoozed: [] })
-  expect(rowFor(asleep(WAKES), SWITCHBOARD, WAKES)).toMatchObject({
+  expect(rowFor(asleep(WAKES), NORTHWIND, WAKES)).toMatchObject({
     section: 'yourTurn',
     since: TURN,
   })
@@ -1608,7 +1608,7 @@ test("Snoozed's rows go soonest to wake first, those snoozed until they move las
     ['sr-eeeeee', undefined, ['yourTurn']],
     ['sr-gggggg', undefined, ['yourTurn']],
   ])
-  expect(snoozedRowOf(SWITCHBOARD, sessions[3]!, NOW)).toBeUndefined()
+  expect(snoozedRowOf(NORTHWIND, sessions[3]!, NOW)).toBeUndefined()
 })
 
 test("a Snoozed line counts from its ask's posting or reopening, as in Needs you", () => {
@@ -1621,7 +1621,7 @@ test("a Snoozed line counts from its ask's posting or reopening, as in Needs you
     ],
   })
 
-  expect(snoozedRowOf(SWITCHBOARD, session, NOW)?.lines.map(each => each.since)).toEqual([
+  expect(snoozedRowOf(NORTHWIND, session, NOW)?.lines.map(each => each.since)).toEqual([
     T0 + 5 * MIN,
   ])
 })
@@ -1683,7 +1683,7 @@ test('an ask Lee replied to while asleep, waking its session, leaves Snoozed as 
 })
 
 test('a snooze running out changes the board by time alone: its time is among the instants it next changes, but once Lee replied to an ask there, waking it, or in a finished session', () => {
-  const read = (...sessions: Session[]): ProjectRead[] => [{ project: SWITCHBOARD, sessions }]
+  const read = (...sessions: Session[]): ProjectRead[] => [{ project: NORTHWIND, sessions }]
 
   expect(nextExpiry(read(sessionOf({ lines: SNOOZED_REVIEW })), NOW)).toBe(WAKES)
   expect(
@@ -1743,7 +1743,7 @@ test("a session's part of the board next changes by time alone at the first of i
   expect(nextBoardChange(sessionOf({ lines: SNOOZED_REVIEW }), NOW)).toBe(WAKES)
   expect(nextBoardChange(idle, NOW)).toBe(T0 + MIN + CURRENT_MS + 1)
   expect(nextBoardChange(finished, NOW)).toBeUndefined()
-  expect(nextExpiry([{ project: SWITCHBOARD, sessions: [idle, stale, finished] }], NOW)).toBe(
+  expect(nextExpiry([{ project: NORTHWIND, sessions: [idle, stale, finished] }], NOW)).toBe(
     NOW - MIN + STALE_MS + 1,
   )
 })
@@ -1768,7 +1768,7 @@ test("a session's fold next changes by time alone as its board does, and as Lee'
 const turnAt = (now: number, snoozes: Line[], presence = onTurn(TURN, now)) =>
   sessionOf({ lines: [LEFT, ...snoozes], presence }, now)
 
-/** Harness's case: both asks put off by old lines, written together, and the session at its turn. */
+/** Both asks put off by old lines, written together, and the session at its turn. */
 const OLD_ROW: Line[] = [
   LEFT,
   [T0, yesAsk('k1', 'Review round 1')],

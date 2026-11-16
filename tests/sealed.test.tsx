@@ -477,8 +477,8 @@ test('a yes given after an answer written in the prompt is held lands in a queue
 /** Claude starts another session of the project in this window, the board reading it a look later: the window holds it from then on. */
 const startedElsewhere = async (w: World) => {
   await w.call('start', {
-    name: 'Request ledger',
-    summary: 'Request ledger, area by area',
+    name: 'Invoice ledger',
+    summary: 'Invoice ledger, area by area',
     project: PROJECT.name,
   })
   await w.clock.advance(WATCH_MS)
