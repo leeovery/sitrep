@@ -13,6 +13,7 @@ import Testing
 /// The welcome window, made, never shown, over a Mac of its own: nothing is registered with macOS, asked of it, opened,
 /// copied or played.
 @MainActor
+@Suite(.backstop)
 struct WelcomeWindowTests {
     typealias Mac = WelcomeWorld.Mac
     typealias Made = WelcomeWorld.Made

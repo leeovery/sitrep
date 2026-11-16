@@ -1,11 +1,13 @@
 import Darwin
 import SitRepCore
 @testable import SitRepScreen
+import SitRepTestSupport
 import Testing
 
 /// Whether a session is here (stage 8's "Here"): a terminal on this Mac that SitRep can take Lee to shows it, by the
 /// process table, and tmux where a window runs in it; never by the heartbeat's `$TERM_PROGRAM`; unknown where what was
 /// asked gave no answer.
+@Suite(.backstop)
 struct HereTests {
     private static let portals = "proseware-Qm4tZ8"
 

@@ -7,6 +7,7 @@ import Testing
 /// but a click on the same session before it says it is still jumping joins it; a jump with no answer two seconds on
 /// says it is still jumping, on a clock the test moves.
 @MainActor
+@Suite(.backstop)
 struct OneJumpTests {
     @Test func aJumpTellsHowItEnded() async {
         let (oneJump, _) = Self.made()

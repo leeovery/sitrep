@@ -5,7 +5,7 @@ import Testing
 
 /// A signal to stop, as `app/quit` sends, quitting as Quit SitRep does. SIGUSR2 stands in for SIGTERM, which, ignored
 /// for the source's sake, would leave the tests' runner deaf to its own. One at a time, as both set the one signal.
-@Suite(.serialized)
+@Suite(.backstop, .serialized)
 @MainActor
 struct QuitOnSignalTests {
     /// Ignored, 1; at its default, 0, as `SIG_IGN` and `SIG_DFL` are.
@@ -19,7 +19,7 @@ struct QuitOnSignalTests {
     /// Heard, it quits through the seam, so the welcome's close and `watch`'s stop run as for Quit SitRep; the signal's
     /// default is back at once, so a second one ends SitRep, and, its three seconds' grace over, SitRep is ended in any
     /// case, and not before.
-    @Test func aSignalToStopQuitsAsQuitDoesAndEndsItAfterItsGrace() async {
+    @Test func aSignalToStopQuitsAsQuitDoesAndEndsItAfterItsGrace() async throws {
         let graces = Graces()
         let quits = Quits()
         let ends = Ends()
@@ -30,7 +30,7 @@ struct QuitOnSignalTests {
         kill(getpid(), SIGUSR2)
         // The signal is heard on another thread, which sends the quit to the main actor and then sets the grace. So
         // wait for the grace by the clock, then give the main actor turns to run the quit.
-        await until(within: .seconds(10)) { graces.waits == [.seconds(3)] }
+        try await until(within: .seconds(10)) { graces.waits == [.seconds(3)] }
         await until(turns: 100) { quits.count == 1 }
         #expect(Self.handler(of: SIGUSR2) == 0)
         #expect(ends.all.isEmpty)

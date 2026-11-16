@@ -1,9 +1,11 @@
 import Foundation
 import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// Snooze's times, worked out in each zone of the table of wake times core's `snoozeAt` is held to as well; and when a
 /// snooze wakes, in words, in London, where the clocks go back at 02:00 on Sunday 25 October 2026.
+@Suite(.backstop)
 struct SnoozeTests {
     private static let london: Calendar = {
         var calendar = Calendar(identifier: .gregorian)

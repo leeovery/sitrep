@@ -1,9 +1,11 @@
 import SitRepCore
 @testable import SitRepScreen
+import SitRepTestSupport
 import Testing
 
 /// A command SitRep types into a new window, read as the shell reads it (stage 7, C, as stage 8's rethink left it): its
 /// placeholders found and filled, each value quoted for the shell, and nothing typed that is not fit to type.
+@Suite(.backstop)
 struct TypedCommandTests {
     private static let claude = "b1c2d3e4-0000-4000-8000-000000000001"
 

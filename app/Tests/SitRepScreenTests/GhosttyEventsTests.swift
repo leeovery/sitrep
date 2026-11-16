@@ -3,6 +3,7 @@ import Darwin
 import Foundation
 import os
 @testable import SitRepScreen
+import SitRepTestSupport
 import Testing
 
 /// A descriptor in words, as AEDebug prints it but shorter: a specifier or a test by its fields, a list by its items,
@@ -155,6 +156,7 @@ func replied(_ number: Int32, said: String? = nil) -> Answering.Answer {
 
 /// Ghostty's events built by hand as AppleScript builds the CLI's program, each to the Ghostty running, within five
 /// seconds, and their answers read, the codes from Ghostty's dictionary.
+@Suite(.backstop)
 struct GhosttyEventsTests {
     private static let device = "/dev/ttys041"
 

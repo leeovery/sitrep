@@ -1,5 +1,6 @@
 import Foundation
 @testable import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// A spring as the design's tables print it: response·dampingFraction, to two decimals.
@@ -9,6 +10,7 @@ private func shown(_ p: SpringParams) -> String {
 
 // How each form moves ships fixed at Lee's settings, and its springs after them are the design's tables.
 
+@Suite(.backstop)
 struct MeniscusFeelTests {
     @Test func itIsLeesRoundElevenWithTheSwellFromTheApp() {
         let feel = MeniscusFeel.lees
@@ -61,6 +63,7 @@ struct MeniscusFeelTests {
     }
 }
 
+@Suite(.backstop)
 struct CardFeelTests {
     @Test func itIsLeesRoundTwo() {
         let feel = CardFeel.lees
@@ -90,6 +93,7 @@ struct CardFeelTests {
     }
 }
 
+@Suite(.backstop)
 struct StripFeelTests {
     @Test func itIsThePrototypesDefaultsAsLeeKeptThem() {
         let feel = StripFeel.lees

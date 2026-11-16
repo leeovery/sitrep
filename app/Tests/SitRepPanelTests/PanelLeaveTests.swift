@@ -1,5 +1,6 @@
 import CoreGraphics
 @testable import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// The panel closing as the pointer leaves it, with frames paced as the view paces them (DESIGN, stage 3 step 6: on
@@ -7,6 +8,7 @@ import Testing
 /// move of the pointer starts them again where that frame `wakes` for it. The spike woke them only where the pointer
 /// was near the notch or over the panel as drawn: under reduced motion, rows going from under a still
 /// pointer leave the panel out with nothing moving, and then no move away reached the model.
+@Suite(.backstop)
 struct PanelLeaveTests {
     enum Leave: CaseIterable {
         /// Slowly out past the front, and on across the screen.

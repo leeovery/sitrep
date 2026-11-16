@@ -2,11 +2,13 @@ import AppKit
 @testable import SitRep
 import SitRepMenu
 import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// Nothing at the edge, from the welcome: step 3 at Nothing, and the stage with no edge from step 3 on, made, never
 /// shown.
 @MainActor
+@Suite(.backstop)
 struct WelcomeNothingTests {
     typealias Made = WelcomeWorld.Made
     typealias Clock = WelcomeWorld.Clock

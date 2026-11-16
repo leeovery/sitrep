@@ -9,13 +9,15 @@ import Testing
 
 /// The sounds a new ask can play: macOS's own alert sounds, by name.
 @MainActor
+@Suite(.backstop)
 struct AlertSoundsTests {
-    /// The names the tests use in their place, read from this Mac's macOS.
-    @Test(.tags(.process))
+    /// Read from this Mac's macOS, in order, and holding every name the tests use in their place: a macOS that adds a
+    /// sound passes, one that drops or renames one the tests use fails.
+    @Test(.tags(.thisMac))
     func theyAreMacOSsAlertSoundsByNameInOrder() {
         let names = AlertSounds.live.names
 
-        #expect(names == AlertSounds.macOSNames)
+        #expect(Set(AlertSounds.macOSNames).isSubset(of: names))
         #expect(names == names.sorted())
     }
 
@@ -44,6 +46,7 @@ struct AlertSoundsTests {
 
 /// Settings' "Play a sound for a new ask" and "Sound", in Notifications' Sound, after Banners.
 @MainActor
+@Suite(.backstop)
 struct SoundRowsTests {
     /// What the page played, none of it aloud.
     @MainActor

@@ -2,12 +2,14 @@ import AppKit
 @testable import SitRep
 import SitRepMenu
 import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// The menu's session rows as the status menu sets them: a working row's arc turning while the menu is open with a
 /// working row in it, from its frames drawn once; an away ask's hollow ring; and the line under a row's title kept
 /// showing as its title, its time and its arc are set again. Each image read from its pixels at 2×.
 @MainActor
+@Suite(.backstop)
 struct MenuRowsTests {
     private static let working = Session(
         id: "sr-work01", project: Sample.project, kind: .working, title: Sample.writing.title,

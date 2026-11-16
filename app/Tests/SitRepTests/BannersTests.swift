@@ -7,6 +7,7 @@ import Testing
 /// SitRep's banners through the notices helper, over a relay and a helper app of its own: nothing is posted, launched or
 /// relayed for real.
 @MainActor
+@Suite(.backstop)
 struct BannersTests {
     private static let pid: Int32 = 4012
     /// The first helper, and the one macOS starts for a click after it.
@@ -32,12 +33,12 @@ struct BannersTests {
             waiter = nil
         }
 
-        /// Once `count` messages are sent, or those sent once the next has not come within the time, failing the test.
-        func first(_ count: Int) async -> [ToHelper] {
+        /// Once `count` messages are sent; the next not sent within the time ends the test.
+        func first(_ count: Int, sourceLocation: SourceLocation = #_sourceLocation) async throws -> [ToHelper] {
             while messages.count < count {
-                guard await answer(within: .seconds(10), "a message sent", { waiter = $0 }) != nil else {
-                    break
-                }
+                try await answer(
+                    within: .seconds(10), "for message \(messages.count + 1) to be sent", sourceLocation: sourceLocation
+                ) { waiter = $0 }
             }
 
             return messages
@@ -195,13 +196,13 @@ struct BannersTests {
         #expect(sent.messages == [.ready, .ready, .post(Self.askedNotice)])
     }
 
-    @Test func itReadsMacOSsLeaveThroughTheHelper() async {
+    @Test func itReadsMacOSsLeaveThroughTheHelper() async throws {
         let banners = banners()
 
         banners.heard(Self.fromHelper(Self.ready))
 
         async let leave = banners.leave()
-        _ = await sent.first(3)
+        _ = try await sent.first(3)
         let id = sent.lastId!
 
         banners.heard(Self.fromHelper(.status(.allowed(.alerts), id: "another")))
@@ -217,13 +218,13 @@ struct BannersTests {
         #expect(await banners.leave() == nil)
     }
 
-    @Test func askingIsDoneOnceTheHelperAnswers() async {
+    @Test func askingIsDoneOnceTheHelperAnswers() async throws {
         let banners = banners()
 
         banners.heard(Self.fromHelper(Self.ready))
 
         async let asked: Void = banners.ask()
-        _ = await sent.first(3)
+        _ = try await sent.first(3)
 
         #expect(sent.messages.last == .ask(id: sent.lastId!))
 
@@ -232,13 +233,13 @@ struct BannersTests {
     }
 
     /// What the helper had yet to answer is unknown, and what comes after waits for it, started again.
-    @Test func theHelperEndingAnswersWhatItHadNotAndStartsItAgainForWhatComes() async {
+    @Test func theHelperEndingAnswersWhatItHadNotAndStartsItAgainForWhatComes() async throws {
         let banners = banners()
 
         banners.heard(Self.fromHelper(Self.ready))
 
         async let leave = banners.leave()
-        _ = await sent.first(3)
+        _ = try await sent.first(3)
         banners.helperEnded(Self.ended(Self.first))
 
         #expect(await leave == nil)
@@ -332,13 +333,13 @@ struct BannersTests {
 
     /// macOS started a second helper for a click on the first one's banner, and its ready came before the first one's
     /// end was told: the second is heard, answered and watched, and the first one's end changes nothing of it.
-    @Test func aNewHelpersReadyBeforeTheLastOnesEndIsHeardAndTheLateEndPassedOver() async {
+    @Test func aNewHelpersReadyBeforeTheLastOnesEndIsHeardAndTheLateEndPassedOver() async throws {
         let banners = banners()
 
         banners.heard(Self.fromHelper(Self.ready))
 
         async let leave = banners.leave()
-        _ = await sent.first(3)
+        _ = try await sent.first(3)
         let opened = app.opens
 
         banners.heard(Self.fromHelper(.ready(helper: Self.second)))
@@ -408,7 +409,7 @@ struct BannersTests {
     }
 
     /// An ask the helper that ended was never sent waits for the next, so Settings reads again only once Lee answers.
-    @Test func theHelperEndingLeavesAnAskNotYetSentForTheNext() async {
+    @Test func theHelperEndingLeavesAnAskNotYetSentForTheNext() async throws {
         let banners = banners()
         let asking = Task { await banners.ask() }
 
@@ -423,7 +424,7 @@ struct BannersTests {
         #expect(banners.unanswered == [sent.lastId!])
 
         banners.heard(Self.fromHelper(.status(.allowed(.banners), id: sent.lastId!)))
-        await value(of: asking, within: .seconds(10))
+        try await value(of: asking, within: .seconds(10))
 
         #expect(banners.unanswered.isEmpty)
     }

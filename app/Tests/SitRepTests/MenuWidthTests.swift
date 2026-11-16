@@ -2,11 +2,13 @@ import AppKit
 @testable import SitRep
 import SitRepMenu
 import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// The menu at about Spaceman's width: a real menu, laid out offscreen as the status menu builds it, its header, its
 /// longest rows with their marks, lines and badges, and its commands with keys, measured by AppKit.
 @MainActor
+@Suite(.backstop)
 struct MenuWidthTests {
     private static let long = "Two Coho bug fixes from the code review, one PR each: the totals report reversed, and the import queue's retry limit read before its settings load."
     /// Words as wide as this many points in the face, to within a hair space: as wide as a cut can land.

@@ -1,11 +1,13 @@
 import AppKit
 @testable import SitRep
 import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// A session on its own work, marked as Paper's board D draws it: a still ring of round-capped dashes, on the black
 /// card, read from its pixels at 2×.
 @MainActor
+@Suite(.backstop)
 struct DottedRingTests {
     private static let waiting = Session(
         id: "a", project: "Trey Research", kind: .onItsWork, title: "Waiting on ", subject: "3 agents",

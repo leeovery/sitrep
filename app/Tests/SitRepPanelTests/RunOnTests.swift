@@ -1,9 +1,11 @@
 import CoreGraphics
 @testable import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// The notch's time runs on while nothing shows it, as over a full-screen app: shown again, it is where it would have
 /// got to, at rest, with nothing left to play late.
+@Suite(.backstop)
 struct RunOnTests {
     private static func input(_ time: Double, needsLee: Bool = true) -> Input {
         Input(time: time, pointer: nil, needsLee: needsLee, stage: screen, content: .css)

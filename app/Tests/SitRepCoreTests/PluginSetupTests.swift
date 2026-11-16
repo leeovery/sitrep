@@ -1,8 +1,10 @@
 import Foundation
 import os
 @testable import SitRepCore
+import SitRepTestSupport
 import Testing
 
+@Suite(.backstop)
 struct PluginSetupTests {
     private static let path = "/opt/homebrew/bin:/usr/bin:/bin"
 

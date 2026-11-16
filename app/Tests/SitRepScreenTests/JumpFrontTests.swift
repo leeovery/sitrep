@@ -5,6 +5,7 @@ import Testing
 
 /// The front kept: with another app in front as the jump began, Ghostty brought forward again, once, should another
 /// app take the front back from it within the second after the focus, heard as each app comes to the front.
+@Suite(.backstop)
 struct JumpFrontTests {
     /// A jump to a terminal in its window's selected tab, from Finder unless given, the apps coming to the front as the
     /// focus lands as given.
@@ -77,7 +78,7 @@ struct JumpFrontTests {
         #expect(notHanded.workspace.brought.isEmpty)
     }
 
-    @Test func theFrontNotToldOrBringingForwardFailingOrNotAnsweringNeverFailsTheJump() async {
+    @Test func theFrontNotToldOrBringingForwardFailingOrNotAnsweringNeverFailsTheJump() async throws {
         let (untold, untoldAnswer) = await Self.fromFront(nil, focused: [ghosttyBundle, finder])
 
         #expect(untoldAnswer == .jumped)
@@ -92,7 +93,7 @@ struct JumpFrontTests {
         let hanging = Jumping(tmux, table, workspace: FakeWorkspace(front: finder, forward: nil, focused: [ghosttyBundle, finder]))
         let jumped = Task { await hanging.run([inTmux()]) }
 
-        await until(within: .seconds(10)) { hanging.clock.sleeps.contains(.seconds(2)) }
+        try await until(within: .seconds(10)) { hanging.clock.sleeps.contains(.seconds(2)) }
         hanging.clock.pass(.seconds(2))
         #expect(await jumped.value == .jumped)
         #expect(hanging.workspace.brought == [Self.ghosttyForward])

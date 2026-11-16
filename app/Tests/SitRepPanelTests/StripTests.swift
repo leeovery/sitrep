@@ -1,8 +1,10 @@
 import CoreGraphics
 @testable import SitRepPanel
 import SitRepPanelTestSupport
+import SitRepTestSupport
 import Testing
 
+@Suite(.backstop)
 struct StripTests {
     @Test func itsMarksAreInThePanelsOrderNeedsYouOldestFirstAwayLastYourTurnNewestFirstWorkingLongestFirst() {
         let shuffled = [7, 4, 1, 6, 3, 0, 5, 2].map { StripLab.prototype[$0] }

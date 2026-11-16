@@ -1,7 +1,9 @@
 import Darwin
 @testable import SitRepScreen
+import SitRepTestSupport
 import Testing
 
+@Suite(.backstop)
 struct SeatTests {
     private static let ghostty = TerminalApp.driven(.ghostty)
 

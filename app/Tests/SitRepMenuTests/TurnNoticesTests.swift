@@ -7,6 +7,7 @@ import Testing
 /// for each turn, as it moves in from working or on its own work, never from needing him, from his turn itself or from
 /// off the board, nor for one there as SitRep starts or on any run's first line; a notification saying so, a click on
 /// it carrying the session on, and his turn's own sound, each while its switch is on, and off by default.
+@Suite(.backstop)
 struct TurnNoticesTests {
     private static func turn(ended since: Int = 1_792_445_400_000) -> WatchLine.Row {
         bootstrap(.init("turn:sr-boot", .yourTurn, first: "Write round 4 into the spec", since: since))

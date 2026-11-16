@@ -3,8 +3,10 @@ import Foundation
 import SitRepEdge
 import SitRepLines
 import SitRepPanel
+import SitRepTestSupport
 import Testing
 
+@Suite(.backstop)
 struct PanelBoardTests {
     private static let london = Date.FormatStyle(
         date: .omitted, time: .shortened, locale: Locale(identifier: "en_GB"),

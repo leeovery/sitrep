@@ -1,10 +1,12 @@
 import Foundation
 @testable import SitRepCore
 import SitRepLines
+import SitRepTestSupport
 import Testing
 
 /// What `watch` says of Snooze, from what the real CLI printed (`Lines.snoozed`): the Snoozed rows apart from the
 /// rest; and what a CLI from before Snooze printed, without them.
+@Suite(.backstop)
 struct SnoozedTests {
     private static func line(_ place: Int) throws -> Board {
         try Board.read(Lines.snoozed[place])

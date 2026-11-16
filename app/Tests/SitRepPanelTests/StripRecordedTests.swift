@@ -1,7 +1,9 @@
 import Foundation
+import SitRepTestSupport
 import Testing
 
 /// The recordings' lists hold their values and nothing more: one left over fails the decoding, not passes unread.
+@Suite(.backstop)
 struct StripRecordedTests {
     private static let frame = #"{"t": 16, "p": [18, 213], "hair": [191.5, 1, 1], "ends": [26, 600, 0], "#
         + #""tabs": [{"key": "s5", "phase": "open", "w": 1, "h": 24, "y": 213, "press": 0, "alpha": 1, "#

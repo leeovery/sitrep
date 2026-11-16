@@ -1,9 +1,11 @@
 import CoreGraphics
 @testable import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// What the app asks of either notch beyond its prototype's: coming to need Lee with nothing new, as on `watch`'s
 /// first board, and being carried by a drag.
+@Suite(.backstop)
 struct NotchNeedsTests {
     @Test func meniscusComesToNeedLeeQuietlyAt15By124WithTheLightOnAndNoSwellOrFlash() {
         var lab = Lab()

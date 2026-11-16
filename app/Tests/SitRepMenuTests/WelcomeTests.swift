@@ -10,6 +10,7 @@ import SitRepTestSupport
 import Testing
 
 /// The welcome's steps and its footer at each (DESIGN, "The welcome window").
+@Suite(.backstop)
 struct WelcomeStepsTests {
     /// An ask, from Claude to you, after Hello; What it asks of macOS last but for Ready, once Lee has seen what each
     /// leave is for.
@@ -89,6 +90,7 @@ struct WelcomeStepsTests {
 }
 
 /// Whether a welcome has closed on this Mac, kept apart from what Lee sets.
+@Suite(.backstop)
 struct WelcomeSettingsTests {
     @Test func noWelcomeHasClosedAtFirst() {
         #expect(SavedSettings<WelcomeSettings>(MemoryDefaults()).read().welcomed == false)
@@ -111,6 +113,7 @@ struct WelcomeSettingsTests {
 }
 
 /// The callout beside the real edge: due only as Done closes a welcome, and gone for good at the first hover.
+@Suite(.backstop)
 struct CalloutSettingsTests {
     private static func after(_ moves: (inout CalloutSettings) -> Void) -> CalloutSettings.Standing {
         var callout = CalloutSettings()
@@ -155,6 +158,7 @@ struct CalloutSettingsTests {
 }
 
 /// Step 5's rows, and where each stands as macOS says.
+@Suite(.backstop)
 struct WelcomePermissionTests {
     @Test func eachRowHasItsReasonInOneClauseAndAButtonNamedForWhatItDoes() {
         #expect(WelcomePermission.allCases.map(\.title) == ["Notifications", "Control Ghostty"])
@@ -202,6 +206,7 @@ struct WelcomePermissionTests {
 }
 
 /// What the welcome does to the login item.
+@Suite(.backstop)
 struct WelcomeLoginTests {
     private static let off = LoginItem(.notRegistered)
     private static let on = LoginItem(.enabled)
@@ -283,6 +288,7 @@ struct WelcomeLoginTests {
 }
 
 /// The sounds as the welcome lists them.
+@Suite(.backstop)
 struct WelcomeSoundsTests {
     private static let macOS = [
         "Basso", "Blow", "Bottle", "Frog", "Funk", "Glass", "Hero", "Morse", "Ping", "Pop", "Purr", "Sosumi",
@@ -321,6 +327,7 @@ struct WelcomeSoundsTests {
 }
 
 /// Step 3's form under the pictures.
+@Suite(.backstop)
 struct WelcomeEdgeFormTests {
     @Test func theNotchsFormIsStyleMaterialAndEdge() {
         #expect(WelcomeEdgeForm.rows(EdgeSettings(), hasGlass: true) == [.style, .material, .edge])
@@ -376,6 +383,7 @@ struct WelcomeEdgeFormTests {
 }
 
 /// The last step's playback, in what-happens words.
+@Suite(.backstop)
 struct WelcomePlaybackTests {
     private static func edge(_ change: (inout EdgeSettings) -> Void) -> EdgeSettings {
         var settings = EdgeSettings()
@@ -468,6 +476,7 @@ struct WelcomePlaybackTests {
 }
 
 /// What the last step asks of Claude Code.
+@Suite(.backstop)
 struct WelcomeReloadTests {
     @Test func itAsksForReloadPluginsWhileThePluginRunsOrIsLookedFor() {
         #expect(WelcomeReload(nil) == .command("/reload-plugins"))
@@ -487,6 +496,7 @@ struct WelcomeReloadTests {
 }
 
 /// The stage's made-up board and step 1's loop.
+@Suite(.backstop)
 struct WelcomeStagePlayTests {
     @Test func atRestNothingNeedsLee() {
         let board = WelcomeBoard.calm(at: 0)
@@ -628,6 +638,7 @@ struct WelcomeStagePlayTests {
 }
 
 /// Step 2's loop: the ask lands, the panel pours, the row is clicked, the ask is answered in its session, and it goes.
+@Suite(.backstop)
 struct WelcomeAskLoopTests {
     private static let loop = WelcomeLoop.ask
     private static let times = Array(stride(from: 0, to: loop.length, by: 50))
@@ -722,6 +733,7 @@ struct WelcomeAskLoopTests {
 }
 
 /// The words SitRep makes up where it shows what a place will hold.
+@Suite(.backstop)
 struct SampleTests {
     /// Lee's real work never stands in for a sample, nor SitRep itself: Settings' notification, the welcome's terminal
     /// and its board. Each sample is held to `tests/real-names.txt`'s rule, and, as samples are few and short, to

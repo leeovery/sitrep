@@ -1,12 +1,14 @@
 import AppKit
 @testable import SitRep
 import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// The strip's right-click menus (14 November 2026): on a session's mark, its row's menu on the card, the same, with
 /// Collapse its section at its foot after a separator; on a section folded, Expand it alone; on a count past its
 /// section's room, Collapse it alone.
 @MainActor
+@Suite(.backstop)
 struct StripMenuTests {
     /// Friday 23 October 2026, 14:00 in London.
     private static let now = Date(timeIntervalSince1970: 1_792_760_400)

@@ -4,6 +4,7 @@ import SitRepMenu
 @testable import SitRepCore
 import SitRepEdge
 @testable import SitRepPanel
+import SitRepTestSupport
 import SwiftUI
 import Testing
 
@@ -13,6 +14,7 @@ import Testing
 /// project, never brighter than its title. On the black card and the strip's, and on glass, each read from its pixels
 /// at 2×.
 @MainActor
+@Suite(.backstop)
 struct AwayRowsTests {
     private static func asking(away: Bool, lines: Int = 1) -> Session {
         Session(

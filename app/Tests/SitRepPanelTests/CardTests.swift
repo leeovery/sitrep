@@ -1,7 +1,9 @@
 import CoreGraphics
 @testable import SitRepPanel
+import SitRepTestSupport
 import Testing
 
+@Suite(.backstop)
 struct CardTests {
     @Test func withNothingNeedingLeeTheNotchRestsSevenDeepAndSeventySixLong() {
         let lab = CardLab()

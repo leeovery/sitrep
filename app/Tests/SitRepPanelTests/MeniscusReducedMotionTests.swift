@@ -1,9 +1,11 @@
 import CoreGraphics
 @testable import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// Meniscus under reduced motion, as its prototype has it: no pull toward the pointer, nothing springs, and each
 /// change of shape cross-fades.
+@Suite(.backstop)
 struct MeniscusReducedMotionTests {
     @Test func thePointerNearingTheNotchDrawsNoTongueAndOpensNothing() {
         var lab = Lab(pointer: CGPoint(x: 200, y: 491), reducesMotion: true)

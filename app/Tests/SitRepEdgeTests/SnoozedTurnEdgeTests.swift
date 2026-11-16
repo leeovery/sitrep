@@ -11,6 +11,7 @@ import Testing
 /// Snoozed, counted there and gone from Needs you and its count, saying when it wakes or that it waits until it moves;
 /// back in Needs you woken; and held apart from its session's asks asleep, two rows, while the panel is out.
 @MainActor
+@Suite(.backstop)
 struct SnoozedTurnEdgeTests {
     /// When the real `watch` printed its first line here: 19:19 in London on Wednesday 4 November 2026.
     private static let now = 1_793_819_990_622.0

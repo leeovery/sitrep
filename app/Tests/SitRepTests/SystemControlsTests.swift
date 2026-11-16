@@ -1,10 +1,12 @@
 import AppKit
 @testable import SitRep
+import SitRepTestSupport
 import SwiftUI
 import Testing
 
 /// The system's own controls, as SitRep hosts them.
 @MainActor
+@Suite(.backstop)
 struct SystemControlsTests {
     private static func hosted<Control: NSView>(_ view: some View, _ kind: Control.Type) throws -> Control {
         let hosting = NSHostingView(rootView: view)

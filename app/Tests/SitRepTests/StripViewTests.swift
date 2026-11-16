@@ -3,12 +3,14 @@ import AppKit
 import SitRepEdge
 import SitRepPanel
 import SitRepPanelTestSupport
+import SitRepTestSupport
 import Testing
 
 /// The black strip draws top-down, as the stage is, in an edge's window never shown, on either edge: its black and
 /// its marks land in the window where the model puts them, hung from the menu bar the window starts under, not
 /// mirrored about the window's middle.
 @MainActor
+@Suite(.backstop)
 struct StripViewTests {
     private static let edge = ScreenEdge(
         frame: CGRect(x: 0, y: 0, width: 1512, height: 982), visible: CGRect(x: 0, y: 0, width: 1512, height: 958)

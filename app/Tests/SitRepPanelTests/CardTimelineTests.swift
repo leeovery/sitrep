@@ -1,9 +1,11 @@
 import CoreGraphics
 @testable import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// The card's open and close against the prototype's, recorded at Lee's settings a frame at a time: the same frames
 /// played into the model give the same card.
+@Suite(.backstop)
 struct CardTimelineTests {
     @Test func theOpenFollowsThePrototypesFrameForFrame() {
         var lab = CardLab.recorded()

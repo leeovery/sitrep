@@ -9,6 +9,7 @@ import Testing
 /// The callout a welcome's Done leaves beside the real edge, as `Edge` wires it to the notch and the strip, over shapes
 /// of the test's own: no window shows, and the pointer is the test's.
 @MainActor
+@Suite(.backstop)
 struct EdgeCalloutTests {
     /// The notch or the strip, as the edge has it: shown or not, where it rests, and its frames' hook.
     @MainActor

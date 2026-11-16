@@ -1,9 +1,11 @@
 @testable import SitRep
 import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// The glass notch reads as the black's does: tinted dark with a rim at the notch and as it reaches for the pointer,
 /// easing off as the panel pours to the plain glass Lee liked with the panel out.
+@Suite(.backstop)
 struct NotchGlassMarkTests {
     private static let stage = Stage(height: 982, visibleTop: 24, visibleBottom: 982, notchY: 491)
 

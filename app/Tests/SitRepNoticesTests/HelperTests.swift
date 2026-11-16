@@ -6,6 +6,7 @@ import Testing
 /// The helper between SitRep and macOS's notifications, over a SitRep and a macOS of its own: nothing is posted,
 /// launched or relayed for real.
 @MainActor
+@Suite(.backstop)
 struct HelperTests {
     private static let sitRep: Int32 = 4012
     private static let ownPid: Int32 = 5150
@@ -95,12 +96,12 @@ struct HelperTests {
             waiter = nil
         }
 
-        /// Once `count` messages are sent, or those sent once the next has not come within the time, failing the test.
-        func first(_ count: Int) async -> [ToSitRep] {
+        /// Once `count` messages are sent; the next not sent within the time ends the test.
+        func first(_ count: Int, sourceLocation: SourceLocation = #_sourceLocation) async throws -> [ToSitRep] {
             while messages.count < count {
-                guard await answer(within: .seconds(10), "a message sent", { waiter = $0 }) != nil else {
-                    break
-                }
+                try await answer(
+                    within: .seconds(10), "for message \(messages.count + 1) to be sent", sourceLocation: sourceLocation
+                ) { waiter = $0 }
             }
 
             return messages
@@ -286,23 +287,23 @@ struct HelperTests {
         #expect(await mac.posts(2) == [first, second])
     }
 
-    @Test func itAnswersAStatusWithMacOSsLeaveUnderItsId() async {
+    @Test func itAnswersAStatusWithMacOSsLeaveUnderItsId() async throws {
         let helper = helper(SitRep(isRunning: true))
 
         await helper.start()
         helper.heard(Self.fromSitRep(.status(id: "a")))
 
-        #expect(await sent.first(2).last == .status(.allowed(.banners), id: "a"))
+        #expect(try await sent.first(2).last == .status(.allowed(.banners), id: "a"))
         #expect(mac.asks == 0)
     }
 
-    @Test func itAsksMacOSThenAnswersWithTheLeaveUnderItsId() async {
+    @Test func itAsksMacOSThenAnswersWithTheLeaveUnderItsId() async throws {
         let helper = helper(SitRep(isRunning: true))
 
         await helper.start()
         helper.heard(Self.fromSitRep(.ask(id: "b")))
 
-        #expect(await sent.first(2).last == .status(.denied, id: "b"))
+        #expect(try await sent.first(2).last == .status(.denied, id: "b"))
         #expect(mac.asks == 1)
     }
 }

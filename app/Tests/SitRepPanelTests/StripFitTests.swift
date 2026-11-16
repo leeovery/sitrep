@@ -1,9 +1,11 @@
 import CoreGraphics
 @testable import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// The strip's two ends, the board's S under the menu bar and mirrored over the screen's bottom, which never change,
 /// and a tab fitting into them (Lee's Fit, at Room 12).
+@Suite(.backstop)
 struct StripFitTests {
     @Test func theFirstMarkIsRoomLowerThanTheBoardHasIt() {
         var roomless = StripFeel.lees

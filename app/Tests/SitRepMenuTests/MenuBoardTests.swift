@@ -4,6 +4,7 @@ import SitRepPanel
 import SitRepTestSupport
 import Testing
 
+@Suite(.backstop)
 struct MenuBoardTests {
     private static func menu(_ last: LastBoard) -> MenuBoard {
         MenuBoard(last, clock: london)

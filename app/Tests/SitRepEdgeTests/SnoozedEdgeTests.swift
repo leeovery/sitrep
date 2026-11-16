@@ -13,6 +13,7 @@ import Testing
 /// first; and an ask woken at its time arriving as a new one does, the notch swelling, the strip flashing and Needs you
 /// unfolding, while one Lee wakes does not.
 @MainActor
+@Suite(.backstop)
 struct SnoozedEdgeTests {
     /// `watch`'s lines up to this one, heard in order.
     private static func board(upTo place: Int) -> PanelBoard {

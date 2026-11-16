@@ -12,6 +12,7 @@ import Testing
 /// their rows and the system's own controls, hosted offscreen in a window never shown, their frames measured. A pane's
 /// width is the window's right of the sidebar.
 @MainActor
+@Suite(.backstop)
 struct SettingsLayoutTests {
     /// The column's left, 20 in from the sidebar.
     private static let edge = CGFloat(20)

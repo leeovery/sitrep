@@ -12,6 +12,7 @@ import Testing
 /// its colour as it goes out; and the notch's pulse comes for a new ask and for a session moving into his turn, each
 /// as he set it, never for a turn there as SitRep starts, and once for each turn.
 @MainActor
+@Suite(.backstop)
 struct NeedsYouTests {
     private static func ask(_ id: String = "sr-a") -> WatchLine.Row {
         WatchLine.Row(

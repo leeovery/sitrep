@@ -1,10 +1,12 @@
 import CoreGraphics
 @testable import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// The strip over the board as `watch` prints it: its marks are core's rows in core's order, and it decides only how a
 /// change moves; a click names the session it jumps to and spins until the jump answers; a drag says where it left the
 /// strip.
+@Suite(.backstop)
 struct StripBoardTests {
     private static let minute = 60_000.0
 

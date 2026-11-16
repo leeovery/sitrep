@@ -1,11 +1,13 @@
 import CoreGraphics
 import Foundation
 @testable import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// The card's sections, as board J lays them out: Needs you, its asks then its turns (13 November 2026), Working and
 /// Snoozed, each under its eyebrow with its count, an empty one left out, a folded one its eyebrow alone, every row on
 /// one line and every your-turn row shown, and nothing but the room over each eyebrow between them: no hairline.
+@Suite(.backstop)
 struct SectionsTests {
     private static func session(
         _ id: String, _ kind: Session.Kind, project: String = "Trey Research", lines: Int = 1, since: Double = 0,

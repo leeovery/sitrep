@@ -8,7 +8,7 @@ import Testing
 /// such a Ghostty gives hand-built events, which osascript gave as -2753 and -2741: each must read as too old. Run with
 /// `SITREP_LIVE_EVENTS=1`, and only with Lee's go: it opens Calculator and TextEdit without bringing them forward, and
 /// macOS asks once whether the terminal running the tests may control each.
-@Suite(.enabled(if: ProcessInfo.processInfo.environment["SITREP_LIVE_EVENTS"] == "1"), .serialized, .tags(.process))
+@Suite(.backstop, .enabled(if: ProcessInfo.processInfo.environment["SITREP_LIVE_EVENTS"] == "1"), .serialized, .tags(.thisMac))
 struct LiveEventsTests {
     @Test(arguments: [
         ("com.apple.calculator", "Gtrm", "no dictionary at all, as before Ghostty could be scripted"),

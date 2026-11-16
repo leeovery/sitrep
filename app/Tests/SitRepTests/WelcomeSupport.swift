@@ -255,9 +255,9 @@ enum WelcomeWorld {
         }
 
         /// The window come forward, as AppKit tells its delegate, and what it read then read.
-        func key() async {
+        func key() async throws {
             window.windowDidBecomeKey(Notification(name: NSWindow.didBecomeKeyNotification, object: recorded))
-            await ended(welcome.reading, within: .seconds(10))
+            try await ended(welcome.reading, within: .seconds(10))
         }
 
         /// The welcome at this step, from its first; one it never comes to fails the test, rather than go on for ever.

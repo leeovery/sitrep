@@ -5,6 +5,7 @@ import Testing
 
 /// The notices helper as an app, over a macOS of its own: nothing is started or watched for real.
 @MainActor
+@Suite(.backstop)
 struct HelperAppTests {
     private struct Refused: Error {}
 

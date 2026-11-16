@@ -1,11 +1,13 @@
 import AppKit
 @testable import SitRep
+import SitRepTestSupport
 import Testing
 
 /// A window of SitRep's own goes to the Space Lee is on from when SitRep brings it forward until Lee next changes Space.
 /// Never shown, nor SitRep activated: each step `comeForward()` takes is recorded with whether the window moves to the
 /// active Space then.
 @MainActor
+@Suite(.backstop)
 struct ForwardWindowTests {
     /// What macOS posts as Lee changes Space, posted to the window's own centre alone.
     private static func changeSpace(of window: ForwardWindow) {

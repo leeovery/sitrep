@@ -8,7 +8,7 @@ import Testing
 /// knows, so it has none of its own. An app freed while observed crashed SitRep and the helper as they started (26
 /// October 2026); here it crashes the test run. Only `isTerminated` is read: nothing is asked of the Dock.
 @MainActor
-@Suite(.tags(.process))
+@Suite(.backstop, .tags(.thisMac))
 struct EndWatchTests {
     /// A fresh instance of the Dock's app, which nothing else holds.
     private static func ownApp() throws -> NSRunningApplication {

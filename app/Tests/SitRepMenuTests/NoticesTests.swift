@@ -1,7 +1,9 @@
 @testable import SitRepCore
 import SitRepMenu
+import SitRepTestSupport
 import Testing
 
+@Suite(.backstop)
 struct NoticesTests {
     private static let newAsk = Watched.line(new: ["ask:sr-l5c9tz:k1"])
     /// A board after the run's first, with the ask new on it.

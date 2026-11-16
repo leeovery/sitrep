@@ -1,9 +1,11 @@
 import CoreGraphics
 @testable import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// Length, Grows, and what comes with it: the strip as long as its marks need, centred where the notch sits, its
 /// places allotted, needs you folding into its own count past its room, and with nothing running the notch at rest.
+@Suite(.backstop)
 struct StripGrowsTests {
     /// The prototype's `allot`, on the recording's screen, which holds 16 places at Full: Max, asks, others, and the
     /// asks shown, folded into needs you's orange count, the others shown and folded into the grey one.

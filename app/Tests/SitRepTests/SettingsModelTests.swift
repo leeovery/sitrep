@@ -8,6 +8,7 @@ import SitRepTestSupport
 import SwiftUI
 import Testing
 
+@Suite(.backstop)
 struct DesktopCornerTests {
     private static let evening = Date(timeIntervalSince1970: 1_792_524_000)
     private static let london = TimeZone(identifier: "Europe/London")!
@@ -25,6 +26,7 @@ struct DesktopCornerTests {
 
 /// Settings as the window keeps it between visits, over a Mac of its own.
 @MainActor
+@Suite(.backstop)
 struct SettingsModelTests {
     /// What the Mac was asked, and the prompt held up until `answer` lets it go.
     @MainActor

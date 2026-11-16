@@ -1,74 +1,85 @@
 import os
 import Testing
 
-/// What a wait is given, or nil once the time is up, slept out on the caller's actor as `until(within:)` sleeps it, which
-/// fails the test at the caller rather than let it wait on what never comes. `start` is handed the call that gives the
-/// answer, to keep where the answer comes from, a double's continuation say; only the first answer counts.
+/// What a wait is given; one not given before the time is up, slept out on the caller's actor as `until(within:)`
+/// sleeps it, ends the test at the caller rather than let it wait on what never comes. `start` is handed the call that
+/// gives the answer, to keep where the answer comes from, a double's continuation say; only the first answer counts.
 public func answer<Value: Sendable>(
     within limit: Duration, _ comment: Comment? = nil, isolation: isolated (any Actor)? = #isolation,
     sourceLocation: SourceLocation = #_sourceLocation, _ start: (@escaping @Sendable (Value) -> Void) -> Void
-) async -> Value? {
+) async throws -> Value {
+    let raced = await race(limit, start)
+    let answered = raced.value
+
+    return try #require(answered, raced.slept.ranOut("for an answer", comment), sourceLocation: sourceLocation)
+}
+
+/// The task's value, as `answer(within:)` waits on it; a task not ended in time is cancelled and let go, never waited on.
+@discardableResult
+public func value<Value: Sendable>(
+    of task: Task<Value, Never>, within limit: Duration, _ comment: Comment? = nil,
+    isolation: isolated (any Actor)? = #isolation, sourceLocation: SourceLocation = #_sourceLocation
+) async throws -> Value {
+    let raced = await race(limit) { give in
+        Task { give(await task.value) }
+    }
+    let ended = raced.value
+
+    if ended == nil {
+        task.cancel()
+    }
+    return try #require(ended, raced.slept.ranOut("for the task to end", comment), sourceLocation: sourceLocation)
+}
+
+/// How a task that may throw ended, as `value(of:within:)` waits on it.
+@discardableResult
+public func result<Value: Sendable>(
+    of task: Task<Value, any Error>, within limit: Duration, _ comment: Comment? = nil,
+    isolation: isolated (any Actor)? = #isolation, sourceLocation: SourceLocation = #_sourceLocation
+) async throws -> Result<Value, any Error> {
+    let raced = await race(limit) { give in
+        Task { give(await task.result) }
+    }
+    let ended = raced.value
+
+    if ended == nil {
+        task.cancel()
+    }
+    return try #require(ended, raced.slept.ranOut("for the task to end", comment), sourceLocation: sourceLocation)
+}
+
+/// Once the task, where there is one, has ended, as `value(of:within:)` waits on it.
+public func ended(
+    _ task: Task<Void, Never>?, within limit: Duration, _ comment: Comment? = nil,
+    isolation: isolated (any Actor)? = #isolation, sourceLocation: SourceLocation = #_sourceLocation
+) async throws {
+    if let task {
+        try await value(of: task, within: limit, comment, sourceLocation: sourceLocation)
+    }
+}
+
+/// The first answer `start` gives, or nil where the time, slept out on the caller's actor a tick at a time, ran out
+/// first; and how long the wait took.
+func race<Value: Sendable>(
+    _ limit: Duration, tick: Duration = .milliseconds(5), isolation: isolated (any Actor)? = #isolation,
+    _ start: (@escaping @Sendable (Value) -> Void) -> Void
+) async -> (value: Value?, slept: Slept) {
     let first = FirstAnswer<Value>()
 
     start { first.give(.given($0)) }
 
     let timer = Task {
-        _ = await sleepOut(limit, isolation: isolation) { first.isAnswered }
-        first.give(.ranOut)
+        let slept = await sleepOut(limit, tick: tick, isolation: isolation) { first.isAnswered }
+
+        first.give(.ranOut(slept))
     }
 
     defer { timer.cancel() }
-    guard case let .given(value) = await first.value() else {
-        let why = comment.map { ": \($0.rawValue)" } ?? "."
-
-        Issue.record("The wait ran out of time\(why)", sourceLocation: sourceLocation)
-        return nil
-    }
-
-    return value
-}
-
-/// The task's value, or nil once the time is up, which fails the test at the caller; the task, cancelled then, is let
-/// go, never waited on.
-@discardableResult
-public func value<Value: Sendable>(
-    of task: Task<Value, Never>, within limit: Duration, _ comment: Comment? = nil,
-    isolation: isolated (any Actor)? = #isolation, sourceLocation: SourceLocation = #_sourceLocation
-) async -> Value? {
-    let value = await answer(within: limit, comment, sourceLocation: sourceLocation) { give in
-        Task { give(await task.value) }
-    }
-
-    if value == nil {
-        task.cancel()
-    }
-    return value
-}
-
-/// How a task that may throw ended, or nil once the time is up, as `value(of:within:)`.
-@discardableResult
-public func result<Value: Sendable>(
-    of task: Task<Value, any Error>, within limit: Duration, _ comment: Comment? = nil,
-    isolation: isolated (any Actor)? = #isolation, sourceLocation: SourceLocation = #_sourceLocation
-) async -> Result<Value, any Error>? {
-    let result = await answer(within: limit, comment, sourceLocation: sourceLocation) { give in
-        Task { give(await task.result) }
-    }
-
-    if result == nil {
-        task.cancel()
-    }
-    return result
-}
-
-/// Once the task, where there is one, has ended, or once the time is up, failing the test at the caller, as
-/// `value(of:within:)`.
-public func ended(
-    _ task: Task<Void, Never>?, within limit: Duration, _ comment: Comment? = nil,
-    isolation: isolated (any Actor)? = #isolation, sourceLocation: SourceLocation = #_sourceLocation
-) async {
-    if let task {
-        await value(of: task, within: limit, comment, sourceLocation: sourceLocation)
+    switch await first.value() {
+    case let .given(value):
+        return (value, Slept(limit: limit, isDone: true, took: .zero))
+    case let .ranOut(slept):
+        return (nil, slept)
     }
 }
 
@@ -76,7 +87,7 @@ public func ended(
 private final class FirstAnswer<Value: Sendable>: Sendable {
     enum Answer: Sendable {
         case given(Value)
-        case ranOut
+        case ranOut(Slept)
     }
 
     private enum State {

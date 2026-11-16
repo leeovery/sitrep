@@ -4,6 +4,7 @@ import os
 import SitRepTestSupport
 import Testing
 
+@Suite(.backstop)
 struct LoginPathTests {
     private static let path = "/Users/me/.bun/bin:/opt/homebrew/bin:/usr/bin:/bin"
     private static let home = "/Users/me"
@@ -36,7 +37,7 @@ struct LoginPathTests {
         #expect(LoginPath.parse(output) == nil)
     }
 
-    @Test(.tags(.process))
+    @Test(.tags(.thisMac))
     func theShellIsAskedAsALoginAndInteractiveShellWithItsOutputMarked() async throws {
         let program = LoginPath.program(shell: "/bin/zsh", environment: ["HOME": "/Users/me"])
 
@@ -90,6 +91,7 @@ struct LoginPathTests {
     }
 }
 
+@Suite(.backstop)
 struct ShellPathTests {
     /// A shell answering in turn as given, counting how often it is asked.
     private final class Shell: Sendable {

@@ -1,8 +1,10 @@
 @testable import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// The pointer's trail, as the prototype's `trackPointer` and `trailVelocity` keep it: samples in the pointer's own
 /// time, one within 1ms of the last moving it, and its speed from them alone, whenever a frame asks.
+@Suite(.backstop)
 struct TrailTests {
     @Test func aReadingWithin1msOfTheLastMovesItAndAddsNone() {
         var trail = Trail()

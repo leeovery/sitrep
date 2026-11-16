@@ -6,6 +6,7 @@ import Testing
 
 /// SitRep's jump, each rule of the CLI's (tests/jump.test.ts, retired with it) pinned again: where it looks, what it
 /// asks Ghostty, and the words it refuses in.
+@Suite(.backstop)
 struct JumpTests {
     @Test func aJumpFocusesTheGhosttyWindowOnTheSessionsTmuxSession() async {
         let (tmux, table) = shown()
@@ -217,29 +218,31 @@ struct JumpTests {
         #expect(jumping.ghostty.asked.count == 3)
     }
 
-    @Test func ghosttyIsAskedOnlyOnceTheScreenIsReadNothingGoesToGhosttyWhileTmuxIsStillAnswering() async {
+    @Test func ghosttyIsAskedOnlyOnceTheScreenIsReadNothingGoesToGhosttyWhileTmuxIsStillAnswering() async throws {
         let (tmux, table) = shown()
         let gate = Gate()
         let jumping = Jumping(tmux, table, tmuxHeld: gate)
         let jumped = Task { await jumping.run([inTmux()]) }
 
-        await until(within: .seconds(10)) { gate.arrived == 2 && table.looks == 1 && jumping.workspace.fronts == 1 }
+        try await until(
+            within: .seconds(10), "for tmux's two asks, the screen's read, and the front's read before tmux answers"
+        ) { gate.arrived == 2 && table.looks == 1 && jumping.workspace.fronts == 1 }
         #expect(jumping.ghostty.asked.isEmpty)
-        #expect(jumping.workspace.fronts == 1, "the front is read as the jump begins, before tmux answers")
 
         gate.open()
         #expect(await jumped.value == .jumped)
         #expect(jumping.ghostty.asked == [JumpWorld.window])
     }
 
-    @Test func theFocusWaitsForTheReadOfWhichAppIsInFrontHoweverSlowSoTheJumpNeverReadsItsOwnFocus() async {
+    @Test func theFocusWaitsForTheReadOfWhichAppIsInFrontHoweverSlowSoTheJumpNeverReadsItsOwnFocus() async throws {
         let (tmux, table) = shown()
         let gate = Gate()
         let jumping = Jumping(tmux, table, workspace: FakeWorkspace(front: finder, frontHeld: gate))
         let jumped = Task { await jumping.run([inTmux()]) }
 
-        await until(within: .seconds(10)) { gate.arrived == 1 && tmux.runs.count == 2 && table.looks == 1 }
-        #expect(tmux.runs.count == 2)
+        try await until(within: .seconds(10), "for tmux's two runs and the screen's read, the front's read held") {
+            gate.arrived == 1 && tmux.runs.count == 2 && table.looks == 1
+        }
         #expect(jumping.ghostty.asked.isEmpty, "nothing asked or focused yet")
 
         gate.open()

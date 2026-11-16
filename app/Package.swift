@@ -26,9 +26,9 @@ let package = Package(
         .executableTarget(name: "SitRepNotices", dependencies: ["SitRepRelay"]),
         /// What the real CLI printed over a board seeded in a scratch folder, for the tests to read.
         .target(name: "SitRepLines", path: "Tests/SitRepLines", resources: [.copy("Printed")]),
-        /// What the tests share, of no target of the app's: defaults held in memory, a clock the test moves, the waits
-        /// on a condition, the lines of `sitrep watch`, typed, the names no test may use, and the tag of the tests that
-        /// run real programs.
+        /// What the tests share, of no target of the app's: defaults held in memory, a clock the test moves, the bounded
+        /// waits, the backstop every suite carries, the lines of `sitrep watch`, typed, the names no test may use, and
+        /// the tag of the tests that lean on this Mac.
         .target(name: "SitRepTestSupport", path: "Tests/SitRepTestSupport"),
         /// What the tests that measure the strip share: its measure of one width.
         .target(name: "SitRepPanelTestSupport", dependencies: ["SitRepPanel"], path: "Tests/SitRepPanelTestSupport"),
@@ -38,7 +38,7 @@ let package = Package(
             resources: [.copy("Claude")]
         ),
         .testTarget(
-            name: "SitRepPanelTests", dependencies: ["SitRepPanel", "SitRepPanelTestSupport"],
+            name: "SitRepPanelTests", dependencies: ["SitRepPanel", "SitRepPanelTestSupport", "SitRepTestSupport"],
             resources: [.copy("Recorded")]
         ),
         .testTarget(

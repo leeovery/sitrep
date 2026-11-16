@@ -4,10 +4,12 @@ import SitRepEdge
 import SitRepLines
 import SitRepPanel
 import SitRepPanelTestSupport
+import SitRepTestSupport
 import Testing
 
 /// The strip over the boards `watch` prints, as `PanelBoard` says them: a mark flashes for what a line's `new` says,
 /// and never again for a board gone stale.
+@Suite(.backstop)
 struct StripFeedTests {
     private static let stage = StripStage(width: 1512, height: 982, menu: 37)
     private static var measure: StripMeasure { .uniform(200) }

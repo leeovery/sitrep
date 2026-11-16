@@ -1,10 +1,12 @@
 import CoreGraphics
 @testable import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// The other edge's ghost during a drag, as the prototypes draw it: the notch at rest in the panel's black at 0.3,
 /// in over 140ms past the screen's middle, out over 140 back; let go, out over 420 as the notch lands there, or over
 /// 200 on its own side.
+@Suite(.backstop)
 struct DragGhostTests {
     /// The ghost after this many ms, a frame at a time.
     private static func stepped(_ ghost: DragGhost, _ ms: Double) -> DragGhost {

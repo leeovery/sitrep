@@ -5,6 +5,7 @@ import SitRepCore
 import SitRepTestSupport
 import Testing
 
+@Suite(.backstop)
 struct KernelProcessesTests {
     private static func numbers(_ major: Int32, _ minor: Int32) -> dev_t {
         major << 24 | minor
@@ -54,7 +55,7 @@ struct KernelProcessesTests {
         #expect(parseProcArgs([1, 0]) == nil)
     }
 
-    @Test(.tags(.process))
+    @Test(.tags(.thisMac))
     func theKernelGivesThisProcessItsParentItsProgramExactlyAndItsCommandLineWhereWanted() throws {
         let program = try #require(Bundle.main.executableURL?.resolvingSymlinksInPath().path)
         let processes = try #require(KernelProcesses().read { $0.program == program })
@@ -78,7 +79,7 @@ struct KernelProcessesTests {
         }
     }
 
-    @Test(.tags(.process))
+    @Test(.tags(.thisMac))
     func aProcessWhoseProgramWasRemovedAsItRanIsTheProgramItWasStartedBy() async throws {
         let folder = FileManager.default.temporaryDirectory.appending(path: "sitrep-screen-\(UUID().uuidString)")
         let copy = folder.appending(path: "bash")

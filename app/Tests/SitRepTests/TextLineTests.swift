@@ -1,11 +1,13 @@
 import AppKit
 @testable import SitRep
+import SitRepTestSupport
 import Testing
 
 /// A line of the card's words cut short with an ellipsis fits its box: Core Text's own cut runs past the width it is
 /// given by up to the ellipsis at many widths, so a name cut short before its count or its project would run into
 /// them.
 @MainActor
+@Suite(.backstop)
 struct TextLineTests {
     private static let long = TextLine.text(
         String(repeating: "Finish the Tailspin migration ", count: 3), EdgeStyle.lineMedium, EdgeStyle.ink,

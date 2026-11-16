@@ -9,6 +9,7 @@ import Testing
 /// Frames run on the clock the test moves, never awaiting between them, so no frame on the display's clock comes
 /// between them.
 @MainActor
+@Suite(.backstop)
 struct WelcomeAskTests {
     typealias Made = WelcomeWorld.Made
 

@@ -2,9 +2,11 @@ import CoreGraphics
 @testable import SitRepCore
 import SitRepEdge
 import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// The notch swells for what a line's `new` says, and never for a first line, which `watch` leaves empty.
+@Suite(.backstop)
 struct TellTests {
     private static func board(_ lines: String...) -> PanelBoard {
         var last = LastBoard()

@@ -4,6 +4,7 @@ import SitRepPanel
 import SitRepTestSupport
 import Testing
 
+@Suite(.backstop)
 struct SavedEdgeSettingsTests {
     @Test func nothingSavedIsTheDefaults() {
         let defaults = MemoryDefaults()
@@ -54,6 +55,7 @@ struct SavedEdgeSettingsTests {
 }
 
 /// The card's folded sections, kept across launches under a key of their own.
+@Suite(.backstop)
 struct CardSettingsTests {
     @Test func onlySnoozedFoldedUntilLeeFoldsIt() {
         let defaults = MemoryDefaults()

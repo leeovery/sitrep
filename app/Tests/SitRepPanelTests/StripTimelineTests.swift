@@ -1,9 +1,11 @@
 import CoreGraphics
 @testable import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// The strip against its prototype, recorded at Lee's settings a frame at a time: the same frames, with the pointer
 /// where the prototype had it and the same calls between them, played into the model give the same strip.
+@Suite(.backstop)
 struct StripTimelineTests {
     typealias Act = (at: Double, act: (inout StripLab) -> Void)
 

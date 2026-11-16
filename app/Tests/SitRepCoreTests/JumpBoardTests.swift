@@ -7,6 +7,7 @@ import Testing
 /// The board a jump goes from: the last line of a watch running and printed, waited for while the watch starts, starts
 /// again or is stale; at once why none will come with no plugin to run it.
 @MainActor
+@Suite(.backstop)
 struct JumpBoardTests {
     /// A look of a watch run that printed the line given.
     private static func heard(_ line: String) -> LastBoard {

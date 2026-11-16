@@ -2,11 +2,13 @@ import QuartzCore
 @testable import SitRep
 import SitRepEdge
 @testable import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// A count's rows in its tab, under the pointer: the row there lifts and comes down as the pointer leaves it, and the
 /// one a click jumps from presses in.
 @MainActor
+@Suite(.backstop)
 struct StripWordsLayerTests {
     private static let box = CGRect(x: 0, y: 0, width: 220, height: 100)
 

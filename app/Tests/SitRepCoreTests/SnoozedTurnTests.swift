@@ -1,11 +1,13 @@
 import Foundation
 @testable import SitRepCore
 import SitRepLines
+import SitRepTestSupport
 import Testing
 
 /// What `watch` says of a turn snoozed, from what the real CLI printed (`Lines.snoozedTurn`): a row of its own in
 /// Snoozed, its line the turn's, keyed as on Your turn, with when it wakes, none until it moves, the soonest first; out
 /// of Your turn while it sleeps, and back there woken, or once its session takes another turn.
+@Suite(.backstop)
 struct SnoozedTurnTests {
     private static func line(_ place: Int) throws -> Board {
         try Board.read(Lines.snoozedTurn[place])

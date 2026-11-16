@@ -11,7 +11,7 @@ private let live = ProcessInfo.processInfo.environment["SITREP_LIVE_CLAUDE"].map
 
 /// SitRep's setup run on the real `claude` and the real file system, as the app starts. Only when
 /// `SITREP_LIVE_CLAUDE` names a folder for it.
-@Suite(.enabled(if: live != nil), .serialized, .tags(.process))
+@Suite(.backstop, .enabled(if: live != nil), .serialized, .tags(.thisMac))
 struct LivePluginSetupTests {
     /// One run's world: its config, its Application Support, the plugin carried, and the `claude` runs it made.
     private final class World: Sendable {

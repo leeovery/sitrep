@@ -1,6 +1,8 @@
 @testable import SitRepCore
+import SitRepTestSupport
 import Testing
 
+@Suite(.backstop)
 struct PluginPlanTests {
     private static let home = "/Users/me"
     private static let own = "/Users/me/Library/Application Support/sitrep"

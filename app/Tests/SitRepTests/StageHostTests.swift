@@ -2,12 +2,14 @@ import AppKit
 @testable import SitRep
 import SitRepEdge
 import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// The edge's other windows host their layers top-down, as the stage is, in windows that never show, the ghost's never
 /// ordered in and the caption's clear: the drag's ghost lands on the other edge where the stage puts it, not mirrored
 /// about the window's middle; and the jump's caption drifts up its window as it lifts.
 @MainActor
+@Suite(.backstop)
 struct StageHostTests {
     private static let display = Display(
         id: "A", frame: CGRect(x: 0, y: 0, width: 1512, height: 982),

@@ -8,6 +8,7 @@ import Testing
 /// Edge's Show row, set as System Settings sets Appearance's on macOS 26: on the real pane, as the window lays it
 /// out (`Hosted`), and its tiles' edges, each in a window of its own.
 @MainActor
+@Suite(.backstop)
 struct ShowRowTests {
     /// The Show row's card's top, the pane's first, 13 under the toolbar, at any width.
     private static let top: CGFloat = 13
@@ -72,7 +73,7 @@ struct ShowRowTests {
 
     /// A choice changes the tiles at once, as Appearance's do: drawn as soon as Show is the strip, the ring is whole
     /// round the strip's picture and gone from the notch's.
-    @Test(.tags(.process))
+    @Test(.tags(.thisMac))
     func aChoiceChangesTheTilesAtOnce() async throws {
         let settings = await Hosted.settings()
         let hosted = Hosted(Hosted.content(.edge, settings, over: Self.raiseGround), size: CGSize(width: 744, height: 620))
@@ -115,7 +116,7 @@ struct ShowRowTests {
     }
 
     /// The ring is drawn in the accent, the system's, as Appearance's is.
-    @Test(.tags(.process))
+    @Test(.tags(.thisMac))
     func theRingIsTheAccent() async throws {
         let drawn = try await Self.page(744)
         let ring = try #require(drawn.colour(at: CGPoint(x: Self.lefts(744)[0] - 2, y: Self.top + 35)))

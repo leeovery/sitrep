@@ -1,9 +1,11 @@
 import CoreGraphics
 @testable import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// Lee's screens in the window list's coordinates, the Studio Display the main one and the built-in to its right, and
 /// the windows as the list gave them while Paper went full screen on the Studio Display and out again.
+@Suite(.backstop)
 struct FullScreenTests {
     static let studio = CGRect(x: 0, y: 0, width: 2560, height: 1440)
     static let builtIn = CGRect(x: 2560, y: 904, width: 1728, height: 1117)

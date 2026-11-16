@@ -2,11 +2,13 @@ import CoreGraphics
 @testable import SitRep
 import SitRepEdge
 import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// The black panel's rows under the pointer: the row there lifts, and comes down as the pointer leaves it, whatever
 /// the board did to the rows meanwhile.
 @MainActor
+@Suite(.backstop)
 struct PanelContentTests {
     private static let stage = Stage(height: 982, visibleTop: 24, visibleBottom: 982, notchY: 491)
 

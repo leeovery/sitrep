@@ -2,6 +2,7 @@ import AppKit
 @testable import SitRep
 @testable import SitRepCore
 import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// A row's right-click menu on the card (Paper's boards F, G and I): Jump to the window, away too; then Snooze, its
@@ -9,6 +10,7 @@ import Testing
 /// neither on a row of stops alone. A snooze puts off the row's session, naming the asks the row showed as it was drawn
 /// (13 November 2026).
 @MainActor
+@Suite(.backstop)
 struct RowMenuTests {
     /// Friday 23 October 2026, 14:00 in London.
     private static let now = Date(timeIntervalSince1970: 1_792_760_400)

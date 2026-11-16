@@ -9,6 +9,7 @@ import Testing
 /// The notch as the controller runs it, with no screen: a press goes to the row under it and reads the notch as it is
 /// then, the clock never goes back and the light's own refresh never moves it, the rows keep their places while the
 /// panel is out, a new row is washed only then, and a click's answer is heard only for the latest click.
+@Suite(.backstop)
 struct NotchRunTests {
     private static let setting = NotchRun.Setting(
         stage: Stage(height: 982, visibleTop: 24, visibleBottom: 982, notchY: 491), mirror: .identity,

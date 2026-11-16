@@ -10,12 +10,13 @@ import Testing
 /// needs them runs only then. SwiftUI's own focus, and Tab from the window itself, only a live run shows
 /// (`RecordedWindow`).
 @MainActor
+@Suite(.backstop)
 struct WelcomeFocusTests {
     typealias Made = WelcomeWorld.Made
 
     /// Where AppKit, as the window orders in and as it keys, gives focus to its first key view, Skip setup at the first
     /// step: focus is on nothing all the same.
-    @Test(.keyboardNavigationIsOn, .tags(.process))
+    @Test(.keyboardNavigationIsOn, .tags(.thisMac))
     func itOpensWithFocusOnNothing() async {
         let made = Made(focusing: true)
 
@@ -26,7 +27,7 @@ struct WelcomeFocusTests {
     }
 
     /// Sent behind with focus on nothing and keyed again, as by ⌘-Tab, it is on nothing still, wherever AppKit puts it.
-    @Test(.keyboardNavigationIsOn, .tags(.process))
+    @Test(.keyboardNavigationIsOn, .tags(.thisMac))
     func keyedAgainAfterGoingBehindOnNothingItStaysOnNothing() async {
         let made = Made(focusing: true)
 
@@ -38,7 +39,7 @@ struct WelcomeFocusTests {
     }
 
     /// Sent behind with a control focused and keyed again, focus stays on the control Lee gave it.
-    @Test(.keyboardNavigationIsOn, .tags(.process))
+    @Test(.keyboardNavigationIsOn, .tags(.thisMac))
     func keyedAgainAfterGoingBehindOnAControlFocusStaysThere() async throws {
         let made = Made(focusing: true)
 
@@ -63,7 +64,7 @@ struct WelcomeFocusTests {
 
     /// Lee's live path, Tab to Continue then the close button: the next visit, a window of its own, focuses nothing as
     /// it opens and as it keys.
-    @Test(.keyboardNavigationIsOn, .tags(.process))
+    @Test(.keyboardNavigationIsOn, .tags(.thisMac))
     func tabbedToContinueAndClosedByItsButtonItOpensAgainWithFocusOnNothing() async throws {
         let made = Made(focusing: true)
         let isOnContinue = { Self.frame(made).map { abs($0.maxX - 824) <= 0.5 } == true }
@@ -89,7 +90,7 @@ struct WelcomeFocusTests {
 
     /// Show Welcome Window while it shows brings it forward at its first step, a visit under way going on: focus stays
     /// where Lee put it, as it comes forward and as it is keyed again.
-    @Test(.keyboardNavigationIsOn, .tags(.process))
+    @Test(.keyboardNavigationIsOn, .tags(.thisMac))
     func shownAgainWhileOpenFocusStaysWhereItWas() async throws {
         let made = Made(focusing: true)
 
@@ -108,7 +109,7 @@ struct WelcomeFocusTests {
     }
 
     /// The chevron, dimmed at the first step, takes no focus there.
-    @Test(.keyboardNavigationIsOn, .tags(.process))
+    @Test(.keyboardNavigationIsOn, .tags(.thisMac))
     func atTheFirstStepTabGoesToSkipSetupThenContinueAndRoundAgain() async throws {
         let made = Made()
 
@@ -123,7 +124,7 @@ struct WelcomeFocusTests {
 
     /// At a step with no controls of its own, the footer's alone: back, Skip setup and Continue, left to right; Tab past
     /// Continue goes round to back, and Shift-Tab from back to Continue.
-    @Test(.keyboardNavigationIsOn, .tags(.process))
+    @Test(.keyboardNavigationIsOn, .tags(.thisMac))
     func tabGoesThroughTheFootersControlsInOrderAndShiftTabComesBack() async throws {
         let made = Made()
 
@@ -143,7 +144,7 @@ struct WelcomeFocusTests {
     }
 
     /// Your edge: the two tiles, the form's rows from the top, Show nothing at the edge, then the footer.
-    @Test(.keyboardNavigationIsOn, .tags(.process))
+    @Test(.keyboardNavigationIsOn, .tags(.thisMac))
     func tabGoesThroughAStepsControlsInReadingOrderThenTheFooters() async throws {
         let made = Made()
 
@@ -159,7 +160,7 @@ struct WelcomeFocusTests {
 
     /// At Nothing, the form's rows take no presses and a line stands in Show nothing at the edge's place: Tab goes from
     /// the tiles to the footer.
-    @Test(.keyboardNavigationIsOn, .tags(.process))
+    @Test(.keyboardNavigationIsOn, .tags(.thisMac))
     func atNothingTabGoesFromTheTilesToTheFooter() async throws {
         let made = Made()
 
@@ -175,7 +176,7 @@ struct WelcomeFocusTests {
     }
 
     /// Focus on a tile, and the step it was on gone: AppKit leaves the window itself first responder, on nothing.
-    @Test(.keyboardNavigationIsOn, .tags(.process))
+    @Test(.keyboardNavigationIsOn, .tags(.thisMac))
     func aStepGoneWithTheControlFocusedLeavesFocusOnNothing() async throws {
         let made = Made()
 

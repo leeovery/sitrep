@@ -6,6 +6,7 @@ import SitRepTestSupport
 import Testing
 
 /// The Settings window's four panes, top to bottom in its sidebar, each with its name and symbol (DESIGN, "Settings").
+@Suite(.backstop)
 struct SettingsPaneTests {
     @Test func thePanesAreGeneralEdgeNotificationsAndClaudeCode() {
         #expect(SettingsPane.allCases.map(\.title) == ["General", "Edge", "Notifications", "Claude Code"])
@@ -16,6 +17,7 @@ struct SettingsPaneTests {
 }
 
 /// Back and forward step through the panes shown, as Xcode's do.
+@Suite(.backstop)
 struct PaneHistoryTests {
     @Test func itOpensWithNowhereToStep() {
         let history = PaneHistory(.edge)
@@ -71,6 +73,7 @@ struct PaneHistoryTests {
 
 /// Claude Code: the plugin's row, and while some windows run an older plugin, a row for each with Show, their number
 /// the sidebar's count.
+@Suite(.backstop)
 struct ClaudeCodePaneTests {
     private static let clone = PluginStanding.running(.folder("~/Code/sitrep"), folder: "/Users/me/Code/sitrep")
     private static let windows = [
@@ -108,6 +111,7 @@ struct ClaudeCodePaneTests {
 }
 
 /// The windows behind on the plugin, read once for the menu, the plugin's row, the pane and the sidebar's count.
+@Suite(.backstop)
 struct WindowsBehindTests {
     private static let windows = [
         WatchLine.Window(writer: "w1", session: "sr-boot", name: "The installer", project: "Litware", version: "0.1.0", needsReload: true),
@@ -138,6 +142,7 @@ struct WindowsBehindTests {
 }
 
 /// The sidebar's rows: the four panes, Claude Code alone counting the windows behind, and only while there are some.
+@Suite(.backstop)
 struct SettingsSidebarRowTests {
     private static func behind(_ count: Int) -> WindowsBehind {
         let windows = (0 ..< count).map { place in
@@ -160,6 +165,7 @@ struct SettingsSidebarRowTests {
 }
 
 /// The pane the Settings window last showed, saved on its own and read leniently.
+@Suite(.backstop)
 struct SettingsWindowSettingsTests {
     /// General the first time; then the pane by its name; General for a name no pane has.
     @Test(arguments: [

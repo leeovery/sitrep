@@ -1,10 +1,12 @@
 @testable import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// The strip's one Needs you (14 November 2026): the stopped join the asks over the hairline, a session stopping moves
 /// in at once as an ask does, flashing only where Lee has Pulse when Claude stops on, one working again leaves at once,
 /// and needs you's count folds the end of its order, blue while all it holds are stopped and orange while it holds an
 /// ask.
+@Suite(.backstop)
 struct StripNeedsYouTests {
     /// A turn ends: the first working session's mark moves into needs you at once, before the stopped, and grows into
     /// its place there, its ring flashing twice where the pulse is on and not at all where it is off; it is never

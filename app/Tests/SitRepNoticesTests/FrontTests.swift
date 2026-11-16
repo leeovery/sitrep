@@ -1,8 +1,10 @@
 @testable import SitRepNotices
+import SitRepTestSupport
 import Testing
 
 /// The front handed back by hiding the helper, over an app and a clock of its own.
 @MainActor
+@Suite(.backstop)
 struct FrontTests {
     @MainActor
     final class App {

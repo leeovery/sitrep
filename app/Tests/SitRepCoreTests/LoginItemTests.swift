@@ -1,7 +1,9 @@
 import ServiceManagement
 @testable import SitRepCore
+import SitRepTestSupport
 import Testing
 
+@Suite(.backstop)
 struct LoginItemTests {
     @Test func anEnabledLoginItemShowsOnAndChoosingItStopsIt() {
         let login = LoginItem(.enabled)

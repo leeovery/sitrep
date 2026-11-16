@@ -1,7 +1,9 @@
 import Foundation
 @testable import SitRepCore
+import SitRepTestSupport
 import Testing
 
+@Suite(.backstop)
 struct LineBufferTests {
     @Test func aChunkGivesTheLinesItEnds() {
         var buffer = LineBuffer(longest: 100)
@@ -47,8 +49,9 @@ struct LineBufferTests {
         #expect(buffer.lines(adding: Data("abcde\n".utf8)) == ["abcde"])
     }
 
-    /// What it keeps of a line never grows past its longest, however many chunks come with no newline.
-    @Test func outputWithNoNewlineCostsOnlyItsChunks() {
+    /// However many chunks come with no newline, what it keeps of the line never grows past its longest. What each
+    /// chunk costs to scan is left unpinned: no seam counts it, and a clock's measure failed on a loaded Mac.
+    @Test func whatItKeepsOfALineWithNoNewlineStopsAtItsLongest() {
         var buffer = LineBuffer(longest: 1 << 20)
         let chunk = Data(repeating: UInt8(ascii: "a"), count: 64 * 1024)
         var kept: [Int] = []

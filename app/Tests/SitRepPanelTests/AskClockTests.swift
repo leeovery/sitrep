@@ -1,6 +1,8 @@
 @testable import SitRepPanel
+import SitRepTestSupport
 import Testing
 
+@Suite(.backstop)
 struct AskClockTests {
     @Test func withNoAskThereIsNothingToFlash() {
         var clock = AskClock()

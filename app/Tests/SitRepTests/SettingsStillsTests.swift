@@ -12,7 +12,7 @@ import Testing
 /// Settings' panes, About SitRep and the menu's images drawn offscreen into PNGs, to read beside Paper's drawings: only
 /// when `SITREP_STILLS` names a folder for them, so a run of the tests writes nothing.
 @MainActor
-@Suite(.enabled(if: stills != nil))
+@Suite(.backstop, .enabled(if: stills != nil))
 struct SettingsStillsTests {
 
     private static let fine = MacSays(notices: .allowed(.banners), login: LoginItem(.enabled), ghostty: .allowed)

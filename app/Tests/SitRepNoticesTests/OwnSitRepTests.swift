@@ -1,10 +1,12 @@
 import Foundation
 @testable import SitRepNotices
+import SitRepTestSupport
 import Testing
 
 /// The helper serves the SitRep it sits in, not merely one with SitRep's bundle id: over folders of its own, standing in
 /// for two copies of SitRep.app, with nothing launched.
 @MainActor
+@Suite(.backstop)
 struct OwnSitRepTests {
     private let folder = FileManager.default.temporaryDirectory.appending(path: "own-sitrep-\(UUID().uuidString)")
 

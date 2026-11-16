@@ -1,6 +1,8 @@
 @testable import SitRepCore
+import SitRepTestSupport
 import Testing
 
+@Suite(.backstop)
 struct BannerTests {
     @Test func aFailedJumpShowsTheCLIsWordsAndJumpsNowhere() {
         let banner = Banner.unjumped("Wingtip is not on screen: no Ghostty window shows it.")

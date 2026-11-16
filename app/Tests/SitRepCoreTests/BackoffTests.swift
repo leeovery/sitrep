@@ -1,6 +1,8 @@
 @testable import SitRepCore
+import SitRepTestSupport
 import Testing
 
+@Suite(.backstop)
 struct BackoffTests {
     @Test func theWaitStartsAtASecondAndDoublesAtEachEndToHalfAMinute() {
         var backoff = Backoff()

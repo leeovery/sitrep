@@ -9,6 +9,7 @@ import Testing
 /// its least size; its close button and ⌘W shut it; the pane's name its title, and back and forward in its toolbar
 /// stepping through the panes shown.
 @MainActor
+@Suite(.backstop)
 struct SettingsWindowTests {
     /// The window and its Settings, its frame a recorded one, which never orders front.
     @MainActor
@@ -158,6 +159,7 @@ struct SettingsWindowTests {
 
 /// The sidebar as the window hosts it: the system's list of the four panes, the one shown selected.
 @MainActor
+@Suite(.backstop)
 struct SettingsSidebarTests {
     @Test func itListsTheFourPanesTheOneShownSelected() async throws {
         let settings = await Hosted.settings()
@@ -175,6 +177,7 @@ struct SettingsSidebarTests {
 /// Claude Code's pane as the window draws it: the windows behind, each with Show, then Copy; none of it while every
 /// window is current.
 @MainActor
+@Suite(.backstop)
 struct ClaudeCodePaneViewTests {
     private static func hosted(needsReload: Bool) async -> Hosted {
         let settings = await Hosted.settings(live: Hosted.live(needsReload: needsReload))

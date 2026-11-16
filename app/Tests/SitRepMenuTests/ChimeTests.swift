@@ -1,8 +1,10 @@
 @testable import SitRepCore
 import SitRepMenu
+import SitRepTestSupport
 import Testing
 
 /// The sound a board plays: Lee's chosen one, once for the asks new on it, while his switch is on.
+@Suite(.backstop)
 struct ChimeTests {
     private static let newAsk = Watched.line(new: ["ask:sr-l5c9tz:k1"])
     /// A board after the run's first, with the ask new on it.

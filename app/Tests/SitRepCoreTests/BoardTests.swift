@@ -4,6 +4,7 @@ import SitRepLines
 import SitRepTestSupport
 import Testing
 
+@Suite(.backstop)
 struct BoardTests {
     @Test func aLineGivesTheBoardAtItsTimeWithTheCLIsVersionAndItsHead() throws {
         let board = try Board.read(Lines.pretty)

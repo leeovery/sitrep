@@ -1,8 +1,10 @@
 import CoreGraphics
 @testable import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// Lee's screens: the Studio Display with the menu bar, its Dock at the bottom, and the built-in to its right.
+@Suite(.backstop)
 struct ScreenEdgeTests {
     static let studio = ScreenEdge(
         frame: CGRect(x: 0, y: 0, width: 2560, height: 1440), visible: CGRect(x: 0, y: 86, width: 2560, height: 1324)

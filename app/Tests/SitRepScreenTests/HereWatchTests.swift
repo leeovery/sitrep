@@ -8,6 +8,7 @@ import Testing
 /// every few seconds, one read at a time; a session read as not here dimmed, one unknown keeping the look it last read,
 /// one never read here, and none keeping a look past its hold.
 @MainActor
+@Suite(.backstop)
 struct HereWatchTests {
     /// A read the test answers: each read's sessions, by their windows, kept; held at the gate, where one is given,
     /// until the test opens it; answering as `answer` says at the time.
@@ -63,8 +64,10 @@ struct HereWatchTests {
     }
 
     /// Until the watch has made as many reads as given, and taken the last.
-    private static func read(_ count: Int, by reads: Reads, of watch: HereWatch) async {
-        await until(within: .seconds(10)) { reads.asked.count == count && watch.reading == nil }
+    private static func read(_ count: Int, by reads: Reads, of watch: HereWatch) async throws {
+        try await until(within: .seconds(10), "for read \(count) to be made and taken") {
+            reads.asked.count == count && watch.reading == nil
+        }
     }
 
     @Test func aSessionReadAsNotHereIsDimmedAndOneReadAsHereIsNot() async throws {
@@ -74,7 +77,7 @@ struct HereWatchTests {
 
         watch.changed = { changes.append($0) }
         watch.heard(try Self.held("sr-a", "sr-b"))
-        await Self.read(1, by: reads, of: watch)
+        try await Self.read(1, by: reads, of: watch)
 
         #expect(watch.notHere == ["sr-a"])
         #expect(changes == [["sr-a"]])
@@ -89,20 +92,20 @@ struct HereWatchTests {
         let line = try Self.held("sr-a", "sr-b")
 
         watch.heard(line)
-        await Self.read(1, by: reads, of: watch)
+        try await Self.read(1, by: reads, of: watch)
         #expect(watch.notHere == ["sr-b"], "sr-a, never read, is here")
 
         reads.answer(["sr-a": .notHere, "sr-b": Self.unknown])
         watch.heard(line)
-        await Self.read(2, by: reads, of: watch)
+        try await Self.read(2, by: reads, of: watch)
         #expect(watch.notHere == ["sr-a", "sr-b"], "sr-b keeps not here")
 
         reads.answer(["sr-a": .here, "sr-b": .here])
         watch.heard(line)
-        await Self.read(3, by: reads, of: watch)
+        try await Self.read(3, by: reads, of: watch)
         reads.answer(["sr-a": Self.unknown, "sr-b": Self.unknown])
         watch.heard(line)
-        await Self.read(4, by: reads, of: watch)
+        try await Self.read(4, by: reads, of: watch)
         #expect(watch.notHere.isEmpty, "both keep here")
         watch.stop()
     }
@@ -114,7 +117,7 @@ struct HereWatchTests {
         let watch = Self.watch(reads)
 
         watch.heard(try Self.held("sr-a", "sr-b"))
-        await Self.read(1, by: reads, of: watch)
+        try await Self.read(1, by: reads, of: watch)
         #expect(watch.notHere == ["sr-a", "sr-b"])
 
         watch.heard(try Self.held("sr-b"))
@@ -125,10 +128,10 @@ struct HereWatchTests {
         let racing = Self.watch(held)
 
         racing.heard(try Self.held("sr-a"))
-        await until(within: .seconds(10)) { held.asked.count == 1 }
+        try await until(within: .seconds(10)) { held.asked.count == 1 }
         racing.heard(try Self.held())
         gate.open()
-        await until(within: .seconds(10)) { racing.reading == nil }
+        try await until(within: .seconds(10)) { racing.reading == nil }
         #expect(racing.notHere.isEmpty)
         #expect(held.asked.count == 1, "no session left to read")
         watch.stop()
@@ -144,24 +147,24 @@ struct HereWatchTests {
         let watch = Self.watch(reads, clock: clock)
 
         watch.heard(try Self.held("sr-a"))
-        await until(within: .seconds(10)) { reads.asked.count == 1 && clock.sleeps == [HereWatch.every] }
+        try await until(within: .seconds(10)) { reads.asked.count == 1 && clock.sleeps == [HereWatch.every] }
 
         let first = try #require(watch.reading)
 
         watch.heard(try Self.held("sr-a"))
         watch.heard(try Self.held("sr-a", "sr-b"))
         clock.pass(HereWatch.every)
-        await until(within: .seconds(10)) { clock.sleeps.count == 2 }
+        try await until(within: .seconds(10)) { clock.sleeps.count == 2 }
         #expect(watch.reading == first, "the tick, its next sleep begun, began no read")
         #expect(reads.asked.count == 1)
 
         gate.open()
-        await Self.read(2, by: reads, of: watch)
+        try await Self.read(2, by: reads, of: watch)
         #expect(reads.asked.last.map { Set($0.keys) } == ["sr-a", "sr-b"])
         #expect(reads.most == 1)
 
         clock.pass(HereWatch.every)
-        await until(within: .seconds(10)) { reads.asked.count == 3 }
+        try await until(within: .seconds(10)) { reads.asked.count == 3 }
         #expect(HereWatch.every == .seconds(3))
         watch.stop()
     }
@@ -175,7 +178,7 @@ struct HereWatchTests {
         openings.remember("sr-a", wasHeld: true)
         openings.remember("sr-b", wasHeld: true)
         watch.heard(try Self.held("sr-a", "sr-b"))
-        await Self.read(1, by: reads, of: watch)
+        try await Self.read(1, by: reads, of: watch)
 
         #expect(!openings.isOpening("sr-a"))
         #expect(openings.isOpening("sr-b"))
@@ -188,7 +191,7 @@ struct HereWatchTests {
         let watch = Self.watch(reads)
 
         watch.heard(try board([WatchLine.Window.jumping("w1", session: "sr-a", order: nil, device: "/dev/ttys010")]))
-        await Self.read(1, by: reads, of: watch)
+        try await Self.read(1, by: reads, of: watch)
 
         #expect(reads.asked.first?["sr-a"] == [Where(device: "/dev/ttys010", terminal: "ghostty")])
         #expect(watch.notHere == ["sr-a"])

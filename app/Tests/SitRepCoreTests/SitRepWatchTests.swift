@@ -5,7 +5,7 @@ import SitRepLines
 import SitRepTestSupport
 import Testing
 
-@Suite(.timeLimit(.minutes(1)))
+@Suite(.backstop, .timeLimit(.minutes(1)))
 struct SitRepWatchTests {
     private static let path = "/Users/me/.bun/bin:/opt/homebrew/bin:/usr/bin:/bin"
 
@@ -101,7 +101,7 @@ struct SitRepWatchTests {
 
     /// `Feed` starting a watch again while the last waits on Lee's PATH, as it may as SitRep settles on a plugin: the
     /// last, stopped, resumes after the next began, and begins no run of its own before its loop ends.
-    @Test func aWatchStoppedWhileItWaitsOnLeesPathBeginsNoRun() async {
+    @Test func aWatchStoppedWhileItWaitsOnLeesPathBeginsNoRun() async throws {
         let gate = Gate()
         let stopped = Runs([Self.watching])
         let next = Runs([Self.watching])
@@ -124,10 +124,26 @@ struct SitRepWatchTests {
             break
         }
         gate.open()
-        await value(of: first, within: .seconds(10), "the stopped watch's loop ended")
+        try await value(of: first, within: .seconds(10), "for the stopped watch's loop to end")
         running.cancel()
         #expect(next.programs.count == 1)
         #expect(stopped.programs.isEmpty)
+    }
+
+    /// The reading of its boards ended while the watch waits on Lee's PATH, as `Feed` ends it, the watch's own task is
+    /// cancelled, so its loop, the PATH come, finds itself stopped, and begins no run (as above).
+    @Test func aReadingEndedWhileTheWatchWaitsOnLeesPathCancelsTheWatch() async throws {
+        let gate = Gate()
+        let boards = Self.watch(Runs([Self.watching]), pathWaitsOn: gate).boards()
+        let reading = Task {
+            for await _ in boards {}
+        }
+
+        await gate.asked()
+        reading.cancel()
+        gate.open()
+        try await until(within: .seconds(10), "for the PATH's wait to be let go") { !gate.cancelledAsLetGo.isEmpty }
+        #expect(gate.cancelledAsLetGo == [true])
     }
 
     @Test func watchThatCannotStartIsTriedAgain() async {
@@ -288,12 +304,17 @@ private final class Runs: Sendable {
 private final class Gate: Sendable {
     private let waiting = OSAllocatedUnfairLock<CheckedContinuation<Void, Never>?>(initialState: nil)
     private let (asking, isAsked) = AsyncStream<Void>.makeStream()
+    private let letGo = OSAllocatedUnfairLock(initialState: [Bool]())
+
+    /// For each wait let go, whether its task was cancelled by then.
+    var cancelledAsLetGo: [Bool] { letGo.withLock { $0 } }
 
     func wait() async {
         await withCheckedContinuation { waiting in
             self.waiting.withLock { $0 = waiting }
             isAsked.yield()
         }
+        letGo.withLock { $0.append(Task.isCancelled) }
     }
 
     /// Once the PATH has been asked for.

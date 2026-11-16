@@ -1,9 +1,11 @@
 import CoreGraphics
 @testable import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// When the view keeps frames coming: only while something moves (`isMoving`). A pointer resting anywhere, by the
 /// notch or on the still panel, moves nothing, and its next move wakes them where it can change what shows (`wakes`).
+@Suite(.backstop)
 struct WantsFramesTests {
     private static let field = MeniscusFeel.lees.field
 

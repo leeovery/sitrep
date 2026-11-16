@@ -1,10 +1,12 @@
 import SitRepCore
 @testable import SitRepScreen
+import SitRepTestSupport
 import Testing
 
 /// The resume command, as Lee sets it in Settings, the default until he gives another: its placeholders `{claude}`,
 /// `{dir}` and `{tty}` filled with the facts of the window a click carries a session on from, each quoted for the
 /// shell, and nothing typed that is not fit to type (stage 8's rethink).
+@Suite(.backstop)
 struct ResumeCommandTests {
     private static let claude = "b1c2d3e4-0000-4000-8000-000000000001"
     private static let window = Board.LastWindow(writer: claude, directory: "/Users/me/Code/team's work")
