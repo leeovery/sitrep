@@ -12,10 +12,10 @@ type World = ReturnType<typeof world>
 type Board = Awaited<ReturnType<World['pane']>>
 
 const FOLD =
-  "Fold the trial's lessons into the orchestrate skill: implementers at high and xhigh, model by complexity, plan stops, parallel worktrees"
+  "Move the pilot's results into the spreadsheet pages: contributors by team and level, owner by department, week tally, separate summaries"
 
 /** The first row of FOLD opened: its mark, its title's first line, its age. */
-const TITLED = /^◇ Fold the trial's lessons into the orchestrate +now$/
+const TITLED = /^◇ Move the pilot's results into the spreadsheet +now$/
 
 const DECIDE = {
   wants: 'choice',
@@ -158,7 +158,7 @@ test('an opened parked item hangs where and its record from its mark, its button
     await w.call('park', {
       title: FOLD,
       where: 'In DESIGN.md, Later',
-      ref: 'memory: orchestration-setup.md',
+      ref: 'notes: spreadsheet-pilot.md',
     }),
   )
   const ui = await w.opened()
@@ -168,10 +168,10 @@ test('an opened parked item hangs where and its record from its mark, its button
 
   expect(drawn[0]).toMatch(TITLED)
   expect(drawn.slice(1)).toEqual([
-    '│ skill: implementers at high and xhigh, model',
-    '│ by complexity, plan stops, parallel worktrees',
+    '│ pages: contributors by team and level, owner',
+    '│ by department, week tally, separate summaries',
     '├ In DESIGN.md, Later',
-    '└ see memory: orchestration-setup.md',
+    '└ see notes: spreadsheet-pilot.md',
     '  [ pick it up ] [ ✎ with a comment ]',
   ])
 })
@@ -189,8 +189,8 @@ test('a parked item with nothing to hang shows no stem beside its title, only it
 
   expect(drawn[0]).toMatch(TITLED)
   expect(drawn.slice(1)).toEqual([
-    '  skill: implementers at high and xhigh, model',
-    '  by complexity, plan stops, parallel worktrees',
+    '  pages: contributors by team and level, owner',
+    '  by department, week tally, separate summaries',
     '  [ pick it up ] [ ✎ with a comment ]',
   ])
 })
@@ -364,7 +364,7 @@ test("an opened ask's see is labelled in the ask's amber, a parked item's in its
     }),
   )
   const parked = postedId(
-    await w.call('park', { title: 'A priority badge', ref: 'memory: tmux.md' }),
+    await w.call('park', { title: 'A priority badge', ref: 'docs/badging.md' }),
   )
   const ui = await w.pane()
 
@@ -374,7 +374,7 @@ test("an opened ask's see is labelled in the ask's amber, a parked item's in its
   })
 
   await ui.press({ key: `ppick:${w.item(parked)}` })
-  expect(await lineOn(ui, 'see memory: tmux.md')).toEqual({
+  expect(await lineOn(ui, 'see docs/badging.md')).toEqual({
     color: C.soft,
     label: { text: 'see', color: C.parked },
   })
@@ -388,7 +388,7 @@ test("every tree's glyphs are drawn faint: a log line's, an ask's, Ready to send
   const note = postedId(await w.call('note', { text: FOLD, detail: ['6 files', '+214 −51'] }))
   const ask = postedId(await w.call('ask', DECIDE))
   const parked = postedId(
-    await w.call('park', { title: FOLD, where: 'In DESIGN.md', ref: 'memory: tmux.md' }),
+    await w.call('park', { title: FOLD, where: 'In DESIGN.md', ref: 'docs/badging.md' }),
   )
   const ui = await w.pane()
 

@@ -288,7 +288,7 @@ test("no line about a parked item but its park moves its session's time: a pick-
         [T0 + 10 * MIN, reply('r1', 'p1', 'pickup')],
         [T0 + 10 * MIN, delivered('r1')],
         [T0 + 11 * MIN, resolve('p2', 'Done elsewhere')],
-        [T0 + 12 * MIN, { type: 'edit', item: 'p3', changes: { title: 'A tmux badge' } }],
+        [T0 + 12 * MIN, { type: 'edit', item: 'p3', changes: { title: 'A priority flag' } }],
         [T0 + 13 * MIN, resolve('p3')],
         [T0 + 14 * MIN, reopen('p3')],
       ),
@@ -300,7 +300,7 @@ test("no line about a parked item but its park moves its session's time: a pick-
     },
   })
 
-  expect(session.parked.map(each => [each.id, each.title])).toEqual([['p3', 'A tmux badge']])
+  expect(session.parked.map(each => [each.id, each.title])).toEqual([['p3', 'A priority flag']])
   expect(session.updatedAt).toBe(parked)
   expect(noted.updatedAt, 'a note moves it').toBe(T0 + 20 * MIN)
 })

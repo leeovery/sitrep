@@ -227,10 +227,10 @@ test('a log line opens to what happened and where it is recorded, and closes aga
 test('an opened item shows its whole title, and where its own record is; closed, the title keeps to a line', async ($, on) => {
   const w = world($, on)
   const title =
-    "Fold the trial's lessons into the orchestrate skill: implementers at high and xhigh, model by complexity, plan stops, parallel worktrees"
+    "Move the pilot's results into the spreadsheet pages: contributors by team and level, owner by department, week tally, separate summaries"
 
   await w.begin()
-  await w.call('park', { title, ref: 'memory: orchestration-setup.md' })
+  await w.call('park', { title, ref: 'notes: spreadsheet-pilot.md' })
 
   const ui = await w.pane()
   const [parked] = (await ui.findAll({ type: 'Button' })).filter(each =>
@@ -245,13 +245,13 @@ test('an opened item shows its whole title, and where its own record is; closed,
   expect(await lines()).toHaveLength(1)
   expect((await lines())[0]).toMatch(/…$/)
   expect(
-    await ui.find({ type: 'Text', text: /see memory: orchestration-setup.md/ }),
+    await ui.find({ type: 'Text', text: /see notes: spreadsheet-pilot.md/ }),
   ).toBeUndefined()
 
   await ui.press({ key })
   expect((await lines()).length).toBeGreaterThan(1)
   expect((await lines()).join(' ')).toBe(title)
-  expect(await ui.find({ type: 'Text', text: /see memory: orchestration-setup.md/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /see notes: spreadsheet-pilot.md/ })).toBeDefined()
   expect(await ui.find({ key: `pickup:${key.slice('ppick:'.length)}` })).toBeDefined()
 
   await ui.press({ key: `${key}:1` })

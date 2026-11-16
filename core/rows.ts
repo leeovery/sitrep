@@ -90,7 +90,7 @@ type Named = {
   projectName: string
   /** The project's two letters, as the strip's mark shows them. */
   letters: string
-  /** Its project and session, `Switchboard · Dashboard redesign`, under a Working or Your turn row's line; an away row's says no window holds it. */
+  /** Its project and session, `Northwind · Help desk redesign`, under a Working or Your turn row's line; an away row's says no window holds it. */
   second: string
 }
 
@@ -234,8 +234,8 @@ export const sessionState = (session: Session, now: number): SessionState => {
 
 /**
  * A project's two letters, as the strip's marks show them: its capitals
- * where it has two (SitRep SR, DocMan DM), else its first two letters or
- * digits (Switchboard Sw, agntc ag).
+ * where it has two (SitRep SR, BlueYonder BY), else its first two letters or
+ * digits (Northwind No, contoso co).
  */
 export const lettersOf = (name: string) => {
   const capitals = name.match(/\p{Lu}/gu) ?? []
