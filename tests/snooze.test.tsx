@@ -388,7 +388,10 @@ test("the soonest to wake comes first among the snoozed in a project's Asks, whe
   await w.clock.advance(REST_MS)
   await toProject(ui)
 
-  expect(await keysOf(ui, 'pick:')).toEqual([`pick:${w.item('k4', THEMES.id)}`, `pick:${w.item(id)}`])
+  expect(await keysOf(ui, 'pick:')).toEqual([
+    `pick:${w.item('k4', THEMES.id)}`,
+    `pick:${w.item(id)}`,
+  ])
 })
 
 test("a project's Asks lists this session's snoozed ask after another session's older waiting one", async ($, on) => {
@@ -404,7 +407,10 @@ test("a project's Asks lists this session's snoozed ask after another session's 
   await w.clock.advance(WATCH_MS)
   await toProject(ui)
 
-  expect(await keysOf(ui, 'pick:')).toEqual([`pick:${w.item('k4', THEMES.id)}`, `pick:${w.item(id)}`])
+  expect(await keysOf(ui, 'pick:')).toEqual([
+    `pick:${w.item('k4', THEMES.id)}`,
+    `pick:${w.item(id)}`,
+  ])
 })
 
 test("no snooze on an ask waiting on Claude: Lee's comment on its way, or Claude given it", async ($, on) => {

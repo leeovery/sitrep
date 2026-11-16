@@ -220,7 +220,11 @@ test("ask posts a yes in its button's words; one wanting a yes with none, or wan
 test('ask takes what the words of a words ask are, and edit changes them or clears them with an empty one', async ($, on) => {
   const w = world($, on)
   const { paths } = await w.begin()
-  const id = await asked(w, { wants: 'words', title: 'Run the export', needs: "the command's output" })
+  const id = await asked(w, {
+    wants: 'words',
+    title: 'Run the export',
+    needs: "the command's output",
+  })
   const needs = () => w.state.board?.asks[0]?.needs
 
   expect(linesOf(w, paths.log(W1)).at(-1)).toMatchObject({ needs: "the command's output" })
@@ -484,7 +488,9 @@ test("the attached session's own id as session acts on its own item, whatever it
   const { id } = await w.begin()
   const posted = await asked(w, { wants: 'yes', yes: 'Go', title: 'Run it' })
 
-  expect((await w.call('resolve', { item: posted, session: id })).result).toBe(`Resolved ${posted}.`)
+  expect((await w.call('resolve', { item: posted, session: id })).result).toBe(
+    `Resolved ${posted}.`,
+  )
   expect(w.state.board?.asks[0]?.state).toBe('closed')
 })
 

@@ -141,10 +141,10 @@ test("while the CLI's answer to the window's own ask goes in, the ask waits on L
   const w = world($, on)
   const { cli } = await begun(w)
   const posted = await asked(w, {
-      wants: 'choice',
-      options: ['Keep it', 'Drop it'],
-      title: 'Keep the sidebar?',
-    })
+    wants: 'choice',
+    options: ['Keep it', 'Drop it'],
+    title: 'Keep the sidebar?',
+  })
 
   expect(await (await w.band()).find({ key: 'band:asks', text: '1 ask' })).toBeDefined()
 
@@ -171,10 +171,10 @@ test('two answers the CLI writes at once to one ask both land, but the window gi
   const { id, paths } = await w.begin()
   const t = besideWindows(w)
   const posted = await asked(w, {
-      wants: 'choice',
-      options: ['Keep it', 'Drop it'],
-      title: 'Keep the sidebar?',
-    })
+    wants: 'choice',
+    options: ['Keep it', 'Drop it'],
+    title: 'Keep the sidebar?',
+  })
 
   await w.clock.advance(MIN)
 
@@ -208,10 +208,10 @@ test('two answers the CLI writes at once to one ask both land, but the window gi
 /** The window's own ask wanting a choice, and the board drawn. */
 async function sidebarAsked(w: World) {
   const posted = await asked(w, {
-      wants: 'choice',
-      options: ['Keep it', 'Drop it'],
-      title: 'Keep the sidebar?',
-    })
+    wants: 'choice',
+    options: ['Keep it', 'Drop it'],
+    title: 'Keep the sidebar?',
+  })
 
   return { posted, ui: await w.pane() }
 }

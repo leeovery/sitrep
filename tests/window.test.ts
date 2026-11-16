@@ -460,17 +460,17 @@ test('the watch folds a line another writer added, and puts the board in $.state
 
   await w.clock.advance(4 * WATCH_MS)
 
-  expect((w.writes.board ?? 0), 'nothing changed, so nothing is put').toBe(written)
+  expect(w.writes.board ?? 0, 'nothing changed, so nothing is put').toBe(written)
 
   w.put(paths.log(W2), file([w.clock.now(), yesAsk('k9', 'Try it on the iPad', 'It works')]))
   await w.clock.advance(WATCH_MS)
 
-  expect((w.writes.board ?? 0)).toBe(written + 1)
+  expect(w.writes.board ?? 0).toBe(written + 1)
   expect(w.state.board?.asks.map(item => [item.id, item.by])).toEqual([['k9', W2]])
 
   await w.clock.advance(4 * WATCH_MS)
 
-  expect((w.writes.board ?? 0)).toBe(written + 1)
+  expect(w.writes.board ?? 0).toBe(written + 1)
   expect(w.logs, 'no look failed').toEqual([])
 })
 
@@ -489,7 +489,7 @@ test("another window's state changing puts nothing in $.state, so no pane redraw
     await w.clock.advance(WATCH_MS)
   }
 
-  expect((w.writes.board ?? 0), 'the board unwritten').toBe(written)
+  expect(w.writes.board ?? 0, 'the board unwritten').toBe(written)
   expect(w.writes, 'nothing a pane draws from written').toEqual(writes)
   expect(w.state.board?.presence.map(each => each.writer)).toEqual([W1, W2])
   expect(w.state.board?.presence.some(each => 'state' in each)).toBe(false)

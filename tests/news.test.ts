@@ -14,7 +14,7 @@ const PULSE_FRAME_MS = 150
 
 const paths = sessionPaths(ROOT, PROJECT.key, META.id)
 
-test('a new ask from another writer pulses, toasts for 10 seconds and opens, playing no sound, which is SitRep\'s; one there when the window attached does not', async ($, on) => {
+test("a new ask from another writer pulses, toasts for 10 seconds and opens, playing no sound, which is SitRep's; one there when the window attached does not", async ($, on) => {
   /** How long each new-ask toast stays, in the order shown. */
   const toastsMs: (number | undefined)[] = []
 

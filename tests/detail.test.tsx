@@ -212,10 +212,10 @@ test("an opened ask hangs where and its record from its mark; its buttons and hi
   await w.begin()
 
   const id = await asked(w, {
-      ...REVIEW,
-      where: 'In Paper: page round 1',
-      ref: 'docs/help-desk.md',
-    })
+    ...REVIEW,
+    where: 'In Paper: page round 1',
+    ref: 'docs/help-desk.md',
+  })
   const ui = await w.pane()
 
   expect((await rows(ui, `ask:${w.item(id)}`)).slice(1, 5)).toEqual([
@@ -265,10 +265,10 @@ test('a branch whose text wraps keeps the tree unbroken: a stem beside it under 
   await w.begin()
 
   const id = await asked(w, {
-      ...REVIEW,
-      where: 'In Paper: the help desk file, page "round 1", frames 1–6, beside the brief',
-      ref: 'docs/help-desk.md, under "Tickets & Replies", the first round of three',
-    })
+    ...REVIEW,
+    where: 'In Paper: the help desk file, page "round 1", frames 1–6, beside the brief',
+    ref: 'docs/help-desk.md, under "Tickets & Replies", the first round of three',
+  })
   const ui = await w.pane()
 
   expect((await rows(ui, `ask:${w.item(id)}`)).slice(1, 5)).toEqual([
@@ -343,11 +343,11 @@ test("an opened ask's see is labelled in the ask's amber, a parked item's in its
   await w.begin()
 
   const ask = await asked(w, {
-      wants: 'yes',
-      yes: 'Approve',
-      title: 'Review round 1',
-      ref: 'docs/help-desk.md',
-    })
+    wants: 'yes',
+    yes: 'Approve',
+    title: 'Review round 1',
+    ref: 'docs/help-desk.md',
+  })
   const parked = postedId(
     await w.call('park', { title: 'A priority badge', ref: 'docs/badging.md' }),
   )
