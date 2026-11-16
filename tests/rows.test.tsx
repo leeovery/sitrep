@@ -9,7 +9,7 @@ tier('user')
 type World = ReturnType<typeof world>
 
 /** Another session Claude starts in the conversation, which the window then holds. */
-const USAGE = { name: 'Usage page', summary: 'Draw the usage page', project: PROJECT.name }
+const INBOX_PAGE = { name: 'Inbox page', summary: 'Draw the inbox page', project: PROJECT.name }
 
 const SURFACES = ['terminal', 'desktop', 'vscode', 'mobile'] as const
 
@@ -76,22 +76,22 @@ function engineRows(on: On) {
 }
 
 const LINES: [tool: string, input: { [key: string]: unknown }, line: string][] = [
-  ['start', { name: 'Dashboard redesign', summary: 'Redesign it' }, 'started: Dashboard redesign'],
-  ['status', { now: ['Drawing Usage'] }, '• status set'],
+  ['start', { name: 'Help desk redesign', summary: 'Redesign it' }, 'started: Help desk redesign'],
+  ['status', { now: ['Drawing Inbox'] }, '• status set'],
   [
     'ask',
-    { wants: 'yes', yes: 'Approve', title: 'Review Sessions & Runway, round 1' },
-    '◆ asked: Review Sessions & Runway, round 1',
+    { wants: 'yes', yes: 'Approve', title: 'Review Tickets & Replies, round 1' },
+    '◆ asked: Review Tickets & Replies, round 1',
   ],
   ['note', { text: 'PR #82 merged' }, 'noted: PR #82 merged'],
-  ['park', { title: 'A tmux indicator' }, '◇ parked: A tmux indicator'],
+  ['park', { title: 'A priority badge' }, '◇ parked: A priority badge'],
   ['finish', { reason: 'Shipped' }, '✓ finished a session'],
   ['project', { name: 'SitRep' }, 'project renamed: SitRep'],
-  ['project', { directory: '/Users/lee/sitrep' }, 'project lives in /Users/lee/sitrep'],
+  ['project', { directory: '/Users/me/sitrep' }, 'project lives in /Users/me/sitrep'],
   [
     'project',
-    { name: 'SitRep', directory: '/Users/lee/sitrep' },
-    'project renamed: SitRep · project lives in /Users/lee/sitrep',
+    { name: 'SitRep', directory: '/Users/me/sitrep' },
+    'project renamed: SitRep · project lives in /Users/me/sitrep',
   ],
   ['board', {}, 'read the board back'],
 ]
@@ -125,10 +125,10 @@ test('a call naming an item or a session, with no name kept, names it as the hel
     ['resolve', { item: asked }, 'resolved: Review round 1'],
     ['reopen', { item: asked }, 'reopened: Review round 1'],
     ['edit', { item: 'zzzz', title: 'x' }, 'edited: an item'],
-    ['join', { session: id }, 'joined: Dashboard redesign'],
-    ['join', { work: id }, 'joined: Dashboard redesign'],
+    ['join', { session: id }, 'joined: Help desk redesign'],
+    ['join', { work: id }, 'joined: Help desk redesign'],
     ['join', { session: 'sr-zzzzzz' }, 'joined a session'],
-    ['finish', {}, '✓ finished: Dashboard redesign'],
+    ['finish', {}, '✓ finished: Help desk redesign'],
   ]
 
   for (const [i, [tool, input, line]] of rows.entries()) {
@@ -159,7 +159,7 @@ test("a resolve, reopen or edit row keeps its item's title after Claude joins an
     kept.push({ call: await keeping(w, tool, input), tool, input, line })
   }
 
-  const other = startedId(await w.call('start', USAGE))
+  const other = startedId(await w.call('start', INBOX_PAGE))
 
   await w.call('join', { session: other })
 
@@ -191,17 +191,17 @@ test("a join row and a finish row keep the session's name after a later join", a
   engineRows(on)
 
   const { id } = await w.begin()
-  const other = startedId(await w.call('start', USAGE))
+  const other = startedId(await w.call('start', INBOX_PAGE))
   const joined = await keeping(w, 'join', { session: id })
   const finished = await keeping(w, 'finish', { reason: 'Shipped' })
 
   await w.call('join', { session: other })
 
   expect(
-    await drawnLine($, joined, 'join', { session: id }, 'joined: Dashboard redesign'),
+    await drawnLine($, joined, 'join', { session: id }, 'joined: Help desk redesign'),
   ).toBeDefined()
   expect(
-    await drawnLine($, finished, 'finish', { reason: 'Shipped' }, '✓ finished: Dashboard redesign'),
+    await drawnLine($, finished, 'finish', { reason: 'Shipped' }, '✓ finished: Help desk redesign'),
   ).toBeDefined()
 })
 

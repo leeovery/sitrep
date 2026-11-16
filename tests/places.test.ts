@@ -14,19 +14,19 @@ import {
 } from '../core'
 import { scripted, W1 } from './support'
 
-const ROOT = '/Users/lee/.local/state/sitrep'
+const ROOT = '/Users/me/.local/state/sitrep'
 
 /** Bytes that map to `k3f9qa` in Crockford's base32: k is 19, 3 is 3, f is 15, 9 is 9, q is 23, a is 10. */
 const K3F9QA = [19, 3, 15, 9, 23, 10]
 
 test('the folder is under XDG_STATE_HOME when it names one, else under HOME', () => {
-  expect(rootOf({ XDG_STATE_HOME: '/state/', HOME: '/Users/lee' })).toBe('/state/sitrep')
-  expect(rootOf({ HOME: '/Users/lee' })).toBe(ROOT)
+  expect(rootOf({ XDG_STATE_HOME: '/state/', HOME: '/Users/me' })).toBe('/state/sitrep')
+  expect(rootOf({ HOME: '/Users/me' })).toBe(ROOT)
 })
 
 test('an empty or relative XDG_STATE_HOME is ignored, as the XDG spec has it', () => {
-  expect(rootOf({ XDG_STATE_HOME: '', HOME: '/Users/lee' })).toBe(ROOT)
-  expect(rootOf({ XDG_STATE_HOME: 'state', HOME: '/Users/lee' })).toBe(ROOT)
+  expect(rootOf({ XDG_STATE_HOME: '', HOME: '/Users/me' })).toBe(ROOT)
+  expect(rootOf({ XDG_STATE_HOME: 'state', HOME: '/Users/me' })).toBe(ROOT)
   expect(() => rootOf({})).toThrow('needs HOME or XDG_STATE_HOME')
 })
 
@@ -46,21 +46,21 @@ const placesOf = (folder: SessionPaths) => ({
 })
 
 test("a session's files sit in its folder under sessions/: session.json, one file per writer, the inbox and the heartbeats", () => {
-  const paths = sessionPaths(ROOT, 'switchboard-1a2b3c4d', 'sr-k3f9qa')
-  const project = `${ROOT}/projects/switchboard-1a2b3c4d`
+  const paths = sessionPaths(ROOT, 'northwind-1a2b3c4d', 'sr-k3f9qa')
+  const project = `${ROOT}/projects/northwind-1a2b3c4d`
 
-  expect(sessionsDir(ROOT, 'switchboard-1a2b3c4d')).toBe(`${project}/sessions`)
-  expect(paths.project).toEqual(projectPaths(ROOT, 'switchboard-1a2b3c4d'))
+  expect(sessionsDir(ROOT, 'northwind-1a2b3c4d')).toBe(`${project}/sessions`)
+  expect(paths.project).toEqual(projectPaths(ROOT, 'northwind-1a2b3c4d'))
   expect(paths.project).toEqual({ dir: project, file: `${project}/project.json` })
   expect(placesOf(paths)).toEqual(folderAt(`${project}/sessions`, 'session.json'))
 })
 
 test('a name that could climb out of its folder is refused', () => {
-  expect(() => sessionPaths(ROOT, 'switchboard', '../../etc')).toThrow(
+  expect(() => sessionPaths(ROOT, 'northwind', '../../etc')).toThrow(
     'Not a name sitrep files under',
   )
   expect(() => projectPaths(ROOT, '..')).toThrow('Not a name sitrep files under')
-  expect(() => sessionPaths(ROOT, 'switchboard', 'sr-k3f9qa').log('a/b')).toThrow()
+  expect(() => sessionPaths(ROOT, 'northwind', 'sr-k3f9qa').log('a/b')).toThrow()
   expect(() => sessionsDir(ROOT, '')).toThrow()
 })
 

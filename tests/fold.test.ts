@@ -74,19 +74,19 @@ test("a writer's own file and its letters count apart: of their lines at one mom
 test('the latest status across writers wins, whoever wrote it', () => {
   const logs = {
     [W1]: file(
-      [T0 + 1 * MIN, status(['Drawing Usage, round 1'])],
+      [T0 + 1 * MIN, status(['Drawing Inbox, round 1'])],
       [T0 + 5 * MIN, note('n1', 'later')],
     ),
-    [W2]: file([T0 + 3 * MIN, status(['Drawing Usage, round 2'], { next: 'Usage, round 3' })]),
+    [W2]: file([T0 + 3 * MIN, status(['Drawing Inbox, round 2'], { next: 'Inbox, round 3' })]),
     [CLI]: file([T0 + 2 * MIN, status(['Generating frames'])]),
   }
   const session = fold({ logs })
 
   expect(session.status).toEqual({
-    name: 'Dashboard redesign',
-    summary: 'Redesign the dashboard, area by area in Paper',
-    now: ['Drawing Usage, round 2'],
-    next: 'Usage, round 3',
+    name: 'Help desk redesign',
+    summary: 'Redesign the help desk, page by page in Paper',
+    now: ['Drawing Inbox, round 2'],
+    next: 'Inbox, round 3',
     at: T0 + 3 * MIN,
     by: W2,
   })
@@ -95,7 +95,7 @@ test('the latest status across writers wins, whoever wrote it', () => {
 test('with no status yet, the session stands as it was started', () => {
   const session = fold({ logs: {} })
 
-  expect(session.status).toMatchObject({ name: 'Dashboard redesign', now: [], at: T0, by: W1 })
+  expect(session.status).toMatchObject({ name: 'Help desk redesign', now: [], at: T0, by: W1 })
   expect(session.updatedAt).toBe(T0)
 })
 
@@ -281,14 +281,14 @@ test("no line about a parked item but its park moves its session's time: a pick-
       [W1]: file(
         [T0, status(['Drawing the ledger'])],
         [T0 + MIN, park('p1', 'Export the ledger as CSV')],
-        [parked, park('p2', 'Archive old requests')],
-        [parked, park('p3', 'A tmux indicator')],
+        [parked, park('p2', 'Archive old invoices')],
+        [parked, park('p3', 'A priority badge')],
       ),
       [W2]: file(
         [T0 + 10 * MIN, reply('r1', 'p1', 'pickup')],
         [T0 + 10 * MIN, delivered('r1')],
         [T0 + 11 * MIN, resolve('p2', 'Done elsewhere')],
-        [T0 + 12 * MIN, { type: 'edit', item: 'p3', changes: { title: 'A tmux badge' } }],
+        [T0 + 12 * MIN, { type: 'edit', item: 'p3', changes: { title: 'A priority flag' } }],
         [T0 + 13 * MIN, resolve('p3')],
         [T0 + 14 * MIN, reopen('p3')],
       ),
@@ -300,7 +300,7 @@ test("no line about a parked item but its park moves its session's time: a pick-
     },
   })
 
-  expect(session.parked.map(each => [each.id, each.title])).toEqual([['p3', 'A tmux badge']])
+  expect(session.parked.map(each => [each.id, each.title])).toEqual([['p3', 'A priority flag']])
   expect(session.updatedAt).toBe(parked)
   expect(noted.updatedAt, 'a note moves it').toBe(T0 + 20 * MIN)
 })
@@ -308,7 +308,7 @@ test("no line about a parked item but its park moves its session's time: a pick-
 test('a mark moves the time unless every reply it names is a pick-up; a mark read before its reply is judged too', () => {
   const asked: Line[] = [
     [T0, yesAsk('k1', 'Run the apply', 'Done')],
-    [T0, park('p1', 'A tmux indicator')],
+    [T0, park('p1', 'A priority badge')],
   ]
   const both = fold({
     logs: {
@@ -332,7 +332,7 @@ test('a line naming an item or a reply the session does not have moves the time 
   const session = fold({
     logs: {
       [W1]: file(
-        [T0, park('p1', 'A tmux indicator')],
+        [T0, park('p1', 'A priority badge')],
         [T0 + MIN, reply('r1', 'sr-q7rx01:p1', 'pickup')],
         [T0 + MIN, delivered('r1')],
         [T0 + 2 * MIN, resolve('zz99')],

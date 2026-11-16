@@ -36,9 +36,9 @@ type Engine = Parameters<typeof world>[0]
 
 /** The parked items, and the note each is picked up with, if any. */
 const PARKED = [
-  { title: 'A tmux indicator across sessions' },
-  { title: 'Paper thumbnails inline in Ghostty', note: 'Before the release' },
-  { title: 'Space switch without the slide', note: 'After the bug fixes' },
+  { title: 'A priority badge across all tabs' },
+  { title: 'Thumbnails inline in the gallery', note: 'Before the release' },
+  { title: 'Sign-in without the redirect', note: 'After the bug fixes' },
 ]
 
 /** A session parking each item, the board docked, and each picked up, its note written in the prompt: the parked ids and the board. */
@@ -120,13 +120,13 @@ test("a project's NOTES draws a send's several pick-ups, each its own line", asy
 
 const LEDGER = 'sr-1edger'
 
-const REVIEW = { wants: 'yes', yes: 'Approve', title: 'Review Sessions & Runway, round 1' }
+const REVIEW = { wants: 'yes', yes: 'Approve', title: 'Review Tickets & Replies, round 1' }
 
 /** What the ledger parked. */
 const EXPORT = 'Export the ledger as CSV'
 
 /** The message a pick-up of the ledger's item goes in as. */
-const PICKED = `From the board:\n- Pick up from parked, Request ledger's: ${EXPORT}`
+const PICKED = `From the board:\n- Pick up from parked, Invoice ledger's: ${EXPORT}`
 
 /** Long enough ago that a session idle since is past the views. */
 const OLD = T0 - CURRENT_MS - MIN
@@ -137,7 +137,7 @@ const meta = (id: string, name: string, by: string, project = PROJECT): SessionM
   name,
   summary: `${name}, area by area`,
   project: project.name,
-  root: `/Users/lee/Code/${project.key}`,
+  root: `/Users/me/Code/${project.key}`,
   created: OLD,
   by,
 })
@@ -172,7 +172,7 @@ const STANDING: Record<string, Standing> = {
 
 /** This session beside the ledger, its lines `lines`, held by another window where `isOpen`: a minute on, Lee opens the board. */
 async function besideLedger(w: World, { lines, isOpen }: Standing) {
-  const ledger = w.elsewhere(meta(LEDGER, 'Request ledger', W2))
+  const ledger = w.elsewhere(meta(LEDGER, 'Invoice ledger', W2))
 
   w.put(ledger.paths.log(W2), file(...lines))
 
@@ -285,7 +285,7 @@ test(
     await w.clock.settle()
 
     expect(w.submitted).toEqual([
-      `${PICKED}\n- Review Sessions & Runway, round 1 → Approve${CLOSES}`,
+      `${PICKED}\n- Review Tickets & Replies, round 1 → Approve${CLOSES}`,
     ])
     expect(kindsIn(w, LEDGER_LOG)).toEqual(['reply', 'delivered'])
     expect(kindsIn(w, paths.log(W1))).toEqual(['ask', 'reply', 'delivered'])
@@ -297,12 +297,12 @@ test(
   SLOW,
   async ($, on) => {
     const w = world($, on)
-    const ledger = w.elsewhere(meta(LEDGER, 'Request ledger', W2))
+    const ledger = w.elsewhere(meta(LEDGER, 'Invoice ledger', W2))
     const pickUpsLeft = () => w.toasts.filter(toast => toast.includes('pick-up'))
 
     ledger.write(yesAsk('k3', 'Review the ledger schema'), park('p1', EXPORT))
     w.elsewhere(meta('sr-themes', 'Themes', W3))
-    w.elsewhere(meta('sr-0rders', 'Standing orders', W3, ELSEWHERE), ELSEWHERE.key)
+    w.elsewhere(meta('sr-0sh1ft', 'Shift schedules', W3, ELSEWHERE), ELSEWHERE.key)
 
     await w.begin()
     await w.clock.advance(MIN)
@@ -322,7 +322,7 @@ test(
     expect(w.state.queue, 'a session of this project').toEqual(queued)
     expect(pickUpsLeft()).toEqual([])
 
-    await w.call('join', { session: 'sr-0rders' })
+    await w.call('join', { session: 'sr-0sh1ft' })
     expect(w.state.queue).toEqual([
       { project: PROJECT.key, session: LEDGER, item: 'k3', verdict: 'yes' },
     ])
@@ -342,7 +342,7 @@ test(
     const asked = postedId(await w.call('ask', REVIEW))
     const pickUpsLeft = () => w.toasts.filter(toast => toast.includes('pick-up'))
 
-    w.elsewhere(meta('sr-0rders', 'Standing orders', W3, ELSEWHERE), ELSEWHERE.key)
+    w.elsewhere(meta('sr-0sh1ft', 'Shift schedules', W3, ELSEWHERE), ELSEWHERE.key)
     await w.clock.advance(MIN)
     await pickUpLedgers(ui)
     await ui.press({ key: `pick:${w.item(asked)}` })
@@ -352,7 +352,7 @@ test(
 
     const [own] = w.state.queue?.filter(reply => reply.verdict === 'yes') ?? []
 
-    await w.call('join', { session: 'sr-0rders' })
+    await w.call('join', { session: 'sr-0sh1ft' })
     expect(pickUpsLeft(), 'carried, it stays as the window joins').toEqual([])
 
     await ui.press({ key: w.takeBack() })
@@ -375,7 +375,7 @@ test(
     const w = world($, on)
     const lines: Line[] = [
       [T0, park('p1', EXPORT)],
-      [T0, park('p2', 'Archive old requests')],
+      [T0, park('p2', 'Archive old invoices')],
     ]
     const { ui } = await besideLedger(w, { lines, isOpen: true })
 
@@ -395,9 +395,9 @@ test(
     const context = (await $.prompt.submit(PROMPT)).context?.[0]
 
     expect(context).toContain(
-      '- p3, parked by "Request ledger" (session: sr-1edger): Retry the export',
+      '- p3, parked by "Invoice ledger" (session: sr-1edger): Retry the export',
     )
-    expect(context).not.toContain('Archive old requests')
+    expect(context).not.toContain('Archive old invoices')
   },
 )
 
@@ -491,7 +491,7 @@ test(
 
     const lines: Line[] = [
       [T0, park('p1', EXPORT)],
-      [T0, park('p2', 'Archive old requests')],
+      [T0, park('p2', 'Archive old invoices')],
     ]
     const { ui } = await besideLedger(w, { lines, isOpen: true })
 
@@ -532,12 +532,12 @@ test(
     const w = world($, on)
     const { ui } = await besideLedger(w, FINISHED)
 
-    w.elsewhere(meta('sr-0rders', 'Standing orders', W3, ELSEWHERE), ELSEWHERE.key)
+    w.elsewhere(meta('sr-0sh1ft', 'Shift schedules', W3, ELSEWHERE), ELSEWHERE.key)
     await w.clock.advance(MIN)
     await pickUpLedgers(ui)
     await w.turnStarts('Carry on.')
     await ui.press({ key: 'send' })
-    await w.call('join', { session: 'sr-0rders' })
+    await w.call('join', { session: 'sr-0sh1ft' })
     await w.turnEnds()
     await w.clock.settle()
 

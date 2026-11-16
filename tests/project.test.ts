@@ -21,12 +21,12 @@ import { META, T0, W1 } from './support'
 
 const SITREP: ProjectFile = {
   name: 'SitRep',
-  directory: '/Users/lee/.config/kit/shared/plugins/sitrep',
+  directory: '/Users/me/.config/litware/shared/plugins/sitrep',
   created: T0,
   by: W1,
 }
 
-const DASHBOARD = { name: 'Dashboard', summary: 'Area by area' }
+const HELP_DESK = { name: 'Help desk', summary: 'Area by area' }
 
 test("a project's name matches another's ignoring case, spaces and punctuation, never its letters", () => {
   for (const name of ['SitRep', 'sitrep', 'Sit Rep', 'SIT-REP', ' sit_rep! ']) {
@@ -40,17 +40,17 @@ test("a project's name matches another's ignoring case, spaces and punctuation, 
 
 test('the project a name names is the one whose name matches, whatever its folder', () => {
   const projects: Project[] = [
-    { key: 'code-84dbac88', name: 'SitRep' },
-    { key: 'switchboard', name: 'Switchboard' },
+    { key: 'code-1a2b3c4d', name: 'SitRep' },
+    { key: 'northwind', name: 'Northwind' },
   ]
 
-  expect(projectNamed(projects, 'sitrep')?.key).toBe('code-84dbac88')
-  expect(projectNamed(projects, 'Goosemates')).toBeUndefined()
+  expect(projectNamed(projects, 'sitrep')?.key).toBe('code-1a2b3c4d')
+  expect(projectNamed(projects, 'Contoso')).toBeUndefined()
 })
 
 test("a new project's key is its name as a slug, numbered on past a folder that has it", () => {
   expect(newProjectKey('SitRep', new Set())).toBe('sitrep')
-  expect(newProjectKey('Request Ledger & Co.', new Set())).toBe('request-ledger-co')
+  expect(newProjectKey('Invoice Ledger & Co.', new Set())).toBe('invoice-ledger-co')
   expect(newProjectKey('Café Ünïcode', new Set())).toBe('cafe-unicode')
   expect(newProjectKey('日本', new Set())).toBe('project')
   expect(newProjectKey('SitRep', new Set(['sitrep', 'sitrep-2']))).toBe('sitrep-3')
@@ -77,12 +77,12 @@ test("a project's file holds its name, its directory if known, and when and by w
 test('a folder from before projects were named is named as its sessions recorded it, first letter a capital', () => {
   expect(projectName(undefined, 'code')).toBe('Code')
   expect(projectName(SITREP, 'code')).toBe('SitRep')
-  expect(projectFrom('code-84dbac88', undefined, 'code')).toEqual({
-    key: 'code-84dbac88',
+  expect(projectFrom('code-1a2b3c4d', undefined, 'code')).toEqual({
+    key: 'code-1a2b3c4d',
     name: 'Code',
   })
-  expect(projectFrom('code-84dbac88', SITREP, 'code')).toEqual({
-    key: 'code-84dbac88',
+  expect(projectFrom('code-1a2b3c4d', SITREP, 'code')).toEqual({
+    key: 'code-1a2b3c4d',
     name: 'SitRep',
     directory: SITREP.directory,
   })
@@ -106,48 +106,48 @@ test("a session folds with its project's name as the project's file has it, else
 
 test('the projects living around a folder come first, the nearest first, the rest as they were', () => {
   const projects = [
-    { key: 'switchboard' },
-    { key: 'code', directory: '/Users/lee/Code' },
-    { key: 'goosemates', directory: '/Users/lee/Code/goosemates' },
-    { key: 'sitrep', directory: '/Users/lee/.config/kit/shared/plugins/sitrep' },
-    { key: 'kit', directory: '/Users/lee/.config/kit' },
+    { key: 'northwind' },
+    { key: 'code', directory: '/Users/me/Code' },
+    { key: 'contoso', directory: '/Users/me/Code/contoso' },
+    { key: 'sitrep', directory: '/Users/me/.config/litware/shared/plugins/sitrep' },
+    { key: 'litware', directory: '/Users/me/.config/litware' },
   ]
   const keys = (folder: string) => nearestFirst(projects, folder).map(project => project.key)
 
-  expect(keys('/Users/lee/.config/kit/shared/plugins/sitrep/hooks')).toEqual([
+  expect(keys('/Users/me/.config/litware/shared/plugins/sitrep/hooks')).toEqual([
     'sitrep',
-    'kit',
-    'switchboard',
+    'litware',
+    'northwind',
     'code',
-    'goosemates',
+    'contoso',
   ])
-  expect(keys('/Users/lee/Code/goosemates-wt')).toEqual([
+  expect(keys('/Users/me/Code/contoso-wt')).toEqual([
     'code',
-    'switchboard',
-    'goosemates',
+    'northwind',
+    'contoso',
     'sitrep',
-    'kit',
+    'litware',
   ])
-  expect(projectAround(projects, '/Users/lee/Code/goosemates/')?.key).toBe('goosemates')
-  expect(projectAround(projects, '/Users/lee'), 'a folder above every project').toBeUndefined()
+  expect(projectAround(projects, '/Users/me/Code/contoso/')?.key).toBe('contoso')
+  expect(projectAround(projects, '/Users/me'), 'a folder above every project').toBeUndefined()
 })
 
 test("start takes the project's name, and its directory as an absolute path, the slashes after it dropped", () => {
-  expect(checkStart({ ...DASHBOARD, project: '  SitRep\n' })).toEqual({
+  expect(checkStart({ ...HELP_DESK, project: '  SitRep\n' })).toEqual({
     ok: true,
-    value: { ...DASHBOARD, project: 'SitRep', directory: undefined },
+    value: { ...HELP_DESK, project: 'SitRep', directory: undefined },
   })
   expect(
-    checkStart({ ...DASHBOARD, project: 'SitRep', directory: ' /Users/lee/sitrep// ' }),
+    checkStart({ ...HELP_DESK, project: 'SitRep', directory: ' /Users/me/sitrep// ' }),
   ).toEqual({
     ok: true,
-    value: { ...DASHBOARD, project: 'SitRep', directory: '/Users/lee/sitrep' },
+    value: { ...HELP_DESK, project: 'SitRep', directory: '/Users/me/sitrep' },
   })
-  expect(checkStart({ ...DASHBOARD, project: 'SitRep', directory: '' })).toMatchObject({
+  expect(checkStart({ ...HELP_DESK, project: 'SitRep', directory: '' })).toMatchObject({
     ok: true,
     value: { directory: undefined },
   })
-  expect(checkStart({ ...DASHBOARD, project: 'SitRep', directory: '~/sitrep' }).ok).toBe(false)
+  expect(checkStart({ ...HELP_DESK, project: 'SitRep', directory: '~/sitrep' }).ok).toBe(false)
 })
 
 test('the project tool takes a new name, a directory, or both, and refuses neither', () => {
@@ -155,9 +155,9 @@ test('the project tool takes a new name, a directory, or both, and refuses neith
     ok: true,
     value: { name: 'SitRep', directory: undefined },
   })
-  expect(checkProject({ directory: '/Users/lee/sitrep/' })).toEqual({
+  expect(checkProject({ directory: '/Users/me/sitrep/' })).toEqual({
     ok: true,
-    value: { name: undefined, directory: '/Users/lee/sitrep' },
+    value: { name: undefined, directory: '/Users/me/sitrep' },
   })
   expect(checkProject({})).toEqual({
     ok: false,

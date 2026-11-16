@@ -61,7 +61,7 @@ const LIST = {
 }
 
 const FOUR_LINES =
-  'Switchboard\n  sr-k3f9qa  Dashboard redesign (open, 1 waiting)\nSitRep\n  sr-wdsqvn  sitrep'
+  'Northwind\n  sr-k3f9qa  Help desk redesign (open, 1 waiting)\nContoso\n  sr-eeeeee  Onboarding'
 
 /** A paste as the engine wraps it in the prompt Lee submits, the line breaks around it with it (live, 2.1.295). */
 const pasted = (text: string, id = '08fd') =>
@@ -436,10 +436,10 @@ test('a queued reply of several lines shows its first, how many more, then not s
 
   await entered(w, $, pasted(FOUR_LINES))
   expect(rowsOf(await ui.find({ key: `ask:${w.item(id)}` })).at(-1)).toBe(
-    '└ “Switchboard” +3 lines · not sent yet ↺ undo ✎ edit',
+    '└ “Northwind” +3 lines · not sent yet ↺ undo ✎ edit',
   )
   expect(rowsOf(await ui.find({ key: `readyanswer:${w.item(id)}` }))).toEqual([
-    '└ “Switchboard” +3 lines ✎ edit',
+    '└ “Northwind” +3 lines ✎ edit',
   ])
 })
 
@@ -506,10 +506,10 @@ test('one send carries the yes with its comment, the choice and the answer, in o
       `- ${LIST.title} → ${OUTPUT}:`,
       '  ```',
       '  Ran it:',
-      '  Switchboard',
-      '    sr-k3f9qa  Dashboard redesign (open, 1 waiting)',
-      '  SitRep',
-      '    sr-wdsqvn  sitrep',
+      '  Northwind',
+      '    sr-k3f9qa  Help desk redesign (open, 1 waiting)',
+      '  Contoso',
+      '    sr-eeeeee  Onboarding',
       '  ```',
       '  This closes the ask: nothing more to do with it.',
     ].join('\n'),
@@ -655,10 +655,10 @@ test('VS Code, whose prompts arrive some way unproven, offers nothing to write: 
 /** Another session of the project, open in another window. */
 const LEDGER: SessionMeta = {
   id: 'sr-1edger',
-  name: 'Request ledger',
-  summary: 'Request ledger, area by area',
+  name: 'Invoice ledger',
+  summary: 'Invoice ledger, area by area',
   project: PROJECT.key,
-  root: '/Users/lee/Code/switchboard',
+  root: '/Users/me/Code/northwind',
   created: T0,
   by: W2,
 }
@@ -1279,7 +1279,7 @@ test('a comment that closes an old decide is an answer everywhere: its button, t
   expect(await entered(w, $, 'Storage is cheap')).toEqual({ drop: TAKEN.comment })
 })
 
-const TMUX = 'A tmux indicator'
+const TMUX = 'A priority badge'
 
 /** The board, opened by /sitrep, on a parked item, opened. */
 const onParked = async (w: World) => {
@@ -1312,7 +1312,7 @@ test('an opened parked item offers pick it up and ✎ with a comment; neither on
   expect((await parkedRows(ui, w.item(id))).at(-1)).toBe('  [ pick it up ] [ ✎ with a comment ]')
   await ui.press({ key: `pickup:${w.item(id)}` })
   expect(await parkedRows(ui, w.item(id))).toEqual([
-    expect.stringMatching(/^◇ A tmux indicator/),
+    expect.stringMatching(/^◇ A priority badge/),
     '└ pick it up · not sent yet ↺ undo',
   ])
   expect(await ui.find({ key: `pickup:${w.item(id)}` })).toBeUndefined()
@@ -1389,7 +1389,7 @@ test('a reload keeps picking up: the band still names it, and the next Enter is 
   const { id } = await pickingUp(w)
 
   await $.session.start(CONVERSATION)
-  expect((await bandRow(w)).rows[0]).toMatch(/^✎ Your next Enter picks up "A tmux indicator"/)
+  expect((await bandRow(w)).rows[0]).toMatch(/^✎ Your next Enter picks up "A priority badge"/)
   expect(await entered(w, $, 'Before the release')).toEqual({ drop: TAKEN.pickup })
   expect(w.state.queue).toEqual([{ ...at(w, id), verdict: 'pickup', note: 'Before the release' }])
 })
@@ -1527,10 +1527,10 @@ test('a queued pick-up with a note shows it, how many lines more, undo and ✎ e
   await entered(w, $, pasted(FOUR_LINES))
   await w.clock.advance(CLEAR_AFTER_DROP_MS)
   expect((await parkedRows(ui, w.item(id))).at(-1)).toBe(
-    '└ pick it up, with a comment: “Switchboard” +3 lines · not sent yet ↺ undo ✎ edit',
+    '└ pick it up, with a comment: “Northwind” +3 lines · not sent yet ↺ undo ✎ edit',
   )
   expect(rowsOf(await ui.find({ key: `readyanswer:${w.item(id)}` }))).toEqual([
-    '└ pick it up, with a comment: “Switchboard” +3 lines ✎ edit',
+    '└ pick it up, with a comment: “Northwind” +3 lines ✎ edit',
   ])
 
   await ui.press({ key: `rewrite:${w.item(id)}` })

@@ -44,11 +44,11 @@ type Sitrep = PluginState['sitrep']
 export const STATE_HOME = '/state'
 export const ROOT = `${STATE_HOME}/sitrep`
 
-/** The folder the window starts in: Switchboard's repository, though that decides nothing. */
-export const REPO = '/Users/lee/Code/switchboard'
+/** The folder the window starts in: Northwind's repository, though that decides nothing. */
+export const REPO = '/Users/me/Code/northwind'
 
 /** Lee's home folder, which a window may start in to talk of any project. */
-export const HOME = '/Users/lee'
+export const HOME = '/Users/me'
 
 /** The sitrep version the plugin's manifest gives, unless a test says otherwise. */
 export const PLUGIN_VERSION = '0.2.0'
@@ -104,16 +104,16 @@ export const WHERE: Where = { device: `/dev/${TTY}`, terminal: 'ghostty' }
 export type Walk = { stdout: string; exitCode?: number } | { refused: string }
 
 /** The project the sessions under test are on: named so by Claude as it starts one, its key the name's slug. */
-export const PROJECT: Project = { key: 'switchboard', name: 'Switchboard' }
+export const PROJECT: Project = { key: 'northwind', name: 'Northwind' }
 
 /** Another project, with a session of its own. */
-export const ELSEWHERE: Project = { key: 'goosemates', name: 'Goosemates' }
+export const ELSEWHERE: Project = { key: 'contoso', name: 'Contoso' }
 
 export const CONVERSATION = { cwd: REPO, surface: 'terminal' as const, isInteractive: true }
 
-export const DASHBOARD = {
-  name: 'Dashboard redesign',
-  summary: 'Redesign the dashboard, area by area',
+export const HELP_DESK = {
+  name: 'Help desk redesign',
+  summary: 'Redesign the help desk, page by page',
   project: PROJECT.name,
 }
 
@@ -203,9 +203,14 @@ function display(on: On) {
   let unplaced: string | undefined
   let dropping: string | undefined
   let failing: string | undefined
+  let refusingOpens: string | undefined
   let holding: { arrive: () => void; turn: Promise<void> } | undefined
 
   on('ui.open', ($, e) => {
+    if (refusingOpens !== undefined) {
+      return { deny: refusingOpens }
+    }
+
     panes.set(e.id, unplaced === undefined)
 
     return {
@@ -323,6 +328,10 @@ function display(on: On) {
     /** Prompts from here on fail beneath the mod, as a hook there throwing or timing out; or, given nothing, they enter again. */
     failPrompts: (error?: string) => {
       failing = error
+    },
+    /** Panes opened from here on are refused beneath the mod, for that reason; or, given none, they open again. */
+    refuseOpens: (reason?: string) => {
+      refusingOpens = reason
     },
     /**
      * Prompts from here on wait, as behind a running turn: `arrived` once
@@ -740,7 +749,7 @@ export function world(engine: Engine, on: On, options: Options = {}) {
   const begin = async () => {
     await engine.session.start(CONVERSATION)
 
-    const id = startedId(await call('start', DASHBOARD))
+    const id = startedId(await call('start', HELP_DESK))
 
     return { id, paths: sessionPaths(ROOT, PROJECT.key, id) }
   }

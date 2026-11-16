@@ -50,7 +50,7 @@ test("another writer's change rides into the next prompt once, as context Lee do
   const context = (await $.prompt.submit(PROMPT)).context
 
   expect(context).toHaveLength(1)
-  expect(context?.[0]).toStartWith(`${CHANGED}\nsitrep board: Dashboard redesign`)
+  expect(context?.[0]).toStartWith(`${CHANGED}\nsitrep board: Help desk redesign`)
   expect(context?.[0]).toContain('- n9: Merged the band')
   expect((await $.prompt.submit(PROMPT)).context).toBeUndefined()
 })
@@ -60,32 +60,32 @@ test('another session of the project parking something changes the board: it rid
 
   await begun(w)
 
-  const ledger = w.elsewhere({ ...META, id: 'sr-1edger', name: 'Request ledger', by: W2 })
+  const ledger = w.elsewhere({ ...META, id: 'sr-1edger', name: 'Invoice ledger', by: W2 })
 
   ledger.write(park('p1', 'Export the ledger as CSV'))
   await w.clock.advance(AROUND_MS)
 
   const context = (await $.prompt.submit(PROMPT)).context
 
-  expect(context?.[0]).toStartWith(`${CHANGED}\nsitrep board: Dashboard redesign`)
+  expect(context?.[0]).toStartWith(`${CHANGED}\nsitrep board: Help desk redesign`)
   expect(context?.[0]).toContain(
-    '- p1, parked by "Request ledger" (session: sr-1edger): Export the ledger as CSV',
+    '- p1, parked by "Invoice ledger" (session: sr-1edger): Export the ledger as CSV',
   )
   expect((await $.prompt.submit(PROMPT)).context).toBeUndefined()
 })
 
-/** Another session of the project, the request ledger, which parks things. */
-const LEDGER = { ...META, id: 'sr-1edger', name: 'Request ledger', by: W2 }
+/** Another session of the project, the invoice ledger, which parks things. */
+const LEDGER = { ...META, id: 'sr-1edger', name: 'Invoice ledger', by: W2 }
 
 /** The board's line for something the ledger parked. */
 const ledgers = (id: string, title: string) =>
-  `- ${id}, parked by "Request ledger" (session: sr-1edger): ${title}`
+  `- ${id}, parked by "Invoice ledger" (session: sr-1edger): ${title}`
 
 /** What the ledger parks as a look lands. */
 const MORE = {
   type: 'park',
   id: 'p9',
-  title: 'Archive old requests',
+  title: 'Archive old invoices',
   state: 'parked',
   by: W2,
   at: T0,
@@ -141,9 +141,9 @@ test('a look landing while a prompt goes in still rides into the next: what is k
   const took = (await entering).context?.[0]
 
   expect(took).toContain(ledgers('p1', 'Export the ledger as CSV'))
-  expect(took).not.toContain('Archive old requests')
+  expect(took).not.toContain('Archive old invoices')
   expect((await $.prompt.submit(PROMPT)).context?.[0]).toContain(
-    ledgers('p9', 'Archive old requests'),
+    ledgers('p9', 'Archive old invoices'),
   )
 })
 
@@ -166,7 +166,7 @@ test("Claude's own post keeps as seen the board it had seen, its post added: a l
   await w.call('note', { text: 'Drew round 2' })
 
   expect((await $.prompt.submit(PROMPT)).context?.[0]).toContain(
-    ledgers('p9', 'Archive old requests'),
+    ledgers('p9', 'Archive old invoices'),
   )
 })
 

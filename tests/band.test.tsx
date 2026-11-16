@@ -42,7 +42,7 @@ async function busy(w: World) {
 
   return {
     ask: postedId(await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' })),
-    parked: postedId(await w.call('park', { title: 'A tmux indicator' })),
+    parked: postedId(await w.call('park', { title: 'A priority badge' })),
   }
 }
 
@@ -330,6 +330,22 @@ test('a closed board gets ▸ show board wherever it sat, and opened again after
 
   await ui.press({ key: 'band:board' })
   expect(await boardButton(ui)).toEqual({ rows: ['[ ✕ close ]'], isDim: false })
+})
+
+test('a press its hook fails is answered, the failure in the debug log, nothing opened', async ($, on) => {
+  const w = world($, on)
+
+  await w.begin()
+
+  const ui = await w.band()
+
+  w.refuseOpens('no room for the board')
+
+  expect(await ui.press({ key: 'band:board' })).toEqual({ element: 'band:board' })
+  expect(w.logs).toEqual([
+    'sitrep: pressing band:board failed: throw: $.ui.open: no room for the board',
+  ])
+  expect(w.panes.has('sitrep')).toBe(false)
 })
 
 test('a placement message with bad data changes nothing', async ($, on) => {

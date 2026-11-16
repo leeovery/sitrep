@@ -9,7 +9,7 @@ import { CONVERSATION, ELSEWHERE, postedId, PROJECT, toProject, world } from './
 
 tier('user')
 
-const LEDGER: SessionMeta = { ...META, id: 'sr-1edger', name: 'Request ledger', by: W2 }
+const LEDGER: SessionMeta = { ...META, id: 'sr-1edger', name: 'Invoice ledger', by: W2 }
 
 /** The mod finding, as a reload does, `kept` in `$.state`: the session the window held. */
 const reloading = (on: On, kept: SitrepAttachment) => {
@@ -79,9 +79,9 @@ test('the first message lists the sessions filed in every project', async ($, on
   const w = world($, on)
 
   w.seed({ ...META, id: 'sr-aaaaaa', name: 'Lobby' })
-  w.seed({ ...META, id: 'sr-bbbbbb', name: 'Request ledger' })
+  w.seed({ ...META, id: 'sr-bbbbbb', name: 'Invoice ledger' })
   w.seed(
-    { ...META, id: 'sr-cccccc', name: 'Standing orders', project: 'goosemates' },
+    { ...META, id: 'sr-cccccc', name: 'Shift schedules', project: 'contoso' },
     ELSEWHERE.key,
   )
   await $.session.start(CONVERSATION)
@@ -130,8 +130,8 @@ test('reading a board lists no folder that is not there: a session with no inbox
   const w = world($, on)
 
   w.seed(LEDGER)
-  w.seed({ ...META, id: 'sr-cccccc', name: 'Standing orders' }, ELSEWHERE.key)
-  w.project('goosemates', { name: 'Goosemates', created: T0, by: W2 })
+  w.seed({ ...META, id: 'sr-cccccc', name: 'Shift schedules' }, ELSEWHERE.key)
+  w.project('contoso', { name: 'Contoso', created: T0, by: W2 })
   await w.begin()
   await w.call('join', { session: LEDGER.id })
   await w.opened()

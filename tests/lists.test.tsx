@@ -51,7 +51,7 @@ const reviews = (...titles: string[]) =>
 
 const NOTES = notes('PR #81 merged', 'PR #82 merged', 'The schema is drawn')
 
-const PARKED = ['A tmux indicator', 'Thumbnails in the picker', 'Export the ledger as CSV'].map(
+const PARKED = ['A priority badge', 'Thumbnails in the picker', 'Export the ledger as CSV'].map(
   title => ({ title }),
 )
 
@@ -89,16 +89,16 @@ test('PARKED lists its items with no blank row between them, in a session and in
   const ui = await w.pane()
 
   expect(listedUnder(await boardRows(ui), 'PARKED')).toEqual([
-    ' ◇ A tmux indicator 3m',
+    ' ◇ A priority badge 3m',
     ' ◇ Thumbnails in the picker 2m',
     ' ◇ Export the ledger as CSV 1m',
   ])
 
   await toProject(ui)
   expect(listedUnder(await boardRows(ui), 'PARKED')).toEqual([
-    ' ◇ Dashboard redesign: A tmux indicator 3m',
-    ' ◇ Dashboard redesign: Thumbnails in the picker 2m',
-    ' ◇ Dashboard redesign: Export the ledger as CSV 1m',
+    ' ◇ Help desk redesign: A priority badge 3m',
+    ' ◇ Help desk redesign: Thumbnails in the picker 2m',
+    ' ◇ Help desk redesign: Export the ledger as CSV 1m',
   ])
 })
 
@@ -112,9 +112,9 @@ test('the project view lists its notes with no blank row between the lines, each
 
   await toProject(ui)
   expect(listedUnder(await boardRows(ui), 'NOTES')).toEqual([
-    ' • Dashboard redesign: The schema is drawn 1m',
-    ' • Dashboard redesign: PR #82 merged 2m',
-    ' • Dashboard redesign: PR #81 merged 3m',
+    ' • Help desk redesign: The schema is drawn 1m',
+    ' • Help desk redesign: PR #82 merged 2m',
+    ' • Help desk redesign: PR #81 merged 3m',
   ])
 })
 
@@ -208,22 +208,22 @@ test('an opened ask has a blank row after its buttons and hint, so the next ask 
 })
 
 /** A session open in another window, in another project. */
-const ORDERS: SessionMeta = {
-  id: 'sr-0rders',
-  name: 'Standing orders',
-  summary: 'Standing orders, area by area',
+const SHIFTS: SessionMeta = {
+  id: 'sr-0sh1ft',
+  name: 'Shift schedules',
+  summary: 'Shift schedules, area by area',
   project: ELSEWHERE.key,
-  root: '/Users/lee/Code/goosemates',
+  root: '/Users/me/Code/contoso',
   created: T0,
   by: W2,
 }
 
 test('All projects keeps a blank row between its projects', async ($, on) => {
   const w = world($, on)
-  const orders = w.elsewhere(ORDERS, ELSEWHERE.key)
+  const shifts = w.elsewhere(SHIFTS, ELSEWHERE.key)
 
-  orders.write(yesAsk('k5', 'Review the standing orders'))
-  orders.beat()
+  shifts.write(yesAsk('k5', 'Review the shift schedules'))
+  shifts.beat()
   await w.begin()
 
   const ui = await w.opened()
@@ -231,9 +231,9 @@ test('All projects keeps a blank row between its projects', async ($, on) => {
   await ui.press({ key: 'tab:all' })
 
   const rows = await boardRows(ui)
-  const goosemates = rows.findIndex(row => /^ Goosemates/.test(row))
+  const contoso = rows.findIndex(row => /^ Contoso/.test(row))
 
-  expect(goosemates).toBeGreaterThan(0)
-  expect(rows[goosemates - 1], 'the row above the second project').toBe('')
-  expect(rows[goosemates - 2]).toMatch(/└ Dashboard redesign/)
+  expect(contoso).toBeGreaterThan(0)
+  expect(rows[contoso - 1], 'the row above the second project').toBe('')
+  expect(rows[contoso - 2]).toMatch(/└ Help desk redesign/)
 })

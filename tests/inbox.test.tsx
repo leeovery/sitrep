@@ -11,7 +11,7 @@ type World = ReturnType<typeof world>
 
 const FROM_THE_BOARD = { kind: 'plugin', name: 'sitrep', asUser: true }
 
-const MESSAGE = `From the board:\n- Review Sessions & Runway, round 1 → Approve${CLOSES}`
+const MESSAGE = `From the board:\n- Review Tickets & Replies, round 1 → Approve${CLOSES}`
 
 /** As long as the watch takes to fold a letter, and the next look to take it in. */
 const TAKE_IN = 2 * WATCH_MS
@@ -23,7 +23,7 @@ async function asking(w: World) {
     await w.call('ask', {
       wants: 'yes',
       yes: 'Approve',
-      title: 'Review Sessions & Runway, round 1',
+      title: 'Review Tickets & Replies, round 1',
     }),
   )
 
@@ -117,7 +117,7 @@ test("Lee's comment queued, then sent once an answer to the same ask waits in th
   expect(w.prompts.map(prompt => prompt.text)).toEqual([
     [
       'From the board:',
-      '- Review Sessions & Runway, round 1 → comment: “thinner bars”',
+      '- Review Tickets & Replies, round 1 → comment: “thinner bars”',
       "  An answer of Lee's to this ask, sent apart from this message, closes it.",
     ].join('\n'),
   ])

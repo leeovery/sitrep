@@ -187,7 +187,7 @@ test('each closed ask is a green tick and a white title, its age grey; a long ti
   const w = world($, on, { now: NOW })
   const { paths } = await w.begin()
   const title =
-    'Review the whole of the dashboard redesign, every area of it, against the brief and the notes'
+    'Review the whole of the help desk redesign, every area of it, against the brief and the notes'
 
   w.put(
     paths.log(W2),
@@ -204,12 +204,12 @@ test('each closed ask is a green tick and a white title, its age grey; a long ti
   expect((await press())?.dimColor).toBeUndefined()
   expect((await ui.find({ type: 'Text', text: '1h' }))?.props.color).toBe(C.grey)
   expect(await drawn(), 'closed, a line of its own, nothing hung').toEqual([
-    '✓ Review the whole of the dashboard redesign, e…    1h',
+    '✓ Review the whole of the help desk redesign, e…    1h',
   ])
 
   await ui.press({ key: `resolved:${w.item('a1')}` })
   expect(await drawn()).toEqual([
-    '✓ Review the whole of the dashboard redesign,       1h',
+    '✓ Review the whole of the help desk redesign,       1h',
     '│ every area of it, against the brief and the',
     '│ notes',
     '└ → Approve',

@@ -66,10 +66,10 @@ const SESSION = fold({
 })
 
 const CURRENT = {
-  name: 'Dashboard redesign',
+  name: 'Help desk redesign',
   summary: 'Area by area',
-  now: ['Drawing Usage'],
-  next: 'Usage, round 3',
+  now: ['Drawing Inbox'],
+  next: 'Inbox, round 3',
 }
 
 const refusal = <T>(checked: Checked<T>) => (checked.ok ? undefined : checked.error)
@@ -81,7 +81,7 @@ test('what Claude posts is trimmed and kept to one line', () => {
       checkAsk({
         wants: 'yes',
         yes: ' Ship\n it ',
-        title: '  Review\n Sessions &   Runway ',
+        title: '  Review\n Tickets &   Replies ',
         where: '\tIn Paper:\n page 1 ',
         ref: ' ',
       }),
@@ -90,7 +90,7 @@ test('what Claude posts is trimmed and kept to one line', () => {
     type: 'ask',
     wants: 'yes',
     yes: 'Ship it',
-    title: 'Review Sessions & Runway',
+    title: 'Review Tickets & Replies',
     where: 'In Paper: page 1',
   })
   expect(
@@ -107,7 +107,7 @@ test('an item with no words where its title or text goes is refused', () => {
   expect(refusal(checkAsk({ wants: 'words' }))).toContain('needs a title')
   expect(refusal(checkNote({ text: '' }))).toContain('needs its text')
   expect(refusal(checkPark({ title: 42 }))).toContain('needs a title')
-  expect(refusal(checkStart({ name: 'Dashboard', summary: ' ' }))).toContain('needs a summary')
+  expect(refusal(checkStart({ name: 'Help desk', summary: ' ' }))).toContain('needs a summary')
   expect(refusal(checkStart({ summary: 'Area by area' }))).toContain('needs a name')
 })
 
@@ -188,12 +188,12 @@ test('a session is joined by its id, as start gave it', () => {
 })
 
 test('a status keeps what Claude leaves out, and an empty next clears it', () => {
-  expect(value(checkStatus({ now: ['Drawing Usage, round 2', ' '] }, CURRENT))).toEqual({
+  expect(value(checkStatus({ now: ['Drawing Inbox, round 2', ' '] }, CURRENT))).toEqual({
     type: 'status',
-    name: 'Dashboard redesign',
+    name: 'Help desk redesign',
     summary: 'Area by area',
-    now: ['Drawing Usage, round 2'],
-    next: 'Usage, round 3',
+    now: ['Drawing Inbox, round 2'],
+    next: 'Inbox, round 3',
   })
   expect(value(checkStatus({ next: '' }, CURRENT))?.next).toBeUndefined()
   expect(value(checkStatus({ now: 'One thing under way' }, CURRENT))?.now).toEqual([
@@ -622,7 +622,7 @@ test("a snooze is refused, the first refusal in order saying why: the session fi
       NOW,
     )
   const unseen = 'An ask waits on Lee that the snooze did not name: look at it, then snooze again.'
-  const nothing = 'Dashboard redesign needs nothing of Lee: there is nothing to snooze.'
+  const nothing = 'Help desk redesign needs nothing of Lee: there is nothing to snooze.'
   const noTime =
     'A snooze wakes at a time in milliseconds since the epoch, or with none until it moves.'
   const come = 'That time has come already: give one still to come.'
@@ -673,7 +673,7 @@ test("a wake is one line, the session's, wherever a snooze of Lee's stands, run 
   expect(refusal(checkWake(fold({ logs: { [W1]: file([T0, finish('lee')]) } })))).toBe(
     'This session is finished: its asks wait on Lee no more.',
   )
-  expect(refusal(checkWake(BOARD))).toBe('Dashboard redesign is not snoozed.')
+  expect(refusal(checkWake(BOARD))).toBe('Help desk redesign is not snoozed.')
   expect(
     refusal(
       checkWake(
@@ -684,5 +684,5 @@ test("a wake is one line, the session's, wherever a snooze of Lee's stands, run 
       ),
     ),
     'woken already',
-  ).toBe('Dashboard redesign is not snoozed.')
+  ).toBe('Help desk redesign is not snoozed.')
 })

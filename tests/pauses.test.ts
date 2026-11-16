@@ -20,7 +20,7 @@ import { beat, META, MIN, T0, W1, W2 } from './support'
 
 const HOUR = 60 * MIN
 
-const SWITCHBOARD: Project = { key: 'switchboard', name: 'Switchboard' }
+const NORTHWIND: Project = { key: 'northwind', name: 'Northwind' }
 
 /** A clock after `count` more looks, each `wall` milliseconds on by the wall clock and `up` by the uptime. */
 const looked = (clock: Clock, count: number, wall: number, up: number) =>
@@ -130,12 +130,12 @@ test('a session folded across a sleep holds its window, its stop still a row, un
   const unaware = folded(awake, [], window)
 
   expect(across.isOpen).toBe(true)
-  expect(rowOf(SWITCHBOARD, across, awake)?.lines.map(line => line.key)).toEqual([
+  expect(rowOf(NORTHWIND, across, awake)?.lines.map(line => line.key)).toEqual([
     `stop:${META.id}:${W1}:${T0}`,
   ])
-  expect(nextExpiry([{ project: SWITCHBOARD, sessions: [across] }], awake)).toBe(awake + 60_001)
+  expect(nextExpiry([{ project: NORTHWIND, sessions: [across] }], awake)).toBe(awake + 60_001)
   expect(unaware.isOpen).toBe(false)
-  expect(rowOf(SWITCHBOARD, unaware, awake)).toBeUndefined()
+  expect(rowOf(NORTHWIND, unaware, awake)).toBeUndefined()
 })
 
 test('pauses add up, the time awake between them counting', () => {

@@ -1,0 +1,85 @@
+# Names no test may use: Lee's real projects, his GitHub name, and ids of
+# his real sessions and project folders. Samples use placeholders instead:
+# Microsoft's fictional companies (Northwind, Contoso, Fabrikam, Tailspin,
+# Woodgrove, Litware, Wingtip, Adventure Works, Proseware, Blue Yonder) and
+# made-up ids.
+#
+# Left out: names that are also words the product itself uses. Kit, Portal,
+# Mint, Harness, Fabric, Stitch, Folio and Terrace are listed as named, not
+# by their lowercase keys; Spaces, Printer, Mac Studio and Handoff not at
+# all. The ids listed are the live ones that appeared in the tests, not
+# every real id.
+#
+# The rule:
+# - Files: every file under tests/ and app/Tests/, except this one.
+# - Text: the whole text of each file: comments, strings, regexes and
+#   fixtures alike.
+# - Hit: an entry is a hit wherever it appears, case-sensitively, with no
+#   letter or digit directly before or after it. So -, _, ., /, a space and
+#   quotes are boundaries: com.leeovery.sitrep is a hit of leeovery.
+# - Allow: a line `allow <path> <entry>` exempts every hit of <entry> in
+#   that one file, <path> from the repository's root, <entry> the rest of
+#   the line.
+#
+# The format: one entry per line; a line starting with # is a comment, and
+# a blank line is nothing.
+
+# Projects, as named
+Switchboard
+Fabric
+Kit
+Harness
+Portal
+Homelab
+DocMan
+Turnstile
+Stitch
+Folio
+Mint
+Agentic Workflows
+Agentic Skills
+Laravel Idempotency
+Leeway
+rootshell
+Aircon
+Goosemates
+Fumi
+Terrace
+Dotfiles
+dex
+agntc
+
+# Projects, as keyed
+switchboard
+goosemates
+docman
+turnstile
+leeway
+aircon
+fumi
+dotfiles
+
+# Sessions
+sr-4g01a7
+sr-aw3bgs
+sr-y4d0qj
+sr-7e68fj
+sr-v3t7a0
+sr-q7njzv
+sr-j94s0e
+sr-50f7g8
+sr-wdsqvn
+sr-v1pwm9
+
+# Project folders
+code-84dbac88
+switchboard-7a75d7ba
+dotfiles-dd9378a2
+
+# Lee's own
+leeovery
+
+# Allowed: the product's own text, which names Switchboard as an example of
+# a project's name, asserted word for word.
+allow tests/claude.test.ts Switchboard
+allow tests/tools.test.ts Switchboard

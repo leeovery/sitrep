@@ -225,11 +225,11 @@ test("an input core's checks refuse ends as refused, with the check's words, and
 test('park prints its id, and the session counts it parked', async () => {
   const t = terminal()
   const paths = t.seed(META)
-  const run = await t.run('park', 'A tmux indicator', '--where', 'DESIGN.md, Later', ...SESSION)
+  const run = await t.run('park', 'A priority badge', '--where', 'DESIGN.md, Later', ...SESSION)
 
   expect(run.out).toBe(`${FIRST_ID}\n`)
   expect(folded(t, paths).parked.map(each => [each.id, each.title, each.where])).toEqual([
-    [FIRST_ID, 'A tmux indicator', 'DESIGN.md, Later'],
+    [FIRST_ID, 'A priority badge', 'DESIGN.md, Later'],
   ])
 })
 
@@ -239,14 +239,14 @@ test("park draws an id apart from every item parked in the session's project, as
 
   t.seed(LOBBY, { lines: [[T0, park(FIRST_ID, 'Export the ledger as CSV')]] })
 
-  expect((await t.run('park', 'A tmux indicator', ...SESSION)).out).toBe(`${NEXT_ID}\n`)
+  expect((await t.run('park', 'A priority badge', ...SESSION)).out).toBe(`${NEXT_ID}\n`)
   expect(folded(t, paths).parked.map(each => each.id)).toEqual([NEXT_ID])
 })
 
 test('a status gives only what changed, the rest kept as it stands, and prints nothing', async () => {
   const t = terminal()
   const paths = t.seed(META, {
-    lines: [[T0, status(['Drawing Usage, round 2'], { next: 'Usage, round 3' })]],
+    lines: [[T0, status(['Drawing Inbox, round 2'], { next: 'Inbox, round 3' })]],
   })
 
   expect(await t.run('status', '--now', 'Reviewing round 2', ...SESSION)).toEqual({
@@ -258,7 +258,7 @@ test('a status gives only what changed, the rest kept as it stands, and prints n
     name: META.name,
     summary: META.summary,
     now: ['Reviewing round 2'],
-    next: 'Usage, round 3',
+    next: 'Inbox, round 3',
     at: NOW,
     by: WRITER,
   })
@@ -270,13 +270,13 @@ test('a status gives only what changed, the rest kept as it stands, and prints n
 test('a status clears what is under way with --now "", and what is next with --next ""', async () => {
   const t = terminal()
   const paths = t.seed(META, {
-    lines: [[T0, status(['Drawing Usage'], { next: 'Usage, round 3' })]],
+    lines: [[T0, status(['Drawing Inbox'], { next: 'Inbox, round 3' })]],
   })
 
-  await t.run('status', '--now', '', '--next', '', '--name', 'Dashboard', ...SESSION)
+  await t.run('status', '--now', '', '--next', '', '--name', 'Help desk', ...SESSION)
 
   expect(folded(t, paths).status).toMatchObject({
-    name: 'Dashboard',
+    name: 'Help desk',
     summary: META.summary,
     now: [],
     next: undefined,
@@ -353,13 +353,13 @@ test('two runs at once, each reading the file before either wrote, both land, wi
 
 test('the session is the one --session names, else SITREP_SESSION’s, and --session wins', async () => {
   const t = terminal({ env: { ...ENV, SITREP_SESSION: LOBBY.id } })
-  const dashboard = t.seed(META)
+  const helpDesk = t.seed(META)
   const lobby = t.seed(LOBBY)
 
-  await t.run('note', 'Into the dashboard', ...SESSION)
+  await t.run('note', 'Into the help desk', ...SESSION)
   await t.run('note', 'Into the lobby')
 
-  expect(folded(t, dashboard).log.map(line => line.text)).toEqual(['Into the dashboard'])
+  expect(folded(t, helpDesk).log.map(line => line.text)).toEqual(['Into the help desk'])
   expect(folded(t, lobby).log.map(line => line.text)).toEqual(['Into the lobby'])
 })
 
@@ -381,7 +381,7 @@ test('with no session named, a command on one is refused, saying both ways to na
 })
 
 test('a session id that is not one is refused as join refuses it', async () => {
-  const t = terminal({ env: { ...ENV, SITREP_SESSION: 'dashboard' } })
+  const t = terminal({ env: { ...ENV, SITREP_SESSION: 'help-desk' } })
 
   expect(await t.run('board')).toEqual({
     exit: EXIT.refused,
@@ -412,7 +412,7 @@ test('a session whose session.json is torn is no such session', async () => {
 })
 
 test('a session is found in whichever project files it, whatever folder the CLI runs in', async () => {
-  const t = terminal({ cwd: '/Users/lee' })
+  const t = terminal({ cwd: '/Users/me' })
   const there = t.seed(LOBBY, { project: ELSEWHERE.key })
 
   t.seed(META)
@@ -425,7 +425,7 @@ test('board prints the board as Claude’s board tool reads it', async () => {
   const t = terminal()
   const paths = t.seed(META, {
     lines: [
-      [T0, status(['Drawing Usage'])],
+      [T0, status(['Drawing Inbox'])],
       [T0, yesAsk('k1', 'Review round 1')],
     ],
   })
@@ -461,7 +461,7 @@ test('finish refuses a session a live window holds, which is finished there, and
   expect(await t.run('finish', ...SESSION)).toEqual({
     exit: EXIT.refused,
     out: '',
-    err: 'sitrep: Dashboard redesign is open in a window: tell Claude there to finish it.\n',
+    err: 'sitrep: Help desk redesign is open in a window: tell Claude there to finish it.\n',
   })
   expect((await t.run('finish', '--session', LOBBY.id)).err).toBe(
     'sitrep: This session is already finished.\n',
@@ -569,7 +569,7 @@ test('a snooze or a wake refused ends as refused, in the check’s words, and wr
   expect(await t.run('snooze', '--until', String(NOW), ...SESSION, ...SHOWN)).toEqual(
     refused('That time has come already: give one still to come.'),
   )
-  expect(await t.run('wake', ...SESSION)).toEqual(refused('Dashboard redesign is not snoozed.'))
+  expect(await t.run('wake', ...SESSION)).toEqual(refused('Help desk redesign is not snoozed.'))
   expect(t.files.has(paths.log(WRITER))).toBe(false)
   expect((await t.run('snooze', ...until, '--session', 'sr-zzzzzz')).exit).toBe(EXIT.noSession)
   expect((await t.run('wake', '--session', 'sr-zzzzzz')).exit).toBe(EXIT.noSession)

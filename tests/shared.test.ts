@@ -369,10 +369,10 @@ test("an answer landing as the window's send reads the board, unseen by it, goes
 /** A session no window holds, started by a window gone since, with an ask waiting on Lee. */
 const LEDGER: SessionMeta = {
   id: 'sr-1edger',
-  name: 'Request ledger',
-  summary: 'Keep a ledger of requests',
-  project: 'switchboard',
-  root: '/Users/lee/Code/switchboard',
+  name: 'Invoice ledger',
+  summary: 'Keep a ledger of invoices',
+  project: 'northwind',
+  root: '/Users/me/Code/northwind',
   created: T0,
   by: W2,
 }

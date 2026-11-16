@@ -373,7 +373,7 @@ test('a snooze with no time holds until it moves: no time wakes it, its asks sle
 /** k1 put off by an old line until UNTIL. */
 const OLD_K1: Line = [T0 + MIN, snooze('k1', UNTIL)]
 
-/** Harness's case: both asks put off by old lines, written together, k2 an hour later than k1. */
+/** Both asks put off by old lines, written together, k2 an hour later than k1. */
 const OLD_ROW: Line[] = [REVIEW, SHIP, OLD_K1, [T0 + MIN, snooze('k2', UNTIL + HOUR)]]
 
 test("an old line's snooze of an ask keeps its own time, ended as its ask closes, reopens or is woken; one naming anything else is passed over", () => {

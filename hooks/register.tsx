@@ -31,7 +31,7 @@
  * the scene.
  */
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, Register } from 'claude-code'
+import type { EngineInterface, HookFailure, Register } from 'claude-code'
 import { actionsOf, sendReady, wakeByLeesPrompt, wakeByTurnEnd } from './actions'
 import { captured, heardSurvey } from './answering'
 import { lookAround, lookEvery } from './around'
@@ -260,6 +260,25 @@ const hostOf = ($: EngineInterface): Host => ({
     },
   },
 })
+
+/**
+ * A press its hook failed ends there, logged: passed on, it reaches the
+ * button's own handler, which does nothing, and after a /reload-plugins the
+ * engine holds none, so the press fails a second time.
+ */
+const pressFailed = ($: EngineInterface, e: { element: string }, next: { error: HookFailure }) => {
+  logFailure(hostOf($), `pressing ${e.element}`)(failureText(next.error))
+
+  return { element: e.element }
+}
+
+/**
+ * A hook's failure as the log says it: its kind, and its message when it
+ * has one. The engine's message leads with the error's name and the
+ * plugin's ("HooksError: sitrep: "), which the log line says already.
+ */
+const failureText = ({ kind, message }: HookFailure) =>
+  message === undefined ? kind : `${kind}: ${message.replace(/^\w*Error: (sitrep: )?/, '')}`
 
 /** The window's turn ending wakes a snooze of Lee's until it moves, before the turn's end is heard, so the session comes back at its turn as any turn ends. */
 const wakeOnTurnEnd = (host: Host) =>
@@ -547,13 +566,13 @@ export const register: Register = on => {
     await pressed.catch(logFailure(host, 'sending'))
 
     return { element: e.element }
-  }).catch(($, e, next) => next(e))
+  }).catch(pressFailed)
 
   on('ui.press', { plugin: 'sitrep', element: BAND_KEYS }, async ($, e) => {
     await pressBand(hostOf($), e.element)
 
     return { element: e.element }
-  }).catch(($, e, next) => next(e))
+  }).catch(pressFailed)
 
   on('ui.close', { id: PANE }, async ($, e, next) => {
     const closed = await next(e)

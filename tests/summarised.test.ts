@@ -317,7 +317,7 @@ test("another plugin's own call gets nothing, the engine dropping what it adds, 
   forgetUntold()
   heardRow({ message: { type: 'assistant', content: [thinking(SUMMARY, NARRATION)] } })
 
-  expect(retold({ origin: { plugin: 'portal', tier: 'user' } }, answered)).toBe(answered)
+  expect(retold({ origin: { plugin: 'fabrikam', tier: 'user' } }, answered)).toBe(answered)
   expect(retold({ origin: ENGINE }, answered)).toEqual({
     result: 'done',
     context: [summarisedLine([SUMMARY])],

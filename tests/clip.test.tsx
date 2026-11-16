@@ -37,10 +37,10 @@ const ROWS = 3
 /** Another session of the project, started in another window. */
 const LEDGER: SessionMeta = {
   id: 'sr-1edger',
-  name: 'Request ledger',
-  summary: 'Request ledger, area by area',
-  project: 'switchboard',
-  root: '/Users/lee/Code/switchboard',
+  name: 'Invoice ledger',
+  summary: 'Invoice ledger, area by area',
+  project: 'northwind',
+  root: '/Users/me/Code/northwind',
   created: T0,
   by: W2,
 }
@@ -223,11 +223,11 @@ test('docked, the tree is a row short of the window; the list is clipped between
 
   const { tree, clip, list } = await clipping(ui)
   const [head, , foot] = ((await ui.findAll({ type: 'Box' }))[0]?.children ?? []) as Drawn[]
-  const lit = '━'.repeat(' ⌂ Dashboard redesign 1 '.length)
+  const lit = '━'.repeat(' ⌂ Help desk redesign 1 '.length)
 
   expect(tree?.height).toBe(BODY_ROWS - 1)
   expect(rowsOf(head as never), 'the header, over the list').toEqual([
-    '  ⌂ Dashboard redesign 1  ≡ All projects 1',
+    '  ⌂ Help desk redesign 1  ≡ All projects 1',
     ` ${lit}${'─'.repeat(DOCKED.bodyColumns - 2 - lit.length)}`,
     '',
   ])
@@ -270,7 +270,7 @@ test(
       {
         name: 'another session',
         reach: () => ui.press({ key: `go:${LEDGER.id}` }),
-        back: '← Switchboard',
+        back: '← Northwind',
       },
     ]
     let tabs: string | undefined
@@ -782,7 +782,7 @@ test("a project's view keys each ask by its session too, so two sessions' asks o
 
   const { paths } = await w.begin()
 
-  w.writer(paths)(yesAsk('k3', 'Review the dashboard'))
+  w.writer(paths)(yesAsk('k3', 'Review the help desk'))
   await w.clock.advance(MIN)
   ledger.beat()
 

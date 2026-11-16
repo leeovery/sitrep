@@ -118,7 +118,7 @@ test("a window on its own work goes below one working and above one on its turn,
   const work = { agents: { count: 1, first: 'Review the diff' } }
   const waiting: Window = ['a', T0, { is: 'onItsWork', since: T0 + 10_000, work }]
   const turn: Window = ['b', T0, { is: 'yourTurn', since: T0 + 40_000 }]
-  const row = rowOf({ key: 'kit', name: 'Kit' }, sessionAt(waiting, turn), LOOKED)
+  const row = rowOf({ key: 'litware', name: 'Litware' }, sessionAt(waiting, turn), LOOKED)
 
   expect(row?.lines[0]?.writer).toBe('a')
   expect(windowsAt(waiting, turn)).toEqual(['a', 'b'])

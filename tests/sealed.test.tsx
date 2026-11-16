@@ -15,7 +15,7 @@ import { rowsOf } from './drawn'
 import { CLOSES, MIN, SLOW, W1 } from './support'
 import {
   CONVERSATION,
-  DASHBOARD,
+  HELP_DESK,
   DOCKED,
   INLINE,
   postedId,
@@ -264,7 +264,7 @@ test('a pick-up from Parked while a send is held joins no part of it: it is a qu
   const w = world($, on)
   const { paths, ids, ui } = await asking(w)
   const [first = ''] = ids
-  const parked = postedId(await w.call('park', { title: 'A tmux indicator across sessions' }))
+  const parked = postedId(await w.call('park', { title: 'A priority badge across all tabs' }))
 
   await holding(w, ui, ids)
   await ui.press({ key: `ppick:${w.item(parked)}` })
@@ -275,7 +275,7 @@ test('a pick-up from Parked while a send is held joins no part of it: it is a qu
     ...held(1),
     '',
     'to this session',
-    'A tmux indicator across sessions ✕',
+    'A priority badge across all tabs ✕',
     '└ pick it up',
     ...CONTROLS,
   ])
@@ -293,7 +293,7 @@ test('a pick-up from Parked while a send is held joins no part of it: it is a qu
 
   expect(w.submitted).toEqual([
     message(1),
-    'From the board:\n- Pick up from parked: A tmux indicator across sessions',
+    'From the board:\n- Pick up from parked: A priority badge across all tabs',
   ])
   expect(repliedIn(w, paths)).toEqual([first, parked])
 })
@@ -477,8 +477,8 @@ test('a yes given after an answer written in the prompt is held lands in a queue
 /** Claude starts another session of the project in this window, the board reading it a look later: the window holds it from then on. */
 const startedElsewhere = async (w: World) => {
   await w.call('start', {
-    name: 'Request ledger',
-    summary: 'Request ledger, area by area',
+    name: 'Invoice ledger',
+    summary: 'Invoice ledger, area by area',
     project: PROJECT.name,
   })
   await w.clock.advance(WATCH_MS)
@@ -491,7 +491,7 @@ test("a send held to a session the board has not read, the window holding anothe
   await holding(w, ui, ids)
   await startedElsewhere(w)
 
-  expect(await box(ui)).toEqual([...heading(1), '', `on its way to ${DASHBOARD.name}`, HELD])
+  expect(await box(ui)).toEqual([...heading(1), '', `on its way to ${HELP_DESK.name}`, HELD])
 
   await ui.press({ key: w.takeBack() })
 
@@ -508,9 +508,9 @@ test('a send after the first, one row for room, names where it goes when that is
   expect(await box(ui)).toEqual([
     ...heading(2),
     '',
-    `on its way to ${DASHBOARD.name}`,
+    `on its way to ${HELP_DESK.name}`,
     HELD,
-    `⧗ Then, to ${DASHBOARD.name}: 1 reply ↺ take back`,
+    `⧗ Then, to ${HELP_DESK.name}: 1 reply ↺ take back`,
   ])
   expect(await ui.find({ key: w.takeBack(1) })).toBeDefined()
 })

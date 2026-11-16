@@ -28,7 +28,7 @@ import {
   yesAsk,
 } from './support'
 import {
-  DASHBOARD,
+  HELP_DESK,
   manifestOf,
   PLUGIN_VERSION,
   PROJECT,
@@ -81,7 +81,7 @@ test('a window joining a session it wrote to before counts on from where its fil
 
   await w.call('note', { text: 'Drew round 1' })
   await w.call('note', { text: 'Drew round 2' })
-  await w.call('start', { ...DASHBOARD, name: 'Lobby' })
+  await w.call('start', { ...HELP_DESK, name: 'Lobby' })
   await w.call('join', { session: id })
   await w.call('note', { text: 'Drew round 3' })
 
@@ -241,14 +241,14 @@ test('attaching in tmux records the device, the terminal and the pane in the hea
 
 test('attaching in zmx records the device, the terminal and the zmx session in the heartbeat', async ($, on) => {
   const w = world($, on, {
-    env: { ZMX_SESSION: 'kit · restore-card', TERM_PROGRAM: 'ghostty' },
+    env: { ZMX_SESSION: 'litware · invoice-card', TERM_PROGRAM: 'ghostty' },
   })
   const { paths } = await w.begin()
 
   expect(parsePresence(w.text(paths.heartbeat(W1)), W1)?.where).toEqual({
     device: `/dev/${TTY}`,
     terminal: 'ghostty',
-    zmx: { session: 'kit · restore-card' },
+    zmx: { session: 'litware · invoice-card' },
   })
 })
 
@@ -325,7 +325,7 @@ test("every heartbeat says the version the plugin's manifest gave as the mod loa
   w.manifestGives(manifestOf('0.5.0'))
   await w.clock.advance(HEARTBEAT_MS)
 
-  const later = startedId(await w.call('start', { ...DASHBOARD, name: 'Lobby' }))
+  const later = startedId(await w.call('start', { ...HELP_DESK, name: 'Lobby' }))
 
   expect(version(paths)).toBe('0.4.2')
   expect(version(sessionPaths(ROOT, PROJECT.key, later))).toBe('0.4.2')
@@ -396,7 +396,7 @@ test('a walk that finds no device leaves it out, says so in the debug log, and t
   for (const walk of walks) {
     w.walkGives(walk)
 
-    const id = startedId(await w.call('start', DASHBOARD))
+    const id = startedId(await w.call('start', HELP_DESK))
     const paths = sessionPaths(ROOT, PROJECT.key, id)
     const beat = () => parsePresence(w.text(paths.heartbeat(W1)), W1)
 
@@ -416,7 +416,7 @@ test('a walk that finds no device leaves it out, says so in the debug log, and t
 
 /** The window starts a session of its own and attaches to it: the session's heartbeat as it reads, a reader called later. */
 const startAnother = async (w: ReturnType<typeof world>, name: string) => {
-  const id = startedId(await w.call('start', { ...DASHBOARD, name }))
+  const id = startedId(await w.call('start', { ...HELP_DESK, name }))
   const heartbeat = sessionPaths(ROOT, PROJECT.key, id).heartbeat(W1)
 
   return { id, beat: () => parsePresence(w.text(heartbeat), W1) }
@@ -428,7 +428,7 @@ test('the walk runs once a load: later attaches take where the first found, and 
   await $.session.start(CONVERSATION)
 
   const first = await startAnother(w, 'Lobby')
-  const second = await startAnother(w, 'Request ledger')
+  const second = await startAnother(w, 'Invoice ledger')
 
   await w.call('join', { session: first.id })
   await w.clock.advance(HEARTBEAT_MS)
@@ -449,7 +449,7 @@ test('a walk that found no device is tried again at the next attach, until one f
 
   w.walkGives({ stdout: `${TTY}\n` })
 
-  const found = await startAnother(w, 'Request ledger')
+  const found = await startAnother(w, 'Invoice ledger')
   const after = await startAnother(w, 'Release notes')
 
   expect(failed.beat()?.where).toEqual({ terminal: 'ghostty' })

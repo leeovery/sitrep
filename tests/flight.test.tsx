@@ -24,9 +24,9 @@ type World = ReturnType<typeof world>
 
 type Source = 'send' | 'inbox'
 
-const REVIEW = { wants: 'yes', yes: 'Approve', title: 'Review Sessions & Runway, round 1' }
+const REVIEW = { wants: 'yes', yes: 'Approve', title: 'Review Tickets & Replies, round 1' }
 
-const MESSAGE = `From the board:\n- Review Sessions & Runway, round 1 → Approve${CLOSES}`
+const MESSAGE = `From the board:\n- Review Tickets & Replies, round 1 → Approve${CLOSES}`
 
 /** Claude Code's refusal of every plugin's prompt once Lee has stopped Claude's turn, until he next types in the window (live, 2.1.318). */
 const STOPPED = 'the session was stopped and nobody has sent input since'

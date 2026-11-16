@@ -23,7 +23,7 @@ import { createReader } from '../hooks/reader'
 import { delivered, file, META, reply, T0, W1, yesAsk, type Line } from './support'
 import { terminal } from './terminal'
 
-const ROOT = '/Users/lee/.local/state/sitrep'
+const ROOT = '/Users/me/.local/state/sitrep'
 
 const PATHS = sessionPaths(ROOT, META.project, META.id)
 

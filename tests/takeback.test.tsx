@@ -20,9 +20,9 @@ type World = ReturnType<typeof world>
 
 type Source = 'send' | 'inbox'
 
-const REVIEW = { wants: 'yes', yes: 'Approve', title: 'Review Sessions & Runway, round 1' }
+const REVIEW = { wants: 'yes', yes: 'Approve', title: 'Review Tickets & Replies, round 1' }
 
-const MESSAGE = `From the board:\n- Review Sessions & Runway, round 1 → Approve${CLOSES}`
+const MESSAGE = `From the board:\n- Review Tickets & Replies, round 1 → Approve${CLOSES}`
 
 const HELD = "⧗ Waiting for Claude's turn to end."
 
