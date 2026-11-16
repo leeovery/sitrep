@@ -1,15 +1,21 @@
 import type { Args } from 'claude-code'
 import { expect, test, tier } from './kit'
-import type { SessionMeta } from '../core'
+import type { Body, SessionMeta } from '../core'
+import { EVERY_PROJECT, projectPlace } from '../hooks/places'
 import { rowsOf } from './drawn'
-import { ELSEWHERE, MIN, T0, W2 } from './data'
-import { yesAsk } from './lines'
-import { postedId, toProject, world, type Board, type World } from './world'
+import { ELSEWHERE, MIN, PROJECT, T0, W2 } from './data'
+import { askOf, note, park, resolve, yesAsk, type Line } from './lines'
+import { heldItem, pane, sceneFrom, type Desk, type Drawn } from './render'
+import { postedId, world, type World } from './world'
 
 tier('user')
 
 /** The board's rows, as drawn. */
-const boardRows = async (ui: Board) => rowsOf(await ui.find({ type: 'Box' }))
+const boardRows = async (ui: Drawn) => rowsOf(await ui.find({ type: 'Box' }))
+
+/** The rows of the board drawn from a desk, the board looking at a place, home unless told. */
+const rowsAt = (desk: Desk, place: Desk['pane'] = {}) =>
+  boardRows(pane(sceneFrom({ ...desk, pane: place })))
 
 /** The rows from the first that matches `first` up to the blank row after it, or the end. */
 const runFrom = (rows: readonly string[], first: RegExp) => {
@@ -35,7 +41,8 @@ async function posted(w: World, tool: string, ...each: Args[]) {
   return ids
 }
 
-const notes = (...texts: string[]) => texts.map(text => ({ text }))
+/** Lines Claude writes one a minute, the first at T0. */
+const minutely = (...bodies: Body[]) => bodies.map((body, i): Line => [T0 + i * MIN, body])
 
 /** Asks for Lee's approval, each saying where to look. */
 const reviews = (...titles: string[]) =>
@@ -46,24 +53,32 @@ const reviews = (...titles: string[]) =>
     where: `In Paper: page ${title.slice(-7)}`,
   }))
 
-const NOTES = notes('PR #81 merged', 'PR #82 merged', 'The schema is drawn')
+/** The reviews as the ask tool writes them, `k1` onwards. */
+const reviewLines = (...titles: string[]) =>
+  reviews(...titles).map((review, i) => askOf(`k${i + 1}`, review))
 
-const PARKED = ['A priority badge', 'Thumbnails in the picker', 'Export the ledger as CSV'].map(
-  title => ({ title }),
-)
+const NOTES = [
+  note('n1', 'PR #81 merged'),
+  note('n2', 'PR #82 merged'),
+  note('n3', 'The schema is drawn'),
+]
 
-test('a session lists its notes and its closed asks with no blank row between their entries', async ($, on) => {
-  const w = world($, on)
+const PARKED = [
+  park('p1', 'A priority badge'),
+  park('p2', 'Thumbnails in the picker'),
+  park('p3', 'Export the ledger as CSV'),
+]
 
-  await w.begin()
-  await posted(w, 'note', ...NOTES)
-
-  for (const id of await posted(w, 'ask', ...reviews('Review round 1', 'Review round 2'))) {
-    await w.call('resolve', { item: id, reason: 'Done in the chat' })
-    await w.clock.advance(MIN)
-  }
-
-  const rows = await boardRows(await w.opened())
+test('a session lists its notes and its closed asks with no blank row between their entries', async () => {
+  const rows = await rowsAt({
+    lines: minutely(
+      ...NOTES,
+      ...reviewLines('Review round 1', 'Review round 2'),
+      resolve('k1', 'Done in the chat'),
+      resolve('k2', 'Done in the chat'),
+    ),
+    now: T0 + 7 * MIN,
+  })
 
   expect(listedUnder(rows, 'NOTES')).toEqual([
     ' • The schema is drawn 5m',
@@ -73,59 +88,39 @@ test('a session lists its notes and its closed asks with no blank row between th
   expect(listedUnder(rows, 'RESOLVED')).toEqual([' ✓ Review round 2 1m', ' ✓ Review round 1 2m'])
 })
 
-test('PARKED lists its items with no blank row between them, in a session and in its project, each naming its session there', async ($, on) => {
-  const w = world($, on)
+test('PARKED lists its items with no blank row between them, in a session and in its project, each naming its session there', async () => {
+  const desk = { lines: minutely(...PARKED), now: T0 + 3 * MIN }
 
-  await w.begin()
-  await posted(w, 'park', ...PARKED)
-
-  const ui = await w.pane()
-
-  expect(listedUnder(await boardRows(ui), 'PARKED')).toEqual([
+  expect(listedUnder(await rowsAt(desk), 'PARKED')).toEqual([
     ' ◇ A priority badge 3m',
     ' ◇ Thumbnails in the picker 2m',
     ' ◇ Export the ledger as CSV 1m',
   ])
-
-  await toProject(ui)
-  expect(listedUnder(await boardRows(ui), 'PARKED')).toEqual([
+  expect(listedUnder(await rowsAt(desk, { place: projectPlace(PROJECT.key) }), 'PARKED')).toEqual([
     ' ◇ Help desk redesign: A priority badge 3m',
     ' ◇ Help desk redesign: Thumbnails in the picker 2m',
     ' ◇ Help desk redesign: Export the ledger as CSV 1m',
   ])
 })
 
-test('the project view lists its notes with no blank row between the lines, each naming its session', async ($, on) => {
-  const w = world($, on)
+test('the project view lists its notes with no blank row between the lines, each naming its session', async () => {
+  const rows = await rowsAt(
+    { lines: minutely(...NOTES), now: T0 + 3 * MIN },
+    { place: projectPlace(PROJECT.key) },
+  )
 
-  await w.begin()
-  await posted(w, 'note', ...NOTES)
-
-  const ui = await w.pane()
-
-  await toProject(ui)
-  expect(listedUnder(await boardRows(ui), 'NOTES')).toEqual([
+  expect(listedUnder(rows, 'NOTES')).toEqual([
     ' • Help desk redesign: The schema is drawn 1m',
     ' • Help desk redesign: PR #82 merged 2m',
     ' • Help desk redesign: PR #81 merged 3m',
   ])
 })
 
-test('ASKS lists its asks as rows with no blank row between them, each its mark, title and age, no where', async ($, on) => {
-  const w = world($, on)
-
-  await w.begin()
-
-  const [, , newest = ''] = await posted(
-    w,
-    'ask',
-    ...reviews('Review round 1', 'Review round 2', 'Review round 3'),
-  )
-  const ui = await w.pane()
-
-  await ui.press({ key: `pick:${w.item(newest)}` })
-
-  const rows = await boardRows(ui)
+test('ASKS lists its asks as rows with no blank row between them, each its mark, title and age, no where', async () => {
+  const rows = await rowsAt({
+    lines: minutely(...reviewLines('Review round 1', 'Review round 2', 'Review round 3')),
+    now: T0 + 3 * MIN,
+  })
   const at = rows.findIndex(row => row.startsWith(' ASKS'))
 
   expect(rows.slice(at + 1, at + 5)).toEqual([
@@ -181,13 +176,11 @@ test('a reply waiting on an ask not opened, or on its way, still hangs from it, 
   await pressed
 })
 
-test('an opened ask has a blank row after its buttons and hint, so the next ask does not run into them', async ($, on) => {
-  const w = world($, on)
-
-  await w.begin()
-  await posted(w, 'ask', ...reviews('Review round 1', 'Review round 2'))
-
-  const rows = await boardRows(await w.pane())
+test('an opened ask has a blank row after its buttons and hint, so the next ask does not run into them', async () => {
+  const rows = await rowsAt(
+    { lines: minutely(...reviewLines('Review round 1', 'Review round 2')), now: T0 + 2 * MIN },
+    { selected: heldItem('k2') },
+  )
   const at = (title: string) => rows.findIndex(row => row.includes(title))
 
   expect(rows.slice(at('Review round 2'), at('Review round 1') + 1)).toEqual([
@@ -211,19 +204,20 @@ const SHIFTS: SessionMeta = {
   by: W2,
 }
 
-test('All projects keeps a blank row between its projects', async ($, on) => {
-  const w = world($, on)
-  const shifts = w.elsewhere(SHIFTS, ELSEWHERE.key)
-
-  shifts.write(yesAsk('k5', 'Review the shift schedules'))
-  shifts.beat()
-  await w.begin()
-
-  const ui = await w.opened()
-
-  await ui.press({ key: 'tab:all' })
-
-  const rows = await boardRows(ui)
+test('All projects keeps a blank row between its projects', async () => {
+  const rows = await rowsAt(
+    {
+      around: [
+        {
+          meta: SHIFTS,
+          project: ELSEWHERE.key,
+          lines: [[T0, yesAsk('k5', 'Review the shift schedules')]],
+          seenAt: T0,
+        },
+      ],
+    },
+    { place: EVERY_PROJECT },
+  )
   const contoso = rows.findIndex(row => /^ Contoso/.test(row))
 
   expect(contoso).toBeGreaterThan(0)

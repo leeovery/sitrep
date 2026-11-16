@@ -13,7 +13,7 @@ import {
   type SessionPaths,
 } from '../../core'
 import { PROJECT, ROOT, W2 } from '../data'
-import { file, type Line } from '../lines'
+import { aroundFiles, file, type Around, type Line } from '../lines'
 
 /** The sessions put on the board by writing their files with `put`, each line at the clock's time. */
 export function sessions(put: (path: string, text: string) => void, clock: MockClock) {
@@ -61,6 +61,23 @@ export function sessions(put: (path: string, text: string) => void, clock: MockC
         write: writer(paths, by),
         beat: (attachedAt = clock.now()) =>
           put(paths.heartbeat(by), presenceText({ writer: by, attachedAt, seenAt: clock.now() })),
+      }
+    },
+
+    /** Sessions beside the world's own, each one's files written whole, as a pure test's scene folds them (render.ts). */
+    surround: (around: readonly Around[] = []) => {
+      for (const each of around) {
+        const project = each.project ?? PROJECT.key
+        const paths = sessionPaths(ROOT, project, each.meta.id)
+        const files = aroundFiles(each)
+
+        put(paths.meta, files.meta)
+        Object.entries(files.logs).forEach(([by, text]) => put(paths.log(by), text))
+        Object.entries(files.presence ?? {}).forEach(([by, text]) => put(paths.heartbeat(by), text))
+
+        if (files.project !== undefined) {
+          put(projectPaths(ROOT, project).file, files.project)
+        }
       }
     },
   }

@@ -1,6 +1,6 @@
 import type { PromptSubmitAttachment } from 'claude-code'
 import { expect, test, tier, type Engine } from './kit'
-import { parseEntries, parsePresence, sessionPaths } from '../core'
+import { parseEntries, parsePresence, sessionPaths, type Body } from '../core'
 import {
   CANNOT_RIDE,
   CLEAR_AFTER_DROP_MS,
@@ -31,6 +31,7 @@ import {
   W3,
 } from './data'
 import {
+  askOf,
   beat,
   delivered,
   file,
@@ -41,7 +42,9 @@ import {
   reply,
   wordsAsk,
   yesAsk,
+  type Line,
 } from './lines'
+import { heldItem, pane, sceneFrom } from './render'
 import {
   asked,
   BAND,
@@ -157,41 +160,37 @@ const answering = async (w: World) => {
   return { id, ui }
 }
 
-test('an ask wanting a yes offers its yes in its own words, a comment, an ignore and a snooze', async ($, on) => {
-  const w = world($, on)
+/** The board drawn once the watch read what `writer` wrote at T0, this window unless told, the item `selected` opened. */
+const drawnWith = (bodies: readonly Body[], selected: string, writer = W1) =>
+  pane(
+    sceneFrom({
+      lines: bodies.map((body): Line => [T0, body]),
+      writer,
+      pane: { selected: heldItem(selected) },
+      now: T0 + WATCH_MS,
+    }),
+  )
 
-  await w.begin()
+test('an ask wanting a yes offers its yes in its own words, a comment, an ignore and a snooze', async () => {
+  const ui = drawnWith([askOf('k1', GO)], 'k1')
 
-  const id = await asked(w, GO)
-  const ui = await w.pane()
-
-  expect(rowsOf(await ui.find({ key: `ask:${w.item(id)}` }))[1]).toBe(
+  expect(rowsOf(await ui.find({ key: `ask:${heldItem('k1')}` }))[1]).toBe(
     '  [ ✓ Go ] [ ✎ comment ] [ ✕ ignore ] [ snooze ]',
   )
 })
 
-test('an ask wanting a choice offers each option, a comment, an ignore and a snooze', async ($, on) => {
-  const w = world($, on)
+test('an ask wanting a choice offers each option, a comment, an ignore and a snooze', async () => {
+  const ui = drawnWith([askOf('k1', FRAMES)], 'k1')
 
-  await w.begin()
-
-  const id = await asked(w, FRAMES)
-  const ui = await w.pane()
-
-  expect(rowsOf(await ui.find({ key: `ask:${w.item(id)}` }))[1]).toBe(
+  expect(rowsOf(await ui.find({ key: `ask:${heldItem('k1')}` }))[1]).toBe(
     '  [ Ship it ] [ Redraw ] [ ✎ comment ] [ ✕ ignore ] [ snooze ]',
   )
 })
 
-test('an ask wanting words offers an answer, an ignore and a snooze, and hangs what its words are first, in amber', async ($, on) => {
-  const w = world($, on)
+test('an ask wanting words offers an answer, an ignore and a snooze, and hangs what its words are first, in amber', async () => {
+  const ui = drawnWith([askOf('k1', LIST)], 'k1')
 
-  await w.begin()
-
-  const id = await asked(w, LIST)
-  const ui = await w.pane()
-
-  expect(rowsOf(await ui.find({ key: `ask:${w.item(id)}` })).slice(0, 5)).toEqual([
+  expect(rowsOf(await ui.find({ key: `ask:${heldItem('k1')}` })).slice(0, 5)).toEqual([
     '◆ Run sitrep list in a shell and paste what it now',
     '│ prints',
     `├ needs: ${OUTPUT}`,
@@ -201,24 +200,21 @@ test('an ask wanting words offers an answer, an ignore and a snooze, and hangs w
   expect((await ui.find({ type: 'Text', text: `needs: ${OUTPUT}` }))?.props.color).toBe(C.ask)
 })
 
-test("an ask written by its kind into a session's file draws as the shape it maps to", async ($, on) => {
-  const w = world($, on)
-  const { paths } = await w.begin()
-
-  w.writer(paths)(
+test("an ask written by its kind into a session's file draws as the shape it maps to", async () => {
+  const kinds = [
     kindAsk('o1', 'review', 'Review round 1'),
     kindAsk('o2', 'do', 'Run the export', { needs: OUTPUT }),
-  )
-  await w.clock.advance(WATCH_MS)
+  ]
+  const ui = drawnWith(kinds, 'o2', W2)
 
-  const ui = await w.pane()
-
-  expect(await ui.find({ key: `answer:${w.item('o2')}`, text: '✎ Answer' })).toBeDefined()
-  expect(await ui.find({ key: `yes:${w.item('o2')}` })).toBeUndefined()
+  expect(await ui.find({ key: `answer:${heldItem('o2')}`, text: '✎ Answer' })).toBeDefined()
+  expect(await ui.find({ key: `yes:${heldItem('o2')}` })).toBeUndefined()
   expect(await ui.find({ type: 'Text', text: `needs: ${OUTPUT}` })).toBeDefined()
-  await ui.press({ key: `pick:${w.item('o1')}` })
-  expect(await ui.find({ key: `yes:${w.item('o1')}`, text: '✓ Approve' })).toBeDefined()
-  expect(await ui.find({ key: `comment:${w.item('o1')}`, text: '✎ comment' })).toBeDefined()
+
+  const opened = drawnWith(kinds, 'o1', W2)
+
+  expect(await opened.find({ key: `yes:${heldItem('o1')}`, text: '✓ Approve' })).toBeDefined()
+  expect(await opened.find({ key: `comment:${heldItem('o1')}`, text: '✎ comment' })).toBeDefined()
 })
 
 test('✎ Answer has the next Enter in the prompt answer the ask: it says so under the ask, its buttons gone', async ($, on) => {

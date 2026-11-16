@@ -160,7 +160,7 @@ type Around = {
 }
 
 /** The other sessions a look reads in full: those the board draws, while it is open, and the one Lee is answering in the prompt. */
-const fullOf = (held: SitrepAttachment, pane: SitrepPane, around: Around) => {
+export const fullOf = (held: SitrepAttachment, pane: SitrepPane, around: Around) => {
   const answered = around.answering === null ? [] : [around.answering]
   const { place } = pane
   const drawn = pane.isOpen
@@ -227,7 +227,7 @@ const nameOf = (key: string, sessions: readonly Session[]) =>
  * filed under it parked, finished and idle ones included; a project with
  * neither is dropped, but never the held session's.
  */
-const projectsOf = (
+export const projectsOf = (
   held: SitrepAttachment,
   keys: readonly string[],
   read: ReadonlyMap<string, Filed>,
@@ -245,7 +245,7 @@ const projectsOf = (
       : []
   })
 
-const othersOf = (
+export const othersOf = (
   full: readonly SitrepSessionRef[],
   read: ReadonlyMap<string, Filed>,
 ): SitrepOther[] =>

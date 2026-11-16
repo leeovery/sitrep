@@ -8,7 +8,10 @@ import type { Timer } from 'claude-code'
 import { closingReply, isOpen, resolvedAsks, type Ask, type Session } from '../core'
 import type {
   SitrepAnswering,
+  SitrepAttachment,
+  SitrepBoard,
   SitrepInFlight,
+  SitrepOther,
   SitrepPane,
   SitrepPlace,
   SitrepProject,
@@ -60,16 +63,55 @@ export type Scene = {
 
 let ticking: Timer | undefined
 
+/** The mod's values in `$.state` the scene is drawn from, a session held. */
+export type Held = {
+  board: SitrepBoard
+  attachment: SitrepAttachment
+  projects: readonly SitrepProject[]
+  others: readonly SitrepOther[]
+  queue: readonly SitrepQueued[]
+  inFlight: readonly SitrepInFlight[]
+  stopped: boolean
+  sent: readonly SitrepSent[]
+  pane: SitrepPane
+  scroll: SitrepScroll | null
+  answering: SitrepAnswering | null
+  pulse: SitrepPulse
+  flash: number
+}
+
+/** The scene the values held make at `now`. */
+export const sceneAt = (held: Held, now: number): Scene => {
+  const { board, attachment, others, stopped, pane, ...kept } = held
+
+  return {
+    ...kept,
+    session: sessionOf(board),
+    here: attachment.project,
+    place: pane.place ?? {
+      level: 'session',
+      project: attachment.project,
+      session: attachment.session,
+    },
+    others: new Map(
+      others.map(({ project, board: other }) => [other.id, { project, session: sessionOf(other) }]),
+    ),
+    isStopped: stopped,
+    pane,
+    now,
+  }
+}
+
 /** The scene as it stands; undefined while no session is held. */
 export const sceneOf = async (host: Host): Promise<Scene | undefined> => {
   const [
     board,
-    held,
+    attachment,
     projects,
     others,
     queue,
     inFlight,
-    isStopped,
+    stopped,
     sent,
     pane,
     scroll,
@@ -96,29 +138,28 @@ export const sceneOf = async (host: Host): Promise<Scene | undefined> => {
     host.state.tick.read(),
   ])
 
-  if (board === null || held === null) {
+  if (board === null || attachment === null) {
     return undefined
   }
 
-  return {
-    session: sessionOf(board),
-    here: held.project,
-    place: pane.place ?? { level: 'session', project: held.project, session: held.session },
-    projects,
-    others: new Map(
-      others.map(({ project, board: other }) => [other.id, { project, session: sessionOf(other) }]),
-    ),
-    queue,
-    inFlight,
-    isStopped,
-    sent,
-    pane,
-    scroll,
-    answering,
-    pulse,
-    flash,
+  return sceneAt(
+    {
+      board,
+      attachment,
+      projects,
+      others,
+      queue,
+      inFlight,
+      stopped,
+      sent,
+      pane,
+      scroll,
+      answering,
+      pulse,
+      flash,
+    },
     now,
-  }
+  )
 }
 
 /** Whether the scene stands, read without the rest of it, so a drawing that needs no more is not drawn again at every tick. */
