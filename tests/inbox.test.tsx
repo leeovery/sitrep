@@ -143,9 +143,16 @@ test('the receiving band flashes how many replies came in from the board, for a 
   await w.clock.advance(TAKE_IN)
 
   expect(await band.find({ type: 'Text', text: '✦' })).toBeDefined()
-  expect(await band.find({ type: 'Text', text: '2 replies from the board' })).toBeDefined()
+  expect(await band.find({ type: 'Text', text: /from the board/ })).toMatchObject({
+    text: '2 replies from the board',
+  })
 
-  await w.clock.advance(FLASH_MS)
+  // The flash began somewhere within the take-in: here it is still short of FLASH_MS
+  // after it, and one take-in later past it.
+  await w.clock.advance(FLASH_MS - TAKE_IN)
+  expect(await band.find({ type: 'Text', text: /from the board/ }), 'still flashing').toBeDefined()
+
+  await w.clock.advance(TAKE_IN)
   expect(await band.find({ type: 'Text', text: /from the board/ })).toBeUndefined()
 })
 

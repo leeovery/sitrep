@@ -18,10 +18,10 @@ const FABLE_NARRATION =
 
 const varint = (value: number) => (value < 0x80 ? [value] : [(value & 0x7f) | 0x80, value >> 7])
 
-/** A whole signature naming `kind`, its header widened by a field of `filler` bytes ahead of the kind. */
-const signedWide = (kind: string, filler: number) => {
+/** A whole signature naming `kind`, the header holding the bytes `ahead` before the kind. */
+const signed = (kind: string, ahead: readonly number[]) => {
   const text = [...kind].map(char => char.charCodeAt(0))
-  const header = [0x0a, ...varint(filler), ...Array(filler).fill(0x41), 0x42, text.length, ...text]
+  const header = [...ahead, 0x42, text.length, ...text]
   const block = [0x0a, ...varint(header.length), ...header, 0x12, 12, ...Array(12).fill(0x42)]
   const tail = Array(600).fill(0x43)
 
@@ -29,6 +29,14 @@ const signedWide = (kind: string, filler: number) => {
     String.fromCharCode(0x08, 0x02, 0x12, ...varint(block.length + tail.length), ...block, ...tail),
   )
 }
+
+/** A whole signature naming `kind`, its header widened by a field of `filler` bytes ahead of the kind. */
+const signedWide = (kind: string, filler: number) =>
+  signed(kind, [0x0a, ...varint(filler), ...Array(filler).fill(0x41)])
+
+/** A whole signature naming `kind`, a number field ahead of it whose value takes `size` bytes. */
+const signedLong = (kind: string, size: number) =>
+  signed(kind, [0x18, ...Array(size - 1).fill(0x80), 0x01])
 
 /** The summary Lee saw in place of a live test's numbered steps. */
 const SUMMARY =
@@ -100,6 +108,10 @@ test("blockKindOf reads the kind off a signature's envelope, and nothing off one
     blockKindOf(signedWide('narration', 200)),
     "a header ending 222 bytes in, past the head's 192",
   ).toBeUndefined()
+  expect(blockKindOf(signedLong('narration', 10)), 'a number of ten bytes, the most').toBe(
+    'narration',
+  )
+  expect(blockKindOf(signedLong('narration', 11)), 'a number past ten bytes').toBeUndefined()
   expect(blockKindOf(''), 'empty').toBeUndefined()
   expect(blockKindOf('not base64!'), 'not base64').toBeUndefined()
   expect(blockKindOf('CAQSsgcKEAgTGAI4AUII'), 'its header cut short').toBeUndefined()

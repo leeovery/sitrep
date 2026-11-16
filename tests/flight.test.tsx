@@ -316,7 +316,7 @@ test("send: from its claim the heartbeat says the yes it carries, and the ask ne
     { at: claimedAt, replies: [{ id: carried?.id, item: id, verdict: 'yes' }] },
   ])
   expect(w.state.board?.waiting).toBe(0)
-  expect(await asksOnBand(w, '0 asks')).toBeDefined()
+  expect(await asksOnBand(w)).toBe('0 asks')
 
   await w.turnEnds()
   await w.clock.advance(WATCH_MS)
@@ -339,7 +339,7 @@ test('send refused: the heartbeat keeps no claim, and the ask waits on Lee again
 
   expect(sendingIn(w, paths)).toBeUndefined()
   expect(w.state.board?.waiting).toBe(1)
-  expect(await asksOnBand(w, '1 ask')).toBeDefined()
+  expect(await asksOnBand(w)).toBe('1 ask')
 })
 
 test('a claim a load from before held messages left, saying no isHeld, is let go once the window was quiet a while', async ($, on) => {

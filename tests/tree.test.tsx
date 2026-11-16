@@ -232,9 +232,14 @@ test("the project view lists its sessions, this one first, each with what it doe
   expect(await keysOf(ui, 'go:')).toEqual([`go:${HELD.id}`, `go:${LEDGER.id}`, `go:${THEMES.id}`])
   expect(await ui.find({ type: 'Text', text: '2 of 3 open' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: '2 waiting on you' })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: 'Drawing the ledger schema' })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: '1 waiting' })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: 'closed' })).toBeDefined()
+
+  const sessions = (await ui.findAll({ type: 'Box' })).filter(each => each.key?.startsWith('sess:'))
+
+  expect(sessions.map(each => rowsOf(each))).toEqual([
+    ['Help desk redesign ⌂ 1 waiting', '└ Redesign the help desk, page by page'],
+    ['Invoice ledger 1 waiting', '└ Drawing the ledger schema'],
+    ['Themes closed', '└ Themes, area by area'],
+  ])
   expect(
     await ui.find({
       key: `log:${itemKey(LEDGER.id, 'n3')}`,
@@ -487,7 +492,7 @@ test('the band counts what waits in every other session, in every project, and o
 
   const band = await w.band()
 
-  expect(await band.find({ key: 'band:asks', text: '1 ask' })).toBeDefined()
+  expect(await band.find({ key: 'band:asks' })).toMatchObject({ text: '1 ask' })
   expect(
     await band.find({ key: 'band:elsewhere', text: '2 elsewhere' }),
     "the ledger's ask and Contoso's",

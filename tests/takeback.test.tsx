@@ -68,18 +68,22 @@ const replying: Record<Source, (w: World) => Promise<Asking & { claim: () => Pro
     },
   }
 
-/** Whether the session is as a message written down once leaves it: its lines, the ask closed, nothing in flight. */
-const expectWrittenOnce = (w: World, paths: SessionPaths, source: Source) => {
-  expect(w.submitted).toEqual([MESSAGE])
-  expect(kindsIn(w, paths.log(W1))).toEqual(WRITTEN[source])
-  expect(w.state.board?.asks[0]?.state).toBe('closed')
-  expect(w.state.inFlight).toBeNull()
+/** That the session is as a message written down once leaves it, as `because` says: its lines, the ask closed, nothing in flight. */
+const expectWrittenOnce = (w: World, paths: SessionPaths, source: Source, because: string) => {
+  expect(w.submitted, `${because}: submitted once`).toEqual([MESSAGE])
+  expect(kindsIn(w, paths.log(W1)), `${because}: its lines`).toEqual(WRITTEN[source])
+  expect(w.state.board?.asks[0]?.state, `${because}: the ask closed`).toBe('closed')
+  expect(w.state.inFlight, `${because}: nothing in flight`).toBeNull()
 }
 
-/** Whether the window holds its message, nothing submitted. */
-const expectHeld = (w: World, source: Source) => {
-  expect(w.submitted).toEqual([])
-  expect(w.state.inFlight).toMatchObject({ source, isHeld: true, isTaken: false })
+/** That the window holds its message, nothing submitted, as `because` says. */
+const expectHeld = (w: World, source: Source, because: string) => {
+  expect(w.submitted, `${because}: nothing submitted`).toEqual([])
+  expect(w.state.inFlight, `${because}: the window holds it`).toMatchObject({
+    source,
+    isHeld: true,
+    isTaken: false,
+  })
 }
 
 for (const source of ['send', 'inbox'] as const) {
@@ -90,13 +94,13 @@ for (const source of ['send', 'inbox'] as const) {
     await w.turnStarts('Carry on.')
     await claim()
     await w.clock.advance(QUIET_MS + MIN)
-    expectHeld(w, source)
+    expectHeld(w, source, 'held however long the turn runs')
 
     await turnEnded(w)
-    expectWrittenOnce(w, paths, source)
+    expectWrittenOnce(w, paths, source, 'goes in as the turn ends')
 
     await w.clock.advance(QUIET_MS + WATCH_MS)
-    expectWrittenOnce(w, paths, source)
+    expectWrittenOnce(w, paths, source, 'written down once, nothing after')
   })
 
   test(`${source}: claimed between turns, the message goes in at once`, async ($, on) => {
@@ -107,7 +111,7 @@ for (const source of ['send', 'inbox'] as const) {
     await turnEnded(w)
     await claim()
     await w.clock.settle()
-    expectWrittenOnce(w, paths, source)
+    expectWrittenOnce(w, paths, source, 'goes in at once')
   })
 
   test(`${source}: a subagent's run starting after Claude's turn ended starts no turn of Claude's: the message claimed then goes in at once, and the run's end changes nothing`, async ($, on) => {
@@ -119,10 +123,10 @@ for (const source of ['send', 'inbox'] as const) {
     await w.agentRunStarts(AGENT)
     await claim()
     await w.clock.settle()
-    expectWrittenOnce(w, paths, source)
+    expectWrittenOnce(w, paths, source, 'goes in at once')
 
     await turnEnded(w, { agentId: AGENT })
-    expectWrittenOnce(w, paths, source)
+    expectWrittenOnce(w, paths, source, "the run's end changes nothing")
   })
 
   test(`${source}: held mid-turn, the message stays held through a subagent's run starting and ending, and goes as Claude's turn ends`, async ($, on) => {
@@ -133,10 +137,10 @@ for (const source of ['send', 'inbox'] as const) {
     await claim()
     await w.agentRunStarts(AGENT)
     await turnEnded(w, { agentId: AGENT })
-    expectHeld(w, source)
+    expectHeld(w, source, "held through the subagent's run")
 
     await turnEnded(w)
-    expectWrittenOnce(w, paths, source)
+    expectWrittenOnce(w, paths, source, "goes as Claude's turn ends")
   })
 
   test(`${source}: a turn that starts as the last one ends, before the held message goes, keeps it held to its own end`, async ($, on) => {
@@ -160,10 +164,10 @@ for (const source of ['send', 'inbox'] as const) {
     isRacing = true
     await turnEnded(w)
     expect(isRacing, 'the turn started as the claim was read').toBe(false)
-    expectHeld(w, source)
+    expectHeld(w, source, 'held to the new turn')
 
     await turnEnded(w)
-    expectWrittenOnce(w, paths, source)
+    expectWrittenOnce(w, paths, source, 'goes as that turn ends')
   })
 
   test(`${source}: a turn starting with a held message's own text is some other prompt: nothing is written down until the message goes`, async ($, on) => {
@@ -173,11 +177,11 @@ for (const source of ['send', 'inbox'] as const) {
     await w.turnStarts('Carry on.')
     await claim()
     await w.turnStarts(MESSAGE)
-    expectHeld(w, source)
+    expectHeld(w, source, 'some other prompt: still held')
     expect(kindsIn(w, paths.log(W1))).toEqual(['ask'])
 
     await turnEnded(w)
-    expectWrittenOnce(w, paths, source)
+    expectWrittenOnce(w, paths, source, 'goes as the turn ends')
   })
 
   test(`${source}: a subagent's turn ending is not the main conversation's: the message stays held`, async ($, on) => {
@@ -187,10 +191,10 @@ for (const source of ['send', 'inbox'] as const) {
     await w.turnStarts('Carry on.')
     await claim()
     await turnEnded(w, { agentId: AGENT })
-    expectHeld(w, source)
+    expectHeld(w, source, 'still held')
 
     await turnEnded(w)
-    expectWrittenOnce(w, paths, source)
+    expectWrittenOnce(w, paths, source, "goes as the main conversation's turn ends")
   })
 }
 
@@ -201,7 +205,7 @@ for (const reason of ['aborted', 'error', 'refusal'] as const) {
 
     await w.turnStarts('Carry on.')
     await claim()
-    expectHeld(w, 'send')
+    expectHeld(w, 'send', 'held mid-turn')
 
     await $.turn.complete({
       answer: '',
@@ -213,7 +217,7 @@ for (const reason of ['aborted', 'error', 'refusal'] as const) {
         : { reason }),
     })
     await w.clock.settle()
-    expectWrittenOnce(w, paths, 'send')
+    expectWrittenOnce(w, paths, 'send', 'submitted as the turn ends, however it ended')
   })
 }
 
@@ -249,15 +253,15 @@ test('a turn stopped on a permission prompt or a question is still mid-turn: the
   ])
 
   await claim()
-  expectHeld(w, 'send')
+  expectHeld(w, 'send', 'held through the stop')
 
   pr.finish()
   asked.finish({ answers: { 'Which edge?': 'Left' } })
   await Promise.all([pr.done, asked.done])
-  expectHeld(w, 'send')
+  expectHeld(w, 'send', 'held after the stop')
 
   await turnEnded(w)
-  expectWrittenOnce(w, paths, 'send')
+  expectWrittenOnce(w, paths, 'send', 'goes as the turn ends')
 })
 
 test("send: while held, Ready to send says it waits for Claude's turn to end, with its take-back; taken back, its replies are back as they were, editable and removable, the heartbeat says them no more, and the ask waits on Lee again", async ($, on) => {
@@ -270,7 +274,7 @@ test("send: while held, Ready to send says it waits for Claude's turn to end, wi
   await ui.press({ key: 'send' })
   await w.clock.advance(WATCH_MS)
 
-  expectHeld(w, 'send')
+  expectHeld(w, 'send', 'held')
   expect(await ui.find({ type: 'Text', text: HELD }), 'what it waits for').toBeDefined()
   expect(await ui.find({ key: w.takeBack(), text: TAKE_BACK }), 'its take-back').toBeDefined()
   expect(await ui.find({ type: 'Text', text: '· on its way' }), 'its reply, on its way').toBeDefined()
@@ -278,7 +282,7 @@ test("send: while held, Ready to send says it waits for Claude's turn to end, wi
   expect(await ui.find({ key: 'send' })).toBeUndefined()
   expect(sendingIn(w, paths), 'said in the heartbeat').toBeDefined()
   expect(w.state.board?.waiting).toBe(0)
-  expect(await asksOnBand(w, '0 asks'), 'none on the band').toBeDefined()
+  expect(await asksOnBand(w), 'none on the band').toBe('0 asks')
 
   await ui.press({ key: w.takeBack() })
 
@@ -293,7 +297,7 @@ test("send: while held, Ready to send says it waits for Claude's turn to end, wi
   expect(await ui.find({ key: 'send' }), 'sent again').toBeDefined()
   expect(sendingIn(w, paths), 'said no more').toBeUndefined()
   expect(w.state.board?.waiting, 'at once, not at the next look').toBe(1)
-  expect(await asksOnBand(w, '1 ask'), 'one on the band').toBeDefined()
+  expect(await asksOnBand(w), 'one on the band').toBe('1 ask')
 
   await turnEnded(w)
   expect(w.submitted, 'nothing goes as the turn ends').toEqual([])
@@ -327,10 +331,10 @@ test('send: taken back, it can be sent again, held again while Claude is mid-tur
   await ui.press({ key: 'send' })
   await ui.press({ key: w.takeBack() })
   await ui.press({ key: 'send' })
-  expectHeld(w, 'send')
+  expectHeld(w, 'send', 'held again')
 
   await turnEnded(w)
-  expectWrittenOnce(w, paths, 'send')
+  expectWrittenOnce(w, paths, 'send', 'goes as the turn ends')
 })
 
 test('send: once submitted it cannot be taken back: the control is gone, and Ready to send says it is sending', async ($, on) => {
@@ -353,7 +357,7 @@ test('send: once submitted it cannot be taken back: the control is gone, and Rea
   turn.end()
   await ended
   await w.clock.settle()
-  expectWrittenOnce(w, paths, 'send')
+  expectWrittenOnce(w, paths, 'send', 'written down once')
 })
 
 test("the turn's end landing before a take-back it raced: the take-back finds the send submitted and lets it be, and it is written down once", async ($, on) => {
@@ -380,7 +384,7 @@ test("the turn's end landing before a take-back it raced: the take-back finds th
   turn.end()
   await Promise.all([pressed, ended])
   await w.clock.settle()
-  expectWrittenOnce(w, paths, 'send')
+  expectWrittenOnce(w, paths, 'send', 'written down once')
   expect(w.state.queue).toEqual([])
 })
 
@@ -418,12 +422,12 @@ test('a reload while Claude is mid-turn keeps holding the send, said in the hear
   await $.session.start(CONVERSATION)
   await w.clock.advance(WATCH_MS)
 
-  expectHeld(w, 'send')
+  expectHeld(w, 'send', 'still held after the reload')
   expect(sendingIn(w, paths)).toBeDefined()
   expect(w.state.board?.waiting).toBe(0)
 
   await turnEnded(w)
-  expectWrittenOnce(w, paths, 'send')
+  expectWrittenOnce(w, paths, 'send', 'goes as the turn ends')
 })
 
 test("a load that finds the send held between turns, its last load's going cut short as the turn ended, sends it at once", async ($, on) => {
@@ -447,7 +451,7 @@ test("a load that finds the send held between turns, its last load's going cut s
   isCut = false
   await $.session.start(CONVERSATION)
   await w.clock.settle()
-  expectWrittenOnce(w, paths, 'send')
+  expectWrittenOnce(w, paths, 'send', 'sent at once')
 })
 
 test("a send left held between turns, its update as the turn ended refused, goes at the window's next look, once", async ($, on) => {
@@ -470,10 +474,10 @@ test("a send left held between turns, its update as the turn ended refused, goes
 
   isRefused = false
   await w.clock.advance(WATCH_MS)
-  expectWrittenOnce(w, paths, 'send')
+  expectWrittenOnce(w, paths, 'send', 'goes at the next look')
 
   await w.clock.advance(QUIET_MS + WATCH_MS)
-  expectWrittenOnce(w, paths, 'send')
+  expectWrittenOnce(w, paths, 'send', 'once')
 })
 
 test('nothing in flight, a load, a turn and its end, and the looks write no claim; a claim held while a turn runs, the looks leave unwritten', async ($, on) => {
@@ -573,7 +577,7 @@ test('inbox: a held message offers no take-back, though the window holds it as i
   await w.turnStarts('Carry on.')
   await claim()
 
-  expectHeld(w, 'inbox')
+  expectHeld(w, 'inbox', 'held as a send is')
   expect(await ui.find({ text: TAKE_BACK })).toBeUndefined()
   expect(await ui.find({ type: 'Text', text: HELD })).toBeUndefined()
 })
@@ -585,7 +589,7 @@ test('a held send is never let go as never taken: the 30 seconds count from its 
   await w.turnStarts('Carry on.')
   await claim()
   await w.clock.advance(2 * QUIET_MS)
-  expectHeld(w, 'send')
+  expectHeld(w, 'send', 'held, not let go')
 
   const turn = w.holdPrompts()
 

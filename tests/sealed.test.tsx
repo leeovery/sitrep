@@ -11,7 +11,7 @@ import { parseEntries, type SessionPaths } from '../core'
 import { QUIET_MS } from '../hooks/deliver'
 import { SEND_NOW } from '../hooks/draw/ready'
 import { WATCH_MS } from '../hooks/window'
-import { rowsOf } from './drawn'
+import { readyHeading, readyRows, rowsOf } from './drawn'
 import { CLOSES, HELP_DESK, PROJECT, reviewRound, reviewRounds, W1 } from './data'
 import {
   asked,
@@ -57,9 +57,6 @@ const toSend = (...rounds: number[]) => [
   ...rounds.flatMap(round => [`Review round ${round} ✕`, '└ → Approve ✎ comment']),
 ]
 
-/** Ready to send's heading, by how many replies it holds not yet with Claude. */
-const heading = (count: number) => [`READY TO SEND${count} ${count === 1 ? 'reply' : 'replies'}`]
-
 /** Send and cancel all, at the box's foot. */
 const CONTROLS = ['', '[ send to Claude ] [ cancel all ]']
 
@@ -74,9 +71,6 @@ const approve = async (w: World, ui: Board, id: string) => {
   await openAsk(w, ui, w.item(id))
   await pressYes(ui, w.item(id))
 }
-
-/** Ready to send as the rows it draws, each trimmed, the blank ones between its groups kept. */
-const box = async (ui: Board) => rowsOf(await ui.find({ key: 'ready' })).map(row => row.trim())
 
 /** What the window's heartbeat says it sends its session: each send's replies, by item. */
 const sendingItems = (w: World, paths: SessionPaths) =>
@@ -119,7 +113,7 @@ test("a send held for Claude's turn is sealed: a reply after it lands in a queue
   await holding(w, ui, ids)
   await approve(w, ui, second)
 
-  expect(await box(ui)).toEqual([...heading(2), ...held(1), ...toSend(2), ...CONTROLS])
+  expect(await readyRows(ui)).toEqual([readyHeading(2), ...held(1), ...toSend(2), ...CONTROLS])
   expect(flightsIn(w), 'the send carries only what it was sent with').toEqual([
     { items: [first], isHeld: true },
   ])
@@ -133,7 +127,7 @@ test("a send held for Claude's turn is sealed: a reply after it lands in a queue
   await ui.press({ key: 'cancel-all' })
 
   expect(w.state.queue).toMatchObject([{ item: first }])
-  expect(await box(ui)).toEqual([...heading(1), ...held(1)])
+  expect(await readyRows(ui)).toEqual([readyHeading(1), ...held(1)])
 
   await turnEnded(w)
 
@@ -153,7 +147,7 @@ test("sent while the first is held, the second queue is a send of its own, held 
     { items: [first], isHeld: true },
     { items: [second], isHeld: true },
   ])
-  expect(await box(ui)).toEqual([...heading(2), ...held(1), ...held(2)])
+  expect(await readyRows(ui)).toEqual([readyHeading(2), ...held(1), ...held(2)])
   expect(await ui.find({ key: w.takeBack(0) })).toBeDefined()
   expect(await ui.find({ key: w.takeBack(1) })).toBeDefined()
   expect(sendingItems(w, paths), 'both on their way, each its own').toEqual([[first], [second]])
@@ -199,7 +193,7 @@ test("taking back the first send while a second waits puts its replies back amon
   await ui.press({ key: w.takeBack(0) })
 
   expect(flightsIn(w)).toEqual([{ items: [second], isHeld: true }])
-  expect(await box(ui)).toEqual([...heading(3), ...held(2), ...toSend(1, 3), ...CONTROLS])
+  expect(await readyRows(ui)).toEqual([readyHeading(3), ...held(2), ...toSend(1, 3), ...CONTROLS])
   expect(sendingItems(w, paths)).toEqual([[second]])
   expect(w.state.board?.waiting, 'its ask waits on Lee again at once').toBe(2)
 
@@ -207,7 +201,7 @@ test("taking back the first send while a second waits puts its replies back amon
 
   expect(w.submitted).toEqual([message(2)])
   expect(repliedIn(w, paths)).toEqual([second])
-  expect(await box(ui)).toEqual([...heading(2), ...toSend(1, 3), ...CONTROLS])
+  expect(await readyRows(ui)).toEqual([readyHeading(2), ...toSend(1, 3), ...CONTROLS])
 })
 
 test('taking back the second send puts its replies back among those still to send, the first held still, and only the first goes in', async ($, on) => {
@@ -220,7 +214,7 @@ test('taking back the second send puts its replies back among those still to sen
   await ui.press({ key: w.takeBack(1) })
 
   expect(flightsIn(w)).toEqual([{ items: [first], isHeld: true }])
-  expect(await box(ui)).toEqual([...heading(3), ...held(1), ...toSend(2, 3), ...CONTROLS])
+  expect(await readyRows(ui)).toEqual([readyHeading(3), ...held(1), ...toSend(2, 3), ...CONTROLS])
 
   await turnEnded(w)
   await w.turnStarts(message(1))
@@ -241,8 +235,8 @@ test('a pick-up from Parked while a send is held joins no part of it: it is a qu
   await ui.press({ key: `ppick:${w.item(parked)}` })
   await ui.press({ key: `pickup:${w.item(parked)}` })
 
-  expect(await box(ui)).toEqual([
-    ...heading(2),
+  expect(await readyRows(ui)).toEqual([
+    readyHeading(2),
     ...held(1),
     '',
     'to this session',
@@ -343,7 +337,7 @@ test('inline, a send held while the pane was closed shows sealed when it opens a
   const again = await w.opened(INLINE)
 
   await approve(w, again, second)
-  expect(await box(again)).toEqual([...heading(2), ...held(1), ...toSend(2), ...CONTROLS])
+  expect(await readyRows(again)).toEqual([readyHeading(2), ...held(1), ...toSend(2), ...CONTROLS])
 
   await again.press({ key: 'send' })
   expect(w.panes.has('sitrep')).toBe(false)
@@ -356,7 +350,7 @@ test('inline, a send held while the pane was closed shows sealed when it opens a
 
   const reopened = await w.opened(INLINE)
 
-  expect(await box(reopened)).toEqual([...heading(2), ...held(1), ...held(2)])
+  expect(await readyRows(reopened)).toEqual([readyHeading(2), ...held(1), ...held(2)])
 })
 
 const LIST = 'Run sitrep list in a shell and paste what it prints'
@@ -406,7 +400,7 @@ test('an answer written in the prompt and sent while Claude is mid-turn, nothing
   const { paths, list, ui } = await answeredInPrompt(w, $)
 
   expect(flightsIn(w)).toEqual([{ items: [list], isHeld: true }])
-  expect(await box(ui)).toEqual([...heading(1), ...ANSWER_HELD])
+  expect(await readyRows(ui)).toEqual([readyHeading(1), ...ANSWER_HELD])
   expect(rowsOf(await ui.find({ key: `ask:${w.item(list)}` })).at(-1)).toBe(
     `└ “~” +${SHELL.length - 1} lines · on its way`,
   )
@@ -424,7 +418,7 @@ test('a yes given after an answer written in the prompt is held lands in a queue
 
   await approve(w, ui, review)
 
-  expect(await box(ui)).toEqual([...heading(2), ...ANSWER_HELD, ...toSend(3), ...CONTROLS])
+  expect(await readyRows(ui)).toEqual([readyHeading(2), ...ANSWER_HELD, ...toSend(3), ...CONTROLS])
 
   await ui.press({ key: 'send' })
 
@@ -432,7 +426,7 @@ test('a yes given after an answer written in the prompt is held lands in a queue
     { items: [list], isHeld: true },
     { items: [review], isHeld: true },
   ])
-  expect(await box(ui)).toEqual([...heading(2), ...ANSWER_HELD, ...held(3)])
+  expect(await readyRows(ui)).toEqual([readyHeading(2), ...ANSWER_HELD, ...held(3)])
 
   await turnEnded(w)
   await w.turnStarts(w.submitted[0] ?? '')
@@ -460,7 +454,12 @@ test("a send held to a session the board has not read, the window holding anothe
   await holding(w, ui, ids)
   await startedElsewhere(w)
 
-  expect(await box(ui)).toEqual([...heading(1), '', `on its way to ${HELP_DESK.name}`, HELD])
+  expect(await readyRows(ui)).toEqual([
+    readyHeading(1),
+    '',
+    `on its way to ${HELP_DESK.name}`,
+    HELD,
+  ])
 
   await ui.press({ key: w.takeBack() })
 
@@ -474,14 +473,34 @@ test('a send after the first, one row for room, names where it goes when that is
   await twoHeld(w, ui, ids)
   await startedElsewhere(w)
 
-  expect(await box(ui)).toEqual([
-    ...heading(2),
+  expect(await readyRows(ui)).toEqual([
+    readyHeading(2),
     '',
     `on its way to ${HELP_DESK.name}`,
     HELD,
     `⧗ Then, to ${HELP_DESK.name}: 1 reply ↺ take back`,
   ])
   expect(await ui.find({ key: w.takeBack(1) })).toBeDefined()
+})
+
+test('a send after the first, one row for room, going to another session than the one held, counts the several replies it carries as replies', async ($, on) => {
+  const w = world($, on)
+  const { ids, ui } = await reviewing(w, { ...DOCKED, scroll: { offset: 0, bodyRows: 16 } })
+  const [, second = '', third = ''] = ids
+
+  await holding(w, ui, ids)
+  await approve(w, ui, second)
+  await approve(w, ui, third)
+  await ui.press({ key: 'send' })
+  await startedElsewhere(w)
+
+  expect(await readyRows(ui)).toEqual([
+    readyHeading(3),
+    '',
+    `on its way to ${HELP_DESK.name}`,
+    HELD,
+    `⧗ Then, to ${HELP_DESK.name}: 2 replies ↺ take back`,
+  ])
 })
 
 test('the first send refused with a second held behind it: both are let go together, one toast saying so, every reply back among those still to send in the order replied, and the second never submitted', async ($, on) => {
@@ -501,7 +520,7 @@ test('the first send refused with a second held behind it: both are let go toget
   expect(w.state.inFlight).toBeNull()
   expect(w.state.queue).toMatchObject([{ item: first }, { item: second }])
   expect(repliedIn(w, paths)).toEqual([])
-  expect(await box(ui)).toEqual([...heading(2), ...toSend(1, 2), ...CONTROLS])
+  expect(await readyRows(ui)).toEqual([readyHeading(2), ...toSend(1, 2), ...CONTROLS])
 })
 
 test('the first send never taken with a second held behind it: both are let go together as its quiet passes, one toast saying so, every reply back among those still to send in the order replied', async ($, on) => {
@@ -532,7 +551,7 @@ test('the first send never taken with a second held behind it: both are let go t
   expect(w.submitted).toEqual([message(1)])
   expect(w.state.queue).toMatchObject([{ item: first }, { item: second }])
   expect(repliedIn(w, paths)).toEqual([])
-  expect(await box(ui)).toEqual([...heading(2), ...toSend(1, 2), ...CONTROLS])
+  expect(await readyRows(ui)).toEqual([readyHeading(2), ...toSend(1, 2), ...CONTROLS])
 })
 
 for (const reason of ['resume', 'prompt_input_exit'] as const) {
@@ -732,7 +751,7 @@ test("a send Claude Code refuses as Lee stopped Claude's turn is not let go: hel
   expect(notSent(w)).toEqual([])
   expect(flightsIn(w)).toEqual([{ items: [first], isHeld: true }])
   expect(isStopped(w)).toBe(true)
-  expect(await box(ui)).toEqual([...heading(1), ...stopped(1)])
+  expect(await readyRows(ui)).toEqual([readyHeading(1), ...stopped(1)])
   expect(await ui.find({ key: w.takeBack() })).toBeDefined()
   expect(sendingItems(w, paths), 'still on its way').toEqual([[first]])
 
@@ -768,7 +787,7 @@ test("a subagent's run starting and ending leaves the window stopped and the sen
 
   expect(isStopped(w)).toBe(true)
   expect(w.submitted).toEqual([message(1)])
-  expect(await box(ui)).toEqual([...heading(1), ...stopped(1)])
+  expect(await readyRows(ui)).toEqual([readyHeading(1), ...stopped(1)])
 })
 
 test("a send sealed behind the first while the window is stopped stays behind it, saying it goes after Lee's next message: the first goes once his turn ends, the second once the first's own turn has ended", async ($, on) => {
@@ -784,7 +803,7 @@ test("a send sealed behind the first while the window is stopped stays behind it
     { items: [first], isHeld: true },
     { items: [second], isHeld: true },
   ])
-  expect(await box(ui)).toEqual([...heading(2), ...stopped(1), ...behindStop(2)])
+  expect(await readyRows(ui)).toEqual([readyHeading(2), ...stopped(1), ...behindStop(2)])
   expect(await ui.findAll({ key: 'send-now' })).toHaveLength(1)
 
   await leeTypes(w)
@@ -815,7 +834,7 @@ test('taking back the first send while the window is stopped leaves the second h
   expect(w.submitted).toEqual([message(1)])
   expect(flightsIn(w)).toEqual([{ items: [second], isHeld: true }])
   expect(w.state.queue).toMatchObject([{ item: first }, { item: second }])
-  expect(await box(ui)).toEqual([...heading(2), ...stopped(2), ...toSend(1), ...CONTROLS])
+  expect(await readyRows(ui)).toEqual([readyHeading(2), ...stopped(2), ...toSend(1), ...CONTROLS])
   expect(w.state.board?.waiting, "the first's ask waits on Lee again at once").toBe(2)
 })
 
@@ -943,7 +962,7 @@ test('taking back the only send while the window is stopped puts its replies bac
 
   expect(w.state.inFlight).toBeNull()
   expect(w.state.queue).toMatchObject([{ item: first }])
-  expect(await box(ui)).toEqual([...heading(1), ...toSend(1), ...CONTROLS])
+  expect(await readyRows(ui)).toEqual([readyHeading(1), ...toSend(1), ...CONTROLS])
   expect(sendingItems(w, paths)).toBeUndefined()
   expect(w.state.board?.waiting).toBe(3)
 
@@ -1220,7 +1239,7 @@ test('while the window is stopped, the first send held behind an answer going in
 
   expect(flightsIn(w).map(each => each.isHeld)).toEqual([false, true])
   expect(await ui.find({ key: SEND_NOW })).toBeUndefined()
-  expect(await box(ui)).toContain('⧗ Goes after your next message. ↺ take back')
+  expect(await readyRows(ui)).toContain('⧗ Goes after your next message. ↺ take back')
 
   held.end()
   await typed
@@ -1341,7 +1360,7 @@ test("Lee's turn starting between a submit and Claude Code's refusal of it leave
 
   expect(flightsIn(w)).toEqual([{ items: [first], isHeld: true }])
   expect(isStopped(w)).toBe(false)
-  expect(await box(ui)).toEqual([...heading(1), ...held(1)])
+  expect(await readyRows(ui)).toEqual([readyHeading(1), ...held(1)])
 
   w.dropPrompts()
   await turnEnded(w)

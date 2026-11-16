@@ -1,9 +1,10 @@
 import { expect, test, tier } from './kit'
 import { parseEntries, sessionPaths } from '../core'
-import { LINGER_MS } from '../hooks/scene'
+import { LINGER_MS, shownAsks } from '../hooks/scene'
 import { WATCH_MS } from '../hooks/window'
-import { CLOSES, LEAVES_OPEN, PROJECT, REVIEW, ROOT, W1 } from './data'
-import { note } from './lines'
+import { readyRows, rowsOf } from './drawn'
+import { CLOSES, LEAVES_OPEN, MIN, PROJECT, REVIEW, ROOT, T0, W1 } from './data'
+import { delivered, file, fold, note, reply, yesAsk } from './lines'
 import {
   asked,
   asking,
@@ -69,14 +70,36 @@ test('the board then shows the ask closed, and folds it into what was done once 
   await ui.press({ key: 'send' })
 
   expect(await ui.find({ type: 'Text', text: /READY TO SEND/ })).toBeUndefined()
-  expect(await ui.find({ type: 'Text', text: 'sent, and Claude has it' })).toBeDefined()
+  expect(rowsOf(await ui.find({ key: `ask:${w.item(id)}` }))).toEqual([
+    '✓ Review Tickets & Replies, round 1 now',
+    '└ sent, and Claude has it',
+  ])
   expect(await ui.find({ key: `pick:${w.item(id)}` })).toBeUndefined()
+  expect(await ui.find({ key: `closed:${w.item(id)}` }), 'not in RESOLVED yet').toBeUndefined()
 
   await w.clock.advance(LINGER_MS)
 
   expect(await ui.find({ type: 'Text', text: 'sent, and Claude has it' })).toBeUndefined()
   expect(await ui.find({ key: `closed:${w.item(id)}` }), 'in RESOLVED').toBeDefined()
   expect(await ui.find({ type: 'Text', text: 'nothing waiting' })).toBeDefined()
+})
+
+test('an ask a send closed shows among the asks until LINGER_MS has passed since it closed, and not a moment longer', () => {
+  const closedAt = T0 + MIN
+  const session = fold({
+    logs: {
+      [W1]: file(
+        [T0, yesAsk('k1', 'Review round 1')],
+        [closedAt, reply('r1', 'k1', 'yes')],
+        [closedAt, delivered('r1')],
+      ),
+    },
+  })
+  const shown = (now: number) => shownAsks(session, now).map(ask => ask.id)
+
+  expect(session.asks[0]?.closedAt).toBe(closedAt)
+  expect(shown(closedAt + LINGER_MS - 1)).toEqual(['k1'])
+  expect(shown(closedAt + LINGER_MS)).toEqual([])
 })
 
 test("an ignore, once sent, drops its ask at once: no moment of 'sent, and Claude has it', and Resolved never lists it", async ($, on) => {
@@ -218,11 +241,14 @@ test('a reload keeps Ready to send as Lee left it', async ($, on) => {
   const { id, ui } = await asking(w)
 
   await ui.press({ key: `yes:${w.item(id)}` })
+
+  const left = await readyRows(ui)
+
   await $.session.start(CONVERSATION)
 
   expect(w.state.queue).toMatchObject([{ item: id, verdict: 'yes' }])
-  expect(await ui.find({ type: 'Text', text: /READY TO SEND/ })).toBeDefined()
-  expect(await ui.find({ key: 'send' })).toBeDefined()
+  expect(await readyRows(ui)).toEqual(left)
+  expect(left).toContain('[ send to Claude ] [ cancel all ]')
 })
 
 test('a send taken after Claude moved to another session mid-turn is written into the session it answered, and that ask closes', async ($, on) => {

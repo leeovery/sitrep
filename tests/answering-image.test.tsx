@@ -14,7 +14,7 @@ import {
   onLedgersParked,
   OUTPUT,
 } from './answers'
-import { rowsOf } from './drawn'
+import { readyRows } from './drawn'
 import {
   CLOSES,
   FRAMES,
@@ -242,7 +242,7 @@ test('an answer with an image is on its way from the moment it goes: frozen in R
   const { id, ui, held, typed } = await ridingHeld(w, $)
 
   await w.clock.settle()
-  expect(rowsOf(await ui.find({ key: 'ready' })).map(row => row.trim())).toContain('⧗ Sending.')
+  expect(await readyRows(ui)).toContain('⧗ Sending.')
   expect(await ui.find({ key: w.takeBack() })).toBeUndefined()
   expect(
     parsePresence(w.text(heldPaths(w).heartbeat(W1)), W1)?.sending?.map(each =>

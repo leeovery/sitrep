@@ -1,10 +1,24 @@
 import { expect, test, tier } from './kit'
 import { parseEntries, sessionPaths } from '../core'
 import { AROUND_MS } from '../hooks/around'
-import { SENT_LINGER_MS } from '../hooks/queue'
-import { rowsOf } from './drawn'
-import { CLI, CLOSES, LEDGER, MIN, PROJECT, REVIEW, ROOT, T0, THEMES, W1, W3 } from './data'
-import { delivered, file, finish, reopen, reply, resolve, unfinish, yesAsk } from './lines'
+import { isShowing, SENT_LINGER_MS } from '../hooks/queue'
+import { readyRows, rowsOf } from './drawn'
+import {
+  CLI,
+  CLOSES,
+  LEDGER,
+  META,
+  MIN,
+  PROJECT,
+  REVIEW,
+  ROOT,
+  SENDER,
+  T0,
+  THEMES,
+  W1,
+  W3,
+} from './data'
+import { delivered, file, finish, fold, reopen, reply, resolve, unfinish, yesAsk } from './lines'
 import {
   asked,
   INLINE,
@@ -71,11 +85,16 @@ test('Ready to send groups the replies by where each goes, this session first, a
     .filter(text => text.startsWith('to '))
 
   expect(groups).toEqual(['to this session', 'to Invoice ledger'])
-  expect(await ui.find({ type: 'Text', text: '2 replies' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^\d+ repl/ })).toMatchObject({ text: '2 replies' })
 
-  for (const way of ['tab:all', `proj:${PROJECT.key}`]) {
+  for (const way of ['tab:session', 'tab:all', `proj:${PROJECT.key}`]) {
     await ui.press({ key: way })
-    expect(await ui.find({ type: 'Text', text: /READY TO SEND/ }), way).toBeDefined()
+
+    const box = await readyRows(ui)
+    const view = rowsOf(await ui.find({ type: 'Box' })).map(row => row.trim())
+
+    expect(box[0], way).toMatch(/^READY TO SEND/)
+    expect(view.slice(-box.length), `${way}: at the foot`).toEqual(box)
   }
 })
 
@@ -167,6 +186,33 @@ test('each destination says where its replies stand, and each reply whether Clau
   expect(await ui.find({ type: 'Text', text: 'to Invoice ledger' })).toBeUndefined()
   expect(await ui.find({ type: 'Text', text: 'to Themes' })).toBeDefined()
   expect(w.state.sent?.map(each => each.session)).toEqual([THEMES.id])
+})
+
+test('replies sent into an inbox show where they went until the linger has passed since the last of them went in or went void, and not a moment longer', () => {
+  const deliveredAt = T0 + 2 * MIN
+  const settledAt = T0 + 3 * MIN
+  const session = fold({
+    logs: {
+      [W1]: file(
+        [T0, yesAsk('k1', 'Review round 1')],
+        [T0, yesAsk('k2', 'Review round 2')],
+        [deliveredAt, delivered('r1')],
+        [settledAt, resolve('k2')],
+      ),
+    },
+    inbox: {
+      [SENDER]: file([T0 + MIN, reply('r1', 'k1', 'yes')], [T0 + MIN, reply('r2', 'k2', 'yes')]),
+    },
+  })
+  const sent = { project: META.project, session: META.id, replies: ['r1', 'r2'] }
+
+  expect(session.replies.map(each => [each.delivery, each.deliveredAt ?? each.voidedAt])).toEqual([
+    ['delivered', deliveredAt],
+    ['void', settledAt],
+  ])
+
+  expect(isShowing(session, sent, settledAt + SENT_LINGER_MS - 1)).toBe(true)
+  expect(isShowing(session, sent, settledAt + SENT_LINGER_MS)).toBe(false)
 })
 
 test("an ask whose reply went into its session's inbox waits on Lee no more: the band, the tab and the project count it nowhere", async ($, on) => {

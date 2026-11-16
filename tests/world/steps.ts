@@ -44,9 +44,9 @@ export const turnEnded = async (w: World, how?: Parameters<World['turnEnds']>[0]
   await w.clock.settle()
 }
 
-/** The band's count of what waits on Lee in this session, where it says `text`. */
-export const asksOnBand = async (w: World, text: string) =>
-  (await w.band()).find({ key: 'band:asks', text })
+/** The band's count of what waits on Lee in this session, as it reads whole. */
+export const asksOnBand = async (w: World) =>
+  (await (await w.band()).find({ key: 'band:asks' }))?.text
 
 /** The board on a project's view, reached as Lee reaches it from the tabs: All projects, then the project. */
 export const toProject = async (ui: Pick<Mounted, 'press'>, key = PROJECT.key) => {

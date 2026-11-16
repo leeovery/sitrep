@@ -227,7 +227,7 @@ test('a snoozed ask counts on neither the band nor the tabs, here or elsewhere',
   const { id, ui } = await beside(w)
   const band = await w.band()
 
-  expect(await band.find({ key: 'band:asks', text: '1 ask' })).toBeDefined()
+  expect(await band.find({ key: 'band:asks' })).toMatchObject({ text: '1 ask' })
   expect(await band.find({ key: 'band:elsewhere', text: '1 elsewhere' })).toBeDefined()
 
   await snoozing(ui, w.item(id), 'later')
@@ -235,7 +235,7 @@ test('a snoozed ask counts on neither the band nor the tabs, here or elsewhere',
   await ui.press({ key: `pick:${w.item('k4', THEMES.id)}` })
   await snoozing(ui, w.item('k4', THEMES.id), 'later')
 
-  expect(await band.find({ key: 'band:asks', text: '0 asks' })).toBeDefined()
+  expect(await band.find({ key: 'band:asks' })).toMatchObject({ text: '0 asks' })
   expect(await band.find({ key: 'band:elsewhere' }), 'none elsewhere').toBeUndefined()
   expect(rowsOf(await ui.find({ key: 'tab:session:box' }))).toEqual([' ⌂ Help desk redesign'])
   expect(rowsOf(await ui.find({ key: 'tab:all:box' }))).toEqual([' ≡ All projects'])

@@ -2,7 +2,7 @@ import type { SitrepPane, SitrepQueued } from '../types'
 import { expect, test, tier } from './kit'
 import type { Body } from '../core'
 import { hoverScope } from '../hooks/draw/kit'
-import { C, GLYPH } from '../hooks/look'
+import { C, clip, GLYPH } from '../hooks/look'
 import { rowsOf } from './drawn'
 import { HELD, heldItem, MIN, PROJECT, REVIEW, T0, type Asked } from './data'
 import { askOf, note, park, status, type Line } from './lines'
@@ -149,6 +149,11 @@ test("a title's hover group is named by its press key, or, where the key is too 
     expect(scope.length).toBeLessThanOrEqual(64)
     expect(scope).not.toMatch(/\p{Cc}/u)
   }
+})
+
+test('a line exactly as wide as its room is clipped to nothing less; one a character wider is cut to the room, an ellipsis last', () => {
+  expect(clip('Review round 1', 14)).toBe('Review round 1')
+  expect(clip('Review round 12', 14)).toBe('Review round …')
 })
 
 test('an opened parked item hangs where and its record from its mark, its buttons under the tree', async () => {

@@ -105,8 +105,11 @@ test('a subject is one line, and one too long is cut short with an ellipsis', ()
   expect(toolShown('Bash', { command: 'cd /repo &&\n  bun test\tcore' }).subject).toBe(
     'cd /repo && bun test core',
   )
-  expect(toolShown('Bash', { command: 'x'.repeat(SHOWN_LENGTH) }).subject).toHaveLength(
-    SHOWN_LENGTH,
+  expect(toolShown('Bash', { command: 'x'.repeat(SHOWN_LENGTH) }).subject, 'kept whole').toBe(
+    'x'.repeat(SHOWN_LENGTH),
+  )
+  expect(toolShown('Bash', { command: 'x'.repeat(SHOWN_LENGTH + 1) }).subject, 'one over').toBe(
+    `${'x'.repeat(SHOWN_LENGTH - 1)}…`,
   )
   expect(toolShown('Bash', { command: long }).subject).toBe(`${'x'.repeat(SHOWN_LENGTH - 1)}…`)
   expect(
@@ -856,6 +859,15 @@ test('a one-off still listed has not fired: where the last time it names is near
   ] as const) {
     expect(inZone(LONDON, () => wakeAt(schedule, NOW)), schedule).toBe(at)
   }
+})
+
+test('a one-off whose last time and next are equally near is due at its next; a minute either side, the nearer', () => {
+  const at = (minute: number) =>
+    inZone(LONDON, () => wakeAt('30 2 * * *', local(2026, 10, 22, 14, minute)))
+
+  expect(at(29), 'the last nearer').toBe(local(2026, 10, 22, 2, 30))
+  expect(at(30), 'equally near').toBe(local(2026, 10, 23, 2, 30))
+  expect(at(31), 'the next nearer').toBe(local(2026, 10, 23, 2, 30))
 })
 
 test('a schedule that names no single time, or none at all, has none: its minute or hour not a number, or its day, month or weekday a range, a list, a step, a name or out of range', () => {
