@@ -205,18 +205,28 @@ test('a refused call keeps no name', async ($, on) => {
 
 test('only the latest calls keep their names, the oldest let go', async ($, on) => {
   const w = world($, on)
+  const earlier = Array.from({ length: NAMES_KEPT }, (_, i) => ({
+    call: `toolu_${i}`,
+    name: INBOX_PAGE.name,
+  }))
+  let isWritten = false
+
+  // As many names as are kept, left by the window's earlier calls, read until it keeps the next.
+  on('state.get', { plugin: 'sitrep', key: 'named' }, ($, e, next) =>
+    isWritten ? next(e) : { value: { value: earlier, version: 0 } },
+  )
+  on('state.set', { plugin: 'sitrep', key: 'named' }, ($, e, next) => {
+    isWritten = true
+
+    return next(e)
+  })
 
   await w.begin()
 
-  const posted = await asked(w, reviewRound(1))
-  const first = await keeping(w, 'resolve', { item: posted })
+  const round = reviewRound(1)
+  const latest = await keeping(w, 'resolve', { item: await asked(w, round) })
 
-  for (let i = 0; i < NAMES_KEPT; i += 1) {
-    await w.call(i % 2 === 0 ? 'reopen' : 'resolve', { item: posted })
-  }
-
-  expect(w.state.named).toHaveLength(NAMES_KEPT)
-  expect(w.state.named?.some(each => each.call === first)).toBe(false)
+  expect(w.state.named).toEqual([...earlier.slice(1), { call: latest, name: round.title }])
 })
 
 test("a call's result draws nothing, on every surface", async ($, on) => {

@@ -15,17 +15,15 @@ export const asked = async (w: World, ask: Ask = REVIEW) => postedId(await w.cal
 
 /**
  * The session begun, Claude asking `asks` in order (one review unless told),
- * the board drawn as `props`, docked unless told, and the clock then moved
- * on by `advance` where given: the session's paths, the asks' ids, the first
- * one's on its own, and the board.
+ * and the board drawn as `props`, docked unless told: the session's paths,
+ * the asks' ids, the first one's on its own, and the board.
  */
 export const asking = async (
   w: World,
   {
     asks = [REVIEW],
     props = DOCKED,
-    advance,
-  }: { asks?: readonly Ask[]; props?: RenderPropsOf['Pane']; advance?: number } = {},
+  }: { asks?: readonly Ask[]; props?: RenderPropsOf['Pane'] } = {},
 ) => {
   const { paths } = await w.begin()
   const ids: string[] = []
@@ -35,11 +33,6 @@ export const asking = async (
   }
 
   const ui = await w.pane('terminal', props)
-
-  if (advance !== undefined) {
-    await w.clock.advance(advance)
-  }
-
   const [id = ''] = ids
 
   return { paths, id, ids, ui }

@@ -2096,13 +2096,12 @@ holds (core's `snoozedTurnOf`, `core/rows.ts`); the session's state stays
 `yourTurn` wherever a state is read, its windows' still.
 
 No file changes as a snooze runs out, so a reader learns it by folding again
-at a later `now`. The mod folds the held session anew at each look, every 1.5
-seconds, and looks at the sessions around it every 5, folding one again once
-the `until` of a snooze standing on it has come (core's `nextFoldChange`), so
-a pane, a band and Claude's board text have it within a look; a CLI command
-folds as it runs; `watch` counts each snooze's `until` among the instants the
-board next changes by time alone (see "Expiry"), and folds every session
-afresh then.
+at a later `now`. The mod looks at the held session every 1.5 seconds and at
+the sessions around it every 5, folding one again once the `until` of a
+snooze standing on it has come (core's `nextFoldChange`), so a pane, a band
+and Claude's board text have it within a look; a CLI command folds as it
+runs; `watch` counts each snooze's `until` among the instants the board next
+changes by time alone (see "Expiry"), and folds every session afresh then.
 
 **Where it counts.** A snoozed ask counts nowhere on Lee's surfaces: not in
 a session's or a project's waiting, on the pane's tabs or the band, in `list`
@@ -2775,7 +2774,8 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   its listing to each of its sessions' reads, which list the session's
   folders and read again only a file that changed. A session is folded again
   only once its files changed, or once its own fold changes by time alone
-  (core's `nextFoldChange`, 27 October 2026): as its part of the board does,
+  (core's `nextFoldChange`, 27 October 2026; the held one's too, at its
+  watch's look, since 16 November 2026): as its part of the board does,
   and as any snooze standing on it runs out, one over an ask Lee's
   reply is on its way to, or in a finished session, among them. This is not
   `watch`'s rule, which folds every session again as the board changes (see

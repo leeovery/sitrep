@@ -8,6 +8,9 @@ export const MIN = 60_000
 export const HOUR = 60 * MIN
 export const DAY = 24 * HOUR
 
+/** Long enough for a new ask's pulse to run out (24 frames of 150 ms), ASKS' heading back on its counts. */
+export const REST_MS = 5_000
+
 /** When the session under test was started. */
 export const T0 = 1_760_000_000_000
 

@@ -17,7 +17,6 @@ import type { Timer } from 'claude-code'
 import {
   append,
   attach,
-  foldSession,
   heartbeat,
   HEARTBEAT_MS,
   isOpen,
@@ -25,12 +24,14 @@ import {
   parseEntries,
   parsePresence,
   presenceText,
+  refold,
   sessionPaths,
   snoozedAsks,
   stateOf,
   waitingOnLee,
   type Body,
   type Entry,
+  type KeptFold,
   type Presence,
   type Sending,
   type Session,
@@ -61,8 +62,10 @@ type Hold = {
   presence: Presence
   read: Reader
   timers: Timer[]
-  /** The board last put in `$.state`, as JSON, so a fold that changed nothing puts nothing. */
-  shown?: string
+  /** The session as last folded, so a look finding its files as they were, and its fold not changed by time alone, folds nothing. */
+  fold?: KeptFold
+  /** The fold whose board was last put in `$.state`, and that board as JSON, so a fold that changed nothing puts nothing. */
+  shown?: { session: Session; json: string }
   /** What the window saw of the session at its last fold; unset until its first. */
   heard?: Heard
 }
@@ -189,21 +192,32 @@ const hear = async (host: Host, hold: Hold, session: Session) => {
   await announce(host, session.id, news)
 }
 
+/** Puts the session's board in `$.state` where it changed, and tells Lee what it brings; a fold already shown, nothing. */
 const show = async (host: Host, hold: Hold, session: Session) => {
+  if (hold.shown?.session === session) {
+    return
+  }
+
   const shown = boardOf(session)
   const json = JSON.stringify(shown)
 
-  if (json !== hold.shown) {
-    await host.state.board.write(shown)
-    hold.shown = json
-    await hear(host, hold, session)
-    await settleAnswering(host)
+  if (json === hold.shown?.json) {
+    hold.shown = { session, json }
+
+    return
   }
+
+  await host.state.board.write(shown)
+  hold.shown = { session, json }
+  await hear(host, hold, session)
+  await settleAnswering(host)
 }
 
 /**
- * The held session folded as it stands, put in `$.state` when it changed.
- * Undefined with no session held, or with its session.json missing or torn.
+ * The held session folded as it stands, put in `$.state` when it changed:
+ * folded again only once its files changed, or its fold by time alone
+ * (core's `refold`), as the sessions around it are. Undefined with no
+ * session held, or with its session.json missing or torn.
  */
 export const refresh = async (host: Host): Promise<Session | undefined> => {
   const hold = current
@@ -214,7 +228,10 @@ export const refresh = async (host: Host): Promise<Session | undefined> => {
 
   const files = await hold.read(host, hold.paths)
   const logs = { ...files.logs, [hold.attachment.writer]: hold.text }
-  const session = foldSession({ ...files, logs }, await host.clock.now())
+
+  hold.fold = refold(hold.fold, { ...files, logs }, await host.clock.now())
+
+  const { session } = hold.fold
 
   if (session !== undefined) {
     await show(host, hold, session)
