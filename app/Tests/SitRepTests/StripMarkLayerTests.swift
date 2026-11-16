@@ -156,16 +156,38 @@ struct StripMarkLayerTests {
     /// starts: its turn starts where the clock is in that period.
     @Test(arguments: [1.0, 1.2, 0.9])
     func everyArcTurnsInStepByTheClock(period: Double) throws {
+        let first = Arc(), later = Arc()
+        let now = 86_400.25, after = 7.3
+
+        first.turn(every: period, at: now)
+        later.turn(every: period, at: now + after)
+        #expect(try Self.offset(of: first) == Arc.phase(every: period, at: now))
+
+        let gap = try Self.offset(of: later) - Self.offset(of: first) - after
+
+        #expect(abs(gap - (gap / period).rounded() * period) < 1e-9)
+    }
+
+    /// Unless told the time, an arc reads the display's clock, in seconds, as `MenuTurn` does: its turn starts where
+    /// that clock was in its period as it started, between the moments before and after.
+    @Test(arguments: [1.0, 1.2, 0.9])
+    func anArcTurnsByTheDisplaysClock(period: Double) throws {
         let arc = Arc()
-        let now = CACurrentMediaTime()
+        let before = CACurrentMediaTime()
 
         arc.turn(every: period)
 
-        let key = try #require(arc.layer.animationKeys()?.first)
-        let offset = try #require(arc.layer.animation(forKey: key)?.timeOffset)
-        let drift = abs(offset - Arc.phase(every: period, at: now))
+        let after = CACurrentMediaTime()
+        let since = try Self.offset(of: arc) - Arc.phase(every: period, at: before)
 
-        #expect(drift < 0.01 || drift > period - 0.01)
+        #expect((since + period).truncatingRemainder(dividingBy: period) <= after - before + 1e-9)
+    }
+
+    /// Where in its turn an arc's turn starts.
+    private static func offset(of arc: Arc) throws -> Double {
+        let key = try #require(arc.layer.animationKeys()?.first)
+
+        return try #require(arc.layer.animation(forKey: key)?.timeOffset)
     }
 
     @Test func aWorkingMarkComingToItsOwnWorkStopsTurning() {

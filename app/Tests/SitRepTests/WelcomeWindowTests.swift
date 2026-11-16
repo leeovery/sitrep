@@ -16,6 +16,7 @@ import Testing
 struct WelcomeWindowTests {
     typealias Mac = WelcomeWorld.Mac
     typealias Made = WelcomeWorld.Made
+    typealias Clock = WelcomeWorld.Clock
 
     // MARK: The window
 
@@ -164,7 +165,7 @@ struct WelcomeWindowTests {
 
         made.at(.edge)
         made.welcome.choose(.strip)
-        try made.stage.step(at: Displays.now)
+        try made.stage.step(at: made.clock.now)
         #expect(made.preferences.edge.show == .strip)
         #expect(try made.stage.surface is StripSurface)
     }
@@ -466,7 +467,7 @@ struct WelcomeWindowTests {
         #expect(stage.isDescendant(of: view))
         #expect((stage.surface as? NotchSurface)?.drawing is NotchView)
         made.preferences.edit { $0.show = .strip }
-        stage.step(at: Displays.now)
+        stage.step(at: made.clock.now)
         #expect((stage.surface as? StripSurface)?.drawing is StripView)
     }
 
@@ -476,10 +477,10 @@ struct WelcomeWindowTests {
         let stage = try made.stage
 
         made.preferences.edit { $0.material = .glass }
-        stage.step(at: Displays.now)
+        stage.step(at: made.clock.now)
         #expect((stage.surface as? NotchSurface)?.drawing is NotchGlassView)
         made.preferences.edit { $0.show = .strip }
-        stage.step(at: Displays.now)
+        stage.step(at: made.clock.now)
         #expect((stage.surface as? StripSurface)?.drawing is StripGlassView)
     }
 
@@ -491,7 +492,7 @@ struct WelcomeWindowTests {
 
         #expect(stage.surface.frame.minX == 0)
         made.preferences.edit { $0.edge = .right }
-        stage.step(at: Displays.now)
+        stage.step(at: made.clock.now)
         #expect(stage.surface.frame.maxX == screen.maxX)
     }
 
@@ -520,13 +521,12 @@ struct WelcomeWindowTests {
     @Test func theStagesNotchSwellsWithEachSoundChosen() async throws {
         let made = Made()
         let stage = try made.stage
-        var clock = Displays.now
 
         made.at(.sound)
         _ = await made.settled()
         #expect(stage.play == .chime)
         for sound in ["Pop", "Tink"] {
-            clock = Self.settle(stage, from: max(clock, Displays.now))
+            Self.settle(stage, on: made.clock)
             #expect(stage.lastPace != .moving, "\(sound)")
             made.welcome.choose(sound: sound)
             _ = await made.settled()
@@ -545,7 +545,7 @@ struct WelcomeWindowTests {
         #expect(stage.link == nil)
         Self.key(made)
         #expect(stage.standing == .inFront && stage.isDrawing)
-        Self.settle(stage, from: Displays.now)
+        Self.settle(stage, on: made.clock)
         #expect(stage.isDrawing == (stage.lastPace == .light))
         made.window.windowDidResignKey(Notification(name: NSWindow.didResignKeyNotification, object: made.recorded))
         #expect(stage.standing == .behind && !stage.isDrawing)
@@ -573,22 +573,22 @@ struct WelcomeWindowTests {
         let made = Made()
         let stage = try made.stage
 
-        Self.settle(stage, from: Displays.now)
+        Self.settle(stage, on: made.clock)
         Self.key(made)
 
-        let beat = try #require(stage.beat)
-        let wait = (WelcomeLoop.hello.next(after: stage.loopTime) - stage.loopTime) / 1000
+        let beat = try #require(stage.beat as? Clock.Wake)
+        let wait = WelcomeLoop.hello.next(after: stage.loopTime) - stage.loopTime
 
         #expect(!stage.isDrawing)
         #expect(WelcomeLoop.hello.next(after: stage.loopTime) == WelcomeLoop.hello.lands)
-        #expect(abs(beat.fireDate.timeIntervalSinceNow - wait) < 0.1)
+        #expect(beat.due == made.clock.now + wait)
         beat.fire()
-        #expect(stage.beat != nil && stage.beat !== beat)
 
-        let time = Displays.now
+        let rearmed = try #require(stage.beat as? Clock.Wake)
 
-        stage.step(at: time)
-        stage.step(at: time + WelcomeLoop.hello.lands - stage.loopTime)
+        #expect(rearmed !== beat)
+        made.clock.fire(rearmed)
+        #expect(stage.loopTime > WelcomeLoop.hello.lands)
         #expect(stage.isDrawing && stage.beat == nil)
     }
 
@@ -597,16 +597,12 @@ struct WelcomeWindowTests {
         let made = Made()
         let stage = try made.stage
 
-        Self.settle(stage, from: Displays.now)
+        Self.settle(stage, on: made.clock)
         Self.key(made)
+        stage.step(at: made.clock.pass(WelcomeLoop.hello.lands - stage.loopTime))
+        Self.settle(stage, on: made.clock)
 
-        let time = Displays.now
-
-        stage.step(at: time)
-        stage.step(at: time + WelcomeLoop.hello.lands - stage.loopTime)
-        Self.settle(stage, from: time + WelcomeLoop.hello.lands)
-
-        let beat = try #require(stage.beat)
+        let beat = try #require(stage.beat as? Clock.Wake)
 
         #expect(stage.link != nil)
         made.recorded.close()
@@ -634,7 +630,7 @@ struct WelcomeWindowTests {
         let made = Made()
         let stage = try made.stage
 
-        Self.settle(stage, from: Displays.now)
+        Self.settle(stage, on: made.clock)
         Self.key(made)
         made.window.windowDidResignKey(Notification(name: NSWindow.didResignKeyNotification, object: made.recorded))
 
@@ -643,7 +639,7 @@ struct WelcomeWindowTests {
         made.preferences.edit { $0.show = .strip }
         _ = await made.settled()
         #expect(stage.lastPace == .moving && stage.isDrawing)
-        Self.settle(stage, from: Displays.now)
+        Self.settle(stage, on: made.clock)
         #expect(stage.lastPace != .moving && !stage.isDrawing)
         #expect(stage.loopTime == loopTime)
     }
@@ -655,27 +651,49 @@ struct WelcomeWindowTests {
         let made = Made()
         let stage = try made.stage
 
-        Self.settle(stage, from: Displays.now)
+        Self.settle(stage, on: made.clock)
         Self.key(made)
-
-        var time = Displays.now
-
         while stage.row == nil, stage.loopTime < WelcomeLoop.hello.length - 100 {
-            time += 1000 / 60
-            stage.step(at: time)
+            stage.step(at: made.clock.pass(1000 / 60))
         }
 
         let meniscus = try #require(stage.row)
 
         made.preferences.edit { $0.style = .card }
         for _ in 0 ..< 30 {
-            time += 1000 / 60
-            stage.step(at: time)
+            stage.step(at: made.clock.pass(1000 / 60))
         }
         #expect(stage.row != meniscus)
         made.preferences.edit { $0.show = .strip }
-        stage.step(at: time + 1000 / 60)
+        stage.step(at: made.clock.pass(1000 / 60))
         #expect(try #require(stage.row).x < Strip.restingWidth)
+    }
+
+    /// The strip's length changed while the pointer rests on the ask's mark sends the mark elsewhere before the strip
+    /// has begun to move: the pointer goes where the mark now goes from the change's own frame, never where it was.
+    @Test func aChangeThatMovesTheMarkMovesThePointerAtOnce() throws {
+        let made = Made()
+        let stage = try made.stage
+
+        made.preferences.edit { $0.show = .strip }
+        Self.settle(stage, on: made.clock)
+        Self.key(made)
+        while stage.loopTime < WelcomeLoop.hello.onRow + 300 {
+            stage.step(at: made.clock.pass(1000 / 60))
+        }
+
+        let before = try #require(stage.row)
+
+        made.preferences.edit { $0.length = .full }
+        stage.step(at: made.clock.pass(1000 / 60))
+
+        let moved = try #require(stage.row)
+
+        for _ in 0 ..< 40 {
+            stage.step(at: made.clock.pass(1000 / 60))
+        }
+        #expect(moved != before)
+        #expect(stage.row == moved)
     }
 
     /// The strip centres where the notch sits on the stage, Paper's place, wherever Lee dragged his own, so the
@@ -712,16 +730,13 @@ struct WelcomeWindowTests {
         made.window.windowDidBecomeKey(Notification(name: NSWindow.didBecomeKeyNotification, object: made.recorded))
     }
 
-    /// The stage stepped a 60th at a time from this time, until nothing moves or ten seconds pass: when it stopped.
-    @discardableResult
-    private static func settle(_ stage: StageEdge, from start: Double) -> Double {
-        var time = start
+    /// The stage stepped a 60th at a time on the test's clock, until nothing moves or ten seconds pass.
+    private static func settle(_ stage: StageEdge, on clock: Clock) {
+        let start = clock.now
 
         repeat {
-            time += 1000 / 60
-            stage.step(at: time)
-        } while stage.lastPace == .moving && time - start < 10_000
-        return time
+            stage.step(at: clock.pass(1000 / 60))
+        } while stage.lastPace == .moving && clock.now - start < 10_000
     }
 
     /// The footer as the window draws it, at the welcome's step: the lit spans across its middle, in points from the

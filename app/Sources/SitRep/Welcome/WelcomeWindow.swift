@@ -11,17 +11,20 @@ import SwiftUI
 @MainActor
 final class WelcomeWindow: NSObject, NSWindowDelegate {
     private let welcome: WelcomeModel
+    private let clock: any StageClock
     private let frame: @MainActor (NSViewController) -> ForwardWindow
     /// The window while it shows, let go as it closes, so no focus a visit leaves, AppKit's or SwiftUI's, comes back
     /// with the next.
     private var shown: Shown?
 
-    /// `frame` makes the window round what it shows as it opens: a seam, as a test never shows one.
+    /// `frame` makes the window round what it shows as it opens: a seam, as a test never shows one; and `clock` is its
+    /// stage's, a seam as a test keeps time itself.
     init(
-        welcome: WelcomeModel,
+        welcome: WelcomeModel, clock: any StageClock = DisplayClock(),
         frame: @escaping @MainActor (NSViewController) -> ForwardWindow = { ForwardWindow(contentViewController: $0) }
     ) {
         self.welcome = welcome
+        self.clock = clock
         self.frame = frame
     }
 
@@ -108,7 +111,8 @@ final class WelcomeWindow: NSObject, NSWindowDelegate {
 
     private func make() -> Shown {
         let stage = StageEdge(
-            size: WelcomeStyle.stage, menuBar: WelcomeStyle.stageMenuBar, preferences: welcome.preferences
+            size: WelcomeStyle.stage, menuBar: WelcomeStyle.stageMenuBar, preferences: welcome.preferences,
+            clock: clock
         )
         let content = WelcomeHosting(rootView: WelcomeView(welcome: welcome, stage: stage))
 

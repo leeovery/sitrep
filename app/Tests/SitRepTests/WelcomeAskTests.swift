@@ -5,7 +5,7 @@ import SitRepPanel
 import Testing
 
 /// Step 2, An ask, from Claude to you: one loop on the stage, on SitRep's own notch, and nothing pressed or sent.
-/// Frames run on a clock of the test's own, never awaiting between them, so no frame on the display's clock comes
+/// Frames run on the clock the test moves, never awaiting between them, so no frame on the display's clock comes
 /// between them.
 @MainActor
 struct WelcomeAskTests {
@@ -21,16 +21,13 @@ struct WelcomeAskTests {
         return made
     }
 
-    /// The stage stepped a 60th at a time from this time until its loop is this far in: the time it got to.
-    @discardableResult
-    private static func play(_ stage: StageEdge, from start: Double, until loopTime: Double) -> Double {
-        var time = start
+    /// The stage stepped a 60th at a time on the test's clock until its loop is this far in.
+    private static func play(_ made: Made, until loopTime: Double) throws {
+        let stage = try made.stage
 
         while stage.loopTime < loopTime {
-            time += 1000 / 60
-            stage.step(at: time)
+            stage.step(at: made.clock.pass(1000 / 60))
         }
-        return time
     }
 
     @Test func itPlaysItsOwnLoopWithThePanelRoomyAsStepOnes() async throws {
@@ -46,12 +43,11 @@ struct WelcomeAskTests {
     @Test func theClickPressesTheRowAndThePanelDrainsAsTheJumpLands() async throws {
         let made = await Self.atAsk()
         let stage = try made.stage, loop = WelcomeLoop.ask
-        var time = Self.play(stage, from: Displays.now, until: try #require(loop.clicks) - 100)
-
+        try Self.play(made, until: #require(loop.clicks) - 100)
         #expect(stage.isOut && stage.row != nil && !stage.isPressing)
-        time = Self.play(stage, from: time, until: try #require(loop.clicks) + 20)
+        try Self.play(made, until: #require(loop.clicks) + 20)
         #expect(stage.isPressing)
-        Self.play(stage, from: time, until: loop.leave + 600)
+        try Self.play(made, until: loop.leave + 600)
         #expect(!stage.isPressing && !stage.isOut)
     }
 
@@ -60,12 +56,11 @@ struct WelcomeAskTests {
     @Test func withNoRowFoundTheClickPressesNothing() async throws {
         let made = await Self.atAsk()
         let stage = try made.stage, loop = WelcomeLoop.ask
-        var time = Self.play(stage, from: Displays.now, until: try #require(loop.clicks) - 40)
-
+        try Self.play(made, until: #require(loop.clicks) - 40)
         made.preferences.edit { $0.show = .strip }
-        time = Self.play(stage, from: time, until: try #require(loop.clicks) - 20)
+        try Self.play(made, until: #require(loop.clicks) - 20)
         made.preferences.edit { $0.show = .notch }
-        Self.play(stage, from: time, until: try #require(loop.clicks) + 20)
+        try Self.play(made, until: #require(loop.clicks) + 20)
         #expect(stage.row == nil && !stage.isPressing)
     }
 
@@ -75,10 +70,10 @@ struct WelcomeAskTests {
         let made = await Self.atAsk()
         let stage = try made.stage, loop = WelcomeLoop.ask
         let beats = try [loop.lands, loop.approach, #require(loop.clicks), #require(loop.answers), #require(loop.resolves)]
-        var time = Displays.now, told: [WelcomeLoop.Scene] = []
+        var told: [WelcomeLoop.Scene] = []
 
         for beat in beats {
-            time = Self.play(stage, from: time, until: beat + 20)
+            try Self.play(made, until: beat + 20)
             told.append(stage.told)
         }
         #expect(told.map(\.moment) == [.lands, .opens, .answers, .answers, nil])
@@ -92,10 +87,9 @@ struct WelcomeAskTests {
     @Test func theAnswerTakesTheAskAwaySoTheLightGoesOut() async throws {
         let made = await Self.atAsk()
         let stage = try made.stage, loop = WelcomeLoop.ask
-        let time = Self.play(stage, from: Displays.now, until: loop.lands + 2_000)
-
+        try Self.play(made, until: loop.lands + 2_000)
         #expect(stage.lastPace == .light || stage.lastPace == .moving)
-        Self.play(stage, from: time, until: try #require(loop.resolves) + 2_000)
+        try Self.play(made, until: #require(loop.resolves) + 2_000)
         #expect(stage.lastPace == .still)
     }
 
@@ -104,7 +98,7 @@ struct WelcomeAskTests {
     @Test func itSendsNothingAnywhereAndPlaysNothing() async throws {
         let made = await Self.atAsk()
 
-        try Self.play(made.stage, from: Displays.now, until: 2 * WelcomeLoop.ask.length)
+        try Self.play(made, until: 2 * WelcomeLoop.ask.length)
         made.welcome.goOn()
         #expect(made.mac.played.isEmpty && made.mac.stops == 0)
         #expect(made.mac.jumps.isEmpty && made.mac.tests == 0 && made.mac.copies.isEmpty)

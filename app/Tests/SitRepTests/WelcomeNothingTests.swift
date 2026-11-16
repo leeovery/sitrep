@@ -9,6 +9,7 @@ import Testing
 @MainActor
 struct WelcomeNothingTests {
     typealias Made = WelcomeWorld.Made
+    typealias Clock = WelcomeWorld.Clock
 
     // MARK: Your edge
 
@@ -93,10 +94,10 @@ struct WelcomeNothingTests {
         _ = await made.settled()
         #expect(stage.surface is NotchSurface)
         made.welcome.choose(.nothing)
-        stage.step(at: Displays.now)
+        stage.step(at: made.clock.now)
         #expect(!(stage.surface is NotchSurface))
         made.welcome.choose(.notch)
-        stage.step(at: Displays.now)
+        stage.step(at: made.clock.now)
         #expect(stage.surface is NotchSurface)
     }
 
@@ -125,11 +126,7 @@ struct WelcomeNothingTests {
         _ = await made.settled()
         #expect(!stage.scene.isItemLit)
         stage.standing = .inFront
-
-        let time = Displays.now
-
-        stage.step(at: time)
-        stage.step(at: time + WelcomeLoop.hello.lands + 100)
+        stage.step(at: made.clock.pass(WelcomeLoop.hello.lands + 100))
         _ = await made.settled()
         #expect(stage.scene.isItemLit)
     }
@@ -145,21 +142,20 @@ struct WelcomeNothingTests {
         _ = await made.settled()
         #expect(!stage.scene.isItemLit)
         for sound in ["Pop", "Tink"] {
-            let before = Displays.now
+            let chimed = made.clock.now
 
             // the chime told the stage at once, as the view's update would tell it, so no wait comes between
             made.welcome.choose(sound: sound)
             stage.chime(made.welcome.chimes)
 
-            let after = Displays.now
-            let ends = try #require(stage.chimeEnds)
+            let ends = try #require(stage.chimeEnds as? Clock.Wake)
 
             #expect(stage.toldItem, "\(sound)")
-            #expect(abs(ends.fireDate.timeIntervalSinceNow - StageEdge.chimeLight / 1000) < 0.1)
-            stage.step(at: before + StageEdge.chimeLight - 50)
+            #expect(ends.due == chimed + StageEdge.chimeLight)
+            stage.step(at: made.clock.pass(StageEdge.chimeLight - 50))
             #expect(stage.toldItem, "\(sound)")
-            stage.step(at: after + StageEdge.chimeLight + 50)
-            #expect(!stage.toldItem, "\(sound)")
+            made.clock.fire(ends)
+            #expect(!stage.toldItem && stage.chimeEnds == nil, "\(sound)")
             _ = await made.settled()
             #expect(!stage.scene.isItemLit, "\(sound)")
         }
