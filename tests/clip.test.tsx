@@ -15,7 +15,18 @@ import { PANE } from '../hooks/pane'
 import { rowsOf } from './drawn'
 import { GO, LEDGER, MIN, PROJECT, reviewRounds } from './data'
 import { yesAsk } from './lines'
-import { asked, asking, DOCKED, INLINE, toProject, world, type Board, type World } from './world'
+import {
+  asked,
+  asking,
+  DOCKED,
+  INLINE,
+  openAsk,
+  pressYes,
+  toProject,
+  world,
+  type Board,
+  type World,
+} from './world'
 
 tier('user')
 
@@ -59,13 +70,10 @@ const long = async (w: World, open: () => Promise<Board> = () => w.pane()) => {
   return { ids, ui: await open() }
 }
 
-/** Lee approves an ask, by its address, opening it first where it is not open. */
-const approve = async (ui: Board, item: string) => {
-  if ((await ui.find({ key: `yes:${item}` })) === undefined) {
-    await ui.press({ key: `pick:${item}` })
-  }
-
-  await ui.press({ key: `yes:${item}` })
+/** Lee opens an ask the board holds closed, by its address, and approves it. */
+const approve = async (w: World, ui: Board, item: string) => {
+  await openAsk(w, ui, item)
+  await pressYes(ui, item)
 }
 
 const boxes = async (ui: Board) => (await ui.findAll({ type: 'Box' })).map(box => box.props)
@@ -191,7 +199,7 @@ test('docked, the tree is a row short of the window; the list is clipped between
     ui,
   } = await asking(w, { asks: reviewRounds(1) })
 
-  await approve(ui, w.item(id))
+  await pressYes(ui, w.item(id))
 
   const { tree, clip, list } = await clipping(ui)
   const [head, , foot] = ((await ui.findAll({ type: 'Box' }))[0]?.children ?? []) as Drawn[]
@@ -230,7 +238,7 @@ test("docked, the header is the same in every view, the way back in its last row
     ui,
   } = await long(w, () => w.opened())
 
-  await approve(ui, w.item(id))
+  await approve(w, ui, w.item(id))
 
   const places = [
     { name: 'home', reach: async () => undefined },
@@ -405,7 +413,7 @@ test('a page key moves by the rows showing above Ready to send; Home and End go 
     ui,
   } = await long(w)
 
-  await approve(ui, w.item(id))
+  await approve(w, ui, w.item(id))
 
   const blocks = await measure(ui)
   const showing = await listRows(ui)
@@ -455,7 +463,7 @@ test("Tab onto a button below the fold brings its block into view, moving the le
     ui,
   } = await long(w)
 
-  await approve(ui, w.item(first))
+  await approve(w, ui, w.item(first))
 
   const parked = String(
     (await ui.findAll({ type: 'Button' })).findLast(button => button.key?.startsWith('ppick:'))
@@ -618,7 +626,7 @@ test('queuing a reply, sending, a new ask arriving and the watch drawing again l
 
   const kept = w.state.scroll
 
-  await approve(ui, w.item(first))
+  await approve(w, ui, w.item(first))
   expect(await topOf(ui), 'queued').toBe(6)
 
   await ui.press({ key: `pick:${w.item(second)}` })
@@ -655,7 +663,7 @@ test("inline, nothing is clipped or measured: Ready to send follows the view, an
     ui,
   } = await asking(w, { asks: reviewRounds(1), props: INLINE })
 
-  await approve(ui, w.item(id))
+  await pressYes(ui, w.item(id))
 
   const [root] = await boxes(ui)
 
@@ -677,10 +685,10 @@ test('Ready to send takes the rows it draws under the list: a row for each line,
     ui,
   } = await asking(w, { asks: reviewRounds(3) })
 
-  await approve(ui, w.item(first))
+  await approve(w, ui, w.item(first))
   await expectHeightKept(ui, 'one reply')
 
-  await approve(ui, w.item(second))
+  await approve(w, ui, w.item(second))
   await ui.press({ key: `pick:${w.item(third)}` })
   await ui.press({ key: `comment:${w.item(third)}` })
   await $.prompt.submit({
@@ -784,7 +792,7 @@ test('a queue too long for under half the window is cut short: the box lists wha
   const { ids, ui } = await asking(w, { asks: reviewRounds(6) })
 
   for (const id of ids) {
-    await approve(ui, w.item(id))
+    await approve(w, ui, w.item(id))
   }
 
   const listed = async () =>
@@ -811,14 +819,14 @@ test('a send held and the queue under it keep the box as tall as it draws; too l
   const cap = Math.floor((BODY_ROWS - 1) / 2)
 
   for (const id of ids.slice(0, 3)) {
-    await approve(ui, w.item(id))
+    await approve(w, ui, w.item(id))
   }
 
   await w.turnStarts('Carry on.')
   await ui.press({ key: 'send' })
 
   for (const id of ids.slice(3)) {
-    await approve(ui, w.item(id))
+    await approve(w, ui, w.item(id))
   }
 
   expect(await ui.find({ key: w.takeBack() })).toBeDefined()
@@ -847,7 +855,7 @@ test('three sends held and a reply under them, too long for under half the windo
   const cap = Math.floor((BODY_ROWS - 1) / 2)
   const approveAll = async (from: number, to: number) => {
     for (const id of ids.slice(from, to)) {
-      await approve(ui, w.item(id))
+      await approve(w, ui, w.item(id))
     }
   }
 
@@ -895,12 +903,12 @@ test('five sends held in a window too short for a row each: the first in full, a
   const [first = '', ...later] = ids
   const then = (text: string) => ui.find({ type: 'Text', text: `⧗ Then: ${text}` })
 
-  await approve(ui, w.item(first))
+  await approve(w, ui, w.item(first))
   await w.turnStarts('Carry on.')
   await ui.press({ key: 'send' })
 
   for (const id of later) {
-    await approve(ui, w.item(id))
+    await approve(w, ui, w.item(id))
     await ui.press({ key: 'send' })
   }
 

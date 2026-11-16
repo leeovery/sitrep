@@ -19,7 +19,10 @@ import {
   CONVERSATION,
   DOCKED,
   INLINE,
+  lost,
+  openAsk,
   postedId,
+  pressYes,
   sendingIn,
   turnEnded,
   world,
@@ -66,15 +69,10 @@ const TALL: RenderPropsOf['Pane'] = { ...DOCKED, scroll: { offset: 0, bodyRows: 
 /** The session begun with three reviews asked, and the board drawn: their ids, in round order. */
 const reviewing = (w: World, props = TALL) => asking(w, { asks: reviewRounds(3), props })
 
-/** Lee approves an ask, opening it first where it is not open. */
+/** Lee opens an ask the board holds closed, and approves it. */
 const approve = async (w: World, ui: Board, id: string) => {
-  const key = w.item(id)
-
-  if ((await ui.find({ key: `yes:${key}` })) === undefined) {
-    await ui.press({ key: `pick:${key}` })
-  }
-
-  await ui.press({ key: `yes:${key}` })
+  await openAsk(w, ui, w.item(id))
+  await pressYes(ui, w.item(id))
 }
 
 /** Ready to send as the rows it draws, each trimmed, the blank ones between its groups kept. */
@@ -515,7 +513,7 @@ test('the first send never taken with a second held behind it: both are let go t
 
   const turn = w.holdPrompts()
 
-  void w.turnEnds()
+  lost(w.turnEnds())
   await turn.arrived
   turn.lose()
   await w.clock.advance(QUIET_MS - 1)
@@ -1333,11 +1331,12 @@ test("Lee's turn starting between a submit and Claude Code's refusal of it leave
   w.dropPrompts(STOPPED)
 
   const turn = w.holdPrompts()
+  const refused = w.turnEnds({ isAborted: true })
 
-  void w.turnEnds({ isAborted: true })
   await turn.arrived
   await w.turnStarts('Look at the failing test instead.')
   turn.end()
+  await refused
   await w.clock.settle()
 
   expect(flightsIn(w)).toEqual([{ items: [first], isHeld: true }])

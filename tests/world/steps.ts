@@ -1,6 +1,6 @@
 /** Steps the tests share, taken in a world: Claude asking, a turn ending, Lee moving about the board; and reads of what the window wrote. */
 import type { RenderPropsOf } from 'claude-code'
-import type { Mounted } from 'claude-code/testing'
+import { expect, type Mounted } from '../kit'
 import { parseEntries, parsePresence, type SessionPaths } from '../../core'
 import { PROJECT, REVIEW, W1 } from '../data'
 import { postedId } from './calls'
@@ -52,6 +52,29 @@ export const asksOnBand = async (w: World, text: string) =>
 export const toProject = async (ui: Pick<Mounted, 'press'>, key = PROJECT.key) => {
   await ui.press({ key: 'tab:all' })
   await ui.press({ key: `proj:${key}` })
+}
+
+/** Lee opens an ask the board holds closed, by its address: asserted closed before his pick and open after it, by the item the pane holds open. */
+export const openAsk = async (w: World, ui: Pick<Mounted, 'press'>, key: string) => {
+  expect(w.state.pane?.selected, `${key} stands closed`).not.toBe(key)
+  await ui.press({ key: `pick:${key}` })
+  expect(w.state.pane?.selected, `${key} opened`).toBe(key)
+}
+
+/** Lee presses an open yes ask's yes, by its address: asserted drawn first, so an ask standing closed, or of another kind, fails the step. */
+export const pressYes = async (ui: Pick<Mounted, 'find' | 'press'>, key: string) => {
+  expect(await ui.find({ key: `yes:${key}` }), `${key}'s yes drawn`).toBeDefined()
+  await ui.press({ key: `yes:${key}` })
+}
+
+/**
+ * Lets go of what waits on a prompt a held turn then lost: no hook ever
+ * answers it, so the kit rejects it as the test ends. The rejection is
+ * caught here, so it never surfaces as an unhandled one, reported against
+ * another test, whatever the mod beneath makes of it.
+ */
+export const lost = (waiting: Promise<unknown>) => {
+  void waiting.catch(() => {})
 }
 
 /** The kinds of line a file holds, in order. */

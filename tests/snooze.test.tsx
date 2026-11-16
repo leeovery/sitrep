@@ -32,14 +32,19 @@ import {
   type Board,
   type World,
 } from './world'
+import { LOCAL_ZONE, wallClock } from './zoned'
 
 tier('user')
 
-/** A time in local time, as Snooze works it out. */
-const local = (year: number, month: number, day: number, hour: number, minute = 0) =>
-  new Date(year, month - 1, day, hour, minute).getTime()
+/**
+ * A time in the Mac's own zone. The mod reads the clock across awaits,
+ * after `inZone` has put the real `Date` back, so world tests run in the
+ * Mac's own zone. Snooze's arithmetic in a named zone, London's change of
+ * the clocks among it, is tested in snooze.test.ts and wakes.test.ts.
+ */
+const local = wallClock(LOCAL_ZONE)
 
-/** Friday 23 October 2026, 14:00, local time: when the world starts. */
+/** Friday 23 October 2026, 14:00 in the Mac's zone: when the world starts. */
 const FRIDAY = local(2026, 10, 23, 14)
 
 /** An ask to keep the ledger. */
