@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-11-16
+
+Sessions where Claude has stopped now count as your turn, and a click on a session no terminal on this Mac shows carries it on in a new window.
+
+💥 Breaking
+- The "Open command" setting is replaced by a resume command (`cd {dir} && claude --resume {claude}` by default) with new placeholders `{claude}`, `{dir}` and `{tty}` — `{session}`, `{socket}` and `{pane}` are gone, so set a new command in Settings › General if you wrote your own.
+- `sitrep snooze` and `sitrep wake` now act on the whole session and no longer take `--turn` — name the asks the row shows after `--`, and use `--until` or none for "until it moves".
+
+✨ Added
+- Stopped sessions (Claude finished and it's your turn) count in Needs you in blue beside orange asks, light the notch, strip and menu bar glyph blue, and are counted separately in the section header.
+- Clicking a session no terminal on this Mac shows opens a new Ghostty window that types your resume command; one suspended with Ctrl-Z takes you to its window and tells you to type `fg`.
+- Sessions not shown on this Mac are dimmed on every surface, read every few seconds, with a remote login such as SSH not counting as here.
+- Snooze a whole session from its row menu until later today, tomorrow, next week or until it moves — its asks and its turn go to Snoozed together and wake early on a new ask, your reply or your prompt in its window.
+- Notification settings are now separate for a new ask and for Claude stopping: banner, sound and notch pulse for each, with the stopping ones off by default.
+- Claude can mark a recommended option on a choice ask (`recommended`, or `--recommended` in the CLI) — it is shown beside the option on the board, and a typed "(recommended)" is read as that and removed.
+- Right-click on the strip's marks, rows and counts opens a menu to jump, snooze, wake, and collapse or expand the section.
+- Sections folded on the notch card or on the strip are now shared by both, and Snoozed sessions now appear on the strip.
+- The strip shows a hairline between each section (Needs you, Working, Snoozed) and can fold a section into one count.
+- Restore Default button for the resume command in Settings.
+- Messages from the board now say under each ask whether the reply closes it or leaves it open for Claude to act on.
+- The README and app carry a new logo.
+
+🔧 Changed
+- The "Your turn" section is merged into Needs you, with asks listed above stopped sessions and the menu's heading counting both.
+- Clicking an away session's row, mark or menu item now acts on it instead of doing nothing, and its row lifts under the pointer like any other.
+- Settings is reorganised: Terminal and Resume command sections in General, Ghostty permission moved under Terminal, and separate Banners, Sound and Notch groups under Notifications.
+- The welcome stage no longer shows a "your turn" row.
+- Jump refusals now include tmux's own error when it can't be reached, instead of reporting only that it gave no answer.
+
+🐛 Fixed
+- Resolving an ask you already closed, or a parked item you picked up, now passes quietly instead of being refused.
+- `edit` now accepts an item's one line as either `text` or `title`.
+- Other plugins' rows above the Claude Code prompt keep working beside the band on Claude Code 2.1.323 and later.
+- A window whose conversation ends with `/clear` or an in-process `/resume` is no longer counted as still holding the old session.
+
 ## [0.5.0] - 2026-11-11
 
 💥 Breaking
