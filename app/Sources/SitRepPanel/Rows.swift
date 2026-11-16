@@ -157,7 +157,7 @@ public struct Session: Equatable, Sendable {
     public var since: Double { headline.since }
 
     /// A project's letters as the prototypes have them, where none are given: its two capitals where it has two
-    /// (SitRep SR, DocMan DM), else its first two (Switchboard Sw, agntc ag).
+    /// (Trey Research TR, BlueYonder BY), else its first two (Woodgrove Wo, trey tr).
     static func letters(of project: String) -> String {
         let caps = project.filter { $0.isASCII && $0.isUppercase }
         return caps.count >= 2 ? String(caps.prefix(2)) : String(project.prefix(2))

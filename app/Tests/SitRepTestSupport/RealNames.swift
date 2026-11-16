@@ -60,11 +60,13 @@ public struct RealNames: Sendable {
     /// The list, from the repository's root.
     public static let path = "tests/real-names.txt"
 
-    /// The folders whose files the rule reads, from the repository's root.
-    public static let scanned = ["tests", "app/Tests"]
+    /// The folders whose files the rule reads, from the repository's root: both suites, and the prototypes their
+    /// recordings are made from.
+    public static let scanned = ["tests", "app/Tests", "prototypes"]
 
-    /// What the rule doesn't read: built products, and Finder's folder settings.
-    private static let unread: Set<String> = [".build", ".DS_Store"]
+    /// What the rule doesn't read, by its name: built products, installed packages, the strip recorder's recording,
+    /// which git ignores and its fixtures are made from, and Finder's folder settings.
+    private static let unread: Set<String> = [".build", "node_modules", "recording.json", ".DS_Store"]
 
     private static let allowPrefix = "allow "
 

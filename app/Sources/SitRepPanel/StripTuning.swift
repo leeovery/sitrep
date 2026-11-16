@@ -1,5 +1,5 @@
-/// The strip's own constants (strip.html's, from `STRIP` to `COVER_TO`), each with its value unchanged and a name close
-/// to its own.
+/// The strip's own constants (`prototypes/strip/strip.html`'s, from `STRIP` to `COVER_TO`), each with its value
+/// unchanged and a name close to its own.
 enum StripTuning {
     /// The strip: the bezel grown, 36 of the same black, ...
     static let width = 36.0

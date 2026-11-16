@@ -1,0 +1,7 @@
+{
+  "name": "sitrep-strip-recorder",
+  "private": true,
+  "dependencies": {
+    "playwright-core": "1.61.1"
+  }
+}

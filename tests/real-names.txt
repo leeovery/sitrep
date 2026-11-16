@@ -8,7 +8,8 @@
 #
 # The TypeScript kit's tests can't read files, so the app's
 # app/Tests/SitRepCoreTests/RealNamesTests.swift applies the rule to both
-# suites, and the app's own samples are checked against the list too.
+# suites, and to the prototypes their recordings are made from, and the
+# app's own samples are checked against the list too.
 #
 # Left out: names that are also words the product itself uses. Kit, Portal,
 # Mint, Harness, Fabric, Stitch, Folio and Terrace are listed as named, not
@@ -17,7 +18,10 @@
 # every real id.
 #
 # The rule:
-# - Files: every file under tests/ and app/Tests/, except this one.
+# - Files: every file under tests/, app/Tests/ and prototypes/ but this
+#   one, what is built or installed there (.build, node_modules), the strip
+#   recorder's recording.json, which git ignores and the strip's fixtures
+#   are made from, and Finder's .DS_Store.
 # - Text: the whole text of each file: comments, strings, regexes and
 #   fixtures alike.
 # - Hit: an entry is a hit wherever it appears, case-sensitively, with no
@@ -126,34 +130,3 @@ allow app/Tests/SitRepScreenTests/HereTests.swift Portal
 allow app/Tests/SitRepScreenTests/OpenWindowTests.swift Portal
 allow app/Tests/SitRepScreenTests/ResumeCommandTests.swift Portal
 allow app/Tests/SitRepScreenTests/ZmxScreenTests.swift Portal
-
-# Allowed for now: the strip prototype's sessions, which the strip's
-# timelines were recorded from, its recorded tab widths keyed by their exact
-# words. The next slice renames them with a fresh recording, and removes
-# these allows; the test fails on any allow left that exempts nothing.
-allow app/Tests/SitRepPanelTests/StripLab.swift Agentic Skills
-allow app/Tests/SitRepPanelTests/StripLab.swift Agentic Workflows
-allow app/Tests/SitRepPanelTests/StripLab.swift Aircon
-allow app/Tests/SitRepPanelTests/StripLab.swift DocMan
-allow app/Tests/SitRepPanelTests/StripLab.swift Dotfiles
-allow app/Tests/SitRepPanelTests/StripLab.swift Fabric
-allow app/Tests/SitRepPanelTests/StripLab.swift Fumi
-allow app/Tests/SitRepPanelTests/StripLab.swift Goosemates
-allow app/Tests/SitRepPanelTests/StripLab.swift Kit
-allow app/Tests/SitRepPanelTests/StripLab.swift Mint
-allow app/Tests/SitRepPanelTests/StripLab.swift Switchboard
-allow app/Tests/SitRepPanelTests/StripLab.swift Terrace
-allow app/Tests/SitRepPanelTests/StripLab.swift Turnstile
-allow app/Tests/SitRepPanelTests/StripLab.swift agntc
-allow app/Tests/SitRepPanelTests/StripLab.swift dotfiles
-allow app/Tests/SitRepPanelTests/StripRecording.swift Agentic Workflows
-allow app/Tests/SitRepPanelTests/StripRecording.swift Aircon
-allow app/Tests/SitRepPanelTests/StripRecording.swift DocMan
-allow app/Tests/SitRepPanelTests/StripRecording.swift Fabric
-allow app/Tests/SitRepPanelTests/StripRecording.swift Fumi
-allow app/Tests/SitRepPanelTests/StripRecording.swift Goosemates
-allow app/Tests/SitRepPanelTests/StripRecording.swift Kit
-allow app/Tests/SitRepPanelTests/StripRecording.swift Mint
-allow app/Tests/SitRepPanelTests/StripRecording.swift Switchboard
-allow app/Tests/SitRepPanelTests/StripRecording.swift Terrace
-allow app/Tests/SitRepPanelTests/StripRecording.swift Turnstile

@@ -378,14 +378,14 @@ extension StripLab {
     /// The prototype's eight sessions (its `SESSIONS`), ids in the order it adds them, each come to stand where it is
     /// as long ago as the prototype has it.
     static let prototype = [
-        Session(id: "s1", project: "SitRep", kind: .needs, title: "Approve the round 2 drawings", sub: "SitRep · The Mac app", since: -1 * hour),
-        Session(id: "s2", project: "Switchboard", kind: .needs, title: "Keep the old dashboard cache?", sub: "Switchboard · Dashboard memory fix", since: -12 * minute),
-        Session(id: "s3", project: "agntc", kind: .needs, title: "Allow Bash ", code: "gh release create v0.5.3", sub: "agntc · v0.5.3: moved-skill remedy", since: -4 * minute),
-        Session(id: "s4", project: "Terrace", kind: .needs, away: true, title: "Approve the plan for the tool", sub: "No window holds it. Carry it on in Claude.", since: -1 * day),
-        Session(id: "s5", project: "Fumi", kind: .turn, title: "The management window is sketched", sub: "Fumi · Management window discussion", since: -20 * minute),
-        Session(id: "s6", project: "Goosemates", kind: .turn, title: "Waiting for the next round of feedback", sub: "Goosemates · Settle the older open questions", since: -3 * hour),
-        Session(id: "s7", project: "DocMan", kind: .working, title: "Running the exception reporting tests", sub: "DocMan · Fix inverted exception reporting", since: -12 * minute),
-        Session(id: "s8", project: "Turnstile", kind: .working, title: "Fixing the limiter's reset", sub: "Turnstile · Exception reporting", since: -3 * minute),
+        Session(id: "s1", project: "Trey Research", kind: .needs, title: "Approve the second floor plan", sub: "Trey Research · Lab fit-out", since: -1 * hour),
+        Session(id: "s2", project: "Woodgrove", kind: .needs, title: "Keep the old statement layout?", sub: "Woodgrove · Statement redesign", since: -12 * minute),
+        Session(id: "s3", project: "trey", kind: .needs, title: "Allow Bash ", code: "gh release create v2.4.0", sub: "trey · v2.4.0: price list fix", since: -4 * minute),
+        Session(id: "s4", project: "Humongous", kind: .needs, away: true, title: "Approve the launch plan", sub: "No window holds it. Carry it on in Claude.", since: -1 * day),
+        Session(id: "s5", project: "Wingtip", kind: .turn, title: "The billing panel redesign is sketched", sub: "Wingtip · Billing panel discussion", since: -20 * minute),
+        Session(id: "s6", project: "Lucerne", kind: .turn, title: "Waiting for the next round of comments", sub: "Lucerne · Close the remaining open questions", since: -3 * hour),
+        Session(id: "s7", project: "BlueYonder", kind: .working, title: "Running the invoice totals query tests", sub: "BlueYonder · Fix the reversed invoice totals", since: -12 * minute),
+        Session(id: "s8", project: "Proseware", kind: .working, title: "Fixing the stock count", sub: "Proseware · Stock reporting", since: -3 * minute),
     ]
 
     /// The prototype's first new ask.
@@ -415,28 +415,29 @@ extension StripLab {
     }
 
     private static let fiveAsks: [(project: String, title: String, code: String?, more: String?, sub: String, then: String)] = [
-        ("Mint", "Choose the diff budget", nil, nil, "Mint · Token-aware diff sizing", "Sizing the diffs"),
-        ("Fabric", "Allow Bash ", "aws sso login --profile dev", nil, "Fabric · Atlas overload from llm-manager", "Signing in to the dev account"),
-        ("Switchboard", "Give the go for stage 3", nil, nil, "Switchboard · Milestone 7 stages 4 to 14", "Running stage 3"),
-        ("Aircon", "Which unit is the bedroom?", nil, "+2", "Aircon · Aircon local control", "Naming the units"),
-        ("Agentic Workflows", "Approve the reshaped review workflow", nil, nil, "Agentic Workflows · Reshape the workflows", "Reshaping the workflows"),
+        ("Relecloud", "Choose the batch size", nil, nil, "Relecloud · Smaller diff batches", "Sizing the batches"),
+        ("Southridge", "Allow Bash ", "aws sso login --profile uat", nil, "Southridge · Search load from the indexer", "Logging in to the test account"),
+        ("Woodgrove", "Approve the next print run", nil, nil, "Woodgrove · Statement print runs 4 to 9", "Starting the print run"),
+        ("Alpine", "Which slope opens first?", nil, "+2", "Alpine · Lift schedule", "Opening the slopes"),
+        ("Wide World Importers", "Approve the reshaped customs workflow", nil, nil, "Wide World Importers · Customs workflows", "Reshaping the customs workflow"),
     ]
 
-    /// The prototype's Ask answered, on its sessions: the oldest needs you a window holds, SitRep's, starts working.
+    /// The prototype's Ask answered, on its sessions: the oldest needs you a window holds, Trey Research's, starts
+    /// working.
     static var answered: Session {
         var s = prototype[0]
         s.kind = .working
-        s.lines[0].title = "Drawing the strip in Paper"
+        s.lines[0].title = "Ordering the lab fittings"
         s.lines[0].since = 0
         return s
     }
 
-    /// The prototype's Turn ends, on its sessions: the longest running working session, DocMan's, stops, its turn
+    /// The prototype's Turn ends, on its sessions: the longest running working session, BlueYonder's, stops, its turn
     /// saying what its work did.
     static var stopped: Session {
         var s = prototype[6]
         s.kind = .turn
-        s.lines[0].title = "The exception tests pass"
+        s.lines[0].title = "The invoice totals tests pass"
         s.lines[0].since = 0
         return s
     }
@@ -454,28 +455,28 @@ extension StripLab {
 
     /// The prototype's Too many: twenty-two more, past what the strip holds.
     static let tooMany: [Session] = [
-        ("Aircon", Session.Kind.working, "Probing the unit's local API", "Aircon · Aircon local control", 40.0),
-        ("Kit", .working, "Writing the bootstrap's tests", "Kit · The bootstrap", 35),
-        ("Mint", .turn, "The diff sizing is drafted", "Mint · Token-aware diff sizing", 50),
-        ("Fabric", .working, "Reading the Atlas logs", "Fabric · Atlas overload from llm-manager", 25),
-        ("Agentic Workflows", .working, "Reshaping the review workflow", "Agentic Workflows · Reshape the workflows", 22),
-        ("Agentic Skills", .turn, "The Laravel skills are reviewed", "Agentic Skills · Review the Laravel skills", 90),
-        ("Switchboard", .working, "Running the usage ledger tests", "Switchboard · Usage", 18),
-        ("SitRep", .working, "Building the app", "SitRep · Jump to session", 16),
-        ("DocMan", .turn, "The upload fix is up for review", "DocMan · Upload limits", 75),
-        ("Turnstile", .working, "Profiling the dispatcher", "Turnstile · Dispatcher limiter", 14),
-        ("Goosemates", .working, "Drafting the release notes", "Goosemates · Release 2.4", 11),
-        ("agntc", .turn, "v0.5.3 is tagged", "agntc · Release notes", 30),
-        ("Terrace", .working, "Sketching the tool", "Terrace · The first cut", 9),
-        ("Fumi", .working, "Wiring the management window", "Fumi · Management window", 8),
-        ("Mint", .working, "Counting tokens per hunk", "Mint · Hunk budgets", 7),
-        ("Kit", .turn, "The dotfiles are linked", "Kit · Dotfiles", 120),
-        ("Aircon", .working, "Mapping the units", "Aircon · Discovery", 6),
-        ("Fabric", .turn, "The plan for the dev account is ready", "Fabric · Dev account", 60),
-        ("Switchboard", .turn, "Stage 4 is done", "Switchboard · Milestone 7 stages 4 to 14", 45),
-        ("SitRep", .working, "Tracing the jump outside tmux", "SitRep · Jump test outside tmux", 5),
-        ("DocMan", .working, "Rebasing onto main", "DocMan · Upload limits", 4),
-        ("Turnstile", .turn, "The limiter fix is in", "Turnstile · Exception reporting", 100),
+        ("Alpine", Session.Kind.working, "Probing the lift's motor API", "Alpine · Lift schedule", 40.0),
+        ("Litware", .working, "Writing the installer's tests", "Litware · The installer", 35),
+        ("Relecloud", .turn, "The batch sizing is drafted", "Relecloud · Smaller diff batches", 50),
+        ("Southridge", .working, "Reading the indexer logs", "Southridge · Search load from the indexer", 25),
+        ("Wide World Importers", .working, "Reshaping the customs workflow", "Wide World Importers · Customs workflows", 22),
+        ("Adventure Works", .turn, "The trail guides are reviewed", "Adventure Works · Review the trail guides", 90),
+        ("Woodgrove", .working, "Running the statement tests", "Woodgrove · Statements", 18),
+        ("Trey Research", .working, "Building the lab", "Trey Research · Lab bookings", 16),
+        ("BlueYonder", .turn, "The import fix is up for review", "BlueYonder · Import limits", 75),
+        ("Proseware", .working, "Profiling the stock sync", "Proseware · Stock sync", 14),
+        ("Lucerne", .working, "Drafting the course notes", "Lucerne · Term 2", 11),
+        ("trey", .turn, "v2.4.0 is tagged", "trey · Release notes", 30),
+        ("Humongous", .working, "Sketching the launch", "Humongous · The first cut", 9),
+        ("Wingtip", .working, "Wiring the billing panel", "Wingtip · Billing panel", 8),
+        ("Relecloud", .working, "Counting files per batch", "Relecloud · Batch budgets", 7),
+        ("Litware", .turn, "The installer is signed", "Litware · Signing", 120),
+        ("Alpine", .working, "Mapping the slopes", "Alpine · Discovery", 6),
+        ("Southridge", .turn, "The test account's plan is ready", "Southridge · Test account", 60),
+        ("Woodgrove", .turn, "Print run 4 is done", "Woodgrove · Statement print runs 4 to 9", 45),
+        ("Trey Research", .working, "Tracing the booking outside hours", "Trey Research · Bookings outside hours", 5),
+        ("BlueYonder", .working, "Rebasing onto main", "BlueYonder · Import limits", 4),
+        ("Proseware", .turn, "The stock count fix is in", "Proseware · Stock reporting", 100),
     ].enumerated().map { i, extra in
         Session(
             id: "s\(9 + i)", project: extra.0, kind: extra.1, title: extra.2, sub: extra.3, since: -extra.4 * minute

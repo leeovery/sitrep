@@ -5026,7 +5026,8 @@ the panel was, in the browser first, then in Swift.
 
 **The design**, drawn in Paper's "The strip" (surfaces round 2, 16 October
 2026; Lee: "I really like it"). The movement, the hover and the animation
-were settled in the browser spike (below, "How the strip moves").
+were settled in the browser spike (below, "How the strip moves"), whose
+prototype is `prototypes/strip/strip.html`.
 - **The form.** The bezel, grown: 36pt of the same black along the screen's
   edge, both its ends curving back into the bezel as the notch's ends do.
   It reads as a very tall notch with content rather than a strip fitted to
@@ -5083,7 +5084,12 @@ were settled in the browser spike (below, "How the strip moves").
   session with a row in Needs you and one in Snoozed a mark in each. The
   prototype was brought to these places, and to Snoozed and the folds, and
   its timelines recorded again by the recorder that made them, so the
-  strip is still checked against it frame by frame. Earlier that day the
+  strip is still checked against it frame by frame. The prototype and its
+  recorder are in `prototypes/strip` (16 November 2026, from Lee's clone's
+  scratch folders), its README saying how to record again; its sessions
+  became placeholders then, worded so each tab measures as before, and
+  recorded again the timelines came out the same frame for frame. Earlier
+  on 14 November the
   strip's Needs you became one, as the panel's is (Lee's pick): "One
   hairline sits under Needs you", its ask marks, then its stopped marks,
   all over it, working's and on its own work's under it, and "The strip
@@ -5314,7 +5320,8 @@ were settled in the browser spike (below, "How the strip moves").
   the glass and the black, actually"). See Settings.
 
 **How the strip moves**, felt in the browser spike (18 October 2026, the
-prototype's Strip tab; Lee kept its defaults):
+prototype's Strip tab, now `prototypes/strip/strip.html`; Lee kept its
+defaults):
 - **The first tab** pours once the pointer has rested 120ms on a mark, the
   strip's edge bowing 3pt toward it meanwhile, so a pointer crossing the
   strip opens nothing. Once a tab is out, the other marks take no wait.

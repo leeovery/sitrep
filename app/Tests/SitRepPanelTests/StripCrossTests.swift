@@ -163,7 +163,7 @@ struct StripCrossTests {
         lab.wait(1000) { $0.model.mark(.session("s9"))!.arrived > -1e8 }
         let mark = lab.model.mark(.session("s9"))!, arrived = mark.arrived
         var reworded = StripLab.ask
-        reworded.lines[0].title = "Choose the diff budget, again"
+        reworded.lines[0].title = "Choose the batch size, again"
 
         lab.change(reworded)
         lab.wait(400)

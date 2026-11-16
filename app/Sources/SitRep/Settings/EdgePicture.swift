@@ -99,7 +99,7 @@ enum StripPicture {
     private static let centre: CGFloat = 7.5
     private static let radius: CGFloat = 2.75
 
-    /// `S_PTS` from strip.html scaled by 0.25, the bottom end mirrored.
+    /// `S_PTS` from `prototypes/strip/strip.html` scaled by 0.25, the bottom end mirrored.
     private static let column = {
         var column = Path()
 

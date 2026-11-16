@@ -1,12 +1,12 @@
 import CoreGraphics
 import Foundation
 
-/// The strip, ported from its prototype (strip.html) at Lee's choices: the bezel grown into a 36pt black strip on the
-/// screen's edge that never shuts, every session a mark on it in the panel's order and its sections, Needs you, Working
-/// and Snoozed, a hairline between each two, each section folded to one count as Lee folds it on the card or here, and
-/// a mark under the pointer pouring its panel row out of the strip as a tab. At Grows it is only as long as its marks
-/// need, centred where the notch sits, and with nothing running it draws back into the notch at rest; at Full it runs
-/// the screen's height.
+/// The strip, ported from its prototype (`prototypes/strip/strip.html`) at Lee's choices: the bezel grown into a 36pt
+/// black strip on the screen's edge that never shuts, every session a mark on it in the panel's order and its
+/// sections, Needs you, Working and Snoozed, a hairline between each two, each section folded to one count as Lee
+/// folds it on the card or here, and a mark under the pointer pouring its panel row out of the strip as a tab. At Grows
+/// it is only as long as its marks need, centred where the notch sits, and with nothing running it draws back into the
+/// notch at rest; at Full it runs the screen's height.
 /// The view tells it the board as core orders it, feeds it a frame at a time and draws what each gives back, as it
 /// does a notch. Core decides the marks and their order; the strip decides only how a change moves. Its coordinates
 /// are the edge's own: x into the screen from its edge, y down from its top.
