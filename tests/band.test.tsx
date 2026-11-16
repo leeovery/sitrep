@@ -60,12 +60,13 @@ test('the band counts what waits on Lee and offers the board, on each surface', 
   const w = world($, on)
 
   await w.begin()
+  await asked(w, reviewRound(1))
 
   for (const surface of SURFACES) {
     const ui = await w.band(surface)
 
-    expect(await ui.find({ key: 'band:asks', text: '0 asks' })).toBeDefined()
-    expect(await ui.find({ key: 'band:board', text: '▸ show board' })).toBeDefined()
+    expect(await ui.find({ key: 'band:asks' }), surface).toMatchObject({ text: '1 ask' })
+    expect(await ui.find({ key: 'band:board' }), surface).toMatchObject({ text: '▸ show board' })
     expect(await ui.find({ key: 'band:parked' })).toBeUndefined()
     await ui.unmount()
   }
@@ -221,9 +222,9 @@ test('below 64 columns the words drop and the counts stay', async ($, on) => {
 
   const ui = await w.band('terminal', 50)
 
-  expect(await ui.find({ key: 'band:asks', text: '1' })).toBeDefined()
+  expect(await ui.find({ key: 'band:asks' }), 'the count alone').toMatchObject({ text: '1' })
   expect(await ui.find({ key: 'band:parked' })).toBeUndefined()
-  expect(await ui.find({ key: 'band:board', text: '▸ show board' })).toBeDefined()
+  expect(await ui.find({ key: 'band:board' })).toMatchObject({ text: '▸ show board' })
 })
 
 test('a board Claude Code would not draw is closed again, and a toast says why', async ($, on) => {

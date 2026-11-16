@@ -36,6 +36,7 @@ import {
   resolve,
   snooze,
   snoozeSession,
+  snoozeTurn,
   status,
   unfinish,
   wake,
@@ -422,6 +423,29 @@ test("old lines' snoozes holding every ask waiting on Lee put its turn off with 
     foldAt(NOW, [REVIEW, SHIP, OLD_K1, [T0 + 2 * MIN, snooze('k2', UNTIL)]]).turnWithAsks,
     'the pane snoozing one, then the other',
   ).toBe(UNTIL)
+})
+
+test("an old line's snooze of an ask the session's snooze does not hold keeps that snooze standing until its own time; at it, the ask waits on Lee and sets the session's aside", () => {
+  const lines: Line[] = [
+    REVIEW,
+    SHIP,
+    [T0 + MIN, snoozeSession(UNTIL + HOUR, 'k1')],
+    [T0 + 2 * MIN, snooze('k2', UNTIL)],
+  ]
+
+  expect(foldAt(UNTIL - 1, lines).snooze?.until).toBe(UNTIL + HOUR)
+  expect(foldAt(UNTIL, lines).snooze).toBeUndefined()
+})
+
+test("an old line's snooze of the turn ends as an old snooze of an ask written after it wakes: at that ask's time, not a moment later", () => {
+  const lines: Line[] = [
+    REVIEW,
+    [T0 + MIN, snoozeTurn(T0, UNTIL + HOUR)],
+    [T0 + 2 * MIN, snooze('k1', UNTIL)],
+  ]
+
+  expect(foldAt(UNTIL - 1, lines).turnSnooze).toMatchObject({ turn: T0 })
+  expect(foldAt(UNTIL, lines).turnSnooze).toBeUndefined()
 })
 
 test("Lee's snooze of the session stands in place of the old lines' snoozes of its asks, and of their turn", () => {

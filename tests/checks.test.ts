@@ -127,6 +127,10 @@ test("a yes ask needs its button's words, a word or two, and no other ask takes 
     refusal(checkAsk({ wants: 'yes', yes: 'Go ahead and merge it all', title: 'Give the go' })),
   ).toBe("A yes button's words are a word or two, 20 characters at most, such as Go or Ship it.")
   expect(value(checkAsk({ wants: 'yes', yes: 'It works', title: 'Try it' }))?.yes).toBe('It works')
+  expect(
+    value(checkAsk({ wants: 'yes', yes: 'Merge it and ship it', title: 'Give the go' }))?.yes,
+    'twenty characters, the most it takes',
+  ).toBe('Merge it and ship it')
   expect(refusal(checkAsk({ wants: 'choice', yes: 'Go', title: 'Keep it?' }))).toBe(
     'Only a yes ask takes yes.',
   )

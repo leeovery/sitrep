@@ -406,6 +406,18 @@ test('a reply sent from another session takes effect once its window writes the 
   })
 })
 
+test('a second mark for a delivered reply changes nothing: the first mark stands', () => {
+  const session = fold({
+    logs: {
+      [W1]: file(...POSTED, [T0 + 3 * MIN, delivered('r1')], [T0 + 5 * MIN, delivered('r1')]),
+    },
+    inbox: { [SENDER]: file([T0 + MIN, reply('r1', 'k1', 'yes')]) },
+  })
+
+  expect(session.replies[0]).toMatchObject({ delivery: 'delivered', deliveredAt: T0 + 3 * MIN })
+  expect(session.asks[0]).toMatchObject({ state: 'closed', closedAt: T0 + 3 * MIN })
+})
+
 test('a delivered mark read before the reply it names still delivers it', () => {
   const session = fold({
     logs: { [W1]: file(...POSTED, [T0 + MIN, delivered('r1')]) },
@@ -461,6 +473,17 @@ test('a reply to no item, or to a note, is never kept', () => {
   })
 
   expect(session.replies).toEqual([])
+})
+
+test('a reply whose id an item already holds is never kept: the item keeps the id, unanswered', () => {
+  const session = fold({
+    logs: { [W1]: file(...POSTED) },
+    inbox: { [SENDER]: file([T0 + MIN, reply('p1', 'k1', 'yes')]) },
+  })
+
+  expect(session.replies).toEqual([])
+  expect(session.asks[0]).toMatchObject({ id: 'k1', state: 'waiting', replies: [] })
+  expect(session.items.get('p1')?.type).toBe('park')
 })
 
 test('a reply delivered after Claude closed the ask leaves it closed; a comment does not reopen it', () => {

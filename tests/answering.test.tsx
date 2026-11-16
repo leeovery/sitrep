@@ -75,6 +75,12 @@ test('an ask wanting a yes offers its yes in its own words, a comment, an ignore
   )
 })
 
+test('an ask wanting a yes that names no words for it offers a plain yes', async () => {
+  const ui = drawnWith([askOf('k1', { wants: 'yes', title: GO.title })], 'k1')
+
+  expect(await ui.find({ key: `yes:${heldItem('k1')}` })).toMatchObject({ text: '✓ yes' })
+})
+
 test('an ask wanting a choice offers each option, a comment, an ignore and a snooze', async () => {
   const ui = drawnWith([askOf('k1', FRAMES)], 'k1')
 

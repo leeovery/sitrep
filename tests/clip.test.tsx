@@ -76,6 +76,10 @@ const approve = async (w: World, ui: Board, item: string) => {
   await pressYes(ui, item)
 }
 
+/** The lines of the sends held, in the order drawn: the first's, then a brief row for each after it. */
+const sendLines = async (ui: Board) =>
+  (await ui.findAll({ type: 'Text', text: /^⧗/ })).map(each => each.text)
+
 const boxes = async (ui: Board) => (await ui.findAll({ type: 'Box' })).map(box => box.props)
 
 /** The docked board's tree, the box its list is clipped in, and the list itself, shifted up. */
@@ -874,10 +878,12 @@ test('three sends held and a reply under them, too long for under half the windo
     expect(await ui.find({ key: w.takeBack(at) }), `the take-back of send ${at + 1}`).toBeDefined()
   }
 
-  expect(await ui.find({ type: 'Text', text: "⧗ Waiting for Claude's turn to end." })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: '⧗ Then: Review round 4 +2' })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: '⧗ Then: Review round 7 +2' })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: '… 3 more' })).toBeDefined()
+  expect(await sendLines(ui)).toEqual([
+    "⧗ Waiting for Claude's turn to end.",
+    '⧗ Then: Review round 4 +2',
+    '⧗ Then: Review round 7 +2',
+  ])
+  expect(await ui.find({ type: 'Text', text: /more$/ })).toMatchObject({ text: '… 3 more' })
   expect(await ui.find({ key: 'send' })).toBeDefined()
   expect(await drawnRows(ui)).toBeLessThanOrEqual(cap)
   await expectHeightKept(ui, 'three sends held and a reply, cut short')
@@ -914,18 +920,21 @@ test('five sends held in a window too short for a row each: the first in full, a
 
   expect(w.flights()).toHaveLength(5)
   expect(await ui.find({ key: w.takeBack(0) }), 'the first, in full').toBeDefined()
-  expect(await then('Review round 2')).toBeDefined()
-  expect(await then('Review round 3')).toBeDefined()
-  expect(await then('Review round 4 · 1 of 2')).toBeDefined()
+  expect(await sendLines(ui)).toEqual([
+    "⧗ Waiting for Claude's turn to end.",
+    '⧗ Then: Review round 2',
+    '⧗ Then: Review round 3',
+    '⧗ Then: Review round 4 · 1 of 2',
+  ])
   expect(await ui.find({ key: w.takeBack(3) })).toBeDefined()
   expect(await ui.find({ key: w.takeBack(4) }), 'behind the step').toBeUndefined()
-  expect(await ui.find({ type: 'Text', text: '… 2 more' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /more$/ })).toMatchObject({ text: '… 2 more' })
   expect(await drawnRows(ui)).toBeLessThanOrEqual(cap)
   await expectHeightKept(ui, 'five sends held, cut short', 22)
 
   await ui.press({ key: STEP_HELD })
 
-  expect(await then('Review round 5 · 2 of 2')).toBeDefined()
+  expect((await sendLines(ui)).at(-1)).toBe('⧗ Then: Review round 5 · 2 of 2')
   expect(await ui.find({ key: w.takeBack(4) })).toBeDefined()
   expect(await ui.find({ key: w.takeBack(3) })).toBeUndefined()
   await expectHeightKept(ui, 'stepped to the last', 22)

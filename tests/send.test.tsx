@@ -2,6 +2,7 @@ import { expect, test, tier } from './kit'
 import { parseEntries, sessionPaths } from '../core'
 import { LINGER_MS } from '../hooks/scene'
 import { WATCH_MS } from '../hooks/window'
+import { rowsOf } from './drawn'
 import { CLOSES, LEAVES_OPEN, PROJECT, REVIEW, ROOT, W1 } from './data'
 import { note } from './lines'
 import {
@@ -69,8 +70,12 @@ test('the board then shows the ask closed, and folds it into what was done once 
   await ui.press({ key: 'send' })
 
   expect(await ui.find({ type: 'Text', text: /READY TO SEND/ })).toBeUndefined()
-  expect(await ui.find({ type: 'Text', text: 'sent, and Claude has it' })).toBeDefined()
+  expect(rowsOf(await ui.find({ key: `ask:${w.item(id)}` }))).toEqual([
+    '✓ Review Tickets & Replies, round 1 now',
+    '└ sent, and Claude has it',
+  ])
   expect(await ui.find({ key: `pick:${w.item(id)}` })).toBeUndefined()
+  expect(await ui.find({ key: `closed:${w.item(id)}` }), 'not in RESOLVED yet').toBeUndefined()
 
   await w.clock.advance(LINGER_MS)
 
@@ -218,11 +223,14 @@ test('a reload keeps Ready to send as Lee left it', async ($, on) => {
   const { id, ui } = await asking(w)
 
   await ui.press({ key: `yes:${w.item(id)}` })
+
+  const left = rowsOf(await ui.find({ key: 'ready' }))
+
   await $.session.start(CONVERSATION)
 
   expect(w.state.queue).toMatchObject([{ item: id, verdict: 'yes' }])
-  expect(await ui.find({ type: 'Text', text: /READY TO SEND/ })).toBeDefined()
-  expect(await ui.find({ key: 'send' })).toBeDefined()
+  expect(rowsOf(await ui.find({ key: 'ready' }))).toEqual(left)
+  expect(left).toContain(' [ send to Claude ] [ cancel all ]')
 })
 
 test('a send taken after Claude moved to another session mid-turn is written into the session it answered, and that ask closes', async ($, on) => {

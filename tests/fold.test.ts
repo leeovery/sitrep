@@ -108,6 +108,21 @@ test('the first line to use an id keeps it', () => {
   expect(session.log).toEqual([])
 })
 
+test('an item whose id a reply already holds is never posted: the reply keeps the id', () => {
+  const session = fold({
+    logs: {
+      [W1]: file(
+        [T0, yesAsk('k1', 'Review round 1')],
+        [T0 + 2 * MIN, note('r1', 'A clashing note')],
+      ),
+    },
+    inbox: { [SENDER]: file([T0 + MIN, reply('r1', 'k1', 'yes')]) },
+  })
+
+  expect([...session.items.keys()]).toEqual(['k1'])
+  expect(session.replies.map(each => each.id)).toEqual(['r1'])
+})
+
 test("an edit changes only its item's own fields, and the log shows a note as edited", () => {
   const logs = {
     [W1]: file(

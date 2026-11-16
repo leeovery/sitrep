@@ -83,9 +83,9 @@ test('a finished session drops out of the project and All projects, and its asks
   expect(await keysOf(ui, 'proj:')).toEqual([`proj:${PROJECT.key}`])
   expect(await ui.find({ type: 'Text', text: '3 waiting on you' })).toBeDefined()
   expect(
-    await ui.find({ type: 'Text', text: '3' }),
+    rowsOf(await ui.find({ key: 'tab:all:box' })),
     'the All projects tab counts three',
-  ).toBeDefined()
+  ).toEqual([' ≡ All projects 3'])
 })
 
 test("the button to finish a session is drawn only in another session's view with no window", async ($, on) => {

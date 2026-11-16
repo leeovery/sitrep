@@ -1,6 +1,7 @@
 import { expect, test, tier } from './kit'
 import { C } from '../hooks/look'
 import { projectPlace } from '../hooks/places'
+import { rowsOf } from './drawn'
 import { HELD, MIN, PROJECT, REVIEW, T0, type Asked } from './data'
 import { askOf, park, resolve, status } from './lines'
 import { pane, sceneFrom, type Drawn } from './render'
@@ -115,10 +116,10 @@ test('a new ask opens with its buttons, by what it wants: a yes in its own words
 
   await w.begin()
 
-  const id = await asked(w, IN_PAPER)
+  const id = await asked(w, { ...IN_PAPER, yes: 'Looks right' })
   const ui = await w.pane()
 
-  expect(await ui.find({ key: `yes:${w.item(id)}`, text: '✓ Approve' })).toBeDefined()
+  expect(await ui.find({ key: `yes:${w.item(id)}` })).toMatchObject({ text: '✓ Looks right' })
   expect(await ui.find({ key: `comment:${w.item(id)}`, text: '✎ comment' })).toBeDefined()
   expect(await ui.find({ key: `ignore:${w.item(id)}`, text: '✕ ignore' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /^In Paper: the help desk file/ })).toBeDefined()
@@ -136,6 +137,8 @@ test('a choice offers its options and a comment, never a yes', async ($, on) => 
   const ui = await w.pane()
 
   expect(await ui.find({ key: `yes:${w.item(id)}` })).toBeUndefined()
+  expect(await ui.find({ key: `choose:${w.item(id)}:0` })).toMatchObject({ text: '400 days' })
+  expect(await ui.find({ key: `choose:${w.item(id)}:1` })).toMatchObject({ text: 'Forever' })
   expect(await ui.find({ key: `comment:${w.item(id)}`, text: '✎ comment' })).toBeDefined()
   await ui.press({ key: `choose:${w.item(id)}:0` })
   expect(await ui.find({ type: 'Text', text: /→ 400 days/ })).toBeDefined()
@@ -150,8 +153,9 @@ test('a reply waits under its ask, not sent yet, until it is undone', async ($, 
   const ui = await w.pane()
 
   await ui.press({ key: `yes:${w.item(id)}` })
-  expect(await ui.find({ type: 'Text', text: '→ Approve' })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: '· not sent yet' })).toBeDefined()
+  expect(rowsOf(await ui.find({ key: `ask:${w.item(id)}` })).at(-1)).toBe(
+    '└ → Approve · not sent yet ↺ undo ✎ comment',
+  )
   expect(await ui.find({ key: `yes:${w.item(id)}` })).toBeUndefined()
 
   await ui.press({ key: `undo:${w.item(id)}` })
@@ -159,7 +163,7 @@ test('a reply waits under its ask, not sent yet, until it is undone', async ($, 
   expect(await ui.find({ key: `yes:${w.item(id)}` })).toBeDefined()
 })
 
-test('each reply in Ready to send can go on its own, or all at once', async ($, on) => {
+test('each reply in Ready to send can be taken out on its own, or all at once', async ($, on) => {
   const w = world($, on)
 
   await w.begin()
@@ -255,7 +259,13 @@ test("a pick-up from this session's PARKED waits in Ready to send", async ($, on
 
   await ui.press({ key: `ppick:${w.item(id)}` })
   await ui.press({ key: `pickup:${w.item(id)}` })
-  expect(await ui.find({ type: 'Text', text: 'pick it up' })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /READY TO SEND/ })).toBeDefined()
-  expect(await ui.find({ key: 'send' })).toBeDefined()
+  expect(rowsOf(await ui.find({ key: 'ready' })).map(row => row.trim())).toEqual([
+    'READY TO SEND1 reply',
+    '',
+    'to this session',
+    'A priority badge across all tabs ✕',
+    '└ pick it up',
+    '',
+    '[ send to Claude ] [ cancel all ]',
+  ])
 })

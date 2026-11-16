@@ -484,6 +484,26 @@ test('a send after the first, one row for room, names where it goes when that is
   expect(await ui.find({ key: w.takeBack(1) })).toBeDefined()
 })
 
+test('a send after the first, one row for room, counts the several replies it carries as replies', async ($, on) => {
+  const w = world($, on)
+  const { ids, ui } = await reviewing(w, { ...DOCKED, scroll: { offset: 0, bodyRows: 16 } })
+  const [, second = '', third = ''] = ids
+
+  await holding(w, ui, ids)
+  await approve(w, ui, second)
+  await approve(w, ui, third)
+  await ui.press({ key: 'send' })
+  await startedElsewhere(w)
+
+  expect(await box(ui)).toEqual([
+    ...heading(3),
+    '',
+    `on its way to ${HELP_DESK.name}`,
+    HELD,
+    `⧗ Then, to ${HELP_DESK.name}: 2 replies ↺ take back`,
+  ])
+})
+
 test('the first send refused with a second held behind it: both are let go together, one toast saying so, every reply back among those still to send in the order replied, and the second never submitted', async ($, on) => {
   const w = world($, on)
   const { paths, ids, ui } = await reviewing(w)
