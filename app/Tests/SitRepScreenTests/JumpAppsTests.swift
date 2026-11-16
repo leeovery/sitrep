@@ -86,7 +86,7 @@ struct JumpAppsTests {
         try await until(within: .seconds(10)) { jumping.clock.sleeps.contains(.seconds(2)) }
         jumping.clock.pass(.seconds(2))
 
-        #expect(await jumped.value == .jumped)
+        #expect(try await value(of: jumped, within: .seconds(10)) == .jumped)
         #expect(jumping.ghostty.focused == ["WOODGROVE-TERMINAL"])
     }
 

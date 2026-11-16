@@ -91,7 +91,7 @@ struct JumpLimitTests {
 
         try await until(within: .seconds(10)) { gate.arrived == 1 }
         gate.open()
-        #expect(await jumped.value == .jumped)
+        #expect(try await value(of: jumped, within: .seconds(10)) == .jumped)
 
         let never = Jumping()
         let refused = Task {
@@ -103,7 +103,7 @@ struct JumpLimitTests {
 
         try await until(within: .seconds(10)) { never.clock.sleeps.contains(Jump.limit) }
         never.clock.pass(Jump.limit)
-        #expect(await refused.value == .refused(GivenBoard.missing))
+        #expect(try await value(of: refused, within: .seconds(10)) == .refused(GivenBoard.missing))
     }
 
     /// The jump is made once the board is in hand, Lee's PATH asked for as it is, so that wait is within the limit,
@@ -122,7 +122,7 @@ struct JumpLimitTests {
 
         try await until(within: .seconds(10)) { atLimit.arrived == 1 && jumping.clock.sleeps.contains(Jump.limit) }
         jumping.clock.pass(Jump.limit)
-        #expect(await unanswered.value.answer == .unanswered)
+        #expect(try await value(of: unanswered, within: .seconds(10)).answer == .unanswered)
 
         let stopped = Task {
             await Jump.run(to: "sr-a", on: GivenBoard(line), clock: TestClock(passing: .jumpsPauses)) {
@@ -133,7 +133,7 @@ struct JumpLimitTests {
 
         try await until(within: .seconds(10)) { atStop.arrived == 1 }
         stopped.cancel()
-        #expect(await stopped.value.answer == .stopped)
+        #expect(try await value(of: stopped, within: .seconds(10)).answer == .stopped)
         #expect(jumping.ghostty.asked.isEmpty)
 
         atLimit.open()
@@ -148,7 +148,7 @@ struct JumpLimitTests {
 
         try await until(within: .seconds(10)) { gate.arrived == 1 && jumping.clock.sleeps.contains(Jump.limit) }
         jumping.clock.pass(Jump.limit)
-        #expect(await jumped.value == .unanswered)
+        #expect(try await value(of: jumped, within: .seconds(10)) == .unanswered)
         #expect(Jump.limit == .seconds(15))
 
         gate.open()
@@ -162,7 +162,7 @@ struct JumpLimitTests {
 
         try await until(within: .seconds(10)) { gate.arrived == 1 }
         jumped.cancel()
-        #expect(await jumped.value == .stopped)
+        #expect(try await value(of: jumped, within: .seconds(10)) == .stopped)
 
         gate.open()
     }
@@ -187,7 +187,9 @@ struct JumpLimitTests {
         } else {
             clock.pass(Jump.limit)
         }
-        #expect(await answering.value == nil, "answered while what it let go of still runs")
+        let answered = try await value(of: answering, within: .seconds(10))
+
+        #expect(answered == nil, "answered while what it let go of still runs")
 
         gate.open()
         #expect(await ended.first { _ in true } == true, "what it let go of, cancelled, ran on to its end")
@@ -220,7 +222,7 @@ struct JumpLimitTests {
         try await until(within: .seconds(10)) { jumping.clock.sleeps.contains(GhosttyDriver.pause) }
         jumped.cancel()
 
-        #expect(await jumped.value == .stopped)
+        #expect(try await value(of: jumped, within: .seconds(10)) == .stopped)
         #expect(jumping.ghostty.told == ["activate window TABBED-WINDOW"])
     }
 
@@ -234,7 +236,7 @@ struct JumpLimitTests {
         jumped.cancel()
         gate.open()
 
-        #expect(await jumped.value == .stopped)
+        #expect(try await value(of: jumped, within: .seconds(10)) == .stopped)
         #expect(jumping.ghostty.asked.isEmpty)
     }
 

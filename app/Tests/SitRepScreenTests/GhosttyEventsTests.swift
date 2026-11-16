@@ -392,7 +392,7 @@ struct GhosttyEventsTests {
         #expect(GhosttyFailure.cannotOpen.description == "This Ghostty cannot open a window for SitRep: update Ghostty to 1.4 or later.")
     }
 
-    @Test func aJumpStoppedLetsGoOfAnEventInFlightWhichRunsOnItsAnswerDropped() async {
+    @Test func aJumpStoppedLetsGoOfAnEventInFlightWhichRunsOnItsAnswerDropped() async throws {
         let (entered, enter) = AsyncStream.makeStream(of: Void.self)
         let release = DispatchSemaphore(value: 0)
         let answered = OSAllocatedUnfairLock(initialState: false)
@@ -404,13 +404,14 @@ struct GhosttyEventsTests {
         }
         let asking = Task { try await events.terminal(on: Self.device) }
 
+        defer { release.signal() }
         _ = await entered.first { _ in true }
         asking.cancel()
 
-        await #expect(throws: CancellationError.self) { try await asking.value }
-        #expect(!answered.withLock { $0 }, "let go before Ghostty answered")
+        let ended = try await result(of: asking, within: .seconds(10))
 
-        release.signal()
+        #expect(throws: CancellationError.self) { try ended.get() }
+        #expect(!answered.withLock { $0 }, "let go before Ghostty answered")
     }
 }
 

@@ -95,7 +95,7 @@ struct JumpFrontTests {
 
         try await until(within: .seconds(10)) { hanging.clock.sleeps.contains(.seconds(2)) }
         hanging.clock.pass(.seconds(2))
-        #expect(await jumped.value == .jumped)
+        #expect(try await value(of: jumped, within: .seconds(10)) == .jumped)
         #expect(hanging.workspace.brought == [Self.ghosttyForward])
     }
 

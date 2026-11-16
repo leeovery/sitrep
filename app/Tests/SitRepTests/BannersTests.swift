@@ -212,10 +212,10 @@ struct BannersTests {
         #expect(try await value(of: leave, within: .seconds(10)) == .denied)
     }
 
-    @Test func aLeaveTheHelperDoesNotAnswerInTimeIsUnknown() async {
+    @Test func aLeaveTheHelperDoesNotAnswerInTimeIsUnknown() async throws {
         let banners = banners(answerWithin: .milliseconds(1))
 
-        #expect(await banners.leave() == nil)
+        #expect(try await value(of: Task { await banners.leave() }, within: .seconds(10)) == nil)
     }
 
     @Test func askingIsDoneOnceTheHelperAnswers() async throws {
@@ -398,10 +398,10 @@ struct BannersTests {
     }
 
     /// Given up on, it is not sent to a helper that comes later, nor kept waiting for one that never does.
-    @Test func aReadGivenUpOnIsNotSentLater() async {
+    @Test func aReadGivenUpOnIsNotSentLater() async throws {
         let banners = banners(answerWithin: .milliseconds(1))
 
-        #expect(await banners.leave() == nil)
+        #expect(try await value(of: Task { await banners.leave() }, within: .seconds(10)) == nil)
 
         banners.heard(Self.fromHelper(Self.ready))
 

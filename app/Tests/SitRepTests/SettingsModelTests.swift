@@ -98,7 +98,7 @@ struct SettingsModelTests {
     }
 
     /// The notices helper may take up to its 2 seconds; Ghostty's row is read meanwhile.
-    @Test func aSlowReadOfNotificationsHoldsUpNoOtherRow() async {
+    @Test func aSlowReadOfNotificationsHoldsUpNoOtherRow() async throws {
         let mac = Mac()
         let settings = Self.settings(mac)
 
@@ -111,7 +111,7 @@ struct SettingsModelTests {
         #expect(settings.said.notices == nil)
 
         mac.noticesAnswer?.resume()
-        await reading.value
+        try await value(of: reading, within: .seconds(10))
         #expect(settings.said.notices == .allowed(.banners))
     }
 

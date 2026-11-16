@@ -121,12 +121,12 @@ struct WatchProgramTests {
     }
 
     /// Read no more once it says it is ready, it is told to end: stopped any other way, it never says it was told, and
-    /// the wait on its word runs out. Its trap is set once its pid is read, so a program the test never heard from dies
-    /// of the SIGTERM rather than wait in its trap on a word no one reads.
+    /// the wait on its word runs out. It sets its trap only once the test, its pid read, listens for that word, so a
+    /// program the test never heard from dies of the SIGTERM rather than wait in its trap on a word no one reads.
     @Test func readingNoMoreStopsTheProgramWithSIGTERM() async throws {
         let (group, stopped) = (try Handshake(), try Handshake())
         let program = Self.sh(
-            "echo $$ > '\(group.path)'; trap 'echo TERM > \"\(stopped.path)\"; exit 0' TERM; echo ready; "
+            "echo $$ > '\(group.path)'; exec 3> '\(stopped.path)'; trap 'echo TERM >&3; exit 0' TERM; echo ready; "
                 + "while :; do sleep 0.05; done"
         )
         let first = Task { () -> Heard? in
@@ -144,17 +144,21 @@ struct WatchProgramTests {
         }
         leader = try await group.leader()
 
+        let told = Task { try await stopped.line(within: .seconds(30)) }
+
         #expect(try await value(of: first, within: .seconds(10), "for the program's first word") == .line("ready"))
-        #expect(try await stopped.line() == "TERM")
+        #expect(try await result(of: told, within: .seconds(30)).get() == "TERM")
     }
 
     /// The program waits in the shell's own `wait`, never on a child in the foreground: `Process.terminate` signals
     /// the program's process group, and a foreground child dying of it has the shell say "Terminated: 15" on
     /// stderr, or not, as the two race.
     @Test func theRunningProgramIsHeldAndItsHolderStopsItWithSIGTERM() async throws {
-        let group = try Handshake()
+        let (group, child) = (try Handshake(), try Handshake())
         let running = RunningChild()
-        let program = Self.sh("echo $$ > '\(group.path)'; sleep 60 & trap 'exit 0' TERM; echo ready; wait")
+        let program = Self.sh(
+            "echo $$ > '\(group.path)'; exec 3> '\(child.path)'; sleep 60 & echo $! >&3; trap 'exit 0' TERM; echo ready; wait"
+        )
         let watching = Self.watching(program, holding: running) { said in
             if said == .line("ready") {
                 running.terminate()
@@ -164,6 +168,7 @@ struct WatchProgramTests {
 
         defer { Self.end(watching, leader) }
         leader = try await group.leader()
+        _ = try await child.pid()
 
         let heard = try await value(of: watching, within: .seconds(30), "for the program to end")
 

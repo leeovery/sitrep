@@ -207,7 +207,7 @@ struct OpenWindowTests {
         #expect(jumping.ghostty.told.isEmpty)
 
         gate.open()
-        #expect(await opened.value == .opened)
+        #expect(try await value(of: opened, within: .seconds(10)) == .opened)
     }
 
     /// Remembered again as the window is asked for, so a slow first event costs none of its two minutes.
@@ -223,7 +223,7 @@ struct OpenWindowTests {
         try await until(within: .seconds(10)) { jumping.workspace.fronts == 1 }
         clock.move(by: .seconds(119))
         gate.open()
-        #expect(await opened.value == .opened)
+        #expect(try await value(of: opened, within: .seconds(10)) == .opened)
 
         clock.move(by: .seconds(2))
         #expect(jumping.openings.isOpening("sr-a"))
@@ -284,7 +284,7 @@ struct OpenWindowTests {
 
         try await until(within: .seconds(10)) { jumping.workspace.fronts == 1 }
         opened.cancel()
-        #expect(await opened.value == .stopped)
+        #expect(try await value(of: opened, within: .seconds(10)) == .stopped)
 
         gate.open()
         try await until(within: .seconds(10)) { !jumping.openings.isOpening("sr-a") }
@@ -337,7 +337,7 @@ struct OpenWindowTests {
         try await until(within: .seconds(10)) { jumping.clock.sleeps.contains(Opening.limit) }
         jumping.clock.pass(Opening.limit)
         #expect(
-            await opened.value
+            try await value(of: opened, within: .seconds(10))
                 == .unopened("SitRep gave up waiting for Ghostty to open a window for \(JumpWorld.named) after 20 seconds.")
         )
         #expect(Opening.limit == .seconds(20))
@@ -353,7 +353,7 @@ struct OpenWindowTests {
         try await until(within: .seconds(10)) { gate.arrived == 1 && jumping.clock.sleeps.contains(Opening.limit) }
         jumping.clock.pass(Opening.limit)
         #expect(
-            await opened.value
+            try await value(of: opened, within: .seconds(10))
                 == .unopened("SitRep gave up waiting for Ghostty to open a window for \(JumpWorld.named) after 20 seconds; one may still appear.")
         )
         gate.open()

@@ -230,7 +230,7 @@ struct JumpTests {
         #expect(jumping.ghostty.asked.isEmpty)
 
         gate.open()
-        #expect(await jumped.value == .jumped)
+        #expect(try await value(of: jumped, within: .seconds(10)) == .jumped)
         #expect(jumping.ghostty.asked == [JumpWorld.window])
     }
 
@@ -246,7 +246,7 @@ struct JumpTests {
         #expect(jumping.ghostty.asked.isEmpty, "nothing asked or focused yet")
 
         gate.open()
-        #expect(await jumped.value == .jumped)
+        #expect(try await value(of: jumped, within: .seconds(10)) == .jumped)
         #expect(jumping.workspace.listened == 1, "the watch ran: Finder was in front")
     }
 

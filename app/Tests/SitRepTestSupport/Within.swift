@@ -58,18 +58,17 @@ public func ended(
     }
 }
 
-/// The first answer `start` gives, or nil where the time, slept out on the caller's actor a tick at a time, ran out
+/// The first answer `start` gives, or nil where the time, slept out on the caller's actor a nap at a time, ran out
 /// first; and how long the wait took.
 func race<Value: Sendable>(
-    _ limit: Duration, tick: Duration = .milliseconds(5), isolation: isolated (any Actor)? = #isolation,
-    _ start: (@escaping @Sendable (Value) -> Void) -> Void
+    _ limit: Duration, isolation: isolated (any Actor)? = #isolation, _ start: (@escaping @Sendable (Value) -> Void) -> Void
 ) async -> (value: Value?, slept: Slept) {
     let first = FirstAnswer<Value>()
 
     start { first.give(.given($0)) }
 
     let timer = Task {
-        let slept = await sleepOut(limit, tick: tick, isolation: isolation) { first.isAnswered }
+        let slept = await sleepOut(limit, isolation: isolation) { first.isAnswered }
 
         first.give(.ranOut(slept))
     }

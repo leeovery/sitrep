@@ -35,12 +35,10 @@ public func until(
 
 /// How a time slept out ended, and how long it took on the clock.
 struct Slept: Sendable {
-    /// What ended it: what it waited on come; the time slept out; the clock's ceiling reached before it was, its actor
-    /// too slow to come back; or its task cancelled.
+    /// What ended it: what it waited on come, the time slept out, or its task cancelled.
     enum End: Sendable {
         case done
         case sleptOut
-        case ceiling
         case cancelled
     }
 
@@ -54,11 +52,10 @@ struct Slept: Sendable {
     /// it, and its time on the clock.
     func ranOut(_ awaited: String, _ comment: Comment?) -> Comment {
         let wait = "The wait \(comment?.rawValue ?? awaited)"
-        let (limit, took) = (Self.seconds(limit), Self.seconds(took))
+        let took = Self.seconds(took)
 
         return switch end {
-        case .done, .sleptOut: "\(wait) ran out of time: \(limit) slept out, \(took) on the clock."
-        case .ceiling: "\(wait) reached its ceiling: \(took) on the clock, ten times its \(limit), not yet slept out."
+        case .done, .sleptOut: "\(wait) ran out of time: \(Self.seconds(limit)) slept out, \(took) on the clock."
         case .cancelled: "\(wait) was cancelled: \(took) on the clock."
         }
     }
@@ -68,19 +65,22 @@ struct Slept: Sendable {
     }
 }
 
-/// Sleeps the time out on the caller's actor a tick at a time, until `done` holds. Each tick ends only as the actor
-/// takes the caller back, so a busy actor holds the time back as it holds the work waited on: on a clock, the time ran
-/// out with a test's work still queued on the main actor behind every other test's, which on a loaded Mac took minutes
-/// to come round. A hot actor, never blocked but slow to come back, would hold it back without end, so it ends all the
-/// same at its ceiling, ten times the limit on the clock. Unloaded, the time is the clock's, near enough.
+/// The longest nap of a wait: a wait answered at once costs a few short naps, and a long one ten turns a second.
+let longestNap = Duration.milliseconds(100)
+
+/// Sleeps the time out on the caller's actor a nap at a time, until `done` holds: naps of a millisecond at first, each
+/// twice the last, to `longestNap`. A nap ends only as the actor takes the caller back, so a busy actor holds the time
+/// back as it holds the work waited on. With 20 burners on a Mac already at a load of 190 (16 November 2026), the main
+/// queue of SitRepTests ran 76 to 122 seconds behind for minutes at a time: any bound on the clock under that ran out
+/// with the work it waited on still queued, as a ceiling of ten times the limit did. So there is none: an actor that
+/// never takes the caller back stops every test on it, and the run with them, which the backstop ends.
 func sleepOut(
-    _ limit: Duration, tick: Duration = .milliseconds(5), isolation: isolated (any Actor)? = #isolation,
-    until done: () -> Bool
+    _ limit: Duration, isolation: isolated (any Actor)? = #isolation, until done: () -> Bool
 ) async -> Slept {
     let clock = ContinuousClock()
     let start = clock.now
-    let ceiling = start + limit * 10
-    var ticks = max(1, Int(limit / tick))
+    var slept = Duration.zero
+    var nap = Duration.milliseconds(1)
 
     func ended(_ end: Slept.End) -> Slept {
         Slept(limit: limit, end: end, took: clock.now - start)
@@ -93,14 +93,14 @@ func sleepOut(
         if Task.isCancelled {
             return ended(.cancelled)
         }
-        if clock.now >= ceiling {
-            return ended(.ceiling)
-        }
-        if ticks == 0 {
+        if slept >= limit {
             return ended(.sleptOut)
         }
 
-        ticks -= 1
-        try? await Task.sleep(for: tick)
+        let next = min(nap, limit - slept)
+
+        try? await Task.sleep(for: next)
+        slept += next
+        nap = min(nap * 2, longestNap)
     }
 }

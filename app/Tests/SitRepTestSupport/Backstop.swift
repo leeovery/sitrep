@@ -58,7 +58,8 @@ final class InFlight: Sendable {
     /// How long the run may go with no test beginning or ending, while some are in flight, before it is ended. The
     /// longest any target's run went so was 89 seconds, measured with 20 burners on a Mac already at a load of 80 to 130
     /// (16 November 2026): SitRepTests' main actor, which most of its tests share, came round so seldom that none of
-    /// them ended. A healthy test of 90 seconds, left running alone, is as quiet. Five minutes is over three times either.
+    /// them ended. At a load of 190, its main queue ran up to 122 seconds behind; a healthy test of 90 seconds, left
+    /// running alone, is as quiet. Five minutes is well over twice the longest.
     static let quiet = Duration.seconds(300)
     /// How often the watch looks.
     private static let every: TimeInterval = 5
