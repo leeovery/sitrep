@@ -218,15 +218,17 @@ struct JumpTests {
         #expect(jumping.ghostty.asked.count == 3)
     }
 
+    @available(macOS 15, *)
     @Test func ghosttyIsAskedOnlyOnceTheScreenIsReadNothingGoesToGhosttyWhileTmuxIsStillAnswering() async throws {
         let (tmux, table) = shown()
         let gate = Gate()
+        let idling = Idling()
         let jumping = Jumping(tmux, table, tmuxHeld: gate)
-        let jumped = Task { await jumping.run([inTmux()]) }
+        let jumped = Task(executorPreference: idling) { await jumping.run([inTmux()]) }
 
         try await until(
-            within: .seconds(10), "for tmux's two asks, the screen's read, and the front's read before tmux answers"
-        ) { gate.arrived == 2 && table.looks == 1 && jumping.workspace.fronts == 1 }
+            within: .seconds(10), "for tmux's two asks, the screen's read, the front's read, and the jump idle on tmux"
+        ) { gate.arrived == 2 && table.looks == 1 && jumping.workspace.fronts == 1 && idling.isIdle }
         #expect(jumping.ghostty.asked.isEmpty)
 
         gate.open()
@@ -234,14 +236,16 @@ struct JumpTests {
         #expect(jumping.ghostty.asked == [JumpWorld.window])
     }
 
+    @available(macOS 15, *)
     @Test func theFocusWaitsForTheReadOfWhichAppIsInFrontHoweverSlowSoTheJumpNeverReadsItsOwnFocus() async throws {
         let (tmux, table) = shown()
         let gate = Gate()
+        let idling = Idling()
         let jumping = Jumping(tmux, table, workspace: FakeWorkspace(front: finder, frontHeld: gate))
-        let jumped = Task { await jumping.run([inTmux()]) }
+        let jumped = Task(executorPreference: idling) { await jumping.run([inTmux()]) }
 
-        try await until(within: .seconds(10), "for tmux's two runs and the screen's read, the front's read held") {
-            gate.arrived == 1 && tmux.runs.count == 2 && table.looks == 1
+        try await until(within: .seconds(10), "for tmux's two runs, the screen's read, and the jump idle on the front") {
+            gate.arrived == 1 && tmux.runs.count == 2 && table.looks == 1 && idling.isIdle
         }
         #expect(jumping.ghostty.asked.isEmpty, "nothing asked or focused yet")
 

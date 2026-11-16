@@ -58,12 +58,24 @@ public func ended(
     }
 }
 
+/// The stream's first element, as `value(of:within:)` waits on a task; nil where it ended with none.
+@discardableResult
+public func first<Element: Sendable>(
+    of stream: AsyncStream<Element>, within limit: Duration, _ comment: Comment? = nil,
+    isolation: isolated (any Actor)? = #isolation, sourceLocation: SourceLocation = #_sourceLocation
+) async throws -> Element? {
+    let taking = Task { await stream.first { _ in true } }
+
+    return try await value(of: taking, within: limit, comment, sourceLocation: sourceLocation)
+}
+
 /// The first answer `start` gives, or nil where the time, slept out on the caller's actor a nap at a time, ran out
-/// first; and how long the wait took.
+/// first, or the task waiting was cancelled; and how long the wait took.
 func race<Value: Sendable>(
     _ limit: Duration, isolation: isolated (any Actor)? = #isolation, _ start: (@escaping @Sendable (Value) -> Void) -> Void
 ) async -> (value: Value?, slept: Slept) {
     let first = FirstAnswer<Value>()
+    let began = ContinuousClock.now
 
     start { first.give(.given($0)) }
 
@@ -74,7 +86,14 @@ func race<Value: Sendable>(
     }
 
     defer { timer.cancel() }
-    switch await first.value() {
+
+    let answer = await withTaskCancellationHandler {
+        await first.value()
+    } onCancel: {
+        first.give(.ranOut(Slept(limit: limit, end: .cancelled, took: ContinuousClock.now - began)))
+    }
+
+    switch answer {
     case let .given(value):
         return (value, Slept(limit: limit, end: .done, took: .zero))
     case let .ranOut(slept):

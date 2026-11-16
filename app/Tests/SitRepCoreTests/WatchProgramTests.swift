@@ -144,10 +144,10 @@ struct WatchProgramTests {
         }
         leader = try await group.leader()
 
-        let told = Task { try await stopped.line(within: .seconds(30)) }
+        let told = Task { try await stopped.line() }
 
         #expect(try await value(of: first, within: .seconds(10), "for the program's first word") == .line("ready"))
-        #expect(try await result(of: told, within: .seconds(30)).get() == "TERM")
+        #expect(try await result(of: told, within: Handshake.wait).get() == "TERM")
     }
 
     /// The program waits in the shell's own `wait`, never on a child in the foreground: `Process.terminate` signals

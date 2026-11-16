@@ -23,6 +23,9 @@ public func until(
 /// test at the caller, rather than let it go on to wait on what never came. Between checks it sleeps rather than
 /// yield: a spin of yields on the main actor keeps the main queue full, and the main run loop, whose timers and Core
 /// Animation's completions a condition may wait on, rarely comes round to them on a loaded Mac.
+///
+/// The limit is time slept on the caller's actor (`sleepOut`), so on the clock it is a least, never a most: under load
+/// the wait takes longer. A target stalled, its actor never coming back, is the backstop's to end.
 public func until(
     within limit: Duration, _ comment: Comment? = nil, isolation: isolated (any Actor)? = #isolation,
     sourceLocation: SourceLocation = #_sourceLocation, _ holds: () -> Bool

@@ -25,9 +25,12 @@ final class Handshake: Sendable {
         unlink(path)
     }
 
+    /// Generous: it bounds only a child that never writes, and a healthy `sh` can be slow to start on a loaded Mac.
+    static let wait = Duration.seconds(30)
+
     /// The line the child wrote; none within the time, from the call, ends the test at the caller. Read on a thread of
     /// its own, never one of Swift's, as the read waits.
-    func line(within limit: Duration = .seconds(10), sourceLocation: SourceLocation = #_sourceLocation) async throws -> String {
+    func line(within limit: Duration = wait, sourceLocation: SourceLocation = #_sourceLocation) async throws -> String {
         let deadline = ContinuousClock.now + limit
         let read = await withCheckedContinuation { continuation in
             DispatchQueue.global().async { [path] in
@@ -39,14 +42,13 @@ final class Handshake: Sendable {
         case let .success(line):
             return line
         case let .failure(why):
-            let line: String? = nil
-
-            return try #require(line, "No line from the child: \(why.words)", sourceLocation: sourceLocation)
+            Issue.record("\(why)", sourceLocation: sourceLocation)
+            throw why
         }
     }
 
     /// The pid the child wrote, as `line(within:)` reads it.
-    func pid(within limit: Duration = .seconds(10), sourceLocation: SourceLocation = #_sourceLocation) async throws -> pid_t {
+    func pid(within limit: Duration = wait, sourceLocation: SourceLocation = #_sourceLocation) async throws -> pid_t {
         let said = try await line(within: limit, sourceLocation: sourceLocation)
 
         return try #require(pid_t(said), "the child wrote no pid: \(said)", sourceLocation: sourceLocation)
@@ -54,15 +56,17 @@ final class Handshake: Sendable {
 
     /// The pid the child wrote, as `pid(within:)` reads it, of the leader of its process group, which the backstop
     /// watches from now until `endGroup(of:)`.
-    func leader(within limit: Duration = .seconds(10), sourceLocation: SourceLocation = #_sourceLocation) async throws -> pid_t {
+    func leader(within limit: Duration = wait, sourceLocation: SourceLocation = #_sourceLocation) async throws -> pid_t {
         let leader = try await pid(within: limit, sourceLocation: sourceLocation)
 
         watchGroup(of: leader)
         return leader
     }
 
-    private struct Failed: Error {
+    private struct Failed: Error, CustomStringConvertible {
         let words: String
+
+        var description: String { "No line from the child: \(words)" }
     }
 
     /// How long a poll of the pipe waits before the pipe is read all the same.

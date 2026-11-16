@@ -29,10 +29,31 @@ struct BackstopTests {
             "C.swift": "@MainActor @Suite(.backstop, .tags(.thisMac)) final class OneLine {\n    @Test func d() {}\n}",
             "D.swift": "@Suite(.backstop)\nnonisolated package struct Outer {\n    struct Inner {}\n}\n"
                 + "extension Outer.Inner {\n    @Test func e() {}\n}\nopen class Opened {\n    @Test func f() {}\n}",
+            "E.swift": "@Suite(.backstop) struct KeptOnOneLine { @Test func g() {} }\n"
+                + "struct BareOnOneLine { @Test func h() {} }\n"
+                + "struct HoldingBare {\n    struct Nested { @Test func i() {} }\n}",
         ])
 
-        #expect(scan.suites == 6)
-        #expect(scan.findings == ["A.swift: Bare lacks the backstop", "B.swift: Extended lacks the backstop", "D.swift: Opened lacks the backstop"])
+        #expect(scan.suites == 9)
+        #expect(scan.findings == [
+            "A.swift: Bare lacks the backstop",
+            "B.swift: Extended lacks the backstop",
+            "D.swift: Opened lacks the backstop",
+            "E.swift: BareOnOneLine lacks the backstop",
+            "E.swift: HoldingBare lacks the backstop",
+        ])
+    }
+
+    /// The backstop is one of `@Suite`'s traits, never words within another's.
+    @Test func theBackstopIsReadAsATraitOfTheSuite() {
+        let scan = SuiteScan(files: [
+            "A.swift": "@Suite(.disabled(\"no .backstop\"))\nstruct Disabled {\n    @Test func a() {}\n}",
+            "B.swift": "@Suite(.enabled(if: Self.backstop), .serialized)\nstruct Enabled {\n    @Test func b() {}\n}",
+            "C.swift": "@Suite(.serialized, .backstop)\nstruct Kept {\n    @Test func c() {}\n}",
+        ])
+
+        #expect(scan.suites == 3)
+        #expect(scan.findings == ["A.swift: Disabled lacks the backstop", "B.swift: Enabled lacks the backstop"])
     }
 
     @Test func aShapeTheScanCannotReadFailsIt() {
@@ -41,6 +62,8 @@ struct BackstopTests {
             "B.swift": "extension Elsewhere.Inner {\n    @Test func g() {}\n}",
             "C.swift": "weird struct Odd {\n    @Test func h() {}\n}",
             "D.swift": "extension [Int] {\n    @Test func i() {}\n}",
+            "E.swift": "@Suite(.backstop)\nstruct Twice {\n    @Test func j() {}\n}",
+            "F.swift": "private struct Twice {}",
         ])
 
         #expect(scan.findings == [
@@ -48,6 +71,7 @@ struct BackstopTests {
             "B.swift: Elsewhere.Inner holds tests, its type declared nowhere in its target",
             "C.swift: tests under a declaration it cannot read: weird struct Odd {",
             "D.swift: tests under a declaration it cannot read: extension [Int] {",
+            "E.swift: Twice holds tests, its type declared again in F.swift",
         ])
     }
 
@@ -80,16 +104,31 @@ struct BackstopTests {
 }
 
 /// The suites of a test target read from its sources: each top-level type holding a test, among its own declarations,
-/// a nested type's or an extension's, and whether its attributes name the backstop; and every shape holding a test that
-/// the read cannot follow, which it names rather than pass over.
+/// a nested type's or an extension's, and whether its attributes give it the backstop; and every shape holding a test
+/// that the read cannot follow, which it names rather than pass over.
 private struct SuiteScan {
-    /// What a top-level line is: a type or an extension declared, with the attributes on its own line; a test outside
-    /// any type; a line naming a declaration's kind that reads as none; or none of these.
+    /// What a top-level line is: a type or an extension declared, with the attributes on its own line and whether a
+    /// test is declared on it too; a test outside any type; a line naming a declaration's kind that reads as none; or
+    /// none of these.
     private enum Line {
-        case declaration(kind: Substring, name: Substring, attributes: [Substring])
+        case declaration(kind: Substring, name: Substring, attributes: [Substring], holdsTest: Bool)
         case test
         case unreadable
         case other
+
+        var holdsTest: Bool {
+            switch self {
+            case .test: true
+            case let .declaration(_, _, _, holdsTest): holdsTest
+            case .unreadable, .other: false
+            }
+        }
+    }
+
+    /// A type declared, with its attributes.
+    private struct Declaration {
+        let path: String
+        let attributes: [Substring]
     }
 
     /// What the lines below a declaration belong to: a type by its name, or a declaration the read cannot follow.
@@ -115,7 +154,7 @@ private struct SuiteScan {
     }
 
     init(files: [String: String]) {
-        var declared: [Substring: (path: String, attributes: [Substring])] = [:]
+        var declared: [Substring: [Declaration]] = [:]
         var tested: [Holder: String] = [:]
         var found: Set<String> = []
 
@@ -125,17 +164,22 @@ private struct SuiteScan {
 
             for (index, line) in lines.enumerated() {
                 switch Self.read(line) {
-                case let .declaration(kind, name, attributes):
+                case let .declaration(kind, name, attributes, holdsTest):
                     holder = .named(name)
                     if kind != "extension" {
-                        declared[name] = (path, Array(lines[..<index].reversed().prefix { $0.hasPrefix("@") }) + attributes)
+                        let above = lines[..<index].reversed().prefix { $0.hasPrefix("@") }
+
+                        declared[name, default: []].append(Declaration(path: path, attributes: Array(above) + attributes))
+                    }
+                    if holdsTest {
+                        tested[.named(name)] = path
                     }
                 case .test:
                     found.insert("\(path): a test outside any suite")
                 case .unreadable:
                     holder = .unreadable(line)
                 case .other:
-                    if let holder, line.trimmingCharacters(in: .whitespaces).hasPrefix("@Test") {
+                    if let holder, Self.read(line.drop { $0.isWhitespace }).holdsTest {
                         tested[holder] = path
                     }
                 }
@@ -156,17 +200,49 @@ private struct SuiteScan {
     }
 
     /// What is wrong of the type holding tests, under its own name or a nested type's: declared nowhere in the target,
-    /// or declared with no backstop.
-    private static func lacking(
-        _ name: Substring, in path: String, declared: [Substring: (path: String, attributes: [Substring])]
-    ) -> [String] {
+    /// declared more than once, so which holds the tests cannot be told, or declared with no backstop.
+    private static func lacking(_ name: Substring, in path: String, declared: [Substring: [Declaration]]) -> [String] {
         let type = name.prefix { $0 != "." }
+        let declarations = declared[type] ?? []
 
-        guard let declaration = declared[type] else {
+        guard let declaration = declarations.first else {
             return ["\(path): \(name) holds tests, its type declared nowhere in its target"]
         }
+        guard declarations.count == 1 else {
+            let paths = declarations.map(\.path).sorted()
+            let again = paths.dropFirst().joined(separator: ", ")
 
-        return declaration.attributes.contains { $0.contains(".backstop") } ? [] : ["\(declaration.path): \(type) lacks the backstop"]
+            return ["\(paths[0]): \(type) holds tests, its type declared again in \(again)"]
+        }
+
+        return carriesBackstop(declaration.attributes) ? [] : ["\(declaration.path): \(type) lacks the backstop"]
+    }
+
+    /// Whether the attributes give the suite the backstop: `.backstop` one of `@Suite`'s own traits, never words within
+    /// another's.
+    private static func carriesBackstop(_ attributes: [Substring]) -> Bool {
+        attributes.contains { $0.hasPrefix("@Suite(") && traits(of: $0).contains(".backstop") }
+    }
+
+    /// The traits `@Suite` is given: its arguments, split at the commas between them, its strings emptied first.
+    private static func traits(of suite: Substring) -> [String] {
+        let given = suite.dropFirst("@Suite(".count).dropLast().replacing(#/"[^"]*"/#, with: "\"\"")
+        var traits = [""]
+        var depth = 0
+
+        for character in given {
+            switch character {
+            case "(", "[": depth += 1
+            case ")", "]": depth -= 1
+            case "," where depth == 0:
+                traits.append("")
+                continue
+            default: break
+            }
+            traits[traits.count - 1].append(character)
+        }
+
+        return traits.map { $0.trimmingCharacters(in: .whitespaces) }
     }
 
     private static func read(_ line: Substring) -> Line {
@@ -182,7 +258,9 @@ private struct SuiteScan {
             return .test
         }
         if let kind = declaring.first, kinds.contains(kind), let name = declaring.dropFirst().first.map(typeName), !name.isEmpty {
-            return .declaration(kind: kind, name: name, attributes: attributes)
+            let holdsTest = rest[name.endIndex...].contains("@Test")
+
+            return .declaration(kind: kind, name: name, attributes: attributes, holdsTest: holdsTest)
         }
 
         return words.contains(where: kinds.contains) ? .unreadable : .other

@@ -405,7 +405,7 @@ struct GhosttyEventsTests {
         let asking = Task { try await events.terminal(on: Self.device) }
 
         defer { release.signal() }
-        _ = await entered.first { _ in true }
+        try await first(of: entered, within: .seconds(10))
         asking.cancel()
 
         let ended = try await result(of: asking, within: .seconds(10))

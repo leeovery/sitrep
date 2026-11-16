@@ -230,11 +230,11 @@ struct SitRepWatchTests {
         #expect(runs.programs.count == 3)
     }
 
-    @Test func readingNoMoreStopsWatch() async {
+    @Test func readingNoMoreStopsWatch() async throws {
         let runs = Runs([Self.watching])
 
         _ = await Self.boards(1, of: runs)
-        await runs.stopped()
+        try await runs.stopped()
 
         #expect(runs.programs.count == 1)
     }
@@ -296,11 +296,9 @@ private final class Runs: Sendable {
         }
     }
 
-    /// Once a run that never ends is stopped.
-    func stopped() async {
-        for await _ in stops {
-            return
-        }
+    /// Once a run that never ends is stopped; not within the time, the test ends.
+    func stopped(sourceLocation: SourceLocation = #_sourceLocation) async throws {
+        try await first(of: stops, within: .seconds(10), "for the run to be stopped", sourceLocation: sourceLocation)
     }
 }
 
@@ -329,24 +327,14 @@ private final class Gate: Sendable {
 
     /// Once the PATH has been asked for; not within the time, the test ends.
     func asked(sourceLocation: SourceLocation = #_sourceLocation) async throws {
-        try await Self.first(of: asking, "for Lee's PATH to be asked for", sourceLocation: sourceLocation)
+        try await first(of: asking, within: .seconds(10), "for Lee's PATH to be asked for", sourceLocation: sourceLocation)
     }
 
     /// Once the task waiting on the PATH has been cancelled; not within the time, the test ends.
     func cancelled(sourceLocation: SourceLocation = #_sourceLocation) async throws {
-        try await Self.first(of: cancelling, "for the wait on Lee's PATH to be cancelled", sourceLocation: sourceLocation)
-    }
-
-    private static func first(
-        of stream: AsyncStream<Void>, _ comment: Comment, sourceLocation: SourceLocation
-    ) async throws {
-        let first = Task {
-            for await _ in stream {
-                return
-            }
-        }
-
-        try await value(of: first, within: .seconds(10), comment, sourceLocation: sourceLocation)
+        try await first(
+            of: cancelling, within: .seconds(10), "for the wait on Lee's PATH to be cancelled", sourceLocation: sourceLocation
+        )
     }
 
     func open() {

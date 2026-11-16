@@ -90,6 +90,20 @@ struct UntilTests {
         try await result(of: waiting, within: .seconds(10)).get()
     }
 
+    /// A wait on an answer ends as its task is cancelled, as `.timeLimit` cancels it, rather than sleep out its time.
+    @Test func aWaitOnAnAnswerWhoseTaskIsCancelledEndsAtOnceAndSaysSo() async throws {
+        let waiting = Task {
+            try await withKnownIssue {
+                let _: Int = try await answer(within: .seconds(3600), "for what never comes") { _ in }
+            } matching: {
+                Self.says("The wait for what never comes was cancelled: ", $0)
+            }
+        }
+
+        waiting.cancel()
+        try await result(of: waiting, within: .seconds(10)).get()
+    }
+
     /// Each end of a wait in words of its own: whether its time was slept out, or its task cancelled.
     @Test func eachEndOfAWaitSaysWhichItWas() {
         let words = [Slept.End.sleptOut, .cancelled].map { end in

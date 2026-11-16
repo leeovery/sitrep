@@ -50,6 +50,27 @@ struct GivenBoard: JumpBoardSource {
     }
 }
 
+/// Runs a task's jobs, and its child tasks', one at a time on a queue of its own, and knows when none is queued or
+/// running: a jump started on it is idle once it can go no further until a gate it waits at opens. A jump has no step
+/// of its own after one it must never take early, so idle is the point a test of what it has not done waits for.
+@available(macOS 15, *)
+final class Idling: TaskExecutor {
+    private let queue = DispatchQueue(label: "idling")
+    private let jobs = OSAllocatedUnfairLock(initialState: 0)
+
+    var isIdle: Bool { jobs.withLock { $0 == 0 } }
+
+    func enqueue(_ job: consuming ExecutorJob) {
+        let job = UnownedJob(job)
+
+        jobs.withLock { $0 += 1 }
+        queue.async {
+            job.runSynchronously(on: self.asUnownedTaskExecutor())
+            self.jobs.withLock { $0 -= 1 }
+        }
+    }
+}
+
 /// A gate a double waits at until the test opens it, as a program, or an event in flight, still answering: it never
 /// heeds a task cancelled.
 final class Gate: Sendable {

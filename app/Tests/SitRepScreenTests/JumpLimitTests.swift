@@ -192,7 +192,10 @@ struct JumpLimitTests {
         #expect(answered == nil, "answered while what it let go of still runs")
 
         gate.open()
-        #expect(await ended.first { _ in true } == true, "what it let go of, cancelled, ran on to its end")
+
+        let wasCancelled = try await first(of: ended, within: .seconds(10))
+
+        #expect(wasCancelled == true, "what it let go of, cancelled, ran on to its end")
     }
 
     /// The step after a question Ghostty has not answered is never taken once the jump is cancelled: the jump, run to

@@ -58,8 +58,8 @@ final class InFlight: Sendable {
     /// How long the run may go with no test beginning or ending, while some are in flight, before it is ended. The
     /// longest any target's run went so was 89 seconds, measured with 20 burners on a Mac already at a load of 80 to 130
     /// (16 November 2026): SitRepTests' main actor, which most of its tests share, came round so seldom that none of
-    /// them ended. At a load of 190, its main queue ran up to 122 seconds behind; a healthy test of 90 seconds, left
-    /// running alone, is as quiet. Five minutes is well over twice the longest.
+    /// them ended; a healthy test of 90 seconds, left running alone, is as quiet. Five minutes is over three times that
+    /// longest quiet.
     static let quiet = Duration.seconds(300)
     /// How often the watch looks.
     private static let every: TimeInterval = 5
@@ -99,14 +99,29 @@ final class InFlight: Sendable {
         }
     }
 
-    /// Says why on stderr, after whatever Swift Testing has yet to write, kills the groups, and ends the process at
-    /// once: its tests are hung, so there is nothing to wait on.
+    /// Kills the groups, says why on stderr, and ends the process at once: its tests are hung, so there is nothing to
+    /// wait on. The words go by `write(2)` alone, never through a `FILE`, whose lock a thread stuck writing to a full
+    /// pipe may hold, nor a `FileHandle`, which raises on a closed one.
     private static func end(saying stall: String, killing groups: Set<pid_t>) -> Never {
-        fflush(nil)
-        FileHandle.standardError.write(Data(stall.utf8))
+        let words = Array(stall.utf8)
+
         groups.forEach { kill(group: $0) }
-        fflush(nil)
+        words.withUnsafeBytes(say)
         _exit(EXIT_FAILURE)
+    }
+
+    private static func say(_ words: UnsafeRawBufferPointer) {
+        var said = 0
+
+        while said < words.count {
+            let wrote = write(STDERR_FILENO, words.baseAddress! + said, words.count - said)
+
+            if wrote > 0 {
+                said += wrote
+            } else if errno != EINTR {
+                return
+            }
+        }
     }
 
     /// Never 0 nor 1, which would signal this process's own group, or every process Lee runs.
