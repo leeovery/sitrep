@@ -1,5 +1,3 @@
-import Foundation
-
 extension StripRecorded {
     /// At length full. No marks move.
     static let hover = recorded("hover")
@@ -101,19 +99,19 @@ extension StripRecorded {
 
     /// Each tab's width as the browser measured its words, by their lines.
     static let widths: [String: Double] = [
-        "The management window is sketched|Fumi · Management window discussion": 321,
-        "Waiting for the next round of feedback|Goosemates · Settle the older open questions": 329,
-        "Approve the round 2 drawings|SitRep · The Mac app": 269,
-        "Running the exception reporting tests|DocMan · Fix inverted exception reporting": 321,
-        "Writing the bootstrap's tests|Kit · The bootstrap\nReading the Atlas logs|Fabric · Atlas overload from llm-manager\nReshaping the review workflow|Agentic Workflows · Reshape the workflows\nRunning the usage ledger tests|Switchboard · Usage\nBuilding the app|SitRep · Jump to session\nProfiling the dispatcher|Turnstile · Dispatcher limiter\nRunning the exception reporting tests|DocMan · Fix inverted exception reporting\nDrafting the release notes|Goosemates · Release 2.4\nSketching the tool|Terrace · The first cut\nWiring the management window|Fumi · Management window\nCounting tokens per hunk|Mint · Hunk budgets\nMapping the units|Aircon · Discovery\nTracing the jump outside tmux|SitRep · Jump test outside tmux\nRebasing onto main|DocMan · Upload limits\nFixing the limiter's reset|Turnstile · Exception reporting": 276,
-        "Fixing the limiter's reset|Turnstile · Exception reporting": 240,
-        "Probing the unit's local API|Aircon · Aircon local control": 252,
-        "Choose the diff budget|Mint · Token-aware diff sizing\nAllow Bash aws sso login --profile dev|Fabric · Atlas overload from llm-manager\nGive the go for stage 3|Switchboard · Milestone 7 stages 4 to 14\nWhich unit is the bedroom?+2|Aircon · Aircon local control\nApprove the reshaped review workflow|Agentic Workflows · Reshape the workflows\nThe management window is sketched|Fumi · Management window discussion\nWaiting for the next round of feedback|Goosemates · Settle the older open questions": 326,
-        "Choose the diff budget|Mint · Token-aware diff sizing\nAllow Bash aws sso login --profile dev|Fabric · Atlas overload from llm-manager\nThe management window is sketched|Fumi · Management window discussion\nWaiting for the next round of feedback|Goosemates · Settle the older open questions": 326,
-        "Allow Bash aws sso login --profile dev|Fabric · Atlas overload from llm-manager\nThe management window is sketched|Fumi · Management window discussion\nWaiting for the next round of feedback|Goosemates · Settle the older open questions": 326,
+        "The billing panel redesign is sketched|Wingtip · Billing panel discussion": 321,
+        "Waiting for the next round of comments|Lucerne · Close the remaining open questions": 329,
+        "Approve the second floor plan|Trey Research · Lab fit-out": 269,
+        "Running the invoice totals query tests|BlueYonder · Fix the reversed invoice totals": 321,
+        "Writing the installer's tests|Litware · The installer\nReading the indexer logs|Southridge · Search load from the indexer\nReshaping the customs workflow|Wide World Importers · Customs workflows\nRunning the statement tests|Woodgrove · Statements\nBuilding the lab|Trey Research · Lab bookings\nProfiling the stock sync|Proseware · Stock sync\nRunning the invoice totals query tests|BlueYonder · Fix the reversed invoice totals\nDrafting the course notes|Lucerne · Term 2\nSketching the launch|Humongous · The first cut\nWiring the billing panel|Wingtip · Billing panel\nCounting files per batch|Relecloud · Batch budgets\nMapping the slopes|Alpine · Discovery\nTracing the booking outside hours|Trey Research · Bookings outside hours\nRebasing onto main|BlueYonder · Import limits\nFixing the stock count|Proseware · Stock reporting": 276,
+        "Fixing the stock count|Proseware · Stock reporting": 240,
+        "Probing the lift's motor API|Alpine · Lift schedule": 252,
+        "Choose the batch size|Relecloud · Smaller diff batches\nAllow Bash aws sso login --profile uat|Southridge · Search load from the indexer\nApprove the next print run|Woodgrove · Statement print runs 4 to 9\nWhich slope opens first?+2|Alpine · Lift schedule\nApprove the reshaped customs workflow|Wide World Importers · Customs workflows\nThe billing panel redesign is sketched|Wingtip · Billing panel discussion\nWaiting for the next round of comments|Lucerne · Close the remaining open questions": 326,
+        "Choose the batch size|Relecloud · Smaller diff batches\nAllow Bash aws sso login --profile uat|Southridge · Search load from the indexer\nThe billing panel redesign is sketched|Wingtip · Billing panel discussion\nWaiting for the next round of comments|Lucerne · Close the remaining open questions": 326,
+        "Allow Bash aws sso login --profile uat|Southridge · Search load from the indexer\nThe billing panel redesign is sketched|Wingtip · Billing panel discussion\nWaiting for the next round of comments|Lucerne · Close the remaining open questions": 326,
         "Nothing running|SitRep · sessions show here as they start": 274,
-        "Allow Bash aws sso login --profile dev|Fabric · Atlas overload from llm-manager\nThe exception tests pass|DocMan · Fix inverted exception reporting\nThe management window is sketched|Fumi · Management window discussion\nWaiting for the next round of feedback|Goosemates · Settle the older open questions": 326,
-        "Running the exception reporting tests|DocMan · Fix inverted exception reporting\nFixing the limiter's reset|Turnstile · Exception reporting": 276,
+        "Allow Bash aws sso login --profile uat|Southridge · Search load from the indexer\nThe invoice totals tests pass|BlueYonder · Fix the reversed invoice totals\nThe billing panel redesign is sketched|Wingtip · Billing panel discussion\nWaiting for the next round of comments|Lucerne · Close the remaining open questions": 326,
+        "Running the invoice totals query tests|BlueYonder · Fix the reversed invoice totals\nFixing the stock count|Proseware · Stock reporting": 276,
         "Pick the onboarding copy|Contoso · Onboarding flow": 242,
         "Pick the onboarding copy|Contoso · Onboarding flow\nThe ledger export is reviewed|Northwind · Ledger export\nWhich region goes first?|Fabrikam · Region rollout": 240,
     ]
@@ -126,17 +124,9 @@ extension StripRecorded {
     /// to the browser's three decimals, and, while it is out, where its top and bottom fillets leave the strip's edge,
     /// how round and at what angle, on the S or the straight edge), the scenario's marks (centre, scale, opacity), and
     /// the counts (how many, centre, scale, opacity), a JSON file per scenario in `Recorded/Strip`. Generated, with the
-    /// declarations above, by the strip prototype's recorder, `fixture.mjs` among the surfaces tools; not edited by
-    /// hand.
-    ///
-    /// Data, not Swift: as array literals they cost the type checker 20 GB and more per compile.
+    /// declarations above, by the strip prototype's recorder in `prototypes/strip` (its README says how); not edited
+    /// by hand.
     private static func recorded(_ scenario: String) -> [StripRecorded] {
-        guard let url = Bundle.module.url(forResource: scenario, withExtension: "json", subdirectory: "Recorded/Strip")
-        else { fatalError("The strip's recording \(scenario) is missing from Recorded/Strip") }
-        do {
-            return try JSONDecoder().decode([StripRecorded].self, from: Data(contentsOf: url))
-        } catch {
-            fatalError("The strip's recording \(scenario) doesn't decode: \(error)")
-        }
+        Recordings.frames(scenario, in: "Strip")
     }
 }

@@ -126,34 +126,3 @@ allow app/Tests/SitRepScreenTests/HereTests.swift Portal
 allow app/Tests/SitRepScreenTests/OpenWindowTests.swift Portal
 allow app/Tests/SitRepScreenTests/ResumeCommandTests.swift Portal
 allow app/Tests/SitRepScreenTests/ZmxScreenTests.swift Portal
-
-# Allowed for now: the strip prototype's sessions, which the strip's
-# timelines were recorded from, its recorded tab widths keyed by their exact
-# words. The next slice renames them with a fresh recording, and removes
-# these allows; the test fails on any allow left that exempts nothing.
-allow app/Tests/SitRepPanelTests/StripLab.swift Agentic Skills
-allow app/Tests/SitRepPanelTests/StripLab.swift Agentic Workflows
-allow app/Tests/SitRepPanelTests/StripLab.swift Aircon
-allow app/Tests/SitRepPanelTests/StripLab.swift DocMan
-allow app/Tests/SitRepPanelTests/StripLab.swift Dotfiles
-allow app/Tests/SitRepPanelTests/StripLab.swift Fabric
-allow app/Tests/SitRepPanelTests/StripLab.swift Fumi
-allow app/Tests/SitRepPanelTests/StripLab.swift Goosemates
-allow app/Tests/SitRepPanelTests/StripLab.swift Kit
-allow app/Tests/SitRepPanelTests/StripLab.swift Mint
-allow app/Tests/SitRepPanelTests/StripLab.swift Switchboard
-allow app/Tests/SitRepPanelTests/StripLab.swift Terrace
-allow app/Tests/SitRepPanelTests/StripLab.swift Turnstile
-allow app/Tests/SitRepPanelTests/StripLab.swift agntc
-allow app/Tests/SitRepPanelTests/StripLab.swift dotfiles
-allow app/Tests/SitRepPanelTests/StripRecording.swift Agentic Workflows
-allow app/Tests/SitRepPanelTests/StripRecording.swift Aircon
-allow app/Tests/SitRepPanelTests/StripRecording.swift DocMan
-allow app/Tests/SitRepPanelTests/StripRecording.swift Fabric
-allow app/Tests/SitRepPanelTests/StripRecording.swift Fumi
-allow app/Tests/SitRepPanelTests/StripRecording.swift Goosemates
-allow app/Tests/SitRepPanelTests/StripRecording.swift Kit
-allow app/Tests/SitRepPanelTests/StripRecording.swift Mint
-allow app/Tests/SitRepPanelTests/StripRecording.swift Switchboard
-allow app/Tests/SitRepPanelTests/StripRecording.swift Terrace
-allow app/Tests/SitRepPanelTests/StripRecording.swift Turnstile

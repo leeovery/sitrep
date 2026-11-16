@@ -139,7 +139,7 @@ struct StripGrowsTests {
             return
         }
         #expect(rows.map(\.lines[0].title) == [
-            "Allow Bash ", "The management window is sketched", "Waiting for the next round of feedback",
+            "Allow Bash ", "The billing panel redesign is sketched", "Waiting for the next round of comments",
         ])
         #expect(lab.model.layout.rest(of: .needsYou) == ["s10", "s5", "s6"])
         #expect(lab.model.slot["s9"] == .working)

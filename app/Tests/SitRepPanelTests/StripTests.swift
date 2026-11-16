@@ -257,13 +257,13 @@ struct StripTests {
         #expect(washed.filter { $0.t >= 2000 }.allSatisfy { $0.level == 0 })
     }
 
-    /// A change to the order within a group, SitRep asking again and so the newest ask, waits until the pointer has
-    /// been off the strip a second.
+    /// A change to the order within a group, the first session asking again and so the newest ask, waits until the
+    /// pointer has been off the strip a second.
     @Test func aChangeWaitsUntilThePointerHasBeenOffTheStripASecond() {
         var lab = StripLab()
         lab.open("s6")
         var askedAgain = StripLab.prototype[0]
-        askedAgain.lines[0].title = "Approve the round 3 drawings"
+        askedAgain.lines[0].title = "Approve the third floor plan"
         askedAgain.lines[0].since = 0
 
         lab.change(askedAgain)

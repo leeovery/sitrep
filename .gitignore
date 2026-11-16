@@ -4,3 +4,7 @@
 # SwiftPM's, for the app
 app/.build/
 app/.swiftpm/
+
+# The strip recorder's packages, and the recording it makes
+prototypes/strip/node_modules/
+prototypes/strip/recording.json
