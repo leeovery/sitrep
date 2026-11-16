@@ -538,7 +538,10 @@ export const register: Register = on => {
 
   // Inside Lee's press, whose submit Claude Code takes though Lee stopped
   // Claude's turn: the hook's own $ carries the press, which the board's
-  // own buttons, bound to the $ it was drawn with, do not.
+  // own buttons, bound to the $ it was drawn with, do not. A press these
+  // hooks fail ends there: the buttons' own handlers do nothing, and after
+  // a /reload-plugins the engine holds none for them, so passing the press
+  // on fails it a second time.
   on('ui.press', { plugin: 'sitrep', element: [SEND, SEND_NOW] }, async ($, e) => {
     const host: Host = { ...hostOf($), isPress: true }
     const isDock = placementOn(await host.state.pane.read(), e.surface) !== 'inline'
@@ -547,13 +550,13 @@ export const register: Register = on => {
     await pressed.catch(logFailure(host, 'sending'))
 
     return { element: e.element }
-  }).catch(($, e, next) => next(e))
+  }).catch(($, e) => ({ element: e.element }))
 
   on('ui.press', { plugin: 'sitrep', element: BAND_KEYS }, async ($, e) => {
     await pressBand(hostOf($), e.element)
 
     return { element: e.element }
-  }).catch(($, e, next) => next(e))
+  }).catch(($, e) => ({ element: e.element }))
 
   on('ui.close', { id: PANE }, async ($, e, next) => {
     const closed = await next(e)
