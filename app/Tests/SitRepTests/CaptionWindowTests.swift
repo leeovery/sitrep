@@ -33,13 +33,13 @@ struct CaptionWindowTests {
         #expect(caption.window.ignoresMouseEvents)
     }
 
-    @Test func playedToItsEndItStaysOnTheScreenClear() async throws {
-        let caption = Self.showing()
+    @Test func playedToItsEndItStaysOnTheScreenClear() {
+        let animations = SteppedAnimations()
+        let caption = Self.showing(animations)
 
         defer { caption.window.close() }
-        for _ in 0 ..< 40 where caption.window.alphaValue != 0 {
-            try await Task.sleep(for: .milliseconds(100))
-        }
+        #expect(caption.window.alphaValue == 1)
+        animations.playOut()
         #expect(caption.window.alphaValue == 0)
         #expect(caption.window.isVisible)
     }
@@ -155,15 +155,15 @@ struct CaptionWindowTests {
     }
 
     /// A jump refused after saying it was still jumping lets the pill go, as a caption ends; its banner says why.
-    @Test func aJumpRefusedLetsStillJumpingGo() async throws {
-        let caption = Self.shown()
+    @Test func aJumpRefusedLetsStillJumpingGo() {
+        let animations = SteppedAnimations()
+        let caption = Self.shown(animations)
 
         defer { caption.window.close() }
         caption.heard(.still)
         caption.heard(.ended(.refused("Wingtip is not on screen.")))
-        for _ in 0 ..< 40 where caption.says != nil {
-            try await Task.sleep(for: .milliseconds(100))
-        }
+        #expect(caption.says == "Still jumping…")
+        animations.playOut()
         #expect(caption.says == nil)
         #expect(caption.window.alphaValue == 0)
     }
@@ -179,8 +179,9 @@ struct CaptionWindowTests {
         #expect(caption.window.alphaValue == 0)
     }
 
-    private static func shown() -> CaptionWindow {
-        let caption = CaptionWindow()
+    /// Its animations played out only as the test says.
+    private static func shown(_ animations: SteppedAnimations = SteppedAnimations()) -> CaptionWindow {
+        let caption = CaptionWindow(animations: animations)
 
         caption.over = over
         caption.mayShow = true
@@ -188,14 +189,35 @@ struct CaptionWindowTests {
     }
 
     /// A caption on its way, due 90ms from now as a jump from a row answers at once.
-    private static func showing() -> CaptionWindow {
-        let caption = CaptionWindow()
+    private static func showing(_ animations: SteppedAnimations = SteppedAnimations()) -> CaptionWindow {
+        let caption = shown(animations)
 
-        caption.over = over
-        caption.mayShow = true
         caption.jumping(to: "Trey Research")
         caption.drained(at: 0)
         caption.answered(.jumped, at: 0)
         return caption
+    }
+}
+
+/// A layer's animations added to it, and played out, each taken off and its end told, only as the test says, as the
+/// render server would at their ends.
+@MainActor
+private final class SteppedAnimations: LayerAnimations {
+    private var playing: [(layer: CALayer, key: String, ended: @MainActor () -> Void)] = []
+
+    func add(_ animation: CAAnimation, to layer: CALayer, forKey key: String, ended: @escaping @MainActor () -> Void) {
+        layer.add(animation, forKey: key)
+        playing.append((layer, key, ended))
+    }
+
+    /// Every animation added played to its end.
+    func playOut() {
+        let played = playing
+
+        playing = []
+        for (layer, key, ended) in played {
+            layer.removeAnimation(forKey: key)
+            ended()
+        }
     }
 }

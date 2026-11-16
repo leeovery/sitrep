@@ -6,10 +6,11 @@ import Testing
 
 /// Steps 1 and 2's loops, on the notch and on the strip: the stage draws no pointer, so the only row its edge ever
 /// lights is the ask's, never one an unseen pointer passes over on its way to it or away. Read off what the stage's own
-/// surfaces were last told to draw, frame by frame, on a clock of the test's own.
+/// surfaces were last told to draw, frame by frame, on the clock the test moves.
 @MainActor
 struct WelcomePointerTests {
     typealias Made = WelcomeWorld.Made
+    typealias Clock = WelcomeWorld.Clock
 
     /// A shape as Lee may set it: the notch in either style, or the strip, on either edge, moving or reducing motion.
     struct Look: Sendable, CustomTestStringConvertible {
@@ -62,11 +63,10 @@ struct WelcomePointerTests {
     func onlyTheAsksRowIsEverLit(_ step: WelcomeStep, _ look: Look) async throws {
         let made = await Self.made(at: step, look)
         let stage = try made.stage, loop = try #require(stage.play.loop)
-        var time = Displays.now, lit: Set<String> = []
+        var lit: Set<String> = []
 
         while stage.loopTime < loop.length - 20 {
-            time += 1000 / 60
-            stage.step(at: time)
+            stage.step(at: made.clock.pass(1000 / 60))
             lit.formUnion(Self.litOnlyByTheAsk(stage))
         }
         #expect(lit == [WelcomeBoard.asking])
@@ -77,15 +77,14 @@ struct WelcomePointerTests {
     func aChangeMidLoopLightsOnlyTheAsksRow(_ step: WelcomeStep, _ change: Change) async throws {
         let made = await Self.made(at: step, change.from)
         let stage = try made.stage, loop = try #require(stage.play.loop)
-        var time = Displays.now, lit: Set<String> = [], changed = false
+        var lit: Set<String> = [], changed = false
 
         while stage.loopTime < loop.length - 20 {
             if !changed, stage.loopTime >= change.at(loop) {
                 made.preferences.edit(change.make)
                 changed = true
             }
-            time += 1000 / 60
-            stage.step(at: time)
+            stage.step(at: made.clock.pass(1000 / 60))
             lit.formUnion(Self.litOnlyByTheAsk(stage))
         }
         #expect(changed && lit == [WelcomeBoard.asking])
@@ -100,10 +99,10 @@ struct WelcomePointerTests {
     func pacedAsItPacesItselfTheRowLightsAsThePointerStepsOntoIt(_ step: WelcomeStep, _ look: Look) async throws {
         let made = await Self.made(at: step, look)
         let stage = try made.stage, loop = try #require(stage.play.loop)
-        var paced = Paced(stage), firstLit: Double?
+        var firstLit: Double?
 
         while stage.loopTime < loop.length - 20 {
-            try paced.next()
+            try Self.paced(stage, on: made.clock)
             if firstLit == nil, !Self.litOnlyByTheAsk(stage).isEmpty {
                 firstLit = stage.loopTime
             }
@@ -116,11 +115,10 @@ struct WelcomePointerTests {
     func asThePointerLeavesWhatPouredGoesBackIn(_ step: WelcomeStep, _ look: Look) async throws {
         let made = await Self.made(at: step, look)
         let stage = try made.stage, loop = try #require(stage.play.loop)
-        var time = Displays.now, wasOut = false
+        var wasOut = false
 
         while stage.loopTime < loop.length - 20 {
-            time += 1000 / 60
-            stage.step(at: time)
+            stage.step(at: made.clock.pass(1000 / 60))
             wasOut = wasOut || stage.isOut || !Self.tabs(stage).isEmpty
         }
         #expect(wasOut)
@@ -140,41 +138,20 @@ struct WelcomePointerTests {
         return made
     }
 
-    /// The stage driven as its own pacing drives it, on a clock of the test's own: the link's refreshes while frames
-    /// run, at the light's slower rate while only the light moves, and the loop's next beat, whichever comes first.
-    @MainActor
-    private struct Paced {
-        let stage: StageEdge
-        var time = Displays.now
-        /// When the beat the last frame to set one set is due, on the test's clock.
-        var due: Double?
+    /// The stage's next frame as its own pacing brings it, on the test's clock: the link's next refresh while frames
+    /// run, at the light's slower rate while only the light moves, or the loop's next beat, whichever comes first.
+    private static func paced(_ stage: StageEdge, on clock: Clock) throws {
+        let rate = stage.lastPace == .light ? 30.0 : 60
+        let refresh = stage.isDrawing ? clock.now + 1000 / rate : nil
+        let beat = stage.beat as? Clock.Wake
+        let due = [refresh, beat?.due].compactMap(\.self).min()
+        let next = try #require(due, "the stage sleeps with no beat to wake it")
 
-        init(_ stage: StageEdge) {
-            self.stage = stage
-            due = Self.due(stage, at: time)
-        }
-
-        mutating func next() throws {
-            let rate = stage.lastPace == .light ? 30.0 : 60
-            let refresh = stage.isDrawing ? time + 1000 / rate : nil
-            let at = try #require([refresh, due].compactMap(\.self).min(), "the stage sleeps with no beat to wake it")
-
-            let beat = stage.beat
-
-            time = at
-            if at == due {
-                stage.step(at: at)
-            } else {
-                stage.frame(at: at)
-            }
-            if at == due || stage.beat !== beat {
-                due = Self.due(stage, at: at)
-            }
-        }
-
-        /// The beat a frame at this time just set, which runs on the wall's clock, as due on the test's.
-        private static func due(_ stage: StageEdge, at time: Double) -> Double? {
-            stage.beat.map { time + $0.fireDate.timeIntervalSinceNow * 1000 + 1 }
+        if let beat, beat.due == next {
+            clock.fire(beat)
+        } else {
+            clock.now = next
+            stage.frame(at: next)
         }
     }
 

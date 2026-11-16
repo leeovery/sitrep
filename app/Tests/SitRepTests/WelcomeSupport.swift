@@ -164,11 +164,64 @@ enum WelcomeWorld {
         }
     }
 
-    /// The welcome, shown, its window's frame a recorded one, which never orders front, over defaults of its own unless
-    /// given some.
+    /// The stage's clock, which moves only as the test moves it, from a time of its own; a wake set comes only as the
+    /// test fires it, knowing when it is due; and the frames' link never runs, so every frame is one the test steps.
+    @MainActor
+    final class Clock: StageClock {
+        var now = 1_000.0
+
+        /// The clock moved this many ms on: its time then, for the frame at it.
+        func pass(_ ms: Double) -> Double {
+            now += ms
+            return now
+        }
+
+        func wake(in wait: Double, _ woken: @escaping @MainActor () -> Void) -> any StageWake {
+            Wake(due: now + wait, woken)
+        }
+
+        func run(_ link: CADisplayLink) {}
+
+        /// The clock moved on to the wake's time, a microsecond past it, and the wake fired: a timer never fires before
+        /// its time, so the stage wakes past what it woke for, however its sums round.
+        func fire(_ wake: Wake) {
+            now = wake.due + 0.001
+            wake.fire()
+        }
+
+        /// A wake set, due at this time on the clock.
+        final class Wake: StageWake {
+            let due: Double
+            private(set) var isValid = true
+            private let woken: @MainActor () -> Void
+
+            init(due: Double, _ woken: @escaping @MainActor () -> Void) {
+                self.due = due
+                self.woken = woken
+            }
+
+            func invalidate() {
+                isValid = false
+            }
+
+            /// Fired now, wherever the clock is, as `Timer.fire()` fires one; invalidated, nothing.
+            func fire() {
+                guard isValid else {
+                    return
+                }
+
+                isValid = false
+                woken()
+            }
+        }
+    }
+
+    /// The welcome, shown, its window's frame a recorded one, which never orders front, its stage on a clock the test
+    /// moves, over defaults of its own unless given some.
     @MainActor
     struct Made {
         let mac = Mac()
+        let clock = Clock()
         let preferences: Preferences
         let welcome: WelcomeModel
         let window: WelcomeWindow
@@ -188,7 +241,7 @@ enum WelcomeWorld {
                 preferences.welcomed = true
             }
             welcome = WelcomeModel(preferences: preferences, live: live, services: mac.services(), mac: mac.welcome())
-            window = WelcomeWindow(welcome: welcome, frame: frames.frame)
+            window = WelcomeWindow(welcome: welcome, clock: clock, frame: frames.frame)
             window.show()
         }
 

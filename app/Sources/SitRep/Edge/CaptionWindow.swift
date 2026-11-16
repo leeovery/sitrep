@@ -5,7 +5,8 @@ import SitRepPanel
 /// The caption a jump from a row leaves, at the top of the notch's screen, centred, under the menu bar: the
 /// prototypes' dark pill, shown when `JumpCaption` says and coming and going as its `look` has it, played by Core
 /// Animation in the render server. A jump from anywhere that runs on with no answer says so in it too (`heard`). It
-/// takes no clicks, never shows over a full-screen app, and VoiceOver announces each caption as it shows.
+/// takes no clicks, never shows over a full-screen app, and VoiceOver announces each caption as it shows. `animations`
+/// plays the pill's: a seam, as a test plays them out itself.
 @MainActor
 final class CaptionWindow {
     /// The visible frame of the notch's screen.
@@ -30,11 +31,14 @@ final class CaptionWindow {
     /// Whether what it says holds until the jump ends, as "Still jumping…" does.
     private var holds = false
     private let pill = CALayer()
+    private let animations: any LayerAnimations
     /// Its window: internal only for the tests, which read which way the pill drifts in it.
     let window: EdgeWindow
 
-    init() {
+    init(animations: any LayerAnimations = RenderServer()) {
         let root = CALayer()
+
+        self.animations = animations
 
         pill.backgroundColor = Self.fill
         pill.shadowColor = EdgeStyle.black
@@ -187,12 +191,9 @@ final class CaptionWindow {
         group.beginTime = pill.convertTime(CACurrentMediaTime(), from: nil) + delay
         group.fillMode = .both
         still { pill.opacity = Float(looks.last?.alpha ?? 0) }
-        CATransaction.begin()
-        CATransaction.setCompletionBlock { [weak self] in
-            MainActor.assumeIsolated { self?.ended() }
+        animations.add(group, to: pill, forKey: Self.key) { [weak self] in
+            self?.ended()
         }
-        pill.add(group, forKey: Self.key)
-        CATransaction.commit()
     }
 
     private func ended() {
@@ -214,4 +215,24 @@ final class CaptionWindow {
     /// Under the visible frame's top, and the room round the pill for its shadow.
     private static let top = 22.0, room = 32.0
     private static let fill = CGColor(srgbRed: 16 / 255, green: 16 / 255, blue: 20 / 255, alpha: 0.84)
+}
+
+/// Where a layer's animations play: Core Animation's render server (`RenderServer`), or a test's own, which plays them
+/// out as the test says.
+@MainActor
+protocol LayerAnimations {
+    /// The animation added to the layer under the key, `ended` called once it has played out or been taken off.
+    func add(_ animation: CAAnimation, to layer: CALayer, forKey key: String, ended: @escaping @MainActor () -> Void)
+}
+
+/// Core Animation's own, each animation's end its transaction's completion.
+struct RenderServer: LayerAnimations {
+    func add(_ animation: CAAnimation, to layer: CALayer, forKey key: String, ended: @escaping @MainActor () -> Void) {
+        CATransaction.begin()
+        CATransaction.setCompletionBlock {
+            MainActor.assumeIsolated(ended)
+        }
+        layer.add(animation, forKey: key)
+        CATransaction.commit()
+    }
 }

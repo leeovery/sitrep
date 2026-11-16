@@ -1,5 +1,6 @@
 import Foundation
 @testable import SitRep
+import SitRepTestSupport
 import Testing
 
 /// A signal to stop, as `app/quit` sends, quitting as Quit SitRep does. SIGUSR2 stands in for SIGTERM, which, ignored
@@ -16,23 +17,28 @@ struct QuitOnSignalTests {
     }
 
     /// Heard, it quits through the seam, so the welcome's close and `watch`'s stop run as for Quit SitRep; the signal's
-    /// default is back at once, so a second one ends SitRep, and, the grace over, SitRep is ended in any case.
+    /// default is back at once, so a second one ends SitRep, and, its three seconds' grace over, SitRep is ended in any
+    /// case, and not before.
     @Test func aSignalToStopQuitsAsQuitDoesAndEndsItAfterItsGrace() async {
+        let clock = TestClock(passing: [])
         let quits = Quits()
         let ends = Ends()
-        let quitting = QuitOnSignal(SIGUSR2, grace: .milliseconds(20)) { quits.count += 1 } end: { ends.add($0) }
-        var turns = 0
+        let quitting = QuitOnSignal(SIGUSR2) { quits.count += 1 } end: { ends.add($0) } sleep: {
+            try await clock.sleep(for: $0)
+        }
 
         defer { quitting.stop() }
         #expect(Self.handler(of: SIGUSR2) == 1)
         kill(getpid(), SIGUSR2)
-        while quits.count == 0 || ends.all.isEmpty, turns < 300 {
-            try? await Task.sleep(for: .milliseconds(10))
-            turns += 1
-        }
+        // the grace begins off the main actor once the quit is sent to it: one waited on in time, the other in turns
+        await until(within: .seconds(10)) { clock.sleeps == [.seconds(3)] }
+        await until(turns: 100) { quits.count == 1 }
+        #expect(Self.handler(of: SIGUSR2) == 0)
+        #expect(ends.all.isEmpty)
+        clock.pass(.seconds(3))
+        await until(within: .seconds(10)) { !ends.all.isEmpty }
         #expect(quits.count == 1)
         #expect(ends.all == [SIGUSR2])
-        #expect(Self.handler(of: SIGUSR2) == 0)
     }
 
     /// Stopped, as a test stops it, it leaves the signal at its default, never ignored.

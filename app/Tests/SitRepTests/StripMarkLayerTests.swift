@@ -156,16 +156,23 @@ struct StripMarkLayerTests {
     /// starts: its turn starts where the clock is in that period.
     @Test(arguments: [1.0, 1.2, 0.9])
     func everyArcTurnsInStepByTheClock(period: Double) throws {
-        let arc = Arc()
-        let now = CACurrentMediaTime()
+        let first = Arc(), later = Arc()
+        let now = CACurrentMediaTime(), after = 7.3
 
-        arc.turn(every: period)
+        first.turn(every: period, at: now)
+        later.turn(every: period, at: now + after)
 
+        let gap = try Self.offset(of: later) - Self.offset(of: first) - after
+        let drift = abs(gap - (gap / period).rounded() * period)
+
+        #expect(drift < 1e-9)
+    }
+
+    /// Where in its turn an arc's turn starts.
+    private static func offset(of arc: Arc) throws -> Double {
         let key = try #require(arc.layer.animationKeys()?.first)
-        let offset = try #require(arc.layer.animation(forKey: key)?.timeOffset)
-        let drift = abs(offset - Arc.phase(every: period, at: now))
 
-        #expect(drift < 0.01 || drift > period - 0.01)
+        return try #require(arc.layer.animation(forKey: key)?.timeOffset)
     }
 
     @Test func aWorkingMarkComingToItsOwnWorkStopsTurning() {

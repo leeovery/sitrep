@@ -50,7 +50,7 @@ final class StageEdge: NSView {
         didSet {
             if standing != oldValue {
                 lastTime = nil
-                step(at: Displays.now)
+                step(at: clock.now)
             }
         }
     }
@@ -66,11 +66,12 @@ final class StageEdge: NSView {
     /// The frames' link, made as frames first run and gone once the window closes: internal only for the tests.
     private(set) var link: CADisplayLink?
     /// The loop's next beat, while frames sleep in front: internal only for the tests.
-    private(set) var beat: Timer?
+    private(set) var beat: (any StageWake)?
     /// The end of a chime's light on SitRep's item, while it is lit: internal only for the tests.
-    private(set) var chimeEnds: Timer?
+    private(set) var chimeEnds: (any StageWake)?
 
     private let preferences: Preferences
+    private let clock: any StageClock
     private let size: CGSize
     private let menuBar: Double
     private let content = Scaled()
@@ -95,9 +96,11 @@ final class StageEdge: NSView {
     /// The scene as last told the desktop: internal only for the tests.
     private(set) var told = WelcomeLoop.Scene.rest
 
-    /// The stage this big in its points, under a menu bar this tall, its settings Lee's.
-    init(size: CGSize, menuBar: Double, preferences: Preferences) {
+    /// The stage this big in its points, under a menu bar this tall, its settings Lee's, on the display's clock unless
+    /// a test gives it its own.
+    init(size: CGSize, menuBar: Double, preferences: Preferences, clock: any StageClock = DisplayClock()) {
         self.preferences = preferences
+        self.clock = clock
         self.size = size
         self.menuBar = menuBar
         settings = preferences.edge
@@ -156,9 +159,9 @@ final class StageEdge: NSView {
 
         chimes = count
         if play == .chime {
-            chimedAt = Displays.now
+            chimedAt = clock.now
             tell(asks(at: loopTime), isNew: true)
-            step(at: Displays.now)
+            step(at: clock.now)
             wakeAsTheChimeEnds()
         }
     }
@@ -310,7 +313,7 @@ final class StageEdge: NSView {
         chimeEnds = nil
         content.setBoundsSize(edge.frame.size)
         replace(with: Self.shape(settings.show, play))
-        step(at: Displays.now)
+        step(at: clock.now)
     }
 
     /// Frames for what moves, as the window stands; in front, between frames, the loop's next beat.
@@ -351,34 +354,24 @@ final class StageEdge: NSView {
             return
         }
 
-        let wait = (loop.next(after: loopTime) - loopTime) / 1000
-        let beat = Timer(timeInterval: wait, repeats: false) { [weak self] _ in
-            MainActor.assumeIsolated { self?.step(at: Displays.now) }
+        beat = clock.wake(in: loop.next(after: loopTime) - loopTime) { [weak self, clock] in
+            self?.step(at: clock.now)
         }
-
-        RunLoop.main.add(beat, forMode: .common)
-        self.beat = beat
     }
 
     /// A frame as a chime's light on SitRep's item ends, which may have no other frame to end it.
     private func wakeAsTheChimeEnds() {
         chimeEnds?.invalidate()
-
-        let ends = Timer(timeInterval: Self.chimeLight / 1000, repeats: false) { [weak self] _ in
-            MainActor.assumeIsolated {
-                self?.chimeEnds = nil
-                self?.step(at: Displays.now)
-            }
+        chimeEnds = clock.wake(in: Self.chimeLight) { [weak self, clock] in
+            self?.chimeEnds = nil
+            self?.step(at: clock.now)
         }
-
-        RunLoop.main.add(ends, forMode: .common)
-        chimeEnds = ends
     }
 
     private func makeLink() -> CADisplayLink {
         let link = displayLink(target: self, selector: #selector(tick))
 
-        link.add(to: .main, forMode: .common)
+        clock.run(link)
         self.link = link
         return link
     }
@@ -403,16 +396,20 @@ final class StageEdge: NSView {
         if !asks {
             row = nil
         }
-        shape.show(board, at: Displays.now, edge, staged)
+        shape.show(board, at: clock.now, edge, staged)
     }
 
     /// Each change Lee makes to the edge's settings drawn at once, the window in front or not, so the stage never
     /// stands a frame behind the desktop round it.
     private func follow() {
         withObservationTracking { _ = preferences.edge } onChange: { [weak self] in
-            Task { @MainActor in
-                self?.follow()
-                self?.step(at: Displays.now)
+            Task { @MainActor [weak self] in
+                guard let self else {
+                    return
+                }
+
+                follow()
+                step(at: clock.now)
             }
         }
     }
@@ -439,7 +436,7 @@ final class StageEdge: NSView {
             rowIsStale = true
         }
         place(shape)
-        shape.apply(staged, at: Displays.now, edge)
+        shape.apply(staged, at: clock.now, edge)
     }
 
     /// Lee's settings as the stage runs them: the place along the edge the stage's own, so the strip centres where
@@ -458,7 +455,7 @@ final class StageEdge: NSView {
         row = nil
         content.addSubview(shape.surface)
         place(shape)
-        shape.apply(staged, at: Displays.now, edge)
+        shape.apply(staged, at: clock.now, edge)
         tell(asks(at: loopTime), isNew: false)
     }
 
