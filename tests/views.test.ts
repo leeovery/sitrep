@@ -74,7 +74,7 @@ test('a session in brief: what it is doing, whether a window has it, what it hol
   const session = sessionOf('sr-aaaaaa', 'northwind', {
     logs: {
       [W1]: file(
-        [T0 + MIN, status(['Drawing Usage, round 2'], { next: 'Usage, round 3' })],
+        [T0 + MIN, status(['Drawing Inbox, round 2'], { next: 'Inbox, round 3' })],
         [T0 + 2 * MIN, yesAsk('k1', 'Review round 1')],
         [T0 + 3 * MIN, yesAsk('k2', 'Run the apply', 'Done')],
         [T0 + 4 * MIN, park('p1', 'Later')],
@@ -85,11 +85,11 @@ test('a session in brief: what it is doing, whether a window has it, what it hol
 
   expect(summarise(session)).toEqual({
     id: 'sr-aaaaaa',
-    name: 'Dashboard redesign',
-    summary: 'Redesign the dashboard, area by area in Paper',
+    name: 'Help desk redesign',
+    summary: 'Redesign the help desk, page by page in Paper',
     project: 'Northwind',
-    now: ['Drawing Usage, round 2'],
-    next: 'Usage, round 3',
+    now: ['Drawing Inbox, round 2'],
+    next: 'Inbox, round 3',
     isOpen: true,
     isFinished: false,
     waiting: 2,

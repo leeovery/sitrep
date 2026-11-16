@@ -61,7 +61,7 @@ const LIST = {
 }
 
 const FOUR_LINES =
-  'Northwind\n  sr-k3f9qa  Dashboard redesign (open, 1 waiting)\nContoso\n  sr-eeeeee  Onboarding'
+  'Northwind\n  sr-k3f9qa  Help desk redesign (open, 1 waiting)\nContoso\n  sr-eeeeee  Onboarding'
 
 /** A paste as the engine wraps it in the prompt Lee submits, the line breaks around it with it (live, 2.1.295). */
 const pasted = (text: string, id = '08fd') =>
@@ -507,7 +507,7 @@ test('one send carries the yes with its comment, the choice and the answer, in o
       '  ```',
       '  Ran it:',
       '  Northwind',
-      '    sr-k3f9qa  Dashboard redesign (open, 1 waiting)',
+      '    sr-k3f9qa  Help desk redesign (open, 1 waiting)',
       '  Contoso',
       '    sr-eeeeee  Onboarding',
       '  ```',
@@ -1279,7 +1279,7 @@ test('a comment that closes an old decide is an answer everywhere: its button, t
   expect(await entered(w, $, 'Storage is cheap')).toEqual({ drop: TAKEN.comment })
 })
 
-const TMUX = 'A tmux indicator'
+const TMUX = 'A priority badge'
 
 /** The board, opened by /sitrep, on a parked item, opened. */
 const onParked = async (w: World) => {
@@ -1312,7 +1312,7 @@ test('an opened parked item offers pick it up and ✎ with a comment; neither on
   expect((await parkedRows(ui, w.item(id))).at(-1)).toBe('  [ pick it up ] [ ✎ with a comment ]')
   await ui.press({ key: `pickup:${w.item(id)}` })
   expect(await parkedRows(ui, w.item(id))).toEqual([
-    expect.stringMatching(/^◇ A tmux indicator/),
+    expect.stringMatching(/^◇ A priority badge/),
     '└ pick it up · not sent yet ↺ undo',
   ])
   expect(await ui.find({ key: `pickup:${w.item(id)}` })).toBeUndefined()
@@ -1389,7 +1389,7 @@ test('a reload keeps picking up: the band still names it, and the next Enter is 
   const { id } = await pickingUp(w)
 
   await $.session.start(CONVERSATION)
-  expect((await bandRow(w)).rows[0]).toMatch(/^✎ Your next Enter picks up "A tmux indicator"/)
+  expect((await bandRow(w)).rows[0]).toMatch(/^✎ Your next Enter picks up "A priority badge"/)
   expect(await entered(w, $, 'Before the release')).toEqual({ drop: TAKEN.pickup })
   expect(w.state.queue).toEqual([{ ...at(w, id), verdict: 'pickup', note: 'Before the release' }])
 })

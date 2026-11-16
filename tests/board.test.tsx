@@ -10,8 +10,8 @@ type World = ReturnType<typeof world>
 const REVIEW = {
   wants: 'yes',
   yes: 'Approve',
-  title: 'Review Orders & Invoices, round 1',
-  where: 'In Paper: the dashboard file, page "round 1", frames 1–6',
+  title: 'Review Tickets & Replies, round 1',
+  where: 'In Paper: the help desk file, page "round 1", frames 1–6',
 }
 
 const DECIDE = {
@@ -78,19 +78,19 @@ test(
     const w = world($, on)
 
     await w.begin()
-    await w.call('status', { now: ['Drawing Usage, round 2'], next: 'Usage, round 3' })
+    await w.call('status', { now: ['Drawing Inbox, round 2'], next: 'Inbox, round 3' })
     await w.clock.advance(12 * 60_000)
 
     const ui = await w.pane()
 
-    expect(await ui.find({ key: 'tab:session', text: 'Dashboard redesign' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: 'Dashboard redesign' })).toBeDefined()
+    expect(await ui.find({ key: 'tab:session', text: 'Help desk redesign' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: 'Help desk redesign' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: '· Northwind' })).toBeDefined()
     expect(
-      await ui.find({ type: 'Text', text: 'Redesign the dashboard, area by area' }),
+      await ui.find({ type: 'Text', text: 'Redesign the help desk, page by page' }),
     ).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: 'Drawing Usage, round 2' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: 'next: Usage, round 3' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: 'Drawing Inbox, round 2' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: 'next: Inbox, round 3' })).toBeDefined()
 
     for (const note of ['updated 12m ago', 'nothing waiting', 'what happened']) {
       expect(await ui.find({ type: 'Text', text: note }), note).toBeDefined()
@@ -99,13 +99,13 @@ test(
 )
 
 /** The view's own line and section headings, in the order drawn. */
-const SECTIONS = new Set(['Dashboard redesign', 'ASKS', 'STATUS', 'NOTES', 'PARKED', 'RESOLVED'])
+const SECTIONS = new Set(['Help desk redesign', 'ASKS', 'STATUS', 'NOTES', 'PARKED', 'RESOLVED'])
 
 test("this session's view runs its name and summary, then ASKS, STATUS, NOTES, PARKED and RESOLVED, docked and inline", async ($, on) => {
   const w = world($, on)
 
   await w.begin()
-  await w.call('park', { title: 'A tmux indicator across sessions' })
+  await w.call('park', { title: 'A priority badge across all tabs' })
 
   const done = await asked(w, { wants: 'yes', yes: 'Done', title: 'Run the production apply' })
 
@@ -134,7 +134,7 @@ test('a new ask opens with its buttons, by what it wants: a yes in its own words
   expect(await ui.find({ key: `yes:${w.item(id)}`, text: '✓ Approve' })).toBeDefined()
   expect(await ui.find({ key: `comment:${w.item(id)}`, text: '✎ comment' })).toBeDefined()
   expect(await ui.find({ key: `ignore:${w.item(id)}`, text: '✕ ignore' })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /^In Paper: the dashboard file/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^In Paper: the help desk file/ })).toBeDefined()
 
   await ui.press({ key: `pick:${w.item(id)}` })
   expect(await ui.find({ key: `yes:${w.item(id)}` })).toBeUndefined()
@@ -263,7 +263,7 @@ test("a pick-up from this session's PARKED waits in Ready to send", async ($, on
 
   await w.begin()
 
-  const id = postedId(await w.call('park', { title: 'A tmux indicator across sessions' }))
+  const id = postedId(await w.call('park', { title: 'A priority badge across all tabs' }))
   const ui = await w.pane()
 
   await ui.press({ key: `ppick:${w.item(id)}` })

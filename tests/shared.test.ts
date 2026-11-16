@@ -370,7 +370,7 @@ test("an answer landing as the window's send reads the board, unseen by it, goes
 const LEDGER: SessionMeta = {
   id: 'sr-1edger',
   name: 'Invoice ledger',
-  summary: 'Keep a ledger of requests',
+  summary: 'Keep a ledger of invoices',
   project: 'northwind',
   root: '/Users/me/Code/northwind',
   created: T0,

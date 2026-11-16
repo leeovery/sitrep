@@ -111,9 +111,9 @@ export const ELSEWHERE: Project = { key: 'contoso', name: 'Contoso' }
 
 export const CONVERSATION = { cwd: REPO, surface: 'terminal' as const, isInteractive: true }
 
-export const DASHBOARD = {
-  name: 'Dashboard redesign',
-  summary: 'Redesign the dashboard, area by area',
+export const HELP_DESK = {
+  name: 'Help desk redesign',
+  summary: 'Redesign the help desk, page by page',
   project: PROJECT.name,
 }
 
@@ -740,7 +740,7 @@ export function world(engine: Engine, on: On, options: Options = {}) {
   const begin = async () => {
     await engine.session.start(CONVERSATION)
 
-    const id = startedId(await call('start', DASHBOARD))
+    const id = startedId(await call('start', HELP_DESK))
 
     return { id, paths: sessionPaths(ROOT, PROJECT.key, id) }
   }

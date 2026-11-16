@@ -1,7 +1,7 @@
 import { expect, test, tier, type Engine } from './kit'
 import { CURRENT_MS, parseEntries, parsePresence, startText, type SessionMeta } from '../core'
 import { CLI, file, finish, MIN, note, reply, T0, W1, W2, yesAsk } from './support'
-import { DASHBOARD, PROJECT, CONVERSATION, PLUGIN_VERSION, REPO, WHERE, world } from './world'
+import { HELP_DESK, PROJECT, CONVERSATION, PLUGIN_VERSION, REPO, WHERE, world } from './world'
 
 tier('user')
 
@@ -39,7 +39,7 @@ test('a conversation resumed in a new process takes up by itself the session it 
 
   heldBefore(w, meta('sr-aaaaaa', 'Lobby', W1), T0 + MIN)
 
-  const paths = heldBefore(w, meta('sr-bbbbbb', 'Dashboard redesign', W1), T0 + 5 * MIN)
+  const paths = heldBefore(w, meta('sr-bbbbbb', 'Help desk redesign', W1), T0 + 5 * MIN)
 
   w.elsewhere(meta('sr-cccccc', 'Invoice ledger', W2)).beat()
   await $.session.start(CONVERSATION)
@@ -77,7 +77,7 @@ test('a conversation seen in no session takes nothing up', async ($, on) => {
 
 test('a conversation resumed in a new process never takes up by itself the session it finished, nor lists it', async ($, on) => {
   const w = world($, on, { now: NOW })
-  const paths = heldBefore(w, meta('sr-bbbbbb', 'Dashboard redesign', W1), T0 + 5 * MIN)
+  const paths = heldBefore(w, meta('sr-bbbbbb', 'Help desk redesign', W1), T0 + 5 * MIN)
 
   w.put(
     paths.log(W1),
@@ -94,7 +94,7 @@ test('a conversation resumed in a new process never takes up by itself the sessi
 test("the conversation's first message lists the current sessions by project and id, and which this window took up", async ($, on) => {
   const w = world($, on, { now: NOW })
 
-  heldBefore(w, meta('sr-bbbbbb', 'Dashboard redesign', W1), T0 + 5 * MIN)
+  heldBefore(w, meta('sr-bbbbbb', 'Help desk redesign', W1), T0 + 5 * MIN)
   w.elsewhere(meta('sr-cccccc', 'Invoice ledger', W2)).beat()
   w.elsewhere(meta('sr-dddddd', 'An old idea', W2, NOW - CURRENT_MS - DAY))
   await $.session.start(CONVERSATION)
@@ -103,10 +103,10 @@ test("the conversation's first message lists the current sessions by project and
 
   expect(more).toEqual([])
   expect(block?.name).toBe('sitrep')
-  expect(block?.text).toContain('- Northwind: sr-bbbbbb "Dashboard redesign"')
+  expect(block?.text).toContain('- Northwind: sr-bbbbbb "Help desk redesign"')
   expect(block?.text).toContain('- Northwind: sr-cccccc "Invoice ledger"')
   expect(block?.text).not.toContain('sr-dddddd')
-  expect(block?.text).toContain('This window already holds sr-bbbbbb (Dashboard redesign)')
+  expect(block?.text).toContain('This window already holds sr-bbbbbb (Help desk redesign)')
   expect(block?.text).toContain('join it by its id with the sitrep join tool')
 })
 
@@ -145,12 +145,12 @@ test('a session started in this conversation is listed, held, at the next conver
 
   const [block] = await firstMessage($)
 
-  expect(block?.text).toContain(`(${DASHBOARD.name}): post to its board as you go.`)
+  expect(block?.text).toContain(`(${HELP_DESK.name}): post to its board as you go.`)
 })
 
 test('an in-process /resume takes up the session the resumed conversation was last seen in, though $.session.id() still names the last', async ($, on) => {
   const w = world($, on, { now: NOW })
-  const paths = heldBefore(w, meta('sr-bbbbbb', 'Dashboard redesign', W2), T0 + 5 * MIN, W2)
+  const paths = heldBefore(w, meta('sr-bbbbbb', 'Help desk redesign', W2), T0 + 5 * MIN, W2)
 
   await $.session.start(CONVERSATION)
   expect(w.state.attachment ?? null).toBeNull()
@@ -165,7 +165,7 @@ test('an in-process /resume takes up the session the resumed conversation was la
 test('a /clear, or any start that is not a resume, takes nothing up by its event', async ($, on) => {
   const w = world($, on, { now: NOW })
 
-  heldBefore(w, meta('sr-bbbbbb', 'Dashboard redesign', W2), T0 + 5 * MIN, W2)
+  heldBefore(w, meta('sr-bbbbbb', 'Help desk redesign', W2), T0 + 5 * MIN, W2)
   await $.session.start(CONVERSATION)
   await $.classic.SessionStart({ source: 'clear', session_id: W2 })
   await $.classic.SessionStart({ source: 'compact', session_id: W2 })
@@ -176,10 +176,10 @@ test('a /clear, or any start that is not a resume, takes nothing up by its event
 test('a new process lists its sessions before its conversation starts: the rejoin comes first, so the listing names the session it took up', async ($, on) => {
   const w = world($, on, { now: NOW })
 
-  heldBefore(w, meta('sr-bbbbbb', 'Dashboard redesign', W1), T0 + 5 * MIN)
+  heldBefore(w, meta('sr-bbbbbb', 'Help desk redesign', W1), T0 + 5 * MIN)
 
   const [block] = await firstMessage($)
 
   expect(w.state.attachment).toMatchObject({ session: 'sr-bbbbbb', writer: W1 })
-  expect(block?.text).toContain('This window already holds sr-bbbbbb (Dashboard redesign)')
+  expect(block?.text).toContain('This window already holds sr-bbbbbb (Help desk redesign)')
 })

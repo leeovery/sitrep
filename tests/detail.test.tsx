@@ -82,8 +82,8 @@ test('a log line is its mark, its text and its age at the right edge; opened, a 
 
   const long = postedId(
     await w.call('note', {
-      text: 'Now also drawing Usage, round 2, and the brief beside it',
-      detail: ['Added: Drawing Usage, round 2', 'Next: Usage, round 3'],
+      text: 'Now also drawing Inbox, round 2, and the brief beside it',
+      detail: ['Added: Drawing Inbox, round 2', 'Next: Inbox, round 3'],
     }),
   )
   const short = postedId(await w.call('note', { text: 'PR #82 merged' }))
@@ -91,15 +91,15 @@ test('a log line is its mark, its text and its age at the right edge; opened, a 
   const across = async (key: string) => rowsOf(await ui.find({ key }), ACROSS)
 
   expect(await across(`line:${w.item(long)}`)).toEqual([
-    '• Now also drawing Usage, round 2, and the brie…   now',
+    '• Now also drawing Inbox, round 2, and the brie…   now',
   ])
 
   await ui.press({ key: `log:${w.item(long)}` })
   expect(await across(`line:${w.item(long)}`)).toEqual([
-    '• Now also drawing Usage, round 2, and the brief   now',
+    '• Now also drawing Inbox, round 2, and the brief   now',
     '│ beside it',
-    '├ Added: Drawing Usage, round 2',
-    '└ Next: Usage, round 3',
+    '├ Added: Drawing Inbox, round 2',
+    '└ Next: Inbox, round 3',
   ])
 
   await ui.press({ key: `log:${w.item(short)}` })
@@ -119,7 +119,7 @@ test("an opened title's lines light as one: each line's press in one hover group
   await w.begin()
 
   const fold = postedId(await w.call('park', { title: FOLD }))
-  const other = postedId(await w.call('park', { title: 'A tmux indicator' }))
+  const other = postedId(await w.call('park', { title: 'A priority badge' }))
   const ui = await w.pane()
   const hovers = async (id: string) => hoversIn(await ui.drawn(), `ppick:${w.item(id)}`)
 
@@ -200,7 +200,7 @@ test("a pick-up waiting to be sent is the parked item's last branch, and takes t
 
   await w.begin()
 
-  const id = postedId(await w.call('park', { title: 'A tmux indicator', where: 'In DESIGN.md' }))
+  const id = postedId(await w.call('park', { title: 'A priority badge', where: 'In DESIGN.md' }))
   const ui = await w.pane()
 
   await ui.press({ key: `ppick:${w.item(id)}` })
@@ -220,16 +220,16 @@ test("an opened ask hangs where and its record from its mark; its buttons and hi
     await w.call('ask', {
       wants: 'yes',
       yes: 'Approve',
-      title: 'Review Orders & Invoices, round 1',
+      title: 'Review Tickets & Replies, round 1',
       where: 'In Paper: page round 1',
-      ref: 'docs/dashboard.md',
+      ref: 'docs/help-desk.md',
     }),
   )
   const ui = await w.pane()
 
   expect((await rows(ui, `ask:${w.item(id)}`)).slice(1, 5)).toEqual([
     '├ In Paper: page round 1',
-    '└ see docs/dashboard.md',
+    '└ see docs/help-desk.md',
     '  [ ✓ Approve ] [ ✎ comment ] [ ✕ ignore ] [ snooze ]',
     "  Your reply waits in Ready to send. Ignore tells Claude you've seen it and won't act on it.",
   ])
@@ -277,17 +277,17 @@ test('a branch whose text wraps keeps the tree unbroken: a stem beside it under 
     await w.call('ask', {
       wants: 'yes',
       yes: 'Approve',
-      title: 'Review Orders & Invoices, round 1',
-      where: 'In Paper: the dashboard file, page "round 1", frames 1–6, beside the brief',
-      ref: 'docs/dashboard.md, under "Orders & Invoices", the first round of three',
+      title: 'Review Tickets & Replies, round 1',
+      where: 'In Paper: the help desk file, page "round 1", frames 1–6, beside the brief',
+      ref: 'docs/help-desk.md, under "Tickets & Replies", the first round of three',
     }),
   )
   const ui = await w.pane()
 
   expect((await rows(ui, `ask:${w.item(id)}`)).slice(1, 5)).toEqual([
-    '├ In Paper: the dashboard file, page "round 1", frames',
+    '├ In Paper: the help desk file, page "round 1", frames',
     '│ 1–6, beside the brief',
-    '└ see docs/dashboard.md, under "Orders & Invoices",',
+    '└ see docs/help-desk.md, under "Tickets & Replies",',
     '  the first round of three',
   ])
 })
@@ -296,13 +296,13 @@ test('an opened status change opens each detail line with its label in the statu
   const w = world($, on)
 
   await w.begin()
-  await w.call('status', { now: ['Reviewing round 1', 'Drawing Usage'], next: 'Usage, round 2' })
+  await w.call('status', { now: ['Reviewing round 1', 'Drawing Inbox'], next: 'Inbox, round 2' })
   await w.clock.advance(MIN)
   await w.call('status', {
-    now: ['Drawing Usage', 'Drawing Orders'],
-    next: 'Orders, round 2',
-    name: 'Dashboard, round 2',
-    summary: 'The second round of the dashboard',
+    now: ['Drawing Inbox', 'Drawing Macros'],
+    next: 'Macros, round 2',
+    name: 'Help desk, round 2',
+    summary: 'The second round of the help desk',
   })
 
   const ui = await w.pane()
@@ -313,12 +313,12 @@ test('an opened status change opens each detail line with its label in the statu
   await ui.press({ key: latest?.key ?? 'no status line' })
 
   for (const [label, text] of [
-    ['Added:', 'Drawing Orders'],
+    ['Added:', 'Drawing Macros'],
     ['No longer:', 'Reviewing round 1'],
-    ['Still there:', 'Drawing Usage'],
-    ['Next:', 'Orders, round 2'],
-    ['Name:', 'Dashboard, round 2'],
-    ['Summary:', 'The second round of the dashboard'],
+    ['Still there:', 'Drawing Inbox'],
+    ['Next:', 'Macros, round 2'],
+    ['Name:', 'Help desk, round 2'],
+    ['Summary:', 'The second round of the help desk'],
   ]) {
     expect(await lineOn(ui, `${label} ${text}`), label).toEqual({
       color: C.soft,
@@ -360,15 +360,15 @@ test("an opened ask's see is labelled in the ask's amber, a parked item's in its
       wants: 'yes',
       yes: 'Approve',
       title: 'Review round 1',
-      ref: 'docs/dashboard.md',
+      ref: 'docs/help-desk.md',
     }),
   )
   const parked = postedId(
-    await w.call('park', { title: 'A tmux indicator', ref: 'memory: tmux.md' }),
+    await w.call('park', { title: 'A priority badge', ref: 'memory: tmux.md' }),
   )
   const ui = await w.pane()
 
-  expect(await lineOn(ui, 'see docs/dashboard.md')).toEqual({
+  expect(await lineOn(ui, 'see docs/help-desk.md')).toEqual({
     color: C.soft,
     label: { text: 'see', color: C.ask },
   })

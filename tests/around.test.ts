@@ -32,11 +32,11 @@ type World = ReturnType<typeof world>
 
 const LEDGER: SessionMeta = { ...META, id: 'sr-1edger', name: 'Invoice ledger', by: W2 }
 
-/** A session of Contoso', with no window on it. */
-const orders = (id: string): SessionMeta => ({
+/** A session of Contoso's, with no window on it. */
+const shifts = (id: string): SessionMeta => ({
   ...META,
   id,
-  name: 'Standing orders',
+  name: 'Shift schedules',
   project: 'contoso',
   by: W3,
 })
@@ -172,16 +172,16 @@ test('a session off the board that the board looks at is read at every look', as
 
 test("a look lists each project's folder once for all its sessions, and each session's own on the board, though the look is not whole; a rename there shows within it", async ($, on) => {
   const w = world($, on)
-  const ids = ['sr-0rders', 'sr-2staff', 'sr-3teams']
+  const ids = ['sr-0sh1ft', 'sr-2staff', 'sr-3teams']
   const contoso = projectPaths(ROOT, ELSEWHERE.key).dir
   const projectListings = () => w.listed.filter(path => path === contoso).length
 
   w.project(ELSEWHERE.key, { name: 'Contoso', created: T0, by: W3 })
 
-  const sessions = ids.map(id => w.elsewhere(orders(id), ELSEWHERE.key))
+  const sessions = ids.map(id => w.elsewhere(shifts(id), ELSEWHERE.key))
 
   for (const session of sessions) {
-    session.write(yesAsk('k1', 'Review the standing orders'))
+    session.write(yesAsk('k1', 'Review the shift schedules'))
   }
 
   await w.begin()

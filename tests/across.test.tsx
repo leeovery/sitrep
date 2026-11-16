@@ -31,7 +31,7 @@ type Board = Awaited<ReturnType<World['opened']>>
 const LEDGER = 'sr-1edger'
 const THEMES = 'sr-themes'
 
-const REVIEW = { wants: 'yes', yes: 'Approve', title: 'Review Orders & Invoices, round 1' }
+const REVIEW = { wants: 'yes', yes: 'Approve', title: 'Review Tickets & Replies, round 1' }
 
 const meta = (id: string, name: string, by: string): SessionMeta => ({
   id,
@@ -121,7 +121,7 @@ test("send writes another session's replies into its inbox as this window's lett
   expect(w.state.sent).toEqual([{ project: PROJECT.key, session: LEDGER, replies: [letter?.id] }])
   expect(w.toasts).toContain('Sent 1 reply to Invoice ledger.')
   expect(w.prompts.map(prompt => prompt.text)).toEqual([
-    `From the board:\n- Review Orders & Invoices, round 1 → Approve${CLOSES}`,
+    `From the board:\n- Review Tickets & Replies, round 1 → Approve${CLOSES}`,
   ])
   expect(
     parseEntries(w.text(paths.log(W1))).map(line => line.type),
@@ -533,7 +533,7 @@ test(
 test("a send of letters alone, pressed while Lee has stopped Claude's turn, carries the send held for this session on from the press", SLOW, async ($, on) => {
   const w = world($, on)
   const { asked, paths, ui } = await threeSessions(w)
-  const own = `From the board:\n- Review Orders & Invoices, round 1 → Approve${CLOSES}`
+  const own = `From the board:\n- Review Tickets & Replies, round 1 → Approve${CLOSES}`
 
   if ((await ui.find({ key: `yes:${w.item(asked)}` })) === undefined) {
     await ui.press({ key: `pick:${w.item(asked)}` })

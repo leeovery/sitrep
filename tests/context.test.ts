@@ -50,7 +50,7 @@ test("another writer's change rides into the next prompt once, as context Lee do
   const context = (await $.prompt.submit(PROMPT)).context
 
   expect(context).toHaveLength(1)
-  expect(context?.[0]).toStartWith(`${CHANGED}\nsitrep board: Dashboard redesign`)
+  expect(context?.[0]).toStartWith(`${CHANGED}\nsitrep board: Help desk redesign`)
   expect(context?.[0]).toContain('- n9: Merged the band')
   expect((await $.prompt.submit(PROMPT)).context).toBeUndefined()
 })
@@ -67,7 +67,7 @@ test('another session of the project parking something changes the board: it rid
 
   const context = (await $.prompt.submit(PROMPT)).context
 
-  expect(context?.[0]).toStartWith(`${CHANGED}\nsitrep board: Dashboard redesign`)
+  expect(context?.[0]).toStartWith(`${CHANGED}\nsitrep board: Help desk redesign`)
   expect(context?.[0]).toContain(
     '- p1, parked by "Invoice ledger" (session: sr-1edger): Export the ledger as CSV',
   )

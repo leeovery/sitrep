@@ -28,15 +28,15 @@ type World = ReturnType<typeof world>
 const DAY = 24 * 60 * MIN
 
 const FABRIKAM = { key: 'fabrikam-1a2b3c4d', name: 'Fabrikam' }
-const PIGEON = { key: 'pigeon', name: 'Pigeon' }
+const TAILSPIN = { key: 'tailspin', name: 'Tailspin' }
 const DUSTY = { key: 'dusty', name: 'Dusty' }
 
-const REVIEW = { wants: 'yes', yes: 'Approve', title: 'Review Orders & Invoices, round 1' }
+const REVIEW = { wants: 'yes', yes: 'Approve', title: 'Review Tickets & Replies, round 1' }
 
 const LEDGER = 'sr-1edger'
 const THEMES = 'sr-themes'
-const ORDERS = 'sr-0rders'
-const NOTES = 'sr-p1ge0n'
+const SHIFTS = 'sr-0sh1ft'
+const NOTES = 'sr-n0tes0'
 
 /** A session started by `by` in a project, `ago` before now. */
 const meta = (id: string, name: string, project: string, by: string, ago = 0): SessionMeta => ({
@@ -53,12 +53,12 @@ const meta = (id: string, name: string, project: string, by: string, ago = 0): S
  * The sessions around this session's, modelled on the spike's: another open
  * session of this project with an ask and something parked, and a closed
  * one; Contoso open with an ask; Fabrikam closed with something parked;
- * Pigeon closed and quiet, updated two days ago; Dusty quiet for longer
+ * Tailspin closed and quiet, updated two days ago; Dusty quiet for longer
  * than a session stays current. Then this session starts its own and asks.
  */
 async function neighbourhood(w: World) {
   const ledger = w.elsewhere(meta(LEDGER, 'Invoice ledger', 'northwind', W2))
-  const orders = w.elsewhere(meta(ORDERS, 'Standing orders', 'contoso', W4), ELSEWHERE.key)
+  const shifts = w.elsewhere(meta(SHIFTS, 'Shift schedules', 'contoso', W4), ELSEWHERE.key)
 
   ledger.write(
     status(['Drawing the ledger schema'], {
@@ -71,12 +71,12 @@ async function neighbourhood(w: World) {
   )
   ledger.beat()
   w.elsewhere(meta(THEMES, 'Themes', 'northwind', W3, DAY))
-  orders.write(yesAsk('k5', 'Review the standing orders'))
-  orders.beat()
+  shifts.write(yesAsk('k5', 'Review the shift schedules'))
+  shifts.beat()
   w.elsewhere(meta('sr-0ff11e', 'Offline mode', 'fabrikam', W3, 3 * DAY), FABRIKAM.key).write(
     park('p1', 'Thumbnails in the picker'),
   )
-  w.elsewhere(meta(NOTES, 'Space-aware notes', 'pigeon', W3, 2 * DAY), PIGEON.key)
+  w.elsewhere(meta(NOTES, 'Shared notes', 'tailspin', W3, 2 * DAY), TAILSPIN.key)
   w.elsewhere(meta('sr-d0sty0', 'An old idea', 'dusty', W3, CURRENT_MS + DAY), DUSTY.key)
 
   const { id } = await w.begin()
@@ -113,10 +113,10 @@ test('the board walks from this session to every project, down into a project an
 
   // Quiet ones fold away; down into another project's session and back up twice.
   expect(await ui.find({ key: `proj:${ELSEWHERE.key}` })).toBeDefined()
-  expect(await ui.find({ key: `proj:${PIGEON.key}` })).toBeUndefined()
+  expect(await ui.find({ key: `proj:${TAILSPIN.key}` })).toBeUndefined()
   expect(await ui.find({ key: `proj:${FABRIKAM.key}` })).toBeDefined()
-  await ui.press({ key: `go:${ORDERS}` })
-  expect(await ui.find({ key: `pick:${ORDERS}:k5` })).toBeDefined()
+  await ui.press({ key: `go:${SHIFTS}` })
+  expect(await ui.find({ key: `pick:${SHIFTS}:k5` })).toBeDefined()
   expect(await ui.find({ key: 'up', text: '← Contoso' })).toBeDefined()
   await ui.press({ key: 'up' })
   expect(await ui.find({ key: 'up', text: '← All projects' })).toBeDefined()
@@ -156,17 +156,17 @@ test('the board shows two tabs, home by its name and All projects, each with wha
   const counts = async () =>
     Promise.all(['tab:session:box', 'tab:all:box'].map(async key => rowsOf(await ui.find({ key }))))
 
-  expect(await ui.find({ key: 'tab:session', text: 'Dashboard redesign' })).toBeDefined()
+  expect(await ui.find({ key: 'tab:session', text: 'Help desk redesign' })).toBeDefined()
   expect(await ui.find({ key: 'tab:all', text: 'All projects' })).toBeDefined()
   expect(await ui.find({ key: 'tab:project' })).toBeUndefined()
   expect(await ui.find({ type: 'Button', text: /This session/ })).toBeUndefined()
   expect(await counts(), 'one waits here, three across every project').toEqual([
-    [' ⌂ Dashboard redesign 1'],
+    [' ⌂ Help desk redesign 1'],
     [' ≡ All projects 3'],
   ])
 
   await ui.press({ key: 'tab:all' })
-  expect(await counts()).toEqual([[' ⌂ Dashboard redesign 1'], [' ≡ All projects 3']])
+  expect(await counts()).toEqual([[' ⌂ Help desk redesign 1'], [' ≡ All projects 3']])
 })
 
 test("another session's view is the session view: its status, its asks with working buttons, its notes", async ($, on) => {
@@ -240,10 +240,10 @@ test('All projects: this project first, then the busiest; the quiet fold into on
     `proj:${ELSEWHERE.key}`,
     `proj:${FABRIKAM.key}`,
   ])
-  expect(await keysOf(ui, 'go:')).toEqual([`go:${id}`, `go:${LEDGER}`, `go:${ORDERS}`])
+  expect(await keysOf(ui, 'go:')).toEqual([`go:${id}`, `go:${LEDGER}`, `go:${SHIFTS}`])
   expect(await ui.find({ type: 'Text', text: 'no sessions open · ◇ 1 parked' })).toBeDefined()
   expect(
-    await ui.find({ type: 'Text', text: '1 more, with nothing going on: Pigeon' }),
+    await ui.find({ type: 'Text', text: '1 more, with nothing going on: Tailspin' }),
   ).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /Dusty/ })).toBeUndefined()
 })
@@ -260,7 +260,7 @@ test("the project view's ASKS holds every session's asks, the newest first, each
       .filter(each => each.key?.startsWith('pick:'))
       .map(each => [each.key, each.text]),
   ).toEqual([
-    [`pick:${w.item(asked)}`, 'Dashboard redesign: Review Orders & Invoices, round 1'],
+    [`pick:${w.item(asked)}`, 'Help desk redesign: Review Tickets & Replies, round 1'],
     [`pick:${LEDGER}:k3`, 'Invoice ledger: Keep the ledger 400 days, or forever?'],
   ])
   expect(await ui.find({ type: 'Text', text: '2 waiting' })).toBeDefined()
@@ -269,7 +269,7 @@ test("the project view's ASKS holds every session's asks, the newest first, each
   const at = listed.findIndex(row => row.startsWith(' ASKS'))
 
   expect(listed.slice(at + 1, at + 3), 'no blank row between asks').toEqual([
-    expect.stringMatching(/^ ◆ Dashboard redesign: Review Orders & Invoices, round 1 +now$/),
+    expect.stringMatching(/^ ◆ Help desk redesign: Review Tickets & Replies, round 1 +now$/),
     expect.stringMatching(/^ ◆ Invoice ledger: Keep the ledger 400 days, or forever\? +now$/),
   ])
 
@@ -288,7 +288,7 @@ test("the project view's PARKED holds every session's parked items, the oldest f
   await neighbourhood(w)
   await w.clock.advance(MIN)
 
-  const tmux = postedId(await w.call('park', { title: 'A tmux indicator across sessions' }))
+  const tmux = postedId(await w.call('park', { title: 'A priority badge across all tabs' }))
   const done = postedId(await w.call('ask', { wants: 'yes', yes: 'Done', title: 'Run the apply' }))
 
   await w.call('resolve', { item: done, reason: 'Ran it in the chat' })
@@ -313,7 +313,7 @@ test("the project view's PARKED holds every session's parked items, the oldest f
       .map(each => [each.key, each.text]),
   ).toEqual([
     [`ppick:${LEDGER}:p2`, 'Invoice ledger: Export the ledger as CSV'],
-    [`ppick:${w.item(tmux)}`, 'Dashboard redesign: A tmux indicator across sessions'],
+    [`ppick:${w.item(tmux)}`, 'Help desk redesign: A priority badge across all tabs'],
   ])
 
   await ui.press({ key: `ppick:${LEDGER}:p2` })
@@ -358,12 +358,12 @@ test("the project view's PARKED holds a finished session's items and an idle one
 
   await w.clock.advance(MIN)
 
-  const tmux = postedId(await w.call('park', { title: 'A tmux indicator across sessions' }))
+  const tmux = postedId(await w.call('park', { title: 'A priority badge across all tabs' }))
   const ui = await w.opened(WIDE)
 
   expect(await ui.find({ type: 'Text', text: '1 to come back to' })).toBeDefined()
   expect(await parkedButtons(ui)).toEqual([
-    [`ppick:${w.item(tmux)}`, 'A tmux indicator across sessions'],
+    [`ppick:${w.item(tmux)}`, 'A priority badge across all tabs'],
   ])
 
   await toProject(ui)
@@ -372,7 +372,7 @@ test("the project view's PARKED holds a finished session's items and an idle one
   expect(await parkedButtons(ui)).toEqual([
     [`ppick:${THEMES}:p1`, 'Themes: Theme the lobby too'],
     [`ppick:${LEDGER}:p2`, 'Invoice ledger: Export the ledger as CSV'],
-    [`ppick:${w.item(tmux)}`, 'Dashboard redesign: A tmux indicator across sessions'],
+    [`ppick:${w.item(tmux)}`, 'Help desk redesign: A priority badge across all tabs'],
   ])
 
   await ui.press({ key: `ppick:${LEDGER}:p2` })
@@ -452,7 +452,7 @@ test('the band counts what waits in every other session, in every project, and o
   expect(await band.find({ key: 'band:asks', text: '1 ask' })).toBeDefined()
   expect(
     await band.find({ key: 'band:elsewhere', text: '2 elsewhere' }),
-    "the ledger's ask and Contoso'",
+    "the ledger's ask and Contoso's",
   ).toBeDefined()
 
   await band.press({ key: 'band:elsewhere' })
@@ -472,10 +472,10 @@ test('the band counts what waits in every other session, in every project, and o
 test("a new ask in another session, in this project or another, reaches the band's count at the slower pace, the board closed", async ($, on) => {
   const w = world($, on)
   const ledger = w.elsewhere(meta(LEDGER, 'Invoice ledger', 'northwind', W2))
-  const orders = w.elsewhere(meta(ORDERS, 'Standing orders', 'contoso', W4), ELSEWHERE.key)
+  const shifts = w.elsewhere(meta(SHIFTS, 'Shift schedules', 'contoso', W4), ELSEWHERE.key)
 
   ledger.beat()
-  orders.beat()
+  shifts.beat()
   await w.begin()
 
   const band = await w.band()
@@ -483,9 +483,9 @@ test("a new ask in another session, in this project or another, reaches the band
   expect(await band.find({ key: 'band:elsewhere' })).toBeUndefined()
 
   ledger.write(yesAsk('k3', 'Run the ledger migration', 'Done'))
-  orders.write(yesAsk('k5', 'Review the standing orders'))
+  shifts.write(yesAsk('k5', 'Review the shift schedules'))
   ledger.beat()
-  orders.beat()
+  shifts.beat()
   await w.clock.advance(AROUND_MS)
   expect(await band.find({ key: 'band:elsewhere', text: '2 elsewhere' })).toBeDefined()
   expect(w.state.others, 'nothing is read in full with the board closed').toEqual([])

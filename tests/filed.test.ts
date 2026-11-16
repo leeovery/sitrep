@@ -81,7 +81,7 @@ test('the first message lists the sessions filed in every project', async ($, on
   w.seed({ ...META, id: 'sr-aaaaaa', name: 'Lobby' })
   w.seed({ ...META, id: 'sr-bbbbbb', name: 'Invoice ledger' })
   w.seed(
-    { ...META, id: 'sr-cccccc', name: 'Standing orders', project: 'contoso' },
+    { ...META, id: 'sr-cccccc', name: 'Shift schedules', project: 'contoso' },
     ELSEWHERE.key,
   )
   await $.session.start(CONVERSATION)
@@ -130,7 +130,7 @@ test('reading a board lists no folder that is not there: a session with no inbox
   const w = world($, on)
 
   w.seed(LEDGER)
-  w.seed({ ...META, id: 'sr-cccccc', name: 'Standing orders' }, ELSEWHERE.key)
+  w.seed({ ...META, id: 'sr-cccccc', name: 'Shift schedules' }, ELSEWHERE.key)
   w.project('contoso', { name: 'Contoso', created: T0, by: W2 })
   await w.begin()
   await w.call('join', { session: LEDGER.id })

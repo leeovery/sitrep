@@ -24,7 +24,7 @@ import {
   yesAsk,
 } from './support'
 import {
-  DASHBOARD,
+  HELP_DESK,
   ELSEWHERE,
   PROJECT,
   REPO,
@@ -76,18 +76,18 @@ test('start files the session under the project it names, attaches the window an
 
   await $.session.start(CONVERSATION)
 
-  const answer = await w.call('start', DASHBOARD)
+  const answer = await w.call('start', HELP_DESK)
   const id = startedId(answer)
   const paths = sessionPaths(ROOT, PROJECT.key, id)
 
   expect(answer.result).toBe(
-    `Started Dashboard redesign as ${id}, in a new project, Northwind. Record ${id} wherever the project tracks this work, so a later window can join it.`,
+    `Started Help desk redesign as ${id}, in a new project, Northwind. Record ${id} wherever the project tracks this work, so a later window can join it.`,
   )
   expect(parseProject(w.text(projectPaths(ROOT, PROJECT.key).file))?.name).toBe('Northwind')
   expect(parseMeta(w.text(paths.meta))).toEqual({
     id,
-    name: DASHBOARD.name,
-    summary: DASHBOARD.summary,
+    name: HELP_DESK.name,
+    summary: HELP_DESK.summary,
     project: 'Northwind',
     root: REPO,
     created: w.clock.now(),
@@ -100,7 +100,7 @@ test('start files the session under the project it names, attaches the window an
     writer: W1,
     attachedAt: w.clock.now(),
   })
-  expect(w.state.board?.status.name).toBe('Dashboard redesign')
+  expect(w.state.board?.status.name).toBe('Help desk redesign')
 })
 
 test('start refuses a session with no name, no summary or no project, and writes nothing', async ($, on) => {
@@ -110,15 +110,15 @@ test('start refuses a session with no name, no summary or no project, and writes
 
   await $.session.start(CONVERSATION)
 
-  expect((await w.call('start', { name: 'Dashboard', project: 'SitRep' })).deny).toBe(
+  expect((await w.call('start', { name: 'Help desk', project: 'SitRep' })).deny).toBe(
     'A session needs a summary: one line on what it is for.',
   )
   expect((await w.call('start', { summary: 'Area by area' })).deny).toContain('needs a name')
-  expect((await w.call('start', { name: 'Dashboard', summary: 'Area by area' })).deny).toBe(
+  expect((await w.call('start', { name: 'Help desk', summary: 'Area by area' })).deny).toBe(
     noProject,
   )
-  expect((await w.call('start', { ...DASHBOARD, project: ' -!- ' })).deny).toBe(noProject)
-  expect((await w.call('start', { ...DASHBOARD, directory: 'Code/sitrep' })).deny).toBe(
+  expect((await w.call('start', { ...HELP_DESK, project: ' -!- ' })).deny).toBe(noProject)
+  expect((await w.call('start', { ...HELP_DESK, directory: 'Code/sitrep' })).deny).toBe(
     "A project's directory is an absolute path: where the project lives.",
   )
   expect(w.files.size).toBe(0)
@@ -152,7 +152,7 @@ test('join refuses an id of the wrong shape, or one no project holds', async ($,
 
   await $.session.start(CONVERSATION)
 
-  expect((await w.call('join', { session: 'dashboard' })).deny).toContain('by the id start gave it')
+  expect((await w.call('join', { session: 'help-desk' })).deny).toContain('by the id start gave it')
   expect((await w.call('join', { session: 'sr-zzzzzz' })).deny).toBe(
     'There is no session sr-zzzzzz on the board, in any project.',
   )
@@ -165,7 +165,7 @@ test('starting or joining while attached lets go of the session held before', as
 
   await w.clock.advance(1_000)
 
-  const second = startedId(await w.call('start', { ...DASHBOARD, name: 'Lobby' }))
+  const second = startedId(await w.call('start', { ...HELP_DESK, name: 'Lobby' }))
 
   expect(parsePresence(w.text(first.paths.heartbeat(W1)), W1)?.leftAt).toBe(w.clock.now())
   expect(parsePresence(w.text(first.paths.heartbeat(W1)), W1)?.livesOn, 'the conversation goes on').toBeUndefined()
@@ -183,13 +183,13 @@ test('status sets what changed, keeps the rest, and the board logs the change it
   const w = world($, on)
   const { paths } = await w.begin()
 
-  expect((await w.call('status', { now: ['Drawing Usage, round 2'] })).result).toBe('Status set.')
+  expect((await w.call('status', { now: ['Drawing Inbox, round 2'] })).result).toBe('Status set.')
   expect(w.state.board?.status).toMatchObject({
-    name: DASHBOARD.name,
-    summary: DASHBOARD.summary,
-    now: ['Drawing Usage, round 2'],
+    name: HELP_DESK.name,
+    summary: HELP_DESK.summary,
+    now: ['Drawing Inbox, round 2'],
   })
-  expect(w.state.board?.log[0]?.text).toBe('Status: now drawing Usage, round 2')
+  expect(w.state.board?.log[0]?.text).toBe('Status: now drawing Inbox, round 2')
   expect(linesOf(w, paths.log(W1)).map(line => line.type)).toEqual(['status'])
   expect((await w.call('status', {})).deny).toContain('at least one of')
 })
@@ -462,9 +462,9 @@ test("resolve, edit and reopen act on what another session of the project parked
 test('of another session, the tools act only on what it parked: its ask or note is refused, as is a session of another project, or one not on the board', async ($, on) => {
   const w = world($, on)
   const ledger = ledgerParked(w)
-  const orders = w.elsewhere({ ...META, id: 'sr-0rders', name: 'Standing orders' }, ELSEWHERE.key)
+  const shifts = w.elsewhere({ ...META, id: 'sr-0sh1ft', name: 'Shift schedules' }, ELSEWHERE.key)
 
-  orders.write(park('p1', 'Later'))
+  shifts.write(park('p1', 'Later'))
   await w.begin()
 
   expect((await w.call('resolve', { item: 'k1', session: LEDGER.id })).deny).toBe(
@@ -473,8 +473,8 @@ test('of another session, the tools act only on what it parked: its ask or note 
   expect((await w.call('edit', { item: 'n1', session: LEDGER.id, text: 'Wrote it' })).deny).toBe(
     'n1 is a note of Invoice ledger: of another session, only what it parked is yours to resolve, edit or reopen.',
   )
-  expect((await w.call('resolve', { item: 'p1', session: 'sr-0rders' })).deny).toBe(
-    "sr-0rders is a session of another project: only what a session of this one's project parked is yours to act on.",
+  expect((await w.call('resolve', { item: 'p1', session: 'sr-0sh1ft' })).deny).toBe(
+    "sr-0sh1ft is a session of another project: only what a session of this one's project parked is yours to act on.",
   )
   expect((await w.call('resolve', { item: 'p1', session: 'sr-n0ne00' })).deny).toBe(
     'There is no session sr-n0ne00 on the board, in any project.',
@@ -659,7 +659,7 @@ test("board reads back the session's open items with their ids", async ($, on) =
   )
   const read = String((await w.call('board')).result)
 
-  expect(read).toContain(`sitrep board: Dashboard redesign (${id})`)
+  expect(read).toContain(`sitrep board: Help desk redesign (${id})`)
   expect(read).toContain(`- ${ask} wants a yes (Approve), waiting on Lee: Review round 1`)
 })
 
@@ -686,7 +686,7 @@ test("a subagent's call is refused, telling it to put the item in its report", a
   for (const tool of TOOLS) {
     const answer = await w.call(
       tool,
-      { ...DASHBOARD, wants: 'yes', yes: 'Done', title: 'Run it' },
+      { ...HELP_DESK, wants: 'yes', yes: 'Done', title: 'Run it' },
       'a1',
     )
 

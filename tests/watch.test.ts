@@ -246,7 +246,7 @@ test('the first line is the board as every surface shows it, with nothing new, n
 
   const paths = t.seed(META, {
     lines: [
-      [T0, status(['Drawing Usage'])],
+      [T0, status(['Drawing Inbox'])],
       [T0, yesAsk('k1', 'Review round 1')],
     ],
   })
@@ -258,7 +258,7 @@ test('the first line is the board as every surface shows it, with nothing new, n
     {
       is: 'working',
       since: T0,
-      tool: { name: 'Read', subject: `${REPO}/src/Limiter/Dispatcher.php` },
+      tool: { name: 'Read', subject: `${REPO}/src/Mail/MessageQueue.php` },
     },
     { seenAt: NOW, where: WHERE, directory: REPO, loadedAt: T0 },
   )
@@ -278,7 +278,7 @@ test('the first line is the board as every surface shows it, with nothing new, n
           section: 'needsYou',
           isAway: false,
           project: PROJECT.key,
-          name: 'Dashboard redesign',
+          name: 'Help desk redesign',
           projectName: 'Northwind',
           letters: 'No',
           lines: [
@@ -291,7 +291,7 @@ test('the first line is the board as every surface shows it, with nothing new, n
               since: T0,
             },
           ],
-          second: 'Northwind · Dashboard redesign',
+          second: 'Northwind · Help desk redesign',
           since: T0,
         },
       ],
@@ -311,7 +311,7 @@ test('the first line is the board as every surface shows it, with nothing new, n
               id: META.id,
               name: META.name,
               summary: META.summary,
-              now: ['Drawing Usage'],
+              now: ['Drawing Inbox'],
               next: null,
               isOpen: true,
               waiting: 1,
@@ -325,7 +325,7 @@ test('the first line is the board as every surface shows it, with nothing new, n
                 is: 'working',
                 line: {
                   lead: 'Reading',
-                  mono: 'src/Limiter/Dispatcher.php',
+                  mono: 'src/Mail/MessageQueue.php',
                   subject: null,
                   more: null,
                   until: null,
@@ -369,7 +369,7 @@ test('the first line is the board as every surface shows it, with nothing new, n
           state: {
             is: 'working',
             since: T0,
-            tool: { name: 'Read', subject: `${REPO}/src/Limiter/Dispatcher.php` },
+            tool: { name: 'Read', subject: `${REPO}/src/Mail/MessageQueue.php` },
             question: null,
           },
           attachedAt: T0,
@@ -435,7 +435,7 @@ test("a window on its own work is a row of that kind after working, its line say
 })
 
 test('every session on a line carries what it parked, as board --json lists it, and when it started, though no board is followed', async () => {
-  const { t } = held([[T0 + MIN, park('p1', 'A tmux indicator')]])
+  const { t } = held([[T0 + MIN, park('p1', 'A priority badge')]])
 
   t.seed(
     { ...LOBBY, created: T0 - HOUR },
@@ -462,7 +462,7 @@ test('every session on a line carries what it parked, as board --json lists it, 
     [
       META.id,
       META.created,
-      [{ id: 'p1', title: 'A tmux indicator', where: null, ref: null, at: T0 + MIN }],
+      [{ id: 'p1', title: 'A priority badge', where: null, ref: null, at: T0 + MIN }],
     ],
     [
       LOBBY.id,
@@ -481,7 +481,7 @@ test('every session on a line carries what it parked, as board --json lists it, 
 })
 
 test("a line's projects count every item parked in them, finished and idle sessions' included, each session's parkedItems its own; one with only parked items is carried, its sessions empty, dated by the sessions holding them", async () => {
-  const { t } = held([[T0 + MIN, park('p1', 'A tmux indicator')]])
+  const { t } = held([[T0 + MIN, park('p1', 'A priority badge')]])
   const old = T0 - 8 * 24 * HOUR
 
   t.seed(LOBBY, {
@@ -510,7 +510,7 @@ test("a line's projects count every item parked in them, finished and idle sessi
       key: PROJECT.key,
       parked: 2,
       sessions: [
-        { id: META.id, parked: 1, parkedItems: [{ title: 'A tmux indicator' }] },
+        { id: META.id, parked: 1, parkedItems: [{ title: 'A priority badge' }] },
       ],
     },
     { key: 'stale', parked: 1, sessions: [], updatedAt: old },
@@ -676,7 +676,7 @@ test('a snooze running out is a line the moment it does, though no file changed:
           wakesAt: wakes,
         },
       ],
-      second: 'Northwind · Dashboard redesign',
+      second: 'Northwind · Help desk redesign',
       wakesAt: wakes,
     },
   ])
@@ -761,7 +761,7 @@ test("an old line's snooze of a turn is a line, its row leaving the rows for Sno
           wakesAt: null,
         },
       ],
-      second: 'Northwind · Dashboard redesign',
+      second: 'Northwind · Help desk redesign',
       wakesAt: null,
     },
   ])
@@ -1055,7 +1055,7 @@ test('a session gone, and then its project, nothing else changing, is gone from 
 test('a file rewritten at the same size within the same second is read again: its time moved', async () => {
   const { t, paths } = held()
   const before = t.files.get(paths.meta)
-  const renamed = metaText({ ...META, name: 'Dashboard reframed' })
+  const renamed = metaText({ ...META, name: 'Help desk reframed' })
 
   expect(renamed.length).toBe(before?.text.length)
 
@@ -1065,7 +1065,7 @@ test('a file rewritten at the same size within the same second is read again: it
 
   expect(lines.map(line => [line.at, line.projects[0]?.sessions[0]?.name])).toEqual([
     [NOW, META.name],
-    [NOW + POLL_MS, 'Dashboard reframed'],
+    [NOW + POLL_MS, 'Help desk reframed'],
   ])
 })
 
@@ -1205,7 +1205,7 @@ test('a follow line prints the boards of the sessions new to the set at once, as
 
   t.seed(LOBBY)
 
-  const dashboard = await boardJsonOf(t, META.id)
+  const helpDesk = await boardJsonOf(t, META.id)
   const lobby = await boardJsonOf(t, LOBBY.id)
   const { lines } = await watched(t, [
     {
@@ -1219,7 +1219,7 @@ test('a follow line prints the boards of the sessions new to the set at once, as
 
   expect(lines.map(line => [line.at, line.boards])).toEqual([
     [NOW, {}],
-    [NOW, { [META.id]: dashboard }],
+    [NOW, { [META.id]: helpDesk }],
     [NOW, { [LOBBY.id]: lobby }],
   ])
 })

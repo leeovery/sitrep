@@ -36,7 +36,7 @@ type Engine = Parameters<typeof world>[0]
 
 /** The parked items, and the note each is picked up with, if any. */
 const PARKED = [
-  { title: 'A tmux indicator across sessions' },
+  { title: 'A priority badge across all tabs' },
   { title: 'Thumbnails inline in the gallery', note: 'Before the release' },
   { title: 'Sign-in without the redirect', note: 'After the bug fixes' },
 ]
@@ -120,7 +120,7 @@ test("a project's NOTES draws a send's several pick-ups, each its own line", asy
 
 const LEDGER = 'sr-1edger'
 
-const REVIEW = { wants: 'yes', yes: 'Approve', title: 'Review Orders & Invoices, round 1' }
+const REVIEW = { wants: 'yes', yes: 'Approve', title: 'Review Tickets & Replies, round 1' }
 
 /** What the ledger parked. */
 const EXPORT = 'Export the ledger as CSV'
@@ -285,7 +285,7 @@ test(
     await w.clock.settle()
 
     expect(w.submitted).toEqual([
-      `${PICKED}\n- Review Orders & Invoices, round 1 → Approve${CLOSES}`,
+      `${PICKED}\n- Review Tickets & Replies, round 1 → Approve${CLOSES}`,
     ])
     expect(kindsIn(w, LEDGER_LOG)).toEqual(['reply', 'delivered'])
     expect(kindsIn(w, paths.log(W1))).toEqual(['ask', 'reply', 'delivered'])
@@ -302,7 +302,7 @@ test(
 
     ledger.write(yesAsk('k3', 'Review the ledger schema'), park('p1', EXPORT))
     w.elsewhere(meta('sr-themes', 'Themes', W3))
-    w.elsewhere(meta('sr-0rders', 'Standing orders', W3, ELSEWHERE), ELSEWHERE.key)
+    w.elsewhere(meta('sr-0sh1ft', 'Shift schedules', W3, ELSEWHERE), ELSEWHERE.key)
 
     await w.begin()
     await w.clock.advance(MIN)
@@ -322,7 +322,7 @@ test(
     expect(w.state.queue, 'a session of this project').toEqual(queued)
     expect(pickUpsLeft()).toEqual([])
 
-    await w.call('join', { session: 'sr-0rders' })
+    await w.call('join', { session: 'sr-0sh1ft' })
     expect(w.state.queue).toEqual([
       { project: PROJECT.key, session: LEDGER, item: 'k3', verdict: 'yes' },
     ])
@@ -342,7 +342,7 @@ test(
     const asked = postedId(await w.call('ask', REVIEW))
     const pickUpsLeft = () => w.toasts.filter(toast => toast.includes('pick-up'))
 
-    w.elsewhere(meta('sr-0rders', 'Standing orders', W3, ELSEWHERE), ELSEWHERE.key)
+    w.elsewhere(meta('sr-0sh1ft', 'Shift schedules', W3, ELSEWHERE), ELSEWHERE.key)
     await w.clock.advance(MIN)
     await pickUpLedgers(ui)
     await ui.press({ key: `pick:${w.item(asked)}` })
@@ -352,7 +352,7 @@ test(
 
     const [own] = w.state.queue?.filter(reply => reply.verdict === 'yes') ?? []
 
-    await w.call('join', { session: 'sr-0rders' })
+    await w.call('join', { session: 'sr-0sh1ft' })
     expect(pickUpsLeft(), 'carried, it stays as the window joins').toEqual([])
 
     await ui.press({ key: w.takeBack() })
@@ -532,12 +532,12 @@ test(
     const w = world($, on)
     const { ui } = await besideLedger(w, FINISHED)
 
-    w.elsewhere(meta('sr-0rders', 'Standing orders', W3, ELSEWHERE), ELSEWHERE.key)
+    w.elsewhere(meta('sr-0sh1ft', 'Shift schedules', W3, ELSEWHERE), ELSEWHERE.key)
     await w.clock.advance(MIN)
     await pickUpLedgers(ui)
     await w.turnStarts('Carry on.')
     await ui.press({ key: 'send' })
-    await w.call('join', { session: 'sr-0rders' })
+    await w.call('join', { session: 'sr-0sh1ft' })
     await w.turnEnds()
     await w.clock.settle()
 

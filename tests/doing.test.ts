@@ -4,7 +4,7 @@ import { HEARTBEAT_MS, metaText, parsePresence, sessionPaths, type SessionPaths 
 import { rewriteAt, STATE_MS } from '../hooks/doing'
 import type { SitrepActivity, SitrepAttachment } from '../types'
 import { AGENT, META, T0, W1, W2 } from './support'
-import { CONVERSATION, DASHBOARD, PROJECT, ROOT, startedId, world } from './world'
+import { CONVERSATION, HELP_DESK, PROJECT, ROOT, startedId, world } from './world'
 
 tier('user')
 
@@ -603,7 +603,7 @@ test('a window holding no session writes no heartbeat, but keeps its state, and 
 
   expect(w.written).toEqual([])
 
-  const id = startedId(await w.call('start', DASHBOARD))
+  const id = startedId(await w.call('start', HELP_DESK))
   const paths = sessionPaths(ROOT, PROJECT.key, id)
 
   expect(stateIn(w, paths)).toMatchObject({ is: 'working', since: T0 })

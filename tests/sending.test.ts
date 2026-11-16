@@ -430,7 +430,7 @@ test('an answer in flight barred by an inbox answer comes back on its way once t
 
 test("a parked item's pick-up in flight is on its way from the claim, and bars a second", () => {
   const parked = sessionOf(
-    [[T0, park('p1', 'A tmux indicator across sessions')]],
+    [[T0, park('p1', 'A priority badge across all tabs')]],
     windowOn(W1, sending({ id: 'r4', item: 'p1', verdict: 'pickup' })),
   )
   const [item] = parked.parked

@@ -40,7 +40,7 @@ const POSTED: Line[] = [
   [T0, choiceAsk('k2', 'Keep the sidebar, or drop it?', ['Keep it', 'Drop it'])],
   [T0, wordsAsk('k3', 'Run the export', "the command's output")],
   [T0, note('n1', 'Merged')],
-  [T0, park('p1', 'A tmux indicator')],
+  [T0, park('p1', 'A priority badge')],
 ]
 
 /** The CLI's letters in the session's inbox, as lines. */

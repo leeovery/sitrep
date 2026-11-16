@@ -26,7 +26,7 @@ const SITREP: ProjectFile = {
   by: W1,
 }
 
-const DASHBOARD = { name: 'Dashboard', summary: 'Area by area' }
+const HELP_DESK = { name: 'Help desk', summary: 'Area by area' }
 
 test("a project's name matches another's ignoring case, spaces and punctuation, never its letters", () => {
   for (const name of ['SitRep', 'sitrep', 'Sit Rep', 'SIT-REP', ' sit_rep! ']) {
@@ -133,21 +133,21 @@ test('the projects living around a folder come first, the nearest first, the res
 })
 
 test("start takes the project's name, and its directory as an absolute path, the slashes after it dropped", () => {
-  expect(checkStart({ ...DASHBOARD, project: '  SitRep\n' })).toEqual({
+  expect(checkStart({ ...HELP_DESK, project: '  SitRep\n' })).toEqual({
     ok: true,
-    value: { ...DASHBOARD, project: 'SitRep', directory: undefined },
+    value: { ...HELP_DESK, project: 'SitRep', directory: undefined },
   })
   expect(
-    checkStart({ ...DASHBOARD, project: 'SitRep', directory: ' /Users/me/sitrep// ' }),
+    checkStart({ ...HELP_DESK, project: 'SitRep', directory: ' /Users/me/sitrep// ' }),
   ).toEqual({
     ok: true,
-    value: { ...DASHBOARD, project: 'SitRep', directory: '/Users/me/sitrep' },
+    value: { ...HELP_DESK, project: 'SitRep', directory: '/Users/me/sitrep' },
   })
-  expect(checkStart({ ...DASHBOARD, project: 'SitRep', directory: '' })).toMatchObject({
+  expect(checkStart({ ...HELP_DESK, project: 'SitRep', directory: '' })).toMatchObject({
     ok: true,
     value: { directory: undefined },
   })
-  expect(checkStart({ ...DASHBOARD, project: 'SitRep', directory: '~/sitrep' }).ok).toBe(false)
+  expect(checkStart({ ...HELP_DESK, project: 'SitRep', directory: '~/sitrep' }).ok).toBe(false)
 })
 
 test('the project tool takes a new name, a directory, or both, and refuses neither', () => {

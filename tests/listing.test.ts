@@ -60,9 +60,9 @@ const busyHere = (cwd = REPO) => {
   t.seed(META, {
     seenAt: NOW,
     lines: [
-      [T0, status(['Drawing Usage'], { next: 'Usage, round 3' })],
+      [T0, status(['Drawing Inbox'], { next: 'Inbox, round 3' })],
       [T0, yesAsk('k1', 'Review round 1')],
-      [T0, park('p1', 'A tmux indicator')],
+      [T0, park('p1', 'A priority badge')],
     ],
   })
   t.seed(LOBBY)
@@ -94,7 +94,7 @@ test("list: each project's current sessions, an open one first, each with its id
     exit: EXIT.done,
     out: [
       'Northwind',
-      '  sr-k3f9qa  Dashboard redesign (open, 1 waiting, 1 parked)',
+      '  sr-k3f9qa  Help desk redesign (open, 1 waiting, 1 parked)',
       '  sr-bbbbbb  Lobby',
       '  sr-cccccc  Old but waiting (1 waiting)',
       '',
@@ -124,8 +124,8 @@ test('list --json: the project the CLI runs in, and each project with its curren
             id: META.id,
             name: META.name,
             summary: META.summary,
-            now: ['Drawing Usage'],
-            next: 'Usage, round 3',
+            now: ['Drawing Inbox'],
+            next: 'Inbox, round 3',
             isOpen: true,
             waiting: 1,
             snoozed: 0,
@@ -179,7 +179,7 @@ test('list: every project, the one the CLI runs in first, then the busiest, the 
   expect((await t.run('list')).out).toBe(
     [
       'Northwind',
-      '  sr-k3f9qa  Dashboard redesign (open, 1 waiting, 1 parked)',
+      '  sr-k3f9qa  Help desk redesign (open, 1 waiting, 1 parked)',
       '  sr-bbbbbb  Lobby',
       '  sr-cccccc  Old but waiting (1 waiting)',
       'Contoso',
@@ -265,7 +265,7 @@ test('list leaves out a finished session, whatever it holds, and a project left 
   expect((await t.run('list')).out).toBe(
     [
       'Northwind',
-      '  sr-k3f9qa  Dashboard redesign (open, 1 waiting, 1 parked)',
+      '  sr-k3f9qa  Help desk redesign (open, 1 waiting, 1 parked)',
       '  sr-cccccc  Old but waiting (1 waiting)',
       'Quiet',
       '  sr-ffffff  Tidying',
@@ -307,11 +307,11 @@ test('board --json: the session as list gives it, its open asks, what it parked,
   t.seed(META, {
     seenAt: NOW,
     lines: [
-      [T0, status(['Drawing Usage'], { next: 'Usage, round 3' })],
+      [T0, status(['Drawing Inbox'], { next: 'Inbox, round 3' })],
       [T0 + 1, yesAsk('k1', 'Review round 1')],
       [T0 + 1, yesAsk('k2', 'Run the apply', 'Done')],
       [T0 + 1, wordsAsk('k3', 'Run sitrep list', "the command's output")],
-      [T0 + 2, park('p1', 'A tmux indicator')],
+      [T0 + 2, park('p1', 'A priority badge')],
       [T0 + 3, note('n1', 'Merged', ['PR #82'])],
       [T0 + 4, resolve('k2')],
     ],
@@ -327,8 +327,8 @@ test('board --json: the session as list gives it, its open asks, what it parked,
       id: META.id,
       name: META.name,
       summary: META.summary,
-      now: ['Drawing Usage'],
-      next: 'Usage, round 3',
+      now: ['Drawing Inbox'],
+      next: 'Inbox, round 3',
       isOpen: true,
       waiting: 2,
       snoozed: 0,
@@ -370,14 +370,14 @@ test('board --json: the session as list gives it, its open asks, what it parked,
         untilItMoves: false,
       },
     ],
-    parked: [{ id: 'p1', title: 'A tmux indicator', where: null, ref: null, at: T0 + 2 }],
+    parked: [{ id: 'p1', title: 'A priority badge', where: null, ref: null, at: T0 + 2 }],
     log: [
       { kind: 'note', id: 'n1', text: 'Merged', detail: ['PR #82'], ref: null, by: W1, at: T0 + 3 },
       {
         kind: 'status',
         id: null,
-        text: 'Status: now drawing Usage',
-        detail: ['Added: Drawing Usage', 'Next: Usage, round 3'],
+        text: 'Status: now drawing Inbox',
+        detail: ['Added: Drawing Inbox', 'Next: Inbox, round 3'],
         ref: null,
         by: W1,
         at: T0,
@@ -451,7 +451,7 @@ test("list --json: a project's parked counts every item parked in it, finished a
   expect((await parkedAround().run('list')).out).toBe(
     [
       'Northwind',
-      '  sr-k3f9qa  Dashboard redesign (open, 1 waiting, 1 parked)',
+      '  sr-k3f9qa  Help desk redesign (open, 1 waiting, 1 parked)',
       '  sr-cccccc  Old but waiting (1 waiting)',
       'Stale',
       '  no current sessions (1 parked)',
@@ -467,13 +467,13 @@ test("board prints the project's parked items, this session's first, each other 
   expect(board.out).toContain(
     [
       'Parked:',
-      '- p1: A tmux indicator',
+      '- p1: A priority badge',
       '- p1, parked by "Old and idle" (session: sr-dddddd): Archive old invoices',
       '- p1, parked by "Lobby" (session: sr-bbbbbb): Theme the lobby',
     ].join('\n'),
   )
   expect(JSON.parse((await t.run('board', '--json', '--session', META.id)).out).parked).toEqual([
-    { id: 'p1', title: 'A tmux indicator', where: null, ref: null, at: T0 },
+    { id: 'p1', title: 'A priority badge', where: null, ref: null, at: T0 },
   ])
 })
 

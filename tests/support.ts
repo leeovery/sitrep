@@ -44,8 +44,8 @@ export const AGENT = 'a1b2c3d4'
 
 export const META: SessionMeta = {
   id: 'sr-k3f9qa',
-  name: 'Dashboard redesign',
-  summary: 'Redesign the dashboard, area by area in Paper',
+  name: 'Help desk redesign',
+  summary: 'Redesign the help desk, page by page in Paper',
   project: 'northwind',
   root: '/Users/me/Code/northwind',
   created: T0,

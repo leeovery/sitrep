@@ -40,8 +40,8 @@ const SESSION = fold(
       [W1]: file(
         [
           T0 + 1 * MIN,
-          status(['Waiting on your review of round 1', 'Drawing Usage, round 2'], {
-            next: 'Usage, round 3',
+          status(['Waiting on your review of round 1', 'Drawing Inbox, round 2'], {
+            next: 'Inbox, round 3',
           }),
         ],
         [
@@ -64,7 +64,7 @@ const SESSION = fold(
         [T0 + 3 * MIN, reply('r1', 'k3', 'comment', { note: 'It fails after the code' })],
         [T0 + 3 * MIN, delivered('r1')],
         [T0 + 4 * MIN, resolve('k4')],
-        [T0 + 5 * MIN, park('p1', 'A tmux indicator')],
+        [T0 + 5 * MIN, park('p1', 'A priority badge')],
         ...[1, 2, 3, 4, 5, 6].map((n): Line => [T0 + (5 + n) * MIN, note(`n${n}`, `Note ${n}`)]),
       ),
     },
@@ -77,18 +77,18 @@ const SESSION = fold(
 test("the board text lists the session's open items by id, for Claude to check and repair", () => {
   expect(boardText(SESSION)).toBe(
     [
-      'sitrep board: Dashboard redesign (sr-k3f9qa)',
-      'Summary: Redesign the dashboard, area by area in Paper',
+      'sitrep board: Help desk redesign (sr-k3f9qa)',
+      'Summary: Redesign the help desk, page by page in Paper',
       'Now:',
       '- Waiting on your review of round 1',
-      '- Drawing Usage, round 2',
-      'Next: Usage, round 3',
+      '- Drawing Inbox, round 2',
+      'Next: Inbox, round 3',
       'Open asks:',
       '- k1 wants a yes (Approve), waiting on Lee: Review round 1; where: In Paper: page "round 1"',
       '- k2 wants a choice, waiting on Lee: Keep the ledger 400 days, or forever?; options: 400 days | Forever',
       '- k3 wants a yes (It works), Lee replied, yours to act on (comment: “It fails after the code”): Try it on the iPad',
       'Parked:',
-      '- p1: A tmux indicator',
+      '- p1: A priority badge',
       'Latest notes:',
       '- n6: Note 6',
       '- n5: Note 5',
@@ -125,7 +125,7 @@ test("the board text's Parked is the project's: what the session parked first, t
   expect(boardText(SESSION, parked)).toContain(
     [
       'Parked:',
-      '- p1: A tmux indicator',
+      '- p1: A priority badge',
       '- p1, parked by "Invoice ledger" (session: sr-1edger): Export the ledger as CSV; where: In the spec',
       '- m2p8, parked by "Themes" (session: sr-themes): A dark theme',
       '- p2, parked by "Invoice ledger" (session: sr-1edger): Archive old invoices',
@@ -149,8 +149,8 @@ test('the board text never tells Claude a reply it has not been delivered', () =
 test('an empty board says so in every section', () => {
   expect(boardText(fold({ logs: {} }))).toBe(
     [
-      'sitrep board: Dashboard redesign (sr-k3f9qa)',
-      'Summary: Redesign the dashboard, area by area in Paper',
+      'sitrep board: Help desk redesign (sr-k3f9qa)',
+      'Summary: Redesign the help desk, page by page in Paper',
       'Now:',
       '- none',
       'Next: none',
@@ -177,7 +177,7 @@ test('the board listing gives each session a line: its project, its id, its name
     [
       'On the board:',
       '- Contoso: sr-eeeeee "Onboarding"',
-      '- Northwind: sr-k3f9qa "Dashboard redesign", 2 waiting on Lee',
+      '- Northwind: sr-k3f9qa "Help desk redesign", 2 waiting on Lee',
       '- Northwind: sr-1edger "Invoice ledger"',
     ].join('\n'),
   )
@@ -242,7 +242,7 @@ test('a conversation starts knowing how to keep the board and talk to Lee beside
   ).toBe(guide)
   expect(startText(projects)).toBe(`${guide}\n${onBoardText(projects)}`)
   expect(startText(projects, summarise(SESSION))).toBe(
-    `${guide}\n${onBoardText(projects)}\nThis window already holds sr-k3f9qa (Dashboard redesign): post to its board as you go.`,
+    `${guide}\n${onBoardText(projects)}\nThis window already holds sr-k3f9qa (Help desk redesign): post to its board as you go.`,
   )
 })
 
@@ -296,13 +296,13 @@ test("Claude's listing counts snoozed asks apart from those waiting on Lee, one 
   expect([told.waiting, told.snoozed]).toEqual([0, 4])
   expect([summarise(SNOOZED).waiting, summarise(SNOOZED).snoozed]).toEqual([0, 3])
   expect(onBoardText([summariseProject('northwind', [told])])).toBe(
-    'On the board:\n- Northwind: sr-k3f9qa "Dashboard redesign", 4 snoozed by Lee',
+    'On the board:\n- Northwind: sr-k3f9qa "Help desk redesign", 4 snoozed by Lee',
   )
   expect(
     onBoardText([summariseProject('northwind', [{ ...told, waiting: 1, snoozed: 3 }])]),
     'some waiting too',
   ).toBe(
-    'On the board:\n- Northwind: sr-k3f9qa "Dashboard redesign", 1 waiting on Lee, 3 snoozed by Lee',
+    'On the board:\n- Northwind: sr-k3f9qa "Help desk redesign", 1 waiting on Lee, 3 snoozed by Lee',
   )
   expect(
     toldSummary(snoozedAt(NOW, [T0 + 3 * MIN, finish('lee')])),

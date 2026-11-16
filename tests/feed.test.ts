@@ -223,7 +223,7 @@ test("a session with an ask is a row in Needs you, the ask a line of it, its tit
     section: 'needsYou',
     isAway: false,
     project: 'northwind',
-    name: 'Dashboard redesign',
+    name: 'Help desk redesign',
     projectName: 'Northwind',
     letters: 'No',
     lines: [
@@ -235,12 +235,12 @@ test("a session with an ask is a row in Needs you, the ask a line of it, its tit
         since: T0 + MIN,
       },
     ],
-    second: 'Northwind · Dashboard redesign',
+    second: 'Northwind · Help desk redesign',
     since: T0 + MIN,
   })
   expect(rowFor(away)).toMatchObject({
     isAway: true,
-    name: 'Dashboard redesign',
+    name: 'Help desk redesign',
     projectName: 'Northwind',
     lines: [{ key: `ask:${META.id}:k1` }],
     second: 'No window holds it. Carry it on in Claude.',
@@ -266,9 +266,9 @@ test("a session with several asks is one row, a line for each, the newest first;
   expect(row).toMatchObject({
     session: META.id,
     section: 'needsYou',
-    name: 'Dashboard redesign',
+    name: 'Help desk redesign',
     projectName: 'Fabrikam',
-    second: 'Fabrikam · Dashboard redesign',
+    second: 'Fabrikam · Help desk redesign',
     since: T0 + 3 * MIN,
   })
 })
@@ -410,10 +410,10 @@ test("a file tool's path shows from the project's directory where it lies under 
     lines(sessionOf({ presence: windowOn(W1, working(T0, tool)) }), project)[0]?.first
 
   expect(
-    lineFor({ name: 'Read', subject: '/Users/me/Code/northwind/src/Limiter/Dispatcher.php' }),
+    lineFor({ name: 'Read', subject: '/Users/me/Code/northwind/src/Mail/MessageQueue.php' }),
   ).toEqual({
     lead: 'Reading',
-    mono: 'src/Limiter/Dispatcher.php',
+    mono: 'src/Mail/MessageQueue.php',
   })
   expect(lineFor({ name: 'Edit', subject: '/Users/me/Code/northwind-old/a.php' })).toEqual({
     lead: 'Editing',
@@ -443,8 +443,8 @@ test("with no tool running, working and your turn read the board's now, else its
     firstLines(sessionOf({ lines, presence: windowOn(W1, state) }))[0]
 
   for (const state of [working(T0), yourTurn(T0)]) {
-    expect(lineOf(state, [[T0, status(['Drawing Usage', 'Then Orders'])]])).toEqual({
-      lead: 'Drawing Usage',
+    expect(lineOf(state, [[T0, status(['Drawing Inbox', 'Then Macros'])]])).toEqual({
+      lead: 'Drawing Inbox',
     })
     expect(lineOf(state, [[T0, status([])]])).toEqual({ lead: META.summary })
     expect(lineOf(state, [[T0, status([], { summary: '' })]])).toEqual({ lead: META.name })
@@ -539,11 +539,11 @@ test("on its own work with nothing to say of what it waits on, as a heartbeat wh
   expect(
     firstLines(
       sessionOf({
-        lines: [[T0, status(['Drawing Usage'])]],
+        lines: [[T0, status(['Drawing Inbox'])]],
         presence: windowOn(W1, onItsWork(T0)),
       }),
     ),
-  ).toEqual([{ lead: 'Drawing Usage' }])
+  ).toEqual([{ lead: 'Drawing Inbox' }])
 })
 
 test('of several windows, the row is the one working, else the one on its own work whose turn ended last, else the one active last', () => {
@@ -576,9 +576,9 @@ test("what a session is doing: its stop shown first, else its turn row's window,
       ...windowOn(W2, yourTurn(T0 + MIN)),
     }),
   ).toEqual({ is: 'working', line: { lead: 'Reading', mono: 'a.ts' }, since: T0 })
-  expect(doing(windowOn(W1, yourTurn(T0 + MIN)), [[T0, status(['Drawing Usage'])]])).toEqual({
+  expect(doing(windowOn(W1, yourTurn(T0 + MIN)), [[T0, status(['Drawing Inbox'])]])).toEqual({
     is: 'yourTurn',
-    line: { lead: 'Drawing Usage' },
+    line: { lead: 'Drawing Inbox' },
     since: T0 + MIN,
   })
   expect(
@@ -591,7 +591,7 @@ test("what a session is doing: its stop shown first, else its turn row's window,
     line: { lead: 'Watching', subject: 'CI on main' },
     since: T0 + MIN,
   })
-  expect(doing({}, [[T0 + 5 * MIN, status(['Drawing Usage'])]])).toEqual({
+  expect(doing({}, [[T0 + 5 * MIN, status(['Drawing Inbox'])]])).toEqual({
     is: 'away',
     line: { lead: 'No window holds it. Carry it on in Claude.' },
     since: T0 + 5 * MIN,
@@ -768,8 +768,8 @@ test('the head counts the lines needing Lee, away ones among them, and the rows,
 
 test("a project's two letters: its capitals where it has two, else its first two", () => {
   expect(
-    ['SitRep', 'LitWare', 'Northwind', 'contoso', 'Adventure Works', 'Wingtip 2'].map(lettersOf),
-  ).toEqual(['SR', 'LW', 'No', 'co', 'AW', 'Wi'])
+    ['SitRep', 'BlueYonder', 'Northwind', 'contoso', 'Adventure Works', 'Wingtip 2'].map(lettersOf),
+  ).toEqual(['SR', 'BY', 'No', 'co', 'AW', 'Wi'])
 })
 
 /** Three sessions of Northwind and one of Contoso, each in a state of its own. */
@@ -996,7 +996,7 @@ test('every session in the feed carries what it parked, oldest first, and when i
       sessions: [
         sessionOf({
           meta: { id: 'sr-aaaaaa', name: 'Working', created: T0 - 90 * MIN },
-          lines: [[T0 + MIN, park('p1', 'A tmux indicator')]],
+          lines: [[T0 + MIN, park('p1', 'A priority badge')]],
           presence: windowOn(W1, working(T0)),
         }),
         sessionOf({ meta: { id: 'sr-bbbbbb', name: 'Quiet', created: T0 - 30 * MIN } }),
@@ -1024,7 +1024,7 @@ test('every session in the feed carries what it parked, oldest first, and when i
       session.parkedItems.map(parked => [parked.id, parked.title, parked.where, parked.at]),
     ]),
   ).toEqual([
-    ['sr-aaaaaa', T0 - 90 * MIN, [['p1', 'A tmux indicator', undefined, T0 + MIN]]],
+    ['sr-aaaaaa', T0 - 90 * MIN, [['p1', 'A priority badge', undefined, T0 + MIN]]],
     ['sr-bbbbbb', T0 - 30 * MIN, []],
     [
       'sr-dddddd',
@@ -1040,7 +1040,7 @@ test('every session in the feed carries what it parked, oldest first, and when i
 test("an item picked up or closed leaves the feed's parked items, and its count", () => {
   const session = sessionOf({
     lines: [
-      [T0, park('p1', 'A tmux indicator')],
+      [T0, park('p1', 'A priority badge')],
       [T0, park('p2', 'Retry the export')],
       [T0, park('p3', 'Tidy the copy')],
       [T0 + MIN, reply('r1', 'p1', 'pickup')],
@@ -1450,7 +1450,7 @@ test('a session Lee snoozed needs Lee no more: its asks and its turn are one row
           wakesAt: WAKES,
         },
       ],
-      second: 'Northwind · Dashboard redesign',
+      second: 'Northwind · Help desk redesign',
       wakesAt: WAKES,
     },
   ])

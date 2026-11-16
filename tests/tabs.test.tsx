@@ -22,13 +22,13 @@ const LEDGER_META: SessionMeta = {
   by: W2,
 }
 
-const CONTOSO = 'sr-0rders'
+const CONTOSO = 'sr-0sh1ft'
 
 /** A session of another project, Contoso. */
 const CONTOSO_META: SessionMeta = {
   id: CONTOSO,
-  name: 'Standing orders',
-  summary: 'Standing orders, area by area',
+  name: 'Shift schedules',
+  summary: 'Shift schedules, area by area',
   project: 'contoso',
   root: '/Users/me/Code/contoso',
   created: T0,
@@ -45,7 +45,7 @@ async function parkedAround(w: World) {
   ledger.write(park('p1', 'Export the ledger as CSV'), park('p2', 'Archive old invoices'))
   ledger.beat()
   await w.begin()
-  await w.call('park', { title: 'A tmux indicator across sessions' })
+  await w.call('park', { title: 'A priority badge across all tabs' })
 }
 
 /** The board on the ledger's view: another session of this project. */
@@ -69,13 +69,13 @@ const headerRows = async (ui: Board, cells: number) =>
   rowsOf(await ui.find({ key: 'header' }), cells).length
 
 /** The board's first row: the home tab, its glyph and this session's name, then All projects. */
-const HOME_FIRST = /^ {2}⌂ Dashboard redesign {2}≡ All projects/
+const HOME_FIRST = /^ {2}⌂ Help desk redesign {2}≡ All projects/
 
 /** A place the board goes, reached from home as Lee reaches it, its title line, and its way back; none at home and on All projects. */
 type Place = { name: string; reach: (ui: Board) => Promise<unknown>; title: string; back?: string }
 
 const PLACES: readonly Place[] = [
-  { name: 'home', reach: async () => undefined, title: 'Dashboard redesign · Northwind' },
+  { name: 'home', reach: async () => undefined, title: 'Help desk redesign · Northwind' },
   {
     name: 'All projects',
     reach: ui => ui.press({ key: 'tab:all' }),
@@ -105,12 +105,12 @@ const PLACES: readonly Place[] = [
       await toProject(ui, ELSEWHERE.key)
       await ui.press({ key: `go:${CONTOSO}` })
     },
-    title: 'Standing orders · Contoso',
+    title: 'Shift schedules · Contoso',
     back: '← Contoso',
   },
 ]
 
-/** This session asking, another of its project asking, and Contoso' session there to visit. */
+/** This session asking, another of its project asking, and Contoso's session there to visit. */
 async function asksAround(w: World) {
   const ledger = w.elsewhere(LEDGER_META)
 
@@ -132,10 +132,10 @@ test('two tabs: home as its glyph, its name and its count, All projects and its 
   for (const props of [WIDE, { ...WIDE, placement: 'inline' as const }]) {
     const ui = await w.opened(props)
     const [tabs, rule] = await header(ui)
-    const lit = '━'.repeat(' ⌂ Dashboard redesign 1 '.length)
+    const lit = '━'.repeat(' ⌂ Help desk redesign 1 '.length)
 
     expect(tabs, props.placement).toBe(
-      `  ⌂ Dashboard redesign 1  ≡ All projects 2${props.placement === 'inline' ? ' [ ✕ close ]' : ''}`,
+      `  ⌂ Help desk redesign 1  ≡ All projects 2${props.placement === 'inline' ? ' [ ✕ close ]' : ''}`,
     )
     expect(rule).toBe(` ${lit}${'─'.repeat(props.bodyColumns - 2 - lit.length)}`)
     expect((await ui.find({ key: 'tab:session' }))?.props.dimColor).toBe(false)
@@ -157,7 +157,7 @@ test('the two tabs are drawn the same in every place: the first lit at home, All
   await asksAround(w)
 
   const ui = await w.opened(WIDE)
-  const first = ' ⌂ Dashboard redesign 1 '.length
+  const first = ' ⌂ Help desk redesign 1 '.length
   const all = ' ≡ All projects 2 '.length
   const rest = '─'.repeat(WIDE.bodyColumns - 2 - first - all)
 
@@ -169,7 +169,7 @@ test('the two tabs are drawn the same in every place: the first lit at home, All
     const [tabs, rule] = await header(ui)
     const lit = await ui.find({ type: 'Box', key: isHome ? 'tab:session:box' : 'tab:all:box' })
 
-    expect(tabs, name).toBe('  ⌂ Dashboard redesign 1  ≡ All projects 2')
+    expect(tabs, name).toBe('  ⌂ Help desk redesign 1  ≡ All projects 2')
     expect(rule, name).toBe(
       isHome
         ? ` ${'━'.repeat(first)}${'─'.repeat(all)}${rest}`
@@ -185,7 +185,7 @@ test("on a narrow board the first tab's name is cut short, and All projects keep
   const w = world($, on)
 
   await w.begin()
-  await w.call('status', { name: 'Redesign the dashboard, area by area' })
+  await w.call('status', { name: 'Redesign the help desk, page by page' })
   await w.call('ask', { wants: 'yes', yes: 'Go', title: 'Give the go for stage 3' })
 
   const narrow = { ...WIDE, bodyColumns: 42 }
@@ -202,13 +202,13 @@ test("on a narrow board the first tab's name is cut short, and All projects keep
     ['tab:all', ` ${'─'.repeat(first)}${'━'.repeat(all)}`],
   ] as const) {
     await ui.press({ key: way })
-    expect(await header(ui), way).toEqual(['  ⌂ Redesign the da… 1  ≡ All projects 1', rule])
+    expect(await header(ui), way).toEqual(['  ⌂ Redesign the he… 1  ≡ All projects 1', rule])
     expect(await cells(), 'the name takes what All projects leaves').toEqual([first, all])
   }
 
   await ui.redraw(WIDE)
   expect((await header(ui))[0], 'wide, the whole name').toMatch(
-    /^ {2}⌂ Redesign the dashboard, area by area 1 {2}≡ All projects 1$/,
+    /^ {2}⌂ Redesign the help desk, page by page 1 {2}≡ All projects 1$/,
   )
 })
 
@@ -222,8 +222,8 @@ test("inline, at phone width and wider, the tab row ends with the board's own wi
   const close = '[ ✕ close ]'
 
   for (const [props, name] of [
-    [{ ...INLINE, bodyColumns: 46 }, 'Dashboar…'],
-    [{ ...WIDE, placement: 'inline' as const }, 'Dashboard redesign'],
+    [{ ...INLINE, bodyColumns: 46 }, 'Help des…'],
+    [{ ...WIDE, placement: 'inline' as const }, 'Help desk redesign'],
   ] as const) {
     const ui = await w.opened(props)
     const width = props.bodyColumns - 2
@@ -416,11 +416,11 @@ test('a way back longer than the line is cut short at its edge, and the title li
   const expected = {
     46: {
       back: ' ← The Customer Intake Rebuild Programme, ph…',
-      title: ' Standing orders · The Customer Intake Rebui…',
+      title: ' Shift schedules · The Customer Intake Rebui…',
     },
     60: {
       back: ' ← The Customer Intake Rebuild Programme, phase two of the…',
-      title: ' Standing orders · The Customer Intake Rebuild Programme, …',
+      title: ' Shift schedules · The Customer Intake Rebuild Programme, …',
     },
   }
 

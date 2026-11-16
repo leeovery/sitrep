@@ -8,7 +8,7 @@ import {
   type SessionMeta,
 } from '../core'
 import { META, MIN, note, T0, W1, W2, W3, yesAsk } from './support'
-import { DASHBOARD, HOME, PROJECT, REPO, ROOT, CONVERSATION, startedId, world } from './world'
+import { HELP_DESK, HOME, PROJECT, REPO, ROOT, CONVERSATION, startedId, world } from './world'
 
 tier('user')
 
@@ -107,12 +107,12 @@ test("a directory given is the project's: a new one keeps it, one with none take
 
   await $.session.start(CONVERSATION)
   await w.call('start', { ...BOARD, directory: `${SITREP_HOME}/` })
-  await w.call('start', DASHBOARD)
+  await w.call('start', HELP_DESK)
 
   expect(fileIn(w, 'sitrep')?.directory).toBe(SITREP_HOME)
   expect(fileIn(w, PROJECT.key)?.directory).toBeUndefined()
 
-  const given = await w.call('start', { ...DASHBOARD, name: 'Lobby', directory: REPO })
+  const given = await w.call('start', { ...HELP_DESK, name: 'Lobby', directory: REPO })
 
   expect(String(given.result)).toContain(', in the existing project Northwind. Record ')
   expect(fileIn(w, PROJECT.key)).toEqual({
@@ -293,7 +293,11 @@ test('a conversation resumed in any folder takes up the session it was last seen
   const w = world($, on, { now: T0 + 10 * MIN })
 
   threeProjects(w)
-  w.beat('sr-fabr1k', { writer: W1, attachedAt: T0, seenAt: T0 + MIN, leftAt: T0 + MIN }, 'fabrikam')
+  w.beat(
+    'sr-fabr1k',
+    { writer: W1, attachedAt: T0, seenAt: T0 + MIN, leftAt: T0 + MIN },
+    'fabrikam',
+  )
   w.beat(
     'sr-eeeeee',
     { writer: W1, attachedAt: T0, seenAt: T0 + 5 * MIN, leftAt: T0 + 5 * MIN },

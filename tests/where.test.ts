@@ -131,7 +131,11 @@ test('outside tmux, or with $TMUX and no pane, there is no tmux', () => {
 test('in zmx, the session is $ZMX_SESSION whole, its spaces and · kept, beside the device and the terminal; none when empty', () => {
   expect(
     whereOf({ ZMX_SESSION: 'litware · invoice-card', TERM_PROGRAM: 'ghostty' }, '/dev/ttys087'),
-  ).toEqual({ device: '/dev/ttys087', terminal: 'ghostty', zmx: { session: 'litware · invoice-card' } })
+  ).toEqual({
+    device: '/dev/ttys087',
+    terminal: 'ghostty',
+    zmx: { session: 'litware · invoice-card' },
+  })
   expect(whereOf({ ZMX_SESSION: '', TERM_PROGRAM: 'ghostty' })).toEqual({ terminal: 'ghostty' })
 })
 

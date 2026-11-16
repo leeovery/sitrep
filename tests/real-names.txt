@@ -1,10 +1,18 @@
-# Names no test's sample data may use: Lee's real projects, and ids of his
-# real sessions and project folders. Samples use placeholders instead:
+# Names no test's sample data may use: Lee's real projects, and the ids of
+# his real sessions and project folders. Samples use placeholders instead:
 # Microsoft's fictional companies (Northwind, Contoso, Fabrikam, Tailspin,
-# Woodgrove, Litware, Wingtip, Adventure Works, Proseware) and made-up ids.
+# Woodgrove, Litware, Wingtip, Adventure Works, Proseware, Blue Yonder) and
+# made-up ids.
 #
-# One name per line, as written; a line starting with # is a comment, and a
-# blank line is nothing. Kept plain, so a check in either suite reads it.
+# The rule: each name is matched case-sensitively, as a whole word, in
+# sample data (string literals and fixture files), not in comments or
+# identifiers.
+#
+# The format, kept plain so a check in either suite reads it: one entry per
+# line; a line starting with # is a comment, and a blank line is nothing.
+# An entry is a name, or a known legitimate hit, written
+#   allow <path> <text>
+# its path from the repository's root, its text the name as it stands there.
 
 # Projects
 Switchboard
@@ -20,12 +28,15 @@ Folio
 Mint
 Agentic Workflows
 Agentic Skills
+Laravel Idempotency
 Leeway
 rootshell
 Aircon
 Goosemates
 Fumi
 Terrace
+Dotfiles
+dex
 agntc
 
 # Sessions
@@ -42,3 +53,13 @@ sr-v1pwm9
 
 # Project folders
 code-84dbac88
+switchboard-7a75d7ba
+dotfiles-dd9378a2
+
+# Lee's own
+leeovery
+
+# Allowed: the product's own text, which names Switchboard as an example of
+# a project's name, asserted word for word.
+allow tests/claude.test.ts Switchboard
+allow tests/tools.test.ts Switchboard

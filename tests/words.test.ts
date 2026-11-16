@@ -36,7 +36,7 @@ const FEEDBACK = wordsAsk('k2', 'Say how round 2 reads')
 const GO = yesAsk('k3', 'Give the go for stage 3', 'Go')
 const FRAMES = choiceAsk('k4', 'Ship round 2, or redraw?', ['Ship it', 'Redraw'])
 const OLD = kindAsk('k5', 'do', 'Run the apply', { needs: OUTPUT })
-const PARKED = park('p1', 'A tmux indicator')
+const PARKED = park('p1', 'A priority badge')
 
 const SESSION = fold({
   logs: {
@@ -188,7 +188,7 @@ test('words of several lines arrive fenced under their reply, every line kept; t
       '  after the copy pass',
       '  ```',
       '  This closes the ask: nothing more to do with it.',
-      '- Pick up from parked: A tmux indicator.',
+      '- Pick up from parked: A priority badge.',
       '  ```',
       '  Before the release',
       '  with the band',

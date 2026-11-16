@@ -22,10 +22,10 @@ import { META, T0, W1 } from './support'
 const EVERY_KIND: Body[] = [
   {
     type: 'status',
-    name: 'Dashboard redesign',
+    name: 'Help desk redesign',
     summary: 'Area by area',
-    now: ['Drawing Usage, round 2'],
-    next: 'Usage, round 3',
+    now: ['Drawing Inbox, round 2'],
+    next: 'Inbox, round 3',
   },
   {
     type: 'ask',
@@ -46,7 +46,7 @@ const EVERY_KIND: Body[] = [
   {
     type: 'park',
     id: 'p1q2',
-    title: 'A tmux indicator across sessions',
+    title: 'A priority badge across all tabs',
     where: 'DESIGN.md, Later',
   },
   { type: 'resolve', item: 'k3f9', reason: 'Decided in the chat' },
@@ -114,7 +114,7 @@ test('a torn last line is skipped and the lines before it stand', () => {
 })
 
 for (const [why, line] of [
-  ['that is not JSON', 'Drawing Usage'],
+  ['that is not JSON', 'Drawing Inbox'],
   ['that is a list', '[1,2,3]'],
   ['of a kind no reader knows', `{"v":1,"at":${T0},"seq":1,"type":"vote","id":"x"}`],
   ['of a later version', `{"v":2,"at":${T0},"seq":1,"type":"note","id":"n1","text":"hi"}`],

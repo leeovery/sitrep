@@ -13,7 +13,7 @@ type Board = Awaited<ReturnType<World['opened']>>
 const LEDGER = 'sr-1edger'
 const THEMES = 'sr-themes'
 const LOBBY = 'sr-10bbyy'
-const ORDERS = 'sr-0rders'
+const SHIFTS = 'sr-0sh1ft'
 
 const meta = (id: string, name: string, by: string, project = 'northwind'): SessionMeta => ({
   id,
@@ -31,7 +31,7 @@ const MINE = sessionPaths(ROOT, PROJECT.key, THEMES).log(W1)
 /**
  * This session with an ask, beside three others of its project, each with
  * an ask: the ledger, open in another window; Themes, with no window; and
- * the lobby, already finished. Contoso' one session is finished too, its
+ * the lobby, already finished. Contoso's one session is finished too, its
  * ask still open. A minute on, Lee opens the board, drawn as `props` say.
  */
 async function around(w: World, props?: RenderPropsOf['Pane']) {
@@ -43,14 +43,14 @@ async function around(w: World, props?: RenderPropsOf['Pane']) {
     yesAsk('k5', 'Check the lobby', 'Done'),
     finish('lee'),
   )
-  w.elsewhere(meta(ORDERS, 'Standing orders', W4, 'contoso'), ELSEWHERE.key).write(
-    yesAsk('k6', 'Review the standing orders'),
+  w.elsewhere(meta(SHIFTS, 'Shift schedules', W4, 'contoso'), ELSEWHERE.key).write(
+    yesAsk('k6', 'Review the shift schedules'),
     finish('claude', 'Shipped'),
   )
 
   const { id } = await w.begin()
 
-  await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review Orders & Invoices, round 1' })
+  await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review Tickets & Replies, round 1' })
   await w.clock.advance(MIN)
   ledger.beat()
 
@@ -189,10 +189,10 @@ test('a session Claude finished counts nothing in its own window: the band and t
   const ui = await w.opened(WIDE)
 
   expect(await band.find({ key: 'band:asks', text: '1 ask' })).toBeDefined()
-  expect(rowsOf(await ui.find({ key: 'tab:session:box' }))).toEqual([' ⌂ Dashboard redesign 1'])
+  expect(rowsOf(await ui.find({ key: 'tab:session:box' }))).toEqual([' ⌂ Help desk redesign 1'])
 
   await w.call('finish', { reason: 'Shipped' })
 
   expect(await band.find({ key: 'band:asks', text: '0 asks' })).toBeDefined()
-  expect(rowsOf(await ui.find({ key: 'tab:session:box' }))).toEqual([' ⌂ Dashboard redesign'])
+  expect(rowsOf(await ui.find({ key: 'tab:session:box' }))).toEqual([' ⌂ Help desk redesign'])
 })
