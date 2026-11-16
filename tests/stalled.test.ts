@@ -4,7 +4,7 @@ import { activityNow } from '../hooks/activity'
 import { throughCall } from '../hooks/doing'
 import type { Host } from '../hooks/host'
 import { loadedNow } from '../hooks/load'
-import { T0 } from './support'
+import { T0 } from './data'
 
 /** What never settles. */
 const never = () => new Promise<never>(() => {})

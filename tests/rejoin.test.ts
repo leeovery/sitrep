@@ -1,21 +1,7 @@
 import { expect, test } from './kit'
 import { lastSeen, rejoinable, type Session } from '../core'
-import {
-  beat,
-  file,
-  finish,
-  fold,
-  MIN,
-  META,
-  note,
-  reply,
-  SENDER,
-  status,
-  T0,
-  W1,
-  W2,
-  yesAsk,
-} from './support'
+import { META, MIN, SENDER, T0, W1, W2 } from './data'
+import { beat, file, finish, fold, note, reply, status, yesAsk } from './lines'
 
 /** The session under test under another id. */
 const as = (id: string, session: Session): Session => ({ ...session, id })

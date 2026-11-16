@@ -2,8 +2,9 @@ import type { RenderPropsOf } from 'claude-code'
 import { expect, test, tier } from './kit'
 import { parseEntries, sessionPaths, type SessionMeta } from '../core'
 import { rowsOf } from './drawn'
-import { file, finish, MIN, note, park, SLOW, T0, W1, W2, W3, W4, yesAsk } from './support'
-import { ELSEWHERE, PROJECT, ROOT, toProject, WIDE, world } from './world'
+import { ELSEWHERE, MIN, PROJECT, ROOT, T0, W1, W2, W3, W4 } from './data'
+import { file, finish, note, park, yesAsk } from './lines'
+import { toProject, WIDE, world } from './world'
 
 tier('user')
 
@@ -71,7 +72,6 @@ const visit = async (ui: Board, session: string) => {
 
 test(
   'a finished session drops out of the project and All projects, and its asks count nowhere',
-  SLOW,
   async ($, on) => {
     const w = world($, on)
     const { id, ui } = await around(w, WIDE)

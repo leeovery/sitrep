@@ -2,7 +2,7 @@ import { expect, test, tier } from './kit'
 import { hoverScope } from '../hooks/draw/kit'
 import { C, GLYPH } from '../hooks/look'
 import { rowsOf } from './drawn'
-import { MIN } from './support'
+import { MIN } from './data'
 import { ACROSS, postedId, world } from './world'
 
 tier('user')

@@ -7,8 +7,9 @@ import { expect, test, tier } from './kit'
 import { metaText, parseEntries, parsePresence, sessionPaths } from '../core'
 import { WATCH_MS } from '../hooks/window'
 import type { SitrepInFlight } from '../types'
-import { CLOSES, file, META, SLOW, T0, W1, yesAsk } from './support'
-import { CONVERSATION, PROJECT, ROOT, world } from './world'
+import { CLOSES, META, PROJECT, ROOT, T0, W1 } from './data'
+import { file, yesAsk } from './lines'
+import { CONVERSATION, world } from './world'
 
 tier('user')
 
@@ -33,7 +34,7 @@ const FIRST = held('k1', 'Review round 1', 'r7', T0 + 20_000)
 
 const SECOND = held('k2', 'Review round 2', 'r8', T0 + 30_000)
 
-test("a reload with two sends held says both in its heartbeat in the order sent, and sends them in that order, the second once Claude's turn on the first has ended", SLOW, async ($, on) => {
+test("a reload with two sends held says both in its heartbeat in the order sent, and sends them in that order, the second once Claude's turn on the first has ended", async ($, on) => {
   const w = world($, on, { now: NOW })
   const left: Record<string, unknown> = {
     attachment: { project: PROJECT.key, session: META.id, writer: W1, attachedAt: T0 },

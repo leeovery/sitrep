@@ -3,18 +3,8 @@ import type { Body } from '../core'
 import { C } from '../hooks/look'
 import { WATCH_MS } from '../hooks/window'
 import { rowsOf } from './drawn'
-import {
-  choiceAsk,
-  delivered,
-  file,
-  MIN,
-  reply,
-  resolve,
-  T0,
-  W2,
-  yesAsk,
-  type Line,
-} from './support'
+import { MIN, T0, W2 } from './data'
+import { choiceAsk, delivered, file, reply, resolve, yesAsk, type Line } from './lines'
 import { ACROSS, DOCKED, postedId, world } from './world'
 
 tier('user')

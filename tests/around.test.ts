@@ -8,23 +8,9 @@ import {
   type SessionPaths,
 } from '../core'
 import { AROUND_MS } from '../hooks/around'
-import {
-  beat,
-  finish,
-  META,
-  note,
-  reopen,
-  resolve,
-  SLOW,
-  snoozeSession,
-  T0,
-  unfinish,
-  W1,
-  W2,
-  W3,
-  yesAsk,
-} from './support'
-import { ELSEWHERE, ROOT, toProject, world } from './world'
+import { ELSEWHERE, META, ROOT, T0, W1, W2, W3 } from './data'
+import { beat, finish, note, reopen, resolve, snoozeSession, unfinish, yesAsk } from './lines'
+import { toProject, world } from './world'
 
 tier('user')
 
@@ -62,7 +48,7 @@ test('a line posted in a session around shows within a look', async ($, on) => {
   expect(around(w, LEDGER.id)?.asks.map(ask => ask.id)).toEqual(['k3', 'k4'])
 })
 
-test('a window around going stale shows within a look, though no file changed', SLOW, async ($, on) => {
+test('a window around going stale shows within a look, though no file changed', async ($, on) => {
   const w = world($, on)
 
   w.elsewhere(LEDGER).beat()

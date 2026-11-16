@@ -12,17 +12,8 @@ import { QUIET_MS } from '../hooks/deliver'
 import { SEND_NOW } from '../hooks/draw/ready'
 import { WATCH_MS } from '../hooks/window'
 import { rowsOf } from './drawn'
-import { CLOSES, MIN, SLOW, W1 } from './support'
-import {
-  CONVERSATION,
-  HELP_DESK,
-  DOCKED,
-  INLINE,
-  postedId,
-  PROJECT,
-  world,
-  writeDoor,
-} from './world'
+import { CLOSES, HELP_DESK, MIN, PROJECT, W1 } from './data'
+import { CONVERSATION, DOCKED, INLINE, postedId, world, writeDoor } from './world'
 
 tier('user')
 
@@ -140,7 +131,7 @@ const twoHeld = async (w: World, ui: Pane, ids: readonly string[]) => {
 /** The toasts saying a send did not go. */
 const notSent = (w: World) => w.toasts.filter(toast => toast.startsWith('Not sent'))
 
-test("a send held for Claude's turn is sealed: a reply after it lands in a queue of its own under it, with its own send and cancel all, which reach only that queue", SLOW, async ($, on) => {
+test("a send held for Claude's turn is sealed: a reply after it lands in a queue of its own under it, with its own send and cancel all, which reach only that queue", async ($, on) => {
   const w = world($, on)
   const { paths, ids, ui } = await asking(w)
   const [first = '', second = ''] = ids
@@ -171,7 +162,7 @@ test("a send held for Claude's turn is sealed: a reply after it lands in a queue
   expect(w.state.queue).toEqual([])
 })
 
-test("sent while the first is held, the second queue is a send of its own, held with its own take-back; as Claude's turn ends the first goes in, and the second only once Claude's turn on the first has ended: two prompts, in order", SLOW, async ($, on) => {
+test("sent while the first is held, the second queue is a send of its own, held with its own take-back; as Claude's turn ends the first goes in, and the second only once Claude's turn on the first has ended: two prompts, in order", async ($, on) => {
   const w = world($, on)
   const { paths, ids, ui } = await asking(w)
   const [first = '', second = ''] = ids
@@ -214,7 +205,7 @@ test("sent while the first is held, the second queue is a send of its own, held 
   expect(w.state.inFlight).toBeNull()
 })
 
-test("taking back the first send while a second waits puts its replies back among those still to send, in the order replied; the second, held still, goes alone as Claude's turn ends", SLOW, async ($, on) => {
+test("taking back the first send while a second waits puts its replies back among those still to send, in the order replied; the second, held still, goes alone as Claude's turn ends", async ($, on) => {
   const w = world($, on)
   const { paths, ids, ui } = await asking(w)
   const [first = '', second = '', third = ''] = ids
@@ -239,7 +230,7 @@ test("taking back the first send while a second waits puts its replies back amon
   expect(await box(ui)).toEqual([...heading(2), ...toSend(1, 3), ...CONTROLS])
 })
 
-test('taking back the second send puts its replies back among those still to send, the first held still, and only the first goes in', SLOW, async ($, on) => {
+test('taking back the second send puts its replies back among those still to send, the first held still, and only the first goes in', async ($, on) => {
   const w = world($, on)
   const { paths, ids, ui } = await asking(w)
   const [first = '', second = '', third = ''] = ids
@@ -260,7 +251,7 @@ test('taking back the second send puts its replies back among those still to sen
   expect(w.state.queue).toMatchObject([{ item: second }, { item: third }])
 })
 
-test('a pick-up from Parked while a send is held joins no part of it: it is a queue of its own, sent as a message of its own after the first', SLOW, async ($, on) => {
+test('a pick-up from Parked while a send is held joins no part of it: it is a queue of its own, sent as a message of its own after the first', async ($, on) => {
   const w = world($, on)
   const { paths, ids, ui } = await asking(w)
   const [first = ''] = ids
@@ -298,7 +289,7 @@ test('a pick-up from Parked while a send is held joins no part of it: it is a qu
   expect(repliedIn(w, paths)).toEqual([first, parked])
 })
 
-test('one answer to an item across the sends: an ask a held send carries offers no second reply, two quick presses of send claim the queue once, and each item goes in with one reply', SLOW, async ($, on) => {
+test('one answer to an item across the sends: an ask a held send carries offers no second reply, two quick presses of send claim the queue once, and each item goes in with one reply', async ($, on) => {
   const w = world($, on)
   const { paths, ids, ui } = await asking(w)
   const [first = '', second = ''] = ids
@@ -333,7 +324,7 @@ test('one answer to an item across the sends: an ask a held send carries offers 
   expect(w.state.board?.asks.map(ask => ask.state)).toEqual(['closed', 'closed', 'waiting'])
 })
 
-test('a reload with two sends held keeps them both, said in the heartbeat in the order sent, and they go in that order, each as its own prompt', SLOW, async ($, on) => {
+test('a reload with two sends held keeps them both, said in the heartbeat in the order sent, and they go in that order, each as its own prompt', async ($, on) => {
   const w = world($, on)
   const { paths, ids, ui } = await asking(w)
   const [first = '', second = ''] = ids
@@ -359,7 +350,7 @@ test('a reload with two sends held keeps them both, said in the heartbeat in the
   expect(repliedIn(w, paths)).toEqual([first, second])
 })
 
-test('inline, a send held while the pane was closed shows sealed when it opens again, the reply after it a queue of its own; sending that closes the pane, and both wait as sends of their own', SLOW, async ($, on) => {
+test('inline, a send held while the pane was closed shows sealed when it opens again, the reply after it a queue of its own; sending that closes the pane, and both wait as sends of their own', async ($, on) => {
   const w = world($, on)
   const { ids, ui } = await asking(w, INLINE)
   const [first = '', second = ''] = ids
@@ -432,7 +423,7 @@ const answeredInPrompt = async (w: World, engine: Engine) => {
   return { paths, list, review, ui }
 }
 
-test('an answer written in the prompt and sent while Claude is mid-turn, nothing else queued, shows in Ready to send as a send of its own on its way, its words frozen, with its take-back', SLOW, async ($, on) => {
+test('an answer written in the prompt and sent while Claude is mid-turn, nothing else queued, shows in Ready to send as a send of its own on its way, its words frozen, with its take-back', async ($, on) => {
   const w = world($, on)
   const { paths, list, ui } = await answeredInPrompt(w, $)
 
@@ -449,7 +440,7 @@ test('an answer written in the prompt and sent while Claude is mid-turn, nothing
   expect(repliedIn(w, paths)).toEqual([list])
 })
 
-test('a yes given after an answer written in the prompt is held lands in a queue of its own under it, with its own send, and goes as a message of its own after it', SLOW, async ($, on) => {
+test('a yes given after an answer written in the prompt is held lands in a queue of its own under it, with its own send, and goes as a message of its own after it', async ($, on) => {
   const w = world($, on)
   const { paths, list, review, ui } = await answeredInPrompt(w, $)
 
@@ -484,7 +475,7 @@ const startedElsewhere = async (w: World) => {
   await w.clock.advance(WATCH_MS)
 }
 
-test("a send held to a session the board has not read, the window holding another since, still shows on its way there, named as its project's briefs name it, its replies counted, with its line and its take-back", SLOW, async ($, on) => {
+test("a send held to a session the board has not read, the window holding another since, still shows on its way there, named as its project's briefs name it, its replies counted, with its line and its take-back", async ($, on) => {
   const w = world($, on)
   const { ids, ui } = await asking(w)
 
@@ -498,7 +489,7 @@ test("a send held to a session the board has not read, the window holding anothe
   expect(w.state.inFlight).toBeNull()
 })
 
-test('a send after the first, one row for room, names where it goes when that is not the session held', SLOW, async ($, on) => {
+test('a send after the first, one row for room, names where it goes when that is not the session held', async ($, on) => {
   const w = world($, on)
   const { ids, ui } = await asking(w, { ...DOCKED, scroll: { offset: 0, bodyRows: 16 } })
 
@@ -515,7 +506,7 @@ test('a send after the first, one row for room, names where it goes when that is
   expect(await ui.find({ key: w.takeBack(1) })).toBeDefined()
 })
 
-test('the first send refused with a second held behind it: both are let go together, one toast saying so, every reply back among those still to send in the order replied, and the second never submitted', SLOW, async ($, on) => {
+test('the first send refused with a second held behind it: both are let go together, one toast saying so, every reply back among those still to send in the order replied, and the second never submitted', async ($, on) => {
   const w = world($, on)
   const { paths, ids, ui } = await asking(w)
   const [first = '', second = ''] = ids
@@ -535,7 +526,7 @@ test('the first send refused with a second held behind it: both are let go toget
   expect(await box(ui)).toEqual([...heading(2), ...toSend(1, 2), ...CONTROLS])
 })
 
-test('the first send never taken with a second held behind it: both are let go together as its quiet passes, one toast saying so, every reply back among those still to send in the order replied', SLOW, async ($, on) => {
+test('the first send never taken with a second held behind it: both are let go together as its quiet passes, one toast saying so, every reply back among those still to send in the order replied', async ($, on) => {
   const w = world($, on)
   const { paths, ids, ui } = await asking(w)
   const [first = '', second = ''] = ids
@@ -567,7 +558,7 @@ test('the first send never taken with a second held behind it: both are let go t
 })
 
 for (const reason of ['resume', 'prompt_input_exit'] as const) {
-  test(`two sends held as the conversation ends for ${reason}: both are let go, nothing submitted, every reply back among those still to send in the order replied`, SLOW, async ($, on) => {
+  test(`two sends held as the conversation ends for ${reason}: both are let go, nothing submitted, every reply back among those still to send in the order replied`, async ($, on) => {
     const w = world($, on)
     const { paths, ids, ui } = await asking(w)
     const [first = '', second = ''] = ids
@@ -583,7 +574,7 @@ for (const reason of ['resume', 'prompt_input_exit'] as const) {
   })
 }
 
-test('two sends held as a /clear ends the conversation go into the next in turn: the first at once, the second once the turn the first started has ended', SLOW, async ($, on) => {
+test('two sends held as a /clear ends the conversation go into the next in turn: the first at once, the second once the turn the first started has ended', async ($, on) => {
   const w = world($, on)
   const { paths, ids, ui } = await asking(w)
   const [first = '', second = ''] = ids
@@ -603,7 +594,7 @@ test('two sends held as a /clear ends the conversation go into the next in turn:
   expect(w.state.inFlight).toBeNull()
 })
 
-test("a take-back of the first send landing before the turn's end it raced: the second goes in its place, alone, and the first's reply is back among those still to send", SLOW, async ($, on) => {
+test("a take-back of the first send landing before the turn's end it raced: the second goes in its place, alone, and the first's reply is back among those still to send", async ($, on) => {
   const w = world($, on)
   const going = writeDoor(on)
   const { paths, ids, ui } = await asking(w)
@@ -625,7 +616,7 @@ test("a take-back of the first send landing before the turn's end it raced: the 
   expect(w.state.inFlight).toBeNull()
 })
 
-test("a send behind one submitted waits for the turn that one starts: its submit resolving before that turn is heard, a press of send and the window's looks submit nothing, and each goes once the turn before it has ended", SLOW, async ($, on) => {
+test("a send behind one submitted waits for the turn that one starts: its submit resolving before that turn is heard, a press of send and the window's looks submit nothing, and each goes once the turn before it has ended", async ($, on) => {
   const w = world($, on)
   const { paths, ids, ui } = await asking(w)
   const [first = '', second = '', third = ''] = ids
@@ -655,7 +646,7 @@ test("a send behind one submitted waits for the turn that one starts: its submit
   expect(repliedIn(w, paths)).toEqual([first, second, third])
 })
 
-test("a turn another prompt starts while the next send waits on the turn of the one before opens nothing: the next goes only once that one's own turn has started and ended", SLOW, async ($, on) => {
+test("a turn another prompt starts while the next send waits on the turn of the one before opens nothing: the next goes only once that one's own turn has started and ended", async ($, on) => {
   const w = world($, on)
   const { paths, ids, ui } = await asking(w)
   const [first = '', second = ''] = ids
@@ -676,7 +667,7 @@ test("a turn another prompt starts while the next send waits on the turn of the 
   expect(repliedIn(w, paths)).toEqual([first, second])
 })
 
-test("two sends held as Lee stops Claude's turn: the first goes as the stopped turn ends, the second once the turn the first started has ended", SLOW, async ($, on) => {
+test("two sends held as Lee stops Claude's turn: the first goes as the stopped turn ends, the second once the turn the first started has ended", async ($, on) => {
   const w = world($, on)
   const { paths, ids, ui } = await asking(w)
   const [first = '', second = ''] = ids
@@ -695,7 +686,7 @@ test("two sends held as Lee stops Claude's turn: the first goes as the stopped t
   expect(repliedIn(w, paths)).toEqual([first, second])
 })
 
-test('should the turn a submitted send started never be heard, the send behind it goes at the first look once its quiet has passed, nothing let go', SLOW, async ($, on) => {
+test('should the turn a submitted send started never be heard, the send behind it goes at the first look once its quiet has passed, nothing let go', async ($, on) => {
   const w = world($, on)
   const { paths, ids, ui } = await asking(w)
   const [first = '', second = ''] = ids
@@ -751,7 +742,7 @@ const typedCommand = ($: Engine, command: string) =>
     presentation: { isFullscreen: true, columns: 160 },
   })
 
-test("a send Claude Code refuses as Lee stopped Claude's turn is not let go: held, the window marked stopped, no toast, its line drawn with send now, its asks on their way still; it goes once Lee's next turn ends", SLOW, async ($, on) => {
+test("a send Claude Code refuses as Lee stopped Claude's turn is not let go: held, the window marked stopped, no toast, its line drawn with send now, its asks on their way still; it goes once Lee's next turn ends", async ($, on) => {
   const w = world($, on)
   const { paths, ids, ui } = await asking(w)
   const [first = ''] = ids
@@ -786,7 +777,7 @@ test("a send Claude Code refuses as Lee stopped Claude's turn is not let go: hel
   expect(notSent(w)).toEqual([])
 })
 
-test("a subagent's run starting and ending leaves the window stopped and the send unsent", SLOW, async ($, on) => {
+test("a subagent's run starting and ending leaves the window stopped and the send unsent", async ($, on) => {
   const w = world($, on)
   const { ids, ui } = await asking(w)
 
@@ -802,7 +793,7 @@ test("a subagent's run starting and ending leaves the window stopped and the sen
   expect(await box(ui)).toEqual([...heading(1), ...stopped(1)])
 })
 
-test("a send sealed behind the first while the window is stopped stays behind it, saying it goes after Lee's next message: the first goes once his turn ends, the second once the first's own turn has ended", SLOW, async ($, on) => {
+test("a send sealed behind the first while the window is stopped stays behind it, saying it goes after Lee's next message: the first goes once his turn ends, the second once the first's own turn has ended", async ($, on) => {
   const w = world($, on)
   const { paths, ids, ui } = await asking(w)
   const [first = '', second = ''] = ids
@@ -832,7 +823,7 @@ test("a send sealed behind the first while the window is stopped stays behind it
   expect(notSent(w)).toEqual([])
 })
 
-test('taking back the first send while the window is stopped leaves the second held, unsubmitted, now first, with send now', SLOW, async ($, on) => {
+test('taking back the first send while the window is stopped leaves the second held, unsubmitted, now first, with send now', async ($, on) => {
   const w = world($, on)
   const { ids, ui } = await asking(w)
   const [first = '', second = ''] = ids
@@ -850,7 +841,7 @@ test('taking back the first send while the window is stopped leaves the second h
   expect(w.state.board?.waiting, "the first's ask waits on Lee again at once").toBe(2)
 })
 
-test("send pressed while the window is stopped submits from within Lee's press, whatever is first going: refused all the same, it waits, the window stopped again, silently; taken, it goes in", SLOW, async ($, on) => {
+test("send pressed while the window is stopped submits from within Lee's press, whatever is first going: refused all the same, it waits, the window stopped again, silently; taken, it goes in", async ($, on) => {
   const w = world($, on)
   const { paths, ids, ui } = await asking(w)
   const [first = '', second = ''] = ids
@@ -884,7 +875,7 @@ test("send pressed while the window is stopped submits from within Lee's press, 
   expect(repliedIn(w, paths)).toEqual([first, second])
 })
 
-test('send pressed while the window is stopped and nothing is in flight goes in at once from the press', SLOW, async ($, on) => {
+test('send pressed while the window is stopped and nothing is in flight goes in at once from the press', async ($, on) => {
   const w = world($, on)
   const { paths, ids, ui } = await asking(w)
   const [first = '', second = ''] = ids
@@ -902,7 +893,7 @@ test('send pressed while the window is stopped and nothing is in flight goes in 
   expect(repliedIn(w, paths)).toEqual([first, second])
 })
 
-test('send now shows only while the window is stopped, beside the first send held', SLOW, async ($, on) => {
+test('send now shows only while the window is stopped, beside the first send held', async ($, on) => {
   const w = world($, on)
   const { ids, ui } = await asking(w)
 
@@ -916,7 +907,7 @@ test('send now shows only while the window is stopped, beside the first send hel
   expect(await ui.find({ key: 'send-now' })).toBeUndefined()
 })
 
-test("refused again for the same reason after Lee's turn, the window is marked stopped again, nothing lost; the send goes once a later turn of his ends", SLOW, async ($, on) => {
+test("refused again for the same reason after Lee's turn, the window is marked stopped again, nothing lost; the send goes once a later turn of his ends", async ($, on) => {
   const w = world($, on)
   const { paths, ids, ui } = await asking(w)
   const [first = ''] = ids
@@ -941,7 +932,7 @@ test("refused again for the same reason after Lee's turn, the window is marked s
   expect(repliedIn(w, paths)).toEqual([first])
 })
 
-test("a send held while the window was stopped, refused for another reason once Lee's turn ends, is let go as any refusal is, with the send behind it, one toast saying so", SLOW, async ($, on) => {
+test("a send held while the window was stopped, refused for another reason once Lee's turn ends, is let go as any refusal is, with the send behind it, one toast saying so", async ($, on) => {
   const w = world($, on)
   const { paths, ids, ui } = await asking(w)
   const [first = '', second = ''] = ids
@@ -962,7 +953,7 @@ test("a send held while the window was stopped, refused for another reason once 
   expect(repliedIn(w, paths)).toEqual([])
 })
 
-test("taking back the only send while the window is stopped puts its replies back among those still to send, its ask waiting on Lee again at once", SLOW, async ($, on) => {
+test("taking back the only send while the window is stopped puts its replies back among those still to send, its ask waiting on Lee again at once", async ($, on) => {
   const w = world($, on)
   const { paths, ids, ui } = await asking(w)
   const [first = ''] = ids
@@ -985,7 +976,7 @@ test("taking back the only send while the window is stopped puts its replies bac
   expect(notSent(w)).toEqual([])
 })
 
-test("a file-watch reload keeps the window stopped and the send held, the refusal standing; a /clear lifts it, and the send goes into the next conversation at once", SLOW, async ($, on) => {
+test("a file-watch reload keeps the window stopped and the send held, the refusal standing; a /clear lifts it, and the send goes into the next conversation at once", async ($, on) => {
   const w = world($, on)
   const { paths, ids, ui } = await asking(w)
   const [first = ''] = ids
@@ -1009,7 +1000,7 @@ test("a file-watch reload keeps the window stopped and the send held, the refusa
   expect(w.state.inFlight).toBeNull()
 })
 
-test("a prompt Lee types that the answering mode takes lifts the stop, though no turn follows: the send held goes at the next look, and his answer's send after it", SLOW, async ($, on) => {
+test("a prompt Lee types that the answering mode takes lifts the stop, though no turn follows: the send held goes at the next look, and his answer's send after it", async ($, on) => {
   const w = world($, on)
   const { paths, ids, ui } = await asking(w)
   const [first = ''] = ids
@@ -1044,7 +1035,7 @@ test("a prompt Lee types that the answering mode takes lifts the stop, though no
   expect(repliedIn(w, paths)).toEqual([first, words])
 })
 
-test("a prompt of Lee's going on to start a turn leaves the window stopped until that turn starts, so no look puts the send in ahead of it", SLOW, async ($, on) => {
+test("a prompt of Lee's going on to start a turn leaves the window stopped until that turn starts, so no look puts the send in ahead of it", async ($, on) => {
   const w = world($, on)
   const { ids, ui } = await asking(w)
 
@@ -1090,7 +1081,7 @@ const answeredWithImage = ($: Engine) =>
     origin: { kind: 'composer' },
   })
 
-test("an answer going in with an image is a prompt of Lee's going on: the window stays stopped until its turn starts, then the send held goes as that turn ends", SLOW, async ($, on) => {
+test("an answer going in with an image is a prompt of Lee's going on: the window stays stopped until its turn starts, then the send held goes as that turn ends", async ($, on) => {
   const w = world($, on)
   const { paths, ids, ui } = await asking(w)
   const [first = ''] = ids
@@ -1114,7 +1105,7 @@ test("an answer going in with an image is a prompt of Lee's going on: the window
   expect(repliedIn(w, paths)).toEqual([words, first])
 })
 
-test('an answer with an image dropped beneath lifts the stop, though no turn follows: the send held goes at the next look, and the answer still waits on Lee', SLOW, async ($, on) => {
+test('an answer with an image dropped beneath lifts the stop, though no turn follows: the send held goes at the next look, and the answer still waits on Lee', async ($, on) => {
   const w = world($, on)
   const { paths, ids, ui } = await asking(w)
   const [first = ''] = ids
@@ -1148,7 +1139,7 @@ const answeringWhileHeld = async (w: World, ui: Pane, ids: readonly string[]) =>
   return words
 }
 
-test("an answer going in with an image while a send is held goes ahead of it, and the send goes once the answer's own turn has ended", SLOW, async ($, on) => {
+test("an answer going in with an image while a send is held goes ahead of it, and the send goes once the answer's own turn has ended", async ($, on) => {
   const w = world($, on)
   const { paths, ids, ui } = await asking(w)
   const [first = ''] = ids
@@ -1179,7 +1170,7 @@ test("an answer going in with an image while a send is held goes ahead of it, an
   expect(repliedIn(w, paths)).toEqual([words, first])
 })
 
-test("an answer typed while Claude's turn runs holds the send behind it however long that turn runs, until the answer's own turn has started and ended", SLOW, async ($, on) => {
+test("an answer typed while Claude's turn runs holds the send behind it however long that turn runs, until the answer's own turn has started and ended", async ($, on) => {
   const w = world($, on)
   const { paths, ids, ui } = await asking(w)
   const [first = ''] = ids
@@ -1198,7 +1189,7 @@ test("an answer typed while Claude's turn runs holds the send behind it however 
   expect(repliedIn(w, paths)).toEqual([words, first])
 })
 
-test("an answer folded into Claude's running turn, starting no turn of its own, holds the send behind it until the window has been quiet a while after that turn", SLOW, async ($, on) => {
+test("an answer folded into Claude's running turn, starting no turn of its own, holds the send behind it until the window has been quiet a while after that turn", async ($, on) => {
   const w = world($, on)
   const { ids, ui } = await asking(w)
 
@@ -1215,7 +1206,7 @@ test("an answer folded into Claude's running turn, starting no turn of its own, 
   expect(w.submitted).toEqual([RODE, message(1)])
 })
 
-test("an answer whose turn starts before its hook hears back holds the send behind it only until that turn ends", SLOW, async ($, on) => {
+test("an answer whose turn starts before its hook hears back holds the send behind it only until that turn ends", async ($, on) => {
   const w = world($, on)
   const { paths, ids, ui } = await asking(w)
   const [first = ''] = ids
@@ -1237,7 +1228,7 @@ test("an answer whose turn starts before its hook hears back holds the send behi
   expect(repliedIn(w, paths)).toEqual([words, first])
 })
 
-test('while the window is stopped, the first send held behind an answer going in with an image offers no send now, which could not send it', SLOW, async ($, on) => {
+test('while the window is stopped, the first send held behind an answer going in with an image offers no send now, which could not send it', async ($, on) => {
   const w = world($, on)
   const { ids, ui } = await asking(w)
 
@@ -1257,7 +1248,7 @@ test('while the window is stopped, the first send held behind an answer going in
   await typed
 })
 
-test("a prompt another plugin submits, or the SDK's, lifts nothing: only Lee's own input counts", SLOW, async ($, on) => {
+test("a prompt another plugin submits, or the SDK's, lifts nothing: only Lee's own input counts", async ($, on) => {
   const w = world($, on)
   const { ids, ui } = await asking(w)
 
@@ -1274,7 +1265,7 @@ test("a prompt another plugin submits, or the SDK's, lifts nothing: only Lee's o
   expect(isStopped(w)).toBe(true)
 })
 
-test("a slash command Lee types lifts the stop, though no turn follows; nothing is submitted while it runs, and the send held goes at the next look after it", SLOW, async ($, on) => {
+test("a slash command Lee types lifts the stop, though no turn follows; nothing is submitted while it runs, and the send held goes at the next look after it", async ($, on) => {
   let finish = () => {}
   const compacting = new Promise<void>(resolve => {
     finish = resolve
@@ -1309,7 +1300,7 @@ test("a slash command Lee types lifts the stop, though no turn follows; nothing 
   expect(repliedIn(w, paths)).toEqual([first])
 })
 
-test('a /reload-plugins Lee types lifts the stop: the load after it sends the send held at once', SLOW, async ($, on) => {
+test('a /reload-plugins Lee types lifts the stop: the load after it sends the send held at once', async ($, on) => {
   on('command.run', { command: 'reload-plugins' }, () => ({}))
 
   const w = world($, on)
@@ -1327,7 +1318,7 @@ test('a /reload-plugins Lee types lifts the stop: the load after it sends the se
   expect(repliedIn(w, paths)).toEqual([first])
 })
 
-test('a /clear Lee types lifts the stop, and the send held goes into the next conversation at the first look once the command has ended', SLOW, async ($, on) => {
+test('a /clear Lee types lifts the stop, and the send held goes into the next conversation at the first look once the command has ended', async ($, on) => {
   on('command.run', { command: 'clear' }, async () => {
     await $.session.end({ reason: 'clear', sessionId: W1, resume: { id: W1 } })
 
@@ -1353,7 +1344,7 @@ test('a /clear Lee types lifts the stop, and the send held goes into the next co
   expect(repliedIn(w, paths)).toEqual([first])
 })
 
-test("Lee's turn starting between a submit and Claude Code's refusal of it leaves the window unmarked, the send held to go as that turn ends", SLOW, async ($, on) => {
+test("Lee's turn starting between a submit and Claude Code's refusal of it leaves the window unmarked, the send held to go as that turn ends", async ($, on) => {
   const w = world($, on)
   const { paths, ids, ui } = await asking(w)
   const [first = ''] = ids
@@ -1380,7 +1371,7 @@ test("Lee's turn starting between a submit and Claude Code's refusal of it leave
   expect(repliedIn(w, paths)).toEqual([first])
 })
 
-test("Lee's turn starting while the stop is being written lifts it once written", SLOW, async ($, on) => {
+test("Lee's turn starting while the stop is being written lifts it once written", async ($, on) => {
   let arrive = () => {}
   let open = () => {}
   const arrived = new Promise<void>(resolve => {

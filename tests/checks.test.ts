@@ -18,6 +18,7 @@ import {
   type Checked,
   type SessionFiles,
 } from '../core'
+import { MIN, scripted, SENDER, T0, W1 } from './data'
 import {
   beat,
   choiceAsk,
@@ -26,24 +27,19 @@ import {
   finish,
   fold,
   kindAsk,
-  MIN,
   note,
   park,
   reopen,
   reply,
   resolve,
-  scripted,
-  SENDER,
   snooze,
   snoozeSession,
   snoozeTurn,
-  T0,
-  W1,
   wakeSession,
   wordsAsk,
   yesAsk,
   type Line,
-} from './support'
+} from './lines'
 
 /** A board holding one of each item, an ask Lee has commented on, and two asks read from their kinds. */
 const SESSION = fold({

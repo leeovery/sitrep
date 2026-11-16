@@ -15,27 +15,20 @@ import { QUIET_MS, RIDE_LOST } from '../hooks/deliver'
 import { C } from '../hooks/look'
 import { WATCH_MS } from '../hooks/window'
 import { rowsOf } from './drawn'
+import { CLOSES, LEAVES_OPEN, MIN, PROJECT, ROOT, T0, W1, W2, W3 } from './data'
 import {
   beat,
-  CLOSES,
   delivered,
   file,
   finish,
   kindAsk,
-  LEAVES_OPEN,
-  MIN,
   note,
   park,
   reply,
-  SLOW,
-  T0,
-  W1,
-  W2,
-  W3,
   wordsAsk,
   yesAsk,
-} from './support'
-import { BAND, DOCKED, postedId, PROJECT, ROOT, CONVERSATION, toProject, world } from './world'
+} from './lines'
+import { BAND, CONVERSATION, DOCKED, postedId, toProject, world } from './world'
 
 tier('user')
 
@@ -519,7 +512,6 @@ test('one send carries the yes with its comment, the choice and the answer, in o
 
 test(
   'the mode ends once its ask closes: the band shows the counts, and the next Enter goes to Claude',
-  SLOW,
   async ($, on) => {
     const w = world($, on)
     const { id } = await answering(w)
@@ -537,7 +529,6 @@ test(
 
 test(
   'the mode ends once its ask closes in another window, and does not come back when it reopens',
-  SLOW,
   async ($, on) => {
     const w = world($, on)
     const { id } = await answering(w)
@@ -863,7 +854,7 @@ test('a comment with an image going with a queued yes the ask no longer fits is 
   expect(w.state.answering).toMatchObject({ item: id })
 })
 
-test('a comment with an image going with a queued yes is kept once another answer is on its way to the ask, a toast saying why', SLOW, async ($, on) => {
+test('a comment with an image going with a queued yes is kept once another answer is on its way to the ask, a toast saying why', async ($, on) => {
   const w = world($, on)
 
   await w.begin()
@@ -1016,7 +1007,7 @@ test('an answer with an image whose prompt fails beneath is let go, what was que
   expect(stateOf(w, id)).toBe('waiting')
 })
 
-test('an answer with an image is never let go as never taken while its hook waits on Claude Code, however long, nor after a turn ends', SLOW, async ($, on) => {
+test('an answer with an image is never let go as never taken while its hook waits on Claude Code, however long, nor after a turn ends', async ($, on) => {
   const w = world($, on)
   const { id, held, typed } = await ridingHeld(w, $)
 
@@ -1045,7 +1036,7 @@ const leftByReload = async (w: World, engine: Engine) => {
   return id
 }
 
-test('an answer with an image a reload left waiting on its hook is let go once the window has gone quiet without it: what was queued put back, and a toast saying to write it again', SLOW, async ($, on) => {
+test('an answer with an image a reload left waiting on its hook is let go once the window has gone quiet without it: what was queued put back, and a toast saying to write it again', async ($, on) => {
   const w = world($, on)
   const id = await leftByReload(w, $)
 
@@ -1068,7 +1059,7 @@ test('an answer with an image a reload left waiting is written down once its tur
   expect(w.flights()).toEqual([])
 })
 
-test("an answer with an image a reload left, let go with the inbox's replies held behind it, says only that the answer didn't go in", SLOW, async ($, on) => {
+test("an answer with an image a reload left, let go with the inbox's replies held behind it, says only that the answer didn't go in", async ($, on) => {
   const w = world($, on)
   const { paths } = await w.begin()
   const id = await asked(w, GO)
@@ -1396,7 +1387,6 @@ test('a reload keeps picking up: the band still names it, and the next Enter is 
 
 test(
   'picking up ends once the parked item is picked up from elsewhere: the counts are back, and the next Enter goes to Claude',
-  SLOW,
   async ($, on) => {
     const w = world($, on)
     const { id, paths } = await pickingUp(w)
@@ -1458,7 +1448,6 @@ test("picking up another session's parked item from the project's view stands fr
 
 test(
   "picking up another session's parked item stands once its session is finished: the item is its project's",
-  SLOW,
   async ($, on) => {
     const w = world($, on)
     const ledger = await onLedgersParked(w)
@@ -1482,7 +1471,6 @@ test(
 
 test(
   "answering another session's ask still ends once its session is finished",
-  SLOW,
   async ($, on) => {
     const w = world($, on)
     const ui = await onLedgersAsks(w)

@@ -9,32 +9,9 @@ import {
 } from '../core'
 import { AROUND_MS } from '../hooks/around'
 import { SPECS } from '../hooks/tools'
-import {
-  delivered,
-  file,
-  finish,
-  META,
-  MIN,
-  note,
-  park,
-  reply,
-  T0,
-  W1,
-  W2,
-  yesAsk,
-} from './support'
-import {
-  HELP_DESK,
-  ELSEWHERE,
-  PROJECT,
-  REPO,
-  ROOT,
-  CONVERSATION,
-  startedId,
-  postedId,
-  PROMPT,
-  world,
-} from './world'
+import { ELSEWHERE, HELP_DESK, META, MIN, PROJECT, REPO, ROOT, T0, W1, W2 } from './data'
+import { delivered, file, finish, note, park, reply, yesAsk } from './lines'
+import { CONVERSATION, postedId, PROMPT, startedId, world } from './world'
 
 tier('user')
 

@@ -3,23 +3,9 @@ import { CURRENT_MS, sessionPaths, type Body, type SessionMeta } from '../core'
 import { AROUND_MS } from '../hooks/around'
 import { C, GLYPH } from '../hooks/look'
 import { rowsOf } from './drawn'
-import {
-  choiceAsk,
-  file,
-  finish,
-  MIN,
-  note,
-  park,
-  PARKED_BEFORE,
-  status,
-  T0,
-  W2,
-  W3,
-  W4,
-  yesAsk,
-  type Line,
-} from './support'
-import { ELSEWHERE, postedId, PROJECT, ROOT, toProject, WIDE, world } from './world'
+import { ELSEWHERE, MIN, PARKED_BEFORE, PROJECT, ROOT, T0, W2, W3, W4 } from './data'
+import { choiceAsk, file, finish, note, park, status, yesAsk, type Line } from './lines'
+import { postedId, toProject, WIDE, world } from './world'
 
 tier('user')
 

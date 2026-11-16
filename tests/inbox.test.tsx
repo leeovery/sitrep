@@ -2,8 +2,9 @@ import { expect, test, tier } from './kit'
 import { parseEntries, type SessionPaths } from '../core'
 import { FLASH_MS } from '../hooks/deliver'
 import { WATCH_MS } from '../hooks/window'
-import { CLOSES, file, MIN, reply, SENDER, W1, W2 } from './support'
-import { INLINE, postedId, PROJECT, CONVERSATION, world } from './world'
+import { CLOSES, MIN, PROJECT, SENDER, W1, W2 } from './data'
+import { file, reply } from './lines'
+import { CONVERSATION, INLINE, postedId, world } from './world'
 
 tier('user')
 

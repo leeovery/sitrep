@@ -14,32 +14,26 @@ import {
   type Where,
   type WindowState,
 } from '../core'
+import { ELSEWHERE, META, MIN, PLUGIN_VERSION, PROJECT, REPO, ROOT, T0, W1, W2, W3 } from './data'
 import {
   beat,
   delivered,
   file,
   finish,
   kindAsk,
-  META,
-  MIN,
   note,
   park,
   reply,
-  SLOW,
   snoozeSession,
   snoozeTurn,
   status,
-  T0,
   unfinish,
-  W1,
-  W2,
-  W3,
   wakeSession,
   yesAsk,
   type Line,
-} from './support'
-import { CLI_VERSION, MANIFEST, manifestText, NOW, terminal } from './terminal'
-import { ELSEWHERE, PROJECT, REPO, ROOT, WHERE } from './world'
+} from './lines'
+import { WHERE } from './world'
+import { MANIFEST, manifestText, NOW, terminal } from './terminal'
 
 type Terminal = ReturnType<typeof terminal>
 
@@ -208,7 +202,7 @@ const beatOn = (
   const now = t.io.now()
 
   t.files.set(paths.heartbeat(writer), {
-    text: beat(writer, { attachedAt: T0, seenAt: now, version: CLI_VERSION, state, ...times }),
+    text: beat(writer, { attachedAt: T0, seenAt: now, version: PLUGIN_VERSION, state, ...times }),
     mtimeMs: now,
   })
 }
@@ -270,7 +264,7 @@ test('the first line is the board as every surface shows it, with nothing new, n
     {
       v: 3,
       at: NOW,
-      version: CLI_VERSION,
+      version: PLUGIN_VERSION,
       head: { needYou: 1, sessions: 1 },
       rows: [
         {
@@ -362,7 +356,7 @@ test('the first line is the board as every surface shows it, with nothing new, n
           session: META.id,
           name: META.name,
           project: PROJECT.name,
-          version: CLI_VERSION,
+          version: PLUGIN_VERSION,
           needsReload: false,
           where: { device: WHERE.device, terminal: WHERE.terminal, tmux: null, zmx: null },
           directory: REPO,
@@ -604,7 +598,6 @@ test('nothing changed is no line: a heartbeat beating on, saying what it said, p
 
 test(
   'a heartbeat going stale is a line the moment it does, though no file changed',
-  SLOW,
   async () => {
     const { t } = held()
 
@@ -952,7 +945,6 @@ const STOP = `stop:${META.id}:${W1}:${NOW}`
 
 test(
   'a stop gone stale and beating again, saying what it said, is not new again: the watch has shown it',
-  SLOW,
   async () => {
     const { t, paths } = held()
 
@@ -973,7 +965,6 @@ test(
 
 test(
   'the Mac asleep past a heartbeat’s time, the wall clock moving and the uptime not, ages it not: its stop stands through the wake, and goes stale only once the rest of its time has run after',
-  SLOW,
   async () => {
     let slept = 0
     const { t, paths } = held([], { now: () => NOW + slept })
@@ -996,7 +987,6 @@ test(
 
 test(
   'looks held back over and over, as App Nap would, both clocks moving alike, age a heartbeat as ever: a window gone goes stale at the first look past its time',
-  SLOW,
   async () => {
     let stalled = 0
     const { t } = held([], { now: () => NOW + stalled, uptime: () => stalled })
@@ -1020,7 +1010,7 @@ test('a manifest caught torn as the watch starts gives no version until it reads
   const rewrite = (version: string) => () =>
     t.files.set(MANIFEST, { text: manifestText(version), mtimeMs: t.io.now() })
   const { exit, lines } = await watched(t, [
-    rewrite(CLI_VERSION),
+    rewrite(PLUGIN_VERSION),
     still,
     rewrite('0.3.0'),
     ...looks(3),
@@ -1029,7 +1019,7 @@ test('a manifest caught torn as the watch starts gives no version until it reads
   expect({ exit, waits: t.waits.length }).toEqual({ exit: EXIT.done, waits: 3 })
   expect(lines.map(line => [line.at, line.version])).toEqual([
     [NOW, null],
-    [NOW + POLL_MS, CLI_VERSION],
+    [NOW + POLL_MS, PLUGIN_VERSION],
   ])
 })
 
@@ -1074,7 +1064,7 @@ test('a manifest come to say another version ends the watch, exit 0, printing no
   const rewrite = (version: string) => () =>
     t.files.set(MANIFEST, { text: manifestText(version), mtimeMs: t.io.now() })
   const { exit, err, lines } = await watched(t, [
-    rewrite(CLI_VERSION),
+    rewrite(PLUGIN_VERSION),
     () => {
       rewrite('0.3.0')()
       post(t, paths, yesAsk('k2', 'Try it'))
@@ -1083,7 +1073,7 @@ test('a manifest come to say another version ends the watch, exit 0, printing no
   ])
 
   expect({ exit, err, waits: t.waits.length }).toEqual({ exit: EXIT.done, err: '', waits: 2 })
-  expect(lines.map(line => [line.at, line.version])).toEqual([[NOW, CLI_VERSION]])
+  expect(lines.map(line => [line.at, line.version])).toEqual([[NOW, PLUGIN_VERSION]])
 })
 
 test('the run’s end is listened for once, not at each wait: a long watch holds nothing more for it', async () => {
@@ -1297,7 +1287,6 @@ test("a followed session's board changing is printed though the board every surf
 
 test(
   'a carried board is folded as the line is, no heartbeat aged by the Mac’s sleep: after a sleep it agrees with the line’s own session, where board --json run then does not',
-  SLOW,
   async () => {
     let slept = 0
     const { t, paths } = held([], { now: () => NOW + slept })

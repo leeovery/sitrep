@@ -3,8 +3,8 @@ import { expect, test, tier } from './kit'
 import { HEARTBEAT_MS, metaText, parsePresence, sessionPaths, type SessionPaths } from '../core'
 import { rewriteAt, STATE_MS } from '../hooks/doing'
 import type { SitrepActivity, SitrepAttachment } from '../types'
-import { AGENT, META, T0, W1, W2 } from './support'
-import { CONVERSATION, HELP_DESK, PROJECT, ROOT, startedId, world } from './world'
+import { AGENT, HELP_DESK, META, PROJECT, ROOT, T0, W1, W2 } from './data'
+import { CONVERSATION, startedId, world } from './world'
 
 tier('user')
 

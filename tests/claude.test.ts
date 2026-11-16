@@ -9,6 +9,7 @@ import {
   summariseProject,
   toldSummary,
 } from '../core'
+import { MIN, SENDER, T0, W1, W2 } from './data'
 import {
   beat,
   choiceAsk,
@@ -16,21 +17,16 @@ import {
   file,
   finish,
   fold,
-  MIN,
   note,
   park,
   reply,
   resolve,
-  SENDER,
   seen,
   snoozeSession,
   status,
-  T0,
-  W1,
-  W2,
   yesAsk,
   type Line,
-} from './support'
+} from './lines'
 
 const NOW = T0 + 60 * MIN
 

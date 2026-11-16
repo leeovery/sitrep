@@ -14,8 +14,9 @@ import Measure from '../hooks/draw/measure'
 import { STEP_HELD } from '../hooks/draw/ready'
 import { PANE } from '../hooks/pane'
 import { rowsOf } from './drawn'
-import { MIN, SLOW, T0, W2, yesAsk } from './support'
-import { DOCKED, INLINE, postedId, PROJECT, toProject, world } from './world'
+import { MIN, PROJECT, T0, W2 } from './data'
+import { yesAsk } from './lines'
+import { DOCKED, INLINE, postedId, toProject, world } from './world'
 
 tier('user')
 
@@ -249,7 +250,6 @@ test('docked, the tree is a row short of the window; the list is clipped between
 
 test(
   "docked, the header is the same in every view, the way back in its last row; every view's list holds Ready to send still and reaches its end",
-  SLOW,
   async ($, on) => {
     const w = world($, on)
 
@@ -575,7 +575,6 @@ test('docked, a header button the focus reaches never moves the list: the lit ta
 
 test(
   'each place starts at its top, every time: by a tab, the way back, a session or a project, a band count though it lands where the board is; an item opened keeps it',
-  SLOW,
   async ($, on) => {
     const w = world($, on)
 
@@ -642,7 +641,6 @@ test(
 
 test(
   'queuing a reply, sending, a new ask arriving and the watch drawing again leave the list where Lee had it',
-  SLOW,
   async ($, on) => {
     const w = world($, on)
 
@@ -712,7 +710,6 @@ test("inline, nothing is clipped or measured: Ready to send follows the view, an
 
 test(
   'Ready to send takes the rows it draws under the list: a row for each line, cut short, and its border',
-  SLOW,
   async ($, on) => {
     const w = world($, on)
     const {
@@ -825,7 +822,6 @@ test("a project's view keys each ask by its session too, so two sessions' asks o
 
 test(
   'a queue too long for under half the window is cut short: the box lists what fits, then how many more',
-  SLOW,
   async ($, on) => {
     const w = world($, on)
     const { ids, ui } = await asking(w, 6)
@@ -855,7 +851,6 @@ test(
 
 test(
   'a send held and the queue under it keep the box as tall as it draws; too long for under half the window, the send keeps its heading, its line and its take-back, what fits is listed, then how many more; a second send is one row under it, with its own take-back',
-  SLOW,
   async ($, on) => {
     const w = world($, on)
     const { ids, ui } = await asking(w, 6)
@@ -895,7 +890,6 @@ test(
 
 test(
   'three sends held and a reply under them, too long for under half the window: the first send in full as far as it fits, each after it one row with its own take-back, then how many more; a take-back of one of those puts its replies back',
-  SLOW,
   async ($, on) => {
     const w = world($, on)
     const { ids, ui } = await asking(w, 10)
@@ -945,7 +939,6 @@ test(
 
 test(
   'five sends held in a window too short for a row each: the first in full, a row for each after it that fits but one, then one row standing for the rest, stepping through them, so every take-back is in reach; a take-back from it puts that send back',
-  SLOW,
   async ($, on) => {
     const w = world($, on)
     const short = docked(22)

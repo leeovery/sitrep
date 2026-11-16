@@ -4,8 +4,9 @@ import { metaText, parseEntries, presenceText, type SessionMeta } from '../core'
 import { AROUND_MS } from '../hooks/around'
 import { WATCH_MS } from '../hooks/window'
 import type { SitrepAttachment } from '../types'
-import { file, META, MIN, note, T0, W1, W2, W3, yesAsk } from './support'
-import { CONVERSATION, ELSEWHERE, postedId, PROJECT, toProject, world } from './world'
+import { ELSEWHERE, META, MIN, PROJECT, T0, W1, W2, W3 } from './data'
+import { file, note, yesAsk } from './lines'
+import { CONVERSATION, postedId, toProject, world } from './world'
 
 tier('user')
 

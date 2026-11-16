@@ -1,78 +1,22 @@
-/** Builders the core tests share: a session's files from its lines, and random bytes from a script. */
+/** Builders the core tests share: a session's files from its lines; and readers of what the window wrote. */
 import {
   append,
   foldSession,
   metaText,
+  parseEntries,
+  parsePresence,
   presenceText,
   type AskKind,
   type Body,
   type Finisher,
   type Presence,
-  type Random,
   type Verdict,
   type Session,
   type SessionFiles,
-  type SessionMeta,
+  type SessionPaths,
 } from '../core'
-
-/** The line under a reply to an ask in Lee's message saying it closed the ask. */
-export const CLOSES = '\n  This closes the ask: nothing more to do with it.'
-
-/** The line under a comment in Lee's message saying it left its ask open. */
-export const LEAVES_OPEN = '\n  This leaves the ask open: act on it, then resolve it.'
-
-export const MIN = 60_000
-
-/** For a test that runs the clock through many of the watch's looks: past the default 5s on a loaded machine. */
-export const SLOW = { timeoutMs: 20_000 }
-
-/** When the session under test was started. */
-export const T0 = 1_760_000_000_000
-
-/** The window that started the session, a second window, two more on other sessions, and the CLI. */
-export const W1 = 'b1c2d3e4-0000-4000-8000-000000000001'
-export const W2 = 'b1c2d3e4-0000-4000-8000-000000000002'
-export const W3 = 'b1c2d3e4-0000-4000-8000-000000000003'
-export const W4 = 'b1c2d3e4-0000-4000-8000-000000000004'
-export const CLI = 'cli'
-
-/** A window on another session, sending replies into this one's inbox. */
-export const SENDER = 'f0e1d2c3-0000-4000-8000-0000000000ff'
-
-/** A subagent's loop. */
-export const AGENT = 'a1b2c3d4'
-
-export const META: SessionMeta = {
-  id: 'sr-k3f9qa',
-  name: 'Help desk redesign',
-  summary: 'Redesign the help desk, page by page in Paper',
-  project: 'northwind',
-  root: '/Users/me/Code/northwind',
-  created: T0,
-  by: W1,
-}
-
-/**
- * A session of Northwind's as a build before 11 November 2026 left it, its
- * files byte for byte, nine days idle and finished: two items still parked,
- * a third picked up. What its files say is literal, so no builder of today's
- * can make it look newer than it is.
- */
-export const PARKED_BEFORE = {
-  id: 'sr-1edger',
-  writer: W2,
-  meta: '{"v":1,"id":"sr-1edger","name":"Invoice ledger","summary":"The invoice ledger, area by area","project":"northwind","root":"/Users/me/Code/northwind","created":1759136000000,"by":"b1c2d3e4-0000-4000-8000-000000000002"}\n',
-  log: [
-    '{"v":1,"at":1759136000000,"seq":1,"type":"status","name":"Invoice ledger","summary":"The invoice ledger, area by area","now":["Drawing the ledger schema"]}',
-    '{"v":1,"at":1759136060000,"seq":2,"type":"park","title":"Export the ledger as CSV","ref":"PR #82","id":"p1"}',
-    '{"v":1,"at":1759136120000,"seq":3,"type":"park","title":"Archive old invoices","where":"After the release","id":"p2"}',
-    '{"v":1,"at":1759136180000,"seq":4,"type":"park","title":"Retry the export","id":"p3"}',
-    '{"v":1,"at":1759222400000,"seq":5,"type":"reply","id":"r1","item":"p3","verdict":"pickup"}',
-    '{"v":1,"at":1759222400000,"seq":6,"type":"delivered","replies":["r1"]}',
-    '{"v":1,"at":1759222460000,"seq":7,"type":"finish","who":"claude","reason":"Shipped"}',
-    '',
-  ].join('\n'),
-}
+import { META, MIN, T0, W1 } from './data'
+import type { World } from './world'
 
 /** A line, and when it was written. */
 export type Line = [at: number, body: Body]
@@ -195,13 +139,9 @@ export const snoozeTurn = (turn: number, until?: number): Body =>
 /** Lee's waking now of the session's turn that ended at `turn`. */
 export const wakeTurn = (turn: number): Body => ({ type: 'wakeTurn', turn })
 
-/** Random bytes from a script: each draw takes the next list of bytes, the last list repeating. */
-export const scripted = (...draws: number[][]): Random => {
-  let next = 0
+/** The kinds of line a file holds, in order. */
+export const kindsIn = (w: World, path: string) => parseEntries(w.text(path)).map(line => line.type)
 
-  return count => {
-    const bytes = draws[Math.min(next++, draws.length - 1)] ?? [0]
-
-    return Uint8Array.from({ length: count }, (_, i) => bytes[i % bytes.length] ?? 0)
-  }
-}
+/** What the window's heartbeat says it sends its session. */
+export const sendingIn = (w: World, paths: SessionPaths) =>
+  parsePresence(w.text(paths.heartbeat(W1)), W1)?.sending

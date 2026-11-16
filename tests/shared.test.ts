@@ -2,9 +2,10 @@ import { expect, test, tier } from './kit'
 import { EXIT, main, WRITER } from '../cli/main'
 import { parseEntries, type SessionMeta } from '../core'
 import { WATCH_MS } from '../hooks/window'
-import { CLOSES, file, MIN, reply, T0, W1, W2, yesAsk } from './support'
+import { CLOSES, MIN, PLUGIN_VERSION, T0, W1, W2 } from './data'
+import { file, reply, yesAsk } from './lines'
+import { CONVERSATION, postedId, PROMPT, world } from './world'
 import { manifestText, terminal } from './terminal'
-import { CONVERSATION, PLUGIN_VERSION, postedId, PROMPT, world } from './world'
 
 tier('user')
 

@@ -1,8 +1,8 @@
 import type { On } from 'claude-code'
 import { expect, test, tier, type Engine } from './kit'
 import { NAMES_KEPT } from '../hooks/tools'
-import { SLOW } from './support'
-import { postedId, PROJECT, startedId, world } from './world'
+import { PROJECT } from './data'
+import { postedId, startedId, world } from './world'
 
 tier('user')
 
@@ -215,7 +215,7 @@ test('a refused call keeps no name', async ($, on) => {
   expect(w.state.named ?? []).toEqual([])
 })
 
-test('only the latest calls keep their names, the oldest let go', SLOW, async ($, on) => {
+test('only the latest calls keep their names, the oldest let go', async ($, on) => {
   const w = world($, on)
 
   await w.begin()

@@ -13,32 +13,15 @@ import { boardOf, sessionOf } from '../hooks/board'
 import { TTY_WALK } from '../hooks/where'
 import { WATCH_MS } from '../hooks/window'
 import type { SitrepAttachment } from '../types'
+import { HELP_DESK, META, PLUGIN_VERSION, PROJECT, REPO, ROOT, SENDER, T0, W1, W2 } from './data'
+import { choiceAsk, file, fold, note, reply, status, yesAsk } from './lines'
 import {
-  choiceAsk,
-  file,
-  fold,
-  META,
-  note,
-  reply,
-  SENDER,
-  status,
-  T0,
-  W1,
-  W2,
-  yesAsk,
-} from './support'
-import {
-  HELP_DESK,
-  manifestOf,
-  PLUGIN_VERSION,
-  PROJECT,
-  REPO,
-  ROOT,
   CONVERSATION,
+  manifestOf,
+  postedId,
   startedId,
   TTY,
   WHERE,
-  postedId,
   world,
   type Walk,
 } from './world'

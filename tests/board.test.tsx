@@ -1,7 +1,6 @@
 import { expect, test, tier } from './kit'
 import { C } from '../hooks/look'
-import { INLINE, DOCKED, postedId, CONVERSATION, SURFACES, toProject, world } from './world'
-import { SLOW } from './support'
+import { CONVERSATION, DOCKED, INLINE, postedId, SURFACES, toProject, world } from './world'
 
 tier('user')
 
@@ -73,7 +72,6 @@ test('with no session held, the board says so in a line and says how Claude star
 
 test(
   "this session's view: the name and summary, what is under way and next, each heading's few words",
-  SLOW,
   async ($, on) => {
     const w = world($, on)
 

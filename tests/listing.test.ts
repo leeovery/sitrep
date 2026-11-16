@@ -1,24 +1,9 @@
 import { expect, test } from './kit'
 import { EXIT } from '../cli/main'
 import { sessionPaths, type SessionMeta } from '../core'
-import {
-  choiceAsk,
-  finish,
-  META,
-  MIN,
-  note,
-  park,
-  PARKED_BEFORE,
-  resolve,
-  status,
-  T0,
-  W1,
-  W2,
-  wordsAsk,
-  yesAsk,
-} from './support'
+import { ELSEWHERE, HOME, META, MIN, PARKED_BEFORE, PROJECT, REPO, ROOT, T0, W1, W2 } from './data'
+import { choiceAsk, finish, note, park, resolve, status, wordsAsk, yesAsk } from './lines'
 import { NOW, terminal } from './terminal'
-import { ELSEWHERE, HOME, PROJECT, REPO, ROOT } from './world'
 
 const DAY = 24 * 60 * MIN
 

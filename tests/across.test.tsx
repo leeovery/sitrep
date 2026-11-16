@@ -3,25 +3,9 @@ import { parseEntries, sessionPaths, type SessionMeta } from '../core'
 import { AROUND_MS } from '../hooks/around'
 import { SENT_LINGER_MS } from '../hooks/queue'
 import { rowsOf } from './drawn'
-import {
-  CLI,
-  CLOSES,
-  delivered,
-  file,
-  finish,
-  MIN,
-  reopen,
-  reply,
-  resolve,
-  SLOW,
-  T0,
-  unfinish,
-  W1,
-  W2,
-  W3,
-  yesAsk,
-} from './support'
-import { INLINE, postedId, PROJECT, ROOT, toProject, world } from './world'
+import { CLI, CLOSES, MIN, PROJECT, ROOT, T0, W1, W2, W3 } from './data'
+import { delivered, file, finish, reopen, reply, resolve, unfinish, yesAsk } from './lines'
+import { INLINE, postedId, toProject, world } from './world'
 
 tier('user')
 
@@ -84,7 +68,7 @@ const answer = async (ui: Board, session: string, item: string) => {
 const repliesIn = (w: World, path: string) =>
   parseEntries(w.text(path)).flatMap(line => (line.type === 'reply' ? [line] : []))
 
-test('Ready to send groups the replies by where each goes, this session first, at the foot of every view', SLOW, async ($, on) => {
+test('Ready to send groups the replies by where each goes, this session first, at the foot of every view', async ($, on) => {
   const w = world($, on)
   const { asked, ui } = await threeSessions(w)
 
@@ -105,7 +89,7 @@ test('Ready to send groups the replies by where each goes, this session first, a
   }
 })
 
-test("send writes another session's replies into its inbox as this window's letters, and they leave the queue", SLOW, async ($, on) => {
+test("send writes another session's replies into its inbox as this window's letters, and they leave the queue", async ($, on) => {
   const w = world($, on)
   const { asked, paths, ui } = await threeSessions(w)
 
@@ -164,7 +148,6 @@ test('a letter after a reload adds to the inbox file as it stands, its count goi
 
 test(
   'each destination says where its replies stand, and each reply whether Claude has it',
-  SLOW,
   async ($, on) => {
     const w = world($, on)
     const { ledger, ui } = await threeSessions(w)
@@ -267,7 +250,6 @@ test('two quick presses of send write each letter once', async ($, on) => {
 
 test(
   'a sent reply whose item changed before it went in shows there as not delivered, offers its item again, and lingers out',
-  SLOW,
   async ($, on) => {
     const w = world($, on)
     const { ledger, ui } = await threeSessions(w)
@@ -505,7 +487,6 @@ test('a send that carries nothing, some of its replies changed under them and ot
 
 test(
   "a sent reply that reached its ask after another of Lee's answers, or whose ask Claude closed before it went in, shows there as not delivered, saying which",
-  SLOW,
   async ($, on) => {
     const w = world($, on)
     const { themes, ui } = await threeSessions(w)
@@ -530,7 +511,7 @@ test(
   },
 )
 
-test("a send of letters alone, pressed while Lee has stopped Claude's turn, carries the send held for this session on from the press", SLOW, async ($, on) => {
+test("a send of letters alone, pressed while Lee has stopped Claude's turn, carries the send held for this session on from the press", async ($, on) => {
   const w = world($, on)
   const { asked, paths, ui } = await threeSessions(w)
   const own = `From the board:\n- Review Tickets & Replies, round 1 → Approve${CLOSES}`

@@ -41,14 +41,12 @@ import {
   type WindowState,
   type Work,
 } from '../core'
+import { CLI, META, MIN, T0, W1, W2, W3 } from './data'
 import {
   beat,
-  CLI,
   delivered,
   file,
   finish,
-  META,
-  MIN,
   park,
   reopen,
   reply,
@@ -57,16 +55,12 @@ import {
   snoozeSession,
   snoozeTurn,
   status,
-  T0,
-  W1,
-  W2,
-  W3,
   wake,
   wakeSession,
   wakeTurn,
   yesAsk,
   type Line,
-} from './support'
+} from './lines'
 
 const NOW = T0 + 60 * MIN
 

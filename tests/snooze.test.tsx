@@ -21,25 +21,9 @@ import { C } from '../hooks/look'
 import { WATCH_MS } from '../hooks/window'
 import type { SitrepAttachment } from '../types'
 import { rowsOf } from './drawn'
-import {
-  CLI,
-  CLOSES,
-  delivered,
-  file,
-  META,
-  MIN,
-  note,
-  reply,
-  SENDER,
-  SLOW,
-  snoozeSession,
-  W1,
-  W2,
-  W3,
-  wakeSession,
-  yesAsk,
-} from './support'
-import { CONVERSATION, postedId, PROJECT, PROMPT, ROOT, toProject, WIDE, world } from './world'
+import { CLI, CLOSES, META, MIN, PROJECT, ROOT, SENDER, W1, W2, W3 } from './data'
+import { delivered, file, note, reply, snoozeSession, wakeSession, yesAsk } from './lines'
+import { CONVERSATION, postedId, PROMPT, toProject, WIDE, world } from './world'
 
 tier('user')
 
@@ -546,7 +530,6 @@ test('an ask its time wakes is announced as a new one is: the ◆ pulses, a toas
 
 test(
   'a woken ask is announced once: what changes the board after says nothing more of it',
-  SLOW,
   async ($, on) => {
     const w = fridayWorld($, on)
     const { id, app } = await asking(w)

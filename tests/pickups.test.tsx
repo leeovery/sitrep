@@ -9,24 +9,9 @@ import {
 } from '../core'
 import type { SitrepInFlight } from '../types'
 import { WATCH_MS } from '../hooks/window'
-import {
-  CLOSES,
-  delivered,
-  file,
-  finish,
-  MIN,
-  note,
-  park,
-  reply,
-  SLOW,
-  T0,
-  W1,
-  W2,
-  W3,
-  yesAsk,
-  type Line,
-} from './support'
-import { CONVERSATION, ELSEWHERE, postedId, PROJECT, PROMPT, ROOT, toProject, world } from './world'
+import { CLOSES, ELSEWHERE, MIN, PROJECT, ROOT, T0, W1, W2, W3 } from './data'
+import { delivered, file, finish, note, park, reply, yesAsk, type Line } from './lines'
+import { CONVERSATION, postedId, PROMPT, toProject, world } from './world'
 
 tier('user')
 
@@ -203,7 +188,6 @@ const kindsIn = (w: World, path: string) => parseEntries(w.text(path)).map(line 
 for (const [standing, ledger] of Object.entries(STANDING)) {
   test(
     `a pick-up of what ${standing} parked goes in this window's own message, and is written down in that session, in this window's own file there: the item leaves Parked`,
-    SLOW,
     async ($, on) => {
       const w = world($, on)
       const { id, paths, ui } = await besideLedger(w, ledger)
@@ -245,7 +229,6 @@ for (const [standing, ledger] of Object.entries(STANDING)) {
 
 test(
   "held mid-turn, a pick-up of another session's item is named by its address in the claim and said in no heartbeat; taken back it is as it was, and sent again it goes in as the turn ends",
-  SLOW,
   async ($, on) => {
     const w = world($, on)
     const { paths, ui } = await besideLedger(w, FINISHED)
@@ -294,7 +277,6 @@ test(
 
 test(
   'a pick-up still in Ready to send when the window takes up a session of another project leaves it, a toast saying so; a session of this project keeps it, and every other reply stays',
-  SLOW,
   async ($, on) => {
     const w = world($, on)
     const ledger = w.elsewhere(meta(LEDGER, 'Invoice ledger', W2))
@@ -335,7 +317,6 @@ test(
 
 test(
   'a pick-up a send carried, taken back once the window holds a session of another project, leaves Ready to send as on a join: never left undrawn',
-  SLOW,
   async ($, on) => {
     const w = world($, on)
     const { ui } = await besideLedger(w, FINISHED)
@@ -370,7 +351,6 @@ test(
 
 test(
   "a pick-up written down in the session that parked its item is Claude's own: the next prompt takes no board for it, though it does for what that session parked meanwhile",
-  SLOW,
   async ($, on) => {
     const w = world($, on)
     const lines: Line[] = [
@@ -414,7 +394,6 @@ const heldPickUp = async (w: World) => {
 
 test(
   'a pick-up this window already wrote down in the parking session, its write cut short before the claim ended, is not written again',
-  SLOW,
   async ($, on) => {
     const w = world($, on)
     const { id } = await heldPickUp(w)
@@ -437,7 +416,6 @@ const repliesIn = (w: World, path: string) =>
 
 test(
   'a pick-up written down in the parking session, its load cut short before the claim ended, is written once by its claimed id, however often the claim is taken up again',
-  SLOW,
   async ($, on) => {
     const w = world($, on)
     let isCut = true
@@ -480,7 +458,6 @@ const drawnAlike = <E extends { value: unknown }>(e: E): E => {
 
 test(
   'two sends held at once, each picking up an item one session parked, by the same reply id, are each written down there once, a write taken up again adding nothing; the second, its id taken, stays parked, the rare clash left',
-  SLOW,
   async ($, on) => {
     const w = world($, on)
     let isCut = true
@@ -527,7 +504,6 @@ test(
 
 test(
   "a pick-up a send carried, held for the turn's end, goes in as sent once the window holds a session of another project, written down in the session that parked its item",
-  SLOW,
   async ($, on) => {
     const w = world($, on)
     const { ui } = await besideLedger(w, FINISHED)
@@ -549,7 +525,6 @@ test(
 
 test(
   "a tool call of Claude's while a pick-up is written down in the session that parked its item waits for the write: the next prompt takes no board for either",
-  SLOW,
   async ($, on) => {
     const w = world($, on)
     const { ui } = await besideLedger(w, OPEN)
@@ -573,7 +548,6 @@ test(
 
 test(
   'a prompt while a pick-up is written down in the session that parked its item, before the board reads that session again, finds the board as Claude saw it: it takes none, then or after',
-  SLOW,
   async ($, on) => {
     const w = world($, on)
     const { ui } = await besideLedger(w, OPEN)
@@ -596,7 +570,6 @@ test(
 
 test(
   'a pick-up whose write-down waits behind a join of the session that parked its item is written through the hold: the next post there keeps it',
-  SLOW,
   async ($, on) => {
     const w = world($, on)
     let ending: Promise<unknown> | undefined
@@ -620,7 +593,6 @@ test(
 
 test(
   "a pick-up the receive timer takes up again while its write-down is under way is written once: the second write finds the first's lines",
-  SLOW,
   async ($, on) => {
     const w = world($, on)
     let ticked = () => {}
@@ -644,7 +616,6 @@ test(
 
 test(
   'a pick-up written down is written down though keeping the board as seen after it fails: the claim ends, and the send says nothing went wrong',
-  SLOW,
   async ($, on) => {
     const w = world($, on)
     let isRefused = false

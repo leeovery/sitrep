@@ -7,8 +7,9 @@ import {
   type ProjectFile,
   type SessionMeta,
 } from '../core'
-import { META, MIN, note, T0, W1, W2, W3, yesAsk } from './support'
-import { HELP_DESK, HOME, PROJECT, REPO, ROOT, CONVERSATION, startedId, world } from './world'
+import { HELP_DESK, HOME, META, MIN, PROJECT, REPO, ROOT, T0, W1, W2, W3 } from './data'
+import { note, yesAsk } from './lines'
+import { CONVERSATION, startedId, world } from './world'
 
 tier('user')
 

@@ -4,21 +4,8 @@ import { boardOf } from '../hooks/board'
 import type { Host } from '../hooks/host'
 import { receiveEvery } from '../hooks/receive'
 import type { SitrepInFlight } from '../types'
-import {
-  CLI,
-  CLOSES,
-  delivered,
-  file,
-  fold,
-  META,
-  MIN,
-  reply,
-  seen,
-  T0,
-  W1,
-  yesAsk,
-  type Line,
-} from './support'
+import { CLI, CLOSES, META, MIN, T0, W1 } from './data'
+import { delivered, file, fold, reply, seen, yesAsk, type Line } from './lines'
 
 const NOW = T0 + 2 * MIN
 

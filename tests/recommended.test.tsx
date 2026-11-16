@@ -3,7 +3,7 @@ import { parseEntries } from '../core'
 import { C } from '../hooks/look'
 import { SPECS } from '../hooks/tools'
 import { rowsOf } from './drawn'
-import { W1 } from './support'
+import { W1 } from './data'
 import { postedId, SURFACES, world } from './world'
 
 tier('user')

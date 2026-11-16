@@ -3,7 +3,7 @@ import { expect, test, tier } from './kit'
 import { HEARTBEAT_MS, parsePresence, presenceText, QUIET, type SessionPaths } from '../core'
 import { STATE_MS } from '../hooks/doing'
 import type { SitrepActivity } from '../types'
-import { T0, W1 } from './support'
+import { T0, W1 } from './data'
 import { world } from './world'
 
 tier('user')

@@ -18,25 +18,20 @@ import {
   type Session,
   type SessionFiles,
 } from '../core'
+import { CLI, META, MIN, T0, W1, W2 } from './data'
 import {
-  CLI,
   delivered,
   file,
   finish,
-  META,
-  MIN,
   note,
   park,
   reply,
   resolve,
   seen,
   status,
-  T0,
-  W1,
-  W2,
   yesAsk,
   type Line,
-} from './support'
+} from './lines'
 
 const NOW = T0 + 60 * MIN
 

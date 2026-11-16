@@ -2,8 +2,9 @@ import type { Args } from 'claude-code'
 import { expect, test, tier } from './kit'
 import type { SessionMeta } from '../core'
 import { rowsOf } from './drawn'
-import { MIN, SLOW, T0, W2, yesAsk } from './support'
-import { ELSEWHERE, postedId, toProject, world } from './world'
+import { ELSEWHERE, MIN, T0, W2 } from './data'
+import { yesAsk } from './lines'
+import { postedId, toProject, world } from './world'
 
 tier('user')
 
@@ -57,7 +58,6 @@ const PARKED = ['A priority badge', 'Thumbnails in the picker', 'Export the ledg
 
 test(
   'a session lists its notes and its closed asks with no blank row between their entries',
-  SLOW,
   async ($, on) => {
     const w = world($, on)
 

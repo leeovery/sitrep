@@ -4,8 +4,9 @@ import { TOAST_MS } from '../hooks/host'
 import { C } from '../hooks/look'
 import { WATCH_MS } from '../hooks/window'
 import type { SitrepAttachment } from '../types'
-import { choiceAsk, META, T0, W1, yesAsk } from './support'
-import { postedId, PROJECT, ROOT, CONVERSATION, world } from './world'
+import { META, PROJECT, ROOT, T0, W1 } from './data'
+import { choiceAsk, yesAsk } from './lines'
+import { CONVERSATION, postedId, world } from './world'
 
 tier('user')
 

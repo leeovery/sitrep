@@ -1,7 +1,8 @@
 import { expect, test, tier, type Engine } from './kit'
 import { CURRENT_MS, parseEntries, parsePresence, startText, type SessionMeta } from '../core'
-import { CLI, file, finish, MIN, note, reply, T0, W1, W2, yesAsk } from './support'
-import { HELP_DESK, PROJECT, CONVERSATION, PLUGIN_VERSION, REPO, WHERE, world } from './world'
+import { CLI, HELP_DESK, MIN, PLUGIN_VERSION, PROJECT, REPO, T0, W1, W2 } from './data'
+import { file, finish, note, reply, yesAsk } from './lines'
+import { CONVERSATION, WHERE, world } from './world'
 
 tier('user')
 

@@ -15,8 +15,9 @@ import { HEARTBEAT_MS, parseEntries, parsePresence, sessionPaths, type SessionPa
 import { keptFlights, QUIET_MS } from '../hooks/deliver'
 import { WATCH_MS } from '../hooks/window'
 import type { SitrepInFlight, SitrepStoredFlights } from '../types'
-import { CLOSES, file, MIN, reply, SENDER, SLOW, W1 } from './support'
-import { postedId, PROJECT, CONVERSATION, ROOT, startedId, world } from './world'
+import { CLOSES, MIN, PROJECT, ROOT, SENDER, W1 } from './data'
+import { file, reply } from './lines'
+import { CONVERSATION, postedId, startedId, world } from './world'
 
 tier('user')
 
@@ -86,7 +87,6 @@ const longAfter = async (w: World) => {
 for (const source of ['send', 'inbox'] as const) {
   test(
     `${source}: after a /reload-plugins mid-turn the last submit never resolves; the turn its message starts writes it down once, and it never goes in again`,
-    SLOW,
     async ($, on) => {
       const w = world($, on)
       const { paths, submit } = await replying[source](w)
@@ -159,7 +159,6 @@ for (const source of ['send', 'inbox'] as const) {
 
   test(
     `${source}: a message that never goes in is let go once the window has been quiet a while, and no sooner`,
-    SLOW,
     async ($, on) => {
       const w = world($, on)
       const { paths, submit } = await replying[source](w)
@@ -202,7 +201,7 @@ for (const source of ['send', 'inbox'] as const) {
     expect(w.state.inFlight).toBeNull()
   })
 
-  test(`${source}: refused as Lee stopped Claude's turn, the message is held and the window marked stopped; no look, quiet or reload submits it again or lets it go, and it goes once his turn ends`, SLOW, async ($, on) => {
+  test(`${source}: refused as Lee stopped Claude's turn, the message is held and the window marked stopped; no look, quiet or reload submits it again or lets it go, and it goes once his turn ends`, async ($, on) => {
     const w = world($, on)
     const { paths, submit } = await replying[source](w)
 

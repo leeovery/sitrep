@@ -16,7 +16,8 @@ import {
   type Presence,
   type Project,
 } from '../core'
-import { beat, META, MIN, T0, W1, W2 } from './support'
+import { META, MIN, T0, W1, W2 } from './data'
+import { beat } from './lines'
 
 const HOUR = 60 * MIN
 

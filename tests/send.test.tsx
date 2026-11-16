@@ -2,8 +2,9 @@ import { expect, test, tier } from './kit'
 import { parseEntries, sessionPaths } from '../core'
 import { LINGER_MS } from '../hooks/scene'
 import { WATCH_MS } from '../hooks/window'
-import { CLOSES, LEAVES_OPEN, note, W1 } from './support'
-import { INLINE, postedId, PROJECT, PROMPT, ROOT, CONVERSATION, startedId, world } from './world'
+import { CLOSES, LEAVES_OPEN, PROJECT, ROOT, W1 } from './data'
+import { note } from './lines'
+import { CONVERSATION, INLINE, postedId, PROMPT, startedId, world } from './world'
 
 tier('user')
 

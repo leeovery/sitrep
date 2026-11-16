@@ -2,8 +2,9 @@ import { expect, test, tier } from './kit'
 import type { SessionMeta } from '../core'
 import { C } from '../hooks/look'
 import { rowsOf } from './drawn'
-import { note, park, T0, W2, W4, yesAsk } from './support'
-import { ELSEWHERE, INLINE, PROJECT, CONVERSATION, toProject, WIDE, world } from './world'
+import { ELSEWHERE, PROJECT, T0, W2, W4 } from './data'
+import { note, park, yesAsk } from './lines'
+import { CONVERSATION, INLINE, toProject, WIDE, world } from './world'
 
 tier('user')
 

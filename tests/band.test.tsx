@@ -3,7 +3,7 @@ import { expect, test, tier, type Mounted } from './kit'
 import { bandLast, besideBand } from '../hooks/draw/band'
 import Placement from '../hooks/draw/placement'
 import { rowsOf } from './drawn'
-import { BAND, DOCKED, INLINE, postedId, CONVERSATION, SURFACES, world } from './world'
+import { BAND, CONVERSATION, DOCKED, INLINE, postedId, SURFACES, world } from './world'
 
 tier('user')
 
