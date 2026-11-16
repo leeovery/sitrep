@@ -267,10 +267,18 @@ const hostOf = ($: EngineInterface): Host => ({
  * engine holds none, so the press fails a second time.
  */
 const pressFailed = ($: EngineInterface, e: { element: string }, next: { error: HookFailure }) => {
-  logFailure(hostOf($), `pressing ${e.element}`)(next.error.message ?? next.error.kind)
+  logFailure(hostOf($), `pressing ${e.element}`)(failureText(next.error))
 
   return { element: e.element }
 }
+
+/**
+ * A hook's failure as the log says it: its kind, and its message when it
+ * has one. The engine's message leads with the error's name and the
+ * plugin's ("HooksError: sitrep: "), which the log line says already.
+ */
+const failureText = ({ kind, message }: HookFailure) =>
+  message === undefined ? kind : `${kind}: ${message.replace(/^\w*Error: (sitrep: )?/, '')}`
 
 /** The window's turn ending wakes a snooze of Lee's until it moves, before the turn's end is heard, so the session comes back at its turn as any turn ends. */
 const wakeOnTurnEnd = (host: Host) =>

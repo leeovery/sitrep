@@ -332,7 +332,7 @@ test('a closed board gets ▸ show board wherever it sat, and opened again after
   expect(await boardButton(ui)).toEqual({ rows: ['[ ✕ close ]'], isDim: false })
 })
 
-test('a press its hook fails ends there, answered, the failure in the debug log', async ($, on) => {
+test('a press its hook fails is answered, the failure in the debug log, nothing opened', async ($, on) => {
   const w = world($, on)
 
   await w.begin()
@@ -343,7 +343,7 @@ test('a press its hook fails ends there, answered, the failure in the debug log'
 
   expect(await ui.press({ key: 'band:board' })).toEqual({ element: 'band:board' })
   expect(w.logs).toEqual([
-    'sitrep: pressing band:board failed: HooksError: sitrep: $.ui.open: no room for the board',
+    'sitrep: pressing band:board failed: throw: $.ui.open: no room for the board',
   ])
   expect(w.panes.has('sitrep')).toBe(false)
 })
