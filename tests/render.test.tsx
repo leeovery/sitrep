@@ -67,9 +67,8 @@ const DRAWN: readonly (readonly [RenderSurface, RenderPropsOf['Pane']])[] = [
   ['vscode', DOCKED],
 ]
 
-test("the board a surface draws is the drawing of the scene the window's state holds, drawn with no engine: on every surface, docked and inline, home and around", async ($, on) => {
-  const w = world($, on)
-
+/** A session begun with something parked, an ask closed and two open, and a note, beside the ledger asking and parking. */
+async function busy(w: World) {
   w.surround([
     {
       meta: LEDGER,
@@ -88,6 +87,12 @@ test("the board a surface draws is the drawing of the scene the window's state h
   await w.call('resolve', { item: done, reason: 'Ran it in the chat' })
   await asked(w, REVIEW)
   await w.call('note', { text: 'PR #82 merged', detail: ['6 files'] })
+}
+
+test("the board a surface draws is the drawing of the scene the window's state holds, drawn with no engine: on every surface, docked and inline", async ($, on) => {
+  const w = world($, on)
+
+  await busy(w)
 
   for (const [surface, props] of DRAWN) {
     const ui = await $.ui.mount({
@@ -104,6 +109,12 @@ test("the board a surface draws is the drawing of the scene the window's state h
     ).toEqual(unstamped(await ui.drawn()))
     await ui.unmount()
   }
+})
+
+test("the board drawn with no engine is the engine's wherever Lee takes it: a project, another session, All projects", async ($, on) => {
+  const w = world($, on)
+
+  await busy(w)
 
   const ui = await w.pane()
 
