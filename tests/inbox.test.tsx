@@ -1,9 +1,9 @@
 import { expect, test, tier } from './kit'
-import { parseEntries, type SessionPaths } from '../core'
+import { parseEntries } from '../core'
 import { FLASH_MS } from '../hooks/deliver'
 import { WATCH_MS } from '../hooks/window'
 import { CLOSES, MIN, PROJECT, REVIEW, SENDER, W1, W2 } from './data'
-import { file, reply } from './lines'
+import { file, kindsIn, reply } from './lines'
 import { CONVERSATION, INLINE, postedId, world, type World } from './world'
 
 tier('user')
@@ -32,10 +32,6 @@ async function asking(w: World) {
   return { paths, asked, send }
 }
 
-/** The kinds of line the window's own file holds, in order. */
-const kindsIn = (w: World, paths: SessionPaths) =>
-  parseEntries(w.text(paths.log(W1))).map(line => line.type)
-
 test("the window delivering for its session submits inbox replies as Lee's own message, once, and marks them once taken", async ($, on) => {
   const w = world($, on)
   const { paths, asked, send } = await asking(w)
@@ -53,7 +49,7 @@ test("the window delivering for its session submits inbox replies as Lee's own m
   })
 
   await w.clock.advance(4 * WATCH_MS)
-  expect(kindsIn(w, paths), 'no mark while Claude Code has not taken it').toEqual(['ask'])
+  expect(kindsIn(w, paths.log(W1)), 'no mark while Claude Code has not taken it').toEqual(['ask'])
 
   turn.end()
   await w.clock.advance(WATCH_MS)
@@ -86,7 +82,7 @@ test("a window that is not its session's deliverer submits nothing", async ($, o
 
   expect(w.state.board?.deliverer).toBe(W2)
   expect(w.prompts).toEqual([])
-  expect(kindsIn(w, paths)).toEqual(['ask'])
+  expect(kindsIn(w, paths.log(W1))).toEqual(['ask'])
 })
 
 test("Lee's comment queued, then sent once an answer to the same ask waits in the inbox for another window, tells Claude that answer, sent apart, closes the ask", async ($, on) => {
@@ -124,7 +120,7 @@ test('a refused submission leaves the replies undelivered, for the next look to 
   send(['r1', asked, 'yes'])
   await w.clock.advance(TAKE_IN)
 
-  expect(kindsIn(w, paths)).toEqual(['ask'])
+  expect(kindsIn(w, paths.log(W1))).toEqual(['ask'])
   expect(w.state.inFlight).toBeNull()
   expect(w.state.board?.replies).toMatchObject([{ id: 'r1', delivery: 'waiting' }])
   expect(w.logs.some(line => line.includes('not taken (the session is closing)'))).toBe(true)
@@ -133,7 +129,7 @@ test('a refused submission leaves the replies undelivered, for the next look to 
   await w.clock.advance(WATCH_MS)
 
   expect(w.prompts.map(prompt => prompt.text)).toEqual([MESSAGE])
-  expect(kindsIn(w, paths)).toEqual(['ask', 'delivered'])
+  expect(kindsIn(w, paths.log(W1))).toEqual(['ask', 'delivered'])
 })
 
 test('the receiving band flashes how many replies came in from the board, for a few seconds', async ($, on) => {
@@ -168,16 +164,16 @@ test('a delivery a reload left on its way is never submitted again, and is marke
   await $.session.start(CONVERSATION)
   await w.clock.advance(4 * WATCH_MS)
   expect(w.submitted).toEqual([MESSAGE])
-  expect(kindsIn(w, paths)).toEqual(['ask'])
+  expect(kindsIn(w, paths.log(W1))).toEqual(['ask'])
 
   await $.turn.start({ text: MESSAGE, turnId: 'turn-1' })
-  expect(kindsIn(w, paths)).toEqual(['ask', 'delivered'])
+  expect(kindsIn(w, paths.log(W1))).toEqual(['ask', 'delivered'])
   expect(w.state.inFlight).toBeNull()
 
   turn.end()
   await w.clock.advance(4 * WATCH_MS)
   expect(w.submitted).toEqual([MESSAGE])
-  expect(kindsIn(w, paths), 'one mark, however it was heard').toEqual(['ask', 'delivered'])
+  expect(kindsIn(w, paths.log(W1)), 'one mark, however it was heard').toEqual(['ask', 'delivered'])
 })
 
 test('a turn that starts with some other message marks nothing', async ($, on) => {
@@ -190,7 +186,7 @@ test('a turn that starts with some other message marks nothing', async ($, on) =
   await turn.arrived
   await $.turn.start({ text: 'Carry on.', turnId: 'turn-1' })
 
-  expect(kindsIn(w, paths)).toEqual(['ask'])
+  expect(kindsIn(w, paths.log(W1))).toEqual(['ask'])
   expect(w.state.inFlight).toMatchObject({ isTaken: false })
 
   turn.end()
@@ -211,7 +207,7 @@ test('replies Claude Code took but whose mark could not be written are never sen
   await w.clock.advance(4 * WATCH_MS)
 
   expect(w.prompts, 'nothing goes in twice').toHaveLength(1)
-  expect(kindsIn(w, paths)).toEqual(['ask', 'delivered'])
+  expect(kindsIn(w, paths.log(W1))).toEqual(['ask', 'delivered'])
   expect(w.state.inFlight).toBeNull()
 })
 
@@ -229,7 +225,7 @@ test('inbox replies taken after Claude moved to another session mid-turn are mar
   await w.turnEnds()
   await w.clock.advance(WATCH_MS)
 
-  expect(kindsIn(w, paths)).toEqual(['ask', 'delivered'])
+  expect(kindsIn(w, paths.log(W1))).toEqual(['ask', 'delivered'])
 
   await w.call('join', { session: answered })
   await w.clock.advance(4 * WATCH_MS)
@@ -299,7 +295,7 @@ test('a send Lee presses while inbox replies are in flight waits for them: a toa
     MESSAGE,
     `From the board:\n- Run the production apply → Done${CLOSES}`,
   ])
-  expect(kindsIn(w, paths)).toEqual(['ask', 'ask', 'delivered', 'reply', 'delivered'])
+  expect(kindsIn(w, paths.log(W1))).toEqual(['ask', 'ask', 'delivered', 'reply', 'delivered'])
 })
 
 /** Claude Code's refusal of every plugin's prompt once Lee has stopped Claude's turn, until he next types in the window (live, 2.1.318). */
@@ -326,7 +322,7 @@ test("a send Lee presses while the window is stopped behind the inbox's message 
   await w.clock.settle()
 
   expect(w.submitted).toEqual([MESSAGE, MESSAGE])
-  expect(kindsIn(w, paths)).toEqual(['ask', 'ask', 'delivered'])
+  expect(kindsIn(w, paths.log(W1))).toEqual(['ask', 'ask', 'delivered'])
   expect(w.toasts.filter(toast => toast.startsWith('Not sent'))).toEqual([
     'Not sent yet: replies from another session are going in first. Your replies are still on the board.',
   ])
@@ -361,7 +357,7 @@ test("inbox replies arriving while the window is stopped are claimed but not sub
   await w.clock.settle()
 
   expect(w.submitted.at(-1)).toBe(MESSAGE)
-  expect(kindsIn(w, paths)).toEqual(['ask', 'ask', 'delivered'])
+  expect(kindsIn(w, paths.log(W1))).toEqual(['ask', 'ask', 'delivered'])
 })
 
 test("inbox replies held while the window is stopped are let go once another window delivers for the session, left in the inbox for it", async ($, on) => {
@@ -386,7 +382,7 @@ test("inbox replies held while the window is stopped are let go once another win
   expect(w.state.inFlight).toBeNull()
   expect(w.submitted).toEqual([MESSAGE])
   expect(w.state.board?.replies).toMatchObject([{ id: 'r1', delivery: 'waiting' }])
-  expect(kindsIn(w, paths)).toEqual(['ask'])
+  expect(kindsIn(w, paths.log(W1))).toEqual(['ask'])
   expect(w.logs.some(line => line.includes('not taken'))).toBe(false)
 })
 

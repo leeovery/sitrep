@@ -4,7 +4,7 @@ import { TOAST_MS } from '../hooks/host'
 import { C } from '../hooks/look'
 import { WATCH_MS } from '../hooks/window'
 import type { SitrepAttachment } from '../types'
-import { META, PROJECT, ROOT, T0, W1 } from './data'
+import { META, PROJECT, reviewRound, ROOT, T0, W1 } from './data'
 import { choiceAsk, yesAsk } from './lines'
 import { CONVERSATION, postedId, world } from './world'
 
@@ -49,7 +49,7 @@ test('the ◆ pulses on the band, then rests', async ($, on) => {
   const w = world($, on)
 
   await w.begin()
-  await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' })
+  await w.call('ask', reviewRound(1))
 
   const band = await w.band()
 

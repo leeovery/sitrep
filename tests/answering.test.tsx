@@ -15,7 +15,21 @@ import { QUIET_MS, RIDE_LOST } from '../hooks/deliver'
 import { C } from '../hooks/look'
 import { WATCH_MS } from '../hooks/window'
 import { rowsOf } from './drawn'
-import { CLOSES, FRAMES, GO, LEAVES_OPEN, LEDGER, MIN, PROJECT, ROOT, T0, W1, W2, W3 } from './data'
+import {
+  CLOSES,
+  FRAMES,
+  GO,
+  LEAVES_OPEN,
+  LEDGER,
+  MIN,
+  PROJECT,
+  reviewRound,
+  ROOT,
+  T0,
+  W1,
+  W2,
+  W3,
+} from './data'
 import {
   beat,
   delivered,
@@ -921,7 +935,7 @@ test('an answer with an image is on its way from the moment it goes: frozen in R
   ).toEqual([[id]])
   expect(w.state.answering).toBeNull()
 
-  const other = await asked(w, { wants: 'yes', yes: 'Approve', title: 'Review round 1' })
+  const other = await asked(w, reviewRound(1))
 
   await ui.press({ key: `yes:${w.item(other)}` })
   await ui.press({ key: 'send' })
@@ -1048,7 +1062,7 @@ test("an answer with an image a reload left, let go with the inbox's replies hel
   const w = world($, on)
   const { paths } = await w.begin()
   const id = await asked(w, GO)
-  const other = await asked(w, { wants: 'yes', yes: 'Approve', title: 'Review round 1' })
+  const other = await asked(w, reviewRound(1))
   const ui = await w.pane()
 
   await w.clock.advance(MIN)

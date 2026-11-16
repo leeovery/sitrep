@@ -13,7 +13,19 @@ import { boardOf, sessionOf } from '../hooks/board'
 import { TTY_WALK } from '../hooks/where'
 import { WATCH_MS } from '../hooks/window'
 import type { SitrepAttachment } from '../types'
-import { HELP_DESK, META, PLUGIN_VERSION, PROJECT, REPO, ROOT, SENDER, T0, W1, W2 } from './data'
+import {
+  HELP_DESK,
+  META,
+  PLUGIN_VERSION,
+  PROJECT,
+  REPO,
+  reviewRound,
+  ROOT,
+  SENDER,
+  T0,
+  W1,
+  W2,
+} from './data'
 import { choiceAsk, file, fold, note, reply, status, yesAsk } from './lines'
 import {
   CONVERSATION,
@@ -39,7 +51,7 @@ test('a session started in one window and joined by a second writer is one sessi
   const w = world($, on)
   const { id, paths } = await w.begin()
   const asked = postedId(
-    await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' }),
+    await w.call('ask', reviewRound(1)),
   )
 
   await $.session.end(CLEARED)
@@ -488,7 +500,7 @@ test("the watch reads another window's heartbeat and the letters in the inbox to
   const w = world($, on)
   const { id, paths } = await w.begin()
   const asked = postedId(
-    await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' }),
+    await w.call('ask', reviewRound(1)),
   )
 
   await w.clock.advance(WATCH_MS)

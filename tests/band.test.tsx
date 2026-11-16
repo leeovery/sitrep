@@ -3,6 +3,7 @@ import { expect, test, tier, type Mounted } from './kit'
 import { bandLast, besideBand } from '../hooks/draw/band'
 import Placement from '../hooks/draw/placement'
 import { rowsOf } from './drawn'
+import { reviewRound } from './data'
 import { BAND, CONVERSATION, DOCKED, INLINE, postedId, SURFACES, world, type World } from './world'
 
 tier('user')
@@ -40,7 +41,7 @@ async function busy(w: World) {
   await w.begin()
 
   return {
-    ask: postedId(await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' })),
+    ask: postedId(await w.call('ask', reviewRound(1))),
     parked: postedId(await w.call('park', { title: 'A priority badge' })),
   }
 }

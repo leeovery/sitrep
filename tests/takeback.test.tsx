@@ -7,13 +7,13 @@
  */
 import type { SessionEndReason } from 'claude-code'
 import { expect, test, tier } from './kit'
-import { parseEntries, parsePresence, type SessionPaths } from '../core'
+import type { SessionPaths } from '../core'
 import { QUIET_MS } from '../hooks/deliver'
 import { WATCH_MS } from '../hooks/window'
 import type { SitrepInFlight } from '../types'
-import { AGENT, CLOSES, MIN, REVIEW, SENDER, W1 } from './data'
-import { file, reply } from './lines'
-import { CONVERSATION, postedId, world, writeDoor, type World } from './world'
+import { AGENT, CLOSES, MIN, SENDER, W1 } from './data'
+import { file, kindsIn, reply, sendingIn } from './lines'
+import { asking, asksOnBand, CONVERSATION, turnEnded, world, writeDoor, type World } from './world'
 
 tier('user')
 
@@ -32,28 +32,6 @@ const WRITTEN: Record<Source, string[]> = {
   inbox: ['ask', 'delivered'],
 }
 
-const kindsIn = (w: World, paths: SessionPaths) =>
-  parseEntries(w.text(paths.log(W1))).map(line => line.type)
-
-/** What the window's heartbeat says it sends its session. */
-const sendingIn = (w: World, paths: SessionPaths) =>
-  parsePresence(w.text(paths.heartbeat(W1)), W1)?.sending
-
-/** The band's count of what waits on Lee in this session, where it says `text`. */
-const asksOnBand = async (w: World, text: string) =>
-  (await w.band()).find({ key: 'band:asks', text })
-
-/** This session with a review asked, the board drawn, a minute on. */
-const asking = async (w: World) => {
-  const { paths } = await w.begin()
-  const id = postedId(await w.call('ask', REVIEW))
-  const ui = await w.pane()
-
-  await w.clock.advance(MIN)
-
-  return { paths, id, ui }
-}
-
 type Asking = Awaited<ReturnType<typeof asking>>
 
 /**
@@ -64,14 +42,14 @@ type Asking = Awaited<ReturnType<typeof asking>>
 const replying: Record<Source, (w: World) => Promise<Asking & { claim: () => Promise<unknown> }>> =
   {
     send: async w => {
-      const at = await asking(w)
+      const at = await asking(w, { advance: MIN })
 
       await at.ui.press({ key: `yes:${w.item(at.id)}` })
 
       return { ...at, claim: () => at.ui.press({ key: 'send' }) }
     },
     inbox: async w => {
-      const at = await asking(w)
+      const at = await asking(w, { advance: MIN })
 
       w.put(at.paths.letters(SENDER), file([w.clock.now(), reply('r1', at.id, 'yes')]))
 
@@ -82,7 +60,7 @@ const replying: Record<Source, (w: World) => Promise<Asking & { claim: () => Pro
 /** Whether the session is as a message written down once leaves it: its lines, the ask closed, nothing in flight. */
 const expectWrittenOnce = (w: World, paths: SessionPaths, source: Source) => {
   expect(w.submitted).toEqual([MESSAGE])
-  expect(kindsIn(w, paths)).toEqual(WRITTEN[source])
+  expect(kindsIn(w, paths.log(W1))).toEqual(WRITTEN[source])
   expect(w.state.board?.asks[0]?.state).toBe('closed')
   expect(w.state.inFlight).toBeNull()
 }
@@ -91,12 +69,6 @@ const expectWrittenOnce = (w: World, paths: SessionPaths, source: Source) => {
 const expectHeld = (w: World, source: Source) => {
   expect(w.submitted).toEqual([])
   expect(w.state.inFlight).toMatchObject({ source, isHeld: true, isTaken: false })
-}
-
-/** The main conversation's turn ending, and what it set going settled. */
-const turnEnded = async (w: World, how?: Parameters<World['turnEnds']>[0]) => {
-  await w.turnEnds(how)
-  await w.clock.settle()
 }
 
 
@@ -192,7 +164,7 @@ for (const source of ['send', 'inbox'] as const) {
     await claim()
     await w.turnStarts(MESSAGE)
     expectHeld(w, source)
-    expect(kindsIn(w, paths)).toEqual(['ask'])
+    expect(kindsIn(w, paths.log(W1))).toEqual(['ask'])
 
     await turnEnded(w)
     expectWrittenOnce(w, paths, source)
@@ -315,7 +287,7 @@ test("send: while held, Ready to send says it waits for Claude's turn to end, wi
 
   await turnEnded(w)
   expect(w.submitted, 'nothing goes as the turn ends').toEqual([])
-  expect(kindsIn(w, paths)).toEqual(['ask'])
+  expect(kindsIn(w, paths.log(W1))).toEqual(['ask'])
 })
 
 test("send: held mid-turn, it is taken back while a subagent's run is under way: nothing goes as that run or Claude's turn ends", async ($, on) => {
@@ -334,7 +306,7 @@ test("send: held mid-turn, it is taken back while a subagent's run is under way:
   await turnEnded(w, { agentId: AGENT })
   await turnEnded(w)
   expect(w.submitted).toEqual([])
-  expect(kindsIn(w, paths)).toEqual(['ask'])
+  expect(kindsIn(w, paths.log(W1))).toEqual(['ask'])
 })
 
 test('send: taken back, it can be sent again, held again while Claude is mid-turn, and goes as the turn ends', async ($, on) => {
@@ -423,7 +395,7 @@ test("a take-back landing before the turn's end it raced: the turn's end finds t
   expect(w.submitted).toEqual([])
   expect(w.state.inFlight).toBeNull()
   expect(w.state.queue).toEqual(queued)
-  expect(kindsIn(w, paths)).toEqual(['ask'])
+  expect(kindsIn(w, paths.log(W1))).toEqual(['ask'])
   expect(w.state.board?.waiting).toBe(1)
 })
 
@@ -527,7 +499,7 @@ test('a send held as a /clear ends the conversation goes into the next, and is w
 
   expect(w.state.attachment ?? null).toBeNull()
   expect(w.submitted).toEqual([MESSAGE])
-  expect(kindsIn(w, paths)).toEqual(WRITTEN.send)
+  expect(kindsIn(w, paths.log(W1))).toEqual(WRITTEN.send)
   expect(w.state.inFlight).toBeNull()
 })
 
@@ -545,7 +517,7 @@ for (const reason of ['resume', 'prompt_input_exit', 'logout', 'other'] as const
     expect(w.state.inFlight).toBeNull()
     expect(w.submitted).toEqual([])
     expect(w.state.queue).toEqual(queued)
-    expect(kindsIn(w, paths)).toEqual(['ask'])
+    expect(kindsIn(w, paths.log(W1))).toEqual(['ask'])
   })
 }
 
@@ -560,7 +532,7 @@ test("inbox: a message held as the conversation ends for a resume is let go, its
 
   expect(w.state.inFlight).toBeNull()
   expect(w.submitted).toEqual([])
-  expect(kindsIn(w, paths)).toEqual(['ask'])
+  expect(kindsIn(w, paths.log(W1))).toEqual(['ask'])
   expect(w.files.has(paths.letters(SENDER))).toBe(true)
 })
 
@@ -618,7 +590,7 @@ test('a held send is never let go as never taken: the 30 seconds count from its 
     'Not sent: the message never went in. Your replies are still on the board.',
   )
   expect(w.state.queue).toMatchObject([{ verdict: 'yes' }])
-  expect(kindsIn(w, paths)).toEqual(['ask'])
+  expect(kindsIn(w, paths.log(W1))).toEqual(['ask'])
 })
 
 test('a message submitted between turns that never goes in is let go 30 seconds after its submit, no turn ending, its ask waiting on Lee again at once', async ($, on) => {

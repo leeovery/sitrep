@@ -3,23 +3,21 @@ import { parseEntries, sessionPaths } from '../core'
 import { LINGER_MS } from '../hooks/scene'
 import { WATCH_MS } from '../hooks/window'
 import { CLOSES, LEAVES_OPEN, PROJECT, REVIEW, ROOT, W1 } from './data'
-import { note } from './lines'
-import { CONVERSATION, INLINE, postedId, PROMPT, startedId, world, type World } from './world'
+import { kindsIn, note } from './lines'
+import {
+  asking,
+  CONVERSATION,
+  INLINE,
+  postedId,
+  PROMPT,
+  startedId,
+  world,
+  type World,
+} from './world'
 
 tier('user')
 
 const FROM_THE_BOARD = { kind: 'plugin', name: 'sitrep', asUser: true }
-
-/** A session begun with one review asked: its folder's paths, the ask's id, and the board drawn. */
-async function asking(w: World) {
-  const { paths } = await w.begin()
-  const id = postedId(await w.call('ask', REVIEW))
-
-  return { paths, id, ui: await w.pane() }
-}
-
-/** The kinds of line the window's own file holds, in order. */
-const kindsIn = (w: World, path: string) => parseEntries(w.text(path)).map(line => line.type)
 
 test("send delivers the replies as Lee's own message, and writes them only once it is taken", async ($, on) => {
   const w = world($, on)

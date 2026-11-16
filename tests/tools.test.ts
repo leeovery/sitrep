@@ -9,7 +9,20 @@ import {
 } from '../core'
 import { AROUND_MS } from '../hooks/around'
 import { SPECS } from '../hooks/tools'
-import { ELSEWHERE, HELP_DESK, LEDGER, META, MIN, PROJECT, REPO, ROOT, T0, W1, W2 } from './data'
+import {
+  ELSEWHERE,
+  HELP_DESK,
+  LEDGER,
+  META,
+  MIN,
+  PROJECT,
+  REPO,
+  reviewRound,
+  ROOT,
+  T0,
+  W1,
+  W2,
+} from './data'
 import { delivered, file, finish, note, park, reply, yesAsk } from './lines'
 import { CONVERSATION, postedId, PROMPT, startedId, world, type World } from './world'
 
@@ -290,7 +303,7 @@ test('resolve closes an item, reopen opens it again; each refuses where the item
   await w.begin()
 
   const id = postedId(
-    await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' }),
+    await w.call('ask', reviewRound(1)),
   )
 
   expect((await w.call('reopen', { item: id })).deny).toBe(`${id} is already open.`)
@@ -310,10 +323,10 @@ test("resolving what Lee closed, an ask he answered or ignored, a parked item he
   const w = world($, on)
   const { paths } = await w.begin()
   const post = async (args: Record<string, unknown>) => postedId(await w.call('ask', args))
-  const answered = await post({ wants: 'yes', yes: 'Approve', title: 'Review round 1' })
+  const answered = await post(reviewRound(1))
   const ignored = await post({ wants: 'yes', yes: 'Done', title: 'Run the apply' })
   const commented = await post({ wants: 'yes', yes: 'Go', title: 'Give the go for stage 3' })
-  const coming = await post({ wants: 'yes', yes: 'Approve', title: 'Review round 2' })
+  const coming = await post(reviewRound(2))
   const parked = postedId(await w.call('park', { title: 'Look at the glance again' }))
 
   w.writer(paths)(
@@ -352,7 +365,7 @@ test('an ask Lee answered, then Claude reopened, resolves as ever; answered agai
   const w = world($, on)
   const { paths } = await w.begin()
   const id = postedId(
-    await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' }),
+    await w.call('ask', reviewRound(1)),
   )
   const write = w.writer(paths)
   // Each line a minute on, so the fold reads Lee's lines and Claude's in the order they came.
@@ -571,7 +584,7 @@ test('finish finishes the attached session with its reason, the window staying a
   const w = world($, on)
   const { id, paths } = await w.begin()
 
-  await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' })
+  await w.call('ask', reviewRound(1))
 
   expect((await w.call('finish', { reason: '  Shipped in PR #82 ' })).result).toBe(
     'Finished. This window stays attached; joining the session again reopens it.',
@@ -630,7 +643,7 @@ test("board reads back the session's open items with their ids", async ($, on) =
   const w = world($, on)
   const { id } = await w.begin()
   const ask = postedId(
-    await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' }),
+    await w.call('ask', reviewRound(1)),
   )
   const read = String((await w.call('board')).result)
 

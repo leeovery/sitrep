@@ -21,7 +21,7 @@ export { CONVERSATION, PROMPT, TTY, WHERE, type Walk } from './conversation'
 export { manifestOf } from './fs'
 export { ACROSS, BAND, DOCKED, INLINE, SURFACES, WIDE } from './panes'
 export { writeDoor } from './state'
-export { asked, asking, toProject, turnEnded } from './steps'
+export { asked, asking, asksOnBand, toProject, turnEnded } from './steps'
 
 /**
  * Knobs on the world: when it starts, the folder the window starts in, and

@@ -1,7 +1,7 @@
 import type { On } from 'claude-code'
 import { expect, test, tier, type Engine } from './kit'
 import { NAMES_KEPT } from '../hooks/tools'
-import { PROJECT, REVIEW } from './data'
+import { PROJECT, REVIEW, reviewRound } from './data'
 import { postedId, startedId, world, type World } from './world'
 
 tier('user')
@@ -116,7 +116,7 @@ test('a call naming an item or a session, with no name kept, names it as the hel
 
   const { id } = await w.begin()
   const asked = postedId(
-    await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' }),
+    await w.call('ask', reviewRound(1)),
   )
 
   const rows: [tool: string, input: { [key: string]: unknown }, line: string][] = [
@@ -144,7 +144,7 @@ test("a resolve, reopen or edit row keeps its item's title after Claude joins an
   await w.begin()
 
   const asked = postedId(
-    await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' }),
+    await w.call('ask', reviewRound(1)),
   )
   const rows: [tool: string, input: { [key: string]: unknown }, line: string][] = [
     ['resolve', { item: asked }, 'resolved: Review round 1'],
@@ -173,7 +173,7 @@ test("an edit's row names the item's title as the edit left it", async ($, on) =
   await w.begin()
 
   const asked = postedId(
-    await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' }),
+    await w.call('ask', reviewRound(1)),
   )
   const input = { item: asked, title: 'Review round 2' }
   const edited = await keeping(w, 'edit', input)
@@ -219,7 +219,7 @@ test('only the latest calls keep their names, the oldest let go', async ($, on) 
   await w.begin()
 
   const asked = postedId(
-    await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' }),
+    await w.call('ask', reviewRound(1)),
   )
   const first = await keeping(w, 'resolve', { item: asked })
 
@@ -245,7 +245,7 @@ test("a call's result draws nothing, on every surface", async ($, on) => {
 test('a refused or interrupted call keeps the engine row', async ($, on) => {
   engineRows(on)
 
-  const ask = row('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' })
+  const ask = row('ask', reviewRound(1))
 
   for (const [requestId, change] of [
     ['toolu_2', { isErrored: true }],

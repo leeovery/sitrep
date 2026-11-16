@@ -11,13 +11,13 @@
  * short, left here as the message taken but not written down.
  */
 import { expect, test, tier } from './kit'
-import { HEARTBEAT_MS, parseEntries, parsePresence, sessionPaths, type SessionPaths } from '../core'
+import { HEARTBEAT_MS, sessionPaths, type SessionPaths } from '../core'
 import { keptFlights, QUIET_MS } from '../hooks/deliver'
 import { WATCH_MS } from '../hooks/window'
 import type { SitrepInFlight, SitrepStoredFlights } from '../types'
 import { CLOSES, MIN, PROJECT, REVIEW, ROOT, SENDER, W1 } from './data'
-import { file, reply } from './lines'
-import { CONVERSATION, postedId, startedId, world, type World } from './world'
+import { file, kindsIn, reply, sendingIn } from './lines'
+import { asksOnBand, CONVERSATION, postedId, startedId, world, type World } from './world'
 
 tier('user')
 
@@ -33,10 +33,6 @@ const WRITTEN: Record<Source, string[]> = {
   send: ['ask', 'reply', 'delivered'],
   inbox: ['ask', 'delivered'],
 }
-
-/** The kinds of line the window's own file holds, in order. */
-const kindsIn = (w: World, paths: SessionPaths) =>
-  parseEntries(w.text(paths.log(W1))).map(line => line.type)
 
 /**
  * This session with a review asked and Lee's yes to it, a minute on: queued
@@ -68,7 +64,7 @@ const replying: Record<Source, (w: World) => Promise<{ paths: SessionPaths; subm
 
 /** Whether the session is as a message written down once leaves it: its lines, the ask closed, the queue empty. */
 const expectWrittenOnce = (w: World, paths: SessionPaths, source: Source) => {
-  expect(kindsIn(w, paths)).toEqual(WRITTEN[source])
+  expect(kindsIn(w, paths.log(W1))).toEqual(WRITTEN[source])
   expect(w.state.board?.asks[0]?.state).toBe('closed')
   expect(w.state.queue ?? []).toEqual([])
   expect(w.state.inFlight).toBeNull()
@@ -94,7 +90,7 @@ for (const source of ['send', 'inbox'] as const) {
       await $.session.start(CONVERSATION)
       await w.clock.advance(4 * WATCH_MS)
 
-      expect(kindsIn(w, paths)).toEqual(['ask'])
+      expect(kindsIn(w, paths.log(W1))).toEqual(['ask'])
       expect(w.state.inFlight).toMatchObject({ source, text: MESSAGE, isTaken: false })
 
       await w.turnStarts(MESSAGE)
@@ -115,7 +111,7 @@ for (const source of ['send', 'inbox'] as const) {
     await w.clock.advance(WATCH_MS)
 
     expect(w.state.inFlight).toMatchObject({ source, isTaken: true })
-    expect(kindsIn(w, paths)).toEqual(['ask'])
+    expect(kindsIn(w, paths.log(W1))).toEqual(['ask'])
 
     w.refuseWrites()
     await $.session.start(CONVERSATION)
@@ -138,7 +134,7 @@ for (const source of ['send', 'inbox'] as const) {
 
     submit()
     await w.clock.advance(WATCH_MS)
-    expect(kindsIn(w, paths)).toEqual(WRITTEN[source])
+    expect(kindsIn(w, paths.log(W1))).toEqual(WRITTEN[source])
     expect(w.logs.some(line => line.includes('the load was cut short'))).toBe(true)
     expect(w.state.flash ?? 0).toBe(0)
     expect(w.state.queue ?? [], 'a send its lines written is out of the queue').toEqual([])
@@ -176,7 +172,7 @@ for (const source of ['send', 'inbox'] as const) {
       await w.turnEnds()
       await w.clock.advance(QUIET_MS)
       expect(w.state.inFlight).toBeNull()
-      expect(kindsIn(w, paths)).toEqual(['ask'])
+      expect(kindsIn(w, paths.log(W1))).toEqual(['ask'])
       expect(w.state.board?.asks[0]?.state).toBe('waiting')
     },
   )
@@ -193,7 +189,7 @@ for (const source of ['send', 'inbox'] as const) {
     await w.turnStarts(MESSAGE)
 
     expect(w.state.attachment ?? null).toBeNull()
-    expect(kindsIn(w, paths)).toEqual(WRITTEN[source])
+    expect(kindsIn(w, paths.log(W1))).toEqual(WRITTEN[source])
     expect(w.state.inFlight).toBeNull()
   })
 
@@ -217,7 +213,7 @@ for (const source of ['send', 'inbox'] as const) {
     expect(w.state.stopped).toBe(true)
     expect(w.toasts.filter(toast => toast.startsWith('Not sent'))).toEqual([])
     expect(w.logs.some(line => line.includes('were not taken'))).toBe(false)
-    expect(kindsIn(w, paths)).toEqual(['ask'])
+    expect(kindsIn(w, paths.log(W1))).toEqual(['ask'])
 
     w.dropPrompts()
     await w.turnStarts('Look at the failing test instead.')
@@ -264,7 +260,7 @@ test('inbox: let go, its replies are taken in at a later look', async ($, on) =>
   await w.clock.advance(QUIET_MS + WATCH_MS)
 
   expect(w.submitted).toEqual([MESSAGE, MESSAGE])
-  expect(kindsIn(w, paths)).toEqual(['ask', 'delivered'])
+  expect(kindsIn(w, paths.log(W1))).toEqual(['ask', 'delivered'])
 })
 
 test('a message whose writing a reload cut short is written into its own session, though the window holds another by then', async ($, on) => {
@@ -284,19 +280,11 @@ test('a message whose writing a reload cut short is written into its own session
 
   await $.session.start(CONVERSATION)
 
-  expect(kindsIn(w, paths)).toEqual(WRITTEN.send)
+  expect(kindsIn(w, paths.log(W1))).toEqual(WRITTEN.send)
   expect(w.state.attachment?.session).toBe(startedId(themes))
   expect(w.state.board?.replies).toEqual([])
   expect(w.state.inFlight).toBeNull()
 })
-
-/** What the window's heartbeat says it sends its session. */
-const sendingIn = (w: World, paths: SessionPaths) =>
-  parsePresence(w.text(paths.heartbeat(W1)), W1)?.sending
-
-/** The band's count of what waits on Lee in this session, where it says `text`. */
-const asksOnBand = async (w: World, text: string) =>
-  (await w.band()).find({ key: 'band:asks', text })
 
 /** This session with a review asked, Lee's yes to it queued a minute on, and send pressed while Claude is mid-turn, the window holding the message for the turn to end. */
 const sentHeld = async (w: World) => {

@@ -113,10 +113,10 @@ export const GO = { wants: 'yes', yes: 'Go', title: 'Give the go for stage 3' }
 export const FRAMES = { wants: 'choice', title: 'Ship round 2, or redraw?', options: ['Ship it', 'Redraw'] }
 
 /** A review of round `n`, for a test asking several. */
-export const round = (n: number) => ({ wants: 'yes', yes: 'Approve', title: `Review round ${n}` })
+export const reviewRound = (n: number) => ({ wants: 'yes', yes: 'Approve', title: `Review round ${n}` })
 
 /** Reviews of rounds 1 to `count`. */
-export const rounds = (count: number) => Array.from({ length: count }, (_, i) => round(i + 1))
+export const reviewRounds = (count: number) => Array.from({ length: count }, (_, i) => reviewRound(i + 1))
 
 /** The line under a reply to an ask in Lee's message saying it closed the ask. */
 export const CLOSES = '\n  This closes the ask: nothing more to do with it.'

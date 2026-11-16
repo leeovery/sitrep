@@ -13,9 +13,9 @@ import Measure from '../hooks/draw/measure'
 import { STEP_HELD } from '../hooks/draw/ready'
 import { PANE } from '../hooks/pane'
 import { rowsOf } from './drawn'
-import { LEDGER, MIN, PROJECT } from './data'
+import { LEDGER, MIN, PROJECT, reviewRounds } from './data'
 import { yesAsk } from './lines'
-import { DOCKED, INLINE, postedId, toProject, world, type Board, type World } from './world'
+import { asked, asking, DOCKED, INLINE, toProject, world, type Board, type World } from './world'
 
 tier('user')
 
@@ -39,30 +39,15 @@ const docked = (bodyRows: number): RenderPropsOf['Pane'] => ({
   scroll: { offset: 0, bodyRows },
 })
 
-/** The session begun, and Claude asking `count` reviews: their ids, as asked. */
-const asked = async (w: World, count: number) => {
+/** A board long enough to scroll (asks, a log, and things parked, as Claude posts them), drawn as `open` draws it. */
+const long = async (w: World, open: () => Promise<Board> = () => w.pane()) => {
   await w.begin()
 
   const ids: string[] = []
 
-  for (let n = 1; n <= count; n += 1) {
-    ids.push(
-      postedId(await w.call('ask', { wants: 'yes', yes: 'Approve', title: `Review round ${n}` })),
-    )
+  for (const ask of reviewRounds(4)) {
+    ids.push(await asked(w, ask))
   }
-
-  return ids
-}
-
-/** The session begun, Claude asking `count` reviews, and the board drawn: their ids, as asked. */
-const asking = async (w: World, count: number, props = DOCKED) => ({
-  ids: await asked(w, count),
-  ui: await w.pane('terminal', props),
-})
-
-/** A board long enough to scroll (asks, a log, and things parked, as Claude posts them), drawn as `open` draws it. */
-const long = async (w: World, open: () => Promise<Board> = () => w.pane()) => {
-  const ids = await asked(w, 4)
 
   for (let n = 1; n <= 6; n += 1) {
     await w.call('note', { text: `Step ${n} landed` })
@@ -205,7 +190,7 @@ test('docked, the tree is a row short of the window; the list is clipped between
   const {
     ids: [id = ''],
     ui,
-  } = await asking(w, 1)
+  } = await asking(w, { asks: reviewRounds(1) })
 
   await approve(ui, w.item(id))
 
@@ -678,7 +663,7 @@ test("inline, nothing is clipped or measured: Ready to send follows the view, an
   const {
     ids: [id = ''],
     ui,
-  } = await asking(w, 1, INLINE)
+  } = await asking(w, { asks: reviewRounds(1), props: INLINE })
 
   await approve(ui, w.item(id))
 
@@ -702,7 +687,7 @@ test(
     const {
       ids: [first = '', second = '', third = ''],
       ui,
-    } = await asking(w, 3)
+    } = await asking(w, { asks: reviewRounds(3) })
 
     await approve(ui, w.item(first))
     await expectHeightKept(ui, 'one reply')
@@ -811,7 +796,7 @@ test(
   'a queue too long for under half the window is cut short: the box lists what fits, then how many more',
   async ($, on) => {
     const w = world($, on)
-    const { ids, ui } = await asking(w, 6)
+    const { ids, ui } = await asking(w, { asks: reviewRounds(6) })
 
     for (const id of ids) {
       await approve(ui, w.item(id))
@@ -840,7 +825,7 @@ test(
   'a send held and the queue under it keep the box as tall as it draws; too long for under half the window, the send keeps its heading, its line and its take-back, what fits is listed, then how many more; a second send is one row under it, with its own take-back',
   async ($, on) => {
     const w = world($, on)
-    const { ids, ui } = await asking(w, 6)
+    const { ids, ui } = await asking(w, { asks: reviewRounds(6) })
     const cap = Math.floor((BODY_ROWS - 1) / 2)
 
     for (const id of ids.slice(0, 3)) {
@@ -879,7 +864,7 @@ test(
   'three sends held and a reply under them, too long for under half the window: the first send in full as far as it fits, each after it one row with its own take-back, then how many more; a take-back of one of those puts its replies back',
   async ($, on) => {
     const w = world($, on)
-    const { ids, ui } = await asking(w, 10)
+    const { ids, ui } = await asking(w, { asks: reviewRounds(10) })
     const cap = Math.floor((BODY_ROWS - 1) / 2)
     const approveAll = async (from: number, to: number) => {
       for (const id of ids.slice(from, to)) {
@@ -929,7 +914,7 @@ test(
   async ($, on) => {
     const w = world($, on)
     const short = docked(22)
-    const { ids, ui } = await asking(w, 5, short)
+    const { ids, ui } = await asking(w, { asks: reviewRounds(5), props: short })
     const cap = Math.floor((22 - 1) / 2)
     const [first = '', ...later] = ids
     const then = (text: string) => ui.find({ type: 'Text', text: `⧗ Then: ${text}` })

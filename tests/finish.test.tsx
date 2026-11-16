@@ -9,6 +9,7 @@ import {
   MIN,
   PROJECT,
   REVIEW,
+  reviewRound,
   ROOT,
   SHIFTS,
   T0,
@@ -180,7 +181,7 @@ test('a session Claude finished counts nothing in its own window: the band and t
   const w = world($, on)
 
   await w.begin()
-  await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' })
+  await w.call('ask', reviewRound(1))
 
   const band = await w.band()
   const ui = await w.opened(WIDE)

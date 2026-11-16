@@ -1,7 +1,7 @@
 import { expect, test, tier } from './kit'
 import { AROUND_MS } from '../hooks/around'
 import type { SitrepProject, SitrepProjectParked } from '../types'
-import { LEDGER, META, PROJECT, T0, W2 } from './data'
+import { LEDGER, META, PROJECT, reviewRound, T0, W2 } from './data'
 import { file, note, park } from './lines'
 import { CONVERSATION, PROMPT, world, type World } from './world'
 
@@ -34,7 +34,7 @@ test('what Claude posted itself never rides in: it knows it', async ($, on) => {
   const w = world($, on)
 
   await begun(w)
-  await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' })
+  await w.call('ask', reviewRound(1))
   await w.call('status', { now: ['Drawing round 2'] })
 
   expect((await $.prompt.submit(PROMPT)).context).toBeUndefined()

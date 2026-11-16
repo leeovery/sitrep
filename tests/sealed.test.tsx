@@ -7,17 +7,20 @@
  */
 import type { RenderPropsOf } from 'claude-code'
 import { expect, test, tier, type Engine } from './kit'
-import { parseEntries, parsePresence, type SessionPaths } from '../core'
+import { parseEntries, type SessionPaths } from '../core'
 import { QUIET_MS } from '../hooks/deliver'
 import { SEND_NOW } from '../hooks/draw/ready'
 import { WATCH_MS } from '../hooks/window'
 import { rowsOf } from './drawn'
-import { CLOSES, HELP_DESK, MIN, PROJECT, W1 } from './data'
+import { CLOSES, HELP_DESK, MIN, PROJECT, reviewRound, reviewRounds, W1 } from './data'
+import { sendingIn } from './lines'
 import {
+  asking,
   CONVERSATION,
   DOCKED,
   INLINE,
   postedId,
+  turnEnded,
   world,
   writeDoor,
   type Board,
@@ -62,24 +65,7 @@ const CONTROLS = ['', '[ send to Claude ] [ cancel all ]']
 const TALL: RenderPropsOf['Pane'] = { ...DOCKED, scroll: { offset: 0, bodyRows: 60 } }
 
 /** The session begun with three reviews asked, the board drawn, a minute on: their ids, in round order. */
-const asking = async (w: World, props = TALL) => {
-  const { paths } = await w.begin()
-  const ids: string[] = []
-
-  for (const round of [1, 2, 3]) {
-    ids.push(
-      postedId(
-        await w.call('ask', { wants: 'yes', yes: 'Approve', title: `Review round ${round}` }),
-      ),
-    )
-  }
-
-  const ui = await w.pane('terminal', props)
-
-  await w.clock.advance(MIN)
-
-  return { paths, ids, ui }
-}
+const reviewing = (w: World, props = TALL) => asking(w, { asks: reviewRounds(3), props, advance: MIN })
 
 /** Lee approves an ask, opening it first where it is not open. */
 const approve = async (w: World, ui: Board, id: string) => {
@@ -96,10 +82,8 @@ const approve = async (w: World, ui: Board, id: string) => {
 const box = async (ui: Board) => rowsOf(await ui.find({ key: 'ready' })).map(row => row.trim())
 
 /** What the window's heartbeat says it sends its session: each send's replies, by item. */
-const sendingIn = (w: World, paths: SessionPaths) =>
-  parsePresence(w.text(paths.heartbeat(W1)), W1)?.sending?.map(each =>
-    each.replies.map(reply => reply.item),
-  )
+const sendingItems = (w: World, paths: SessionPaths) =>
+  sendingIn(w, paths)?.map(each => each.replies.map(reply => reply.item))
 
 /** The items the session's reply lines answer, in the order written. */
 const repliedIn = (w: World, paths: SessionPaths) =>
@@ -108,12 +92,6 @@ const repliedIn = (w: World, paths: SessionPaths) =>
 /** The items each message in flight carries, in the order claimed, and whether the window holds it. */
 const flightsIn = (w: World) =>
   w.flights().map(({ replies, isHeld }) => ({ items: replies.map(each => each.item), isHeld }))
-
-/** The main conversation's turn ending, and what it set going settled. */
-const turnEnded = async (w: World) => {
-  await w.turnEnds()
-  await w.clock.settle()
-}
 
 /** Lee approves the first round and sends it while Claude is mid-turn: the window holds it for the turn to end. */
 const holding = async (w: World, ui: Board, ids: readonly string[]) => {
@@ -138,7 +116,7 @@ const notSent = (w: World) => w.toasts.filter(toast => toast.startsWith('Not sen
 
 test("a send held for Claude's turn is sealed: a reply after it lands in a queue of its own under it, with its own send and cancel all, which reach only that queue", async ($, on) => {
   const w = world($, on)
-  const { paths, ids, ui } = await asking(w)
+  const { paths, ids, ui } = await reviewing(w)
   const [first = '', second = ''] = ids
 
   await holding(w, ui, ids)
@@ -153,7 +131,7 @@ test("a send held for Claude's turn is sealed: a reply after it lands in a queue
   expect(await ui.find({ key: `unready:${w.item(second)}` })).toBeDefined()
   expect(await ui.find({ key: `undo:${w.item(second)}` })).toBeDefined()
   expect(await ui.find({ key: `readyrewrite:${w.item(second)}` })).toBeDefined()
-  expect(sendingIn(w, paths)).toEqual([[first]])
+  expect(sendingItems(w, paths)).toEqual([[first]])
 
   await ui.press({ key: 'cancel-all' })
 
@@ -169,7 +147,7 @@ test("a send held for Claude's turn is sealed: a reply after it lands in a queue
 
 test("sent while the first is held, the second queue is a send of its own, held with its own take-back; as Claude's turn ends the first goes in, and the second only once Claude's turn on the first has ended: two prompts, in order", async ($, on) => {
   const w = world($, on)
-  const { paths, ids, ui } = await asking(w)
+  const { paths, ids, ui } = await reviewing(w)
   const [first = '', second = ''] = ids
 
   await twoHeld(w, ui, ids)
@@ -181,7 +159,7 @@ test("sent while the first is held, the second queue is a send of its own, held 
   expect(await box(ui)).toEqual([...heading(2), ...held(1), ...held(2)])
   expect(await ui.find({ key: w.takeBack(0) })).toBeDefined()
   expect(await ui.find({ key: w.takeBack(1) })).toBeDefined()
-  expect(sendingIn(w, paths), 'both on their way, each its own').toEqual([[first], [second]])
+  expect(sendingItems(w, paths), 'both on their way, each its own').toEqual([[first], [second]])
 
   await w.clock.advance(WATCH_MS)
   expect(w.state.board?.waiting, 'the board folds them on their way at its next look').toBe(1)
@@ -212,7 +190,7 @@ test("sent while the first is held, the second queue is a send of its own, held 
 
 test("taking back the first send while a second waits puts its replies back among those still to send, in the order replied; the second, held still, goes alone as Claude's turn ends", async ($, on) => {
   const w = world($, on)
-  const { paths, ids, ui } = await asking(w)
+  const { paths, ids, ui } = await reviewing(w)
   const [first = '', second = '', third = ''] = ids
 
   await twoHeld(w, ui, ids)
@@ -225,7 +203,7 @@ test("taking back the first send while a second waits puts its replies back amon
 
   expect(flightsIn(w)).toEqual([{ items: [second], isHeld: true }])
   expect(await box(ui)).toEqual([...heading(3), ...held(2), ...toSend(1, 3), ...CONTROLS])
-  expect(sendingIn(w, paths)).toEqual([[second]])
+  expect(sendingItems(w, paths)).toEqual([[second]])
   expect(w.state.board?.waiting, 'its ask waits on Lee again at once').toBe(2)
 
   await turnEnded(w)
@@ -237,7 +215,7 @@ test("taking back the first send while a second waits puts its replies back amon
 
 test('taking back the second send puts its replies back among those still to send, the first held still, and only the first goes in', async ($, on) => {
   const w = world($, on)
-  const { paths, ids, ui } = await asking(w)
+  const { paths, ids, ui } = await reviewing(w)
   const [first = '', second = '', third = ''] = ids
 
   await twoHeld(w, ui, ids)
@@ -258,7 +236,7 @@ test('taking back the second send puts its replies back among those still to sen
 
 test('a pick-up from Parked while a send is held joins no part of it: it is a queue of its own, sent as a message of its own after the first', async ($, on) => {
   const w = world($, on)
-  const { paths, ids, ui } = await asking(w)
+  const { paths, ids, ui } = await reviewing(w)
   const [first = ''] = ids
   const parked = postedId(await w.call('park', { title: 'A priority badge across all tabs' }))
 
@@ -296,7 +274,7 @@ test('a pick-up from Parked while a send is held joins no part of it: it is a qu
 
 test('one answer to an item across the sends: an ask a held send carries offers no second reply, two quick presses of send claim the queue once, and each item goes in with one reply', async ($, on) => {
   const w = world($, on)
-  const { paths, ids, ui } = await asking(w)
+  const { paths, ids, ui } = await reviewing(w)
   const [first = '', second = ''] = ids
 
   await holding(w, ui, ids)
@@ -331,7 +309,7 @@ test('one answer to an item across the sends: an ask a held send carries offers 
 
 test('a reload with two sends held keeps them both, said in the heartbeat in the order sent, and they go in that order, each as its own prompt', async ($, on) => {
   const w = world($, on)
-  const { paths, ids, ui } = await asking(w)
+  const { paths, ids, ui } = await reviewing(w)
   const [first = '', second = ''] = ids
 
   await twoHeld(w, ui, ids)
@@ -342,7 +320,7 @@ test('a reload with two sends held keeps them both, said in the heartbeat in the
     { items: [first], isHeld: true },
     { items: [second], isHeld: true },
   ])
-  expect(sendingIn(w, paths)).toEqual([[first], [second]])
+  expect(sendingItems(w, paths)).toEqual([[first], [second]])
   expect(w.state.board?.waiting).toBe(1)
 
   await turnEnded(w)
@@ -357,7 +335,7 @@ test('a reload with two sends held keeps them both, said in the heartbeat in the
 
 test('inline, a send held while the pane was closed shows sealed when it opens again, the reply after it a queue of its own; sending that closes the pane, and both wait as sends of their own', async ($, on) => {
   const w = world($, on)
-  const { ids, ui } = await asking(w, INLINE)
+  const { ids, ui } = await reviewing(w, INLINE)
   const [first = '', second = ''] = ids
 
   await holding(w, ui, ids)
@@ -411,7 +389,7 @@ const answeredInPrompt = async (w: World, engine: Engine) => {
 
   const list = postedId(await w.call('ask', { wants: 'words', title: LIST }))
   const review = postedId(
-    await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 3' }),
+    await w.call('ask', reviewRound(3)),
   )
   const ui = await w.pane('terminal', TALL)
 
@@ -482,7 +460,7 @@ const startedElsewhere = async (w: World) => {
 
 test("a send held to a session the board has not read, the window holding another since, still shows on its way there, named as its project's briefs name it, its replies counted, with its line and its take-back", async ($, on) => {
   const w = world($, on)
-  const { ids, ui } = await asking(w)
+  const { ids, ui } = await reviewing(w)
 
   await holding(w, ui, ids)
   await startedElsewhere(w)
@@ -496,7 +474,7 @@ test("a send held to a session the board has not read, the window holding anothe
 
 test('a send after the first, one row for room, names where it goes when that is not the session held', async ($, on) => {
   const w = world($, on)
-  const { ids, ui } = await asking(w, { ...DOCKED, scroll: { offset: 0, bodyRows: 16 } })
+  const { ids, ui } = await reviewing(w, { ...DOCKED, scroll: { offset: 0, bodyRows: 16 } })
 
   await twoHeld(w, ui, ids)
   await startedElsewhere(w)
@@ -513,7 +491,7 @@ test('a send after the first, one row for room, names where it goes when that is
 
 test('the first send refused with a second held behind it: both are let go together, one toast saying so, every reply back among those still to send in the order replied, and the second never submitted', async ($, on) => {
   const w = world($, on)
-  const { paths, ids, ui } = await asking(w)
+  const { paths, ids, ui } = await reviewing(w)
   const [first = '', second = ''] = ids
 
   await twoHeld(w, ui, ids)
@@ -533,7 +511,7 @@ test('the first send refused with a second held behind it: both are let go toget
 
 test('the first send never taken with a second held behind it: both are let go together as its quiet passes, one toast saying so, every reply back among those still to send in the order replied', async ($, on) => {
   const w = world($, on)
-  const { paths, ids, ui } = await asking(w)
+  const { paths, ids, ui } = await reviewing(w)
   const [first = '', second = ''] = ids
 
   await twoHeld(w, ui, ids)
@@ -565,7 +543,7 @@ test('the first send never taken with a second held behind it: both are let go t
 for (const reason of ['resume', 'prompt_input_exit'] as const) {
   test(`two sends held as the conversation ends for ${reason}: both are let go, nothing submitted, every reply back among those still to send in the order replied`, async ($, on) => {
     const w = world($, on)
-    const { paths, ids, ui } = await asking(w)
+    const { paths, ids, ui } = await reviewing(w)
     const [first = '', second = ''] = ids
 
     await twoHeld(w, ui, ids)
@@ -581,7 +559,7 @@ for (const reason of ['resume', 'prompt_input_exit'] as const) {
 
 test('two sends held as a /clear ends the conversation go into the next in turn: the first at once, the second once the turn the first started has ended', async ($, on) => {
   const w = world($, on)
-  const { paths, ids, ui } = await asking(w)
+  const { paths, ids, ui } = await reviewing(w)
   const [first = '', second = ''] = ids
 
   await twoHeld(w, ui, ids)
@@ -602,7 +580,7 @@ test('two sends held as a /clear ends the conversation go into the next in turn:
 test("a take-back of the first send landing before the turn's end it raced: the second goes in its place, alone, and the first's reply is back among those still to send", async ($, on) => {
   const w = world($, on)
   const going = writeDoor(on)
-  const { paths, ids, ui } = await asking(w)
+  const { paths, ids, ui } = await reviewing(w)
   const [first = '', second = ''] = ids
 
   await twoHeld(w, ui, ids)
@@ -623,7 +601,7 @@ test("a take-back of the first send landing before the turn's end it raced: the 
 
 test("a send behind one submitted waits for the turn that one starts: its submit resolving before that turn is heard, a press of send and the window's looks submit nothing, and each goes once the turn before it has ended", async ($, on) => {
   const w = world($, on)
-  const { paths, ids, ui } = await asking(w)
+  const { paths, ids, ui } = await reviewing(w)
   const [first = '', second = '', third = ''] = ids
 
   await twoHeld(w, ui, ids)
@@ -653,7 +631,7 @@ test("a send behind one submitted waits for the turn that one starts: its submit
 
 test("a turn another prompt starts while the next send waits on the turn of the one before opens nothing: the next goes only once that one's own turn has started and ended", async ($, on) => {
   const w = world($, on)
-  const { paths, ids, ui } = await asking(w)
+  const { paths, ids, ui } = await reviewing(w)
   const [first = '', second = ''] = ids
 
   await twoHeld(w, ui, ids)
@@ -674,7 +652,7 @@ test("a turn another prompt starts while the next send waits on the turn of the 
 
 test("two sends held as Lee stops Claude's turn: the first goes as the stopped turn ends, the second once the turn the first started has ended", async ($, on) => {
   const w = world($, on)
-  const { paths, ids, ui } = await asking(w)
+  const { paths, ids, ui } = await reviewing(w)
   const [first = '', second = ''] = ids
 
   await twoHeld(w, ui, ids)
@@ -693,7 +671,7 @@ test("two sends held as Lee stops Claude's turn: the first goes as the stopped t
 
 test('should the turn a submitted send started never be heard, the send behind it goes at the first look once its quiet has passed, nothing let go', async ($, on) => {
   const w = world($, on)
-  const { paths, ids, ui } = await asking(w)
+  const { paths, ids, ui } = await reviewing(w)
   const [first = '', second = ''] = ids
 
   await twoHeld(w, ui, ids)
@@ -749,7 +727,7 @@ const typedCommand = ($: Engine, command: string) =>
 
 test("a send Claude Code refuses as Lee stopped Claude's turn is not let go: held, the window marked stopped, no toast, its line drawn with send now, its asks on their way still; it goes once Lee's next turn ends", async ($, on) => {
   const w = world($, on)
-  const { paths, ids, ui } = await asking(w)
+  const { paths, ids, ui } = await reviewing(w)
   const [first = ''] = ids
 
   await holding(w, ui, ids)
@@ -761,7 +739,7 @@ test("a send Claude Code refuses as Lee stopped Claude's turn is not let go: hel
   expect(isStopped(w)).toBe(true)
   expect(await box(ui)).toEqual([...heading(1), ...stopped(1)])
   expect(await ui.find({ key: w.takeBack() })).toBeDefined()
-  expect(sendingIn(w, paths), 'still on its way').toEqual([[first]])
+  expect(sendingItems(w, paths), 'still on its way').toEqual([[first]])
 
   await w.clock.advance(QUIET_MS + 4 * WATCH_MS)
 
@@ -784,7 +762,7 @@ test("a send Claude Code refuses as Lee stopped Claude's turn is not let go: hel
 
 test("a subagent's run starting and ending leaves the window stopped and the send unsent", async ($, on) => {
   const w = world($, on)
-  const { ids, ui } = await asking(w)
+  const { ids, ui } = await reviewing(w)
 
   await holding(w, ui, ids)
   await interrupted(w)
@@ -800,7 +778,7 @@ test("a subagent's run starting and ending leaves the window stopped and the sen
 
 test("a send sealed behind the first while the window is stopped stays behind it, saying it goes after Lee's next message: the first goes once his turn ends, the second once the first's own turn has ended", async ($, on) => {
   const w = world($, on)
-  const { paths, ids, ui } = await asking(w)
+  const { paths, ids, ui } = await reviewing(w)
   const [first = '', second = ''] = ids
 
   await twoHeld(w, ui, ids)
@@ -830,7 +808,7 @@ test("a send sealed behind the first while the window is stopped stays behind it
 
 test('taking back the first send while the window is stopped leaves the second held, unsubmitted, now first, with send now', async ($, on) => {
   const w = world($, on)
-  const { ids, ui } = await asking(w)
+  const { ids, ui } = await reviewing(w)
   const [first = '', second = ''] = ids
 
   await twoHeld(w, ui, ids)
@@ -848,7 +826,7 @@ test('taking back the first send while the window is stopped leaves the second h
 
 test("send pressed while the window is stopped submits from within Lee's press, whatever is first going: refused all the same, it waits, the window stopped again, silently; taken, it goes in", async ($, on) => {
   const w = world($, on)
-  const { paths, ids, ui } = await asking(w)
+  const { paths, ids, ui } = await reviewing(w)
   const [first = '', second = ''] = ids
 
   await holding(w, ui, ids)
@@ -882,7 +860,7 @@ test("send pressed while the window is stopped submits from within Lee's press, 
 
 test('send pressed while the window is stopped and nothing is in flight goes in at once from the press', async ($, on) => {
   const w = world($, on)
-  const { paths, ids, ui } = await asking(w)
+  const { paths, ids, ui } = await reviewing(w)
   const [first = '', second = ''] = ids
 
   await holding(w, ui, ids)
@@ -900,7 +878,7 @@ test('send pressed while the window is stopped and nothing is in flight goes in 
 
 test('send now shows only while the window is stopped, beside the first send held', async ($, on) => {
   const w = world($, on)
-  const { ids, ui } = await asking(w)
+  const { ids, ui } = await reviewing(w)
 
   await twoHeld(w, ui, ids)
   expect(await ui.find({ key: 'send-now' })).toBeUndefined()
@@ -914,7 +892,7 @@ test('send now shows only while the window is stopped, beside the first send hel
 
 test("refused again for the same reason after Lee's turn, the window is marked stopped again, nothing lost; the send goes once a later turn of his ends", async ($, on) => {
   const w = world($, on)
-  const { paths, ids, ui } = await asking(w)
+  const { paths, ids, ui } = await reviewing(w)
   const [first = ''] = ids
 
   await holding(w, ui, ids)
@@ -939,7 +917,7 @@ test("refused again for the same reason after Lee's turn, the window is marked s
 
 test("a send held while the window was stopped, refused for another reason once Lee's turn ends, is let go as any refusal is, with the send behind it, one toast saying so", async ($, on) => {
   const w = world($, on)
-  const { paths, ids, ui } = await asking(w)
+  const { paths, ids, ui } = await reviewing(w)
   const [first = '', second = ''] = ids
 
   await twoHeld(w, ui, ids)
@@ -960,7 +938,7 @@ test("a send held while the window was stopped, refused for another reason once 
 
 test("taking back the only send while the window is stopped puts its replies back among those still to send, its ask waiting on Lee again at once", async ($, on) => {
   const w = world($, on)
-  const { paths, ids, ui } = await asking(w)
+  const { paths, ids, ui } = await reviewing(w)
   const [first = ''] = ids
 
   await holding(w, ui, ids)
@@ -971,7 +949,7 @@ test("taking back the only send while the window is stopped puts its replies bac
   expect(w.state.inFlight).toBeNull()
   expect(w.state.queue).toMatchObject([{ item: first }])
   expect(await box(ui)).toEqual([...heading(1), ...toSend(1), ...CONTROLS])
-  expect(sendingIn(w, paths)).toBeUndefined()
+  expect(sendingItems(w, paths)).toBeUndefined()
   expect(w.state.board?.waiting).toBe(3)
 
   await leeTypes(w)
@@ -983,7 +961,7 @@ test("taking back the only send while the window is stopped puts its replies bac
 
 test("a file-watch reload keeps the window stopped and the send held, the refusal standing; a /clear lifts it, and the send goes into the next conversation at once", async ($, on) => {
   const w = world($, on)
-  const { paths, ids, ui } = await asking(w)
+  const { paths, ids, ui } = await reviewing(w)
   const [first = ''] = ids
 
   await holding(w, ui, ids)
@@ -993,7 +971,7 @@ test("a file-watch reload keeps the window stopped and the send held, the refusa
 
   expect(w.submitted).toEqual([message(1)])
   expect(isStopped(w)).toBe(true)
-  expect(sendingIn(w, paths)).toEqual([[first]])
+  expect(sendingItems(w, paths)).toEqual([[first]])
 
   w.dropPrompts()
   await $.session.end({ reason: 'clear', sessionId: W1, resume: { id: W1 } })
@@ -1007,7 +985,7 @@ test("a file-watch reload keeps the window stopped and the send held, the refusa
 
 test("a prompt Lee types that the answering mode takes lifts the stop, though no turn follows: the send held goes at the next look, and his answer's send after it", async ($, on) => {
   const w = world($, on)
-  const { paths, ids, ui } = await asking(w)
+  const { paths, ids, ui } = await reviewing(w)
   const [first = ''] = ids
   const words = postedId(await w.call('ask', { wants: 'words', title: 'Name the release' }))
 
@@ -1042,7 +1020,7 @@ test("a prompt Lee types that the answering mode takes lifts the stop, though no
 
 test("a prompt of Lee's going on to start a turn leaves the window stopped until that turn starts, so no look puts the send in ahead of it", async ($, on) => {
   const w = world($, on)
-  const { ids, ui } = await asking(w)
+  const { ids, ui } = await reviewing(w)
 
   await holding(w, ui, ids)
   await interrupted(w)
@@ -1088,7 +1066,7 @@ const answeredWithImage = ($: Engine) =>
 
 test("an answer going in with an image is a prompt of Lee's going on: the window stays stopped until its turn starts, then the send held goes as that turn ends", async ($, on) => {
   const w = world($, on)
-  const { paths, ids, ui } = await asking(w)
+  const { paths, ids, ui } = await reviewing(w)
   const [first = ''] = ids
   const words = await answeringStopped(w, ui, ids)
 
@@ -1112,7 +1090,7 @@ test("an answer going in with an image is a prompt of Lee's going on: the window
 
 test('an answer with an image dropped beneath lifts the stop, though no turn follows: the send held goes at the next look, and the answer still waits on Lee', async ($, on) => {
   const w = world($, on)
-  const { paths, ids, ui } = await asking(w)
+  const { paths, ids, ui } = await reviewing(w)
   const [first = ''] = ids
   const words = await answeringStopped(w, ui, ids)
 
@@ -1146,7 +1124,7 @@ const answeringWhileHeld = async (w: World, ui: Board, ids: readonly string[]) =
 
 test("an answer going in with an image while a send is held goes ahead of it, and the send goes once the answer's own turn has ended", async ($, on) => {
   const w = world($, on)
-  const { paths, ids, ui } = await asking(w)
+  const { paths, ids, ui } = await reviewing(w)
   const [first = ''] = ids
   const words = await answeringWhileHeld(w, ui, ids)
   const held = w.holdPrompts()
@@ -1177,7 +1155,7 @@ test("an answer going in with an image while a send is held goes ahead of it, an
 
 test("an answer typed while Claude's turn runs holds the send behind it however long that turn runs, until the answer's own turn has started and ended", async ($, on) => {
   const w = world($, on)
-  const { paths, ids, ui } = await asking(w)
+  const { paths, ids, ui } = await reviewing(w)
   const [first = ''] = ids
   const words = await answeringWhileHeld(w, ui, ids)
 
@@ -1196,7 +1174,7 @@ test("an answer typed while Claude's turn runs holds the send behind it however 
 
 test("an answer folded into Claude's running turn, starting no turn of its own, holds the send behind it until the window has been quiet a while after that turn", async ($, on) => {
   const w = world($, on)
-  const { ids, ui } = await asking(w)
+  const { ids, ui } = await reviewing(w)
 
   await answeringWhileHeld(w, ui, ids)
   await answeredWithImage($)
@@ -1213,7 +1191,7 @@ test("an answer folded into Claude's running turn, starting no turn of its own, 
 
 test("an answer whose turn starts before its hook hears back holds the send behind it only until that turn ends", async ($, on) => {
   const w = world($, on)
-  const { paths, ids, ui } = await asking(w)
+  const { paths, ids, ui } = await reviewing(w)
   const [first = ''] = ids
   const words = await answeringWhileHeld(w, ui, ids)
   const held = w.holdPrompts()
@@ -1235,7 +1213,7 @@ test("an answer whose turn starts before its hook hears back holds the send behi
 
 test('while the window is stopped, the first send held behind an answer going in with an image offers no send now, which could not send it', async ($, on) => {
   const w = world($, on)
-  const { ids, ui } = await asking(w)
+  const { ids, ui } = await reviewing(w)
 
   await answeringStopped(w, ui, ids)
   w.dropPrompts()
@@ -1255,7 +1233,7 @@ test('while the window is stopped, the first send held behind an answer going in
 
 test("a prompt another plugin submits, or the SDK's, lifts nothing: only Lee's own input counts", async ($, on) => {
   const w = world($, on)
-  const { ids, ui } = await asking(w)
+  const { ids, ui } = await reviewing(w)
 
   await holding(w, ui, ids)
   await interrupted(w)
@@ -1283,7 +1261,7 @@ test("a slash command Lee types lifts the stop, though no turn follows; nothing 
   })
 
   const w = world($, on)
-  const { paths, ids, ui } = await asking(w)
+  const { paths, ids, ui } = await reviewing(w)
   const [first = ''] = ids
 
   await holding(w, ui, ids)
@@ -1309,7 +1287,7 @@ test('a /reload-plugins Lee types lifts the stop: the load after it sends the se
   on('command.run', { command: 'reload-plugins' }, () => ({}))
 
   const w = world($, on)
-  const { paths, ids, ui } = await asking(w)
+  const { paths, ids, ui } = await reviewing(w)
   const [first = ''] = ids
 
   await holding(w, ui, ids)
@@ -1331,7 +1309,7 @@ test('a /clear Lee types lifts the stop, and the send held goes into the next co
   })
 
   const w = world($, on)
-  const { paths, ids, ui } = await asking(w)
+  const { paths, ids, ui } = await reviewing(w)
   const [first = ''] = ids
 
   await holding(w, ui, ids)
@@ -1351,7 +1329,7 @@ test('a /clear Lee types lifts the stop, and the send held goes into the next co
 
 test("Lee's turn starting between a submit and Claude Code's refusal of it leaves the window unmarked, the send held to go as that turn ends", async ($, on) => {
   const w = world($, on)
-  const { paths, ids, ui } = await asking(w)
+  const { paths, ids, ui } = await reviewing(w)
   const [first = ''] = ids
 
   await holding(w, ui, ids)
@@ -1396,7 +1374,7 @@ test("Lee's turn starting while the stop is being written lifts it once written"
   })
 
   const w = world($, on)
-  const { paths, ids, ui } = await asking(w)
+  const { paths, ids, ui } = await reviewing(w)
   const [first = ''] = ids
 
   await holding(w, ui, ids)

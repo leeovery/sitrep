@@ -23,7 +23,7 @@ import {
   type Session,
   type SessionFiles,
 } from '../core'
-import { CLI, MIN, T0, W1, W2 } from './data'
+import { CLI, HOUR, MIN, T0, W1, W2 } from './data'
 import {
   beat,
   file,
@@ -44,8 +44,6 @@ import {
   type Line,
 } from './lines'
 import { inZone } from './zoned'
-
-const HOUR = 60 * MIN
 
 /** When the session is folded, unless a test says otherwise. */
 const NOW = T0 + HOUR

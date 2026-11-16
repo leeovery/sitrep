@@ -14,7 +14,20 @@ import {
   type Where,
   type WindowState,
 } from '../core'
-import { ELSEWHERE, META, MIN, PLUGIN_VERSION, PROJECT, REPO, ROOT, T0, W1, W2, W3 } from './data'
+import {
+  ELSEWHERE,
+  HOUR,
+  META,
+  MIN,
+  PLUGIN_VERSION,
+  PROJECT,
+  REPO,
+  ROOT,
+  T0,
+  W1,
+  W2,
+  W3,
+} from './data'
 import {
   beat,
   delivered,
@@ -44,8 +57,6 @@ type Board = {
   session: { id: string; name: string; isOpen: boolean }
   log: { id: string | null; text: string }[]
 }
-
-const HOUR = 60 * MIN
 
 /** Another session of Northwind's, no window holding it. */
 const LOBBY = { ...META, id: 'sr-bbbbbb', name: 'Lobby' }
