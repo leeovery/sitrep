@@ -98,7 +98,7 @@ struct WelcomeWindowTests {
             window?.becomeKey()
             #expect(window != nil && content != nil && stage != nil, "\(place)")
             closing(welcome, shown, window)
-            await until(turns: 1000) { window == nil && content == nil && stage == nil }
+            await until(turns: 1000, "\(place)") { window == nil && content == nil && stage == nil }
             #expect(!welcome.isVisiting && shown.stage == nil, "\(place)")
         }
     }

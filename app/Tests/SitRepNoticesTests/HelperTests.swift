@@ -86,19 +86,21 @@ struct HelperTests {
     final class Sent {
         private(set) var messages: [ToSitRep] = []
         private(set) var pids: Set<Int32> = []
-        private var waiter: CheckedContinuation<Void, Never>?
+        private var waiter: (@Sendable (()) -> Void)?
 
         func put(_ letter: Letter<ToSitRep>) {
             messages.append(letter.message)
             pids.insert(letter.pid)
-            waiter?.resume()
+            waiter?(())
             waiter = nil
         }
 
-        /// Once `count` messages are sent.
+        /// Once `count` messages are sent, or those sent once the next has not come within the time, failing the test.
         func first(_ count: Int) async -> [ToSitRep] {
             while messages.count < count {
-                await withCheckedContinuation { waiter = $0 }
+                guard await answer(within: .seconds(10), "a message sent", { waiter = $0 }) != nil else {
+                    break
+                }
             }
 
             return messages

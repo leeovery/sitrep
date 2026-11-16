@@ -9,7 +9,7 @@ struct LineBuffer {
 
     let longest: Int
     /// The line under way, kept to its longest.
-    private(set) var unended = Data()
+    private var unended = Data()
 
     init(longest: Int) {
         self.longest = longest
@@ -34,6 +34,9 @@ struct LineBuffer {
 
         return lines
     }
+
+    /// How much of the line under way is kept: internal only for the tests.
+    var keptCount: Int { unended.count }
 
     /// What is left unended, as the output closes.
     mutating func rest() -> String? {

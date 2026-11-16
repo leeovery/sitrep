@@ -8,6 +8,7 @@ extension NSMenu {
     func choose(_ index: Int) throws {
         let item = items[index]
 
+        try #require(item.isEnabled)
         NSApplication.shared.sendAction(try #require(item.action), to: item.target, from: item)
     }
 }

@@ -32,7 +32,7 @@ struct JumpBoardTests {
         let waits = jumpBoard.waits
         let asking = Task { await jumpBoard.current() }
 
-        await until(turns: 1000, sourceLocation: sourceLocation) { jumpBoard.waits == waits + 1 }
+        await until(turns: 1000, "the jump waits", sourceLocation: sourceLocation) { jumpBoard.waits == waits + 1 }
         return asking
     }
 

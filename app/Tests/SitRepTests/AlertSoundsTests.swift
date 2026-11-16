@@ -7,29 +7,15 @@ import SitRepTestSupport
 import SwiftUI
 import Testing
 
-extension AlertSounds {
-    /// macOS's alert sounds by name, as macOS 26 has them, so a test reads none from this Mac.
-    static let macOSNames = [
-        "Basso", "Blow", "Bottle", "Frog", "Funk", "Glass", "Hero", "Morse", "Ping", "Pop", "Purr", "Sosumi", "Submarine",
-        "Tink",
-    ]
-
-    /// macOS's sounds by name, none of them ever played.
-    static var silent: AlertSounds {
-        AlertSounds(names: macOSNames, play: { _ in })
-    }
-}
-
 /// The sounds a new ask can play: macOS's own alert sounds, by name.
 @MainActor
 struct AlertSoundsTests {
+    /// The names the tests use in their place, read from this Mac's macOS.
     @Test(.tags(.process))
     func theyAreMacOSsAlertSoundsByNameInOrder() {
         let names = AlertSounds.live.names
 
-        #expect(names.first == "Basso")
-        #expect(names.last == "Tink")
-        #expect(names.contains("Glass"))
+        #expect(names == AlertSounds.macOSNames)
         #expect(names == names.sorted())
     }
 
@@ -138,8 +124,8 @@ struct SoundRowsTests {
             return try Self.popUp(hosted).isEnabled
         }
 
-        #expect(try await !flipped(false))
-        #expect(try await flipped(true))
+        #expect(try !flipped(false))
+        #expect(try flipped(true))
     }
 
     @Test func theSoundIsGreyedWhileTheSwitchIsOff() async throws {

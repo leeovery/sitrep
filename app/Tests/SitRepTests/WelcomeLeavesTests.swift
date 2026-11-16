@@ -17,14 +17,14 @@ struct WelcomeLeavesTests {
 
         change(made.mac)
         made.at(.permissions)
-        await made.welcome.reading?.value
+        await ended(made.welcome.reading, within: .seconds(10))
         return made
     }
 
     /// A row's button pressed, and its ask, once answered, done.
     private static func press(_ permission: WelcomePermission, on made: Made) async {
         made.welcome.press(permission)
-        await made.welcome.asks[permission]?.value
+        await ended(made.welcome.asks[permission], within: .seconds(10))
     }
 
     // MARK: To ask
@@ -81,7 +81,7 @@ struct WelcomeLeavesTests {
             made.mac.waitEnds()
             await until(turns: 1000) { made.welcome.leave(permission) == .asking(waitedLong: true) }
             made.mac.answer()
-            await made.welcome.asks[permission]?.value
+            await ended(made.welcome.asks[permission], within: .seconds(10))
             #expect(made.welcome.leave(permission) == .on, "\(permission)")
         }
     }
@@ -93,7 +93,7 @@ struct WelcomeLeavesTests {
         await Self.press(.notifications, on: made)
         await until(turns: 1000) { made.mac.isWaiting }
         made.mac.waitEnds()
-        await made.welcome.patience[.notifications]?.value
+        await ended(made.welcome.waitsOnPrompt[.notifications], within: .seconds(10))
         #expect(made.welcome.leave(.notifications) == .on)
     }
 
@@ -109,7 +109,7 @@ struct WelcomeLeavesTests {
         made.welcome.press(.ghostty)
         #expect(made.welcome.asks[.ghostty] == asking, "no ask begun")
         made.mac.answer()
-        await made.welcome.asks[.ghostty]?.value
+        await ended(made.welcome.asks[.ghostty], within: .seconds(10))
         #expect(made.mac.allows.count == 1)
     }
 
@@ -203,7 +203,7 @@ struct WelcomeLeavesTests {
         #expect(made.mac.waits.contains(WelcomePermission.limit) && made.mac.isPrompting)
         made.mac.waitEnds()
         made.mac.answer()
-        await made.welcome.asks[.notifications]?.value
+        await ended(made.welcome.asks[.notifications], within: .seconds(10))
         #expect(made.welcome.leave(.notifications) == .on)
         #expect(made.welcome.hitch(.notifications) == nil)
     }
@@ -233,7 +233,7 @@ struct WelcomeLeavesTests {
         await Self.press(.notifications, on: made)
         #expect(made.welcome.leave(.notifications) == .on)
         made.mac.readEnds()
-        await made.welcome.reading?.value
+        await ended(made.welcome.reading, within: .seconds(10))
         #expect(made.welcome.leave(.notifications) == .on)
     }
 
@@ -252,7 +252,7 @@ struct WelcomeLeavesTests {
         await made.key()
         #expect(made.welcome.leave(.notifications) == .refused)
         made.mac.readEnds()
-        await earlier?.value
+        await ended(earlier, within: .seconds(10))
         #expect(made.welcome.leave(.notifications) == .refused)
     }
 
@@ -312,10 +312,10 @@ struct WelcomeLeavesTests {
         let made = Made()
 
         made.at(.ready)
-        await made.welcome.reading?.value
+        await ended(made.welcome.reading, within: .seconds(10))
         #expect(made.welcome.playback[3] == .init(label: "A click", words: "Opens Ghostty", fix: .allowGhostty))
         made.welcome.fix(.allowGhostty)
-        await made.welcome.asks[.ghostty]?.value
+        await ended(made.welcome.asks[.ghostty], within: .seconds(10))
         #expect(made.mac.opensGhostty == 1 && made.mac.allows == [true])
         #expect(made.welcome.playback[3] == .init(label: "A click", words: "Opens the session's window", fix: nil))
     }
@@ -325,7 +325,7 @@ struct WelcomeLeavesTests {
 
         made.mac.ghostty = .denied
         made.at(.ready)
-        await made.welcome.reading?.value
+        await ended(made.welcome.reading, within: .seconds(10))
         #expect(made.welcome.playback[3].fix == .automation)
         made.welcome.fix(.automation)
         #expect(made.mac.opened == [.automation] && made.mac.allows.isEmpty)
@@ -341,7 +341,7 @@ struct WelcomeLeavesTests {
         made.preferences.app.notifiesNewAsks = true
         made.mac.notices = .denied
         made.at(.ready)
-        await made.welcome.reading?.value
+        await ended(made.welcome.reading, within: .seconds(10))
         #expect(made.welcome.playback[1] == .init(label: "A new ask", words: "Glass", fix: .notifications))
         made.welcome.fix(.notifications)
         #expect(made.mac.opened == [.notifications] && made.mac.asksForNotices == 0)

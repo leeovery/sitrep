@@ -29,10 +29,11 @@ final class RecordedWindow: ForwardWindow {
     private var isOrderedIn = false
 
     static func made() -> RecordedWindow {
-        let window = RecordedWindow(contentRect: .zero, styleMask: [.titled], backing: .buffered, defer: true)
+        let window = RecordedWindow(
+            contentRect: .zero, styleMask: [.titled], backing: .buffered, defer: true, spaces: NotificationCenter()
+        )
 
         window.isReleasedWhenClosed = false
-        window.spaces = NotificationCenter()
         return window
     }
 

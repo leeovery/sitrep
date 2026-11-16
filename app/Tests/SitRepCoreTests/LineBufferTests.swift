@@ -55,7 +55,7 @@ struct LineBufferTests {
 
         for _ in 1...80 {
             _ = buffer.lines(adding: chunk)
-            kept.append(buffer.unended.count)
+            kept.append(buffer.keptCount)
         }
 
         #expect(kept.max() == 1 << 20)

@@ -2,6 +2,7 @@ import Foundation
 @testable import SitRepCore
 import os
 import SitRepLines
+import SitRepTestSupport
 import Testing
 
 @Suite(.timeLimit(.minutes(1)))
@@ -104,6 +105,7 @@ struct SitRepWatchTests {
         let gate = Gate()
         let stopped = Runs([Self.watching])
         let next = Runs([Self.watching])
+        // The loop run straight, so its end can be awaited: a stream of its own, which nothing reads, takes its boards.
         let first = Task {
             await Self.watch(stopped, pathWaitsOn: gate).watch(into: AsyncStream<LastBoard>.makeStream().continuation)
         }
@@ -122,7 +124,7 @@ struct SitRepWatchTests {
             break
         }
         gate.open()
-        await first.value
+        await value(of: first, within: .seconds(10), "the stopped watch's loop ended")
         running.cancel()
         #expect(next.programs.count == 1)
         #expect(stopped.programs.isEmpty)

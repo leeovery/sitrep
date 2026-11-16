@@ -1,6 +1,7 @@
 import AppKit
 @testable import SitRep
 import SitRepMenu
+import SitRepTestSupport
 import Testing
 
 /// Keyboard focus in the welcome window, made, never shown: on nothing as it opens, the window itself first responder,
@@ -14,7 +15,7 @@ struct WelcomeFocusTests {
 
     /// Where AppKit, as the window orders in and as it keys, gives focus to its first key view, Skip setup at the first
     /// step: focus is on nothing all the same.
-    @Test(.enabled { await keyboardNavigation() })
+    @Test(.keyboardNavigationIsOn, .tags(.process))
     func itOpensWithFocusOnNothing() async {
         let made = Made(focusing: true)
 
@@ -25,7 +26,7 @@ struct WelcomeFocusTests {
     }
 
     /// Sent behind with focus on nothing and keyed again, as by ⌘-Tab, it is on nothing still, wherever AppKit puts it.
-    @Test(.enabled { await keyboardNavigation() })
+    @Test(.keyboardNavigationIsOn, .tags(.process))
     func keyedAgainAfterGoingBehindOnNothingItStaysOnNothing() async {
         let made = Made(focusing: true)
 
@@ -37,7 +38,7 @@ struct WelcomeFocusTests {
     }
 
     /// Sent behind with a control focused and keyed again, focus stays on the control Lee gave it.
-    @Test(.enabled { await keyboardNavigation() })
+    @Test(.keyboardNavigationIsOn, .tags(.process))
     func keyedAgainAfterGoingBehindOnAControlFocusStaysThere() async throws {
         let made = Made(focusing: true)
 
@@ -62,7 +63,7 @@ struct WelcomeFocusTests {
 
     /// Lee's live path, Tab to Continue then the close button: the next visit, a window of its own, focuses nothing as
     /// it opens and as it keys.
-    @Test(.enabled { await keyboardNavigation() })
+    @Test(.keyboardNavigationIsOn, .tags(.process))
     func tabbedToContinueAndClosedByItsButtonItOpensAgainWithFocusOnNothing() async throws {
         let made = Made(focusing: true)
         let isOnContinue = { Self.frame(made).map { abs($0.maxX - 824) <= 0.5 } == true }
@@ -88,7 +89,7 @@ struct WelcomeFocusTests {
 
     /// Show Welcome Window while it shows brings it forward at its first step, a visit under way going on: focus stays
     /// where Lee put it, as it comes forward and as it is keyed again.
-    @Test(.enabled { await keyboardNavigation() })
+    @Test(.keyboardNavigationIsOn, .tags(.process))
     func shownAgainWhileOpenFocusStaysWhereItWas() async throws {
         let made = Made(focusing: true)
 
@@ -107,7 +108,7 @@ struct WelcomeFocusTests {
     }
 
     /// The chevron, dimmed at the first step, takes no focus there.
-    @Test(.enabled { await keyboardNavigation() })
+    @Test(.keyboardNavigationIsOn, .tags(.process))
     func atTheFirstStepTabGoesToSkipSetupThenContinueAndRoundAgain() async throws {
         let made = Made()
 
@@ -122,7 +123,7 @@ struct WelcomeFocusTests {
 
     /// At a step with no controls of its own, the footer's alone: back, Skip setup and Continue, left to right; Tab past
     /// Continue goes round to back, and Shift-Tab from back to Continue.
-    @Test(.enabled { await keyboardNavigation() })
+    @Test(.keyboardNavigationIsOn, .tags(.process))
     func tabGoesThroughTheFootersControlsInOrderAndShiftTabComesBack() async throws {
         let made = Made()
 
@@ -142,7 +143,7 @@ struct WelcomeFocusTests {
     }
 
     /// Your edge: the two tiles, the form's rows from the top, Show nothing at the edge, then the footer.
-    @Test(.enabled { await keyboardNavigation() })
+    @Test(.keyboardNavigationIsOn, .tags(.process))
     func tabGoesThroughAStepsControlsInReadingOrderThenTheFooters() async throws {
         let made = Made()
 
@@ -158,7 +159,7 @@ struct WelcomeFocusTests {
 
     /// At Nothing, the form's rows take no presses and a line stands in Show nothing at the edge's place: Tab goes from
     /// the tiles to the footer.
-    @Test(.enabled { await keyboardNavigation() })
+    @Test(.keyboardNavigationIsOn, .tags(.process))
     func atNothingTabGoesFromTheTilesToTheFooter() async throws {
         let made = Made()
 
@@ -174,7 +175,7 @@ struct WelcomeFocusTests {
     }
 
     /// Focus on a tile, and the step it was on gone: AppKit leaves the window itself first responder, on nothing.
-    @Test(.enabled { await keyboardNavigation() })
+    @Test(.keyboardNavigationIsOn, .tags(.process))
     func aStepGoneWithTheControlFocusedLeavesFocusOnNothing() async throws {
         let made = Made()
 
@@ -240,7 +241,13 @@ struct WelcomeFocusTests {
     }
 }
 
-/// The Mac's Keyboard navigation setting, by which buttons take focus.
-private func keyboardNavigation() async -> Bool {
-    await MainActor.run { NSApplication.shared.isFullKeyboardAccessEnabled }
+extension Trait where Self == ConditionTrait {
+    /// Run only with the Mac's Keyboard navigation setting on, by which buttons take focus: AppKit and SwiftUI read it
+    /// themselves, and heed no stand-in for it in the process (`NSApplication.isFullKeyboardAccessEnabled` overridden,
+    /// `AppleKeyboardUIMode` in the argument domain, tried 16 November 2026).
+    fileprivate static var keyboardNavigationIsOn: Self {
+        .enabled("Keyboard navigation is off on this Mac") {
+            await MainActor.run { NSApplication.shared.isFullKeyboardAccessEnabled }
+        }
+    }
 }

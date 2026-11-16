@@ -74,8 +74,10 @@ struct HelperAppTests {
         let app = helperApp()
 
         app.open()
+        #expect(app.isOpening)
         app.open()
-        await until(turns: 10_000) { mac.opening != nil }
+        await mac.opened(1)
+        await until(turns: 10_000) { !app.isOpening }
 
         #expect(mac.opens == 1)
     }

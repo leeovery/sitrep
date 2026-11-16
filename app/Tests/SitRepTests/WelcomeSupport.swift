@@ -257,19 +257,25 @@ enum WelcomeWorld {
         /// The window come forward, as AppKit tells its delegate, and what it read then read.
         func key() async {
             window.windowDidBecomeKey(Notification(name: NSWindow.didBecomeKeyNotification, object: recorded))
-            await welcome.reading?.value
+            await ended(welcome.reading, within: .seconds(10))
         }
 
         /// The welcome at this step, from its first; one it never comes to fails the test, rather than go on for ever.
         func at(_ step: WelcomeStep, sourceLocation: SourceLocation = #_sourceLocation) {
-            for _ in WelcomeSteps.all where welcome.step != step {
+            while welcome.step != step, !welcome.steps.isLast {
+                let was = welcome.step
+
                 welcome.goOn()
+                guard welcome.step != was else {
+                    break
+                }
             }
             #expect(welcome.step == step, "never came to its step", sourceLocation: sourceLocation)
         }
 
-        /// What the window shows, laid out once SwiftUI has heard what changed, and what the layout told after it, the
-        /// callout's place, told.
+        /// What the window shows, laid out, the stage having followed what changed, and what the layout told after it,
+        /// the callout's place and the scene, told: the stage does each in a task it posts, which only the main actor's
+        /// turns run (`Hosted`).
         func settled() async -> NSView {
             await Task.yield()
             await Task.yield()

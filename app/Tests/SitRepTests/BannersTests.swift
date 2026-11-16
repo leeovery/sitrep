@@ -23,19 +23,21 @@ struct BannersTests {
     final class Sent {
         private(set) var messages: [ToHelper] = []
         private(set) var pids: Set<Int32> = []
-        private var waiter: CheckedContinuation<Void, Never>?
+        private var waiter: (@Sendable (()) -> Void)?
 
         func put(_ letter: Letter<ToHelper>) {
             messages.append(letter.message)
             pids.insert(letter.pid)
-            waiter?.resume()
+            waiter?(())
             waiter = nil
         }
 
-        /// Once `count` messages are sent.
+        /// Once `count` messages are sent, or those sent once the next has not come within the time, failing the test.
         func first(_ count: Int) async -> [ToHelper] {
             while messages.count < count {
-                await withCheckedContinuation { waiter = $0 }
+                guard await answer(within: .seconds(10), "a message sent", { waiter = $0 }) != nil else {
+                    break
+                }
             }
 
             return messages
@@ -421,7 +423,7 @@ struct BannersTests {
         #expect(banners.unanswered == [sent.lastId!])
 
         banners.heard(Self.fromHelper(.status(.allowed(.banners), id: sent.lastId!)))
-        await asking.value
+        await value(of: asking, within: .seconds(10))
 
         #expect(banners.unanswered.isEmpty)
     }

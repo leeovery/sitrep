@@ -3,21 +3,31 @@ import Foundation
 import SitRepTestSupport
 import Testing
 
+/// Real programs watched, each as a child of the test's, every wait on one bounded.
 @Suite(.timeLimit(.minutes(1)), .tags(.process))
 struct WatchProgramTests {
     private static func sh(_ script: String, environment: [String: String] = [:]) -> Program {
         Program(executable: URL(fileURLWithPath: "/bin/sh"), arguments: ["-c", script], environment: environment, limit: .infinity)
     }
 
-    /// What the program says.
-    private static func heard(_ program: Program) async -> [Heard] {
-        var heard: [Heard] = []
+    /// What the program says, to its end, each heard as it comes; nil, failing the test, where it has not ended within
+    /// the time, when it is read no more.
+    private static func heard(
+        _ program: Program, holding running: RunningChild = RunningChild(), within limit: Duration = .seconds(30),
+        sourceLocation: SourceLocation = #_sourceLocation, hearing: @escaping @Sendable (Heard) -> Void = { _ in }
+    ) async -> [Heard]? {
+        let watching = Task {
+            var heard: [Heard] = []
 
-        for await said in watchProgram(program) {
-            heard.append(said)
+            for await said in watchProgram(holding: running)(program) {
+                heard.append(said)
+                hearing(said)
+            }
+
+            return heard
         }
 
-        return heard
+        return await value(of: watching, within: limit, sourceLocation: sourceLocation)
     }
 
     @Test func eachLineIsHeardAsItComesThenHowTheProgramEnded() async {
@@ -45,29 +55,28 @@ struct WatchProgramTests {
         #expect(await Self.heard(Self.sh("kill -9 $$")) == [.exited(.signal(9), stderr: "")])
     }
 
-    /// Its end heard as the program ends: the child it left, holding its output open, still runs.
+    /// Its end heard as the program ends, its output read only to the drain's half second: the child it left, holding
+    /// that output open, would hold the end to the child's own, an hour on, where the drain was not cut.
     @Test func aChildLeftHoldingTheOutputOpenIsNotWaitedOn() async throws {
         let ready = try Handshake()
-        let watching = Task { await Self.heard(Self.sh("echo done; sleep 3600 & echo $! > '\(ready.path)'")) }
-        let left = try #require(pid_t(await ready.line()))
+        let program = Self.sh("echo done; sleep 3600 & echo $! > '\(ready.path)'")
 
-        defer {
-            kill(left, SIGKILL)
-            ready.remove()
-        }
-        #expect(await watching.value == [.line("done"), .exited(.status(0), stderr: "")])
-        #expect(kill(left, 0) == 0)
+        async let heard = Self.heard(program, within: .seconds(5))
+        let left = await ready.line().flatMap { pid_t($0) }
+
+        defer { left.map { _ = kill($0, SIGKILL) } }
+        #expect(await heard == [.line("done"), .exited(.status(0), stderr: "")])
     }
 
     /// A line is read whole to 16MB, and cut there.
     @Test func aLineIsReadWholeTo16MBAndCutThere() async {
         let longest = 16 << 20
         let heard = await Self.heard(Self.sh("head -c \(longest + 100) /dev/zero | tr '\\0' a; echo; echo next"))
-        let lines = heard.compactMap { said in if case let .line(line) = said { line } else { nil } }
+        let lines = (heard ?? []).compactMap { said in if case let .line(line) = said { line } else { nil } }
 
         #expect(lines.map(\.utf8.count) == [longest, 4])
         #expect(lines.first?.utf8.allSatisfy { $0 == UInt8(ascii: "a") } == true)
-        #expect(heard.last == .exited(.status(0), stderr: ""))
+        #expect(heard?.last == .exited(.status(0), stderr: ""))
     }
 
     @Test func aLineOfStderrPastTheLongestKeptIsCutThere() async {
@@ -77,7 +86,11 @@ struct WatchProgramTests {
     }
 
     @Test func aProgramThatCannotStartSaysSo() async throws {
-        let heard = await Self.heard(Program(executable: URL(fileURLWithPath: "/no/such/sitrep"), arguments: [], environment: [:], limit: .infinity))
+        let heard = try #require(
+            await Self.heard(
+                Program(executable: URL(fileURLWithPath: "/no/such/sitrep"), arguments: [], environment: [:], limit: .infinity)
+            )
+        )
 
         guard case .unstartable = try #require(heard.first) else {
             Issue.record("heard \(heard)")
@@ -87,17 +100,20 @@ struct WatchProgramTests {
         #expect(heard.count == 1)
     }
 
-    /// Stopped by anything else, the program never says it was: the suite's time limit fails the wait on its word.
+    /// Read no more once it says it is ready, it is told to end: stopped any other way, it never says it was told, and
+    /// the wait on its word runs out.
     @Test func readingNoMoreStopsTheProgramWithSIGTERM() async throws {
         let stopped = try Handshake()
-        let script = "trap 'echo TERM > \"\(stopped.path)\"; exit 0' TERM; echo ready; while :; do sleep 0.05; done"
+        let program = Self.sh("trap 'echo TERM > \"\(stopped.path)\"; exit 0' TERM; echo ready; while :; do sleep 0.05; done")
+        let first = Task { () -> Heard? in
+            for await said in watchProgram(program) {
+                return said
+            }
 
-        defer { stopped.remove() }
-        for await said in watchProgram(Self.sh(script)) {
-            #expect(said == .line("ready"))
-            break
+            return nil
         }
 
+        #expect(await value(of: first, within: .seconds(10)) == .line("ready"))
         #expect(await stopped.line() == "TERM")
     }
 
@@ -106,11 +122,7 @@ struct WatchProgramTests {
     /// stderr, or not, as the two race.
     @Test func theRunningProgramIsHeldAndItsHolderStopsItWithSIGTERM() async {
         let running = RunningChild()
-        var heard: [Heard] = []
-
-        for await said in watchProgram(holding: running)(Self.sh("sleep 60 & trap 'exit 0' TERM; echo ready; wait")) {
-            heard.append(said)
-
+        let heard = await Self.heard(Self.sh("sleep 60 & trap 'exit 0' TERM; echo ready; wait"), holding: running) { said in
             if said == .line("ready") {
                 running.terminate()
             }
@@ -121,13 +133,8 @@ struct WatchProgramTests {
 
     @Test func aHolderStoppedStopsAProgramHeldAfterAtOnce() async {
         let running = RunningChild()
-        var heard: [Heard] = []
 
         running.terminate()
-        for await said in watchProgram(holding: running)(Self.sh("exec sleep 5")) {
-            heard.append(said)
-        }
-
-        #expect(heard == [.exited(.signal(SIGTERM), stderr: "")])
+        #expect(await Self.heard(Self.sh("exec sleep 5"), holding: running) == [.exited(.signal(SIGTERM), stderr: "")])
     }
 }

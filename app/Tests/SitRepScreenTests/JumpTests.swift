@@ -223,7 +223,7 @@ struct JumpTests {
         let jumping = Jumping(tmux, table, tmuxHeld: gate)
         let jumped = Task { await jumping.run([inTmux()]) }
 
-        await until(within: .seconds(10)) { gate.arrived == 2 && table.looks == 1 }
+        await until(within: .seconds(10)) { gate.arrived == 2 && table.looks == 1 && jumping.workspace.fronts == 1 }
         #expect(jumping.ghostty.asked.isEmpty)
         #expect(jumping.workspace.fronts == 1, "the front is read as the jump begins, before tmux answers")
 

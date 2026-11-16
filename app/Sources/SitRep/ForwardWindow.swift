@@ -8,7 +8,25 @@ import AppKit
 class ForwardWindow: NSWindow {
     /// Where macOS says Lee changed Space: the workspace's centre; a seam, as a test's own keeps what it posts from the
     /// windows of every other test.
-    var spaces = NSWorkspace.shared.notificationCenter
+    let spaces: NotificationCenter
+
+    init(
+        contentRect: NSRect, styleMask: NSWindow.StyleMask, backing: NSWindow.BackingStoreType, defer flag: Bool,
+        spaces: NotificationCenter
+    ) {
+        self.spaces = spaces
+        super.init(contentRect: contentRect, styleMask: styleMask, backing: backing, defer: flag)
+    }
+
+    /// AppKit's own, by which `init(contentViewController:)` makes it: hearing of Space changes from the workspace.
+    override convenience init(
+        contentRect: NSRect, styleMask: NSWindow.StyleMask, backing: NSWindow.BackingStoreType, defer flag: Bool
+    ) {
+        self.init(
+            contentRect: contentRect, styleMask: styleMask, backing: backing, defer: flag,
+            spaces: NSWorkspace.shared.notificationCenter
+        )
+    }
 
     /// Brought forward on the Space Lee is on, out of the Dock where minimised, and keyed: the window moves to that
     /// Space as it orders front, which `.moveToActiveSpace` asks for, before SitRep activates, so the activation finds
