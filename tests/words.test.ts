@@ -11,21 +11,8 @@ import {
   type Body,
   type ReplyFields,
 } from '../core'
-import {
-  choiceAsk,
-  file,
-  fold,
-  kindAsk,
-  MIN,
-  park,
-  reply,
-  SENDER,
-  seen,
-  T0,
-  W1,
-  wordsAsk,
-  yesAsk,
-} from './support'
+import { MIN, SENDER, T0, W1 } from './data'
+import { choiceAsk, file, fold, kindAsk, park, reply, seen, wordsAsk, yesAsk } from './lines'
 
 const NOW = T0 + 60 * MIN
 

@@ -1,6 +1,7 @@
 import { expect, test } from './kit'
 import { parseEntries, statusChange, type StatusFields } from '../core'
-import { file, fold, MIN, note, status, T0, W1, W2 } from './support'
+import { MIN, T0, W1, W2 } from './data'
+import { file, fold, note, status } from './lines'
 
 const REVIEWING = 'Waiting on your review of Tickets & Replies, round 1'
 const DRAWING = 'Drawing Inbox, round 2'

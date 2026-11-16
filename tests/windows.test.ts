@@ -8,7 +8,8 @@ import {
   type Where,
   type WindowState,
 } from '../core'
-import { fold, MIN, T0, W1, W2 } from './support'
+import { MIN, T0, W1, W2 } from './data'
+import { fold } from './lines'
 
 const IN_TMUX: Where = {
   device: '/dev/ttys004',

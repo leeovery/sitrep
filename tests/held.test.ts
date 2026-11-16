@@ -1,6 +1,6 @@
 import { expect, test } from './kit'
 import { heldReads } from '../cli/held'
-import { T0 } from './support'
+import { T0 } from './data'
 import { terminal } from './terminal'
 
 const DIR = '/state/sitrep/held'

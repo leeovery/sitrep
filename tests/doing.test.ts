@@ -3,12 +3,10 @@ import { expect, test, tier } from './kit'
 import { HEARTBEAT_MS, metaText, parsePresence, sessionPaths, type SessionPaths } from '../core'
 import { rewriteAt, STATE_MS } from '../hooks/doing'
 import type { SitrepActivity, SitrepAttachment } from '../types'
-import { AGENT, META, T0, W1, W2 } from './support'
-import { CONVERSATION, HELP_DESK, PROJECT, ROOT, startedId, world } from './world'
+import { AGENT, HELP_DESK, META, PROJECT, ROOT, T0, W1, W2 } from './data'
+import { CONVERSATION, startedId, world, type World } from './world'
 
 tier('user')
-
-type World = ReturnType<typeof world>
 
 /** The state the window's heartbeat on a session says, as a reader reads it. */
 const stateIn = (w: World, paths: SessionPaths) =>
@@ -220,11 +218,14 @@ test('a dialog matching no call put to Lee is logged and stops nothing', async (
 })
 
 test('a permission request a settings hook beneath answers shows no dialog, so it stops nothing, and its answer goes on as it came', async ($, on) => {
-  const w = world($, on)
-  const { paths } = await w.begin()
   const allowed = { decision: { behavior: 'allow' as const } }
 
-  w.answerRequests(allowed)
+  // A settings hook beneath, registered before the world's own so it is outermost: it answers in the dialog's place.
+  on('classic.PermissionRequest', { tool_name: 'Bash' }, () => allowed)
+
+  const w = world($, on)
+  const { paths } = await w.begin()
+
   await w.turnStarts('Open the PR.')
 
   const pr = w.calls('Bash', PR_CREATE, { verdict: 'ask', isShown: true })

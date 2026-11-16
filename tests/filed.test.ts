@@ -1,15 +1,14 @@
 import type { On } from 'claude-code'
 import { expect, test, tier } from './kit'
-import { metaText, parseEntries, presenceText, type SessionMeta } from '../core'
+import { metaText, parseEntries, presenceText } from '../core'
 import { AROUND_MS } from '../hooks/around'
 import { WATCH_MS } from '../hooks/window'
 import type { SitrepAttachment } from '../types'
-import { file, META, MIN, note, T0, W1, W2, W3, yesAsk } from './support'
-import { CONVERSATION, ELSEWHERE, postedId, PROJECT, toProject, world } from './world'
+import { ELSEWHERE, LEDGER, META, MIN, PROJECT, T0, THEMES, W1, W2, W3 } from './data'
+import { file, note, yesAsk } from './lines'
+import { CONVERSATION, postedId, toProject, world } from './world'
 
 tier('user')
-
-const LEDGER: SessionMeta = { ...META, id: 'sr-1edger', name: 'Invoice ledger', by: W2 }
 
 /** The mod finding, as a reload does, `kept` in `$.state`: the session the window held. */
 const reloading = (on: On, kept: SitrepAttachment) => {
@@ -127,6 +126,20 @@ test("the watch reads another writer's lines as they land", async ($, on) => {
 })
 
 test('reading a board lists no folder that is not there: a session with no inbox or heartbeats, a project with no sessions', async ($, on) => {
+  /** Every folder of sessions the mod listed that was not there: each a line in the engine's debug log. */
+  const unlisted: string[] = []
+
+  // Registered before the world's own, so it is outermost and hears what the world answers.
+  on('fs.list', { path: /\/sessions(\/|$)/ }, async ($, e, next) => {
+    const listing = await next(e)
+
+    if ('deny' in listing) {
+      unlisted.push(e.path)
+    }
+
+    return listing
+  })
+
   const w = world($, on)
 
   w.seed(LEDGER)
@@ -137,12 +150,12 @@ test('reading a board lists no folder that is not there: a session with no inbox
   await w.opened()
   await w.clock.advance(AROUND_MS)
 
-  expect(w.unlisted.filter(path => /\/sessions(\/|$)/.test(path))).toEqual([])
+  expect(unlisted).toEqual([])
 })
 
 test("finishing another window's session from its view writes after the lines this window had there", async ($, on) => {
   const w = world($, on)
-  const themes = w.seed({ ...META, id: 'sr-themes', name: 'Themes', by: W3 })
+  const themes = w.seed(THEMES)
   const mine = file([T0, note('n1', 'Looked in on the palette')])
 
   w.put(themes.log(W3), file([T0, yesAsk('k4', 'Pick the dark palette', 'Done')]))
@@ -152,9 +165,9 @@ test("finishing another window's session from its view writes after the lines th
   const ui = await w.opened()
 
   await toProject(ui)
-  await ui.press({ key: 'go:sr-themes' })
-  await ui.press({ key: 'finish:sr-themes' })
-  await ui.press({ key: 'finish-yes:sr-themes' })
+  await ui.press({ key: `go:${THEMES.id}` })
+  await ui.press({ key: `finish:${THEMES.id}` })
+  await ui.press({ key: `finish-yes:${THEMES.id}` })
 
   expect(w.text(themes.log(W1)).startsWith(mine)).toBe(true)
   expect(parseEntries(w.text(themes.log(W1))).map(({ seq, type }) => [seq, type])).toEqual([

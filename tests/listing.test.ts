@@ -2,25 +2,21 @@ import { expect, test } from './kit'
 import { EXIT } from '../cli/main'
 import { sessionPaths, type SessionMeta } from '../core'
 import {
-  choiceAsk,
-  finish,
+  DAY,
+  ELSEWHERE,
+  HOME,
   META,
   MIN,
-  note,
-  park,
   PARKED_BEFORE,
-  resolve,
-  status,
+  PROJECT,
+  REPO,
+  ROOT,
   T0,
   W1,
   W2,
-  wordsAsk,
-  yesAsk,
-} from './support'
+} from './data'
+import { choiceAsk, finish, note, park, resolve, status, wordsAsk, yesAsk } from './lines'
 import { NOW, terminal } from './terminal'
-import { ELSEWHERE, HOME, PROJECT, REPO, ROOT } from './world'
-
-const DAY = 24 * 60 * MIN
 
 const QUIET = { key: 'quiet', name: 'Quiet' }
 const STALE = { key: 'stale', name: 'Stale' }

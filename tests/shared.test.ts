@@ -2,13 +2,12 @@ import { expect, test, tier } from './kit'
 import { EXIT, main, WRITER } from '../cli/main'
 import { parseEntries, type SessionMeta } from '../core'
 import { WATCH_MS } from '../hooks/window'
-import { CLOSES, file, MIN, reply, T0, W1, W2, yesAsk } from './support'
+import { CLOSES, GO, LEDGER, MIN, PLUGIN_VERSION, W1 } from './data'
+import { file, reply, yesAsk } from './lines'
+import { asked, CONVERSATION, PROMPT, world, type World } from './world'
 import { manifestText, terminal } from './terminal'
-import { CONVERSATION, PLUGIN_VERSION, postedId, PROMPT, world } from './world'
 
 tier('user')
-
-type World = ReturnType<typeof world>
 
 /** The CLI on the mod's own files, at the mod's own time, from the plugin the windows run: one folder, one version. */
 const besideWindows = (w: World) =>
@@ -26,7 +25,7 @@ test("what the CLI posts, the mod's watch folds: its note in the log, its ask wa
   const w = world($, on)
   const { cli } = await begun(w)
   const noted = await cli('note', 'Round 3 drawn', '--detail', 'Frames 1–6')
-  const asked = await cli(
+  const posted = await cli(
     'ask',
     'Review round 3',
     '--wants',
@@ -37,7 +36,7 @@ test("what the CLI posts, the mod's watch folds: its note in the log, its ask wa
     'In Paper: page "round 3"',
   )
 
-  expect([noted.exit, asked.exit]).toEqual([EXIT.done, EXIT.done])
+  expect([noted.exit, posted.exit]).toEqual([EXIT.done, EXIT.done])
 
   await w.clock.advance(WATCH_MS)
 
@@ -47,7 +46,7 @@ test("what the CLI posts, the mod's watch folds: its note in the log, its ask wa
     ['note', noted.out.trim(), 'Round 3 drawn', ['Frames 1–6'], WRITER],
   ])
   expect(board?.asks.map(each => [each.id, each.title, each.state, each.by])).toEqual([
-    [asked.out.trim(), 'Review round 3', 'waiting', WRITER],
+    [posted.out.trim(), 'Review round 3', 'waiting', WRITER],
   ])
   expect(board?.waiting).toBe(1)
   expect(
@@ -108,12 +107,10 @@ const replyIn = async (cli: (...words: string[]) => Run) => {
 test("the CLI's answer goes in from the session's window as Lee's own message, once, and its mark closes the ask", async ($, on) => {
   const w = world($, on)
   const { paths, cli } = await begun(w)
-  const asked = postedId(
-    await w.call('ask', { wants: 'yes', yes: 'Go', title: 'Give the ok for phase 3' }),
-  )
+  const posted = await asked(w, GO)
 
   await w.clock.advance(MIN)
-  expect((await cli('answer', asked, 'Go')).exit).toBe(EXIT.done)
+  expect((await cli('answer', posted, 'Go')).exit).toBe(EXIT.done)
   expect(await replyIn(cli)).toMatchObject({ asks: [{ is: 'onItsWay' }], resolved: [] })
 
   await w.clock.advance(TAKE_IN)
@@ -143,20 +140,18 @@ test("the CLI's answer goes in from the session's window as Lee's own message, o
 test("while the CLI's answer to the window's own ask goes in, the ask waits on Lee no more: the band counts none, and the ask shows it on its way", async ($, on) => {
   const w = world($, on)
   const { cli } = await begun(w)
-  const asked = postedId(
-    await w.call('ask', {
-      wants: 'choice',
-      options: ['Keep it', 'Drop it'],
-      title: 'Keep the sidebar?',
-    }),
-  )
+  const posted = await asked(w, {
+    wants: 'choice',
+    options: ['Keep it', 'Drop it'],
+    title: 'Keep the sidebar?',
+  })
 
   expect(await (await w.band()).find({ key: 'band:asks', text: '1 ask' })).toBeDefined()
 
   const turn = w.holdPrompts()
 
   await w.clock.advance(MIN)
-  await cli('answer', asked, 'Drop it')
+  await cli('answer', posted, 'Drop it')
   await w.clock.advance(TAKE_IN)
   await turn.arrived
 
@@ -165,7 +160,7 @@ test("while the CLI's answer to the window's own ask goes in, the ask waits on L
 
   const ui = await w.opened()
 
-  await ui.press({ key: `pick:${w.item(asked)}` })
+  await ui.press({ key: `pick:${w.item(posted)}` })
   expect(await ui.find({ type: 'Text', text: '· on its way' })).toBeDefined()
 
   turn.end()
@@ -175,20 +170,18 @@ test('two answers the CLI writes at once to one ask both land, but the window gi
   const w = world($, on)
   const { id, paths } = await w.begin()
   const t = besideWindows(w)
-  const asked = postedId(
-    await w.call('ask', {
-      wants: 'choice',
-      options: ['Keep it', 'Drop it'],
-      title: 'Keep the sidebar?',
-    }),
-  )
+  const posted = await asked(w, {
+    wants: 'choice',
+    options: ['Keep it', 'Drop it'],
+    title: 'Keep the sidebar?',
+  })
 
   await w.clock.advance(MIN)
 
   const held = t.holdAppends(2)
   const runs = Promise.all([
-    main(['answer', asked, 'Keep it', '--session', id], t.io),
-    main(['answer', asked, 'Drop it', '--session', id], t.io),
+    main(['answer', posted, 'Keep it', '--session', id], t.io),
+    main(['answer', posted, 'Drop it', '--session', id], t.io),
   ])
 
   await held.arrived
@@ -214,29 +207,27 @@ test('two answers the CLI writes at once to one ask both land, but the window gi
 
 /** The window's own ask wanting a choice, and the board drawn. */
 async function sidebarAsked(w: World) {
-  const asked = postedId(
-    await w.call('ask', {
-      wants: 'choice',
-      options: ['Keep it', 'Drop it'],
-      title: 'Keep the sidebar?',
-    }),
-  )
+  const posted = await asked(w, {
+    wants: 'choice',
+    options: ['Keep it', 'Drop it'],
+    title: 'Keep the sidebar?',
+  })
 
-  return { asked, ui: await w.pane() }
+  return { posted, ui: await w.pane() }
 }
 
 test("a reply queued to an ask the CLI's answer reached first is not carried: Claude has that answer only, and Ready to send says why", async ($, on) => {
   const w = world($, on)
   const { cli } = await begun(w)
-  const { asked, ui } = await sidebarAsked(w)
-  const key = w.item(asked)
+  const { posted, ui } = await sidebarAsked(w)
+  const key = w.item(posted)
 
   await ui.press({ key: `choose:${key}:0` })
   expect(await ui.find({ key: `rewrite:${key}` })).toBeDefined()
   expect(await ui.find({ key: `readyrewrite:${key}` })).toBeDefined()
 
   await w.clock.advance(MIN)
-  await cli('answer', asked, 'Drop it')
+  await cli('answer', posted, 'Drop it')
   await ui.press({ key: 'send' })
 
   expect(w.toasts).toContain(
@@ -258,16 +249,16 @@ test("a reply queued to an ask the CLI's answer reached first is not carried: Cl
     `From the board:\n- Keep the sidebar? → Drop it${CLOSES}`,
   ])
   expect(w.state.board?.asks[0]).toMatchObject({ state: 'closed', answer: { option: 'Drop it' } })
-  expect(w.state.queue, 'left in Ready to send, unsent').toMatchObject([{ item: asked }])
+  expect(w.state.queue, 'left in Ready to send, unsent').toMatchObject([{ item: posted }])
   expect(await ui.find({ type: 'Text', text: '· not sent: already answered' })).toBeDefined()
 })
 
 test("while the window's send waits out Claude's turn, the CLI reads its answer on its way from the claim: `board --json` says so, `list` counts nothing waiting, and a second answer is refused", async ($, on) => {
   const w = world($, on)
   const { cli } = await begun(w)
-  const { asked, ui } = await sidebarAsked(w)
+  const { posted, ui } = await sidebarAsked(w)
 
-  await ui.press({ key: `choose:${w.item(asked)}:0` })
+  await ui.press({ key: `choose:${w.item(posted)}:0` })
   await w.turnStarts('Carry on.')
   await ui.press({ key: 'send' })
   await w.clock.advance(MIN)
@@ -279,10 +270,10 @@ test("while the window's send waits out Claude's turn, the CLI reads its answer 
     projects: [{ waiting: 0, sessions: [{ waiting: 0 }] }],
   })
 
-  const second = await cli('answer', asked, 'Drop it')
+  const second = await cli('answer', posted, 'Drop it')
 
   expect(second.exit).toBe(EXIT.refused)
-  expect(second.err).toContain(`An answer to ${asked} is on its way already.`)
+  expect(second.err).toContain(`An answer to ${posted} is on its way already.`)
   expect(w.prompts, 'held for the turn to end').toEqual([])
 
   await w.turnEnds()
@@ -300,15 +291,15 @@ test("while the window's send waits out Claude's turn, the CLI reads its answer 
 test("an answer reaching the inbox while the window's send waits out Claude's turn never goes in: Claude has the send's answer, its mark the record of it, and the inbox's goes void", async ($, on) => {
   const w = world($, on)
   const { paths, cli } = await begun(w)
-  const { asked, ui } = await sidebarAsked(w)
+  const { posted, ui } = await sidebarAsked(w)
 
-  await ui.press({ key: `choose:${w.item(asked)}:0` })
+  await ui.press({ key: `choose:${w.item(posted)}:0` })
   await w.turnStarts('Carry on.')
   await ui.press({ key: 'send' })
   await w.clock.advance(MIN)
   w.put(
     paths.letters(WRITER),
-    file([w.clock.now(), reply('r9', asked, 'choose', { option: 'Drop it' })]),
+    file([w.clock.now(), reply('r9', posted, 'choose', { option: 'Drop it' })]),
   )
   await w.clock.advance(TAKE_IN)
   expect(
@@ -336,9 +327,9 @@ test("an answer reaching the inbox while the window's send waits out Claude's tu
 test("an answer landing as the window's send reads the board, unseen by it, goes void once the send is written down: Claude has the send's answer only", async ($, on) => {
   const w = world($, on)
   const { paths } = await w.begin()
-  const { asked, ui } = await sidebarAsked(w)
+  const { posted, ui } = await sidebarAsked(w)
 
-  await ui.press({ key: `choose:${w.item(asked)}:0` })
+  await ui.press({ key: `choose:${w.item(posted)}:0` })
   await w.clock.advance(MIN)
 
   const claimed = w.clock.now()
@@ -350,7 +341,7 @@ test("an answer landing as the window's send reads the board, unseen by it, goes
     await w.clock.set(claimed + 2)
     w.put(
       paths.letters(WRITER),
-      file([claimed + 1, reply('r9', asked, 'choose', { option: 'Drop it' })]),
+      file([claimed + 1, reply('r9', posted, 'choose', { option: 'Drop it' })]),
     )
   })
   await ui.press({ key: 'send' })
@@ -367,21 +358,13 @@ test("an answer landing as the window's send reads the board, unseen by it, goes
 })
 
 /** A session no window holds, started by a window gone since, with an ask waiting on Lee. */
-const LEDGER: SessionMeta = {
-  id: 'sr-1edger',
-  name: 'Invoice ledger',
-  summary: 'Keep a ledger of invoices',
-  project: 'northwind',
-  root: '/Users/me/Code/northwind',
-  created: T0,
-  by: W2,
-}
+const INVOICES: SessionMeta = { ...LEDGER, summary: 'Keep a ledger of invoices' }
 
 test('an answer to a session no window holds waits in its inbox, and goes in once a window takes the session up', async ($, on) => {
   const w = world($, on)
   const t = besideWindows(w)
-  const ledger = w.elsewhere(LEDGER)
-  const cli = (...words: string[]) => t.run(...words, '--session', LEDGER.id)
+  const ledger = w.elsewhere(INVOICES)
+  const cli = (...words: string[]) => t.run(...words, '--session', INVOICES.id)
 
   ledger.write(yesAsk('k3', 'Review the ledger schema'))
   await $.session.start(CONVERSATION)
@@ -391,7 +374,7 @@ test('an answer to a session no window holds waits in its inbox, and goes in onc
   expect(w.prompts, 'no window holds it').toEqual([])
   expect(await replyIn(cli)).toMatchObject({ asks: [{ is: 'onItsWay' }] })
 
-  await w.call('join', { session: LEDGER.id })
+  await w.call('join', { session: INVOICES.id })
   await w.clock.advance(TAKE_IN)
 
   expect(w.prompts.map(prompt => prompt.text)).toEqual([

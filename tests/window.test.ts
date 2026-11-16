@@ -14,33 +14,30 @@ import { TTY_WALK } from '../hooks/where'
 import { WATCH_MS } from '../hooks/window'
 import type { SitrepAttachment } from '../types'
 import {
-  choiceAsk,
-  file,
-  fold,
-  META,
-  note,
-  reply,
-  SENDER,
-  status,
-  T0,
-  W1,
-  W2,
-  yesAsk,
-} from './support'
-import {
   HELP_DESK,
-  manifestOf,
+  META,
   PLUGIN_VERSION,
   PROJECT,
   REPO,
+  reviewRound,
   ROOT,
+  SENDER,
+  T0,
+  W1,
+  W2,
+} from './data'
+import { choiceAsk, file, fold, note, reply, status, yesAsk } from './lines'
+import {
+  asked,
   CONVERSATION,
+  manifestOf,
+  postedId,
   startedId,
   TTY,
   WHERE,
-  postedId,
   world,
   type Walk,
+  type World,
 } from './world'
 
 tier('user')
@@ -54,9 +51,7 @@ const CLEARED = { reason: 'clear' as const, sessionId: W1, resume: { id: W1 } }
 test('a session started in one window and joined by a second writer is one session to both', async ($, on) => {
   const w = world($, on)
   const { id, paths } = await w.begin()
-  const asked = postedId(
-    await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' }),
-  )
+  const posted = await asked(w, reviewRound(1))
 
   await $.session.end(CLEARED)
   w.become({ conversation: W2 })
@@ -65,10 +60,10 @@ test('a session started in one window and joined by a second writer is one sessi
   const joined = String((await w.call('join', { session: id })).result)
   const noted = postedId(await w.call('note', { text: 'Drew round 2' }))
 
-  expect(joined).toContain(`- ${asked} wants a yes (Approve), waiting on Lee: Review round 1`)
+  expect(joined).toContain(`- ${posted} wants a yes (Approve), waiting on Lee: Review round 1`)
   expect(parseEntries(w.text(paths.log(W1))).map(line => line.type)).toEqual(['ask'])
   expect(parseEntries(w.text(paths.log(W2))).map(line => line.type)).toEqual(['note'])
-  expect(w.state.board?.asks.map(item => item.id)).toEqual([asked])
+  expect(w.state.board?.asks.map(item => item.id)).toEqual([posted])
   expect(w.state.board?.log.map(line => line.id)).toEqual([noted])
   expect(parsePresence(w.text(paths.heartbeat(W1)), W1)?.leftAt).toBe(T0)
   expect(parsePresence(w.text(paths.heartbeat(W2)), W2)?.leftAt).toBeUndefined()
@@ -415,7 +410,7 @@ test('a walk that finds no device leaves it out, says so in the debug log, and t
 })
 
 /** The window starts a session of its own and attaches to it: the session's heartbeat as it reads, a reader called later. */
-const startAnother = async (w: ReturnType<typeof world>, name: string) => {
+const startAnother = async (w: World, name: string) => {
   const id = startedId(await w.call('start', { ...HELP_DESK, name }))
   const heartbeat = sessionPaths(ROOT, PROJECT.key, id).heartbeat(W1)
 
@@ -461,21 +456,21 @@ test('a walk that found no device is tried again at the next attach, until one f
 test('the watch folds a line another writer added, and puts the board in $.state only when it changed', async ($, on) => {
   const w = world($, on)
   const { paths } = await w.begin()
-  const written = w.boards.length
+  const written = w.writes.board ?? 0
 
   await w.clock.advance(4 * WATCH_MS)
 
-  expect(w.boards.length, 'nothing changed, so nothing is put').toBe(written)
+  expect(w.writes.board ?? 0, 'nothing changed, so nothing is put').toBe(written)
 
   w.put(paths.log(W2), file([w.clock.now(), yesAsk('k9', 'Try it on the iPad', 'It works')]))
   await w.clock.advance(WATCH_MS)
 
-  expect(w.boards.length).toBe(written + 1)
+  expect(w.writes.board ?? 0).toBe(written + 1)
   expect(w.state.board?.asks.map(item => [item.id, item.by])).toEqual([['k9', W2]])
 
   await w.clock.advance(4 * WATCH_MS)
 
-  expect(w.boards.length).toBe(written + 1)
+  expect(w.writes.board ?? 0).toBe(written + 1)
   expect(w.logs, 'no look failed').toEqual([])
 })
 
@@ -487,14 +482,14 @@ test("another window's state changing puts nothing in $.state, so no pane redraw
   w.beat(id, { ...peer, state: { is: 'yourTurn', since: w.clock.now() } })
   await w.clock.advance(WATCH_MS)
   const writes = { ...w.writes }
-  const written = w.boards.length
+  const written = w.writes.board ?? 0
 
   for (const tool of ['Read', 'Edit', 'Bash']) {
     w.beat(id, { ...peer, state: { is: 'working', since: w.clock.now(), tool: { name: tool } } })
     await w.clock.advance(WATCH_MS)
   }
 
-  expect(w.boards.length, 'the board unwritten').toBe(written)
+  expect(w.writes.board ?? 0, 'the board unwritten').toBe(written)
   expect(w.writes, 'nothing a pane draws from written').toEqual(writes)
   expect(w.state.board?.presence.map(each => each.writer)).toEqual([W1, W2])
   expect(w.state.board?.presence.some(each => 'state' in each)).toBe(false)
@@ -503,17 +498,15 @@ test("another window's state changing puts nothing in $.state, so no pane redraw
 test("the watch reads another window's heartbeat and the letters in the inbox too", async ($, on) => {
   const w = world($, on)
   const { id, paths } = await w.begin()
-  const asked = postedId(
-    await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' }),
-  )
+  const posted = await asked(w, reviewRound(1))
 
   await w.clock.advance(WATCH_MS)
   w.beat(id, { writer: W2, attachedAt: w.clock.now(), seenAt: w.clock.now() })
-  w.put(paths.letters(SENDER), file([w.clock.now(), reply('r1', asked, 'yes')]))
+  w.put(paths.letters(SENDER), file([w.clock.now(), reply('r1', posted, 'yes')]))
   await w.clock.advance(WATCH_MS)
 
   expect(w.state.board?.presence.map(each => each.writer)).toEqual([W1, W2])
-  expect(w.state.board?.replies).toMatchObject([{ id: 'r1', item: asked, by: SENDER }])
+  expect(w.state.board?.replies).toMatchObject([{ id: 'r1', item: posted, by: SENDER }])
 })
 
 test('a conversation that ends lets go: the board and the attachment leave $.state', async ($, on) => {

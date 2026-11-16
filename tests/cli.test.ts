@@ -9,24 +9,9 @@ import {
   VERSION,
   type SessionPaths,
 } from '../core'
-import {
-  beat,
-  file,
-  finish,
-  META,
-  MIN,
-  note,
-  park,
-  snoozeSession,
-  status,
-  T0,
-  W1,
-  W2,
-  yesAsk,
-  type Line,
-} from './support'
+import { ELSEWHERE, META, MIN, T0, W1, W2 } from './data'
+import { beat, file, finish, note, park, snoozeSession, status, yesAsk, type Line } from './lines'
 import { ENV, FIRST_ID, NEXT_ID, NOW, terminal } from './terminal'
-import { ELSEWHERE } from './world'
 
 type Terminal = ReturnType<typeof terminal>
 

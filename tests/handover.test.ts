@@ -20,7 +20,8 @@ import {
 } from '../core'
 import type { Host } from '../hooks/host'
 import { createReader } from '../hooks/reader'
-import { delivered, file, META, reply, T0, W1, yesAsk, type Line } from './support'
+import { META, T0, W1 } from './data'
+import { delivered, file, reply, yesAsk, type Line } from './lines'
 import { terminal } from './terminal'
 
 const ROOT = '/Users/me/.local/state/sitrep'

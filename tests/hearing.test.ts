@@ -3,7 +3,7 @@ import { QUIET, type Activity } from '../core'
 import { activityNow } from '../hooks/activity'
 import { throughCall } from '../hooks/doing'
 import type { Host } from '../hooks/host'
-import { T0 } from './support'
+import { T0 } from './data'
 
 /**
  * A host whose clock has stopped answering: just what hearing a call needs,

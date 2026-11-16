@@ -20,10 +20,9 @@ import {
   type SessionPaths,
   type WindowState,
 } from '../core'
-import { beat, file, MIN, scripted, T0, type Line } from './support'
-import { HOME, PROJECT, REPO, ROOT, STATE_HOME } from './world'
-
-type File = { text: string; mtimeMs: number }
+import { HOME, MIN, PLUGIN_VERSION, PROJECT, REPO, ROOT, STATE_HOME, T0 } from './data'
+import { beat, file, scripted, type Line } from './lines'
+import { entriesIn, textIn, type File } from './fs'
 
 /** How a run ended, and what it printed to standard output and error. */
 export type Run = { exit: number; out: string; err: string }
@@ -32,9 +31,6 @@ export const ENV: Env = { XDG_STATE_HOME: STATE_HOME, HOME }
 
 /** When a run happens, unless a test says otherwise: a minute after the session under test was started. */
 export const NOW = T0 + MIN
-
-/** The version the CLI's plugin manifest says, unless a test says otherwise. */
-export const CLI_VERSION = '0.2.0'
 
 /** Where the plugin the CLI runs from keeps its manifest. */
 export const MANIFEST = `${HOME}/.claude/plugins/sitrep/.claude-plugin/plugin.json`
@@ -46,21 +42,9 @@ export const manifestText = (version: string) => JSON.stringify({ name: 'sitrep'
 export const FIRST_ID = '1234'
 export const NEXT_ID = '5678'
 
-const isUnder = (dir: string, path: string) => path.startsWith(`${dir}/`)
-
-/** The files and folders directly in `dir`, as the files under it imply them. */
-const entriesIn = (files: ReadonlyMap<string, File>, dir: string): Listed[] => {
-  const entries = new Map<string, Listed['kind']>()
-  const under = (path: string) => path.slice(dir.length + 1).split('/')
-
-  for (const path of [...files.keys()].filter(each => isUnder(dir, each))) {
-    const [name = '', ...deeper] = under(path)
-
-    entries.set(name, deeper.length > 0 ? 'dir' : 'file')
-  }
-
-  return [...entries].map(([name, kind]) => ({ name, kind }))
-}
+/** The files and folders directly in `dir`, as the CLI lists them. */
+const listed = (files: ReadonlyMap<string, File>, dir: string): Listed[] =>
+  entriesIn(files, dir).map(({ name, entry }) => ({ name, kind: entry === 'dir' ? 'dir' : 'file' }))
 
 type Options = {
   files?: Map<string, File>
@@ -71,7 +55,7 @@ type Options = {
   /** The uptime, waits aside: 0 unless a test says otherwise, moving it on with the wall clock as a stall does. */
   uptime?: () => number
   random?: Random
-  /** The plugin's manifest's text; with none given, one saying CLI_VERSION. */
+  /** The plugin's manifest's text; with none given, one saying PLUGIN_VERSION. */
   manifest?: string
 }
 
@@ -93,7 +77,7 @@ export function terminal(options: Options = {}) {
   const clock = options.now ?? (() => NOW)
   const awake = options.uptime ?? (() => 0)
 
-  files.set(MANIFEST, { text: options.manifest ?? manifestText(CLI_VERSION), mtimeMs: T0 })
+  files.set(MANIFEST, { text: options.manifest ?? manifestText(PLUGIN_VERSION), mtimeMs: T0 })
   /** Every wait, in order. */
   const waits: number[] = []
   const waited = () => waits.reduce((sum, ms) => sum + ms, 0)
@@ -113,7 +97,7 @@ export function terminal(options: Options = {}) {
    * Undefined for a folder not there.
    */
   const folderStat = (dir: string) => {
-    const names = entriesIn(files, dir).map(entry => `${entry.kind}:${entry.name}`)
+    const names = listed(files, dir).map(entry => `${entry.kind}:${entry.name}`)
 
     return names.length > 0
       ? { size: names.length, mtimeMs: Number.parseInt(digestOf(names.sort().join('/')), 36) }
@@ -131,7 +115,7 @@ export function terminal(options: Options = {}) {
 
         return held.text
       },
-      list: async dir => entriesIn(files, dir),
+      list: async dir => listed(files, dir),
       stat: async path => {
         const held = files.get(path)
 
@@ -199,17 +183,6 @@ export function terminal(options: Options = {}) {
     const exit = await main(words, io)
 
     return { exit, ...printed }
-  }
-
-  /** The text of a file, failing the test when it is not there. */
-  const text = (path: string) => {
-    const held = files.get(path)
-
-    if (held === undefined) {
-      throw new Error(`no file at ${path}`)
-    }
-
-    return held.text
   }
 
   /**
@@ -320,7 +293,8 @@ export function terminal(options: Options = {}) {
     },
     /** Whether anything listens to standard input. */
     isHearing: () => stdin.heard !== undefined,
-    text,
+    /** The text of a file, failing the test when it is not there. */
+    text: (path: string) => textIn(files, path),
     seed,
     window,
     project,

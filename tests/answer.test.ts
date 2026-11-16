@@ -9,26 +9,22 @@ import {
   VERSION,
   type SessionPaths,
 } from '../core'
+import { META, MIN, PLUGIN_VERSION, T0, W1, W2 } from './data'
 import {
   choiceAsk,
   delivered,
   file,
   finish,
   kindAsk,
-  META,
-  MIN,
   note,
   park,
   reply,
   resolve,
-  T0,
-  W1,
-  W2,
   wordsAsk,
   yesAsk,
   type Line,
-} from './support'
-import { CLI_VERSION, FIRST_ID, NEXT_ID, NOW, terminal } from './terminal'
+} from './lines'
+import { FIRST_ID, NEXT_ID, NOW, terminal } from './terminal'
 
 type Terminal = ReturnType<typeof terminal>
 
@@ -160,7 +156,7 @@ test("an ask Claude resolved shows in board --json's resolved with Claude's reas
 
 test("an answer still on its way when Claude closes its ask never goes in: board --json's resolved has it not delivered, since Claude closed it; a mark crossing the close has it delivered", async () => {
   const t = terminal()
-  const paths = t.seed(META, { lines: POSTED, seenAt: NOW, version: CLI_VERSION })
+  const paths = t.seed(META, { lines: POSTED, seenAt: NOW, version: PLUGIN_VERSION })
   const closedAt = NOW + MIN
   const closed: Line = [closedAt, resolve('k1', 'Went ahead in the chat')]
   const markedAt = closedAt + MIN
@@ -289,7 +285,7 @@ test("an answer is refused while the window delivering the session runs a sitrep
   expect(await t.run('answer', 'k1', 'Go', ...SESSION), 'a release behind').toEqual(refused)
   expect(t.files.has(paths.letters(WRITER))).toBe(false)
 
-  t.window(paths, META.by, NOW, undefined, CLI_VERSION)
+  t.window(paths, META.by, NOW, undefined, PLUGIN_VERSION)
   expect((await t.run('answer', 'k1', 'Go', ...SESSION)).exit, 'reloaded').toBe(EXIT.done)
 })
 

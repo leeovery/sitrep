@@ -9,7 +9,7 @@ import {
   whereOf,
   type Where,
 } from '../core'
-import { T0, W1 } from './support'
+import { T0, W1 } from './data'
 
 const SOCKET = '/private/tmp/tmux-501/default'
 

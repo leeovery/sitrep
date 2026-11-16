@@ -16,19 +16,8 @@ import {
   type Checked,
   type EditBody,
 } from '../core'
-import {
-  choiceAsk,
-  file,
-  fold,
-  META,
-  MIN,
-  reply,
-  T0,
-  W1,
-  wordsAsk,
-  yesAsk,
-  type Line,
-} from './support'
+import { META, MIN, T0, W1 } from './data'
+import { choiceAsk, file, fold, reply, wordsAsk, yesAsk, type Line } from './lines'
 import { terminal } from './terminal'
 
 const OPTIONS = ['Ship it', 'Redraw', 'Hold off']

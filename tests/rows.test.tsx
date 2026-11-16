@@ -1,12 +1,10 @@
 import type { On } from 'claude-code'
 import { expect, test, tier, type Engine } from './kit'
 import { NAMES_KEPT } from '../hooks/tools'
-import { SLOW } from './support'
-import { postedId, PROJECT, startedId, world } from './world'
+import { PROJECT, REVIEW, reviewRound } from './data'
+import { asked, startedId, world, type World } from './world'
 
 tier('user')
-
-type World = ReturnType<typeof world>
 
 /** Another session Claude starts in the conversation, which the window then holds. */
 const INBOX_PAGE = { name: 'Inbox page', summary: 'Draw the inbox page', project: PROJECT.name }
@@ -78,11 +76,7 @@ function engineRows(on: On) {
 const LINES: [tool: string, input: { [key: string]: unknown }, line: string][] = [
   ['start', { name: 'Help desk redesign', summary: 'Redesign it' }, 'started: Help desk redesign'],
   ['status', { now: ['Drawing Inbox'] }, '• status set'],
-  [
-    'ask',
-    { wants: 'yes', yes: 'Approve', title: 'Review Tickets & Replies, round 1' },
-    '◆ asked: Review Tickets & Replies, round 1',
-  ],
+  ['ask', REVIEW, '◆ asked: Review Tickets & Replies, round 1'],
   ['note', { text: 'PR #82 merged' }, 'noted: PR #82 merged'],
   ['park', { title: 'A priority badge' }, '◇ parked: A priority badge'],
   ['finish', { reason: 'Shipped' }, '✓ finished a session'],
@@ -117,13 +111,11 @@ test('a call naming an item or a session, with no name kept, names it as the hel
   engineRows(on)
 
   const { id } = await w.begin()
-  const asked = postedId(
-    await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' }),
-  )
+  const posted = await asked(w, reviewRound(1))
 
   const rows: [tool: string, input: { [key: string]: unknown }, line: string][] = [
-    ['resolve', { item: asked }, 'resolved: Review round 1'],
-    ['reopen', { item: asked }, 'reopened: Review round 1'],
+    ['resolve', { item: posted }, 'resolved: Review round 1'],
+    ['reopen', { item: posted }, 'reopened: Review round 1'],
     ['edit', { item: 'zzzz', title: 'x' }, 'edited: an item'],
     ['join', { session: id }, 'joined: Help desk redesign'],
     ['join', { work: id }, 'joined: Help desk redesign'],
@@ -145,13 +137,11 @@ test("a resolve, reopen or edit row keeps its item's title after Claude joins an
   engineRows(on)
   await w.begin()
 
-  const asked = postedId(
-    await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' }),
-  )
+  const posted = await asked(w, reviewRound(1))
   const rows: [tool: string, input: { [key: string]: unknown }, line: string][] = [
-    ['resolve', { item: asked }, 'resolved: Review round 1'],
-    ['reopen', { item: asked }, 'reopened: Review round 1'],
-    ['edit', { item: asked, where: 'In Paper' }, 'edited: Review round 1'],
+    ['resolve', { item: posted }, 'resolved: Review round 1'],
+    ['reopen', { item: posted }, 'reopened: Review round 1'],
+    ['edit', { item: posted, where: 'In Paper' }, 'edited: Review round 1'],
   ]
   const kept = []
 
@@ -174,13 +164,11 @@ test("an edit's row names the item's title as the edit left it", async ($, on) =
   engineRows(on)
   await w.begin()
 
-  const asked = postedId(
-    await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' }),
-  )
-  const input = { item: asked, title: 'Review round 2' }
+  const posted = await asked(w, reviewRound(1))
+  const input = { item: posted, title: 'Review round 2' }
   const edited = await keeping(w, 'edit', input)
 
-  await w.call('edit', { item: asked, title: 'Review round 3' })
+  await w.call('edit', { item: posted, title: 'Review round 3' })
 
   expect(await drawnLine($, edited, 'edit', input, 'edited: Review round 2')).toBeDefined()
 })
@@ -215,18 +203,16 @@ test('a refused call keeps no name', async ($, on) => {
   expect(w.state.named ?? []).toEqual([])
 })
 
-test('only the latest calls keep their names, the oldest let go', SLOW, async ($, on) => {
+test('only the latest calls keep their names, the oldest let go', async ($, on) => {
   const w = world($, on)
 
   await w.begin()
 
-  const asked = postedId(
-    await w.call('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' }),
-  )
-  const first = await keeping(w, 'resolve', { item: asked })
+  const posted = await asked(w, reviewRound(1))
+  const first = await keeping(w, 'resolve', { item: posted })
 
   for (let i = 0; i < NAMES_KEPT; i += 1) {
-    await w.call(i % 2 === 0 ? 'reopen' : 'resolve', { item: asked })
+    await w.call(i % 2 === 0 ? 'reopen' : 'resolve', { item: posted })
   }
 
   expect(w.state.named).toHaveLength(NAMES_KEPT)
@@ -247,7 +233,7 @@ test("a call's result draws nothing, on every surface", async ($, on) => {
 test('a refused or interrupted call keeps the engine row', async ($, on) => {
   engineRows(on)
 
-  const ask = row('ask', { wants: 'yes', yes: 'Approve', title: 'Review round 1' })
+  const ask = row('ask', reviewRound(1))
 
   for (const [requestId, change] of [
     ['toolu_2', { isErrored: true }],
