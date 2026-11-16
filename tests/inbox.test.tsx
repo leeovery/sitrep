@@ -2,13 +2,11 @@ import { expect, test, tier } from './kit'
 import { parseEntries, type SessionPaths } from '../core'
 import { FLASH_MS } from '../hooks/deliver'
 import { WATCH_MS } from '../hooks/window'
-import { CLOSES, MIN, PROJECT, SENDER, W1, W2 } from './data'
+import { CLOSES, MIN, PROJECT, REVIEW, SENDER, W1, W2 } from './data'
 import { file, reply } from './lines'
-import { CONVERSATION, INLINE, postedId, world } from './world'
+import { CONVERSATION, INLINE, postedId, world, type World } from './world'
 
 tier('user')
-
-type World = ReturnType<typeof world>
 
 const FROM_THE_BOARD = { kind: 'plugin', name: 'sitrep', asUser: true }
 
@@ -20,13 +18,7 @@ const TAKE_IN = 2 * WATCH_MS
 /** This session with an ask, a minute on; and another session's window, sending replies into its inbox. */
 async function asking(w: World) {
   const { paths } = await w.begin()
-  const asked = postedId(
-    await w.call('ask', {
-      wants: 'yes',
-      yes: 'Approve',
-      title: 'Review Tickets & Replies, round 1',
-    }),
-  )
+  const asked = postedId(await w.call('ask', REVIEW))
 
   await w.clock.advance(MIN)
 

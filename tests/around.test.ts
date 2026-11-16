@@ -8,15 +8,11 @@ import {
   type SessionPaths,
 } from '../core'
 import { AROUND_MS } from '../hooks/around'
-import { ELSEWHERE, META, ROOT, T0, W1, W2, W3 } from './data'
+import { ELSEWHERE, LEDGER, META, ROOT, T0, W1, W3 } from './data'
 import { beat, finish, note, reopen, resolve, snoozeSession, unfinish, yesAsk } from './lines'
-import { toProject, world } from './world'
+import { toProject, world, type World } from './world'
 
 tier('user')
-
-type World = ReturnType<typeof world>
-
-const LEDGER: SessionMeta = { ...META, id: 'sr-1edger', name: 'Invoice ledger', by: W2 }
 
 /** A session of Contoso's, with no window on it. */
 const shifts = (id: string): SessionMeta => ({

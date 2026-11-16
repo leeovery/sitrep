@@ -4,13 +4,10 @@ import type { SessionMeta } from '../core'
 import { rowsOf } from './drawn'
 import { ELSEWHERE, MIN, T0, W2 } from './data'
 import { yesAsk } from './lines'
-import { postedId, toProject, world } from './world'
+import { postedId, toProject, world, type Board, type World } from './world'
 
 tier('user')
 
-type World = ReturnType<typeof world>
-
-type Board = Awaited<ReturnType<World['pane']>>
 
 /** The board's rows, as drawn. */
 const boardRows = async (ui: Board) => rowsOf(await ui.find({ type: 'Box' }))

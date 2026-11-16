@@ -9,9 +9,9 @@ import {
 } from '../core'
 import { AROUND_MS } from '../hooks/around'
 import { SPECS } from '../hooks/tools'
-import { ELSEWHERE, HELP_DESK, META, MIN, PROJECT, REPO, ROOT, T0, W1, W2 } from './data'
+import { ELSEWHERE, HELP_DESK, LEDGER, META, MIN, PROJECT, REPO, ROOT, T0, W1, W2 } from './data'
 import { delivered, file, finish, note, park, reply, yesAsk } from './lines'
-import { CONVERSATION, postedId, PROMPT, startedId, world } from './world'
+import { CONVERSATION, postedId, PROMPT, startedId, world, type World } from './world'
 
 tier('user')
 
@@ -31,7 +31,7 @@ const TOOLS = [
 ]
 
 /** The lines a file holds. */
-const linesOf = (w: ReturnType<typeof world>, path: string) => parseEntries(w.text(path))
+const linesOf = (w: World, path: string) => parseEntries(w.text(path))
 
 test("a window's start registers every tool, each schema loaded up front", async ($, on) => {
   const w = world($, on)
@@ -393,10 +393,8 @@ test("resolving another session's parked item Lee picked up passes quietly, writ
 })
 
 /** Another session of this project, finished: what it parked is the project's, its ask and note its own. */
-const LEDGER = { ...META, id: 'sr-1edger', name: 'Invoice ledger', by: W2 }
-
 /** The ledger, with two things parked, an ask and a note, finished: its folder's paths. */
-const ledgerParked = (w: ReturnType<typeof world>) => {
+const ledgerParked = (w: World) => {
   const ledger = w.elsewhere(LEDGER)
 
   ledger.write(
@@ -517,7 +515,7 @@ test("edit takes an item's one line as text or as title alike: a note's title, a
 })
 
 /** The ledger, open and parking `parked`, beside this session, whose Claude has been told of them by its first prompt: the ledger's own file. */
-const toldOfLedgers = async (w: ReturnType<typeof world>, $: Parameters<typeof world>[0]) => {
+const toldOfLedgers = async (w: World, $: Parameters<typeof world>[0]) => {
   const ledger = w.elsewhere(LEDGER)
 
   ledger.write(park('p1', 'Export the ledger as CSV'), park('p2', 'Archive old invoices'))

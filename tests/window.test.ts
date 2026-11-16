@@ -24,6 +24,7 @@ import {
   WHERE,
   world,
   type Walk,
+  type World,
 } from './world'
 
 tier('user')
@@ -398,7 +399,7 @@ test('a walk that finds no device leaves it out, says so in the debug log, and t
 })
 
 /** The window starts a session of its own and attaches to it: the session's heartbeat as it reads, a reader called later. */
-const startAnother = async (w: ReturnType<typeof world>, name: string) => {
+const startAnother = async (w: World, name: string) => {
   const id = startedId(await w.call('start', { ...HELP_DESK, name }))
   const heartbeat = sessionPaths(ROOT, PROJECT.key, id).heartbeat(W1)
 

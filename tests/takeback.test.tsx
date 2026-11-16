@@ -11,17 +11,13 @@ import { parseEntries, parsePresence, type SessionPaths } from '../core'
 import { QUIET_MS } from '../hooks/deliver'
 import { WATCH_MS } from '../hooks/window'
 import type { SitrepInFlight } from '../types'
-import { AGENT, CLOSES, MIN, SENDER, W1 } from './data'
+import { AGENT, CLOSES, MIN, REVIEW, SENDER, W1 } from './data'
 import { file, reply } from './lines'
-import { CONVERSATION, postedId, world, writeDoor } from './world'
+import { CONVERSATION, postedId, world, writeDoor, type World } from './world'
 
 tier('user')
 
-type World = ReturnType<typeof world>
-
 type Source = 'send' | 'inbox'
-
-const REVIEW = { wants: 'yes', yes: 'Approve', title: 'Review Tickets & Replies, round 1' }
 
 const MESSAGE = `From the board:\n- Review Tickets & Replies, round 1 → Approve${CLOSES}`
 

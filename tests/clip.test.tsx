@@ -8,20 +8,17 @@ import type {
   UiScrollInput,
 } from 'claude-code'
 import { expect, test, tier } from './kit'
-import type { SessionMeta } from '../core'
 import { stepOf, topShowing } from '../hooks/clip'
 import Measure from '../hooks/draw/measure'
 import { STEP_HELD } from '../hooks/draw/ready'
 import { PANE } from '../hooks/pane'
 import { rowsOf } from './drawn'
-import { MIN, PROJECT, T0, W2 } from './data'
+import { LEDGER, MIN, PROJECT } from './data'
 import { yesAsk } from './lines'
-import { DOCKED, INLINE, postedId, toProject, world } from './world'
+import { DOCKED, INLINE, postedId, toProject, world, type Board, type World } from './world'
 
 tier('user')
 
-type World = ReturnType<typeof world>
-type Pane = Awaited<ReturnType<World['pane']>>
 type Drawn = { type?: string; props?: Record<string, unknown>; children?: unknown[] }
 
 const BODY_ROWS = DOCKED.scroll.bodyRows
@@ -36,16 +33,6 @@ const HEADER = 3
 const ROWS = 3
 
 /** Another session of the project, started in another window. */
-const LEDGER: SessionMeta = {
-  id: 'sr-1edger',
-  name: 'Invoice ledger',
-  summary: 'Invoice ledger, area by area',
-  project: 'northwind',
-  root: '/Users/me/Code/northwind',
-  created: T0,
-  by: W2,
-}
-
 /** The board docked over a window of `bodyRows`. */
 const docked = (bodyRows: number): RenderPropsOf['Pane'] => ({
   ...DOCKED,
@@ -74,7 +61,7 @@ const asking = async (w: World, count: number, props = DOCKED) => ({
 })
 
 /** A board long enough to scroll (asks, a log, and things parked, as Claude posts them), drawn as `open` draws it. */
-const long = async (w: World, open: () => Promise<Pane> = () => w.pane()) => {
+const long = async (w: World, open: () => Promise<Board> = () => w.pane()) => {
   const ids = await asked(w, 4)
 
   for (let n = 1; n <= 6; n += 1) {
@@ -89,7 +76,7 @@ const long = async (w: World, open: () => Promise<Pane> = () => w.pane()) => {
 }
 
 /** Lee approves an ask, by its address, opening it first where it is not open. */
-const approve = async (ui: Pane, item: string) => {
+const approve = async (ui: Board, item: string) => {
   if ((await ui.find({ key: `yes:${item}` })) === undefined) {
     await ui.press({ key: `pick:${item}` })
   }
@@ -97,10 +84,10 @@ const approve = async (ui: Pane, item: string) => {
   await ui.press({ key: `yes:${item}` })
 }
 
-const boxes = async (ui: Pane) => (await ui.findAll({ type: 'Box' })).map(box => box.props)
+const boxes = async (ui: Board) => (await ui.findAll({ type: 'Box' })).map(box => box.props)
 
 /** The docked board's tree, the box its list is clipped in, and the list itself, shifted up. */
-const clipping = async (ui: Pane) => {
+const clipping = async (ui: Board) => {
   const all = await boxes(ui)
 
   return {
@@ -111,10 +98,10 @@ const clipping = async (ui: Pane) => {
 }
 
 /** How far down the list stands, as drawn. */
-const topOf = async (ui: Pane) => 0 - Number((await clipping(ui)).list?.marginTop)
+const topOf = async (ui: Board) => 0 - Number((await clipping(ui)).list?.marginTop)
 
 /** The Clients measuring the list's blocks, in order: not the header's, which says where the board sits. */
-const measuring = async (ui: Pane) =>
+const measuring = async (ui: Board) =>
   (await ui.findAll({ type: 'Client' })).filter(
     client => client.props.module === 'hooks/draw/measure.tsx',
   )
@@ -124,7 +111,7 @@ const measuring = async (ui: Pane) =>
  * `Client` does once laid out: the kit lays a `Client` out with no rows,
  * so a measuring one never posts there. The blocks' keys and rows, in order.
  */
-const measure = async (ui: Pane, rows: (key: string) => number = () => ROWS) => {
+const measure = async (ui: Board, rows: (key: string) => number = () => ROWS) => {
   const blocks = (await measuring(ui)).map(client => ({
     client: String(client.key),
     key: String((client.props.props as { id: string }).id),
@@ -149,13 +136,13 @@ const spanOf = (blocks: Measured, key: string) => {
 }
 
 /** The rows of the list showing between the header and Ready to send, as drawn. */
-const listRows = async (ui: Pane) => Number((await clipping(ui)).clip?.height)
+const listRows = async (ui: Board) => Number((await clipping(ui)).clip?.height)
 
 /** The rows the header draws: the tabs, their rule, and the way back's row under it. */
-const headerRows = async (ui: Pane) => rowsOf(await ui.find({ key: 'header' })).length
+const headerRows = async (ui: Board) => rowsOf(await ui.find({ key: 'header' })).length
 
 /** The rows Ready to send draws: each of its lines, as tests/drawn lays them out, and its border. */
-const drawnRows = async (ui: Pane) => rowsOf(await ui.find({ key: 'ready' })).length + BORDER
+const drawnRows = async (ui: Board) => rowsOf(await ui.find({ key: 'ready' })).length + BORDER
 
 const textsIn = (element: Drawn): Drawn[] =>
   (element.children ?? []).flatMap(child =>
@@ -169,7 +156,7 @@ const isWrapping = (text: Drawn) =>
   text.props?.wrap !== 'truncate-end' && [...String(text.children?.join('') ?? '')].length > 1
 
 /** Ready to send takes the rows of the window the list leaves it: each line it draws a row, cut short at the edge, never wrapped. */
-const expectHeightKept = async (ui: Pane, scene: string, bodyRows = BODY_ROWS) => {
+const expectHeightKept = async (ui: Board, scene: string, bodyRows = BODY_ROWS) => {
   const ready = await ui.find({ key: 'ready' })
 
   expect(bodyRows - (await headerRows(ui)) - (await listRows(ui)), scene).toBe(await drawnRows(ui))

@@ -1,12 +1,10 @@
 import type { On } from 'claude-code'
 import { expect, test, tier, type Engine } from './kit'
 import { NAMES_KEPT } from '../hooks/tools'
-import { PROJECT } from './data'
-import { postedId, startedId, world } from './world'
+import { PROJECT, REVIEW } from './data'
+import { postedId, startedId, world, type World } from './world'
 
 tier('user')
-
-type World = ReturnType<typeof world>
 
 /** Another session Claude starts in the conversation, which the window then holds. */
 const INBOX_PAGE = { name: 'Inbox page', summary: 'Draw the inbox page', project: PROJECT.name }
@@ -80,7 +78,7 @@ const LINES: [tool: string, input: { [key: string]: unknown }, line: string][] =
   ['status', { now: ['Drawing Inbox'] }, '• status set'],
   [
     'ask',
-    { wants: 'yes', yes: 'Approve', title: 'Review Tickets & Replies, round 1' },
+    REVIEW,
     '◆ asked: Review Tickets & Replies, round 1',
   ],
   ['note', { text: 'PR #82 merged' }, 'noted: PR #82 merged'],

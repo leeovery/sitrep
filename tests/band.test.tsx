@@ -3,11 +3,10 @@ import { expect, test, tier, type Mounted } from './kit'
 import { bandLast, besideBand } from '../hooks/draw/band'
 import Placement from '../hooks/draw/placement'
 import { rowsOf } from './drawn'
-import { BAND, CONVERSATION, DOCKED, INLINE, postedId, SURFACES, world } from './world'
+import { BAND, CONVERSATION, DOCKED, INLINE, postedId, SURFACES, world, type World } from './world'
 
 tier('user')
 
-type World = ReturnType<typeof world>
 type Surface = (typeof SURFACES)[number]
 
 /** What the engine draws above the prompt with no plugin drawing there, as if it drew a line of its own. */

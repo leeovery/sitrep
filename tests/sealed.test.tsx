@@ -6,22 +6,27 @@
  * on the one before has ended.
  */
 import type { RenderPropsOf } from 'claude-code'
-import { expect, test, tier } from './kit'
+import { expect, test, tier, type Engine } from './kit'
 import { parseEntries, parsePresence, type SessionPaths } from '../core'
 import { QUIET_MS } from '../hooks/deliver'
 import { SEND_NOW } from '../hooks/draw/ready'
 import { WATCH_MS } from '../hooks/window'
 import { rowsOf } from './drawn'
 import { CLOSES, HELP_DESK, MIN, PROJECT, W1 } from './data'
-import { CONVERSATION, DOCKED, INLINE, postedId, world, writeDoor } from './world'
+import {
+  CONVERSATION,
+  DOCKED,
+  INLINE,
+  postedId,
+  world,
+  writeDoor,
+  type Board,
+  type World,
+} from './world'
 
 tier('user')
 
-type World = ReturnType<typeof world>
 
-type Pane = Awaited<ReturnType<World['pane']>>
-
-type Engine = Parameters<typeof world>[0]
 
 /** Lee's message carrying his yes to each of these rounds of review. */
 const message = (...rounds: number[]) =>
@@ -77,7 +82,7 @@ const asking = async (w: World, props = TALL) => {
 }
 
 /** Lee approves an ask, opening it first where it is not open. */
-const approve = async (w: World, ui: Pane, id: string) => {
+const approve = async (w: World, ui: Board, id: string) => {
   const key = w.item(id)
 
   if ((await ui.find({ key: `yes:${key}` })) === undefined) {
@@ -88,7 +93,7 @@ const approve = async (w: World, ui: Pane, id: string) => {
 }
 
 /** Ready to send as the rows it draws, each trimmed, the blank ones between its groups kept. */
-const box = async (ui: Pane) => rowsOf(await ui.find({ key: 'ready' })).map(row => row.trim())
+const box = async (ui: Board) => rowsOf(await ui.find({ key: 'ready' })).map(row => row.trim())
 
 /** What the window's heartbeat says it sends its session: each send's replies, by item. */
 const sendingIn = (w: World, paths: SessionPaths) =>
@@ -111,7 +116,7 @@ const turnEnded = async (w: World) => {
 }
 
 /** Lee approves the first round and sends it while Claude is mid-turn: the window holds it for the turn to end. */
-const holding = async (w: World, ui: Pane, ids: readonly string[]) => {
+const holding = async (w: World, ui: Board, ids: readonly string[]) => {
   const [first = ''] = ids
 
   await approve(w, ui, first)
@@ -120,7 +125,7 @@ const holding = async (w: World, ui: Pane, ids: readonly string[]) => {
 }
 
 /** Lee sends the first round while Claude is mid-turn, then the second, while the first is held: two sends held, in round order. */
-const twoHeld = async (w: World, ui: Pane, ids: readonly string[]) => {
+const twoHeld = async (w: World, ui: Board, ids: readonly string[]) => {
   const [, second = ''] = ids
 
   await holding(w, ui, ids)
@@ -1057,7 +1062,7 @@ test("a prompt of Lee's going on to start a turn leaves the window stopped until
 const RODE = `From the board:\n- Name the release → answer: “Harbour [Image #1]”${CLOSES}`
 
 /** The session stopped with the first round's send held, and Lee answering a words ask in the prompt: its id. */
-const answeringStopped = async (w: World, ui: Pane, ids: readonly string[]) => {
+const answeringStopped = async (w: World, ui: Board, ids: readonly string[]) => {
   const words = postedId(await w.call('ask', { wants: 'words', title: 'Name the release' }))
 
   await holding(w, ui, ids)
@@ -1125,7 +1130,7 @@ test('an answer with an image dropped beneath lifts the stop, though no turn fol
 })
 
 /** The first round's send held for Claude's turn, and Lee answering a words ask in the prompt meanwhile: its id. */
-const answeringWhileHeld = async (w: World, ui: Pane, ids: readonly string[]) => {
+const answeringWhileHeld = async (w: World, ui: Board, ids: readonly string[]) => {
   const words = postedId(await w.call('ask', { wants: 'words', title: 'Name the release' }))
 
   await holding(w, ui, ids)

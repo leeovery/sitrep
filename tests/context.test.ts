@@ -1,15 +1,13 @@
 import { expect, test, tier } from './kit'
 import { AROUND_MS } from '../hooks/around'
 import type { SitrepProject, SitrepProjectParked } from '../types'
-import { META, PROJECT, T0, W2 } from './data'
+import { LEDGER, META, PROJECT, T0, W2 } from './data'
 import { file, note, park } from './lines'
-import { CONVERSATION, PROMPT, world } from './world'
+import { CONVERSATION, PROMPT, world, type World } from './world'
 
 tier('user')
 
 const CHANGED = 'The sitrep board changed since you last saw it. It now reads:'
-
-type World = ReturnType<typeof world>
 
 /** A session started, and a way for a second window on it to write a note. */
 async function begun(w: World) {
@@ -76,8 +74,6 @@ test('another session of the project parking something changes the board: it rid
 })
 
 /** Another session of the project, the invoice ledger, which parks things. */
-const LEDGER = { ...META, id: 'sr-1edger', name: 'Invoice ledger', by: W2 }
-
 /** The board's line for something the ledger parked. */
 const ledgers = (id: string, title: string) =>
   `- ${id}, parked by "Invoice ledger" (session: sr-1edger): ${title}`

@@ -2,14 +2,12 @@ import { expect, test, tier } from './kit'
 import { EXIT, main, WRITER } from '../cli/main'
 import { parseEntries, type SessionMeta } from '../core'
 import { WATCH_MS } from '../hooks/window'
-import { CLOSES, MIN, PLUGIN_VERSION, T0, W1, W2 } from './data'
+import { CLOSES, LEDGER, MIN, PLUGIN_VERSION, W1 } from './data'
 import { file, reply, yesAsk } from './lines'
-import { CONVERSATION, postedId, PROMPT, world } from './world'
+import { CONVERSATION, postedId, PROMPT, world, type World } from './world'
 import { manifestText, terminal } from './terminal'
 
 tier('user')
-
-type World = ReturnType<typeof world>
 
 /** The CLI on the mod's own files, at the mod's own time, from the plugin the windows run: one folder, one version. */
 const besideWindows = (w: World) =>
@@ -368,21 +366,13 @@ test("an answer landing as the window's send reads the board, unseen by it, goes
 })
 
 /** A session no window holds, started by a window gone since, with an ask waiting on Lee. */
-const LEDGER: SessionMeta = {
-  id: 'sr-1edger',
-  name: 'Invoice ledger',
-  summary: 'Keep a ledger of invoices',
-  project: 'northwind',
-  root: '/Users/me/Code/northwind',
-  created: T0,
-  by: W2,
-}
+const INVOICES: SessionMeta = { ...LEDGER, summary: 'Keep a ledger of invoices' }
 
 test('an answer to a session no window holds waits in its inbox, and goes in once a window takes the session up', async ($, on) => {
   const w = world($, on)
   const t = besideWindows(w)
-  const ledger = w.elsewhere(LEDGER)
-  const cli = (...words: string[]) => t.run(...words, '--session', LEDGER.id)
+  const ledger = w.elsewhere(INVOICES)
+  const cli = (...words: string[]) => t.run(...words, '--session', INVOICES.id)
 
   ledger.write(yesAsk('k3', 'Review the ledger schema'))
   await $.session.start(CONVERSATION)
@@ -392,7 +382,7 @@ test('an answer to a session no window holds waits in its inbox, and goes in onc
   expect(w.prompts, 'no window holds it').toEqual([])
   expect(await replyIn(cli)).toMatchObject({ asks: [{ is: 'onItsWay' }] })
 
-  await w.call('join', { session: LEDGER.id })
+  await w.call('join', { session: INVOICES.id })
   await w.clock.advance(TAKE_IN)
 
   expect(w.prompts.map(prompt => prompt.text)).toEqual([

@@ -1,47 +1,18 @@
 import { expect, test, tier } from './kit'
-import type { SessionMeta } from '../core'
 import { C } from '../hooks/look'
 import { rowsOf } from './drawn'
-import { ELSEWHERE, PROJECT, T0, W2, W4 } from './data'
+import { ELSEWHERE, LEDGER, PROJECT, SHIFTS, T0, W4 } from './data'
 import { note, park, yesAsk } from './lines'
-import { CONVERSATION, INLINE, toProject, WIDE, world } from './world'
+import { CONVERSATION, INLINE, toProject, WIDE, world, type Board, type World } from './world'
 
 tier('user')
-
-type World = ReturnType<typeof world>
-type Board = Awaited<ReturnType<World['pane']>>
-
-const LEDGER = 'sr-1edger'
-
-const LEDGER_META: SessionMeta = {
-  id: LEDGER,
-  name: 'Invoice ledger',
-  summary: 'Invoice ledger, area by area',
-  project: 'northwind',
-  root: '/Users/me/Code/northwind',
-  created: T0,
-  by: W2,
-}
-
-const CONTOSO = 'sr-0sh1ft'
-
-/** A session of another project, Contoso. */
-const CONTOSO_META: SessionMeta = {
-  id: CONTOSO,
-  name: 'Shift schedules',
-  summary: 'Shift schedules, area by area',
-  project: 'contoso',
-  root: '/Users/me/Code/contoso',
-  created: T0,
-  by: W4,
-}
 
 /** The pane's rows as drawn, `cells` across where given, each with the column kept free on its left. */
 const rows = async (ui: Board, cells?: number) => rowsOf(await ui.find({ type: 'Box' }), cells)
 
 /** This session with one thing parked, and another session of its project with two. */
 async function parkedAround(w: World) {
-  const ledger = w.elsewhere(LEDGER_META)
+  const ledger = w.elsewhere(LEDGER)
 
   ledger.write(park('p1', 'Export the ledger as CSV'), park('p2', 'Archive old invoices'))
   ledger.beat()
@@ -52,7 +23,7 @@ async function parkedAround(w: World) {
 /** The board on the ledger's view: another session of this project. */
 const onLedger = async (ui: Board) => {
   await toProject(ui)
-  await ui.press({ key: `go:${LEDGER}` })
+  await ui.press({ key: `go:${LEDGER.id}` })
 }
 
 /** The tab row and the rule under it, as drawn. */
@@ -104,7 +75,7 @@ const PLACES: readonly Place[] = [
     name: "another project's session",
     reach: async ui => {
       await toProject(ui, ELSEWHERE.key)
-      await ui.press({ key: `go:${CONTOSO}` })
+      await ui.press({ key: `go:${SHIFTS.id}` })
     },
     title: 'Shift schedules · Contoso',
     back: '← Contoso',
@@ -113,9 +84,9 @@ const PLACES: readonly Place[] = [
 
 /** This session asking, another of its project asking, and Contoso's session there to visit. */
 async function asksAround(w: World) {
-  const ledger = w.elsewhere(LEDGER_META)
+  const ledger = w.elsewhere(LEDGER)
 
-  w.elsewhere(CONTOSO_META, ELSEWHERE.key).beat()
+  w.elsewhere(SHIFTS, ELSEWHERE.key).beat()
   ledger.write(yesAsk('k3', 'Review the ledger schema'))
   ledger.beat()
   await w.begin()
@@ -338,7 +309,7 @@ test('back goes one level up: a session to its project, a project to All project
   const ui = await w.opened(WIDE)
 
   await toProject(ui, ELSEWHERE.key)
-  await ui.press({ key: `go:${CONTOSO}` })
+  await ui.press({ key: `go:${SHIFTS.id}` })
   await ui.press({ key: 'up' })
   expect(placeOf(w)).toEqual({ level: 'project', project: ELSEWHERE.key })
   await ui.press({ key: 'up' })
@@ -358,7 +329,7 @@ const NARROW = [
 test('a long title cuts its aside first, then itself, at phone width and docked, to the whole line: the way back, on the row above, takes none of it', async ($, on) => {
   const w = world($, on)
   const named = (id: string, name: string) => {
-    const session = w.elsewhere({ ...LEDGER_META, id, name })
+    const session = w.elsewhere({ ...LEDGER, id, name })
 
     session.write(note('n1', 'Began'))
     session.beat()
@@ -411,7 +382,7 @@ test('a way back longer than the line is cut short at its edge, and the title li
     created: T0,
     by: W4,
   })
-  w.elsewhere({ ...CONTOSO_META, project: intake }, intake).beat()
+  w.elsewhere({ ...SHIFTS, project: intake }, intake).beat()
   await w.begin()
 
   const expected = {
@@ -429,7 +400,7 @@ test('a way back longer than the line is cut short at its edge, and the title li
     const ui = await w.opened(props)
 
     await toProject(ui, intake)
-    await ui.press({ key: `go:${CONTOSO}` })
+    await ui.press({ key: `go:${SHIFTS.id}` })
     expect(await underRule(ui, props.bodyColumns), `${props.bodyColumns}`).toEqual(
       expected[props.bodyColumns],
     )

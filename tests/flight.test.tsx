@@ -15,17 +15,13 @@ import { HEARTBEAT_MS, parseEntries, parsePresence, sessionPaths, type SessionPa
 import { keptFlights, QUIET_MS } from '../hooks/deliver'
 import { WATCH_MS } from '../hooks/window'
 import type { SitrepInFlight, SitrepStoredFlights } from '../types'
-import { CLOSES, MIN, PROJECT, ROOT, SENDER, W1 } from './data'
+import { CLOSES, MIN, PROJECT, REVIEW, ROOT, SENDER, W1 } from './data'
 import { file, reply } from './lines'
-import { CONVERSATION, postedId, startedId, world } from './world'
+import { CONVERSATION, postedId, startedId, world, type World } from './world'
 
 tier('user')
 
-type World = ReturnType<typeof world>
-
 type Source = 'send' | 'inbox'
-
-const REVIEW = { wants: 'yes', yes: 'Approve', title: 'Review Tickets & Replies, round 1' }
 
 const MESSAGE = `From the board:\n- Review Tickets & Replies, round 1 → Approve${CLOSES}`
 

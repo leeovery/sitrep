@@ -1,4 +1,4 @@
-import { expect, test, tier } from './kit'
+import { expect, test, tier, type Engine } from './kit'
 import {
   CURRENT_MS,
   parseEntries,
@@ -9,15 +9,26 @@ import {
 } from '../core'
 import type { SitrepInFlight } from '../types'
 import { WATCH_MS } from '../hooks/window'
-import { CLOSES, ELSEWHERE, MIN, PROJECT, ROOT, T0, W1, W2, W3 } from './data'
-import { delivered, file, finish, note, park, reply, yesAsk, type Line } from './lines'
-import { CONVERSATION, postedId, PROMPT, toProject, world } from './world'
+import {
+  CLOSES,
+  ELSEWHERE,
+  LEDGER,
+  MIN,
+  PROJECT,
+  REVIEW,
+  ROOT,
+  SHIFTS,
+  T0,
+  THEMES,
+  W1,
+  W2,
+  W3,
+} from './data'
+import { delivered, file, finish, kindsIn, note, park, reply, yesAsk, type Line } from './lines'
+import { CONVERSATION, postedId, PROMPT, toProject, world, type Board, type World } from './world'
 
 tier('user')
 
-type World = ReturnType<typeof world>
-
-type Engine = Parameters<typeof world>[0]
 
 /** The parked items, and the note each is picked up with, if any. */
 const PARKED = [
@@ -55,7 +66,7 @@ async function pickedUp(w: World, $: Engine) {
 }
 
 /** The keys NOTES opens the pick-ups' lines by, in order. */
-const pickUpRows = async (ui: Awaited<ReturnType<World['pane']>>) =>
+const pickUpRows = async (ui: Board) =>
   (await ui.findAll({ type: 'Button' }))
     .map(each => String(each.key))
     .filter(key => key.startsWith('log:') && key.includes(':pickup-'))
@@ -103,9 +114,6 @@ test("a project's NOTES draws a send's several pick-ups, each its own line", asy
   expect(new Set(await pickUpRows(ui)).size).toBe(PARKED.length)
 })
 
-const LEDGER = 'sr-1edger'
-
-const REVIEW = { wants: 'yes', yes: 'Approve', title: 'Review Tickets & Replies, round 1' }
 
 /** What the ledger parked. */
 const EXPORT = 'Export the ledger as CSV'
@@ -116,25 +124,21 @@ const PICKED = `From the board:\n- Pick up from parked, Invoice ledger's: ${EXPO
 /** Long enough ago that a session idle since is past the views. */
 const OLD = T0 - CURRENT_MS - MIN
 
-/** A session of the project, started by `by` long ago. */
-const meta = (id: string, name: string, by: string, project = PROJECT): SessionMeta => ({
-  id,
-  name,
-  summary: `${name}, area by area`,
+/** A session of the project's, started long ago, its meta naming the project by its name. */
+const longAgo = (session: SessionMeta, project = PROJECT): SessionMeta => ({
+  ...session,
   project: project.name,
-  root: `/Users/me/Code/${project.key}`,
   created: OLD,
-  by,
 })
 
 /** The ledger's file this window writes. */
-const LEDGER_LOG = sessionPaths(ROOT, PROJECT.key, LEDGER).log(W1)
+const LEDGER_LOG = sessionPaths(ROOT, PROJECT.key, LEDGER.id).log(W1)
 
 /** The ledger's own file, which its window writes. */
-const LEDGER_OWN = sessionPaths(ROOT, PROJECT.key, LEDGER).log(W2)
+const LEDGER_OWN = sessionPaths(ROOT, PROJECT.key, LEDGER.id).log(W2)
 
 /** The ledger's inbox file this window writes. */
-const LETTERS = sessionPaths(ROOT, PROJECT.key, LEDGER).letters(W1)
+const LETTERS = sessionPaths(ROOT, PROJECT.key, LEDGER.id).letters(W1)
 
 /** The ledger as it stands once it parked something: its lines, and whether a window holds it. */
 type Standing = { lines: Line[]; isOpen: boolean }
@@ -157,7 +161,7 @@ const STANDING: Record<string, Standing> = {
 
 /** This session beside the ledger, its lines `lines`, held by another window where `isOpen`: a minute on, Lee opens the board. */
 async function besideLedger(w: World, { lines, isOpen }: Standing) {
-  const ledger = w.elsewhere(meta(LEDGER, 'Invoice ledger', W2))
+  const ledger = w.elsewhere(longAgo(LEDGER))
 
   w.put(ledger.paths.log(W2), file(...lines))
 
@@ -172,18 +176,14 @@ async function besideLedger(w: World, { lines, isOpen }: Standing) {
   return { id, paths, ui: await w.opened() }
 }
 
-type Board = Awaited<ReturnType<World['opened']>>
 
 /** Lee picks up the ledger's parked item, `item`, from the project's view, then goes home. */
 const pickUpLedgers = async (ui: Board, item = 'p1') => {
   await toProject(ui)
-  await ui.press({ key: `ppick:${LEDGER}:${item}` })
-  await ui.press({ key: `pickup:${LEDGER}:${item}` })
+  await ui.press({ key: `ppick:${LEDGER.id}:${item}` })
+  await ui.press({ key: `pickup:${LEDGER.id}:${item}` })
   await ui.press({ key: 'tab:session' })
 }
-
-/** The kinds of line a file holds, in order. */
-const kindsIn = (w: World, path: string) => parseEntries(w.text(path)).map(line => line.type)
 
 for (const [standing, ledger] of Object.entries(STANDING)) {
   test(
@@ -222,7 +222,7 @@ for (const [standing, ledger] of Object.entries(STANDING)) {
           .map(each => each.key)
           .filter(key => key?.startsWith('go:')),
         'the pick-up brings no session back onto the board',
-      ).toEqual(ledger.isOpen ? [`go:${id}`, `go:${LEDGER}`] : [`go:${id}`])
+      ).toEqual(ledger.isOpen ? [`go:${id}`, `go:${LEDGER.id}`] : [`go:${id}`])
     },
   )
 }
@@ -250,7 +250,7 @@ test(
       session: w.state.attachment?.session,
       isHeld: true,
       replies: [
-        { item: `${LEDGER}:p1`, verdict: 'pickup' },
+        { item: `${LEDGER.id}:p1`, verdict: 'pickup' },
         { item: asked, verdict: 'yes' },
       ],
     })
@@ -261,7 +261,7 @@ test(
     await ui.press({ key: w.takeBack() })
     expect(w.state.inFlight).toBeNull()
     expect(w.state.queue).toEqual(queued)
-    expect(await ui.find({ key: `unready:${LEDGER}:p1` }), 'removable again').toBeDefined()
+    expect(await ui.find({ key: `unready:${LEDGER.id}:p1` }), 'removable again').toBeDefined()
 
     await ui.press({ key: 'send' })
     await w.turnEnds()
@@ -279,12 +279,12 @@ test(
   'a pick-up still in Ready to send when the window takes up a session of another project leaves it, a toast saying so; a session of this project keeps it, and every other reply stays',
   async ($, on) => {
     const w = world($, on)
-    const ledger = w.elsewhere(meta(LEDGER, 'Invoice ledger', W2))
+    const ledger = w.elsewhere(longAgo(LEDGER))
     const pickUpsLeft = () => w.toasts.filter(toast => toast.includes('pick-up'))
 
     ledger.write(yesAsk('k3', 'Review the ledger schema'), park('p1', EXPORT))
-    w.elsewhere(meta('sr-themes', 'Themes', W3))
-    w.elsewhere(meta('sr-0sh1ft', 'Shift schedules', W3, ELSEWHERE), ELSEWHERE.key)
+    w.elsewhere(longAgo(THEMES))
+    w.elsewhere(longAgo({ ...SHIFTS, by: W3 }, ELSEWHERE), ELSEWHERE.key)
 
     await w.begin()
     await w.clock.advance(MIN)
@@ -294,9 +294,9 @@ test(
 
     await pickUpLedgers(ui)
     await toProject(ui)
-    await ui.press({ key: `go:${LEDGER}` })
-    await ui.press({ key: `pick:${LEDGER}:k3` })
-    await ui.press({ key: `yes:${LEDGER}:k3` })
+    await ui.press({ key: `go:${LEDGER.id}` })
+    await ui.press({ key: `pick:${LEDGER.id}:k3` })
+    await ui.press({ key: `yes:${LEDGER.id}:k3` })
 
     const queued = w.state.queue
 
@@ -306,7 +306,7 @@ test(
 
     await w.call('join', { session: 'sr-0sh1ft' })
     expect(w.state.queue).toEqual([
-      { project: PROJECT.key, session: LEDGER, item: 'k3', verdict: 'yes' },
+      { project: PROJECT.key, session: LEDGER.id, item: 'k3', verdict: 'yes' },
     ])
     expect(pickUpsLeft()).toEqual([
       '1 pick-up of another project left Ready to send: pick up from a window of that project.',
@@ -323,7 +323,7 @@ test(
     const asked = postedId(await w.call('ask', REVIEW))
     const pickUpsLeft = () => w.toasts.filter(toast => toast.includes('pick-up'))
 
-    w.elsewhere(meta('sr-0sh1ft', 'Shift schedules', W3, ELSEWHERE), ELSEWHERE.key)
+    w.elsewhere(longAgo({ ...SHIFTS, by: W3 }, ELSEWHERE), ELSEWHERE.key)
     await w.clock.advance(MIN)
     await pickUpLedgers(ui)
     await ui.press({ key: `pick:${w.item(asked)}` })
@@ -508,7 +508,7 @@ test(
     const w = world($, on)
     const { ui } = await besideLedger(w, FINISHED)
 
-    w.elsewhere(meta('sr-0sh1ft', 'Shift schedules', W3, ELSEWHERE), ELSEWHERE.key)
+    w.elsewhere(longAgo({ ...SHIFTS, by: W3 }, ELSEWHERE), ELSEWHERE.key)
     await w.clock.advance(MIN)
     await pickUpLedgers(ui)
     await w.turnStarts('Carry on.')
@@ -579,11 +579,11 @@ test(
       ending = w.turnEnds()
       await w.clock.settle()
     })
-    await w.call('join', { session: LEDGER })
+    await w.call('join', { session: LEDGER.id })
     await ending
     await w.clock.settle()
 
-    expect(w.state.attachment?.session).toBe(LEDGER)
+    expect(w.state.attachment?.session).toBe(LEDGER.id)
     expect(kindsIn(w, LEDGER_LOG)).toEqual(['reply', 'delivered'])
 
     await w.call('note', { text: 'Carrying on here' })

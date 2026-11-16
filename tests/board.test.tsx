@@ -1,27 +1,18 @@
 import { expect, test, tier } from './kit'
 import { C } from '../hooks/look'
-import { CONVERSATION, DOCKED, INLINE, postedId, SURFACES, toProject, world } from './world'
+import { REVIEW } from './data'
+import { asked, CONVERSATION, DOCKED, INLINE, postedId, SURFACES, toProject, world } from './world'
 
 tier('user')
 
-type World = ReturnType<typeof world>
-
-const REVIEW = {
-  wants: 'yes',
-  yes: 'Approve',
-  title: 'Review Tickets & Replies, round 1',
-  where: 'In Paper: the help desk file, page "round 1", frames 1–6',
-}
+/** The review, saying where its frames are. */
+const IN_PAPER = { ...REVIEW, where: 'In Paper: the help desk file, page "round 1", frames 1–6' }
 
 const DECIDE = {
   wants: 'choice',
   title: 'Keep the ledger 400 days, or forever?',
   options: ['400 days', 'Forever'],
 }
-
-/** Claude posts an ask, and the board opens it, as it does a new one: its id. */
-const asked = async (w: World, ask: { [key: string]: unknown } = REVIEW) =>
-  postedId(await w.call('ask', ask))
 
 test('an empty board says nothing waits on you, docked and inline, on each surface', async ($, on) => {
   const w = world($, on)
@@ -108,7 +99,7 @@ test("this session's view runs its name and summary, then ASKS, STATUS, NOTES, P
   const done = await asked(w, { wants: 'yes', yes: 'Done', title: 'Run the production apply' })
 
   await w.call('resolve', { item: done, reason: 'Ran it in the chat' })
-  await asked(w)
+  await asked(w, IN_PAPER)
 
   for (const props of [DOCKED, INLINE]) {
     const ui = await w.pane('terminal', props)
@@ -126,7 +117,7 @@ test('a new ask opens with its buttons, by what it wants: a yes in its own words
 
   await w.begin()
 
-  const id = await asked(w)
+  const id = await asked(w, IN_PAPER)
   const ui = await w.pane()
 
   expect(await ui.find({ key: `yes:${w.item(id)}`, text: '✓ Approve' })).toBeDefined()
@@ -157,7 +148,7 @@ test('a reply waits under its ask, not sent yet, until it is undone', async ($, 
 
   await w.begin()
 
-  const id = await asked(w)
+  const id = await asked(w, IN_PAPER)
   const ui = await w.pane()
 
   await ui.press({ key: `yes:${w.item(id)}` })
@@ -175,7 +166,7 @@ test('each reply in Ready to send can go on its own, or all at once', async ($, 
 
   await w.begin()
 
-  const first = await asked(w)
+  const first = await asked(w, IN_PAPER)
   const second = await asked(w, { wants: 'yes', yes: 'Done', title: 'Run the production apply' })
   const ui = await w.pane()
 

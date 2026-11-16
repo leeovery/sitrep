@@ -79,9 +79,11 @@ export const meta = (
 /** Another session of Northwind's, started by the second window. */
 export const LEDGER = meta('sr-1edger', 'Invoice ledger', W2)
 
-/** The ids of more sessions: another of Northwind's, and one of Contoso's. */
-export const THEMES = 'sr-themes'
-export const SHIFTS = 'sr-0sh1ft'
+/** Another session of Northwind's, started by a window on another session. */
+export const THEMES = meta('sr-themes', 'Themes', W3)
+
+/** A session of Contoso's. */
+export const SHIFTS = meta('sr-0sh1ft', 'Shift schedules', W4, { project: ELSEWHERE.key })
 
 /**
  * A session of Northwind's as a build before 11 November 2026 left it, its

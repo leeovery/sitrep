@@ -32,6 +32,9 @@ type Options = { now?: number; cwd?: string; env?: Readonly<Record<string, strin
 
 export type World = ReturnType<typeof world>
 
+/** The board as a surface draws it. */
+export type Board = Awaited<ReturnType<World['pane']>>
+
 export function world(engine: Engine, on: On, options: Options = {}) {
   const clock = mock.clock(on, { now: options.now ?? T0 })
   const shown = display(on)

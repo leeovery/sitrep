@@ -3,21 +3,13 @@ import { parseEntries } from '../core'
 import { C } from '../hooks/look'
 import { SPECS } from '../hooks/tools'
 import { rowsOf } from './drawn'
-import { W1 } from './data'
-import { postedId, SURFACES, world } from './world'
+import { FRAMES, W1 } from './data'
+import { asked, SURFACES, world, type World } from './world'
 
 tier('user')
 
-type World = ReturnType<typeof world>
-
-const FRAMES = {
-  wants: 'choice',
-  title: 'Ship round 2, or redraw?',
-  options: ['Ship it', 'Redraw', 'Hold off'],
-}
-
-const asked = async (w: World, ask: { [key: string]: unknown }) =>
-  postedId(await w.call('ask', ask))
+/** The choice, with a third way. */
+const THREE_WAY = { ...FRAMES, options: [...FRAMES.options, 'Hold off'] }
 
 /** The asks of the held session, as the board in `$.state` has them. */
 const asksOf = (w: World) => w.state.board?.asks ?? []
@@ -25,21 +17,21 @@ const asksOf = (w: World) => w.state.board?.asks ?? []
 test('the ask tool takes recommended, and reads a marker Claude types as it, stripped from the option', async ($, on) => {
   const w = world($, on)
   const { paths } = await w.begin()
-  const named = await asked(w, { ...FRAMES, recommended: 'Redraw' })
+  const named = await asked(w, { ...THREE_WAY, recommended: 'Redraw' })
   const marked = await asked(w, {
-    ...FRAMES,
+    ...THREE_WAY,
     options: ['Ship it', 'Redraw', 'Hold off — Recommended'],
   })
 
   expect(parseEntries(w.text(paths.log(W1))).filter(line => line.type === 'ask')).toMatchObject([
-    { id: named, options: FRAMES.options, recommended: 'Redraw' },
-    { id: marked, options: FRAMES.options, recommended: 'Hold off' },
+    { id: named, options: THREE_WAY.options, recommended: 'Redraw' },
+    { id: marked, options: THREE_WAY.options, recommended: 'Hold off' },
   ])
   expect(asksOf(w).map(ask => [ask.id, ask.recommended])).toEqual([
     [named, 'Redraw'],
     [marked, 'Hold off'],
   ])
-  expect((await w.call('ask', { ...FRAMES, recommended: 'Ship' })).deny).toBe(
+  expect((await w.call('ask', { ...THREE_WAY, recommended: 'Ship' })).deny).toBe(
     'recommended names one of the options, in its words: “Ship it”, “Redraw” or “Hold off”.',
   )
   expect(
@@ -53,7 +45,7 @@ test('edit sets recommended or clears it; one changing the options keeps it whil
 
   await w.begin()
 
-  const id = await asked(w, { ...FRAMES, recommended: 'Ship it' })
+  const id = await asked(w, { ...THREE_WAY, recommended: 'Ship it' })
   const recommended = () => asksOf(w)[0]?.recommended
 
   expect((await w.call('edit', { item: id, options: ['Redraw', 'Ship it'] })).result).toBe(
@@ -90,7 +82,7 @@ test("edit's answer says the recommendation went exactly where the folded ask lo
   ]
 
   for (const [changes, lost] of cases) {
-    const id = await asked(w, { ...FRAMES, recommended: 'Ship it' })
+    const id = await asked(w, { ...THREE_WAY, recommended: 'Ship it' })
     const answer = String((await w.call('edit', { item: id, ...changes })).result)
     const after = asksOf(w).find(ask => ask.id === id)?.recommended
     const said = `Edited ${id}. Its recommended option “Ship it” is gone, so it recommends none now.`
@@ -107,7 +99,7 @@ test('edit clearing recommended while its options mark one is refused', async ($
 
   await w.begin()
 
-  const id = await asked(w, { ...FRAMES, recommended: 'Ship it' })
+  const id = await asked(w, { ...THREE_WAY, recommended: 'Ship it' })
 
   expect(
     (
@@ -120,7 +112,7 @@ test('edit clearing recommended while its options mark one is refused', async ($
   ).toBe(
     'Recommend one option: “Redraw” is marked recommended in the options, and recommended says otherwise.',
   )
-  expect(asksOf(w)[0]).toMatchObject({ options: FRAMES.options, recommended: 'Ship it' })
+  expect(asksOf(w)[0]).toMatchObject({ options: THREE_WAY.options, recommended: 'Ship it' })
 })
 
 test('the board tool reads back which option is recommended, once', async ($, on) => {
@@ -128,7 +120,7 @@ test('the board tool reads back which option is recommended, once', async ($, on
 
   await w.begin()
 
-  const id = await asked(w, { ...FRAMES, recommended: 'Redraw' })
+  const id = await asked(w, { ...THREE_WAY, recommended: 'Redraw' })
   const board = String((await w.call('board')).result)
 
   expect(board).toContain(
@@ -154,7 +146,7 @@ test('the pane marks the recommended option with the word once, quiet beside it,
 
   await w.begin()
 
-  const id = await asked(w, { ...FRAMES, options: ['Ship it', 'Redraw (recommended)', 'Hold off'] })
+  const id = await asked(w, { ...THREE_WAY, options: ['Ship it', 'Redraw (recommended)', 'Hold off'] })
 
   for (const surface of SURFACES) {
     const ui = await w.pane(surface)
@@ -198,7 +190,7 @@ test('a choice with nothing recommended draws no such word, its first option the
 
   await w.begin()
 
-  const id = await asked(w, FRAMES)
+  const id = await asked(w, THREE_WAY)
 
   for (const surface of SURFACES) {
     const ui = await w.pane(surface)

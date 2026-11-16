@@ -2,15 +2,11 @@ import { expect, test, tier } from './kit'
 import { parseEntries, sessionPaths } from '../core'
 import { LINGER_MS } from '../hooks/scene'
 import { WATCH_MS } from '../hooks/window'
-import { CLOSES, LEAVES_OPEN, PROJECT, ROOT, W1 } from './data'
+import { CLOSES, LEAVES_OPEN, PROJECT, REVIEW, ROOT, W1 } from './data'
 import { note } from './lines'
-import { CONVERSATION, INLINE, postedId, PROMPT, startedId, world } from './world'
+import { CONVERSATION, INLINE, postedId, PROMPT, startedId, world, type World } from './world'
 
 tier('user')
-
-type World = ReturnType<typeof world>
-
-const REVIEW = { wants: 'yes', yes: 'Approve', title: 'Review Tickets & Replies, round 1' }
 
 const FROM_THE_BOARD = { kind: 'plugin', name: 'sitrep', asUser: true }
 

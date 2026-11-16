@@ -21,14 +21,21 @@ import { C } from '../hooks/look'
 import { WATCH_MS } from '../hooks/window'
 import type { SitrepAttachment } from '../types'
 import { rowsOf } from './drawn'
-import { CLI, CLOSES, META, MIN, PROJECT, ROOT, SENDER, W1, W2, W3 } from './data'
+import { CLI, CLOSES, GO, META, MIN, PROJECT, REVIEW, ROOT, SENDER, W1, W2, W3 } from './data'
 import { delivered, file, note, reply, snoozeSession, wakeSession, yesAsk } from './lines'
-import { CONVERSATION, postedId, PROMPT, toProject, WIDE, world } from './world'
+import {
+  CONVERSATION,
+  postedId,
+  PROMPT,
+  toProject,
+  WIDE,
+  world,
+  type Board,
+  type World,
+} from './world'
 
 tier('user')
 
-type World = ReturnType<typeof world>
-type Board = Awaited<ReturnType<World['opened']>>
 
 /** A time in local time, as Snooze works it out. */
 const local = (year: number, month: number, day: number, hour: number, minute = 0) =>
@@ -36,10 +43,6 @@ const local = (year: number, month: number, day: number, hour: number, minute = 
 
 /** Friday 23 October 2026, 14:00, local time: when the world starts. */
 const FRIDAY = local(2026, 10, 23, 14)
-
-const REVIEW = { wants: 'yes', yes: 'Approve', title: 'Review Tickets & Replies, round 1' }
-
-const GO = { wants: 'yes', yes: 'Go', title: 'Give the go for stage 3' }
 
 const LEDGER = { wants: 'yes', yes: 'Keep', title: 'Keep the ledger forever' }
 

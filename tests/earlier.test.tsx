@@ -5,11 +5,9 @@ import { WATCH_MS } from '../hooks/window'
 import { rowsOf } from './drawn'
 import { MIN, T0, W2 } from './data'
 import { choiceAsk, delivered, file, reply, resolve, yesAsk, type Line } from './lines'
-import { ACROSS, DOCKED, postedId, world } from './world'
+import { ACROSS, DOCKED, postedId, world, type Board, type World } from './world'
 
 tier('user')
-
-type World = ReturnType<typeof world>
 
 const HOUR = 60 * MIN
 
@@ -54,7 +52,7 @@ async function closedAsks(w: World) {
 }
 
 /** The closed asks RESOLVED lists, by key, in the order drawn. */
-const listed = async (ui: Awaited<ReturnType<World['opened']>>) =>
+const listed = async (ui: Board) =>
   (await ui.findAll({ type: 'Box' }))
     .map(each => each.key ?? '')
     .filter(key => key.startsWith('closed:'))

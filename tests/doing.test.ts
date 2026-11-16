@@ -4,11 +4,9 @@ import { HEARTBEAT_MS, metaText, parsePresence, sessionPaths, type SessionPaths 
 import { rewriteAt, STATE_MS } from '../hooks/doing'
 import type { SitrepActivity, SitrepAttachment } from '../types'
 import { AGENT, HELP_DESK, META, PROJECT, ROOT, T0, W1, W2 } from './data'
-import { CONVERSATION, startedId, world } from './world'
+import { CONVERSATION, startedId, world, type World } from './world'
 
 tier('user')
-
-type World = ReturnType<typeof world>
 
 /** The state the window's heartbeat on a session says, as a reader reads it. */
 const stateIn = (w: World, paths: SessionPaths) =>

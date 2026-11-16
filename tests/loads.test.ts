@@ -4,11 +4,9 @@ import { HEARTBEAT_MS, parsePresence, presenceText, QUIET, type SessionPaths } f
 import { STATE_MS } from '../hooks/doing'
 import type { SitrepActivity } from '../types'
 import { T0, W1 } from './data'
-import { world } from './world'
+import { world, type World } from './world'
 
 tier('user')
-
-type World = ReturnType<typeof world>
 
 /**
  * The window's state in `$.state` as the host keeps it, versioned, so a test

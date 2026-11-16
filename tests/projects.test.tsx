@@ -9,11 +9,9 @@ import {
 } from '../core'
 import { HELP_DESK, HOME, META, MIN, PROJECT, REPO, ROOT, T0, W1, W2, W3 } from './data'
 import { note, yesAsk } from './lines'
-import { CONVERSATION, startedId, world } from './world'
+import { CONVERSATION, startedId, world, type World } from './world'
 
 tier('user')
-
-type World = ReturnType<typeof world>
 
 /** Where SitRep lives: not where any window here starts. */
 const SITREP_HOME = '/Users/me/.claude/plugins/sitrep'

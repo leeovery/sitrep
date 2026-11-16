@@ -1,6 +1,6 @@
 import type { PromptSubmitAttachment } from 'claude-code'
-import { expect, test, tier } from './kit'
-import { parseEntries, parsePresence, sessionPaths, type SessionMeta } from '../core'
+import { expect, test, tier, type Engine } from './kit'
+import { parseEntries, parsePresence, sessionPaths } from '../core'
 import {
   CANNOT_RIDE,
   CLEAR_AFTER_DROP_MS,
@@ -15,7 +15,7 @@ import { QUIET_MS, RIDE_LOST } from '../hooks/deliver'
 import { C } from '../hooks/look'
 import { WATCH_MS } from '../hooks/window'
 import { rowsOf } from './drawn'
-import { CLOSES, LEAVES_OPEN, MIN, PROJECT, ROOT, T0, W1, W2, W3 } from './data'
+import { CLOSES, FRAMES, GO, LEAVES_OPEN, LEDGER, MIN, PROJECT, ROOT, T0, W1, W2, W3 } from './data'
 import {
   beat,
   delivered,
@@ -28,23 +28,22 @@ import {
   wordsAsk,
   yesAsk,
 } from './lines'
-import { BAND, CONVERSATION, DOCKED, postedId, toProject, world } from './world'
+import {
+  asked,
+  BAND,
+  CONVERSATION,
+  DOCKED,
+  postedId,
+  toProject,
+  world,
+  type Board,
+  type World,
+} from './world'
 
 tier('user')
 
-type World = ReturnType<typeof world>
-
-type Engine = Parameters<typeof world>[0]
 
 const OUTPUT = "the command's output"
-
-const GO = { wants: 'yes', yes: 'Go', title: 'Give the go for stage 3' }
-
-const FRAMES = {
-  wants: 'choice',
-  title: 'Ship round 2, or redraw?',
-  options: ['Ship it', 'Redraw'],
-}
 
 const LIST = {
   wants: 'words',
@@ -59,10 +58,6 @@ const FOUR_LINES =
 /** A paste as the engine wraps it in the prompt Lee submits, the line breaks around it with it (live, 2.1.295). */
 const pasted = (text: string, id = '08fd') =>
   `\n\n<pasted_content id="${id}">\n${text}\n</pasted_content id="${id}">\n`
-
-/** Claude posts an ask, which the board opens as it does a new one: its id. */
-const asked = async (w: World, ask: { [key: string]: unknown }) =>
-  postedId(await w.call('ask', ask))
 
 /** Lee pressing Enter at the prompt with `text` in it, the box holding what it showed. */
 const entered = (
@@ -644,16 +639,6 @@ test('VS Code, whose prompts arrive some way unproven, offers nothing to write: 
 })
 
 /** Another session of the project, open in another window. */
-const LEDGER: SessionMeta = {
-  id: 'sr-1edger',
-  name: 'Invoice ledger',
-  summary: 'Invoice ledger, area by area',
-  project: PROJECT.key,
-  root: '/Users/me/Code/northwind',
-  created: T0,
-  by: W2,
-}
-
 /**
  * The board on the project's view, the ledger's asks drawn from its brief,
  * a minute on. Given `isUnread`, the board's reads of other sessions in full
@@ -1293,7 +1278,7 @@ const pickingUp = async (w: World) => {
 }
 
 /** The rows a parked item is drawn on. */
-const parkedRows = async (ui: Awaited<ReturnType<World['pane']>>, key: string) =>
+const parkedRows = async (ui: Board, key: string) =>
   rowsOf(await ui.find({ key: `parked:${key}` }))
 
 test('an opened parked item offers pick it up and ✎ with a comment; neither once a pick-up is queued', async ($, on) => {

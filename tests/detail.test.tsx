@@ -2,14 +2,11 @@ import { expect, test, tier } from './kit'
 import { hoverScope } from '../hooks/draw/kit'
 import { C, GLYPH } from '../hooks/look'
 import { rowsOf } from './drawn'
-import { MIN } from './data'
-import { ACROSS, postedId, world } from './world'
+import { MIN, REVIEW } from './data'
+import { ACROSS, postedId, world, type Board } from './world'
 
 tier('user')
 
-type World = ReturnType<typeof world>
-
-type Board = Awaited<ReturnType<World['pane']>>
 
 const FOLD =
   "Move the pilot's results into the spreadsheet pages: contributors by team and level, owner by department, week tally, separate summaries"
@@ -25,7 +22,7 @@ const DECIDE = {
 }
 
 /** The rows the element keyed `key` is drawn on, as the docked board draws it. */
-const rows = async (ui: Awaited<ReturnType<World['pane']>>, key: string) =>
+const rows = async (ui: Board, key: string) =>
   rowsOf(await ui.find({ key }))
 
 /** A line of a tree as drawn: the colour of its text, and of the label it opens with where it has one. */
@@ -218,9 +215,7 @@ test("an opened ask hangs where and its record from its mark; its buttons and hi
 
   const id = postedId(
     await w.call('ask', {
-      wants: 'yes',
-      yes: 'Approve',
-      title: 'Review Tickets & Replies, round 1',
+      ...REVIEW,
       where: 'In Paper: page round 1',
       ref: 'docs/help-desk.md',
     }),
@@ -275,9 +270,7 @@ test('a branch whose text wraps keeps the tree unbroken: a stem beside it under 
 
   const id = postedId(
     await w.call('ask', {
-      wants: 'yes',
-      yes: 'Approve',
-      title: 'Review Tickets & Replies, round 1',
+      ...REVIEW,
       where: 'In Paper: the help desk file, page "round 1", frames 1–6, beside the brief',
       ref: 'docs/help-desk.md, under "Tickets & Replies", the first round of three',
     }),

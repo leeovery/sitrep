@@ -1,16 +1,14 @@
 import type { On } from 'claude-code'
 import { expect, test, tier } from './kit'
-import { metaText, parseEntries, presenceText, type SessionMeta } from '../core'
+import { metaText, parseEntries, presenceText } from '../core'
 import { AROUND_MS } from '../hooks/around'
 import { WATCH_MS } from '../hooks/window'
 import type { SitrepAttachment } from '../types'
-import { ELSEWHERE, META, MIN, PROJECT, T0, W1, W2, W3 } from './data'
+import { ELSEWHERE, LEDGER, META, MIN, PROJECT, T0, W1, W2, W3 } from './data'
 import { file, note, yesAsk } from './lines'
 import { CONVERSATION, postedId, toProject, world } from './world'
 
 tier('user')
-
-const LEDGER: SessionMeta = { ...META, id: 'sr-1edger', name: 'Invoice ledger', by: W2 }
 
 /** The mod finding, as a reload does, `kept` in `$.state`: the session the window held. */
 const reloading = (on: On, kept: SitrepAttachment) => {
