@@ -1,11 +1,15 @@
+import type { RenderPropsOf } from 'claude-code'
+import type { SitrepPlace } from '../types'
 import { expect, test, tier } from './kit'
 import { CURRENT_MS, sessionPaths, type Body, type SessionMeta } from '../core'
 import { AROUND_MS } from '../hooks/around'
 import { C, GLYPH } from '../hooks/look'
+import { EVERY_PROJECT, itemKey, projectPlace } from '../hooks/places'
 import { rowsOf } from './drawn'
 import {
   DAY,
   ELSEWHERE,
+  HELD,
   LEDGER,
   meta,
   MIN,
@@ -19,8 +23,10 @@ import {
   W3,
   W4,
 } from './data'
-import { choiceAsk, file, finish, note, park, status, yesAsk, type Line } from './lines'
-import { asked, postedId, toProject, WIDE, world, type Board, type World } from './world'
+import { askOf, choiceAsk, file, finish, note, park, status, yesAsk, type Line } from './lines'
+import type { Neighbour } from './filing'
+import { pane, sceneFrom, type Desk, type Drawn } from './render'
+import { asked, DOCKED, postedId, toProject, WIDE, world, type Board, type World } from './world'
 
 tier('user')
 
@@ -35,45 +41,71 @@ const NOTES = 'sr-n0tes0'
  * session of this project with an ask and something parked, and a closed
  * one; Contoso open with an ask; Fabrikam closed with something parked;
  * Tailspin closed and quiet, updated two days ago; Dusty quiet for longer
- * than a session stays current. Then this session starts its own and asks.
+ * than a session stays current. This session asks.
  */
-async function neighbourhood(w: World) {
-  const ledger = w.elsewhere(LEDGER)
-  const shifts = w.elsewhere(SHIFTS, ELSEWHERE.key)
+const NEIGHBOURHOOD: Desk = {
+  lines: [[T0, askOf('k1', REVIEW)]],
+  around: [
+    {
+      meta: LEDGER,
+      lines: [
+        [
+          T0,
+          status(['Drawing the ledger schema'], {
+            name: 'Invoice ledger',
+            summary: 'Invoice ledger, area by area',
+          }),
+        ],
+        [T0, choiceAsk('k3', 'Keep the ledger 400 days, or forever?', ['400 days', 'Forever'])],
+        [T0, park('p2', 'Export the ledger as CSV')],
+        [T0, note('n3', 'Wrote the schema')],
+      ],
+      seenAt: T0,
+    },
+    { meta: { ...THEMES, created: T0 - DAY } },
+    {
+      meta: SHIFTS,
+      project: ELSEWHERE.key,
+      lines: [[T0, yesAsk('k5', 'Review the shift schedules')]],
+      seenAt: T0,
+    },
+    {
+      meta: meta('sr-0ff11e', 'Offline mode', W3, { project: 'fabrikam', created: T0 - 3 * DAY }),
+      project: FABRIKAM.key,
+      lines: [[T0, park('p1', 'Thumbnails in the picker')]],
+    },
+    {
+      meta: meta(NOTES, 'Shared notes', W3, { project: 'tailspin', created: T0 - 2 * DAY }),
+      project: TAILSPIN.key,
+    },
+    {
+      meta: meta('sr-d0sty0', 'An old idea', W3, {
+        project: 'dusty',
+        created: T0 - (CURRENT_MS + DAY),
+      }),
+      project: DUSTY.key,
+    },
+  ],
+}
 
-  ledger.write(
-    status(['Drawing the ledger schema'], {
-      name: 'Invoice ledger',
-      summary: 'Invoice ledger, area by area',
-    }),
-    choiceAsk('k3', 'Keep the ledger 400 days, or forever?', ['400 days', 'Forever']),
-    park('p2', 'Export the ledger as CSV'),
-    note('n3', 'Wrote the schema'),
-  )
-  ledger.beat()
-  w.elsewhere({ ...THEMES, created: T0 - DAY })
-  shifts.write(yesAsk('k5', 'Review the shift schedules'))
-  shifts.beat()
-  w.elsewhere(
-    meta('sr-0ff11e', 'Offline mode', W3, { project: 'fabrikam', created: T0 - 3 * DAY }),
-    FABRIKAM.key,
-  ).write(park('p1', 'Thumbnails in the picker'))
-  w.elsewhere(
-    meta(NOTES, 'Shared notes', W3, { project: 'tailspin', created: T0 - 2 * DAY }),
-    TAILSPIN.key,
-  )
-  w.elsewhere(
-    meta('sr-d0sty0', 'An old idea', W3, { project: 'dusty', created: T0 - (CURRENT_MS + DAY) }),
-    DUSTY.key,
-  )
+/** The neighbourhood in a world: the sessions around written, then this session begun and asking. */
+async function neighbourhood(w: World) {
+  w.surround(NEIGHBOURHOOD.around)
 
   const { id } = await w.begin()
 
   return { id, posted: await asked(w, REVIEW) }
 }
 
+/** The neighbourhood drawn as `props`, the board looking at a place, with an item opened where one is named. */
+const neighbourhoodAt = (
+  place: SitrepPlace | null,
+  props: RenderPropsOf['Pane'],
+  selected: string | null = null,
+) => pane(sceneFrom({ ...NEIGHBOURHOOD, pane: { place, selected } }), props)
+
 /** The keys of the drawn buttons that start with `prefix`, in the order drawn. */
-const keysOf = async (ui: Board, prefix: string) =>
+const keysOf = async (ui: Drawn, prefix: string) =>
   (await ui.findAll({ type: 'Button' }))
     .map(each => each.key ?? '')
     .filter(key => key.startsWith(prefix))
@@ -135,26 +167,26 @@ test('closed and opened again, the board is home, wherever it had gone', async (
   expect(await ui.find({ key: 'tab:session' })).toBeDefined()
 })
 
-test('the board shows two tabs, home by its name and All projects, each with what waits there', async ($, on) => {
-  const w = world($, on)
-
-  await neighbourhood(w)
-
-  const ui = await w.opened(WIDE)
-  const counts = async () =>
-    Promise.all(['tab:session:box', 'tab:all:box'].map(async key => rowsOf(await ui.find({ key }))))
+test('the board shows two tabs, home by its name and All projects, each with what waits there', async () => {
+  const ui = neighbourhoodAt(null, WIDE)
+  const counts = async (drawn: Drawn) =>
+    Promise.all(
+      ['tab:session:box', 'tab:all:box'].map(async key => rowsOf(await drawn.find({ key }))),
+    )
 
   expect(await ui.find({ key: 'tab:session', text: 'Help desk redesign' })).toBeDefined()
   expect(await ui.find({ key: 'tab:all', text: 'All projects' })).toBeDefined()
   expect(await ui.find({ key: 'tab:project' })).toBeUndefined()
   expect(await ui.find({ type: 'Button', text: /This session/ })).toBeUndefined()
-  expect(await counts(), 'one waits here, three across every project').toEqual([
+  expect(await counts(ui), 'one waits here, three across every project').toEqual([
     [' ⌂ Help desk redesign 1'],
     [' ≡ All projects 3'],
   ])
 
-  await ui.press({ key: 'tab:all' })
-  expect(await counts()).toEqual([[' ⌂ Help desk redesign 1'], [' ≡ All projects 3']])
+  expect(await counts(neighbourhoodAt(EVERY_PROJECT, WIDE))).toEqual([
+    [' ⌂ Help desk redesign 1'],
+    [' ≡ All projects 3'],
+  ])
 })
 
 test("another session's view is the session view: its status, its asks with working buttons, its notes", async ($, on) => {
@@ -194,46 +226,54 @@ test("another session's view is the session view: its status, its asks with work
   ])
 })
 
-test("the project view lists its sessions, this one first, each with what it does and what waits; and the project's notes", async ($, on) => {
-  const w = world($, on)
-  const { id } = await neighbourhood(w)
-  const ui = await w.opened()
+test("the project view lists its sessions, this one first, each with what it does and what waits; and the project's notes", async () => {
+  const ui = neighbourhoodAt(projectPlace(PROJECT.key), DOCKED)
 
-  await toProject(ui)
-
-  expect(await keysOf(ui, 'go:')).toEqual([`go:${id}`, `go:${LEDGER.id}`, `go:${THEMES.id}`])
+  expect(await keysOf(ui, 'go:')).toEqual([`go:${HELD.id}`, `go:${LEDGER.id}`, `go:${THEMES.id}`])
   expect(await ui.find({ type: 'Text', text: '2 of 3 open' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: '2 waiting on you' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: 'Drawing the ledger schema' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: '1 waiting' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: 'closed' })).toBeDefined()
   expect(
-    await ui.find({ key: `log:${LEDGER.id}:n3`, text: 'Invoice ledger: Wrote the schema' }),
+    await ui.find({
+      key: `log:${itemKey(LEDGER.id, 'n3')}`,
+      text: 'Invoice ledger: Wrote the schema',
+    }),
   ).toBeDefined()
 
-  await ui.press({ key: `log:${LEDGER.id}:n3` })
-  expect(await ui.find({ type: 'Text', text: 'nothing more was recorded' })).toBeDefined()
+  const opened = neighbourhoodAt(projectPlace(PROJECT.key), DOCKED, itemKey(LEDGER.id, 'n3'))
+
+  expect(await opened.find({ type: 'Text', text: 'nothing more was recorded' })).toBeDefined()
 })
 
-test('All projects: this project first, then the busiest; the quiet fold into one line; an old idle session is gone', async ($, on) => {
-  const w = world($, on)
-  const { id } = await neighbourhood(w)
-
-  const ui = await w.opened()
-
-  await ui.press({ key: 'tab:all' })
+test('All projects: this project first, then the busiest; the quiet fold into one line; an old idle session is gone', async () => {
+  const ui = neighbourhoodAt(EVERY_PROJECT, DOCKED)
 
   expect(await keysOf(ui, 'proj:')).toEqual([
     `proj:${PROJECT.key}`,
     `proj:${ELSEWHERE.key}`,
     `proj:${FABRIKAM.key}`,
   ])
-  expect(await keysOf(ui, 'go:')).toEqual([`go:${id}`, `go:${LEDGER.id}`, `go:${SHIFTS.id}`])
+  expect(await keysOf(ui, 'go:')).toEqual([`go:${HELD.id}`, `go:${LEDGER.id}`, `go:${SHIFTS.id}`])
   expect(await ui.find({ type: 'Text', text: 'no sessions open · ◇ 1 parked' })).toBeDefined()
   expect(
     await ui.find({ type: 'Text', text: '1 more, with nothing going on: Tailspin' }),
   ).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /Dusty/ })).toBeUndefined()
+})
+
+test("the project view's ASKS lists asks two sessions posted at the same moment by their sessions, whichever order the sessions are read in", async () => {
+  const around: readonly Neighbour[] = [
+    { meta: THEMES, lines: [[T0, yesAsk('k1', 'Approve the dark theme')]], seenAt: T0 },
+    { meta: LEDGER, lines: [[T0, yesAsk('k3', 'Review the ledger schema')]], seenAt: T0 },
+  ]
+  const asked = (read: readonly Neighbour[]) =>
+    keysOf(pane(sceneFrom({ around: read, pane: { place: projectPlace(PROJECT.key) } })), 'pick:')
+  const ledgerFirst = [`pick:${itemKey(LEDGER.id, 'k3')}`, `pick:${itemKey(THEMES.id, 'k1')}`]
+
+  expect(await asked(around)).toEqual(ledgerFirst)
+  expect(await asked([...around].reverse())).toEqual(ledgerFirst)
 })
 
 test("the project view's ASKS holds every session's asks, the newest first, each naming its session and answered from there", async ($, on) => {
@@ -493,22 +533,16 @@ test("a new ask in another session, in this project or another, reaches the band
   ).toEqual([ELSEWHERE.key, PROJECT.key])
 })
 
-test("the project view's sessions and All projects' trees hang from faint glyphs", async ($, on) => {
-  const w = world($, on)
-
-  await neighbourhood(w)
-
-  const ui = await w.opened(WIDE)
-  const colours = async (text: string) => [
+test("the project view's sessions and All projects' trees hang from faint glyphs", async () => {
+  const colours = async (ui: Drawn, text: string) => [
     ...new Set((await ui.findAll({ type: 'Text', text })).map(each => each.props.color)),
   ]
+  const project = neighbourhoodAt(projectPlace(PROJECT.key), WIDE)
+  const all = neighbourhoodAt(EVERY_PROJECT, WIDE)
 
-  await toProject(ui)
-  expect(await colours(GLYPH.last)).toEqual([C.faint])
-
-  await ui.press({ key: 'up' })
-  expect(await colours(GLYPH.branch)).toEqual([C.faint])
-  expect(await colours(GLYPH.last)).toEqual([C.faint])
+  expect(await colours(project, GLYPH.last)).toEqual([C.faint])
+  expect(await colours(all, GLYPH.branch)).toEqual([C.faint])
+  expect(await colours(all, GLYPH.last)).toEqual([C.faint])
 })
 
 test('what the sessions around hold is put in $.state only when a look finds it changed', async ($, on) => {

@@ -5,7 +5,6 @@
  * the write and the heartbeat after it would find the reply nowhere, and the
  * ask would flash back into Needs you, so the heartbeats are read first.
  */
-import type { FsEntry } from 'claude-code'
 import { expect, test } from './kit'
 import { readFolder } from '../cli/files'
 import type { Io } from '../cli/io'
@@ -22,6 +21,7 @@ import type { Host } from '../hooks/host'
 import { createReader } from '../hooks/reader'
 import { META, T0, W1 } from './data'
 import { delivered, file, reply, yesAsk, type Line } from './lines'
+import { fsOn } from './host'
 import { terminal } from './terminal'
 
 const ROOT = '/Users/me/.local/state/sitrep'
@@ -86,43 +86,9 @@ const standing = (read: Omit<SessionFiles, 'project'>) => {
 
 /** A host whose files are `files`, listed as the engine lists them. */
 const hostOn = (files: Files): Host => {
-  const list = async (dir: string): Promise<FsEntry[]> => {
-    const entries = new Map<string, FsEntry>()
+  const fs = fsOn(files, NOW)
 
-    for (const [path, { text, mtimeMs }] of files) {
-      if (path.startsWith(`${dir}/`)) {
-        const [name = '', ...deeper] = path.slice(dir.length + 1).split('/')
-        const kind = deeper.length > 0 ? 'dir' : 'file'
-
-        entries.set(name, {
-          name,
-          kind,
-          size: kind === 'dir' ? 0 : text.length,
-          mtimeMs,
-          isLink: false,
-        })
-      }
-    }
-
-    if (entries.size === 0) {
-      throw new Error(`ENOENT: no such file or directory, scandir '${dir}'`)
-    }
-
-    return [...entries.values()]
-  }
-  const read = async (path: string) => {
-    const held = files.get(path)
-
-    if (held === undefined) {
-      throw new Error(`ENOENT: no such file or directory, open '${path}'`)
-    }
-
-    return held.text
-  }
-
-  return {
-    fs: { list, read: handingOver(files, read), exists: async (path: string) => files.has(path) },
-  } as unknown as Host
+  return { fs: { ...fs, read: handingOver(files, fs.read) } } as unknown as Host
 }
 
 test("the mod's reader reads the heartbeats before the lines: a send handed over as it reads is on its way or delivered, never waiting on Lee", async () => {

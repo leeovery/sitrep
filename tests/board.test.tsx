@@ -1,7 +1,10 @@
 import { expect, test, tier } from './kit'
 import { C } from '../hooks/look'
-import { REVIEW } from './data'
-import { asked, CONVERSATION, DOCKED, INLINE, postedId, SURFACES, toProject, world } from './world'
+import { projectPlace } from '../hooks/places'
+import { HELD, MIN, PROJECT, REVIEW, T0, type Asked } from './data'
+import { askOf, park, resolve, status } from './lines'
+import { pane, sceneFrom, type Drawn } from './render'
+import { asked, CONVERSATION, DOCKED, INLINE, postedId, SURFACES, world } from './world'
 
 tier('user')
 
@@ -12,41 +15,34 @@ const DECIDE = {
   wants: 'choice',
   title: 'Keep the ledger 400 days, or forever?',
   options: ['400 days', 'Forever'],
-}
+} satisfies Asked
 
-test('an empty board says nothing waits on you, docked and inline, on each surface', async ($, on) => {
-  const w = world($, on)
-
-  await w.begin()
-
+test('an empty board says nothing waits on you, docked and inline, on each surface', async () => {
   for (const surface of SURFACES) {
     for (const props of [DOCKED, INLINE]) {
-      const ui = await w.pane(surface, props)
+      const ui = pane(sceneFrom(), props, surface)
 
       expect(await ui.find({ type: 'Text', text: /Nothing waiting on you/ })).toBeDefined()
-      await ui.unmount()
     }
   }
 })
 
-test("an empty section's line is soft, a grey lighter than its heading's few words, in a session's view and a project's", async ($, on) => {
-  const w = world($, on)
-
-  await w.begin()
-
-  const ui = await w.pane()
-  const colourOf = async (text: string) => (await ui.find({ type: 'Text', text }))?.props.color
+test("an empty section's line is soft, a grey lighter than its heading's few words, in a session's view and a project's", async () => {
+  const colourOf = async (ui: Drawn, text: string) =>
+    (await ui.find({ type: 'Text', text }))?.props.color
+  const home = pane(sceneFrom())
 
   for (const line of ['Nothing waiting on you.', 'Nothing under way yet.', 'Nothing yet.']) {
-    expect(await colourOf(line), line).toBe(C.soft)
+    expect(await colourOf(home, line), line).toBe(C.soft)
   }
 
   for (const note of ['nothing waiting', 'what happened']) {
-    expect(await colourOf(note), note).toBe(C.grey)
+    expect(await colourOf(home, note), note).toBe(C.grey)
   }
 
-  await toProject(ui)
-  expect(await colourOf('Nothing waiting on you.'), 'the project view').toBe(C.soft)
+  const project = pane(sceneFrom({ pane: { place: projectPlace(PROJECT.key) } }))
+
+  expect(await colourOf(project, 'Nothing waiting on you.'), 'the project view').toBe(C.soft)
 })
 
 test('with no session held, the board says so in a line and says how Claude starts one', async ($, on) => {
@@ -61,14 +57,22 @@ test('with no session held, the board says so in a line and says how Claude star
   ).toBeDefined()
 })
 
-test("this session's view: the name and summary, what is under way and next, each heading's few words", async ($, on) => {
-  const w = world($, on)
-
-  await w.begin()
-  await w.call('status', { now: ['Drawing Inbox, round 2'], next: 'Inbox, round 3' })
-  await w.clock.advance(12 * 60_000)
-
-  const ui = await w.pane()
+test("this session's view: the name and summary, what is under way and next, each heading's few words", async () => {
+  const ui = pane(
+    sceneFrom({
+      lines: [
+        [
+          T0,
+          status(['Drawing Inbox, round 2'], {
+            name: HELD.name,
+            summary: HELD.summary,
+            next: 'Inbox, round 3',
+          }),
+        ],
+      ],
+      now: T0 + 12 * MIN,
+    }),
+  )
 
   expect(await ui.find({ key: 'tab:session', text: 'Help desk redesign' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: 'Help desk redesign' })).toBeDefined()
@@ -87,25 +91,22 @@ test("this session's view: the name and summary, what is under way and next, eac
 /** The view's own line and section headings, in the order drawn. */
 const SECTIONS = new Set(['Help desk redesign', 'ASKS', 'STATUS', 'NOTES', 'PARKED', 'RESOLVED'])
 
-test("this session's view runs its name and summary, then ASKS, STATUS, NOTES, PARKED and RESOLVED, docked and inline", async ($, on) => {
-  const w = world($, on)
-
-  await w.begin()
-  await w.call('park', { title: 'A priority badge across all tabs' })
-
-  const done = await asked(w, { wants: 'yes', yes: 'Done', title: 'Run the production apply' })
-
-  await w.call('resolve', { item: done, reason: 'Ran it in the chat' })
-  await asked(w, IN_PAPER)
+test("this session's view runs its name and summary, then ASKS, STATUS, NOTES, PARKED and RESOLVED, docked and inline", async () => {
+  const scene = sceneFrom({
+    lines: [
+      [T0, park('p1', 'A priority badge across all tabs')],
+      [T0, askOf('k1', { wants: 'yes', yes: 'Done', title: 'Run the production apply' })],
+      [T0, resolve('k1', 'Ran it in the chat')],
+      [T0, askOf('k2', IN_PAPER)],
+    ],
+  })
 
   for (const props of [DOCKED, INLINE]) {
-    const ui = await w.pane('terminal', props)
-    const order = (await ui.findAll({ type: 'Text' }))
+    const order = (await pane(scene, props).findAll({ type: 'Text' }))
       .map(each => each.text)
       .filter(text => SECTIONS.has(text))
 
     expect(order, props.placement).toEqual([...SECTIONS])
-    await ui.unmount()
   }
 })
 

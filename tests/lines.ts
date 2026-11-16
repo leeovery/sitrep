@@ -13,7 +13,7 @@ import {
   type Session,
   type SessionFiles,
 } from '../core'
-import { META, MIN, T0 } from './data'
+import { META, MIN, T0, type Asked } from './data'
 
 /** A line, and when it was written. */
 export type Line = [at: number, body: Body]
@@ -78,6 +78,9 @@ export const wordsAsk = (id: string, title: string, needs?: string): Body => ({
   needs,
 })
 
+/** An ask's line as the ask tool writes what Claude asked, given as the sample asks are (data.ts). */
+export const askOf = (id: string, ask: Asked): Body => ({ type: 'ask', id, ...ask })
+
 /** An ask's line as written before asks said what they want back: by its kind. */
 export const kindAsk = (
   id: string,
@@ -86,12 +89,12 @@ export const kindAsk = (
   extra: { options?: string[]; needs?: string } = {},
 ): Body => ({ type: 'ask', id, kind, title, ...extra })
 
-export const note = (id: string, text: string, detail?: string[]): Body => ({
-  type: 'note',
-  id,
-  text,
-  detail,
-})
+export const note = (
+  id: string,
+  text: string,
+  detail?: string[],
+  extra: { ref?: string } = {},
+): Body => ({ type: 'note', id, text, detail, ...extra })
 
 export const park = (
   id: string,

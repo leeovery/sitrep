@@ -2,7 +2,8 @@
  * The sample data the tests share: times, windows, the projects and sessions
  * under test, and the asks Claude posts. Every name is a placeholder.
  */
-import type { Project, SessionMeta } from '../core'
+import type { AskBody, Project, SessionMeta } from '../core'
+import { itemKey } from '../hooks/places'
 
 export const MIN = 60_000
 export const HOUR = 60 * MIN
@@ -76,6 +77,18 @@ export const meta = (
   by,
 })
 
+/** The session a pure test's window holds (render.ts): Help desk redesign, filed under Northwind, started by this window at T0. */
+export const HELD: SessionMeta = {
+  id: 'sr-he1d00',
+  ...HELP_DESK,
+  root: REPO,
+  created: T0,
+  by: W1,
+}
+
+/** An item of the held session by its address, as its buttons' keys and the pane name it. */
+export const heldItem = (id: string) => itemKey(HELD.id, id)
+
 /** Another session of Northwind's, started by the second window. */
 export const LEDGER = meta('sr-1edger', 'Invoice ledger', W2)
 
@@ -107,21 +120,29 @@ export const PARKED_BEFORE = {
   ].join('\n'),
 }
 
+/** An ask as Claude posts it with the ask tool. */
+export type Asked = Omit<AskBody, 'type' | 'id'>
+
 /** The asks Claude posts with the ask tool: a review wanting a yes, a go wanting one in its own words, and a choice. */
-export const REVIEW = { wants: 'yes', yes: 'Approve', title: 'Review Tickets & Replies, round 1' }
-export const GO = { wants: 'yes', yes: 'Go', title: 'Give the ok for phase 3' }
+export const REVIEW = {
+  wants: 'yes',
+  yes: 'Approve',
+  title: 'Review Tickets & Replies, round 1',
+} satisfies Asked
+export const GO = { wants: 'yes', yes: 'Go', title: 'Give the ok for phase 3' } satisfies Asked
 export const FRAMES = {
   wants: 'choice',
   title: 'Ship round 2, or redraw?',
   options: ['Ship it', 'Redraw'],
-}
+} satisfies Asked
 
 /** A review of round `n`, for a test asking several. */
-export const reviewRound = (n: number) => ({
-  wants: 'yes',
-  yes: 'Approve',
-  title: `Review round ${n}`,
-})
+export const reviewRound = (n: number) =>
+  ({
+    wants: 'yes',
+    yes: 'Approve',
+    title: `Review round ${n}`,
+  }) satisfies Asked
 
 /** Reviews of rounds 1 to `count`. */
 export const reviewRounds = (count: number) =>

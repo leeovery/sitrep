@@ -3,7 +3,7 @@ import type { On } from 'claude-code'
 import type { MockClock } from 'claude-code/testing'
 import { PLUGIN_VERSION } from '../data'
 import { MANIFEST } from '../../hooks/version'
-import { entriesIn, isUnder, textIn, type File } from '../fs'
+import { isThere, listingIn, missing, textIn, type File } from '../fs'
 
 /** The plugin's manifest, giving `version`. */
 export const manifestOf = (version: unknown) =>
@@ -12,7 +12,7 @@ export const manifestOf = (version: unknown) =>
 /** The kinds of look the mod takes at a path. */
 type Look = 'read' | 'exists' | 'list'
 
-const MISSING = (path: string) => ({ deny: `ENOENT: no such file or directory, ${path}` })
+const MISSING = (path: string) => ({ deny: missing(path) })
 
 /** The engine's file system beneath the mod, its files written at the clock's time. */
 export function disk(on: On, clock: MockClock) {
@@ -59,11 +59,7 @@ export function disk(on: On, clock: MockClock) {
     return { value: undefined }
   })
 
-  on('fs.exists', ($, e) =>
-    answered('exists', e.path, {
-      value: files.has(e.path) || [...files.keys()].some(path => isUnder(e.path, path)),
-    }),
-  )
+  on('fs.exists', ($, e) => answered('exists', e.path, { value: isThere(files, e.path) }))
 
   on('fs.list', ($, e) => {
     listed.push(e.path)
@@ -73,25 +69,9 @@ export function disk(on: On, clock: MockClock) {
 
   /** A folder's listing, as the engine gives it. */
   const listing = (dir: string) => {
-    const entries = entriesIn(files, dir)
+    const entries = listingIn(files, dir)
 
-    if (entries.length === 0) {
-      return MISSING(dir)
-    }
-
-    return {
-      value: entries.map(({ name, entry }) => ({
-        name,
-        ...(entry === 'dir'
-          ? { kind: 'dir' as const, size: 0, mtimeMs: 0 }
-          : {
-              kind: 'file' as const,
-              size: new TextEncoder().encode(entry.text).length,
-              mtimeMs: entry.mtimeMs,
-            }),
-        isLink: false,
-      })),
-    }
+    return entries.length === 0 ? MISSING(dir) : { value: entries }
   }
 
   return {

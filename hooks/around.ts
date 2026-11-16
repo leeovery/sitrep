@@ -26,6 +26,7 @@
 import type { FsEntry, Timer } from 'claude-code'
 import {
   brief,
+  compareText,
   every,
   isCurrent,
   isOffBoard,
@@ -84,6 +85,23 @@ const shown: { projects?: string; others?: string } = {}
 const isWholeLook = every(OFF_BOARD_MS - AROUND_MS / 2, -Infinity)
 
 let looking: Promise<unknown> = Promise.resolve()
+
+/**
+ * Forgets what the looks so far read and put, once any look under way has
+ * settled, so the next reads every session afresh and puts what it finds,
+ * whole or not: with nothing kept, a look reads every session it lists.
+ * Only tests call it, a pure test's look over a host of its own starting so;
+ * the mod never does.
+ */
+export const forgetLooks = () => {
+  looking = looking.then(() => {
+    kept.clear()
+    delete shown.projects
+    delete shown.others
+  })
+
+  return looking
+}
 
 let timer: Timer | undefined
 
@@ -218,9 +236,12 @@ const readAround = async (
   return { keys, read }
 }
 
+/** Sessions the most recently updated first, those updated at once by id. */
+const latestFirst = (a: Session, b: Session) => b.updatedAt - a.updatedAt || compareText(a.id, b.id)
+
 /** A project's name, as the most recently updated of its sessions names it. */
 const nameOf = (key: string, sessions: readonly Session[]) =>
-  [...sessions].sort((a, b) => b.updatedAt - a.updatedAt).at(0)?.project ?? key
+  [...sessions].sort(latestFirst).at(0)?.project ?? key
 
 /**
  * The projects read, each with its current sessions, and what every session
@@ -245,6 +266,7 @@ const projectsOf = (
       : []
   })
 
+/** The other sessions the board draws in full, each by its project, as a look read them; one it could not read is left out. */
 const othersOf = (
   full: readonly SitrepSessionRef[],
   read: ReadonlyMap<string, Filed>,

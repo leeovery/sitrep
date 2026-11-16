@@ -7,6 +7,7 @@
 import {
   allProjects,
   brief,
+  compareText,
   NOTHING_PARKED,
   parkedBy,
   projectLog,
@@ -40,10 +41,17 @@ type SnoozedAt = AskedAt & { snoozedUntil: number }
 
 const isAsleep = (asked: AskedAt): asked is SnoozedAt => asked.snoozedUntil !== undefined
 
-/** Asks as a view lists them: those not snoozed in the order given, then those snoozed, the soonest to wake first. */
+/** Asks as a view lists them: those not snoozed in the order given, then those snoozed, the soonest to wake first, then the newest, then by session. */
 const snoozedLast = (asked: readonly AskedAt[]): AskedAt[] => [
   ...asked.filter(each => !isAsleep(each)),
-  ...asked.filter(isAsleep).sort((a, b) => a.snoozedUntil - b.snoozedUntil),
+  ...asked
+    .filter(isAsleep)
+    .sort(
+      (a, b) =>
+        a.snoozedUntil - b.snoozedUntil ||
+        b.ask.at - a.ask.at ||
+        compareText(a.at.session, b.at.session),
+    ),
 ]
 
 /** Something a view lists as parked, the session that parked it, and that session's name. */
@@ -222,12 +230,20 @@ const briefAsked = (scene: Scene, key: string, session: SessionBrief): AskedAt[]
     : askedOf(scene, filed)
 }
 
+/** Asks the newest first; of the same moment, this session's first, then the rest by session. */
+const newestFirst = (scene: Scene) => {
+  const isHere = (asked: AskedAt) => Number(asked.at.session === scene.session.id)
+
+  return (a: AskedAt, b: AskedAt) =>
+    b.ask.at - a.ask.at || isHere(b) - isHere(a) || compareText(a.at.session, b.at.session)
+}
+
 /** A project's Asks: every current session's asks, the newest first; then those snoozed. */
 export const askedIn = (scene: Scene, key: string): AskedAt[] =>
   snoozedLast(
     briefsIn(scene, key)
       .flatMap(session => briefAsked(scene, key, session))
-      .sort((a, b) => b.ask.at - a.ask.at),
+      .sort(newestFirst(scene)),
   )
 
 /** What a session has parked, oldest first. */
