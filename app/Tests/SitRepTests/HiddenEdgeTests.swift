@@ -1,7 +1,6 @@
 import AppKit
 @testable import SitRep
 import SitRepEdge
-import SitRepLines
 import SitRepPanel
 import Testing
 

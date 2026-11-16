@@ -1,7 +1,7 @@
 import Foundation
 @testable import SitRepEdge
-import SitRepLines
 import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 struct SavedEdgeSettingsTests {

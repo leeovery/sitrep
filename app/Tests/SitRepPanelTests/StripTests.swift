@@ -1,5 +1,6 @@
 import CoreGraphics
 @testable import SitRepPanel
+import SitRepPanelTestSupport
 import Testing
 
 struct StripTests {
@@ -115,7 +116,7 @@ struct StripTests {
 
     @Test(arguments: [(100.0, 240.0), (300, 316), (400, 360)])
     func aTabIsAsWideAsItsRowNeedsFrom240To360(natural: Double, width: Double) {
-        let measure = StripMeasure(row: { _ in natural }, rows: { _ in natural }, idle: { natural })
+        let measure = StripMeasure.uniform(natural)
         let input = StripInput(time: 0, pointer: nil, stage: StripLab.stage)
         let strip = Strip(
             length: .grows, maxLength: .full, along: Tuning.notchAt, sessions: StripLab.prototype, measure: measure,

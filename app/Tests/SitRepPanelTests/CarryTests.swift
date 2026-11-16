@@ -112,37 +112,37 @@ struct CarryTests {
         follows(on: CardLab())
     }
 
-    private func lifts<M: NotchModel>(_ lab: NotchLab<M>) {
+    private func lifts<M: NotchModel>(_ lab: NotchLab<M>, sourceLocation: SourceLocation = #_sourceLocation) {
         var lab = lab
 
         lab.model.carry()
         lab.wait(140)
-        #expect(abs(lab.frame.lift - 0.95) < 0.02)
+        #expect(abs(lab.frame.lift - 0.95) < 0.02, sourceLocation: sourceLocation)
 
         lab.model.drop(across: false)
         lab.wait(220)
-        #expect(abs(lab.frame.lift - 0.05) < 0.02)
+        #expect(abs(lab.frame.lift - 0.05) < 0.02, sourceLocation: sourceLocation)
         let settled = lab.settle()
-        #expect(settled)
-        #expect(lab.frame.lift < 1e-3)
+        #expect(settled, sourceLocation: sourceLocation)
+        #expect(lab.frame.lift < 1e-3, sourceLocation: sourceLocation)
     }
 
-    private func follows<M: NotchModel>(_ lab: NotchLab<M>) {
+    private func follows<M: NotchModel>(_ lab: NotchLab<M>, sourceLocation: SourceLocation = #_sourceLocation) {
         var lab = lab
         let from = lab.notchY
 
         lab.model.carry()
         lab.model.carried(to: from - 200)
-        #expect(lab.notchY == from - 200)
+        #expect(lab.notchY == from - 200, sourceLocation: sourceLocation)
         lab.wait(50)
 
-        #expect(abs(lab.frame.light.centre.y - (from - 200 * 0.95)) < 4)
+        #expect(abs(lab.frame.light.centre.y - (from - 200 * 0.95)) < 4, sourceLocation: sourceLocation)
         let settled = lab.settle()
-        #expect(settled)
-        #expect(abs(lab.frame.light.centre.y - (from - 200)) < 0.01)
+        #expect(settled, sourceLocation: sourceLocation)
+        #expect(abs(lab.frame.light.centre.y - (from - 200)) < 0.01, sourceLocation: sourceLocation)
     }
 
-    private func staysClosed<M: NotchModel>(_ lab: NotchLab<M>) {
+    private func staysClosed<M: NotchModel>(_ lab: NotchLab<M>, sourceLocation: SourceLocation = #_sourceLocation) {
         var lab = lab
         lab.model.carry()
 
@@ -151,40 +151,42 @@ struct CarryTests {
         lab.model.drop(across: false)
         let openedOnceDown = lab.wait(1000) { $0.phase != .closed }
 
-        #expect(!opened && !openedOnceDown)
+        #expect(!opened && !openedOnceDown, sourceLocation: sourceLocation)
     }
 
-    private func crosses<M: NotchModel>(_ lab: NotchLab<M>) {
+    private func crosses<M: NotchModel>(_ lab: NotchLab<M>, sourceLocation: SourceLocation = #_sourceLocation) {
         var lab = lab
         lab.model.carry()
         lab.model.drop(across: true)
         let dropped = lab.now
 
         let drained = lab.wait(155) { $0.frame.outline.boundingBox.maxX <= 0.5 }
-        #expect(drained)
+        #expect(drained, sourceLocation: sourceLocation)
         let swapped = lab.wait(200) { $0.frame.swapsEdge }
-        #expect(swapped)
-        #expect(lab.now - dropped >= 160)
-        #expect(lab.now - dropped < 160 + NotchLab<M>.frameMS + 1)
+        #expect(swapped, sourceLocation: sourceLocation)
+        #expect(lab.now - dropped >= 160, sourceLocation: sourceLocation)
+        #expect(lab.now - dropped < 160 + NotchLab<M>.frameMS + 1, sourceLocation: sourceLocation)
         let again = lab.wait(1000) { $0.frame.swapsEdge }
-        #expect(!again)
+        #expect(!again, sourceLocation: sourceLocation)
         let settled = lab.settle()
-        #expect(settled)
-        #expect(abs(lab.frame.outline.boundingBox.maxX - NotchShape.rest.w) < 0.5)
+        #expect(settled, sourceLocation: sourceLocation)
+        #expect(abs(lab.frame.outline.boundingBox.maxX - NotchShape.rest.w) < 0.5, sourceLocation: sourceLocation)
     }
 
     /// From the drop across, every frame refuses a press, up to the one it is home on the other edge; then one takes.
-    private func refusesCarryWhileCrossing<M: NotchModel>(_ lab: NotchLab<M>, panelOut: Bool = false) {
+    private func refusesCarryWhileCrossing<M: NotchModel>(
+        _ lab: NotchLab<M>, panelOut: Bool = false, sourceLocation: SourceLocation = #_sourceLocation
+    ) {
         var lab = lab
         if panelOut {
             lab.openByTouch()
             lab.pointer = CGPoint(x: 600, y: lab.notchY)
         }
-        #expect(lab.model.mayCarry)
+        #expect(lab.model.mayCarry, sourceLocation: sourceLocation)
         lab.model.carry()
 
         lab.model.drop(across: true)
-        #expect(!lab.model.mayCarry)
+        #expect(!lab.model.mayCarry, sourceLocation: sourceLocation)
 
         let dropped = lab.now
         var swapped: Double?
@@ -195,12 +197,15 @@ struct CarryTests {
             return lab.model.mayCarry
         }
 
-        #expect(home)
-        #expect(swapped.map { lab.now - $0 >= (lab.model.reducesMotion ? 140 : 240) } == true)
-        #expect(lab.now - dropped < 3000)
+        #expect(home, sourceLocation: sourceLocation)
+        #expect(
+            swapped.map { lab.now - $0 >= (lab.model.reducesMotion ? 140 : 240) } == true,
+            sourceLocation: sourceLocation
+        )
+        #expect(lab.now - dropped < 3000, sourceLocation: sourceLocation)
     }
 
-    private func crossesAtOnce<M: NotchModel>(_ lab: NotchLab<M>) {
+    private func crossesAtOnce<M: NotchModel>(_ lab: NotchLab<M>, sourceLocation: SourceLocation = #_sourceLocation) {
         var lab = lab
         lab.model.carry()
         lab.wait(200)
@@ -208,12 +213,12 @@ struct CarryTests {
         lab.model.drop(across: true)
         lab.step()
 
-        #expect(lab.frame.swapsEdge)
+        #expect(lab.frame.swapsEdge, sourceLocation: sourceLocation)
         let settled = lab.settle(within: 300)
-        #expect(settled)
+        #expect(settled, sourceLocation: sourceLocation)
     }
 
-    private func crossesOnceIn<M: NotchModel>(_ lab: NotchLab<M>) {
+    private func crossesOnceIn<M: NotchModel>(_ lab: NotchLab<M>, sourceLocation: SourceLocation = #_sourceLocation) {
         var lab = lab
         lab.openByTouch()
         lab.model.carry()
@@ -222,11 +227,11 @@ struct CarryTests {
         lab.model.drop(across: true)
         let swapped = lab.wait(2000) { $0.frame.swapsEdge }
 
-        #expect(swapped)
-        #expect(lab.phase == .closed)
+        #expect(swapped, sourceLocation: sourceLocation)
+        #expect(lab.phase == .closed, sourceLocation: sourceLocation)
     }
 
-    private func follows<M: NotchModel>(on lab: NotchLab<M>) {
+    private func follows<M: NotchModel>(on lab: NotchLab<M>, sourceLocation: SourceLocation = #_sourceLocation) {
         var lab = lab
         lab.model.carry()
         lab.model.carried(to: 300)
@@ -236,10 +241,10 @@ struct CarryTests {
         lab.stage.notchY = 300 / screen.height * screen.height
         lab.step()
 
-        #expect(lab.notchY == 300)
-        #expect(abs(lab.frame.light.centre.y - 300) > 1)
+        #expect(lab.notchY == 300, sourceLocation: sourceLocation)
+        #expect(abs(lab.frame.light.centre.y - 300) > 1, sourceLocation: sourceLocation)
         let settled = lab.settle()
-        #expect(settled)
-        #expect(abs(lab.frame.light.centre.y - 300) < 0.01)
+        #expect(settled, sourceLocation: sourceLocation)
+        #expect(abs(lab.frame.light.centre.y - 300) < 0.01, sourceLocation: sourceLocation)
     }
 }

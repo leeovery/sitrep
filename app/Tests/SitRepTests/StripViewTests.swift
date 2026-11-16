@@ -2,6 +2,7 @@ import AppKit
 @testable import SitRep
 import SitRepEdge
 import SitRepPanel
+import SitRepPanelTestSupport
 import Testing
 
 /// The black strip draws top-down, as the stage is, in an edge's window never shown, on either edge: its black and
@@ -22,7 +23,7 @@ struct StripViewTests {
         let edge = side == .left ? Self.edge : Self.edge.across
         let stage = edge.stripStage
         let input = StripInput(time: 0, pointer: nil, stage: stage)
-        let measure = StripMeasure(row: { _ in 200 }, rows: { _ in 200 }, idle: { 200 })
+        let measure = StripMeasure.uniform(200)
         let strip = Strip(
             length: .full, maxLength: .full, along: 0.42, sessions: Self.sessions, measure: measure, input
         )
@@ -54,10 +55,16 @@ struct StripViewTests {
 
     /// A point on the stage, as the window has it: y up from its bottom, which is the screen's, the stage starting a
     /// menu bar above the window's top.
-    private static func expect(_ point: CGPoint?, at onStage: CGPoint, in window: NSWindow, _ edge: ScreenEdge) {
+    private static func expect(
+        _ point: CGPoint?, at onStage: CGPoint, in window: NSWindow, _ edge: ScreenEdge,
+        sourceLocation: SourceLocation = #_sourceLocation
+    ) {
         let x = onStage.applying(edge.stripMirror).x, y = window.frame.height - (onStage.y - edge.stripStage.menu)
 
-        #expect(point.map { abs($0.x - x) < 1e-6 && abs($0.y - y) < 1e-6 } == true, "\(String(describing: point))")
+        #expect(
+            point.map { abs($0.x - x) < 1e-6 && abs($0.y - y) < 1e-6 } == true, "\(String(describing: point))",
+            sourceLocation: sourceLocation
+        )
     }
 
     private static func shape(drawing path: CGPath, under layer: CALayer) -> CAShapeLayer? {

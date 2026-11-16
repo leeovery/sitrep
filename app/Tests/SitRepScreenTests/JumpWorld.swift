@@ -2,39 +2,49 @@ import Darwin
 import Foundation
 import SitRepCore
 @testable import SitRepScreen
+import SitRepTestSupport
 
-/// The session a refusal names.
-let named = "Dashboard redesign"
+/// The world the jumps are tried in: the session a refusal names, the devices, tmux windows and terminals Claude's
+/// window and the others are on, and the words a refusal is put in.
+enum JumpWorld {
+    /// The session a refusal names.
+    static let named = "Dashboard redesign"
 
-/// The device of the Ghostty window showing Claude's tmux window, and of Lee's phone.
-let window = "/dev/ttys000"
-let phone = "/dev/ttys067"
+    /// The device of the Ghostty window showing Claude's tmux window, and of Lee's phone.
+    static let window = "/dev/ttys000"
+    static let phone = "/dev/ttys067"
 
-/// Claude's tmux window, another of its tmux session, and one of another session.
-let claudes = "@45"
-let beside = "@46"
-let kit = "@52"
+    /// Claude's tmux window, another of its tmux session, and one of another session.
+    static let claudes = "@45"
+    static let beside = "@46"
+    static let kit = "@52"
 
-/// Ghostty's terminals: one in the window Claude runs in outside tmux, one in the window showing its tmux window, and
-/// another.
-let kitTerminal = FakeTerminal(id: "KIT-TERMINAL", device: "/dev/ttys041")
-let switchboardTerminal = FakeTerminal(id: "SWITCHBOARD-TERMINAL", device: window)
-let terminals = ownWindows(kitTerminal, switchboardTerminal, FakeTerminal(id: "HOME-TERMINAL", device: "/dev/ttys090"))
+    /// Ghostty's terminals: one in the window Claude runs in outside tmux, one in the window showing its tmux window,
+    /// and another.
+    static let kitTerminal = FakeTerminal(id: "KIT-TERMINAL", device: "/dev/ttys041")
+    static let switchboardTerminal = FakeTerminal(id: "SWITCHBOARD-TERMINAL", device: window)
+    static let terminals = ownWindows(
+        kitTerminal, switchboardTerminal, FakeTerminal(id: "HOME-TERMINAL", device: "/dev/ttys090")
+    )
 
-/// Terminal's bundle, as its clients' ancestry finds it.
-let terminalApp = "/System/Applications/Utilities/Terminal.app"
+    /// Terminal's bundle, as its clients' ancestry finds it.
+    static let terminalApp = "/System/Applications/Utilities/Terminal.app"
 
-/// The words of a session no terminal shows.
-let offScreen = JumpAnswer.refused("\(named) is not on screen: no terminal window on this Mac shows it.")
+    /// The words of a session no terminal shows.
+    static let offScreen = JumpAnswer.refused("\(named) is not on screen: no terminal window on this Mac shows it.")
 
-/// The default resume command's refusal of a session whose Claude is still alive where this Mac doesn't show it.
-let stillRunning = JumpAnswer.unopened(
-    "\(named)'s Claude is still running where this Mac doesn't show it: set a resume command that can reach it, in "
-        + "Settings."
-)
+    /// The default resume command's refusal of a session whose Claude is still alive where this Mac doesn't show it.
+    static let stillRunning = JumpAnswer.unopened(
+        "\(named)'s Claude is still running where this Mac doesn't show it: set a resume command that can reach it, in "
+            + "Settings."
+    )
 
-/// The default's refusal of a session a window still holds with no Claude seen on its device, as a tab just closed.
-let justStopped = JumpAnswer.unopened("\(named)'s window has just stopped answering: try again in a moment.")
+    /// The default's refusal of a session a window still holds with no Claude seen on its device, as a tab just
+    /// closed.
+    static let justStopped = JumpAnswer.unopened(
+        "\(named)'s window has just stopped answering: try again in a moment."
+    )
+}
 
 extension Jump {
     /// The jump to the session on the board, in the words it answers in: `.openable` where a window would be opened.
@@ -59,7 +69,7 @@ extension JumpOutcome {
 
 /// The words of a jump no place answered, naming the devices and apps tried.
 func noneAnswered(_ devices: String, _ apps: String = "Ghostty") -> JumpAnswer {
-    .refused("\(named) shows on \(devices), but no \(apps) window there answered.")
+    .refused("\(JumpWorld.named) shows on \(devices), but no \(apps) window there answered.")
 }
 
 extension Mac {
@@ -103,16 +113,16 @@ func server(_ clients: [FakeClient], sessions: [String] = ["$45"], select: Ran? 
     -> FakeTmux
 {
     let panes = sessions.flatMap { session in
-        [FakePane(pane: "%148", window: claudes, session: session), FakePane(pane: "%149", window: beside, session: session)]
+        [FakePane(pane: "%148", window: JumpWorld.claudes, session: session), FakePane(pane: "%149", window: JumpWorld.beside, session: session)]
     }
 
-    return FakeTmux([socket: FakeServer(panes: panes + [FakePane(pane: "%54", window: kit, session: "$52")], clients: clients)], select: select)
+    return FakeTmux([socket: FakeServer(panes: panes + [FakePane(pane: "%54", window: JumpWorld.kit, session: "$52")], clients: clients)], select: select)
 }
 
 /// Claude's tmux window shown by a Ghostty window, and another tmux window by another Ghostty window.
 func shown() -> (FakeTmux, FakeTable) {
     var mac = Mac()
-    let clients = [mac.ghosttyClient(kitTerminal.device, showing: kit), mac.ghosttyClient(window, showing: claudes)]
+    let clients = [mac.ghosttyClient(JumpWorld.kitTerminal.device, showing: JumpWorld.kit), mac.ghosttyClient(JumpWorld.window, showing: JumpWorld.claudes)]
 
     return (server(clients), FakeTable(mac.tree))
 }
@@ -131,10 +141,11 @@ struct Jumping {
     private let program: any TmuxProgram
 
     init(
-        _ tmux: FakeTmux = FakeTmux(), _ table: FakeTable? = nil, terminals: [FakeWindow] = terminals,
+        _ tmux: FakeTmux = FakeTmux(), _ table: FakeTable? = nil, terminals: [FakeWindow] = JumpWorld.terminals,
         running: Bool = true, failing: GhosttyFailure? = nil, windowFailing: GhosttyFailure? = nil,
         windowHeld: Gate? = nil, ghosttyHeld: Gate? = nil,
-        workspace: FakeWorkspace = FakeWorkspace(), clock: TestClock = TestClock(), tmuxHeld: Gate? = nil,
+        workspace: FakeWorkspace = FakeWorkspace(), clock: TestClock = TestClock(passing: .jumpsPauses),
+        tmuxHeld: Gate? = nil,
         resume: String = OpenSettings.defaultResumeCommand, openings: RecentOpenings = RecentOpenings()
     ) {
         self.tmux = tmux
@@ -163,13 +174,13 @@ struct Jumping {
 
     /// The jump to the windows, in the words it answers in.
     func run(_ windows: [Where]) async -> JumpAnswer {
-        (try? await jump.jump(to: windows))?.answer(named: named) ?? .stopped
+        (try? await jump.jump(to: windows))?.answer(named: JumpWorld.named) ?? .stopped
     }
 
     /// A click on `sr-a`, its live windows those given, carried on from the window given where none shows: an answer,
     /// or the window to open for it.
     func outcome(_ windows: [Where], from window: Board.LastWindow? = nil, isHeld: Bool = false) async -> JumpOutcome {
-        await jump.click("sr-a", named: named, at: windows, from: window, isHeld: isHeld)
+        await jump.click("sr-a", named: JumpWorld.named, at: windows, from: window, isHeld: isHeld)
     }
 
     /// A click on `sr-a`, as `outcome`, then the window it finds can be opened opened, as SitRep opens one once the
@@ -189,7 +200,7 @@ struct Jumping {
     /// The opening of a window for `sr-a` typing the line.
     func opening(_ line: String, wasHeld: Bool = false) -> Opening {
         Opening(
-            session: "sr-a", name: named, line: line, terminal: .ghostty, wasHeld: wasHeld, driver: driver,
+            session: "sr-a", name: JumpWorld.named, line: line, terminal: .ghostty, wasHeld: wasHeld, driver: driver,
             workspace: workspace, clock: clock, openings: openings
         )
     }

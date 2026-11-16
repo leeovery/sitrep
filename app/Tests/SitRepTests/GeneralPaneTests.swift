@@ -2,9 +2,9 @@ import AppKit
 import Foundation
 @testable import SitRep
 import SitRepEdge
-import SitRepLines
 import SitRepMenu
 import SitRepScreen
+import SitRepTestSupport
 import SwiftUI
 import Testing
 

@@ -4,6 +4,8 @@ import Foundation
 @testable import SitRepEdge
 @testable import SitRepPanel
 import SitRepLines
+import SitRepPanelTestSupport
+import SitRepTestSupport
 import Testing
 
 /// Snooze at the edge, over what the real CLI printed (`Lines.snoozed`): the Snoozed rows the card and the strip show
@@ -146,7 +148,7 @@ struct SnoozedEdgeTests {
     // MARK: Helpers
 
     private static let stage = StripStage(width: 1512, height: 982, menu: 37)
-    private static var measure: StripMeasure { StripMeasure(row: { _ in 200 }, rows: { _ in 200 }, idle: { 200 }) }
+    private static var measure: StripMeasure { .uniform(200) }
 
     private static let setting = NotchRun.Setting(
         stage: Stage(height: 982, visibleTop: 24, visibleBottom: 982, notchY: 491), mirror: .identity,

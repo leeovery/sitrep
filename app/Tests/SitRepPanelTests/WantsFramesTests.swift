@@ -76,7 +76,9 @@ struct WantsFramesTests {
 
     /// The pointer rested by the notch until frames slept, then came onto it unseen: the first frame woken finds it
     /// there with no speed, so the notch waits on its dwell, as for a slow touch, never opening as for a flick.
-    private func foundOnTheNotchAfterASleep<M: NotchModel>(_ lab: NotchLab<M>) {
+    private func foundOnTheNotchAfterASleep<M: NotchModel>(
+        _ lab: NotchLab<M>, sourceLocation: SourceLocation = #_sourceLocation
+    ) {
         var lab = lab
         let settled = lab.settle()
 
@@ -84,9 +86,9 @@ struct WantsFramesTests {
         lab.pointer = CGPoint(x: 3, y: lab.notchY)
         lab.step(at: lab.now)
 
-        #expect(settled)
-        #expect(lab.model.trailVelocity() == Vec(0, 0))
-        #expect(lab.phase == .closed)
+        #expect(settled, sourceLocation: sourceLocation)
+        #expect(lab.model.trailVelocity() == Vec(0, 0), sourceLocation: sourceLocation)
+        #expect(lab.phase == .closed, sourceLocation: sourceLocation)
     }
 
     @Test func aStillPointerOnAStillPanelWantsNoFramesAndAnyMoveWakesThem() {

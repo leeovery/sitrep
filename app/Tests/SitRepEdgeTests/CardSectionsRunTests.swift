@@ -2,8 +2,8 @@ import CoreGraphics
 import Foundation
 @testable import SitRepCore
 @testable import SitRepEdge
-import SitRepLines
 @testable import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// The card's sections as the notch runs them: a click on an eyebrow folds its section at once and is kept, an

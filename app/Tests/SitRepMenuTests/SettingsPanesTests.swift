@@ -1,8 +1,8 @@
 import Foundation
 @testable import SitRepCore
 import SitRepEdge
-import SitRepLines
 @testable import SitRepMenu
+import SitRepTestSupport
 import Testing
 
 /// The Settings window's four panes, top to bottom in its sidebar, each with its name and symbol (DESIGN, "Settings").

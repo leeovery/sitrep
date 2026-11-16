@@ -2,6 +2,7 @@ import Foundation
 import os
 @testable import SitRep
 import SitRepCore
+import SitRepTestSupport
 import Testing
 
 /// A click from any surface (`Clicks`): the jump, then, where it found a window could be opened, the opening, apart from
@@ -16,7 +17,7 @@ struct ClicksTests {
         let world = World { _ in .answered(.jumped) }
 
         world.click("sr-a")
-        await world.until { world.answers["sr-a"] == [.jumped] }
+        await until(turns: 100_000) { world.answers["sr-a"] == [.jumped] }
 
         #expect(world.handBacks == 0)
         #expect(world.banners.isEmpty)
@@ -29,7 +30,7 @@ struct ClicksTests {
         let world = World { _ in .answered(.refused("Not on screen.")) }
 
         world.click("sr-a")
-        await world.until { world.handBacks == 1 }
+        await until(turns: 100_000) { world.handBacks == 1 }
 
         #expect(world.answers["sr-a"] == [.refused("Not on screen.")])
         #expect(world.banners == [.unjumped("Not on screen.")])
@@ -40,7 +41,7 @@ struct ClicksTests {
         let world = World { _ in .openable(.opened) }
 
         world.click("sr-a")
-        await world.until { world.answers["sr-a"] == [.opened] }
+        await until(turns: 100_000) { world.answers["sr-a"] == [.opened] }
 
         #expect(world.jumps == ["sr-a"])
         #expect(world.opened == ["sr-a"])
@@ -53,7 +54,7 @@ struct ClicksTests {
         let world = World { _ in .openable(.unopened(Self.notRunning)) }
 
         world.click("sr-a")
-        await world.until { world.handBacks == 1 }
+        await until(turns: 100_000) { world.handBacks == 1 }
 
         #expect(world.answers["sr-a"] == [.unopened(Self.notRunning)])
         #expect(world.banners == [.unopened(Self.notRunning)])
@@ -68,7 +69,7 @@ struct ClicksTests {
         let world = World { _ in .answered(.jumpedSaying(said)) }
 
         world.click("sr-a")
-        await world.until { world.answers["sr-a"] == [.jumpedSaying(said)] }
+        await until(turns: 100_000) { world.answers["sr-a"] == [.jumpedSaying(said)] }
 
         #expect(world.banners == [.startedNothing(said)])
         #expect(world.handBacks == 0)
@@ -78,7 +79,7 @@ struct ClicksTests {
         let world = World { _ in .answered(.opening) }
 
         world.click("sr-a")
-        await world.until { world.handBacks == 1 }
+        await until(turns: 100_000) { world.handBacks == 1 }
 
         #expect(world.answers["sr-a"] == [.opening])
         #expect(world.banners.isEmpty)
@@ -95,7 +96,7 @@ struct ClicksTests {
         world.click("sr-a")
         world.click("sr-a")
         jumped.open()
-        await world.until { world.answers["sr-a"] == [.opened, .opened] }
+        await until(turns: 100_000) { world.answers["sr-a"] == [.opened, .opened] }
 
         #expect(world.jumps == ["sr-a"])
         #expect(world.opened == ["sr-a"])
@@ -107,10 +108,10 @@ struct ClicksTests {
         let world = World(opening: opening) { _ in .openable(.opened) }
 
         world.click("sr-a")
-        await world.until { world.opened == ["sr-a"] }
+        await until(turns: 100_000) { world.opened == ["sr-a"] }
         world.click("sr-a")
         opening.open()
-        await world.until { world.answers["sr-a"] == [.opened, .opened] }
+        await until(turns: 100_000) { world.answers["sr-a"] == [.opened, .opened] }
 
         #expect(world.jumps == ["sr-a"])
         #expect(world.opened == ["sr-a"])
@@ -122,10 +123,10 @@ struct ClicksTests {
         let world = World(opening: opening) { _ in .openable(.unopened(Self.notRunning)) }
 
         world.click("sr-a")
-        await world.until { world.opened == ["sr-a"] }
+        await until(turns: 100_000) { world.opened == ["sr-a"] }
         world.click("sr-a")
         opening.open()
-        await world.until { world.handBacks == 2 }
+        await until(turns: 100_000) { world.handBacks == 2 }
 
         #expect(world.answers["sr-a"] == [.unopened(Self.notRunning), .unopened(Self.notRunning)])
         #expect(world.banners == [.unopened(Self.notRunning)])
@@ -137,11 +138,11 @@ struct ClicksTests {
         let world = World(opening: opening, still: still) { _ in .openable(.opened) }
 
         world.click("sr-a")
-        await world.until { world.opened == ["sr-a"] }
+        await until(turns: 100_000) { world.opened == ["sr-a"] }
         still.open()
-        await world.until { world.heard.contains(.stillOpening) }
+        await until(turns: 100_000) { world.heard.contains(.stillOpening) }
         opening.open()
-        await world.until { world.answers["sr-a"] == [.opened] }
+        await until(turns: 100_000) { world.answers["sr-a"] == [.opened] }
 
         #expect(world.heard == [.ended(.openable), .stillOpening, .ended(.opened)])
     }
@@ -153,10 +154,10 @@ struct ClicksTests {
         let world = World(opening: opening) { session in session == "sr-a" ? .openable(.opened) : .answered(.jumped) }
 
         world.click("sr-a")
-        await world.until { world.opened == ["sr-a"] }
+        await until(turns: 100_000) { world.opened == ["sr-a"] }
         world.click("sr-b")
         opening.open()
-        await world.until { world.answers["sr-b"] == [.jumped] }
+        await until(turns: 100_000) { world.answers["sr-b"] == [.jumped] }
 
         #expect(world.answers["sr-a"] == [.stopped])
         #expect(world.wasStopped)
@@ -226,15 +227,6 @@ private final class World {
         clicks?.click(session, answered: { [weak self] in self?.answers[session, default: []].append($0) }) { [weak self] in
             self?.handBacks += 1
         }
-    }
-
-    /// Lets the tasks run until the condition holds, or, failing, a hundred thousand turns have passed: counted in
-    /// turns, not time, as the main actor is shared with every other test of the suite.
-    func until(sourceLocation: SourceLocation = #_sourceLocation, _ holds: () -> Bool) async {
-        for _ in 0 ..< 100_000 where !holds() {
-            await Task.yield()
-        }
-        #expect(holds(), "The condition waited for never held.", sourceLocation: sourceLocation)
     }
 }
 

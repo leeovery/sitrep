@@ -297,11 +297,13 @@ struct ShowRowTests {
 extension Drawn {
     /// Words drawn in `colour` over `ground`: their brightest pixel within 0.07 of it, flattened over the ground, in
     /// each channel.
-    func expectWords(in rect: CGRect, _ colour: NSColor, over ground: NSColor) throws {
+    func expectWords(
+        in rect: CGRect, _ colour: NSColor, over ground: NSColor, sourceLocation: SourceLocation = #_sourceLocation
+    ) throws {
         let brightest = try brightest(in: rect)
 
         for (drawn, expected) in zip(brightest.channels, colour.dark(over: ground).channels) {
-            #expect(abs(drawn - expected) < 0.07)
+            #expect(abs(drawn - expected) < 0.07, sourceLocation: sourceLocation)
         }
     }
 
@@ -360,13 +362,6 @@ extension Drawn {
         var components = [raw.redComponent, raw.greenComponent, raw.blueComponent, raw.alphaComponent]
 
         return NSColor(colorSpace: bitmap.colorSpace, components: &components, count: 4).usingColorSpace(.sRGB)
-    }
-
-    /// How much lighter than `ground` what is drawn in `rect` is, all told: words' ink, heavier the bolder they are.
-    func inkMass(in rect: CGRect, over ground: NSColor) -> CGFloat {
-        let floor = ground.usingColorSpace(.sRGB)?.lightness ?? 0
-
-        return pixels(in: rect).reduce(0) { $0 + max(0, $1.lightness - floor) }
     }
 
     /// The box round what is drawn in `rect` well lighter than `ground`: words' ink, their edges' blend aside.

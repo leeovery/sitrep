@@ -2,13 +2,14 @@ import CoreGraphics
 @testable import SitRepCore
 import SitRepEdge
 import SitRepPanel
+import SitRepPanelTestSupport
 import Testing
 
 /// The strip over the boards `watch` prints, as `PanelBoard` says them: a mark flashes for what a line's `new` says,
 /// and never again for a board gone stale.
 struct StripFeedTests {
     private static let stage = StripStage(width: 1512, height: 982, menu: 37)
-    private static var measure: StripMeasure { StripMeasure(row: { _ in 200 }, rows: { _ in 200 }, idle: { 200 }) }
+    private static var measure: StripMeasure { .uniform(200) }
 
     /// A strip at Full, frames every 1/60s from this time on.
     private struct Run {

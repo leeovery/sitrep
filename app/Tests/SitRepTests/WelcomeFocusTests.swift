@@ -10,7 +10,7 @@ import Testing
 /// (`RecordedWindow`).
 @MainActor
 struct WelcomeFocusTests {
-    typealias Made = WelcomeWindowTests.Made
+    typealias Made = WelcomeWorld.Made
 
     /// Where AppKit, as the window orders in and as it keys, gives focus to its first key view, Skip setup at the first
     /// step: focus is on nothing all the same.

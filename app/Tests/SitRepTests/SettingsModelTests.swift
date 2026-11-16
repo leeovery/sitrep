@@ -3,8 +3,8 @@ import Foundation
 @testable import SitRep
 import SitRepCore
 import SitRepEdge
-import SitRepLines
 import SitRepMenu
+import SitRepTestSupport
 import SwiftUI
 import Testing
 

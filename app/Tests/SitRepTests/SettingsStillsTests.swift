@@ -3,9 +3,9 @@ import Foundation
 @testable import SitRep
 @testable import SitRepCore
 import SitRepEdge
-import SitRepLines
 import SitRepMenu
 import SitRepPanel
+import SitRepTestSupport
 import SwiftUI
 import Testing
 

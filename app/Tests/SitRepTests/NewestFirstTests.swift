@@ -5,6 +5,7 @@ import SitRepEdge
 import SitRepLines
 import SitRepMenu
 import SitRepPanel
+import SitRepPanelTestSupport
 import Testing
 
 /// Needs you newest first on every surface, over what the real CLI printed (`Lines.newest`): Northwind's Ledger export,
@@ -21,10 +22,10 @@ struct NewestFirstTests {
         return last
     }()
 
-    private static func expectNewestFirst(_ rows: [Session]) {
-        #expect(rows.map(\.id) == order)
-        #expect(rows.map(\.since) == [at12, at11])
-        #expect(rows.first?.lines.map(\.since) == [at12, at9])
+    private static func expectNewestFirst(_ rows: [Session], sourceLocation: SourceLocation = #_sourceLocation) {
+        #expect(rows.map(\.id) == order, sourceLocation: sourceLocation)
+        #expect(rows.map(\.since) == [at12, at11], sourceLocation: sourceLocation)
+        #expect(rows.first?.lines.map(\.since) == [at12, at9], sourceLocation: sourceLocation)
     }
 
     @Test func theCardListsNorthwindFirstAtItsNewestLinesTime() {
@@ -40,7 +41,7 @@ struct NewestFirstTests {
     /// The strip's places from its top end down: Northwind's mark over Contoso's.
     @Test func theStripPlacesNorthwindFirstAtItsNewestLinesTime() {
         let sessions = PanelBoard(Self.last).sessions
-        let measure = StripMeasure(row: { _ in 200 }, rows: { _ in 200 }, idle: { 200 })
+        let measure = StripMeasure.uniform(200)
         let stage = StripStage(width: 1512, height: 982, menu: 37)
         let strip = Strip(
             length: .full, maxLength: .full, along: 0.42, sessions: sessions, measure: measure,

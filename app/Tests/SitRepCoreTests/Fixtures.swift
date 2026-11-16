@@ -1,6 +1,5 @@
 import Foundation
 @testable import SitRepCore
-import SitRepLines
 import Testing
 
 /// An instant as the CLI prints it, in milliseconds since 1970.

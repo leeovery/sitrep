@@ -9,7 +9,7 @@ import Testing
 /// between them.
 @MainActor
 struct WelcomeAskTests {
-    typealias Made = WelcomeWindowTests.Made
+    typealias Made = WelcomeWorld.Made
 
     /// The welcome at step 2, the stage told it, its window in front.
     private static func atAsk() async -> Made {

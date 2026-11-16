@@ -197,15 +197,15 @@ struct NotchRunTests {
     }
 
     /// Carried past the screen's middle and let go: the notch crosses to the other edge, home 420ms on.
-    private static func droppedAcross() -> NotchRun {
+    private static func droppedAcross(sourceLocation: SourceLocation = #_sourceLocation) -> NotchRun {
         let run = NotchRun(at: 1000, in: setting)
         let notch = CGPoint(x: 2, y: 491)
 
         run.step(at(run.time + frameMS))
-        #expect(run.press(at(run.time, notch)) == .carry)
+        #expect(run.press(at(run.time, notch)) == .carry, sourceLocation: sourceLocation)
         _ = run.moved(width: width, at(run.time + frameMS, CGPoint(x: 1000, y: 491)))
         let dropped = run.release(EdgeSettings(), height: height, at(run.time + frameMS))
-        #expect(dropped?.isAcross == true)
+        #expect(dropped?.isAcross == true, sourceLocation: sourceLocation)
         return run
     }
 

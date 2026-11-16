@@ -1,7 +1,6 @@
 import Foundation
 @testable import SitRepCore
 import os
-import SitRepLines
 import Testing
 
 struct SitRepCLITests {

@@ -1,5 +1,6 @@
 import SitRepCore
 @testable import SitRepScreen
+import SitRepTestSupport
 import Testing
 
 /// The front kept: with another app in front as the jump began, Ghostty brought forward again, once, should another
@@ -91,7 +92,7 @@ struct JumpFrontTests {
         let hanging = Jumping(tmux, table, workspace: FakeWorkspace(front: finder, forward: nil, focused: [ghosttyBundle, finder]))
         let jumped = Task { await hanging.run([inTmux()]) }
 
-        await until { hanging.clock.sleeps.contains(.seconds(2)) }
+        await until(within: .seconds(10)) { hanging.clock.sleeps.contains(.seconds(2)) }
         hanging.clock.pass(.seconds(2))
         #expect(await jumped.value == .jumped)
         #expect(hanging.workspace.brought == [Self.ghosttyForward])
@@ -99,8 +100,8 @@ struct JumpFrontTests {
 
     @Test func aJumpThatBringsNoWindowForwardWatchesNothing() async {
         var mac = Mac(), other = Mac()
-        let detached = server([mac.ghosttyClient(kitTerminal.device, showing: kit)])
-        let elsewhere = server([other.ghosttyClient("/dev/ttys099", showing: claudes)])
+        let detached = server([mac.ghosttyClient(JumpWorld.kitTerminal.device, showing: JumpWorld.kit)])
+        let elsewhere = server([other.ghosttyClient("/dev/ttys099", showing: JumpWorld.claudes)])
         let offScreen = Jumping(detached, FakeTable(mac.tree), workspace: Self.handingBack)
         let unanswered = Jumping(elsewhere, FakeTable(other.tree), workspace: Self.handingBack)
 
@@ -118,7 +119,7 @@ struct JumpFrontTests {
     /// hand-back may come before the focus: heard from before the first event, it is caught all the same.
     @Test func aHandBackComingBetweenTheWindowActivatedAndTheFocusIsHeard() async {
         let (tmux, table) = shown()
-        let tabbed = [FakeWindow(id: "TABBED-WINDOW", tabs: [[kitTerminal], [switchboardTerminal]], selected: 0)]
+        let tabbed = [FakeWindow(id: "TABBED-WINDOW", tabs: [[JumpWorld.kitTerminal], [JumpWorld.switchboardTerminal]], selected: 0)]
         let jumping = Jumping(tmux, table, terminals: tabbed, workspace: FakeWorkspace(front: finder, activated: [ghosttyBundle, finder]))
 
         #expect(await jumping.run([inTmux()]) == .jumped)

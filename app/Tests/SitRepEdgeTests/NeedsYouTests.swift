@@ -3,6 +3,7 @@ import Foundation
 @testable import SitRepCore
 @testable import SitRepEdge
 import SitRepPanel
+import SitRepPanelTestSupport
 import Testing
 
 /// Needs you at the edge as Lee decided it on 13 November 2026: its count is the asks and stops waiting and the
@@ -186,7 +187,7 @@ struct NeedsYouTests {
             )
         }
         let run = StripRun(at: 0, in: at(0).setting, EdgeSettings()) { _ in
-            StripMeasure(row: { _ in 230 }, rows: { _ in 230 }, idle: { 230 })
+            StripMeasure.uniform(230)
         }
         var flash = 0.0
 

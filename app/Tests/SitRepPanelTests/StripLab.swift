@@ -302,18 +302,6 @@ struct StripPlayed {
         return (hairGaps + endGaps + tabGaps + markGaps).map(abs).max() ?? 0
     }
 
-    /// The worst gap between the two over the tabs' fillets: where each leaves the edge, its radius and its angle.
-    func fitError(against r: StripRecorded) -> Double {
-        zip(tabs, r.tabs).flatMap { a, b in [(a.top, b.top), (a.bottom, b.bottom)] }.flatMap { a, b in
-            a.flatMap { a in b.map { b in [a.x - b.x, a.y - b.y, a.rho - b.rho, a.phi - b.phi].map(abs) } } ?? []
-        }.max() ?? 0
-    }
-
-    /// The worst gap in the words' opacity.
-    func wordsError(against r: StripRecorded) -> Double {
-        zip(tabs, r.tabs).flatMap { zip($0.words, $1.words).map { abs($0.alpha - $1.alpha) } }.max() ?? 0
-    }
-
     private func close(_ a: Double, _ b: Double) -> Bool { abs(a - b) < 1e-6 }
 
     private func same(_ a: StripRecorded.Ends, _ b: StripRecorded.Ends) -> Bool {

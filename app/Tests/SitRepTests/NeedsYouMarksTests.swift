@@ -47,35 +47,50 @@ struct NeedsYouMarksTests {
     }
 
     /// A dot: its colour at its centre, and its glow past it, 4.5 up.
-    private static func expectDot(_ drawn: Drawn, _ colour: (NSColor) -> Bool) throws {
-        let inside = try #require(drawn.pixel(at: centre))
-        let glow = try #require(drawn.pixel(at: CGPoint(x: centre.x, y: centre.y - 4.5)))
+    private static func expectDot(
+        _ drawn: Drawn, _ colour: (NSColor) -> Bool, sourceLocation: SourceLocation = #_sourceLocation
+    ) throws {
+        let inside = try #require(drawn.pixel(at: centre), sourceLocation: sourceLocation)
+        let glow = try #require(
+            drawn.pixel(at: CGPoint(x: centre.x, y: centre.y - 4.5)), sourceLocation: sourceLocation
+        )
 
-        #expect(colour(inside))
-        #expect(glow.lightness > 0.05)
+        #expect(colour(inside), sourceLocation: sourceLocation)
+        #expect(glow.lightness > 0.05, sourceLocation: sourceLocation)
     }
 
     /// A hollow ring: its colour on its stroke, the black at its centre, and no glow past it.
-    private static func expectRing(_ drawn: Drawn, _ colour: (NSColor) -> Bool) throws {
-        let ring = try #require(drawn.pixel(at: stroke))
-        let inside = try #require(drawn.pixel(at: centre))
-        let outside = try #require(drawn.pixel(at: CGPoint(x: centre.x, y: centre.y - 4.5)))
+    private static func expectRing(
+        _ drawn: Drawn, _ colour: (NSColor) -> Bool, sourceLocation: SourceLocation = #_sourceLocation
+    ) throws {
+        let ring = try #require(drawn.pixel(at: stroke), sourceLocation: sourceLocation)
+        let inside = try #require(drawn.pixel(at: centre), sourceLocation: sourceLocation)
+        let outside = try #require(
+            drawn.pixel(at: CGPoint(x: centre.x, y: centre.y - 4.5)), sourceLocation: sourceLocation
+        )
 
-        #expect(colour(ring))
-        #expect(inside.lightness < 0.1 && outside.lightness < 0.1)
+        #expect(colour(ring), sourceLocation: sourceLocation)
+        #expect(inside.lightness < 0.1 && outside.lightness < 0.1, sourceLocation: sourceLocation)
     }
 
     /// A dot asleep: at its centre the lit dot's hue, dimmed, as the away rows' 0.61 dims it over the black, with no
     /// glow past it. Read against the lit dot the same surface draws, as the pixels come blended, not multiplied.
-    private static func expectAsleep(_ drawn: Drawn, as lit: Drawn) throws {
-        let inside = try #require(drawn.pixel(at: centre))
-        let awake = try #require(lit.pixel(at: centre))
-        let outside = try #require(drawn.pixel(at: CGPoint(x: centre.x, y: centre.y - 4.5)))
+    private static func expectAsleep(
+        _ drawn: Drawn, as lit: Drawn, sourceLocation: SourceLocation = #_sourceLocation
+    ) throws {
+        let inside = try #require(drawn.pixel(at: centre), sourceLocation: sourceLocation)
+        let awake = try #require(lit.pixel(at: centre), sourceLocation: sourceLocation)
+        let outside = try #require(
+            drawn.pixel(at: CGPoint(x: centre.x, y: centre.y - 4.5)), sourceLocation: sourceLocation
+        )
         let dimmed = inside.brightnessComponent / awake.brightnessComponent
 
-        #expect(abs(inside.hueComponent - awake.hueComponent) < 0.03, "\(inside) for \(awake)")
-        #expect((0.55 ... 0.8).contains(dimmed), "dimmed to \(dimmed)")
-        #expect(outside.lightness < 0.1)
+        #expect(
+            abs(inside.hueComponent - awake.hueComponent) < 0.03, "\(inside) for \(awake)",
+            sourceLocation: sourceLocation
+        )
+        #expect((0.55 ... 0.8).contains(dimmed), "dimmed to \(dimmed)", sourceLocation: sourceLocation)
+        #expect(outside.lightness < 0.1, sourceLocation: sourceLocation)
     }
 
     // MARK: The black card

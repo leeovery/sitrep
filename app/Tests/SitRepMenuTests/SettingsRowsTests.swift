@@ -1,10 +1,10 @@
 import Foundation
 @testable import SitRepCore
 @testable import SitRepEdge
-import SitRepLines
 @testable import SitRepMenu
 import SitRepPanel
 import SitRepRelay
+import SitRepTestSupport
 import Testing
 
 /// Edge's sections under the Show row's card: one named for the shape, holding the rows that tune it, then Motion.

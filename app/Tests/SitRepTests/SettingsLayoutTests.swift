@@ -2,9 +2,9 @@ import AppKit
 import Foundation
 @testable import SitRep
 @testable import SitRepCore
-import SitRepLines
 import SitRepMenu
 import SitRepPanel
+import SitRepTestSupport
 import SwiftUI
 import Testing
 
@@ -62,7 +62,7 @@ struct SettingsLayoutTests {
         // Edge, Style, Material: Left · Right, Meniscus · Card, Black · Glass
         #expect(segmented.map { ($0.width * 2).rounded() / 2 } == [106, 155, 109])
         // to the window's half points, where the stock one, in none, rounds to whole ones
-        #expect(abs(popUp.width - SystemControlsTests.stock(button.itemArray).intrinsicContentSize.width) <= 0.5)
+        #expect(abs(popUp.width - NSPopUpButton.stock(holding: button.itemArray).intrinsicContentSize.width) <= 0.5)
     }
 
     /// Open at login; Reduce motion; for a new ask and for Lee's turn each, Notify me, Play a sound and Pulse.
