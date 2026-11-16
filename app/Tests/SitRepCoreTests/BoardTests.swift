@@ -1,11 +1,12 @@
 import Foundation
 @testable import SitRepCore
 import SitRepLines
+import SitRepTestSupport
 import Testing
 
 struct BoardTests {
     @Test func aLineGivesTheBoardAtItsTimeWithTheCLIsVersionAndItsHead() throws {
-        let board = try Board.read(watched)
+        let board = try Board.read(Lines.pretty)
 
         #expect(board.at == at(1_792_445_574_706))
         #expect(board.version == "0.1.0")
@@ -15,7 +16,7 @@ struct BoardTests {
     }
 
     @Test func theRowsComeInTheLinesOrderASessionEachInItsSectionEachLineWhatItIsAndOfAnAskOrAWindow() throws {
-        let rows = try Board.read(watched).rows
+        let rows = try Board.read(Lines.pretty).rows
         let lines = rows.map(\.newest)
 
         #expect(rows.map(\.id) == ["sr-7e68fj", "sr-y4d0qj", "sr-aw3bgs"])
@@ -32,7 +33,7 @@ struct BoardTests {
     }
 
     @Test func aRowsLineComesInItsPartsThenTheRowsSecondAndItsTime() throws {
-        let stop = try Board.read(watched).rows[1]
+        let stop = try Board.read(Lines.pretty).rows[1]
 
         #expect(stop.lines.map(\.first) == [Board.Row.Words(lead: "Allow Bash", mono: "gh pr create", more: nil)])
         #expect(stop.newest.since == at(1_792_445_500_000))
@@ -47,7 +48,7 @@ struct BoardTests {
     /// Each row names its session and its project by name, fields of their own, as a Needs you row shows them; an
     /// away row too, whose second line says no window holds it.
     @Test func aRowNamesItsSessionAndItsProject() throws {
-        let rows = try Board.read(watched).rows
+        let rows = try Board.read(Lines.pretty).rows
         let byName = try Board.read(Lines.bySession[0]).rows
 
         #expect(rows.map(\.name) == ["Plan the tool", "Dashboard memory and snags", "Build the Mac app"])
@@ -95,7 +96,7 @@ struct BoardTests {
     }
 
     @Test func theWindowsSayWhereTheyAreWhatTheyAreDoingAndWhetherTheyNeedAReload() throws {
-        let windows = try Board.read(watched).windows
+        let windows = try Board.read(Lines.pretty).windows
 
         #expect(windows.map(\.id) == ["408a755f-ed3a-4ee1-9cc0-c0208cf3e03b", "6c847b5b-722d-4343-88e0-42ece4662e7d"])
         #expect(windows.map(\.version) == [nil, "0.1.0"])
@@ -121,20 +122,21 @@ struct BoardTests {
         #expect(decoded == Board.Window.Where(device: "/dev/ttys087", terminal: "ghostty", zmx: .init(session: "kit · restore-card")))
     }
 
-    /// A window of a line, as the watch prints one: its writer, its session, its place in the jump's order, the device
-    /// of its own Ghostty window, and its Claude's folder.
+    /// A window of a line: its writer, its session, its place in the jump's order, the device of its own Ghostty
+    /// window, and its Claude's folder.
     private static func window(
         _ writer: String, of session: String, order: Int?, on device: String?, in folder: String? = nil
-    ) -> String {
-        let place = device.map { #"{"device":"\#($0)","terminal":"ghostty","tmux":null,"zmx":null}"# } ?? "null"
-        let directory = folder.map { #""\#($0)""# } ?? "null"
-
-        return #"{"writer":"\#(writer)","session":"\#(session)","name":"Fumi","project":"Fumi","version":"0.1.0","needsReload":false,"where":\#(place),"state":null,"attachedAt":1792445500000,"jumpOrder":\#(order.map(String.init) ?? "null"),"directory":\#(directory)}"#
+    ) -> WatchLine.Window {
+        WatchLine.Window(
+            writer: writer, session: session, name: "Fumi", project: "Fumi",
+            where: device.map { WatchLine.Where(device: $0) }, directory: folder, attachedAt: 1_792_445_500_000,
+            jumpOrder: order
+        )
     }
 
     /// A line holding only the windows given.
-    private static func line(_ windows: [String]) throws -> Board {
-        try Board.read(watchedEmpty.replacingOccurrences(of: #""windows":[]"#, with: #""windows":[\#(windows.joined(separator: ","))]"#))
+    private static func line(_ windows: [WatchLine.Window]) throws -> Board {
+        try Board.read(WatchLine(at: 1_792_445_580_000, windows: windows).text)
     }
 
     @Test func aWindowSaysItsPlaceInTheOrderAJumpTriesItsSessionsWindowsInNoneInALineFromBeforeIt() throws {
@@ -143,7 +145,7 @@ struct BoardTests {
         ])
 
         #expect(board.windows.map(\.jumpOrder) == [1, nil])
-        #expect(try Board.read(watched).windows.map(\.jumpOrder) == [nil, nil])
+        #expect(try Board.read(Lines.pretty).windows.map(\.jumpOrder) == [nil, nil])
     }
 
     @Test func aSessionsWindowsAJumpTriesComeInCoresOrderNeverByTheirPlaceInTheLineThoseWithNoOrderLeftOut() throws {
@@ -171,7 +173,7 @@ struct BoardTests {
     }
 
     @Test func aSessionIsNamedByItsRowItsSnoozedRowAWindowOfItOrItsProjectAndNoneOffTheBoard() throws {
-        let watching = try Board.read(watched)
+        let watching = try Board.read(Lines.pretty)
         let snoozed = try Board.read(Lines.snoozed[0])
         let windowed = try Self.line([Self.window("w1", of: "sr-a", order: nil, on: nil)])
         let rowless = try Board.read(watchedEmpty.replacingOccurrences(
@@ -231,7 +233,7 @@ struct BoardTests {
             directory: "/Users/lee/Code/fumi/.claude/worktrees/x"
         ))
         #expect(board.resumeWindow(of: "sr-b") == Board.LastWindow(writer: "w3", ownsDevice: true))
-        #expect(try Board.read(watched).windows.allSatisfy { $0.directory == nil }, "a line from before windows said it")
+        #expect(try Board.read(Lines.pretty).windows.allSatisfy { $0.directory == nil }, "a line from before windows said it")
     }
 
     /// From a CLI before it, or in a shape that does not read, a session has none, and is named all the same.
@@ -244,7 +246,7 @@ struct BoardTests {
     }
 
     @Test func aLineSaysWhatIsNewOnIt() throws {
-        let board = try Board.read(watched)
+        let board = try Board.read(Lines.pretty)
 
         #expect(board.new == ["stop:sr-y4d0qj:6c847b5b-722d-4343-88e0-42ece4662e7d:1792445500000"])
         #expect(board.newRows == ["sr-y4d0qj"])
@@ -289,11 +291,11 @@ struct BoardTests {
         "",
         "{\"v\":1,\"at\":17924455",
         #"{"head": {"needYou": 0, "sessions": 0}}"#,
-        watchedEmpty.replacingOccurrences(of: #""windows":[],"#, with: ""),
-        watched.replacingOccurrences(of: #""is": "yourTurn""#, with: #""is": "napping""#),
-        watched.replacingOccurrences(of: #""section": "yourTurn""#, with: #""section": "napping""#),
-        watched.replacingOccurrences(of: #""name": "Plan the tool","# + "\n" + #"      "projectName""#, with: #""projectName""#),
-        watched.replacingOccurrences(of: #""projectName": "Terrace","#, with: ""),
+        watchedEmpty.replacingOccurrences(of: #","windows":[]"#, with: ""),
+        Lines.pretty.replacingOccurrences(of: #""is": "yourTurn""#, with: #""is": "napping""#),
+        Lines.pretty.replacingOccurrences(of: #""section": "yourTurn""#, with: #""section": "napping""#),
+        Lines.pretty.replacingOccurrences(of: #""name": "Plan the tool","# + "\n" + #"      "projectName""#, with: #""projectName""#),
+        Lines.pretty.replacingOccurrences(of: #""projectName": "Terrace","#, with: ""),
         Lines.bySession[0].replacingOccurrences(of: #""lines":[{"key":"turn:sr-v3t7a0""#, with: #""lines":[],"was":[{"key":"turn:sr-v3t7a0""#),
     ])
     func aLineThatIsNotABoardIsUnread(line: String) {

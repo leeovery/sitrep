@@ -74,12 +74,12 @@ struct PaneHistoryTests {
 struct ClaudeCodePaneTests {
     private static let clone = PluginStanding.running(.folder("~/Code/sitrep"), folder: "/Users/lee/Code/sitrep")
     private static let windows = [
-        Watched.window("w1", session: "sr-boot", name: "The bootstrap", project: "Kit", version: "0.1.0", needsReload: true),
-        Watched.window("w2", session: "sr-diff", name: "Diff", project: "Mint", version: "0.2.0", needsReload: false),
-        Watched.window("w3", session: "sr-plan", name: "Plan the tool", project: "Terrace", version: nil, needsReload: true),
+        WatchLine.Window(writer: "w1", session: "sr-boot", name: "The bootstrap", project: "Kit", version: "0.1.0", needsReload: true),
+        WatchLine.Window(writer: "w2", session: "sr-diff", name: "Diff", project: "Mint", version: "0.2.0", needsReload: false),
+        WatchLine.Window(writer: "w3", session: "sr-plan", name: "Plan the tool", project: "Terrace", version: nil, needsReload: true),
     ]
 
-    private static func pane(_ windows: [String]) -> ClaudeCodePane {
+    private static func pane(_ windows: [WatchLine.Window]) -> ClaudeCodePane {
         ClaudeCodePane(heard([.line(Watched.line(windows: windows))]), plugin: clone)
     }
 
@@ -110,9 +110,9 @@ struct ClaudeCodePaneTests {
 /// The windows behind on the plugin, read once for the menu, the plugin's row, the pane and the sidebar's count.
 struct WindowsBehindTests {
     private static let windows = [
-        Watched.window("w1", session: "sr-boot", name: "The bootstrap", project: "Kit", version: "0.1.0", needsReload: true),
-        Watched.window("w2", session: "sr-diff", name: "Diff", project: "Mint", version: "0.2.0", needsReload: false),
-        Watched.window("w3", session: "sr-plan", name: "Plan the tool", project: "Terrace", version: nil, needsReload: true),
+        WatchLine.Window(writer: "w1", session: "sr-boot", name: "The bootstrap", project: "Kit", version: "0.1.0", needsReload: true),
+        WatchLine.Window(writer: "w2", session: "sr-diff", name: "Diff", project: "Mint", version: "0.2.0", needsReload: false),
+        WatchLine.Window(writer: "w3", session: "sr-plan", name: "Plan the tool", project: "Terrace", version: nil, needsReload: true),
     ]
 
     @Test func theyAreTheWindowsThatNeedReloadingInWatchsOrder() {
@@ -141,7 +141,7 @@ struct WindowsBehindTests {
 struct SettingsSidebarRowTests {
     private static func behind(_ count: Int) -> WindowsBehind {
         let windows = (0 ..< count).map { place in
-            Watched.window("w\(place)", session: "sr-\(place)", name: "S", project: "P", version: "0.1.0", needsReload: true)
+            WatchLine.Window(writer: "w\(place)", session: "sr-\(place)", name: "S", project: "P", version: "0.1.0", needsReload: true)
         }
 
         return WindowsBehind(heard([.line(Watched.line(windows: windows))]).board)

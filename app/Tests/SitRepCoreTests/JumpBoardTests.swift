@@ -1,5 +1,6 @@
 import Foundation
 @testable import SitRepCore
+import SitRepLines
 import Testing
 
 /// The board a jump goes from: the last line of a watch running and printed, waited for while the watch starts, starts
@@ -40,9 +41,9 @@ struct JumpBoardTests {
     @Test func theBoardOfAWatchRunningAndPrintedIsGivenAtOnce() async throws {
         let jumpBoard = JumpBoard()
 
-        jumpBoard.heard(Self.heard(watched))
+        jumpBoard.heard(Self.heard(Lines.pretty))
 
-        #expect(await jumpBoard.current() == .board(try Board.read(watched)))
+        #expect(await jumpBoard.current() == .board(try Board.read(Lines.pretty)))
     }
 
     @Test func aJumpAskedForBeforeTheFirstLineWaitsForIt() async throws {
@@ -50,9 +51,9 @@ struct JumpBoardTests {
         let waiting = await Self.asking(jumpBoard)
 
         jumpBoard.heard(LastBoard())
-        jumpBoard.heard(Self.heard(watched))
+        jumpBoard.heard(Self.heard(Lines.pretty))
 
-        #expect(await waiting.value == .board(try Board.read(watched)))
+        #expect(await waiting.value == .board(try Board.read(Lines.pretty)))
     }
 
     /// A stale board is not jumped from: the jump waits for the watch, started again, to print.
@@ -63,7 +64,7 @@ struct JumpBoardTests {
     ])
     func aJumpAskedForWhileTheWatchIsStaleWaitsForItsNextLine(stale: Heard) async throws {
         let jumpBoard = JumpBoard()
-        let staled = Self.after(Self.heard(watched), stale)
+        let staled = Self.after(Self.heard(Lines.pretty), stale)
 
         jumpBoard.heard(staled)
 
@@ -83,8 +84,8 @@ struct JumpBoardTests {
         jumpBoard.unrun("SitRep has no plugin to run.")
         #expect(await jumpBoard.current() == .unread("SitRep has no plugin to run."))
 
-        jumpBoard.heard(Self.heard(watched))
-        #expect(await jumpBoard.current() == .board(try Board.read(watched)))
+        jumpBoard.heard(Self.heard(Lines.pretty))
+        #expect(await jumpBoard.current() == .board(try Board.read(Lines.pretty)))
     }
 
     /// The plugin found, its watch starting, a jump clicked before the watch's first line waits for it, as at any start,
@@ -97,9 +98,9 @@ struct JumpBoardTests {
 
         let waiting = await Self.asking(jumpBoard)
 
-        jumpBoard.heard(Self.heard(watched))
+        jumpBoard.heard(Self.heard(Lines.pretty))
 
-        #expect(await waiting.value == .board(try Board.read(watched)))
+        #expect(await waiting.value == .board(try Board.read(Lines.pretty)))
     }
 
     @Test func aJumpWaitingAsTheWatchGivesUpForWantOfAPluginIsToldWhy() async {
@@ -120,12 +121,12 @@ struct JumpBoardTests {
         waiting.cancel()
 
         #expect(await waiting.value == .unread("SitRep has no board yet: sitrep watch has printed none."))
-        jumpBoard.heard(Self.heard(watched))
+        jumpBoard.heard(Self.heard(Lines.pretty))
     }
 
     @Test func whyTheBoardIsNotThereIsTheWatchsWordsAsTheViewsSayThemElseThatItHasPrintedNone() {
         let jumpBoard = JumpBoard()
-        let stale = Self.after(Self.heard(watched), .exited(.status(1), stderr: ""))
+        let stale = Self.after(Self.heard(Lines.pretty), .exited(.status(1), stderr: ""))
 
         #expect(jumpBoard.missing() == "SitRep has no board yet: sitrep watch has printed none.")
 

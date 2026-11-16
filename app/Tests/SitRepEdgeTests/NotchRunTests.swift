@@ -3,6 +3,7 @@ import Foundation
 @testable import SitRepCore
 @testable import SitRepEdge
 @testable import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// The notch as the controller runs it, with no screen: a press goes to the row under it and reads the notch as it is
@@ -21,14 +22,20 @@ struct NotchRunTests {
         NotchRun.Moment(time: time, pointer: pointer, setting: setting)
     }
 
+    /// Session `sr-<id>`'s row of its ask, of SitRep unless given.
+    private static func ask(_ id: String, isAway: Bool = false, of project: String = "SitRep") -> WatchLine.Row {
+        WatchLine.Row(
+            session: "sr-\(id)", isAway: isAway, name: id, projectName: project,
+            lines: [.init("ask:\(id)", .ask, first: "Ask \(id)", since: 1_792_445_000_000)]
+        )
+    }
+
     /// A board of asks, each a window holds, in this order, the ones named new on it.
     private static func board(_ ids: [String], new: [String] = []) -> PanelBoard {
-        let rows = ids.map { id in
-            row("ask:\(id)", "ask", session: "sr-\(id)", lead: "Ask \(id)", second: "SitRep · \(id)", since: 1_792_445_000_000)
-        }
+        let rows = ids.map { Self.ask($0) }
         var last = LastBoard()
 
-        _ = last.hear(.line(line(needYou: ids.count, sessions: ids.count, new: new.map { "ask:\($0)" }, rows: rows)), at: Date())
+        _ = last.hear(.line(WatchLine(rows: rows, new: new.map { "ask:\($0)" }).text), at: Date())
         return PanelBoard(last)
     }
 
@@ -86,14 +93,11 @@ struct NotchRunTests {
 
     /// A run over Kit's away ask and SitRep's held one, its panel opened.
     private static func openedWithAway() -> NotchRun {
-        let rows = [
-            row("ask:a", "ask", session: "sr-a", lead: "Ask a", second: "SitRep · a", since: 1_792_445_000_000),
-            row("ask:k", "ask", away: true, session: "sr-k", lead: "Ask k", second: "Kit · k", since: 1_792_445_000_000),
-        ]
+        let rows = [Self.ask("a"), Self.ask("k", isAway: true, of: "Kit")]
         var last = LastBoard()
         let run = NotchRun(at: 1000, in: setting)
 
-        _ = last.hear(.line(line(needYou: 2, sessions: 2, new: [], rows: rows)), at: Date())
+        _ = last.hear(.line(WatchLine(rows: rows).text), at: Date())
         _ = run.show(PanelBoard(last), at(run.time))
         frames(run, for: 3000, onTheNotch) { run.phase == .open }
         return run

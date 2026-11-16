@@ -3,6 +3,7 @@ import Foundation
 @testable import SitRepCore
 @testable import SitRepEdge
 @testable import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// The strip as the controller runs it, with no screen: every input brings it up to its moment first, so a click
@@ -39,17 +40,19 @@ struct StripRunTests {
         )
     }
 
+    /// Session `sr-<id>` of project P, its row of this line.
+    private static func row(_ id: String, _ line: WatchLine.Row.Line) -> WatchLine.Row {
+        WatchLine.Row(session: "sr-\(id)", name: id, projectName: "P", lines: [line])
+    }
+
     /// A board of windows working, longest running first, each a window holds; gone stale, with `watch` stopped.
     private static func working(_ ids: [String], stale: Bool = false) -> PanelBoard {
         let rows = ids.enumerated().map { i, id in
-            row(
-                "work:\(id)", "working", session: "sr-\(id)", lead: "Work \(id)", second: "P · \(id)",
-                since: 1_792_445_000_000 + i
-            )
+            Self.row(id, .init("work:\(id)", .working, first: "Work \(id)", since: 1_792_445_000_000 + i))
         }
         var last = LastBoard()
 
-        _ = last.hear(.line(line(needYou: 0, sessions: ids.count, new: [], rows: rows)), at: Date())
+        _ = last.hear(.line(WatchLine(rows: rows).text), at: Date())
         if stale {
             _ = last.hear(.exited(.status(1), stderr: ""), at: Date())
         }
@@ -453,10 +456,10 @@ struct StripRunTests {
 
         var last = LastBoard()
         let rows = [
-            row("work:a", "working", session: "sr-a", lead: "Still at a", second: "P · a", since: 1_792_445_000_000),
-            row("work:b", "working", session: "sr-b", lead: "Work b", second: "P · b", since: 1_792_445_000_001),
+            Self.row("a", .init("work:a", .working, first: "Still at a", since: 1_792_445_000_000)),
+            Self.row("b", .init("work:b", .working, first: "Work b", since: 1_792_445_000_001)),
         ]
-        _ = last.hear(.line(line(needYou: 0, sessions: 2, new: [], rows: rows)), at: Date())
+        _ = last.hear(.line(WatchLine(rows: rows).text), at: Date())
         _ = last.hear(.exited(.status(1), stderr: ""), at: Date())
         run.show(PanelBoard(last), Self.at(run.time))
 
@@ -467,13 +470,16 @@ struct StripRunTests {
     /// and as it comes due, then never.
     @Test func aCountsTabTicksOnlyForAWakesCountdownAmongItsRows() {
         let until = 1_792_445_600_000
+        let wakes = WatchLine.Row.Line(
+            "turn:w8", .onItsWork, first: .init(lead: "Wakes", until: until), since: 1_792_445_000_008
+        )
         let rows = (1 ... 8).map { i in
             i == 8
-                ? row("turn:w8", "onItsWork", session: "sr-w8", lead: "Wakes", until: until, second: "P · w8", since: 1_792_445_000_008)
-                : row("work:w\(i)", "working", session: "sr-w\(i)", lead: "Work w\(i)", second: "P · w\(i)", since: 1_792_445_000_000 + i)
+                ? Self.row("w8", wakes)
+                : Self.row("w\(i)", .init("work:w\(i)", .working, first: "Work w\(i)", since: 1_792_445_000_000 + i))
         }
         var last = LastBoard()
-        _ = last.hear(.line(line(needYou: 0, sessions: 8, new: [], rows: rows)), at: Date())
+        _ = last.hear(.line(WatchLine(rows: rows).text), at: Date())
         let waking = Self.countOpen(PanelBoard(last)), working = Self.countOpen()
         let due = Double(until)
 

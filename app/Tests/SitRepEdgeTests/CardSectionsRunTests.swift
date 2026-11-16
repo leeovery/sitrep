@@ -24,26 +24,33 @@ struct CardSectionsRunTests {
         NotchRun.Moment(time: time, pointer: pointer, setting: setting)
     }
 
-    private static func ask(_ id: String) -> String {
-        row("ask:\(id)", "ask", session: id, lead: "Ask \(id)", second: "SitRep · \(id)", since: 1_792_445_000_000)
-    }
-
-    private static func working(_ id: String) -> String {
-        row("work:\(id)", "working", session: id, lead: "Running the tests", second: "DocMan · \(id)", since: 1_792_445_000_000)
-    }
-
-    /// A your turn whose turn ended this many minutes before 1_792_445_574_706, ms on the wall clock.
-    private static func turn(_ id: String, ago minutes: Int) -> String {
-        row(
-            "turn:\(id)", "yourTurn", session: id, lead: "Your turn", second: "SitRep · \(id)",
-            since: 1_792_445_574_706 - minutes * minute
+    private static func ask(_ id: String) -> WatchLine.Row {
+        WatchLine.Row(
+            session: id, name: id, projectName: "SitRep",
+            lines: [.init("ask:\(id)", .ask, first: "Ask \(id)", since: 1_792_445_000_000)]
         )
     }
 
-    private static func board(_ rows: [String], new: [String] = []) -> PanelBoard {
-        var last = LastBoard()
+    private static func working(_ id: String) -> WatchLine.Row {
+        WatchLine.Row(
+            session: id, name: id, projectName: "DocMan",
+            lines: [.init("work:\(id)", .working, first: "Running the tests", since: 1_792_445_000_000)]
+        )
+    }
 
-        _ = last.hear(.line(line(needYou: 0, sessions: rows.count, new: new, rows: rows)), at: Date())
+    /// A your turn whose turn ended this many minutes before 1_792_445_574_706, ms on the wall clock.
+    private static func turn(_ id: String, ago minutes: Int) -> WatchLine.Row {
+        WatchLine.Row(
+            session: id, name: id, projectName: "SitRep",
+            lines: [.init("turn:\(id)", .yourTurn, first: "Your turn", since: 1_792_445_574_706 - minutes * minute)]
+        )
+    }
+
+    private static func board(_ rows: [WatchLine.Row], new: [String] = []) -> PanelBoard {
+        var last = LastBoard()
+        let line = WatchLine(head: .init(needYou: 0, sessions: rows.count), rows: rows, new: new)
+
+        _ = last.hear(.line(line.text), at: Date())
         return PanelBoard(last)
     }
 
@@ -57,7 +64,7 @@ struct CardSectionsRunTests {
 
     /// A run over this board, its folds kept in `kept`, in London's calendar, its panel opened by the pointer held on
     /// the notch.
-    private static func opened(_ rows: [String], kept: SavedSettings<CardSettings>? = nil) -> NotchRun {
+    private static func opened(_ rows: [WatchLine.Row], kept: SavedSettings<CardSettings>? = nil) -> NotchRun {
         let run = NotchRun(at: 1000, in: setting, folding: Folding(kept: kept), calendar: london)
 
         _ = run.show(board(rows), at(run.time))
@@ -242,7 +249,7 @@ struct CardSectionsRunTests {
         var last = LastBoard()
 
         #expect(empty.list.head?.title == "All clear")
-        _ = last.hear(.line(line(needYou: 1, sessions: 1, new: [], rows: [Self.ask("sr-a")])), at: Date())
+        _ = last.hear(.line(WatchLine(rows: [Self.ask("sr-a")]).text), at: Date())
         _ = last.hear(.exited(.status(1), stderr: ""), at: Date())
         _ = empty.show(PanelBoard(last), Self.at(empty.time))
 

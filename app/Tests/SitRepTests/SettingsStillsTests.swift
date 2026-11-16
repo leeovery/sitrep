@@ -18,7 +18,7 @@ struct SettingsStillsTests {
     private static let fine = MacSays(notices: .allowed(.banners), login: LoginItem(.enabled), ghostty: .allowed)
 
     /// Settings over a Mac that says this, read as the window reads it as a pane comes into sight.
-    private static func settings(_ preferences: Preferences, windows: [String], said: MacSays = fine) async -> SettingsModel {
+    private static func settings(_ preferences: Preferences, windows: [WatchLine.Window], said: MacSays = fine) async -> SettingsModel {
         let settings = SettingsModel(
             preferences: preferences, live: live(windows: windows), services: Hosted.services(said: said)
         )
@@ -37,12 +37,22 @@ struct SettingsStillsTests {
         return preferences
     }
 
-    private static func live(windows: [String]) -> LiveBoard {
+    /// A window on SitRep's The Mac app, on an older plugin or not.
+    private static func window(_ writer: String, needsReload: Bool) -> WatchLine.Window {
+        WatchLine.Window(
+            writer: writer, session: "sr-aw3bgs", name: "The Mac app", project: "SitRep",
+            version: needsReload ? "0.1.0" : "0.2.0", needsReload: needsReload
+        )
+    }
+
+    /// A board for the stills: the menu drawing's sessions.
+    private static func live(windows: [WatchLine.Window]) -> LiveBoard {
         let live = LiveBoard()
         var last = LastBoard()
+        let line = WatchLine(version: "0.2.0", head: .init(needYou: 1, sessions: 1), windows: windows)
 
         last.begin()
-        _ = last.hear(.line(stillsLine(windows: windows)), at: Date())
+        _ = last.hear(.line(line.text), at: Date())
         live.last = last
         live.plugin = .running(.folder("~/Code/sitrep"), folder: "/Users/lee/Code/sitrep")
 
@@ -76,7 +86,7 @@ struct SettingsStillsTests {
         try render(view, "settings-\(name)", size: CGSize(width: width, height: SettingsWindow.size.height))
     }
 
-    private static let current = [Watched.window("w2", needsReload: false)]
+    private static let current = [window("w2", needsReload: false)]
 
     @Test(arguments: SettingsPane.allCases)
     func eachPane(pane: SettingsPane) async throws {
@@ -102,7 +112,7 @@ struct SettingsStillsTests {
     /// windows on an older plugin.
     @Test(arguments: [SettingsPane.general, .notifications, .claudeCode])
     func whenARowNeedsSomething(pane: SettingsPane) async throws {
-        let old = [Watched.window("w1", needsReload: true), Watched.window("w3", needsReload: true)]
+        let old = [Self.window("w1", needsReload: true), Self.window("w3", needsReload: true)]
         let said = MacSays(notices: .denied, login: LoginItem(.requiresApproval), ghostty: .unasked)
         let settings = await Self.settings(Self.preferences(), windows: old, said: said)
 
@@ -168,21 +178,3 @@ extension SettingsStillsTests {
 
 /// Where the stills go.
 private let stills = ProcessInfo.processInfo.environment["SITREP_STILLS"].map(URL.init(fileURLWithPath:))
-
-/// A board for the stills: the menu drawing's sessions.
-private func stillsLine(windows: [String]) -> String {
-    """
-    {"v":3,"at":1792445574706,"version":"0.2.0","head":{"needYou":1,"sessions":1},"rows":[],"projects":[],\
-    "windows":[\(windows.joined(separator: ","))],"new":[],"boards":{}}
-    """
-}
-
-private enum Watched {
-    static func window(_ writer: String, needsReload: Bool) -> String {
-        """
-        {"writer":"\(writer)","session":"sr-aw3bgs","name":"The Mac app","project":"SitRep",\
-        "version":"\(needsReload ? "0.1.0" : "0.2.0")","needsReload":\(needsReload),"where":null,"state":null,\
-        "attachedAt":1792440000000}
-        """
-    }
-}

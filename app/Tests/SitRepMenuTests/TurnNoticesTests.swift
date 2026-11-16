@@ -1,5 +1,6 @@
 @testable import SitRepCore
 import SitRepMenu
+import SitRepTestSupport
 import Testing
 
 /// What a session moving into Lee's turn sends and plays (DESIGN, "Settings", Notifications, 13 November 2026): once
@@ -7,30 +8,27 @@ import Testing
 /// off the board, nor for one there as SitRep starts or on any run's first line; a notification saying so, a click on
 /// it carrying the session on, and his turn's own sound, each while its switch is on, and off by default.
 struct TurnNoticesTests {
-    private static func turn(ended since: Int = 1_792_445_400_000) -> String {
-        Watched.row(
-            "turn:sr-boot", "yourTurn", session: "sr-boot", project: "kit", lead: "Write round 4 into DESIGN.md",
-            second: "Kit · The bootstrap", since: since
-        )
+    private static func turn(ended since: Int = 1_792_445_400_000) -> WatchLine.Row {
+        bootstrap(.init("turn:sr-boot", .yourTurn, first: "Write round 4 into DESIGN.md", since: since))
     }
 
-    private static let working = Watched.row(
-        "work:sr-boot", "working", session: "sr-boot", project: "kit", lead: "Writing", second: "Kit · The bootstrap",
-        since: 1_792_445_000_000
+    private static let working = bootstrap(.init("work:sr-boot", .working, first: "Writing", since: 1_792_445_000_000))
+
+    private static let onItsWork = bootstrap(
+        .init("work:sr-boot", .onItsWork, first: "Waiting on 3 agents", since: 1_792_445_000_000)
     )
 
-    private static let onItsWork = Watched.row(
-        "work:sr-boot", "onItsWork", session: "sr-boot", project: "kit", lead: "Waiting on 3 agents",
-        second: "Kit · The bootstrap", since: 1_792_445_000_000
+    private static let asking = bootstrap(
+        .init("ask:sr-boot:k1", .ask, first: "Approve round 4", since: 1_792_445_500_000)
     )
 
-    private static let asking = Watched.row(
-        "ask:sr-boot:k1", "ask", session: "sr-boot", project: "kit", lead: "Approve round 4",
-        second: "Kit · The bootstrap", since: 1_792_445_500_000
-    )
+    /// Kit's The bootstrap, its row of this line.
+    private static func bootstrap(_ line: WatchLine.Row.Line) -> WatchLine.Row {
+        WatchLine.Row(session: "sr-boot", name: "The bootstrap", projectName: "Kit", lines: [line])
+    }
 
     /// A board of these rows.
-    private static func line(_ rows: String...) -> Heard {
+    private static func line(_ rows: WatchLine.Row...) -> Heard {
         .line(Watched.line(needYou: 0, rows: rows))
     }
 
@@ -141,9 +139,9 @@ struct TurnNoticesTests {
 
     /// A board bringing a new ask and Lee's turn plays the ask's sound alone, once.
     @Test func aNewAsksSoundPlaysOverNoTurnsOnTheSameBoard() {
-        let other = Watched.row(
-            "work:sr-other", "working", session: "sr-other", project: "kit", lead: "Writing", second: "Kit · Other",
-            since: 1_792_445_000_000
+        let other = WatchLine.Row(
+            session: "sr-other", name: "Other", projectName: "Kit",
+            lines: [.init("work:sr-other", .working, first: "Writing", since: 1_792_445_000_000)]
         )
         let both = heard([
             Self.line(Self.working, other),

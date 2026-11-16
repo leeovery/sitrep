@@ -1,5 +1,6 @@
 import Foundation
 @testable import SitRepCore
+import SitRepLines
 import Testing
 
 struct LastBoardTests {
@@ -31,36 +32,36 @@ struct LastBoardTests {
     }
 
     @Test func aLineHeardIsTheBoard() throws {
-        let last = Self.after(.line(watched))
+        let last = Self.after(.line(Lines.pretty))
 
-        #expect(last.board == (try Board.read(watched)))
+        #expect(last.board == (try Board.read(Lines.pretty)))
         #expect(last.stale == nil)
     }
 
     @Test func eachLineHeardReplacesTheLast() throws {
-        let last = Self.after(.line(watched), .line(watchedEmpty))
+        let last = Self.after(.line(Lines.pretty), .line(watchedEmpty))
 
         #expect(last.board == (try Board.read(watchedEmpty)))
     }
 
     @Test func aLineThatDoesNotReadIsSkippedTheBoardKeptAndStaleSinceItCame() throws {
-        let last = Self.after(.line(watched), .line("sitrep watch, in words"))
+        let last = Self.after(.line(Lines.pretty), .line("sitrep watch, in words"))
 
-        #expect(last.board == (try Board.read(watched)))
+        #expect(last.board == (try Board.read(Lines.pretty)))
         #expect(last.stale == .unread(.shape))
         #expect(last.staleSince == Self.noon.addingTimeInterval(60))
         #expect(last.stale?.description == "sitrep watch gave output this SitRep cannot read.")
     }
 
     @Test func aLineOfAnotherVersionKeepsTheBoardStaleSayingSo() throws {
-        let last = Self.after(.line(watched), .line(#"{"v": 1}"#))
+        let last = Self.after(.line(Lines.pretty), .line(#"{"v": 1}"#))
 
-        #expect(last.board == (try Board.read(watched)))
+        #expect(last.board == (try Board.read(Lines.pretty)))
         #expect(last.stale?.description == "sitrep watch gave output version 1, and this SitRep reads version 3.")
     }
 
     @Test func aLineThatReadsAfterOneThatDidNotIsTheBoardNoLongerStale() throws {
-        let last = Self.after(.line(watched), .line("not json"), .line(watchedEmpty))
+        let last = Self.after(.line(Lines.pretty), .line("not json"), .line(watchedEmpty))
 
         #expect(last.board == (try Board.read(watchedEmpty)))
         #expect(last.stale == nil)
@@ -69,16 +70,16 @@ struct LastBoardTests {
 
     @Test func watchEndingKeepsTheBoardStaleSinceItEndedSayingWhatEndedIt() throws {
         let stderr = "sitrep: EACCES: permission denied, scandir '/Users/lee/.local/state/sitrep'\n"
-        let last = Self.after(.line(watched), .exited(.status(1), stderr: stderr))
+        let last = Self.after(.line(Lines.pretty), .exited(.status(1), stderr: stderr))
 
-        #expect(last.board == (try Board.read(watched)))
+        #expect(last.board == (try Board.read(Lines.pretty)))
         #expect(last.stale == .exited(.status(1), said: "EACCES: permission denied, scandir '/Users/lee/.local/state/sitrep'"))
         #expect(last.staleSince == Self.noon.addingTimeInterval(60))
         #expect(last.stale?.description == "EACCES: permission denied, scandir '/Users/lee/.local/state/sitrep'.")
     }
 
     @Test func theBoardIsStaleSinceItFirstWentStale() {
-        let last = Self.after(.line(watched), .line("{"), .exited(.status(1), stderr: ""))
+        let last = Self.after(.line(Lines.pretty), .line("{"), .exited(.status(1), stderr: ""))
 
         #expect(last.stale == .exited(.status(1), said: nil))
         #expect(last.staleSince == Self.noon.addingTimeInterval(60))
@@ -133,11 +134,11 @@ struct LastBoardTests {
     @Test func hearingSaysWhetherWhatTheViewsShowChanged() {
         var last = LastBoard()
         let changes = [
-            Heard.line(watched),
-            .line(watched),
+            Heard.line(Lines.pretty),
+            .line(Lines.pretty),
             .exited(.status(1), stderr: ""),
             .exited(.status(1), stderr: ""),
-            .line(watched),
+            .line(Lines.pretty),
         ].map { last.hear($0, at: Self.noon) }
 
         #expect(changes == [true, false, true, false, true])
@@ -154,7 +155,7 @@ struct LastBoardTests {
 
         last.begin()
         hear(.line(watchedEmpty))
-        hear(.line(watched))
+        hear(.line(Lines.pretty))
         last.begin()
         hear(.line(watchedEmpty))
         hear(.exited(.status(1), stderr: ""))
@@ -177,7 +178,7 @@ struct LastBoardTests {
         hear(.line(watchedEmpty))
         last.begin()
         hear(.line("{"))
-        hear(.line(watched))
+        hear(.line(Lines.pretty))
         hear(.line(watchedEmpty))
 
         #expect(first == [true, true, false, false])

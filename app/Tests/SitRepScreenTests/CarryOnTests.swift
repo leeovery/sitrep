@@ -2,6 +2,7 @@ import Foundation
 import os
 import SitRepCore
 @testable import SitRepScreen
+import SitRepTestSupport
 import Testing
 
 /// A click on a session no terminal on this Mac shows, held or away, carries it on (stage 8's rethink): a Claude of it
@@ -159,8 +160,8 @@ struct CarryOnTests {
     /// The board's held session: carried on from the live window a jump tries first, its writer and its folder.
     @Test func aHeldSessionOnTheBoardIsCarriedOnFromTheWindowAJumpTriesFirst() async throws {
         let line = try board([
-            LineWindow(writer: "w1", session: "sr-a", order: 1, zmx: "kit", directory: "/Users/lee/Code/kit"),
-            LineWindow(writer: Self.claude, session: "sr-a", order: 0, zmx: Self.leeway, directory: Self.folder),
+            WatchLine.Window.jumping("w1", session: "sr-a", order: 1, zmx: "kit", directory: "/Users/lee/Code/kit"),
+            WatchLine.Window.jumping(Self.claude, session: "sr-a", order: 0, zmx: Self.leeway, directory: Self.folder),
         ])
         let jumping = Jumping(FakeTmux(), FakeTable(Mac().tree), resume: "claude --resume {claude} -- {dir}")
         let opening = try #require(await jumping.jump.run(to: "sr-a", on: GivenBoard(line)).opening)
@@ -175,7 +176,7 @@ struct CarryOnTests {
 
     /// A line from a CLI before windows said their folder: `{dir}` has nothing to fill it.
     @Test func aHeldSessionWhoseWindowSaysNoFolderRefusesACommandNamingDir() async throws {
-        let line = try board([LineWindow(writer: Self.claude, session: "sr-a", order: 0, zmx: Self.leeway)])
+        let line = try board([WatchLine.Window.jumping(Self.claude, session: "sr-a", order: 0, zmx: Self.leeway)])
         let jumping = Jumping(FakeTmux(), FakeTable(Mac().tree), resume: Self.lees)
 
         #expect(await jumping.jump.answer(to: "sr-a", on: GivenBoard(line)) == .unopened(
@@ -198,7 +199,7 @@ struct CarryOnTests {
 
     /// An away session with no last window, as its conversation would take up another: as one no window holds.
     @Test func anAwaySessionWithNoLastWindowIsRefusedAsNotOnScreen() async throws {
-        let line = try board([], sessions: ["sr-q": "Quiet one"])
+        let line = try board([], sessions: [.init(id: "sr-q", name: "Quiet one")])
 
         #expect(await Jumping().jump.answer(to: "sr-q", on: GivenBoard(line)) == .refused(
             "Quiet one is not on screen: no terminal window on this Mac shows it."
@@ -207,10 +208,9 @@ struct CarryOnTests {
 
     /// The board names an away session's last window; the click carries it on from that.
     @Test func anAwaySessionOnTheBoardIsCarriedOnFromItsLastWindow() async throws {
-        let place: [String: Any] = ["device": "/dev/ttys087", "terminal": "ghostty", "tmux": NSNull(), "zmx": ["session": Self.leeway]]
-        let line = try board([], sessions: ["sr-q": "Quiet one"], last: [
-            "sr-q": ["writer": Self.claude, "where": place, "ownsDevice": true, "directory": Self.folder],
-        ])
+        let place = WatchLine.Where(device: "/dev/ttys087", zmx: .init(session: Self.leeway))
+        let last = WatchLine.LastWindow(writer: Self.claude, where: place, directory: Self.folder)
+        let line = try board([], sessions: [.init(id: "sr-q", name: "Quiet one", lastWindow: last)])
         let jumping = Jumping(FakeTmux(), FakeTable(Mac().tree))
         let opening = try #require(await jumping.jump.run(to: "sr-q", on: GivenBoard(line)).opening)
 
@@ -462,10 +462,10 @@ struct CarryOnTests {
     @Test func anOpeningIsForgottenOnceTheBoardHoldsASessionNoWindowHeldAtTheClick() async throws {
         let openings = RecentOpenings()
         let jumping = Jumping(openings: openings)
-        let held = try board([LineWindow(writer: Self.claude, session: "sr-a", order: 0, zmx: Self.leeway)])
+        let held = try board([WatchLine.Window.jumping(Self.claude, session: "sr-a", order: 0, zmx: Self.leeway)])
 
         #expect(await jumping.carryOn(from: Self.last()) == .opened)
-        openings.heard(try board([LineWindow(writer: "w2", session: "sr-b", order: 0, zmx: "other")]))
+        openings.heard(try board([WatchLine.Window.jumping("w2", session: "sr-b", order: 0, zmx: "other")]))
         #expect(openings.isOpening("sr-a"), "another session held tells nothing of this one")
 
         openings.heard(held)
@@ -498,7 +498,7 @@ struct CarryOnTests {
         let jumping = Jumping(FakeTmux(), FakeTable(Mac().tree), resume: Self.lees, openings: openings)
 
         #expect(await jumping.open([inZmx(Self.leeway)], from: Self.last(), isHeld: true) == .opened)
-        openings.heard(try board([LineWindow(writer: Self.claude, session: "sr-a", order: 0, zmx: Self.leeway)]))
+        openings.heard(try board([WatchLine.Window.jumping(Self.claude, session: "sr-a", order: 0, zmx: Self.leeway)]))
         #expect(await jumping.open([inZmx(Self.leeway)], from: Self.last(), isHeld: true) == .opening)
         #expect(jumping.ghostty.opened.count == 1)
     }

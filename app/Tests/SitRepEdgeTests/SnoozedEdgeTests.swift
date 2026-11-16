@@ -132,7 +132,7 @@ struct SnoozedEdgeTests {
         let run = Self.opened(kept: Self.kept([]))
         let onTheNotch = CGPoint(x: 3, y: 491)
 
-        _ = run.show(Self.edited(Self.held), Self.at(run.time))
+        _ = run.show(Self.held(), Self.at(run.time))
         while run.phase != .open, run.time < 5000 {
             run.step(NotchRun.Moment(time: run.time + 1000 / 60, pointer: onTheNotch, setting: Self.setting))
         }
@@ -187,28 +187,67 @@ struct SnoozedEdgeTests {
 
     /// The first line with its Needs you row gone, as its last waiting ask snoozed would leave it.
     private static func boardOfSnoozedAlone() -> PanelBoard {
-        edited { line in
-            line["rows"] = []
-            line["head"] = ["needYou": 0, "sessions": 0]
-        }
+        var line = first()
+
+        line.rows = []
+        return board(line)
     }
 
     /// The first line with a window holding the session, its row in each section one that jumps.
-    private static func held(_ line: inout [String: Any]) {
-        for list in ["rows", "snoozed"] {
-            line[list] = (line[list] as! [[String: Any]]).map { row in
-                row.merging(["isAway": false, "second": "Harness"]) { $1 }
-            }
-        }
+    private static func held() -> PanelBoard {
+        board(first(held: true))
     }
 
-    /// The first line, changed so.
-    private static func edited(_ change: (inout [String: Any]) -> Void) -> PanelBoard {
-        var line = try! JSONSerialization.jsonObject(with: Data(Lines.snoozed[0].utf8)) as! [String: Any]
+    private static func board(_ line: WatchLine) -> PanelBoard {
         var last = LastBoard()
 
-        change(&line)
-        _ = last.hear(.line(String(decoding: try! JSONSerialization.data(withJSONObject: line), as: UTF8.self)), at: .now)
+        _ = last.hear(.line(line.text), at: .now)
         return PanelBoard(last)
+    }
+
+    /// The first line (`Lines.snoozed`), typed for a test to change; `held`, a window holding its session, so each of
+    /// its rows says its project where the away one says no window holds it.
+    private static func first(held: Bool = false) -> WatchLine {
+        let name = "Finish the Harness modernisation", away = "No window holds it. Carry it on in Claude."
+        let second = held ? "Harness" : away
+        let k3 = WatchLine.Row.Line(
+            "ask:sr-4g01a7:k3", .ask, ask: "k3", first: "Give the go for stage 3", since: 1_792_741_127_000
+        )
+        let asleep: [WatchLine.SnoozedRow.Line] = [
+            .init(
+                "ask:sr-4g01a7:k1", ask: "k1", first: "Review the plan", since: 1_792_740_927_000,
+                wakesAt: 1_792_741_532_000
+            ),
+            .init(
+                "ask:sr-4g01a7:k2", ask: "k2", first: "Pick when stage 2 runs", since: 1_792_741_027_000,
+                wakesAt: 1_792_745_127_000
+            ),
+        ]
+        let asks: [WatchLine.Ask] = [
+            .init(
+                id: "k1", yes: "Go", title: "Review the plan", at: 1_792_740_927_000, snoozedUntil: 1_792_741_532_000
+            ),
+            .init(
+                id: "k2", wants: .choice, title: "Pick when stage 2 runs", options: ["Now", "Later"],
+                at: 1_792_741_027_000, snoozedUntil: 1_792_745_127_000
+            ),
+            .init(id: "k3", yes: "Go", title: "Give the go for stage 3", at: 1_792_741_127_000),
+        ]
+        let session = WatchLine.Session(
+            id: "sr-4g01a7", name: name, summary: "Move the harness to the new runner", isOpen: false, waiting: 1,
+            snoozed: 2, updatedAt: 1_792_741_527_569, state: .needsYou, since: 1_792_741_127_000,
+            doing: .init(.away, line: .init(lead: away), since: 1_792_741_527_569), asks: asks
+        )
+        let row = WatchLine.Row(
+            session: "sr-4g01a7", isAway: !held, name: name, projectName: "Harness", second: second, lines: [k3]
+        )
+        let snoozed = WatchLine.SnoozedRow(
+            session: "sr-4g01a7", isAway: !held, name: name, projectName: "Harness", second: second, lines: asleep
+        )
+
+        return WatchLine(
+            at: 1_792_741_527_619, version: "0.2.0", rows: [row], snoozed: [snoozed],
+            projects: [.init(name: "Harness", directory: "/tmp/h", sessions: [session])]
+        )
     }
 }
