@@ -824,7 +824,7 @@ export const foldSession = (
   }
 
   const asks = items.filter(isAsk)
-  const { snooze, turnSnooze, turnWithAsks } = standAsleep(fold.asleep, asks, now)
+  const { snooze, asideUntil, turnSnooze, turnWithAsks } = standAsleep(fold.asleep, asks, now)
 
   return {
     id: meta.id,
@@ -844,6 +844,7 @@ export const foldSession = (
     waiting: waitingOnLee({ asks, finished: fold.finished }).length,
     finished: fold.finished,
     snooze,
+    asideUntil,
     turnSnooze,
     turnWithAsks,
     ids: fold.ids,

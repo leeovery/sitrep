@@ -7,6 +7,7 @@ import {
   parsePresence,
   presenceText,
   sessionPaths,
+  STALE_MS,
   type SessionPaths,
 } from '../core'
 import { boardOf, sessionOf } from '../hooks/board'
@@ -366,6 +367,25 @@ test("another window's heartbeat saying no version, as one whose manifest gave n
     [W2, undefined],
   ])
   expect(w.state.board?.deliverer).toBe(W1)
+})
+
+test("another window on the session going stale between this window's beats shows on the board within a look of it, though no file changed", async ($, on) => {
+  const w = world($, on)
+  const { id, paths } = await w.begin()
+  const seenAt = T0 + 1_000
+  const beat = () => parsePresence(w.text(paths.heartbeat(W1)), W1)?.seenAt
+
+  // Attached before this window, it delivers for the session while it is live.
+  w.beat(id, { writer: W2, attachedAt: T0 - HEARTBEAT_MS, seenAt })
+  await w.clock.set(seenAt + STALE_MS)
+
+  expect(w.state.board?.deliverer, 'live').toBe(W2)
+  expect(beat(), "this window's last beat, before it goes stale").toBe(T0 + 3 * HEARTBEAT_MS)
+
+  await w.clock.advance(WATCH_MS)
+
+  expect(w.state.board?.deliverer, 'stale').toBe(W1)
+  expect(beat(), 'no beat of its own since').toBe(T0 + 3 * HEARTBEAT_MS)
 })
 
 test('outside tmux, the heartbeat holds the device and the terminal, and no tmux', async ($, on) => {

@@ -159,8 +159,9 @@ const turnWithAsksAt = (asleep: Asleep, asks: readonly Ask[], now: number) => {
 /**
  * What Lee's snoozes hold at `now`, once every line is read: each ask they
  * hold is snoozed while its time is to come, `snoozedUntil`, and woken at
- * it once it has, `wokeAt`; with what the session carries of them. The
- * wall clock's instant, not a heartbeat's age: no pause holds it back.
+ * it once it has, `wokeAt`; with what the session carries of them, and when
+ * his snooze of the session set aside meanwhile runs out. The wall clock's
+ * instant, not a heartbeat's age: no pause holds it back.
  */
 export const standAsleep = (asleep: Asleep, asks: readonly Ask[], now: number) => {
   const session = sessionAt(asleep, asks, now)
@@ -181,6 +182,7 @@ export const standAsleep = (asleep: Asleep, asks: readonly Ask[], now: number) =
 
   return {
     snooze: session,
+    asideUntil: session === undefined ? asleep.session?.until : undefined,
     turnSnooze: turnAt(asleep, now),
     turnWithAsks: turnWithAsksAt(asleep, asks, now),
   }

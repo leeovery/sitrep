@@ -2023,7 +2023,8 @@ too"); since then the session does, its asks and its turn together (see
   files and nothing else, so the snooze folds with its session, the same in
   every reader, and Claude's view has it without a read more.
 - Being a line on disk, it outlives a reload of the mod, a new process and
-  the app's `watch` starting again: every reader folds it at every look.
+  the app's `watch` starting again: every reader reads it at every look,
+  and folds it again as the session's files change or as its time comes.
 - An old reader skips both kinds, as it skips any it does not know: a window
   not reloaded counts the session's asks on its band, and its Claude reads
   them waiting, until it reloads (`watch`'s `needsReload` lists it).
@@ -2064,7 +2065,10 @@ holds:
   from a window's message, which leaves no line at all. The fold sees it
   once every line is read, and the session reads as not snoozed, its asks
   all back in Needs you; answered again, that ask waits on Lee no more, and
-  the snooze holds the rest until its time.
+  the snooze holds the rest until its time. Its time coming while it is
+  set aside, it stands again, run out, its asks carrying when they woke: a
+  change by time alone that core's `nextFoldChange` counts too (the
+  session's `asideUntil`, 16 November 2026).
 - **Nothing else wakes it**: its turn ending, whether its window began it
   for Lee or on its own work, as background agents finishing do, unless he
   snoozed it until it moves (see "The row snoozes"); a window joining,
@@ -2776,8 +2780,9 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   only once its files changed, or once its own fold changes by time alone
   (core's `nextFoldChange`, 27 October 2026; the held one's too, at its
   watch's look, since 16 November 2026): as its part of the board does,
-  and as any snooze standing on it runs out, one over an ask Lee's
-  reply is on its way to, or in a finished session, among them. This is not
+  and as any snooze standing on it runs out, one over an ask Lee's reply is
+  on its way to, or in a finished session, among them, and one an ask it
+  does not hold sets aside. This is not
   `watch`'s rule, which folds every session again as the board changes (see
   "Expiry") and stands for what it prints; a window shares whole folds, its
   `others` and the first message's listing among them, where a snooze the

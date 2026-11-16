@@ -322,10 +322,18 @@ export const nextBoardChange = (session: Session, now: number) =>
  * changed: as its part of the board changes, and as Lee's snooze standing
  * on its asks runs out. That counts the snoozes the board leaves out: over an
  * ask Lee's reply is on its way to, or in a finished session, an ask still
- * goes from `snoozedUntil` to `wokeAt`. Undefined while none will.
+ * goes from `snoozedUntil` to `wokeAt`; and his snooze of the session set
+ * aside, which stands again as it runs out. Undefined while none will.
  */
 export const nextFoldChange = (session: Session, now: number) =>
-  earliestAfter([nextBoardChange(session, now), ...session.asks.map(ask => ask.snoozedUntil)], now)
+  earliestAfter(
+    [
+      nextBoardChange(session, now),
+      ...session.asks.map(ask => ask.snoozedUntil),
+      session.asideUntil,
+    ],
+    now,
+  )
 
 /**
  * When the board next changes by time alone, after `now`: the earliest any

@@ -20,21 +20,7 @@ import { C } from '../hooks/look'
 import { WATCH_MS } from '../hooks/window'
 import type { SitrepAttachment } from '../types'
 import { rowsOf } from './drawn'
-import {
-  CLI,
-  CLOSES,
-  GO,
-  META,
-  MIN,
-  PROJECT,
-  REST_MS,
-  REVIEW,
-  ROOT,
-  SENDER,
-  THEMES,
-  W1,
-  W2,
-} from './data'
+import { CLI, CLOSES, GO, META, MIN, PROJECT, REVIEW, ROOT, SENDER, THEMES, W1, W2 } from './data'
 import { delivered, file, note, reply, snoozeSession, wakeSession, yesAsk } from './lines'
 import {
   asked,
@@ -65,6 +51,9 @@ const MINE = sessionPaths(ROOT, PROJECT.key, THEMES.id).log(W1)
 /** The world at Friday 14:00. */
 const fridayWorld = ($: Parameters<typeof world>[0], on: Parameters<typeof world>[1]) =>
   world($, on, { now: FRIDAY })
+
+/** Long enough for a new ask's pulse to run out, ASKS' heading back on its counts. */
+const REST_MS = 5_000
 
 /**
  * A session begun with an ask posted, which the board opens as new, and a

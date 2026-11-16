@@ -448,6 +448,8 @@ export type Session = {
   finished?: Finished
   /** Lee's latest snooze of the session, until a line wakes it, and none while an ask it does not hold waits on Lee: it holds while its time is to come (`snoozedUntilOf`). */
   snooze?: SessionSnooze
+  /** When Lee's latest snooze of the session runs out, while an ask it does not hold waits on Lee and sets it aside: then it stands again, run out, its asks woken. */
+  asideUntil?: number
   /** Lee's latest snooze of its turn, from an old line, until a line wakes it: whether it holds at a moment is the rows' to say. */
   turnSnooze?: TurnSnooze
   /** From old lines' snoozes of asks, holding every ask waiting on Lee: when the first of them wakes, the turn with it; none once one has woken or ended. */
