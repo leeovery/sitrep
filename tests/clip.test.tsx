@@ -665,7 +665,7 @@ test(
     await ui.press({ key: 'send' })
     expect(await topOf(ui), 'sent').toBe(6)
 
-    await w.call('ask', { wants: 'yes', yes: 'Go', title: 'Give the go for stage 3' })
+    await w.call('ask', { wants: 'yes', yes: 'Go', title: 'Give the ok for phase 3' })
     expect(await topOf(ui), 'a new ask').toBe(6)
 
     await w.clock.advance(MIN)

@@ -537,7 +537,7 @@ test('a post is a line at the next look, its board carried; a new ask is new on 
 })
 
 test("an answer going into the session's inbox is a line, its ask on its way, needing Lee no more, and its board carried; the window's mark is another, the ask gone", async () => {
-  const { t, paths } = held([[T0, yesAsk('k1', 'Give the go for stage 3', 'Go')]])
+  const { t, paths } = held([[T0, yesAsk('k1', 'Give the ok for phase 3', 'Go')]])
 
   follow(t, META.id)
 

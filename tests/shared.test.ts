@@ -109,7 +109,7 @@ test("the CLI's answer goes in from the session's window as Lee's own message, o
   const w = world($, on)
   const { paths, cli } = await begun(w)
   const asked = postedId(
-    await w.call('ask', { wants: 'yes', yes: 'Go', title: 'Give the go for stage 3' }),
+    await w.call('ask', { wants: 'yes', yes: 'Go', title: 'Give the ok for phase 3' }),
   )
 
   await w.clock.advance(MIN)
@@ -123,7 +123,7 @@ test("the CLI's answer goes in from the session's window as Lee's own message, o
 
   expect(w.prompts).toEqual([
     {
-      text: `From the board:\n- Give the go for stage 3 → Go${CLOSES}`,
+      text: `From the board:\n- Give the ok for phase 3 → Go${CLOSES}`,
       origin: FROM_THE_BOARD,
       context: undefined,
     },

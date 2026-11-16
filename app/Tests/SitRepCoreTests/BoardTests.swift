@@ -69,7 +69,7 @@ struct BoardTests {
         #expect(board.rows.map(\.isAway) == [false, false, true, false, false, false])
         #expect(lines[0] == ["ask:sr-4t2kq8:k1", "ask:sr-4t2kq8:k2", "ask:sr-4t2kq8:k3"])
         #expect(board.rows[0].lines.map(\.first.lead) == [
-            "Approve the first change set from the branch review", "Choose how the release notes are grouped",
+            "Approve the first copy edit for the landing page", "Choose how the release notes are grouped",
             "Paste the failing test's output",
         ])
         #expect(board.rows[0].lines.map(\.since) == board.rows[0].lines.map(\.since).sorted())

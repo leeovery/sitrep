@@ -55,7 +55,7 @@ const FRIDAY = local(2026, 10, 23, 14)
 
 const REVIEW = { wants: 'yes', yes: 'Approve', title: 'Review Tickets & Replies, round 1' }
 
-const GO = { wants: 'yes', yes: 'Go', title: 'Give the go for stage 3' }
+const GO = { wants: 'yes', yes: 'Go', title: 'Give the ok for phase 3' }
 
 const LEDGER = { wants: 'yes', yes: 'Keep', title: 'Keep the ledger forever' }
 
@@ -577,7 +577,7 @@ test('asks their time wakes together make one toast, naming the latest', async (
   await w.clock.advance(WATCH_MS)
   await w.clock.advance(2 * WATCH_MS)
 
-  expect(w.toasts.at(-1)).toBe('◆ 2 back from snooze, the latest: Give the go for stage 3')
+  expect(w.toasts.at(-1)).toBe('◆ 2 back from snooze, the latest: Give the ok for phase 3')
   expect(w.state.pulse?.asks).toEqual([id, go])
   expect(w.state.pane?.selected).toBe(w.item(go))
 })

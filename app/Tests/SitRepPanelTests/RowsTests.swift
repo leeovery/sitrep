@@ -11,7 +11,7 @@ struct RowsTests {
         lines: [
             Session.Line(title: "Which branch?", more: "+1", since: 120 * minute),
             Session.Line(title: "Choose the release notes' grouping", since: 60 * minute),
-            Session.Line(title: "Approve the first change set", since: 0),
+            Session.Line(title: "Approve the first copy edit", since: 0),
         ],
         sub: "Tailspin"
     )

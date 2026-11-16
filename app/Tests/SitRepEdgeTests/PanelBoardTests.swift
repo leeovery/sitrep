@@ -45,7 +45,7 @@ struct PanelBoardTests {
         #expect(tailspin.id == "sr-4t2kq8")
         #expect(tailspin.kind == .needs)
         #expect(tailspin.lines.map(\.title) == [
-            "Approve the first change set from the branch review", "Choose how the release notes are grouped",
+            "Approve the first copy edit for the landing page", "Choose how the release notes are grouped",
             "Paste the failing test's output",
         ])
         #expect(tailspin.lines.map(\.since) == line.rows[0].lines.map { $0.since.timeIntervalSince1970 * 1000 })

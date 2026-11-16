@@ -66,7 +66,7 @@ const EVERY_KIND: Body[] = [
     note: 'Storage is cheap',
   },
   { type: 'delivered', replies: ['r7x2'] },
-  { type: 'ask', id: 'g0g0', wants: 'yes', yes: 'Go', title: 'Give the go for stage 3' },
+  { type: 'ask', id: 'g0g0', wants: 'yes', yes: 'Go', title: 'Give the ok for phase 3' },
   {
     type: 'ask',
     id: 'w0rd',

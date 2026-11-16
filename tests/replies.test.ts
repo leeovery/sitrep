@@ -63,7 +63,7 @@ const POSTED: Line[] = [REVIEW, DECIDE, TRY, DO, PARKED].map(body => [T0, body])
 
 /** An ask wanting words, and one wanting a yes, for the shapes' own rules. */
 const WORDS = wordsAsk('k5', 'Run sitrep list and paste what it prints', "the command's output")
-const GO = yesAsk('k6', 'Give the go for stage 3', 'Go')
+const GO = yesAsk('k6', 'Give the ok for phase 3', 'Go')
 
 const SHAPED: Line[] = [WORDS, GO, DECIDE].map(body => [T0, body])
 

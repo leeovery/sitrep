@@ -68,13 +68,17 @@ public struct RealNames: Sendable {
 
     private static let allowPrefix = "allow "
 
+    /// The byte order marks that open UTF-16 text, little-endian, then big.
+    private static let utf16Marks: [[UInt8]] = [[0xFF, 0xFE], [0xFE, 0xFF]]
+
     public let names: [String]
     public let allows: Set<Allow>
     private let patterns: [(name: String, pattern: NSRegularExpression)]
 
     /// The list as written: a name a line, a line starting with `#` a comment, a blank one nothing, and
     /// `allow <path> <name>`, single spaces, its name the rest of the line, exempting every hit of the name in that
-    /// one file. Each line is read trimmed.
+    /// one file. Every line opening `allow` is read as one, so `allowance`, or `allow` and a tab, is malformed. Each
+    /// line is read trimmed.
     public init(_ list: String) throws {
         var names: [String] = []
         var allows: Set<Allow> = []
@@ -85,13 +89,8 @@ public struct RealNames: Sendable {
             if line.isEmpty || line.hasPrefix("#") {
                 continue
             }
-            if line == "allow" || line.hasPrefix(Self.allowPrefix) {
-                let parts = line.dropFirst(Self.allowPrefix.count)
-                    .split(separator: " ", maxSplits: 1, omittingEmptySubsequences: false)
-                guard parts.count == 2, !parts[0].isEmpty, !parts[1].isEmpty else {
-                    throw Unreadable.malformed(line: index + 1, line)
-                }
-                allows.insert(Allow(path: String(parts[0]), name: String(parts[1])))
+            if line.hasPrefix("allow") {
+                allows.insert(try Self.allow(line, at: index + 1))
             } else {
                 names.append(line)
             }
@@ -106,6 +105,18 @@ public struct RealNames: Sendable {
             let pattern = try! NSRegularExpression(pattern: "(?<![\\p{L}\\p{N}])\(escaped)(?![\\p{L}\\p{N}])")
             return (name, pattern)
         }
+    }
+
+    /// The allow a line opening `allow` must be: a path and a name after `allow `, single-spaced.
+    private static func allow(_ line: String, at number: Int) throws -> Allow {
+        let parts = line.hasPrefix(allowPrefix)
+            ? line.dropFirst(allowPrefix.count).split(separator: " ", maxSplits: 1, omittingEmptySubsequences: false)
+            : []
+        guard parts.count == 2, !parts[0].isEmpty, !parts[1].isEmpty else {
+            throw Unreadable.malformed(line: number, line)
+        }
+
+        return Allow(path: String(parts[0]), name: String(parts[1]))
     }
 
     /// The list in this checkout.
@@ -179,8 +190,10 @@ public struct RealNames: Sendable {
         return files.sorted { $0.0 < $1.0 }
     }
 
-    /// A file's text, nil for a binary file, one that holds a NUL; a file of neither throws.
+    /// A file's text, nil for a binary file, one that holds a NUL; a file of neither throws. UTF-16 text, which holds
+    /// NULs too, is told by its byte order mark, and throws; without one it reads as binary.
     private static func text(of data: Data, at path: String) throws -> String? {
+        guard !utf16Marks.contains(where: { data.starts(with: $0) }) else { throw Unreadable.notText(path: path) }
         guard !data.contains(0) else { return nil }
         guard let text = String(data: data, encoding: .utf8) else { throw Unreadable.notText(path: path) }
 

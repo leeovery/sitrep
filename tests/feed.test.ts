@@ -250,8 +250,8 @@ test("a session with an ask is a row in Needs you, the ask a line of it, its tit
 test("a session with several asks is one row, a line for each, the newest first; the row's time is its newest line's", () => {
   const session = sessionOf({
     lines: [
-      [T0 + 3 * MIN, yesAsk('k3', 'Approve the second fix batch')],
-      [T0 + MIN, yesAsk('k1', 'Approve the first fix batch')],
+      [T0 + 3 * MIN, yesAsk('k3', 'Approve the second copy edit')],
+      [T0 + MIN, yesAsk('k1', 'Approve the first copy edit')],
       [T0 + 2 * MIN, yesAsk('k2', 'Choose the release branch')],
     ],
     presence: windowOn(W1, working(T0)),
@@ -259,9 +259,9 @@ test("a session with several asks is one row, a line for each, the newest first;
   const row = rowFor(session, { key: 'fabrikam', name: 'Fabrikam' })
 
   expect(row?.lines.map(line => [line.key, line.first.lead, line.since])).toEqual([
-    [`ask:${META.id}:k3`, 'Approve the second fix batch', T0 + 3 * MIN],
+    [`ask:${META.id}:k3`, 'Approve the second copy edit', T0 + 3 * MIN],
     [`ask:${META.id}:k2`, 'Choose the release branch', T0 + 2 * MIN],
-    [`ask:${META.id}:k1`, 'Approve the first fix batch', T0 + MIN],
+    [`ask:${META.id}:k1`, 'Approve the first copy edit', T0 + MIN],
   ])
   expect(row).toMatchObject({
     session: META.id,

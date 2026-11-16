@@ -11,7 +11,7 @@ const REVIEW = {
   wants: 'yes',
   yes: 'Approve',
   title: 'Review Tickets & Replies, round 1',
-  where: 'In Paper: the help desk file, page "round 1", frames 1–6',
+  where: 'In Paper: the help desk file, page "draft 1", panels 1–6',
 }
 
 const DECIDE = {

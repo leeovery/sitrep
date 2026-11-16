@@ -118,7 +118,7 @@ async function asksAround(w: World) {
   ledger.write(yesAsk('k3', 'Review the ledger schema'))
   ledger.beat()
   await w.begin()
-  await w.call('ask', { wants: 'yes', yes: 'Go', title: 'Give the go for stage 3' })
+  await w.call('ask', { wants: 'yes', yes: 'Go', title: 'Give the ok for phase 3' })
 }
 
 /** Where the board looks, as kept. */
@@ -186,7 +186,7 @@ test("on a narrow board the first tab's name is cut short, and All projects keep
 
   await w.begin()
   await w.call('status', { name: 'Redesign the help desk, page by page' })
-  await w.call('ask', { wants: 'yes', yes: 'Go', title: 'Give the go for stage 3' })
+  await w.call('ask', { wants: 'yes', yes: 'Go', title: 'Give the ok for phase 3' })
 
   const narrow = { ...WIDE, bodyColumns: 42 }
   const ui = await w.opened(narrow)

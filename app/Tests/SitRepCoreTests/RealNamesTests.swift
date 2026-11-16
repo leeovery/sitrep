@@ -31,9 +31,19 @@ struct RealNamesTests {
         ])
     }
 
-    /// An allow is `allow`, its path and its name, each after one space; anything else so begun is no name but an
-    /// error, as is a list that names nothing.
-    @Test(arguments: ["allow", "allow app/Tests/A.swift", "allow app/Tests/A.swift ", "allow  app/Tests/A.swift Quokka"])
+    @Test func eachLineIsReadTrimmedOfSpacesAndTabsAndAnEndingReturn() throws {
+        let list = try RealNames("  Quokka \t\n\tBlue Lagoon  \n allow app/Tests/A.swift Quokka\t\r")
+
+        #expect(list.names == ["Quokka", "Blue Lagoon"])
+        #expect(list.allows == [RealNames.Allow(path: "app/Tests/A.swift", name: "Quokka")])
+    }
+
+    /// An allow is `allow`, its path and its name, each after one space; any other line opening `allow` is no name
+    /// but an error, as is a list that names nothing.
+    @Test(arguments: [
+        "allow", "allow app/Tests/A.swift", "allow app/Tests/A.swift ", "allow  app/Tests/A.swift Quokka",
+        "allow\tapp/Tests/A.swift Quokka", "allowance", "allowed app/Tests/A.swift Quokka",
+    ])
     func aMalformedAllowIsAnError(line: String) {
         let read = line.trimmingCharacters(in: .whitespaces)
 
@@ -108,20 +118,27 @@ struct RealNamesTests {
         ])
     }
 
-    /// No file goes unread unsaid: a folder the rule reads missing, a text file that isn't UTF-8, or a symlinked
-    /// folder is an error.
+    /// No file goes unread unsaid: a folder the rule reads missing, a text file that isn't UTF-8, UTF-16 by its byte
+    /// order mark though its NULs would read as binary, or a symlinked folder is an error.
     @Test func whatTheRuleCannotReadIsAnError() throws {
         let missing = try Self.checkout(["tests/a.test.ts"], suites: ["tests"])
         let latin = try Self.checkout([])
+        let little = try Self.checkout([])
+        let big = try Self.checkout([])
         let linked = try Self.checkout([])
 
         try Data([0x51, 0xE9, 0x0A]).write(to: latin.folder.appending(path: "tests/latin.txt"))
+        try (Data([0xFF, 0xFE]) + "Quokka\n".data(using: .utf16LittleEndian)!)
+            .write(to: little.folder.appending(path: "tests/wide.txt"))
+        try (Data([0xFE, 0xFF]) + "Quokka\n".data(using: .utf16BigEndian)!).write(to: big.folder.appending(path: "tests/wide.txt"))
         try FileManager.default.createSymbolicLink(
             at: linked.folder.appending(path: "app/Tests/Elsewhere"), withDestinationURL: linked.folder.appending(path: "tests")
         )
 
         #expect(throws: RealNames.Unreadable.missing(folder: "app/Tests")) { try Self.list.scan(under: missing.folder) }
         #expect(throws: RealNames.Unreadable.notText(path: "tests/latin.txt")) { try Self.list.scan(under: latin.folder) }
+        #expect(throws: RealNames.Unreadable.notText(path: "tests/wide.txt")) { try Self.list.scan(under: little.folder) }
+        #expect(throws: RealNames.Unreadable.notText(path: "tests/wide.txt")) { try Self.list.scan(under: big.folder) }
         #expect(throws: RealNames.Unreadable.symlinkedFolder(path: "app/Tests/Elsewhere")) {
             try Self.list.scan(under: linked.folder)
         }

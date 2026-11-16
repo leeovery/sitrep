@@ -44,7 +44,7 @@ struct StripWordsLayerTests {
         let name = "Finish the Tailspin migration"
         let three = Session(
             id: "h", project: "Tailspin", name: name, kind: .needs,
-            lines: ["Approve the first change set", "Choose", "Paste"].enumerated().map {
+            lines: ["Approve the first copy edit", "Choose", "Paste"].enumerated().map {
                 Session.Line(title: $1, since: Double($0))
             },
             sub: "Tailspin"

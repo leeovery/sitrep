@@ -335,7 +335,7 @@ test("resolving what Lee closed, an ask he answered or ignored, a parked item he
   const post = async (args: Record<string, unknown>) => postedId(await w.call('ask', args))
   const answered = await post({ wants: 'yes', yes: 'Approve', title: 'Review round 1' })
   const ignored = await post({ wants: 'yes', yes: 'Done', title: 'Run the apply' })
-  const commented = await post({ wants: 'yes', yes: 'Go', title: 'Give the go for stage 3' })
+  const commented = await post({ wants: 'yes', yes: 'Go', title: 'Give the ok for phase 3' })
   const coming = await post({ wants: 'yes', yes: 'Approve', title: 'Review round 2' })
   const parked = postedId(await w.call('park', { title: 'Look at the glance again' }))
 

@@ -36,7 +36,7 @@ const SESSION = ['--session', META.id]
 
 /** The session's window posted an ask of every shape, a note and a parked item. */
 const POSTED: Line[] = [
-  [T0, yesAsk('k1', 'Give the go for stage 3', 'Go')],
+  [T0, yesAsk('k1', 'Give the ok for phase 3', 'Go')],
   [T0, choiceAsk('k2', 'Keep the sidebar, or drop it?', ['Keep it', 'Drop it'])],
   [T0, wordsAsk('k3', 'Run the export', "the command's output")],
   [T0, note('n1', 'Merged')],

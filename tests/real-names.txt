@@ -29,7 +29,9 @@
 #   entry unlisted, its file missing, or no hit left in it) fails, as does a
 #   line starting `allow` that isn't one, and a list that names nothing.
 # - Failing: a hit is told as path:line: entry, and a text file that isn't
-#   UTF-8, or a symlinked folder, fails rather than going unread.
+#   UTF-8, or a symlinked folder, fails rather than going unread. A file
+#   holding a NUL is binary and goes unread, but for UTF-16 opening with its
+#   byte order mark, which fails as text that isn't UTF-8.
 #
 # The format: one entry per line, read trimmed; a line starting with # is a
 # comment, and a blank line is nothing.
