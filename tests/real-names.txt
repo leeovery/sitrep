@@ -1,8 +1,14 @@
 # Names no test may use: Lee's real projects, his GitHub name, and ids of
 # his real sessions and project folders. Samples use placeholders instead:
 # Microsoft's fictional companies (Northwind, Contoso, Fabrikam, Tailspin,
-# Woodgrove, Litware, Wingtip, Adventure Works, Proseware, Blue Yonder) and
-# made-up ids.
+# Woodgrove, Litware, Wingtip, Adventure Works, Proseware, Blue Yonder, and
+# where more are needed Coho, Humongous, Lucerne, Relecloud, Southridge,
+# Alpine, Trey Research, Wide World Importers and VanArsdel, or trey where a
+# name must be lowercase), a home of /Users/me, and made-up ids.
+#
+# The TypeScript kit's tests can't read files, so the app's
+# app/Tests/SitRepCoreTests/RealNamesTests.swift applies the rule to both
+# suites, and the app's own samples are checked against the list too.
 #
 # Left out: names that are also words the product itself uses. Kit, Portal,
 # Mint, Harness, Fabric, Stitch, Folio and Terrace are listed as named, not
@@ -19,10 +25,16 @@
 #   quotes are boundaries: com.leeovery.sitrep is a hit of leeovery.
 # - Allow: a line `allow <path> <entry>` exempts every hit of <entry> in
 #   that one file, <path> from the repository's root, <entry> the rest of
-#   the line.
+#   the line, each after a single space. An allow that exempts nothing (its
+#   entry unlisted, its file missing, or no hit left in it) fails, as does a
+#   line starting `allow` that isn't one, and a list that names nothing.
+# - Failing: a hit is told as path:line: entry, and a text file that isn't
+#   UTF-8, or a symlinked folder, fails rather than going unread. A file
+#   holding a NUL is binary and goes unread, but for UTF-16 opening with its
+#   byte order mark, which fails as text that isn't UTF-8.
 #
-# The format: one entry per line; a line starting with # is a comment, and
-# a blank line is nothing.
+# The format: one entry per line, read trimmed; a line starting with # is a
+# comment, and a blank line is nothing.
 
 # Projects, as named
 Switchboard
@@ -58,6 +70,7 @@ leeway
 aircon
 fumi
 dotfiles
+agentic-workflows
 
 # Sessions
 sr-4g01a7
@@ -70,6 +83,16 @@ sr-j94s0e
 sr-50f7g8
 sr-wdsqvn
 sr-v1pwm9
+sr-dash02
+sr-macapp
+sr-gs7kq2
+sr-ledger
+sr-nwtrn5
+
+# Claude sessions, and a zmx session
+sitrep-iFpz7T
+408a755f-ed3a-4ee1-9cc0-c0208cf3e03b
+6c847b5b-722d-4343-88e0-42ece4662e7d
 
 # Project folders
 code-84dbac88
@@ -78,8 +101,59 @@ dotfiles-dd9378a2
 
 # Lee's own
 leeovery
+/Users/lee
 
 # Allowed: the product's own text, which names Switchboard as an example of
 # a project's name, asserted word for word.
 allow tests/claude.test.ts Switchboard
 allow tests/tools.test.ts Switchboard
+
+# Allowed: the app's own ids, which carry Lee's GitHub name: the domain of
+# its bundle and defaults, com.leeovery.sitrep, and sitrep's repository,
+# leeovery/sitrep, as the plugin's setup and Settings name it.
+allow app/Tests/SitRepTestSupport/MemoryDefaults.swift leeovery
+allow app/Tests/SitRepCoreTests/ClaudeFixtures.swift leeovery
+allow app/Tests/SitRepCoreTests/PluginCopiesTests.swift leeovery
+allow app/Tests/SitRepCoreTests/PluginPlanTests.swift leeovery
+allow app/Tests/SitRepMenuTests/SettingsRowsTests.swift leeovery
+
+# Allowed: Portal as a real program the jump meets, as Ghostty and tmux are,
+# its relaying pty proven live, and Lee's resume command through it as
+# DESIGN records it; never a sample's project.
+allow app/Tests/SitRepScreenTests/CarryOnTests.swift Portal
+allow app/Tests/SitRepScreenTests/Doubles.swift Portal
+allow app/Tests/SitRepScreenTests/HereTests.swift Portal
+allow app/Tests/SitRepScreenTests/OpenWindowTests.swift Portal
+allow app/Tests/SitRepScreenTests/ResumeCommandTests.swift Portal
+allow app/Tests/SitRepScreenTests/ZmxScreenTests.swift Portal
+
+# Allowed for now: the strip prototype's sessions, which the strip's
+# timelines were recorded from, its recorded tab widths keyed by their exact
+# words. The next slice renames them with a fresh recording, and removes
+# these allows; the test fails on any allow left that exempts nothing.
+allow app/Tests/SitRepPanelTests/StripLab.swift Agentic Skills
+allow app/Tests/SitRepPanelTests/StripLab.swift Agentic Workflows
+allow app/Tests/SitRepPanelTests/StripLab.swift Aircon
+allow app/Tests/SitRepPanelTests/StripLab.swift DocMan
+allow app/Tests/SitRepPanelTests/StripLab.swift Dotfiles
+allow app/Tests/SitRepPanelTests/StripLab.swift Fabric
+allow app/Tests/SitRepPanelTests/StripLab.swift Fumi
+allow app/Tests/SitRepPanelTests/StripLab.swift Goosemates
+allow app/Tests/SitRepPanelTests/StripLab.swift Kit
+allow app/Tests/SitRepPanelTests/StripLab.swift Mint
+allow app/Tests/SitRepPanelTests/StripLab.swift Switchboard
+allow app/Tests/SitRepPanelTests/StripLab.swift Terrace
+allow app/Tests/SitRepPanelTests/StripLab.swift Turnstile
+allow app/Tests/SitRepPanelTests/StripLab.swift agntc
+allow app/Tests/SitRepPanelTests/StripLab.swift dotfiles
+allow app/Tests/SitRepPanelTests/StripRecording.swift Agentic Workflows
+allow app/Tests/SitRepPanelTests/StripRecording.swift Aircon
+allow app/Tests/SitRepPanelTests/StripRecording.swift DocMan
+allow app/Tests/SitRepPanelTests/StripRecording.swift Fabric
+allow app/Tests/SitRepPanelTests/StripRecording.swift Fumi
+allow app/Tests/SitRepPanelTests/StripRecording.swift Goosemates
+allow app/Tests/SitRepPanelTests/StripRecording.swift Kit
+allow app/Tests/SitRepPanelTests/StripRecording.swift Mint
+allow app/Tests/SitRepPanelTests/StripRecording.swift Switchboard
+allow app/Tests/SitRepPanelTests/StripRecording.swift Terrace
+allow app/Tests/SitRepPanelTests/StripRecording.swift Turnstile

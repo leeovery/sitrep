@@ -12,9 +12,9 @@ import { MIN, T0, W1, W2 } from './data'
 import { fold } from './lines'
 
 const IN_TMUX: Where = {
-  device: '/dev/ttys043',
+  device: '/dev/ttys004',
   terminal: 'tmux',
-  tmux: { socket: '/private/tmp/tmux-501/default', pane: '%148' },
+  tmux: { socket: '/private/tmp/tmux-501/default', pane: '%12' },
 }
 
 const IN_GHOSTTY: Where = { device: '/dev/ttys041', terminal: 'ghostty' }

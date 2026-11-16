@@ -86,12 +86,12 @@ struct JumpAppsTests {
         jumping.clock.pass(.seconds(2))
 
         #expect(await jumped.value == .jumped)
-        #expect(jumping.ghostty.focused == ["SWITCHBOARD-TERMINAL"])
+        #expect(jumping.ghostty.focused == ["WOODGROVE-TERMINAL"])
     }
 
     @Test func aTmuxClientUnderITerm2sServerOutsideItsBundleIsITerm2sBroughtForwardByItsBundleOnceFoundRunning() async {
         var mac = Mac()
-        let iTermServer = mac.tree.app("/Users/lee/Library/Application Support/iTerm2/iTermServer-3.5.4")
+        let iTermServer = mac.tree.app("/Users/me/Library/Application Support/iTerm2/iTermServer-3.5.4")
         let client = mac.tree.tmux(under: mac.tree.window(of: iTermServer, on: JumpWorld.window), on: JumpWorld.window)
         let jumping = Jumping(
             server([FakeClient(device: JumpWorld.window, pid: client, window: JumpWorld.claudes)]), FakeTable(mac.tree),
@@ -106,11 +106,11 @@ struct JumpAppsTests {
     @Test func aZmxClientInATerminalAppWithNoDriverBringsThatAppForwardByItsPath() async {
         var mac = Mac()
 
-        mac.zmxInTerminal("kit", on: "/dev/ttys030")
+        mac.zmxInTerminal("litware", on: "/dev/ttys030")
 
         let jumping = Jumping(FakeTmux(), FakeTable(mac.tree), workspace: FakeWorkspace(at: [JumpWorld.terminalApp]))
 
-        #expect(await jumping.run([inZmx("kit")]) == .jumped)
+        #expect(await jumping.run([inZmx("litware")]) == .jumped)
         #expect(jumping.workspace.brought == [atPath(JumpWorld.terminalApp).absoluteString])
         #expect(jumping.ghostty.asked.isEmpty)
     }

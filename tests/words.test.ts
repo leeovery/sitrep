@@ -20,7 +20,7 @@ const OUTPUT = "the command's output"
 
 const EXPORT = wordsAsk('k1', 'Run the export', OUTPUT)
 const FEEDBACK = wordsAsk('k2', 'Say how round 2 reads')
-const GO = yesAsk('k3', 'Give the go for stage 3', 'Go')
+const GO = yesAsk('k3', 'Give the ok for phase 3', 'Go')
 const FRAMES = choiceAsk('k4', 'Ship round 2, or redraw?', ['Ship it', 'Redraw'])
 const OLD = kindAsk('k5', 'do', 'Run the apply', { needs: OUTPUT })
 const PARKED = park('p1', 'A priority badge')
@@ -134,8 +134,8 @@ test("Lee's message gives an answer under what its words are, a yes in its butto
       '  This closes the ask: nothing more to do with it.',
       '- Say how round 2 reads → answer: “It reads well”',
       '  This closes the ask: nothing more to do with it.',
-      '- Give the go for stage 3 → Go',
-      '- Give the go for stage 3 → Go, with a comment: “After the copy pass”',
+      '- Give the ok for phase 3 → Go',
+      '- Give the ok for phase 3 → Go, with a comment: “After the copy pass”',
       '  This closes the ask: nothing more to do with it.',
       '- Ship round 2, or redraw? → Redraw, with a comment: “Frames 2 and 5”',
       '  This closes the ask: nothing more to do with it.',
@@ -164,12 +164,12 @@ test('words of several lines arrive fenced under their reply, every line kept; t
       '    exported 42 rows',
       '  ```',
       '  This closes the ask: nothing more to do with it.',
-      '- Give the go for stage 3 → comment:',
+      '- Give the ok for phase 3 → comment:',
       '  ```',
       '  Thinner bars',
       '  and a lighter grey',
       '  ```',
-      '- Give the go for stage 3 → Go, with a comment:',
+      '- Give the ok for phase 3 → Go, with a comment:',
       '  ```',
       '  Ship it',
       '  after the copy pass',
@@ -220,7 +220,7 @@ test('the board text tells Claude what each open ask wants back, a yes by its wo
     [
       `- k1 wants words, waiting on Lee: Run the export; needs: ${OUTPUT}`,
       '- k2 wants words, waiting on Lee: Say how round 2 reads',
-      '- k3 wants a yes (Go), waiting on Lee: Give the go for stage 3',
+      '- k3 wants a yes (Go), waiting on Lee: Give the ok for phase 3',
       '- k4 wants a choice, waiting on Lee: Ship round 2, or redraw?; options: Ship it | Redraw',
       `- k5 wants words, waiting on Lee: Run the apply; needs: ${OUTPUT}`,
     ].join('\n'),

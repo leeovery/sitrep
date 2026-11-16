@@ -7,7 +7,7 @@ import Testing
 /// process table, and tmux where a window runs in it; never by the heartbeat's `$TERM_PROGRAM`; unknown where what was
 /// asked gave no answer.
 struct HereTests {
-    private static let portals = "sitrep-iFpz7T"
+    private static let portals = "proseware-Qm4tZ8"
 
     /// Whether the session the windows hold is here, read through tmux and the table given.
     private static func here(_ windows: [Where], _ tmux: FakeTmux = FakeTmux(), _ table: FakeTable) async -> Here {
@@ -16,7 +16,7 @@ struct HereTests {
 
     /// A Claude outside any multiplexer on the device, under the shell given.
     private static func claude(under shell: pid_t, on device: String, in tree: inout Tree) {
-        tree.add(under: shell, "/Users/lee/.local/share/claude/versions/2.1.322", on: device)
+        tree.add(under: shell, "/Users/me/.local/share/claude/versions/2.1.322", on: device)
     }
 
     // MARK: Outside a multiplexer

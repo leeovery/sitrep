@@ -120,7 +120,7 @@ test("the CLI's answer goes in from the session's window as Lee's own message, o
 
   expect(w.prompts).toEqual([
     {
-      text: `From the board:\n- Give the go for stage 3 → Go${CLOSES}`,
+      text: `From the board:\n- Give the ok for phase 3 → Go${CLOSES}`,
       origin: FROM_THE_BOARD,
       context: undefined,
     },

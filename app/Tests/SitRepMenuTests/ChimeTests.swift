@@ -4,7 +4,7 @@ import Testing
 
 /// The sound a board plays: Lee's chosen one, once for the asks new on it, while his switch is on.
 struct ChimeTests {
-    private static let newAsk = Watched.line(new: ["ask:sr-ledger:k1"])
+    private static let newAsk = Watched.line(new: ["ask:sr-l5c9tz:k1"])
     /// A board after the run's first, with the ask new on it.
     private static let asked = heard([.line(Watched.line(rows: [])), .line(newAsk)])
 
@@ -21,7 +21,7 @@ struct ChimeTests {
     }
 
     @Test func severalNewAsksOnOneBoardPlayItOnce() {
-        let both = heard([.line(Watched.line(rows: [])), .line(Watched.line(new: ["ask:sr-ledger:k1", "ask:sr-plan:k2"]))])
+        let both = heard([.line(Watched.line(rows: [])), .line(Watched.line(new: ["ask:sr-l5c9tz:k1", "ask:sr-plan:k2"]))])
 
         #expect(Chime.due(both, Self.chosen()) == "Glass")
     }

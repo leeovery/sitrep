@@ -26,7 +26,7 @@ struct NotchControllerTests {
         )
         let since = Int(midnight) - 30_000
         let turn = WatchLine.Row(
-            session: "sr-a", name: "The Mac app", projectName: "SitRep",
+            session: "sr-a", name: "The desktop app", projectName: "Trey Research",
             lines: [.init("turn:sr-a", .yourTurn, first: "Your turn", since: since)]
         )
         var last = LastBoard()

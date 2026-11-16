@@ -39,7 +39,7 @@ struct AppsTests {
 
     @Test func iTerm2sServerOutsideItsBundleIsITerm2s() {
         #expect(
-            TerminalApp(path: "/Users/lee/Library/Application Support/iTerm2/iTermServer-3.5.4")
+            TerminalApp(path: "/Users/me/Library/Application Support/iTerm2/iTermServer-3.5.4")
                 == .bundled(name: "iTerm2", bundles: ["com.googlecode.iterm2"])
         )
     }

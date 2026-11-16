@@ -19,17 +19,17 @@ struct BoardTests {
         let rows = try Board.read(Lines.pretty).rows
         let lines = rows.map(\.newest)
 
-        #expect(rows.map(\.id) == ["sr-7e68fj", "sr-y4d0qj", "sr-aw3bgs"])
+        #expect(rows.map(\.id) == ["sr-7p4wd2", "sr-y6m1pr", "sr-a8n2xc"])
         #expect(rows.map(\.section) == [.needsYou, .needsYou, .yourTurn])
         #expect(rows.map(\.needsLee) == [true, true, false])
         #expect(lines.map(\.id) == [
-            "ask:sr-7e68fj:k1hs",
-            "stop:sr-y4d0qj:6c847b5b-722d-4343-88e0-42ece4662e7d:1792445500000",
-            "turn:sr-aw3bgs",
+            "ask:sr-7p4wd2:k1hs",
+            "stop:sr-y6m1pr:00000000-0000-4000-8000-000000000002:1792445500000",
+            "turn:sr-a8n2xc",
         ])
         #expect(lines.map(\.kind) == [.ask, .permission, .yourTurn])
         #expect(lines.map(\.ask) == ["k1hs", nil, nil])
-        #expect(lines.map(\.writer) == [nil, "6c847b5b-722d-4343-88e0-42ece4662e7d", "408a755f-ed3a-4ee1-9cc0-c0208cf3e03b"])
+        #expect(lines.map(\.writer) == [nil, "00000000-0000-4000-8000-000000000002", "00000000-0000-4000-8000-000000000001"])
     }
 
     @Test func aRowsLineComesInItsPartsThenTheRowsSecondAndItsTime() throws {
@@ -37,11 +37,11 @@ struct BoardTests {
 
         #expect(stop.lines.map(\.first) == [Board.Row.Words(lead: "Allow Bash", mono: "gh pr create", more: nil)])
         #expect(stop.newest.since == at(1_792_445_500_000))
-        #expect(stop.second == "Switchboard · Dashboard memory and snags")
+        #expect(stop.second == "Woodgrove · Report caching and snags")
         #expect(stop.since == at(1_792_445_500_000))
-        #expect(stop.letters == "Sw")
-        #expect(stop.project == "switchboard-7a75d7ba")
-        #expect(stop.session == "sr-y4d0qj")
+        #expect(stop.letters == "Wo")
+        #expect(stop.project == "woodgrove-5c3e91f0")
+        #expect(stop.session == "sr-y6m1pr")
         #expect(!stop.isAway)
     }
 
@@ -51,30 +51,30 @@ struct BoardTests {
         let rows = try Board.read(Lines.pretty).rows
         let byName = try Board.read(Lines.bySession[0]).rows
 
-        #expect(rows.map(\.name) == ["Plan the tool", "Dashboard memory and snags", "Build the Mac app"])
-        #expect(rows.map(\.projectName) == ["Terrace", "Switchboard", "SitRep"])
-        #expect(byName[2].isAway && byName[2].name == "Onboarding" && byName[2].projectName == "Goosemates")
+        #expect(rows.map(\.name) == ["Plan the launch", "Report caching and snags", "Build the desktop app"])
+        #expect(rows.map(\.projectName) == ["Humongous", "Woodgrove", "Trey Research"])
+        #expect(byName[2].isAway && byName[2].name == "Onboarding" && byName[2].projectName == "Lucerne")
         #expect(byName[2].second == "No window holds it. Carry it on in Claude.")
     }
 
-    /// The real CLI's lines (`Lines.bySession`): Harness's three asks one row, the oldest first; Switchboard's ask and
-    /// its window's permission prompt another; Goosemates' away row last in Needs you; then Working, the Mac app's
-    /// turn running before Kit's on its own work; then Fumi's turn.
+    /// The real CLI's lines (`Lines.bySession`): Tailspin's three asks one row, the oldest first; Woodgrove's ask and
+    /// its window's permission prompt another; Lucerne's away row last in Needs you; then Working, the desktop app's
+    /// turn running before Litware's on its own work; then Wingtip's turn.
     @Test func aSessionWithSeveralLinesWaitingIsOneRowOfThemTheOldestFirst() throws {
         let board = try Board.read(Lines.bySession[0])
         let lines = board.rows.map { $0.lines.map(\.id) }
 
-        #expect(board.rows.map(\.id) == ["sr-4g01a7", "sr-dash02", "sr-gs7kq2", "sr-macapp", "sr-k7bt2s", "sr-v3t7a0"])
+        #expect(board.rows.map(\.id) == ["sr-4t2kq8", "sr-d6k1vt", "sr-g2r8mw", "sr-m4h6qe", "sr-k7bt2s", "sr-v9d2wj"])
         #expect(board.rows.map(\.section) == [.needsYou, .needsYou, .needsYou, .working, .working, .yourTurn])
         #expect(board.rows.map(\.isAway) == [false, false, true, false, false, false])
-        #expect(lines[0] == ["ask:sr-4g01a7:k1", "ask:sr-4g01a7:k2", "ask:sr-4g01a7:k3"])
+        #expect(lines[0] == ["ask:sr-4t2kq8:k1", "ask:sr-4t2kq8:k2", "ask:sr-4t2kq8:k3"])
         #expect(board.rows[0].lines.map(\.first.lead) == [
-            "Approve the first fix batch from the branch review", "Choose how the release notes are grouped",
+            "Approve the first copy edit for the landing page", "Choose how the release notes are grouped",
             "Paste the failing test's output",
         ])
         #expect(board.rows[0].lines.map(\.since) == board.rows[0].lines.map(\.since).sorted())
         #expect(board.rows[0].since == board.rows[0].newest.since)
-        #expect(board.rows[0].second == "Harness · Finish the Harness modernisation")
+        #expect(board.rows[0].second == "Tailspin · Finish the Tailspin migration")
         #expect(board.rows[1].lines.map(\.kind) == [.ask, .permission])
         #expect(board.rows[1].lines.map(\.first.mono) == [nil, "gh pr create --draft"])
         #expect(board.rows[4].newest.kind == .onItsWork)
@@ -82,7 +82,7 @@ struct BoardTests {
         #expect(board.head.sessions == 6)
     }
 
-    /// The second line: a fourth ask posted into Harness's session, new on it, its row gaining it as its newest line.
+    /// The second line: a fourth ask posted into Tailspin's session, new on it, its row gaining it as its newest line.
     @Test func aLineNewOnTheBoardNamesItsRowAsNew() throws {
         let before = try Board.read(Lines.bySession[0])
         let after = try Board.read(Lines.bySession[1])
@@ -91,17 +91,17 @@ struct BoardTests {
         #expect(after.new.count == 1)
         #expect(after.rows[0].lines.last?.id == after.new.first)
         #expect(after.rows[0].lines.count == 4)
-        #expect(after.newRows == ["sr-4g01a7"])
+        #expect(after.newRows == ["sr-4t2kq8"])
         #expect(after.head.needYou == 7)
     }
 
     @Test func theWindowsSayWhereTheyAreWhatTheyAreDoingAndWhetherTheyNeedAReload() throws {
         let windows = try Board.read(Lines.pretty).windows
 
-        #expect(windows.map(\.id) == ["408a755f-ed3a-4ee1-9cc0-c0208cf3e03b", "6c847b5b-722d-4343-88e0-42ece4662e7d"])
+        #expect(windows.map(\.id) == ["00000000-0000-4000-8000-000000000001", "00000000-0000-4000-8000-000000000002"])
         #expect(windows.map(\.version) == [nil, "0.1.0"])
         #expect(windows.map(\.needsReload) == [true, false])
-        #expect(windows.first?.where?.tmux == Board.Window.Where.Tmux(socket: "/private/tmp/tmux-501/default", pane: "%148"))
+        #expect(windows.first?.where?.tmux == Board.Window.Where.Tmux(socket: "/private/tmp/tmux-501/default", pane: "%12"))
         #expect(windows.last?.where?.tmux == nil)
         #expect(windows.map(\.where?.zmx) == [nil, nil], "lines from before windows said their zmx session")
         #expect(windows.first?.state == nil)
@@ -115,11 +115,11 @@ struct BoardTests {
 
     @Test func aWindowInZmxSaysItsSessionWhole() throws {
         let printed = #"""
-        {"device":"/dev/ttys087","terminal":"ghostty","tmux":null,"zmx":{"session":"kit · restore-card"}}
+        {"device":"/dev/ttys087","terminal":"ghostty","tmux":null,"zmx":{"session":"litware · restore-card"}}
         """#
         let decoded = try JSONDecoder().decode(Board.Window.Where.self, from: Data(printed.utf8))
 
-        #expect(decoded == Board.Window.Where(device: "/dev/ttys087", terminal: "ghostty", zmx: .init(session: "kit · restore-card")))
+        #expect(decoded == Board.Window.Where(device: "/dev/ttys087", terminal: "ghostty", zmx: .init(session: "litware · restore-card")))
     }
 
     /// A window of a line: its writer, its session, its place in the jump's order, the device of its own Ghostty
@@ -128,7 +128,7 @@ struct BoardTests {
         _ writer: String, of session: String, order: Int?, on device: String?, in folder: String? = nil
     ) -> WatchLine.Window {
         WatchLine.Window(
-            writer: writer, session: session, name: "Fumi", project: "Fumi",
+            writer: writer, session: session, name: "Wingtip", project: "Wingtip",
             where: device.map { WatchLine.Where(device: $0) }, directory: folder, attachedAt: 1_792_445_500_000,
             jumpOrder: order
         )
@@ -153,10 +153,10 @@ struct BoardTests {
             Self.window("w1", of: "sr-a", order: 1, on: "/dev/ttys041"),
             Self.window("w2", of: "sr-b", order: 0, on: "/dev/ttys042"),
             Self.window("w3", of: "sr-a", order: nil, on: nil),
-            Self.window("w4", of: "sr-a", order: 0, on: "/dev/ttys043"),
+            Self.window("w4", of: "sr-a", order: 0, on: "/dev/ttys004"),
         ])
 
-        #expect(board.jumpWindows(of: "sr-a").map(\.device) == ["/dev/ttys043", "/dev/ttys041"])
+        #expect(board.jumpWindows(of: "sr-a").map(\.device) == ["/dev/ttys004", "/dev/ttys041"])
         #expect(board.jumpWindows(of: "sr-z").isEmpty)
     }
 
@@ -166,10 +166,10 @@ struct BoardTests {
             Self.window("w1", of: "sr-a", order: nil, on: "/dev/ttys041"),
             Self.window("w2", of: "sr-b", order: nil, on: "/dev/ttys042"),
             Self.window("w3", of: "sr-a", order: nil, on: nil),
-            Self.window("w4", of: "sr-a", order: nil, on: "/dev/ttys043"),
+            Self.window("w4", of: "sr-a", order: nil, on: "/dev/ttys004"),
         ])
 
-        #expect(board.jumpWindows(of: "sr-a").map(\.device) == ["/dev/ttys041", "/dev/ttys043"])
+        #expect(board.jumpWindows(of: "sr-a").map(\.device) == ["/dev/ttys041", "/dev/ttys004"])
     }
 
     @Test func aSessionIsNamedByItsRowItsSnoozedRowAWindowOfItOrItsProjectAndNoneOffTheBoard() throws {
@@ -178,12 +178,12 @@ struct BoardTests {
         let windowed = try Self.line([Self.window("w1", of: "sr-a", order: nil, on: nil)])
         let rowless = try Board.read(watchedEmpty.replacingOccurrences(
             of: #""projects":[]"#,
-            with: #""projects":[{"key":"terrace","name":"Terrace","sessions":[{"id":"sr-q1","name":"Quiet one"}]}]"#
+            with: #""projects":[{"key":"humongous","name":"Humongous","sessions":[{"id":"sr-q1","name":"Quiet one"}]}]"#
         ))
 
-        #expect(watching.name(of: "sr-7e68fj") == "Plan the tool")
+        #expect(watching.name(of: "sr-7p4wd2") == "Plan the launch")
         #expect(snoozed.snoozed.first.map { snoozed.name(of: $0.session) } == snoozed.snoozed.first?.name)
-        #expect(windowed.name(of: "sr-a") == "Fumi")
+        #expect(windowed.name(of: "sr-a") == "Wingtip")
         #expect(rowless.name(of: "sr-q1") == "Quiet one", "a session with no row and no window, by its project")
         #expect(windowed.name(of: "sr-z") == nil)
         #expect(rowless.name(of: "sr-z") == nil)
@@ -193,7 +193,7 @@ struct BoardTests {
     private static func listing(_ sessions: [String]) throws -> Board {
         try Board.read(watchedEmpty.replacingOccurrences(
             of: #""projects":[]"#,
-            with: #""projects":[{"key":"terrace","name":"Terrace","sessions":[\#(sessions.joined(separator: ","))]}]"#
+            with: #""projects":[{"key":"humongous","name":"Humongous","sessions":[\#(sessions.joined(separator: ","))]}]"#
         ))
     }
 
@@ -202,14 +202,14 @@ struct BoardTests {
     /// is says none. A session a window holds, null, and the `attaches` a line of 12 November 2026 printed, passed over.
     @Test func anAwaySessionIsCarriedOnFromTheWindowItWasLastIn() throws {
         let board = try Self.listing([
-            #"{"id":"sr-q1","name":"Quiet one","lastWindow":{"writer":"w9","where":{"device":"/dev/ttys087","terminal":"ghostty","tmux":null,"zmx":{"session":"kit · card"}},"attaches":true,"ownsDevice":false,"directory":"/Users/lee/Code/kit"}}"#,
+            #"{"id":"sr-q1","name":"Quiet one","lastWindow":{"writer":"w9","where":{"device":"/dev/ttys087","terminal":"ghostty","tmux":null,"zmx":{"session":"litware · card"}},"attaches":true,"ownsDevice":false,"directory":"/Users/me/Code/litware"}}"#,
             #"{"id":"sr-q2","name":"Older one","lastWindow":{"writer":"w8","where":null,"directory":null}}"#,
             #"{"id":"sr-h1","name":"Held one","lastWindow":null}"#,
         ])
 
         #expect(board.resumeWindow(of: "sr-q1") == Board.LastWindow(
-            writer: "w9", where: .init(device: "/dev/ttys087", terminal: "ghostty", zmx: .init(session: "kit · card")),
-            ownsDevice: false, directory: "/Users/lee/Code/kit"
+            writer: "w9", where: .init(device: "/dev/ttys087", terminal: "ghostty", zmx: .init(session: "litware · card")),
+            ownsDevice: false, directory: "/Users/me/Code/litware"
         ))
         #expect(board.resumeWindow(of: "sr-q2") == Board.LastWindow(writer: "w8"), "whose its device is not said")
         #expect(board.resumeWindow(of: "sr-h1") == nil)
@@ -221,16 +221,16 @@ struct BoardTests {
     /// on the line: its device its own, and its folder as the watch prints it, none from a line before windows said it.
     @Test func aHeldSessionIsCarriedOnFromTheWindowAJumpTriesFirst() throws {
         let board = try Self.line([
-            Self.window("w1", of: "sr-a", order: 1, on: "/dev/ttys041", in: "/Users/lee/Code/fumi"),
-            Self.window("w2", of: "sr-a", order: 0, on: "/dev/ttys042", in: "/Users/lee/Code/fumi/.claude/worktrees/x"),
+            Self.window("w1", of: "sr-a", order: 1, on: "/dev/ttys041", in: "/Users/me/Code/wingtip"),
+            Self.window("w2", of: "sr-a", order: 0, on: "/dev/ttys042", in: "/Users/me/Code/wingtip/.claude/worktrees/x"),
             Self.window("w3", of: "sr-b", order: nil, on: nil),
-            Self.window("w4", of: "sr-b", order: nil, on: nil, in: "/Users/lee/Code/b"),
+            Self.window("w4", of: "sr-b", order: nil, on: nil, in: "/Users/me/Code/b"),
         ])
 
         #expect(board.isHeld("sr-a"))
         #expect(board.resumeWindow(of: "sr-a") == Board.LastWindow(
             writer: "w2", where: .init(device: "/dev/ttys042", terminal: "ghostty"), ownsDevice: true,
-            directory: "/Users/lee/Code/fumi/.claude/worktrees/x"
+            directory: "/Users/me/Code/wingtip/.claude/worktrees/x"
         ))
         #expect(board.resumeWindow(of: "sr-b") == Board.LastWindow(writer: "w3", ownsDevice: true))
         #expect(try Board.read(Lines.pretty).windows.allSatisfy { $0.directory == nil }, "a line from before windows said it")
@@ -248,19 +248,19 @@ struct BoardTests {
     @Test func aLineSaysWhatIsNewOnIt() throws {
         let board = try Board.read(Lines.pretty)
 
-        #expect(board.new == ["stop:sr-y4d0qj:6c847b5b-722d-4343-88e0-42ece4662e7d:1792445500000"])
-        #expect(board.newRows == ["sr-y4d0qj"])
+        #expect(board.new == ["stop:sr-y6m1pr:00000000-0000-4000-8000-000000000002:1792445500000"])
+        #expect(board.newRows == ["sr-y6m1pr"])
     }
 
-    /// The real CLI's line (`Lines.onItsWork`): Kit's window waiting on a wake, its row first, and SitRep's on three
-    /// agents.
+    /// The real CLI's line (`Lines.onItsWork`): Litware's window waiting on a wake, its row first, and Trey Research's
+    /// on three agents.
     @Test func aWindowOnItsOwnWorkIsItsRowAndItsOwnWithWhatItWaitsOnOrWhenItsWakeIsDue() throws {
         let board = try Board.read(Lines.onItsWork)
 
         #expect(board.head.isAllClear)
-        #expect(board.rows.map(\.id) == ["sr-k7bt2s", "sr-macapp"])
+        #expect(board.rows.map(\.id) == ["sr-k7bt2s", "sr-m4h6qe"])
         #expect(board.rows.map(\.section) == [.working, .working])
-        #expect(board.rows.map(\.newest.id) == ["turn:sr-k7bt2s", "turn:sr-macapp"])
+        #expect(board.rows.map(\.newest.id) == ["turn:sr-k7bt2s", "turn:sr-m4h6qe"])
         #expect(board.rows.map(\.newest.kind) == [.onItsWork, .onItsWork])
         #expect(board.rows.map(\.newest.first) == [
             Board.Row.Words(lead: "Wakes", until: at(1_792_670_195_432)),
@@ -294,9 +294,9 @@ struct BoardTests {
         watchedEmpty.replacingOccurrences(of: #","windows":[]"#, with: ""),
         Lines.pretty.replacingOccurrences(of: #""is": "yourTurn""#, with: #""is": "napping""#),
         Lines.pretty.replacingOccurrences(of: #""section": "yourTurn""#, with: #""section": "napping""#),
-        Lines.pretty.replacingOccurrences(of: #""name": "Plan the tool","# + "\n" + #"      "projectName""#, with: #""projectName""#),
-        Lines.pretty.replacingOccurrences(of: #""projectName": "Terrace","#, with: ""),
-        Lines.bySession[0].replacingOccurrences(of: #""lines":[{"key":"turn:sr-v3t7a0""#, with: #""lines":[],"was":[{"key":"turn:sr-v3t7a0""#),
+        Lines.pretty.replacingOccurrences(of: #""name": "Plan the launch","# + "\n" + #"      "projectName""#, with: #""projectName""#),
+        Lines.pretty.replacingOccurrences(of: #""projectName": "Humongous","#, with: ""),
+        Lines.bySession[0].replacingOccurrences(of: #""lines":[{"key":"turn:sr-v9d2wj""#, with: #""lines":[],"was":[{"key":"turn:sr-v9d2wj""#),
     ])
     func aLineThatIsNotABoardIsUnread(line: String) {
         #expect(throws: Unread.shape) { try Board.read(line) }
@@ -307,7 +307,7 @@ struct BoardTests {
     @Test(arguments: [
         watchedEmpty.replacingOccurrences(of: #","boards":{}"#, with: ""),
         watchedEmpty.replacingOccurrences(of: #""boards":{}"#, with: #""changed":[]"#),
-        watchedEmpty.replacingOccurrences(of: #""projects":[]"#, with: #""projects":{"terrace":1}"#),
+        watchedEmpty.replacingOccurrences(of: #""projects":[]"#, with: #""projects":{"humongous":1}"#),
         watchedEmpty.replacingOccurrences(of: #""projects":[],"#, with: ""),
     ])
     func whatNoSurfaceShowsIsNotRead(line: String) throws {

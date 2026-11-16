@@ -252,7 +252,7 @@ struct Mac {
     /// another is given; running, or stopped, as Ctrl-Z leaves it.
     @discardableResult
     mutating func claude(
-        on device: String, program: String = "/Users/lee/.local/share/claude/versions/2.1.322", isStopped: Bool = false
+        on device: String, program: String = "/Users/me/.local/share/claude/versions/2.1.322", isStopped: Bool = false
     ) -> pid_t {
         tree.add(under: 1, program, on: device, isStopped: isStopped)
     }

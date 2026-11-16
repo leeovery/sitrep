@@ -6,7 +6,7 @@ import { asked, CONVERSATION, DOCKED, INLINE, postedId, SURFACES, toProject, wor
 tier('user')
 
 /** The review, saying where its frames are. */
-const IN_PAPER = { ...REVIEW, where: 'In Paper: the help desk file, page "round 1", frames 1–6' }
+const IN_PAPER = { ...REVIEW, where: 'In Paper: the help desk file, page "draft 1", panels 1–6' }
 
 const DECIDE = {
   wants: 'choice',

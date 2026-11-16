@@ -2,15 +2,15 @@
 import Testing
 
 struct PluginPlanTests {
-    private static let home = "/Users/lee"
-    private static let own = "/Users/lee/Library/Application Support/sitrep"
-    private static let clone = "/Users/lee/Code/sitrep"
-    private static let kit = "/Users/lee/.config/kit/shared/plugins"
-    private static let cache = "/Users/lee/.claude/plugins/cache/sitrep/sitrep/0.1.0"
+    private static let home = "/Users/me"
+    private static let own = "/Users/me/Library/Application Support/sitrep"
+    private static let clone = "/Users/me/Code/sitrep"
+    private static let litware = "/Users/me/.config/litware/plugins"
+    private static let cache = "/Users/me/.claude/plugins/cache/sitrep/sitrep/0.1.0"
 
-    /// What each folder marketplace's own `marketplace.json` says of sitrep: the clone's and SitRep's own `./`, kit's
-    /// `./sitrep`.
-    private static let entries: [String: MarketplaceEntry] = [own: .within("./"), clone: .within("./"), kit: .within("./sitrep")]
+    /// What each folder marketplace's own `marketplace.json` says of sitrep: the clone's and SitRep's own `./`, and
+    /// Litware's `./sitrep`.
+    private static let entries: [String: MarketplaceEntry] = [own: .within("./"), clone: .within("./"), litware: .within("./sitrep")]
 
     private static func copy(_ version: String?, build: String? = nil) -> OwnPlugin.Copy? {
         version.map { OwnPlugin.Copy(version: $0, build: build) }
@@ -35,11 +35,11 @@ struct PluginPlanTests {
 
     @Test(arguments: [("0.2.0", nil), ("0.3.0", nil), ("0.2.0", "0.1.0"), (nil, nil)] as [(String?, String?)])
     func onLeesMacTheClonesMarketplaceIsLeftAsItIsWhateverSitRepCarries(carried: String?, copied: String?) {
-        let clone = "/Users/leeovery/Code/sitrep"
+        let clone = "/Users/me/Code/sitrep"
         let plan = PluginPlan(
-            marketplaces: ClaudeLists.marketplaces(LeesClaude.marketplaces), plugins: ClaudeLists.plugins(LeesClaude.plugins),
-            own: OwnPlugin(folder: "\(LeesClaude.home)/Library/Application Support/sitrep", carried: Self.copy(carried), copied: Self.copy(copied)),
-            home: LeesClaude.home, entry: { $0 == clone ? .within("./") : nil }
+            marketplaces: ClaudeLists.marketplaces(CloneClaude.marketplaces), plugins: ClaudeLists.plugins(CloneClaude.plugins),
+            own: OwnPlugin(folder: "\(CloneClaude.home)/Library/Application Support/sitrep", carried: Self.copy(carried), copied: Self.copy(copied)),
+            home: CloneClaude.home, entry: { $0 == clone ? .within("./") : nil }
         )
 
         #expect(plan.steps.isEmpty)
@@ -49,7 +49,7 @@ struct PluginPlanTests {
     // MARK: Neither list has anything of sitrep
 
     @Test func withNothingOfSitrepItCopiesItsOwnAddsItAsTheMarketplaceAndInstallsThePlugin() {
-        let plan = Self.plan(ClaudeLists.list(ClaudeLists.folderMarketplace("kit", path: Self.kit)), copied: nil)
+        let plan = Self.plan(ClaudeLists.list(ClaudeLists.folderMarketplace("litware", path: Self.litware)), copied: nil)
 
         #expect(plan.steps == [.copy, .addMarketplace, .install])
         #expect(plan.standing == .running(.own, folder: Self.own))
@@ -78,22 +78,22 @@ struct PluginPlanTests {
     }
 
     @Test func aSitrepFromAnotherMarketplaceIsLeftAndNoSecondInstalledBesideIt() {
-        let marketplaces = ClaudeLists.list(ClaudeLists.folderMarketplace("kit", path: Self.kit))
-        let plan = Self.plan(marketplaces, ClaudeLists.list(ClaudeLists.plugin("sitrep@kit", readFrom: "\(Self.kit)/sitrep")))
+        let marketplaces = ClaudeLists.list(ClaudeLists.folderMarketplace("litware", path: Self.litware))
+        let plan = Self.plan(marketplaces, ClaudeLists.list(ClaudeLists.plugin("sitrep@litware", readFrom: "\(Self.litware)/sitrep")))
 
         #expect(plan.steps.isEmpty)
-        #expect(plan.standing == .running(.folder("~/.config/kit/shared/plugins"), folder: "\(Self.kit)/sitrep"))
+        #expect(plan.standing == .running(.folder("~/.config/litware/plugins"), folder: "\(Self.litware)/sitrep"))
     }
 
     @Test func aForeignSitrepBesideItsOwnMarketplaceLeavesEverythingAsItIs() {
-        let marketplaces = ClaudeLists.list(ClaudeLists.folderMarketplace(path: Self.own), ClaudeLists.folderMarketplace("kit", path: Self.kit))
-        let plugins = ClaudeLists.list(ClaudeLists.plugin(readFrom: Self.own), ClaudeLists.plugin("sitrep@kit", readFrom: "\(Self.kit)/sitrep"))
+        let marketplaces = ClaudeLists.list(ClaudeLists.folderMarketplace(path: Self.own), ClaudeLists.folderMarketplace("litware", path: Self.litware))
+        let plugins = ClaudeLists.list(ClaudeLists.plugin(readFrom: Self.own), ClaudeLists.plugin("sitrep@litware", readFrom: "\(Self.litware)/sitrep"))
 
         #expect(Self.plan(marketplaces, plugins, carried: Self.copy("0.3.0")).steps.isEmpty)
     }
 
     @Test func aPluginOfAnotherNameIsNoSitrep() {
-        let plugins = ClaudeLists.list(ClaudeLists.plugin("sitrepper@kit"), ClaudeLists.plugin("revdiff@revdiff"))
+        let plugins = ClaudeLists.list(ClaudeLists.plugin("sitrepper@litware"), ClaudeLists.plugin("review@northwind"))
 
         #expect(Self.plan("[]", plugins).steps == [.copy, .addMarketplace, .install])
     }
@@ -128,7 +128,7 @@ struct PluginPlanTests {
         let plan = Self.plan(ClaudeLists.list(ClaudeLists.github), ClaudeLists.list(ClaudeLists.plugin(version: "0.2.0")), copied: nil)
 
         #expect(plan.steps.isEmpty)
-        #expect(plan.standing == .running(.github("leeovery/sitrep"), folder: "/Users/lee/.claude/plugins/cache/sitrep/sitrep/0.2.0"))
+        #expect(plan.standing == .running(.github("leeovery/sitrep"), folder: "/Users/me/.claude/plugins/cache/sitrep/sitrep/0.2.0"))
     }
 
     @Test func aGithubMarketplaceWithThePluginNotInstalledIsLeftWithNothingToRun() {
@@ -142,11 +142,11 @@ struct PluginPlanTests {
         let git = ClaudeLists.list(#"{"name": "sitrep", "source": "git", "url": "https://example.com/sitrep.git", "installLocation": "/tmp/sitrep"}"#)
 
         #expect(Self.plan(git, ClaudeLists.list(ClaudeLists.plugin())).standing
-            == .running(.other("https://example.com/sitrep.git"), folder: "/Users/lee/.claude/plugins/cache/sitrep/sitrep/0.2.0"))
+            == .running(.other("https://example.com/sitrep.git"), folder: "/Users/me/.claude/plugins/cache/sitrep/sitrep/0.2.0"))
     }
 
     @Test func aForeignPluginWhoseMarketplaceIsNotListedNorReadsIsTrouble() {
-        #expect(Self.plan("[]", ClaudeLists.list(ClaudeLists.unloaded("sitrep@kit"))).standing == .trouble(.unfound(.other("kit")), folder: nil))
+        #expect(Self.plan("[]", ClaudeLists.list(ClaudeLists.unloaded("sitrep@litware"))).standing == .trouble(.unfound(.other("litware")), folder: nil))
     }
 
     // MARK: The sitrep marketplace is SitRep's own copy
@@ -199,7 +199,7 @@ struct PluginPlanTests {
     }
 
     @Test func itsOwnIsKnownByItsFolderHoweverClaudeWritesIt() {
-        let marketplace = ClaudeLists.list(ClaudeLists.folderMarketplace(path: "/Users/lee/Library/Application Support/./sitrep/"))
+        let marketplace = ClaudeLists.list(ClaudeLists.folderMarketplace(path: "/Users/me/Library/Application Support/./sitrep/"))
 
         #expect(Self.plan(marketplace, Self.ownInstalled).standing == .running(.own, folder: Self.own))
     }

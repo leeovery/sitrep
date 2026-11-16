@@ -77,13 +77,13 @@ struct CaptionWindowTests {
         let caption = Self.shown()
 
         defer { caption.window.close() }
-        caption.jumping(to: "SitRep")
+        caption.jumping(to: "Trey Research")
         caption.drained(at: 0)
         caption.heard(.still)
         caption.answered(.jumped, at: 2000)
         caption.heard(.ended(.jumped))
 
-        #expect(caption.says == "Jumped to SitRep's window")
+        #expect(caption.says == "Jumped to Trey Research's window")
     }
 
     /// A row's click that opened a window, no window showing its session: "Opened a window for…", once the opening
@@ -92,28 +92,28 @@ struct CaptionWindowTests {
         let caption = Self.shown()
 
         defer { caption.window.close() }
-        caption.jumping(to: "SitRep")
+        caption.jumping(to: "Trey Research")
         caption.drained(at: 0)
         caption.heard(.ended(.openable))
         caption.answered(.opened, at: 500)
         caption.heard(.ended(.opened))
 
-        #expect(caption.says == "Opened a window for SitRep")
+        #expect(caption.says == "Opened a window for Trey Research")
     }
 
     /// A window brought forward with a word for Lee, as for a Claude he suspended there: the caption says it jumped,
     /// the word left to its banner.
     @Test func aJumpWithAWordSaysItJumped() {
         let caption = Self.shown()
-        let answer = JumpAnswer.jumpedSaying("SitRep is suspended in this window: type fg to bring it back.")
+        let answer = JumpAnswer.jumpedSaying("Trey Research is suspended in this window: type fg to bring it back.")
 
         defer { caption.window.close() }
-        caption.jumping(to: "SitRep")
+        caption.jumping(to: "Trey Research")
         caption.drained(at: 0)
         caption.answered(answer, at: 500)
         caption.heard(.ended(answer))
 
-        #expect(caption.says == "Jumped to SitRep's window")
+        #expect(caption.says == "Jumped to Trey Research's window")
     }
 
     /// An opening with no answer two seconds on says it is still opening, held while it runs.
@@ -132,12 +132,12 @@ struct CaptionWindowTests {
         let caption = Self.shown()
 
         defer { caption.window.close() }
-        caption.jumping(to: "SitRep")
+        caption.jumping(to: "Trey Research")
         caption.drained(at: 0)
         caption.answered(.opening, at: 500)
         caption.heard(.ended(.opening))
 
-        #expect(caption.says == "A window for SitRep is opening")
+        #expect(caption.says == "A window for Trey Research is opening")
     }
 
     /// An earlier jump's stop, heard after a row's click began its own, leaves that row's "Jumped to…" waiting for its
@@ -146,12 +146,12 @@ struct CaptionWindowTests {
         let caption = Self.shown()
 
         defer { caption.window.close() }
-        caption.jumping(to: "SitRep")
+        caption.jumping(to: "Trey Research")
         caption.drained(at: 0)
         caption.heard(.ended(.stopped))
         caption.answered(.jumped, at: 500)
 
-        #expect(caption.says == "Jumped to SitRep's window")
+        #expect(caption.says == "Jumped to Trey Research's window")
     }
 
     /// A jump refused after saying it was still jumping lets the pill go, as a caption ends; its banner says why.
@@ -160,7 +160,7 @@ struct CaptionWindowTests {
 
         defer { caption.window.close() }
         caption.heard(.still)
-        caption.heard(.ended(.refused("Fumi is not on screen.")))
+        caption.heard(.ended(.refused("Wingtip is not on screen.")))
         for _ in 0 ..< 40 where caption.says != nil {
             try await Task.sleep(for: .milliseconds(100))
         }
@@ -193,7 +193,7 @@ struct CaptionWindowTests {
 
         caption.over = over
         caption.mayShow = true
-        caption.jumping(to: "SitRep")
+        caption.jumping(to: "Trey Research")
         caption.drained(at: 0)
         caption.answered(.jumped, at: 0)
         return caption

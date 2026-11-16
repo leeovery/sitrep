@@ -6,7 +6,7 @@ import Testing
 /// the prototype's `moveEdge` does, a re-grab meanwhile is refused, a hidden drag goes back, frames after a pause
 /// measure no false speed, and a board after a long idle still flashes in full.
 struct StripCrossTests {
-    /// The strip at Grows, the pointer on Fumi's mark, a press there carried past the screen's middle and let go.
+    /// The strip at Grows, the pointer on the first turn's mark, a press carried past the screen's middle and let go.
     private static func droppedAcross(reducesMotion: Bool = false) -> StripLab {
         var lab = StripLab(length: .grows, reducesMotion: reducesMotion)
         lab.pointer = lab.on("s5")

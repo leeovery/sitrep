@@ -266,13 +266,13 @@ test('a branch whose text wraps keeps the tree unbroken: a stem beside it under 
 
   const id = await asked(w, {
     ...REVIEW,
-    where: 'In Paper: the help desk file, page "round 1", frames 1–6, beside the brief',
+    where: 'In Paper: the help desk file, page "draft 1", panels 1–6, beside the brief',
     ref: 'docs/help-desk.md, under "Tickets & Replies", the first round of three',
   })
   const ui = await w.pane()
 
   expect((await rows(ui, `ask:${w.item(id)}`)).slice(1, 5)).toEqual([
-    '├ In Paper: the help desk file, page "round 1", frames',
+    '├ In Paper: the help desk file, page "draft 1", panels',
     '│ 1–6, beside the brief',
     '└ see docs/help-desk.md, under "Tickets & Replies",',
     '  the first round of three',

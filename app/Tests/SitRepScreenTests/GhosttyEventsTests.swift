@@ -284,7 +284,7 @@ struct GhosttyEventsTests {
     private static var configuration: NSAppleEventDescriptor {
         let record = NSAppleEventDescriptor.record()
 
-        record.setDescriptor(NSAppleEventDescriptor(string: "/Users/lee"), forKeyword: code("GScD"))
+        record.setDescriptor(NSAppleEventDescriptor(string: "/Users/me"), forKeyword: code("GScD"))
         return record
     }
 
@@ -296,13 +296,13 @@ struct GhosttyEventsTests {
     @Test func aWindowIsOpenedWithANewConfigurationWhoseInitialInputIsTheCommandAndAReturn() async throws {
         let answering = Answering([{ reply(Self.configuration) }, { reply(named("Gwnd", "tab-group-9")) }])
 
-        _ = try await answering.events.openWindow(running: "zmx attach 'kit · restore-card'", sending: {})
+        _ = try await answering.events.openWindow(running: "zmx attach 'litware · restore-card'", sending: {})
 
         #expect(answering.asked == [
             Answering.Asked(event: "GhstNSCf", direct: "none", seconds: 5, pid: 501),
             Answering.Asked(
                 event: "GhstNWin", direct: "none", seconds: 5, pid: 501,
-                parameters: ["GNwS": "reco{GScD:\"/Users/lee\",GScI:\"zmx attach 'kit · restore-card'\n\"}"]
+                parameters: ["GNwS": "reco{GScD:\"/Users/me\",GScI:\"zmx attach 'litware · restore-card'\n\"}"]
             ),
         ])
     }
@@ -310,7 +310,7 @@ struct GhosttyEventsTests {
     @Test func theNewWindowsTerminalIsTheFocusedTerminalOfItsSelectedTabWhichTheFocusNames() async throws {
         let answering = Answering([{ reply(Self.configuration) }, { reply(named("Gwnd", "tab-group-9")) }, { reply() }])
 
-        guard case let .opened(opened) = try await answering.events.openWindow(running: "zmx attach kit", sending: {}),
+        guard case let .opened(opened) = try await answering.events.openWindow(running: "zmx attach litware", sending: {}),
               let terminal = opened
         else {
             Issue.record("no window's terminal")
@@ -329,7 +329,7 @@ struct GhosttyEventsTests {
     @Test func aNewWindowAnsweredWithoutNamingItIsOpenedWithNoTerminalToFocus() async throws {
         let answering = Answering([{ reply(Self.configuration) }, { reply() }])
 
-        guard case .opened(nil) = try await answering.events.openWindow(running: "zmx attach kit", sending: {}) else {
+        guard case .opened(nil) = try await answering.events.openWindow(running: "zmx attach litware", sending: {}) else {
             Issue.record("not opened, or a terminal named")
             return
         }
@@ -342,7 +342,7 @@ struct GhosttyEventsTests {
             return GhosttyEvents.Sent(status: 0, reply: reply())
         }
 
-        guard case .notRunning = try await events.openWindow(running: "zmx attach kit", sending: {}) else {
+        guard case .notRunning = try await events.openWindow(running: "zmx attach litware", sending: {}) else {
             Issue.record("opened with Ghostty not running")
             return
         }
@@ -362,7 +362,7 @@ struct GhosttyEventsTests {
     ] as [([Answering.Answer], GhosttyFailure)])
     func anOpeningsErrorsAreReadInPlainWords(answers: [Answering.Answer], failure: GhosttyFailure) async {
         await #expect(throws: failure) {
-            try await Answering(sending: answers).events.openWindow(running: "zmx attach kit", sending: {})
+            try await Answering(sending: answers).events.openWindow(running: "zmx attach litware", sending: {})
         }
     }
 
@@ -372,7 +372,7 @@ struct GhosttyEventsTests {
         let marks = OSAllocatedUnfairLock(initialState: [Int]())
         let answering = Answering([{ reply(Self.configuration) }, { reply(named("Gwnd", "tab-group-9")) }])
 
-        _ = try await answering.events.openWindow(running: "zmx attach kit") { [answering] in
+        _ = try await answering.events.openWindow(running: "zmx attach litware") { [answering] in
             marks.withLock { $0.append(answering.asked.count) }
         }
         #expect(marks.withLock { $0 } == [1], "after the configuration's event, before the window's")
@@ -381,7 +381,7 @@ struct GhosttyEventsTests {
         let none = OSAllocatedUnfairLock(initialState: 0)
 
         await #expect(throws: GhosttyFailure.cannotOpen) {
-            try await failing.events.openWindow(running: "zmx attach kit") { none.withLock { $0 += 1 } }
+            try await failing.events.openWindow(running: "zmx attach litware") { none.withLock { $0 += 1 } }
         }
         #expect(none.withLock { $0 } == 0)
     }

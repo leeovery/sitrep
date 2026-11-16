@@ -277,7 +277,7 @@ struct SettingsModelTests {
 
         settings.show(reload)
         settings.copyReloadCommand()
-        #expect(asked.jumps == ["sr-aw3bgs"])
+        #expect(asked.jumps == ["sr-a8n2xc"])
         #expect(asked.copies == ["/reload-plugins"])
     }
 

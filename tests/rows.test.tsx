@@ -80,12 +80,12 @@ const LINES: [tool: string, input: { [key: string]: unknown }, line: string][] =
   ['note', { text: 'PR #82 merged' }, 'noted: PR #82 merged'],
   ['park', { title: 'A priority badge' }, '◇ parked: A priority badge'],
   ['finish', { reason: 'Shipped' }, '✓ finished a session'],
-  ['project', { name: 'SitRep' }, 'project renamed: SitRep'],
-  ['project', { directory: '/Users/me/sitrep' }, 'project lives in /Users/me/sitrep'],
+  ['project', { name: 'Trey Research' }, 'project renamed: Trey Research'],
+  ['project', { directory: '/Users/me/trey-research' }, 'project lives in /Users/me/trey-research'],
   [
     'project',
-    { name: 'SitRep', directory: '/Users/me/sitrep' },
-    'project renamed: SitRep · project lives in /Users/me/sitrep',
+    { name: 'Trey Research', directory: '/Users/me/trey-research' },
+    'project renamed: Trey Research · project lives in /Users/me/trey-research',
   ],
   ['board', {}, 'read the board back'],
 ]

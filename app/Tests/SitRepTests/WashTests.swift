@@ -13,7 +13,7 @@ struct WashTests {
     private static let later = 600_000.0
 
     private static func row(_ id: String, _ title: String = "Running the tests") -> Item {
-        .session(Session(id: id, project: "SitRep", kind: .working, title: title, sub: "SitRep · Build", since: 0))
+        .session(Session(id: id, project: "Trey Research", kind: .working, title: title, sub: "Trey Research · Build", since: 0))
     }
 
     private static func list(_ items: Item...) -> PanelList {

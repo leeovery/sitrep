@@ -542,7 +542,7 @@ test('a post is a line at the next look, its board carried; a new ask is new on 
 })
 
 test("an answer going into the session's inbox is a line, its ask on its way, needing Lee no more, and its board carried; the window's mark is another, the ask gone", async () => {
-  const { t, paths } = held([[T0, yesAsk('k1', 'Give the go for stage 3', 'Go')]])
+  const { t, paths } = held([[T0, yesAsk('k1', 'Give the ok for phase 3', 'Go')]])
 
   follow(t, META.id)
 
@@ -1500,7 +1500,7 @@ test('however the watch ends, it stops listening to its standard input, which wo
 
 test("each window on a line says where it is, its tmux pane and its zmx session, or null for either it is not in", async () => {
   const inZmx = { ...WHERE, zmx: { session: 'litware · invoice-card' } }
-  const inTmux = { ...WHERE, tmux: { socket: '/private/tmp/tmux-501/default', pane: '%148' } }
+  const inTmux = { ...WHERE, tmux: { socket: '/private/tmp/tmux-501/default', pane: '%12' } }
   const whereOn = async (where: Where) => {
     const t = terminal()
     const paths = t.seed(META)

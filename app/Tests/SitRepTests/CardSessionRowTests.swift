@@ -10,16 +10,17 @@ import Testing
 @MainActor
 struct CardSessionRowTests {
     private static let width = 344.0
-    private static let name = "Harness modernisation"
+    /// Without a descender, so its drawn box ends on its baseline, as the count's does.
+    private static let name = "Finish the rollout"
     private static let titles = [
-        "Approve the first fix batch", "Choose how the release notes are grouped", "Paste the failing output",
+        "Approve the first copy edit", "Choose how the release notes are grouped", "Paste the failing output",
     ]
 
-    private static func harness(_ count: Int, name: String = name, away: Bool = false) -> Session {
+    private static func tailspin(_ count: Int, name: String = name, away: Bool = false) -> Session {
         Session(
-            id: "sr-4g01a7", project: "Harness", name: name, kind: .needs, away: away,
+            id: "sr-4t2kq8", project: "Tailspin", name: name, kind: .needs, away: away,
             lines: titles.prefix(count).enumerated().map { Session.Line(title: $1, since: Double($0) * 3_600_000) },
-            sub: away ? "No window holds it. Carry it on in Claude." : "Harness"
+            sub: away ? "No window holds it. Carry it on in Claude." : "Tailspin"
         )
     }
 
@@ -37,18 +38,18 @@ struct CardSessionRowTests {
         TextLine.width(TextLine.text(name, EdgeStyle.lineMedium, EdgeStyle.ink, kern: EdgeStyle.tightKern(EdgeStyle.lineMedium)))
     }
 
-    private static let projectWidth = TextLine.width(TextLine.text("Harness", EdgeStyle.sub, EdgeStyle.ink3))
+    private static let projectWidth = TextLine.width(TextLine.text("Tailspin", EdgeStyle.sub, EdgeStyle.ink3))
 
     /// 30, however many lines wait.
     @Test(arguments: [1, 2, 3])
     func aRowIsOneRowOfStandardHeight(count: Int) {
-        #expect(Item.line(Self.harness(count)).height == 30)
+        #expect(Item.line(Self.tailspin(count)).height == 30)
     }
 
     /// Its dot at 16 by 15; its session's name from 32, 13 medium, none of its asks' words; its project at the right,
     /// ending 10 before the time's lane; its time in the lane ending at 334; its lift's corners 10.
     @Test func aRowNeedingLeeIsItsNameAndItsProject() throws {
-        let drawn = try Drawn(Self.card(Self.harness(1)).layer)
+        let drawn = try Drawn(Self.card(Self.tailspin(1)).layer)
         let dot = try #require(drawn.drawnBox(in: CGRect(x: 4, y: 4, width: 22, height: 22), ground: Self.ground))
         let words = try #require(drawn.drawnBox(in: CGRect(x: 26, y: 4, width: 200, height: 22), ground: Self.ground))
         let project = try #require(drawn.drawnBox(
@@ -62,12 +63,12 @@ struct CardSessionRowTests {
         // drawn inside its set width by its letters' side bearings
         #expect(abs(project.maxX - 288) <= 1 && project.width <= Self.projectWidth + 0.5 && project.width >= Self.projectWidth - 3)
         #expect((332.5 ... 334.5).contains(age.maxX))
-        #expect(Self.card(Self.harness(1)).layer.cornerRadius == 10)
+        #expect(Self.card(Self.tailspin(1)).layer.cornerRadius == 10)
     }
 
     /// "3" for three lines waiting: 13 medium in tabular figures, 6 after the name, on its baseline.
     @Test func severalLinesShowACount6AfterTheNameOnItsBaseline() throws {
-        let drawn = try Drawn(Self.card(Self.harness(3)).layer)
+        let drawn = try Drawn(Self.card(Self.tailspin(3)).layer)
         let after = 32 + Self.nameWidth()
         let name = try #require(drawn.drawnBox(in: CGRect(x: 26, y: 4, width: after - 26, height: 22), ground: Self.ground))
         let count = try #require(drawn.drawnBox(in: CGRect(x: after + 2, y: 4, width: 40, height: 22), ground: Self.ground))
@@ -81,8 +82,8 @@ struct CardSessionRowTests {
     /// A name too long for the line is cut short before its count, which shows whole, 6 after it, 12 before its
     /// project.
     @Test func aLongNameIsCutShortBeforeItsCount() throws {
-        let long = String(repeating: "Finish the Harness modernisation ", count: 3)
-        let drawn = try Drawn(Self.card(Self.harness(2, name: long)).layer)
+        let long = String(repeating: "Finish the Tailspin migration ", count: 3)
+        let drawn = try Drawn(Self.card(Self.tailspin(2, name: long)).layer)
         let words = 256 - Self.projectWidth - SessionRowLayout.projectGap
         let set = TextLine.width(TextLine.text("2", EdgeStyle.count, EdgeStyle.ink2))
         let room = words - set - 6
@@ -106,7 +107,7 @@ struct CardSessionRowTests {
     /// Every row lifts under the pointer, an away one too, as its click carries its session on (stage 8).
     @Test(arguments: [false, true])
     func underThePointerEveryRowLifts(away: Bool) {
-        let row = Self.card(Self.harness(1, away: away))
+        let row = Self.card(Self.tailspin(1, away: away))
 
         row.isHighlighted = true
         #expect(row.layer.backgroundColor == EdgeStyle.hover)
@@ -115,12 +116,12 @@ struct CardSessionRowTests {
         #expect(row.layer.backgroundColor == nil)
     }
 
-    /// Harness's two asks asleep, the sooner waking a day after the time the rows are drawn at; away, or a window
+    /// Tailspin's two asks asleep, the sooner waking a day after the time the rows are drawn at; away, or a window
     /// holding it.
     private static func asleep(away: Bool = false) -> Session {
         Session(
-            id: "sr-4g01a7", project: "Harness", name: name, kind: .snoozed, away: away,
-            lines: titles.prefix(2).enumerated().map { Session.Line(ask: "k\($0)", title: $1, since: 0) }, sub: "Harness",
+            id: "sr-4t2kq8", project: "Tailspin", name: name, kind: .snoozed, away: away,
+            lines: titles.prefix(2).enumerated().map { Session.Line(ask: "k\($0)", title: $1, since: 0) }, sub: "Tailspin",
             wakesAt: 29 * 3_600_000
         )
     }
@@ -134,7 +135,7 @@ struct CardSessionRowTests {
     func aSnoozedRowIsANeedsYouRowQuietedOnOneLineWithWhenItWakes(away: Bool) throws {
         let asleep = Self.asleep(away: away)
         let row = Self.card(asleep)
-        let drawn = try Drawn(row.layer), needs = try Drawn(Self.card(Self.harness(2)).layer)
+        let drawn = try Drawn(row.layer), needs = try Drawn(Self.card(Self.tailspin(2)).layer)
         let words = TextLine.text(asleep.timeText(at: 5 * 3_600_000, in: WakeTime.calendar), EdgeStyle.age, EdgeStyle.ink2)
         let wide = TextLine.width(words)
         let lane = CGRect(x: 324 - wide - Self.projectWidth - 1, y: 4, width: Self.projectWidth + 2, height: 22)
@@ -154,11 +155,11 @@ struct CardSessionRowTests {
         #expect(abs(wakes.width - wide) <= 1.5 && wakes.width > 36)
     }
 
-    /// Harness's turn snoozed, until it moves, or waking a day after the time the rows are drawn at.
+    /// Tailspin's turn snoozed, until it moves, or waking a day after the time the rows are drawn at.
     private static func turnAsleep(wakesAt: Double?) -> Session {
         Session(
-            id: "sr-4g01a7", project: "Harness", name: name, kind: .snoozedTurn,
-            lines: [Session.Line(title: "Stage 2 is in", since: 0)], sub: "Harness", wakesAt: wakesAt
+            id: "sr-4t2kq8", project: "Tailspin", name: name, kind: .snoozedTurn,
+            lines: [Session.Line(title: "Stage 2 is in", since: 0)], sub: "Tailspin", wakesAt: wakesAt
         )
     }
 
@@ -169,7 +170,7 @@ struct CardSessionRowTests {
     @Test(arguments: [nil, 29 * 3_600_000.0])
     func aSnoozedTurnIsADimmedDotItsNameSoftAndWhenItWakesOrUntilItMoves(wakesAt: Double?) throws {
         let asleep = Self.turnAsleep(wakesAt: wakesAt)
-        let drawn = try Drawn(Self.card(asleep).layer), needs = try Drawn(Self.card(Self.harness(2)).layer)
+        let drawn = try Drawn(Self.card(asleep).layer), needs = try Drawn(Self.card(Self.tailspin(2)).layer)
         let time = asleep.timeText(at: 5 * 3_600_000, in: WakeTime.calendar)
         let wide = TextLine.width(TextLine.text(time, EdgeStyle.age, EdgeStyle.ink2))
         let lane = CGRect(x: 324 - wide - Self.projectWidth - 1, y: 4, width: Self.projectWidth + 2, height: 22)
@@ -207,7 +208,7 @@ struct CardSessionRowTests {
     /// drawn just left of the lane, inside the lift's corners.
     @Test(arguments: [false, true], [false, true])
     func itsTimeShowsUnderThePointerAsOffIt(highlighted: Bool, away: Bool) throws {
-        let row = Self.card(Self.harness(1, away: away))
+        let row = Self.card(Self.tailspin(1, away: away))
 
         row.isHighlighted = highlighted
 

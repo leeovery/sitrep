@@ -40,7 +40,7 @@ struct JumpFrontTests {
         #expect(answer == .jumped)
         #expect(jumping.workspace.runningAsked == [[ghosttyBundle]])
         #expect(jumping.workspace.brought == [Self.ghosttyForward])
-        #expect(jumping.ghostty.focused == ["SWITCHBOARD-TERMINAL"])
+        #expect(jumping.ghostty.focused == ["WOODGROVE-TERMINAL"])
         #expect(jumping.workspace.listening == 0, "the listening ends with the jump")
     }
 
@@ -100,7 +100,7 @@ struct JumpFrontTests {
 
     @Test func aJumpThatBringsNoWindowForwardWatchesNothing() async {
         var mac = Mac(), other = Mac()
-        let detached = server([mac.ghosttyClient(JumpWorld.kitTerminal.device, showing: JumpWorld.kit)])
+        let detached = server([mac.ghosttyClient(JumpWorld.litwareTerminal.device, showing: JumpWorld.litware)])
         let elsewhere = server([other.ghosttyClient("/dev/ttys099", showing: JumpWorld.claudes)])
         let offScreen = Jumping(detached, FakeTable(mac.tree), workspace: Self.handingBack)
         let unanswered = Jumping(elsewhere, FakeTable(other.tree), workspace: Self.handingBack)
@@ -119,11 +119,11 @@ struct JumpFrontTests {
     /// hand-back may come before the focus: heard from before the first event, it is caught all the same.
     @Test func aHandBackComingBetweenTheWindowActivatedAndTheFocusIsHeard() async {
         let (tmux, table) = shown()
-        let tabbed = [FakeWindow(id: "TABBED-WINDOW", tabs: [[JumpWorld.kitTerminal], [JumpWorld.switchboardTerminal]], selected: 0)]
+        let tabbed = [FakeWindow(id: "TABBED-WINDOW", tabs: [[JumpWorld.litwareTerminal], [JumpWorld.woodgroveTerminal]], selected: 0)]
         let jumping = Jumping(tmux, table, terminals: tabbed, workspace: FakeWorkspace(front: finder, activated: [ghosttyBundle, finder]))
 
         #expect(await jumping.run([inTmux()]) == .jumped)
-        #expect(jumping.ghostty.told == ["activate window TABBED-WINDOW", "focus SWITCHBOARD-TERMINAL"])
+        #expect(jumping.ghostty.told == ["activate window TABBED-WINDOW", "focus WOODGROVE-TERMINAL"])
         #expect(jumping.workspace.brought == [Self.ghosttyForward])
     }
 }

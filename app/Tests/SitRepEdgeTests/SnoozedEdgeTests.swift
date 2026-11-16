@@ -28,15 +28,15 @@ struct SnoozedEdgeTests {
         let board = Self.board(upTo: 0)
         let asleep = try #require(board.snoozed.first)
 
-        #expect(board.sessions.map(\.id) == ["sr-4g01a7"])
+        #expect(board.sessions.map(\.id) == ["sr-4t2kq8"])
         #expect(board.sessions.allSatisfy { !$0.isSnoozed })
         #expect(board.sessions[0].asks == ["k3"])
-        #expect(asleep.id == "sr-4g01a7" && asleep.isSnoozed && asleep.away)
+        #expect(asleep.id == "sr-4t2kq8" && asleep.isSnoozed && asleep.away)
         #expect(asleep.asks == ["k1", "k2"])
         #expect(asleep.lines.map(\.title) == ["Review the plan", "Pick when stage 2 runs"])
-        #expect(asleep.name == "Finish the Harness modernisation" && asleep.project == "Harness")
+        #expect(asleep.name == "Finish the Tailspin migration" && asleep.project == "Tailspin")
         // away, its second line still its project: it was put off, so it urges nothing
-        #expect(asleep.sub == "Harness")
+        #expect(asleep.sub == "Tailspin")
         #expect(board.sessions[0].sub == "No window holds it. Carry it on in Claude.")
         #expect(asleep.wakesAt == 1_792_741_532_000)
         #expect(board.cardSessions == board.sessions + [asleep])
@@ -56,7 +56,7 @@ struct SnoozedEdgeTests {
     @Test func snoozedIsTheCardsLastSectionFoldedAtFirst() {
         let run = Self.opened()
 
-        #expect(Self.keys(run) == ["eyebrow:needsYou", "needs:sr-4g01a7", "eyebrow:snoozed"])
+        #expect(Self.keys(run) == ["eyebrow:needsYou", "needs:sr-4t2kq8", "eyebrow:snoozed"])
         #expect(run.list.content.items.last == .eyebrow(Eyebrow(section: .snoozed, counts: [Eyebrow.Count(2)], isFolded: true, above: 14)))
     }
 
@@ -64,8 +64,8 @@ struct SnoozedEdgeTests {
     @Test func unfoldedTheSessionHasARowInEach() {
         let run = Self.opened(kept: Self.kept([]))
 
-        #expect(Self.keys(run).suffix(2) == ["eyebrow:snoozed", "snoozed:sr-4g01a7"])
-        #expect(Self.keys(run).contains("needs:sr-4g01a7"))
+        #expect(Self.keys(run).suffix(2) == ["eyebrow:snoozed", "snoozed:sr-4t2kq8"])
+        #expect(Self.keys(run).contains("needs:sr-4t2kq8"))
     }
 
     /// With nothing waiting but asks asleep, the card lists Snoozed with no head.
@@ -82,7 +82,7 @@ struct SnoozedEdgeTests {
 
         Self.board(upTo: 1).tell(told, after: Self.board(upTo: 0))
         #expect(told.told == ["newAsk"])
-        #expect(Self.board(upTo: 1).new == ["sr-4g01a7"])
+        #expect(Self.board(upTo: 1).new == ["sr-4t2kq8"])
 
         let run = Self.opened(kept: Self.kept([.needsYou]))
 
@@ -194,7 +194,7 @@ struct SnoozedEdgeTests {
         let ask = WatchLine.Row(
             isAway: !held,
             lines: [
-                .init("ask:sr-nw0001:k3", .ask, ask: "k3", first: "Give the go for stage 3", since: 1_792_741_127_000),
+                .init("ask:sr-nw0001:k3", .ask, ask: "k3", first: "Sign off stage 3", since: 1_792_741_127_000),
             ]
         )
         let asleep = WatchLine.SnoozedRow(isAway: !held, lines: [

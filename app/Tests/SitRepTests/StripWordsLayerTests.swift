@@ -11,7 +11,7 @@ struct StripWordsLayerTests {
     private static let box = CGRect(x: 0, y: 0, width: 220, height: 100)
 
     private static func row(_ id: String) -> Session {
-        Session(id: id, project: "SitRep", kind: .turn, title: "Your turn", sub: "SitRep · Build", since: 0)
+        Session(id: id, project: "Trey Research", kind: .turn, title: "Your turn", sub: "Trey Research · Build", since: 0)
     }
 
     private static func words(pressing pressed: String? = nil) -> StripFrame.Words {
@@ -22,7 +22,7 @@ struct StripWordsLayerTests {
     }
 
     private static func wake(in minutes: Double) -> Session {
-        Session(id: "k", project: "Kit", kind: .onItsWork, title: "Wakes ", until: minutes * 60_000, sub: "", since: 0)
+        Session(id: "k", project: "Litware", kind: .onItsWork, title: "Wakes ", until: minutes * 60_000, sub: "", since: 0)
     }
 
     /// A wake an hour and a minute off reads "in 1h", and widens to "in 59m" two minutes on: its tab, a session's or a
@@ -41,20 +41,20 @@ struct StripWordsLayerTests {
     /// waiting, set as a row's count is; one line waiting, a question with its own "+2" among them, its name
     /// alone.
     @Test func aSessionOfSeveralLinesSaysItsNameThenHowManyWait() {
-        let name = "Finish the Harness modernisation"
+        let name = "Finish the Tailspin migration"
         let three = Session(
-            id: "h", project: "Harness", name: name, kind: .needs,
-            lines: ["Approve the first fix batch", "Choose", "Paste"].enumerated().map {
+            id: "h", project: "Tailspin", name: name, kind: .needs,
+            lines: ["Approve the first copy edit", "Choose", "Paste"].enumerated().map {
                 Session.Line(title: $1, since: Double($0))
             },
-            sub: "Harness"
+            sub: "Tailspin"
         )
-        let counted = Session(id: "h", project: "Harness", kind: .turn, title: name, more: "3", sub: "Harness", since: 0)
+        let counted = Session(id: "h", project: "Tailspin", kind: .turn, title: name, more: "3", sub: "Tailspin", since: 0)
         let question = Session(
-            id: "h", project: "Harness", name: name, kind: .needs, title: "Which edge?", more: "+2", sub: "Harness",
+            id: "h", project: "Tailspin", name: name, kind: .needs, title: "Which page?", more: "+2", sub: "Tailspin",
             since: 0
         )
-        let alone = Session(id: "h", project: "Harness", kind: .turn, title: name, sub: "Harness", since: 0)
+        let alone = Session(id: "h", project: "Tailspin", kind: .turn, title: name, sub: "Tailspin", since: 0)
 
         #expect(StripWordsLayer.rowWidth(three, at: 0) == StripWordsLayer.rowWidth(counted, at: 0))
         #expect(StripWordsLayer.countRowWidth(three, at: 0) == StripWordsLayer.countRowWidth(counted, at: 0))

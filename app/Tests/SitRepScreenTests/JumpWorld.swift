@@ -17,14 +17,14 @@ enum JumpWorld {
     /// Claude's tmux window, another of its tmux session, and one of another session.
     static let claudes = "@45"
     static let beside = "@46"
-    static let kit = "@52"
+    static let litware = "@52"
 
     /// Ghostty's terminals: one in the window Claude runs in outside tmux, one in the window showing its tmux window,
     /// and another.
-    static let kitTerminal = FakeTerminal(id: "KIT-TERMINAL", device: "/dev/ttys041")
-    static let switchboardTerminal = FakeTerminal(id: "SWITCHBOARD-TERMINAL", device: window)
+    static let litwareTerminal = FakeTerminal(id: "LITWARE-TERMINAL", device: "/dev/ttys041")
+    static let woodgroveTerminal = FakeTerminal(id: "WOODGROVE-TERMINAL", device: window)
     static let terminals = ownWindows(
-        kitTerminal, switchboardTerminal, FakeTerminal(id: "HOME-TERMINAL", device: "/dev/ttys090")
+        litwareTerminal, woodgroveTerminal, FakeTerminal(id: "HOME-TERMINAL", device: "/dev/ttys090")
     )
 
     /// Terminal's bundle, as its clients' ancestry finds it.
@@ -107,22 +107,22 @@ extension Mac {
     }
 }
 
-/// Claude's tmux server: its pane `%148` on Claude's tmux window, in the tmux sessions given, and a pane of another
+/// Claude's tmux server: its pane `%12` on Claude's tmux window, in the tmux sessions given, and a pane of another
 /// session; its clients as given.
 func server(_ clients: [FakeClient], sessions: [String] = ["$45"], select: Ran? = Ran(status: 0, stdout: "", stderr: ""))
     -> FakeTmux
 {
     let panes = sessions.flatMap { session in
-        [FakePane(pane: "%148", window: JumpWorld.claudes, session: session), FakePane(pane: "%149", window: JumpWorld.beside, session: session)]
+        [FakePane(pane: "%12", window: JumpWorld.claudes, session: session), FakePane(pane: "%13", window: JumpWorld.beside, session: session)]
     }
 
-    return FakeTmux([socket: FakeServer(panes: panes + [FakePane(pane: "%54", window: JumpWorld.kit, session: "$52")], clients: clients)], select: select)
+    return FakeTmux([socket: FakeServer(panes: panes + [FakePane(pane: "%54", window: JumpWorld.litware, session: "$52")], clients: clients)], select: select)
 }
 
 /// Claude's tmux window shown by a Ghostty window, and another tmux window by another Ghostty window.
 func shown() -> (FakeTmux, FakeTable) {
     var mac = Mac()
-    let clients = [mac.ghosttyClient(JumpWorld.kitTerminal.device, showing: JumpWorld.kit), mac.ghosttyClient(JumpWorld.window, showing: JumpWorld.claudes)]
+    let clients = [mac.ghosttyClient(JumpWorld.litwareTerminal.device, showing: JumpWorld.litware), mac.ghosttyClient(JumpWorld.window, showing: JumpWorld.claudes)]
 
     return (server(clients), FakeTable(mac.tree))
 }
