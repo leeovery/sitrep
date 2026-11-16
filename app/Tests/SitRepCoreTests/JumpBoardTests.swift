@@ -1,6 +1,7 @@
 import Foundation
 @testable import SitRepCore
 import SitRepLines
+import SitRepTestSupport
 import Testing
 
 /// The board a jump goes from: the last line of a watch running and printed, waited for while the watch starts, starts
@@ -31,10 +32,7 @@ struct JumpBoardTests {
         let waits = jumpBoard.waits
         let asking = Task { await jumpBoard.current() }
 
-        for _ in 0..<1000 where jumpBoard.waits == waits {
-            await Task.yield()
-        }
-        #expect(jumpBoard.waits == waits + 1, "the jump waits", sourceLocation: sourceLocation)
+        await until(turns: 1000, sourceLocation: sourceLocation) { jumpBoard.waits == waits + 1 }
         return asking
     }
 

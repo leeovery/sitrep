@@ -2,6 +2,7 @@ import AppKit
 @testable import SitRep
 import SitRepMenu
 import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// Step 2, An ask, from Claude to you: one loop on the stage, on SitRep's own notch, and nothing pressed or sent.
@@ -79,8 +80,7 @@ struct WelcomeAskTests {
         #expect(told.map(\.moment) == [.lands, .opens, .answers, .answers, nil])
         #expect(told.map(\.isInSession) == [false, false, false, true, true])
         #expect(told.map(\.isAnswered) == [false, false, false, true, true])
-        await Task.yield()
-        #expect(stage.scene.now == told.last)
+        await until(turns: 1000) { stage.scene.now == told.last }
     }
 
     /// Answered, the ask leaves the board: the light goes out, and nothing on the notch moves of itself.

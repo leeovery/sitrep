@@ -40,13 +40,6 @@ struct StripMenuTests {
         menu.items.map { $0.isSeparatorItem ? "—" : $0.title }
     }
 
-    /// A menu's item chosen, as AppKit sends its action, through the app, made if no other test has.
-    private static func choose(_ index: Int, in menu: NSMenu) throws {
-        let item = menu.items[index]
-
-        NSApplication.shared.sendAction(try #require(item.action), to: item.target, from: item)
-    }
-
     private static func session(_ kind: Session.Kind) -> Session {
         Session(id: "sr-a", project: "Contoso", kind: kind, ask: "k1", title: "Approve", sub: "Contoso", since: 0)
     }
@@ -65,8 +58,8 @@ struct StripMenuTests {
         #expect(Self.titles(menu) == Self.titles(row) + ["—", "Collapse \(section.title)"])
         #expect(menu.items.last?.isEnabled == true)
 
-        try Self.choose(0, in: menu)
-        try Self.choose(menu.items.count - 1, in: menu)
+        try menu.choose(0)
+        try menu.choose(menu.items.count - 1)
         #expect(heard.said == ["jump sr-a", "fold \(section.title)"])
     }
 
@@ -78,7 +71,7 @@ struct StripMenuTests {
 
         #expect(Self.titles(menu).suffix(2) == ["—", "Expand \(section.title)"])
 
-        try Self.choose(menu.items.count - 1, in: menu)
+        try menu.choose(menu.items.count - 1)
         #expect(heard.said == ["unfold \(section.title)"])
     }
 
@@ -90,7 +83,7 @@ struct StripMenuTests {
         #expect(Self.titles(menu) == ["Expand \(section.title)"])
         #expect(menu.items.map(\.isEnabled) == [true])
 
-        try Self.choose(0, in: menu)
+        try menu.choose(0)
         #expect(heard.said == ["unfold \(section.title)"])
     }
 
@@ -101,7 +94,7 @@ struct StripMenuTests {
 
         #expect(Self.titles(menu) == ["Collapse \(section.title)"])
 
-        try Self.choose(0, in: menu)
+        try menu.choose(0)
         #expect(heard.said == ["fold \(section.title)"])
     }
 }

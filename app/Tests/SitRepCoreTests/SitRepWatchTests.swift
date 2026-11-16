@@ -99,13 +99,13 @@ struct SitRepWatchTests {
     }
 
     /// `Feed` starting a watch again while the last waits on Lee's PATH, as it may as SitRep settles on a plugin: the
-    /// last, stopped, resumes after the next began, and begins no run of its own.
+    /// last, stopped, resumes after the next began, and begins no run of its own before its loop ends.
     @Test func aWatchStoppedWhileItWaitsOnLeesPathBeginsNoRun() async {
         let gate = Gate()
         let stopped = Runs([Self.watching])
         let next = Runs([Self.watching])
         let first = Task {
-            for await _ in Self.watch(stopped, pathWaitsOn: gate).boards() {}
+            await Self.watch(stopped, pathWaitsOn: gate).watch(into: AsyncStream<LastBoard>.makeStream().continuation)
         }
 
         await gate.asked()
@@ -122,9 +122,7 @@ struct SitRepWatchTests {
             break
         }
         gate.open()
-        // Nothing tells when the stopped watch's loop has run on past its PATH, as it begins nothing: one that began a
-        // run would within this, and one that begins none passes, however long the wait.
-        try? await Task.sleep(for: .milliseconds(200))
+        await first.value
         running.cancel()
         #expect(next.programs.count == 1)
         #expect(stopped.programs.isEmpty)

@@ -8,7 +8,8 @@ struct LineBuffer {
     private static let newline = UInt8(ascii: "\n")
 
     let longest: Int
-    private var unended = Data()
+    /// The line under way, kept to its longest.
+    private(set) var unended = Data()
 
     init(longest: Int) {
         self.longest = longest

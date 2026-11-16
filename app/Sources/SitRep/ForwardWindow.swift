@@ -6,6 +6,10 @@ import AppKit
 /// them itself.
 @MainActor
 class ForwardWindow: NSWindow {
+    /// Where macOS says Lee changed Space: the workspace's centre; a seam, as a test's own keeps what it posts from the
+    /// windows of every other test.
+    var spaces = NSWorkspace.shared.notificationCenter
+
     /// Brought forward on the Space Lee is on, out of the Dock where minimised, and keyed: the window moves to that
     /// Space as it orders front, which `.moveToActiveSpace` asks for, before SitRep activates, so the activation finds
     /// a window of SitRep's where Lee is and takes him to no other Space. Activated first, macOS went to the Space the
@@ -14,7 +18,7 @@ class ForwardWindow: NSWindow {
     /// on his Space already, so a notification's click moves it nowhere.
     func comeForward() {
         collectionBehavior.insert(.moveToActiveSpace)
-        NSWorkspace.shared.notificationCenter.addObserver(
+        spaces.addObserver(
             self, selector: #selector(spaceChanged), name: NSWorkspace.activeSpaceDidChangeNotification, object: nil
         )
         if isMiniaturized {
@@ -31,8 +35,6 @@ class ForwardWindow: NSWindow {
 
     @objc private func spaceChanged(_ notification: Notification) {
         collectionBehavior.remove(.moveToActiveSpace)
-        NSWorkspace.shared.notificationCenter.removeObserver(
-            self, name: NSWorkspace.activeSpaceDidChangeNotification, object: nil
-        )
+        spaces.removeObserver(self, name: NSWorkspace.activeSpaceDidChangeNotification, object: nil)
     }
 }

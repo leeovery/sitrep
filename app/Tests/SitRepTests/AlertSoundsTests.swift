@@ -8,16 +8,23 @@ import SwiftUI
 import Testing
 
 extension AlertSounds {
+    /// macOS's alert sounds by name, as macOS 26 has them, so a test reads none from this Mac.
+    static let macOSNames = [
+        "Basso", "Blow", "Bottle", "Frog", "Funk", "Glass", "Hero", "Morse", "Ping", "Pop", "Purr", "Sosumi", "Submarine",
+        "Tink",
+    ]
+
     /// macOS's sounds by name, none of them ever played.
     static var silent: AlertSounds {
-        AlertSounds(names: live.names, play: { _ in })
+        AlertSounds(names: macOSNames, play: { _ in })
     }
 }
 
 /// The sounds a new ask can play: macOS's own alert sounds, by name.
 @MainActor
 struct AlertSoundsTests {
-    @Test func theyAreMacOSsAlertSoundsByNameInOrder() {
+    @Test(.tags(.process))
+    func theyAreMacOSsAlertSoundsByNameInOrder() {
         let names = AlertSounds.live.names
 
         #expect(names.first == "Basso")
@@ -127,7 +134,6 @@ struct SoundRowsTests {
             control.state = isOn ? .on : .off
             _ = control.sendAction(control.action, to: control.target)
             #expect(settings.preferences.app.playsSound == isOn)
-            await Task.yield()
             hosted.hosting.layoutSubtreeIfNeeded()
             return try Self.popUp(hosted).isEnabled
         }

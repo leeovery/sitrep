@@ -62,7 +62,6 @@ struct EdgePaneChangeTests {
         let (settings, hosted) = await hosted(change.start)
 
         settings.preferences.edit(change.change)
-        await Task.yield()
         hosted.hosting.layoutSubtreeIfNeeded()
 
         return try Drawn(hosted.hosting).atTwice()
@@ -95,7 +94,6 @@ struct EdgePaneChangeTests {
 
         try #require(before.count == 3)
         settings.preferences.edit { $0.length = length }
-        await Task.yield()
         hosted.hosting.layoutSubtreeIfNeeded()
 
         let after = hosted.all(NSSegmentedControl.self)

@@ -56,7 +56,7 @@ enum WelcomeWorld {
                 displays: { [] }, hasGlass: true, jump: { self.jumps.append($0) }, sendTest: { self.tests += 1 },
                 copy: { self.copies.append($0) },
                 sounds: AlertSounds(
-                    names: AlertSounds.live.names, play: { self.played.append($0) }, stop: { self.stops += 1 }
+                    names: AlertSounds.macOSNames, play: { self.played.append($0) }, stop: { self.stops += 1 }
                 ),
                 noticeLeave: {
                     let said = self.notices
@@ -260,11 +260,12 @@ enum WelcomeWorld {
             await welcome.reading?.value
         }
 
-        /// The welcome at this step, from its first.
-        func at(_ step: WelcomeStep) {
-            while welcome.step != step {
+        /// The welcome at this step, from its first; one it never comes to fails the test, rather than go on for ever.
+        func at(_ step: WelcomeStep, sourceLocation: SourceLocation = #_sourceLocation) {
+            for _ in WelcomeSteps.all where welcome.step != step {
                 welcome.goOn()
             }
+            #expect(welcome.step == step, "never came to its step", sourceLocation: sourceLocation)
         }
 
         /// What the window shows, laid out once SwiftUI has heard what changed, and what the layout told after it, the

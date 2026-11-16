@@ -64,8 +64,7 @@ struct HereWatchTests {
 
     /// Until the watch has made as many reads as given, and taken the last.
     private static func read(_ count: Int, by reads: Reads, of watch: HereWatch) async {
-        await until(within: .seconds(10)) { reads.asked.count == count }
-        await settle()
+        await until(within: .seconds(10)) { reads.asked.count == count && !watch.isReading }
     }
 
     @Test func aSessionReadAsNotHereIsDimmedAndOneReadAsHereIsNot() async throws {
@@ -129,7 +128,7 @@ struct HereWatchTests {
         await until(within: .seconds(10)) { held.asked.count == 1 }
         racing.heard(try Self.held())
         gate.open()
-        await settle()
+        await until(within: .seconds(10)) { !racing.isReading }
         #expect(racing.notHere.isEmpty)
         #expect(held.asked.count == 1, "no session left to read")
         watch.stop()
@@ -149,16 +148,14 @@ struct HereWatchTests {
         watch.heard(try Self.held("sr-a"))
         watch.heard(try Self.held("sr-a", "sr-b"))
         clock.pass(HereWatch.every)
-        await settle()
-        #expect(reads.asked.count == 1)
+        await until(within: .seconds(10)) { clock.sleeps.count == 2 }
+        #expect(reads.asked.count == 1, "the tick, its next sleep begun, asked none")
 
         gate.open()
-        await until(within: .seconds(10)) { reads.asked.count == 2 }
-        await settle()
+        await Self.read(2, by: reads, of: watch)
         #expect(reads.asked.last.map { Set($0.keys) } == ["sr-a", "sr-b"])
         #expect(reads.most == 1)
 
-        await until(within: .seconds(10)) { clock.sleeps.count == 2 }
         clock.pass(HereWatch.every)
         await until(within: .seconds(10)) { reads.asked.count == 3 }
         #expect(HereWatch.every == .seconds(3))

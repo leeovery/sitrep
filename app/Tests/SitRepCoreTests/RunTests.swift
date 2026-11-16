@@ -1,7 +1,10 @@
 import Foundation
 @testable import SitRepCore
+import SitRepTestSupport
 import Testing
 
+/// Real programs run, each as a child of the test's: a guard against a run that never ends, the suite's time limit.
+@Suite(.timeLimit(.minutes(1)), .tags(.process))
 struct RunTests {
     private static func sh(
         _ script: String, environment: [String: String] = [:], limit: TimeInterval = 5, stopping: Stopping = .alone
@@ -10,21 +13,6 @@ struct RunTests {
             executable: URL(fileURLWithPath: "/bin/sh"), arguments: ["-c", script], environment: environment,
             limit: limit, stopping: stopping
         )
-    }
-
-    /// How long a run took, and what it came to.
-    private static func timed(_ program: Program) async -> (Result<Ran, any Error>, Duration) {
-        let clock = ContinuousClock()
-        let started = clock.now
-        let ended: Result<Ran, any Error>
-
-        do {
-            ended = .success(try await runProgram(program))
-        } catch {
-            ended = .failure(error)
-        }
-
-        return (ended, clock.now - started)
     }
 
     @Test func aRunGivesTheExitStatusAndBothOutputs() async throws {
@@ -61,26 +49,30 @@ struct RunTests {
         }
     }
 
+    /// Killed at its limit: never killed, it would run on for an hour, and the suite's time limit would fail it.
     @Test func aProgramOutlivingItsLimitIsKilledAndTimedOut() async {
-        let (ended, took) = await Self.timed(Self.sh("sleep 10", limit: 0.3))
-
-        #expect(throws: RunError.timedOut(0.3)) { try ended.get() }
-        #expect(took < .seconds(3))
+        await #expect(throws: RunError.timedOut(0.3)) { try await runProgram(Self.sh("sleep 3600", limit: 0.3)) }
     }
 
     /// An interactive shell ignores SIGTERM, so the kill must be one it cannot ignore.
     @Test func aProgramIgnoringTermIsKilledAllTheSame() async {
-        let (ended, took) = await Self.timed(Self.sh("trap '' TERM; while :; do sleep 1; done", limit: 0.3))
+        let trapped = Self.scratch()
+        let script = "trap '' TERM; echo trapped > '\(trapped.path)'; while :; do sleep 1; done"
 
-        #expect(throws: RunError.timedOut(0.3)) { try ended.get() }
-        #expect(took < .seconds(3))
+        defer { try? FileManager.default.removeItem(at: trapped) }
+        await #expect(throws: RunError.timedOut(1)) { try await runProgram(Self.sh(script, limit: 1)) }
+        #expect(Self.read(trapped) == "trapped", "killed before it set its trap, so its kill proves nothing")
     }
 
+    /// The run ends as the program does, its output read: the child it left, holding that output open, still runs.
     @Test func aChildLeftHoldingTheOutputOpenIsNotWaitedOn() async throws {
-        let (ended, took) = await Self.timed(Self.sh("echo done; sleep 10 &", limit: 20))
+        let pidFile = Self.scratch()
+        let ran = try await runProgram(Self.sh("echo done; sleep 3600 & echo $! > '\(pidFile.path)'", limit: 20))
+        let left = try Self.pid(in: pidFile)
 
-        #expect(try ended.get() == Ran(status: 0, stdout: "done\n", stderr: ""))
-        #expect(took < .seconds(3))
+        defer { kill(left, SIGKILL) }
+        #expect(ran == Ran(status: 0, stdout: "done\n", stderr: ""))
+        #expect(kill(left, 0) == 0)
     }
 
     @Test func timingOutIsToldInWords() {
@@ -91,45 +83,36 @@ struct RunTests {
     /// Killed at its limit, a group stop takes its whole process group: nothing the program started is left.
     @Test func aProgramOutlivingItsLimitIsKilledWithEveryProgramItStarted() async throws {
         let pidFile = Self.scratch()
-        let (ended, _) = await Self.timed(
-            Self.sh("sleep 30 & echo $! > '\(pidFile.path)'; wait", limit: 0.5, stopping: .group)
-        )
+        let program = Self.sh("sleep 3600 & echo $! > '\(pidFile.path)'; wait", limit: 1, stopping: .group)
 
-        #expect(throws: RunError.timedOut(0.5)) { try ended.get() }
-        #expect(try await Self.isGone(Self.pid(in: pidFile)))
+        await #expect(throws: RunError.timedOut(1)) { try await runProgram(program) }
+
+        let left = try Self.pid(in: pidFile)
+
+        #expect(await Self.isGone(left))
     }
 
     /// A program stopped alone, as a login shell is, leaves what it started: an ssh-agent its startup files launched is
     /// not SitRep's to end.
     @Test func aProgramStoppedAloneLeavesWhatItStarted() async throws {
-        let pidFile = Self.scratch()
-        let (ended, _) = await Self.timed(Self.sh("sleep 30 & echo $! > '\(pidFile.path)'; wait", limit: 0.5))
-        let left = try Self.pid(in: pidFile)
+        let (run, started) = try await Self.started(stopping: .alone)
+        let left = try #require(pid_t(started))
 
         defer { kill(left, SIGKILL) }
-        #expect(throws: RunError.timedOut(0.5)) { try ended.get() }
+        run.cancel()
+        await #expect(throws: RunError.stopped) { try await run.value }
         #expect(kill(left, 0) == 0)
     }
 
     /// Its task cancelled, as a later click's jump stops this one, it is killed with every program it started, and
     /// says it was stopped.
     @Test func aRunWhoseTaskIsCancelledIsKilledWithEveryProgramItStarted() async throws {
-        let pidFile = Self.scratch()
-        let clock = ContinuousClock()
-        let run = Task {
-            try await runProgram(Self.sh("sleep 30 & echo $! > '\(pidFile.path)'; wait", limit: 20, stopping: .group))
-        }
-
-        for _ in 0 ..< 100 where (try? Self.pid(in: pidFile)) == nil {
-            try await Task.sleep(for: .milliseconds(50))
-        }
-
-        let stopped = clock.now
+        let (run, started) = try await Self.started(stopping: .group)
+        let left = try #require(pid_t(started))
 
         run.cancel()
         await #expect(throws: RunError.stopped) { try await run.value }
-        #expect(clock.now - stopped < .seconds(3))
-        #expect(try await Self.isGone(Self.pid(in: pidFile)))
+        #expect(await Self.isGone(left))
     }
 
     @Test func aRunWhoseTaskIsCancelledBeforeItStartsNeverStarts() async {
@@ -143,21 +126,37 @@ struct RunTests {
         #expect(!FileManager.default.fileExists(atPath: touched.path))
     }
 
+    /// A run, under no limit it meets, of a program that starts a child to outlive it, and the child's pid, which the
+    /// program says once it has started it.
+    private static func started(stopping: Stopping) async throws -> (run: Task<Ran, any Error>, started: String) {
+        let ready = try Handshake()
+        let program = sh("sleep 3600 & echo $! > '\(ready.path)'; wait", limit: 60, stopping: stopping)
+        let run = Task { try await runProgram(program) }
+
+        defer { ready.remove() }
+        return (run, await ready.line())
+    }
+
     /// A file of the test's own, not there yet.
     private static func scratch() -> URL {
         FileManager.default.temporaryDirectory.appending(path: "sitrep-run-\(UUID().uuidString)")
     }
 
-    private static func pid(in file: URL) throws -> pid_t {
-        let text = String(decoding: try Data(contentsOf: file), as: UTF8.self)
-
-        return try #require(pid_t(text.trimmingCharacters(in: .whitespacesAndNewlines)))
+    private static func read(_ file: URL) -> String? {
+        (try? String(contentsOf: file, encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    /// Whether the process is gone, within a few seconds: killed, it is reaped by launchd, whose it became.
-    private static func isGone(_ pid: pid_t) async throws -> Bool {
-        for _ in 0 ..< 60 where kill(pid, 0) == 0 {
-            try await Task.sleep(for: .milliseconds(50))
+    private static func pid(in file: URL) throws -> pid_t {
+        defer { try? FileManager.default.removeItem(at: file) }
+
+        return try #require(read(file).flatMap { pid_t($0) })
+    }
+
+    /// Whether the process is gone, killed and reaped by launchd, whose it became: as soon as it is, or not within the
+    /// generous time a loaded Mac may take.
+    private static func isGone(_ pid: pid_t) async -> Bool {
+        for _ in 0 ..< 200 where kill(pid, 0) == 0 {
+            try? await Task.sleep(for: .milliseconds(50))
         }
 
         return kill(pid, 0) != 0 && errno == ESRCH

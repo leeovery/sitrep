@@ -47,18 +47,18 @@ struct LineBufferTests {
         #expect(buffer.lines(adding: Data("abcde\n".utf8)) == ["abcde"])
     }
 
-    @Test(.timeLimit(.minutes(1)))
-    func outputWithNoNewlineCostsOnlyItsChunks() {
+    /// What it keeps of a line never grows past its longest, however many chunks come with no newline.
+    @Test func outputWithNoNewlineCostsOnlyItsChunks() {
         var buffer = LineBuffer(longest: 1 << 20)
         let chunk = Data(repeating: UInt8(ascii: "a"), count: 64 * 1024)
-        let clock = ContinuousClock()
-        let started = clock.now
+        var kept: [Int] = []
 
         for _ in 1...80 {
             _ = buffer.lines(adding: chunk)
+            kept.append(buffer.unended.count)
         }
 
-        #expect(clock.now - started < .seconds(1))
+        #expect(kept.max() == 1 << 20)
         #expect(buffer.rest()?.utf8.count == 1 << 20)
     }
 }

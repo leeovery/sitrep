@@ -1,8 +1,9 @@
 import Foundation
 @testable import SitRepCore
+import SitRepTestSupport
 import Testing
 
-@Suite(.timeLimit(.minutes(1)))
+@Suite(.timeLimit(.minutes(1)), .tags(.process))
 struct WatchProgramTests {
     private static func sh(_ script: String, environment: [String: String] = [:]) -> Program {
         Program(executable: URL(fileURLWithPath: "/bin/sh"), arguments: ["-c", script], environment: environment, limit: .infinity)
@@ -44,13 +45,18 @@ struct WatchProgramTests {
         #expect(await Self.heard(Self.sh("kill -9 $$")) == [.exited(.signal(9), stderr: "")])
     }
 
-    @Test func aChildLeftHoldingTheOutputOpenIsNotWaitedOn() async {
-        let clock = ContinuousClock()
-        let started = clock.now
-        let heard = await Self.heard(Self.sh("echo done; sleep 10 &"))
+    /// Its end heard as the program ends: the child it left, holding its output open, still runs.
+    @Test func aChildLeftHoldingTheOutputOpenIsNotWaitedOn() async throws {
+        let ready = try Handshake()
+        let watching = Task { await Self.heard(Self.sh("echo done; sleep 3600 & echo $! > '\(ready.path)'")) }
+        let left = try #require(pid_t(await ready.line()))
 
-        #expect(heard == [.line("done"), .exited(.status(0), stderr: "")])
-        #expect(clock.now - started < .seconds(3))
+        defer {
+            kill(left, SIGKILL)
+            ready.remove()
+        }
+        #expect(await watching.value == [.line("done"), .exited(.status(0), stderr: "")])
+        #expect(kill(left, 0) == 0)
     }
 
     /// A line is read whole to 16MB, and cut there.
@@ -81,28 +87,18 @@ struct WatchProgramTests {
         #expect(heard.count == 1)
     }
 
+    /// Stopped by anything else, the program never says it was: the suite's time limit fails the wait on its word.
     @Test func readingNoMoreStopsTheProgramWithSIGTERM() async throws {
-        let folder = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
-        let stopped = folder.appending(path: "stopped")
+        let stopped = try Handshake()
+        let script = "trap 'echo TERM > \"\(stopped.path)\"; exit 0' TERM; echo ready; while :; do sleep 0.05; done"
 
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: folder) }
-
-        let script = "trap 'touch \"\(stopped.path)\"; exit 0' TERM; echo ready; while :; do sleep 0.05; done"
-
+        defer { stopped.remove() }
         for await said in watchProgram(Self.sh(script)) {
             #expect(said == .line("ready"))
             break
         }
 
-        let clock = ContinuousClock()
-        let deadline = clock.now + .seconds(5)
-
-        while !FileManager.default.fileExists(atPath: stopped.path), clock.now < deadline {
-            try await Task.sleep(for: .milliseconds(20))
-        }
-
-        #expect(FileManager.default.fileExists(atPath: stopped.path))
+        #expect(await stopped.line() == "TERM")
     }
 
     /// The program waits in the shell's own `wait`, never on a child in the foreground: `Process.terminate` signals

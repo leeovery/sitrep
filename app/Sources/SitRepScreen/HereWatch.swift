@@ -28,6 +28,8 @@ public final class HereWatch {
     public private(set) var notHere: Set<String> = []
     /// Each change of `notHere`.
     public var changed: (Set<String>) -> Void = { _ in }
+    /// Whether a read is under way, its answer not yet taken.
+    var isReading: Bool { reading != nil }
 
     public init(openings: RecentOpenings, clock: any JumpClock = SystemClock(), read: @escaping Read) {
         self.openings = openings

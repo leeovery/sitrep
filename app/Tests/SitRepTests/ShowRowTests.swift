@@ -81,7 +81,6 @@ struct ShowRowTests {
             accent = NSColor.controlAccentColor.usingColorSpace(.sRGB) ?? accent
         }
         settings.preferences.edit { $0.show = .strip }
-        await Task.yield()
         hosted.hosting.layoutSubtreeIfNeeded()
 
         let drawn = try Drawn(hosted.hosting).atTwice()

@@ -347,10 +347,3 @@ final class HeldTmux: TmuxProgram {
         return try await tmux.run(on: socket, words)
     }
 }
-
-/// Lets every task run that would.
-func settle() async {
-    for _ in 0..<1000 {
-        await Task.yield()
-    }
-}

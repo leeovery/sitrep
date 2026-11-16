@@ -93,7 +93,7 @@ struct WelcomeLeavesTests {
         await Self.press(.notifications, on: made)
         await until(turns: 1000) { made.mac.isWaiting }
         made.mac.waitEnds()
-        await Task.yield()
+        await made.welcome.patience[.notifications]?.value
         #expect(made.welcome.leave(.notifications) == .on)
     }
 
@@ -103,11 +103,14 @@ struct WelcomeLeavesTests {
 
         made.welcome.press(.ghostty)
         await until(turns: 1000) { made.mac.isPrompting }
+
+        let asking = made.welcome.asks[.ghostty]
+
         made.welcome.press(.ghostty)
-        await Task.yield()
-        #expect(made.mac.allows.count == 1)
+        #expect(made.welcome.asks[.ghostty] == asking, "no ask begun")
         made.mac.answer()
         await made.welcome.asks[.ghostty]?.value
+        #expect(made.mac.allows.count == 1)
     }
 
     // MARK: When the ask can't be made
@@ -241,12 +244,15 @@ struct WelcomeLeavesTests {
         made.mac.holdsRead = true
         made.window.windowDidBecomeKey(Notification(name: NSWindow.didBecomeKeyNotification, object: made.recorded))
         await until(turns: 1000) { made.mac.isReading }
+
+        let earlier = made.welcome.reading
+
         made.mac.holdsRead = false
         made.mac.notices = .denied
         await made.key()
         #expect(made.welcome.leave(.notifications) == .refused)
         made.mac.readEnds()
-        await Task.yield()
+        await earlier?.value
         #expect(made.welcome.leave(.notifications) == .refused)
     }
 

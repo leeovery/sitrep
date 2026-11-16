@@ -1,5 +1,6 @@
 @testable import SitRepNotices
 import SitRepRelay
+import SitRepTestSupport
 import Testing
 
 /// The helper between SitRep and macOS's notifications, over a SitRep and a macOS of its own: nothing is posted,
@@ -27,6 +28,12 @@ struct HelperTests {
                 await withCheckedContinuation { held = $0 }
             }
             posted.append(notice)
+        }
+
+        /// Once `count` banners are posted.
+        func posts(_ count: Int) async -> [Notice] {
+            await until(turns: 10_000) { posted.count >= count }
+            return posted
         }
 
         func leave() async -> NoticeLeave {
@@ -237,17 +244,19 @@ struct HelperTests {
         #expect(sent.messages == [Self.ready, Self.ready, .clicked(work: "sr-a8n2xc"), Self.ready])
     }
 
+    /// Passed over, the other's banner is never posted: one of its own SitRep's, posted in order after it, is the first.
     @Test func aLetterFromAnotherSitRepIsPassedOver() async {
         let helper = helper(SitRep(isRunning: true))
+        let own = Notice(title: "Own", subtitle: nil, body: "", work: nil)
 
         await helper.start()
         helper.heard(Self.fromSitRep(.ready, pid: 977))
         helper.heard(Self.fromSitRep(.post(Notice(title: "Stale", subtitle: nil, body: "", work: nil)), pid: 977))
         helper.clicked("sr-a8n2xc")
-        await Task.yield()
+        helper.heard(Self.fromSitRep(.post(own)))
 
         #expect(sent.messages == [Self.ready])
-        #expect(mac.posted.isEmpty)
+        #expect(await mac.posts(1) == [own])
     }
 
     @Test func beforeItKnowsItsSitRepNoLetterIsHeard() {
@@ -267,20 +276,12 @@ struct HelperTests {
         await helper.start()
         helper.heard(Self.fromSitRep(.post(first)))
         helper.heard(Self.fromSitRep(.post(second)))
-        while !mac.isHolding {
-            await Task.yield()
-        }
-        for _ in 0 ..< 10 {
-            await Task.yield()
-        }
+        await until(turns: 10_000) { mac.isHolding }
         #expect(mac.posted.isEmpty)
 
         mac.release()
-        while mac.posted.count < 2 {
-            await Task.yield()
-        }
 
-        #expect(mac.posted == [first, second])
+        #expect(await mac.posts(2) == [first, second])
     }
 
     @Test func itAnswersAStatusWithMacOSsLeaveUnderItsId() async {

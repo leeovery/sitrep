@@ -6,7 +6,7 @@ import AppKit
 /// AppKit does for a window with no initial first responder. It becomes key only as a test keys it, as SitRep's
 /// activation keys a window only after it has ordered in, its delegate told as AppKit tells it. What it can't show is
 /// SwiftUI's own focus, which moves no responder, nor Tab from the window itself, which a window never keyed for real
-/// ignores: only a live run shows those.
+/// ignores: only a live run shows those. It hears of Space changes from a centre of its own, which only its test posts to.
 @MainActor
 final class RecordedWindow: ForwardWindow {
     enum Step: Equatable {
@@ -32,6 +32,7 @@ final class RecordedWindow: ForwardWindow {
         let window = RecordedWindow(contentRect: .zero, styleMask: [.titled], backing: .buffered, defer: true)
 
         window.isReleasedWhenClosed = false
+        window.spaces = NotificationCenter()
         return window
     }
 

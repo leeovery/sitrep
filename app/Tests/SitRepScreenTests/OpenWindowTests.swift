@@ -291,10 +291,10 @@ struct OpenWindowTests {
     }
 
     /// Stopped once the window was asked for, its event in flight: the window opens all the same, unfocused, and is
-    /// remembered.
+    /// remembered. Lee in Finder as he clicked, Ghostty is kept in front from the opening until it ends.
     @Test func anOpeningStoppedOnceTheWindowWasAskedForIsRememberedAndLeftUnfocused() async {
         let gate = Gate()
-        let jumping = Jumping(FakeTmux(), Self.detachedZmx(), windowHeld: gate)
+        let jumping = Jumping(FakeTmux(), Self.detachedZmx(), windowHeld: gate, workspace: FakeWorkspace(front: finder))
         let opened = Task { await jumping.opening("attach litware").open() }
 
         await until(within: .seconds(10)) { gate.arrived == 1 }
@@ -302,7 +302,7 @@ struct OpenWindowTests {
         #expect(await opened.value == .stopped)
 
         gate.open()
-        await settle()
+        await until(within: .seconds(10)) { jumping.workspace.listened == 1 && jumping.workspace.listening == 0 }
         #expect(jumping.ghostty.told == ["open attach litware"])
         #expect(jumping.openings.isOpening("sr-a"))
     }

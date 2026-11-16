@@ -1,6 +1,7 @@
 @testable import SitRep
 import SitRepCore
 import SitRepRelay
+import SitRepTestSupport
 import Testing
 
 /// SitRep's banners through the notices helper, over a relay and a helper app of its own: nothing is posted, launched or
@@ -69,11 +70,6 @@ struct BannersTests {
     final class Clicks {
         var works: [String] = []
         var refused: (() -> Void)?
-    }
-
-    @MainActor
-    final class Asked {
-        var isDone = false
     }
 
     private let sent = Sent()
@@ -412,29 +408,21 @@ struct BannersTests {
     /// An ask the helper that ended was never sent waits for the next, so Settings reads again only once Lee answers.
     @Test func theHelperEndingLeavesAnAskNotYetSentForTheNext() async {
         let banners = banners()
-        let asked = Asked()
-        let asking = Task {
-            await banners.ask()
-            asked.isDone = true
-        }
+        let asking = Task { await banners.ask() }
 
-        while app.opens < 2 {
-            await Task.yield()
-        }
+        await until(turns: 10_000) { !banners.unanswered.isEmpty }
+        #expect(app.opens == 2)
         banners.helperEnded(Self.ended(Self.first))
-        for _ in 0 ..< 10 {
-            await Task.yield()
-        }
-
-        #expect(!asked.isDone)
+        #expect(banners.unanswered.count == 1)
 
         banners.heard(Self.fromHelper(Self.ready))
 
         #expect(sent.messages.last == .ask(id: sent.lastId!))
+        #expect(banners.unanswered == [sent.lastId!])
 
         banners.heard(Self.fromHelper(.status(.allowed(.banners), id: sent.lastId!)))
         await asking.value
 
-        #expect(asked.isDone)
+        #expect(banners.unanswered.isEmpty)
     }
 }

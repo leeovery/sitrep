@@ -2,6 +2,7 @@ import Darwin
 import Foundation
 import SitRepCore
 @testable import SitRepScreen
+import SitRepTestSupport
 import Testing
 
 struct KernelProcessesTests {
@@ -53,7 +54,8 @@ struct KernelProcessesTests {
         #expect(parseProcArgs([1, 0]) == nil)
     }
 
-    @Test func theKernelGivesThisProcessItsParentItsProgramExactlyAndItsCommandLineWhereWanted() throws {
+    @Test(.tags(.process))
+    func theKernelGivesThisProcessItsParentItsProgramExactlyAndItsCommandLineWhereWanted() throws {
         let program = try #require(Bundle.main.executableURL?.resolvingSymlinksInPath().path)
         let processes = try #require(KernelProcesses().read { $0.program == program })
         let own = try #require(processes.all[getpid()])
@@ -76,7 +78,8 @@ struct KernelProcessesTests {
         }
     }
 
-    @Test func aProcessWhoseProgramWasRemovedAsItRanIsTheProgramItWasStartedBy() async throws {
+    @Test(.tags(.process))
+    func aProcessWhoseProgramWasRemovedAsItRanIsTheProgramItWasStartedBy() async throws {
         let folder = FileManager.default.temporaryDirectory.appending(path: "sitrep-screen-\(UUID().uuidString)")
         let copy = folder.appending(path: "bash")
         let running = Process()

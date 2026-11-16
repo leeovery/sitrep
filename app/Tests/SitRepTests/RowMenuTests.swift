@@ -46,19 +46,19 @@ struct RowMenuTests {
         menu.items.map { $0.isSeparatorItem ? "—" : $0.attributedTitle?.string }
     }
 
-    @Test func aRowOfStopsAloneOffersJumpAlone() {
+    @Test func aRowOfStopsAloneOffersJumpAlone() throws {
         let heard = Heard()
         let menu = Self.menu(RowMenu.Row(asks: nil, isSnoozed: false), heard)
 
         #expect(Self.titles(menu) == ["Jump to the window"])
         #expect(menu.items.map(\.isEnabled) == [true])
 
-        menu.performActionForItem(at: 0)
+        try menu.choose(0)
         #expect(heard.said == ["jump"])
     }
 
     /// An away row's Jump carries its session on, as its click does (stage 8): its menu is any row's.
-    @Test func anAwayRowsMenuIsAnyRowsItsJumpEnabled() {
+    @Test func anAwayRowsMenuIsAnyRowsItsJumpEnabled() throws {
         let line = Session.Line(ask: "k1", title: "Review the plan", since: 0)
         let away = Session(id: "sr-4t2kq8", project: "Tailspin", kind: .needs, away: true, lines: [line], sub: "Tailspin")
         let heard = Heard()
@@ -67,7 +67,7 @@ struct RowMenuTests {
         #expect(RowMenu.Row(away) == RowMenu.Row(asks: ["k1"], isSnoozed: false))
         #expect(menu.items.first?.isEnabled == true)
 
-        menu.performActionForItem(at: 0)
+        try menu.choose(0)
         #expect(heard.said == ["jump"])
     }
 
@@ -84,20 +84,20 @@ struct RowMenuTests {
             "Later today\t17:00", "Tomorrow\tSat 09:00", "Next week\tMon 09:00", "—", "Until it moves",
         ])
 
-        snooze.performActionForItem(at: 1)
-        snooze.performActionForItem(at: 4)
+        try snooze.choose(1)
+        try snooze.choose(4)
         #expect(heard.said == ["snooze Tomorrow", "snooze Until it moves"])
         #expect(heard.named == [asks, asks])
     }
 
     @Test(arguments: [["k1"], []])
-    func aSnoozedRowOffersWakeNow(asks: [String]) {
+    func aSnoozedRowOffersWakeNow(asks: [String]) throws {
         let heard = Heard()
         let menu = Self.menu(RowMenu.Row(asks: asks, isSnoozed: true), heard)
 
         #expect(Self.titles(menu) == ["Jump to the window", "—", "Wake now"])
 
-        menu.performActionForItem(at: 2)
+        try menu.choose(2)
         #expect(heard.said == ["wake"])
     }
 

@@ -104,15 +104,10 @@ struct SettingsModelTests {
 
         let reading = Task { await settings.read() }
 
-        for _ in 0 ..< 100 where settings.said.ghostty == nil {
-            await Task.yield()
-        }
+        await until(turns: 10_000) { settings.said.ghostty != nil && mac.noticesAnswer != nil }
         #expect(settings.said.ghostty == .unasked)
         #expect(settings.said.notices == nil)
 
-        while mac.noticesAnswer == nil {
-            await Task.yield()
-        }
         mac.noticesAnswer?.resume()
         await reading.value
         #expect(settings.said.notices == .allowed(.banners))
@@ -246,15 +241,11 @@ struct SettingsModelTests {
 
         settings.fix(.allowGhostty)
         settings.fix(.allowGhostty)
-        while mac.answer == nil {
-            await Task.yield()
-        }
+        await until(turns: 10_000) { mac.answer != nil }
         #expect(settings.isAllowing)
         #expect(mac.allows == 1)
         mac.answer?.resume(returning: .allowed)
-        while settings.isAllowing {
-            await Task.yield()
-        }
+        await until(turns: 10_000) { !settings.isAllowing }
         #expect(settings.said.ghostty == .allowed)
     }
 

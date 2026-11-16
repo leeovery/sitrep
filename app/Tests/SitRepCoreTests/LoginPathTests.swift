@@ -1,6 +1,7 @@
 import Foundation
 import os
 @testable import SitRepCore
+import SitRepTestSupport
 import Testing
 
 struct LoginPathTests {
@@ -35,7 +36,8 @@ struct LoginPathTests {
         #expect(LoginPath.parse(output) == nil)
     }
 
-    @Test func theShellIsAskedAsALoginAndInteractiveShellWithItsOutputMarked() async throws {
+    @Test(.tags(.process))
+    func theShellIsAskedAsALoginAndInteractiveShellWithItsOutputMarked() async throws {
         let program = LoginPath.program(shell: "/bin/zsh", environment: ["HOME": "/Users/me"])
 
         #expect(program.executable.path == "/bin/zsh")
