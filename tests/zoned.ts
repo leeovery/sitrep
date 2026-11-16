@@ -121,19 +121,21 @@ const zonedDate = (zone: string) =>
 export const LOCAL_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone
 
 /**
- * What `body` gives with local time the zone's, the real `Date` put back
- * after. The body is synchronous: the real `Date` would be back at an async
- * one's first `await`, so a promise from it is refused.
+ * What `body` gives with local time the zone's, the `Date` it found put back
+ * after, so one inside another's body hands that zone back. The body is
+ * synchronous: the `Date` it found would be back at an async one's first
+ * `await`, so a promise from it is refused.
  */
 export const inZone = <T>(zone: string, body: () => T): T => {
   const global = globalThis as { Date: unknown }
+  const found = global.Date
   let given: T
 
   global.Date = zonedDate(zone)
   try {
     given = body()
   } finally {
-    global.Date = RealDate
+    global.Date = found
   }
 
   if (typeof (given as { then?: unknown } | null | undefined)?.then === 'function') {
@@ -142,3 +144,12 @@ export const inZone = <T>(zone: string, body: () => T): T => {
 
   return given
 }
+
+/** Lee's own zone, which a test of his local time pins. */
+export const LONDON = 'Europe/London'
+
+/** The instant a wall-clock time in the zone comes to, its month counted from 1 as a test writes a date. */
+export const wallClock =
+  (zone: string) =>
+  (year: number, month: number, day: number, hour = 0, minute = 0) =>
+    inZone(zone, () => new Date(year, month - 1, day, hour, minute).getTime())

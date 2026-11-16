@@ -47,9 +47,12 @@ import {
   BAND,
   CONVERSATION,
   DOCKED,
+  openAsk,
   postedId,
+  pressYes,
   toProject,
   world,
+  writeDoor,
   type Board,
   type World,
 } from './world'
@@ -1063,11 +1066,8 @@ test("an answer with an image a reload left, let go with the inbox's replies hel
   await w.clock.advance(2 * WATCH_MS)
   expect(w.flights()).toMatchObject([{ source: 'inbox', isHeld: true }])
 
-  if ((await ui.find({ key: `yes:${w.item(id)}` })) === undefined) {
-    await ui.press({ key: `pick:${w.item(id)}` })
-  }
-
-  await ui.press({ key: `yes:${w.item(id)}` })
+  await openAsk(ui, w.item(id))
+  await pressYes(ui, w.item(id))
   await ui.press({ key: `rewrite:${w.item(id)}` })
 
   const held = w.holdPrompts()
@@ -1090,6 +1090,7 @@ test("an answer with an image a reload left, let go with the inbox's replies hel
 
 test('an answer with an image whose ask a send claims first goes to Claude as any prompt does, and the send carries the yes alone', async ($, on) => {
   const w = world($, on)
+  const riding = writeDoor(on)
 
   await w.begin()
 
@@ -1099,11 +1100,17 @@ test('an answer with an image whose ask a send claims first goes to Claude as an
   await ui.press({ key: `yes:${w.item(id)}` })
   await ui.press({ key: `rewrite:${w.item(id)}` })
 
-  const held = w.holdPrompts()
+  riding.hold(flights => flights.some(each => each.ride !== undefined))
+
   const typed = entered(w, $, 'After the copy pass [Image #1]', { attachments: [IMAGE] })
+
+  await riding.arrived
+
+  const held = w.holdPrompts()
 
   await ui.press({ key: 'send' })
   await held.arrived
+  riding.open()
   held.end()
   await typed
   await w.clock.settle()

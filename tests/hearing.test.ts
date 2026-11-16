@@ -1,4 +1,4 @@
-import { expect, test } from './kit'
+import { drained, expect, test } from './kit'
 import { QUIET, type Activity } from '../core'
 import { activityNow } from '../hooks/activity'
 import { throughCall } from '../hooks/doing'
@@ -49,9 +49,7 @@ test('a call starts and ends though the clock fails throughout: its end needs no
     },
   )
 
-  for (let turn = 0; turn < 10; turn += 1) {
-    await Promise.resolve()
-  }
+  await drained()
 
   expect(result).toBe('ran')
   expect(ranWith?.tools.map(running => running.call)).toEqual(['toolu_1'])

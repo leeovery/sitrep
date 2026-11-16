@@ -27,6 +27,7 @@ import {
   yesAsk,
   type Line,
 } from './lines'
+import { inZone, LONDON, wallClock } from './zoned'
 
 const NOW = T0 + 60 * MIN
 
@@ -242,8 +243,8 @@ test('a conversation starts knowing how to keep the board and talk to Lee beside
   )
 })
 
-/** Monday 26 October 2026, 09:00, local time: when the snooze under test wakes. */
-const MONDAY = new Date(2026, 9, 26, 9).getTime()
+/** Monday 26 October 2026, 09:00 in London: when the snooze under test wakes. */
+const MONDAY = wallClock(LONDON)(2026, 10, 26, 9)
 
 /** Four asks, the session snoozed until Monday. */
 const SNOOZING: Line[] = [
@@ -273,7 +274,7 @@ const snoozedAt = (now: number, ...more: Line[]) =>
 const SNOOZED = snoozedAt(NOW)
 
 test("a snoozed ask reads as snoozed by Lee until its time, whole and local, in place of waiting on Lee, one with Lee's answer on its way among them", () => {
-  expect(boardText(SNOOZED)).toContain(
+  expect(inZone(LONDON, () => boardText(SNOOZED))).toContain(
     [
       'Open asks:',
       '- k1 wants a yes (Go), snoozed by Lee until Mon 26 Oct 09:00 (leave it until then): Give the ok for phase 3',

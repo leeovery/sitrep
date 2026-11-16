@@ -549,8 +549,8 @@ test('a send submitted and not yet taken as the conversation ends for an exit is
   const w = world($, on)
   const { claim } = await replying.send(w)
   const turn = w.holdPrompts()
+  const claiming = claim()
 
-  void claim()
   await turn.arrived
 
   const claimed = w.writes.inFlight
@@ -562,6 +562,7 @@ test('a send submitted and not yet taken as the conversation ends for an exit is
   expect(w.writes.inFlight).toBe(claimed)
 
   turn.end()
+  await claiming
 })
 
 test('inbox: a held message offers no take-back, though the window holds it as it holds a send', async ($, on) => {

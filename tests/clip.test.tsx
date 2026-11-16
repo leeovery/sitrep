@@ -15,7 +15,18 @@ import { PANE } from '../hooks/pane'
 import { rowsOf } from './drawn'
 import { GO, LEDGER, MIN, PROJECT, reviewRounds } from './data'
 import { yesAsk } from './lines'
-import { asked, asking, DOCKED, INLINE, toProject, world, type Board, type World } from './world'
+import {
+  asked,
+  asking,
+  DOCKED,
+  INLINE,
+  openAsk,
+  pressYes,
+  toProject,
+  world,
+  type Board,
+  type World,
+} from './world'
 
 tier('user')
 
@@ -59,13 +70,10 @@ const long = async (w: World, open: () => Promise<Board> = () => w.pane()) => {
   return { ids, ui: await open() }
 }
 
-/** Lee approves an ask, by its address, opening it first where it is not open. */
+/** Lee opens an ask the board shows closed, by its address, and approves it. */
 const approve = async (ui: Board, item: string) => {
-  if ((await ui.find({ key: `yes:${item}` })) === undefined) {
-    await ui.press({ key: `pick:${item}` })
-  }
-
-  await ui.press({ key: `yes:${item}` })
+  await openAsk(ui, item)
+  await pressYes(ui, item)
 }
 
 const boxes = async (ui: Board) => (await ui.findAll({ type: 'Box' })).map(box => box.props)
@@ -191,7 +199,7 @@ test('docked, the tree is a row short of the window; the list is clipped between
     ui,
   } = await asking(w, { asks: reviewRounds(1) })
 
-  await approve(ui, w.item(id))
+  await pressYes(ui, w.item(id))
 
   const { tree, clip, list } = await clipping(ui)
   const [head, , foot] = ((await ui.findAll({ type: 'Box' }))[0]?.children ?? []) as Drawn[]
@@ -655,7 +663,7 @@ test("inline, nothing is clipped or measured: Ready to send follows the view, an
     ui,
   } = await asking(w, { asks: reviewRounds(1), props: INLINE })
 
-  await approve(ui, w.item(id))
+  await pressYes(ui, w.item(id))
 
   const [root] = await boxes(ui)
 

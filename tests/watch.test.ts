@@ -1,4 +1,4 @@
-import { expect, test } from './kit'
+import { drained, expect, test } from './kit'
 import type { Io } from '../cli/io'
 import { EXIT, main } from '../cli/main'
 import { OFF_BOARD_MS, POLL_MS } from '../cli/watch'
@@ -130,7 +130,7 @@ const watched = async (
   let err = ''
   let last: { isCancelled: boolean } | undefined
   const waited = async (ms: number, waiting: { isCancelled: boolean }) => {
-    await Promise.resolve()
+    await drained()
     t.arrives()
 
     if (waiting.isCancelled) {

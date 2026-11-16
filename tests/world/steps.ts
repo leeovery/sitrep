@@ -1,6 +1,6 @@
 /** Steps the tests share, taken in a world: Claude asking, a turn ending, Lee moving about the board; and reads of what the window wrote. */
 import type { RenderPropsOf } from 'claude-code'
-import type { Mounted } from 'claude-code/testing'
+import { expect, type Mounted } from '../kit'
 import { parseEntries, parsePresence, type SessionPaths } from '../../core'
 import { PROJECT, REVIEW, W1 } from '../data'
 import { postedId } from './calls'
@@ -52,6 +52,18 @@ export const asksOnBand = async (w: World, text: string) =>
 export const toProject = async (ui: Pick<Mounted, 'press'>, key = PROJECT.key) => {
   await ui.press({ key: 'tab:all' })
   await ui.press({ key: `proj:${key}` })
+}
+
+/** Lee opens an ask the board shows closed, by its address: asserted closed, its yes not drawn, before he picks it. */
+export const openAsk = async (ui: Pick<Mounted, 'find' | 'press'>, key: string) => {
+  expect(await ui.find({ key: `yes:${key}` }), `${key} stands closed`).toBeUndefined()
+  await ui.press({ key: `pick:${key}` })
+}
+
+/** Lee presses an open yes ask's yes, by its address: asserted drawn first, so an ask standing closed, or of another kind, fails the step. */
+export const pressYes = async (ui: Pick<Mounted, 'find' | 'press'>, key: string) => {
+  expect(await ui.find({ key: `yes:${key}` }), `${key}'s yes drawn`).toBeDefined()
+  await ui.press({ key: `yes:${key}` })
 }
 
 /** The kinds of line a file holds, in order. */

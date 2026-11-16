@@ -43,7 +43,7 @@ import {
   yesAsk,
   type Line,
 } from './lines'
-import { inZone } from './zoned'
+import { inZone, LONDON, wallClock } from './zoned'
 
 /** When the session is folded, unless a test says otherwise. */
 const NOW = T0 + HOUR
@@ -467,13 +467,15 @@ test("Lee's snooze and wake of a session are never told to Claude by its time: t
   expect(asleepThen([[T0 + 2 * MIN, wakeSession()]]).updatedAt).toBe(plain.updatedAt)
 })
 
-/** A time in local time, as the pane words it. */
-const local = (year: number, month: number, day: number, hour: number, minute = 0) =>
-  new Date(year, month - 1, day, hour, minute).getTime()
+/** A time in London, as the pane words it there. */
+const local = wallClock(LONDON)
+
+/** How the pane words a snooze's time at its now, in London. */
+const wordsAt = (until: number, now: number) => inZone(LONDON, () => wakeWords(until, now))
 
 test("the pane counts calendar days, never hours, across Europe/London's changes of the clocks in 2026, wherever the Mac is", () => {
   const words = (until: Parameters<typeof local>, now: Parameters<typeof local>) =>
-    inZone('Europe/London', () => wakeWords(local(...until), local(...now)))
+    wordsAt(local(...until), local(...now))
 
   expect(words([2026, 10, 26, 9], [2026, 10, 25, 0, 30]), 'going back, a day of 25 hours is one').toBe(
     'tomorrow 09:00',
@@ -483,7 +485,7 @@ test("the pane counts calendar days, never hours, across Europe/London's changes
   )
 })
 
-/** Friday 23 October 2026, 14:00, local time. */
+/** Friday 23 October 2026, 14:00 in London. */
 const FRIDAY = local(2026, 10, 23, 14)
 
 test("the pane words a snooze's time at its now: today's time alone, tomorrow, a weekday within the week, else its date", () => {
@@ -496,13 +498,15 @@ test("the pane words a snooze's time at its now: today's time alone, tomorrow, a
     [local(2026, 10, 30, 9), '30 Oct 09:00'],
     [local(2026, 11, 3, 9), '3 Nov 09:00'],
   ] as const) {
-    expect(wakeWords(until, FRIDAY), words).toBe(words)
+    expect(wordsAt(until, FRIDAY), words).toBe(words)
   }
 
-  expect(wakeWords(local(2026, 10, 24, 1, 30), local(2026, 10, 23, 23, 30))).toBe('tomorrow 01:30')
+  expect(wordsAt(local(2026, 10, 24, 1, 30), local(2026, 10, 23, 23, 30))).toBe('tomorrow 01:30')
 })
 
 test('Claude is told the time whole and local, never relative: its weekday, date and time', () => {
-  expect(wholeTime(local(2026, 10, 26, 9))).toBe('Mon 26 Oct 09:00')
-  expect(wholeTime(local(2026, 11, 3, 7, 5))).toBe('Tue 3 Nov 07:05')
+  const whole = (at: number) => inZone(LONDON, () => wholeTime(at))
+
+  expect(whole(local(2026, 10, 26, 9))).toBe('Mon 26 Oct 09:00')
+  expect(whole(local(2026, 11, 3, 7, 5))).toBe('Tue 3 Nov 07:05')
 })

@@ -5,7 +5,15 @@ import { SENT_LINGER_MS } from '../hooks/queue'
 import { rowsOf } from './drawn'
 import { CLI, CLOSES, LEDGER, MIN, PROJECT, REVIEW, ROOT, T0, THEMES, W1, W3 } from './data'
 import { delivered, file, finish, reopen, reply, resolve, unfinish, yesAsk } from './lines'
-import { asked, INLINE, toProject, world, type Board, type World } from './world'
+import {
+  asked,
+  INLINE,
+  pressYes,
+  toProject,
+  world,
+  type Board,
+  type World,
+} from './world'
 
 tier('user')
 
@@ -496,11 +504,7 @@ test("a send of letters alone, pressed while Lee has stopped Claude's turn, carr
   const { posted, paths, ui } = await threeSessions(w)
   const own = `From the board:\n- Review Tickets & Replies, round 1 → Approve${CLOSES}`
 
-  if ((await ui.find({ key: `yes:${w.item(posted)}` })) === undefined) {
-    await ui.press({ key: `pick:${w.item(posted)}` })
-  }
-
-  await ui.press({ key: `yes:${w.item(posted)}` })
+  await pressYes(ui, w.item(posted))
   await w.turnStarts('Carry on.')
   await ui.press({ key: 'send' })
   w.dropPrompts('the session was stopped and nobody has sent input since')

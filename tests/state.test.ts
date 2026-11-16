@@ -32,6 +32,7 @@ import {
   type WindowState,
 } from '../core'
 import { T0, W1 } from './data'
+import { inZone, LONDON, wallClock } from './zoned'
 
 const PERMISSION: WindowState = {
   is: 'permission',
@@ -588,11 +589,13 @@ const REVIEW = task('a1', 'subagent', 'Review the diff', { agent_type: 'general-
 
 const TESTS = task('b1', 'shell', 'Run the tests', { command: 'bun test' })
 
-/** A time in local time, as a wake's schedule names it. */
-const local = (year: number, month: number, day: number, hour: number, minute: number) =>
-  new Date(year, month - 1, day, hour, minute).getTime()
+/** A time in London, the local time a wake's schedule names here. */
+const local = wallClock(LONDON)
 
-/** Thursday 22 October 2026, 14:30 and 25 seconds, local time. */
+/** A zone whose clocks change a week after London's. */
+const NEW_YORK = 'America/New_York'
+
+/** Thursday 22 October 2026, 14:30 and 25 seconds, in London. */
 const NOW = local(2026, 10, 22, 14, 30) + 25_000
 
 /** A turn begun at T0 and ended at T0 + 9s, its Stop listing `pending` before its end or after it. */
@@ -802,26 +805,21 @@ test('a recurring cron never ends and counts for nothing; one-off wakes count, w
     prompt: 'Check the build',
   })
 
+  const workOfCrons = (...crons: ReturnType<typeof cron>[]) =>
+    inZone(LONDON, () => workOf({ crons }, [], NOW))
+
+  expect(workOfCrons(cron('*/5 * * * *', true), cron('0 9 * * 1-5', true))).toBeUndefined()
   expect(
-    workOf({ crons: [cron('*/5 * * * *', true), cron('0 9 * * 1-5', true)] }, [], NOW),
-  ).toBeUndefined()
-  expect(
-    workOf(
-      {
-        crons: [
-          cron('0 17 * * *', false),
-          cron('45 14 * * *', false),
-          cron('*/5 * * * *', false),
-          cron('0 9 * * 1-5', true),
-        ],
-      },
-      [],
-      NOW,
+    workOfCrons(
+      cron('0 17 * * *', false),
+      cron('45 14 * * *', false),
+      cron('*/5 * * * *', false),
+      cron('0 9 * * 1-5', true),
     ),
   ).toEqual({ wakes: { count: 3, at: local(2026, 10, 22, 14, 45) } })
-  expect(workOf({ crons: [cron('*/5 * * * *', false)] }, [], NOW)).toEqual({ wakes: { count: 1 } })
+  expect(workOfCrons(cron('*/5 * * * *', false))).toEqual({ wakes: { count: 1 } })
   expect(
-    workOf({ crons: [cron('45 14 * * *', false), cron('15 14 * * *', false)] }, [], NOW),
+    workOfCrons(cron('45 14 * * *', false), cron('15 14 * * *', false)),
     'one whose minute just passed is due first',
   ).toEqual({ wakes: { count: 2, at: local(2026, 10, 22, 14, 15) } })
 })
@@ -839,8 +837,15 @@ test("a one-off wake's schedule fires at the next time it names, in local time, 
     ['0 9 1 * 5', local(2026, 10, 23, 9, 0)],
     ['0 9 29 2 *', local(2028, 2, 29, 9, 0)],
   ] as const) {
-    expect(wakeAt(schedule, NOW), schedule).toBe(at)
+    expect(inZone(LONDON, () => wakeAt(schedule, NOW)), schedule).toBe(at)
   }
+
+  const newYork = wallClock(NEW_YORK)
+
+  expect(
+    inZone(NEW_YORK, () => wakeAt('0 9 * * 1', newYork(2026, 10, 31, 14, 30))),
+    "in a zone of another offset, across that zone's own change of the clocks",
+  ).toBe(newYork(2026, 11, 2, 9, 0))
 })
 
 test('a one-off still listed has not fired: where the last time it names is nearer than its next, it is due then, in the past, not a day or a year away', () => {
@@ -852,7 +857,7 @@ test('a one-off still listed has not fired: where the last time it names is near
     ['0 12 22 10 *', local(2026, 10, 22, 12, 0)],
     ['0 9 * * 1', local(2026, 10, 19, 9, 0)],
   ] as const) {
-    expect(wakeAt(schedule, NOW), schedule).toBe(at)
+    expect(inZone(LONDON, () => wakeAt(schedule, NOW)), schedule).toBe(at)
   }
 })
 
@@ -938,10 +943,12 @@ test('a call that started a monitor is heard as it ends; a Stop keeps the monito
 })
 
 test('on its own work reads back from a heartbeat, and what the window heard from $.state, as each was kept', () => {
-  const waiting = turnStopped(
-    turnEnded(turnStarted(QUIET, T0), T0 + 9_000),
-    { tasks: [REVIEW, TESTS], crons: [{ schedule: '45 14 * * *', recurring: false }] },
-    NOW,
+  const waiting = inZone(LONDON, () =>
+    turnStopped(
+      turnEnded(turnStarted(QUIET, T0), T0 + 9_000),
+      { tasks: [REVIEW, TESTS], crons: [{ schedule: '45 14 * * *', recurring: false }] },
+      NOW,
+    ),
   )
   const state = stateOf(waiting, T0)
 

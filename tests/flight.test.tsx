@@ -403,8 +403,8 @@ test("inbox: the heartbeat says nothing of the inbox's message, its replies on t
   const w = world($, on)
   const { paths, submit } = await replying.inbox(w)
   const turn = w.holdPrompts()
+  const submitted = submit()
 
-  void submit()
   await turn.arrived
   await w.clock.advance(WATCH_MS)
 
@@ -413,6 +413,7 @@ test("inbox: the heartbeat says nothing of the inbox's message, its replies on t
   expect(w.state.board?.waiting).toBe(0)
 
   turn.end()
+  await submitted
 })
 
 test('a send whose window has moved to another session is said in neither heartbeat', async ($, on) => {

@@ -132,3 +132,19 @@ export const test = (name: string, ...rest: TestRest): void =>
   rest.length === 1
     ? kitTest(name, { timeoutMs: TEST_MS }, guarded(rest[0]))
     : kitTest(name, { timeoutMs: TEST_MS, ...rest[0] }, guarded(rest[1]))
+
+/** The real timer the test's process runs, which the mod's types leave out: its code waits on `$.clock` alone. */
+const { setTimeout: realTimeout } = globalThis as unknown as {
+  setTimeout: (run: () => void, ms: number) => unknown
+}
+
+/**
+ * Resolves once everything under way that waits on no timer has run its
+ * course, for a test with no mock clock to settle: a real timer's turn comes
+ * only once every promise queued ahead of it has settled, however many steps
+ * each chain takes, so no count of turns stands in for it.
+ */
+export const drained = () =>
+  new Promise<void>(resolve => {
+    realTimeout(resolve, 0)
+  })

@@ -1,4 +1,4 @@
-import { expect, test } from './kit'
+import { drained, expect, test } from './kit'
 import type { Session } from '../core'
 import { boardOf } from '../hooks/board'
 import type { Host } from '../hooks/host'
@@ -101,19 +101,12 @@ const delivering = (board: Session, inFlight: SitrepInFlight[]) => {
   return { state, submitted, look: () => look(), land: () => landed() }
 }
 
-/** Lets every step already under way run to its end. */
-const settled = async () => {
-  for (let turn = 0; turn < 50; turn += 1) {
-    await Promise.resolve()
-  }
-}
-
 test('a look with nothing in flight delivers the inbox replies on their way', async () => {
   const window = delivering(UNWRITTEN, [])
 
   window.look()
   window.land()
-  await settled()
+  await drained()
 
   expect(window.submitted).toEqual([`From the board:\n- Review round 1 → Approve${CLOSES}`])
 })
@@ -122,11 +115,11 @@ test('a look reads the board only once it finds no message in flight, so a send 
   const window = delivering(UNWRITTEN, [SENT])
 
   window.look()
-  await settled()
+  await drained()
   window.state.board = boardOf(WRITTEN)
   window.state.inFlight = []
   window.land()
-  await settled()
+  await drained()
 
   expect(window.submitted).toEqual([])
 })
