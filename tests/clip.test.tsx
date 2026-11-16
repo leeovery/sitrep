@@ -907,7 +907,6 @@ test('five sends held in a window too short for a row each: the first in full, a
   const { ids, ui } = await asking(w, { asks: reviewRounds(5), props: short })
   const cap = Math.floor((22 - 1) / 2)
   const [first = '', ...later] = ids
-  const then = (text: string) => ui.find({ type: 'Text', text: `⧗ Then: ${text}` })
 
   await approve(w, ui, w.item(first))
   await w.turnStarts('Carry on.')
@@ -940,13 +939,13 @@ test('five sends held in a window too short for a row each: the first in full, a
   await expectHeightKept(ui, 'stepped to the last', 22)
 
   await ui.press({ key: STEP_HELD })
-  expect(await then('Review round 4 · 1 of 2'), 'round again').toBeDefined()
+  expect(await sendLines(ui), 'round again').toContain('⧗ Then: Review round 4 · 1 of 2')
 
   await ui.press({ key: w.takeBack(3) })
 
   expect(w.flights()).toHaveLength(4)
   expect(await ui.find({ key: 'send' }), 'its reply still to send').toBeDefined()
-  expect(await then('Review round 2 · 1 of 3')).toBeDefined()
+  expect(await sendLines(ui)).toContain('⧗ Then: Review round 2 · 1 of 3')
   expect(await drawnRows(ui)).toBeLessThanOrEqual(cap)
   await expectHeightKept(ui, 'four sends held and a reply, cut short', 22)
 })

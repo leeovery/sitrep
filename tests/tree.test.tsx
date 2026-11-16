@@ -492,7 +492,7 @@ test('the band counts what waits in every other session, in every project, and o
 
   const band = await w.band()
 
-  expect(await band.find({ key: 'band:asks', text: '1 ask' })).toBeDefined()
+  expect(await band.find({ key: 'band:asks' })).toMatchObject({ text: '1 ask' })
   expect(
     await band.find({ key: 'band:elsewhere', text: '2 elsewhere' }),
     "the ledger's ask and Contoso's",

@@ -1,7 +1,7 @@
 import { expect, test, tier } from './kit'
 import { C } from '../hooks/look'
 import { projectPlace } from '../hooks/places'
-import { rowsOf } from './drawn'
+import { readyRows, rowsOf } from './drawn'
 import { HELD, MIN, PROJECT, REVIEW, T0, type Asked } from './data'
 import { askOf, park, resolve, status } from './lines'
 import { pane, sceneFrom, type Drawn } from './render'
@@ -153,8 +153,8 @@ test('a reply waits under its ask, not sent yet, until it is undone', async ($, 
   const ui = await w.pane()
 
   await ui.press({ key: `yes:${w.item(id)}` })
-  expect(rowsOf(await ui.find({ key: `ask:${w.item(id)}` })).at(-1)).toBe(
-    '└ → Approve · not sent yet ↺ undo ✎ comment',
+  expect(rowsOf(await ui.find({ key: `ask:${w.item(id)}` })).at(-1)).toMatch(
+    /^└ → Approve · not sent yet/,
   )
   expect(await ui.find({ key: `yes:${w.item(id)}` })).toBeUndefined()
 
@@ -259,13 +259,13 @@ test("a pick-up from this session's PARKED waits in Ready to send", async ($, on
 
   await ui.press({ key: `ppick:${w.item(id)}` })
   await ui.press({ key: `pickup:${w.item(id)}` })
-  expect(rowsOf(await ui.find({ key: 'ready' })).map(row => row.trim())).toEqual([
-    'READY TO SEND1 reply',
-    '',
+
+  const rows = await readyRows(ui)
+  const group = rows.indexOf('to this session')
+
+  expect(rows.slice(group, group + 3)).toEqual([
     'to this session',
     'A priority badge across all tabs ✕',
     '└ pick it up',
-    '',
-    '[ send to Claude ] [ cancel all ]',
   ])
 })

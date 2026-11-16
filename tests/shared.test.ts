@@ -56,7 +56,7 @@ test("what the CLI posts, the mod's watch folds: its note in the log, its ask wa
 
   const band = await w.band()
 
-  expect(await band.find({ key: 'band:asks', text: '1 ask' })).toBeDefined()
+  expect(await band.find({ key: 'band:asks' })).toMatchObject({ text: '1 ask' })
   expect(w.logs, 'no look failed').toEqual([])
 })
 
@@ -146,7 +146,7 @@ test("while the CLI's answer to the window's own ask goes in, the ask waits on L
     title: 'Keep the sidebar?',
   })
 
-  expect(await (await w.band()).find({ key: 'band:asks', text: '1 ask' })).toBeDefined()
+  expect(await (await w.band()).find({ key: 'band:asks' })).toMatchObject({ text: '1 ask' })
 
   const turn = w.holdPrompts()
 
@@ -156,7 +156,7 @@ test("while the CLI's answer to the window's own ask goes in, the ask waits on L
   await turn.arrived
 
   expect(w.state.board?.waiting).toBe(0)
-  expect(await (await w.band()).find({ key: 'band:asks', text: '0 asks' })).toBeDefined()
+  expect(await (await w.band()).find({ key: 'band:asks' })).toMatchObject({ text: '0 asks' })
 
   const ui = await w.opened()
 

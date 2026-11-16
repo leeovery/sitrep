@@ -2,7 +2,7 @@ import { expect, test, tier } from './kit'
 import { parseEntries, sessionPaths } from '../core'
 import { AROUND_MS } from '../hooks/around'
 import { isShowing, SENT_LINGER_MS } from '../hooks/queue'
-import { rowsOf } from './drawn'
+import { readyRows, rowsOf } from './drawn'
 import {
   CLI,
   CLOSES,
@@ -90,7 +90,7 @@ test('Ready to send groups the replies by where each goes, this session first, a
   for (const way of ['tab:session', 'tab:all', `proj:${PROJECT.key}`]) {
     await ui.press({ key: way })
 
-    const box = rowsOf(await ui.find({ key: 'ready' })).map(row => row.trim())
+    const box = await readyRows(ui)
     const view = rowsOf(await ui.find({ type: 'Box' })).map(row => row.trim())
 
     expect(box[0], way).toMatch(/^READY TO SEND/)
@@ -189,12 +189,27 @@ test('each destination says where its replies stand, and each reply whether Clau
 })
 
 test('replies sent into an inbox show where they went until the linger has passed since the last of them went in or went void, and not a moment longer', () => {
-  const settledAt = T0 + 2 * MIN
+  const deliveredAt = T0 + 2 * MIN
+  const settledAt = T0 + 3 * MIN
   const session = fold({
-    logs: { [W1]: file([T0, yesAsk('k1', 'Review round 1')], [settledAt, delivered('r1')]) },
-    inbox: { [SENDER]: file([T0 + MIN, reply('r1', 'k1', 'yes')]) },
+    logs: {
+      [W1]: file(
+        [T0, yesAsk('k1', 'Review round 1')],
+        [T0, yesAsk('k2', 'Review round 2')],
+        [deliveredAt, delivered('r1')],
+        [settledAt, resolve('k2')],
+      ),
+    },
+    inbox: {
+      [SENDER]: file([T0 + MIN, reply('r1', 'k1', 'yes')], [T0 + MIN, reply('r2', 'k2', 'yes')]),
+    },
   })
-  const sent = { project: META.project, session: META.id, replies: ['r1'] }
+  const sent = { project: META.project, session: META.id, replies: ['r1', 'r2'] }
+
+  expect(session.replies.map(each => [each.delivery, each.deliveredAt ?? each.voidedAt])).toEqual([
+    ['delivered', deliveredAt],
+    ['void', settledAt],
+  ])
 
   expect(isShowing(session, sent, settledAt + SENT_LINGER_MS - 1)).toBe(true)
   expect(isShowing(session, sent, settledAt + SENT_LINGER_MS)).toBe(false)

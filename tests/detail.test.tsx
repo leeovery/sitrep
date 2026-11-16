@@ -151,7 +151,7 @@ test("a title's hover group is named by its press key, or, where the key is too 
   }
 })
 
-test('a line exactly as wide as its room is drawn whole; one a character wider is cut to the room, an ellipsis last', () => {
+test('a line exactly as wide as its room is clipped to nothing less; one a character wider is cut to the room, an ellipsis last', () => {
   expect(clip('Review round 1', 14)).toBe('Review round 1')
   expect(clip('Review round 12', 14)).toBe('Review round …')
 })

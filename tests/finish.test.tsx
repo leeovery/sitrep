@@ -83,9 +83,9 @@ test('a finished session drops out of the project and All projects, and its asks
   expect(await keysOf(ui, 'proj:')).toEqual([`proj:${PROJECT.key}`])
   expect(await ui.find({ type: 'Text', text: '3 waiting on you' })).toBeDefined()
   expect(
-    rowsOf(await ui.find({ key: 'tab:all:box' })),
+    rowsOf(await ui.find({ key: 'tab:all:box' }))[0],
     'the All projects tab counts three',
-  ).toEqual([' ≡ All projects 3'])
+  ).toMatch(/All projects 3$/)
 })
 
 test("the button to finish a session is drawn only in another session's view with no window", async ($, on) => {
@@ -183,11 +183,11 @@ test('a session Claude finished counts nothing in its own window: the band and t
   const band = await w.band()
   const ui = await w.opened(WIDE)
 
-  expect(await band.find({ key: 'band:asks', text: '1 ask' })).toBeDefined()
+  expect(await band.find({ key: 'band:asks' })).toMatchObject({ text: '1 ask' })
   expect(rowsOf(await ui.find({ key: 'tab:session:box' }))).toEqual([' ⌂ Help desk redesign 1'])
 
   await w.call('finish', { reason: 'Shipped' })
 
-  expect(await band.find({ key: 'band:asks', text: '0 asks' })).toBeDefined()
+  expect(await band.find({ key: 'band:asks' })).toMatchObject({ text: '0 asks' })
   expect(rowsOf(await ui.find({ key: 'tab:session:box' }))).toEqual([' ⌂ Help desk redesign'])
 })

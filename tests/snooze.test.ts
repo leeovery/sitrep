@@ -425,16 +425,20 @@ test("old lines' snoozes holding every ask waiting on Lee put its turn off with 
   ).toBe(UNTIL)
 })
 
-test("an old line's snooze of an ask the session's snooze does not hold keeps that snooze standing until its own time; at it, the ask waits on Lee and sets the session's aside", () => {
+test("an old line's snooze of an ask Lee's snooze of the session does not hold keeps Lee's snooze standing until the old one's time; at it, that ask waits on Lee and sets Lee's snooze aside", () => {
   const lines: Line[] = [
     REVIEW,
     SHIP,
     [T0 + MIN, snoozeSession(UNTIL + HOUR, 'k1')],
     [T0 + 2 * MIN, snooze('k2', UNTIL)],
   ]
+  const before = foldAt(UNTIL - 1, lines)
+  const at = foldAt(UNTIL, lines)
 
-  expect(foldAt(UNTIL - 1, lines).snooze?.until).toBe(UNTIL + HOUR)
-  expect(foldAt(UNTIL, lines).snooze).toBeUndefined()
+  expect([before.snooze?.until, before.asideUntil], 'standing').toEqual([UNTIL + HOUR, undefined])
+  expect(waitingOnLee(before)).toEqual([])
+  expect([at.snooze, at.asideUntil], 'set aside').toEqual([undefined, UNTIL + HOUR])
+  expect(waitingOnLee(at).map(ask => ask.id)).toContain('k2')
 })
 
 test("an old line's snooze of the turn ends as an old snooze of an ask written after it wakes: at that ask's time, not a moment later", () => {

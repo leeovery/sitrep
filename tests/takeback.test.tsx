@@ -68,18 +68,18 @@ const replying: Record<Source, (w: World) => Promise<Asking & { claim: () => Pro
     },
   }
 
-/** That the session is as a message written down once leaves it, as `claim` says: its lines, the ask closed, nothing in flight. */
-const expectWrittenOnce = (w: World, paths: SessionPaths, source: Source, claim: string) => {
-  expect(w.submitted, `${claim}: submitted once`).toEqual([MESSAGE])
-  expect(kindsIn(w, paths.log(W1)), `${claim}: its lines`).toEqual(WRITTEN[source])
-  expect(w.state.board?.asks[0]?.state, `${claim}: the ask closed`).toBe('closed')
-  expect(w.state.inFlight, `${claim}: nothing in flight`).toBeNull()
+/** That the session is as a message written down once leaves it, as `because` says: its lines, the ask closed, nothing in flight. */
+const expectWrittenOnce = (w: World, paths: SessionPaths, source: Source, because: string) => {
+  expect(w.submitted, `${because}: submitted once`).toEqual([MESSAGE])
+  expect(kindsIn(w, paths.log(W1)), `${because}: its lines`).toEqual(WRITTEN[source])
+  expect(w.state.board?.asks[0]?.state, `${because}: the ask closed`).toBe('closed')
+  expect(w.state.inFlight, `${because}: nothing in flight`).toBeNull()
 }
 
-/** That the window holds its message, nothing submitted, as `claim` says. */
-const expectHeld = (w: World, source: Source, claim: string) => {
-  expect(w.submitted, `${claim}: nothing submitted`).toEqual([])
-  expect(w.state.inFlight, `${claim}: the window holds it`).toMatchObject({
+/** That the window holds its message, nothing submitted, as `because` says. */
+const expectHeld = (w: World, source: Source, because: string) => {
+  expect(w.submitted, `${because}: nothing submitted`).toEqual([])
+  expect(w.state.inFlight, `${because}: the window holds it`).toMatchObject({
     source,
     isHeld: true,
     isTaken: false,
@@ -217,7 +217,7 @@ for (const reason of ['aborted', 'error', 'refusal'] as const) {
         : { reason }),
     })
     await w.clock.settle()
-    expectWrittenOnce(w, paths, 'send', 'let go as the turn ends')
+    expectWrittenOnce(w, paths, 'send', 'submitted as the turn ends, however it ended')
   })
 }
 
@@ -282,7 +282,7 @@ test("send: while held, Ready to send says it waits for Claude's turn to end, wi
   expect(await ui.find({ key: 'send' })).toBeUndefined()
   expect(sendingIn(w, paths), 'said in the heartbeat').toBeDefined()
   expect(w.state.board?.waiting).toBe(0)
-  expect(await asksOnBand(w, '0 asks'), 'none on the band').toBeDefined()
+  expect(await asksOnBand(w), 'none on the band').toBe('0 asks')
 
   await ui.press({ key: w.takeBack() })
 
@@ -297,7 +297,7 @@ test("send: while held, Ready to send says it waits for Claude's turn to end, wi
   expect(await ui.find({ key: 'send' }), 'sent again').toBeDefined()
   expect(sendingIn(w, paths), 'said no more').toBeUndefined()
   expect(w.state.board?.waiting, 'at once, not at the next look').toBe(1)
-  expect(await asksOnBand(w, '1 ask'), 'one on the band').toBeDefined()
+  expect(await asksOnBand(w), 'one on the band').toBe('1 ask')
 
   await turnEnded(w)
   expect(w.submitted, 'nothing goes as the turn ends').toEqual([])

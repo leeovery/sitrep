@@ -96,7 +96,7 @@ test('what another plugin draws above the prompt stays, above the band, in the r
 
     expect(rows[0]).toBe('a gate row')
     expect(rows.at(-1)).toContain('▸ show board')
-    expect(await ui.find({ key: 'band:asks', text: '0 asks' })).toBeDefined()
+    expect(await ui.find({ key: 'band:asks' })).toMatchObject({ text: '0 asks' })
     await ui.unmount()
   }
 
@@ -201,7 +201,7 @@ test('the band is counts on the right, each opening the board on what it counts,
 
   const ui = await w.band()
   expect(await ui.drawn()).toMatchObject({ props: { justifyContent: 'flex-end' } })
-  expect(await ui.find({ key: 'band:asks', text: '1 ask' })).toBeDefined()
+  expect(await ui.find({ key: 'band:asks' })).toMatchObject({ text: '1 ask' })
   expect(await ui.find({ key: 'band:parked' })).toBeUndefined()
   expect(await ui.find({ type: 'Text', text: '◇' })).toBeUndefined()
   expect(await ui.find({ text: /parked/ })).toBeUndefined()
