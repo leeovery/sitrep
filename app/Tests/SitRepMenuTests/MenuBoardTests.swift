@@ -1,6 +1,7 @@
 @testable import SitRepCore
 import SitRepMenu
 import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 struct MenuBoardTests {
@@ -58,10 +59,16 @@ struct MenuBoardTests {
     /// A session with several lines waiting is one item, as on the panel: its name, then "3" for its three lines
     /// waiting, in place of a question's own count.
     @Test func aSessionWithSeveralLinesIsOneItemItsNameThenHowManyWait() {
-        let ledger = Watched.row(
-            "ask:sr-ledger:k1", "ask", session: "sr-ledger", project: "switchboard", lead: "Choose how long it keeps",
-            more: "+4", second: "Switchboard · Usage", since: 1_792_445_000_000,
-            newer: [("ask:sr-ledger:k2", "Approve the schema", 1_792_445_100_000), ("ask:sr-ledger:k3", "Paste the log", 1_792_445_200_000)]
+        let ledger = WatchLine.Row(
+            session: "sr-ledger", name: "Usage", projectName: "Switchboard",
+            lines: [
+                .init(
+                    "ask:sr-ledger:k1", .ask, first: .init(lead: "Choose how long it keeps", more: "+4"),
+                    since: 1_792_445_000_000
+                ),
+                .init("ask:sr-ledger:k2", .ask, first: "Approve the schema", since: 1_792_444_900_000),
+                .init("ask:sr-ledger:k3", .ask, first: "Paste the log", since: 1_792_444_800_000),
+            ]
         )
         let menu = Self.menu(heard([.line(Watched.line(rows: [ledger] + Watched.rows.dropFirst()))]))
         let sessions = menu.items.compactMap(\.session)
@@ -74,7 +81,7 @@ struct MenuBoardTests {
     /// Three asks and stops and one session at Lee's turn: "4 need you".
     @Test func theHeadingIsThePanelHeadsWords() {
         #expect(Self.board.heading == "4 need you")
-        #expect(Self.menu(heard([.line(Watched.line(needYou: 0, rows: [Watched.rows[4]]))])).heading == "All clear")
+        #expect(Self.menu(heard([.line(Watched.line(rows: [Watched.rows[4]]))])).heading == "All clear")
     }
 
     @Test func beforeAnyBoardItSaysItIsLooking() {
@@ -87,18 +94,21 @@ struct MenuBoardTests {
 
     @Test func itListsEverySessionHoweverMany() {
         let rows = (0 ..< 16).map {
-            Watched.row("turn:s\($0)", "yourTurn", session: "s\($0)", project: "kit", lead: "Turn \($0)", second: "Kit · \($0)", since: 1_792_445_000_000)
+            WatchLine.Row(
+                session: "s\($0)", name: "\($0)", projectName: "Kit",
+                lines: [.init("turn:s\($0)", .yourTurn, first: "Turn \($0)", since: 1_792_445_000_000)]
+            )
         }
-        let menu = Self.menu(heard([.line(Watched.line(needYou: 0, rows: rows))]))
+        let menu = Self.menu(heard([.line(Watched.line(rows: rows))]))
 
         #expect(menu.items.compactMap(\.session?.id) == (0 ..< 16).map { "s\($0)" })
     }
 
     @Test func itSpeaksUpWithEachWindowThatNeedsReloadPluginsAJumpToItsSession() {
         let windows = [
-            Watched.window("w1", session: "sr-boot", name: "The bootstrap", project: "Kit", version: "0.1.0", needsReload: true),
-            Watched.window("w2", session: "sr-diff", name: "Token-aware diff sizing", project: "Mint", version: "0.2.0", needsReload: false),
-            Watched.window("w3", session: "sr-dash", name: "Dashboard memory", project: "Switchboard", version: nil, needsReload: true),
+            WatchLine.Window(writer: "w1", session: "sr-boot", name: "The bootstrap", project: "Kit", version: "0.1.0", needsReload: true),
+            WatchLine.Window(writer: "w2", session: "sr-diff", name: "Token-aware diff sizing", project: "Mint", version: "0.2.0", needsReload: false),
+            WatchLine.Window(writer: "w3", session: "sr-dash", name: "Dashboard memory", project: "Switchboard", version: nil, needsReload: true),
         ]
         let menu = Self.menu(heard([.line(Watched.line(windows: windows))]))
 
@@ -107,7 +117,7 @@ struct MenuBoardTests {
     }
 
     @Test func withEveryWindowCurrentTheReloadHeadingGoes() {
-        let windows = [Watched.window("w2", session: "sr-diff", name: "Diff", project: "Mint", version: "0.2.0", needsReload: false)]
+        let windows = [WatchLine.Window(writer: "w2", session: "sr-diff", name: "Diff", project: "Mint", version: "0.2.0", needsReload: false)]
 
         #expect(Self.menu(heard([.line(Watched.line(windows: windows))])).reloads.isEmpty)
     }
@@ -147,8 +157,8 @@ struct MenuBoardTests {
 
     @Test func theGlyphLightsWhileAnythingNeedsLee() {
         #expect(Self.board.glyph == .lit)
-        #expect(Self.menu(heard([.line(Watched.line(needYou: 0, rows: [Watched.rows[3]]))])).glyph == .turn)
-        #expect(Self.menu(heard([.line(Watched.line(needYou: 0, rows: [Watched.rows[4]]))])).glyph == .rest)
+        #expect(Self.menu(heard([.line(Watched.line(rows: [Watched.rows[3]]))])).glyph == .turn)
+        #expect(Self.menu(heard([.line(Watched.line(rows: [Watched.rows[4]]))])).glyph == .rest)
         #expect(Self.menu(LastBoard()).glyph == .rest)
     }
 

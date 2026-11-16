@@ -1,6 +1,7 @@
 import CoreGraphics
 @testable import SitRepCore
 import SitRepEdge
+import SitRepLines
 import SitRepPanel
 import SitRepPanelTestSupport
 import Testing
@@ -49,9 +50,9 @@ struct StripFeedTests {
 
     @Test func aRowNewOnTheLineFlashes() {
         var run = Run()
-        let board = Self.heard(.line(realLine), .line(watchLine))
+        let board = Self.heard(.line(Lines.twoAsks), .line(watchLine))
 
-        run.strip.show(Self.heard(.line(realLine)).sessions, new: [])
+        run.strip.show(Self.heard(.line(Lines.twoAsks)).sessions, new: [])
         _ = run.play(3000)
         run.strip.show(board.sessions, new: board.new)
 
@@ -62,9 +63,9 @@ struct StripFeedTests {
     /// unflashed.
     @Test func aBoardGoneStaleFlashesNothing() {
         var run = Run()
-        let stale = Self.heard(.line(realLine), .line(watchLine), .exited(.status(1), stderr: ""))
+        let stale = Self.heard(.line(Lines.twoAsks), .line(watchLine), .exited(.status(1), stderr: ""))
 
-        run.strip.show(Self.heard(.line(realLine)).sessions, new: [])
+        run.strip.show(Self.heard(.line(Lines.twoAsks)).sessions, new: [])
         _ = run.play(3000)
         run.strip.show(stale.sessions, new: stale.new)
 

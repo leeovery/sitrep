@@ -4,60 +4,45 @@ import SitRepCore
 import SitRepTestSupport
 import Testing
 
-/// A window of the watch's line: its writer, its session, its place in the jump's order, and the device of its own
-/// Ghostty window, where it says one; or the zmx session it runs in, on zmx's own pty; and its Claude's folder, where it
-/// says one.
-struct LineWindow {
-    let writer: String
-    let session: String
-    var order: Int?
-    var device: String?
-    var zmx: String?
-    var directory: String?
+extension WatchLine.Window {
+    /// A window of the jump's world, on Switchboard's session: its writer, its session, its place in the jump's order,
+    /// and the device of its own Ghostty window, where it says one; or the zmx session it runs in, on zmx's own pty;
+    /// and its Claude's folder, where it says one.
+    static func jumping(
+        _ writer: String, session: String, order: Int? = nil, device: String? = nil, zmx: String? = nil,
+        directory: String? = nil
+    ) -> Self {
+        let place = zmx.map { WatchLine.Where(device: "/dev/ttys087", zmx: .init(session: $0)) }
+            ?? device.map { WatchLine.Where(device: $0) }
 
-    /// Where it says it is, as the watch's line puts it.
-    var place: Any {
-        if let zmx {
-            return ["device": "/dev/ttys087", "terminal": "ghostty", "zmx": ["session": zmx]] as [String: Any]
-        }
-
-        return device.map { ["device": $0, "terminal": "ghostty"] } ?? NSNull()
+        return Self(
+            writer: writer, session: session, name: JumpWorld.named, project: "Switchboard", version: nil,
+            where: place, directory: directory, attachedAt: 0, jumpOrder: order
+        )
     }
 }
 
-/// A line of the watch holding only the windows given, and a project listing the sessions given by their ids and
-/// names, each with the last window given for it, as the watch's line puts one, decoded as SitRep decodes one: small,
-/// and built in code.
-func board(_ windows: [LineWindow], sessions: [String: String] = [:], last: [String: Any] = [:]) throws -> Board {
-    let windows: [[String: Any]] = windows.map { window in
-        [
-            "writer": window.writer, "session": window.session, "name": JumpWorld.named, "project": "Switchboard",
-            "version": NSNull(), "needsReload": false, "state": NSNull(), "attachedAt": 0,
-            "where": window.place, "jumpOrder": window.order ?? NSNull(), "directory": window.directory ?? NSNull(),
-        ] as [String: Any]
-    }
-    let project: [String: Any] = [
-        "key": "switchboard", "name": "Switchboard",
-        "sessions": sessions.map { ["id": $0.key, "name": $0.value, "lastWindow": last[$0.key] ?? NSNull()] },
-    ]
-    let line: [String: Any] = [
-        "v": 3, "at": 0, "head": ["needYou": 0, "sessions": 1], "rows": [], "projects": [project], "windows": windows,
-        "new": [],
-    ]
+/// A line of the watch holding only the windows given, and Switchboard listing the sessions given, decoded as SitRep
+/// decodes one.
+func board(_ windows: [WatchLine.Window], sessions: [WatchLine.Session] = []) throws -> Board {
+    let line = WatchLine(
+        at: 0, version: nil, head: .init(needYou: 0, sessions: 1),
+        projects: [.init(name: "Switchboard", sessions: sessions)], windows: windows
+    )
     let decoder = JSONDecoder()
 
     decoder.dateDecodingStrategy = .millisecondsSince1970
-    return try decoder.decode(Board.self, from: JSONSerialization.data(withJSONObject: line))
+    return try decoder.decode(Board.self, from: Data(line.text.utf8))
 }
 
 /// The jump from the watch's line, within its limit, and stopped between its steps, the latest click winning.
 struct JumpLimitTests {
     @Test func aJumpGoesFromTheWatchsLineTheSessionsWindowsInCoresOrderNeverTheirPlaceInItsWindows() async throws {
         let line = try board([
-            LineWindow(writer: "w1", session: "sr-a", order: 1, device: JumpWorld.kitTerminal.device),
-            LineWindow(writer: "w2", session: "sr-b", order: 0, device: "/dev/ttys090"),
-            LineWindow(writer: "w3", session: "sr-a", order: nil, device: nil),
-            LineWindow(writer: "w4", session: "sr-a", order: 0, device: "/dev/ttys099"),
+            WatchLine.Window.jumping("w1", session: "sr-a", order: 1, device: JumpWorld.kitTerminal.device),
+            WatchLine.Window.jumping("w2", session: "sr-b", order: 0, device: "/dev/ttys090"),
+            WatchLine.Window.jumping("w3", session: "sr-a", order: nil, device: nil),
+            WatchLine.Window.jumping("w4", session: "sr-a", order: 0, device: "/dev/ttys099"),
         ])
         let jumping = Jumping()
 
@@ -69,7 +54,7 @@ struct JumpLimitTests {
     /// A session on the board is named as the board names it, one with no row and no window by its project, as the
     /// CLI named it by its status; one not on the board is no such session, in the CLI's words but for its id.
     @Test func aRefusalNamesTheSessionAsTheBoardDoesOneNotOnItIsNoSuchSessionNamingNoId() async throws {
-        let line = try board([LineWindow(writer: "w1", session: "sr-a")], sessions: ["sr-q": "Quiet one"])
+        let line = try board([WatchLine.Window.jumping("w1", session: "sr-a")], sessions: [.init(id: "sr-q", name: "Quiet one")])
         let unknown = await Jumping().jump.answer(to: "sr-z", on: GivenBoard(line))
 
         #expect(await Jumping().jump.answer(to: "sr-a", on: GivenBoard(line)) == JumpWorld.justStopped)
@@ -93,7 +78,7 @@ struct JumpLimitTests {
 
     /// Waiting for a board is no busy Mac: a jump whose time runs out waiting for one says the board is not there.
     @Test func aJumpWaitsForTheBoardWithinItsLimitAndOneThatNeverComesIsRefusedAsNotThereNeverTooBusy() async throws {
-        let line = try board([LineWindow(writer: "w1", session: "sr-a", order: 0, device: JumpWorld.window)])
+        let line = try board([WatchLine.Window.jumping("w1", session: "sr-a", order: 0, device: JumpWorld.window)])
         let gate = Gate()
         let jumping = Jumping()
         let jumped = Task {
@@ -123,7 +108,7 @@ struct JumpLimitTests {
     /// The jump is made once the board is in hand, Lee's PATH asked for as it is, so that wait is within the limit,
     /// and a later click ends it.
     @Test func makingTheJumpIsWithinItsLimitAndStoppedWithIt() async throws {
-        let line = try board([LineWindow(writer: "w1", session: "sr-a", order: 0, device: JumpWorld.window)])
+        let line = try board([WatchLine.Window.jumping("w1", session: "sr-a", order: 0, device: JumpWorld.window)])
         let jumping = Jumping()
         let jump = jumping.jump
         let atLimit = Gate(), atStop = Gate()
@@ -155,7 +140,7 @@ struct JumpLimitTests {
     }
 
     @Test func theWholeJumpGivesUpAfterFifteenSecondsUnansweredNotWaitingOnAQuestionGhosttyHasNotAnswered() async throws {
-        let line = try board([LineWindow(writer: "w1", session: "sr-a", order: 0, device: JumpWorld.window)])
+        let line = try board([WatchLine.Window.jumping("w1", session: "sr-a", order: 0, device: JumpWorld.window)])
         let gate = Gate()
         let jumping = Jumping(ghosttyHeld: gate)
         let jumped = Task { await jumping.jump.answer(to: "sr-a", on: GivenBoard(line)) }
@@ -169,7 +154,7 @@ struct JumpLimitTests {
     }
 
     @Test func aJumpStoppedEndsStoppedAtOnceNotWaitingOnItsQuestionInFlight() async throws {
-        let line = try board([LineWindow(writer: "w1", session: "sr-a", order: 0, device: JumpWorld.window)])
+        let line = try board([WatchLine.Window.jumping("w1", session: "sr-a", order: 0, device: JumpWorld.window)])
         let gate = Gate()
         let jumping = Jumping(ghosttyHeld: gate)
         let jumped = Task { await jumping.jump.answer(to: "sr-a", on: GivenBoard(line)) }
@@ -255,8 +240,8 @@ struct JumpLimitTests {
     @MainActor
     @Test func aLaterClickStopsTheJumpUnderWayBetweenItsStepsAndJumpsWithoutWaitingOnItsQuestionInFlight() async throws {
         let line = try board([
-            LineWindow(writer: "w1", session: "sr-a", order: 0, device: JumpWorld.kitTerminal.device),
-            LineWindow(writer: "w2", session: "sr-b", order: 0, device: JumpWorld.window),
+            WatchLine.Window.jumping("w1", session: "sr-a", order: 0, device: JumpWorld.kitTerminal.device),
+            WatchLine.Window.jumping("w2", session: "sr-b", order: 0, device: JumpWorld.window),
         ])
         let gate = Gate()
         let jumping = Jumping(ghosttyHeld: gate)

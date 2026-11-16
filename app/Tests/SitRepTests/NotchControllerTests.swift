@@ -3,6 +3,7 @@ import Foundation
 @testable import SitRepCore
 import SitRepEdge
 import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// The controller's frame while the open panel is idle: armed for when it next draws differently, a row's time, and
@@ -24,18 +25,14 @@ struct NotchControllerTests {
             style: .meniscus, reducesMotion: false, isChosen: true
         )
         let since = Int(midnight) - 30_000
-        let line = """
-            {"v":3,"at":\(since),"version":"0.2.0","head":{"needYou":0,"sessions":1},"rows":[{"session":"sr-a",\
-            "section":"yourTurn","isAway":false,"project":"sitrep","name":"The Mac app","projectName":"SitRep",\
-            "letters":"SR","lines":[{"key":"turn:sr-a",\
-            "is":"yourTurn","ask":null,"writer":null,"first":{"lead":"Your turn","mono":null,"more":null},\
-            "since":\(since)}],"second":"SitRep · The Mac app","since":\(since)}],"projects":[],"windows":[],\
-            "new":[],"boards":{}}
-            """
+        let turn = WatchLine.Row(
+            session: "sr-a", name: "The Mac app", projectName: "SitRep",
+            lines: [.init("turn:sr-a", .yourTurn, first: "Your turn", since: since)]
+        )
         var last = LastBoard()
         let run = NotchRun(at: 1000, in: setting, calendar: london)
 
-        _ = last.hear(.line(line), at: Date())
+        _ = last.hear(.line(WatchLine(at: since, version: "0.2.0", rows: [turn]).text), at: Date())
         _ = run.show(PanelBoard(last), NotchRun.Moment(time: 1000, pointer: nil, setting: setting))
         return run
     }

@@ -235,9 +235,9 @@ struct StripFoldingTests {
         let mark = CGPoint(x: 18, y: strip.strip.yOf(.session("sr-w")))
         _ = try #require(strip.target(Self.at(strip.time, mark)))
         strip.menuOpened()
-        let again = row(
-            "ask:sr-a", "ask", session: "sr-a", lead: "Ask sr-a again", second: "Contoso · sr-a",
-            since: Self.since + 1000
+        let again = WatchLine.Row(
+            session: "sr-a", name: "sr-a", projectName: "Contoso",
+            lines: [.init("ask:sr-a", .ask, first: "Ask sr-a again", since: Self.since + 1000)]
         )
         let asks = [Self.ask("sr-b"), again, Self.working("sr-w")]
         strip.show(Self.board(asks), Self.at(strip.time))
@@ -295,71 +295,90 @@ struct StripFoldingTests {
 
     private static let since = 1_792_445_000_000
 
-    private static func ask(_ id: String) -> String {
-        row("ask:\(id)", "ask", session: id, lead: "Ask \(id)", second: "Contoso · \(id)", since: since)
+    private static func ask(_ id: String) -> WatchLine.Row {
+        WatchLine.Row(
+            session: id, name: id, projectName: "Contoso",
+            lines: [.init("ask:\(id)", .ask, first: "Ask \(id)", since: since)]
+        )
     }
 
-    private static func working(_ id: String) -> String {
-        row("work:\(id)", "working", session: id, lead: "Running the tests", second: "Northwind · \(id)", since: since)
+    private static func working(_ id: String) -> WatchLine.Row {
+        WatchLine.Row(
+            session: id, name: id, lines: [.init("work:\(id)", .working, first: "Running the tests", since: since)]
+        )
     }
 
-    private static func board(_ rows: [String], new: [String] = [], snoozed: [String] = []) -> PanelBoard {
+    private static func board(
+        _ rows: [WatchLine.Row], new: [String] = [], snoozed: [WatchLine.SnoozedRow] = []
+    ) -> PanelBoard {
         var last = LastBoard()
+        let line = WatchLine(rows: rows, snoozed: snoozed, new: new)
 
-        _ = last.hear(.line(line(needYou: 0, sessions: rows.count, new: new, rows: rows, snoozed: snoozed)), at: Date())
+        _ = last.hear(.line(line.text), at: Date())
         return PanelBoard(last)
     }
 
     /// Fabrikam's session, an ask waiting in Needs you and another asleep in Snoozed.
     private static func snoozedBoard() -> PanelBoard {
-        let second = "Fabrikam · Region rollout"
-
-        return board(
-            [row("ask:sr-qx81zt:k3", "ask", session: "sr-qx81zt", lead: "Give the go", second: second, since: since)],
-            snoozed: [Self.asleep("k1", lead: "Review the plan", second: second)]
+        board(
+            [Self.fabrikam(.init("ask:sr-qx81zt:k3", .ask, first: "Give the go", since: since))],
+            snoozed: [Self.asleep("k1", lead: "Review the plan")]
         )
     }
 
     /// Fabrikam's session working, an ask of it asleep in Snoozed, beside the asks and Northwind's session working;
     /// then, `woken` by Lee, the ask back in Needs you by its key there, so new on no line.
     private static func workingWithAskAsleep(woken: Bool) -> PanelBoard {
-        let second = "Fabrikam · Region rollout", key = "ask:sr-qx81zt:k1", lead = "Which region goes first?"
+        let key = "ask:sr-qx81zt:k1", lead = "Which region goes first?"
 
         guard woken else {
-            let work = row(
-                "work:sr-qx81zt", "working", session: "sr-qx81zt", lead: "Drafting", second: second, since: since
-            )
+            let work = Self.fabrikam(.init("work:sr-qx81zt", .working, first: "Drafting", since: since))
 
-            return board(rows + [work], snoozed: [Self.asleep("k1", lead: lead, second: second)])
+            return board(rows + [work], snoozed: [Self.asleep("k1", lead: lead)])
         }
-        return board([row(key, "ask", session: "sr-qx81zt", lead: lead, second: second, since: since)] + rows)
+        return board([Self.fabrikam(.init(key, .ask, first: .init(lead: lead), since: since))] + rows)
+    }
+
+    /// Fabrikam's session, its row of this line.
+    private static func fabrikam(_ line: WatchLine.Row.Line) -> WatchLine.Row {
+        WatchLine.Row(session: "sr-qx81zt", name: "Region rollout", projectName: "Fabrikam", lines: [line])
     }
 
     /// Fabrikam's ask asleep in Snoozed, by its id, waking in an hour.
-    private static func asleep(_ ask: String, lead: String, second: String) -> String {
-        snoozedRow(
-            "ask:sr-qx81zt:\(ask)", ask: ask, session: "sr-qx81zt", lead: lead, second: second, since: since,
-            wakesAt: since + 3_600_000
+    private static func asleep(_ ask: String, lead: String) -> WatchLine.SnoozedRow {
+        WatchLine.SnoozedRow(
+            session: "sr-qx81zt", name: "Region rollout", projectName: "Fabrikam",
+            lines: [
+                .init(
+                    "ask:sr-qx81zt:\(ask)", ask: ask, first: .init(lead: lead), since: since, wakesAt: since + 3_600_000
+                ),
+            ]
         )
     }
 
     /// Northwind's session at its turn, and Contoso's turn Lee snoozed until it moves; then, `woken` by Lee, Contoso's
     /// back at its turn in Needs you, by its turn's key there.
     private static func turnBoard(woken: Bool) -> PanelBoard {
-        let contoso = "Contoso · Onboarding flow", key = "turn:sr-c7m2qa", lead = "The flow is drawn"
-        let northwind = row(
-            "turn:sr-n4w8rt", "yourTurn", session: "sr-n4w8rt", lead: "The export is done",
-            second: "Northwind · Ledger export", since: since + 60000
+        let key = "turn:sr-c7m2qa", lead: WatchLine.Words = "The flow is drawn"
+        let northwind = WatchLine.Row(
+            session: "sr-n4w8rt",
+            lines: [.init("turn:sr-n4w8rt", .yourTurn, first: "The export is done", since: since + 60000)]
         )
 
         guard woken else {
-            let asleep = snoozedRow(
-                key, "yourTurn", session: "sr-c7m2qa", lead: lead, second: contoso, since: since, wakesAt: nil
+            let asleep = WatchLine.SnoozedRow(
+                session: "sr-c7m2qa", name: "Onboarding flow", projectName: "Contoso",
+                lines: [.init(key, .yourTurn, first: lead, since: since, wakesAt: nil)]
             )
 
             return board([northwind], snoozed: [asleep])
         }
-        return board([northwind, row(key, "yourTurn", session: "sr-c7m2qa", lead: lead, second: contoso, since: since)])
+        let contoso = WatchLine.Row(
+            session: "sr-c7m2qa", name: "Onboarding flow", projectName: "Contoso",
+            lines: [.init(key, .yourTurn, first: lead, since: since)]
+        )
+
+        return board([northwind, contoso])
     }
 
     /// The mark a jump spinning pressed in, if one did.

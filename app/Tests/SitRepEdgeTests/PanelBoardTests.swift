@@ -136,7 +136,7 @@ struct PanelBoardTests {
 
     /// An away row's line under its name says no window holds it, as core words it.
     @Test func anAwayRowSaysNoWindowHoldsItUnderItsName() {
-        let away = Self.board(Self.heard(.line(realLine))).sessions[1]
+        let away = Self.board(Self.heard(.line(Lines.twoAsks))).sessions[1]
 
         #expect(away.title == "Dashboard memory")
         #expect(away.sub == "No window holds it. Carry it on in Claude.")
@@ -172,7 +172,7 @@ struct PanelBoardTests {
     }
 
     @Test func theRealWatchsFirstLineMapsRowForRow() {
-        let board = Self.board(Self.heard(.line(realLine)))
+        let board = Self.board(Self.heard(.line(Lines.twoAsks)))
 
         #expect(board.sessions == [
             Session(
@@ -191,7 +191,7 @@ struct PanelBoardTests {
     }
 
     @Test func aRowNamesItsProjectAsTheBoardDoesWithCoresLetters() {
-        let sessions = Self.board(Self.heard(.line(realLine))).sessions
+        let sessions = Self.board(Self.heard(.line(Lines.twoAsks))).sessions
 
         #expect(sessions.map(\.project) == ["SitRep", "Switchboard"])
         #expect(sessions.map(\.letters) == ["SR", "Sw"])

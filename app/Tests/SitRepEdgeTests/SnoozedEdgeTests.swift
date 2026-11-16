@@ -44,12 +44,12 @@ struct SnoozedEdgeTests {
 
     /// A Snoozed row's words change only at midnight, so the card is drawn again then for it, not each minute.
     @Test func aSnoozedRowIsDrawnAgainAtMidnight() throws {
-        let run = Self.opened(kept: Self.kept([]))
+        let run = Self.opened(Self.ledger(), kept: Self.kept([]))
         let now = 1_792_741_527_619.0
         let midnight = 1_792_796_400_000.0
 
         #expect(run.nextAgeChange(after: now).map { $0 < midnight } == true)
-        _ = run.show(Self.boardOfSnoozedAlone(), Self.at(run.time))
+        _ = run.show(Self.ledger(waiting: false), Self.at(run.time))
         #expect(run.nextAgeChange(after: now) == midnight)
     }
 
@@ -70,9 +70,9 @@ struct SnoozedEdgeTests {
 
     /// With nothing waiting but asks asleep, the card lists Snoozed with no head.
     @Test func aCardOfSnoozedAloneHasNoHead() {
-        let run = Self.opened()
+        let run = Self.opened(Self.ledger())
 
-        _ = run.show(Self.boardOfSnoozedAlone(), Self.at(run.time))
+        _ = run.show(Self.ledger(waiting: false), Self.at(run.time))
         #expect(run.list.head == nil)
         #expect(Self.keys(run) == ["eyebrow:snoozed"])
     }
@@ -129,20 +129,20 @@ struct SnoozedEdgeTests {
 
     /// The menu's jump from a session's Snoozed row presses that row in, not its row in Needs you.
     @Test func theMenusJumpFromASnoozedRowPressesThatRow() throws {
-        let run = Self.opened(kept: Self.kept([]))
+        let run = Self.opened(Self.ledger(), kept: Self.kept([]))
         let onTheNotch = CGPoint(x: 3, y: 491)
 
-        _ = run.show(Self.edited(Self.held), Self.at(run.time))
+        _ = run.show(Self.ledger(held: true), Self.at(run.time))
         while run.phase != .open, run.time < 5000 {
             run.step(NotchRun.Moment(time: run.time + 1000 / 60, pointer: onTheNotch, setting: Self.setting))
         }
-        #expect(Self.keys(run).contains("needs:sr-4g01a7"))
-        guard case .jump? = run.jump(to: "snoozed:sr-4g01a7", Self.at(run.time)) else {
+        #expect(Self.keys(run).contains("needs:sr-nw0001"))
+        guard case .jump? = run.jump(to: "snoozed:sr-nw0001", Self.at(run.time)) else {
             Issue.record("the menu's jump found no row")
             return
         }
         run.step(Self.at(run.time + 1000 / 60))
-        #expect(run.frame.panel?.pressed == "snoozed:sr-4g01a7")
+        #expect(run.frame.panel?.pressed == "snoozed:sr-nw0001")
     }
 
     // MARK: Helpers
@@ -159,11 +159,13 @@ struct SnoozedEdgeTests {
         NotchRun.Moment(time: time, pointer: nil, setting: setting)
     }
 
-    /// A run over the first line, its folds as kept, unless none are.
-    private static func opened(kept: SavedSettings<CardSettings>? = nil) -> NotchRun {
+    /// A run over the board, the first line unless given, its folds as kept, unless none are.
+    private static func opened(
+        _ board: PanelBoard = SnoozedEdgeTests.board(upTo: 0), kept: SavedSettings<CardSettings>? = nil
+    ) -> NotchRun {
         let run = NotchRun(at: 1000, in: setting, folding: Folding(kept: kept), calendar: london)
 
-        _ = run.show(board(upTo: 0), at(run.time))
+        _ = run.show(board, at(run.time))
         return run
     }
 
@@ -185,30 +187,30 @@ struct SnoozedEdgeTests {
         run.list.content.entries.map(\.item.key)
     }
 
-    /// The first line with its Needs you row gone, as its last waiting ask snoozed would leave it.
-    private static func boardOfSnoozedAlone() -> PanelBoard {
-        edited { line in
-            line["rows"] = []
-            line["head"] = ["needYou": 0, "sessions": 0]
-        }
-    }
-
-    /// The first line with a window holding the session, its row in each section one that jumps.
-    private static func held(_ line: inout [String: Any]) {
-        for list in ["rows", "snoozed"] {
-            line[list] = (line[list] as! [[String: Any]]).map { row in
-                row.merging(["isAway": false, "second": "Harness"]) { $1 }
-            }
-        }
-    }
-
-    /// The first line, changed so.
-    private static func edited(_ change: (inout [String: Any]) -> Void) -> PanelBoard {
-        var line = try! JSONSerialization.jsonObject(with: Data(Lines.snoozed[0].utf8)) as! [String: Any]
+    /// Northwind's Ledger export at the time of the real CLI's first line here, its asks as that line has them: one
+    /// waiting in Needs you, unless not `waiting`, as its last waiting ask snoozed would leave it, and two asleep, the
+    /// first waking five seconds on; away, unless `held` by a window.
+    private static func ledger(held: Bool = false, waiting: Bool = true) -> PanelBoard {
+        let ask = WatchLine.Row(
+            isAway: !held,
+            lines: [
+                .init("ask:sr-nw0001:k3", .ask, ask: "k3", first: "Give the go for stage 3", since: 1_792_741_127_000),
+            ]
+        )
+        let asleep = WatchLine.SnoozedRow(isAway: !held, lines: [
+            .init(
+                "ask:sr-nw0001:k1", ask: "k1", first: "Review the plan", since: 1_792_740_927_000,
+                wakesAt: 1_792_741_532_000
+            ),
+            .init(
+                "ask:sr-nw0001:k2", ask: "k2", first: "Pick when stage 2 runs", since: 1_792_741_027_000,
+                wakesAt: 1_792_745_127_000
+            ),
+        ])
+        let line = WatchLine(at: 1_792_741_527_619, version: "0.2.0", rows: waiting ? [ask] : [], snoozed: [asleep])
         var last = LastBoard()
 
-        change(&line)
-        _ = last.hear(.line(String(decoding: try! JSONSerialization.data(withJSONObject: line), as: UTF8.self)), at: .now)
+        _ = last.hear(.line(line.text), at: .now)
         return PanelBoard(last)
     }
 }

@@ -15,6 +15,17 @@ import Foundation
 /// Every line here printed before 27 October 2026 was moved to version 3 that day as the CLI moved, every other field
 /// as printed: a line's `changed` gave way to `boards`, `{}`, as nothing was followed.
 public enum Lines {
+    /// A line of `sitrep watch`, as the CLI printed it but pretty: Lee's board of 19 October 2026 cut to three
+    /// sessions, an ask, a permission prompt and a turn, the prompt new on it, and moved to version 3 as the lines
+    /// below were. From before the CLI printed `snoozed`, a line's `subject` and `until`, or a window's zmx session,
+    /// `jumpOrder` and `directory`, which the decoder's checks of a line from before them read it for.
+    public static let pretty = printed("watch-pretty.json").trimmingCharacters(in: .newlines)
+
+    /// The first line the real `sitrep watch` printed on 20 October 2026, run once over a board seeded in a scratch
+    /// `XDG_STATE_HOME`: SitRep's ask, which a window holds, and Switchboard's, which none does. Its rows grouped by
+    /// session as version 2 printed them, and moved to version 3 (above), every other field as printed.
+    public static let twoAsks = printed("watch-two-asks.jsonl").trimmingCharacters(in: .newlines)
+
     /// `sitrep watch`'s first two lines at version 2, rows by session, over a board of its own run on 22 October 2026:
     /// Harness's Finish the Harness modernisation, its window working, three asks waiting; Switchboard's Dashboard
     /// redesign, a words ask and its window stopped on a permission prompt since; Goosemates' Onboarding, away, a

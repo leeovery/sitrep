@@ -185,7 +185,7 @@ struct OpenWindowTests {
     /// answers that its window is opening, and never opens another, nor asks Ghostty anything for one.
     @Test func aSecondClickWhileItsWindowOpensOpensNoOtherWindow() async throws {
         let line = try board([
-            LineWindow(writer: Self.claude, session: "sr-a", order: 0, zmx: Self.leeway, directory: "/Users/lee/Code/leeway"),
+            WatchLine.Window.jumping(Self.claude, session: "sr-a", order: 0, zmx: Self.leeway, directory: "/Users/lee/Code/leeway"),
         ])
         let jumping = Self.world()
         let first = try #require(await jumping.jump.run(to: "sr-a", on: GivenBoard(line)).opening)
@@ -233,7 +233,7 @@ struct OpenWindowTests {
 
         mac.throughPortal(Self.leeway, relay: "/dev/ttys032", window: "/dev/ttys036")
 
-        let line = try board([LineWindow(writer: "w1", session: "sr-a", order: 0, zmx: Self.leeway)])
+        let line = try board([WatchLine.Window.jumping("w1", session: "sr-a", order: 0, zmx: Self.leeway)])
         let openings = RecentOpenings()
         let jumping = Jumping(FakeTmux(), FakeTable(mac.tree), terminals: ownWindows(FakeTerminal(id: "PORTAL-TERMINAL", device: "/dev/ttys036")), openings: openings)
 

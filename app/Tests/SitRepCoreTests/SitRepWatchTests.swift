@@ -1,6 +1,7 @@
 import Foundation
 @testable import SitRepCore
 import os
+import SitRepLines
 import Testing
 
 @Suite(.timeLimit(.minutes(1)))
@@ -45,7 +46,7 @@ struct SitRepWatchTests {
         Run(lives: lives, says: [.exited(.status(status), stderr: "")])
     }
 
-    private static let watching = Run(says: [.line(watched)], ends: false)
+    private static let watching = Run(says: [.line(Lines.pretty)], ends: false)
 
     @Test func itRunsThePluginsWatchWithLeesPathAndNoTimeLimit() async {
         let runs = Runs([Self.watching])
@@ -64,16 +65,16 @@ struct SitRepWatchTests {
     }
 
     @Test func eachLineIsABoardAsItIsHeard() async throws {
-        let runs = Runs([Run(says: [.line(watchedEmpty), .line(watched)], ends: false)])
+        let runs = Runs([Run(says: [.line(watchedEmpty), .line(Lines.pretty)], ends: false)])
 
         let boards = await Self.boards(2, of: runs)
 
-        #expect(boards.map(\.board) == [try Board.read(watchedEmpty), try Board.read(watched)])
+        #expect(boards.map(\.board) == [try Board.read(watchedEmpty), try Board.read(Lines.pretty)])
         #expect(boards.map(\.stale) == [nil, nil])
     }
 
     @Test func aLineThatDoesNotReadIsSkippedAndWatchRunsOn() async throws {
-        let runs = Runs([Run(says: [.line(watched), .line("{"), .line(watchedEmpty)], ends: false)])
+        let runs = Runs([Run(says: [.line(Lines.pretty), .line("{"), .line(watchedEmpty)], ends: false)])
 
         let boards = await Self.boards(3, of: runs)
 
@@ -84,13 +85,13 @@ struct SitRepWatchTests {
 
     @Test func whenWatchEndsTheBoardIsKeptStaleSinceThenAndWatchStartsAgainASecondLater() async throws {
         let runs = Runs([
-            Run(lives: .seconds(5), says: [.line(watched), .exited(.status(1), stderr: "sitrep: the state folder went\n")]),
+            Run(lives: .seconds(5), says: [.line(Lines.pretty), .exited(.status(1), stderr: "sitrep: the state folder went\n")]),
             Run(says: [.line(watchedEmpty)], ends: false),
         ])
 
         let boards = await Self.boards(3, of: runs)
 
-        #expect(boards.map(\.board) == [try Board.read(watched), try Board.read(watched), try Board.read(watchedEmpty)])
+        #expect(boards.map(\.board) == [try Board.read(Lines.pretty), try Board.read(Lines.pretty), try Board.read(watchedEmpty)])
         #expect(boards.map(\.stale) == [nil, .exited(.status(1), said: "the state folder went"), nil])
         #expect(boards.map(\.staleSince) == [nil, SteppedClock.date(at: .seconds(5)), nil])
         #expect(runs.clock.slept == [.seconds(1)])
@@ -147,13 +148,13 @@ struct SitRepWatchTests {
 
     @Test func watchMakingWayForANewVersionIsStartedAgainAtOnceTheBoardNotStale() async throws {
         let runs = Runs([
-            Run(lives: .seconds(1), says: [.line(watched), .exited(.status(0), stderr: "")]),
+            Run(lives: .seconds(1), says: [.line(Lines.pretty), .exited(.status(0), stderr: "")]),
             Run(says: [.line(watchedEmpty)], ends: false),
         ])
 
         let boards = await Self.boards(2, of: runs)
 
-        #expect(boards.map(\.board) == [try Board.read(watched), try Board.read(watchedEmpty)])
+        #expect(boards.map(\.board) == [try Board.read(Lines.pretty), try Board.read(watchedEmpty)])
         #expect(boards.map(\.stale) == [nil, nil])
         #expect(runs.clock.slept == [])
         #expect(runs.programs.count == 2)
@@ -169,14 +170,14 @@ struct SitRepWatchTests {
 
     @Test func watchExiting0WithinASecondOfStartingIsAFailure() async throws {
         let runs = Runs([
-            Run(lives: .milliseconds(500), says: [.line(watched), .exited(.status(0), stderr: "")]),
+            Run(lives: .milliseconds(500), says: [.line(Lines.pretty), .exited(.status(0), stderr: "")]),
             Run(says: [.line(watchedEmpty)], ends: false),
         ])
 
         let boards = await Self.boards(3, of: runs)
 
         #expect(boards.map(\.stale) == [nil, .exited(.status(0), said: nil), nil])
-        #expect(boards[1].board == (try Board.read(watched)))
+        #expect(boards[1].board == (try Board.read(Lines.pretty)))
         #expect(runs.clock.slept == [.seconds(1)])
     }
 

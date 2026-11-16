@@ -3,6 +3,7 @@ import AppKit
 @testable import SitRepCore
 import SitRepEdge
 import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 /// The strip's menu on a Snoozed mark, as the controller wires it: Jump to the window, Snooze and Wake now each reach
@@ -16,19 +17,27 @@ struct StripControllerMenuTests {
     )
 
     /// A made-up `watch` line: Fabrikam's session, an ask waiting in Needs you and two asleep in Snoozed.
-    private static let line = #"""
-        {"v":3,"at":1792741527619,"version":"0.2.0","head":{"needYou":1,"sessions":1},"rows":[{"session":"sr-qx81zt",\#
-        "section":"needsYou","isAway":false,"project":"fabrikam","name":"Region rollout","projectName":"Fabrikam",\#
-        "letters":"Fa","lines":[{"key":"ask:sr-qx81zt:k3","is":"ask","ask":"k3","writer":null,\#
-        "first":{"lead":"Give the go","mono":null,"more":null},"since":1792741127000}],\#
-        "second":"Fabrikam · Region rollout","since":1792741127000}],"snoozed":[{"session":"sr-qx81zt",\#
-        "isAway":false,"project":"fabrikam","name":"Region rollout","projectName":"Fabrikam","letters":"Fa",\#
-        "lines":[{"key":"ask:sr-qx81zt:k1","ask":"k1","first":{"lead":"Review the plan","mono":null,"more":null},\#
-        "since":1792740927000,"wakesAt":1792741532000},{"key":"ask:sr-qx81zt:k2","ask":"k2",\#
-        "first":{"lead":"Pick the second region","mono":null,"more":null},"since":1792741027000,\#
-        "wakesAt":1792745127000}],"second":"Fabrikam · Region rollout","wakesAt":1792741532000}],"projects":[],\#
-        "windows":[],"new":[],"boards":{}}
-        """#
+    private static let line: String = {
+        let asleep: [WatchLine.SnoozedRow.Line] = [
+            .init(
+                "ask:sr-qx81zt:k1", ask: "k1", first: "Review the plan", since: 1_792_740_927_000,
+                wakesAt: 1_792_741_532_000
+            ),
+            .init(
+                "ask:sr-qx81zt:k2", ask: "k2", first: "Pick the second region", since: 1_792_741_027_000,
+                wakesAt: 1_792_745_127_000
+            ),
+        ]
+        let waiting = WatchLine.Row.Line(
+            "ask:sr-qx81zt:k3", .ask, ask: "k3", first: "Give the go", since: 1_792_741_127_000
+        )
+
+        return WatchLine(
+            at: 1_792_741_527_619, version: "0.2.0",
+            rows: [.init(session: "sr-qx81zt", name: "Region rollout", projectName: "Fabrikam", lines: [waiting])],
+            snoozed: [.init(session: "sr-qx81zt", name: "Region rollout", projectName: "Fabrikam", lines: asleep)]
+        ).text
+    }()
 
     /// What each reached, in the order chosen.
     private final class Heard {

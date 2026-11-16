@@ -4,6 +4,7 @@ import Foundation
 @testable import SitRepEdge
 import SitRepPanel
 import SitRepPanelTestSupport
+import SitRepTestSupport
 import Testing
 
 /// Needs you at the edge as Lee decided it on 13 November 2026: its count is the asks and stops waiting and the
@@ -12,32 +13,38 @@ import Testing
 /// as he set it, never for a turn there as SitRep starts, and once for each turn.
 @MainActor
 struct NeedsYouTests {
-    private static let ask = row(
-        "ask:sr-a:k1", "ask", session: "sr-a", lead: "Approve the plan", second: "SitRep · Plan",
-        since: 1_792_445_000_000
-    )
-
-    private static func turn(_ id: String = "sr-t", ended since: Int = 1_792_445_100_000) -> String {
-        row("turn:\(id)", "yourTurn", session: id, lead: "Built it", second: "Kit · \(id)", since: since)
+    private static func ask(_ id: String = "sr-a") -> WatchLine.Row {
+        WatchLine.Row(
+            session: id, name: "Plan", projectName: "SitRep",
+            lines: [.init("ask:\(id):k1", .ask, first: "Approve the plan", since: 1_792_445_000_000)]
+        )
     }
 
-    private static func working(_ id: String = "sr-w") -> String {
-        row("work:\(id)", "working", session: id, lead: "Running", second: "DocMan · \(id)", since: 1_792_445_000_000)
+    private static func turn(_ id: String = "sr-t", ended since: Int = 1_792_445_100_000) -> WatchLine.Row {
+        WatchLine.Row(
+            session: id, name: id, projectName: "Kit",
+            lines: [.init("turn:\(id)", .yourTurn, first: "Built it", since: since)]
+        )
+    }
+
+    private static func working(_ id: String = "sr-w") -> WatchLine.Row {
+        WatchLine.Row(
+            session: id, name: id, projectName: "DocMan",
+            lines: [.init("work:\(id)", .working, first: "Running", since: 1_792_445_000_000)]
+        )
     }
 
     /// The boards these lines make, heard in turn by one run, each its own, with these pulses.
-    private static func boards(_ lines: [[String]], pulses: Set<Need> = [.ask]) -> [PanelBoard] {
+    private static func boards(_ lines: [[WatchLine.Row]], pulses: Set<Need> = [.ask]) -> [PanelBoard] {
         var last = LastBoard()
 
         return lines.map { rows in
-            let asks = rows.filter { $0.contains(#""section":"needsYou""#) }.count
-
-            _ = last.hear(.line(line(needYou: asks, sessions: rows.count, new: [], rows: rows)), at: .now)
+            _ = last.hear(.line(WatchLine(rows: rows).text), at: .now)
             return PanelBoard(last, pulses: pulses)
         }
     }
 
-    private static func board(_ rows: String...) -> PanelBoard {
+    private static func board(_ rows: WatchLine.Row...) -> PanelBoard {
         boards([rows])[0]
     }
 
@@ -47,17 +54,23 @@ struct NeedsYouTests {
     /// none of it. Each session is one row: one at his turn with asks waiting is its asks' row, as core gives it, so
     /// its turn counts nothing.
     @Test func needYouCountsTheAsksAndTheTurnsEachSessionOneRow() {
-        let held = row(
-            "ask:sr-a:k1", "ask", session: "sr-a", lead: "One", second: "SitRep · Plan", since: 1_792_445_000_000,
-            newer: [(key: "ask:sr-a:k2", lead: "Two", since: 1_792_445_000_001)]
+        let held = WatchLine.Row(
+            session: "sr-a", name: "Plan", projectName: "SitRep",
+            lines: [
+                .init("ask:sr-a:k1", .ask, first: "One", since: 1_792_445_000_000),
+                .init("ask:sr-a:k2", .ask, first: "Two", since: 1_792_445_000_001),
+            ]
         )
         let asks = [held] + ["sr-b", "sr-c"].map { id in
-            row("ask:\(id):k1", "ask", session: id, lead: "One", second: "SitRep · \(id)", since: 1_792_445_000_000)
+            WatchLine.Row(
+                session: id, name: id, projectName: "SitRep",
+                lines: [.init("ask:\(id):k1", .ask, first: "One", since: 1_792_445_000_000)]
+            )
         }
         let turns = (1 ... 7).map { Self.turn("sr-t\($0)") }
         var last = LastBoard()
 
-        _ = last.hear(.line(line(needYou: 4, sessions: 11, new: [], rows: asks + turns + [Self.working()])), at: .now)
+        _ = last.hear(.line(WatchLine(rows: asks + turns + [Self.working()]).text), at: .now)
         let board = PanelBoard(last)
 
         #expect(board.head.title == "11 need you")
@@ -70,7 +83,7 @@ struct NeedsYouTests {
     // MARK: The light
 
     @Test func theLightIsOrangeWhileAnAskWaitsElseBlueWhileATurnDoesElseOut() {
-        #expect(Self.board(Self.ask, Self.turn(), Self.working()).need == .ask)
+        #expect(Self.board(Self.ask(), Self.turn(), Self.working()).need == .ask)
         #expect(Self.board(Self.turn(), Self.working()).need == .turn)
         #expect(Self.board(Self.working()).need == nil)
         #expect(Self.board(Self.turn()).needsLee && !Self.board(Self.working()).needsLee)
@@ -80,7 +93,7 @@ struct NeedsYouTests {
     @Test func theNotchsLightTakesItsColourFromWhatLitItAndKeepsItGoingOut() {
         let run = NotchRun(at: 1000, in: Self.setting)
         let moment = NotchRun.Moment(time: 1000, pointer: nil, setting: Self.setting)
-        let shown = Self.boards([[Self.turn()], [Self.ask, Self.turn()], [Self.turn()], [Self.working()]])
+        let shown = Self.boards([[Self.turn()], [Self.ask(), Self.turn()], [Self.turn()], [Self.working()]])
 
         #expect(run.lightNeed == .ask)
         _ = run.show(shown[0], moment)
@@ -100,7 +113,7 @@ struct NeedsYouTests {
     // MARK: The pulse
 
     /// What the notch is told, board by board, each after the one before, the first after none.
-    private static func told(_ lines: [[String]], pulses: Set<Need>) -> [[String]] {
+    private static func told(_ lines: [[WatchLine.Row]], pulses: Set<Need>) -> [[String]] {
         let shown = boards(lines, pulses: pulses)
 
         return zip([PanelBoard()] + shown, shown).map { last, board in
@@ -122,7 +135,7 @@ struct NeedsYouTests {
     /// it pulses nothing, nor does it again as its session comes back to it from an ask.
     @Test func noPulseForATurnThereAtTheStartNorTwiceForOneTurn() {
         let told = Self.told(
-            [[Self.turn()], [Self.turn(), Self.working()], [Self.ask.replacingOccurrences(of: "sr-a", with: "sr-t")],
+            [[Self.turn()], [Self.turn(), Self.working()], [Self.ask("sr-t")],
              [Self.turn()]],
             pulses: [.turn]
         )
@@ -136,9 +149,9 @@ struct NeedsYouTests {
         let notch = Told()
         var last = LastBoard()
 
-        _ = last.hear(.line(line(needYou: 0, sessions: 1, new: [], rows: [Self.working()])), at: .now)
+        _ = last.hear(.line(WatchLine(rows: [Self.working()]).text), at: .now)
         let before = PanelBoard(last, pulses: pulses)
-        let asked = line(needYou: 1, sessions: 2, new: ["ask:sr-a:k1"], rows: [Self.ask, Self.working()])
+        let asked = WatchLine(rows: [Self.ask(), Self.working()], new: ["ask:sr-a:k1"]).text
 
         _ = last.hear(.line(asked), at: .now)
         PanelBoard(last, pulses: pulses).tell(notch, after: before)
@@ -167,9 +180,9 @@ struct NeedsYouTests {
     func onTheStripANewAskFlashesWhileItsPulseIsOn(pulses: Set<Need>, flashes: Bool) {
         var last = LastBoard()
 
-        _ = last.hear(.line(line(needYou: 0, sessions: 1, new: [], rows: [Self.working()])), at: .now)
+        _ = last.hear(.line(WatchLine(rows: [Self.working()]).text), at: .now)
         let before = PanelBoard(last, pulses: pulses)
-        let asked = line(needYou: 1, sessions: 2, new: ["ask:sr-a:k1"], rows: [Self.ask, Self.working()])
+        let asked = WatchLine(rows: [Self.ask(), Self.working()], new: ["ask:sr-a:k1"]).text
         _ = last.hear(.line(asked), at: .now)
         let (run, flash) = Self.stripShown([before, PanelBoard(last, pulses: pulses)], flashing: "sr-a")
 

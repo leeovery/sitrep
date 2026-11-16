@@ -51,7 +51,7 @@ struct HereWatchTests {
     /// A line whose windows hold the sessions given, each on a device of its own.
     private static func held(_ sessions: String...) throws -> Board {
         try board(sessions.enumerated().map { order, session in
-            LineWindow(writer: "w-\(session)", session: session, order: order, device: "/dev/ttys0\(order + 10)")
+            WatchLine.Window.jumping("w-\(session)", session: session, order: order, device: "/dev/ttys0\(order + 10)")
         })
     }
 
@@ -186,7 +186,7 @@ struct HereWatchTests {
         let reads = Reads(["sr-a": .notHere])
         let watch = Self.watch(reads)
 
-        watch.heard(try board([LineWindow(writer: "w1", session: "sr-a", order: nil, device: "/dev/ttys010")]))
+        watch.heard(try board([WatchLine.Window.jumping("w1", session: "sr-a", order: nil, device: "/dev/ttys010")]))
         await Self.read(1, by: reads, of: watch)
 
         #expect(reads.asked.first?["sr-a"] == [Where(device: "/dev/ttys010", terminal: "ghostty")])

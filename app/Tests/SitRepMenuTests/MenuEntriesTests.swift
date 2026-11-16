@@ -1,11 +1,16 @@
 @testable import SitRepCore
 import SitRepMenu
 import SitRepPanel
+import SitRepTestSupport
 import Testing
 
 struct MenuEntriesTests {
-    private static func entries(_ rows: [String] = Watched.rows, windows: [String] = [], show: EdgeSettings.Show = .notch) -> [MenuEntry] {
-        MenuBoard(heard([.line(Watched.line(rows: rows, windows: windows))]), clock: london).entries(showing: show)
+    private static func entries(
+        _ rows: [WatchLine.Row] = Watched.rows, needYou: Int? = nil, windows: [WatchLine.Window] = [],
+        show: EdgeSettings.Show = .notch
+    ) -> [MenuEntry] {
+        MenuBoard(heard([.line(Watched.line(needYou: needYou, rows: rows, windows: windows))]), clock: london)
+            .entries(showing: show)
     }
 
     @Test func theMenuRunsFromTheHeaderThroughTheSessionsToQuit() {
@@ -24,7 +29,7 @@ struct MenuEntriesTests {
     }
 
     @Test func itSpeaksUpFirstUnderTheHeader() {
-        let window = Watched.window("w1", session: "sr-boot", name: "The bootstrap", project: "Kit", version: nil, needsReload: true)
+        let window = WatchLine.Window(writer: "w1", session: "sr-boot", name: "The bootstrap", project: "Kit", version: nil, needsReload: true)
         let last = heard([.line(Watched.line(windows: [window])), .exited(.status(1), stderr: "")])
         let keys = MenuBoard(last, clock: london).entries(showing: .notch).map(\.key)
 
@@ -34,7 +39,7 @@ struct MenuEntriesTests {
     }
 
     @Test func troubleWithThePluginSpeaksUpFirstOfAll() {
-        let window = Watched.window("w1", session: "sr-boot", name: "The bootstrap", project: "Kit", version: nil, needsReload: true)
+        let window = WatchLine.Window(writer: "w1", session: "sr-boot", name: "The bootstrap", project: "Kit", version: nil, needsReload: true)
         let last = heard([.line(Watched.line(windows: [window])), .exited(.status(1), stderr: "")])
         let entries = MenuBoard(last, trouble: .noClaude, clock: london).entries(showing: .notch)
 
@@ -61,7 +66,7 @@ struct MenuEntriesTests {
     @Test func aRowWhoseWordsChangedIsSetAgainInPlaceAndNothingElseMoves() {
         var rows = Watched.rows
 
-        rows[3] = Watched.row("turn:sr-boot", "yourTurn", session: "sr-boot", project: "kit", lead: "Write round 5", second: "Kit · The bootstrap", since: 1_792_445_400_000)
+        rows[3].lines = [.init("turn:sr-boot", .yourTurn, first: "Write round 5", since: 1_792_445_400_000)]
 
         let new = Self.entries(rows)
         let changes = MenuChanges(from: Self.entries(), to: new)
@@ -74,8 +79,12 @@ struct MenuEntriesTests {
     /// A session come to Lee's turn is put in at its place, and the count over it, which holds it, set again.
     @Test func aRowComeIsPutInAtItsPlaceAndCounted() {
         var rows = Watched.rows
+        let turn = WatchLine.Row(
+            session: "sr-new", name: "New", projectName: "Kit",
+            lines: [.init("turn:sr-new", .yourTurn, first: "New", since: 1_792_445_400_000)]
+        )
 
-        rows.insert(Watched.row("turn:sr-new", "yourTurn", session: "sr-new", project: "kit", lead: "New", second: "Kit · New", since: 1_792_445_400_000), at: 4)
+        rows.insert(turn, at: 4)
 
         let new = Self.entries(rows)
         let changes = MenuChanges(from: Self.entries(), to: new)
@@ -91,7 +100,7 @@ struct MenuEntriesTests {
 
         rows.remove(at: 1)
 
-        let changes = MenuChanges(from: Self.entries(), to: Self.entries(rows))
+        let changes = MenuChanges(from: Self.entries(), to: Self.entries(rows, needYou: 3))
 
         #expect(changes.removals == [4])
         #expect(changes.insertions.isEmpty)

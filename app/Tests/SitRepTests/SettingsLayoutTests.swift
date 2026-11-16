@@ -417,21 +417,17 @@ struct Hosted {
     /// The plugin running, its board printed, with two windows on it, on an older plugin or not.
     static func live(needsReload: Bool) -> LiveBoard {
         let live = LiveBoard()
-        let window = { (writer: String) in
-            """
-            {"writer":"\(writer)","session":"sr-aw3bgs","name":"The Mac app","project":"SitRep",\
-            "version":"\(needsReload ? "0.1.0" : "0.2.0")","needsReload":\(needsReload),"where":null,"state":null,\
-            "attachedAt":1792440000000}
-            """
+        let windows = ["w1", "w2"].map { writer in
+            WatchLine.Window(
+                writer: writer, session: "sr-aw3bgs", name: "The Mac app", project: "SitRep",
+                version: needsReload ? "0.1.0" : "0.2.0", needsReload: needsReload
+            )
         }
-        let line = """
-            {"v":3,"at":1792445574706,"version":"0.2.0","head":{"needYou":0,"sessions":1},"rows":[],"projects":[],\
-            "windows":[\(window("w1")),\(window("w2"))],"new":[],"boards":{}}
-            """
+        let line = WatchLine(version: "0.2.0", head: .init(needYou: 0, sessions: 1), windows: windows)
         var last = LastBoard()
 
         last.begin()
-        _ = last.hear(.line(line), at: Date())
+        _ = last.hear(.line(line.text), at: Date())
         live.last = last
         live.plugin = .running(.folder("~/Code/sitrep"), folder: "/Users/lee/Code/sitrep")
         return live
