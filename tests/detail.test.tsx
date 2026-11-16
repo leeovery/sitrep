@@ -4,9 +4,10 @@ import type { Body } from '../core'
 import { hoverScope } from '../hooks/draw/kit'
 import { C, GLYPH } from '../hooks/look'
 import { rowsOf } from './drawn'
-import { MIN, PROJECT, REVIEW, T0 } from './data'
+import { MIN, PROJECT, REVIEW, T0, type Asked } from './data'
 import { askOf, note, park, status, type Line } from './lines'
-import { HELD, heldItem, pane, sceneFrom, type Drawn } from './render'
+import { HELD } from './filing'
+import { heldItem, pane, sceneFrom, type Drawn } from './render'
 import { ACROSS, asked, world } from './world'
 
 tier('user')
@@ -22,7 +23,7 @@ const DECIDE = {
   title: 'Keep the ledger 400 days, or forever?',
   where: 'In Paper: page round 1',
   options: ['400 days', 'Forever'],
-}
+} satisfies Asked
 
 /** Lee's reply to an item of the held session, waiting in Ready to send. */
 const queued = (item: string, reply: Pick<SitrepQueued, 'verdict' | 'option'>): SitrepQueued => ({
@@ -277,10 +278,12 @@ test('an opened status change opens each detail line with its label in the statu
   ]
   const drawn = (selected: string | null) =>
     pane(sceneFrom({ lines, pane: { selected }, now: T0 + MIN }))
-  const [latest] = (await drawn(null).findAll({ type: 'Button' })).filter(each =>
-    each.key?.startsWith(`log:${heldItem('status-')}`),
-  )
-  const ui = drawn(latest?.key?.slice('log:'.length) ?? 'no status line')
+  // A line the board derives is keyed by its kind and its time.
+  const latest = heldItem(`status-${T0 + MIN}`)
+
+  expect(await drawn(null).find({ key: `log:${latest}` }), 'the latest status line').toBeDefined()
+
+  const ui = drawn(latest)
 
   for (const [label, text] of [
     ['Added:', 'Drawing Macros'],
@@ -300,12 +303,9 @@ test('an opened status change opens each detail line with its label in the statu
 test("a note's detail lines are Claude's own words, unlabelled and soft, whatever they open with; its see is labelled in the note's blue", async () => {
   const ui = drawnFrom(
     [
-      note(
-        'n1',
-        'Wrote the schema',
-        ['Added: the ledger table', '6 files, +214 −51'],
-        'docs/ledger.md',
-      ),
+      note('n1', 'Wrote the schema', ['Added: the ledger table', '6 files, +214 −51'], {
+        ref: 'docs/ledger.md',
+      }),
     ],
     { selected: heldItem('n1') },
   )

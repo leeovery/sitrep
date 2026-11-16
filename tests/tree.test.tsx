@@ -4,7 +4,7 @@ import { expect, test, tier } from './kit'
 import { CURRENT_MS, sessionPaths, type Body, type SessionMeta } from '../core'
 import { AROUND_MS } from '../hooks/around'
 import { C, GLYPH } from '../hooks/look'
-import { EVERY_PROJECT, projectPlace } from '../hooks/places'
+import { EVERY_PROJECT, itemKey, projectPlace } from '../hooks/places'
 import { rowsOf } from './drawn'
 import {
   DAY,
@@ -23,7 +23,8 @@ import {
   W4,
 } from './data'
 import { askOf, choiceAsk, file, finish, note, park, status, yesAsk, type Line } from './lines'
-import { HELD, pane, sceneFrom, type Desk, type Drawn } from './render'
+import { HELD } from './filing'
+import { pane, sceneFrom, type Desk, type Drawn } from './render'
 import { asked, DOCKED, postedId, toProject, WIDE, world, type Board, type World } from './world'
 
 tier('user')
@@ -234,10 +235,13 @@ test("the project view lists its sessions, this one first, each with what it doe
   expect(await ui.find({ type: 'Text', text: '1 waiting' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: 'closed' })).toBeDefined()
   expect(
-    await ui.find({ key: `log:${LEDGER.id}:n3`, text: 'Invoice ledger: Wrote the schema' }),
+    await ui.find({
+      key: `log:${itemKey(LEDGER.id, 'n3')}`,
+      text: 'Invoice ledger: Wrote the schema',
+    }),
   ).toBeDefined()
 
-  const opened = neighbourhoodAt(projectPlace(PROJECT.key), DOCKED, `${LEDGER.id}:n3`)
+  const opened = neighbourhoodAt(projectPlace(PROJECT.key), DOCKED, itemKey(LEDGER.id, 'n3'))
 
   expect(await opened.find({ type: 'Text', text: 'nothing more was recorded' })).toBeDefined()
 })

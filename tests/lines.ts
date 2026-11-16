@@ -4,21 +4,16 @@ import {
   foldSession,
   metaText,
   presenceText,
-  projectText,
-  type AskBody,
   type AskKind,
   type Body,
   type Finisher,
   type Presence,
-  type ProjectFile,
   type Random,
   type Verdict,
   type Session,
   type SessionFiles,
-  type SessionMeta,
-  type Wants,
 } from '../core'
-import { META, MIN, T0 } from './data'
+import { META, MIN, T0, type Asked } from './data'
 
 /** A line, and when it was written. */
 export type Line = [at: number, body: Body]
@@ -44,28 +39,6 @@ export const fold = (files: Partial<SessionFiles>, now = T0 + 60 * MIN): Session
 
   return session
 }
-
-/**
- * A session beside the one under test: its meta, the lines its window
- * wrote, its project's key (Northwind's unless told) and that project's
- * file where it has one, and when its window attached and was last seen,
- * where it beats.
- */
-export type Around = {
-  meta: SessionMeta
-  lines?: readonly Line[]
-  project?: string
-  projectFile?: ProjectFile
-  seenAt?: number
-}
-
-/** A session beside the one under test as its files hold it. */
-export const aroundFiles = ({ meta, lines = [], projectFile, seenAt }: Around): SessionFiles => ({
-  meta: metaText(meta),
-  logs: lines.length === 0 ? {} : { [meta.by]: file(...lines) },
-  presence: seenAt === undefined ? {} : { [meta.by]: seen(meta.by, seenAt) },
-  project: projectFile === undefined ? undefined : projectText(projectFile),
-})
 
 export const status = (
   now: string[],
@@ -106,10 +79,7 @@ export const wordsAsk = (id: string, title: string, needs?: string): Body => ({
 })
 
 /** An ask's line as the ask tool writes what Claude asked, given as the sample asks are (data.ts). */
-export const askOf = (
-  id: string,
-  { wants, ...ask }: Omit<AskBody, 'type' | 'id' | 'wants'> & { wants: string },
-): Body => ({ type: 'ask', id, wants: wants as Wants, ...ask })
+export const askOf = (id: string, ask: Asked): Body => ({ type: 'ask', id, ...ask })
 
 /** An ask's line as written before asks said what they want back: by its kind. */
 export const kindAsk = (
@@ -119,13 +89,12 @@ export const kindAsk = (
   extra: { options?: string[]; needs?: string } = {},
 ): Body => ({ type: 'ask', id, kind, title, ...extra })
 
-export const note = (id: string, text: string, detail?: string[], ref?: string): Body => ({
-  type: 'note',
-  id,
-  text,
-  detail,
-  ref,
-})
+export const note = (
+  id: string,
+  text: string,
+  detail?: string[],
+  extra: { ref?: string } = {},
+): Body => ({ type: 'note', id, text, detail, ...extra })
 
 export const park = (
   id: string,

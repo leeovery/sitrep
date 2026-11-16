@@ -1,9 +1,10 @@
 import { expect, test, tier } from './kit'
 import { C } from '../hooks/look'
 import { projectPlace } from '../hooks/places'
-import { MIN, PROJECT, REVIEW, T0 } from './data'
+import { MIN, PROJECT, REVIEW, T0, type Asked } from './data'
 import { askOf, park, resolve, status } from './lines'
-import { HELD, pane, sceneFrom, type Drawn } from './render'
+import { HELD } from './filing'
+import { pane, sceneFrom, type Drawn } from './render'
 import { asked, CONVERSATION, DOCKED, INLINE, postedId, SURFACES, world } from './world'
 
 tier('user')
@@ -15,7 +16,7 @@ const DECIDE = {
   wants: 'choice',
   title: 'Keep the ledger 400 days, or forever?',
   options: ['400 days', 'Forever'],
-}
+} satisfies Asked
 
 test('an empty board says nothing waits on you, docked and inline, on each surface', async () => {
   for (const surface of SURFACES) {

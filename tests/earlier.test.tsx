@@ -6,7 +6,8 @@ import { WATCH_MS } from '../hooks/window'
 import { rowsOf } from './drawn'
 import { HOUR, MIN, T0, W2 } from './data'
 import { choiceAsk, delivered, file, reply, resolve, yesAsk, type Line } from './lines'
-import { HELD, heldItem, pane, sceneFrom, type Drawn } from './render'
+import { HELD } from './filing'
+import { heldItem, pane, sceneFrom, type Drawn } from './render'
 import { ACROSS, DOCKED, postedId, world, type World } from './world'
 
 tier('user')
@@ -113,7 +114,7 @@ test('a closed ask opens to how it closed, one branch from its tick with no age 
   expect(await opened('a1', IN_FULL)).toEqual(['└ → Approve'])
 })
 
-test('RESOLVED shows the latest 3; show all opens it to every one, and show fewer closes it again, the toggle dim', async () => {
+test('RESOLVED shows the latest 3 under a dim show all; shown in full, it lists every one under a dim show fewer', async () => {
   const toggle = async (ui: Drawn) => (await ui.find({ key: `earlier:${HELD.id}` }))?.props
   const folded = drawnAfter(CLOSED)
   const inFull = drawnAfter(CLOSED, IN_FULL)

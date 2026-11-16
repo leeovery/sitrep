@@ -81,7 +81,21 @@ const shown: { projects?: string; others?: string } = {}
  * late leaves the one two looks on just short, and whole looks come every
  * three.
  */
-const isWholeLook = every(OFF_BOARD_MS - AROUND_MS / 2, -Infinity)
+const wholeLooks = () => every(OFF_BOARD_MS - AROUND_MS / 2, -Infinity)
+
+let isWholeLook = wholeLooks()
+
+/**
+ * Forgets every look so far, as a load of the mod starts with none: the next
+ * is whole, reads every file afresh and puts what it finds. A pure test's
+ * look over a host of its own starts so.
+ */
+export const forgetLooks = () => {
+  kept.clear()
+  delete shown.projects
+  delete shown.others
+  isWholeLook = wholeLooks()
+}
 
 let looking: Promise<unknown> = Promise.resolve()
 
@@ -160,7 +174,7 @@ type Around = {
 }
 
 /** The other sessions a look reads in full: those the board draws, while it is open, and the one Lee is answering in the prompt. */
-export const fullOf = (held: SitrepAttachment, pane: SitrepPane, around: Around) => {
+const fullOf = (held: SitrepAttachment, pane: SitrepPane, around: Around) => {
   const answered = around.answering === null ? [] : [around.answering]
   const { place } = pane
   const drawn = pane.isOpen
@@ -227,7 +241,7 @@ const nameOf = (key: string, sessions: readonly Session[]) =>
  * filed under it parked, finished and idle ones included; a project with
  * neither is dropped, but never the held session's.
  */
-export const projectsOf = (
+const projectsOf = (
   held: SitrepAttachment,
   keys: readonly string[],
   read: ReadonlyMap<string, Filed>,
@@ -245,7 +259,8 @@ export const projectsOf = (
       : []
   })
 
-export const othersOf = (
+/** The other sessions the board draws in full, each by its project, as a look read them; one it could not read is left out. */
+const othersOf = (
   full: readonly SitrepSessionRef[],
   read: ReadonlyMap<string, Filed>,
 ): SitrepOther[] =>

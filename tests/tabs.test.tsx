@@ -4,8 +4,9 @@ import { C } from '../hooks/look'
 import { EVERY_PROJECT, projectPlace } from '../hooks/places'
 import { rowsOf } from './drawn'
 import { ELSEWHERE, GO, LEDGER, PROJECT, SHIFTS, T0, W4 } from './data'
-import { askOf, note, park, status, yesAsk, type Around } from './lines'
-import { HELD, pane, sceneFrom, type Desk, type Drawn } from './render'
+import { askOf, note, park, status, yesAsk } from './lines'
+import { HELD, type Neighbour } from './filing'
+import { pane, sceneFrom, type Desk, type Drawn } from './render'
 import { INLINE, WIDE, world, type Board, type World } from './world'
 
 tier('user')
@@ -178,6 +179,24 @@ test('the two tabs are drawn the same in every place: the first lit at home, All
   }
 })
 
+/** The colour of a tab's count, the last thing in its box. */
+const countColour = async (ui: Drawn, tab: string) => {
+  const box = await ui.find({ type: 'Box', key: `${tab}:box` })
+  const count = box?.children.at(-1) as { props: { color?: string } } | undefined
+
+  return count?.props.color
+}
+
+test("a tab's count is in the asks' colour while the tab is lit, and grey while it is not, in every place", async () => {
+  for (const { name, place } of PLACES) {
+    const ui = pane(lookingAt(ASKS_AROUND, place), WIDE)
+    const [home, all] = name === 'home' ? [C.ask, C.grey] : [C.grey, C.ask]
+
+    expect(await countColour(ui, 'tab:session'), name).toBe(home)
+    expect(await countColour(ui, 'tab:all'), name).toBe(all)
+  }
+})
+
 test("on a narrow board the first tab's name is cut short, and All projects keeps its full width", async () => {
   const desk: Desk = {
     lines: [
@@ -330,7 +349,7 @@ const NARROW = [
 ] as const
 
 test('a long title cuts its aside first, then itself, at phone width and docked, to the whole line: the way back, on the row above, takes none of it', async () => {
-  const named = (id: string, name: string): Around => ({
+  const named = (id: string, name: string): Neighbour => ({
     meta: { ...LEDGER, id, name },
     lines: [[T0, note('n1', 'Began')]],
     seenAt: T0,

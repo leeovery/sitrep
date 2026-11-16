@@ -2,7 +2,7 @@
  * The sample data the tests share: times, windows, the projects and sessions
  * under test, and the asks Claude posts. Every name is a placeholder.
  */
-import type { Project, SessionMeta } from '../core'
+import type { AskBody, Project, SessionMeta } from '../core'
 
 export const MIN = 60_000
 export const HOUR = 60 * MIN
@@ -107,14 +107,21 @@ export const PARKED_BEFORE = {
   ].join('\n'),
 }
 
+/** An ask as Claude posts it with the ask tool. */
+export type Asked = Omit<AskBody, 'type' | 'id'>
+
 /** The asks Claude posts with the ask tool: a review wanting a yes, a go wanting one in its own words, and a choice. */
-export const REVIEW = { wants: 'yes', yes: 'Approve', title: 'Review Tickets & Replies, round 1' }
-export const GO = { wants: 'yes', yes: 'Go', title: 'Give the ok for phase 3' }
+export const REVIEW = {
+  wants: 'yes',
+  yes: 'Approve',
+  title: 'Review Tickets & Replies, round 1',
+} satisfies Asked
+export const GO = { wants: 'yes', yes: 'Go', title: 'Give the ok for phase 3' } satisfies Asked
 export const FRAMES = {
   wants: 'choice',
   title: 'Ship round 2, or redraw?',
   options: ['Ship it', 'Redraw'],
-}
+} satisfies Asked
 
 /** A review of round `n`, for a test asking several. */
 export const reviewRound = (n: number) => ({

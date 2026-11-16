@@ -3,7 +3,7 @@ import { expect, test, tier } from './kit'
 import type { Body, SessionMeta } from '../core'
 import { EVERY_PROJECT, projectPlace } from '../hooks/places'
 import { rowsOf } from './drawn'
-import { ELSEWHERE, MIN, PROJECT, T0, W2 } from './data'
+import { ELSEWHERE, MIN, PROJECT, T0, W2, type Asked } from './data'
 import { askOf, note, park, resolve, yesAsk, type Line } from './lines'
 import { heldItem, pane, sceneFrom, type Desk, type Drawn } from './render'
 import { postedId, world, type World } from './world'
@@ -46,12 +46,15 @@ const minutely = (...bodies: Body[]) => bodies.map((body, i): Line => [T0 + i * 
 
 /** Asks for Lee's approval, each saying where to look. */
 const reviews = (...titles: string[]) =>
-  titles.map(title => ({
-    wants: 'yes',
-    yes: 'Approve',
-    title,
-    where: `In Paper: page ${title.slice(-7)}`,
-  }))
+  titles.map(
+    title =>
+      ({
+        wants: 'yes',
+        yes: 'Approve',
+        title,
+        where: `In Paper: page ${title.slice(-7)}`,
+      }) satisfies Asked,
+  )
 
 /** The reviews as the ask tool writes them, `k1` onwards. */
 const reviewLines = (...titles: string[]) =>
