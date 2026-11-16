@@ -218,11 +218,14 @@ test('a dialog matching no call put to Lee is logged and stops nothing', async (
 })
 
 test('a permission request a settings hook beneath answers shows no dialog, so it stops nothing, and its answer goes on as it came', async ($, on) => {
-  const w = world($, on)
-  const { paths } = await w.begin()
   const allowed = { decision: { behavior: 'allow' as const } }
 
-  w.answerRequests(allowed)
+  // A settings hook beneath, registered before the world's own so it is outermost: it answers in the dialog's place.
+  on('classic.PermissionRequest', { tool_name: 'Bash' }, () => allowed)
+
+  const w = world($, on)
+  const { paths } = await w.begin()
+
   await w.turnStarts('Open the PR.')
 
   const pr = w.calls('Bash', PR_CREATE, { verdict: 'ask', isShown: true })

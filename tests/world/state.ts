@@ -9,7 +9,6 @@ type Sitrep = PluginState['sitrep']
 
 export function kept(on: On) {
   const state: Partial<Sitrep> = {}
-  const boards: (Sitrep['board'] | null)[] = []
   /** How many times each of the mod's values was put in `$.state`. */
   const writes: Partial<Record<keyof Sitrep, number>> = {}
   let isUnread = false
@@ -20,10 +19,6 @@ export function kept(on: On) {
     Object.assign(state, { [e.key]: e.value })
     writes[e.key as keyof Sitrep] = (writes[e.key as keyof Sitrep] ?? 0) + 1
 
-    if (e.key === 'board') {
-      boards.push(e.value as Sitrep['board'])
-    }
-
     return next(e)
   })
 
@@ -32,7 +27,6 @@ export function kept(on: On) {
 
   return {
     state,
-    boards,
     writes,
     flights,
 

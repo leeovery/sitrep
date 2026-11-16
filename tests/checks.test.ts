@@ -18,7 +18,7 @@ import {
   type Checked,
   type SessionFiles,
 } from '../core'
-import { MIN, scripted, SENDER, T0, W1 } from './data'
+import { MIN, SENDER, T0, W1 } from './data'
 import {
   beat,
   choiceAsk,
@@ -32,6 +32,7 @@ import {
   reopen,
   reply,
   resolve,
+  scripted,
   snooze,
   snoozeSession,
   snoozeTurn,

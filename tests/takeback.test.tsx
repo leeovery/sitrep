@@ -12,8 +12,18 @@ import { QUIET_MS } from '../hooks/deliver'
 import { WATCH_MS } from '../hooks/window'
 import type { SitrepInFlight } from '../types'
 import { AGENT, CLOSES, MIN, SENDER, W1 } from './data'
-import { file, kindsIn, reply, sendingIn } from './lines'
-import { asking, asksOnBand, CONVERSATION, turnEnded, world, writeDoor, type World } from './world'
+import { file, reply } from './lines'
+import {
+  asking,
+  asksOnBand,
+  CONVERSATION,
+  kindsIn,
+  sendingIn,
+  turnEnded,
+  world,
+  writeDoor,
+  type World,
+} from './world'
 
 tier('user')
 

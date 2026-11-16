@@ -1,7 +1,7 @@
 import { expect, test, tier } from './kit'
 import { C } from '../hooks/look'
 import { rowsOf } from './drawn'
-import { ELSEWHERE, LEDGER, PROJECT, SHIFTS, T0, W4 } from './data'
+import { ELSEWHERE, GO, LEDGER, PROJECT, SHIFTS, T0, W4 } from './data'
 import { note, park, yesAsk } from './lines'
 import { CONVERSATION, INLINE, toProject, WIDE, world, type Board, type World } from './world'
 
@@ -90,7 +90,7 @@ async function asksAround(w: World) {
   ledger.write(yesAsk('k3', 'Review the ledger schema'))
   ledger.beat()
   await w.begin()
-  await w.call('ask', { wants: 'yes', yes: 'Go', title: 'Give the go for stage 3' })
+  await w.call('ask', GO)
 }
 
 /** Where the board looks, as kept. */
@@ -158,7 +158,7 @@ test("on a narrow board the first tab's name is cut short, and All projects keep
 
   await w.begin()
   await w.call('status', { name: 'Redesign the help desk, page by page' })
-  await w.call('ask', { wants: 'yes', yes: 'Go', title: 'Give the go for stage 3' })
+  await w.call('ask', GO)
 
   const narrow = { ...WIDE, bodyColumns: 42 }
   const ui = await w.opened(narrow)

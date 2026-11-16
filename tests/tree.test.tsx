@@ -20,7 +20,7 @@ import {
   W4,
 } from './data'
 import { choiceAsk, file, finish, note, park, status, yesAsk, type Line } from './lines'
-import { postedId, toProject, WIDE, world, type Board, type World } from './world'
+import { asked, postedId, toProject, WIDE, world, type Board, type World } from './world'
 
 tier('user')
 
@@ -69,7 +69,7 @@ async function neighbourhood(w: World) {
 
   const { id } = await w.begin()
 
-  return { id, asked: postedId(await w.call('ask', REVIEW)) }
+  return { id, posted: await asked(w, REVIEW) }
 }
 
 /** The keys of the drawn buttons that start with `prefix`, in the order drawn. */
@@ -80,10 +80,10 @@ const keysOf = async (ui: Board, prefix: string) =>
 
 test('the board walks from this session to every project, down into a project and its sessions, and back up', async ($, on) => {
   const w = world($, on)
-  const { asked } = await neighbourhood(w)
+  const { posted } = await neighbourhood(w)
   const ui = await w.opened()
 
-  expect(await ui.find({ key: `pick:${w.item(asked)}` })).toBeDefined()
+  expect(await ui.find({ key: `pick:${w.item(posted)}` })).toBeDefined()
 
   // All projects, then this project: the tabs stay, and the way back sits under them.
   await toProject(ui)
@@ -111,12 +111,12 @@ test('the board walks from this session to every project, down into a project an
 
   // Home, from anywhere.
   await ui.press({ key: 'tab:session' })
-  expect(await ui.find({ key: `pick:${w.item(asked)}` })).toBeDefined()
+  expect(await ui.find({ key: `pick:${w.item(posted)}` })).toBeDefined()
 })
 
 test('closed and opened again, the board is home, wherever it had gone', async ($, on) => {
   const w = world($, on)
-  const { asked } = await neighbourhood(w)
+  const { posted } = await neighbourhood(w)
   const ui = await w.opened()
   const band = await w.band()
 
@@ -131,7 +131,7 @@ test('closed and opened again, the board is home, wherever it had gone', async (
   await band.press({ key: 'band:board' })
   await band.press({ key: 'band:board' })
   expect(w.state.pane).toMatchObject({ isOpen: true, place: null, selected: null })
-  expect(await ui.find({ key: `pick:${w.item(asked)}` })).toBeDefined()
+  expect(await ui.find({ key: `pick:${w.item(posted)}` })).toBeDefined()
   expect(await ui.find({ key: 'tab:session' })).toBeDefined()
 })
 
@@ -238,7 +238,7 @@ test('All projects: this project first, then the busiest; the quiet fold into on
 
 test("the project view's ASKS holds every session's asks, the newest first, each naming its session and answered from there", async ($, on) => {
   const w = world($, on)
-  const { asked } = await neighbourhood(w)
+  const { posted } = await neighbourhood(w)
   const ui = await w.opened(WIDE)
   const rows = async () => rowsOf(await ui.find({ type: 'Box' }), WIDE.bodyColumns)
 
@@ -248,7 +248,7 @@ test("the project view's ASKS holds every session's asks, the newest first, each
       .filter(each => each.key?.startsWith('pick:'))
       .map(each => [each.key, each.text]),
   ).toEqual([
-    [`pick:${w.item(asked)}`, 'Help desk redesign: Review Tickets & Replies, round 1'],
+    [`pick:${w.item(posted)}`, 'Help desk redesign: Review Tickets & Replies, round 1'],
     [`pick:${LEDGER.id}:k3`, 'Invoice ledger: Keep the ledger 400 days, or forever?'],
   ])
   expect(await ui.find({ type: 'Text', text: '2 waiting' })).toBeDefined()
@@ -277,7 +277,7 @@ test("the project view's PARKED holds every session's parked items, the oldest f
   await w.clock.advance(MIN)
 
   const tmux = postedId(await w.call('park', { title: 'A priority badge across all tabs' }))
-  const done = postedId(await w.call('ask', { wants: 'yes', yes: 'Done', title: 'Run the apply' }))
+  const done = await asked(w, { wants: 'yes', yes: 'Done', title: 'Run the apply' })
 
   await w.call('resolve', { item: done, reason: 'Ran it in the chat' })
 

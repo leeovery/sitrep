@@ -645,7 +645,6 @@ test('VS Code, whose prompts arrive some way unproven, offers nothing to write: 
   expect(await ui.find({ key: `rewrite:${w.item(go)}` })).toBeUndefined()
 })
 
-/** Another session of the project, open in another window. */
 /**
  * The board on the project's view, the ledger's asks drawn from its brief,
  * a minute on. Given `isUnread`, the board's reads of other sessions in full

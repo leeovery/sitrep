@@ -11,6 +11,7 @@ import { AROUND_MS } from '../hooks/around'
 import { SPECS } from '../hooks/tools'
 import {
   ELSEWHERE,
+  GO,
   HELP_DESK,
   LEDGER,
   META,
@@ -24,7 +25,7 @@ import {
   W2,
 } from './data'
 import { delivered, file, finish, note, park, reply, yesAsk } from './lines'
-import { CONVERSATION, postedId, PROMPT, startedId, world, type World } from './world'
+import { asked, CONVERSATION, postedId, PROMPT, startedId, world, type World } from './world'
 
 tier('user')
 
@@ -205,7 +206,7 @@ test("ask posts a yes in its button's words; one wanting a yes with none, or wan
 
   await w.begin()
 
-  const id = postedId(await w.call('ask', { wants: 'yes', yes: 'Go', title: 'Give the go' }))
+  const id = await asked(w, { wants: 'yes', yes: 'Go', title: 'Give the go' })
 
   expect(w.state.board?.asks).toMatchObject([{ id, wants: 'yes', yes: 'Go' }])
   expect((await w.call('ask', { wants: 'yes', title: 'Give the go' })).deny).toContain(
@@ -219,9 +220,7 @@ test("ask posts a yes in its button's words; one wanting a yes with none, or wan
 test('ask takes what the words of a words ask are, and edit changes them or clears them with an empty one', async ($, on) => {
   const w = world($, on)
   const { paths } = await w.begin()
-  const id = postedId(
-    await w.call('ask', { wants: 'words', title: 'Run the export', needs: "the command's output" }),
-  )
+  const id = await asked(w, { wants: 'words', title: 'Run the export', needs: "the command's output" })
   const needs = () => w.state.board?.asks[0]?.needs
 
   expect(linesOf(w, paths.log(W1)).at(-1)).toMatchObject({ needs: "the command's output" })
@@ -240,7 +239,7 @@ test('edit changes what an ask wants back under the same checks: to a yes with i
 
   await w.begin()
 
-  const id = postedId(await w.call('ask', { wants: 'words', title: 'Pick the next stage' }))
+  const id = await asked(w, { wants: 'words', title: 'Pick the next stage' })
 
   expect((await w.call('edit', { item: id, wants: 'yes' })).deny).toContain('A yes ask needs yes')
   expect((await w.call('edit', { item: id, wants: 'choice' })).deny).toBe(
@@ -302,7 +301,7 @@ test('resolve closes an item, reopen opens it again; each refuses where the item
 
   await w.begin()
 
-  const id = postedId(await w.call('ask', reviewRound(1)))
+  const id = await asked(w, reviewRound(1))
 
   expect((await w.call('reopen', { item: id })).deny).toBe(`${id} is already open.`)
   expect((await w.call('resolve', { item: id, reason: 'Approved in the chat' })).result).toBe(
@@ -320,10 +319,10 @@ test('resolve closes an item, reopen opens it again; each refuses where the item
 test("resolving what Lee closed, an ask he answered or ignored, a parked item he picked up, passes quietly, writing nothing; one he commented on, or whose answer is still on its way, resolves as ever", async ($, on) => {
   const w = world($, on)
   const { paths } = await w.begin()
-  const post = async (args: Record<string, unknown>) => postedId(await w.call('ask', args))
+  const post = async (args: Record<string, unknown>) => await asked(w, args)
   const answered = await post(reviewRound(1))
   const ignored = await post({ wants: 'yes', yes: 'Done', title: 'Run the apply' })
-  const commented = await post({ wants: 'yes', yes: 'Go', title: 'Give the go for stage 3' })
+  const commented = await post(GO)
   const coming = await post(reviewRound(2))
   const parked = postedId(await w.call('park', { title: 'Look at the glance again' }))
 
@@ -362,7 +361,7 @@ test("resolving what Lee closed, an ask he answered or ignored, a parked item he
 test('an ask Lee answered, then Claude reopened, resolves as ever; answered again, it passes quietly', async ($, on) => {
   const w = world($, on)
   const { paths } = await w.begin()
-  const id = postedId(await w.call('ask', reviewRound(1)))
+  const id = await asked(w, reviewRound(1))
   const write = w.writer(paths)
   // Each line a minute on, so the fold reads Lee's lines and Claude's in the order they came.
   const lee = async (...bodies: Parameters<typeof write>) => {
@@ -401,7 +400,6 @@ test("resolving another session's parked item Lee picked up passes quietly, writ
   expect(() => w.text(ledger.paths.log(W1))).toThrow()
 })
 
-/** Another session of this project, finished: what it parked is the project's, its ask and note its own. */
 /** The ledger, with two things parked, an ask and a note, finished: its folder's paths. */
 const ledgerParked = (w: World) => {
   const ledger = w.elsewhere(LEDGER)
@@ -484,9 +482,9 @@ test("another session's ask Lee answered is refused all the same, named with its
 test("the attached session's own id as session acts on its own item, whatever it is", async ($, on) => {
   const w = world($, on)
   const { id } = await w.begin()
-  const asked = postedId(await w.call('ask', { wants: 'yes', yes: 'Go', title: 'Run it' }))
+  const posted = await asked(w, { wants: 'yes', yes: 'Go', title: 'Run it' })
 
-  expect((await w.call('resolve', { item: asked, session: id })).result).toBe(`Resolved ${asked}.`)
+  expect((await w.call('resolve', { item: posted, session: id })).result).toBe(`Resolved ${posted}.`)
   expect(w.state.board?.asks[0]?.state).toBe('closed')
 })
 
@@ -638,7 +636,7 @@ test('a line posted to a finished session leaves it finished: only a join reopen
 test("board reads back the session's open items with their ids", async ($, on) => {
   const w = world($, on)
   const { id } = await w.begin()
-  const ask = postedId(await w.call('ask', reviewRound(1)))
+  const ask = await asked(w, reviewRound(1))
   const read = String((await w.call('board')).result)
 
   expect(read).toContain(`sitrep board: Help desk redesign (${id})`)

@@ -12,7 +12,8 @@ import {
   writerOf,
   type SessionPaths,
 } from '../core'
-import { scripted, W1 } from './data'
+import { W1 } from './data'
+import { scripted } from './lines'
 
 const ROOT = '/Users/me/.local/state/sitrep'
 

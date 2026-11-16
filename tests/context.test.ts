@@ -1,7 +1,7 @@
 import { expect, test, tier } from './kit'
 import { AROUND_MS } from '../hooks/around'
 import type { SitrepProject, SitrepProjectParked } from '../types'
-import { LEDGER, META, PROJECT, reviewRound, T0, W2 } from './data'
+import { LEDGER, PROJECT, reviewRound, T0, W2 } from './data'
 import { file, note, park } from './lines'
 import { CONVERSATION, PROMPT, world, type World } from './world'
 
@@ -59,7 +59,7 @@ test('another session of the project parking something changes the board: it rid
 
   await begun(w)
 
-  const ledger = w.elsewhere({ ...META, id: 'sr-1edger', name: 'Invoice ledger', by: W2 })
+  const ledger = w.elsewhere(LEDGER)
 
   ledger.write(park('p1', 'Export the ledger as CSV'))
   await w.clock.advance(AROUND_MS)
@@ -73,10 +73,9 @@ test('another session of the project parking something changes the board: it rid
   expect((await $.prompt.submit(PROMPT)).context).toBeUndefined()
 })
 
-/** Another session of the project, the invoice ledger, which parks things. */
 /** The board's line for something the ledger parked. */
 const ledgers = (id: string, title: string) =>
-  `- ${id}, parked by "Invoice ledger" (session: sr-1edger): ${title}`
+  `- ${id}, parked by "Invoice ledger" (session: ${LEDGER.id}): ${title}`
 
 /** What the ledger parks as a look lands. */
 const MORE = {

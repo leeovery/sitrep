@@ -1,22 +1,19 @@
-/** Builders the core tests share: a session's files from its lines; and readers of what the window wrote. */
+/** Builders the core tests share: a session's files from its lines, and random bytes from a script. */
 import {
   append,
   foldSession,
   metaText,
-  parseEntries,
-  parsePresence,
   presenceText,
   type AskKind,
   type Body,
   type Finisher,
   type Presence,
+  type Random,
   type Verdict,
   type Session,
   type SessionFiles,
-  type SessionPaths,
 } from '../core'
-import { META, MIN, T0, W1 } from './data'
-import type { World } from './world'
+import { META, MIN, T0 } from './data'
 
 /** A line, and when it was written. */
 export type Line = [at: number, body: Body]
@@ -139,9 +136,13 @@ export const snoozeTurn = (turn: number, until?: number): Body =>
 /** Lee's waking now of the session's turn that ended at `turn`. */
 export const wakeTurn = (turn: number): Body => ({ type: 'wakeTurn', turn })
 
-/** The kinds of line a file holds, in order. */
-export const kindsIn = (w: World, path: string) => parseEntries(w.text(path)).map(line => line.type)
+/** Random bytes from a script: each draw takes the next list of bytes, the last list repeating. */
+export const scripted = (...draws: number[][]): Random => {
+  let next = 0
 
-/** What the window's heartbeat says it sends its session. */
-export const sendingIn = (w: World, paths: SessionPaths) =>
-  parsePresence(w.text(paths.heartbeat(W1)), W1)?.sending
+  return count => {
+    const bytes = draws[Math.min(next++, draws.length - 1)] ?? [0]
+
+    return Uint8Array.from({ length: count }, (_, i) => bytes[i % bytes.length] ?? 0)
+  }
+}

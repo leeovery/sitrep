@@ -5,7 +5,7 @@ import { SENT_LINGER_MS } from '../hooks/queue'
 import { rowsOf } from './drawn'
 import { CLI, CLOSES, LEDGER, MIN, PROJECT, REVIEW, ROOT, T0, THEMES, W1, W3 } from './data'
 import { delivered, file, finish, reopen, reply, resolve, unfinish, yesAsk } from './lines'
-import { INLINE, postedId, toProject, world, type Board, type World } from './world'
+import { asked, INLINE, toProject, world, type Board, type World } from './world'
 
 tier('user')
 
@@ -29,12 +29,12 @@ async function threeSessions(w: World) {
   themes.write(yesAsk('k4', 'Pick the dark palette', 'Done'))
 
   const { paths } = await w.begin()
-  const asked = postedId(await w.call('ask', REVIEW))
+  const posted = await asked(w, REVIEW)
 
   await w.clock.advance(MIN)
   ledger.beat()
 
-  return { ledger, themes, paths, asked, ui: await w.opened() }
+  return { ledger, themes, paths, posted, ui: await w.opened() }
 }
 
 /** Lee answers another session's ask from its view, then goes home. */
@@ -52,11 +52,11 @@ const repliesIn = (w: World, path: string) =>
 
 test('Ready to send groups the replies by where each goes, this session first, at the foot of every view', async ($, on) => {
   const w = world($, on)
-  const { asked, ui } = await threeSessions(w)
+  const { posted, ui } = await threeSessions(w)
 
   await answer(ui, LEDGER.id, 'k3')
-  await ui.press({ key: `pick:${w.item(asked)}` })
-  await ui.press({ key: `yes:${w.item(asked)}` })
+  await ui.press({ key: `pick:${w.item(posted)}` })
+  await ui.press({ key: `yes:${w.item(posted)}` })
 
   const groups = (await ui.findAll({ type: 'Text' }))
     .map(each => each.text)
@@ -73,11 +73,11 @@ test('Ready to send groups the replies by where each goes, this session first, a
 
 test("send writes another session's replies into its inbox as this window's letters, and they leave the queue", async ($, on) => {
   const w = world($, on)
-  const { asked, paths, ui } = await threeSessions(w)
+  const { posted, paths, ui } = await threeSessions(w)
 
   await answer(ui, LEDGER.id, 'k3')
-  await ui.press({ key: `pick:${w.item(asked)}` })
-  await ui.press({ key: `yes:${w.item(asked)}` })
+  await ui.press({ key: `pick:${w.item(posted)}` })
+  await ui.press({ key: `yes:${w.item(posted)}` })
   await ui.press({ key: 'send' })
 
   const [letter] = repliesIn(w, LETTERS)
@@ -493,14 +493,14 @@ test("a sent reply that reached its ask after another of Lee's answers, or whose
 
 test("a send of letters alone, pressed while Lee has stopped Claude's turn, carries the send held for this session on from the press", async ($, on) => {
   const w = world($, on)
-  const { asked, paths, ui } = await threeSessions(w)
+  const { posted, paths, ui } = await threeSessions(w)
   const own = `From the board:\n- Review Tickets & Replies, round 1 → Approve${CLOSES}`
 
-  if ((await ui.find({ key: `yes:${w.item(asked)}` })) === undefined) {
-    await ui.press({ key: `pick:${w.item(asked)}` })
+  if ((await ui.find({ key: `yes:${w.item(posted)}` })) === undefined) {
+    await ui.press({ key: `pick:${w.item(posted)}` })
   }
 
-  await ui.press({ key: `yes:${w.item(asked)}` })
+  await ui.press({ key: `yes:${w.item(posted)}` })
   await w.turnStarts('Carry on.')
   await ui.press({ key: 'send' })
   w.dropPrompts('the session was stopped and nobody has sent input since')

@@ -13,7 +13,7 @@ import Measure from '../hooks/draw/measure'
 import { STEP_HELD } from '../hooks/draw/ready'
 import { PANE } from '../hooks/pane'
 import { rowsOf } from './drawn'
-import { LEDGER, MIN, PROJECT, reviewRounds } from './data'
+import { GO, LEDGER, MIN, PROJECT, reviewRounds } from './data'
 import { yesAsk } from './lines'
 import { asked, asking, DOCKED, INLINE, toProject, world, type Board, type World } from './world'
 
@@ -32,7 +32,6 @@ const HEADER = 3
 /** The rows each block is measured at, unless a test says otherwise. */
 const ROWS = 3
 
-/** Another session of the project, started in another window. */
 /** The board docked over a window of `bodyRows`. */
 const docked = (bodyRows: number): RenderPropsOf['Pane'] => ({
   ...DOCKED,
@@ -627,7 +626,7 @@ test('queuing a reply, sending, a new ask arriving and the watch drawing again l
   await ui.press({ key: 'send' })
   expect(await topOf(ui), 'sent').toBe(6)
 
-  await w.call('ask', { wants: 'yes', yes: 'Go', title: 'Give the go for stage 3' })
+  await w.call('ask', GO)
   expect(await topOf(ui), 'a new ask').toBe(6)
 
   await w.clock.advance(MIN)

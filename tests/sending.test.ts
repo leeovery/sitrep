@@ -35,7 +35,7 @@ import {
   type Sending,
   type Session,
 } from '../core'
-import { CLI, CLOSES, META, MIN, scripted, T0, W1, W2 } from './data'
+import { CLI, CLOSES, META, MIN, T0, W1, W2 } from './data'
 import {
   beat,
   choiceAsk,
@@ -46,6 +46,7 @@ import {
   reopen,
   reply,
   resolve,
+  scripted,
   unfinish,
   yesAsk,
   type Line,

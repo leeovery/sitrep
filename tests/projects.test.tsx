@@ -24,7 +24,8 @@ const LEGACY = 'code-1a2b3c4d'
 
 const BOARD = { name: 'sitrep', summary: "Lee's board inside Claude Code", project: 'SitRep' }
 
-const meta = (id: string, name: string, project: string, by = W2): SessionMeta => ({
+/** Another session, with META's summary and folder, its meta naming `project` as its project. */
+const namingProject = (id: string, name: string, project: string, by = W2): SessionMeta => ({
   ...META,
   id,
   name,
@@ -132,7 +133,7 @@ test("a directory given is the project's: a new one keeps it, one with none take
 test('a project folder with no project.json is named as its sessions recorded it, and a start by that name goes into it', async ($, on) => {
   const w = world($, on)
 
-  w.elsewhere(meta('sr-1egacy', 'Early days', 'code'), LEGACY)
+  w.elsewhere(namingProject('sr-1egacy', 'Early days', 'code'), LEGACY)
   await $.session.start(CONVERSATION)
 
   const answer = await w.call('start', { ...BOARD, name: 'Lobby', project: 'Code' })
@@ -145,7 +146,7 @@ test('a project folder with no project.json is named as its sessions recorded it
 
 test('a project.json written into a folder from before relabels it, moving nothing', async ($, on) => {
   const w = world($, on)
-  const legacy = w.elsewhere(meta('sr-1egacy', 'Early days', 'code'), LEGACY)
+  const legacy = w.elsewhere(namingProject('sr-1egacy', 'Early days', 'code'), LEGACY)
   const before = [...w.files.keys()]
 
   w.project(LEGACY, { name: 'SitRep', directory: SITREP_HOME, created: T0, by: W2 })
@@ -171,7 +172,7 @@ test("the board's own project is the held session's, whatever folder the window 
   const w = world($, on)
 
   w.project(PROJECT.key, { name: PROJECT.name, directory: REPO, created: T0, by: W2 })
-  w.elsewhere(meta('sr-pr1ce5', 'Pricing page, stage 1', 'Northwind')).beat()
+  w.elsewhere(namingProject('sr-pr1ce5', 'Pricing page, stage 1', 'Northwind')).beat()
   await $.session.start(CONVERSATION)
   await w.call('start', BOARD)
 
@@ -232,7 +233,7 @@ test('the project tool never takes the name of another project, nor changes noth
 test('the project tool gives a folder from before projects were named its first project.json', async ($, on) => {
   const w = world($, on)
 
-  w.elsewhere(meta('sr-1egacy', 'Early days', 'code'), LEGACY)
+  w.elsewhere(namingProject('sr-1egacy', 'Early days', 'code'), LEGACY)
   await w.clock.advance(MIN)
   await $.session.start(CONVERSATION)
   await w.call('join', { session: 'sr-1egacy' })
@@ -257,12 +258,12 @@ const threeProjects = (w: World) => {
 
   w.project('fabrikam', fabrikam)
   w.project(PROJECT.key, northwind)
-  w.elsewhere(meta('sr-fabr1k', 'Price list', 'Fabrikam'), 'fabrikam').write(
+  w.elsewhere(namingProject('sr-fabr1k', 'Price list', 'Fabrikam'), 'fabrikam').write(
     yesAsk('k1', 'Review the plan'),
     yesAsk('k2', 'Try the board', 'Done'),
   )
-  w.elsewhere(meta('sr-pr1ce5', 'Pricing page, stage 1', 'Northwind', W3)).beat()
-  w.elsewhere(meta('sr-eeeeee', 'Onboarding', 'contoso'), 'contoso-1a2b3c4d').write(
+  w.elsewhere(namingProject('sr-pr1ce5', 'Pricing page, stage 1', 'Northwind', W3)).beat()
+  w.elsewhere(namingProject('sr-eeeeee', 'Onboarding', 'contoso'), 'contoso-1a2b3c4d').write(
     note('n1', 'Drew the flow'),
   )
 }

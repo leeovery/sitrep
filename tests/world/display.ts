@@ -14,11 +14,11 @@ type Submitted = Pick<PromptSubmitInput, 'text' | 'context' | 'origin' | 'attach
 export function display(on: On) {
   const panes = new Map<string, boolean>()
   const toasts: string[] = []
-  /** How long each toast stays, in the order shown. */
-  const toastsMs: (number | undefined)[] = []
   const sounds: string[] = []
   /** The engine's debug log. */
   const logs: string[] = []
+  // Kept in the world: a test's own hook on command.register needs a filter, and the one
+  // that would hear every command a test checks for matches every name, saying nothing.
   const commands: string[] = []
   const prompts: Submitted[] = []
   const submitted: string[] = []
@@ -58,7 +58,6 @@ export function display(on: On) {
 
   on('ui.toast', ($, e) => {
     toasts.push(e.text)
-    toastsMs.push(e.timeoutMs)
 
     return { value: undefined }
   })
@@ -139,7 +138,6 @@ export function display(on: On) {
     },
     panes,
     toasts,
-    toastsMs,
     sounds,
     logs,
     commands,

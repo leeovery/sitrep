@@ -24,8 +24,18 @@ import {
   W2,
   W3,
 } from './data'
-import { delivered, file, finish, kindsIn, note, park, reply, yesAsk, type Line } from './lines'
-import { CONVERSATION, postedId, PROMPT, toProject, world, type Board, type World } from './world'
+import { delivered, file, finish, note, park, reply, yesAsk, type Line } from './lines'
+import {
+  asked,
+  CONVERSATION,
+  kindsIn,
+  postedId,
+  PROMPT,
+  toProject,
+  world,
+  type Board,
+  type World,
+} from './world'
 
 tier('user')
 
@@ -221,12 +231,12 @@ for (const [standing, ledger] of Object.entries(STANDING)) {
 test("held mid-turn, a pick-up of another session's item is named by its address in the claim and said in no heartbeat; taken back it is as it was, and sent again it goes in as the turn ends", async ($, on) => {
   const w = world($, on)
   const { paths, ui } = await besideLedger(w, FINISHED)
-  const asked = postedId(await w.call('ask', REVIEW))
+  const posted = await asked(w, REVIEW)
 
   await w.clock.advance(MIN)
   await pickUpLedgers(ui)
-  await ui.press({ key: `pick:${w.item(asked)}` })
-  await ui.press({ key: `yes:${w.item(asked)}` })
+  await ui.press({ key: `pick:${w.item(posted)}` })
+  await ui.press({ key: `yes:${w.item(posted)}` })
 
   const queued = w.state.queue
 
@@ -240,11 +250,11 @@ test("held mid-turn, a pick-up of another session's item is named by its address
     isHeld: true,
     replies: [
       { item: `${LEDGER.id}:p1`, verdict: 'pickup' },
-      { item: asked, verdict: 'yes' },
+      { item: posted, verdict: 'yes' },
     ],
   })
   expect(parsePresence(w.text(paths.heartbeat(W1)), W1)?.sending).toMatchObject([
-    { replies: [{ item: asked, verdict: 'yes' }] },
+    { replies: [{ item: posted, verdict: 'yes' }] },
   ])
 
   await ui.press({ key: w.takeBack() })
@@ -301,14 +311,14 @@ test('a pick-up still in Ready to send when the window takes up a session of ano
 test('a pick-up a send carried, taken back once the window holds a session of another project, leaves Ready to send as on a join: never left undrawn', async ($, on) => {
   const w = world($, on)
   const { ui } = await besideLedger(w, FINISHED)
-  const asked = postedId(await w.call('ask', REVIEW))
+  const posted = await asked(w, REVIEW)
   const pickUpsLeft = () => w.toasts.filter(toast => toast.includes('pick-up'))
 
   w.elsewhere(longAgo({ ...SHIFTS, by: W3 }, ELSEWHERE), ELSEWHERE.key)
   await w.clock.advance(MIN)
   await pickUpLedgers(ui)
-  await ui.press({ key: `pick:${w.item(asked)}` })
-  await ui.press({ key: `yes:${w.item(asked)}` })
+  await ui.press({ key: `pick:${w.item(posted)}` })
+  await ui.press({ key: `yes:${w.item(posted)}` })
   await w.turnStarts('Carry on.')
   await ui.press({ key: 'send' })
 

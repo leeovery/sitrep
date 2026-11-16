@@ -20,9 +20,9 @@ import {
   type SessionPaths,
   type WindowState,
 } from '../core'
-import { HOME, MIN, PLUGIN_VERSION, PROJECT, REPO, ROOT, scripted, STATE_HOME, T0 } from './data'
-import { beat, file, type Line } from './lines'
-import { entriesIn, textIn, type File } from './world/fs'
+import { HOME, MIN, PLUGIN_VERSION, PROJECT, REPO, ROOT, STATE_HOME, T0 } from './data'
+import { beat, file, scripted, type Line } from './lines'
+import { entriesIn, textIn, type File } from './fs'
 
 /** How a run ended, and what it printed to standard output and error. */
 export type Run = { exit: number; out: string; err: string }

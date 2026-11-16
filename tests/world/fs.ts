@@ -1,42 +1,9 @@
-/**
- * A file system in memory: its files by path, and what the folders hold as
- * the files under them imply. The engine's file events beneath the mod are
- * answered from one; the CLI's world reads and writes another.
- */
+/** The engine's file system beneath the mod, answered from one in memory, with the plugin's manifest in its own folder. */
 import type { On } from 'claude-code'
 import type { MockClock } from 'claude-code/testing'
 import { PLUGIN_VERSION } from '../data'
 import { MANIFEST } from '../../hooks/version'
-
-export type File = { text: string; mtimeMs: number }
-
-const isUnder = (dir: string, path: string) => path.startsWith(`${dir}/`)
-
-/** The files and folders directly in `dir`, as the files under it imply them: each a file, held there, or a folder. */
-export const entriesIn = (files: ReadonlyMap<string, File>, dir: string) => {
-  const entries = new Map<string, File | 'dir'>()
-
-  for (const [path, file] of files) {
-    if (isUnder(dir, path)) {
-      const [name = '', ...deeper] = path.slice(dir.length + 1).split('/')
-
-      entries.set(name, deeper.length > 0 ? 'dir' : file)
-    }
-  }
-
-  return [...entries].map(([name, entry]) => ({ name, entry }))
-}
-
-/** The text of a file, failing the test when it is not there. */
-export const textIn = (files: ReadonlyMap<string, File>, path: string) => {
-  const file = files.get(path)
-
-  if (file === undefined) {
-    throw new Error(`no file at ${path}`)
-  }
-
-  return file.text
-}
+import { entriesIn, isUnder, textIn, type File } from '../fs'
 
 /** The plugin's manifest, giving `version`. */
 export const manifestOf = (version: unknown) =>
@@ -52,8 +19,6 @@ export function disk(on: On, clock: MockClock) {
   const files = new Map<string, File>()
   /** Every folder the mod listed, in the order listed. */
   const listed: string[] = []
-  /** Every folder the mod listed that was not there: each a line in the engine's debug log. */
-  const unlisted: string[] = []
   /** Every path the mod wrote, in the order written. */
   const written: string[] = []
   let isRefused: ((path: string) => boolean) | undefined
@@ -111,8 +76,6 @@ export function disk(on: On, clock: MockClock) {
     const entries = entriesIn(files, dir)
 
     if (entries.length === 0) {
-      unlisted.push(dir)
-
       return MISSING(dir)
     }
 
@@ -134,7 +97,6 @@ export function disk(on: On, clock: MockClock) {
   return {
     files,
     listed,
-    unlisted,
     written,
     /** Writes a file as another writer would: a window elsewhere, the CLI, Lee's board. */
     put: (path: string, text: string) => files.set(path, { text, mtimeMs: clock.now() }),

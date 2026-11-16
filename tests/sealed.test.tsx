@@ -13,13 +13,14 @@ import { SEND_NOW } from '../hooks/draw/ready'
 import { WATCH_MS } from '../hooks/window'
 import { rowsOf } from './drawn'
 import { CLOSES, HELP_DESK, MIN, PROJECT, reviewRound, reviewRounds, W1 } from './data'
-import { sendingIn } from './lines'
 import {
+  asked,
   asking,
   CONVERSATION,
   DOCKED,
   INLINE,
   postedId,
+  sendingIn,
   turnEnded,
   world,
   writeDoor,
@@ -386,8 +387,8 @@ const ANSWER_HELD = [
 const answeredInPrompt = async (w: World, engine: Engine) => {
   const { paths } = await w.begin()
 
-  const list = postedId(await w.call('ask', { wants: 'words', title: LIST }))
-  const review = postedId(await w.call('ask', reviewRound(3)))
+  const list = await asked(w, { wants: 'words', title: LIST })
+  const review = await asked(w, reviewRound(3))
   const ui = await w.pane('terminal', TALL)
 
   if ((await ui.find({ key: `answer:${w.item(list)}` })) === undefined) {
@@ -984,7 +985,7 @@ test("a prompt Lee types that the answering mode takes lifts the stop, though no
   const w = world($, on)
   const { paths, ids, ui } = await reviewing(w)
   const [first = ''] = ids
-  const words = postedId(await w.call('ask', { wants: 'words', title: 'Name the release' }))
+  const words = await asked(w, { wants: 'words', title: 'Name the release' })
 
   await holding(w, ui, ids)
   await interrupted(w)
@@ -1038,7 +1039,7 @@ const RODE = `From the board:\n- Name the release → answer: “Harbour [Image 
 
 /** The session stopped with the first round's send held, and Lee answering a words ask in the prompt: its id. */
 const answeringStopped = async (w: World, ui: Board, ids: readonly string[]) => {
-  const words = postedId(await w.call('ask', { wants: 'words', title: 'Name the release' }))
+  const words = await asked(w, { wants: 'words', title: 'Name the release' })
 
   await holding(w, ui, ids)
   await interrupted(w)
@@ -1106,7 +1107,7 @@ test('an answer with an image dropped beneath lifts the stop, though no turn fol
 
 /** The first round's send held for Claude's turn, and Lee answering a words ask in the prompt meanwhile: its id. */
 const answeringWhileHeld = async (w: World, ui: Board, ids: readonly string[]) => {
-  const words = postedId(await w.call('ask', { wants: 'words', title: 'Name the release' }))
+  const words = await asked(w, { wants: 'words', title: 'Name the release' })
 
   await holding(w, ui, ids)
 

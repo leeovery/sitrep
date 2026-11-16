@@ -2,7 +2,7 @@
  * The sample data the tests share: times, windows, the projects and sessions
  * under test, and the asks Claude posts. Every name is a placeholder.
  */
-import type { Project, Random, SessionMeta } from '../core'
+import type { Project, SessionMeta } from '../core'
 
 export const MIN = 60_000
 export const HOUR = 60 * MIN
@@ -132,14 +132,3 @@ export const CLOSES = '\n  This closes the ask: nothing more to do with it.'
 
 /** The line under a comment in Lee's message saying it left its ask open. */
 export const LEAVES_OPEN = '\n  This leaves the ask open: act on it, then resolve it.'
-
-/** Random bytes from a script: each draw takes the next list of bytes, the last list repeating. */
-export const scripted = (...draws: number[][]): Random => {
-  let next = 0
-
-  return count => {
-    const bytes = draws[Math.min(next++, draws.length - 1)] ?? [0]
-
-    return Uint8Array.from({ length: count }, (_, i) => bytes[i % bytes.length] ?? 0)
-  }
-}

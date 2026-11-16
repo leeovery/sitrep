@@ -1,7 +1,8 @@
-/** Steps the tests share, taken in a world: Claude asking, a turn ending, Lee moving about the board. */
+/** Steps the tests share, taken in a world: Claude asking, a turn ending, Lee moving about the board; and reads of what the window wrote. */
 import type { RenderPropsOf } from 'claude-code'
 import type { Mounted } from 'claude-code/testing'
-import { PROJECT, REVIEW } from '../data'
+import { parseEntries, parsePresence, type SessionPaths } from '../../core'
+import { PROJECT, REVIEW, W1 } from '../data'
 import { postedId } from './calls'
 import type { World } from './index'
 import { DOCKED } from './panes'
@@ -59,3 +60,10 @@ export const toProject = async (ui: Pick<Mounted, 'press'>, key = PROJECT.key) =
   await ui.press({ key: 'tab:all' })
   await ui.press({ key: `proj:${key}` })
 }
+
+/** The kinds of line a file holds, in order. */
+export const kindsIn = (w: World, path: string) => parseEntries(w.text(path)).map(line => line.type)
+
+/** What the window's heartbeat says it sends its session. */
+export const sendingIn = (w: World, paths: SessionPaths) =>
+  parsePresence(w.text(paths.heartbeat(W1)), W1)?.sending

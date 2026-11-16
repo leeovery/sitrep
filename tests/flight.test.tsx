@@ -16,8 +16,17 @@ import { keptFlights, QUIET_MS } from '../hooks/deliver'
 import { WATCH_MS } from '../hooks/window'
 import type { SitrepInFlight, SitrepStoredFlights } from '../types'
 import { CLOSES, MIN, PROJECT, REVIEW, ROOT, SENDER, W1 } from './data'
-import { file, kindsIn, reply, sendingIn } from './lines'
-import { asksOnBand, CONVERSATION, postedId, startedId, world, type World } from './world'
+import { file, reply } from './lines'
+import {
+  asked,
+  asksOnBand,
+  CONVERSATION,
+  kindsIn,
+  sendingIn,
+  startedId,
+  world,
+  type World,
+} from './world'
 
 tier('user')
 
@@ -43,7 +52,7 @@ const replying: Record<Source, (w: World) => Promise<{ paths: SessionPaths; subm
   {
     send: async w => {
       const { paths } = await w.begin()
-      const id = postedId(await w.call('ask', REVIEW))
+      const id = await asked(w, REVIEW)
       const ui = await w.pane()
 
       await w.clock.advance(MIN)
@@ -53,7 +62,7 @@ const replying: Record<Source, (w: World) => Promise<{ paths: SessionPaths; subm
     },
     inbox: async w => {
       const { paths } = await w.begin()
-      const id = postedId(await w.call('ask', REVIEW))
+      const id = await asked(w, REVIEW)
 
       await w.clock.advance(MIN)
       w.put(paths.letters(SENDER), file([w.clock.now(), reply('r1', id, 'yes')]))
@@ -224,7 +233,7 @@ test("send: let go, Lee's replies are back in Ready to send, and a toast says wh
 
   await w.begin()
 
-  const id = postedId(await w.call('ask', REVIEW))
+  const id = await asked(w, REVIEW)
   const ui = await w.pane()
   const turn = w.holdPrompts()
 
@@ -283,7 +292,7 @@ test('a message whose writing a reload cut short is written into its own session
 /** This session with a review asked, Lee's yes to it queued a minute on, and send pressed while Claude is mid-turn, the window holding the message for the turn to end. */
 const sentHeld = async (w: World) => {
   const { paths } = await w.begin()
-  const id = postedId(await w.call('ask', REVIEW))
+  const id = await asked(w, REVIEW)
   const ui = await w.pane()
 
   await w.clock.advance(MIN)
@@ -320,7 +329,7 @@ test("send: from its claim the heartbeat says the yes it carries, and the ask ne
 test('send refused: the heartbeat keeps no claim, and the ask waits on Lee again', async ($, on) => {
   const w = world($, on)
   const { paths } = await w.begin()
-  const id = postedId(await w.call('ask', REVIEW))
+  const id = await asked(w, REVIEW)
   const ui = await w.pane()
 
   w.dropPrompts('the session is closing')

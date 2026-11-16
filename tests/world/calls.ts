@@ -16,7 +16,7 @@ type Verdict = 'allow' | 'ask' | 'deny'
 type Ending = { result: unknown } | { deny: string }
 
 /** A built-in tool's call as a test runs it: what it settles to, and its ending, the test's to give. */
-export type Calling = {
+type Calling = {
   done: Promise<{ result?: unknown; deny?: string; isError?: true }>
   /** The tool answers, as once it has run. */
   finish: (result?: unknown) => void
@@ -25,6 +25,8 @@ export type Calling = {
 }
 
 export function tools(engine: Engine, on: On) {
+  // Kept in the world: a test's own hook on tool.register needs a filter, and the one
+  // that would hear every tool a test checks for matches every name, saying nothing.
   const registered: { name: string; isDeferred?: boolean }[] = []
 
   on('tool.register', ($, e) => {
@@ -78,10 +80,8 @@ export function tools(engine: Engine, on: On) {
     return (await call.ending) as never
   })
 
-  /** What the settings hooks beneath answer a permission request: nothing, so the dialog shows, unless a test says otherwise. */
-  let requestAnswer: ClassicResultOf['classic.PermissionRequest'] = {}
-
-  on('classic.PermissionRequest', () => requestAnswer)
+  // The settings hooks beneath answer a permission request with nothing, so its dialog shows.
+  on('classic.PermissionRequest', () => ({}))
 
   /** What the settings hooks beneath answer a turn's Stop: nothing, so the turn stops, unless a test says otherwise. */
   let stopAnswer: ClassicResultOf['classic.Stop'] = {}
@@ -145,11 +145,6 @@ export function tools(engine: Engine, on: On) {
         finish: (result = 'done') => end({ result }),
         refuse: why => end({ deny: why }),
       }
-    },
-
-    /** The settings hooks beneath answer every permission request from here on with `answer`, as one that allows or denies in the dialog's place. */
-    answerRequests: (answer: ClassicResultOf['classic.PermissionRequest']) => {
-      requestAnswer = answer
     },
 
     /** The settings hooks beneath answer every Stop from here on with `answer`, as one that blocks it to go on with the turn. */

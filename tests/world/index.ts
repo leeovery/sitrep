@@ -16,12 +16,12 @@ import { panes } from './panes'
 import { sessions } from './sessions'
 import { kept } from './state'
 
-export { postedId, startedId, type Calling } from './calls'
+export { postedId, startedId } from './calls'
 export { CONVERSATION, PROMPT, TTY, WHERE, type Walk } from './conversation'
 export { manifestOf } from './fs'
 export { ACROSS, BAND, DOCKED, INLINE, SURFACES, WIDE } from './panes'
 export { writeDoor } from './state'
-export { asked, asking, asksOnBand, toProject, turnEnded } from './steps'
+export { asked, asking, asksOnBand, kindsIn, sendingIn, toProject, turnEnded } from './steps'
 
 /**
  * Knobs on the world: when it starts, the folder the window starts in, and

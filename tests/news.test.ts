@@ -6,7 +6,7 @@ import { WATCH_MS } from '../hooks/window'
 import type { SitrepAttachment } from '../types'
 import { META, PROJECT, reviewRound, ROOT, T0, W1 } from './data'
 import { choiceAsk, yesAsk } from './lines'
-import { CONVERSATION, postedId, world } from './world'
+import { asked, CONVERSATION, world } from './world'
 
 tier('user')
 
@@ -15,6 +15,12 @@ const PULSE_FRAME_MS = 150
 const paths = sessionPaths(ROOT, PROJECT.key, META.id)
 
 test('a new ask from another writer pulses, toasts for 10 seconds and opens, playing no sound, which is SitRep\'s; one there when the window attached does not', async ($, on) => {
+  /** How long each new-ask toast stays, in the order shown. */
+  const toastsMs: (number | undefined)[] = []
+
+  // Registered before the world's own, so it is outermost and hears each toast on its way to the world.
+  on('ui.toast', { text: /^◆ New ask: / }, ($, e, next) => (toastsMs.push(e.timeoutMs), next(e)))
+
   const w = world($, on)
   const elsewhere = w.writer(paths)
 
@@ -30,7 +36,7 @@ test('a new ask from another writer pulses, toasts for 10 seconds and opens, pla
 
   expect(w.toasts).toEqual(['◆ New ask: Keep the ledger forever?'])
   expect(w.sounds, 'SitRep, the Mac app, plays it').toEqual([])
-  expect(w.toastsMs, 'long enough to read through').toEqual([TOAST_MS])
+  expect(toastsMs, 'long enough to read through').toEqual([TOAST_MS])
   expect(w.state.pulse).toEqual({ asks: ['k2'], frames: 24 })
 
   const ui = await w.pane()
@@ -66,9 +72,7 @@ test("Claude's own ask is new to the window too", async ($, on) => {
 
   await w.begin()
 
-  const id = postedId(
-    await w.call('ask', { wants: 'yes', yes: 'Done', title: 'Run the production apply' }),
-  )
+  const id = await asked(w, { wants: 'yes', yes: 'Done', title: 'Run the production apply' })
 
   expect(w.toasts).toEqual(['◆ New ask: Run the production apply'])
   expect(w.state.pane?.selected).toBe(w.item(id))

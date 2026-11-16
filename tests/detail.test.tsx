@@ -3,7 +3,7 @@ import { hoverScope } from '../hooks/draw/kit'
 import { C, GLYPH } from '../hooks/look'
 import { rowsOf } from './drawn'
 import { MIN, REVIEW } from './data'
-import { ACROSS, postedId, world, type Board } from './world'
+import { ACROSS, asked, postedId, world, type Board } from './world'
 
 tier('user')
 
@@ -211,13 +211,11 @@ test("an opened ask hangs where and its record from its mark; its buttons and hi
 
   await w.begin()
 
-  const id = postedId(
-    await w.call('ask', {
+  const id = await asked(w, {
       ...REVIEW,
       where: 'In Paper: page round 1',
       ref: 'docs/help-desk.md',
-    }),
-  )
+    })
   const ui = await w.pane()
 
   expect((await rows(ui, `ask:${w.item(id)}`)).slice(1, 5)).toEqual([
@@ -233,7 +231,7 @@ test("a reply waiting to be sent is the ask's last branch", async ($, on) => {
 
   await w.begin()
 
-  const id = postedId(await w.call('ask', DECIDE))
+  const id = await asked(w, DECIDE)
   const ui = await w.pane()
 
   await ui.press({ key: `choose:${w.item(id)}:1` })
@@ -249,7 +247,7 @@ test('a closed ask keeps its faint title and tick, and hangs that Claude has it 
 
   await w.begin()
 
-  const id = postedId(await w.call('ask', DECIDE))
+  const id = await asked(w, DECIDE)
   const ui = await w.pane()
 
   await ui.press({ key: `choose:${w.item(id)}:1` })
@@ -266,13 +264,11 @@ test('a branch whose text wraps keeps the tree unbroken: a stem beside it under 
 
   await w.begin()
 
-  const id = postedId(
-    await w.call('ask', {
+  const id = await asked(w, {
       ...REVIEW,
       where: 'In Paper: the help desk file, page "round 1", frames 1–6, beside the brief',
       ref: 'docs/help-desk.md, under "Tickets & Replies", the first round of three',
-    }),
-  )
+    })
   const ui = await w.pane()
 
   expect((await rows(ui, `ask:${w.item(id)}`)).slice(1, 5)).toEqual([
@@ -346,14 +342,12 @@ test("an opened ask's see is labelled in the ask's amber, a parked item's in its
 
   await w.begin()
 
-  const ask = postedId(
-    await w.call('ask', {
+  const ask = await asked(w, {
       wants: 'yes',
       yes: 'Approve',
       title: 'Review round 1',
       ref: 'docs/help-desk.md',
-    }),
-  )
+    })
   const parked = postedId(
     await w.call('park', { title: 'A priority badge', ref: 'docs/badging.md' }),
   )
@@ -377,7 +371,7 @@ test("every tree's glyphs are drawn faint: a log line's, an ask's, Ready to send
   await w.begin()
 
   const note = postedId(await w.call('note', { text: FOLD, detail: ['6 files', '+214 −51'] }))
-  const ask = postedId(await w.call('ask', DECIDE))
+  const ask = await asked(w, DECIDE)
   const parked = postedId(
     await w.call('park', { title: FOLD, where: 'In DESIGN.md', ref: 'docs/badging.md' }),
   )
