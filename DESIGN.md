@@ -176,13 +176,10 @@ vanished from every view, though still stored.
 - **A session's view lists the project's too** (17 November 2026, Lee).
   Until then a session's view listed only the items it parked. Lee expected
   parked items to be the project's everywhere, and his session's Parked
-  said `nothing to come back to` while its project held 8. So a session's
-  Parked lists every item parked in its project, its own first, its heading
-  counting them all, and its picked up every item taken off the project's
-  Parked, each naming who picked it up. Any of them is picked up from there
-  as from the project's view, to the Claude in the window pressed in. It is
-  what Claude's board text already gave Claude: the session's own, then
-  those parked elsewhere in the project.
+  said `nothing to come back to` while its project held 8. So the rule
+  above holds in a session's view too, its heading counting them all, its
+  picked up the project's, and any item picks up from there as from the
+  project's view. It is what Claude's board text already gave Claude.
 
   A faint `from other sessions` heads the items other sessions parked, in
   a session's view, with no blank row: a choice made in review the same
