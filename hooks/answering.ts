@@ -46,7 +46,7 @@ import { foldedFor } from './around'
 import { claimRide, letRideGo, rideTaken, type Ridden } from './deliver'
 import { logFailure, type Host } from './host'
 import { unwrapPastes } from './paste'
-import { briefOf, canReach, filedAt, parkedIn } from './places'
+import { briefOf, canReach, filedAt, parkedOf } from './places'
 import {
   apartFrom,
   goesTo,
@@ -155,7 +155,7 @@ const answerable = (scene: Scene, session: string, item: Item | undefined) =>
  */
 const seenIn = (
   scene: Scene,
-  { project, session, item }: SitrepAnswering,
+  { session, item }: SitrepAnswering,
 ): Ask | Parked | undefined | typeof UNREAD => {
   const filed = filedAt(scene, session)
 
@@ -163,12 +163,10 @@ const seenIn = (
     return answerable(scene, session, filed.session.items.get(item))
   }
 
-  const parked = parkedIn(scene, project).find(
-    each => each.at.session === session && each.parked.id === item,
-  )
+  const parked = parkedOf(scene, session, item)
 
   if (parked !== undefined) {
-    return parked.parked
+    return parked
   }
 
   const brief = briefOf(scene, session)

@@ -282,21 +282,45 @@ Built so (17 November 2026):
     neither. Two moves at once both land, and the later in that order wins,
     in every reader.
 - **What the window keeps names the folder.** Every ref to a session in
-  `$.state` (its hold, `attachment`, Ready to send's replies, the board's
-  place, the item Lee is answering, a message in flight) names the folder
-  its files are in, which no move changes, so a move rewrites none of
-  them. A ref a view draws names the project the view shows the session
-  in; a press keeps it by its folder, found by the session's id: the folder
-  named, where the session's `session.json` reads there, else whichever
-  project's folder holds the id, as `join` finds one. The project a session
-  is filed under is never kept: it is read from the session's fold wherever
-  it counts. The held session's is its board's `filedUnder`, from the
-  hold's last fold; another's, from its own fold or the look around's: the
-  way back from its view goes up to it, a pick-up of its parked item is
-  kept or dropped by it, and a send's lines written into it tell Claude of
-  no change where it is filed under the held session's project.
+  `$.state` (its hold, `attachment`, Ready to send's replies, where they
+  were sent, the board's place on a session, the item Lee is answering, a
+  message in flight) names the folder its files are in, which no move
+  changes, so a move rewrites none of them. A ref a view draws names the
+  project the view shows the session in; every press keeps it, or writes
+  by it, through one conversion, which finds the folder by the session's
+  id: the folder named, where the session's `session.json` reads there,
+  else whichever project's folder holds the id, as `join` finds one. The
+  project a session is filed under is never kept: it is read from the
+  session's fold wherever it counts. The held session's is its board's
+  `filedUnder`, from the hold's last fold; another's, from its own fold or
+  the look around's: the way back from its view goes up to it (to All
+  projects for a session the board has not read), a pick-up of its parked
+  item is kept or dropped by it, and a send's lines written into it tell
+  Claude of no change where it is filed under the held session's project.
+  A write reaches the held session through the hold where it names it by
+  its id and the window's writer, whichever key it has.
+- **The compiler holds the two keys apart.** Both are strings as stored,
+  so `$.state` is as it was, but they are two types: a `FolderKey`, the
+  folder a session's files are in, which every kept ref has, and a
+  `ProjectKey`, the project a session is filed under, which the views and
+  every drawn ref have (types/index.d.ts, core's filing.ts). A key read
+  off the disk, a project folder listed, is a folder's (`folderKey`). Only
+  three things make one kind of the other: finding a session's folder by
+  its id (hooks/folders.ts's `folderOf` and `inFolder`, and `kept`, through
+  which every press comes, in actions.ts); filing a session (core's
+  `fileSession`), which makes its project of its folder and its latest
+  move; and a folder's own project (`projectOfFolder`), the project of
+  every session in it not known to have moved.
+  So a drawn ref written where a kept one goes, or a folder where a project
+  goes, is a type error, not a write beside the hold. It was one, found in
+  review that day: Lee's snooze or wake of the held session's ask after a
+  move named the project the view showed, missed the hold, and was written
+  whole behind it, then lost at its next post.
 - **Following is reading.** Each window folds its session at its watch's
-  look, every 1.5 seconds, and its tools fold it again before they act, so
+  look, every 1.5 seconds, the name of a project a move took it to read
+  again only once that project's file's text changed, and a fold that
+  files it as the last did giving the board nothing to put; its tools fold
+  it again before they act, so
   `move` and `project` act on the project the session is in now, never the
   one another window just moved it out of. Once the fold files it under
   another project, the window toasts, a pick-up of the old project's other
@@ -311,8 +335,11 @@ Built so (17 November 2026):
   redesign to the existing project Contoso.`, `… to a new project, Trey
   Research.`; where another window moved it at the same moment and won,
   `Help desk redesign is in Fabrikam: a move another window made at the
-  same moment took it there.` The call's row names the project the board
-  names, `moved to project: Contoso`, however Claude spelled it.
+  same moment took it there.` The call's row, in the pane's `verb: name`
+  form, names the project the board named as the call was answered,
+  `moved to: Contoso`, however Claude spelled it; a row from before the
+  names were kept names the call's own words, never the project the
+  session is in now, which a later move may have made another.
 - **What is in flight goes on.** A reply in the session's inbox waits there,
   in its folder, and is delivered as any; a send to the session from its own
   window is written down through the hold. A pick-up of one of its parked
@@ -4002,9 +4029,11 @@ truth. There is still no background service. None of it is built now. Lee:
     holds moves all the same: the window follows it. `board`, `park` and
     `move` read every project, as the session's project is whichever its
     lines name, its parked items among those of every session filed under
-    it. That costs `board` on Lee's board about 0.35 seconds where it took
-    0.04 (measured in review, 17 November 2026): accepted, as `board` is
-    run by hand, and SitRep reads the board through `watch`.
+    it. That roughly doubles `board`'s time: `bun cli/shell/run.ts board
+    --session …` on a copy of Lee's state, best of 12, took 0.27 seconds
+    before moves (5cbc914) and 0.58 with them (eb1c551), timed in review
+    on 17 November 2026. Accepted: `board` is run by hand, and SitRep
+    reads the board through `watch`.
   - `jump` (13 October to 10 November 2026) brought the terminal window
     showing the session to the front, on whatever Space it was (see "The
     jump"), and printed nothing. A session no jump could reach was refused

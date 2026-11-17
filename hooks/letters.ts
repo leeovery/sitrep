@@ -10,7 +10,7 @@
 import { append, type ReplyBody, type Session, type SessionPaths } from '../core'
 import type { SitrepAttachment, SitrepQueued, SitrepSessionRef } from '../types'
 import { foldAt, lookAround } from './around'
-import { pathsOf } from './filing'
+import { pathsOf } from './folders'
 import { rootFor, type Host } from './host'
 import { counted } from './look'
 import {

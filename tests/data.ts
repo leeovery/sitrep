@@ -2,7 +2,7 @@
  * The sample data the tests share: times, windows, the projects and sessions
  * under test, and the asks Claude posts. Every name is a placeholder.
  */
-import type { AskBody, Project, SessionMeta } from '../core'
+import type { AskBody, FolderKey, Project, ProjectKey, SessionMeta } from '../core'
 import { itemKey } from '../hooks/places'
 
 export const MIN = 60_000
@@ -38,11 +38,20 @@ export const HOME = '/Users/me'
 /** The folder the window starts in: Northwind's repository, though that decides nothing. */
 export const REPO = `${HOME}/Code/northwind`
 
+/** A project's key as the tests give it: the folder of each session started in it, and the project those sessions are filed under until one moves, for a test to give as either kind. */
+export type BothKeys = FolderKey & ProjectKey
+
+/** A project's key, given as a string, as a test gives it as either kind. */
+export const keyed = (key: string) => key as BothKeys
+
+/** A project on the board, by a key of both kinds. */
+type TestProject = Project & { key: BothKeys }
+
 /** The project the sessions under test are on: named so by Claude as it starts one, its key the name's slug. */
-export const PROJECT: Project = { key: 'northwind', name: 'Northwind' }
+export const PROJECT: TestProject = { key: keyed('northwind'), name: 'Northwind' }
 
 /** Another project, with a session of its own. */
-export const ELSEWHERE: Project = { key: 'contoso', name: 'Contoso' }
+export const ELSEWHERE: TestProject = { key: keyed('contoso'), name: 'Contoso' }
 
 /** The session the window starts, as Claude names it. */
 export const HELP_DESK = {

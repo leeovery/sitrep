@@ -86,7 +86,7 @@ const LINES: [tool: string, input: { [key: string]: unknown }, line: string][] =
     { name: 'Trey Research', directory: '/Users/me/trey-research' },
     'project renamed: Trey Research · project lives in /Users/me/trey-research',
   ],
-  ['move', { project: 'trey research' }, 'moved to project: trey research'],
+  ['move', { project: 'trey research' }, 'moved to: trey research'],
   ['board', {}, 'read the board back'],
 ]
 
@@ -105,7 +105,7 @@ test("each of Claude's sitrep calls is one dim line saying what it did, on every
   }
 })
 
-test('a call naming an item or a session, with no name kept, names it as the held session has it; an older join, by its work', async ($, on) => {
+test("a call naming an item or a session, with no name kept, names it as the held session has it; an older join, by its work; a move, by its own words, never the held session's project now", async ($, on) => {
   const w = world($, on)
 
   engineRows(on)
@@ -121,7 +121,7 @@ test('a call naming an item or a session, with no name kept, names it as the hel
     ['join', { work: id }, 'joined: Help desk redesign'],
     ['join', { session: 'sr-zzzzzz' }, 'joined a session'],
     ['finish', {}, '✓ finished: Help desk redesign'],
-    ['move', { project: 'north wind' }, 'moved to project: Northwind'],
+    ['move', { project: 'contoso' }, 'moved to: contoso'],
   ]
 
   for (const [i, [tool, input, line]] of rows.entries()) {

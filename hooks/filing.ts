@@ -1,58 +1,31 @@
 /**
- * Where a session's files are, and which project it is filed under, as the
- * mod reads them (core's filing.ts). Its files are in the folder of the
- * project it was started in, for good, which every ref the window keeps
- * names, and found by its id where one names another; it is filed under the
- * project its lines name now, resolved from its fold wherever that matters.
+ * Which project a session is filed under, as the mod reads it: core's
+ * filing.ts, of the projects on the board reading the name of the one a
+ * session's latest move names alone. Where its files are is folders.ts's.
  */
-import { fileSession, sessionPaths, type Filed, type Session } from '../core'
-import type { SitrepSessionRef } from '../types'
+import {
+  fileRead,
+  projectPaths,
+  type Filed,
+  type FolderKey,
+  type ReadName,
+  type Session,
+} from '../core'
 import type { Host } from './host'
-import { metaOf, projectKeys, readProject } from './projects'
+import { projectOfText, readProject } from './projects'
+import { textAt } from './reader'
 
-/** The key of the folder a session's files are in, whichever project's it is; undefined when none holds it. */
-export const projectFiling = async (host: Host, root: string, id: string) => {
-  for (const key of await projectKeys(host, root)) {
-    if ((await metaOf(host, root, key, id)) !== undefined) {
-      return key
-    }
-  }
-
-  return undefined
-}
-
-/**
- * The key of the folder a session's files are in, found by its id: the
- * folder `at` names, where the session's session.json reads there, else
- * whichever project's folder holds it; the one named where none does.
- */
-export const folderOf = async (host: Host, root: string, at: SitrepSessionRef) =>
-  (await metaOf(host, root, at.project, at.session)) === undefined
-    ? ((await projectFiling(host, root, at.session)) ?? at.project)
-    : at.project
-
-/** A session's paths, its folder found by its id. */
-export const pathsOf = async (host: Host, root: string, at: SitrepSessionRef) =>
-  sessionPaths(root, await folderOf(host, root, at), at.session)
-
-/** A ref to a session, naming the folder its files are in. */
-export const inFolder = async <T extends SitrepSessionRef>(
-  host: Host,
-  root: string,
-  at: T,
-): Promise<T> => ({ ...at, project: await folderOf(host, root, at) })
-
-/** A session as read in a project's folder: that project's key, and the session folded. */
-export type InFolder = { folder: string; session: Session }
+/** A session as read in a project's folder: that folder's key, and the session folded. */
+export type InFolder = { folder: FolderKey; session: Session }
 
 /** A session filed under its project, and the key of the folder its files are in. */
-export type FiledIn = Filed & { folder: string }
+export type FiledIn = Filed & { folder: FolderKey }
 
 /** The name the board gives a project, by its key, read once each for every session filed by the same reads; undefined for a key no project on the board has. */
-export const projectNames = (host: Host, root: string) => {
+export const projectNames = (host: Host, root: string): ReadName => {
   const names = new Map<string, Promise<string | undefined>>()
 
-  return (key: string) => {
+  return key => {
     const name = names.get(key) ?? readProject(host, root, key).then(read => read?.name)
 
     names.set(key, name)
@@ -62,18 +35,37 @@ export const projectNames = (host: Host, root: string) => {
 }
 
 /**
- * A session read in its folder, filed as core's `fileSession` files it: of
- * the projects on the board, it needs the name of the one its latest move
- * names alone, which `nameOf` reads.
+ * The names the board gives projects, each read again only once its
+ * project's file's text changed: for the hold, which files its session at
+ * each fold, every 1.5 seconds.
  */
-export const fileIn =
-  (nameOf: (key: string) => Promise<string | undefined>) =>
-  async ({ folder, session }: InFolder): Promise<FiledIn> => {
-    const { movedTo } = session
-    const name = movedTo === undefined ? undefined : await nameOf(movedTo)
+export const namesKept = () => {
+  const kept = new Map<string, { text: string | undefined; name: string | undefined }>()
 
-    return { folder, ...fileSession(folder, session, key => (key === movedTo ? name : undefined)) }
-  }
+  return (host: Host, root: string): ReadName =>
+    async key => {
+      const text = await textAt(host, projectPaths(root, key).file)
+      const last = kept.get(key)
+
+      if (last !== undefined && last.text === text) {
+        return last.name
+      }
+
+      const name = (await projectOfText(host, root, key, text))?.name
+
+      kept.set(key, { text, name })
+
+      return name
+    }
+}
+
+/** Sessions read in their folders, filed, each name read by `readName`. */
+export const fileIn =
+  (readName: ReadName) =>
+  async ({ folder, session }: InFolder): Promise<FiledIn> => ({
+    folder,
+    ...(await fileRead(folder, session, readName)),
+  })
 
 /** A session read in its folder, filed. */
 export const fileOne = (host: Host, root: string, found: InFolder) =>

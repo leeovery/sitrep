@@ -27,6 +27,7 @@ import {
   checkStatus,
   closedByLee,
   droppedRecommendation,
+  folderKey,
   itemTitle,
   metaText,
   newSessionId,
@@ -40,16 +41,23 @@ import {
   type Checked,
   type EditBody,
   type Filed,
-  type MoveBody,
   type Project,
+  type ProjectKey,
   type Session,
 } from '../core'
 import type { SitrepAttachment } from '../types'
 import { filedNow, foldAt, lookAround } from './around'
-import { projectFiling } from './filing'
+import { folderHolding } from './folders'
 import { bearingsOf, random, rootFor, type Host } from './host'
 import { writeInto, type Into } from './into'
-import { changeProject, filingFor, onBoard, sessionIdsIn, type Filing } from './projects'
+import {
+  changeProject,
+  fileUnder,
+  onBoard,
+  projectFor,
+  sessionIdsIn,
+  type Filing,
+} from './projects'
 import { changedKnown, markSeen, markStarted, parkedAround, postKnown } from './seen'
 import { attachTo, attached, heldProject, refresh, serially } from './window'
 
@@ -134,28 +142,36 @@ const spec = <N extends string>(
 })
 
 /** Where the window holds its session: its attachment, and the key of the project the session is filed under. */
-type Holding = { held: SitrepAttachment; here: string }
+type Holding = { held: SitrepAttachment; here: ProjectKey }
 
-/** Where the window holds its session, as the hold stands now, after a fold that takes in a move made elsewhere; undefined with none held. */
-const holdingNow = () => {
+/**
+ * The held session folded afresh, taking in a move made elsewhere, and
+ * where the window holds it as that fold files it; why not, with none held,
+ * or with its session.json missing or torn.
+ */
+const holdNow = async (
+  host: Host,
+): Promise<{ deny: string } | { session: Session; holding: Holding }> => {
+  const session = await refresh(host)
   const held = attached()
   const here = heldProject()
 
-  return held === undefined || here === undefined ? undefined : { held, here }
+  if (held === undefined) {
+    return { deny: NOT_ATTACHED }
+  }
+
+  return session === undefined || here === undefined
+    ? { deny: UNREADABLE }
+    : { session, holding: { held, here } }
 }
 
 /** A tool on the attached session, handed it folded as it stands, and where the window holds it as that fold files it. */
 const onSession =
   (answer: (host: Host, session: Session, input: Fields, holding: Holding) => Promise<Answer>) =>
   async (host: Host, input: Fields): Promise<Answer> => {
-    const session = await refresh(host)
-    const holding = holdingNow()
+    const now = await holdNow(host)
 
-    if (holding === undefined) {
-      return { deny: NOT_ATTACHED }
-    }
-
-    return session === undefined ? { deny: UNREADABLE } : answer(host, session, input, holding)
+    return 'deny' in now ? now : answer(host, now.session, input, now.holding)
   }
 
 /**
@@ -258,16 +274,16 @@ const otherOfProject = async (
 
   const { session } = named.value
   const root = await rootFor(host)
-  const folder = await projectFiling(host, root, session)
+  const folder = await folderHolding(host, root, session)
+  const at = folder === undefined ? undefined : { project: folder, session }
+  const filed =
+    at === undefined ? undefined : await filedNow(host, root, at, await host.clock.now())
 
-  if (folder === undefined) {
+  if (at === undefined || filed === undefined) {
     return { ok: false, error: `There is no session ${session} on the board, in any project.` }
   }
 
-  const at = { project: folder, session }
-  const filed = await filedNow(host, root, at, await host.clock.now())
-
-  return (filed?.project ?? folder) === here
+  return filed.project === here
     ? { ok: true, value: { ...at, writer: held.writer } }
     : {
         ok: false,
@@ -316,15 +332,13 @@ const parkedElsewhere = async <B extends Body & { item: string }>(
   said: Said<B>,
   unchanged: Unchanged,
 ): Promise<Answer> => {
-  await refresh(host)
+  const now = await holdNow(host)
 
-  const holding = holdingNow()
-
-  if (holding === undefined) {
-    return { deny: NOT_ATTACHED }
+  if ('deny' in now) {
+    return now
   }
 
-  const into = await otherOfProject(host, input, holding)
+  const into = await otherOfProject(host, input, now.holding)
 
   if (!into.ok) {
     return { deny: into.error }
@@ -450,7 +464,8 @@ const start: Tool<'start'> = {
     const { root, cwd, writer } = await bearingsOf(host)
     const created = await host.clock.now()
     const known = await onBoard(host, root)
-    const filing = await filingFor(host, root, known, { name, directory, created, by: writer })
+    const wanted = { name, directory, created, by: writer }
+    const filing = await fileUnder(host, root, projectFor(known, name), wanted)
     const { key } = filing.project
     const id = newSessionId(random, await sessionIdsIn(host, root, known.keys))
     const meta = { id, ...session, project: filing.project.name, root: cwd, created, by: writer }
@@ -458,7 +473,7 @@ const start: Tool<'start'> = {
     await host.fs.write(sessionPaths(root, key, id).meta, metaText(meta))
 
     const started = await attachHere(host, root, {
-      project: key,
+      project: folderKey(key),
       session: id,
       writer,
       attachedAt: created,
@@ -490,7 +505,7 @@ const join: Tool<'join'> = {
 
     const { session: id } = checked.value
     const { root, writer } = await bearingsOf(host)
-    const project = await projectFiling(host, root, id)
+    const project = await folderHolding(host, root, id)
 
     if (project === undefined) {
       return { deny: `There is no session ${id} on the board, in any project.` }
@@ -578,18 +593,16 @@ const move: Tool<'move'> = {
 
     const { project: name, directory } = checked.value
     const { root, writer } = await bearingsOf(host)
-    const known = await onBoard(host, root)
-    const existing = projectNamed(known.projects, name)
-    const staying = existing === undefined ? undefined : checkMoveTo(session, here, existing)
+    const named = projectFor(await onBoard(host, root), name)
+    const moving = checkMoveTo(session, here, named.project)
 
-    if (staying?.ok === false) {
-      return { deny: staying.error }
+    if (!moving.ok) {
+      return { deny: moving.error }
     }
 
     const created = await host.clock.now()
-    const filing = await filingFor(host, root, known, { name, directory, created, by: writer })
-    const line: MoveBody = { type: 'move', project: filing.project.key }
-    const after = await postKnown(host, session, [line])
+    const filing = await fileUnder(host, root, named, { name, directory, created, by: writer })
+    const after = await postKnown(host, session, [moving.value])
     const project = heldProject()
     const landed =
       after === undefined || project === undefined ? undefined : { project, session: after }

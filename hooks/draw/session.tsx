@@ -7,10 +7,9 @@
  * finished one says so, and when, and why where its finish says, and, but
  * for this session's, its asks left open offer no reply.
  */
-import { snoozedAsks, type Session } from '../../core'
+import { snoozedAsks, type Filed, type Session } from '../../core'
 import { agoWords, C, GLYPH } from '../look'
 import { askedOf, parkedAt, projectPlace, takenOffIn, waitingAt } from '../places'
-import type { Filed } from '../scene'
 import { drawAsks } from './ask'
 import { drawResolved } from './earlier'
 import { drawFinish } from './finish'

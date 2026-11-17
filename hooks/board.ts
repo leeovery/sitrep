@@ -3,7 +3,7 @@
  * data, which keeps no Map or Set, so the board carries the session's map of
  * items and set of ids as lists, and drawing rebuilds them.
  */
-import { ITEM_TYPES, type Session } from '../core'
+import { ITEM_TYPES, projectOfFolder, type ProjectKey, type Session } from '../core'
 import type { SitrepAttachment, SitrepBoard, SitrepItem } from '../types'
 
 /**
@@ -32,6 +32,6 @@ export const sessionOf = ({ log, filedUnder, ...held }: SitrepBoard): Session =>
   ids: new Set(held.ids),
 })
 
-/** The key of the project the held session is filed under, as its board says; with a board of another session, or one from a load before moves, the folder `held` names. */
-export const hereOf = (held: SitrepAttachment, board: SitrepBoard | null) =>
-  board?.id === held.session ? (board.filedUnder ?? held.project) : held.project
+/** The key of the project the held session is filed under, as its board says; with a board of another session, or one from a load before moves, which filed it under its folder, its folder's. */
+export const hereOf = (held: SitrepAttachment, board: SitrepBoard | null): ProjectKey =>
+  (board?.id === held.session ? board.filedUnder : undefined) ?? projectOfFolder(held.project)

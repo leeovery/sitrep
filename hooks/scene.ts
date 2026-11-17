@@ -12,6 +12,8 @@ import {
   resolvedAsks,
   type Ask,
   type Filed,
+  type FolderKey,
+  type ProjectKey,
   type Session,
 } from '../core'
 import type {
@@ -36,13 +38,13 @@ export const LINGER_MS = 8_000
 /** How often the board is drawn again for the time alone, so its ages move on. */
 export const TICK_MS = 30_000
 
-export type { Filed } from '../core'
-
 export type Scene = {
   /** The held session. */
   session: Session
   /** The project the held session is filed under. */
-  here: string
+  here: ProjectKey
+  /** The folder the held session's files are in, which every ref the window keeps names. */
+  folder: FolderKey
   /** Where the board is looking: this session, unless Lee went elsewhere. */
   place: SitrepPlace
   /** The projects around the held session, as last read. */
@@ -115,6 +117,7 @@ export const sceneOf = async (host: Host): Promise<Scene | undefined> => {
   return {
     session: sessionOf(board),
     here: hereOf(held, board),
+    folder: held.project,
     place: pane.place ?? { level: 'session', project: held.project, session: held.session },
     projects,
     others: new Map(

@@ -14,11 +14,13 @@ import {
   wakeWords,
   type Body,
   type Checked,
+  type ProjectKey,
   type Session,
   type SnoozeChoice,
   type WakeSessionBody,
 } from '../core'
 import type {
+  SessionKey,
   SitrepAnswering,
   SitrepInFlight,
   SitrepPane,
@@ -31,7 +33,7 @@ import { beginAnswering, settleAnswering } from './answering'
 import { lookAround } from './around'
 import { fromTheTop } from './clip'
 import { takeBack } from './deliver'
-import { inFolder } from './filing'
+import { inFolder } from './folders'
 import { logFailure, rootFor, type Host } from './host'
 import { writeHeld, writeInto, writeOwnFile } from './into'
 import { isProjectList } from './lists'
@@ -47,27 +49,27 @@ export type Actions = {
   /** Shows as much of a list of the board's past as asked, none being how it starts, closing an item opened among `hidden`, those it then no longer shows. */
   show: (list: string, showing: SitrepShowing | undefined, hidden: readonly string[]) => void
   /** Queues Lee's reply to an item, in place of any it had. */
-  reply: (reply: SitrepQueued) => void
+  reply: (reply: SitrepQueued<SessionKey>) => void
   /** Takes the reply to one item out of the queue. */
   unqueue: (session: string, item: string) => void
   /** Empties the queue, but for what the sends in flight carry. */
   cancelAll: () => void
   /** Has the next Enter in the prompt box answer an ask, comment on it, or pick a parked item up with a comment; `text` fills the box first, to edit the words already queued. */
-  answer: (answering: SitrepAnswering, text?: string) => void
+  answer: (answering: SitrepAnswering<SessionKey>, text?: string) => void
   /** Takes back a send the window holds for its turn, its replies back in Ready to send among those still to send; none once it has gone. */
   takeBack: (send: SitrepInFlight) => void
   /** Has Ready to send's one row for several held sends show the one named, by the ids of the replies it carries. */
   showHeld: (send: string) => void
   /** Takes the board somewhere in the tree, at its top there: elsewhere, or where it already is. */
-  go: (place: SitrepPlace) => void
+  go: (place: SitrepPlace<SessionKey>) => void
   /** Closes the board, by its own close where it sits inline. */
   close: () => void
-  /** Finishes another session, as Lee confirmed on its view, and takes the board up off it. */
-  finish: (at: SitrepSessionRef) => void
+  /** Finishes another session, as Lee confirmed on its view, and takes the board up off it, to the project the view showed it in. */
+  finish: (at: SitrepSessionRef<ProjectKey>) => void
   /** Snoozes a session, its asks and its turn, until the time Lee chose, worked out at the press, the ask it was pressed on closed on the board; `asks` are those the board shows waiting there. */
-  snooze: (at: SitrepSessionRef, asks: readonly string[], when: SnoozeChoice) => void
+  snooze: (at: SitrepSessionRef<SessionKey>, asks: readonly string[], when: SnoozeChoice) => void
   /** Wakes a snoozed session now: everything it needs of Lee counts again. */
-  wake: (at: SitrepSessionRef) => void
+  wake: (at: SitrepSessionRef<SessionKey>) => void
 }
 
 /**
@@ -116,22 +118,23 @@ const show = async (
 }
 
 /** Has another session read in full, for the board to draw what Lee did to it; the held one is the watch's. */
-const readIfElsewhere = async (host: Host, { session }: SitrepSessionRef) => {
+const readIfElsewhere = async (host: Host, { session }: Pick<SitrepSessionRef, 'session'>) => {
   if (session !== attached()?.session) {
     await lookAround(host)
   }
 }
 
 /**
- * A ref the board's views drew, which names the project they show its
- * session in, as the window keeps it: naming the folder the session's files
- * are in, found by its id.
+ * A ref a press carries as the window keeps it: naming the folder the
+ * session's files are in, found by its id, where the view that drew it
+ * named the project it shows the session in. Every press that keeps a ref,
+ * or writes by one, comes through here.
  */
-const kept = async <T extends SitrepSessionRef>(host: Host, at: T) =>
+const kept = async <T extends SitrepSessionRef<SessionKey>>(host: Host, at: T) =>
   inFolder(host, await rootFor(host), at)
 
 /** Queues a reply; one to another session has that session read, for Ready to send to draw it. */
-const queue = async (host: Host, reply: SitrepQueued) => {
+const queue = async (host: Host, reply: SitrepQueued<SessionKey>) => {
   const keeping = await kept(host, reply)
 
   await host.state.queue.update(replies => queuing(replies, keeping))
@@ -144,13 +147,13 @@ const queue = async (host: Host, reply: SitrepQueued) => {
  * full, so the mode is checked against all of it, not only its project's
  * briefs.
  */
-const answer = async (host: Host, answering: SitrepAnswering, text?: string) => {
+const answer = async (host: Host, answering: SitrepAnswering<SessionKey>, text?: string) => {
   await beginAnswering(host, await kept(host, answering), text)
   await readIfElsewhere(host, answering)
 }
 
 /** The board on a place, nothing opened there, at its top, and what it shows read. */
-const go = async (host: Host, to: SitrepPlace) => {
+const go = async (host: Host, to: SitrepPlace<SessionKey>) => {
   const place = to.level === 'session' ? await kept(host, to) : to
 
   await changePane(host, () => ({ place, selected: null }))
@@ -165,11 +168,11 @@ const finishing = (session: Session) => {
   return checked.ok ? [checked.value] : []
 }
 
-/** Finishes a session the window does not hold, then goes up to its project, which the view `at` was drawn on shows it in, where it no longer shows. */
-const finish = async (host: Host, at: SitrepSessionRef) => {
-  const writer = await host.conversation.id()
+/** Finishes a session the window does not hold, then goes up to the project the view `at` was drawn on shows it in, where it no longer shows. */
+const finish = async (host: Host, at: SitrepSessionRef<ProjectKey>) => {
+  const into = { ...(await kept(host, at)), writer: await host.conversation.id() }
 
-  await serially(() => writeInto(host, { ...at, writer }, finishing))
+  await serially(() => writeInto(host, into, finishing))
   await go(host, projectPlace(at.project))
 }
 
@@ -186,8 +189,14 @@ type Check = (session: Session) => Checked<Body>
  * longer there, writes nothing, a toast saying why after `refused`. Another
  * session is read again after.
  */
-const writeLee = async (host: Host, at: SitrepSessionRef, refused: string, check: Check) => {
-  const into = { project: at.project, session: at.session, writer: await host.conversation.id() }
+const writeLee = async (
+  host: Host,
+  at: SitrepSessionRef<SessionKey>,
+  refused: string,
+  check: Check,
+) => {
+  const { project, session } = await kept(host, at)
+  const into = { project, session, writer: await host.conversation.id() }
   const say = (why: string) => host.ui.toast(`${refused}: ${why}`)
   const isThere = await writeOwnFile(
     host,
@@ -223,7 +232,7 @@ const UNSNOOZED = 'Not snoozed'
  */
 const snooze = async (
   host: Host,
-  at: SitrepSessionRef,
+  at: SitrepSessionRef<SessionKey>,
   asks: readonly string[],
   when: SnoozeChoice,
 ) => {
@@ -240,7 +249,8 @@ const snooze = async (
 }
 
 /** Lee's waking of a snoozed session, checked as the CLI checks it. */
-const wake = (host: Host, at: SitrepSessionRef) => writeLee(host, at, 'Not woken', checkWake)
+const wake = (host: Host, at: SitrepSessionRef<SessionKey>) =>
+  writeLee(host, at, 'Not woken', checkWake)
 
 const WAKE: WakeSessionBody = { type: 'wakeSession' }
 

@@ -20,6 +20,7 @@ import type { Timer } from 'claude-code'
 import {
   append,
   attach,
+  fileRead,
   heartbeat,
   HEARTBEAT_MS,
   isOpen,
@@ -34,18 +35,28 @@ import {
   waitingOnLee,
   type Body,
   type Entry,
+  type Filed,
   type KeptFold,
   type Presence,
+  type ProjectKey,
+  type ReadName,
   type Sending,
   type Session,
   type SessionPaths,
 } from '../core'
-import type { SitrepAttachment, SitrepInFlight, SitrepQueued, SitrepSessionRef } from '../types'
+import type {
+  SessionKey,
+  SitrepAttachment,
+  SitrepInFlight,
+  SitrepQueued,
+  SitrepSessionRef,
+} from '../types'
 import { activityNow } from './activity'
 import { endAnswering, settleAnswering } from './answering'
 import { filedNow, lookAround } from './around'
 import { boardOf } from './board'
-import { fileOne, folderOf } from './filing'
+import { namesKept } from './filing'
+import { folderOf } from './folders'
 import { logFailure, rootFor, type Host } from './host'
 import { isLater, isSuperseded, loadedNow, supersede } from './load'
 import { counted } from './look'
@@ -53,7 +64,6 @@ import { announce, type News } from './news'
 import { addressed } from './places'
 import { isCarried } from './queue'
 import { createReader, ownText, type Reader } from './reader'
-import type { Filed } from './scene'
 import { versionNow } from './version'
 import { whereNow } from './where'
 
@@ -63,8 +73,12 @@ export const WATCH_MS = 1_500
 type Hold = {
   /** The session held, by the folder its files are in. */
   attachment: SitrepAttachment
-  /** The key of the project the session is filed under, as its last fold files it. */
-  filed: string
+  /** The key of the project the session is filed under, as its last fold files it; unset until a fold does. */
+  filed?: ProjectKey
+  /** What the last fold filed, and the session it filed, so a fold that changed nothing gives what it gave, and `show` puts nothing. */
+  filing?: { from: Session; filed: Filed }
+  /** The names the board gives projects, as filing the session reads them: one read again only once its file changed. */
+  names: (host: Host, root: string) => ReadName
   paths: SessionPaths
   /** The window's own file, as it last wrote it. */
   text: string
@@ -127,11 +141,15 @@ export const flightNow = async (host: Host): Promise<readonly SitrepInFlight[]> 
   return flight ?? []
 }
 
-/** Whether `held` is the window's hold on the session `ref` names, as the writer it names. */
+/**
+ * Whether `held` is the window's hold on the session `ref` names, as the
+ * writer it names: by the session's id, whichever key the ref has, as a
+ * window holds one session.
+ */
 export const isHoldOn = (
-  held: SitrepAttachment | undefined,
-  ref: SitrepSessionRef & { writer: string },
-) => held?.project === ref.project && held.session === ref.session && held.writer === ref.writer
+  held: Pick<SitrepAttachment, 'session' | 'writer'> | undefined,
+  ref: Pick<SitrepSessionRef, 'session'> & { writer: string },
+) => held?.session === ref.session && held.writer === ref.writer
 
 let queue: Promise<unknown> = Promise.resolve()
 
@@ -205,6 +223,10 @@ const hear = async (host: Host, hold: Hold, session: Session) => {
 const isSameFiled = (a: Filed | undefined, b: Filed) =>
   a?.session === b.session && a.project === b.project
 
+/** Whether one fold filed twice is filed alike: under the one project, by the one name. */
+const isSameFiling = (a: Filed, b: Filed) =>
+  a.project === b.project && a.session.project === b.session.project
+
 /** Puts the session's board in `$.state` where it changed, saying the project it is filed under, and tells Lee what it brings; a fold already shown, nothing. */
 const show = async (host: Host, hold: Hold, filed: Filed) => {
   if (isSameFiled(hold.shown?.filed, filed)) {
@@ -240,9 +262,21 @@ const foldHeld = async (host: Host, hold: Hold): Promise<Filed | undefined> => {
 
   const { session } = hold.fold
 
-  return session === undefined
-    ? undefined
-    : fileOne(host, await rootFor(host), { folder: hold.attachment.project, session })
+  if (session === undefined) {
+    return undefined
+  }
+
+  const names = hold.names(host, await rootFor(host))
+  const filed = await fileRead(hold.attachment.project, session, names)
+  const last = hold.filing
+
+  if (last?.from === session && isSameFiling(last.filed, filed)) {
+    return last.filed
+  }
+
+  hold.filing = { from: session, filed }
+
+  return filed
 }
 
 /** The held session folded as it stands, nothing put in `$.state`: undefined with no session held, or with its session.json missing or torn. */
@@ -287,7 +321,7 @@ export const refresh = async (host: Host): Promise<Session | undefined> => {
   hold.filed = filed.project
   await show(host, hold, filed)
 
-  if (filed.project !== from) {
+  if (from !== undefined && filed.project !== from) {
     await follow(host, filed)
   }
 
@@ -311,7 +345,7 @@ const stateNow = async (host: Host, attachedAt: number) =>
  * it onto.
  */
 const sendingTo = (
-  held: SitrepAttachment,
+  held: Pick<SitrepAttachment, 'session' | 'writer'>,
   flights: readonly SitrepInFlight[],
 ): Sending[] | undefined => {
   const sends = flights
@@ -328,7 +362,10 @@ const sendingTo = (
 }
 
 /** What the heartbeat says of the window's doing on the session it holds as `held`: its state, and what it sends there. */
-const doingNow = async (host: Host, held: SitrepAttachment) => ({
+const doingNow = async (
+  host: Host,
+  held: Pick<SitrepAttachment, 'session' | 'writer' | 'attachedAt'>,
+) => ({
   state: await stateNow(host, held.attachedAt),
   sending: sendingTo(held, await flightNow(host)),
 })
@@ -462,7 +499,7 @@ const pickUpsLeft = (count: number) =>
   `${counted(count, 'pick-up', 'pick-ups')} of another project left Ready to send: pick up from a window of that project.`
 
 /** The sessions of these pick-ups filed under another project than `here`, each as it stands. */
-const pickedElsewhere = async (host: Host, here: string, pickUps: readonly SitrepQueued[]) => {
+const pickedElsewhere = async (host: Host, here: ProjectKey, pickUps: readonly SitrepQueued[]) => {
   const [root, now] = await Promise.all([rootFor(host), host.clock.now()])
   const bySession = new Map(pickUps.map(reply => [reply.session, reply]))
   const filed = await Promise.all(
@@ -485,8 +522,9 @@ const pickedElsewhere = async (host: Host, here: string, pickUps: readonly Sitre
  */
 export const dropPickUpsElsewhere = async (host: Host) => {
   const hold = current
+  const here = hold?.filed
 
-  if (hold === undefined) {
+  if (hold === undefined || here === undefined) {
     return
   }
 
@@ -495,7 +533,7 @@ export const dropPickUpsElsewhere = async (host: Host) => {
     reply.verdict === 'pickup' &&
     reply.session !== hold.attachment.session &&
     !isCarried(flights, reply)
-  const elsewhere = await pickedElsewhere(host, hold.filed, queue.filter(isPickUp))
+  const elsewhere = await pickedElsewhere(host, here, queue.filter(isPickUp))
   const isLeft = (reply: SitrepQueued) => isPickUp(reply) && elsewhere.has(reply.session)
   const left = queue.filter(isLeft).length
 
@@ -514,7 +552,11 @@ export const dropPickUpsElsewhere = async (host: Host) => {
  * stands, files it, starts the beat and the watch, and folds the session. A
  * pick-up of another project's item leaves Ready to send.
  */
-export const attachTo = async (host: Host, root: string, attaching: SitrepAttachment) => {
+export const attachTo = async (
+  host: Host,
+  root: string,
+  attaching: Omit<SitrepAttachment, 'project'> & SitrepSessionRef<SessionKey>,
+) => {
   const { session, writer, attachedAt } = attaching
   const folder = await folderOf(host, root, attaching)
   const paths = sessionPaths(root, folder, session)
@@ -527,7 +569,7 @@ export const attachTo = async (host: Host, root: string, attaching: SitrepAttach
   ])
   const hold: Hold = {
     attachment: { ...attaching, project: folder },
-    filed: folder,
+    names: namesKept(),
     paths,
     text: await ownText(host, paths.log(writer)),
     presence: attach(writer, attachedAt, { where, directory, version, ...doing, loadedAt }),
@@ -538,7 +580,7 @@ export const attachTo = async (host: Host, root: string, attaching: SitrepAttach
   await letGo(host)
   await beat(host, hold, heartbeat(hold.presence, await host.clock.now()))
   current = hold
-  hold.filed = (await foldHeld(host, hold))?.project ?? folder
+  hold.filed = (await foldHeld(host, hold))?.project
   await host.state.attachment.write(hold.attachment)
   await dropPickUpsElsewhere(host)
   hold.timers = timersFor(host, hold)

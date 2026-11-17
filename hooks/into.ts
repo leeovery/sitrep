@@ -9,7 +9,7 @@
  */
 import { append, foldSession, parseEntries, type Body, type Entry, type Session } from '../core'
 import type { SitrepSessionRef } from '../types'
-import { pathsOf } from './filing'
+import { pathsOf } from './folders'
 import { rootFor, type Host } from './host'
 import { createReader, ownText } from './reader'
 import { attached, heldLines, isHoldOn, refresh, serially } from './window'

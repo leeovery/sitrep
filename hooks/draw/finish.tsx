@@ -3,7 +3,7 @@
  * finishes the session, asking first in place. A session with a window is
  * still being worked, and Lee finishes it there by telling Claude.
  */
-import type { Filed } from '../scene'
+import type { Filed } from '../../core'
 import type { Block, Drawing } from './kit'
 
 const LABEL = '✓ finish this session'

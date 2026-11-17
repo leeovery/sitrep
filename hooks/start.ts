@@ -8,11 +8,17 @@
  * holds. The folder the window started in only orders them: the projects
  * living around it first.
  */
-import { listedProjects, rejoinable, startText, toldSummary, type ProjectSessions } from '../core'
+import {
+  listedProjects,
+  rejoinable,
+  startText,
+  toldSummary,
+  type Filed,
+  type ProjectSessions,
+} from '../core'
 import { everySession } from './around'
 import { bearingsOf, rootFor, type Host } from './host'
 import { projectKeys, readProject } from './projects'
-import type { Filed } from './scene'
 import { attached, attachTo } from './window'
 
 /** Takes up again the session the conversation `writer` names was last seen in, in any project, when the window holds none. */

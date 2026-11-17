@@ -48,13 +48,22 @@ const metasIn = async (host: Host, root: string, key: string) =>
     (await sessionsFiled(host, root, key)).map(id => metaOf(host, root, key, id)),
   )
 
-/** A project as its folder has it; undefined for a folder with no file and no session. */
-export const readProject = async (host: Host, root: string, key: string) => {
-  const file = await fileOf(host, root, key)
+/** A project as its file's text has it, its sessions' metas read only where it has no file; undefined for a folder with no file and no session. */
+export const projectOfText = async (
+  host: Host,
+  root: string,
+  key: string,
+  text: string | undefined,
+) => {
+  const file = parseProject(text ?? '')
   const recorded = file === undefined ? recordedName(await metasIn(host, root, key)) : undefined
 
   return projectFrom(key, file, recorded)
 }
+
+/** A project as its folder has it; undefined for a folder with no file and no session. */
+export const readProject = async (host: Host, root: string, key: string) =>
+  projectOfText(host, root, key, await textAt(host, projectPaths(root, key).file))
 
 /** The projects these folders hold. */
 export const readProjects = async (host: Host, root: string, keys: readonly string[]) =>
@@ -113,35 +122,40 @@ export const onBoard = async (host: Host, root: string): Promise<OnBoard> => {
   return { keys, projects: await readProjects(host, root, keys) }
 }
 
-/**
- * The project a start or a move names, of those on the board: the one whose
- * name matches, given the directory where it has none; else a new one, its
- * key its name's slug.
- */
-export const filingFor = async (
+/** The project a start or a move names: one on the board, or a new one, not made yet. */
+export type Named = { project: Project; isNew: boolean }
+
+/** The project a start or a move names, of those on the board: the one whose name matches; else a new one, its key its name's slug. */
+export const projectFor = ({ keys, projects }: OnBoard, name: string): Named => {
+  const existing = projectNamed(projects, name)
+
+  return existing === undefined
+    ? { project: { key: newProjectKey(name, new Set(keys)), name }, isNew: true }
+    : { project: existing, isNew: false }
+}
+
+/** Files a session under the project named: a new one made as `wanted` says, or one on the board given the directory where it has none. */
+export const fileUnder = async (
   host: Host,
   root: string,
-  { keys, projects }: OnBoard,
+  { project, isNew }: Named,
   wanted: ProjectFile,
 ): Promise<Filing> => {
   const { name, directory, ...writing } = wanted
-  const existing = projectNamed(projects, name)
 
-  if (existing === undefined) {
-    const key = newProjectKey(name, new Set(keys))
+  if (isNew) {
+    await writeProject(host, root, project.key, wanted)
 
-    await writeProject(host, root, key, wanted)
-
-    return { project: { key, name, directory }, said: `a new project, ${name}` }
+    return { project: { ...project, directory }, said: `a new project, ${name}` }
   }
 
-  const project =
-    directory !== undefined && existing.directory === undefined
-      ? await changeProject(host, root, existing, { directory }, writing)
-      : existing
+  const filed =
+    directory !== undefined && project.directory === undefined
+      ? await changeProject(host, root, project, { directory }, writing)
+      : project
 
   return {
-    project,
-    said: `the existing project ${project.name}${livesElsewhere(project, directory)}`,
+    project: filed,
+    said: `the existing project ${filed.name}${livesElsewhere(filed, directory)}`,
   }
 }

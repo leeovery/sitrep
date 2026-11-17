@@ -8,7 +8,7 @@ import type { On } from 'claude-code'
 import { expect, test, tier, type Engine } from './kit'
 import { parseEntries, parseProject, presenceText, projectPaths, sessionPaths } from '../core'
 import { AROUND_MS } from '../hooks/around'
-import { WATCH_MS } from '../hooks/window'
+import { isHoldOn, WATCH_MS } from '../hooks/window'
 import type { SitrepAttachment } from '../types'
 import {
   CLOSES,
@@ -644,6 +644,123 @@ test('a conversation resumed after its session moved takes it up again in the pr
   expect(listing).toContain(`This window already holds ${LEDGER.id} (Invoice ledger)`)
 })
 
+/** Long enough for a new ask's pulse to run out, its buttons drawn. */
+const REST_MS = 5_000
+
+/**
+ * The session under test begun with an ask and a parked item, moved to
+ * Contoso, and the board open on its own view as Contoso's lists it: every
+ * ref the view draws names Contoso, where its files are not.
+ */
+const movedHere = async (w: World) => {
+  withContoso(w)
+
+  const { id, paths } = await w.begin()
+  const ask = await asked(w, REVIEW)
+  const parked = postedId(await w.call('park', { title: BADGE }))
+
+  await w.call('move', { project: 'Contoso' })
+  await w.clock.advance(REST_MS)
+
+  const ui = await w.opened()
+
+  await toProject(ui, ELSEWHERE.key)
+  await ui.press({ key: `go:${id}` })
+
+  return { id, paths, ask, parked, ui }
+}
+
+test("after a move, Lee's snooze and wake of the held session's ask, pressed on its view in its new project, go through the hold: the board shows each, and the next post keeps them", async ($, on) => {
+  const w = world($, on)
+  const { id, paths, ask, ui } = await movedHere(w)
+  const item = w.item(ask)
+
+  await ui.press({ key: `pick:${item}` })
+  await ui.press({ key: `snooze:${item}` })
+  await ui.press({ key: `snooze-tomorrow:${item}` })
+
+  expect(w.state.board?.asks[0]?.snoozedUntil, 'snoozed on the board').toBeGreaterThan(
+    w.clock.now(),
+  )
+
+  await w.call('status', { now: ['Drawing Inbox'] })
+  await ui.press({ key: `wake:${item}` })
+
+  expect(w.state.board?.asks[0]?.snoozedUntil, 'woken on the board').toBeUndefined()
+
+  await w.call('status', { now: ['Drawing Settings'] })
+
+  expect(kindsIn(w, paths.log(W1))).toEqual([
+    'ask',
+    'park',
+    'move',
+    'snoozeSession',
+    'status',
+    'wakeSession',
+    'status',
+  ])
+  expect(filesUnder(w, ELSEWHERE.key, id)).toEqual([])
+})
+
+test("after a move, Lee's pick-up of the held session's own parked item, pressed on its view in its new project, goes through the hold, and the next post keeps it", async ($, on) => {
+  const w = world($, on)
+  const { paths, parked, ui } = await movedHere(w)
+
+  await ui.press({ key: `ppick:${w.item(parked)}` })
+  await ui.press({ key: `pickup:${w.item(parked)}` })
+  await ui.press({ key: 'send' })
+
+  expect(w.submitted).toEqual([`From the board:\n- Pick up from parked: ${BADGE}`])
+  expect(w.state.board?.items.find(each => each.id === parked)?.state).toBe('picked')
+
+  await w.call('status', { now: ['Drawing Inbox'] })
+
+  expect(kindsIn(w, paths.log(W1))).toEqual(['ask', 'park', 'move', 'reply', 'delivered', 'status'])
+})
+
+test("after a move, Claude's edit, resolve and finish of the held session go through the hold, the board showing each, and each post keeps the last", async ($, on) => {
+  const w = world($, on)
+  const { paths, ask, parked } = await movedHere(w)
+  const title = 'A priority badge on every tab'
+
+  await w.call('edit', { item: parked, title })
+  await w.call('resolve', { item: ask, reason: 'Lee said go in the chat' })
+
+  expect(w.state.board?.parked.map(each => each.title)).toEqual([title])
+  expect(w.state.board?.asks[0]?.state).toBe('closed')
+
+  await w.call('finish', { reason: 'Shipped' })
+
+  expect(w.state.board?.finished?.reason).toBe('Shipped')
+  expect(kindsIn(w, paths.log(W1))).toEqual(['ask', 'park', 'move', 'edit', 'resolve', 'finish'])
+})
+
+test("the project a move took the held session to, renamed by another window, names it on its board at the window's next look", async ($, on) => {
+  const w = world($, on)
+
+  withContoso(w)
+  await w.begin()
+  await w.call('move', { project: 'Contoso' })
+  w.project(ELSEWHERE.key, {
+    name: 'Contoso Ltd',
+    directory: `${HOME}/Code/contoso`,
+    created: T0,
+    by: W4,
+  })
+  await w.clock.advance(WATCH_MS)
+
+  expect(holding(w)).toEqual({ folder: PROJECT.key, project: ELSEWHERE.key, name: 'Contoso Ltd' })
+})
+
+test("the hold is matched by the session's id and the window's writer alone, so a write naming the held session by either kind of key goes through it", () => {
+  const held = { project: PROJECT.key, session: SHIFTS.id, writer: W1, attachedAt: T0 }
+  const drawn = { project: ELSEWHERE.key, session: SHIFTS.id, writer: W1 }
+
+  expect(isHoldOn(held, drawn), 'by the project the view showed').toBe(true)
+  expect(isHoldOn(held, { ...held, writer: W2 }), 'as another writer').toBe(false)
+  expect(isHoldOn(held, { ...held, session: LEDGER.id }), 'another session').toBe(false)
+})
+
 test("the window's refs keep naming the session's folder after a move, as a build from before reads them: its attachment, and a place, a reply or a note pressed on a view of the project it moved to", async ($, on) => {
   const w = world($, on)
 
@@ -755,7 +872,7 @@ test("a move's row names the project as the board does, not as Claude's call spe
     },
   })
 
-  expect(await ui.find({ type: 'Text', text: 'moved to project: Contoso' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'moved to: Contoso' })).toBeDefined()
 })
 
 test("the way back from another session's view goes to the project it is filed under, once it moved, as its project's press does", async ($, on) => {

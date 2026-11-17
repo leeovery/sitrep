@@ -6,6 +6,7 @@ import { readyRows, rowsOf } from './drawn'
 import {
   CLI,
   CLOSES,
+  keyed,
   LEDGER,
   META,
   MIN,
@@ -204,7 +205,7 @@ test('replies sent into an inbox show where they went until the linger has passe
       [SENDER]: file([T0 + MIN, reply('r1', 'k1', 'yes')], [T0 + MIN, reply('r2', 'k2', 'yes')]),
     },
   })
-  const sent = { project: META.project, session: META.id, replies: ['r1', 'r2'] }
+  const sent = { project: keyed(META.project), session: META.id, replies: ['r1', 'r2'] }
 
   expect(session.replies.map(each => [each.delivery, each.deliveredAt ?? each.voidedAt])).toEqual([
     ['delivered', deliveredAt],

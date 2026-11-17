@@ -17,7 +17,13 @@ import {
   type ReplyFields,
   type Verdict,
 } from '../../core'
-import type { SitrepAnswering, SitrepItemRef, SitrepPlace, SitrepQueued } from '../../types'
+import type {
+  SessionKey,
+  SitrepAnswering,
+  SitrepItemRef,
+  SitrepPlace,
+  SitrepQueued,
+} from '../../types'
 import type { Actions } from '../actions'
 import { answeringIn } from '../answering'
 import { ago, C, clip, counted, GLYPH, wrapped } from '../look'
@@ -28,7 +34,7 @@ import type { Scene } from '../scene'
 export type Els = ElementTable
 
 /** The way back up a level: its words, and where it goes. */
-export type Back = { label: string; to: SitrepPlace }
+export type Back = { label: string; to: SitrepPlace<SessionKey> }
 
 /** What a part of the board is drawn with: the surface's elements, what its buttons do, what it shows, and its room. */
 export type Drawing = {
@@ -91,7 +97,7 @@ const ASIDE_MARK = '·'
 const ASIDE_LEAST = 4
 
 /** A press leading a view line's aside: its words, its key, and where it goes. */
-export type Lead = { words: string; key: string; to: SitrepPlace }
+export type Lead = { words: string; key: string; to: SitrepPlace<SessionKey> }
 
 /** A view line's aside: its parts, each after the first set off by a `·`, a press's words leading them where it has one. */
 export type Aside = { lead?: Lead; parts: readonly string[] }
@@ -499,12 +505,12 @@ export const drawOnItsWay = (d: Drawing, item: Ask | Parked, reply: ReplyFields)
 }
 
 /** Writing to an item in the prompt box, from the surface drawn on: an ask's answer or a comment on it, or a pick-up's note; none where Lee cannot write back. */
-export const answeringOf = (
+export const answeringOf = <K extends SessionKey>(
   d: Drawing,
-  at: SitrepItemRef,
+  at: SitrepItemRef<K>,
   item: Pick<Ask | Parked, 'title'>,
   as: SitrepAnswering['as'],
-): SitrepAnswering | undefined => {
+): SitrepAnswering<K> | undefined => {
   const writing = WRITING[d.surface]
 
   return writing === undefined
@@ -523,7 +529,7 @@ export const answeringOf = (
 export const ANSWERING = 'answering in the prompt…'
 
 /** Whether Lee is answering the item in the prompt box, as the surface drawn on shows the mode. */
-export const isBeingAnswered = (d: Drawing, at: SitrepItemRef) => {
+export const isBeingAnswered = (d: Drawing, at: Pick<SitrepItemRef, 'session' | 'item'>) => {
   const answering = answeringIn(d.scene, d.surface)?.answering
 
   return answering?.session === at.session && answering.item === at.item
@@ -534,7 +540,7 @@ export const drawWrite = (
   d: Drawing,
   key: string,
   label: string,
-  answering: SitrepAnswering | undefined,
+  answering: SitrepAnswering<SessionKey> | undefined,
   variant?: 'primary',
 ) => {
   const { Button } = d.els

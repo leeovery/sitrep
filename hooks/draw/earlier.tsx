@@ -3,11 +3,11 @@
  * newest closed first, each opening to how it closed. It shows the latest
  * few, and a press opens it to every one.
  */
-import { answerOf, carried, closingReply, type Ask } from '../../core'
+import { answerOf, carried, closingReply, type Ask, type Filed } from '../../core'
 import { resolvedList } from '../lists'
 import { C, GLYPH } from '../look'
 import { itemKey } from '../places'
-import { resolvedEarlier, type Filed } from '../scene'
+import { resolvedEarlier } from '../scene'
 import { drawRow, heading, type Block, type Drawing } from './kit'
 import { drawPast } from './past'
 

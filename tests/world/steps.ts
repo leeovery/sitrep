@@ -49,7 +49,7 @@ export const asksOnBand = async (w: World) =>
   (await (await w.band()).find({ key: 'band:asks' }))?.text
 
 /** The board on a project's view, reached as Lee reaches it from the tabs: All projects, then the project. */
-export const toProject = async (ui: Pick<Mounted, 'press'>, key = PROJECT.key) => {
+export const toProject = async (ui: Pick<Mounted, 'press'>, key: string = PROJECT.key) => {
   await ui.press({ key: 'tab:all' })
   await ui.press({ key: `proj:${key}` })
 }

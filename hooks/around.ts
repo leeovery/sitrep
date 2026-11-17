@@ -43,12 +43,17 @@ import {
   projectTakenOff,
   refold,
   sessionPaths,
+  projectOfFolder,
   takenOffBy,
+  type Filed,
+  type FolderKey,
   type KeptFold,
+  type ProjectKey,
   type Session,
   type SessionFiles,
 } from '../core'
 import type {
+  SessionKey,
   SitrepAnswering,
   SitrepAttachment,
   SitrepOther,
@@ -61,13 +66,12 @@ import type {
 } from '../types'
 import { settleAnswering } from './answering'
 import { boardOf, hereOf } from './board'
-import { fileIn, fileOne, folderOf, projectNames, type FiledIn, type InFolder } from './filing'
+import { fileIn, fileOne, projectNames, type FiledIn, type InFolder } from './filing'
+import { folderKeys, folderOf } from './folders'
 import { logFailure, rootFor, type Host, type Slot } from './host'
 import { oldList, pickedUpList, projectScope } from './lists'
-import { projectKeys } from './projects'
 import { destinations, isShowing, type Folded } from './queue'
 import { createReader, filedIn, type Reader } from './reader'
-import type { Filed } from './scene'
 import { forgetSnooze, snoozeSettings } from './snoozing'
 
 /**
@@ -132,7 +136,7 @@ const keep = (dir: string, read: Reader, files: SessionFiles, now: number) => {
 }
 
 /** A session by the key of the folder its files are in, and its id. */
-type FolderRef = { folder: string; session: string }
+type FolderRef = { folder: FolderKey; session: string }
 
 /** A session as its files stand at `now`, read through its reader, `listing` its folder's project folder's where the caller has it. */
 const readAt = async (
@@ -149,11 +153,20 @@ const readAt = async (
 }
 
 /** A session as its files stand at `now`, its folder found by its id; undefined when its session.json is missing or torn. */
-export const foldAt = async (host: Host, root: string, at: SitrepSessionRef, now: number) =>
-  readAt(host, root, { folder: await folderOf(host, root, at), session: at.session }, now)
+export const foldAt = async (
+  host: Host,
+  root: string,
+  at: SitrepSessionRef<SessionKey>,
+  now: number,
+) => readAt(host, root, { folder: await folderOf(host, root, at), session: at.session }, now)
 
 /** A session as its files stand at `now`, its folder found by its id, filed under its project; undefined when its session.json is missing or torn. */
-export const filedNow = async (host: Host, root: string, at: SitrepSessionRef, now: number) => {
+export const filedNow = async (
+  host: Host,
+  root: string,
+  at: SitrepSessionRef<SessionKey>,
+  now: number,
+) => {
   const folder = await folderOf(host, root, at)
   const session = await readAt(host, root, { folder, session: at.session }, now)
 
@@ -180,7 +193,7 @@ type ReadFiled = (at: FolderRef, listing: readonly FsEntry[]) => Promise<Session
 const foldFiled = async (
   host: Host,
   root: string,
-  folder: string,
+  folder: FolderKey,
   readFiled: ReadFiled,
   except?: string,
 ): Promise<InFolder[]> => {
@@ -199,7 +212,7 @@ const filedFrom = (host: Host, root: string, found: readonly InFolder[]) =>
 /** Every session on the board, as its files stand at `now`, each filed under its project, with the folder its files are in. */
 export const everySession = async (host: Host, root: string, now: number): Promise<FiledIn[]> => {
   const found = await Promise.all(
-    (await projectKeys(host, root)).map(folder =>
+    (await folderKeys(host, root)).map(folder =>
       foldFiled(host, root, folder, (at, listing) => readAt(host, root, at, now, listing)),
     ),
   )
@@ -252,11 +265,11 @@ const readAround = async (
   fresh: readonly string[],
 ) => {
   const found = new Map<string, InFolder>()
-  const keys = await projectKeys(host, root)
+  const folders = await folderKeys(host, root)
   const afresh = new Set([...full.map(each => each.session), ...fresh])
   const around = aroundAt(host, root, now, isWhole, afresh)
 
-  for (const folder of keys) {
+  for (const folder of folders) {
     for (const each of await foldFiled(host, root, folder, around, held)) {
       found.set(each.session.id, each)
     }
@@ -273,7 +286,7 @@ const readAround = async (
 
   const filed = await filedFrom(host, root, [...found.values()])
 
-  return { keys, read: new Map(filed.map(each => [each.session.id, each])) }
+  return { folders, read: new Map(filed.map(each => [each.session.id, each])) }
 }
 
 /** Sessions the most recently updated first, those updated at once by id. */
@@ -289,12 +302,12 @@ const nameOf = (key: string, sessions: readonly Session[]) =>
  * session's, home's the held session's, none at All projects; the project
  * whose own view it shows; and how much of each list the views show.
  */
-type Showing = { here: string; shown?: string; viewed?: string; pane: SitrepPane }
+type Showing = { here: ProjectKey; shown?: ProjectKey; viewed?: ProjectKey; pane: SitrepPane }
 
 /** The project a place on the board is a view of, a session's as the look files that session; none at All projects. */
 const projectAt = (
   held: SitrepAttachment,
-  here: string,
+  here: ProjectKey,
   place: SitrepPlace | null,
   read: ReadonlyMap<string, Filed>,
 ) => {
@@ -304,7 +317,7 @@ const projectAt = (
 
   switch (place.level) {
     case 'session':
-      return read.get(place.session)?.project ?? place.project
+      return read.get(place.session)?.project
     case 'project':
       return place.project
     case 'all':
@@ -315,7 +328,7 @@ const projectAt = (
 /** What a look keeps and carries by, the held session filed under `here`, as the board stands. */
 const showingOf = (
   held: SitrepAttachment,
-  here: string,
+  here: ProjectKey,
   pane: SitrepPane,
   read: ReadonlyMap<string, Filed>,
 ): Showing => ({
@@ -384,7 +397,7 @@ const isKept = ({ here, shown }: Showing, key: string, isHolding: boolean) =>
  */
 const projectsOf = (
   showing: Showing,
-  keys: readonly string[],
+  keys: readonly ProjectKey[],
   read: ReadonlyMap<string, Filed>,
   now: number,
 ): SitrepProject[] =>
@@ -477,10 +490,11 @@ const look = async (host: Host, fresh: readonly string[]) => {
   ])
   const full = fullOf(held, pane, { queue, sent, answering })
   const isWhole = isWholeLook(now)
-  const { keys, read } = await readAround(host, root, held.session, full, now, isWhole, fresh)
+  const { folders, read } = await readAround(host, root, held.session, full, now, isWhole, fresh)
   const showing = showingOf(held, hereOf(held, board), pane, read)
+  const projects = folders.map(projectOfFolder)
 
-  await put(host.state.projects, 'projects', projectsOf(showing, keys, read, now))
+  await put(host.state.projects, 'projects', projectsOf(showing, projects, read, now))
   await put(host.state.others, 'others', othersOf(full, read))
   await put(host.state.snooze, 'snooze', await snoozeSettings(host, root, now))
   await settleSent(host, read, now)

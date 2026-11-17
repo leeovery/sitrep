@@ -7,7 +7,13 @@
  * own view.
  */
 import type { RenderElement } from 'claude-code'
-import { isLiveSession, type Carried, type EndedSession, type SessionSummary } from '../../core'
+import {
+  isLiveSession,
+  type Carried,
+  type EndedSession,
+  type ProjectKey,
+  type SessionSummary,
+} from '../../core'
 import { oldList, projectScope } from '../lists'
 import { ago, C, clip, GLYPH } from '../look'
 import { askedIn, hereFirst, parkedIn, projectAt, takenOffIn } from '../places'
@@ -31,7 +37,7 @@ type SessionRow = { key: string; isClosed: boolean; right: RenderElement | undef
 /** A session's row, as a block of its own: its name, the press that opens its view, dim once closed; what goes on its right; and what it is doing under it, faint once closed. */
 const drawSession = (
   d: Drawing,
-  project: string,
+  project: ProjectKey,
   session: SessionSummary,
   { key, isClosed, right }: SessionRow,
 ): Block => {
@@ -91,7 +97,7 @@ const rightOf = (d: Drawing, session: SessionSummary) => {
 }
 
 /** A current session's row: dim once it is not live (`isLiveSession`), and what goes on its right. */
-const drawCurrent = (d: Drawing, project: string, session: SessionSummary) =>
+const drawCurrent = (d: Drawing, project: ProjectKey, session: SessionSummary) =>
   drawSession(d, project, session, {
     key: `sess:${session.id}`,
     isClosed: !isLiveSession(session),
@@ -103,7 +109,7 @@ const endedWords = (now: number, { isFinished, endedAt }: EndedSession) =>
   `${isFinished ? 'finished' : 'idle'} ${ago(now, endedAt)}`
 
 /** An old session's row, closed whatever window still holds it, as it no longer shows among the current: when it ended on its right. */
-const drawOld = (d: Drawing, project: string, session: EndedSession) => {
+const drawOld = (d: Drawing, project: ProjectKey, session: EndedSession) => {
   const { Text } = d.els
 
   return drawSession(d, project, session, {
@@ -114,7 +120,7 @@ const drawOld = (d: Drawing, project: string, session: EndedSession) => {
 }
 
 /** A project's old sessions: their press, and those it shows once opened; nothing while they are not carried yet, so no count shows short. */
-const drawOldSessions = (d: Drawing, key: string, old: Carried<EndedSession> | undefined) =>
+const drawOldSessions = (d: Drawing, key: ProjectKey, old: Carried<EndedSession> | undefined) =>
   old === undefined
     ? []
     : drawPast(d, {
@@ -131,7 +137,7 @@ const openWords = (open: number, count: number) =>
 /** SESSIONS' heading, then each session, then its old sessions, a blank row between each and the next. */
 const drawSessions = (
   d: Drawing,
-  key: string,
+  key: ProjectKey,
   sessions: readonly SessionSummary[],
   open: number,
   old: Carried<EndedSession> | undefined,
@@ -147,7 +153,7 @@ const drawSessions = (
 ]
 
 /** The view's sections, a blank row between each and the next. */
-export const drawProjectView = (d: Drawing, key: string): Block[] => {
+export const drawProjectView = (d: Drawing, key: ProjectKey): Block[] => {
   const { summary, old } = projectAt(d.scene, key)
 
   return spaced(

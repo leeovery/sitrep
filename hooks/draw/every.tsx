@@ -3,15 +3,22 @@
  * sessions hung from it as a tree. Those with nothing open, waiting or
  * parked fold into one line at the bottom.
  */
-import { isLiveSession, type ProjectSummary, type SessionSummary } from '../../core'
+import {
+  isLiveSession,
+  type ProjectKey,
+  type ProjectSummary,
+  type SessionSummary,
+} from '../../core'
 import { C, counted, GLYPH } from '../look'
 import { everyProject, hereFirst, projectPlace } from '../places'
 import { context, heading, NONE_OPEN, spaced, waitingWords, type Block, type Drawing } from './kit'
 
-const total = (projects: readonly ProjectSummary[], count: (project: ProjectSummary) => number) =>
+type Summary = ProjectSummary<ProjectKey>
+
+const total = (projects: readonly Summary[], count: (project: Summary) => number) =>
   projects.reduce((sum, project) => sum + count(project), 0)
 
-const drawSession = (d: Drawing, project: string, session: SessionSummary) => {
+const drawSession = (d: Drawing, project: ProjectKey, session: SessionSummary) => {
   const { Box, Text, Button } = d.els
 
   return (
@@ -31,7 +38,7 @@ const drawSession = (d: Drawing, project: string, session: SessionSummary) => {
 }
 
 /** What hangs from a project: its open sessions, or a line saying none is. */
-const branchesOf = (d: Drawing, project: ProjectSummary) => {
+const branchesOf = (d: Drawing, project: Summary) => {
   const { Text } = d.els
   const open = hereFirst(d.scene, project.sessions.filter(isLiveSession))
   const parked = project.parked > 0 ? ` · ${GLYPH.parked} ${project.parked} parked` : ''
@@ -45,7 +52,7 @@ const branchesOf = (d: Drawing, project: ProjectSummary) => {
       ]
 }
 
-const drawProject = (d: Drawing, project: ProjectSummary) => {
+const drawProject = (d: Drawing, project: Summary) => {
   const { Box, Text, Button } = d.els
   const branches = branchesOf(d, project)
 
@@ -75,11 +82,11 @@ const drawProject = (d: Drawing, project: ProjectSummary) => {
 }
 
 /** The quiet projects in one line. */
-const foldedLine = (folded: readonly ProjectSummary[]) =>
+const foldedLine = (folded: readonly Summary[]) =>
   `${folded.length} more, with nothing going on: ${folded.map(project => project.name).join(', ')}`
 
 /** PROJECTS' heading, then each project, a blank row between each and the next. */
-const drawProjects = (d: Drawing, projects: readonly ProjectSummary[]): Block[] => {
+const drawProjects = (d: Drawing, projects: readonly Summary[]): Block[] => {
   const open = total(projects, project => project.open)
 
   return [
@@ -96,7 +103,7 @@ const drawProjects = (d: Drawing, projects: readonly ProjectSummary[]): Block[] 
 }
 
 /** The quiet projects' line; none while every project has something going on. */
-const drawFolded = (d: Drawing, folded: readonly ProjectSummary[]): Block[] => {
+const drawFolded = (d: Drawing, folded: readonly Summary[]): Block[] => {
   const { Text } = d.els
 
   return folded.length === 0

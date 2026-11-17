@@ -24,6 +24,7 @@ import {
   deliveryOf,
   type Ask,
   type Delivery,
+  type Filed,
   type Parked,
   type Reply,
   type ReplyFields,
@@ -45,7 +46,7 @@ import {
   unsent,
   type HeldBack,
 } from '../queue'
-import type { Filed, Scene } from '../scene'
+import type { Scene } from '../scene'
 import { answeredByTheHook, drawReplyRow, drawRewrite, NOT_SENT, type Drawing } from './kit'
 
 /** A send the window holds while Claude is mid-turn, which Lee can take back until it goes. */
@@ -264,7 +265,7 @@ const goingGroup = (scene: Scene, send: SitrepInFlight, at: number, width: numbe
 /** Each destination of the replies still to send, this session first, then as first queued, then those only sent to. */
 const unsentGroups = (scene: Scene): ToSendGroup[] => {
   const queue = unsent(scene.queue, scene.inFlight)
-  const held = { project: scene.here, session: scene.session.id }
+  const held = { project: scene.folder, session: scene.session.id }
   const to = queue.map(reply => goesTo(held, reply))
   const here = to.filter(each => each.session === held.session)
 

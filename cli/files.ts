@@ -5,7 +5,8 @@
  * project since, and those moved to it (core's filing.ts).
  */
 import {
-  fileSession,
+  fileRead,
+  folderKey,
   foldSession,
   isSafeName,
   isSessionId,
@@ -22,16 +23,18 @@ import {
   sessionPaths,
   sessionsDir,
   writerOf,
+  type Filed,
   type ProjectRead,
   type ProjectSessions,
+  type ReadName,
   type Session,
   type SessionFiles,
   type SessionPaths,
 } from '../core'
 import type { Io, Listed } from './io'
 
-/** A session as found: the project it is filed under, its paths and files, and the session they fold to, named by that project. */
-export type Found = { project: string; paths: SessionPaths; files: SessionFiles; session: Session }
+/** A session as found: filed under its project, named by it, with its paths and files. */
+export type Found = Filed & { paths: SessionPaths; files: SessionFiles }
 
 const foldersIn = async (io: Io, dir: string) =>
   (await io.fs.list(dir)).filter(entry => entry.kind === 'dir').map(entry => entry.name)
@@ -147,20 +150,11 @@ const readProject = async (io: Io, root: string, key: string, read: SessionReade
     : { project, sessions: sessions.flatMap(each => each.session ?? []) }
 }
 
-/** A project as its folder has it, its sessions' metas read only where it has no file; undefined for a folder with neither. */
-const projectAt = async (io: Io, root: string, key: string) =>
-  (await readProject(io, root, key, metasOf(io, root)))?.project
-
-/** A session as found in its folder, filed as core's `fileSession` files it, the project its latest move names read alone. */
-const filedFound = async (io: Io, root: string, found: Found): Promise<Found> => {
-  const { movedTo } = found.session
-  const name = movedTo === undefined ? undefined : (await projectAt(io, root, movedTo))?.name
-  const filed = fileSession(found.project, found.session, key =>
-    key === movedTo ? name : undefined,
-  )
-
-  return { ...found, ...filed }
-}
+/** The name the board gives a project, by its key, as its folder has it, its sessions' metas read only where it has no file; undefined for a folder with neither. */
+const nameIn =
+  (io: Io, root: string): ReadName =>
+  async key =>
+    (await readProject(io, root, key, metasOf(io, root)))?.project.name
 
 /** A session by its id, as it stands at `now`, in whichever project's folder holds it, filed under its project; undefined when none holds it. */
 export const findSession = async (
@@ -169,13 +163,13 @@ export const findSession = async (
   id: string,
   now: number,
 ): Promise<Found | undefined> => {
-  for (const project of await projectKeys(io, root)) {
-    const paths = sessionPaths(root, project, id)
+  for (const folder of await projectKeys(io, root)) {
+    const paths = sessionPaths(root, folder, id)
     const files = await readSession(io, paths)
     const session = foldSession(files, now)
 
     if (session !== undefined) {
-      return filedFound(io, root, { project, paths, files, session })
+      return { paths, files, ...(await fileRead(folderKey(folder), session, nameIn(io, root))) }
     }
   }
 

@@ -60,7 +60,7 @@ export type Put = (path: string, text: string) => void
 /** Sessions' files, written with `put` under the root sitrep keeps. */
 export const filing = (put: Put) => {
   /** A session's meta, filed under `project`, as its start writes it: its paths. */
-  const seed = (meta: SessionMeta, project = PROJECT.key) => {
+  const seed = (meta: SessionMeta, project: string = PROJECT.key) => {
     const paths = sessionPaths(ROOT, project, meta.id)
 
     put(paths.meta, metaText(meta))

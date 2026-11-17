@@ -43,18 +43,23 @@ const SAID: Record<ToolName, (input: Input, name: string | undefined) => string>
   edit: (_, name = 'an item') => `edited: ${name}`,
   finish: (_, name) => (name === undefined ? '✓ finished a session' : `✓ finished: ${name}`),
   project: projectSaid,
-  move: (input, name) => `moved to project: ${name ?? text(input.project)}`,
+  move: (input, name) => `moved to: ${name ?? text(input.project)}`,
   board: () => 'read the board back',
 }
 
-/** The calls whose rows name an item or a session, and its name as the held session has it. */
+/**
+ * The calls whose rows name what they did, by the name kept as each was
+ * answered; and, for a row with none kept, the name the held session has
+ * for it. A move's has none: the held session's project now may be a later
+ * move's, so an older row names the move's own words.
+ */
 const NAMING: Partial<Record<ToolName, (session: Session, input: Input) => string | undefined>> = {
   join: (session, input) => (session.id === joinedId(input) ? session.status.name : undefined),
   resolve: heldTitle,
   reopen: heldTitle,
   edit: heldTitle,
   finish: session => session.status.name,
-  move: session => session.project,
+  move: () => undefined,
 }
 
 /** Where a call's row finds the name of what it names: kept as the call was answered, else the held session. */

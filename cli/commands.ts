@@ -25,17 +25,14 @@ import {
   withParkId,
   type Body,
   type Checked,
+  type Filed,
   type Project,
   type ProjectParked,
   type ProjectSessions,
   type Random,
-  type Session,
 } from '../core'
 import type { Arg, Fields, Flag, Grammar } from './args'
 import { boardJson, listing, listJson, listText } from './output'
-
-/** A session, and the key of the project it is filed under. */
-export type Filed = { project: string; session: Session }
 
 /** What a command on a session comes to: the lines it posts, and what it prints. */
 export type Outcome = { post: Body[]; print: string }

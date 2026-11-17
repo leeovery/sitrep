@@ -35,7 +35,7 @@ import {
   type Sending,
   type Session,
 } from '../core'
-import { CLI, CLOSES, META, MIN, T0, W1, W2 } from './data'
+import { CLI, CLOSES, keyed, META, MIN, T0, W1, W2 } from './data'
 import {
   beat,
   choiceAsk,
@@ -56,11 +56,11 @@ const NOW = T0 + 60 * MIN
 
 const CLAIMED = NOW - MIN
 
-const NORTHWIND: Project = {
-  key: 'northwind',
+const NORTHWIND = {
+  key: keyed('northwind'),
   name: 'Northwind',
   directory: '/Users/me/Code/northwind',
-}
+} satisfies Project
 
 const REVIEW: Line = [T0, yesAsk('k1', 'Review round 1')]
 const SIDEBAR: Line = [T0, choiceAsk('k2', 'Keep the sidebar?', ['Keep it', 'Drop it'])]
