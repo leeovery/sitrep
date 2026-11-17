@@ -29,7 +29,7 @@ With several Claude Code windows open across several projects, what waits on you
 - **Answer without hunting.** A yes or a choice is a button, the option Claude recommends marked. Your reply reaches Claude as your own message, in its own window.
 - **A click takes you there.** A session, an ask or a notification brings forward the Ghostty window showing that session, on whatever Space it is, in tmux, in zmx or in neither. A session no terminal on this Mac shows is carried on in a new window by your resume command.
 - **Sessions outlive their windows.** After a `/clear`, or in a new Claude told to carry on, it is the same session, with its status and asks. What a session parks is its project's, for any session of the project to pick up.
-- **Put a session off.** Snooze its row until later today, tomorrow, next week or until it moves; its asks and its turn count nowhere until it wakes.
+- **Put a session off.** Snooze it for an hour, until later today, tonight, tomorrow or next week, or until it moves; its asks and its turn count nowhere until it wakes.
 - **Best effort, and honest.** A missed update breaks nothing, and the board never says Claude knows something it wasn't told.
 
 ## Install
@@ -113,7 +113,7 @@ A menu bar app with no Dock icon, on every Space. The notch and the strip step o
 - **The strip** can stand in its place: a narrow column along the edge, a mark for each session, its ring carrying the session's state, that grows with what's on it or runs the screen's height.
 - **The menu bar item** lists the panel's sessions under one total, "3 need you", each a click to its session. Then come Show (Notch, Strip or Nothing), Show Welcome Window, Settings… and Quit SitRep. Above the list it speaks up, in this order, when the plugin is in trouble, when a window needs `/reload-plugins`, and when SitRep can't read the board. Its glyph lights as the notch does.
 - **A session this Mac doesn't show** is dimmed wherever rows are drawn, an ask's mark a hollow ring: its Claude has ended, runs where no terminal on this Mac shows it, or is reached only from another device. SitRep tells by reading which terminals each Claude descends from, every few seconds; a remote login, such as SSH, doesn't count.
-- **Snooze**, on a row's menu, puts the session off until later today, tomorrow, next week, or until it moves, its next turn ending. Its asks and its turn go together into Snoozed, and come back at their time, or sooner with a new ask, your reply to one of its asks, or your prompt in its window.
+- **Snooze**, on a row's menu, puts the session off in an hour, later today, tonight (before 18:00), tomorrow, next week, or until it moves, its next turn ending. Its asks and its turn go together into Snoozed, and come back at their time, or sooner with a new ask, your reply to one of its asks, or your prompt in its window.
 - **Settings**, a window of its own (⌘,):
   - General: Open at login; the terminal new windows open in, Ghostty, with the leave to control it; and the resume command, with Restore Default.
   - Edge: Show (Notch, Strip or Nothing); its edge and display; for the notch, Style (Meniscus or Card); for the strip, Length (Grows or Full), and a Max slider at Grows; Black or Glass (from macOS 26); and Reduce motion.

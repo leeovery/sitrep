@@ -60,7 +60,7 @@ struct StripControllerMenuTests {
         strip.show(board)
 
         let actions = strip.rowActions(for: asleep)
-        actions.snooze(asleep.asks, .untilItMoves)
+        actions.snooze(asleep.asks, nil)
         actions.wake()
         actions.jump()
 

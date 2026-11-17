@@ -5,7 +5,7 @@
  * that one branch. Opened, it shows its whole title, its tree (what its
  * words are, where to look, Claude's own record of it, and where Lee's
  * reply stands) and its buttons, by what it wants back: a yes in its own
- * words, its options, the one Claude recommends marked beside it, or
+ * words, its options, the one Claude recommends marked before it, or
  * words, written in the prompt box (DESIGN.md, "Answering an ask"). Any
  * session's asks answer the same way; a reply names the session it goes to.
  *
@@ -18,6 +18,7 @@
 import {
   isAnswer,
   replyOnItsWay,
+  snoozeChoicesAt,
   VERDICTS,
   waitsOnLee,
   wakeWords,
@@ -59,12 +60,14 @@ const SNOOZED = { glyph: GLYPH.ask, color: C.grey }
 /** What snoozing an ask asks in place. */
 const SNOOZE_QUESTION = 'Snooze this session? Its asks, and your turn there, stop counting until it wakes.'
 
-/** Snooze's choices, each with its press's words. */
-const SNOOZE_CHOICES: readonly (readonly [SnoozeChoice, string])[] = [
-  ['later', 'later today'],
-  ['tomorrow', 'tomorrow'],
-  ['week', 'next week'],
-]
+/** Each of Snooze's choices as its press words it. */
+const SNOOZE_WORDS: Record<SnoozeChoice, string> = {
+  hour: 'in an hour',
+  later: 'later today',
+  tonight: 'tonight',
+  tomorrow: 'tomorrow',
+  week: 'next week',
+}
 
 /** What opens an ask's question of when to snooze it, in place of its buttons: this, then its address. */
 const snoozeKey = (key: string) => `snooze:${key}`
@@ -75,13 +78,13 @@ const refOf = ({ at, ask }: AskedAt): SitrepItemRef => ({ ...at, item: ask.id })
 /** The comment button's words: an answer's, on an ask read from its kind as a decide, where a comment closes it. */
 const commentLabel = (ask: Ask) => (isAnswer(ask, 'comment') ? '✎ answer' : '✎ comment')
 
-/** What follows the option Claude recommends, quiet as every secondary word beside a button. */
+/** What leads the option Claude recommends, in the ask's amber. */
 const RECOMMENDED = 'recommended'
 
 /** The option pressed first: the one Claude recommends, else the first. */
 const primaryOf = (ask: Ask) => ask.recommended ?? ask.options?.[0]
 
-/** An option's button, and beside it, where Claude recommends it, the word saying so. */
+/** An option's button, and before it, where Claude recommends it, the word saying so. */
 const drawOption = (d: Drawing, key: string, option: string, ask: Ask, onPress: () => void) => {
   const { Box, Text, Button } = d.els
   const button = (
@@ -93,13 +96,13 @@ const drawOption = (d: Drawing, key: string, option: string, ask: Ask, onPress: 
     />
   )
 
-  // The word keeps whole, and wraps under a long label on a narrow pane rather than breaking.
+  // The word keeps whole, and a long label wraps under it rather than leaving it to mark the option below.
   return option === ask.recommended ? (
     <Box key={`recommended:${key}`} flexDirection="row" columnGap={1} flexWrap="wrap">
-      {button}
       <Box flexShrink={0}>
-        <Text color={C.grey}>{RECOMMENDED}</Text>
+        <Text color={C.ask}>{RECOMMENDED}</Text>
       </Box>
+      {button}
     </Box>
   ) : (
     button
@@ -259,7 +262,7 @@ const drawAnswers = (d: Drawing, ask: Ask, standing: Standing) => {
   )
 }
 
-/** Snooze's question, in place of the ask's buttons: until when, each time worked out as it is pressed, or cancel, back to the buttons. */
+/** Snooze's question, in place of the ask's buttons: until when, the choices offered at the board's now, each time worked out as it is pressed, or cancel, back to the buttons. */
 const drawSnoozing = (d: Drawing, { at, key, waiting }: Standing) => {
   const { Box, Text, Button } = d.els
 
@@ -267,10 +270,10 @@ const drawSnoozing = (d: Drawing, { at, key, waiting }: Standing) => {
     <Box flexDirection="column">
       <Text wrap="wrap">{SNOOZE_QUESTION}</Text>
       <Box flexDirection="row" columnGap={1} flexWrap="wrap">
-        {SNOOZE_CHOICES.map(([when, label]) => (
+        {snoozeChoicesAt(d.scene.now).map(when => (
           <Button
             key={`snooze-${when}:${key}`}
-            label={label}
+            label={SNOOZE_WORDS[when]}
             onPress={() => d.act.snooze(at, waiting, when)}
           />
         ))}

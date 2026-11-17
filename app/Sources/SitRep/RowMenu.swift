@@ -18,11 +18,11 @@ enum RowMenu {
         let isSnoozed: Bool
     }
 
-    /// What each choice does: the snooze of the row's session, naming the asks it showed, with the time chosen, worked
-    /// out as it is pressed, or until it moves; the wake of its session.
+    /// What each choice does: the snooze of the row's session, naming the asks it showed, until the time its item
+    /// showed, worked out as the menu opened, or with none until it moves; the wake of its session.
     struct Actions {
         var jump: () -> Void
-        var snooze: ([String], SnoozeTime) -> Void
+        var snooze: ([String], Date?) -> Void
         var wake: () -> Void
     }
 
@@ -46,13 +46,13 @@ enum RowMenu {
         return menu
     }
 
-    /// Snooze, its times in a menu of their own.
+    /// Snooze, its times offered at `now` in a menu of their own.
     private static func snooze(
-        _ now: Date, _ calendar: Calendar, _ choose: @escaping (SnoozeTime) -> Void
+        _ now: Date, _ calendar: Calendar, _ choose: @escaping (Date?) -> Void
     ) -> NSMenuItem {
         let item = NSMenuItem(title: snoozeTitle, action: nil, keyEquivalent: "")
 
-        item.submenu = SnoozeMenu(SnoozeTime.offered, at: now, in: calendar, choose: choose)
+        item.submenu = SnoozeMenu(SnoozeTime.offered(at: now, in: calendar), at: now, in: calendar, choose: choose)
         return item
     }
 }
@@ -69,23 +69,27 @@ extension RowMenu.Row {
 
 /// Snooze's times, each with when it would wake at the right, dimmer than its name, and brighter as it is highlighted
 /// (board G), on a right tab stop, as AppKit's menus set no second label at the right of their own; Until it moves after
-/// a separator, with no time. The menu is its own delegate, to brighten the time highlighted.
+/// a separator, with no time. The menu is its own delegate, to brighten the time highlighted. Each time is worked out
+/// once, as the menu opens: chosen, it hands on the time it shows, none for Until it moves, so what is snoozed to is
+/// what Lee saw, though the clock or the zone moved while the menu stood open.
 @MainActor
 final class SnoozeMenu: NSMenu, NSMenuDelegate {
     private let choices: [SnoozeTime]
     private let times: [String]
 
-    init(_ choices: [SnoozeTime], at now: Date, in calendar: Calendar, choose: @escaping (SnoozeTime) -> Void) {
+    init(_ choices: [SnoozeTime], at now: Date, in calendar: Calendar, choose: @escaping (Date?) -> Void) {
+        let untils = choices.map { $0.wakes(after: now, in: calendar) }
+
         self.choices = choices
-        times = choices.map { $0.wakes(after: now, in: calendar).map { WakeTime.words($0, at: now, in: calendar) } ?? "" }
+        times = untils.map { $0.map { WakeTime.words($0, at: now, in: calendar) } ?? "" }
         super.init(title: RowMenu.snoozeTitle)
         autoenablesItems = false
         delegate = self
-        for choice in choices {
+        for (choice, until) in zip(choices, untils) {
             if choice == .untilItMoves {
                 addItem(.separator())
             }
-            addItem(ActionItem(choice.title) { choose(choice) })
+            addItem(ActionItem(choice.title) { choose(until) })
         }
         highlight(nil)
     }

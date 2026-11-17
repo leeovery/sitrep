@@ -9,17 +9,21 @@
 import { expect, test, tier } from './kit'
 import {
   HEARTBEAT_MS,
+  IN_AN_HOUR_MS,
   LATER_MS,
   parseEntries,
   sessionPaths,
   snoozeAt,
   UNTIL_IT_MOVES,
 } from '../core'
+import { actionsOf } from '../hooks/actions'
 import { AROUND_MS } from '../hooks/around'
+import type { Host } from '../hooks/host'
 import { C } from '../hooks/look'
 import { WATCH_MS } from '../hooks/window'
-import type { SitrepAttachment } from '../types'
+import type { SitrepAttachment, SitrepPane } from '../types'
 import { rowsOf } from './drawn'
+import { slot } from './host'
 import { CLI, CLOSES, GO, META, MIN, PROJECT, REVIEW, ROOT, SENDER, THEMES, W1, W2 } from './data'
 import { delivered, file, park, reply, snoozeSession, wakeSession, yesAsk } from './lines'
 import {
@@ -311,7 +315,7 @@ test('a waiting ask, opened, offers snooze among its buttons; a snoozed one, ope
   expect(await ui.find({ key: `snooze:${item}` })).toBeUndefined()
 })
 
-test('snooze asks in place until when, and snoozes the whole session: every ask of it quieted, the ask closed; later today, tomorrow and next week each write their time', async ($, on) => {
+test('snooze asks in place until when, and snoozes the whole session: every ask of it quieted, the ask closed; in an hour, later today, tonight, tomorrow and next week, in that order, each write their time', async ($, on) => {
   const w = fridayWorld($, on)
   const { paths, id: first } = await posted(w)
   const second = await asked(w, GO)
@@ -334,7 +338,14 @@ test('snooze asks in place until when, and snoozes the whole session: every ask 
     await ui.find({ key: `yes:${w.item(third)}` }),
     'the question in place of its buttons',
   ).toBeUndefined()
+  expect(await keysOf(ui, 'snooze-')).toEqual(
+    ['hour', 'later', 'tonight', 'tomorrow', 'week', 'no'].map(
+      when => `snooze-${when}:${w.item(third)}`,
+    ),
+  )
+  expect(await ui.find({ key: `snooze-hour:${w.item(third)}`, text: 'in an hour' })).toBeDefined()
   expect(await ui.find({ key: `snooze-later:${w.item(third)}`, text: 'later today' })).toBeDefined()
+  expect(await ui.find({ key: `snooze-tonight:${w.item(third)}`, text: 'tonight' })).toBeDefined()
   expect(await ui.find({ key: `snooze-tomorrow:${w.item(third)}`, text: 'tomorrow' })).toBeDefined()
   expect(await ui.find({ key: `snooze-week:${w.item(third)}`, text: 'next week' })).toBeDefined()
   expect(await ui.find({ key: `snooze-no:${w.item(third)}`, text: 'cancel' })).toBeDefined()
@@ -346,6 +357,8 @@ test('snooze asks in place until when, and snoozes the whole session: every ask 
   expect(await keysOf(ui, 'wake:')).toHaveLength(3)
 
   for (const [item, when] of [
+    [first, 'hour'],
+    [third, 'tonight'],
     [second, 'tomorrow'],
     [first, 'week'],
   ] as const) {
@@ -356,10 +369,61 @@ test('snooze asks in place until when, and snoozes the whole session: every ask 
 
   expect(linesOf(w, paths.log(W1), 'snoozeSession')).toMatchObject([
     { until: pressedAt + LATER_MS },
+    { until: pressedAt + IN_AN_HOUR_MS },
+    { until: local(2026, 10, 23, 18) },
     { until: local(2026, 10, 24, 9) },
     { until: local(2026, 10, 26, 9) },
   ])
-  expect(linesOf(w, paths.log(W1), 'wakeSession')).toHaveLength(2)
+  expect(linesOf(w, paths.log(W1), 'wakeSession')).toHaveLength(4)
+})
+
+/** A minute before 18:00 on Friday 23 October 2026, in the Mac's zone. */
+const EVENING = local(2026, 10, 23, 17, 59)
+
+test('from 18:00 Snooze offers no tonight, its time gone; the rest stand, in their order', async ($, on) => {
+  const w = world($, on, { now: EVENING })
+  const { id } = await posted(w)
+  const item = w.item(id)
+  const ui = await w.pane()
+
+  await ui.press({ key: `snooze:${item}` })
+  expect(await keysOf(ui, 'snooze-'), '17:59').toContain(`snooze-tonight:${item}`)
+  await w.clock.set(local(2026, 10, 23, 18))
+
+  expect(await keysOf(ui, 'snooze-'), '18:00').toEqual(
+    ['hour', 'later', 'tomorrow', 'week', 'no'].map(when => `snooze-${when}:${item}`),
+  )
+})
+
+/**
+ * Tonight pressed on a question drawn before 18:00, the press read at
+ * 18:00:30. The pane draws for the time alone only every half minute, so a
+ * question can stand past 18:00; the kit draws it afresh as its clock moves,
+ * so the press is the act's alone, on a host answering only what a refusal
+ * asks of it: what it toasts, or else what it logs failing, and the pane,
+ * whose question stays open, drawn with what is offered now (above).
+ */
+test('tonight drawn before 18:00 and pressed after snoozes nothing, a toast saying so, the question kept open', async () => {
+  const pane = slot<SitrepPane>({
+    isOpen: true,
+    place: null,
+    selected: 'snooze:ask',
+    resolvedInFull: null,
+    heldShown: null,
+    placement: {},
+  })
+  const said = Promise.withResolvers<string>()
+  const host = {
+    clock: { now: async () => local(2026, 10, 23, 18) + 30_000 },
+    state: { pane },
+    ui: { toast: said.resolve },
+    log: (text: string) => said.resolve(`logged: ${text}`),
+  } as unknown as Host
+
+  actionsOf(host).snooze({ project: PROJECT.key, session: THEMES.id }, ['k4'], 'tonight')
+
+  expect(await said.promise).toBe('Not snoozed: 18:00 has come already.')
+  expect((await pane.read()).selected).toBe('snooze:ask')
 })
 
 test("snooze's cancel goes back to the ask's buttons, and writes nothing", async ($, on) => {

@@ -9,7 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var works = Works(banners: banners, path: plugin.path) { [preferences] in
         preferences.app.openSettings
     }
-    private lazy var snoozes = Snoozes(plugin: plugin, banners: banners)
+    private lazy var snoozes = Snoozes(plugin: plugin, post: banners.post)
     private let feed = Feed()
     /// The plugin folder `watch` runs on; nil before it first starts.
     private var watching: String?

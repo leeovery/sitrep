@@ -6,9 +6,9 @@ import SitRepTestSupport
 import Testing
 
 /// A row's right-click menu on the card (Paper's boards F, G and I): Jump to the window, away too; then Snooze, its
-/// three times and Until it moves, on a Needs you row, its asks' or its turn's, or Wake now on a row in Snoozed;
-/// neither on a row of stops alone. A snooze puts off the row's session, naming the asks the row showed as it was drawn
-/// (13 November 2026).
+/// times still to come and Until it moves, on a Needs you row, its asks' or its turn's, or Wake now on a row in
+/// Snoozed; neither on a row of stops alone. A snooze puts off the row's session, naming the asks the row showed as it
+/// was drawn (13 November 2026).
 @MainActor
 @Suite(.backstop)
 struct RowMenuTests {
@@ -23,18 +23,20 @@ struct RowMenuTests {
         return calendar
     }()
 
-    /// What each choice was asked for, in the order chosen, and the asks each snooze named.
+    /// What each choice was asked for, in the order chosen, and the asks each snooze named, and when it wakes.
     private final class Heard {
         var said: [String] = []
         var named: [[String]] = []
+        var untils: [Date?] = []
     }
 
-    private static func menu(_ row: RowMenu.Row, _ heard: Heard) -> NSMenu {
+    /// The row's menu opened at `opened`, Friday at 14:00 unless told otherwise.
+    private static func menu(_ row: RowMenu.Row, _ heard: Heard, at opened: Date = now) -> NSMenu {
         RowMenu.make(
-            for: row, at: now, in: london,
+            for: row, at: opened, in: london,
             RowMenu.Actions(
                 jump: { heard.said.append("jump") },
-                snooze: { heard.said.append("snooze \($1.title)"); heard.named.append($0) },
+                snooze: { heard.said.append("snooze"); heard.named.append($0); heard.untils.append($1) },
                 wake: { heard.said.append("wake") }
             )
         )
@@ -73,23 +75,68 @@ struct RowMenuTests {
         #expect(heard.said == ["jump"])
     }
 
-    /// Every row offers the same: Snooze's three times, each with when it wakes, then after a separator Until it moves,
-    /// with no time, on a row of asks, its Claude working or not, as on a your-turn row, which names no ask.
+    /// Snooze's own menu, opened on Friday at 14:00.
+    private static func snoozeMenu() -> SnoozeMenu {
+        SnoozeMenu(SnoozeTime.offered(at: now, in: london), at: now, in: london) { _ in }
+    }
+
+    /// Every row offers the same: Snooze's five times, each with when it wakes, then after a separator Until it moves,
+    /// with no time, on a row of asks, its Claude working or not, as on a your-turn row, which names no ask. Each
+    /// snoozes until the time it shows, none for Until it moves.
     @Test(arguments: [["k1", "k3"], []])
-    func aRowOffersSnoozeItsThreeTimesThenUntilItMoves(asks: [String]) throws {
+    func aRowOffersSnoozeItsFiveTimesThenUntilItMoves(asks: [String]) throws {
         let heard = Heard()
         let menu = Self.menu(RowMenu.Row(asks: asks, isSnoozed: false), heard)
         let snooze = try #require(menu.items.last?.submenu)
 
         #expect(Self.titles(menu) == ["Jump to the window", "—", "Snooze"])
         #expect(Self.choices(snooze) == [
-            "Later today\t17:00", "Tomorrow\tSat 09:00", "Next week\tMon 09:00", "—", "Until it moves",
+            "In an hour\t15:00", "Later today\t17:00", "Tonight\t18:00", "Tomorrow\tSat 09:00",
+            "Next week\tMon 09:00", "—", "Until it moves",
         ])
 
-        try snooze.choose(1)
-        try snooze.choose(4)
-        #expect(heard.said == ["snooze Tomorrow", "snooze Until it moves"])
-        #expect(heard.named == [asks, asks])
+        try snooze.choose(0)
+        try snooze.choose(2)
+        try snooze.choose(3)
+        try snooze.choose(6)
+        #expect(heard.said == ["snooze", "snooze", "snooze", "snooze"])
+        #expect(heard.named == [asks, asks, asks, asks])
+        #expect(heard.untils == [
+            Self.now.addingTimeInterval(60 * 60), Self.evening(), Self.now.addingTimeInterval(19 * 60 * 60), nil,
+        ])
+    }
+
+    /// 18:00 on Friday 23 October 2026 in London, and so many seconds after.
+    private static func evening(_ seconds: TimeInterval = 0) -> Date {
+        now.addingTimeInterval(4 * 60 * 60 + seconds)
+    }
+
+    /// Tonight is offered until 18:00: at 17:59 it is, from 18:00 it is not, the rest standing in their order.
+    @Test func fromSixTonightIsNotOffered() throws {
+        let opened = { (at: Date) in
+            let menu = Self.menu(RowMenu.Row(asks: ["k1"], isSnoozed: false), Heard(), at: at)
+
+            return Self.choices(try #require(menu.items.last?.submenu))
+        }
+
+        #expect(try opened(Self.evening(-60)).contains("Tonight\t18:00"))
+        #expect(try opened(Self.evening()) == [
+            "In an hour\t19:00", "Later today\t21:00", "Tomorrow\tSat 09:00", "Next week\tMon 09:00", "—",
+            "Until it moves",
+        ])
+    }
+
+    /// An item hands on the time it showed, worked out as the menu opened, whenever it is chosen: a menu opened at
+    /// 17:59 snoozes Tonight until 18:00, and In an hour until 18:59, though chosen later.
+    @Test func anItemSnoozesUntilTheTimeItShowedAsTheMenuOpened() throws {
+        let heard = Heard()
+        let menu = Self.menu(RowMenu.Row(asks: ["k1"], isSnoozed: false), heard, at: Self.evening(-60))
+        let snooze = try #require(menu.items.last?.submenu)
+
+        #expect(Array(Self.choices(snooze).prefix(3)) == ["In an hour\t18:59", "Later today\t20:59", "Tonight\t18:00"])
+        try snooze.choose(2)
+        try snooze.choose(0)
+        #expect(heard.untils == [Self.evening(), Self.evening(-60).addingTimeInterval(60 * 60)])
     }
 
     @Test(arguments: [["k1"], []])
@@ -106,8 +153,8 @@ struct RowMenuTests {
     /// The times sit on one right tab stop past the longest name, dim, and brighter on the one highlighted; Until it
     /// moves, past the separator, its name alone.
     @Test func theTimesSitAtTheRightBrighterHighlighted() throws {
-        let snooze = SnoozeMenu(SnoozeTime.offered, at: Self.now, in: Self.london) { _ in }
-        let timed = Array(snooze.items.prefix(3))
+        let snooze = Self.snoozeMenu()
+        let timed = Array(snooze.items.prefix(5))
         let stops = try timed.map { item in
             try #require(item.attributedTitle?.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle)
         }
@@ -118,17 +165,17 @@ struct RowMenuTests {
         #expect(Set(stops.map(\.tabStops)).count == 1)
         #expect(stops[0].tabStops.map(\.alignment) == [.right])
         expectEvery(timed) { ink($0) == SnoozeMenu.dim }
-        #expect(ink(snooze.items[4]) == nil)
+        #expect(ink(snooze.items[6]) == nil)
 
         snooze.menu(snooze, willHighlight: snooze.items[2])
-        #expect(timed.map(ink) == [SnoozeMenu.dim, SnoozeMenu.dim, SnoozeMenu.lit])
+        #expect(timed.map(ink) == [SnoozeMenu.dim, SnoozeMenu.dim, SnoozeMenu.lit, SnoozeMenu.dim, SnoozeMenu.dim])
     }
 
     /// Past the separator, which takes no title of its own, Until it moves is its name alone, highlighted or not: no
     /// tab, and no time.
     @Test func untilItMovesIsDrawnWithNoTabAndNoTime() {
-        let snooze = SnoozeMenu(SnoozeTime.offered, at: Self.now, in: Self.london) { _ in }
-        let separator = snooze.items[3], moves = snooze.items[4]
+        let snooze = Self.snoozeMenu()
+        let separator = snooze.items[5], moves = snooze.items[6]
 
         #expect(separator.isSeparatorItem && separator.attributedTitle == nil)
         for lit in [nil, moves] {

@@ -1,36 +1,65 @@
 import Foundation
 
-/// Snooze's choices, as a card row's menu offers them, each worked out as it is pressed on the Gregorian calendar, as
-/// core's `snoozeAt` is, in the Mac's time zone, so 09:00 is 09:00 across a change of the clocks (DESIGN, "Snooze").
+/// Snooze's choices, in the order a card row's menu offers them, each worked out as it is pressed on the Gregorian
+/// calendar, as core's `snoozeAt` is, in the Mac's time zone, so 09:00 is 09:00 across a change of the clocks (DESIGN,
+/// "Snooze").
 public enum SnoozeChoice: CaseIterable, Sendable {
-    case laterToday, tomorrow, nextWeek
+    case inAnHour, laterToday, tonight, tomorrow, nextWeek
 
     public var title: String {
         switch self {
+        case .inAnHour: "In an hour"
         case .laterToday: "Later today"
+        case .tonight: "Tonight"
         case .tomorrow: "Tomorrow"
         case .nextWeek: "Next week"
         }
     }
 
-    /// When a snooze chosen at `now` wakes: Later today three hours on; Tomorrow 09:00 on the next calendar day, so
+    /// The choices offered at `now`, in their order, as core's `snoozeChoicesAt`: each whose time is still to come, so
+    /// Tonight none from 18:00 to midnight.
+    public static func offered(at now: Date, in calendar: Calendar) -> [SnoozeChoice] {
+        allCases.filter { $0.isOffered(at: now, in: calendar) }
+    }
+
+    /// Whether it is offered at `now`: its time is still to come.
+    private func isOffered(at now: Date, in calendar: Calendar) -> Bool {
+        wakes(after: now, in: calendar) > now
+    }
+
+    /// When a snooze chosen at `now` wakes: In an hour an hour on, and Later today three hours on, of real time
+    /// across a change of the clocks; Tonight 18:00 today, gone by then; Tomorrow 09:00 on the next calendar day, so
     /// pressed at 01:00 it wakes 32 hours on; Next week 09:00 on the Monday after today, a week on from a Monday.
     public func wakes(after now: Date, in calendar: Calendar) -> Date {
         let calendar = WakeTime.gregorian(like: calendar)
 
         return switch self {
-        case .laterToday: now.addingTimeInterval(Self.later)
-        case .tomorrow: Self.waking(days: 1, after: now, in: calendar)
+        case .inAnHour: now.addingTimeInterval(Self.inAnHourInterval)
+        case .laterToday: now.addingTimeInterval(Self.laterTodayInterval)
+        case .tonight: Self.at(Self.tonightHour, days: 0, after: now, in: calendar)
+        case .tomorrow: Self.at(Self.tomorrowHour, days: 1, after: now, in: calendar)
         case .nextWeek:
-            Self.waking(days: Self.toMonday(calendar.component(.weekday, from: now)), after: now, in: calendar)
+            Self.at(
+                Self.nextWeekHour, days: Self.toMonday(calendar.component(.weekday, from: now)), after: now,
+                in: calendar
+            )
         }
     }
 
-    /// How long Later today snoozes for: three hours.
-    static let later: TimeInterval = 3 * 60 * 60
+    /// How long In an hour snoozes for: an hour.
+    private static let inAnHourInterval: TimeInterval = 60 * 60
 
-    /// The hour Tomorrow and Next week wake at, local time.
-    private static let wakingHour = 9
+    /// How long Later today snoozes for: three hours.
+    private static let laterTodayInterval: TimeInterval = 3 * 60 * 60
+
+    /// The hour Tonight wakes at, local time.
+    private static let tonightHour = 18
+
+    /// The hour Tomorrow wakes at, local time.
+    private static let tomorrowHour = 9
+
+    /// The hour Next week wakes at, local time.
+    private static let nextWeekHour = 9
 
     /// The days from a weekday, the calendar's (Sunday 1), to the Monday after it: a week on from a Monday.
     private static func toMonday(_ weekday: Int) -> Int {
@@ -39,11 +68,11 @@ public enum SnoozeChoice: CaseIterable, Sendable {
         return days == 0 ? 7 : days
     }
 
-    /// 09:00 on the calendar day so many days after the one `now` falls on.
-    private static func waking(days: Int, after now: Date, in calendar: Calendar) -> Date {
+    /// That hour on the calendar day so many days after the one `now` falls on.
+    private static func at(_ hour: Int, days: Int, after now: Date, in calendar: Calendar) -> Date {
         let day = calendar.date(byAdding: .day, value: days, to: calendar.startOfDay(for: now))!
 
-        return calendar.date(bySettingHour: wakingHour, minute: 0, second: 0, of: day)!
+        return calendar.date(bySettingHour: hour, minute: 0, second: 0, of: day)!
     }
 }
 
@@ -53,8 +82,10 @@ public enum SnoozeTime: Hashable, Sendable {
     case at(SnoozeChoice)
     case untilItMoves
 
-    /// What every row's Snooze offers: Snooze's times, then until it moves.
-    public static let offered = SnoozeChoice.allCases.map(SnoozeTime.at) + [.untilItMoves]
+    /// What every row's Snooze offers at `now`: Snooze's times still to come, then until it moves.
+    public static func offered(at now: Date, in calendar: Calendar) -> [SnoozeTime] {
+        SnoozeChoice.offered(at: now, in: calendar).map(SnoozeTime.at) + [.untilItMoves]
+    }
 
     public var title: String {
         switch self {
@@ -92,6 +123,16 @@ extension Session {
 public enum WakeTime {
     /// What a row snoozed with no time says in a wake's place, on the card and to VoiceOver.
     public static let untilItMoves = "until it moves"
+
+    /// Why a snooze to `until`, pressed at `now`, snoozes nothing, in the pane's words: its time has come already, as
+    /// Tonight's has on a menu opened before 18:00 and chosen after. Nil while it is still to come, or with no time.
+    public static func comeAlready(_ until: Date?, at now: Date, in calendar: Calendar) -> String? {
+        guard let until, until <= now else {
+            return nil
+        }
+
+        return "\(words(until, at: now, in: calendar)) has come already."
+    }
 
     public static func words(_ wakes: Date, at now: Date, in calendar: Calendar, spoken: Bool = false) -> String {
         let calendar = gregorian(like: calendar)
