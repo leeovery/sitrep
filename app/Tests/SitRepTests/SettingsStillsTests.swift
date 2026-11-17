@@ -9,8 +9,9 @@ import SitRepTestSupport
 import SwiftUI
 import Testing
 
-/// Settings' panes, About SitRep and the menu's images drawn offscreen into PNGs, to read beside Paper's drawings: only
-/// when `SITREP_STILLS` names a folder for them, so a run of the tests writes nothing.
+/// Settings' panes, About SitRep and the menu's images drawn offscreen into PNGs, to read beside Paper's drawings, laid
+/// out at 2× as a Retina screen lays them out, which a view in no window is not: only when `SITREP_STILLS` names a
+/// folder for them, so a run of the tests writes nothing.
 @MainActor
 @Suite(.backstop, .enabled(if: stills != nil))
 struct SettingsStillsTests {
@@ -62,7 +63,10 @@ struct SettingsStillsTests {
     private static func render(
         _ view: some View, _ name: String, size: CGSize, sourceLocation: SourceLocation = #_sourceLocation
     ) throws {
-        let hosting = NSHostingView(rootView: view.frame(width: size.width, height: size.height).environment(\.colorScheme, .dark))
+        let hosting = NSHostingView(rootView: view
+            .frame(width: size.width, height: size.height)
+            .environment(\.colorScheme, .dark)
+            .environment(\.displayScale, 2))
 
         hosting.appearance = NSAppearance(named: .darkAqua)
         hosting.frame = CGRect(origin: .zero, size: size)

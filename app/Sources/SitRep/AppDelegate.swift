@@ -13,7 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let feed = Feed()
     /// The plugin folder `watch` runs on; nil before it first starts.
     private var watching: String?
-    private let preferences = Preferences(.standard)
+    private let preferences = Preferences(.standard, snoozeFile: .live)
     private let sounds = AlertSounds.live
     private let live = LiveBoard()
     private var menu: StatusMenu?

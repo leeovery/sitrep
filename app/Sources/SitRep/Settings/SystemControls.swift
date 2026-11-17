@@ -1,4 +1,5 @@
 import AppKit
+import SitRepPanel
 import SwiftUI
 
 /// The system's pop-up button, its choices in sections, a separator between each two, at its own width: its widest
@@ -65,6 +66,84 @@ struct PopUp<Value: Hashable>: NSViewRepresentable {
 
         @objc func chose(_ button: NSPopUpButton) {
             choose(button.selectedTag())
+        }
+    }
+}
+
+/// The system's time field with its stepper, as System Settings sets Night Shift's schedule: a time of day, its hour
+/// and minute in the Mac's own clock, 12-hour or 24, its digits of one width so a step never shifts them, each change
+/// saved through `time`. It holds the time on a fixed day in UTC, so no change of the clocks moves it.
+struct TimeField: NSViewRepresentable {
+    let label: String
+    @Binding var time: TimeOfDay
+
+    func makeNSView(context: Context) -> NSDatePicker {
+        let picker = NSDatePicker()
+
+        picker.datePickerStyle = .textFieldAndStepper
+        picker.datePickerElements = .hourMinute
+        picker.font = .monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+        picker.calendar = Self.calendar
+        picker.timeZone = Self.calendar.timeZone
+        picker.target = context.coordinator
+        picker.action = #selector(Coordinator.changed(_:))
+        picker.setAccessibilityLabel(label)
+        return picker
+    }
+
+    func updateNSView(_ picker: NSDatePicker, context: Context) {
+        let date = Self.date(of: time)
+
+        context.coordinator.time = $time
+        if picker.dateValue != date {
+            picker.dateValue = date
+        }
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView picker: NSDatePicker, context: Context) -> CGSize? {
+        let size = picker.intrinsicContentSize
+
+        return CGSize(width: size.width + Self.room, height: size.height)
+    }
+
+    /// More than AppKit gives the field: at its own width, drawn offscreen on 17 November 2026 at 1× and at 2×, the
+    /// last 0 of 18:00 ran into the field's edge; this gives it the field's inset at its right too.
+    static let room: CGFloat = 6
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(time: $time)
+    }
+
+    /// The Gregorian calendar in UTC, which has no change of the clocks.
+    static let calendar: Calendar = {
+        var calendar = Calendar(identifier: .gregorian)
+
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        return calendar
+    }()
+
+    /// The time on the field's day.
+    static func date(of time: TimeOfDay) -> Date {
+        calendar.date(from: DateComponents(year: 2001, month: 1, day: 1, hour: time.hour, minute: time.minute))!
+    }
+
+    /// The time a date on the field holds.
+    static func time(of date: Date) -> TimeOfDay {
+        let parts = calendar.dateComponents([.hour, .minute], from: date)
+
+        return TimeOfDay(hour: parts.hour!, minute: parts.minute!)
+    }
+
+    @MainActor
+    final class Coordinator: NSObject {
+        var time: Binding<TimeOfDay>
+
+        init(time: Binding<TimeOfDay>) {
+            self.time = time
+        }
+
+        @objc func changed(_ picker: NSDatePicker) {
+            time.wrappedValue = TimeField.time(of: picker.dateValue)
         }
     }
 }

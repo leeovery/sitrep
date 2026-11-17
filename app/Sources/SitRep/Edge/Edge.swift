@@ -28,13 +28,11 @@ final class Edge {
     /// What Lee set, followed as it changes; `jump` jumps to a session, and tells once it answers whether it jumped;
     /// `snoozes` snoozes and wakes a row's asks from its menu.
     init(_ preferences: Preferences, jump: @escaping (String, @escaping (JumpAnswer) -> Void) -> Void, snoozes: Snoozes) {
-        let settings = preferences.edge, display = Displays.chosen(settings)
-        let folding = Folding(kept: preferences.savedCard)
+        let settings = preferences.edge
 
         self.preferences = preferences
         self.settings = settings
-        notch = NotchController(settings, on: display, folding: folding)
-        strip = StripController(settings, on: display, folding: folding)
+        (notch, strip) = Self.shapes(preferences, on: Displays.chosen(settings))
         notch.onJump = jump
         notch.onSnooze = { snoozes.snoozeRow($0, showing: $1, $2) }
         notch.onWake = { snoozes.wakeRow($0) }
@@ -47,6 +45,19 @@ final class Edge {
         preferences.onEdge = { [unowned self] in apply($0) }
         listen()
         show()
+    }
+
+    /// The notch and the strip on `display`, as `preferences` has them: their sections folded alike, and each row's
+    /// Snooze offering the choices as Lee has them as its menu opens. Apart from `init`, so the tests make them on no
+    /// screen.
+    static func shapes(_ preferences: Preferences, on display: Display) -> (NotchController, StripController) {
+        let settings = preferences.edge, folding = Folding(kept: preferences.savedCard)
+        let snooze = { preferences.snooze }
+
+        return (
+            NotchController(settings, on: display, folding: folding, snoozeSettings: snooze),
+            StripController(settings, on: display, folding: folding, snoozeSettings: snooze)
+        )
     }
 
     /// The board as `watch` last printed it, for the notch and the strip, pulsing the notch as Lee set it.

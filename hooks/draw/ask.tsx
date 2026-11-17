@@ -66,6 +66,7 @@ const SNOOZE_WORDS: Record<SnoozeChoice, string> = {
   later: 'later today',
   tonight: 'tonight',
   tomorrow: 'tomorrow',
+  weekend: 'this weekend',
   week: 'next week',
 }
 
@@ -152,8 +153,9 @@ const buttonsFor = (d: Drawing, at: SitrepItemRef, ask: Ask, verdict: Verdict) =
  * Where an ask stands as drawn: the reply it waits to send, or the one on
  * its way, whether Lee is answering it in the prompt, when it wakes while
  * snoozed, whether it can be snoozed, waiting on Lee in a session not
- * finished and not snoozed, whether it is asking when to, opened still,
- * and the asks of its session drawn waiting, which its snooze names.
+ * finished and not snoozed with some choice offered, the choices offered,
+ * whether it is asking when to, opened still, and the asks of its session
+ * drawn waiting, which its snooze names.
  */
 const standingOf = (d: Drawing, asked: AskedAt, waiting: readonly string[]) => {
   const { ask, snoozedUntil, isFinished } = asked
@@ -163,6 +165,7 @@ const standingOf = (d: Drawing, asked: AskedAt, waiting: readonly string[]) => {
   const isClosed = ask.state === 'closed'
   const { selected } = d.scene.pane
   const isChoosing = selected === snoozeKey(key) && !isClosed
+  const offered = snoozeChoicesAt(d.scene.now, d.scene.snooze)
 
   return {
     at,
@@ -172,7 +175,8 @@ const standingOf = (d: Drawing, asked: AskedAt, waiting: readonly string[]) => {
     isAnswering: isBeingAnswered(d, at),
     isClosed,
     snoozedUntil,
-    canSnooze: !isFinished && snoozedUntil === undefined && waitsOnLee(ask),
+    canSnooze: !isFinished && snoozedUntil === undefined && waitsOnLee(ask) && offered.length > 0,
+    offered,
     isChoosing,
     waiting,
     isOpen: (selected === key && !isClosed) || isChoosing,
@@ -228,7 +232,7 @@ const branchesOf = (d: Drawing, ask: Ask, color: string, standing: Standing) => 
   )
 }
 
-/** The press that asks when to snooze an ask waiting on Lee; none for one snoozed, or one that waits on Claude or on a reply on its way. */
+/** The press that asks when to snooze an ask waiting on Lee; none for one snoozed, one that waits on Claude or on a reply on its way, or while no choice is offered. */
 const snoozeButton = (d: Drawing, { key, canSnooze }: Standing) => {
   const { Button } = d.els
 
@@ -262,15 +266,15 @@ const drawAnswers = (d: Drawing, ask: Ask, standing: Standing) => {
   )
 }
 
-/** Snooze's question, in place of the ask's buttons: until when, the choices offered at the board's now, each time worked out as it is pressed, or cancel, back to the buttons. */
-const drawSnoozing = (d: Drawing, { at, key, waiting }: Standing) => {
+/** Snooze's question, in place of the ask's buttons: until when, the choices offered at the board's now as the app set them, each time worked out as it is pressed, or cancel, back to the buttons. */
+const drawSnoozing = (d: Drawing, { at, key, waiting, offered }: Standing) => {
   const { Box, Text, Button } = d.els
 
   return (
     <Box flexDirection="column">
       <Text wrap="wrap">{SNOOZE_QUESTION}</Text>
       <Box flexDirection="row" columnGap={1} flexWrap="wrap">
-        {snoozeChoicesAt(d.scene.now).map(when => (
+        {offered.map(when => (
           <Button
             key={`snooze-${when}:${key}`}
             label={SNOOZE_WORDS[when]}

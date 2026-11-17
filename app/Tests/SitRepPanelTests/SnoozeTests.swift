@@ -20,31 +20,99 @@ struct SnoozeTests {
         london.date(from: DateComponents(year: 2026, month: month, day: day, hour: hour, minute: minute))!
     }
 
+    private static let defaults = SnoozeSettings()
+
     private static func wakes(_ choice: SnoozeChoice, after now: Date) -> Date {
-        choice.wakes(after: now, in: london)
+        choice.wakes(after: now, in: london, settings: defaults)
     }
 
     /// A row of the table of wake times core's `snoozeAt` is held to as well, in `tests/wakes.ts`: its zone, its
-    /// choice, when it was pressed and when it wakes, none where Snooze does not offer it then, and the rest of its row
-    /// in words, for a failure to name.
+    /// choice, the settings it gives, when it was pressed and when it wakes, none where Snooze does not offer it then,
+    /// and the rest of its row in words, for a failure to name.
     private struct Wake {
-        let zone: String, choice: SnoozeChoice, pressed: Date, wakes: Date?, words: String
+        let zone: String, choice: SnoozeChoice, settings: SnoozeSettings, pressed: Date, wakes: Date?, words: String
 
         init(_ row: Substring, sourceLocation: SourceLocation = #_sourceLocation) throws {
             let fields = row.split(whereSeparator: \.isWhitespace)
             let instant = { (field: Substring) in
                 Date(timeIntervalSince1970: try #require(Double(field), sourceLocation: sourceLocation) / 1000)
             }
-            let choices: [Substring: SnoozeChoice] = [
-                "hour": .inAnHour, "later": .laterToday, "tonight": .tonight, "tomorrow": .tomorrow, "week": .nextWeek,
-            ]
 
             try #require(fields.count > 4, "a row of the table: \(row)", sourceLocation: sourceLocation)
+
+            let setting = fields[1].split(separator: ":").map(String.init)
+
             zone = String(fields[0])
-            choice = try #require(choices[fields[1]], sourceLocation: sourceLocation)
+            choice = try #require(Self.choices[setting[0]], "a choice: \(row)", sourceLocation: sourceLocation)
+            settings = try #require(
+                Self.settings(choice, Array(setting.dropFirst())), "a setting: \(row)", sourceLocation: sourceLocation
+            )
             pressed = try instant(fields[2])
             wakes = fields[3] == "-" ? nil : try instant(fields[3])
             words = fields[4...].joined(separator: " ")
+        }
+
+        /// Each choice by core's name for it.
+        static let choices: [String: SnoozeChoice] = [
+            "hour": .inAnHour, "later": .laterToday, "tonight": .tonight, "tomorrow": .tomorrow,
+            "weekend": .thisWeekend, "week": .nextWeek,
+        ]
+
+        /// The defaults with the row's own choice's setting over them: `off`; Later today's hours on (`+1`); Tonight's
+        /// and Tomorrow's time (`20:00`); This weekend's and Next week's day, by its first three letters, and time
+        /// (`sun:09:00`), each on. A choice alone is the defaults; nil for a setting the choice does not take.
+        static func settings(_ choice: SnoozeChoice, _ setting: [String]) -> SnoozeSettings? {
+            var settings = SnoozeSettings()
+
+            guard !setting.isEmpty, setting != ["off"] else {
+                settings.set(choice, on: setting.isEmpty && settings.isOn(choice))
+                return settings
+            }
+
+            let hours = SnoozeSettings.HoursOn.choices.first { setting == ["+\($0)"] }
+            let at = setting.count == 2 ? time(setting[0], setting[1]) : nil
+            let day = setting.count == 3 ? Self.day(setting[0]) : nil
+            let dayAt = setting.count == 3 ? time(setting[1], setting[2]) : nil
+
+            switch choice {
+            case .inAnHour:
+                return nil
+            case .laterToday:
+                guard let hours else {
+                    return nil
+                }
+                settings.laterToday = .init(isOn: true, hours: hours)
+            case .tonight:
+                guard let at else {
+                    return nil
+                }
+                settings.tonight = .init(isOn: true, at: at)
+            case .tomorrow:
+                guard let at else {
+                    return nil
+                }
+                settings.tomorrow = .init(isOn: true, at: at)
+            case .thisWeekend:
+                guard let day, Weekday.weekend.contains(day), let dayAt else {
+                    return nil
+                }
+                settings.thisWeekend = .init(isOn: true, day: day, at: dayAt)
+            case .nextWeek:
+                guard let day, let dayAt else {
+                    return nil
+                }
+                settings.nextWeek = .init(isOn: true, day: day, at: dayAt)
+            }
+            return settings
+        }
+
+        private static func day(_ short: String) -> Weekday? {
+            Weekday.allCases.first { short.count == 3 && $0.rawValue.hasPrefix(short) }
+        }
+
+        /// A time as the file holds one, read as the settings read it, so one out of range is none.
+        private static func time(_ hour: String, _ minute: String) -> TimeOfDay? {
+            try? JSONDecoder().decode(TimeOfDay.self, from: Data("\"\(hour):\(minute)\"".utf8))
         }
     }
 
@@ -61,8 +129,8 @@ struct SnoozeTests {
         }
     }
 
-    /// Every row is offered and wakes at its time, worked out on the Gregorian calendar in its zone; one with no time
-    /// is not offered.
+    /// Every row is offered and wakes at its time, worked out on the Gregorian calendar in its zone under its settings;
+    /// one with no time is not offered.
     @Test func eachChoiceWakesAtTheTablesTimeInItsZone() throws {
         let table = try Self.table()
 
@@ -72,35 +140,80 @@ struct SnoozeTests {
 
             calendar.timeZone = try #require(TimeZone(identifier: wake.zone))
 
-            let isOffered = SnoozeChoice.offered(at: wake.pressed, in: calendar).contains(wake.choice)
-            let wakes = isOffered ? wake.choice.wakes(after: wake.pressed, in: calendar) : nil
+            let isOffered = SnoozeChoice.offered(at: wake.pressed, in: calendar, settings: wake.settings)
+                .contains(wake.choice)
+            let wakes = isOffered ? wake.choice.wakes(after: wake.pressed, in: calendar, settings: wake.settings) : nil
 
             #expect(wakes == wake.wakes, "\(wake.zone) \(wake.words)")
         }
     }
 
-    /// Snooze's choices come in core's order, In an hour first and Tonight third, and every one is offered but Tonight
-    /// from 18:00 to midnight, at every hour of October 2026 in London, the clocks going back among them.
-    @Test func everyChoiceIsOfferedButTonightFromSixToMidnight() {
+    /// The table sets every choice, each as its row says over the defaults: so the rows under settings of Lee's are
+    /// read as such, not as the defaults.
+    @Test func theTablesRowsSetEveryChoiceOverTheDefaults() throws {
+        let table = try Self.table()
+        let set = { (words: String) in table.first { $0.words.hasSuffix(words) }?.settings }
+        var later = SnoozeSettings(), weekend = SnoozeSettings(), tomorrow = SnoozeSettings()
+
+        later.laterToday = .init(isOn: true, hours: 4)
+        weekend.thisWeekend = .init(isOn: true, day: .sunday, at: TimeOfDay(hour: 10, minute: 30))
+        tomorrow.tomorrow.isOn = false
+        #expect(set(": four hours on") == later)
+        #expect(set(": a Friday, the clocks going back between") == weekend)
+        #expect(set(": Tomorrow off") == tomorrow)
+        #expect(Set(table.filter { $0.settings != Self.defaults }.map(\.choice)) == Set(SnoozeChoice.allCases))
+    }
+
+    /// Snooze's choices come in core's order, In an hour first and Tonight third, and by default every one is offered
+    /// but This weekend, off, and Tonight from 18:00 to midnight, at every hour of October 2026 in London, the clocks
+    /// going back among them.
+    @Test func byDefaultEveryChoiceIsOfferedButThisWeekendAndTonightFromSixToMidnight() {
         let start = Self.at(1, 0)
 
-        #expect(SnoozeChoice.allCases == [.inAnHour, .laterToday, .tonight, .tomorrow, .nextWeek])
+        #expect(SnoozeChoice.allCases == [.inAnHour, .laterToday, .tonight, .tomorrow, .thisWeekend, .nextWeek])
         for hour in 0 ..< 31 * 24 {
             let now = start.addingTimeInterval(TimeInterval(hour) * 60 * 60)
             let isEvening = Self.london.component(.hour, from: now) >= 18
-            let expected = SnoozeChoice.allCases.filter { !(isEvening && $0 == .tonight) }
+            let expected = SnoozeChoice.allCases.filter { $0 != .thisWeekend && !(isEvening && $0 == .tonight) }
 
-            #expect(SnoozeChoice.offered(at: now, in: Self.london) == expected, "\(now)")
+            #expect(SnoozeChoice.offered(at: now, in: Self.london, settings: Self.defaults) == expected, "\(now)")
+        }
+    }
+
+    /// This weekend on is offered from Monday until its day's time and not from then until Monday, on Saturday or on
+    /// Sunday, at every hour of October 2026 in London.
+    @Test(arguments: [(Weekday.saturday, 5), (.sunday, 6)])
+    func thisWeekendIsOfferedFromMondayUntilItsDaysTime(day: Weekday, place: Int) {
+        var settings = SnoozeSettings()
+        let start = Self.at(1, 0)
+
+        settings.thisWeekend = .init(isOn: true, day: day, at: TimeOfDay(hour: 9))
+        for hour in 0 ..< 31 * 24 {
+            let now = start.addingTimeInterval(TimeInterval(hour) * 60 * 60)
+            let today = (Self.london.component(.weekday, from: now) + 5) % 7
+            let isComing = today < place || (today == place && Self.london.component(.hour, from: now) < 9)
+
+            #expect(
+                SnoozeChoice.offered(at: now, in: Self.london, settings: settings).contains(.thisWeekend) == isComing,
+                "\(now)"
+            )
         }
     }
 
     /// What a row's Snooze offers: the choices offered then, and Until it moves always, after them.
     @Test func aRowsSnoozeOffersTheChoicesOfferedThenAndUntilItMoves() {
-        #expect(SnoozeTime.offered(at: Self.at(23, 17, 59), in: Self.london) == [
+        var settings = SnoozeSettings()
+
+        #expect(SnoozeTime.offered(at: Self.at(23, 17, 59), in: Self.london, settings: settings) == [
             .at(.inAnHour), .at(.laterToday), .at(.tonight), .at(.tomorrow), .at(.nextWeek), .untilItMoves,
         ])
-        #expect(SnoozeTime.offered(at: Self.at(23, 18), in: Self.london) == [
+        #expect(SnoozeTime.offered(at: Self.at(23, 18), in: Self.london, settings: settings) == [
             .at(.inAnHour), .at(.laterToday), .at(.tomorrow), .at(.nextWeek), .untilItMoves,
+        ])
+        settings.thisWeekend.isOn = true
+        settings.inAnHour.isOn = false
+        #expect(SnoozeTime.offered(at: Self.at(23, 18), in: Self.london, settings: settings) == [
+            .at(.laterToday), .at(.tomorrow), .at(.thisWeekend), .at(.nextWeek), .untilItMoves,
         ])
     }
 
@@ -169,10 +282,24 @@ struct SnoozeTests {
         #expect(WakeTime.words(elul, at: now, in: calendar) == "6 Sep 09:00")
         #expect(WakeTime.words(Self.at(3, 9, month: 11), at: now, in: calendar, spoken: true) == "3 November 09:00")
         #expect(WakeTime.words(Self.at(24, 9), at: now, in: calendar) == "Sat 09:00")
-        #expect(SnoozeChoice.allCases.map { $0.wakes(after: now, in: calendar) }
+        #expect(SnoozeChoice.allCases.map { $0.wakes(after: now, in: calendar, settings: Self.defaults) }
             == SnoozeChoice.allCases.map { Self.wakes($0, after: now) })
+        #expect(SnoozeChoice.allCases.map { $0.wakes(after: now, in: calendar, settings: Self.leesOwn) }
+            == SnoozeChoice.allCases.map { $0.wakes(after: now, in: Self.london, settings: Self.leesOwn) })
         #expect(WakeTime.changes(after: now, in: calendar) == Self.at(24, 0))
     }
+
+    /// Settings of Lee's, every choice's time other than its default.
+    private static let leesOwn: SnoozeSettings = {
+        var settings = SnoozeSettings()
+
+        settings.laterToday.hours = 1
+        settings.tonight.at = TimeOfDay(hour: 20, minute: 30)
+        settings.tomorrow.at = TimeOfDay(hour: 7)
+        settings.thisWeekend = .init(isOn: true, day: .sunday, at: TimeOfDay(hour: 10))
+        settings.nextWeek = .init(isOn: true, day: .friday, at: TimeOfDay(hour: 8, minute: 30))
+        return settings
+    }()
 
     /// The calendar the app works snoozes out on is the Gregorian, whatever the Mac is set to, in the Mac's time zone:
     /// one held since follows the zone as the Mac's changes, here through `TZ`, which the process's system zone is read

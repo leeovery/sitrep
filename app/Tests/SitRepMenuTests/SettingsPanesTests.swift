@@ -5,13 +5,13 @@ import SitRepEdge
 import SitRepTestSupport
 import Testing
 
-/// The Settings window's four panes, top to bottom in its sidebar, each with its name and symbol (DESIGN, "Settings").
+/// The Settings window's five panes, top to bottom in its sidebar, each with its name and symbol (DESIGN, "Settings").
 @Suite(.backstop)
 struct SettingsPaneTests {
-    @Test func thePanesAreGeneralEdgeNotificationsAndClaudeCode() {
-        #expect(SettingsPane.allCases.map(\.title) == ["General", "Edge", "Notifications", "Claude Code"])
+    @Test func thePanesAreGeneralEdgeNotificationsSnoozeAndClaudeCode() {
+        #expect(SettingsPane.allCases.map(\.title) == ["General", "Edge", "Notifications", "Snooze", "Claude Code"])
         #expect(SettingsPane.allCases.map(\.symbol) == [
-            "gearshape", "rectangle.leadingthird.inset.filled", "bell", "terminal",
+            "gearshape", "rectangle.leadingthird.inset.filled", "bell", "moon.zzz", "terminal",
         ])
     }
 }
@@ -141,7 +141,7 @@ struct WindowsBehindTests {
     }
 }
 
-/// The sidebar's rows: the four panes, Claude Code alone counting the windows behind, and only while there are some.
+/// The sidebar's rows: the five panes, Claude Code alone counting the windows behind, and only while there are some.
 @Suite(.backstop)
 struct SettingsSidebarRowTests {
     private static func behind(_ count: Int) -> WindowsBehind {
@@ -156,7 +156,7 @@ struct SettingsSidebarRowTests {
         let rows = SettingsSidebarRow.rows(Self.behind(3))
 
         #expect(rows.map(\.pane) == SettingsPane.allCases)
-        #expect(rows.map(\.count) == [nil, nil, nil, 3])
+        #expect(rows.map(\.count) == [nil, nil, nil, nil, 3])
     }
 
     @Test func withNoneBehindNoRowCounts() {

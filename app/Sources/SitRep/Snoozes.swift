@@ -5,7 +5,7 @@ import SitRepPanel
 /// Lee's snoozes and wakes from a card row's menu, through the plugin's CLI: a snooze until the time its menu showed,
 /// worked out as it opened, on the Gregorian calendar in the Mac's time zone (`WakeTime.calendar`). The menu has
 /// nowhere to say a refusal, so a banner says it, as a jump's does; and so it says a time come already, Tonight on a
-/// menu opened before 18:00 and chosen after, which snoozes nothing.
+/// menu opened before its time and chosen after, which snoozes nothing.
 @MainActor
 final class Snoozes {
     private let plugin: Plugin

@@ -5,7 +5,7 @@
  * a write draws it again.
  */
 import type { Timer } from 'claude-code'
-import { closingReply, isOpen, resolvedAsks, type Ask, type Session } from '../core'
+import { closingReply, heldSnooze, isOpen, resolvedAsks, type Ask, type Session } from '../core'
 import type {
   SitrepAnswering,
   SitrepInFlight,
@@ -16,6 +16,7 @@ import type {
   SitrepQueued,
   SitrepScroll,
   SitrepSent,
+  SitrepSnooze,
 } from '../types'
 import { sessionOf } from './board'
 import { logFailure, type Host } from './host'
@@ -55,6 +56,8 @@ export type Scene = {
   answering: SitrepAnswering | null
   pulse: SitrepPulse
   flash: number
+  /** Snooze's choices as the app set them. */
+  snooze: SitrepSnooze
   now: number
 }
 
@@ -76,6 +79,7 @@ export const sceneOf = async (host: Host): Promise<Scene | undefined> => {
     answering,
     pulse,
     flash,
+    snooze,
     now,
   ] = await Promise.all([
     host.state.board.read(),
@@ -91,6 +95,7 @@ export const sceneOf = async (host: Host): Promise<Scene | undefined> => {
     host.state.answering.read(),
     host.state.pulse.read(),
     host.state.flash.read(),
+    host.state.snooze.read(),
     host.clock.now(),
     // Read only so the drawing is subscribed to it: a tick draws the scene again.
     host.state.tick.read(),
@@ -117,6 +122,7 @@ export const sceneOf = async (host: Host): Promise<Scene | undefined> => {
     answering,
     pulse,
     flash,
+    snooze: heldSnooze(snooze),
     now,
   }
 }

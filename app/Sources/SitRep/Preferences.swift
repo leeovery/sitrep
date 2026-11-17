@@ -6,9 +6,10 @@ import SitRepMenu
 import SitRepPanel
 
 /// What Lee sets, the one place it is kept: the edge's settings, which the menu's Show, Settings and a drag change, and
-/// the rest beside them, each saved as one value as it changes. The edge follows every change Lee makes at once; a
-/// drag's move it made itself. The pane the Settings window last showed is kept here too, on its own, so no follower
-/// hears a turn to a pane, whether a welcome has closed on this Mac, and the callout its Done leaves.
+/// the rest beside them, each saved as one value as it changes, Snooze's choices written for the pane in Claude Code
+/// too. The edge follows every change Lee makes at once; a drag's move it made itself. The pane the Settings window
+/// last showed is kept here too, on its own, so no follower hears a turn to a pane, whether a welcome has closed on
+/// this Mac, and the callout its Done leaves.
 @MainActor
 @Observable
 final class Preferences {
@@ -17,6 +18,16 @@ final class Preferences {
         didSet {
             if app != oldValue {
                 savedApp.save(app)
+            }
+        }
+    }
+
+    /// Snooze's choices: each change saved, and written to `snooze.json` for the pane in Claude Code.
+    var snooze: SnoozeSettings {
+        didSet {
+            if snooze != oldValue {
+                savedSnooze.save(snooze)
+                snoozeFile?.write(snooze)
             }
         }
     }
@@ -55,6 +66,9 @@ final class Preferences {
     @ObservationIgnored var onEdge: (EdgeSettings) -> Void = { _ in }
     @ObservationIgnored private let savedEdge: SavedEdgeSettings
     @ObservationIgnored private let savedApp: SavedSettings<AppSettings>
+    @ObservationIgnored private let savedSnooze: SavedSettings<SnoozeSettings>
+    /// Where Snooze's choices are written for the pane; none in a test.
+    @ObservationIgnored private let snoozeFile: SnoozeFile?
     @ObservationIgnored private let savedSettingsWindow: SavedSettings<SettingsWindowSettings>
     @ObservationIgnored private let savedWelcome: SavedSettings<WelcomeSettings>
     @ObservationIgnored private let savedCallout: SavedSettings<CalloutSettings>
@@ -66,12 +80,17 @@ final class Preferences {
     static let retired = ["windowLocation", "windowLastSession", "windowLooked", "NSWindow Frame SitRepWindow"]
 
     /// What it reads, and the window's keys taken out, quietly, at each start, which finds them gone after the first.
-    init(_ defaults: UserDefaults) {
+    /// Snooze's choices are written to `snoozeFile` as it starts, so the file says what the app has, whatever wrote it
+    /// last.
+    init(_ defaults: UserDefaults, snoozeFile: SnoozeFile? = nil) {
         Self.retired.filter { defaults.object(forKey: $0) != nil }.forEach(defaults.removeObject(forKey:))
         savedEdge = SavedEdgeSettings(defaults)
         savedApp = SavedSettings(defaults)
         edge = savedEdge.read()
         app = savedApp.read()
+        savedSnooze = SavedSettings(defaults)
+        snooze = savedSnooze.read()
+        self.snoozeFile = snoozeFile
         savedSettingsWindow = SavedSettings(defaults)
         settingsPane = savedSettingsWindow.read().pane
         savedWelcome = SavedSettings(defaults)
@@ -79,6 +98,7 @@ final class Preferences {
         savedCallout = SavedSettings(defaults)
         callout = savedCallout.read()
         savedCard = SavedSettings(defaults)
+        snoozeFile?.write(snooze)
     }
 
     /// A change Lee makes to the edge's settings: the edge takes it, and it is saved, unless it is one step of a drag

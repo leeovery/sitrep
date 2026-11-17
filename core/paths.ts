@@ -2,6 +2,7 @@
  * Where sitrep's files live. Core names the paths; the front ends read and
  * write them.
  *
+ *   <root>/snooze.json          Snooze's choices as Lee set them in SitRep
  *   <root>/projects/<project key>/
  *     project.json              the project's name and directory
  *     sessions/<session id>/
@@ -73,6 +74,11 @@ export const rootOf = (env: { XDG_STATE_HOME?: string; HOME?: string }) => {
 }
 
 export const projectsDir = (root: string) => `${root}/projects`
+
+/** Snooze's choices as Lee set them in SitRep, which the app alone writes, at the folder's top. */
+export const SNOOZE_FILE = 'snooze.json'
+
+export const snoozeFile = (root: string) => `${root}/${SNOOZE_FILE}`
 
 export const projectPaths = (root: string, project: string): ProjectPaths => {
   const dir = `${projectsDir(root)}/${safe(project)}`

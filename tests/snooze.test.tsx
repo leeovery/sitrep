@@ -10,10 +10,10 @@ import { expect, test, tier } from './kit'
 import {
   HEARTBEAT_MS,
   IN_AN_HOUR_MS,
-  LATER_MS,
   parseEntries,
   sessionPaths,
   snoozeAt,
+  SNOOZE_DEFAULTS,
   UNTIL_IT_MOVES,
 } from '../core'
 import { actionsOf } from '../hooks/actions'
@@ -63,6 +63,9 @@ const fridayWorld = ($: Parameters<typeof world>[0], on: Parameters<typeof world
 
 /** Long enough for a new ask's pulse to run out, ASKS' heading back on its counts. */
 const REST_MS = 5_000
+
+/** How long Later today snoozes for by default. */
+const DEFAULT_LATER_MS = SNOOZE_DEFAULTS.later.hours * IN_AN_HOUR_MS
 
 /**
  * A session begun with an ask posted, which the board opens as new, and a
@@ -115,7 +118,12 @@ test("the pane's snooze writes one line through the hold into the window's own f
   await w.call('park', { title: 'Drew round 2' })
 
   expect(linesOf(w, paths.log(W1), 'snoozeSession')).toMatchObject([
-    { type: 'snoozeSession', until: snoozeAt('tomorrow', pressedAt), asks: [id], at: pressedAt },
+    {
+      type: 'snoozeSession',
+      until: snoozeAt('tomorrow', pressedAt, SNOOZE_DEFAULTS),
+      asks: [id],
+      at: pressedAt,
+    },
   ])
   expect(
     parseEntries(w.text(paths.log(W1)))
@@ -147,7 +155,7 @@ test("another session's snooze is read back and written whole into the window's 
     [2, 'snoozeSession'],
   ])
   expect(parseEntries(w.text(MINE)).at(-1)).toMatchObject({
-    until: pressedAt + LATER_MS,
+    until: pressedAt + DEFAULT_LATER_MS,
     at: pressedAt,
   })
   expect(w.files.has(sessionPaths(ROOT, PROJECT.key, THEMES.id).letters(W1))).toBe(false)
@@ -368,7 +376,7 @@ test('snooze asks in place until when, and snoozes the whole session: every ask 
   }
 
   expect(linesOf(w, paths.log(W1), 'snoozeSession')).toMatchObject([
-    { until: pressedAt + LATER_MS },
+    { until: pressedAt + DEFAULT_LATER_MS },
     { until: pressedAt + IN_AN_HOUR_MS },
     { until: local(2026, 10, 23, 18) },
     { until: local(2026, 10, 24, 9) },
@@ -415,7 +423,7 @@ test('tonight drawn before 18:00 and pressed after snoozes nothing, a toast sayi
   const said = Promise.withResolvers<string>()
   const host = {
     clock: { now: async () => local(2026, 10, 23, 18) + 30_000 },
-    state: { pane },
+    state: { pane, snooze: slot(SNOOZE_DEFAULTS) },
     ui: { toast: said.resolve },
     log: (text: string) => said.resolve(`logged: ${text}`),
   } as unknown as Host

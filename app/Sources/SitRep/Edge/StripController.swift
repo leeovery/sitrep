@@ -18,6 +18,8 @@ final class StripController: NSObject, CalloutShape {
     var onJump: (String, @escaping (JumpAnswer) -> Void) -> Void = { _, _ in }
     /// A session's menu's Snooze: the session, the asks its row showed, and the time chosen, or until it moves.
     var onSnooze: (String, [String], Date?) -> Void = { _, _, _ in }
+    /// Snooze's choices as Lee set them, read as a session's menu opens.
+    private let snoozeSettings: () -> SnoozeSettings
     /// A Snoozed session's menu's Wake now: the session.
     var onWake: (String) -> Void = { _ in }
     /// A drag let the strip go: the settings with its new place.
@@ -40,9 +42,14 @@ final class StripController: NSObject, CalloutShape {
     private let caption = CaptionWindow()
     private var monitors: [Any] = []
 
-    /// On its display, its sections folded as `folding` has them, the card's setting as well.
-    init(_ settings: EdgeSettings, on display: Display, folding: Folding) {
+    /// On its display, its sections folded as `folding` has them, the card's setting as well, each session's Snooze
+    /// offering what `snoozeSettings` gives as its menu opens.
+    init(
+        _ settings: EdgeSettings, on display: Display, folding: Folding,
+        snoozeSettings: @escaping () -> SnoozeSettings
+    ) {
         self.settings = settings
+        self.snoozeSettings = snoozeSettings
         edge = ScreenEdge(display, settings)
         run = StripRun(
             at: Displays.now, in: .on(edge, settings), settings, folding: folding, measure: StripWordsLayer.measure
@@ -250,13 +257,19 @@ final class StripController: NSObject, CalloutShape {
             return nil
         }
 
-        let menu = StripMenu.make(
-            for: target, at: Date(), in: run.calendar, row: { [unowned self] in rowActions(for: $0) },
-            fold: { [unowned self] in fold($0, folded: $1) }
-        )
+        let menu = menu(for: target)
 
         menu.delegate = self
         return menu
+    }
+
+    /// The menu of a session's mark or row, or of a count, opened now. Internal only for the tests, which open it.
+    func menu(for target: StripTarget) -> NSMenu {
+        StripMenu.make(
+            for: target, at: Date(), in: run.calendar, offering: snoozeSettings(),
+            row: { [unowned self] in rowActions(for: $0) },
+            fold: { [unowned self] in fold($0, folded: $1) }
+        )
     }
 
     /// A session's menu's choices, each for the session by its own id, in Snoozed or not: its jump goes to its mark as

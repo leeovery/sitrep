@@ -12,9 +12,20 @@ export function kept(on: On) {
   /** How many times each of the mod's values was put in `$.state`. */
   const writes: Partial<Record<keyof Sitrep, number>> = {}
   let isUnread = false
+  /** The snooze settings `$.state` holds in place of what the mod puts there, as another build stored them; none, what it puts. */
+  let heldSnooze: unknown
+
+  /** What `$.state` holds of what the mod puts there. */
+  const storedOf = <T extends { key: string; value: unknown }>(input: T): T => {
+    if (isUnread && input.key === 'others') {
+      return { ...input, value: [] }
+    }
+
+    return heldSnooze !== undefined && input.key === 'snooze' ? { ...input, value: heldSnooze } : input
+  }
 
   on('state.set', ($, input, next) => {
-    const e = isUnread && input.key === 'others' ? { ...input, value: [] } : input
+    const e = storedOf(input)
 
     Object.assign(state, { [e.key]: e.value })
     writes[e.key as keyof Sitrep] = (writes[e.key as keyof Sitrep] ?? 0) + 1
@@ -33,6 +44,11 @@ export function kept(on: On) {
     /** The other sessions the board reads in full, from here on, never land in `$.state`: as before the look reading one has, only their briefs are there. */
     leaveUnread: () => {
       isUnread = true
+    },
+
+    /** The snooze settings the mod puts in `$.state` are held from here on as `settings`, in whatever shape another build stored them. */
+    holdSnoozeAs: (settings: unknown) => {
+      heldSnooze = settings
     },
 
     /** An item's address on the board, as its buttons are keyed (`pick:<address>`): in the held session, unless another is named. */

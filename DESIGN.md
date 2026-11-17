@@ -1036,14 +1036,16 @@ shape is ever shown as a word:
 - **Ignore** tells Claude Lee has seen it and won't act on it.
 - **Snooze** follows the buttons, dim, on an ask waiting on Lee: none while
   it waits on Claude (Lee's comment) or on a reply of Lee's on its way, once
-  it is snoozed, nor in a finished session, where nothing waits on Lee. It
-  asks in place, the buttons giving way to `Snooze this session? Its asks,
-  and your turn there, stop counting until it wakes.` (13 November 2026;
-  `Snooze it? It stops counting until it wakes.` until then) over
-  `[ in an hour ]` `[ later today ]` `[ tonight ]` `[ tomorrow ]` `[ next week ]`
-  `[ cancel ]`, `tonight` left out from 18:00 (see "Snooze"); a choice
-  writes the session's snooze and closes the ask, cancel goes back to the
-  buttons, and the ask's title closes it (see "Snooze").
+  it is snoozed, nor in a finished session, where nothing waits on Lee; nor
+  while no choice is offered, every one off or the clock past those on
+  (17 November 2026). It asks in place, the buttons giving way to `Snooze
+  this session? Its asks, and your turn there, stop counting until it
+  wakes.` (13 November 2026; `Snooze it? It stops counting until it wakes.`
+  until then) over the choices offered (see "Snooze"), then `[ cancel ]`;
+  a choice writes the session's snooze and closes the ask, cancel goes back
+  to the buttons, and the ask's title closes it (see "Snooze"). Should the
+  clock pass every choice while the question stands, the ask's buttons
+  come back in its place, with no snooze.
 - **What a reply does once Claude has it:** a yes, a choice or an answer
   closes the ask; ignore drops it; a comment leaves it open, replied, for
   Claude to act on.
@@ -2077,44 +2079,90 @@ too"); since then the session does, its asks and its turn together (see
   its window's, and is never snoozed: it stays in Needs you. On the card,
   snoozing a row snoozes its session; in the pane, snoozing any ask of a
   session does. Only Lee snoozes: Claude has no tool for it.
-- **The times**, Snooze's five choices, in this order on every surface:
-  - In an hour: an hour from now;
-  - Later today: three hours from now;
-  - Tonight: 18:00 today;
-  - Tomorrow: 09:00 on the day after today;
-  - Next week: 09:00 on the Monday after today, a week on from a Monday.
+- **The times**, Snooze's six choices, in this order on every surface: In
+  an hour, Later today, Tonight, Tomorrow, This weekend and Next week, each
+  Lee's to switch on or off and to time in SitRep's Settings, by default as
+  the table under "Lee sets the times", below, gives. Then Until it moves,
+  on the card, with no time, and no setting: see "The row snoozes".
 
-  Then Until it moves, on the card, with no time: see "The row snoozes".
-
-  **In an hour** (Lee, 17 November 2026): the shortest, first, and always
-  offered. As Later today's, its time is real time, so across a change of
-  the clocks it wakes an hour on, whatever the wall clock reads.
+  **In an hour** (Lee, 17 November 2026): the shortest, first, and offered
+  at any hour while on. As Later today's, its time is real time, so across
+  a change of the clocks it wakes an hour on, whatever the wall clock reads.
 
   **Tonight** (Lee, 17 November 2026): he wanted an evening choice. It is
-  offered only while its time is to come, so from 18:00 until midnight no
-  surface offers it, as Apple Mail leaves out its own once it has passed;
-  between 15:00 and 18:00 both it and Later today are offered, Later today
-  waking after it. A choice is offered while the time it comes to is still
-  to come, the one rule every surface asks of core's `snoozeChoicesAt` or
-  the app's `SnoozeChoice.offered`, so only Tonight is ever left out.
-  Tonight pressed once 18:00 has passed, on a question or a menu drawn
-  before, snoozes nothing, the rule stated once on the time it comes to,
-  come already: the pane toasts `Not snoozed: 18:00 has come already.` and
-  keeps its question open, drawn with what is offered now; the app posts
-  the same words in its Not snoozed banner. The app's menu works out each
+  offered only while its time is to come, so from 18:00, or the time Lee
+  set, until midnight no surface offers it, as Apple Mail leaves out its
+  own once it has passed; between 15:00 and 18:00 both it and Later today
+  are offered, Later today waking after it. Its time may be any of the
+  day's, a morning's too, on purpose: Lee sets when it wakes, and the clock
+  leaves it out once that has passed, so no hour is barred that he might
+  mean. A choice is offered while Lee has it on and the time it comes to
+  is still to come, the one rule every surface asks of core's
+  `snoozeChoicesAt` or the app's `SnoozeChoice.offered`, so only Tonight
+  and This weekend are ever left out by the clock. Tonight pressed once its
+  time has passed, on a question
+  or a menu drawn before, snoozes nothing, the rule stated once on the time
+  it comes to, come already: the pane toasts `Not snoozed: 18:00 has come
+  already.` and keeps its question open, drawn with what is offered now,
+  or gives way to the ask's buttons where nothing is; the app posts the
+  same words in its Not snoozed banner. The app's menu works out each
   item's time as it opens, and a choice snoozes to the time its item
   showed, so a clock or a zone moving while the menu stands open never
-  changes what Lee picked.
+  changes what Lee picked. The pane's question shows no times: a choice
+  pressed there is worked out at the press, from the settings as the pane
+  last read them, so one Lee switched off since it was drawn still
+  snoozes, as he pressed it.
 
-  Each choice's length or hour is a named constant of its own in each
-  copy, In an hour's and Later today's lengths (`IN_AN_HOUR_MS`,
-  `LATER_MS`; `inAnHourInterval`, `laterTodayInterval`), and Tonight's,
-  Tomorrow's and Next week's hours (`TONIGHT_HOUR`, `TOMORROW_HOUR`,
-  `NEXT_WEEK_HOUR`; `tonightHour`, `tomorrowHour`, `nextWeekHour`),
-  the last two both 09:00 for now: Snooze's choices are to become
-  Lee's to set in Settings, each on or off at a time of his, which the app
-  writes for the pane to read. The CLI takes a time alone (`--until`), and
-  works out none.
+  **This weekend** (Lee, 17 November 2026): it wakes at its time on the
+  weekend's day Lee chose, Saturday or Sunday, of this week, the week
+  running Monday to Sunday as Next week's does. So it is offered from
+  Monday until that day's time, and left out after it until Monday, by the
+  rule every choice is offered by, its time to come: on a Sunday afternoon
+  it is never offered for the weekend six days on, which it would not
+  name. Set to Sunday, it is offered on Saturday too, waking the next
+  morning. Off by default, as Lee set it.
+
+  **Next week** wakes at its time on the day Lee chose of the week after
+  this one, the week running Monday to Sunday: by default the Monday after
+  today, a week on from a Monday; set to Friday, pressed on a Wednesday, the
+  Friday nine days on, and on a Sunday, the Friday five days on. It is
+  never in the past, so always offered while on.
+
+  **Lee sets the times** (17 November 2026). Lee asked for snooze set as
+  Spark sets its own: a fixed set of choices, each switched on or off with
+  its own time; not Spark's length of a snooze, and no choices of his own.
+  So each choice comes when he means it to, and one he has no use for
+  leaves every menu. The app owns the settings, in its own defaults and its
+  Settings window's Snooze pane (see "Settings"), and writes them to a
+  small file the mod reads, so the pane in Claude Code offers the same
+  choices (see `snooze.json`, under "Storage"):
+
+  | Choice | Lee sets | Default |
+  |---|---|---|
+  | In an hour | on or off, always an hour of real time | on |
+  | Later today | on or off, and 1, 2, 3 or 4 hours on | on, 3 hours |
+  | Tonight | on or off, and the time | on, 18:00 |
+  | Tomorrow | on or off, and the time | on, 09:00 |
+  | This weekend | on or off, Saturday or Sunday, and the time | off, Saturday 09:00 |
+  | Next week | on or off, the day, and the time | on, Monday 09:00 |
+
+  A time is set to the minute, in the system's time field with its
+  stepper, as System Settings sets Night Shift's schedule. With every
+  choice off, a row's Snooze holds Until it moves alone, with no
+  separator, and the pane offers no snooze. The defaults are one constant
+  in each copy, core's `SNOOZE_DEFAULTS` and the app's
+  `SnoozeSettings()`, and every surface works out a choice from the
+  settings it is given: `snoozeAt(choice, now, settings)` and
+  `snoozeChoicesAt(now, settings)`, `SnoozeChoice.wakes(after:in:settings:)`
+  and `SnoozeChoice.offered(at:in:settings:)`. A time on a day the clocks
+  skip it is read past the change, 01:30 as 02:30 where 01:00 goes to
+  02:00, and one they pass twice as the first. Until then each choice's
+  length or hour was a named constant of each copy (`LATER_MS`,
+  `TONIGHT_HOUR`, `TOMORROW_HOUR`, `NEXT_WEEK_HOUR`; `laterTodayInterval`,
+  `tonightHour`, `tomorrowHour`, `nextWeekHour`), for this to take; In an
+  hour's length stays one (`IN_AN_HOUR_MS`, `inAnHourInterval`). The CLI
+  takes a time alone (`--until`), and works out none, so it reads no
+  setting.
 
   Lee: "We can always improve and add new options there." Each is worked out
   where it is pressed, on the Gregorian calendar in that Mac's time zone,
@@ -2135,8 +2183,15 @@ too"); since then the session does, its asks and its turn together (see
   side of a Monday, after midnight, and across each zone's changes of the
   clocks in 2026, In an hour's among them; and for Tonight, at 17:59, at
   18:00 and after, a row giving `-` for no time where the choice is not
-  offered. The kit runs core's tests in the Mac's own zone and can set
-  no other, so they run each row with a `Date` of its zone in the global's
+  offered. Rows under settings other than the defaults carry their setting
+  with their choice (17 November 2026): Later today at 1 hour on
+  (`later:+1`), Tonight at 20:00 (`tonight:20:00`), This weekend on
+  Saturday or Sunday (`weekend:sun:09:00`; `weekend` alone is the default,
+  off), Next week on Friday (`week:fri:09:00`), a choice switched off
+  (`tomorrow:off`), and times the clocks skip or pass twice; each side
+  reads a row's setting over the defaults. The kit runs core's tests in the
+  Mac's own zone and can set no other, so they run each row with a `Date`
+  of its zone in the global's
   place (`tests/zoned.ts`), checked against the real one in the Mac's own
   zone wherever that zone changes its clocks.
 
@@ -2281,9 +2336,10 @@ it: Snoozed is an exception to "each session appears once", as Projects is.
   (14 November 2026; see "The strip"), and until then showed none either.
   How it looks is drawn in Paper.
 - **Snooze, from a row:** a right-click on a card's Needs you row whose
-  lines hold asks, or on a your-turn row, offers Snooze, then In an hour,
-  Later today, Tonight before 18:00, Tomorrow or Next week, and after a
-  separator Until it moves, the same on every row: `sitrep snooze` of its
+  lines hold asks, or on a your-turn row, offers Snooze, then the choices
+  offered, as Lee set them (In an hour, Later today, Tonight, Tomorrow,
+  This weekend, Next week), and after a separator Until it moves, the same
+  on every row: `sitrep snooze` of its
   session, naming the asks the row shows, by their ids, so an ask that
   landed after it was drawn is never snoozed unseen. A row of stops alone
   offers none.
@@ -2317,9 +2373,11 @@ while no `watch` ran, the app quit, brings no swell, as any line then.
   (`3 Nov 09:00`), or `snoozed until it moves`. Opened, it answers as any
   ask does, and answering it answers it, waking its session. The heading says both: `1 waiting · 2
   snoozed`.
-- A waiting ask, opened, offers `snooze` among its buttons, which asks in
-  place, as the pane's finish does: `in an hour`, `later today`, `tonight`
-  before 18:00, `tomorrow`, `next week`, `cancel`. A choice writes one
+- A waiting ask, opened, offers `snooze` among its buttons while any choice
+  is offered, which asks in place, as the pane's finish does: the choices
+  offered, as the app's
+  `snooze.json` sets them (`in an hour`, `later today`, `tonight`,
+  `tomorrow`, `this weekend`, `next week`), then `cancel`. A choice writes one
   `snoozeSession` line in the ask's session, naming as the CLI's check
   takes them the asks of that session the pane drew waiting, its time
   worked out at the press; `wake now` writes one
@@ -2586,6 +2644,7 @@ writers and readers stay safe:
 
 ```
 $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
+  snooze.json                 Snooze's choices as Lee set them in SitRep: the app's alone, for the pane
   projects/<project key>/
     project.json              name, directory, created and by whom: the project's own
     sessions/<session id>/
@@ -2605,6 +2664,80 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   writes it too. It breaks the one-file-per-writer rule below: whichever
   writer makes the change rewrites it whole, and the last write wins. That
   is fine for a file rewritten only that rarely, by Claude, at Lee's word.
+- **`snooze.json`** (17 November 2026; see "Lee sets the times", under
+  "Snooze"): Snooze's choices as Lee set them in SitRep's Settings, for the
+  pane in Claude Code to offer the same. It sits at the folder's top, beside
+  `projects/`, where every reader of the board already looks, and the CLI
+  reads it not. The defaults, as the app's encoder writes them, indented,
+  their keys in order (`tests/choices.ts` holds the encoder to its text):
+
+  ```
+  {
+    "hour" : {
+      "on" : true
+    },
+    "later" : {
+      "hours" : 3,
+      "on" : true
+    },
+    "tomorrow" : {
+      "at" : "09:00",
+      "on" : true
+    },
+    "tonight" : {
+      "at" : "18:00",
+      "on" : true
+    },
+    "v" : 1,
+    "week" : {
+      "at" : "09:00",
+      "day" : "monday",
+      "on" : true
+    },
+    "weekend" : {
+      "at" : "09:00",
+      "day" : "saturday",
+      "on" : false
+    }
+  }
+  ```
+
+  Each choice by core's name for it; `on` whether it is offered; Later
+  today's `hours`, 1 to 4; a time as `at`, `HH:MM` on the 24-hour clock; This
+  weekend's `day`, `saturday` or `sunday`, and Next week's any weekday, by
+  its English name in lower case.
+  - **The app alone writes it,** from what it keeps in its own defaults
+    (`snooze`), whenever a snooze setting changes and as SitRep starts, so
+    it always says what the app has, a file another build wrote put right
+    at the next start. It writes the whole file beside it, then renames it
+    over the old (`Data.write`'s `.atomic`), so a reader never sees half a
+    file. It finds the folder as core's `rootOf` does, from its own
+    environment, which its CLI's `watch` runs with, so the file sits by the
+    board SitRep shows.
+  - **The mod reads it** at each look around the held session, every 5
+    seconds: the look lists sitrep's folder, reads the file again only once
+    its size or time moved, and puts what it says in `$.state` (`snooze`)
+    only when that changed, so the pane draws from it and never reads the
+    file as it draws, and a change shows within a look. A read that failed
+    is not kept, so the next look reads the file again; nor is one taken
+    within 2 seconds of the file's time, as git distrusts a file changed as
+    its index was written: a rewrite of the same size within the time's
+    resolution, a second on HFS+ and two on exFAT, leaves the time as it
+    was. A press works out its time from what `$.state` holds then.
+  - **Read leniently,** never an error the pane shows, nor one that stops a
+    look: a file missing, unreadable, not a JSON object, or whose `v` is
+    not a whole number from 1, or is later than the reader's, reads as the
+    defaults; within one, each choice and each field of it is read on its
+    own, by its type, one missing, of another type or out of range taking
+    its default, so a file partly filled keeps what it says. A field a
+    later version adds is passed over. Its format is 1, its table of
+    upgrades empty (core's `snooze.ts`, by `versions.ts`).
+  - **What `$.state` holds is read whole** where the pane draws and a press
+    works out its time (core's `heldSnooze`): a choice it lacks, or a field
+    of one, takes its default, so a build that adds a choice draws, and
+    snoozes, before its first look rewrites what an older build stored.
+  - SitRep is its one writer, as the one-file-per-writer rule below has
+    every file, so it needs no lock.
 - **Folders from before projects were named** keep their keys
   (`code-84dbac88`, `switchboard-7a75d7ba`, from the folder a window
   started in): no key is renamed. Without a `project.json`, such a project is
@@ -4995,10 +5128,12 @@ window, and so did the menu's Open in SitRep.
 
 On a row whose lines hold asks, or a your-turn row (since 4 November 2026,
 board I), the menu goes on, after a separator, with Snooze (board G, 23
-October 2026; see "Snooze"): a submenu of In an hour, Later today, Tonight
-before 18:00 (both 17 November 2026), Tomorrow and Next week, each with
-the time it wakes on its right, worded as a Snoozed row words it, in
-white at 45%, at 70% on the highlighted item, then a separator and Until
+October 2026; see "Snooze"): a submenu of the choices offered, as Lee set
+them in Settings' Snooze pane: In an hour, Later today, Tonight while its
+time is to come (both 17 November 2026), Tomorrow, This weekend while its
+time is to come and Next week, each with the time it wakes on its right,
+worded as a Snoozed row words it, in white at 45%, at 70% on the
+highlighted item, then a separator and Until
 it moves, with no time on its right, the same on every row (13 November
 2026). A choice runs `sitrep snooze` of the row's session
 with the ids of the asks the row showed, none on a your-turn row, its time
@@ -5992,11 +6127,12 @@ live changed, and how they group.
   opens on the pane it last showed, General the first time.
 - **Xcode 27's frame** (Paper's boards A to D): 820 by 620 to start, and
   resizable. A sidebar floats 8 in from the window's edges, 180 wide, with
-  the traffic lights on it, listing the four panes as rows 32 tall, each
+  the traffic lights on it, listing the five panes as rows 32 tall, each
   with its symbol, General's gear, Edge's screen with the notch at its
-  side, Notifications' bell and Claude Code's terminal. The pane shown is
-  the accent while the window is key and the system's grey when not. The
-  toolbar holds back and forward in one capsule, which step through the
+  side, Notifications' bell, Snooze's moon with its z's and Claude Code's
+  terminal. The pane shown is the accent while the window is key and the
+  system's grey when not. The toolbar holds back and forward in one
+  capsule, which step through the
   panes shown, as ⌘[ and ⌘] do while it is key, the app's Go menu's, as
   System Settings' do; and the pane's name beside it, 15 bold. A pane is
   sections:
@@ -6011,8 +6147,10 @@ live changed, and how they group.
   window has a least size at which every row's control keeps its place
   beside its words.
 - **Its rows:** cards at radius 12, as Xcode's, split by the system's
-  separator, half a point, 10 in from both ends, one box deep: rows of
-  SitRep's own at the form's metrics, not SwiftUI's grouped Form, whose
+  separator, a pixel of the screen it is laid out on, half a point at 2×
+  and a whole one at 1×, where half a point rounded to none under every
+  other row of 52 (17 November 2026), 10 in from both ends, one box deep:
+  rows of SitRep's own at the form's metrics, not SwiftUI's grouped Form, whose
   sections draw their own fill and insets, scroll on their own and draw
   nothing as a still. A row's label is 13, its line under it 11 in the
   secondary colour; a row is at least 52 tall with a line, 38 without, its
@@ -6025,8 +6163,8 @@ live changed, and how they group.
   its widest choice, as every Mac pop-up is; bordered push buttons; and the
   mini switch, 36 by 16, as the HIG gives a grouped form. Orange stays for
   needs you, so it appears only inside the pictures and the glyph. The
-  panes, top to bottom in the sidebar: General, Edge, Notifications and
-  Claude Code.
+  panes, top to bottom in the sidebar: General, Edge, Notifications, Snooze
+  (17 November 2026) and Claude Code.
 - **Edge**, round 9's What stays on screen, named in the sidebar for
   where it all goes, opens on a card of its own, the **Show row**, set as
   Xcode's Appearance pane opens on its own and as System
@@ -6166,6 +6304,31 @@ live changed, and how they group.
   `notifiesNewAsks`, `playsSound` and `sound` are a new ask's still, and
   his turn's are keys of their own, `notifiesTurns`, `playsTurnSound`,
   `turnSound` and `pulsesTurns`, beside the ask's `pulsesNewAsks`.
+- **Snooze** (17 November 2026; see "Lee sets the times", under
+  "Snooze"): one section, **Choices**, a card of six rows, one for each of
+  Snooze's choices in their order, each its name, a line under it saying
+  when it wakes, and against the card's right its controls, then its
+  switch. While the switch is off its controls grey, as Sound greys with
+  its switch, and the row's words stay. In an hour has the switch alone,
+  "One hour from when you snooze"; Later today a pop-up of 1, 2, 3 or 4
+  hours, "This many hours from when you snooze"; Tonight the time, "At
+  this time today; not offered once it has passed"; Tomorrow the time, "At
+  this time tomorrow"; This weekend a pop-up, Saturday or Sunday, and the
+  time, "On this day this week; not offered once it has passed"; Next week
+  a pop-up of the weekdays, Monday first, and the time, "On this day next
+  week". Each pop-up at its own width, as every Mac pop-up is, so This
+  weekend's two days stand narrower than Next week's seven. A time is the
+  system's time field with its stepper, its hour and minute in the Mac's
+  own clock, 12-hour or 24, given 6 more than AppKit's own width, where its
+  last digit ran into its edge. Each choice keeps its controls in its own
+  row, on purpose, where Notifications gives a sound's pop-up a row of its
+  own under its switch: a row for each choice's switch and one for its
+  times would make 12, twice the card for the same six choices. Under the
+  card, its caption: "SitRep's Snooze menus and the pane in Claude Code
+  offer these. The menus also offer Until it moves.", the menus the
+  card's and the strip's. Saved under "snooze" in the app's defaults, and
+  written to `snooze.json` (see "Storage") as it changes. Not yet drawn in
+  Paper.
 - **General**: Startup, Terminal and Resume command, as stage 8's
   rethink regroups it (13 November 2026; built in the PR after it). Until
   then Startup, Ghostty and, since 10 November 2026, New windows (below).

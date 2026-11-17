@@ -1,5 +1,5 @@
 import { expect, test, tier } from './kit'
-import { parseEntries, sessionPaths } from '../core'
+import { parseEntries, sessionPaths, SNOOZE_DEFAULTS, snoozeFile } from '../core'
 import { AROUND_MS } from '../hooks/around'
 import { isShowing, SENT_LINGER_MS } from '../hooks/queue'
 import { readyRows, rowsOf } from './drawn'
@@ -314,6 +314,25 @@ test('a sent reply whose item changed before it went in shows there as not deliv
   await w.clock.advance(SENT_LINGER_MS)
   expect(await ui.find({ type: 'Text', text: 'to Invoice ledger' })).toBeUndefined()
   expect(w.state.sent).toEqual([])
+})
+
+test('a snooze.json whose time is no text still lets each look settle what was sent, the pane offering the defaults', async ($, on) => {
+  const w = world($, on)
+
+  w.put(snoozeFile(ROOT), '{"v":1,"tonight":{"on":true,"at":{"toString":0}}}')
+
+  const { ledger, ui } = await threeSessions(w)
+
+  await answer(ui, LEDGER.id, 'k3')
+  await ui.press({ key: 'send' })
+  ledger.write({ type: 'edit', item: 'k3', changes: { wants: 'choice', options: ['Now', 'Later'] } })
+  ledger.beat()
+  await w.clock.advance(AROUND_MS)
+  expect(w.state.sent).toHaveLength(1)
+
+  await w.clock.advance(SENT_LINGER_MS)
+  expect(w.state.sent).toEqual([])
+  expect(w.state.snooze).toEqual(SNOOZE_DEFAULTS)
 })
 
 test("a reply queued to another session's ask that Lee answered from elsewhere first, or that Claude closed, is not sent: Ready to send keeps it, saying why", async ($, on) => {

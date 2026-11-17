@@ -1,11 +1,19 @@
 /**
  * Snooze's wake times as core's `snoozeAt` works them out, and the choices
  * `snoozeChoicesAt` offers, every row of the table the app's copy is held to
- * as well, each in its own time zone; and the zone the kit is given for a
- * row, proven to be that zone.
+ * as well, each in its own time zone under its own settings; when Tonight
+ * and This weekend are offered, hour by hour; and the zone the kit is given
+ * for a row, proven to be that zone.
  */
 import { expect, test } from './kit'
-import { SNOOZE_CHOICES, snoozeAt, snoozeChoicesAt } from '../core'
+import {
+  SNOOZE_CHOICES,
+  SNOOZE_DEFAULTS,
+  snoozeAt,
+  snoozeChoicesAt,
+  type SnoozeChoice,
+  type SnoozeSettings,
+} from '../core'
 import { WAKES, type Wake } from './wakes'
 import { inZone, LOCAL_ZONE, LONDON, NEW_YORK } from './zoned'
 
@@ -138,18 +146,44 @@ test('the table holds a row Snooze offers and one it does not, so neither half b
 })
 
 /** When a row's choice wakes, worked out at its press, where Snooze offers it then; none where it does not. */
-const wakeOf = (wake: Wake) =>
-  snoozeChoicesAt(wake.pressed).includes(wake.choice)
-    ? snoozeAt(wake.choice, wake.pressed)
+const wakeOf = ({ choice, pressed, settings }: Wake) =>
+  snoozeChoicesAt(pressed, settings).includes(choice)
+    ? snoozeAt(choice, pressed, settings)
     : undefined
 
-test('Snooze offers each row its choice and wakes at the time the table gives, worked out in its zone; one it gives no time, it does not offer', () => {
+test('Snooze offers each row its choice and wakes at the time the table gives, worked out in its zone under its settings; one it gives no time, it does not offer', () => {
   for (const wake of WAKES) {
     expect(
       inZone(wake.zone, () => wakeOf(wake)),
       `${wake.zone} ${wake.choice}, ${wake.words}`,
     ).toBe(wake.wakes)
   }
+})
+
+test("the table's rows set each choice in each way Lee can set it, and each reads its setting over the defaults, the rest left as they are", () => {
+  const set = (field: string) => WAKES.find(wake => wake.words.endsWith(field))?.settings
+
+  expect(set(': four hours on')).toEqual({ ...SNOOZE_DEFAULTS, later: { isOn: true, hours: 4 } })
+  expect(set(': 20:00 today')).toEqual({
+    ...SNOOZE_DEFAULTS,
+    tonight: { isOn: true, at: { hour: 20, minute: 0 } },
+  })
+  expect(set(': a Monday, the Saturday of its week')).toEqual({
+    ...SNOOZE_DEFAULTS,
+    weekend: { isOn: true, day: 'saturday', at: { hour: 9, minute: 0 } },
+  })
+  expect(set(': Monday at 07:00')).toEqual({
+    ...SNOOZE_DEFAULTS,
+    week: { isOn: true, day: 'monday', at: { hour: 7, minute: 0 } },
+  })
+  expect(set(': Tomorrow off')).toEqual({
+    ...SNOOZE_DEFAULTS,
+    tomorrow: { ...SNOOZE_DEFAULTS.tomorrow, isOn: false },
+  })
+  expect(set(': off by default')).toEqual(SNOOZE_DEFAULTS)
+  expect(
+    new Set(WAKES.filter(wake => wake.settings !== SNOOZE_DEFAULTS).map(wake => wake.choice)),
+  ).toEqual(new Set(SNOOZE_CHOICES))
 })
 
 /** The months of 2026 the table's zones change their clocks in, from 0: March, April, September, October and November. */
@@ -160,25 +194,80 @@ const CHANGING_HOURS = HOURS_OF_2026.map(hour => Date.UTC(2026, 0, 1, hour)).fil
   CHANGING_MONTHS.includes(new Date(at).getUTCMonth()),
 )
 
-/** Each of those hours at which what Snooze offers in `zone` is not every choice, but Tonight from 18:00, as a failure names it. */
-const offerFaults = (zone: string) =>
-  inZone(zone, () =>
-    CHANGING_HOURS.flatMap(at => {
-      const isEvening = new Date(at).getHours() >= 18
-      const offered = snoozeChoicesAt(at)
-      const expected = SNOOZE_CHOICES.filter(choice => !(isEvening && choice === 'tonight'))
+/** The Mondays, in UTC, of the weeks the table's zones change their clocks in 2026, each change on the Sunday that ends one. */
+const CHANGING_MONDAYS = [
+  [2, 2],
+  [2, 23],
+  [2, 30],
+  [7, 31],
+  [8, 21],
+  [9, 19],
+  [9, 26],
+] as const
 
-      return JSON.stringify(offered) === JSON.stringify(expected)
+/** Every hour of those weeks, and of the Monday after each. */
+const CHANGING_WEEKS = CHANGING_MONDAYS.flatMap(([month, day]) =>
+  Array.from({ length: 8 * 24 }, (_, hour) => Date.UTC(2026, month, day, hour)),
+)
+
+/** Each of `hours` at which what Snooze offers in `zone` under `settings` is not what `expected` says of that local time, as a failure names it. */
+const offerFaults = (
+  zone: string,
+  settings: SnoozeSettings,
+  expected: (local: Date) => readonly SnoozeChoice[],
+  hours = CHANGING_HOURS,
+) =>
+  inZone(zone, () =>
+    hours.flatMap(at => {
+      const offered = snoozeChoicesAt(at, settings)
+
+      return JSON.stringify(offered) === JSON.stringify(expected(new Date(at)))
         ? []
         : [`${new Date(at).toString()}: ${offered.join(', ')}`]
     }),
   )
 
-test('Snooze offers every choice in its order, In an hour first and Tonight third, but Tonight from 18:00 to midnight, every hour of the months each zone of the table changes its clocks in', () => {
-  expect(SNOOZE_CHOICES).toEqual(['hour', 'later', 'tonight', 'tomorrow', 'week'])
+const ZONES = new Set(WAKES.map(wake => wake.zone))
 
-  for (const zone of new Set(WAKES.map(wake => wake.zone))) {
-    expect(offerFaults(zone), zone).toEqual([])
+test('by default Snooze offers every choice in its order, In an hour first and Tonight third, but This weekend, off, and Tonight from 18:00 to midnight, every hour of the months each zone of the table changes its clocks in', () => {
+  expect(SNOOZE_CHOICES).toEqual(['hour', 'later', 'tonight', 'tomorrow', 'weekend', 'week'])
+
+  for (const zone of ZONES) {
+    const expected = (local: Date) =>
+      SNOOZE_CHOICES.filter(
+        choice => choice !== 'weekend' && !(choice === 'tonight' && local.getHours() >= 18),
+      )
+
+    expect(offerFaults(zone, SNOOZE_DEFAULTS, expected), zone).toEqual([])
+  }
+})
+
+/** The days from Monday of a local date's weekday, Monday 0 to Sunday 6. */
+const fromMonday = (local: Date) => (local.getDay() + 6) % 7
+
+test("This weekend on is offered from Monday until its day's time, and from then until Monday not, on Saturday or on Sunday, every hour of the weeks each zone of the table changes its clocks in", () => {
+  for (const [day, place] of [
+    ['saturday', 5],
+    ['sunday', 6],
+  ] as const) {
+    const settings = {
+      ...SNOOZE_DEFAULTS,
+      weekend: { isOn: true, day, at: { hour: 9, minute: 0 } },
+    }
+    const expected = (local: Date) => {
+      const isComing =
+        fromMonday(local) < place || (fromMonday(local) === place && local.getHours() < 9)
+
+      return SNOOZE_CHOICES.filter(
+        choice =>
+          (choice !== 'weekend' || isComing) &&
+          !(choice === 'tonight' && local.getHours() >= 18),
+      )
+    }
+
+    for (const zone of ZONES) {
+      expect(offerFaults(zone, settings, expected, CHANGING_WEEKS), `${zone} ${day}`).toEqual([])
+    }
   }
 })
 
