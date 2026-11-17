@@ -18,7 +18,7 @@ final class NotchController: NSObject, CalloutShape {
     /// A row's menu's Snooze: the session, the asks its row showed, and the time chosen, or until it moves.
     var onSnooze: (String, [String], Date?) -> Void = { _, _, _ in }
     /// Snooze's choices as Lee set them, read as a row's menu opens.
-    var snoozeSettings: () -> SnoozeSettings = { SnoozeSettings() }
+    private let snoozeSettings: () -> SnoozeSettings
     /// A Snoozed row's menu's Wake now: the session.
     var onWake: (String) -> Void = { _ in }
     /// A drag let the notch go: the settings with its new place.
@@ -50,9 +50,14 @@ final class NotchController: NSObject, CalloutShape {
     /// The slow refresh the light breathes on while frames are idle.
     private static let lightRate = CAFrameRateRange(minimum: 20, maximum: 30, preferred: 30)
 
-    /// On its display, its card's sections folded as `folding` has them, the strip's setting as well.
-    init(_ settings: EdgeSettings, on display: Display, folding: Folding) {
+    /// On its display, its card's sections folded as `folding` has them, the strip's setting as well, each row's
+    /// Snooze offering what `snoozeSettings` gives as its menu opens.
+    init(
+        _ settings: EdgeSettings, on display: Display, folding: Folding,
+        snoozeSettings: @escaping () -> SnoozeSettings
+    ) {
         self.settings = settings
+        self.snoozeSettings = snoozeSettings
         edge = ScreenEdge(display, settings)
         run = NotchRun(at: Displays.now, in: .on(edge, settings), folding: folding)
         window = EdgeWindow.onScreen(frame: edge.window, view: surface)
@@ -289,8 +294,18 @@ final class NotchController: NSObject, CalloutShape {
             return nil
         }
 
-        let id = session.id, key = row.key
-        let menu = RowMenu.make(
+        let menu = menu(for: session, row: row.key)
+
+        menuAt = point
+        menu.delegate = self
+        return menu
+    }
+
+    /// The menu of the row `key` showing `session`, opened now. Internal only for the tests, which open it.
+    func menu(for session: Session, row key: String) -> NSMenu {
+        let id = session.id
+
+        return RowMenu.make(
             for: RowMenu.Row(session), at: Date(), in: run.calendar, offering: snoozeSettings(),
             RowMenu.Actions(
                 jump: { [unowned self] in jumpFromMenu(to: key) },
@@ -298,10 +313,6 @@ final class NotchController: NSObject, CalloutShape {
                 wake: { [unowned self] in onWake(id) }
             )
         )
-
-        menuAt = point
-        menu.delegate = self
-        return menu
     }
 
     /// Jump to the window, as a click on the row would, the row the menu is for pressed in, while it still shows.

@@ -1,7 +1,7 @@
 import SitRepMenu
 import SwiftUI
 
-/// The Settings window's sidebar: the four panes, each a row with its symbol, in the system's sidebar list, which draws
+/// The Settings window's sidebar: the five panes, each a row with its symbol, in the system's sidebar list, which draws
 /// the pane shown in the accent while the window is key and in the system's grey when not. A row's count stands on its
 /// right (`SettingsSidebarRow`).
 struct SettingsSidebar: View {

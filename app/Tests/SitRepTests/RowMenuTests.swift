@@ -83,9 +83,9 @@ struct RowMenuTests {
         SnoozeMenu(offering: SnoozeSettings(), at: now, in: london) { _ in }
     }
 
-    /// Every row offers the same: Snooze's five times, each with when it wakes, then after a separator Until it moves,
-    /// with no time, on a row of asks, its Claude working or not, as on a your-turn row, which names no ask. Each
-    /// snoozes until the time it shows, none for Until it moves.
+    /// Every row offers the same: Snooze's times by default, each with when it wakes, then after a separator Until it
+    /// moves, with no time, on a row of asks, its Claude working or not, as on a your-turn row, which names no ask.
+    /// Each snoozes until the time it shows, none for Until it moves.
     @Test(arguments: [["k1", "k3"], []])
     func aRowOffersSnoozeItsFiveTimesThenUntilItMoves(asks: [String]) throws {
         let heard = Heard()

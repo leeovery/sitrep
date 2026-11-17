@@ -234,11 +234,33 @@ struct SettingsLayoutTests {
         #expect(lines(704 - 5).isEmpty)
     }
 
-    /// Edge ends 20 under Motion's card: the notch's four rows in its card, the strip's five, Max among them.
+    /// A card's hairline is a pixel of the scale it is laid out at, 1 at 1× and 0.5 at 2×, so none rounds away between
+    /// rows of 52: Snooze's card of six, drawn at either scale, shows all five, each that thick, read in the gap
+    /// before the switches.
+    @Test(arguments: [1, 2] as [CGFloat])
+    func aCardsHairlinesAreAPixelAtEitherScale(scale: CGFloat) async throws {
+        let settings = await Hosted.settings()
+        let pane = Hosted.content(.snooze, settings).environment(\.displayScale, scale)
+        let drawn = try Drawn(pane, size: CGSize(width: Self.drawingsPane, height: 900))
+        let x = Self.edge + Self.column(Self.drawingsPane) - SettingsStyle.inset - 36 - 4
+        let card = try #require(drawn.litSpans(atX: x).first { $0.upperBound - $0.lowerBound > 100 })
+        let raise = try #require(drawn.pixels(in: CGRect(x: x, y: card.lowerBound + 20, width: 0.5, height: 0.5)).first)
+        let lines = drawn.litSpans(atX: x, above: raise.lightness).filter {
+            card.lowerBound < $0.lowerBound && $0.upperBound < card.upperBound
+        }
+
+        #expect(lines.count == 5)
+        for line in lines {
+            #expect(abs((line.upperBound - line.lowerBound) - 1 / scale) < 0.01)
+        }
+    }
+
+    /// Edge ends 20 under Motion's card: the notch's four rows in its card, the strip's five, Max among them. Laid out
+    /// at 2×, its hairlines 0.5 each, as no window holds it to give it the screen's scale.
     @Test(arguments: [(EdgeSettings.Show.notch, 470.5), (.strip, 523.0)])
     func edgeEnds20UnderItsLastCard(show: EdgeSettings.Show, height: CGFloat) async {
         let settings = await Hosted.settings { $0.show = show }
-        let pane = SettingsPaneContent(pane: .edge, settings: settings)
+        let pane = SettingsPaneContent(pane: .edge, settings: settings).environment(\.displayScale, 2)
         let size = NSHostingController(rootView: pane).sizeThatFits(in: CGSize(width: Self.drawingsPane, height: 10_000))
 
         #expect(abs(size.height - height) <= 0.5)

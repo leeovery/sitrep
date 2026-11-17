@@ -79,10 +79,13 @@ struct CaptionRow: View {
     }
 }
 
-/// The hairline between two rows of a card, in from both its ends.
+/// The hairline between two rows of a card, in from both its ends: a pixel of the screen it is laid out on, 0.5 at 2×
+/// and 1 at 1×, where half a point would round to none under every other row.
 struct CardSeparator: View {
+    @Environment(\.displayScale) private var scale
+
     var body: some View {
-        Rectangle().fill(SettingsStyle.separator).frame(height: 0.5).padding(.horizontal, SettingsStyle.inset)
+        Rectangle().fill(SettingsStyle.separator).frame(height: 1 / scale).padding(.horizontal, SettingsStyle.inset)
     }
 }
 

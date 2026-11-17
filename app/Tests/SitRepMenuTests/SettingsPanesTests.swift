@@ -141,7 +141,7 @@ struct WindowsBehindTests {
     }
 }
 
-/// The sidebar's rows: the four panes, Claude Code alone counting the windows behind, and only while there are some.
+/// The sidebar's rows: the five panes, Claude Code alone counting the windows behind, and only while there are some.
 @Suite(.backstop)
 struct SettingsSidebarRowTests {
     private static func behind(_ count: Int) -> WindowsBehind {

@@ -1,13 +1,7 @@
 import Foundation
 import os
 import SitRepCore
-import SitRepEdge
 import SitRepPanel
-
-/// Snooze's choices, kept whole under "snooze" in the app's defaults.
-extension SnoozeSettings: SavedValue {
-    public static let key = "snooze"
-}
 
 /// `snooze.json`, Snooze's choices as Lee set them, for the pane in Claude Code to offer the same (DESIGN, "Storage"):
 /// at the top of the board's folder, which SitRep alone writes.

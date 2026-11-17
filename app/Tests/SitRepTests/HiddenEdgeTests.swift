@@ -16,7 +16,7 @@ struct HiddenEdgeTests {
     )
 
     @Test func theNotchStaysOnTheScreenHiddenAndShown() {
-        let notch = NotchController(EdgeSettings(), on: Self.display, folding: Folding())
+        let notch = NotchController(EdgeSettings(), on: Self.display, folding: Folding()) { SnoozeSettings() }
 
         defer { notch.window.close() }
         #expect(notch.window.isVisible)
@@ -27,7 +27,7 @@ struct HiddenEdgeTests {
     }
 
     @Test func theStripStaysOnTheScreenHiddenAndShown() {
-        let strip = StripController(EdgeSettings(), on: Self.display, folding: Folding())
+        let strip = StripController(EdgeSettings(), on: Self.display, folding: Folding()) { SnoozeSettings() }
 
         defer { strip.window.close() }
         #expect(strip.window.isVisible)

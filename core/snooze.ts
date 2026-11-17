@@ -151,9 +151,10 @@ const isOnOf = (choice: unknown, fallback: boolean) => {
 }
 
 const timeOf = (choice: unknown, fallback: TimeOfDay): TimeOfDay => {
-  const [, hour, minute] = TIME_TEXT.exec(String(fieldOf(choice, 'at'))) ?? []
+  const at = fieldOf(choice, 'at')
+  const time = typeof at === 'string' ? TIME_TEXT.exec(at) : null
 
-  return hour === undefined ? fallback : { hour: Number(hour), minute: Number(minute) }
+  return time === null ? fallback : { hour: Number(time[1]), minute: Number(time[2]) }
 }
 
 /**
@@ -193,6 +194,25 @@ export const snoozeSettingsOf = (text: string | undefined): SnoozeSettings => {
       at: timeOf(file.week, week.at),
     },
   }
+}
+
+/**
+ * Snooze's choices as a window's `$.state` holds them, each choice whole: one
+ * the build that stored them did not know, or a field of one, takes its
+ * default, so a build that adds a choice draws before its first look
+ * rewrites them.
+ */
+export const heldSnooze = (held: unknown): SnoozeSettings => {
+  const stored = isObject(held) ? held : {}
+  const choiceOf = (choice: SnoozeChoice) => {
+    const kept = stored[choice]
+
+    return isObject(kept) ? { ...SNOOZE_DEFAULTS[choice], ...kept } : SNOOZE_DEFAULTS[choice]
+  }
+
+  return Object.fromEntries(
+    SNOOZE_CHOICES.map(choice => [choice, choiceOf(choice)]),
+  ) as SnoozeSettings
 }
 
 const twoDigits = (value: number) => String(value).padStart(2, '0')

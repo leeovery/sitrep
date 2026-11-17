@@ -414,7 +414,7 @@ const look = async (host: Host, fresh: readonly string[]) => {
 
   await put(host.state.projects, 'projects', projectsOf(held, keys, read, now, pane))
   await put(host.state.others, 'others', othersOf(full, read))
-  await put(host.state.snooze, 'snooze', await snoozeSettings(host, root))
+  await put(host.state.snooze, 'snooze', await snoozeSettings(host, root, now))
   await settleSent(host, read, now)
   await settleAnswering(host)
   prune(root, read)

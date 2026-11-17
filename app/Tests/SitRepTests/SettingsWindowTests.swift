@@ -157,7 +157,7 @@ struct SettingsWindowTests {
     }
 }
 
-/// The sidebar as the window hosts it: the system's list of the four panes, the one shown selected.
+/// The sidebar as the window hosts it: the system's list of the five panes, the one shown selected.
 @MainActor
 @Suite(.backstop)
 struct SettingsSidebarTests {

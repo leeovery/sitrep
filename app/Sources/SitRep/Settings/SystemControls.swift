@@ -106,8 +106,8 @@ struct TimeField: NSViewRepresentable {
         return CGSize(width: size.width + Self.room, height: size.height)
     }
 
-    /// More than AppKit gives the field: at its own width, drawn offscreen on 17 November 2026, 18:00 touched the field's
-    /// edge, clipping its last 0; this gives it the field's inset at its right too.
+    /// More than AppKit gives the field: at its own width, drawn offscreen on 17 November 2026 at 1× and at 2×, the
+    /// last 0 of 18:00 ran into the field's edge; this gives it the field's inset at its right too.
     static let room: CGFloat = 6
 
     func makeCoordinator() -> Coordinator {

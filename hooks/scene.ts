@@ -5,7 +5,7 @@
  * a write draws it again.
  */
 import type { Timer } from 'claude-code'
-import { closingReply, isOpen, resolvedAsks, type Ask, type Session } from '../core'
+import { closingReply, heldSnooze, isOpen, resolvedAsks, type Ask, type Session } from '../core'
 import type {
   SitrepAnswering,
   SitrepInFlight,
@@ -122,7 +122,7 @@ export const sceneOf = async (host: Host): Promise<Scene | undefined> => {
     answering,
     pulse,
     flash,
-    snooze,
+    snooze: heldSnooze(snooze),
     now,
   }
 }

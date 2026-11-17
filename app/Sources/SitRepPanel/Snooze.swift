@@ -108,7 +108,8 @@ public enum WakeTime {
     public static let untilItMoves = "until it moves"
 
     /// Why a snooze to `until`, pressed at `now`, snoozes nothing, in the pane's words: its time has come already, as
-    /// Tonight's has on a menu opened before 18:00 and chosen after. Nil while it is still to come, or with no time.
+    /// Tonight's has on a menu opened before its time and chosen after. Nil while it is still to come, or with no
+    /// time.
     public static func comeAlready(_ until: Date?, at now: Date, in calendar: Calendar) -> String? {
         guard let until, until <= now else {
             return nil

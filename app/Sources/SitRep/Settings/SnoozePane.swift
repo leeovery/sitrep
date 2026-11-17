@@ -6,13 +6,13 @@ import SwiftUI
 struct SnoozePane: View {
     let settings: SettingsModel
 
-    static let caption = "The card and Claude Code's pane offer these, in this order. The card adds Until it moves."
+    static let caption = "SitRep's Snooze menus and the pane in Claude Code offer these. The menus also offer Until it moves."
 
     var body: some View {
         SettingsSection(name: "Choices") {
             SettingsCard {
-                ForEach(Array(SnoozeChoice.allCases.enumerated()), id: \.offset) { place, choice in
-                    if place > 0 {
+                ForEach(SnoozeChoice.allCases, id: \.self) { choice in
+                    if choice != SnoozeChoice.allCases.first {
                         CardSeparator()
                     }
                     SnoozeRow(choice: choice, settings: snooze)
@@ -45,12 +45,12 @@ struct SnoozeRow: View {
     /// When it wakes, under its name.
     private var line: String {
         switch choice {
-        case .inAnHour: "An hour after you snooze"
-        case .laterToday: "That long after you snooze"
-        case .tonight: "Today, until its time has passed"
-        case .tomorrow: "On the day after today"
-        case .thisWeekend: "From Monday until its day and time"
-        case .nextWeek: "On its day of the week after this one"
+        case .inAnHour: "One hour from when you snooze"
+        case .laterToday: "This many hours from when you snooze"
+        case .tonight: "At this time today; not offered once it has passed"
+        case .tomorrow: "At this time tomorrow"
+        case .thisWeekend: "On this day this week; not offered once it has passed"
+        case .nextWeek: "On this day next week"
         }
     }
 

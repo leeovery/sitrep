@@ -65,7 +65,7 @@ const fridayWorld = ($: Parameters<typeof world>[0], on: Parameters<typeof world
 const REST_MS = 5_000
 
 /** How long Later today snoozes for by default. */
-const LATER_MS = SNOOZE_DEFAULTS.later.hours * IN_AN_HOUR_MS
+const DEFAULT_LATER_MS = SNOOZE_DEFAULTS.later.hours * IN_AN_HOUR_MS
 
 /**
  * A session begun with an ask posted, which the board opens as new, and a
@@ -155,7 +155,7 @@ test("another session's snooze is read back and written whole into the window's 
     [2, 'snoozeSession'],
   ])
   expect(parseEntries(w.text(MINE)).at(-1)).toMatchObject({
-    until: pressedAt + LATER_MS,
+    until: pressedAt + DEFAULT_LATER_MS,
     at: pressedAt,
   })
   expect(w.files.has(sessionPaths(ROOT, PROJECT.key, THEMES.id).letters(W1))).toBe(false)
@@ -376,7 +376,7 @@ test('snooze asks in place until when, and snoozes the whole session: every ask 
   }
 
   expect(linesOf(w, paths.log(W1), 'snoozeSession')).toMatchObject([
-    { until: pressedAt + LATER_MS },
+    { until: pressedAt + DEFAULT_LATER_MS },
     { until: pressedAt + IN_AN_HOUR_MS },
     { until: local(2026, 10, 23, 18) },
     { until: local(2026, 10, 24, 9) },

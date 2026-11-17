@@ -131,8 +131,7 @@ public struct SnoozeSettings: Codable, Equatable, Sendable {
         )
     }
 
-    /// The file's shape, each choice by core's name for it: `{"v":1,"hour":{"on":true},"later":{"on":true,"hours":3},
-    /// "tonight":{"on":true,"at":"18:00"},…,"week":{"on":true,"day":"monday","at":"09:00"}}`.
+    /// The file's shape, each choice by core's name for it, as DESIGN gives it ("Storage", `snooze.json`).
     public func encode(to encoder: any Encoder) throws {
         var file = encoder.container(keyedBy: Keys.self)
         let choice = { (key: Keys) in file.nestedContainer(keyedBy: ChoiceKeys.self, forKey: key) }

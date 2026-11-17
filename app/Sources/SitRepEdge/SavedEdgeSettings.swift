@@ -53,6 +53,11 @@ extension EdgeSettings: SavedValue {
     public static let key = "edge"
 }
 
+/// Snooze's choices, kept whole under "snooze" in the app's defaults.
+extension SnoozeSettings: SavedValue {
+    public static let key = "snooze"
+}
+
 /// The card's sections Lee folded, kept across opens and launches as one value of its own under the key "card": those
 /// folded, and those not, so a section folded at first, as Snoozed, which a value saved before it has no word of, reads
 /// folded.

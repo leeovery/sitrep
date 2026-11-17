@@ -48,7 +48,7 @@ struct StripControllerMenuTests {
     @Test func aSnoozedMarksMenuReachesTheJumpAndTheCliWithTheSessionsOwnId() throws {
         let folding = Folding()
         folding.set(.snoozed, folded: false)
-        let strip = StripController(EdgeSettings(), on: Self.display, folding: folding), heard = Heard()
+        let strip = StripController(EdgeSettings(), on: Self.display, folding: folding) { SnoozeSettings() }, heard = Heard()
         var last = LastBoard()
 
         defer { strip.window.close() }

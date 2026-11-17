@@ -1,11 +1,12 @@
 /**
  * Snooze's choices as core reads the app's `snooze.json`: the file as the
  * app writes it; the defaults for a file missing, garbled or of a version
- * this reader does not know; and within a file, each choice and each field
- * read on its own, one missing or out of range keeping its default.
+ * this reader does not know; within a file, each choice and each field
+ * read on its own, by its type, one missing or out of range keeping its
+ * default; and settings a window holds, read whole.
  */
 import { expect, test } from './kit'
-import { snoozeFile, SNOOZE_DEFAULTS, snoozeSettingsOf } from '../core'
+import { heldSnooze, SNOOZE_CHOICES, snoozeFile, SNOOZE_DEFAULTS, snoozeSettingsOf } from '../core'
 import { APP_FILE, APP_SETTINGS } from './choices'
 
 /** A file of the format's version holding `choices`. */
@@ -93,8 +94,8 @@ test('a field out of range keeps its default, and the rest of its choice stands:
     expect(snoozeSettingsOf(fileOf({ later: { hours: later } })).later.hours, String(later)).toBe(3)
   }
 
-  for (const at of ['18:00:00', ' 18:00', '18.00', 1800, '1800', '-1:00']) {
-    expect(snoozeSettingsOf(fileOf({ tonight: { at } })).tonight.at, String(at)).toEqual({
+  for (const at of ['18:00:00', ' 18:00', '18.00', 1800, '1800', '-1:00', ['20:00']]) {
+    expect(snoozeSettingsOf(fileOf({ tonight: { at } })).tonight.at, JSON.stringify(at)).toEqual({
       hour: 18,
       minute: 0,
     })
@@ -108,4 +109,34 @@ test('a choice that is no object keeps its defaults, and a field or a choice thi
   expect(
     snoozeSettingsOf(fileOf({ hour: { on: false, length: 2 }, fortnight: { on: true } })),
   ).toEqual({ ...SNOOZE_DEFAULTS, hour: { isOn: false } })
+})
+
+/** A value of each JSON type no field takes, an object that cannot be made text and a list of one good time among them. */
+const NO_FIELD_VALUES: unknown[] = [null, 0, '', 'x', [], ['20:00'], [2], {}, { toString: 0 }, { valueOf: 0 }]
+
+test('a field holding a value of another type reads as its default, never throwing', () => {
+  for (const value of NO_FIELD_VALUES) {
+    const choice = { on: value, hours: value, at: value, day: value }
+    const file = fileOf(Object.fromEntries(SNOOZE_CHOICES.map(each => [each, choice])))
+
+    expect(snoozeSettingsOf(file), JSON.stringify(value)).toEqual(SNOOZE_DEFAULTS)
+  }
+})
+
+test('settings as a window holds them are read whole: a choice missing, or a field of one, takes its default; the rest stand', () => {
+  const { weekend, ...missingWeekend } = APP_SETTINGS
+  const { hours, ...laterWithoutHours } = APP_SETTINGS.later
+
+  expect(heldSnooze(APP_SETTINGS)).toEqual(APP_SETTINGS)
+  expect(heldSnooze(missingWeekend)).toEqual({ ...APP_SETTINGS, weekend: SNOOZE_DEFAULTS.weekend })
+  expect(heldSnooze({ ...APP_SETTINGS, later: laterWithoutHours }).later).toEqual({
+    isOn: APP_SETTINGS.later.isOn,
+    hours: SNOOZE_DEFAULTS.later.hours,
+  })
+  expect(weekend).not.toEqual(SNOOZE_DEFAULTS.weekend)
+  expect(hours).not.toBe(SNOOZE_DEFAULTS.later.hours)
+
+  for (const held of [undefined, null, 'x', [], {}]) {
+    expect(heldSnooze(held), JSON.stringify(held)).toEqual(SNOOZE_DEFAULTS)
+  }
 })
