@@ -313,13 +313,18 @@ struct GlassSessionRow: View {
     /// What its time's place says: its age, or in Snoozed when it wakes, or that it waits until it moves.
     private var time: String { session.timeText(at: now, in: calendar) }
 
-    /// The black's layout: its project's lane as wide as the black sets its project; in Snoozed, its time's lane as
-    /// wide as the black sets when it wakes.
+    /// The black's layout: its project's lane as wide as glass sets its project; in Snoozed, its time's lane as wide
+    /// as glass sets when it wakes.
     private var layout: SessionRowLayout {
-        let wakes = session.isSnoozed ? TextLine.width(TextLine.text(time, EdgeStyle.age, EdgeStyle.ink2)) : 0
-        let project = TextLine.width(TextLine.text(session.project, EdgeStyle.sub, EdgeStyle.ink3))
+        let wakes = session.isSnoozed ? Self.width(of: time, EdgeStyle.age) : 0
 
-        return SessionRowLayout(size: size, project: project, time: wakes)
+        return SessionRowLayout(size: size, project: Self.width(of: session.project, EdgeStyle.sub), time: wakes)
+    }
+
+    /// How wide `Text` sets these words: kerned, unlike the black's lines, so a name its pairs widen, "Lucerne
+    /// Publishing" by 0.12, would be cut short in a lane as wide as the black sets it.
+    private static func width(of words: String, _ font: NSFont) -> Double {
+        TextLine.width(NSAttributedString(string: words, attributes: [.font: font]))
     }
 
     /// The arc turning once a second, as a working row's mark.

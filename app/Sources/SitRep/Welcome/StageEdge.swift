@@ -85,8 +85,6 @@ final class StageEdge: NSView {
     private var chimedAt: Double?
     /// The ask's row's middle on the stage, once the loop's panel shows it: internal only for the tests.
     private(set) var row: CGPoint?
-    /// A style or an edge changed since the row was found: the pointer keeps to it until it is found again.
-    private var rowIsStale = false
     /// The callout's place as last told the desktop.
     private var placed: StageCallout.Place?
     /// Whether SitRep's item was last told lit: internal only for the tests.
@@ -222,16 +220,15 @@ final class StageEdge: NSView {
     }
 
     /// The ask's row, found on the panel as the last frame laid it out, before the pointer is placed on it, while the
-    /// loop's pointer goes to it: first, again once a change has moved it, and each frame the shape moves.
+    /// loop's pointer goes to it: first, and each frame the shape moves, as a change that moves it sets it moving.
     private func findRow(at time: Double) {
         guard play.loop?.findsRow(at: loopTime) == true,
-              row == nil || rowIsStale || shape.pace(at: time, staged) == .moving
+              row == nil || shape.pace(at: time, staged) == .moving
         else {
             return
         }
 
         row = shape.middle(of: WelcomeBoard.asking, on: edge, staged)
-        rowIsStale = false
     }
 
     /// Step 2's click on the ask's row, pressed as the real notch takes a click, so the row presses in; then the jump
@@ -415,8 +412,10 @@ final class StageEdge: NSView {
     }
 
     /// Lee's settings, as they stand: the other shape where he chose it, its board told afresh; else the edge, the
-    /// place, the material and the style, which the runs take each frame. A style or an edge moves the ask's row, and
-    /// the strip's length or Max its mark, so the loop's pointer finds it again before it next goes to it.
+    /// place, the material and the style, which the runs take each frame. Each change that moves the ask's row sets
+    /// the shape moving, so the loop's pointer finds the row again: a style closes the notch's panel to change it, and
+    /// the strip, its length or Max changed, moves from the change's own frame. An edge leaves the row where it is, as
+    /// it is found in the edge's own points.
     private func follow(_ settings: EdgeSettings) {
         guard settings != self.settings else {
             return
@@ -428,12 +427,6 @@ final class StageEdge: NSView {
         if Self.kind(settings.show, play) != Self.kind(last.show, play) {
             replace(with: Self.shape(settings.show, play))
             return
-        }
-        let movesRow = settings.style != last.style || settings.edge != last.edge
-            || settings.length != last.length || settings.maxLength != last.maxLength
-
-        if movesRow {
-            rowIsStale = true
         }
         place(shape)
         shape.apply(staged, at: clock.now, edge)

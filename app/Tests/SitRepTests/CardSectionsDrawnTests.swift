@@ -406,8 +406,32 @@ struct CardSectionsDrawnTests {
         #expect(medium.width - regular.width > 1)
     }
 
+    /// How wide words are inked on glass, drawn whole on a line of their own.
+    @available(macOS 26, *)
+    private static func inked(_ text: Text) throws -> CGFloat {
+        let size = CGSize(width: Self.width, height: Item.lineHeight)
+        let drawn = try Drawn(text.foregroundStyle(.white).fixedSize().frame(width: size.width, alignment: .leading), size: size)
+
+        return try #require(drawn.drawnBox(in: CGRect(origin: .zero, size: size), ground: Self.ground)).width
+    }
+
+    /// On glass, a project its kerning sets wider than the black's unkerned line is drawn whole, ending 10 before the
+    /// time lane: "Lucerne Publishing" by 0.12, "Coho Winery" by 0.06, each cut short in the black's lane.
+    @available(macOS 26, *)
+    @Test(arguments: ["Lucerne Publishing", "Coho Winery"])
+    func onGlassAProjectKernedWiderThanTheBlacksIsDrawnWhole(project: String) throws {
+        let black = TextLine.width(TextLine.text(project, EdgeStyle.sub, EdgeStyle.ink3))
+        let kerned = TextLine.width(NSAttributedString(string: project, attributes: [.font: EdgeStyle.sub]))
+        let drawn = try Self.glass(Self.turn("Inventory settled", project: project))
+        let lane = try #require(drawn.drawnBox(in: CGRect(x: 288 - kerned - 4, y: 4, width: kerned + 6, height: 22), ground: Self.ground))
+
+        #expect(kerned > black)
+        #expect(abs(lane.maxX - 288) <= 1)
+        #expect(abs(lane.width - (try Self.inked(Text(project).font(.system(size: 12))))) <= 1)
+    }
+
     /// On glass, a turn snoozed is a dot 7 across at 16 by 15, as a snoozed ask's is, its blue dimmed
-    /// (`NeedsYouMarksTests`); "until it moves" in its time's place, ending at 334.
+    /// (`NeedsYouMarksTests`); "until it moves" in its time's place, drawn whole, ending at 334.
     @available(macOS 26, *)
     @Test func onGlassASnoozedTurnIsADotUntilItMoves() throws {
         let turn = Session(id: "t", project: "Wingtip", name: "Inventory", kind: .snoozedTurn, title: "Settled", sub: "Wingtip", since: 0)
@@ -415,9 +439,10 @@ struct CardSectionsDrawnTests {
         let dot = try #require(drawn.drawnBox(in: CGRect(x: 4, y: 2, width: 24, height: 26), ground: Self.ground))
         let wide = TextLine.width(TextLine.text(WakeTime.untilItMoves, EdgeStyle.age, EdgeStyle.ink2))
         let time = try #require(drawn.drawnBox(in: CGRect(x: 330 - wide, y: 4, width: wide + 14, height: 22), ground: Self.ground))
+        let whole = try Self.inked(Text(WakeTime.untilItMoves).font(.system(size: 12).monospacedDigit()))
 
         #expect(abs(dot.width - 7) <= 1 && abs(dot.height - 7) <= 1)
         #expect(abs(dot.midX - 16) <= 0.5 && abs(dot.midY - 15) <= 0.5)
-        #expect(abs(time.maxX - 334) <= 1.5 && abs(time.width - wide) <= 3)
+        #expect(abs(time.maxX - 334) <= 1.5 && abs(time.width - whole) <= 1)
     }
 }
