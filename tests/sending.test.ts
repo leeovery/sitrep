@@ -511,12 +511,23 @@ test('a send in flight never holds back the replies it carries for its own answe
   const held = { project: NORTHWIND.key, session: META.id }
   const unsent = unsentTo([carried, other], [inFlight({ type: 'reply', ...YES })], held, META.id)
 
-  expect(sendable(folded, unsent)).toEqual([other])
-  expect(leftOut(folded, unsent)).toEqual([])
+  expect(sendable(META.id, folded, unsent)).toEqual([other])
+  expect(leftOut(META.id, folded, unsent)).toEqual([])
   expect(
-    leftOut(folded, unsentTo([carried], [], held, META.id)),
+    leftOut(META.id, folded, unsentTo([carried], [], held, META.id)),
     "another's answer bars it",
   ).toEqual(['answered'])
+})
+
+test('a send leaves out a reply to an ask of a session finished, which no reply reaches; from the window holding that session, it carries it', () => {
+  const session = sessionOf([REVIEW, [T0 + MIN, finish('claude')]], {})
+  const yes = { project: NORTHWIND.key, session: META.id, item: 'k1', verdict: 'yes' } as const
+  const folded = new Map([[session.id, session]])
+
+  expect(sendable('sr-other1', folded, [yes]), 'from another window').toEqual([])
+  expect(leftOut('sr-other1', folded, [yes])).toEqual(['finished'])
+  expect(sendable(META.id, folded, [yes]), 'from the window holding it').toEqual([yes])
+  expect(leftOut(META.id, folded, [yes])).toEqual([])
 })
 
 test("a message's replies take ids unlike any its session uses, and any a message in flight carries, not written down yet", () => {

@@ -17,11 +17,13 @@ import {
   snoozedUntilIn,
   summariseProject,
   takenOffBy,
+  waitsOnLee,
   type Ask,
   type Carried,
   type Parked,
   type Parking,
   type ProjectParked,
+  type Session,
   type SessionBrief,
 } from '../core'
 import type { SitrepPlace, SitrepSessionRef } from '../types'
@@ -120,6 +122,42 @@ export const filedAt = (scene: Scene, session: string): Filed | undefined =>
 export const briefOf = (scene: Scene, session: string): SessionBrief | undefined =>
   scene.projects.flatMap(project => project.sessions).find(brief => brief.id === session)
 
+/**
+ * Whether a reply can reach an item of `session`, read as finished or not,
+ * from the window holding `held`: a parked item's pick-up always, since it
+ * goes to the held session; an ask's where its session is not finished,
+ * its inbox letting the reply in, or is the held one, finished or not,
+ * where a reply goes in this window's own message, to the Claude right
+ * here. Every press that replies, Ready to send, a send and the answering
+ * mode go by it.
+ */
+export const reaches = (held: string, session: string, isFinished: boolean, item: Ask | Parked) =>
+  item.type === 'park' || session === held || !isFinished
+
+/** Whether the board read a session as finished, in full or in brief; one it has not read, as not. */
+const isFinishedAt = (scene: Scene, session: string) => {
+  const filed = filedAt(scene, session)
+
+  return filed === undefined
+    ? briefOf(scene, session)?.isFinished === true
+    : filed.session.finished !== undefined
+}
+
+/** Whether a reply can reach an item of `session` as the board reads it (`reaches`). */
+export const canReach = (scene: Scene, session: string, item: Ask | Parked) =>
+  reaches(scene.session.id, session, isFinishedAt(scene, session), item)
+
+/**
+ * How many of a session's asks wait on Lee in this window's views: as the
+ * session counts them; finished, those a reply still reaches, which are the
+ * held session's open asks, each waiting on Lee as its buttons say, no
+ * snooze holding in a finished session.
+ */
+export const waitingAt = (scene: Scene, session: Session) =>
+  session.finished === undefined
+    ? session.waiting
+    : session.asks.filter(ask => waitsOnLee(ask) && canReach(scene, session.id, ask)).length
+
 /** Sessions in the order given, but the held one first. */
 export const hereFirst = <T extends { id: string }>(scene: Scene, sessions: readonly T[]) => [
   ...sessions.filter(session => session.id === scene.session.id),
@@ -135,9 +173,11 @@ const keysRead = (scene: Scene) => [
 const projectRead = (scene: Scene, key: string) =>
   scene.projects.find(project => project.key === key)
 
-/** A project's current sessions in brief, the held one among them where it is filed. */
+/** A project's current sessions in brief, the held one among them where it is filed, its asks waiting as this window's views count them. */
 const briefsIn = (scene: Scene, key: string): SessionBrief[] => [
-  ...(key === scene.here ? [brief(scene.session)] : []),
+  ...(key === scene.here
+    ? [{ ...brief(scene.session), waiting: waitingAt(scene, scene.session) }]
+    : []),
   ...(projectRead(scene, key)?.sessions ?? []),
 ]
 

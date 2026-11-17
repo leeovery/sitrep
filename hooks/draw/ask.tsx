@@ -31,7 +31,7 @@ import {
 } from '../../core'
 import type { SitrepItemRef, SitrepQueued } from '../../types'
 import { C, GLYPH } from '../look'
-import { itemKey, type AskedAt } from '../places'
+import { canReach, itemKey, type AskedAt } from '../places'
 import { queuedOn } from '../queue'
 import { askMark, isPulsing } from '../scene'
 import {
@@ -63,7 +63,7 @@ const SNOOZED = { glyph: GLYPH.ask, color: C.grey }
 const LEFT_OPEN = { glyph: GLYPH.ask, color: C.faint }
 
 /** Why a finished session's asks offer no reply, under ASKS. */
-const FINISHED_LINE = "The session is finished: a reply can't reach it."
+const FINISHED_LINE = 'This session is finished: no reply reaches its asks.'
 
 /** What snoozing an ask asks in place. */
 const SNOOZE_QUESTION = 'Snooze this session? Its asks, and your turn there, stop counting until it wakes.'
@@ -149,10 +149,11 @@ const buttonsFor = (d: Drawing, at: SitrepItemRef, ask: Ask, verdict: Verdict) =
 /**
  * Where an ask stands as drawn: the reply it waits to send, or the one on
  * its way, whether Lee is answering it in the prompt, when it wakes while
- * snoozed, whether it can be snoozed, waiting on Lee in a session not
- * finished and not snoozed with some choice offered, the choices offered,
- * whether it is asking when to, opened still, and the asks of its session
- * drawn waiting, which its snooze names.
+ * snoozed, whether no reply can reach it (`canReach`), left open in a
+ * finished session, whether it can be snoozed, waiting on Lee in a session
+ * not finished and not snoozed with some choice offered, the choices
+ * offered, whether it is asking when to, opened still, and the asks of its
+ * session drawn waiting, which its snooze names.
  */
 const standingOf = (d: Drawing, asked: AskedAt, waiting: readonly string[]) => {
   const { ask, snoozedUntil, isFinished } = asked
@@ -172,6 +173,7 @@ const standingOf = (d: Drawing, asked: AskedAt, waiting: readonly string[]) => {
     isAnswering: isBeingAnswered(d, at),
     isClosed,
     snoozedUntil,
+    isBeyond: !canReach(d.scene, at.session, ask),
     canSnooze: !isFinished && snoozedUntil === undefined && waitsOnLee(ask) && offered.length > 0,
     offered,
     isChoosing,
@@ -302,26 +304,17 @@ const drawButtons = (d: Drawing, ask: Ask, standing: Standing, isLast: boolean) 
   )
 }
 
-/**
- * Whether no reply can reach an ask: one left open in a finished session,
- * where a reply sent into its inbox goes void. The session this window
- * holds keeps its answers, finished or not: a reply there goes in this
- * window's own message, to the Claude right here.
- */
-const isBeyondReply = (d: Drawing, { isFinished, at }: AskedAt) =>
-  isFinished && at.session !== d.scene.session.id
-
 /** An ask's mark: ticked once Lee's send closed it, faint where no reply can reach it, quieted while snoozed, else its ◆ as it stands in the pulse. */
-const markOf = (d: Drawing, asked: AskedAt, { isClosed, snoozedUntil }: Standing) => {
+const markOf = (d: Drawing, ask: Ask, { isClosed, isBeyond, snoozedUntil }: Standing) => {
   if (isClosed) {
     return RESOLVED
   }
 
-  if (isBeyondReply(d, asked)) {
+  if (isBeyond) {
     return LEFT_OPEN
   }
 
-  return snoozedUntil === undefined ? askMark(d.scene, asked.ask) : SNOOZED
+  return snoozedUntil === undefined ? askMark(d.scene, ask) : SNOOZED
 }
 
 /**
@@ -339,9 +332,9 @@ const drawAsk = (
 ) => {
   const { ask, name } = asked
   const standing = standingOf(d, asked, waiting)
-  const { key, queued, isAnswering, isClosed, isOpen, isChoosing, snoozedUntil } = standing
-  const mark = markOf(d, asked, standing)
-  const isBeyond = isBeyondReply(d, asked)
+  const { key, queued, isAnswering, isClosed, isOpen, isChoosing, snoozedUntil, isBeyond } =
+    standing
+  const mark = markOf(d, ask, standing)
   // `select` toggles the key it is given, so the title gives the one the pane holds: one press closes the ask from Snooze's question too.
   const opener = isChoosing ? snoozeKey(key) : key
   const isAnswerable =
@@ -388,9 +381,10 @@ const noteOf = (d: Drawing, listing: AsksListed, left: number) => {
   return { note: countsOf(listing, left), color: C.grey }
 }
 
-/** How many of the asks listed were left open beyond reply. */
+/** How many of the asks listed were left open beyond reply (`canReach`). */
 const leftOpen = (d: Drawing, asked: readonly AskedAt[]) =>
-  asked.filter(each => each.ask.state !== 'closed' && isBeyondReply(d, each)).length
+  asked.filter(each => each.ask.state !== 'closed' && !canReach(d.scene, each.at.session, each.ask))
+    .length
 
 /** The asks listed of a session that wait on Lee, not snoozed, by their ids: those a snooze from any of them names. */
 const waitingIn = (asked: readonly AskedAt[], session: string) =>

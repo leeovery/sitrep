@@ -70,7 +70,7 @@ export type ProjectSummary = {
   directory?: string
   /** Those with a window first, then the most recently updated. */
   sessions: SessionSummary[]
-  /** How many sessions have a window. */
+  /** How many sessions are open (`isWorked`). */
   open: number
   waiting: number
   snoozed: number
@@ -103,6 +103,10 @@ const busiest = (a: ProjectSummary, b: ProjectSummary) =>
   b.parked - a.parked ||
   byRecency(a, b) ||
   compareText(a.name, b.name)
+
+/** Whether a session is open, being worked: a window has it, and it is not finished, though a window may still hold one that is. */
+export const isWorked = (session: Pick<SessionSummary, 'isOpen' | 'isFinished'>) =>
+  session.isOpen && !session.isFinished
 
 /** Whether a session or a project holds nothing that keeps it current but a window or its being recent: no ask waiting. */
 export const isIdle = (counts: Pick<SessionSummary, 'asked'>) => counts.asked === 0
@@ -193,7 +197,7 @@ export const summariseProject = (
     key,
     name: latest?.project ?? key,
     sessions: summaries,
-    open: summaries.filter(session => session.isOpen).length,
+    open: summaries.filter(isWorked).length,
     waiting: total(summaries, session => session.waiting),
     snoozed: total(summaries, session => session.snoozed),
     asked: total(summaries, session => session.asked),

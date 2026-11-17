@@ -312,13 +312,14 @@ const pastFor = (
 }
 
 /**
- * Whether a look keeps a project, `holding` its current sessions and parked
- * items between them: one holding either, the held session's, and the one
- * the open board shows a view of, so a finished session's view in a project
- * with nothing else on the board still draws what was taken off its Parked.
+ * Whether a look keeps a project, `isHolding` whether it holds a current
+ * session or a parked item: one holding either, the held session's, and the
+ * one the open board shows a view of, so a finished session's view in a
+ * project with nothing else on the board still draws what was taken off its
+ * Parked.
  */
-const isKept = (held: SitrepAttachment, shows: SitrepPane, key: string, holding: number) =>
-  holding > 0 || key === held.project || key === shownIn(held, shows)
+const isKept = (held: SitrepAttachment, shows: SitrepPane, key: string, isHolding: boolean) =>
+  isHolding || key === held.project || key === shownIn(held, shows)
 
 /**
  * The projects read, each with its current sessions, and what every session
@@ -341,7 +342,7 @@ const projectsOf = (
     const sessions = filed.map(brief).filter(session => isCurrent(session, now))
     const parked = projectParked(filed.flatMap(parkedBy))
 
-    return isKept(held, shows, key, sessions.length + parked.length)
+    return isKept(held, shows, key, sessions.length > 0 || parked.length > 0)
       ? [
           {
             key,

@@ -79,12 +79,12 @@ test("the project's view folds its old sessions under SESSIONS as a dim press co
   expect(await ui.find({ key: `go:${LEDGER.id}` }), 'the ledger among the current').toBeDefined()
 })
 
-test('shown, the latest 3 old sessions follow hide old sessions, the latest ended first, each its name, dim, how long ago it ended, and what it was last doing, faint, under it; show all past them', async () => {
+test('shown, the latest 3 old sessions follow hide old sessions, the latest ended first, each its name, dim, how long ago it ended, as `finished 1d` where it was finished, else its bare age, and what it was last doing, faint, under it; show all past them', async () => {
   const ui = projectDrawn('latest')
 
   expect((await ui.find({ key: OLD }))?.props).toMatchObject({ label: 'hide old sessions' })
   expect(await endedRows(ui)).toEqual([
-    ['Export to CSV                                       1d', '└ Shipping the export'],
+    ['Export to CSV                              finished 1d', '└ Shipping the export'],
     ['Settings tab                                        8d', '└ next: Tidy the copy'],
     ['Ledger schema, first pass                           9d', '└ Drawing the schema'],
   ])
@@ -121,7 +121,7 @@ test('the old sessions sit under the current ones after a blank row, with none b
     ' └ Reading the brief',
     '',
     ' hide old sessions',
-    ' Export to CSV 1d',
+    ' Export to CSV finished 1d',
     ' └ Shipping the export',
     ' Settings tab 8d',
     ' └ next: Tidy the copy',

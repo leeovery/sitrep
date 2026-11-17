@@ -4,12 +4,12 @@
  * its project put off, its own first, and the asks done with. This
  * session's is the board's home; another's draws the same, its asks
  * answered the same way, and with no window on it, a way to finish it. A
- * finished one says so, and when, and, but for this session's, its asks
- * left open offer no reply.
+ * finished one says so, and when, and why where its finish says, and, but
+ * for this session's, its asks left open offer no reply.
  */
 import { snoozedAsks, type Session } from '../../core'
-import { ago, agoWords, C, GLYPH } from '../look'
-import { askedOf, parkedAt, projectPlace, takenOffIn } from '../places'
+import { agoWords, C, GLYPH } from '../look'
+import { askedOf, parkedAt, projectPlace, takenOffIn, waitingAt } from '../places'
 import type { Filed } from '../scene'
 import { drawAsks } from './ask'
 import { drawResolved } from './earlier'
@@ -18,10 +18,10 @@ import { drawHistory } from './history'
 import { context, emptyLine, heading, marked, spaced, type Block, type Drawing } from './kit'
 import { drawParked } from './parked'
 
-/** How a session stands, beside its project's name: finished, and how long ago; else closed, with no window; else nothing. */
+/** How a session stands, beside its project's name: finished, and how long ago, as STATUS says when it was updated; else closed, with no window; else nothing. */
 const standingWords = (d: Drawing, { finished, isOpen }: Session) => {
   if (finished !== undefined) {
-    return [`finished ${ago(d.scene.now, finished.at)}`]
+    return [`finished ${agoWords(d.scene.now, finished.at)}`]
   }
 
   return isOpen ? [] : ['closed']
@@ -34,19 +34,24 @@ const drawContext = (d: Drawing, { project, session }: Filed) =>
     session.status.name,
     {
       lead: { words: session.project, key: `proj:${project}`, to: projectPlace(project) },
-      rest: standingWords(d, session),
+      parts: standingWords(d, session),
     },
     session.status.summary,
   )
 
+/** STATUS: when it was updated, what is under way, what is next, and why the session was finished, where its finish says. */
 const drawStatus = (d: Drawing, { session }: Filed) => {
   const { Box, Text } = d.els
   const { now, next, at } = session.status
+  const why = session.finished?.reason
 
   return (
     <Box flexDirection="column">
       {heading(d, 'STATUS', C.now, `updated ${agoWords(d.scene.now, at)}`)}
-      {now.length === 0 && next === undefined && emptyLine(d, 'Nothing under way yet.')}
+      {now.length === 0 &&
+        next === undefined &&
+        why === undefined &&
+        emptyLine(d, 'Nothing under way yet.')}
       {now.map((line, i) =>
         marked(d, `now:${i}`, GLYPH.now, C.now, <Text wrap="wrap">{line}</Text>),
       )}
@@ -60,6 +65,16 @@ const drawStatus = (d: Drawing, { session }: Filed) => {
             next: {next}
           </Text>,
         )}
+      {why !== undefined &&
+        marked(
+          d,
+          'finished',
+          GLYPH.done,
+          C.grey,
+          <Text color={C.soft} wrap="wrap">
+            finished: {why}
+          </Text>,
+        )}
     </Box>
   )
 }
@@ -69,7 +84,7 @@ export const drawSessionView = (d: Drawing, filed: Filed): Block[] =>
   spaced(
     [{ key: 'context', element: drawContext(d, filed) }],
     drawAsks(d, askedOf(d.scene, filed), {
-      waiting: filed.session.waiting,
+      waiting: waitingAt(d.scene, filed.session),
       snoozed: snoozedAsks(filed.session).length,
       isHome: filed.session === d.scene.session,
       isNamed: false,

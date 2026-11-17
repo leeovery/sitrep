@@ -10,7 +10,7 @@ import {
 import { AROUND_MS } from '../hooks/around'
 import { ELSEWHERE, LEDGER, META, ROOT, T0, W1, W3 } from './data'
 import { beat, finish, reopen, resolve, snoozeSession, status, unfinish, yesAsk } from './lines'
-import { toProject, world, type World } from './world'
+import { asked, toProject, world, type World } from './world'
 
 tier('user')
 
@@ -223,10 +223,13 @@ test('a send and the first message read a session off the board afresh, at a loo
   const ledger = w.elsewhere(LEDGER)
 
   ledger.write(yesAsk('k3', 'Review the ledger schema'))
-  await w.begin()
+  const { id } = await w.begin()
+  const review = await asked(w)
 
   const ui = await w.opened()
 
+  // A reply of this session's own keeps send offered while the board, its look not whole, still reads the ledger finished, beyond reply.
+  await ui.press({ key: `yes:${id}:${review}` })
   await toProject(ui)
   await ui.press({ key: `go:${LEDGER.id}` })
   await ui.press({ key: `pick:${LEDGER.id}:k3` })

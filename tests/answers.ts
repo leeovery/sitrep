@@ -58,6 +58,12 @@ export const answering = async (w: World) => {
   return { id, ui }
 }
 
+/** The ledger's asks, a words ask and a yes ask, as its own window wrote them. */
+export const LEDGERS_ASKS = [
+  wordsAsk('k3', 'Which fields does the ledger keep?', 'the fields'),
+  yesAsk('k4', 'Approve the ledger schema'),
+]
+
 /**
  * The board on the project's view, the ledger's asks drawn from its brief,
  * a minute on. Given `isUnread`, the board's reads of other sessions in full
@@ -66,8 +72,7 @@ export const answering = async (w: World) => {
 export const onLedgersAsks = async (w: World, isUnread = false) => {
   const ledger = w.elsewhere(LEDGER)
 
-  ledger.write(wordsAsk('k3', 'Which fields does the ledger keep?', 'the fields'))
-  ledger.write(yesAsk('k4', 'Approve the ledger schema'))
+  ledger.write(...LEDGERS_ASKS)
 
   if (isUnread) {
     w.leaveUnread()

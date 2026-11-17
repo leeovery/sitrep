@@ -10,6 +10,7 @@ import {
   entered,
   EXPORT,
   IMAGE,
+  LEDGERS_ASKS,
   LIST,
   onLedgersAsks,
   onLedgersParked,
@@ -923,7 +924,11 @@ test("answering another session's ask still ends once its session is finished", 
   await ui.press({ key: `pick:${there}` })
   await ui.press({ key: `answer:${there}` })
   expect(w.state.answering).toMatchObject({ session: LEDGER.id, item: 'k3' })
-  w.writer(sessionPaths(ROOT, PROJECT.key, LEDGER.id), W2)(finish('claude', 'Shipped'))
+  // A writer of its own writes the ledger's file whole: its asks kept with the finish, so the finish alone ends the mode.
+  w.writer(sessionPaths(ROOT, PROJECT.key, LEDGER.id), W2)(
+    ...LEDGERS_ASKS,
+    finish('claude', 'Shipped'),
+  )
   await w.clock.advance(AROUND_MS)
   expect(w.state.answering).toBeNull()
   expect((await entered(w, $, 'Carry on.')).drop).toBeUndefined()
