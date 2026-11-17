@@ -24,9 +24,11 @@ struct StripMenuTests {
         var said: [String] = []
     }
 
-    private static func menu(_ target: StripTarget, _ heard: Heard) -> NSMenu {
+    private static func menu(
+        _ target: StripTarget, _ heard: Heard, offering settings: SnoozeSettings = SnoozeSettings()
+    ) -> NSMenu {
         StripMenu.make(
-            for: target, at: now, in: london,
+            for: target, at: now, in: london, offering: settings,
             row: { session in
                 RowMenu.Actions(
                     jump: { heard.said.append("jump \(session.id)") },
@@ -53,7 +55,7 @@ struct StripMenuTests {
         let heard = Heard(), session = Self.session(kind)
         let menu = Self.menu(.session(session, section: section, isFolded: false), heard)
         let row = RowMenu.make(
-            for: RowMenu.Row(session), at: Self.now, in: Self.london,
+            for: RowMenu.Row(session), at: Self.now, in: Self.london, offering: SnoozeSettings(),
             RowMenu.Actions(jump: {}, snooze: { _, _ in }, wake: {})
         )
 
@@ -63,6 +65,24 @@ struct StripMenuTests {
         try menu.choose(0)
         try menu.choose(menu.items.count - 1)
         #expect(heard.said == ["jump sr-a", "fold \(section.title)"])
+    }
+
+    /// A mark's Snooze offers what Lee set, as a card row's does: In an hour switched off and This weekend on.
+    @Test func aMarksSnoozeOffersTheChoicesAsLeeSetThem() throws {
+        var settings = SnoozeSettings()
+
+        settings.inAnHour.isOn = false
+        settings.thisWeekend.isOn = true
+
+        let menu = Self.menu(
+            .session(Self.session(.needs), section: .needsYou, isFolded: false), Heard(), offering: settings
+        )
+        let snooze = try #require(menu.items.first { $0.title == RowMenu.snoozeTitle }?.submenu)
+
+        #expect(Self.titles(snooze) == [
+            "Later today\t17:00", "Tonight\t18:00", "Tomorrow\tSat 09:00", "This weekend\tSat 09:00",
+            "Next week\tMon 09:00", "—", "Until it moves",
+        ])
     }
 
     /// A row on a folded count's tab offers Expand its section at the foot, the section as the strip has it.

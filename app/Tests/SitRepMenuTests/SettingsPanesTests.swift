@@ -5,13 +5,13 @@ import SitRepEdge
 import SitRepTestSupport
 import Testing
 
-/// The Settings window's four panes, top to bottom in its sidebar, each with its name and symbol (DESIGN, "Settings").
+/// The Settings window's five panes, top to bottom in its sidebar, each with its name and symbol (DESIGN, "Settings").
 @Suite(.backstop)
 struct SettingsPaneTests {
-    @Test func thePanesAreGeneralEdgeNotificationsAndClaudeCode() {
-        #expect(SettingsPane.allCases.map(\.title) == ["General", "Edge", "Notifications", "Claude Code"])
+    @Test func thePanesAreGeneralEdgeNotificationsSnoozeAndClaudeCode() {
+        #expect(SettingsPane.allCases.map(\.title) == ["General", "Edge", "Notifications", "Snooze", "Claude Code"])
         #expect(SettingsPane.allCases.map(\.symbol) == [
-            "gearshape", "rectangle.leadingthird.inset.filled", "bell", "terminal",
+            "gearshape", "rectangle.leadingthird.inset.filled", "bell", "moon.zzz", "terminal",
         ])
     }
 }
@@ -156,7 +156,7 @@ struct SettingsSidebarRowTests {
         let rows = SettingsSidebarRow.rows(Self.behind(3))
 
         #expect(rows.map(\.pane) == SettingsPane.allCases)
-        #expect(rows.map(\.count) == [nil, nil, nil, 3])
+        #expect(rows.map(\.count) == [nil, nil, nil, nil, 3])
     }
 
     @Test func withNoneBehindNoRowCounts() {

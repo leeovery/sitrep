@@ -201,10 +201,10 @@ const UNSNOOZED = 'Not snoozed'
 
 /**
  * Lee's snooze of a session, its asks the board shows and its turn, its time
- * worked out at the press, checked as the CLI checks it. A time come
- * already, Tonight drawn before 18:00 and pressed after, writes nothing, a
- * toast saying why, and the question stays open, drawn with what is offered
- * now.
+ * worked out at the press from the choices as the app set them then, checked
+ * as the CLI checks it. A time come already, Tonight drawn before its time
+ * and pressed after, writes nothing, a toast saying why, and the question
+ * stays open, drawn with what is offered now.
  */
 const snooze = async (
   host: Host,
@@ -212,8 +212,8 @@ const snooze = async (
   asks: readonly string[],
   when: SnoozeChoice,
 ) => {
-  const now = await host.clock.now()
-  const until = snoozeAt(when, now)
+  const [now, settings] = await Promise.all([host.clock.now(), host.state.snooze.read()])
+  const until = snoozeAt(when, now, settings)
 
   if (until <= now) {
     host.ui.toast(`${UNSNOOZED}: ${wakeWords(until, now)} has come already.`)

@@ -2,8 +2,8 @@
  * sitrep's values in `$.state`: the session this window is attached
  * to, that session as its files fold, the board as Claude last saw it, the
  * sessions around it as the board draws them, the window's own state as Lee
- * works the board, what Claude's calls named as they were answered, and
- * what the window is doing.
+ * works the board, what Claude's calls named as they were answered, what
+ * the window is doing, and Snooze's choices as the app set them.
  *
  * The engine takes only a self-contained contract, so the board's types
  * mirror core's (core/types.ts, core/state.ts). hooks/board.ts converts a
@@ -400,6 +400,27 @@ export type SitrepNamed = {
   name: string
 }
 
+export type SitrepTimeOfDay = { hour: number; minute: number }
+
+export type SitrepSnoozeDay =
+  | 'monday'
+  | 'tuesday'
+  | 'wednesday'
+  | 'thursday'
+  | 'friday'
+  | 'saturday'
+  | 'sunday'
+
+/** Snooze's choices as the app's `snooze.json` sets them (core's `SnoozeSettings`). */
+export type SitrepSnooze = {
+  hour: { isOn: boolean }
+  later: { isOn: boolean; hours: 1 | 2 | 3 | 4 }
+  tonight: { isOn: boolean; at: SitrepTimeOfDay }
+  tomorrow: { isOn: boolean; at: SitrepTimeOfDay }
+  weekend: { isOn: boolean; day: 'saturday' | 'sunday'; at: SitrepTimeOfDay }
+  week: { isOn: boolean; day: SitrepSnoozeDay; at: SitrepTimeOfDay }
+}
+
 declare module 'claude-code' {
   interface PluginState {
     sitrep: {
@@ -432,6 +453,8 @@ declare module 'claude-code' {
       named: SitrepNamed[]
       /** A count moved on as time passes, so what the board draws from the time is drawn again. */
       tick: number
+      /** Snooze's choices as the app's `snooze.json` last read set them, the defaults before the first look or with no file. */
+      snooze: SitrepSnooze
       /** What this window has heard of its own doing, held or not: its turn, the tools it runs, the calls put to Lee, and what waits on Lee. */
       activity: SitrepActivity
     }

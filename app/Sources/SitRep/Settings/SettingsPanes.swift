@@ -29,6 +29,7 @@ struct SettingsPaneContent: View {
             case .general: GeneralPane(settings: settings)
             case .edge: EdgePaneView(settings: settings)
             case .notifications: NotificationsPane(settings: settings)
+            case .snooze: SnoozePane(settings: settings)
             case .claudeCode: ClaudeCodePaneView(settings: settings)
             }
         }

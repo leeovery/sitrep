@@ -214,7 +214,7 @@ struct SettingsModelTests {
         let behind = await Hosted.settings(live: Hosted.live(needsReload: true))
         let current = await Hosted.settings(live: Hosted.live(needsReload: false))
 
-        #expect(behind.sidebar.map(\.count) == [nil, nil, nil, 2])
+        #expect(behind.sidebar.map(\.count) == [nil, nil, nil, nil, 2])
         expectEvery(current.sidebar) { $0.count == nil }
     }
 

@@ -30,10 +30,13 @@ struct RowMenuTests {
         var untils: [Date?] = []
     }
 
-    /// The row's menu opened at `opened`, Friday at 14:00 unless told otherwise.
-    private static func menu(_ row: RowMenu.Row, _ heard: Heard, at opened: Date = now) -> NSMenu {
+    /// The row's menu opened at `opened`, Friday at 14:00 unless told otherwise, its Snooze as `settings` set it, the
+    /// defaults unless told otherwise.
+    private static func menu(
+        _ row: RowMenu.Row, _ heard: Heard, at opened: Date = now, offering settings: SnoozeSettings = SnoozeSettings()
+    ) -> NSMenu {
         RowMenu.make(
-            for: row, at: opened, in: london,
+            for: row, at: opened, in: london, offering: settings,
             RowMenu.Actions(
                 jump: { heard.said.append("jump") },
                 snooze: { heard.said.append("snooze"); heard.named.append($0); heard.untils.append($1) },
@@ -77,7 +80,7 @@ struct RowMenuTests {
 
     /// Snooze's own menu, opened on Friday at 14:00.
     private static func snoozeMenu() -> SnoozeMenu {
-        SnoozeMenu(SnoozeTime.offered(at: now, in: london), at: now, in: london) { _ in }
+        SnoozeMenu(offering: SnoozeSettings(), at: now, in: london) { _ in }
     }
 
     /// Every row offers the same: Snooze's five times, each with when it wakes, then after a separator Until it moves,
@@ -137,6 +140,54 @@ struct RowMenuTests {
         try snooze.choose(2)
         try snooze.choose(0)
         #expect(heard.untils == [Self.evening(), Self.evening(-60).addingTimeInterval(60 * 60)])
+    }
+
+    /// Settings of Lee's: In an hour and Tomorrow off, Later today an hour on, Tonight at 20:30, This weekend on Sunday
+    /// at 10:00, Next week on Friday at 08:30.
+    static let leesOwn: SnoozeSettings = {
+        var settings = SnoozeSettings()
+
+        settings.inAnHour.isOn = false
+        settings.tomorrow.isOn = false
+        settings.laterToday.hours = 1
+        settings.tonight.at = TimeOfDay(hour: 20, minute: 30)
+        settings.thisWeekend = .init(isOn: true, day: .sunday, at: TimeOfDay(hour: 10))
+        settings.nextWeek = .init(isOn: true, day: .friday, at: TimeOfDay(hour: 8, minute: 30))
+        return settings
+    }()
+
+    /// Snooze offers what Lee set, in their order, those he switched off left out, each with the time it wakes as he
+    /// timed it, and snoozes until that time; Until it moves stays, after its separator.
+    @Test func snoozeOffersTheChoicesAsLeeSetThem() throws {
+        let heard = Heard()
+        let menu = Self.menu(RowMenu.Row(asks: ["k1"], isSnoozed: false), heard, offering: Self.leesOwn)
+        let snooze = try #require(menu.items.last?.submenu)
+        let london = { (day: Int, hour: Int, minute: Int) in
+            Self.london.date(from: DateComponents(year: 2026, month: 10, day: day, hour: hour, minute: minute))!
+        }
+
+        #expect(Self.choices(snooze) == [
+            "Later today\t15:00", "Tonight\t20:30", "This weekend\tSun 10:00", "Next week\t30 Oct 08:30", "—",
+            "Until it moves",
+        ])
+
+        for item in 0 ..< 4 {
+            try snooze.choose(item)
+        }
+        #expect(heard.untils == [
+            Self.now.addingTimeInterval(60 * 60), london(23, 20, 30), london(25, 10, 0), london(30, 8, 30),
+        ])
+    }
+
+    /// With every choice switched off, Snooze offers Until it moves alone, with no separator over it.
+    @Test func everyChoiceOffLeavesUntilItMovesAlone() throws {
+        var off = SnoozeSettings()
+
+        SnoozeChoice.allCases.forEach { off.set($0, on: false) }
+
+        let menu = Self.menu(RowMenu.Row(asks: [], isSnoozed: false), Heard(), offering: off)
+
+        #expect(Self.choices(try #require(menu.items.last?.submenu)) == ["Until it moves"])
     }
 
     @Test(arguments: [["k1"], []])

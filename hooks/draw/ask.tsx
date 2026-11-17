@@ -66,6 +66,7 @@ const SNOOZE_WORDS: Record<SnoozeChoice, string> = {
   later: 'later today',
   tonight: 'tonight',
   tomorrow: 'tomorrow',
+  weekend: 'this weekend',
   week: 'next week',
 }
 
@@ -262,7 +263,7 @@ const drawAnswers = (d: Drawing, ask: Ask, standing: Standing) => {
   )
 }
 
-/** Snooze's question, in place of the ask's buttons: until when, the choices offered at the board's now, each time worked out as it is pressed, or cancel, back to the buttons. */
+/** Snooze's question, in place of the ask's buttons: until when, the choices offered at the board's now as the app set them, each time worked out as it is pressed, or cancel, back to the buttons. */
 const drawSnoozing = (d: Drawing, { at, key, waiting }: Standing) => {
   const { Box, Text, Button } = d.els
 
@@ -270,7 +271,7 @@ const drawSnoozing = (d: Drawing, { at, key, waiting }: Standing) => {
     <Box flexDirection="column">
       <Text wrap="wrap">{SNOOZE_QUESTION}</Text>
       <Box flexDirection="row" columnGap={1} flexWrap="wrap">
-        {snoozeChoicesAt(d.scene.now).map(when => (
+        {snoozeChoicesAt(d.scene.now, d.scene.snooze).map(when => (
           <Button
             key={`snooze-${when}:${key}`}
             label={SNOOZE_WORDS[when]}

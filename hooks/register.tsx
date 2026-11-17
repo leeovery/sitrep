@@ -32,6 +32,7 @@
  */
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, HookFailure, Register } from 'claude-code'
+import { SNOOZE_DEFAULTS } from '../core'
 import { actionsOf, sendReady, wakeByLeesPrompt, wakeByTurnEnd } from './actions'
 import { captured, heardSurvey } from './answering'
 import { lookAround, lookEvery } from './around'
@@ -115,6 +116,7 @@ const pulse = atom({ plugin: 'sitrep', key: 'pulse' } as const, { asks: [], fram
 const flash = atom({ plugin: 'sitrep', key: 'flash' } as const, 0)
 const tick = atom({ plugin: 'sitrep', key: 'tick' } as const, 0)
 const named = atom({ plugin: 'sitrep', key: 'named' } as const, [])
+const snooze = atom({ plugin: 'sitrep', key: 'snooze' } as const, SNOOZE_DEFAULTS)
 
 /** The host, as a hook's `$` reaches it. */
 const hostOf = ($: EngineInterface): Host => ({
@@ -252,6 +254,11 @@ const hostOf = ($: EngineInterface): Host => ({
       read: () => read($, named),
       write: value => update($, named, () => value),
       update: change => update($, named, change),
+    },
+    snooze: {
+      read: () => read($, snooze),
+      write: value => update($, snooze, () => value),
+      update: change => update($, snooze, change),
     },
     activity: {
       get: () => $.state.get({ plugin: 'sitrep', key: 'activity' }),

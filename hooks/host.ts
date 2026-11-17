@@ -34,6 +34,7 @@ import type {
   SitrepQueued,
   SitrepScroll,
   SitrepSent,
+  SitrepSnooze,
 } from '../types'
 
 /** One of the mod's values in `$.state`. */
@@ -130,6 +131,8 @@ export type Host = {
     flash: Slot<number>
     tick: Slot<number>
     named: Slot<SitrepNamed[]>
+    /** Snooze's choices as the app set them, which a look reads from `snooze.json` as it changes. */
+    snooze: Slot<SitrepSnooze>
     activity: Versioned<SitrepActivity>
   }
 }

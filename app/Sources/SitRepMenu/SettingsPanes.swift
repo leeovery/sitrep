@@ -3,7 +3,7 @@ import SitRepEdge
 
 /// The Settings window's panes, as its sidebar lists them, top to bottom (DESIGN, "Settings").
 public enum SettingsPane: String, Codable, CaseIterable, Sendable, Identifiable {
-    case general, edge, notifications, claudeCode
+    case general, edge, notifications, snooze, claudeCode
 
     public var id: Self { self }
 
@@ -13,6 +13,7 @@ public enum SettingsPane: String, Codable, CaseIterable, Sendable, Identifiable 
         case .general: "General"
         case .edge: "Edge"
         case .notifications: "Notifications"
+        case .snooze: "Snooze"
         case .claudeCode: "Claude Code"
         }
     }
@@ -24,6 +25,7 @@ public enum SettingsPane: String, Codable, CaseIterable, Sendable, Identifiable 
         case .general: "gearshape"
         case .edge: "rectangle.leadingthird.inset.filled"
         case .notifications: "bell"
+        case .snooze: "moon.zzz"
         case .claudeCode: "terminal"
         }
     }
@@ -115,7 +117,7 @@ public struct SettingsSidebarRow: Equatable, Sendable, Identifiable {
 
     public var id: SettingsPane { pane }
 
-    /// The four panes, Claude Code alone counting, and only while some windows are behind on the plugin, as System
+    /// The panes, Claude Code alone counting, and only while some windows are behind on the plugin, as System
     /// Settings counts its updates.
     public static func rows(_ behind: WindowsBehind) -> [SettingsSidebarRow] {
         SettingsPane.allCases.map { pane in

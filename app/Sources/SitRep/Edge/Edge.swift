@@ -38,9 +38,11 @@ final class Edge {
         notch.onJump = jump
         notch.onSnooze = { snoozes.snoozeRow($0, showing: $1, $2) }
         notch.onWake = { snoozes.wakeRow($0) }
+        notch.snoozeSettings = { preferences.snooze }
         strip.onJump = jump
         strip.onSnooze = notch.onSnooze
         strip.onWake = notch.onWake
+        strip.snoozeSettings = notch.snoozeSettings
         notch.onMoved = { [unowned self] in moved($0) }
         strip.onMoved = { [unowned self] in moved($0) }
         fullScreen.onChange = { [unowned self] in show() }

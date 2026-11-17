@@ -8,13 +8,16 @@ import SitRepPanel
 /// the card as well.
 @MainActor
 enum StripMenu {
+    /// A session's Snooze offers the choices `settings` offer at `now`.
     static func make(
-        for target: StripTarget, at now: Date, in calendar: Calendar, row actions: (Session) -> RowMenu.Actions,
-        fold: @escaping (BoardSection, Bool) -> Void
+        for target: StripTarget, at now: Date, in calendar: Calendar, offering settings: SnoozeSettings,
+        row actions: (Session) -> RowMenu.Actions, fold: @escaping (BoardSection, Bool) -> Void
     ) -> NSMenu {
         switch target {
         case let .session(session, section, isFolded):
-            let menu = RowMenu.make(for: RowMenu.Row(session), at: now, in: calendar, actions(session))
+            let menu = RowMenu.make(
+                for: RowMenu.Row(session), at: now, in: calendar, offering: settings, actions(session)
+            )
 
             menu.addItem(.separator())
             menu.addItem(item(section, folds: !isFolded, fold))

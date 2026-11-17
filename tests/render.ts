@@ -13,7 +13,7 @@
  * a session off the board from the files it last read.
  */
 import type { ElementTable, RenderPropsOf, RenderSurface } from 'claude-code'
-import { foldSession, sessionPaths } from '../core'
+import { foldSession, sessionPaths, SNOOZE_DEFAULTS } from '../core'
 import type {
   SitrepAnswering,
   SitrepAttachment,
@@ -186,6 +186,7 @@ const hostOver = (files: Map<string, File>, now: number, desk: Desk, logged: str
       pulse: slot(desk.pulse ?? { asks: [], frames: 0 }),
       flash: slot(desk.flash ?? 0),
       tick: slot(0),
+      snooze: slot(SNOOZE_DEFAULTS),
     },
   }) as unknown as Host
 

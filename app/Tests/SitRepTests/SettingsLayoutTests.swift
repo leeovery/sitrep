@@ -66,8 +66,9 @@ struct SettingsLayoutTests {
         #expect(abs(popUp.width - NSPopUpButton.stock(holding: button.itemArray).intrinsicContentSize.width) <= 0.5)
     }
 
-    /// Open at login; Reduce motion; for a new ask and for Lee's turn each, Notify me, Play a sound and Pulse.
-    @Test(arguments: [(SettingsPane.general, 1), (.edge, 1), (.notifications, 6), (.claudeCode, 0)])
+    /// Open at login; Reduce motion; for a new ask and for Lee's turn each, Notify me, Play a sound and Pulse; each of
+    /// Snooze's choices.
+    @Test(arguments: [(SettingsPane.general, 1), (.edge, 1), (.notifications, 6), (.snooze, 6), (.claudeCode, 0)])
     func eachSwitchIsTheMiniSwitch36By16(pane: SettingsPane, switches: Int) async throws {
         let hosted = await Hosted.pane(pane, width: 744)
 

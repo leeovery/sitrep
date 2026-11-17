@@ -17,6 +17,8 @@ final class NotchController: NSObject, CalloutShape {
     var onJump: (String, @escaping (JumpAnswer) -> Void) -> Void = { _, _ in }
     /// A row's menu's Snooze: the session, the asks its row showed, and the time chosen, or until it moves.
     var onSnooze: (String, [String], Date?) -> Void = { _, _, _ in }
+    /// Snooze's choices as Lee set them, read as a row's menu opens.
+    var snoozeSettings: () -> SnoozeSettings = { SnoozeSettings() }
     /// A Snoozed row's menu's Wake now: the session.
     var onWake: (String) -> Void = { _ in }
     /// A drag let the notch go: the settings with its new place.
@@ -289,7 +291,7 @@ final class NotchController: NSObject, CalloutShape {
 
         let id = session.id, key = row.key
         let menu = RowMenu.make(
-            for: RowMenu.Row(session), at: Date(), in: run.calendar,
+            for: RowMenu.Row(session), at: Date(), in: run.calendar, offering: snoozeSettings(),
             RowMenu.Actions(
                 jump: { [unowned self] in jumpFromMenu(to: key) },
                 snooze: { [unowned self] in onSnooze(id, $0, $1) },

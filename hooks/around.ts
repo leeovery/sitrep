@@ -21,7 +21,8 @@
  * read at every look. Each project's folder is listed once a look, its
  * listing handed to each of its sessions' reads. What drawing needs goes
  * in `$.state` as plain data, put only when it changed; the held session
- * itself stays the watch's.
+ * itself stays the watch's. So does Snooze's choices as the app's
+ * `snooze.json` sets them, read as each look lists sitrep's folder.
  */
 import type { FsEntry, Timer } from 'claude-code'
 import {
@@ -62,6 +63,7 @@ import { projectKeys } from './projects'
 import { destinations, isShowing, type Folded } from './queue'
 import { createReader, filedIn, type Reader } from './reader'
 import type { Filed } from './scene'
+import { forgetSnooze, snoozeSettings } from './snoozing'
 
 /**
  * How often the sessions around the held one are read. They change only as
@@ -78,7 +80,7 @@ type Kept = KeptFold & { read: Reader; isOff: boolean }
 const kept = new Map<string, Kept>()
 
 /** What the last look put in `$.state`, as JSON, so a look that changed nothing puts nothing. */
-const shown: { projects?: string; others?: string } = {}
+const shown: { projects?: string; others?: string; snooze?: string } = {}
 
 /**
  * Whether a look at `now` is whole, reading the sessions off the board too:
@@ -104,6 +106,8 @@ export const forgetLooks = () => {
     kept.clear()
     delete shown.projects
     delete shown.others
+    delete shown.snooze
+    forgetSnooze()
   })
 
   return looking
@@ -410,6 +414,7 @@ const look = async (host: Host, fresh: readonly string[]) => {
 
   await put(host.state.projects, 'projects', projectsOf(held, keys, read, now, pane))
   await put(host.state.others, 'others', othersOf(full, read))
+  await put(host.state.snooze, 'snooze', await snoozeSettings(host, root))
   await settleSent(host, read, now)
   await settleAnswering(host)
   prune(root, read)
