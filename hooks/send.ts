@@ -38,7 +38,7 @@ const heldNow = (host: Host) =>
 /** What a send did with the held session's replies: claimed their message, met one in flight it is not claimed behind, or carried none, leaving each for why. */
 type Here = { is: 'claimed' } | { is: 'heldBack' } | { is: 'none'; left: readonly LeftOut[] }
 
-/** Why a send carried nothing at all, by why it left the replies it held: their items changed, or answered or closed, or in sessions finished beyond reply, or several of these. */
+/** Why a send carried nothing at all, by why it left the replies it held: their items changed, or answered or closed, or their sessions finished, no reply reaching them, or several of these. */
 const nothingSent = (left: readonly LeftOut[]) => {
   const why = [
     left.includes('changed') && 'have changed since',

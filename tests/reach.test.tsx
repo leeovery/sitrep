@@ -3,6 +3,7 @@ import { expect, test, tier } from './kit'
 import { CLEAR_AFTER_DROP_MS, TAKEN } from '../hooks/answering'
 import { AROUND_MS } from '../hooks/around'
 import { itemKey } from '../hooks/places'
+import { WATCH_MS } from '../hooks/window'
 import { at, entered, LIST } from './answers'
 import { rowsOf } from './drawn'
 import { DAY, GO, HELD, LEDGER, meta, MIN, PROJECT, T0, W1, W3 } from './data'
@@ -105,10 +106,10 @@ test("a reply queued to another session's ask before it was finished says it can
   const queued = itemKey(SHIPPED.id, 'k1')
 
   expect(rowsOf(await ui.find({ key: `ask:${queued}` })).at(-1)).toMatch(
-    /· can't be sent: the session was finished ↺ undo$/,
+    /· not sent: session finished ↺ undo$/,
   )
   expect(rowsOf(await ui.find({ key: `readyanswer:${queued}` }))).toEqual([
-    "└ → Ship · can't be sent: the session was finished",
+    '└ → Ship · not sent: session finished',
   ])
   expect(await ui.find({ key: 'send' })).toBeUndefined()
 })
@@ -180,14 +181,14 @@ test("a reply queued to another window's session before it was finished can't be
   const { ui, there } = await yesThenFinished(w)
 
   expect(rowsOf(await ui.find({ key: `readyanswer:${there}` }))).toEqual([
-    "└ → Approve · can't be sent: the session was finished",
+    '└ → Approve · not sent: session finished',
   ])
   expect(await ui.find({ key: 'send' })).toBeUndefined()
 
   await ui.press({ key: `old:project:${PROJECT.key}` })
   await ui.press({ key: `go:${LEDGER.id}` })
   expect(rowsOf(await ui.find({ key: `ask:${there}` })).at(-1)).toMatch(
-    /· can't be sent: the session was finished ↺ undo$/,
+    /· not sent: session finished ↺ undo$/,
   )
   await ui.press({ key: `undo:${there}` })
   expect(w.state.queue).toEqual([])
@@ -208,4 +209,28 @@ test("send carries this session's reply and leaves out one to another session fi
   expect(w.state.queue).toEqual([
     { project: PROJECT.key, session: LEDGER.id, item: 'k4', verdict: 'yes' },
   ])
+})
+
+test("this session finished, a reply on its way in this window's held message leaves its ask waiting on no one: queued it waits, carried `nothing waiting` over `on its way`, in its view and its project's", async ($, on) => {
+  const w = world($, on)
+
+  await w.begin()
+
+  const id = await asked(w, GO)
+  const band = await w.band()
+  const ui = await w.opened()
+  const asks = async () => (await band.find({ key: 'band:asks' }))?.text
+
+  await w.call('finish', { reason: 'Shipped' })
+  await ui.press({ key: `yes:${w.item(id)}` })
+  expect(await asks(), 'queued, not sent').toBe('1 ask')
+
+  await w.turnStarts('Carry on.')
+  await ui.press({ key: 'send' })
+  await w.clock.advance(WATCH_MS)
+  expect(rowsOf(await ui.find({ key: `ask:${w.item(id)}` })).at(-1)).toMatch(/· on its way$/)
+  expect(await asks(), 'carried').toBe('0 asks')
+
+  await toProject(ui)
+  expect(await ui.find({ type: 'Text', text: /· nothing waiting on you$/ })).toBeDefined()
 })

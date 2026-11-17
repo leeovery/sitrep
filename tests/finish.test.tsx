@@ -18,7 +18,7 @@ import {
   W3,
 } from './data'
 import { file, finish, park, yesAsk } from './lines'
-import { toProject, WIDE, world, type Board, type World } from './world'
+import { postedId, toProject, WIDE, world, type Board, type World } from './world'
 
 tier('user')
 
@@ -174,20 +174,29 @@ test("Lee's finish hides nothing parked: the session's items stay in the project
   ).toBeDefined()
 })
 
-test('a session Claude finished counts nothing in its own window: the band and the tab say none waits', async ($, on) => {
+test("a session Claude finished while this window holds it still counts its open asks in this window, as their buttons answer them: the band and both tabs, though core's count says none; answered, none", async ($, on) => {
   const w = world($, on)
 
   await w.begin()
-  await w.call('ask', reviewRound(1))
 
+  const id = postedId(await w.call('ask', reviewRound(1)))
   const band = await w.band()
   const ui = await w.opened(WIDE)
+  const counts = async () => [
+    (await band.find({ key: 'band:asks' }))?.text,
+    rowsOf(await ui.find({ key: 'tab:session:box' }))[0],
+    rowsOf(await ui.find({ key: 'tab:all:box' }))[0],
+  ]
 
-  expect(await band.find({ key: 'band:asks' })).toMatchObject({ text: '1 ask' })
-  expect(rowsOf(await ui.find({ key: 'tab:session:box' }))).toEqual([' ⌂ Help desk redesign 1'])
+  expect(await counts()).toEqual(['1 ask', ' ⌂ Help desk redesign 1', ' ≡ All projects 1'])
 
   await w.call('finish', { reason: 'Shipped' })
 
-  expect(await band.find({ key: 'band:asks' })).toMatchObject({ text: '0 asks' })
-  expect(rowsOf(await ui.find({ key: 'tab:session:box' }))).toEqual([' ⌂ Help desk redesign'])
+  expect(w.state.board?.waiting, "core's count").toBe(0)
+  expect(await counts()).toEqual(['1 ask', ' ⌂ Help desk redesign 1', ' ≡ All projects 1'])
+
+  await ui.press({ key: `yes:${w.item(id)}` })
+  await ui.press({ key: 'send' })
+
+  expect(await counts()).toEqual(['0 asks', ' ⌂ Help desk redesign', ' ≡ All projects'])
 })

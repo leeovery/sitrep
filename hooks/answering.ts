@@ -10,11 +10,11 @@
  * next Enter would be taken: while its item, as the board reads it, in full
  * or in its project's briefs and parked items, can still take the reply.
  * Once it cannot (closed or picked up, answered from elsewhere, an ask's
- * session finished beyond reply, a send carrying its reply) the next Enter
- * goes to Claude as ever, and the mode ends. The held session finished, or
- * a parked item's, ends nothing: a reply there goes in this window's own
- * message, and the item is its project's. An item whose session the board has
- * not read yet leaves it standing, unshown.
+ * session finished, no reply reaching it, a send carrying its reply) the
+ * next Enter goes to Claude as ever, and the mode ends. The held session
+ * finished, or a parked item's, ends nothing: a reply there goes in this
+ * window's own message, and the item is its project's. An item whose
+ * session the board has not read yet leaves it standing, unshown.
  *
  * A prompt carrying an attachment, an image, can't wait in Ready to send:
  * a plugin is given its kind, never its bytes or its path, and its own
@@ -34,6 +34,7 @@ import {
   barredBy,
   boardMessage,
   isAnswer,
+  reaches,
   takes,
   type Ask,
   type Item,
@@ -45,7 +46,7 @@ import { foldedFor } from './around'
 import { claimRide, letRideGo, rideTaken, type Ridden } from './deliver'
 import { logFailure, type Host } from './host'
 import { unwrapPastes } from './paste'
-import { briefOf, canReach, filedAt, parkedIn, reaches } from './places'
+import { briefOf, canReach, filedAt, parkedIn } from './places'
 import {
   apartFrom,
   goesTo,
@@ -121,7 +122,7 @@ export const CANNOT_RIDE: Record<LeftOut, string> = {
   changed: 'Not sent: it has changed since.',
   answered: 'Not sent: already answered.',
   resolved: 'Not sent: Claude closed it.',
-  finished: 'Not sent: the session was finished.',
+  finished: 'Not sent: the session is finished.',
 }
 
 /** How long after a taken prompt is dropped the box is cleared: once the engine has put it back. */
@@ -142,7 +143,7 @@ export const heardSurvey = (surface: RenderSurface, isHeld: boolean) => {
 /** The board has read none of what tells where the mode's item stands. */
 const UNREAD = 'unread'
 
-/** An item of `session` as it can take the mode's reply: one a reply can reach (`canReach`), so no ask of a finished session but the held one's; a parked item, its session finished or not, since it is its project's. */
+/** An item of `session` as it can take the mode's reply: one a reply can reach (`reaches`). */
 const answerable = (scene: Scene, session: string, item: Item | undefined) =>
   item !== undefined && canReach(scene, session, item) ? item : undefined
 
@@ -390,7 +391,7 @@ const takesIn = (folded: Folded, { session, item, as }: SitrepAnswering, ride: S
 
   return (
     taking !== undefined &&
-    reaches(ride.session, session, read?.finished !== undefined, taking) &&
+    reaches(ride.session, { id: session, isFinished: read?.finished !== undefined }, taking) &&
     isOpenTo(apartFrom(taking, ride), as)
   )
 }

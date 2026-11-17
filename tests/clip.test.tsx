@@ -941,10 +941,13 @@ test('five sends held in a window too short for a row each: the first in full, a
   await ui.press({ key: STEP_HELD })
   expect(await sendLines(ui), 'round again').toContain('⧗ Then: Review round 4 · 1 of 2')
 
+  // The take-back rewrites the heartbeat at the size it had, one reply's ids for another's: on a clock never moved, at the mtime it had too, which the reader takes as unchanged.
+  await w.clock.advance(1)
   await ui.press({ key: w.takeBack(3) })
 
   expect(w.flights()).toHaveLength(4)
   expect(await ui.find({ key: 'send' }), 'its reply still to send').toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '· not sent: already answered' })).toBeUndefined()
   expect(await sendLines(ui)).toContain('⧗ Then: Review round 2 · 1 of 3')
   expect(await drawnRows(ui)).toBeLessThanOrEqual(cap)
   await expectHeightKept(ui, 'four sends held and a reply, cut short', 22)

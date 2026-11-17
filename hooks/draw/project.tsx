@@ -7,7 +7,7 @@
  * own view.
  */
 import type { RenderElement } from 'claude-code'
-import type { Carried, EndedSession, SessionSummary } from '../../core'
+import { isLiveSession, type Carried, type EndedSession, type SessionSummary } from '../../core'
 import { oldList, projectScope } from '../lists'
 import { ago, C, clip, GLYPH } from '../look'
 import { askedIn, hereFirst, parkedIn, projectAt, takenOffIn } from '../places'
@@ -68,32 +68,39 @@ const drawSession = (
   }
 }
 
-/** Why a current session is drawn closed: finished, though the window holding it keeps it among the current; or with no window; none while it is live. */
-const shutOf = ({ isFinished, isOpen }: SessionSummary) => {
-  if (isFinished) {
-    return 'finished'
+/**
+ * What goes on a current session's right: how many asks wait on Lee there,
+ * after `finished ·` where it is finished, though the window holding it
+ * keeps it among the current; else, closed, why.
+ */
+const rightOf = (d: Drawing, session: SessionSummary) => {
+  const { Box, Text } = d.els
+  const waiting =
+    session.waiting > 0 ? <Text color={C.ask}>{session.waiting} waiting</Text> : undefined
+
+  if (session.isFinished) {
+    return (
+      <Box flexDirection="row" gap={1}>
+        <Text color={C.faint}>{waiting === undefined ? 'finished' : 'finished ·'}</Text>
+        {waiting}
+      </Box>
+    )
   }
 
-  return isOpen ? undefined : 'closed'
+  return waiting ?? (session.isOpen ? undefined : <Text color={C.faint}>closed</Text>)
 }
 
-/** A current session's row: what waits on Lee there on its right, else why it is closed. */
-const drawCurrent = (d: Drawing, project: string, session: SessionSummary) => {
-  const { Text } = d.els
-  const shut = shutOf(session)
-  const quiet = shut === undefined ? undefined : <Text color={C.faint}>{shut}</Text>
-  const right = session.waiting > 0 ? <Text color={C.ask}>{session.waiting} waiting</Text> : quiet
-
-  return drawSession(d, project, session, {
+/** A current session's row: dim once it is not live (`isLiveSession`), and what goes on its right. */
+const drawCurrent = (d: Drawing, project: string, session: SessionSummary) =>
+  drawSession(d, project, session, {
     key: `sess:${session.id}`,
-    isClosed: shut !== undefined,
-    right,
+    isClosed: !isLiveSession(session),
+    right: rightOf(d, session),
   })
-}
 
-/** How long ago an old session ended, as its row's right says it: `finished 1d` where it was finished, else its bare age, as a list's age is. */
+/** When an old session ended, as its row's right says it: `finished 1d`, else `idle 8d`, since it last changed. */
 const endedWords = (now: number, { isFinished, endedAt }: EndedSession) =>
-  isFinished ? `finished ${ago(now, endedAt)}` : ago(now, endedAt)
+  `${isFinished ? 'finished' : 'idle'} ${ago(now, endedAt)}`
 
 /** An old session's row, closed whatever window still holds it, as it no longer shows among the current: when it ended on its right. */
 const drawOld = (d: Drawing, project: string, session: EndedSession) => {

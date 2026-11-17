@@ -22,7 +22,7 @@ import type { SitrepPane } from '../../types'
 import { answeringIn, writtenAs, type Answering } from '../answering'
 import { C, clip, CLOSE, counted, GLYPH } from '../look'
 import { BAND, placementOn } from '../pane'
-import { waitingElsewhere } from '../places'
+import { waitingElsewhere, waitingHere } from '../places'
 import { countMark, type Scene } from '../scene'
 import { answeredByTheHook, type Els } from './kit'
 
@@ -79,11 +79,11 @@ const drawAnswering = (els: Els, width: number, standing: Answering, scene: Scen
 /** The counts, each a way into the board, and the board's own show or hide. */
 const drawCounts = (els: Els, surface: RenderSurface, width: number, scene: Scene) => {
   const { Box, Text, Button } = els
-  const { session, pane, flash } = scene
+  const { pane, flash } = scene
   const isNarrow = width < NARROW
-  const waiting = session.waiting
+  const waiting = waitingHere(scene)
   const elsewhere = waitingElsewhere(scene)
-  const mark = countMark(scene)
+  const mark = countMark(scene, waiting)
 
   return (
     <Box flexDirection="row" justifyContent="flex-end" columnGap={2} width={width}>

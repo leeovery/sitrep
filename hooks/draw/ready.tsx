@@ -6,8 +6,7 @@
  * Under them, the replies still to send, grouped by where each goes, this
  * session first, a pick-up always to it whichever session of the project
  * parked its item, each hung from its item with its own ✕, then send and
- * cancel all, which reach only those: send while a reply can reach the item
- * of any of them.
+ * cancel all, which reach only those, while any of them would go.
  *
  * Replies sent into another session's inbox stay in their group until Claude
  * has them, and a while after: the group says where they stand there, and
@@ -174,7 +173,7 @@ export type Ready = {
   groups: readonly Group[]
   /** How many replies are not yet with Claude: those the sends on their way carry, and those still to send, any left off for room among them. */
   waiting: number
-  /** How many replies wait for a send, any left off for room among them, but those no reply reaches, which no send carries: send shows while any do. */
+  /** How many replies a send would carry, any left off for room among them: none held back (`heldBack`). Send shows while any would go. */
   toSend: number
   /** How many replies are left off for room. */
   more: number
@@ -313,8 +312,8 @@ const waitingIn = (group: Group) =>
 const countWaiting = (groups: readonly Group[]) =>
   groups.reduce((sum, group) => sum + waitingIn(group), 0)
 
-/** Whether a reply listed is queued where a reply can reach its item: one a send could carry. */
-const isSendable = (listed: Listed) => 'queued' in listed && listed.barred !== 'finished'
+/** Whether a reply listed is queued, and nothing holds it back from a send. */
+const isSendable = (listed: Listed) => 'queued' in listed && listed.barred === undefined
 
 /** How many replies of the groups still to send a send could carry. */
 const countToSend = (groups: readonly Group[]) =>

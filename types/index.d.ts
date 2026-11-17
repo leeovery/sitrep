@@ -325,7 +325,7 @@ export type SitrepProjectParked = SitrepParked & { session: string; name: string
 export type SitrepCarried<T> = { entries: T[]; count: number }
 
 /** A session of a project's that is not current, in brief, and when it ended: core's `EndedSession`. */
-export type SitrepEnded = SitrepSummary & { endedAt: number }
+export type SitrepEndedSession = SitrepSummary & { endedAt: number }
 
 /**
  * A project as last read: its key, its current sessions other than the held
@@ -345,7 +345,7 @@ export type SitrepProject = {
   /** What was taken off the Parked of every session filed under it, finished and idle ones included, the newest taken off first: the latest its views show, every one while they show all. Only while the open board shows a view of the project, its own or a session's, which draw them; none otherwise. */
   takenOff?: SitrepCarried<SitrepProjectParked>
   /** Its sessions that are not current, the latest ended first: the latest its view shows, every one while it shows all. Only while the open board shows the project's view, which draws them; none otherwise. */
-  old?: SitrepCarried<SitrepEnded>
+  old?: SitrepCarried<SitrepEndedSession>
 }
 
 /** Another session the board draws in full, and the project it is filed under. */

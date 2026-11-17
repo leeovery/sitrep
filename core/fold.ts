@@ -30,6 +30,7 @@ import {
   isAnswer,
   isOpen,
   isPending,
+  reaches,
   waitingOnLee,
   type ReplyFields,
 } from './replies'
@@ -91,6 +92,8 @@ type Carried = {
 type Read = Written | Carried
 
 type Fold = {
+  /** The session's id. */
+  id: string
   isOpen: boolean
   status: Status
   items: Map<string, Item>
@@ -177,13 +180,22 @@ const arrived = (item: Ask | Parked, reply: Reply) => {
  */
 const isLine = (fold: Fold, reply: Reply) => !fold.carried.has(reply)
 
-/** Why an item takes a reply no more, whatever else is on its way to it: unfit, its session finished, or the item closed. */
-const refusedBy = (fold: Fold, item: Ask | Parked, reply: ReplyFields): Voided | undefined => {
+/**
+ * Why an item takes a reply no more, whatever else is on its way to it:
+ * unfit; its session finished, no reply reaching it from the window holding
+ * the session `held`, none for a line (`reaches`); or the item closed.
+ */
+const refusedBy = (
+  fold: Fold,
+  item: Ask | Parked,
+  reply: ReplyFields,
+  held?: string,
+): Voided | undefined => {
   if (!fits(item, reply)) {
     return 'changed'
   }
 
-  if (fold.finished !== undefined) {
+  if (!reaches(held, { id: fold.id, isFinished: fold.finished !== undefined }, item)) {
     return 'finished'
   }
 
@@ -682,8 +694,9 @@ const refusedAt = (fold: Fold, item: Ask | Parked, voided: Voided) => {
  * of it, in the order they took their places among the answers. One barred
  * by an answer that stands no more comes back. One still on its way that
  * its item takes no more goes void, and what it barred reaches the item
- * again, as of what refused it, to be judged in its turn. A close, a
- * finish or an edit the lines have since undone leaves it on its way. Then
+ * again, as of what refused it, to be judged in its turn; a finish voids
+ * none, the window carrying it holding the session (`reaches`). A close or
+ * an edit the lines have since undone leaves it on its way. Then
  * every carried reply void, barred or refused, leaves its item's replies:
  * no line of it is written yet to settle anything.
  */
@@ -693,7 +706,8 @@ const judgeCarried = (fold: Fold, item: Ask | Parked) => {
       arrive(fold, item, reply, reply.at)
     }
 
-    const refused = isPending(reply) ? refusedBy(fold, item, reply) : undefined
+    // A carried reply is a live window's, read from its heartbeat in this session's own folder: the window holds this session.
+    const refused = isPending(reply) ? refusedBy(fold, item, reply, fold.id) : undefined
 
     if (refused !== undefined) {
       voidReply(fold, item, reply, refused, refusedAt(fold, item, refused) ?? reply.at)
@@ -767,6 +781,7 @@ export const foldSession = (
 
   const presence = presenceOf(files.presence ?? {}, pauses)
   const fold: Fold = {
+    id: meta.id,
     isOpen: presence.some(each => isLive(each, now)),
     status: { name: meta.name, summary: meta.summary, now: [], at: meta.created, by: meta.by },
     items: new Map(),

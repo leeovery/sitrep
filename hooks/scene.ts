@@ -177,9 +177,9 @@ export const isPulsing = ({ pulse, session }: Scene, ask?: Ask) =>
 export const askMark = (scene: Scene, ask?: Ask) =>
   pulseOf(isPulsing(scene, ask) ? scene.pulse.frames : 0)
 
-/** The ◆ beside the count of asks waiting: grey while none waits or pulses. */
-export const countMark = (scene: Scene) => {
+/** The ◆ beside the count of asks `waiting`: grey while none waits or pulses. */
+export const countMark = (scene: Scene, waiting: number) => {
   const mark = askMark(scene)
 
-  return scene.session.waiting > 0 || isPulsing(scene) ? mark : { ...mark, color: C.grey }
+  return waiting > 0 || isPulsing(scene) ? mark : { ...mark, color: C.grey }
 }

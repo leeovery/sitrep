@@ -228,7 +228,7 @@ test('a send and the first message read a session off the board afresh, at a loo
 
   const ui = await w.opened()
 
-  // A reply of this session's own keeps send offered while the board, its look not whole, still reads the ledger finished, beyond reply.
+  // A reply of this session's own keeps send offered while the board, its look not whole, still reads the ledger finished, no reply reaching it.
   await ui.press({ key: `yes:${id}:${review}` })
   await toProject(ui)
   await ui.press({ key: `go:${LEDGER.id}` })

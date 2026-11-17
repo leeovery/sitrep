@@ -63,7 +63,7 @@ const SNOOZED = { glyph: GLYPH.ask, color: C.grey }
 const LEFT_OPEN = { glyph: GLYPH.ask, color: C.faint }
 
 /** Why a finished session's asks offer no reply, under ASKS. */
-const FINISHED_LINE = 'This session is finished: no reply reaches its asks.'
+const FINISHED_LINE = "Finished: its asks can't be answered."
 
 /** What snoozing an ask asks in place. */
 const SNOOZE_QUESTION = 'Snooze this session? Its asks, and your turn there, stop counting until it wakes.'
@@ -173,7 +173,7 @@ const standingOf = (d: Drawing, asked: AskedAt, waiting: readonly string[]) => {
     isAnswering: isBeingAnswered(d, at),
     isClosed,
     snoozedUntil,
-    isBeyond: !canReach(d.scene, at.session, ask),
+    isUnreachable: !canReach(d.scene, at.session, ask),
     canSnooze: !isFinished && snoozedUntil === undefined && waitsOnLee(ask) && offered.length > 0,
     offered,
     isChoosing,
@@ -305,12 +305,12 @@ const drawButtons = (d: Drawing, ask: Ask, standing: Standing, isLast: boolean) 
 }
 
 /** An ask's mark: ticked once Lee's send closed it, faint where no reply can reach it, quieted while snoozed, else its ◆ as it stands in the pulse. */
-const markOf = (d: Drawing, ask: Ask, { isClosed, isBeyond, snoozedUntil }: Standing) => {
+const markOf = (d: Drawing, ask: Ask, { isClosed, isUnreachable, snoozedUntil }: Standing) => {
   if (isClosed) {
     return RESOLVED
   }
 
-  if (isBeyond) {
+  if (isUnreachable) {
     return LEFT_OPEN
   }
 
@@ -319,9 +319,10 @@ const markOf = (d: Drawing, ask: Ask, { isClosed, isBeyond, snoozedUntil }: Stan
 
 /**
  * An ask's row, its title after its session's name where the list names
- * them, quieted while snoozed or beyond reply. Its buttons stand while
- * nothing waits on it but a comment on its way, which bars no answer, and
- * never beyond reply: opened there, it shows only its tree.
+ * them, quieted while snoozed or while its session finished, no reply
+ * reaching it. Its buttons stand while nothing waits on it but a comment on
+ * its way, which bars no answer, and never where no reply reaches it:
+ * opened there, it shows only its tree.
  */
 const drawAsk = (
   d: Drawing,
@@ -332,13 +333,13 @@ const drawAsk = (
 ) => {
   const { ask, name } = asked
   const standing = standingOf(d, asked, waiting)
-  const { key, queued, isAnswering, isClosed, isOpen, isChoosing, snoozedUntil, isBeyond } =
+  const { key, queued, isAnswering, isClosed, isOpen, isChoosing, snoozedUntil, isUnreachable } =
     standing
   const mark = markOf(d, ask, standing)
   // `select` toggles the key it is given, so the title gives the one the pane holds: one press closes the ask from Snooze's question too.
   const opener = isChoosing ? snoozeKey(key) : key
   const isAnswerable =
-    isOpen && !isBeyond && queued === undefined && ask.answerOnItsWay === undefined && !isAnswering
+    isOpen && !isUnreachable && queued === undefined && ask.answerOnItsWay === undefined && !isAnswering
 
   return drawRow(d, {
     key: `ask:${key}`,
@@ -351,7 +352,7 @@ const drawAsk = (
       : {
           key: `pick:${key}`,
           onPress: () => d.act.select(opener),
-          isDim: snoozedUntil !== undefined || isBeyond,
+          isDim: snoozedUntil !== undefined || isUnreachable,
         },
     branches: branchesOf(d, ask, mark.color, standing),
     after: isAnswerable && drawButtons(d, ask, standing, isLast),
@@ -361,7 +362,7 @@ const drawAsk = (
 /** What Asks lists: how many of its asks wait, and how many are snoozed, whether this session's are among them, and whether each names its session. */
 export type AsksListed = { waiting: number; snoozed: number; isHome: boolean; isNamed: boolean }
 
-/** How many asks wait, how many are snoozed where any are, and how many were left open beyond reply: `1 waiting · 2 snoozed`, `nothing waiting · 2 left open`. */
+/** How many asks wait, how many are snoozed where any are, and how many were left open, their session finished, no reply reaching them: `1 waiting · 2 snoozed`, `nothing waiting · 2 left open`. */
 const countsOf = ({ waiting, snoozed }: AsksListed, left: number) => {
   const words = waiting > 0 ? `${waiting} waiting` : 'nothing waiting'
   const asides = [
@@ -381,7 +382,7 @@ const noteOf = (d: Drawing, listing: AsksListed, left: number) => {
   return { note: countsOf(listing, left), color: C.grey }
 }
 
-/** How many of the asks listed were left open beyond reply (`canReach`). */
+/** How many of the asks listed were left open, their session finished, no reply reaching them (`canReach`). */
 const leftOpen = (d: Drawing, asked: readonly AskedAt[]) =>
   asked.filter(each => each.ask.state !== 'closed' && !canReach(d.scene, each.at.session, each.ask))
     .length
@@ -390,8 +391,7 @@ const leftOpen = (d: Drawing, asked: readonly AskedAt[]) =>
 const waitingIn = (asked: readonly AskedAt[], session: string) =>
   asked
     .filter(
-      each =>
-        each.at.session === session && each.snoozedUntil === undefined && waitsOnLee(each.ask),
+      each => each.at.session === session && each.snoozedUntil === undefined && waitsOnLee(each.ask),
     )
     .map(each => each.ask.id)
 

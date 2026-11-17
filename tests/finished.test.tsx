@@ -22,20 +22,23 @@ const QUIET = meta('sr-qu1et0', 'Invoice archive', W3)
 
 const ASK = itemKey(SHIPPED.id, 'k1')
 
-/** The faint line under ASKS where an ask was left open beyond reply. */
-const FINISHED_LINE = 'This session is finished: no reply reaches its asks.'
+/** The faint line under ASKS where an ask was left open, its session finished, no reply reaching it. */
+const FINISHED_LINE = "Finished: its asks can't be answered."
 
 const AROUND: readonly Neighbour[] = [
   {
     meta: SHIPPED,
     lines: [
-      [T0, status(['Shipping the export'], SHIPPED)],
+      [T0, status(['Shipping the export'], { ...SHIPPED, next: 'Announce it' })],
       [T0, yesAsk('k1', 'Ship it?', 'Ship')],
       [T0, park('p1', 'Paginate the export')],
       [NOW - DAY, finish('claude', 'Shipped')],
     ],
   },
-  { meta: QUIET, lines: [[NOW - DAY, status(['Archiving last year'], QUIET)]] },
+  {
+    meta: QUIET,
+    lines: [[NOW - DAY, status(['Archiving last year'], { ...QUIET, next: 'Prune it' })]],
+  },
 ]
 
 /** A session's view, the sessions around beside this one, the pane as given. */
@@ -78,6 +81,23 @@ test("a finished session's STATUS says why it was finished, where its finish say
   expect((await status(QUIET.id)).filter(row => row.includes('finished:'))).toEqual([])
 })
 
+test("a finished session's STATUS draws what was under way and what was next faint, so neither reads as going on; a closed one's as ever", async () => {
+  const colours = async (session: string, now: string, next: string) => {
+    const ui = viewOf(session)
+
+    return [
+      (await ui.find({ type: 'Text', text: now }))?.props.color,
+      (await ui.find({ type: 'Text', text: `next: ${next}` }))?.props.color,
+    ]
+  }
+
+  expect(await colours(SHIPPED.id, 'Shipping the export', 'Announce it')).toEqual([
+    C.faint,
+    C.faint,
+  ])
+  expect(await colours(QUIET.id, 'Archiving last year', 'Prune it')).toEqual([undefined, C.soft])
+})
+
 /** This session, Claude having finished it a day ago while this window holds it, its words ask and its yes ask open, the pane as `shown`. */
 const heldFinished = (shown: Partial<SitrepPane> = {}) =>
   pane(
@@ -112,7 +132,7 @@ test("this session, finished while this window holds it, reads finished in its p
   const all = heldFinished({ place: { level: 'all' } })
 
   expect(rowsOf(await project.find({ key: `sess:${HELD.id}` }), ACROSS)[0]).toMatch(
-    /^Help desk redesign ⌂ +2 waiting$/,
+    /^Help desk redesign ⌂ +finished · 2 waiting$/,
   )
   expect((await project.find({ key: `go:${HELD.id}` }))?.props.dimColor).toBe(true)
   expect(await project.find({ type: 'Text', text: '0 of 1 open' })).toBeDefined()

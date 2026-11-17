@@ -152,9 +152,10 @@ it (below). Something parked kept its session current until 11 November
 
 A session is **finished** once Claude or Lee finishes it, and is then never
 current, whatever it holds: a window can close with things still open on
-its session. Its waiting asks count nowhere (tabs, band, projects), and no
-reply from another window reaches them; the window holding it still
-answers them (see "A finished session's view", under "The pane"). It leaves
+its session. Its waiting asks count nowhere (tabs, band, projects) but in
+the window that still holds it, which still answers them, and no reply from
+another window reaches them (see "A finished session's view", under "The
+pane"). It leaves
 the session lists, and shows among its project's old sessions, whose row
 opens its view, which says it is finished (see "A finished session's
 view"). A line posted to it later, by the CLI or anyone, leaves it
@@ -167,9 +168,10 @@ session of the project sees it and acts on it: Claude's board text lists
 it, Claude's tools resolve, edit or reopen it, and Lee picks it up from the
 pane in any window of the project, the pick-up going to the Claude in that
 window (see Delivery). Every view of the project lists every one: a
-project's view each naming its session by name, and a session's view the
-items it parked first, then the rest, each of those naming its session, as
-Claude's board text lists them. Finishing a session hides none of them, and
+project's view the oldest first, each naming its session by name, and a
+session's view the items it parked first, then the rest, each of those
+naming its session, each part the oldest first, as Claude's board text
+lists them. Finishing a session hides none of them, and
 a session going idle takes none with it. Asks stay their session's.
 Decided with Lee, 11 November 2026;
 until then a parked item was its session's, and a finished session's
@@ -184,8 +186,8 @@ vanished from every view, though still stored.
   project's view. It is what Claude's board text already gave Claude.
 
   A faint `from other sessions` heads the items other sessions parked, in
-  a session's view, with no blank row: a choice made in review the same
-  day, not Lee's ask. Named alone, those rows read like titles with colons
+  a session's view, with no blank row (17 November 2026, made in review).
+  Named alone, those rows read like titles with colons
   in them, and their ages jump at the seam. It shows even where the session
   parked nothing itself, so it is always plain that none of them is its
   own. A project's view names every row, and has none.
@@ -814,11 +816,11 @@ show all 4
   └ Drawing the ledger schema
 
   hide old sessions
-  Export to CSV                                                   2d
+  Export to CSV                                          finished 2d
   └ Shipping the export
-  Settings tab                                                    9d
+  Settings tab                                               idle 9d
   └ next: Tidy the copy
-  Ledger schema, first pass                                      12d
+  Ledger schema, first pass                              finished 12d
   └ Drawing the schema
   show all 7
 
@@ -845,38 +847,48 @@ show all 4
   pane, not a reply to Claude), and the pane goes up a level, the session
   gone from it. A session with a window is still being worked: Lee finishes
   it there by telling Claude.
-- **A finished session's view** (17 November 2026, made in review after
-  Lee's old sessions, not his ask), reached from its project's old
-  sessions, says it is finished, and when, as STATUS says when it was
-  updated, where another says it is closed: `Export to CSV · Northwind ·
-  finished 1d ago`. Where its finish gave a reason, STATUS ends with it,
-  `✓ finished: Shipped`. What it left open waits on no one: its asks, each
-  with a faint `◆` and a dim title, count nowhere, offer no reply and no
-  snooze, and under ASKS' heading, which counts them apart (`nothing
-  waiting · 2 left open`), a faint line says why: `This session is
-  finished: no reply reaches its asks.` An ask still opens, to its tree
-  alone. A reply could only have gone into its inbox, and come back `not
-  delivered: the session was finished`. One Lee queued there before the
-  finish stays in Ready to send, and on its ask, saying `· can't be sent:
-  the session was finished`, with its `↺ undo` and `✕` and no `✎`; a send
-  leaves it out, writing nothing into the inbox, and `send` shows only
-  while some other reply can go.
+- **A finished session's view** (17 November 2026, made in review),
+  reached from its project's old sessions, says it is finished, and when,
+  as STATUS says when it was updated, where another says it is closed:
+  `Export to CSV · Northwind · finished 1d ago`. STATUS draws what was
+  under way and what was next faint, so neither reads as going on, and
+  where its finish gave a reason ends with it, `✓ finished: Shipped`. What
+  it left open waits on no one: its asks, each with a faint `◆` and a dim
+  title, count nowhere, offer no reply and no snooze, and under ASKS'
+  heading, which counts them apart (`nothing waiting · 2 left open`), a
+  faint line says why: `Finished: its asks can't be answered.` An ask
+  still opens, to its tree alone. A reply could only have gone into its
+  inbox, and come back `not delivered: the session was finished`. One Lee
+  queued there before the finish stays in Ready to send, and on its ask,
+  saying `· not sent: session finished`, with its `↺ undo` and `✕` and no
+  `✎`; a send leaves it out, writing nothing into the inbox, and `send`
+  shows only while some other reply would go (see "One answer to an
+  item").
 
   The session this window holds is the one exception: finished by Claude
   while the window still holds it, its view says finished, but its asks
   keep their answers (no snooze), `✎ Answer`, `✎ comment` and `✎ edit`
   among them, as a reply there goes in this window's own message, to the
-  Claude right here, and settles its ask as a pick-up of a finished
-  session's item does (see Delivery). So this window's views count its
-  open asks as waiting, as its buttons say: ASKS' heading, its project's
-  and All projects'. The band and the tabs follow core, which counts
-  nothing of a finished session, and say none waits. In its project's
-  Sessions it is drawn dim, `finished` on its right where `closed` goes,
-  and it counts as open nowhere, in the project's view or All projects.
-  One predicate, `canReach`, decides all of it: whether a reply can reach
-  an ask, its session not finished or held by this window. Every reply's
-  press, `✎ edit`, Ready to send's `send`, a send, the answering mode, the
-  faint line and the mark go by it.
+  Claude right here, and settles its ask as any of this session's replies
+  does. So this window counts its open asks as waiting wherever it counts,
+  as its buttons say: the band, both tabs, ASKS' heading, its project's
+  and All projects', though core, which no window holds, counts nothing of
+  a finished session. A reply on its way to one takes it off those counts
+  as any reply on its way does. In its project's Sessions it is drawn dim,
+  `finished` on its right where `closed` goes, `finished · 1 waiting`
+  while its asks wait, and it counts as open nowhere, in the project's
+  view or All projects.
+
+  One rule, core's `reaches`, decides all of it: whether a reply can reach
+  an item from the window holding a given session, a parked item always,
+  an ask where its session is not finished or is the one held. The board
+  binds it to what it reads, as `canReach`; every reply's press, `✎ edit`,
+  Ready to send, a send, the answering mode, the faint line and the mark
+  go by that. The fold judges by it too: a reply a window's heartbeat
+  carries, read from that window's heartbeat in the session's own folder,
+  is the held session's own, so a finish voids none, and its ask waits on
+  no one while Claude's turn runs; a line read from the files, which no
+  window holds, a finish voids, and its mark, once delivered, settles it.
 
   What still works on a finished session's view stays: its project's
   Parked picks up as anywhere, to the Claude in this window, a finished
@@ -946,8 +958,8 @@ show all 4
   counting them; opened, it reads `hide old sessions`, and they hang under
   it, the latest ended first, each drawn as a closed session is, even a
   finished one a window still holds: its name, dim, and on the right when
-  it ended, `finished 1d` where it was finished, else its bare age, `8d`,
-  since it last changed, so the two can be told apart; and under it,
+  it ended, `finished 1d` where it was finished, else `idle 8d`, since
+  it last changed, so the two can be told apart; and under it,
   faint, what it was last doing, as Sessions says it. Its name opens its
   view, as a session's above does. It shows the latest 3; with more, `show
   all 12`, then `show fewer`, as the other lists do. Until then a
@@ -996,11 +1008,9 @@ show all 4
   project's, drawn while something is parked there or was taken off it, its
   heading counting what is parked (`2 to come back to`, or `nothing to come
   back to`). Each lists every item parked in the project, finished and idle
-  sessions' included, and counts them all: a project's each naming its
-  session by name, never by id (11 November 2026), the oldest first; a
-  session's the items it parked first, the oldest first, then the rest, as
-  a project's lists them, each of those naming its session (17 November
-  2026; see "Parked items are the project's"). A finished session's item
+  sessions' included, and counts them all, in the order "Parked items are
+  the project's" gives, a session named by its name, never by its id (11
+  November 2026). A finished session's item
   shows as any other, with no mark of its own. Each is a list's row: a
   purple `◇`, its title, and its age. Opened, its tree hangs from the mark:
   where to look, its `see`, and the pick-up once one waits or is on its way;
@@ -1358,7 +1368,7 @@ keeps the image's blocks and puts the new text in place of the typed text
   it was begun on, and it stands exactly while the next Enter there would be
   taken. Once its ask can take the reply no longer (closed, or a parked item
   picked up or closed, an ask's session finished but for the one this
-  window holds (`canReach`; a parked item's session finished ends
+  window holds (`reaches`; a parked item's session finished ends
   nothing), for an answer another already on its way, a send
   carrying the reply its comment would join) the band is back to its
   counts, the next Enter goes to Claude, and the next look ends the mode, so
@@ -1597,9 +1607,11 @@ that carries nothing at all, to this session or any other, toasts why:
 `…have changed since.` where none fits its item any more, or `…have changed
 since, or are answered or closed already.` for some of each; `…are in
 finished sessions` joins them for a reply to another session's ask finished
-since it was queued (see "A finished session's view"), which only a send
-pressed before the board read the finish meets: the board, once it has,
-offers no send for it.
+since it was queued (see "A finished session's view"). Ready to send's
+`send` shows only while some reply would go, whatever holds the others
+back, answered, closed by Claude or finished (17 November 2026, made in
+review), so only a send pressed before the board read what holds them back
+meets these.
 
 ### The band
 

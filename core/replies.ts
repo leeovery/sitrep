@@ -136,6 +136,21 @@ export const barredBy = (item: Ask | Parked, verdict: Verdict): Barred | undefin
  */
 export const waitsOnLee = (ask: Ask) => ask.state === 'waiting' && replyOnItsWay(ask) === undefined
 
+/**
+ * Whether a reply can reach an item of `session` from the window holding the
+ * session `held`, none where no window does, as for a line read from the
+ * files: a parked item's pick-up always, since it goes to the window's own
+ * Claude; an ask's where its session is not finished, its inbox letting the
+ * reply in, or is the one held, finished or not, where a reply goes in that
+ * window's own message, to the Claude right there. The one rule every
+ * reply goes by: the board's presses, its sends and the fold's.
+ */
+export const reaches = (
+  held: string | undefined,
+  session: { id: string; isFinished: boolean },
+  item: Ask | Parked,
+) => item.type === 'park' || session.id === held || !session.isFinished
+
 /** An ask snoozed, and when it wakes. */
 export type SnoozedAsk = Ask & { snoozedUntil: number }
 

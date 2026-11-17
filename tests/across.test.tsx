@@ -335,7 +335,7 @@ test('a snooze.json whose time is no text still lets each look settle what was s
   expect(w.state.snooze).toEqual(SNOOZE_DEFAULTS)
 })
 
-test("a reply queued to another session's ask that Lee answered from elsewhere first, or that Claude closed, is not sent: Ready to send keeps it, saying why", async ($, on) => {
+test("a reply queued to another session's ask that Lee answered from elsewhere first, or that Claude closed, is not sent: Ready to send keeps it, saying why, and offers no send while nothing would go", async ($, on) => {
   const w = world($, on)
   const { themes, ui } = await threeSessions(w)
 
@@ -351,17 +351,11 @@ test("a reply queued to another session's ask that Lee answered from elsewhere f
   expect(await ui.find({ type: 'Text', text: '· not sent: already answered' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: '· not sent: Claude closed it' })).toBeDefined()
 
-  await ui.press({ key: 'send' })
-
-  expect(w.files.has(LETTERS)).toBe(false)
-  expect(w.files.has(THEME_LETTERS)).toBe(false)
+  expect(await ui.find({ key: 'send' })).toBeUndefined()
   expect(w.state.queue).toMatchObject([
     { session: LEDGER.id, item: 'k3' },
     { session: THEMES.id, item: 'k4' },
   ])
-  expect(w.toasts).toContain(
-    'Nothing to send: the items replied to are answered or closed already. Your replies are still on the board.',
-  )
 })
 
 test("another window's comment on its way to an ask takes it off Lee's counts but bars no answer: the ask still offers its buttons, and Lee's yes to it is sent", async ($, on) => {

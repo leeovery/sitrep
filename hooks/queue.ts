@@ -21,6 +21,7 @@ import {
   deliveryOf,
   fits,
   newItemId,
+  reaches,
   type Ask,
   type Barred,
   type Parked,
@@ -37,7 +38,7 @@ import type {
   SitrepSessionRef,
 } from '../types'
 import { random } from './host'
-import { addressed, canReach, itemKey, reaches } from './places'
+import { addressed, canReach, itemKey } from './places'
 import type { Scene } from './scene'
 
 type Queue = readonly SitrepQueued[]
@@ -107,10 +108,10 @@ export const isCarried = (flights: Flights, reply: SitrepQueued) =>
 export const unsent = (queue: Queue, flights: Flights) =>
   queue.filter(each => !isCarried(flights, each))
 
-/** What holds a queued reply back from a send: its item's session finished, beyond reply (`reaches`); else its item closed, or holding another answer of Lee's (`barredBy`). */
+/** What holds a queued reply back from a send: its item's session finished, no reply reaching it (`reaches`); else its item closed, or holding another answer of Lee's (`barredBy`). */
 export type HeldBack = 'finished' | Barred
 
-/** What holds a queued reply back from a send, as the board reads it (`HeldBack`); nothing for one a send in flight carries, going already. */
+/** What holds a queued reply back from a send, as the board reads it (`reaches`, `barredBy`); nothing for one a send in flight carries. */
 export const heldBack = (
   scene: Scene,
   item: Ask | Parked,
@@ -157,7 +158,7 @@ export const answered = (session: Session, reply: SitrepQueued): Ask | Parked | 
   return item !== undefined && fits(item, reply) ? item : undefined
 }
 
-/** Why a send leaves a queued reply in Ready to send: its item changed past it, or is gone; or, as Ready to send says it (`HeldBack`), its session finished beyond reply, or the item holding another answer of Lee's, or closed. */
+/** Why a send leaves a queued reply in Ready to send: its item changed past it, or is gone; or, as Ready to send says it (`HeldBack`), its session finished, no reply reaching it, or the item holding another answer of Lee's, or closed. */
 export type LeftOut = 'changed' | HeldBack
 
 /** Whether Lee's answer on its way to an item is one `own`, a message claimed with a reply to it, carries: its writer's, by its id. */
@@ -190,7 +191,7 @@ const whyLeft = (
     return 'changed'
   }
 
-  return reaches(held, session.id, session.finished !== undefined, item)
+  return reaches(held, { id: session.id, isFinished: session.finished !== undefined }, item)
     ? barredBy(apartFrom(item, own), reply.verdict)
     : 'finished'
 }
@@ -210,7 +211,7 @@ export const unsentTo = (queue: Queue, flights: Flights, held: SitrepSessionRef,
  * Of a send's replies from the window holding `held`, those it carries,
  * each item read in its own session as `folded` has it. One whose item
  * changed under it, or closed, or holds another answer of Lee's on its way,
- * or whose session was finished beyond reply, stays in Ready to send,
+ * or whose session finished, no reply reaching it, stays in Ready to send,
  * unsent: Claude has one answer to an item, the first to reach it.
  */
 export const sendable = (held: string, folded: Folded, replies: Queue) =>

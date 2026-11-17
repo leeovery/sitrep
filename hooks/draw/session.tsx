@@ -39,10 +39,11 @@ const drawContext = (d: Drawing, { project, session }: Filed) =>
     session.status.summary,
   )
 
-/** STATUS: when it was updated, what is under way, what is next, and why the session was finished, where its finish says. */
+/** STATUS: when it was updated, what is under way, what is next, faint once the session is finished, so neither reads as going on, and why it was finished, where its finish says. */
 const drawStatus = (d: Drawing, { session }: Filed) => {
   const { Box, Text } = d.els
   const { now, next, at } = session.status
+  const isDone = session.finished !== undefined
   const why = session.finished?.reason
 
   return (
@@ -53,15 +54,23 @@ const drawStatus = (d: Drawing, { session }: Filed) => {
         why === undefined &&
         emptyLine(d, 'Nothing under way yet.')}
       {now.map((line, i) =>
-        marked(d, `now:${i}`, GLYPH.now, C.now, <Text wrap="wrap">{line}</Text>),
+        marked(
+          d,
+          `now:${i}`,
+          GLYPH.now,
+          isDone ? C.faint : C.now,
+          <Text color={isDone ? C.faint : undefined} wrap="wrap">
+            {line}
+          </Text>,
+        ),
       )}
       {next !== undefined &&
         marked(
           d,
           'next',
           GLYPH.next,
-          C.grey,
-          <Text color={C.soft} wrap="wrap">
+          isDone ? C.faint : C.grey,
+          <Text color={isDone ? C.faint : C.soft} wrap="wrap">
             next: {next}
           </Text>,
         )}
