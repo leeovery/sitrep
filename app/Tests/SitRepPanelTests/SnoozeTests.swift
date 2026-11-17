@@ -25,22 +25,25 @@ struct SnoozeTests {
     }
 
     /// A row of the table of wake times core's `snoozeAt` is held to as well, in `tests/wakes.ts`: its zone, its
-    /// choice, when it was pressed and when it wakes, and the rest of its row in words, for a failure to name.
+    /// choice, when it was pressed and when it wakes, none where Snooze does not offer it then, and the rest of its row
+    /// in words, for a failure to name.
     private struct Wake {
-        let zone: String, choice: SnoozeChoice, pressed: Date, wakes: Date, words: String
+        let zone: String, choice: SnoozeChoice, pressed: Date, wakes: Date?, words: String
 
         init(_ row: Substring, sourceLocation: SourceLocation = #_sourceLocation) throws {
             let fields = row.split(whereSeparator: \.isWhitespace)
             let instant = { (field: Substring) in
                 Date(timeIntervalSince1970: try #require(Double(field), sourceLocation: sourceLocation) / 1000)
             }
-            let choices: [Substring: SnoozeChoice] = ["later": .laterToday, "tomorrow": .tomorrow, "week": .nextWeek]
+            let choices: [Substring: SnoozeChoice] = [
+                "hour": .inAnHour, "later": .laterToday, "tonight": .tonight, "tomorrow": .tomorrow, "week": .nextWeek,
+            ]
 
             try #require(fields.count > 4, "a row of the table: \(row)", sourceLocation: sourceLocation)
             zone = String(fields[0])
             choice = try #require(choices[fields[1]], sourceLocation: sourceLocation)
             pressed = try instant(fields[2])
-            wakes = try instant(fields[3])
+            wakes = fields[3] == "-" ? nil : try instant(fields[3])
             words = fields[4...].joined(separator: " ")
         }
     }
@@ -58,17 +61,48 @@ struct SnoozeTests {
         }
     }
 
-    /// Every row wakes at its time, worked out on the Gregorian calendar in its zone.
+    /// Every row is offered and wakes at its time, worked out on the Gregorian calendar in its zone; one with no time
+    /// is not offered.
     @Test func eachChoiceWakesAtTheTablesTimeInItsZone() throws {
         let table = try Self.table()
 
-        #expect(!table.isEmpty)
+        #expect(table.contains { $0.wakes == nil } && table.contains { $0.wakes != nil })
         for wake in table {
             var calendar = Calendar(identifier: .gregorian)
 
             calendar.timeZone = try #require(TimeZone(identifier: wake.zone))
-            #expect(wake.choice.wakes(after: wake.pressed, in: calendar) == wake.wakes, "\(wake.zone) \(wake.words)")
+
+            let isOffered = SnoozeChoice.offered(at: wake.pressed, in: calendar).contains(wake.choice)
+            let wakes = isOffered ? wake.choice.wakes(after: wake.pressed, in: calendar) : nil
+
+            #expect(wakes == wake.wakes, "\(wake.zone) \(wake.words)")
         }
+    }
+
+    /// Snooze's choices come in core's order, In an hour first and Tonight third, and every one is offered but Tonight
+    /// from 18:00 to midnight, at every hour of October 2026 in London, the clocks going back among them.
+    @Test func everyChoiceIsOfferedButTonightFromSixToMidnight() {
+        let start = Self.at(1, 0)
+
+        #expect(SnoozeChoice.allCases == [.inAnHour, .laterToday, .tonight, .tomorrow, .nextWeek])
+        for hour in 0 ..< 31 * 24 {
+            let now = start.addingTimeInterval(TimeInterval(hour) * 60 * 60)
+            let isEvening = Self.london.component(.hour, from: now) >= 18
+            let expected = SnoozeChoice.allCases.filter { !(isEvening && $0 == .tonight) }
+
+            #expect(SnoozeChoice.offered(at: now, in: Self.london) == expected, "\(now)")
+        }
+    }
+
+    /// What a row's Snooze offers: the choices offered then, and Until it moves always, after them.
+    @Test func aRowsSnoozeOffersTheChoicesOfferedThenAndUntilItMoves() {
+        #expect(SnoozeTime.offered(at: Self.at(23, 17, 59), in: Self.london) == [
+            .at(.inAnHour), .at(.laterToday), .at(.tonight), .at(.tomorrow), .at(.nextWeek), .untilItMoves,
+        ])
+        #expect(SnoozeTime.offered(at: Self.at(23, 18), in: Self.london) == [
+            .at(.inAnHour), .at(.laterToday), .at(.tomorrow), .at(.nextWeek), .untilItMoves,
+        ])
+        #expect(SnoozeTime.untilItMoves.isOffered(at: Self.at(23, 23, 59), in: Self.london))
     }
 
     // MARK: When it wakes, in words

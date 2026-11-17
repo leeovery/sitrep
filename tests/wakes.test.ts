@@ -1,11 +1,12 @@
 /**
- * Snooze's wake times as core's `snoozeAt` works them out, every row of the
- * table the app's copy is held to as well, each in its own time zone; and the
- * zone the kit is given for a row, proven to be that zone.
+ * Snooze's wake times as core's `snoozeAt` works them out, and the choices
+ * `snoozeChoicesAt` offers, every row of the table the app's copy is held to
+ * as well, each in its own time zone; and the zone the kit is given for a
+ * row, proven to be that zone.
  */
 import { expect, test } from './kit'
-import { snoozeAt } from '../core'
-import { WAKES } from './wakes'
+import { SNOOZE_CHOICES, snoozeAt, snoozeChoicesAt } from '../core'
+import { WAKES, type Wake } from './wakes'
 import { inZone, LOCAL_ZONE, LONDON, NEW_YORK } from './zoned'
 
 /** Every hour of 2026, counted from its start: each of a zone's changes that year falls among them. */
@@ -123,18 +124,61 @@ const wordsIn = (zone: string, at: number) => {
 
 test("each row's local times say its instants in its zone, so a failure names the case it is", () => {
   for (const wake of WAKES) {
+    const wakes = wake.wakes === undefined ? 'not offered' : wordsIn(wake.zone, wake.wakes)
+
     expect(wake.words, `${wake.zone} ${wake.choice}`).toStartWith(
-      `${wordsIn(wake.zone, wake.pressed)} -> ${wordsIn(wake.zone, wake.wakes)}: `,
+      `${wordsIn(wake.zone, wake.pressed)} -> ${wakes}: `,
     )
   }
 })
 
-test('Snooze wakes at the time the table gives for each row, worked out in its zone', () => {
+test('the table holds a row Snooze offers and one it does not, so neither half below passes for nothing', () => {
+  expect(WAKES.some(wake => wake.wakes === undefined)).toBe(true)
+  expect(WAKES.some(wake => wake.wakes !== undefined)).toBe(true)
+})
+
+/** When a row's choice wakes, worked out at its press, where Snooze offers it then; none where it does not. */
+const wakeOf = (wake: Wake) =>
+  snoozeChoicesAt(wake.pressed).includes(wake.choice)
+    ? snoozeAt(wake.choice, wake.pressed)
+    : undefined
+
+test('Snooze offers each row its choice and wakes at the time the table gives, worked out in its zone; one it gives no time, it does not offer', () => {
   for (const wake of WAKES) {
     expect(
-      inZone(wake.zone, () => snoozeAt(wake.choice, wake.pressed)),
+      inZone(wake.zone, () => wakeOf(wake)),
       `${wake.zone} ${wake.choice}, ${wake.words}`,
     ).toBe(wake.wakes)
+  }
+})
+
+/** The months of 2026 the table's zones change their clocks in, from 0: March, April, September, October and November. */
+const CHANGING_MONTHS = [2, 3, 8, 9, 10]
+
+/** Every hour of those months. */
+const CHANGING_HOURS = HOURS_OF_2026.map(hour => Date.UTC(2026, 0, 1, hour)).filter(at =>
+  CHANGING_MONTHS.includes(new Date(at).getUTCMonth()),
+)
+
+/** Each of those hours at which what Snooze offers in `zone` is not every choice, but Tonight from 18:00, as a failure names it. */
+const offerFaults = (zone: string) =>
+  inZone(zone, () =>
+    CHANGING_HOURS.flatMap(at => {
+      const isEvening = new Date(at).getHours() >= 18
+      const offered = snoozeChoicesAt(at)
+      const expected = SNOOZE_CHOICES.filter(choice => !(isEvening && choice === 'tonight'))
+
+      return JSON.stringify(offered) === JSON.stringify(expected)
+        ? []
+        : [`${new Date(at).toString()}: ${offered.join(', ')}`]
+    }),
+  )
+
+test('Snooze offers every choice in its order, In an hour first and Tonight third, but Tonight from 18:00 to midnight, every hour of the months each zone of the table changes its clocks in', () => {
+  expect(SNOOZE_CHOICES).toEqual(['hour', 'later', 'tonight', 'tomorrow', 'week'])
+
+  for (const zone of new Set(WAKES.map(wake => wake.zone))) {
+    expect(offerFaults(zone), zone).toEqual([])
   }
 })
 
@@ -145,7 +189,7 @@ testUnless(
   "the rows in the Mac's own zone wake at their time on the real Date too, none put in its place",
   () => {
     for (const wake of localRows) {
-      expect(snoozeAt(wake.choice, wake.pressed), `${wake.choice}, ${wake.words}`).toBe(wake.wakes)
+      expect(wakeOf(wake), `${wake.choice}, ${wake.words}`).toBe(wake.wakes)
     }
   },
 )

@@ -1032,7 +1032,8 @@ shape is ever shown as a word:
   asks in place, the buttons giving way to `Snooze this session? Its asks,
   and your turn there, stop counting until it wakes.` (13 November 2026;
   `Snooze it? It stops counting until it wakes.` until then) over
-  `[ later today ]` `[ tomorrow ]` `[ next week ]` `[ cancel ]`; a choice
+  `[ in an hour ]` `[ later today ]` `[ tonight ]` `[ tomorrow ]` `[ next week ]`
+  `[ cancel ]`, `tonight` left out from 18:00 (see "Snooze"); a choice
   writes the session's snooze and closes the ask, cancel goes back to the
   buttons, and the ask's title closes it (see "Snooze").
 - **What a reply does once Claude has it:** a yes, a choice or an answer
@@ -2068,12 +2069,34 @@ too"); since then the session does, its asks and its turn together (see
   its window's, and is never snoozed: it stays in Needs you. On the card,
   snoozing a row snoozes its session; in the pane, snoozing any ask of a
   session does. Only Lee snoozes: Claude has no tool for it.
-- **The times**, Snooze's three choices:
+- **The times**, Snooze's five choices, in this order on every surface:
+  - In an hour: an hour from now;
   - Later today: three hours from now;
+  - Tonight: 18:00 today;
   - Tomorrow: 09:00 on the day after today;
   - Next week: 09:00 on the Monday after today, a week on from a Monday.
 
   Then Until it moves, on the card, with no time: see "The row snoozes".
+
+  **In an hour** (Lee, 17 November 2026): the shortest, first, and always
+  offered. As Later today's, its time is real time, so across a change of
+  the clocks it wakes an hour on, whatever the wall clock reads.
+
+  **Tonight** (Lee, 17 November 2026): he wanted an evening choice. It is
+  offered only while its time is to come, so from 18:00 until midnight no
+  surface offers it, as Apple Mail leaves out its own once it has passed;
+  between 15:00 and 18:00 both it and Later today are offered, Later today
+  waking after it. A choice is offered while the time it comes to is still
+  to come, the one rule every surface asks of core's `snoozeChoicesAt` or
+  the app's `SnoozeChoice.offered`, so only Tonight is ever left out.
+  Tonight pressed once 18:00 has passed, on a question or a menu drawn
+  before, snoozes nothing: the pane says so in a toast, `Not snoozed: 18:00
+  has come already: pick a time still to come.`, and the app's menu does
+  nothing. Its hour, as Tomorrow's, is a named constant in each copy
+  (`TONIGHT_HOUR`, `tonightHour`), as In an hour's length is
+  (`IN_AN_HOUR_MS`, `hour`): Snooze's choices are to become Lee's to
+  set in Settings, each on or off at a time of his, which the app writes
+  for the pane and the CLI to read.
 
   Lee: "We can always improve and add new options there." Each is worked out
   where it is pressed, on the Gregorian calendar in that Mac's time zone,
@@ -2092,7 +2115,9 @@ too"); since then the session does, its asks and its turn together (see
   both read (Lee's choice, 27 October 2026): each choice in London, New York,
   Santiago, whose clocks change at midnight, Auckland and Kolkata, either
   side of a Monday, after midnight, and across each zone's changes of the
-  clocks in 2026. The kit runs core's tests in the Mac's own zone and can set
+  clocks in 2026, In an hour's among them; and for Tonight, at 17:59, at
+  18:00 and after, a row giving `-` for no time where the choice is not
+  offered. The kit runs core's tests in the Mac's own zone and can set
   no other, so they run each row with a `Date` of its zone in the global's
   place (`tests/zoned.ts`), checked against the real one in the Mac's own
   zone wherever that zone changes its clocks.
@@ -2238,11 +2263,12 @@ it: Snoozed is an exception to "each session appears once", as Projects is.
   (14 November 2026; see "The strip"), and until then showed none either.
   How it looks is drawn in Paper.
 - **Snooze, from a row:** a right-click on a card's Needs you row whose
-  lines hold asks, or on a your-turn row, offers Snooze, then Later today,
-  Tomorrow or Next week, and after a separator Until it moves, the same on
-  every row: `sitrep snooze` of its session, naming the asks the row shows,
-  by their ids, so an ask that landed after it was drawn is never snoozed
-  unseen. A row of stops alone offers none.
+  lines hold asks, or on a your-turn row, offers Snooze, then In an hour,
+  Later today, Tonight before 18:00, Tomorrow or Next week, and after a
+  separator Until it moves, the same on every row: `sitrep snooze` of its
+  session, naming the asks the row shows, by their ids, so an ask that
+  landed after it was drawn is never snoozed unseen. A row of stops alone
+  offers none.
 - **Wake now:** a Snoozed row's right-click wakes its session, `sitrep
   wake`.
 
@@ -2274,10 +2300,11 @@ while no `watch` ran, the app quit, brings no swell, as any line then.
   ask does, and answering it answers it, waking its session. The heading says both: `1 waiting · 2
   snoozed`.
 - A waiting ask, opened, offers `snooze` among its buttons, which asks in
-  place, as the pane's finish does: `later today`, `tomorrow`, `next week`,
-  `cancel`. A choice writes one `snoozeSession` line in the ask's session,
-  naming as the CLI's check takes them the asks of that session the pane
-  drew waiting, its time worked out at the press; `wake now` writes one
+  place, as the pane's finish does: `in an hour`, `later today`, `tonight`
+  before 18:00, `tomorrow`, `next week`, `cancel`. A choice writes one
+  `snoozeSession` line in the ask's session, naming as the CLI's check
+  takes them the asks of that session the pane drew waiting, its time
+  worked out at the press; `wake now` writes one
   `wakeSession`. Each is checked as the CLI checks it, and goes in the
   window's own file in the session (above), wherever the pane draws an
   ask's buttons (**proposed**). The pane offers no snooze of a turn alone:
@@ -4950,11 +4977,12 @@ window, and so did the menu's Open in SitRep.
 
 On a row whose lines hold asks, or a your-turn row (since 4 November 2026,
 board I), the menu goes on, after a separator, with Snooze (board G, 23
-October 2026; see "Snooze"): a submenu of Later today, Tomorrow and Next
-week, each with the time it wakes on its right, worded as a Snoozed row
-words it, in white at 45%, at 70% on the highlighted item, then a
-separator and Until it moves, with no time on its right, the same on every
-row (13 November 2026). A choice runs `sitrep snooze` of the row's session
+October 2026; see "Snooze"): a submenu of In an hour, Later today, Tonight
+before 18:00 (both 17 November 2026), Tomorrow and Next week, each with
+the time it wakes on its right, worded as a Snoozed row words it, in
+white at 45%, at 70% on the highlighted item, then a separator and Until
+it moves, with no time on its right, the same on every row (13 November
+2026). A choice runs `sitrep snooze` of the row's session
 with the ids of the asks the row showed, none on a your-turn row, its time
 worked out at the press, none for Until it moves, so an ask landed since
 is never snoozed unseen. A Snoozed row's menu ends with Wake now, in

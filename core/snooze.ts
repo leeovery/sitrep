@@ -8,11 +8,19 @@
 
 import { UNTIL_IT_MOVES } from './types'
 
-/** Snooze's choices: later today, tomorrow, or next week. */
-export type SnoozeChoice = 'later' | 'tomorrow' | 'week'
+/** Snooze's choices, in the order every surface offers them: in an hour, later today, tonight, tomorrow, or next week. */
+export const SNOOZE_CHOICES = ['hour', 'later', 'tonight', 'tomorrow', 'week'] as const
+
+export type SnoozeChoice = (typeof SNOOZE_CHOICES)[number]
+
+/** How long In an hour snoozes for. */
+export const IN_AN_HOUR_MS = 60 * 60_000
 
 /** How long Later today snoozes for. */
 export const LATER_MS = 3 * 60 * 60_000
+
+/** The hour Tonight wakes at, local time. */
+const TONIGHT_HOUR = 18
 
 /** The hour Tomorrow and Next week wake at, local time. */
 const WAKING_HOUR = 9
@@ -37,20 +45,30 @@ const onDay = (at: number, days: number, hour = 0) => {
 const toMonday = (weekday: number) => (8 - weekday) % WEEK || WEEK
 
 /**
- * When a snooze chosen at `now` wakes: Later today three hours on; Tomorrow
- * 09:00 the next calendar day, so pressed at 01:00 it wakes 32 hours on;
- * Next week 09:00 the Monday after today.
+ * When a snooze chosen at `now` wakes: In an hour an hour on, and Later
+ * today three hours on, of real time across a change of the clocks; Tonight
+ * 18:00 today, gone by then; Tomorrow 09:00 the next calendar day, so
+ * pressed at 01:00 it wakes 32 hours on; Next week 09:00 the Monday after
+ * today.
  */
 export const snoozeAt = (choice: SnoozeChoice, now: number) => {
   switch (choice) {
+    case 'hour':
+      return now + IN_AN_HOUR_MS
     case 'later':
       return now + LATER_MS
+    case 'tonight':
+      return onDay(now, 0, TONIGHT_HOUR)
     case 'tomorrow':
       return onDay(now, 1, WAKING_HOUR)
     case 'week':
       return onDay(now, toMonday(new Date(now).getDay()), WAKING_HOUR)
   }
 }
+
+/** The choices Snooze offers at `now`, in their order: each whose time is still to come, so Tonight none from 18:00 to midnight. */
+export const snoozeChoicesAt = (now: number) =>
+  SNOOZE_CHOICES.filter(choice => snoozeAt(choice, now) > now)
 
 const twoDigits = (value: number) => String(value).padStart(2, '0')
 

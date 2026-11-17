@@ -30,7 +30,10 @@ enum RowMenu {
     static let snoozeTitle = "Snooze"
     private static let wakeTitle = "Wake now"
 
-    static func make(for row: Row, at now: Date, in calendar: Calendar, _ actions: Actions) -> NSMenu {
+    /// The menu, opened at `now`; `clock` tells when a time is chosen.
+    static func make(
+        for row: Row, at now: Date, in calendar: Calendar, clock: @escaping () -> Date = Date.init, _ actions: Actions
+    ) -> NSMenu {
         let menu = NSMenu()
 
         menu.autoenablesItems = false
@@ -40,19 +43,21 @@ enum RowMenu {
             menu.addItem(
                 row.isSnoozed
                     ? ActionItem(wakeTitle, run: actions.wake)
-                    : snooze(now, calendar) { actions.snooze(asks, $0) }
+                    : snooze(now, calendar, clock) { actions.snooze(asks, $0) }
             )
         }
         return menu
     }
 
-    /// Snooze, its times in a menu of their own.
+    /// Snooze, its times offered at `now` in a menu of their own.
     private static func snooze(
-        _ now: Date, _ calendar: Calendar, _ choose: @escaping (SnoozeTime) -> Void
+        _ now: Date, _ calendar: Calendar, _ clock: @escaping () -> Date, _ choose: @escaping (SnoozeTime) -> Void
     ) -> NSMenuItem {
         let item = NSMenuItem(title: snoozeTitle, action: nil, keyEquivalent: "")
 
-        item.submenu = SnoozeMenu(SnoozeTime.offered, at: now, in: calendar, choose: choose)
+        item.submenu = SnoozeMenu(
+            SnoozeTime.offered(at: now, in: calendar), at: now, in: calendar, clock: clock, choose: choose
+        )
         return item
     }
 }
@@ -69,13 +74,17 @@ extension RowMenu.Row {
 
 /// Snooze's times, each with when it would wake at the right, dimmer than its name, and brighter as it is highlighted
 /// (board G), on a right tab stop, as AppKit's menus set no second label at the right of their own; Until it moves after
-/// a separator, with no time. The menu is its own delegate, to brighten the time highlighted.
+/// a separator, with no time. The menu is its own delegate, to brighten the time highlighted. A time no longer offered
+/// as it is chosen, `clock` telling when, does nothing: Tonight on a menu opened before 18:00 and chosen after.
 @MainActor
 final class SnoozeMenu: NSMenu, NSMenuDelegate {
     private let choices: [SnoozeTime]
     private let times: [String]
 
-    init(_ choices: [SnoozeTime], at now: Date, in calendar: Calendar, choose: @escaping (SnoozeTime) -> Void) {
+    init(
+        _ choices: [SnoozeTime], at now: Date, in calendar: Calendar, clock: @escaping () -> Date = Date.init,
+        choose: @escaping (SnoozeTime) -> Void
+    ) {
         self.choices = choices
         times = choices.map { $0.wakes(after: now, in: calendar).map { WakeTime.words($0, at: now, in: calendar) } ?? "" }
         super.init(title: RowMenu.snoozeTitle)
@@ -85,7 +94,11 @@ final class SnoozeMenu: NSMenu, NSMenuDelegate {
             if choice == .untilItMoves {
                 addItem(.separator())
             }
-            addItem(ActionItem(choice.title) { choose(choice) })
+            addItem(ActionItem(choice.title) {
+                if choice.isOffered(at: clock(), in: calendar) {
+                    choose(choice)
+                }
+            })
         }
         highlight(nil)
     }
