@@ -449,6 +449,107 @@ test('an answer with an image whose ask a send claims first goes to Claude as an
   expect(w.state.answering).toBeNull()
 })
 
+test('an answer with an image whose ask a send answers before its claim lands, taken and written down, is kept: the ask is answered once', async ($, on) => {
+  const w = world($, on)
+  const riding = writeDoor(on)
+
+  await w.begin()
+
+  const id = await asked(w, GO)
+  const ui = await w.pane()
+
+  await ui.press({ key: `yes:${w.item(id)}` })
+  await ui.press({ key: `rewrite:${w.item(id)}` })
+
+  riding.hold(flights => flights.some(each => each.ride !== undefined))
+
+  const typed = entered(w, $, 'After the copy pass [Image #1]', { attachments: [IMAGE] })
+
+  await riding.arrived
+  await ui.press({ key: 'send' })
+  await w.clock.settle()
+  expect(writtenIn(w), "the send taken and written down while the ride's claim waits").toEqual([
+    { item: id, verdict: 'yes', isDelivered: true },
+  ])
+  expect(w.flights(), 'the send no longer in flight').toEqual([])
+
+  riding.open()
+  expect(await typed).toEqual({ drop: NOT_TAKEN })
+  await w.clock.settle()
+
+  expect(w.submitted).toEqual([`From the board:\n- Give the ok for phase 3 → Go${CLOSES}`])
+  expect(writtenIn(w)).toEqual([{ item: id, verdict: 'yes', isDelivered: true }])
+  expect(w.toasts).toContain(CANNOT_RIDE.answered)
+  expect(w.flights()).toEqual([])
+  expect(w.state.queue ?? []).toEqual([])
+  expect(stateOf(w, id)).toBe('closed')
+})
+
+test("an answer with an image is kept once another window's answer, on its way ahead of it, lands before its claim does: the mode stands again", async ($, on) => {
+  const w = world($, on)
+  const riding = writeDoor(on)
+
+  await w.begin()
+
+  const id = await asked(w, GO)
+  const ui = await w.pane()
+  const paths = heldPaths(w)
+
+  await ui.press({ key: `yes:${w.item(id)}` })
+  await ui.press({ key: `rewrite:${w.item(id)}` })
+  // Another window, attached first, delivers the session's inbox, so its yes stays on its way.
+  w.put(paths.heartbeat(W2), beat(W2, { attachedAt: T0 - MIN, seenAt: w.clock.now() }))
+  await w.clock.advance(WATCH_MS)
+  riding.hold(flights => flights.some(each => each.ride !== undefined))
+
+  const typed = entered(w, $, 'After the copy pass [Image #1]', { attachments: [IMAGE] })
+
+  await riding.arrived
+  // Its yes, sent the moment before the claim, lands while the claim waits.
+  w.put(paths.log(W2), file([w.clock.now() - 1, reply('r9', id, 'yes')]))
+  riding.open()
+
+  expect(await typed).toEqual({ drop: NOT_TAKEN })
+  expect(w.toasts).toContain(CANNOT_RIDE.answered)
+  expect(w.prompts).toEqual([])
+  expect(w.flights()).toEqual([])
+  expect(w.state.queue).toEqual([{ ...at(w, id), verdict: 'yes' }])
+  await w.clock.advance(WATCH_MS)
+  expect(w.state.answering).toMatchObject({ item: id, as: 'comment' })
+})
+
+test('an answer with an image whose session fails to read again once it is claimed is let go, nothing frozen, and Lee’s prompt goes on as he typed it', async ($, on) => {
+  const w = world($, on)
+  const riding = writeDoor(on)
+  let isRefused = false
+
+  on('state.set', { plugin: 'sitrep', key: 'board' }, ($, e, next) =>
+    isRefused ? { deny: 'the board could not be kept' } : next(e),
+  )
+  await w.begin()
+
+  const id = await asked(w, GO)
+  const ui = await w.pane()
+
+  await ui.press({ key: `yes:${w.item(id)}` })
+  await ui.press({ key: `rewrite:${w.item(id)}` })
+  riding.hold(flights => flights.some(each => each.ride !== undefined))
+
+  const typed = entered(w, $, 'After the copy pass [Image #1]', { attachments: [IMAGE] })
+
+  await riding.arrived
+  isRefused = true
+  riding.open()
+  await typed
+  isRefused = false
+
+  expect(w.submitted).toEqual(['After the copy pass [Image #1]'])
+  expect(w.prompts[0]?.attachments).toEqual([IMAGE])
+  expect(w.flights()).toEqual([])
+  expect(writtenIn(w)).toEqual([])
+  expect(w.state.queue).toEqual([{ ...at(w, id), verdict: 'yes' }])
+})
+
 test("a pick-up with an image of another session's parked item goes in to this window's Claude, naming whose it was, and is written down in that session", async ($, on) => {
   const w = world($, on)
 

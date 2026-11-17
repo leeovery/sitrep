@@ -41,11 +41,20 @@ import {
 } from '../core'
 import type { SitrepAnswering, SitrepAttachment, SitrepInFlight, SitrepQueued } from '../types'
 import { foldedFor } from './around'
-import { claimRide, letRideGo, rideTaken } from './deliver'
+import { claimRide, letRideGo, rideTaken, type Ridden } from './deliver'
 import { logFailure, type Host } from './host'
 import { unwrapPastes } from './paste'
 import { briefOf, filedAt, parkedIn } from './places'
-import { goesTo, isCarried, leftOut, queuedOn, queuing, replyBodies, type LeftOut } from './queue'
+import {
+  goesTo,
+  isCarried,
+  leftOut,
+  leftOutOnceClaimed,
+  queuedOn,
+  queuing,
+  replyBodies,
+  type LeftOut,
+} from './queue'
 import { sceneOf, type Scene } from './scene'
 import { flightNow, refresh, serially } from './window'
 
@@ -330,15 +339,15 @@ const queued = async (host: Host, standing: Answering, words: string): Promise<C
 }
 
 /**
- * Passes Lee's prompt on, rewritten as `text`, and settles the answer it
- * carries by what becomes of it: taken, written down; dropped beneath, let
- * go, the mode standing again unless Lee began another meanwhile; failed
- * beneath, let go, the failure passed on.
+ * Passes Lee's prompt on, rewritten as the ride's text, and settles the
+ * answer it carries by what becomes of it: taken, written down; dropped
+ * beneath, let go, the mode standing again unless Lee began another
+ * meanwhile; failed beneath, let go, the failure passed on.
  */
 const enterWith =
-  (host: Host, ride: SitrepInFlight, answering: SitrepAnswering, text: string) =>
+  (host: Host, ride: SitrepInFlight, answering: SitrepAnswering) =>
   async <R extends Entered>(pass: (text: string) => Promise<R>) => {
-    const entered = await pass(text).catch(async (error: unknown) => {
+    const entered = await pass(ride.text).catch(async (error: unknown) => {
       await letRideGo(host, ride)
       throw error
     })
@@ -357,16 +366,59 @@ const enterWith =
 const goesHere = (held: SitrepAttachment, { project, session, item, as }: SitrepAnswering) =>
   goesTo(held, { project, session, item, verdict: VERDICT[as] })?.session === held.session
 
+/** The held session read afresh, in turn with whatever reads or changes the hold; as the scene has it where none is held now. */
+const heldAfresh = async (host: Host, scene: Scene) =>
+  (await serially(() => refresh(host))) ?? scene.session
+
+/** Lee's prompt kept, the reply going nowhere, a toast saying why in Ready to send's words. */
+const kept = (host: Host, why: LeftOut): Captured => {
+  host.ui.toast(CANNOT_RIDE[why])
+
+  return { drop: NOT_TAKEN }
+}
+
+/** Why the ride's reply goes no more, its item read afresh again once the ride is claimed: its own answer on its way bars nothing. */
+const leftOnceClaimed = async (
+  host: Host,
+  scene: Scene,
+  reply: SitrepQueued,
+  ride: SitrepInFlight,
+) => leftOutOnceClaimed(await foldedFor(host, await heldAfresh(host, scene), [reply]), reply, ride)
+
+/**
+ * What the ride's claim makes of Lee's prompt: let in, claimed; kept, a
+ * toast saying why, where its item, read again once claimed, takes the
+ * reply no more, the mode standing again unless Lee began another
+ * meanwhile; on as any prompt where a send in flight carries the item's
+ * reply already.
+ */
+const afterClaim = async (
+  host: Host,
+  answering: SitrepAnswering,
+  ridden: Ridden,
+): Promise<Captured | undefined> => {
+  switch (ridden.is) {
+    case 'claimed':
+      return { enter: enterWith(host, ridden.ride, answering) }
+    case 'left':
+      await host.state.answering.update(now => now ?? answering)
+
+      return kept(host, ridden.why)
+    case 'carried':
+      return undefined
+  }
+}
+
 /**
  * Lee's prompt, carrying an attachment, let in as the board's words for the
  * reply, so the attachment goes with it: only for a reply that goes to the
  * session the window holds, whose Claude it goes into, and only while the
  * item, read afresh in its own session, takes the reply as a send would
  * carry it; else it is kept, a toast saying why. The mode is over, and the
- * reply claimed as a message in flight before it goes, frozen in Ready to
- * send in place of what was queued on its item, so no send carries that
- * too. Where a send carries the item's reply already, the prompt goes on as
- * any prompt does.
+ * reply claimed as a message in flight before it goes, its item read afresh
+ * again once the claim has landed, then frozen in Ready to send in place of
+ * what was queued on its item, so no send carries that too. Where a send
+ * carries the item's reply already, the prompt goes on as any prompt does.
  */
 const letIn = async (
   host: Host,
@@ -382,8 +434,7 @@ const letIn = async (
     return { drop: NOT_TAKEN }
   }
 
-  const [now, queue] = await Promise.all([serially(() => refresh(host)), host.state.queue.read()])
-  const session = now ?? scene.session
+  const [session, queue] = await Promise.all([heldAfresh(host, scene), host.state.queue.read()])
   const reply = replyOf(answering, queue, words)
   const folded = await foldedFor(host, session, [reply])
   const [why] = leftOut(folded, [reply])
@@ -391,14 +442,12 @@ const letIn = async (
     why === undefined ? boardMessage(session, [reply], each => folded.get(each.session)) : undefined
 
   if (message === undefined) {
-    host.ui.toast(CANNOT_RIDE[why ?? 'changed'])
-
-    return { drop: NOT_TAKEN }
+    return kept(host, why ?? 'changed')
   }
 
   await forget(host)
 
-  const ride = await claimRide(
+  const ridden = await claimRide(
     host,
     {
       source: 'send',
@@ -410,9 +459,10 @@ const letIn = async (
     },
     reply,
     queuedOn(queue, answering.session, answering.item),
+    ride => leftOnceClaimed(host, scene, reply, ride),
   )
 
-  return ride === undefined ? undefined : { enter: enterWith(host, ride, answering, message.text) }
+  return afterClaim(host, answering, ridden)
 }
 
 /**

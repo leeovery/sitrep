@@ -154,26 +154,45 @@ type Shape = {
   collapsed?: readonly string[]
 }
 
-/** What a shape must hold, each rule broken where it says, with what to fix. */
-const SHAPE_RULES: readonly [breaks: (shape: Shape) => boolean, error: string][] = [
+/** The fields of an ask's shape its rules read: what it wants back, and what goes with that. */
+type ShapeField = 'wants' | 'yes' | 'options' | 'needs'
+
+/** Whether an edit changes a field of its ask's shape. */
+const isChangedIn = (changes: Changes) => (field: ShapeField) => changes[field] !== undefined
+
+/** What a shape must hold: each rule, the fields it reads, broken where it says, with what to fix. */
+const SHAPE_RULES: readonly [
+  reads: readonly ShapeField[],
+  breaks: (shape: Shape) => boolean,
+  error: string,
+][] = [
   [
+    ['wants', 'yes'],
     ({ wants, yes }) => wants === 'yes' && yes === undefined,
     "A yes ask needs yes: its button's words, the verb Lee gives, such as Go, Approve or It works.",
   ],
-  [({ wants, yes }) => wants !== 'yes' && yes !== undefined, 'Only a yes ask takes yes.'],
   [
+    ['wants', 'yes'],
+    ({ wants, yes }) => wants !== 'yes' && yes !== undefined,
+    'Only a yes ask takes yes.',
+  ],
+  [
+    ['yes'],
     ({ yes }) => (yes?.length ?? 0) > YES_MOST,
     `A yes button's words are a word or two, ${YES_MOST} characters at most, such as Go or Ship it.`,
   ],
   [
+    ['wants', 'options'],
     ({ wants, options }) => wants === 'choice' && options.length < LEAST_OPTIONS,
     `A choice ask needs at least ${LEAST_OPTIONS} options.`,
   ],
   [
+    ['wants', 'options'],
     ({ wants, options }) => wants !== 'choice' && options.length > 0,
     'Only a choice ask takes options.',
   ],
   [
+    ['wants', 'needs'],
     ({ wants, needs }) => wants !== 'words' && needs !== undefined,
     'Only a words ask takes needs: what its words are.',
   ],
@@ -200,10 +219,10 @@ const recommendedMisfit = ({ wants, options, recommended }: Shape) => {
     : `recommended names one of the options, in its words: ${quotedOr(options)}.`
 }
 
-/** Why a shape will not do; undefined when it will. */
-const misfitOf = (shape: Shape) =>
+/** Why a shape will not do, by the first rule it breaks that reads a field `isJudged` picks, every rule unless told otherwise; undefined when it will. */
+const misfitOf = (shape: Shape, isJudged: (field: ShapeField) => boolean = () => true) =>
   collapsedMisfit(shape) ??
-  SHAPE_RULES.find(([breaks]) => breaks(shape))?.[1] ??
+  SHAPE_RULES.find(([reads, breaks]) => reads.some(isJudged) && breaks(shape))?.[2] ??
   recommendedMisfit(shape)
 
 /** A session to start: its name and summary, and its project's name and directory. */
@@ -553,7 +572,15 @@ const editedChoice = (ask: Ask, changes: Changes) => {
   return { wants, options: kept(changes.options, ask.options, wants === 'choice') ?? [] }
 }
 
-/** Why an ask, once edited, would not hold what its shape takes; undefined when it would. */
+/**
+ * Why an ask, once edited, would not hold what its shape takes, judged by
+ * what the edit changes: by each rule reading a field of the shape the edit
+ * changes, so an edit to what the ask wants answers for the whole shape. A
+ * rule the ask broke already, on fields the edit leaves alone, refuses
+ * none of it: a decide written before asks had options takes a new title.
+ * The options the edit gives and the option it recommends are its own.
+ * Undefined when it would.
+ */
 const editedMisfit = (item: Item, changes: Changes, collapsed: readonly string[]) => {
   if (item.type !== 'ask') {
     return undefined
@@ -561,14 +588,17 @@ const editedMisfit = (item: Item, changes: Changes, collapsed: readonly string[]
 
   const { wants, options } = editedChoice(item, changes)
 
-  return misfitOf({
-    wants,
-    yes: kept(changes.yes, item.yes, wants === 'yes'),
-    options,
-    recommended: changes.recommended || undefined,
-    needs: kept(changes.needs, item.needs, wants === 'words'),
-    collapsed,
-  })
+  return misfitOf(
+    {
+      wants,
+      yes: kept(changes.yes, item.yes, wants === 'yes'),
+      options,
+      recommended: changes.recommended || undefined,
+      needs: kept(changes.needs, item.needs, wants === 'words'),
+      collapsed,
+    },
+    isChangedIn(changes),
+  )
 }
 
 /**
@@ -625,8 +655,8 @@ export const droppedRecommendation = (session: Session, { item, changes }: EditB
     : ask.recommended
 }
 
-/** The fields of an ask's shape: what it wants back, and what goes with that. */
-const SHAPE_FIELDS: readonly (keyof Changes)[] = ['wants', 'yes', 'options', 'needs']
+/** The fields of an ask's shape. */
+const SHAPE_FIELDS: readonly ShapeField[] = ['wants', 'yes', 'options', 'needs']
 
 /**
  * An edit's changes as written. One changing the shape of an ask still read
@@ -635,9 +665,7 @@ const SHAPE_FIELDS: readonly (keyof Changes)[] = ['wants', 'yes', 'options', 'ne
  * meaning.
  */
 const written = (item: Item, changes: Changes): Changes =>
-  item.type === 'ask' &&
-  item.kind !== undefined &&
-  SHAPE_FIELDS.some(key => changes[key] !== undefined)
+  item.type === 'ask' && item.kind !== undefined && SHAPE_FIELDS.some(isChangedIn(changes))
     ? { wants: item.wants, ...changes }
     : changes
 
