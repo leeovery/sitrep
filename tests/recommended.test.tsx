@@ -1,6 +1,5 @@
 import { expect, test, tier } from './kit'
 import { parseEntries } from '../core'
-import { C } from '../hooks/look'
 import { SPECS } from '../hooks/tools'
 import { rowsOf } from './drawn'
 import { FRAMES, W1 } from './data'
@@ -153,7 +152,7 @@ test('the ask and edit tools take recommended, and ask Claude to give it wheneve
   expect(ask?.description).toContain('never the word in an option')
 })
 
-test('the pane marks the recommended option with the word once, amber before it, on every surface; the option keeps its own words', async ($, on) => {
+test("the pane draws the word inside the recommended button, dimmed after a middle dot at its label's end, and on no other, on every surface", async ($, on) => {
   const w = world($, on)
 
   await w.begin()
@@ -165,61 +164,88 @@ test('the pane marks the recommended option with the word once, amber before it,
 
   for (const surface of SURFACES) {
     const ui = await w.pane(surface)
-    const words = await ui.findAll({ type: 'Text', text: /recommended/i })
     const options = await Promise.all(
       [0, 1, 2].map(i => ui.find({ key: `choose:${w.item(id)}:${i}` })),
     )
 
     expect(
-      words.map(each => [each.props.color]),
-      surface,
-    ).toEqual([[C.ask]])
-    expect(
-      options.map(each => [each?.props.label, each?.props.variant]),
+      options.map(each => [each?.props.label, each?.props.variant, each?.children]),
       surface,
     ).toEqual([
-      ['Ship it', undefined],
-      ['Redraw', 'primary'],
-      ['Hold off', undefined],
+      ['Ship it', undefined, []],
+      ['Redraw', 'primary', ['Redraw', ' ', expect.objectContaining({ type: 'Text' })]],
+      ['Hold off', undefined, []],
     ])
+    expect(
+      (await ui.findAll({ type: 'Text', text: /recommended/i })).map(each => [
+        each.props,
+        each.children,
+      ]),
+      surface,
+    ).toEqual([[{ dimColor: true }, ['· recommended']]])
     await ui.unmount()
   }
 
   const terminal = await w.pane()
-  const marked = await terminal.find({ key: `recommended:choose:${w.item(id)}:1` })
+  const rows = async (i: number) =>
+    rowsOf(await terminal.find({ key: `choose:${w.item(id)}:${i}` }))
 
-  expect(rowsOf(marked)).toEqual(['recommended [ Redraw ]'])
-  expect(
-    marked?.children?.map(child =>
-      typeof child === 'object' && child !== null && 'props' in child
-        ? (child.props as { flexShrink?: number }).flexShrink
-        : undefined,
-    ),
-    'the word keeps whole',
-  ).toEqual([0, undefined])
+  expect([await rows(0), await rows(1), await rows(2)]).toEqual([
+    ['[ Ship it ]'],
+    ['[ Redraw · recommended ]'],
+    ['[ Hold off ]'],
+  ])
   await terminal.unmount()
   expect(
     (await boardRows(w, NARROW)).filter(row => row.includes('recommended')),
     'a short option keeps its line, on a narrow pane too',
-  ).toEqual(['[ Ship it ] recommended [ Redraw ]'])
+  ).toEqual(['[ Ship it ] [ Redraw · recommended ]'])
 })
 
-test('a long recommended option wraps under the word, which sits on the line directly above its own option, never after it', async ($, on) => {
+test('pressing the recommended option replies with the option alone, never the word', async ($, on) => {
   const w = world($, on)
 
   await w.begin()
 
-  // 33 cells drawn: it fits a 36-cell line alone, but not after the word.
+  const id = await asked(w, { ...THREE_WAY, recommended: 'Redraw' })
+  const ui = await w.pane()
+
+  await ui.press({ key: `choose:${w.item(id)}:1` })
+  expect(rowsOf(await ui.find({ key: `ask:${w.item(id)}` })).at(-1)).toMatch(
+    /^└ → Redraw · not sent yet/,
+  )
+  await ui.press({ key: 'send' })
+  expect(w.prompts.map(each => each.text)).toEqual([
+    [
+      'From the board:',
+      `- ${THREE_WAY.title} → Redraw`,
+      '  This closes the ask: nothing more to do with it.',
+    ].join('\n'),
+  ])
+  await ui.unmount()
+})
+
+test('a long recommended option wraps inside its own button, the word on the line before its closing bracket', async ($, on) => {
+  const w = world($, on)
+
+  await w.begin()
+
+  // 33 cells drawn with the dot: it fits a 36-cell line, but not with the word too.
   const long = 'Redraw every frame, then ship'
 
   await asked(w, { ...THREE_WAY, options: ['Ship it', long, 'Hold off'], recommended: long })
 
   const rows = await boardRows(w, NARROW)
-  const option = rows.indexOf(`[ ${long} ]`)
+  const option = rows.indexOf(`[ ${long} ·`)
 
   expect(option, 'its button on a line of its own').toBeGreaterThan(0)
-  expect(rows[option - 1]).toBe('recommended')
-  expect(rows.filter(row => row.includes('recommended'))).toEqual(['recommended'])
+  expect(rows.slice(option - 1, option + 3)).toEqual([
+    '[ Ship it ]',
+    `[ ${long} ·`,
+    'recommended ]',
+    expect.stringMatching(/^\[ Hold off \]/),
+  ])
+  expect(rows.filter(row => row.includes('recommended'))).toEqual(['recommended ]'])
 })
 
 test('a choice with nothing recommended draws no such word, its first option the primary one', async ($, on) => {
