@@ -1,5 +1,6 @@
 import { expect, test, tier } from './kit'
 import { parseEntries } from '../core'
+import { C } from '../hooks/look'
 import { SPECS } from '../hooks/tools'
 import { rowsOf } from './drawn'
 import { FRAMES, W1 } from './data'
@@ -152,7 +153,7 @@ test('the ask and edit tools take recommended, and ask Claude to give it wheneve
   expect(ask?.description).toContain('never the word in an option')
 })
 
-test("the pane draws the word inside the recommended button, dimmed after a middle dot at its label's end, and on no other, on every surface", async ($, on) => {
+test("the pane draws the word inside the recommended button, in a darker lilac after a middle dot at its label's end, and on no other, on every surface", async ($, on) => {
   const w = world($, on)
 
   await w.begin()
@@ -182,7 +183,7 @@ test("the pane draws the word inside the recommended button, dimmed after a midd
         each.children,
       ]),
       surface,
-    ).toEqual([[{ dimColor: true }, ['· recommended']]])
+    ).toEqual([[{ color: C.recommended }, ['· recommended']]])
     await ui.unmount()
   }
 

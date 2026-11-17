@@ -20,6 +20,12 @@ export const C = {
   grey: '#7a82ab',
   /** Closed things, and every tree's glyphs. */
   faint: '#565f89',
+  /**
+   * The word ending the recommended option's button: the primary's lilac,
+   * Claude Code's dark `suggestion` #b1b9f9, at 75% of its OKLCH lightness
+   * and its hue, its chroma raised from 0.09 to 0.12 to stay apart from grey.
+   */
+  recommended: '#7178c7',
   rule: '#3b4261',
   tab: '#292e42',
 } as const

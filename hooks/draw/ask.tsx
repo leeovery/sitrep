@@ -79,7 +79,7 @@ const refOf = ({ at, ask }: AskedAt): SitrepItemRef => ({ ...at, item: ask.id })
 /** The comment button's words: an answer's, on an ask read from its kind as a decide, where a comment closes it. */
 const commentLabel = (ask: Ask) => (isAnswer(ask, 'comment') ? '✎ answer' : '✎ comment')
 
-/** What ends the label of the option Claude recommends, dimmed. */
+/** What ends the label of the option Claude recommends, in a darker lilac than its own. */
 const RECOMMENDED = '· recommended'
 
 /** The option pressed first: the one Claude recommends, else the first. */
@@ -92,7 +92,7 @@ const drawOption = (d: Drawing, key: string, option: string, ask: Ask, onPress: 
 
   return option === ask.recommended ? (
     <Button key={key} variant={variant} label={option} onPress={onPress}>
-      {option} <Text dimColor>{RECOMMENDED}</Text>
+      {option} <Text color={C.recommended}>{RECOMMENDED}</Text>
     </Button>
   ) : (
     <Button key={key} variant={variant} label={option} onPress={onPress} />
