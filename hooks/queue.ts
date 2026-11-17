@@ -150,11 +150,16 @@ export const answered = (session: Session, reply: SitrepQueued): Ask | Parked | 
 /** Why a send leaves a queued reply in Ready to send: its item changed past it, or is gone; or holds another answer of Lee's, or closed (`Barred`). */
 export type LeftOut = 'changed' | Barred
 
+/** Whether Lee's answer on its way to an item is one `own`, a message claimed with a reply to it, carries: its writer's, by its id. */
+const isOwnAnswer = (item: Ask | Parked, own: SitrepInFlight) => {
+  const ahead = item.answerOnItsWay
+
+  return ahead?.by === own.writer && own.replies.some(each => each.id === ahead.id)
+}
+
 /** An item as it stands but for Lee's answer on its way there where `own`, a message claimed with a reply to it, carries that answer. */
-const apartFrom = (item: Ask | Parked, own: SitrepInFlight | undefined): Ask | Parked =>
-  own?.replies.some(each => each.id === item.answerOnItsWay?.id) === true
-    ? { ...item, answerOnItsWay: undefined }
-    : item
+export const apartFrom = (item: Ask | Parked, own: SitrepInFlight | undefined): Ask | Parked =>
+  own !== undefined && isOwnAnswer(item, own) ? { ...item, answerOnItsWay: undefined } : item
 
 /**
  * Why a send leaves a queued reply no send in flight carries, its item read
@@ -199,7 +204,8 @@ export const leftOut = (folded: Folded, replies: Queue): LeftOut[] =>
 /**
  * Why a message claimed with a reply leaves it out, its item read again in
  * its own session as `folded` has it, as a send would: the message's own
- * answer on its way, which every reader has from its claim, bars nothing.
+ * answer on its way, which its window's heartbeat says from the claim,
+ * bars nothing.
  */
 export const leftOutOnceClaimed = (folded: Folded, reply: SitrepQueued, claimed: SitrepInFlight) =>
   whyLeftIn(folded, reply, claimed)

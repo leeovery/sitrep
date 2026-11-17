@@ -214,10 +214,26 @@ const show = async (host: Host, hold: Hold, session: Session) => {
 }
 
 /**
- * The held session folded as it stands, put in `$.state` when it changed:
- * folded again only once its files changed, or its fold by time alone
- * (core's `refold`), as the sessions around it are. Undefined with no
- * session held, or with its session.json missing or torn.
+ * The session `hold` holds, folded as it stands: folded again only once its
+ * files changed, or its fold by time alone (core's `refold`), as the
+ * sessions around it are. Undefined with its session.json missing or torn.
+ */
+const foldHeld = async (host: Host, hold: Hold) => {
+  const files = await hold.read(host, hold.paths)
+  const logs = { ...files.logs, [hold.attachment.writer]: hold.text }
+
+  hold.fold = refold(hold.fold, { ...files, logs }, await host.clock.now())
+
+  return hold.fold.session
+}
+
+/** The held session folded as it stands, nothing put in `$.state`: undefined with no session held, or with its session.json missing or torn. */
+export const readHeld = async (host: Host): Promise<Session | undefined> =>
+  current === undefined ? undefined : foldHeld(host, current)
+
+/**
+ * The held session folded as it stands, put in `$.state` when it changed.
+ * Undefined with no session held, or with its session.json missing or torn.
  */
 export const refresh = async (host: Host): Promise<Session | undefined> => {
   const hold = current
@@ -226,12 +242,7 @@ export const refresh = async (host: Host): Promise<Session | undefined> => {
     return undefined
   }
 
-  const files = await hold.read(host, hold.paths)
-  const logs = { ...files.logs, [hold.attachment.writer]: hold.text }
-
-  hold.fold = refold(hold.fold, { ...files, logs }, await host.clock.now())
-
-  const { session } = hold.fold
+  const session = await foldHeld(host, hold)
 
   if (session !== undefined) {
     await show(host, hold, session)

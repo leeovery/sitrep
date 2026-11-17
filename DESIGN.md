@@ -1088,18 +1088,26 @@ keeps the image's blocks and puts the new text in place of the typed text
 - **Read again once claimed** (17 November 2026). The claim takes nothing
   while a send in flight carries a reply to the ask. Once it lands, before
   the reply is frozen, the session is read afresh again and the reply
-  judged as before, its own answer on its way, which every reader has from
-  the claim, barring nothing. A send of this window's taken and written
-  down since the first read has left no claim for the claim to meet, but
-  its lines are down, since a window writes a message down before its
-  claim ends; so the ask reads answered, as it does where another answer
-  reached it ahead of this one meanwhile. Left out there, the claim is let
-  go, with nothing frozen to put back, the prompt is kept, a toast saying
-  why as above, and the mode stands again unless Lee began another, the
-  next look ending it as ever once its ask can take its reply no longer.
-  Until then the claim met only the messages still in flight: a probe
-  holding it back while a send was taken and written down had Lee's answer
-  go in after the send's, a second answer to the ask.
+  judged as before, its own answer on its way, which this window's
+  heartbeat says from the claim, barring nothing: an answer is its own by
+  its id and its writer both, since two windows can draw one id. A send of
+  this window's taken and written down since the first read has left no
+  claim for the claim to meet, but its lines are down, since a window
+  writes a message down before its claim ends; so the ask reads answered.
+  Another window's answer is read there once that window's heartbeat says
+  it, or its lines are down: one claimed ahead of this but not yet said
+  there goes unseen, a gap two windows on one session had already. The
+  read draws nothing, so a board that fails to be kept fails no read; a
+  session that no longer reads by then has changed (`Not sent: it has
+  changed since.`). Left out there, the claim is let go, with nothing
+  frozen to put back, and the prompt is kept, a toast saying why as above.
+  The mode stands again only where its ask still takes its reply, as a
+  comment's does with another answer on its way, and Lee began no other
+  meanwhile: on an ask answered or closed, the prompt kept in the box would
+  otherwise answer it at Lee's next Enter. Until then the claim met only
+  the messages still in flight: a test holding it back while a send was
+  taken and written down had Lee's answer go in after the send's, a second
+  answer to the ask.
 - **Taken**, the prompt's `next` resolving with no drop, or a turn starting
   with its text, it is written down as any taken message is, the lines a
   send writes, through the hold; a write that fails, or a load cutting it
@@ -2590,9 +2598,12 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   shape. A check an ask breaks already, on fields the edit leaves alone,
   refuses none of it: a decide written before asks had options, which reads
   as a choice with none, takes a new title, `where` or `ref`, while an edit
-  giving it one option, a yes or `needs` is refused as ever. Until then
-  every edit answered for the whole shape, and such a decide refused them
-  all, its title too: `A choice ask needs at least 2 options.`
+  giving it one option, a yes or `needs` is refused as ever, each by the
+  check it touches. One recommending an option is held to the choice's
+  options too, so on such a decide it reads `A choice ask needs at least 2
+  options.`, not the options it names, which are none. Until then every
+  edit answered for the whole shape, and such a decide refused them all,
+  its title too: `A choice ask needs at least 2 options.`
 
   The kinds: `status`, `ask`, `note` and `park`; `resolve`, `reopen` and
   `edit`, each naming an item; `reply`, Lee's answer to one; `delivered`,

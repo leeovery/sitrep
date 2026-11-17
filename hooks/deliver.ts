@@ -47,7 +47,7 @@ import { betweenTurns } from './activity'
 import { lookAround } from './around'
 import { logFailure, type Host } from './host'
 import { writeHeld, writeInto, type Into } from './into'
-import { isCarriedBy, namedIn, queuing, repliedTo, unqueuing, type LeftOut } from './queue'
+import { isCarriedBy, namedIn, queuing, repliedTo, unqueuing } from './queue'
 import { LINGER_MS, tickAfter } from './scene'
 import { changedKnown, postKnown, type ChangedThere } from './seen'
 import {
@@ -908,8 +908,20 @@ const letClaimGo = async (host: Host, ride: SitrepInFlight) => {
 }
 
 /** What claiming an answer going in with Lee's prompt came to: claimed; met a send in flight carrying its item's reply; or left out, its item read again once claimed, and why. */
-export type Ridden =
-  { is: 'claimed'; ride: SitrepInFlight } | { is: 'carried' } | { is: 'left'; why: LeftOut }
+export type Ridden<Why> =
+  { is: 'claimed'; ride: SitrepInFlight } | { is: 'carried' } | { is: 'left'; why: Why }
+
+/** Lets an answer that went with Lee's prompt go as its claiming fails, by `letGo`, then passes the failure on, whether or not that let it go. */
+const failedRide =
+  (
+    host: Host,
+    ride: SitrepInFlight,
+    letGo: (host: Host, ride: SitrepInFlight) => Promise<unknown>,
+  ) =>
+  async (error: unknown): Promise<never> => {
+    await letGo(host, ride).catch(logFailure(host, 'letting your answer with the image go'))
+    throw error
+  }
 
 /**
  * Claims an answer going in with Lee's own prompt, rewritten as the board's
@@ -924,16 +936,17 @@ export type Ridden =
  * already. Landed, it has `judge` read the item again before the freeze: a
  * send taken and written down since the caller read it has no claim left to
  * meet, but its lines are down, since a message is written down before its
- * claim ends. Left out there, the claim is let go. So is a claim whose
- * judging or freezing fails.
+ * claim ends. Left out there, the claim is let go, and `judge`'s why given
+ * back. So is a claim whose judging or freezing fails, the failure passed
+ * on.
  */
-export const claimRide = async (
+export const claimRide = async <Why>(
   host: Host,
   outgoing: Outgoing,
   reply: SitrepQueued,
   was: SitrepQueued | undefined,
-  judge: (ride: SitrepInFlight) => Promise<LeftOut | undefined>,
-): Promise<Ridden> => {
+  judge: (ride: SitrepInFlight) => Promise<Why | undefined>,
+): Promise<Ridden<Why>> => {
   const ride: SitrepInFlight = {
     ...outgoing,
     claimedAt: await host.clock.now(),
@@ -968,10 +981,7 @@ export const claimRide = async (
     return { is: 'carried' }
   }
 
-  const why = await judge(ride).catch(async (error: unknown) => {
-    await letClaimGo(host, ride)
-    throw error
-  })
+  const why = await judge(ride).catch(failedRide(host, ride, letClaimGo))
 
   if (why !== undefined) {
     await letClaimGo(host, ride)
@@ -981,12 +991,9 @@ export const claimRide = async (
 
   awaitTurn(host, ride.text, isBetween())
 
-  try {
-    await host.state.queue.update(queue => queuing(queue, reply))
-  } catch (error) {
-    await letRideGo(host, ride)
-    throw error
-  }
+  await host.state.queue
+    .update(queue => queuing(queue, reply))
+    .catch(failedRide(host, ride, letRideGo))
 
   return { is: 'claimed', ride }
 }

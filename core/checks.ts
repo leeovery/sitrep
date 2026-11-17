@@ -155,7 +155,7 @@ type Shape = {
 }
 
 /** The fields of an ask's shape its rules read: what it wants back, and what goes with that. */
-type ShapeField = 'wants' | 'yes' | 'options' | 'needs'
+type ShapeField = 'wants' | 'yes' | 'options' | 'recommended' | 'needs'
 
 /** Whether an edit changes a field of its ask's shape. */
 const isChangedIn = (changes: Changes) => (field: ShapeField) => changes[field] !== undefined
@@ -182,7 +182,7 @@ const SHAPE_RULES: readonly [
     `A yes button's words are a word or two, ${YES_MOST} characters at most, such as Go or Ship it.`,
   ],
   [
-    ['wants', 'options'],
+    ['wants', 'options', 'recommended'],
     ({ wants, options }) => wants === 'choice' && options.length < LEAST_OPTIONS,
     `A choice ask needs at least ${LEAST_OPTIONS} options.`,
   ],
@@ -219,7 +219,12 @@ const recommendedMisfit = ({ wants, options, recommended }: Shape) => {
     : `recommended names one of the options, in its words: ${quotedOr(options)}.`
 }
 
-/** Why a shape will not do, by the first rule it breaks that reads a field `isJudged` picks, every rule unless told otherwise; undefined when it will. */
+/**
+ * Why a shape will not do, by the first rule it breaks that reads a field
+ * `isJudged` picks, every rule unless told otherwise; undefined when it
+ * will. The checks on two given options that became one, and on the
+ * option recommended, judge always, as each reads only what is given.
+ */
 const misfitOf = (shape: Shape, isJudged: (field: ShapeField) => boolean = () => true) =>
   collapsedMisfit(shape) ??
   SHAPE_RULES.find(([reads, breaks]) => reads.some(isJudged) && breaks(shape))?.[2] ??
@@ -578,7 +583,8 @@ const editedChoice = (ask: Ask, changes: Changes) => {
  * changes, so an edit to what the ask wants answers for the whole shape. A
  * rule the ask broke already, on fields the edit leaves alone, refuses
  * none of it: a decide written before asks had options takes a new title.
- * The options the edit gives and the option it recommends are its own.
+ * The checks on two given options that became one, and on the option
+ * recommended, judge every edit, as each reads only what the edit gives.
  * Undefined when it would.
  */
 const editedMisfit = (item: Item, changes: Changes, collapsed: readonly string[]) => {
@@ -655,7 +661,7 @@ export const droppedRecommendation = (session: Session, { item, changes }: EditB
     : ask.recommended
 }
 
-/** The fields of an ask's shape. */
+/** The fields whose change reshapes an ask: what it wants back, and what goes with that, not the option it recommends. */
 const SHAPE_FIELDS: readonly ShapeField[] = ['wants', 'yes', 'options', 'needs']
 
 /**

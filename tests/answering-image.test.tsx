@@ -449,10 +449,11 @@ test('an answer with an image whose ask a send claims first goes to Claude as an
   expect(w.state.answering).toBeNull()
 })
 
-test('an answer with an image whose ask a send answers before its claim lands, taken and written down, is kept: the ask is answered once', async ($, on) => {
-  const w = world($, on)
-  const riding = writeDoor(on)
+/** A door on the writes of the messages in flight, as `writeDoor` makes one. */
+type Door = ReturnType<typeof writeDoor>
 
+/** The held session with an ask Lee gave the yes in Ready to send, and wrote a comment on in the prompt, to go with it: the ask's id. */
+const commenting = async (w: World) => {
   await w.begin()
 
   const id = await asked(w, GO)
@@ -461,11 +462,34 @@ test('an answer with an image whose ask a send answers before its claim lands, t
   await ui.press({ key: `yes:${w.item(id)}` })
   await ui.press({ key: `rewrite:${w.item(id)}` })
 
-  riding.hold(flights => flights.some(each => each.ride !== undefined))
+  return { id, ui }
+}
 
-  const typed = entered(w, $, 'After the copy pass [Image #1]', { attachments: [IMAGE] })
+/** Lee's comment with an image entered, its claim held at the door as it lands: his prompt, still to settle, and the id the claim drew for its reply. */
+const enteredHeld = async (w: World, engine: Engine, riding: Door) => {
+  let drawn = ''
+
+  riding.hold(flights => {
+    const ride = flights.find(each => each.ride !== undefined)
+
+    drawn = ride?.replies[0]?.id ?? drawn
+
+    return ride !== undefined
+  })
+
+  const typed = entered(w, engine, 'After the copy pass [Image #1]', { attachments: [IMAGE] })
 
   await riding.arrived
+
+  return { typed, drawn }
+}
+
+test('an answer with an image whose ask a send answers before its claim lands, taken and written down, is kept: the ask is answered once, and no mode is put back on it', async ($, on) => {
+  const w = world($, on)
+  const riding = writeDoor(on)
+  const { id, ui } = await commenting(w)
+  const { typed } = await enteredHeld(w, $, riding)
+
   await ui.press({ key: 'send' })
   await w.clock.settle()
   expect(writtenIn(w), "the send taken and written down while the ride's claim waits").toEqual([
@@ -475,6 +499,10 @@ test('an answer with an image whose ask a send answers before its claim lands, t
 
   riding.open()
   expect(await typed).toEqual({ drop: NOT_TAKEN })
+  expect(
+    w.state.answering,
+    'no mode on an ask now closed, for the kept prompt to answer',
+  ).toBeNull()
   await w.clock.settle()
 
   expect(w.submitted).toEqual([`From the board:\n- Give the ok for phase 3 → Go${CLOSES}`])
@@ -485,31 +513,39 @@ test('an answer with an image whose ask a send answers before its claim lands, t
   expect(stateOf(w, id)).toBe('closed')
 })
 
+/**
+ * Lee's comment with an image entered beside another window, attached
+ * first, which delivers the session's inbox, so its own yes stays on its
+ * way; that window's yes, sent the moment before the ride's claim, lands
+ * while the claim waits, by the id `idOf` gives of the one the claim drew.
+ * The ask's id, and what Lee's prompt came to.
+ */
+const answeredAhead = async (
+  w: World,
+  engine: Engine,
+  riding: Door,
+  idOf: (drawn: string) => string,
+) => {
+  const { id } = await commenting(w)
+  const paths = heldPaths(w)
+
+  w.put(paths.heartbeat(W2), beat(W2, { attachedAt: T0 - MIN, seenAt: w.clock.now() }))
+  await w.clock.advance(WATCH_MS)
+
+  const { typed, drawn } = await enteredHeld(w, engine, riding)
+
+  w.put(paths.log(W2), file([w.clock.now() - 1, reply(idOf(drawn), id, 'yes')]))
+  riding.open()
+
+  return { id, entered: await typed }
+}
+
 test("an answer with an image is kept once another window's answer, on its way ahead of it, lands before its claim does: the mode stands again", async ($, on) => {
   const w = world($, on)
   const riding = writeDoor(on)
+  const { id, entered: kept } = await answeredAhead(w, $, riding, () => 'r9')
 
-  await w.begin()
-
-  const id = await asked(w, GO)
-  const ui = await w.pane()
-  const paths = heldPaths(w)
-
-  await ui.press({ key: `yes:${w.item(id)}` })
-  await ui.press({ key: `rewrite:${w.item(id)}` })
-  // Another window, attached first, delivers the session's inbox, so its yes stays on its way.
-  w.put(paths.heartbeat(W2), beat(W2, { attachedAt: T0 - MIN, seenAt: w.clock.now() }))
-  await w.clock.advance(WATCH_MS)
-  riding.hold(flights => flights.some(each => each.ride !== undefined))
-
-  const typed = entered(w, $, 'After the copy pass [Image #1]', { attachments: [IMAGE] })
-
-  await riding.arrived
-  // Its yes, sent the moment before the claim, lands while the claim waits.
-  w.put(paths.log(W2), file([w.clock.now() - 1, reply('r9', id, 'yes')]))
-  riding.open()
-
-  expect(await typed).toEqual({ drop: NOT_TAKEN })
+  expect(kept).toEqual({ drop: NOT_TAKEN })
   expect(w.toasts).toContain(CANNOT_RIDE.answered)
   expect(w.prompts).toEqual([])
   expect(w.flights()).toEqual([])
@@ -518,26 +554,60 @@ test("an answer with an image is kept once another window's answer, on its way a
   expect(w.state.answering).toMatchObject({ item: id, as: 'comment' })
 })
 
-test('an answer with an image whose session fails to read again once it is claimed is let go, nothing frozen, and Lee’s prompt goes on as he typed it', async ($, on) => {
+test("an answer with an image is kept once another window's answer lands ahead of it under the id its claim drew: an answer is its own only by its writer too", async ($, on) => {
   const w = world($, on)
   const riding = writeDoor(on)
+  const { entered: kept } = await answeredAhead(w, $, riding, drawn => drawn)
+
+  expect(kept).toEqual({ drop: NOT_TAKEN })
+  expect(w.toasts).toContain(CANNOT_RIDE.answered)
+  expect(w.prompts).toEqual([])
+  expect(w.flights()).toEqual([])
+})
+
+test('an answer with an image whose session no longer reads once it is claimed is kept as changed, nothing frozen, and no mode put back', async ($, on) => {
+  let isUnlisted = false
+  let folder = ''
+
+  // Registered before the world's own, so it is outermost.
+  on('fs.list', { path: /\/sessions\/[^/]+$/ }, ($, e, next) =>
+    isUnlisted && e.path === folder ? { deny: `EIO: i/o error, scandir ${e.path}` } : next(e),
+  )
+
+  const w = world($, on)
+  const riding = writeDoor(on)
+  const { id } = await commenting(w)
+
+  folder = heldPaths(w).dir
+
+  const { typed } = await enteredHeld(w, $, riding)
+
+  isUnlisted = true
+  riding.open()
+  expect(await typed).toEqual({ drop: NOT_TAKEN })
+  isUnlisted = false
+
+  expect(w.toasts).toContain(CANNOT_RIDE.changed)
+  expect(w.prompts).toEqual([])
+  expect(w.flights()).toEqual([])
+  expect(writtenIn(w)).toEqual([])
+  expect(w.state.queue).toEqual([{ ...at(w, id), verdict: 'yes' }])
+  expect(w.state.answering).toBeNull()
+})
+
+test('an answer with an image whose second read fails once it is claimed is let go, nothing frozen, and Lee’s prompt goes on as he typed it', async ($, on) => {
   let isRefused = false
 
-  on('state.set', { plugin: 'sitrep', key: 'board' }, ($, e, next) =>
-    isRefused ? { deny: 'the board could not be kept' } : next(e),
+  // Registered before the world's own, so it is outermost.
+  on('env.get', { name: 'XDG_STATE_HOME' }, ($, e, next) =>
+    isRefused ? { deny: 'the environment did not read' } : next(e),
   )
-  await w.begin()
 
-  const id = await asked(w, GO)
-  const ui = await w.pane()
+  const w = world($, on)
+  const riding = writeDoor(on)
+  const { id } = await commenting(w)
+  const { typed } = await enteredHeld(w, $, riding)
 
-  await ui.press({ key: `yes:${w.item(id)}` })
-  await ui.press({ key: `rewrite:${w.item(id)}` })
-  riding.hold(flights => flights.some(each => each.ride !== undefined))
-
-  const typed = entered(w, $, 'After the copy pass [Image #1]', { attachments: [IMAGE] })
-
-  await riding.arrived
   isRefused = true
   riding.open()
   await typed
@@ -548,6 +618,36 @@ test('an answer with an image whose session fails to read again once it is claim
   expect(w.flights()).toEqual([])
   expect(writtenIn(w)).toEqual([])
   expect(w.state.queue).toEqual([{ ...at(w, id), verdict: 'yes' }])
+  expect(w.state.answering).toBeNull()
+})
+
+test('an answer with an image whose board is not kept as its claim lands still goes in: drawing the board is no part of the second read', async ($, on) => {
+  const w = world($, on)
+  const riding = writeDoor(on)
+  let refusals = 0
+
+  on('state.set', { plugin: 'sitrep', key: 'board' }, ($, e, next) => {
+    if (refusals === 0) {
+      return next(e)
+    }
+
+    refusals -= 1
+
+    return { deny: 'the board could not be kept' }
+  })
+
+  const { id } = await commenting(w)
+  const { typed } = await enteredHeld(w, $, riding)
+
+  refusals = 1
+  riding.open()
+  expect((await typed).drop).toBeUndefined()
+  await w.clock.advance(WATCH_MS)
+
+  expect(w.submitted).toEqual([RODE_WITH_GO])
+  expect(writtenIn(w), 'written down at the next look').toEqual([
+    { item: id, verdict: 'yes', isDelivered: true },
+  ])
 })
 
 test("a pick-up with an image of another session's parked item goes in to this window's Claude, naming whose it was, and is written down in that session", async ($, on) => {

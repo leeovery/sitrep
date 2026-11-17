@@ -441,7 +441,10 @@ test('an edit answers for the rules of the shape it changes, not for one its ask
   expect(refusal(edited({ needs: 'which palette' }))).toBe(
     'Only a words ask takes needs: what its words are.',
   )
-  expect(refusal(edited({ recommended: 'Dark' }))).toContain('recommended names one of the options')
+  expect(
+    refusal(edited({ recommended: 'Dark' })),
+    'an option recommended, of options too few',
+  ).toBe('A choice ask needs at least 2 options.')
 })
 
 test('a checked post is given a fresh item id, unlike any its session uses; a refusal stays one', () => {
