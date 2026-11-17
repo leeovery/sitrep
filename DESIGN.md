@@ -853,13 +853,13 @@ show all 4
   title, count nowhere, offer no reply and no snooze, and under ASKS'
   heading, which counts them apart (`nothing waiting · 2 left open`), a
   faint line says why: `The session is finished: a reply can't reach it.`
-  An ask still opens, to its tree alone. A reply could only have gone to
-  its inbox, which no window reads, and come back not delivered. The
+  An ask still opens, to its tree alone. A reply could only have gone into
+  its inbox, and come back `not delivered: the session was finished`. The
   session this window holds is the one exception: finished by Claude while
   the window still holds it, its view says finished, but its asks keep
   their answers (no snooze), as a reply there goes in this window's own
-  message, to the Claude right here. What
-  still works there stays: its project's Parked picks up as anywhere, to
+  message, to the Claude right here. What still works there stays: its
+  project's Parked picks up as anywhere, to
   the Claude in this window, a finished session's items among them (see
   Delivery); its lists of the past open and fold; its project's name and
   the way back move the board. It has no `finish`, being finished. A
