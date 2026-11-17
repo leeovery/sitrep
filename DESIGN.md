@@ -943,7 +943,7 @@ shape is ever shown as a word:
 | Claude asks for | Buttons |
 |---|---|
 | **a yes**: a go, an approval, "it works", "done" | `✓ <its yes>` · `✎ comment` · `✕ ignore` |
-| **a choice** | one button per option, the one Claude recommends marked `recommended` before it · `✎ comment` · `✕ ignore` |
+| **a choice** | one button per option, the one Claude recommends ending `· recommended`, in a darker lilac, inside it · `✎ comment` · `✕ ignore` |
 | **words**: an answer, a command's output, feedback | `✎ Answer` · `✕ ignore` |
 
 - **The yes is in Claude's words.** Claude gives the button's label as the
@@ -1006,27 +1006,43 @@ shape is ever shown as a word:
     the option stripped keeps it recommended; and the CLI's `answer`, which
     writes the option in its stored words.
   - **Claude's order of options is kept**; nothing is reordered.
-  - **Drawn once, before its option.** The pane draws the word
-    `recommended` before the option's button, in the ask's amber, the
-    colour of ASKS and the `◆` (`recommended [ Redraw ]` in the terminal),
-    the same elements on every surface, each drawing them in its own way.
-    The option recommended is the primary button; with none, the first, as
-    before. The board text Claude reads names it once after the options
+  - **Drawn once, inside its option's button.** The pane ends the
+    recommended option's label with the word, after a middle dot, in a
+    darker lilac than the button's own (`[ Redraw · recommended ]` in the
+    terminal): the Button's children, the option and a Text in the
+    board's `recommended` colour, `#7178c7`, its `label` still the option,
+    naming the control. The button is the primary already, whose lilac
+    marks it; the word is quieter than the option's words, and plainly
+    lilac. `#7178c7` is Claude Code's dark-theme `suggestion`, the lilac a
+    primary button paints, `#b1b9f9`, at 75% of its OKLCH lightness, its
+    hue kept, and its chroma raised from 0.09 to 0.12: that lilac darkened
+    alone (`#7f85b3`, or its OKLCH darkening `#757bb7`) all but matches the
+    board's grey `#7a82ab`, which is a lilac grey. Not `dimColor`: Claude
+    Code draws a `dimColor` run in the theme's dim colour, a grey, whatever
+    the colour around it. The same elements on every surface, each drawing
+    them in its own way. The option recommended is the primary button;
+    with none, the first, as before. The board text Claude reads names it once after the options
     (`options: Ship it | Redraw; recommended: Redraw`), `board` prints that
     text, `board --json` and `watch` carry it (`recommended`, null where
     none), and the CLI's `answer`, refusing an answer, names it once among
     the options (`answer it with “Ship it” (recommended) or “Redraw”.`).
     No band, banner or row shows an ask's options, so none shows it. Lee's
-    reply when he picks the option is as ever (`→ Redraw`). The word and
-    its button wrap as a pair, the word kept whole: a short option keeps
-    both on one line, and on a narrow pane or a phone a long one wraps
-    under the word, which sits on the line above its own option, as its
-    label. The tests prove that wrap only through their own reading of the
-    drawing as rows (`tests/drawn.ts`), since the kit paints nothing: it is
-    to be seen live, in Lee's pane, once this is installed. (Lee, 17
-    November 2026: until then the word was dim grey, hard
-    to see, and came after the button, so a long label left it on a line
-    of its own over the next option, reading as that one's.)
+    reply when he picks the option is the option alone, as ever
+    (`→ Redraw`), never the word. Being the button's own, the word wraps
+    with its label: on a narrow pane or a phone a long option wraps inside
+    its brackets (`[ Redraw every frame, then ship ·` over `recommended ]`),
+    so the word can never seem to mark the option below. The tests prove
+    that wrap through their own reading of the drawing as rows
+    (`tests/drawn.ts`, which wraps a Button's words in its room as the
+    terminal does), since the kit paints nothing. (Lee, 17 November 2026:
+    until then the word was dim grey, hard to see, and came after the
+    button, so a long label left it on a line of its own over the next
+    option, reading as that one's. #150 then drew it in the ask's amber,
+    before the button, wrapping as a pair with it, so a long option took
+    the line under the word. Lee, the same day, live: too much gold, with
+    the `◆` and the `see` line amber already, and outside the button; the
+    button's lilac, the primary's, marks it already. So the word went
+    inside the button, in a darker lilac, and the amber went.)
   - **An edit** sets it, or clears it with an empty one. One changing the
     options keeps it while its option is among them; where its option is
     gone, or the ask wants a choice no more, it goes with it, and the
@@ -4152,7 +4168,8 @@ truth. There is still no background service. None of it is built now. Lee:
 
 - Palette (Tokyo Night): ask `#e0af68`, new-ask pulse `#ff9e64`, sessions `#7aa2f7`,
   parked `#bb9af7`, ok `#9ece6a`, now `#73daca`, soft `#a9b1d6`,
-  grey `#7a82ab`, faint `#565f89`, rules `#3b4261`, tab `#292e42`.
+  grey `#7a82ab`, faint `#565f89`, rules `#3b4261`, tab `#292e42`; and,
+  of its own, recommended `#7178c7`, a darker lilac than a primary button's.
 - **White:** anything clickable, and the main content.
 - **Soft:** lines describing the item above them (a summary, what a session is
   doing, a reply, a status change's detail), and the line a section with nothing in it
@@ -4160,16 +4177,18 @@ truth. There is still no background service. None of it is built now. Lee:
 - **Grey:** ages, counts, heading notes. The toggles at a list's foot (Status's history,
   Parked's picked up, RESOLVED's `show all`) are a quieter press, drawn dim (a
   Button's own `dimColor`: Claude Code 2.1.294 refuses a Button with a
-  label and a coloured child, and blanks the pane). **Faint:** closed things (an away
+  label and a coloured child, and blanks the pane; 2.1.326 takes one, as
+  the recommended option's button shows). **Faint:** closed things (an away
   session, an ask Lee's send just closed, a status change's `•`), but not
   RESOLVED's asks nor Parked's picked up: each is a row to open, its `✓`
   green and its title white; and every tree's `│ ├ └`.
   Section headings' rules and the tabs' rule are the rule colour.
 - **Colour:** glyphs, headings and amber waiting counts only; in the ask's
   amber, the `needs:` line of a words ask, since it is a request of Lee's,
-  not a description, and the word `recommended` before the option Claude
-  recommends, to be seen at a glance; and a tree line's label (`Added:`,
-  `see`), in its item's colour.
+  not a description; a tree line's label (`Added:`, `see`), in its
+  item's colour; and the word ending the recommended option's button, in
+  a darker lilac than the primary's own (`#7178c7`), quieter than the
+  option and never grey.
 - Glyphs: `◆` ask, `◇` parked, `•` under way, `◦` next, `✓` done, `└ ├` trees, `⌂` home.
   No glyph that reads as "expand" unless it expands.
 - **One row for every list.** A status change, a parked item, one picked

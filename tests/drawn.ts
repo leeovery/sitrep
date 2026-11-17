@@ -1,14 +1,17 @@
 /**
  * A drawing read back as the rows of text it takes, for tests that assert
  * columns: a Box lays its children out in a row or a column, with its gaps,
- * padding (blank rows above and below it too) and width; a Text is its words, a Button its label.
+ * padding (blank rows above and below it too) and width; a Text is its
+ * words; a Button its label, or its children's words, in brackets.
  * Given the cells across, a row hands what it has spare to its first child
  * that grows, so what comes after sits at the right edge, and a row that
  * wraps starts a line wherever its next child no longer fits on the one
  * before, each child laid out in what its line leaves it, so a row that
  * wraps inside it wraps too; a child wider than its line fails, as no
- * surface could draw it. Nothing else wraps. Given no cells, nothing grows,
- * and a row is as wide as what is on it. Its ends are trimmed.
+ * surface could draw it. A Button laid out in a room narrower than its
+ * words wraps them at their spaces, inside its brackets, as the terminal
+ * does; nothing else wraps. Given no cells, nothing grows, and a row is as
+ * wide as what is on it. Its ends are trimmed.
  */
 import type { Mounted } from 'claude-code/testing'
 
@@ -105,6 +108,31 @@ const wrapped = (children: readonly Drawn[], gap: number, rowGap: number, cells:
   )
 }
 
+/** A line broken at its spaces into rows of at most `cells`, a word wider than that broken where it must; given no cells, the line whole. */
+const wordWrapped = (line: string, cells?: number): string[] => {
+  if (cells === undefined || [...line].length <= cells) return [line]
+
+  const rows: string[] = []
+  let row = ''
+
+  for (const word of line.split(' ')) {
+    const joined = row === '' ? word : `${row} ${word}`
+
+    if ([...joined].length <= cells) {
+      row = joined
+      continue
+    }
+    if (row !== '') rows.push(row)
+    row = word
+    while ([...row].length > cells) {
+      rows.push([...row].slice(0, cells).join(''))
+      row = [...row].slice(cells).join('')
+    }
+  }
+
+  return [...rows, row]
+}
+
 const rowsOfBox = ({ props = {}, children = [] }: Drawn, cells?: number): string[] => {
   const shown = children.filter((child): child is Drawn => typeof child === 'object' && !!child)
   const isColumn = props.flexDirection === 'column'
@@ -137,9 +165,12 @@ const rowsOfElement = (element: Drawn, cells?: number): string[] => {
     case 'Text':
       return wordsOf(element.children).split('\n')
     case 'Button': {
-      const label = String(element.props?.label ?? '')
+      const words =
+        (element.children ?? []).length === 0
+          ? String(element.props?.label ?? '')
+          : wordsOf(element.children)
 
-      return [element.props?.plain === true ? label : `[ ${label} ]`]
+      return wordWrapped(element.props?.plain === true ? words : `[ ${words} ]`, cells)
     }
     default:
       return []

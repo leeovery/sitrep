@@ -5,7 +5,7 @@
  * that one branch. Opened, it shows its whole title, its tree (what its
  * words are, where to look, Claude's own record of it, and where Lee's
  * reply stands) and its buttons, by what it wants back: a yes in its own
- * words, its options, the one Claude recommends marked before it, or
+ * words, its options, the one Claude recommends marked in its button, or
  * words, written in the prompt box (DESIGN.md, "Answering an ask"). Any
  * session's asks answer the same way; a reply names the session it goes to.
  *
@@ -79,34 +79,23 @@ const refOf = ({ at, ask }: AskedAt): SitrepItemRef => ({ ...at, item: ask.id })
 /** The comment button's words: an answer's, on an ask read from its kind as a decide, where a comment closes it. */
 const commentLabel = (ask: Ask) => (isAnswer(ask, 'comment') ? '✎ answer' : '✎ comment')
 
-/** What leads the option Claude recommends, in the ask's amber. */
-const RECOMMENDED = 'recommended'
+/** What ends the label of the option Claude recommends, in a darker lilac than its own. */
+const RECOMMENDED = '· recommended'
 
 /** The option pressed first: the one Claude recommends, else the first. */
 const primaryOf = (ask: Ask) => ask.recommended ?? ask.options?.[0]
 
-/** An option's button, and before it, where Claude recommends it, the word saying so. */
+/** An option's button, its label ending with the word saying so where Claude recommends it: inside the button, so a long label wraps with it. */
 const drawOption = (d: Drawing, key: string, option: string, ask: Ask, onPress: () => void) => {
-  const { Box, Text, Button } = d.els
-  const button = (
-    <Button
-      key={key}
-      variant={option === primaryOf(ask) ? 'primary' : undefined}
-      label={option}
-      onPress={onPress}
-    />
-  )
+  const { Text, Button } = d.els
+  const variant = option === primaryOf(ask) ? 'primary' : undefined
 
-  // The word keeps whole, and a long label wraps under it rather than leaving it to mark the option below.
   return option === ask.recommended ? (
-    <Box key={`recommended:${key}`} flexDirection="row" columnGap={1} flexWrap="wrap">
-      <Box flexShrink={0}>
-        <Text color={C.ask}>{RECOMMENDED}</Text>
-      </Box>
-      {button}
-    </Box>
+    <Button key={key} variant={variant} label={option} onPress={onPress}>
+      {option} <Text color={C.recommended}>{RECOMMENDED}</Text>
+    </Button>
   ) : (
-    button
+    <Button key={key} variant={variant} label={option} onPress={onPress} />
   )
 }
 

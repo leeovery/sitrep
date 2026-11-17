@@ -93,7 +93,7 @@ The mod gives Claude these tools. Only the main conversation can call them; a su
 | `board` | Reads the board back, with the project's parked items, so Claude can check and repair it |
 
 - **Each conversation's first message tells Claude how to keep the board**, and lists every current session on it with its id, so Claude can join one you carry on with, or start a new one.
-- **Claude asks only when it needs you**, says it in the chat as well, and picks the shape by what you give back. A yes's button is the verb you're giving: `✓ Go`, `✓ Approve`, `✓ It works`. A choice names the option Claude leans toward as `recommended`, and a "(recommended)" Claude types into an option's words is read as that and taken out.
+- **Claude asks only when it needs you**, says it in the chat as well, and picks the shape by what you give back. A yes's button is the verb you're giving: `✓ Go`, `✓ Approve`, `✓ It works`. A choice ends the button of the option Claude leans toward with `· recommended`, and a "(recommended)" Claude types into an option's words is read as that and taken out.
 - **No refusals for what does no harm.** Resolving an ask you already closed, or a parked item you picked up, passes quietly, and an edit takes an item's line as `text` or `title` alike.
 - **Drift gets noticed.** When the board changes, its open items ride into Claude's next turn, and a join hands Claude the board as it stands (its status, open asks and parked items) to correct anything stale.
 - **Claude has no tool for snoozing.** Snoozing a session is yours.
