@@ -477,10 +477,12 @@ const start: Tool<'start'> = {
       by: writer,
     }
 
-    await host.fs.write(sessionPaths(root, key, id).meta, metaText(meta))
+    const folder = folderKey(key)
+
+    await host.fs.write(sessionPaths(root, folder, id).meta, metaText(meta))
 
     const started = await attachHere(host, root, {
-      project: folderKey(key),
+      project: folder,
       session: id,
       writer,
       attachedAt: created,

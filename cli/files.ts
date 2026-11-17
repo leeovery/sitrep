@@ -24,6 +24,7 @@ import {
   sessionsDir,
   writerOf,
   type Filed,
+  type FolderKey,
   type ProjectRead,
   type ProjectSessions,
   type ReadName,
@@ -41,7 +42,7 @@ const foldersIn = async (io: Io, dir: string) =>
 
 /** The key of every project folder. */
 const projectKeys = async (io: Io, root: string) =>
-  (await foldersIn(io, projectsDir(root))).filter(isSafeName)
+  (await foldersIn(io, projectsDir(root))).filter(isSafeName).map(folderKey)
 
 /** The sessions a project files. */
 const sessionsFiled = async (io: Io, root: string, project: string) =>
@@ -116,7 +117,7 @@ export const readSession = async (io: Io, paths: SessionPaths): Promise<SessionF
 export type SessionRead = { files: SessionFiles; session?: Session }
 
 /** How a project's sessions are read: each by the key of the project filing it and its id, given the text of that project's file, read once for all of them. */
-export type SessionReader = (key: string, id: string, project?: string) => Promise<SessionRead>
+export type SessionReader = (key: FolderKey, id: string, project?: string) => Promise<SessionRead>
 
 /** Each session's meta alone, no session folded: what names a project with no file. */
 const metasOf =
@@ -135,7 +136,7 @@ const readAt =
   }
 
 /** A project and the sessions in its folder, each read by `read`, but those whose session.json is missing or torn; undefined for a folder with no file and no session. */
-const readProject = async (io: Io, root: string, key: string, read: SessionReader) => {
+const readProject = async (io: Io, root: string, key: FolderKey, read: SessionReader) => {
   const text = await textAt(io, projectPaths(root, key).file)
   const file = parseProject(text ?? '')
   const sessions = await Promise.all(
@@ -154,7 +155,7 @@ const readProject = async (io: Io, root: string, key: string, read: SessionReade
 const nameIn =
   (io: Io, root: string): ReadName =>
   async key =>
-    (await readProject(io, root, key, metasOf(io, root)))?.project.name
+    (await readProject(io, root, folderKey(key), metasOf(io, root)))?.project.name
 
 /** A session by its id, as it stands at `now`, in whichever project's folder holds it, filed under its project; undefined when none holds it. */
 export const findSession = async (
@@ -169,7 +170,7 @@ export const findSession = async (
     const session = foldSession(files, now)
 
     if (session !== undefined) {
-      return { paths, files, ...(await fileRead(folderKey(folder), session, nameIn(io, root))) }
+      return { paths, files, ...(await fileRead(folder, session, nameIn(io, root))) }
     }
   }
 

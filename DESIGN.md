@@ -314,12 +314,12 @@ Built so (17 November 2026):
   and every tool on the held session, acting on another session's parked
   item among them, is denied while its `session.json` is missing or torn,
   which leaves where it is filed unknown. Once the fold files it under
-  another project, the window toasts, a pick-up of the old project's other
-  sessions' parked items leaves Ready to send, a toast saying so, as when a
-  window takes up a session of another project (see "A window that
-  changes project", under Delivery), and it reads the sessions around
-  again. Its hold, its own file, its heartbeat and the inbox stay as they
-  were, so it posts, beats and delivers on. A window that joins the
+  another project, the window toasts and reads the sessions around again;
+  a pick-up in Ready to send of what the old project's other sessions
+  parked is held back there, as when a window takes up a session of
+  another project (see "A window that changes project", under Delivery).
+  Its hold, its own file, its heartbeat and the inbox stay as they were, so
+  it posts, beats and delivers on. A window that joins the
   session later, or takes it up as its conversation resumes, files it
   under its new project from its first fold.
 - **The mover answers from the fold after its post**: `Moved Help desk
@@ -1752,9 +1752,11 @@ that carries nothing at all, to this session or any other, toasts why:
 `…have changed since.` where none fits its item any more, or `…have changed
 since, or are answered or closed already.` for some of each; `…are in
 finished sessions` joins them for a reply to another session's ask finished
-since it was queued (see "A finished session's view"), and `…are in
-another project now` for a pick-up of what a session that moved away
-parked (see "A window that changes project"). Ready to send's
+since it was queued (see "A finished session's view"), `…are in another
+project now` for a pick-up of what a session of another project than the
+held one's parked, and `…are in sessions that can't be read` for one where
+either session's filing could not be read (see "A window that changes
+project"). Ready to send's
 `send` shows only while some reply would go, whatever holds the others
 back, answered, closed by Claude or finished (17 November 2026, made in
 review), so only a send pressed before the board read what holds them back
@@ -1900,25 +1902,33 @@ app (see "The menu bar").
     session has, and every reader passes over it: Claude had the pick-up,
     and the item stays parked, for Claude or Lee to close. Its heartbeat
     saying it names no item either.
-  - **A window that changes project.** A pick-up still in Ready to send
-    when its window takes up a session of another project leaves the
-    queue, and a toast says so: no Claude of another project is given it,
-    and the item stays parked, to be picked up from a window of its
-    project. A message already sent, held for the turn's end, goes in as
-    sent, to the conversation Lee pressed send in; taken back, its pick-up
-    leaves the queue the same way. The rule itself is the send's (17
-    November 2026): a pick-up goes to the window's Claude only while the
-    session that parked its item is filed under the held session's project
-    as the send reads each, afresh. Else it is held back, as a reply to a
-    closed item is (queue.ts's `isPickedElsewhere`): drawn in Ready to send
-    under this session, and on its item, `· not sent: moved to Contoso`,
-    with its `↺ undo` and `✕` and no `send` for it alone; a send pressed
-    regardless leaves it, toasting `Nothing to send: the items replied to
-    are in another project now.`; it goes once that session is filed under
-    the held one's project again. So one left behind, as a reload found the
-    held `session.json` torn and read the move only after, or one whose
-    item's session moved away after the press, never reaches a Claude of
-    another project, and never waits unseen.
+  - **A window that changes project.** A pick-up goes to the window's
+    Claude only while the session that parked its item is filed under the
+    held session's project, as the send reads each, afresh (17 November
+    2026): no Claude of another project is given one. Else it is held back,
+    as a reply to a closed item is (queue.ts's `pickedElsewhere`), whatever
+    parted the two: the window taking up a session of another project, by a
+    join or a resume, its session moving away, or the item's session
+    moving. It stays in Ready to send, drawn under this session, and on its
+    item, `· not sent: its session is in Contoso`, with its `↺ undo` and `✕`
+    and no `send` for it alone; a send pressed regardless leaves it,
+    toasting `Nothing to send: the items replied to are in another project
+    now.`; and it goes once the two are filed under one project again, the
+    item parked meanwhile, to be picked up from a window of its project
+    too. One whose session, or the held one, the send could not file is
+    held back alike, `· not sent: its session can't be read`, never said to
+    be in another project. A message already sent, held for the turn's
+    end, goes in as sent, to the conversation Lee pressed send in; taken
+    back, its pick-up is in Ready to send again, held back there. Nothing
+    but Lee or a send carrying it takes a pick-up out of Ready to send: one
+    of another project left it, a toast saying so, as the window took up a
+    session, as its session moved, and as a claim ended unwritten, until
+    the review of 17 November 2026 found that a reload or a taken-back send
+    so dropped one held back as its item's session moved away. So one left
+    behind, as a reload found the held `session.json` torn and read the
+    move only after, or one whose item's session moved away after the
+    press, never reaches a Claude of another project, and never waits
+    unseen.
   - **Two windows, one item.** Each pick-up goes in to its own window's
     Claude: a mark lets in a reply its item's close voided `answered` (see
     "Which replies go in"), so both Claudes are told.

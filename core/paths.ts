@@ -11,6 +11,7 @@
  *       inbox/<sender>.jsonl    replies from other sessions, one file per sender
  *       presence/<writer>.json  each attached window's heartbeat
  */
+import type { FolderKey } from './filing'
 
 /** The folder under the state home. */
 const FOLDER = 'sitrep'
@@ -90,7 +91,7 @@ export const projectPaths = (root: string, project: string): ProjectPaths => {
 export const sessionsDir = (root: string, project: string) =>
   `${projectPaths(root, project).dir}/${SESSIONS_DIR}`
 
-export const sessionPaths = (root: string, project: string, id: string): SessionPaths => {
+export const sessionPaths = (root: string, project: FolderKey, id: string): SessionPaths => {
   const sessions = sessionsDir(root, project)
   const dir = `${sessions}/${safe(id)}`
   const inbox = `${dir}/inbox`

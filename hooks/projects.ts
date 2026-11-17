@@ -6,6 +6,7 @@
  * as a project is made, renamed or given a directory.
  */
 import {
+  folderKey,
   isSafeName,
   newProjectKey,
   parseMeta,
@@ -17,6 +18,7 @@ import {
   projectText,
   recordedName,
   sessionPaths,
+  type FolderKey,
   type Project,
   type ProjectChange,
   type ProjectFile,
@@ -39,13 +41,13 @@ const fileOf = async (host: Host, root: string, key: string) =>
   parseProject((await textAt(host, projectPaths(root, key).file)) ?? '')
 
 /** A session's meta; undefined where its session.json does not read. */
-export const metaOf = async (host: Host, root: string, key: string, id: string) =>
-  parseMeta((await textAt(host, sessionPaths(root, key, id).meta)) ?? '')
+export const metaOf = async (host: Host, root: string, folder: FolderKey, id: string) =>
+  parseMeta((await textAt(host, sessionPaths(root, folder, id).meta)) ?? '')
 
 /** The meta of each session filed under a project, in the order listed; undefined for one that does not read. */
 const metasIn = async (host: Host, root: string, key: string) =>
   Promise.all(
-    (await sessionsFiled(host, root, key)).map(id => metaOf(host, root, key, id)),
+    (await sessionsFiled(host, root, key)).map(id => metaOf(host, root, folderKey(key), id)),
   )
 
 /** A project as its file's text has it, its sessions' metas read only where it has no file; undefined for a folder with no file and no session. */

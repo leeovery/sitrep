@@ -51,10 +51,9 @@ import { boardOf } from './board'
 import { namesKept } from './filing'
 import { logFailure, rootFor, type Host } from './host'
 import { isLater, isSuperseded, loadedNow, supersede } from './load'
-import { counted } from './look'
 import { announce, type News } from './news'
 import { addressed } from './places'
-import { destinations, isCarried, isPickedElsewhere, type AsRead, type FiledUnder } from './queue'
+import { destinations, type AsRead, type FiledUnder } from './queue'
 import { createReader, ownText, type Reader } from './reader'
 import { versionNow } from './version'
 import { whereNow } from './where'
@@ -280,15 +279,12 @@ export const readHeld = async (host: Host): Promise<Session | undefined> =>
 export const heldProject = () => current?.filedFold?.filed.project
 
 /**
- * Follows the held session to the project it moved to, a toast saying so:
- * a pick-up of what another session of the project it left parked leaves
- * Ready to send, and the sessions around are read again. Every ref the
- * window keeps names the session's folder, which moves nowhere, so none
- * changes.
+ * Follows the held session to the project it moved to, a toast saying so,
+ * and reads the sessions around again. Every ref the window keeps names the
+ * session's folder, which moves nowhere, so none changes.
  */
-const follow = async (host: Host, { session }: Filed) => {
+const follow = (host: Host, { session }: Filed) => {
   host.ui.toast(`Moved to ${session.project}.`)
-  await dropPickUpsElsewhere(host)
   void lookAround(host)
 }
 
@@ -315,7 +311,7 @@ export const refresh = async (host: Host): Promise<Session | undefined> => {
   await show(host, hold, filed)
 
   if (from !== undefined && filed.project !== from) {
-    await follow(host, filed)
+    follow(host, filed)
   }
 
   return filed.session
@@ -484,15 +480,11 @@ export const letGo = async (host: Host, livesOn = false) => {
   }
 }
 
-/** Why pick-ups left Ready to send: the window took up a session of another project than theirs. */
-const pickUpsLeft = (count: number) =>
-  `${counted(count, 'pick-up', 'pick-ups')} of another project left Ready to send: pick up from a window of that project.`
-
 /**
  * Where the held session and the sessions of the pick-ups among these
  * replies are filed now: the held one as its last fold files it, each other
  * read afresh; one not read, under none. What holds back a pick-up of
- * another project's item (queue.ts's `isPickedElsewhere`).
+ * another project's item (queue.ts's `pickedElsewhere`).
  */
 const filingNow = async (host: Host, replies: readonly SitrepQueued[]): Promise<FiledUnder> => {
   const held = current?.attachment.session
@@ -523,46 +515,12 @@ export const readForSend = async (
 }
 
 /**
- * Takes out of Ready to send each pick-up of what a session filed under
- * another project than the held session's parked (queue.ts's
- * `isPickedElsewhere`), each filed as it stands, none a send in flight
- * carries, a toast saying so: a pick-up goes to the window's Claude, and
- * none of another project is given one. As the window takes up a session,
- * as its session moves, and as a claim ends unwritten, its replies back in
- * Ready to send. One pressed for a session of the held session's project
- * that moves after stays, drawn held back while that session is filed
- * elsewhere.
- */
-export const dropPickUpsElsewhere = async (host: Host) => {
-  const held = current?.attachment
-
-  if (held === undefined || heldProject() === undefined) {
-    return
-  }
-
-  const [flights, queue] = await Promise.all([flightNow(host), host.state.queue.read()])
-  const isPickUp = (reply: SitrepQueued) => reply.verdict === 'pickup' && !isCarried(flights, reply)
-  const filedUnder = await filingNow(host, queue.filter(isPickUp))
-  const isLeft = (reply: SitrepQueued) =>
-    isPickUp(reply) &&
-    filedUnder(reply.session) !== undefined &&
-    isPickedElsewhere(held.session, reply, filedUnder)
-  const left = queue.filter(isLeft).length
-
-  if (left > 0) {
-    await host.state.queue.update(waiting => waiting.filter(reply => !isLeft(reply)))
-    host.ui.toast(pickUpsLeft(left))
-  }
-}
-
-/**
  * Holds the session `attaching` names, by the folder its files are in,
  * letting go of any other first: reads the window's own file back, works
  * out where the window is, writes its heartbeat, saying its folder (the one
  * its heartbeat there said, where the folder does not read), the version it
  * runs and what it is doing as it stands, files it, starts the beat and the
- * watch, and folds the session. A pick-up of another project's item leaves
- * Ready to send.
+ * watch, and folds the session.
  */
 export const attachTo = async (host: Host, root: string, attaching: SitrepAttachment) => {
   const { project, session, writer, attachedAt } = attaching
@@ -589,7 +547,6 @@ export const attachTo = async (host: Host, root: string, attaching: SitrepAttach
   current = hold
   await foldHeld(host, hold)
   await host.state.attachment.write(hold.attachment)
-  await dropPickUpsElsewhere(host)
   hold.timers = timersFor(host, hold)
 
   return refresh(host)

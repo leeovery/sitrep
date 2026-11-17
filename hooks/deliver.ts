@@ -53,7 +53,6 @@ import { LINGER_MS, tickAfter } from './scene'
 import { changedKnown, postKnown, type ChangedThere } from './seen'
 import {
   attached,
-  dropPickUpsElsewhere,
   flightNow,
   heldProject,
   isHoldOn,
@@ -312,13 +311,8 @@ const endIf = async (host: Host, isEnding: (current: SitrepInFlight) => boolean)
  * once the heartbeat says the claim no more: the rewrite waits ahead of this
  * on the window's queue. So a send's replies wait on Lee again at once, not
  * on their way, its own answer barring them, until the watch's next look.
- * And a pick-up it carried leaves Ready to send where the window has since
- * taken up a session of another project than the item's.
  */
-const endedUnwritten = async (host: Host) => {
-  await serially(() => refresh(host))
-  await dropPickUpsElsewhere(host)
-}
+const endedUnwritten = (host: Host) => serially(() => refresh(host))
 
 /** The messages in flight less the one at `at` and every one held behind it. */
 const lessFrom = (flights: SitrepInFlight[], at: number) =>

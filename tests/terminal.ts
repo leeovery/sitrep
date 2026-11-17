@@ -9,6 +9,7 @@ import type { Env, Io, Listed } from '../cli/io'
 import { main } from '../cli/main'
 import {
   digestOf,
+  folderKey,
   metaText,
   projectPaths,
   projectText,
@@ -223,7 +224,7 @@ export function terminal(options: Options = {}) {
       version?: string
     } = {},
   ) => {
-    const paths = sessionPaths(ROOT, project, meta.id)
+    const paths = sessionPaths(ROOT, folderKey(project), meta.id)
 
     files.set(paths.meta, { text: metaText(meta), mtimeMs: meta.created })
     files.set(paths.log(meta.by), { text: file(...lines), mtimeMs: meta.created })

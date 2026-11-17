@@ -122,7 +122,8 @@ export const CANNOT_RIDE: Record<LeftOut, string> = {
   answered: 'Not sent: already answered.',
   resolved: 'Not sent: Claude closed it.',
   finished: 'Not sent: the session is finished.',
-  moved: 'Not sent: it moved to another project.',
+  moved: 'Not sent: its session is in another project.',
+  unread: "Not sent: its session can't be read.",
 }
 
 /** How long after a taken prompt is dropped the box is cleared: once the engine has put it back. */

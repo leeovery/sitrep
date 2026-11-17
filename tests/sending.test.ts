@@ -7,7 +7,7 @@
 import { expect, test } from './kit'
 import { boardJson, listing } from '../cli/output'
 import { leftOut, replyBodies, sendable, unsentTo } from '../hooks/queue'
-import type { SitrepInFlight } from '../types'
+import type { ProjectKey, SitrepInFlight } from '../types'
 import {
   attach,
   barredBy,
@@ -34,8 +34,9 @@ import {
   type ReplyBody,
   type Sending,
   type Session,
+  type SessionMeta,
 } from '../core'
-import { CLI, CLOSES, keyed, META, MIN, T0, W1, W2 } from './data'
+import { CLI, CLOSES, ELSEWHERE, keyed, LEDGER, META, MIN, T0, W1, W2 } from './data'
 import {
   beat,
   choiceAsk,
@@ -112,14 +113,15 @@ const windowOn = (writer: string, what?: Sending | Sending[], times: Partial<Pre
   }),
 })
 
-/** The session at NOW, from the window's own lines, the inbox's letters and the heartbeats given. */
+/** The session at NOW, as `meta` starts it, from the window's own lines, the inbox's letters and the heartbeats given. */
 const sessionOf = (
   lines: Line[],
   presence: Record<string, string>,
   inbox: Record<string, string> = {},
+  meta: SessionMeta = META,
 ): Session => {
   const session = foldSession(
-    { meta: metaText(META), logs: { [W1]: file(...lines) }, inbox, presence },
+    { meta: metaText(meta), logs: { [W1]: file(...lines) }, inbox, presence },
     NOW,
   )
 
@@ -540,6 +542,36 @@ test('a send leaves out a reply to an ask of a session finished, which no reply 
   expect(leftOut('sr-other1', read, [yes])).toEqual(['finished'])
   expect(sendable(META.id, read, [yes]), 'from the window holding it').toEqual([yes])
   expect(leftOut(META.id, read, [yes])).toEqual([])
+})
+
+test("a send holds back a pick-up of what another session parked while that session is filed under another project than the held session's, as moved; while where either is filed was not read, as unread, never as moved; and carries it once both are filed under one project", () => {
+  const held = sessionOf([REVIEW], {})
+  const ledger = sessionOf([[T0, park('p1', 'Export the ledger as CSV')]], {}, {}, LEDGER)
+  const pickUp = {
+    project: NORTHWIND.key,
+    session: LEDGER.id,
+    item: 'p1',
+    verdict: 'pickup',
+  } as const
+  const filed = (under: Record<string, ProjectKey>) => ({
+    folded: new Map([held, ledger].map(each => [each.id, each])),
+    filedUnder: (session: string) => under[session],
+  })
+
+  expect(
+    leftOut(META.id, filed({ [META.id]: NORTHWIND.key, [LEDGER.id]: ELSEWHERE.key }), [pickUp]),
+  ).toEqual(['moved'])
+  expect(
+    leftOut(META.id, filed({ [META.id]: NORTHWIND.key }), [pickUp]),
+    'its session not read',
+  ).toEqual(['unread'])
+  expect(
+    leftOut(META.id, filed({ [LEDGER.id]: NORTHWIND.key }), [pickUp]),
+    'the held one not read',
+  ).toEqual(['unread'])
+  expect(
+    sendable(META.id, filed({ [META.id]: NORTHWIND.key, [LEDGER.id]: NORTHWIND.key }), [pickUp]),
+  ).toEqual([pickUp])
 })
 
 test("a message's replies take ids unlike any its session uses, and any a message in flight carries, not written down yet", () => {

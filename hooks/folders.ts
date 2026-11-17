@@ -25,12 +25,12 @@ export const folderKeys = async (host: Host, root: string) =>
  * undefined when none does.
  */
 export const folderHolding = async (host: Host, root: string, id: string, first?: string) => {
-  const keys = await projectKeys(host, root)
+  const keys = await folderKeys(host, root)
   const tried = [...keys.filter(key => key === first), ...keys.filter(key => key !== first)]
 
   for (const key of tried) {
     if ((await metaOf(host, root, key, id)) !== undefined) {
-      return folderKey(key)
+      return key
     }
   }
 

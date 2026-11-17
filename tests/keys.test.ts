@@ -7,7 +7,12 @@
  * any `@ts-expect-error` no longer refused.
  */
 import { expect, test } from './kit'
-import { folderKey, type FolderKey as Folder, type ProjectKey as Project } from '../core'
+import {
+  folderKey,
+  sessionPaths,
+  type FolderKey as Folder,
+  type ProjectKey as Project,
+} from '../core'
 import type { Host } from '../hooks/host'
 import { writeOwnFile, type Into } from '../hooks/into'
 import { attachTo } from '../hooks/window'
@@ -22,7 +27,7 @@ test("the plugin's types brand the two keys as core does, each assignable to the
   expect(same).toEqual([true, true])
 })
 
-test('a drawn ref is refused where a kept one goes: a write into a session, the queue, the attachment; and no folder is made of a project', () => {
+test('a drawn ref is refused where a kept one goes: a write into a session, the queue, the attachment; and no folder or path to one is made of a project', () => {
   const drawn: SitrepSessionRef<ProjectKey> = {
     project: 'contoso' as ProjectKey,
     session: 'sr-0sh1ft',
@@ -42,6 +47,8 @@ test('a drawn ref is refused where a kept one goes: a write into a session, the 
     attachTo(host, '/root', { ...drawn, writer: 'w', attachedAt: 0 }),
     // @ts-expect-error a project's key is never a folder's
     folderKey(drawn.project),
+    // @ts-expect-error nor names the path to a session's files
+    sessionPaths('/root', drawn.project, drawn.session),
   ]
 
   expect(misuses).toBeInstanceOf(Function)

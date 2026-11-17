@@ -1,6 +1,7 @@
 /** Sessions, projects and windows other than the world's own, their files written as theirs would be. */
 import type { MockClock } from 'claude-code/testing'
 import {
+  folderKey,
   sessionPaths,
   type Body,
   type Presence,
@@ -35,7 +36,7 @@ export function sessions(put: Put, clock: MockClock) {
 
     /** Another window's heartbeat on a session. */
     beat: (id: string, presence: Presence, project = PROJECT_KEY) =>
-      filed.beat(sessionPaths(ROOT, project, id), presence),
+      filed.beat(sessionPaths(ROOT, folderKey(project), id), presence),
 
     /**
      * Another session, started by the window `by` names and filed under

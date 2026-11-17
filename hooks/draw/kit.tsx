@@ -592,14 +592,15 @@ export const drawRewrite = (d: Drawing, key: string, item: Ask | Parked, queued:
 /** A press answered by the `ui.press` hook, inside the press itself, where its calls carry Lee's press; the button's own closure does nothing. */
 export const answeredByTheHook = () => undefined
 
-/** Why a reply in Ready to send stays as a send goes: its item took another answer of Lee's first, or Claude closed it; or its session finished, no reply reaching it. */
+/** Why a reply in Ready to send stays as a send goes: its item took another answer of Lee's first, or Claude closed it; or its session finished, no reply reaching it; or, for a pick-up, its session or the held one not read. */
 const NOT_SENT: Record<Exclude<HeldBack, 'moved'>, string> = {
   answered: '· not sent: already answered',
   resolved: '· not sent: Claude closed it',
   finished: '· not sent: session finished',
+  unread: "· not sent: its session can't be read",
 }
 
-/** Why a reply in Ready to send stays as a send goes (`NOT_SENT`); a pick-up's, also that the session that parked its item moved to another project than this session's, which it names. */
+/** Why a reply in Ready to send stays as a send goes (`NOT_SENT`); a pick-up's, also that the session that parked its item is filed under another project than this session's, which it names. */
 export const notSent = (
   scene: Scene,
   barred: HeldBack,
@@ -611,7 +612,9 @@ export const notSent = (
 
   const key = projectOf(scene, session)
 
-  return `· not sent: moved to ${key === undefined ? 'another project' : projectLabel(scene, key)}`
+  return key === undefined
+    ? NOT_SENT.unread
+    : `· not sent: its session is in ${projectLabel(scene, key)}`
 }
 
 /** Where a reply in Ready to send stands, as the branch under what it answers says it. */

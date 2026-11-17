@@ -6,6 +6,7 @@
  */
 import {
   attach,
+  folderKey,
   heartbeat,
   metaText,
   presenceText,
@@ -61,7 +62,7 @@ export type Put = (path: string, text: string) => void
 export const filing = (put: Put) => {
   /** A session's meta, filed under `project`, as its start writes it: its paths. */
   const seed = (meta: SessionMeta, project = PROJECT_KEY) => {
-    const paths = sessionPaths(ROOT, project, meta.id)
+    const paths = sessionPaths(ROOT, folderKey(project), meta.id)
 
     put(paths.meta, metaText(meta))
 
