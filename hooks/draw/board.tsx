@@ -194,7 +194,7 @@ const backOf = (scene: Scene): Back | undefined => {
     return undefined
   }
 
-  const above = up(scene.place)
+  const above = up(scene, scene.place)
 
   return { label: `${GLYPH.up} ${placeName(scene, above)}`, to: above }
 }

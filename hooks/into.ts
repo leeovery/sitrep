@@ -7,17 +7,10 @@
  * as it stands with that file, so a line already there is not written
  * again.
  */
-import {
-  append,
-  foldSession,
-  parseEntries,
-  type Body,
-  type Entry,
-  type Session,
-} from '../core'
+import { append, foldSession, parseEntries, type Body, type Entry, type Session } from '../core'
 import type { SitrepSessionRef } from '../types'
+import { pathsOf } from './filing'
 import { rootFor, type Host } from './host'
-import { pathsOf } from './projects'
 import { createReader, ownText } from './reader'
 import { attached, heldLines, isHoldOn, refresh, serially } from './window'
 

@@ -6,7 +6,7 @@ import { expect, test } from './kit'
 import {
   checkMove,
   checkMoveTo,
-  filedUnder,
+  fileSession,
   metaText,
   parseEntries,
   refiled,
@@ -86,17 +86,29 @@ test('a move dates the session, as any line Claude is told of does', () => {
   expect(written([T0, status(['Drawing'])], [at, moveTo('contoso')]).updatedAt).toBe(at)
 })
 
-test("a session is filed under the project its latest move names, where that project's folder is on the board; else its folder's", () => {
-  const onBoard = (key: string) => [PROJECT.key, ELSEWHERE.key].includes(key)
+test('a session is filed under the project its latest move names, where that project is on the board, and named by it; else under its folder, as read', () => {
+  const nameOf = (key: string) => [PROJECT, ELSEWHERE].find(each => each.key === key)?.name
+  const never = written([T0, status(['Drawing'])])
+  const moved = written([T0, moveTo(ELSEWHERE.key)])
+  const away = written([T0, moveTo(FABRIKAM.key)])
+  const back = written([T0, moveTo(ELSEWHERE.key)], [T0 + MIN, moveTo(PROJECT.key)])
 
-  expect(filedUnder(PROJECT.key, {}, onBoard), 'never moved').toBe(PROJECT.key)
-  expect(filedUnder(PROJECT.key, { movedTo: ELSEWHERE.key }, onBoard)).toBe(ELSEWHERE.key)
-  expect(filedUnder(PROJECT.key, { movedTo: FABRIKAM.key }, onBoard), 'no folder there').toBe(
-    PROJECT.key,
-  )
-  expect(filedUnder(PROJECT.key, { movedTo: PROJECT.key }, onBoard), 'moved back').toBe(
-    PROJECT.key,
-  )
+  expect(fileSession(PROJECT.key, never, nameOf), 'never moved').toEqual({
+    project: PROJECT.key,
+    session: never,
+  })
+  expect(fileSession(PROJECT.key, moved, nameOf)).toEqual({
+    project: ELSEWHERE.key,
+    session: { ...moved, project: ELSEWHERE.name },
+  })
+  expect(fileSession(PROJECT.key, away, nameOf), 'to a project not on the board').toEqual({
+    project: PROJECT.key,
+    session: away,
+  })
+  expect(fileSession(PROJECT.key, back, nameOf), 'moved back').toEqual({
+    project: PROJECT.key,
+    session: back,
+  })
 })
 
 test('filed, a moved session goes whole to its project, named by it; the project it left keeps nothing of it', () => {
@@ -141,9 +153,9 @@ test('a reader mid-move files the session under one project, never both, never n
   ]
 
   expect(filing(board([written(...before)]))).toEqual([PROJECT.key])
-  expect(
-    filing(board([written(...before, [T0 + 2 * MIN, moveTo(ELSEWHERE.key)])])),
-  ).toEqual([ELSEWHERE.key])
+  expect(filing(board([written(...before, [T0 + 2 * MIN, moveTo(ELSEWHERE.key)])]))).toEqual([
+    ELSEWHERE.key,
+  ])
 })
 
 test('a writer appending as the session moves loses nothing: its lines are read from the one folder, before the move and after it', () => {

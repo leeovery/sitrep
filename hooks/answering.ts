@@ -368,7 +368,7 @@ const enterWith =
 
 /** Whether a reply to the mode's item goes to the session the window holds, whose Claude takes Lee's prompt: one to its own item, or a pick-up of an item of its project. */
 const goesHere = (held: SitrepAttachment, { project, session, item, as }: SitrepAnswering) =>
-  goesTo(held, { project, session, item, verdict: VERDICT[as] })?.session === held.session
+  goesTo(held, { project, session, item, verdict: VERDICT[as] }).session === held.session
 
 /** The held session read afresh, in turn with whatever reads or changes the hold; as the scene has it where none is held now. */
 const heldAfresh = async (host: Host, scene: Scene) =>

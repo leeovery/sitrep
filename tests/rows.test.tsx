@@ -86,7 +86,7 @@ const LINES: [tool: string, input: { [key: string]: unknown }, line: string][] =
     { name: 'Trey Research', directory: '/Users/me/trey-research' },
     'project renamed: Trey Research · project lives in /Users/me/trey-research',
   ],
-  ['move', { project: 'Trey Research' }, 'moved to Trey Research'],
+  ['move', { project: 'trey research' }, 'moved to project: trey research'],
   ['board', {}, 'read the board back'],
 ]
 
@@ -121,6 +121,7 @@ test('a call naming an item or a session, with no name kept, names it as the hel
     ['join', { work: id }, 'joined: Help desk redesign'],
     ['join', { session: 'sr-zzzzzz' }, 'joined a session'],
     ['finish', {}, '✓ finished: Help desk redesign'],
+    ['move', { project: 'north wind' }, 'moved to project: Northwind'],
   ]
 
   for (const [i, [tool, input, line]] of rows.entries()) {

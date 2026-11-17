@@ -1,12 +1,11 @@
 /**
- * Claude's tools: start or join a session, then post to its board and
- * read the board back, name its project, and move it to another at Lee's
- * word. Only the main conversation may
- * call them. An answer says what was done and names the item, and no more,
- * but for an ask's, which says when to put it to Lee. What another session
- * of the project parked is the project's: resolve, reopen and edit act on
- * it, named with that session's id, written into that session in this
- * window's own file there.
+ * Claude's tools: start or join a session, then post to its board and read
+ * the board back, name its project, and move it to another at Lee's word.
+ * Only the main conversation may call them. An answer says what was done
+ * and names the item, and no more, but for an ask's, which says when to put
+ * it to Lee. What another session of the project parked is the project's:
+ * resolve, reopen and edit act on it, named with that session's id, written
+ * into that session in this window's own file there.
  *
  * The descriptions carry the board's wording rules, and load into every
  * conversation, so they stay short.
@@ -40,30 +39,26 @@ import {
   type Body,
   type Checked,
   type EditBody,
+  type Filed,
+  type MoveBody,
   type Project,
   type Session,
 } from '../core'
 import type { SitrepAttachment } from '../types'
-import { foldAt, lookAround } from './around'
+import { filedNow, foldAt, lookAround } from './around'
+import { projectFiling } from './filing'
 import { bearingsOf, random, rootFor, type Host } from './host'
 import { writeInto, type Into } from './into'
-import {
-  changeProject,
-  fileOne,
-  filingFor,
-  onBoard,
-  projectFiling,
-  sessionIdsIn,
-} from './projects'
+import { changeProject, filingFor, onBoard, sessionIdsIn, type Filing } from './projects'
 import { changedKnown, markSeen, markStarted, parkedAround, postKnown } from './seen'
-import { attachTo, attached, refresh, serially } from './window'
+import { attachTo, attached, heldProject, refresh, serially } from './window'
 
 type Fields = { readonly [key: string]: unknown }
 
 /** A tool's answer, and the name the call's row gives what it named, where it names one. */
 type Answer = { result: string; names?: string } | { deny: string }
 
-/** A tool's spec, its name kept literal: once a load has laid these tools' types, `tool.call`'s matcher takes only their exact names. */
+/** A tool's spec, its name kept literal, so what draws each tool's row is held to cover every one (draw/tool-row.tsx). */
 type Spec<N extends string> = ToolSpec & { name: N }
 
 type Tool<N extends string = string> = {
@@ -138,26 +133,29 @@ const spec = <N extends string>(
   isDeferred: false,
 })
 
-/** A tool on the attached session, handed it folded as it stands, and where the window holds it. */
-const onSession =
-  (
-    answer: (
-      host: Host,
-      session: Session,
-      input: Fields,
-      held: SitrepAttachment,
-    ) => Promise<Answer>,
-  ) =>
-  async (host: Host, input: Fields): Promise<Answer> => {
-    const held = attached()
+/** Where the window holds its session: its attachment, and the key of the project the session is filed under. */
+type Holding = { held: SitrepAttachment; here: string }
 
-    if (held === undefined) {
+/** Where the window holds its session, as the hold stands now, after a fold that takes in a move made elsewhere; undefined with none held. */
+const holdingNow = () => {
+  const held = attached()
+  const here = heldProject()
+
+  return held === undefined || here === undefined ? undefined : { held, here }
+}
+
+/** A tool on the attached session, handed it folded as it stands, and where the window holds it as that fold files it. */
+const onSession =
+  (answer: (host: Host, session: Session, input: Fields, holding: Holding) => Promise<Answer>) =>
+  async (host: Host, input: Fields): Promise<Answer> => {
+    const session = await refresh(host)
+    const holding = holdingNow()
+
+    if (holding === undefined) {
       return { deny: NOT_ATTACHED }
     }
 
-    const session = await refresh(host)
-
-    return session === undefined ? { deny: UNREADABLE } : answer(host, session, input, held)
+    return session === undefined ? { deny: UNREADABLE } : answer(host, session, input, holding)
   }
 
 /**
@@ -246,11 +244,11 @@ const writeDecided = async <B extends Body>(
   return outcome
 }
 
-/** Where this window writes into the session `input.session` names, while it is another of the attached session's project; else why it does not. */
+/** Where this window writes into the session `input.session` names, by the folder its files are in, while it is another of the project the attached session is filed under; else why it does not. */
 const otherOfProject = async (
   host: Host,
   input: Fields,
-  held: SitrepAttachment,
+  { held, here }: Holding,
 ): Promise<Checked<Into>> => {
   const named = checkJoin(input)
 
@@ -266,12 +264,11 @@ const otherOfProject = async (
     return { ok: false, error: `There is no session ${session} on the board, in any project.` }
   }
 
-  const folded = await foldAt(host, root, { project: folder, session }, await host.clock.now())
-  const project =
-    folded === undefined ? folder : (await fileOne(host, root, { folder, session: folded })).project
+  const at = { project: folder, session }
+  const filed = await filedNow(host, root, at, await host.clock.now())
 
-  return project === held.project
-    ? { ok: true, value: { project, session, writer: held.writer } }
+  return (filed?.project ?? folder) === here
+    ? { ok: true, value: { ...at, writer: held.writer } }
     : {
         ok: false,
         error: `${session} is a session of another project: only what a session of this one's project parked is yours to act on.`,
@@ -319,13 +316,15 @@ const parkedElsewhere = async <B extends Body & { item: string }>(
   said: Said<B>,
   unchanged: Unchanged,
 ): Promise<Answer> => {
-  const held = attached()
+  await refresh(host)
 
-  if (held === undefined) {
+  const holding = holdingNow()
+
+  if (holding === undefined) {
     return { deny: NOT_ATTACHED }
   }
 
-  const into = await otherOfProject(host, input, held)
+  const into = await otherOfProject(host, input, holding)
 
   if (!into.ok) {
     return { deny: into.error }
@@ -450,10 +449,10 @@ const start: Tool<'start'> = {
     const { project: name, directory, ...session } = checked.value
     const { root, cwd, writer } = await bearingsOf(host)
     const created = await host.clock.now()
-    const board = await onBoard(host, root)
-    const filing = await filingFor(host, root, board, { name, directory, created, by: writer })
+    const known = await onBoard(host, root)
+    const filing = await filingFor(host, root, known, { name, directory, created, by: writer })
     const { key } = filing.project
-    const id = newSessionId(random, await sessionIdsIn(host, root, board.keys))
+    const id = newSessionId(random, await sessionIdsIn(host, root, known.keys))
     const meta = { id, ...session, project: filing.project.name, root: cwd, created, by: writer }
 
     await host.fs.write(sessionPaths(root, key, id).meta, metaText(meta))
@@ -527,7 +526,7 @@ const project: Tool<'project'> = {
     "Rename the attached session's project, or say where the project lives, or both. It never moves the session to another project: the move tool does, at Lee's word.",
     { name: PROJECT, directory: DIRECTORY },
   ),
-  answer: onSession(async (host, session, input, held) => {
+  answer: onSession(async (host, session, input, { here }) => {
     const checked = checkProject(input)
 
     if (!checked.ok) {
@@ -536,17 +535,14 @@ const project: Tool<'project'> = {
 
     const { root, writer } = await bearingsOf(host)
     const { projects } = await onBoard(host, root)
-    const before = projects.find(each => each.key === held.project) ?? {
-      key: held.project,
-      name: session.project,
-    }
+    const before = projects.find(each => each.key === here) ?? { key: here, name: session.project }
     const { name } = checked.value
-    const others = projects.filter(each => each.key !== held.project)
+    const others = projects.filter(each => each.key !== here)
     const other = name === undefined ? undefined : projectNamed(others, name)
 
     if (other !== undefined) {
       return {
-        deny: `Another project is already named ${other.name}. This renames the attached session's project; the move tool moves the session to another, at Lee's word.`,
+        deny: `Another project is already named ${other.name}. Renaming can't give this project that name. Moving this session there instead is Lee's call; ask him first.`,
       }
     }
 
@@ -560,14 +556,20 @@ const project: Tool<'project'> = {
   }),
 }
 
+/** What a move's answer says of where the session went: where the call took it, else, where a move another window made at the same moment wins, where that one took it. */
+const movedText = (session: Session, filing: Filing, landed: Filed | undefined) =>
+  landed === undefined || landed.project === filing.project.key
+    ? `Moved ${session.status.name} to ${filing.said}.`
+    : `${session.status.name} is in ${landed.session.project}: a move another window made at the same moment took it there.`
+
 const move: Tool<'move'> = {
   spec: spec(
     'move',
-    "Move the attached session to another project, only when Lee says to: the whole session goes, its asks, parked items, status and history, never a new session in its place, and every window holding it follows. The project as Lee names it: one on the board whose name matches, case, spaces and punctuation aside, takes it; else a new project is made.",
+    'Move the attached session to another project, when Lee asks for it to go there: the whole session goes, with its asks, parked items, status and history, and every window holding it follows; never start a new session for this. Name the project as the board names it when it is one there; a name no project has makes a new project.',
     { project: PROJECT, directory: DIRECTORY },
     ['project'],
   ),
-  answer: onSession(async (host, session, input, held) => {
+  answer: onSession(async (host, session, input, { here }) => {
     const checked = checkMove(input)
 
     if (!checked.ok) {
@@ -576,28 +578,25 @@ const move: Tool<'move'> = {
 
     const { project: name, directory } = checked.value
     const { root, writer } = await bearingsOf(host)
-    const board = await onBoard(host, root)
-    const existing = projectNamed(board.projects, name)
-    const staying =
-      existing === undefined ? undefined : checkMoveTo(session, held.project, existing)
+    const known = await onBoard(host, root)
+    const existing = projectNamed(known.projects, name)
+    const staying = existing === undefined ? undefined : checkMoveTo(session, here, existing)
 
     if (staying?.ok === false) {
       return { deny: staying.error }
     }
 
     const created = await host.clock.now()
-    const filing = await filingFor(host, root, board, { name, directory, created, by: writer })
-    const moving = checkMoveTo(session, held.project, filing.project)
-
-    if (!moving.ok) {
-      return { deny: moving.error }
-    }
-
-    await postKnown(host, session, [moving.value])
+    const filing = await filingFor(host, root, known, { name, directory, created, by: writer })
+    const line: MoveBody = { type: 'move', project: filing.project.key }
+    const after = await postKnown(host, session, [line])
+    const project = heldProject()
+    const landed =
+      after === undefined || project === undefined ? undefined : { project, session: after }
 
     return {
-      result: `Moved ${session.status.name} to ${filing.said}.`,
-      names: session.status.name,
+      result: movedText(session, filing, landed),
+      names: landed?.session.project ?? filing.project.name,
     }
   }),
 }
@@ -716,13 +715,17 @@ const TOOLS = [
   board,
 ] as const
 
-const nameOf = <N extends string>(tool: Tool<N>): `${typeof PREFIX}${N}` =>
-  `${PREFIX}${tool.spec.name}`
+const nameOf = (tool: Tool) => `${PREFIX}${tool.spec.name}`
 
 const BY_NAME = new Map<string, Tool>(TOOLS.map(tool => [nameOf(tool), tool]))
 
-/** Every tool, as the model calls it. */
-export const TOOL_NAMES = TOOLS.map(nameOf)
+/**
+ * Every call of this plugin's tools, by the prefix the model names them
+ * with. Matched by their names instead, a matcher is typed against the
+ * tools the engine laid out at the last load, so a tool added since fails
+ * the type-check until a load lays it out.
+ */
+export const OWN_TOOLS = new RegExp(`^${PREFIX}`)
 
 /** A tool's own name, as its spec gives it. */
 export type ToolName = (typeof TOOLS)[number]['spec']['name']

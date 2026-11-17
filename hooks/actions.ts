@@ -31,7 +31,8 @@ import { beginAnswering, settleAnswering } from './answering'
 import { lookAround } from './around'
 import { fromTheTop } from './clip'
 import { takeBack } from './deliver'
-import { logFailure, type Host } from './host'
+import { inFolder } from './filing'
+import { logFailure, rootFor, type Host } from './host'
 import { writeHeld, writeInto, writeOwnFile } from './into'
 import { isProjectList } from './lists'
 import { closeBoard } from './pane'
@@ -121,9 +122,19 @@ const readIfElsewhere = async (host: Host, { session }: SitrepSessionRef) => {
   }
 }
 
+/**
+ * A ref the board's views drew, which names the project they show its
+ * session in, as the window keeps it: naming the folder the session's files
+ * are in, found by its id.
+ */
+const kept = async <T extends SitrepSessionRef>(host: Host, at: T) =>
+  inFolder(host, await rootFor(host), at)
+
 /** Queues a reply; one to another session has that session read, for Ready to send to draw it. */
 const queue = async (host: Host, reply: SitrepQueued) => {
-  await host.state.queue.update(replies => queuing(replies, reply))
+  const keeping = await kept(host, reply)
+
+  await host.state.queue.update(replies => queuing(replies, keeping))
   await readIfElsewhere(host, reply)
 }
 
@@ -134,12 +145,14 @@ const queue = async (host: Host, reply: SitrepQueued) => {
  * briefs.
  */
 const answer = async (host: Host, answering: SitrepAnswering, text?: string) => {
-  await beginAnswering(host, answering, text)
+  await beginAnswering(host, await kept(host, answering), text)
   await readIfElsewhere(host, answering)
 }
 
 /** The board on a place, nothing opened there, at its top, and what it shows read. */
-const go = async (host: Host, place: SitrepPlace) => {
+const go = async (host: Host, to: SitrepPlace) => {
+  const place = to.level === 'session' ? await kept(host, to) : to
+
   await changePane(host, () => ({ place, selected: null }))
   await fromTheTop(host)
   await lookAround(host)
@@ -152,7 +165,7 @@ const finishing = (session: Session) => {
   return checked.ok ? [checked.value] : []
 }
 
-/** Finishes a session the window does not hold, then goes up to its project, where it no longer shows. */
+/** Finishes a session the window does not hold, then goes up to its project, which the view `at` was drawn on shows it in, where it no longer shows. */
 const finish = async (host: Host, at: SitrepSessionRef) => {
   const writer = await host.conversation.id()
 

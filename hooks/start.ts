@@ -32,7 +32,7 @@ export const rejoin = async (host: Host, writer: string) => {
 
   if (last !== undefined) {
     await attachTo(host, root, {
-      project: last.project,
+      project: last.folder,
       session: last.session.id,
       writer,
       attachedAt: now,

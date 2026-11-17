@@ -21,14 +21,14 @@ import {
   type Session,
 } from '../core'
 import type { Host } from './host'
-import { attached, post, refresh } from './window'
+import { heldProject, post, refresh } from './window'
 
 /** What heads the board's text where it rides into a turn. */
 const CHANGED = 'The sitrep board changed since you last saw it. It now reads:'
 
 /** What every session of the held session's project but the held one parked, as the look around last read it. */
 export const parkedAround = async (host: Host): Promise<readonly ProjectParked[]> => {
-  const key = attached()?.project
+  const key = heldProject()
 
   return (await host.state.projects.read()).find(project => project.key === key)?.parked ?? []
 }

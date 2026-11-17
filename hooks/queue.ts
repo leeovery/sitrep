@@ -55,19 +55,12 @@ const isFor = (reply: Pick<SitrepQueued, 'session' | 'item'>, session: string, i
 /**
  * The session a queued reply goes to from a window holding `held`: a
  * pick-up to the held session, whichever session of its project parked the
- * item; any other reply to its item's session. A pick-up of another
- * project's item goes to none.
+ * item; any other reply to its item's session. Ready to send holds no
+ * pick-up of another project's item: one leaves it as the window comes to
+ * hold a session of another project (window.ts's `dropPickUpsElsewhere`).
  */
-export const goesTo = (
-  held: SitrepSessionRef,
-  reply: SitrepQueued,
-): SitrepSessionRef | undefined => {
-  if (reply.verdict !== 'pickup') {
-    return { project: reply.project, session: reply.session }
-  }
-
-  return reply.project === held.project ? held : undefined
-}
+export const goesTo = (held: SitrepSessionRef, reply: SitrepQueued): SitrepSessionRef =>
+  reply.verdict === 'pickup' ? held : { project: reply.project, session: reply.session }
 
 /** The item a reply names in a message to the session `to`: by its own id where it is that session's, else by its address. */
 export const namedIn = (to: string, { session, item }: Pick<SitrepItemRef, 'session' | 'item'>) =>
@@ -140,7 +133,7 @@ export const restoring = (queue: Queue, replies: Queue) => [
 
 /** The replies waiting for a session, in the order queued, as each goes from a window holding `held`. */
 export const queuedFor = (queue: Queue, held: SitrepSessionRef, session: string) =>
-  queue.filter(each => goesTo(held, each)?.session === session)
+  queue.filter(each => goesTo(held, each).session === session)
 
 /** The reply waiting on an item, if one is. */
 export const queuedOn = (queue: Queue, session: string, item: string) =>

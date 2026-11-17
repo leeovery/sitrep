@@ -89,16 +89,26 @@ const folded = (key: string, files: SessionFiles, now: number, pauses: readonly 
   }
 }
 
+/** A board made the first time it is asked for, and kept. */
+const lazily = (make: () => HeldBoard) => {
+  let made: HeldBoard | undefined
+
+  return () => (made ??= make())
+}
+
 /**
  * The board, read at each look again only where it changed, as the look
- * says. No heartbeat ages through `clock`'s pauses. A session's board is
- * found by its id alone, in the first project filing one by it that folds:
- * as it was folded, in its folder's project, or, for one moved to another
- * project, made again under that project at each look.
+ * says; a project renamed changes it too, though no session of its folder
+ * did, its name being a moved session's. No heartbeat ages through
+ * `clock`'s pauses. A session's board is found by its id alone, in the
+ * first project filing one by it that folds: as it was folded, in its
+ * folder's project, or, for one moved to another project, made under that
+ * project once asked for at the look.
  */
 const boardReader = (io: Io, root: string) => {
   let kept = new Map<string, Kept>()
-  let byId = new Map<string, HeldBoard | undefined>()
+  let byId = new Map<string, () => HeldBoard | undefined>()
+  let projects = ''
 
   const look = async ({ now, clock, isWhole, isDue, followed }: Look): Promise<Looked> => {
     const looked = new Map<string, Kept>()
@@ -122,23 +132,28 @@ const boardReader = (io: Io, root: string) => {
       return standing
     }
     const read = await readBoard(io, root, readSession)
+    const named = JSON.stringify(read.map(each => each.project))
 
-    isSame &&= looked.size === kept.size
+    isSame &&= looked.size === kept.size && named === projects
     kept = looked
+    projects = named
     byId = new Map()
 
     for (const { project, sessions } of read) {
       for (const session of sessions.filter(each => !byId.has(each.id))) {
         const own = kept.get(`${project.key}/${session.id}`)?.board
 
-        byId.set(session.id, own ?? heldBoard(project.key, session))
+        byId.set(
+          session.id,
+          own === undefined ? lazily(() => heldBoard(project.key, session)) : () => own,
+        )
       }
     }
 
     return { read, isSame }
   }
 
-  return { look, boardById: (id: string) => byId.get(id) }
+  return { look, boardById: (id: string) => byId.get(id)?.() }
 }
 
 /**

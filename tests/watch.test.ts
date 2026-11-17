@@ -561,6 +561,24 @@ test("a move is a line at the next look: the session's row, its project's sessio
   expect(keys(lines[2])).toEqual(keys(lines[1]))
 })
 
+test('a project renamed is a line at the next look, though its folder holds no session and no board is carried: the session moved to it goes by the new name', async () => {
+  const { t, paths } = held([[T0, moveTo(ELSEWHERE.key)]])
+  const contoso = { name: ELSEWHERE.name, created: T0, by: W2 }
+
+  t.project(ELSEWHERE.key, contoso)
+
+  const { lines } = await watched(t, [
+    still,
+    () => t.project(ELSEWHERE.key, { ...contoso, name: 'Contoso Ltd' }),
+  ])
+
+  expect(lines.map(line => line.rows.find(row => row.session === META.id)?.projectName)).toEqual([
+    ELSEWHERE.name,
+    'Contoso Ltd',
+  ])
+  expect(t.files.has(paths.log('cli'))).toBe(false)
+})
+
 test('a post is a line at the next look, its board carried; a new ask is new on that line alone', async () => {
   const { t, paths } = held()
 

@@ -2,11 +2,12 @@
  * A session moved to another project at Lee's word: the move tool, every
  * view seeing the session in its new project, the windows holding it
  * following, and what was in flight going on, its files staying in the
- * folder it was started in.
+ * folder it was started in, which every ref the window keeps names.
  */
 import type { On } from 'claude-code'
 import { expect, test, tier, type Engine } from './kit'
-import { parseEntries, parseProject, presenceText, projectPaths } from '../core'
+import { parseEntries, parseProject, presenceText, projectPaths, sessionPaths } from '../core'
+import { AROUND_MS } from '../hooks/around'
 import { WATCH_MS } from '../hooks/window'
 import type { SitrepAttachment } from '../types'
 import {
@@ -27,7 +28,7 @@ import {
   W4,
 } from './data'
 import { entered } from './answers'
-import { file, moveTo, park, reply, yesAsk } from './lines'
+import { file, moveTo, park, reply, resolve, yesAsk } from './lines'
 import {
   asked,
   asking,
@@ -70,6 +71,8 @@ const withContoso = (w: World) => {
   })
   shifts.write(park('p9', ROTA))
   shifts.beat()
+
+  return shifts
 }
 
 /** The ledger, another session of Northwind's, open in another window, having parked its export. */
@@ -118,6 +121,22 @@ const filesUnder = (w: World, project: string, session: string) =>
     path.startsWith(`${ROOT}/projects/${project}/sessions/${session}/`),
   )
 
+/** Where the window holds its session: the folder its attachment names, which no move changes, and the project its board files it under, by key and by name. */
+const holding = (w: World) => ({
+  folder: w.state.attachment?.project,
+  project: w.state.board?.filedUnder,
+  name: w.state.board?.project,
+})
+
+/** A session of Northwind's folder, held there, filed under Contoso. */
+const IN_CONTOSO = { folder: PROJECT.key, project: ELSEWHERE.key, name: ELSEWHERE.name }
+
+/** The toast each window holding a session shows as the session moves to Contoso. */
+const MOVED_TO = 'Moved to Contoso.'
+
+/** The toasts saying a session moved. */
+const movedToasts = (w: World) => w.toasts.filter(toast => toast.startsWith('Moved to '))
+
 /** The mod finding, as a reload does, `kept` in `$.state`: the session the window held. */
 const reloading = (on: On, kept: SitrepAttachment) => {
   let isReloaded = false
@@ -153,7 +172,9 @@ test('move takes the held session whole to a project on the board, matched as st
   const own = filesUnder(w, PROJECT.key, id)
 
   expect((await w.call('move', { project: 'con-toso' })).result).toBe(MOVED)
-  expect(w.state.attachment).toMatchObject({ project: ELSEWHERE.key, session: id, writer: W1 })
+  expect(w.state.attachment).toMatchObject({ project: PROJECT.key, session: id, writer: W1 })
+  expect(holding(w)).toEqual(IN_CONTOSO)
+  expect(movedToasts(w), "the mover's window says so").toEqual([MOVED_TO])
   expect(w.state.board).toMatchObject({
     id,
     project: ELSEWHERE.name,
@@ -254,8 +275,11 @@ test('move makes a new project of a name no project on the board has, with its d
     created: T0 + MIN,
     by: W1,
   })
-  expect(w.state.attachment).toMatchObject({ project: 'trey-research', session: id })
-  expect(w.state.board?.project).toBe('Trey Research')
+  expect(holding(w)).toEqual({
+    folder: PROJECT.key,
+    project: 'trey-research',
+    name: 'Trey Research',
+  })
   expect(kindsIn(w, paths.log(W1)).at(-1)).toBe('move')
   expect(filesUnder(w, 'trey-research', id)).toEqual([])
 })
@@ -305,8 +329,7 @@ test('move refuses with no session held, the project the session is in already, 
   expect((await w.call('move', { project: 'Northwind' })).result, 'and back again').toBe(
     'Moved Help desk redesign to the existing project Northwind.',
   )
-  expect(w.state.attachment?.project).toBe(PROJECT.key)
-  expect(w.state.board?.project).toBe(PROJECT.name)
+  expect(holding(w)).toEqual({ folder: PROJECT.key, project: PROJECT.key, name: PROJECT.name })
 })
 
 test('a window holding the session follows a move another window made, at its next look, and posts, beats and reads on where it was', async ($, on) => {
@@ -320,8 +343,9 @@ test('a window holding the session follows a move another window made, at its ne
   elsewhere(moveTo(ELSEWHERE.key))
   await w.clock.advance(WATCH_MS)
 
-  expect(w.state.attachment).toMatchObject({ project: ELSEWHERE.key, session: id })
-  expect(w.state.board?.project).toBe(ELSEWHERE.name)
+  expect(w.state.attachment).toMatchObject({ project: PROJECT.key, session: id })
+  expect(holding(w)).toEqual(IN_CONTOSO)
+  expect(movedToasts(w), 'this window says so too').toEqual([MOVED_TO])
   expect(
     w.state.projects?.map(({ key, sessions }) => [key, sessions.map(each => each.id)]),
     'the sessions around read again, Northwind gone',
@@ -334,6 +358,7 @@ test('a window holding the session follows a move another window made, at its ne
 
   expect(w.state.board?.parked.map(each => each.id)).toEqual([parked])
   expect(w.state.board?.asks.map(each => each.id)).toEqual(['k8'])
+  expect(movedToasts(w), 'a move to where it is already, no more').toEqual([MOVED_TO])
   expect(kindsIn(w, paths.log(W1))).toEqual(['park'])
   expect(await boardRead(w)).toContain(ROTA_LINE)
   expect(filesUnder(w, ELSEWHERE.key, id)).toEqual([])
@@ -376,11 +401,13 @@ test("a send of Lee's claimed before the move, held while Claude's turn runs, is
 
   w.writer(paths, W2)(moveTo(ELSEWHERE.key))
   await w.clock.advance(WATCH_MS)
-  expect(w.state.attachment?.project).toBe(ELSEWHERE.key)
+  expect(holding(w)).toEqual(IN_CONTOSO)
 
   await turnEnded(w)
 
-  expect(w.submitted).toEqual([`From the board:\n- Review Tickets & Replies, round 1 → Approve${CLOSES}`])
+  expect(w.submitted).toEqual([
+    `From the board:\n- Review Tickets & Replies, round 1 → Approve${CLOSES}`,
+  ])
   expect(kindsIn(w, paths.log(W1))).toEqual(['ask', 'reply', 'delivered'])
   expect(w.state.board?.asks[0]?.state).toBe('closed')
   expect(w.state.inFlight).toBeNull()
@@ -395,7 +422,7 @@ test("a send of Lee's claimed before the move, held while Claude's turn runs, is
   ])
 })
 
-test("Ready to send's replies to the session's own items, queued before the move, are sent after it; the board's place on the session follows it", async ($, on) => {
+test("Ready to send's replies to the session's own items, queued before the move, are sent after it, they and the board's place on the session naming its folder still", async ($, on) => {
   const w = world($, on)
 
   withContoso(w)
@@ -414,11 +441,14 @@ test("Ready to send's replies to the session's own items, queued before the move
   await w.call('move', { project: 'Contoso' })
 
   expect(w.state.queue?.map(each => [each.project, each.item])).toEqual([
-    [ELSEWHERE.key, id],
-    [ELSEWHERE.key, parked],
+    [PROJECT.key, id],
+    [PROJECT.key, parked],
   ])
-  expect(w.state.pane?.place).toMatchObject({ level: 'session', project: ELSEWHERE.key })
-  expect(w.toasts.filter(toast => toast.includes('pick-up')), 'none left').toEqual([])
+  expect(w.state.pane?.place).toMatchObject({ level: 'session', project: PROJECT.key })
+  expect(
+    w.toasts.filter(toast => toast.includes('pick-up')),
+    'none left',
+  ).toEqual([])
 
   await ui.press({ key: 'send' })
 
@@ -443,12 +473,14 @@ test("a pick-up of the session's own parked item Lee is writing a note for as it
   w.writer(paths, W2)(moveTo(ELSEWHERE.key))
   await w.clock.advance(WATCH_MS)
 
-  expect(w.state.answering).toMatchObject({ project: ELSEWHERE.key, item: parked })
+  expect(w.state.answering).toMatchObject({ project: PROJECT.key, item: parked })
 
   await entered(w, $, 'Before the release')
   await ui.press({ key: 'send' })
 
-  expect(w.submitted).toEqual([`From the board:\n- Pick up from parked: ${BADGE}. Before the release`])
+  expect(w.submitted).toEqual([
+    `From the board:\n- Pick up from parked: ${BADGE}. Before the release`,
+  ])
   expect(kindsIn(w, paths.log(W1))).toEqual(['park', 'reply', 'delivered'])
 })
 
@@ -466,7 +498,7 @@ test("a window joining a moved session keeps Ready to send's pick-ups of what it
   await ui.press({ key: `pickup:${SHIFTS.id}:p9` })
   await w.call('join', { session: LEDGER.id })
 
-  expect(w.state.attachment?.project).toBe(ELSEWHERE.key)
+  expect(holding(w)).toEqual(IN_CONTOSO)
   expect(w.state.queue).toEqual([
     { project: ELSEWHERE.key, session: SHIFTS.id, item: 'p9', verdict: 'pickup' },
   ])
@@ -543,8 +575,9 @@ test('join takes up a moved session in the project it moved to, and a session th
   const joined = await w.call('join', { session: LEDGER.id })
 
   expect(joined.result).toContain(`Joined Invoice ledger (${LEDGER.id}).`)
-  expect(w.state.attachment).toMatchObject({ project: ELSEWHERE.key, session: LEDGER.id })
-  expect(w.state.board?.project).toBe(ELSEWHERE.name)
+  expect(w.state.attachment).toMatchObject({ project: PROJECT.key, session: LEDGER.id })
+  expect(holding(w)).toEqual(IN_CONTOSO)
+  expect(movedToasts(w), 'a join moves nothing').toEqual([])
 
   await w.call('join', { session: SHIFTS.id })
 
@@ -562,7 +595,7 @@ test('join takes up a moved session in the project it moved to, and a session th
 const KEPT = {
   'a load from before the move, its `$.state` naming the folder, takes the session up in the project it moved to':
     PROJECT.key,
-  "a load whose `$.state` names the project the session moved to finds its folder by the session's id":
+  "a load whose `$.state` names another project than the session's folder, the one it moved to, finds its folder by the session's id":
     ELSEWHERE.key,
 }
 
@@ -579,7 +612,8 @@ for (const [said, project] of Object.entries(KEPT)) {
     reloading(on, { project, session: LEDGER.id, writer: W1, attachedAt: T0 })
     await $.session.start(CONVERSATION)
 
-    expect(w.state.attachment).toMatchObject({ project: ELSEWHERE.key, session: LEDGER.id })
+    expect(w.state.attachment).toMatchObject({ project: PROJECT.key, session: LEDGER.id })
+    expect(holding(w)).toEqual(IN_CONTOSO)
     expect(w.state.board?.asks.map(ask => ask.id)).toEqual(['k1'])
 
     await w.call('park', { title: BADGE })
@@ -604,7 +638,274 @@ test('a conversation resumed after its session moved takes it up again in the pr
 
   const listing = await firstMessage($)
 
-  expect(w.state.attachment).toMatchObject({ project: ELSEWHERE.key, session: LEDGER.id })
+  expect(w.state.attachment).toMatchObject({ project: PROJECT.key, session: LEDGER.id })
+  expect(holding(w)).toEqual(IN_CONTOSO)
   expect(listing).toContain(`- Contoso: ${LEDGER.id} "Invoice ledger", 1 waiting on Lee`)
   expect(listing).toContain(`This window already holds ${LEDGER.id} (Invoice ledger)`)
+})
+
+test("the window's refs keep naming the session's folder after a move, as a build from before reads them: its attachment, and a place, a reply or a note pressed on a view of the project it moved to", async ($, on) => {
+  const w = world($, on)
+
+  withContoso(w)
+
+  const { id: ask, ui } = await asking(w)
+  const session = w.state.attachment?.session ?? ''
+  const parked = postedId(await w.call('park', { title: BADGE }))
+
+  await w.call('move', { project: 'Contoso' })
+  await toProject(ui, ELSEWHERE.key)
+  await ui.press({ key: `go:${session}` })
+  await ui.press({ key: `pick:${w.item(ask)}` })
+  await ui.press({ key: `yes:${w.item(ask)}` })
+  await ui.press({ key: `ppick:${w.item(parked)}` })
+  await ui.press({ key: `comment:${w.item(parked)}` })
+
+  expect(w.state.attachment?.project).toBe(PROJECT.key)
+  expect(w.state.pane?.place).toEqual({ level: 'session', project: PROJECT.key, session })
+  expect(w.state.queue).toEqual([{ project: PROJECT.key, session, item: ask, verdict: 'yes' }])
+  expect(w.state.answering).toMatchObject({ project: PROJECT.key, session, item: parked })
+})
+
+test("a move another window made, before this window's next look, is read before the tools act: move takes the session from where it is now, never refused as still where it was", async ($, on) => {
+  const w = world($, on)
+
+  withContoso(w)
+
+  const { paths } = await w.begin()
+
+  w.writer(paths, W2)(moveTo(ELSEWHERE.key))
+  await w.clock.advance(1)
+
+  expect((await w.call('move', { project: 'Northwind' })).result).toBe(
+    'Moved Help desk redesign to the existing project Northwind.',
+  )
+  expect(holding(w).project).toBe(PROJECT.key)
+})
+
+test("a move another window made, before this window's next look, is read before the tools act: project renames the project the session is in now, never the one it left", async ($, on) => {
+  const w = world($, on)
+
+  withContoso(w)
+
+  const { paths } = await w.begin()
+
+  w.writer(paths, W2)(moveTo(ELSEWHERE.key))
+
+  expect((await w.call('project', { name: 'Contoso Ltd' })).result).toBe(
+    'Renamed the project Contoso to Contoso Ltd.',
+  )
+  expect(projectFile(w, ELSEWHERE.key)?.name).toBe('Contoso Ltd')
+  expect(projectFile(w, PROJECT.key)?.name).toBe(PROJECT.name)
+})
+
+test("a move another window made, before this window's next look, is read before the tools act on what another session parked: one of the project the session is in now is the session's to act on", async ($, on) => {
+  const w = world($, on)
+  const shifts = withContoso(w)
+  const { paths } = await w.begin()
+
+  w.writer(paths, W2)(moveTo(ELSEWHERE.key))
+
+  expect((await w.call('resolve', { session: SHIFTS.id, item: 'p9' })).result).toBeDefined()
+  expect(kindsIn(w, shifts.paths.log(W1))).toEqual(['resolve'])
+})
+
+test("the move's answer and its row name the project the session is in once the move is posted: where another window moved it at the same moment, the later move's", async ($, on) => {
+  const w = world($, on)
+
+  withContoso(w)
+  w.project('fabrikam', { name: 'Fabrikam', created: T0, by: W4 })
+
+  const { paths } = await w.begin()
+  const elsewhere = w.writer(paths, W2)
+
+  w.after('read', projectPaths(ROOT, ELSEWHERE.key).file, () => elsewhere(moveTo('fabrikam')))
+
+  expect((await w.call('move', { project: 'Contoso' })).result).toBe(
+    'Help desk redesign is in Fabrikam: a move another window made at the same moment took it there.',
+  )
+  expect(holding(w)).toEqual({ folder: PROJECT.key, project: 'fabrikam', name: 'Fabrikam' })
+  expect(w.state.named?.at(-1)?.name).toBe('Fabrikam')
+})
+
+test("a move's row names the project as the board does, not as Claude's call spelled it", async ($, on) => {
+  const w = world($, on)
+
+  withContoso(w)
+  await w.begin()
+
+  const input = { project: 'con-toso' }
+
+  await w.call('move', input)
+
+  const call = w.state.named?.at(-1)?.call ?? ''
+  const ui = await $.ui.mount({
+    plugin: 'sitrep',
+    component: 'ToolUse',
+    requestId: call,
+    surface: 'terminal',
+    props: {
+      tool_use_id: call,
+      tool: 'mcp__sitrep__move',
+      input,
+      isRunning: false,
+      isErrored: false,
+      isInterrupted: false,
+      output: MOVED,
+    },
+  })
+
+  expect(await ui.find({ type: 'Text', text: 'moved to project: Contoso' })).toBeDefined()
+})
+
+test("the way back from another session's view goes to the project it is filed under, once it moved, as its project's press does", async ($, on) => {
+  const w = world($, on)
+
+  withContoso(w)
+
+  const ledger = withLedger(w)
+
+  await w.begin()
+
+  const ui = await w.opened()
+
+  await toProject(ui)
+  await ui.press({ key: `go:${LEDGER.id}` })
+  expect(await ui.find({ key: 'up', text: '← Northwind' })).toBeDefined()
+
+  ledger.write(moveTo(ELSEWHERE.key))
+  await w.clock.advance(AROUND_MS)
+
+  expect(await ui.find({ key: 'up', text: '← Contoso' })).toBeDefined()
+  await ui.press({ key: 'up' })
+  expect(w.state.pane?.place).toEqual({ level: 'project', project: ELSEWHERE.key })
+})
+
+test("a moved session's view draws its new project's picked up under its PARKED, the look reading that project's past for it", async ($, on) => {
+  const w = world($, on)
+
+  withContoso(w)
+  w.elsewhere(LEDGER).write(park('p1', EXPORT), resolve('p1', 'Exported'), moveTo(ELSEWHERE.key))
+  await w.begin()
+
+  const ui = await w.opened()
+
+  await toProject(ui, ELSEWHERE.key)
+  await ui.press({ key: `go:${LEDGER.id}` })
+
+  expect((await ui.find({ key: `pickedup:project:${ELSEWHERE.key}` }))?.props).toMatchObject({
+    label: 'show picked up 1',
+  })
+})
+
+/** Contoso on the board with nothing on it yet: its file alone. */
+const emptyContoso = (w: World) =>
+  w.project(ELSEWHERE.key, { name: ELSEWHERE.name, created: T0, by: W4 })
+
+/**
+ * Lee's pick-up of the ledger's export sent while Claude's turn runs, held
+ * for its end, Claude having read the board with the export on it; then the
+ * session under test moved to Contoso by another window, and, where
+ * `isLedgerMoving`, the ledger with it, both followed.
+ */
+const pickUpAcross = async (w: World, isLedgerMoving: boolean) => {
+  emptyContoso(w)
+
+  const ledger = withLedger(w)
+  const { paths } = await w.begin()
+
+  await boardRead(w)
+
+  const ui = await w.opened()
+
+  await toProject(ui)
+  await ui.press({ key: `ppick:${LEDGER.id}:p1` })
+  await ui.press({ key: `pickup:${LEDGER.id}:p1` })
+  await w.turnStarts('Carry on.')
+  await ui.press({ key: 'send' })
+
+  if (isLedgerMoving) {
+    ledger.write(moveTo(ELSEWHERE.key))
+  }
+
+  w.writer(paths, W2)(moveTo(ELSEWHERE.key))
+  await w.clock.advance(AROUND_MS)
+  await turnEnded(w)
+  await w.clock.advance(AROUND_MS)
+
+  return ledger
+}
+
+test('a pick-up in flight as the session and the ledger move to Contoso together is written down in the ledger, and Claude, whose own message carried it, is told of no change', async ($, on) => {
+  const w = world($, on)
+  const ledger = await pickUpAcross(w, true)
+
+  expect(w.submitted).toEqual([
+    `From the board:\n- Pick up from parked, Invoice ledger's: ${EXPORT}`,
+  ])
+  expect(kindsIn(w, ledger.paths.log(W1))).toEqual(['reply', 'delivered'])
+  expect((await $.prompt.submit(PROMPT)).context).toBeUndefined()
+})
+
+test('a pick-up in flight as the session moves away from the ledger is written down in the ledger, and Claude is told its board changed with the move', async ($, on) => {
+  const w = world($, on)
+  const ledger = await pickUpAcross(w, false)
+
+  expect(kindsIn(w, ledger.paths.log(W1))).toEqual(['reply', 'delivered'])
+  expect((await $.prompt.submit(PROMPT)).context?.[0]).toContain(
+    'The sitrep board changed since you last saw it.',
+  )
+})
+
+test("after the move, a pick-up in flight of what the new project's own session parked is written down in that session, and Claude, whose own message carried it, is told of no change", async ($, on) => {
+  const w = world($, on)
+  const shifts = withContoso(w)
+
+  await w.begin()
+  await w.call('move', { project: 'Contoso' })
+  expect(await boardRead(w), 'Claude reads the rota parked').toContain(ROTA_LINE)
+
+  const ui = await w.opened()
+
+  await ui.press({ key: `ppick:${SHIFTS.id}:p9` })
+  await ui.press({ key: `pickup:${SHIFTS.id}:p9` })
+  await w.turnStarts('Carry on.')
+  await ui.press({ key: 'send' })
+  await turnEnded(w)
+  await w.clock.advance(AROUND_MS)
+
+  expect(w.submitted).toHaveLength(1)
+  expect(kindsIn(w, shifts.paths.log(W1))).toEqual(['reply', 'delivered'])
+  expect((await $.prompt.submit(PROMPT)).context).toBeUndefined()
+})
+
+test('Lee finishes a moved session from its view in the project it moved to: the finish is written in its folder, and the board goes up to that project', async ($, on) => {
+  const w = world($, on)
+
+  withContoso(w)
+  w.elsewhere(LEDGER).write(park('p1', EXPORT), moveTo(ELSEWHERE.key))
+  await w.begin()
+
+  const ui = await w.opened()
+
+  await toProject(ui, ELSEWHERE.key)
+  await ui.press({ key: `go:${LEDGER.id}` })
+  await ui.press({ key: `finish:${LEDGER.id}` })
+  await ui.press({ key: `finish-yes:${LEDGER.id}` })
+
+  expect(kindsIn(w, sessionPaths(ROOT, PROJECT.key, LEDGER.id).log(W1))).toEqual(['finish'])
+  expect(filesUnder(w, ELSEWHERE.key, LEDGER.id)).toEqual([])
+  expect(w.state.pane?.place).toEqual({ level: 'project', project: ELSEWHERE.key })
+})
+
+test("a move line naming a project not on the board moves nothing: no window follows, and every view keeps the session in its folder's project", async ($, on) => {
+  const w = world($, on)
+  const { id, paths } = await w.begin()
+
+  w.writer(paths, W2)(moveTo('fabrikam'))
+  await w.clock.advance(WATCH_MS)
+
+  expect(holding(w)).toEqual({ folder: PROJECT.key, project: PROJECT.key, name: PROJECT.name })
+  expect(movedToasts(w)).toEqual([])
+  expect(await firstMessage($)).toContain(`- Northwind: ${id} "Help desk redesign"`)
 })

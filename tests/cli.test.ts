@@ -10,7 +10,7 @@ import {
   type SessionPaths,
 } from '../core'
 import { ELSEWHERE, META, MIN, PROJECT, T0, W1, W2 } from './data'
-import { beat, file, finish, park, snoozeSession, status, yesAsk, type Line } from './lines'
+import { beat, file, finish, moveTo, park, snoozeSession, status, yesAsk, type Line } from './lines'
 import { ENV, FIRST_ID, NEXT_ID, NOW, terminal } from './terminal'
 
 type Terminal = ReturnType<typeof terminal>
@@ -548,6 +548,25 @@ test('move refuses a project not on the board, which it never makes, and the one
     [PROJECT.key, [META.id]],
     [ELSEWHERE.key, [LOBBY.id]],
   ])
+})
+
+test("a session whose latest move names a project not on the board stays in its folder's project, for list and board alike", async () => {
+  const t = terminal()
+
+  twoProjects(t)
+  t.seed(META, { lines: [[T0, moveTo('fabrikam')]], seenAt: NOW })
+
+  expect((await listedIds(t)).sort()).toEqual([
+    [ELSEWHERE.key, [LOBBY.id]],
+    [PROJECT.key, [META.id]],
+  ])
+  expect(JSON.parse((await t.run('board', '--json', ...SESSION)).out).project).toEqual({
+    key: PROJECT.key,
+    name: PROJECT.name,
+  })
+  expect((await t.run('move', 'Northwind', ...SESSION)).err).toBe(
+    'sitrep: Help desk redesign is in Northwind already.\n',
+  )
 })
 
 /** When the snoozes under test wake: an hour after the CLI runs. */

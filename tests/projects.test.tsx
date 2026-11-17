@@ -219,7 +219,7 @@ test('the project tool never takes the name of another project, nor changes noth
   await w.call('start', BOARD)
 
   expect((await w.call('project', { name: 'north wind' })).deny).toBe(
-    "Another project is already named Northwind. This renames the attached session's project; the move tool moves the session to another, at Lee's word.",
+    "Another project is already named Northwind. Renaming can't give this project that name. Moving this session there instead is Lee's call; ask him first.",
   )
   expect((await w.call('project', {})).deny).toBe(
     'Give the project a new name, a directory, or both.',

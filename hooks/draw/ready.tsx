@@ -265,7 +265,7 @@ const goingGroup = (scene: Scene, send: SitrepInFlight, at: number, width: numbe
 const unsentGroups = (scene: Scene): ToSendGroup[] => {
   const queue = unsent(scene.queue, scene.inFlight)
   const held = { project: scene.here, session: scene.session.id }
-  const to = queue.flatMap(reply => goesTo(held, reply) ?? [])
+  const to = queue.map(reply => goesTo(held, reply))
   const here = to.filter(each => each.session === held.session)
 
   return destinations([...here, ...to, ...scene.sent]).flatMap(({ session }): ToSendGroup[] => {

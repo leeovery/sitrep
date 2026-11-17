@@ -198,13 +198,15 @@ export type SitrepBoard = {
   finished?: SitrepFinished
   /** The project its latest move names, by key: core's `movedTo`. */
   movedTo?: string
+  /** The key of the project it is filed under, as the window holding it last folded it: its folder's, or the one a move took it to; none from a load before moves (17 November 2026). */
+  filedUnder?: string
   ids: string[]
   updatedAt: number
 }
 
 /** The session this window is attached to, and as whom. */
 export type SitrepAttachment = {
-  /** The key of the project it is filed under; its files are found by its id, in the folder it was started in. */
+  /** The project's key: the folder its sessions are under, and the session's files with them, which no move changes. The project it is filed under is its board's `filedUnder`. */
   project: string
   session: string
   /** Claude Code's session id the window attached as: its file and heartbeat in the session. */
@@ -212,7 +214,12 @@ export type SitrepAttachment = {
   attachedAt: number
 }
 
-/** A session as it is filed: its project's key, as it stood when the ref was made, and its id, which finds its files. */
+/**
+ * A session as it is filed: its project's key, the folder its files are in,
+ * which no move changes, and its id. Every ref the window keeps names the
+ * folder; one the board's views draw names the project they show the
+ * session in, until a press keeps it, which finds the folder by its id.
+ */
 export type SitrepSessionRef = {
   project: string
   session: string

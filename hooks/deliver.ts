@@ -44,8 +44,8 @@ import type {
   SitrepStoredFlights,
 } from '../types'
 import { betweenTurns } from './activity'
-import { lookAround } from './around'
-import { logFailure, type Host } from './host'
+import { filedNow, lookAround } from './around'
+import { logFailure, rootFor, type Host } from './host'
 import { writeHeld, writeInto, type Into } from './into'
 import { isCarriedBy, namedIn, queuing, repliedTo, unqueuing } from './queue'
 import { LINGER_MS, tickAfter } from './scene'
@@ -54,6 +54,7 @@ import {
   attached,
   dropPickUpsElsewhere,
   flightNow,
+  heldProject,
   isHoldOn,
   refresh,
   sayInFlight,
@@ -567,7 +568,8 @@ const writeHere = async (host: Host, delivery: SitrepInFlight, writing: Writing)
 /**
  * Writes a taken message's lines into a session the window does not hold,
  * in this window's own file there: Claude's own change to it, as the
- * session stood before, where it is another of the held session's project.
+ * session stood before, where it is filed under the project the held
+ * session is filed under now.
  */
 const writeThere = async (
   host: Host,
@@ -584,9 +586,15 @@ const writeThere = async (
 
   goneUnless(host, isThere, writing)
 
-  return before === undefined || writing.project !== attached()?.project
-    ? []
-    : [{ before, items: writing.replies.map(reply => reply.item) }]
+  if (before === undefined) {
+    return []
+  }
+
+  const filed = await filedNow(host, await rootFor(host), writing, await host.clock.now())
+
+  return filed !== undefined && filed.project === heldProject()
+    ? [{ before, items: writing.replies.map(reply => reply.item) }]
+    : []
 }
 
 /**

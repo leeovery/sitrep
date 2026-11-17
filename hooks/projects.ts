@@ -1,15 +1,11 @@
 /**
  * The projects on the board, as the mod reads them: every folder under
  * `projects/`, named by its project.json, else, for a folder from before
- * projects were named, as a session of its recorded it. Also which folder
- * holds a session's files, found by its id, as a moved session's stay
- * where it was started; and the project a start or a move files a session
- * under. A project's file is written only as a project is made, renamed or
- * given a directory.
+ * projects were named, as a session of its recorded it. Also the project a
+ * start or a move files a session under. A project's file is written only
+ * as a project is made, renamed or given a directory.
  */
 import {
-  filedAs,
-  filedUnder,
   isSafeName,
   newProjectKey,
   parseMeta,
@@ -24,12 +20,9 @@ import {
   type Project,
   type ProjectChange,
   type ProjectFile,
-  type Session,
 } from '../core'
-import type { SitrepSessionRef } from '../types'
 import type { Host } from './host'
 import { foldersIn, sessionsFiled, textAt } from './reader'
-import type { Filed } from './scene'
 
 /** Who first writes a project's file, and when. */
 type Writing = Pick<ProjectFile, 'created' | 'by'>
@@ -46,7 +39,7 @@ const fileOf = async (host: Host, root: string, key: string) =>
   parseProject((await textAt(host, projectPaths(root, key).file)) ?? '')
 
 /** A session's meta; undefined where its session.json does not read. */
-const metaOf = async (host: Host, root: string, key: string, id: string) =>
+export const metaOf = async (host: Host, root: string, key: string, id: string) =>
   parseMeta((await textAt(host, sessionPaths(root, key, id).meta)) ?? '')
 
 /** The meta of each session filed under a project, in the order listed; undefined for one that does not read. */
@@ -68,74 +61,6 @@ export const readProjects = async (host: Host, root: string, keys: readonly stri
   (await Promise.all(keys.map(key => readProject(host, root, key)))).filter(
     project => project !== undefined,
   )
-
-/** The key of the folder a session's files are in, whichever project's it is; undefined when none files it. */
-export const projectFiling = async (host: Host, root: string, id: string) => {
-  for (const key of await projectKeys(host, root)) {
-    if ((await metaOf(host, root, key, id)) !== undefined) {
-      return key
-    }
-  }
-
-  return undefined
-}
-
-/**
- * The key of the folder a session's files are in, found by its id: the
- * project `at` names, where the session's session.json reads there, else
- * whichever project's folder files it; the project named where none does.
- */
-export const folderOf = async (host: Host, root: string, at: SitrepSessionRef) =>
-  (await metaOf(host, root, at.project, at.session)) === undefined
-    ? ((await projectFiling(host, root, at.session)) ?? at.project)
-    : at.project
-
-/** A session's paths, its folder found by its id. */
-export const pathsOf = async (host: Host, root: string, at: SitrepSessionRef) =>
-  sessionPaths(root, await folderOf(host, root, at), at.session)
-
-/** A session as read in a project's folder: that project's key, and the session folded. */
-export type InFolder = { folder: string; session: Session }
-
-/** A session filed under its project, and the key of the folder its files are in. */
-export type FiledIn = Filed & { folder: string }
-
-/** Each project's name as the board names it, by its key, each read once: what a session filed under it goes by. */
-export const projectNames = (host: Host, root: string) => {
-  const names = new Map<string, Promise<string>>()
-
-  return (key: string) => {
-    const name = names.get(key) ?? readProject(host, root, key).then(read => read?.name ?? key)
-
-    names.set(key, name)
-
-    return name
-  }
-}
-
-/**
- * A session read in its folder, filed under the project its lines name
- * among the project folders `keys` (core's `filedUnder`), and named by that
- * project, as `nameOf` gives its name.
- */
-export const fileIn =
-  (keys: readonly string[], nameOf: (key: string) => Promise<string>) =>
-  async ({ folder, session }: InFolder): Promise<FiledIn> => {
-    const project = filedUnder(folder, session, key => keys.includes(key))
-
-    return {
-      folder,
-      project,
-      session: project === folder ? session : filedAs(session, await nameOf(project)),
-    }
-  }
-
-/** A session read in its folder, filed as `fileIn` files it, the project folders listed only for one that moved. */
-export const fileOne = async (host: Host, root: string, found: InFolder) =>
-  fileIn(
-    found.session.movedTo === undefined ? [] : await projectKeys(host, root),
-    projectNames(host, root),
-  )(found)
 
 /** Every session id filed, in any project: a new one is unlike them all, as join looks in every project. */
 export const sessionIdsIn = async (host: Host, root: string, keys: readonly string[]) =>

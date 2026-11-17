@@ -10,9 +10,9 @@
 import { append, type ReplyBody, type Session, type SessionPaths } from '../core'
 import type { SitrepAttachment, SitrepQueued, SitrepSessionRef } from '../types'
 import { foldAt, lookAround } from './around'
+import { pathsOf } from './filing'
 import { rootFor, type Host } from './host'
 import { counted } from './look'
-import { pathsOf } from './projects'
 import {
   afterSend,
   destinations,
@@ -134,7 +134,7 @@ export const sendLetters = async (host: Host): Promise<Lettered> => {
   }
 
   const queue = await host.state.queue.read()
-  const to = destinations(queue.flatMap(reply => goesTo(held, reply) ?? []))
+  const to = destinations(queue.map(reply => goesTo(held, reply)))
   const went: Went[] = []
   const left: LeftOut[] = []
 

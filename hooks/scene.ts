@@ -5,7 +5,15 @@
  * a write draws it again.
  */
 import type { Timer } from 'claude-code'
-import { closingReply, heldSnooze, isOpen, resolvedAsks, type Ask, type Session } from '../core'
+import {
+  closingReply,
+  heldSnooze,
+  isOpen,
+  resolvedAsks,
+  type Ask,
+  type Filed,
+  type Session,
+} from '../core'
 import type {
   SitrepAnswering,
   SitrepInFlight,
@@ -18,7 +26,7 @@ import type {
   SitrepSent,
   SitrepSnooze,
 } from '../types'
-import { sessionOf } from './board'
+import { hereOf, sessionOf } from './board'
 import { logFailure, type Host } from './host'
 import { C, pulseOf } from './look'
 
@@ -28,8 +36,7 @@ export const LINGER_MS = 8_000
 /** How often the board is drawn again for the time alone, so its ages move on. */
 export const TICK_MS = 30_000
 
-/** A session as folded, and the project it is filed under, by key. */
-export type Filed = { project: string; session: Session }
+export type { Filed } from '../core'
 
 export type Scene = {
   /** The held session. */
@@ -107,7 +114,7 @@ export const sceneOf = async (host: Host): Promise<Scene | undefined> => {
 
   return {
     session: sessionOf(board),
-    here: held.project,
+    here: hereOf(held, board),
     place: pane.place ?? { level: 'session', project: held.project, session: held.session },
     projects,
     others: new Map(

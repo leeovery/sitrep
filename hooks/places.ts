@@ -106,9 +106,16 @@ const keyOf = (place: SitrepPlace) => {
 export const samePlace = (a: SitrepPlace, b: SitrepPlace) =>
   a.level === b.level && keyOf(a) === keyOf(b)
 
-/** One step up the tree: a session's project, then every project. */
-export const up = (place: SitrepPlace): SitrepPlace =>
-  place.level === 'session' ? projectPlace(place.project) : EVERY_PROJECT
+/** The key of the project a session is filed under, as the board read it: the held session's, or another's it read in full or in brief; undefined for one it has not read. */
+const projectOf = (scene: Scene, session: string) =>
+  filedAt(scene, session)?.project ??
+  scene.projects.find(project => project.sessions.some(each => each.id === session))?.key
+
+/** One step up the tree: a session's project, the one it is filed under, then every project. */
+export const up = (scene: Scene, place: SitrepPlace): SitrepPlace =>
+  place.level === 'session'
+    ? projectPlace(projectOf(scene, place.session) ?? place.project)
+    : EVERY_PROJECT
 
 /** Whether the board is home, on this session. */
 export const isHome = (scene: Scene) => samePlace(scene.place, homeOf(scene))
