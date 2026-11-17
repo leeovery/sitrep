@@ -5,7 +5,7 @@
  * that one branch. Opened, it shows its whole title, its tree (what its
  * words are, where to look, Claude's own record of it, and where Lee's
  * reply stands) and its buttons, by what it wants back: a yes in its own
- * words, its options, the one Claude recommends marked beside it, or
+ * words, its options, the one Claude recommends marked before it, or
  * words, written in the prompt box (DESIGN.md, "Answering an ask"). Any
  * session's asks answer the same way; a reply names the session it goes to.
  *
@@ -75,13 +75,13 @@ const refOf = ({ at, ask }: AskedAt): SitrepItemRef => ({ ...at, item: ask.id })
 /** The comment button's words: an answer's, on an ask read from its kind as a decide, where a comment closes it. */
 const commentLabel = (ask: Ask) => (isAnswer(ask, 'comment') ? '✎ answer' : '✎ comment')
 
-/** What follows the option Claude recommends, quiet as every secondary word beside a button. */
+/** What leads the option Claude recommends, in the ask's amber. */
 const RECOMMENDED = 'recommended'
 
 /** The option pressed first: the one Claude recommends, else the first. */
 const primaryOf = (ask: Ask) => ask.recommended ?? ask.options?.[0]
 
-/** An option's button, and beside it, where Claude recommends it, the word saying so. */
+/** An option's button, and before it, where Claude recommends it, the word saying so. */
 const drawOption = (d: Drawing, key: string, option: string, ask: Ask, onPress: () => void) => {
   const { Box, Text, Button } = d.els
   const button = (
@@ -93,13 +93,13 @@ const drawOption = (d: Drawing, key: string, option: string, ask: Ask, onPress: 
     />
   )
 
-  // The word keeps whole, and wraps under a long label on a narrow pane rather than breaking.
+  // The word keeps whole, and a long label wraps under it rather than leaving it to mark the option below.
   return option === ask.recommended ? (
     <Box key={`recommended:${key}`} flexDirection="row" columnGap={1} flexWrap="wrap">
-      {button}
       <Box flexShrink={0}>
-        <Text color={C.grey}>{RECOMMENDED}</Text>
+        <Text color={C.ask}>{RECOMMENDED}</Text>
       </Box>
+      {button}
     </Box>
   ) : (
     button

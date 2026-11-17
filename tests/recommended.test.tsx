@@ -11,6 +11,9 @@ tier('user')
 /** The choice, with a third way. */
 const THREE_WAY = { ...FRAMES, options: [...FRAMES.options, 'Hold off'] }
 
+/** A pane as narrow as a phone's, in cells. */
+const NARROW = 40
+
 /** The asks of the held session, as the board in `$.state` has them. */
 const asksOf = (w: World) => w.state.board?.asks ?? []
 
@@ -141,7 +144,7 @@ test('the ask and edit tools take recommended, and ask Claude to give it wheneve
   expect(ask?.description).toContain('never the word in an option')
 })
 
-test('the pane marks the recommended option with the word once, quiet beside it, on every surface; the option keeps its own words', async ($, on) => {
+test('the pane marks the recommended option with the word once, amber before it, on every surface; the option keeps its own words', async ($, on) => {
   const w = world($, on)
 
   await w.begin()
@@ -161,7 +164,7 @@ test('the pane marks the recommended option with the word once, quiet beside it,
     expect(
       words.map(each => [each.props.color]),
       surface,
-    ).toEqual([[C.grey]])
+    ).toEqual([[C.ask]])
     expect(
       options.map(each => [each?.props.label, each?.props.variant]),
       surface,
@@ -176,16 +179,31 @@ test('the pane marks the recommended option with the word once, quiet beside it,
   const terminal = await w.pane()
   const marked = await terminal.find({ key: `recommended:choose:${w.item(id)}:1` })
 
-  expect(rowsOf(marked)).toEqual(['[ Redraw ] recommended'])
-  expect(marked?.props.flexWrap, 'the word wraps under a long label').toBe('wrap')
+  expect(rowsOf(marked)).toEqual(['recommended [ Redraw ]'])
+  expect(rowsOf(marked, NARROW), 'a short option keeps its line, on a narrow pane too').toEqual([
+    'recommended [ Redraw ]',
+  ])
   expect(
     marked?.children?.map(child =>
       typeof child === 'object' && child !== null && 'props' in child
         ? (child.props as { flexShrink?: number }).flexShrink
         : undefined,
     ),
-    'and keeps whole',
-  ).toEqual([undefined, 0])
+    'the word keeps whole',
+  ).toEqual([0, undefined])
+})
+
+test('a long recommended option wraps under the word, which sits on the line directly above its own option, never after it', async ($, on) => {
+  const w = world($, on)
+
+  await w.begin()
+
+  const long = 'Redraw every frame at the narrow width first'
+  const id = await asked(w, { ...THREE_WAY, options: ['Ship it', long], recommended: long })
+  const terminal = await w.pane()
+  const marked = await terminal.find({ key: `recommended:choose:${w.item(id)}:1` })
+
+  expect(rowsOf(marked, NARROW)).toEqual(['recommended', `[ ${long} ]`])
 })
 
 test('a choice with nothing recommended draws no such word, its first option the primary one', async ($, on) => {

@@ -938,7 +938,7 @@ shape is ever shown as a word:
 | Claude asks for | Buttons |
 |---|---|
 | **a yes**: a go, an approval, "it works", "done" | `✓ <its yes>` · `✎ comment` · `✕ ignore` |
-| **a choice** | one button per option, the one Claude recommends marked `recommended` · `✎ comment` · `✕ ignore` |
+| **a choice** | one button per option, the one Claude recommends marked `recommended` before it · `✎ comment` · `✕ ignore` |
 | **words**: an answer, a command's output, feedback | `✎ Answer` · `✕ ignore` |
 
 - **The yes is in Claude's words.** Claude gives the button's label as the
@@ -1001,9 +1001,9 @@ shape is ever shown as a word:
     the option stripped keeps it recommended; and the CLI's `answer`, which
     writes the option in its stored words.
   - **Claude's order of options is kept**; nothing is reordered.
-  - **Drawn once, beside its option.** The pane draws the word
-    `recommended` after the option's button, dim grey as every secondary
-    word beside a button there (`[ Redraw ] recommended` in the terminal),
+  - **Drawn once, before its option.** The pane draws the word
+    `recommended` before the option's button, in the ask's amber, the
+    colour of ASKS and the `◆` (`recommended [ Redraw ]` in the terminal),
     the same elements on every surface, each drawing them in its own way.
     The option recommended is the primary button; with none, the first, as
     before. The board text Claude reads names it once after the options
@@ -1013,9 +1013,12 @@ shape is ever shown as a word:
     the options (`answer it with “Ship it” (recommended) or “Redraw”.`).
     No band, banner or row shows an ask's options, so none shows it. Lee's
     reply when he picks the option is as ever (`→ Redraw`). The word and
-    its button wrap as a pair, the word kept whole, so on a narrow pane or
-    a phone a long label drops the word under the button rather than
-    breaking it.
+    its button wrap as a pair, the word kept whole: a short option keeps
+    both on one line, and on a narrow pane or a phone a long one wraps
+    under the word, which sits on the line above its own option, as its
+    label. (Lee, 17 November 2026: until then the word was dim grey, hard
+    to see, and came after the button, so a long label left it on a line
+    of its own over the next option, reading as that one's.)
   - **An edit** sets it, or clears it with an empty one. One changing the
     options keeps it while its option is among them; where its option is
     gone, or the ask wants a choice no more, it goes with it, and the
@@ -3986,7 +3989,8 @@ truth. There is still no background service. None of it is built now. Lee:
   Section headings' rules and the tabs' rule are the rule colour.
 - **Colour:** glyphs, headings and amber waiting counts only; in the ask's
   amber, the `needs:` line of a words ask, since it is a request of Lee's,
-  not a description; and a tree line's label (`Added:`,
+  not a description, and the word `recommended` before the option Claude
+  recommends, to be seen at a glance; and a tree line's label (`Added:`,
   `see`), in its item's colour.
 - Glyphs: `◆` ask, `◇` parked, `•` under way, `◦` next, `✓` done, `└ ├` trees, `⌂` home.
   No glyph that reads as "expand" unless it expands.

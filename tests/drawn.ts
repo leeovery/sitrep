@@ -1,7 +1,9 @@
 /**
  * A drawing read back as the rows of text it takes, for tests that assert
  * columns: a Box lays its children out in a row or a column, with its gaps,
- * padding (blank rows above and below it too) and width; a Text is its words, a Button its label. Nothing wraps.
+ * padding (blank rows above and below it too) and width; a Text is its words, a Button its label.
+ * Given the cells across, a row that wraps starts a line wherever its next
+ * child no longer fits on the one before; nothing else wraps.
  * Given the cells across, a row hands what it has spare to its first child
  * that grows, so what comes after sits at the right edge; given none,
  * nothing grows, and a row is as wide as what is on it. Its ends are trimmed.
@@ -53,18 +55,46 @@ const sideBySide = (children: readonly Drawn[], gap: number, cells?: number) => 
   return side(columns, gap, widths)
 }
 
+/** Children in a row that wraps, `cells` across: each on the line before while it fits there, else starting one. */
+const wrapped = (children: readonly Drawn[], gap: number, rowGap: number, cells: number) => {
+  const lines: Drawn[][] = []
+  let used = 0
+
+  for (const child of children) {
+    const across = fixedWidth(child) ?? width(rowsOfElement(child))
+    const line = lines.at(-1)
+
+    if (line === undefined || used + gap + across > cells) {
+      lines.push([child])
+      used = across
+    } else {
+      line.push(child)
+      used += gap + across
+    }
+  }
+
+  return stacked(
+    lines.map(line => sideBySide(line, gap, cells)),
+    rowGap,
+  )
+}
+
 const rowsOfBox = ({ props = {}, children = [] }: Drawn, cells?: number): string[] => {
   const shown = children.filter((child): child is Drawn => typeof child === 'object' && !!child)
   const isColumn = props.flexDirection === 'column'
-  const gap = numberOf(isColumn ? (props.rowGap ?? props.gap) : (props.columnGap ?? props.gap))
+  const rowGap = numberOf(props.rowGap ?? props.gap)
+  const gap = isColumn ? rowGap : numberOf(props.columnGap ?? props.gap)
   const indent = numberOf(props.paddingLeft) + numberOf(props.paddingX)
   const inside = cells === undefined ? undefined : cells - indent - numberOf(props.paddingX)
+  const wraps = !isColumn && props.flexWrap === 'wrap' && inside !== undefined
   const laid = isColumn
     ? stacked(
         shown.map(child => rowsOfElement(child, inside)),
         gap,
       )
-    : sideBySide(shown, gap, inside)
+    : wraps
+      ? wrapped(shown, gap, rowGap, inside)
+      : sideBySide(shown, gap, inside)
   const left = ' '.repeat(indent)
 
   return [
