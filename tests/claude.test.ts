@@ -195,7 +195,10 @@ test('a conversation starts knowing how to keep the board and talk to Lee beside
   )
   expect(guide).toContain('resolve it yourself when Lee answers it in the chat')
   expect(guide).toContain(
-    'a turn that ends on a decision or a question for Lee posts it as an ask, so it shows in Needs you, never only in the status; plain conversation needs none',
+    'a turn that ends on a decision or a question for Lee posts it as an ask, so it shows in Needs you, never only in the status;',
+  )
+  expect(guide).toContain(
+    'so does a turn that leaves Lee something to do, a release, a merge or a command to run, even said as a statement ("It\'s ready for you to release"); plain conversation needs none',
   )
   expect(guide).toContain(
     'Touch the board only once it is clear which project the work is on: the project being discussed, whatever folder this window started in.',

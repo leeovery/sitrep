@@ -490,6 +490,11 @@ and named it in internal shorthand):
   needs none (4 November 2026: two sessions ended turns with "Put to Lee:
   …" in their status line instead of posting an ask, so Lee's card showed
   them under Your turn, not Needs you).
+- So does a turn that leaves Lee something to do, a release, a merge or a
+  command to run, even said as a statement (17 November 2026: a session
+  ended "It's ready for you to release", its status emptied and no ask
+  posted, though its guide was in front of it; it read the ask rule as one
+  for questions alone).
 - Item and session ids are Claude's alone: Lee sees none anywhere in
   SitRep, so Claude never names one to him, and names an ask, a parked item
   or a session by its words (6 November 2026; Lee: "I have no visibility on
