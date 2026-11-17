@@ -9,6 +9,7 @@ import {
 } from '../core'
 import { AROUND_MS } from '../hooks/around'
 import { SPECS } from '../hooks/tools'
+import { WATCH_MS } from '../hooks/window'
 import {
   ELSEWHERE,
   GO,
@@ -24,7 +25,7 @@ import {
   W1,
   W2,
 } from './data'
-import { delivered, file, finish, note, park, reply, yesAsk } from './lines'
+import { delivered, file, finish, kindAsk, note, park, reply, yesAsk } from './lines'
 import { asked, CONVERSATION, postedId, PROMPT, startedId, world, type World } from './world'
 
 tier('user')
@@ -254,6 +255,30 @@ test('edit changes what an ask wants back under the same checks: to a yes with i
   await w.call('edit', { item: id, wants: 'yes', yes: 'Go' })
   expect(w.state.board?.asks[0]).toMatchObject({ wants: 'yes', yes: 'Go' })
   expect(w.state.board?.asks[0]?.options).toBeUndefined()
+})
+
+test('edit gives a decide written before asks had options a new title, its options left as they were, though it still refuses options too few', async ($, on) => {
+  const w = world($, on)
+  const { paths } = await w.begin()
+
+  w.writer(paths)(kindAsk('o2', 'decide', 'Which palette?'))
+  await w.clock.advance(WATCH_MS)
+
+  expect((await w.call('edit', { item: 'o2', title: 'Which palette for the band?' })).result).toBe(
+    'Edited o2.',
+  )
+  expect(w.state.board?.asks.find(ask => ask.id === 'o2')).toMatchObject({
+    title: 'Which palette for the band?',
+    wants: 'choice',
+  })
+  expect(linesOf(w, paths.log(W1)).at(-1)).toMatchObject({
+    type: 'edit',
+    item: 'o2',
+    changes: { title: 'Which palette for the band?' },
+  })
+  expect((await w.call('edit', { item: 'o2', options: ['Dark'] })).deny).toBe(
+    'A choice ask needs at least 2 options.',
+  )
 })
 
 test('the ask and edit tools take wants, yes, options and needs; the ask says how to choose a shape, word its yes, and say it in the chat', () => {

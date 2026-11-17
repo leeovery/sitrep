@@ -462,7 +462,7 @@ orchestrator decides what reaches the board.
 | `ask` | post an ask: what it wants back (`wants`: a yes, a choice or words), its title, and where to look; a yes's button (`yes`: the verb Lee gives, `Go`, `Approve`, `It works`), a choice's `options` and the one Claude leans toward (`recommended`), or what a words ask's words are (`needs`: "the command's output"), each only on its own shape |
 | `note` | add a note, with optional detail lines and a pointer |
 | `park` | park something to come back to, on the attached session's project |
-| `resolve` / `reopen` / `edit` | close, reopen or correct an item, with a reason. Resolving what Lee closed, an ask he answered or ignored or a parked item he picked up, passes quietly, changing nothing (below). An edit takes an item's one line as `text` or `title` alike, whatever the item, and may change what an ask wants, its `yes`, `options`, `recommended` and `needs`, under the checks `ask` makes; an empty `needs` or `recommended` clears it. An item of the attached session, or a parked item another session of its project parked, named with that session's id (`session`) and written into that session, in this window's own file there; another session's ask or note, or a session of another project, is refused |
+| `resolve` / `reopen` / `edit` | close, reopen or correct an item, with a reason. Resolving what Lee closed, an ask he answered or ignored or a parked item he picked up, passes quietly, changing nothing (below). An edit takes an item's one line as `text` or `title` alike, whatever the item, and may change what an ask wants, its `yes`, `options`, `recommended` and `needs`, under the checks `ask` makes for what it changes (see Storage); an empty `needs` or `recommended` clears it. An item of the attached session, or a parked item another session of its project parked, named with that session's id (`session`) and written into that session, in this window's own file there; another session's ask or note, or a session of another project, is refused |
 | `finish` | finish the attached session, with a reason, once it is complete and nothing is left on it; what it parked stays its project's and holds no finish back. The window stays attached, and joining it again reopens it |
 | `project` | rename the attached session's project, or say where it lives, or both; a name another project has is refused. It never moves a session to another project |
 | `board` | read back the board's open items, what each ask wants back among them (`k1 wants a yes (Go)`), and the project's parked items, so Claude can check and repair it |
@@ -1054,13 +1054,13 @@ keeps the image's blocks and puts the new text in place of the typed text
 - **The reply** is built as a queued one is: an answer, a comment, a
   pick-up's note, or a comment going as the note of a yes or a choice
   queued on the ask, which goes with it. It goes only while a send would
-  carry it, the session read afresh first, as a send reads it: it fits the
-  ask, the ask is open, and no answer is on its way to it. Else the prompt
-  is kept, a toast saying why, in Ready to send's words (`Not sent: already
-  answered.`, `Not sent: it has changed since.`, `Not sent: Claude closed
-  it.`). Where a send carries the ask's reply already,
-  the mode is over, and the prompt goes on as any prompt of Lee's does, the
-  board's context with it.
+  carry it, the session read afresh first, as a send reads it, and again
+  once it is claimed (below): it fits the ask, the ask is open, and no
+  answer is on its way to it. Else the prompt is kept, a toast saying why,
+  in Ready to send's words (`Not sent: already answered.`, `Not sent: it
+  has changed since.`, `Not sent: Claude closed it.`). Where a send carries
+  the ask's reply already, the mode is over, and the prompt goes on as any
+  prompt of Lee's does, the board's context with it.
 - **Only to this window's session.** The prompt goes into this window's
   Claude, so an ask of another session can't take it: the prompt is kept,
   with `An attachment goes only to this window's session: take it out to
@@ -1085,6 +1085,29 @@ keeps the image's blocks and puts the new text in place of the typed text
   prompt typed while a turn runs waits in Claude Code's queue until it ends,
   or is folded into that turn and starts none of its own. The heartbeat says
   it, so its ask is on its way to every reader at once, and the mode ends.
+- **Read again once claimed** (17 November 2026). The claim takes nothing
+  while a send in flight carries a reply to the ask. Once it lands, before
+  the reply is frozen, the session is read afresh again and the reply
+  judged as before, its own answer on its way, which this window's
+  heartbeat says from the claim, barring nothing: an answer is its own by
+  its id and its writer both, since two windows can draw one id. A send of
+  this window's taken and written down since the first read has left no
+  claim for the claim to meet, but its lines are down, since a window
+  writes a message down before its claim ends; so the ask reads answered.
+  Another window's answer is read there once that window's heartbeat says
+  it, or its lines are down: one claimed ahead of this but not yet said
+  there goes unseen, a gap two windows on one session had already. The
+  read draws nothing, so a board that fails to be kept fails no read; a
+  session that no longer reads by then has changed (`Not sent: it has
+  changed since.`). Left out there, the claim is let go, with nothing
+  frozen to put back, and the prompt is kept, a toast saying why as above.
+  The mode stands again only where its ask still takes its reply, as a
+  comment's does with another answer on its way, and Lee began no other
+  meanwhile: on an ask answered or closed, the prompt kept in the box would
+  otherwise answer it at Lee's next Enter. Until then the claim met only
+  the messages still in flight: a test holding it back while a send was
+  taken and written down had Lee's answer go in after the send's, a second
+  answer to the ask.
 - **Taken**, the prompt's `next` resolving with no drop, or a turn starting
   with its text, it is written down as any taken message is, the lines a
   send writes, through the hold; a write that fails, or a load cutting it
@@ -1101,9 +1124,10 @@ keeps the image's blocks and puts the new text in place of the typed text
   stands again, unless Lee began another meanwhile. Claude Code puts the
   prompt back in the box. A failure beneath, a hook throwing or timing
   out, lets it go too, the mode not standing again, the prompt having gone
-  on in some form. Failing to freeze the reply in Ready to send before the
-  prompt goes on lets it go as well, and Lee's words and image go in as a
-  plain prompt, nothing on the board recording them; failing to put back
+  on in some form. Failing to read the session again once it is claimed,
+  or to freeze the reply in Ready to send, before the prompt goes on lets
+  it go as well, and Lee's words and image go in as a plain prompt, nothing
+  on the board recording them; failing to put back
   what was queued, once it is let go, can leave its reply in Ready to send,
   no longer frozen. A drop by a plugin whose hook runs above
   sitrep's is never seen, `next` hearing only what is beneath: the reply is
@@ -2567,6 +2591,19 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   what it `wants`, which it then wants from that edit on, its kind gone; one
   changing only its title, `where` or `ref` keeps its kind, so the replies
   queued for it or in an inbox keep the meaning they had.
+
+  **An edit answers to `ask`'s checks for what it changes** (17 November
+  2026): to each check reading a field of the shape it names, what the ask
+  wants among them, so an edit to what an ask wants answers for the whole
+  shape. A check an ask breaks already, on fields the edit leaves alone,
+  refuses none of it: a decide written before asks had options, which reads
+  as a choice with none, takes a new title, `where` or `ref`, while an edit
+  giving it one option, a yes or `needs` is refused as ever, each by the
+  check it touches. One recommending an option is held to the choice's
+  options too, so on such a decide it reads `A choice ask needs at least 2
+  options.`, not the options it names, which are none. Until then every
+  edit answered for the whole shape, and such a decide refused them all,
+  its title too: `A choice ask needs at least 2 options.`
 
   The kinds: `status`, `ask`, `note` and `park`; `resolve`, `reopen` and
   `edit`, each naming an item; `reply`, Lee's answer to one; `delivered`,

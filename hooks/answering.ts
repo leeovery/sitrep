@@ -41,13 +41,24 @@ import {
 } from '../core'
 import type { SitrepAnswering, SitrepAttachment, SitrepInFlight, SitrepQueued } from '../types'
 import { foldedFor } from './around'
-import { claimRide, letRideGo, rideTaken } from './deliver'
+import { claimRide, letRideGo, rideTaken, type Ridden } from './deliver'
 import { logFailure, type Host } from './host'
 import { unwrapPastes } from './paste'
 import { briefOf, filedAt, parkedIn } from './places'
-import { goesTo, isCarried, leftOut, queuedOn, queuing, replyBodies, type LeftOut } from './queue'
+import {
+  apartFrom,
+  goesTo,
+  isCarried,
+  leftOut,
+  leftOutOnceClaimed,
+  queuedOn,
+  queuing,
+  replyBodies,
+  type Folded,
+  type LeftOut,
+} from './queue'
 import { sceneOf, type Scene } from './scene'
-import { flightNow, refresh, serially } from './window'
+import { flightNow, readHeld, refresh, serially } from './window'
 
 /** The mode as it stands: what it writes, and the item it writes to. */
 export type Answering = { answering: SitrepAnswering; item: Ask | Parked }
@@ -169,15 +180,15 @@ const seenIn = (
       )
 }
 
-/** Whether the item can take the reply: open to it (`barredBy`), not carried by a send, and of a shape that takes it. */
+/** Whether an item is open to the mode's reply (`barredBy`), and of a shape that takes it. */
+const isOpenTo = (item: Ask | Parked, as: SitrepAnswering['as']) =>
+  barredBy(item, VERDICT[as]) === undefined && takes(item, VERDICT[as])
+
+/** Whether the item can take the reply: open to it, and not carried by a send. */
 const canTake = (scene: Scene, { session, as }: SitrepAnswering, item: Ask | Parked) => {
   const queued = queuedOn(scene.queue, session, item.id)
 
-  return (
-    barredBy(item, VERDICT[as]) === undefined &&
-    (queued === undefined || !isCarried(scene.inFlight, queued)) &&
-    takes(item, VERDICT[as])
-  )
+  return isOpenTo(item, as) && (queued === undefined || !isCarried(scene.inFlight, queued))
 }
 
 /** Where the mode stands: over once its item can take the reply no longer; undefined while the window is not answering, or the board has not read the item's session yet. */
@@ -330,15 +341,15 @@ const queued = async (host: Host, standing: Answering, words: string): Promise<C
 }
 
 /**
- * Passes Lee's prompt on, rewritten as `text`, and settles the answer it
- * carries by what becomes of it: taken, written down; dropped beneath, let
- * go, the mode standing again unless Lee began another meanwhile; failed
- * beneath, let go, the failure passed on.
+ * Passes Lee's prompt on, rewritten as the ride's text, and settles the
+ * answer it carries by what becomes of it: taken, written down; dropped
+ * beneath, let go, the mode standing again unless Lee began another
+ * meanwhile; failed beneath, let go, the failure passed on.
  */
 const enterWith =
-  (host: Host, ride: SitrepInFlight, answering: SitrepAnswering, text: string) =>
+  (host: Host, ride: SitrepInFlight, answering: SitrepAnswering) =>
   async <R extends Entered>(pass: (text: string) => Promise<R>) => {
-    const entered = await pass(text).catch(async (error: unknown) => {
+    const entered = await pass(ride.text).catch(async (error: unknown) => {
       await letRideGo(host, ride)
       throw error
     })
@@ -357,16 +368,89 @@ const enterWith =
 const goesHere = (held: SitrepAttachment, { project, session, item, as }: SitrepAnswering) =>
   goesTo(held, { project, session, item, verdict: VERDICT[as] })?.session === held.session
 
+/** The held session read afresh, in turn with whatever reads or changes the hold; as the scene has it where none is held now. */
+const heldAfresh = async (host: Host, scene: Scene) =>
+  (await serially(() => refresh(host))) ?? scene.session
+
+/** Lee's prompt kept, the reply going nowhere, a toast saying why in Ready to send's words. */
+const kept = (host: Host, why: LeftOut): Captured => {
+  host.ui.toast(CANNOT_RIDE[why])
+
+  return { drop: NOT_TAKEN }
+}
+
+/** Why the ride goes no more, read once it is claimed, and whether the mode, put back, would stand on its item as read then. */
+type LeftOnceClaimed = { reason: LeftOut; isStanding: boolean }
+
+/** Whether the mode's item, as `folded` has it but for the ride's own answer on its way, takes the mode's reply. */
+const takesIn = (folded: Folded, { session, item, as }: SitrepAnswering, ride: SitrepInFlight) => {
+  const read = folded.get(session)
+  const taking = answerable(read?.items.get(item), read?.finished !== undefined)
+
+  return taking !== undefined && isOpenTo(apartFrom(taking, ride), as)
+}
+
+/**
+ * Why the ride's reply goes no more, its item read afresh again once the
+ * ride is claimed, as a send would read it, the ride's own answer on its
+ * way barring nothing; and whether the mode, put back, would stand. Read
+ * apart from the board's drawing, whose failure is no failure to read. A
+ * session that no longer reads has changed, and holds no mode.
+ */
+const leftOnceClaimed = async (
+  host: Host,
+  answering: SitrepAnswering,
+  reply: SitrepQueued,
+  ride: SitrepInFlight,
+): Promise<LeftOnceClaimed | undefined> => {
+  const session = await serially(() => readHeld(host))
+
+  if (session === undefined) {
+    return { reason: 'changed', isStanding: false }
+  }
+
+  const folded = await foldedFor(host, session, [reply])
+  const reason = leftOutOnceClaimed(folded, reply, ride)
+
+  return reason === undefined ? undefined : { reason, isStanding: takesIn(folded, answering, ride) }
+}
+
+/**
+ * What the ride's claim makes of Lee's prompt: let in, claimed; kept, a
+ * toast saying why, where its item, read again once claimed, takes the
+ * reply no more, the mode standing again where its item still takes the
+ * mode's reply, unless Lee began another meanwhile; on as any prompt where
+ * a send in flight carries the item's reply already.
+ */
+const afterClaim = async (
+  host: Host,
+  answering: SitrepAnswering,
+  ridden: Ridden<LeftOnceClaimed>,
+): Promise<Captured | undefined> => {
+  switch (ridden.is) {
+    case 'claimed':
+      return { enter: enterWith(host, ridden.ride, answering) }
+    case 'left':
+      if (ridden.why.isStanding) {
+        await host.state.answering.update(now => now ?? answering)
+      }
+
+      return kept(host, ridden.why.reason)
+    case 'carried':
+      return undefined
+  }
+}
+
 /**
  * Lee's prompt, carrying an attachment, let in as the board's words for the
  * reply, so the attachment goes with it: only for a reply that goes to the
  * session the window holds, whose Claude it goes into, and only while the
  * item, read afresh in its own session, takes the reply as a send would
  * carry it; else it is kept, a toast saying why. The mode is over, and the
- * reply claimed as a message in flight before it goes, frozen in Ready to
- * send in place of what was queued on its item, so no send carries that
- * too. Where a send carries the item's reply already, the prompt goes on as
- * any prompt does.
+ * reply claimed as a message in flight before it goes, its item read afresh
+ * again once the claim has landed, then frozen in Ready to send in place of
+ * what was queued on its item, so no send carries that too. Where a send
+ * carries the item's reply already, the prompt goes on as any prompt does.
  */
 const letIn = async (
   host: Host,
@@ -382,8 +466,7 @@ const letIn = async (
     return { drop: NOT_TAKEN }
   }
 
-  const [now, queue] = await Promise.all([serially(() => refresh(host)), host.state.queue.read()])
-  const session = now ?? scene.session
+  const [session, queue] = await Promise.all([heldAfresh(host, scene), host.state.queue.read()])
   const reply = replyOf(answering, queue, words)
   const folded = await foldedFor(host, session, [reply])
   const [why] = leftOut(folded, [reply])
@@ -391,14 +474,12 @@ const letIn = async (
     why === undefined ? boardMessage(session, [reply], each => folded.get(each.session)) : undefined
 
   if (message === undefined) {
-    host.ui.toast(CANNOT_RIDE[why ?? 'changed'])
-
-    return { drop: NOT_TAKEN }
+    return kept(host, why ?? 'changed')
   }
 
   await forget(host)
 
-  const ride = await claimRide(
+  const ridden = await claimRide(
     host,
     {
       source: 'send',
@@ -410,9 +491,10 @@ const letIn = async (
     },
     reply,
     queuedOn(queue, answering.session, answering.item),
+    ride => leftOnceClaimed(host, answering, reply, ride),
   )
 
-  return ride === undefined ? undefined : { enter: enterWith(host, ride, answering, message.text) }
+  return afterClaim(host, answering, ridden)
 }
 
 /**

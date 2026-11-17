@@ -150,18 +150,38 @@ export const answered = (session: Session, reply: SitrepQueued): Ask | Parked | 
 /** Why a send leaves a queued reply in Ready to send: its item changed past it, or is gone; or holds another answer of Lee's, or closed (`Barred`). */
 export type LeftOut = 'changed' | Barred
 
-/** Why a send leaves a queued reply no send in flight carries, its item read in `session`; undefined for one it carries: one that fits its item, which takes it now. */
-const whyLeft = (session: Session, reply: SitrepQueued): LeftOut | undefined => {
+/** Whether Lee's answer on its way to an item is one `own`, a message claimed with a reply to it, carries: its writer's, by its id. */
+const isOwnAnswer = (item: Ask | Parked, own: SitrepInFlight) => {
+  const ahead = item.answerOnItsWay
+
+  return ahead?.by === own.writer && own.replies.some(each => each.id === ahead.id)
+}
+
+/** An item as it stands but for Lee's answer on its way there where `own`, a message claimed with a reply to it, carries that answer. */
+export const apartFrom = (item: Ask | Parked, own: SitrepInFlight | undefined): Ask | Parked =>
+  own !== undefined && isOwnAnswer(item, own) ? { ...item, answerOnItsWay: undefined } : item
+
+/**
+ * Why a send leaves a queued reply no send in flight carries, its item read
+ * in `session`; undefined for one it carries: one that fits its item, which
+ * takes it now. The answer on its way that `own`, the message claimed with
+ * the reply, carries bars nothing.
+ */
+const whyLeft = (
+  session: Session,
+  reply: SitrepQueued,
+  own?: SitrepInFlight,
+): LeftOut | undefined => {
   const item = answered(session, reply)
 
-  return item === undefined ? 'changed' : barredBy(item, reply.verdict)
+  return item === undefined ? 'changed' : barredBy(apartFrom(item, own), reply.verdict)
 }
 
 /** Why a send leaves a queued reply, its item read in its own session as `folded` has it: one whose session is gone has changed. */
-const whyLeftIn = (folded: Folded, reply: SitrepQueued) => {
+const whyLeftIn = (folded: Folded, reply: SitrepQueued, own?: SitrepInFlight) => {
   const session = folded.get(reply.session)
 
-  return session === undefined ? 'changed' : whyLeft(session, reply)
+  return session === undefined ? 'changed' : whyLeft(session, reply, own)
 }
 
 /** The replies a send to a session would carry from a window holding `held`: those no send in flight carries, which go in their own message already. */
@@ -180,6 +200,15 @@ export const sendable = (folded: Folded, replies: Queue) =>
 /** Why a send leaves each of its replies it does not carry. */
 export const leftOut = (folded: Folded, replies: Queue): LeftOut[] =>
   replies.flatMap(reply => whyLeftIn(folded, reply) ?? [])
+
+/**
+ * Why a message claimed with a reply leaves it out, its item read again in
+ * its own session as `folded` has it, as a send would: the message's own
+ * answer on its way, which its window's heartbeat says from the claim,
+ * bars nothing.
+ */
+export const leftOutOnceClaimed = (folded: Folded, reply: SitrepQueued, claimed: SitrepInFlight) =>
+  whyLeftIn(folded, reply, claimed)
 
 /** Where a message's reply ids are drawn apart from: the sessions its items are in, and the messages in flight. */
 export type Around = { folded?: Folded; flights?: Flights }

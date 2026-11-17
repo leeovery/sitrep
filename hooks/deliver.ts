@@ -867,19 +867,26 @@ export const deliver = async (
 }
 
 /**
- * Lets go of an answer that went with Lee's prompt but not in, silently:
- * Ready to send as it was before (`putBack`), and its ask waiting on Lee
- * again at once. Its hook waits no more, nor does anything on its turn.
- * Whether it let it go.
+ * Ends the claim of an answer that went with Lee's prompt but not in: its
+ * hook waits no more, nor does anything on its turn. Whether it ended it.
  */
-export const letRideGo = async (host: Host, ride: SitrepInFlight) => {
+const unclaimRide = async (host: Host, ride: SitrepInFlight) => {
   hooked.delete(claimKey(ride))
 
   if (awaiting?.text === ride.text) {
     stopAwaiting()
   }
 
-  const isLet = await endIf(host, current => isClaim(current, ride))
+  return endIf(host, current => isClaim(current, ride))
+}
+
+/**
+ * Lets go of an answer that went with Lee's prompt but not in, silently:
+ * Ready to send as it was before (`putBack`), and its ask waiting on Lee
+ * again at once. Whether it let it go.
+ */
+export const letRideGo = async (host: Host, ride: SitrepInFlight) => {
+  const isLet = await unclaimRide(host, ride)
 
   if (isLet) {
     await putBack(host, ride)
@@ -890,6 +897,33 @@ export const letRideGo = async (host: Host, ride: SitrepInFlight) => {
 }
 
 /**
+ * Lets go of an answer's claim before its reply is frozen in Ready to send,
+ * which holds nothing of it to put back: its ask waiting on Lee again at
+ * once.
+ */
+const letClaimGo = async (host: Host, ride: SitrepInFlight) => {
+  if (await unclaimRide(host, ride)) {
+    await endedUnwritten(host)
+  }
+}
+
+/** What claiming an answer going in with Lee's prompt came to: claimed; met a send in flight carrying its item's reply; or left out, its item read again once claimed, and why. */
+export type Ridden<Why> =
+  { is: 'claimed'; ride: SitrepInFlight } | { is: 'carried' } | { is: 'left'; why: Why }
+
+/** Lets an answer that went with Lee's prompt go as its claiming fails, by `letGo`, then passes the failure on, whether or not that let it go. */
+const failedRide =
+  (
+    host: Host,
+    ride: SitrepInFlight,
+    letGo: (host: Host, ride: SitrepInFlight) => Promise<unknown>,
+  ) =>
+  async (error: unknown): Promise<never> => {
+    await letGo(host, ride).catch(logFailure(host, 'letting your answer with the image go'))
+    throw error
+  }
+
+/**
  * Claims an answer going in with Lee's own prompt, rewritten as the board's
  * words for it (answering.ts), and freezes `reply` in Ready to send in place
  * of what was queued on its item (`was`), kept on the claim to be put back.
@@ -897,15 +931,22 @@ export const letRideGo = async (host: Host, ride: SitrepInFlight) => {
  * window. It goes ahead of every message the window holds, which wait for it
  * to end, and for its turn to start, as behind any message submitted first.
  * While its hook waits on Claude Code no quiet lets it go (`hooked`).
- * Undefined, claiming nothing, where a send in flight carries a reply to its
- * item already; a claim whose freezing fails is let go again.
+ *
+ * The claim takes nothing where a send in flight carries a reply to its item
+ * already. Landed, it has `judge` read the item again before the freeze: a
+ * send taken and written down since the caller read it has no claim left to
+ * meet, but its lines are down, since a message is written down before its
+ * claim ends. Left out there, the claim is let go, and `judge`'s why given
+ * back. So is a claim whose judging or freezing fails, the failure passed
+ * on.
  */
-export const claimRide = async (
+export const claimRide = async <Why>(
   host: Host,
   outgoing: Outgoing,
   reply: SitrepQueued,
   was: SitrepQueued | undefined,
-) => {
+  judge: (ride: SitrepInFlight) => Promise<Why | undefined>,
+): Promise<Ridden<Why>> => {
   const ride: SitrepInFlight = {
     ...outgoing,
     claimedAt: await host.clock.now(),
@@ -937,19 +978,24 @@ export const claimRide = async (
   })
 
   if (!isClaimed) {
-    return undefined
+    return { is: 'carried' }
+  }
+
+  const why = await judge(ride).catch(failedRide(host, ride, letClaimGo))
+
+  if (why !== undefined) {
+    await letClaimGo(host, ride)
+
+    return { is: 'left', why }
   }
 
   awaitTurn(host, ride.text, isBetween())
 
-  try {
-    await host.state.queue.update(queue => queuing(queue, reply))
-  } catch (error) {
-    await letRideGo(host, ride)
-    throw error
-  }
+  await host.state.queue
+    .update(queue => queuing(queue, reply))
+    .catch(failedRide(host, ride, letRideGo))
 
-  return ride
+  return { is: 'claimed', ride }
 }
 
 /** Claude Code took Lee's prompt carrying the answer: written down as any message taken, unless its turn, starting first, did that. */

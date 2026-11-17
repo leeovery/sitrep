@@ -412,6 +412,41 @@ test('an edit leaving the shape of an ask read from its kind as it is keeps the 
   ).toEqual({ where: 'In Paper', ref: 'docs/plan.md' })
 })
 
+test('an edit answers for the rules of the shape it changes, not for one its ask broke already, as a decide written before asks had options does', () => {
+  const session = fold({ logs: { [W1]: file([T0, kindAsk('o3', 'decide', 'Which palette?')]) } })
+  const edited = (fields: object) => checkEdit(session, { item: 'o3', ...fields })
+
+  expect(value(edited({ title: 'Which palette for the band?' }))?.changes).toEqual({
+    title: 'Which palette for the band?',
+  })
+  expect(value(edited({ where: 'In Paper', ref: 'docs/palette.md' }))?.changes).toEqual({
+    where: 'In Paper',
+    ref: 'docs/palette.md',
+  })
+  expect(value(edited({ needs: '' }))?.changes, 'its needs, cleared').toEqual({
+    wants: 'choice',
+    needs: '',
+  })
+  expect(value(edited({ wants: 'words' }))?.changes).toEqual({ wants: 'words' })
+  expect(value(edited({ options: ['Dark', 'Light'] }))?.changes).toEqual({
+    wants: 'choice',
+    options: ['Dark', 'Light'],
+  })
+
+  expect(refusal(edited({ options: ['Dark'] }))).toBe('A choice ask needs at least 2 options.')
+  expect(refusal(edited({ wants: 'choice' })), 'what it wants, the whole shape').toBe(
+    'A choice ask needs at least 2 options.',
+  )
+  expect(refusal(edited({ title: 'Pick one', yes: 'Go' }))).toBe('Only a yes ask takes yes.')
+  expect(refusal(edited({ needs: 'which palette' }))).toBe(
+    'Only a words ask takes needs: what its words are.',
+  )
+  expect(
+    refusal(edited({ recommended: 'Dark' })),
+    'an option recommended, of options too few',
+  ).toBe('A choice ask needs at least 2 options.')
+})
+
 test('a checked post is given a fresh item id, unlike any its session uses; a refusal stays one', () => {
   const random = scripted([20, 21, 22, 23], [1, 1, 1, 1])
 
