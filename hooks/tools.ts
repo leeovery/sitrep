@@ -1,6 +1,7 @@
 /**
  * Claude's tools: start or join a session, then post to its board and
- * read the board back, and name its project. Only the main conversation may
+ * read the board back, name its project, and move it to another at Lee's
+ * word. Only the main conversation may
  * call them. An answer says what was done and names the item, and no more,
  * but for an ask's, which says when to put it to Lee. What another session
  * of the project parked is the project's: resolve, reopen and edit act on
@@ -16,6 +17,8 @@ import {
   checkEdit,
   checkFinish,
   checkJoin,
+  checkMove,
+  checkMoveTo,
   checkPark,
   checkParkedIn,
   checkProject,
@@ -46,10 +49,10 @@ import { bearingsOf, random, rootFor, type Host } from './host'
 import { writeInto, type Into } from './into'
 import {
   changeProject,
+  fileOne,
   filingFor,
+  onBoard,
   projectFiling,
-  projectKeys,
-  readProjects,
   sessionIdsIn,
 } from './projects'
 import { changedKnown, markSeen, markStarted, parkedAround, postKnown } from './seen'
@@ -256,11 +259,16 @@ const otherOfProject = async (
   }
 
   const { session } = named.value
-  const project = await projectFiling(host, await rootFor(host), session)
+  const root = await rootFor(host)
+  const folder = await projectFiling(host, root, session)
 
-  if (project === undefined) {
+  if (folder === undefined) {
     return { ok: false, error: `There is no session ${session} on the board, in any project.` }
   }
+
+  const folded = await foldAt(host, root, { project: folder, session }, await host.clock.now())
+  const project =
+    folded === undefined ? folder : (await fileOne(host, root, { folder, session: folded })).project
 
   return project === held.project
     ? { ok: true, value: { project, session, writer: held.writer } }
@@ -442,10 +450,10 @@ const start: Tool<'start'> = {
     const { project: name, directory, ...session } = checked.value
     const { root, cwd, writer } = await bearingsOf(host)
     const created = await host.clock.now()
-    const keys = await projectKeys(host, root)
-    const filing = await filingFor(host, root, keys, { name, directory, created, by: writer })
+    const board = await onBoard(host, root)
+    const filing = await filingFor(host, root, board, { name, directory, created, by: writer })
     const { key } = filing.project
-    const id = newSessionId(random, await sessionIdsIn(host, root, keys))
+    const id = newSessionId(random, await sessionIdsIn(host, root, board.keys))
     const meta = { id, ...session, project: filing.project.name, root: cwd, created, by: writer }
 
     await host.fs.write(sessionPaths(root, key, id).meta, metaText(meta))
@@ -462,7 +470,7 @@ const start: Tool<'start'> = {
     }
 
     return {
-      result: `Started ${meta.name} as ${id}, ${filing.said}. Record ${id} wherever the project tracks this work, so a later window can join it.`,
+      result: `Started ${meta.name} as ${id}, in ${filing.said}. Record ${id} wherever the project tracks this work, so a later window can join it.`,
     }
   },
 }
@@ -516,7 +524,7 @@ const changedText = (before: Project, after: Project) =>
 const project: Tool<'project'> = {
   spec: spec(
     'project',
-    "Rename the attached session's project, or say where the project lives, or both. It never moves a session to another project.",
+    "Rename the attached session's project, or say where the project lives, or both. It never moves the session to another project: the move tool does, at Lee's word.",
     { name: PROJECT, directory: DIRECTORY },
   ),
   answer: onSession(async (host, session, input, held) => {
@@ -527,7 +535,7 @@ const project: Tool<'project'> = {
     }
 
     const { root, writer } = await bearingsOf(host)
-    const projects = await readProjects(host, root, await projectKeys(host, root))
+    const { projects } = await onBoard(host, root)
     const before = projects.find(each => each.key === held.project) ?? {
       key: held.project,
       name: session.project,
@@ -538,7 +546,7 @@ const project: Tool<'project'> = {
 
     if (other !== undefined) {
       return {
-        deny: `Another project is already named ${other.name}. This renames the attached session's project; it moves no session to another.`,
+        deny: `Another project is already named ${other.name}. This renames the attached session's project; the move tool moves the session to another, at Lee's word.`,
       }
     }
 
@@ -549,6 +557,48 @@ const project: Tool<'project'> = {
     await lookAround(host)
 
     return { result: changedText(before, after) }
+  }),
+}
+
+const move: Tool<'move'> = {
+  spec: spec(
+    'move',
+    "Move the attached session to another project, only when Lee says to: the whole session goes, its asks, parked items, status and history, never a new session in its place, and every window holding it follows. The project as Lee names it: one on the board whose name matches, case, spaces and punctuation aside, takes it; else a new project is made.",
+    { project: PROJECT, directory: DIRECTORY },
+    ['project'],
+  ),
+  answer: onSession(async (host, session, input, held) => {
+    const checked = checkMove(input)
+
+    if (!checked.ok) {
+      return { deny: checked.error }
+    }
+
+    const { project: name, directory } = checked.value
+    const { root, writer } = await bearingsOf(host)
+    const board = await onBoard(host, root)
+    const existing = projectNamed(board.projects, name)
+    const staying =
+      existing === undefined ? undefined : checkMoveTo(session, held.project, existing)
+
+    if (staying?.ok === false) {
+      return { deny: staying.error }
+    }
+
+    const created = await host.clock.now()
+    const filing = await filingFor(host, root, board, { name, directory, created, by: writer })
+    const moving = checkMoveTo(session, held.project, filing.project)
+
+    if (!moving.ok) {
+      return { deny: moving.error }
+    }
+
+    await postKnown(host, session, [moving.value])
+
+    return {
+      result: `Moved ${session.status.name} to ${filing.said}.`,
+      names: session.status.name,
+    }
   }),
 }
 
@@ -662,6 +712,7 @@ const TOOLS = [
     session => session.status.name,
   ),
   project,
+  move,
   board,
 ] as const
 

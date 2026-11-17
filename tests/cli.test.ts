@@ -9,7 +9,7 @@ import {
   VERSION,
   type SessionPaths,
 } from '../core'
-import { ELSEWHERE, META, MIN, T0, W1, W2 } from './data'
+import { ELSEWHERE, META, MIN, PROJECT, T0, W1, W2 } from './data'
 import { beat, file, finish, park, snoozeSession, status, yesAsk, type Line } from './lines'
 import { ENV, FIRST_ID, NEXT_ID, NOW, terminal } from './terminal'
 
@@ -452,6 +452,104 @@ test('finish refuses a session a live window holds, which is finished there, and
   expect([held, done].some(paths => t.files.has(paths.log(WRITER)))).toBe(false)
 })
 
+/** Northwind and Contoso on the board, each with its file; Contoso's own session, Lobby, open in a window, having parked the rota's export as FIRST_ID. */
+const twoProjects = (t: Terminal) => {
+  t.project(PROJECT.key, { name: PROJECT.name, created: T0, by: W1 })
+  t.project(ELSEWHERE.key, { name: ELSEWHERE.name, created: T0, by: W2 })
+  t.seed(LOBBY, {
+    project: ELSEWHERE.key,
+    lines: [[T0, park(FIRST_ID, 'Export the rota')]],
+    seenAt: NOW,
+  })
+}
+
+/** The session under test, open in its window, having asked for a review and parked a badge. */
+const seedMoving = (t: Terminal) =>
+  t.seed(META, {
+    lines: [
+      [T0, yesAsk('k1', 'Review round 1')],
+      [T0, park('p1', 'A priority badge')],
+    ],
+    seenAt: NOW,
+  })
+
+/** What `list --json` lists, by project key: the ids of its sessions, sorted. */
+const listedIds = async (t: Terminal) => {
+  const { projects } = JSON.parse((await t.run('list', '--json')).out) as {
+    projects: { key: string; sessions: { id: string }[] }[]
+  }
+
+  return projects.map(({ key, sessions }) => [key, sessions.map(each => each.id).sort()])
+}
+
+test("move moves a session, whole, to a project on the board, as Claude's move does: one line in the CLI's own file, naming the project by its key, and prints nothing", async () => {
+  const t = terminal()
+
+  twoProjects(t)
+
+  const paths = seedMoving(t)
+
+  expect(await t.run('move', 'con', 'toso', ...SESSION)).toEqual({
+    exit: EXIT.done,
+    out: '',
+    err: '',
+  })
+  expect(cliLines(t, paths)).toEqual([
+    { v: VERSION, at: NOW, seq: 1, type: 'move', project: ELSEWHERE.key },
+  ])
+  expect(
+    [...t.files.keys()].filter(path => path.includes(`/${ELSEWHERE.key}/sessions/${META.id}`)),
+    'nothing in the folder of the project it moved to',
+  ).toEqual([])
+  expect(await listedIds(t)).toEqual([[ELSEWHERE.key, [LOBBY.id, META.id].sort()]])
+
+  const board = JSON.parse((await t.run('board', '--json', ...SESSION)).out)
+
+  expect(board.project).toEqual({ key: ELSEWHERE.key, name: ELSEWHERE.name })
+  expect(board.asks.map((ask: { id: string }) => ask.id)).toEqual(['k1'])
+  expect(board.parked.map((parked: { id: string }) => parked.id)).toEqual(['p1'])
+  expect((await t.run('board', ...SESSION)).out).toContain(
+    `- ${FIRST_ID}, parked by "Lobby" (session: ${LOBBY.id}): Export the rota`,
+  )
+  expect(
+    (await t.run('park', 'A badge on the tabs', ...SESSION)).out,
+    "an id apart from its new project's",
+  ).toBe(`${NEXT_ID}\n`)
+})
+
+test('move refuses a project not on the board, which it never makes, and the one the session is in already, writing nothing', async () => {
+  const t = terminal()
+
+  twoProjects(t)
+
+  const paths = seedMoving(t)
+
+  expect(await t.run('move', 'Fabrikam', ...SESSION)).toEqual({
+    exit: EXIT.refused,
+    out: '',
+    err: 'sitrep: There is no project named Fabrikam.\n',
+  })
+  expect((await t.run('move', 'north-wind', ...SESSION)).err).toBe(
+    'sitrep: Help desk redesign is in Northwind already.\n',
+  )
+  expect((await t.run('move', '-!-', ...SESSION)).exit).toBe(EXIT.refused)
+  expect((await t.run('move', 'Contoso', '--session', 'sr-zzzzzz')).exit).toBe(EXIT.noSession)
+  expect(t.files.has(paths.log(WRITER))).toBe(false)
+
+  await t.run('move', 'Contoso', ...SESSION)
+
+  expect((await t.run('move', 'Contoso', ...SESSION)).err).toBe(
+    'sitrep: Help desk redesign is in Contoso already.\n',
+  )
+  expect(await t.run('move', 'Northwind', ...SESSION), 'and back again').toMatchObject({
+    exit: EXIT.done,
+  })
+  expect(await listedIds(t)).toEqual([
+    [PROJECT.key, [META.id]],
+    [ELSEWHERE.key, [LOBBY.id]],
+  ])
+})
+
 /** When the snoozes under test wake: an hour after the CLI runs. */
 const WAKES = NOW + 60 * MIN
 
@@ -641,7 +739,7 @@ test('help: every command in brief, how a session is named, and the exit codes',
     '  sitrep ask <title> --wants yes|choice|words [--yes <label>] [--option <choice>]... [--recommended <choice>] [--needs <words>] [--where <words>] [--ref <ref>]\n',
   )
   expect(out).toContain(
-    '  sitrep answer <ask> (<answer> | --ignore)\n  sitrep snooze <ask>... [--until <ms>]\n  sitrep wake\n  sitrep finish\n',
+    '  sitrep answer <ask> (<answer> | --ignore)\n  sitrep snooze <ask>... [--until <ms>]\n  sitrep wake\n  sitrep finish\n  sitrep move <project>\n',
   )
   expect(out).toContain('  sitrep list [--project <name>] [--json]\n  sitrep watch\n')
   expect(out).toContain('--session sr-xxxxxx, else $SITREP_SESSION')

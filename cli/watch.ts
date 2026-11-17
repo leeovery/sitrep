@@ -92,7 +92,9 @@ const folded = (key: string, files: SessionFiles, now: number, pauses: readonly 
 /**
  * The board, read at each look again only where it changed, as the look
  * says. No heartbeat ages through `clock`'s pauses. A session's board is
- * found by its id alone, in the first project filing one by it that folds.
+ * found by its id alone, in the first project filing one by it that folds:
+ * as it was folded, in its folder's project, or, for one moved to another
+ * project, made again under that project at each look.
  */
 const boardReader = (io: Io, root: string) => {
   let kept = new Map<string, Kept>()
@@ -126,8 +128,10 @@ const boardReader = (io: Io, root: string) => {
     byId = new Map()
 
     for (const { project, sessions } of read) {
-      for (const { id } of sessions.filter(each => !byId.has(each.id))) {
-        byId.set(id, kept.get(`${project.key}/${id}`)?.board)
+      for (const session of sessions.filter(each => !byId.has(each.id))) {
+        const own = kept.get(`${project.key}/${session.id}`)?.board
+
+        byId.set(session.id, own ?? heldBoard(project.key, session))
       }
     }
 

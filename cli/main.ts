@@ -27,7 +27,7 @@ import {
   type ProjectsCommand,
   type SessionCommand,
 } from './commands'
-import { findSession, readProjects, sessionsIn, textAt, type Found } from './files'
+import { findSession, readBoardAt, readProjects, textAt, type Found } from './files'
 import { commandHelp, HELP } from './help'
 import type { Env, Io } from './io'
 import { watch } from './watch'
@@ -132,11 +132,20 @@ const told = (io: Io, acted: Checked<string>) => {
 const fileFor = ({ paths }: Found, command: SessionCommand) =>
   command.into === 'inbox' ? paths.letters(WRITER) : paths.log(WRITER)
 
-/** What every session of the found session's project parked, for a command that reads its project; none for any other. */
-const parkedFor = async (io: Io, command: SessionCommand, { project }: Found, now: number) =>
-  command.readsProject === true
-    ? projectParked((await sessionsIn(io, rootOf(io.env), project, now)).flatMap(parkedBy))
-    : []
+/** What a command that reads the board is given of it: what every session filed under the found session's project parked, and the projects on it; none for any other. */
+const boardFor = async (io: Io, command: SessionCommand, { project }: Found, now: number) => {
+  if (command.readsBoard !== true) {
+    return { parked: [], projects: [] }
+  }
+
+  const read = await readBoardAt(io, rootOf(io.env), now)
+  const sessions = read.find(each => each.project.key === project)?.sessions ?? []
+
+  return {
+    parked: projectParked(sessions.flatMap(parkedBy)),
+    projects: read.map(each => each.project),
+  }
+}
 
 /** A command on a session: the session read, its checks, and its lines appended, dated as they are written. */
 const onSession = async (io: Io, command: SessionCommand, input: Fields) => {
@@ -148,8 +157,8 @@ const onSession = async (io: Io, command: SessionCommand, input: Fields) => {
   }
 
   const version = manifestVersion((await textAt(io, io.manifest)) ?? '')
-  const parked = await parkedFor(io, command, found, now)
-  const acted = command.act(found, input, { random: io.random, version, now, parked })
+  const board = await boardFor(io, command, found, now)
+  const acted = command.act(found, input, { random: io.random, version, now, ...board })
 
   if (!acted.ok) {
     return fail(io, EXIT.refused, acted.error)

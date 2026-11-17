@@ -9,7 +9,7 @@
  */
 import { isTime } from './entries'
 import { isSessionId, newItemId, type Random } from './ids'
-import { directoryOf, isNameable } from './project'
+import { directoryOf, isNameable, type Project } from './project'
 import { offeredAs, readOptions, unmarked } from './recommended'
 import { needsReload } from './release'
 import { waitingOnLee, waitsOnLee, yesOf } from './replies'
@@ -25,6 +25,7 @@ import {
   type EditBody,
   type FinishBody,
   type Finisher,
+  type MoveBody,
   type Item,
   type ParkBody,
   type Parked,
@@ -277,6 +278,34 @@ export const checkProject = (input: unknown): Checked<ProjectChange> => {
     ? refuse('Give the project a new name, a directory, or both.')
     : ok({ name, directory: directory.value })
 }
+
+/** Where a session moves: its project's name, and its directory where a new project is made of it. */
+export type MoveFields = { project: string; directory?: string }
+
+/** A session moved to another project: named as Lee would say it, with its directory once known. */
+export const checkMove = (input: unknown): Checked<MoveFields> => {
+  const fields = fieldsOf(input)
+  const project = projectNameOf(fields.project)
+  const directory = directoryIn(fields.directory)
+
+  if (project === undefined) {
+    return refuse(
+      'Name the project to move the session to: its name as Lee would say it, such as SitRep or Switchboard.',
+    )
+  }
+
+  return directory.ok ? ok({ project, directory: directory.value }) : directory
+}
+
+/** The line moving a session from the project `from` names, by key, to the project `to`; the project it is in already is refused. */
+export const checkMoveTo = (
+  session: Pick<Session, 'status'>,
+  from: string,
+  to: Pick<Project, 'key' | 'name'>,
+): Checked<MoveBody> =>
+  to.key === from
+    ? refuse(`${session.status.name} is in ${to.name} already.`)
+    : ok({ type: 'move', project: to.key })
 
 /** The session to join, by its id. */
 export const checkJoin = (input: unknown): Checked<{ session: string }> => {

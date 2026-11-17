@@ -86,6 +86,7 @@ const LINES: [tool: string, input: { [key: string]: unknown }, line: string][] =
     { name: 'Trey Research', directory: '/Users/me/trey-research' },
     'project renamed: Trey Research · project lives in /Users/me/trey-research',
   ],
+  ['move', { project: 'Trey Research' }, 'moved to Trey Research'],
   ['board', {}, 'read the board back'],
 ]
 

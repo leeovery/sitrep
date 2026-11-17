@@ -224,6 +224,109 @@ vanished from every view, though still stored.
   parked: its Claude was given `Pick up from parked, Build Mint's Rail
   look's: …`, Parked went from 11 to 10, and no old session came back.
 
+**A session moves to another project at Lee's word** (17 November 2026).
+A session started under a client's general project, and Lee asked it to
+move everything into a narrower one, for one of that client's apps. It
+could not: no tool moved a session, and the `project` tool renames a
+project, never moves a session out of one. So it started a new session
+there, and left the old one and its items behind. Agreed with Lee that
+day:
+
+- **Claude moves the session it holds, at Lee's word**, with the `move`
+  tool, to a project named as Lee says it: one on the board, matched as
+  `start` matches one, by its name, case, spaces and punctuation aside;
+  else a new one, made of the name, with its directory once known, as
+  `start` makes one. A directory given is recorded for a project that has
+  none. The project it is in already is refused (`Help desk redesign is in
+  Northwind already.`), as is a call with no session held. Renaming stays
+  the `project` tool's and moving the `move` tool's: one changes what a
+  project is called, the other which project a session is on. The CLI
+  moves one too, into a project on the board (`sitrep move`, under "One
+  engine, two front ends").
+- **The session goes whole**: its asks, what it parked, its status, its
+  history and what was resolved. It is the same session, by the same id, in
+  its new project's views, the first message's listing, the CLI's `list`
+  and `board`, and SitRep's rows; what it parked is its new project's, and
+  its own view and Claude's board text list the new project's parked items.
+  The old project keeps nothing of it: no view of it lists the session or
+  what it parked, and one left with no current session and nothing parked
+  drops out of the lists, as any such project does.
+- **Nothing moves on disk.** A session's folder is the one it was started
+  in, `projects/<key>/sessions/<id>/`, for good. A move is a line, `{
+  "type": "move", "project": "trey-research" }`, which the mover appends to
+  its own file there, naming the project by its key (see Storage). A
+  session's project is the one its latest move names, in the order every
+  reader reads lines, where that project's folder is on the board; else its
+  folder's. Every reader folds each session it shows, so each files the
+  session by its own lines, under the project they name now, and names its
+  project as the board names that one.
+  - Why not move the folder: a mod's `$.fs` can neither rename nor delete,
+    so a move could only copy the files, and every window holding the
+    session rewrites its whole file from what it holds, at the place its
+    hold names. Until each had heard of the move, its lines, a delivered
+    mark among them, would land in the old folder, and every reader would
+    have to read both folders as one session, as the two layouts were read
+    from 19 to 27 October 2026, and as moving parked items to their project
+    was set aside for (11 November 2026). A line moves nothing: no line can
+    be written to the wrong place, no reader can catch a folder half moved,
+    and a writer appending as the session moves appends where the session is
+    read from, before the move and after it.
+  - A reader mid-move has nothing to recover from: it files the session
+    under its old project until it reads the line, and under the new one
+    from then, one decision from one fold, never in both and never in
+    neither. Two moves at once both land, and the later in that order wins,
+    in every reader.
+- **A session's files are found by its id.** Its folder no longer always
+  names its project, so wherever a window reads or writes a session by what
+  it holds (its hold, a reply queued for one, a pick-up's session, the
+  session its board shows), it finds the folder by the session's id: the
+  folder of the project it names, where the session's `session.json` reads
+  there, else whichever project's folder files the id, as `join` finds one.
+  So a reply queued before the move, under the old project, and one queued
+  after it, under the new, both land in the one folder. The CLI found every
+  session by its id already.
+- **The windows holding it follow.** Each folds its session at its watch's
+  look, every 1.5 seconds, and at each of Claude's calls; once the fold
+  files it under another project than the hold names, the window takes it up
+  there: its hold names the new project (`$.state.attachment`), and so do
+  Ready to send's replies to the session's own items, the board's place on
+  the session, and the item Lee is answering in the prompt, where it is the
+  session's; a pick-up of the old project's other sessions' items leaves
+  Ready to send, a toast saying so, as when a window takes up a session of
+  another project (see "A window that changes project", under Delivery); and
+  it reads the sessions around again. Its own file, its heartbeat and the
+  inbox stay where they were, so it posts, beats and delivers on with no
+  rejoin, and Claude carries on. A message the window claimed is matched to
+  its hold by the session and the writer alone, the project no longer
+  among them, so one claimed before the move is written down through the
+  hold after it, never beside it. A window that joins the session later,
+  or takes it up as its conversation resumes, holds it in its new project
+  from its first fold.
+- **What is in flight goes on.** A reply in the session's inbox waits there,
+  in its folder, and is delivered as any; a send to the session from its own
+  window is written down through the hold. A pick-up of one of its parked
+  items pressed in another window, while the item was that window's
+  project's, still goes to that window's Claude, as it was pressed, and is
+  written down in the session that parked it, found by its id.
+- **SitRep follows at its next line.** `watch` files the session as every
+  reader does, so the line after its look has it under the new project: its
+  row's project and letters, its windows' project, and its board's
+  `project`. No field changes and `v` does not move; the jump goes by the
+  session and its windows, which move nowhere. Nothing in the app changes.
+- **Older builds.** A build from before skips the `move` line, as it skips
+  any kind it does not know, and files the session under its folder: a
+  window not yet reloaded shows it in its old project until it reloads, and
+  posts on into its folder, where every reader reads it. A build switched
+  back to after a move (`app/plugin app` after a live test) finds its hold
+  naming the new project, where the session has no folder: as for a session
+  whose `session.json` is gone, its tools refuse until Claude joins the
+  session again by its id, and it writes no line there, as it writes none
+  into a session that does not fold. Its heartbeat leaves a folder with no
+  `session.json` there, which every reader passes over.
+- **Only at Lee's word.** The tool's description and the board's guide
+  tell Claude to move a session only when Lee says to, and never to start a
+  new session in its place.
+
 **Two windows are two sessions** (16 October 2026). Two terminals on one
 tmux session show one window twice, and the jump picks either. If two
 windows ever join one session, it shows once, with the more urgent state,
@@ -488,7 +591,8 @@ orchestrator decides what reaches the board.
 | `park` | park something to come back to, on the attached session's project |
 | `resolve` / `reopen` / `edit` | close, reopen or correct an item, with a reason. Resolving what Lee closed, an ask he answered or ignored or a parked item he picked up, passes quietly, changing nothing (below). An edit takes an item's one line as `text` or `title` alike, whatever the item, and may change what an ask wants, its `yes`, `options`, `recommended` and `needs`, under the checks `ask` makes for what it changes (see Storage); an empty `needs` or `recommended` clears it. An item of the attached session, or a parked item another session of its project parked, named with that session's id (`session`) and written into that session, in this window's own file there; another session's ask, or a session of another project, is refused |
 | `finish` | finish the attached session, with a reason, once it is complete and nothing is left on it; what it parked stays its project's and holds no finish back. The window stays attached, and joining it again reopens it |
-| `project` | rename the attached session's project, or say where it lives, or both; a name another project has is refused. It never moves a session to another project |
+| `project` | rename the attached session's project, or say where it lives, or both; a name another project has is refused. It never moves a session to another project: `move` does |
+| `move` | move the attached session, whole, to another project, at Lee's word: one on the board whose name matches, as `start` matches one, else a new one, with its directory once known; the project it is in already is refused. Every window holding it follows (17 November 2026; see "A session moves to another project at Lee's word") |
 | `board` | read back the board's open items, what each ask wants back among them (`k1 wants a yes (Go)`), and the project's parked items, so Claude can check and repair it |
 
 **When to start a session**, in every conversation's first message
@@ -521,6 +625,10 @@ and named it in internal shorthand):
   ended "It's ready for you to release", its status emptied and no ask
   posted, though its guide was in front of it; it read the ask rule as one
   for questions alone).
+- Move a session to another project only at Lee's word, with `move`: the
+  whole session goes, and no new one is started in its place (17 November
+  2026: asked to move everything into another project, a session started a
+  new one there, its old one and its items left behind).
 - Item and session ids are Claude's alone: Lee sees none anywhere in
   SitRep, so Claude never names one to him, and names an ask, a parked item
   or a session by its words (6 November 2026; Lee: "I have no visibility on
@@ -2883,6 +2991,14 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
 - **Session id:** `sr-` and six characters (`sr-k3f9qa`): short enough for
   Claude to record, and easy to grep. Items and replies get four characters,
   unique within their session. A new session's id is unlike every one filed.
+- **A session's folder** is under the project it was started in, for good
+  (17 November 2026; see "A session moves to another project at Lee's
+  word"). Its project is the one its latest `move` line names, where that
+  project's folder is on the board, else its folder's; the session is named
+  by that project, as the board names it. Whatever reads or writes a
+  session by its project and id finds its folder by the id: under the
+  project named, where its `session.json` reads there, else under whichever
+  project files the id.
 - **Two layouts, side by side, 19 to 27 October 2026.** `works/` became
   `sessions/` and `work.json` `session.json` with the words, as "Versions
   side by side" has it. While windows not yet reloaded still wrote the old,
@@ -3002,7 +3118,10 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   `edit`, each naming an item; `reply`, Lee's answer to one; `delivered`,
   naming the replies Claude has been given; `finish`, the session finished,
   saying who (`lee` or `claude`) and with an optional reason; `unfinish`, a
-  window joining it again; and `snoozeSession`, Lee's snooze of the session
+  window joining it again; `move` (17 November 2026), the session moved to
+  another project, named by its key (`project`), which reads as a folder's
+  name, letters, digits, `-` and `_`, or the line is a bad one, so no reader
+  makes a path of it; and `snoozeSession`, Lee's snooze of the session
   until a time (`until`), and `wakeSession`, Lee's waking of it now, Lee's
   alone and written to the writer's own file, never an inbox (13 November
   2026; see "Snooze"), which `snooze` and `wake` of an ask (23 October 2026)
@@ -3554,6 +3673,7 @@ truth. There is still no background service. None of it is built now. Lee:
   sitrep snooze <ask>... --until <ms>
   sitrep wake
   sitrep finish
+  sitrep move <project>
   sitrep board [--json]
   sitrep list [--project <name>] [--json]
   sitrep watch
@@ -3860,6 +3980,20 @@ truth. There is still no background service. None of it is built now. Lee:
     redesign is open in a window: tell Claude there to finish it.`), as is
     one already finished (`This session is already finished.`); an unknown
     one is exit 2.
+  - `move` (17 November 2026) moves a session to another project on the
+    board, as Claude's `move` tool does (see "A session moves to another
+    project at Lee's word"): the project's name, matched as `start` matches
+    one, the last argument taking every word left (`sitrep move Trey
+    Research --session sr-k3f9qa`). One line in the CLI's own file; it
+    prints nothing. It makes no project: a name no project has is refused
+    (`There is no project named Contoso.`), as `list --project` refuses one,
+    since the CLI writes nothing but its own files, by appending, and a
+    project's file is written whole; Claude's `move` makes one. The project
+    the session is in already is refused (`Help desk redesign is in
+    Northwind already.`). A session a live window holds moves all the same:
+    the window follows it. `board`, `park` and `move` read every project, as
+    the session's project is whichever its lines name, its parked items
+    among those of every session filed under it.
   - `jump` (13 October to 10 November 2026) brought the terminal window
     showing the session to the front, on whatever Space it was (see "The
     jump"), and printed nothing. A session no jump could reach was refused

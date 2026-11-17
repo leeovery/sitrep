@@ -43,6 +43,7 @@ const SAID: Record<ToolName, (input: Input, name: string | undefined) => string>
   edit: (_, name = 'an item') => `edited: ${name}`,
   finish: (_, name) => (name === undefined ? '✓ finished a session' : `✓ finished: ${name}`),
   project: projectSaid,
+  move: input => `moved to ${text(input.project)}`,
   board: () => 'read the board back',
 }
 

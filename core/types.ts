@@ -143,6 +143,9 @@ export type FinishBody = { type: 'finish'; who: Finisher; reason?: string }
 /** Takes a finished session up again: a window joined it. */
 export type UnfinishBody = { type: 'unfinish' }
 
+/** Moves the session to another project, by its key: the session's folder stays where it was started. */
+export type MoveBody = { type: 'move'; project: string }
+
 /**
  * Lee's snooze of the session: everything it needs of Lee, the asks waiting
  * on him as it is written, by their ids (`asks`), and its turn, put off until
@@ -192,6 +195,7 @@ export type Body =
   | DeliveredBody
   | FinishBody
   | UnfinishBody
+  | MoveBody
   | SnoozeSessionBody
   | WakeSessionBody
   | SnoozeBody
@@ -436,6 +440,8 @@ export type Session = {
   waiting: number
   /** Set once the session is finished, until a window joins it again. */
   finished?: Finished
+  /** The project its latest move names, by key; none for one never moved. Whether it is filed there is filing.ts's to say. */
+  movedTo?: string
   /** Lee's latest snooze of the session, until a line wakes it, and none while an ask it does not hold waits on Lee: it holds while its time is to come (`snoozedUntilOf`). */
   snooze?: SessionSnooze
   /** When Lee's latest snooze of the session runs out, while an ask it does not hold waits on Lee and sets it aside: then it stands again, run out, its asks woken. `UNTIL_IT_MOVES` for one with no time, which never runs out. */

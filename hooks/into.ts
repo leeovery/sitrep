@@ -11,13 +11,13 @@ import {
   append,
   foldSession,
   parseEntries,
-  sessionPaths,
   type Body,
   type Entry,
   type Session,
 } from '../core'
 import type { SitrepSessionRef } from '../types'
 import { rootFor, type Host } from './host'
+import { pathsOf } from './projects'
 import { createReader, ownText } from './reader'
 import { attached, heldLines, isHoldOn, refresh, serially } from './window'
 
@@ -30,13 +30,10 @@ export type LinesOf = (session: Session, own: readonly Entry[]) => readonly Body
 /** How the hold posts lines made from the held session: as lines Claude knows of, or as a change it did not make. */
 export type PostHeld = (session: Session, bodies: readonly Body[]) => Promise<unknown>
 
-/** Writes what `linesOf` makes of the session as it stands, nothing when it makes none; false when the session no longer folds. */
-export const writeInto = async (
-  host: Host,
-  { project, session: id, writer }: Into,
-  linesOf: LinesOf,
-) => {
-  const paths = sessionPaths(await rootFor(host), project, id)
+/** Writes what `linesOf` makes of the session as it stands, its folder found by its id, nothing when it makes none; false when the session no longer folds. */
+export const writeInto = async (host: Host, into: Into, linesOf: LinesOf) => {
+  const { writer } = into
+  const paths = await pathsOf(host, await rootFor(host), into)
   const [text, files, now] = await Promise.all([
     ownText(host, paths.log(writer)),
     createReader()(host, paths),

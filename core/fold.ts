@@ -102,6 +102,8 @@ type Fold = {
   early: Map<string, number>
   ids: Set<string>
   finished?: Finished
+  /** The project the latest move names, by key. */
+  movedTo?: string
   /** The status changes as derived, the oldest first. */
   history: StatusLine[]
   /** The replies carried in flight that reached their items on their way. */
@@ -580,6 +582,10 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
     fold.finished = undefined
   },
 
+  move: (fold, { project }) => {
+    fold.movedTo = project
+  },
+
   snoozeSession: (fold, { until, asks, at }) =>
     snoozeSession(fold.asleep, until ?? UNTIL_IT_MOVES, asks, at),
 
@@ -827,6 +833,7 @@ export const foldSession = (
     deliverer: deliverer(presence, now),
     waiting: waitingOnLee({ asks, finished: fold.finished }).length,
     finished: fold.finished,
+    movedTo: fold.movedTo,
     snooze,
     asideUntil,
     turnSnooze,

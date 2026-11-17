@@ -13,15 +13,19 @@ import {
   checkAnswer,
   checkAsk,
   checkFinish,
+  checkMove,
+  checkMoveTo,
   checkPark,
   checkSnooze,
   checkStatus,
   checkWake,
+  projectNamed,
   WANTS,
   withId,
   withParkId,
   type Body,
   type Checked,
+  type Project,
   type ProjectParked,
   type ProjectSessions,
   type Random,
@@ -39,14 +43,15 @@ export type Outcome = { post: Body[]; print: string }
 /**
  * What a command on a session is given beyond its words: random bytes, the
  * version the CLI runs, as its plugin's manifest says it, where that reads,
- * the time the session was read at, and, for one that reads its project,
- * what every session of the project parked.
+ * the time the session was read at, and, for one that reads the board, what
+ * every session of the session's project parked, and the projects on it.
  */
 export type Given = {
   random: Random
   version: string | undefined
   now: number
   parked: readonly ProjectParked[]
+  projects: readonly Project[]
 }
 
 type About = { name: string; about: string; grammar: Grammar }
@@ -55,8 +60,8 @@ export type SessionCommand = About & {
   on: 'session'
   /** Where its lines go: the CLI's own file in the session, unless they are an answer, for the session's inbox. */
   into?: 'inbox'
-  /** Whether it reads every session of the session's project too, for what they parked. */
-  readsProject?: true
+  /** Whether it reads every project too: for what every session filed under the session's project parked, and the projects a move names. */
+  readsBoard?: true
   act: (filed: Filed, input: Fields, given: Given) => Checked<Outcome>
 }
 
@@ -176,7 +181,7 @@ const park: SessionCommand = {
   about: 'Park something raised and put off, to come back to. Prints its id.',
   grammar: { args: [{ field: 'title', about: LINE }], flags: { ...WHERE, ...REF, ...SESSION } },
   on: 'session',
-  readsProject: true,
+  readsBoard: true,
   act: ({ session }, input, { random, parked }) =>
     posted(withParkId(checkPark(input), session, parked, random), idOf),
 }
@@ -209,7 +214,7 @@ const board: SessionCommand = {
     "Print the board: its status, open asks and the project's parked items, with their ids. With --json, the session alone: its open asks, the items it parked itself, its latest status changes and its resolved asks.",
   grammar: { args: [], flags: { ...JSON_OUT, ...SESSION } },
   on: 'session',
-  readsProject: true,
+  readsBoard: true,
   act: ({ project, session }, input, { parked }) => ({
     ok: true,
     value: {
@@ -295,6 +300,31 @@ const finish: SessionCommand = {
   },
 }
 
+const move: SessionCommand = {
+  name: 'move',
+  about:
+    "Move a session to another project on the board, as Claude does at Lee's word: the whole session goes, and every window holding it follows. It makes no project. One line in the CLI's own file. Prints nothing.",
+  grammar: {
+    args: [{ field: 'project', about: "the project's name, matched as start matches it" }],
+    flags: { ...SESSION },
+  },
+  on: 'session',
+  readsBoard: true,
+  act: ({ project, session }, input, { projects }) => {
+    const checked = checkMove(input)
+
+    if (!checked.ok) {
+      return checked
+    }
+
+    const to = projectNamed(projects, checked.value.project)
+
+    return to === undefined
+      ? { ok: false, error: `There is no project named ${checked.value.project}.` }
+      : quietly(checkMoveTo(session, project, to))
+  },
+}
+
 const list: ProjectsCommand = {
   name: 'list',
   about:
@@ -344,6 +374,7 @@ export const COMMANDS: readonly Command[] = [
   snooze,
   wake,
   finish,
+  move,
   board,
   list,
   watch,

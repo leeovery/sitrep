@@ -196,13 +196,15 @@ export type SitrepBoard = {
   deliverer?: string
   waiting: number
   finished?: SitrepFinished
+  /** The project its latest move names, by key: core's `movedTo`. */
+  movedTo?: string
   ids: string[]
   updatedAt: number
 }
 
 /** The session this window is attached to, and as whom. */
 export type SitrepAttachment = {
-  /** The project's key: the folder its sessions are under. */
+  /** The key of the project it is filed under; its files are found by its id, in the folder it was started in. */
   project: string
   session: string
   /** Claude Code's session id the window attached as: its file and heartbeat in the session. */
@@ -210,7 +212,7 @@ export type SitrepAttachment = {
   attachedAt: number
 }
 
-/** A session as it is filed: its project's key, and its id. */
+/** A session as it is filed: its project's key, as it stood when the ref was made, and its id, which finds its files. */
 export type SitrepSessionRef = {
   project: string
   session: string

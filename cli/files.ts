@@ -1,9 +1,12 @@
 /**
- * Reading sitrep's folder, as the CLI does at each run: a session
- * found by its id in whichever project files it, and every project with
- * the sessions filed under it.
+ * Reading sitrep's folder, as the CLI does at each run: a session found by
+ * its id in whichever project's folder holds it, and every project with the
+ * sessions filed under it: those in its folder, but those moved to another
+ * project since, and those moved to it (core's filing.ts).
  */
 import {
+  filedAs,
+  filedUnder,
   foldSession,
   isSafeName,
   isSessionId,
@@ -15,6 +18,7 @@ import {
   projectPaths,
   projectsDir,
   recordedName,
+  refiled,
   summarise,
   sessionPaths,
   sessionsDir,
@@ -27,7 +31,7 @@ import {
 } from '../core'
 import type { Io, Listed } from './io'
 
-/** A session as found: the project it is filed under, its paths and files, and the session they fold to. */
+/** A session as found: the project it is filed under, its paths and files, and the session they fold to, named by that project. */
 export type Found = { project: string; paths: SessionPaths; files: SessionFiles; session: Session }
 
 const foldersIn = async (io: Io, dir: string) =>
@@ -106,20 +110,45 @@ export const readSession = async (io: Io, paths: SessionPaths): Promise<SessionF
   return { ...folder, project }
 }
 
-/** A session by its id, as it stands at `now`, in whichever project files it; undefined when none does. */
+/** A project as its folder has it, its sessions' metas read only where it has no file; undefined for a folder with neither. */
+const projectAt = async (io: Io, root: string, key: string) => {
+  const file = parseProject((await textAt(io, projectPaths(root, key).file)) ?? '')
+  const metas = async () =>
+    Promise.all(
+      (await sessionsFiled(io, root, key)).map(async id =>
+        parseMeta((await textAt(io, sessionPaths(root, key, id).meta)) ?? ''),
+      ),
+    )
+
+  return projectFrom(key, file, file === undefined ? recordedName(await metas()) : undefined)
+}
+
+/** A session as found in its folder, under the project it is filed under among the project folders `keys`, named by that project. */
+const filedFound = async (io: Io, root: string, keys: readonly string[], found: Found) => {
+  const project = filedUnder(found.project, found.session, key => keys.includes(key))
+  const named = project === found.project ? undefined : await projectAt(io, root, project)
+
+  return named === undefined
+    ? found
+    : { ...found, project, session: filedAs(found.session, named.name) }
+}
+
+/** A session by its id, as it stands at `now`, in whichever project's folder holds it, under the project it is filed under; undefined when none holds it. */
 export const findSession = async (
   io: Io,
   root: string,
   id: string,
   now: number,
 ): Promise<Found | undefined> => {
-  for (const project of await projectKeys(io, root)) {
+  const keys = await projectKeys(io, root)
+
+  for (const project of keys) {
     const paths = sessionPaths(root, project, id)
     const files = await readSession(io, paths)
     const session = foldSession(files, now)
 
     if (session !== undefined) {
-      return { project, paths, files, session }
+      return filedFound(io, root, keys, { project, paths, files, session })
     }
   }
 
@@ -141,7 +170,7 @@ const readAt =
     return { files, session: foldSession(files, now) }
   }
 
-/** A project and its sessions, each read by `read`, but those whose session.json is missing or torn; undefined for a folder with no file and no session. */
+/** A project and the sessions in its folder, each read by `read`, but those whose session.json is missing or torn; undefined for a folder with no file and no session. */
 const readProject = async (io: Io, root: string, key: string, read: SessionReader) => {
   const text = await textAt(io, projectPaths(root, key).file)
   const file = parseProject(text ?? '')
@@ -157,19 +186,23 @@ const readProject = async (io: Io, root: string, key: string, read: SessionReade
     : { project, sessions: sessions.flatMap(each => each.session ?? []) }
 }
 
-/** Every session filed under a project, as it stands at `now`. */
-export const sessionsIn = async (io: Io, root: string, key: string, now: number) =>
-  (await readProject(io, root, key, readAt(io, root, now)))?.sessions ?? []
-
-/** Every project, and the sessions filed under it, each read by `read`. */
+/** Every project, and the sessions filed under it, each read by `read` in its folder. */
 export const readBoard = async (
   io: Io,
   root: string,
   read: SessionReader,
 ): Promise<ProjectRead[]> =>
-  (
-    await Promise.all((await projectKeys(io, root)).map(key => readProject(io, root, key, read)))
-  ).filter(each => each !== undefined)
+  refiled(
+    (
+      await Promise.all(
+        (await projectKeys(io, root)).map(key => readProject(io, root, key, read)),
+      )
+    ).filter(each => each !== undefined),
+  )
+
+/** Every project, and the sessions filed under it, as they stand at `now`. */
+export const readBoardAt = (io: Io, root: string, now: number) =>
+  readBoard(io, root, readAt(io, root, now))
 
 /** Every project, with its sessions in brief as they stand at `now`. */
 export const readProjects = async (
@@ -177,7 +210,7 @@ export const readProjects = async (
   root: string,
   now: number,
 ): Promise<ProjectSessions[]> =>
-  (await readBoard(io, root, readAt(io, root, now))).map(({ project, sessions }) => ({
+  (await readBoardAt(io, root, now)).map(({ project, sessions }) => ({
     project,
     sessions: sessions.map(summarise),
   }))

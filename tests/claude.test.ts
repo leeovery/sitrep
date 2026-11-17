@@ -209,6 +209,9 @@ test('a conversation starts knowing how to keep the board and talk to Lee beside
   expect(guide).toContain(
     "Otherwise start one, naming its project as Lee would say it (SitRep, Switchboard), by the name it has on the board when it is one there, and giving the project's directory once you know it.",
   )
+  expect(guide, 'a move, only at Lee’s word, and the whole session').toContain(
+    'Move a session to another project only when Lee says to, with the sitrep move tool: the whole session goes, so never start a new one in its place.',
+  )
   expect(guide).toContain(
     'Item and session ids are yours alone: Lee sees none of them on the board or in the app, so never name one to him. Name an ask, a parked item or a session by its words.',
   )

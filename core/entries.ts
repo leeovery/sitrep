@@ -7,6 +7,7 @@
  * skipped, and the rest stands. A line of a past version is read in today's
  * shape (see versions.ts).
  */
+import { isSafeName } from './paths'
 import { ASK_KINDS, WANTS } from './shapes'
 import type { AskKind, Body, Entry, Finisher, SentReply, Verdict, Wants } from './types'
 import { upgraded, versionOf, type Raw, type Upgrade } from './versions'
@@ -71,6 +72,8 @@ const isWants: Check = value => WANTS.includes(value as Wants)
 const isAskKind: Check = value => ASK_KINDS.includes(value as AskKind)
 const isVerdict: Check = value => VERDICTS.includes(value as Verdict)
 const isFinisher: Check = value => FINISHERS.includes(value as Finisher)
+/** A project's key as a folder's name, so no reader makes a path of one that climbs out of its folder. */
+const isKey: Check = value => typeof value === 'string' && isSafeName(value)
 const maybe =
   (check: Check): Check =>
   value =>
@@ -132,6 +135,7 @@ const SHAPES: { [T in Body['type']]: Record<string, Check> } = {
   delivered: { replies: isTexts },
   finish: { who: isFinisher, reason: maybe(isText) },
   unfinish: {},
+  move: { project: isKey },
   snoozeSession: { until: maybe(isTime), asks: isTexts },
   wakeSession: {},
   snooze: { item: isText, until: isTime },
