@@ -59,7 +59,7 @@ struct StripSectionsTests {
         let mark = try #require(lab.frame.marks.first { $0.key == .count(section) })
 
         #expect(count.isFolded && count.held == held)
-        #expect(lab.model.layout.places.allSatisfy { !held.contains($0.id) })
+        expectEvery(lab.model.layout.places) { !held.contains($0.id) }
         #expect(mark.text == "\(held.count)" && mark.look == look)
     }
 
@@ -74,7 +74,7 @@ struct StripSectionsTests {
 
         var lab = StripLab(length: .grows, maxMarks: 6)
         lab.settle()
-        #expect(lab.model.layout.places.allSatisfy { $0.id != "s7" && $0.id != "s8" })
+        expectEvery(lab.model.layout.places) { $0.id != "s7" && $0.id != "s8" }
         #expect(try #require(lab.frame.marks.first { $0.key == .count(.working) }).text == "2")
         lab.fold(.working)
         lab.settle()
@@ -178,7 +178,7 @@ struct StripSectionsTests {
         let looks = Self.snoozedMarks.map { id in lab.frame.marks.first { $0.key == .session(id) }?.look }
 
         #expect(looks == [.snoozed, .snoozedTurn, .snoozed])
-        #expect(looks.allSatisfy { $0?.need == nil && $0?.isAsleep == true })
+        expectEvery(looks) { $0?.need == nil && $0?.isAsleep == true }
         #expect(flash == 0)
     }
 
@@ -259,7 +259,8 @@ struct StripSectionsTests {
         lab.change(Self.woken("s9", .needs))
 
         let marks = lab.model.marks.filter { $0.key == .session("s9") }
-        #expect(marks.count == 1 && marks.allSatisfy { !$0.removing })
+        #expect(marks.count == 1)
+        expectEvery(marks) { !$0.removing }
         lab.settle()
         #expect(lab.model.mark(.session("s9"))?.op.x == 1)
     }
@@ -279,7 +280,8 @@ struct StripSectionsTests {
         lab.model.show(board, new: [])
 
         let marks = lab.model.marks.filter { $0.key == .session("snoozed:x") }
-        #expect(marks.count == 1 && marks.allSatisfy { !$0.removing })
+        #expect(marks.count == 1)
+        expectEvery(marks) { !$0.removing }
         lab.settle()
         #expect(lab.model.layout.y(of: "snoozed:x") != nil)
         #expect(lab.model.mark(.session("snoozed:x"))?.op.x == 1)
@@ -627,7 +629,7 @@ struct StripSectionsTests {
 
         #expect([shown[0], counted[0], shown[1], counted[1], shown[2], counted[2]] == expected)
         #expect(layout.places.count + layout.counts.count <= 6)
-        #expect(layout.counts.allSatisfy { $0.value.isFolded == folded.contains($0.key) })
+        #expect(layout.counts.filter { $0.value.isFolded != folded.contains($0.key) }.map(\.key) == [])
     }
 
     // MARK: Needs you folded

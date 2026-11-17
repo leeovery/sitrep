@@ -57,6 +57,7 @@ struct JumpTests {
         #expect(jumping.clock.sleeps.isEmpty)
     }
 
+    /// The pause is half a second, which was enough live where none was not.
     @Test(arguments: [
         [JumpWorld.woodgroveTerminal], [FakeTerminal(id: "SPLIT-TERMINAL", device: "/dev/ttys092"), JumpWorld.woodgroveTerminal],
     ])
@@ -66,12 +67,8 @@ struct JumpTests {
 
         #expect(await jumping.run([inTmux()]) == .jumped)
         #expect(jumping.ghostty.told == ["activate window TABBED-WINDOW", "focus WOODGROVE-TERMINAL"])
-        #expect(jumping.clock.sleeps == [GhosttyDriver.pause])
+        #expect(jumping.clock.sleeps == [.milliseconds(500)], "one pause, of half a second, before the focus")
         #expect(jumping.ghostty.asked == [JumpWorld.window])
-    }
-
-    @Test func thePauseBeforeFocusingATabNotSelectedIsHalfASecondWhichWasEnoughLiveWhereNoneWasNot() {
-        #expect(GhosttyDriver.pause == .milliseconds(500))
     }
 
     @Test func withNoClientOnTheSessionsTmuxServerTheTableGoesUnusedSoItGivingNoAnswerIsNoMatter() async {

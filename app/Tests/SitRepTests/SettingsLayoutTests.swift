@@ -133,14 +133,16 @@ struct SettingsLayoutTests {
     }
 
     /// The row's height at a width, measured in a window, its control the segmented Style.
-    private static func row(line: String?, width: CGFloat) throws -> (height: CGFloat, control: CGRect) {
+    private static func row(
+        line: String?, width: CGFloat, sourceLocation: SourceLocation = #_sourceLocation
+    ) throws -> (height: CGFloat, control: CGRect) {
         let row = CardRow(label: "Style", line: line) {
             Picker("Style", selection: .constant(0)) { Text("Meniscus").tag(0); Text("Card").tag(1) }
                 .pickerStyle(.segmented)
                 .labelsHidden()
         }
         let hosted = Hosted(row.fixedSize(horizontal: false, vertical: true), size: CGSize(width: width, height: 400))
-        let control = try #require(hosted.all(NSSegmentedControl.self).first)
+        let control = try #require(hosted.all(NSSegmentedControl.self).first, sourceLocation: sourceLocation)
         let height = NSHostingController(rootView: row).sizeThatFits(in: CGSize(width: width, height: 400)).height
 
         return (height, hosted.frame(of: control))
@@ -535,12 +537,12 @@ extension Drawn {
 
     /// The row of a card around a control at its right: from the hairline or the card's edge over it to the one under
     /// it, down the 8 of the gap between the control and the words.
-    func row(around control: CGRect) throws -> ClosedRange<CGFloat> {
+    func row(around control: CGRect, sourceLocation: SourceLocation = #_sourceLocation) throws -> ClosedRange<CGFloat> {
         let x = control.minX - 8
-        let card = try #require(litSpans(atX: x).first { $0.contains(control.midY) })
+        let card = try #require(litSpans(atX: x).first { $0.contains(control.midY) }, sourceLocation: sourceLocation)
         let bounds = [card.lowerBound] + lines(atX: x, in: card).flatMap { [$0.lowerBound, $0.upperBound] } + [card.upperBound]
-        let top = try #require(bounds.last { $0 <= control.minY })
-        let foot = try #require(bounds.first { $0 >= control.maxY })
+        let top = try #require(bounds.last { $0 <= control.minY }, sourceLocation: sourceLocation)
+        let foot = try #require(bounds.first { $0 >= control.maxY }, sourceLocation: sourceLocation)
 
         return top ... foot
     }

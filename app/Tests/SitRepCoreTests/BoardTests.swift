@@ -234,7 +234,7 @@ struct BoardTests {
             directory: "/Users/me/Code/wingtip/.claude/worktrees/x"
         ))
         #expect(board.resumeWindow(of: "sr-b") == Board.LastWindow(writer: "w3", ownsDevice: true))
-        #expect(try Board.read(Lines.pretty).windows.allSatisfy { $0.directory == nil }, "a line from before windows said it")
+        expectEvery(try Board.read(Lines.pretty).windows, "a line from before windows said it") { $0.directory == nil }
     }
 
     /// From a CLI before it, or in a shape that does not read, a session has none, and is named all the same.

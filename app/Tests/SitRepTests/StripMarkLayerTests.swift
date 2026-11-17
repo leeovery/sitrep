@@ -125,7 +125,7 @@ struct StripMarkLayerTests {
     }
 
     /// The runs of ink met going once round a mark's ring, 11.25 from its centre: a ring whole is one.
-    private static func dashes(_ drawn: Drawn) throws -> Int {
+    private static func dashes(_ drawn: Drawn, sourceLocation: SourceLocation = #_sourceLocation) throws -> Int {
         let centre = StripFrame.Mark.size / 2, radius = (StripFrame.Mark.size - 1.5) / 2
         let round = (0 ..< 720).map { step in
             let angle = Double(step) * .pi / 360
@@ -133,7 +133,7 @@ struct StripMarkLayerTests {
             return drawn.pixel(at: CGPoint(x: centre + radius * cos(angle), y: centre + radius * sin(angle)))?
                 .lightness ?? 0
         }
-        let lit = try #require(round.max()) / 2
+        let lit = try #require(round.max(), sourceLocation: sourceLocation) / 2
         let inked = round.map { $0 > lit }
         let starts = inked.indices.filter { inked[$0] && !inked[($0 + inked.count - 1) % inked.count] }
 
@@ -186,10 +186,10 @@ struct StripMarkLayerTests {
     }
 
     /// Where in its turn an arc's turn starts.
-    private static func offset(of arc: Arc) throws -> Double {
-        let key = try #require(arc.layer.animationKeys()?.first)
+    private static func offset(of arc: Arc, sourceLocation: SourceLocation = #_sourceLocation) throws -> Double {
+        let key = try #require(arc.layer.animationKeys()?.first, sourceLocation: sourceLocation)
 
-        return try #require(arc.layer.animation(forKey: key)?.timeOffset)
+        return try #require(arc.layer.animation(forKey: key)?.timeOffset, sourceLocation: sourceLocation)
     }
 
     @Test func aWorkingMarkComingToItsOwnWorkStopsTurning() {

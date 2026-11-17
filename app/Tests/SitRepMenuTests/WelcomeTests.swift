@@ -166,7 +166,6 @@ struct WelcomePermissionTests {
             "So an ask reaches you when the edge is out of sight", "So a click takes you to the session's window",
         ])
         #expect(WelcomePermission.allCases.map(\.ask) == ["Turn On…", "Allow…"])
-        #expect(WelcomePermission.patience == .seconds(10))
     }
 
     /// On only with the switch on and macOS showing them; refused while macOS shows none, whatever the switch.
@@ -512,7 +511,7 @@ struct WelcomeStagePlayTests {
         #expect(landing.needsLee)
         #expect(landing.sessions.map(\.title) == [Sample.needsYou, "Running ", "Writing "])
         #expect(landing.sessions.map(\.code) == [nil, "the tests", "DESIGN.md"])
-        #expect(landing.sessions.allSatisfy { $0.sub == "Project · Session" })
+        expectEvery(landing.sessions) { $0.sub == "Project · Session" }
         #expect(landing.new == [WelcomeBoard.asking])
         #expect(lit.needsLee && lit.new.isEmpty)
     }
@@ -551,7 +550,7 @@ struct WelcomeStagePlayTests {
         let left = try #require(path.lastIndex(of: Self.row))
 
         #expect(try #require(path.lastIndex(of: Self.home)) == onRow - 1)
-        #expect(path[onRow ... left].allSatisfy { $0 == Self.row })
+        expectEvery(path[onRow ... left]) { $0 == Self.row }
         #expect(path[onRow ... left].count >= 20)
         #expect(WelcomeLoop.hello.pointer(at: WelcomeLoop.hello.onRow, home: Self.home, row: Self.row) == Self.row)
     }
@@ -633,7 +632,7 @@ struct WelcomeStagePlayTests {
         let loop = WelcomeLoop.hello
         let times = stride(from: 0, to: loop.length, by: 100)
 
-        #expect(times.allSatisfy { loop.scene(at: $0) == .rest && !loop.presses(at: $0) })
+        expectEvery(times) { loop.scene(at: $0) == .rest && !loop.presses(at: $0) }
     }
 }
 

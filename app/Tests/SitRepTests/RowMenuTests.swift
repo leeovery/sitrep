@@ -117,7 +117,7 @@ struct RowMenuTests {
 
         #expect(Set(stops.map(\.tabStops)).count == 1)
         #expect(stops[0].tabStops.map(\.alignment) == [.right])
-        #expect(timed.allSatisfy { ink($0) == SnoozeMenu.dim })
+        expectEvery(timed) { ink($0) == SnoozeMenu.dim }
         #expect(ink(snooze.items[4]) == nil)
 
         snooze.menu(snooze, willHighlight: snooze.items[2])

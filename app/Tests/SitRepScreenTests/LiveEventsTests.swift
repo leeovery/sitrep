@@ -40,8 +40,12 @@ struct LiveEventsTests {
     }
 
     /// The app opened, not brought forward, once it has finished launching: its process.
-    private static func opened(_ bundle: String) async throws -> pid_t {
-        let url = try #require(NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundle))
+    private static func opened(
+        _ bundle: String, sourceLocation: SourceLocation = #_sourceLocation
+    ) async throws -> pid_t {
+        let url = try #require(
+            NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundle), sourceLocation: sourceLocation
+        )
         let configuration = NSWorkspace.OpenConfiguration()
 
         configuration.activates = false

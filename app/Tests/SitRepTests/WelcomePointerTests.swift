@@ -142,12 +142,14 @@ struct WelcomePointerTests {
 
     /// The stage's next frame as its own pacing brings it, on the test's clock: the link's next refresh while frames
     /// run, at the light's slower rate while only the light moves, or the loop's next beat, whichever comes first.
-    private static func paced(_ stage: StageEdge, on clock: Clock) throws {
+    private static func paced(
+        _ stage: StageEdge, on clock: Clock, sourceLocation: SourceLocation = #_sourceLocation
+    ) throws {
         let rate = stage.lastPace == .light ? 30.0 : 60
         let refresh = stage.isDrawing ? clock.now + 1000 / rate : nil
         let beat = stage.beat as? Clock.Wake
         let due = [refresh, beat?.due].compactMap(\.self).min()
-        let next = try #require(due, "the stage sleeps with no beat to wake it")
+        let next = try #require(due, "the stage sleeps with no beat to wake it", sourceLocation: sourceLocation)
 
         if let beat, beat.due == next {
             clock.fire(beat)
@@ -158,10 +160,14 @@ struct WelcomePointerTests {
     }
 
     /// What the stage's edge last drew lit, expected to be the ask's row alone, if anything.
-    private static func litOnlyByTheAsk(_ stage: StageEdge) -> Set<String> {
+    private static func litOnlyByTheAsk(
+        _ stage: StageEdge, sourceLocation: SourceLocation = #_sourceLocation
+    ) -> Set<String> {
         let lit = lit(stage)
 
-        #expect(lit.isSubset(of: [WelcomeBoard.asking]), "at \(Int(stage.loopTime)): \(lit)")
+        #expect(
+            lit.isSubset(of: [WelcomeBoard.asking]), "at \(Int(stage.loopTime)): \(lit)", sourceLocation: sourceLocation
+        )
         return lit
     }
 

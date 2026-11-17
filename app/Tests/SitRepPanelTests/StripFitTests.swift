@@ -55,8 +55,8 @@ struct StripFitTests {
         let mirrored = top.map { CGPoint(x: $0.x, y: bottom - ($0.y - menu)) }
 
         #expect(top.count == 8)
-        #expect(mirrored.allSatisfy { p in points.contains { abs($0.x - p.x) < 1e-9 && abs($0.y - p.y) < 1e-9 } })
-        #expect(points.allSatisfy { $0.y >= menu && $0.y <= bottom })
+        expectEvery(mirrored) { p in points.contains { abs($0.x - p.x) < 1e-9 && abs($0.y - p.y) < 1e-9 } }
+        expectEvery(points) { $0.y >= menu && $0.y <= bottom }
     }
 
     @Test func atFullUnderATallerMenuBarTheBottomEndIsStill26OverTheScreensBottom() {

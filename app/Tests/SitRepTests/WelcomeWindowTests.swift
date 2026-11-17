@@ -129,7 +129,7 @@ struct WelcomeWindowTests {
 
         #expect(!between(first).isEmpty)
         #expect(between(last).isEmpty)
-        #expect(pills.allSatisfy { abs($0.upperBound - 824) <= 0.5 })
+        expectEvery(pills) { abs($0.upperBound - 824) <= 0.5 }
         #expect(Self.width(pills[1]) < Self.width(pills[0]))
     }
 
@@ -140,7 +140,7 @@ struct WelcomeWindowTests {
 
         #expect(dashes.count == WelcomeSteps.all.count)
         #expect(dashes.count == 6)
-        #expect(zip(dashes.map(Self.width), [22.0, 10, 10, 10, 10, 10]).allSatisfy { abs($0 - $1) <= 0.5 })
+        expectEvery(zip(dashes.map(Self.width), [22.0, 10, 10, 10, 10, 10])) { abs($0 - $1) <= 0.5 }
     }
 
     @Test func continueGoesOnAndDoneClosesTheWindow() {

@@ -92,9 +92,13 @@ struct CardSectionsRunTests {
     }
 
     /// A press in the middle of the item drawn under this key.
-    private static func press(_ key: String, in run: NotchRun) throws -> NotchRun.Press? {
-        let panel = try #require(run.frame.panel)
-        let index = try #require(run.list.content.entries.firstIndex { $0.item.key == key })
+    private static func press(
+        _ key: String, in run: NotchRun, sourceLocation: SourceLocation = #_sourceLocation
+    ) throws -> NotchRun.Press? {
+        let panel = try #require(run.frame.panel, sourceLocation: sourceLocation)
+        let index = try #require(
+            run.list.content.entries.firstIndex { $0.item.key == key }, sourceLocation: sourceLocation
+        )
         let item = run.list.content.itemFrame(index), drawn = run.list.content.entries[index].item.box(width: item.width)
         let point = CGPoint(x: panel.frame.minX + item.midX, y: panel.frame.minY + item.minY + drawn.midY - run.scroll)
 
@@ -110,7 +114,7 @@ struct CardSectionsRunTests {
         #expect(run.folded.sections == [.working, .snoozed])
         #expect(Self.keys(run) == ["eyebrow:needsYou", "needs:sr-a", "needs:sr-b", "turn:sr-t", "eyebrow:working"])
         #expect(!run.isFolding(at: run.time))
-        #expect(run.list.content.entries.allSatisfy { $0.height == $0.item.height && $0.alpha == 1 })
+        expectEvery(run.list.content.entries) { $0.height == $0.item.height && $0.alpha == 1 }
         #expect(run.list.content.items.contains(.eyebrow(Eyebrow(section: .working, counts: [Eyebrow.Count(1)], isFolded: true, above: 14))))
 
         #expect(try Self.press("eyebrow:working", in: run) == .fold)
@@ -172,7 +176,8 @@ struct CardSectionsRunTests {
         #expect(run.folded.sections.isEmpty)
         #expect(kept.read().folded.isEmpty)
         #expect(Self.keys(run).prefix(4) == ["eyebrow:needsYou", "needs:sr-c", "needs:sr-a", "needs:sr-b"])
-        #expect(there.count == 2 && there.allSatisfy { $0.height == $0.item.height })
+        #expect(there.count == 2)
+        expectEvery(there) { $0.height == $0.item.height }
         #expect(arriving.height < arriving.item.height)
     }
 
@@ -211,7 +216,7 @@ struct CardSectionsRunTests {
         #expect(Self.keys(run) == shown)
         Self.frames(run, for: 2000, Self.onTheNotch)
         #expect(Self.keys(run) == shown)
-        #expect(run.list.content.items.dropFirst().allSatisfy { if case .line = $0 { true } else { false } })
+        expectEvery(run.list.content.items.dropFirst()) { if case .line = $0 { true } else { false } }
     }
 
     // MARK: Held places

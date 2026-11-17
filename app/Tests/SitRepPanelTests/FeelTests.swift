@@ -89,7 +89,7 @@ struct CardFeelTests {
         let responses = CardSpring.allCases.map { feel.sp($0).response / $0.listed.response }
 
         #expect(responses == [0.5, 0.5, 1, 2, 2, 1, 1])
-        #expect(CardSpring.allCases.allSatisfy { feel.sp($0).damping == min(1, $0.listed.damping) })
+        expectEvery(CardSpring.allCases) { feel.sp($0).damping == min(1, $0.listed.damping) }
     }
 }
 

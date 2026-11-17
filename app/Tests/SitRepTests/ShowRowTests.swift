@@ -32,22 +32,29 @@ struct ShowRowTests {
     /// Edge drawn, Notch chosen unless `change` says, over the raise's ground unless `ground` says, in a window
     /// (`atTwice()`).
     private static func page(
-        _ width: CGFloat, over ground: Color = raiseGround, _ change: (inout EdgeSettings) -> Void = { _ in }
+        _ width: CGFloat, over ground: Color = raiseGround, sourceLocation: SourceLocation = #_sourceLocation,
+        _ change: (inout EdgeSettings) -> Void = { _ in }
     ) async throws -> Drawn {
-        try await Hosted.drawn(.edge, width: width, over: ground, change).atTwice()
+        try await Hosted.drawn(.edge, width: width, over: ground, change).atTwice(sourceLocation: sourceLocation)
     }
 
     /// A view in a window over `ground`, laid out as the page is (`atTwice()`).
-    private static func inAWindow(_ view: some View, size: CGSize, over ground: Color = .black) throws -> Drawn {
-        try Drawn(Hosted(view.frame(width: size.width, height: size.height).background(ground), size: size).hosting).atTwice()
+    private static func inAWindow(
+        _ view: some View, size: CGSize, over ground: Color = .black, sourceLocation: SourceLocation = #_sourceLocation
+    ) throws -> Drawn {
+        let hosted = Hosted(view.frame(width: size.width, height: size.height).background(ground), size: size)
+
+        return try Drawn(hosted.hosting).atTwice(sourceLocation: sourceLocation)
     }
 
     /// Where the Show row draws nothing but the card's raise: under its label, clear of a line.
     private static let raisePoint = CGPoint(x: 30, y: top + 70)
 
     /// The card's raise.
-    private static func raise(_ drawn: Drawn) throws -> NSColor {
-        try #require(drawn.pixels(in: CGRect(origin: raisePoint, size: CGSize(width: 0.5, height: 0.5))).first)
+    private static func raise(_ drawn: Drawn, sourceLocation: SourceLocation = #_sourceLocation) throws -> NSColor {
+        let raise = CGRect(origin: raisePoint, size: CGSize(width: 0.5, height: 0.5))
+
+        return try #require(drawn.pixels(in: raise).first, sourceLocation: sourceLocation)
     }
 
     /// Across the pictures' middle, Notch chosen: its ring, 3 wide past a gap of the raise, 0.5, round its picture,
@@ -219,7 +226,8 @@ struct ShowRowTests {
         let rings = StripPicture.rings, hairline = StripPicture.hairline
 
         #expect(rings.map(\.ring) == [.needs, .turn, .working, .working])
-        #expect(rings.prefix(2).allSatisfy { $0.y < hairline } && rings.suffix(2).allSatisfy { $0.y > hairline })
+        expectEvery(rings.prefix(2)) { $0.y < hairline }
+        expectEvery(rings.suffix(2)) { $0.y > hairline }
         #expect(abs(rings[1].y - rings[0].y - 30 / 4) < 1e-9 && abs(rings[2].y - rings[1].y - 2 * 21.5 / 4) < 1e-9)
     }
 
@@ -260,11 +268,16 @@ struct ShowRowTests {
     private static let level: CGFloat = 1.0 / 37 + 1.0 / 128
 
     /// How much darker than the ground each pixel `steps` out from `edge`, a pixel on the picture's edge, is.
-    private static func darkening(_ drawn: Drawn, from edge: (x: Int, y: Int), by step: (x: Int, y: Int)) throws -> [CGFloat] {
-        let ground = try #require(drawn.bitmap.colorAt(x: 1, y: 1)).redComponent
+    private static func darkening(
+        _ drawn: Drawn, from edge: (x: Int, y: Int), by step: (x: Int, y: Int),
+        sourceLocation: SourceLocation = #_sourceLocation
+    ) throws -> [CGFloat] {
+        let ground = try #require(drawn.bitmap.colorAt(x: 1, y: 1), sourceLocation: sourceLocation).redComponent
 
         return try (1...8).map { out in
-            let pixel = try #require(drawn.bitmap.colorAt(x: edge.x + out * step.x, y: edge.y + out * step.y))
+            let pixel = try #require(
+                drawn.bitmap.colorAt(x: edge.x + out * step.x, y: edge.y + out * step.y), sourceLocation: sourceLocation
+            )
 
             return 1 - pixel.redComponent / ground
         }
@@ -303,7 +316,7 @@ extension Drawn {
     func expectWords(
         in rect: CGRect, _ colour: NSColor, over ground: NSColor, sourceLocation: SourceLocation = #_sourceLocation
     ) throws {
-        let brightest = try brightest(in: rect)
+        let brightest = try brightest(in: rect, sourceLocation: sourceLocation)
 
         for (drawn, expected) in zip(brightest.channels, colour.dark(over: ground).channels) {
             #expect(abs(drawn - expected) < 0.07, sourceLocation: sourceLocation)

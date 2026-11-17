@@ -208,7 +208,7 @@ struct PanelBoardTests {
             "Plan the launch", "Report caching and snags", "Close out the remaining questions", "The installer",
             "Build the desktop app", "Fix the reversed error totals",
         ])
-        #expect(sessions.allSatisfy { $0.letters == "Pr" })
+        expectEvery(sessions) { $0.letters == "Pr" }
     }
 
     @Test func beforeTheFirstLineThePanelIsLookingWithNothingNeedingLee() {

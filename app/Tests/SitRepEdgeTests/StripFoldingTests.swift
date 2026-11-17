@@ -133,7 +133,7 @@ struct StripFoldingTests {
         strip.show(Self.turnBoard(woken: true), Self.at(strip.time))
 
         #expect(strip.strip.slot["sr-c7m2qa"] == .needsYou)
-        #expect(strip.strip.layout.rest(of: .snoozed).allSatisfy { $0 != "snoozed:sr-c7m2qa" })
+        #expect(!strip.strip.layout.rest(of: .snoozed).contains("snoozed:sr-c7m2qa"))
         #expect(Self.flash(in: strip, for: 1500) == 0)
         guard case let .jump(session, to: target, click: _) = strip.jump(to: asleep, Self.at(strip.time)) else {
             Issue.record("the menu's jump found no mark")
@@ -444,9 +444,13 @@ struct StripFoldingTests {
         run.list.content.entries.map(\.item.key)
     }
 
-    private static func press(_ key: String, in run: NotchRun) throws -> NotchRun.Press? {
-        let panel = try #require(run.frame.panel)
-        let index = try #require(run.list.content.entries.firstIndex { $0.item.key == key })
+    private static func press(
+        _ key: String, in run: NotchRun, sourceLocation: SourceLocation = #_sourceLocation
+    ) throws -> NotchRun.Press? {
+        let panel = try #require(run.frame.panel, sourceLocation: sourceLocation)
+        let index = try #require(
+            run.list.content.entries.firstIndex { $0.item.key == key }, sourceLocation: sourceLocation
+        )
         let item = run.list.content.itemFrame(index), drawn = run.list.content.entries[index].item.box(width: item.width)
         let point = CGPoint(x: panel.frame.minX + item.midX, y: panel.frame.minY + item.minY + drawn.midY - run.scroll)
 

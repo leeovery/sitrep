@@ -97,7 +97,9 @@ struct WatchProgramTests {
         let lines = heard.compactMap { said in if case let .line(line) = said { line } else { nil } }
 
         #expect(lines.map(\.utf8.count) == [longest, 4])
-        #expect(lines.first?.utf8.allSatisfy { $0 == UInt8(ascii: "a") } == true)
+        let first = try #require(lines.first)
+
+        #expect(first.utf8.first { $0 != UInt8(ascii: "a") } == nil)
         #expect(heard.last == .exited(.status(0), stderr: ""))
     }
 

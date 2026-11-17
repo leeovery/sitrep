@@ -109,8 +109,11 @@ struct StripRunTests {
     }
 
     /// Where a row of the open count's tab shows, by its index, as last drawn.
-    private static func countRow(_ index: Int, in run: StripRun) throws -> CGPoint {
-        let tab = try #require(run.frame.tabs.first { $0.key == .count(.working) }), words = try #require(tab.words.last)
+    private static func countRow(
+        _ index: Int, in run: StripRun, sourceLocation: SourceLocation = #_sourceLocation
+    ) throws -> CGPoint {
+        let tab = try #require(run.frame.tabs.first { $0.key == .count(.working) }, sourceLocation: sourceLocation)
+        let words = try #require(tab.words.last, sourceLocation: sourceLocation)
         let pitch = StripTuning.rowHeight + StripTuning.rowGap
         let y = tab.box.minY + words.frame.minY + StripTuning.rowsPad + Double(index) * pitch
             + StripTuning.rowHeight / 2 - words.scroll
@@ -276,7 +279,7 @@ struct StripRunTests {
 
         #expect(alone.swappedAt != nil)
         #expect(between.swappedAt == alone.swappedAt)
-        #expect(zip(alone.tops, between.tops).allSatisfy { abs($0 - $1) < 1e-9 })
+        expectEvery(zip(alone.tops, between.tops)) { abs($0 - $1) < 1e-9 }
     }
 
     // MARK: Between frames
@@ -349,13 +352,13 @@ struct StripRunTests {
         let speeds = Self.speeds(inputsPerRefresh: 1, from: 4)
 
         #expect(!speeds.isEmpty)
-        #expect(speeds.allSatisfy { abs($0 - 0.6) < 1e-6 })
+        expectEvery(speeds) { abs($0 - 0.6) < 1e-6 }
     }
 
     @Test func twoInputsInOneRefreshReadTheSpeedToo() {
         let speeds = Self.speeds(inputsPerRefresh: 2)
 
-        #expect(speeds.dropFirst(2).allSatisfy { abs($0 - 0.6) < 1e-6 })
+        expectEvery(speeds.dropFirst(2)) { abs($0 - 0.6) < 1e-6 }
     }
 
     @Test func theClockNeverGoesBack() {
@@ -405,10 +408,12 @@ struct StripRunTests {
     // MARK: The board
 
     /// The tab out at this point until it is open and still: its width.
-    private static func opened(_ run: StripRun, at point: CGPoint) throws -> Double {
+    private static func opened(
+        _ run: StripRun, at point: CGPoint, sourceLocation: SourceLocation = #_sourceLocation
+    ) throws -> Double {
         frames(run, for: 2000, point) { run.strip.liveTab()?.phase == .open }
         frames(run, for: 2000, point) { !run.frame.isMoving }
-        return try #require(run.strip.liveTab()).w.x
+        return try #require(run.strip.liveTab(), sourceLocation: sourceLocation).w.x
     }
 
     /// Gone stale with a session's tab out, its time reads "as of 12:04", which the tab eases out to fit.

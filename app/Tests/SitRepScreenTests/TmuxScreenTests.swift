@@ -36,8 +36,11 @@ struct TmuxScreenTests {
     ]
 
     /// Claude's window shown by Ghostty windows, the phone and a Ghostty over ssh; another of its tmux session by a
-    /// Ghostty window; and a window of another session by a Ghostty window.
-    private static func shown() async -> (Screen, FakeTmux, FakeTable) {
+    /// Ghostty window; and a window of another session by a Ghostty window; tmux listing its clients as `listed` puts
+    /// them.
+    private static func shown(
+        listed: ([FakeClient]) -> [FakeClient] = { $0 }
+    ) async -> (Screen, FakeTmux, FakeTable) {
         var mac = Mac()
         let clients = [
             FakeClient(device: "/dev/ttys067", pid: mac.onPhone("/dev/ttys067"), window: "@45"),
@@ -47,7 +50,7 @@ struct TmuxScreenTests {
             FakeClient(device: "/dev/ttys056", pid: mac.inGhostty("/dev/ttys056"), window: "@46", session: "$45"),
             FakeClient(device: "/dev/ttys055", pid: mac.inGhostty("/dev/ttys055"), window: "@45"),
         ]
-        let tmux = FakeTmux([socket: FakeServer(panes: panes, clients: clients)])
+        let tmux = FakeTmux([socket: FakeServer(panes: panes, clients: listed(clients))])
         let table = FakeTable(mac.tree)
 
         return (await read([inTmux(), inGhosttyWindow], tmux, table), tmux, table)
@@ -55,8 +58,13 @@ struct TmuxScreenTests {
 
     @Test func aWindowInTmuxShowsOnTheClientsInATerminalAppOnItsPanesWindowInTmuxsOrderAndNoneIsSelectedForIt() async {
         let (screen, _, _) = await Self.shown()
+        let (reversed, _, _) = await Self.shown { $0.reversed() }
+        let places = screen.places(showing: [inTmux()])
 
-        #expect(seen(screen.places(showing: [inTmux()])) == [["/dev/ttys000", "Ghostty", nil], ["/dev/ttys055", "Ghostty", nil]])
+        #expect(places.map(\.device) == ["/dev/ttys000", "/dev/ttys055"], "no phone, ssh or other window")
+        #expect(places.map(\.app) == [ghostty, ghostty])
+        #expect(places.map(\.select) == [nil, nil])
+        #expect(reversed.places(showing: [inTmux()]).map(\.device) == ["/dev/ttys055", "/dev/ttys000"])
     }
 
     @Test func aPanesWindowNoClientShowsIsShownByASelectInEachSessionHoldingItAClientInATerminalAppIsAttachedTo() async {

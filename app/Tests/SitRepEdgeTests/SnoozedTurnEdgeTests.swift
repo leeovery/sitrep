@@ -33,7 +33,7 @@ struct SnoozedTurnEdgeTests {
         #expect(board.sessions.map(\.kind) == [.turn])
         #expect(board.snoozed.map(\.id) == ["sr-ctnbd2", "sr-nx7bky"])
         #expect(board.snoozed.map(\.kind) == [.snoozedTurn, .snoozedTurn])
-        #expect(board.snoozed.allSatisfy { $0.isSnoozed && $0.isTurn && $0.asks.isEmpty })
+        expectEvery(board.snoozed) { $0.isSnoozed && $0.isTurn && $0.asks.isEmpty }
         #expect(board.snoozed.map(\.name) == ["Onboarding flow", "Ledger export"])
         #expect(board.snoozed.map(\.sub) == ["Contoso", "Northwind"])
         #expect(board.snoozed.map(\.wakesAt) == [1_793_869_200_000, nil])

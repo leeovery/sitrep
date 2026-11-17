@@ -24,14 +24,14 @@ struct WelcomeNothingTests {
         let notch = await made.settled()
         let rows = Self.rows(in: notch)
 
-        #expect(Self.segments(in: notch).allSatisfy { $0.isEnabled })
+        expectEvery(Self.segments(in: notch)) { $0.isEnabled }
         made.welcome.choose(.nothing)
         #expect(made.preferences.edge.show == .nothing)
 
         let nothing = await made.settled()
 
         #expect(Self.segments(in: nothing).count == 3)
-        #expect(Self.segments(in: nothing).allSatisfy { !$0.isEnabled })
+        expectEvery(Self.segments(in: nothing)) { !$0.isEnabled }
         #expect(Self.rows(in: nothing) == rows)
     }
 
@@ -44,7 +44,7 @@ struct WelcomeNothingTests {
         _ = await made.settled()
         made.welcome.choose(show)
         #expect(made.preferences.edge.show == show)
-        #expect(Self.segments(in: await made.settled()).allSatisfy { $0.isEnabled })
+        expectEvery(Self.segments(in: await made.settled())) { $0.isEnabled }
     }
 
     /// Done at Nothing leaves no callout waiting for a shape picked later; Done with a shape does.

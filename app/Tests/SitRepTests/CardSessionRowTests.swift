@@ -202,7 +202,7 @@ struct CardSessionRowTests {
         let lines = (row.layer.sublayers ?? []).filter { $0 is TextLine }
 
         #expect(lines.count >= 3)
-        #expect(lines.allSatisfy { $0.contentsScale == 2 })
+        expectEvery(lines) { $0.contentsScale == 2 }
     }
 
     /// Its time in the lane ending at 334, as tall as its figures, off the row and under the pointer alike, over the

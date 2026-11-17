@@ -69,13 +69,15 @@ struct KernelProcessesTests {
     }
 
     /// A copy of a program of macOS's, signed afresh, as macOS kills a copy of its own program run from elsewhere.
-    private static func copy(_ program: String, to copy: URL) async throws {
+    private static func copy(
+        _ program: String, to copy: URL, sourceLocation: SourceLocation = #_sourceLocation
+    ) async throws {
         for (tool, arguments) in [("/bin/cp", [program, copy.path]), ("/usr/bin/codesign", ["--force", "-s", "-", copy.path])] {
             let ran = try await runProgram(
                 Program(executable: URL(fileURLWithPath: tool), arguments: arguments, environment: [:], limit: 10)
             )
 
-            try #require(ran.status == 0, "\(tool): \(ran.stderr)")
+            try #require(ran.status == 0, "\(tool): \(ran.stderr)", sourceLocation: sourceLocation)
         }
     }
 

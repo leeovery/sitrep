@@ -36,9 +36,9 @@ struct CardTimelineTests {
         let played = lab.play(Recorded.opening) { $0.model.open() }
 
         let lag = 30 / 0.93
-        #expect(played.filter { $0.t < lag }.allSatisfy { $0.h == 124 && $0.w > 15 })
-        #expect(played.filter { $0.t > lag }.allSatisfy { $0.h > 124 })
-        #expect(played.allSatisfy { abs($0.shape.cy - lab.notchY) < 1e-9 })
+        expectEvery(played.filter { $0.t < lag }) { $0.h == 124 && $0.w > 15 }
+        expectEvery(played.filter { $0.t > lag }) { $0.h > 124 }
+        expectEvery(played) { abs($0.shape.cy - lab.notchY) < 1e-9 }
     }
 
     @Test func openingItReaches372DeepAtAbout100msRuns12PastAndIsStillByAbout240ms() {
@@ -63,7 +63,7 @@ struct CardTimelineTests {
         #expect(abs(played[landed].t - 125) < 1)
         #expect(there(played[landed]))
         #expect(!there(played[landed - 1]))
-        #expect(played[..<landed].allSatisfy { $0.head == 0 })
+        expectEvery(played[..<landed]) { $0.head == 0 }
     }
 
     @Test func theRowsLandFromTheTopTwentyFiveMillisecondsApart() {
@@ -88,13 +88,13 @@ struct CardTimelineTests {
 
         let played = lab.play(Recorded.closing) { $0.model.close() }
 
-        #expect(played.filter { $0.t < 60 }.allSatisfy { abs($0.head - (1 - $0.t / 60)) < 1e-9 })
-        #expect(played.filter { $0.t >= 60 }.allSatisfy { $0.head == 0 })
+        expectEvery(played.filter { $0.t < 60 }) { abs($0.head - (1 - $0.t / 60)) < 1e-9 }
+        expectEvery(played.filter { $0.t >= 60 }) { $0.head == 0 }
         let length = 50 / 0.88, depth = (50 + 30) / 0.88
-        #expect(played.filter { $0.t < length }.allSatisfy { $0.h == 482 })
-        #expect(played.filter { $0.t > length }.allSatisfy { $0.h < 482 })
-        #expect(played.filter { $0.t < depth }.allSatisfy { $0.w == 372 })
-        #expect(played.filter { $0.t > depth }.allSatisfy { $0.w < 372 })
+        expectEvery(played.filter { $0.t < length }) { $0.h == 482 }
+        expectEvery(played.filter { $0.t > length }) { $0.h < 482 }
+        expectEvery(played.filter { $0.t < depth }) { $0.w == 372 }
+        expectEvery(played.filter { $0.t > depth }) { $0.w < 372 }
     }
 
     @Test func closingItEasesIntoTheSlotWithoutABounceSeatedByAbout350ms() {
@@ -103,8 +103,8 @@ struct CardTimelineTests {
 
         let played = lab.play(Recorded.closing) { $0.model.close() }
 
-        #expect(played.allSatisfy { $0.w >= 15 && $0.h >= 124 })
-        #expect(zip(played, played.dropFirst()).allSatisfy { $1.w <= $0.w && $1.h <= $0.h })
+        expectEvery(played) { $0.w >= 15 && $0.h >= 124 }
+        expectEvery(zip(played, played.dropFirst())) { $1.w <= $0.w && $1.h <= $0.h }
         let seated = played.first { $0.phase == .closed }!
         #expect(seated.t > 340 && seated.t < 360)
         #expect(seated.w == 15)
@@ -118,7 +118,7 @@ struct CardTimelineTests {
 
         let lit = played.firstIndex { $0.vis > 0 }!
         #expect(played[lit - 1].w <= 45)
-        #expect(played[..<(lit - 1)].allSatisfy { $0.w > 45 })
+        expectEvery(played[..<(lit - 1)]) { $0.w > 45 }
     }
 }
 

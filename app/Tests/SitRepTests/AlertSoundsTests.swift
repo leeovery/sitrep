@@ -64,16 +64,24 @@ struct SoundRowsTests {
         return (Hosted(Hosted.content(.notifications, settings), size: CGSize(width: 744, height: 620)), settings)
     }
 
-    private static func popUp(_ hosted: Hosted) throws -> NSPopUpButton {
-        try #require(hosted.all(NSPopUpButton.self).first { $0.accessibilityLabel() == "Sound" })
+    private static func popUp(
+        _ hosted: Hosted, sourceLocation: SourceLocation = #_sourceLocation
+    ) throws -> NSPopUpButton {
+        try #require(
+            hosted.all(NSPopUpButton.self).first { $0.accessibilityLabel() == "Sound" }, sourceLocation: sourceLocation
+        )
     }
 
     /// The switch in the row over Sound's.
-    private static func soundSwitch(_ hosted: Hosted) throws -> NSSwitch {
-        let sound = try hosted.frame(of: popUp(hosted))
+    private static func soundSwitch(
+        _ hosted: Hosted, sourceLocation: SourceLocation = #_sourceLocation
+    ) throws -> NSSwitch {
+        let sound = try hosted.frame(of: popUp(hosted, sourceLocation: sourceLocation))
         let over = hosted.all(NSSwitch.self).filter { hosted.frame(of: $0).maxY <= sound.minY }
 
-        return try #require(over.max { hosted.frame(of: $0).minY < hosted.frame(of: $1).minY })
+        return try #require(
+            over.max { hosted.frame(of: $0).minY < hosted.frame(of: $1).minY }, sourceLocation: sourceLocation
+        )
     }
 
     /// The switch on and Glass chosen, as Lee has set nothing, and nothing played as the page draws.

@@ -43,7 +43,7 @@ struct MeniscusReducedMotionTests {
         #expect(abs(lab.frame.fading!.alpha - (1 - Lab.frameMS / 160)) < 1e-9)
         let rows = lab.frame.panel!
         #expect(abs(rows.head.alpha - Lab.frameMS / 120) < 1e-9)
-        #expect(rows.items.allSatisfy { $0 == rows.head && $0.rise == 0 })
+        expectEvery(rows.items) { $0 == rows.head && $0.rise == 0 }
 
         lab.wait(160)
         #expect(lab.frame.fading == nil && lab.frame.outlineAlpha == 1)
