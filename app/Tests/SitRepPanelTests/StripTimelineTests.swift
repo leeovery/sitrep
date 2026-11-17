@@ -226,7 +226,8 @@ struct StripTimelineTests {
         ])
 
         expectMatches(played, StripRecorded.fold)
-        #expect(lab.model.layout.counts.values.allSatisfy(\.isFolded) && lab.model.layout.places.isEmpty)
+        expectEvery(lab.model.layout.counts.values) { $0.isFolded }
+        #expect(lab.model.layout.places.isEmpty)
     }
 
     /// Working folded: its count's tab pours its rows, and a click on the count unfolds it, the tab drawing back as
@@ -317,7 +318,7 @@ struct StripTimelineTests {
         }
 
         #expect(slid.last! >= 0.45)
-        #expect(slid.dropLast().allSatisfy { $0 < 0.45 })
+        expectEvery(slid.dropLast()) { $0 < 0.45 }
         #expect(lab.model.mark(.session("s9"))!.sc.target == 1)
     }
 

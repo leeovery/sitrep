@@ -30,7 +30,7 @@ struct SnoozedEdgeTests {
         let asleep = try #require(board.snoozed.first)
 
         #expect(board.sessions.map(\.id) == ["sr-4t2kq8"])
-        #expect(board.sessions.allSatisfy { !$0.isSnoozed })
+        expectEvery(board.sessions) { !$0.isSnoozed }
         #expect(board.sessions[0].asks == ["k3"])
         #expect(asleep.id == "sr-4t2kq8" && asleep.isSnoozed && asleep.away)
         #expect(asleep.asks == ["k1", "k2"])

@@ -87,8 +87,10 @@ struct NotchLightTests {
     }
 
     /// The light's bar's corners in the window, as its layers place it.
-    private static func corners(of light: LightLayer, in window: NSWindow) throws -> [CGPoint] {
-        let base = try #require(window.contentView?.superview?.layer)
+    private static func corners(
+        of light: LightLayer, in window: NSWindow, sourceLocation: SourceLocation = #_sourceLocation
+    ) throws -> [CGPoint] {
+        let base = try #require(window.contentView?.superview?.layer, sourceLocation: sourceLocation)
         let bar = light.convert(LiveLight.bar, to: base)
 
         return [

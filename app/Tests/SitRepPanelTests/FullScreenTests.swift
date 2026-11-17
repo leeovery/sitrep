@@ -81,7 +81,7 @@ struct FullScreenTests {
             full.filter { $0.key != key as String }
         }
 
-        #expect(partial.allSatisfy { ListedWindow($0) == nil })
+        expectEvery(partial) { ListedWindow($0) == nil }
         #expect(ListedWindow(full) == ListedWindow(owner: "Dock", layer: -2_147_483_622, bounds: Self.studio))
     }
 }

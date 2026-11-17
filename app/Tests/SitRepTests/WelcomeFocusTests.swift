@@ -117,7 +117,7 @@ struct WelcomeFocusTests {
         let stops = Self.stops(made)
 
         #expect(stops.count == 2)
-        #expect(stops.allSatisfy { $0.maxY <= WelcomeStyle.footer })
+        expectEvery(stops) { $0.maxY <= WelcomeStyle.footer }
         #expect(stops.map(\.midX) == stops.map(\.midX).sorted())
         #expect(abs((stops.last?.maxX ?? 0) - 824) <= 0.5)
     }
@@ -133,7 +133,7 @@ struct WelcomeFocusTests {
         let stops = Self.stops(made)
 
         #expect(stops.count == 3)
-        #expect(stops.allSatisfy { $0.maxY <= WelcomeStyle.footer })
+        expectEvery(stops) { $0.maxY <= WelcomeStyle.footer }
         #expect(stops.map(\.midX) == stops.map(\.midX).sorted())
         #expect(stops.first?.size == CGSize(width: 28, height: 28))
         #expect(abs((stops.last?.maxX ?? 0) - 824) <= 0.5)
@@ -155,7 +155,7 @@ struct WelcomeFocusTests {
 
         #expect(stops.count == 9)
         #expect(stops == reading)
-        #expect(stops.suffix(3).allSatisfy { $0.maxY <= WelcomeStyle.footer })
+        expectEvery(stops.suffix(3)) { $0.maxY <= WelcomeStyle.footer }
     }
 
     /// At Nothing, the form's rows take no presses and a line stands in Show nothing at the edge's place: Tab goes from
@@ -171,8 +171,8 @@ struct WelcomeFocusTests {
         let stops = Self.stops(made)
 
         #expect(stops.count == 5)
-        #expect(stops.prefix(2).allSatisfy { $0.maxX < WelcomeStyle.column && $0.minY > WelcomeStyle.footer })
-        #expect(stops.suffix(3).allSatisfy { $0.maxY <= WelcomeStyle.footer })
+        expectEvery(stops.prefix(2)) { $0.maxX < WelcomeStyle.column && $0.minY > WelcomeStyle.footer }
+        expectEvery(stops.suffix(3)) { $0.maxY <= WelcomeStyle.footer }
     }
 
     /// Focus on a tile, and the step it was on gone: AppKit leaves the window itself first responder, on nothing.

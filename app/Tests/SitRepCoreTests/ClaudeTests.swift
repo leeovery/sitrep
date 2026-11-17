@@ -60,9 +60,9 @@ struct ClaudeTests {
             ["plugin", "install", "sitrep@sitrep", "--json"],
             ["plugin", "update", "sitrep@sitrep", "--json"],
         ])
-        #expect(fake.programs.allSatisfy {
+        expectEvery(fake.programs) {
             $0.executable == fake.executable && $0.environment == ["HOME": "/Users/me", "PATH": Self.path] && $0.limit == Claude.limit
-        })
+        }
     }
 
     @Test func theListsReadAsLeesMacPrintedThem() async throws {

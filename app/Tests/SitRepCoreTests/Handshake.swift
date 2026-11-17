@@ -56,7 +56,9 @@ final class Handshake: Sendable {
 
     /// The pid the child wrote, as `pid(within:)` reads it, of the leader of its process group, which the backstop
     /// watches from now until `endGroup(of:)`.
-    func leader(within limit: Duration = wait, sourceLocation: SourceLocation = #_sourceLocation) async throws -> pid_t {
+    func leader(
+        within limit: Duration = wait, sourceLocation: SourceLocation = #_sourceLocation
+    ) async throws -> pid_t {
         let leader = try await pid(within: limit, sourceLocation: sourceLocation)
 
         watchGroup(of: leader)

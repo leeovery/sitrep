@@ -36,7 +36,7 @@ struct StripGrowsTests {
 
         let hairline = layout.hairs[.working]!
         #expect(layout.counts[.needsYou]!.y < hairline && hairline < layout.counts[.working]!.y)
-        #expect(layout.places.allSatisfy { $0.y < layout.counts[.needsYou]!.y })
+        expectEvery(layout.places) { $0.y < layout.counts[.needsYou]!.y }
     }
 
     @Test func atGrowsTheStripIsAsLongAsItsMarksNeedCentred42PercentDown() {
@@ -122,7 +122,7 @@ struct StripGrowsTests {
             seen[$0].flash > seen[$0 - 1].flash && seen[$0].flash >= seen[$0 + 1].flash
         }
         #expect(peaks.map { (seen[$0].t / 10).rounded() * 10 } == [70, 520])
-        #expect(seen.filter { $0.t < 1500 }.allSatisfy { $0.wash == 1 })
+        expectEvery(seen.filter { $0.t < 1500 }) { $0.wash == 1 }
         #expect(seen.last!.wash == 0)
     }
 
@@ -236,7 +236,7 @@ struct StripGrowsTests {
 
         let shrunk = lab.settle()
         #expect(shrunk)
-        #expect([lab.model.yt, lab.model.yb, lab.model.drawnIn].allSatisfy { $0.isAtRest })
+        expectEvery([lab.model.yt, lab.model.yb, lab.model.drawnIn]) { $0.isAtRest }
         #expect(!lab.frame.isMoving && !lab.frame.wakes(pointer: nil))
 
         lab.newAsk(StripLab.ask)

@@ -145,14 +145,14 @@ struct MenuRowsTests {
 
     /// The arc's quarter, its strokes' middle as an angle from the image's centre, y down, so the angles run
     /// clockwise.
-    private static func arcAngle(_ image: NSImage) throws -> Double {
-        let bitmap = try Self.drawn(image)
+    private static func arcAngle(_ image: NSImage, sourceLocation: SourceLocation = #_sourceLocation) throws -> Double {
+        let bitmap = try Self.drawn(image, sourceLocation: sourceLocation)
         let arc = (0 ..< 32).flatMap { y in (0 ..< 32).map { (x: $0, y: y) } }.filter { at in
             (bitmap.colorAt(x: at.x, y: at.y)?.alphaComponent ?? 0) > 0.4
         }
         let x = arc.map { Double($0.x) + 0.5 - 16 }.reduce(0, +), y = arc.map { Double($0.y) + 0.5 - 16 }.reduce(0, +)
 
-        try #require(!arc.isEmpty)
+        try #require(!arc.isEmpty, sourceLocation: sourceLocation)
         return atan2(y, x) * 180 / .pi
     }
 
@@ -196,11 +196,13 @@ struct MenuRowsTests {
     }
 
     /// The image drawn at 2× into a clear bitmap, its top row first.
-    private static func drawn(_ image: NSImage) throws -> NSBitmapImageRep {
+    private static func drawn(
+        _ image: NSImage, sourceLocation: SourceLocation = #_sourceLocation
+    ) throws -> NSBitmapImageRep {
         let bitmap = try #require(NSBitmapImageRep(
             bitmapDataPlanes: nil, pixelsWide: 32, pixelsHigh: 32, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true,
             isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0
-        ))
+        ), sourceLocation: sourceLocation)
 
         bitmap.size = image.size
         NSGraphicsContext.saveGraphicsState()

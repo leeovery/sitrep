@@ -43,10 +43,12 @@ struct SnoozeTests {
 
     /// The table, read from the source tree, its rows between the backticks of `TABLE`, each line led by `#` a
     /// group's heading.
-    private static func table() throws -> [Wake] {
+    private static func table(sourceLocation: SourceLocation = #_sourceLocation) throws -> [Wake] {
         let file = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appending(path: "../../../tests/wakes.ts")
         let text = try String(contentsOf: file, encoding: .utf8)
-        let rows = text[try #require(text.range(of: "const TABLE = `")).upperBound...].prefix { $0 != "`" }
+        let rows = text[try #require(
+            text.range(of: "const TABLE = `"), sourceLocation: sourceLocation
+        ).upperBound...].prefix { $0 != "`" }
 
         return try rows.split(whereSeparator: \.isNewline).filter { !$0.hasPrefix("#") }.map { try Wake($0) }
     }
@@ -124,10 +126,12 @@ struct SnoozeTests {
         #expect(WakeTime.changes(after: now, in: calendar) == Self.at(24, 0))
     }
 
-    /// The calendar the app works snoozes out on is the Gregorian in the Mac's time zone, whatever it is set to.
-    @Test func theAppsCalendarIsTheGregorian() {
+    /// The calendar the app works snoozes out on is the Gregorian in the Mac's time zone and locale, whatever it is
+    /// set to, following them as they change: the autoupdating ones, which no copy of the Mac's current one equals.
+    @Test func theAppsCalendarIsTheGregorianFollowingTheMacsTimeZoneAndLocale() {
         #expect(WakeTime.calendar.identifier == .gregorian)
-        #expect(WakeTime.calendar.timeZone.identifier == TimeZone.current.identifier)
+        #expect(WakeTime.calendar.timeZone == .autoupdatingCurrent)
+        #expect(WakeTime.calendar.locale == .autoupdatingCurrent)
     }
 
     /// A Snoozed row shows when it wakes in its time's place, or with none, that it waits until it moves, its asks' row

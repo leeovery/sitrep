@@ -215,7 +215,7 @@ struct SettingsModelTests {
         let current = await Hosted.settings(live: Hosted.live(needsReload: false))
 
         #expect(behind.sidebar.map(\.count) == [nil, nil, nil, 2])
-        #expect(current.sidebar.allSatisfy { $0.count == nil })
+        expectEvery(current.sidebar) { $0.count == nil }
     }
 
     @Test func itOpensOnGeneralTheFirstTime() {

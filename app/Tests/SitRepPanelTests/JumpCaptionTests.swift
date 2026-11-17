@@ -71,11 +71,6 @@ struct JumpCaptionTests {
         #expect(caption.showsIn(at: 1090 + 60_000) == nil)
     }
 
-    @Test func aJumpWithNoAnswerSaysItIsStillJumpingAndAtItsLimitThatTheMacIsTooBusy() {
-        #expect(JumpCaption.still == "Still jumping…")
-        #expect(JumpCaption.tooBusy == "Couldn't jump: the Mac is too busy.")
-    }
-
     /// A caption plays whole over a clear pill, or held until its jump ends only coming in; over a pill already part
     /// opaque, coming in or going, from the moment its coming in is as opaque, so it never jumps; over one whole, from
     /// its hold, where held it plays nothing.

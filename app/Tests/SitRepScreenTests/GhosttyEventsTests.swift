@@ -189,16 +189,23 @@ struct GhosttyEventsTests {
     }
 
     @Test func onlyATabAnsweredFalseInAListOfOneWindowsOneTabIsNotSelectedATerminalInNoWindowIsFocusedAsSelected() async throws {
+        let no = NSAppleEventDescriptor(boolean: false)
         let cases: [(NSAppleEventDescriptor, Bool)] = [
-            (list([list([NSAppleEventDescriptor(boolean: false)])]), false),
+            (list([list([no])]), false),
             (list([list([NSAppleEventDescriptor(boolean: true)])]), true),
+            (list([list([no]), list([no])]), true),
+            (list([list([no, no])]), true),
+            (list([list([NSAppleEventDescriptor(int32: 0)])]), true),
             (list([]), true),
         ]
 
         for (answer, isSelected) in cases {
             let answer = Sendably(answer)
 
-            #expect(try await Answering([{ reply(answer.descriptor) }]).events.isTabSelected(holding: Self.device) == isSelected)
+            let events = Answering([{ reply(answer.descriptor) }]).events
+            let answered = try await events.isTabSelected(holding: Self.device)
+
+            #expect(answered == isSelected, "\(answer.descriptor)")
         }
     }
 
@@ -386,10 +393,6 @@ struct GhosttyEventsTests {
             try await failing.events.openWindow(running: "zmx attach litware") { none.withLock { $0 += 1 } }
         }
         #expect(none.withLock { $0 } == 0)
-    }
-
-    @Test func aGhosttyTooOldToOpenAWindowSaysSoInPlainWords() {
-        #expect(GhosttyFailure.cannotOpen.description == "This Ghostty cannot open a window for SitRep: update Ghostty to 1.4 or later.")
     }
 
     @Test func aJumpStoppedLetsGoOfAnEventInFlightWhichRunsOnItsAnswerDropped() async throws {

@@ -8,12 +8,14 @@ import Testing
 @MainActor
 @Suite(.backstop)
 struct SystemControlsTests {
-    private static func hosted<Control: NSView>(_ view: some View, _ kind: Control.Type) throws -> Control {
+    private static func hosted<Control: NSView>(
+        _ view: some View, _ kind: Control.Type, sourceLocation: SourceLocation = #_sourceLocation
+    ) throws -> Control {
         let hosting = NSHostingView(rootView: view)
 
         hosting.frame = CGRect(x: 0, y: 0, width: 300, height: 60)
         hosting.layoutSubtreeIfNeeded()
-        return try #require(Self.find(kind, in: hosting))
+        return try #require(Self.find(kind, in: hosting), sourceLocation: sourceLocation)
     }
 
     private static func find<Control: NSView>(_ kind: Control.Type, in view: NSView) -> Control? {

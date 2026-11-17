@@ -103,11 +103,6 @@ struct ClaudeCodePaneTests {
         #expect(pane.reloads.isEmpty)
         #expect(pane.plugin.side == .fine("Up to date"))
     }
-
-    @Test func copyPutsTheCommandEachWindowNeeds() {
-        #expect(ClaudeCodePane.command == "/reload-plugins")
-        #expect(ClaudeCodePane.reloadTitle == "Needs /reload-plugins")
-    }
 }
 
 /// The windows behind on the plugin, read once for the menu, the plugin's row, the pane and the sidebar's count.
@@ -160,7 +155,7 @@ struct SettingsSidebarRowTests {
     }
 
     @Test func withNoneBehindNoRowCounts() {
-        #expect(SettingsSidebarRow.rows(Self.behind(0)).allSatisfy { $0.count == nil })
+        expectEvery(SettingsSidebarRow.rows(Self.behind(0))) { $0.count == nil }
     }
 }
 

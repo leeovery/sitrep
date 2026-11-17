@@ -45,15 +45,11 @@ struct JumpFrontTests {
         #expect(jumping.workspace.listening == 0, "the listening ends with the jump")
     }
 
-    @Test func theWatchLastsASecondTwiceTheHalfSecondAtWhichTheHandBackCame() {
-        #expect(KeptInFront.watch == .seconds(1))
-    }
-
     @Test func ghosttyNeverComingForwardIsNeverBroughtForwardTheWatchRunsItsWholeSecondAsBringingItForwardCouldMakeAWindow() async {
         let (jumping, answer) = await Self.fromFront(focused: [finder])
 
         #expect(answer == .jumped)
-        #expect(jumping.clock.sleeps == [KeptInFront.watch])
+        #expect(jumping.clock.sleeps == [.seconds(1)], "twice the half second at which the hand back came")
         #expect(jumping.workspace.brought.isEmpty)
     }
 

@@ -97,14 +97,19 @@ struct ZmxScreenTests {
     }
 
     @Test func aZmxClientCountsOnlyOnATtyOfItsOwnOneOverPipesIsNoPlaceThoughItsAppNeedsNoDevice() async {
-        var mac = Mac()
+        func places(isPiped: Bool) async -> [[String?]] {
+            var mac = Mac()
 
-        mac.zmxInTerminal("litware", on: "/dev/ttys030", isPiped: true)
-        mac.throughPortal("litware", relay: "/dev/ttys032", window: "/dev/ttys060")
+            mac.zmxInTerminal("litware", on: "/dev/ttys030", isPiped: isPiped)
+            mac.throughPortal("litware", relay: "/dev/ttys032", window: "/dev/ttys060")
 
-        let screen = await read([inZmx("litware")], FakeTmux(), FakeTable(mac.tree))
+            let screen = await read([inZmx("litware")], FakeTmux(), FakeTable(mac.tree))
 
-        #expect(seen(screen.places(showing: [inZmx("litware")])) == [["/dev/ttys060", "Ghostty", nil]])
+            return seen(screen.places(showing: [inZmx("litware")]))
+        }
+
+        #expect(await places(isPiped: true) == [["/dev/ttys060", "Ghostty", nil]])
+        #expect(await places(isPiped: false) == [["/dev/ttys030", "Terminal", nil], ["/dev/ttys060", "Ghostty", nil]])
     }
 
     @Test func withTmuxMissingASessionInZmxStillSaysWhereItIsAndOnlyTheOneInTmuxIsUnknown() async {

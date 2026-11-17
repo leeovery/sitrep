@@ -18,7 +18,7 @@ struct SpringTests {
 
         let path = Self.run(&spring, for: 2000)
 
-        #expect(path.allSatisfy { $0 <= 100 })
+        expectEvery(path) { $0 <= 100 }
         #expect(spring.isAtRest)
         #expect(spring.x == 100)
     }

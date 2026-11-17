@@ -155,12 +155,14 @@ struct NeedsYouMarksTests {
     }
 
     /// The image drawn at 2× into a clear bitmap this many pixels square, its top row first.
-    private static func bitmap(_ image: NSImage, side: Int = 32) throws -> NSBitmapImageRep {
+    private static func bitmap(
+        _ image: NSImage, side: Int = 32, sourceLocation: SourceLocation = #_sourceLocation
+    ) throws -> NSBitmapImageRep {
         let bitmap = try #require(NSBitmapImageRep(
             bitmapDataPlanes: nil, pixelsWide: side, pixelsHigh: side, bitsPerSample: 8, samplesPerPixel: 4,
             hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0
-        ))
-        let context = try #require(NSGraphicsContext(bitmapImageRep: bitmap))
+        ), sourceLocation: sourceLocation)
+        let context = try #require(NSGraphicsContext(bitmapImageRep: bitmap), sourceLocation: sourceLocation)
 
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = context

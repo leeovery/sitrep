@@ -157,7 +157,7 @@ struct MeniscusTests {
 
         #expect(broke)
         #expect(held.count >= 20)
-        #expect(held.allSatisfy { abs($0) < 1 })
+        expectEvery(held) { abs($0) < 1 }
         #expect(lab.now - hungAt! >= 60)
         #expect(lab.now - hungAt! < 60 + Lab.frameMS)
         #expect(lab.model.snap != nil)
@@ -171,7 +171,7 @@ struct MeniscusTests {
         #expect(settled)
 
         #expect(lab.phase == .closed)
-        #expect(MeniscusSprings.all.allSatisfy { lab.model.S[keyPath: $0].isAtRest })
+        expectEvery(MeniscusSprings.all) { lab.model.S[keyPath: $0].isAtRest }
         #expect(abs(lab.shape.w - 7) < 0.01)
         #expect(abs(lab.shape.h - 76) < 0.01)
         #expect(abs(lab.shape.cy - lab.notchY) < 0.01)

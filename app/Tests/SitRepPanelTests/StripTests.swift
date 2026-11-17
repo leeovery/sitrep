@@ -6,12 +6,19 @@ import Testing
 
 @Suite(.backstop)
 struct StripTests {
-    @Test func itsMarksAreInThePanelsOrderNeedsYouOldestFirstAwayLastYourTurnNewestFirstWorkingLongestFirst() {
-        let shuffled = [7, 4, 1, 6, 3, 0, 5, 2].map { StripLab.prototype[$0] }
+    /// The strip sorts nothing itself: its marks take the board's order as core gives it, its asks newest first, not
+    /// the order the prototype's timelines were recorded in, which the lab sorts its sessions to (`StripLab.core`).
+    @Test func itsMarksAreInTheBoardsOrderAsCoreGivesItSortingNothingThemselves() {
+        let board = ["s3", "s2", "s1", "s4", "s5", "s6", "s7", "s8"].map { id in
+            StripLab.prototype.first { $0.id == id }!
+        }
+        let input = StripInput(time: 0, pointer: nil, stage: StripLab.stage, reducesMotion: false)
 
-        let lab = StripLab(sessions: shuffled)
+        let strip = Strip(
+            feel: .lees, length: .full, maxLength: .full, sessions: board, measure: StripLab.measure, input
+        )
 
-        #expect(lab.model.display == ["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8"])
+        #expect(strip.display == ["s3", "s2", "s1", "s4", "s5", "s6", "s7", "s8"])
     }
 
     @Test func aMarkIsEvery30FromUnderTheTopEndWithTheHairline21AndAHalfUnderNeedsYou() {
@@ -22,7 +29,7 @@ struct StripTests {
         #expect(ys == [80, 110, 140, 170, 200, 230, 273, 303])
         #expect(lab.model.layout.hairs[.working] == 251.5)
         #expect(lab.frame.hairlines[0].y == 251.5 && lab.frame.hairlines[0].alpha == 1)
-        #expect(lab.frame.marks.allSatisfy { $0.centre.x == 18 && $0.scale == 1 && $0.alpha == 1 })
+        expectEvery(lab.frame.marks) { $0.centre.x == 18 && $0.scale == 1 && $0.alpha == 1 }
     }
 
     @Test func aMarksLettersAreTheProjectsTwoCapitalsElseItsFirstTwo() {
@@ -79,12 +86,12 @@ struct StripTests {
         frames(120)
 
         let on = seen.firstIndex { $0.lifted }!, off = seen.lastIndex { $0.lifted }! + 1
-        #expect(seen[on ..< off].allSatisfy { $0.lifted })
+        expectEvery(seen[on ..< off]) { $0.lifted }
         #expect(!seen[..<on].contains { $0.lifted || $0.lift > 0 })
-        #expect(seen[off...].allSatisfy { !$0.lifted })
+        expectEvery(seen[off...]) { !$0.lifted }
         let rising = seen[on ..< off].map(\.lift), falling = seen[(off - 1)...].map(\.lift)
-        #expect(zip(rising, rising.dropFirst()).allSatisfy { $0 <= $1 })
-        #expect(zip(falling, falling.dropFirst()).allSatisfy { $0 >= $1 })
+        expectEvery(zip(rising, rising.dropFirst())) { $0 <= $1 }
+        expectEvery(zip(falling, falling.dropFirst())) { $0 >= $1 }
         #expect(seen[on + 1].lift > 0 && seen[on + 1].lift < 0.5)
         let full = seen[on...].first { $0.lift > 0.9 }!
         #expect(full.t - seen[on].t <= StripTuning.liftFade)
@@ -139,7 +146,7 @@ struct StripTests {
             return false
         }
 
-        #expect(seen.filter { $0.depth <= 0.55 }.allSatisfy { $0.alpha == 0 })
+        expectEvery(seen.filter { $0.depth <= 0.55 }) { $0.alpha == 0 }
         #expect(seen.contains { $0.depth > 0.55 && $0.depth < 0.95 && $0.alpha > 0 && $0.alpha < 1 })
         #expect(seen.last!.alpha == 1)
     }
@@ -255,8 +262,8 @@ struct StripTests {
         }.map(\.0.t)
         #expect(peaks.count == 2)
         #expect(abs(peaks[0] - 70) < 17 && abs(peaks[1] - 520) < 17)
-        #expect(washed.filter { $0.t < 1500 }.allSatisfy { $0.level == 1 })
-        #expect(washed.filter { $0.t >= 2000 }.allSatisfy { $0.level == 0 })
+        expectEvery(washed.filter { $0.t < 1500 }) { $0.level == 1 }
+        expectEvery(washed.filter { $0.t >= 2000 }) { $0.level == 0 }
     }
 
     /// A change to the order within a group, the first session asking again and so the newest ask, waits until the
@@ -350,7 +357,7 @@ struct StripTests {
         #expect(lab.frame.tabs[0].words.last!.isPressed)
         #expect(abs(lab.live!.press.x - 4) < 0.1)
         lab.wait(300)
-        #expect(lab.model.tabs.allSatisfy { $0.phase == .closing })
+        expectEvery(lab.model.tabs) { $0.phase == .closing }
     }
 
     @Test func tooManyTheLastPlaceIsTheCountAndNeedsYouNeverFolds() {
@@ -440,7 +447,7 @@ struct StripTests {
         let settled = lab.settle()
 
         #expect(settled)
-        #expect(lab.model.marks.allSatisfy { $0.lift.isAtRest && $0.lift.x == 0 })
+        expectEvery(lab.model.marks) { $0.lift.isAtRest && $0.lift.x == 0 }
         #expect(!lab.frame.wakes(pointer: nil))
     }
 

@@ -147,8 +147,8 @@ struct LiveLightTests {
     }
 
     @Test func itMovesAlwaysButUnderReducedMotionOnlyWhileANewAskBrightensIt() {
-        #expect([nil, -5, 0, 300, 5000].allSatisfy { LiveLight.moves(sinceAsk: $0, reducesMotion: false) })
-        #expect([0, 80, 300, 539].allSatisfy { LiveLight.moves(sinceAsk: $0, reducesMotion: true) })
+        expectEvery([nil, -5, 0, 300, 5000]) { LiveLight.moves(sinceAsk: $0, reducesMotion: false) }
+        expectEvery([0, 80, 300, 539]) { LiveLight.moves(sinceAsk: $0, reducesMotion: true) }
         #expect(![nil, -5, 540, 5000].contains { LiveLight.moves(sinceAsk: $0, reducesMotion: true) })
     }
 
@@ -156,7 +156,7 @@ struct LiveLightTests {
         let light = LiveLight(time: 0, sinceAsk: nil)
 
         #expect(light.opacity == 0.86)
-        #expect(light.body.allSatisfy { $0.r > $0.g && $0.g > $0.b })
+        expectEvery(light.body) { $0.r > $0.g && $0.g > $0.b }
     }
 
     // MARK: Lee's turn
@@ -168,7 +168,7 @@ struct LiveLightTests {
 
         #expect(turn.palette == .turn && ask.palette == .ask)
         #expect(turn.opacity == ask.opacity && turn.line == ask.line)
-        #expect(turn.body.allSatisfy { $0.b > $0.g && $0.g > $0.r })
+        expectEvery(turn.body) { $0.b > $0.g && $0.g > $0.r }
     }
 
     /// The blue matches the orange in strength, its OKLCH lightness and chroma the orange's, at the hue of macOS's

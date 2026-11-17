@@ -102,7 +102,7 @@ struct EdgePaneChangeTests {
 
         #expect(hosted.all(NSSlider.self).count == (length == .grows ? 1 : 0))
         #expect(after.count == before.count)
-        #expect(zip(before, after).allSatisfy { $0 === $1 })
+        expectEvery(zip(before, after)) { $0 === $1 }
     }
 
     /// How far past the taller pane's foot is read, so a hairline or an edge left just under it is read too.

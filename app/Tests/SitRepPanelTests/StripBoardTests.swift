@@ -31,10 +31,10 @@ struct StripBoardTests {
 
         let places = lab.model.layout.places
         #expect(places.count == StripLab.prototype.count)
-        #expect(places.allSatisfy { lab.model.mark(.session($0.id))?.y.x == $0.y })
+        expectEvery(places) { lab.model.mark(.session($0.id))?.y.x == $0.y }
         lab.settle()
         #expect(lab.model.layout.places.map(\.y) == places.map(\.y))
-        #expect(places.allSatisfy { abs(lab.model.mark(.session($0.id))!.y.x - $0.y) < 0.01 })
+        expectEvery(places) { abs(lab.model.mark(.session($0.id))!.y.x - $0.y) < 0.01 }
     }
 
     /// An arrival placed out of the panel's order, a new ask landing in the count while an older away ask shows, waits
@@ -73,8 +73,8 @@ struct StripBoardTests {
 
         #expect(strip.display == order)
         #expect(ys == ys.sorted())
-        #expect(ys.prefix(6).allSatisfy { $0 < hair })
-        #expect(ys.suffix(3).allSatisfy { $0 > hair })
+        expectEvery(ys.prefix(6)) { $0 < hair }
+        expectEvery(ys.suffix(3)) { $0 > hair }
     }
 
     @Test func aNeedsYouNewOnTheLineFlashesTwice() {
@@ -160,7 +160,7 @@ struct StripBoardTests {
         lab.settle()
         let mark = lab.model.mark(.session("s9"))!
         #expect(mark.flashes.isEmpty && mark.arrived < 0)
-        #expect(lab.frame.marks.allSatisfy { $0.flash == 0 && $0.wash == 0 })
+        expectEvery(lab.frame.marks) { $0.flash == 0 && $0.wash == 0 }
     }
 
     /// Core puts s7's working row after s8's: it shows in place, then the strip takes core's order, where

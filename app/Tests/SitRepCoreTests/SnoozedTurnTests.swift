@@ -18,7 +18,7 @@ struct SnoozedTurnTests {
         let line = try #require(rows.first?.lines.first)
 
         #expect(rows.map(\.id) == ["turn:sr-ctnbd2", "turn:sr-nx7bky"])
-        #expect(rows.allSatisfy { $0.isTurn })
+        expectEvery(rows) { $0.isTurn }
         #expect(rows.map(\.name) == ["Onboarding flow", "Ledger export"])
         #expect(rows.map { $0.lines.count } == [1, 1])
         #expect(line.key == "turn:sr-ctnbd2")

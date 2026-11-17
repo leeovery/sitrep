@@ -73,7 +73,7 @@ struct RowsTests {
 
         #expect(row.height == 53)
         #expect(content.height == 18 + 26 + 53 + 9 + 14)
-        #expect([1.0, 25, 48].allSatisfy { content.item(at: CGPoint(x: row.midX, y: row.minY + $0)) == 0 })
+        expectEvery([1.0, 25, 48]) { content.item(at: CGPoint(x: row.midX, y: row.minY + $0)) == 0 }
         #expect(content.item(at: CGPoint(x: row.midX, y: row.minY + 51)) == nil)
     }
 

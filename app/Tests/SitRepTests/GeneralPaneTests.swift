@@ -110,12 +110,14 @@ struct GeneralPaneTests {
 
     /// The row, holding the command given, in a column of the width given: its height, its field, the field's first
     /// baseline from the row's top, and the row drawn.
-    private static func row(_ command: String = "", column: CGFloat) throws
+    private static func row(
+        _ command: String = "", column: CGFloat, sourceLocation: SourceLocation = #_sourceLocation
+    ) throws
         -> (height: CGFloat, field: CGRect, baseline: CGFloat, drawn: Drawn)
     {
         let row = CommandRow(command: .constant(command)).background(.black)
         let hosted = Hosted(row, size: CGSize(width: column, height: SettingsStyle.oneLineRow))
-        let field = try #require(hosted.all(NSTextField.self).first)
+        let field = try #require(hosted.all(NSTextField.self).first, sourceLocation: sourceLocation)
         let frame = hosted.frame(of: field)
         let height = NSHostingController(rootView: row).sizeThatFits(in: CGSize(width: column, height: 400)).height
 

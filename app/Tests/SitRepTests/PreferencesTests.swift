@@ -46,7 +46,7 @@ struct PreferencesTests {
         defaults.set(Data([1]), forKey: SavedEdgeSettings.key)
         _ = Preferences(defaults)
 
-        #expect(Preferences.retired.allSatisfy { defaults.object(forKey: $0) == nil })
+        expectEvery(Preferences.retired) { defaults.object(forKey: $0) == nil }
         #expect(defaults.object(forKey: SavedEdgeSettings.key) != nil)
     }
 }

@@ -321,8 +321,8 @@ struct CardTests {
 
         let pushes = peaks.filter { $0.w > 20 }
         #expect(pushes.count == swells)
-        #expect(pushes.allSatisfy { abs($0.w - 25) < 1 })
-        #expect(zip(flashes, flashes.dropFirst()).allSatisfy { abs($1 - $0 - 450) < CardLab.frameMS })
+        expectEvery(pushes) { abs($0.w - 25) < 1 }
+        #expect(zip(flashes, flashes.dropFirst()).map { $1 - $0 }.filter { abs($0 - 450) >= CardLab.frameMS } == [])
         #expect(flashes.count == swells)
         #expect(longest == 124)
         let settled = lab.settle()
@@ -404,7 +404,7 @@ struct CardTests {
         #expect(abs(lab.frame.fading!.alpha - (1 - CardLab.frameMS / 160)) < 1e-9)
         let rows = lab.frame.panel!
         #expect(abs(rows.head.alpha - CardLab.frameMS / 120) < 1e-9)
-        #expect(rows.items.allSatisfy { $0 == rows.head && $0.rise == 0 })
+        expectEvery(rows.items) { $0 == rows.head && $0.rise == 0 }
 
         lab.wait(160)
         #expect(lab.frame.fading == nil)

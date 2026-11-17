@@ -32,11 +32,12 @@ struct MenuEntriesTests {
     @Test func itSpeaksUpFirstUnderTheHeader() {
         let window = WatchLine.Window(writer: "w1", session: "sr-boot", name: "The installer", project: "Litware", version: nil, needsReload: true)
         let last = heard([.line(Watched.line(windows: [window])), .exited(.status(1), stderr: "")])
-        let keys = MenuBoard(last, clock: london).entries(showing: .notch).map(\.key)
+        let entries = MenuBoard(last, clock: london).entries(showing: .notch)
 
-        #expect(Array(keys.prefix(7)) == [
+        #expect(Array(entries.map(\.key).prefix(7)) == [
             "header", "separator:header", "heading:reloads", "reload:w1", "separator:reloads", "unread", "separator:unread",
         ])
+        #expect(entries[2] == .heading("reloads", title: "Needs /reload-plugins"))
     }
 
     @Test func troubleWithThePluginSpeaksUpFirstOfAll() {

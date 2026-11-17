@@ -59,10 +59,12 @@ struct NotchRunTests {
     }
 
     /// Where a row of the list as drawn shows on the stage: near its top, in its middle.
-    private static func point(of key: String, in run: NotchRun) throws -> CGPoint {
-        let panel = try #require(run.frame.panel)
+    private static func point(
+        of key: String, in run: NotchRun, sourceLocation: SourceLocation = #_sourceLocation
+    ) throws -> CGPoint {
+        let panel = try #require(run.frame.panel, sourceLocation: sourceLocation)
         let content = run.list.content
-        let index = try #require(content.entries.firstIndex { $0.item.key == key })
+        let index = try #require(content.entries.firstIndex { $0.item.key == key }, sourceLocation: sourceLocation)
         let row = content.itemFrame(index)
 
         return CGPoint(x: panel.frame.minX + row.midX, y: panel.frame.minY + row.minY + 10 - run.scroll)
@@ -105,10 +107,12 @@ struct NotchRunTests {
     }
 
     /// The middle of a row's time on the stage, 22 in from the row's right.
-    private static func time(of key: String, in run: NotchRun) throws -> CGPoint {
-        let panel = try #require(run.frame.panel)
+    private static func time(
+        of key: String, in run: NotchRun, sourceLocation: SourceLocation = #_sourceLocation
+    ) throws -> CGPoint {
+        let panel = try #require(run.frame.panel, sourceLocation: sourceLocation)
         let content = run.list.content
-        let index = try #require(content.entries.firstIndex { $0.item.key == key })
+        let index = try #require(content.entries.firstIndex { $0.item.key == key }, sourceLocation: sourceLocation)
         let row = content.itemFrame(index), box = content.entries[index].item.box(width: row.width)
 
         return CGPoint(
@@ -328,7 +332,7 @@ struct NotchRunTests {
 
         #expect(alone.swappedAt != nil)
         #expect(between.swappedAt == alone.swappedAt)
-        #expect(zip(alone.places, between.places).allSatisfy { abs($0 - $1) < 1e-9 })
+        expectEvery(zip(alone.places, between.places)) { abs($0 - $1) < 1e-9 }
     }
 
     /// The pointer read along the edge at a steady speed, a frame a refresh, stamped a refresh ahead as the display
@@ -358,13 +362,13 @@ struct NotchRunTests {
         let speeds = Self.speeds(inputsPerRefresh: 1, from: 4)
 
         #expect(!speeds.isEmpty)
-        #expect(speeds.allSatisfy { abs($0 - 0.6) < 1e-6 })
+        expectEvery(speeds) { abs($0 - 0.6) < 1e-6 }
     }
 
     @Test func twoInputsInOneRefreshReadTheSpeedToo() {
         let speeds = Self.speeds(inputsPerRefresh: 2)
 
-        #expect(speeds.dropFirst(2).allSatisfy { abs($0 - 0.6) < 1e-6 })
+        expectEvery(speeds.dropFirst(2)) { abs($0 - 0.6) < 1e-6 }
     }
 
     @Test func theClockNeverGoesBack() {

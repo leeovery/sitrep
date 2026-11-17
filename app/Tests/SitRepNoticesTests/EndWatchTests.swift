@@ -11,11 +11,14 @@ import Testing
 @Suite(.backstop, .tags(.thisMac))
 struct EndWatchTests {
     /// A fresh instance of the Dock's app, which nothing else holds.
-    private static func ownApp() throws -> NSRunningApplication {
-        let listed = try #require(NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.dock").first)
-        let fresh = try #require(NSRunningApplication(processIdentifier: listed.processIdentifier))
+    private static func ownApp(sourceLocation: SourceLocation = #_sourceLocation) throws -> NSRunningApplication {
+        let docks = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.dock")
+        let listed = try #require(docks.first, sourceLocation: sourceLocation)
+        let fresh = try #require(
+            NSRunningApplication(processIdentifier: listed.processIdentifier), sourceLocation: sourceLocation
+        )
 
-        try #require(fresh !== listed)
+        try #require(fresh !== listed, sourceLocation: sourceLocation)
 
         return fresh
     }

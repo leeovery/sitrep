@@ -100,8 +100,10 @@ struct DottedRingTests {
     /// The runs of a ring's stroke drawn near full over what is under it in `lane`, each pixel reaching the next beside
     /// it: its dashes; one for a whole ring. Counted so, not read round its centreline, where the round caps leave
     /// gaps of half a point, which a quarter point's shift hides.
-    private static func dashes(_ drawn: Drawn, in lane: CGRect, ground: CGPoint) throws -> Int {
-        let under = try #require(drawn.pixel(at: ground)).lightness
+    private static func dashes(
+        _ drawn: Drawn, in lane: CGRect, ground: CGPoint, sourceLocation: SourceLocation = #_sourceLocation
+    ) throws -> Int {
+        let under = try #require(drawn.pixel(at: ground), sourceLocation: sourceLocation).lightness
         let scale = drawn.scale
         let columns = Int((lane.minX * scale).rounded()) ..< Int((lane.maxX * scale).rounded())
         let rows = Int((lane.minY * scale).rounded()) ..< Int((lane.maxY * scale).rounded())

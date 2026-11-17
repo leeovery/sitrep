@@ -41,7 +41,7 @@ struct NotchGlassMarkTests {
         let tints = Self.marks(style).map(\.tint), drop = 0.3 * NotchGlassMark.notchTint
 
         #expect(tints.contains { $0 > 0.1 && $0 < 0.4 })
-        #expect(zip(tints, tints.dropFirst()).allSatisfy { $1 <= $0 + 0.05 && $0 - $1 < drop })
+        expectEvery(zip(tints, tints.dropFirst())) { $1 <= $0 + 0.05 && $0 - $1 < drop }
     }
 
     /// Under reduced motion the notch cross-fades into the panel: the outline fading out keeps its own mark, the

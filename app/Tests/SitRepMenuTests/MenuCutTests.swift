@@ -22,6 +22,14 @@ struct MenuCutTests {
         #expect(title.cut(by: Self.cut) == MenuTitle(words: "Choose which page t…", mono: nil, more: nil, isFaint: true))
     }
 
+    @Test func aLineAsWideAsItsRoomIsLeftWhole() {
+        #expect(Self.cut.fit("Choose which page th", in: .words) == "Choose which page th")
+    }
+
+    @Test func aLineAPointWiderThanItsRoomIsCut() {
+        #expect(Self.cut.fit("Choose which page the", in: .words) == "Choose which page t…")
+    }
+
     @Test func theCutDropsTheSpaceBeforeTheEllipsis() {
         #expect(Self.cut.fit("Choose which pages  more", in: .words) == "Choose which pages…")
     }

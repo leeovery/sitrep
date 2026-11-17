@@ -85,13 +85,13 @@ private struct Paced<Model: NotchModel> {
     private var field: Double { lab.model.field }
 
     /// The panel opened by touch, the pointer moved in over its rows and rested, then the leave.
-    mutating func leave(_ leave: PanelLeaveTests.Leave) {
+    mutating func leave(_ leave: PanelLeaveTests.Leave, sourceLocation: SourceLocation = #_sourceLocation) {
         point(at: CGPoint(x: 3, y: lab.notchY))
         wait(1000)
-        #expect(lab.phase == .open)
+        #expect(lab.phase == .open, sourceLocation: sourceLocation)
         move(to: CGPoint(x: 200, y: lab.notchY + 120), speed: 0.3)
         wait(2000)
-        #expect(lab.phase == .open)
+        #expect(lab.phase == .open, sourceLocation: sourceLocation)
 
         switch leave {
         case .past:

@@ -328,7 +328,7 @@ struct CardSectionsDrawnTests {
 
         content.show(PanelList(head: nil, content: laid))
 
-        #expect(["needs:k", "turn:t", "turn:e", "w"].allSatisfy { content.rows[$0]?.row.layer.bounds.height == 30 })
+        expectEvery(["needs:k", "turn:t", "turn:e", "w"]) { content.rows[$0]?.row.layer.bounds.height == 30 }
         #expect(!laid.items.contains(.divider))
         #expect(laid.items.map(\.key) == ["eyebrow:needsYou", "needs:k", "turn:t", "turn:e", "eyebrow:working", "w"])
         #expect(laid.itemFrame(4).minY == laid.itemFrame(3).maxY)

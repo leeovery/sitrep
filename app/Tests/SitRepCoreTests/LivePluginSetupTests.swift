@@ -134,8 +134,11 @@ struct LivePluginSetupTests {
         #expect(!FileManager.default.fileExists(atPath: world.own.path))
     }
 
-    private static func bump(_ manifest: URL, to version: String) throws {
-        var json = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: manifest)) as? [String: Any])
+    private static func bump(
+        _ manifest: URL, to version: String, sourceLocation: SourceLocation = #_sourceLocation
+    ) throws {
+        let read = try JSONSerialization.jsonObject(with: Data(contentsOf: manifest))
+        var json = try #require(read as? [String: Any], sourceLocation: sourceLocation)
 
         json["version"] = version
         try JSONSerialization.data(withJSONObject: json, options: [.prettyPrinted]).write(to: manifest)

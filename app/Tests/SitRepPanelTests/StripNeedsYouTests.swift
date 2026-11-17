@@ -255,7 +255,7 @@ struct StripNeedsYouTests {
 
         #expect(lab.model.layout.rest(of: .needsYou).first == "t1")
         let tabs = lab.model.tabs.filter { $0.key == .session("t1") }
-        #expect(!tabs.isEmpty && tabs.allSatisfy { $0.phase == .closing })
+        expectEvery(tabs) { $0.phase == .closing }
     }
 
     /// The stopped mark pushed out is the last stopped one showing, wherever its stop puts it: with the first stopped
@@ -272,7 +272,7 @@ struct StripNeedsYouTests {
         #expect(lab.model.layout.rest(of: .needsYou).first == "t2")
         #expect(lab.model.layout.rest(of: .needsYou).last == "t0")
         #expect(lab.model.layout.y(of: "n") == places[3].y)
-        #expect(stays.allSatisfy { lab.model.layout.places.map(\.id).contains($0.id) })
+        expectEvery(stays) { lab.model.layout.places.map(\.id).contains($0.id) }
     }
 
     /// A session stopping while the asks' order waits for the re-sort goes under every ask, though the ask the panel's
@@ -348,7 +348,7 @@ struct StripNeedsYouTests {
         lab.newAsk(ask)
 
         #expect(lab.model.layout.rest(of: .needsYou).first == "n")
-        #expect(places.allSatisfy { lab.model.layout.y(of: $0.id) == $0.y })
+        expectEvery(places) { lab.model.layout.y(of: $0.id) == $0.y }
     }
 
     /// A session stopping on a full strip lands in the count though stopped marks show: only asks push them out.
@@ -382,7 +382,7 @@ struct StripNeedsYouTests {
             looks += lab.frame.marks.filter { $0.key == .count(.needsYou) }.map(\.look.need)
             return false
         }
-        #expect(!looks.isEmpty && looks.allSatisfy { $0 == need })
+        expectEvery(looks) { $0 == need }
         #expect(lab.model.counts[.needsYou] == nil)
     }
 

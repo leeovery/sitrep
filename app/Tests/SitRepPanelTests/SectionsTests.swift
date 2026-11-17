@@ -149,9 +149,9 @@ struct SectionsTests {
         let items = Self.card(Self.board + [Self.asleep], folds: CardFolds(sections: []))
         let rows = items.filter { $0.session != nil }
 
-        #expect(rows.allSatisfy { if case .line = $0 { true } else { false } })
+        expectEvery(rows) { if case .line = $0 { true } else { false } }
         #expect(rows.compactMap(\.session?.id) == ["litware", "tailspin", "wingtip", "alpine", "doc", "boot", "tailspin"])
-        #expect(rows.allSatisfy { $0.height == 30 && $0.margins == (0, 0) })
+        expectEvery(rows) { $0.height == 30 && $0.margins == (0, 0) }
     }
 
     /// Needs you shows every turn, however long ago it ended: no "N earlier".
@@ -187,7 +187,7 @@ struct SectionsTests {
         #expect(keys(noTurns) == ["needs:litware", "needs:tailspin", "divider", "doc", "boot"])
         #expect(!Item.list(Self.board.filter { $0.section == .working }).contains(.divider))
         #expect(!Item.list(Self.board.filter { $0.section == .needsYou }).contains(.divider))
-        #expect(Item.list(Self.board).allSatisfy { if case .line = $0 { false } else { true } })
+        expectEvery(Item.list(Self.board)) { if case .line = $0 { false } else { true } }
     }
 
     @Test func aSectionFoldsAndUnfolds() {

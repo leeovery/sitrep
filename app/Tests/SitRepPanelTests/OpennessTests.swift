@@ -26,7 +26,7 @@ struct OpennessTests {
     @Test func everyOpenFrameIsOpenAllTheWay() {
         for open in [Self.openFrames(Lab()), Self.openFrames(CardLab())] {
             #expect(!open.isEmpty)
-            #expect(open.allSatisfy { $0.openness == 1 })
+            expectEvery(open) { $0.openness == 1 }
         }
     }
 
@@ -56,7 +56,7 @@ struct OpennessTests {
             #expect(falls.first == 1)
             #expect(falls.last == 0)
             #expect(falls.contains { $0 > 0.2 && $0 < 0.8 })
-            #expect(zip(falls, falls.dropFirst()).allSatisfy { $0 - $1 < Self.step && $1 <= $0 + 0.1 })
+            expectEvery(zip(falls, falls.dropFirst())) { $0 - $1 < Self.step && $1 <= $0 + 0.1 }
         }
     }
 

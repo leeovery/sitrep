@@ -154,8 +154,9 @@ struct StripCrossTests {
         let peaks = zip(flash.dropFirst(), zip(flash, flash.dropFirst(2))).filter { here, around in
             here > around.0 && here >= around.1
         }.map(\.0)
-        #expect(peaks.count == 2 && peaks.allSatisfy { $0 > 0.9 })
-        #expect(washed.prefix(80).allSatisfy { $0 == 1 })
+        #expect(peaks.count == 2)
+        expectEvery(peaks) { $0 > 0.9 }
+        expectEvery(washed.prefix(80)) { $0 == 1 }
     }
 
     /// A new ask's row changing within its flash keeps its mark, its flash and its wash.

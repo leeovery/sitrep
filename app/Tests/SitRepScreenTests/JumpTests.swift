@@ -66,12 +66,8 @@ struct JumpTests {
 
         #expect(await jumping.run([inTmux()]) == .jumped)
         #expect(jumping.ghostty.told == ["activate window TABBED-WINDOW", "focus WOODGROVE-TERMINAL"])
-        #expect(jumping.clock.sleeps == [GhosttyDriver.pause])
+        #expect(jumping.clock.sleeps == [.milliseconds(500)], "which was enough live where none was not")
         #expect(jumping.ghostty.asked == [JumpWorld.window])
-    }
-
-    @Test func thePauseBeforeFocusingATabNotSelectedIsHalfASecondWhichWasEnoughLiveWhereNoneWasNot() {
-        #expect(GhosttyDriver.pause == .milliseconds(500))
     }
 
     @Test func withNoClientOnTheSessionsTmuxServerTheTableGoesUnusedSoItGivingNoAnswerIsNoMatter() async {
