@@ -642,9 +642,9 @@ struct WelcomeWindowTests {
         #expect(stage.loopTime == loopTime)
     }
 
-    /// The ask's row is found again on the shape as it now stands: another style's panel lays it elsewhere, and the
-    /// strip's is its mark, in the strip's depth. Frames on a clock of the test's own, never awaiting, so no frame on the display's clock comes
-    /// between them.
+    /// The ask's row is found again on the shape as it now stands: the notch's in its panel, then, the strip chosen, the
+    /// strip's mark, in the strip's depth, from the change's own frame. Frames on a clock of the test's own, never
+    /// awaiting, so no frame on the display's clock comes between them.
     @Test func theLoopsPointerFindsTheRowAgainAfterAChange() throws {
         let made = Made()
         let stage = try made.stage
@@ -654,14 +654,7 @@ struct WelcomeWindowTests {
         while stage.row == nil, stage.loopTime < WelcomeLoop.hello.length - 100 {
             stage.step(at: made.clock.pass(1000 / 60))
         }
-
-        let meniscus = try #require(stage.row)
-
-        made.preferences.edit { $0.style = .card }
-        for _ in 0 ..< 30 {
-            stage.step(at: made.clock.pass(1000 / 60))
-        }
-        #expect(stage.row != meniscus)
+        #expect(try #require(stage.row).x > Strip.restingWidth)
         made.preferences.edit { $0.show = .strip }
         stage.step(at: made.clock.pass(1000 / 60))
         #expect(try #require(stage.row).x < Strip.restingWidth)
@@ -734,6 +727,41 @@ struct WelcomeWindowTests {
         #expect(now == (try Self.rowOnAFullStrip(at: stage.loopTime)))
         Self.run(stage, on: made.clock, to: WelcomeLoop.hello.length + WelcomeLoop.hello.onRow + 300)
         #expect(stage.row == now)
+    }
+
+    /// The notch restyled while its panel is out, the loop paused or not, plays the loop from its start, as the notch
+    /// closes its panel to change: the panel pours again in the new style, and the pointer goes to the ask's row
+    /// there, as on a stage that had the style from the first.
+    @Test(arguments: [false, true])
+    func aStyleChangeWhileThePanelIsOutPlaysTheLoopAgain(paused: Bool) throws {
+        let hello = WelcomeLoop.hello, made = Made()
+        let stage = try made.stage
+
+        Self.settle(stage, on: made.clock)
+        Self.key(made)
+        Self.run(stage, on: made.clock, to: hello.onRow + 300)
+        try #require(stage.isOut && stage.row != nil)
+        if paused {
+            made.window.windowDidResignKey(Notification(name: NSWindow.didResignKeyNotification, object: made.recorded))
+        }
+        made.preferences.edit { $0.style = .card }
+        stage.step(at: made.clock.pass(1000 / 60))
+        #expect(stage.loopTime < 1000 / 60 + 1)
+        #expect(stage.row == nil && !stage.isOut)
+        Self.key(made)
+        Self.run(stage, on: made.clock, to: hello.onRow + 600)
+
+        let card = Made()
+
+        card.preferences.edit { $0.style = .card }
+
+        let fromTheFirst = try card.stage
+
+        Self.settle(fromTheFirst, on: card.clock)
+        Self.key(card)
+        Self.run(fromTheFirst, on: card.clock, to: stage.loopTime)
+        #expect(stage.isOut)
+        #expect(stage.row != nil && stage.row == fromTheFirst.row)
     }
 
     /// The strip at Grows on the stage, in front, the loop played this far.

@@ -307,9 +307,14 @@ final class StageEdge: NSView {
         }
     }
 
-    /// The play started afresh: the edge's screen at its scale, the shape and its run made anew, the board told, and
-    /// a frame drawn.
+    /// The play started afresh, and a frame drawn.
     private func restage() {
+        restart()
+        step(at: clock.now)
+    }
+
+    /// The play from its start: the edge's screen at its scale, the shape and its run made anew, the board told.
+    private func restart() {
         loopTime = 0
         lastTime = nil
         isPressing = false
@@ -318,7 +323,6 @@ final class StageEdge: NSView {
         chimeEnds = nil
         content.setBoundsSize(edge.frame.size)
         replace(with: Self.shape(settings.show, play))
-        step(at: clock.now)
     }
 
     /// Frames for what moves, as the window stands; in front, between frames, the loop's next beat.
@@ -420,8 +424,9 @@ final class StageEdge: NSView {
     }
 
     /// Lee's settings, as they stand: the other shape where he chose it, its board told afresh; else the edge, the
-    /// place, the material and the style, which the runs take each frame. The ask's row is found again on the shape as
-    /// it now is, before the pointer next goes by it, the loop paused or not (`findRow`).
+    /// place, the material and the style, which the runs take each frame. A loop's notch restyled plays the loop from
+    /// its start, as the notch closes its panel to change, which would leave the loop with none. Else the ask's row is
+    /// found again on the shape as it now is, before the pointer next goes by it, the loop paused or not (`findRow`).
     private func follow(_ settings: EdgeSettings) {
         guard settings != self.settings else {
             return
@@ -433,6 +438,10 @@ final class StageEdge: NSView {
         rowIsStale = true
         if Self.kind(settings.show, play) != Self.kind(last.show, play) {
             replace(with: Self.shape(settings.show, play))
+            return
+        }
+        if play.loop != nil, Self.kind(settings.show, play) == .notch, settings.style != last.style {
+            restart()
             return
         }
         place(shape)
