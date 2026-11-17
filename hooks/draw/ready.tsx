@@ -32,7 +32,7 @@ import {
 } from '../../core'
 import type { SitrepInFlight, SitrepQueued } from '../../types'
 import { agoWords, C, counted, GLYPH, wrapped } from '../look'
-import { briefOf, filedAt, itemKey, projectOf, sessionLabel } from '../places'
+import { briefOf, filedAt, itemKey, sessionLabel } from '../places'
 import {
   answered,
   destinations,
@@ -44,11 +44,10 @@ import {
   queuedFor,
   sentIn,
   unsent,
-  type FiledUnder,
   type HeldBack,
 } from '../queue'
 import type { Scene } from '../scene'
-import { answeredByTheHook, drawReplyRow, drawRewrite, NOT_SENT, type Drawing } from './kit'
+import { answeredByTheHook, drawReplyRow, drawRewrite, notSent, type Drawing } from './kit'
 
 /** A send the window holds while Claude is mid-turn, which Lee can take back until it goes. */
 const HELD = "⧗ Waiting for Claude's turn to end."
@@ -267,8 +266,7 @@ const goingGroup = (scene: Scene, send: SitrepInFlight, at: number, width: numbe
 const unsentGroups = (scene: Scene): ToSendGroup[] => {
   const queue = unsent(scene.queue, scene.inFlight)
   const held = { project: scene.folder, session: scene.session.id }
-  const filedUnder: FiledUnder = session => projectOf(scene, session)
-  const to = queue.flatMap(reply => goesTo(held, reply, filedUnder) ?? [])
+  const to = queue.map(reply => goesTo(held, reply))
   const here = to.filter(each => each.session === held.session)
 
   return destinations([...here, ...to, ...scene.sent]).flatMap(({ session }): ToSendGroup[] => {
@@ -279,7 +277,7 @@ const unsentGroups = (scene: Scene): ToSendGroup[] => {
       return []
     }
 
-    const waiting = queuedIn(scene, queuedFor(queue, held, filedUnder, session))
+    const waiting = queuedIn(scene, queuedFor(queue, held, session))
 
     if (sent === undefined || !isShowing(filed.session, sent, scene.now)) {
       return waiting.length > 0 ? [{ filed, listed: waiting }] : []
@@ -496,7 +494,7 @@ const drawAnswer = (
 /** What follows a queued reply's answer: why it will not go, where something holds it back; else its edit, unless a send carries it. */
 const afterQueued = (d: Drawing, key: string, { item, queued, barred }: Queued) => {
   if (barred !== undefined) {
-    return line(d, NOT_SENT[barred], C.grey)
+    return line(d, notSent(d.scene, barred, queued), C.grey)
   }
 
   return isCarried(d.scene.inFlight, queued)

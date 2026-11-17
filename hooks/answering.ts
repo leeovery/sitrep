@@ -42,7 +42,6 @@ import {
   type Verdict,
 } from '../core'
 import type { SitrepAnswering, SitrepAttachment, SitrepInFlight, SitrepQueued } from '../types'
-import { foldedFor } from './around'
 import { claimRide, letRideGo, rideTaken, type Ridden } from './deliver'
 import { logFailure, type Host } from './host'
 import { unwrapPastes } from './paste'
@@ -56,12 +55,11 @@ import {
   queuedOn,
   queuing,
   replyBodies,
-  type FiledUnder,
   type Folded,
   type LeftOut,
 } from './queue'
 import { sceneOf, type Scene } from './scene'
-import { filingNow, flightNow, readHeld, refresh, serially } from './window'
+import { flightNow, readForSend, readHeld, refresh, serially } from './window'
 
 /** The mode as it stands: what it writes, and the item it writes to. */
 export type Answering = { answering: SitrepAnswering; item: Ask | Parked }
@@ -124,6 +122,7 @@ export const CANNOT_RIDE: Record<LeftOut, string> = {
   answered: 'Not sent: already answered.',
   resolved: 'Not sent: Claude closed it.',
   finished: 'Not sent: the session is finished.',
+  moved: 'Not sent: it moved to another project.',
 }
 
 /** How long after a taken prompt is dropped the box is cleared: once the engine has put it back. */
@@ -365,14 +364,9 @@ const enterWith =
     return entered
   }
 
-/** Whether a reply to the mode's item goes to the session the window holds, whose Claude takes Lee's prompt, each session filed as `filedUnder` read it: one to its own item, or a pick-up of an item of its project. */
-const goesHere = (
-  held: SitrepAttachment,
-  { project, session, item, as }: SitrepAnswering,
-  filedUnder: FiledUnder,
-) =>
-  goesTo(held, { project, session, item, verdict: VERDICT[as] }, filedUnder)?.session ===
-  held.session
+/** Whether a reply to the mode's item goes to the session the window holds, whose Claude takes Lee's prompt: one to its own item, or a pick-up. */
+const goesHere = (held: SitrepAttachment, { project, session, item, as }: SitrepAnswering) =>
+  goesTo(held, { project, session, item, verdict: VERDICT[as] }).session === held.session
 
 /** The held session read afresh, in turn with whatever reads or changes the hold; as the scene has it where none is held now. */
 const heldAfresh = async (host: Host, scene: Scene) =>
@@ -419,10 +413,12 @@ const leftOnceClaimed = async (
     return { reason: 'changed', isStanding: false }
   }
 
-  const folded = await foldedFor(host, session, [reply])
-  const reason = leftOutOnceClaimed(folded, reply, ride)
+  const read = await readForSend(host, session, [reply])
+  const reason = leftOutOnceClaimed(read, reply, ride)
 
-  return reason === undefined ? undefined : { reason, isStanding: takesIn(folded, answering, ride) }
+  return reason === undefined
+    ? undefined
+    : { reason, isStanding: takesIn(read.folded, answering, ride) }
 }
 
 /**
@@ -468,12 +464,9 @@ const letIn = async (
   { answering }: Answering,
   words: string,
 ): Promise<Captured | undefined> => {
-  const [held, filedUnder] = await Promise.all([
-    host.state.attachment.read(),
-    filingNow(host, [answering]),
-  ])
+  const held = await host.state.attachment.read()
 
-  if (held === null || !goesHere(held, answering, filedUnder)) {
+  if (held === null || !goesHere(held, answering)) {
     host.ui.toast(ELSEWHERE)
 
     return { drop: NOT_TAKEN }
@@ -481,8 +474,9 @@ const letIn = async (
 
   const [session, queue] = await Promise.all([heldAfresh(host, scene), host.state.queue.read()])
   const reply = replyOf(answering, queue, words)
-  const folded = await foldedFor(host, session, [reply])
-  const [why] = leftOut(session.id, folded, [reply])
+  const read = await readForSend(host, session, [reply])
+  const { folded } = read
+  const [why] = leftOut(session.id, read, [reply])
   const message =
     why === undefined ? boardMessage(session, [reply], each => folded.get(each.session)) : undefined
 

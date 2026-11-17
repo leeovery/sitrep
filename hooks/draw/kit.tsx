@@ -28,7 +28,7 @@ import type {
 import type { Actions } from '../actions'
 import { answeringIn } from '../answering'
 import { ago, C, clip, counted, GLYPH, wrapped } from '../look'
-import { itemKey } from '../places'
+import { itemKey, projectLabel, projectOf } from '../places'
 import { heldBack, isCarried, type HeldBack } from '../queue'
 import type { Scene } from '../scene'
 
@@ -593,19 +593,39 @@ export const drawRewrite = (d: Drawing, key: string, item: Ask | Parked, queued:
 export const answeredByTheHook = () => undefined
 
 /** Why a reply in Ready to send stays as a send goes: its item took another answer of Lee's first, or Claude closed it; or its session finished, no reply reaching it. */
-export const NOT_SENT: Record<HeldBack, string> = {
+const NOT_SENT: Record<Exclude<HeldBack, 'moved'>, string> = {
   answered: '· not sent: already answered',
   resolved: '· not sent: Claude closed it',
   finished: '· not sent: session finished',
 }
 
+/** Why a reply in Ready to send stays as a send goes (`NOT_SENT`); a pick-up's, also that the session that parked its item moved to another project than this session's, which it names. */
+export const notSent = (
+  scene: Scene,
+  barred: HeldBack,
+  { session }: Pick<SitrepQueued, 'session'>,
+) => {
+  if (barred !== 'moved') {
+    return NOT_SENT[barred]
+  }
+
+  const key = projectOf(scene, session)
+
+  return `· not sent: moved to ${key === undefined ? 'another project' : projectLabel(scene, key)}`
+}
+
 /** Where a reply in Ready to send stands, as the branch under what it answers says it. */
-const queuedWords = (isOnItsWay: boolean, barred: HeldBack | undefined) => {
+const queuedWords = (
+  scene: Scene,
+  queued: SitrepQueued,
+  isOnItsWay: boolean,
+  barred: HeldBack | undefined,
+) => {
   if (isOnItsWay) {
     return '· on its way'
   }
 
-  return barred === undefined ? '· not sent yet' : NOT_SENT[barred]
+  return barred === undefined ? '· not sent yet' : notSent(scene, barred, queued)
 }
 
 /**
@@ -624,7 +644,7 @@ export const drawQueued = (d: Drawing, item: Ask | Parked, queued: SitrepQueued)
     item,
     queued,
     <Box flexDirection="row" columnGap={1}>
-      <Text color={C.grey}>{queuedWords(isOnItsWay, barred)}</Text>
+      <Text color={C.grey}>{queuedWords(d.scene, queued, isOnItsWay, barred)}</Text>
       {!isOnItsWay && (
         <Button
           key={`undo:${key}`}

@@ -18,12 +18,11 @@
  * a send carries them as a message of their own, which goes in after it.
  */
 import { boardMessage } from '../core'
-import { foldedFor } from './around'
 import { deliver, sendHeld, STILL_THERE } from './deliver'
 import type { Host } from './host'
 import { sendLetters } from './letters'
 import { leftOut, replyBodies, sendable, unsentTo, type LeftOut } from './queue'
-import { attached, filingNow, refresh, serially } from './window'
+import { attached, readForSend, refresh, serially } from './window'
 
 const BEHIND = `Not sent yet: replies from another session are going in first. ${STILL_THERE}`
 
@@ -39,13 +38,14 @@ const heldNow = (host: Host) =>
 /** What a send did with the held session's replies: claimed their message, met one in flight it is not claimed behind, or carried none, leaving each for why. */
 type Here = { is: 'claimed' } | { is: 'heldBack' } | { is: 'none'; left: readonly LeftOut[] }
 
-/** Why a send carried nothing at all, by why it left the replies it held: their items changed, or answered or closed, or their sessions finished, no reply reaching them, or several of these. */
+/** Why a send carried nothing at all, by why it left the replies it held: their items changed, or answered or closed, or their sessions finished, no reply reaching them, or moved to another project, or several of these. */
 const nothingSent = (left: readonly LeftOut[]) => {
   const why = [
     left.includes('changed') && 'have changed since',
     left.some(each => each === 'answered' || each === 'resolved') &&
       'are answered or closed already',
     left.includes('finished') && 'are in finished sessions',
+    left.includes('moved') && 'are in another project now',
   ].filter(Boolean)
 
   return `Nothing to send: the items replied to ${why.join(', or ')}. ${STILL_THERE}`
@@ -53,9 +53,10 @@ const nothingSent = (left: readonly LeftOut[]) => {
 
 /**
  * Sends the replies in Ready to send that go to the held session, its own
- * and every pick-up of what a session filed under its project now parked,
- * that no send in flight carries and their items take now (`sendable`),
- * `claimed` running once their message is claimed.
+ * and every pick-up, that no send in flight carries and their items take
+ * now (`sendable`), a pick-up's only while the session that parked its item
+ * is filed under the held session's project, `claimed` running once their
+ * message is claimed.
  */
 const sendHere = async (host: Host, claimed: () => Promise<void>): Promise<Here> => {
   const here = await heldNow(host)
@@ -66,16 +67,15 @@ const sendHere = async (host: Host, claimed: () => Promise<void>): Promise<Here>
 
   const { session, held } = here
   const [queue, flights] = await Promise.all([host.state.queue.read(), host.state.inFlight.read()])
-  const pickUps = queue.filter(reply => reply.verdict === 'pickup')
-  const filedUnder = await filingNow(host, pickUps)
-  const replies = unsentTo(queue, flights, held, filedUnder, session.id)
-  const folded = await foldedFor(host, session, replies)
-  const message = boardMessage(session, sendable(session.id, folded, replies), reply =>
+  const replies = unsentTo(queue, flights, held, session.id)
+  const read = await readForSend(host, session, replies)
+  const { folded } = read
+  const message = boardMessage(session, sendable(session.id, read, replies), reply =>
     folded.get(reply.session),
   )
 
   if (message === undefined) {
-    return { is: 'none', left: leftOut(session.id, folded, replies) }
+    return { is: 'none', left: leftOut(session.id, read, replies) }
   }
 
   const ahead = await deliver(

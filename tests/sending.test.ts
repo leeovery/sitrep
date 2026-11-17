@@ -519,21 +519,14 @@ test('a send in flight never holds back the replies it carries for its own answe
     verdict: 'yes',
   } as const
   const other = { ...carried, item: 'k2', verdict: 'choose', option: 'Keep it' } as const
-  const folded = new Map([[session.id, session]])
+  const read = { folded: new Map([[session.id, session]]), filedUnder: () => undefined }
   const held = { project: NORTHWIND.key, session: META.id }
-  const unfiled = () => undefined
-  const unsent = unsentTo(
-    [carried, other],
-    [inFlight({ type: 'reply', ...YES })],
-    held,
-    unfiled,
-    META.id,
-  )
+  const unsent = unsentTo([carried, other], [inFlight({ type: 'reply', ...YES })], held, META.id)
 
-  expect(sendable(META.id, folded, unsent)).toEqual([other])
-  expect(leftOut(META.id, folded, unsent)).toEqual([])
+  expect(sendable(META.id, read, unsent)).toEqual([other])
+  expect(leftOut(META.id, read, unsent)).toEqual([])
   expect(
-    leftOut(META.id, folded, unsentTo([carried], [], held, unfiled, META.id)),
+    leftOut(META.id, read, unsentTo([carried], [], held, META.id)),
     "another's answer bars it",
   ).toEqual(['answered'])
 })
@@ -541,12 +534,12 @@ test('a send in flight never holds back the replies it carries for its own answe
 test('a send leaves out a reply to an ask of a session finished, which no reply reaches; from the window holding that session, it carries it', () => {
   const session = sessionOf([REVIEW, [T0 + MIN, finish('claude')]], {})
   const yes = { project: NORTHWIND.key, session: META.id, item: 'k1', verdict: 'yes' } as const
-  const folded = new Map([[session.id, session]])
+  const read = { folded: new Map([[session.id, session]]), filedUnder: () => undefined }
 
-  expect(sendable('sr-other1', folded, [yes]), 'from another window').toEqual([])
-  expect(leftOut('sr-other1', folded, [yes])).toEqual(['finished'])
-  expect(sendable(META.id, folded, [yes]), 'from the window holding it').toEqual([yes])
-  expect(leftOut(META.id, folded, [yes])).toEqual([])
+  expect(sendable('sr-other1', read, [yes]), 'from another window').toEqual([])
+  expect(leftOut('sr-other1', read, [yes])).toEqual(['finished'])
+  expect(sendable(META.id, read, [yes]), 'from the window holding it').toEqual([yes])
+  expect(leftOut(META.id, read, [yes])).toEqual([])
 })
 
 test("a message's replies take ids unlike any its session uses, and any a message in flight carries, not written down yet", () => {

@@ -1752,7 +1752,9 @@ that carries nothing at all, to this session or any other, toasts why:
 `…have changed since.` where none fits its item any more, or `…have changed
 since, or are answered or closed already.` for some of each; `…are in
 finished sessions` joins them for a reply to another session's ask finished
-since it was queued (see "A finished session's view"). Ready to send's
+since it was queued (see "A finished session's view"), and `…are in
+another project now` for a pick-up of what a session that moved away
+parked (see "A window that changes project"). Ready to send's
 `send` shows only while some reply would go, whatever holds the others
 back, answered, closed by Claude or finished (17 November 2026, made in
 review), so only a send pressed before the board read what holds them back
@@ -1904,13 +1906,19 @@ app (see "The menu bar").
     and the item stays parked, to be picked up from a window of its
     project. A message already sent, held for the turn's end, goes in as
     sent, to the conversation Lee pressed send in; taken back, its pick-up
-    leaves the queue the same way. The rule itself is the send's (queue.ts's
-    `goesTo`, 17 November 2026): a pick-up goes to the window's Claude only
-    while its item's session is filed under the held session's project as
-    the send reads each, afresh; else to none, and it waits, undrawn, until
-    it is. So one left behind, as a reload found the held `session.json`
-    torn and read the move only after, or one whose item's session moved
-    away after the press, never reaches a Claude of another project.
+    leaves the queue the same way. The rule itself is the send's (17
+    November 2026): a pick-up goes to the window's Claude only while the
+    session that parked its item is filed under the held session's project
+    as the send reads each, afresh. Else it is held back, as a reply to a
+    closed item is (queue.ts's `isPickedElsewhere`): drawn in Ready to send
+    under this session, and on its item, `· not sent: moved to Contoso`,
+    with its `↺ undo` and `✕` and no `send` for it alone; a send pressed
+    regardless leaves it, toasting `Nothing to send: the items replied to
+    are in another project now.`; it goes once that session is filed under
+    the held one's project again. So one left behind, as a reload found the
+    held `session.json` torn and read the move only after, or one whose
+    item's session moved away after the press, never reaches a Claude of
+    another project, and never waits unseen.
   - **Two windows, one item.** Each pick-up goes in to its own window's
     Claude: a mark lets in a reply its item's close voided `answered` (see
     "Which replies go in"), so both Claudes are told.

@@ -36,6 +36,7 @@ import {
   W4,
 } from './data'
 import { entered } from './answers'
+import { rowsOf } from './drawn'
 import { file, moveTo, park, reply, resolve, yesAsk } from './lines'
 import {
   asked,
@@ -513,7 +514,82 @@ test("a window joining a moved session keeps Ready to send's pick-ups of what it
   expect(w.toasts.filter(toast => toast.includes('pick-up'))).toEqual([])
 })
 
-test('a pick-up in Ready to send of what another session of the project it left parked leaves it as the session moves, a toast saying so; one pressed for a session that then moved goes to none while that session is filed elsewhere, and goes once it is back', async ($, on) => {
+test('a pick-up in Ready to send of what another session of the project it left parked leaves it as the session moves, a toast saying so', async ($, on) => {
+  const w = world($, on)
+
+  withContoso(w)
+  withLedger(w)
+  await w.begin()
+
+  const ui = await w.opened()
+
+  await toProject(ui)
+  await ui.press({ key: `ppick:${LEDGER.id}:p1` })
+  await ui.press({ key: `pickup:${LEDGER.id}:p1` })
+  await w.call('move', { project: 'Contoso' })
+
+  expect(w.state.queue).toEqual([])
+  expect(w.toasts).toContain(
+    '1 pick-up of another project left Ready to send: pick up from a window of that project.',
+  )
+})
+
+/** The ledger's export, picked up from Northwind's view, the ledger then moved to Contoso, and the look having read it there. */
+const pickedThenMoved = async (w: World) => {
+  withContoso(w)
+
+  const ledger = withLedger(w)
+
+  await w.begin()
+
+  const ui = await w.opened()
+
+  await toProject(ui)
+  await ui.press({ key: `ppick:${LEDGER.id}:p1` })
+  await ui.press({ key: `pickup:${LEDGER.id}:p1` })
+  ledger.write(moveTo(ELSEWHERE.key))
+  await w.clock.advance(AROUND_MS)
+
+  return { ledger, ui }
+}
+
+/** The ledger's export as Ready to send draws its pick-up, and its ✕. */
+const readyPickUp = async (ui: Board) => ({
+  rows: rowsOf(await ui.find({ key: `readyanswer:${LEDGER.id}:p1` })),
+  isUnreadied: (await ui.find({ key: `unready:${LEDGER.id}:p1` })) !== undefined,
+})
+
+test('a pick-up of what a session then moved to another project parked is drawn in Ready to send held back, saying where it went, with its ✕ and its undo, and no send offered for it: none goes until that session is back, then it goes', async ($, on) => {
+  const w = world($, on)
+  const { ledger, ui } = await pickedThenMoved(w)
+
+  expect(await readyPickUp(ui)).toEqual({
+    rows: ['└ pick it up · not sent: moved to Contoso'],
+    isUnreadied: true,
+  })
+  expect(await ui.find({ key: 'send' }), 'no send for it alone').toBeUndefined()
+
+  await toProject(ui, ELSEWHERE.key)
+
+  expect(rowsOf(await ui.find({ key: `parked:${LEDGER.id}:p1` })).at(-1)).toMatch(
+    /· not sent: moved to Contoso ↺ undo$/,
+  )
+
+  ledger.write(moveTo(PROJECT.key))
+  await w.clock.advance(AROUND_MS)
+
+  expect(await readyPickUp(ui)).toEqual({ rows: ['└ pick it up'], isUnreadied: true })
+
+  await ui.press({ key: 'send' })
+
+  expect(w.submitted).toEqual([
+    `From the board:\n- Pick up from parked, Invoice ledger's: ${EXPORT}`,
+  ])
+  expect(kindsIn(w, ledger.paths.log(W1))).toEqual(['reply', 'delivered'])
+  expect(filesUnder(w, ELSEWHERE.key, LEDGER.id)).toEqual([])
+})
+
+test('a send pressed as the session that parked a pick-up moves away, before the look reads it there, carries none of it, saying why, and leaves it held back', async ($, on) => {
   const w = world($, on)
 
   withContoso(w)
@@ -527,34 +603,26 @@ test('a pick-up in Ready to send of what another session of the project it left 
   await toProject(ui)
   await ui.press({ key: `ppick:${LEDGER.id}:p1` })
   await ui.press({ key: `pickup:${LEDGER.id}:p1` })
-
-  await w.call('move', { project: 'Contoso' })
-
-  expect(w.state.queue).toEqual([])
-  expect(w.toasts).toContain(
-    '1 pick-up of another project left Ready to send: pick up from a window of that project.',
-  )
-
-  await w.call('move', { project: 'Northwind' })
-  await toProject(ui)
-  await ui.press({ key: `ppick:${LEDGER.id}:p1` })
-  await ui.press({ key: `pickup:${LEDGER.id}:p1` })
   ledger.write(moveTo(ELSEWHERE.key))
   await w.clock.advance(WATCH_MS)
   await ui.press({ key: 'send' })
 
-  expect(w.submitted, 'the ledger is filed under Contoso as the send reads it').toEqual([])
+  expect(w.submitted).toEqual([])
+  expect(w.toasts.at(-1)).toMatch(
+    /^Nothing to send: the items replied to are in another project now\./,
+  )
   expect(w.state.queue?.map(each => each.session)).toEqual([LEDGER.id])
+})
 
-  ledger.write(moveTo(PROJECT.key))
-  await w.clock.advance(AROUND_MS)
-  await ui.press({ key: 'send' })
+test('undo takes back a pick-up held back as the session that parked its item moved to another project', async ($, on) => {
+  const w = world($, on)
+  const { ui } = await pickedThenMoved(w)
 
-  expect(w.submitted).toEqual([
-    `From the board:\n- Pick up from parked, Invoice ledger's: ${EXPORT}`,
-  ])
-  expect(kindsIn(w, ledger.paths.log(W1))).toEqual(['reply', 'delivered'])
-  expect(filesUnder(w, ELSEWHERE.key, LEDGER.id)).toEqual([])
+  await toProject(ui, ELSEWHERE.key)
+  await ui.press({ key: `undo:${LEDGER.id}:p1` })
+
+  expect(w.state.queue).toEqual([])
+  expect(await ui.find({ key: `readyanswer:${LEDGER.id}:p1` })).toBeUndefined()
 })
 
 test('a pick-up of what a session of the project the held one left parked, still queued as a reload found its session.json torn and its move unread, never goes to its Claude: the send reads where each is filed', async ($, on) => {

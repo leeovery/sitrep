@@ -39,7 +39,7 @@ import type {
   SitrepSessionRef,
 } from '../types'
 import { random } from './host'
-import { addressed, canReach, itemKey } from './places'
+import { addressed, canReach, itemKey, projectOf } from './places'
 import type { Scene } from './scene'
 
 type Queue = readonly SitrepQueued[]
@@ -57,25 +57,29 @@ const isFor = (reply: Pick<SitrepQueued, 'session' | 'item'>, session: string, i
 export type FiledUnder = (session: string) => ProjectKey | undefined
 
 /**
- * The session a queued reply goes to from a window holding `held`, each
- * session filed as `filedUnder` read it: a pick-up to the held session,
- * whichever session of its project parked the item, while that session is
- * filed under the held one's project; any other reply to its item's
- * session. A pick-up of another project's item goes to none, as does one
- * whose session, or the held one, was not read.
+ * The session a queued reply goes to from a window holding `held`: a
+ * pick-up to the held session, whichever session parked the item, held
+ * back while that session is filed under another project
+ * (`isPickedElsewhere`); any other reply to its item's session.
  */
-export const goesTo = (
-  held: SitrepSessionRef,
-  reply: SitrepQueued,
-  filedUnder: FiledUnder,
-): SitrepSessionRef | undefined => {
-  if (reply.verdict !== 'pickup') {
-    return { project: reply.project, session: reply.session }
+export const goesTo = (held: SitrepSessionRef, reply: SitrepQueued): SitrepSessionRef =>
+  reply.verdict === 'pickup' ? held : { project: reply.project, session: reply.session }
+
+/**
+ * Whether a reply from the window holding `held` is a pick-up of what a
+ * session filed under another project than the held session's parked, each
+ * filed as `filedUnder` read it, or either not read: no Claude of another
+ * project is given one, so it is held back from every send until its
+ * session is filed under the held session's project again.
+ */
+export const isPickedElsewhere = (held: string, reply: SitrepQueued, filedUnder: FiledUnder) => {
+  if (reply.verdict !== 'pickup' || reply.session === held) {
+    return false
   }
 
-  const here = filedUnder(held.session)
+  const here = filedUnder(held)
 
-  return here !== undefined && filedUnder(reply.session) === here ? held : undefined
+  return here === undefined || filedUnder(reply.session) !== here
 }
 
 /** The item a reply names in a message to the session `to`: by its own id where it is that session's, else by its address. */
@@ -117,10 +121,10 @@ export const isCarried = (flights: Flights, reply: SitrepQueued) =>
 export const unsent = (queue: Queue, flights: Flights) =>
   queue.filter(each => !isCarried(flights, each))
 
-/** What holds a queued reply back from a send: its item's session finished, no reply reaching it (`reaches`); else its item closed, or holding another answer of Lee's (`barredBy`). */
-export type HeldBack = 'finished' | Barred
+/** What holds a queued reply back from a send: a pick-up's, its item's session filed under another project than the held session's (`isPickedElsewhere`); its item's session finished, no reply reaching it (`reaches`); else its item closed, or holding another answer of Lee's (`barredBy`). */
+export type HeldBack = 'moved' | 'finished' | Barred
 
-/** What holds a queued reply back from a send, as the board reads it (`reaches`, `barredBy`); nothing for one a send in flight carries. */
+/** What holds a queued reply back from a send, as the board reads it (`isPickedElsewhere`, `reaches`, `barredBy`); nothing for one a send in flight carries. */
 export const heldBack = (
   scene: Scene,
   item: Ask | Parked,
@@ -128,6 +132,10 @@ export const heldBack = (
 ): HeldBack | undefined => {
   if (isCarried(scene.inFlight, reply)) {
     return undefined
+  }
+
+  if (isPickedElsewhere(scene.session.id, reply, session => projectOf(scene, session))) {
+    return 'moved'
   }
 
   return canReach(scene, reply.session, item) ? barredBy(item, reply.verdict) : 'finished'
@@ -147,13 +155,9 @@ export const restoring = (queue: Queue, replies: Queue) => [
   ...replies.filter(reply => queuedOn(queue, reply.session, reply.item) === undefined),
 ]
 
-/** The replies waiting for a session, in the order queued, as each goes from a window holding `held`, each session filed as `filedUnder` read it. */
-export const queuedFor = (
-  queue: Queue,
-  held: SitrepSessionRef,
-  filedUnder: FiledUnder,
-  session: string,
-) => queue.filter(each => goesTo(held, each, filedUnder)?.session === session)
+/** The replies waiting for a session, in the order queued, as each goes from a window holding `held`. */
+export const queuedFor = (queue: Queue, held: SitrepSessionRef, session: string) =>
+  queue.filter(each => goesTo(held, each).session === session)
 
 /** The reply waiting on an item, if one is. */
 export const queuedOn = (queue: Queue, session: string, item: string) =>
@@ -171,7 +175,7 @@ export const answered = (session: Session, reply: SitrepQueued): Ask | Parked | 
   return item !== undefined && fits(item, reply) ? item : undefined
 }
 
-/** Why a send leaves a queued reply in Ready to send: its item changed past it, or is gone; or, as Ready to send says it (`HeldBack`), its session finished, no reply reaching it, or the item holding another answer of Lee's, or closed. */
+/** Why a send leaves a queued reply in Ready to send: its item changed past it, or is gone; or, as Ready to send says it (`HeldBack`), a pick-up's session filed under another project, its session finished, no reply reaching it, or the item holding another answer of Lee's, or closed. */
 export type LeftOut = 'changed' | HeldBack
 
 /** Whether Lee's answer on its way to an item is one `own`, a message claimed with a reply to it, carries: its writer's, by its id. */
@@ -209,44 +213,56 @@ const whyLeft = (
     : 'finished'
 }
 
-/** Why a send from the window holding `held` leaves a queued reply, its item read in its own session as `folded` has it: one whose session is gone has changed. */
-const whyLeftIn = (held: string, folded: Folded, reply: SitrepQueued, own?: SitrepInFlight) => {
+/** The sessions a send's replies answer items of, as the send reads them: each folded, and where each is filed, the held one among them. */
+export type AsRead = { folded: Folded; filedUnder: FiledUnder }
+
+/**
+ * Why a send from the window holding `held` leaves a queued reply, its item
+ * read in its own session as `folded` has it, and each session filed as
+ * `filedUnder` read it: one whose session is gone has changed.
+ */
+const whyLeftIn = (
+  held: string,
+  { folded, filedUnder }: AsRead,
+  reply: SitrepQueued,
+  own?: SitrepInFlight,
+) => {
   const session = folded.get(reply.session)
 
-  return session === undefined ? 'changed' : whyLeft(held, session, reply, own)
+  if (session === undefined) {
+    return 'changed'
+  }
+
+  return isPickedElsewhere(held, reply, filedUnder) ? 'moved' : whyLeft(held, session, reply, own)
 }
 
-/** The replies a send to a session would carry from a window holding `held`, each session filed as `filedUnder` read it: those no send in flight carries, which go in their own message already. */
-export const unsentTo = (
-  queue: Queue,
-  flights: Flights,
-  held: SitrepSessionRef,
-  filedUnder: FiledUnder,
-  to: string,
-) => queuedFor(unsent(queue, flights), held, filedUnder, to)
+/** The replies a send to a session would carry from a window holding `held`: those no send in flight carries, which go in their own message already. */
+export const unsentTo = (queue: Queue, flights: Flights, held: SitrepSessionRef, to: string) =>
+  queuedFor(unsent(queue, flights), held, to)
 
 /**
  * Of a send's replies from the window holding `held`, those it carries,
- * each item read in its own session as `folded` has it. One whose item
- * changed under it, or closed, or holds another answer of Lee's on its way,
- * or whose session finished, no reply reaching it, stays in Ready to send,
- * unsent: Claude has one answer to an item, the first to reach it.
+ * each item read in its own session, and each session filed, as `read` has
+ * it. A pick-up of what a session of another project parked, or one whose
+ * item changed under it, or closed, or holds another answer of Lee's on its
+ * way, or whose session finished, no reply reaching it, stays in Ready to
+ * send, unsent: Claude has one answer to an item, the first to reach it.
  */
-export const sendable = (held: string, folded: Folded, replies: Queue) =>
-  replies.filter(reply => whyLeftIn(held, folded, reply) === undefined)
+export const sendable = (held: string, read: AsRead, replies: Queue) =>
+  replies.filter(reply => whyLeftIn(held, read, reply) === undefined)
 
 /** Why a send from the window holding `held` leaves each of its replies it does not carry. */
-export const leftOut = (held: string, folded: Folded, replies: Queue): LeftOut[] =>
-  replies.flatMap(reply => whyLeftIn(held, folded, reply) ?? [])
+export const leftOut = (held: string, read: AsRead, replies: Queue): LeftOut[] =>
+  replies.flatMap(reply => whyLeftIn(held, read, reply) ?? [])
 
 /**
  * Why a message claimed with a reply leaves it out, its item read again in
- * its own session as `folded` has it, as a send would: the message's own
- * answer on its way, which its window's heartbeat says from the claim,
- * bars nothing.
+ * its own session, and that session filed, as `read` has it, as a send
+ * would: the message's own answer on its way, which its window's heartbeat
+ * says from the claim, bars nothing.
  */
-export const leftOutOnceClaimed = (folded: Folded, reply: SitrepQueued, claimed: SitrepInFlight) =>
-  whyLeftIn(claimed.session, folded, reply, claimed)
+export const leftOutOnceClaimed = (read: AsRead, reply: SitrepQueued, claimed: SitrepInFlight) =>
+  whyLeftIn(claimed.session, read, reply, claimed)
 
 /** Where a message's reply ids are drawn apart from: the sessions its items are in, and the messages in flight. */
 export type Around = { folded?: Folded; flights?: Flights }

@@ -46,7 +46,7 @@ import {
 import type { SitrepAttachment, SitrepInFlight, SitrepQueued, SitrepSessionRef } from '../types'
 import { activityNow } from './activity'
 import { endAnswering, settleAnswering } from './answering'
-import { filedNow, lookAround } from './around'
+import { filedNow, foldedFor, lookAround } from './around'
 import { boardOf } from './board'
 import { namesKept } from './filing'
 import { logFailure, rootFor, type Host } from './host'
@@ -54,7 +54,7 @@ import { isLater, isSuperseded, loadedNow, supersede } from './load'
 import { counted } from './look'
 import { announce, type News } from './news'
 import { addressed } from './places'
-import { destinations, goesTo, isCarried, type FiledUnder } from './queue'
+import { destinations, isCarried, isPickedElsewhere, type AsRead, type FiledUnder } from './queue'
 import { createReader, ownText, type Reader } from './reader'
 import { versionNow } from './version'
 import { whereNow } from './where'
@@ -489,17 +489,16 @@ const pickUpsLeft = (count: number) =>
   `${counted(count, 'pick-up', 'pick-ups')} of another project left Ready to send: pick up from a window of that project.`
 
 /**
- * Where the held session and the sessions of these pick-ups are filed now:
- * the held one as its last fold files it, each other read afresh; one not
- * read, under none. What tells where a pick-up goes (queue.ts's `goesTo`).
+ * Where the held session and the sessions of the pick-ups among these
+ * replies are filed now: the held one as its last fold files it, each other
+ * read afresh; one not read, under none. What holds back a pick-up of
+ * another project's item (queue.ts's `isPickedElsewhere`).
  */
-export const filingNow = async (
-  host: Host,
-  pickUps: readonly SitrepSessionRef[],
-): Promise<FiledUnder> => {
+const filingNow = async (host: Host, replies: readonly SitrepQueued[]): Promise<FiledUnder> => {
   const held = current?.attachment.session
   const here = heldProject()
   const [root, now] = await Promise.all([rootFor(host), host.clock.now()])
+  const pickUps = replies.filter(reply => reply.verdict === 'pickup')
   const others = destinations(pickUps).filter(at => at.session !== held)
   const read = await Promise.all(others.map(at => filedNow(host, root, at, now)))
   const filed = new Map(
@@ -509,15 +508,29 @@ export const filingNow = async (
   return session => (session === held ? here : filed.get(session))
 }
 
+/** The sessions these replies answer items of, as a send from the window reads them now: each folded, the held `session` as given (`foldedFor`), and each pick-up's filed, the held one's among them (`filingNow`). */
+export const readForSend = async (
+  host: Host,
+  session: Session,
+  replies: readonly SitrepQueued[],
+): Promise<AsRead> => {
+  const [folded, filedUnder] = await Promise.all([
+    foldedFor(host, session, replies),
+    filingNow(host, replies),
+  ])
+
+  return { folded, filedUnder }
+}
+
 /**
- * Takes out of Ready to send each pick-up that goes to none (queue.ts's
- * `goesTo`), of what a session filed under another project than the held
- * session's parked, each filed as it stands, none a send in flight
+ * Takes out of Ready to send each pick-up of what a session filed under
+ * another project than the held session's parked (queue.ts's
+ * `isPickedElsewhere`), each filed as it stands, none a send in flight
  * carries, a toast saying so: a pick-up goes to the window's Claude, and
  * none of another project is given one. As the window takes up a session,
  * as its session moves, and as a claim ends unwritten, its replies back in
  * Ready to send. One pressed for a session of the held session's project
- * that moves after stays, going to none while that session is filed
+ * that moves after stays, drawn held back while that session is filed
  * elsewhere.
  */
 export const dropPickUpsElsewhere = async (host: Host) => {
@@ -533,7 +546,7 @@ export const dropPickUpsElsewhere = async (host: Host) => {
   const isLeft = (reply: SitrepQueued) =>
     isPickUp(reply) &&
     filedUnder(reply.session) !== undefined &&
-    goesTo(held, reply, filedUnder) === undefined
+    isPickedElsewhere(held.session, reply, filedUnder)
   const left = queue.filter(isLeft).length
 
   if (left > 0) {
