@@ -1,7 +1,7 @@
 import { expect, test, tier, type Engine } from './kit'
 import { CURRENT_MS, parseEntries, parsePresence, startText, type SessionMeta } from '../core'
 import { CLI, DAY, HELP_DESK, meta, MIN, PLUGIN_VERSION, PROJECT, REPO, T0, W1, W2 } from './data'
-import { file, finish, note, reply, yesAsk } from './lines'
+import { file, finish, reply, status, yesAsk } from './lines'
 import { CONVERSATION, WHERE, world, type World } from './world'
 
 tier('user')
@@ -13,7 +13,7 @@ const heldBefore = (w: World, session: SessionMeta, leftAt: number, writer = W1)
   const { paths } = w.elsewhere(session)
 
   w.beat(session.id, { writer, attachedAt: session.created, seenAt: leftAt, leftAt })
-  w.put(paths.log(writer), file([session.created, note('n1', `Worked on ${session.name}`)]))
+  w.put(paths.log(writer), file([session.created, status([`Working on ${session.name}`], session)]))
 
   return paths
 }
@@ -48,7 +48,7 @@ test('a conversation resumed in a new process takes up by itself the session it 
     loadedAt: NOW,
   })
 
-  await w.call('note', { text: 'Drew round 2' })
+  await w.call('park', { title: 'Drew round 2' })
   expect(parseEntries(w.text(paths.log(W1))).map(line => line.seq)).toEqual([1, 2])
 })
 
@@ -68,7 +68,7 @@ test('a conversation resumed in a new process never takes up by itself the sessi
 
   w.put(
     paths.log(W1),
-    file([T0, note('n1', 'Worked on it')], [T0 + 4 * MIN, finish('claude', 'Shipped')]),
+    file([T0, status(['Working on it'])], [T0 + 4 * MIN, finish('claude', 'Shipped')]),
   )
   await $.session.start(CONVERSATION)
 

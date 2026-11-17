@@ -10,7 +10,7 @@ export const C = {
   ask: '#e0af68',
   /** A new ask's pulse. */
   pulse: '#ff9e64',
-  log: '#7aa2f7',
+  sessions: '#7aa2f7',
   parked: '#bb9af7',
   ok: '#9ece6a',
   now: '#73daca',

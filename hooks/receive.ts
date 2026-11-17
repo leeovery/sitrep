@@ -31,14 +31,17 @@ import { WATCH_MS } from './window'
 
 let timer: Timer | undefined
 
-const lineOf = ({ id, item, verdict, option, note }: Reply): ReplyBody => ({
-  type: 'reply',
-  id,
-  item,
-  verdict,
-  option,
-  note,
-})
+/** A reply as the line it was read from: its own fields, what the fold made of it left out. */
+const lineOf = ({
+  by,
+  at,
+  delivery,
+  deliveredAt,
+  voidedAt,
+  voided,
+  isHistory,
+  ...line
+}: Reply): ReplyBody => ({ type: 'reply', ...line })
 
 /** Whether this window still delivers the inbox of the session a message of the inbox's goes to. */
 const isDelivering = async (host: Host, message: SitrepInFlight) => {

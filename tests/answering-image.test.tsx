@@ -30,7 +30,7 @@ import {
   W2,
   W3,
 } from './data'
-import { beat, delivered, file, note, reply } from './lines'
+import { beat, delivered, file, park, reply } from './lines'
 import { asked, CONVERSATION, lost, openAsk, pressYes, world, writeDoor, type World } from './world'
 
 tier('user')
@@ -127,7 +127,7 @@ test('an answer with an image takes no board context, which waits for the next p
   const w = world($, on)
   const { id } = await answering(w)
 
-  w.writer(heldPaths(w))(note('n9', 'Merged the band'))
+  w.writer(heldPaths(w))(park('p9', 'Merged the band'))
   await entered(w, $, 'v1.2.3 [Image #1]', { attachments: [IMAGE] })
   await entered(w, $, 'Carry on.')
   expect(w.prompts.map(each => each.context?.length ?? 0)).toEqual([0, 1])

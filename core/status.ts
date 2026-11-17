@@ -1,14 +1,14 @@
 /**
- * The log line a changed status earns. The board compares each status with
- * the one before it as it folds, so Claude never logs a status change, and
- * no such line is ever stored.
+ * The line a changed status earns in its session's history. The board
+ * compares each status with the one before it as it folds, so Claude never
+ * writes a status change down, and no such line is ever stored.
  */
 import type { Status } from './types'
 
 /** The fields a status change is read from. */
 export type StatusFields = Pick<Status, 'name' | 'summary' | 'now' | 'next'>
 
-/** A status change as the log shows it: a headline, and the detail it opens to. */
+/** A status change as the history shows it: a headline, and the detail it opens to. */
 export type StatusChange = { text: string; detail: string[] }
 
 /** What each detail line of a status change opens with: what the line says changed. */
@@ -86,7 +86,7 @@ export const statusChange = (
   const isNowChanged = added.length + gone.length > 0
 
   return {
-    text: `Status: ${headline}`,
+    text: headline,
     detail: [
       ...added.map(labelled(STATUS_LABELS.added)),
       ...gone.map(labelled(STATUS_LABELS.gone)),

@@ -5,7 +5,7 @@ import { AROUND_MS } from '../hooks/around'
 import { WATCH_MS } from '../hooks/window'
 import type { SitrepAttachment } from '../types'
 import { ELSEWHERE, LEDGER, META, MIN, PROJECT, T0, THEMES, W1, W2, W3 } from './data'
-import { file, note, yesAsk } from './lines'
+import { file, park, yesAsk } from './lines'
 import { CONVERSATION, postedId, toProject, world } from './world'
 
 tier('user')
@@ -29,11 +29,11 @@ test('a session started now is filed under sessions/, its meta session.json', as
   const w = world($, on)
   const { paths } = await w.begin()
 
-  await w.call('note', { text: 'Drew round 1' })
+  await w.call('park', { title: 'Drew round 1' })
 
   expect(w.files.has(paths.meta)).toBe(true)
   expect(paths.meta.endsWith(`/sessions/${paths.dir.split('/').at(-1)}/session.json`)).toBe(true)
-  expect(parseEntries(w.text(paths.log(W1))).map(line => line.type)).toEqual(['note'])
+  expect(parseEntries(w.text(paths.log(W1))).map(line => line.type)).toEqual(['park'])
 })
 
 test('a window joins a session another window started, reads every writer there, and writes its own file alone', async ($, on) => {
@@ -45,12 +45,12 @@ test('a window joins a session another window started, reads every writer there,
   await $.session.start(CONVERSATION)
 
   const joined = String((await w.call('join', { session: LEDGER.id })).result)
-  const noted = postedId(await w.call('note', { text: 'Read the schema' }))
+  const parked = postedId(await w.call('park', { title: 'Read the schema' }))
 
   expect(joined).toContain('k3 wants a yes (Approve), waiting on Lee: Review the ledger schema')
   expect(w.state.board?.asks.map(ask => [ask.id, ask.by])).toEqual([['k3', W2]])
-  expect(w.state.board?.log.map(line => line.id)).toEqual([noted])
-  expect(parseEntries(w.text(paths.log(W1))).map(line => line.type)).toEqual(['note'])
+  expect(w.state.board?.parked.map(item => item.id)).toEqual([parked])
+  expect(parseEntries(w.text(paths.log(W1))).map(line => line.type)).toEqual(['park'])
   expect(w.files.has(paths.heartbeat(W1))).toBe(true)
   expect(w.text(paths.log(W2))).toBe(before)
 })
@@ -58,7 +58,7 @@ test('a window joins a session another window started, reads every writer there,
 test('after a reload, the window takes up its session, and its first write carries every line it had', async ($, on) => {
   const w = world($, on, { now: T0 + MIN })
   const paths = w.seed(META)
-  const before = file([T0, yesAsk('k1', 'Review round 1')], [T0, note('n1', 'Drew round 1')])
+  const before = file([T0, yesAsk('k1', 'Review round 1')], [T0, park('n1', 'Drew round 1')])
 
   reloading(on, { project: PROJECT.key, session: META.id, writer: W1, attachedAt: T0 })
   w.put(paths.log(W1), before)
@@ -67,11 +67,11 @@ test('after a reload, the window takes up its session, and its first write carri
 
   expect(w.state.board?.asks.map(ask => ask.id)).toEqual(['k1'])
 
-  await w.call('note', { text: 'Drew round 2' })
+  await w.call('park', { title: 'Drew round 2' })
 
   expect(w.text(paths.log(W1)).startsWith(before)).toBe(true)
   expect(parseEntries(w.text(paths.log(W1))).map(line => line.seq)).toEqual([1, 2, 3])
-  expect(w.state.board?.log.map(line => line.text)).toEqual(['Drew round 2', 'Drew round 1'])
+  expect(w.state.board?.parked.map(item => item.title)).toEqual(['Drew round 1', 'Drew round 2'])
 })
 
 test('the first message lists the sessions filed in every project', async ($, on) => {
@@ -114,13 +114,13 @@ test("the watch reads another writer's lines as they land", async ($, on) => {
 
   await $.session.start(CONVERSATION)
   await w.call('join', { session: LEDGER.id })
-  w.put(ledger.log(W2), file([w.clock.now(), note('n1', 'From one window')]))
-  w.put(ledger.log(W3), file([w.clock.now(), note('n2', 'From another')]))
+  w.put(ledger.log(W2), file([w.clock.now(), park('n1', 'From one window')]))
+  w.put(ledger.log(W3), file([w.clock.now(), park('n2', 'From another')]))
   await w.clock.advance(WATCH_MS)
 
-  expect(w.state.board?.log.map(line => [line.id, line.by])).toEqual([
-    ['n2', W3],
+  expect(w.state.board?.parked.map(item => [item.id, item.by])).toEqual([
     ['n1', W2],
+    ['n2', W3],
   ])
   expect(w.logs, 'no look failed').toEqual([])
 })
@@ -156,7 +156,7 @@ test('reading a board lists no folder that is not there: a session with no inbox
 test("finishing another window's session from its view writes after the lines this window had there", async ($, on) => {
   const w = world($, on)
   const themes = w.seed(THEMES)
-  const mine = file([T0, note('n1', 'Looked in on the palette')])
+  const mine = file([T0, park('n1', 'Looked in on the palette')])
 
   w.put(themes.log(W3), file([T0, yesAsk('k4', 'Pick the dark palette', 'Done')]))
   w.put(themes.log(W1), mine)
@@ -171,7 +171,7 @@ test("finishing another window's session from its view writes after the lines th
 
   expect(w.text(themes.log(W1)).startsWith(mine)).toBe(true)
   expect(parseEntries(w.text(themes.log(W1))).map(({ seq, type }) => [seq, type])).toEqual([
-    [1, 'note'],
+    [1, 'park'],
     [2, 'finish'],
   ])
 })

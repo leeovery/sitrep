@@ -16,7 +16,6 @@ import {
   checkEdit,
   checkFinish,
   checkJoin,
-  checkNote,
   checkPark,
   checkParkedIn,
   checkProject,
@@ -123,7 +122,6 @@ const RECOMMENDED = text(
 const NEEDS = text(
   "For wants words: what the words are, in a few words, such as the command's output.",
 )
-const DETAIL = lines('Lines it opens to, one line each.')
 
 const spec = <N extends string>(
   name: N,
@@ -303,8 +301,8 @@ const writeParked = async <B extends Body>(
  * A line about a parked item another session of the attached session's
  * project parked, written into that session, in this window's own file
  * there: a change Claude knows of, unless `unchanged` answers it with
- * nothing to write. Another session's ask or note is refused, as is a
- * session of another project.
+ * nothing to write. Another session's ask is refused, as is a session of
+ * another project.
  */
 const parkedElsewhere = async <B extends Body & { item: string }>(
   host: Host,
@@ -557,7 +555,7 @@ const project: Tool<'project'> = {
 const board: Tool<'board'> = {
   spec: spec(
     'board',
-    "Read the board back: the status, open asks, the project's parked items and latest notes, with their ids, to check against what you know and repair.",
+    "Read the board back: the status, open asks and the project's parked items, with their ids, to check against what you know and repair.",
   ),
   answer: onSession(async (host, session) => ({ result: await markSeen(host, session) })),
 }
@@ -568,7 +566,7 @@ const TOOLS = [
   posting(
     spec(
       'status',
-      'Set where the session stands, giving only what changed. The board logs the change itself: do nothing extra for it.',
+      'Set where the session stands, giving only what changed. The board keeps the change in its history itself: do nothing extra for it.',
       {
         name: NAME,
         summary: SUMMARY,
@@ -600,16 +598,6 @@ const TOOLS = [
   ),
   posting(
     spec(
-      'note',
-      "Add a line to the board's log: something Lee would want to know later, not running commentary.",
-      { text: text(LINE), detail: DETAIL, ref: REF },
-      ['text'],
-    ),
-    (session, input) => withId(checkNote(input), session, random),
-    ({ id }) => `Logged note ${id}.`,
-  ),
-  posting(
-    spec(
       'park',
       "Park something raised and put off, to come back to, on the attached session's project: any session of it sees it.",
       { title: text(LINE), where: WHERE, ref: REF },
@@ -622,7 +610,7 @@ const TOOLS = [
   onItem(
     spec(
       'resolve',
-      "Close an item on the board, an ask, a note or a parked item, by its id; a parked item another session of this project parked, with that session's id.",
+      "Close an item on the board, an ask or a parked item, by its id; a parked item another session of this project parked, with that session's id.",
       { item: ITEM, session: PARKED_BY, reason: REASON },
       ['item'],
     ),
@@ -643,7 +631,7 @@ const TOOLS = [
   onItem(
     spec(
       'edit',
-      "Correct an item by its id, giving only the fields to change; a parked item another session of this project parked, with that session's id. An item's one line is its title or its text alike, an ask's, a note's or a parked item's. An ask changed to want a yes needs yes; to want a choice, options. An ask's recommended stays while its option is among the options.",
+      "Correct an item by its id, giving only the fields to change; a parked item another session of this project parked, with that session's id. An item's one line is its title or its text alike, an ask's or a parked item's. An ask changed to want a yes needs yes; to want a choice, options. An ask's recommended stays while its option is among the options.",
       {
         item: ITEM,
         session: PARKED_BY,
@@ -656,7 +644,6 @@ const TOOLS = [
         needs: text(`${NEEDS.description} "" clears it.`),
         ref: REF,
         text: text(LINE),
-        detail: DETAIL,
         reason: REASON,
       },
       ['item'],

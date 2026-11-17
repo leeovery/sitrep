@@ -4,7 +4,7 @@ import { C } from '../hooks/look'
 import { EVERY_PROJECT, projectPlace } from '../hooks/places'
 import { rowsOf } from './drawn'
 import { ELSEWHERE, GO, HELD, LEDGER, PROJECT, SHIFTS, T0, W4 } from './data'
-import { askOf, note, park, status, yesAsk } from './lines'
+import { askOf, park, status, yesAsk } from './lines'
 import type { Neighbour } from './filing'
 import type { Element } from './matching'
 import { pane, sceneFrom, type Desk, type Drawn } from './render'
@@ -360,7 +360,7 @@ const NARROW = [
 test('a long title cuts its aside first, then itself, at phone width and docked, to the whole line: the way back, on the row above, takes none of it', async () => {
   const named = (id: string, name: string): Neighbour => ({
     meta: { ...LEDGER, id, name },
-    lines: [[T0, note('n1', 'Began')]],
+    lines: [[T0, status(['Beginning'], { name, summary: LEDGER.summary })]],
     seenAt: T0,
   })
   const desk: Desk = {

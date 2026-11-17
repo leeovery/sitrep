@@ -42,11 +42,11 @@ const COUNTED: Readonly<Record<string, Focus>> = {
   [BAND.elsewhere]: { place: EVERY_PROJECT },
 }
 
-/** Where the board opens once it has been closed: home, nothing opened, every RESOLVED showing its latest, and Ready to send's row for several held sends on the first. */
+/** Where the board opens once it has been closed: home, nothing opened, every list of the board's past as it starts, and Ready to send's row for several held sends on the first. */
 const HOME: Partial<SitrepPane> = {
   place: null,
   selected: null,
-  resolvedInFull: null,
+  shown: {},
   heldShown: null,
 }
 

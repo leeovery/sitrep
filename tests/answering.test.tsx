@@ -17,7 +17,7 @@ import {
 } from './answers'
 import { rowsOf } from './drawn'
 import { CLOSES, FRAMES, GO, heldItem, LEDGER, PROJECT, ROOT, T0, W1, W2, W3 } from './data'
-import { askOf, delivered, file, finish, kindAsk, note, park, reply, type Line } from './lines'
+import { askOf, delivered, file, finish, kindAsk, park, reply, type Line } from './lines'
 import { pane, sceneFrom } from './render'
 import { asked, BAND, CONVERSATION, DOCKED, postedId, world, type Board, type World } from './world'
 
@@ -561,7 +561,7 @@ for (const [as, press, item] of [
     expect(w.state.others, 'the ledger not read in full').toEqual([])
     expect((await bandRow(w)).rows[0]).toMatch(/^✎ Your next Enter (answers|comments on) /)
 
-    await w.call('note', { text: 'The schema is drawn' })
+    await w.call('park', { title: 'The schema is drawn' })
     expect(w.state.answering, 'a redraw of the held board').toMatchObject({
       session: LEDGER.id,
       item,
@@ -821,9 +821,9 @@ test('the next Enter is taken as the pick-up, its words the note: queued in Read
   expect(await ui.find({ type: 'Text', text: /READY TO SEND/ })).toBeDefined()
 })
 
-test('a send carries the pick-up with its note, and the pick-up, delivered, logs the note', async ($, on) => {
+test('a send carries the pick-up with its note, and the item picked up opens to the note', async ($, on) => {
   const w = world($, on)
-  const { ui } = await pickingUp(w)
+  const { id, ui } = await pickingUp(w)
 
   await entered(w, $, 'Before the release')
   await w.clock.advance(CLEAR_AFTER_DROP_MS)
@@ -832,11 +832,13 @@ test('a send carries the pick-up with its note, and the pick-up, delivered, logs
   expect(w.prompts.map(each => each.text)).toEqual([
     `From the board:\n- Pick up from parked: ${TMUX}. Before the release`,
   ])
-  expect(w.state.board?.log[0]).toMatchObject({
-    kind: 'pickup',
-    text: `Picked up from parked: ${TMUX}`,
-    detail: ['Before the release'],
-  })
+  await ui.press({ key: `pickedup:${w.state.board?.id}` })
+  await ui.press({ key: `picked:${w.item(id)}` })
+  expect(rowsOf(await ui.find({ key: `taken:${w.item(id)}` }))).toEqual([
+    `✓ ${TMUX} · picked up by Help desk now`,
+    '│ redesign',
+    '└ Before the release',
+  ])
 })
 
 test('cancel ends picking up in one press: the buttons and the counts are back, and the next Enter goes to Claude', async ($, on) => {

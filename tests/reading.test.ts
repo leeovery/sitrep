@@ -11,12 +11,12 @@ import {
   type SessionFiles,
 } from '../core'
 import { META, MIN, T0, W1, W2 } from './data'
-import { file, finish, fold, note, seen, status, yesAsk } from './lines'
+import { file, finish, fold, park, seen, status, yesAsk } from './lines'
 
 const FILES: SessionFiles = {
   meta: metaText(META),
   project: '{"name":"Northwind"}\n',
-  logs: { [W1]: file([T0, note('n1', 'Drew round 1')]) },
+  logs: { [W1]: file([T0, park('n1', 'Drew round 1')]) },
   inbox: {},
   presence: { [W1]: seen(W1, T0) },
 }
@@ -28,7 +28,7 @@ test("two reads of a session's files are the same only where every text is, unde
   for (const [other, why] of [
     [{ ...FILES, meta: metaText({ ...META, name: 'Renamed' }) }, 'its meta'],
     [{ ...FILES, project: undefined }, 'its project'],
-    [{ ...FILES, logs: { [W1]: file([T0, note('n1', 'Drew round 2')]) } }, 'a line'],
+    [{ ...FILES, logs: { [W1]: file([T0, park('n1', 'Drew round 2')]) } }, 'a line'],
     [{ ...FILES, logs: { [W2]: FILES.logs[W1] ?? '' } }, 'a writer'],
     [{ ...FILES, logs: { ...FILES.logs, [W2]: '' } }, 'a writer more'],
     [{ ...FILES, inbox: { cli: '' } }, 'a letter'],
@@ -77,10 +77,10 @@ test("a session's fold stands while its files read the same and time alone has n
   expect(first.changesAt).toBe(stale)
   expect(refold(first, { ...FILES, logs: { ...FILES.logs } }, stale - 1)).toBe(first)
 
-  const noted = { ...FILES, logs: { [W1]: file([T0, note('n1', 'Drew round 2')]) } }
+  const parked = { ...FILES, logs: { [W1]: file([T0, park('n1', 'Drew round 2')]) } }
 
-  expect(refold(first, noted, T0 + MIN).session?.items.get('n1')).toMatchObject({
-    text: 'Drew round 2',
+  expect(refold(first, parked, T0 + MIN).session?.items.get('n1')).toMatchObject({
+    title: 'Drew round 2',
   })
   expect(refold(first, FILES, stale).session?.isOpen, 'its window gone stale').toBe(false)
 })

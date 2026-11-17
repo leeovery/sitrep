@@ -19,7 +19,7 @@ export const lastSeen = (session: Session, writer: string): number | undefined =
     return lastSeenAt(beat)
   }
 
-  const times = [...session.items.values(), ...session.log.filter(line => line.kind === 'status')]
+  const times = [...session.items.values(), ...session.history]
     .filter(each => each.by === writer)
     .map(each => each.at)
 

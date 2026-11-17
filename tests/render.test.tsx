@@ -5,8 +5,32 @@ import { STALE_MS } from '../core'
 import { PANE } from '../hooks/pane'
 import { itemKey } from '../hooks/places'
 import { TICK_MS } from '../hooks/scene'
-import { ELSEWHERE, HELD, heldItem, LEDGER, meta, REVIEW, SHIFTS, T0, THEMES, W3 } from './data'
-import { askOf, note, park, resolve, wordsAsk, yesAsk, type Line } from './lines'
+import {
+  changeKey,
+  ELSEWHERE,
+  HELD,
+  heldItem,
+  LEDGER,
+  meta,
+  PROJECT,
+  REVIEW,
+  SHIFTS,
+  T0,
+  THEMES,
+  W1,
+  W3,
+} from './data'
+import {
+  askOf,
+  delivered,
+  park,
+  reply,
+  resolve,
+  status,
+  wordsAsk,
+  yesAsk,
+  type Line,
+} from './lines'
 import { pane, sceneFrom, type Desk, type Drawn } from './render'
 import {
   ACROSS,
@@ -77,20 +101,27 @@ const closed = (id: string, title: string): Line[] => [
 ]
 
 /**
- * This session with something parked, four asks closed, two open, one
- * wanting words, and a note; beside it, two more sessions of Northwind's, one of Contoso's and
- * one of Fabrikam's, each asking or parking or noting.
+ * This session with something parked and something picked up, four asks
+ * closed, two open, one wanting words, and its status changed four times;
+ * beside it, two more sessions of Northwind's, one of Contoso's and one of
+ * Fabrikam's, each asking, parking or changing its status.
  */
 const DESK: Desk = {
   lines: [
     [T0, park('p1', 'A priority badge across all tabs', { ref: 'notes: badge.md' })],
+    [T0, park('p2', 'Tidy the old fixtures')],
     ...closed('k1', 'Run the production apply'),
     ...closed('k3', 'Rotate the keys'),
     ...closed('k4', 'Purge the cache'),
     ...closed('k5', 'Tag the release'),
     [T0, askOf('k2', REVIEW)],
     [T0, wordsAsk('k6', 'Paste the build log', 'the log')],
-    [T0, note('n1', 'PR #82 merged', ['6 files'])],
+    [T0 + 1, status(['Drawing the badge'])],
+    [T0 + 2, status(['Reviewing the badge'], { next: 'Ship the badge' })],
+    [T0 + 3, status(['Reviewing the badge', 'Writing the notes'])],
+    [T0 + 4, status(['Writing the notes'], { name: 'Help desk, round 2' })],
+    [T0 + 5, reply('r1', 'p2', 'pickup', { note: 'Before the release' })],
+    [T0 + 5, delivered('r1')],
   ],
   around: [
     {
@@ -101,7 +132,7 @@ const DESK: Desk = {
       ],
       seenAt: T0,
     },
-    { meta: THEMES, lines: [[T0, note('n1', 'Drew the dark theme')]], seenAt: T0 },
+    { meta: THEMES, lines: [[T0, status(['Drawing the dark theme'])]], seenAt: T0 },
     {
       meta: SHIFTS,
       project: ELSEWHERE.key,
@@ -170,29 +201,45 @@ const DRAWN: readonly (readonly [RenderSurface, RenderPropsOf['Pane']])[] = [
   ]),
 ]
 
-test("the board drawn with no engine from a desk's files is the engine's on every surface, docked and inline, and on the terminal at every width a test draws it", async ($, on) => {
+/** The presses that show this session's history in full, a change opened, and its picked up, an item opened. */
+const PAST_SHOWN = [
+  `history:${HELD.id}`,
+  `all:history:${HELD.id}`,
+  `status:${changeKey(HELD.id, T0 + 3, W1)}`,
+  `pickedup:${HELD.id}`,
+]
+
+test("the board drawn with no engine from a desk's files is the engine's on every surface, docked and inline, and on the terminal at every width a test draws it, its past folded and shown", async ($, on) => {
   const w = world($, on)
+  const mounted = (surface: RenderSurface, props: RenderPropsOf['Pane']) =>
+    $.ui.mount({ plugin: 'sitrep', surface, component: 'Pane', requestId: PANE, props })
 
   await joined($, w)
 
-  for (const [surface, props] of DRAWN) {
-    const ui = await $.ui.mount({
-      plugin: 'sitrep',
-      surface,
-      component: 'Pane',
-      requestId: PANE,
-      props,
-    })
-    const said = `${surface}, ${props.placement}, ${props.bodyColumns}`
+  for (const isShown of [false, true]) {
+    if (isShown) {
+      const ui = await mounted('terminal', DOCKED)
 
-    expect(unstamped(surface, await fromDesk(w, props, surface).drawn()), said).toEqual(
-      unstamped(surface, await ui.drawn()),
-    )
-    await ui.unmount()
+      for (const key of PAST_SHOWN) {
+        await ui.press({ key })
+      }
+
+      await ui.unmount()
+    }
+
+    for (const [surface, props] of DRAWN) {
+      const ui = await mounted(surface, props)
+      const said = `${surface}, ${props.placement}, ${props.bodyColumns}, past shown: ${isShown}`
+
+      expect(unstamped(surface, await fromDesk(w, props, surface).drawn()), said).toEqual(
+        unstamped(surface, await ui.drawn()),
+      )
+      await ui.unmount()
+    }
   }
 })
 
-test("the board drawn with no engine is the engine's wherever Lee takes it and whatever he does there: home, an ask opened and its yes queued, RESOLVED in full, the project, the ledger's view and its ask answered, a turn under way, both replies sent while it works, gone in once it ends and taken, All projects, Contoso's view and its session, an ask being answered, and the sessions around gone stale", async ($, on) => {
+test("the board drawn with no engine is the engine's wherever Lee takes it and whatever he does there: home, an ask opened and its yes queued, RESOLVED in full, its history and picked up shown and opened, the project and its history and picked up, the ledger's view and its ask answered, a turn under way, both replies sent while it works, gone in once it ends and taken, All projects, Contoso's view and its session, an ask being answered, and the sessions around gone stale", async ($, on) => {
   const w = world($, on)
 
   await joined($, w)
@@ -204,8 +251,18 @@ test("the board drawn with no engine is the engine's wherever Lee takes it and w
     ['home', async () => {}],
     ['an ask opened', () => ui.press({ key: `pick:${heldItem('k2')}` })],
     ['its yes ready to send', () => ui.press({ key: `yes:${heldItem('k2')}` })],
-    ['RESOLVED in full', () => ui.press({ key: `earlier:${HELD.id}` })],
+    ['RESOLVED in full', () => ui.press({ key: `all:resolved:${HELD.id}` })],
+    ['its history shown', () => ui.press({ key: `history:${HELD.id}` })],
+    ['its history in full', () => ui.press({ key: `all:history:${HELD.id}` })],
+    ['a change opened', () => ui.press({ key: `status:${changeKey(HELD.id, T0 + 3, W1)}` })],
+    ['its picked up shown', () => ui.press({ key: `pickedup:${HELD.id}` })],
+    ['an item picked up opened', () => ui.press({ key: `picked:${heldItem('p2')}` })],
     ['the project', () => toProject(ui)],
+    ["the project's history shown", () => ui.press({ key: `history:project:${PROJECT.key}` })],
+    [
+      "the project's picked up shown",
+      () => ui.press({ key: `pickedup:project:${PROJECT.key}` }),
+    ],
     ["the ledger's view", () => ui.press({ key: `go:${LEDGER.id}` })],
     [
       "the ledger's ask answered",
@@ -253,7 +310,7 @@ const FINDING: readonly ElementQuery[] = [
   { key: 'tab:all', text: 'All projects' },
   { type: 'Button', text: '✓ Approve' },
   { key: `ask:${heldItem('k2')}` },
-  { key: `earlier:${HELD.id}`, text: 'show all 4' },
+  { key: `all:resolved:${HELD.id}`, text: 'show all 4' },
 ]
 
 /** Queries the tests make of it to find nothing: a Button's label sought as Text, a key with words it does not show, keys and words not drawn there. */

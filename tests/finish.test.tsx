@@ -17,7 +17,7 @@ import {
   W1,
   W3,
 } from './data'
-import { file, finish, note, park, yesAsk } from './lines'
+import { file, finish, park, yesAsk } from './lines'
 import { toProject, WIDE, world, type Board, type World } from './world'
 
 tier('user')
@@ -134,7 +134,7 @@ test('finishing a session asks first; cancel writes nothing', async ($, on) => {
 test("yes writes the finish into the session's folder as this window's writer, and the board goes up to where it is gone", async ($, on) => {
   const w = world($, on)
 
-  w.put(MINE, file([T0, note('n1', 'Looked in on the palette')]))
+  w.put(MINE, file([T0, park('n1', 'Looked in on the palette')]))
 
   const { id, ui } = await around(w)
   const inbox = sessionPaths(ROOT, PROJECT.key, THEMES.id).letters(W1)
@@ -144,7 +144,7 @@ test("yes writes the finish into the session's folder as this window's writer, a
   await ui.press({ key: `finish-yes:${THEMES.id}` })
 
   expect(parseEntries(w.text(MINE)).map(({ seq, type }) => [seq, type])).toEqual([
-    [1, 'note'],
+    [1, 'park'],
     [2, 'finish'],
   ])
   expect(parseEntries(w.text(MINE)).at(-1)).toMatchObject({ who: 'lee', at: w.clock.now() })

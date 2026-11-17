@@ -35,6 +35,8 @@ export type SitrepReply = {
   verdict: SitrepVerdict
   option?: string
   note?: string
+  /** A pick-up's: the session it went to, by its id; none on one written before pick-ups said. */
+  to?: string
   by: string
   at: number
   delivery: SitrepDelivery
@@ -79,13 +81,6 @@ export type SitrepAsk = SitrepPosted & {
   wokeAt?: number
 }
 
-export type SitrepNote = SitrepPosted & {
-  type: 'note'
-  text: string
-  detail?: string[]
-  state: 'open' | 'closed'
-}
-
 export type SitrepParked = SitrepPosted & {
   type: 'park'
   title: string
@@ -97,16 +92,14 @@ export type SitrepParked = SitrepPosted & {
   replies: SitrepReply[]
 }
 
-export type SitrepItem = SitrepAsk | SitrepNote | SitrepParked
+export type SitrepItem = SitrepAsk | SitrepParked
 
-export type SitrepLogLine = {
-  kind: 'note' | 'status' | 'pickup'
+/** A change of a session's status: core's `StatusLine`. */
+export type SitrepStatusLine = {
   at: number
   by: string
   text: string
   detail: string[]
-  ref?: string
-  id?: string
 }
 
 /** Where a window is: core's `Where`. */
@@ -194,7 +187,10 @@ export type SitrepBoard = {
   /** Every item, in the order posted. */
   items: SitrepItem[]
   replies: SitrepReply[]
-  log: SitrepLogLine[]
+  /** None from a load before the history was the board's. */
+  history?: SitrepStatusLine[]
+  /** Always empty: a build from before notes went draws a board this one wrote, its drawing reading the notes unguarded. */
+  log: []
   presence: SitrepPresence[]
   isOpen: boolean
   deliverer?: string
@@ -257,6 +253,7 @@ export type SitrepReplyBody = {
   verdict: SitrepVerdict
   option?: string
   note?: string
+  to?: string
 }
 
 /** Whose replies a message carries: Lee's send from this window's board, or what other sessions left in its inbox. */
@@ -317,7 +314,6 @@ export type SitrepSummary = {
 
 /** A session as views beyond its own draw it: core's `SessionBrief`. */
 export type SitrepBrief = SitrepSummary & {
-  log: SitrepLogLine[]
   parkedItems: SitrepParked[]
   asks: SitrepAsk[]
 }
@@ -325,7 +321,18 @@ export type SitrepBrief = SitrepSummary & {
 /** A parked item of a project's, and the session that parked it, by its id and its name: core's `ProjectParked`. */
 export type SitrepProjectParked = SitrepParked & { session: string; name: string }
 
-/** A project as last read: its key, its current sessions other than the held one, in brief, and what every session of it but the held one parked. */
+/** A list of the board's past as the look carries it: core's `Carried`. */
+export type SitrepCarried<T> = { entries: T[]; count: number }
+
+/** A change of status in a project's history, and the session it came from: core's `ProjectStatusLine`. */
+export type SitrepProjectStatusLine = SitrepStatusLine & { session: string }
+
+/**
+ * A project as last read: its key, its current sessions other than the held
+ * one, in brief, and what every session of it but the held one parked; and,
+ * only for the projects the board draws them for, its sessions' names, the
+ * history of their status and what was taken off their Parked.
+ */
 export type SitrepProject = {
   key: string
   /** Its name, as its sessions read name it; none from a load before parked items were the project's. */
@@ -333,6 +340,12 @@ export type SitrepProject = {
   sessions: SitrepBrief[]
   /** Oldest first, finished and idle sessions' included; none from a load before parked items were the project's. */
   parked?: SitrepProjectParked[]
+  /** Every session filed under it but the held one, finished and idle ones included, by id: what names the session a pick-up went to. Only for the held session's project, and the project of the place the open board shows; none otherwise. */
+  names?: Partial<Record<string, string>>
+  /** What was taken off the Parked of every session filed under it, finished and idle ones included, the newest taken off first: the latest its view shows, every one while it shows all. Only while the open board shows the project's view, which draws them; none otherwise. */
+  takenOff?: SitrepCarried<SitrepProjectParked>
+  /** Its current sessions' changes of status, the newest first: the latest its view shows, every one while it shows all. Only while the open board shows the project's view, which draws them; none otherwise. */
+  history?: SitrepCarried<SitrepProjectStatusLine>
 }
 
 /** Another session the board draws in full, and the project it is filed under. */
@@ -347,6 +360,9 @@ export type SitrepPlace =
   | { level: 'project'; project: string }
   | { level: 'all' }
 
+/** How much of a list of the board's past shows, opened: the latest few, or every one. */
+export type SitrepShowing = 'latest' | 'all'
+
 /** Where Claude Code seated the board: docked beside the transcript, or inline above the prompt. */
 export type SitrepPlacement = 'dock' | 'inline'
 
@@ -356,10 +372,10 @@ export type SitrepPane = {
   isOpen: boolean
   /** Null at home: this session. */
   place: SitrepPlace | null
-  /** The item (or log line) opened under its line, or the press asking in place what it should do (`finish:<session>`, `snooze:<session>:<ask>`, the ask opened still). */
+  /** The item (or status change) opened under its line, or the press asking in place what it should do (`finish:<session>`, `snooze:<session>:<ask>`, the ask opened still). */
   selected: string | null
-  /** The session whose RESOLVED shows every closed ask, not only the latest; null for none. A pane an older load saved lacks it, and is read as none. */
-  resolvedInFull: string | null
+  /** How much each list of the board's past shows, by the list (`history:<session>`): a list missing shows as it starts, RESOLVED its latest, Status's history and Parked's picked up closed. A pane an older load saved lacks it, and is read as none. */
+  shown: Partial<Record<string, SitrepShowing>>
   /** The held send Ready to send's one row for several shows, by the ids of the replies it carries, where the box has no row for each; null for the first of them. A pane an older load saved lacks it, and is read as none. */
   heldShown: string | null
   /** Where Claude Code last seated the board on each surface, as the board drawn there said; kept across closes. A surface whose board never said is missing, as is the whole from a pane an older load saved. */

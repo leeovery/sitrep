@@ -60,7 +60,7 @@ const long = async (w: World, open: () => Promise<Board> = () => w.pane()) => {
   }
 
   for (let n = 1; n <= 6; n += 1) {
-    await w.call('note', { text: `Step ${n} landed` })
+    await w.call('park', { title: `Step ${n} landed` })
   }
 
   for (let n = 1; n <= 3; n += 1) {

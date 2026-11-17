@@ -809,10 +809,10 @@ test("sitrep's own tools answer as ever under the hook over every call", async (
   await w.begin()
   await w.turnStarts('Carry on.')
 
-  const noted = await w.call('note', { text: 'Drew round 1' })
+  const parked = await w.call('park', { title: 'Drew round 1' })
 
-  expect(String(noted.result)).toMatch(/^Logged note [0-9a-z]{4}\.$/)
-  expect(w.state.board?.log.map(line => line.text)).toEqual(['Drew round 1'])
+  expect(String(parked.result)).toMatch(/^Parked [0-9a-z]{4}\.$/)
+  expect(w.state.board?.parked.map(item => item.title)).toEqual(['Drew round 1'])
 })
 
 test("a background subagent's open prompt outlives the window's turns: it stops the window until it is answered, or that subagent's turn ends", async ($, on) => {

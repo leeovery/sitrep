@@ -26,15 +26,20 @@
 import type { FsEntry, Timer } from 'claude-code'
 import {
   brief,
+  carried,
+  changedBy,
   compareText,
   every,
   isCurrent,
   isOffBoard,
   OFF_BOARD_MS,
   parkedBy,
+  projectHistory,
   projectParked,
+  projectTakenOff,
   refold,
   sessionPaths,
+  takenOffBy,
   type KeptFold,
   type Session,
   type SessionFiles,
@@ -52,6 +57,7 @@ import type {
 import { settleAnswering } from './answering'
 import { boardOf } from './board'
 import { logFailure, rootFor, type Host, type Slot } from './host'
+import { historyList, pickedUpList, projectScope } from './lists'
 import { projectKeys } from './projects'
 import { destinations, isShowing, type Folded } from './queue'
 import { createReader, filedIn, type Reader } from './reader'
@@ -243,26 +249,93 @@ const latestFirst = (a: Session, b: Session) => b.updatedAt - a.updatedAt || com
 const nameOf = (key: string, sessions: readonly Session[]) =>
   [...sessions].sort(latestFirst).at(0)?.project ?? key
 
+/** The project whose view the open board shows; none while it shows another place. */
+const viewedIn = ({ isOpen, place }: SitrepPane) =>
+  isOpen && place?.level === 'project' ? place.project : undefined
+
+/** The project of the place the open board shows, a session's or a project's; none at home or All projects. */
+const placedIn = ({ isOpen, place }: SitrepPane) =>
+  isOpen && place !== null && place.level !== 'all' ? place.project : undefined
+
+/** Its sessions' names, for the projects whose views name the session a pick-up went to: the held session's, and the project of the place the board shows. */
+const namesFor = (
+  held: SitrepAttachment,
+  shows: SitrepPane,
+  key: string,
+  filed: readonly Session[],
+) =>
+  key === held.project || key === placedIn(shows)
+    ? { names: Object.fromEntries(filed.map(session => [session.id, session.status.name])) }
+    : {}
+
+/** Whether the project's view shows every entry of one of its lists, which a look then carries whole. */
+const isAllShown = ({ shown }: SitrepPane, list: string) => shown?.[list] === 'all'
+
+/**
+ * For the project whose view the board shows, what that view alone draws:
+ * its current sessions' history, and what was taken off the Parked of every
+ * session filed under it; of each, the latest the view shows and how many
+ * there are, or every one while the view shows all of it.
+ */
+const viewedFor = (
+  shows: SitrepPane,
+  key: string,
+  filed: readonly Session[],
+  current: readonly Session[],
+) => {
+  if (key !== viewedIn(shows)) {
+    return {}
+  }
+
+  const scope = projectScope(key)
+
+  return {
+    history: carried(
+      projectHistory(current.flatMap(changedBy)),
+      isAllShown(shows, historyList(scope)),
+    ),
+    takenOff: carried(
+      projectTakenOff(filed.flatMap(takenOffBy)),
+      isAllShown(shows, pickedUpList(scope)),
+    ),
+  }
+}
+
 /**
  * The projects read, each with its current sessions, and what every session
- * filed under it parked, finished and idle ones included; a project with
- * neither is dropped, but never the held session's.
+ * filed under it parked, finished and idle ones included; and only for the
+ * projects the board `shows` draws them for, what grows without end: its
+ * sessions' names, and, bounded as its view shows them, the history of their
+ * status and what was taken off their Parked. A project with neither current
+ * sessions nor anything parked is dropped, but never the held session's.
  */
 const projectsOf = (
   held: SitrepAttachment,
   keys: readonly string[],
   read: ReadonlyMap<string, Filed>,
   now: number,
+  shows: SitrepPane,
 ): SitrepProject[] =>
   keys.flatMap(key => {
     const filed = [...read.values()]
       .filter(({ project }) => project === key)
       .map(({ session }) => session)
     const sessions = filed.map(brief).filter(session => isCurrent(session, now))
+    const isListed = new Set(sessions.map(session => session.id))
+    const current = filed.filter(session => isListed.has(session.id))
     const parked = projectParked(filed.flatMap(parkedBy))
 
     return sessions.length > 0 || parked.length > 0 || key === held.project
-      ? [{ key, name: nameOf(key, filed), sessions, parked }]
+      ? [
+          {
+            key,
+            name: nameOf(key, filed),
+            sessions,
+            parked,
+            ...namesFor(held, shows, key, filed),
+            ...viewedFor(shows, key, filed, current),
+          },
+        ]
       : []
   })
 
@@ -335,7 +408,7 @@ const look = async (host: Host, fresh: readonly string[]) => {
   const isWhole = isWholeLook(now)
   const { keys, read } = await readAround(host, root, held.session, full, now, isWhole, fresh)
 
-  await put(host.state.projects, 'projects', projectsOf(held, keys, read, now))
+  await put(host.state.projects, 'projects', projectsOf(held, keys, read, now, pane))
   await put(host.state.others, 'others', othersOf(full, read))
   await settleSent(host, read, now)
   await settleAnswering(host)

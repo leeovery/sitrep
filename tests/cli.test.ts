@@ -10,7 +10,7 @@ import {
   type SessionPaths,
 } from '../core'
 import { ELSEWHERE, META, MIN, T0, W1, W2 } from './data'
-import { beat, file, finish, note, park, snoozeSession, status, yesAsk, type Line } from './lines'
+import { beat, file, finish, park, snoozeSession, status, yesAsk, type Line } from './lines'
 import { ENV, FIRST_ID, NEXT_ID, NOW, terminal } from './terminal'
 
 type Terminal = ReturnType<typeof terminal>
@@ -45,15 +45,13 @@ const folded = (t: Terminal, paths: SessionPaths, now = NOW) => {
 
 const cliLines = (t: Terminal, paths: SessionPaths) => parseEntries(t.text(paths.log(WRITER)))
 
-test('a note prints its id and nothing more, and appends one line to the CLI’s own file', async () => {
+test('a park prints its id and nothing more, and appends one line to the CLI’s own file', async () => {
   const t = terminal()
   const paths = t.seed(META)
   const run = await t.run(
-    'note',
-    'Round 3 drawn',
-    '--detail',
-    'Frames 1–6',
-    '--detail',
+    'park',
+    'Thumbnails inline',
+    '--where',
     'In Paper',
     '--ref',
     'docs/plan.md',
@@ -66,20 +64,20 @@ test('a note prints its id and nothing more, and appends one line to the CLI’s
       v: VERSION,
       at: NOW,
       seq: 1,
-      type: 'note',
+      type: 'park',
       id: FIRST_ID,
-      text: 'Round 3 drawn',
-      detail: ['Frames 1–6', 'In Paper'],
+      title: 'Thumbnails inline',
+      where: 'In Paper',
       ref: 'docs/plan.md',
     },
   ])
 })
 
-test("the CLI's note is in the log as the mod folds it, and its ask counts as waiting", async () => {
+test("the CLI's park is in Parked as the mod folds it, and its ask counts as waiting", async () => {
   const t = terminal()
   const paths = t.seed(META, { lines: [[T0, yesAsk('k1', 'Review round 1')]] })
 
-  await t.run('note', 'Round', '3', 'drawn', ...SESSION)
+  await t.run('park', 'Thumbnails', 'inline', ...SESSION)
   await t.run(
     'ask',
     'Try',
@@ -98,8 +96,8 @@ test("the CLI's note is in the log as the mod folds it, and its ask counts as wa
 
   const session = folded(t, paths)
 
-  expect(session.log.map(line => [line.kind, line.id, line.text, line.by])).toEqual([
-    ['note', FIRST_ID, 'Round 3 drawn', WRITER],
+  expect(session.parked.map(each => [each.id, each.title, each.by])).toEqual([
+    [FIRST_ID, 'Thumbnails inline', WRITER],
   ])
   expect(session.waiting).toBe(2)
   expect(session.asks.map(each => [each.id, each.yes, each.title, each.where, each.by])).toEqual([
@@ -196,7 +194,6 @@ test("an input core's checks refuse ends as refused, with the check's words, and
   expect(await refused('ask', '--wants', 'words')).toBe(
     'sitrep: An ask needs a title: one line, starting with the verb.\n',
   )
-  expect(await refused('note', ' ')).toBe('sitrep: A note needs its text: one line.\n')
   expect(await refused('park')).toBe('sitrep: A parked item needs a title: one line.\n')
   expect(await refused('status')).toBe(
     'sitrep: A status needs at least one of name, summary, now and next.\n',
@@ -247,8 +244,8 @@ test('a status gives only what changed, the rest kept as it stands, and prints n
     at: NOW,
     by: WRITER,
   })
-  expect(folded(t, paths).log.at(0)?.text, 'the board logs the change').toBe(
-    'Status: now reviewing round 2',
+  expect(folded(t, paths).history.at(0)?.text, 'the board notices the change').toBe(
+    'now reviewing round 2',
   )
 })
 
@@ -271,10 +268,10 @@ test('a status clears what is under way with --now "", and what is next with --n
 test('the CLI appends after what its file holds: its count goes on, and nothing before is rewritten', async () => {
   const t = terminal()
   const paths = t.seed(META)
-  const before = file([T0, note('n1', 'Generated round 1')], [T0, note('n2', 'Generated round 2')])
+  const before = file([T0, park('p1', 'Generated round 1')], [T0, park('p2', 'Generated round 2')])
 
   t.files.set(paths.log(WRITER), { text: before, mtimeMs: T0 })
-  await t.run('note', 'Generated round 3', ...SESSION)
+  await t.run('park', 'Generated round 3', ...SESSION)
 
   const after = t.text(paths.log(WRITER))
 
@@ -285,12 +282,12 @@ test('the CLI appends after what its file holds: its count goes on, and nothing 
 test('a line left torn in its file is ended first, so the torn line stays the only casualty', async () => {
   const t = terminal()
   const paths = t.seed(META)
-  const torn = `${serialise({ v: VERSION, at: T0, seq: 1, type: 'note', id: 'n1', text: 'Whole' })}{"v":1,"at":`
+  const torn = `${serialise({ v: VERSION, at: T0, seq: 1, type: 'park', id: 'p1', title: 'Whole' })}{"v":1,"at":`
 
   t.files.set(paths.log(WRITER), { text: torn, mtimeMs: T0 })
-  await t.run('note', 'After the tear', ...SESSION)
+  await t.run('park', 'After the tear', ...SESSION)
 
-  expect(cliLines(t, paths).map(entry => [entry.seq, 'text' in entry && entry.text])).toEqual([
+  expect(cliLines(t, paths).map(entry => [entry.seq, 'title' in entry && entry.title])).toEqual([
     [1, 'Whole'],
     [2, 'After the tear'],
   ])
@@ -301,7 +298,7 @@ test('a file listed that will not read is not there, and the run goes on', async
   const paths = t.seed(META, { lines: [[T0, yesAsk('k1', 'Review round 1')]] })
   const { read } = t.io.fs
 
-  t.files.set(paths.log(W2), { text: file([T0, note('n2', 'Drew round 2')]), mtimeMs: T0 })
+  t.files.set(paths.log(W2), { text: file([T0, park('p2', 'Drew round 2')]), mtimeMs: T0 })
   t.io.fs.read = async path =>
     path === paths.log(W2) ? Promise.reject(new Error(`EACCES: ${path}`)) : read(path)
 
@@ -317,7 +314,7 @@ test('two runs at once, each reading the file before either wrote, both land, wi
   const paths = t.seed(META)
   const held = t.holdAppends(2)
   const runs = Promise.all([
-    main(['note', 'Round 3 drawn', ...SESSION], t.io),
+    main(['status', '--now', 'Round 3 drawn', ...SESSION], t.io),
     main(['ask', 'Review round 3', '--wants', 'yes', '--yes', 'Approve', ...SESSION], t.io),
   ])
 
@@ -326,13 +323,13 @@ test('two runs at once, each reading the file before either wrote, both land, wi
 
   expect(await runs).toEqual([EXIT.done, EXIT.done])
   expect(cliLines(t, paths).map(entry => [entry.seq, entry.type])).toEqual([
-    [1, 'note'],
+    [1, 'status'],
     [1, 'ask'],
   ])
 
   const session = folded(t, paths)
 
-  expect(session.log.map(line => line.text)).toEqual(['Round 3 drawn'])
+  expect(session.status.now).toEqual(['Round 3 drawn'])
   expect(session.waiting).toBe(1)
 })
 
@@ -341,11 +338,11 @@ test('the session is the one --session names, else SITREP_SESSION’s, and --ses
   const helpDesk = t.seed(META)
   const lobby = t.seed(LOBBY)
 
-  await t.run('note', 'Into the help desk', ...SESSION)
-  await t.run('note', 'Into the lobby')
+  await t.run('park', 'Into the help desk', ...SESSION)
+  await t.run('park', 'Into the lobby')
 
-  expect(folded(t, helpDesk).log.map(line => line.text)).toEqual(['Into the help desk'])
-  expect(folded(t, lobby).log.map(line => line.text)).toEqual(['Into the lobby'])
+  expect(folded(t, helpDesk).parked.map(each => each.title)).toEqual(['Into the help desk'])
+  expect(folded(t, lobby).parked.map(each => each.title)).toEqual(['Into the lobby'])
 })
 
 test('with no session named, a command on one is refused, saying both ways to name it', async () => {
@@ -355,7 +352,7 @@ test('with no session named, a command on one is refused, saying both ways to na
 
   t.seed(META)
 
-  for (const words of [['note', 'Hello'], ['board'], ['status', '--next', 'Lunch']]) {
+  for (const words of [['park', 'Hello'], ['board'], ['status', '--next', 'Lunch']]) {
     expect(await t.run(...words)).toEqual({ exit: EXIT.refused, out: '', err: nameIt })
   }
 
@@ -380,7 +377,7 @@ test('an id filed in no project is no such session, and ends as such', async () 
 
   t.seed(META)
 
-  expect(await t.run('note', 'Hello', '--session', 'sr-zzzzzz')).toEqual({
+  expect(await t.run('park', 'Hello', '--session', 'sr-zzzzzz')).toEqual({
     exit: EXIT.noSession,
     out: '',
     err: 'sitrep: There is no session sr-zzzzzz on the board, in any project.\n',
@@ -402,8 +399,8 @@ test('a session is found in whichever project files it, whatever folder the CLI 
 
   t.seed(META)
 
-  expect((await t.run('note', 'Found it over there', '--session', LOBBY.id)).exit).toBe(EXIT.done)
-  expect(folded(t, there).log.map(line => line.text)).toEqual(['Found it over there'])
+  expect((await t.run('park', 'Found it over there', '--session', LOBBY.id)).exit).toBe(EXIT.done)
+  expect(folded(t, there).parked.map(each => each.title)).toEqual(['Found it over there'])
 })
 
 test('board prints the board as Claude’s board tool reads it', async () => {
@@ -655,23 +652,23 @@ test('help: every command in brief, how a session is named, and the exit codes',
 
 test("a command's help is its usage, what it does and each of its words, however it is asked for", async () => {
   const t = terminal()
-  const help = (await t.run('note', '--help')).out
+  const help = (await t.run('park', '--help')).out
 
   expect(help).toBe(
     [
-      'Usage: sitrep note <text> [--detail <line>]... [--ref <ref>] [--session <id>]',
+      'Usage: sitrep park <title> [--where <words>] [--ref <ref>] [--session <id>]',
       '',
-      "Add a line to the board's log: something Lee would want to know later. Prints its id.",
+      'Park something raised and put off, to come back to. Prints its id.',
       '',
-      '  <text>           one line, starting with the verb',
-      '  --detail <line>  a line it opens to; one each',
+      '  <title>          one line, starting with the verb',
+      '  --where <words>  where Lee should look, in words',
       '  --ref <ref>      where your own record of it is',
       '  --session <id>   the session: sr- and six characters; else $SITREP_SESSION',
       '',
     ].join('\n'),
   )
-  expect((await t.run('help', 'note')).out).toBe(help)
-  expect((await t.run('note', 'Hello', '-h')).out).toBe(help)
+  expect((await t.run('help', 'park')).out).toBe(help)
+  expect((await t.run('park', 'Hello', '-h')).out).toBe(help)
 })
 
 test('no words, an unknown command or a word that will not read is a usage error, pointing at the help', async () => {
@@ -686,6 +683,9 @@ test('no words, an unknown command or a word that will not read is a usage error
     err: 'sitrep: There is no command resolve. sitrep --help lists them.\n',
   })
   expect((await t.run('help', 'resolve')).exit).toBe(EXIT.refused)
+  expect((await t.run('note', 'Merged', ...SESSION)).err, 'notes went').toBe(
+    'sitrep: There is no command note. sitrep --help lists them.\n',
+  )
   expect(await t.run('list', '--session', META.id)).toEqual({
     exit: EXIT.refused,
     out: '',
@@ -708,7 +708,7 @@ test('a run stamps its lines with the time it ran', async () => {
   const t = terminal({ now: () => later })
   const paths = t.seed(META)
 
-  await t.run('note', 'Later on', ...SESSION)
+  await t.run('park', 'Later on', ...SESSION)
 
   expect(cliLines(t, paths).at(0)?.at).toBe(later)
 })

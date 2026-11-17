@@ -21,10 +21,10 @@ async function begun(w: World) {
   return { id, paths, cli: (...words: string[]) => t.run(...words, '--session', id) }
 }
 
-test("what the CLI posts, the mod's watch folds: its note in the log, its ask waiting and counted on the band", async ($, on) => {
+test("what the CLI posts, the mod's watch folds: its status in the history, its ask waiting and counted on the band", async ($, on) => {
   const w = world($, on)
   const { cli } = await begun(w)
-  const noted = await cli('note', 'Round 3 drawn', '--detail', 'Frames 1–6')
+  const changed = await cli('status', '--now', 'Drawing round 3', '--next', 'Frames 1–6')
   const posted = await cli(
     'ask',
     'Review round 3',
@@ -36,15 +36,17 @@ test("what the CLI posts, the mod's watch folds: its note in the log, its ask wa
     'In Paper: page "round 3"',
   )
 
-  expect([noted.exit, posted.exit]).toEqual([EXIT.done, EXIT.done])
+  expect([changed.exit, posted.exit]).toEqual([EXIT.done, EXIT.done])
 
   await w.clock.advance(WATCH_MS)
 
   const board = w.state.board
 
-  expect(board?.log.map(line => [line.kind, line.id, line.text, line.detail, line.by])).toEqual([
-    ['note', noted.out.trim(), 'Round 3 drawn', ['Frames 1–6'], WRITER],
-  ])
+  expect(board?.history?.[0]).toMatchObject({
+    text: 'now drawing round 3',
+    detail: ['Added: Drawing round 3', 'Next: Frames 1–6'],
+    by: WRITER,
+  })
   expect(board?.asks.map(each => [each.id, each.title, each.state, each.by])).toEqual([
     [posted.out.trim(), 'Review round 3', 'waiting', WRITER],
   ])
@@ -63,9 +65,9 @@ test("what the CLI posts, the mod's watch folds: its note in the log, its ask wa
 test("the CLI's posts ride into Claude's next turn: Claude was not told them", async ($, on) => {
   const w = world($, on)
   const { cli } = await begun(w)
-  const noted = (await cli('note', 'Round 3 drawn')).out.trim()
+  const parked = (await cli('park', 'Round 3 drawn')).out.trim()
 
-  expect((await $.prompt.submit(PROMPT)).context?.[0]).toContain(`- ${noted}: Round 3 drawn`)
+  expect((await $.prompt.submit(PROMPT)).context?.[0]).toContain(`- ${parked}: Round 3 drawn`)
 })
 
 test('the CLI writes only its own file: no heartbeat, and the window’s file untouched', async ($, on) => {
@@ -73,7 +75,7 @@ test('the CLI writes only its own file: no heartbeat, and the window’s file un
   const { paths, cli } = await begun(w)
   const before = new Map([...w.files].map(([path, held]) => [path, held.text]))
 
-  await cli('note', 'Round 3 drawn')
+  await cli('park', 'Round 3 drawn')
   await cli('status', '--now', 'Drawing round 4')
 
   const changed = [...w.files].filter(([path, held]) => before.get(path) !== held.text)

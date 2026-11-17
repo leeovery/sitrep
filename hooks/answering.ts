@@ -140,9 +140,9 @@ export const heardSurvey = (surface: RenderSurface, isHeld: boolean) => {
 /** The board has read none of what tells where the mode's item stands. */
 const UNREAD = 'unread'
 
-/** An item as it can take the mode's reply: no note, nor an ask of a finished session, where nothing waits on Lee; a parked item, its session finished or not, since it is its project's. */
+/** An item as it can take the mode's reply: not an ask of a finished session, where nothing waits on Lee; a parked item, its session finished or not, since it is its project's. */
 const answerable = (item: Item | undefined, isFinished: boolean) =>
-  item === undefined || item.type === 'note' || (item.type === 'ask' && isFinished)
+  item === undefined || (item.type === 'ask' && isFinished)
     ? undefined
     : item
 

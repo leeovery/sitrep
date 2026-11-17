@@ -1,22 +1,19 @@
 /**
  * A session's view: the session's name and summary, what waits on Lee, where
- * it stands, what happened, what it put off, and the asks done with. This
+ * it stands and how that changed, what it put off, and the asks done with. This
  * session's is the board's home; another's draws the same, its asks
  * answered the same way, and with no window on it, a way to finish it.
  */
-import { snoozedAsks } from '../../core'
+import { carried, snoozedAsks } from '../../core'
 import { agoWords, C, GLYPH } from '../look'
-import { askedOf, parkedOf } from '../places'
+import { askedOf, parkedOf, takenOffOf } from '../places'
 import type { Filed } from '../scene'
 import { drawAsks } from './ask'
 import { drawResolved } from './earlier'
 import { drawFinish } from './finish'
+import { drawHistory } from './history'
 import { context, emptyLine, heading, marked, spaced, type Block, type Drawing } from './kit'
-import { drawLog } from './log'
 import { drawParked } from './parked'
-
-/** How many log lines the view shows, docked and inline. */
-const LOG_LINES = { dock: 8, inline: 3 }
 
 /** The line under the tabs naming the session, and its summary under that. */
 const drawContext = (d: Drawing, { session }: Filed) =>
@@ -62,14 +59,23 @@ export const drawSessionView = (d: Drawing, filed: Filed): Block[] =>
       isHome: filed.session === d.scene.session,
       isNamed: false,
     }),
-    [{ key: 'status', element: drawStatus(d, filed) }],
-    drawLog(
+    [
+      { key: 'status', element: drawStatus(d, filed) },
+      ...drawHistory(
+        d,
+        filed.session.id,
+        carried(
+          filed.session.history.map(line => ({ line, session: filed.session.id })),
+          true,
+        ),
+      ),
+    ],
+    drawParked(
       d,
-      filed.session.log
-        .slice(0, d.isDock ? LOG_LINES.dock : LOG_LINES.inline)
-        .map(line => ({ line, session: filed.session.id })),
+      filed.session.id,
+      { parked: parkedOf(filed), taken: takenOffOf(d.scene, filed) },
+      false,
     ),
-    drawParked(d, parkedOf(filed), false),
     drawResolved(d, filed),
     drawFinish(d, filed),
   )

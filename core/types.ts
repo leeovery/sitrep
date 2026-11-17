@@ -70,13 +70,12 @@ export type AskBody = {
 /** An ask's line as written before asks said what they want back: by its kind. */
 export type KindAskBody = Omit<AskBody, 'wants' | 'yes'> & { kind: AskKind }
 
-export type NoteBody = {
-  type: 'note'
-  id: string
-  text: string
-  detail?: string[]
-  ref?: string
-}
+/**
+ * A note's line, as Claude wrote one until notes went (17 November 2026),
+ * read for its id alone: the id stays taken, so no new item is given it, and
+ * its time and count still count; it posts nothing.
+ */
+export type NoteBody = { type: 'note'; id: string }
 
 export type ParkBody = {
   type: 'park'
@@ -98,14 +97,14 @@ export type Changes = {
   /** `''` clears it. */
   needs?: string
   ref?: string
-  text?: string
-  detail?: string[]
 }
+
+/** Every type of item a session holds. */
+export const ITEM_TYPES: readonly Item['type'][] = ['ask', 'park']
 
 /** The fields an edit changes, by the type of item. */
 export const EDITABLE: Record<Item['type'], readonly (keyof Changes)[]> = {
   ask: ['wants', 'yes', 'title', 'where', 'options', 'recommended', 'needs', 'ref'],
-  note: ['text', 'detail', 'ref'],
   park: ['title', 'where', 'ref'],
 }
 
@@ -126,6 +125,8 @@ export type ReplyBody = {
   verdict: Verdict
   option?: string
   note?: string
+  /** A pick-up's: the session it went to, by its id. None on a pick-up written before pick-ups said (17 November 2026). */
+  to?: string
 }
 
 export type DeliveredBody = { type: 'delivered'; replies: string[] }
@@ -217,6 +218,8 @@ export type Reply = {
   verdict: Verdict
   option?: string
   note?: string
+  /** A pick-up's: the session it went to, by its id; none where its line said none. */
+  to?: string
   by: string
   at: number
   delivery: Delivery
@@ -275,13 +278,6 @@ export type Ask = Posted & {
   wokeAt?: number
 }
 
-export type Note = Posted & {
-  type: 'note'
-  text: string
-  detail?: string[]
-  state: 'open' | 'closed'
-}
-
 export type Parked = Posted & {
   type: 'park'
   title: string
@@ -293,20 +289,14 @@ export type Parked = Posted & {
   replies: Reply[]
 }
 
-export type Item = Ask | Note | Parked
+export type Item = Ask | Parked
 
-/** A line of the log: a note Claude wrote, or a status change or pick-up the board noticed. */
-export type LogLine = {
-  kind: 'note' | 'status' | 'pickup'
+/** A change of a session's status, as the board noticed it, comparing a status with the one before: who changed it when, its headline, and the detail it opens to. */
+export type StatusLine = {
   at: number
   by: string
   text: string
   detail: string[]
-  ref?: string
-  /** The note's id; a line the board derived has none. */
-  id?: string
-  /** A pick-up's parked item: every pick-up one send carries is logged at the same time, so this tells them apart. */
-  item?: string
 }
 
 /** A finished session: when, by which writer, and whether Lee or Claude, with why. */
@@ -435,8 +425,8 @@ export type Session = {
   items: ReadonlyMap<string, Item>
   /** Every reply that fitted its item as it was written, oldest first. */
   replies: Reply[]
-  /** Newest first. */
-  log: LogLine[]
+  /** Every change of its status, the newest first. */
+  history: StatusLine[]
   presence: Presence[]
   /** Whether a window is attached: a live presence. */
   isOpen: boolean

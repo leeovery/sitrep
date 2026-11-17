@@ -1,7 +1,7 @@
 import { expect, test } from './kit'
 import { lastSeen, rejoinable, type Session } from '../core'
 import { META, MIN, SENDER, T0, W1, W2 } from './data'
-import { beat, file, finish, fold, note, reply, status, yesAsk } from './lines'
+import { beat, file, finish, fold, park, reply, status, yesAsk } from './lines'
 
 /** The session under test under another id. */
 const as = (id: string, session: Session): Session => ({ ...session, id })
@@ -22,7 +22,7 @@ test('with no heartbeat, by the latest item or status it posted; starting a sess
   const session = fold({
     logs: {
       [W1]: file([T0 + MIN, yesAsk('k1', 'Run it', 'Done')], [T0 + 3 * MIN, status(['Drawing'])]),
-      [W2]: file([T0 + 2 * MIN, note('n1', 'Noted')]),
+      [W2]: file([T0 + 2 * MIN, park('p1', 'Parked')]),
     },
     inbox: { [SENDER]: file([T0 + 4 * MIN, reply('r1', 'k1', 'yes')]) },
   })

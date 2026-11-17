@@ -1,19 +1,18 @@
 /**
  * A project's view: its sessions, this one first, each with what it is
- * doing and what waits on Lee there; every session's asks, answered from
- * here; the project's notes; and what its sessions put off. Each ask, note
- * and parked item names its session. A session opens its own view.
+ * doing and what waits on Lee there, and under them how their status
+ * changed; every session's asks, answered from here; and what its sessions
+ * put off, and what was taken off that. Each ask, change and parked item
+ * names its session. A session opens its own view.
  */
-import type { SessionSummary } from '../../core'
+import type { Carried, SessionSummary } from '../../core'
+import { projectScope } from '../lists'
 import { C, clip, GLYPH } from '../look'
-import { askedIn, hereFirst, parkedIn, projectAt } from '../places'
+import { askedIn, hereFirst, parkedIn, projectAt, takenOffIn } from '../places'
 import { drawAsks } from './ask'
+import { drawHistory, type Changed } from './history'
 import { context, heading, NONE_OPEN, spaced, waitingWords, type Block, type Drawing } from './kit'
-import { drawLog } from './log'
 import { drawParked } from './parked'
-
-/** How many log lines the view shows, docked and inline. */
-const LOG_LINES = { dock: 6, inline: 3 }
 
 /** What a session is doing, in a line: what is under way, else what is next, else what it is for. */
 const doingOf = ({ now, next, summary }: SessionSummary) => {
@@ -63,44 +62,53 @@ const drawSession = (d: Drawing, project: string, session: SessionSummary) => {
 const openWords = (open: number, count: number) =>
   count === 0 ? NONE_OPEN : `${open} of ${count} open`
 
-/** SESSIONS' heading, then each session, a blank row between each and the next. */
+/** SESSIONS' heading, then each session, then the history of their status, a blank row between each and the next. */
 const drawSessions = (
   d: Drawing,
   key: string,
   sessions: readonly SessionSummary[],
   open: number,
+  history: Carried<Changed> | undefined,
 ) => [
-  { key: 'sessions', element: heading(d, 'SESSIONS', C.log, openWords(open, sessions.length)) },
+  {
+    key: 'sessions',
+    element: heading(d, 'SESSIONS', C.sessions, openWords(open, sessions.length)),
+  },
   ...spaced(
     ...sessions.map(session => [
       { key: `sess:${session.id}`, element: drawSession(d, key, session) },
     ]),
+    drawHistory(d, projectScope(key), history),
   ),
 ]
 
 /** The view's sections, a blank row between each and the next. */
 export const drawProjectView = (d: Drawing, key: string): Block[] => {
-  const { summary, log, sessions } = projectAt(d.scene, key)
+  const { summary, history, sessions } = projectAt(d.scene, key)
   const names = new Map(sessions.map(session => [session.id, session.name]))
-  const lines = log.slice(0, d.isDock ? LOG_LINES.dock : LOG_LINES.inline)
+  const changes = history && {
+    ...history,
+    entries: history.entries.map(({ session, ...line }) => ({
+      line,
+      session,
+      name: names.get(session) ?? session,
+    })),
+  }
 
   return spaced(
     [{ key: 'context', element: context(d, summary.name, waitingWords(summary.waiting)) }],
-    drawSessions(d, key, hereFirst(d.scene, summary.sessions), summary.open),
+    drawSessions(d, key, hereFirst(d.scene, summary.sessions), summary.open, changes),
     drawAsks(d, askedIn(d.scene, key), {
       waiting: summary.waiting,
       snoozed: summary.snoozed,
       isHome: key === d.scene.here,
       isNamed: true,
     }),
-    drawLog(
+    drawParked(
       d,
-      lines.map(line => ({
-        line,
-        session: line.session,
-        name: names.get(line.session) ?? line.session,
-      })),
+      projectScope(key),
+      { parked: parkedIn(d.scene, key), taken: takenOffIn(d.scene, key) },
+      true,
     ),
-    drawParked(d, parkedIn(d.scene, key), true),
   )
 }

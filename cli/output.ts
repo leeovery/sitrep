@@ -25,7 +25,6 @@ import {
   type FeedWindow,
   type LastWindow,
   type Line,
-  type LogLine,
   type Parked,
   type Project,
   type ProjectSummary,
@@ -36,12 +35,16 @@ import {
   type SessionSummary,
   type SnoozedLine,
   type SnoozedRow,
+  type StatusLine,
   type WindowState,
   type Where,
 } from '../core'
 
 /** The JSON's version, by command; why each stands where it does is DESIGN.md's ("One engine, two front ends"). */
-const OUTPUT = { list: 2, board: 3, watch: 3 } as const
+const OUTPUT = { list: 2, board: 4, watch: 3 } as const
+
+/** How many of a session's latest status changes its board carries. */
+const HISTORY_LINES = 8
 
 /** What `list` gives: the project the CLI runs in, if it runs in one, and the projects listed. */
 export type Listing = { here?: Project; projects: ProjectSummary[] }
@@ -183,19 +186,16 @@ const parkedJson = (parked: Parked) => ({
   at: parked.at,
 })
 
-const logJson = (line: LogLine) => ({
-  kind: line.kind,
-  id: line.id ?? null,
+const statusJson = (line: StatusLine) => ({
   text: line.text,
   detail: line.detail,
-  ref: line.ref ?? null,
   by: line.by,
   at: line.at,
 })
 
-/** A session's board, as `board --json` prints it and `watch` carries it: the session in brief, as `list` gives it, with its open asks, what it parked, its latest log lines, and its resolved asks, the newest closed first. */
+/** A session's board, as `board --json` prints it and `watch` carries it: the session in brief, as `list` gives it, with its open asks, what it parked, its latest status changes, the newest first, and its resolved asks, the newest closed first. */
 export const boardFields = (project: string, session: Session) => {
-  const { log, parkedItems, asks, ...summary } = brief(session)
+  const { parkedItems, asks, ...summary } = brief(session)
 
   return {
     v: OUTPUT.board,
@@ -203,7 +203,7 @@ export const boardFields = (project: string, session: Session) => {
     session: sessionJson(summary),
     asks: asks.map(ask => askJson(summary, ask)),
     parked: parkedItems.map(parkedJson),
-    log: log.map(logJson),
+    history: session.history.slice(0, HISTORY_LINES).map(statusJson),
     resolved: resolvedAsks(session).map(ask => resolvedJson(summary, ask)),
   }
 }

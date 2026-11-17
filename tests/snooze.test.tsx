@@ -21,7 +21,7 @@ import { WATCH_MS } from '../hooks/window'
 import type { SitrepAttachment } from '../types'
 import { rowsOf } from './drawn'
 import { CLI, CLOSES, GO, META, MIN, PROJECT, REVIEW, ROOT, SENDER, THEMES, W1, W2 } from './data'
-import { delivered, file, note, reply, snoozeSession, wakeSession, yesAsk } from './lines'
+import { delivered, file, park, reply, snoozeSession, wakeSession, yesAsk } from './lines'
 import {
   asked,
   CONVERSATION,
@@ -108,7 +108,7 @@ test("the pane's snooze writes one line through the hold into the window's own f
   const pressedAt = w.clock.now()
 
   await snoozing(ui, w.item(id), 'tomorrow')
-  await w.call('note', { text: 'Drew round 2' })
+  await w.call('park', { title: 'Drew round 2' })
 
   expect(linesOf(w, paths.log(W1), 'snoozeSession')).toMatchObject([
     { type: 'snoozeSession', until: snoozeAt('tomorrow', pressedAt), asks: [id], at: pressedAt },
@@ -117,7 +117,7 @@ test("the pane's snooze writes one line through the hold into the window's own f
     parseEntries(w.text(paths.log(W1)))
       .map(line => line.type)
       .slice(-3),
-  ).toEqual(['ask', 'snoozeSession', 'note'])
+  ).toEqual(['ask', 'snoozeSession', 'park'])
   expect(w.files.has(paths.letters(W1)), 'nothing goes to the inbox').toBe(false)
   expect(w.state.board?.asks[0]?.snoozedUntil).toBe(local(2026, 10, 24, 9))
 })
@@ -125,7 +125,7 @@ test("the pane's snooze writes one line through the hold into the window's own f
 test("another session's snooze is read back and written whole into the window's own file there, and the board reads it again", async ($, on) => {
   const w = fridayWorld($, on)
 
-  w.put(MINE, file([FRIDAY, note('n1', 'Looked in on the palette')]))
+  w.put(MINE, file([FRIDAY, park('n1', 'Looked in on the palette')]))
 
   const { ui } = await beside(w)
   const item = w.item('k4', THEMES.id)
@@ -139,7 +139,7 @@ test("another session's snooze is read back and written whole into the window's 
   await snoozing(ui, item, 'later')
 
   expect(parseEntries(w.text(MINE)).map(({ seq, type }) => [seq, type])).toEqual([
-    [1, 'note'],
+    [1, 'park'],
     [2, 'snoozeSession'],
   ])
   expect(parseEntries(w.text(MINE)).at(-1)).toMatchObject({
@@ -540,7 +540,7 @@ test('a woken ask is announced once: what changes the board after says nothing m
 
   const toasts = w.toasts.length
 
-  await w.call('note', { text: 'Drew round 2' })
+  await w.call('park', { title: 'Drew round 2' })
   app(yesAsk('k9', 'Try it at 80 columns', 'It works'))
   await w.clock.advance(HEARTBEAT_MS + 5_000)
 

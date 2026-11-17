@@ -17,7 +17,7 @@ import {
   file,
   finish,
   fold,
-  note,
+  oldNote,
   park,
   reply,
   resolve,
@@ -62,7 +62,7 @@ const SESSION = fold(
         [T0 + 3 * MIN, delivered('r1')],
         [T0 + 4 * MIN, resolve('k4')],
         [T0 + 5 * MIN, park('p1', 'A priority badge')],
-        ...[1, 2, 3, 4, 5, 6].map((n): Line => [T0 + (5 + n) * MIN, note(`n${n}`, `Note ${n}`)]),
+        ...[1, 2].map((n): Line => [T0 + (5 + n) * MIN, oldNote(`n${n}`, `Note ${n}`)]),
       ),
     },
     inbox: { [SENDER]: file([T0 + 20 * MIN, reply('r2', 'k1', 'yes', { note: 'Lovely' })]) },
@@ -71,7 +71,7 @@ const SESSION = fold(
   NOW,
 )
 
-test("the board text lists the session's open items by id, for Claude to check and repair", () => {
+test("the board text lists the session's open items by id, for Claude to check and repair; an old note's line gives it nothing", () => {
   expect(boardText(SESSION)).toBe(
     [
       'sitrep board: Help desk redesign (sr-k3f9qa)',
@@ -86,12 +86,6 @@ test("the board text lists the session's open items by id, for Claude to check a
       '- k3 wants a yes (It works), Lee replied, yours to act on (comment: “It fails after the code”): Try it on the iPad',
       'Parked:',
       '- p1: A priority badge',
-      'Latest notes:',
-      '- n6: Note 6',
-      '- n5: Note 5',
-      '- n4: Note 4',
-      '- n3: Note 3',
-      '- n2: Note 2',
     ].join('\n'),
   )
 })
@@ -119,14 +113,12 @@ test("the board text's Parked is the project's: what the session parked first, t
     [SESSION, { ...ledger, id: 'sr-1edger' }, { ...themes, id: 'sr-themes' }].flatMap(parkedBy),
   )
 
-  expect(boardText(SESSION, parked)).toContain(
+  expect(boardText(SESSION, parked).split('\nParked:\n')[1]).toBe(
     [
-      'Parked:',
       '- p1: A priority badge',
       '- p1, parked by "Invoice ledger" (session: sr-1edger): Export the ledger as CSV; where: In the spec',
       '- m2p8, parked by "Themes" (session: sr-themes): A dark theme',
       '- p2, parked by "Invoice ledger" (session: sr-1edger): Archive old invoices',
-      'Latest notes:',
     ].join('\n'),
   )
   expect(boardText(SESSION, parkedBy(SESSION)), 'its own listed once').toBe(boardText(SESSION))
@@ -154,8 +146,6 @@ test('an empty board says so in every section', () => {
       'Open asks:',
       '- none',
       'Parked:',
-      '- none',
-      'Latest notes:',
       '- none',
     ].join('\n'),
   )

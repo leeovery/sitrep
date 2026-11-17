@@ -15,7 +15,7 @@ import {
   W1,
   W2,
 } from './data'
-import { choiceAsk, finish, note, park, resolve, status, wordsAsk, yesAsk } from './lines'
+import { choiceAsk, finish, park, resolve, status, wordsAsk, yesAsk } from './lines'
 import { NOW, terminal } from './terminal'
 
 const QUIET = { key: 'quiet', name: 'Quiet' }
@@ -297,7 +297,7 @@ test('list names the project the CLI runs in even with nothing current in it, an
   ])
 })
 
-test('board --json: the session as list gives it, its open asks, what it parked, its latest log lines and its resolved asks', async () => {
+test('board --json: the session as list gives it, its open asks, what it parked, its latest status changes and its resolved asks', async () => {
   const t = terminal()
 
   t.seed(META, {
@@ -308,7 +308,7 @@ test('board --json: the session as list gives it, its open asks, what it parked,
       [T0 + 1, yesAsk('k2', 'Run the apply', 'Done')],
       [T0 + 1, wordsAsk('k3', 'Run sitrep list', "the command's output")],
       [T0 + 2, park('p1', 'A priority badge')],
-      [T0 + 3, note('n1', 'Merged', ['PR #82'])],
+      [T0 + 3, status(['Drawing Inbox', 'Merging'], { next: 'Inbox, round 3' })],
       [T0 + 4, resolve('k2')],
     ],
   })
@@ -317,13 +317,13 @@ test('board --json: the session as list gives it, its open asks, what it parked,
 
   expect(exit).toBe(EXIT.done)
   expect(JSON.parse(out)).toEqual({
-    v: 3,
+    v: 4,
     project: { key: PROJECT.key, name: 'Northwind' },
     session: {
       id: META.id,
       name: META.name,
       summary: META.summary,
-      now: ['Drawing Inbox'],
+      now: ['Drawing Inbox', 'Merging'],
       next: 'Inbox, round 3',
       isOpen: true,
       waiting: 2,
@@ -367,14 +367,16 @@ test('board --json: the session as list gives it, its open asks, what it parked,
       },
     ],
     parked: [{ id: 'p1', title: 'A priority badge', where: null, ref: null, at: T0 + 2 }],
-    log: [
-      { kind: 'note', id: 'n1', text: 'Merged', detail: ['PR #82'], ref: null, by: W1, at: T0 + 3 },
+    history: [
       {
-        kind: 'status',
-        id: null,
-        text: 'Status: now drawing Inbox',
+        text: 'now also merging',
+        detail: ['Added: Merging', 'Still there: Drawing Inbox'],
+        by: W1,
+        at: T0 + 3,
+      },
+      {
+        text: 'now drawing Inbox',
         detail: ['Added: Drawing Inbox', 'Next: Inbox, round 3'],
-        ref: null,
         by: W1,
         at: T0,
       },
@@ -400,6 +402,21 @@ test('board --json: the session as list gives it, its open asks, what it parked,
       },
     ],
   })
+})
+
+test("board --json's history holds the session's latest 8 changes of status, the newest first", async () => {
+  const t = terminal()
+
+  t.seed(META, {
+    seenAt: NOW,
+    lines: Array.from({ length: 10 }, (_, i) => [T0 + i, status([`Drawing round ${i + 1}`])]),
+  })
+
+  const { history } = JSON.parse((await t.run('board', '--json', '--session', META.id)).out)
+
+  expect(history.map((change: { at: number }) => change.at)).toEqual(
+    Array.from({ length: 8 }, (_, i) => T0 + 9 - i),
+  )
 })
 
 /** Northwind as busyHere has it, the lobby having parked something and finished, the idle session from last week something too; and Stale, its one session idle past the views, with something parked. */
@@ -488,12 +505,11 @@ test("a finished session's files as a build before parked items were the project
   expect(JSON.parse((await t.run('list', '--json')).out).projects).toMatchObject([
     { key: PROJECT.key, parked: 2, sessions: [{ id: META.id, parked: 0 }] },
   ])
-  expect((await t.run('board', '--session', META.id)).out).toContain(
+  expect((await t.run('board', '--session', META.id)).out.split('Parked:\n')[1]).toBe(
     [
-      'Parked:',
       '- p1, parked by "Invoice ledger" (session: sr-1edger): Export the ledger as CSV; ref: PR #82',
       '- p2, parked by "Invoice ledger" (session: sr-1edger): Archive old invoices; where: After the release',
-      'Latest notes:',
+      '',
     ].join('\n'),
   )
   expect(filesThere()).toEqual(before)

@@ -13,7 +13,6 @@ import {
   checkAnswer,
   checkAsk,
   checkFinish,
-  checkNote,
   checkPark,
   checkSnooze,
   checkStatus,
@@ -125,26 +124,6 @@ const ASKS_SHOWN: Arg = {
   isMany: true,
 }
 
-const note: SessionCommand = {
-  name: 'note',
-  about: "Add a line to the board's log: something Lee would want to know later. Prints its id.",
-  grammar: {
-    args: [{ field: 'text', about: LINE }],
-    flags: {
-      detail: {
-        field: 'detail',
-        form: 'many',
-        value: '<line>',
-        about: 'a line it opens to; one each',
-      },
-      ...REF,
-      ...SESSION,
-    },
-  },
-  on: 'session',
-  act: ({ session }, input, { random }) => posted(withId(checkNote(input), session, random), idOf),
-}
-
 const ask: SessionCommand = {
   name: 'ask',
   about: 'Post an ask: something only Lee can do or decide. Prints its id.',
@@ -227,7 +206,7 @@ const status: SessionCommand = {
 const board: SessionCommand = {
   name: 'board',
   about:
-    "Print the board: its status, open asks, the project's parked items and latest notes, with their ids.",
+    "Print the board: its status, open asks and the project's parked items, with their ids.",
   grammar: { args: [], flags: { ...JSON_OUT, ...SESSION } },
   on: 'session',
   readsProject: true,
@@ -358,7 +337,6 @@ const watch: FeedCommand = {
 
 /** Every command, in the order the help lists them. */
 export const COMMANDS: readonly Command[] = [
-  note,
   ask,
   park,
   status,

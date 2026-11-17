@@ -4,7 +4,7 @@ import { LINGER_MS, shownAsks } from '../hooks/scene'
 import { WATCH_MS } from '../hooks/window'
 import { readyRows, rowsOf } from './drawn'
 import { CLOSES, LEAVES_OPEN, MIN, PROJECT, REVIEW, ROOT, T0, W1 } from './data'
-import { delivered, file, fold, note, reply, yesAsk } from './lines'
+import { delivered, file, fold, park, reply, yesAsk } from './lines'
 import {
   asked,
   asking,
@@ -175,7 +175,7 @@ test('a comment on a review leaves the ask open, replied, for Claude to act on',
   expect(await ui.find({ key: `pick:${w.item(id)}` })).toBeDefined()
 })
 
-test('a pick-up from parked is sent like any reply, and the log says what was picked up', async ($, on) => {
+test('a pick-up from parked is sent like any reply, and Parked counts it picked up', async ($, on) => {
   const w = world($, on)
   const { paths } = await w.begin()
   const id = postedId(await w.call('park', { title: 'A priority badge across all tabs' }))
@@ -189,9 +189,12 @@ test('a pick-up from parked is sent like any reply, and the log says what was pi
     'From the board:\n- Pick up from parked: A priority badge across all tabs',
   )
   expect(kindsIn(w, paths.log(W1))).toEqual(['park', 'reply', 'delivered'])
-  expect(await ui.find({ type: 'Text', text: 'PARKED' }), 'nothing is parked now').toBeUndefined()
-  expect(w.state.board?.log[0]?.text).toBe(
-    'Picked up from parked: A priority badge across all tabs',
+  expect(
+    await ui.find({ type: 'Text', text: 'nothing to come back to' }),
+    'nothing is parked now',
+  ).toBeDefined()
+  expect((await ui.find({ key: `pickedup:${w.state.board?.id}` }))?.props.label).toBe(
+    'show picked up 1',
   )
 })
 
@@ -200,7 +203,7 @@ test("the board's own message carries no board context; a change it did not carr
   const { paths, id, ui } = await asking(w)
   const elsewhere = w.writer(paths)
 
-  elsewhere(note('n9', 'Merged the band'))
+  elsewhere(park('p9', 'Merged the band'))
   await w.clock.advance(WATCH_MS)
   await ui.press({ key: `yes:${w.item(id)}` })
   await ui.press({ key: 'send' })
@@ -209,7 +212,7 @@ test("the board's own message carries no board context; a change it did not carr
 
   const next = await $.prompt.submit(PROMPT)
 
-  expect(next.context?.[0]).toContain('- n9: Merged the band')
+  expect(next.context?.[0]).toContain('- p9: Merged the band')
   expect(next.context?.[0]).not.toContain('Review Tickets & Replies')
 })
 
@@ -227,13 +230,13 @@ test('a prompt from the board itself is left as it came, whatever changed', asyn
   const w = world($, on)
   const { paths } = await asking(w)
 
-  w.writer(paths)(note('n9', 'Merged the band'))
+  w.writer(paths)(park('p9', 'Merged the band'))
   await w.clock.advance(WATCH_MS)
 
   const entered = await $.prompt.submit({ ...PROMPT, origin: FROM_THE_BOARD } as never)
 
   expect(entered.context).toBeUndefined()
-  expect((await $.prompt.submit(PROMPT)).context?.[0]).toContain('- n9: Merged the band')
+  expect((await $.prompt.submit(PROMPT)).context?.[0]).toContain('- p9: Merged the band')
 })
 
 test('a reload keeps Ready to send as Lee left it', async ($, on) => {

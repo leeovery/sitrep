@@ -26,7 +26,6 @@ import {
   type FinishBody,
   type Finisher,
   type Item,
-  type NoteBody,
   type ParkBody,
   type Parked,
   type ReopenBody,
@@ -51,7 +50,7 @@ const YES_MOST = 20
 
 const STATUS_FIELDS = ['name', 'summary', 'now', 'next'] as const
 
-const NOUNS: Record<Item['type'], string> = { ask: 'an ask', note: 'a note', park: 'a parked item' }
+const NOUNS: Record<Item['type'], string> = { ask: 'an ask', park: 'a parked item' }
 
 const ok = <T>(value: T): Checked<T> => ({ ok: true, value })
 const refuse = (error: string): { ok: false; error: string } => ({ ok: false, error })
@@ -365,16 +364,6 @@ export const checkAsk = (input: unknown): Checked<Omit<AskBody, 'id'>> => {
   })
 }
 
-export const checkNote = (input: unknown): Checked<Omit<NoteBody, 'id'>> => {
-  const fields = fieldsOf(input)
-  const text = line(fields.text)
-  const detail = lines(fields.detail)
-
-  return text === undefined
-    ? refuse('A note needs its text: one line.')
-    : ok({ type: 'note', text, detail: detail?.length ? detail : undefined, ref: line(fields.ref) })
-}
-
 export const checkPark = (input: unknown): Checked<Omit<ParkBody, 'id'>> => {
   const fields = fieldsOf(input)
   const title = line(fields.title)
@@ -418,9 +407,8 @@ const target = (session: Session, fields: Fields): Checked<Item> => {
 
 const isClosed = (item: Item) => item.state === 'closed' || item.state === 'ignored'
 
-/** Whether an item is open as it was posted: an ask waiting on Lee, a note shown, an item still parked. */
-const isFresh = (item: Item) =>
-  item.state === 'waiting' || item.state === 'open' || item.state === 'parked'
+/** Whether an item is open as it was posted: an ask waiting on Lee, an item still parked. */
+const isFresh = (item: Item) => item.state === 'waiting' || item.state === 'parked'
 
 /** What resolve and reopen refuse: an item already where either would leave it. */
 const ALREADY = {
@@ -449,7 +437,7 @@ const closeOrOpen = <T extends keyof typeof ALREADY>(
 /**
  * The item a line Claude writes into another session of its project names:
  * only a parked item, which is the project's, any session of it acting on
- * it; that session's asks and notes are its own.
+ * it; that session's asks are its own.
  */
 export const checkParkedIn = (session: Session, input: unknown): Checked<Item> => {
   const item = target(session, fieldsOf(input))
@@ -477,10 +465,7 @@ export const checkResolve = (session: Session, input: unknown): Checked<ResolveB
 export const closedByLee = (session: Session, input: unknown): Ask | Parked | undefined => {
   const item = target(session, fieldsOf(input))
 
-  return item.ok &&
-    item.value.type !== 'note' &&
-    item.value.closedBy !== undefined &&
-    item.value.closedBy !== 'claude'
+  return item.ok && item.value.closedBy !== undefined && item.value.closedBy !== 'claude'
     ? item.value
     : undefined
 }
@@ -501,29 +486,20 @@ const READERS: { [K in keyof Changes]-?: (value: unknown) => Changes[K] | undefi
   recommended: recommendedIn,
   needs: clearable,
   ref: line,
-  text: line,
-  detail: lines,
 }
 
-/** The field holding an item's one line: a note's text, an ask's or a parked item's title. */
-const LINE_FIELD: Record<Item['type'], 'text' | 'title'> = {
-  ask: 'title',
-  note: 'text',
-  park: 'title',
-}
+/** The other name an edit gives an item's one line by, its title, whatever the item. */
+const TEXT = 'text'
 
-/** The names an edit gives an item's one line by, either of them, whatever the item. */
-const ONE_LINE: readonly (keyof Changes)[] = ['text', 'title']
+/** The names an edit gives fields by: each field's own, and its one line's other. */
+const NAMES = [...Object.keys(READERS), TEXT]
 
-/** The field of the item an edit's key changes: its one line, by either name. */
-const fieldOf = (item: Item, key: keyof Changes) =>
-  ONE_LINE.includes(key) ? LINE_FIELD[item.type] : key
+/** The field an edit's name changes: its one line, by either name. */
+const fieldOf = (name: string) => (name === TEXT ? 'title' : name) as keyof Changes
 
 /** The fields an edit to an item changes, as a refusal lists them, its one line as title or text. */
 const editableOf = (item: Item) =>
-  EDITABLE[item.type]
-    .map(key => (key === LINE_FIELD[item.type] ? 'title or text' : key))
-    .join(', ')
+  EDITABLE[item.type].map(key => (key === 'title' ? 'title or text' : key)).join(', ')
 
 /** Whether an edit gives its item's one line twice, as text and as title, each a line, in different words; an empty one is refused by its own name. */
 const isTwoLines = (fields: Fields) => {
@@ -534,7 +510,7 @@ const isTwoLines = (fields: Fields) => {
 
 /** An edit's changes as read, or a refusal naming the first field that will not do, by the name Claude gave it. */
 const changesFor = (item: Item, fields: Fields): Checked<Changes> => {
-  const named = (Object.keys(READERS) as (keyof Changes)[]).filter(key => fields[key] !== undefined)
+  const named = NAMES.filter(key => fields[key] !== undefined)
   const changes: Changes = {}
 
   if (named.length === 0) {
@@ -548,7 +524,7 @@ const changesFor = (item: Item, fields: Fields): Checked<Changes> => {
   }
 
   for (const key of named) {
-    const field = fieldOf(item, key)
+    const field = fieldOf(key)
 
     if (!EDITABLE[item.type].includes(field)) {
       return refuse(`An edit to ${NOUNS[item.type]} changes ${editableOf(item)}; not ${key}.`)

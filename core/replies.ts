@@ -69,8 +69,7 @@ export const FROM_THE_BOARD = 'From the board:'
  * or the words that verdict needs. A yes or a choice fits with a comment as
  * its note, or without one.
  */
-export const fits = (item: Item, reply: ReplyFields): item is Ask | Parked =>
-  item.type !== 'note' &&
+export const fits = (item: Item, reply: ReplyFields) =>
   takes(item, reply.verdict) &&
   (reply.verdict !== 'choose' || Boolean(reply.option)) &&
   (!WORDED.includes(reply.verdict) || Boolean(reply.note))
@@ -353,12 +352,6 @@ const messageLines = <R extends ReplyFields>(carried: readonly Carried<R>[]) => 
       : line,
   )
 }
-
-/** The log line a delivered pick-up earns: what was picked up, and Lee's note with it. */
-export const pickUpLog = (parked: Parked, reply: ReplyFields) => ({
-  text: `Picked up from parked: ${parked.title}`,
-  detail: reply.note ? [reply.note] : [],
-})
 
 /**
  * Lee's message to a session carrying replies, and the replies it carries:

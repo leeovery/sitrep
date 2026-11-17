@@ -9,7 +9,7 @@ import {
 } from '../core'
 import { AROUND_MS } from '../hooks/around'
 import { ELSEWHERE, LEDGER, META, ROOT, T0, W1, W3 } from './data'
-import { beat, finish, note, reopen, resolve, snoozeSession, unfinish, yesAsk } from './lines'
+import { beat, finish, reopen, resolve, snoozeSession, status, unfinish, yesAsk } from './lines'
 import { toProject, world, type World } from './world'
 
 tier('user')
@@ -109,7 +109,7 @@ test('a session around off the board is read only at a whole look, every OFF_BOA
   const w = world($, on)
   const ledger = w.elsewhere(LEDGER)
 
-  ledger.write(note('n1', 'Drew the schema'), finish('claude'))
+  ledger.write(status(['Drawing the schema'], LEDGER), finish('claude'))
   await w.begin()
 
   const read = listings(w, ledger.paths)
@@ -197,7 +197,7 @@ test('a look that reads the clock a few ms late, and the next two on time, leave
 
     return next(e)
   })
-  ledger.write(note('n1', 'Drew the schema'), finish('claude'))
+  ledger.write(status(['Drawing the schema'], LEDGER), finish('claude'))
   await w.begin()
   await w.clock.advance(AROUND_MS)
 

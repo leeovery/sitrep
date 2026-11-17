@@ -184,12 +184,12 @@ test('two summarised messages in one turn are each told once, on the call after 
   await m.streams(thinking('Merged it.', NARRATION))
 
   const first = await w.call('status', { now: ['Testing the jump'] })
-  const second = await w.call('note', { text: 'Started the live test' })
+  const second = await w.call('park', { title: 'Started the live test' })
 
   await m.streams(thinking('Testing it live.', NARRATION))
 
-  const third = await w.call('note', { text: 'Finished the live test' })
-  const fourth = await w.call('note', { text: 'Wrote it up' })
+  const third = await w.call('park', { title: 'Finished the live test' })
+  const fourth = await w.call('park', { title: 'Wrote it up' })
 
   expect(contextOf(first)).toEqual([summarisedLine(['Merged it.'])])
   expect(contextOf(second), 'told already').toBeUndefined()
@@ -207,7 +207,7 @@ test('ordinary thinking, with words or without, a signature that does not parse,
   await m.streams(thinking(SUMMARY, 'not base64!'))
   await m.streams({ type: 'text', text: SUMMARY })
 
-  expect(contextOf(await w.call('note', { text: 'Weighed the edges' }))).toBeUndefined()
+  expect(contextOf(await w.call('park', { title: 'Weighed the edges' }))).toBeUndefined()
 })
 
 test('a refused call carries nothing, and what it left untold rides the next call that settles', async ($, on) => {
@@ -263,14 +263,14 @@ test("a turn of the main conversation starting lets go of what is still untold; 
   await m.streams(thinking(SUMMARY, NARRATION))
   await w.agentRunStarts(AGENT)
 
-  expect(contextOf(await w.call('note', { text: 'Reviewed the diff' }))).toEqual([
+  expect(contextOf(await w.call('park', { title: 'Reviewed the diff' }))).toEqual([
     summarisedLine([SUMMARY]),
   ])
 
   await m.streams(thinking('Testing it live.', NARRATION))
   await w.turnStarts('Carry on.')
 
-  expect(contextOf(await w.call('note', { text: 'Started over' }))).toBeUndefined()
+  expect(contextOf(await w.call('park', { title: 'Started over' }))).toBeUndefined()
 })
 
 test("a subagent's narrations and calls tell Claude nothing, and leave the main conversation's untold as it was", async ($, on) => {
@@ -286,7 +286,7 @@ test("a subagent's narrations and calls tell Claude nothing, and leave the main 
   theirs.finish()
 
   expect(contextOf(await theirs.done)).toBeUndefined()
-  expect(contextOf(await w.call('note', { text: 'Reviewed the diff' }))).toEqual([
+  expect(contextOf(await w.call('park', { title: 'Reviewed the diff' }))).toEqual([
     summarisedLine([SUMMARY]),
   ])
 })

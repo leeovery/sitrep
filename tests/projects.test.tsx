@@ -8,7 +8,7 @@ import {
   type SessionMeta,
 } from '../core'
 import { HELP_DESK, HOME, META, MIN, PROJECT, REPO, ROOT, T0, W1, W2, W3 } from './data'
-import { note, yesAsk } from './lines'
+import { status, yesAsk } from './lines'
 import { CONVERSATION, startedId, world, type World } from './world'
 
 tier('user')
@@ -264,7 +264,7 @@ const threeProjects = (w: World) => {
   )
   w.elsewhere(namingProject('sr-pr1ce5', 'Pricing page, stage 1', 'Northwind', W3)).beat()
   w.elsewhere(namingProject('sr-eeeeee', 'Onboarding', 'contoso'), 'contoso-1a2b3c4d').write(
-    note('n1', 'Drew the flow'),
+    status(['Drawing the flow'], { name: 'Onboarding' }),
   )
 }
 

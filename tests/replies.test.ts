@@ -12,6 +12,7 @@ import {
   replyState,
   sentLines,
   STALE_MS,
+  takenOff,
   toDeliver,
   waitsOnLee,
   type AskKind,
@@ -32,7 +33,7 @@ import {
   finish,
   fold,
   kindAsk,
-  note,
+  oldNote,
   park,
   reopen,
   reply,
@@ -285,7 +286,7 @@ test("a comment on its way to an old decide still closes it once delivered, thou
   })
 })
 
-test('each pick-up one send delivers is logged with its parked item, though all share its time', () => {
+test('each pick-up one send delivers takes its item off Parked at its time, each with its own reply', () => {
   const session = fold({
     logs: {
       [W1]: file(
@@ -298,9 +299,9 @@ test('each pick-up one send delivers is logged with its parked item, though all 
     },
   })
 
-  expect(session.log.map(line => [line.item, line.at])).toEqual([
-    ['p2', T0 + MIN],
-    ['p1', T0 + MIN],
+  expect(takenOff(session).map(each => [each.id, each.closedAt, each.answer?.id])).toEqual([
+    ['p1', T0 + MIN, 'r1'],
+    ['p2', T0 + MIN, 'r2'],
   ])
 })
 
@@ -311,7 +312,7 @@ test('a delivered pick-up marks a parked item picked up, and it leaves the parke
   expect(session.parked).toEqual([])
 })
 
-test('the board logs a delivered pick-up itself, with Lee’s note as its detail', () => {
+test('a delivered pick-up takes its item off Parked by the reply that picked it up, Lee’s note with it, and nothing is written down for it', () => {
   const logs = {
     [W1]: file(
       ...POSTED,
@@ -327,24 +328,14 @@ test('the board logs a delivered pick-up itself, with Lee’s note as its detail
     },
   })
 
-  expect(session.log).toEqual([
-    {
-      kind: 'pickup',
-      at: T0 + 4 * MIN,
-      by: W1,
-      item: 'p2',
-      text: 'Picked up from parked: Thumbnails inline in the gallery',
-      detail: [],
-    },
-    {
-      kind: 'pickup',
-      at: T0 + 2 * MIN,
-      by: SENDER,
-      item: 'p1',
-      text: 'Picked up from parked: A priority badge across all tabs',
-      detail: ['Before the release'],
-    },
+  expect(
+    takenOff(session).map(each => [each.id, each.state, each.closedAt, each.answer?.by]),
+    'the newest taken off first',
+  ).toEqual([
+    ['p2', 'picked', T0 + 4 * MIN, W1],
+    ['p1', 'picked', T0 + 2 * MIN, SENDER],
   ])
+  expect(session.items.get('p1')).toMatchObject({ answer: { note: 'Before the release' } })
   expect(parseEntries(logs[W1]).map(entry => entry.type)).toEqual([
     ...POSTED.map(([, body]) => body.type),
     'delivered',
@@ -354,16 +345,17 @@ test('the board logs a delivered pick-up itself, with Lee’s note as its detail
   ])
 })
 
-test('an undelivered pick-up adds no line to the log', () => {
+test('an undelivered pick-up takes nothing off Parked', () => {
   const session = fold({
     logs: { [W1]: file(...POSTED) },
     inbox: { [SENDER]: file([T0 + MIN, reply('r1', 'p1', 'pickup')]) },
   })
 
-  expect(session.log).toEqual([])
+  expect(takenOff(session)).toEqual([])
+  expect(session.parked.map(each => each.id)).toEqual(['p1'])
 })
 
-test('a parked item picked up twice is logged once: the second pick-up finds it picked', () => {
+test('a parked item picked up twice keeps its first pick-up: the second finds it picked', () => {
   const session = fold({
     logs: {
       [W1]: file(
@@ -374,7 +366,11 @@ test('a parked item picked up twice is logged once: the second pick-up finds it 
     },
   })
 
-  expect(session.log.map(line => [line.kind, line.at])).toEqual([['pickup', T0 + MIN]])
+  expect(session.items.get('p1')).toMatchObject({
+    state: 'picked',
+    closedAt: T0 + MIN,
+    answer: { id: 'r1' },
+  })
 })
 
 test('a reply not yet delivered leaves its item as it was, but its ask, answered, no longer waits on Lee', () => {
@@ -464,9 +460,9 @@ for (const [why, body] of [
   })
 }
 
-test('a reply to no item, or to a note, is never kept', () => {
+test('a reply to no item, or to a note as one was written before notes went, is never kept', () => {
   const session = fold({
-    logs: { [W1]: file(...POSTED, [T0, note('n1', 'Drew it')]) },
+    logs: { [W1]: file(...POSTED, [T0, oldNote('n1', 'Drew it')]) },
     inbox: {
       [SENDER]: file([T0 + MIN, reply('r1', 'gone', 'yes')], [T0 + MIN, reply('r2', 'n1', 'yes')]),
     },
@@ -1288,9 +1284,7 @@ test("an old edit making a comment on its way a decide's answer makes it Lee's a
 const barredIn = (files: Partial<SessionFiles>, id: string, verdict: Verdict) => {
   const item = fold(files).items.get(id)
 
-  return item === undefined || item.type === 'note'
-    ? 'no ask or parked item'
-    : barredBy(item, verdict)
+  return item === undefined ? 'no ask or parked item' : barredBy(item, verdict)
 }
 
 test("an item open takes a reply of Lee's, but a second answer while one is on its way; one closed takes none, barred by Lee's answer or Claude's resolve", () => {

@@ -417,6 +417,24 @@ test("inbox: the heartbeat says nothing of the inbox's message, its replies on t
   await submitted
 })
 
+test("inbox: the claim carries each reply as its line was written, every field of it and nothing the fold made of it", async ($, on) => {
+  const w = world($, on)
+  const { paths } = await w.begin()
+  const id = await asked(w, REVIEW)
+  const line = reply('r1', id, 'yes', { note: 'Ship it', to: 'sr-0th3r1' })
+  const turn = w.holdPrompts()
+
+  w.put(paths.letters(SENDER), file([w.clock.now(), line]))
+
+  const submitted = w.clock.advance(2 * WATCH_MS)
+
+  await turn.arrived
+  expect(keptFlights(w.state.inFlight ?? null)[0]?.replies).toEqual([line])
+
+  turn.end()
+  await submitted
+})
+
 test('a send whose window has moved to another session is said in neither heartbeat', async ($, on) => {
   const w = world($, on)
   const { paths } = await sentHeld(w)
