@@ -268,8 +268,8 @@ Built so (17 November 2026):
   session is filed under the project its latest move names, in the order
   every reader reads lines, where that project is on the board, and named
   as the board names it; else under its folder's. One rule in core,
-  `fileSession`, given the board's names by key, files it for the mod, the
-  CLI and `watch` alike.
+  `fileSession`, given the name the board gives the project the latest
+  move names, files it for the mod, the CLI and `watch` alike.
   - Why not move the folder: a mod's `$.fs` can neither rename nor delete,
     so a move could only copy the files, and every window holding the
     session would write its lines into the old folder until it heard of the
@@ -281,48 +281,39 @@ Built so (17 November 2026):
     from then, one decision from one fold, never in both and never in
     neither. Two moves at once both land, and the later in that order wins,
     in every reader.
-- **What the window keeps names the folder.** Every ref to a session in
-  `$.state` (its hold, `attachment`, Ready to send's replies, where they
-  were sent, the board's place on a session, the item Lee is answering, a
-  message in flight) names the folder its files are in, which no move
-  changes, so a move rewrites none of them. A ref a view draws names the
-  project the view shows the session in; every press keeps it, or writes
-  by it, through one conversion, which finds the folder by the session's
-  id: the folder named, where the session's `session.json` reads there,
-  else whichever project's folder holds the id, as `join` finds one. The
-  project a session is filed under is never kept: it is read from the
-  session's fold wherever it counts. The held session's is its board's
-  `filedUnder`, from the hold's last fold; another's, from its own fold or
-  the look around's: the way back from its view goes up to it (to All
-  projects for a session the board has not read), a pick-up of its parked
-  item is kept or dropped by it, and a send's lines written into it tell
-  Claude of no change where it is filed under the held session's project.
-  A write reaches the held session through the hold where it names it by
-  its id and the window's writer, whichever key it has.
-- **The compiler holds the two keys apart.** Both are strings as stored,
-  so `$.state` is as it was, but they are two types: a `FolderKey`, the
-  folder a session's files are in, which every kept ref has, and a
-  `ProjectKey`, the project a session is filed under, which the views and
-  every drawn ref have (types/index.d.ts, core's filing.ts). A key read
-  off the disk, a project folder listed, is a folder's (`folderKey`). Only
-  three things make one kind of the other: finding a session's folder by
-  its id (hooks/folders.ts's `folderOf` and `inFolder`, and `kept`, through
-  which every press comes, in actions.ts); filing a session (core's
-  `fileSession`), which makes its project of its folder and its latest
-  move; and a folder's own project (`projectOfFolder`), the project of
-  every session in it not known to have moved.
-  So a drawn ref written where a kept one goes, or a folder where a project
-  goes, is a type error, not a write beside the hold. It was one, found in
-  review that day: Lee's snooze or wake of the held session's ask after a
-  move named the project the view showed, missed the hold, and was written
-  whole behind it, then lost at its next post.
+- **Kept refs name the folder, drawn refs the project, and the compiler
+  holds the two apart.** Every ref to a session in `$.state` (the hold,
+  Ready to send's replies, where they were sent, the board's place on a
+  session, the item Lee is answering, a message in flight) names the folder
+  its files are in, which no move changes, so a move rewrites none, and
+  every read and write goes straight there. A ref a view draws names the
+  project it shows the session in; a press keeps it, or writes by it, only
+  through actions.ts's `kept`, which finds the folder by the session's id,
+  the one named first, and keeps nothing where none holds it, a toast
+  saying why (`Not queued: its session is no longer on the board.`).
+  `finish` on another session's view writes by the ref kept so, then goes
+  up to the project that view showed. A bare id is found the same way:
+  `join`'s, and a pick-up's session as a taken message is written down.
+  The project a session is filed under is never kept, but read from its
+  fold, the held one's from the hold's latest (its board's `filedUnder`).
+  Both keys are strings as stored, so `$.state` is as it was, but two
+  types, `FolderKey` and `ProjectKey` (types/index.d.ts, core's
+  filing.ts): assigning or passing one where the other goes is a type
+  error; `===` between them is not, and no comparison mixes them. Only
+  filing makes a project of a folder (`fileSession`, `projectOfFolder`),
+  and only a key read off the disk is made a folder (`folderKey`, which
+  refuses a `ProjectKey`). It stands for a bug found in review that day:
+  Lee's snooze of the held session's ask after a move named the project
+  the view showed, and was written beside the hold, then lost.
 - **Following is reading.** Each window folds its session at its watch's
   look, every 1.5 seconds, the name of a project a move took it to read
   again only once that project's file's text changed, and a fold that
   files it as the last did giving the board nothing to put; its tools fold
-  it again before they act, so
-  `move` and `project` act on the project the session is in now, never the
-  one another window just moved it out of. Once the fold files it under
+  it again before they act, so `move` and `project` act on the project the
+  session is in now, never the one another window just moved it out of,
+  and every tool on the held session, acting on another session's parked
+  item among them, is denied while its `session.json` is missing or torn,
+  which leaves where it is filed unknown. Once the fold files it under
   another project, the window toasts, a pick-up of the old project's other
   sessions' parked items leaves Ready to send, a toast saying so, as when a
   window takes up a session of another project (see "A window that
@@ -343,9 +334,11 @@ Built so (17 November 2026):
 - **What is in flight goes on.** A reply in the session's inbox waits there,
   in its folder, and is delivered as any; a send to the session from its own
   window is written down through the hold. A pick-up of one of its parked
-  items pressed in another window, while the item was that window's
-  project's, still goes to that window's Claude, as it was pressed, and is
-  written down in the session that parked it, found by its id.
+  items sent from another window goes on to that window's Claude, and is
+  written down in the session that parked it, found by its id. One still in
+  Ready to send there goes only while the session is filed under that
+  window's project as the send reads it (see "A window that changes
+  project", under Delivery).
 - **SitRep follows at its next line.** `watch` files the session as every
   reader does, so the line after its look has it under the new project: its
   row's project and letters, its windows' project, and its board's
@@ -628,6 +621,15 @@ orchestrator decides what reaches the board.
 | `project` | rename the attached session's project, or say where it lives, or both; a name another project has is refused, saying a move there is Lee's call. It never moves a session to another project: `move` does |
 | `move` | move the attached session, whole, to another project, at Lee's word: one on the board whose name matches, as `start` matches one, else a new one, with its directory once known; the project it is in already is refused. Every window holding it follows (17 November 2026; see "A session moves to another project at Lee's word") |
 | `board` | read back the board's open items, what each ask wants back among them (`k1 wants a yes (Go)`), and the project's parked items, so Claude can check and repair it |
+
+**The mod hears its tools by their prefix** (17 November 2026): its
+`tool.call` hook, and the renders of their rows, match every call whose
+name starts `mcp__sitrep__` (`OWN_TOOLS`). Matched by the names
+themselves, the matcher was typed against the tools the engine laid out
+at the last load, so `move` failed the type-check until a load laid it
+out; the type-check must not hang on names only a load writes. A call
+matching the prefix that is none of the tools is denied (`sitrep has no
+tool …`).
 
 **When to start a session**, in every conversation's first message
 (added once a conversation started one with nothing to go on but the tools,
@@ -1902,7 +1904,13 @@ app (see "The menu bar").
     and the item stays parked, to be picked up from a window of its
     project. A message already sent, held for the turn's end, goes in as
     sent, to the conversation Lee pressed send in; taken back, its pick-up
-    leaves the queue the same way.
+    leaves the queue the same way. The rule itself is the send's (queue.ts's
+    `goesTo`, 17 November 2026): a pick-up goes to the window's Claude only
+    while its item's session is filed under the held session's project as
+    the send reads each, afresh; else to none, and it waits, undrawn, until
+    it is. So one left behind, as a reload found the held `session.json`
+    torn and read the move only after, or one whose item's session moved
+    away after the press, never reaches a Claude of another project.
   - **Two windows, one item.** Each pick-up goes in to its own window's
     Claude: a mark lets in a reply its item's close voided `answered` (see
     "Which replies go in"), so both Claudes are told.
@@ -3030,10 +3038,11 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   (17 November 2026; see "A session moves to another project at Lee's
   word"). It is filed under the project its latest `move` line names, where
   that project is on the board, and named as the board names that one;
-  else under its folder's. Whatever reads or writes a session by a project
-  and its id finds its folder by the id: under the project named, where its
-  `session.json` reads there, else under whichever project's folder holds
-  the id.
+  else under its folder's. Every ref the window keeps names the folder,
+  and reads and writes go there by it. Only a ref a view drew, naming the
+  project it showed the session in, or a bare id finds the folder, by the
+  session's id: the project named first, then every project's folder, the
+  one whose `session.json` of the id reads; none, and nothing is written.
 - **Two layouts, side by side, 19 to 27 October 2026.** `works/` became
   `sessions/` and `work.json` `session.json` with the words, as "Versions
   side by side" has it. While windows not yet reloaded still wrote the old,
@@ -4029,11 +4038,11 @@ truth. There is still no background service. None of it is built now. Lee:
     holds moves all the same: the window follows it. `board`, `park` and
     `move` read every project, as the session's project is whichever its
     lines name, its parked items among those of every session filed under
-    it. That roughly doubles `board`'s time: `bun cli/shell/run.ts board
-    --session …` on a copy of Lee's state, best of 12, took 0.27 seconds
-    before moves (5cbc914) and 0.58 with them (eb1c551), timed in review
-    on 17 November 2026. Accepted: `board` is run by hand, and SitRep
-    reads the board through `watch`.
+    it. That costs `board` time: `bun cli/shell/run.ts board --session …`
+    on a copy of Lee's state (29 projects, 139 sessions), best of 12, took
+    0.12 seconds with moves against 0.07 before them, timed on 17 November
+    2026. Accepted: `board` is run by hand, and SitRep reads the board
+    through `watch`.
   - `jump` (13 October to 10 November 2026) brought the terminal window
     showing the session to the front, on whatever Space it was (see "The
     jump"), and printed nothing. A session no jump could reach was refused

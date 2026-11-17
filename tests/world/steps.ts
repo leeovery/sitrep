@@ -2,7 +2,7 @@
 import type { RenderPropsOf } from 'claude-code'
 import { expect, type Mounted } from '../kit'
 import { parseEntries, parsePresence, type SessionPaths } from '../../core'
-import { PROJECT, REVIEW, W1 } from '../data'
+import { PROJECT_KEY, REVIEW, W1 } from '../data'
 import { postedId } from './calls'
 import type { World } from './index'
 import { DOCKED } from './panes'
@@ -49,7 +49,7 @@ export const asksOnBand = async (w: World) =>
   (await (await w.band()).find({ key: 'band:asks' }))?.text
 
 /** The board on a project's view, reached as Lee reaches it from the tabs: All projects, then the project. */
-export const toProject = async (ui: Pick<Mounted, 'press'>, key: string = PROJECT.key) => {
+export const toProject = async (ui: Pick<Mounted, 'press'>, key = PROJECT_KEY) => {
   await ui.press({ key: 'tab:all' })
   await ui.press({ key: `proj:${key}` })
 }

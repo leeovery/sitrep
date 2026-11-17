@@ -32,7 +32,7 @@ import {
 } from '../../core'
 import type { SitrepInFlight, SitrepQueued } from '../../types'
 import { agoWords, C, counted, GLYPH, wrapped } from '../look'
-import { briefOf, filedAt, itemKey, sessionLabel } from '../places'
+import { briefOf, filedAt, itemKey, projectOf, sessionLabel } from '../places'
 import {
   answered,
   destinations,
@@ -44,6 +44,7 @@ import {
   queuedFor,
   sentIn,
   unsent,
+  type FiledUnder,
   type HeldBack,
 } from '../queue'
 import type { Scene } from '../scene'
@@ -266,7 +267,8 @@ const goingGroup = (scene: Scene, send: SitrepInFlight, at: number, width: numbe
 const unsentGroups = (scene: Scene): ToSendGroup[] => {
   const queue = unsent(scene.queue, scene.inFlight)
   const held = { project: scene.folder, session: scene.session.id }
-  const to = queue.map(reply => goesTo(held, reply))
+  const filedUnder: FiledUnder = session => projectOf(scene, session)
+  const to = queue.flatMap(reply => goesTo(held, reply, filedUnder) ?? [])
   const here = to.filter(each => each.session === held.session)
 
   return destinations([...here, ...to, ...scene.sent]).flatMap(({ session }): ToSendGroup[] => {
@@ -277,7 +279,7 @@ const unsentGroups = (scene: Scene): ToSendGroup[] => {
       return []
     }
 
-    const waiting = queuedIn(scene, queuedFor(queue, held, session))
+    const waiting = queuedIn(scene, queuedFor(queue, held, filedUnder, session))
 
     if (sent === undefined || !isShowing(filed.session, sent, scene.now)) {
       return waiting.length > 0 ? [{ filed, listed: waiting }] : []

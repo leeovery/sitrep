@@ -21,14 +21,14 @@ export type FolderKey = string & { readonly __folder: true }
 /** The key of the project a session is filed under: its folder's, or the one its latest move names. Type-only. */
 export type ProjectKey = string & { readonly __project: true }
 
-/** A project folder's key, as the folder of each session found in it: where a reader lists the board's folders. */
-export const folderKey = (key: string) => key as FolderKey
+/** Any key but a project's: a `ProjectKey` is refused, so a folder is never made of the project a session is filed under. */
+type NotProjectKey = string & { readonly __project?: never }
 
-/** The project a session is filed under while no move of it is read: its folder's. */
+/** A project folder's key, as the folder of each session found in it: where a reader lists the board's folders, or a start makes one. */
+export const folderKey = (key: NotProjectKey) => key as FolderKey
+
+/** The project a session is filed under while no move of it is read: its folder's, as a folder's key names its own project. */
 export const projectOfFolder = (folder: FolderKey) => folder as string as ProjectKey
-
-/** The name the board gives a project, by its key; undefined for a key no project on the board has. */
-export type NameOf = (key: string) => string | undefined
 
 /** The name the board gives a project, by its key, as a reader reads it; undefined for a key no project on the board has. */
 export type ReadName = (key: string) => Promise<string | undefined>
@@ -38,14 +38,17 @@ export type Filed = { project: ProjectKey; session: Session }
 
 /**
  * A session read in the folder `folder` keys, filed: under the project its
- * latest move names, where `nameOf` names it as one on the board, and named
- * by it; else under its folder's, as read.
+ * latest move names, where that is one on the board, `name` the name the
+ * board gives it, and named by it; else under its folder's, as read.
  */
-export const fileSession = (folder: FolderKey, session: Session, nameOf: NameOf): Filed => {
+export const fileSession = (
+  folder: FolderKey,
+  session: Session,
+  name: string | undefined,
+): Filed => {
   const key = session.movedTo
-  const name = key === undefined || key === folder ? undefined : nameOf(key)
 
-  if (key === undefined || name === undefined) {
+  if (key === undefined || key === folder || name === undefined) {
     return { project: projectOfFolder(folder), session }
   }
 
@@ -55,7 +58,7 @@ export const fileSession = (folder: FolderKey, session: Session, nameOf: NameOf)
   }
 }
 
-/** A session read in its folder, filed by `fileSession`, of the projects on the board reading by `readName` the name of the one its latest move names alone. */
+/** A session read in its folder, filed by `fileSession`: `readName` reads the name the board gives the project its latest move names, and no other. */
 export const fileRead = async (
   folder: FolderKey,
   session: Session,
@@ -64,14 +67,20 @@ export const fileRead = async (
   const { movedTo } = session
   const name = movedTo === undefined || movedTo === folder ? undefined : await readName(movedTo)
 
-  return fileSession(folder, session, key => (key === movedTo ? name : undefined))
+  return fileSession(folder, session, name)
 }
 
 /** The projects read, each with the sessions filed under it, from the sessions read in each one's folder. */
 export const refiled = (read: readonly ProjectRead[]): ProjectRead[] => {
   const names = new Map(read.map(({ project }) => [project.key, project.name]))
   const filed = read.flatMap(({ project, sessions }) =>
-    sessions.map(session => fileSession(folderKey(project.key), session, key => names.get(key))),
+    sessions.map(session =>
+      fileSession(
+        folderKey(project.key),
+        session,
+        session.movedTo === undefined ? undefined : names.get(session.movedTo),
+      ),
+    ),
   )
 
   return read.map(({ project }) => ({

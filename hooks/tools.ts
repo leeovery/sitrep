@@ -56,7 +56,7 @@ import {
   onBoard,
   projectFor,
   sessionIdsIn,
-  type Filing,
+  type Destination,
 } from './projects'
 import { changedKnown, markSeen, markStarted, parkedAround, postKnown } from './seen'
 import { attachTo, attached, heldProject, refresh, serially } from './window'
@@ -465,10 +465,17 @@ const start: Tool<'start'> = {
     const created = await host.clock.now()
     const known = await onBoard(host, root)
     const wanted = { name, directory, created, by: writer }
-    const filing = await fileUnder(host, root, projectFor(known, name), wanted)
-    const { key } = filing.project
+    const destination = await fileUnder(host, root, projectFor(known, name), wanted)
+    const { key } = destination.project
     const id = newSessionId(random, await sessionIdsIn(host, root, known.keys))
-    const meta = { id, ...session, project: filing.project.name, root: cwd, created, by: writer }
+    const meta = {
+      id,
+      ...session,
+      project: destination.project.name,
+      root: cwd,
+      created,
+      by: writer,
+    }
 
     await host.fs.write(sessionPaths(root, key, id).meta, metaText(meta))
 
@@ -484,7 +491,7 @@ const start: Tool<'start'> = {
     }
 
     return {
-      result: `Started ${meta.name} as ${id}, in ${filing.said}. Record ${id} wherever the project tracks this work, so a later window can join it.`,
+      result: `Started ${meta.name} as ${id}, in ${destination.said}. Record ${id} wherever the project tracks this work, so a later window can join it.`,
     }
   },
 }
@@ -572,9 +579,9 @@ const project: Tool<'project'> = {
 }
 
 /** What a move's answer says of where the session went: where the call took it, else, where a move another window made at the same moment wins, where that one took it. */
-const movedText = (session: Session, filing: Filing, landed: Filed | undefined) =>
-  landed === undefined || landed.project === filing.project.key
-    ? `Moved ${session.status.name} to ${filing.said}.`
+const movedText = (session: Session, destination: Destination, landed: Filed | undefined) =>
+  landed === undefined || landed.project === destination.project.key
+    ? `Moved ${session.status.name} to ${destination.said}.`
     : `${session.status.name} is in ${landed.session.project}: a move another window made at the same moment took it there.`
 
 const move: Tool<'move'> = {
@@ -601,15 +608,16 @@ const move: Tool<'move'> = {
     }
 
     const created = await host.clock.now()
-    const filing = await fileUnder(host, root, named, { name, directory, created, by: writer })
+    const wanted = { name, directory, created, by: writer }
+    const destination = await fileUnder(host, root, named, wanted)
     const after = await postKnown(host, session, [moving.value])
     const project = heldProject()
     const landed =
       after === undefined || project === undefined ? undefined : { project, session: after }
 
     return {
-      result: movedText(session, filing, landed),
-      names: landed?.session.project ?? filing.project.name,
+      result: movedText(session, destination, landed),
+      names: landed?.session.project ?? destination.project.name,
     }
   }),
 }

@@ -17,7 +17,7 @@ import {
   type SessionMeta,
   type SessionPaths,
 } from '../core'
-import { HELD, PLUGIN_VERSION, PROJECT, REPO, ROOT, T0, W1 } from './data'
+import { HELD, PLUGIN_VERSION, PROJECT_KEY, REPO, ROOT, T0, W1 } from './data'
 import { file, type Line } from './lines'
 import { WHERE } from './world/conversation'
 
@@ -60,7 +60,7 @@ export type Put = (path: string, text: string) => void
 /** Sessions' files, written with `put` under the root sitrep keeps. */
 export const filing = (put: Put) => {
   /** A session's meta, filed under `project`, as its start writes it: its paths. */
-  const seed = (meta: SessionMeta, project: string = PROJECT.key) => {
+  const seed = (meta: SessionMeta, project = PROJECT_KEY) => {
     const paths = sessionPaths(ROOT, project, meta.id)
 
     put(paths.meta, metaText(meta))
@@ -84,7 +84,7 @@ export const filing = (put: Put) => {
   const neighbour = ({
     meta,
     lines = [],
-    project: key = PROJECT.key,
+    project: key = PROJECT_KEY,
     projectFile,
     seenAt,
   }: Neighbour) => {

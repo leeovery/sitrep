@@ -18,6 +18,7 @@ import {
   type Verdict,
 } from '../../core'
 import type {
+  ProjectKey,
   SessionKey,
   SitrepAnswering,
   SitrepItemRef,
@@ -34,7 +35,7 @@ import type { Scene } from '../scene'
 export type Els = ElementTable
 
 /** The way back up a level: its words, and where it goes. */
-export type Back = { label: string; to: SitrepPlace<SessionKey> }
+export type Back = { label: string; to: SitrepPlace<ProjectKey> }
 
 /** What a part of the board is drawn with: the surface's elements, what its buttons do, what it shows, and its room. */
 export type Drawing = {
@@ -97,7 +98,7 @@ const ASIDE_MARK = '·'
 const ASIDE_LEAST = 4
 
 /** A press leading a view line's aside: its words, its key, and where it goes. */
-export type Lead = { words: string; key: string; to: SitrepPlace<SessionKey> }
+export type Lead = { words: string; key: string; to: SitrepPlace<ProjectKey> }
 
 /** A view line's aside: its parts, each after the first set off by a `·`, a press's words leading them where it has one. */
 export type Aside = { lead?: Lead; parts: readonly string[] }

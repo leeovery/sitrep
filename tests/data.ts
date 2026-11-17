@@ -41,14 +41,17 @@ export const REPO = `${HOME}/Code/northwind`
 /** A project's key as the tests give it: the folder of each session started in it, and the project those sessions are filed under until one moves, for a test to give as either kind. */
 export type BothKeys = FolderKey & ProjectKey
 
-/** A project's key, given as a string, as a test gives it as either kind. */
+/** A project's key, given as a string, as a test gives it in a ref kept in `$.state`, or drawn, as either kind. */
 export const keyed = (key: string) => key as BothKeys
 
 /** A project on the board, by a key of both kinds. */
 type TestProject = Project & { key: BothKeys }
 
+/** The key of the project the sessions under test are on, as a plain string: what the helpers file a session under unless told. */
+export const PROJECT_KEY = 'northwind'
+
 /** The project the sessions under test are on: named so by Claude as it starts one, its key the name's slug. */
-export const PROJECT: TestProject = { key: keyed('northwind'), name: 'Northwind' }
+export const PROJECT: TestProject = { key: keyed(PROJECT_KEY), name: 'Northwind' }
 
 /** Another project, with a session of its own. */
 export const ELSEWHERE: TestProject = { key: keyed('contoso'), name: 'Contoso' }

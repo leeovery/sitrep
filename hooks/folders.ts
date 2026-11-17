@@ -5,7 +5,7 @@
  * `ProjectKey`); the folder is found here, by the session's id, and only
  * here is a kept ref made of a drawn one.
  */
-import { folderKey, sessionPaths, type FolderKey } from '../core'
+import { folderKey, type FolderKey } from '../core'
 import type { SessionKey, SitrepSessionRef } from '../types'
 import type { Host } from './host'
 import { metaOf, projectKeys } from './projects'
@@ -19,9 +19,16 @@ export type InItsFolder<T extends SitrepSessionRef<SessionKey>> = Omit<T, 'proje
 export const folderKeys = async (host: Host, root: string) =>
   (await projectKeys(host, root)).map(folderKey)
 
-/** The key of the folder holding a session, by its id, whichever project's it is; undefined when none holds it. */
-export const folderHolding = async (host: Host, root: string, id: string) => {
-  for (const key of await projectKeys(host, root)) {
+/**
+ * The key of the folder holding a session, by its id, whichever project's
+ * it is: the one whose session.json of it reads, `first` tried first;
+ * undefined when none does.
+ */
+export const folderHolding = async (host: Host, root: string, id: string, first?: string) => {
+  const keys = await projectKeys(host, root)
+  const tried = [...keys.filter(key => key === first), ...keys.filter(key => key !== first)]
+
+  for (const key of tried) {
     if ((await metaOf(host, root, key, id)) !== undefined) {
       return folderKey(key)
     }
@@ -31,26 +38,17 @@ export const folderHolding = async (host: Host, root: string, id: string) => {
 }
 
 /**
- * The key of the folder a session's files are in, found by its id: the
- * folder `at` names, where the session's session.json reads there, else
- * whichever project's folder holds it; the one named where none does.
+ * A ref to a session, by either kind of key, as the window keeps it: naming
+ * the folder its files are in, found by its id, the one `at` names tried
+ * first, as an unmoved session's folder is its project's; undefined when no
+ * folder's session.json of it reads.
  */
-export const folderOf = async (
-  host: Host,
-  root: string,
-  at: SitrepSessionRef<SessionKey>,
-): Promise<FolderKey> =>
-  (await metaOf(host, root, at.project, at.session)) === undefined
-    ? ((await folderHolding(host, root, at.session)) ?? folderKey(at.project))
-    : folderKey(at.project)
-
-/** A session's paths, its folder found by its id. */
-export const pathsOf = async (host: Host, root: string, at: SitrepSessionRef<SessionKey>) =>
-  sessionPaths(root, await folderOf(host, root, at), at.session)
-
-/** A ref to a session, by either kind of key, as the window keeps it: naming the folder its files are in. */
 export const inFolder = async <T extends SitrepSessionRef<SessionKey>>(
   host: Host,
   root: string,
   at: T,
-): Promise<InItsFolder<T>> => ({ ...at, project: await folderOf(host, root, at) })
+): Promise<InItsFolder<T> | undefined> => {
+  const folder = await folderHolding(host, root, at.session, at.project)
+
+  return folder === undefined ? undefined : { ...at, project: folder }
+}

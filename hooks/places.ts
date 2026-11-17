@@ -41,7 +41,10 @@ type DrawnPlace = SitrepPlace<ProjectKey>
 /** A project's view, whichever key a session place has. */
 type ProjectLevel = Extract<SitrepPlace, { level: 'project' }>
 
-export const EVERY_PROJECT: Extract<SitrepPlace, { level: 'all' }> = { level: 'all' }
+/** Every project's view, All projects. */
+type EveryLevel = Extract<SitrepPlace, { level: 'all' }>
+
+export const EVERY_PROJECT: EveryLevel = { level: 'all' }
 
 /**
  * An ask a view lists: the session it is on, that session's name and
@@ -118,12 +121,12 @@ export const samePlace = (a: SitrepPlace<SessionKey>, b: SitrepPlace<SessionKey>
   a.level === b.level && keyOf(a) === keyOf(b)
 
 /** The key of the project a session is filed under, as the board read it: the held session's, or another's it read in full or in brief; undefined for one it has not read. */
-const projectOf = (scene: Scene, session: string) =>
+export const projectOf = (scene: Scene, session: string) =>
   filedAt(scene, session)?.project ??
   scene.projects.find(project => project.sessions.some(each => each.id === session))?.key
 
 /** One step up the tree: a session's project, the one it is filed under, then every project; from a session the board has not read, every project. */
-export const up = (scene: Scene, place: SitrepPlace<SessionKey>): SitrepPlace => {
+export const up = (scene: Scene, place: SitrepPlace): ProjectLevel | EveryLevel => {
   const project = place.level === 'session' ? projectOf(scene, place.session) : undefined
 
   return project === undefined ? EVERY_PROJECT : projectPlace(project)

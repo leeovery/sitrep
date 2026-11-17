@@ -26,10 +26,10 @@ import {
   wakeWords,
   yesOf,
   type Ask,
+  type ProjectKey,
   type SnoozeChoice,
   type Verdict,
 } from '../../core'
-import type { ProjectKey } from '../../core'
 import type { SitrepItemRef, SitrepQueued } from '../../types'
 import { C, GLYPH } from '../look'
 import { canReach, itemKey, type AskedAt } from '../places'

@@ -45,6 +45,7 @@ import type {
 } from '../types'
 import { betweenTurns } from './activity'
 import { filedNow, lookAround } from './around'
+import { folderHolding } from './folders'
 import { logFailure, rootFor, type Host } from './host'
 import { writeHeld, writeInto, type Into } from './into'
 import { isCarriedBy, namedIn, queuing, repliedTo, unqueuing } from './queue'
@@ -486,9 +487,11 @@ type Writing = Into & { replies: SitrepReplyBody[] }
 /**
  * Where a taken message is written down: in the session it went to, and a
  * pick-up of an item another session of its project parked in that
- * session, each reply naming its item by its own id.
+ * session, each reply naming its item by its own id. The claim names that
+ * session by its id alone, so its folder is found by it, the message's own
+ * tried first; one no folder holds is written in none, logged as gone.
  */
-const writingsOf = (delivery: SitrepInFlight): Writing[] => {
+const writingsOf = async (host: Host, delivery: SitrepInFlight): Promise<Writing[]> => {
   const bySession = new Map<string, SitrepReplyBody[]>()
 
   for (const reply of delivery.replies) {
@@ -497,12 +500,22 @@ const writingsOf = (delivery: SitrepInFlight): Writing[] => {
     bySession.set(session, [...(bySession.get(session) ?? []), { ...reply, item }])
   }
 
-  return [...bySession].map(([session, replies]) => ({
-    project: delivery.project,
-    session,
-    writer: delivery.writer,
-    replies,
-  }))
+  const root = await rootFor(host)
+  const folderFor = (session: string) =>
+    session === delivery.session
+      ? delivery.project
+      : folderHolding(host, root, session, delivery.project)
+  const writings = await Promise.all(
+    [...bySession].map(async ([session, replies]) => {
+      const project = await folderFor(session)
+
+      goneUnless(host, project !== undefined, { session })
+
+      return project === undefined ? [] : [{ project, session, writer: delivery.writer, replies }]
+    }),
+  )
+
+  return writings.flat()
 }
 
 /** The lines a taken message's replies are written down as, in their session as it stands: none once they are there. */
@@ -550,7 +563,7 @@ const linesFor =
       : pickUpLines(own, writing.replies)
 
 /** Logs a session a taken message went to whose session.json is gone. */
-const goneUnless = (host: Host, isThere: boolean, { session }: Writing) => {
+const goneUnless = (host: Host, isThere: boolean, { session }: Pick<Writing, 'session'>) => {
   if (!isThere) {
     host.log(`sitrep: Claude has replies to ${session}, whose session.json is gone`)
   }
@@ -610,7 +623,7 @@ const writeThere = async (
  * write.
  */
 const writeTurn = async (host: Host, delivery: SitrepInFlight) => {
-  const writings = writingsOf(delivery)
+  const writings = await writingsOf(host, delivery)
   const held = attached()
   const around = writings.filter(each => !isHoldOn(held, each))
   const changes: ChangedThere[] = []

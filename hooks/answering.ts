@@ -56,11 +56,12 @@ import {
   queuedOn,
   queuing,
   replyBodies,
+  type FiledUnder,
   type Folded,
   type LeftOut,
 } from './queue'
 import { sceneOf, type Scene } from './scene'
-import { flightNow, readHeld, refresh, serially } from './window'
+import { filingNow, flightNow, readHeld, refresh, serially } from './window'
 
 /** The mode as it stands: what it writes, and the item it writes to. */
 export type Answering = { answering: SitrepAnswering; item: Ask | Parked }
@@ -364,9 +365,14 @@ const enterWith =
     return entered
   }
 
-/** Whether a reply to the mode's item goes to the session the window holds, whose Claude takes Lee's prompt: one to its own item, or a pick-up of an item of its project. */
-const goesHere = (held: SitrepAttachment, { project, session, item, as }: SitrepAnswering) =>
-  goesTo(held, { project, session, item, verdict: VERDICT[as] }).session === held.session
+/** Whether a reply to the mode's item goes to the session the window holds, whose Claude takes Lee's prompt, each session filed as `filedUnder` read it: one to its own item, or a pick-up of an item of its project. */
+const goesHere = (
+  held: SitrepAttachment,
+  { project, session, item, as }: SitrepAnswering,
+  filedUnder: FiledUnder,
+) =>
+  goesTo(held, { project, session, item, verdict: VERDICT[as] }, filedUnder)?.session ===
+  held.session
 
 /** The held session read afresh, in turn with whatever reads or changes the hold; as the scene has it where none is held now. */
 const heldAfresh = async (host: Host, scene: Scene) =>
@@ -462,9 +468,12 @@ const letIn = async (
   { answering }: Answering,
   words: string,
 ): Promise<Captured | undefined> => {
-  const held = await host.state.attachment.read()
+  const [held, filedUnder] = await Promise.all([
+    host.state.attachment.read(),
+    filingNow(host, [answering]),
+  ])
 
-  if (held === null || !goesHere(held, answering)) {
+  if (held === null || !goesHere(held, answering, filedUnder)) {
     host.ui.toast(ELSEWHERE)
 
     return { drop: NOT_TAKEN }

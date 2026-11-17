@@ -521,12 +521,19 @@ test('a send in flight never holds back the replies it carries for its own answe
   const other = { ...carried, item: 'k2', verdict: 'choose', option: 'Keep it' } as const
   const folded = new Map([[session.id, session]])
   const held = { project: NORTHWIND.key, session: META.id }
-  const unsent = unsentTo([carried, other], [inFlight({ type: 'reply', ...YES })], held, META.id)
+  const unfiled = () => undefined
+  const unsent = unsentTo(
+    [carried, other],
+    [inFlight({ type: 'reply', ...YES })],
+    held,
+    unfiled,
+    META.id,
+  )
 
   expect(sendable(META.id, folded, unsent)).toEqual([other])
   expect(leftOut(META.id, folded, unsent)).toEqual([])
   expect(
-    leftOut(META.id, folded, unsentTo([carried], [], held, META.id)),
+    leftOut(META.id, folded, unsentTo([carried], [], held, unfiled, META.id)),
     "another's answer bars it",
   ).toEqual(['answered'])
 })

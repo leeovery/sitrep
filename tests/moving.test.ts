@@ -87,25 +87,26 @@ test('a move dates the session, as any line Claude is told of does', () => {
 })
 
 test('a session is filed under the project its latest move names, where that project is on the board, and named by it; else under its folder, as read', () => {
-  const nameOf = (key: string) => [PROJECT, ELSEWHERE].find(each => each.key === key)?.name
+  const nameOf = (key?: string) => [PROJECT, ELSEWHERE].find(each => each.key === key)?.name
+  const filed = (session: Session) => fileSession(PROJECT.key, session, nameOf(session.movedTo))
   const never = written([T0, status(['Drawing'])])
   const moved = written([T0, moveTo(ELSEWHERE.key)])
   const away = written([T0, moveTo(FABRIKAM.key)])
   const back = written([T0, moveTo(ELSEWHERE.key)], [T0 + MIN, moveTo(PROJECT.key)])
 
-  expect(fileSession(PROJECT.key, never, nameOf), 'never moved').toEqual({
+  expect(filed(never), 'never moved').toEqual({
     project: PROJECT.key,
     session: never,
   })
-  expect(fileSession(PROJECT.key, moved, nameOf)).toEqual({
+  expect(filed(moved)).toEqual({
     project: ELSEWHERE.key,
     session: { ...moved, project: ELSEWHERE.name },
   })
-  expect(fileSession(PROJECT.key, away, nameOf), 'to a project not on the board').toEqual({
+  expect(filed(away), 'to a project not on the board').toEqual({
     project: PROJECT.key,
     session: away,
   })
-  expect(fileSession(PROJECT.key, back, nameOf), 'moved back').toEqual({
+  expect(filed(back), 'moved back').toEqual({
     project: PROJECT.key,
     session: back,
   })

@@ -10,8 +10,7 @@
  * prompt box as its note where Lee wants one (DESIGN.md, "Answering an
  * ask").
  */
-import { replyOnItsWay, type Carried } from '../../core'
-import type { ProjectKey } from '../../core'
+import { replyOnItsWay, type Carried, type ProjectKey } from '../../core'
 import type { SitrepItemRef } from '../../types'
 import { pickedUpList, projectScope } from '../lists'
 import { C, GLYPH } from '../look'

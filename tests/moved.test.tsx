@@ -6,16 +6,24 @@
  */
 import type { On } from 'claude-code'
 import { expect, test, tier, type Engine } from './kit'
-import { parseEntries, parseProject, presenceText, projectPaths, sessionPaths } from '../core'
+import {
+  metaText,
+  parseEntries,
+  parseProject,
+  presenceText,
+  projectPaths,
+  sessionPaths,
+} from '../core'
 import { AROUND_MS } from '../hooks/around'
 import { isHoldOn, WATCH_MS } from '../hooks/window'
-import type { SitrepAttachment } from '../types'
+import type { SitrepAttachment, SitrepQueued } from '../types'
 import {
   CLOSES,
   ELSEWHERE,
   GO,
   HOME,
   LEDGER,
+  META,
   MIN,
   PROJECT,
   REVIEW,
@@ -137,8 +145,8 @@ const MOVED_TO = 'Moved to Contoso.'
 /** The toasts saying a session moved. */
 const movedToasts = (w: World) => w.toasts.filter(toast => toast.startsWith('Moved to '))
 
-/** The mod finding, as a reload does, `kept` in `$.state`: the session the window held. */
-const reloading = (on: On, kept: SitrepAttachment) => {
+/** The mod finding, as a reload does, `held` in `$.state`: the session the window held. */
+const reloading = (on: On, held: SitrepAttachment) => {
   let isReloaded = false
 
   on('state.get', { plugin: 'sitrep', key: 'attachment' }, ($, e, next) => {
@@ -148,7 +156,7 @@ const reloading = (on: On, kept: SitrepAttachment) => {
 
     isReloaded = true
 
-    return { value: { value: kept, version: 1 } }
+    return { value: { value: held, version: 1 } }
   })
 }
 
@@ -505,7 +513,7 @@ test("a window joining a moved session keeps Ready to send's pick-ups of what it
   expect(w.toasts.filter(toast => toast.includes('pick-up'))).toEqual([])
 })
 
-test("a pick-up in Ready to send of what another session of the project it left parked leaves it as the session moves, a toast saying so; one pressed for a session that then moved goes as pressed, written down in that session's folder", async ($, on) => {
+test('a pick-up in Ready to send of what another session of the project it left parked leaves it as the session moves, a toast saying so; one pressed for a session that then moved goes to none while that session is filed elsewhere, and goes once it is back', async ($, on) => {
   const w = world($, on)
 
   withContoso(w)
@@ -535,11 +543,73 @@ test("a pick-up in Ready to send of what another session of the project it left 
   await w.clock.advance(WATCH_MS)
   await ui.press({ key: 'send' })
 
+  expect(w.submitted, 'the ledger is filed under Contoso as the send reads it').toEqual([])
+  expect(w.state.queue?.map(each => each.session)).toEqual([LEDGER.id])
+
+  ledger.write(moveTo(PROJECT.key))
+  await w.clock.advance(AROUND_MS)
+  await ui.press({ key: 'send' })
+
   expect(w.submitted).toEqual([
     `From the board:\n- Pick up from parked, Invoice ledger's: ${EXPORT}`,
   ])
   expect(kindsIn(w, ledger.paths.log(W1))).toEqual(['reply', 'delivered'])
   expect(filesUnder(w, ELSEWHERE.key, LEDGER.id)).toEqual([])
+})
+
+test('a pick-up of what a session of the project the held one left parked, still queued as a reload found its session.json torn and its move unread, never goes to its Claude: the send reads where each is filed', async ($, on) => {
+  const w = world($, on, { now: T0 + MIN })
+
+  withContoso(w)
+
+  const ledger = withLedger(w)
+  const paths = sessionPaths(ROOT, PROJECT.key, META.id)
+  const pickUp: SitrepQueued = {
+    project: PROJECT.key,
+    session: LEDGER.id,
+    item: 'p1',
+    verdict: 'pickup',
+  }
+  let isLeft = true
+
+  reloading(on, { project: PROJECT.key, session: META.id, writer: W1, attachedAt: T0 })
+  // As the engine holds it, at its version, so the mod's first update lands on it.
+  on('state.get', { plugin: 'sitrep', key: 'queue' }, async ($, e, next) => {
+    const read = (await next(e)) as { value: { value: SitrepQueued[]; version: number } }
+
+    return isLeft ? { value: { ...read.value, value: [pickUp] } } : read
+  })
+  on('state.set', { plugin: 'sitrep', key: 'queue' }, ($, e, next) => {
+    isLeft = false
+
+    return next(e)
+  })
+  w.put(paths.meta, metaText(META).slice(0, 12))
+  w.put(paths.log(W1), file([T0, yesAsk('k1', 'Review it')], [T0, moveTo(ELSEWHERE.key)]))
+  w.put(paths.heartbeat(W1), presenceText({ writer: W1, attachedAt: T0, seenAt: T0 }))
+  await $.session.start(CONVERSATION)
+  w.put(paths.meta, metaText(META))
+  await w.clock.advance(WATCH_MS)
+
+  expect(holding(w)).toEqual(IN_CONTOSO)
+
+  const ui = await w.opened()
+
+  await ui.press({ key: `pick:${w.item('k1')}` })
+  await ui.press({ key: `yes:${w.item('k1')}` })
+
+  expect(
+    w.state.queue?.map(each => each.session),
+    'no fold filed it under Northwind to leave from',
+  ).toEqual([LEDGER.id, META.id])
+
+  await ui.press({ key: 'send' })
+
+  expect(w.submitted).toHaveLength(1)
+  expect(w.submitted[0]).toContain('Review it')
+  expect(w.submitted[0]).not.toContain(EXPORT)
+  expect(w.files.has(ledger.paths.log(W1))).toBe(false)
+  expect(w.state.queue).toContainEqual(pickUp)
 })
 
 test("a reply in the session's inbox from before the move is delivered after it, from the folder it was always in", async ($, on) => {
@@ -592,36 +662,27 @@ test('join takes up a moved session in the project it moved to, and a session th
   )
 })
 
-const KEPT = {
-  'a load from before the move, its `$.state` naming the folder, takes the session up in the project it moved to':
-    PROJECT.key,
-  "a load whose `$.state` names another project than the session's folder, the one it moved to, finds its folder by the session's id":
-    ELSEWHERE.key,
-}
+test('a load from before the move, its `$.state` naming the folder, takes the session up in the project it moved to, and posts on into that folder', async ($, on) => {
+  const w = world($, on, { now: T0 + MIN })
 
-for (const [said, project] of Object.entries(KEPT)) {
-  test(`${said}, and posts on into that folder`, async ($, on) => {
-    const w = world($, on, { now: T0 + MIN })
+  withContoso(w)
 
-    withContoso(w)
+  const { paths } = withLedger(w)
 
-    const { paths } = withLedger(w)
+  w.put(paths.log(W1), file([T0, yesAsk('k1', 'Review it')], [T0, moveTo(ELSEWHERE.key)]))
+  w.put(paths.heartbeat(W1), presenceText({ writer: W1, attachedAt: T0, seenAt: T0 }))
+  reloading(on, { project: PROJECT.key, session: LEDGER.id, writer: W1, attachedAt: T0 })
+  await $.session.start(CONVERSATION)
 
-    w.put(paths.log(W1), file([T0, yesAsk('k1', 'Review it')], [T0, moveTo(ELSEWHERE.key)]))
-    w.put(paths.heartbeat(W1), presenceText({ writer: W1, attachedAt: T0, seenAt: T0 }))
-    reloading(on, { project, session: LEDGER.id, writer: W1, attachedAt: T0 })
-    await $.session.start(CONVERSATION)
+  expect(w.state.attachment).toMatchObject({ project: PROJECT.key, session: LEDGER.id })
+  expect(holding(w)).toEqual(IN_CONTOSO)
+  expect(w.state.board?.asks.map(ask => ask.id)).toEqual(['k1'])
 
-    expect(w.state.attachment).toMatchObject({ project: PROJECT.key, session: LEDGER.id })
-    expect(holding(w)).toEqual(IN_CONTOSO)
-    expect(w.state.board?.asks.map(ask => ask.id)).toEqual(['k1'])
+  await w.call('park', { title: BADGE })
 
-    await w.call('park', { title: BADGE })
-
-    expect(kindsIn(w, paths.log(W1))).toEqual(['ask', 'move', 'park'])
-    expect(filesUnder(w, ELSEWHERE.key, LEDGER.id)).toEqual([])
-  })
-}
+  expect(kindsIn(w, paths.log(W1))).toEqual(['ask', 'move', 'park'])
+  expect(filesUnder(w, ELSEWHERE.key, LEDGER.id)).toEqual([])
+})
 
 test('a conversation resumed after its session moved takes it up again in the project it moved to', async ($, on) => {
   const w = world($, on, { now: T0 + 10 * MIN })
@@ -752,11 +813,10 @@ test("the project a move took the held session to, renamed by another window, na
   expect(holding(w)).toEqual({ folder: PROJECT.key, project: ELSEWHERE.key, name: 'Contoso Ltd' })
 })
 
-test("the hold is matched by the session's id and the window's writer alone, so a write naming the held session by either kind of key goes through it", () => {
+test("the hold is matched by the session's id and the window's writer alone", () => {
   const held = { project: PROJECT.key, session: SHIFTS.id, writer: W1, attachedAt: T0 }
-  const drawn = { project: ELSEWHERE.key, session: SHIFTS.id, writer: W1 }
 
-  expect(isHoldOn(held, drawn), 'by the project the view showed').toBe(true)
+  expect(isHoldOn(held, held), 'its own').toBe(true)
   expect(isHoldOn(held, { ...held, writer: W2 }), 'as another writer').toBe(false)
   expect(isHoldOn(held, { ...held, session: LEDGER.id }), 'another session').toBe(false)
 })
@@ -782,6 +842,23 @@ test("the window's refs keep naming the session's folder after a move, as a buil
   expect(w.state.pane?.place).toEqual({ level: 'session', project: PROJECT.key, session })
   expect(w.state.queue).toEqual([{ project: PROJECT.key, session, item: ask, verdict: 'yes' }])
   expect(w.state.answering).toMatchObject({ project: PROJECT.key, session, item: parked })
+})
+
+test('a press on a session no folder holds any more keeps nothing, a toast saying why: never the project the view showed it in, made a folder', async ($, on) => {
+  const w = world($, on)
+  const ledger = withLedger(w)
+
+  await w.begin()
+
+  const ui = await w.opened()
+
+  await toProject(ui)
+  await ui.press({ key: `ppick:${LEDGER.id}:p1` })
+  w.put(ledger.paths.meta, metaText(LEDGER).slice(0, 12))
+  await ui.press({ key: `pickup:${LEDGER.id}:p1` })
+
+  expect(w.state.queue, 'nothing queued').toBeUndefined()
+  expect(w.toasts).toContain('Not queued: its session is no longer on the board.')
 })
 
 test("a move another window made, before this window's next look, is read before the tools act: move takes the session from where it is now, never refused as still where it was", async ($, on) => {

@@ -39,28 +39,27 @@ export const projectNames = (host: Host, root: string): ReadName => {
  * project's file's text changed: for the hold, which files its session at
  * each fold, every 1.5 seconds.
  */
-export const namesKept = () => {
-  const kept = new Map<string, { text: string | undefined; name: string | undefined }>()
+export const namesKept = (host: Host, root: string): ReadName => {
+  const names = new Map<string, { text: string | undefined; name: string | undefined }>()
 
-  return (host: Host, root: string): ReadName =>
-    async key => {
-      const text = await textAt(host, projectPaths(root, key).file)
-      const last = kept.get(key)
+  return async key => {
+    const text = await textAt(host, projectPaths(root, key).file)
+    const last = names.get(key)
 
-      if (last !== undefined && last.text === text) {
-        return last.name
-      }
-
-      const name = (await projectOfText(host, root, key, text))?.name
-
-      kept.set(key, { text, name })
-
-      return name
+    if (last !== undefined && last.text === text) {
+      return last.name
     }
+
+    const name = (await projectOfText(host, root, key, text))?.name
+
+    names.set(key, { text, name })
+
+    return name
+  }
 }
 
 /** Sessions read in their folders, filed, each name read by `readName`. */
-export const fileIn =
+export const filingWith =
   (readName: ReadName) =>
   async ({ folder, session }: InFolder): Promise<FiledIn> => ({
     folder,
@@ -69,4 +68,4 @@ export const fileIn =
 
 /** A session read in its folder, filed. */
 export const fileOne = (host: Host, root: string, found: InFolder) =>
-  fileIn(projectNames(host, root))(found)
+  filingWith(projectNames(host, root))(found)

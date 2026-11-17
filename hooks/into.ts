@@ -7,14 +7,21 @@
  * as it stands with that file, so a line already there is not written
  * again.
  */
-import { append, foldSession, parseEntries, type Body, type Entry, type Session } from '../core'
+import {
+  append,
+  foldSession,
+  parseEntries,
+  sessionPaths,
+  type Body,
+  type Entry,
+  type Session,
+} from '../core'
 import type { SitrepSessionRef } from '../types'
-import { pathsOf } from './folders'
 import { rootFor, type Host } from './host'
 import { createReader, ownText } from './reader'
 import { attached, heldLines, isHoldOn, refresh, serially } from './window'
 
-/** A session, and the writer whose file there is written. */
+/** A session, by the folder its files are in, and the writer whose file there is written. */
 export type Into = SitrepSessionRef & { writer: string }
 
 /** What a write makes of a session as it stands, and of the writer's own lines there, its file as read: the lines it writes there. */
@@ -23,10 +30,13 @@ export type LinesOf = (session: Session, own: readonly Entry[]) => readonly Body
 /** How the hold posts lines made from the held session: as lines Claude knows of, or as a change it did not make. */
 export type PostHeld = (session: Session, bodies: readonly Body[]) => Promise<unknown>
 
-/** Writes what `linesOf` makes of the session as it stands, its folder found by its id, nothing when it makes none; false when the session no longer folds. */
-export const writeInto = async (host: Host, into: Into, linesOf: LinesOf) => {
-  const { writer } = into
-  const paths = await pathsOf(host, await rootFor(host), into)
+/** Writes what `linesOf` makes of the session as it stands, nothing when it makes none; false when the session no longer folds. */
+export const writeInto = async (
+  host: Host,
+  { project, session: id, writer }: Into,
+  linesOf: LinesOf,
+) => {
+  const paths = sessionPaths(await rootFor(host), project, id)
   const [text, files, now] = await Promise.all([
     ownText(host, paths.log(writer)),
     createReader()(host, paths),

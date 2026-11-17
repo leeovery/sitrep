@@ -7,7 +7,7 @@ import {
   type SessionMeta,
   type SessionPaths,
 } from '../../core'
-import { PROJECT, ROOT, W2 } from '../data'
+import { PROJECT_KEY, ROOT, W2 } from '../data'
 import { filing, type DeskFiles, type Neighbour, type Put } from '../filing'
 import type { Line } from '../lines'
 
@@ -34,7 +34,7 @@ export function sessions(put: Put, clock: MockClock) {
     project: filed.project,
 
     /** Another window's heartbeat on a session. */
-    beat: (id: string, presence: Presence, project: string = PROJECT.key) =>
+    beat: (id: string, presence: Presence, project = PROJECT_KEY) =>
       filed.beat(sessionPaths(ROOT, project, id), presence),
 
     /**
@@ -42,7 +42,7 @@ export function sessions(put: Put, clock: MockClock) {
      * `project`: its paths, that window's lines as it writes them, and its
      * heartbeat as of now, attached at `attachedAt`.
      */
-    elsewhere: (meta: SessionMeta, project: string = PROJECT.key, by = meta.by) => {
+    elsewhere: (meta: SessionMeta, project = PROJECT_KEY, by = meta.by) => {
       const paths = filed.seed(meta, project)
 
       return {

@@ -3,7 +3,7 @@ import { expect, test, tier } from './kit'
 import { C } from '../hooks/look'
 import { EVERY_PROJECT, projectPlace } from '../hooks/places'
 import { rowsOf } from './drawn'
-import { ELSEWHERE, GO, HELD, keyed, LEDGER, PROJECT, SHIFTS, T0, W4 } from './data'
+import { ELSEWHERE, GO, HELD, keyed, LEDGER, PROJECT, PROJECT_KEY, SHIFTS, T0, W4 } from './data'
 import { askOf, park, status, yesAsk } from './lines'
 import type { Neighbour } from './filing'
 import type { Element } from './matching'
@@ -38,7 +38,7 @@ async function parkedAround(w: World) {
 }
 
 /** A session's view: one of this project's unless told. */
-const sessionPlace = (session: string, project: string = PROJECT.key): SitrepPlace => ({
+const sessionPlace = (session: string, project = PROJECT_KEY): SitrepPlace => ({
   level: 'session',
   project: keyed(project),
   session,

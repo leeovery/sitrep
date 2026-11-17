@@ -58,7 +58,7 @@ export const POLL_MS = 1_000
 export { OFF_BOARD_MS }
 
 /** A session as last read: its files, what they fold to, its board, and whether it is off the board, with no window to hear. */
-type Kept = SessionRead & { board: HeldBoard | undefined; isOff: boolean }
+type LastRead = SessionRead & { board: HeldBoard | undefined; isOff: boolean }
 
 /** What a look is to read: a session off the board only on a look `isWhole` says, or one `followed`; and what it is to fold again: a session whose files changed, or every one once, `isDue`, the time core said the board would change came. */
 type Look = {
@@ -78,7 +78,12 @@ type Seen = Looked & { now: number; version: string | undefined }
 /** What the last line showed: the board as text, the version it ran, and the rows needing Lee shown so far. */
 type Printed = { text: string; version: string | undefined; shown: Shown }
 
-const folded = (key: string, files: SessionFiles, now: number, pauses: readonly Pause[]): Kept => {
+const folded = (
+  key: string,
+  files: SessionFiles,
+  now: number,
+  pauses: readonly Pause[],
+): LastRead => {
   const session = foldSession(files, now, pauses)
 
   return {
@@ -106,16 +111,16 @@ const lazily = (make: () => HeldBoard) => {
  * project once asked for at the look.
  */
 const boardReader = (io: Io, root: string) => {
-  let kept = new Map<string, Kept>()
+  let lastRead = new Map<string, LastRead>()
   let byId = new Map<string, () => HeldBoard | undefined>()
   let projects = ''
 
   const look = async ({ now, clock, isWhole, isDue, followed }: Look): Promise<Looked> => {
-    const looked = new Map<string, Kept>()
+    const looked = new Map<string, LastRead>()
     let isSame = true
     const readSession: SessionReader = async (key, id, project) => {
       const at = `${key}/${id}`
-      const last = kept.get(at)
+      const last = lastRead.get(at)
       const folder =
         last?.isOff === true && !isWhole && !followed.has(id)
           ? last.files
@@ -134,14 +139,14 @@ const boardReader = (io: Io, root: string) => {
     const read = await readBoard(io, root, readSession)
     const named = JSON.stringify(read.map(each => each.project))
 
-    isSame &&= looked.size === kept.size && named === projects
-    kept = looked
+    isSame &&= looked.size === lastRead.size && named === projects
+    lastRead = looked
     projects = named
     byId = new Map()
 
     for (const { project, sessions } of read) {
       for (const session of sessions.filter(each => !byId.has(each.id))) {
-        const own = kept.get(`${project.key}/${session.id}`)?.board
+        const own = lastRead.get(`${project.key}/${session.id}`)?.board
 
         byId.set(
           session.id,

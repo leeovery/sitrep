@@ -208,8 +208,9 @@ export type SitrepBoard = {
  * The key of the folder a session's files are in, the project's it was
  * started in, which no move changes: what every ref to a session the window
  * keeps in `$.state` names. Type-only, as `ProjectKey` is: both are strings
- * as stored, branded so the compiler tells one from the other, and only
- * hooks/filing.ts makes one of the other, by the session's id.
+ * as stored, branded so the compiler tells one from the other, as core's
+ * are. A press makes a kept ref of a drawn one by the session's id
+ * (hooks/actions.ts's `kept`, through hooks/folders.ts).
  */
 export type FolderKey = string & { readonly __folder: true }
 

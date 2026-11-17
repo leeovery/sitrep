@@ -28,7 +28,7 @@ import { foldersIn, sessionsFiled, textAt } from './reader'
 type Writing = Pick<ProjectFile, 'created' | 'by'>
 
 /** The project a start or a move files a session under, and what its answer says of it: `a new project, …` or `the existing project …`. */
-export type Filing = { project: Project; said: string }
+export type Destination = { project: Project; said: string }
 
 /** The key of every project folder. */
 export const projectKeys = async (host: Host, root: string) =>
@@ -140,7 +140,7 @@ export const fileUnder = async (
   root: string,
   { project, isNew }: Named,
   wanted: ProjectFile,
-): Promise<Filing> => {
+): Promise<Destination> => {
   const { name, directory, ...writing } = wanted
 
   if (isNew) {
