@@ -32,14 +32,19 @@ struct ShowRowTests {
     /// Edge drawn, Notch chosen unless `change` says, over the raise's ground unless `ground` says, in a window
     /// (`atTwice()`).
     private static func page(
-        _ width: CGFloat, over ground: Color = raiseGround, _ change: (inout EdgeSettings) -> Void = { _ in }
+        _ width: CGFloat, over ground: Color = raiseGround, sourceLocation: SourceLocation = #_sourceLocation,
+        _ change: (inout EdgeSettings) -> Void = { _ in }
     ) async throws -> Drawn {
-        try await Hosted.drawn(.edge, width: width, over: ground, change).atTwice()
+        try await Hosted.drawn(.edge, width: width, over: ground, change).atTwice(sourceLocation: sourceLocation)
     }
 
     /// A view in a window over `ground`, laid out as the page is (`atTwice()`).
-    private static func inAWindow(_ view: some View, size: CGSize, over ground: Color = .black) throws -> Drawn {
-        try Drawn(Hosted(view.frame(width: size.width, height: size.height).background(ground), size: size).hosting).atTwice()
+    private static func inAWindow(
+        _ view: some View, size: CGSize, over ground: Color = .black, sourceLocation: SourceLocation = #_sourceLocation
+    ) throws -> Drawn {
+        let hosted = Hosted(view.frame(width: size.width, height: size.height).background(ground), size: size)
+
+        return try Drawn(hosted.hosting).atTwice(sourceLocation: sourceLocation)
     }
 
     /// Where the Show row draws nothing but the card's raise: under its label, clear of a line.
@@ -311,7 +316,7 @@ extension Drawn {
     func expectWords(
         in rect: CGRect, _ colour: NSColor, over ground: NSColor, sourceLocation: SourceLocation = #_sourceLocation
     ) throws {
-        let brightest = try brightest(in: rect)
+        let brightest = try brightest(in: rect, sourceLocation: sourceLocation)
 
         for (drawn, expected) in zip(brightest.channels, colour.dark(over: ground).channels) {
             #expect(abs(drawn - expected) < 0.07, sourceLocation: sourceLocation)

@@ -21,11 +21,19 @@ struct EveryTests {
         }
     }
 
-    @Test func aFailureNamesEachItemThatDoesNotHoldByItsPlace() {
+    @Test func aFailureNamesEachItemThatDoesNotHoldByItsOffset() {
         withKnownIssue {
             expectEvery([2, 3, 4, 5]) { $0.isMultiple(of: 2) }
         } matching: {
-            Self.says("2 of 4 do not hold, by place: 1: 3; 3: 5", $0)
+            Self.says("2 of 4 do not hold, by offset: 1: 3; 3: 5", $0)
+        }
+    }
+
+    @Test func oneFailureIsSaidInTheSingular() {
+        withKnownIssue {
+            expectEvery(["a", "b"].dropFirst()) { $0 == "a" }
+        } matching: {
+            Self.says("1 of 1 does not hold, by offset: 0: b", $0)
         }
     }
 
@@ -34,6 +42,16 @@ struct EveryTests {
 
         withKnownIssue {
             expectEvery([1]) { _ in false }
+        } matching: {
+            $0.sourceLocation?.line == line
+        }
+    }
+
+    @Test func nothingToCheckIsTheCallers() {
+        let line = #_sourceLocation.line + 3
+
+        withKnownIssue {
+            expectEvery([Int]()) { _ in true }
         } matching: {
             $0.sourceLocation?.line == line
         }

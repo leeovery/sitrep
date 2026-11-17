@@ -217,7 +217,9 @@ struct AwayRowsTests {
     private static func expectDimmed(
         _ away: Drawn, _ held: Drawn, in box: CGRect, sourceLocation: SourceLocation = #_sourceLocation
     ) throws {
-        let dimmed = try away.brightest(in: box).lightness / held.brightest(in: box).lightness
+        let awayLight = try away.brightest(in: box, sourceLocation: sourceLocation).lightness
+        let heldLight = try held.brightest(in: box, sourceLocation: sourceLocation).lightness
+        let dimmed = awayLight / heldLight
 
         #expect(abs(dimmed - Away.dim) < 0.1, sourceLocation: sourceLocation)
     }
@@ -259,23 +261,24 @@ struct AwayRowsTests {
     private static func expectDimmedAsOne(
         _ away: Drawn, _ held: Drawn, title: CGRect, sub: CGRect, sourceLocation: SourceLocation = #_sourceLocation
     ) throws {
-        let titles = try away.brightest(in: title).lightness / held.brightest(in: title).lightness
-        let subs = try away.brightest(in: sub).lightness / held.brightest(in: sub).lightness
+        let awayTitle = try away.brightest(in: title, sourceLocation: sourceLocation).lightness
+        let awaySub = try away.brightest(in: sub, sourceLocation: sourceLocation).lightness
+        let titles = try awayTitle / held.brightest(in: title, sourceLocation: sourceLocation).lightness
+        let subs = try awaySub / held.brightest(in: sub, sourceLocation: sourceLocation).lightness
 
         #expect(abs(titles - subs) < 0.05, sourceLocation: sourceLocation)
         #expect(abs(titles - Away.dim) < 0.1, sourceLocation: sourceLocation)
-        #expect(
-            try away.brightest(in: title).lightness > away.brightest(in: sub).lightness, sourceLocation: sourceLocation
-        )
+        #expect(awayTitle > awaySub, sourceLocation: sourceLocation)
     }
 
     /// Its time, where it has one, no brighter than its title.
     private static func expectTimeNoBrighter(
         _ away: Drawn, title: CGRect, time: CGRect, sourceLocation: SourceLocation = #_sourceLocation
     ) throws {
-        let time = try away.brightest(in: time).lightness
+        let time = try away.brightest(in: time, sourceLocation: sourceLocation).lightness
+        let words = try away.brightest(in: title, sourceLocation: sourceLocation).lightness
 
         #expect(time > 0.05, sourceLocation: sourceLocation)
-        #expect(try time <= away.brightest(in: title).lightness, sourceLocation: sourceLocation)
+        #expect(time <= words, sourceLocation: sourceLocation)
     }
 }

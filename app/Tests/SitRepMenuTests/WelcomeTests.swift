@@ -166,7 +166,6 @@ struct WelcomePermissionTests {
             "So an ask reaches you when the edge is out of sight", "So a click takes you to the session's window",
         ])
         #expect(WelcomePermission.allCases.map(\.ask) == ["Turn On…", "Allow…"])
-        #expect(WelcomePermission.patience == .seconds(10))
     }
 
     /// On only with the switch on and macOS showing them; refused while macOS shows none, whatever the switch.

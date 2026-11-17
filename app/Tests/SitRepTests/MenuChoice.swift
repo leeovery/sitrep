@@ -9,8 +9,8 @@ extension NSMenu {
         let item = items[index]
 
         try #require(item.isEnabled, sourceLocation: sourceLocation)
-        NSApplication.shared.sendAction(try #require(
-            item.action, sourceLocation: sourceLocation
-        ), to: item.target, from: item)
+        let action = try #require(item.action, sourceLocation: sourceLocation)
+
+        NSApplication.shared.sendAction(action, to: item.target, from: item)
     }
 }

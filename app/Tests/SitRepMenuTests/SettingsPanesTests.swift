@@ -103,6 +103,11 @@ struct ClaudeCodePaneTests {
         #expect(pane.reloads.isEmpty)
         #expect(pane.plugin.side == .fine("Up to date"))
     }
+
+    /// The windows behind are under the menu's heading for them, whose words the menu's tests pin.
+    @Test func theWindowsBehindAreUnderTheMenusHeading() {
+        #expect(ClaudeCodePane.reloadTitle == MenuBoard.reloadTitle)
+    }
 }
 
 /// The windows behind on the plugin, read once for the menu, the plugin's row, the pane and the sidebar's count.

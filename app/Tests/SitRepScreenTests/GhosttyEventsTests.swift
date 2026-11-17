@@ -190,18 +190,21 @@ struct GhosttyEventsTests {
 
     @Test func onlyATabAnsweredFalseInAListOfOneWindowsOneTabIsNotSelectedATerminalInNoWindowIsFocusedAsSelected() async throws {
         let no = NSAppleEventDescriptor(boolean: false)
+        let typedFalse = try #require(NSAppleEventDescriptor(descriptorType: typeFalse, data: nil))
+        let typedTrue = try #require(NSAppleEventDescriptor(descriptorType: typeTrue, data: nil))
         let cases: [(NSAppleEventDescriptor, Bool)] = [
             (list([list([no])]), false),
             (list([list([NSAppleEventDescriptor(boolean: true)])]), true),
             (list([list([no]), list([no])]), true),
             (list([list([no, no])]), true),
             (list([list([NSAppleEventDescriptor(int32: 0)])]), true),
+            (list([list([typedFalse])]), false),
+            (list([list([typedTrue])]), true),
             (list([]), true),
         ]
 
         for (answer, isSelected) in cases {
             let answer = Sendably(answer)
-
             let events = Answering([{ reply(answer.descriptor) }]).events
             let answered = try await events.isTabSelected(holding: Self.device)
 

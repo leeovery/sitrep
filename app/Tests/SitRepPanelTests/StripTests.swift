@@ -6,19 +6,20 @@ import Testing
 
 @Suite(.backstop)
 struct StripTests {
-    /// The strip sorts nothing itself: its marks take the board's order as core gives it, its asks newest first, not
-    /// the order the prototype's timelines were recorded in, which the lab sorts its sessions to (`StripLab.core`).
-    @Test func itsMarksAreInTheBoardsOrderAsCoreGivesItSortingNothingThemselves() {
-        let board = ["s3", "s2", "s1", "s4", "s5", "s6", "s7", "s8"].map { id in
-            StripLab.prototype.first { $0.id == id }!
-        }
+    /// The strip sorts nothing itself: its marks take the board's order as core gives it. Here each section's is one no
+    /// sort by its time would keep, its asks neither newest nor oldest first, its turns oldest first, its working
+    /// newest first, so a strip sorting any section itself fails.
+    @Test func itsMarksAreInTheBoardsOrderAsGivenSortingNothingThemselves() {
+        let order = ["s2", "s1", "s3", "s4", "s6", "s5", "s8", "s7"]
+        let byID = Dictionary(uniqueKeysWithValues: StripLab.prototype.map { ($0.id, $0) })
         let input = StripInput(time: 0, pointer: nil, stage: StripLab.stage, reducesMotion: false)
 
         let strip = Strip(
-            feel: .lees, length: .full, maxLength: .full, sessions: board, measure: StripLab.measure, input
+            feel: .lees, length: .full, maxLength: .full, sessions: order.compactMap { byID[$0] },
+            measure: StripLab.measure, input
         )
 
-        #expect(strip.display == ["s3", "s2", "s1", "s4", "s5", "s6", "s7", "s8"])
+        #expect(strip.display == order)
     }
 
     @Test func aMarkIsEvery30FromUnderTheTopEndWithTheHairline21AndAHalfUnderNeedsYou() {

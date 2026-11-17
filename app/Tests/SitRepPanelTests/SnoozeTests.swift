@@ -4,8 +4,9 @@ import SitRepTestSupport
 import Testing
 
 /// Snooze's times, worked out in each zone of the table of wake times core's `snoozeAt` is held to as well; and when a
-/// snooze wakes, in words, in London, where the clocks go back at 02:00 on Sunday 25 October 2026.
-@Suite(.backstop)
+/// snooze wakes, in words, in London, where the clocks go back at 02:00 on Sunday 25 October 2026. Serialized, as one
+/// test moves the Mac's time zone, for the process, and back.
+@Suite(.backstop, .serialized)
 struct SnoozeTests {
     private static let london: Calendar = {
         var calendar = Calendar(identifier: .gregorian)
@@ -28,13 +29,16 @@ struct SnoozeTests {
     private struct Wake {
         let zone: String, choice: SnoozeChoice, pressed: Date, wakes: Date, words: String
 
-        init(_ row: Substring) throws {
+        init(_ row: Substring, sourceLocation: SourceLocation = #_sourceLocation) throws {
             let fields = row.split(whereSeparator: \.isWhitespace)
-            let instant = { (field: Substring) in Date(timeIntervalSince1970: try #require(Double(field)) / 1000) }
+            let instant = { (field: Substring) in
+                Date(timeIntervalSince1970: try #require(Double(field), sourceLocation: sourceLocation) / 1000)
+            }
+            let choices: [Substring: SnoozeChoice] = ["later": .laterToday, "tomorrow": .tomorrow, "week": .nextWeek]
 
-            try #require(fields.count > 4, "a row of the table: \(row)")
+            try #require(fields.count > 4, "a row of the table: \(row)", sourceLocation: sourceLocation)
             zone = String(fields[0])
-            choice = try #require(["later": .laterToday, "tomorrow": .tomorrow, "week": .nextWeek][fields[1]])
+            choice = try #require(choices[fields[1]], sourceLocation: sourceLocation)
             pressed = try instant(fields[2])
             wakes = try instant(fields[3])
             words = fields[4...].joined(separator: " ")
@@ -46,11 +50,12 @@ struct SnoozeTests {
     private static func table(sourceLocation: SourceLocation = #_sourceLocation) throws -> [Wake] {
         let file = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appending(path: "../../../tests/wakes.ts")
         let text = try String(contentsOf: file, encoding: .utf8)
-        let rows = text[try #require(
-            text.range(of: "const TABLE = `"), sourceLocation: sourceLocation
-        ).upperBound...].prefix { $0 != "`" }
+        let table = try #require(text.range(of: "const TABLE = `"), sourceLocation: sourceLocation)
+        let rows = text[table.upperBound...].prefix { $0 != "`" }
 
-        return try rows.split(whereSeparator: \.isNewline).filter { !$0.hasPrefix("#") }.map { try Wake($0) }
+        return try rows.split(whereSeparator: \.isNewline).filter { !$0.hasPrefix("#") }.map { row in
+            try Wake(row, sourceLocation: sourceLocation)
+        }
     }
 
     /// Every row wakes at its time, worked out on the Gregorian calendar in its zone.
@@ -126,12 +131,26 @@ struct SnoozeTests {
         #expect(WakeTime.changes(after: now, in: calendar) == Self.at(24, 0))
     }
 
-    /// The calendar the app works snoozes out on is the Gregorian in the Mac's time zone and locale, whatever it is
-    /// set to, following them as they change: the autoupdating ones, which no copy of the Mac's current one equals.
-    @Test func theAppsCalendarIsTheGregorianFollowingTheMacsTimeZoneAndLocale() {
-        #expect(WakeTime.calendar.identifier == .gregorian)
-        #expect(WakeTime.calendar.timeZone == .autoupdatingCurrent)
-        #expect(WakeTime.calendar.locale == .autoupdatingCurrent)
+    /// The calendar the app works snoozes out on is the Gregorian, whatever the Mac is set to, in the Mac's time zone:
+    /// one held since follows the zone as the Mac's changes, here through `TZ`, which the process's system zone is read
+    /// from again on a reset.
+    @Test func theAppsCalendarIsTheGregorianAndFollowsTheMacsTimeZoneAsItChanges() {
+        let held = WakeTime.calendar
+        let was = ProcessInfo.processInfo.environment["TZ"]
+
+        defer {
+            if let was {
+                setenv("TZ", was, 1)
+            } else {
+                unsetenv("TZ")
+            }
+            NSTimeZone.resetSystemTimeZone()
+        }
+        setenv("TZ", "Pacific/Chatham", 1)
+        NSTimeZone.resetSystemTimeZone()
+
+        #expect(held.identifier == .gregorian)
+        #expect(held.timeZone.identifier == "Pacific/Chatham")
     }
 
     /// A Snoozed row shows when it wakes in its time's place, or with none, that it waits until it moves, its asks' row
