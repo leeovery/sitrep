@@ -17,7 +17,7 @@ final class StripController: NSObject, CalloutShape {
     /// A click on a mark or a tab: the session to jump to, and what to tell once the jump answers, whether it jumped.
     var onJump: (String, @escaping (JumpAnswer) -> Void) -> Void = { _, _ in }
     /// A session's menu's Snooze: the session, the asks its row showed, and the time chosen, or until it moves.
-    var onSnooze: (String, [String], SnoozeTime) -> Void = { _, _, _ in }
+    var onSnooze: (String, [String], Date?) -> Void = { _, _, _ in }
     /// A Snoozed session's menu's Wake now: the session.
     var onWake: (String) -> Void = { _ in }
     /// A drag let the strip go: the settings with its new place.

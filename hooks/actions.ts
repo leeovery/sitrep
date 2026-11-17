@@ -10,7 +10,6 @@ import {
   isAsleepAt,
   isUntilItMoves,
   snoozeAt,
-  snoozeChoicesAt,
   wakeWords,
   type Body,
   type Checked,
@@ -202,9 +201,10 @@ const UNSNOOZED = 'Not snoozed'
 
 /**
  * Lee's snooze of a session, its asks the board shows and its turn, its time
- * worked out at the press, checked as the CLI checks it. A choice no longer
- * offered at the press, Tonight drawn before 18:00 and pressed after, writes
- * nothing, a toast saying why.
+ * worked out at the press, checked as the CLI checks it. A time come
+ * already, Tonight drawn before 18:00 and pressed after, writes nothing, a
+ * toast saying why, and the question stays open, drawn with what is offered
+ * now.
  */
 const snooze = async (
   host: Host,
@@ -215,15 +215,12 @@ const snooze = async (
   const now = await host.clock.now()
   const until = snoozeAt(when, now)
 
-  await changePane(host, () => ({ selected: null }))
-
-  if (!snoozeChoicesAt(now).includes(when)) {
-    host.ui.toast(
-      `${UNSNOOZED}: ${wakeWords(until, now)} has come already: pick a time still to come.`,
-    )
+  if (until <= now) {
+    host.ui.toast(`${UNSNOOZED}: ${wakeWords(until, now)} has come already.`)
     return
   }
 
+  await changePane(host, () => ({ selected: null }))
   await writeLee(host, at, UNSNOOZED, session => checkSnooze(session, { ask: asks, until }, now))
 }
 

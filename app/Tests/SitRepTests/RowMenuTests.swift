@@ -23,21 +23,20 @@ struct RowMenuTests {
         return calendar
     }()
 
-    /// What each choice was asked for, in the order chosen, and the asks each snooze named.
+    /// What each choice was asked for, in the order chosen, and the asks each snooze named, and when it wakes.
     private final class Heard {
         var said: [String] = []
         var named: [[String]] = []
+        var untils: [Date?] = []
     }
 
-    /// The row's menu opened at `opened`, its times chosen at `chosen`.
-    private static func menu(
-        _ row: RowMenu.Row, _ heard: Heard, at opened: Date = now, chosenAt chosen: Date = now
-    ) -> NSMenu {
+    /// The row's menu opened at `opened`, Friday at 14:00 unless told otherwise.
+    private static func menu(_ row: RowMenu.Row, _ heard: Heard, at opened: Date = now) -> NSMenu {
         RowMenu.make(
-            for: row, at: opened, in: london, clock: { chosen },
+            for: row, at: opened, in: london,
             RowMenu.Actions(
                 jump: { heard.said.append("jump") },
-                snooze: { heard.said.append("snooze \($1.title)"); heard.named.append($0) },
+                snooze: { heard.said.append("snooze"); heard.named.append($0); heard.untils.append($1) },
                 wake: { heard.said.append("wake") }
             )
         )
@@ -82,7 +81,8 @@ struct RowMenuTests {
     }
 
     /// Every row offers the same: Snooze's five times, each with when it wakes, then after a separator Until it moves,
-    /// with no time, on a row of asks, its Claude working or not, as on a your-turn row, which names no ask.
+    /// with no time, on a row of asks, its Claude working or not, as on a your-turn row, which names no ask. Each
+    /// snoozes until the time it shows, none for Until it moves.
     @Test(arguments: [["k1", "k3"], []])
     func aRowOffersSnoozeItsFiveTimesThenUntilItMoves(asks: [String]) throws {
         let heard = Heard()
@@ -99,8 +99,11 @@ struct RowMenuTests {
         try snooze.choose(2)
         try snooze.choose(3)
         try snooze.choose(6)
-        #expect(heard.said == ["snooze In an hour", "snooze Tonight", "snooze Tomorrow", "snooze Until it moves"])
+        #expect(heard.said == ["snooze", "snooze", "snooze", "snooze"])
         #expect(heard.named == [asks, asks, asks, asks])
+        #expect(heard.untils == [
+            Self.now.addingTimeInterval(60 * 60), Self.evening(), Self.now.addingTimeInterval(19 * 60 * 60), nil,
+        ])
     }
 
     /// 18:00 on Friday 23 October 2026 in London, and so many seconds after.
@@ -123,22 +126,17 @@ struct RowMenuTests {
         ])
     }
 
-    /// A menu opened at 17:59 offers Tonight; chosen at 18:00:30 it does nothing, where the rest still snooze.
-    @Test func tonightChosenAfterSixDoesNothing() throws {
+    /// An item hands on the time it showed, worked out as the menu opened, whenever it is chosen: a menu opened at
+    /// 17:59 snoozes Tonight until 18:00, and In an hour until 18:59, though chosen later.
+    @Test func anItemSnoozesUntilTheTimeItShowedAsTheMenuOpened() throws {
         let heard = Heard()
-        let menu = Self.menu(
-            RowMenu.Row(asks: ["k1"], isSnoozed: false), heard, at: Self.evening(-60), chosenAt: Self.evening(30)
-        )
+        let menu = Self.menu(RowMenu.Row(asks: ["k1"], isSnoozed: false), heard, at: Self.evening(-60))
         let snooze = try #require(menu.items.last?.submenu)
 
-        #expect(Self.choices(snooze)[2] == "Tonight\t18:00")
+        #expect(Array(Self.choices(snooze).prefix(3)) == ["In an hour\t18:59", "Later today\t20:59", "Tonight\t18:00"])
         try snooze.choose(2)
-        #expect(heard.said == [])
-
         try snooze.choose(0)
-        try snooze.choose(3)
-        try snooze.choose(6)
-        #expect(heard.said == ["snooze In an hour", "snooze Tomorrow", "snooze Until it moves"])
+        #expect(heard.untils == [Self.evening(), Self.evening(-60).addingTimeInterval(60 * 60)])
     }
 
     @Test(arguments: [["k1"], []])

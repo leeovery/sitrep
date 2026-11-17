@@ -11,8 +11,17 @@ tier('user')
 /** The choice, with a third way. */
 const THREE_WAY = { ...FRAMES, options: [...FRAMES.options, 'Hold off'] }
 
-/** A pane as narrow as a phone's, in cells. */
+/** A pane as narrow as a phone's, in cells: an opened ask's buttons get 36 of them. */
 const NARROW = 40
+
+/** The whole board, as the terminal draws it in a pane `cells` across, each row trimmed at both ends. */
+const boardRows = async (w: World, cells: number) => {
+  const terminal = await w.pane()
+  const rows = rowsOf(await terminal.drawn(), cells).map(row => row.trim())
+
+  await terminal.unmount()
+  return rows
+}
 
 /** The asks of the held session, as the board in `$.state` has them. */
 const asksOf = (w: World) => w.state.board?.asks ?? []
@@ -180,9 +189,6 @@ test('the pane marks the recommended option with the word once, amber before it,
   const marked = await terminal.find({ key: `recommended:choose:${w.item(id)}:1` })
 
   expect(rowsOf(marked)).toEqual(['recommended [ Redraw ]'])
-  expect(rowsOf(marked, NARROW), 'a short option keeps its line, on a narrow pane too').toEqual([
-    'recommended [ Redraw ]',
-  ])
   expect(
     marked?.children?.map(child =>
       typeof child === 'object' && child !== null && 'props' in child
@@ -191,6 +197,11 @@ test('the pane marks the recommended option with the word once, amber before it,
     ),
     'the word keeps whole',
   ).toEqual([0, undefined])
+  await terminal.unmount()
+  expect(
+    (await boardRows(w, NARROW)).filter(row => row.includes('recommended')),
+    'a short option keeps its line, on a narrow pane too',
+  ).toEqual(['[ Ship it ] recommended [ Redraw ]'])
 })
 
 test('a long recommended option wraps under the word, which sits on the line directly above its own option, never after it', async ($, on) => {
@@ -198,12 +209,17 @@ test('a long recommended option wraps under the word, which sits on the line dir
 
   await w.begin()
 
-  const long = 'Redraw every frame at the narrow width first'
-  const id = await asked(w, { ...THREE_WAY, options: ['Ship it', long], recommended: long })
-  const terminal = await w.pane()
-  const marked = await terminal.find({ key: `recommended:choose:${w.item(id)}:1` })
+  // 33 cells drawn: it fits a 36-cell line alone, but not after the word.
+  const long = 'Redraw every frame, then ship'
 
-  expect(rowsOf(marked, NARROW)).toEqual(['recommended', `[ ${long} ]`])
+  await asked(w, { ...THREE_WAY, options: ['Ship it', long, 'Hold off'], recommended: long })
+
+  const rows = await boardRows(w, NARROW)
+  const option = rows.indexOf(`[ ${long} ]`)
+
+  expect(option, 'its button on a line of its own').toBeGreaterThan(0)
+  expect(rows[option - 1]).toBe('recommended')
+  expect(rows.filter(row => row.includes('recommended'))).toEqual(['recommended'])
 })
 
 test('a choice with nothing recommended draws no such word, its first option the primary one', async ($, on) => {

@@ -20,10 +20,13 @@ export const IN_AN_HOUR_MS = 60 * 60_000
 export const LATER_MS = 3 * 60 * 60_000
 
 /** The hour Tonight wakes at, local time. */
-const TONIGHT_HOUR = 18
+export const TONIGHT_HOUR = 18
 
-/** The hour Tomorrow and Next week wake at, local time. */
-const WAKING_HOUR = 9
+/** The hour Tomorrow wakes at, local time. */
+export const TOMORROW_HOUR = 9
+
+/** The hour Next week wakes at, local time. */
+export const NEXT_WEEK_HOUR = 9
 
 const DAY_MS = 24 * 60 * 60_000
 
@@ -60,9 +63,9 @@ export const snoozeAt = (choice: SnoozeChoice, now: number) => {
     case 'tonight':
       return onDay(now, 0, TONIGHT_HOUR)
     case 'tomorrow':
-      return onDay(now, 1, WAKING_HOUR)
+      return onDay(now, 1, TOMORROW_HOUR)
     case 'week':
-      return onDay(now, toMonday(new Date(now).getDay()), WAKING_HOUR)
+      return onDay(now, toMonday(new Date(now).getDay()), NEXT_WEEK_HOUR)
   }
 }
 

@@ -2,13 +2,15 @@
  * A drawing read back as the rows of text it takes, for tests that assert
  * columns: a Box lays its children out in a row or a column, with its gaps,
  * padding (blank rows above and below it too) and width; a Text is its words, a Button its label.
- * Given the cells across, a row that wraps starts a line wherever its next
- * child no longer fits on the one before; nothing else wraps.
  * Given the cells across, a row hands what it has spare to its first child
- * that grows, so what comes after sits at the right edge; given none,
- * nothing grows, and a row is as wide as what is on it. Its ends are trimmed.
+ * that grows, so what comes after sits at the right edge, and a row that
+ * wraps starts a line wherever its next child no longer fits on the one
+ * before, each child laid out in what its line leaves it, so a row that
+ * wraps inside it wraps too; a child wider than its line fails, as no
+ * surface could draw it. Nothing else wraps. Given no cells, nothing grows,
+ * and a row is as wide as what is on it. Its ends are trimmed.
  */
-import type { FoundElement, Mounted } from 'claude-code/testing'
+import type { Mounted } from 'claude-code/testing'
 
 type Drawn = { type?: string; props?: Record<string, unknown>; children?: unknown[] }
 
@@ -55,26 +57,50 @@ const sideBySide = (children: readonly Drawn[], gap: number, cells?: number) => 
   return side(columns, gap, widths)
 }
 
-/** Children in a row that wraps, `cells` across: each on the line before while it fits there, else starting one. */
+/** A child laid out in `room` cells, as wide as it is or is told to be; one wider than the room fails. */
+const fitted = (child: Drawn, room: number) => {
+  const rows = rowsOfElement(child, fixedWidth(child) ?? room)
+  const across = fixedWidth(child) ?? width(rows)
+
+  if (across > room) {
+    throw new Error(`${across} cells drawn in a line of ${room}: ${rows.join(' / ')}`)
+  }
+
+  return { rows, across }
+}
+
+/**
+ * Children in a row that wraps, `cells` across: each on the line before
+ * while it fits there as it is, else starting one, laid out in what its
+ * line leaves it.
+ */
 const wrapped = (children: readonly Drawn[], gap: number, rowGap: number, cells: number) => {
-  const lines: Drawn[][] = []
+  const lines: { rows: string[]; across: number }[][] = []
   let used = 0
 
   for (const child of children) {
-    const across = fixedWidth(child) ?? width(rowsOfElement(child))
+    const natural = fixedWidth(child) ?? width(rowsOfElement(child))
     const line = lines.at(-1)
+    const fits = line !== undefined && used + gap + natural <= cells
+    const laid = fitted(child, fits ? cells - used - gap : cells)
 
-    if (line === undefined || used + gap + across > cells) {
-      lines.push([child])
-      used = across
+    if (fits) {
+      line.push(laid)
+      used += gap + laid.across
     } else {
-      line.push(child)
-      used += gap + across
+      lines.push([laid])
+      used = laid.across
     }
   }
 
   return stacked(
-    lines.map(line => sideBySide(line, gap, cells)),
+    lines.map(line =>
+      side(
+        line.map(each => each.rows),
+        gap,
+        line.map(each => each.across),
+      ),
+    ),
     rowGap,
   )
 }
@@ -121,7 +147,7 @@ const rowsOfElement = (element: Drawn, cells?: number): string[] => {
 }
 
 /** The rows an element takes, `cells` across where given, each trimmed at its end. */
-export const rowsOf = (element: FoundElement | undefined, cells?: number) =>
+export const rowsOf = (element: Drawn | undefined, cells?: number) =>
   element === undefined ? [] : rowsOfElement(element, cells).map(row => row.trimEnd())
 
 /** Ready to send as the rows it draws, each trimmed, the blank ones between its groups kept; none while it is not drawn. */

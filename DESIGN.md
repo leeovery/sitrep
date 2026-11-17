@@ -1016,7 +1016,10 @@ shape is ever shown as a word:
     its button wrap as a pair, the word kept whole: a short option keeps
     both on one line, and on a narrow pane or a phone a long one wraps
     under the word, which sits on the line above its own option, as its
-    label. (Lee, 17 November 2026: until then the word was dim grey, hard
+    label. The tests prove that wrap only through their own reading of the
+    drawing as rows (`tests/drawn.ts`), since the kit paints nothing: it is
+    to be seen live, in Lee's pane, once this is installed. (Lee, 17
+    November 2026: until then the word was dim grey, hard
     to see, and came after the button, so a long label left it on a line
     of its own over the next option, reading as that one's.)
   - **An edit** sets it, or clears it with an empty one. One changing the
@@ -2090,13 +2093,23 @@ too"); since then the session does, its asks and its turn together (see
   to come, the one rule every surface asks of core's `snoozeChoicesAt` or
   the app's `SnoozeChoice.offered`, so only Tonight is ever left out.
   Tonight pressed once 18:00 has passed, on a question or a menu drawn
-  before, snoozes nothing: the pane says so in a toast, `Not snoozed: 18:00
-  has come already: pick a time still to come.`, and the app's menu does
-  nothing. Its hour, as Tomorrow's, is a named constant in each copy
-  (`TONIGHT_HOUR`, `tonightHour`), as In an hour's length is
-  (`IN_AN_HOUR_MS`, `hour`): Snooze's choices are to become Lee's to
-  set in Settings, each on or off at a time of his, which the app writes
-  for the pane and the CLI to read.
+  before, snoozes nothing, the rule stated once on the time it comes to,
+  come already: the pane toasts `Not snoozed: 18:00 has come already.` and
+  keeps its question open, drawn with what is offered now; the app posts
+  the same words in its Not snoozed banner. The app's menu works out each
+  item's time as it opens, and a choice snoozes to the time its item
+  showed, so a clock or a zone moving while the menu stands open never
+  changes what Lee picked.
+
+  Each choice's length or hour is a named constant of its own in each
+  copy, In an hour's and Later today's lengths (`IN_AN_HOUR_MS`,
+  `LATER_MS`; `inAnHourInterval`, `laterTodayInterval`), and Tonight's,
+  Tomorrow's and Next week's hours (`TONIGHT_HOUR`, `TOMORROW_HOUR`,
+  `NEXT_WEEK_HOUR`; `tonightHour`, `tomorrowHour`, `nextWeekHour`),
+  the last two both 09:00 for now: Snooze's choices are to become
+  Lee's to set in Settings, each on or off at a time of his, which the app
+  writes for the pane to read. The CLI takes a time alone (`--until`), and
+  works out none.
 
   Lee: "We can always improve and add new options there." Each is worked out
   where it is pressed, on the Gregorian calendar in that Mac's time zone,

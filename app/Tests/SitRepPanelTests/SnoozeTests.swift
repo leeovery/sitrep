@@ -102,7 +102,16 @@ struct SnoozeTests {
         #expect(SnoozeTime.offered(at: Self.at(23, 18), in: Self.london) == [
             .at(.inAnHour), .at(.laterToday), .at(.tomorrow), .at(.nextWeek), .untilItMoves,
         ])
-        #expect(SnoozeTime.untilItMoves.isOffered(at: Self.at(23, 23, 59), in: Self.london))
+    }
+
+    /// A snooze whose time has come snoozes nothing, in the pane's words; one still to come, or with none, does.
+    @Test func aTimeComeAlreadyIsSaidInThePanesWords() {
+        let six = Self.at(23, 18)
+
+        #expect(WakeTime.comeAlready(six, at: six.addingTimeInterval(30), in: Self.london) == "18:00 has come already.")
+        #expect(WakeTime.comeAlready(six, at: six, in: Self.london) == "18:00 has come already.")
+        #expect(WakeTime.comeAlready(six, at: six.addingTimeInterval(-1), in: Self.london) == nil)
+        #expect(WakeTime.comeAlready(nil, at: six, in: Self.london) == nil)
     }
 
     // MARK: When it wakes, in words

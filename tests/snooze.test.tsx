@@ -400,10 +400,10 @@ test('from 18:00 Snooze offers no tonight, its time gone; the rest stand, in the
  * 18:00:30. The pane draws for the time alone only every half minute, so a
  * question can stand past 18:00; the kit draws it afresh as its clock moves,
  * so the press is the act's alone, on a host answering only what a refusal
- * asks of it: what it toasts, or else what it logs failing, and what it
- * writes, read from the pane.
+ * asks of it: what it toasts, or else what it logs failing, and the pane,
+ * whose question stays open, drawn with what is offered now (above).
  */
-test('tonight drawn before 18:00 and pressed after snoozes nothing, a toast saying so, the question closed', async () => {
+test('tonight drawn before 18:00 and pressed after snoozes nothing, a toast saying so, the question kept open', async () => {
   const pane = slot<SitrepPane>({
     isOpen: true,
     place: null,
@@ -422,8 +422,8 @@ test('tonight drawn before 18:00 and pressed after snoozes nothing, a toast sayi
 
   actionsOf(host).snooze({ project: PROJECT.key, session: THEMES.id }, ['k4'], 'tonight')
 
-  expect(await said.promise).toBe('Not snoozed: 18:00 has come already: pick a time still to come.')
-  expect((await pane.read()).selected).toBeNull()
+  expect(await said.promise).toBe('Not snoozed: 18:00 has come already.')
+  expect((await pane.read()).selected).toBe('snooze:ask')
 })
 
 test("snooze's cancel goes back to the ask's buttons, and writes nothing", async ($, on) => {
