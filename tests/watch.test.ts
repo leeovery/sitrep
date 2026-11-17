@@ -34,6 +34,7 @@ import {
   file,
   finish,
   kindAsk,
+  moveTo,
   park,
   reply,
   resolve,
@@ -53,7 +54,7 @@ type Terminal = ReturnType<typeof terminal>
 /** A session's board as a watch line carries it: the fields the tests look at. */
 type Board = {
   v: number
-  project: { key: string }
+  project: { key: string; name: string }
   session: { id: string; name: string; isOpen: boolean }
   history: { text: string }[]
   resolved: { title: string }[]
@@ -77,12 +78,15 @@ type Printed = {
   head: { needYou: number; sessions: number }
   rows: {
     session: string
+    project: string
+    projectName: string
     section: string
     isAway: boolean
     lines: { key: string; is: string; first: { lead: string } }[]
   }[]
   snoozed: { session: string; lines: { key: string }[]; wakesAt: number }[]
   projects: {
+    key: string
     sessions: {
       id: string
       name: string
@@ -521,6 +525,58 @@ test("a line's projects count every item parked in them, finished and idle sessi
     },
     { key: 'stale', parked: 1, sessions: [], updatedAt: old },
   ])
+})
+
+test("a move is a line at the next look: the session's row, its project's sessions and its board under the project it moved to, the project it left gone, and nothing new", async () => {
+  const { t, paths } = held([[T0, yesAsk('k1', 'Review round 1')]])
+
+  t.project(ELSEWHERE.key, { name: ELSEWHERE.name, created: T0, by: W2 })
+  t.seed(LOBBY, { project: ELSEWHERE.key, seenAt: NOW })
+  follow(t, META.id)
+
+  const { lines } = await watched(t, [still, () => post(t, paths, moveTo(ELSEWHERE.key))])
+  const placed = (line: Printed | undefined) => [
+    line?.rows.find(row => row.session === META.id),
+    line?.projects.map(project => [project.key, project.sessions.map(each => each.id).sort()]),
+    line?.boards[META.id]?.project,
+    line?.new,
+  ]
+
+  expect(lines).toHaveLength(3)
+  expect(placed(lines[1])).toEqual([
+    expect.objectContaining({ project: PROJECT.key, projectName: PROJECT.name }),
+    [
+      [PROJECT.key, [META.id]],
+      [ELSEWHERE.key, [LOBBY.id]],
+    ],
+    { key: PROJECT.key, name: PROJECT.name },
+    [],
+  ])
+  expect(placed(lines[2])).toEqual([
+    expect.objectContaining({ project: ELSEWHERE.key, projectName: ELSEWHERE.name }),
+    [[ELSEWHERE.key, [LOBBY.id, META.id].sort()]],
+    { key: ELSEWHERE.key, name: ELSEWHERE.name },
+    [],
+  ])
+  expect(keys(lines[2])).toEqual(keys(lines[1]))
+})
+
+test('a project renamed is a line at the next look, though its folder holds no session and no board is carried: the session moved to it goes by the new name', async () => {
+  const { t, paths } = held([[T0, moveTo(ELSEWHERE.key)]])
+  const contoso = { name: ELSEWHERE.name, created: T0, by: W2 }
+
+  t.project(ELSEWHERE.key, contoso)
+
+  const { lines } = await watched(t, [
+    still,
+    () => t.project(ELSEWHERE.key, { ...contoso, name: 'Contoso Ltd' }),
+  ])
+
+  expect(lines.map(line => line.rows.find(row => row.session === META.id)?.projectName)).toEqual([
+    ELSEWHERE.name,
+    'Contoso Ltd',
+  ])
+  expect(t.files.has(paths.log('cli'))).toBe(false)
 })
 
 test('a post is a line at the next look, its board carried; a new ask is new on that line alone', async () => {

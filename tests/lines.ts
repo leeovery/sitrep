@@ -124,6 +124,9 @@ export const finish = (who: Finisher, reason?: string): Body => ({ type: 'finish
 
 export const unfinish = (): Body => ({ type: 'unfinish' })
 
+/** The session moved to another project, by its key. */
+export const moveTo = (project: string): Body => ({ type: 'move', project })
+
 /** Lee's snooze of the session until `until`, none until it moves, holding `asks` and its turn. */
 export const snoozeSession = (until: number | undefined, ...asks: string[]): Body =>
   until === undefined ? { type: 'snoozeSession', asks } : { type: 'snoozeSession', until, asks }

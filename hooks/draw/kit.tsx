@@ -17,18 +17,25 @@ import {
   type ReplyFields,
   type Verdict,
 } from '../../core'
-import type { SitrepAnswering, SitrepItemRef, SitrepPlace, SitrepQueued } from '../../types'
+import type {
+  ProjectKey,
+  SessionKey,
+  SitrepAnswering,
+  SitrepItemRef,
+  SitrepPlace,
+  SitrepQueued,
+} from '../../types'
 import type { Actions } from '../actions'
 import { answeringIn } from '../answering'
 import { ago, C, clip, counted, GLYPH, wrapped } from '../look'
-import { itemKey } from '../places'
+import { itemKey, projectLabel, projectOf } from '../places'
 import { heldBack, isCarried, type HeldBack } from '../queue'
 import type { Scene } from '../scene'
 
 export type Els = ElementTable
 
 /** The way back up a level: its words, and where it goes. */
-export type Back = { label: string; to: SitrepPlace }
+export type Back = { label: string; to: SitrepPlace<ProjectKey> }
 
 /** What a part of the board is drawn with: the surface's elements, what its buttons do, what it shows, and its room. */
 export type Drawing = {
@@ -91,7 +98,7 @@ const ASIDE_MARK = '·'
 const ASIDE_LEAST = 4
 
 /** A press leading a view line's aside: its words, its key, and where it goes. */
-export type Lead = { words: string; key: string; to: SitrepPlace }
+export type Lead = { words: string; key: string; to: SitrepPlace<ProjectKey> }
 
 /** A view line's aside: its parts, each after the first set off by a `·`, a press's words leading them where it has one. */
 export type Aside = { lead?: Lead; parts: readonly string[] }
@@ -499,12 +506,12 @@ export const drawOnItsWay = (d: Drawing, item: Ask | Parked, reply: ReplyFields)
 }
 
 /** Writing to an item in the prompt box, from the surface drawn on: an ask's answer or a comment on it, or a pick-up's note; none where Lee cannot write back. */
-export const answeringOf = (
+export const answeringOf = <K extends SessionKey>(
   d: Drawing,
-  at: SitrepItemRef,
+  at: SitrepItemRef<K>,
   item: Pick<Ask | Parked, 'title'>,
   as: SitrepAnswering['as'],
-): SitrepAnswering | undefined => {
+): SitrepAnswering<K> | undefined => {
   const writing = WRITING[d.surface]
 
   return writing === undefined
@@ -523,7 +530,7 @@ export const answeringOf = (
 export const ANSWERING = 'answering in the prompt…'
 
 /** Whether Lee is answering the item in the prompt box, as the surface drawn on shows the mode. */
-export const isBeingAnswered = (d: Drawing, at: SitrepItemRef) => {
+export const isBeingAnswered = (d: Drawing, at: Pick<SitrepItemRef, 'session' | 'item'>) => {
   const answering = answeringIn(d.scene, d.surface)?.answering
 
   return answering?.session === at.session && answering.item === at.item
@@ -534,7 +541,7 @@ export const drawWrite = (
   d: Drawing,
   key: string,
   label: string,
-  answering: SitrepAnswering | undefined,
+  answering: SitrepAnswering<SessionKey> | undefined,
   variant?: 'primary',
 ) => {
   const { Button } = d.els
@@ -585,20 +592,43 @@ export const drawRewrite = (d: Drawing, key: string, item: Ask | Parked, queued:
 /** A press answered by the `ui.press` hook, inside the press itself, where its calls carry Lee's press; the button's own closure does nothing. */
 export const answeredByTheHook = () => undefined
 
-/** Why a reply in Ready to send stays as a send goes: its item took another answer of Lee's first, or Claude closed it; or its session finished, no reply reaching it. */
-export const NOT_SENT: Record<HeldBack, string> = {
+/** Why a reply in Ready to send stays as a send goes: its item took another answer of Lee's first, or Claude closed it; or its session finished, no reply reaching it; or, for a pick-up, its session or the held one not read. */
+const NOT_SENT: Record<Exclude<HeldBack, 'moved'>, string> = {
   answered: '· not sent: already answered',
   resolved: '· not sent: Claude closed it',
   finished: '· not sent: session finished',
+  unread: "· not sent: its session can't be read",
+}
+
+/** Why a reply in Ready to send stays as a send goes (`NOT_SENT`); a pick-up's, also that the session that parked its item is filed under another project than this session's, which it names. */
+export const notSent = (
+  scene: Scene,
+  barred: HeldBack,
+  { session }: Pick<SitrepQueued, 'session'>,
+) => {
+  if (barred !== 'moved') {
+    return NOT_SENT[barred]
+  }
+
+  const key = projectOf(scene, session)
+
+  return key === undefined
+    ? NOT_SENT.unread
+    : `· not sent: its session is in ${projectLabel(scene, key)}`
 }
 
 /** Where a reply in Ready to send stands, as the branch under what it answers says it. */
-const queuedWords = (isOnItsWay: boolean, barred: HeldBack | undefined) => {
+const queuedWords = (
+  scene: Scene,
+  queued: SitrepQueued,
+  isOnItsWay: boolean,
+  barred: HeldBack | undefined,
+) => {
   if (isOnItsWay) {
     return '· on its way'
   }
 
-  return barred === undefined ? '· not sent yet' : NOT_SENT[barred]
+  return barred === undefined ? '· not sent yet' : notSent(scene, barred, queued)
 }
 
 /**
@@ -617,7 +647,7 @@ export const drawQueued = (d: Drawing, item: Ask | Parked, queued: SitrepQueued)
     item,
     queued,
     <Box flexDirection="row" columnGap={1}>
-      <Text color={C.grey}>{queuedWords(isOnItsWay, barred)}</Text>
+      <Text color={C.grey}>{queuedWords(d.scene, queued, isOnItsWay, barred)}</Text>
       {!isOnItsWay && (
         <Button
           key={`undo:${key}`}

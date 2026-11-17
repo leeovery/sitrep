@@ -44,16 +44,17 @@ import type {
   SitrepStoredFlights,
 } from '../types'
 import { betweenTurns } from './activity'
-import { lookAround } from './around'
-import { logFailure, type Host } from './host'
+import { filedNow, lookAround } from './around'
+import { folderHolding } from './folders'
+import { logFailure, rootFor, type Host } from './host'
 import { writeHeld, writeInto, type Into } from './into'
 import { isCarriedBy, namedIn, queuing, repliedTo, unqueuing } from './queue'
 import { LINGER_MS, tickAfter } from './scene'
 import { changedKnown, postKnown, type ChangedThere } from './seen'
 import {
   attached,
-  dropPickUpsElsewhere,
   flightNow,
+  heldProject,
   isHoldOn,
   refresh,
   sayInFlight,
@@ -310,13 +311,8 @@ const endIf = async (host: Host, isEnding: (current: SitrepInFlight) => boolean)
  * once the heartbeat says the claim no more: the rewrite waits ahead of this
  * on the window's queue. So a send's replies wait on Lee again at once, not
  * on their way, its own answer barring them, until the watch's next look.
- * And a pick-up it carried leaves Ready to send where the window has since
- * taken up a session of another project than the item's.
  */
-const endedUnwritten = async (host: Host) => {
-  await serially(() => refresh(host))
-  await dropPickUpsElsewhere(host)
-}
+const endedUnwritten = (host: Host) => serially(() => refresh(host))
 
 /** The messages in flight less the one at `at` and every one held behind it. */
 const lessFrom = (flights: SitrepInFlight[], at: number) =>
@@ -485,9 +481,11 @@ type Writing = Into & { replies: SitrepReplyBody[] }
 /**
  * Where a taken message is written down: in the session it went to, and a
  * pick-up of an item another session of its project parked in that
- * session, each reply naming its item by its own id.
+ * session, each reply naming its item by its own id. The claim names that
+ * session by its id alone, so its folder is found by it, the message's own
+ * tried first; one no folder holds is written in none, logged as gone.
  */
-const writingsOf = (delivery: SitrepInFlight): Writing[] => {
+const writingsOf = async (host: Host, delivery: SitrepInFlight): Promise<Writing[]> => {
   const bySession = new Map<string, SitrepReplyBody[]>()
 
   for (const reply of delivery.replies) {
@@ -496,12 +494,22 @@ const writingsOf = (delivery: SitrepInFlight): Writing[] => {
     bySession.set(session, [...(bySession.get(session) ?? []), { ...reply, item }])
   }
 
-  return [...bySession].map(([session, replies]) => ({
-    project: delivery.project,
-    session,
-    writer: delivery.writer,
-    replies,
-  }))
+  const root = await rootFor(host)
+  const folderFor = (session: string) =>
+    session === delivery.session
+      ? delivery.project
+      : folderHolding(host, root, session, delivery.project)
+  const writings = await Promise.all(
+    [...bySession].map(async ([session, replies]) => {
+      const project = await folderFor(session)
+
+      goneUnless(host, project !== undefined, { session })
+
+      return project === undefined ? [] : [{ project, session, writer: delivery.writer, replies }]
+    }),
+  )
+
+  return writings.flat()
 }
 
 /** The lines a taken message's replies are written down as, in their session as it stands: none once they are there. */
@@ -549,7 +557,7 @@ const linesFor =
       : pickUpLines(own, writing.replies)
 
 /** Logs a session a taken message went to whose session.json is gone. */
-const goneUnless = (host: Host, isThere: boolean, { session }: Writing) => {
+const goneUnless = (host: Host, isThere: boolean, { session }: Pick<Writing, 'session'>) => {
   if (!isThere) {
     host.log(`sitrep: Claude has replies to ${session}, whose session.json is gone`)
   }
@@ -567,7 +575,8 @@ const writeHere = async (host: Host, delivery: SitrepInFlight, writing: Writing)
 /**
  * Writes a taken message's lines into a session the window does not hold,
  * in this window's own file there: Claude's own change to it, as the
- * session stood before, where it is another of the held session's project.
+ * session stood before, where it is filed under the project the held
+ * session is filed under now.
  */
 const writeThere = async (
   host: Host,
@@ -584,9 +593,15 @@ const writeThere = async (
 
   goneUnless(host, isThere, writing)
 
-  return before === undefined || writing.project !== attached()?.project
-    ? []
-    : [{ before, items: writing.replies.map(reply => reply.item) }]
+  if (before === undefined) {
+    return []
+  }
+
+  const filed = await filedNow(host, await rootFor(host), writing, await host.clock.now())
+
+  return filed !== undefined && filed.project === heldProject()
+    ? [{ before, items: writing.replies.map(reply => reply.item) }]
+    : []
 }
 
 /**
@@ -602,7 +617,7 @@ const writeThere = async (
  * write.
  */
 const writeTurn = async (host: Host, delivery: SitrepInFlight) => {
-  const writings = writingsOf(delivery)
+  const writings = await writingsOf(host, delivery)
   const held = attached()
   const around = writings.filter(each => !isHoldOn(held, each))
   const changes: ChangedThere[] = []

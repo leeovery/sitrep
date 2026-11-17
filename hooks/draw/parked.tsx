@@ -10,7 +10,7 @@
  * prompt box as its note where Lee wants one (DESIGN.md, "Answering an
  * ask").
  */
-import { replyOnItsWay, type Carried } from '../../core'
+import { replyOnItsWay, type Carried, type ProjectKey } from '../../core'
 import type { SitrepItemRef } from '../../types'
 import { pickedUpList, projectScope } from '../lists'
 import { C, GLYPH } from '../look'
@@ -51,7 +51,7 @@ const drawPickUp = (d: Drawing, { at, parked }: ParkedAt) => {
 const keyOf = ({ at, parked }: ParkedAt) => itemKey(at.session, parked.id)
 
 /** The parked item as the item a pick-up answers. */
-const refOf = ({ at, parked }: ParkedAt): SitrepItemRef => ({ ...at, item: parked.id })
+const refOf = ({ at, parked }: ParkedAt): SitrepItemRef<ProjectKey> => ({ ...at, item: parked.id })
 
 /** An opened parked item's buttons, under its tree: the pick-up, and the pick-up with a comment written in the prompt. */
 const drawButtons = (d: Drawing, entry: ParkedAt) => {

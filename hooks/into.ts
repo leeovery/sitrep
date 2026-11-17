@@ -21,7 +21,7 @@ import { rootFor, type Host } from './host'
 import { createReader, ownText } from './reader'
 import { attached, heldLines, isHoldOn, refresh, serially } from './window'
 
-/** A session, and the writer whose file there is written. */
+/** A session, by the folder its files are in, and the writer whose file there is written. */
 export type Into = SitrepSessionRef & { writer: string }
 
 /** What a write makes of a session as it stands, and of the writer's own lines there, its file as read: the lines it writes there. */

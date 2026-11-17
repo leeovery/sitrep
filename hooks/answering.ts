@@ -42,11 +42,10 @@ import {
   type Verdict,
 } from '../core'
 import type { SitrepAnswering, SitrepAttachment, SitrepInFlight, SitrepQueued } from '../types'
-import { foldedFor } from './around'
 import { claimRide, letRideGo, rideTaken, type Ridden } from './deliver'
 import { logFailure, type Host } from './host'
 import { unwrapPastes } from './paste'
-import { briefOf, canReach, filedAt, parkedIn } from './places'
+import { briefOf, canReach, filedAt, parkedOf } from './places'
 import {
   apartFrom,
   goesTo,
@@ -60,7 +59,7 @@ import {
   type LeftOut,
 } from './queue'
 import { sceneOf, type Scene } from './scene'
-import { flightNow, readHeld, refresh, serially } from './window'
+import { flightNow, readForSend, readHeld, refresh, serially } from './window'
 
 /** The mode as it stands: what it writes, and the item it writes to. */
 export type Answering = { answering: SitrepAnswering; item: Ask | Parked }
@@ -123,6 +122,8 @@ export const CANNOT_RIDE: Record<LeftOut, string> = {
   answered: 'Not sent: already answered.',
   resolved: 'Not sent: Claude closed it.',
   finished: 'Not sent: the session is finished.',
+  moved: 'Not sent: its session is in another project.',
+  unread: "Not sent: its session can't be read.",
 }
 
 /** How long after a taken prompt is dropped the box is cleared: once the engine has put it back. */
@@ -155,7 +156,7 @@ const answerable = (scene: Scene, session: string, item: Item | undefined) =>
  */
 const seenIn = (
   scene: Scene,
-  { project, session, item }: SitrepAnswering,
+  { session, item }: SitrepAnswering,
 ): Ask | Parked | undefined | typeof UNREAD => {
   const filed = filedAt(scene, session)
 
@@ -163,12 +164,10 @@ const seenIn = (
     return answerable(scene, session, filed.session.items.get(item))
   }
 
-  const parked = parkedIn(scene, project).find(
-    each => each.at.session === session && each.parked.id === item,
-  )
+  const parked = parkedOf(scene, session, item)
 
   if (parked !== undefined) {
-    return parked.parked
+    return parked
   }
 
   const brief = briefOf(scene, session)
@@ -366,9 +365,9 @@ const enterWith =
     return entered
   }
 
-/** Whether a reply to the mode's item goes to the session the window holds, whose Claude takes Lee's prompt: one to its own item, or a pick-up of an item of its project. */
+/** Whether a reply to the mode's item goes to the session the window holds, whose Claude takes Lee's prompt: one to its own item, or a pick-up. */
 const goesHere = (held: SitrepAttachment, { project, session, item, as }: SitrepAnswering) =>
-  goesTo(held, { project, session, item, verdict: VERDICT[as] })?.session === held.session
+  goesTo(held, { project, session, item, verdict: VERDICT[as] }).session === held.session
 
 /** The held session read afresh, in turn with whatever reads or changes the hold; as the scene has it where none is held now. */
 const heldAfresh = async (host: Host, scene: Scene) =>
@@ -415,10 +414,12 @@ const leftOnceClaimed = async (
     return { reason: 'changed', isStanding: false }
   }
 
-  const folded = await foldedFor(host, session, [reply])
-  const reason = leftOutOnceClaimed(folded, reply, ride)
+  const read = await readForSend(host, session, [reply])
+  const reason = leftOutOnceClaimed(read, reply, ride)
 
-  return reason === undefined ? undefined : { reason, isStanding: takesIn(folded, answering, ride) }
+  return reason === undefined
+    ? undefined
+    : { reason, isStanding: takesIn(read.folded, answering, ride) }
 }
 
 /**
@@ -474,8 +475,9 @@ const letIn = async (
 
   const [session, queue] = await Promise.all([heldAfresh(host, scene), host.state.queue.read()])
   const reply = replyOf(answering, queue, words)
-  const folded = await foldedFor(host, session, [reply])
-  const [why] = leftOut(session.id, folded, [reply])
+  const read = await readForSend(host, session, [reply])
+  const { folded } = read
+  const [why] = leftOut(session.id, read, [reply])
   const message =
     why === undefined ? boardMessage(session, [reply], each => folded.get(each.session)) : undefined
 

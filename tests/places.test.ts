@@ -1,5 +1,6 @@
 import { expect, test } from './kit'
 import {
+  folderKey,
   isSessionId,
   LOG_SUFFIX,
   newItemId,
@@ -47,7 +48,7 @@ const placesOf = (folder: SessionPaths) => ({
 })
 
 test("a session's files sit in its folder under sessions/: session.json, one file per writer, the inbox and the heartbeats", () => {
-  const paths = sessionPaths(ROOT, 'northwind-1a2b3c4d', 'sr-k3f9qa')
+  const paths = sessionPaths(ROOT, folderKey('northwind-1a2b3c4d'), 'sr-k3f9qa')
   const project = `${ROOT}/projects/northwind-1a2b3c4d`
 
   expect(sessionsDir(ROOT, 'northwind-1a2b3c4d')).toBe(`${project}/sessions`)
@@ -57,11 +58,11 @@ test("a session's files sit in its folder under sessions/: session.json, one fil
 })
 
 test('a name that could climb out of its folder is refused', () => {
-  expect(() => sessionPaths(ROOT, 'northwind', '../../etc')).toThrow(
+  expect(() => sessionPaths(ROOT, folderKey('northwind'), '../../etc')).toThrow(
     'Not a name sitrep files under',
   )
   expect(() => projectPaths(ROOT, '..')).toThrow('Not a name sitrep files under')
-  expect(() => sessionPaths(ROOT, 'northwind', 'sr-k3f9qa').log('a/b')).toThrow()
+  expect(() => sessionPaths(ROOT, folderKey('northwind'), 'sr-k3f9qa').log('a/b')).toThrow()
   expect(() => sessionsDir(ROOT, '')).toThrow()
 })
 

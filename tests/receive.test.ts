@@ -4,7 +4,7 @@ import { boardOf } from '../hooks/board'
 import type { Host } from '../hooks/host'
 import { receiveEvery } from '../hooks/receive'
 import type { SitrepInFlight } from '../types'
-import { CLI, CLOSES, META, MIN, T0, W1 } from './data'
+import { CLI, CLOSES, keyed, META, MIN, T0, W1 } from './data'
 import { delivered, file, fold, reply, seen, yesAsk, type Line } from './lines'
 
 const NOW = T0 + 2 * MIN
@@ -32,7 +32,7 @@ const UNWRITTEN = fold({ logs: { [W1]: file(ASKED) }, inbox: INBOX, presence: PR
 /** The window's send, taken by Claude Code and not yet written down. */
 const SENT: SitrepInFlight = {
   source: 'send',
-  project: META.project,
+  project: keyed(META.project),
   session: META.id,
   writer: W1,
   text: `From the board:\n- Review round 1 → Approve${CLOSES}`,

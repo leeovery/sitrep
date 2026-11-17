@@ -3,8 +3,8 @@
  * data, which keeps no Map or Set, so the board carries the session's map of
  * items and set of ids as lists, and drawing rebuilds them.
  */
-import { ITEM_TYPES, type Session } from '../core'
-import type { SitrepBoard, SitrepItem } from '../types'
+import { ITEM_TYPES, projectOfFolder, type ProjectKey, type Session } from '../core'
+import type { SitrepAttachment, SitrepBoard, SitrepItem } from '../types'
 
 /**
  * A folded session as the board `$.state` holds, each window's state and
@@ -25,9 +25,13 @@ export const boardOf = (session: Session): SitrepBoard => ({
 const isKnown = (item: SitrepItem) => (ITEM_TYPES as readonly string[]).includes(item.type)
 
 /** The session a board holds, its map of items and set of ids rebuilt, and its history, which a board an older load saved lacks: what drawing reads. */
-export const sessionOf = ({ log, ...held }: SitrepBoard): Session => ({
+export const sessionOf = ({ log, filedUnder, ...held }: SitrepBoard): Session => ({
   ...held,
   history: held.history ?? [],
   items: new Map(held.items.filter(isKnown).map(item => [item.id, item])),
   ids: new Set(held.ids),
 })
+
+/** The key of the project the held session is filed under, as its board says; with a board of another session, or one from a load before moves, which filed it under its folder, its folder's. */
+export const hereOf = (held: SitrepAttachment, board: SitrepBoard | null): ProjectKey =>
+  (board?.id === held.session ? board.filedUnder : undefined) ?? projectOfFolder(held.project)

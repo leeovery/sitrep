@@ -12,7 +12,7 @@
  * up sits at the left of a row that is otherwise blank.
  */
 import type { ElementTable, RenderPropsOf, RenderSurface } from 'claude-code'
-import type { SitrepPlace } from '../../types'
+import type { ProjectKey, SitrepPlace } from '../../types'
 import type { Actions } from '../actions'
 import type { Clip } from '../clip'
 import { C, clip as clipText, CLOSE, GLYPH } from '../look'
@@ -49,7 +49,7 @@ type Tab = {
   color: string
   count: (scene: Scene) => number
   /** Where the tab takes the board. */
-  to: (scene: Scene) => SitrepPlace
+  to: (scene: Scene) => SitrepPlace<ProjectKey>
   isLit: (scene: Scene) => boolean
 }
 
@@ -194,7 +194,7 @@ const backOf = (scene: Scene): Back | undefined => {
     return undefined
   }
 
-  const above = up(scene.place)
+  const above = up(scene, scene.place)
 
   return { label: `${GLYPH.up} ${placeName(scene, above)}`, to: above }
 }

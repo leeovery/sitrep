@@ -1,13 +1,14 @@
 /** Sessions, projects and windows other than the world's own, their files written as theirs would be. */
 import type { MockClock } from 'claude-code/testing'
 import {
+  folderKey,
   sessionPaths,
   type Body,
   type Presence,
   type SessionMeta,
   type SessionPaths,
 } from '../../core'
-import { PROJECT, ROOT, W2 } from '../data'
+import { PROJECT_KEY, ROOT, W2 } from '../data'
 import { filing, type DeskFiles, type Neighbour, type Put } from '../filing'
 import type { Line } from '../lines'
 
@@ -34,15 +35,15 @@ export function sessions(put: Put, clock: MockClock) {
     project: filed.project,
 
     /** Another window's heartbeat on a session. */
-    beat: (id: string, presence: Presence, project = PROJECT.key) =>
-      filed.beat(sessionPaths(ROOT, project, id), presence),
+    beat: (id: string, presence: Presence, project = PROJECT_KEY) =>
+      filed.beat(sessionPaths(ROOT, folderKey(project), id), presence),
 
     /**
      * Another session, started by the window `by` names and filed under
      * `project`: its paths, that window's lines as it writes them, and its
      * heartbeat as of now, attached at `attachedAt`.
      */
-    elsewhere: (meta: SessionMeta, project = PROJECT.key, by = meta.by) => {
+    elsewhere: (meta: SessionMeta, project = PROJECT_KEY, by = meta.by) => {
       const paths = filed.seed(meta, project)
 
       return {

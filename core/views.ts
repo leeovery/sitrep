@@ -63,8 +63,9 @@ export type SessionBrief = SessionSummary & {
   asks: Ask[]
 }
 
-export type ProjectSummary = {
-  key: string
+/** A project in brief, by its key: a project's key as a front end gives it, the mod's the key of a project sessions are filed under. */
+export type ProjectSummary<K extends string = string> = {
+  key: K
   name: string
   /** Where the project lives, where that is known. */
   directory?: string
@@ -82,9 +83,9 @@ export type ProjectSummary = {
 }
 
 /** All projects: this project first, then the busiest; `folded`, those with nothing open, waiting or parked, most recent first. */
-export type AllProjects = {
-  projects: ProjectSummary[]
-  folded: ProjectSummary[]
+export type AllProjects<K extends string = string> = {
+  projects: ProjectSummary<K>[]
+  folded: ProjectSummary<K>[]
 }
 
 /** A parked item of a project's, and the session that parked it: its id, and its name. */
@@ -185,11 +186,11 @@ export const parkingOf = (sessions: readonly SessionSummary[]): Parking => {
  * one names it, and what is parked in it: updated when its latest current
  * session was, else as what is parked dates it.
  */
-export const summariseProject = (
-  key: string,
+export const summariseProject = <K extends string>(
+  key: K,
   sessions: readonly SessionSummary[],
   parking: Parking = NOTHING_PARKED,
-): ProjectSummary => {
+): ProjectSummary<K> => {
   const summaries = [...sessions].sort(openFirst)
   const latest = [...sessions].sort(byRecency).at(0)
 
@@ -207,7 +208,10 @@ export const summariseProject = (
 }
 
 /** The All projects view: `here`, the project this window works in, always first and never folded. */
-export const allProjects = (projects: readonly ProjectSummary[], here?: string): AllProjects => {
+export const allProjects = <K extends string>(
+  projects: readonly ProjectSummary<K>[],
+  here?: string,
+): AllProjects<K> => {
   const others = projects.filter(project => project.key !== here)
 
   return {

@@ -22,6 +22,7 @@ import {
   sendable,
   unsentTo,
   withSent,
+  type FiledUnder,
   type LeftOut,
 } from './queue'
 import { ownText } from './reader'
@@ -35,6 +36,9 @@ type SentTo = { went?: Went; left: readonly LeftOut[] }
 
 /** What a send did for every session but the held one: whether any of it went, and why it left each reply it did not carry. */
 export type Lettered = { isLettered: boolean; left: readonly LeftOut[] }
+
+/** No session filed: letters read none, as a pick-up never goes as one (`goesTo`). */
+const unfiled: FiledUnder = () => undefined
 
 /** The window's letters as it last wrote them, by path; one not written since a reload is read back. */
 const texts = new Map<string, string>()
@@ -70,9 +74,10 @@ const take = async (host: Host, held: SitrepAttachment, session: Session) => {
 
   await host.state.queue.update(waiting => {
     const replies = unsentTo(waiting, flights, held, session.id)
+    const read = { folded, filedUnder: unfiled }
 
-    taken = sendable(held.session, folded, replies)
-    left = leftOut(held.session, folded, replies)
+    taken = sendable(held.session, read, replies)
+    left = leftOut(held.session, read, replies)
 
     return afterSend(waiting, taken)
   })
@@ -132,7 +137,7 @@ export const sendLetters = async (host: Host): Promise<Lettered> => {
   }
 
   const queue = await host.state.queue.read()
-  const to = destinations(queue.flatMap(reply => goesTo(held, reply) ?? []))
+  const to = destinations(queue.map(reply => goesTo(held, reply)))
   const went: Went[] = []
   const left: LeftOut[] = []
 

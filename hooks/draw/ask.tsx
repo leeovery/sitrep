@@ -26,6 +26,7 @@ import {
   wakeWords,
   yesOf,
   type Ask,
+  type ProjectKey,
   type SnoozeChoice,
   type Verdict,
 } from '../../core'
@@ -82,7 +83,7 @@ const SNOOZE_WORDS: Record<SnoozeChoice, string> = {
 const snoozeKey = (key: string) => `snooze:${key}`
 
 /** The ask as the item a reply answers. */
-const refOf = ({ at, ask }: AskedAt): SitrepItemRef => ({ ...at, item: ask.id })
+const refOf = ({ at, ask }: AskedAt): SitrepItemRef<ProjectKey> => ({ ...at, item: ask.id })
 
 /** The comment button's words: an answer's, on an ask read from its kind as a decide, where a comment closes it. */
 const commentLabel = (ask: Ask) => (isAnswer(ask, 'comment') ? '✎ answer' : '✎ comment')
@@ -108,7 +109,7 @@ const drawOption = (d: Drawing, key: string, option: string, ask: Ask, onPress: 
 }
 
 /** The buttons a verdict puts on an ask, each keyed by the ask's address: one for each option of a choice. */
-const buttonsFor = (d: Drawing, at: SitrepItemRef, ask: Ask, verdict: Verdict) => {
+const buttonsFor = (d: Drawing, at: SitrepItemRef<ProjectKey>, ask: Ask, verdict: Verdict) => {
   const { Button } = d.els
   const key = itemKey(at.session, ask.id)
   const reply = (fields: Omit<SitrepQueued, keyof SitrepItemRef>) =>

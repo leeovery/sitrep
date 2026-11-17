@@ -41,6 +41,7 @@ const TOOLS = [
   'edit',
   'finish',
   'project',
+  'move',
   'board',
 ]
 

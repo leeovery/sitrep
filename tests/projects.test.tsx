@@ -1,5 +1,6 @@
 import { expect, test, tier, type Engine } from './kit'
 import {
+  folderKey,
   parseMeta,
   parseProject,
   projectPaths,
@@ -76,7 +77,7 @@ test('start makes a new project of the name given, keyed by its slug, whatever f
     `Started sitrep as ${id}, in a new project, SitRep. Record ${id} wherever the project tracks this work, so a later window can join it.`,
   )
   expect(fileIn(w, 'sitrep')).toEqual({ name: 'SitRep', created: T0, by: W1 })
-  expect(parseMeta(w.text(sessionPaths(ROOT, 'sitrep', id).meta))).toMatchObject({
+  expect(parseMeta(w.text(sessionPaths(ROOT, folderKey('sitrep'), id).meta))).toMatchObject({
     project: 'SitRep',
     root: HOME,
   })
@@ -209,7 +210,7 @@ test('the project tool renames the held session’s project and sets where it li
     by: W1,
   })
   expect(w.state.attachment).toMatchObject({ project: 'sitrep', session: id })
-  expect(w.files.has(sessionPaths(ROOT, 'sitrep', id).meta)).toBe(true)
+  expect(w.files.has(sessionPaths(ROOT, folderKey('sitrep'), id).meta)).toBe(true)
 })
 
 test('the project tool never takes the name of another project, nor changes nothing', async ($, on) => {
@@ -219,7 +220,7 @@ test('the project tool never takes the name of another project, nor changes noth
   await w.call('start', BOARD)
 
   expect((await w.call('project', { name: 'north wind' })).deny).toBe(
-    "Another project is already named Northwind. This renames the attached session's project; it moves no session to another.",
+    "Another project is already named Northwind. Renaming can't give this project that name. Moving this session there instead is Lee's call; ask him first.",
   )
   expect((await w.call('project', {})).deny).toBe(
     'Give the project a new name, a directory, or both.',

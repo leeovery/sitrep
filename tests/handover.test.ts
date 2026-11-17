@@ -9,6 +9,7 @@ import { expect, test } from './kit'
 import { readFolder } from '../cli/files'
 import type { Io } from '../cli/io'
 import {
+  folderKey,
   foldSession,
   metaText,
   presenceText,
@@ -26,7 +27,7 @@ import { terminal } from './terminal'
 
 const ROOT = '/Users/me/.local/state/sitrep'
 
-const PATHS = sessionPaths(ROOT, META.project, META.id)
+const PATHS = sessionPaths(ROOT, folderKey(META.project), META.id)
 
 const NOW = T0 + 10 * 60_000
 

@@ -190,6 +190,10 @@ async function besideLedger(w: World, { lines, isOpen }: Standing) {
   return { id, paths, ui: await w.opened() }
 }
 
+/** The ledger's export as Ready to send draws its pick-up. */
+const readyExport = async (ui: Board) =>
+  rowsOf(await ui.find({ key: `readyanswer:${LEDGER.id}:p1` }))
+
 /** Lee picks up the ledger's parked item, `item`, from the project's view, then goes home. */
 const pickUpLedgers = async (ui: Board, item = 'p1') => {
   await toProject(ui)
@@ -342,10 +346,35 @@ test("held mid-turn, a pick-up of another session's item is named by its address
   expect(kindsIn(w, paths.log(W1))).toEqual(['ask', 'reply', 'delivered'])
 })
 
-test('a pick-up still in Ready to send when the window takes up a session of another project leaves it, a toast saying so; a session of this project keeps it, and every other reply stays', async ($, on) => {
+test("a pick-up claimed mid-turn whose session's session.json is gone as Claude takes it is written down nowhere, a log saying so: the rest lands in its own session, and no folder is made for it", async ($, on) => {
+  const w = world($, on)
+  const { paths, ui } = await besideLedger(w, FINISHED)
+  const posted = await asked(w, REVIEW)
+  const ledgerFiles = () =>
+    [...w.files.keys()].filter(path => path.includes(`/sessions/${LEDGER.id}/`)).sort()
+
+  await w.clock.advance(MIN)
+  await pickUpLedgers(ui)
+  await ui.press({ key: `pick:${w.item(posted)}` })
+  await ui.press({ key: `yes:${w.item(posted)}` })
+  await w.turnStarts('Carry on.')
+  await ui.press({ key: 'send' })
+  w.files.delete(sessionPaths(ROOT, PROJECT.key, LEDGER.id).meta)
+
+  const left = ledgerFiles()
+
+  await w.turnEnds()
+  await w.clock.settle()
+
+  expect(w.submitted).toEqual([`${PICKED}\n- Review Tickets & Replies, round 1 → Approve${CLOSES}`])
+  expect(w.logs).toContain(`sitrep: Claude has replies to ${LEDGER.id}, whose session.json is gone`)
+  expect(kindsIn(w, paths.log(W1))).toEqual(['ask', 'reply', 'delivered'])
+  expect(ledgerFiles(), 'nothing written for it, in any folder').toEqual(left)
+})
+
+test('a pick-up still in Ready to send when the window takes up a session of another project stays there, held back, saying the project its session is in; one of its project carries it again, and every other reply stays', async ($, on) => {
   const w = world($, on)
   const ledger = w.elsewhere(longAgo(LEDGER))
-  const pickUpsLeft = () => w.toasts.filter(toast => toast.includes('pick-up'))
 
   ledger.write(yesAsk('k3', 'Review the ledger schema'), park('p1', EXPORT))
   w.elsewhere(longAgo(THEMES))
@@ -365,25 +394,23 @@ test('a pick-up still in Ready to send when the window takes up a session of ano
 
   const queued = w.state.queue
 
+  await w.call('join', { session: 'sr-0sh1ft' })
+  expect(w.state.queue).toEqual(queued)
+  expect(await readyExport(ui)).toEqual([
+    `└ pick it up · not sent: its session is in ${PROJECT.name}`,
+  ])
+
   await w.call('join', { session: 'sr-themes' })
   expect(w.state.queue, 'a session of this project').toEqual(queued)
-  expect(pickUpsLeft()).toEqual([])
-
-  await w.call('join', { session: 'sr-0sh1ft' })
-  expect(w.state.queue).toEqual([
-    { project: PROJECT.key, session: LEDGER.id, item: 'k3', verdict: 'yes' },
-  ])
-  expect(pickUpsLeft()).toEqual([
-    '1 pick-up of another project left Ready to send: pick up from a window of that project.',
-  ])
+  expect(await readyExport(ui)).toEqual(['└ pick it up'])
+  expect(w.toasts.filter(toast => toast.includes('pick-up'))).toEqual([])
   expect(w.files.has(LEDGER_LOG), 'the item stays parked').toBe(false)
 })
 
-test('a pick-up a send carried, taken back once the window holds a session of another project, leaves Ready to send as on a join: never left undrawn', async ($, on) => {
+test('a pick-up a send carried, taken back once the window holds a session of another project, stays in Ready to send held back, as on a join: never left undrawn, nor sent', async ($, on) => {
   const w = world($, on)
   const { ui } = await besideLedger(w, FINISHED)
   const posted = await asked(w, REVIEW)
-  const pickUpsLeft = () => w.toasts.filter(toast => toast.includes('pick-up'))
 
   w.elsewhere(longAgo({ ...SHIFTS, by: W3 }, ELSEWHERE), ELSEWHERE.key)
   await w.clock.advance(MIN)
@@ -393,16 +420,15 @@ test('a pick-up a send carried, taken back once the window holds a session of an
   await w.turnStarts('Carry on.')
   await ui.press({ key: 'send' })
 
-  const [own] = w.state.queue?.filter(reply => reply.verdict === 'yes') ?? []
+  const queued = w.state.queue
 
   await w.call('join', { session: 'sr-0sh1ft' })
-  expect(pickUpsLeft(), 'carried, it stays as the window joins').toEqual([])
-
   await ui.press({ key: w.takeBack() })
-  expect(w.state.queue).toEqual([own])
-  expect(pickUpsLeft()).toEqual([
-    '1 pick-up of another project left Ready to send: pick up from a window of that project.',
+  expect(w.state.queue).toEqual(queued)
+  expect(await readyExport(ui)).toEqual([
+    `└ pick it up · not sent: its session is in ${PROJECT.name}`,
   ])
+  expect(w.toasts.filter(toast => toast.includes('pick-up'))).toEqual([])
 
   await w.turnEnds()
   await w.clock.settle()

@@ -1,9 +1,12 @@
 /**
- * Reading sitrep's folder, as the CLI does at each run: a session
- * found by its id in whichever project files it, and every project with
- * the sessions filed under it.
+ * Reading sitrep's folder, as the CLI does at each run: a session found by
+ * its id in whichever project's folder holds it, and every project with the
+ * sessions filed under it: those in its folder, but those moved to another
+ * project since, and those moved to it (core's filing.ts).
  */
 import {
+  fileRead,
+  folderKey,
   foldSession,
   isSafeName,
   isSessionId,
@@ -15,27 +18,31 @@ import {
   projectPaths,
   projectsDir,
   recordedName,
+  refiled,
   summarise,
   sessionPaths,
   sessionsDir,
   writerOf,
+  type Filed,
+  type FolderKey,
   type ProjectRead,
   type ProjectSessions,
+  type ReadName,
   type Session,
   type SessionFiles,
   type SessionPaths,
 } from '../core'
 import type { Io, Listed } from './io'
 
-/** A session as found: the project it is filed under, its paths and files, and the session they fold to. */
-export type Found = { project: string; paths: SessionPaths; files: SessionFiles; session: Session }
+/** A session as found: filed under its project, named by it, with its paths and files. */
+export type Found = Filed & { paths: SessionPaths; files: SessionFiles }
 
 const foldersIn = async (io: Io, dir: string) =>
   (await io.fs.list(dir)).filter(entry => entry.kind === 'dir').map(entry => entry.name)
 
 /** The key of every project folder. */
 const projectKeys = async (io: Io, root: string) =>
-  (await foldersIn(io, projectsDir(root))).filter(isSafeName)
+  (await foldersIn(io, projectsDir(root))).filter(isSafeName).map(folderKey)
 
 /** The sessions a project files. */
 const sessionsFiled = async (io: Io, root: string, project: string) =>
@@ -106,31 +113,18 @@ export const readSession = async (io: Io, paths: SessionPaths): Promise<SessionF
   return { ...folder, project }
 }
 
-/** A session by its id, as it stands at `now`, in whichever project files it; undefined when none does. */
-export const findSession = async (
-  io: Io,
-  root: string,
-  id: string,
-  now: number,
-): Promise<Found | undefined> => {
-  for (const project of await projectKeys(io, root)) {
-    const paths = sessionPaths(root, project, id)
-    const files = await readSession(io, paths)
-    const session = foldSession(files, now)
-
-    if (session !== undefined) {
-      return { project, paths, files, session }
-    }
-  }
-
-  return undefined
-}
-
 /** A session as read: its files, and the session they fold to, where its session.json reads. */
 export type SessionRead = { files: SessionFiles; session?: Session }
 
 /** How a project's sessions are read: each by the key of the project filing it and its id, given the text of that project's file, read once for all of them. */
-export type SessionReader = (key: string, id: string, project?: string) => Promise<SessionRead>
+export type SessionReader = (key: FolderKey, id: string, project?: string) => Promise<SessionRead>
+
+/** Each session's meta alone, no session folded: what names a project with no file. */
+const metasOf =
+  (io: Io, root: string): SessionReader =>
+  async (key, id) => ({
+    files: { meta: (await textAt(io, sessionPaths(root, key, id).meta)) ?? '', logs: {} },
+  })
 
 /** Each session as it stands at `now`, read whole. */
 const readAt =
@@ -141,8 +135,8 @@ const readAt =
     return { files, session: foldSession(files, now) }
   }
 
-/** A project and its sessions, each read by `read`, but those whose session.json is missing or torn; undefined for a folder with no file and no session. */
-const readProject = async (io: Io, root: string, key: string, read: SessionReader) => {
+/** A project and the sessions in its folder, each read by `read`, but those whose session.json is missing or torn; undefined for a folder with no file and no session. */
+const readProject = async (io: Io, root: string, key: FolderKey, read: SessionReader) => {
   const text = await textAt(io, projectPaths(root, key).file)
   const file = parseProject(text ?? '')
   const sessions = await Promise.all(
@@ -157,19 +151,47 @@ const readProject = async (io: Io, root: string, key: string, read: SessionReade
     : { project, sessions: sessions.flatMap(each => each.session ?? []) }
 }
 
-/** Every session filed under a project, as it stands at `now`. */
-export const sessionsIn = async (io: Io, root: string, key: string, now: number) =>
-  (await readProject(io, root, key, readAt(io, root, now)))?.sessions ?? []
+/** The name the board gives a project, by its key, as its folder has it, its sessions' metas read only where it has no file; undefined for a folder with neither. */
+const nameIn =
+  (io: Io, root: string): ReadName =>
+  async key =>
+    (await readProject(io, root, folderKey(key), metasOf(io, root)))?.project.name
 
-/** Every project, and the sessions filed under it, each read by `read`. */
+/** A session by its id, as it stands at `now`, in whichever project's folder holds it, filed under its project; undefined when none holds it. */
+export const findSession = async (
+  io: Io,
+  root: string,
+  id: string,
+  now: number,
+): Promise<Found | undefined> => {
+  for (const folder of await projectKeys(io, root)) {
+    const paths = sessionPaths(root, folder, id)
+    const files = await readSession(io, paths)
+    const session = foldSession(files, now)
+
+    if (session !== undefined) {
+      return { paths, files, ...(await fileRead(folder, session, nameIn(io, root))) }
+    }
+  }
+
+  return undefined
+}
+
+/** Every project, and the sessions filed under it, each read by `read` in its folder. */
 export const readBoard = async (
   io: Io,
   root: string,
   read: SessionReader,
 ): Promise<ProjectRead[]> =>
-  (
-    await Promise.all((await projectKeys(io, root)).map(key => readProject(io, root, key, read)))
-  ).filter(each => each !== undefined)
+  refiled(
+    (
+      await Promise.all((await projectKeys(io, root)).map(key => readProject(io, root, key, read)))
+    ).filter(each => each !== undefined),
+  )
+
+/** Every project, and the sessions filed under it, as they stand at `now`. */
+export const readBoardAt = (io: Io, root: string, now: number) =>
+  readBoard(io, root, readAt(io, root, now))
 
 /** Every project, with its sessions in brief as they stand at `now`. */
 export const readProjects = async (
@@ -177,7 +199,7 @@ export const readProjects = async (
   root: string,
   now: number,
 ): Promise<ProjectSessions[]> =>
-  (await readBoard(io, root, readAt(io, root, now))).map(({ project, sessions }) => ({
+  (await readBoardAt(io, root, now)).map(({ project, sessions }) => ({
     project,
     sessions: sessions.map(summarise),
   }))

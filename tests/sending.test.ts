@@ -7,7 +7,7 @@
 import { expect, test } from './kit'
 import { boardJson, listing } from '../cli/output'
 import { leftOut, replyBodies, sendable, unsentTo } from '../hooks/queue'
-import type { SitrepInFlight } from '../types'
+import type { ProjectKey, SitrepInFlight } from '../types'
 import {
   attach,
   barredBy,
@@ -34,8 +34,9 @@ import {
   type ReplyBody,
   type Sending,
   type Session,
+  type SessionMeta,
 } from '../core'
-import { CLI, CLOSES, META, MIN, T0, W1, W2 } from './data'
+import { CLI, CLOSES, ELSEWHERE, keyed, LEDGER, META, MIN, T0, W1, W2 } from './data'
 import {
   beat,
   choiceAsk,
@@ -56,11 +57,11 @@ const NOW = T0 + 60 * MIN
 
 const CLAIMED = NOW - MIN
 
-const NORTHWIND: Project = {
-  key: 'northwind',
+const NORTHWIND = {
+  key: keyed('northwind'),
   name: 'Northwind',
   directory: '/Users/me/Code/northwind',
-}
+} satisfies Project
 
 const REVIEW: Line = [T0, yesAsk('k1', 'Review round 1')]
 const SIDEBAR: Line = [T0, choiceAsk('k2', 'Keep the sidebar?', ['Keep it', 'Drop it'])]
@@ -112,14 +113,15 @@ const windowOn = (writer: string, what?: Sending | Sending[], times: Partial<Pre
   }),
 })
 
-/** The session at NOW, from the window's own lines, the inbox's letters and the heartbeats given. */
+/** The session at NOW, as `meta` starts it, from the window's own lines, the inbox's letters and the heartbeats given. */
 const sessionOf = (
   lines: Line[],
   presence: Record<string, string>,
   inbox: Record<string, string> = {},
+  meta: SessionMeta = META,
 ): Session => {
   const session = foldSession(
-    { meta: metaText(META), logs: { [W1]: file(...lines) }, inbox, presence },
+    { meta: metaText(meta), logs: { [W1]: file(...lines) }, inbox, presence },
     NOW,
   )
 
@@ -519,14 +521,14 @@ test('a send in flight never holds back the replies it carries for its own answe
     verdict: 'yes',
   } as const
   const other = { ...carried, item: 'k2', verdict: 'choose', option: 'Keep it' } as const
-  const folded = new Map([[session.id, session]])
+  const read = { folded: new Map([[session.id, session]]), filedUnder: () => undefined }
   const held = { project: NORTHWIND.key, session: META.id }
   const unsent = unsentTo([carried, other], [inFlight({ type: 'reply', ...YES })], held, META.id)
 
-  expect(sendable(META.id, folded, unsent)).toEqual([other])
-  expect(leftOut(META.id, folded, unsent)).toEqual([])
+  expect(sendable(META.id, read, unsent)).toEqual([other])
+  expect(leftOut(META.id, read, unsent)).toEqual([])
   expect(
-    leftOut(META.id, folded, unsentTo([carried], [], held, META.id)),
+    leftOut(META.id, read, unsentTo([carried], [], held, META.id)),
     "another's answer bars it",
   ).toEqual(['answered'])
 })
@@ -534,12 +536,42 @@ test('a send in flight never holds back the replies it carries for its own answe
 test('a send leaves out a reply to an ask of a session finished, which no reply reaches; from the window holding that session, it carries it', () => {
   const session = sessionOf([REVIEW, [T0 + MIN, finish('claude')]], {})
   const yes = { project: NORTHWIND.key, session: META.id, item: 'k1', verdict: 'yes' } as const
-  const folded = new Map([[session.id, session]])
+  const read = { folded: new Map([[session.id, session]]), filedUnder: () => undefined }
 
-  expect(sendable('sr-other1', folded, [yes]), 'from another window').toEqual([])
-  expect(leftOut('sr-other1', folded, [yes])).toEqual(['finished'])
-  expect(sendable(META.id, folded, [yes]), 'from the window holding it').toEqual([yes])
-  expect(leftOut(META.id, folded, [yes])).toEqual([])
+  expect(sendable('sr-other1', read, [yes]), 'from another window').toEqual([])
+  expect(leftOut('sr-other1', read, [yes])).toEqual(['finished'])
+  expect(sendable(META.id, read, [yes]), 'from the window holding it').toEqual([yes])
+  expect(leftOut(META.id, read, [yes])).toEqual([])
+})
+
+test("a send holds back a pick-up of what another session parked while that session is filed under another project than the held session's, as moved; while where either is filed was not read, as unread, never as moved; and carries it once both are filed under one project", () => {
+  const held = sessionOf([REVIEW], {})
+  const ledger = sessionOf([[T0, park('p1', 'Export the ledger as CSV')]], {}, {}, LEDGER)
+  const pickUp = {
+    project: NORTHWIND.key,
+    session: LEDGER.id,
+    item: 'p1',
+    verdict: 'pickup',
+  } as const
+  const filed = (under: Record<string, ProjectKey>) => ({
+    folded: new Map([held, ledger].map(each => [each.id, each])),
+    filedUnder: (session: string) => under[session],
+  })
+
+  expect(
+    leftOut(META.id, filed({ [META.id]: NORTHWIND.key, [LEDGER.id]: ELSEWHERE.key }), [pickUp]),
+  ).toEqual(['moved'])
+  expect(
+    leftOut(META.id, filed({ [META.id]: NORTHWIND.key }), [pickUp]),
+    'its session not read',
+  ).toEqual(['unread'])
+  expect(
+    leftOut(META.id, filed({ [LEDGER.id]: NORTHWIND.key }), [pickUp]),
+    'the held one not read',
+  ).toEqual(['unread'])
+  expect(
+    sendable(META.id, filed({ [META.id]: NORTHWIND.key, [LEDGER.id]: NORTHWIND.key }), [pickUp]),
+  ).toEqual([pickUp])
 })
 
 test("a message's replies take ids unlike any its session uses, and any a message in flight carries, not written down yet", () => {

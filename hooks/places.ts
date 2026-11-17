@@ -21,16 +21,30 @@ import {
   waitsOnLee,
   type Ask,
   type Carried,
+  type Filed,
   type Parked,
   type Parking,
+  type ProjectKey,
   type ProjectParked,
   type Session,
   type SessionBrief,
 } from '../core'
-import type { SitrepPlace, SitrepSessionRef } from '../types'
-import { shownAsks, type Filed, type Scene } from './scene'
+import type { SessionKey, SitrepPlace, SitrepSessionRef } from '../types'
+import { shownAsks, type Scene } from './scene'
 
-export const EVERY_PROJECT: SitrepPlace = { level: 'all' }
+/** A session as a view draws it: by the project it shows it in, which a press keeps by its folder (actions.ts). */
+type DrawnRef = SitrepSessionRef<ProjectKey>
+
+/** A place a view draws a way to: a session as it shows it, a project, or every project. */
+type DrawnPlace = SitrepPlace<ProjectKey>
+
+/** A project's view, whichever key a session place has. */
+type ProjectLevel = Extract<SitrepPlace, { level: 'project' }>
+
+/** Every project's view, All projects. */
+type EveryLevel = Extract<SitrepPlace, { level: 'all' }>
+
+export const EVERY_PROJECT: EveryLevel = { level: 'all' }
 
 /**
  * An ask a view lists: the session it is on, that session's name and
@@ -38,7 +52,7 @@ export const EVERY_PROJECT: SitrepPlace = { level: 'all' }
  * wakes while Lee has it snoozed.
  */
 export type AskedAt = {
-  at: SitrepSessionRef
+  at: DrawnRef
   name: string
   isFinished: boolean
   ask: Ask
@@ -63,7 +77,7 @@ const snoozedLast = (asked: readonly AskedAt[]): AskedAt[] => [
 ]
 
 /** Something a view lists as parked, the session that parked it, and that session's name. */
-export type ParkedAt = { at: SitrepSessionRef; name: string; parked: Parked }
+export type ParkedAt = { at: DrawnRef; name: string; parked: Parked }
 
 /** Something a view lists as taken off Parked, as it lists what is parked, and the name of the session a pick-up of it went to, where that is known. */
 export type TakenAt = ParkedAt & { pickedUpBy?: string }
@@ -84,15 +98,15 @@ export const addressed = (key: string) => {
 }
 
 /** This session: the held session, the board's home. */
-export const homeOf = ({ here, session }: Pick<Scene, 'here' | 'session'>): SitrepPlace => ({
+export const homeOf = ({ here, session }: Pick<Scene, 'here' | 'session'>): DrawnPlace => ({
   level: 'session',
   project: here,
   session: session.id,
 })
 
-export const projectPlace = (project: string): SitrepPlace => ({ level: 'project', project })
+export const projectPlace = (project: ProjectKey): ProjectLevel => ({ level: 'project', project })
 
-const keyOf = (place: SitrepPlace) => {
+const keyOf = (place: SitrepPlace<SessionKey>) => {
   switch (place.level) {
     case 'session':
       return place.session
@@ -103,12 +117,20 @@ const keyOf = (place: SitrepPlace) => {
   }
 }
 
-export const samePlace = (a: SitrepPlace, b: SitrepPlace) =>
+export const samePlace = (a: SitrepPlace<SessionKey>, b: SitrepPlace<SessionKey>) =>
   a.level === b.level && keyOf(a) === keyOf(b)
 
-/** One step up the tree: a session's project, then every project. */
-export const up = (place: SitrepPlace): SitrepPlace =>
-  place.level === 'session' ? projectPlace(place.project) : EVERY_PROJECT
+/** The key of the project a session is filed under, as the board read it: the held session's, or another's it read in full or in brief; undefined for one it has not read. */
+export const projectOf = (scene: Scene, session: string) =>
+  filedAt(scene, session)?.project ??
+  scene.projects.find(project => project.sessions.some(each => each.id === session))?.key
+
+/** One step up the tree: a session's project, the one it is filed under, then every project; from a session the board has not read, every project. */
+export const up = (scene: Scene, place: SitrepPlace): ProjectLevel | EveryLevel => {
+  const project = place.level === 'session' ? projectOf(scene, place.session) : undefined
+
+  return project === undefined ? EVERY_PROJECT : projectPlace(project)
+}
 
 /** Whether the board is home, on this session. */
 export const isHome = (scene: Scene) => samePlace(scene.place, homeOf(scene))
@@ -162,19 +184,25 @@ const keysRead = (scene: Scene) => [
 ]
 
 /** A project as the look around last read it. */
-const projectRead = (scene: Scene, key: string) =>
+const projectRead = (scene: Scene, key: ProjectKey) =>
   scene.projects.find(project => project.key === key)
 
 /** A project's current sessions in brief, the held one among them where it is filed, its asks waiting as this window's views count them. */
-const briefsIn = (scene: Scene, key: string): SessionBrief[] => [
+const briefsIn = (scene: Scene, key: ProjectKey): SessionBrief[] => [
   ...(key === scene.here
     ? [{ ...brief(scene.session), waiting: waitingAt(scene, scene.session) }]
     : []),
   ...(projectRead(scene, key)?.sessions ?? []),
 ]
 
+/** A parked item of a session the board does not have in full, as the look read it in its project's Parked, whichever project that is; undefined where it read it in none. */
+export const parkedOf = (scene: Scene, session: string, item: string) =>
+  scene.projects
+    .flatMap(project => project.parked ?? [])
+    .find(each => each.session === session && each.id === item)
+
 /** Everything parked in a project, oldest first, from every session filed under it, finished and idle ones included, each naming its session by name. */
-export const parkedIn = (scene: Scene, key: string): ParkedAt[] => {
+export const parkedIn = (scene: Scene, key: ProjectKey): ParkedAt[] => {
   const held = key === scene.here ? parkedBy(scene.session) : []
   const around = (projectRead(scene, key)?.parked ?? []).filter(
     each => each.session !== scene.session.id,
@@ -188,11 +216,11 @@ export const parkedIn = (scene: Scene, key: string): ParkedAt[] => {
 }
 
 /** The name of a session filed under a project, by its id: the held session's as it stands, another's as the look read it; none where the look carried no names for the project. */
-const nameIn = (scene: Scene, key: string, id: string) =>
+const nameIn = (scene: Scene, key: ProjectKey, id: string) =>
   id === scene.session.id ? scene.session.status.name : projectRead(scene, key)?.names?.[id]
 
 /** Items taken off a project's Parked as a view lists them, each pick-up naming the session it went to, where its line says which. */
-const takenOffAt = (scene: Scene, key: string, taken: readonly ProjectParked[]): TakenAt[] =>
+const takenOffAt = (scene: Scene, key: ProjectKey, taken: readonly ProjectParked[]): TakenAt[] =>
   taken.map(({ session, name, ...parked }) => {
     const to = pickedUpTo(parked)
 
@@ -210,7 +238,7 @@ const takenOffAt = (scene: Scene, key: string, taken: readonly ProjectParked[]):
  * the window took that session up, whose lists, carried only in part, would
  * count it twice, or list it among the old.
  */
-const pastRead = (scene: Scene, key: string) => {
+const pastRead = (scene: Scene, key: ProjectKey) => {
   const read = projectRead(scene, key)
 
   return read?.names?.[scene.session.id] === undefined ? read : undefined
@@ -231,7 +259,7 @@ const withHeld = <T>(
     : { entries: order([...held, ...around.entries]), count: held.length + around.count }
 
 /** What was taken off a project's Parked, the newest taken off first, from every session filed under it, finished and idle ones included; none until the look carries it. */
-export const takenOffIn = (scene: Scene, key: string): Carried<TakenAt> | undefined => {
+export const takenOffIn = (scene: Scene, key: ProjectKey): Carried<TakenAt> | undefined => {
   const held = key === scene.here ? takenOffBy(scene.session) : []
   const taken = withHeld(held, pastRead(scene, key)?.takenOff, projectTakenOff)
 
@@ -239,7 +267,7 @@ export const takenOffIn = (scene: Scene, key: string): Carried<TakenAt> | undefi
 }
 
 /** What is parked in a project as the board has it: the look carries the items, not the times of the sessions holding them. */
-const parkingIn = (scene: Scene, key: string): Parking => ({
+const parkingIn = (scene: Scene, key: ProjectKey): Parking => ({
   ...NOTHING_PARKED,
   parked: parkedIn(scene, key).length,
 })
@@ -249,7 +277,7 @@ const parkingIn = (scene: Scene, key: string): Parking => ({
  * name, as its sessions read now name it; with none current, as the look
  * read it.
  */
-const summaryIn = (scene: Scene, key: string) => {
+const summaryIn = (scene: Scene, key: ProjectKey) => {
   const sessions = briefsIn(scene, key)
   const summary = summariseProject(key, sessions, parkingIn(scene, key))
 
@@ -257,13 +285,13 @@ const summaryIn = (scene: Scene, key: string) => {
 }
 
 /** A project as its view draws it: its sessions in brief, counting what is parked in it, and its old sessions as the look carries them for its view, none until it does. */
-export const projectAt = (scene: Scene, key: string) => ({
+export const projectAt = (scene: Scene, key: ProjectKey) => ({
   summary: summaryIn(scene, key),
   old: pastRead(scene, key)?.old,
 })
 
 /** The name the board gives a project, as its sessions read now name it. */
-export const projectLabel = (scene: Scene, key: string) => summaryIn(scene, key).name
+export const projectLabel = (scene: Scene, key: ProjectKey) => summaryIn(scene, key).name
 
 /** Every project read, ordered and folded as All projects shows them. */
 export const everyProject = (scene: Scene) =>
@@ -278,11 +306,11 @@ export const waitingElsewhere = (scene: Scene) =>
     .flatMap(project => project.sessions)
     .reduce((sum, session) => sum + session.waiting, 0)
 
-const refOf = ({ project, session }: Filed): SitrepSessionRef => ({ project, session: session.id })
+const refOf = ({ project, session }: Filed): DrawnRef => ({ project, session: session.id })
 
 /** An ask as a view lists it, with when it wakes where it is snoozed in its session. */
 const askedAt = (
-  at: SitrepSessionRef,
+  at: DrawnRef,
   session: { name: string; isFinished: boolean },
   ask: Ask,
 ): AskedAt => {
@@ -310,7 +338,7 @@ export const askedOf = (scene: Scene, filed: Filed): AskedAt[] => {
 }
 
 /** A session's asks as its project's Asks lists them: as its own view does where the board has it in full, else its open asks. */
-const briefAsked = (scene: Scene, key: string, session: SessionBrief): AskedAt[] => {
+const briefAsked = (scene: Scene, key: ProjectKey, session: SessionBrief): AskedAt[] => {
   const filed = filedAt(scene, session.id)
 
   return filed === undefined
@@ -329,7 +357,7 @@ const newestFirst = (scene: Scene) => {
 }
 
 /** A project's Asks: every current session's asks, the newest first; then those snoozed. */
-export const askedIn = (scene: Scene, key: string): AskedAt[] =>
+export const askedIn = (scene: Scene, key: ProjectKey): AskedAt[] =>
   snoozedLast(
     briefsIn(scene, key)
       .flatMap(session => briefAsked(scene, key, session))

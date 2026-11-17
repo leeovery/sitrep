@@ -8,23 +8,18 @@
  * holds. The folder the window started in only orders them: the projects
  * living around it first.
  */
-import { listedProjects, rejoinable, startText, toldSummary, type ProjectSessions } from '../core'
-import { sessionsIn } from './around'
+import {
+  listedProjects,
+  rejoinable,
+  startText,
+  toldSummary,
+  type Filed,
+  type ProjectSessions,
+} from '../core'
+import { everySession } from './around'
 import { bearingsOf, rootFor, type Host } from './host'
 import { projectKeys, readProject } from './projects'
-import type { Filed } from './scene'
 import { attached, attachTo } from './window'
-
-/** Every session filed, in every project, as it stands at `now`. */
-const everySession = async (host: Host, root: string, now: number): Promise<Filed[]> => {
-  const filed = await Promise.all(
-    (await projectKeys(host, root)).map(async project =>
-      (await sessionsIn(host, root, project, now)).map(session => ({ project, session })),
-    ),
-  )
-
-  return filed.flat()
-}
 
 /** Takes up again the session the conversation `writer` names was last seen in, in any project, when the window holds none. */
 export const rejoin = async (host: Host, writer: string) => {
@@ -43,7 +38,7 @@ export const rejoin = async (host: Host, writer: string) => {
 
   if (last !== undefined) {
     await attachTo(host, root, {
-      project: last.project,
+      project: last.folder,
       session: last.session.id,
       writer,
       attachedAt: now,
@@ -51,12 +46,12 @@ export const rejoin = async (host: Host, writer: string) => {
   }
 }
 
-/** A project, with its sessions in brief as Claude knows them at `now`; undefined for a folder with no project in it. */
+/** A project, with the sessions filed under it in brief as Claude knows them; undefined for a folder with no project in it. */
 const projectSessions = async (
   host: Host,
   root: string,
   key: string,
-  now: number,
+  filed: readonly Filed[],
 ): Promise<ProjectSessions | undefined> => {
   const project = await readProject(host, root, key)
 
@@ -64,15 +59,17 @@ const projectSessions = async (
     return undefined
   }
 
-  return { project, sessions: (await sessionsIn(host, root, key, now)).map(toldSummary) }
+  const sessions = filed.filter(each => each.project === key).map(each => toldSummary(each.session))
+
+  return { project, sessions }
 }
 
 /** What the conversation's first message carries of sitrep: how to keep the board, and every project's current sessions. */
 export const startListing = async (host: Host) => {
   const { root, cwd } = await bearingsOf(host)
   const now = await host.clock.now()
-  const keys = await projectKeys(host, root)
-  const read = await Promise.all(keys.map(key => projectSessions(host, root, key, now)))
+  const [keys, filed] = await Promise.all([projectKeys(host, root), everySession(host, root, now)])
+  const read = await Promise.all(keys.map(key => projectSessions(host, root, key, filed)))
   const projects = listedProjects(
     read.filter(each => each !== undefined),
     cwd,

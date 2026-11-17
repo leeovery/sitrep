@@ -196,31 +196,56 @@ export type SitrepBoard = {
   deliverer?: string
   waiting: number
   finished?: SitrepFinished
+  /** The project its latest move names, by key: core's `movedTo`. */
+  movedTo?: string
+  /** The key of the project it is filed under, as the window holding it last folded it: its folder's, or the one a move took it to; none from a load before moves (17 November 2026). */
+  filedUnder?: ProjectKey
   ids: string[]
   updatedAt: number
 }
 
+/**
+ * The key of the folder a session's files are in, the project's it was
+ * started in, which no move changes: what every ref to a session the window
+ * keeps in `$.state` names. Type-only, as `ProjectKey` is: both are strings
+ * as stored, branded so the compiler tells one from the other, as core's
+ * are. A press makes a kept ref of a drawn one by the session's id
+ * (hooks/actions.ts's `kept`, through hooks/folders.ts).
+ */
+export type FolderKey = string & { readonly __folder: true }
+
+/** The key of the project a session is filed under, its folder's or the one its latest move names: what the board's views draw by, and every ref to a session they draw names. Type-only. */
+export type ProjectKey = string & { readonly __project: true }
+
+/** Either kind of key: a ref by which a session's folder is found by its id. */
+export type SessionKey = FolderKey | ProjectKey
+
 /** The session this window is attached to, and as whom. */
 export type SitrepAttachment = {
-  /** The project's key: the folder its sessions are under. */
-  project: string
+  /** The folder its files are in, which no move changes. The project it is filed under is its board's `filedUnder`. */
+  project: FolderKey
   session: string
   /** Claude Code's session id the window attached as: its file and heartbeat in the session. */
   writer: string
   attachedAt: number
 }
 
-/** A session as it is filed: its project's key, and its id. */
-export type SitrepSessionRef = {
-  project: string
+/**
+ * A session by a project's key and its id. Every ref the window keeps names
+ * the folder its files are in (`FolderKey`, the default); one the board's
+ * views draw names the project they show the session in (`ProjectKey`),
+ * until a press keeps it, which finds the folder by its id.
+ */
+export type SitrepSessionRef<K extends SessionKey = FolderKey> = {
+  project: K
   session: string
 }
 
 /** An item of a session's, wherever the board shows it. */
-export type SitrepItemRef = SitrepSessionRef & { item: string }
+export type SitrepItemRef<K extends SessionKey = FolderKey> = SitrepSessionRef<K> & { item: string }
 
 /** A reply of Lee's waiting in Ready to send: the item it answers, and what it says. */
-export type SitrepQueued = SitrepItemRef & {
+export type SitrepQueued<K extends SessionKey = FolderKey> = SitrepItemRef<K> & {
   verdict: SitrepVerdict
   option?: string
   note?: string
@@ -232,7 +257,7 @@ export type SitrepQueued = SitrepItemRef & {
  * a parked item's pick-up, and nothing goes to Claude. The item's title, for
  * the band to name it wherever the item is.
  */
-export type SitrepAnswering = SitrepItemRef & {
+export type SitrepAnswering<K extends SessionKey = FolderKey> = SitrepItemRef<K> & {
   /** What the words are: an ask's answer or a comment on it, or a pick-up's note. An older load's value is one of the first two. */
   as: 'answer' | 'comment' | 'pickup'
   title: string
@@ -334,7 +359,7 @@ export type SitrepEndedSession = SitrepSummary & { endedAt: number }
  * was taken off their Parked, and its old sessions.
  */
 export type SitrepProject = {
-  key: string
+  key: ProjectKey
   /** Its name, as its sessions read name it; none from a load before parked items were the project's. */
   name?: string
   sessions: SitrepBrief[]
@@ -350,14 +375,14 @@ export type SitrepProject = {
 
 /** Another session the board draws in full, and the project it is filed under. */
 export type SitrepOther = {
-  project: string
+  project: ProjectKey
   board: SitrepBoard
 }
 
-/** Where the board is looking: a session, a project's sessions, or every project. */
-export type SitrepPlace =
-  | ({ level: 'session' } & SitrepSessionRef)
-  | { level: 'project'; project: string }
+/** Where the board is looking: a session, by its folder as the window keeps it, or as a view drew it, by its project; a project's sessions; or every project. */
+export type SitrepPlace<K extends SessionKey = FolderKey> =
+  | ({ level: 'session' } & SitrepSessionRef<K>)
+  | { level: 'project'; project: ProjectKey }
   | { level: 'all' }
 
 /** How much of a list of the board's past shows, opened: the latest few, or every one. */

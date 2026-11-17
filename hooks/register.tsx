@@ -85,7 +85,7 @@ import { hasScene, heldSession, sceneOf, tickEvery } from './scene'
 import { boardChange, markTold } from './seen'
 import { rejoin, startListing } from './start'
 import { forgetUntold, heardRow, retold } from './summarised'
-import { answerCall, nameKept, SPECS, TOOL_NAMES } from './tools'
+import { answerCall, nameKept, OWN_TOOLS, SPECS } from './tools'
 import { MANIFEST, versionNow } from './version'
 import { TTY_WALK, TTY_WALK_MS } from './where'
 import { letGo, resume, serially } from './window'
@@ -435,7 +435,7 @@ export const register: Register = on => {
     return answer
   }).catch(($, e, next) => next(e))
 
-  on('tool.call', { tool: TOOL_NAMES }, ($, e) => answerCall(hostOf($), e)).catch(($, e, next) =>
+  on('tool.call', { tool: OWN_TOOLS }, ($, e) => answerCall(hostOf($), e)).catch(($, e, next) =>
     next.called
       ? next(e)
       : { deny: `The sitrep board could not take that: ${next.error.message ?? next.error.kind}.` },
@@ -656,7 +656,7 @@ export const register: Register = on => {
   }).catch(($, e, next) => next(e))
 
   // A refused or interrupted call keeps the engine's own row, so what went wrong shows.
-  on('ui.render', { component: 'ToolUse', props: { tool: TOOL_NAMES } }, async ($, e, next) => {
+  on('ui.render', { component: 'ToolUse', props: { tool: OWN_TOOLS } }, async ($, e, next) => {
     const host = hostOf($)
     const line =
       e.props.isErrored || e.props.isInterrupted
@@ -669,7 +669,7 @@ export const register: Register = on => {
     return line === undefined ? next(e) : drawToolRow($.ui.resolve(e), line)
   })
 
-  on('ui.render', { component: 'ToolResult', props: { tool: TOOL_NAMES } }, ($, e, next) =>
+  on('ui.render', { component: 'ToolResult', props: { tool: OWN_TOOLS } }, ($, e, next) =>
     e.props.isErrored ? next(e) : drawToolResult($.ui.resolve(e)),
   )
 }
