@@ -8,6 +8,7 @@
 import {
   allProjects,
   brief,
+  carried,
   changedBy,
   compareText,
   NOTHING_PARKED,
@@ -20,6 +21,7 @@ import {
   summariseProject,
   takenOffBy,
   type Ask,
+  type Carried,
   type Parked,
   type Parking,
   type ProjectParked,
@@ -173,14 +175,38 @@ const takenOffAt = (scene: Scene, key: string, taken: readonly ProjectParked[]):
     }
   })
 
-/** Everything taken off a project's Parked, the newest taken off first, from every session filed under it, finished and idle ones included. */
-export const takenOffIn = (scene: Scene, key: string): TakenAt[] => {
-  const held = key === scene.here ? takenOffBy(scene.session) : []
-  const around = (projectRead(scene, key)?.takenOff ?? []).filter(
-    each => each.session !== scene.session.id,
-  )
+/**
+ * What the look carried of a project's past for its view; none where it read
+ * the held session as one around, its names holding it: a look from before
+ * the window took that session up, whose lists, carried only in part, would
+ * count it twice.
+ */
+const pastRead = (scene: Scene, key: string) => {
+  const read = projectRead(scene, key)
 
-  return takenOffAt(scene, key, projectTakenOff([...held, ...around]))
+  return read?.names?.[scene.session.id] === undefined ? read : undefined
+}
+
+/**
+ * A project's list of the board's past as its view draws it: the held
+ * session's whole, where it is the project's, among what the look carried of
+ * the others', `order`ed, and counting both; none until the look carries it.
+ */
+const withHeld = <T>(
+  held: readonly T[],
+  around: Carried<T> | undefined,
+  order: (all: readonly T[]) => T[],
+): Carried<T> | undefined =>
+  around === undefined
+    ? undefined
+    : { entries: order([...held, ...around.entries]), count: held.length + around.count }
+
+/** What was taken off a project's Parked, the newest taken off first, from every session filed under it, finished and idle ones included; none until the look carries it. */
+export const takenOffIn = (scene: Scene, key: string): Carried<TakenAt> | undefined => {
+  const held = key === scene.here ? takenOffBy(scene.session) : []
+  const taken = withHeld(held, pastRead(scene, key)?.takenOff, projectTakenOff)
+
+  return taken && { ...taken, entries: takenOffAt(scene, key, taken.entries) }
 }
 
 /** What is parked in a project as the board has it: the look carries the items, not the times of the sessions holding them. */
@@ -201,12 +227,13 @@ const summaryIn = (scene: Scene, key: string) => {
   return sessions.length > 0 ? summary : { ...summary, name: projectRead(scene, key)?.name ?? key }
 }
 
-/** A project's history: every change of its current sessions' status, the newest first, the others' as the look read them while the board looked at the project. */
+/** A project's history: every change of its current sessions' status, the newest first, the others' as the look carries them for its view; none until it does. */
 const historyIn = (scene: Scene, key: string) =>
-  projectHistory([
-    ...(key === scene.here ? changedBy(scene.session) : []),
-    ...(projectRead(scene, key)?.history ?? []).filter(line => line.session !== scene.session.id),
-  ])
+  withHeld(
+    key === scene.here ? changedBy(scene.session) : [],
+    pastRead(scene, key)?.history,
+    projectHistory,
+  )
 
 /** A project as its view draws it: its sessions in brief, counting what is parked in it, and the history of their status. */
 export const projectAt = (scene: Scene, key: string) => ({
@@ -297,9 +324,9 @@ export const parkedOf = (filed: Filed): ParkedAt[] =>
     parked,
   }))
 
-/** What was taken off a session's Parked, the newest taken off first. */
-export const takenOffOf = (scene: Scene, filed: Filed): TakenAt[] =>
-  takenOffAt(scene, filed.project, takenOffBy(filed.session))
+/** What was taken off a session's Parked, the newest taken off first, every one. */
+export const takenOffOf = (scene: Scene, filed: Filed): Carried<TakenAt> =>
+  carried(takenOffAt(scene, filed.project, takenOffBy(filed.session)), true)
 
 /** A session's name, with its project's where the board's own project is another. */
 export const sessionLabel = (scene: Scene, filed: Filed) =>

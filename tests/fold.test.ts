@@ -8,6 +8,7 @@ import {
   finish,
   fold,
   oldNote,
+  oldNoteEdit,
   park,
   reopen,
   reply,
@@ -211,6 +212,18 @@ test("an old note's id is never given again, and a line after it counts on from 
 
   expect(newItemId(scripted([19, 3, 15, 9], [1, 1, 1, 1]), ids)).toBe('1111')
   expect(stamp(NOTED, [park('p1', 'Later')], T0 + 7 * MIN).map(entry => entry.seq)).toEqual([7])
+})
+
+test("an old edit of a note's text and detail alone is read: it changes nothing, but dates its session and counts in its writer's file", () => {
+  const edited = file(
+    [T0 + 1 * MIN, oldNote('k3f9', 'PR #81 merged')],
+    [T0 + 2 * MIN, oldNoteEdit('k3f9', 'PR #82 merged', ['6 files'])],
+  )
+  const session = fold({ logs: { [W1]: edited } })
+
+  expect([...session.items.keys()]).toEqual([])
+  expect(session.updatedAt).toBe(T0 + 2 * MIN)
+  expect(stamp(edited, [park('p1', 'Later')], T0 + 3 * MIN).map(entry => entry.seq)).toEqual([3])
 })
 
 test('changes to an item no line posted change nothing', () => {

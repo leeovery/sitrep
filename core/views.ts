@@ -285,6 +285,18 @@ export const takenOffBy = (session: Pick<Session, 'id' | 'status' | 'items'>): P
 export const projectTakenOff = (taken: readonly ProjectParked[]): ProjectParked[] =>
   [...taken].sort((a, b) => takenAt(b) - takenAt(a) || compareText(a.session, b.session))
 
+/** How many entries a list of the board's past shows until it is shown in full. */
+export const LATEST_SHOWN = 3
+
+/** A list of the board's past as carried for a view: the latest entries it shows, every one where it shows all, and how many there are. */
+export type Carried<T> = { entries: T[]; count: number }
+
+/** A list carried for a view: every entry while it shows all, else only the latest it shows. */
+export const carried = <T>(all: readonly T[], isAll: boolean): Carried<T> => ({
+  entries: isAll ? [...all] : all.slice(0, LATEST_SHOWN),
+  count: all.length,
+})
+
 /** The session an item taken off Parked was picked up by, by its id, as its pick-up says; none for one Claude closed, or a pick-up written before pick-ups said (17 November 2026). */
 export const pickedUpTo = (parked: Parked) =>
   parked.state === 'picked' ? parked.answer?.to : undefined

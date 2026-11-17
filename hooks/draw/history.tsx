@@ -4,7 +4,8 @@
  * under its sessions, each change naming its session. A change opens to its
  * detail as a tree, each line opening with its label.
  */
-import { labelOf, type StatusLine } from '../../core'
+import { labelOf, type Carried, type StatusLine } from '../../core'
+import { historyList } from '../lists'
 import { C, GLYPH } from '../look'
 import { itemKey } from '../places'
 import { drawRow, type Block, type Branch, type Drawing } from './kit'
@@ -71,12 +72,22 @@ const drawChange = (d: Drawing, changed: Addressed): Block => {
   }
 }
 
-/** The history of a session's status, or of a project's sessions', `scope` naming whose: its press, and the changes it shows once opened. */
-export const drawHistory = (d: Drawing, scope: string, changes: readonly Changed[]): Block[] =>
-  drawPast(d, {
-    list: `history:${scope}`,
-    entries: addressed(changes),
-    draw: changed => drawChange(d, changed),
-    opens: opensOf,
-    folding: { show: 'show history', hide: 'hide history' },
-  })
+/**
+ * The history of a session's status, or of a project's sessions', `scope`
+ * naming whose: its press, and the changes it shows once opened. Nothing
+ * while a project's is not carried yet, so no count shows short.
+ */
+export const drawHistory = (
+  d: Drawing,
+  scope: string,
+  changes: Carried<Changed> | undefined,
+): Block[] =>
+  changes === undefined
+    ? []
+    : drawPast(d, {
+        list: historyList(scope),
+        carried: { entries: addressed(changes.entries), count: changes.count },
+        draw: changed => drawChange(d, changed),
+        opens: opensOf,
+        folding: { show: 'show history', hide: 'hide history' },
+      })

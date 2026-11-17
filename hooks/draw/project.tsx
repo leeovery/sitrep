@@ -5,7 +5,8 @@
  * put off, and what was taken off that. Each ask, change and parked item
  * names its session. A session opens its own view.
  */
-import type { SessionSummary } from '../../core'
+import type { Carried, SessionSummary } from '../../core'
+import { projectScope } from '../lists'
 import { C, clip, GLYPH } from '../look'
 import { askedIn, hereFirst, parkedIn, projectAt, takenOffIn } from '../places'
 import { drawAsks } from './ask'
@@ -67,7 +68,7 @@ const drawSessions = (
   key: string,
   sessions: readonly SessionSummary[],
   open: number,
-  history: readonly Changed[],
+  history: Carried<Changed> | undefined,
 ) => [
   {
     key: 'sessions',
@@ -77,7 +78,7 @@ const drawSessions = (
     ...sessions.map(session => [
       { key: `sess:${session.id}`, element: drawSession(d, key, session) },
     ]),
-    drawHistory(d, `project:${key}`, history),
+    drawHistory(d, projectScope(key), history),
   ),
 ]
 
@@ -85,11 +86,14 @@ const drawSessions = (
 export const drawProjectView = (d: Drawing, key: string): Block[] => {
   const { summary, history, sessions } = projectAt(d.scene, key)
   const names = new Map(sessions.map(session => [session.id, session.name]))
-  const changes = history.map(({ session, ...line }) => ({
-    line,
-    session,
-    name: names.get(session) ?? session,
-  }))
+  const changes = history && {
+    ...history,
+    entries: history.entries.map(({ session, ...line }) => ({
+      line,
+      session,
+      name: names.get(session) ?? session,
+    })),
+  }
 
   return spaced(
     [{ key: 'context', element: context(d, summary.name, waitingWords(summary.waiting)) }],
@@ -102,7 +106,7 @@ export const drawProjectView = (d: Drawing, key: string): Block[] => {
     }),
     drawParked(
       d,
-      `project:${key}`,
+      projectScope(key),
       { parked: parkedIn(d.scene, key), taken: takenOffIn(d.scene, key) },
       true,
     ),

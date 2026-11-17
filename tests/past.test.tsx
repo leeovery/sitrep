@@ -1,5 +1,6 @@
 import type { SitrepPane } from '../types'
 import { expect, test, tier } from './kit'
+import { sessionsDir } from '../core'
 import { AROUND_MS } from '../hooks/around'
 import { C } from '../hooks/look'
 import { projectPlace } from '../hooks/places'
@@ -7,12 +8,15 @@ import { WATCH_MS } from '../hooks/window'
 import { rowsOf } from './drawn'
 import {
   changeKey,
+  ELSEWHERE,
   HELD,
   heldItem,
   HOUR,
   LEDGER,
   MIN,
   PROJECT,
+  ROOT,
+  SHIFTS,
   T0,
   THEMES,
   W1,
@@ -20,7 +24,7 @@ import {
 } from './data'
 import { delivered, file, park, reply, resolve, status, type Line } from './lines'
 import { pane, sceneFrom, type Drawn } from './render'
-import { ACROSS, DOCKED, INLINE, toProject, world } from './world'
+import { ACROSS, DOCKED, INLINE, toProject, world, type World } from './world'
 
 tier('user')
 
@@ -273,22 +277,23 @@ const AROUND = [
 const PROJECT_HISTORY = `history:project:${PROJECT.key}`
 const PROJECT_PICKED_UP = `pickedup:project:${PROJECT.key}`
 
+/** The scene of the project's view, this session and the two around it, the pane as given. */
+const projectScene = (shown: Partial<SitrepPane> = {}) =>
+  sceneFrom({
+    lines: [
+      ...CHANGES.slice(0, 2),
+      [T0, park('p2', 'Tidy the fixtures')],
+      [T0 + 5 * MIN, reply('r1', 'p2', 'pickup', { to: HELD.id })],
+      [T0 + 5 * MIN, delivered('r1')],
+    ],
+    now: NOW,
+    around: AROUND,
+    pane: { place: projectPlace(PROJECT.key), ...shown },
+  })
+
 /** The project's view, this session and the two around it, the pane as given. */
 const projectDrawn = (shown: Partial<SitrepPane> = {}, props = DOCKED) =>
-  pane(
-    sceneFrom({
-      lines: [
-        ...CHANGES.slice(0, 2),
-        [T0, park('p2', 'Tidy the fixtures')],
-        [T0 + 5 * MIN, reply('r1', 'p2', 'pickup', { to: HELD.id })],
-        [T0 + 5 * MIN, delivered('r1')],
-      ],
-      now: NOW,
-      around: AROUND,
-      pane: { place: projectPlace(PROJECT.key), ...shown },
-    }),
-    props,
-  )
+  pane(projectScene(shown), props)
 
 test("the project's view folds its sessions' history under SESSIONS and its picked up under PARKED, each press counting across its sessions", async () => {
   const ui = projectDrawn()
@@ -297,6 +302,22 @@ test("the project's view folds its sessions' history under SESSIONS and its pick
   expect(await press(ui, PROJECT_PICKED_UP)).toMatchObject({ label: 'show picked up 3' })
   expect(await keysOf(ui, 'change:')).toEqual([])
   expect(await keysOf(ui, 'taken:')).toEqual([])
+})
+
+test("a look from before the window took up its session, which read that session as one around, gives the project's view no history and no picked up to draw until the next", async () => {
+  const scene = await projectScene()
+  const names = { [HELD.id]: HELD.name, [LEDGER.id]: LEDGER.name, [THEMES.id]: THEMES.name }
+  const ui = pane(
+    scene && {
+      ...scene,
+      projects: scene.projects.map(project =>
+        project.key === PROJECT.key ? { ...project, names } : project,
+      ),
+    },
+  )
+
+  expect(await press(ui, PROJECT_HISTORY)).toBeUndefined()
+  expect(await press(ui, PROJECT_PICKED_UP)).toBeUndefined()
 })
 
 /** Room for a project's longest row of the past whole. */
@@ -387,27 +408,44 @@ test('the presses show a list, every one of it, fewer again, and fold it away, a
   expect(await ui.find({ key: history })).toMatchObject({ props: { label: 'show history 5' } })
 })
 
-test("a project's view draws its history and what was taken off its Parked from its first frame: the look reads them before the board moves there, and no count moves after", async ($, on) => {
-  const w = world($, on, { now: NOW })
-  /** What the project's entry in `$.state` held as the pane moved to its view, before any frame there was drawn. */
-  const atMove: { history?: number; takenOff?: number }[] = []
+/** The ledger's lines: its status changed five times, and five items it parked taken off. */
+const LEDGER_PAST = [
+  ...[1, 2, 3, 4, 5].map(n => status([`Drawing round ${n}`], LEDGER)),
+  ...[1, 2, 3, 4, 5].flatMap(n => [park(`p${n}`, `Item ${n}`), resolve(`p${n}`)]),
+]
 
-  on('state.set', { plugin: 'sitrep', key: 'pane' }, ($, e, next) => {
-    if ((e.value as SitrepPane | undefined)?.place?.level === 'project') {
-      const project = w.state.projects?.find(each => each.key === PROJECT.key)
+/** What `$.state` carries of a project, by its key: whether it names its sessions, and of its history and what was taken off its Parked, how many entries and how many there are. */
+const carriedOf = (w: World, key: string) => {
+  const project = w.state.projects?.find(each => each.key === key)
+  const sizes = (list?: { entries: unknown[]; count: number }) =>
+    list && [list.entries.length, list.count]
 
-      atMove.push({ history: project?.history?.length, takenOff: project?.takenOff?.length })
+  return {
+    names: project?.names !== undefined,
+    history: sizes(project?.history),
+    takenOff: sizes(project?.takenOff),
+  }
+}
+
+test("a press moves the board at once, a look held up behind it; a project's view draws its history and picked up only once the look carries them, counted whole", async ($, on) => {
+  let isHeld = false
+  let letGo = () => {}
+  const held = new Promise<void>(resolve => {
+    letGo = resolve
+  })
+
+  // Registered before the world's own, so it is outermost and holds the look's listing.
+  on('fs.list', { path: sessionsDir(ROOT, PROJECT.key) }, async ($, e, next) => {
+    if (isHeld) {
+      await held
     }
 
     return next(e)
   })
 
-  w.elsewhere(LEDGER).write(
-    status(['Reading the schema'], LEDGER),
-    park('p1', 'Export as CSV'),
-    reply('r1', 'p1', 'pickup', { to: LEDGER.id }),
-    delivered('r1'),
-  )
+  const w = world($, on, { now: NOW })
+
+  w.elsewhere(LEDGER).write(...LEDGER_PAST)
   await w.begin()
 
   const ui = await w.opened()
@@ -416,16 +454,54 @@ test("a project's view draws its history and what was taken off its Parked from 
     (await press(ui, PROJECT_PICKED_UP))?.label,
   ]
 
-  await toProject(ui)
+  await ui.press({ key: 'tab:all' })
+  isHeld = true
 
-  const first = await labels()
+  const pressed = ui.press({ key: `proj:${PROJECT.key}` })
 
-  expect(atMove, 'the look had read them as the pane moved').toEqual([{ history: 1, takenOff: 1 }])
-  expect(first).toEqual([
-    `show history ${(w.state.board?.history?.length ?? 0) + 1}`,
-    'show picked up 1',
-  ])
+  await w.clock.settle()
+  expect(w.state.pane?.place, 'moved, the look still held').toEqual(projectPlace(PROJECT.key))
+  expect(await labels(), 'not carried yet, so not drawn').toEqual([undefined, undefined])
 
+  letGo()
+  await pressed
+
+  const whole = [`show history ${(w.state.board?.history?.length ?? 0) + 5}`, 'show picked up 5']
+
+  expect(await labels()).toEqual(whole)
   await w.clock.advance(AROUND_MS)
-  expect(await labels(), 'a look later').toEqual(first)
+  expect(await labels(), 'a look later').toEqual(whole)
+})
+
+test("a look carries a project's history and what was taken off only for its open view, the latest the view shows, and every one only while it shows all; its sessions' names only for the held session's project and the place shown", async ($, on) => {
+  const w = world($, on, { now: NOW })
+
+  w.elsewhere(LEDGER).write(...LEDGER_PAST)
+  w.elsewhere(SHIFTS, ELSEWHERE.key).write(...LEDGER_PAST)
+  await w.begin()
+
+  const ui = await w.opened()
+  const none = { names: false, history: undefined, takenOff: undefined }
+
+  expect(carriedOf(w, PROJECT.key), 'home').toEqual({ ...none, names: true })
+  expect(carriedOf(w, ELSEWHERE.key), 'home').toEqual(none)
+
+  await toProject(ui)
+  expect(carriedOf(w, PROJECT.key), 'its view').toEqual({
+    names: true,
+    history: [3, 5],
+    takenOff: [3, 5],
+  })
+  expect(carriedOf(w, ELSEWHERE.key), 'another project').toEqual(none)
+
+  await ui.press({ key: PROJECT_HISTORY })
+  await ui.press({ key: `all:${PROJECT_HISTORY}` })
+  expect(carriedOf(w, PROJECT.key), 'its history shown in full').toEqual({
+    names: true,
+    history: [5, 5],
+    takenOff: [3, 5],
+  })
+
+  await ui.press({ key: 'tab:session' })
+  expect(carriedOf(w, PROJECT.key), 'home again').toEqual({ ...none, names: true })
 })

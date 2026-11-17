@@ -47,7 +47,7 @@ const PARKED = [
   { title: 'Sign-in without the redirect', note: 'After the API fixes' },
 ]
 
-/** A session parking each item, the board docked, and each picked up, its note written in the prompt: the parked ids and the board. */
+/** A session parking each item, the board opened docked, and each picked up, its note written in the prompt: the parked ids and the board. */
 async function pickedUp(w: World, $: Engine) {
   await w.begin()
 
@@ -57,7 +57,7 @@ async function pickedUp(w: World, $: Engine) {
     ids.push(postedId(await w.call('park', { title })))
   }
 
-  const ui = await w.pane()
+  const ui = await w.opened()
 
   for (const [i, id] of ids.entries()) {
     const note = PARKED[i]?.note

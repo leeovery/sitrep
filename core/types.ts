@@ -99,6 +99,9 @@ export type Changes = {
   ref?: string
 }
 
+/** Every type of item a session holds. */
+export const ITEM_TYPES: readonly Item['type'][] = ['ask', 'park']
+
 /** The fields an edit changes, by the type of item. */
 export const EDITABLE: Record<Item['type'], readonly (keyof Changes)[]> = {
   ask: ['wants', 'yes', 'title', 'where', 'options', 'recommended', 'needs', 'ref'],

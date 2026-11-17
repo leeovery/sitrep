@@ -9,8 +9,9 @@
  * prompt box as its note where Lee wants one (DESIGN.md, "Answering an
  * ask").
  */
-import { replyOnItsWay } from '../../core'
+import { replyOnItsWay, type Carried } from '../../core'
 import type { SitrepItemRef } from '../../types'
+import { pickedUpList } from '../lists'
 import { C, GLYPH } from '../look'
 import { itemKey, type ParkedAt, type TakenAt } from '../places'
 import { queuedOn } from '../queue'
@@ -148,17 +149,22 @@ const drawTaken = (d: Drawing, entry: TakenAt, isNamed: boolean): Block => {
 const parkedWords = (count: number) =>
   count === 0 ? 'nothing to come back to' : `${count} to come back to`
 
+/** What Parked lists: what is parked, and what was taken off it, none while a project's is not carried yet. */
+export type ParkedList = { parked: readonly ParkedAt[]; taken: Carried<TakenAt> | undefined }
+
 /**
  * PARKED's heading, then each item, and what was taken off it, `scope`
  * naming whose; none while nothing is parked and nothing was taken off.
+ * What was taken off draws only once it is carried, so no count shows
+ * short.
  */
 export const drawParked = (
   d: Drawing,
   scope: string,
-  { parked, taken }: { parked: readonly ParkedAt[]; taken: readonly TakenAt[] },
+  { parked, taken }: ParkedList,
   isNamed: boolean,
 ): Block[] =>
-  parked.length === 0 && taken.length === 0
+  parked.length === 0 && (taken?.count ?? 0) === 0
     ? []
     : [
         { key: 'parked', element: heading(d, 'PARKED', C.parked, parkedWords(parked.length)) },
@@ -166,11 +172,13 @@ export const drawParked = (
           key: `parked:${keyOf(each)}`,
           element: drawItem(d, each, isNamed),
         })),
-        ...drawPast(d, {
-          list: `pickedup:${scope}`,
-          entries: taken,
-          draw: entry => drawTaken(d, entry, isNamed),
-          opens: takenOpens,
-          folding: { show: 'show picked up', hide: 'hide picked up' },
-        }),
+        ...(taken === undefined
+          ? []
+          : drawPast(d, {
+              list: pickedUpList(scope),
+              carried: taken,
+              draw: entry => drawTaken(d, entry, isNamed),
+              opens: takenOpens,
+              folding: { show: 'show picked up', hide: 'hide picked up' },
+            })),
       ]

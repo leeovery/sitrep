@@ -89,13 +89,17 @@ export const kindAsk = (
   extra: { options?: string[]; needs?: string } = {},
 ): Body => ({ type: 'ask', id, kind, title, ...extra })
 
-/** A note's line as Claude wrote one until notes went (17 November 2026), a kind no reader knows now. */
+/** A note's line as Claude wrote one until notes went (17 November 2026), read now for its id alone. */
 export const oldNote = (
   id: string,
   text: string,
   detail?: string[],
   extra: { ref?: string } = {},
 ): Body => ({ type: 'note', id, text, detail, ...extra }) as unknown as Body
+
+/** An edit of a note's text and detail alone, as Claude wrote one until notes went. */
+export const oldNoteEdit = (item: string, text: string, detail?: string[]): Body =>
+  ({ type: 'edit', item, changes: { text, detail } }) as unknown as Body
 
 export const park = (
   id: string,

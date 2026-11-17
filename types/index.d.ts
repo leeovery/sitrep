@@ -189,6 +189,8 @@ export type SitrepBoard = {
   replies: SitrepReply[]
   /** None from a load before the history was the board's. */
   history?: SitrepStatusLine[]
+  /** Always empty: a build from before notes went draws a board this one wrote, its drawing reading the notes unguarded. */
+  log: []
   presence: SitrepPresence[]
   isOpen: boolean
   deliverer?: string
@@ -319,6 +321,9 @@ export type SitrepBrief = SitrepSummary & {
 /** A parked item of a project's, and the session that parked it, by its id and its name: core's `ProjectParked`. */
 export type SitrepProjectParked = SitrepParked & { session: string; name: string }
 
+/** A list of the board's past as the look carries it: core's `Carried`. */
+export type SitrepCarried<T> = { entries: T[]; count: number }
+
 /** A change of status in a project's history, and the session it came from: core's `ProjectStatusLine`. */
 export type SitrepProjectStatusLine = SitrepStatusLine & { session: string }
 
@@ -337,10 +342,10 @@ export type SitrepProject = {
   parked?: SitrepProjectParked[]
   /** Every session filed under it but the held one, finished and idle ones included, by id: what names the session a pick-up went to. Only for the held session's project, and the project of the place the open board shows; none otherwise. */
   names?: Partial<Record<string, string>>
-  /** What was taken off its sessions' Parked, the newest taken off first, finished and idle sessions' included. Only while the open board shows the project's view, which draws them; none otherwise. */
-  takenOff?: SitrepProjectParked[]
-  /** Its current sessions' changes of status, the newest first. Only while the open board shows the project's view, which draws them; none otherwise. */
-  history?: SitrepProjectStatusLine[]
+  /** What was taken off the Parked of every session filed under it, finished and idle ones included, the newest taken off first: the latest its view shows, every one while it shows all. Only while the open board shows the project's view, which draws them; none otherwise. */
+  takenOff?: SitrepCarried<SitrepProjectParked>
+  /** Its current sessions' changes of status, the newest first: the latest its view shows, every one while it shows all. Only while the open board shows the project's view, which draws them; none otherwise. */
+  history?: SitrepCarried<SitrepProjectStatusLine>
 }
 
 /** Another session the board draws in full, and the project it is filed under. */

@@ -76,7 +76,12 @@ const maybe =
   value =>
     value === undefined || check(value)
 
-/** What an edit may carry; it carries at least one of them. */
+/**
+ * What an edit may carry; it carries at least one of them. A note's `text`
+ * and `detail` are read and ignored, as a note's line is read for its id
+ * alone: an edit of a note from before notes went still dates its session
+ * and counts in its writer's file.
+ */
 const CHANGES: Record<string, Check> = {
   wants: maybe(isWants),
   yes: maybe(isText),
@@ -87,6 +92,8 @@ const CHANGES: Record<string, Check> = {
   recommended: maybe(isText),
   needs: maybe(isText),
   ref: maybe(isText),
+  text: maybe(isText),
+  detail: maybe(isTexts),
 }
 
 const isChanges: Check = value =>

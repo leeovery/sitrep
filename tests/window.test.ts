@@ -557,6 +557,12 @@ test('the board in $.state is plain data, and rebuilds into the session core fol
   expect(sessionOf(kept).items.get('k1')?.type).toBe('ask')
 })
 
+test('the board in $.state holds an empty log, which a build from before notes went draws a board this one wrote by', () => {
+  const session = fold({ logs: { [W1]: file([T0, status(['Drawing round 2'])]) } })
+
+  expect(boardOf(session).log).toEqual([])
+})
+
 test('a board an older load saved, holding a note and no history, rebuilds with neither note nor anything of it but its id', () => {
   const session = fold({
     logs: { [W1]: file([T0, park('p1', 'Drew round 1')], [T0 + 1, status(['Drawing round 2'])]) },

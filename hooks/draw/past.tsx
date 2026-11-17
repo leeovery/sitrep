@@ -7,11 +7,9 @@
  * `show fewer`). Only these presses change what a list shows, kept in the
  * pane per list; opening or closing an item never does.
  */
+import { LATEST_SHOWN as LATEST, type Carried } from '../../core'
 import type { SitrepShowing } from '../../types'
 import type { Block, Drawing } from './kit'
-
-/** How many entries a list shows until it is shown in full. */
-const LATEST = 3
 
 /** The words of a list's press that opens it, before its count, and of the one that folds it away. */
 export type Folding = { show: string; hide: string }
@@ -19,8 +17,8 @@ export type Folding = { show: string; hide: string }
 export type Past<T> = {
   /** The list, as the pane keeps what it shows: `history:<session>`. Its presses are keyed by it. */
   list: string
-  /** The newest first. */
-  entries: readonly T[]
+  /** The newest first: every one, or, carried for a project's view, the latest it shows, with how many there are. */
+  carried: Carried<T>
   /** An entry, as a block of its own. */
   draw: (entry: T) => Block
   /** What opens an entry, so a list that stops showing it closes it. */
@@ -42,28 +40,29 @@ const drawPress = (d: Drawing, key: string, label: string, onPress: () => void):
 
 /** A list's blocks: its press alone while it is folded away, none with nothing in it; else its entries, the latest or every one, between its presses. */
 export const drawPast = <T,>(d: Drawing, past: Past<T>): Block[] => {
-  const { list, entries, draw, opens, folding } = past
+  const { list, carried, draw, opens, folding } = past
+  const { entries, count } = carried
   const showing = d.scene.pane.shown?.[list]
   const show = (to: SitrepShowing | undefined, hidden: readonly T[]) => () =>
     d.act.show(list, to, hidden.map(opens))
 
-  if (entries.length === 0) {
+  if (count === 0) {
     return []
   }
 
   if (folding !== undefined && showing === undefined) {
-    return [drawPress(d, list, `${folding.show} ${entries.length}`, show('latest', []))]
+    return [drawPress(d, list, `${folding.show} ${count}`, show('latest', []))]
   }
 
   const isInFull = showing === 'all'
   const hide = folding && drawPress(d, list, folding.hide, show(undefined, entries))
   const fewer = folding === undefined ? undefined : 'latest'
   const all =
-    entries.length > LATEST &&
+    count > LATEST &&
     drawPress(
       d,
       `all:${list}`,
-      isInFull ? 'show fewer' : `show all ${entries.length}`,
+      isInFull ? 'show fewer' : `show all ${count}`,
       isInFull ? show(fewer, entries.slice(LATEST)) : show('all', []),
     )
 

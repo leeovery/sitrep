@@ -31,6 +31,7 @@ import { fromTheTop } from './clip'
 import { takeBack } from './deliver'
 import { logFailure, type Host } from './host'
 import { writeHeld, writeInto, writeOwnFile } from './into'
+import { isProjectList } from './lists'
 import { closeBoard } from './pane'
 import { projectPlace } from './places'
 import { clearing, queuing, unqueuing } from './queue'
@@ -97,6 +98,20 @@ const shownAs = (
   return { shown: { ...pane.shown, [list]: showing }, selected: isHidden ? null : pane.selected }
 }
 
+/** A list of the board's past shown as asked; a project's has the look read again, which carries as much of it as it now shows. */
+const show = async (
+  host: Host,
+  list: string,
+  showing: SitrepShowing | undefined,
+  hidden: readonly string[],
+) => {
+  await changePane(host, pane => shownAs(pane, list, showing, hidden))
+
+  if (isProjectList(list)) {
+    await lookAround(host)
+  }
+}
+
 /** Has another session read in full, for the board to draw what Lee did to it; the held one is the watch's. */
 const readIfElsewhere = async (host: Host, { session }: SitrepSessionRef) => {
   if (session !== attached()?.session) {
@@ -121,11 +136,11 @@ const answer = async (host: Host, answering: SitrepAnswering, text?: string) => 
   await readIfElsewhere(host, answering)
 }
 
-/** The board on a place, nothing opened there, at its top: what it shows read first, so its first frame there draws it whole. */
+/** The board on a place, nothing opened there, at its top, and what it shows read. */
 const go = async (host: Host, place: SitrepPlace) => {
-  await lookAround(host, [], place)
   await changePane(host, () => ({ place, selected: null }))
   await fromTheTop(host)
+  await lookAround(host)
 }
 
 /** Lee's finish: a line in this window's own file in the session, none once it is finished already. */
@@ -232,9 +247,7 @@ export const actionsOf = (host: Host): Actions => {
         changePane(host, pane => ({ selected: pane.selected === id ? null : id })),
       ),
     show: (list, showing, hidden) =>
-      run('showing the past', () =>
-        changePane(host, pane => shownAs(pane, list, showing, hidden)),
-      ),
+      run('showing the past', () => show(host, list, showing, hidden)),
     reply: reply => run('queuing a reply', () => queue(host, reply)),
     unqueue: (session, item) =>
       run('taking a reply back', () =>

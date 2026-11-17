@@ -100,8 +100,8 @@ of its own.
    window already holds.
 5. A resumed conversation, holding nothing, takes up by itself the session
    it was last seen in, in whichever project: by its heartbeat, else the
-   latest item or status it posted. Sending into a session's inbox, or having
-   started it, is not being seen in it. A finished session is never taken up
+   latest item or status it posted. Sending into a session's inbox, having
+   started it, or a note posted before notes went, is not being seen in it. A finished session is never taken up
    by itself, nor an older one in its place: the conversation had moved on
    from those.
    - Resumed in a new process (`--resume`, `-c`), it keeps Claude Code's
@@ -861,7 +861,9 @@ show all 4
   closing an item never changes how much a list shows. Folding a list closes
   an item opened in what it no longer shows. What each shows is kept per
   session, and per project in a project's view, with the rest of the pane's
-  place, and closing the pane folds them all.
+  place, and closing the pane folds them all. A project's view draws its
+  history and picked up only once the look carries them (see "What a look
+  carries").
 - **Notes went** (17 November 2026, Lee). Notes mixed three things: notes
   Claude wrote, which Lee never looked at, and the status changes and
   pick-ups the board noticed itself. Lee wanted the notes gone, and the
@@ -873,10 +875,20 @@ show all 4
   Claude may still hold it in context; its time still dates its session and
   its count still counts, so the writer's next line counts on past it; and
   it posts nothing, no item and no change. A resolve or an edit naming it
-  is refused as naming no item (`There is no item k3f9 on this board.`). A
+  is refused as naming no item (`There is no item k3f9 on this board.`); an
+  edit line already on disk changing only a note's `text` or `detail` is
+  read the same, those fields ignored, so it too dates its session and
+  counts. A note was never its writer being seen in its session: a resumed
+  conversation takes up a session by its heartbeat, its items and its
+  status alone, and a note's time is not among them. A
   board an older load saved in `$.state` may still hold a note among its
   items until the session folds again; drawing drops any item of a type it
-  does not know, and keeps its id.
+  does not know, and keeps its id. The other way, the board this build
+  keeps holds an empty `log`, which a build from before reads unguarded:
+  back on a release (`app/plugin app`, a cask reinstall), its pane draws the
+  board this one wrote rather than throw until it writes its own. A
+  project's view there may still throw until its first look, 5 seconds at
+  most, rewrites the projects.
 - **Parked:** a section of every session's view, under Status, and of every
   project's, drawn while something is parked there or was taken off it, its
   heading counting what is parked (`2 to come back to`, or `nothing to come
@@ -2682,7 +2694,8 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   still read and no longer written. A `note`, Claude's note until notes
   went (17 November 2026), is still read, for its `id` alone: the id stays
   taken, and the line dates its session and counts in its writer's file as
-  ever, but it posts nothing (see "Notes went"). The session holds the latest finish, when, by which
+  ever, but it posts nothing; an edit's `text` and `detail`, a note's, are
+  read and ignored the same (see "Notes went"). The session holds the latest finish, when, by which
   writer and why, until an unfinish clears it. Who is a field of its own
   because Lee's pane and Claude's tool write as the same window.
 - Reading merges every writer's lines into one order: time, then writer,
@@ -2913,11 +2926,22 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   the open board shows, a session's or a project's, where Parked's picked
   up names the session a pick-up went to; and its current sessions'
   history and what was taken off their Parked, only while the open board
-  shows the project's view, the only place that draws them. A move on the
-  board reads around first, as though it showed the place already, and
-  moves only then, so the first frame there draws the place whole: a
-  project's history and picked up are counted from that frame, never by
-  this session's alone and then by all, nor late.
+  shows the project's view, the only place that draws them. A project's
+  view carries its current sessions' history and what was taken off the
+  Parked of every session filed under it, finished and idle ones included;
+  of each, the latest 3 it shows and how many there are, and every one only
+  while that list shows all, so a long past costs no more than its count
+  until Lee asks for it. A move on the board moves at once and reads around
+  after, as a press of a project list's toggle reads around again (6bedc72
+  read first, and a move waited a look behind it, up to a second and a half
+  just after a window started, for ever on a hung read). So a project's
+  view draws its history and picked up only once the look has carried
+  them, a beat after it opens: never counted by this session's alone and
+  then by all. The held session's own are always whole, from its fold; a
+  look from before the window took up the session it holds, which read that
+  session as one around, gives the view neither list until the next, since
+  what it carried, only in part, would count that session twice. A pane
+  drawn but not marked open, which only a test mounts, draws neither.
 - The pane's last view lives in the window's `$.state` only: where it looks,
   the item opened there, and, apart from that, how much each list of the
   board's past shows (`shown`, by the list), the held send Ready to send's one row for several
