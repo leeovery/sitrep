@@ -71,8 +71,8 @@ const take = async (host: Host, held: SitrepAttachment, session: Session) => {
   await host.state.queue.update(waiting => {
     const replies = unsentTo(waiting, flights, held, session.id)
 
-    taken = sendable(folded, replies)
-    left = leftOut(folded, replies)
+    taken = sendable(held.session, folded, replies)
+    left = leftOut(held.session, folded, replies)
 
     return afterSend(waiting, taken)
   })

@@ -77,7 +77,10 @@ test("this session's view: the name and summary, what is under way and next, eac
 
   expect(await ui.find({ key: 'tab:session', text: 'Help desk redesign' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: 'Help desk redesign' })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: '· Northwind' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '·' })).toBeDefined()
+  expect(await ui.find({ key: 'proj:northwind', text: 'Northwind' })).toMatchObject({
+    props: { plain: true, dimColor: true },
+  })
   expect(
     await ui.find({ type: 'Text', text: 'Redesign the help desk, page by page' }),
   ).toBeDefined()

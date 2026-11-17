@@ -6,7 +6,7 @@
  * Under them, the replies still to send, grouped by where each goes, this
  * session first, a pick-up always to it whichever session of the project
  * parked its item, each hung from its item with its own ✕, then send and
- * cancel all, which reach only those.
+ * cancel all, which reach only those, while any of them would go.
  *
  * Replies sent into another session's inbox stay in their group until Claude
  * has them, and a while after: the group says where they stand there, and
@@ -23,7 +23,6 @@ import type { RenderElement } from 'claude-code'
 import {
   deliveryOf,
   type Ask,
-  type Barred,
   type Delivery,
   type Parked,
   type Reply,
@@ -44,6 +43,7 @@ import {
   queuedFor,
   sentIn,
   unsent,
+  type HeldBack,
 } from '../queue'
 import type { Filed, Scene } from '../scene'
 import { answeredByTheHook, drawReplyRow, drawRewrite, NOT_SENT, type Drawing } from './kit'
@@ -140,7 +140,7 @@ const BOX_SIDES = 4
 const BUTTONS_ROWS = 1
 
 /** A reply waiting for a send, or carried by one on its way, the item it answers, and what holds it back from a send, if anything does. */
-type Queued = { item: Ask | Parked; queued: SitrepQueued; barred?: Barred }
+type Queued = { item: Ask | Parked; queued: SitrepQueued; barred?: HeldBack }
 
 /** A reply sent into its session's inbox, and the item it answers. */
 type Sent = { item: Ask | Parked; sent: Reply }
@@ -173,7 +173,7 @@ export type Ready = {
   groups: readonly Group[]
   /** How many replies are not yet with Claude: those the sends on their way carry, and those still to send, any left off for room among them. */
   waiting: number
-  /** How many replies wait for a send, any left off for room among them. */
+  /** How many replies a send would carry, any left off for room among them: none held back (`heldBack`). Send shows while any would go. */
   toSend: number
   /** How many replies are left off for room. */
   more: number
@@ -185,9 +185,7 @@ const queuedIn = (scene: Scene, queue: readonly SitrepQueued[]): Queued[] =>
     const filed = filedAt(scene, queued.session)
     const item = filed === undefined ? undefined : answered(filed.session, queued)
 
-    return item === undefined
-      ? []
-      : [{ item, queued, barred: heldBack(scene.inFlight, item, queued) }]
+    return item === undefined ? [] : [{ item, queued, barred: heldBack(scene, item, queued) }]
   })
 
 const sentTo = ({ session }: Filed, replies: readonly Reply[]): Sent[] =>
@@ -313,6 +311,15 @@ const waitingIn = (group: Group) =>
 
 const countWaiting = (groups: readonly Group[]) =>
   groups.reduce((sum, group) => sum + waitingIn(group), 0)
+
+/** Whether a reply listed is queued, and nothing holds it back from a send. */
+const isSendable = (listed: Listed) => 'queued' in listed && listed.barred === undefined
+
+/** How many replies of the groups still to send a send could carry. */
+const countToSend = (groups: readonly Group[]) =>
+  groups
+    .filter(group => !isSend(group))
+    .reduce((sum, group) => sum + group.listed.filter(isSendable).length, 0)
 
 /** The rows a send's line takes, and the row of its buttons under it where it has one. */
 const goingRows = (going: Going) => going.rows.length + (going.sendsNow ? BUTTONS_ROWS : 0)
@@ -446,7 +453,7 @@ export const readyOf = (scene: Scene, width: number, rows = Infinity): Ready | u
   const frame: Ready = {
     groups: [],
     waiting: countWaiting(groups),
-    toSend: countWaiting(groups.filter(group => !isSend(group))),
+    toSend: countToSend(groups),
     more: 0,
   }
   const kept = fitted(groups, rows - readyRows(frame), scene.pane.heldShown)

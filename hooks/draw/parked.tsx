@@ -1,7 +1,8 @@
 /**
- * PARKED: what a session raised and put off, or everything parked in a
- * project in its view, finished and idle sessions' included, each to pick
- * up from a window holding a session of its project; and at its foot,
+ * PARKED: everything parked in a project, finished and idle sessions'
+ * included, in its view and in each of its sessions', a session's own
+ * first, each to pick up from a window holding a session of its project;
+ * and at its foot,
  * folded away until Lee opens it, what was taken off it, picked up by Lee
  * or closed by Claude. Drawn while something is parked or was taken off. A
  * pick-up queues in Ready to send like any reply, to this session whichever
@@ -11,7 +12,7 @@
  */
 import { replyOnItsWay, type Carried } from '../../core'
 import type { SitrepItemRef } from '../../types'
-import { pickedUpList } from '../lists'
+import { pickedUpList, projectScope } from '../lists'
 import { C, GLYPH } from '../look'
 import { itemKey, type ParkedAt, type TakenAt } from '../places'
 import { queuedOn } from '../queue'
@@ -74,9 +75,13 @@ const drawButtons = (d: Drawing, entry: ParkedAt) => {
 /** Whether the window can pick a parked item up: it holds a session of the item's project, whose Claude a pick-up goes to. */
 const isPickable = (d: Drawing, { at }: ParkedAt) => at.project === d.scene.here
 
-/** A parked item: its row, its title after its session's name where the list names them, and, opened, the buttons that pick it up under its tree, where the window can. */
-const drawItem = (d: Drawing, entry: ParkedAt, isNamed: boolean) => {
-  const { name, parked } = entry
+/** A row's title after the name of its item's session, but in that session's own view, `own` naming it. */
+const titled = ({ at, name }: ParkedAt, title: string, own: string | undefined) =>
+  at.session === own ? title : `${name}: ${title}`
+
+/** A parked item: its row, its title named as `titled` names it, and, opened, the buttons that pick it up under its tree, where the window can. */
+const drawItem = (d: Drawing, entry: ParkedAt, own: string | undefined) => {
+  const { parked } = entry
   const key = keyOf(entry)
   const at = refOf(entry)
   const isOpen = d.scene.pane.selected === key
@@ -87,7 +92,7 @@ const drawItem = (d: Drawing, entry: ParkedAt, isNamed: boolean) => {
   return drawRow(d, {
     key: `parked:${key}`,
     mark: MARK,
-    title: isNamed ? `${name}: ${parked.title}` : parked.title,
+    title: titled(entry, parked.title, own),
     at: parked.at,
     isOpen,
     press: { key: `ppick:${key}`, onPress: () => d.act.select(key) },
@@ -123,26 +128,53 @@ const takenDetail = ({ parked }: TakenAt) => {
 
 const takenOpens = (entry: TakenAt) => `picked:${keyOf(entry)}`
 
-/** An item taken off Parked, as a block of its own: its title after its session's name where the list names them, and how it left. */
-const drawTaken = (d: Drawing, entry: TakenAt, isNamed: boolean): Block => {
-  const { name, parked } = entry
+/** An item taken off Parked, as a block of its own: its title, named as `titled` names it, and how it left. */
+const drawTaken = (d: Drawing, entry: TakenAt, own: string | undefined): Block => {
+  const { parked } = entry
   const key = takenOpens(entry)
   const isOpen = d.scene.pane.selected === key
   const row = `taken:${keyOf(entry)}`
-  const title = `${parked.title} · ${howTaken(entry)}`
 
   return {
     key: row,
     element: drawRow(d, {
       key: row,
       mark: TAKEN_MARK,
-      title: isNamed ? `${name}: ${title}` : title,
+      title: titled(entry, `${parked.title} · ${howTaken(entry)}`, own),
       at: parked.closedAt ?? parked.at,
       isOpen,
       press: { key, onPress: () => d.act.select(key) },
       branches: isOpen ? takenDetail(entry) : [],
     }),
   }
+}
+
+/** What heads the items other sessions parked, in a session's view. */
+const OTHERS = 'from other sessions'
+
+/**
+ * Each parked item as a block of its own; in a session's view, `own`
+ * naming it, a faint line before the first another session parked, so its
+ * own and theirs read apart, even where it has none of its own. A project's
+ * view names every row, and needs none.
+ */
+const drawItems = (d: Drawing, parked: readonly ParkedAt[], own: string | undefined) => {
+  const { Text } = d.els
+  const blocks = parked.map(each => ({
+    key: `parked:${keyOf(each)}`,
+    element: drawItem(d, each, own),
+  }))
+  const first = own === undefined ? -1 : parked.findIndex(({ at }) => at.session !== own)
+  const label = {
+    key: 'parked:others',
+    element: (
+      <Text color={C.faint} wrap="truncate-end">
+        {OTHERS}
+      </Text>
+    ),
+  }
+
+  return first < 0 ? blocks : [...blocks.slice(0, first), label, ...blocks.slice(first)]
 }
 
 /** How much is parked, as PARKED's heading says it. */
@@ -153,31 +185,29 @@ const parkedWords = (count: number) =>
 export type ParkedList = { parked: readonly ParkedAt[]; taken: Carried<TakenAt> | undefined }
 
 /**
- * PARKED's heading, then each item, and what was taken off it, `scope`
- * naming whose; none while nothing is parked and nothing was taken off.
+ * PARKED's heading, then each item parked in `project`, and what was taken
+ * off its Parked, each naming its session but in that session's own view,
+ * `own` naming it; none while nothing is parked and nothing was taken off.
  * What was taken off draws only once it is carried, so no count shows
  * short.
  */
 export const drawParked = (
   d: Drawing,
-  scope: string,
+  project: string,
   { parked, taken }: ParkedList,
-  isNamed: boolean,
+  own?: string,
 ): Block[] =>
   parked.length === 0 && (taken?.count ?? 0) === 0
     ? []
     : [
         { key: 'parked', element: heading(d, 'PARKED', C.parked, parkedWords(parked.length)) },
-        ...parked.map(each => ({
-          key: `parked:${keyOf(each)}`,
-          element: drawItem(d, each, isNamed),
-        })),
+        ...drawItems(d, parked, own),
         ...(taken === undefined
           ? []
           : drawPast(d, {
-              list: pickedUpList(scope),
+              list: pickedUpList(projectScope(project)),
               carried: taken,
-              draw: entry => drawTaken(d, entry, isNamed),
+              draw: entry => drawTaken(d, entry, own),
               opens: takenOpens,
               folding: { show: 'show picked up', hide: 'hide picked up' },
             })),

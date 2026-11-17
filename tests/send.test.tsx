@@ -179,7 +179,7 @@ test('a pick-up from parked is sent like any reply, and Parked counts it picked 
   const w = world($, on)
   const { paths } = await w.begin()
   const id = postedId(await w.call('park', { title: 'A priority badge across all tabs' }))
-  const ui = await w.pane()
+  const ui = await w.opened()
 
   await ui.press({ key: `ppick:${w.item(id)}` })
   await ui.press({ key: `pickup:${w.item(id)}` })
@@ -193,7 +193,7 @@ test('a pick-up from parked is sent like any reply, and Parked counts it picked 
     await ui.find({ type: 'Text', text: 'nothing to come back to' }),
     'nothing is parked now',
   ).toBeDefined()
-  expect((await ui.find({ key: `pickedup:${w.state.board?.id}` }))?.props.label).toBe(
+  expect((await ui.find({ key: `pickedup:project:${PROJECT.key}` }))?.props.label).toBe(
     'show picked up 1',
   )
 })

@@ -351,6 +351,24 @@ test('back goes one level up: a session to its project, a project to All project
   expect(placeOf(w)).toEqual({ level: 'project', project: PROJECT.key })
 })
 
+test("a session's project, named in its title line, is a dim press opening the project's view, as All projects' does: from home, and from another project's session", async ($, on) => {
+  const w = world($, on)
+
+  await asksAround(w)
+
+  const ui = await w.opened(WIDE)
+
+  expect(await ui.find({ key: `proj:${PROJECT.key}`, text: 'Northwind' })).toMatchObject({
+    props: { plain: true, dimColor: true },
+  })
+  await ui.press({ key: `proj:${PROJECT.key}` })
+  expect(placeOf(w)).toEqual(projectPlace(PROJECT.key))
+
+  await reach(ui, sessionPlace(SHIFTS.id, ELSEWHERE.key))
+  await ui.press({ key: `proj:${ELSEWHERE.key}` })
+  expect(placeOf(w)).toEqual(projectPlace(ELSEWHERE.key))
+})
+
 /** Phone width, as Blink draws the board inline, and a docked board's. */
 const NARROW = [
   { ...INLINE, bodyColumns: 46 },

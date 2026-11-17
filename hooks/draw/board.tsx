@@ -16,7 +16,16 @@ import type { SitrepPlace } from '../../types'
 import type { Actions } from '../actions'
 import type { Clip } from '../clip'
 import { C, clip as clipText, CLOSE, GLYPH } from '../look'
-import { EVERY_PROJECT, everyProject, filedAt, homeOf, isHome, projectLabel, up } from '../places'
+import {
+  EVERY_PROJECT,
+  everyProject,
+  filedAt,
+  homeOf,
+  isHome,
+  projectLabel,
+  up,
+  waitingHere,
+} from '../places'
 import type { Scene } from '../scene'
 import { drawAllView } from './every'
 import type { Back, Block, Drawing, Els } from './kit'
@@ -51,7 +60,7 @@ const TABS: readonly Tab[] = [
     label: scene => scene.session.status.name,
     isFitted: true,
     color: C.now,
-    count: scene => scene.session.waiting,
+    count: waitingHere,
     to: homeOf,
     isLit: isHome,
   },

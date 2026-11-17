@@ -3,7 +3,7 @@
  * sessions hung from it as a tree. Those with nothing open, waiting or
  * parked fold into one line at the bottom.
  */
-import type { ProjectSummary, SessionSummary } from '../../core'
+import { isLiveSession, type ProjectSummary, type SessionSummary } from '../../core'
 import { C, counted, GLYPH } from '../look'
 import { everyProject, hereFirst, projectPlace } from '../places'
 import { context, heading, NONE_OPEN, spaced, waitingWords, type Block, type Drawing } from './kit'
@@ -33,10 +33,7 @@ const drawSession = (d: Drawing, project: string, session: SessionSummary) => {
 /** What hangs from a project: its open sessions, or a line saying none is. */
 const branchesOf = (d: Drawing, project: ProjectSummary) => {
   const { Text } = d.els
-  const open = hereFirst(
-    d.scene,
-    project.sessions.filter(session => session.isOpen),
-  )
+  const open = hereFirst(d.scene, project.sessions.filter(isLiveSession))
   const parked = project.parked > 0 ? ` · ${GLYPH.parked} ${project.parked} parked` : ''
 
   return open.length > 0
@@ -122,7 +119,7 @@ export const drawAllView = (d: Drawing): Block[] => {
   const waiting = waitingWords(total(projects, project => project.waiting))
 
   return spaced(
-    [{ key: 'context', element: context(d, 'All projects', waiting) }],
+    [{ key: 'context', element: context(d, 'All projects', { parts: [waiting] }) }],
     drawProjects(d, projects),
     drawFolded(d, folded),
   )

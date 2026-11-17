@@ -7,7 +7,8 @@
  * delivered mark together, into the session whose item each answers. A send
  * it refuses leaves every reply queued. A send carries a reply only while
  * its item takes it (`sendable`): one to an item closed, or holding another
- * answer of Lee's, stays in Ready to send, saying why.
+ * answer of Lee's, or to an ask of another session finished, which no reply
+ * reaches, stays in Ready to send, saying why.
  *
  * A message sent while Claude is mid-turn the window holds until that turn
  * ends, which can take minutes, and Lee can take it back until then
@@ -37,11 +38,13 @@ const heldNow = (host: Host) =>
 /** What a send did with the held session's replies: claimed their message, met one in flight it is not claimed behind, or carried none, leaving each for why. */
 type Here = { is: 'claimed' } | { is: 'heldBack' } | { is: 'none'; left: readonly LeftOut[] }
 
-/** Why a send carried nothing at all, by why it left the replies it held: their items changed, or answered or closed, or both. */
+/** Why a send carried nothing at all, by why it left the replies it held: their items changed, or answered or closed, or their sessions finished, no reply reaching them, or several of these. */
 const nothingSent = (left: readonly LeftOut[]) => {
   const why = [
     left.includes('changed') && 'have changed since',
-    left.some(each => each !== 'changed') && 'are answered or closed already',
+    left.some(each => each === 'answered' || each === 'resolved') &&
+      'are answered or closed already',
+    left.includes('finished') && 'are in finished sessions',
   ].filter(Boolean)
 
   return `Nothing to send: the items replied to ${why.join(', or ')}. ${STILL_THERE}`
@@ -64,12 +67,12 @@ const sendHere = async (host: Host, claimed: () => Promise<void>): Promise<Here>
   const [queue, flights] = await Promise.all([host.state.queue.read(), host.state.inFlight.read()])
   const replies = unsentTo(queue, flights, held, session.id)
   const folded = await foldedFor(host, session, replies)
-  const message = boardMessage(session, sendable(folded, replies), reply =>
+  const message = boardMessage(session, sendable(session.id, folded, replies), reply =>
     folded.get(reply.session),
   )
 
   if (message === undefined) {
-    return { is: 'none', left: leftOut(folded, replies) }
+    return { is: 'none', left: leftOut(session.id, folded, replies) }
   }
 
   const ahead = await deliver(

@@ -273,18 +273,15 @@ test('once written down, its lines carry it: the claim still published reads as 
   expect(askIn(done, 'k1').replies).toHaveLength(1)
 })
 
-test('a reply in flight its item takes no more is left out, Claude closing the ask or the session finishing before the claim or while the send waits', () => {
+test('a reply in flight its item takes no more is left out, Claude closing the ask before the claim or while the send waits', () => {
   for (const at of [CLAIMED - MIN, CLAIMED + MIN / 2]) {
     const resolved = sessionOf([REVIEW, [at, resolve('k1')]], windowOn(W1, sending(YES)))
-    const finished = sessionOf([REVIEW, [at, finish('claude')]], windowOn(W1, sending(YES)))
     const when = at < CLAIMED ? 'before the claim' : 'after it'
 
     expect(askIn(resolved, 'k1').state, when).toBe('closed')
     expect(askIn(resolved, 'k1').replies, when).toEqual([])
     expect(replyState(askIn(resolved, 'k1')), `${when}: no "not delivered"`).toBeUndefined()
     expect(needingLee(resolved), when).toEqual(NONE)
-    expect(askIn(finished, 'k1').replies, when).toEqual([])
-    expect([finished.waiting, waitingOnLee(finished)], when).toEqual([0, []])
   }
 })
 
@@ -297,6 +294,21 @@ const writtenDown = (body: Body): Line[] => [
 /** Lines while the send waits out Claude's turn: the claim at CLAIMED, then these, a few seconds apart. */
 const whileWaiting = (...bodies: Body[]): Line[] =>
   bodies.map((body, i): Line => [CLAIMED + (i + 1) * 10_000, body])
+
+test('a reply in flight is on its way though the session finishes before the claim or while the send waits: the window carrying it holds the session, which a reply there reaches, and its lines settle the ask once written', () => {
+  for (const at of [CLAIMED - MIN, CLAIMED + MIN / 2]) {
+    const finished = sessionOf([REVIEW, [at, finish('claude')]], windowOn(W1, sending(YES)))
+    const written = sessionOf(
+      [REVIEW, [at, finish('claude')], ...writtenDown(reply('r1', 'k1', 'yes'))],
+      windowOn(W1, sending(YES)),
+    )
+    const when = at < CLAIMED ? 'before the claim' : 'after it'
+
+    expect(askIn(finished, 'k1').answerOnItsWay?.id, when).toBe('r1')
+    expect(waitsOnLee(askIn(finished, 'k1')), when).toBe(false)
+    expect(askIn(written, 'k1').state, when).toBe('closed')
+  }
+})
 
 test('a close or a finish undone while the send waits leaves its reply on its way: the ask waits on Lee no more and takes no second answer, and its lines settle it once written', () => {
   const cases = {
@@ -511,12 +523,23 @@ test('a send in flight never holds back the replies it carries for its own answe
   const held = { project: NORTHWIND.key, session: META.id }
   const unsent = unsentTo([carried, other], [inFlight({ type: 'reply', ...YES })], held, META.id)
 
-  expect(sendable(folded, unsent)).toEqual([other])
-  expect(leftOut(folded, unsent)).toEqual([])
+  expect(sendable(META.id, folded, unsent)).toEqual([other])
+  expect(leftOut(META.id, folded, unsent)).toEqual([])
   expect(
-    leftOut(folded, unsentTo([carried], [], held, META.id)),
+    leftOut(META.id, folded, unsentTo([carried], [], held, META.id)),
     "another's answer bars it",
   ).toEqual(['answered'])
+})
+
+test('a send leaves out a reply to an ask of a session finished, which no reply reaches; from the window holding that session, it carries it', () => {
+  const session = sessionOf([REVIEW, [T0 + MIN, finish('claude')]], {})
+  const yes = { project: NORTHWIND.key, session: META.id, item: 'k1', verdict: 'yes' } as const
+  const folded = new Map([[session.id, session]])
+
+  expect(sendable('sr-other1', folded, [yes]), 'from another window').toEqual([])
+  expect(leftOut('sr-other1', folded, [yes])).toEqual(['finished'])
+  expect(sendable(META.id, folded, [yes]), 'from the window holding it').toEqual([yes])
+  expect(leftOut(META.id, folded, [yes])).toEqual([])
 })
 
 test("a message's replies take ids unlike any its session uses, and any a message in flight carries, not written down yet", () => {

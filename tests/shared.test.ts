@@ -243,8 +243,9 @@ test("a reply queued to an ask the CLI's answer reached first is not carried: Cl
   expect(await ui.find({ key: `readyrewrite:${key}` })).toBeUndefined()
   expect(await ui.find({ key: `unready:${key}` }), 'Lee can clear it').toBeDefined()
 
+  expect(await ui.find({ key: 'send' }), 'no send while nothing would go').toBeUndefined()
+
   await w.clock.advance(TAKE_IN)
-  await ui.press({ key: 'send' })
   await w.clock.advance(4 * WATCH_MS)
 
   expect(w.prompts.map(prompt => prompt.text)).toEqual([

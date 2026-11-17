@@ -13,7 +13,6 @@ import {
   answerOf,
   moreLines,
   type Ask,
-  type Barred,
   type Parked,
   type ReplyFields,
   type Verdict,
@@ -23,7 +22,7 @@ import type { Actions } from '../actions'
 import { answeringIn } from '../answering'
 import { ago, C, clip, counted, GLYPH, wrapped } from '../look'
 import { itemKey } from '../places'
-import { heldBack, isCarried } from '../queue'
+import { heldBack, isCarried, type HeldBack } from '../queue'
 import type { Scene } from '../scene'
 
 export type Els = ElementTable
@@ -85,19 +84,74 @@ const WRITING: Partial<Record<RenderSurface, Writing>> = {
 /** Whether the surface's prompt box can be filled with words already queued, to write them again. */
 const canRewrite = (d: Drawing) => WRITING[d.surface]?.canFill === true
 
+/** What opens the aside, before its words. */
+const ASIDE_MARK = '·'
+
 /** The fewest cells the aside shows in: its `· ` and something of its words. */
 const ASIDE_LEAST = 4
 
+/** A press leading a view line's aside: its words, its key, and where it goes. */
+export type Lead = { words: string; key: string; to: SitrepPlace }
+
+/** A view line's aside: its parts, each after the first set off by a `·`, a press's words leading them where it has one. */
+export type Aside = { lead?: Lead; parts: readonly string[] }
+
+/** What sets off each part of an aside after the first. */
+const PARTS_APART = ` ${ASIDE_MARK} `
+
+/** Where the words of an aside's lead start, after its `· `. */
+const LEAD_START = ASIDE_MARK.length + 1
+
+/** An aside cut to fit, whole as `cut`, and its lead, where it has one, with where in `cut` the lead's words end. */
+type CutAside = { cut: string; lead?: Lead & { end: number } }
+
 /** A title and its aside cut to `room`: the aside first, in what the title leaves, and none where too little is left. */
-const fitTitle = (room: number, title: string, aside: string) => {
+const fitTitle = (room: number, title: string, { lead, parts }: Aside) => {
   const name = clip(title, room)
   const left = room - name.length - 1
+  const words = lead === undefined ? parts : [lead.words, ...parts]
+  const aside: CutAside | undefined =
+    left < ASIDE_LEAST
+      ? undefined
+      : {
+          cut: clip(`${ASIDE_MARK} ${words.join(PARTS_APART)}`, left),
+          lead: lead && { ...lead, end: LEAD_START + lead.words.length },
+        }
 
-  return { name, aside: left < ASIDE_LEAST ? undefined : clip(`· ${aside}`, left) }
+  return { name, aside }
+}
+
+/**
+ * The aside as cut to fit, grey; where a press leads it, that press dim, as
+ * the way back is drawn, then the rest, the same cells across. Cut short at
+ * or before the end of the press's words, the press takes what is left, its
+ * ellipsis with it.
+ */
+const drawAside = (d: Drawing, { cut, lead }: CutAside) => {
+  const { Box, Text, Button } = d.els
+
+  if (lead === undefined) {
+    return (
+      <Text color={C.grey} wrap="truncate-end">
+        {cut}
+      </Text>
+    )
+  }
+
+  const hasRest = cut.length > lead.end + 1
+  const label = cut.slice(LEAD_START, hasRest ? lead.end : undefined)
+
+  return (
+    <Box flexDirection="row" gap={1}>
+      <Text color={C.grey}>{ASIDE_MARK}</Text>
+      <Button key={lead.key} plain dimColor label={label} onPress={() => d.act.go(lead.to)} />
+      {hasRest && <Text color={C.grey}>{cut.slice(lead.end + 1)}</Text>}
+    </Box>
+  )
 }
 
 /** The line under the header naming what the view is of, with a few words on it, and a summary under it. */
-export const context = (d: Drawing, title: string, aside: string, summary?: string) => {
+export const context = (d: Drawing, title: string, aside: Aside, summary?: string) => {
   const { Box, Text } = d.els
   const line = fitTitle(d.width, title, aside)
 
@@ -107,11 +161,7 @@ export const context = (d: Drawing, title: string, aside: string, summary?: stri
         <Text bold wrap="truncate-end">
           {line.name}
         </Text>
-        {line.aside !== undefined && (
-          <Text color={C.grey} wrap="truncate-end">
-            {line.aside}
-          </Text>
-        )}
+        {line.aside !== undefined && drawAside(d, line.aside)}
       </Box>
       {summary !== undefined && (
         <Text color={C.soft} wrap="wrap">
@@ -535,14 +585,15 @@ export const drawRewrite = (d: Drawing, key: string, item: Ask | Parked, queued:
 /** A press answered by the `ui.press` hook, inside the press itself, where its calls carry Lee's press; the button's own closure does nothing. */
 export const answeredByTheHook = () => undefined
 
-/** Why a reply in Ready to send stays as a send goes: its item took another answer of Lee's first, or Claude closed it. */
-export const NOT_SENT: Record<Barred, string> = {
+/** Why a reply in Ready to send stays as a send goes: its item took another answer of Lee's first, or Claude closed it; or its session finished, no reply reaching it. */
+export const NOT_SENT: Record<HeldBack, string> = {
   answered: '· not sent: already answered',
   resolved: '· not sent: Claude closed it',
+  finished: '· not sent: session finished',
 }
 
 /** Where a reply in Ready to send stands, as the branch under what it answers says it. */
-const queuedWords = (isOnItsWay: boolean, barred: Barred | undefined) => {
+const queuedWords = (isOnItsWay: boolean, barred: HeldBack | undefined) => {
   if (isOnItsWay) {
     return '· on its way'
   }
@@ -553,12 +604,12 @@ const queuedWords = (isOnItsWay: boolean, barred: Barred | undefined) => {
 /**
  * A reply in Ready to send, as a branch under what it answers: undone from
  * there until a send carries it, its words written again from there while
- * its item takes it.
+ * its item takes it and a reply reaches it.
  */
 export const drawQueued = (d: Drawing, item: Ask | Parked, queued: SitrepQueued) => {
   const { Box, Text, Button } = d.els
   const isOnItsWay = isCarried(d.scene.inFlight, queued)
-  const barred = heldBack(d.scene.inFlight, item, queued)
+  const barred = heldBack(d.scene, item, queued)
   const key = itemKey(queued.session, queued.item)
 
   return drawReplyRow(

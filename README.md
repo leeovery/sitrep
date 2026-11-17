@@ -100,7 +100,7 @@ The mod gives Claude these tools. Only the main conversation can call them; a su
 
 ## The board in Claude Code
 
-- **The pane**, opened by `/sitrep` or the band, has two tabs: this session, and All projects. A session shows its asks first, then its status, the items it parked and resolved asks. Its status opens to its history, every change of it, and Parked to what was picked up or closed, each closed until you open it. All projects opens each project, and each project its sessions, with the history of their status, and every item parked in it, each naming the session that parked it. A parked item can be picked up from any window of its project, and goes to the Claude in that window.
+- **The pane**, opened by `/sitrep` or the band, has two tabs: this session, and All projects. A session shows its asks first, then its status, its project's parked items, its own first, and resolved asks. Its status opens to its history, every change of it, and Parked to what was picked up or closed, each closed until you open it. A session's project, named beside it, opens that project. All projects opens each project, and each project its sessions, with its old sessions (finished, or idle over a week) folded under them, and every item parked in it, each naming the session that parked it. A finished session says so, and its asks take no reply, but in the window that still holds it. A parked item can be picked up from any window of its project, and goes to the Claude in that window.
 - **The band** is the line above the prompt: this session's asks, what waits elsewhere, and the pane's show or hide. A new ask pulses it and shows a toast.
 - **Ready to send.** Your replies queue at the pane's foot, grouped by the session each goes to, until you press **send to Claude** or **cancel all**. A words ask's answer, or a comment, is written in Claude Code's prompt. A snooze, a wake or a finish takes effect at once; snoozing an ask snoozes its session.
 
@@ -133,7 +133,7 @@ The CLI is `bin/sitrep` in the plugin's folder; the app's copy is `~/Library/App
 | Command | What it does |
 |---|---|
 | `sitrep list` | Every project's current sessions, with their ids and what waits on you |
-| `sitrep board` | A session's status, open asks and its project's parked items, with their ids |
+| `sitrep board` | A session's status, open asks and its project's parked items, with their ids; with `--json`, the items it parked itself |
 | `sitrep status` | Sets where a session stands, giving only what changed |
 | `sitrep ask` | Posts an ask, and prints its id |
 | `sitrep park` | Parks something to come back to, on the session's project, and prints its id |

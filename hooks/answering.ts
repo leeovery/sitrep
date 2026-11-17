@@ -10,10 +10,11 @@
  * next Enter would be taken: while its item, as the board reads it, in full
  * or in its project's briefs and parked items, can still take the reply.
  * Once it cannot (closed or picked up, answered from elsewhere, an ask's
- * session finished, a send carrying its reply) the next Enter goes to
- * Claude as ever, and the mode ends. A parked item's session finished ends
- * nothing: the item is its project's. An item whose session the board has
- * not read yet leaves it standing, unshown.
+ * session finished, no reply reaching it, a send carrying its reply) the
+ * next Enter goes to Claude as ever, and the mode ends. The held session
+ * finished, or a parked item's, ends nothing: a reply there goes in this
+ * window's own message, and the item is its project's. An item whose
+ * session the board has not read yet leaves it standing, unshown.
  *
  * A prompt carrying an attachment, an image, can't wait in Ready to send:
  * a plugin is given its kind, never its bytes or its path, and its own
@@ -33,6 +34,7 @@ import {
   barredBy,
   boardMessage,
   isAnswer,
+  reaches,
   takes,
   type Ask,
   type Item,
@@ -44,7 +46,7 @@ import { foldedFor } from './around'
 import { claimRide, letRideGo, rideTaken, type Ridden } from './deliver'
 import { logFailure, type Host } from './host'
 import { unwrapPastes } from './paste'
-import { briefOf, filedAt, parkedIn } from './places'
+import { briefOf, canReach, filedAt, parkedIn } from './places'
 import {
   apartFrom,
   goesTo,
@@ -120,6 +122,7 @@ export const CANNOT_RIDE: Record<LeftOut, string> = {
   changed: 'Not sent: it has changed since.',
   answered: 'Not sent: already answered.',
   resolved: 'Not sent: Claude closed it.',
+  finished: 'Not sent: the session is finished.',
 }
 
 /** How long after a taken prompt is dropped the box is cleared: once the engine has put it back. */
@@ -140,11 +143,9 @@ export const heardSurvey = (surface: RenderSurface, isHeld: boolean) => {
 /** The board has read none of what tells where the mode's item stands. */
 const UNREAD = 'unread'
 
-/** An item as it can take the mode's reply: not an ask of a finished session, where nothing waits on Lee; a parked item, its session finished or not, since it is its project's. */
-const answerable = (item: Item | undefined, isFinished: boolean) =>
-  item === undefined || (item.type === 'ask' && isFinished)
-    ? undefined
-    : item
+/** An item of `session` as it can take the mode's reply: one a reply can reach (`reaches`). */
+const answerable = (scene: Scene, session: string, item: Item | undefined) =>
+  item !== undefined && canReach(scene, session, item) ? item : undefined
 
 /**
  * The mode's item as the board reads it, where it can take the reply: in a
@@ -159,7 +160,7 @@ const seenIn = (
   const filed = filedAt(scene, session)
 
   if (filed !== undefined) {
-    return answerable(filed.session.items.get(item), filed.session.finished !== undefined)
+    return answerable(scene, session, filed.session.items.get(item))
   }
 
   const parked = parkedIn(scene, project).find(
@@ -175,8 +176,9 @@ const seenIn = (
   return brief === undefined
     ? UNREAD
     : answerable(
+        scene,
+        session,
         brief.asks.find(each => each.id === item),
-        brief.isFinished,
       )
 }
 
@@ -382,12 +384,16 @@ const kept = (host: Host, why: LeftOut): Captured => {
 /** Why the ride goes no more, read once it is claimed, and whether the mode, put back, would stand on its item as read then. */
 type LeftOnceClaimed = { reason: LeftOut; isStanding: boolean }
 
-/** Whether the mode's item, as `folded` has it but for the ride's own answer on its way, takes the mode's reply. */
+/** Whether the mode's item, as `folded` has it but for the ride's own answer on its way, takes the mode's reply: from the window holding the ride's session, which a reply there reaches (`reaches`). */
 const takesIn = (folded: Folded, { session, item, as }: SitrepAnswering, ride: SitrepInFlight) => {
   const read = folded.get(session)
-  const taking = answerable(read?.items.get(item), read?.finished !== undefined)
+  const taking = read?.items.get(item)
 
-  return taking !== undefined && isOpenTo(apartFrom(taking, ride), as)
+  return (
+    taking !== undefined &&
+    reaches(ride.session, { id: session, isFinished: read?.finished !== undefined }, taking) &&
+    isOpenTo(apartFrom(taking, ride), as)
+  )
 }
 
 /**
@@ -469,7 +475,7 @@ const letIn = async (
   const [session, queue] = await Promise.all([heldAfresh(host, scene), host.state.queue.read()])
   const reply = replyOf(answering, queue, words)
   const folded = await foldedFor(host, session, [reply])
-  const [why] = leftOut(folded, [reply])
+  const [why] = leftOut(session.id, folded, [reply])
   const message =
     why === undefined ? boardMessage(session, [reply], each => folded.get(each.session)) : undefined
 
