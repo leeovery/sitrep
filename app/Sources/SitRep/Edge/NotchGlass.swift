@@ -244,9 +244,9 @@ private struct GlassHead: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
-            Text(head.title).font(.system(size: 13, weight: .semibold)).kerning(-0.13).foregroundStyle(.primary)
+            Text.tight(head.title, EdgeStyle.headTitle).foregroundStyle(.primary)
             Spacer(minLength: 0)
-            Text(head.count).font(.system(size: 12)).foregroundStyle(.tertiary)
+            Text(head.count).font(Font(EdgeStyle.headCount)).foregroundStyle(.tertiary)
         }
         .lineLimit(1)
         .padding(.leading, HeadLayout.inset.left)
@@ -287,13 +287,13 @@ struct GlassSessionRow: View {
                 .opacity(wash)
             mark.position(at.mark)
             title(width: at.title.width).placed(in: at.title)
-            Text(session.project).font(.system(size: 12)).foregroundStyle(.tertiary)
+            Text(session.project).font(Font(EdgeStyle.sub)).foregroundStyle(.tertiary)
                 .placed(in: at.project.offsetBy(dx: 0, dy: TextLine.drop(of: EdgeStyle.sub, to: EdgeStyle.line, lineHeight: at.project.height)))
             if pressed {
                 spinner.placed(in: at.age, alignment: .trailing)
             } else {
                 Text(time)
-                    .font(.system(size: 12).monospacedDigit())
+                    .font(Font(EdgeStyle.age))
                     .foregroundStyle(session.isSnoozed ? .secondary : .tertiary)
                     .placed(in: at.age, alignment: .trailing)
             }
@@ -313,8 +313,8 @@ struct GlassSessionRow: View {
     /// What its time's place says: its age, or in Snoozed when it wakes, or that it waits until it moves.
     private var time: String { session.timeText(at: now, in: calendar) }
 
-    /// The black's layout: its project's lane as wide as the black sets its project; in Snoozed, its time's lane as
-    /// wide as the black sets when it wakes.
+    /// Laid out as the black lays its row out: its project's lane as wide as its project is set; in Snoozed, its
+    /// time's lane as wide as when it wakes is set.
     private var layout: SessionRowLayout {
         let wakes = session.isSnoozed ? TextLine.width(TextLine.text(time, EdgeStyle.age, EdgeStyle.ink2)) : 0
         let project = TextLine.width(TextLine.text(session.project, EdgeStyle.sub, EdgeStyle.ink3))
@@ -366,7 +366,7 @@ struct GlassSessionRow: View {
                     after(line).foregroundStyle(.secondary).truncationMode(.tail)
                 }
             case .needs, .turn, .snoozed, .snoozedTurn:
-                Text(line.title).font(titleFont).kerning(-0.13)
+                Text.tight(line.title, titleFont)
                     .foregroundStyle(session.isSnoozed ? .secondary : .primary).truncationMode(.tail)
             }
             if let more = line.more {
@@ -379,26 +379,24 @@ struct GlassSessionRow: View {
     }
 
     /// Its title's type, 13, as the black's: needing Lee, its name in medium; else in regular.
-    private var titleFont: Font {
-        .system(size: 13, weight: session.needsLee ? .medium : .regular)
+    private var titleFont: NSFont {
+        session.needsLee ? EdgeStyle.lineMedium : EdgeStyle.line
     }
 
     /// A Working row's verb, 13 medium, less the space core's line ends it with where something follows.
     private func verb(_ line: Session.Line) -> Text {
         let lead = line.title.hasSuffix(" ") ? String(line.title.dropLast()) : line.title
 
-        return Text(lead).font(.system(size: 13, weight: .medium)).kerning(-0.13)
+        return Text.tight(lead, EdgeStyle.lineMedium)
     }
 
     /// What follows a Working row's verb: its command in mono 12, or its subject or a wake's countdown in tabular
     /// figures, 13 regular, as the black's.
     @ViewBuilder private func after(_ line: Session.Line) -> some View {
         if let code = line.code {
-            Text(code).font(.system(size: 12, weight: .medium, design: .monospaced))
+            Text(code).font(Font(EdgeStyle.lineCode))
         } else if let subject = line.subject(at: now) {
-            let font = Font.system(size: 13)
-
-            Text(subject).font(line.until == nil ? font : font.monospacedDigit()).kerning(-0.13)
+            Text.tight(subject, line.until == nil ? EdgeStyle.line : EdgeStyle.lineCountdown)
         }
     }
 }

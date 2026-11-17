@@ -642,31 +642,6 @@ struct WelcomeWindowTests {
         #expect(stage.loopTime == loopTime)
     }
 
-    /// The ask's row is found again on the shape as it now stands: another style's panel lays it elsewhere, and the
-    /// strip's is its mark, in the strip's depth. Frames on a clock of the test's own, never awaiting, so no frame on the display's clock comes
-    /// between them.
-    @Test func theLoopsPointerFindsTheRowAgainAfterAChange() throws {
-        let made = Made()
-        let stage = try made.stage
-
-        Self.settle(stage, on: made.clock)
-        Self.key(made)
-        while stage.row == nil, stage.loopTime < WelcomeLoop.hello.length - 100 {
-            stage.step(at: made.clock.pass(1000 / 60))
-        }
-
-        let meniscus = try #require(stage.row)
-
-        made.preferences.edit { $0.style = .card }
-        for _ in 0 ..< 30 {
-            stage.step(at: made.clock.pass(1000 / 60))
-        }
-        #expect(stage.row != meniscus)
-        made.preferences.edit { $0.show = .strip }
-        stage.step(at: made.clock.pass(1000 / 60))
-        #expect(try #require(stage.row).x < Strip.restingWidth)
-    }
-
     /// The strip's length changed while the pointer rests on the ask's mark sends the mark elsewhere before the strip
     /// has begun to move: the pointer goes where the mark now goes from the change's own frame, never where it was.
     @Test func aChangeThatMovesTheMarkMovesThePointerAtOnce() throws {
@@ -692,6 +667,167 @@ struct WelcomeWindowTests {
         }
         #expect(moved != before)
         #expect(stage.row == moved)
+    }
+
+    /// The strip's length changed while the window is behind, the loop paused before the stage looks for the ask's
+    /// mark, while the pointer rests on it, or once the pointer has gone: back in front, the pointer goes by the mark
+    /// where it now is, in that loop or the next, as on a stage that had the length from the first. No pause here
+    /// falls in the glide off the mark, where only a change has the row found again
+    /// (`aChangeAsThePointerGlidesOffFindsTheRowWhereItNowIs`): these hold by the finding each loop does.
+    @Test(arguments: [WelcomeLoop.hello.seeks - 500, WelcomeLoop.hello.onRow + 300, WelcomeLoop.hello.leave + 1000])
+    func aChangeWhileThePlayIsPausedFindsTheRowWhereItNowIs(pausedAt: Double) throws {
+        let hello = WelcomeLoop.hello, made = Made()
+        let stage = try Self.stripOnTheLoop(made, to: pausedAt)
+        let loop = pausedAt < hello.onRow + 600 ? 0 : hello.length
+
+        made.window.windowDidResignKey(Notification(name: NSWindow.didResignKeyNotification, object: made.recorded))
+        made.preferences.edit { $0.length = .full }
+        Self.settle(stage, on: made.clock)
+        Self.key(made)
+        Self.run(stage, on: made.clock, to: loop + hello.onRow + 600)
+
+        #expect(stage.row == (try Self.rowOnAFullStrip(at: stage.loopTime)))
+    }
+
+    /// The strip's length changed while the pointer glides off the ask's mark, the loop paused or not: it glides off
+    /// the mark where it now is, never where it was; and in the next loop, the pointer goes by it there.
+    @Test(arguments: [false, true])
+    func aChangeAsThePointerGlidesOffFindsTheRowWhereItNowIs(paused: Bool) throws {
+        let made = Made()
+        let stage = try Self.stripOnTheLoop(made, to: WelcomeLoop.hello.leave + 200)
+        let was = try #require(stage.row)
+
+        if paused {
+            made.window.windowDidResignKey(Notification(name: NSWindow.didResignKeyNotification, object: made.recorded))
+        }
+        made.preferences.edit { $0.length = .full }
+        stage.step(at: made.clock.pass(1000 / 60))
+        Self.key(made)
+        stage.step(at: made.clock.pass(1000 / 60))
+
+        let now = try #require(stage.row)
+
+        #expect(now != was)
+        #expect(now == (try Self.rowOnAFullStrip(at: stage.loopTime)))
+        Self.run(stage, on: made.clock, to: WelcomeLoop.hello.length + WelcomeLoop.hello.onRow + 300)
+        #expect(stage.row == now)
+    }
+
+    /// On the notch, neither the material nor the edge moves the ask's row, found in the edge's own points, so neither
+    /// has it found again: late in the glide off the row, the panel folding away shows it no more, and a search there
+    /// would find none and lose the pointer, which glides on from where it was.
+    @Test(arguments: [false, true])
+    func neitherTheMaterialNorTheEdgeHasTheNotchsRowFoundAgain(changesEdge: Bool) throws {
+        let hello = WelcomeLoop.hello, made = Made()
+        let stage = try made.stage
+
+        Self.settle(stage, on: made.clock)
+        Self.key(made)
+        Self.run(stage, on: made.clock, to: hello.leave + 450)
+
+        let gliding = try #require(stage.row)
+
+        try #require(!stage.isOut)
+        made.preferences.edit { settings in
+            if changesEdge {
+                settings.edge = settings.edge.other
+            } else {
+                settings.material = settings.material == .black ? .glass : .black
+            }
+        }
+        stage.step(at: made.clock.pass(1000 / 60))
+        #expect(stage.row == gliding)
+    }
+
+    /// The other shape chosen as the pointer glides off the ask's row, the notch for the strip or the strip for the
+    /// notch, plays the loop again from its start on the new shape, as a restyle does, rather than glide off a row the
+    /// new shape doesn't have: the row is found on it in the loop played again, as on a stage that had it from the
+    /// first.
+    @Test(arguments: [EdgeSettings.Show.notch, .strip])
+    func anotherShapeAsThePointerGlidesOffPlaysTheLoopAgain(from show: EdgeSettings.Show) throws {
+        let hello = WelcomeLoop.hello, made = Made()
+        let other: EdgeSettings.Show = show == .notch ? .strip : .notch
+
+        made.preferences.edit { $0.show = show }
+
+        let stage = try made.stage
+
+        Self.settle(stage, on: made.clock)
+        Self.key(made)
+        Self.run(stage, on: made.clock, to: hello.leave + 200)
+        try #require(stage.row != nil)
+        made.preferences.edit { $0.show = other }
+        stage.step(at: made.clock.pass(1000 / 60))
+        #expect(stage.loopTime < 1000 / 60 + 1)
+        #expect(stage.row == nil)
+        Self.run(stage, on: made.clock, to: hello.onRow + 600)
+
+        let fresh = Made()
+
+        fresh.preferences.edit { $0.show = other }
+
+        let fromTheFirst = try fresh.stage
+
+        Self.settle(fromTheFirst, on: fresh.clock)
+        Self.key(fresh)
+        Self.run(fromTheFirst, on: fresh.clock, to: stage.loopTime)
+        #expect(stage.row != nil && stage.row == fromTheFirst.row)
+    }
+
+    /// The notch restyled while its panel is out, the loop paused or not, plays the loop from its start, as the notch
+    /// closes its panel to change: the panel pours again in the new style, and the pointer goes to the ask's row
+    /// there, as on a stage that had the style from the first.
+    @Test(arguments: [false, true])
+    func aStyleChangeWhileThePanelIsOutPlaysTheLoopAgain(paused: Bool) throws {
+        let hello = WelcomeLoop.hello, made = Made()
+        let stage = try made.stage
+
+        Self.settle(stage, on: made.clock)
+        Self.key(made)
+        Self.run(stage, on: made.clock, to: hello.onRow + 300)
+        try #require(stage.isOut && stage.row != nil)
+        if paused {
+            made.window.windowDidResignKey(Notification(name: NSWindow.didResignKeyNotification, object: made.recorded))
+        }
+        made.preferences.edit { $0.style = .card }
+        stage.step(at: made.clock.pass(1000 / 60))
+        #expect(stage.loopTime < 1000 / 60 + 1)
+        #expect(stage.row == nil && !stage.isOut)
+        Self.key(made)
+        Self.run(stage, on: made.clock, to: hello.onRow + 600)
+
+        let card = Made()
+
+        card.preferences.edit { $0.style = .card }
+
+        let fromTheFirst = try card.stage
+
+        Self.settle(fromTheFirst, on: card.clock)
+        Self.key(card)
+        Self.run(fromTheFirst, on: card.clock, to: stage.loopTime)
+        #expect(stage.isOut)
+        #expect(stage.row != nil && stage.row == fromTheFirst.row)
+    }
+
+    /// The strip at Grows on the stage, in front, the loop played this far.
+    private static func stripOnTheLoop(
+        _ made: Made, to loopTime: Double, sourceLocation: SourceLocation = #_sourceLocation
+    ) throws -> StageEdge {
+        let stage = try made.stage
+
+        made.preferences.edit { $0.show = .strip }
+        Self.settle(stage, on: made.clock)
+        Self.key(made)
+        Self.run(stage, on: made.clock, to: loopTime, sourceLocation: sourceLocation)
+        return stage
+    }
+
+    /// The ask's mark found on a stage whose strip was Full from the first, its loop played this far.
+    private static func rowOnAFullStrip(at loopTime: Double, sourceLocation: SourceLocation = #_sourceLocation) throws -> CGPoint? {
+        let made = Made()
+
+        made.preferences.edit { $0.length = .full }
+        return try Self.stripOnTheLoop(made, to: loopTime, sourceLocation: sourceLocation).row
     }
 
     /// The strip centres where the notch sits on the stage, Paper's place, wherever Lee dragged his own, so the
@@ -735,6 +871,20 @@ struct WelcomeWindowTests {
         repeat {
             stage.step(at: clock.pass(1000 / 60))
         } while stage.lastPace == .moving && clock.now - start < 10_000
+    }
+
+    /// The stage stepped a 60th at a time on the test's clock, until its loop has played this far.
+    /// Failing at the caller's line, rather than stepping for ever, where the loop has not come so far a second after
+    /// it should have: held behind, or started again.
+    private static func run(
+        _ stage: StageEdge, on clock: Clock, to loopTime: Double, sourceLocation: SourceLocation = #_sourceLocation
+    ) {
+        let limit = clock.now + max(0, loopTime - stage.loopTime) + 1000
+
+        while stage.loopTime < loopTime, clock.now < limit {
+            stage.step(at: clock.pass(1000 / 60))
+        }
+        #expect(stage.loopTime >= loopTime, "the loop came only to \(stage.loopTime)", sourceLocation: sourceLocation)
     }
 
     /// The footer as the window draws it, at the welcome's step: the lit spans across its middle, in points from the

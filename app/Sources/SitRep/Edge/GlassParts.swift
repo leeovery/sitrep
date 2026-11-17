@@ -130,14 +130,26 @@ final class SpinnerView: NSView {
 /// black's shimmer does: the title again in the primary, shown through the black's band of light, which Core
 /// Animation carries along it in the render server, so the app does no work as it sweeps.
 @available(macOS 26, *)
+extension Text {
+    /// Words in this type, spaced tight as the black spaces them (`EdgeStyle.tightKern`).
+    @MainActor
+    static func tight(_ words: String, _ font: NSFont) -> Text {
+        Text(words).font(Font(font)).kerning(EdgeStyle.tightKern(font))
+    }
+}
+
 struct Shimmering: View {
     let text: Text
+    /// What the sweep lights, laid out as `text` is: the whole of it unless given.
+    var lit: Text?
     let width: Double
 
     var body: some View {
         text.foregroundStyle(.secondary)
             .overlay(alignment: .leading) {
-                Sweep(lit: AnyView(text.foregroundStyle(.primary).lineLimit(1).truncationMode(.tail)), width: width)
+                let shown = (lit ?? text).foregroundStyle(.primary).lineLimit(1).truncationMode(.tail)
+
+                Sweep(lit: AnyView(shown), width: width)
             }
     }
 }

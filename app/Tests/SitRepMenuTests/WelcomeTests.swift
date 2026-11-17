@@ -599,6 +599,24 @@ struct WelcomeStagePlayTests {
         #expect(!WelcomeLoop.hello.findsRow(at: WelcomeLoop.hello.leave))
     }
 
+    /// The pointer goes by the ask's row from when the stage looks for it until it has glided off it: step 1's through
+    /// its glide, step 2's until it leaves with the jump.
+    @Test(arguments: [WelcomeLoop.hello, .ask])
+    func thePointerGoesByTheRowFromTheSearchUntilItHasGlidedOff(_ loop: WelcomeLoop) throws {
+        let times = stride(from: 0, to: loop.length, by: 10)
+        let holding = times.filter(loop.holdsRow(at:))
+        let byRow = times.filter { time in
+            let row = loop.pointer(at: time, home: Self.home, row: Self.row)
+
+            return row != nil && row != loop.pointer(at: time, home: Self.home, row: CGPoint(x: Self.row.x, y: Self.row.y + 40))
+        }
+
+        try #require(!byRow.isEmpty)
+        expectEvery(byRow) { loop.holdsRow(at: $0) }
+        #expect(holding.first == loop.seeks)
+        #expect(loop.holdsRow(at: (loop.gone ?? loop.leave) - 10) && !loop.holdsRow(at: loop.gone ?? loop.leave))
+    }
+
     /// Frames sleep but for the pointer's glides, to the notch and off the row: its step onto the row is a beat.
     @Test func thePointerMovesOnlyWhileItGlides() {
         let times = stride(from: 0, to: WelcomeLoop.hello.length, by: 50)

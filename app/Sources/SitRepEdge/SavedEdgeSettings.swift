@@ -19,7 +19,7 @@ public struct SavedSettings<Value: SavedValue> {
     private let defaults: UserDefaults
     private let logger = Logger(sitrep: "settings")
 
-    public init(_ defaults: UserDefaults = .standard) {
+    public init(_ defaults: UserDefaults) {
         self.defaults = defaults
     }
 

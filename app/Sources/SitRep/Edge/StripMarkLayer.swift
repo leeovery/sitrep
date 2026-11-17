@@ -156,7 +156,7 @@ final class StripMarkLayer {
     /// through.
     private func setLetters(_ text: String) {
         let font = EdgeStyle.letters
-        let string = TextLine.text(text, font, .black, kern: 0.01 * font.pointSize)
+        let string = TextLine.text(text, font, .black, kern: EdgeStyle.lettersKern)
         let width = TextLine.width(string).rounded(.up) + 1, height = 12.0
         let line = TextLine(
             string, in: CGRect(x: (Self.size - width) / 2, y: (Self.size - height) / 2, width: width, height: height)

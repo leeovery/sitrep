@@ -5166,7 +5166,11 @@ prototype is `prototypes/strip/strip.html`.
   is a session on every surface"). An away one's name sits over "No window
   holds it. Carry it on in Claude.", its words dimming as one, as the
   panel's (see "The rows"; 3 November 2026), on the black and on glass, in
-  a tab and in a count's rows alike.
+  a tab and in a count's rows alike. A tab's title says what follows its
+  verb on every kind, as the card's row does, and on a working tab the
+  verb alone shimmers, what follows it still in its grey; with a count,
+  what follows gives way, cut with an ellipsis, before the count does (17
+  November 2026).
 - **Moving.** The strip never shuts, so the panel's "a changed row moves
   only once it closes" becomes one rule (Lee, 14 November 2026): a mark
   moves at once whenever its session changes group, pointer on the strip or
@@ -5646,7 +5650,9 @@ does; the boards first drew it on a band of black.
      with its tongue; in this one it leaves with the jump, which drains the
      panel. It never crosses another row. On the strip it rests on the
      ask's own mark, where the layout puts it, never a drawn centre still
-     sliding, and with no mark yet there is no pointer at all.
+     sliding, and with no mark yet there is no pointer at all. A restyle of
+     the notch, or the other shape chosen, while the loop plays plays it
+     again from its start (17 November 2026).
   3. **Your edge:** "Choose what sits at your edge." Notch or Strip as
      Settings' own pictures, at the window's size, the one chosen ringed in
      the accent; under them a grouped form in System Settings' rows: Style,
