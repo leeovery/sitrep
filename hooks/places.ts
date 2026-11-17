@@ -2,19 +2,16 @@
  * The board as a tree, with this session as home: a session sits in its
  * project, and every project under All projects. Home and All projects are
  * the tabs; anywhere else is also a step back up. Also what each place
- * shows: its sessions, its asks, the history of their status, what it
- * parked, and what was taken off its Parked.
+ * shows: its sessions, its old sessions, its asks, what is parked in its
+ * project, and what was taken off its project's Parked.
  */
 import {
   allProjects,
   brief,
-  carried,
-  changedBy,
   compareText,
   NOTHING_PARKED,
   parkedBy,
   pickedUpTo,
-  projectHistory,
   projectParked,
   projectTakenOff,
   snoozedUntilIn,
@@ -176,10 +173,10 @@ const takenOffAt = (scene: Scene, key: string, taken: readonly ProjectParked[]):
   })
 
 /**
- * What the look carried of a project's past for its view; none where it read
+ * What the look carried of a project's past for its views; none where it read
  * the held session as one around, its names holding it: a look from before
  * the window took that session up, whose lists, carried only in part, would
- * count it twice.
+ * count it twice, or list it among the old.
  */
 const pastRead = (scene: Scene, key: string) => {
   const read = projectRead(scene, key)
@@ -188,7 +185,7 @@ const pastRead = (scene: Scene, key: string) => {
 }
 
 /**
- * A project's list of the board's past as its view draws it: the held
+ * A project's list of the board's past as its views draw it: the held
  * session's whole, where it is the project's, among what the look carried of
  * the others', `order`ed, and counting both; none until the look carries it.
  */
@@ -227,19 +224,10 @@ const summaryIn = (scene: Scene, key: string) => {
   return sessions.length > 0 ? summary : { ...summary, name: projectRead(scene, key)?.name ?? key }
 }
 
-/** A project's history: every change of its current sessions' status, the newest first, the others' as the look carries them for its view; none until it does. */
-const historyIn = (scene: Scene, key: string) =>
-  withHeld(
-    key === scene.here ? changedBy(scene.session) : [],
-    pastRead(scene, key)?.history,
-    projectHistory,
-  )
-
-/** A project as its view draws it: its sessions in brief, counting what is parked in it, and the history of their status. */
+/** A project as its view draws it: its sessions in brief, counting what is parked in it, and its old sessions as the look carries them for its view, none until it does. */
 export const projectAt = (scene: Scene, key: string) => ({
   summary: summaryIn(scene, key),
-  history: historyIn(scene, key),
-  sessions: briefsIn(scene, key),
+  old: pastRead(scene, key)?.old,
 })
 
 /** The name the board gives a project, as its sessions read now name it. */
@@ -316,17 +304,15 @@ export const askedIn = (scene: Scene, key: string): AskedAt[] =>
       .sort(newestFirst(scene)),
   )
 
-/** What a session has parked, oldest first. */
-export const parkedOf = (filed: Filed): ParkedAt[] =>
-  filed.session.parked.map(parked => ({
+/** A session's Parked: what it parked, oldest first, then what the project's other sessions parked, as the project's view lists it. */
+export const parkedAt = (scene: Scene, filed: Filed): ParkedAt[] => [
+  ...filed.session.parked.map(parked => ({
     at: refOf(filed),
     name: filed.session.status.name,
     parked,
-  }))
-
-/** What was taken off a session's Parked, the newest taken off first, every one. */
-export const takenOffOf = (scene: Scene, filed: Filed): Carried<TakenAt> =>
-  carried(takenOffAt(scene, filed.project, takenOffBy(filed.session)), true)
+  })),
+  ...parkedIn(scene, filed.project).filter(({ at }) => at.session !== filed.session.id),
+]
 
 /** A session's name, with its project's where the board's own project is another. */
 export const sessionLabel = (scene: Scene, filed: Filed) =>

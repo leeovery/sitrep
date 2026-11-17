@@ -832,7 +832,7 @@ test('a send carries the pick-up with its note, and the item picked up opens to 
   expect(w.prompts.map(each => each.text)).toEqual([
     `From the board:\n- Pick up from parked: ${TMUX}. Before the release`,
   ])
-  await ui.press({ key: `pickedup:${w.state.board?.id}` })
+  await ui.press({ key: `pickedup:project:${PROJECT.key}` })
   await ui.press({ key: `picked:${w.item(id)}` })
   expect(rowsOf(await ui.find({ key: `taken:${w.item(id)}` }))).toEqual([
     `✓ ${TMUX} · picked up by Help desk now`,

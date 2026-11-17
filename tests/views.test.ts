@@ -2,16 +2,15 @@ import { expect, test } from './kit'
 import {
   allProjects,
   brief,
-  changedBy,
   CURRENT_MS,
   foldSession,
   isCurrent,
   listedProjects,
   metaText,
+  oldSessions,
   parkedBy,
   parkingOf,
   pickedUpTo,
-  projectHistory,
   projectParked,
   projectTakenOff,
   summarise,
@@ -180,21 +179,37 @@ test('equally busy projects order by their latest update, then by name', () => {
   expect(keys(view.projects)).toEqual(['c', 'a', 'b'])
 })
 
-test("a project's history holds every change of its sessions' status, newest first, each naming its session", () => {
-  const first = sessionOf('sr-aaaaaa', 'northwind', {
-    logs: { [W1]: file([T0 + 1 * MIN, status(['One'])], [T0 + 4 * MIN, status(['Four'])]) },
+test("a project's old sessions are those not current, finished or idle past CURRENT_MS, the latest ended first, each ended when it was finished, else when it last changed", () => {
+  const later = NOW + CURRENT_MS + MIN
+  const current = sessionOf('sr-aaaaaa', 'northwind', {
+    logs: { [W1]: file([later - MIN, status(['Still at it'])]) },
   })
-  const second = sessionOf('sr-bbbbbb', 'northwind', {
-    logs: { [W2]: file([T0 + 2 * MIN, status(['Two'])], [T0 + 3 * MIN, status(['Three'])]) },
+  const quiet = sessionOf('sr-bbbbbb', 'northwind', {
+    logs: { [W1]: file([T0 + 2 * MIN, status(['Drew it'])]) },
+  })
+  const finished = sessionOf('sr-cccccc', 'northwind', {
+    logs: {
+      [W1]: file(
+        [T0, status(['Shipping'])],
+        [later - 2 * MIN, finish('claude', 'Shipped')],
+        [later - MIN, park('p1', 'Posted after its finish')],
+      ),
+    },
+  })
+  const open = sessionOf('sr-dddddd', 'northwind', {
+    logs: { [W1]: file([T0, status(['Kept open'])]) },
+    presence: { [W1]: seen(W1, NOW) },
   })
 
   expect(
-    projectHistory([...changedBy(first), ...changedBy(second)]).map(line => [line.session, line.text]),
+    oldSessions([current, quiet, finished, open], later).map(each => [
+      each.id,
+      each.endedAt,
+      each.now,
+    ]),
   ).toEqual([
-    ['sr-aaaaaa', 'now four'],
-    ['sr-bbbbbb', 'now three'],
-    ['sr-bbbbbb', 'now two'],
-    ['sr-aaaaaa', 'now one'],
+    ['sr-cccccc', later - 2 * MIN, ['Shipping']],
+    ['sr-bbbbbb', T0 + 2 * MIN, ['Drew it']],
   ])
 })
 

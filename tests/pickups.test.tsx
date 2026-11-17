@@ -81,11 +81,8 @@ const pickUpRows = async (ui: Board) =>
     .map(each => String(each.key))
     .filter(key => key.startsWith('picked:'))
 
-/** The press opening a session's picked up, or a project's. */
-const PICKED_UP = {
-  session: (w: World) => `pickedup:${w.state.board?.id}`,
-  project: (key: string) => `pickedup:project:${key}`,
-}
+/** The press opening a project's picked up, which its own view and each of its sessions' draw. */
+const PICKED_UP = `pickedup:project:${PROJECT.key}`
 
 test('a send of several pick-ups, some with notes, draws the docked board before, during and after the turn', async ($, on) => {
   const w = world($, on)
@@ -96,7 +93,7 @@ test('a send of several pick-ups, some with notes, draws the docked board before
   await ui.press({ key: 'send' })
 
   await expect(ui.drawn(), 'sent').resolves.toBeDefined()
-  await ui.press({ key: PICKED_UP.session(w) })
+  await ui.press({ key: PICKED_UP })
   expect(new Set(await pickUpRows(ui)).size).toBe(PARKED.length)
 
   await w.turnStarts(w.prompts.at(-1)?.text ?? '')
@@ -113,7 +110,7 @@ test('opening one item a send picked up opens only that one', async ($, on) => {
   const { ids, ui } = await pickedUp(w, $)
 
   await ui.press({ key: 'send' })
-  await ui.press({ key: PICKED_UP.session(w) })
+  await ui.press({ key: PICKED_UP })
   await ui.press({ key: `picked:${w.item(ids[1] ?? '')}` })
 
   expect(await ui.find({ type: 'Text', text: /Before the release/ })).toBeDefined()
@@ -126,7 +123,7 @@ test("a project's Parked draws a send's several pick-ups, each its own row", asy
 
   await ui.press({ key: 'send' })
   await toProject(ui, PROJECT.key)
-  await ui.press({ key: PICKED_UP.project(PROJECT.key) })
+  await ui.press({ key: PICKED_UP })
 
   await expect(ui.drawn()).resolves.toBeDefined()
   expect(new Set(await pickUpRows(ui)).size).toBe(PARKED.length)
@@ -235,7 +232,7 @@ for (const [standing, ledger] of Object.entries(STANDING)) {
       await ui.find({ type: 'Text', text: 'nothing to come back to' }),
       'the item left Parked',
     ).toBeDefined()
-    await ui.press({ key: PICKED_UP.project(PROJECT.key) })
+    await ui.press({ key: PICKED_UP })
     await ui.press({ key: `picked:${LEDGER.id}:p1` })
     expect(
       rowsOf(await ui.find({ key: `taken:${LEDGER.id}:p1` })),
@@ -254,6 +251,28 @@ for (const [standing, ledger] of Object.entries(STANDING)) {
   })
 }
 
+test("this session's own view lists what another session of the project parked, by that session's name; picked up there, it goes in this window's own message as from the project's view, and is written down in that session", async ($, on) => {
+  const w = world($, on)
+  const { id, ui } = await besideLedger(w, FINISHED)
+  const item = `${LEDGER.id}:p1`
+
+  expect(await ui.find({ key: `ppick:${item}`, text: `Invoice ledger: ${EXPORT}` })).toBeDefined()
+  await ui.press({ key: `ppick:${item}` })
+  await ui.press({ key: `pickup:${item}` })
+  await ui.press({ key: 'send' })
+
+  expect(w.prompts.map(prompt => prompt.text)).toEqual([PICKED])
+  expect(parseEntries(w.text(LEDGER_LOG)).find(line => line.type === 'reply')).toMatchObject({
+    item: 'p1',
+    verdict: 'pickup',
+    to: id,
+  })
+  expect(w.files.has(LETTERS), 'nothing in its inbox').toBe(false)
+  expect(w.state.pane?.place ?? null, 'pressed and sent from home').toBeNull()
+  expect(await ui.find({ type: 'Text', text: 'nothing to come back to' })).toBeDefined()
+  expect(await ui.find({ key: PICKED_UP, text: 'show picked up 1' })).toBeDefined()
+})
+
 test("Parked's picked up names the session a pick-up went to though the window that sent it left that session and joined it again since", async ($, on) => {
   const w = world($, on)
   const { id, ui } = await besideLedger(w, OPEN)
@@ -271,7 +290,7 @@ test("Parked's picked up names the session a pick-up went to though the window t
   ).toBe(w.clock.now())
 
   await toProject(ui)
-  await ui.press({ key: PICKED_UP.project(PROJECT.key) })
+  await ui.press({ key: PICKED_UP })
   await ui.press({ key: `picked:${LEDGER.id}:p1` })
   expect(rowsOf(await ui.find({ key: `taken:${LEDGER.id}:p1` }))).toEqual([
     '✓ Invoice ledger: Export the ledger as CSV · 2m',

@@ -1,11 +1,12 @@
 /**
  * A list of the board's past at its section's foot, and the presses that
- * show it: Status's history, Parked's picked up, and RESOLVED. A list that
- * folds away shows only its press until it is opened (`show history 14`,
- * then `hide history` over it); RESOLVED always shows. Shown, it lists its
- * latest few, and with more, a press shows every one (`show all 14`, then
- * `show fewer`). Only these presses change what a list shows, kept in the
- * pane per list; opening or closing an item never does.
+ * show it: Status's history, Parked's picked up, a project's old sessions,
+ * and RESOLVED. A list that folds away shows only its press until it is
+ * opened (`show history 14`, then `hide history` over it); RESOLVED always
+ * shows. Shown, it lists its latest few, and with more, a press shows every
+ * one (`show all 14`, then `show fewer`). Only these presses change what a
+ * list shows, kept in the pane per list; opening or closing an item never
+ * does.
  */
 import { LATEST_SHOWN as LATEST, type Carried } from '../../core'
 import type { SitrepShowing } from '../../types'
@@ -17,12 +18,12 @@ export type Folding = { show: string; hide: string }
 export type Past<T> = {
   /** The list, as the pane keeps what it shows: `history:<session>`. Its presses are keyed by it. */
   list: string
-  /** The newest first: every one, or, carried for a project's view, the latest it shows, with how many there are. */
+  /** The newest first: every one, or, carried for a project's views, the latest they show, with how many there are. */
   carried: Carried<T>
   /** An entry, as a block of its own. */
   draw: (entry: T) => Block
-  /** What opens an entry, so a list that stops showing it closes it. */
-  opens: (entry: T) => string
+  /** What opens an entry, so a list that stops showing it closes it; none for a list whose entries open nothing. */
+  opens?: (entry: T) => string
   /** The presses that open the list and fold it away; none for a list that always shows. */
   folding?: Folding
 }
@@ -44,7 +45,7 @@ export const drawPast = <T,>(d: Drawing, past: Past<T>): Block[] => {
   const { entries, count } = carried
   const showing = d.scene.pane.shown?.[list]
   const show = (to: SitrepShowing | undefined, hidden: readonly T[]) => () =>
-    d.act.show(list, to, hidden.map(opens))
+    d.act.show(list, to, opens === undefined ? [] : hidden.map(opens))
 
   if (count === 0) {
     return []

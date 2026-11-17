@@ -23,6 +23,7 @@ import {
 import {
   askOf,
   delivered,
+  finish,
   park,
   reply,
   resolve,
@@ -94,6 +95,9 @@ const unstamped = (surface: RenderSurface, node: unknown, isRoot = true): unknow
 /** A session of a third project, Fabrikam, which names itself in its project's file. */
 const SUPPLIERS = meta('sr-5upp1y', 'Supplier portal', W3, { project: 'fabrikam' })
 
+/** A session of Northwind's that Claude finished, among its old sessions. */
+const SHIPPED = meta('sr-5h1pp3', 'Export to CSV', W3)
+
 /** An ask Claude closed itself. */
 const closed = (id: string, title: string): Line[] => [
   [T0, askOf(id, { wants: 'yes', yes: 'Done', title })],
@@ -133,6 +137,13 @@ const DESK: Desk = {
       seenAt: T0,
     },
     { meta: THEMES, lines: [[T0, status(['Drawing the dark theme'])]], seenAt: T0 },
+    {
+      meta: SHIPPED,
+      lines: [
+        [T0, status(['Shipping the export'], SHIPPED)],
+        [T0, finish('claude', 'Shipped')],
+      ],
+    },
     {
       meta: SHIFTS,
       project: ELSEWHERE.key,
@@ -206,7 +217,7 @@ const PAST_SHOWN = [
   `history:${HELD.id}`,
   `all:history:${HELD.id}`,
   `status:${changeKey(HELD.id, T0 + 3, W1)}`,
-  `pickedup:${HELD.id}`,
+  `pickedup:project:${PROJECT.key}`,
 ]
 
 test("the board drawn with no engine from a desk's files is the engine's on every surface, docked and inline, and on the terminal at every width a test draws it, its past folded and shown", async ($, on) => {
@@ -218,7 +229,8 @@ test("the board drawn with no engine from a desk's files is the engine's on ever
 
   for (const isShown of [false, true]) {
     if (isShown) {
-      const ui = await mounted('terminal', DOCKED)
+      // Opened, as Lee opens it: only an open board's look carries the project's picked up.
+      const ui = await w.opened()
 
       for (const key of PAST_SHOWN) {
         await ui.press({ key })
@@ -239,7 +251,7 @@ test("the board drawn with no engine from a desk's files is the engine's on ever
   }
 })
 
-test("the board drawn with no engine is the engine's wherever Lee takes it and whatever he does there: home, an ask opened and its yes queued, RESOLVED in full, its history and picked up shown and opened, the project and its history and picked up, the ledger's view and its ask answered, a turn under way, both replies sent while it works, gone in once it ends and taken, All projects, Contoso's view and its session, an ask being answered, and the sessions around gone stale", async ($, on) => {
+test("the board drawn with no engine is the engine's wherever Lee takes it and whatever he does there: home, an ask opened and its yes queued, RESOLVED in full, its history and picked up shown and opened, the project by its name, its old sessions shown, one's view and back up, the ledger's view and its ask answered, a turn under way, both replies sent while it works, gone in once it ends and taken, All projects, Contoso's view and its session, an ask being answered, and the sessions around gone stale", async ($, on) => {
   const w = world($, on)
 
   await joined($, w)
@@ -255,14 +267,13 @@ test("the board drawn with no engine is the engine's wherever Lee takes it and w
     ['its history shown', () => ui.press({ key: `history:${HELD.id}` })],
     ['its history in full', () => ui.press({ key: `all:history:${HELD.id}` })],
     ['a change opened', () => ui.press({ key: `status:${changeKey(HELD.id, T0 + 3, W1)}` })],
-    ['its picked up shown', () => ui.press({ key: `pickedup:${HELD.id}` })],
+    ['its picked up shown', () => ui.press({ key: `pickedup:project:${PROJECT.key}` })],
     ['an item picked up opened', () => ui.press({ key: `picked:${heldItem('p2')}` })],
-    ['the project', () => toProject(ui)],
-    ["the project's history shown", () => ui.press({ key: `history:project:${PROJECT.key}` })],
-    [
-      "the project's picked up shown",
-      () => ui.press({ key: `pickedup:project:${PROJECT.key}` }),
-    ],
+    ['the project, by its name', () => ui.press({ key: `proj:${PROJECT.key}` })],
+    ["the project's old sessions shown", () => ui.press({ key: `old:project:${PROJECT.key}` })],
+    ["the project's picked up folded", () => ui.press({ key: `pickedup:project:${PROJECT.key}` })],
+    ["an old session's view", () => ui.press({ key: `go:${SHIPPED.id}` })],
+    ['back up to the project', () => ui.press({ key: 'up' })],
     ["the ledger's view", () => ui.press({ key: `go:${LEDGER.id}` })],
     [
       "the ledger's ask answered",
@@ -321,7 +332,7 @@ const MISSING: readonly ElementQuery[] = [
   { key: `yes:${heldItem('k9')}` },
   { key: 'tab:project' },
   { key: 'up' },
-  { text: /Invoice ledger/ },
+  { text: /Shift schedules/ },
 ]
 
 test("a drawing with no engine finds what the kit's find and findAll find, and finds nothing where they find nothing", async ($, on) => {

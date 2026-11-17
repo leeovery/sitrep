@@ -1,20 +1,20 @@
 /**
  * What the board's views show, as data: a session in brief, a project with
- * its sessions, its asks, the history of their status, what it parked and
- * what was taken off its Parked, and every project,
+ * its sessions, its old sessions, its asks, what it parked and what was
+ * taken off its Parked, and every project,
  * the busiest first; and every project as the start of a conversation and
  * the CLI list them, those around the folder first.
  *
  * A session shows while it is current: open, holding something for Lee, or
  * updated lately, and not finished. An older idle one, or a finished
- * one, stays on disk, out of every view. What a session parked is its
- * project's: it keeps no session current, and a project with something
- * parked shows though none of its sessions does.
+ * one, stays on disk, out of every view but its project's old sessions.
+ * What a session parked is its project's: it keeps no session current, and
+ * a project with something parked shows though none of its sessions does.
  */
 import { nearestFirst, type Project } from './project'
 import { isOpen, snoozedAsks } from './replies'
 import { compareText } from './text'
-import type { Ask, Item, Parked, Session, StatusLine } from './types'
+import type { Ask, Item, Parked, Session } from './types'
 
 /** How long an idle session (no window, nothing waiting) stays in the views after its last update. */
 export const CURRENT_MS = 7 * 24 * 60 * 60_000
@@ -86,9 +86,6 @@ export type AllProjects = {
   projects: ProjectSummary[]
   folded: ProjectSummary[]
 }
-
-/** A change of status in a project's history, and the session it came from. */
-export type ProjectStatusLine = StatusLine & { session: string }
 
 /** A parked item of a project's, and the session that parked it: its id, and its name. */
 export type ProjectParked = Parked & { session: string; name: string }
@@ -249,13 +246,18 @@ export const listedProjects = (
   return nearestFirst([...projects, ...folded], folder)
 }
 
-/** Every change of a session's status, each naming the session by its id. */
-export const changedBy = (session: Pick<Session, 'id' | 'history'>): ProjectStatusLine[] =>
-  session.history.map(line => ({ ...line, session: session.id }))
+/** A session of a project's that is not current, in brief, and when it ended. */
+export type EndedSession = SessionSummary & { endedAt: number }
 
-/** A project's history, from whichever of its sessions each change came from, the newest first. */
-export const projectHistory = (lines: readonly ProjectStatusLine[]): ProjectStatusLine[] =>
-  [...lines].sort((a, b) => b.at - a.at || compareText(a.session, b.session))
+/** When a session ended: when it was finished, else when it last changed. */
+const endedAt = (session: Session) => session.finished?.at ?? session.updatedAt
+
+/** A project's old sessions: those filed under it that are not current, finished or idle past `CURRENT_MS`, the latest ended first. */
+export const oldSessions = (sessions: readonly Session[], now: number): EndedSession[] =>
+  sessions
+    .map(session => ({ ...summarise(session), endedAt: endedAt(session) }))
+    .filter(session => !isCurrent(session, now))
+    .sort((a, b) => b.endedAt - a.endedAt || compareText(a.id, b.id))
 
 /** What a session parked, each item naming the session by its id and its name. */
 export const parkedBy = (session: Pick<Session, 'id' | 'status' | 'parked'>): ProjectParked[] =>

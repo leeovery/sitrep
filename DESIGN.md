@@ -143,28 +143,43 @@ discussed. So `start` names its project, as Lee would say it and cased
 A session is **current**, and shows in the project view, All projects and
 the first message's listing, while it is open, has an ask waiting (on Lee,
 snoozed or not, or on a window to deliver Lee's answer), or was updated in
-the last 7 days. An older idle session stays on disk and out of the views;
-a project left with none drops out of All projects altogether, unless
-something is parked in it (below). Something parked kept its session
-current until 11 November 2026, whatever its age.
+the last 7 days. An older idle session stays on disk, out of the views but
+its project's old sessions, folded at the foot of its Sessions (17 November
+2026; see "Old sessions", under "The pane"); a project left with none
+current drops out of All projects altogether, unless something is parked in
+it (below). Something parked kept its session current until 11 November
+2026, whatever its age.
 
 A session is **finished** once Claude or Lee finishes it, and is then never
 current, whatever it holds: a window can close with things still open on
-its session. Its waiting asks count nowhere (tabs, band, projects). A line
-posted to it later, by the CLI or anyone, leaves it finished; only joining
-it again reopens it.
+its session. Its waiting asks count nowhere (tabs, band, projects), and it
+shows only among its project's old sessions. A line posted to it later, by
+the CLI or anyone, leaves it finished; only joining it again reopens it.
 
 **Parked items are the project's.** A parked item is parked from a session,
 on that session's project, and names the session that parked it. Any
 session of the project sees it and acts on it: Claude's board text lists
 it, Claude's tools resolve, edit or reopen it, and Lee picks it up from the
 pane in any window of the project, the pick-up going to the Claude in that
-window (see Delivery). A session's view lists the items it parked; a
-project's view lists every one, each naming its session by name. Finishing
-a session hides none of them, and a session going idle takes none with it.
-Asks stay their session's. Decided with Lee, 11 November 2026;
+window (see Delivery). Every view of the project lists every one: a
+project's view each naming its session by name, and a session's view the
+items it parked first, then the rest, each of those naming its session, as
+Claude's board text lists them (17 November 2026). Finishing a session
+hides none of them, and a session going idle takes none with it. Asks stay
+their session's. Decided with Lee, 11 November 2026;
 until then a parked item was its session's, and a finished session's
 vanished from every view, though still stored.
+
+- **A session's view lists the project's too** (17 November 2026, Lee).
+  Until then a session's view listed only the items it parked. Lee expected
+  parked items to be the project's everywhere, and his session's Parked
+  said `nothing to come back to` while its project held 8. So a session's
+  Parked lists every item parked in its project, its own first, its heading
+  counting them all, and its picked up every item taken off the project's
+  Parked, each naming who picked it up. Any of them is picked up from there
+  as from the project's view, to the Claude in the window pressed in. It is
+  what Claude's board text already gave Claude: the session's own, then
+  those parked elsewhere in the project.
 
 - **Nothing is rewritten.** Each item stays in its session's files, where it
   was parked, and the views read a project's parked items from every
@@ -711,9 +726,10 @@ hide history
 • now waiting on your review of Sessions & Runway, round 1      1h
 show all 14
 
-PARKED ──────────────────────────────────────── 2 to come back to
+PARKED ──────────────────────────────────────── 3 to come back to
 ◇ Paper thumbnails inline in Ghostty                            1d
 ◇ A Space-aware sessions window                                 2d
+◇ Request ledger: Export the ledger as CSV                      1d
 show picked up 3
 
 RESOLVED ────────────────────────────────────────────── 4 resolved
@@ -741,6 +757,11 @@ show all 4
   `← <its project>` over a session's, a plain press drawn dim, cut short
   at the pane's edge. Home and All projects have none, and the row is
   blank. It carries no `⌂`: the first tab is always home.
+- **A session's project is a press** (17 November 2026, Lee): in the line
+  under the tabs, `Dashboard redesign · Switchboard`, the project's name
+  opens its view, as pressing the project in All projects does, home
+  included, where there is no way back to reach it by. It is drawn dim, as
+  the way back is, keeping the aside's quiet, and cut short with it.
 - The header is the tabs, their rule and the way back's row, the same
   height in every view. Docked or inline, there is no row above the tabs:
   they are the pane's first line. There is no collapse: the phone's pane
@@ -762,10 +783,11 @@ show all 4
   `SitRep`): its sessions, this one first (`⌂`), each with what it is doing
   and its waiting count; Asks, every current session's asks, the newest
   first, each naming its session (`Request ledger: Keep the ledger…`) and
-  answered right there as in a session's view, the history of their
-  status at the foot of Sessions; and Parked, every item parked in the
+  answered right there as in a session's view, its old sessions at the foot
+  of Sessions (see "Old sessions"); and Parked, every item parked in the
   project, finished and idle sessions' included, each naming its session by
-  name, and what was taken off it. A project has no Resolved.
+  name, and what was taken off it. A project has no Resolved, and no
+  history of its sessions' status: each session's is under its own Status.
 
   ```
    ⌂ Dashboard redesign 3  ≡ All projects 8
@@ -779,7 +801,14 @@ show all 4
   Request ledger                                            1 waiting
   └ Drawing the ledger schema
 
-  show history 23
+  hide old sessions
+  Export to CSV                                                   2d
+  └ Shipping the export
+  Settings tab                                                    9d
+  └ next: Tidy the copy
+  Ledger schema, first pass                                      12d
+  └ Drawing the schema
+  show all 7
 
   ASKS ─────────────────────────────────────────────────── 2 waiting
   ◆ Dashboard redesign: Review Sessions & Runway, round 1        2h
@@ -794,7 +823,7 @@ show all 4
   ```
 
 - **Another session** is the same view as this one, in the same order: its
-  asks with buttons that answer them, its status, what it parked, its
+  asks with buttons that answer them, its status, its project's Parked, its
   resolved. While no window has it, its foot (above Ready to send) has
   `✓ finish this session`, for a session Lee left with things open by
   closing the window. It asks first, in place:
@@ -850,25 +879,41 @@ show all 4
   summary (`summary changed`). Opened, a change hangs its detail, each line opening
   with its label (`Added:`, `No longer:`, `Still there:`, `Next:`, `Name:`,
   `Summary:`) in the now colour, the text after it soft. It shows the latest
-  3; with more, `show all 14`, then `show fewer`, as Resolved's does. A
-  project's view has it at the foot of Sessions, across its current
-  sessions, each change naming its session before its headline
-  (`Request ledger: now drawing the schema`). The changes are the board's
+  3; with more, `show all 14`, then `show fewer`, as Resolved's does. It is
+  a session's alone: a project's view has none (17 November 2026; see "Old
+  sessions"). The changes are the board's
   own reading, each status compared with the one before (see Storage), so
   every session has its whole history from the lines it already holds. Each
   change is keyed by its session, its time and its writer, and where one
   writer changed the status twice in a millisecond, by its place among
   those, the older first: two blocks of one key leave the whole board
   undrawn (see "Measuring").
+- **Old sessions.** A project's view folds, at the foot of Sessions, every
+  session filed under it that is not current: finished, or idle past its 7
+  days. Closed, it is `show old sessions 12`, counting them; opened, it
+  reads `hide old sessions`, and they hang under it, the latest ended
+  first, each drawn as a closed session above it is: its name, dim, and on
+  the right how long ago it ended, when it was finished, else when it last
+  changed; and under it, faint, what it was last doing, as Sessions says
+  it. Its name opens its view, as a session's above does. It shows the
+  latest 3; with more, `show all 12`, then `show fewer`, as the other lists
+  do. Decided with Lee, 17 November 2026: a project's view had the history
+  of its current sessions' status there, each change cut to a word or two
+  after its session's name, which each session already shows whole under
+  its own Status; Lee, pressing `show history 266` in a project's view,
+  expected the project's old sessions, which until then showed nowhere on
+  the pane.
 - **The toggles at a list's foot** are one press, shared: Status's history,
-  Parked's picked up and Resolved's `show all`. Each is a plain press, drawn
-  dim, at the list's foot, and only it opens and folds its list: opening or
-  closing an item never changes how much a list shows. Folding a list closes
-  an item opened in what it no longer shows. What each shows is kept per
-  session, and per project in a project's view, with the rest of the pane's
-  place, and closing the pane folds them all. A project's view draws its
-  history and picked up only once the look carries them (see "What a look
-  carries").
+  Parked's picked up, a project's old sessions and Resolved's `show all`.
+  Each is a plain press, drawn dim, at the list's foot, and only it opens
+  and folds its list: opening or closing an item never changes how much a
+  list shows. Folding a list closes an item opened in what it no longer
+  shows. What each shows is kept with the rest of the pane's place: Status's
+  history and Resolved per session, old sessions per project, and Parked's
+  picked up per project too, the one list every view of the project draws
+  (17 November 2026); closing the pane folds them all. A view draws its
+  picked up, and a project's its old sessions, only once the look carries
+  them (see "What a look carries").
 - **Notes went** (17 November 2026, Lee). Notes mixed three things: notes
   Claude wrote, which Lee never looked at, and the status changes and
   pick-ups the board noticed itself. Lee wanted the notes gone, and the
@@ -897,11 +942,12 @@ show all 4
 - **Parked:** a section of every session's view, under Status, and of every
   project's, drawn while something is parked there or was taken off it, its
   heading counting what is parked (`2 to come back to`, or `nothing to come
-  back to`). A session's lists only the items it
-  parked, and counts them; a project's lists every item parked in the
-  project, finished and idle sessions' included, each naming its session by
-  name, never by id, and counts them all (11 November 2026; see "Parked
-  items are the project's"). The oldest first. A finished session's item
+  back to`). Each lists every item parked in the project, finished and idle
+  sessions' included, and counts them all: a project's each naming its
+  session by name, never by id (11 November 2026), the oldest first; a
+  session's the items it parked first, the oldest first, then the rest, as
+  a project's lists them, each of those naming its session (17 November
+  2026; see "Parked items are the project's"). A finished session's item
   shows as any other, with no mark of its own. Each is a list's row: a
   purple `◇`, its title, and its age. Opened, its tree hangs from the mark:
   where to look, its `see`, and the pick-up once one waits or is on its way;
@@ -921,9 +967,10 @@ show all 4
   importer · closed by Claude`. Opened, an item hangs Lee's note on the
   pick-up, or Claude's reason for the close, and its `see`; or `nothing more
   was recorded`. It shows the latest 3; with more, `show all 5`, then `show
-  fewer`. A session's lists what it parked, a project's what any session of
-  it parked, finished and idle ones included, each naming the session that
-  parked it, as Parked does.
+  fewer`. Every view of a project lists what any session of it parked,
+  finished and idle ones included, naming the session that parked it as its
+  Parked does: a project's each, a session's those another parked (17
+  November 2026).
 
   Who picked it up is the session the pick-up went to, named as the pane
   names it everywhere, by its name as it stands. A pick-up's reply line
@@ -1602,8 +1649,8 @@ app (see "The menu bar").
   reply names the session its message went to (`to`), as every pick-up's
   does from 17 November 2026. The item leaves Parked. Claude's line names the session that parked it where that
   is another (`- Pick up from parked, Request ledger's: Export the ledger as
-  CSV`). The item shows under that session's Parked, in its picked up,
-  `picked up by` the session it went to, a finished session's too (17
+  CSV`). The item shows in its project's picked up, in every view of the
+  project, `picked up by` the session it went to, a finished session's too (17
   November 2026; see "Parked's picked up"). Decided with Lee, 11 November
   2026. Until then a pick-up of another session's item went into that
   session's inbox, for its own Claude, and a finished session's could not be
@@ -3121,24 +3168,37 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   sessions live, only for the projects that draw it: each session's name
   by its id, for the held session's project and the project of the place
   the open board shows, a session's or a project's, where Parked's picked
-  up names the session a pick-up went to; and its current sessions'
-  history and what was taken off their Parked, only while the open board
-  shows the project's view, the only place that draws them. A project's
-  view carries its current sessions' history and what was taken off the
-  Parked of every session filed under it, finished and idle ones included;
-  of each, the latest 3 it shows and how many there are, and every one only
-  while that list shows all, so a long past costs no more than its count
-  until Lee asks for it. A move on the board moves at once and reads around
+  up names the session a pick-up went to; what was taken off the Parked of
+  every session filed under it, finished and idle ones included, only while
+  the open board shows a view of the project, its own or a session's, home
+  among them, which draw it; and its old sessions, only while the open board
+  shows the project's view, the only place that draws them. Of each list,
+  the latest 3 it shows and how many there are, and every one only while
+  that list shows all, so a long past costs no more than its count until Lee
+  asks for it. The old sessions are read from the sessions the look reads
+  already, every one filed under the project, as Parked's are: no walk of
+  their own. A move on the board moves at once and reads around
   after, as a press of a project list's toggle reads around again (6bedc72
   read first, and a move waited a look behind it, up to a second and a half
-  just after a window started, for ever on a hung read). So a project's
-  view draws its history and picked up only once the look has carried
-  them, a beat after it opens: never counted by this session's alone and
-  then by all. The held session's own are always whole, from its fold; a
-  look from before the window took up the session it holds, which read that
-  session as one around, gives the view neither list until the next, since
-  what it carried, only in part, would count that session twice. A pane
-  drawn but not marked open, which only a test mounts, draws neither.
+  just after a window started, for ever on a hung read). So a view draws
+  its picked up, and a project's its old sessions, only once the look has
+  carried them, a beat after it opens: never counted by this session's
+  alone and then by all. The held session's own picked up are always whole,
+  from its fold; a look from before the window took up the session it
+  holds, which read that session as one around, gives the view neither list
+  until the next, since what it carried, only in part, would count that
+  session twice, or list it as old. A pane drawn but not marked open, which
+  only a test mounts, draws neither.
+
+  Until 17 November 2026 a look carried a project's history too, its
+  current sessions' changes of status, for its view, and what was taken off
+  its Parked for its view alone. Across a switch of builds either way, by
+  `/reload-plugins`, nothing throws: every list a project carries is
+  optional, and a view draws none it does not find. A build from before,
+  reading what this one carried, finds no history and draws none, and
+  passes over the old sessions; this one, reading what a build from before
+  carried, passes over its history, and draws no old sessions, and a
+  session's view no picked up, until its own first look, 5 seconds at most.
 - The pane's last view lives in the window's `$.state` only: where it looks,
   the item opened there, and, apart from that, how much each list of the
   board's past shows (`shown`, by the list), the held send Ready to send's one row for several
@@ -3581,9 +3641,12 @@ truth. There is still no background service. None of it is built now. Lee:
     a change's `text` lost its `Status: ` prefix (`now drawing Inbox`, once
     `Status: now drawing Inbox`), so `v` moved to 4; `watch`'s own `v` did
     not, as the app reads no board.
-    `parked` stays what the session parked, as its view lists it; plain
-    `board` prints Claude's board text, so it lists the project's (11
+    `parked` stays what the session parked, which its view lists first;
+    plain `board` prints Claude's board text, so it lists the project's (11
     November 2026; see "The board text's Parked", under "Claude's side").
+    It carries the session's own history alone, never a project's, so the
+    project's view losing its history (17 November 2026; see "Old
+    sessions") left its shape, and `v`, as they were.
     `watch` carries it too, in this shape, for each session the app follows,
     folded as the watch folds (below). Its `v` was 3 since its session is `session` (27 October 2026),
     `work` before; 2 since its asks say what they want back (`wants`, `yes`,
@@ -4175,11 +4238,13 @@ truth. There is still no background service. None of it is built now. Lee:
   doing, a reply, a status change's detail), and the line a section with nothing in it
   shows (`Nothing waiting on you.`).
 - **Grey:** ages, counts, heading notes. The toggles at a list's foot (Status's history,
-  Parked's picked up, RESOLVED's `show all`) are a quieter press, drawn dim (a
+  Parked's picked up, a project's old sessions, RESOLVED's `show all`), the
+  way back and a session's project are a quieter press, drawn dim (a
   Button's own `dimColor`: Claude Code 2.1.294 refuses a Button with a
   label and a coloured child, and blanks the pane; 2.1.326 takes one, as
   the recommended option's button shows). **Faint:** closed things (an away
-  session, an ask Lee's send just closed, a status change's `•`), but not
+  session, an old session's last status, an ask Lee's send just closed, a
+  status change's `•`), but not
   RESOLVED's asks nor Parked's picked up: each is a row to open, its `✓`
   green and its title white; and every tree's `│ ├ └`.
   Section headings' rules and the tabs' rule are the rule colour.
@@ -4203,8 +4268,8 @@ truth. There is still no background service. None of it is built now. Lee:
 - Breathing room: a column each side, a blank row under the tab rule
   where there is no way back, after an opened ask's buttons, between
   projects in All projects, between a project's sessions and before the
-  history at their foot, and between sections; none between the
-  entries of a list (asks, history, parked, picked up, resolved), nor between the tabs and
+  old sessions at their foot, and between sections; none between the
+  entries of a list (asks, history, parked, picked up, old sessions, resolved), nor between the tabs and
   their rule.
 - No indents left floating: anything hanging off an item hangs from a `└`.
 

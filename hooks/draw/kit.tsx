@@ -85,6 +85,9 @@ const WRITING: Partial<Record<RenderSurface, Writing>> = {
 /** Whether the surface's prompt box can be filled with words already queued, to write them again. */
 const canRewrite = (d: Drawing) => WRITING[d.surface]?.canFill === true
 
+/** What opens the aside, before its words. */
+const ASIDE_MARK = '·'
+
 /** The fewest cells the aside shows in: its `· ` and something of its words. */
 const ASIDE_LEAST = 4
 
@@ -93,11 +96,56 @@ const fitTitle = (room: number, title: string, aside: string) => {
   const name = clip(title, room)
   const left = room - name.length - 1
 
-  return { name, aside: left < ASIDE_LEAST ? undefined : clip(`· ${aside}`, left) }
+  return { name, aside: left < ASIDE_LEAST ? undefined : clip(`${ASIDE_MARK} ${aside}`, left) }
 }
 
-/** The line under the header naming what the view is of, with a few words on it, and a summary under it. */
-export const context = (d: Drawing, title: string, aside: string, summary?: string) => {
+/** A press the aside's words open with: those words, its key, and where it goes. */
+export type Lead = { words: string; key: string; to: SitrepPlace }
+
+/**
+ * The aside as cut to fit, grey, its leading words a dim press where it has
+ * one, as the way back is drawn, and the rest after it, the same cells
+ * across: an ellipsis cutting the press's words short, or right after
+ * them, ends the press.
+ */
+const drawAside = (d: Drawing, aside: string, lead: Lead | undefined) => {
+  const { Box, Text, Button } = d.els
+
+  if (lead === undefined) {
+    return (
+      <Text color={C.grey} wrap="truncate-end">
+        {aside}
+      </Text>
+    )
+  }
+
+  const start = ASIDE_MARK.length + 1
+  const end = start + lead.words.length
+  const isWhole = aside.charAt(end) === ' '
+  const label = isWhole ? aside.slice(start, end) : aside.slice(start)
+  const rest = isWhole ? aside.slice(end + 1) : ''
+
+  return (
+    <Box flexDirection="row" gap={1}>
+      <Text color={C.grey}>{ASIDE_MARK}</Text>
+      <Button key={lead.key} plain dimColor label={label} onPress={() => d.act.go(lead.to)} />
+      {rest !== '' && <Text color={C.grey}>{rest}</Text>}
+    </Box>
+  )
+}
+
+/**
+ * The line under the header naming what the view is of, with a few words
+ * on it, the first of them a press where `lead` says, and a summary under
+ * it.
+ */
+export const context = (
+  d: Drawing,
+  title: string,
+  aside: string,
+  summary?: string,
+  lead?: Lead,
+) => {
   const { Box, Text } = d.els
   const line = fitTitle(d.width, title, aside)
 
@@ -107,11 +155,7 @@ export const context = (d: Drawing, title: string, aside: string, summary?: stri
         <Text bold wrap="truncate-end">
           {line.name}
         </Text>
-        {line.aside !== undefined && (
-          <Text color={C.grey} wrap="truncate-end">
-            {line.aside}
-          </Text>
-        )}
+        {line.aside !== undefined && drawAside(d, line.aside, lead)}
       </Box>
       {summary !== undefined && (
         <Text color={C.soft} wrap="wrap">

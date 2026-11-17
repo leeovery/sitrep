@@ -3,7 +3,7 @@ import { expect, test, tier } from './kit'
 import type { Body, SessionMeta } from '../core'
 import { EVERY_PROJECT, projectPlace } from '../hooks/places'
 import { rowsOf } from './drawn'
-import { ELSEWHERE, HELD, heldItem, MIN, PROJECT, T0, W2, type Asked } from './data'
+import { ELSEWHERE, HELD, heldItem, LEDGER, MIN, PROJECT, T0, W2, type Asked } from './data'
 import { askOf, park, resolve, status, yesAsk, type Line } from './lines'
 import { pane, sceneFrom, type Desk, type Drawn } from './render'
 import { postedId, world, type World } from './world'
@@ -96,36 +96,31 @@ test("a session lists its status's history and its closed asks with no blank row
   expect(listedUnder(rows, 'RESOLVED')).toEqual([' ✓ Review round 2 1m', ' ✓ Review round 1 2m'])
 })
 
-test('PARKED lists its items with no blank row between them, in a session and in its project, each naming its session there', async () => {
-  const desk = { lines: minutely(...PARKED), now: T0 + 3 * MIN }
+test("PARKED lists every item parked in the project with no blank row between them: in a session, its own first, unnamed, then the others', each naming its session; in the project, the oldest first, each naming its session; each counting them all", async () => {
+  const desk: Desk = {
+    lines: minutely(...PARKED),
+    around: [{ meta: LEDGER, lines: [[T0 - MIN, park('p1', 'Archive old invoices')]], seenAt: T0 }],
+    now: T0 + 3 * MIN,
+  }
+  const session = await rowsAt(desk)
+  const project = await rowsAt(desk, { place: projectPlace(PROJECT.key) })
 
-  expect(listedUnder(await rowsAt(desk), 'PARKED')).toEqual([
+  expect(listedUnder(session, 'PARKED')).toEqual([
     ' ◇ A priority badge 3m',
     ' ◇ Thumbnails in the picker 2m',
     ' ◇ Export the ledger as CSV 1m',
+    ' ◇ Invoice ledger: Archive old invoices 4m',
   ])
-  expect(listedUnder(await rowsAt(desk, { place: projectPlace(PROJECT.key) }), 'PARKED')).toEqual([
+  expect(listedUnder(project, 'PARKED')).toEqual([
+    ' ◇ Invoice ledger: Archive old invoices 4m',
     ' ◇ Help desk redesign: A priority badge 3m',
     ' ◇ Help desk redesign: Thumbnails in the picker 2m',
     ' ◇ Help desk redesign: Export the ledger as CSV 1m',
   ])
-})
 
-test("the project view lists its sessions' history with no blank row between the changes, each naming its session", async () => {
-  const rows = await rowsAt(
-    { lines: minutely(...CHANGES), now: T0 + 3 * MIN },
-    {
-      place: projectPlace(PROJECT.key),
-      shown: { [`history:project:${PROJECT.key}`]: 'latest' },
-    },
-  )
-
-  expect(runFrom(rows, /^ hide history/)).toEqual([
-    ' hide history',
-    ' • Help desk redesign: now drawing the schema 1m',
-    ' • Help desk redesign: now merging PR #82 2m',
-    ' • Help desk redesign: now merging PR #81 3m',
-  ])
+  for (const rows of [session, project]) {
+    expect(rows.find(row => row.startsWith(' PARKED'))).toMatch(/ 4 to come back to$/)
+  }
 })
 
 test('ASKS lists its asks as rows with no blank row between them, each its mark, title and age, no where', async () => {

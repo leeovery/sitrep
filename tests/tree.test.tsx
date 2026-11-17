@@ -228,7 +228,7 @@ test("another session's view is the session view: its status and its history, it
   ])
 })
 
-test("the project view lists its sessions, this one first, each with what it does and what waits; and the history of their status", async () => {
+test("the project view lists its sessions, this one first, each with what it does and what waits; and no history of their status, each session's being under its own Status", async () => {
   const ui = neighbourhoodAt(projectPlace(PROJECT.key), DOCKED)
 
   expect(await keysOf(ui, 'go:')).toEqual([`go:${HELD.id}`, `go:${LEDGER.id}`, `go:${THEMES.id}`])
@@ -243,25 +243,19 @@ test("the project view lists its sessions, this one first, each with what it doe
     ['Themes closed', '└ Themes, area by area'],
   ])
 
-  const history = `history:project:${PROJECT.key}`
   const shown = pane(
     sceneFrom({
       ...NEIGHBOURHOOD,
-      pane: { place: projectPlace(PROJECT.key), shown: { [history]: 'latest' } },
+      pane: {
+        place: projectPlace(PROJECT.key),
+        shown: { [`history:project:${PROJECT.key}`]: 'latest' },
+      },
     }),
   )
 
-  expect(await ui.find({ key: history, text: 'show history 2' })).toBeDefined()
-  expect(await keysOf(shown, 'status:')).toEqual([
-    `status:${changeKey(LEDGER.id, T0, W2)}`,
-    `status:${changeKey(LEDGER.id, T0 - MIN, W2)}`,
-  ])
-  expect(
-    await shown.find({
-      key: `status:${changeKey(LEDGER.id, T0 - MIN, W2)}`,
-      text: 'Invoice ledger: now reading the brief',
-    }),
-  ).toBeDefined()
+  expect(await keysOf(ui, 'history:')).toEqual([])
+  expect(await keysOf(shown, 'history:'), 'shown as a pane an older load saved').toEqual([])
+  expect(await keysOf(shown, 'status:')).toEqual([])
 })
 
 test('All projects: this project first, then the busiest; the quiet fold into one line; an old idle session is gone', async () => {
@@ -387,7 +381,7 @@ const longIdle = (w: World, session: SessionMeta, project: string, ...bodies: Bo
   w.put(paths.log(session.by), file(...bodies.map((body): Line => [session.created, body])))
 }
 
-test("the project view's PARKED holds a finished session's items and an idle one's past the views, each by its session's name, and counts them all; a session's view holds its own", async ($, on) => {
+test("the project view's PARKED holds a finished session's items and an idle one's past the views, each by its session's name, and counts them all; a session's view holds them too, its own first, unnamed, and counts them all", async ($, on) => {
   const w = world($, on)
   const ledger = w.elsewhere(LEDGER)
 
@@ -406,9 +400,11 @@ test("the project view's PARKED holds a finished session's items and an idle one
   const tmux = postedId(await w.call('park', { title: 'A priority badge across all tabs' }))
   const ui = await w.opened(WIDE)
 
-  expect(await ui.find({ type: 'Text', text: '1 to come back to' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '3 to come back to' })).toBeDefined()
   expect(await parkedButtons(ui)).toEqual([
     [`ppick:${w.item(tmux)}`, 'A priority badge across all tabs'],
+    [`ppick:${THEMES.id}:p1`, 'Themes: Theme the lobby too'],
+    [`ppick:${LEDGER.id}:p2`, 'Invoice ledger: Export the ledger as CSV'],
   ])
 
   await toProject(ui)
