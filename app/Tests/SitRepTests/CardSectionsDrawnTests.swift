@@ -406,14 +406,16 @@ struct CardSectionsDrawnTests {
         #expect(medium.width - regular.width > 1)
     }
 
-    /// How wide words are inked on glass in this font, drawn whole on a line of their own.
+    /// How wide words are inked on glass in this font and label colour, drawn whole on a line of their own from this
+    /// far in, so their edges fall on the pixels, and as faint, as a row's do.
     @available(macOS 26, *)
     private static func inked(
-        _ words: String, _ font: NSFont, sourceLocation: SourceLocation = #_sourceLocation
+        _ words: String, _ font: NSFont, _ ink: HierarchicalShapeStyle, from x: Double,
+        sourceLocation: SourceLocation = #_sourceLocation
     ) throws -> CGFloat {
         let size = CGSize(width: Self.width, height: Item.lineHeight)
-        let text = Text(words).font(Font(font)).foregroundStyle(.white)
-        let drawn = try Drawn(text.fixedSize().frame(width: size.width, alignment: .leading), size: size)
+        let text = Text(words).font(Font(font)).foregroundStyle(ink).fixedSize().offset(x: x)
+        let drawn = try Drawn(text.frame(width: size.width, alignment: .leading), size: size)
         let box = drawn.drawnBox(in: CGRect(origin: .zero, size: size), ground: Self.ground)
 
         return try #require(box, sourceLocation: sourceLocation).width
@@ -438,9 +440,10 @@ struct CardSectionsDrawnTests {
         let set = try Self.requireWidenedByPairs(project, EdgeStyle.sub)
         let drawn = try Self.glass(Self.turn("Inventory settled", project: project))
         let lane = try #require(drawn.drawnBox(in: CGRect(x: 288 - set - 4, y: 4, width: set + 6, height: 22), ground: Self.ground))
+        let whole = try Self.inked(project, EdgeStyle.sub, .tertiary, from: 288 - set)
 
         #expect(abs(lane.maxX - 288) <= 1)
-        #expect(abs(lane.width - (try Self.inked(project, EdgeStyle.sub))) <= 1)
+        #expect((whole - 0.5 ... whole + 0.5).contains(lane.width), "inked \(lane.width) of \(whole)")
     }
 
     /// On glass, a wake in October, whose month its kerning pairs widen, is drawn whole in its time's place, ending at
@@ -464,13 +467,15 @@ struct CardSectionsDrawnTests {
         let row = GlassSessionRow(session: turn, size: Self.size, hovered: false, pressed: false, now: 0, wash: 0, calendar: utc)
         let drawn = try Drawn(row, size: Self.size)
         let time = try #require(drawn.drawnBox(in: CGRect(x: 330 - set, y: 4, width: set + 14, height: 22), ground: Self.ground))
-        let whole = try Self.inked(words, EdgeStyle.age)
+        let whole = try Self.inked(words, EdgeStyle.age, .secondary, from: 334 - set)
 
-        #expect(abs(time.maxX - 334) <= 1.5 && abs(time.width - whole) <= 1)
+        #expect(abs(time.maxX - 334) <= 1.5)
+        #expect((whole - 0.5 ... whole + 0.5).contains(time.width), "inked \(time.width) of \(whole)")
     }
 
     /// On glass, a turn snoozed is a dot 7 across at 16 by 15, as a snoozed ask's is, its blue dimmed
-    /// (`NeedsYouMarksTests`); "until it moves" in its time's place, drawn whole, ending at 334.
+    /// (`NeedsYouMarksTests`); "until it moves" in its time's place, ending at 334, as wide as glass sets it. Kerning
+    /// narrows the phrase, so this guards its place, not its kerning (`onGlassAnOctoberWakeIsDrawnWhole` does that).
     @available(macOS 26, *)
     @Test func onGlassASnoozedTurnIsADotUntilItMoves() throws {
         let turn = Session(id: "t", project: "Wingtip", name: "Inventory", kind: .snoozedTurn, title: "Settled", sub: "Wingtip", since: 0)
@@ -478,7 +483,7 @@ struct CardSectionsDrawnTests {
         let dot = try #require(drawn.drawnBox(in: CGRect(x: 4, y: 2, width: 24, height: 26), ground: Self.ground))
         let wide = TextLine.width(TextLine.text(WakeTime.untilItMoves, EdgeStyle.age, EdgeStyle.ink2))
         let time = try #require(drawn.drawnBox(in: CGRect(x: 330 - wide, y: 4, width: wide + 14, height: 22), ground: Self.ground))
-        let whole = try Self.inked(WakeTime.untilItMoves, EdgeStyle.age)
+        let whole = try Self.inked(WakeTime.untilItMoves, EdgeStyle.age, .secondary, from: 334 - wide)
 
         #expect(abs(dot.width - 7) <= 1 && abs(dot.height - 7) <= 1)
         #expect(abs(dot.midX - 16) <= 0.5 && abs(dot.midY - 15) <= 0.5)

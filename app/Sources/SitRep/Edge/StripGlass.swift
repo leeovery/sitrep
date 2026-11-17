@@ -179,8 +179,8 @@ struct GlassMark: View {
                         .transition(.opacity)
                 }
                 Text(mark.text)
-                    .font(.system(size: 9.5, weight: .semibold))
-                    .kerning(0.095)
+                    .font(Font(EdgeStyle.letters))
+                    .kerning(EdgeStyle.lettersKern)
                     .foregroundStyle(letters)
             }
             .animation(
@@ -299,7 +299,7 @@ struct GlassRow: View {
         ZStack(alignment: .topLeading) {
             title(in: at.title)
             Text(session.sub)
-                .font(.system(size: 12))
+                .font(Font(EdgeStyle.sub))
                 .foregroundStyle(.secondary)
                 .opacity(awayDim)
                 .placed(in: at.sub)
@@ -308,7 +308,7 @@ struct GlassRow: View {
                     .placed(in: at.spinner)
             } else {
                 Text(scene.note.age(session, at: scene.now))
-                    .font(.system(size: 12).monospacedDigit())
+                    .font(Font(EdgeStyle.age))
                     .foregroundStyle(session.isSnoozed ? .secondary : .tertiary)
                     .placed(in: at.ageBox, alignment: .trailing)
             }
@@ -352,7 +352,7 @@ struct GlassRows: View {
                     RoundedRectangle(cornerRadius: StripRowsLayout.radius)
                         .fill(.primary.opacity(isLit ? (pressed ? 0.14 : 0.08) : 0))
                     GlassWords.rowTitle(session, at: now).placed(in: at.title)
-                    Text(session.sub).font(.system(size: 11)).foregroundStyle(.secondary)
+                    Text(session.sub).font(Font(EdgeStyle.rowSub)).foregroundStyle(.secondary)
                         .opacity(GlassWords.awayDim(session))
                         .placed(in: at.sub)
                 }
@@ -376,12 +376,12 @@ private struct GlassIdle: View {
         let at = StripRowLayout.idle(in: size)
         ZStack(alignment: .topLeading) {
             Text(note.idle)
-                .font(.system(size: 14, weight: .medium))
-                .kerning(-0.14)
+                .font(Font(EdgeStyle.title))
+                .kerning(EdgeStyle.tightKern(EdgeStyle.title))
                 .foregroundStyle(.secondary)
                 .placed(in: at.title)
             Text(note.idleLine2)
-                .font(.system(size: 12))
+                .font(Font(EdgeStyle.sub))
                 .foregroundStyle(.secondary)
                 .placed(in: at.sub)
         }
@@ -389,26 +389,22 @@ private struct GlassIdle: View {
     }
 }
 
-/// A tab's titles on glass, set as the black's are.
+/// A tab's titles on glass, set from the runs the black sets (`StripTitle`).
 @available(macOS 26, *)
+@MainActor
 private enum GlassWords {
-    /// A row's title at this time on the wall clock, its subject in code type or plain, and its count (`more`).
+    /// A row's title at this time on the wall clock.
     static func title(_ s: Session, at now: Double) -> Text {
-        let size = 14.0
-        let text = Text(s.title).font(.system(size: size, weight: .medium)).kerning(-0.14)
-
-        return text + subject(s, size: size, at: now) + more(s, size: size)
+        StripTitle.tab(s, saying: s.subject(at: now)).glass
     }
 
     /// One of the count's rows' titles at this time on the wall clock: your turn and needs you in the primary label
     /// colour, an away ask's dimmed with its second line (`Away`), working, on its own work and Snoozed in the
     /// secondary.
     static func rowTitle(_ s: Session, at now: Double) -> some View {
-        let size = 13.0
-        let text = Text(s.title).font(.system(size: size, weight: .medium))
         let ink: AnyShapeStyle = isSoft(s) || s.kind == .working ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary)
 
-        return (text + subject(s, size: size, at: now) + more(s, size: size)).foregroundStyle(ink)
+        return StripTitle.row(s, saying: s.subject(at: now)).glass.foregroundStyle(ink)
             .opacity(awayDim(s))
     }
 
@@ -417,24 +413,4 @@ private enum GlassWords {
 
     /// Its words dimmed while no window holds it (`Away`), but in Snoozed, quieted already, as the card's.
     static func awayDim(_ s: Session) -> Double { Away.dimming(s.away && !s.isSnoozed) }
-
-    /// Its subject in code type; else, plain at the title's size, what it waits on, or a wake's countdown in tabular
-    /// figures, as the black's measure leaves room for.
-    private static func subject(_ s: Session, size: Double, at now: Double) -> Text {
-        if let code = s.code {
-            return Text(code).font(.system(size: 13, weight: .medium, design: .monospaced))
-        }
-
-        let plain = Font.system(size: size)
-
-        return Text(s.subject(at: now) ?? "").font(s.until == nil ? plain : plain.monospacedDigit())
-    }
-
-    private static func more(_ s: Session, size: Double) -> Text {
-        guard let more = s.more else {
-            return Text("")
-        }
-
-        return Text("  \(more)").font(.system(size: size, weight: .medium)).foregroundStyle(.tertiary)
-    }
 }

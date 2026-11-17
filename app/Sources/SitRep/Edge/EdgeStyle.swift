@@ -59,6 +59,8 @@ enum EdgeStyle {
     static let lineCountdown = NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .regular)
     /// A mark's letters, and a count's rows, needs you's bolder.
     static let letters = NSFont.systemFont(ofSize: 9.5, weight: .semibold)
+    /// A mark's letters spaced at 0.01em, as the prototype's.
+    static let lettersKern = 0.01 * letters.pointSize
     static let rowTitle = NSFont.systemFont(ofSize: 13, weight: .medium)
     /// A wake's countdown in a count's row, in tabular figures, as `countdown`.
     static let rowCountdown = NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .medium)

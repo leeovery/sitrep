@@ -689,7 +689,9 @@ struct WelcomeWindowTests {
 
     /// The strip's length changed while the window is behind, the loop paused before the stage looks for the ask's
     /// mark, while the pointer rests on it, or once the pointer has gone: back in front, the pointer goes by the mark
-    /// where it now is, in that loop or the next, as on a stage that had the length from the first.
+    /// where it now is, in that loop or the next, as on a stage that had the length from the first. None of these
+    /// pauses falls in the glide off the mark, where only a change finds the row again
+    /// (`aChangeAsThePointerGlidesOffFindsTheRowWhereItNowIs`), so the rule held here before that change: this pins it.
     @Test(arguments: [WelcomeLoop.hello.seeks - 500, WelcomeLoop.hello.onRow + 300, WelcomeLoop.hello.leave + 1000])
     func aChangeWhileThePlayIsPausedFindsTheRowWhereItNowIs(pausedAt: Double) throws {
         let hello = WelcomeLoop.hello, made = Made()
@@ -729,6 +731,32 @@ struct WelcomeWindowTests {
         #expect(stage.row == now)
     }
 
+    /// A change late in the pointer's glide off the notch's row, once the panel is folding away and shows it no more,
+    /// leaves the pointer gliding from where it was: the material, which cannot move the row, never has it looked for,
+    /// and the edge, which leaves it where it is, finds none and keeps the last.
+    @Test(arguments: [false, true])
+    func aChangeAsThePanelFoldsLeavesTheGlideBe(changesEdge: Bool) throws {
+        let hello = WelcomeLoop.hello, made = Made()
+        let stage = try made.stage
+
+        Self.settle(stage, on: made.clock)
+        Self.key(made)
+        Self.run(stage, on: made.clock, to: hello.leave + 450)
+
+        let gliding = try #require(stage.row)
+
+        try #require(!stage.isOut)
+        made.preferences.edit { settings in
+            if changesEdge {
+                settings.edge = settings.edge.other
+            } else {
+                settings.material = settings.material == .black ? .glass : .black
+            }
+        }
+        stage.step(at: made.clock.pass(1000 / 60))
+        #expect(stage.row == gliding)
+    }
+
     /// The notch restyled while its panel is out, the loop paused or not, plays the loop from its start, as the notch
     /// closes its panel to change: the panel pours again in the new style, and the pointer goes to the ask's row
     /// there, as on a stage that had the style from the first.
@@ -765,22 +793,24 @@ struct WelcomeWindowTests {
     }
 
     /// The strip at Grows on the stage, in front, the loop played this far.
-    private static func stripOnTheLoop(_ made: Made, to loopTime: Double) throws -> StageEdge {
+    private static func stripOnTheLoop(
+        _ made: Made, to loopTime: Double, sourceLocation: SourceLocation = #_sourceLocation
+    ) throws -> StageEdge {
         let stage = try made.stage
 
         made.preferences.edit { $0.show = .strip }
         Self.settle(stage, on: made.clock)
         Self.key(made)
-        Self.run(stage, on: made.clock, to: loopTime)
+        Self.run(stage, on: made.clock, to: loopTime, sourceLocation: sourceLocation)
         return stage
     }
 
     /// The ask's mark found on a stage whose strip was Full from the first, its loop played this far.
-    private static func rowOnAFullStrip(at loopTime: Double) throws -> CGPoint? {
+    private static func rowOnAFullStrip(at loopTime: Double, sourceLocation: SourceLocation = #_sourceLocation) throws -> CGPoint? {
         let made = Made()
 
         made.preferences.edit { $0.length = .full }
-        return try Self.stripOnTheLoop(made, to: loopTime).row
+        return try Self.stripOnTheLoop(made, to: loopTime, sourceLocation: sourceLocation).row
     }
 
     /// The strip centres where the notch sits on the stage, Paper's place, wherever Lee dragged his own, so the
@@ -827,10 +857,17 @@ struct WelcomeWindowTests {
     }
 
     /// The stage stepped a 60th at a time on the test's clock, until its loop has played this far.
-    private static func run(_ stage: StageEdge, on clock: Clock, to loopTime: Double) {
-        while stage.loopTime < loopTime {
+    /// Failing at the caller's line, rather than stepping for ever, where the loop has not come so far a second after
+    /// it should have: held behind, or started again.
+    private static func run(
+        _ stage: StageEdge, on clock: Clock, to loopTime: Double, sourceLocation: SourceLocation = #_sourceLocation
+    ) {
+        let limit = clock.now + max(0, loopTime - stage.loopTime) + 1000
+
+        while stage.loopTime < loopTime, clock.now < limit {
             stage.step(at: clock.pass(1000 / 60))
         }
+        #expect(stage.loopTime >= loopTime, "the loop came only to \(stage.loopTime)", sourceLocation: sourceLocation)
     }
 
     /// The footer as the window draws it, at the welcome's step: the lit spans across its middle, in points from the

@@ -84,7 +84,7 @@ final class TextLine: CALayer {
         CTLineDraw(line, context)
     }
 
-    /// The words in this font and colour, kerned by the font's pairs as CSS and SwiftUI's `Text` set them, and tracked
+    /// The words in this font and colour, kerned by the font's pairs as CSS and SwiftUI's `Text` set them, and spaced
     /// by `kern` where one is given: a `.kern` of 0 would turn the pairs off.
     static func text(_ string: String, _ font: NSFont, _ color: CGColor, kern: CGFloat? = nil) -> NSMutableAttributedString {
         var attributes: [NSAttributedString.Key: Any] = [
@@ -92,7 +92,9 @@ final class TextLine: CALayer {
             NSAttributedString.Key(kCTForegroundColorAttributeName as String): color,
         ]
 
-        attributes[.kern] = kern
+        if let kern {
+            attributes[.kern] = kern
+        }
         return NSMutableAttributedString(string: string, attributes: attributes)
     }
 

@@ -299,32 +299,18 @@ final class StripWordsLayer {
         title(s, saying: s.subject(at: now), colour)
     }
 
-    /// A row's title saying this after its verb, in a colour where given, dimmed where it is away (`Away`); one on its
-    /// own work as the card sets it, and one in Snoozed soft.
+    /// A row's title saying this after its verb, in a colour where given, dimmed where it is away (`Away`): one on its
+    /// own work as the card sets it, its verb brighter than what follows; one in Snoozed soft; its count dim.
     private static func title(_ s: Session, saying subject: String?, _ colour: CGColor? = nil) -> NSAttributedString {
-        if s.kind == .onItsWork {
-            return WaitingTitle.text(s, subject: subject)
-        }
-
-        let font = EdgeStyle.title
         let ink = s.isSnoozed ? EdgeStyle.ink2 : Away.dimmed(colour ?? EdgeStyle.ink, s.away)
-        let text = TextLine.text(s.title, font, ink, kern: EdgeStyle.tightKern(font))
 
-        append(s, to: text, ink, more: EdgeStyle.title)
-        return text
-    }
-
-    /// A title's subject in code type after it, and its count (`more`), dim, 6 further on, an away ask's dimmed with
-    /// it.
-    private static func append(_ s: Session, to text: NSMutableAttributedString, _ ink: CGColor, more font: NSFont) {
-        if let code = s.code {
-            text.append(TextLine.text(code, EdgeStyle.code, ink))
-        }
-        if let more = s.more {
-            if text.length > 0 {
-                text.addAttribute(.kern, value: 6, range: NSRange(location: text.length - 1, length: 1))
+        return StripTitle.tab(s, saying: subject).text { part in
+            switch (part, s.kind) {
+            case (.more, _): Away.dimmed(EdgeStyle.ink3, dims(s))
+            case (.verb, .onItsWork): Away.dimmed(EdgeStyle.waitingVerb, s.away)
+            case (.follows, .onItsWork): Away.dimmed(EdgeStyle.grey, s.away)
+            default: ink
             }
-            text.append(TextLine.text(more, font, Away.dimmed(EdgeStyle.ink3, dims(s))))
         }
     }
 
@@ -342,20 +328,13 @@ final class StripWordsLayer {
         rowTitle(s, saying: s.subject(at: now))
     }
 
-    /// One of a count's rows' titles saying this after its verb, where it has no command: needs you and your turn in
-    /// ink, working and on its own work grey, and Snoozed soft, an away row's dimmed (`Away`), a wake's countdown in
-    /// tabular figures.
+    /// One of a count's rows' titles saying this after its verb: needs you and your turn in ink, working and on its
+    /// own work grey, and Snoozed soft, an away row's dimmed (`Away`), its count dim.
     private static func rowTitle(_ s: Session, saying subject: String?) -> NSAttributedString {
         let isGrey = s.kind == .working || s.kind == .onItsWork
         let ink = s.isSnoozed ? EdgeStyle.ink2 : Away.dimmed(isGrey ? EdgeStyle.grey : EdgeStyle.ink, s.away)
-        let font = EdgeStyle.rowTitle
-        let text = TextLine.text(s.title, font, ink)
 
-        if s.code == nil, let subject {
-            text.append(TextLine.text(subject, s.until == nil ? font : EdgeStyle.rowCountdown, ink))
-        }
-        append(s, to: text, ink, more: EdgeStyle.rowTitle)
-        return text
+        return StripTitle.row(s, saying: subject).text { $0 == .more ? Away.dimmed(EdgeStyle.ink3, dims(s)) : ink }
     }
 
     private static func rowSub(_ s: Session) -> NSAttributedString {

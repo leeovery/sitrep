@@ -85,7 +85,8 @@ final class StageEdge: NSView {
     private var chimedAt: Double?
     /// The ask's row's middle on the stage, once the loop's panel shows it: internal only for the tests.
     private(set) var row: CGPoint?
-    /// Lee's settings changed since the row was found, so it is found again on the shape as it now is.
+    /// A change of Lee's settings may have moved the row since it was found, so it is found again on the shape as it
+    /// now is.
     private var rowIsStale = false
     /// The callout's place as last told the desktop.
     private var placed: StageCallout.Place?
@@ -222,20 +223,24 @@ final class StageEdge: NSView {
     }
 
     /// The ask's row, found on the shape as the last frame laid it out, before the pointer is placed on it: while the
-    /// loop's pointer goes to it, first and each frame the shape moves; and while the pointer goes by it, gliding off
-    /// it too, once Lee's settings change, whenever they changed, so it never goes by where the row was.
+    /// loop's pointer goes to it, first and each frame the shape moves; and through the glide off it too, once a change
+    /// of Lee's settings may have moved it, whenever he made it, so the pointer never goes by where the row was. In the
+    /// glide, a panel folding away may show the row no more: the pointer then leaves from where it last found it.
     private func findRow(at time: Double) {
         guard let loop = play.loop else {
             return
         }
 
-        let seeks = loop.findsRow(at: loopTime) && (row == nil || shape.pace(at: time, staged) == .moving)
+        let seeking = loop.findsRow(at: loopTime)
+        let looks = seeking && (row == nil || shape.pace(at: time, staged) == .moving)
 
-        guard seeks || rowIsStale && loop.holdsRow(at: loopTime) else {
+        guard looks || (rowIsStale && loop.holdsRow(at: loopTime)) else {
             return
         }
 
-        row = shape.middle(of: WelcomeBoard.asking, on: edge, staged)
+        let found = shape.middle(of: WelcomeBoard.asking, on: edge, staged)
+
+        row = seeking ? found : found ?? row
         rowIsStale = false
     }
 
@@ -424,9 +429,10 @@ final class StageEdge: NSView {
     }
 
     /// Lee's settings, as they stand: the other shape where he chose it, its board told afresh; else the edge, the
-    /// place, the material and the style, which the runs take each frame. A loop's notch restyled plays the loop from
-    /// its start, as the notch closes its panel to change, which would leave the loop with none. Else the ask's row is
-    /// found again on the shape as it now is, before the pointer next goes by it, the loop paused or not (`findRow`).
+    /// place, the material and the style, which the runs take each frame. Any restyle of the notch while a loop plays
+    /// plays the loop from its start, as the notch closes its panel to change, which would leave the loop with none.
+    /// Else a change that can move the ask's row, the shape, its length, Max or edge, has it found again on the shape
+    /// as it now is before the pointer next goes by it, the loop paused or not (`findRow`).
     private func follow(_ settings: EdgeSettings) {
         guard settings != self.settings else {
             return
@@ -435,7 +441,9 @@ final class StageEdge: NSView {
         let last = self.settings
 
         self.settings = settings
-        rowIsStale = true
+        if Self.movesRow(from: last, to: settings) {
+            rowIsStale = true
+        }
         if Self.kind(settings.show, play) != Self.kind(last.show, play) {
             replace(with: Self.shape(settings.show, play))
             return
@@ -446,6 +454,14 @@ final class StageEdge: NSView {
         }
         place(shape)
         shape.apply(staged, at: clock.now, edge)
+    }
+
+    /// Whether a change can move the ask's row on the stage. The place along the edge is the stage's own, and the
+    /// display, the material and Reduce motion leave the row where it is, so none of them has it found again: late in
+    /// the glide off the row, once the panel folds, finding it again would lose it.
+    private static func movesRow(from last: EdgeSettings, to settings: EdgeSettings) -> Bool {
+        settings.show != last.show || settings.style != last.style || settings.length != last.length
+            || settings.maxLength != last.maxLength || settings.edge != last.edge
     }
 
     /// Lee's settings as the stage runs them: the place along the edge the stage's own, so the strip centres where

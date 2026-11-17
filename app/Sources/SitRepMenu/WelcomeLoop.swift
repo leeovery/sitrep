@@ -84,14 +84,14 @@ public struct WelcomeLoop: Equatable, Sendable {
         (lands ..< (resolves ?? length)).contains(phase(time))
     }
 
-    /// Whether the stage looks for the ask's row at this time into the loop: on the panel poured, until the pointer
-    /// leaves the row, which it leaves from where it last found it.
+    /// Whether the stage looks for the ask's row at this time into the loop, as the panel pours and moves: from once
+    /// it has poured until the pointer leaves the row.
     public func findsRow(at time: Double) -> Bool {
         (seeks ..< leave).contains(phase(time))
     }
 
-    /// Whether the pointer goes by the ask's row at this time into the loop: from when the stage looks for it until
-    /// the pointer has glided off it.
+    /// Whether the stage finds the ask's row again at this time into the loop after a change has moved it: from when
+    /// it looks for it until the pointer has glided off it, so the pointer leaves from where the row now is.
     public func holdsRow(at time: Double) -> Bool {
         (seeks ..< (gone ?? leave)).contains(phase(time))
     }
