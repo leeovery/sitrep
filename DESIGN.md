@@ -483,8 +483,8 @@ and named it in internal shorthand):
 - As it goes: the status when what's under way changes, an ask whenever Lee is
   needed (resolved by Claude when Lee answers it in the chat); resolve
   what's done; finish the session once it is complete, with nothing left on
-  it. What it
-  parked stays its project's and holds no finish back (11 November 2026).
+  it. What it parked stays its project's and holds no finish back (11
+  November 2026).
 - A turn that ends on a decision or a question for Lee posts it as an ask,
   so it shows in Needs you, never only in the status; plain conversation
   needs none (4 November 2026: two sessions ended turns with "Put to Lee:
@@ -525,8 +525,8 @@ Wording rules, in the tool descriptions:
 - One line, plain words, starting with the verb. No internal codes (no P-numbers,
   no D-numbers). "Where" says where to look in words: "In Paper: the dashboard
   file, page "round 1", frames 1–6".
-- A changed status is logged by the board itself (it compares the new status
-  with the last), so Claude does nothing extra for it.
+- A changed status is noticed by the board itself (it compares the new
+  status with the last), so Claude does nothing extra for it.
 
 **No refusal for a call that does no harm** (13 November 2026). Live, Claude
 was refused for calls that did no harm, and each refusal cost a turn and
@@ -839,10 +839,10 @@ show all 4
   `show history 14`, counting the changes. Opened, it reads `hide history`,
   and the changes hang under it, the newest first, each a list's row: a
   faint `•`, the change's headline, and its age. The headline is what
-  changed most: what is under way (`now: Wire up the export`, `now also:
-  …`, `no longer: Fix the login race`, `and 2 more`), else what is next
-  (`next is …`, `nothing next`), the name (`renamed to …`), the summary
-  (`summary changed`). Opened, a change hangs its detail, each line opening
+  changed most: what is under way (`now wire up the export`, `now also
+  …`, `no longer fix the login race`, ` (and 2 more)` after it), else what
+  is next (`next is …`, `nothing next`), the name (`renamed to …`), the
+  summary (`summary changed`). Opened, a change hangs its detail, each line opening
   with its label (`Added:`, `No longer:`, `Still there:`, `Next:`, `Name:`,
   `Summary:`) in the now colour, the text after it soft. It shows the latest
   3; with more, `show all 14`, then `show fewer`, as Resolved's does. A
@@ -850,7 +850,11 @@ show all 4
   sessions, each change naming its session before its headline
   (`Request ledger: now drawing the schema`). The changes are the board's
   own reading, each status compared with the one before (see Storage), so
-  every session has its whole history from the lines it already holds.
+  every session has its whole history from the lines it already holds. Each
+  change is keyed by its session, its time and its writer, and where one
+  writer changed the status twice in a millisecond, by its place among
+  those, the older first: two blocks of one key leave the whole board
+  undrawn (see "Measuring").
 - **The toggles at a list's foot** are one press, shared: Status's history,
   Parked's picked up and Resolved's `show all`. Each is a plain press, drawn
   dim, at the list's foot, and only it opens and folds its list: opening or
@@ -864,10 +868,15 @@ show all 4
   history kept where it belongs, under its own section, closed until asked
   for. So Claude has no note tool, the CLI no `note`, the board text no
   latest notes, and the pane no NOTES; Status keeps its history, and Parked
-  what was taken off it. A note line already on disk is a kind no reader
-  knows now, skipped as any such line is: its session reads as if it were
-  never written, its id names no item, and a resolve or an edit naming it
-  is refused as naming none (`There is no item k3f9 on this board.`).
+  what was taken off it. A note line already on disk is read for its id
+  and its time alone: the id stays taken, so no new item is given it while
+  Claude may still hold it in context; its time still dates its session and
+  its count still counts, so the writer's next line counts on past it; and
+  it posts nothing, no item and no change. A resolve or an edit naming it
+  is refused as naming no item (`There is no item k3f9 on this board.`). A
+  board an older load saved in `$.state` may still hold a note among its
+  items until the session folds again; drawing drops any item of a type it
+  does not know, and keeps its id.
 - **Parked:** a section of every session's view, under Status, and of every
   project's, drawn while something is parked there or was taken off it, its
   heading counting what is parked (`2 to come back to`, or `nothing to come
@@ -894,19 +903,20 @@ show all 4
   `Rename the settings tab · picked up by Export`, or `Drop the old
   importer · closed by Claude`. Opened, an item hangs Lee's note on the
   pick-up, or Claude's reason for the close, and its `see`; or `nothing more
-  was recorded`. It shows the latest 3; with more, `show all 3`, then `show
+  was recorded`. It shows the latest 3; with more, `show all 5`, then `show
   fewer`. A session's lists what it parked, a project's what any session of
   it parked, finished and idle ones included, each naming the session that
   parked it, as Parked does.
 
   Who picked it up is the session the pick-up went to, named as the pane
-  names it everywhere, by its name. A pick-up's reply is written by the
-  window it was pressed in, as its writer (see Delivery), and names no
-  session; the window's heartbeat in each session it held says when it
-  attached there. So the pick-up went to the session of the project that
-  writer attached to last at or before the reply's time; with none known,
-  as where the window joined that session again since, its heartbeat
-  rewritten, it reads `picked up` alone.
+  names it everywhere, by its name as it stands. A pick-up's reply line
+  says so itself: `to`, the id of the session its message went to, written
+  as the reply is made (see Delivery). Nothing else on disk says it: a
+  window's heartbeat in a session is rewritten as it joins it again or a
+  resumed conversation takes it up, so which session a window held at a
+  pick-up's time can't be read back, and a wrong name is worse than none.
+  A pick-up written before its line said (17 November 2026) reads `picked
+  up` alone.
 
 ### Answering an ask
 
@@ -1546,8 +1556,9 @@ app (see "The menu bar").
   and sealed as they are. Once Claude Code has taken the message, the window
   writes the pick-up down in the session that parked the item, the reply and
   its delivered mark together, in its own file there, as the pane writes
-  Lee's finish; the reply's id is unlike any that session uses. The item
-  leaves Parked. Claude's line names the session that parked it where that
+  Lee's finish; the reply's id is unlike any that session uses, and the
+  reply names the session its message went to (`to`), as every pick-up's
+  does from 17 November 2026. The item leaves Parked. Claude's line names the session that parked it where that
   is another (`- Pick up from parked, Request ledger's: Export the ledger as
   CSV`). The item shows under that session's Parked, in its picked up,
   `picked up by` the session it went to, a finished session's too (17
@@ -2614,7 +2625,10 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   alone, as it skips any line it cannot read. A reply's verdict is `yes`, `choose` (with its
   `option`), `answer` (a words ask's words, as its `note`), `comment`,
   `ignore` or `pickup`; a yes or a choice may carry a comment as its note.
-  The format's version stays 1: a new reader reads every old line, and an
+  A pick-up names the session its message went to, by its id (`to`, 17
+  November 2026; see "Parked's picked up"): an older reader passes over the
+  field, and a pick-up written before it reads as going to no session
+  known. The format's version stays 1: a new reader reads every old line, and an
   old reader skips an ask line it cannot read, as it skips any.
 
   **Parked items as the project's** (11 November 2026; see "Parked items
@@ -2666,8 +2680,9 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   2026; see "Snooze"), which `snooze` and `wake` of an ask (23 October 2026)
   and `snoozeTurn` and `wakeTurn` of a turn (4 November 2026) came before,
   still read and no longer written. A `note`, Claude's note until notes
-  went (17 November 2026), is a kind no reader knows now, skipped as any
-  such line is. The session holds the latest finish, when, by which
+  went (17 November 2026), is still read, for its `id` alone: the id stays
+  taken, and the line dates its session and counts in its writer's file as
+  ever, but it posts nothing (see "Notes went"). The session holds the latest finish, when, by which
   writer and why, until an unfinish clears it. Who is a field of its own
   because Lee's pane and Claude's tool write as the same window.
 - Reading merges every writer's lines into one order: time, then writer,
@@ -2889,9 +2904,23 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   look whatever their state, and so is the session of the item Lee is
   answering in the prompt, open or not, read at once as the press begins
   answering it.
+- **What a look carries** into `$.state`, every 5 seconds, is what the
+  board draws, and no more (17 November 2026). For every project: its
+  current sessions in brief and what every session of it parked, which
+  the band, All projects and Parked draw. What grows without end, as its
+  sessions live, only for the projects that draw it: each session's name
+  by its id, for the held session's project and the project of the place
+  the open board shows, a session's or a project's, where Parked's picked
+  up names the session a pick-up went to; and its current sessions'
+  history and what was taken off their Parked, only while the open board
+  shows the project's view, the only place that draws them. A move on the
+  board reads around first, as though it showed the place already, and
+  moves only then, so the first frame there draws the place whole: a
+  project's history and picked up are counted from that frame, never by
+  this session's alone and then by all, nor late.
 - The pane's last view lives in the window's `$.state` only: where it looks,
-  the item opened there, and, apart from that, the session whose RESOLVED
-  shows every closed ask, the held send Ready to send's one row for several
+  the item opened there, and, apart from that, how much each list of the
+  board's past shows (`shown`, by the list), the held send Ready to send's one row for several
   shows (`heldShown`, by the ids of the replies it carries; 5 November
   2026), and where Claude Code last seated the pane on each surface, kept
   when it closes (see "The band"); a pane an older load saved, without any
@@ -3063,8 +3092,9 @@ truth. There is still no background service. None of it is built now. Lee:
       spans each block down the column the pane keeps free beside its
       lines (`hooks/draw/measure.tsx`), drawing nothing, and posts the rows
       the block takes whenever they change. It is keyed by its block, a
-      session's item by its address, and a status change by its session
-      and its time. Claude Code draws nothing of a tree holding two
+      session's item by its address, and a status change by its session,
+      its time and its writer, with its place among one writer's changes
+      of one millisecond. Claude Code draws nothing of a tree holding two
       `Client`s under one key: keyed by their time, a send of several
       pick-ups, each logged in Notes as it was then, left the docked pane
       blank until newer lines pushed all but one out of Notes (8 October to
@@ -3325,9 +3355,11 @@ truth. There is still no background service. None of it is built now. Lee:
     8 status changes, the newest first, each its headline (`text`), its
     `detail`, `by` and `at`, and its resolved asks (20 October 2026), closed,
     the ignored aside, the newest closed first, as a session's Resolved lists
-    them. `history` took the place of `log` as notes went (17 November 2026),
-    the lines of Notes, a note's `kind`, `id` and `ref` among them, and `v`
-    moved to 4; `watch`'s own `v` did not, as the app reads no board.
+    them. `history` took the place of `log` as notes went (17 November
+    2026): `log` went, and with it its lines' `kind`, `id` and `ref`, and
+    a change's `text` lost its `Status: ` prefix (`now drawing Inbox`, once
+    `Status: now drawing Inbox`), so `v` moved to 4; `watch`'s own `v` did
+    not, as the app reads no board.
     `parked` stays what the session parked, as its view lists it; plain
     `board` prints Claude's board text, so it lists the project's (11
     November 2026; see "The board text's Parked", under "Claude's side").
@@ -3919,7 +3951,7 @@ truth. There is still no background service. None of it is built now. Lee:
 - **White:** anything clickable, and the main content.
 - **Soft:** lines describing the item above them (a summary, what a session is
   doing, a reply, a status change's detail), and the line a section with nothing in it
-  shows (`Nothing yet.`).
+  shows (`Nothing waiting on you.`).
 - **Grey:** ages, counts, heading notes. The toggles at a list's foot (Status's history,
   Parked's picked up, RESOLVED's `show all`) are a quieter press, drawn dim (a
   Button's own `dimColor`: Claude Code 2.1.294 refuses a Button with a

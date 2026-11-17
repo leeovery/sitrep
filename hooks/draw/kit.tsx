@@ -351,7 +351,7 @@ export const tree = (d: Drawing, key: string, branches: readonly Branch[], colum
   )
 }
 
-/** An entry of a list (a log line, a parked item, an ask), as its row draws it. */
+/** An entry of a list (a status change, a parked item, an ask), as its row draws it. */
 export type Row = {
   /** The row's own key; its tree's are made from it. */
   key: string

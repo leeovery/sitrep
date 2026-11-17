@@ -121,11 +121,11 @@ const answer = async (host: Host, answering: SitrepAnswering, text?: string) => 
   await readIfElsewhere(host, answering)
 }
 
-/** The board on a place, nothing opened there, at its top, and what it shows read. */
+/** The board on a place, nothing opened there, at its top: what it shows read first, so its first frame there draws it whole. */
 const go = async (host: Host, place: SitrepPlace) => {
+  await lookAround(host, [], place)
   await changePane(host, () => ({ place, selected: null }))
   await fromTheTop(host)
-  await lookAround(host)
 }
 
 /** Lee's finish: a line in this window's own file in the session, none once it is finished already. */

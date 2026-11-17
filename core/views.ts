@@ -14,7 +14,7 @@
 import { nearestFirst, type Project } from './project'
 import { isOpen, snoozedAsks } from './replies'
 import { compareText } from './text'
-import type { Ask, Item, Parked, Reply, Session, StatusLine } from './types'
+import type { Ask, Item, Parked, Session, StatusLine } from './types'
 
 /** How long an idle session (no window, nothing waiting) stays in the views after its last update. */
 export const CURRENT_MS = 7 * 24 * 60 * 60_000
@@ -285,26 +285,6 @@ export const takenOffBy = (session: Pick<Session, 'id' | 'status' | 'items'>): P
 export const projectTakenOff = (taken: readonly ProjectParked[]): ProjectParked[] =>
   [...taken].sort((a, b) => takenAt(b) - takenAt(a) || compareText(a.session, b.session))
 
-/** A window's hold on a session, as its heartbeat there says: the window, when it attached, and the session, by its id and its name. */
-export type Hold = { writer: string; attachedAt: number; session: string; name: string }
-
-/** Every window's hold on a session, by the heartbeats it keeps, those of windows long gone among them. */
-export const holdsOf = (session: Pick<Session, 'id' | 'status' | 'presence'>): Hold[] =>
-  session.presence.map(({ writer, attachedAt }) => ({
-    writer,
-    attachedAt,
-    session: session.id,
-    name: session.status.name,
-  }))
-
-/**
- * The name of the session a pick-up went to: the window that wrote it held
- * one session as it did, so of those `holds` names, the one that window
- * attached to last by the pick-up's time. Undefined where none is known: a
- * window that joined the session again since rewrote its heartbeat there.
- */
-export const pickedUpBy = (holds: readonly Hold[], { by, at }: Pick<Reply, 'by' | 'at'>) =>
-  holds
-    .filter(hold => hold.writer === by && hold.attachedAt <= at)
-    .sort((a, b) => b.attachedAt - a.attachedAt)
-    .at(0)?.name
+/** The session an item taken off Parked was picked up by, by its id, as its pick-up says; none for one Claude closed, or a pick-up written before pick-ups said (17 November 2026). */
+export const pickedUpTo = (parked: Parked) =>
+  parked.state === 'picked' ? parked.answer?.to : undefined

@@ -16,10 +16,32 @@ const MARK = { glyph: GLYPH.now, color: C.faint }
 /** A change as a history lists it: the session it came from, and in a project's, that session's name. */
 export type Changed = { line: StatusLine; session: string; name?: string }
 
-/** A change's address: its session, and its time, which no other change of that session's shares. */
-const addressOf = ({ line, session }: Changed) => itemKey(session, String(line.at))
+/** A change and its address on the board, which its row and its press are keyed by. */
+type Addressed = Changed & { address: string }
 
-const opensOf = (changed: Changed) => `status:${addressOf(changed)}`
+/**
+ * Each change with its address: its session, its time and its writer, and
+ * where a writer changed the status twice in one millisecond, its place
+ * among those, the older first, so a newer change never moves an older's.
+ * Two blocks of one key leave the whole board undrawn.
+ */
+const addressed = (changes: readonly Changed[]): Addressed[] => {
+  const seen = new Map<string, number>()
+
+  return changes
+    .toReversed()
+    .map(changed => {
+      const base = itemKey(changed.session, `${changed.line.at}:${changed.line.by}`)
+      const before = seen.get(base) ?? 0
+
+      seen.set(base, before + 1)
+
+      return { ...changed, address: before === 0 ? base : `${base}:${before}` }
+    })
+    .toReversed()
+}
+
+const opensOf = ({ address }: Addressed) => `status:${address}`
 
 /** A line of a change's detail as its branch: opening with its label, in the now colour. */
 const branchOf = (text: string): Branch => {
@@ -29,11 +51,11 @@ const branchOf = (text: string): Branch => {
 }
 
 /** A change, as a block of its own. */
-const drawChange = (d: Drawing, changed: Changed): Block => {
-  const { line, name } = changed
+const drawChange = (d: Drawing, changed: Addressed): Block => {
+  const { line, name, address } = changed
   const key = opensOf(changed)
   const isOpen = d.scene.pane.selected === key
-  const row = `change:${addressOf(changed)}`
+  const row = `change:${address}`
 
   return {
     key: row,
@@ -53,7 +75,7 @@ const drawChange = (d: Drawing, changed: Changed): Block => {
 export const drawHistory = (d: Drawing, scope: string, changes: readonly Changed[]): Block[] =>
   drawPast(d, {
     list: `history:${scope}`,
-    entries: changes,
+    entries: addressed(changes),
     draw: changed => drawChange(d, changed),
     opens: opensOf,
     folding: { show: 'show history', hide: 'hide history' },

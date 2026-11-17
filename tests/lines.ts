@@ -107,7 +107,7 @@ export const reply = (
   id: string,
   item: string,
   verdict: Verdict,
-  extra: { option?: string; note?: string } = {},
+  extra: { option?: string; note?: string; to?: string } = {},
 ): Body => ({ type: 'reply', id, item, verdict, ...extra })
 
 export const delivered = (...replies: string[]): Body => ({ type: 'delivered', replies })

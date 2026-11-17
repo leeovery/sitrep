@@ -35,6 +35,8 @@ export type SitrepReply = {
   verdict: SitrepVerdict
   option?: string
   note?: string
+  /** A pick-up's: the session it went to, by its id; none on one written before pick-ups said. */
+  to?: string
   by: string
   at: number
   delivery: SitrepDelivery
@@ -249,6 +251,7 @@ export type SitrepReplyBody = {
   verdict: SitrepVerdict
   option?: string
   note?: string
+  to?: string
 }
 
 /** Whose replies a message carries: Lee's send from this window's board, or what other sessions left in its inbox. */
@@ -319,13 +322,11 @@ export type SitrepProjectParked = SitrepParked & { session: string; name: string
 /** A change of status in a project's history, and the session it came from: core's `ProjectStatusLine`. */
 export type SitrepProjectStatusLine = SitrepStatusLine & { session: string }
 
-/** A window's hold on a session: core's `Hold`. */
-export type SitrepHold = { writer: string; attachedAt: number; session: string; name: string }
-
 /**
  * A project as last read: its key, its current sessions other than the held
- * one, in brief, and what every session of it but the held one parked, what
- * was taken off their Parked, and the windows' holds on them.
+ * one, in brief, and what every session of it but the held one parked; and,
+ * only for the projects the board draws them for, its sessions' names, the
+ * history of their status and what was taken off their Parked.
  */
 export type SitrepProject = {
   key: string
@@ -334,11 +335,11 @@ export type SitrepProject = {
   sessions: SitrepBrief[]
   /** Oldest first, finished and idle sessions' included; none from a load before parked items were the project's. */
   parked?: SitrepProjectParked[]
-  /** The newest taken off first, finished and idle sessions' included; none from a load before Parked kept them. */
+  /** Every session filed under it but the held one, finished and idle ones included, by id: what names the session a pick-up went to. Only for the held session's project, and the project of the place the open board shows; none otherwise. */
+  names?: Partial<Record<string, string>>
+  /** What was taken off its sessions' Parked, the newest taken off first, finished and idle sessions' included. Only while the open board shows the project's view, which draws them; none otherwise. */
   takenOff?: SitrepProjectParked[]
-  /** Finished and idle sessions' included, for whom a pick-up went to; none from a load before Parked kept what was taken off it. */
-  holds?: SitrepHold[]
-  /** Its current sessions' changes of status, the newest first, read only while the board looks at the project, whose view draws them; none otherwise. */
+  /** Its current sessions' changes of status, the newest first. Only while the open board shows the project's view, which draws them; none otherwise. */
   history?: SitrepProjectStatusLine[]
 }
 
@@ -366,7 +367,7 @@ export type SitrepPane = {
   isOpen: boolean
   /** Null at home: this session. */
   place: SitrepPlace | null
-  /** The item (or log line) opened under its line, or the press asking in place what it should do (`finish:<session>`, `snooze:<session>:<ask>`, the ask opened still). */
+  /** The item (or status change) opened under its line, or the press asking in place what it should do (`finish:<session>`, `snooze:<session>:<ask>`, the ask opened still). */
   selected: string | null
   /** How much each list of the board's past shows, by the list (`history:<session>`): a list missing shows as it starts, RESOLVED its latest, Status's history and Parked's picked up closed. A pane an older load saved lacks it, and is read as none. */
   shown: Partial<Record<string, SitrepShowing>>

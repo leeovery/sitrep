@@ -437,6 +437,9 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
     }
   },
 
+  // A note's line from before notes went posts nothing: `take` keeps its id taken.
+  note: () => {},
+
   park: (fold, { id, title, where, ref, at, by }) => {
     post(fold, {
       type: 'park',
@@ -510,14 +513,24 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
     }
   },
 
-  reply: (fold, { id, item: target, verdict, option, note, at, by }) => {
+  reply: (fold, { id, item: target, verdict, option, note, to, at, by }) => {
     const item = fold.items.get(target)
 
     if (fold.replies.has(id) || fold.items.has(id) || item === undefined) {
       return
     }
 
-    const reply: Reply = { id, item: target, verdict, option, note, by, at, delivery: 'waiting' }
+    const reply: Reply = {
+      id,
+      item: target,
+      verdict,
+      option,
+      note,
+      to,
+      by,
+      at,
+      delivery: 'waiting',
+    }
     const early = fold.early.get(id)
 
     arrive(fold, item, reply, at)

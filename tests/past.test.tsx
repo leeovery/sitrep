@@ -1,13 +1,26 @@
 import type { SitrepPane } from '../types'
 import { expect, test, tier } from './kit'
+import { AROUND_MS } from '../hooks/around'
 import { C } from '../hooks/look'
 import { projectPlace } from '../hooks/places'
 import { WATCH_MS } from '../hooks/window'
 import { rowsOf } from './drawn'
-import { HELD, heldItem, HOUR, LEDGER, MIN, PROJECT, T0, THEMES, W2 } from './data'
+import {
+  changeKey,
+  HELD,
+  heldItem,
+  HOUR,
+  LEDGER,
+  MIN,
+  PROJECT,
+  T0,
+  THEMES,
+  W1,
+  W2,
+} from './data'
 import { delivered, file, park, reply, resolve, status, type Line } from './lines'
 import { pane, sceneFrom, type Drawn } from './render'
-import { ACROSS, DOCKED, INLINE, world } from './world'
+import { ACROSS, DOCKED, INLINE, toProject, world } from './world'
 
 tier('user')
 
@@ -27,7 +40,7 @@ const CHANGES: readonly Line[] = [
 const PARKED: readonly Line[] = [
   [T0, park('p1', 'A priority badge')],
   [T0, park('p2', 'Tidy the fixtures', { ref: 'notes: tidy.md' })],
-  [T0 + 5 * MIN, reply('r1', 'p2', 'pickup', { note: 'Before the release' })],
+  [T0 + 5 * MIN, reply('r1', 'p2', 'pickup', { note: 'Before the release', to: HELD.id })],
   [T0 + 5 * MIN, delivered('r1')],
   [T0, park('p3', 'Drop the old flag')],
   [T0 + 6 * MIN, resolve('p3', 'Dropped it in the PR')],
@@ -108,7 +121,7 @@ test('a history of 3 changes or fewer has no show all', async () => {
 })
 
 test('a change opens to its detail, each line under its label; its mark is a faint dot', async () => {
-  const change = heldItem(String(T0 + 2 * MIN))
+  const change = changeKey(HELD.id, T0 + 2 * MIN, W1)
   const ui = drawn(CHANGES, { ...showing(HISTORY), selected: `status:${change}` })
 
   expect(await rowsAt(ui, `change:${change}`)).toEqual([
@@ -163,6 +176,35 @@ test("an item taken off opens to Lee's note on the pick-up and its ref, or to Cl
     '✓ Drop the old flag · closed by Claude             54m',
     '└ Dropped it in the PR',
   ])
+
+  const see = await drawn(PARKED, {
+    ...showing(PICKED_UP),
+    selected: `picked:${heldItem('p2')}`,
+  }).find({ type: 'Text', text: 'see notes: tidy.md' })
+  const [label] = (see?.children ?? []) as { props: { color?: string } }[]
+
+  expect(label?.props.color, "its see in the tick's green").toBe(C.ok)
+})
+
+test('two changes of the status in one millisecond are two rows, each its own key, and the board draws them both', async ($, on) => {
+  const w = world($, on, { now: NOW })
+  const { id } = await w.begin()
+
+  await w.call('status', { now: ['Drawing round 1'] })
+  await w.call('status', { now: ['Drawing round 2'] })
+
+  const ui = await w.opened()
+
+  await ui.press({ key: `history:${id}` })
+
+  expect(await ui.drawn()).toBeDefined()
+  expect(await keysOf(ui, 'change:')).toEqual([
+    `change:${changeKey(id, NOW, W1)}:1`,
+    `change:${changeKey(id, NOW, W1)}`,
+  ])
+  expect(await ui.find({ key: `status:${changeKey(id, NOW, W1)}:1` })).toMatchObject({
+    props: { label: expect.stringContaining('now drawing round 2') },
+  })
 })
 
 test("picked up past the latest 3 shows them under show all, and every one shown in full", async () => {
@@ -200,15 +242,20 @@ test('PARKED is drawn while something was taken off though nothing is parked, sa
   expect(await neither.find({ key: PICKED_UP })).toBeUndefined()
 })
 
-/** Two sessions beside this one: the ledger, held by its window, which picked up its own item; Themes, held by none, whose item was picked up by a window no session holds. */
+/**
+ * Two sessions beside this one: the ledger, whose item went to Themes, its
+ * window attached since, as a resumed conversation's or a second join's
+ * heartbeat says; and Themes, no window holding it, whose item was picked
+ * up before pick-ups said where they went.
+ */
 const AROUND = [
   {
     meta: LEDGER,
-    seenAt: T0,
+    seenAt: T0 + 30 * MIN,
     lines: [
       [T0 + 2 * MIN, status(['Reading the schema'], { name: LEDGER.name })],
       [T0, park('p1', 'Export as CSV')],
-      [T0 + 7 * MIN, reply('r1', 'p1', 'pickup')],
+      [T0 + 7 * MIN, reply('r1', 'p1', 'pickup', { to: THEMES.id })],
       [T0 + 7 * MIN, delivered('r1')],
     ] satisfies Line[],
   },
@@ -233,7 +280,7 @@ const projectDrawn = (shown: Partial<SitrepPane> = {}, props = DOCKED) =>
       lines: [
         ...CHANGES.slice(0, 2),
         [T0, park('p2', 'Tidy the fixtures')],
-        [T0 + 5 * MIN, reply('r1', 'p2', 'pickup')],
+        [T0 + 5 * MIN, reply('r1', 'p2', 'pickup', { to: HELD.id })],
         [T0 + 5 * MIN, delivered('r1')],
       ],
       now: NOW,
@@ -255,7 +302,7 @@ test("the project's view folds its sessions' history under SESSIONS and its pick
 /** Room for a project's longest row of the past whole. */
 const ROOMY = 100
 
-test("the project's view shown names each change's session, and each item's, picked up by the session holding the window that picked it up", async () => {
+test("the project's view shown names each change's session, and each item's, picked up by the session its pick-up says it went to, whatever the windows' heartbeats say since; one written before pick-ups said, by none", async () => {
   for (const props of [DOCKED, INLINE].map(each => ({ ...each, bodyColumns: ROOMY }))) {
     const ui = projectDrawn(
       { shown: { [PROJECT_HISTORY]: 'all', [PROJECT_PICKED_UP]: 'latest' } },
@@ -272,7 +319,7 @@ test("the project's view shown names each change's session, and each item's, pic
     ])
     expect(await rows('taken:'), props.placement).toEqual([
       ['✓ Themes: Pick the accent · picked up 52m'],
-      ['✓ Invoice ledger: Export as CSV · picked up by Invoice ledger 53m'],
+      ['✓ Invoice ledger: Export as CSV · picked up by Themes 53m'],
       ['✓ Help desk redesign: Tidy the fixtures · picked up by Help desk redesign 55m'],
     ])
     expect(await press(ui, `all:${PROJECT_HISTORY}`)).toMatchObject({ label: 'show fewer' })
@@ -309,7 +356,7 @@ test('the presses show a list, every one of it, fewer again, and fold it away, a
   const band = await w.band()
   const shownOf = () => w.state.pane?.shown ?? {}
   const history = `history:${id}`
-  const oldest = `status:${w.item(String(T0))}`
+  const oldest = `status:${changeKey(id, T0, W2)}`
 
   await ui.press({ key: history })
   expect(shownOf()[history]).toBe('latest')
@@ -338,4 +385,47 @@ test('the presses show a list, every one of it, fewer again, and fold it away, a
   await band.press({ key: 'band:board' })
   expect(shownOf()).toEqual({})
   expect(await ui.find({ key: history })).toMatchObject({ props: { label: 'show history 5' } })
+})
+
+test("a project's view draws its history and what was taken off its Parked from its first frame: the look reads them before the board moves there, and no count moves after", async ($, on) => {
+  const w = world($, on, { now: NOW })
+  /** What the project's entry in `$.state` held as the pane moved to its view, before any frame there was drawn. */
+  const atMove: { history?: number; takenOff?: number }[] = []
+
+  on('state.set', { plugin: 'sitrep', key: 'pane' }, ($, e, next) => {
+    if ((e.value as SitrepPane | undefined)?.place?.level === 'project') {
+      const project = w.state.projects?.find(each => each.key === PROJECT.key)
+
+      atMove.push({ history: project?.history?.length, takenOff: project?.takenOff?.length })
+    }
+
+    return next(e)
+  })
+
+  w.elsewhere(LEDGER).write(
+    status(['Reading the schema'], LEDGER),
+    park('p1', 'Export as CSV'),
+    reply('r1', 'p1', 'pickup', { to: LEDGER.id }),
+    delivered('r1'),
+  )
+  await w.begin()
+
+  const ui = await w.opened()
+  const labels = async () => [
+    (await press(ui, PROJECT_HISTORY))?.label,
+    (await press(ui, PROJECT_PICKED_UP))?.label,
+  ]
+
+  await toProject(ui)
+
+  const first = await labels()
+
+  expect(atMove, 'the look had read them as the pane moved').toEqual([{ history: 1, takenOff: 1 }])
+  expect(first).toEqual([
+    `show history ${(w.state.board?.history?.length ?? 0) + 1}`,
+    'show picked up 1',
+  ])
+
+  await w.clock.advance(AROUND_MS)
+  expect(await labels(), 'a look later').toEqual(first)
 })

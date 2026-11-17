@@ -7,6 +7,7 @@ import { C, GLYPH } from '../hooks/look'
 import { EVERY_PROJECT, itemKey, projectPlace } from '../hooks/places'
 import { rowsOf } from './drawn'
 import {
+  changeKey,
   DAY,
   ELSEWHERE,
   HELD,
@@ -20,6 +21,7 @@ import {
   SHIFTS,
   T0,
   THEMES,
+  W2,
   W3,
   W4,
 } from './data'
@@ -203,7 +205,7 @@ test("another session's view is the session view: its status and its history, it
   await ui.press({ key: `history:${LEDGER.id}` })
   expect(
     await ui.find({
-      key: `status:${itemKey(LEDGER.id, String(T0))}`,
+      key: `status:${changeKey(LEDGER.id, T0, W2)}`,
       text: 'now drawing the ledger schema',
     }),
   ).toBeDefined()
@@ -251,12 +253,12 @@ test("the project view lists its sessions, this one first, each with what it doe
 
   expect(await ui.find({ key: history, text: 'show history 2' })).toBeDefined()
   expect(await keysOf(shown, 'status:')).toEqual([
-    `status:${itemKey(LEDGER.id, String(T0))}`,
-    `status:${itemKey(LEDGER.id, String(T0 - MIN))}`,
+    `status:${changeKey(LEDGER.id, T0, W2)}`,
+    `status:${changeKey(LEDGER.id, T0 - MIN, W2)}`,
   ])
   expect(
     await shown.find({
-      key: `status:${itemKey(LEDGER.id, String(T0 - MIN))}`,
+      key: `status:${changeKey(LEDGER.id, T0 - MIN, W2)}`,
       text: 'Invoice ledger: now reading the brief',
     }),
   ).toBeDefined()

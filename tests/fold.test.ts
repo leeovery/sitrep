@@ -1,5 +1,5 @@
 import { expect, test } from './kit'
-import { foldSession, serialise, VERSION } from '../core'
+import { foldSession, newItemId, serialise, stamp, VERSION } from '../core'
 import { CLI, MIN, SENDER, T0, W1, W2 } from './data'
 import {
   choiceAsk,
@@ -12,6 +12,7 @@ import {
   reopen,
   reply,
   resolve,
+  scripted,
   status,
   unfinish,
   yesAsk,
@@ -185,27 +186,31 @@ test('a resolved parked item leaves Parked; reopened, it is back where it was', 
   ])
 })
 
-test('a note line as the board wrote it before notes went is read and skipped: it posts no item, takes no id and moves no time, and the lines naming it change nothing', () => {
-  const session = fold({
-    logs: {
-      [W1]: file(
-        [T0 + 1 * MIN, yesAsk('k1', 'Review round 1')],
-        [T0 + 2 * MIN, oldNote('n4m5', 'PR #81 merged', ['6 files'], { ref: 'PR #81' })],
-        [T0 + 3 * MIN, { type: 'edit', item: 'n4m5', changes: { title: 'PR #82 merged' } }],
-        [T0 + 4 * MIN, resolve('n4m5', 'Wrong number')],
-        [T0 + 5 * MIN, reopen('n4m5')],
-        [T0 + 6 * MIN, oldNote('n5p6', 'Shipped')],
-      ),
-    },
-  })
+/** A session's lines with notes as the board wrote them before notes went, and lines naming one. */
+const NOTED = file(
+  [T0 + 1 * MIN, yesAsk('k1', 'Review round 1')],
+  [T0 + 2 * MIN, oldNote('k3f9', 'PR #81 merged', ['6 files'], { ref: 'PR #81' })],
+  [T0 + 3 * MIN, { type: 'edit', item: 'k3f9', changes: { title: 'PR #82 merged' } }],
+  [T0 + 4 * MIN, resolve('k3f9', 'Wrong number')],
+  [T0 + 5 * MIN, reopen('k3f9')],
+  [T0 + 6 * MIN, oldNote('n5p6', 'Shipped')],
+)
+
+test('a note line as the board wrote it before notes went is read for its id and its time alone: it posts no item and no history, and the lines naming it change nothing', () => {
+  const session = fold({ logs: { [W1]: NOTED } })
 
   expect([...session.items.keys()]).toEqual(['k1'])
-  expect([...session.ids]).toEqual(['k1'])
+  expect([...session.ids]).toEqual(['k1', 'k3f9', 'n5p6'])
   expect(session.asks[0]?.state).toBe('waiting')
   expect(session.history).toEqual([])
-  expect(session.updatedAt, 'what names it moves it as what names no item does').toBe(
-    T0 + 5 * MIN,
-  )
+  expect(session.updatedAt, 'the last note moves the time, as it did').toBe(T0 + 6 * MIN)
+})
+
+test("an old note's id is never given again, and a line after it counts on from its count", () => {
+  const { ids } = fold({ logs: { [W1]: NOTED } })
+
+  expect(newItemId(scripted([19, 3, 15, 9], [1, 1, 1, 1]), ids)).toBe('1111')
+  expect(stamp(NOTED, [park('p1', 'Later')], T0 + 7 * MIN).map(entry => entry.seq)).toEqual([7])
 })
 
 test('changes to an item no line posted change nothing', () => {

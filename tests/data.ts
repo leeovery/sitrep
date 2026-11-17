@@ -89,6 +89,10 @@ export const HELD: SessionMeta = {
 /** An item of the held session by its address, as its buttons' keys and the pane name it. */
 export const heldItem = (id: string) => itemKey(HELD.id, id)
 
+/** A change of a session's status by its address, as its row and its press are keyed: its session, its time and its writer. */
+export const changeKey = (session: string, at: number, writer: string) =>
+  itemKey(session, `${at}:${writer}`)
+
 /** Another session of Northwind's, started by the second window. */
 export const LEDGER = meta('sr-1edger', 'Invoice ledger', W2)
 

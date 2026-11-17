@@ -220,7 +220,11 @@ for (const [standing, ledger] of Object.entries(STANDING)) {
 
     expect(w.prompts.map(prompt => prompt.text)).toEqual([PICKED])
     expect(written.map(line => line.type)).toEqual(['reply', 'delivered'])
-    expect(picked).toMatchObject({ item: 'p1', verdict: 'pickup' })
+    expect(picked, 'naming the session it went to').toMatchObject({
+      item: 'p1',
+      verdict: 'pickup',
+      to: id,
+    })
     expect(written.at(-1)).toMatchObject({ replies: [picked?.id] })
     expect(w.files.has(LETTERS), 'nothing in its inbox').toBe(false)
     expect(w.files.has(paths.log(W1)), 'nothing written in this session').toBe(false)
@@ -249,6 +253,32 @@ for (const [standing, ledger] of Object.entries(STANDING)) {
     ).toEqual(ledger.isOpen ? [`go:${id}`, `go:${LEDGER.id}`] : [`go:${id}`])
   })
 }
+
+test("Parked's picked up names the session a pick-up went to though the window that sent it left that session and joined it again since", async ($, on) => {
+  const w = world($, on)
+  const { id, ui } = await besideLedger(w, OPEN)
+
+  await pickUpLedgers(ui)
+  await ui.press({ key: 'send' })
+  await w.clock.advance(MIN)
+  await w.call('join', { session: LEDGER.id })
+  await w.clock.advance(MIN)
+  await w.call('join', { session: id })
+
+  expect(
+    parsePresence(w.text(sessionPaths(ROOT, PROJECT.key, id).heartbeat(W1)), W1)?.attachedAt,
+    'attached again after the pick-up',
+  ).toBe(w.clock.now())
+
+  await toProject(ui)
+  await ui.press({ key: PICKED_UP.project(PROJECT.key) })
+  await ui.press({ key: `picked:${LEDGER.id}:p1` })
+  expect(rowsOf(await ui.find({ key: `taken:${LEDGER.id}:p1` }))).toEqual([
+    '✓ Invoice ledger: Export the ledger as CSV · 2m',
+    '│ picked up by Help desk redesign',
+    '└ nothing more was recorded',
+  ])
+})
 
 test("held mid-turn, a pick-up of another session's item is named by its address in the claim and said in no heartbeat; taken back it is as it was, and sent again it goes in as the turn ends", async ($, on) => {
   const w = world($, on)

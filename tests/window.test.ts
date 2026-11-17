@@ -556,3 +556,26 @@ test('the board in $.state is plain data, and rebuilds into the session core fol
   expect(sessionOf(kept)).toEqual(session)
   expect(sessionOf(kept).items.get('k1')?.type).toBe('ask')
 })
+
+test('a board an older load saved, holding a note and no history, rebuilds with neither note nor anything of it but its id', () => {
+  const session = fold({
+    logs: { [W1]: file([T0, park('p1', 'Drew round 1')], [T0 + 1, status(['Drawing round 2'])]) },
+  })
+  const board = { ...boardOf(session), history: undefined }
+  const older = JSON.parse(
+    JSON.stringify({
+      ...board,
+      items: [
+        ...board.items,
+        { type: 'note', id: 'n1', text: 'PR #82 merged', detail: [], by: W1, at: T0 },
+      ],
+      ids: [...board.ids, 'n1'],
+      log: [{ kind: 'note', id: 'n1', text: 'PR #82 merged', detail: [], by: W1, at: T0 }],
+    }),
+  )
+  const rebuilt = sessionOf(older)
+
+  expect([...rebuilt.items.keys()]).toEqual(['p1'])
+  expect(rebuilt.ids.has('n1'), 'its id still taken').toBe(true)
+  expect(rebuilt.history).toEqual([])
+})

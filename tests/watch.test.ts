@@ -1172,7 +1172,7 @@ const nameIn = (line: Printed | undefined, id: string) => {
   return board === null ? null : board?.session.name
 }
 
-/** The texts of the log lines of a session's board a watch line carries. */
+/** The headlines of the status changes of a session's board a watch line carries. */
 const historyOf = (line: Printed | undefined, id: string) =>
   line?.boards[id]?.history.map(each => each.text)
 

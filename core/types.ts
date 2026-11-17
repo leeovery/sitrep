@@ -70,6 +70,13 @@ export type AskBody = {
 /** An ask's line as written before asks said what they want back: by its kind. */
 export type KindAskBody = Omit<AskBody, 'wants' | 'yes'> & { kind: AskKind }
 
+/**
+ * A note's line, as Claude wrote one until notes went (17 November 2026),
+ * read for its id alone: the id stays taken, so no new item is given it, and
+ * its time and count still count; it posts nothing.
+ */
+export type NoteBody = { type: 'note'; id: string }
+
 export type ParkBody = {
   type: 'park'
   id: string
@@ -115,6 +122,8 @@ export type ReplyBody = {
   verdict: Verdict
   option?: string
   note?: string
+  /** A pick-up's: the session it went to, by its id. None on a pick-up written before pick-ups said (17 November 2026). */
+  to?: string
 }
 
 export type DeliveredBody = { type: 'delivered'; replies: string[] }
@@ -171,6 +180,7 @@ export type Body =
   | StatusBody
   | AskBody
   | KindAskBody
+  | NoteBody
   | ParkBody
   | ResolveBody
   | ReopenBody
@@ -205,6 +215,8 @@ export type Reply = {
   verdict: Verdict
   option?: string
   note?: string
+  /** A pick-up's: the session it went to, by its id; none where its line said none. */
+  to?: string
   by: string
   at: number
   delivery: Delivery

@@ -566,7 +566,7 @@ const TOOLS = [
   posting(
     spec(
       'status',
-      'Set where the session stands, giving only what changed. The board logs the change itself: do nothing extra for it.',
+      'Set where the session stands, giving only what changed. The board keeps the change in its history itself: do nothing extra for it.',
       {
         name: NAME,
         summary: SUMMARY,

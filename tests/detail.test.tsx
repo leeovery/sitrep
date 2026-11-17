@@ -4,7 +4,7 @@ import type { Body } from '../core'
 import { hoverScope } from '../hooks/draw/kit'
 import { C, clip, GLYPH } from '../hooks/look'
 import { rowsOf } from './drawn'
-import { HELD, heldItem, MIN, PROJECT, REVIEW, T0, type Asked } from './data'
+import { changeKey, HELD, heldItem, MIN, PROJECT, REVIEW, T0, W1, type Asked } from './data'
 import { askOf, park, status, type Line } from './lines'
 import { pane, sceneFrom, type Drawn } from './render'
 import { ACROSS, asked, world } from './world'
@@ -92,7 +92,7 @@ const ALL_FAINT = { [GLYPH.branch]: [C.faint], [GLYPH.last]: [C.faint], [GLYPH.s
 /** Status's history shown, a change opened where `at` names one. */
 const historyShown = (at?: number): Partial<SitrepPane> => ({
   shown: { [`history:${HELD.id}`]: 'latest' },
-  selected: at === undefined ? null : `status:${heldItem(String(at))}`,
+  selected: at === undefined ? null : `status:${changeKey(HELD.id, at, W1)}`,
 })
 
 test("a change in Status's history is its mark, its text and its age at the right edge; opened, a stem runs down from the mark to its tree", async () => {
@@ -100,7 +100,7 @@ test("a change in Status's history is its mark, its text and its age at the righ
     status(['Drawing Inbox, round 2, and the brief beside it'], { next: 'Inbox, round 3' }),
   ]
   const across = async (ui: Drawn) =>
-    rowsOf(await ui.find({ key: `change:${heldItem(String(T0))}` }), ACROSS)
+    rowsOf(await ui.find({ key: `change:${changeKey(HELD.id, T0, W1)}` }), ACROSS)
 
   expect(await across(drawnFrom(bodies, historyShown()))).toEqual([
     '• now drawing Inbox, round 2, and the brief bes…   now',

@@ -115,7 +115,7 @@ const howTaken = ({ parked, pickedUpBy }: TakenAt) => {
 /** What an item taken off Parked opens to: Lee's note on the pick-up, or Claude's reason for the close, and where Claude's own record of it is. */
 const takenDetail = ({ parked }: TakenAt) => {
   const said = parked.state === 'closed' ? parked.reason : parked.answer?.note
-  const detail = shown(said, seeRef(parked.ref, MARK.color))
+  const detail = shown(said, seeRef(parked.ref, TAKEN_MARK.color))
 
   return detail.length > 0 ? detail : ['nothing more was recorded']
 }

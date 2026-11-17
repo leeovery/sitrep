@@ -5,13 +5,12 @@ import {
   changedBy,
   CURRENT_MS,
   foldSession,
-  holdsOf,
   isCurrent,
   listedProjects,
   metaText,
   parkedBy,
   parkingOf,
-  pickedUpBy,
+  pickedUpTo,
   projectHistory,
   projectParked,
   projectTakenOff,
@@ -234,24 +233,29 @@ test("what was taken off a project's Parked is every session's, picked up or clo
   ])
 })
 
-test("a pick-up went to the session its window attached to last by the pick-up's time; none known where the window attached to none by then", () => {
+test("a pick-up went to the session its line names, whichever sessions its window held since; one written before pick-ups said names none, and an item Claude closed none", () => {
   const ledger = sessionOf('sr-aaaaaa', 'northwind', {
-    logs: { [W1]: file([T0, status([], { name: 'Ledger' })]) },
-    presence: { [W1]: seen(W1, T0), [W2]: seen(W2, T0 + 10 * MIN) },
+    logs: {
+      [W1]: file(
+        [T0, park('p1', 'Export as CSV')],
+        [T0, park('p2', 'Archive old invoices')],
+        [T0, park('p3', 'Drop the old importer')],
+        [T0 + MIN, reply('r1', 'p1', 'pickup', { to: 'sr-bbbbbb' })],
+        [T0 + MIN, reply('r2', 'p2', 'pickup')],
+        [T0 + MIN, delivered('r1', 'r2')],
+        [T0 + 2 * MIN, resolve('p3')],
+      ),
+    },
+    // The window that picked p1 up left, and joined this session since.
+    presence: { [W1]: seen(W1, T0 + 10 * MIN) },
   })
-  const importer = sessionOf('sr-bbbbbb', 'northwind', {
-    logs: { [W1]: file([T0, status([], { name: 'Importer' })]) },
-    presence: { [W1]: seen(W1, T0 + 5 * MIN) },
-  })
-  const holds = [...holdsOf(ledger), ...holdsOf(importer)]
+  const taken = new Map(takenOffBy(ledger).map(parked => [parked.id, pickedUpTo(parked)]))
 
-  expect(pickedUpBy(holds, { by: W1, at: T0 + MIN })).toBe('Ledger')
-  expect(pickedUpBy(holds, { by: W1, at: T0 + 5 * MIN })).toBe('Importer')
-  expect(pickedUpBy(holds, { by: W1, at: T0 + 20 * MIN }), 'the last it attached to').toBe(
-    'Importer',
-  )
-  expect(pickedUpBy(holds, { by: W2, at: T0 + MIN }), 'attached since').toBeUndefined()
-  expect(pickedUpBy(holds, { by: CLI, at: T0 + MIN }), 'no window').toBeUndefined()
+  expect(Object.fromEntries(taken)).toEqual({
+    p1: 'sr-bbbbbb',
+    p2: undefined,
+    p3: undefined,
+  })
 })
 
 test('an idle session shows for 7 days after its last update, then drops out of the views', () => {

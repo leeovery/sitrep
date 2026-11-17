@@ -10,10 +10,9 @@ import {
   brief,
   changedBy,
   compareText,
-  holdsOf,
   NOTHING_PARKED,
   parkedBy,
-  pickedUpBy,
+  pickedUpTo,
   projectHistory,
   projectParked,
   projectTakenOff,
@@ -21,7 +20,6 @@ import {
   summariseProject,
   takenOffBy,
   type Ask,
-  type Hold,
   type Parked,
   type Parking,
   type ProjectParked,
@@ -158,23 +156,22 @@ export const parkedIn = (scene: Scene, key: string): ParkedAt[] => {
   }))
 }
 
-/** Every window's hold on a session filed under a project, finished and idle ones included. */
-const holdsIn = (scene: Scene, key: string): Hold[] => [
-  ...(key === scene.here ? holdsOf(scene.session) : []),
-  ...(projectRead(scene, key)?.holds ?? []).filter(hold => hold.session !== scene.session.id),
-]
+/** The name of a session filed under a project, by its id: the held session's as it stands, another's as the look read it; none where the look carried no names for the project. */
+const nameIn = (scene: Scene, key: string, id: string) =>
+  id === scene.session.id ? scene.session.status.name : projectRead(scene, key)?.names?.[id]
 
-/** Items taken off a project's Parked as a view lists them, each a pick-up's naming the session it went to, by the holds given. */
-const takenOffAt = (key: string, taken: readonly ProjectParked[], holds: readonly Hold[]): TakenAt[] =>
-  taken.map(({ session, name, ...parked }) => ({
-    at: { project: key, session },
-    name,
-    parked,
-    pickedUpBy:
-      parked.state === 'picked' && parked.answer !== undefined
-        ? pickedUpBy(holds, parked.answer)
-        : undefined,
-  }))
+/** Items taken off a project's Parked as a view lists them, each pick-up naming the session it went to, where its line says which. */
+const takenOffAt = (scene: Scene, key: string, taken: readonly ProjectParked[]): TakenAt[] =>
+  taken.map(({ session, name, ...parked }) => {
+    const to = pickedUpTo(parked)
+
+    return {
+      at: { project: key, session },
+      name,
+      parked,
+      pickedUpBy: to === undefined ? undefined : nameIn(scene, key, to),
+    }
+  })
 
 /** Everything taken off a project's Parked, the newest taken off first, from every session filed under it, finished and idle ones included. */
 export const takenOffIn = (scene: Scene, key: string): TakenAt[] => {
@@ -183,7 +180,7 @@ export const takenOffIn = (scene: Scene, key: string): TakenAt[] => {
     each => each.session !== scene.session.id,
   )
 
-  return takenOffAt(key, projectTakenOff([...held, ...around]), holdsIn(scene, key))
+  return takenOffAt(scene, key, projectTakenOff([...held, ...around]))
 }
 
 /** What is parked in a project as the board has it: the look carries the items, not the times of the sessions holding them. */
@@ -302,7 +299,7 @@ export const parkedOf = (filed: Filed): ParkedAt[] =>
 
 /** What was taken off a session's Parked, the newest taken off first. */
 export const takenOffOf = (scene: Scene, filed: Filed): TakenAt[] =>
-  takenOffAt(filed.project, takenOffBy(filed.session), holdsIn(scene, filed.project))
+  takenOffAt(scene, filed.project, takenOffBy(filed.session))
 
 /** A session's name, with its project's where the board's own project is another. */
 export const sessionLabel = (scene: Scene, filed: Filed) =>

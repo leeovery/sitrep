@@ -217,7 +217,8 @@ export type Around = { folded?: Folded; flights?: Flights }
  * The replies as lines of a message to the session `to`, each naming its
  * item as the message does (`namedIn`), with an id unlike any `to` uses,
  * nor any of the sessions `folded` holds, among them each item's own, nor
- * any the messages `flights` carry, not written down yet.
+ * any the messages `flights` carry, not written down yet; a pick-up naming
+ * `to` as the session it goes to, which Parked's picked up names it by.
  */
 export const replyBodies = (
   to: Session,
@@ -236,7 +237,9 @@ export const replyBodies = (
 
     taken.add(id)
 
-    return { type: 'reply', id, item: namedIn(to.id, reply), verdict, option, note }
+    const goes = verdict === 'pickup' ? { to: to.id } : {}
+
+    return { type: 'reply', id, item: namedIn(to.id, reply), verdict, option, note, ...goes }
   })
 }
 

@@ -6,6 +6,7 @@ import { PANE } from '../hooks/pane'
 import { itemKey } from '../hooks/places'
 import { TICK_MS } from '../hooks/scene'
 import {
+  changeKey,
   ELSEWHERE,
   HELD,
   heldItem,
@@ -16,6 +17,7 @@ import {
   SHIFTS,
   T0,
   THEMES,
+  W1,
   W3,
 } from './data'
 import {
@@ -203,7 +205,7 @@ const DRAWN: readonly (readonly [RenderSurface, RenderPropsOf['Pane']])[] = [
 const PAST_SHOWN = [
   `history:${HELD.id}`,
   `all:history:${HELD.id}`,
-  `status:${itemKey(HELD.id, String(T0 + 3))}`,
+  `status:${changeKey(HELD.id, T0 + 3, W1)}`,
   `pickedup:${HELD.id}`,
 ]
 
@@ -252,7 +254,7 @@ test("the board drawn with no engine is the engine's wherever Lee takes it and w
     ['RESOLVED in full', () => ui.press({ key: `all:resolved:${HELD.id}` })],
     ['its history shown', () => ui.press({ key: `history:${HELD.id}` })],
     ['its history in full', () => ui.press({ key: `all:history:${HELD.id}` })],
-    ['a change opened', () => ui.press({ key: `status:${itemKey(HELD.id, String(T0 + 3))}` })],
+    ['a change opened', () => ui.press({ key: `status:${changeKey(HELD.id, T0 + 3, W1)}` })],
     ['its picked up shown', () => ui.press({ key: `pickedup:${HELD.id}` })],
     ['an item picked up opened', () => ui.press({ key: `picked:${heldItem('p2')}` })],
     ['the project', () => toProject(ui)],
