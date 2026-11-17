@@ -53,17 +53,18 @@ struct WelcomeAskTests {
         #expect(!stage.isPressing && !stage.isOut)
     }
 
-    /// The ask's row not found at the click, as the notch was made anew just before it, nothing is pressed: a press off
-    /// the row would start a drag nothing lets go.
-    @Test func withNoRowFoundTheClickPressesNothing() async throws {
+    /// The notch made anew just before the click, restyled, plays the loop again from its start, so nothing is pressed
+    /// where the old notch's row was: the click comes in the loop played again, on the row found on the new notch.
+    @Test func aNotchMadeAnewJustBeforeTheClickIsPressedOnlyOnItsOwnRow() async throws {
         let made = await Self.atAsk()
         let stage = try made.stage, loop = WelcomeLoop.ask
         try Self.play(made, until: #require(loop.clicks) - 40)
-        made.preferences.edit { $0.show = .strip }
-        try Self.play(made, until: #require(loop.clicks) - 20)
-        made.preferences.edit { $0.show = .notch }
-        try Self.play(made, until: #require(loop.clicks) + 20)
+        made.preferences.edit { $0.style = .card }
+        stage.step(at: made.clock.pass(1000 / 60))
+        #expect(stage.loopTime < 1000 / 60 + 1)
         #expect(stage.row == nil && !stage.isPressing)
+        try Self.play(made, until: #require(loop.clicks) + 20)
+        #expect(stage.row != nil && stage.isPressing)
     }
 
     /// The scene told the desktop and the words in step with the loop: lit, opened, then answered in the session,

@@ -43,15 +43,44 @@ struct MemoryDefaultsTests {
         #expect(MemoryDefaults().object(forKey: "key") == nil)
     }
 
+    /// Registered defaults are read under what is set, and the persistent domain calls act on what is held: its own
+    /// suite's domain is its values, any other domain its own.
+    @Test func registeringAndDomainsAreHeldInMemory() {
+        let defaults = MemoryDefaults()
+        let elsewhere = defaults.suite + ".elsewhere"
+
+        defaults.register(defaults: ["registered": 1, "string": "registered"])
+        defaults.set("words", forKey: "string")
+
+        #expect(defaults.integer(forKey: "registered") == 1)
+        #expect(defaults.string(forKey: "string") == "words")
+
+        defaults.setPersistentDomain(["kept": true], forName: defaults.suite)
+        defaults.setPersistentDomain(["other": 2], forName: elsewhere)
+
+        #expect(defaults.bool(forKey: "kept") && defaults.string(forKey: "string") == "registered")
+        #expect(defaults.persistentDomain(forName: elsewhere)?["other"] as? Int == 2)
+
+        defaults.removePersistentDomain(forName: defaults.suite)
+        defaults.removePersistentDomain(forName: elsewhere)
+
+        #expect(defaults.persistentDomain(forName: defaults.suite) == nil)
+        #expect(defaults.persistentDomain(forName: elsewhere) == nil)
+    }
+
+    /// Nothing set, registered or given as a domain reaches the real suite's domain.
     @Test func nothingReachesTheSuitesDomain() throws {
         let defaults = MemoryDefaults()
 
         defaults.set("words", forKey: "string")
+        defaults.register(defaults: ["registered": 1])
+        defaults.setPersistentDomain(["kept": true], forName: defaults.suite)
 
         let domain = try #require(UserDefaults(suiteName: defaults.suite))
 
         #expect(domain.persistentDomain(forName: defaults.suite) == nil)
-        #expect(domain.object(forKey: "string") == nil)
+        #expect(domain.object(forKey: "string") == nil && domain.object(forKey: "registered") == nil)
+        #expect(domain.object(forKey: "kept") == nil)
     }
 
     @Test func aChangeIsPostedFromTheDefaultsChanged() {

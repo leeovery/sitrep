@@ -58,13 +58,15 @@ final class Preferences {
     @ObservationIgnored private let savedSettingsWindow: SavedSettings<SettingsWindowSettings>
     @ObservationIgnored private let savedWelcome: SavedSettings<WelcomeSettings>
     @ObservationIgnored private let savedCallout: SavedSettings<CalloutSettings>
+    /// Where the card's folded sections are kept, in the same defaults.
+    @ObservationIgnored let savedCard: SavedSettings<CardSettings>
 
     /// What the SitRep window kept, until it went on 5 November 2026: where it was left, where Lee last looked at each
     /// session, and its frame.
     static let retired = ["windowLocation", "windowLastSession", "windowLooked", "NSWindow Frame SitRepWindow"]
 
     /// What it reads, and the window's keys taken out, quietly, at each start, which finds them gone after the first.
-    init(_ defaults: UserDefaults = .standard) {
+    init(_ defaults: UserDefaults) {
         Self.retired.filter { defaults.object(forKey: $0) != nil }.forEach(defaults.removeObject(forKey:))
         savedEdge = SavedEdgeSettings(defaults)
         savedApp = SavedSettings(defaults)
@@ -76,6 +78,7 @@ final class Preferences {
         welcomed = savedWelcome.read().welcomed
         savedCallout = SavedSettings(defaults)
         callout = savedCallout.read()
+        savedCard = SavedSettings(defaults)
     }
 
     /// A change Lee makes to the edge's settings: the edge takes it, and it is saved, unless it is one step of a drag

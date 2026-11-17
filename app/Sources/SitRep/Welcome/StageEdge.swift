@@ -223,24 +223,21 @@ final class StageEdge: NSView {
     }
 
     /// The ask's row, found on the shape as the last frame laid it out, before the pointer is placed on it: while the
-    /// loop's pointer goes to it, first and each frame the shape moves; and through the glide off it too, once a change
-    /// of Lee's settings may have moved it, whenever he made it, so the pointer never goes by where the row was. In the
-    /// glide, a panel folding away may show the row no more: the pointer then leaves from where it last found it.
+    /// loop's pointer goes to it, first and each frame the shape moves; and through the glide off it too, once the
+    /// strip's length, Max or edge has moved it (`movesRow`), whenever Lee changed it, so the pointer never goes by
+    /// where the row was.
     private func findRow(at time: Double) {
         guard let loop = play.loop else {
             return
         }
 
-        let seeking = loop.findsRow(at: loopTime)
-        let looks = seeking && (row == nil || shape.pace(at: time, staged) == .moving)
+        let looks = loop.findsRow(at: loopTime) && (row == nil || shape.pace(at: time, staged) == .moving)
 
         guard looks || (rowIsStale && loop.holdsRow(at: loopTime)) else {
             return
         }
 
-        let found = shape.middle(of: WelcomeBoard.asking, on: edge, staged)
-
-        row = seeking ? found : found ?? row
+        row = shape.middle(of: WelcomeBoard.asking, on: edge, staged)
         rowIsStale = false
     }
 
@@ -323,6 +320,7 @@ final class StageEdge: NSView {
         loopTime = 0
         lastTime = nil
         isPressing = false
+        rowIsStale = false
         chimedAt = nil
         chimeEnds?.invalidate()
         chimeEnds = nil
@@ -428,40 +426,41 @@ final class StageEdge: NSView {
         }
     }
 
-    /// Lee's settings, as they stand: the other shape where he chose it, its board told afresh; else the edge, the
-    /// place, the material and the style, which the runs take each frame. Any restyle of the notch while a loop plays
-    /// plays the loop from its start, as the notch closes its panel to change, which would leave the loop with none.
-    /// Else a change that can move the ask's row, the shape, its length, Max or edge, has it found again on the shape
-    /// as it now is before the pointer next goes by it, the loop paused or not (`findRow`).
+    /// Lee's settings, as they stand, which the runs take each frame. While a loop plays, a change of the whole
+    /// surface, the other shape or the notch restyled, plays the loop again from its start on the surface as it now
+    /// is: the notch closes its panel to change, and a glide off one shape's row has nowhere to go on another's. Else
+    /// the other shape is made in place, and a change that moves the ask's row has it found again on the shape as it
+    /// now is before the pointer next goes by it, the loop paused or not (`findRow`).
     private func follow(_ settings: EdgeSettings) {
         guard settings != self.settings else {
             return
         }
 
         let last = self.settings
+        let reshapes = Self.kind(settings.show, play) != Self.kind(last.show, play)
+        let restyles = Self.kind(settings.show, play) == .notch && settings.style != last.style
 
         self.settings = settings
-        if Self.movesRow(from: last, to: settings) {
+        if play.loop != nil, reshapes || restyles {
+            return restart()
+        }
+        if reshapes {
+            return replace(with: Self.shape(settings.show, play))
+        }
+        if movesRow(from: last) {
             rowIsStale = true
-        }
-        if Self.kind(settings.show, play) != Self.kind(last.show, play) {
-            replace(with: Self.shape(settings.show, play))
-            return
-        }
-        if play.loop != nil, Self.kind(settings.show, play) == .notch, settings.style != last.style {
-            restart()
-            return
         }
         place(shape)
         shape.apply(staged, at: clock.now, edge)
     }
 
-    /// Whether a change can move the ask's row on the stage. The place along the edge is the stage's own, and the
-    /// display, the material and Reduce motion leave the row where it is, so none of them has it found again: late in
-    /// the glide off the row, once the panel folds, finding it again would lose it.
-    private static func movesRow(from last: EdgeSettings, to settings: EdgeSettings) -> Bool {
-        settings.show != last.show || settings.style != last.style || settings.length != last.length
-            || settings.maxLength != last.maxLength || settings.edge != last.edge
+    /// Whether a change moves the ask's row: on the strip, its length, Max or edge, which move its mark. Nothing moves
+    /// the notch's row but a restyle, which plays the loop again: its row is found in the edge's own points, so the
+    /// edge leaves it where it is, and looking again late in the glide, its panel folding, would lose it. The place
+    /// along the edge, the stage's own, the display, the material and Reduce motion move neither.
+    private func movesRow(from last: EdgeSettings) -> Bool {
+        shape is StageStrip
+            && (settings.length != last.length || settings.maxLength != last.maxLength || settings.edge != last.edge)
     }
 
     /// Lee's settings as the stage runs them: the place along the edge the stage's own, so the strip centres where

@@ -20,7 +20,7 @@ final class Plugin {
         let path: @Sendable () async -> String = { await shellPath.path() }
 
         self.path = path
-        setup = PluginSetup(copies: .app, path: path)
+        setup = PluginSetup(copies: .app, remembered: .standard, path: path)
     }
 
     /// Looks, and looks again after trouble; `changed` hears each look's standing.

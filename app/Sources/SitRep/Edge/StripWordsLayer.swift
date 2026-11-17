@@ -123,7 +123,8 @@ final class StripWordsLayer {
         self.at = at
         if session.kind == .working, !reducesMotion {
             let shimmer = Shimmer(
-                grey: Self.title(session, at: now, EdgeStyle.shim), lit: Self.title(session, at: now, EdgeStyle.ink),
+                grey: Self.title(session, at: now, fitting: at.title.width, EdgeStyle.shim),
+                lit: Self.litVerb(session, at: now, fitting: at.title.width),
                 in: at.title
             )
 
@@ -146,7 +147,7 @@ final class StripWordsLayer {
 
     /// A still title, set again in place of the last as a wake's countdown reads differently.
     private func showTitle(of session: Session, in at: StripRowLayout, now: Double) {
-        let line = TextLine(Self.title(session, at: now), in: at.title)
+        let line = TextLine(Self.title(session, at: now, fitting: at.title.width), in: at.title)
 
         line.contentsScale = layer.contentsScale
         still {
@@ -206,7 +207,7 @@ final class StripWordsLayer {
         for (i, session) in sessions.enumerated() {
             let at = StripRowsLayout(i, width: width), box = CALayer()
 
-            let title = TextLine(Self.rowTitle(session, at: now), in: at.title)
+            let title = TextLine(Self.rowTitle(session, at: now, fitting: at.title.width), in: at.title)
 
             box.frame = at.box
             box.cornerRadius = StripRowsLayout.radius
@@ -229,7 +230,7 @@ final class StripWordsLayer {
                 return row
             }
 
-            let line = TextLine(Self.rowTitle(row.session, at: now), in: row.box)
+            let line = TextLine(Self.rowTitle(row.session, at: now, fitting: row.box.width), in: row.box)
 
             line.contentsScale = layer.contentsScale
             still { row.title.superlayer?.replaceSublayer(row.title, with: line) }
@@ -278,12 +279,16 @@ final class StripWordsLayer {
     /// A session's row's words at their widest from this time on: its title, leaving room for every reading a wake's
     /// countdown may yet take, or its second line.
     static func rowWidth(_ s: Session, at now: Double) -> Double {
-        max(sayings(s, at: now).map { TextLine.width(title(s, saying: $0)) }.max() ?? 0, TextLine.width(sub(s)))
+        let titles = sayings(s, at: now).map { TextLine.width(title(s, StripTitle.tab(s, saying: $0))) }
+
+        return max(titles.max() ?? 0, TextLine.width(sub(s)))
     }
 
     /// One of a count's rows' words at their widest from this time on, as a session's row's are.
     static func countRowWidth(_ s: Session, at now: Double) -> Double {
-        max(sayings(s, at: now).map { TextLine.width(rowTitle(s, saying: $0)) }.max() ?? 0, TextLine.width(rowSub(s)))
+        let titles = sayings(s, at: now).map { TextLine.width(rowTitle(s, StripTitle.row(s, saying: $0))) }
+
+        return max(titles.max() ?? 0, TextLine.width(rowSub(s)))
     }
 
     /// What a row's title may say after its verb from this time on, to leave room for: what it says now, or each
@@ -294,21 +299,32 @@ final class StripWordsLayer {
         return room.isEmpty ? [s.subject(at: now)] : room
     }
 
-    /// A row's title at this time on the wall clock, in a colour where given.
-    private static func title(_ s: Session, at now: Double, _ colour: CGColor? = nil) -> NSAttributedString {
-        title(s, saying: s.subject(at: now), colour)
+    /// A row's title at this time on the wall clock, fitted to this width, in a colour where given.
+    private static func title(
+        _ s: Session, at now: Double, fitting room: Double, _ colour: CGColor? = nil
+    ) -> NSAttributedString {
+        title(s, StripTitle.tab(s, saying: s.subject(at: now)).fitting(room), colour)
     }
 
-    /// A row's title saying this after its verb, in a colour where given, dimmed where it is away (`Away`): one on its
-    /// own work as the card sets it, its verb brighter than what follows; one in Snoozed soft; its count dim.
-    private static func title(_ s: Session, saying subject: String?, _ colour: CGColor? = nil) -> NSAttributedString {
+    /// A working row's verb lit for the shimmer's sweep, the rest of its title set but unseen, so the light falls on
+    /// the verb alone, as on the card.
+    private static func litVerb(_ s: Session, at now: Double, fitting room: Double) -> NSAttributedString {
+        StripTitle.tab(s, saying: s.subject(at: now)).fitting(room).text { part in
+            part == .verb ? Away.dimmed(EdgeStyle.ink, s.away) : .clear
+        }
+    }
+
+    /// A row's title, its verb in a colour where given, dimmed where it is away (`Away`): what follows a working or
+    /// on its own work's verb in working's grey, as the card's, that verb on its own work brighter; one in Snoozed
+    /// soft; its count dim.
+    private static func title(_ s: Session, _ words: StripTitle, _ colour: CGColor? = nil) -> NSAttributedString {
         let ink = s.isSnoozed ? EdgeStyle.ink2 : Away.dimmed(colour ?? EdgeStyle.ink, s.away)
 
-        return StripTitle.tab(s, saying: subject).text { part in
+        return words.text { part in
             switch (part, s.kind) {
             case (.more, _): Away.dimmed(EdgeStyle.ink3, dims(s))
             case (.verb, .onItsWork): Away.dimmed(EdgeStyle.waitingVerb, s.away)
-            case (.follows, .onItsWork): Away.dimmed(EdgeStyle.grey, s.away)
+            case (.follows, .onItsWork), (.follows, .working): Away.dimmed(EdgeStyle.grey, s.away)
             default: ink
             }
         }
@@ -323,18 +339,18 @@ final class StripWordsLayer {
         TextLine.text(s.sub, EdgeStyle.sub, Away.dimmed(EdgeStyle.ink2, dims(s)))
     }
 
-    /// One of a count's rows' titles at this time on the wall clock.
-    private static func rowTitle(_ s: Session, at now: Double) -> NSAttributedString {
-        rowTitle(s, saying: s.subject(at: now))
+    /// One of a count's rows' titles at this time on the wall clock, fitted to this width.
+    private static func rowTitle(_ s: Session, at now: Double, fitting room: Double) -> NSAttributedString {
+        rowTitle(s, StripTitle.row(s, saying: s.subject(at: now)).fitting(room))
     }
 
-    /// One of a count's rows' titles saying this after its verb: needs you and your turn in ink, working and on its
-    /// own work grey, and Snoozed soft, an away row's dimmed (`Away`), its count dim.
-    private static func rowTitle(_ s: Session, saying subject: String?) -> NSAttributedString {
+    /// One of a count's rows' titles: needs you and your turn in ink, working and on its own work grey, and Snoozed
+    /// soft, an away row's dimmed (`Away`), its count dim.
+    private static func rowTitle(_ s: Session, _ words: StripTitle) -> NSAttributedString {
         let isGrey = s.kind == .working || s.kind == .onItsWork
         let ink = s.isSnoozed ? EdgeStyle.ink2 : Away.dimmed(isGrey ? EdgeStyle.grey : EdgeStyle.ink, s.away)
 
-        return StripTitle.row(s, saying: subject).text { $0 == .more ? Away.dimmed(EdgeStyle.ink3, dims(s)) : ink }
+        return words.text { $0 == .more ? Away.dimmed(EdgeStyle.ink3, dims(s)) : ink }
     }
 
     private static func rowSub(_ s: Session) -> NSAttributedString {

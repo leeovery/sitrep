@@ -8,12 +8,11 @@ struct GlassEyebrow: View {
     let size: CGSize
 
     var body: some View {
-        let font = Font.system(size: 11, weight: .semibold)
         ZStack(alignment: .topLeading) {
             HStack(spacing: EyebrowLayout.gap) {
-                Text(eyebrow.section.title).font(font).foregroundStyle(.secondary)
+                Text(eyebrow.section.title).font(Font(EdgeStyle.eyebrowTitle)).foregroundStyle(.secondary)
                 ForEach(Array(eyebrow.counts.enumerated()), id: \.offset) { _, count in
-                    Text("\(count.value)").font(font.monospacedDigit()).foregroundStyle(ink(of: count))
+                    Text("\(count.value)").font(Font(EdgeStyle.eyebrowFigures)).foregroundStyle(ink(of: count))
                 }
             }
             .placed(in: EyebrowLayout.label(in: size))

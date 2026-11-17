@@ -13,7 +13,7 @@ public struct RememberedPlugin: Sendable {
     }
 
     /// Kept in SitRep's own defaults.
-    public static let defaults = RememberedPlugin(
+    public static let standard = RememberedPlugin(
         read: { UserDefaults.standard.string(forKey: key) }, write: { UserDefaults.standard.set($0, forKey: key) }
     )
 
@@ -40,7 +40,7 @@ public struct PluginSetup: Sendable {
     /// Every `claude` gets Lee's PATH and otherwise the app's own environment, as the CLI does.
     public init(
         copies: PluginCopies,
-        remembered: RememberedPlugin = .defaults,
+        remembered: RememberedPlugin,
         home: String = NSHomeDirectory(),
         path: @escaping @Sendable () async -> String,
         environment: [String: String] = ProcessInfo.processInfo.environment,

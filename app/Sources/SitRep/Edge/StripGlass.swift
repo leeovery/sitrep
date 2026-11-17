@@ -318,14 +318,18 @@ struct GlassRow: View {
         .animation(.easeOut(duration: 0.14), value: pressed)
     }
 
+    /// Its title fitted to its box as the black's is: working, what follows the verb still in the secondary, and only
+    /// the verb shimmering, as on the card.
     @ViewBuilder private func title(in box: CGRect) -> some View {
-        let text = GlassWords.title(session, at: scene.now)
+        let words = StripTitle.tab(session, saying: session.subject(at: scene.now)).fitting(box.width)
+        let soft: Set<StripTitle.Part> = session.kind == .working ? [.follows] : []
         if session.kind == .working, !scene.reducesMotion {
-            Shimmering(text: text, width: box.width)
+            Shimmering(text: words.glass(soft: soft), lit: words.glass(hidden: [.follows, .more]), width: box.width)
                 .opacity(awayDim)
                 .placed(in: box)
         } else {
-            text.foregroundStyle(GlassWords.isSoft(session) ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
+            words.glass(soft: soft)
+                .foregroundStyle(GlassWords.isSoft(session) ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
                 .opacity(awayDim)
                 .placed(in: box)
         }
@@ -351,7 +355,7 @@ struct GlassRows: View {
                 ZStack(alignment: .topLeading) {
                     RoundedRectangle(cornerRadius: StripRowsLayout.radius)
                         .fill(.primary.opacity(isLit ? (pressed ? 0.14 : 0.08) : 0))
-                    GlassWords.rowTitle(session, at: now).placed(in: at.title)
+                    GlassWords.rowTitle(session, at: now, fitting: at.title.width).placed(in: at.title)
                     Text(session.sub).font(Font(EdgeStyle.rowSub)).foregroundStyle(.secondary)
                         .opacity(GlassWords.awayDim(session))
                         .placed(in: at.sub)
@@ -375,9 +379,7 @@ private struct GlassIdle: View {
     var body: some View {
         let at = StripRowLayout.idle(in: size)
         ZStack(alignment: .topLeading) {
-            Text(note.idle)
-                .font(Font(EdgeStyle.title))
-                .kerning(EdgeStyle.tightKern(EdgeStyle.title))
+            Text.tight(note.idle, EdgeStyle.title)
                 .foregroundStyle(.secondary)
                 .placed(in: at.title)
             Text(note.idleLine2)
@@ -393,18 +395,13 @@ private struct GlassIdle: View {
 @available(macOS 26, *)
 @MainActor
 private enum GlassWords {
-    /// A row's title at this time on the wall clock.
-    static func title(_ s: Session, at now: Double) -> Text {
-        StripTitle.tab(s, saying: s.subject(at: now)).glass
-    }
-
     /// One of the count's rows' titles at this time on the wall clock: your turn and needs you in the primary label
     /// colour, an away ask's dimmed with its second line (`Away`), working, on its own work and Snoozed in the
-    /// secondary.
-    static func rowTitle(_ s: Session, at now: Double) -> some View {
+    /// secondary; fitted to this width as the black's is.
+    static func rowTitle(_ s: Session, at now: Double, fitting room: Double) -> some View {
         let ink: AnyShapeStyle = isSoft(s) || s.kind == .working ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary)
 
-        return StripTitle.row(s, saying: s.subject(at: now)).glass.foregroundStyle(ink)
+        return StripTitle.row(s, saying: s.subject(at: now)).fitting(room).glass().foregroundStyle(ink)
             .opacity(awayDim(s))
     }
 
