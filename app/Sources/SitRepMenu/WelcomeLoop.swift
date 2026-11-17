@@ -90,6 +90,12 @@ public struct WelcomeLoop: Equatable, Sendable {
         (seeks ..< leave).contains(phase(time))
     }
 
+    /// Whether the pointer goes by the ask's row at this time into the loop: from when the stage looks for it until
+    /// the pointer has glided off it.
+    public func holdsRow(at time: Double) -> Bool {
+        (seeks ..< (gone ?? leave)).contains(phase(time))
+    }
+
     /// Whether the ask's row is pressed in at this time into the loop: from the click until the jump lands.
     public func presses(at time: Double) -> Bool {
         clicks.map { ($0 ..< leave).contains(phase(time)) } ?? false

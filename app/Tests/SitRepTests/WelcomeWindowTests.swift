@@ -694,6 +694,67 @@ struct WelcomeWindowTests {
         #expect(stage.row == moved)
     }
 
+    /// The strip's length changed while the window is behind, the loop paused before the stage looks for the ask's
+    /// mark, while the pointer rests on it, or once the pointer has gone: back in front, the pointer goes by the mark
+    /// where it now is, in that loop or the next, as on a stage that had the length from the first.
+    @Test(arguments: [WelcomeLoop.hello.seeks - 500, WelcomeLoop.hello.onRow + 300, WelcomeLoop.hello.leave + 1000])
+    func aChangeWhileThePlayIsPausedFindsTheRowWhereItNowIs(pausedAt: Double) throws {
+        let hello = WelcomeLoop.hello, made = Made()
+        let stage = try Self.stripOnTheLoop(made, to: pausedAt)
+        let loop = pausedAt < hello.onRow + 600 ? 0 : hello.length
+
+        made.window.windowDidResignKey(Notification(name: NSWindow.didResignKeyNotification, object: made.recorded))
+        made.preferences.edit { $0.length = .full }
+        Self.settle(stage, on: made.clock)
+        Self.key(made)
+        Self.run(stage, on: made.clock, to: loop + hello.onRow + 600)
+
+        #expect(stage.row == (try Self.rowOnAFullStrip(at: stage.loopTime)))
+    }
+
+    /// The strip's length changed while the pointer glides off the ask's mark, the loop paused or not: it glides off
+    /// the mark where it now is, never where it was; and in the next loop, the pointer goes by it there.
+    @Test(arguments: [false, true])
+    func aChangeAsThePointerGlidesOffFindsTheRowWhereItNowIs(paused: Bool) throws {
+        let made = Made()
+        let stage = try Self.stripOnTheLoop(made, to: WelcomeLoop.hello.leave + 200)
+        let was = try #require(stage.row)
+
+        if paused {
+            made.window.windowDidResignKey(Notification(name: NSWindow.didResignKeyNotification, object: made.recorded))
+        }
+        made.preferences.edit { $0.length = .full }
+        stage.step(at: made.clock.pass(1000 / 60))
+        Self.key(made)
+        stage.step(at: made.clock.pass(1000 / 60))
+
+        let now = try #require(stage.row)
+
+        #expect(now != was)
+        #expect(now == (try Self.rowOnAFullStrip(at: stage.loopTime)))
+        Self.run(stage, on: made.clock, to: WelcomeLoop.hello.length + WelcomeLoop.hello.onRow + 300)
+        #expect(stage.row == now)
+    }
+
+    /// The strip at Grows on the stage, in front, the loop played this far.
+    private static func stripOnTheLoop(_ made: Made, to loopTime: Double) throws -> StageEdge {
+        let stage = try made.stage
+
+        made.preferences.edit { $0.show = .strip }
+        Self.settle(stage, on: made.clock)
+        Self.key(made)
+        Self.run(stage, on: made.clock, to: loopTime)
+        return stage
+    }
+
+    /// The ask's mark found on a stage whose strip was Full from the first, its loop played this far.
+    private static func rowOnAFullStrip(at loopTime: Double) throws -> CGPoint? {
+        let made = Made()
+
+        made.preferences.edit { $0.length = .full }
+        return try Self.stripOnTheLoop(made, to: loopTime).row
+    }
+
     /// The strip centres where the notch sits on the stage, Paper's place, wherever Lee dragged his own, so the
     /// callout points at it.
     @Test func theStagesStripCentresWhereTheCalloutPoints() async throws {
@@ -735,6 +796,13 @@ struct WelcomeWindowTests {
         repeat {
             stage.step(at: clock.pass(1000 / 60))
         } while stage.lastPace == .moving && clock.now - start < 10_000
+    }
+
+    /// The stage stepped a 60th at a time on the test's clock, until its loop has played this far.
+    private static func run(_ stage: StageEdge, on clock: Clock, to loopTime: Double) {
+        while stage.loopTime < loopTime {
+            stage.step(at: clock.pass(1000 / 60))
+        }
     }
 
     /// The footer as the window draws it, at the welcome's step: the lit spans across its middle, in points from the

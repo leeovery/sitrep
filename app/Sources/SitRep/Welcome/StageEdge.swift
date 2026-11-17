@@ -85,6 +85,8 @@ final class StageEdge: NSView {
     private var chimedAt: Double?
     /// The ask's row's middle on the stage, once the loop's panel shows it: internal only for the tests.
     private(set) var row: CGPoint?
+    /// Lee's settings changed since the row was found, so it is found again on the shape as it now is.
+    private var rowIsStale = false
     /// The callout's place as last told the desktop.
     private var placed: StageCallout.Place?
     /// Whether SitRep's item was last told lit: internal only for the tests.
@@ -219,16 +221,22 @@ final class StageEdge: NSView {
         pace(at: time)
     }
 
-    /// The ask's row, found on the panel as the last frame laid it out, before the pointer is placed on it, while the
-    /// loop's pointer goes to it: first, and each frame the shape moves, as a change that moves it sets it moving.
+    /// The ask's row, found on the shape as the last frame laid it out, before the pointer is placed on it: while the
+    /// loop's pointer goes to it, first and each frame the shape moves; and while the pointer goes by it, gliding off
+    /// it too, once Lee's settings change, whenever they changed, so it never goes by where the row was.
     private func findRow(at time: Double) {
-        guard play.loop?.findsRow(at: loopTime) == true,
-              row == nil || shape.pace(at: time, staged) == .moving
-        else {
+        guard let loop = play.loop else {
+            return
+        }
+
+        let seeks = loop.findsRow(at: loopTime) && (row == nil || shape.pace(at: time, staged) == .moving)
+
+        guard seeks || rowIsStale && loop.holdsRow(at: loopTime) else {
             return
         }
 
         row = shape.middle(of: WelcomeBoard.asking, on: edge, staged)
+        rowIsStale = false
     }
 
     /// Step 2's click on the ask's row, pressed as the real notch takes a click, so the row presses in; then the jump
@@ -412,10 +420,8 @@ final class StageEdge: NSView {
     }
 
     /// Lee's settings, as they stand: the other shape where he chose it, its board told afresh; else the edge, the
-    /// place, the material and the style, which the runs take each frame. Each change that moves the ask's row sets
-    /// the shape moving, so the loop's pointer finds the row again: a style closes the notch's panel to change it, and
-    /// the strip, its length or Max changed, moves from the change's own frame. An edge leaves the row where it is, as
-    /// it is found in the edge's own points.
+    /// place, the material and the style, which the runs take each frame. The ask's row is found again on the shape as
+    /// it now is, before the pointer next goes by it, the loop paused or not (`findRow`).
     private func follow(_ settings: EdgeSettings) {
         guard settings != self.settings else {
             return
@@ -424,6 +430,7 @@ final class StageEdge: NSView {
         let last = self.settings
 
         self.settings = settings
+        rowIsStale = true
         if Self.kind(settings.show, play) != Self.kind(last.show, play) {
             replace(with: Self.shape(settings.show, play))
             return
