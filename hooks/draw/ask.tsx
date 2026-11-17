@@ -13,7 +13,9 @@
  * place until when, and snoozes its session: every ask of it, and Lee's
  * turn there. One snoozed comes after those waiting, quieted, and hangs
  * when it wakes, with `wake now`, which wakes its session; opened, it
- * answers as any does.
+ * answers as any does. Asks a finished session left open wait on no one,
+ * but in the session this window holds: each drawn faint, with no buttons,
+ * a line under the heading saying why.
  */
 import {
   isAnswer,
@@ -56,6 +58,12 @@ const RESOLVED = { glyph: GLYPH.done, color: C.ok }
 
 /** The mark of an ask Lee snoozed: quieted, as the ◆ by a count with nothing waiting. */
 const SNOOZED = { glyph: GLYPH.ask, color: C.grey }
+
+/** The mark of an ask left open in a finished session: a closed thing, which waits on no one. */
+const LEFT_OPEN = { glyph: GLYPH.ask, color: C.faint }
+
+/** Why a finished session's asks offer no reply, under ASKS. */
+const FINISHED_LINE = "The session is finished: a reply can't reach it."
 
 /** What snoozing an ask asks in place. */
 const SNOOZE_QUESTION = 'Snooze this session? Its asks, and your turn there, stop counting until it wakes.'
@@ -294,16 +302,34 @@ const drawButtons = (d: Drawing, ask: Ask, standing: Standing, isLast: boolean) 
   )
 }
 
-/** An ask's mark: ticked once Lee's send closed it, quieted while snoozed, else its ◆ as it stands in the pulse. */
-const markOf = (d: Drawing, ask: Ask, { isClosed, snoozedUntil }: Standing) => {
+/**
+ * Whether no reply can reach an ask: one left open in a finished session,
+ * where a reply sent into its inbox goes void. The session this window
+ * holds keeps its answers, finished or not: a reply there goes in this
+ * window's own message, to the Claude right here.
+ */
+const isBeyondReply = (d: Drawing, { isFinished, at }: AskedAt) =>
+  isFinished && at.session !== d.scene.session.id
+
+/** An ask's mark: ticked once Lee's send closed it, faint where no reply can reach it, quieted while snoozed, else its ◆ as it stands in the pulse. */
+const markOf = (d: Drawing, asked: AskedAt, { isClosed, snoozedUntil }: Standing) => {
   if (isClosed) {
     return RESOLVED
   }
 
-  return snoozedUntil === undefined ? askMark(d.scene, ask) : SNOOZED
+  if (isBeyondReply(d, asked)) {
+    return LEFT_OPEN
+  }
+
+  return snoozedUntil === undefined ? askMark(d.scene, asked.ask) : SNOOZED
 }
 
-/** An ask's row, its title after its session's name where the list names them, quieted while snoozed. Its buttons stand while nothing waits on it but a comment on its way, which bars no answer. */
+/**
+ * An ask's row, its title after its session's name where the list names
+ * them, quieted while snoozed or beyond reply. Its buttons stand while
+ * nothing waits on it but a comment on its way, which bars no answer, and
+ * never beyond reply: opened there, it shows only its tree.
+ */
 const drawAsk = (
   d: Drawing,
   asked: AskedAt,
@@ -314,11 +340,12 @@ const drawAsk = (
   const { ask, name } = asked
   const standing = standingOf(d, asked, waiting)
   const { key, queued, isAnswering, isClosed, isOpen, isChoosing, snoozedUntil } = standing
-  const mark = markOf(d, ask, standing)
+  const mark = markOf(d, asked, standing)
+  const isBeyond = isBeyondReply(d, asked)
   // `select` toggles the key it is given, so the title gives the one the pane holds: one press closes the ask from Snooze's question too.
   const opener = isChoosing ? snoozeKey(key) : key
   const isAnswerable =
-    isOpen && queued === undefined && ask.answerOnItsWay === undefined && !isAnswering
+    isOpen && !isBeyond && queued === undefined && ask.answerOnItsWay === undefined && !isAnswering
 
   return drawRow(d, {
     key: `ask:${key}`,
@@ -331,7 +358,7 @@ const drawAsk = (
       : {
           key: `pick:${key}`,
           onPress: () => d.act.select(opener),
-          isDim: snoozedUntil !== undefined,
+          isDim: snoozedUntil !== undefined || isBeyond,
         },
     branches: branchesOf(d, ask, mark.color, standing),
     after: isAnswerable && drawButtons(d, ask, standing, isLast),
@@ -341,34 +368,44 @@ const drawAsk = (
 /** What Asks lists: how many of its asks wait, and how many are snoozed, whether this session's are among them, and whether each names its session. */
 export type AsksListed = { waiting: number; snoozed: number; isHome: boolean; isNamed: boolean }
 
-/** How many asks wait, and how many are snoozed where any are: `1 waiting · 2 snoozed`. */
-const countsOf = ({ waiting, snoozed }: AsksListed) => {
+/** How many asks wait, how many are snoozed where any are, and how many were left open beyond reply: `1 waiting · 2 snoozed`, `nothing waiting · 2 left open`. */
+const countsOf = ({ waiting, snoozed }: AsksListed, left: number) => {
   const words = waiting > 0 ? `${waiting} waiting` : 'nothing waiting'
+  const asides = [
+    ...(snoozed > 0 ? [`${snoozed} snoozed`] : []),
+    ...(left > 0 ? [`${left} left open`] : []),
+  ]
 
-  return snoozed > 0 ? `${words} · ${snoozed} snoozed` : words
+  return [words, ...asides].join(' · ')
 }
 
-/** Asks' few words: new while one of this session's asks pulses there, else how many wait and sleep. */
-const noteOf = (d: Drawing, listing: AsksListed) => {
+/** Asks' few words: new while one of this session's asks pulses there, else how many wait, sleep, or were left open. */
+const noteOf = (d: Drawing, listing: AsksListed, left: number) => {
   if (listing.isHome && isPulsing(d.scene)) {
     return { note: '✦ new', color: askMark(d.scene).color }
   }
 
-  return { note: countsOf(listing), color: C.grey }
+  return { note: countsOf(listing, left), color: C.grey }
 }
+
+/** How many of the asks listed were left open beyond reply. */
+const leftOpen = (d: Drawing, asked: readonly AskedAt[]) =>
+  asked.filter(each => each.ask.state !== 'closed' && isBeyondReply(d, each)).length
 
 /** The asks listed of a session that wait on Lee, not snoozed, by their ids: those a snooze from any of them names. */
 const waitingIn = (asked: readonly AskedAt[], session: string) =>
   asked
     .filter(
-      each => each.at.session === session && each.snoozedUntil === undefined && waitsOnLee(each.ask),
+      each =>
+        each.at.session === session && each.snoozedUntil === undefined && waitsOnLee(each.ask),
     )
     .map(each => each.ask.id)
 
 /** Asks' heading, then each ask, keyed by its address, since a project's view lists every session's. */
 export const drawAsks = (d: Drawing, asked: readonly AskedAt[], listing: AsksListed): Block[] => {
-  const { Box } = d.els
-  const { note, color } = noteOf(d, listing)
+  const { Box, Text } = d.els
+  const left = leftOpen(d, asked)
+  const { note, color } = noteOf(d, listing, left)
 
   return [
     {
@@ -377,6 +414,11 @@ export const drawAsks = (d: Drawing, asked: readonly AskedAt[], listing: AsksLis
         <Box flexDirection="column">
           {heading(d, 'ASKS', C.ask, note, color)}
           {asked.length === 0 && emptyLine(d, 'Nothing waiting on you.')}
+          {left > 0 && (
+            <Text color={C.faint} wrap="wrap">
+              {FINISHED_LINE}
+            </Text>
+          )}
         </Box>
       ),
     },

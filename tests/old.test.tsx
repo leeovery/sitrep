@@ -132,6 +132,33 @@ test('the old sessions sit under the current ones after a blank row, with none b
   ])
 })
 
+test("an old session's row is closed whatever window still holds it: one finished while its window stays draws dim, its line faint", async () => {
+  const notes = meta('sr-n0tes0', 'Release notes', W3)
+  const scene = await sceneFrom({
+    now: NOW,
+    around: [
+      {
+        meta: notes,
+        lines: [
+          [NOW - HOUR, status(['Writing the notes'], notes)],
+          [NOW - HOUR, finish('claude')],
+        ],
+        seenAt: NOW,
+      },
+    ],
+    pane: { place: projectPlace(PROJECT.key), shown: { [OLD]: 'latest' } },
+  })
+  const ui = pane(scene)
+  const old = scene?.projects.find(each => each.key === PROJECT.key)?.old?.entries
+
+  expect(
+    old?.map(each => [each.id, each.isOpen]),
+    'a window holds it',
+  ).toEqual([[notes.id, true]])
+  expect((await ui.find({ key: `go:${notes.id}` }))?.props.dimColor).toBe(true)
+  expect((await ui.find({ type: 'Text', text: 'Writing the notes' }))?.props.color).toBe(C.faint)
+})
+
 test("a look from before the window took up its session, which read that session as one around, gives the project's view no old sessions until the next", async () => {
   const scene = await projectScene()
   const ui = pane(

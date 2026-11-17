@@ -149,6 +149,34 @@ const drawTaken = (d: Drawing, entry: TakenAt, own: string | undefined): Block =
   }
 }
 
+/** What heads the items other sessions parked, in a session's view. */
+const OTHERS = 'from other sessions'
+
+/**
+ * Each parked item as a block of its own; in a session's view, `own`
+ * naming it, a faint line before the first another session parked, so its
+ * own and theirs read apart, even where it has none of its own. A project's
+ * view names every row, and needs none.
+ */
+const drawItems = (d: Drawing, parked: readonly ParkedAt[], own: string | undefined) => {
+  const { Text } = d.els
+  const blocks = parked.map(each => ({
+    key: `parked:${keyOf(each)}`,
+    element: drawItem(d, each, own),
+  }))
+  const first = own === undefined ? -1 : parked.findIndex(({ at }) => at.session !== own)
+  const label = {
+    key: 'parked:others',
+    element: (
+      <Text color={C.faint} wrap="truncate-end">
+        {OTHERS}
+      </Text>
+    ),
+  }
+
+  return first < 0 ? blocks : [...blocks.slice(0, first), label, ...blocks.slice(first)]
+}
+
 /** How much is parked, as PARKED's heading says it. */
 const parkedWords = (count: number) =>
   count === 0 ? 'nothing to come back to' : `${count} to come back to`
@@ -173,10 +201,7 @@ export const drawParked = (
     ? []
     : [
         { key: 'parked', element: heading(d, 'PARKED', C.parked, parkedWords(parked.length)) },
-        ...parked.map(each => ({
-          key: `parked:${keyOf(each)}`,
-          element: drawItem(d, each, own),
-        })),
+        ...drawItems(d, parked, own),
         ...(taken === undefined
           ? []
           : drawPast(d, {

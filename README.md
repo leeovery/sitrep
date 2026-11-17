@@ -133,7 +133,7 @@ The CLI is `bin/sitrep` in the plugin's folder; the app's copy is `~/Library/App
 | Command | What it does |
 |---|---|
 | `sitrep list` | Every project's current sessions, with their ids and what waits on you |
-| `sitrep board` | A session's status, open asks and its project's parked items, with their ids |
+| `sitrep board` | A session's status, open asks and its project's parked items, with their ids; with `--json`, the items it parked itself |
 | `sitrep status` | Sets where a session stands, giving only what changed |
 | `sitrep ask` | Posts an ask, and prints its id |
 | `sitrep park` | Parks something to come back to, on the session's project, and prints its id |

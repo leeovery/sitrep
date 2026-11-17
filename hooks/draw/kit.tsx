@@ -99,55 +99,54 @@ const fitTitle = (room: number, title: string, aside: string) => {
   return { name, aside: left < ASIDE_LEAST ? undefined : clip(`${ASIDE_MARK} ${aside}`, left) }
 }
 
-/** A press the aside's words open with: those words, its key, and where it goes. */
+/** A press leading a view line's aside: its words, its key, and where it goes. */
 export type Lead = { words: string; key: string; to: SitrepPlace }
 
+/** A view line's aside: its words, or a press's words leading the rest, each part after the first set off by a `·`. */
+export type Aside = string | { lead: Lead; rest: readonly string[] }
+
+/** What sets off each part of an aside after the first. */
+const PARTS_APART = ` ${ASIDE_MARK} `
+
+const asideText = (aside: Aside) =>
+  typeof aside === 'string' ? aside : [aside.lead.words, ...aside.rest].join(PARTS_APART)
+
 /**
- * The aside as cut to fit, grey, its leading words a dim press where it has
- * one, as the way back is drawn, and the rest after it, the same cells
- * across: an ellipsis cutting the press's words short, or right after
- * them, ends the press.
+ * The aside as cut to fit, grey; where a press leads it, that press dim, as
+ * the way back is drawn, then the rest, the same cells across. The press's
+ * words end where its parts put them; cut short at or before their end, the
+ * press takes what is left, its ellipsis with it.
  */
-const drawAside = (d: Drawing, aside: string, lead: Lead | undefined) => {
+const drawAside = (d: Drawing, cut: string, aside: Aside) => {
   const { Box, Text, Button } = d.els
 
-  if (lead === undefined) {
+  if (typeof aside === 'string') {
     return (
       <Text color={C.grey} wrap="truncate-end">
-        {aside}
+        {cut}
       </Text>
     )
   }
 
+  const { lead } = aside
   const start = ASIDE_MARK.length + 1
   const end = start + lead.words.length
-  const isWhole = aside.charAt(end) === ' '
-  const label = isWhole ? aside.slice(start, end) : aside.slice(start)
-  const rest = isWhole ? aside.slice(end + 1) : ''
+  const hasRest = cut.length > end + 1
+  const label = hasRest ? cut.slice(start, end) : cut.slice(start)
 
   return (
     <Box flexDirection="row" gap={1}>
       <Text color={C.grey}>{ASIDE_MARK}</Text>
       <Button key={lead.key} plain dimColor label={label} onPress={() => d.act.go(lead.to)} />
-      {rest !== '' && <Text color={C.grey}>{rest}</Text>}
+      {hasRest && <Text color={C.grey}>{cut.slice(end + 1)}</Text>}
     </Box>
   )
 }
 
-/**
- * The line under the header naming what the view is of, with a few words
- * on it, the first of them a press where `lead` says, and a summary under
- * it.
- */
-export const context = (
-  d: Drawing,
-  title: string,
-  aside: string,
-  summary?: string,
-  lead?: Lead,
-) => {
+/** The line under the header naming what the view is of, with a few words on it, and a summary under it. */
+export const context = (d: Drawing, title: string, aside: Aside, summary?: string) => {
   const { Box, Text } = d.els
-  const line = fitTitle(d.width, title, aside)
+  const line = fitTitle(d.width, title, asideText(aside))
 
   return (
     <Box flexDirection="column">
@@ -155,7 +154,7 @@ export const context = (
         <Text bold wrap="truncate-end">
           {line.name}
         </Text>
-        {line.aside !== undefined && drawAside(d, line.aside, lead)}
+        {line.aside !== undefined && drawAside(d, line.aside, aside)}
       </Box>
       {summary !== undefined && (
         <Text color={C.soft} wrap="wrap">

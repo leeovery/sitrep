@@ -1,12 +1,13 @@
 import type { Args } from 'claude-code'
 import { expect, test, tier } from './kit'
 import type { Body, SessionMeta } from '../core'
+import { C } from '../hooks/look'
 import { EVERY_PROJECT, projectPlace } from '../hooks/places'
 import { rowsOf } from './drawn'
 import { ELSEWHERE, HELD, heldItem, LEDGER, MIN, PROJECT, T0, W2, type Asked } from './data'
 import { askOf, park, resolve, status, yesAsk, type Line } from './lines'
 import { pane, sceneFrom, type Desk, type Drawn } from './render'
-import { postedId, world, type World } from './world'
+import { DOCKED, postedId, world, type World } from './world'
 
 tier('user')
 
@@ -109,6 +110,7 @@ test("PARKED lists every item parked in the project with no blank row between th
     ' ◇ A priority badge 3m',
     ' ◇ Thumbnails in the picker 2m',
     ' ◇ Export the ledger as CSV 1m',
+    ' from other sessions',
     ' ◇ Invoice ledger: Archive old invoices 4m',
   ])
   expect(listedUnder(project, 'PARKED')).toEqual([
@@ -121,6 +123,45 @@ test("PARKED lists every item parked in the project with no blank row between th
   for (const rows of [session, project]) {
     expect(rows.find(row => row.startsWith(' PARKED'))).toMatch(/ 4 to come back to$/)
   }
+})
+
+test("in a session's PARKED, a faint `from other sessions` heads the items other sessions parked, with no blank row, even where it parked none itself; at 60 columns and 40", async () => {
+  const around: Desk['around'] = [
+    { meta: LEDGER, lines: [[T0 - MIN, park('p1', 'Archive old invoices')]], seenAt: T0 },
+  ]
+  const parkedRows = async (desk: Desk, cells: number) => {
+    const ui = pane(sceneFrom({ ...desk, around, now: T0 + 3 * MIN }), {
+      ...DOCKED,
+      bodyColumns: cells + 2,
+    })
+
+    return listedUnder(rowsOf(await ui.find({ type: 'Box' }), cells), 'PARKED').map(row =>
+      row.trimEnd(),
+    )
+  }
+  const mine: Desk = { lines: minutely(park('p1', 'A priority badge')) }
+
+  expect(await parkedRows(mine, 60)).toEqual([
+    ' ◇ A priority badge                                      3m',
+    ' from other sessions',
+    ' ◇ Invoice ledger: Archive old invoices                  4m',
+  ])
+  expect(await parkedRows(mine, 40)).toEqual([
+    ' ◇ A priority badge                  3m',
+    ' from other sessions',
+    ' ◇ Invoice ledger: Archive old inv…  4m',
+  ])
+  expect(await parkedRows({}, 40), 'none of its own').toEqual([
+    ' from other sessions',
+    ' ◇ Invoice ledger: Archive old inv…  4m',
+  ])
+
+  const label = await pane(sceneFrom({ ...mine, around, now: T0 + 3 * MIN })).find({
+    type: 'Text',
+    text: 'from other sessions',
+  })
+
+  expect(label?.props.color).toBe(C.faint)
 })
 
 test('ASKS lists its asks as rows with no blank row between them, each its mark, title and age, no where', async () => {

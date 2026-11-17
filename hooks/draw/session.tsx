@@ -3,10 +3,12 @@
  * to its view, what waits on Lee, where it stands and how that changed, what
  * its project put off, its own first, and the asks done with. This
  * session's is the board's home; another's draws the same, its asks
- * answered the same way, and with no window on it, a way to finish it.
+ * answered the same way, and with no window on it, a way to finish it. A
+ * finished one says so, and when, and, but for this session's, its asks
+ * left open offer no reply.
  */
-import { snoozedAsks } from '../../core'
-import { agoWords, C, GLYPH } from '../look'
+import { snoozedAsks, type Session } from '../../core'
+import { ago, agoWords, C, GLYPH } from '../look'
 import { askedOf, parkedAt, projectPlace, takenOffIn } from '../places'
 import type { Filed } from '../scene'
 import { drawAsks } from './ask'
@@ -16,14 +18,25 @@ import { drawHistory } from './history'
 import { context, emptyLine, heading, marked, spaced, type Block, type Drawing } from './kit'
 import { drawParked } from './parked'
 
-/** The line under the tabs naming the session, its project's name the press that opens the project, and its summary under that. */
+/** How a session stands, beside its project's name: finished, and how long ago; else closed, with no window; else nothing. */
+const standingWords = (d: Drawing, { finished, isOpen }: Session) => {
+  if (finished !== undefined) {
+    return [`finished ${ago(d.scene.now, finished.at)}`]
+  }
+
+  return isOpen ? [] : ['closed']
+}
+
+/** The line under the tabs naming the session, its project's name the press that opens the project, how it stands, and its summary under that. */
 const drawContext = (d: Drawing, { project, session }: Filed) =>
   context(
     d,
     session.status.name,
-    `${session.project}${session.isOpen ? '' : ' · closed'}`,
+    {
+      lead: { words: session.project, key: `proj:${project}`, to: projectPlace(project) },
+      rest: standingWords(d, session),
+    },
     session.status.summary,
-    { words: session.project, key: `proj:${project}`, to: projectPlace(project) },
   )
 
 const drawStatus = (d: Drawing, { session }: Filed) => {

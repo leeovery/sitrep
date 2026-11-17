@@ -25,13 +25,15 @@ const doingOf = ({ now, next, summary }: SessionSummary) => {
   return next === undefined ? summary : `next: ${next}`
 }
 
-/** A session's row, as a block of its own keyed `key`: its name, the press that opens its view, dim once closed; what goes on its right; and what it is doing under it, faint once closed. */
+/** How a session's row is drawn: its block's key, whether it is closed, and what goes on its right. */
+type SessionRow = { key: string; isClosed: boolean; right: RenderElement | false }
+
+/** A session's row, as a block of its own: its name, the press that opens its view, dim once closed; what goes on its right; and what it is doing under it, faint once closed. */
 const drawSession = (
   d: Drawing,
-  key: string,
   project: string,
   session: SessionSummary,
-  right: RenderElement | false,
+  { key, isClosed, right }: SessionRow,
 ): Block => {
   const { Box, Text, Button } = d.els
   const isHere = session.id === d.scene.session.id
@@ -45,7 +47,7 @@ const drawSession = (
             <Button
               key={`go:${session.id}`}
               plain
-              dimColor={!session.isOpen}
+              dimColor={isClosed}
               label={clip(session.name, d.width - 14)}
               onPress={() => d.act.go({ level: 'session', project, session: session.id })}
             />
@@ -56,7 +58,7 @@ const drawSession = (
         <Box flexDirection="row" gap={1}>
           <Text color={C.faint}>{GLYPH.last}</Text>
           <Box flexGrow={1} flexShrink={1}>
-            <Text color={session.isOpen ? C.soft : C.faint} wrap="truncate-end">
+            <Text color={isClosed ? C.faint : C.soft} wrap="truncate-end">
               {doingOf(session)}
             </Text>
           </Box>
@@ -76,15 +78,22 @@ const drawCurrent = (d: Drawing, project: string, session: SessionSummary) => {
       !session.isOpen && <Text color={C.faint}>closed</Text>
     )
 
-  return drawSession(d, `sess:${session.id}`, project, session, right)
+  return drawSession(d, project, session, {
+    key: `sess:${session.id}`,
+    isClosed: !session.isOpen,
+    right,
+  })
 }
 
-/** An old session's row: how long ago it ended on its right, as a list's age is. */
+/** An old session's row, closed whatever window still holds it, as it no longer shows among the current: how long ago it ended on its right, as a list's age is. */
 const drawOld = (d: Drawing, project: string, session: EndedSession) => {
   const { Text } = d.els
-  const ended = <Text color={C.grey}>{ago(d.scene.now, session.endedAt)}</Text>
 
-  return drawSession(d, `ended:${session.id}`, project, session, ended)
+  return drawSession(d, project, session, {
+    key: `ended:${session.id}`,
+    isClosed: true,
+    right: <Text color={C.grey}>{ago(d.scene.now, session.endedAt)}</Text>,
+  })
 }
 
 /** A project's old sessions: their press, and those it shows once opened; nothing while they are not carried yet, so no count shows short. */

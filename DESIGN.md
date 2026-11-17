@@ -152,9 +152,12 @@ it (below). Something parked kept its session current until 11 November
 
 A session is **finished** once Claude or Lee finishes it, and is then never
 current, whatever it holds: a window can close with things still open on
-its session. Its waiting asks count nowhere (tabs, band, projects), and it
-shows only among its project's old sessions. A line posted to it later, by
-the CLI or anyone, leaves it finished; only joining it again reopens it.
+its session. Its waiting asks count nowhere (tabs, band, projects), and no
+reply reaches them. It leaves the session lists, and shows among its
+project's old sessions, whose row opens its view, which says it is
+finished (see "Another session", under "The pane"). A line posted to it
+later, by the CLI or anyone, leaves it finished; only a window joining it
+again reopens it, its asks waiting on Lee again.
 
 **Parked items are the project's.** A parked item is parked from a session,
 on that session's project, and names the session that parked it. Any
@@ -164,9 +167,9 @@ pane in any window of the project, the pick-up going to the Claude in that
 window (see Delivery). Every view of the project lists every one: a
 project's view each naming its session by name, and a session's view the
 items it parked first, then the rest, each of those naming its session, as
-Claude's board text lists them (17 November 2026). Finishing a session
-hides none of them, and a session going idle takes none with it. Asks stay
-their session's. Decided with Lee, 11 November 2026;
+Claude's board text lists them. Finishing a session hides none of them, and
+a session going idle takes none with it. Asks stay their session's.
+Decided with Lee, 11 November 2026;
 until then a parked item was its session's, and a finished session's
 vanished from every view, though still stored.
 
@@ -180,6 +183,13 @@ vanished from every view, though still stored.
   as from the project's view, to the Claude in the window pressed in. It is
   what Claude's board text already gave Claude: the session's own, then
   those parked elsewhere in the project.
+
+  A faint `from other sessions` heads the items other sessions parked, in
+  a session's view, with no blank row: a choice made in review the same
+  day, not Lee's ask. Named alone, those rows read like titles with colons
+  in them, and their ages jump at the seam. It shows even where the session
+  parked nothing itself, so it is always plain that none of them is its
+  own. A project's view names every row, and has none.
 
 - **Nothing is rewritten.** Each item stays in its session's files, where it
   was parked, and the views read a project's parked items from every
@@ -761,7 +771,10 @@ show all 4
   under the tabs, `Dashboard redesign · Switchboard`, the project's name
   opens its view, as pressing the project in All projects does, home
   included, where there is no way back to reach it by. It is drawn dim, as
-  the way back is, keeping the aside's quiet, and cut short with it.
+  the way back is, keeping the aside's quiet, and cut short with it. Every
+  session's view has it, under a way back to the same place everywhere but
+  home; at a width that drops the aside, it goes with it, and the way back
+  is left to reach the project.
 - The header is the tabs, their rule and the way back's row, the same
   height in every view. Docked or inline, there is no row above the tabs:
   they are the pane's first line. There is no collapse: the phone's pane
@@ -833,6 +846,26 @@ show all 4
   pane, not a reply to Claude), and the pane goes up a level, the session
   gone from it. A session with a window is still being worked: Lee finishes
   it there by telling Claude.
+- **A finished session's view** (17 November 2026), reached from its
+  project's old sessions, says it is finished, and when, where another
+  says it is closed: `Export to CSV · Northwind · finished 1d`. What it
+  left open waits on no one: its asks, each with a faint `◆` and a dim
+  title, count nowhere, offer no reply and no snooze, and under ASKS'
+  heading, which counts them apart (`nothing waiting · 2 left open`), a
+  faint line says why: `The session is finished: a reply can't reach it.`
+  An ask still opens, to its tree alone. A reply could only have gone to
+  its inbox, which no window reads, and come back not delivered. The
+  session this window holds is the one exception: finished by Claude while
+  the window still holds it, its view says finished, but its asks keep
+  their answers (no snooze), as a reply there goes in this window's own
+  message, to the Claude right here. What
+  still works there stays: its project's Parked picks up as anywhere, to
+  the Claude in this window, a finished session's items among them (see
+  Delivery); its lists of the past open and fold; its project's name and
+  the way back move the board. It has no `finish`, being finished. A
+  window joining it again, as Claude's join does, reopens it, and its asks
+  wait on Lee once more. Until that day no press reached a finished
+  session's view.
 - **Asks:** each ask is a list's row (see Look): its mark, its title in
   white clipped to one line, its age on the right, and no `where`, docked or
   inline. A reply waiting on it, or on its way, still hangs from it as its
@@ -892,7 +925,8 @@ show all 4
   session filed under it that is not current: finished, or idle past its 7
   days. Closed, it is `show old sessions 12`, counting them; opened, it
   reads `hide old sessions`, and they hang under it, the latest ended
-  first, each drawn as a closed session above it is: its name, dim, and on
+  first, each drawn as a closed session above it is, a finished one a
+  window still holds as well: its name, dim, and on
   the right how long ago it ended, when it was finished, else when it last
   changed; and under it, faint, what it was last doing, as Sessions says
   it. Its name opens its view, as a session's above does. It shows the
@@ -3177,7 +3211,10 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   that list shows all, so a long past costs no more than its count until Lee
   asks for it. The old sessions are read from the sessions the look reads
   already, every one filed under the project, as Parked's are: no walk of
-  their own. A move on the board moves at once and reads around
+  their own. A look keeps a project with no current session and nothing
+  parked while the open board shows a view of it, so a finished session's
+  view there, its items all picked up, still draws what was taken off.
+  A move on the board moves at once and reads around
   after, as a press of a project list's toggle reads around again (6bedc72
   read first, and a move waited a look behind it, up to a second and a half
   just after a window started, for ever on a hung read). So a view draws

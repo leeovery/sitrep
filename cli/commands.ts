@@ -206,7 +206,7 @@ const status: SessionCommand = {
 const board: SessionCommand = {
   name: 'board',
   about:
-    "Print the board: its status, open asks and the project's parked items, with their ids.",
+    "Print the board: its status, open asks and the project's parked items, with their ids. With --json, the session alone: its open asks, the items it parked itself, its latest status changes and its resolved asks.",
   grammar: { args: [], flags: { ...JSON_OUT, ...SESSION } },
   on: 'session',
   readsProject: true,
