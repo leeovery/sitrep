@@ -30,7 +30,6 @@ import {
   isAnswer,
   isOpen,
   isPending,
-  pickUpLog,
   waitingOnLee,
   type ReplyFields,
 } from './replies'
@@ -48,14 +47,13 @@ import {
   type Finished,
   type Item,
   type KindAskBody,
-  type LogLine,
-  type Note,
   type Parked,
   type Presence,
   type Reply,
   type SentReply,
   type Status,
   type Session,
+  type StatusLine,
   type Voided,
 } from './types'
 
@@ -101,8 +99,8 @@ type Fold = {
   early: Map<string, number>
   ids: Set<string>
   finished?: Finished
-  /** Status and pick-up lines as derived, and notes, resolved to lines once the fold ends so edits show. */
-  log: Array<LogLine | Note>
+  /** The status changes as derived, the oldest first. */
+  history: StatusLine[]
   /** The replies carried in flight that reached their items on their way. */
   carried: Set<Reply>
   /** What Lee's snoozes hold, as the lines so far say. */
@@ -151,8 +149,8 @@ const settleAsk = (fold: Fold, ask: Ask, reply: Reply, at: number) => {
   }
 }
 
-/** A pick-up marks its item picked up, and the board logs it: a line derived here, never written. */
-const settleParked = (fold: Fold, parked: Parked, reply: Reply, at: number) => {
+/** A pick-up marks its item picked up. */
+const settleParked = (parked: Parked, reply: Reply, at: number) => {
   if (parked.closedBy !== undefined) {
     return
   }
@@ -161,7 +159,6 @@ const settleParked = (fold: Fold, parked: Parked, reply: Reply, at: number) => {
   parked.closedAt = at
   parked.closedBy = 'answer'
   parked.answer = reply
-  fold.log.push({ kind: 'pickup', at, by: reply.by, item: parked.id, ...pickUpLog(parked, reply) })
 }
 
 /** A reply on its way no more, delivered or void: its item's answer on its way no longer. */
@@ -310,7 +307,7 @@ const deliver = (fold: Fold, reply: Reply, at: number) => {
   reply.delivery = 'delivered'
   reply.deliveredAt = at
 
-  if (item === undefined || item.type === 'note') {
+  if (item === undefined) {
     return
   }
 
@@ -326,7 +323,7 @@ const deliver = (fold: Fold, reply: Reply, at: number) => {
   if (item.type === 'ask') {
     settleAsk(fold, item, reply, at)
   } else {
-    settleParked(fold, item, reply, at)
+    settleParked(item, reply, at)
   }
 
   if (isAnswer(item, reply.verdict)) {
@@ -382,7 +379,7 @@ const reshape = (ask: Ask, { wants, kind }: EditBody['changes']) => {
 
 /** An item opening again, afresh, an old line's snooze of an ask ended: where it stood closed, every reply then settled, void or delivered, is history from here; one on its way stays live. */
 const reopen = (fold: Fold, item: Item, at: number) => {
-  if (item.type !== 'note' && item.closedBy !== undefined) {
+  if (item.closedBy !== undefined) {
     for (const reply of item.replies.filter(each => !isPending(each) && isLine(fold, each))) {
       reply.isHistory = true
     }
@@ -395,13 +392,11 @@ const reopen = (fold: Fold, item: Item, at: number) => {
 
   if (item.type === 'ask') {
     item.state = 'waiting'
-    item.answer = undefined
-  } else if (item.type === 'park') {
-    item.state = 'parked'
-    item.answer = undefined
   } else {
-    item.state = 'open'
+    item.state = 'parked'
   }
+
+  item.answer = undefined
 }
 
 const HANDLERS: { [T in Body['type']]: Handler<T> } = {
@@ -410,7 +405,7 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
     const change = statusChange(fold.status, status)
 
     if (change !== undefined) {
-      fold.log.push({ kind: 'status', at, by, ...change })
+      fold.history.push({ at, by, ...change })
     }
 
     fold.status = status
@@ -439,14 +434,6 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
 
     if (post(fold, ask)) {
       newNeed(fold.asleep, at)
-    }
-  },
-
-  note: (fold, { id, text, detail, ref, at, by }) => {
-    const note: Note = { type: 'note', id, text, detail, ref, by, at, openedAt: at, state: 'open' }
-
-    if (post(fold, note)) {
-      fold.log.push(note)
     }
   },
 
@@ -481,9 +468,7 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
       item.closedBy = 'claude'
     }
 
-    if (item.type !== 'note') {
-      voidOnItsWay(fold, item, at, closedReason(item))
-    }
+    voidOnItsWay(fold, item, at, closedReason(item))
   },
 
   reopen: (fold, { item: id, reason, at }) => {
@@ -518,20 +503,17 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
 
     item.editedAt = at
     item.reason = reason
+    voidUnfit(fold, item, at)
 
-    if (item.type !== 'note') {
-      voidUnfit(fold, item, at)
-
-      if (item.closedBy === undefined) {
-        reread(fold, item, at)
-      }
+    if (item.closedBy === undefined) {
+      reread(fold, item, at)
     }
   },
 
   reply: (fold, { id, item: target, verdict, option, note, at, by }) => {
     const item = fold.items.get(target)
 
-    if (fold.replies.has(id) || fold.items.has(id) || item === undefined || item.type === 'note') {
+    if (fold.replies.has(id) || fold.items.has(id) || item === undefined) {
       return
     }
 
@@ -565,9 +547,7 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
     fold.finished = { at, by, who, reason }
 
     for (const item of fold.items.values()) {
-      if (item.type !== 'note') {
-        voidOnItsWay(fold, item, at, 'finished')
-      }
+      voidOnItsWay(fold, item, at, 'finished')
     }
   },
 
@@ -610,7 +590,7 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
 const carry = (fold: Fold, { sent, by, at }: Carried) => {
   const item = fold.items.get(sent.item)
 
-  if (item === undefined || item.type === 'note') {
+  if (item === undefined) {
     return
   }
 
@@ -636,28 +616,6 @@ const take = (fold: Fold, entry: Read) => {
 
   handle(fold, entry as never)
 }
-
-const noteLine = ({ at, by, text, detail, ref, id }: Note): LogLine => ({
-  kind: 'note',
-  at,
-  by,
-  text,
-  detail: detail ?? [],
-  ref,
-  id,
-})
-
-/** The log, newest first: status lines, and the notes not closed, as they read now. */
-const logOf = (fold: Fold) =>
-  fold.log
-    .flatMap(line => {
-      if (!('type' in line)) {
-        return [line]
-      }
-
-      return line.state === 'open' ? [noteLine(line)] : []
-    })
-    .reverse()
 
 /**
  * The replies live windows' messages carry to the session, claimed and not
@@ -802,7 +760,7 @@ export const foldSession = (
     replies: new Map(),
     early: new Map(),
     ids: new Set(),
-    log: [],
+    history: [],
     carried: new Set(),
     asleep: nothingAsleep(),
   }
@@ -818,9 +776,7 @@ export const foldSession = (
   const items = [...fold.items.values()]
 
   for (const item of items) {
-    if (item.type !== 'note') {
-      judgeCarried(fold, item)
-    }
+    judgeCarried(fold, item)
   }
 
   const asks = items.filter(isAsk)
@@ -837,7 +793,7 @@ export const foldSession = (
     parked: items.filter(isParked),
     items: fold.items,
     replies: [...fold.replies.values()],
-    log: logOf(fold),
+    history: fold.history.toReversed(),
     presence,
     isOpen: fold.isOpen,
     deliverer: deliverer(presence, now),

@@ -25,7 +25,7 @@ import {
   W1,
   W2,
 } from './data'
-import { delivered, file, finish, kindAsk, note, park, reply, yesAsk } from './lines'
+import { delivered, file, finish, kindAsk, oldNote, park, reply, yesAsk } from './lines'
 import { asked, CONVERSATION, postedId, PROMPT, startedId, world, type World } from './world'
 
 tier('user')
@@ -35,7 +35,6 @@ const TOOLS = [
   'join',
   'status',
   'ask',
-  'note',
   'park',
   'resolve',
   'reopen',
@@ -171,7 +170,7 @@ test('starting or joining while attached lets go of the session held before', as
   expect(w.state.attachment?.session).toBe(first.id)
 })
 
-test('status sets what changed, keeps the rest, and the board logs the change itself', async ($, on) => {
+test('status sets what changed, keeps the rest, and the board keeps the change in its history', async ($, on) => {
   const w = world($, on)
   const { paths } = await w.begin()
 
@@ -181,7 +180,7 @@ test('status sets what changed, keeps the rest, and the board logs the change it
     summary: HELP_DESK.summary,
     now: ['Drawing Inbox, round 2'],
   })
-  expect(w.state.board?.log[0]?.text).toBe('Status: now drawing Inbox, round 2')
+  expect(w.state.board?.history?.[0]?.text).toBe('now drawing Inbox, round 2')
   expect(linesOf(w, paths.log(W1)).map(line => line.type)).toEqual(['status'])
   expect((await w.call('status', {})).deny).toContain('at least one of')
 })
@@ -297,19 +296,6 @@ test('the ask and edit tools take wants, yes, options and needs; the ask says ho
   expect(ask?.description).toContain(
     'say it in full in the chat as well, after your last tool call: the board never stands in for the chat.',
   )
-})
-
-test('note logs a line with its detail; a note with no text is refused', async ($, on) => {
-  const w = world($, on)
-
-  await w.begin()
-
-  const answer = await w.call('note', { text: 'Merged the band', detail: ['PR #82'] })
-  const id = postedId(answer)
-
-  expect(answer.result).toBe(`Logged note ${id}.`)
-  expect(w.state.board?.log[0]).toMatchObject({ id, text: 'Merged the band', detail: ['PR #82'] })
-  expect((await w.call('note', { text: ' ' })).deny).toBe('A note needs its text: one line.')
 })
 
 test('park puts an item by to come back to; one with no title is refused', async ($, on) => {
@@ -429,7 +415,7 @@ test("resolving another session's parked item Lee picked up passes quietly, writ
   expect(() => w.text(ledger.paths.log(W1))).toThrow()
 })
 
-/** The ledger, with two things parked, an ask and a note, finished: its folder's paths. */
+/** The ledger, with two things parked, an ask and a note from before notes went, finished: its folder's paths. */
 const ledgerParked = (w: World) => {
   const ledger = w.elsewhere(LEDGER)
 
@@ -437,7 +423,7 @@ const ledgerParked = (w: World) => {
     park('p1', 'Export the ledger as CSV'),
     park('p2', 'Archive old invoices'),
     yesAsk('k1', 'Run the export', 'Done'),
-    note('n1', 'Wrote the schema'),
+    oldNote('n1', 'Wrote the schema'),
     finish('claude', 'Shipped'),
   )
 
@@ -459,8 +445,8 @@ test("resolve, edit and reopen act on what another session of the project parked
   expect((await w.call('resolve', { item: 'p2', session: LEDGER.id })).deny).toBe(
     'p2 is already closed.',
   )
-  expect(String((await w.call('board')).result)).toContain(
-    'Parked:\n- p1, parked by "Invoice ledger" (session: sr-1edger): Export it as CSV\nLatest notes:',
+  expect(String((await w.call('board')).result).split('Parked:\n')[1]).toBe(
+    '- p1, parked by "Invoice ledger" (session: sr-1edger): Export it as CSV',
   )
   expect((await w.call('reopen', { item: 'p2', session: LEDGER.id })).result).toBe('Reopened p2.')
   expect(linesOf(w, ledger.log(W1)).map(line => line.type)).toEqual(['edit', 'resolve', 'reopen'])
@@ -470,7 +456,7 @@ test("resolve, edit and reopen act on what another session of the project parked
   )
 })
 
-test('of another session, the tools act only on what it parked: its ask or note is refused, as is a session of another project, or one not on the board', async ($, on) => {
+test('of another session, the tools act only on what it parked: its ask is refused, an old note of it is no item, as is a session of another project, or one not on the board', async ($, on) => {
   const w = world($, on)
   const ledger = ledgerParked(w)
   const shifts = w.elsewhere({ ...META, id: 'sr-0sh1ft', name: 'Shift schedules' }, ELSEWHERE.key)
@@ -482,7 +468,7 @@ test('of another session, the tools act only on what it parked: its ask or note 
     'k1 is an ask of Invoice ledger: of another session, only what it parked is yours to resolve, edit or reopen.',
   )
   expect((await w.call('edit', { item: 'n1', session: LEDGER.id, text: 'Wrote it' })).deny).toBe(
-    'n1 is a note of Invoice ledger: of another session, only what it parked is yours to resolve, edit or reopen.',
+    'There is no item n1 on this board.',
   )
   expect((await w.call('resolve', { item: 'p1', session: 'sr-0sh1ft' })).deny).toBe(
     "sr-0sh1ft is a session of another project: only what a session of this one's project parked is yours to act on.",
@@ -524,25 +510,25 @@ test("edit corrects an item's own fields; a field its kind has not is refused", 
 
   await w.begin()
 
-  const id = postedId(await w.call('note', { text: 'Merged the bnad' }))
+  const id = postedId(await w.call('park', { title: 'Look at the glanse again' }))
 
-  expect((await w.call('edit', { item: id, text: 'Merged the band' })).result).toBe(`Edited ${id}.`)
-  expect(w.state.board?.log[0]?.text).toBe('Merged the band')
-  expect((await w.call('edit', { item: id, where: 'In the PR' })).deny).toContain('not where')
+  expect((await w.call('edit', { item: id, where: 'In the spike' })).result).toBe(`Edited ${id}.`)
+  expect(w.state.board?.parked[0]?.where).toBe('In the spike')
+  expect((await w.call('edit', { item: id, yes: 'Done' })).deny).toContain('not yes')
 })
 
-test("edit takes an item's one line as text or as title alike: a note's title, a parked item's text; both, saying different things, are refused", async ($, on) => {
+test("edit takes an item's one line as text or as title alike: an ask's text, a parked item's title; both, saying different things, are refused", async ($, on) => {
   const w = world($, on)
 
   await w.begin()
 
-  const noted = postedId(await w.call('note', { text: 'Merged the bnad' }))
+  const ask = await asked(w, reviewRound(1))
   const parked = postedId(await w.call('park', { title: 'Look at the glanse again' }))
 
-  expect((await w.call('edit', { item: noted, title: 'Merged the band' })).result).toBe(
-    `Edited ${noted}.`,
+  expect((await w.call('edit', { item: ask, text: 'Review round 2' })).result).toBe(
+    `Edited ${ask}.`,
   )
-  expect(w.state.board?.log[0]?.text).toBe('Merged the band')
+  expect(w.state.board?.asks[0]?.title).toBe('Review round 2')
   expect((await w.call('edit', { item: parked, text: 'Look at the glance again' })).result).toBe(
     `Edited ${parked}.`,
   )
@@ -654,7 +640,7 @@ test('a line posted to a finished session leaves it finished: only a join reopen
 
   w.put(
     lobby.paths.log('cli'),
-    file([T0, finish('lee')], [T0 + MIN, { type: 'note', id: 'n1', text: 'From a script' }]),
+    file([T0, finish('lee')], [T0 + MIN, park('p1', 'From a script')]),
   )
   await w.clock.advance(2 * MIN)
   await $.session.start(CONVERSATION)

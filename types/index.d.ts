@@ -79,13 +79,6 @@ export type SitrepAsk = SitrepPosted & {
   wokeAt?: number
 }
 
-export type SitrepNote = SitrepPosted & {
-  type: 'note'
-  text: string
-  detail?: string[]
-  state: 'open' | 'closed'
-}
-
 export type SitrepParked = SitrepPosted & {
   type: 'park'
   title: string
@@ -97,16 +90,14 @@ export type SitrepParked = SitrepPosted & {
   replies: SitrepReply[]
 }
 
-export type SitrepItem = SitrepAsk | SitrepNote | SitrepParked
+export type SitrepItem = SitrepAsk | SitrepParked
 
-export type SitrepLogLine = {
-  kind: 'note' | 'status' | 'pickup'
+/** A change of a session's status: core's `StatusLine`. */
+export type SitrepStatusLine = {
   at: number
   by: string
   text: string
   detail: string[]
-  ref?: string
-  id?: string
 }
 
 /** Where a window is: core's `Where`. */
@@ -194,7 +185,8 @@ export type SitrepBoard = {
   /** Every item, in the order posted. */
   items: SitrepItem[]
   replies: SitrepReply[]
-  log: SitrepLogLine[]
+  /** None from a load before the history was the board's. */
+  history?: SitrepStatusLine[]
   presence: SitrepPresence[]
   isOpen: boolean
   deliverer?: string
@@ -317,7 +309,6 @@ export type SitrepSummary = {
 
 /** A session as views beyond its own draw it: core's `SessionBrief`. */
 export type SitrepBrief = SitrepSummary & {
-  log: SitrepLogLine[]
   parkedItems: SitrepParked[]
   asks: SitrepAsk[]
 }
@@ -325,7 +316,17 @@ export type SitrepBrief = SitrepSummary & {
 /** A parked item of a project's, and the session that parked it, by its id and its name: core's `ProjectParked`. */
 export type SitrepProjectParked = SitrepParked & { session: string; name: string }
 
-/** A project as last read: its key, its current sessions other than the held one, in brief, and what every session of it but the held one parked. */
+/** A change of status in a project's history, and the session it came from: core's `ProjectStatusLine`. */
+export type SitrepProjectStatusLine = SitrepStatusLine & { session: string }
+
+/** A window's hold on a session: core's `Hold`. */
+export type SitrepHold = { writer: string; attachedAt: number; session: string; name: string }
+
+/**
+ * A project as last read: its key, its current sessions other than the held
+ * one, in brief, and what every session of it but the held one parked, what
+ * was taken off their Parked, and the windows' holds on them.
+ */
 export type SitrepProject = {
   key: string
   /** Its name, as its sessions read name it; none from a load before parked items were the project's. */
@@ -333,6 +334,12 @@ export type SitrepProject = {
   sessions: SitrepBrief[]
   /** Oldest first, finished and idle sessions' included; none from a load before parked items were the project's. */
   parked?: SitrepProjectParked[]
+  /** The newest taken off first, finished and idle sessions' included; none from a load before Parked kept them. */
+  takenOff?: SitrepProjectParked[]
+  /** Finished and idle sessions' included, for whom a pick-up went to; none from a load before Parked kept what was taken off it. */
+  holds?: SitrepHold[]
+  /** Its current sessions' changes of status, the newest first, read only while the board looks at the project, whose view draws them; none otherwise. */
+  history?: SitrepProjectStatusLine[]
 }
 
 /** Another session the board draws in full, and the project it is filed under. */
@@ -347,6 +354,9 @@ export type SitrepPlace =
   | { level: 'project'; project: string }
   | { level: 'all' }
 
+/** How much of a list of the board's past shows, opened: the latest few, or every one. */
+export type SitrepShowing = 'latest' | 'all'
+
 /** Where Claude Code seated the board: docked beside the transcript, or inline above the prompt. */
 export type SitrepPlacement = 'dock' | 'inline'
 
@@ -358,8 +368,8 @@ export type SitrepPane = {
   place: SitrepPlace | null
   /** The item (or log line) opened under its line, or the press asking in place what it should do (`finish:<session>`, `snooze:<session>:<ask>`, the ask opened still). */
   selected: string | null
-  /** The session whose RESOLVED shows every closed ask, not only the latest; null for none. A pane an older load saved lacks it, and is read as none. */
-  resolvedInFull: string | null
+  /** How much each list of the board's past shows, by the list (`history:<session>`): a list missing shows as it starts, RESOLVED its latest, Status's history and Parked's picked up closed. A pane an older load saved lacks it, and is read as none. */
+  shown: Partial<Record<string, SitrepShowing>>
   /** The held send Ready to send's one row for several shows, by the ids of the replies it carries, where the box has no row for each; null for the first of them. A pane an older load saved lacks it, and is read as none. */
   heldShown: string | null
   /** Where Claude Code last seated the board on each surface, as the board drawn there said; kept across closes. A surface whose board never said is missing, as is the whole from a pane an older load saved. */

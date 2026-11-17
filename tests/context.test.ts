@@ -2,24 +2,24 @@ import { expect, test, tier } from './kit'
 import { AROUND_MS } from '../hooks/around'
 import type { SitrepProject, SitrepProjectParked } from '../types'
 import { LEDGER, PROJECT, reviewRound, T0, W2 } from './data'
-import { file, note, park } from './lines'
+import { file, park } from './lines'
 import { CONVERSATION, PROMPT, world, type World } from './world'
 
 tier('user')
 
 const CHANGED = 'The sitrep board changed since you last saw it. It now reads:'
 
-/** A session started, and a way for a second window on it to write a note. */
+/** A session started, and a way for a second window on it to park something. */
 async function begun(w: World) {
   const { paths } = await w.begin()
   const lines: Parameters<typeof file> = []
 
-  const noteFromElsewhere = (id: string, text: string) => {
-    lines.push([w.clock.now(), note(id, text)])
+  const parkFromElsewhere = (id: string, text: string) => {
+    lines.push([w.clock.now(), park(id, text)])
     w.put(paths.log(W2), file(...lines))
   }
 
-  return { noteFromElsewhere }
+  return { parkFromElsewhere }
 }
 
 test('with no session attached, a prompt takes nothing', async ($, on) => {
@@ -42,9 +42,9 @@ test('what Claude posted itself never rides in: it knows it', async ($, on) => {
 
 test("another writer's change rides into the next prompt once, as context Lee does not see", async ($, on) => {
   const w = world($, on)
-  const { noteFromElsewhere } = await begun(w)
+  const { parkFromElsewhere } = await begun(w)
 
-  noteFromElsewhere('n9', 'Merged the band')
+  parkFromElsewhere('n9', 'Merged the band')
 
   const context = (await $.prompt.submit(PROMPT)).context
 
@@ -159,7 +159,7 @@ test("Claude's own post keeps as seen the board it had seen, its post added: a l
 
   await w.begin()
   isArmed = true
-  await w.call('note', { text: 'Drew round 2' })
+  await w.call('park', { title: 'Drew round 2' })
 
   expect((await $.prompt.submit(PROMPT)).context?.[0]).toContain(
     ledgers('p9', 'Archive old invoices'),
@@ -168,19 +168,19 @@ test("Claude's own post keeps as seen the board it had seen, its post added: a l
 
 test("Claude's own post does not hide a change it was not told of", async ($, on) => {
   const w = world($, on)
-  const { noteFromElsewhere } = await begun(w)
+  const { parkFromElsewhere } = await begun(w)
 
-  noteFromElsewhere('n9', 'Merged the band')
-  await w.call('note', { text: 'Drew round 2' })
+  parkFromElsewhere('n9', 'Merged the band')
+  await w.call('park', { title: 'Drew round 2' })
 
   expect((await $.prompt.submit(PROMPT)).context?.[0]).toContain('- n9: Merged the band')
 })
 
 test('reading the board back counts as seeing it', async ($, on) => {
   const w = world($, on)
-  const { noteFromElsewhere } = await begun(w)
+  const { parkFromElsewhere } = await begun(w)
 
-  noteFromElsewhere('n9', 'Merged the band')
+  parkFromElsewhere('n9', 'Merged the band')
   await w.call('board')
 
   expect((await $.prompt.submit(PROMPT)).context).toBeUndefined()
@@ -188,9 +188,9 @@ test('reading the board back counts as seeing it', async ($, on) => {
 
 test('a prompt that did not enter leaves the change to ride in with the next', async ($, on) => {
   const w = world($, on)
-  const { noteFromElsewhere } = await begun(w)
+  const { parkFromElsewhere } = await begun(w)
 
-  noteFromElsewhere('n9', 'Merged the band')
+  parkFromElsewhere('n9', 'Merged the band')
   w.dropPrompts('busy')
 
   expect((await $.prompt.submit(PROMPT)).drop).toBe('busy')

@@ -33,11 +33,11 @@ test("an empty section's line is soft, a grey lighter than its heading's few wor
     (await ui.find({ type: 'Text', text }))?.props.color
   const home = pane(sceneFrom())
 
-  for (const line of ['Nothing waiting on you.', 'Nothing under way yet.', 'Nothing yet.']) {
+  for (const line of ['Nothing waiting on you.', 'Nothing under way yet.']) {
     expect(await colourOf(home, line), line).toBe(C.soft)
   }
 
-  for (const note of ['nothing waiting', 'what happened']) {
+  for (const note of ['nothing waiting']) {
     expect(await colourOf(home, note), note).toBe(C.grey)
   }
 
@@ -84,15 +84,15 @@ test("this session's view: the name and summary, what is under way and next, eac
   expect(await ui.find({ type: 'Text', text: 'Drawing Inbox, round 2' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: 'next: Inbox, round 3' })).toBeDefined()
 
-  for (const note of ['updated 12m ago', 'nothing waiting', 'what happened']) {
+  for (const note of ['updated 12m ago', 'nothing waiting']) {
     expect(await ui.find({ type: 'Text', text: note }), note).toBeDefined()
   }
 })
 
 /** The view's own line and section headings, in the order drawn. */
-const SECTIONS = new Set(['Help desk redesign', 'ASKS', 'STATUS', 'NOTES', 'PARKED', 'RESOLVED'])
+const SECTIONS = new Set(['Help desk redesign', 'ASKS', 'STATUS', 'PARKED', 'RESOLVED'])
 
-test("this session's view runs its name and summary, then ASKS, STATUS, NOTES, PARKED and RESOLVED, docked and inline", async () => {
+test("this session's view runs its name and summary, then ASKS, STATUS, PARKED and RESOLVED, docked and inline", async () => {
   const scene = sceneFrom({
     lines: [
       [T0, park('p1', 'A priority badge across all tabs')],
@@ -186,33 +186,6 @@ test('each reply in Ready to send can be taken out on its own, or all at once', 
 
   await ui.press({ key: 'cancel-all' })
   expect(await ui.find({ type: 'Text', text: /READY TO SEND/ })).toBeUndefined()
-})
-
-test('a log line opens to what happened and where it is recorded, and closes again', async ($, on) => {
-  const w = world($, on)
-
-  await w.begin()
-
-  const id = postedId(
-    await w.call('note', {
-      text: 'PR #82 merged',
-      detail: ['6 files, +214 −51'],
-      ref: 'github.com/me/northwind/pull/82',
-    }),
-  )
-  const ui = await w.pane()
-
-  expect(await ui.find({ type: 'Text', text: /^NOTES$/ })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: '6 files, +214 −51' })).toBeUndefined()
-
-  await ui.press({ key: `log:${w.item(id)}` })
-  expect(await ui.find({ type: 'Text', text: '6 files, +214 −51' })).toBeDefined()
-  expect(
-    await ui.find({ type: 'Text', text: 'see github.com/me/northwind/pull/82' }),
-  ).toBeDefined()
-
-  await ui.press({ key: `log:${w.item(id)}` })
-  expect(await ui.find({ type: 'Text', text: '6 files, +214 −51' })).toBeUndefined()
 })
 
 test('an opened item shows its whole title, and where its own record is; closed, the title keeps to a line', async ($, on) => {

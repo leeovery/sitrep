@@ -1,16 +1,18 @@
 /**
  * PARKED: what a session raised and put off, or everything parked in a
  * project in its view, finished and idle sessions' included, each to pick
- * up from a window holding a session of its project. Drawn only while
- * something is parked. A pick-up queues in Ready to send like any reply, to
- * this session whichever session of the project parked the item, with a
- * comment written in the prompt box as its note where Lee wants one
- * (DESIGN.md, "Answering an ask").
+ * up from a window holding a session of its project; and at its foot,
+ * folded away until Lee opens it, what was taken off it, picked up by Lee
+ * or closed by Claude. Drawn while something is parked or was taken off. A
+ * pick-up queues in Ready to send like any reply, to this session whichever
+ * session of the project parked the item, with a comment written in the
+ * prompt box as its note where Lee wants one (DESIGN.md, "Answering an
+ * ask").
  */
 import { replyOnItsWay } from '../../core'
 import type { SitrepItemRef } from '../../types'
 import { C, GLYPH } from '../look'
-import { itemKey, type ParkedAt } from '../places'
+import { itemKey, type ParkedAt, type TakenAt } from '../places'
 import { queuedOn } from '../queue'
 import {
   ANSWERING,
@@ -26,6 +28,7 @@ import {
   type Block,
   type Drawing,
 } from './kit'
+import { drawPast } from './past'
 
 /** The mark every parked item is drawn with. */
 const MARK = { glyph: GLYPH.parked, color: C.parked }
@@ -97,17 +100,77 @@ const drawItem = (d: Drawing, entry: ParkedAt, isNamed: boolean) => {
   })
 }
 
-/** PARKED's heading, then each item; none while nothing is parked. */
-export const drawParked = (d: Drawing, parked: readonly ParkedAt[], isNamed: boolean): Block[] =>
-  parked.length === 0
+/** The mark every item taken off Parked is drawn with: done with. */
+const TAKEN_MARK = { glyph: GLYPH.done, color: C.ok }
+
+/** How an item left Parked: picked up, by the session it went to where that is known, or closed by Claude. */
+const howTaken = ({ parked, pickedUpBy }: TakenAt) => {
+  if (parked.state === 'closed') {
+    return 'closed by Claude'
+  }
+
+  return pickedUpBy === undefined ? 'picked up' : `picked up by ${pickedUpBy}`
+}
+
+/** What an item taken off Parked opens to: Lee's note on the pick-up, or Claude's reason for the close, and where Claude's own record of it is. */
+const takenDetail = ({ parked }: TakenAt) => {
+  const said = parked.state === 'closed' ? parked.reason : parked.answer?.note
+  const detail = shown(said, seeRef(parked.ref, MARK.color))
+
+  return detail.length > 0 ? detail : ['nothing more was recorded']
+}
+
+const takenOpens = (entry: TakenAt) => `picked:${keyOf(entry)}`
+
+/** An item taken off Parked, as a block of its own: its title after its session's name where the list names them, and how it left. */
+const drawTaken = (d: Drawing, entry: TakenAt, isNamed: boolean): Block => {
+  const { name, parked } = entry
+  const key = takenOpens(entry)
+  const isOpen = d.scene.pane.selected === key
+  const row = `taken:${keyOf(entry)}`
+  const title = `${parked.title} · ${howTaken(entry)}`
+
+  return {
+    key: row,
+    element: drawRow(d, {
+      key: row,
+      mark: TAKEN_MARK,
+      title: isNamed ? `${name}: ${title}` : title,
+      at: parked.closedAt ?? parked.at,
+      isOpen,
+      press: { key, onPress: () => d.act.select(key) },
+      branches: isOpen ? takenDetail(entry) : [],
+    }),
+  }
+}
+
+/** How much is parked, as PARKED's heading says it. */
+const parkedWords = (count: number) =>
+  count === 0 ? 'nothing to come back to' : `${count} to come back to`
+
+/**
+ * PARKED's heading, then each item, and what was taken off it, `scope`
+ * naming whose; none while nothing is parked and nothing was taken off.
+ */
+export const drawParked = (
+  d: Drawing,
+  scope: string,
+  { parked, taken }: { parked: readonly ParkedAt[]; taken: readonly TakenAt[] },
+  isNamed: boolean,
+): Block[] =>
+  parked.length === 0 && taken.length === 0
     ? []
     : [
-        {
-          key: 'parked',
-          element: heading(d, 'PARKED', C.parked, `${parked.length} to come back to`),
-        },
+        { key: 'parked', element: heading(d, 'PARKED', C.parked, parkedWords(parked.length)) },
         ...parked.map(each => ({
           key: `parked:${keyOf(each)}`,
           element: drawItem(d, each, isNamed),
         })),
+        ...drawPast(d, {
+          list: `pickedup:${scope}`,
+          entries: taken,
+          draw: entry => drawTaken(d, entry, isNamed),
+          opens: takenOpens,
+          folding: { show: 'show picked up', hide: 'hide picked up' },
+        }),
       ]

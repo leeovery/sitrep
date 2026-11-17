@@ -23,6 +23,7 @@ import type {
   SitrepPlace,
   SitrepQueued,
   SitrepSessionRef,
+  SitrepShowing,
 } from '../types'
 import { beginAnswering, settleAnswering } from './answering'
 import { lookAround } from './around'
@@ -37,10 +38,10 @@ import { send } from './send'
 import { attached, post, serially } from './window'
 
 export type Actions = {
-  /** Opens an item, or a log line, under its line; or closes it again. */
+  /** Opens an item, or a status change, under its line; or closes it again. */
   select: (id: string) => void
-  /** Opens a session's RESOLVED to every closed ask, or folds it back to the latest, closing an opened ask among `hidden`, those it then no longer shows. */
-  toggleResolved: (session: string, hidden: readonly string[]) => void
+  /** Shows as much of a list of the board's past as asked, none being how it starts, closing an item opened among `hidden`, those it then no longer shows. */
+  show: (list: string, showing: SitrepShowing | undefined, hidden: readonly string[]) => void
   /** Queues Lee's reply to an item, in place of any it had. */
   reply: (reply: SitrepQueued) => void
   /** Takes the reply to one item out of the queue. */
@@ -84,19 +85,16 @@ export const sendReady = (host: Host, isDock: boolean) =>
 const changePane = (host: Host, change: (pane: SitrepPane) => Partial<SitrepPane>) =>
   host.state.pane.update(pane => ({ ...pane, ...change(pane) }))
 
-/** A session's RESOLVED shown in full, or folded back to the latest, an opened ask it stops showing closed with it. */
-const resolvedToggled = (
+/** A list of the board's past showing as much as asked, an opened item it stops showing closed with it. */
+const shownAs = (
   pane: SitrepPane,
-  session: string,
+  list: string,
+  showing: SitrepShowing | undefined,
   hidden: readonly string[],
 ): Partial<SitrepPane> => {
-  if (pane.resolvedInFull !== session) {
-    return { resolvedInFull: session }
-  }
-
   const isHidden = pane.selected !== null && hidden.includes(pane.selected)
 
-  return { resolvedInFull: null, selected: isHidden ? null : pane.selected }
+  return { shown: { ...pane.shown, [list]: showing }, selected: isHidden ? null : pane.selected }
 }
 
 /** Has another session read in full, for the board to draw what Lee did to it; the held one is the watch's. */
@@ -233,9 +231,9 @@ export const actionsOf = (host: Host): Actions => {
       run('opening an item', () =>
         changePane(host, pane => ({ selected: pane.selected === id ? null : id })),
       ),
-    toggleResolved: (session, hidden) =>
-      run('showing what was resolved', () =>
-        changePane(host, pane => resolvedToggled(pane, session, hidden)),
+    show: (list, showing, hidden) =>
+      run('showing the past', () =>
+        changePane(host, pane => shownAs(pane, list, showing, hidden)),
       ),
     reply: reply => run('queuing a reply', () => queue(host, reply)),
     unqueue: (session, item) =>

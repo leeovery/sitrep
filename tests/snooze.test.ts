@@ -29,7 +29,7 @@ import {
   file,
   finish,
   fold,
-  note,
+  oldNote,
   park,
   reopen,
   reply,
@@ -191,11 +191,10 @@ test("Lee's reply to one of the asks it holds wakes the session, the rest back w
   expect(standing(pickedUp)).toEqual(ASLEEP)
 })
 
-test("its turn ending alone, Claude's other lines and a window joining wake nothing: a status, a note, an edit, a resolve, a park, a heartbeat", () => {
+test("its turn ending alone, Claude's other lines and a window joining wake nothing: a status, an edit, a resolve, a park, a heartbeat", () => {
   const session = asleepThen(
     [
       [T0 + 2 * MIN, status(['Waiting on the agents'])],
-      [T0 + 2 * MIN, note('n1', 'Agents done')],
       [T0 + 2 * MIN, { type: 'edit', item: 'k2', changes: { title: 'Ship it now' } }],
       [T0 + 2 * MIN, resolve('k1')],
       [T0 + 2 * MIN, park('p1', 'Later')],
@@ -377,7 +376,7 @@ test("an old line's snooze of an ask keeps its own time, ended as its ask closes
     REVIEW,
     SHIP,
     [T0, yesAsk('k3', 'Keep it', 'Keep')],
-    [T0, note('n1', 'Merged')],
+    [T0, oldNote('n1', 'Merged')],
     [T0, park('p1', 'Later')],
     [T0 + MIN, resolve('k3')],
     [T0 + MIN, yesAsk('k4', 'Tag the release', 'Done')],
@@ -471,7 +470,7 @@ test("an old reader skips the session's lines: kinds at the format's version 1 i
     SHIP,
     SNOOZED,
     [T0 + 2 * MIN, wakeSession()],
-    [T0 + 3 * MIN, note('n1', 'Merged')],
+    [T0 + 3 * MIN, park('p1', 'Merged')],
   )
   const unknown = text.replace(/"type":"(snoozeSession|wakeSession)"/g, '"type":"later-kind"')
 
@@ -484,7 +483,7 @@ test("an old reader skips the session's lines: kinds at the format's version 1 i
   expect(serialise({ v: VERSION, at: T0, seq: 10, ...wakeSession() })).toBe(
     `{"v":1,"at":${T0},"seq":10,"type":"wakeSession"}\n`,
   )
-  expect(parseEntries(unknown).map(entry => entry.type)).toEqual(['ask', 'ask', 'note'])
+  expect(parseEntries(unknown).map(entry => entry.type)).toEqual(['ask', 'ask', 'park'])
   expect(standing(fold({ logs: { [W1]: unknown } }))).toEqual(AWAKE)
 })
 

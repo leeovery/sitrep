@@ -24,7 +24,8 @@ import {
   W2,
   W3,
 } from './data'
-import { delivered, file, finish, note, park, reply, yesAsk, type Line } from './lines'
+import { delivered, file, finish, park, reply, yesAsk, type Line } from './lines'
+import { rowsOf } from './drawn'
 import {
   asked,
   CONVERSATION,
@@ -74,11 +75,17 @@ async function pickedUp(w: World, $: Engine) {
   return { ids, ui }
 }
 
-/** The keys NOTES opens the pick-ups' lines by, in order. */
+/** The keys Parked's picked up opens its items by, in order, once it is opened. */
 const pickUpRows = async (ui: Board) =>
   (await ui.findAll({ type: 'Button' }))
     .map(each => String(each.key))
-    .filter(key => key.startsWith('log:') && key.includes(':pickup-'))
+    .filter(key => key.startsWith('picked:'))
+
+/** The press opening a session's picked up, or a project's. */
+const PICKED_UP = {
+  session: (w: World) => `pickedup:${w.state.board?.id}`,
+  project: (key: string) => `pickedup:project:${key}`,
+}
 
 test('a send of several pick-ups, some with notes, draws the docked board before, during and after the turn', async ($, on) => {
   const w = world($, on)
@@ -89,6 +96,7 @@ test('a send of several pick-ups, some with notes, draws the docked board before
   await ui.press({ key: 'send' })
 
   await expect(ui.drawn(), 'sent').resolves.toBeDefined()
+  await ui.press({ key: PICKED_UP.session(w) })
   expect(new Set(await pickUpRows(ui)).size).toBe(PARKED.length)
 
   await w.turnStarts(w.prompts.at(-1)?.text ?? '')
@@ -100,24 +108,25 @@ test('a send of several pick-ups, some with notes, draws the docked board before
   expect(new Set(await pickUpRows(ui)).size).toBe(PARKED.length)
 })
 
-test('opening one pick-up line of a send opens only that one', async ($, on) => {
+test('opening one item a send picked up opens only that one', async ($, on) => {
   const w = world($, on)
   const { ids, ui } = await pickedUp(w, $)
 
   await ui.press({ key: 'send' })
-  const second = (await pickUpRows(ui)).find(key => key.includes(`:pickup-${ids[1]}-`)) ?? 'none'
-  await ui.press({ key: second })
+  await ui.press({ key: PICKED_UP.session(w) })
+  await ui.press({ key: `picked:${w.item(ids[1] ?? '')}` })
 
   expect(await ui.find({ type: 'Text', text: /Before the release/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /After the API fixes/ })).toBeUndefined()
 })
 
-test("a project's NOTES draws a send's several pick-ups, each its own line", async ($, on) => {
+test("a project's Parked draws a send's several pick-ups, each its own row", async ($, on) => {
   const w = world($, on)
   const { ui } = await pickedUp(w, $)
 
   await ui.press({ key: 'send' })
   await toProject(ui, PROJECT.key)
+  await ui.press({ key: PICKED_UP.project(PROJECT.key) })
 
   await expect(ui.drawn()).resolves.toBeDefined()
   expect(new Set(await pickUpRows(ui)).size).toBe(PARKED.length)
@@ -218,7 +227,20 @@ for (const [standing, ledger] of Object.entries(STANDING)) {
     expect(w.state.queue).toEqual([])
 
     await toProject(ui)
-    expect(await ui.find({ type: 'Text', text: 'PARKED' }), 'the item left Parked').toBeUndefined()
+    expect(
+      await ui.find({ type: 'Text', text: 'nothing to come back to' }),
+      'the item left Parked',
+    ).toBeDefined()
+    await ui.press({ key: PICKED_UP.project(PROJECT.key) })
+    await ui.press({ key: `picked:${LEDGER.id}:p1` })
+    expect(
+      rowsOf(await ui.find({ key: `taken:${LEDGER.id}:p1` })),
+      'picked up by the session it went to',
+    ).toEqual([
+      '✓ Invoice ledger: Export the ledger as CSV · now',
+      '│ picked up by Help desk redesign',
+      '└ nothing more was recorded',
+    ])
     expect(
       (await ui.findAll({ type: 'Button' }))
         .map(each => each.key)
@@ -501,21 +523,21 @@ test("a pick-up a send carried, held for the turn's end, goes in as sent once th
 test("a tool call of Claude's while a pick-up is written down in the session that parked its item waits for the write: the next prompt takes no board for either", async ($, on) => {
   const w = world($, on)
   const { ui } = await besideLedger(w, OPEN)
-  let noted: ReturnType<typeof w.call> | undefined
+  let parked: ReturnType<typeof w.call> | undefined
 
   expect((await $.prompt.submit(PROMPT)).context?.[0], 'told of what it parked').toContain(EXPORT)
 
   await pickUpLedgers(ui)
   w.after('read', LEDGER_LOG, () => {
-    noted = w.call('note', { text: 'Picking the export up' })
+    parked = w.call('park', { title: 'Picking the export up' })
   })
   await ui.press({ key: 'send' })
   await w.turnStarts(PICKED)
-  expect(await noted, 'a note as the pick-up is written').toHaveProperty('result')
+  expect(await parked, 'a park as the pick-up is written').toHaveProperty('result')
   await w.turnEnds()
 
   expect(kindsIn(w, LEDGER_LOG)).toEqual(['reply', 'delivered'])
-  expect((await $.prompt.submit(PROMPT)).context, 'its own note and pick-up').toBeUndefined()
+  expect((await $.prompt.submit(PROMPT)).context, 'its own park and pick-up').toBeUndefined()
 })
 
 test('a prompt while a pick-up is written down in the session that parked its item, before the board reads that session again, finds the board as Claude saw it: it takes none, then or after', async ($, on) => {
@@ -553,8 +575,8 @@ test('a pick-up whose write-down waits behind a join of the session that parked 
   expect(w.state.attachment?.session).toBe(LEDGER.id)
   expect(kindsIn(w, LEDGER_LOG)).toEqual(['reply', 'delivered'])
 
-  await w.call('note', { text: 'Carrying on here' })
-  expect(kindsIn(w, LEDGER_LOG)).toEqual(['reply', 'delivered', 'note'])
+  await w.call('park', { title: 'Carrying on here' })
+  expect(kindsIn(w, LEDGER_LOG)).toEqual(['reply', 'delivered', 'park'])
 })
 
 test("a pick-up the receive timer takes up again while its write-down is under way is written once: the second write finds the first's lines", async ($, on) => {

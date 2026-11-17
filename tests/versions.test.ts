@@ -77,7 +77,7 @@ test('the object read is left as it was: an old line keeps its version', () => {
 
 test('a line of no version, or of version 0, is skipped as one of a later version is', () => {
   const line = (v: unknown) =>
-    JSON.stringify({ v, at: T0, seq: 1, type: 'note', id: 'n1', text: 'hi' })
+    JSON.stringify({ v, at: T0, seq: 1, type: 'park', id: 'p1', title: 'hi' })
 
   expect(parseEntries(line(VERSION))).toHaveLength(1)
 

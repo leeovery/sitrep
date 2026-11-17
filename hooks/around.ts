@@ -26,15 +26,21 @@
 import type { FsEntry, Timer } from 'claude-code'
 import {
   brief,
+  changedBy,
   compareText,
   every,
+  holdsOf,
   isCurrent,
   isOffBoard,
   OFF_BOARD_MS,
   parkedBy,
+  projectHistory,
   projectParked,
+  projectTakenOff,
   refold,
   sessionPaths,
+  summarise,
+  takenOffBy,
   type KeptFold,
   type Session,
   type SessionFiles,
@@ -243,26 +249,47 @@ const latestFirst = (a: Session, b: Session) => b.updatedAt - a.updatedAt || com
 const nameOf = (key: string, sessions: readonly Session[]) =>
   [...sessions].sort(latestFirst).at(0)?.project ?? key
 
+/** The project the open board looks at, whose view draws the history of its sessions' status; none while it looks elsewhere. */
+const lookedAt = ({ isOpen, place }: SitrepPane) =>
+  isOpen && place?.level === 'project' ? place.project : undefined
+
 /**
  * The projects read, each with its current sessions, and what every session
- * filed under it parked, finished and idle ones included; a project with
- * neither is dropped, but never the held session's.
+ * filed under it parked, finished and idle ones included, what was taken off
+ * their Parked and the windows' holds on them; and for the project the board
+ * looks at, its current sessions' history, too long to carry for every
+ * project. A project with neither current sessions nor anything parked is
+ * dropped, but never the held session's.
  */
 const projectsOf = (
   held: SitrepAttachment,
   keys: readonly string[],
   read: ReadonlyMap<string, Filed>,
   now: number,
+  looked?: string,
 ): SitrepProject[] =>
   keys.flatMap(key => {
     const filed = [...read.values()]
       .filter(({ project }) => project === key)
       .map(({ session }) => session)
-    const sessions = filed.map(brief).filter(session => isCurrent(session, now))
+    const current = filed.filter(session => isCurrent(summarise(session), now))
     const parked = projectParked(filed.flatMap(parkedBy))
+    const takenOff = projectTakenOff(filed.flatMap(takenOffBy))
+    const holds = filed.flatMap(holdsOf)
+    const history = key === looked ? { history: projectHistory(current.flatMap(changedBy)) } : {}
 
-    return sessions.length > 0 || parked.length > 0 || key === held.project
-      ? [{ key, name: nameOf(key, filed), sessions, parked }]
+    return current.length > 0 || parked.length > 0 || key === held.project
+      ? [
+          {
+            key,
+            name: nameOf(key, filed),
+            sessions: current.map(brief),
+            parked,
+            takenOff,
+            holds,
+            ...history,
+          },
+        ]
       : []
   })
 
@@ -335,7 +362,7 @@ const look = async (host: Host, fresh: readonly string[]) => {
   const isWhole = isWholeLook(now)
   const { keys, read } = await readAround(host, root, held.session, full, now, isWhole, fresh)
 
-  await put(host.state.projects, 'projects', projectsOf(held, keys, read, now))
+  await put(host.state.projects, 'projects', projectsOf(held, keys, read, now, lookedAt(pane)))
   await put(host.state.others, 'others', othersOf(full, read))
   await settleSent(host, read, now)
   await settleAnswering(host)

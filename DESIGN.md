@@ -27,13 +27,12 @@ Settled with Lee on 16 October 2026.
 | Word | Means | On screen |
 |---|---|---|
 | **project** | The top level: what a session is on, named by Claude as Lee would say it (`SitRep`, `Switchboard`), and where it lives once known. Roughly a repository. Never the folder a window started in. | |
-| **session** | One line of discussion, with its status, asks and notes, and the items it parked, which are its project's. It outlives its window: after a `/clear`, or in a new Claude told to carry on, it is the same session. | |
+| **session** | One line of discussion, with its status and asks, and the items it parked, which are its project's. It outlives its window: after a `/clear`, or in a new Claude told to carry on, it is the same session. | |
 | **window** | One running Claude Code, wherever it shows: a Ghostty window, a tab, a tmux pane. Where working, your turn and a permission prompt come from, and what the jump brings forward. A word for the code and for the design. | Rarely shown. |
 | **session id** | The board's internal id for a session (`sr-k3f9qa`). Not Claude Code's session id, which names a conversation and changes on `/clear`. | Never shown. |
 | **the board** | The content: projects, sessions and their items, the state any surface shows. Putting something on the board is like putting it in a database. | |
 | **status** | Where a session stands: its name, a one-line summary, what is under way now (one line each), and what comes next. | |
 | **ask** | Something only Lee can do or decide, posted by Claude. Counted on the band, unless snoozed. | |
-| **note** | A line under Notes: something that happened that Lee may want to know. Not counted. | |
 | **parked** | Something raised and put off, to circle back to. Its project's, naming the session that parked it (11 November 2026; see "Parked items are the project's"). Not counted, not dismissable. | |
 | **reply** | Lee's answer to an ask, or a pick-up of a parked item, waiting in Ready to send. | |
 | **resolved** | An item done with: an ask a reply closed, or any item Claude resolved. Resolved lists a session's resolved asks. | |
@@ -50,7 +49,7 @@ Settled with Lee on 16 October 2026.
 
 The code uses these words (19 October 2026): sessions, not pieces of work,
 in the mod, core, the CLI (`--session`, `$SITREP_SESSION`) and Claude's
-tools; on the pane, ASKS, NOTES, RESOLVED and "finish this session"; on
+tools; on the pane, ASKS, RESOLVED and "finish this session"; on
 disk, `sessions/` and `session.json`. The old `works/` and `work.json` were
 read beside them until the CLI moved them, and on 27 October 2026, with
 nothing of the old layout left on any Mac, the reads and the move went (see
@@ -163,7 +162,7 @@ pane in any window of the project, the pick-up going to the Claude in that
 window (see Delivery). A session's view lists the items it parked; a
 project's view lists every one, each naming its session by name. Finishing
 a session hides none of them, and a session going idle takes none with it.
-Asks and notes stay their session's. Decided with Lee, 11 November 2026;
+Asks stay their session's. Decided with Lee, 11 November 2026;
 until then a parked item was its session's, and a finished session's
 vanished from every view, though still stored.
 
@@ -190,7 +189,7 @@ vanished from every view, though still stored.
   meets with no change of format, as every such line names its item already.
   It holds for the session's own window: while the window is live the
   session is open, and current whatever its time; once the window goes, its
-  7 days count from its last line about anything else, its status or a note.
+  7 days count from its last line about anything else, its status or an ask.
 - **Proven live on 11 November 2026**, on Lee's own board: All projects
   listed six projects for their parked items alone, `no sessions open · ◇
   11 parked` for Mint among them, and Mint's Parked named each item's
@@ -460,9 +459,8 @@ orchestrator decides what reaches the board.
 | `start` / `join` | begin a session (name, summary, its project's name, and its directory once known) and get its id; or join one by id, in whichever project it is filed |
 | `status` | set the name, summary, the list of what is under way, and what is next |
 | `ask` | post an ask: what it wants back (`wants`: a yes, a choice or words), its title, and where to look; a yes's button (`yes`: the verb Lee gives, `Go`, `Approve`, `It works`), a choice's `options` and the one Claude leans toward (`recommended`), or what a words ask's words are (`needs`: "the command's output"), each only on its own shape |
-| `note` | add a note, with optional detail lines and a pointer |
 | `park` | park something to come back to, on the attached session's project |
-| `resolve` / `reopen` / `edit` | close, reopen or correct an item, with a reason. Resolving what Lee closed, an ask he answered or ignored or a parked item he picked up, passes quietly, changing nothing (below). An edit takes an item's one line as `text` or `title` alike, whatever the item, and may change what an ask wants, its `yes`, `options`, `recommended` and `needs`, under the checks `ask` makes for what it changes (see Storage); an empty `needs` or `recommended` clears it. An item of the attached session, or a parked item another session of its project parked, named with that session's id (`session`) and written into that session, in this window's own file there; another session's ask or note, or a session of another project, is refused |
+| `resolve` / `reopen` / `edit` | close, reopen or correct an item, with a reason. Resolving what Lee closed, an ask he answered or ignored or a parked item he picked up, passes quietly, changing nothing (below). An edit takes an item's one line as `text` or `title` alike, whatever the item, and may change what an ask wants, its `yes`, `options`, `recommended` and `needs`, under the checks `ask` makes for what it changes (see Storage); an empty `needs` or `recommended` clears it. An item of the attached session, or a parked item another session of its project parked, named with that session's id (`session`) and written into that session, in this window's own file there; another session's ask, or a session of another project, is refused |
 | `finish` | finish the attached session, with a reason, once it is complete and nothing is left on it; what it parked stays its project's and holds no finish back. The window stays attached, and joining it again reopens it |
 | `project` | rename the attached session's project, or say where it lives, or both; a name another project has is refused. It never moves a session to another project |
 | `board` | read back the board's open items, what each ask wants back among them (`k1 wants a yes (Go)`), and the project's parked items, so Claude can check and repair it |
@@ -483,9 +481,9 @@ and named it in internal shorthand):
 - Keep the board current, since it tells Lee, away from the window, that
   something waits on him, but talk to Lee as if it weren't there.
 - As it goes: the status when what's under way changes, an ask whenever Lee is
-  needed (resolved by Claude when Lee answers it in the chat), a note for
-  what Lee would want later, never running commentary; resolve what's done;
-  finish the session once it is complete, with nothing left on it. What it
+  needed (resolved by Claude when Lee answers it in the chat); resolve
+  what's done; finish the session once it is complete, with nothing left on
+  it. What it
   parked stays its project's and holds no finish back (11 November 2026).
 - A turn that ends on a decision or a question for Lee posts it as an ask,
   so it shows in Needs you, never only in the status; plain conversation
@@ -527,7 +525,6 @@ Wording rules, in the tool descriptions:
 - One line, plain words, starting with the verb. No internal codes (no P-numbers,
   no D-numbers). "Where" says where to look in words: "In Paper: the dashboard
   file, page "round 1", frames 1–6".
-- Notes are things Lee would want to know later, not running commentary.
 - A changed status is logged by the board itself (it compares the new status
   with the last), so Claude does nothing extra for it.
 
@@ -535,7 +532,7 @@ Wording rules, in the tool descriptions:
 was refused for calls that did no harm, and each refusal cost a turn and
 confused Lee: it resolved asks Lee's answer had closed already, and was told
 `k3f9 is already closed.`; and it edited a parked item's `text`, which only
-a note has. So:
+a note had. So:
 
 - **A board answer says whether it closed the ask** (see "What Claude
   reads"): under each ask's last reply in Lee's message, a line says where
@@ -550,8 +547,8 @@ a note has. So:
   answers `k3f9 was closed already by Lee: nothing to resolve.` and writes
   nothing, so Claude's reason never lands on Lee's reply. A parked item
   another session of the project parked passes the same way. Every refusal
-  resolve and reopen made before stands for the rest: resolving an ask,
-  note or parked item Claude resolved; reopening what is open. Before, an
+  resolve and reopen made before stands for the rest: resolving an ask or a
+  parked item Claude resolved; reopening what is open. Before, an
   ask Lee closed was refused as any closed item is, and a parked item he
   picked up took the resolve, Claude's reason written over his pick-up.
   An ask whose answer is on its way, not yet delivered, resolves as ever.
@@ -567,12 +564,12 @@ a note has. So:
   the same turn as Lee's send, so it is left as it is. So too a held send
   Lee takes back: a comment's line, sent meanwhile, said the answer that
   send carried closes the ask, and the ask stays open.
-- **An edit takes an item's one line as `text` or `title` alike**: an ask's,
-  a note's or a parked item's, both given and saying different things
-  refused (`An edit gives an item's one line as text or as title, not both
-  with different words.`). A refusal names the field as Claude gave it,
-  and lists the one line as `title or text` for every item (`An edit to a
-  note changes title or text, detail, ref; not where.`). Before, a note
+- **An edit takes an item's one line as `text` or `title` alike**: an ask's
+  or a parked item's, both given and saying different things refused (`An
+  edit gives an item's one line as text or as title, not both with
+  different words.`). A refusal names the field as Claude gave it, and
+  lists the one line as `title or text` for every item (`An edit to a
+  parked item changes title or text, where, ref; not yes.`). Before, a note
   took only `text`, and an ask or a parked item only `title`. The CLI has
   no edit.
 
@@ -703,15 +700,16 @@ STATUS ────────────────────────�
 • Waiting on your review of Sessions & Runway, round 1
 • Drawing Usage, round 2
 ◦ next: Usage, round 3
-
-NOTES ────────────────────────────────────────────── what happened
-• Status: now also drawing Usage, round 2                      12m
-• PR #82 merged                                                 1h
-◇ Picked up from parked: A tmux indicator                       2h
+hide history
+• now also drawing Usage, round 2                              12m
+• no longer waiting on your review of Overview, round 2         1h
+• now waiting on your review of Sessions & Runway, round 1      1h
+show all 14
 
 PARKED ──────────────────────────────────────── 2 to come back to
 ◇ Paper thumbnails inline in Ghostty                            1d
-◇ A Space-aware notes window                                    2d
+◇ A Space-aware sessions window                                 2d
+show picked up 3
 
 RESOLVED ────────────────────────────────────────────── 4 resolved
 ✓ Review the dashboard's Overview, round 2                      1d
@@ -748,7 +746,7 @@ show all 4
 - A view's title line takes the whole width: its grey aside is cut first,
   then its title, with an ellipsis, so the line stays one row.
 - **This session** (home, the default): name and summary, Asks, Status,
-  Notes, Parked, Resolved. What waits on Lee comes first.
+  Parked, Resolved. What waits on Lee comes first.
 - **All projects**: this project first, then the busiest. Each project's open
   sessions hang off it as a tree. A project with nothing open, waiting or parked
   folds into one line at the bottom. A project opens its view. What a project
@@ -759,9 +757,10 @@ show all 4
   `SitRep`): its sessions, this one first (`⌂`), each with what it is doing
   and its waiting count; Asks, every current session's asks, the newest
   first, each naming its session (`Request ledger: Keep the ledger…`) and
-  answered right there as in a session's view; the project's Notes; and
-  Parked, every item parked in the project, finished and idle sessions'
-  included, each naming its session by name. A project has no Resolved.
+  answered right there as in a session's view, the history of their
+  status at the foot of Sessions; and Parked, every item parked in the
+  project, finished and idle sessions' included, each naming its session by
+  name, and what was taken off it. A project has no Resolved.
 
   ```
    ⌂ Dashboard redesign 3  ≡ All projects 8
@@ -775,21 +774,23 @@ show all 4
   Request ledger                                            1 waiting
   └ Drawing the ledger schema
 
+  show history 23
+
   ASKS ─────────────────────────────────────────────────── 2 waiting
   ◆ Dashboard redesign: Review Sessions & Runway, round 1        2h
   ◆ Request ledger: Keep the ledger 400 days, or forever?        3h
 
-  NOTES ────────────────────────────────────────────── what happened
-  • Request ledger: Wrote the schema                             1h
-
   PARKED ─────────────────────────────────────── 2 to come back to
   ◇ Request ledger: Export the ledger as CSV                     1d
   ◇ Dashboard redesign: A tmux indicator                         2d
+  hide picked up
+  ✓ Request ledger: Rename the export · picked up by Request…    1h
+  ✓ Dashboard redesign: Drop the old importer · closed by Cla…   4d
   ```
 
 - **Another session** is the same view as this one, in the same order: its
-  asks with buttons that answer them, its status, its notes, what it parked,
-  its resolved. While no window has it, its foot (above Ready to send) has
+  asks with buttons that answer them, its status, what it parked, its
+  resolved. While no window has it, its foot (above Ready to send) has
   `✓ finish this session`, for a session Lee left with things open by
   closing the window. It asks first, in place:
   `Finish <name>? Its open asks stop counting.`, `[ yes, finish it ]`
@@ -830,18 +831,47 @@ show all 4
   projects, every project's. A snoozed ask counts on neither.
 - Each view's first line sits under the way back's row.
 - Every section heading has a few words on the right: `1 waiting`,
-  `what happened`, `updated 12m ago`, `2 of 3 open`. Asks says what is
+  `updated 12m ago`, `2 of 3 open`. Asks says what is
   snoozed too, where any is: `1 waiting · 2 snoozed`, or
   `nothing waiting · 1 snoozed`.
-- **A line in Notes opens** to the detail behind it, as a tree. A project's
-  Notes names each line's session before its text (`Request ledger: Wrote the
-  schema`). A status change's detail lines open with their labels (`Added:`,
-  `No longer:`, `Still there:`, `Next:`, `Name:`, `Summary:`), and any
-  item's pointer with `see`, each label in its item's colour, the text after
-  it soft. A note's own detail lines, as Claude wrote them, carry no label.
-- **Parked:** a section of every session's view, under Notes, and of every
-  project's, drawn only while something is parked there, its heading
-  counting it (`2 to come back to`). A session's lists only the items it
+- **Status's history.** Closed, Status shows what is under way and what is
+  next, and at its foot, while the status has ever changed,
+  `show history 14`, counting the changes. Opened, it reads `hide history`,
+  and the changes hang under it, the newest first, each a list's row: a
+  faint `•`, the change's headline, and its age. The headline is what
+  changed most: what is under way (`now: Wire up the export`, `now also:
+  …`, `no longer: Fix the login race`, `and 2 more`), else what is next
+  (`next is …`, `nothing next`), the name (`renamed to …`), the summary
+  (`summary changed`). Opened, a change hangs its detail, each line opening
+  with its label (`Added:`, `No longer:`, `Still there:`, `Next:`, `Name:`,
+  `Summary:`) in the now colour, the text after it soft. It shows the latest
+  3; with more, `show all 14`, then `show fewer`, as Resolved's does. A
+  project's view has it at the foot of Sessions, across its current
+  sessions, each change naming its session before its headline
+  (`Request ledger: now drawing the schema`). The changes are the board's
+  own reading, each status compared with the one before (see Storage), so
+  every session has its whole history from the lines it already holds.
+- **The toggles at a list's foot** are one press, shared: Status's history,
+  Parked's picked up and Resolved's `show all`. Each is a plain press, drawn
+  dim, at the list's foot, and only it opens and folds its list: opening or
+  closing an item never changes how much a list shows. Folding a list closes
+  an item opened in what it no longer shows. What each shows is kept per
+  session, and per project in a project's view, with the rest of the pane's
+  place, and closing the pane folds them all.
+- **Notes went** (17 November 2026, Lee). Notes mixed three things: notes
+  Claude wrote, which Lee never looked at, and the status changes and
+  pick-ups the board noticed itself. Lee wanted the notes gone, and the
+  history kept where it belongs, under its own section, closed until asked
+  for. So Claude has no note tool, the CLI no `note`, the board text no
+  latest notes, and the pane no NOTES; Status keeps its history, and Parked
+  what was taken off it. A note line already on disk is a kind no reader
+  knows now, skipped as any such line is: its session reads as if it were
+  never written, its id names no item, and a resolve or an edit naming it
+  is refused as naming none (`There is no item k3f9 on this board.`).
+- **Parked:** a section of every session's view, under Status, and of every
+  project's, drawn while something is parked there or was taken off it, its
+  heading counting what is parked (`2 to come back to`, or `nothing to come
+  back to`). A session's lists only the items it
   parked, and counts them; a project's lists every item parked in the
   project, finished and idle sessions' included, each naming its session by
   name, never by id, and counts them all (11 November 2026; see "Parked
@@ -856,6 +886,27 @@ show all 4
   item (see Delivery); its comment is written in the prompt as an ask's is,
   and goes with it as its note (see "Answering an ask"). It is never
   counted: not on a tab, nor on the band.
+- **Parked's picked up.** Closed, Parked lists only what is parked, and at
+  its foot, while anything was taken off it, `show picked up 3`, counting
+  the items Lee picked up or Claude closed. Opened, it reads `hide picked
+  up`, and those items hang under it, the newest taken off first, each a
+  list's row: a green `✓`, its title and how it went, and how long ago:
+  `Rename the settings tab · picked up by Export`, or `Drop the old
+  importer · closed by Claude`. Opened, an item hangs Lee's note on the
+  pick-up, or Claude's reason for the close, and its `see`; or `nothing more
+  was recorded`. It shows the latest 3; with more, `show all 3`, then `show
+  fewer`. A session's lists what it parked, a project's what any session of
+  it parked, finished and idle ones included, each naming the session that
+  parked it, as Parked does.
+
+  Who picked it up is the session the pick-up went to, named as the pane
+  names it everywhere, by its name. A pick-up's reply is written by the
+  window it was pressed in, as its writer (see Delivery), and names no
+  session; the window's heartbeat in each session it held says when it
+  attached there. So the pick-up went to the session of the project that
+  writer attached to last at or before the reply's time; with none known,
+  as where the window joined that session again since, its heartbeat
+  rewritten, it reads `picked up` alone.
 
 ### Answering an ask
 
@@ -1498,9 +1549,9 @@ app (see "The menu bar").
   Lee's finish; the reply's id is unlike any that session uses. The item
   leaves Parked. Claude's line names the session that parked it where that
   is another (`- Pick up from parked, Request ledger's: Export the ledger as
-  CSV`). The board's line for it, `Picked up from parked: …`, is in that
-  session's Notes, so a finished session's shows nowhere: Claude has the
-  message, and the item has left Parked. Decided with Lee, 11 November
+  CSV`). The item shows under that session's Parked, in its picked up,
+  `picked up by` the session it went to, a finished session's too (17
+  November 2026; see "Parked's picked up"). Decided with Lee, 11 November
   2026. Until then a pick-up of another session's item went into that
   session's inbox, for its own Claude, and a finished session's could not be
   picked up at all; that route went. A window on an older build still sends
@@ -2096,7 +2147,7 @@ holds:
 - **Nothing else wakes it**: its turn ending, whether its window began it
   for Lee or on its own work, as background agents finishing do, unless he
   snoozed it until it moves (see "The row snoozes"); a window joining,
-  attaching or beating; Claude's status, note, edit, resolve or park. A
+  attaching or beating; Claude's status, edit, resolve or park. A
   reply of Lee's in a window's message in flight to an ask it holds takes
   that ask out of Snoozed as out of Needs you from its claim, since it waits
   on Lee no more, and wakes the session once it is written; taken back,
@@ -2605,7 +2656,7 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   edit answered for the whole shape, and such a decide refused them all,
   its title too: `A choice ask needs at least 2 options.`
 
-  The kinds: `status`, `ask`, `note` and `park`; `resolve`, `reopen` and
+  The kinds: `status`, `ask` and `park`; `resolve`, `reopen` and
   `edit`, each naming an item; `reply`, Lee's answer to one; `delivered`,
   naming the replies Claude has been given; `finish`, the session finished,
   saying who (`lee` or `claude`) and with an optional reason; `unfinish`, a
@@ -2614,7 +2665,9 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   alone and written to the writer's own file, never an inbox (13 November
   2026; see "Snooze"), which `snooze` and `wake` of an ask (23 October 2026)
   and `snoozeTurn` and `wakeTurn` of a turn (4 November 2026) came before,
-  still read and no longer written. The session holds the latest finish, when, by which
+  still read and no longer written. A `note`, Claude's note until notes
+  went (17 November 2026), is a kind no reader knows now, skipped as any
+  such line is. The session holds the latest finish, when, by which
   writer and why, until an unfinish clears it. Who is a field of its own
   because Lee's pane and Claude's tool write as the same window.
 - Reading merges every writer's lines into one order: time, then writer,
@@ -2636,9 +2689,10 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   version its line was written in: nothing rewrites an old line. A line a
   file held twice, byte for byte, read once while the move could append it
   twice; since the move went (27 October 2026), each line reads as itself.
-- The status shown is the latest across writers. A status change is logged by
-  the board as it reads, comparing each status with the one before; it is
-  never written down.
+- The status shown is the latest across writers. A status change is noticed
+  by the board as it reads, comparing each status with the one before; it is
+  never written down. The changes so noticed, the newest first, are the
+  session's history, which Status opens to.
 - A reply counts as delivered once a writer **in its session** has written a
   `delivered` mark naming it: Claude has it. For this session, the mod
   writes the reply and the mark together, once Claude Code has taken the
@@ -3001,21 +3055,20 @@ truth. There is still no background service. None of it is built now. Lee:
       switching between the engine's window and the pane's own as the
       queue filled would move what Lee is looking at.
     - **Measuring.** The view is drawn as a list of blocks: the line under
-      the header, each section's heading, each entry of a list (an
-      ask, a line in Notes, a parked item, a closed ask, a session, a project),
-      Status whole, the foot, and a blank row closing the list; the blank
+      the header, each section's heading, each entry of a list (an ask, a
+      status change, a parked item, one picked up or closed, a closed ask, a
+      session, a project), each list's toggle, Status whole, the foot, and
+      a blank row closing the list; the blank
       row between sections is the next block's own. Docked, a `Client`
       spans each block down the column the pane keeps free beside its
       lines (`hooks/draw/measure.tsx`), drawing nothing, and posts the rows
       the block takes whenever they change. It is keyed by its block, a
-      session's item by its address; a line in Notes by its note's id, a
-      status change by its time, and a pick-up by its parked item and its
-      time, since one send logs every pick-up it carries at the same time
-      and an item reopened can be picked up again. Claude Code
-      draws nothing of a tree holding two `Client`s under one key: keyed by
-      their time, a send of several pick-ups left the docked pane blank
-      until newer lines pushed all but one out of Notes (8 October to 5
-      November 2026). The list is as tall as its blocks, and a block sits as far
+      session's item by its address, and a status change by its session
+      and its time. Claude Code draws nothing of a tree holding two
+      `Client`s under one key: keyed by their time, a send of several
+      pick-ups, each logged in Notes as it was then, left the docked pane
+      blank until newer lines pushed all but one out of Notes (8 October to
+      5 November 2026). The list is as tall as its blocks, and a block sits as far
       down as those above it; one not measured yet counts a row. Each
       measures once as it is laid out, and again as it grows or the width
       changes (about 140 posts over a long live run). The rows and the list
@@ -3108,7 +3161,6 @@ truth. There is still no background service. None of it is built now. Lee:
   finishes through it.
 
   ```
-  sitrep note <text> [--detail <line>]... [--ref <ref>]
   sitrep ask <title> --wants yes|choice|words [--yes <label>] [--option <choice>]... [--recommended <choice>] [--needs <words>] [--where <words>] [--ref <ref>]
   sitrep park <title> [--where <words>] [--ref <ref>]
   sitrep status [--name <words>] [--summary <line>] [--now <line>]... [--next <line>]
@@ -3268,15 +3320,19 @@ truth. There is still no background service. None of it is built now. Lee:
       7, A2).
 
     `board --json` is
-    `{ v, project: { key, name }, session, asks, parked, log, resolved }`:
+    `{ v, project: { key, name }, session, asks, parked, history, resolved }`:
     the session as `list` gives it, its open asks, what it parked, its latest
-    log lines, and its resolved asks (20 October 2026), closed, the ignored
-    aside, the newest closed first, as a session's Resolved lists them.
+    8 status changes, the newest first, each its headline (`text`), its
+    `detail`, `by` and `at`, and its resolved asks (20 October 2026), closed,
+    the ignored aside, the newest closed first, as a session's Resolved lists
+    them. `history` took the place of `log` as notes went (17 November 2026),
+    the lines of Notes, a note's `kind`, `id` and `ref` among them, and `v`
+    moved to 4; `watch`'s own `v` did not, as the app reads no board.
     `parked` stays what the session parked, as its view lists it; plain
     `board` prints Claude's board text, so it lists the project's (11
     November 2026; see "The board text's Parked", under "Claude's side").
     `watch` carries it too, in this shape, for each session the app follows,
-    folded as the watch folds (below). Its `v` is 3 since its session is `session` (27 October 2026),
+    folded as the watch folds (below). Its `v` was 3 since its session is `session` (27 October 2026),
     `work` before; 2 since its asks say what they want back (`wants`, `yes`,
     `needs`) in place of their kind. Each ask, open or resolved, carries
     `reply`, where Lee's reply to it stands (below, under `answer`), and
@@ -3510,10 +3566,10 @@ truth. There is still no background service. None of it is built now. Lee:
             "attachedAt": 1760000000000, "jumpOrder": 0 } ],
         "new": [],
         "boards": {
-          "sr-k3f9qa": { "v": 3,
+          "sr-k3f9qa": { "v": 4,
                          "project": { "key": "switchboard", "name": "Switchboard" },
                          "session": { "id": "sr-k3f9qa", ... },
-                         "asks": [ ... ], "parked": [], "log": [ ... ],
+                         "asks": [ ... ], "parked": [], "history": [ ... ],
                          "resolved": [] },
           "sr-zzzzzz": null } }
       ```
@@ -3857,27 +3913,29 @@ truth. There is still no background service. None of it is built now. Lee:
 
 ## Look
 
-- Palette (Tokyo Night): ask `#e0af68`, new-ask pulse `#ff9e64`, log `#7aa2f7`,
+- Palette (Tokyo Night): ask `#e0af68`, new-ask pulse `#ff9e64`, sessions `#7aa2f7`,
   parked `#bb9af7`, ok `#9ece6a`, now `#73daca`, soft `#a9b1d6`,
   grey `#7a82ab`, faint `#565f89`, rules `#3b4261`, tab `#292e42`.
 - **White:** anything clickable, and the main content.
 - **Soft:** lines describing the item above them (a summary, what a session is
-  doing, a reply, a note's detail), and the line a section with nothing in it
+  doing, a reply, a status change's detail), and the line a section with nothing in it
   shows (`Nothing yet.`).
-- **Grey:** ages, counts, heading notes. RESOLVED's toggle is a quieter press, drawn dim (a
+- **Grey:** ages, counts, heading notes. The toggles at a list's foot (Status's history,
+  Parked's picked up, RESOLVED's `show all`) are a quieter press, drawn dim (a
   Button's own `dimColor`: Claude Code 2.1.294 refuses a Button with a
   label and a coloured child, and blanks the pane). **Faint:** closed things (an away
-  session, an ask Lee's send just closed), but not RESOLVED's asks: each is a
-  row to open, its `✓` green and its title white; and every tree's `│ ├ └`.
+  session, an ask Lee's send just closed, a status change's `•`), but not
+  RESOLVED's asks nor Parked's picked up: each is a row to open, its `✓`
+  green and its title white; and every tree's `│ ├ └`.
   Section headings' rules and the tabs' rule are the rule colour.
 - **Colour:** glyphs, headings and amber waiting counts only; in the ask's
   amber, the `needs:` line of a words ask, since it is a request of Lee's,
   not a description; and a tree line's label (`Added:`,
   `see`), in its item's colour.
-- Glyphs: `◆` ask, `◇` parked, `•` under way, `◦` next, `└ ├` trees, `⌂` home.
+- Glyphs: `◆` ask, `◇` parked, `•` under way, `◦` next, `✓` done, `└ ├` trees, `⌂` home.
   No glyph that reads as "expand" unless it expands.
-- **One row for every list.** A line in Notes, a parked item, an ask in
-  Asks and a resolved ask are drawn alike: the mark, the title (white, and the
+- **One row for every list.** A status change, a parked item, one picked
+  up or closed, an ask in Asks and a resolved ask are drawn alike: the mark, the title (white, and the
   press that opens it) on one line, clipped, and the age on the right, in
   grey. Opened, the title shows in full, a `│` beside its further lines, and
   the detail hangs from the mark as a tree; an opened ask's buttons and hint
@@ -3887,8 +3945,9 @@ truth. There is still no background service. None of it is built now. Lee:
   whichever line the pointer is on.
 - Breathing room: a column each side, a blank row under the tab rule
   where there is no way back, after an opened ask's buttons, between
-  projects in All projects, and between sections; none between the
-  entries of a list (notes, asks, resolved, parked), nor between the tabs and
+  projects in All projects, between a project's sessions and before the
+  history at their foot, and between sections; none between the
+  entries of a list (asks, history, parked, picked up, resolved), nor between the tabs and
   their rule.
 - No indents left floating: anything hanging off an item hangs from a `└`.
 

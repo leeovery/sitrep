@@ -8,9 +8,7 @@ import { C, GLYPH } from '../look'
 import { itemKey } from '../places'
 import { resolvedEarlier, type Filed } from '../scene'
 import { drawRow, heading, type Block, type Drawing } from './kit'
-
-/** How many closed asks RESOLVED shows until it is opened to them all. */
-const LATEST = 3
+import { drawPast } from './past'
 
 const MARK = { glyph: GLYPH.done, color: C.ok }
 
@@ -50,40 +48,9 @@ const drawClosed = (d: Drawing, session: string, ask: Ask): Block => {
   }
 }
 
-/**
- * The press opening RESOLVED to every closed ask, or folding it back to the
- * latest, dim; none with no more than those. Dim rather than a grey Text
- * child: Claude Code 2.1.294 refuses a Button with a label and children,
- * and the refusal blanks the whole board (seen live).
- */
-const drawToggle = (d: Drawing, session: string, asks: readonly Ask[], isInFull: boolean) => {
-  const { Button } = d.els
-  const key = `earlier:${session}`
-  const label = isInFull ? 'show fewer' : `show all ${asks.length}`
-  const hidden = asks.slice(LATEST).map(ask => resolvedKey(session, ask))
-
-  return asks.length > LATEST
-    ? [
-        {
-          key,
-          element: (
-            <Button
-              key={key}
-              plain
-              dimColor
-              label={label}
-              onPress={() => d.act.toggleResolved(session, hidden)}
-            />
-          ),
-        },
-      ]
-    : []
-}
-
-/** RESOLVED's heading, the closed asks it shows, and its toggle; none while no ask has closed. */
+/** RESOLVED's heading, the closed asks it shows, and its press; none while no ask has closed. */
 export const drawResolved = (d: Drawing, { session }: Filed): Block[] => {
   const asks = resolvedEarlier(session, d.scene.now)
-  const isInFull = d.scene.pane.resolvedInFull === session.id
 
   if (asks.length === 0) {
     return []
@@ -91,7 +58,11 @@ export const drawResolved = (d: Drawing, { session }: Filed): Block[] => {
 
   return [
     { key: 'resolved', element: heading(d, 'RESOLVED', C.ok, `${asks.length} resolved`) },
-    ...(isInFull ? asks : asks.slice(0, LATEST)).map(ask => drawClosed(d, session.id, ask)),
-    ...drawToggle(d, session.id, asks, isInFull),
+    ...drawPast(d, {
+      list: `resolved:${session.id}`,
+      entries: asks,
+      draw: ask => drawClosed(d, session.id, ask),
+      opens: ask => resolvedKey(session.id, ask),
+    }),
   ]
 }

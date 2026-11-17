@@ -5,7 +5,7 @@ import { hoverScope } from '../hooks/draw/kit'
 import { C, clip, GLYPH } from '../hooks/look'
 import { rowsOf } from './drawn'
 import { HELD, heldItem, MIN, PROJECT, REVIEW, T0, type Asked } from './data'
-import { askOf, note, park, status, type Line } from './lines'
+import { askOf, park, status, type Line } from './lines'
 import { pane, sceneFrom, type Drawn } from './render'
 import { ACROSS, asked, world } from './world'
 
@@ -89,37 +89,31 @@ const hoversIn = (node: unknown, prefix: string): (Hover | undefined)[] => {
 /** Each tree glyph drawn, and only ever faint. */
 const ALL_FAINT = { [GLYPH.branch]: [C.faint], [GLYPH.last]: [C.faint], [GLYPH.stem]: [C.faint] }
 
-test('a log line is its mark, its text and its age at the right edge; opened, a stem runs down from the mark to its tree', async () => {
+/** Status's history shown, a change opened where `at` names one. */
+const historyShown = (at?: number): Partial<SitrepPane> => ({
+  shown: { [`history:${HELD.id}`]: 'latest' },
+  selected: at === undefined ? null : `status:${heldItem(String(at))}`,
+})
+
+test("a change in Status's history is its mark, its text and its age at the right edge; opened, a stem runs down from the mark to its tree", async () => {
   const bodies = [
-    note('n1', 'Now also drawing Inbox, round 2, and the brief beside it', [
-      'Added: Drawing Inbox, round 2',
-      'Next: Inbox, round 3',
-    ]),
-    note('n2', 'PR #82 merged'),
+    status(['Drawing Inbox, round 2, and the brief beside it'], { next: 'Inbox, round 3' }),
   ]
-  const across = async (ui: Drawn, id: string) =>
-    rowsOf(await ui.find({ key: `line:${heldItem(id)}` }), ACROSS)
+  const across = async (ui: Drawn) =>
+    rowsOf(await ui.find({ key: `change:${heldItem(String(T0))}` }), ACROSS)
 
-  expect(await across(drawnFrom(bodies), 'n1')).toEqual([
-    '• Now also drawing Inbox, round 2, and the brie…   now',
+  expect(await across(drawnFrom(bodies, historyShown()))).toEqual([
+    '• now drawing Inbox, round 2, and the brief bes…   now',
   ])
-  expect(await across(drawnFrom(bodies, { selected: heldItem('n1') }), 'n1')).toEqual([
-    '• Now also drawing Inbox, round 2, and the brief   now',
+  expect(await across(drawnFrom(bodies, historyShown(T0)))).toEqual([
+    '• now drawing Inbox, round 2, and the brief        now',
     '│ beside it',
-    '├ Added: Drawing Inbox, round 2',
-    '└ Next: Inbox, round 3',
+    '├ Added: Drawing Inbox, round 2, and the brief beside',
+    '│ it',
+    '├ Next: Inbox, round 3',
+    '└ Summary: Redesign the help desk, page by page in',
+    '  Paper',
   ])
-
-  const short = drawnFrom(bodies, { selected: heldItem('n2') })
-
-  expect(await across(short, 'n2')).toEqual([
-    '• PR #82 merged                                    now',
-    '└ nothing more was recorded',
-  ])
-  expect(await lineOn(short, 'nothing more was recorded'), 'a detail line, soft').toEqual({
-    color: C.soft,
-    label: undefined,
-  })
 })
 
 test("an opened title's lines light as one: each line's press in one hover group, inverted, and another title in its own", async () => {
@@ -280,14 +274,7 @@ test('an opened status change opens each detail line with its label in the statu
       }),
     ],
   ]
-  const drawn = (selected: string | null) =>
-    pane(sceneFrom({ lines, pane: { selected }, now: T0 + MIN }))
-  // A line the board derives is keyed by its kind and its time.
-  const latest = heldItem(`status-${T0 + MIN}`)
-
-  expect(await drawn(null).find({ key: `log:${latest}` }), 'the latest status line').toBeDefined()
-
-  const ui = drawn(latest)
+  const ui = pane(sceneFrom({ lines, pane: historyShown(T0 + MIN), now: T0 + MIN }))
 
   for (const [label, text] of [
     ['Added:', 'Drawing Macros'],
@@ -302,24 +289,6 @@ test('an opened status change opens each detail line with its label in the statu
       label: { text: label, color: C.now },
     })
   }
-})
-
-test("a note's detail lines are Claude's own words, unlabelled and soft, whatever they open with; its see is labelled in the note's blue", async () => {
-  const ui = drawnFrom(
-    [
-      note('n1', 'Wrote the schema', ['Added: the ledger table', '6 files, +214 −51'], {
-        ref: 'docs/ledger.md',
-      }),
-    ],
-    { selected: heldItem('n1') },
-  )
-
-  expect(await lineOn(ui, 'Added: the ledger table')).toEqual({ color: C.soft, label: undefined })
-  expect(await lineOn(ui, '6 files, +214 −51')).toEqual({ color: C.soft, label: undefined })
-  expect(await lineOn(ui, 'see docs/ledger.md')).toEqual({
-    color: C.soft,
-    label: { text: 'see', color: C.log },
-  })
 })
 
 test("an opened ask's see is labelled in the ask's amber, a parked item's in its purple", async () => {
@@ -346,17 +315,15 @@ test("an opened ask's see is labelled in the ask's amber, a parked item's in its
   })
 })
 
-test("every tree's glyphs are drawn faint: a log line's, an ask's, Ready to send's, a parked item's, and the stem beside a title", async () => {
+test("every tree's glyphs are drawn faint: a status change's, an ask's, Ready to send's, a parked item's, and the stem beside a title", async () => {
   const bodies = [
-    note('n1', FOLD, ['6 files', '+214 −51']),
+    status([FOLD], { next: 'Inbox, round 3' }),
     askOf('k1', DECIDE),
     park('p1', FOLD, { where: 'In DESIGN.md', ref: 'docs/badging.md' }),
   ]
-  const opening = (id: string) =>
-    drawnFrom(bodies, { selected: heldItem(id) }, [
-      queued('k1', { verdict: 'choose', option: 'Forever' }),
-    ])
+  const opening = (shown: Partial<SitrepPane>) =>
+    drawnFrom(bodies, shown, [queued('k1', { verdict: 'choose', option: 'Forever' })])
 
-  expect(await glyphColours(opening('n1'))).toEqual(ALL_FAINT)
-  expect(await glyphColours(opening('p1'))).toEqual(ALL_FAINT)
+  expect(await glyphColours(opening(historyShown(T0)))).toEqual(ALL_FAINT)
+  expect(await glyphColours(opening({ selected: heldItem('p1') }))).toEqual(ALL_FAINT)
 })

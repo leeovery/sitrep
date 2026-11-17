@@ -134,7 +134,7 @@ const OPEN: SitrepPane = {
   isOpen: true,
   place: null,
   selected: null,
-  resolvedInFull: null,
+  shown: {},
   heldShown: null,
   placement: {},
 }

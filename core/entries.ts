@@ -87,8 +87,6 @@ const CHANGES: Record<string, Check> = {
   recommended: maybe(isText),
   needs: maybe(isText),
   ref: maybe(isText),
-  text: maybe(isText),
-  detail: maybe(isTexts),
 }
 
 const isChanges: Check = value =>
@@ -111,7 +109,6 @@ const SHAPES: { [T in Body['type']]: Record<string, Check> } = {
     needs: maybe(isText),
     ref: maybe(isText),
   },
-  note: { id: isText, text: isText, detail: maybe(isTexts), ref: maybe(isText) },
   park: { id: isText, title: isText, where: maybe(isText), ref: maybe(isText) },
   resolve: { item: isText, reason: maybe(isText) },
   reopen: { item: isText, reason: maybe(isText) },

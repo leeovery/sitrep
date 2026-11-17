@@ -56,7 +56,7 @@ const drawnAfter = (lines: readonly Line[], shown: Partial<SitrepPane> = {}, now
   pane(sceneFrom({ lines, writer: W2, pane: shown, now: now + WATCH_MS }))
 
 /** RESOLVED shown in full. */
-const IN_FULL = { resolvedInFull: HELD.id }
+const IN_FULL: Partial<SitrepPane> = { shown: { [`resolved:${HELD.id}`]: 'all' } }
 
 /** A closed ask opened, by the key its press selects. */
 const opening = (id: string) => ({ selected: `resolved:${heldItem(id)}` })
@@ -114,7 +114,7 @@ test('a closed ask opens to how it closed, one branch from its tick with no age 
 })
 
 test('RESOLVED shows the latest 3 under a dim show all; shown in full, it lists every one under a dim show fewer', async () => {
-  const toggle = async (ui: Drawn) => (await ui.find({ key: `earlier:${HELD.id}` }))?.props
+  const toggle = async (ui: Drawn) => (await ui.find({ key: `all:resolved:${HELD.id}` }))?.props
   const folded = drawnAfter(CLOSED)
   const inFull = drawnAfter(CLOSED, IN_FULL)
 
@@ -138,10 +138,10 @@ test('RESOLVED is a section of its own at the foot of the view, its heading gree
   expect((await heading(ui))?.props).toMatchObject({ color: C.ok, bold: true })
   expect(await ui.find({ type: 'Text', text: '1 resolved' })).toBeDefined()
   expect(
-    await ui.find({ key: `earlier:${HELD.id}` }),
+    await ui.find({ key: `all:resolved:${HELD.id}` }),
     'no more than 3, so nothing to show all',
   ).toBeUndefined()
-  expect(rows.slice(-2), 'under NOTES, the last of the view').toEqual([
+  expect(rows.slice(-2), 'the last of the view').toEqual([
     expect.stringMatching(/^ RESOLVED ─+ 1 resolved$/),
     ' ✓ Review round 1                                    4h',
   ])
@@ -194,14 +194,14 @@ test('closing the board folds RESOLVED back to the latest 3', async ($, on) => {
   const { id, ui } = await closedAsks(w)
   const band = await w.band()
 
-  await ui.press({ key: `earlier:${id}` })
-  expect(w.state.pane?.resolvedInFull).toBe(id)
+  await ui.press({ key: `all:resolved:${id}` })
+  expect(w.state.pane?.shown?.[`resolved:${id}`]).toBe('all')
   expect(await listed(ui)).toHaveLength(4)
 
   await band.press({ key: 'band:board' })
   await band.press({ key: 'band:board' })
 
-  expect(w.state.pane?.resolvedInFull).toBeNull()
+  expect(w.state.pane?.shown?.[`resolved:${id}`]).toBeUndefined()
   expect(await listed(ui)).toHaveLength(3)
   expect(await ui.find({ key: `closed:${w.item('a1')}` })).toBeUndefined()
 })
@@ -209,22 +209,22 @@ test('closing the board folds RESOLVED back to the latest 3', async ($, on) => {
 test('RESOLVED shown in full stays so while items open and close, in RESOLVED or elsewhere on the board; only its toggle folds it', async ($, on) => {
   const w = world($, on, { now: NOW })
   const { id, ui } = await closedAsks(w)
-  const note = postedId(await w.call('note', { text: 'PR #82 merged' }))
-  const toggle = async () => (await ui.find({ key: `earlier:${id}` }))?.props.label
+  const parked = postedId(await w.call('park', { title: 'PR #82 merged' }))
+  const toggle = async () => (await ui.find({ key: `all:resolved:${id}` }))?.props.label
 
-  await ui.press({ key: `earlier:${id}` })
+  await ui.press({ key: `all:resolved:${id}` })
 
   for (const press of [
     `resolved:${w.item('a4')}`,
     `resolved:${w.item('a4')}`,
-    `log:${w.item(note)}`,
+    `ppick:${w.item(parked)}`,
   ]) {
     await ui.press({ key: press })
     expect(await listed(ui), press).toHaveLength(4)
     expect(await toggle(), press).toBe('show fewer')
   }
 
-  await ui.press({ key: `earlier:${id}` })
+  await ui.press({ key: `all:resolved:${id}` })
   expect(await listed(ui)).toHaveLength(3)
   expect(await toggle()).toBe('show all 4')
 })
@@ -255,18 +255,18 @@ test('folding RESOLVED back closes an opened ask it no longer shows; one it stil
   const w = world($, on, { now: NOW })
   const { id, ui } = await closedAsks(w)
 
-  await ui.press({ key: `earlier:${id}` })
+  await ui.press({ key: `all:resolved:${id}` })
   await ui.press({ key: `resolved:${w.item('a1')}` })
   expect(await listed(ui)).toHaveLength(4)
   expect(await ui.find({ type: 'Text', text: '→ Approve' })).toBeDefined()
 
-  await ui.press({ key: `earlier:${id}` })
+  await ui.press({ key: `all:resolved:${id}` })
   expect(w.state.pane?.selected).toBeNull()
   expect(await listed(ui)).toHaveLength(3)
 
-  await ui.press({ key: `earlier:${id}` })
+  await ui.press({ key: `all:resolved:${id}` })
   await ui.press({ key: `resolved:${w.item('a4')}` })
-  await ui.press({ key: `earlier:${id}` })
+  await ui.press({ key: `all:resolved:${id}` })
   expect(w.state.pane?.selected).toBe(`resolved:${w.item('a4')}`)
   expect(await listed(ui)).toHaveLength(3)
   expect(await ui.find({ type: 'Text', text: 'resolved by Claude' })).toBeDefined()
@@ -290,9 +290,9 @@ test('a pane an older load saved, knowing nothing of RESOLVED shown in full, sho
   const { id, ui } = await closedAsks(w)
 
   expect(await listed(ui)).toHaveLength(3)
-  expect((await ui.find({ key: `earlier:${id}` }))?.props.label).toBe('show all 4')
+  expect((await ui.find({ key: `all:resolved:${id}` }))?.props.label).toBe('show all 4')
 
-  await ui.press({ key: `earlier:${id}` })
+  await ui.press({ key: `all:resolved:${id}` })
   expect(await listed(ui)).toHaveLength(4)
 })
 

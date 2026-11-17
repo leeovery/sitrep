@@ -37,7 +37,6 @@ const SAID: Record<ToolName, (input: Input, name: string | undefined) => string>
   join: (_, name) => (name === undefined ? 'joined a session' : `joined: ${name}`),
   status: () => '• status set',
   ask: input => `◆ asked: ${text(input.title)}`,
-  note: input => `noted: ${text(input.text)}`,
   park: input => `◇ parked: ${text(input.title)}`,
   resolve: (_, name = 'an item') => `resolved: ${name}`,
   reopen: (_, name = 'an item') => `reopened: ${name}`,

@@ -20,9 +20,10 @@ export const boardOf = (session: Session): SitrepBoard => ({
   ids: [...session.ids],
 })
 
-/** The session a board holds, its map of items and set of ids rebuilt: what drawing reads. */
+/** The session a board holds, its map of items and set of ids rebuilt, and its history, which a board an older load saved lacks: what drawing reads. */
 export const sessionOf = (held: SitrepBoard): Session => ({
   ...held,
+  history: held.history ?? [],
   items: new Map(held.items.map(item => [item.id, item])),
   ids: new Set(held.ids),
 })

@@ -2,18 +2,22 @@ import { expect, test } from './kit'
 import {
   allProjects,
   brief,
-  BRIEF_LOG_LINES,
+  changedBy,
   CURRENT_MS,
   foldSession,
+  holdsOf,
   isCurrent,
   listedProjects,
   metaText,
   parkedBy,
   parkingOf,
-  projectLog,
+  pickedUpBy,
+  projectHistory,
   projectParked,
+  projectTakenOff,
   summarise,
   summariseProject,
+  takenOffBy,
   type ProjectSummary,
   type Session,
   type SessionFiles,
@@ -23,7 +27,6 @@ import {
   delivered,
   file,
   finish,
-  note,
   park,
   reply,
   resolve,
@@ -178,25 +181,82 @@ test('equally busy projects order by their latest update, then by name', () => {
   expect(keys(view.projects)).toEqual(['c', 'a', 'b'])
 })
 
-test("a project's log holds every session's lines, newest first, each naming its session", () => {
+test("a project's history holds every change of its sessions' status, newest first, each naming its session", () => {
   const first = sessionOf('sr-aaaaaa', 'northwind', {
-    logs: { [W1]: file([T0 + 1 * MIN, note('n1', 'one')], [T0 + 4 * MIN, note('n4', 'four')]) },
+    logs: { [W1]: file([T0 + 1 * MIN, status(['One'])], [T0 + 4 * MIN, status(['Four'])]) },
   })
   const second = sessionOf('sr-bbbbbb', 'northwind', {
-    logs: { [W2]: file([T0 + 2 * MIN, note('n2', 'two')], [T0 + 3 * MIN, status(['Drawing'])]) },
+    logs: { [W2]: file([T0 + 2 * MIN, status(['Two'])], [T0 + 3 * MIN, status(['Three'])]) },
   })
 
-  expect(projectLog([first, second]).map(line => [line.session, line.text])).toEqual([
-    ['sr-aaaaaa', 'four'],
-    ['sr-bbbbbb', 'Status: now drawing'],
-    ['sr-bbbbbb', 'two'],
-    ['sr-aaaaaa', 'one'],
+  expect(
+    projectHistory([...changedBy(first), ...changedBy(second)]).map(line => [line.session, line.text]),
+  ).toEqual([
+    ['sr-aaaaaa', 'now four'],
+    ['sr-bbbbbb', 'now three'],
+    ['sr-bbbbbb', 'now two'],
+    ['sr-aaaaaa', 'now one'],
   ])
+})
+
+test("what was taken off a project's Parked is every session's, picked up or closed, the newest taken off first, each naming the session that parked it", () => {
+  const first = sessionOf('sr-aaaaaa', 'northwind', {
+    logs: {
+      [W1]: file(
+        [T0, status(['Drawing'], { name: 'Ledger' })],
+        [T0, park('p1', 'Export as CSV')],
+        [T0, park('p2', 'Still parked')],
+        [T0 + 2 * MIN, reply('r1', 'p1', 'pickup', { note: 'With totals' })],
+        [T0 + 2 * MIN, delivered('r1')],
+      ),
+    },
+  })
+  const second = sessionOf('sr-bbbbbb', 'northwind', {
+    logs: {
+      [W2]: file(
+        [T0, status(['Drawing'], { name: 'Importer' })],
+        [T0, park('p1', 'Drop the old importer')],
+        [T0 + 3 * MIN, resolve('p1', 'Gone with the rewrite')],
+      ),
+    },
+  })
+
+  expect(
+    projectTakenOff([...takenOffBy(first), ...takenOffBy(second)]).map(each => [
+      each.name,
+      each.title,
+      each.state,
+      each.closedAt,
+    ]),
+  ).toEqual([
+    ['Importer', 'Drop the old importer', 'closed', T0 + 3 * MIN],
+    ['Ledger', 'Export as CSV', 'picked', T0 + 2 * MIN],
+  ])
+})
+
+test("a pick-up went to the session its window attached to last by the pick-up's time; none known where the window attached to none by then", () => {
+  const ledger = sessionOf('sr-aaaaaa', 'northwind', {
+    logs: { [W1]: file([T0, status([], { name: 'Ledger' })]) },
+    presence: { [W1]: seen(W1, T0), [W2]: seen(W2, T0 + 10 * MIN) },
+  })
+  const importer = sessionOf('sr-bbbbbb', 'northwind', {
+    logs: { [W1]: file([T0, status([], { name: 'Importer' })]) },
+    presence: { [W1]: seen(W1, T0 + 5 * MIN) },
+  })
+  const holds = [...holdsOf(ledger), ...holdsOf(importer)]
+
+  expect(pickedUpBy(holds, { by: W1, at: T0 + MIN })).toBe('Ledger')
+  expect(pickedUpBy(holds, { by: W1, at: T0 + 5 * MIN })).toBe('Importer')
+  expect(pickedUpBy(holds, { by: W1, at: T0 + 20 * MIN }), 'the last it attached to').toBe(
+    'Importer',
+  )
+  expect(pickedUpBy(holds, { by: W2, at: T0 + MIN }), 'attached since').toBeUndefined()
+  expect(pickedUpBy(holds, { by: CLI, at: T0 + MIN }), 'no window').toBeUndefined()
 })
 
 test('an idle session shows for 7 days after its last update, then drops out of the views', () => {
   const idle = summarise(
-    sessionOf('sr-aaaaaa', 'northwind', { logs: { [W1]: file([NOW, note('n1', 'Drew it')]) } }),
+    sessionOf('sr-aaaaaa', 'northwind', { logs: { [W1]: file([NOW, status(['Drew it'])]) } }),
   )
 
   expect(isCurrent(idle, NOW + CURRENT_MS)).toBe(true)
@@ -275,14 +335,14 @@ test('a project none of whose sessions is current is dated by the latest of the 
       ),
     },
   })
-  const noted = sessionOf('sr-cccccc', 'northwind', {
-    logs: { [W1]: file([T0 + 9 * MIN, note('n1', 'Wrote the schema')]) },
+  const busy = sessionOf('sr-cccccc', 'northwind', {
+    logs: { [W1]: file([T0 + 9 * MIN, status(['Writing the schema'])]) },
   })
   const listed = listedProjects(
     [
       {
         project: { key: 'northwind', name: 'Northwind' },
-        sessions: [finished, idle, noted].map(summarise),
+        sessions: [finished, idle, busy].map(summarise),
       },
     ],
     '/Users/me',
@@ -331,18 +391,12 @@ test('a finished session is out of the views whatever it holds, and its asks cou
   expect(summariseProject('northwind-1a2b3c4d', [summary]).waiting).toBe(0)
 })
 
-test('a brief carries the latest log lines a view shows, and what the session has parked', () => {
-  const notes = Array.from(
-    { length: BRIEF_LOG_LINES + 2 },
-    (_, i): Line => [T0 + i * MIN, note(`n${i}`, `note ${i}`)],
-  )
+test('a brief carries what the session has parked', () => {
   const session = sessionOf('sr-aaaaaa', 'northwind', {
-    logs: { [W1]: file(...notes, [T0, park('p1', 'Later')]) },
+    logs: { [W1]: file([T0, park('p1', 'Later')]) },
   })
   const briefed = brief(session)
 
-  expect(briefed.log).toHaveLength(BRIEF_LOG_LINES)
-  expect(briefed.log[0]?.text).toBe(`note ${BRIEF_LOG_LINES + 1}`)
   expect(briefed.parkedItems.map(each => each.id)).toEqual(['p1'])
   expect(briefed.parked).toBe(1)
 })

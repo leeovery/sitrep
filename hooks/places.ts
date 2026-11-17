@@ -2,21 +2,29 @@
  * The board as a tree, with this session as home: a session sits in its
  * project, and every project under All projects. Home and All projects are
  * the tabs; anywhere else is also a step back up. Also what each place
- * shows: its sessions, its asks, its notes, what it parked.
+ * shows: its sessions, its asks, the history of their status, what it
+ * parked, and what was taken off its Parked.
  */
 import {
   allProjects,
   brief,
+  changedBy,
   compareText,
+  holdsOf,
   NOTHING_PARKED,
   parkedBy,
-  projectLog,
+  pickedUpBy,
+  projectHistory,
   projectParked,
+  projectTakenOff,
   snoozedUntilIn,
   summariseProject,
+  takenOffBy,
   type Ask,
+  type Hold,
   type Parked,
   type Parking,
+  type ProjectParked,
   type SessionBrief,
 } from '../core'
 import type { SitrepPlace, SitrepSessionRef } from '../types'
@@ -56,6 +64,9 @@ const snoozedLast = (asked: readonly AskedAt[]): AskedAt[] => [
 
 /** Something a view lists as parked, the session that parked it, and that session's name. */
 export type ParkedAt = { at: SitrepSessionRef; name: string; parked: Parked }
+
+/** Something a view lists as taken off Parked, as it lists what is parked, and the name of the session a pick-up of it went to, where that is known. */
+export type TakenAt = ParkedAt & { pickedUpBy?: string }
 
 /**
  * An item's address on the board, wherever it shows: its session's id, then
@@ -147,6 +158,34 @@ export const parkedIn = (scene: Scene, key: string): ParkedAt[] => {
   }))
 }
 
+/** Every window's hold on a session filed under a project, finished and idle ones included. */
+const holdsIn = (scene: Scene, key: string): Hold[] => [
+  ...(key === scene.here ? holdsOf(scene.session) : []),
+  ...(projectRead(scene, key)?.holds ?? []).filter(hold => hold.session !== scene.session.id),
+]
+
+/** Items taken off a project's Parked as a view lists them, each a pick-up's naming the session it went to, by the holds given. */
+const takenOffAt = (key: string, taken: readonly ProjectParked[], holds: readonly Hold[]): TakenAt[] =>
+  taken.map(({ session, name, ...parked }) => ({
+    at: { project: key, session },
+    name,
+    parked,
+    pickedUpBy:
+      parked.state === 'picked' && parked.answer !== undefined
+        ? pickedUpBy(holds, parked.answer)
+        : undefined,
+  }))
+
+/** Everything taken off a project's Parked, the newest taken off first, from every session filed under it, finished and idle ones included. */
+export const takenOffIn = (scene: Scene, key: string): TakenAt[] => {
+  const held = key === scene.here ? takenOffBy(scene.session) : []
+  const around = (projectRead(scene, key)?.takenOff ?? []).filter(
+    each => each.session !== scene.session.id,
+  )
+
+  return takenOffAt(key, projectTakenOff([...held, ...around]), holdsIn(scene, key))
+}
+
 /** What is parked in a project as the board has it: the look carries the items, not the times of the sessions holding them. */
 const parkingIn = (scene: Scene, key: string): Parking => ({
   ...NOTHING_PARKED,
@@ -165,12 +204,19 @@ const summaryIn = (scene: Scene, key: string) => {
   return sessions.length > 0 ? summary : { ...summary, name: projectRead(scene, key)?.name ?? key }
 }
 
-/** A project as its view draws it: its sessions in brief, counting what is parked in it, and its notes. */
-export const projectAt = (scene: Scene, key: string) => {
-  const sessions = briefsIn(scene, key)
+/** A project's history: every change of its current sessions' status, the newest first, the others' as the look read them while the board looked at the project. */
+const historyIn = (scene: Scene, key: string) =>
+  projectHistory([
+    ...(key === scene.here ? changedBy(scene.session) : []),
+    ...(projectRead(scene, key)?.history ?? []).filter(line => line.session !== scene.session.id),
+  ])
 
-  return { summary: summaryIn(scene, key), log: projectLog(sessions), sessions }
-}
+/** A project as its view draws it: its sessions in brief, counting what is parked in it, and the history of their status. */
+export const projectAt = (scene: Scene, key: string) => ({
+  summary: summaryIn(scene, key),
+  history: historyIn(scene, key),
+  sessions: briefsIn(scene, key),
+})
 
 /** The name the board gives a project, as its sessions read now name it. */
 export const projectLabel = (scene: Scene, key: string) => summaryIn(scene, key).name
@@ -253,6 +299,10 @@ export const parkedOf = (filed: Filed): ParkedAt[] =>
     name: filed.session.status.name,
     parked,
   }))
+
+/** What was taken off a session's Parked, the newest taken off first. */
+export const takenOffOf = (scene: Scene, filed: Filed): TakenAt[] =>
+  takenOffAt(filed.project, takenOffBy(filed.session), holdsIn(scene, filed.project))
 
 /** A session's name, with its project's where the board's own project is another. */
 export const sessionLabel = (scene: Scene, filed: Filed) =>

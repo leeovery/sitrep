@@ -7,7 +7,7 @@ import {
   file,
   finish,
   fold,
-  note,
+  oldNote,
   park,
   reopen,
   reply,
@@ -18,34 +18,31 @@ import {
   type Line,
 } from './lines'
 
-/** The log's notes, oldest first, as text. */
-const notesOf = (files: Parameters<typeof fold>[0]) =>
-  fold(files)
-    .log.filter(line => line.kind === 'note')
-    .map(line => line.text)
-    .reverse()
+/** The parked items, in the order their lines were read, as text. */
+const parkedOf = (files: Parameters<typeof fold>[0]) =>
+  fold(files).parked.map(parked => parked.title)
 
 test("writers' lines merge by time, whichever file holds them", () => {
   const logs = {
-    [W1]: file([T0 + 1 * MIN, note('n1', 'first')], [T0 + 4 * MIN, note('n4', 'fourth')]),
-    [W2]: file([T0 + 2 * MIN, note('n2', 'second')], [T0 + 3 * MIN, note('n3', 'third')]),
+    [W1]: file([T0 + 1 * MIN, park('n1', 'first')], [T0 + 4 * MIN, park('n4', 'fourth')]),
+    [W2]: file([T0 + 2 * MIN, park('n2', 'second')], [T0 + 3 * MIN, park('n3', 'third')]),
   }
 
-  expect(notesOf({ logs })).toEqual(['first', 'second', 'third', 'fourth'])
+  expect(parkedOf({ logs })).toEqual(['first', 'second', 'third', 'fourth'])
 })
 
 test('lines at the same time order by writer, then by the writer’s own count', () => {
   const at = T0 + MIN
   const outOfOrder = [
-    { v: VERSION, at, seq: 2, type: 'note', id: 'b2', text: 'w2, second' },
-    { v: VERSION, at, seq: 1, type: 'note', id: 'b1', text: 'w2, first' },
+    { v: VERSION, at, seq: 2, type: 'park', id: 'b2', title: 'w2, second' },
+    { v: VERSION, at, seq: 1, type: 'park', id: 'b1', title: 'w2, first' },
   ]
   const logs = {
     [W2]: outOfOrder.map(line => serialise(line as never)).join(''),
-    [W1]: file([T0, note('a1', 'w1, earlier')], [at, note('a2', 'w1, at the same time')]),
+    [W1]: file([T0, park('a1', 'w1, earlier')], [at, park('a2', 'w1, at the same time')]),
   }
 
-  expect(notesOf({ logs })).toEqual([
+  expect(parkedOf({ logs })).toEqual([
     'w1, earlier',
     'w1, at the same time',
     'w2, first',
@@ -70,7 +67,7 @@ test('the latest status across writers wins, whoever wrote it', () => {
   const logs = {
     [W1]: file(
       [T0 + 1 * MIN, status(['Drawing Inbox, round 1'])],
-      [T0 + 5 * MIN, note('n1', 'later')],
+      [T0 + 5 * MIN, park('p1', 'later')],
     ),
     [W2]: file([T0 + 3 * MIN, status(['Drawing Inbox, round 2'], { next: 'Inbox, round 3' })]),
     [CLI]: file([T0 + 2 * MIN, status(['Generating frames'])]),
@@ -97,15 +94,12 @@ test('with no status yet, the session stands as it was started', () => {
 test('the first line to use an id keeps it', () => {
   const logs = {
     [W1]: file([T0 + 1 * MIN, yesAsk('k3f9', 'Review round 1')]),
-    [W2]: file(
-      [T0 + 2 * MIN, note('k3f9', 'A clashing note')],
-      [T0 + 3 * MIN, park('k3f9', 'A clashing park')],
-    ),
+    [W2]: file([T0 + 3 * MIN, park('k3f9', 'A clashing park')]),
   }
   const session = fold({ logs })
 
   expect([...session.items.values()].map(item => item.type)).toEqual(['ask'])
-  expect(session.log).toEqual([])
+  expect(session.parked).toEqual([])
 })
 
 test('an item whose id a reply already holds is never posted: the reply keeps the id', () => {
@@ -113,7 +107,7 @@ test('an item whose id a reply already holds is never posted: the reply keeps th
     logs: {
       [W1]: file(
         [T0, yesAsk('k1', 'Review round 1')],
-        [T0 + 2 * MIN, note('r1', 'A clashing note')],
+        [T0 + 2 * MIN, park('r1', 'A clashing park')],
       ),
     },
     inbox: { [SENDER]: file([T0 + MIN, reply('r1', 'k1', 'yes')]) },
@@ -123,37 +117,35 @@ test('an item whose id a reply already holds is never posted: the reply keeps th
   expect(session.replies.map(each => each.id)).toEqual(['r1'])
 })
 
-test("an edit changes only its item's own fields, and the log shows a note as edited", () => {
+test("an edit changes only its item's own fields", () => {
   const logs = {
     [W1]: file(
       [T0 + 1 * MIN, yesAsk('k3f9', 'Review round 1')],
-      [T0 + 2 * MIN, note('n4m5', 'PR #81 merged')],
+      [T0 + 2 * MIN, park('p4m5', 'Export as CSV')],
       [
         T0 + 3 * MIN,
-        {
-          type: 'edit',
-          item: 'k3f9',
-          changes: { title: 'Review round 2', text: 'not an ask field' },
-        },
+        { type: 'edit', item: 'k3f9', changes: { title: 'Review round 2', where: 'In Paper' } },
       ],
       [
         T0 + 4 * MIN,
-        { type: 'edit', item: 'n4m5', changes: { text: 'PR #82 merged' }, reason: 'Wrong number' },
+        {
+          type: 'edit',
+          item: 'p4m5',
+          changes: { title: 'Export as JSON', needs: 'not a parked item field' },
+          reason: 'Wrong format',
+        },
       ],
     ),
   }
   const session = fold({ logs })
-  const edited = session.items.get('k3f9')
 
-  expect(edited).toMatchObject({ title: 'Review round 2', editedAt: T0 + 3 * MIN })
-  expect(edited).not.toHaveProperty('text')
-  expect(session.log[0]).toMatchObject({
-    kind: 'note',
-    id: 'n4m5',
-    text: 'PR #82 merged',
-    at: T0 + 2 * MIN,
+  expect(session.items.get('k3f9')).toMatchObject({
+    title: 'Review round 2',
+    where: 'In Paper',
+    editedAt: T0 + 3 * MIN,
   })
-  expect(session.items.get('n4m5')).toMatchObject({ reason: 'Wrong number' })
+  expect(session.items.get('p4m5')).toMatchObject({ title: 'Export as JSON', reason: 'Wrong format' })
+  expect(session.items.get('p4m5')).not.toHaveProperty('needs')
 })
 
 test('an ask edited to want something other than a choice keeps no options', () => {
@@ -179,18 +171,41 @@ test('an ask edited to want something other than a choice keeps no options', () 
   })
 })
 
-test('a resolved note leaves the log; reopened, it is back where it was', () => {
+test('a resolved parked item leaves Parked; reopened, it is back where it was', () => {
   const posted: Line[] = [
-    [T0 + 1 * MIN, note('n1', 'first')],
-    [T0 + 2 * MIN, note('n2', 'second')],
-    [T0 + 3 * MIN, resolve('n1', 'Posted twice')],
+    [T0 + 1 * MIN, park('p1', 'first')],
+    [T0 + 2 * MIN, park('p2', 'second')],
+    [T0 + 3 * MIN, resolve('p1', 'Posted twice')],
   ]
 
-  expect(notesOf({ logs: { [W1]: file(...posted) } })).toEqual(['second'])
-  expect(notesOf({ logs: { [W1]: file(...posted, [T0 + 4 * MIN, reopen('n1')]) } })).toEqual([
+  expect(parkedOf({ logs: { [W1]: file(...posted) } })).toEqual(['second'])
+  expect(parkedOf({ logs: { [W1]: file(...posted, [T0 + 4 * MIN, reopen('p1')]) } })).toEqual([
     'first',
     'second',
   ])
+})
+
+test('a note line as the board wrote it before notes went is read and skipped: it posts no item, takes no id and moves no time, and the lines naming it change nothing', () => {
+  const session = fold({
+    logs: {
+      [W1]: file(
+        [T0 + 1 * MIN, yesAsk('k1', 'Review round 1')],
+        [T0 + 2 * MIN, oldNote('n4m5', 'PR #81 merged', ['6 files'], { ref: 'PR #81' })],
+        [T0 + 3 * MIN, { type: 'edit', item: 'n4m5', changes: { title: 'PR #82 merged' } }],
+        [T0 + 4 * MIN, resolve('n4m5', 'Wrong number')],
+        [T0 + 5 * MIN, reopen('n4m5')],
+        [T0 + 6 * MIN, oldNote('n5p6', 'Shipped')],
+      ),
+    },
+  })
+
+  expect([...session.items.keys()]).toEqual(['k1'])
+  expect([...session.ids]).toEqual(['k1'])
+  expect(session.asks[0]?.state).toBe('waiting')
+  expect(session.history).toEqual([])
+  expect(session.updatedAt, 'what names it moves it as what names no item does').toBe(
+    T0 + 5 * MIN,
+  )
 })
 
 test('changes to an item no line posted change nothing', () => {
@@ -227,7 +242,7 @@ test('the session knows every id its lines use, items and replies alike', () => 
     logs: {
       [W1]: file(
         [T0 + 1 * MIN, yesAsk('k3f9', 'Review round 1')],
-        [T0 + 2 * MIN, note('n4m5', 'Merged')],
+        [T0 + 2 * MIN, park('n4m5', 'Merged')],
         [T0 + 3 * MIN, park('p1q2', 'Later')],
       ),
     },
@@ -304,15 +319,15 @@ test("no line about a parked item but its park moves its session's time: a pick-
       ),
     },
   })
-  const noted = fold({
+  const asked = fold({
     logs: {
-      [W1]: file([parked, park('p1', 'Later')], [T0 + 20 * MIN, note('n1', 'Drew it')]),
+      [W1]: file([parked, park('p1', 'Later')], [T0 + 20 * MIN, yesAsk('k1', 'Review it')]),
     },
   })
 
   expect(session.parked.map(each => [each.id, each.title])).toEqual([['p3', 'A priority flag']])
   expect(session.updatedAt).toBe(parked)
-  expect(noted.updatedAt, 'a note moves it').toBe(T0 + 20 * MIN)
+  expect(asked.updatedAt, 'an ask moves it').toBe(T0 + 20 * MIN)
 })
 
 test('a mark moves the time unless every reply it names is a pick-up; a mark read before its reply is judged too', () => {
@@ -379,7 +394,6 @@ test('a pick-up and its mark, written together into a finished session, pick its
   expect(session.replies.map(each => [each.id, each.delivery, each.voided])).toEqual([
     ['r1', 'delivered', undefined],
   ])
-  expect(session.log[0]?.text).toBe('Picked up from parked: Export the ledger as CSV')
   expect(session.updatedAt, 'nor does it move its time').toBe(T0 + MIN)
 })
 

@@ -3,8 +3,8 @@ import { expect, test, tier } from './kit'
 import type { Body, SessionMeta } from '../core'
 import { EVERY_PROJECT, projectPlace } from '../hooks/places'
 import { rowsOf } from './drawn'
-import { ELSEWHERE, heldItem, MIN, PROJECT, T0, W2, type Asked } from './data'
-import { askOf, note, park, resolve, yesAsk, type Line } from './lines'
+import { ELSEWHERE, HELD, heldItem, MIN, PROJECT, T0, W2, type Asked } from './data'
+import { askOf, park, resolve, status, yesAsk, type Line } from './lines'
 import { pane, sceneFrom, type Desk, type Drawn } from './render'
 import { postedId, world, type World } from './world'
 
@@ -60,10 +60,10 @@ const reviews = (...titles: string[]) =>
 const reviewLines = (...titles: string[]) =>
   reviews(...titles).map((review, i) => askOf(`k${i + 1}`, review))
 
-const NOTES = [
-  note('n1', 'PR #81 merged'),
-  note('n2', 'PR #82 merged'),
-  note('n3', 'The schema is drawn'),
+const CHANGES = [
+  status(['Merging PR #81']),
+  status(['Merging PR #82']),
+  status(['Drawing the schema']),
 ]
 
 const PARKED = [
@@ -72,21 +72,26 @@ const PARKED = [
   park('p3', 'Export the ledger as CSV'),
 ]
 
-test('a session lists its notes and its closed asks with no blank row between their entries', async () => {
-  const rows = await rowsAt({
-    lines: minutely(
-      ...NOTES,
-      ...reviewLines('Review round 1', 'Review round 2'),
-      resolve('k1', 'Done in the chat'),
-      resolve('k2', 'Done in the chat'),
-    ),
-    now: T0 + 7 * MIN,
-  })
+test("a session lists its status's history and its closed asks with no blank row between their entries", async () => {
+  const rows = await rowsAt(
+    {
+      lines: minutely(
+        ...CHANGES,
+        ...reviewLines('Review round 1', 'Review round 2'),
+        resolve('k1', 'Done in the chat'),
+        resolve('k2', 'Done in the chat'),
+      ),
+      now: T0 + 7 * MIN,
+    },
+    { shown: { [`history:${HELD.id}`]: 'latest' } },
+  )
 
-  expect(listedUnder(rows, 'NOTES')).toEqual([
-    ' • The schema is drawn 5m',
-    ' • PR #82 merged 6m',
-    ' • PR #81 merged 7m',
+  expect(listedUnder(rows, 'STATUS')).toEqual([
+    ' • Drawing the schema',
+    ' hide history',
+    ' • now drawing the schema 5m',
+    ' • now merging PR #82 6m',
+    ' • now merging PR #81 7m',
   ])
   expect(listedUnder(rows, 'RESOLVED')).toEqual([' ✓ Review round 2 1m', ' ✓ Review round 1 2m'])
 })
@@ -106,16 +111,20 @@ test('PARKED lists its items with no blank row between them, in a session and in
   ])
 })
 
-test('the project view lists its notes with no blank row between the lines, each naming its session', async () => {
+test("the project view lists its sessions' history with no blank row between the changes, each naming its session", async () => {
   const rows = await rowsAt(
-    { lines: minutely(...NOTES), now: T0 + 3 * MIN },
-    { place: projectPlace(PROJECT.key) },
+    { lines: minutely(...CHANGES), now: T0 + 3 * MIN },
+    {
+      place: projectPlace(PROJECT.key),
+      shown: { [`history:project:${PROJECT.key}`]: 'latest' },
+    },
   )
 
-  expect(listedUnder(rows, 'NOTES')).toEqual([
-    ' • Help desk redesign: The schema is drawn 1m',
-    ' • Help desk redesign: PR #82 merged 2m',
-    ' • Help desk redesign: PR #81 merged 3m',
+  expect(runFrom(rows, /^ hide history/)).toEqual([
+    ' hide history',
+    ' • Help desk redesign: now drawing the schema 1m',
+    ' • Help desk redesign: now merging PR #82 2m',
+    ' • Help desk redesign: now merging PR #81 3m',
   ])
 })
 

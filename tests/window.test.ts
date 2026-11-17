@@ -27,7 +27,7 @@ import {
   W1,
   W2,
 } from './data'
-import { choiceAsk, file, fold, note, reply, status, yesAsk } from './lines'
+import { choiceAsk, file, fold, park, reply, status, yesAsk } from './lines'
 import {
   asked,
   CONVERSATION,
@@ -59,13 +59,13 @@ test('a session started in one window and joined by a second writer is one sessi
   await w.clock.advance(60_000)
 
   const joined = String((await w.call('join', { session: id })).result)
-  const noted = postedId(await w.call('note', { text: 'Drew round 2' }))
+  const parked = postedId(await w.call('park', { title: 'Drew round 2' }))
 
   expect(joined).toContain(`- ${posted} wants a yes (Approve), waiting on Lee: Review round 1`)
   expect(parseEntries(w.text(paths.log(W1))).map(line => line.type)).toEqual(['ask'])
-  expect(parseEntries(w.text(paths.log(W2))).map(line => line.type)).toEqual(['note'])
+  expect(parseEntries(w.text(paths.log(W2))).map(line => line.type)).toEqual(['park'])
   expect(w.state.board?.asks.map(item => item.id)).toEqual([posted])
-  expect(w.state.board?.log.map(line => line.id)).toEqual([noted])
+  expect(w.state.board?.parked.map(item => item.id)).toEqual([parked])
   expect(parsePresence(w.text(paths.heartbeat(W1)), W1)?.leftAt).toBe(T0)
   expect(parsePresence(w.text(paths.heartbeat(W2)), W2)?.leftAt).toBeUndefined()
   expect(w.state.board?.isOpen).toBe(true)
@@ -75,14 +75,14 @@ test('a window joining a session it wrote to before counts on from where its fil
   const w = world($, on)
   const { id, paths } = await w.begin()
 
-  await w.call('note', { text: 'Drew round 1' })
-  await w.call('note', { text: 'Drew round 2' })
+  await w.call('park', { title: 'Drew round 1' })
+  await w.call('park', { title: 'Drew round 2' })
   await w.call('start', { ...HELP_DESK, name: 'Lobby' })
   await w.call('join', { session: id })
-  await w.call('note', { text: 'Drew round 3' })
+  await w.call('park', { title: 'Drew round 3' })
 
   expect(
-    parseEntries(w.text(paths.log(W1))).map(line => [line.seq, line.type === 'note' && line.text]),
+    parseEntries(w.text(paths.log(W1))).map(line => [line.seq, line.type === 'park' && line.title]),
   ).toEqual([
     [1, 'Drew round 1'],
     [2, 'Drew round 2'],
@@ -102,7 +102,7 @@ test('after a reload, the window takes up the session $.state names, reads its f
   const before = file(
     [T0, status(['Drawing round 1'])],
     [T0, yesAsk('k1', 'Review round 1')],
-    [T0, note('n1', 'Drew round 1')],
+    [T0, park('p1', 'Drew round 1')],
   )
   let isReloaded = false
 
@@ -120,7 +120,7 @@ test('after a reload, the window takes up the session $.state names, reads its f
   w.put(paths.meta, metaText(META))
   w.put(paths.log(W1), before)
   await $.session.start(CONVERSATION)
-  await w.call('note', { text: 'Drew round 2' })
+  await w.call('park', { title: 'Drew round 2' })
 
   const lines = parseEntries(w.text(paths.log(W1)))
 
@@ -545,7 +545,8 @@ test('the board in $.state is plain data, and rebuilds into the session core fol
     logs: {
       [W1]: file(
         [T0, choiceAsk('k1', 'Keep it?', ['Keep it', 'Drop it'])],
-        [T0, note('n1', 'Drew round 1')],
+        [T0, park('p1', 'Drew round 1')],
+        [T0 + 1, status(['Drawing round 2'])],
       ),
     },
   })

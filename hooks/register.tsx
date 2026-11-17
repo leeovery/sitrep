@@ -105,7 +105,7 @@ const pane = atom({ plugin: 'sitrep', key: 'pane' } as const, {
   isOpen: false,
   place: null,
   selected: null,
-  resolvedInFull: null,
+  shown: {},
   heldShown: null,
   placement: {},
 })

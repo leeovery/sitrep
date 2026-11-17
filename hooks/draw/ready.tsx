@@ -194,7 +194,7 @@ const sentTo = ({ session }: Filed, replies: readonly Reply[]): Sent[] =>
   replies.flatMap(sent => {
     const item = session.items.get(sent.item)
 
-    return item === undefined || item.type === 'note' ? [] : [{ item, sent }]
+    return item === undefined ? [] : [{ item, sent }]
   })
 
 /** What a held send waits on: Claude's turn; or, Lee having stopped Claude's turn, his input, as the first send, or behind it. */

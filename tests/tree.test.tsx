@@ -23,7 +23,7 @@ import {
   W3,
   W4,
 } from './data'
-import { askOf, choiceAsk, file, finish, note, park, status, yesAsk, type Line } from './lines'
+import { askOf, choiceAsk, file, finish, park, status, yesAsk, type Line } from './lines'
 import type { Neighbour } from './filing'
 import { pane, sceneFrom, type Desk, type Drawn } from './render'
 import { asked, DOCKED, postedId, toProject, WIDE, world, type Board, type World } from './world'
@@ -49,16 +49,10 @@ const NEIGHBOURHOOD: Desk = {
     {
       meta: LEDGER,
       lines: [
-        [
-          T0,
-          status(['Drawing the ledger schema'], {
-            name: 'Invoice ledger',
-            summary: 'Invoice ledger, area by area',
-          }),
-        ],
+        [T0 - MIN, status(['Reading the brief'], LEDGER)],
+        [T0, status(['Drawing the ledger schema'], LEDGER)],
         [T0, choiceAsk('k3', 'Keep the ledger 400 days, or forever?', ['400 days', 'Forever'])],
         [T0, park('p2', 'Export the ledger as CSV')],
-        [T0, note('n3', 'Wrote the schema')],
       ],
       seenAt: T0,
     },
@@ -189,7 +183,7 @@ test('the board shows two tabs, home by its name and All projects, each with wha
   ])
 })
 
-test("another session's view is the session view: its status, its asks with working buttons, its notes", async ($, on) => {
+test("another session's view is the session view: its status and its history, its asks with working buttons, what it parked", async ($, on) => {
   const w = world($, on)
 
   await neighbourhood(w)
@@ -203,10 +197,16 @@ test("another session's view is the session view: its status, its asks with work
   expect(
     (await ui.findAll({ type: 'Text' }))
       .map(each => each.text)
-      .filter(text => ['Invoice ledger', 'ASKS', 'STATUS', 'NOTES', 'PARKED'].includes(text)),
+      .filter(text => ['Invoice ledger', 'ASKS', 'STATUS', 'PARKED'].includes(text)),
     'the same order as this session’s',
-  ).toEqual(['Invoice ledger', 'ASKS', 'STATUS', 'NOTES', 'PARKED'])
-  expect(await ui.find({ key: `log:${LEDGER.id}:n3`, text: 'Wrote the schema' })).toBeDefined()
+  ).toEqual(['Invoice ledger', 'ASKS', 'STATUS', 'PARKED'])
+  await ui.press({ key: `history:${LEDGER.id}` })
+  expect(
+    await ui.find({
+      key: `status:${itemKey(LEDGER.id, String(T0))}`,
+      text: 'now drawing the ledger schema',
+    }),
+  ).toBeDefined()
   expect(
     await ui.find({ key: `ppick:${LEDGER.id}:p2`, text: 'Export the ledger as CSV' }),
   ).toBeDefined()
@@ -226,7 +226,7 @@ test("another session's view is the session view: its status, its asks with work
   ])
 })
 
-test("the project view lists its sessions, this one first, each with what it does and what waits; and the project's notes", async () => {
+test("the project view lists its sessions, this one first, each with what it does and what waits; and the history of their status", async () => {
   const ui = neighbourhoodAt(projectPlace(PROJECT.key), DOCKED)
 
   expect(await keysOf(ui, 'go:')).toEqual([`go:${HELD.id}`, `go:${LEDGER.id}`, `go:${THEMES.id}`])
@@ -240,16 +240,26 @@ test("the project view lists its sessions, this one first, each with what it doe
     ['Invoice ledger 1 waiting', '└ Drawing the ledger schema'],
     ['Themes closed', '└ Themes, area by area'],
   ])
+
+  const history = `history:project:${PROJECT.key}`
+  const shown = pane(
+    sceneFrom({
+      ...NEIGHBOURHOOD,
+      pane: { place: projectPlace(PROJECT.key), shown: { [history]: 'latest' } },
+    }),
+  )
+
+  expect(await ui.find({ key: history, text: 'show history 2' })).toBeDefined()
+  expect(await keysOf(shown, 'status:')).toEqual([
+    `status:${itemKey(LEDGER.id, String(T0))}`,
+    `status:${itemKey(LEDGER.id, String(T0 - MIN))}`,
+  ])
   expect(
-    await ui.find({
-      key: `log:${itemKey(LEDGER.id, 'n3')}`,
-      text: 'Invoice ledger: Wrote the schema',
+    await shown.find({
+      key: `status:${itemKey(LEDGER.id, String(T0 - MIN))}`,
+      text: 'Invoice ledger: now reading the brief',
     }),
   ).toBeDefined()
-
-  const opened = neighbourhoodAt(projectPlace(PROJECT.key), DOCKED, itemKey(LEDGER.id, 'n3'))
-
-  expect(await opened.find({ type: 'Text', text: 'nothing more was recorded' })).toBeDefined()
 })
 
 test('All projects: this project first, then the busiest; the quiet fold into one line; an old idle session is gone', async () => {
@@ -330,7 +340,7 @@ test("the project view's PARKED holds every session's parked items, the oldest f
   const headings = async () =>
     (await ui.findAll({ type: 'Text' }))
       .map(each => each.text)
-      .filter(text => ['SESSIONS', 'ASKS', 'NOTES', 'PARKED', 'RESOLVED'].includes(text))
+      .filter(text => ['SESSIONS', 'ASKS', 'PARKED', 'RESOLVED'].includes(text))
 
   expect(
     await ui.find({ type: 'Text', text: 'RESOLVED' }),
@@ -338,7 +348,7 @@ test("the project view's PARKED holds every session's parked items, the oldest f
   ).toBeDefined()
 
   await toProject(ui)
-  expect(await headings()).toEqual(['SESSIONS', 'ASKS', 'NOTES', 'PARKED'])
+  expect(await headings()).toEqual(['SESSIONS', 'ASKS', 'PARKED'])
   expect(await ui.find({ type: 'Text', text: '2 to come back to' })).toBeDefined()
   expect(
     (await ui.findAll({ type: 'Button' }))
@@ -561,10 +571,8 @@ test('what the sessions around hold is put in $.state only when a look finds it 
   await w.clock.advance(3 * AROUND_MS)
   expect(w.writes.projects, 'nothing changed, so nothing is put').toBe(before)
 
-  ledger.write(note('n3', 'Wrote the schema'))
+  ledger.write(status(['Writing the schema'], LEDGER))
   await w.clock.advance(AROUND_MS)
   expect(w.writes.projects).toBe((before ?? 0) + 1)
-  expect(w.state.projects?.[0]?.sessions[0]?.log.map(line => line.text)).toEqual([
-    'Wrote the schema',
-  ])
+  expect(w.state.projects?.[0]?.sessions[0]?.now).toEqual(['Writing the schema'])
 })

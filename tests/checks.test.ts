@@ -4,7 +4,6 @@ import {
   checkAsk,
   checkEdit,
   checkJoin,
-  checkNote,
   checkPark,
   checkReopen,
   checkResolve,
@@ -27,7 +26,7 @@ import {
   finish,
   fold,
   kindAsk,
-  note,
+  oldNote,
   park,
   reopen,
   reply,
@@ -42,14 +41,14 @@ import {
   type Line,
 } from './lines'
 
-/** A board holding one of each item, an ask Lee has commented on, and two asks read from their kinds. */
+/** A board holding one of each item, an ask Lee has commented on, two asks read from their kinds, and a note as one was written before notes went. */
 const SESSION = fold({
   logs: {
     [W1]: file(
       [T0, yesAsk('k1', 'Review round 1')],
       [T0, choiceAsk('k2', 'Keep it, or drop it?', ['Keep it', 'Drop it'])],
       [T0, yesAsk('k3', 'Try it on the iPad', 'It works')],
-      [T0, note('n1', 'Merged')],
+      [T0, oldNote('n1', 'Merged')],
       [T0, park('p1', 'Later')],
       [T0, yesAsk('k9', 'Run the apply', 'Done')],
       [T0, wordsAsk('k4', 'Run the export', "the command's output")],
@@ -90,19 +89,11 @@ test('what Claude posts is trimmed and kept to one line', () => {
     title: 'Review Tickets & Replies',
     where: 'In Paper: page 1',
   })
-  expect(
-    value(checkNote({ text: ' Merged\nPR #82 ', detail: [' 6 files ', '', '6 files', 'a\nb'] })),
-  ).toEqual({
-    type: 'note',
-    text: 'Merged PR #82',
-    detail: ['6 files', 'a b'],
-  })
 })
 
-test('an item with no words where its title or text goes is refused', () => {
+test('an item with no words where its title goes is refused', () => {
   expect(refusal(checkAsk({ wants: 'words', title: ' \n ' }))).toContain('needs a title')
   expect(refusal(checkAsk({ wants: 'words' }))).toContain('needs a title')
-  expect(refusal(checkNote({ text: '' }))).toContain('needs its text')
   expect(refusal(checkPark({ title: 42 }))).toContain('needs a title')
   expect(refusal(checkStart({ name: 'Help desk', summary: ' ' }))).toContain('needs a summary')
   expect(refusal(checkStart({ summary: 'Area by area' }))).toContain('needs a name')
@@ -242,7 +233,7 @@ test('a resolve of an ask Lee answered or ignored, or a parked item he picked up
         [T0, yesAsk('k6', 'Review round 2')],
         [T0, yesAsk('k7', 'Review round 3')],
         [T0, yesAsk('k8', 'Review round 4')],
-        [T0, note('n1', 'Merged')],
+        [T0, oldNote('n1', 'Merged')],
         [T0, park('p1', 'Later')],
         [T0, park('p2', 'Sooner')],
         [T0 + MIN, reply('r1', 'k1', 'yes', { note: 'Tighten the gutters' })],
@@ -275,13 +266,15 @@ test('a resolve of an ask Lee answered or ignored, or a parked item he picked up
   expect(closedByLee(session, { item: 'k7' }), 'answered, then reopened').toBeUndefined()
   expect(closedByLee(session, { item: 'k5' }), 'resolved by Claude').toBeUndefined()
   expect(closedByLee(session, { item: 'p2' }), 'parked, resolved by Claude').toBeUndefined()
-  expect(closedByLee(session, { item: 'n1' }), 'a note').toBeUndefined()
+  expect(closedByLee(session, { item: 'n1' }), 'a note, as one was written').toBeUndefined()
   expect(closedByLee(session, { item: 'zz' })).toBeUndefined()
   expect(value(checkResolve(session, { item: 'k3' }))).toEqual({ type: 'resolve', item: 'k3' })
   expect(value(checkResolve(session, { item: 'k6' }))).toEqual({ type: 'resolve', item: 'k6' })
   expect(value(checkResolve(session, { item: 'k7' }))).toEqual({ type: 'resolve', item: 'k7' })
   expect(refusal(checkResolve(session, { item: 'k5' }))).toBe('k5 is already closed.')
-  expect(refusal(checkResolve(session, { item: 'n1' }))).toBe('n1 is already closed.')
+  expect(refusal(checkResolve(session, { item: 'n1' })), 'a note, as one was written').toBe(
+    'There is no item n1 on this board.',
+  )
   expect(refusal(checkResolve(session, { item: 'p2' }))).toBe('p2 is already closed.')
 })
 
@@ -294,15 +287,13 @@ test("an edit changes only the fields of its item's type, each put right", () =>
     changes: { title: 'Review round 2' },
     reason: 'Round 2 is up',
   })
-  expect(
-    value(checkEdit(SESSION, { item: 'n1', text: 'Merged #82', detail: ['6 files'] }))?.changes,
-  ).toEqual({
-    text: 'Merged #82',
-    detail: ['6 files'],
-  })
-  expect(refusal(checkEdit(SESSION, { item: 'n1', where: 'In the PR' }))).toBe(
-    'An edit to a note changes title or text, detail, ref; not where.',
+  expect(refusal(checkEdit(SESSION, { item: 'p1', yes: 'Go' }))).toBe(
+    'An edit to a parked item changes title or text, where, ref; not yes.',
   )
+  expect(
+    refusal(checkEdit(SESSION, { item: 'n1', text: 'Merged #82' })),
+    'a note, as one was written',
+  ).toBe('There is no item n1 on this board.')
   expect(refusal(checkEdit(SESSION, { item: 'p1' }))).toBe(
     'An edit names a field to change: for a parked item, title or text, where, ref.',
   )
@@ -320,16 +311,13 @@ test("an edit takes an item's one line as text or as title alike, whatever the i
   expect(value(checkEdit(SESSION, { item: 'k1', text: 'Review round 2' }))?.changes).toEqual({
     title: 'Review round 2',
   })
-  expect(value(checkEdit(SESSION, { item: 'n1', title: 'Merged #82' }))?.changes).toEqual({
-    text: 'Merged #82',
-  })
   expect(
-    value(checkEdit(SESSION, { item: 'n1', text: 'Merged #82', title: ' Merged\n#82 ' }))?.changes,
-  ).toEqual({ text: 'Merged #82' })
+    value(checkEdit(SESSION, { item: 'p1', text: 'Later', title: ' Later ' }))?.changes,
+  ).toEqual({ title: 'Later' })
   expect(refusal(checkEdit(SESSION, { item: 'p1', text: 'Later', title: 'Sooner' }))).toBe(
     "An edit gives an item's one line as text or as title, not both with different words.",
   )
-  expect(refusal(checkEdit(SESSION, { item: 'n1', title: ' ' }))).toContain(
+  expect(refusal(checkEdit(SESSION, { item: 'k1', title: ' ' }))).toContain(
     'cannot leave title empty',
   )
   expect(refusal(checkEdit(SESSION, { item: 'p1', text: ' ' }))).toContain(
@@ -338,7 +326,7 @@ test("an edit takes an item's one line as text or as title alike, whatever the i
   expect(refusal(checkEdit(SESSION, { item: 'p1', text: '', title: 'Later' }))).toContain(
     'cannot leave text empty',
   )
-  expect(refusal(checkEdit(SESSION, { item: 'n1', text: 'Merged', title: 42 }))).toContain(
+  expect(refusal(checkEdit(SESSION, { item: 'k1', text: 'Merged', title: 42 }))).toContain(
     'cannot leave title empty or of the wrong kind',
   )
 })
@@ -510,9 +498,10 @@ test("a words ask needs Claude Code's prompt, an old one needing something back 
 
   expect(refusal(checkAnswer(SESSION, { ask: 'k4', answer: 'v1.2.3' }))).toBe(`k4 ${prompt}`)
   expect(refusal(checkAnswer(SESSION, { ask: 'o1', answer: 'Done' }))).toBe(`o1 ${prompt}`)
-  expect(refusal(checkAnswer(SESSION, { ask: 'n1', answer: 'Yes' }))).toBe(
-    'n1 is a note, not an ask.',
-  )
+  expect(
+    refusal(checkAnswer(SESSION, { ask: 'n1', answer: 'Yes' })),
+    'a note, as one was written',
+  ).toBe('There is no item n1 on this board.')
   expect(refusal(checkAnswer(SESSION, { ask: 'p1', answer: 'Yes' }))).toBe(
     'p1 is a parked item, not an ask.',
   )
@@ -575,8 +564,8 @@ const atTurn = windowIn('yourTurn')
 
 /**
  * A board for snoozing: two asks waiting on Lee, one Lee commented on, one
- * ignored, one closed, one with Lee's answer on its way, a note and a parked
- * item, a window holding it at Lee's turn unless `presence` says otherwise.
+ * ignored, one closed, one with Lee's answer on its way, and a parked item,
+ * a window holding it at Lee's turn unless `presence` says otherwise.
  */
 const boardOf = (lines: Line[] = [], presence: SessionFiles['presence'] = atTurn) =>
   fold(
@@ -589,7 +578,6 @@ const boardOf = (lines: Line[] = [], presence: SessionFiles['presence'] = atTurn
           [T0, yesAsk('k4', 'Tag the release', 'Done')],
           [T0, yesAsk('k5', 'Run the apply', 'Done')],
           [T0, yesAsk('k6', 'Ship it', 'Go')],
-          [T0, note('n1', 'Merged')],
           [T0, park('p1', 'Later')],
           [T0 + MIN, reply('r1', 'k3', 'comment', { note: 'It fails' })],
           [T0 + MIN, reply('r2', 'k4', 'ignore')],
@@ -674,7 +662,6 @@ test("a snooze is refused, the first refusal in order saying why: the session fi
       'This session is finished: its asks wait on Lee no more.',
     ],
     ['no item', snoozeOf([...SHOWN, 'zz']), 'There is no item zz on this board.'],
-    ['no ask', snoozeOf([...SHOWN, 'n1']), 'n1 is a note, not an ask.'],
     ['a parked item', snoozeOf(['p1', ...SHOWN]), 'p1 is a parked item, not an ask.'],
     ['one left out', snoozeOf(['k1'], 'soon'), unseen],
     ['none named', snoozeOf([]), unseen],

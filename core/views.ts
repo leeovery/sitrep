@@ -1,6 +1,7 @@
 /**
  * What the board's views show, as data: a session in brief, a project with
- * its sessions, its asks, its log and what it parked, and every project,
+ * its sessions, its asks, the history of their status, what it parked and
+ * what was taken off its Parked, and every project,
  * the busiest first; and every project as the start of a conversation and
  * the CLI list them, those around the folder first.
  *
@@ -13,13 +14,10 @@
 import { nearestFirst, type Project } from './project'
 import { isOpen, snoozedAsks } from './replies'
 import { compareText } from './text'
-import type { Ask, LogLine, Parked, Session } from './types'
+import type { Ask, Item, Parked, Reply, Session, StatusLine } from './types'
 
 /** How long an idle session (no window, nothing waiting) stays in the views after its last update. */
 export const CURRENT_MS = 7 * 24 * 60 * 60_000
-
-/** How many of its latest log lines a brief carries: as many as any view of the board shows. */
-export const BRIEF_LOG_LINES = 8
 
 /**
  * A session's asks still open, the oldest first, as `board --json` and
@@ -57,10 +55,8 @@ export type SessionSummary = {
   updatedAt: number
 }
 
-/** A session as views beyond its own draw it: in brief, with its open asks, its latest log lines and what it parked. */
+/** A session as views beyond its own draw it: in brief, with its open asks and what it parked. */
 export type SessionBrief = SessionSummary & {
-  /** Newest first. */
-  log: LogLine[]
   /** Oldest first. */
   parkedItems: Parked[]
   /** The asks still open, oldest first. */
@@ -91,8 +87,8 @@ export type AllProjects = {
   folded: ProjectSummary[]
 }
 
-/** A line of a project's log, and the session it came from. */
-export type ProjectLogLine = LogLine & { session: string }
+/** A change of status in a project's history, and the session it came from. */
+export type ProjectStatusLine = StatusLine & { session: string }
 
 /** A parked item of a project's, and the session that parked it: its id, and its name. */
 export type ProjectParked = Parked & { session: string; name: string }
@@ -130,16 +126,8 @@ export const isCurrent = (session: SessionSummary, now: number) =>
   !session.isFinished &&
   (session.isOpen || !isIdle(session) || now - session.updatedAt <= CURRENT_MS)
 
-/** The title of a session's item, by its id, as the views show it (a note's is its text); undefined where the session has none. */
-export const itemTitle = (session: Session, id: string) => {
-  const item = session.items.get(id)
-
-  if (item === undefined) {
-    return undefined
-  }
-
-  return item.type === 'note' ? item.text : item.title
-}
+/** The title of a session's item, by its id; undefined where the session has none. */
+export const itemTitle = (session: Session, id: string) => session.items.get(id)?.title
 
 export const summarise = (session: Session): SessionSummary => ({
   id: session.id,
@@ -167,7 +155,6 @@ export const resolvedAsks = (session: Pick<Session, 'asks'>) =>
 
 export const brief = (session: Session): SessionBrief => ({
   ...summarise(session),
-  log: session.log.slice(0, BRIEF_LOG_LINES),
   parkedItems: session.parked,
   asks: openAsks(session),
 })
@@ -262,11 +249,13 @@ export const listedProjects = (
   return nearestFirst([...projects, ...folded], folder)
 }
 
-/** A project's log: every session's lines, newest first. */
-export const projectLog = (sessions: readonly Pick<Session, 'id' | 'log'>[]): ProjectLogLine[] =>
-  sessions
-    .flatMap(session => session.log.map(line => ({ ...line, session: session.id })))
-    .sort((a, b) => b.at - a.at || compareText(a.session, b.session))
+/** Every change of a session's status, each naming the session by its id. */
+export const changedBy = (session: Pick<Session, 'id' | 'history'>): ProjectStatusLine[] =>
+  session.history.map(line => ({ ...line, session: session.id }))
+
+/** A project's history, from whichever of its sessions each change came from, the newest first. */
+export const projectHistory = (lines: readonly ProjectStatusLine[]): ProjectStatusLine[] =>
+  [...lines].sort((a, b) => b.at - a.at || compareText(a.session, b.session))
 
 /** What a session parked, each item naming the session by its id and its name. */
 export const parkedBy = (session: Pick<Session, 'id' | 'status' | 'parked'>): ProjectParked[] =>
@@ -275,3 +264,47 @@ export const parkedBy = (session: Pick<Session, 'id' | 'status' | 'parked'>): Pr
 /** A project's parked items, from whichever of its sessions parked each, the oldest first. */
 export const projectParked = (parked: readonly ProjectParked[]): ProjectParked[] =>
   [...parked].sort((a, b) => a.at - b.at || compareText(a.session, b.session))
+
+/** Whether an item was parked and taken off Parked since: picked up by Lee, or closed by Claude. */
+const isTakenOff = (item: Item): item is Parked => item.type === 'park' && item.state !== 'parked'
+
+/** When an item taken off Parked was taken off. */
+const takenAt = (parked: Parked) => parked.closedAt ?? parked.at
+
+/** What was taken off a session's Parked, the newest taken off first. */
+export const takenOff = (session: Pick<Session, 'items'>): Parked[] =>
+  [...session.items.values()]
+    .filter(isTakenOff)
+    .sort((a, b) => takenAt(b) - takenAt(a) || compareText(a.id, b.id))
+
+/** What was taken off a session's Parked, each item naming the session by its id and its name. */
+export const takenOffBy = (session: Pick<Session, 'id' | 'status' | 'items'>): ProjectParked[] =>
+  takenOff(session).map(parked => ({ ...parked, session: session.id, name: session.status.name }))
+
+/** What was taken off a project's Parked, from whichever of its sessions parked each, the newest taken off first. */
+export const projectTakenOff = (taken: readonly ProjectParked[]): ProjectParked[] =>
+  [...taken].sort((a, b) => takenAt(b) - takenAt(a) || compareText(a.session, b.session))
+
+/** A window's hold on a session, as its heartbeat there says: the window, when it attached, and the session, by its id and its name. */
+export type Hold = { writer: string; attachedAt: number; session: string; name: string }
+
+/** Every window's hold on a session, by the heartbeats it keeps, those of windows long gone among them. */
+export const holdsOf = (session: Pick<Session, 'id' | 'status' | 'presence'>): Hold[] =>
+  session.presence.map(({ writer, attachedAt }) => ({
+    writer,
+    attachedAt,
+    session: session.id,
+    name: session.status.name,
+  }))
+
+/**
+ * The name of the session a pick-up went to: the window that wrote it held
+ * one session as it did, so of those `holds` names, the one that window
+ * attached to last by the pick-up's time. Undefined where none is known: a
+ * window that joined the session again since rewrote its heartbeat there.
+ */
+export const pickedUpBy = (holds: readonly Hold[], { by, at }: Pick<Reply, 'by' | 'at'>) =>
+  holds
+    .filter(hold => hold.writer === by && hold.attachedAt <= at)
+    .sort((a, b) => b.attachedAt - a.attachedAt)
+    .at(0)?.name

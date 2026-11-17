@@ -37,13 +37,6 @@ const EVERY_KIND: Body[] = [
     ref: 'docs/design.md#ledger',
   },
   {
-    type: 'note',
-    id: 'n4m5',
-    text: 'PR #82 merged',
-    detail: ['6 files, +214 −51'],
-    ref: 'https://github.com/me/northwind/pull/82',
-  },
-  {
     type: 'park',
     id: 'p1q2',
     title: 'A priority badge across all tabs',
@@ -117,9 +110,9 @@ for (const [why, line] of [
   ['that is not JSON', 'Drawing Inbox'],
   ['that is a list', '[1,2,3]'],
   ['of a kind no reader knows', `{"v":1,"at":${T0},"seq":1,"type":"vote","id":"x"}`],
-  ['of a later version', `{"v":2,"at":${T0},"seq":1,"type":"note","id":"n1","text":"hi"}`],
-  ['with no count', `{"v":1,"at":${T0},"type":"note","id":"n1","text":"hi"}`],
-  ['with a field of the wrong type', `{"v":1,"at":${T0},"seq":1,"type":"note","id":"n1","text":7}`],
+  ['of a later version', `{"v":2,"at":${T0},"seq":1,"type":"park","id":"p1","title":"hi"}`],
+  ['with no count', `{"v":1,"at":${T0},"type":"park","id":"p1","title":"hi"}`],
+  ['with a field of the wrong type', `{"v":1,"at":${T0},"seq":1,"type":"park","id":"p1","title":7}`],
   [
     'posting an ask of no known kind',
     `{"v":1,"at":${T0},"seq":1,"type":"ask","id":"k1","kind":"vote","title":"x"}`,
@@ -139,7 +132,7 @@ for (const [why, line] of [
   ['editing nothing', `{"v":1,"at":${T0},"seq":1,"type":"edit","item":"k1","changes":{}}`],
   [
     'stamped at no time a Date holds',
-    `{"v":1,"at":1e+23,"seq":1,"type":"note","id":"n1","text":"hi"}`,
+    `{"v":1,"at":1e+23,"seq":1,"type":"park","id":"p1","title":"hi"}`,
   ],
   ['snoozing with no time', `{"v":1,"at":${T0},"seq":1,"type":"snooze","item":"k1"}`],
   [
@@ -182,7 +175,7 @@ test('appending to a file left torn ends the torn line first, so only it is lost
   const next = append(torn, [EVERY_KIND[2]!], T0 + 1)
 
   expect(next.text.startsWith(`${torn}\n`)).toBe(true)
-  expect(parseEntries(next.text).map(each => each.type)).toEqual(['ask', 'note'])
+  expect(parseEntries(next.text).map(each => each.type)).toEqual(['ask', 'park'])
   expect(next.entries[0]?.seq).toBe(2)
 })
 

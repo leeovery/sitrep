@@ -28,7 +28,7 @@ With several Claude Code windows open across several projects, what waits on you
 - **What waits on you, in one place.** Every session's asks, across every project, counted above Claude Code's prompt and lit at the edge of your screen, with every session where Claude has stopped and it's your turn.
 - **Answer without hunting.** A yes or a choice is a button, the option Claude recommends marked. Your reply reaches Claude as your own message, in its own window.
 - **A click takes you there.** A session, an ask or a notification brings forward the Ghostty window showing that session, on whatever Space it is, in tmux, in zmx or in neither. A session no terminal on this Mac shows is carried on in a new window by your resume command.
-- **Sessions outlive their windows.** After a `/clear`, or in a new Claude told to carry on, it is the same session, with its asks and notes. What a session parks is its project's, for any session of the project to pick up.
+- **Sessions outlive their windows.** After a `/clear`, or in a new Claude told to carry on, it is the same session, with its status and asks. What a session parks is its project's, for any session of the project to pick up.
 - **Put a session off.** Snooze its row until later today, tomorrow, next week or until it moves; its asks and its turn count nowhere until it wakes.
 - **Best effort, and honest.** A missed update breaks nothing, and the board never says Claude knows something it wasn't told.
 
@@ -75,7 +75,7 @@ Claude Code window ──tools──▶ the mod ──writes──▶ ~/.local/s
 - **Your replies arrive as your own message.** A reply for this session is sent as you, marked "From the board:", and says under each ask whether it closes it or leaves it open for Claude to act on; while Claude is mid-turn it waits for the turn to end, and you can take it back until then.
 - **A reply for another session goes into its inbox.** That session's window sends it on, now or once a window takes the session up.
 
-The board has its own words: a **project**, roughly a repository, named as you'd say it; its **sessions**; and in each a **status**, **asks** (what only you can do or decide), **notes** (what you'd want to know later), **parked** items (put off, to come back to, and the project's, not only the session's) and **resolved** items. Claude stopped, waiting on you with no ask, is your **turn**, which SitRep calls **Stopped**. A session you **snooze** counts nowhere until it wakes. A session Claude or you **finished** leaves the board, and what it parked stays with its project.
+The board has its own words: a **project**, roughly a repository, named as you'd say it; its **sessions**; and in each a **status**, **asks** (what only you can do or decide), **parked** items (put off, to come back to, and the project's, not only the session's) and **resolved** items. Claude stopped, waiting on you with no ask, is your **turn**, which SitRep calls **Stopped**. A session you **snooze** counts nowhere until it wakes. A session Claude or you **finished** leaves the board, and what it parked stays with its project.
 
 ## Claude and sitrep
 
@@ -86,7 +86,6 @@ The mod gives Claude these tools. Only the main conversation can call them; a su
 | `start` / `join` | Starts a session in a project, or joins one by its id |
 | `status` | Sets the session's name, summary, what is under way, and what is next |
 | `ask` | Posts an ask that wants a yes, a choice or words, with where to look, and for a choice the option Claude recommends |
-| `note` | Adds a note, with detail lines and a pointer |
 | `park` | Parks something to come back to, on the session's project |
 | `resolve` / `reopen` / `edit` | Closes, reopens or corrects an item, with a reason: one of the session's, or something another session of the project parked |
 | `finish` | Finishes the session once it is complete, with nothing left on it; what it parked holds no finish back |
@@ -96,12 +95,12 @@ The mod gives Claude these tools. Only the main conversation can call them; a su
 - **Each conversation's first message tells Claude how to keep the board**, and lists every current session on it with its id, so Claude can join one you carry on with, or start a new one.
 - **Claude asks only when it needs you**, says it in the chat as well, and picks the shape by what you give back. A yes's button is the verb you're giving: `✓ Go`, `✓ Approve`, `✓ It works`. A choice names the option Claude leans toward as `recommended`, and a "(recommended)" Claude types into an option's words is read as that and taken out.
 - **No refusals for what does no harm.** Resolving an ask you already closed, or a parked item you picked up, passes quietly, and an edit takes an item's line as `text` or `title` alike.
-- **Drift gets noticed.** When the board changes, its open items ride into Claude's next turn, and a join hands Claude the board as it stands (its status, open asks, parked items and latest notes) to correct anything stale.
+- **Drift gets noticed.** When the board changes, its open items ride into Claude's next turn, and a join hands Claude the board as it stands (its status, open asks and parked items) to correct anything stale.
 - **Claude has no tool for snoozing.** Snoozing a session is yours.
 
 ## The board in Claude Code
 
-- **The pane**, opened by `/sitrep` or the band, has two tabs: this session, and All projects. A session shows its asks first, then its status, notes, the items it parked and resolved asks. All projects opens each project, and each project its sessions and every item parked in it, each naming the session that parked it. A parked item can be picked up from any window of its project, and goes to the Claude in that window.
+- **The pane**, opened by `/sitrep` or the band, has two tabs: this session, and All projects. A session shows its asks first, then its status, the items it parked and resolved asks. Its status opens to its history, every change of it, and Parked to what was picked up or closed, each closed until you open it. All projects opens each project, and each project its sessions, with the history of their status, and every item parked in it, each naming the session that parked it. A parked item can be picked up from any window of its project, and goes to the Claude in that window.
 - **The band** is the line above the prompt: this session's asks, what waits elsewhere, and the pane's show or hide. A new ask pulses it and shows a toast.
 - **Ready to send.** Your replies queue at the pane's foot, grouped by the session each goes to, until you press **send to Claude** or **cancel all**. A words ask's answer, or a comment, is written in Claude Code's prompt. A snooze, a wake or a finish takes effect at once; snoozing an ask snoozes its session.
 
@@ -133,10 +132,9 @@ The CLI is `bin/sitrep` in the plugin's folder; the app's copy is `~/Library/App
 | Command | What it does |
 |---|---|
 | `sitrep list` | Every project's current sessions, with their ids and what waits on you |
-| `sitrep board` | A session's status, open asks, its project's parked items and latest notes, with their ids |
+| `sitrep board` | A session's status, open asks and its project's parked items, with their ids |
 | `sitrep status` | Sets where a session stands, giving only what changed |
 | `sitrep ask` | Posts an ask, and prints its id |
-| `sitrep note` | Adds a note, and prints its id |
 | `sitrep park` | Parks something to come back to, on the session's project, and prints its id |
 | `sitrep answer` | Answers a yes or a choice ask, or ignores any ask, into the session's inbox |
 | `sitrep snooze` | Snoozes a session, its asks and its turn, until a time, or with no `--until` until it moves |
