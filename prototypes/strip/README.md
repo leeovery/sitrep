@@ -39,7 +39,8 @@ that has lost its declarations' place.
 ## Its sessions
 
 The prototype's sessions are placeholders, never Lee's real projects or work
-(`tests/real-names.txt`). Their words decide the tabs' widths and so their
+(`tests/real-names.txt`, a list kept local and out of git, as it names that
+work; a checkout without it skips the scan). Their words decide the tabs' widths and so their
 timelines: renamed, they were chosen so each recorded tab measures what it
 did, so the recordings stayed the same frame for frame. A scenario's pointer
 finds a mark by its letters (`'Wi'`, `'Lu'`, `'BY'`, `'Co'` in
