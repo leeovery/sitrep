@@ -12,18 +12,14 @@ import Testing
 @MainActor
 final class NotchFilm {
     private static let frameMS = 1000.0 / 60
-    /// The display's black bezel shown beside the screen's edge, which the notch flares into.
-    private static let bezel = 6.0
 
     private let run: NotchRun
     private let surface: NotchSurface
     private let setting: NotchRun.Setting
     private let mirror: CGAffineTransform
-    /// The film's frame on the stage, the bezel at its left.
-    private let cut: CGRect
-    private let backdrop: CGImage
-    /// The surface's drawing, under a flipped root, as `Drawn` draws a layer.
-    private let root = CALayer()
+    /// The wall clock the rows' times are as of, ms, held for the film.
+    private let now: Double
+    private let shot: EdgeShot
     private let folder: URL
     /// The run's time when the film starts.
     private let start: Double
@@ -31,27 +27,19 @@ final class NotchFilm {
     private var time = 0.0
     private var shots: [(name: String, at: Double)] = []
 
-    /// The run, warmed up and drawn, filmed over `cut` on the stage into `folder`.
+    /// The run, warmed up and drawn, filmed over `cut` on the stage into `folder`, its rows' times as of `now`.
     init(
-        _ run: NotchRun, surface: NotchSurface, setting: NotchRun.Setting, mirror: CGAffineTransform, cut: CGRect,
-        into folder: URL
+        _ run: NotchRun, surface: NotchSurface, setting: NotchRun.Setting, mirror: CGAffineTransform, now: Double,
+        cut: CGRect, into folder: URL
     ) throws {
-        let framed = CGRect(x: -Self.bezel, y: cut.minY, width: cut.maxX + Self.bezel, height: cut.height)
-
         self.run = run
         self.surface = surface
         self.setting = setting
         self.mirror = mirror
-        self.cut = framed
+        self.now = now
         self.folder = folder
         start = run.time
-        backdrop = try Self.backdrop(framed)
-
-        let drawing = try #require(surface.subviews.first?.layer)
-
-        root.isGeometryFlipped = true
-        root.frame = surface.bounds
-        root.addSublayer(drawing)
+        shot = try EdgeShot(surface, cut: cut)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
     }
 
@@ -97,29 +85,15 @@ final class NotchFilm {
     private func frame(_ pointer: CGPoint, shoots: Bool) throws {
         time += Self.frameMS
         run.step(NotchRun.Moment(time: start + time, pointer: pointer, pointerAt: start + time, setting: setting))
-        surface.draw(run, in: setting, mirror: mirror)
+        surface.draw(run, in: setting, mirror: mirror, now: now)
         if shoots {
             try shoot(pointer)
         }
     }
 
-    /// The frame as the screen shows it: the desktop, the notch over it as Core Animation's running animations stand at
-    /// this time, and the pointer over all. The drawing's layers are drawn out of their view, under the flipped root,
-    /// so the flip AppKit gave them for the view comes off first.
+    /// The frame as the screen shows it, the pointer over all.
     private func shoot(_ pointer: CGPoint) throws {
-        let canvas = try Canvas(cut.size), context = canvas.context
-        let restore = Running.set(root, at: time / 1000)
-
-        defer { restore() }
-        canvas.draw(backdrop, in: CGRect(origin: .zero, size: cut.size))
-        root.sublayers?.forEach { $0.isGeometryFlipped = false }
-        Self.display(root)
-        context.saveGState()
-        context.translateBy(x: -cut.minX, y: -cut.minY)
-        root.render(in: context)
-        drawArrow(at: pointer, context)
-        context.restoreGState()
-
+        let canvas = try shot.shoot(turned: Running.at(time / 1000)) { drawArrow(at: pointer, $0) }
         let name = String(format: "frame-%04d.png", shots.count)
 
         try canvas.png().write(to: folder.appending(path: name))
@@ -159,57 +133,4 @@ final class NotchFilm {
         path.closeSubpath()
         return path
     }()
-
-    /// Every layer drawn at 2×, its content drawn again where it asks to be.
-    private static func display(_ layer: CALayer) {
-        layer.contentsScale = Canvas.scale
-        layer.displayIfNeeded()
-        layer.sublayers?.forEach(display)
-    }
-
-    /// The wallpaper under the film's frame, the bezel beside the screen's edge.
-    private static func backdrop(_ cut: CGRect) throws -> CGImage {
-        let canvas = try Canvas(cut.size)
-
-        try ReadmeDesktop.drawWallpaper(cut, in: canvas.context)
-        canvas.context.setFillColor(EdgeStyle.black)
-        canvas.context.fill(CGRect(x: 0, y: 0, width: -cut.minX, height: cut.height))
-        return try canvas.image()
-    }
-}
-
-/// Core Animation's endless turns and sweeps, the working arcs' and the shimmer's, which `render(in:)` never draws:
-/// set on their layers as each stands at a time, from its own phase, and set back once drawn.
-@MainActor
-enum Running {
-    static func set(_ layer: CALayer, at seconds: Double) -> () -> Void {
-        var restores: [() -> Void] = []
-
-        still {
-            visit(layer) { layer in
-                for key in layer.animationKeys() ?? [] {
-                    guard let turn = layer.animation(forKey: key) as? CABasicAnimation, turn.repeatCount == .infinity,
-                          turn.duration > 0, let path = turn.keyPath,
-                          let from = (turn.fromValue as? NSNumber)?.doubleValue,
-                          let to = (turn.toValue as? NSNumber)?.doubleValue
-                    else {
-                        continue
-                    }
-
-                    let share = ((seconds + turn.timeOffset) / turn.duration).truncatingRemainder(dividingBy: 1)
-                    let was = layer.value(forKeyPath: path)
-
-                    layer.setValue(from + (to - from) * share, forKeyPath: path)
-                    restores.append { layer.setValue(was, forKeyPath: path) }
-                }
-            }
-        }
-        return { still { restores.forEach { $0() } } }
-    }
-
-    private static func visit(_ layer: CALayer, _ each: (CALayer) -> Void) {
-        each(layer)
-        layer.sublayers?.forEach { visit($0, each) }
-        layer.mask.map { visit($0, each) }
-    }
 }
