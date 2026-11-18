@@ -26,8 +26,11 @@ diff_exclude = ["app/release-*", "app/notarize"]
 # irreversible tag and push: every gate, then app/release-build, which builds
 # HEAD, signed with the Developer ID, notarized and stapled, and keeps its
 # zip, so a failure about the app, the certificate or Apple's answer stops
-# the release before its tag, with nothing public yet.
+# the release before its tag, with nothing public yet. First, the list of
+# real names the tests may not use: git leaves it out, and without it the
+# scan that keeps them out is skipped, unseen in a passing run.
 pre_tag = [
+    'test -f tests/real-names.txt || { echo "tests/real-names.txt is missing: the list of names no test may use is kept out of git. The main clone holds the master copy, and worktrees copy it from there (.worktreeinclude). Put it back in this clone and release again." >&2; exit 1; }',
     'claude plugin test .',
     'bunx tsc -p .',
     'bunx tsc -p cli/shell',

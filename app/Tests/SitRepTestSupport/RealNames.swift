@@ -4,7 +4,7 @@ import Testing
 extension Trait where Self == ConditionTrait {
     /// A test that reads the list runs only where the checkout holds it: the list is local, kept out of git, so a
     /// contributor's clone skips such a test, never fails it.
-    public static var listed: Self {
+    public static var realNamesListed: Self {
         .enabled(if: RealNames.isListed, "tests/real-names.txt is local, kept out of git, and this checkout has none")
     }
 }

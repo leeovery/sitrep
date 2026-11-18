@@ -767,7 +767,7 @@ struct SampleTests {
     /// Lee's real work never stands in for a sample, the ask's tool's included. Each sample is held to
     /// `tests/real-names.txt`'s rule, and, as samples are few and short, to every listed name and its keyed form
     /// anywhere in it, case aside.
-    @Test(.listed) func noSampleNamesARealProject() throws {
+    @Test(.realNamesListed) func noSampleNamesARealProject() throws {
         let real = try RealNames.listed()
         let named = real.names.flatMap { [$0, $0.lowercased().replacingOccurrences(of: " ", with: "-")] }
 

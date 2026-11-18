@@ -18,7 +18,7 @@ struct RealNamesTests {
     allow app/Tests/A.swift Blue Lagoon
     """)
 
-    @Test(.listed) func noFileOfEitherSuiteNamesLeesRealWorkButWhereTheListAllowsIt() throws {
+    @Test(.realNamesListed) func noFileOfEitherSuiteNamesLeesRealWorkButWhereTheListAllowsIt() throws {
         let scan = try RealNames.listed().scan()
 
         #expect(scan.hits.isEmpty, "\(scan.hits.map(\.description).joined(separator: "\n"))")

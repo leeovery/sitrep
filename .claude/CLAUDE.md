@@ -41,9 +41,12 @@ swift test --package-path app     # the app's tests
 ```
 
 The type-checks need the engine's types in `.claude-plugin/types/`, which
-git leaves out; `.worktreeinclude` copies them into a worktree. So it does
-`tests/real-names.txt`, the names no test may use, local and kept out of git
-as it names Lee's real work; without it the app's tests skip its scans.
+git leaves out; `.worktreeinclude` copies them into a worktree.
+
+`tests/real-names.txt` lists the names no test may use. It names Lee's real
+work, so git leaves it out too. The main clone holds the master copy, and
+`.worktreeinclude` copies it from there into each worktree. Without it the
+app's tests skip their scans, so the release refuses to run without it.
 
 ## The app
 

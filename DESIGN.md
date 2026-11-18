@@ -87,7 +87,7 @@ of its own.
 
    ```
    On the board:
-   - SitRep: sr-k3m9qa "sitrep", 2 waiting on Lee, 1 snoozed by Lee
+   - SitRep: sr-w8d4tn "sitrep", 2 waiting on Lee, 1 snoozed by Lee
    - Switchboard: sr-p7x2wd "Milestone 7 stage 1"
    ```
 
@@ -228,9 +228,9 @@ vanished from every view, though still stored.
 A move is a line in the session's own files; its folder never moves. Every
 reader files the session under the project its latest move names.
 
-A session started under Fabrikam, a general project, and Lee asked it
-to move everything into Fabrikam Mobile, the project for one of
-Fabrikam's apps. It could not: no tool moved a session, and the `project`
+A session started under Fabrikam, a client's general project, and Lee
+asked it to move everything into Fabrikam Mobile, the project for one of
+that client's apps. It could not: no tool moved a session, and the `project`
 tool renames a project, never moves a session out of one. So it started a
 new session there, and left the old one and its items behind. Agreed with
 Lee that day:
@@ -325,7 +325,7 @@ Built so (17 November 2026):
 - **The mover answers from the fold after its post**: `Moved Help desk
   redesign to the existing project Contoso.`, `… to a new project, Trey
   Research.`; where another window moved it at the same moment and won,
-  `Help desk redesign is in Fabrikam: a move another window made at the
+  `Help desk redesign is in Woodgrove: a move another window made at the
   same moment took it there.` The call's row, in the pane's `verb: name`
   form, names the project the board named as the call was answered,
   `moved to: Contoso`, however Claude spelled it; a row from before the
@@ -7368,7 +7368,7 @@ Only step 1, the mod recording where its window is, is the plugin's still.
 
 4. sitrep focuses that terminal (Ghostty's `focus`). With macOS's "switch to
    a Space with open windows" on, macOS goes to its Space. Tried live: from
-   Space 9 to the Contoso window on Space 12, then back to Space 1. It needs no
+   Space 9 to the Litware window on Space 12, then back to Space 1. It needs no
    Accessibility permission and no window manager.
 
    **A terminal in a tab not selected** has its window activated first
@@ -7543,7 +7543,7 @@ Only step 1, the mod recording where its window is, is the plugin's still.
 
 **The latest click wins** (4 November 2026). With the Mac's load near
 250 from parallel Swift builds, Lee could reach no Ghostty window by a jump
-for three minutes. SitRep's log: `sitrep jump --session sr-nq7651: did not
+for three minutes. SitRep's log: `sitrep jump --session sr-h5c2rv: did not
 answer within 180 seconds` (16:11:04). SitRep ran one jump at a time and
 took no click while one ran, so every click in those minutes waited behind
 the stuck one, and Lee saw the row spin for 450ms, then nothing. The CLI
@@ -7670,11 +7670,11 @@ open), and tmux passing an escape sequence through from Claude's own pane
    shell; and `list --json` says whether each session is on screen, so the
    panel knows what to offer (the jump retired in stage 7, step B, on 10
    November 2026). Built 13 October 2026, reviewed at xhigh,
-   and run live twice with Lee watching: Finder in front, to the Contoso
+   and run live twice with Lee watching: Finder in front, to the Litware
    window on its Space and back, about half a second a jump, every
    directory as it was. Stages 1 and 2 landed together (kit-config #2);
    after a `/reload-plugins`, a jump on real sessions went from Finder to the
-   Contoso window's Space and back, half a second each way, every directory
+   Litware window's Space and back, half a second each way, every directory
    as it was (13 October 2026).
 3. **The app**, and what the plugin gives it: the words and the versions,
    the live feed, the jump's drivers, the notch and its panel, the strip,
