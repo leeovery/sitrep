@@ -1,7 +1,16 @@
 import Foundation
+import Testing
+
+extension Trait where Self == ConditionTrait {
+    /// A test that reads the list runs only where the checkout holds it: the list is local, kept out of git, so a
+    /// contributor's clone skips such a test, never fails it.
+    public static var listed: Self {
+        .enabled(if: RealNames.isListed, "tests/real-names.txt is local, kept out of git, and this checkout has none")
+    }
+}
 
 /// The names no test may use, Lee's real projects, sessions and folders, as `tests/real-names.txt` lists them, with
-/// the hits it allows; and its rule, which its header states.
+/// the hits it allows; and its rule, which its header states. The list is local, kept out of git, as it names them.
 public struct RealNames: Sendable {
     /// A listed name on a line of a file that its allows don't exempt.
     public struct Hit: Equatable, Sendable, CustomStringConvertible {
@@ -119,6 +128,11 @@ public struct RealNames: Sendable {
         }
 
         return Allow(path: String(parts[0]), name: String(parts[1]))
+    }
+
+    /// Whether this checkout holds the list.
+    public static var isListed: Bool {
+        FileManager.default.fileExists(atPath: Repository.root.appending(path: path).path)
     }
 
     /// The list in this checkout.

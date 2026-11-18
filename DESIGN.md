@@ -87,8 +87,8 @@ of its own.
 
    ```
    On the board:
-   - SitRep: sr-wdsqvn "sitrep", 2 waiting on Lee, 1 snoozed by Lee
-   - Switchboard: sr-v1pwm9 "Milestone 7 stage 1"
+   - SitRep: sr-k3m9qa "sitrep", 2 waiting on Lee, 1 snoozed by Lee
+   - Switchboard: sr-p7x2wd "Milestone 7 stage 1"
    ```
 
    An ask Lee snoozed counts apart, as snoozed by Lee (see "Snooze"). The
@@ -197,7 +197,7 @@ vanished from every view, though still stored.
   session filed under it, finished and idle ones included (see Storage). So
   every item parked before is its project's as if it always was. At the
   release, 31 items in 6 finished sessions come back: Switchboard 18, mint
-  11, Kit 1, Dotfiles 1.
+  11, and 1 each in Kit and one other project.
 - **Parked items keep no session current.** An idle session leaves the
   session lists after its 7 days, and its items stay in the project's
   Parked; a project with something parked stays listed, though none of its
@@ -228,9 +228,9 @@ vanished from every view, though still stored.
 A move is a line in the session's own files; its folder never moves. Every
 reader files the session under the project its latest move names.
 
-A session started under Fabric, a client's general project, and Lee asked
-it to move everything into FlowV1 API, the project for one of that
-client's apps. It could not: no tool moved a session, and the `project`
+A session started under Fabrikam, a general project, and Lee asked it
+to move everything into Fabrikam Mobile, the project for one of
+Fabrikam's apps. It could not: no tool moved a session, and the `project`
 tool renames a project, never moves a session out of one. So it started a
 new session there, and left the old one and its items behind. Agreed with
 Lee that day:
@@ -2368,7 +2368,7 @@ app (see "The menu bar").
 ## Snooze
 
 Decided with Lee on 22 October 2026 (`.scratch/snooze/decisions.md`), of the
-three Harness asks he wasn't ready for: "Maybe being able to snooze them to
+three Tailspin asks he wasn't ready for: "Maybe being able to snooze them to
 tomorrow … They'll pop back into the 'Needs You' section." The verb is
 "snooze", since "park" already means something on the board. How it is
 stored and how it flows was designed on 23 October 2026; **proposed** marks
@@ -2732,8 +2732,8 @@ ask, changes nothing Claude reads.
   then)`.
 - What Claude reads follows what it has been given: an ask Lee's reply is on
   its way to still reads snoozed, as it still reads waiting.
-- The first message's listing counts them apart: `- Harness: sr-4g01a7
-  "Finish the Harness modernisation", 1 waiting on Lee, 3 snoozed by Lee`.
+- The first message's listing counts them apart: `- Tailspin: sr-7t2k9d
+  "Finish the Tailspin modernisation", 1 waiting on Lee, 3 snoozed by Lee`.
 
 **The CLI.**
 
@@ -2783,18 +2783,18 @@ sitrep wake [--session <id>]
 
   ```
   "snoozed": [
-    { "session": "sr-4g01a7", "isAway": false, "project": "harness",
-      "name": "Finish the Harness modernisation", "projectName": "Harness",
-      "letters": "Ha",
-      "lines": [ { "key": "ask:sr-4g01a7:k1", "is": "ask", "ask": "k1",
+    { "session": "sr-7t2k9d", "isAway": false, "project": "tailspin",
+      "name": "Finish the Tailspin modernisation", "projectName": "Tailspin",
+      "letters": "Ta",
+      "lines": [ { "key": "ask:sr-7t2k9d:k1", "is": "ask", "ask": "k1",
                    "first": { "lead": "Review the plan", "mono": null,
                               "subject": null, "more": null, "until": null },
                    "since": 1760000000000, "wakesAt": 1760346000000 },
-                 { "key": "turn:sr-4g01a7", "is": "yourTurn", "ask": null,
+                 { "key": "turn:sr-7t2k9d", "is": "yourTurn", "ask": null,
                    "first": { "lead": "Stage 2 is in", "mono": null,
                               "subject": null, "more": null, "until": null },
                    "since": 1760001000000, "wakesAt": 1760346000000 } ],
-      "second": "Harness · Finish the Harness modernisation",
+      "second": "Tailspin · Finish the Tailspin modernisation",
       "wakesAt": 1760346000000 } ]
   ```
 - Plain `list` says it among a session's facts: `(open, 1 waiting, 2
@@ -2928,7 +2928,7 @@ writers and readers stay safe:
   anything else is passed over, as before. Besides, while old lines'
   snoozes hold every ask waiting on Lee in the session, its turn sleeps
   with them, until the first of them wakes or closes, or a new ask lands.
-  That joins Harness's turn to its three snoozed asks, the case Lee raised,
+  That joins Tailspin's turn to its three snoozed asks, the case Lee raised,
   in one row, waking as the first ask does, and leaves a session whose
   asks Lee left showing as it was, its turn on its Needs you row.
 - An old `snoozeTurn` holds as it always did: until its time, or with none
@@ -3043,7 +3043,7 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   - SitRep is its one writer, as the one-file-per-writer rule below has
     every file, so it needs no lock.
 - **Folders from before projects were named** keep their keys
-  (`code-84dbac88`, `switchboard-7a75d7ba`, from the folder a window
+  (`code-3f9a1c2e`, `switchboard-5b0e7d41`, from the folder a window
   started in): no key is renamed. Without a `project.json`, such a project is
   named as its sessions' `session.json` recorded it, its first letter a capital
   (`Code`). Matching and showing read `project.json` first, so writing one
@@ -4841,7 +4841,7 @@ plugin keeps no packages.
 
 ## The menu bar
 
-Decided with Lee on 13 October 2026, on the board as `sr-aw3bgs`, its surface
+Decided with Lee on 13 October 2026, on the board as `sr-m4e8nb`, its surface
 redrawn as the notch and its panel on 14 and 15 October 2026. One place on the
 Mac, on every Space, for what waits on Lee across every project, and a click
 that takes Lee to the window a session is in.
@@ -5142,7 +5142,7 @@ with it.
   row's time does. Needs you has two counts side by side, the second 6
   after the first (Lee, 13 November 2026): its asks in orange, the lines
   of its ask rows, the asks and the windows stopped on a prompt (Kit's one
-  and Harness's three are 4), then its stopped in #124's blue, its
+  and Tailspin's three are 4), then its stopped in #124's blue, its
   your-turn rows, one a session; each is drawn only above zero, so 4 asks
   and 7 stopped read "4 7", asks alone the orange one, stopped alone the
   blue. On glass the same, in Claude's orange and the blue. Until then it
@@ -5798,8 +5798,8 @@ prototype is `prototypes/strip/strip.html`.
   under Your turn (board I) and went that day (board J2), but the strip's
   stayed under needs you, where its places for needs you end. The letters
   are the
-  project's capitals where it has two (SitRep SR, DocMan DM), else its first
-  two (Switchboard Sw, agntc ag); two sessions of one project share them.
+  project's capitals where it has two (SitRep SR, VanArsdel VA), else its
+  first two (Switchboard Sw, agntc ag); two sessions of one project share them.
   A session with several lines waiting is still one mark.
 - **Under the pointer** a mark pours its panel row out of the strip as a
   tab, the material flaring at both ends. A click jumps, as in the panel,
@@ -7121,11 +7121,11 @@ Only step 1, the mod recording where its window is, is the plugin's still.
    answered.`), as the window said no tmux and its own device, the zmx
    session's pty, which no terminal is on. Seen live, read-only, on 9
    November 2026: Claude runs on `ttys087`, the pty the session's server
-   holds, with `ZMX_SESSION=sitrep-iFpz7T`, `TERM_PROGRAM=ghostty` and no
-   `$TMUX`; the server is `zmx attach sitrep-iFpz7T /opt/homebrew/bin/portal
+   holds, with `ZMX_SESSION=sitrep-Xq4mR2`, `TERM_PROGRAM=ghostty` and no
+   `$TMUX`; the server is `zmx attach sitrep-Xq4mR2 /opt/homebrew/bin/portal
    state hydrate …`, its parent launchd, on no tty; the client Lee sees is
-   `zmx attach sitrep-iFpz7T` on `ttys032`, Portal's own relaying pty, under
-   `portal open /sit` < `-/bin/zsh` < `/usr/bin/login -flp leeovery …` on
+   `zmx attach sitrep-Xq4mR2` on `ttys032`, Portal's own relaying pty, under
+   `portal open /sit` < `-/bin/zsh` < `/usr/bin/login -flp me …` on
    `ttys036` < Ghostty; and Ghostty has a terminal on `ttys036`, none on
    `ttys032` or `ttys087`. So the device is the seat's, Ghostty's own
    child's, neither the client's nor the session's. zmx 1.0.1 lists no
@@ -7134,7 +7134,7 @@ Only step 1, the mod recording where its window is, is the plugin's still.
    server's), so they are read from `ps`: each process whose command line
    is exactly `zmx attach <session>`, by any path to zmx, on a tty, the name
    compared whole after `attach `, so a name's spaces and `·`
-   (`agentic-workflows-v2 · leeway-build`) need no parsing. The session's
+   (`agentic-workflows-v2 · contoso-build`) need no parsing. The session's
    server is no client by its tty and its parent: it runs on none, under
    launchd, and in no terminal app, though its line may equal a client's,
    as for a session a bare `zmx attach <session>` made; Portal's servers
@@ -7368,7 +7368,7 @@ Only step 1, the mod recording where its window is, is the plugin's still.
 
 4. sitrep focuses that terminal (Ghostty's `focus`). With macOS's "switch to
    a Space with open windows" on, macOS goes to its Space. Tried live: from
-   Space 9 to the Fumi window on Space 12, then back to Space 1. It needs no
+   Space 9 to the Contoso window on Space 12, then back to Space 1. It needs no
    Accessibility permission and no window manager.
 
    **A terminal in a tab not selected** has its window activated first
@@ -7670,11 +7670,11 @@ open), and tmux passing an escape sequence through from Claude's own pane
    shell; and `list --json` says whether each session is on screen, so the
    panel knows what to offer (the jump retired in stage 7, step B, on 10
    November 2026). Built 13 October 2026, reviewed at xhigh,
-   and run live twice with Lee watching: Finder in front, to the Fumi
+   and run live twice with Lee watching: Finder in front, to the Contoso
    window on its Space and back, about half a second a jump, every
    directory as it was. Stages 1 and 2 landed together (kit-config #2);
    after a `/reload-plugins`, a jump on real sessions went from Finder to the
-   Fumi window's Space and back, half a second each way, every directory
+   Contoso window's Space and back, half a second each way, every directory
    as it was (13 October 2026).
 3. **The app**, and what the plugin gives it: the words and the versions,
    the live feed, the jump's drivers, the notch and its panel, the strip,
@@ -9854,8 +9854,8 @@ on 11 October 2026 (see "Build order"):
 
 ## The spike
 
-A throwaway mod with fake data modelled on Switchboard, Goosemates and five
-other projects, run only in the window that designed sitrep. It settled every
+A throwaway mod with fake data modelled on Switchboard and six other
+projects, run only in the window that designed sitrep. It settled every
 surface above, and its drawing code became `hooks/draw`. Retired on 8 October
 2026, once it was found drawing its fake data over the real pane: both named
 their pane `board`, and a pane's id is not scoped to the plugin that opens it.

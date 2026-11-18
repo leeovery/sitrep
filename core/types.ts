@@ -319,7 +319,7 @@ export type Where = {
   terminal?: string
   /** The tmux server's socket (`/private/tmp/tmux-501/default`) and the pane (`%148`). */
   tmux?: { socket: string; pane: string }
-  /** The zmx session's name, `$ZMX_SESSION` as given: `sitrep-iFpz7T`, `kit · restore-card`. */
+  /** The zmx session's name, `$ZMX_SESSION` as given: `sitrep-Xq4mR2`, `kit · restore-card`. */
   zmx?: { session: string }
 }
 
