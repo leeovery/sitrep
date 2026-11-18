@@ -1,7 +1,8 @@
 import { expect, test } from './kit'
 import { C } from '../hooks/look'
 import { ACCENT, cellsOf, charsOf, type Cell } from '../screens/cells'
-import { faint, inkOf, svgOf, TERMINAL } from '../screens/svg'
+import { BOARD_COLUMNS, claudeScreen, COLUMNS, TALK_COLUMNS } from '../screens/claude'
+import { faint, inkOf, NORD_WAVE, runsOf, terminalOf } from '../screens/ghostty'
 import { rowsOf } from './drawn'
 import { FRAMES, heldItem, PROJECT, REVIEW, T0 } from './data'
 import { askOf, park, status } from './lines'
@@ -158,42 +159,82 @@ test('a column stretches its children across it, pads out to its height, its spa
   expect(rows(column, 5)).toEqual(['top  ', '     ', '     ', 'end  '])
 })
 
-test('the SVG sets each glyph at its own cell, so the columns line up in any monospace font', () => {
-  const svg = svgOf(cellsOf(text({}, 'ab c'), 4), 'sitrep', 'A board')
 
-  expect(svg).toContain('<text x="0 8.4" ')
-  expect(svg).toContain('<text x="25.2" ')
-  expect(svg).toContain('aria-label="A board"')
-})
+/** Words in cells, unpainted. */
+const plain = (words: string): Cell[] => [...words].map(char => ({ char, paint: {} }))
 
-test("the SVG draws the box-drawing characters as lines across their cells, never as glyphs: a rule one line, heavy for the lit tab, and a tree's corner from its top to its right", () => {
-  const svg = svgOf(
-    cellsOf(
-      box(
-        {},
-        text({ color: C.rule }, '──'),
-        text({ color: C.now }, '━'),
-        text({ color: C.faint }, '└'),
-      ),
-      4,
-    ),
-    'sitrep',
-    'A rule',
+/** Claude Code's screen round a board of `height` rows and a band, read as characters. */
+const screenOf = (height: number) => {
+  const board = Array.from({ length: height }, (_, i) => plain(`board ${i}`.padEnd(BOARD_COLUMNS)))
+  const band = plain('◆ 2 asks'.padStart(TALK_COLUMNS))
+  const screen = claudeScreen(board, band)
+
+  return { screen, chars: screen.rows.map(charsOf) }
+}
+
+test("Claude Code's screen docks the board at its right, as the board drew it, under its ✕ and beyond a rule", () => {
+  const { chars } = screenOf(3)
+  const docked = (row: string) => row.slice(COLUMNS - BOARD_COLUMNS)
+
+  expect(chars.every(row => [...row].length === COLUMNS)).toBe(true)
+  expect(docked(chars[0] ?? '').trimEnd()).toMatch(/^ +✕$/)
+  expect(chars.slice(1, 4).map(row => docked(row).trimEnd())).toEqual([
+    'board 0',
+    'board 1',
+    'board 2',
+  ])
+  expect(chars.slice(0, 4).map(row => row[COLUMNS - BOARD_COLUMNS - 1])).toEqual(
+    Array(4).fill('│'),
   )
-
-  expect(svg).toContain(`<path d="M0 53H16.8" stroke="${C.rule}" stroke-width="1"`)
-  expect(svg).toContain(`<path d="M16.8 53H25.2" stroke="${C.now}" stroke-width="2"`)
-  expect(svg).toContain(`<path d="M29.4 53V44M29.4 53H33.6" stroke="${C.faint}" stroke-width="1"`)
-  expect(svg).not.toMatch(/>[─━└]</)
 })
 
-test('the SVG paints the cells as the terminal does: no colour its foreground, dim at half strength over its background, words escaped', () => {
-  expect(inkOf({})).toBe(TERMINAL.foreground)
-  expect(inkOf({ color: C.grey, dim: true })).toBe(faint(C.grey, TERMINAL.background))
+test("the conversation is cut from its top to the board's height, the band at its foot, at its right, on the prompt's rule", () => {
+  const { chars } = screenOf(3)
+  const talk = (row: string) => row.slice(0, TALK_COLUMNS)
+
+  expect(talk(chars[3] ?? '')).toBe('◆ 2 asks'.padStart(TALK_COLUMNS))
+  expect(talk(chars[2] ?? '').trim()).toBe('')
+  expect(talk(chars[1] ?? '').trim()).toBe('changes. Press shift+tab twice to enable.')
+  expect(chars[4]).toMatch(/^─+ northwind ─$/)
+})
+
+test('the prompt spans the screen, its cursor after the ❯, a rule under it, then the status line and the mode line', () => {
+  const { screen, chars } = screenOf(3)
+  const { row, column } = screen.cursor
+
+  expect(chars[row]?.trimEnd()).toBe('❯')
+  expect(column).toBe(2)
+  expect(chars[row + 1]).toBe('─'.repeat(COLUMNS))
+  expect(chars[row + 2]).toContain('northwind · ')
+  expect(chars[row + 3]?.trim()).toMatch(/^⏵⏵ auto mode on/)
+})
+
+test("Ghostty paints a cell as Nord Wave does: no colour its foreground, dim at half strength over its background", () => {
+  expect(inkOf({})).toBe(NORD_WAVE.foreground)
+  expect(inkOf({ color: C.grey, dim: true })).toBe(faint(C.grey, NORD_WAVE.background))
+  expect(inkOf({ dim: true, background: '#000000' })).toBe(faint(NORD_WAVE.foreground, '#000000'))
   expect(faint('#ffffff', '#000000')).toBe('#808080')
+})
 
-  const escaped = svgOf(cellsOf(text({}, 'a<&'), 3), 'sitrep', '"a"')
+test('a row is drawn as runs of cells painted alike, each from the column it starts at, a background its ground', () => {
+  const row = [
+    ...plain('ab'),
+    { char: '◆', paint: { color: C.ask } },
+    { char: 'x', paint: { color: C.ask, bold: true, background: C.tab } },
+  ]
 
-  expect(escaped).toContain('>a&lt;&amp;<')
-  expect(escaped).toContain('aria-label="&quot;a&quot;"')
+  expect(runsOf(row)).toEqual([
+    { column: 0, text: 'ab', ink: NORD_WAVE.foreground },
+    { column: 2, text: '◆', ink: C.ask },
+    { column: 3, text: 'x', ink: C.ask, ground: C.tab, bold: true },
+  ])
+})
+
+test("the terminal the app draws is the screen's runs, as wide as its widest row, on Nord Wave, its cursor in Nord Wave's", () => {
+  const terminal = terminalOf({ rows: [plain('ab'), plain('abcd')], cursor: { row: 1, column: 2 } })
+
+  expect(terminal.columns).toBe(4)
+  expect(terminal.background).toBe(NORD_WAVE.background)
+  expect(terminal.rows[1]).toEqual([{ column: 0, text: 'abcd', ink: NORD_WAVE.foreground }])
+  expect(terminal.cursor).toEqual({ row: 1, column: 2, color: NORD_WAVE.cursor })
 })
