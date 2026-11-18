@@ -1,6 +1,6 @@
 # Answering from the board
 
-An ask waits in the pane with its buttons, so you answer it without finding the window or scrolling back through the chat. Each press queues a reply. Then one send carries every reply to the right Claude, in this session or another. It helps most when several sessions wait on you at once.
+An ask waits in the pane with its buttons, so you answer it without finding the window or scrolling back through the chat. Each answer queues a reply. Then one send carries every reply to the right Claude, in this session or another. It helps most when several sessions wait on you.
 
 ![Claude Code in Ghostty, with the pane docked beside the chat. In the chat, a message from the board reads "From the board:", then "Which editor should replies use? → Markdown", then "This closes the ask: nothing more to do with it." In the pane, a choice asks "Thread replies, or keep them flat?", with the buttons Threaded · recommended, Flat, comment, ignore and snooze.](../art/screens/claude-code.webp)
 
@@ -14,19 +14,19 @@ An ask waits in the pane with its buttons, so you answer it without finding the 
 
 ## What happens
 
-- **Each shape of ask has its own buttons.** A yes has one button in the verb Claude gave, such as `✓ Approve`. A choice has a button for each option, and the one Claude recommends ends in `· recommended`. A words ask has `✎ Answer`. The table below lists every button.
-- **You write words in the Claude Code prompt.** After `✎ Answer` or `✎ comment`, the band reads `✎ Your next Enter answers "…"`, with `cancel`. Press Escape once to reach the prompt, then write and press Enter. The words go to Ready to send, not to Claude.
-- **Replies wait in Ready to send.** They are grouped by where each goes, such as `to this session` or `to Supplier portal`. Each reply has `✕`, and its ask shows `↺ undo` and `✎ edit`. Nothing goes until you press **send to Claude**, and **cancel all** clears them.
-- **Some presses take effect at once.** A snooze, a wake now, or a finish never waits in Ready to send.
-- **A reply for this session arrives as your own message.** It starts "From the board:", and under each ask one line says what to do. "This closes the ask: nothing more to do with it." Or: "This leaves the ask open: act on it, then resolve it." If Claude is mid-turn, the box says `⧗ Waiting for Claude's turn to end.`, and `↺ take back` returns your replies to the queue.
-- **A reply for another session goes into the inbox of that session.** The Claude Code window running that session sends it on to Claude, and its band shows `✦ 1 reply from the board`. If no window runs that session, the reply waits until one joins it.
+- **Each shape of ask has its own buttons.** A yes has one button in the verb Claude gave, such as `✓ Approve`. A choice has a button for each option, and the one Claude recommends ends in `· recommended`. A words ask has `✎ Answer`.
+- **You write words in the Claude Code prompt.** After `✎ Answer`, the band reads `✎ Your next Enter answers "…"`. After `✎ comment`, it reads `✎ Your next Enter comments on "…"`. Press Escape once to reach the prompt, then write and press Enter. The words go to Ready to send, not to Claude, and `cancel` on the band backs out.
+- **Replies wait in Ready to send.** They are grouped by where each goes, such as `to this session` or `to Onboarding flow`. Each has `✕`, and under its ask, `↺ undo`. A reply with words also has `✎ edit`, and a bare yes or choice has `✎ comment`. Nothing goes until you press **send to Claude**, and **cancel all** clears them. Until you send, the ask still counts. A snooze, a wake now or a finish never waits here: each takes effect at once.
+- **A reply for this session arrives as your own message.** It starts "From the board:", and under each ask one line says what to do. "This closes the ask: nothing more to do with it." Or: "This leaves the ask open: act on it, then resolve it."
+- **A send waits for Claude's turn to end.** If Claude is mid-turn, Ready to send shows `⧗ Waiting for Claude's turn to end.` and `↺ take back`. Taking it back returns your replies to Ready to send.
+- **A reply for another session goes into that session's inbox.** The Claude Code window running that session sends it on to Claude. Its band shows `✦ 1 reply from the board` for a few seconds. If no window runs that session, the reply waits until one joins it.
 
 ## Good to know
 
 - **SitRep, the Mac app, doesn't answer.** It snoozes and wakes a session, and a click takes you to the window. You answer there, from the pane. To answer from a shell, use `sitrep answer`, in [The `sitrep` command](cli.md).
-- **An ask counts until you send.** It still counts while your reply waits in Ready to send. It stops once you press **send to Claude**.
-- **A comment on its own leaves the ask open.** Every other reply closes it, `✕ ignore` included, which tells Claude you've seen the ask and won't act on it.
-- **The prompt must be empty to answer.** A draft there is refused, so its Enter can't send the wrong words. An answer with an image attached goes to Claude at once, and only to the session of this window.
+- **A comment on its own leaves the ask open.** Every other reply closes it, `✕ ignore` included. An ignore tells Claude you've seen the ask and won't act on it.
+- **The prompt must be empty to answer.** If a draft is there, the pane refuses, so its Enter can't send the wrong words.
+- **An answer with an image goes at once.** It can't wait in Ready to send, so it goes straight to the Claude in this window. It works only for the asks of this window's session.
 
 ## Reference
 
@@ -37,8 +37,8 @@ An ask waits in the pane with its buttons, so you answer it without finding the 
 | `✎ Answer` | A words ask | Sends words; closes the ask |
 | `✎ comment` | A yes or a choice | Sends words; leaves it open |
 | `✕ ignore` | Every ask | Closes the ask, unanswered |
-| `snooze` | Every ask | Puts the session off, at once |
-| `↺ take back` | A send held | Returns its replies to the queue |
+| `snooze` | An ask waiting on you | Asks until when; puts the session off |
+| `↺ take back` | A send held | Returns its replies to Ready to send |
 | `cancel all` | Ready to send | Clears the replies not sent |
 
 ## Related

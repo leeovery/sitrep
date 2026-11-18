@@ -15,15 +15,15 @@ You keep talking to Claude in the chat, and Claude keeps the board as it works. 
 - **Each conversation starts with a guide.** The first message tells Claude how to keep the board. It also lists the sessions on the board, each with its session id.
 - **Claude joins a session you carry on with.** Say "let's carry on with the help desk redesign" in a new window, and Claude joins that session by its id. It joins again after `/clear` too. A resumed conversation takes up its session by itself.
 - **Claude asks only when it needs you.** It posts an ask when it can't go on without you, or when your judgement changes what comes next. It also asks when it leaves you something to do, such as a merge. It says the ask in full in the chat as well.
-- **The shape follows what you give back.** A go or an approval is a yes, and its button is the verb you give, such as `✓ Go` or `✓ Ship it`. One of several options is a choice, with the option Claude leans toward marked `· recommended`. Something you write back is a words ask.
-- **Board changes reach Claude.** When the board changes, such as when you drop an item, the board as it now reads rides into the next turn. A join hands Claude the whole board, to correct anything stale.
+- **The shape follows what you give back.** A go or an approval is a yes. Claude words its button as the go you'd give, such as `✓ Go` or `✓ Ship it`. One of several options is a choice, with the option Claude leans toward marked `· recommended`. Something you write back is a words ask.
+- **Board changes reach Claude.** When the board changes, such as when you drop an item, Claude gets the session's board as it now stands at its next turn. A join hands Claude the session's status, open asks and the project's parked items, to correct anything stale.
 
 ## Good to know
 
 - **Only the main conversation writes to the board.** A subagent that calls a sitrep tool is refused, and told to put it in its report instead.
-- **Claude can't snooze a session.** It has no tool for it: only you put a session off. Claude can finish a session once nothing is left on it.
-- **Claude never names ids to you.** The ids of sessions and items are for the tools. In the chat, Claude names an ask or a session by its words.
-- **Parked items belong to the project.** Any session of the project sees them, and a finish leaves them in place.
+- **Claude can't snooze a session.** It has no tool for it: only you put a session off. Claude can finish a session once nothing is left on it, and what it parked stays with the project.
+- **An answer in the chat counts.** If you answer an ask in the chat, Claude resolves the ask itself.
+- **Claude is told never to name ids to you.** Session and item ids are for the tools. In the chat, Claude names an ask or a session by its words.
 
 ## Reference
 
@@ -35,9 +35,9 @@ Claude calls these tools. You never call them yourself.
 | `status` | Sets the name, summary, what is under way, and what is next |
 | `ask` | Posts an ask that wants a yes, a choice or words |
 | `park` | Parks something for later, on the project |
-| `resolve` / `reopen` / `edit` | Closes, reopens or corrects an item, with a reason |
+| `resolve` / `reopen` / `edit` | Closes, reopens or corrects an item, with a reason if given |
 | `finish` | Finishes the session once nothing is left on it |
-| `project` / `move` | Renames the project, or moves the session to another at your word |
+| `project` / `move` | Renames the project or says where it lives; moves the session at your word |
 | `board` | Reads the board back, so Claude can check and repair it |
 
 ## Related
