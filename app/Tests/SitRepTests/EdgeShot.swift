@@ -77,9 +77,11 @@ final class EdgeShot {
 /// set on their layers as each stands at a share of its period, and set back once drawn.
 @MainActor
 enum Running {
-    /// Each as it stands at a time, from its own phase.
+    /// Each as it stands this far into a film, turned from its start. An arc's own phase is left out: it is the wall
+    /// clock's when the arc began turning (`Arc.phase`), which would draw it elsewhere at every run, and every arc
+    /// shares it, so they turn in step all the same.
     static func at(_ seconds: Double) -> (CABasicAnimation) -> Double {
-        { turn in ((seconds + turn.timeOffset) / turn.duration).truncatingRemainder(dividingBy: 1) }
+        { turn in (seconds / turn.duration).truncatingRemainder(dividingBy: 1) }
     }
 
     static func set(_ layer: CALayer, turned: (CABasicAnimation) -> Double) -> () -> Void {
