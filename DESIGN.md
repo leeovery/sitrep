@@ -8473,8 +8473,8 @@ open), and tmux passing an escape sequence through from Claude's own pane
      mint environment, `app/release-upload` uploads the version
      `plugin.json` names, or the version given (`app/release-upload
      0.3.1`), tagged `v<version>`, from what's kept, which needs no signing
-     or Apple again. A re-run's upload replaces the asset under the same
-     name, with a new sha256.
+     or Apple again. A re-run's upload replaces the asset with the same
+     kept zip, under the same name and with the same sha256.
    - **Why before the tag** (Lee, 5 November 2026, as Switchboard had
      adopted that day): every failure about the app, or the means of
      signing it, comes before mint's point of no return, so a release is
@@ -8544,9 +8544,9 @@ open), and tmux passing an escape sequence through from Claude's own pane
      workflow, through `gh api`, the event `update-formula` with `tool`
      `sitrep`, the version and the zip's sha256, which the workflow checks
      (`X.Y.Z`, 64 hex digits), writes into the cask's own lines and
-     commits, one run at a time. It sends at every run that uploads, since
-     each zip has another sha256, but only for the latest
-     release: Homebrew takes any version other than the one installed as
+     commits, one run at a time. It sends at every run that uploads, which
+     matters after `app/release-build` has built the zip again or after an
+     earlier send failed, but only for the latest release: Homebrew takes any version other than the one installed as
      an upgrade, so the cask on an older one would downgrade every Mac. A
      204 from GitHub only says the dispatch was taken, so `app/release-upload`
      then finds the run it started, the first of the tap's `update-formula`
@@ -8558,10 +8558,13 @@ open), and tmux passing an escape sequence through from Claude's own pane
      waits on it, bounded by the workflow's 5-minute timeout. A failed
      send, no run found, or a run that fails fails the release run, saying
      the command that sends it again and the run's URL; the upload stays.
-     A rerun on the same version replaces the zip under the same name, so
-     installs fail the cask's sha256 until the workflow commits the new
-     one, about a minute, or until a rerun or the command sends it, if the
-     send or the update fails.
+     A rerun uploads the same kept zip, with the same sha256, but `gh
+     release upload --clobber` deletes the old asset first: if that upload
+     fails, installs of the current version get a 404 until a rerun
+     succeeds. Only after `app/release-build` has built the zip again does
+     its sha256 change, and installs fail the cask's sha256 until the
+     workflow commits the new one, about a minute, or until a rerun or the
+     command sends it, if the send or the update fails.
    - **Public, with no token** (18 November 2026): the repository went
      public, and the cask stopped needing a token. Until then the cask
      downloaded the zip through GitHub's API by the asset's id, with a

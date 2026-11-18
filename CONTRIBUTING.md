@@ -48,8 +48,8 @@ The CLI is `bin/sitrep` in the plugin's folder; the app's copy is `~/Library/App
 
 | Command | What it does |
 |---|---|
-| `sitrep list` | Every project's current sessions, with their ids and what waits on you |
-| `sitrep board` | A session's status, open asks and its project's parked items, with their ids; with `--json`, the items it parked itself |
+| `sitrep list` | Every project's current sessions, with their ids and what waits on you; with `--project <name>`, only that project's |
+| `sitrep board` | A session's status, open asks and its project's parked items, with their ids; with `--json`, the session alone: its open asks, the items it parked itself, its latest status changes and its resolved asks |
 | `sitrep status` | Sets where a session stands, giving only what changed |
 | `sitrep ask` | Posts an ask, and prints its id |
 | `sitrep park` | Parks something to come back to, on the session's project, and prints its id |
@@ -72,7 +72,7 @@ app/plugin app    # SitRep's own copy again
 app/plugin        # which one Claude Code has now
 ```
 
-A switch reaches each Claude window at its next `/reload-plugins`. SitRep looks at the plugin only as it starts, so either form ends with SitRep running: started where it isn't, and started again where the switch changed anything. On its copy, that start refreshes the copy, and makes it again if it's gone. A switch to where the plugin already comes from leaves Claude Code as it is and only starts a SitRep that isn't running, so running it again retries a start that failed. None puts a second sitrep beside one from another marketplace. Run `app/plugin app` before removing a worktree that is the live plugin: with its folder gone, windows load no sitrep at their next `/reload-plugins`, and SitRep never re-points the marketplace itself.
+A switch reaches each Claude window at its next `/reload-plugins`. SitRep looks at the plugin only as it starts, so either form ends with SitRep running: started where it isn't, and started again where the switch changed anything. On its copy, that start refreshes the copy, and makes it again if it's gone. A switch to where the plugin already comes from leaves Claude Code as it is and only starts a SitRep that isn't running, so running it again retries a start that failed. If Claude Code already has a sitrep plugin from another marketplace, neither form installs a second one beside it: it says so, and changes nothing. Run `app/plugin app` before removing a worktree that is the live plugin: with its folder gone, windows load no sitrep at their next `/reload-plugins`, and SitRep never re-points the marketplace itself.
 
 It needs:
 
@@ -80,6 +80,8 @@ It needs:
 - **Xcode**, for Swift 6 and the `actool` that compiles the icon;
 - **jq**, which `app/plugin` reads Claude Code's lists with;
 - **the Developer ID certificate**, `Developer ID Application: PointsBox Limited (CQKZZ4FN6V)`, in the login keychain: `app/bundle` signs with it, and stops without it.
+
+Without that certificate, `app/bundle` and `app/build` can't run: a contributor without it runs the gates below, and Lee builds and installs the app.
 
 The engine's types live in `.claude-plugin/types/`, which git leaves out; `.worktreeinclude` copies them into a worktree.
 
@@ -123,7 +125,7 @@ Both log everything to `~/Library/Logs/SitRep/release-<version>.log`. mint only 
 
 Leave the clone alone while mint runs. `pre_tag`'s checks end with it, and mint then writes the notes and waits at the review gate before it tags: a commit or a pull made then, or an edit to `plugin.json` beyond its version, is tagged unbuilt, and `app/release-upload` refuses the zip. `app/release-build <version> v<version>`, then `app/release-upload <version>`, finish that release. Closing the gap needs a mint hook nearer the tag.
 
-The cask downloads the zip from the release's public URL, `https://github.com/leeovery/sitrep/releases/download/v<version>/SitRep-<version>.zip`, with no token. A rerun replaces the zip under the same name, and the new zip has another sha256. Until the tap's workflow commits it, about a minute later, installs fail the cask's checksum; if the sending or the update fails in between, they keep failing until a rerun or the printed command sends it again.
+The cask downloads the zip from the release's public URL, `https://github.com/leeovery/sitrep/releases/download/v<version>/SitRep-<version>.zip`, with no token. A rerun of `app/release-upload` uploads the same kept zip, with the same sha256, but `gh release upload --clobber` deletes the old asset first: if that upload fails, installs of the current version get a 404 until a rerun succeeds. Only after `app/release-build` has built the zip again does its sha256 change: until the tap's workflow commits the new one, about a minute later, installs fail the cask's checksum, and if the sending or the update fails in between, they keep failing until a rerun or the printed command sends it again.
 
 Once per Mac that releases, beside the Developer ID certificate:
 

@@ -13,7 +13,8 @@
 # ~/Library/Logs/SitRep/release-<version>.log, which keeps the asset's id,
 # its sha256 and, when sending the cask fails, the command that sends it. The
 # cask downloads the zip from the release's public URL, by its name, so the
-# tap needs only the version and the sha256.
+# tap needs only the version and the sha256: the asset's id is looked up only
+# to check that GitHub lists the upload.
 #
 # mint only warns when it fails, so it can be run again by hand: with no mint
 # environment, it uploads the version plugin.json names, or the one given,
@@ -92,10 +93,11 @@ fi
 echo "Uploaded $asset to $tag: asset $id, sha256 $sha"
 
 # The tap's update, which hands the cask in leeovery/homebrew-tools this
-# version and the zip's sha256. Every run that uploads dispatches it again: a
-# new zip has another sha256. Only for the
-# latest release: brew takes any other version than the one installed as an
-# upgrade, so the cask on an older one would downgrade every Mac.
+# version and the zip's sha256, for the latest release only: brew takes any
+# other version than the one installed as an upgrade, so the cask on an older
+# one would downgrade every Mac. A rerun sends the same sha256 again, which
+# changes nothing; the send matters after app/release-build has built the zip
+# again, or after an earlier send failed.
 tap=leeovery/homebrew-tools
 dispatch=(gh api "repos/$tap/dispatches" --silent
   -f event_type=update-formula -f "client_payload[tool]=sitrep" -f "client_payload[version]=$version"
