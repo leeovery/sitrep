@@ -111,6 +111,8 @@ leeovery
 # a project's name, asserted word for word.
 allow tests/claude.test.ts Switchboard
 allow tests/tools.test.ts Switchboard
+allow tests/moved.test.tsx Switchboard
+allow tests/moving.test.ts Switchboard
 
 # Allowed: the app's own ids, which carry Lee's GitHub name: the domain of
 # its bundle and defaults, com.leeovery.sitrep, and sitrep's repository,
