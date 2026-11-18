@@ -63,6 +63,14 @@ test("Claude's tools speak of sessions, never pieces of work, and join takes the
   expect(JSON.stringify(SPECS)).not.toMatch(/\bpieces? of work\b|\bwork ids?\b/i)
 })
 
+test("Claude's tools name the person they are for the user, as Claude Code does, and guess at no pronoun", () => {
+  const specs = JSON.stringify(SPECS)
+
+  expect(specs).toContain('Post an ask: something only the user can do or decide.')
+  expect(specs).toContain("the move tool does, at the user's word.")
+  expect(specs).not.toMatch(/\b(Lee|he|him|his|she|her|hers)\b/i)
+})
+
 test('start files the session under the project it names, attaches the window and says to record the id', async ($, on) => {
   const w = world($, on)
 
@@ -98,7 +106,7 @@ test('start files the session under the project it names, attaches the window an
 test('start refuses a session with no name, no summary or no project, and writes nothing', async ($, on) => {
   const w = world($, on)
   const noProject =
-    'A session needs its project: its name as Lee would say it, such as SitRep or Switchboard.'
+    'A session needs its project: its name as the user would say it, such as SitRep or Switchboard.'
 
   await $.session.start(CONVERSATION)
 
@@ -193,7 +201,9 @@ test('ask posts an ask with a fresh id, its answer saying to put it to Lee after
   const answer = await w.call('ask', { wants: 'choice', title: 'Keep the band?', options })
   const id = postedId(answer)
 
-  expect(answer.result).toBe(`Posted ask ${id}. Put it to Lee in full after your last tool call.`)
+  expect(answer.result).toBe(
+    `Posted ask ${id}. Put it to the user in full after your last tool call.`,
+  )
   expect(w.state.board?.asks).toMatchObject([{ id, wants: 'choice', options, state: 'waiting' }])
   expect(w.state.board?.waiting).toBe(1)
   expect(linesOf(w, paths.log(W1)).at(-1)).toMatchObject({ type: 'ask', id, seq: 1 })
@@ -292,10 +302,10 @@ test('the ask and edit tools take wants, yes, options and needs; the ask says ho
   expect(ask?.inputSchema?.required).toEqual(['wants', 'title'])
   expect(ask?.inputSchema?.properties).not.toHaveProperty('kind')
   expect(ask?.description).toContain(
-    'Want a yes when Lee gives a go, an approval, or word that it works or is done, its button the verb Lee gives (Go, Approve, Done)',
+    'Want a yes when the user gives a go, an approval, or word that it works or is done, its button the verb the user gives (Go, Approve, Done)',
   )
   expect(ask?.description, 'an ask for what Lee is left to do, as the guide wants one').toContain(
-    "Ask when you cannot go on without Lee, when Lee's judgement changes what happens next, or when you leave Lee something to do, such as a release, a merge or a command to run;",
+    "Ask when you cannot go on without the user, when the user's judgement changes what happens next, or when you leave the user something to do, such as a release, a merge or a command to run;",
   )
   expect(ask?.description).toContain(
     'say it in full in the chat as well, after your last tool call: the board never stands in for the chat.',
@@ -358,7 +368,7 @@ test("resolving what Lee closed, an ask he answered or ignored, a parked item he
 
   for (const item of [answered, ignored, parked]) {
     expect((await w.call('resolve', { item, reason: 'Done' })).result, item).toBe(
-      `${item} was closed already by Lee: nothing to resolve.`,
+      `${item} was closed already by the user: nothing to resolve.`,
     )
   }
 
@@ -402,7 +412,7 @@ test('an ask Lee answered, then Claude reopened, resolves as ever; answered agai
   const before = linesOf(w, paths.log(W1))
 
   expect((await w.call('resolve', { item: id })).result).toBe(
-    `${id} was closed already by Lee: nothing to resolve.`,
+    `${id} was closed already by the user: nothing to resolve.`,
   )
   expect(linesOf(w, paths.log(W1))).toEqual(before)
 })
@@ -414,7 +424,7 @@ test("resolving another session's parked item Lee picked up passes quietly, writ
   ledger.write(park('p1', 'Export the ledger as CSV'), reply('r1', 'p1', 'pickup'), delivered('r1'))
   await w.begin()
   expect((await w.call('resolve', { item: 'p1', session: LEDGER.id })).result).toBe(
-    'p1 was closed already by Lee: nothing to resolve.',
+    'p1 was closed already by the user: nothing to resolve.',
   )
   expect(() => w.text(ledger.paths.log(W1))).toThrow()
 })
@@ -627,14 +637,14 @@ test('join reopens a finished session, saying who had finished it and why', asyn
   const joined = String((await w.call('join', { session: 'sr-bbbbbb' })).result)
 
   expect(joined).toMatch(
-    /^Joined Lobby \(sr-bbbbbb\)\. Lee had finished it; joining it reopened it\. Correct anything on it that is stale against what you know\. The board as it stands:\n/,
+    /^Joined Lobby \(sr-bbbbbb\)\. It had been finished by the user; joining it reopened it\. Correct anything on it that is stale against what you know\. The board as it stands:\n/,
   )
   expect(linesOf(w, lobby.paths.log(W1)).map(line => line.type)).toEqual(['unfinish'])
   expect(w.state.board).toMatchObject({ waiting: 1 })
   expect(w.state.board?.finished).toBeUndefined()
 
   expect(String((await w.call('join', { session: 'sr-cccccc' })).result)).toContain(
-    'Claude had finished it (Shipped); joining it reopened it.',
+    'It had been finished by Claude (Shipped); joining it reopened it.',
   )
 })
 
@@ -661,7 +671,7 @@ test("board reads back the session's open items with their ids", async ($, on) =
   const read = String((await w.call('board')).result)
 
   expect(read).toContain(`sitrep board: Help desk redesign (${id})`)
-  expect(read).toContain(`- ${ask} wants a yes (Approve), waiting on Lee: Review round 1`)
+  expect(read).toContain(`- ${ask} wants a yes (Approve), waiting on the user: Review round 1`)
 })
 
 test('every tool but start and join refuses while no session is attached, saying to start or join one', async ($, on) => {

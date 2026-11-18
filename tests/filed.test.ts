@@ -47,7 +47,7 @@ test('a window joins a session another window started, reads every writer there,
   const joined = String((await w.call('join', { session: LEDGER.id })).result)
   const parked = postedId(await w.call('park', { title: 'Read the schema' }))
 
-  expect(joined).toContain('k3 wants a yes (Approve), waiting on Lee: Review the ledger schema')
+  expect(joined).toContain('k3 wants a yes (Approve), waiting on the user: Review the ledger schema')
   expect(w.state.board?.asks.map(ask => [ask.id, ask.by])).toEqual([['k3', W2]])
   expect(w.state.board?.parked.map(item => item.id)).toEqual([parked])
   expect(parseEntries(w.text(paths.log(W1))).map(line => line.type)).toEqual(['park'])

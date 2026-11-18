@@ -413,10 +413,10 @@ test('the board text names the option recommended once, beside the options; an a
   const text = boardText(SESSION)
 
   expect(text).toContain(
-    '- k1 wants a choice, waiting on Lee: Ship round 2, or redraw?; options: Ship it | Redraw | Hold off; recommended: Ship it',
+    '- k1 wants a choice, waiting on the user: Ship round 2, or redraw?; options: Ship it | Redraw | Hold off; recommended: Ship it',
   )
   expect(text).toContain(
-    '- k2 wants a choice, waiting on Lee: Keep it, or drop it?; options: Keep it | Drop it\n',
+    '- k2 wants a choice, waiting on the user: Keep it, or drop it?; options: Keep it | Drop it\n',
   )
   expect(text.match(/recommended/gi)).toHaveLength(1)
 })

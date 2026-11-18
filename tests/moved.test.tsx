@@ -245,7 +245,7 @@ test('every view sees the moved session in its new project, and the project it l
 
   const listing = await firstMessage($)
 
-  expect(listing).toContain(`- Contoso: ${id} "Help desk redesign", 1 waiting on Lee`)
+  expect(listing).toContain(`- Contoso: ${id} "Help desk redesign", 1 waiting on the user`)
   expect(listing).not.toContain('- Northwind:')
 })
 
@@ -344,7 +344,7 @@ test('move refuses with no session held, the project the session is in already, 
     'Help desk redesign is in Northwind already.',
   )
   expect((await w.call('move', { project: ' -!- ' })).deny).toBe(
-    'Name the project to move the session to: its name as Lee would say it, such as SitRep or Switchboard.',
+    'Name the project to move the session to: its name as the user would say it, such as SitRep or Switchboard.',
   )
   expect((await w.call('move', {})).deny).toContain('Name the project to move the session to')
   expect(w.files).toEqual(before)
@@ -832,7 +832,7 @@ test('a conversation resumed after its session moved takes it up again in the pr
 
   expect(w.state.attachment).toMatchObject({ project: PROJECT.key, session: LEDGER.id })
   expect(holding(w)).toEqual(IN_CONTOSO)
-  expect(listing).toContain(`- Contoso: ${LEDGER.id} "Invoice ledger", 1 waiting on Lee`)
+  expect(listing).toContain(`- Contoso: ${LEDGER.id} "Invoice ledger", 1 waiting on the user`)
   expect(listing).toContain(`This window already holds ${LEDGER.id} (Invoice ledger)`)
 })
 

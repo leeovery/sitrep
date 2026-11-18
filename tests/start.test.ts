@@ -108,7 +108,7 @@ test('the first message counts an ask whose answer from Lee is on its way as wai
 
   const [block] = await firstMessage($)
 
-  expect(block?.text).toContain('- Northwind: sr-cccccc "Invoice ledger", 2 waiting on Lee')
+  expect(block?.text).toContain('- Northwind: sr-cccccc "Invoice ledger", 2 waiting on the user')
 })
 
 test('with no current sessions on the board, the first message carries only how to keep the board', async ($, on) => {

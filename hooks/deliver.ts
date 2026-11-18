@@ -35,7 +35,15 @@
  * every reader has them on their way as soon as Lee sends them.
  */
 import type { PromptOrigin, Timer } from 'claude-code'
-import { deliveredMark, isObject, sentLines, type Body, type Entry, type Session } from '../core'
+import {
+  deliveredMark,
+  isObject,
+  sentLines,
+  USER,
+  type Body,
+  type Entry,
+  type Session,
+} from '../core'
 import type {
   SitrepInFlight,
   SitrepQueued,
@@ -439,8 +447,8 @@ const holdForInput = async (host: Host, delivery: SitrepInFlight, at: number) =>
 
   host.log(
     inputs === at
-      ? "sitrep: Claude was interrupted; nothing goes in until Lee's input"
-      : "sitrep: refused as Claude was interrupted, before Lee's input; it goes as it can",
+      ? `sitrep: Claude was interrupted; nothing goes in until ${USER.possessive} input`
+      : `sitrep: refused as Claude was interrupted, before ${USER.possessive} input; it goes as it can`,
   )
 }
 

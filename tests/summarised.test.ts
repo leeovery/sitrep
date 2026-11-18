@@ -44,7 +44,7 @@ const SUMMARY =
 
 /** What every form of the line asks of Claude. */
 const SAY_AGAIN =
-  'Say again, after your last tool call, whatever of them Lee still needs: a question, steps, a finding, a decision.'
+  'Say again, after your last tool call, whatever of them the user still needs: a question, steps, a finding, a decision.'
 
 const BUN_TEST = { command: 'bun test', description: 'Run the tests' }
 
@@ -121,13 +121,13 @@ test("blockKindOf reads the kind off a signature's envelope, and nothing off one
 
 test('the line quotes what Lee saw of the words, or says he saw none of them, and asks for what he still needs', () => {
   expect(summarisedLine([SUMMARY])).toBe(
-    `Your words before this tool call reached Lee only as this summary: “${SUMMARY}”. He never saw the rest. ${SAY_AGAIN}`,
+    `Your words before this tool call reached the user only as this summary: “${SUMMARY}”. The rest never showed. ${SAY_AGAIN}`,
   )
   expect(summarisedLine(['', 'Merged it.', '', 'Testing it live.'])).toBe(
-    `Your words before this tool call reached Lee only as this summary: “Merged it. Testing it live.”. He never saw the rest. ${SAY_AGAIN}`,
+    `Your words before this tool call reached the user only as this summary: “Merged it. Testing it live.”. The rest never showed. ${SAY_AGAIN}`,
   )
   expect(summarisedLine(['', ''])).toBe(
-    `Your words before this tool call never reached Lee: he saw none of them. ${SAY_AGAIN}`,
+    `Your words before this tool call never reached the user: none of them showed. ${SAY_AGAIN}`,
   )
 })
 

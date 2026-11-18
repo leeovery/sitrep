@@ -547,7 +547,7 @@ test('an ask closed, or with an answer on its way, takes no answer, though a com
     verdict: 'yes',
   })
   expect(refusal(checkAnswer(finished, { ask: 'k1', answer: 'Approve' }))).toBe(
-    'This session is finished: its asks wait on Lee no more.',
+    'This session is finished: its asks wait on the user no more.',
   )
 })
 
@@ -649,8 +649,8 @@ test("a snooze is refused, the first refusal in order saying why: the session fi
       { ask: ['k1'], until: LATER },
       NOW,
     )
-  const unseen = 'An ask waits on Lee that the snooze did not name: look at it, then snooze again.'
-  const nothing = 'Help desk redesign needs nothing of Lee: there is nothing to snooze.'
+  const unseen = 'An ask waits on the user that the snooze did not name: look at it, then snooze again.'
+  const nothing = 'Help desk redesign needs nothing of the user: there is nothing to snooze.'
   const noTime =
     'A snooze wakes at a time in milliseconds since the epoch, or with none until it moves.'
   const come = 'That time has come already: give one still to come.'
@@ -659,7 +659,7 @@ test("a snooze is refused, the first refusal in order saying why: the session fi
     [
       'finished',
       checkSnooze(finished, { ask: ['k1'], until: LATER }, NOW),
-      'This session is finished: its asks wait on Lee no more.',
+      'This session is finished: its asks wait on the user no more.',
     ],
     ['no item', snoozeOf([...SHOWN, 'zz']), 'There is no item zz on this board.'],
     ['a parked item', snoozeOf(['p1', ...SHOWN]), 'p1 is a parked item, not an ask.'],
@@ -698,7 +698,7 @@ test("a wake is one line, the session's, wherever a snooze of Lee's stands, run 
     woken,
   )
   expect(refusal(checkWake(fold({ logs: { [W1]: file([T0, finish('lee')]) } })))).toBe(
-    'This session is finished: its asks wait on Lee no more.',
+    'This session is finished: its asks wait on the user no more.',
   )
   expect(refusal(checkWake(BOARD))).toBe('Help desk redesign is not snoozed.')
   expect(

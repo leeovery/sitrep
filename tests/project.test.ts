@@ -165,7 +165,7 @@ test('the project tool takes a new name, a directory, or both, and refuses neith
   })
   expect(checkProject({ name: '...' })).toEqual({
     ok: false,
-    error: "A project's name is one line, as Lee would say it, with a letter or a digit.",
+    error: "A project's name is one line, as the user would say it, with a letter or a digit.",
   })
   expect(checkProject({ name: 'SitRep', directory: 'sitrep' }).ok).toBe(false)
 })

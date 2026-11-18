@@ -202,7 +202,7 @@ test('a snooze the check refuses writes nothing, and a toast says why: an ask la
 
   expect(linesOf(w, paths.log(W1), 'snoozeSession')).toEqual([])
   expect(w.toasts.at(-1)).toBe(
-    'Not snoozed: An ask waits on Lee that the snooze did not name: look at it, then snooze again.',
+    'Not snoozed: An ask waits on the user that the snooze did not name: look at it, then snooze again.',
   )
 })
 
@@ -746,7 +746,7 @@ test("a pane snooze rides to Claude as a change to the board in the context of t
 
   expect(context?.[0]).toStartWith('The sitrep board changed since you last saw it. It now reads:')
   expect(context?.[0]).toContain(
-    `- ${id} wants a yes (Approve), snoozed by Lee until Mon 26 Oct 09:00 (leave it until then): Review Tickets & Replies, round 1`,
+    `- ${id} wants a yes (Approve), snoozed by the user until Mon 26 Oct 09:00 (leave it until then): Review Tickets & Replies, round 1`,
   )
   expect((await $.prompt.submit(TASK_DONE)).context).toBeUndefined()
 })
@@ -768,7 +768,7 @@ test("Lee's own prompt in the window wakes the session it holds while his snooze
   expect(linesOf(w, paths.log(W1), 'wakeSession')).toHaveLength(1)
   expect(w.state.board?.waiting).toBe(1)
   expect(context?.[0]).toContain(
-    `- ${id} wants a yes (Approve), waiting on Lee: Review Tickets & Replies, round 1`,
+    `- ${id} wants a yes (Approve), waiting on the user: Review Tickets & Replies, round 1`,
   )
   expect(await ui.find({ type: 'Text', text: /snoozed/ })).toBeUndefined()
 

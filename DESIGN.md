@@ -721,6 +721,25 @@ Wording rules, in the tool descriptions:
 - A changed status is noticed by the board itself (it compares the new
   status with the last), so Claude does nothing extra for it.
 
+**The user** (18 November 2026). Every text Claude reads names the person
+the board is for "the user", as Claude Code's own prompt does: the guide,
+the tool descriptions and their answers, the refusals, the board text
+(`waiting on the user`, `the user replied, yours to act on`, `snoozed by
+the user`), a board message's lines, the narration line, and the CLI's
+help and messages. Until then they said Lee, so a plugin installed on
+anyone else's Mac told its Claude the board was Lee's. Claude learns a
+person's name from their own CLAUDE.md or setup, where they gave it; the
+first plan, SitRep reading the Mac account's name into a file the mod and
+the CLI read, felt invasive, and was dropped before it was built. The name
+is one constant, core's `USER`, with its possessive, and no text guesses
+at a pronoun: each is worded to need none ("so it shows the user that
+something waits", "longer words before a tool call can arrive as a short
+summary"), and the guide, the tools and the CLI's help are each tested to
+hold no gendered one. The plugin's own descriptions, in `plugin.json` and
+`marketplace.json`, say "you". This document goes on in Lee's voice, and
+texts it quotes from before this date say Lee where the code now says the
+user.
+
 **No refusal for a call that does no harm** (13 November 2026). Live, Claude
 was refused for calls that did no harm, and each refusal cost a turn and
 confused Lee: it resolved asks Lee's answer had closed already, and was told

@@ -220,7 +220,7 @@ test('the project tool never takes the name of another project, nor changes noth
   await w.call('start', BOARD)
 
   expect((await w.call('project', { name: 'north wind' })).deny).toBe(
-    "Another project is already named Northwind. Renaming can't give this project that name. Moving this session there instead is Lee's call; ask him first.",
+    "Another project is already named Northwind. Renaming can't give this project that name. Moving this session there instead is the user's call, so ask first.",
   )
   expect((await w.call('project', {})).deny).toBe(
     'Give the project a new name, a directory, or both.',
@@ -269,7 +269,7 @@ const threeProjects = (w: World) => {
   )
 }
 
-const FABRIKAM_LINE = '- Fabrikam: sr-fabr1k "Price list", 2 waiting on Lee'
+const FABRIKAM_LINE = '- Fabrikam: sr-fabr1k "Price list", 2 waiting on the user'
 const NORTHWIND_LINE = '- Northwind: sr-pr1ce5 "Pricing page, stage 1"'
 const CONTOSO_LINE = '- Contoso: sr-eeeeee "Onboarding"'
 

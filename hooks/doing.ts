@@ -39,6 +39,7 @@ import {
   turnEnded,
   turnStarted,
   turnStopped,
+  USER,
   type Activity,
   type PendingCron,
   type PendingTask,
@@ -295,11 +296,11 @@ export const heardRequest = async (
   const begun = await heard(
     host,
     activity => permissionShown(activity, { tool, input, agentId }, at),
-    'its dialog shown, matched by tool, loop and input to the oldest call put to Lee',
+    `its dialog shown, matched by tool, loop and input to the oldest call put to ${USER.name}`,
   )
 
   if (begun.length === 0) {
-    host.log(`sitrep: a permission dialog for ${tool} matched no call put to Lee: no stop`)
+    host.log(`sitrep: a permission dialog for ${tool} matched no call put to ${USER.name}: no stop`)
   }
 }
 

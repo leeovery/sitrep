@@ -20,6 +20,7 @@ import {
   checkStatus,
   checkWake,
   projectNamed,
+  USER,
   WANTS,
   withId,
   withParkId,
@@ -96,7 +97,7 @@ const WHERE: Record<string, Flag> = {
     field: 'where',
     form: 'one',
     value: '<words>',
-    about: 'where Lee should look, in words',
+    about: `where ${USER.name} should look, in words`,
   },
 }
 
@@ -121,14 +122,13 @@ const quietly = (checked: Checked<Body>): Checked<Outcome> => posted(checked, ()
 /** The asks a snooze names: those its row shows. */
 const ASKS_SHOWN: Arg = {
   field: 'ask',
-  about:
-    "each ask the session's row shows, by its id, as the board lists it: an ask waiting on Lee left out refuses the snooze, so none is snoozed unseen; none for a row of its turn alone",
+  about: `each ask the session's row shows, by its id, as the board lists it: an ask waiting on ${USER.name} left out refuses the snooze, so none is snoozed unseen; none for a row of its turn alone`,
   isMany: true,
 }
 
 const ask: SessionCommand = {
   name: 'ask',
-  about: 'Post an ask: something only Lee can do or decide. Prints its id.',
+  about: `Post an ask: something only ${USER.name} can do or decide. Prints its id.`,
   grammar: {
     args: [{ field: 'title', about: LINE }],
     flags: {
@@ -136,14 +136,14 @@ const ask: SessionCommand = {
         field: 'wants',
         form: 'one',
         value: WANTS.join('|'),
-        about: 'what you want back from Lee: a yes, one of the options, or words',
+        about: `what you want back from ${USER.name}: a yes, one of the options, or words`,
         isNeeded: true,
       },
       yes: {
         field: 'yes',
         form: 'one',
         value: '<label>',
-        about: "a yes ask's button: the verb Lee gives, such as Go or Approve",
+        about: `a yes ask's button: the verb ${USER.name} gives, such as Go or Approve`,
       },
       option: {
         field: 'options',
@@ -223,8 +223,7 @@ const board: SessionCommand = {
 
 const answer: SessionCommand = {
   name: 'answer',
-  about:
-    "Answer a yes or a choice ask, or ignore any ask, as Lee does on the board: into the session's inbox, which its window gives Claude as Lee's own message, now or once a window takes the session up. Words, a comment and a permission prompt need Claude Code's prompt. Prints nothing.",
+  about: `Answer a yes or a choice ask, or ignore any ask, as ${USER.name} does on the board: into the session's inbox, which its window gives Claude as ${USER.possessive} own message, now or once a window takes the session up. Words, a comment and a permission prompt need Claude Code's prompt. Prints nothing.`,
   grammar: {
     args: [
       { field: 'ask', about: "the ask's id, as the board lists it" },
@@ -238,7 +237,7 @@ const answer: SessionCommand = {
       ignore: {
         field: 'ignore',
         form: 'switch',
-        about: "in place of an answer: Lee has seen it and won't act on it",
+        about: `in place of an answer: ${USER.name} has seen it and won't act on it`,
       },
       ...SESSION,
     },
@@ -251,8 +250,7 @@ const answer: SessionCommand = {
 
 const snooze: SessionCommand = {
   name: 'snooze',
-  about:
-    "Snooze a session until a time, as Lee does from its row: everything it needs of Lee, its asks and its turn, counts nowhere until it comes, or until a new ask, Lee's reply to one it holds, or his own prompt in its window wakes it. Its turn ending alone does not; with no time, it holds until it moves, as its next turn ends. One line in the CLI's own file, none in the inbox. Snoozed already, it is snoozed again, to the new time. Prints nothing.",
+  about: `Snooze a session until a time, as ${USER.name} does from its row: everything it needs of ${USER.name}, its asks and its turn, counts nowhere until it comes, or until a new ask, ${USER.possessive} reply to one it holds, or a prompt typed in its window wakes it. Its turn ending alone does not; with no time, it holds until it moves, as its next turn ends. One line in the CLI's own file, none in the inbox. Snoozed already, it is snoozed again, to the new time. Prints nothing.`,
   grammar: {
     args: [ASKS_SHOWN],
     flags: {
@@ -272,8 +270,7 @@ const snooze: SessionCommand = {
 
 const wake: SessionCommand = {
   name: 'wake',
-  about:
-    "Wake a snoozed session now, as Lee does from its row: everything it needs of Lee counts again. One line in the CLI's own file. Prints nothing.",
+  about: `Wake a snoozed session now, as ${USER.name} does from its row: everything it needs of ${USER.name} counts again. One line in the CLI's own file. Prints nothing.`,
   grammar: { args: [], flags: { ...SESSION } },
   on: 'session',
   act: ({ session }) => quietly(checkWake(session)),
@@ -281,8 +278,7 @@ const wake: SessionCommand = {
 
 const finish: SessionCommand = {
   name: 'finish',
-  about:
-    'Finish a session no window holds, as Lee does on the board: its open asks stop counting. One a window holds is finished there, by telling Claude. Prints nothing.',
+  about: `Finish a session no window holds, as ${USER.name} does on the board: its open asks stop counting. One a window holds is finished there, by telling Claude. Prints nothing.`,
   grammar: { args: [], flags: { ...SESSION } },
   on: 'session',
   act: ({ session }) => {
@@ -299,8 +295,7 @@ const finish: SessionCommand = {
 
 const move: SessionCommand = {
   name: 'move',
-  about:
-    "Move a session to another project on the board, as Claude does at Lee's word: the whole session goes, and every window holding it follows. It makes no project. One line in the CLI's own file. Prints nothing.",
+  about: `Move a session to another project on the board, as Claude does at ${USER.possessive} word: the whole session goes, and every window holding it follows. It makes no project. One line in the CLI's own file. Prints nothing.`,
   grammar: {
     args: [{ field: 'project', about: "the project's name, matched as start matches it" }],
     flags: { ...SESSION },
@@ -324,8 +319,7 @@ const move: SessionCommand = {
 
 const list: ProjectsCommand = {
   name: 'list',
-  about:
-    "List every project's current sessions, with their ids and what waits on Lee: first the projects living around the folder it runs in.",
+  about: `List every project's current sessions, with their ids and what waits on ${USER.name}: first the projects living around the folder it runs in.`,
   grammar: {
     args: [],
     flags: {

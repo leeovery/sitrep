@@ -44,6 +44,7 @@ import {
   type Project,
   type ProjectKey,
   type Session,
+  USER,
 } from '../core'
 import type { SitrepAttachment } from '../types'
 import { filedNow, foldAt, lookAround } from './around'
@@ -96,7 +97,7 @@ const lines = (description: string) => ({ type: 'array', items: { type: 'string'
 const NAME = text('A few words.')
 const SUMMARY = text('One line: what the session is for.')
 const PROJECT = text(
-  "The project's name as Lee would say it, cased: SitRep, Switchboard; never a slug. A project on the board by the name it has there.",
+  `The project's name as ${USER.name} would say it, cased: SitRep, Switchboard; never a slug. A project on the board by the name it has there.`,
 )
 const DIRECTORY = text(
   'Where the project lives, as an absolute path, once you know it: not the folder this window started in.',
@@ -107,23 +108,22 @@ const PARKED_BY = text(
 )
 const REASON = text('Why, in a few words.')
 const WHERE = text(
-  'Where Lee should look, in words: In Paper: the dashboard file, page "round 1", frames 1–6.',
+  `Where ${USER.name} should look, in words: In Paper: the dashboard file, page "round 1", frames 1–6.`,
 )
 const REF = text('Where your own record of it is: a file, a section, a link.')
 const WANTS_BACK = {
   type: 'string',
   enum: WANTS,
-  description:
-    'What you want back from Lee: yes, for a go, an approval, it works or done (give yes); choice, for one of options (give options); words, for an answer, a command output or feedback (needs may say what).',
+  description: `What you want back from ${USER.name}: yes, for a go, an approval, it works or done (give yes); choice, for one of options (give options); words, for an answer, a command output or feedback (needs may say what).`,
 }
 const YES = text(
-  "For wants yes: the button's words, the verb Lee is giving, a word or two: Go, Approve, It works, Done, Ship it.",
+  `For wants yes: the button's words, the verb ${USER.name} is giving, a word or two: Go, Approve, It works, Done, Ship it.`,
 )
 const OPTIONS = lines(
   'For wants choice: the choices, one line each; two at least. Never write "recommended" into one: give it as recommended.',
 )
 const RECOMMENDED = text(
-  'For wants choice: the option you lean toward, in its words as in options. Give it whenever you lean toward one; Lee sees it marked beside that option.',
+  `For wants choice: the option you lean toward, in its words as in options. Give it whenever you lean toward one; ${USER.name} sees it marked beside that option.`,
 )
 const NEEDS = text(
   "For wants words: what the words are, in a few words, such as the command's output.",
@@ -408,7 +408,7 @@ const resolvedByLee: Unchanged = (session, input) => {
   return item === undefined
     ? undefined
     : {
-        result: `${item.id} was closed already by Lee: nothing to resolve.`,
+        result: `${item.id} was closed already by ${USER.name}: nothing to resolve.`,
         names: itemTitle(session, item.id),
       }
 }
@@ -449,7 +449,7 @@ const reopening = async (host: Host, session: Session) => {
 const start: Tool<'start'> = {
   spec: spec(
     'start',
-    'Start a session on the sitrep board, where Lee sees where each session stands and what waits on Lee, in the project it is on: the one being discussed, not the folder this window started in. A project on the board whose name matches, case, spaces and punctuation aside, takes it; else a new project is made. Returns the session id: record it wherever the project tracks the work (design doc, plan, memory), so a later window can join it.',
+    `Start a session on the sitrep board, where ${USER.name} sees where each session stands and what waits on ${USER.name}, in the project it is on: the one being discussed, not the folder this window started in. A project on the board whose name matches, case, spaces and punctuation aside, takes it; else a new project is made. Returns the session id: record it wherever the project tracks the work (design doc, plan, memory), so a later window can join it.`,
     { name: NAME, summary: SUMMARY, project: PROJECT, directory: DIRECTORY },
     ['name', 'summary', 'project'],
   ),
@@ -547,7 +547,7 @@ const changedText = (before: Project, after: Project) =>
 const project: Tool<'project'> = {
   spec: spec(
     'project',
-    "Rename the attached session's project, or say where the project lives, or both. It never moves the session to another project: the move tool does, at Lee's word.",
+    `Rename the attached session's project, or say where the project lives, or both. It never moves the session to another project: the move tool does, at ${USER.possessive} word.`,
     { name: PROJECT, directory: DIRECTORY },
   ),
   answer: onSession(async (host, session, input, { here }) => {
@@ -566,7 +566,7 @@ const project: Tool<'project'> = {
 
     if (other !== undefined) {
       return {
-        deny: `Another project is already named ${other.name}. Renaming can't give this project that name. Moving this session there instead is Lee's call; ask him first.`,
+        deny: `Another project is already named ${other.name}. Renaming can't give this project that name. Moving this session there instead is ${USER.possessive} call, so ask first.`,
       }
     }
 
@@ -589,7 +589,7 @@ const movedText = (session: Session, destination: Destination, landed: Filed | u
 const move: Tool<'move'> = {
   spec: spec(
     'move',
-    'Move the attached session to another project, when Lee asks for it to go there: the whole session goes, with its asks, parked items, status and history, and every window holding it follows; never start a new session for this. Name the project as the board names it when it is one there; a name no project has makes a new project.',
+    `Move the attached session to another project, when ${USER.name} asks for it to go there: the whole session goes, with its asks, parked items, status and history, and every window holding it follows; never start a new session for this. Name the project as the board names it when it is one there; a name no project has makes a new project.`,
     { project: PROJECT, directory: DIRECTORY },
     ['project'],
   ),
@@ -652,7 +652,7 @@ const TOOLS = [
   posting(
     spec(
       'ask',
-      "Post an ask: something only Lee can do or decide. Ask when you cannot go on without Lee, when Lee's judgement changes what happens next, or when you leave Lee something to do, such as a release, a merge or a command to run; say it in full in the chat as well, after your last tool call: the board never stands in for the chat. Want a yes when Lee gives a go, an approval, or word that it works or is done, its button the verb Lee gives (Go, Approve, Done); a choice when Lee picks one of options, giving recommended whenever you lean toward one, never the word in an option; words when Lee must write something back, such as a command's output (needs says what). Lee's answer arrives as a message from the board, each line saying whether it closed the ask: a yes, a choice, an answer or an ignore closes it by itself, a comment going with a yes or a choice too; a comment alone leaves it open for you to act on, then resolve, unless Lee sent an answer to it apart from that message, which closes it. If Lee answers in the chat instead, resolve the ask yourself, saying so in the reason.",
+      `Post an ask: something only ${USER.name} can do or decide. Ask when you cannot go on without ${USER.name}, when ${USER.possessive} judgement changes what happens next, or when you leave ${USER.name} something to do, such as a release, a merge or a command to run; say it in full in the chat as well, after your last tool call: the board never stands in for the chat. Want a yes when ${USER.name} gives a go, an approval, or word that it works or is done, its button the verb ${USER.name} gives (Go, Approve, Done); a choice when ${USER.name} picks one of options, giving recommended whenever you lean toward one, never the word in an option; words when ${USER.name} must write something back, such as a command's output (needs says what). An answer arrives as a message from the board, each line saying whether it closed the ask: a yes, a choice, an answer or an ignore closes it by itself, a comment going with a yes or a choice too; a comment alone leaves it open for you to act on, then resolve, unless ${USER.name} sent an answer to it apart from that message, which closes it. If ${USER.name} answers in the chat instead, resolve the ask yourself, saying so in the reason.`,
       {
         wants: WANTS_BACK,
         yes: YES,
@@ -666,7 +666,7 @@ const TOOLS = [
       ['wants', 'title'],
     ),
     (session, input) => withId(checkAsk(input), session, random),
-    ({ id }) => `Posted ask ${id}. Put it to Lee in full after your last tool call.`,
+    ({ id }) => `Posted ask ${id}. Put it to ${USER.name} in full after your last tool call.`,
   ),
   posting(
     spec(

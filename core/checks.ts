@@ -38,6 +38,7 @@ import {
   type Wants,
   type Session,
 } from './types'
+import { USER } from './user'
 
 export type Checked<T> = { ok: true; value: T } | { ok: false; error: string }
 
@@ -169,7 +170,7 @@ const SHAPE_RULES: readonly [
   [
     ['wants', 'yes'],
     ({ wants, yes }) => wants === 'yes' && yes === undefined,
-    "A yes ask needs yes: its button's words, the verb Lee gives, such as Go, Approve or It works.",
+    `A yes ask needs yes: its button's words, the verb ${USER.name} gives, such as Go, Approve or It works.`,
   ],
   [
     ['wants', 'yes'],
@@ -253,7 +254,7 @@ export const checkStart = (input: unknown): Checked<StartFields> => {
 
   if (project === undefined) {
     return refuse(
-      'A session needs its project: its name as Lee would say it, such as SitRep or Switchboard.',
+      `A session needs its project: its name as ${USER.name} would say it, such as SitRep or Switchboard.`,
     )
   }
 
@@ -267,7 +268,9 @@ export const checkProject = (input: unknown): Checked<ProjectChange> => {
   const directory = directoryIn(fields.directory)
 
   if (fields.name !== undefined && name === undefined) {
-    return refuse("A project's name is one line, as Lee would say it, with a letter or a digit.")
+    return refuse(
+      `A project's name is one line, as ${USER.name} would say it, with a letter or a digit.`,
+    )
   }
 
   if (!directory.ok) {
@@ -290,7 +293,7 @@ export const checkMove = (input: unknown): Checked<MoveFields> => {
 
   if (project === undefined) {
     return refuse(
-      'Name the project to move the session to: its name as Lee would say it, such as SitRep or Switchboard.',
+      `Name the project to move the session to: its name as ${USER.name} would say it, such as SitRep or Switchboard.`,
     )
   }
 
@@ -755,7 +758,7 @@ const brokenBy = (rules: readonly AskRule[], asks: readonly Ask[]) => {
   return undefined
 }
 
-const FINISHED = 'This session is finished: its asks wait on Lee no more.'
+const FINISHED = `This session is finished: its asks wait on ${USER.name} no more.`
 
 const OLD_WINDOW =
   'A window holding this session runs an older sitrep: run /reload-plugins in it first.'
@@ -869,7 +872,7 @@ export const checkAnswer = (session: Session, input: unknown, version?: string):
 const isRefusal = <T>(checked: Checked<T>): checked is { ok: false; error: string } => !checked.ok
 
 /** Why a snooze is refused where an ask waits on Lee that the row did not show: it came in since, and is never snoozed unseen. */
-const UNSEEN = 'An ask waits on Lee that the snooze did not name: look at it, then snooze again.'
+const UNSEEN = `An ask waits on ${USER.name} that the snooze did not name: look at it, then snooze again.`
 
 /**
  * Why the asks a snooze names, those its row showed, by their ids, will not
@@ -928,7 +931,9 @@ export const checkSnooze = (
   }
 
   if (!needsLeeAt(session, now)) {
-    return refuse(`${session.status.name} needs nothing of Lee: there is nothing to snooze.`)
+    return refuse(
+      `${session.status.name} needs nothing of ${USER.name}: there is nothing to snooze.`,
+    )
   }
 
   const asks = session.asks.filter(waitsOnLee).map(ask => ask.id)

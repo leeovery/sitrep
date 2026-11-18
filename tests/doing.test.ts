@@ -213,7 +213,7 @@ test('a dialog matching no call put to Lee is logged and stops nothing', async (
   expect(answer).toEqual({})
   expect(stateIn(w, paths)).toEqual({ is: 'working', since: T0 })
   expect(w.logs).toEqual([
-    'sitrep: a permission dialog for Bash matched no call put to Lee: no stop',
+    'sitrep: a permission dialog for Bash matched no call put to the user: no stop',
   ])
 })
 
@@ -262,7 +262,7 @@ test('each stop begun and ended goes to the debug log, with its tool and how it 
 
   expect(w.logs).toEqual([
     expect.stringMatching(
-      /^sitrep: stop begun, call \S+: a permission prompt for Bash: gh pr create --fill; its dialog shown, matched by tool, loop and input to the oldest call put to Lee$/,
+      /^sitrep: stop begun, call \S+: a permission prompt for Bash: gh pr create --fill; its dialog shown, matched by tool, loop and input to the oldest call put to the user$/,
     ),
     expect.stringMatching(
       /^sitrep: stop ended, call \S+: a permission prompt for Bash: gh pr create --fill; its call settled$/,
