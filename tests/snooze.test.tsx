@@ -172,7 +172,7 @@ test("a project's Asks offers snooze on another session's ask drawn from its bri
   await snoozing(ui, item, 'week')
 
   expect(linesOf(w, MINE, 'snoozeSession')).toMatchObject([{ until: local(2026, 10, 26, 9) }])
-  expect(await ui.find({ type: 'Text', text: 'snoozed until Mon 09:00' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'snoozed until next week' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /1 waiting · 1 snoozed/ })).toBeDefined()
 })
 

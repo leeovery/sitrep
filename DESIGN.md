@@ -1108,7 +1108,7 @@ show all 4
   for a moment: a green `✓`, its title faint, `sent, and Claude has it`.
   An ask whose session Lee snoozed comes after those waiting, the soonest to
   wake first, quieted (its `◆` grey, its title dim), and hangs `snoozed until
-  Mon 09:00` with `wake now`, which wakes its session; opened, it answers as
+  tomorrow 09:00` with `wake now`, which wakes its session; opened, it answers as
   any ask does (see "Snooze").
 - **Resolved:** a section of its own at the foot of a session's view, under
   Parked, drawn once an ask has closed. Its heading counts the asks closed
@@ -2855,9 +2855,12 @@ while no `watch` ran, the app quit, brings no swell, as any line then.
 - It reads each ask's `snoozedUntil`, in the held session's fold and in the
   briefs of the sessions around it, and words it at the scene's `now`.
 - A snoozed ask stays in ASKS, after those waiting, quieted, and hangs
-  `snoozed until Mon 09:00` with `wake now`: today's time alone (`15:42`),
-  `tomorrow 09:00`, a weekday within the week, else its date
-  (`3 Nov 09:00`), or `snoozed until it moves`. Opened, it answers as any
+  `snoozed until tomorrow 09:00` with `wake now`, its time worded as the
+  app's snoozed rows word theirs (see "How each row reads" under "The
+  notch and its panel"):
+  `snoozed until 15:42`, `next week` or `3 Dec 09:00`, or `snoozed until it
+  moves`. Until 18 November 2026 it said a weekday for days two to six on
+  and a date past them, never `next week`. Opened, it answers as any
   ask does, and answering it answers it, waking its session. The heading says both: `1 waiting · 2
   snoozed`.
 - A waiting ask, opened, offers `snooze` among its buttons while any choice
@@ -5624,14 +5627,30 @@ right, Your turn's row alone on one line from 22 October 2026:
   at its right, 12 in the faint grey. An away row is drawn the same, since
   an ask Lee put off urges nothing until it wakes; it still jumps nowhere.
   In its time's place, when it wakes, in the soft grey, 12 in tabular
-  figures, 24-hour and local: today's time alone, "17:42"; within six days
-  its weekday, "Sat 09:00"; further out its date, "3 Nov 09:00"; snoozed
-  with no time, "until it moves" (13 November 2026). Its lane is the
+  figures, 24-hour and local, said by the calendar week, Monday to Sunday,
+  as Snooze counts it, the first of these that holds (Lee, 18 November
+  2026):
+
+  | When it wakes | Words | Spoken |
+  |---|---|---|
+  | today | "17:42" | "17:42" |
+  | tomorrow | "tomorrow 09:00" | "tomorrow 09:00" |
+  | later this week | "Sat 09:00" | "Saturday 09:00" |
+  | in the next week | "next week" | "next week" |
+  | further out | "3 Dec 09:00" | "3 December 09:00" |
+
+  So Sunday's tomorrow, a Monday, is "tomorrow 09:00", and a Saturday's
+  next Saturday is "next week". Snoozed with no time, it says "until it
+  moves" (13 November 2026). The pane's `snoozed until` says the same,
+  from core's `wakeWords`, the app's `WakeTime.words` its copy. Until 18
+  November 2026 the app said a weekday for each of the six days after
+  today, tomorrow among them, then a date, and the pane "tomorrow", a
+  weekday to six days on, then a date. Its lane is the
   time's 36, grown to fit the words where they are wider, still ending
   where a time does, the name and project cut short before it. The words
-  change only at midnight, so the card is drawn again then for them, never
-  each minute. Until board I it had two lines, its project under its
-  name.
+  change only at midnight, a week's edge among them, so the card is drawn
+  again then for them, never each minute. Until board I it had two lines,
+  its project under its name.
 - **a turn snoozed** (board I, 4 November 2026; see "A turn snoozes too"),
   a session's turn alone, with no ask asleep beside it, which would make
   its row a snoozed ask's (13 November 2026, "The row snoozes"): a
@@ -5684,10 +5703,17 @@ October 2026; see "Snooze"): a submenu of the choices offered, as Lee set
 them in Settings' Snooze pane: In an hour, Later today, Tonight while its
 time is to come (both 17 November 2026), Tomorrow, This weekend while its
 time is to come and Next week, each with the time it wakes on its right,
-worded as a Snoozed row words it, in white at 45%, at 70% on the
+in white at 45%, at 70% on the
 highlighted item, then a separator and Until
 it moves, with no time on its right, the same on every row (13 November
-2026). A choice runs `sitrep snooze` of the row's session
+2026). The time says only what the choice's name does not (Lee, 18
+November 2026): the clock alone where the name fixes the day, In an hour
+"15:42", Later today "18:42", Tonight "19:00" and Tomorrow "09:00"; the
+weekday and clock for This weekend, "Sat 09:00", and Next week, "Mon
+09:00" (`WakeTime.besideChoice`). A snoozed row's relative words would
+repeat the name, "Tomorrow · tomorrow 09:00". Until 18 November 2026 the
+menu worded each time as a snoozed row did then, "Sat 09:00" beside
+Tomorrow on a Friday. A choice runs `sitrep snooze` of the row's session
 with the ids of the asks the row showed, none on a your-turn row, its time
 worked out at the press, none for Until it moves, so an ask landed since
 is never snoozed unseen. A Snoozed row's menu ends with Wake now, in

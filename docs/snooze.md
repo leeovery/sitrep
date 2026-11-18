@@ -5,8 +5,8 @@ Some asks can wait until tomorrow. Snooze puts a whole session off until a time 
 ## Try it
 
 1. Hover over the notch, and right-click a session under Needs you.
-2. Choose **Snooze**, then **Tomorrow**. Beside each choice, the menu shows when it wakes, such as `Thu 09:00`.
-3. The session leaves Needs you. Unfold Snoozed at the foot of the panel, and its row says when it wakes.
+2. Choose **Snooze**, then **Tomorrow**. Beside each choice, the menu shows when it wakes, such as `09:00` beside Tomorrow.
+3. The session leaves Needs you. Unfold Snoozed at the foot of the panel, and its row says when it wakes, such as `tomorrow 09:00` or `next week`.
 
 In Claude Code, open an ask in the pane and press `snooze`, then `tomorrow`.
 

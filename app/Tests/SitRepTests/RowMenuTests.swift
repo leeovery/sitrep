@@ -94,7 +94,7 @@ struct RowMenuTests {
 
         #expect(Self.titles(menu) == ["Jump to the window", "—", "Snooze"])
         #expect(Self.choices(snooze) == [
-            "In an hour\t15:00", "Later today\t17:00", "Tonight\t18:00", "Tomorrow\tSat 09:00",
+            "In an hour\t15:00", "Later today\t17:00", "Tonight\t18:00", "Tomorrow\t09:00",
             "Next week\tMon 09:00", "—", "Until it moves",
         ])
 
@@ -124,7 +124,7 @@ struct RowMenuTests {
 
         #expect(try opened(Self.evening(-60)).contains("Tonight\t18:00"))
         #expect(try opened(Self.evening()) == [
-            "In an hour\t19:00", "Later today\t21:00", "Tomorrow\tSat 09:00", "Next week\tMon 09:00", "—",
+            "In an hour\t19:00", "Later today\t21:00", "Tomorrow\t09:00", "Next week\tMon 09:00", "—",
             "Until it moves",
         ])
     }
@@ -167,7 +167,7 @@ struct RowMenuTests {
         }
 
         #expect(Self.choices(snooze) == [
-            "Later today\t15:00", "Tonight\t20:30", "This weekend\tSun 10:00", "Next week\t30 Oct 08:30", "—",
+            "Later today\t15:00", "Tonight\t20:30", "This weekend\tSun 10:00", "Next week\tFri 08:30", "—",
             "Until it moves",
         ])
 

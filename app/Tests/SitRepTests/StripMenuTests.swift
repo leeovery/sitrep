@@ -80,7 +80,7 @@ struct StripMenuTests {
         let snooze = try #require(menu.items.first { $0.title == RowMenu.snoozeTitle }?.submenu)
 
         #expect(Self.titles(snooze) == [
-            "Later today\t17:00", "Tonight\t18:00", "Tomorrow\tSat 09:00", "This weekend\tSat 09:00",
+            "Later today\t17:00", "Tonight\t18:00", "Tomorrow\t09:00", "This weekend\tSat 09:00",
             "Next week\tMon 09:00", "—", "Until it moves",
         ])
     }

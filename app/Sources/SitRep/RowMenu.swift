@@ -86,7 +86,13 @@ final class SnoozeMenu: NSMenu, NSMenuDelegate {
         let untils = choices.map { $0.wakes(after: now, in: calendar, settings: settings) }
 
         self.choices = choices
-        times = untils.map { $0.map { WakeTime.words($0, at: now, in: calendar) } ?? "" }
+        times = zip(choices, untils).map { time, until in
+            guard case let .at(choice) = time, let until else {
+                return ""
+            }
+
+            return WakeTime.besideChoice(choice, wakes: until, in: calendar)
+        }
         super.init(title: RowMenu.snoozeTitle)
         autoenablesItems = false
         delegate = self
