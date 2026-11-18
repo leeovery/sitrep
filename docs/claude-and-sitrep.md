@@ -12,7 +12,7 @@ You keep talking to Claude in the chat, and Claude keeps the board as it works. 
 ## What happens
 
 - **Claude starts a session for work that lasts.** That means work across several turns, or work that will need you, such as a feature or a design. A quick question gets no session.
-- **Each conversation starts with a guide.** The first message tells Claude how to keep the board. It also lists the sessions on the board, each with its session id.
+- **Each conversation starts with a guide.** The first message tells Claude how to keep the board. It also lists the current sessions, each with its session id.
 - **Claude joins a session you carry on with.** Say "let's carry on with the help desk redesign" in a new window, and Claude joins that session by its id. It joins again after `/clear` too. A resumed conversation takes up its session by itself.
 - **Claude asks only when it needs you.** It posts an ask when it can't go on without you, or when your judgement changes what comes next. It also asks when it leaves you something to do, such as a merge. It says the ask in full in the chat as well.
 - **The shape follows what you give back.** A go or an approval is a yes. Claude words its button as the go you'd give, such as `✓ Go` or `✓ Ship it`. One of several options is a choice, with the option Claude leans toward marked `· recommended`. Something you write back is a words ask.
@@ -37,11 +37,11 @@ Claude calls these tools. You never call them yourself.
 | `park` | Parks something for later, on the project |
 | `resolve` / `reopen` / `edit` | Closes, reopens or corrects an item, with a reason if given |
 | `finish` | Finishes the session once nothing is left on it |
-| `project` / `move` | Renames the project or says where it lives; moves the session at your word |
+| `project` / `move` | Renames the project or says where it lives; moves the session at your word, making the project if the name is new |
 | `board` | Reads the board back, so Claude can check and repair it |
 
 ## Related
 
-- [What waits on you](asks.md)
+- [Asks: what waits on you](asks.md)
 - [Answering from the board](answering.md)
 - [Sessions outlive their windows](sessions.md)

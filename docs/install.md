@@ -46,10 +46,10 @@ Apart from opening the app, SitRep works without any of these.
 |---|---|---|
 | Opening an app from the internet | The first time you open SitRep | Not kept: asked once |
 | Control Ghostty | Your first click that goes to Ghostty, or **Allow…** | Privacy & Security › Automation |
-| Notifications | When you turn a banner on | Notifications, in the SitRep row |
-| Open at login | During the first welcome | General › Login Items |
+| Notifications | When you turn a banner on | Notifications, in the SitRep entry |
+| Open at login | During the first welcome window | General › Login Items |
 
-**Allow…** for Ghostty is in the welcome window, which opens Ghostty first if it isn't running. Settings › General shows it too, until macOS has asked. **Turn On…** in the welcome turns on the banner for a new ask. If macOS holds Open at login for your approval, Settings › General says "Waiting for your approval in System Settings › Login Items".
+**Allow…** for Ghostty is in the welcome window, which opens Ghostty first if it isn't running. Settings › General shows it too, until macOS has asked. **Turn On…** in the welcome window turns on the banner for a new ask. If macOS holds Open at login for your approval, Settings › General says "Waiting for your approval in System Settings › Login Items".
 
 ## Updating
 

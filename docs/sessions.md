@@ -36,7 +36,7 @@ A session is one line of work with Claude, kept on the board. It keeps its statu
 | Finish one no window runs | `✓ finish this session` in the pane |
 | See old sessions | `show old sessions` in a project |
 
-The `sitrep` command can also move and finish sessions: see [The sitrep command](cli.md).
+The `sitrep` command can also move and finish sessions: see [The `sitrep` command](cli.md).
 
 ## Related
 

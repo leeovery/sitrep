@@ -37,7 +37,7 @@ Now:
 - Laying out the ticket page
 Next: The replies page
 Open asks:
-- xsaq wants a choice, waiting on the user: Pick the editor for replies; options: Threaded | Flat; recommended: Threaded
+- xsaq wants a choice, waiting on the user: Thread replies, or keep them flat?; options: Threaded | Flat; recommended: Threaded
 - 7way wants a yes (Approve), waiting on the user: Review the ticket page
 Parked:
 - dbp3: Dark mode for the help desk
@@ -101,7 +101,7 @@ An ask takes `--wants`, and then the flags for its shape:
 For example, a choice, which prints the new ask id:
 
 ```console
-$ sitrep ask Pick the editor for replies \
+$ sitrep ask "Thread replies, or keep them flat?" \
     --wants choice \
     --option Threaded --option Flat \
     --recommended Threaded \
@@ -109,7 +109,7 @@ $ sitrep ask Pick the editor for replies \
 xsaq
 ```
 
-The title needs no quotes: every word that isn't a flag goes into it. Both `ask` and `park` also take two flags:
+Every word that isn't a flag goes into the title. Quote the title if it holds a character the shell reads, such as `?`. Both `ask` and `park` also take two flags:
 
 - `--where <words>` says in words where to look.
 - `--ref <ref>` points to your own record of the item.
@@ -119,7 +119,7 @@ The title needs no quotes: every word that isn't a flag goes into it. Both `ask`
 - **`status`** takes `--name`, `--summary`, `--now` and `--next`. Give `--now` once for each line under way: together they replace the whole list. `--now ""` empties it, and `--next ""` clears it.
 - **`answer`** takes the ask id, then the answer. For a yes, that is the word on its button, such as `Approve`. For a choice, it is one of the options. Give `--ignore` in place of an answer to ignore any ask. An answer to a words ask, or a comment, needs the Claude Code prompt. The answer goes into the session's inbox. The Claude Code window running that session sends it to Claude as your own message, now or once a window takes the session up.
 - **`snooze`** names every ask waiting on you in the session, so none is snoozed unseen. A session at your turn with no asks takes no ids. `--until <ms>` sets the wake time, in milliseconds since the epoch. Without it, the session sleeps until it moves.
-- **`list`** shows the sessions that aren't finished and have a window, an ask waiting, or a change in the last week. Projects whose directory holds your current folder come first. `--project <name>` lists only that project.
+- **`list`** shows the current sessions. Projects whose directory holds your current folder come first. `--project <name>` lists only that project.
 
 For example, approve the review from the sample, then snooze the session for an hour:
 

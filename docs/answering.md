@@ -43,6 +43,6 @@ An ask waits in the pane with its buttons, so you answer it without finding the 
 
 ## Related
 
-- [What waits on you](asks.md)
+- [Asks: what waits on you](asks.md)
 - [The board in Claude Code](pane.md)
 - [Putting a session off](snooze.md)

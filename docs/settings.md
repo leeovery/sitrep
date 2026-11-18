@@ -21,13 +21,7 @@ SitRep types the command only for a session that no terminal on this Mac shows. 
 cd {dir} && claude --resume {claude}
 ```
 
-SitRep replaces each placeholder with a quoted value:
-
-- `{claude}`: the Claude Code session id;
-- `{dir}`: the folder the session ran in;
-- `{tty}`: the terminal that Claude still runs on, empty unless it does.
-
-**Restore Default** puts the default back.
+SitRep replaces each placeholder with a quoted value: see [A click takes you there](jump.md). **Restore Default** puts the default back.
 
 ## Edge
 
@@ -44,7 +38,7 @@ What stands at the edge of your screen. See [The edge of your screen](notch.md).
 | Material | Black, Glass | Black | The look, from macOS 26 |
 | Reduce motion | On, off | Off | Less movement at the edge |
 
-The pane shows only the rows for your choice under Show. Style is for the notch only. Length and Max are for the strip only, and Max shows only at Grows. With Nothing, the menu bar item carries the board, and the pane holds only Show.
+The pane shows only the settings for your choice under Show. Style is for the notch only. Length and Max are for the strip only, and Max shows only at Grows. With Nothing, the menu bar item carries the board, and the pane holds only Show.
 
 ## Notifications
 
@@ -61,7 +55,7 @@ What a new ask does, and what Claude stopping does. See [Sounds, banners and the
 | Pulse for a new ask | On, off | On | Swells and flashes for an ask or a prompt |
 | Pulse when Claude stops | On, off | Off | The notch swells and flashes |
 
-At the top of the pane, **Send Test** sends a sample banner. Under the banner switches, a row says what macOS allows. If macOS stops banners, **Notification Settings…** opens the place in System Settings to allow them.
+At the top of the pane, **Send Test** sends a sample banner. Under the banner switches, a setting says what macOS allows. If macOS stops banners, **Notification Settings…** opens the place in System Settings to allow them.
 
 ## Snooze
 

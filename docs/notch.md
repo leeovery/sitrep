@@ -38,7 +38,7 @@ SitRep shows the board at the edge of your Mac's screen, whatever app you are in
 | Blue ring | Stopped: your turn |
 | Grey ring, arc turning | Working |
 | Dotted grey ring | Waiting on work of its own |
-| Dimmed ring, faint letters | Snoozed |
+| Faint ring and letters | Snoozed |
 | Lit ring, dim letters | Waits on you, but no terminal on this Mac shows it |
 | A number, such as "+3" | More sessions than the section has room for |
 | A number with no plus, such as "3" | A folded section; Snoozed starts folded |

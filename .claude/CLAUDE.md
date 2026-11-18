@@ -162,7 +162,8 @@ Name nothing real: no person, account, machine, session id or other
 project. Use these placeholders: projects Northwind, Contoso, Fabrikam,
 Tailspin, Woodgrove and Litware; sessions "Help desk redesign", "Shift
 schedules", "Invoice ledger", "Onboarding flow", "Mobile app" and "Data
-import"; ids such as `sr-nw0001`. Check every name against `tests/real-names.txt`.
+import"; ids such as `sr-nw0001`. Check every name against
+`tests/real-names.txt`.
 
 The docs call the person "you", never Lee. Claude's own texts say "the
 user".
