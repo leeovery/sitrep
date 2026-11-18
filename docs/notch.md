@@ -30,7 +30,7 @@ SitRep shows the board at the edge of your Mac's screen, whatever app you are in
 
 ## Reference
 
-![The strip at the left edge of the screen: a narrow black column with a ring for each session, each ring holding two letters of the project. Orange rings need you, blue rings are Stopped, and grey rings with a turning arc are working. Hairlines divide the sections.](../art/screens/strip.webp)
+<img src="../art/screens/strip.webp" alt="The strip at the left edge of a Mac's screen: a narrow black column with a ring for each session, each holding two letters of its project. At the top, two orange rings with a glow need you, then two blue rings with a glow are Stopped. Below a hairline, two grey rings with a pale arc are working, and a dotted grey ring is on its own work. Below a second hairline, a faint orange ring and a faint blue ring are snoozed" width="220">
 
 | A mark on the strip | Means |
 |---|---|
