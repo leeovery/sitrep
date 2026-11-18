@@ -14,7 +14,7 @@ Claude keeps a board as it works: where each session stands, what it needs from 
 [![Swift](https://img.shields.io/badge/Swift-6.0+-F05138.svg)](https://www.swift.org)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-D97757.svg)](#claude-and-sitrep)
 
-[Install](#install) · [Quick start](#quick-start) · [How it works](#how-it-works) · [Claude and sitrep](#claude-and-sitrep) · [The board in Claude Code](#the-board-in-claude-code) · [SitRep, the app](#sitrep-the-app) · [Commands](#commands) · [Developing](#developing)
+[Screens](#screens) · [Install](#install) · [Quick start](#quick-start) · [How it works](#how-it-works) · [Claude and sitrep](#claude-and-sitrep) · [The board in Claude Code](#the-board-in-claude-code) · [SitRep, the app](#sitrep-the-app) · [Commands](#commands) · [Developing](#developing)
 
 </div>
 
@@ -31,6 +31,14 @@ With several Claude Code windows open across several projects, what waits on you
 - **Sessions outlive their windows.** After a `/clear`, or in a new Claude told to carry on, it is the same session, with its status and asks. What a session parks is its project's, for any session of the project to pick up.
 - **Put a session off.** Snooze it for an hour, until later today, tonight, tomorrow, this weekend or next week, or until it moves; its asks and its turn count nowhere until it wakes. Settings' Snooze pane switches each on or off and sets its time, and Claude Code's pane offers the same.
 - **Best effort, and honest.** A missed update breaks nothing, and the board never says Claude knows something it wasn't told.
+
+## Screens
+
+|  |  |
+|:---:|:---:|
+| <img src="art/screens/pane-home.svg" alt="The board in Claude Code, at home: two asks, the first opened, its options as buttons with Markdown marked recommended; then the session's status and what it parked" width="400"><br>**The pane**<br>What this session needs from you, answered in place | <img src="art/screens/pane-project.svg" alt="The board in Claude Code on a project's view: its two sessions, each with what it is doing and its waiting count, then every ask and parked item of the project" width="400"><br>**A project**<br>Every session of a project, and all it waits on |
+| <img src="art/screens/notch.png" alt="SitRep's notch at the left edge of the screen, open: Needs you lists two sessions with asks and one stopped, Working one still at work" width="400"><br>**The notch**<br>Every session at the edge of your screen, a click from its window | <img src="art/screens/strip.png" alt="SitRep's strip at the left edge of the screen: a ring for each session, the second opened into a tab naming the session and its project" width="400"><br>**The strip**<br>A ring for each session, its words a hover away |
+| <picture><source media="(prefers-color-scheme: light)" srcset="art/screens/settings-snooze-light.png"><img src="art/screens/settings-snooze.png" alt="Settings' Snooze pane: Snooze's six choices, each with a switch, and its time where it has one" width="400"></picture><br>**Settings › Snooze**<br>When each of Snooze's choices wakes a session | |
 
 ## Install
 
@@ -200,6 +208,8 @@ swift test --package-path app     # the app's tests
 ```
 
 `app/build` builds the app, signs it with the Developer ID, installs it to `/Applications/SitRep.app` over the cask's copy and starts it, replacing the one running, so the login item and macOS's permissions carry over. It doesn't notarize: a build installed from a checkout is never quarantined. It changes the plugin too: while SitRep's copy is the plugin, the build's start refreshes the copy from what the build carries, so every Claude window runs the building checkout's mod from its next `/reload-plugins`. `brew reinstall --cask sitrep` puts the release back, leaving SitRep stopped, so open it, or run `app/open`, after; the next release's `brew upgrade` replaces the build.
+
+`app/screens` draws the screens above again into `art/screens`, with nothing shown on the screen: the pane from the mod's own drawing, as SVGs, and the notch, the strip and Settings from the app's, as PNGs at 2x, each over a made-up board. Run it whenever the look changes, and commit what it draws.
 
 ## Releasing
 
