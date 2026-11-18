@@ -17,6 +17,8 @@ final class NotchFilm {
     private let surface: NotchSurface
     private let setting: NotchRun.Setting
     private let mirror: CGAffineTransform
+    /// The wall clock the rows' times are as of, ms, held for the film.
+    private let now: Double
     private let shot: EdgeShot
     private let folder: URL
     /// The run's time when the film starts.
@@ -25,15 +27,16 @@ final class NotchFilm {
     private var time = 0.0
     private var shots: [(name: String, at: Double)] = []
 
-    /// The run, warmed up and drawn, filmed over `cut` on the stage into `folder`.
+    /// The run, warmed up and drawn, filmed over `cut` on the stage into `folder`, its rows' times as of `now`.
     init(
-        _ run: NotchRun, surface: NotchSurface, setting: NotchRun.Setting, mirror: CGAffineTransform, cut: CGRect,
-        into folder: URL
+        _ run: NotchRun, surface: NotchSurface, setting: NotchRun.Setting, mirror: CGAffineTransform, now: Double,
+        cut: CGRect, into folder: URL
     ) throws {
         self.run = run
         self.surface = surface
         self.setting = setting
         self.mirror = mirror
+        self.now = now
         self.folder = folder
         start = run.time
         shot = try EdgeShot(surface, cut: cut)
@@ -82,7 +85,7 @@ final class NotchFilm {
     private func frame(_ pointer: CGPoint, shoots: Bool) throws {
         time += Self.frameMS
         run.step(NotchRun.Moment(time: start + time, pointer: pointer, pointerAt: start + time, setting: setting))
-        surface.draw(run, in: setting, mirror: mirror)
+        surface.draw(run, in: setting, mirror: mirror, now: now)
         if shoots {
             try shoot(pointer)
         }
