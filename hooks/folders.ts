@@ -24,8 +24,17 @@ export const folderKeys = async (host: Host, root: string) =>
  * it is: the one whose session.json of it reads, `first` tried first;
  * undefined when none does.
  */
-export const folderHolding = async (host: Host, root: string, id: string, first?: string) => {
-  const keys = await folderKeys(host, root)
+export const folderHolding = async (host: Host, root: string, id: string, first?: string) =>
+  folderAmong(host, root, await folderKeys(host, root), id, first)
+
+/** The key of the folder holding a session, as `folderHolding` finds it, among `keys`, folders listed once for several sessions. */
+export const folderAmong = async (
+  host: Host,
+  root: string,
+  keys: readonly FolderKey[],
+  id: string,
+  first?: string,
+) => {
   const tried = [...keys.filter(key => key === first), ...keys.filter(key => key !== first)]
 
   for (const key of tried) {

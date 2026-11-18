@@ -484,3 +484,61 @@ test("a reply sent into a session's inbox, from an older build, whose item Lee d
 
   expect(await ui.find({ type: 'Text', text: '· not delivered: you dropped it' })).toBeDefined()
 })
+
+test("a held send let go, its only pick-up's item dropped meanwhile, gives its place to the send held behind it, which goes as the same turn ends", async ($, on) => {
+  const w = world($, on)
+  const { ui } = await besideLedger(w, OPEN)
+  const posted = await asked(w, REVIEW)
+
+  await pickUpLedgers(ui)
+  await w.turnStarts('Carry on.')
+  await ui.press({ key: 'send' })
+  await ui.press({ key: `pick:${w.item(posted)}` })
+  await ui.press({ key: `yes:${w.item(posted)}` })
+  await ui.press({ key: 'send' })
+  expect(w.flights().map(each => each.isHeld), 'both held').toEqual([true, true])
+
+  w.put(LEDGER_OWN, file(...OPEN.lines, [w.clock.now(), drop('p1')]))
+  await w.turnEnds()
+
+  expect(w.submitted).toEqual([
+    `From the board:\n- Review Tickets & Replies, round 1 → Approve${CLOSES}`,
+  ])
+  expect(w.flights().map(each => each.isHeld), 'the second, on its way').toEqual([false])
+})
+
+test("a send held for Claude's turn goes without a pick-up whose item another window picked up meanwhile", async ($, on) => {
+  const w = world($, on)
+  const { ui } = await besideLedger(w, OPEN)
+
+  await pickUpLedgers(ui)
+  await w.turnStarts('Carry on.')
+  await ui.press({ key: 'send' })
+  w.put(
+    sessionPaths(ROOT, PROJECT.key, LEDGER.id).log(W4),
+    file([w.clock.now(), reply('r9', 'p1', 'pickup')], [w.clock.now(), delivered('r9')]),
+  )
+  await w.turnEnds()
+  await w.clock.settle()
+
+  expect(fromTheBoard(w), 'nothing to Claude').toEqual([])
+  expect(w.flights(), 'let go').toEqual([])
+  expect(w.files.has(LEDGER_LOG)).toBe(false)
+})
+
+test("a send held for Claude's turn goes without a pick-up of the held session's own item Claude closed meanwhile, as of another session's", async ($, on) => {
+  const w = world($, on)
+  const { ids, ui } = await parked(w, BADGE)
+  const id = ids[0] ?? ''
+
+  await ui.press({ key: `ppick:${w.item(id)}` })
+  await ui.press({ key: `pickup:${w.item(id)}` })
+  await w.turnStarts('Carry on.')
+  await ui.press({ key: 'send' })
+  await w.call('resolve', { item: id, reason: 'Done already' })
+  await w.turnEnds()
+  await w.clock.settle()
+
+  expect(fromTheBoard(w), 'nothing to Claude').toEqual([])
+  expect(w.flights(), 'let go').toEqual([])
+})

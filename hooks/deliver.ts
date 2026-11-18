@@ -54,7 +54,7 @@ import type {
 } from '../types'
 import { betweenTurns } from './activity'
 import { filedNow, foldAt, lookAround } from './around'
-import { folderHolding } from './folders'
+import { folderAmong, folderHolding, folderKeys } from './folders'
 import { logFailure, rootFor, type Host } from './host'
 import { writeHeld, writeInto, type Into } from './into'
 import { isCarriedBy, namedIn, queuing, repliedTo, unqueuing } from './queue'
@@ -753,40 +753,77 @@ const isLined = (flight: SitrepInFlight): flight is SitrepInFlight & { lines: st
   flight.lines.length === flight.replies.length &&
   flight.lines.every(line => typeof line === 'string')
 
-/**
- * Whether a reply a claim carries is a pick-up of what another session
- * parked whose item has left Parked since, as that session stands now:
- * dropped by Lee, picked up from another window, or closed by Claude; not
- * by this pick-up itself, written down already by a write cut short. No
- * heartbeat says such a pick-up, so nothing else bars it once claimed. One
- * whose session or item does not read has not, and goes as claimed.
- */
-const hasLeftParked = async (
-  host: Host,
-  flight: SitrepInFlight,
-  reply: SitrepReplyBody,
-  now: number,
-) => {
-  const { session, item } = repliedTo(flight, reply.item)
+/** Each session by its id, as it stands now; one not read, none. */
+type ReadNow = ReadonlyMap<string, Session | undefined>
 
-  if (session === flight.session) {
-    return false
+/**
+ * Each session a claim's pick-ups name, its own among them, as it stands
+ * now, each read once, the folders listed once for them all; none where it
+ * carries no pick-up.
+ */
+const pickedFromNow = async (host: Host, flight: SitrepInFlight): Promise<ReadNow> => {
+  const sessions = [
+    ...new Set(
+      flight.replies
+        .filter(reply => reply.verdict === 'pickup')
+        .map(reply => repliedTo(flight, reply.item).session),
+    ),
+  ]
+
+  if (sessions.length === 0) {
+    return new Map()
   }
 
-  const root = await rootFor(host)
-  const folder = await folderHolding(host, root, session, flight.project)
-  const read =
-    folder === undefined ? undefined : await foldAt(host, root, { project: folder, session }, now)
-  const parked = read?.items.get(item)
+  const [root, now] = await Promise.all([rootFor(host), host.clock.now()])
+  const keys = await folderKeys(host, root)
+  const read = await Promise.all(
+    sessions.map(async session => {
+      const folder =
+        session === flight.session
+          ? flight.project
+          : await folderAmong(host, root, keys, session, flight.project)
 
-  return parked?.type === 'park' && parked.state !== 'parked' && parked.answer?.id !== reply.id
+      return folder === undefined
+        ? undefined
+        : await foldAt(host, root, { project: folder, session }, now)
+    }),
+  )
+
+  return new Map(sessions.map((session, i) => [session, read[i]]))
 }
 
 /**
- * A held send as it can go now: without each pick-up whose item has left
- * Parked since the claim (`hasLeftParked`), written again from the lines
+ * Whether a reply a held claim carries goes as its sessions stand now
+ * (`pickedFromNow`): any but a pick-up does; a pick-up while its item is
+ * parked still, or picked up by this pick-up itself, written down by a
+ * write cut short; the held session's own judged as any other's. A session
+ * that does not read at all is no word that its item left, and its
+ * pick-ups go as claimed, as a send already made goes; but one read in
+ * part, a log's read failing, can show an item gone that is not, and its
+ * pick-up is held back, safely: in Ready to send again, it goes with Lee's
+ * next send.
+ */
+const goesNow = (flight: SitrepInFlight, read: ReadNow, reply: SitrepReplyBody) => {
+  if (reply.verdict !== 'pickup') {
+    return true
+  }
+
+  const { session, item } = repliedTo(flight, reply.item)
+  const parked = read.get(session)?.items.get(item)
+
+  return (
+    parked?.type !== 'park' || parked.state === 'parked' || parked.answer?.id === reply.id
+  )
+}
+
+/**
+ * A held send as it can go now: without each pick-up that would not
+ * (`goesNow`), its item dropped, picked up from another window or closed
+ * by Claude since the claim, no heartbeat saying a pick-up of another
+ * session's item to bar it once claimed. Written again from the lines
  * left, so Ready to send, carrying it no more, says why it stays; none
- * where nothing is left. Any other goes as claimed.
+ * where nothing is left. Any other goes as claimed, as does one an older
+ * load claimed, which kept no lines.
  */
 const goingNow = async (
   host: Host,
@@ -796,18 +833,15 @@ const goingNow = async (
     return flight
   }
 
-  const now = await host.clock.now()
-  const left = await Promise.all(
-    flight.replies.map(reply => hasLeftParked(host, flight, reply, now)),
+  const read = await pickedFromNow(host, flight)
+  const kept = flight.replies.flatMap((reply, i) =>
+    goesNow(flight, read, reply) ? [{ reply, line: flight.lines[i] ?? '' }] : [],
   )
 
-  if (!left.includes(true)) {
+  if (kept.length === flight.replies.length) {
     return flight
   }
 
-  const kept = flight.replies.flatMap((reply, i) =>
-    left[i] === true ? [] : [{ reply, line: flight.lines[i] ?? '' }],
-  )
   const lines = kept.map(each => each.line)
 
   return kept.length === 0

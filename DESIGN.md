@@ -1329,19 +1329,30 @@ show all 4
     another session's item (under Delivery), so another window's, claimed
     before the drop and held for its Claude's turn, would otherwise go in
     after it, minutes later. A held send is read again as it goes
-    (deliver.ts's `goingNow`): each pick-up of what another session parked whose
-    item has left Parked since the claim, dropped, picked up from another
-    window or closed by Claude, is left out, and the message written again
-    from the lines left, each reply's line kept on the claim (`lines`) as
-    the send makes it. Ready to send, the send carrying it no more, says
-    why at the next look (`· not sent: you dropped it`, `· not sent: Claude
-    closed it`); a send left with nothing is let go, as a take-back lets it
-    go, and the next held goes in its place. What is left is a drop landing
-    between that read and Claude Code taking the message, milliseconds;
-    there Claude has the pick-up, and it is written down as given, as the
-    board never denies Claude what it was told: the item stays dropped, the
-    first close standing, as of two windows' pick-ups of one item. A claim
-    an older load made carries no lines, and goes as claimed.
+    (deliver.ts's `goingNow`): each pick-up whose item has left Parked
+    since the claim, dropped, picked up from another window or closed by
+    Claude, is left out, and the message written again from the lines
+    left, each reply's line kept on the claim (`lines`) as the send makes
+    it. The held session's own items are judged as any other session's,
+    so Claude's own close of one mid-hold leaves its pick-up out too. Each
+    session the pick-ups name is read once a pass, the folders listed once
+    for them all, so the read adds little between the turn's end and the
+    submit. Ready to send, the send carrying it no more, says why at the
+    next look (`· not sent: you dropped it`, `· not sent: Claude closed
+    it`); a send left with nothing is let go, as a take-back lets it go,
+    and the next held goes in its place, in the same pass. A session that
+    does not read at all is no word that its item left, so its pick-ups go
+    as claimed; one read in part, a log's read failing, can show an item
+    gone that is not, and its pick-up is held back, safely, in Ready to
+    send again for Lee's next send. What is left is a drop landing between
+    that read and Claude Code taking the message, milliseconds; there
+    Claude has the pick-up, and it is written down as given, as the board
+    never denies Claude what it was told: the item stays dropped, the first
+    close standing, as of two windows' pick-ups of one item. A claim an
+    older load made carries no lines, and goes as claimed. Where the
+    session that parked the item moves to another project mid-hold, the
+    message goes as sent, as "A window that changes project" under
+    Delivery has it.
   - **Claude's `reopen` brings it back**, as it brings back any parked
     item picked up or closed: into Parked and Claude's board text again.
     A drop has no undo on the pane, so a word to Claude in the chat is
