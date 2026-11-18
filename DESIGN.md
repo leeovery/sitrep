@@ -4763,12 +4763,14 @@ carries `app/` too; it is small, and accepted.
 **Installing and updating**, decided with Lee on 14 October 2026: app first.
 How the app updates changed on 16 October 2026 (Sparkle, below), and on 27
 October 2026 went back to `brew upgrade` while the repository was private.
+On 18 November 2026, with the repository public, Lee settled on Homebrew
+alone: there is no Sparkle.
 
 - **On a Mac, sitrep is the app**, from a Homebrew cask in `homebrew-tools`,
   and from nowhere else (no download of its own), so every install updates
   the same way. That way was `brew upgrade` until 16 October 2026, when the
   app was to update itself; it is `brew upgrade` again since 27 October
-  2026, until Sparkle is built. The app the cask downloads is quarantined,
+  2026, and stays so. The app the cask downloads is quarantined,
   so a release is signed with Lee's Developer ID and notarized (stage 4).
   The cask exists since 27 October 2026, `Casks/sitrep.rb` in
   `leeovery/homebrew-tools`: `brew install --cask leeovery/tools/sitrep`.
@@ -4817,7 +4819,9 @@ October 2026 went back to `brew upgrade` while the repository was private.
   turns them on in Settings, the leave to control Ghostty is asked at the
   first jump or from General, and starting at login is General's (all
   moved there since 14 October 2026, which had the install wait on them).
-  Built 20 October 2026 (stage 3, step 9).
+  Built 20 October 2026 (stage 3, step 9). Since 2 November 2026 the first
+  welcome window offers the three, and registers SitRep at login unless
+  Lee turns the switch off (see "The welcome window").
 - **Anything of sitrep SitRep did not install is left exactly as it is.**
   SitRep reads `claude plugin marketplace list --json` and `claude plugin
   list --json` as it starts, and decides from both. It adds and installs
@@ -4856,17 +4860,17 @@ October 2026 went back to `brew upgrade` while the repository was private.
   second later, the wait doubling to half a minute, as `watch`'s back-off
   does, until a look goes well; `watch` starts again only when the folder
   it settles on is another.
-- **The app is to update itself, with Sparkle**, once the repository is
-  public (16 October 2026). Its feed is to be published with each GitHub
-  release. The cask stays the way to install, marked `auto_updates true`, so
-  brew leaves updates to the app: one updater. Sparkle was ruled out on 14
-  October, since `brew upgrade` already updates a cask. That was reversed
-  because `brew upgrade` reaches only those who run it, where an app that
-  updates itself reaches everyone, and knows when the plugin changed. It
-  waited while the repository was private (27 October 2026), as the feed,
-  and the zips it names, would have needed GitHub's authentication; the
-  repository is public since 18 November 2026. Until Sparkle is built,
-  `brew upgrade` updates the app.
+- **Homebrew updates the app; there is no Sparkle** (Lee, 18 November
+  2026). `brew upgrade` replaces the app and Homebrew reopens it, and the
+  app's start moves the plugin with it (below), so a second updater would
+  only update the same app another way. Sparkle was ruled out on 14
+  October, since `brew upgrade` already updates a cask. It was taken back on
+  16 October, because `brew upgrade` reaches only those who run it, where an
+  app that updates itself reaches everyone. It then waited while the
+  repository was private (27 October 2026), as the feed, and the zips it
+  names, would have needed GitHub's authentication. Once the repository was
+  public, the menu's Check for Updates…, and General's Update automatically
+  and Check Now, were dropped with it.
 - **After an update** the app refreshes its copy of the plugin, so one
   update moves both, and their versions never part. Windows on the old mod
   show as needing `/reload-plugins` (see "Versions side by side"). First
@@ -4882,11 +4886,8 @@ October 2026 went back to `brew upgrade` while the repository was private.
   marketplace loads in place, so the copy is what each window takes up at
   its next `/reload-plugins`; the two updates keep Claude's record of it
   current. With all the same, it does nothing.
-- **Sparkle is built at the first public release.** It first waited on a
-  Developer ID too, which Lee had by 27 October 2026 (stage 4). It must be
-  testable locally first: a feed served from this Mac, and two builds signed
-  with the Developer ID. Since the first release (28 October 2026) this Mac
-  runs the cask's SitRep, and builds over it (below).
+- **This Mac runs the cask's SitRep** since the first release (28 October
+  2026), and builds over it (below).
 - **Everyone else** (Linux, Windows, no menu bar wanted) was to install the
   plugin alone from the GitHub marketplace: `claude plugin marketplace add
   leeovery/sitrep`, then `claude plugin install sitrep@sitrep`. Since 27
@@ -4898,8 +4899,8 @@ October 2026 went back to `brew upgrade` while the repository was private.
   plugin's version moved on (a Claude mod compiling a Mac app, and Xcode's
   tools wanted on every Mac); the Mac App Store, whose sandbox forbids
   running another program (even tmux's queries), controlling Ghostty, and
-  writing Claude's settings. Sparkle was ruled out here too, and taken back
-  on 16 October 2026 (above).
+  writing Claude's settings. Sparkle was ruled out here too, taken back on
+  16 October 2026, and dropped on 18 November 2026 (above).
 
 **On this Mac**, since the first release (28 October 2026), as on any
 other: SitRep from the cask, at `/Applications/SitRep.app`, and the plugin
@@ -6331,9 +6332,8 @@ asked for the sessions back, and approved the redraw as it stands.
     doesn't mean anything… If that's meant to be the 'show welcome' or
     'show onboarding' again, then say so.";
   - **Settings… ⌘,**, the Settings window (see "Settings");
-    **Check for Updates…**, with Sparkle, from the first public release
-    (see "Installing and updating");
-    **Quit SitRep ⌘Q**.
+    **Quit SitRep ⌘Q**. No Check for Updates…: Homebrew updates the app
+    (18 November 2026; see "Installing and updating").
 - **About Spaceman's width, a little wider** (Lee, 20 October 2026): the
   whole menu is 340 points, the one number to tune. A native menu is as
   wide as its widest item, so each row's title is cut at its tail with an
@@ -6931,8 +6931,8 @@ live changed, and how they group.
   attaches to a session still running, with {session}, {socket} and
   {pane}. The resume command starts Claude again where nothing is left,
   with {claude}, its session id, and {dir}, the folder it ran in. Each is
-  replaced with a quoted value." No row carries an icon. Update
-  automatically and Check Now join General with the first public release.
+  replaced with a quoted value." No row carries an icon. General has no
+  update rows: Homebrew updates the app (18 November 2026).
 - **Claude Code**, the plugin's pane. **Plugin:** the Claude Code plugin,
   "Puts each Claude Code session on the board", up to date; with every
   window current, that row is the pane. The plugin's folder and its version
@@ -7004,7 +7004,7 @@ standard About panel, which draws its icon smaller.
   then "The board for your Claude Code sessions", and "Made by Lee Overy",
   where a Mac app's copyright line goes.
 - **Nothing to change, and nothing more in it:** no title, no links, no
-  licences, no update button; Check for Updates… stays in the menu. Only its
+  licences, no update button, as Homebrew updates the app. Only its
   close button is live, and it or ⌘W shuts it. It opens centred, in the
   upper part of the screen, on the Space Lee is on, and otherwise stays on
   its own, as Settings does.
@@ -8595,8 +8595,8 @@ open), and tmux passing an escape sequence through from Claude's own pane
    - **The repository stayed private** until 18 November 2026, and the
      cask needed a GitHub token until then: a new Mac gets SitRep from the
      cask in `leeovery/homebrew-tools`. Sparkle waited until the repository
-     was public, and `brew upgrade` updates the app meanwhile (see
-     "Installing and updating").
+     was public, and was then dropped: `brew upgrade` updates the app (18
+     November 2026; see "Installing and updating").
    - **mint cuts a release** (`./release`): the version, in `plugin.json`,
      which the app takes, the tag `v<version>`, and the GitHub release. Its
      `pre_tag` runs every gate, since no CI does, then builds the release
