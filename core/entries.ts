@@ -133,6 +133,7 @@ const SHAPES: { [T in Body['type']]: Record<string, Check> } = {
     to: maybe(isText),
   },
   delivered: { replies: isTexts },
+  drop: { item: isText },
   finish: { who: isFinisher, reason: maybe(isText) },
   unfinish: {},
   move: { project: isKey },

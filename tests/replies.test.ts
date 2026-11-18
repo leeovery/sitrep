@@ -8,6 +8,7 @@ import {
   deliverer,
   deliveryOf,
   FROM_THE_BOARD,
+  messageText,
   parseEntries,
   replyState,
   sentLines,
@@ -790,7 +791,7 @@ test("a pick-up of an item another session of the project parked goes in the mes
   expect(message?.replies).toEqual(replies)
 })
 
-test('the message leaves out replies that fit no item, and says which it carries; it is nothing when none fits', () => {
+test("the message leaves out replies that fit no item, and says which it carries and each one's line in it, its text the lines under From the board; it is nothing when none fits", () => {
   const session = fold({ logs: { [W1]: file(...POSTED) } })
 
   expect(
@@ -810,8 +811,12 @@ test('the message leaves out replies that fit no item, and says which it carries
       '- Review Tickets & Replies, round 1 → Approve',
       '  This closes the ask: nothing more to do with it.',
     ].join('\n'),
+    lines: [
+      '- Review Tickets & Replies, round 1 → Approve\n  This closes the ask: nothing more to do with it.',
+    ],
     replies: [{ item: 'k1', verdict: 'yes' }],
   })
+  expect(messageText(['- one', '- two'])).toBe(`${FROM_THE_BOARD}\n- one\n- two`)
 })
 
 test("under its item, the board shows a yes in its button's words and a choice after an arrow, and a pick-up in its own words, a note by its first line", () => {

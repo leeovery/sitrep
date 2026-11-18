@@ -4,6 +4,7 @@
  * what failed.
  */
 import {
+  checkDrop,
   checkFinish,
   checkSnooze,
   checkWake,
@@ -23,6 +24,7 @@ import type {
   SessionKey,
   SitrepAnswering,
   SitrepInFlight,
+  SitrepItemRef,
   SitrepPane,
   SitrepPlace,
   SitrepQueued,
@@ -70,6 +72,8 @@ export type Actions = {
   snooze: (at: SitrepSessionRef<ProjectKey>, asks: readonly string[], when: SnoozeChoice) => void
   /** Wakes a snoozed session now: everything it needs of Lee counts again. */
   wake: (at: SitrepSessionRef<ProjectKey>) => void
+  /** Drops a parked item, as Lee confirmed on its row: off Parked, with nothing sent to Claude. */
+  drop: (at: SitrepItemRef<ProjectKey>) => void
 }
 
 /**
@@ -117,10 +121,10 @@ const show = async (
   }
 }
 
-/** Has another session read in full, for the board to draw what Lee did to it; the held one is the watch's. */
+/** Has another session read afresh, off the board or not, for the board to draw what Lee did to it; the held one is the watch's. */
 const readIfElsewhere = async (host: Host, { session }: Pick<SitrepSessionRef, 'session'>) => {
   if (session !== attached()?.session) {
-    await lookAround(host)
+    await lookAround(host, [session])
   }
 }
 
@@ -171,14 +175,14 @@ const answer = async (host: Host, answering: SitrepAnswering<SessionKey>, text?:
   }
 }
 
-/** The board on a place, nothing opened there, at its top, and what it shows read; a session no folder holds, nowhere. */
-const go = async (host: Host, to: SitrepPlace<ProjectKey>) => {
+/** The board on a place, nothing opened there, at its top, and what it shows read, the sessions `fresh` names afresh; a session no folder holds, nowhere. */
+const go = async (host: Host, to: SitrepPlace<ProjectKey>, fresh: readonly string[] = []) => {
   const place = to.level === 'session' ? await kept(host, to, 'Not shown') : to
 
   if (place !== undefined) {
     await changePane(host, () => ({ place, selected: null }))
     await fromTheTop(host)
-    await lookAround(host)
+    await lookAround(host, fresh)
   }
 }
 
@@ -189,7 +193,7 @@ const finishing = (session: Session) => {
   return checked.ok ? [checked.value] : []
 }
 
-/** Finishes a session the window does not hold, then goes up to the project the view `at` was drawn on shows it in, where it no longer shows. */
+/** Finishes a session the window does not hold, then goes up to the project the view `at` was drawn on shows it in, where it no longer shows, the session read afresh, as one idle past the views is read only on a whole look. */
 const finish = async (host: Host, at: SitrepSessionRef<ProjectKey>) => {
   const keeping = await kept(host, at, 'Not finished')
 
@@ -199,7 +203,7 @@ const finish = async (host: Host, at: SitrepSessionRef<ProjectKey>) => {
     await serially(() => writeInto(host, into, finishing))
   }
 
-  await go(host, projectPlace(at.project))
+  await go(host, projectPlace(at.project), [at.session])
 }
 
 /** A check of Lee's press against an ask's session as it stands: the line it writes, or why it is refused. */
@@ -280,6 +284,16 @@ const snooze = async (
 const wake = (host: Host, at: SitrepSessionRef<ProjectKey>) =>
   writeLee(host, at, 'Not woken', checkWake)
 
+/**
+ * Lee's drop of a parked item, checked against the session that parked it
+ * as it stands, and written there, in this window's own file: through the
+ * hold where that is the held session, so Claude reads its board changed.
+ */
+const drop = async (host: Host, at: SitrepItemRef<ProjectKey>) => {
+  await changePane(host, () => ({ selected: null }))
+  await writeLee(host, at, 'Not dropped', session => checkDrop(session, at.item))
+}
+
 const WAKE: WakeSessionBody = { type: 'wakeSession' }
 
 /**
@@ -336,5 +350,6 @@ export const actionsOf = (host: Host): Actions => {
     finish: at => run('finishing a session', () => finish(host, at)),
     snooze: (at, asks, when) => run('snoozing a session', () => snooze(host, at, asks, when)),
     wake: at => run('waking a session', () => wake(host, at)),
+    drop: at => run('dropping a parked item', () => drop(host, at)),
   }
 }

@@ -121,6 +121,7 @@ export const CANNOT_RIDE: Record<LeftOut, string> = {
   changed: 'Not sent: it has changed since.',
   answered: 'Not sent: already answered.',
   resolved: 'Not sent: Claude closed it.',
+  dropped: 'Not sent: you dropped it.',
   finished: 'Not sent: the session is finished.',
   moved: 'Not sent: its session is in another project.',
   unread: "Not sent: its session can't be read.",

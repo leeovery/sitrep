@@ -505,6 +505,35 @@ export const drawOnItsWay = (d: Drawing, item: Ask | Parked, reply: ReplyFields)
   return drawReplyRow(d, item, reply, <Text color={C.grey}>· on its way</Text>)
 }
 
+/** An answer to a question a press asks in place: its button. */
+export type Answer = { key: string; label: string; variant?: 'primary'; onPress: () => void }
+
+/**
+ * The question a press asks in place of what it was pressed among, as the
+ * finish, Snooze and the drop ask theirs: its words, then its answers, and
+ * a dim `cancel` after them.
+ */
+export const drawQuestion = (
+  d: Drawing,
+  question: string,
+  answers: readonly Answer[],
+  cancel: Pick<Answer, 'key' | 'onPress'>,
+) => {
+  const { Box, Text, Button } = d.els
+
+  return (
+    <Box flexDirection="column">
+      <Text wrap="wrap">{question}</Text>
+      <Box flexDirection="row" columnGap={1} flexWrap="wrap">
+        {answers.map(({ key, label, variant, onPress }) => (
+          <Button key={key} variant={variant} label={label} onPress={onPress} />
+        ))}
+        <Button key={cancel.key} dimColor label="cancel" onPress={cancel.onPress} />
+      </Box>
+    </Box>
+  )
+}
+
 /** Writing to an item in the prompt box, from the surface drawn on: an ask's answer or a comment on it, or a pick-up's note; none where Lee cannot write back. */
 export const answeringOf = <K extends SessionKey>(
   d: Drawing,
@@ -592,10 +621,11 @@ export const drawRewrite = (d: Drawing, key: string, item: Ask | Parked, queued:
 /** A press answered by the `ui.press` hook, inside the press itself, where its calls carry Lee's press; the button's own closure does nothing. */
 export const answeredByTheHook = () => undefined
 
-/** Why a reply in Ready to send stays as a send goes: its item took another answer of Lee's first, or Claude closed it; or its session finished, no reply reaching it; or, for a pick-up, its session or the held one not read. */
+/** Why a reply in Ready to send stays as a send goes: its item took another answer of Lee's first, or Claude closed it, or Lee dropped it; or its session finished, no reply reaching it; or, for a pick-up, its session or the held one not read. */
 const NOT_SENT: Record<Exclude<HeldBack, 'moved'>, string> = {
   answered: '· not sent: already answered',
   resolved: '· not sent: Claude closed it',
+  dropped: '· not sent: you dropped it',
   finished: '· not sent: session finished',
   unread: "· not sent: its session can't be read",
 }

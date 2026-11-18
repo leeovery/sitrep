@@ -38,6 +38,7 @@ import type { PromptOrigin, Timer } from 'claude-code'
 import {
   deliveredMark,
   isObject,
+  messageText,
   sentLines,
   USER,
   type Body,
@@ -52,8 +53,8 @@ import type {
   SitrepStoredFlights,
 } from '../types'
 import { betweenTurns } from './activity'
-import { filedNow, lookAround } from './around'
-import { folderHolding } from './folders'
+import { filedNow, foldAt, lookAround } from './around'
+import { folderAmong, folderHolding, folderKeys } from './folders'
 import { logFailure, rootFor, type Host } from './host'
 import { writeHeld, writeInto, type Into } from './into'
 import { isCarriedBy, namedIn, queuing, repliedTo, unqueuing } from './queue'
@@ -746,6 +747,108 @@ const quietFor = (host: Host, waiting: SitrepInFlight) => {
   })
 }
 
+/** A send's claim with each reply's line in its text, so it can be written again without some; not one an older load claimed. */
+const isLined = (flight: SitrepInFlight): flight is SitrepInFlight & { lines: string[] } =>
+  Array.isArray(flight.lines) &&
+  flight.lines.length === flight.replies.length &&
+  flight.lines.every(line => typeof line === 'string')
+
+/** Each session by its id, as it stands now; one not read, none. */
+type ReadNow = ReadonlyMap<string, Session | undefined>
+
+/**
+ * Each session a claim's pick-ups name, its own among them, as it stands
+ * now, each read once, the folders listed once for them all; none where it
+ * carries no pick-up.
+ */
+const pickedFromNow = async (host: Host, flight: SitrepInFlight): Promise<ReadNow> => {
+  const sessions = [
+    ...new Set(
+      flight.replies
+        .filter(reply => reply.verdict === 'pickup')
+        .map(reply => repliedTo(flight, reply.item).session),
+    ),
+  ]
+
+  if (sessions.length === 0) {
+    return new Map()
+  }
+
+  const [root, now] = await Promise.all([rootFor(host), host.clock.now()])
+  const keys = await folderKeys(host, root)
+  const read = await Promise.all(
+    sessions.map(async session => {
+      const folder =
+        session === flight.session
+          ? flight.project
+          : await folderAmong(host, root, keys, session, flight.project)
+
+      return folder === undefined
+        ? undefined
+        : await foldAt(host, root, { project: folder, session }, now)
+    }),
+  )
+
+  return new Map(sessions.map((session, i) => [session, read[i]]))
+}
+
+/**
+ * Whether a reply a held claim carries goes as its sessions stand now
+ * (`pickedFromNow`): any but a pick-up does; a pick-up while its item is
+ * parked still, or picked up by this pick-up itself, written down by a
+ * write cut short; the held session's own judged as any other's. A session
+ * that does not read at all is no word that its item left, and its
+ * pick-ups go as claimed, as a send already made goes; but one read in
+ * part, a log's read failing, can show an item gone that is not, and its
+ * pick-up is held back, safely: in Ready to send again, it goes with Lee's
+ * next send.
+ */
+const goesNow = (flight: SitrepInFlight, read: ReadNow, reply: SitrepReplyBody) => {
+  if (reply.verdict !== 'pickup') {
+    return true
+  }
+
+  const { session, item } = repliedTo(flight, reply.item)
+  const parked = read.get(session)?.items.get(item)
+
+  return (
+    parked?.type !== 'park' || parked.state === 'parked' || parked.answer?.id === reply.id
+  )
+}
+
+/**
+ * A held send as it can go now: without each pick-up that would not
+ * (`goesNow`), its item dropped, picked up from another window or closed
+ * by Claude since the claim, no heartbeat saying a pick-up of another
+ * session's item to bar it once claimed. Written again from the lines
+ * left, so Ready to send, carrying it no more, says why it stays; none
+ * where nothing is left. Any other goes as claimed, as does one an older
+ * load claimed, which kept no lines.
+ */
+const goingNow = async (
+  host: Host,
+  flight: SitrepInFlight,
+): Promise<SitrepInFlight | undefined> => {
+  if (!isLined(flight)) {
+    return flight
+  }
+
+  const read = await pickedFromNow(host, flight)
+  const kept = flight.replies.flatMap((reply, i) =>
+    goesNow(flight, read, reply) ? [{ reply, line: flight.lines[i] ?? '' }] : [],
+  )
+
+  if (kept.length === flight.replies.length) {
+    return flight
+  }
+
+  const lines = kept.map(each => each.line)
+
+  return kept.length === 0
+    ? undefined
+    : { ...flight, replies: kept.map(each => each.reply), lines, text: messageText(lines) }
+}
+
 /**
  * Submits the first message in flight while the window holds it, should the
  * main conversation be between turns as the window has heard it, and not
@@ -762,13 +865,16 @@ const quietFor = (host: Host, waiting: SitrepInFlight) => {
  * first, as the window knows its claims, it writes nothing. The submit is
  * not waited on: a hook waiting on its own submit never ends, and one made
  * as a turn ends starts a turn of its own about 13 ms later (a live probe).
- * Whether it submitted one.
+ * A send goes without each pick-up whose item has left Parked since its
+ * claim (`goingNow`), and one left with nothing is let go, as a take-back
+ * lets it go, the next held going in its place, as it goes where a take-back
+ * lands first. Whether it submitted one.
  *
  * Run at the claim, and at each look, for a message held between turns: its
  * update as the turn ended failed, no load ran it then, or the message ahead
  * of it ended since.
  */
-export const sendHeld = async (host: Host) => {
+export const sendHeld = async (host: Host): Promise<boolean> => {
   const isBetween = await betweenTurns(host)
   const isPress = host.isPress === true
   const isStopped = !isPress && (await host.state.stopped.read())
@@ -779,19 +885,36 @@ export const sendHeld = async (host: Host) => {
     flights[0]?.isHeld === true &&
     isBetween()
 
-  if (!isGoing(await flightNow(host))) {
+  const [claimed] = await flightNow(host)
+
+  if (claimed === undefined || !isGoing([claimed])) {
     return false
   }
 
+  const standing = await goingNow(host, claimed)
+
+  if (standing === undefined) {
+    await letGoHeldOne(host, claimed)
+
+    return sendHeld(host)
+  }
+
   let going: SitrepInFlight | undefined
+  let isAnother = false
 
   await changeFlight(host, flights => {
     const [first, ...behind] = flights
+    const isFirstGoing = first !== undefined && isGoing(flights)
 
-    going = first !== undefined && isGoing(flights) ? { ...first, isHeld: false } : undefined
+    isAnother = isFirstGoing && !isClaim(first, claimed)
+    going = isFirstGoing && !isAnother ? { ...standing, isHeld: false } : undefined
 
     return going === undefined ? flights : [going, ...behind]
   })
+
+  if (isAnother) {
+    return sendHeld(host)
+  }
 
   if (going === undefined) {
     return false

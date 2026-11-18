@@ -28,9 +28,10 @@ export type Delivery = 'delivered' | 'waiting' | 'closed' | 'void'
 
 /**
  * What keeps an item from taking a reply of Lee's: `answered`, Lee's
- * answer, on its way to it or delivered; `resolved`, Claude's closing it.
+ * answer, on its way to it or delivered; `resolved`, Claude's closing it;
+ * `dropped`, Lee's dropping a parked item.
  */
-export type Barred = 'answered' | 'resolved'
+export type Barred = 'answered' | 'resolved' | 'dropped'
 
 /**
  * Why a reply settles nothing: its item took it no more, as `Barred` says;
@@ -39,8 +40,8 @@ export type Barred = 'answered' | 'resolved'
  */
 export type Voided = 'changed' | 'finished' | Barred
 
-/** Who closed an item, and how: Lee's answer, Lee's ignore, or Claude's resolve. */
-export type ClosedBy = 'answer' | 'ignore' | 'claude'
+/** Who closed an item, and how: Lee's answer, Lee's ignore, Claude's resolve, or Lee's drop of a parked item. */
+export type ClosedBy = 'answer' | 'ignore' | 'claude' | 'drop'
 
 export type StatusBody = {
   type: 'status'
@@ -131,6 +132,13 @@ export type ReplyBody = {
 
 export type DeliveredBody = { type: 'delivered'; replies: string[] }
 
+/**
+ * Lee's drop of a parked item, from the board: off Parked, with nothing
+ * sent to Claude, who reads it gone from the board. Written in the session
+ * that parked it, in the writer's own file there.
+ */
+export type DropBody = { type: 'drop'; item: string }
+
 /** A reply a message in flight carries, its id fixed as the message was claimed: the fields its line will hold. */
 export type SentReply = Omit<ReplyBody, 'type'>
 
@@ -193,6 +201,7 @@ export type Body =
   | EditBody
   | ReplyBody
   | DeliveredBody
+  | DropBody
   | FinishBody
   | UnfinishBody
   | MoveBody
@@ -286,7 +295,8 @@ export type Parked = Posted & {
   type: 'park'
   title: string
   where?: string
-  state: 'parked' | 'picked' | 'closed'
+  /** Still parked; picked up by Lee; closed by Claude; or dropped by Lee. */
+  state: 'parked' | 'picked' | 'closed' | 'dropped'
   answer?: Reply
   /** Lee's pick-up on its way to it, its answer, as an ask's is. */
   answerOnItsWay?: Reply

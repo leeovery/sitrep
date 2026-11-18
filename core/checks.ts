@@ -5,7 +5,7 @@
  * options and the one recommended, words what they are. A refusal says
  * what to fix, in words Claude can act on. Lee's answer to an ask from
  * outside Claude Code, as the CLI gives it, is checked here too, and Lee's
- * snooze and waking of a session.
+ * snooze and waking of a session, and his drop of a parked item.
  */
 import { isTime } from './entries'
 import { isSessionId, newItemId, type Random } from './ids'
@@ -22,6 +22,7 @@ import {
   type Ask,
   type AskBody,
   type Changes,
+  type DropBody,
   type EditBody,
   type FinishBody,
   type Finisher,
@@ -488,10 +489,11 @@ export const checkResolve = (session: Session, input: unknown): Checked<ResolveB
 
 /**
  * The item a resolve names where Lee closed it already: an ask by his yes,
- * choice, words or ignore, a parked item by his pick-up. Resolving it
- * changes nothing, and passes quietly rather than refused, since the
- * message carrying his reply may have read to Claude as leaving it open,
- * and a resolve written would put Claude's reason over Lee's reply.
+ * choice, words or ignore, a parked item by his pick-up or his drop.
+ * Resolving it changes nothing, and passes quietly rather than refused,
+ * since the message carrying his reply may have read to Claude as leaving
+ * it open, and a resolve written would put Claude's reason over Lee's
+ * reply.
  * Undefined for any other resolve, which `checkResolve` decides.
  */
 export const closedByLee = (session: Session, input: unknown): Ask | Parked | undefined => {
@@ -720,6 +722,35 @@ export const checkFinish = (
   session.finished === undefined
     ? ok({ type: 'finish', who, reason: line(fieldsOf(input).reason) })
     : refuse('This session is already finished.')
+
+/** Why Lee's drop of a parked item is refused once the item is off Parked, by how it left. */
+const OFF_PARKED: Record<Exclude<Parked['state'], 'parked'>, string> = {
+  picked: 'it was picked up already.',
+  closed: 'Claude closed it already.',
+  dropped: 'you dropped it already.',
+}
+
+/**
+ * Lee's drop of an item the session parked, from the board: refused once it
+ * is off Parked, and while his pick-up of it is on its way to Claude, who
+ * would be told to pick up what the board no longer holds. A finished
+ * session's item drops as any other.
+ */
+export const checkDrop = (session: Session, id: string): Checked<DropBody> => {
+  const item = session.items.get(id)
+
+  if (item?.type !== 'park') {
+    return refuse('it is no longer on the board.')
+  }
+
+  if (item.state !== 'parked') {
+    return refuse(OFF_PARKED[item.state])
+  }
+
+  return item.answerOnItsWay === undefined
+    ? ok({ type: 'drop', item: id })
+    : refuse('your pick-up of it is on its way to Claude.')
+}
 
 /** The words a yes or a choice ask is answered in outside Claude Code: its yes, or one of its options; none for words. */
 const answersOf = (ask: Ask): readonly string[] => {

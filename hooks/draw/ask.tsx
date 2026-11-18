@@ -39,6 +39,7 @@ import {
   ANSWERING,
   answeringOf,
   drawOnItsWay,
+  drawQuestion,
   drawQueued,
   drawRow,
   drawWrite,
@@ -267,30 +268,17 @@ const drawAnswers = (d: Drawing, ask: Ask, standing: Standing) => {
 }
 
 /** Snooze's question, in place of the ask's buttons: until when, the choices offered at the board's now as the app set them, each time worked out as it is pressed, or cancel, back to the buttons. */
-const drawSnoozing = (d: Drawing, { at, key, waiting, offered }: Standing) => {
-  const { Box, Text, Button } = d.els
-
-  return (
-    <Box flexDirection="column">
-      <Text wrap="wrap">{SNOOZE_QUESTION}</Text>
-      <Box flexDirection="row" columnGap={1} flexWrap="wrap">
-        {offered.map(when => (
-          <Button
-            key={`snooze-${when}:${key}`}
-            label={SNOOZE_WORDS[when]}
-            onPress={() => d.act.snooze(at, waiting, when)}
-          />
-        ))}
-        <Button
-          key={`snooze-no:${key}`}
-          dimColor
-          label="cancel"
-          onPress={() => d.act.select(key)}
-        />
-      </Box>
-    </Box>
+const drawSnoozing = (d: Drawing, { at, key, waiting, offered }: Standing) =>
+  drawQuestion(
+    d,
+    SNOOZE_QUESTION,
+    offered.map(when => ({
+      key: `snooze-${when}:${key}`,
+      label: SNOOZE_WORDS[when],
+      onPress: () => d.act.snooze(at, waiting, when),
+    })),
+    { key: `snooze-no:${key}`, onPress: () => d.act.select(key) },
   )
-}
 
 /** An opened ask's buttons and the hint under them, or Snooze's question in their place, at its title's column, a blank row after them unless it is the last ask. */
 const drawButtons = (d: Drawing, ask: Ask, standing: Standing, isLast: boolean) => {

@@ -13,6 +13,7 @@ import {
   type AskState,
   type Barred,
   type Body,
+  type ClosedBy,
   type DeliveredBody,
   type Delivery,
   type Item,
@@ -112,9 +113,17 @@ export const closingReply = (ask: Ask) => (ask.closedBy === 'answer' ? ask.answe
 export const replyOnItsWay = (item: Ask | Parked) =>
   item.answerOnItsWay ?? item.replies.findLast(isPending)
 
-/** Why a closed item takes no reply: `answered` where Lee closed it, `resolved` where Claude did. */
+/** Why an item closed each way takes no reply. */
+const BARRED_BY: Record<ClosedBy, Barred> = {
+  answer: 'answered',
+  ignore: 'answered',
+  claude: 'resolved',
+  drop: 'dropped',
+}
+
+/** Why a closed item takes no reply: `answered` where Lee's answer or ignore closed it, `resolved` where Claude did, `dropped` where Lee dropped it. */
 export const closedReason = (item: Pick<Item, 'closedBy'>): Barred =>
-  item.closedBy === 'claude' ? 'resolved' : 'answered'
+  BARRED_BY[item.closedBy ?? 'answer']
 
 /**
  * What keeps an item from taking a reply of Lee's with this verdict now;
@@ -369,12 +378,16 @@ const messageLines = <R extends ReplyFields>(carried: readonly Carried<R>[]) => 
   )
 }
 
+/** Lee's message carrying replies, from each reply's line in it. */
+export const messageText = (lines: readonly string[]) => [FROM_THE_BOARD, ...lines].join('\n')
+
 /**
- * Lee's message to a session carrying replies, and the replies it carries:
- * those that fit an item of the session `answered` reads each in, the
- * message's own unless it says another, as for a pick-up of an item another
- * session of the project parked; undefined when none does. Under its last
- * reply to each ask, a line says where the message leaves the ask.
+ * Lee's message to a session carrying replies, the replies it carries, and
+ * each one's line in it, in their order: those that fit an item of the
+ * session `answered` reads each in, the message's own unless it says
+ * another, as for a pick-up of an item another session of the project
+ * parked; undefined when none does. Under its last reply to each ask, a line
+ * says where the message leaves the ask, on that reply's line.
  */
 export const boardMessage = <R extends ReplyFields>(
   session: Session,
@@ -398,12 +411,13 @@ export const boardMessage = <R extends ReplyFields>(
       : []
   })
 
-  return carried.length === 0
-    ? undefined
-    : {
-        text: [FROM_THE_BOARD, ...messageLines(carried)].join('\n'),
-        replies: carried.map(({ reply }) => reply),
-      }
+  if (carried.length === 0) {
+    return undefined
+  }
+
+  const lines = messageLines(carried)
+
+  return { text: messageText(lines), lines, replies: carried.map(({ reply }) => reply) }
 }
 
 /** The replies a window submits now: every one on its way when it is the session's deliverer, else none. */

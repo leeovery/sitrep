@@ -4,7 +4,7 @@
  * still being worked, and Lee finishes it there by telling Claude.
  */
 import type { Filed } from '../../core'
-import type { Block, Drawing } from './kit'
+import { drawQuestion, type Block, type Drawing } from './kit'
 
 const LABEL = '✓ finish this session'
 
@@ -14,31 +14,25 @@ const canFinish = (d: Drawing, { session }: Filed) =>
 
 /** The press, or, once pressed, the question in its place. */
 const drawPress = (d: Drawing, { session, project }: Filed) => {
-  const { Box, Text, Button } = d.els
+  const { Button } = d.els
   const key = `finish:${session.id}`
 
   if (d.scene.pane.selected !== key) {
     return <Button key={key} plain label={LABEL} onPress={() => d.act.select(key)} />
   }
 
-  return (
-    <Box flexDirection="column">
-      <Text wrap="wrap">{`Finish ${session.status.name}? Its open asks stop counting.`}</Text>
-      <Box flexDirection="row" columnGap={1} flexWrap="wrap">
-        <Button
-          key={`finish-yes:${session.id}`}
-          variant="primary"
-          label="yes, finish it"
-          onPress={() => d.act.finish({ project, session: session.id })}
-        />
-        <Button
-          key={`finish-no:${session.id}`}
-          dimColor
-          label="cancel"
-          onPress={() => d.act.select(key)}
-        />
-      </Box>
-    </Box>
+  return drawQuestion(
+    d,
+    `Finish ${session.status.name}? Its open asks stop counting.`,
+    [
+      {
+        key: `finish-yes:${session.id}`,
+        label: 'yes, finish it',
+        variant: 'primary',
+        onPress: () => d.act.finish({ project, session: session.id }),
+      },
+    ],
+    { key: `finish-no:${session.id}`, onPress: () => d.act.select(key) },
   )
 }
 

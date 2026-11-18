@@ -168,7 +168,7 @@ test("a finished session's open ask waits on no one: a faint mark, a dim title, 
   ).toEqual([])
 })
 
-test("what still works on a finished session's view stays: its parked item picks up, and its asks, its lists and the way about move or open", async () => {
+test("what still works on a finished session's view stays: its parked item picks up and drops, and its asks, its lists and the way about move or open", async () => {
   const ui = viewOf(SHIPPED.id, { selected: itemKey(SHIPPED.id, 'p1') })
 
   expect(await pressKeys(ui)).toEqual([
@@ -181,6 +181,7 @@ test("what still works on a finished session's view stays: its parked item picks
     `ppick:${itemKey(SHIPPED.id, 'p1')}`,
     `pickup:${itemKey(SHIPPED.id, 'p1')}`,
     `comment:${itemKey(SHIPPED.id, 'p1')}`,
+    `drop:${itemKey(SHIPPED.id, 'p1')}`,
   ])
 })
 

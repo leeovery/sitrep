@@ -570,6 +570,20 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
     }
   },
 
+  drop: (fold, { item: id, at }) => {
+    const item = fold.items.get(id)
+
+    if (item?.type !== 'park' || item.closedBy !== undefined) {
+      return
+    }
+
+    item.state = 'dropped'
+    item.closedAt = at
+    item.closedBy = 'drop'
+    item.reason = undefined
+    voidOnItsWay(fold, item, at, closedReason(item))
+  },
+
   finish: (fold, { who, reason, at, by }) => {
     fold.finished = { at, by, who, reason }
 
@@ -753,10 +767,15 @@ const isPickUp = (fold: Fold, id: string) => {
 /**
  * Whether a line is about parked items, judged by the item it names once
  * every line is read: one naming a parked item, or a mark whose every reply
- * is a pick-up. A line naming an item or a reply the session does not have
- * is about none.
+ * is a pick-up; and a drop, whatever it names, since one naming anything
+ * else changes nothing. Any other line naming an item or a reply the
+ * session does not have is about none.
  */
 const isAboutParked = (fold: Fold, entry: Written) => {
+  if (entry.type === 'drop') {
+    return true
+  }
+
   if (entry.type === 'delivered') {
     return entry.replies.length > 0 && entry.replies.every(id => isPickUp(fold, id))
   }

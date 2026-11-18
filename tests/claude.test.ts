@@ -14,6 +14,7 @@ import {
   beat,
   choiceAsk,
   delivered,
+  drop,
   file,
   finish,
   fold,
@@ -122,6 +123,33 @@ test("the board text's Parked is the project's: what the session parked first, t
     ].join('\n'),
   )
   expect(boardText(SESSION, parkedBy(SESSION)), 'its own listed once').toBe(boardText(SESSION))
+})
+
+test("the board text lists no item Lee dropped, the session's own or another session's", () => {
+  const ledger = fold({
+    logs: {
+      [W1]: file(
+        [T0, status([], { name: 'Invoice ledger' })],
+        [T0 + 3 * MIN, park('p1', 'Export the ledger as CSV')],
+        [T0 + 9 * MIN, park('p2', 'Archive old invoices')],
+      ),
+      [W2]: file([T0 + 10 * MIN, drop('p1')]),
+    },
+  })
+  const session = fold({
+    logs: {
+      [W1]: file([T0, park('p1', 'A priority badge')], [T0 + MIN, park('p3', 'A dark theme')]),
+      [W2]: file([T0 + 10 * MIN, drop('p3')]),
+    },
+  })
+  const parked = projectParked([session, { ...ledger, id: 'sr-1edger' }].flatMap(parkedBy))
+
+  expect(boardText(session, parked).split('\nParked:\n')[1]).toBe(
+    [
+      '- p1: A priority badge',
+      '- p2, parked by "Invoice ledger" (session: sr-1edger): Archive old invoices',
+    ].join('\n'),
+  )
 })
 
 test('the guide has Claude finish a session whatever it parked: that stays its project’s', () => {

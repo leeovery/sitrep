@@ -11,7 +11,18 @@ import {
   type SessionPaths,
 } from '../core'
 import { ELSEWHERE, META, MIN, PERSON, PROJECT, T0, W1, W2 } from './data'
-import { beat, file, finish, moveTo, park, snoozeSession, status, yesAsk, type Line } from './lines'
+import {
+  beat,
+  drop,
+  file,
+  finish,
+  moveTo,
+  park,
+  snoozeSession,
+  status,
+  yesAsk,
+  type Line,
+} from './lines'
 import { ENV, FIRST_ID, NEXT_ID, NOW, terminal } from './terminal'
 
 type Terminal = ReturnType<typeof terminal>
@@ -416,6 +427,27 @@ test('board prints the board as Claude’s board tool reads it', async () => {
 
   expect(run).toEqual({ exit: EXIT.done, out: `${boardText(folded(t, paths))}\n`, err: '' })
   expect(t.files.has(paths.log(WRITER)), 'reading the board writes nothing').toBe(false)
+})
+
+test("board, board --json and list read a parked item Lee dropped as gone, in the shapes they always had", async () => {
+  const t = terminal()
+
+  t.seed(META, {
+    lines: [
+      [T0, park('p1', 'A priority badge')],
+      [T0, park('p2', 'A dark theme')],
+      [T0 + MIN, drop('p1')],
+    ],
+  })
+
+  const board = JSON.parse((await t.run('board', '--json', ...SESSION)).out)
+  const { projects } = JSON.parse((await t.run('list', '--json')).out) as {
+    projects: { parked: number; sessions: { parked: number }[] }[]
+  }
+
+  expect((await t.run('board', ...SESSION)).out).toContain('Parked:\n- p2: A dark theme\n')
+  expect(board.parked.map((parked: { id: string }) => parked.id)).toEqual(['p2'])
+  expect(projects.map(project => [project.parked, project.sessions[0]?.parked])).toEqual([[1, 1]])
 })
 
 /** How board words a finished session's open ask, by whether a live window holds the session. */

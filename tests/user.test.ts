@@ -13,6 +13,7 @@ import {
   boardText,
   checkAnswer,
   checkAsk,
+  checkDrop,
   checkEdit,
   checkFinish,
   checkJoin,
@@ -41,6 +42,7 @@ import {
   beat,
   choiceAsk,
   delivered,
+  drop,
   file,
   finish,
   fold,
@@ -98,6 +100,17 @@ const UNTIL_IT_MOVES = fold(
 
 const FINISHED = fold(
   { logs: { [W1]: file([T0, yesAsk('k1', 'Review round 1')], [T0 + MIN, finish('lee')]) } },
+  NOW,
+)
+
+/** A session with a parked item Lee dropped, and one his pick-up is on its way to. */
+const DROPPED = fold(
+  {
+    logs: {
+      [W1]: file([T0, park('p1', 'Later')], [T0, park('p2', 'Sooner')], [T0 + MIN, drop('p1')]),
+    },
+    inbox: { [SENDER]: file([T0 + MIN, reply('r3', 'p2', 'pickup')]) },
+  },
   NOW,
 )
 
@@ -237,6 +250,9 @@ test("every refusal core's checks give names no person and guesses at no pronoun
     checkSnooze(SNOOZED, { ask: ['k1'], until: T0 }, NOW),
     checkWake(FINISHED),
     checkWake(SESSION),
+    checkDrop(SESSION, 'k1'),
+    checkDrop(DROPPED, 'p1'),
+    checkDrop(DROPPED, 'p2'),
   ].map(refusalOf)
 
   expect(refusals).toContain('This session is finished: its asks wait on you no more.')
@@ -247,5 +263,6 @@ test("every refusal core's checks give names no person and guesses at no pronoun
   expect(refusals).toContain(
     "A project's name is one line, as the user would say it, with a letter or a digit.",
   )
+  expect(refusals).toContain('you dropped it already.')
   expect(refusals.join('\n')).not.toMatch(PERSON)
 })

@@ -67,11 +67,12 @@ const TAKE_BACK_LABEL = '↺ take back'
 /** The label of the button sending now what the window holds while Lee has stopped Claude's turn. */
 const SEND_NOW_LABEL = '↑ send now'
 
-/** Why a sent reply never went in: its item changed under it, took another answer of Lee's first, or Claude closed it; or its session was finished. */
+/** Why a sent reply never went in: its item changed under it, took another answer of Lee's first, or Claude closed it, or Lee dropped it; or its session was finished. */
 const NOT_DELIVERED: Record<Voided, string> = {
   changed: '· not delivered: it changed since',
   answered: '· not delivered: already answered',
   resolved: '· not delivered: Claude closed it',
+  dropped: '· not delivered: you dropped it',
   finished: '· not delivered: the session was finished',
 }
 
@@ -84,6 +85,7 @@ const UNSETTLED: Record<Voided, string> = {
   changed: ', but it changed since',
   answered: ', but it was reopened since',
   resolved: ', but it was reopened since',
+  dropped: ', but it was reopened since',
   finished: ', but it was reopened since',
 }
 

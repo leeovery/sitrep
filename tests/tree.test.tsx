@@ -447,7 +447,7 @@ test("a finished session's files as a build before parked items were the project
   expect(filesThere()).toEqual(before)
 })
 
-test('All projects keeps a project whose sessions are finished or idle past the views while something is parked in it, unfolded and counting it; its view says no sessions open, and its items show without pick-up buttons in a window of another project', async ($, on) => {
+test('All projects keeps a project whose sessions are finished or idle past the views while something is parked in it, unfolded and counting it; its view says no sessions open, and its items show without pick-up buttons in a window of another project, the drop alone offered', async ($, on) => {
   const w = world($, on)
   const offline = w.elsewhere(
     meta('sr-0ff11e', 'Offline mode', W3, { project: 'fabrikam' }),
@@ -491,6 +491,13 @@ test('All projects keeps a project whose sessions are finished or idle past the 
   expect(w.state.pane).toMatchObject({ selected: 'sr-0ff11e:p1' })
   expect(await keysOf(ui, 'pickup:'), 'no pick-up from another project').toEqual([])
   expect(await keysOf(ui, 'comment:')).toEqual([])
+  expect(await keysOf(ui, 'drop:'), 'the drop, which goes to no Claude').toEqual([
+    'drop:sr-0ff11e:p1',
+  ])
+  expect(
+    (await ui.find({ key: 'drop:sr-0ff11e:p1' }))?.props.dimColor,
+    'the only press, so not dim',
+  ).toBeFalsy()
 })
 
 test('the band counts what waits in every other session, in every project, and opens All projects on it', async ($, on) => {

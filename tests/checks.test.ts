@@ -2,6 +2,7 @@ import { expect, test } from './kit'
 import {
   checkAnswer,
   checkAsk,
+  checkDrop,
   checkEdit,
   checkJoin,
   checkPark,
@@ -22,6 +23,7 @@ import {
   beat,
   choiceAsk,
   delivered,
+  drop,
   file,
   finish,
   fold,
@@ -276,6 +278,46 @@ test('a resolve of an ask Lee answered or ignored, or a parked item he picked up
     'There is no item n1 on this board.',
   )
   expect(refusal(checkResolve(session, { item: 'p2' }))).toBe('p2 is already closed.')
+})
+
+test("Lee's drop of a parked item is one line naming it, a finished session's too; refused once the item is off Parked, how it left saying why, and while his pick-up of it is on its way", () => {
+  const session = fold({
+    logs: {
+      [W1]: file(
+        [T0, yesAsk('k1', 'Review round 1')],
+        [T0, park('p1', 'Parked')],
+        [T0, park('p2', 'Picked up')],
+        [T0, park('p3', 'Closed')],
+        [T0, park('p4', 'Dropped')],
+        [T0, park('p5', 'On its way')],
+        [T0 + MIN, reply('r1', 'p2', 'pickup')],
+        [T0 + MIN, delivered('r1')],
+        [T0 + MIN, resolve('p3')],
+        [T0 + MIN, drop('p4')],
+      ),
+    },
+    inbox: { [SENDER]: file([T0 + MIN, reply('r2', 'p5', 'pickup')]) },
+  })
+  const finished = fold({
+    logs: { [W1]: file([T0, park('p1', 'Parked')], [T0 + MIN, finish('claude', 'Shipped')]) },
+  })
+
+  expect(value(checkDrop(session, 'p1'))).toEqual({ type: 'drop', item: 'p1' })
+  expect(value(checkDrop(finished, 'p1')), 'a finished session').toEqual({
+    type: 'drop',
+    item: 'p1',
+  })
+  expect(refusal(checkDrop(session, 'p2'))).toBe('it was picked up already.')
+  expect(refusal(checkDrop(session, 'p3'))).toBe('Claude closed it already.')
+  expect(refusal(checkDrop(session, 'p4'))).toBe('you dropped it already.')
+  expect(refusal(checkDrop(session, 'p5'))).toBe('your pick-up of it is on its way to Claude.')
+  expect(refusal(checkDrop(session, 'k1')), 'an ask').toBe('it is no longer on the board.')
+  expect(refusal(checkDrop(session, 'zz99'))).toBe('it is no longer on the board.')
+  expect(closedByLee(session, { item: 'p4' })?.id, 'a resolve finds it closed by Lee').toBe('p4')
+  expect(value(checkReopen(session, { item: 'p4' })), 'reopened as any closed item').toEqual({
+    type: 'reopen',
+    item: 'p4',
+  })
 })
 
 test("an edit changes only the fields of its item's type, each put right", () => {

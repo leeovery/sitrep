@@ -38,12 +38,14 @@ const heldNow = (host: Host) =>
 /** What a send did with the held session's replies: claimed their message, met one in flight it is not claimed behind, or carried none, leaving each for why. */
 type Here = { is: 'claimed' } | { is: 'heldBack' } | { is: 'none'; left: readonly LeftOut[] }
 
+/** Why a send leaves a reply whose item takes it no more: answered, or closed by Claude or by Lee's drop. */
+const BARRED: readonly LeftOut[] = ['answered', 'resolved', 'dropped']
+
 /** Why a send carried nothing at all, by why it left the replies it held: their items changed, or answered or closed, or their sessions finished, no reply reaching them, or filed under another project, or not read, or several of these. */
 const nothingSent = (left: readonly LeftOut[]) => {
   const why = [
     left.includes('changed') && 'have changed since',
-    left.some(each => each === 'answered' || each === 'resolved') &&
-      'are answered or closed already',
+    left.some(each => BARRED.includes(each)) && 'are answered or closed already',
     left.includes('finished') && 'are in finished sessions',
     left.includes('moved') && 'are in another project now',
     left.includes('unread') && "are in sessions that can't be read",
@@ -87,6 +89,7 @@ const sendHere = async (host: Host, claimed: () => Promise<void>): Promise<Here>
       session: session.id,
       writer: held.writer,
       text: message.text,
+      lines: message.lines,
       replies: replyBodies(session, message.replies, { folded, flights }),
     },
     claimed,
