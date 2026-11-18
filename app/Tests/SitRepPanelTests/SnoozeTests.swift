@@ -261,6 +261,17 @@ struct SnoozeTests {
         #expect(WakeTime.words(Self.at(8, 9, month: 11), at: Self.at(26, 10), in: Self.london) == "next week")
     }
 
+    /// From a Sunday, the last day of its week, any day past tomorrow up to the next Sunday is next week, and the
+    /// Monday after it a date.
+    @Test func fromASundayTheNextCalendarWeekRunsToTheNextSunday() {
+        let sunday = Self.at(1, 12, month: 11)
+        let words = { (wakes: Date) in WakeTime.words(wakes, at: sunday, in: Self.london) }
+
+        #expect(words(Self.at(3, 9, month: 11)) == "next week")
+        #expect(words(Self.at(8, 9, month: 11)) == "next week")
+        #expect(words(Self.at(9, 9, month: 11)) == "9 Nov 09:00")
+    }
+
     /// From the week after next on, and a day gone by, its date.
     @Test func furtherOutItIsItsDateAndTime() {
         #expect(Self.words(Self.at(2, 9, month: 11)) == "2 Nov 09:00")
@@ -328,6 +339,7 @@ struct SnoozeTests {
         #expect(WakeTime.words(Self.at(3, 9, month: 11), at: now, in: calendar, spoken: true) == "3 November 09:00")
         #expect(WakeTime.words(Self.at(25, 9), at: now, in: calendar) == "Sun 09:00")
         #expect(WakeTime.words(Self.at(26, 9), at: now, in: calendar) == "next week")
+        #expect(WakeTime.besideChoice(.nextWeek, wakes: Self.at(26, 9), in: calendar) == "Mon 09:00")
         #expect(SnoozeChoice.allCases.map { $0.wakes(after: now, in: calendar, settings: Self.defaults) }
             == SnoozeChoice.allCases.map { Self.wakes($0, after: now) })
         #expect(SnoozeChoice.allCases.map { $0.wakes(after: now, in: calendar, settings: Self.leesOwn) }

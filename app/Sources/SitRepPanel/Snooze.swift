@@ -102,8 +102,9 @@ extension Session {
 
 /// When a snooze wakes, in words, at a moment, on the 24-hour clock in local time, by the calendar week, Monday to
 /// Sunday, as core's `wakeWords` says it: today's time alone, `17:42`; tomorrow, `tomorrow 09:00`; later this week, its
-/// weekday and time, `Sat 09:00`; in the next week, `next week`; else its date and time, `3 Dec 09:00`. Spoken,
-/// VoiceOver's, the weekday and month whole: `Saturday 09:00`, `3 December 09:00`.
+/// weekday and time, `Sat 09:00`; in the next calendar week, `next week`; else its date and time, `3 Dec 09:00`.
+/// Spoken, for VoiceOver, the weekday and month whole: `Saturday 09:00`, `3 December 09:00`, though no row hands
+/// VoiceOver these yet.
 public enum WakeTime {
     /// What a row snoozed with no time says in a wake's place, on the card and to VoiceOver.
     public static let untilItMoves = "until it moves"
@@ -153,8 +154,8 @@ public enum WakeTime {
         }
     }
 
-    /// When on the wall clock the words for any wake next read differently: at the next local midnight, as today's
-    /// time becomes tomorrow's, and a week's edge is a midnight too.
+    /// When on the wall clock the words for any wake next read differently: at the next local midnight, as tomorrow's
+    /// wake becomes today's time; a week's edge falls on one too.
     public static func changes(after now: Date, in calendar: Calendar) -> Date {
         let calendar = gregorian(like: calendar)
 

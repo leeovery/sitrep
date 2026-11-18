@@ -2857,9 +2857,9 @@ while no `watch` ran, the app quit, brings no swell, as any line then.
 - A snoozed ask stays in ASKS, after those waiting, quieted, and hangs
   `snoozed until tomorrow 09:00` with `wake now`, its time worded as the
   app's snoozed rows word theirs (see "How each row reads" under "The
-  notch and its panel"):
-  `snoozed until 15:42`, `next week` or `3 Dec 09:00`, or `snoozed until it
-  moves`. Until 18 November 2026 it said a weekday for days two to six on
+  notch and its panel"): `snoozed until 15:42`, `snoozed until next week`,
+  `snoozed until 3 Dec 09:00`, `snoozed until it moves`. Until 18 November
+  2026 it said a weekday for days two to six on
   and a date past them, never `next week`. Opened, it answers as any
   ask does, and answering it answers it, waking its session. The heading says both: `1 waiting · 2
   snoozed`.
@@ -5636,11 +5636,13 @@ right, Your turn's row alone on one line from 22 October 2026:
   | today | "17:42" | "17:42" |
   | tomorrow | "tomorrow 09:00" | "tomorrow 09:00" |
   | later this week | "Sat 09:00" | "Saturday 09:00" |
-  | in the next week | "next week" | "next week" |
-  | further out | "3 Dec 09:00" | "3 December 09:00" |
+  | in the next calendar week | "next week" | "next week" |
+  | further out, or a day gone by | "3 Dec 09:00" | "3 December 09:00" |
 
   So Sunday's tomorrow, a Monday, is "tomorrow 09:00", and a Saturday's
-  next Saturday is "next week". Snoozed with no time, it says "until it
+  next Saturday is "next week". A day gone by is worded only as a time
+  that has come already. The spoken forms are kept for VoiceOver, but no
+  row hands them to it yet (`spoken: true` has no caller). Snoozed with no time, it says "until it
   moves" (13 November 2026). The pane's `snoozed until` says the same,
   from core's `wakeWords`, the app's `WakeTime.words` its copy. Until 18
   November 2026 the app said a weekday for each of the six days after

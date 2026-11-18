@@ -542,13 +542,17 @@ test("the pane words a snooze's time at its now: today's time alone, tomorrow, a
 test("the pane's week runs Monday to Sunday, and tomorrow comes before it", () => {
   const monday = local(2026, 10, 26, 10)
   const saturday = local(2026, 10, 24, 12)
+  const sunday = local(2026, 11, 1, 12)
 
   expect(wordsAt(local(2026, 10, 28, 9), monday), 'later this week').toBe('Wed 09:00')
   expect(wordsAt(local(2026, 11, 1, 9), monday), "this week's Sunday").toBe('Sun 09:00')
   expect(wordsAt(local(2026, 11, 2, 9), monday), "the next week's Monday").toBe('next week')
   expect(wordsAt(local(2026, 11, 8, 9), monday), "the next week's Sunday").toBe('next week')
   expect(wordsAt(local(2026, 11, 9, 9), monday), 'the week after next').toBe('9 Nov 09:00')
-  expect(wordsAt(local(2026, 11, 2, 9), local(2026, 11, 1, 12)), 'Sunday to Monday').toBe('tomorrow 09:00')
+  expect(wordsAt(local(2026, 11, 2, 9), sunday), 'Sunday to Monday').toBe('tomorrow 09:00')
+  expect(wordsAt(local(2026, 11, 3, 9), sunday), "Sunday to the next week's Tuesday").toBe('next week')
+  expect(wordsAt(local(2026, 11, 8, 9), sunday), "Sunday to the next week's Sunday").toBe('next week')
+  expect(wordsAt(local(2026, 11, 9, 9), sunday), 'Sunday to the week after next').toBe('9 Nov 09:00')
   expect(wordsAt(local(2026, 10, 31, 9), saturday), 'Saturday to the next, 7 days on').toBe('next week')
   expect(wordsAt(local(2026, 11, 2, 9), saturday), 'Saturday to the week after next').toBe('2 Nov 09:00')
 })

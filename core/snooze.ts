@@ -67,7 +67,6 @@ export const IN_AN_HOUR_MS = 60 * 60_000
 
 const DAY_MS = 24 * 60 * 60_000
 
-/** The days of a week. */
 const WEEK = 7
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -231,9 +230,9 @@ const daysTo = (at: number, now: number) => Math.round((onDay(at, 0) - onDay(now
 /**
  * When a snooze wakes, as the pane says it at `now`, by the calendar week,
  * Monday to Sunday: today's time alone (`15:42`), `tomorrow 09:00`, later
- * this week its weekday (`Sat 09:00`), in the next week `next week`, else
- * its date (`3 Dec 09:00`); one with no time, `it moves`. The app's
- * `WakeTime.words` says it the same.
+ * this week its weekday (`Sat 09:00`), in the next calendar week
+ * `next week`, else its date (`3 Dec 09:00`); one with no time, `it moves`.
+ * The app's `WakeTime.words` says it the same.
  */
 export const wakeWords = (until: number, now: number) => {
   if (until === UNTIL_IT_MOVES) {
