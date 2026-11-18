@@ -16,10 +16,13 @@ import Testing
 struct ReadmeScreensTests {
     /// A 14-inch MacBook Pro's screen, under its menu bar.
     private static let screen = CGSize(width: 1512, height: 982), menuBar = 37.0
-    /// What the edge stands over in a picture: a dark desktop, so the black of the notch and the strip reads apart.
-    private static let desktop = CGColor(srgbRed: 0.17, green: 0.18, blue: 0.21, alpha: 1)
-    /// The desktop shown round the shape.
+    /// What the edge stands over in a picture: the pane's screens' ground, Tokyo Night's, so the set reads as one.
+    private static let desktop = CGColor(srgbRed: 0x1A / 255, green: 0x1B / 255, blue: 0x26 / 255, alpha: 1)
+    /// The desktop shown round the shape: the panel's front corner's radius.
     private static let margin = 24.0
+    /// The display's black bezel shown beside the screen's edge, which the shapes flare into (DESIGN, "The notch and its
+    /// panel").
+    private static let bezel = 6.0
     private static let frameMS = 1000.0 / 60
 
     private static let minute = 60_000
@@ -84,8 +87,8 @@ struct ReadmeScreensTests {
         try Self.write(surface, cut: run.frame.outline.boundingBox, "notch")
     }
 
-    /// The strip at Grows, the pointer resting on the first ask's mark until its tab has poured, as the real strip
-    /// draws it.
+    /// The strip at Grows, the pointer resting on the second session's mark until its tab has poured, so the tab stands
+    /// near the strip's middle, as the real strip draws it.
     @Test func theStrip() throws {
         var settings = EdgeSettings()
 
@@ -103,7 +106,7 @@ struct ReadmeScreensTests {
         run.show(board, moment(0, nil))
         Self.settle(run) { moment($0, nil) }
 
-        let mark = try #require(board.sessions.first.flatMap { run.markTarget(ofMark: $0.markID) })
+        let mark = try #require(board.sessions.dropFirst().first.flatMap { run.markTarget(ofMark: $0.markID) })
 
         Self.settle(run) { moment($0, mark) }
         #expect(run.frame.tabs.contains { $0.isLive })
@@ -111,7 +114,8 @@ struct ReadmeScreensTests {
 
         let shape = run.frame.tabs.reduce(run.frame.strip.boundingBox) { $0.union($1.outline.boundingBox) }
 
-        try Self.write(surface, cut: shape, "strip")
+        // the frame is the screen's, from its top; the strip's window hangs from under the menu bar
+        try Self.write(surface, cut: shape.offsetBy(dx: 0, dy: -setting.stage.menu), "strip")
     }
 
     /// Settings' Snooze pane at the window's first width, as tall as it is, dark and light.
@@ -141,14 +145,17 @@ struct ReadmeScreensTests {
         } while run.frame.isMoving && run.time < end
     }
 
-    /// An edge's drawing over the desktop, cut to its shape and the margin round it, kept on the screen. Its layers are
-    /// drawn out of their view, under `Drawn`'s flipped root, so the flip AppKit gave them for the view comes off first.
+    /// An edge's drawing over the desktop, cut from the screen's edge to its shape's front, flares and all, with the
+    /// margin round it and the bezel beside the edge. Its layers are drawn out of their view, under `Drawn`'s flipped
+    /// root, so the flip AppKit gave them for the view comes off first.
     private static func write(_ surface: NSView, cut shape: CGRect, _ name: String) throws {
         let drawing = try #require(surface.subviews.first?.layer)
-        let cut = shape.insetBy(dx: -margin, dy: -margin).intersection(surface.bounds)
+        let cut = CGRect(x: 0, y: shape.minY - margin, width: shape.maxX + margin, height: shape.height + 2 * margin)
+            .intersection(surface.bounds)
 
         drawing.isGeometryFlipped = false
-        try Still.png(drawing, over: desktop, cut: cut).write(to: try #require(screens).appending(path: "\(name).png"))
+        try Still.png(drawing, over: desktop, cut: cut, bezel: bezel)
+            .write(to: try #require(screens).appending(path: "\(name).png"))
     }
 }
 

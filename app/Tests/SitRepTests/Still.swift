@@ -1,4 +1,5 @@
 import AppKit
+@testable import SitRep
 import SwiftUI
 import Testing
 
@@ -31,16 +32,26 @@ enum Still {
         return try png(bitmap, sourceLocation: sourceLocation)
     }
 
-    /// A layer tree over `ground`, at 2×, cut to `rect` in its points from its top left.
+    /// A layer tree over `ground`, at 2×, cut to `rect` in its points from its top left, with `bezel` points of the
+    /// display's black bezel beside its left edge, which an edge's shape flares into.
     static func png(
-        _ layer: CALayer, over ground: CGColor, cut rect: CGRect, sourceLocation: SourceLocation = #_sourceLocation
+        _ layer: CALayer, over ground: CGColor, cut rect: CGRect, bezel: CGFloat = 0,
+        sourceLocation: SourceLocation = #_sourceLocation
     ) throws -> Data {
         let drawn = try Drawn(layer, over: ground)
         let pixels = CGRect(x: rect.minX * 2, y: rect.minY * 2, width: rect.width * 2, height: rect.height * 2)
         let cut = try #require(drawn.bitmap.cgImage?.cropping(to: pixels.integral), sourceLocation: sourceLocation)
-        let bitmap = NSBitmapImageRep(cgImage: cut)
+        let bitmap = try #require(NSBitmapImageRep(
+            bitmapDataPlanes: nil, pixelsWide: Int(bezel * 2) + cut.width, pixelsHigh: cut.height, bitsPerSample: 8,
+            samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .calibratedRGB, bytesPerRow: 0,
+            bitsPerPixel: 0
+        )?.retagging(with: .sRGB), sourceLocation: sourceLocation)
+        let context = try #require(NSGraphicsContext(bitmapImageRep: bitmap), sourceLocation: sourceLocation).cgContext
 
-        bitmap.size = rect.size
+        context.setFillColor(EdgeStyle.black)
+        context.fill(CGRect(x: 0, y: 0, width: bitmap.pixelsWide, height: bitmap.pixelsHigh))
+        context.draw(cut, in: CGRect(x: Int(bezel * 2), y: 0, width: cut.width, height: cut.height))
+        bitmap.size = CGSize(width: bezel + rect.width, height: rect.height)
         return try png(bitmap, sourceLocation: sourceLocation)
     }
 
