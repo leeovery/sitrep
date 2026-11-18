@@ -23,7 +23,7 @@ import { summarise, type ProjectParked, type ProjectSummary, type SessionSummary
 const STANDING: Record<'waiting' | 'replied' | 'finished', string> = {
   waiting: 'waiting on Lee',
   replied: 'Lee replied, yours to act on',
-  finished: "can't be answered while the session is finished (joining it reopens it)",
+  finished: "can't be answered (the session is finished)",
 }
 
 /** A heading, and its lines as a list; `none` when it has none. */
@@ -50,9 +50,9 @@ const wantsWords = (ask: Ask) => {
 }
 
 /**
- * Where an open ask stands for Claude, read where the session is held or
- * not, as `isHeld` says: replied, with Lee's reply; in a finished session no
- * reply reaches from there, unanswerable until it is joined again; snoozed,
+ * Where an open ask stands for Claude, read where a window holds the session
+ * or none does, as `isHeld` says: replied, with Lee's reply; in a finished
+ * session no window holds, which no reply reaches, unanswerable; snoozed,
  * by its time alone, whatever is on its way to it; else waiting on Lee.
  */
 const standingOf = (ask: Ask, session: Session, isHeld: boolean) => {
@@ -78,14 +78,17 @@ const standingOf = (ask: Ask, session: Session, isHeld: boolean) => {
   return `snoozed by Lee until ${until} (leave it until then)`
 }
 
-const askLine = (ask: Ask, session: Session, isHeld: boolean) =>
-  `${ask.id} wants ${wantsWords(ask)}, ${standingOf(ask, session, isHeld)}: ${withExtras(ask.title, {
+const askLine = (ask: Ask, session: Session, isHeld: boolean) => {
+  const text = withExtras(ask.title, {
     options: ask.options?.join(' | '),
     recommended: ask.recommended,
     needs: ask.needs,
     where: ask.where,
     ref: ask.ref,
-  })}`
+  })
+
+  return `${ask.id} wants ${wantsWords(ask)}, ${standingOf(ask, session, isHeld)}: ${text}`
+}
 
 const parkedText = (parked: Parked) =>
   withExtras(parked.title, { where: parked.where, ref: parked.ref })
@@ -100,8 +103,9 @@ const parkedElsewhereLine = (parked: ProjectParked) =>
  * A session's open items with their ids, for Claude to check against what
  * it knows and repair. Parked lists what the session parked, then what the
  * project's other sessions parked, of `projectParked`, the project's.
- * `isHeld` says whether the session is held where it is read, as a window
- * reads only the one it holds; the CLI holds none.
+ * `isHeld` says whether a window holds the session, where a reply to a
+ * finished session's ask still goes in: so the window that reads it does,
+ * and the CLI reads whether a live one is attached.
  */
 export const boardText = (
   session: Session,
@@ -167,7 +171,7 @@ const GUIDE = [
   "- Touch the board only once it is clear which project the work is on: the project being discussed, whatever folder this window started in. When Lee carries on with a session on the board, join it by its id with the sitrep join tool. Otherwise start one, naming its project as Lee would say it (SitRep, Switchboard), by the name it has on the board when it is one there, and giving the project's directory once you know it.",
   "- When Lee asks to move this session to another project, move it with the sitrep move tool: the whole session goes, so never start a new one there instead. Move one only at Lee's word.",
   "- As it goes: set the status when what's under way changes; post an ask whenever you need something only Lee can do or decide, and resolve it yourself when Lee answers it in the chat; resolve what's done; when the session is complete, with nothing left on it, finish it: what it parked stays its project's, and holds no finish back.",
-  '- A turn that ends on a decision or a question for Lee, or that leaves Lee something to do, a release, a merge or a command to run, even said as a statement ("It\'s ready for you to release"), posts it as an ask, so it shows Lee it waits on him, never only in the status. Plain conversation needs none.',
+  '- A turn that ends on a decision or a question for Lee, or that leaves Lee something to do, such as a release, a merge or a command to run, even said as a statement ("It\'s ready for you to release"), posts it as an ask, so it shows Lee it waits on him, never only in the status. Plain conversation needs none.',
   '- In the chat, give an ask\'s question and steps whole, and never point Lee to the board: no "it\'s on the board", no "check the board". Saying you parked something is fine, as is naming the asks still open now and then, when several wait, though not at every turn\'s end. An ask Lee hasn\'t answered that you still need, raise again in the chat.',
   "- Every board call of a turn comes before your closing message to Lee, never after it. Before any tool call, write Lee a line at most: longer words before a tool call can reach him as a short summary, or not at all. What he must read goes after the turn's last tool call.",
   '- Item and session ids are yours alone: Lee sees none of them on the board or in the app, so never name one to him. Name an ask, a parked item or a session by its words.',

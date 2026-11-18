@@ -256,10 +256,15 @@ Lee that day:
   The old project keeps nothing of it: no view of it lists the session or
   what it parked, and one left with no current session and nothing parked
   drops out of the lists, as any such project does. A board standing on
-  the view of a project no session is filed under any more goes up to All
-  projects at its next look, at its top, as a finish goes up from the
-  session it leaves (18 November 2026: the view stayed, headed by the
-  project's key, of a project All projects no longer listed). One whose
+  the view of a project a move emptied goes up to All projects at its
+  next look, at its top, as a finish goes up from the session it leaves
+  (18 November 2026: the view stayed, headed by the project's key, of a
+  project All projects no longer listed). The look goes up only for a move
+  it saw: a session the last look filed under the project, read under
+  another now, and none filed under it; so a listing that failed, or a
+  torn `session.json`, moves no one, and nor does a look whose held
+  board is another session's, which files the held one nowhere sure. A
+  press of Lee's landing as the look reads stays where he went. One whose
   sessions are only finished or old is still the board's, and stays.
 - **Every window holding it follows**, Claude carrying on with no rejoin,
   and says so: each toasts `Moved to Contoso.`, the mover's among them.
@@ -661,8 +666,8 @@ and named it in internal shorthand):
   plain conversation needs none (4 November 2026: two sessions ended turns
   with "Put to Lee: …" in their status line instead of posting an ask, so
   Lee's card showed them under Your turn, not Needs you).
-- So does a turn that leaves Lee something to do, a release, a merge or a
-  command to run, even said as a statement (17 November 2026: a session
+- So does a turn that leaves Lee something to do, such as a release, a
+  merge or a command to run, even said as a statement (17 November 2026: a session
   ended "It's ready for you to release", its status emptied and no ask
   posted, though its guide was in front of it; it read the ask rule as one
   for questions alone). The guide gives both as one rule, a bullet of its
@@ -1046,11 +1051,12 @@ show all 4
   is the held session's own, so a finish voids none, and its ask waits on
   no one while Claude's turn runs; a line read from the files, which no
   window holds, a finish voids, and its mark, once delivered, settles it.
-  Claude's board text goes by it as well (18 November 2026): read in the
-  window holding the session, its asks wait on Lee, as that window's
-  buttons say; read by the CLI, which holds none, a finished session's
-  open ask `can't be answered while the session is finished (joining it
-  reopens it)`, where it read `waiting on Lee` against the pane.
+  Claude's board text goes by it as well (18 November 2026): a finished
+  session's open ask waits on Lee where a window holds the session, as
+  that window's buttons say, read by that window or by the CLI, which
+  takes a live heartbeat for one; where none does, it `can't be answered
+  (the session is finished)`, where it read `waiting on Lee` against the
+  pane. It says nothing of joining it: only Lee's word joins one.
 
   What still works on a finished session's view stays: its project's
   Parked picks up as anywhere, to the Claude in this window, a finished
@@ -2979,12 +2985,13 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   (`sitrep`), numbered on (`sitrep-2`) where a folder already has it. The
   key is only where its files are; the name in `project.json` is what
   matches and shows.
-- **`project.json`:** `{ v, name, directory?, created, by }`. A start or a
-  `move` writes it as it makes the project, and the `project` tool as it
-  renames it or gives it a directory; a start or a `move` giving a
-  directory to a project with none writes it too. It breaks the one-file-per-writer rule below: whichever
-  writer makes the change rewrites it whole, and the last write wins. That
-  is fine for a file rewritten only that rarely, by Claude, at Lee's word.
+- **`project.json`:** `{ v, name, directory?, created, by }`. A start or
+  Claude's `move` writes it as it makes the project, and the `project`
+  tool as it renames it or gives it a directory; a start or Claude's
+  `move` giving a directory to a project with none writes it too. It
+  breaks the one-file-per-writer rule below: whichever writer makes the
+  change rewrites it whole, and the last write wins. That is fine for a
+  file rewritten only that rarely, by Claude, at Lee's word.
 - **`snooze.json`** (17 November 2026; see "Lee sets the times", under
   "Snooze"): Snooze's choices as Lee set them in SitRep's Settings, for the
   pane in Claude Code to offer the same. It sits at the folder's top, beside

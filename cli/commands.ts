@@ -216,7 +216,7 @@ const board: SessionCommand = {
     ok: true,
     value: {
       post: [],
-      print: input.json === true ? boardJson(project, session) : boardText(session, parked, false),
+      print: input.json === true ? boardJson(project, session) : boardText(session, parked, session.isOpen),
     },
   }),
 }

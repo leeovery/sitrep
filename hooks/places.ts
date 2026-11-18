@@ -21,7 +21,7 @@ import {
   waitsOnLee,
   type Ask,
   type Filed,
-  type Latest,
+  type Listing,
   type Parked,
   type Parking,
   type ProjectKey,
@@ -29,7 +29,7 @@ import {
   type Session,
   type SessionBrief,
 } from '../core'
-import type { SessionKey, SitrepPlace, SitrepSessionRef } from '../types'
+import type { SessionKey, SitrepPlace, SitrepProject, SitrepSessionRef } from '../types'
 import { shownAsks, type Scene } from './scene'
 
 /** A session as a view draws it: by the project it shows it in, which a press keeps by its folder (actions.ts). */
@@ -215,9 +215,14 @@ export const parkedIn = (scene: Scene, key: ProjectKey): ParkedAt[] => {
   }))
 }
 
-/** The name of the session a pick-up in a project's list went to, by its id, wherever it is filed: the held session's as it stands, another's as the look read it; none where the look carried no name for it. */
-const nameIn = (scene: Scene, key: ProjectKey, id: string) =>
-  id === scene.session.id ? scene.session.status.name : projectRead(scene, key)?.names?.[id]
+/** The name of the session a pick-up in a project's list went to, by its id, wherever it is filed: the held session's as it stands, another's as the look read it, among the project's own sessions or the pickers filed elsewhere; none where the look carried no name for it. */
+const nameIn = (scene: Scene, key: ProjectKey, id: string) => {
+  const read = projectRead(scene, key)
+
+  return id === scene.session.id
+    ? scene.session.status.name
+    : (read?.names?.[id] ?? read?.pickers?.[id])
+}
 
 /** Items taken off a project's Parked as a view lists them, each pick-up naming the session it went to, where its line says which. */
 const takenOffAt = (scene: Scene, key: ProjectKey, taken: readonly ProjectParked[]): TakenAt[] =>
@@ -232,16 +237,20 @@ const takenOffAt = (scene: Scene, key: ProjectKey, taken: readonly ProjectParked
     }
   })
 
+/** Whether the look filed a session under a project as one around: its `names` are the project's own sessions, the held one aside. */
+const isFiledAround = (read: SitrepProject | undefined, id: string) =>
+  read?.names?.[id] !== undefined
+
 /**
- * What the look carried of a project's past for its views; none where it read
- * the held session as one around, its names holding it: a look from before
- * the window took that session up, whose lists, carried only in part, would
- * count it twice, or list it among the old.
+ * What the look carried of a project's past for its views; none where it
+ * filed the held session under the project as one around: a look from
+ * before the window took that session up, whose lists, carried only in
+ * part, would count it twice, or list it among the old.
  */
 const pastRead = (scene: Scene, key: ProjectKey) => {
   const read = projectRead(scene, key)
 
-  return read?.names?.[scene.session.id] === undefined ? read : undefined
+  return isFiledAround(read, scene.session.id) ? undefined : read
 }
 
 /**
@@ -251,15 +260,15 @@ const pastRead = (scene: Scene, key: ProjectKey) => {
  */
 const withHeld = <T>(
   held: readonly T[],
-  around: Latest<T> | undefined,
+  around: Listing<T> | undefined,
   order: (all: readonly T[]) => T[],
-): Latest<T> | undefined =>
+): Listing<T> | undefined =>
   around === undefined
     ? undefined
     : { entries: order([...held, ...around.entries]), count: held.length + around.count }
 
 /** What was taken off a project's Parked, the newest taken off first, from every session filed under it, finished and idle ones included; none until the look carries it. */
-export const takenOffIn = (scene: Scene, key: ProjectKey): Latest<TakenAt> | undefined => {
+export const takenOffIn = (scene: Scene, key: ProjectKey): Listing<TakenAt> | undefined => {
   const held = key === scene.here ? takenOffBy(scene.session) : []
   const taken = withHeld(held, pastRead(scene, key)?.takenOff, projectTakenOff)
 

@@ -417,15 +417,32 @@ test('board prints the board as Claude’s board tool reads it', async () => {
   expect(t.files.has(paths.log(WRITER)), 'reading the board writes nothing').toBe(false)
 })
 
-test("board prints a finished session's open asks as ones no answer reaches until the session is joined again, as the pane says", async () => {
-  const t = terminal()
+/** How board words a finished session's open ask, by whether a live window holds the session. */
+const FINISHED_ASK: Record<string, { seenAt?: number; line: string }> = {
+  'no window holds it, so no answer reaches it': {
+    line: "- k1 wants a yes (Approve), can't be answered (the session is finished): Review round 1",
+  },
+  'a live window holds it, where an answer still goes in': {
+    seenAt: NOW,
+    line: '- k1 wants a yes (Approve), waiting on Lee: Review round 1',
+  },
+}
 
-  t.seed(META, { lines: [[T0, yesAsk('k1', 'Review round 1')], [T0, finish('claude')]] })
+for (const [holding, { seenAt, line }] of Object.entries(FINISHED_ASK)) {
+  test(`board prints a finished session's open ask as the pane has it: ${holding}`, async () => {
+    const t = terminal()
 
-  expect((await t.run('board', ...SESSION)).out).toContain(
-    "- k1 wants a yes (Approve), can't be answered while the session is finished (joining it reopens it): Review round 1",
-  )
-})
+    t.seed(META, {
+      lines: [
+        [T0, yesAsk('k1', 'Review round 1')],
+        [T0, finish('claude')],
+      ],
+      seenAt,
+    })
+
+    expect((await t.run('board', ...SESSION)).out).toContain(line)
+  })
+}
 
 test("finish finishes a session no window holds as Lee's finish on the board does, in the CLI's own file, and prints nothing", async () => {
   const t = terminal()
