@@ -36,7 +36,7 @@ With several Claude Code windows open across several projects, what waits on you
 
 **The board in Claude Code.** Docked beside the conversation, it holds what this session needs from you, answered in place.
 
-<img src="art/screens/notch.webp" alt="SitRep's notch at the left edge of a Mac's screen, lit orange: the pointer comes to it and it pours open into a panel listing Needs you, two sessions with asks in orange and two stopped in blue, then Working and Snoozed; the pointer leaves and it closes" width="100%">
+<img src="art/screens/notch.webp" alt="SitRep's notch at the left edge of a Mac's screen, lit orange: the pointer comes to it and it pours open into a panel listing Needs you, two sessions with asks in orange and two stopped in blue, then Working and Snoozed; the pointer leaves and it closes" width="444">
 
 **The notch.** At the edge of your screen, it lights while something needs you, and opens on hover to every session, a click from its window.
 
