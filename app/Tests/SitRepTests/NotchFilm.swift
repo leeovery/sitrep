@@ -6,8 +6,8 @@ import Testing
 
 /// The notch filmed at the screen's left edge on the README's desktop (`app/screens`): the real run driving the real
 /// surface frame by frame on a clock of the film's own, the pointer moved as a hand moves it, each frame written as a
-/// PNG at 2×, with how long it shows, for `img2webp` to make the film of. Only the wallpaper and the pointer, macOS's
-/// own arrow, are not the app's. The film runs at the display's 60 frames a second while the notch moves, and at 30
+/// PNG at 2×, with how long it shows, for `img2webp` to make the film of. Only the wallpaper and the pointer, drawn as
+/// macOS's arrow, are not the app's. The film runs at the display's 60 frames a second while the notch moves, and at 30
 /// while it rests, when only its light breathes, or the working rows' arcs turn and their verbs shimmer.
 @MainActor
 final class NotchFilm {
@@ -24,7 +24,6 @@ final class NotchFilm {
     private let backdrop: CGImage
     /// The surface's drawing, under a flipped root, as `Drawn` draws a layer.
     private let root = CALayer()
-    private let arrow = NSCursor.arrow
     private let folder: URL
     /// The run's time when the film starts.
     private let start: Double
@@ -127,20 +126,39 @@ final class NotchFilm {
         shots.append((name, time))
     }
 
-    /// The arrow with its tip at the pointer, on the stage, its shadow under it as the window server draws one.
+    /// The arrow with its tip at the pointer, on the stage: black, edged in white, its shadow under it, as the window
+    /// server draws macOS's.
     private func drawArrow(at pointer: CGPoint, _ context: CGContext) {
-        let image = arrow.image
-        let rect = CGRect(origin: CGPoint(x: pointer.x - arrow.hotSpot.x, y: pointer.y - arrow.hotSpot.y), size: image.size)
+        var placed = CGAffineTransform(translationX: pointer.x, y: pointer.y)
+        let arrow = Self.arrow.copy(using: &placed) ?? Self.arrow
 
         context.saveGState()
+        context.setLineJoin(.round)
+        context.saveGState()
         // the shadow's offset is the device's, y up: it falls below the arrow
-        context.setShadow(offset: CGSize(width: 0, height: -3), blur: 6, color: ReadmeDesktop.colour(0, alpha: 0.4))
-        NSGraphicsContext.saveGraphicsState()
-        NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: true)
-        image.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
-        NSGraphicsContext.restoreGraphicsState()
+        context.setShadow(offset: CGSize(width: 0, height: -2), blur: 5, color: ReadmeDesktop.colour(0, alpha: 0.45))
+        context.addPath(arrow)
+        context.setStrokeColor(ReadmeDesktop.colour(0xFFFFFF))
+        context.setLineWidth(3)
+        context.strokePath()
+        context.restoreGState()
+        context.addPath(arrow)
+        context.setFillColor(ReadmeDesktop.colour(0))
+        context.fillPath()
         context.restoreGState()
     }
+
+    /// macOS's arrow, its tip at the origin, y down: drawn here, as offscreen `NSCursor.arrow` has no image.
+    private static let arrow: CGPath = {
+        let path = CGMutablePath()
+
+        path.addLines(between: [
+            CGPoint(x: 0, y: 0), CGPoint(x: 0, y: 16.5), CGPoint(x: 4, y: 12.7), CGPoint(x: 6.6, y: 18.6),
+            CGPoint(x: 9.2, y: 17.5), CGPoint(x: 6.7, y: 11.8), CGPoint(x: 12, y: 11.8),
+        ])
+        path.closeSubpath()
+        return path
+    }()
 
     /// Every layer drawn at 2×, its content drawn again where it asks to be.
     private static func display(_ layer: CALayer) {

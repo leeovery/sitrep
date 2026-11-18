@@ -2,11 +2,11 @@
 # Draws the README's pictures into art/screens, each from a made-up board, with
 # nothing shown on the screen, on one made-up Mac's desktop at 2x: Claude Code
 # in a Ghostty window, the board docked at its side, its cells laid out by
-# screens/window.ts on Bun and drawn by ReadmeScreensTests; and the notch at the
-# screen's left edge opening as the pointer comes to it, filmed by
-# ReadmeScreensTests frame by frame and put together by img2webp as an
-# animated WebP. Run it again whenever the look changes, and commit what it
-# draws.
+# screens/window.ts on Bun, drawn by ReadmeScreensTests and made a WebP by
+# cwebp; and the notch at the screen's left edge opening as the pointer comes
+# to it, filmed by ReadmeScreensTests frame by frame and put together by
+# img2webp as an animated WebP. Run it again whenever the look changes, and
+# commit what it draws.
 set -euo pipefail
 
 if [[ $# -ne 0 ]]; then
@@ -14,10 +14,12 @@ if [[ $# -ne 0 ]]; then
   exit 1
 fi
 
-if ! command -v img2webp >/dev/null; then
-  echo "app/screens needs img2webp: brew install webp" >&2
-  exit 1
-fi
+for tool in cwebp img2webp; do
+  if ! command -v "$tool" >/dev/null; then
+    echo "app/screens needs $tool: brew install webp" >&2
+    exit 1
+  fi
+done
 
 repo=$(cd "$(dirname "$0")/.." && pwd)
 screens=$repo/art/screens
@@ -36,5 +38,7 @@ done <"$work/notch/frames.txt"
 
 mkdir -p "$screens"
 find "$screens" -maxdepth 1 -type f \( -name '*.png' -o -name '*.webp' -o -name '*.svg' \) -delete
-cp "$work/window.png" "$screens/claude-code.png"
-img2webp -loop 0 -lossy -q 88 -m 6 "${frames[@]}" -o "$screens/notch.webp"
+# Lossy at high quality, its colours converted sharply so coloured text stays crisp: a seventh of the PNG's size
+cwebp -quiet -q 90 -m 6 -sharp_yuv "$work/window.png" -o "$screens/claude-code.webp"
+# Each frame lossy or lossless, whichever is smaller: lossy alone leaves streaks in the black as frames build on it
+img2webp -loop 0 -mixed -sharp_yuv -q 90 -m 6 "${frames[@]}" -o "$screens/notch.webp"

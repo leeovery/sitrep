@@ -32,7 +32,7 @@ With several Claude Code windows open across several projects, what waits on you
 
 ## Screens
 
-<img src="art/screens/claude-code.png" alt="Claude Code in a Ghostty window: on the left, the conversation, Claude at work on an answer given from the board, with the band above the prompt counting 2 asks and 2 elsewhere; on the right, the board docked beside it, the session's two asks, the first opened with Threaded marked recommended, then its status, what it parked and what it resolved" width="100%">
+<img src="art/screens/claude-code.webp" alt="Claude Code in a Ghostty window: on the left, the conversation, Claude at work on an answer given from the board, with the band above the prompt counting 2 asks and 2 elsewhere; on the right, the board docked beside it, the session's two asks, the first opened with Threaded marked recommended, then its status, what it parked and what it resolved" width="100%">
 
 **The board in Claude Code.** Docked beside the conversation, it holds what this session needs from you, answered in place.
 

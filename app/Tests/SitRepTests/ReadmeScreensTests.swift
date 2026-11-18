@@ -68,7 +68,7 @@ struct ReadmeScreensTests {
         try film.glide(from: outside, to: home, over: 900)
         try film.settle(.open, pointer: home)
         try film.rest(2400, pointer: home)
-        try film.glide(from: home, to: away, over: 600)
+        try film.glide(from: home, to: away, over: 1000)
         try film.settle(.closed, pointer: away)
         try film.rest(1000, pointer: away)
         try film.finish()
