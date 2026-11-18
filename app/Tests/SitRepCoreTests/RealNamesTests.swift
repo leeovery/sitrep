@@ -3,8 +3,8 @@ import SitRepTestSupport
 import Testing
 
 /// No test names Lee's real work, by `tests/real-names.txt`'s rule; the TypeScript kit's tests can't read files, so
-/// this one keeps both suites to it, and the prototypes their recordings are made from. The rule's own tests use
-/// made-up names, as this file is one it reads.
+/// this one keeps both suites to it, and the prototypes their recordings are made from, where the checkout holds the
+/// list. The rule's own tests use made-up names, as this file is one it reads, so they run in any checkout.
 @Suite(.backstop)
 struct RealNamesTests {
     private static let list = try! RealNames("""
@@ -18,7 +18,7 @@ struct RealNamesTests {
     allow app/Tests/A.swift Blue Lagoon
     """)
 
-    @Test func noFileOfEitherSuiteNamesLeesRealWorkButWhereTheListAllowsIt() throws {
+    @Test(.realNamesListed) func noFileOfEitherSuiteNamesLeesRealWorkButWhereTheListAllowsIt() throws {
         let scan = try RealNames.listed().scan()
 
         #expect(scan.hits.isEmpty, "\(scan.hits.map(\.description).joined(separator: "\n"))")

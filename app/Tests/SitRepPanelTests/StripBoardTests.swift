@@ -167,9 +167,9 @@ struct StripBoardTests {
     /// the panel's old sort, longest running first, would have kept s7's first.
     @Test func aChangeShowsInPlaceThenTheMarksTakeCoresOrder() {
         var lab = StripLab()
-        var docMan = StripLab.prototype[6]
-        docMan.lines[0].title = "Reading the reports"
-        let board = Array(StripLab.prototype.prefix(6)) + [StripLab.prototype[7], docMan]
+        var blueYonder = StripLab.prototype[6]
+        blueYonder.lines[0].title = "Reading the reports"
+        let board = Array(StripLab.prototype.prefix(6)) + [StripLab.prototype[7], blueYonder]
 
         lab.model.show(board, new: [])
         lab.step()
