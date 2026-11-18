@@ -12,16 +12,22 @@ How a new window opens for a session, and how SitRep starts. See [A click takes 
 |---|---|---|---|
 | Open at login | On, off | On, from the welcome window | Starts SitRep when you log in |
 | Terminal | Ghostty | Ghostty | The terminal a new window opens in |
-| Bring a session's Ghostty window to the front | Allowed or not | Asked at the first jump | Lets a click reach the window |
-| Command | Any command | See below | Typed in a new window |
+| Bring a session's Ghostty window to the front | Allow…, or Open System Settings… | Asked at the first jump | Lets a click reach the window |
+| Command | Any command | See below | Typed in a new Ghostty window |
 
-The default command resumes the session in Claude Code:
+SitRep types the command only for a session that no terminal on this Mac shows. The default resumes the session in Claude Code:
 
 ```text
 cd {dir} && claude --resume {claude}
 ```
 
-**Restore Default** puts it back.
+SitRep replaces each placeholder with a quoted value:
+
+- `{claude}`: the Claude Code session id;
+- `{dir}`: the folder the session ran in;
+- `{tty}`: the terminal that Claude still runs on, empty unless it does.
+
+**Restore Default** puts the default back.
 
 ## Edge
 
@@ -46,14 +52,14 @@ What a new ask does, and what Claude stopping does. See [Sounds, banners and the
 
 | Control | Choices | Default | What it does |
 |---|---|---|---|
-| Notify me of a new ask | On, off | Off | A banner for each ask |
+| Notify me of a new ask | On, off | Off, unless the welcome window turns it on | A banner for each ask |
 | Notify me when Claude stops | On, off | Off | A banner titled "Stopped" |
 | Play a sound for a new ask | On, off | On | Once, whichever session |
 | Sound | macOS alert sounds | Glass | The sound for a new ask |
 | Play a sound when Claude stops | On, off | Off | Once, as a turn ends |
 | Sound | macOS alert sounds | Tink | The sound for Claude stopping |
-| Pulse for a new ask | On, off | On | The notch swells and flashes |
-| Pulse when Claude stops | On, off | Off | The notch swells |
+| Pulse for a new ask | On, off | On | Swells and flashes for an ask or a prompt |
+| Pulse when Claude stops | On, off | Off | The notch swells and flashes |
 
 At the top of the pane, **Send Test** sends a sample banner. Under the banner switches, a row says what macOS allows. If macOS stops banners, **Notification Settings…** opens the place in System Settings to allow them.
 
@@ -68,7 +74,7 @@ The choices that Snooze offers, in the menus and in the pane in Claude Code. See
 | Tonight | A time | On, 18:00 | That time today |
 | Tomorrow | A time | On, 09:00 | That time tomorrow |
 | This weekend | Saturday or Sunday, a time | Off, Saturday 09:00 | That day this week |
-| Next week | A weekday, a time | On, Monday 09:00 | That day next week |
+| Next week | A day, a time | On, Monday 09:00 | That day next week |
 
 Each choice has a switch, and a choice switched off is not offered. Tonight and This weekend are not offered once their time has passed. The menus also offer **Until it moves**, which has no time.
 
@@ -78,7 +84,7 @@ The plugin that puts each Claude Code session on the board. See [Installing and 
 
 | Row | What it shows |
 |---|---|
-| Claude Code plugin | "Up to date", or what is wrong |
+| Claude Code plugin | "Up to date"; how many windows run an older plugin; or what is wrong |
 | A window under Needs /reload-plugins | A window that runs an older plugin, with **Show** |
 
 The Needs /reload-plugins section shows only while a window runs an older plugin. **Show** takes you to that window. **Copy** copies `/reload-plugins`, for you to type in each one. While any window waits, the sidebar shows their number beside Claude Code.
