@@ -48,84 +48,6 @@ work, so git leaves it out too. The main clone holds the master copy, and
 `.worktreeinclude` copies it from there into each worktree. Without it the
 app's tests skip their scans, so the release refuses to run without it.
 
-## Writing the docs
-
-The README and `docs/` are written for someone who runs several Claude Code
-windows on a Mac, often across several projects. The code wins over every
-page: check each claim, and each label shown on screen, in `hooks/`,
-`core/`, `cli/` and `app/Sources`. Every page follows these rules, and a
-reviewer checks them:
-
-1. **One idea a sentence.** Fewer than 5% of a page's sentences run over 25
-   words.
-2. **One topic a paragraph,** its point first, 3 to 5 sentences. No
-   paragraph runs over 100 words.
-3. **Example first, rule after.** Show the command or the steps and what you
-   see, then explain.
-4. **No fact-chains.** Three or more items make a list. Conditions make an
-   if-then table.
-5. **Name the thing.** At most one "its" a sentence, and only for the
-   subject. Repeat the noun rather than leave a pronoun to work out.
-6. **No possessive chains.** One possessive a noun phrase, and under 1.5 per
-   100 words on a page. A natural possessive ("the session's asks") beats
-   "the asks of the session"; a verb ("the session holds") beats both.
-   Never drop the verb from a second clause.
-7. **Plain words in their usual sense:** "if", not "where"; "only", not
-   "alone"; "because" and "for example", not "as".
-8. **One term, one meaning.** Each term is defined once, in
-   `docs/glossary.md`, and never used for anything else.
-9. **Headings that inform,** the first two words carrying it. H3 at most.
-10. **The main path on the page.** Edge cases go one level down, behind a
-    clear link.
-11. **Link to whole pages.** Never link to a heading in another file: the
-    GitHub phone app opens such a link at the top of the page.
-12. **Benefits first, and specific:** a number or something you'll see,
-    never praise.
-13. **"You" and the active voice.** Give a condition before the instruction
-    it governs.
-
-The pages are read in the GitHub app on a phone, so:
-
-- code lines run 52 columns at most, each comment on a line of its own
-  above its command;
-- tables run 4 columns at most, with short cells;
-- no `<br>` or other forced line breaks.
-
-A feature page runs 300 to 700 words, with headings no deeper than H2, in
-this order:
-
-- **Title:** the benefit in your words, the first two words carrying it.
-- **Opening:** 40 to 60 words on what it does for you and when you'd want
-  it.
-- **The moment:** one still or clip from `art/`, with a one-line caption,
-  only once one exists.
-- **Try it:** the shortest working example, before any rule: two to four
-  steps, slash commands, clicks or shell commands. SitRep is a Mac app and
-  a Claude Code plugin, so most are steps, not shell commands.
-- **What happens:** 3 to 6 one-sentence bullets on what you'll notice.
-- **Good to know:** 2 to 4 bullets of limits, costs and objections.
-- **Reference:** a table of 8 rows at most, or links to the reference
-  pages.
-- **Related:** 2 or 3 links to other pages.
-
-`docs/asks.md` is the first page written to it: match its voice and build.
-
-Measure every page and meet its limits; the script exits 1 on a failure:
-
-```bash
-python3 -I ~/.claude/skills/readme-and-docs/scripts/measure.py \
-  --root . docs/<page>.md --detail
-```
-
-Name nothing real: no person, account, machine, session id or other
-project. Use the README's placeholders: projects Northwind, Contoso,
-Fabrikam, Tailspin, Woodgrove and Litware; sessions "Help desk redesign",
-"Shift schedules", "Supplier portal" and "Invoice ledger"; ids such as
-`sr-nw0001`. Check every name against `tests/real-names.txt`.
-
-The docs call the person "you", never Lee. Claude's own texts say "the
-user".
-
 ## The app
 
 `app/` is a Swift package, no Xcode project: the menu bar app, which runs
@@ -155,3 +77,92 @@ A live run of the CLI points `XDG_STATE_HOME` at a folder of its own and
 seeds its own sessions there, so it never writes to the real board in
 `~/.local/state/sitrep`. A jump moves Lee's screen: run one only with Lee's
 go.
+
+## Writing the docs
+
+The README and `docs/` are written for someone who runs several Claude Code
+windows on a Mac, often across several projects. The code wins over every
+page: check each claim, and each label shown on screen, in `hooks/`,
+`core/`, `cli/` and `app/Sources`. Every page follows these rules, and a
+reviewer checks them:
+
+1. **One idea a sentence.** Fewer than 5% of a page's sentences run over 25
+   words.
+2. **One topic a paragraph,** its point first, 3 to 5 sentences. No
+   paragraph runs over 100 words.
+3. **Example first, rule after.** Show the command or the steps and what
+   the reader sees, then explain. A tool's output goes in a `console` or
+   `text` fence.
+4. **No fact-chains.** Three or more items make a list. Conditions make an
+   if-then table.
+5. **Name the thing.** At most one "its" a sentence, and only for the
+   subject. Repeat the noun rather than leave a pronoun to work out.
+6. **No possessive chains.** One possessive a noun phrase, and under 1.5 per
+   100 words on a page. A natural possessive ("the session's asks") beats
+   "the asks of the session"; a verb ("the session holds") beats both.
+   Never drop the verb from a second clause.
+7. **Plain words in their usual sense:** "if", not "where"; "only", not
+   "alone"; "because" and "for example", not "as".
+8. **One term, one meaning.** Each term is defined once, in
+   `docs/glossary.md`, and never used for anything else. If one word has
+   two senses, give the second sense a new word.
+9. **Headings that inform,** the first two words carrying it. H3 at most.
+10. **The main path on the page.** Edge cases go one level down, behind a
+    clear link.
+11. **Link to whole pages.** Never link to a heading in another file: the
+    GitHub phone app opens such a link at the top of the page.
+12. **Benefits first, and specific:** a number or something the reader sees,
+    never praise.
+13. **"You" and the active voice.** Give a condition before the instruction
+    it governs.
+
+The pages are read in the GitHub app on a phone, so:
+
+- code lines run 52 columns at most, each comment on a line of its own
+  above its command;
+- tables run 4 columns at most, with short cells;
+- no `<br>` or other forced line breaks.
+
+Never name a page `claude.md` or `readme.md`: a Mac folds them to
+`CLAUDE.md` and `README.md`, and Claude Code loads a `claude.md` as
+instructions.
+
+A feature page runs 300 to 700 words, with headings no deeper than H2, in
+this order:
+
+- **Title:** the benefit in the reader's words, the first two words
+  carrying it.
+- **Opening:** 40 to 60 words on what it does for the reader, and when
+  they'd want it.
+- **The moment:** one still or clip from `art/`, with a one-line caption,
+  only once one exists.
+- **Try it:** the shortest working example, before any rule: two to four
+  steps, slash commands, clicks or shell commands. SitRep is a Mac app and
+  a Claude Code plugin, so most are steps, not shell commands.
+- **What happens:** 3 to 6 one-sentence bullets on what the reader will
+  notice.
+- **Good to know:** 2 to 4 bullets of limits, costs and objections.
+- **Reference:** a table of 8 rows at most, or links to the reference
+  pages.
+- **Related:** 2 or 3 links to other pages.
+
+No table of contents. The glossary gives each term in bold, then one to
+three plain sentences.
+
+`docs/asks.md` is the first page written to it: match its voice and build.
+
+Measure every page and meet its limits; the script exits 1 on a failure:
+
+```bash
+python3 -I ~/.claude/skills/readme-and-docs/scripts/measure.py \
+  --root . docs/<page>.md --detail
+```
+
+Name nothing real: no person, account, machine, session id or other
+project. Use the README's placeholders: projects Northwind, Contoso,
+Fabrikam, Tailspin, Woodgrove and Litware; sessions "Help desk redesign",
+"Shift schedules", "Supplier portal" and "Invoice ledger"; ids such as
+`sr-nw0001`. Check every name against `tests/real-names.txt`.
+
+The docs call the person "you", never Lee. Claude's own texts say "the
+user".
