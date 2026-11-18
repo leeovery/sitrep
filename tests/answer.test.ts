@@ -441,7 +441,7 @@ test('a finished session takes no answer; an unknown one is no such session', as
   t.seed(META, { lines: [...POSTED, [T0 + MIN, finish('lee')]] })
 
   expect((await t.run('answer', 'k1', 'Go', ...SESSION)).err).toBe(
-    'sitrep: This session is finished: its asks wait on Lee no more.\n',
+    'sitrep: This session is finished: its asks wait on you no more.\n',
   )
   expect((await t.run('answer', 'k1', 'Go', '--session', 'sr-zzzzzz')).exit).toBe(EXIT.noSession)
 })

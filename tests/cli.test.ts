@@ -1,4 +1,5 @@
 import { expect, test } from './kit'
+import { COMMANDS } from '../cli/commands'
 import { EXIT, main, WRITER } from '../cli/main'
 import {
   boardText,
@@ -9,7 +10,7 @@ import {
   VERSION,
   type SessionPaths,
 } from '../core'
-import { ELSEWHERE, META, MIN, PROJECT, T0, W1, W2 } from './data'
+import { ELSEWHERE, META, MIN, PERSON, PROJECT, T0, W1, W2 } from './data'
 import { beat, file, finish, moveTo, park, snoozeSession, status, yesAsk, type Line } from './lines'
 import { ENV, FIRST_ID, NEXT_ID, NOW, terminal } from './terminal'
 
@@ -424,7 +425,7 @@ const FINISHED_ASK: Record<string, { seenAt?: number; line: string }> = {
   },
   'a live window holds it, where an answer still goes in': {
     seenAt: NOW,
-    line: '- k1 wants a yes (Approve), waiting on Lee: Review round 1',
+    line: '- k1 wants a yes (Approve), waiting on the user: Review round 1',
   },
 }
 
@@ -682,10 +683,12 @@ test('a snooze or a wake refused ends as refused, in the check’s words, and wr
     refused('There is no item zz on this board.'),
   )
   expect(await t.run('snooze', 'k1', 'k2', ...until, ...SESSION)).toEqual(
-    refused('An ask waits on Lee that the snooze did not name: look at it, then snooze again.'),
+    refused(
+      'An ask waits on you that the snooze did not name: look at it, then snooze again.',
+    ),
   )
   expect(await t.run('snooze', ...until, '--session', LOBBY.id)).toEqual(
-    refused('Lobby needs nothing of Lee: there is nothing to snooze.'),
+    refused('Lobby needs nothing of you: there is nothing to snooze.'),
   )
   expect(await t.run('snooze', '--until', 'soon', ...SESSION, ...SHOWN)).toEqual(
     refused(
@@ -805,7 +808,7 @@ test("a command's help is its usage, what it does and each of its words, however
       'Park something raised and put off, to come back to. Prints its id.',
       '',
       '  <title>          one line, starting with the verb',
-      '  --where <words>  where Lee should look, in words',
+      '  --where <words>  where the user should look, in words',
       '  --ref <ref>      where your own record of it is',
       '  --session <id>   the session: sr- and six characters; else $SITREP_SESSION',
       '',
@@ -813,6 +816,19 @@ test("a command's help is its usage, what it does and each of its words, however
   )
   expect((await t.run('help', 'park')).out).toBe(help)
   expect((await t.run('park', 'Hello', '-h')).out).toBe(help)
+})
+
+test("every command's help names the person it is for the user, and guesses at no pronoun", async () => {
+  const helps: string[] = []
+
+  for (const { name } of COMMANDS) {
+    helps.push((await terminal().run(name, '--help')).out)
+  }
+
+  expect(helps.join('\n')).toContain(
+    "Answer a yes or a choice ask, or ignore any ask, as the user does on the board: into the session's inbox, which its window gives Claude as the user's own message,",
+  )
+  expect(helps.join('\n')).not.toMatch(PERSON)
 })
 
 test('no words, an unknown command or a word that will not read is a usage error, pointing at the help', async () => {

@@ -107,7 +107,7 @@ test("Lee's comment queued, then sent once an answer to the same ask waits in th
     [
       'From the board:',
       '- Review Tickets & Replies, round 1 → comment: “thinner bars”',
-      "  An answer of Lee's to this ask, sent apart from this message, closes it.",
+      "  An answer from the user to this ask, sent apart from this message, closes it.",
     ].join('\n'),
   ])
 })

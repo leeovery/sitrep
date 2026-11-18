@@ -1,20 +1,21 @@
 /**
- * Words Lee saw only as a summary, or not at all. Claude Code asks the API
- * for its thinking shown as "updates", and on Opus 5.5 a message whose prose
+ * Words the user saw only as a summary, or not at all. Claude Code asks the
+ * API for its thinking shown as "updates", and on Opus 5.5 a message whose prose
  * comes before a tool call can arrive with that prose inside its thinking
  * and no text block: a thinking block whose signature marks it narration
- * comes in its place, holding a one-line summary, all Lee sees of it, or
+ * comes in its place, holding a one-line summary, all the user sees of it, or
  * nothing at all (anthropics/claude-code#96288). The next tool call of the
  * main conversation that the engine runs and answers tells Claude so with
- * its result, for Claude to say again what Lee still needs.
+ * its result, for Claude to say again what the user still needs.
  *
  * Each narration row of the main conversation, stored as it streams, so
  * before any call after it, waits untold until a call carries it; a new turn
  * of the main conversation lets go of what is still untold. A subagent's
- * rows and calls, and another plugin's calls, are left alone: Lee reads only
- * the main chat, and the engine drops what a plugin's own call adds.
+ * rows and calls, and another plugin's calls, are left alone: the user reads
+ * only the main chat, and the engine drops what a plugin's own call adds.
  */
 import type { AgentLoop, Args, Origin, ToolCallResult } from 'claude-code'
+import { USER } from '../core'
 
 type Block = Args<'session.append'>['message']['content'][number]
 
@@ -144,7 +145,7 @@ export const blockKindOf = (signature: string) => {
     : undefined
 }
 
-/** A block's words where it is a narration: the summary Lee saw in their place, '' where he saw nothing. */
+/** A block's words where it is a narration: the summary the user saw in their place, '' where nothing showed. */
 const narrationOf = (block: Block) =>
   block.type === 'thinking' &&
   typeof block.signature === 'string' &&
@@ -153,19 +154,18 @@ const narrationOf = (block: Block) =>
     : undefined
 
 /** What Claude is asked, whichever way its words were lost. */
-const SAY_AGAIN =
-  'Say again, after your last tool call, whatever of them Lee still needs: a question, steps, a finding, a decision.'
+const SAY_AGAIN = `Say again, after your last tool call, whatever of them ${USER.name} still needs: a question, steps, a finding, a decision.`
 
-/** What Claude reads with a call's result when its words reached Lee only as `summaries`, or, with none that has words, not at all. */
+/** What Claude reads with a call's result when its words reached the user only as `summaries`, or, with none that has words, not at all. */
 export const summarisedLine = (summaries: readonly string[]) => {
   const summary = summaries.filter(text => text !== '').join(' ')
 
   return summary === ''
-    ? `Your words before this tool call never reached Lee: he saw none of them. ${SAY_AGAIN}`
-    : `Your words before this tool call reached Lee only as this summary: “${summary}”. He never saw the rest. ${SAY_AGAIN}`
+    ? `Your words before this tool call never reached ${USER.name}: none of them showed. ${SAY_AGAIN}`
+    : `Your words before this tool call reached ${USER.name} only as this summary: “${summary}”. The rest never showed. ${SAY_AGAIN}`
 }
 
-/** The main conversation's narrations not yet told to Claude, in the order they came: each the summary Lee saw, '' for none. */
+/** The main conversation's narrations not yet told to Claude, in the order they came: each the summary the user saw, '' for none. */
 let untold: readonly string[] = []
 
 /** The main conversation's turn starting: what is still untold belongs to a turn gone by. */

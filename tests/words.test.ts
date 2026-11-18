@@ -218,11 +218,11 @@ test('under its ask, the board shows an answer as its words, and any note by its
 test('the board text tells Claude what each open ask wants back, a yes by its words, and what words it needs', () => {
   expect(boardText(SESSION)).toContain(
     [
-      `- k1 wants words, waiting on Lee: Run the export; needs: ${OUTPUT}`,
-      '- k2 wants words, waiting on Lee: Say how round 2 reads',
-      '- k3 wants a yes (Go), waiting on Lee: Give the ok for phase 3',
-      '- k4 wants a choice, waiting on Lee: Ship round 2, or redraw?; options: Ship it | Redraw',
-      `- k5 wants words, waiting on Lee: Run the apply; needs: ${OUTPUT}`,
+      `- k1 wants words, waiting on the user: Run the export; needs: ${OUTPUT}`,
+      '- k2 wants words, waiting on the user: Say how round 2 reads',
+      '- k3 wants a yes (Go), waiting on the user: Give the ok for phase 3',
+      '- k4 wants a choice, waiting on the user: Ship round 2, or redraw?; options: Ship it | Redraw',
+      `- k5 wants words, waiting on the user: Run the apply; needs: ${OUTPUT}`,
     ].join('\n'),
   )
 })

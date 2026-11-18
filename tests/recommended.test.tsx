@@ -136,7 +136,7 @@ test('the board tool reads back which option is recommended, once', async ($, on
   const board = String((await w.call('board')).result)
 
   expect(board).toContain(
-    `- ${id} wants a choice, waiting on Lee: Ship round 2, or redraw?; options: Ship it | Redraw | Hold off; recommended: Redraw`,
+    `- ${id} wants a choice, waiting on the user: Ship round 2, or redraw?; options: Ship it | Redraw | Hold off; recommended: Redraw`,
   )
   expect(board.match(/recommended/gi)).toHaveLength(1)
 })

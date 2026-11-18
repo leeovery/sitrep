@@ -23,6 +23,7 @@ import {
   type Wants,
   type Session,
 } from './types'
+import { USER } from './user'
 
 /** What a reply says, whatever it is written as. */
 export type ReplyFields = Pick<ReplyBody, 'item' | 'verdict' | 'option' | 'note'>
@@ -339,7 +340,7 @@ export const replyLine = (item: Ask | Parked, reply: ReplyFields, elsewhere?: st
 /** What Claude is told a message leaves an ask as: closed, with nothing more to do; closed by an answer of Lee's sent apart from it; or open, Claude's to act on and resolve. */
 const LEFT_AS = {
   closed: '  This closes the ask: nothing more to do with it.',
-  apart: "  An answer of Lee's to this ask, sent apart from this message, closes it.",
+  apart: `  An answer from ${USER.name} to this ask, sent apart from this message, closes it.`,
   open: '  This leaves the ask open: act on it, then resolve it.',
 } as const
 

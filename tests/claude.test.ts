@@ -9,7 +9,7 @@ import {
   summariseProject,
   toldSummary,
 } from '../core'
-import { MIN, SENDER, T0, W1, W2 } from './data'
+import { MIN, PERSON, SENDER, T0, W1, W2 } from './data'
 import {
   beat,
   choiceAsk,
@@ -81,9 +81,9 @@ test("the board text lists the session's open items by id, for Claude to check a
       '- Drawing Inbox, round 2',
       'Next: Inbox, round 3',
       'Open asks:',
-      '- k1 wants a yes (Approve), waiting on Lee: Review round 1; where: In Paper: page "round 1"',
-      '- k2 wants a choice, waiting on Lee: Keep the ledger 400 days, or forever?; options: 400 days | Forever',
-      '- k3 wants a yes (It works), Lee replied, yours to act on (comment: “It fails after the code”): Try it on the iPad',
+      '- k1 wants a yes (Approve), waiting on the user: Review round 1; where: In Paper: page "round 1"',
+      '- k2 wants a choice, waiting on the user: Keep the ledger 400 days, or forever?; options: 400 days | Forever',
+      '- k3 wants a yes (It works), the user replied, yours to act on (comment: “It fails after the code”): Try it on the iPad',
       'Parked:',
       '- p1: A priority badge',
     ].join('\n'),
@@ -164,7 +164,7 @@ test('the board listing gives each session a line: its project, its id, its name
     [
       'On the board:',
       '- Contoso: sr-eeeeee "Onboarding"',
-      '- Northwind: sr-k3f9qa "Help desk redesign", 2 waiting on Lee',
+      '- Northwind: sr-k3f9qa "Help desk redesign", 2 waiting on the user',
       '- Northwind: sr-1edger "Invoice ledger"',
     ].join('\n'),
   )
@@ -177,7 +177,9 @@ test("Claude's listing counts an ask whose answer from Lee is on its way as wait
 
   expect(SESSION.asks[0]?.replies).toMatchObject([{ id: 'r2', delivery: 'waiting' }])
   expect(toldSummary(SESSION).waiting).toBe(2)
-  expect(boardText(SESSION)).toContain('- k1 wants a yes (Approve), waiting on Lee: Review round 1')
+  expect(boardText(SESSION)).toContain(
+    '- k1 wants a yes (Approve), waiting on the user: Review round 1',
+  )
   expect(summarise(SESSION).waiting, "Lee's surfaces count only what waits on Lee").toBe(1)
   expect(toldSummary(finished).waiting, 'a finished session waits on Lee for nothing').toBe(0)
 })
@@ -187,7 +189,7 @@ test("a finished session's open asks read as the pane has them: waiting on Lee w
     logs: { [W1]: file([T0, yesAsk('k1', 'Run it', 'Done')], [T0, finish('lee')]) },
   })
 
-  expect(boardText(finished)).toContain('- k1 wants a yes (Done), waiting on Lee: Run it')
+  expect(boardText(finished)).toContain('- k1 wants a yes (Done), waiting on the user: Run it')
   expect(boardText(finished, [], false)).toContain(
     "- k1 wants a yes (Done), can't be answered (the session is finished): Run it",
   )
@@ -198,44 +200,48 @@ test('a conversation starts knowing how to keep the board and talk to Lee beside
   const projects = [summariseProject('northwind', [summarise(SESSION)])]
   const guide = startText([])
 
+  expect(guide, 'the user, as Claude Code names them').toMatch(
+    /^sitrep is the user's board inside Claude Code: where each session stands and what waits on the user\./,
+  )
+  expect(guide, 'no name, and no pronoun guessed').not.toMatch(PERSON)
   expect(guide).toContain(
-    'Start a session when the work will run across several turns or will need Lee',
+    'Start a session when the work will run across several turns or will need the user',
   )
   expect(guide).toContain('Not for a quick question.')
   expect(guide).toContain(
-    "Keep it current, since it tells Lee, away from this window, that something waits on him; but talk to Lee as if it weren't there: the chat alone tells him all he needs.",
+    "Keep it current, since away from this window it tells the user what waits; but in the chat talk as if it weren't there: the chat alone says everything the user needs.",
   )
-  expect(guide).toContain('resolve it yourself when Lee answers it in the chat')
+  expect(guide).toContain('resolve it yourself when the user answers it in the chat')
   expect(guide, 'the ask rule, a bullet of its own').toContain(
-    '\n- A turn that ends on a decision or a question for Lee, or that leaves Lee something to do, such as a release, a merge or a command to run, even said as a statement ("It\'s ready for you to release"), posts it as an ask, so it shows Lee it waits on him, never only in the status. Plain conversation needs none.\n',
+    '\n- A turn that ends on a decision or a question for the user, or that leaves the user something to do, such as a release, a merge or a command to run, even said as a statement ("It\'s ready for you to release"), posts it as an ask, so the board shows it waiting on the user, never only in the status. Plain conversation needs none.\n',
   )
   expect(guide).toContain(
     'Touch the board only once it is clear which project the work is on: the project being discussed, whatever folder this window started in.',
   )
   expect(guide).toContain(
-    'When Lee carries on with a session on the board, join it by its id with the sitrep join tool.',
+    'When the user carries on with a session on the board, join it by its id with the sitrep join tool.',
   )
   expect(guide).toContain(
-    "Otherwise start one, naming its project as Lee would say it (SitRep, Switchboard), by the name it has on the board when it is one there, and giving the project's directory once you know it.",
+    "Otherwise start one, naming its project as the user would say it (SitRep, Switchboard), by the name it has on the board when it is one there, and giving the project's directory once you know it.",
   )
   expect(guide, 'a move, only at Lee’s word, and the whole session').toContain(
-    "- When Lee asks to move this session to another project, move it with the sitrep move tool: the whole session goes, so never start a new one there instead. Move one only at Lee's word.",
+    "- When the user asks to move this session to another project, move it with the sitrep move tool: the whole session goes, so never start a new one there instead. Move one only at the user's word.",
   )
   expect(guide).toContain(
-    'Item and session ids are yours alone: Lee sees none of them on the board or in the app, so never name one to him. Name an ask, a parked item or a session by its words.',
+    'Item and session ids are yours alone: the user sees none of them on the board or in the app, so never name one in the chat. Name an ask, a parked item or a session by its words.',
   )
   expect(guide).not.toContain('On the board')
   expect(guide, 'what Lee needs said in the chat, never by the board').toContain(
-    'In the chat, give an ask\'s question and steps whole, and never point Lee to the board: no "it\'s on the board", no "check the board".',
+    'In the chat, give an ask\'s question and steps whole, and never point the user to the board: no "it\'s on the board", no "check the board".',
   )
   expect(guide, 'saying what was parked, and naming the open asks now and then').toContain(
     "Saying you parked something is fine, as is naming the asks still open now and then, when several wait, though not at every turn's end.",
   )
   expect(guide).toContain(
-    "An ask Lee hasn't answered that you still need, raise again in the chat.",
+    "An ask the user hasn't answered that you still need, raise again in the chat.",
   )
   expect(guide, "the turn's order").toContain(
-    "Every board call of a turn comes before your closing message to Lee, never after it. Before any tool call, write Lee a line at most: longer words before a tool call can reach him as a short summary, or not at all. What he must read goes after the turn's last tool call.",
+    "Every board call of a turn comes before your closing message to the user, never after it. Before any tool call, write the user a line at most: longer words before a tool call can reach the user as a short summary, or not at all. What the user must read goes after the turn's last tool call.",
   )
   expect(guide, 'sessions, never pieces of work').not.toMatch(/\bpieces? of work\b/i)
   expect(
@@ -285,10 +291,10 @@ test("a snoozed ask reads as snoozed by Lee until its time, whole and local, in 
   expect(inZone(LONDON, () => boardText(SNOOZED))).toContain(
     [
       'Open asks:',
-      '- k1 wants a yes (Go), snoozed by Lee until Mon 26 Oct 09:00 (leave it until then): Give the ok for phase 3',
-      '- k2 wants a yes (Approve), snoozed by Lee until Mon 26 Oct 09:00 (leave it until then): Review the plan',
-      '- k3 wants a choice, snoozed by Lee until Mon 26 Oct 09:00 (leave it until then): Keep it, or drop it?; options: Keep it | Drop it',
-      '- k4 wants a yes (Done), snoozed by Lee until Mon 26 Oct 09:00 (leave it until then): Tag the release',
+      '- k1 wants a yes (Go), snoozed by the user until Mon 26 Oct 09:00 (leave it until then): Give the ok for phase 3',
+      '- k2 wants a yes (Approve), snoozed by the user until Mon 26 Oct 09:00 (leave it until then): Review the plan',
+      '- k3 wants a choice, snoozed by the user until Mon 26 Oct 09:00 (leave it until then): Keep it, or drop it?; options: Keep it | Drop it',
+      '- k4 wants a yes (Done), snoozed by the user until Mon 26 Oct 09:00 (leave it until then): Tag the release',
       'Parked:',
     ].join('\n'),
   )
@@ -301,13 +307,13 @@ test("Claude's listing counts snoozed asks apart from those waiting on Lee, one 
   expect([told.waiting, told.snoozed]).toEqual([0, 4])
   expect([summarise(SNOOZED).waiting, summarise(SNOOZED).snoozed]).toEqual([0, 3])
   expect(onBoardText([summariseProject('northwind', [told])])).toBe(
-    'On the board:\n- Northwind: sr-k3f9qa "Help desk redesign", 4 snoozed by Lee',
+    'On the board:\n- Northwind: sr-k3f9qa "Help desk redesign", 4 snoozed by the user',
   )
   expect(
     onBoardText([summariseProject('northwind', [{ ...told, waiting: 1, snoozed: 3 }])]),
     'some waiting too',
   ).toBe(
-    'On the board:\n- Northwind: sr-k3f9qa "Help desk redesign", 1 waiting on Lee, 3 snoozed by Lee',
+    'On the board:\n- Northwind: sr-k3f9qa "Help desk redesign", 1 waiting on the user, 3 snoozed by the user',
   )
   expect(
     toldSummary(snoozedAt(NOW, [T0 + 3 * MIN, finish('lee')])),

@@ -28,6 +28,9 @@ export const AGENT = 'a1b2c3d4'
 /** The sitrep version the plugin's manifest gives, unless a test says otherwise. */
 export const PLUGIN_VERSION = '0.2.0'
 
+/** A name, or a guess at a pronoun, where a text Claude reads names the person the board is for "the user". */
+export const PERSON = /\b(Lee|he|him|his|she|her|hers)\b/i
+
 /** Where sitrep keeps its folder, as `XDG_STATE_HOME` names it, and that folder. */
 export const STATE_HOME = '/state'
 export const ROOT = `${STATE_HOME}/sitrep`

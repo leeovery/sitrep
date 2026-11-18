@@ -750,7 +750,7 @@ test("a comment on an ask whose answer is on its way apart from the message says
     [
       FROM_THE_BOARD,
       '- Review Tickets & Replies, round 1 → comment: “Thinner bars”',
-      "  An answer of Lee's to this ask, sent apart from this message, closes it.",
+      "  An answer from the user to this ask, sent apart from this message, closes it.",
     ].join('\n'),
   )
   expect(boardMessage(session, [{ item: 'k1', verdict: 'yes' }])?.text.split('\n').at(-1)).toBe(

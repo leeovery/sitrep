@@ -183,7 +183,7 @@ test('a move names the project as Lee would say it, with its directory once know
     expect(checkMove({ project }), String(project)).toEqual({
       ok: false,
       error:
-        'Name the project to move the session to: its name as Lee would say it, such as SitRep or Switchboard.',
+        'Name the project to move the session to: its name as the user would say it, such as SitRep or Switchboard.',
     })
   }
 

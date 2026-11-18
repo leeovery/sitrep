@@ -462,7 +462,7 @@ test("a reply in flight is no reply of the session's: no inbox delivers it, and 
   expect(session.ids.has('r1')).toBe(false)
   expect(toDeliver(session, W2)).toEqual([])
   expect(toldSummary(session).waiting).toBe(1)
-  expect(boardText(session)).toContain('k1 wants a yes (Approve), waiting on Lee')
+  expect(boardText(session)).toContain('k1 wants a yes (Approve), waiting on the user')
 })
 
 test("two windows' messages each count, the earlier claim's answer barring the later's, whichever window it is", () => {

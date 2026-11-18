@@ -61,7 +61,7 @@ test('a session started in one window and joined by a second writer is one sessi
   const joined = String((await w.call('join', { session: id })).result)
   const parked = postedId(await w.call('park', { title: 'Drew round 2' }))
 
-  expect(joined).toContain(`- ${posted} wants a yes (Approve), waiting on Lee: Review round 1`)
+  expect(joined).toContain(`- ${posted} wants a yes (Approve), waiting on the user: Review round 1`)
   expect(parseEntries(w.text(paths.log(W1))).map(line => line.type)).toEqual(['ask'])
   expect(parseEntries(w.text(paths.log(W2))).map(line => line.type)).toEqual(['park'])
   expect(w.state.board?.asks.map(item => item.id)).toEqual([posted])
