@@ -417,6 +417,16 @@ test('board prints the board as Claude’s board tool reads it', async () => {
   expect(t.files.has(paths.log(WRITER)), 'reading the board writes nothing').toBe(false)
 })
 
+test("board prints a finished session's open asks as ones no answer reaches until the session is joined again, as the pane says", async () => {
+  const t = terminal()
+
+  t.seed(META, { lines: [[T0, yesAsk('k1', 'Review round 1')], [T0, finish('claude')]] })
+
+  expect((await t.run('board', ...SESSION)).out).toContain(
+    "- k1 wants a yes (Approve), can't be answered while the session is finished (joining it reopens it): Review round 1",
+  )
+})
+
 test("finish finishes a session no window holds as Lee's finish on the board does, in the CLI's own file, and prints nothing", async () => {
   const t = terminal()
   const paths = t.seed(META, {

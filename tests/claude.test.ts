@@ -182,6 +182,20 @@ test("Claude's listing counts an ask whose answer from Lee is on its way as wait
   expect(toldSummary(finished).waiting, 'a finished session waits on Lee for nothing').toBe(0)
 })
 
+test("a finished session's open asks read as the pane has them: waiting on Lee in the window holding it, which a reply still reaches; elsewhere unanswerable until the session is joined again", () => {
+  const finished = fold({
+    logs: { [W1]: file([T0, yesAsk('k1', 'Run it', 'Done')], [T0, finish('lee')]) },
+  })
+
+  expect(boardText(finished)).toContain('- k1 wants a yes (Done), waiting on Lee: Run it')
+  expect(boardText(finished, [], false)).toContain(
+    "- k1 wants a yes (Done), can't be answered while the session is finished (joining it reopens it): Run it",
+  )
+  expect(boardText(SESSION, [], false), 'a session not finished, as held').toBe(
+    boardText(SESSION),
+  )
+})
+
 test('a conversation starts knowing how to keep the board and talk to Lee beside it, every session on it by project, and which this window holds', () => {
   const projects = [summariseProject('northwind', [summarise(SESSION)])]
   const guide = startText([])

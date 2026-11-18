@@ -69,10 +69,12 @@ import type {
 } from '../types'
 import { settleAnswering } from './answering'
 import { boardOf, hereOf, sessionOf } from './board'
+import { fromTheTop } from './clip'
 import { fileOne, filingWith, projectNames, type FiledIn, type InFolder } from './filing'
 import { folderKeys } from './folders'
 import { logFailure, rootFor, type Host, type Slot } from './host'
 import { oldList, pickedUpList, projectScope } from './lists'
+import { EVERY_PROJECT, samePlace } from './places'
 import { destinations, isShowing, type Folded } from './queue'
 import { createReader, filedIn, type Reader } from './reader'
 import { forgetSnooze, snoozeSettings } from './snoozing'
@@ -326,19 +328,52 @@ const viewedProject = (
 /** What a look keeps and carries by, as the board stands: the held session as its board has it, filed under `here`. */
 const showingOf = (
   held: SitrepAttachment,
+  here: ProjectKey,
   board: SitrepBoard | null,
   pane: SitrepPane,
   read: ReadonlyMap<string, Filed>,
-): Showing => {
-  const here = hereOf(held, board)
+): Showing => ({
+  here,
+  heldTakenOff: board?.id === held.session ? takenOff(sessionOf(board)) : [],
+  shown: pane.isOpen ? viewedProject(held, here, pane.place, read) : undefined,
+  viewed: pane.isOpen && pane.place?.level === 'project' ? pane.place.project : undefined,
+  pane,
+})
 
-  return {
-    here,
-    heldTakenOff: board?.id === held.session ? takenOff(sessionOf(board)) : [],
-    shown: pane.isOpen ? viewedProject(held, here, pane.place, read) : undefined,
-    viewed: pane.isOpen && pane.place?.level === 'project' ? pane.place.project : undefined,
-    pane,
+/** Whether a project has no session filed under it any more, of those read, the held session's aside, filed under `here`. */
+const isEmptied = (key: ProjectKey, here: ProjectKey, read: ReadonlyMap<string, Filed>) =>
+  key !== here && ![...read.values()].some(({ project }) => project === key)
+
+/**
+ * The pane gone up to All projects, at its top, from the view of a project
+ * no session is filed under any more, as a move away leaves one: one step
+ * up, as a finish goes up from the session it leaves, so Lee never stands
+ * on a project the board no longer lists. Where Lee went elsewhere as the
+ * look read, the pane stays where he went.
+ */
+const upFromEmptied = async (
+  host: Host,
+  pane: SitrepPane,
+  here: ProjectKey,
+  read: ReadonlyMap<string, Filed>,
+): Promise<SitrepPane> => {
+  const { place } = pane
+
+  if (place?.level !== 'project' || !isEmptied(place.project, here, read)) {
+    return pane
   }
+
+  const up = { place: EVERY_PROJECT, selected: null }
+
+  await host.state.pane.update(now =>
+    now.place !== null && samePlace(now.place, place) ? { ...now, ...up } : now,
+  )
+
+  if (pane.isOpen) {
+    await fromTheTop(host)
+  }
+
+  return { ...pane, ...up }
 }
 
 /**
@@ -518,7 +553,8 @@ const look = async (host: Host, fresh: readonly string[]) => {
   const full = fullOf(held, pane, { queue, sent, answering })
   const isWhole = isWholeLook(now)
   const { folders, read } = await readAround(host, root, held.session, full, now, isWhole, fresh)
-  const showing = showingOf(held, board, pane, read)
+  const here = hereOf(held, board)
+  const showing = showingOf(held, here, board, await upFromEmptied(host, pane, here, read), read)
   const projects = folders.map(projectOfFolder)
 
   await put(host.state.projects, 'projects', projectsOf(showing, projects, read, now))

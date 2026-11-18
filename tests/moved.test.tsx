@@ -38,7 +38,7 @@ import {
 } from './data'
 import { entered } from './answers'
 import { rowsOf } from './drawn'
-import { delivered, file, moveTo, park, reply, resolve, yesAsk } from './lines'
+import { delivered, file, finish, moveTo, park, reply, resolve, yesAsk } from './lines'
 import {
   asked,
   asking,
@@ -1274,3 +1274,64 @@ for (const [moved, { mover, parker }] of Object.entries(PICKED_THEN_MOVED)) {
     )
   })
 }
+
+/** Contoso's own session, as `withContoso` puts it on the board. */
+type Shifts = ReturnType<typeof withContoso>
+
+/** Ways a move empties the project whose view the board shows: its only session moved away by another window, or this session, its project's only one, moved by Claude. */
+const EMPTYING: Record<string, { left: string; moves: (w: World, shifts: Shifts) => Promise<unknown> }> = {
+  "Contoso's only session moved to Northwind by its own window": {
+    left: ELSEWHERE.key,
+    moves: async (w, shifts) => shifts.write(moveTo(PROJECT.key)),
+  },
+  "this session, Northwind's only one, moved to Contoso by Claude": {
+    left: PROJECT.key,
+    moves: w => w.call('move', { project: 'Contoso' }),
+  },
+}
+
+
+for (const [moved, { left, moves }] of Object.entries(EMPTYING)) {
+  test(`the view of a project a move empties goes up to All projects at the next look, which no longer lists it, never drawing the project by its key: ${moved}`, async ($, on) => {
+    const w = world($, on)
+    const shifts = withContoso(w)
+
+    await w.begin()
+
+    const ui = await w.opened()
+
+    await toProject(ui, left)
+    await moves(w, shifts)
+    await w.clock.advance(AROUND_MS)
+
+    expect(w.state.pane?.place).toEqual({ level: 'all' })
+    expect(await ui.find({ type: 'Text', text: new RegExp(`^${left}\\b`) })).toBeUndefined()
+    expect(await pressesOf(ui, 'proj:')).not.toContain(`proj:${left}`)
+  })
+}
+
+test('the view of a project whose only session finished stays where it is: the project is still on the board', async ($, on) => {
+  const w = world($, on)
+  const shifts = withContoso(w)
+
+  await w.begin()
+
+  const ui = await w.opened()
+
+  await toProject(ui, ELSEWHERE.key)
+  shifts.write(finish('claude', 'Shipped'))
+  await w.clock.advance(AROUND_MS)
+
+  expect(w.state.pane?.place).toEqual({ level: 'project', project: ELSEWHERE.key })
+  expect(await ui.find({ type: 'Text', text: /^Contoso\b/ })).toBeDefined()
+})
+
+test("Claude's board text right after a move lists what the new project's sessions parked, a finished one's too: the look reads every project holding a parked item, whichever the session is in", async ($, on) => {
+  const w = world($, on)
+
+  withContoso(w).write(finish('claude', 'Shipped'))
+  await w.begin()
+  await w.call('move', { project: 'Contoso' })
+
+  expect(await boardRead(w)).toContain(ROTA_LINE)
+})

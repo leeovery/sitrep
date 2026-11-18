@@ -255,7 +255,12 @@ Lee that day:
   its own view and Claude's board text list the new project's parked items.
   The old project keeps nothing of it: no view of it lists the session or
   what it parked, and one left with no current session and nothing parked
-  drops out of the lists, as any such project does.
+  drops out of the lists, as any such project does. A board standing on
+  the view of a project no session is filed under any more goes up to All
+  projects at its next look, at its top, as a finish goes up from the
+  session it leaves (18 November 2026: the view stayed, headed by the
+  project's key, of a project All projects no longer listed). One whose
+  sessions are only finished or old is still the board's, and stays.
 - **Every window holding it follows**, Claude carrying on with no rejoin,
   and says so: each toasts `Moved to Contoso.`, the mover's among them.
 
@@ -1041,6 +1046,11 @@ show all 4
   is the held session's own, so a finish voids none, and its ask waits on
   no one while Claude's turn runs; a line read from the files, which no
   window holds, a finish voids, and its mark, once delivered, settles it.
+  Claude's board text goes by it as well (18 November 2026): read in the
+  window holding the session, its asks wait on Lee, as that window's
+  buttons say; read by the CLI, which holds none, a finished session's
+  open ask `can't be answered while the session is finished (joining it
+  reopens it)`, where it read `waiting on Lee` against the pane.
 
   What still works on a finished session's view stays: its project's
   Parked picks up as anywhere, to the Claude in this window, a finished

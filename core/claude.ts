@@ -7,7 +7,7 @@
  * on its way still waits on Lee here, or stays snoozed. A snoozed ask says
  * until when, whole and local, so the words change only as the snooze does.
  */
-import { answerOf, isOpen, yesOf } from './replies'
+import { answerOf, isOpen, reaches, yesOf } from './replies'
 import { wholeTime } from './snooze'
 import {
   UNTIL_IT_MOVES,
@@ -20,9 +20,10 @@ import {
 import { summarise, type ProjectParked, type ProjectSummary, type SessionSummary } from './views'
 
 /** Where an open ask stands, as Claude reads it. */
-const STANDING: Record<'waiting' | 'replied', string> = {
+const STANDING: Record<'waiting' | 'replied' | 'finished', string> = {
   waiting: 'waiting on Lee',
   replied: 'Lee replied, yours to act on',
+  finished: "can't be answered while the session is finished (joining it reopens it)",
 }
 
 /** A heading, and its lines as a list; `none` when it has none. */
@@ -48,10 +49,21 @@ const wantsWords = (ask: Ask) => {
   }
 }
 
-/** Where an open ask stands for Claude: replied, with Lee's reply; snoozed, by its time alone, whatever is on its way to it; else waiting on Lee. */
-const standingOf = (ask: Ask) => {
+/**
+ * Where an open ask stands for Claude, read where the session is held or
+ * not, as `isHeld` says: replied, with Lee's reply; in a finished session no
+ * reply reaches from there, unanswerable until it is joined again; snoozed,
+ * by its time alone, whatever is on its way to it; else waiting on Lee.
+ */
+const standingOf = (ask: Ask, session: Session, isHeld: boolean) => {
   if (ask.state === 'replied' && ask.answer !== undefined) {
     return `${STANDING.replied} (${answerOf(ask, ask.answer)})`
+  }
+
+  const held = isHeld ? session.id : undefined
+
+  if (!reaches(held, { id: session.id, isFinished: session.finished !== undefined }, ask)) {
+    return STANDING.finished
   }
 
   if (ask.snoozedUntil === undefined) {
@@ -66,8 +78,8 @@ const standingOf = (ask: Ask) => {
   return `snoozed by Lee until ${until} (leave it until then)`
 }
 
-const askLine = (ask: Ask) =>
-  `${ask.id} wants ${wantsWords(ask)}, ${standingOf(ask)}: ${withExtras(ask.title, {
+const askLine = (ask: Ask, session: Session, isHeld: boolean) =>
+  `${ask.id} wants ${wantsWords(ask)}, ${standingOf(ask, session, isHeld)}: ${withExtras(ask.title, {
     options: ask.options?.join(' | '),
     recommended: ask.recommended,
     needs: ask.needs,
@@ -88,8 +100,14 @@ const parkedElsewhereLine = (parked: ProjectParked) =>
  * A session's open items with their ids, for Claude to check against what
  * it knows and repair. Parked lists what the session parked, then what the
  * project's other sessions parked, of `projectParked`, the project's.
+ * `isHeld` says whether the session is held where it is read, as a window
+ * reads only the one it holds; the CLI holds none.
  */
-export const boardText = (session: Session, projectParked: readonly ProjectParked[] = []) => {
+export const boardText = (
+  session: Session,
+  projectParked: readonly ProjectParked[] = [],
+  isHeld = true,
+) => {
   const { name, summary, now, next } = session.status
   const elsewhere = projectParked.filter(parked => parked.session !== session.id)
 
@@ -98,7 +116,10 @@ export const boardText = (session: Session, projectParked: readonly ProjectParke
     `Summary: ${summary}`,
     section('Now', now),
     `Next: ${next ?? 'none'}`,
-    section('Open asks', session.asks.filter(isOpen).map(askLine)),
+    section(
+      'Open asks',
+      session.asks.filter(isOpen).map(ask => askLine(ask, session, isHeld)),
+    ),
     section('Parked', [...session.parked.map(parkedLine), ...elsewhere.map(parkedElsewhereLine)]),
   ].join('\n')
 }
