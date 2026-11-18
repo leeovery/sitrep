@@ -9,8 +9,8 @@
 import type { RenderElement } from 'claude-code'
 import {
   isLiveSession,
-  type Carried,
   type EndedSession,
+  type Listing,
   type ProjectKey,
   type SessionSummary,
 } from '../../core'
@@ -120,12 +120,12 @@ const drawOld = (d: Drawing, project: ProjectKey, session: EndedSession) => {
 }
 
 /** A project's old sessions: their press, and those it shows once opened; nothing while they are not carried yet, so no count shows short. */
-const drawOldSessions = (d: Drawing, key: ProjectKey, old: Carried<EndedSession> | undefined) =>
+const drawOldSessions = (d: Drawing, key: ProjectKey, old: Listing<EndedSession> | undefined) =>
   old === undefined
     ? []
     : drawPast(d, {
         list: oldList(projectScope(key)),
-        carried: old,
+        listing: old,
         draw: session => drawOld(d, key, session),
         folding: { show: 'show old sessions', hide: 'hide old sessions' },
       })
@@ -140,7 +140,7 @@ const drawSessions = (
   key: ProjectKey,
   sessions: readonly SessionSummary[],
   open: number,
-  old: Carried<EndedSession> | undefined,
+  old: Listing<EndedSession> | undefined,
 ) => [
   {
     key: 'sessions',

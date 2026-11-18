@@ -31,23 +31,27 @@
 import type { FsEntry, Timer } from 'claude-code'
 import {
   brief,
-  carried,
   compareText,
   every,
   isCurrent,
   isOffBoard,
+  listingOf,
   OFF_BOARD_MS,
   oldSessions,
   parkedBy,
+  pickedUpTo,
   projectParked,
   projectTakenOff,
   refold,
   sessionPaths,
   projectOfFolder,
+  takenOff,
   takenOffBy,
   type Filed,
   type FolderKey,
   type KeptFold,
+  type Listing,
+  type Parked,
   type ProjectKey,
   type Session,
   type SessionFiles,
@@ -55,6 +59,7 @@ import {
 import type {
   SitrepAnswering,
   SitrepAttachment,
+  SitrepBoard,
   SitrepOther,
   SitrepPane,
   SitrepPlace,
@@ -64,11 +69,13 @@ import type {
   SitrepSessionRef,
 } from '../types'
 import { settleAnswering } from './answering'
-import { boardOf, hereOf } from './board'
+import { boardOf, hereOf, sessionOf } from './board'
+import { fromTheTop } from './clip'
 import { fileOne, filingWith, projectNames, type FiledIn, type InFolder } from './filing'
 import { folderKeys } from './folders'
 import { logFailure, rootFor, type Host, type Slot } from './host'
 import { oldList, pickedUpList, projectScope } from './lists'
+import { EVERY_PROJECT, samePlace } from './places'
 import { destinations, isShowing, type Folded } from './queue'
 import { createReader, filedIn, type Reader } from './reader'
 import { forgetSnooze, snoozeSettings } from './snoozing'
@@ -86,6 +93,9 @@ type LastRead = KeptFold & { read: Reader; isOff: boolean }
 
 /** Each session as last read, by its folder. */
 const lastRead = new Map<string, LastRead>()
+
+/** The project each session was filed under as the last look read it, by id: every one it read, and the held one where its board was its own. */
+const filedLast = new Map<string, ProjectKey>()
 
 /** What the last look put in `$.state`, as JSON, so a look that changed nothing puts nothing. */
 const shown: { projects?: string; others?: string; snooze?: string } = {}
@@ -112,6 +122,7 @@ let looking: Promise<unknown> = Promise.resolve()
 export const forgetLooks = () => {
   looking = looking.then(() => {
     lastRead.clear()
+    filedLast.clear()
     delete shown.projects
     delete shown.others
     delete shown.snooze
@@ -285,11 +296,18 @@ const nameOf = (key: string, sessions: readonly Session[]) =>
 
 /**
  * What a look keeps and carries by: the project the held session is filed
- * under; the project the open board shows a view of, its own or a
- * session's, home's the held session's, none at All projects; the project
- * whose own view it shows; and how much of each list the views show.
+ * under, and what was taken off the held session's own Parked; the project
+ * the open board shows a view of, its own or a session's, home's the held
+ * session's, none at All projects; the project whose own view it shows; and
+ * how much of each list the views show.
  */
-type Showing = { here: ProjectKey; shown?: ProjectKey; viewed?: ProjectKey; pane: SitrepPane }
+type Showing = {
+  here: ProjectKey
+  heldTakenOff: readonly Parked[]
+  shown?: ProjectKey
+  viewed?: ProjectKey
+  pane: SitrepPane
+}
 
 /** The project a place on the board is a view of, a session's as the look files that session; none at All projects. */
 const viewedProject = (
@@ -312,27 +330,122 @@ const viewedProject = (
   }
 }
 
-/** What a look keeps and carries by, the held session filed under `here`, as the board stands. */
+/** Whether the views show every entry of one of a project's lists, which a look then carries whole. */
+const isAllShown = ({ shown }: SitrepPane, list: string) => shown?.[list] === 'all'
+
+/** Whether the views show everything taken off a project's Parked. */
+const isAllPickedUp = (pane: SitrepPane, key: string) =>
+  isAllShown(pane, pickedUpList(projectScope(key)))
+
+/**
+ * What a look keeps and carries by, as the board stands: the held session
+ * as its board has it, filed under `here`, what was taken off its Parked
+ * bounded as the views show it; none where the board is another session's.
+ */
 const showingOf = (
   held: SitrepAttachment,
   here: ProjectKey,
+  board: SitrepBoard | null,
   pane: SitrepPane,
   read: ReadonlyMap<string, Filed>,
 ): Showing => ({
   here,
+  heldTakenOff:
+    board?.id === held.session
+      ? listingOf(takenOff(sessionOf(board)), isAllPickedUp(pane, here)).entries
+      : [],
   shown: pane.isOpen ? viewedProject(held, here, pane.place, read) : undefined,
   viewed: pane.isOpen && pane.place?.level === 'project' ? pane.place.project : undefined,
   pane,
 })
 
-/** Its sessions' names, for the projects whose views name the session a pick-up went to: the held session's, and the project the board shows. */
+/** The project each session is filed under as a look reads it, by id: every one read, and the held one, `held`, where its board is its own. */
+const filingOf = (read: ReadonlyMap<string, Filed>, held?: { id: string; project: ProjectKey }) =>
+  new Map([
+    ...[...read].map(([id, { project }]) => [id, project] as const),
+    ...(held === undefined ? [] : [[held.id, held.project] as const]),
+  ])
+
+/**
+ * Whether a look saw a move empty a project: no session filed under it now,
+ * and one the last look filed there read now under another. A session this
+ * look did not read, its folder's listing failed or its session.json torn,
+ * moved nowhere, so no failed read empties a project.
+ */
+const isMovedFrom = (key: ProjectKey, filing: ReadonlyMap<string, ProjectKey>) =>
+  ![...filing.values()].includes(key) &&
+  [...filedLast].some(([id, was]) => was === key && filing.has(id))
+
+/**
+ * The pane gone up to All projects, at its top, from the view of a project
+ * a move emptied: one step up, as a finish goes up from the session it
+ * leaves, so Lee never stands on a project the board no longer lists. Never
+ * where the board is another session's, which files the held one nowhere
+ * sure; and where Lee went elsewhere as the look read, the pane stays where
+ * he went, as he left it: the pane as it now stands.
+ */
+const upFromEmptied = async (
+  host: Host,
+  pane: SitrepPane,
+  filing: ReadonlyMap<string, ProjectKey>,
+  isBoardHeld: boolean,
+): Promise<SitrepPane> => {
+  const { place } = pane
+
+  if (!isBoardHeld || place?.level !== 'project' || !isMovedFrom(place.project, filing)) {
+    return pane
+  }
+
+  const went = { isUp: false, pane }
+
+  await host.state.pane.update(now => {
+    went.isUp = now.place !== null && samePlace(now.place, place)
+    went.pane = went.isUp ? { ...now, place: EVERY_PROJECT, selected: null } : now
+
+    return went.pane
+  })
+
+  if (went.isUp && went.pane.isOpen) {
+    await fromTheTop(host)
+  }
+
+  return went.pane
+}
+
+/** The names of the sessions its own sessions are, by id, for the projects whose views name the session a pick-up went to: the held session's, and the project the board shows. */
 const namesFor = ({ here, shown }: Showing, key: string, filed: readonly Session[]) =>
   key === here || key === shown
     ? { names: Object.fromEntries(filed.map(session => [session.id, session.status.name])) }
     : {}
 
-/** Whether the views show every entry of one of a project's lists, which a look then carries whole. */
-const isAllShown = ({ shown }: SitrepPane, list: string) => shown?.[list] === 'all'
+/**
+ * The names of the sessions filed under other projects that the items a
+ * project's views list as taken off its Parked went to, by id: those of
+ * what the look carries, and of the held session's own where it is the
+ * project's; none while the look carries none.
+ */
+const pickersFor = (
+  { here, heldTakenOff }: Showing,
+  key: string,
+  taken: Listing<Parked> | undefined,
+  read: ReadonlyMap<string, Filed>,
+) => {
+  if (taken === undefined) {
+    return {}
+  }
+
+  const listed = [...taken.entries, ...(key === here ? heldTakenOff : [])]
+  const pickers = listed.flatMap(parked => {
+    const to = pickedUpTo(parked)
+    const picker = to === undefined ? undefined : read.get(to)
+
+    return picker === undefined || picker.project === key
+      ? []
+      : [[picker.session.id, picker.session.status.name] as const]
+  })
+
+  return pickers.length === 0 ? {} : { pickers: Object.fromEntries(pickers) }
+}
 
 /**
  * For the project the board shows, what only its views draw, of every
@@ -347,22 +460,18 @@ const pastFor = (
   filed: readonly Session[],
   now: number,
 ) => {
-  const scope = projectScope(key)
-  const takenOff =
+  const taken =
     key === shown
       ? {
-          takenOff: carried(
-            projectTakenOff(filed.flatMap(takenOffBy)),
-            isAllShown(pane, pickedUpList(scope)),
-          ),
+          takenOff: listingOf(projectTakenOff(filed.flatMap(takenOffBy)), isAllPickedUp(pane, key)),
         }
       : {}
   const old =
     key === viewed
-      ? { old: carried(oldSessions(filed, now), isAllShown(pane, oldList(scope))) }
+      ? { old: listingOf(oldSessions(filed, now), isAllShown(pane, oldList(projectScope(key)))) }
       : {}
 
-  return { ...takenOff, ...old }
+  return { ...taken, ...old }
 }
 
 /**
@@ -378,9 +487,10 @@ const isKept = ({ here, shown }: Showing, key: string, isHolding: boolean) =>
 /**
  * The projects read, each with its current sessions, and what every session
  * filed under it parked, finished and idle ones included; and only for the
- * projects the board shows, as `showing` says, what grows without end: its
- * sessions' names, and, bounded as its views show them, what was taken off
- * their Parked and its old sessions; each project `isKept` keeps.
+ * projects the board shows, as `showing` says, what grows without end: the
+ * names of its sessions and of those its pick-ups went to, wherever they
+ * are filed, and, bounded as its views show them, what was taken off their
+ * Parked and its old sessions; each project `isKept` keeps.
  */
 const projectsOf = (
   showing: Showing,
@@ -394,6 +504,7 @@ const projectsOf = (
       .map(({ session }) => session)
     const sessions = filed.map(brief).filter(session => isCurrent(session, now))
     const parked = projectParked(filed.flatMap(parkedBy))
+    const past = pastFor(showing, key, filed, now)
 
     return isKept(showing, key, sessions.length > 0 || parked.length > 0)
       ? [
@@ -403,7 +514,8 @@ const projectsOf = (
             sessions,
             parked,
             ...namesFor(showing, key, filed),
-            ...pastFor(showing, key, filed, now),
+            ...pickersFor(showing, key, past.takenOff, read),
+            ...past,
           },
         ]
       : []
@@ -478,8 +590,20 @@ const look = async (host: Host, fresh: readonly string[]) => {
   const full = fullOf(held, pane, { queue, sent, answering })
   const isWhole = isWholeLook(now)
   const { folders, read } = await readAround(host, root, held.session, full, now, isWhole, fresh)
-  const showing = showingOf(held, hereOf(held, board), pane, read)
+  const here = hereOf(held, board)
+  const isBoardHeld = board?.id === held.session
+  const filing = filingOf(read, isBoardHeld ? { id: held.session, project: here } : undefined)
+  const showing = showingOf(
+    held,
+    here,
+    board,
+    await upFromEmptied(host, pane, filing, isBoardHeld),
+    read,
+  )
   const projects = folders.map(projectOfFolder)
+
+  filedLast.clear()
+  filing.forEach((project, id) => filedLast.set(id, project))
 
   await put(host.state.projects, 'projects', projectsOf(showing, projects, read, now))
   await put(host.state.others, 'others', othersOf(full, read))

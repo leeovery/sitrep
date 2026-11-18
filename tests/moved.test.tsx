@@ -7,16 +7,18 @@
 import type { On } from 'claude-code'
 import { expect, test, tier, type Engine } from './kit'
 import {
+  CURRENT_MS,
   metaText,
   parseEntries,
   parseProject,
   presenceText,
   projectPaths,
   sessionPaths,
+  sessionsDir,
 } from '../core'
 import { AROUND_MS } from '../hooks/around'
 import { isHoldOn, WATCH_MS } from '../hooks/window'
-import type { SitrepAttachment, SitrepQueued } from '../types'
+import type { SitrepAttachment, SitrepPane, SitrepQueued } from '../types'
 import {
   CLOSES,
   ELSEWHERE,
@@ -38,7 +40,7 @@ import {
 } from './data'
 import { entered } from './answers'
 import { rowsOf } from './drawn'
-import { file, moveTo, park, reply, resolve, yesAsk } from './lines'
+import { delivered, file, finish, moveTo, park, reply, resolve, status, yesAsk } from './lines'
 import {
   asked,
   asking,
@@ -1231,4 +1233,215 @@ test("a move line naming a project not on the board moves nothing: no window fol
   expect(holding(w)).toEqual({ folder: PROJECT.key, project: PROJECT.key, name: PROJECT.name })
   expect(movedToasts(w)).toEqual([])
   expect(await firstMessage($)).toContain(`- Northwind: ${id} "Help desk redesign"`)
+})
+
+/** Which session moved to Contoso once Themes picked up an item, the one that parked it or Themes, and which parked it: the ledger, or this one. */
+type PickedThenMoved = { mover: 'parker' | 'picker'; parker: 'ledger' | 'held' }
+
+const PICKED_THEN_MOVED: Record<string, PickedThenMoved> = {
+  'the session that parked it': { mover: 'parker', parker: 'ledger' },
+  'the session that picked it up': { mover: 'picker', parker: 'ledger' },
+  'the session that picked up what this session parked': { mover: 'picker', parker: 'held' },
+}
+
+for (const [moved, { mover, parker }] of Object.entries(PICKED_THEN_MOVED)) {
+  test(`Parked's picked up names the session a pick-up went to, filed under another project than the item's since ${moved} moved to Contoso`, async ($, on) => {
+    const w = world($, on)
+
+    withContoso(w)
+
+    const ledger = withLedger(w)
+    const themes = w.elsewhere(THEMES)
+    const { id, paths } = await w.begin()
+    const item =
+      parker === 'held'
+        ? { paths, id: postedId(await w.call('park', { title: EXPORT })), session: id }
+        : { paths: ledger.paths, id: 'p1', session: LEDGER.id }
+
+    w.writer(item.paths, THEMES.by)(
+      reply('r1', item.id, 'pickup', { to: THEMES.id }),
+      delivered('r1'),
+    )
+    ;(mover === 'parker' ? ledger : themes).write(moveTo(ELSEWHERE.key))
+    await w.clock.advance(AROUND_MS)
+
+    const project = mover === 'parker' ? ELSEWHERE.key : PROJECT.key
+    const ui = await w.opened()
+
+    await toProject(ui, project)
+    await ui.press({ key: `pickedup:project:${project}` })
+    await ui.press({ key: `picked:${item.session}:${item.id}` })
+    expect(rowsOf(await ui.find({ key: `taken:${item.session}:${item.id}` }))).toContain(
+      '│ picked up by Themes',
+    )
+  })
+}
+
+/** Contoso's own session, as `withContoso` puts it on the board. */
+type Shifts = ReturnType<typeof withContoso>
+
+/** A move emptying the project whose view the board shows: the project left, and the move. */
+type Emptying = { left: string; moves: (w: World, shifts: Shifts) => Promise<unknown> }
+
+/** Ways a move empties the project whose view the board shows: its only session moved away by another window, or this session, its project's only one, moved by Claude. */
+const EMPTYING: Record<string, Emptying> = {
+  "Contoso's only session moved to Northwind by its own window": {
+    left: ELSEWHERE.key,
+    moves: async (w, shifts) => shifts.write(moveTo(PROJECT.key)),
+  },
+  "this session, Northwind's only one, moved to Contoso by Claude": {
+    left: PROJECT.key,
+    moves: w => w.call('move', { project: 'Contoso' }),
+  },
+}
+
+for (const [moved, { left, moves }] of Object.entries(EMPTYING)) {
+  test(`the view of a project a move empties goes up to All projects at the next look, which no longer lists it, never drawing the project by its key: ${moved}`, async ($, on) => {
+    const w = world($, on)
+    const shifts = withContoso(w)
+
+    await w.begin()
+
+    const ui = await w.opened()
+
+    await toProject(ui, left)
+    await moves(w, shifts)
+    await w.clock.advance(AROUND_MS)
+
+    expect(w.state.pane?.place).toEqual({ level: 'all' })
+    expect(await ui.find({ type: 'Text', text: new RegExp(`^${left}\\b`) })).toBeUndefined()
+    expect(await pressesOf(ui, 'proj:')).not.toContain(`proj:${left}`)
+  })
+}
+
+test('the view of a project whose only session finished stays where it is: the project is still on the board', async ($, on) => {
+  const w = world($, on)
+  const shifts = withContoso(w)
+
+  await w.begin()
+
+  const ui = await w.opened()
+
+  await toProject(ui, ELSEWHERE.key)
+  shifts.write(finish('claude', 'Shipped'))
+  await w.clock.advance(AROUND_MS)
+
+  expect(w.state.pane?.place).toEqual({ level: 'project', project: ELSEWHERE.key })
+  expect(await ui.find({ type: 'Text', text: /^Contoso\b/ })).toBeDefined()
+})
+
+/** Contoso's view, the board standing on it: the window's board, and Contoso's own session. */
+const onContoso = async (w: World) => {
+  const shifts = withContoso(w)
+
+  await w.begin()
+
+  const ui = await w.opened()
+
+  await toProject(ui, ELSEWHERE.key)
+
+  return { shifts, ui }
+}
+
+/** Contoso's view, as the board stands on it. */
+const CONTOSO_VIEW = { level: 'project', project: ELSEWHERE.key }
+
+test("the view of a project whose current session moved away, its old one still filed under it, stays where it is: the project's old sessions are still the board's", async ($, on) => {
+  const w = world($, on)
+  const old = T0 - CURRENT_MS - MIN
+  const themes = w.elsewhere({ ...THEMES, created: old }, ELSEWHERE.key)
+
+  w.put(themes.paths.log(THEMES.by), file([old, status(['Drawing the dark theme'], THEMES)]))
+
+  const { shifts } = await onContoso(w)
+
+  shifts.write(moveTo(PROJECT.key))
+  await w.clock.advance(AROUND_MS)
+
+  expect(w.state.pane?.place).toEqual(CONTOSO_VIEW)
+})
+
+test("the view of a project whose folder's listing failed stays where it is: a look that could not read the project's sessions saw no move empty it", async ($, on) => {
+  let isFailing = false
+
+  // Registered before the world's own, so it is outermost.
+  on('fs.list', { path: sessionsDir(ROOT, ELSEWHERE.key) }, ($, e, next) =>
+    isFailing ? { deny: `EIO: i/o error, scandir ${e.path}` } : next(e),
+  )
+
+  const w = world($, on)
+
+  await onContoso(w)
+  isFailing = true
+  await w.clock.advance(AROUND_MS)
+
+  expect(w.state.pane?.place).toEqual(CONTOSO_VIEW)
+})
+
+test("a look reading no board of the held session's goes up from no view: it files that session nowhere sure, so the project it moved to stays on screen", async ($, on) => {
+  let isBoardless = false
+
+  on('state.get', { plugin: 'sitrep', key: 'board' }, async ($, e, next) => {
+    const read = (await next(e)) as { value: { value: unknown; version: number } }
+
+    return isBoardless ? { value: { ...read.value, value: null } } : read
+  })
+
+  const w = world($, on)
+
+  emptyContoso(w)
+  await w.begin()
+  await w.call('move', { project: 'Contoso' })
+
+  const ui = await w.opened()
+
+  await toProject(ui, ELSEWHERE.key)
+  await w.clock.advance(AROUND_MS)
+  isBoardless = true
+  await w.clock.advance(AROUND_MS)
+
+  expect(w.state.pane?.place).toEqual(CONTOSO_VIEW)
+})
+
+test("Lee's press landing as the look goes up from a project a move emptied wins: the board stays where he went, its scroll left alone", async ($, on) => {
+  let isRacing = false
+  let scrolls = 0
+
+  on('state.set', { plugin: 'sitrep', key: 'pane' }, async ($, e, next) => {
+    const going = e.value as SitrepPane
+
+    if (isRacing && going.place?.level === 'all') {
+      isRacing = false
+      await next({ ...e, value: { ...going, place: { level: 'project', project: PROJECT.key } } })
+    }
+
+    return next(e)
+  })
+  on('state.set', { plugin: 'sitrep', key: 'scroll' }, ($, e, next) => {
+    scrolls += 1
+
+    return next(e)
+  })
+
+  const w = world($, on)
+  const { shifts } = await onContoso(w)
+
+  shifts.write(moveTo(PROJECT.key))
+  isRacing = true
+  scrolls = 0
+  await w.clock.advance(AROUND_MS)
+
+  expect(isRacing, 'the look went up as Lee pressed').toBe(false)
+  expect(w.state.pane?.place).toEqual({ level: 'project', project: PROJECT.key })
+  expect(scrolls, 'no scroll to the top of where Lee went').toBe(0)
+})
+
+test("Claude's board text right after a move lists what the new project's sessions parked, a finished one's too: the look reads every project holding a parked item, whichever the session is in", async ($, on) => {
+  const w = world($, on)
+
+  withContoso(w).write(finish('claude', 'Shipped'))
+  await w.begin()
+  await w.call('move', { project: 'Contoso' })
+
+  expect(await boardRead(w)).toContain(ROTA_LINE)
 })

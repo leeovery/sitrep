@@ -8,7 +8,7 @@
  * list shows, kept in the pane per list; opening or closing an item never
  * does.
  */
-import { LATEST_SHOWN as LATEST, type Carried } from '../../core'
+import { LATEST_SHOWN as LATEST, type Listing } from '../../core'
 import type { SitrepShowing } from '../../types'
 import type { Block, Drawing } from './kit'
 
@@ -18,8 +18,8 @@ export type Folding = { show: string; hide: string }
 export type Past<T> = {
   /** The list, as the pane keeps what it shows: `history:<session>`. Its presses are keyed by it. */
   list: string
-  /** The newest first: every one, or, carried for a project's views, the latest they show, with how many there are. */
-  carried: Carried<T>
+  /** The newest first: every one, or, for a project's views, the latest they show, with how many there are. */
+  listing: Listing<T>
   /** An entry, as a block of its own. */
   draw: (entry: T) => Block
   /** What opens an entry, so a list that stops showing it closes it; none for a list whose entries open nothing. */
@@ -41,8 +41,8 @@ const drawPress = (d: Drawing, key: string, label: string, onPress: () => void):
 
 /** A list's blocks: its press alone while it is folded away, none with nothing in it; else its entries, the latest or every one, between its presses. */
 export const drawPast = <T,>(d: Drawing, past: Past<T>): Block[] => {
-  const { list, carried, draw, opens, folding } = past
-  const { entries, count } = carried
+  const { list, listing, draw, opens, folding } = past
+  const { entries, count } = listing
   const showing = d.scene.pane.shown?.[list]
   const show = (to: SitrepShowing | undefined, hidden: readonly T[]) => () =>
     d.act.show(list, to, opens === undefined ? [] : hidden.map(opens))

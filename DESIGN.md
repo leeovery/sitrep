@@ -255,7 +255,17 @@ Lee that day:
   its own view and Claude's board text list the new project's parked items.
   The old project keeps nothing of it: no view of it lists the session or
   what it parked, and one left with no current session and nothing parked
-  drops out of the lists, as any such project does.
+  drops out of the lists, as any such project does. A board standing on
+  the view of a project a move emptied goes up to All projects at its
+  next look, at its top, as a finish goes up from the session it leaves
+  (18 November 2026: the view stayed, headed by the project's key, of a
+  project All projects no longer listed). The look goes up only for a move
+  it saw: a session the last look filed under the project, read under
+  another now, and none filed under it; so a listing that failed, or a
+  torn `session.json`, moves no one, and nor does a look whose held
+  board is another session's, which files the held one nowhere sure. A
+  press of Lee's landing as the look reads stays where he went. One whose
+  sessions are only finished or old is still the board's, and stays.
 - **Every window holding it follows**, Claude carrying on with no rejoin,
   and says so: each toasts `Moved to Contoso.`, the mover's among them.
 
@@ -652,15 +662,18 @@ and named it in internal shorthand):
   it. What it parked stays its project's and holds no finish back (11
   November 2026).
 - A turn that ends on a decision or a question for Lee posts it as an ask,
-  so it shows in Needs you, never only in the status; plain conversation
-  needs none (4 November 2026: two sessions ended turns with "Put to Lee:
-  …" in their status line instead of posting an ask, so Lee's card showed
-  them under Your turn, not Needs you).
-- So does a turn that leaves Lee something to do, a release, a merge or a
-  command to run, even said as a statement (17 November 2026: a session
+  so it shows Lee it waits on him (in Needs you), never only in the status;
+  plain conversation needs none (4 November 2026: two sessions ended turns
+  with "Put to Lee: …" in their status line instead of posting an ask, so
+  Lee's card showed them under Your turn, not Needs you).
+- So does a turn that leaves Lee something to do, such as a release, a
+  merge or a command to run, even said as a statement (17 November 2026: a session
   ended "It's ready for you to release", its status emptied and no ask
   posted, though its guide was in front of it; it read the ask rule as one
-  for questions alone).
+  for questions alone). The guide gives both as one rule, a bullet of its
+  own, not a clause deep in "As it goes" (18 November 2026), and says what
+  the ask does in words a Claude that never saw the app reads: it shows
+  Lee it waits on him.
 - When Lee asks to move the session to another project, move it with
   `move`: the whole session goes, so no new one is started there instead;
   and move one only at Lee's word (17 November 2026: asked to move
@@ -687,9 +700,13 @@ and named it in internal shorthand):
 
 Wording rules, in the tool descriptions:
 
-- Ask only when Claude cannot go on without Lee, or Lee's judgement changes what
-  happens next. Say it in full in the chat as well, after the last tool call:
-  the board never stands in for the chat. The ask's answer says the same:
+- Ask when Claude cannot go on without Lee, when Lee's judgement changes what
+  happens next, or when Claude leaves Lee something to do, a release, a merge
+  or a command to run, as the guide's ask rule says (18 November 2026: the
+  narrower rule, read as Claude decides, forbade the ask the guide demands
+  of a session handing Lee a release). Say it in full in the chat as well,
+  after the last tool call: the board never stands in for the chat. The
+  ask's answer says the same:
   `Posted ask k3f9. Put it to Lee in full after your last tool call.`
 - Choose the shape by what Lee gives back: a yes for a go, an approval, "it
   works" or "done"; a choice for one of options; words when Lee must write
@@ -1034,6 +1051,12 @@ show all 4
   is the held session's own, so a finish voids none, and its ask waits on
   no one while Claude's turn runs; a line read from the files, which no
   window holds, a finish voids, and its mark, once delivered, settles it.
+  Claude's board text goes by it as well (18 November 2026): a finished
+  session's open ask waits on Lee where a window holds the session, as
+  that window's buttons say, read by that window or by the CLI, which
+  takes a live heartbeat for one; where none does, it `can't be answered
+  (the session is finished)`, where it read `waiting on Lee` against the
+  pane. It says nothing of joining it: only Lee's word joins one.
 
   What still works on a finished session's view stays: its project's
   Parked picks up as anywhere, to the Claude in this window, a finished
@@ -2962,12 +2985,13 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   (`sitrep`), numbered on (`sitrep-2`) where a folder already has it. The
   key is only where its files are; the name in `project.json` is what
   matches and shows.
-- **`project.json`:** `{ v, name, directory?, created, by }`. A start writes
-  it as it makes the project, and the `project` tool as it renames it or
-  gives it a directory; a start giving a directory to a project with none
-  writes it too. It breaks the one-file-per-writer rule below: whichever
-  writer makes the change rewrites it whole, and the last write wins. That
-  is fine for a file rewritten only that rarely, by Claude, at Lee's word.
+- **`project.json`:** `{ v, name, directory?, created, by }`. A start or
+  Claude's `move` writes it as it makes the project, and the `project`
+  tool as it renames it or gives it a directory; a start or Claude's
+  `move` giving a directory to a project with none writes it too. It
+  breaks the one-file-per-writer rule below: whichever writer makes the
+  change rewrites it whole, and the last write wins. That is fine for a
+  file rewritten only that rarely, by Claude, at Lee's word.
 - **`snooze.json`** (17 November 2026; see "Lee sets the times", under
   "Snooze"): Snooze's choices as Lee set them in SitRep's Settings, for the
   pane in Claude Code to offer the same. It sits at the folder's top, beside
@@ -3421,7 +3445,12 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   sessions live, only for the projects that draw it: each session's name
   by its id, for the held session's project and the project of the place
   the open board shows, a session's or a project's, where Parked's picked
-  up names the session a pick-up went to; what was taken off the Parked of
+  up names the session a pick-up went to, with the name of every session
+  the pick-ups it lists went to, wherever that session is filed now (18
+  November 2026: once the session that parked an item or the one that
+  picked it up moved to another project, the item read `picked up` alone,
+  as the names were only of the sessions filed under the project); what
+  was taken off the Parked of
   every session filed under it, finished and idle ones included, only while
   the open board shows a view of the project, its own or a session's, home
   among them, which draw it; and its old sessions, only while the open board

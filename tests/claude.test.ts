@@ -182,6 +182,18 @@ test("Claude's listing counts an ask whose answer from Lee is on its way as wait
   expect(toldSummary(finished).waiting, 'a finished session waits on Lee for nothing').toBe(0)
 })
 
+test("a finished session's open asks read as the pane has them: waiting on Lee where a window holds it, which a reply still reaches; else unanswerable", () => {
+  const finished = fold({
+    logs: { [W1]: file([T0, yesAsk('k1', 'Run it', 'Done')], [T0, finish('lee')]) },
+  })
+
+  expect(boardText(finished)).toContain('- k1 wants a yes (Done), waiting on Lee: Run it')
+  expect(boardText(finished, [], false)).toContain(
+    "- k1 wants a yes (Done), can't be answered (the session is finished): Run it",
+  )
+  expect(boardText(SESSION, [], false), 'a session not finished, as held').toBe(boardText(SESSION))
+})
+
 test('a conversation starts knowing how to keep the board and talk to Lee beside it, every session on it by project, and which this window holds', () => {
   const projects = [summariseProject('northwind', [summarise(SESSION)])]
   const guide = startText([])
@@ -194,11 +206,8 @@ test('a conversation starts knowing how to keep the board and talk to Lee beside
     "Keep it current, since it tells Lee, away from this window, that something waits on him; but talk to Lee as if it weren't there: the chat alone tells him all he needs.",
   )
   expect(guide).toContain('resolve it yourself when Lee answers it in the chat')
-  expect(guide).toContain(
-    'a turn that ends on a decision or a question for Lee posts it as an ask, so it shows in Needs you, never only in the status;',
-  )
-  expect(guide).toContain(
-    'so does a turn that leaves Lee something to do, a release, a merge or a command to run, even said as a statement ("It\'s ready for you to release"); plain conversation needs none',
+  expect(guide, 'the ask rule, a bullet of its own').toContain(
+    '\n- A turn that ends on a decision or a question for Lee, or that leaves Lee something to do, such as a release, a merge or a command to run, even said as a statement ("It\'s ready for you to release"), posts it as an ask, so it shows Lee it waits on him, never only in the status. Plain conversation needs none.\n',
   )
   expect(guide).toContain(
     'Touch the board only once it is clear which project the work is on: the project being discussed, whatever folder this window started in.',

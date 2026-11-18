@@ -10,7 +10,7 @@
  * prompt box as its note where Lee wants one (DESIGN.md, "Answering an
  * ask").
  */
-import { replyOnItsWay, type Carried, type ProjectKey } from '../../core'
+import { replyOnItsWay, type Listing, type ProjectKey } from '../../core'
 import type { SitrepItemRef } from '../../types'
 import { pickedUpList, projectScope } from '../lists'
 import { C, GLYPH } from '../look'
@@ -182,7 +182,7 @@ const parkedWords = (count: number) =>
   count === 0 ? 'nothing to come back to' : `${count} to come back to`
 
 /** What Parked lists: what is parked, and what was taken off it, none while a project's is not carried yet. */
-export type ParkedList = { parked: readonly ParkedAt[]; taken: Carried<TakenAt> | undefined }
+export type ParkedList = { parked: readonly ParkedAt[]; taken: Listing<TakenAt> | undefined }
 
 /**
  * PARKED's heading, then each item parked in `project`, and what was taken
@@ -206,7 +206,7 @@ export const drawParked = (
           ? []
           : drawPast(d, {
               list: pickedUpList(projectScope(project)),
-              carried: taken,
+              listing: taken,
               draw: entry => drawTaken(d, entry, own),
               opens: takenOpens,
               folding: { show: 'show picked up', hide: 'hide picked up' },
