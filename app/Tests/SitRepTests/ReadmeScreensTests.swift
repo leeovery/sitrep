@@ -8,10 +8,11 @@ import SitRepTestSupport
 import Testing
 
 /// The README's pictures (`app/screens`), drawn offscreen on one made-up Mac's desktop (`ReadmeDesktop`): Claude Code
-/// in a Ghostty window, the board docked at its side, from the cells `screens/window.ts` wrote; and the notch at the
-/// screen's left edge, filmed as the pointer comes to it, it opens and the pointer leaves, by the real run into the real
-/// surface from a made-up board seeded as the tests seed theirs. Only when `SITREP_SCREENS` names the folder they are
-/// drawn in, which holds `window.json`, so a run of the tests writes nothing.
+/// in a Ghostty window, the board docked at its side, from the cells `screens/window.ts` wrote; the notch at the
+/// screen's left edge, filmed as the pointer comes to it, it opens and the pointer leaves; and the strip there at rest;
+/// the notch and the strip each by the real run into the real surface from a made-up board seeded as the tests seed
+/// theirs. Only when `SITREP_SCREENS` names the folder they are drawn in, which holds `window.json`, so a run of the
+/// tests writes nothing.
 @MainActor
 @Suite(.backstop, .enabled(if: screens != nil))
 struct ReadmeScreensTests {
@@ -21,6 +22,12 @@ struct ReadmeScreensTests {
     private static let windowInset = CGSize(width: 72, height: 44)
     /// The desktop shown over and under the notch's panel open.
     private static let notchMargin = 36.0
+    /// The desktop shown over and under the strip.
+    private static let stripMargin = 36.0
+    /// How much of the screen shows from its edge: 220 wide with the bezel, the least a docs page shows it at.
+    private static let stripWidth = 214.0
+    /// Where in their turn the strip's working arcs are caught: an eighth of the way round, the same at every run.
+    private static let stripTurned = 0.125
     private static let frameMS = 1000.0 / 60
     private static let minute = 60_000
 
@@ -74,6 +81,35 @@ struct ReadmeScreensTests {
         try film.finish()
     }
 
+    /// The strip at rest at the screen's left edge, as Lee's settings leave it at first, Grows and Black, the pointer
+    /// away, each mark's ring telling its state: Snoozed unfolded, as the notch has it, and a session on its own work
+    /// among the working.
+    @Test func theStrip() throws {
+        let folder = try #require(screens)
+        let settings = EdgeSettings(), edge = Self.edge(settings)
+        let setting = StripRun.Setting(stage: edge.stripStage, reducesMotion: false)
+        let folding = Folding()
+
+        folding.set(.snoozed, folded: false)
+
+        let run = StripRun(at: 0, in: setting, settings, folding: folding, measure: StripWordsLayer.measure)
+        let surface = StripSurface()
+
+        run.show(try Self.board(adding: [Self.onItsWork()]), StripRun.Moment(time: 0, pointer: nil, setting: setting))
+        repeat {
+            run.step(StripRun.Moment(time: run.time + Self.frameMS, pointer: nil, setting: setting))
+        } while run.frame.isMoving && run.time < 5000
+        try #require(!run.frame.isMoving)
+        surface.frame = CGRect(origin: .zero, size: edge.stripWindow.size)
+        surface.draw(run, in: setting, mirror: edge.stripMirror)
+
+        let strip = run.frame.strip.boundingBoxOfPath.insetBy(dx: 0, dy: -Self.stripMargin)
+        let cut = CGRect(x: 0, y: strip.minY, width: Self.stripWidth, height: strip.height)
+        let shot = try EdgeShot(surface, cut: cut, hung: edge.stripStage.menu)
+
+        try shot.shoot(turned: { _ in Self.stripTurned }).png().write(to: folder.appending(path: "strip.png"))
+    }
+
     /// The panel's bounds once poured out and settled under the pointer held at the notch's home.
     private static func opened(_ board: PanelBoard, _ home: CGPoint, _ setting: NotchRun.Setting) throws -> CGRect {
         let run = Self.run(board, setting)
@@ -110,10 +146,10 @@ struct ReadmeScreensTests {
         }
     }
 
-    /// Six sessions over five projects: two asking, two stopped at Lee's turn, two at work, one of them running a
-    /// command; and two snoozed, an ask until Lee's morning in two days and a turn until it moves. By the wall clock
-    /// now, so each row's age reads the same at every run.
-    private static func board() throws -> PanelBoard {
+    /// Six sessions over five projects, and `extra` after them: two asking, two stopped at Lee's turn, two at work, one
+    /// of them running a command; and two snoozed, an ask until Lee's morning in two days and a turn until it moves. By
+    /// the wall clock now, so each row's age reads the same at every run.
+    private static func board(adding extra: [WatchLine.Row] = []) throws -> PanelBoard {
         let now = Int(Displays.wallNow)
         let ago = { (minutes: Int) in now - minutes * minute }
         let calendar = WakeTime.calendar
@@ -149,7 +185,7 @@ struct ReadmeScreensTests {
                     .init("turn:sr-wg0006", .working, first: .init(lead: "Running", mono: "npm test"), since: ago(6)),
                 ]
             ),
-        ]
+        ] + extra
         let snoozed = [
             WatchLine.SnoozedRow(
                 session: "sr-ct0007", name: "Onboarding flow", projectName: "Contoso",
@@ -169,6 +205,16 @@ struct ReadmeScreensTests {
 
         _ = last.hear(.line(WatchLine(at: now, version: "0.2.0", rows: rows, snoozed: snoozed).text), at: Date())
         return PanelBoard(last)
+    }
+
+    /// A seventh session, on its own work: waiting on the agents it started.
+    private static func onItsWork() -> WatchLine.Row {
+        let since = Int(Displays.wallNow) - 15 * minute
+
+        return WatchLine.Row(
+            session: "sr-fb0009", name: "Catalog sync", projectName: "Fabrikam",
+            lines: [.init("turn:sr-fb0009", .onItsWork, first: .init(lead: "Waiting on", subject: "2 agents"), since: since)]
+        )
     }
 
     /// The screen's edge as Lee's settings place it.
