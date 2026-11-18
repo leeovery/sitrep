@@ -6,11 +6,12 @@
 
 **A board for your Claude Code sessions**
 
-Claude keeps a board as it works: where each session stands, what it needs from you, and what you'd want to know later. You see it in Claude Code and at the edge of your Mac's screen, answer from it, and a click takes you to the window a session is in.
+Claude keeps a board as it works: where each session stands, what it needs from you, and what it put off for later. You see it in Claude Code and at the edge of your Mac's screen, answer from it, and a click takes you to the window a session is in.
 
 [![Platform: macOS 14+ on Apple silicon](https://img.shields.io/badge/platform-macOS%2014%2B%20%C2%B7%20Apple%20silicon-lightgrey.svg)](#install)
 [![Swift](https://img.shields.io/badge/Swift-6.0+-F05138.svg)](https://www.swift.org)
-[![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-D97757.svg)](#questions-you-may-have)
+[![Claude Code 2.1.326+](https://img.shields.io/badge/Claude%20Code-2.1.326%2B-D97757.svg)](#install)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 [Screens](#screens) · [Install](#install) · [Quick start](#quick-start) · [Questions](#questions-you-may-have) · [Design](DESIGN.md) · [Contributing](CONTRIBUTING.md)
 
@@ -39,7 +40,7 @@ With several Claude Code windows open across several projects, what waits on you
 
 ## Install
 
-You need an Apple silicon Mac on macOS 14 or later, and Claude Code. Ghostty is recommended, not required.
+You need an Apple silicon Mac on macOS 14 or later, and Claude Code 2.1.326 or later. Ghostty is recommended, not required.
 
 ```bash
 brew install --cask leeovery/tools/sitrep
@@ -81,3 +82,7 @@ To see every session, move the pointer onto SitRep's notch, at the left edge of 
 
 - [DESIGN.md](DESIGN.md): how every part works, and why.
 - [CONTRIBUTING.md](CONTRIBUTING.md): how the parts fit, Claude's tools, the CLI, and building, testing and releasing SitRep.
+
+## License
+
+MIT
