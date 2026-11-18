@@ -1,7 +1,8 @@
 /**
- * The board drawn with no engine beneath: the mod's own drawing, which is
- * pure, run on a stand-in for a surface's element table, from the scene the
- * window's own look and fold make of a desk's files, and read back as a
+ * The board, and the band above the prompt, drawn with no engine beneath:
+ * the mod's own drawing, which is pure, run on a stand-in for a surface's
+ * element table, from the scene the window's own look and fold make of a
+ * desk's files, and read back as a
  * mounted drawing is (matching.ts). For a test whose subject is what the
  * board draws from a scene; what a press does, or how the window's state
  * reaches the scene, stays an engine test's.
@@ -12,7 +13,7 @@
  * shows from the top; and a look after the window's first, one that folds
  * a session off the board from the files it last read.
  */
-import type { ElementTable, RenderPropsOf, RenderSurface } from 'claude-code'
+import type { ElementTable, RenderElement, RenderPropsOf, RenderSurface } from 'claude-code'
 import { foldSession, sessionPaths, SNOOZE_DEFAULTS } from '../core'
 import type {
   SitrepAnswering,
@@ -30,6 +31,7 @@ import type {
 import type { Actions } from '../hooks/actions'
 import { forgetLooks, lookAround } from '../hooks/around'
 import { boardOf } from '../hooks/board'
+import { drawBand } from '../hooks/draw/band'
 import { drawPane } from '../hooks/draw/board'
 import type { Host } from '../hooks/host'
 import { createReader } from '../hooks/reader'
@@ -119,6 +121,25 @@ export const pane = (
     Promise.resolve(scene).then(
       made => drawPane(tableOf(surface), surface, NO_ACTIONS, props, made, () => 0) as Element,
     ),
+  )
+
+/** What Claude Code hands the band to draw beneath it outside a survey: its own drawing, none. */
+const ENGINE = { type: 'engine' } as unknown as RenderElement
+
+/** The band above the prompt as a surface draws it from the scene, `columns` across, with nothing beneath it. */
+export const band = (
+  scene: Scene | undefined | Promise<Scene | undefined>,
+  columns: number,
+  surface: RenderSurface = 'terminal',
+): Drawn =>
+  reading(
+    Promise.resolve(scene).then(made => {
+      if (made === undefined) {
+        throw new Error('the band draws only beside a session held')
+      }
+
+      return drawBand(tableOf(surface), surface, columns, made, ENGINE) as Element
+    }),
   )
 
 /** Where the window holds its session. */
