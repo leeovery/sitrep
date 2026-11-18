@@ -67,7 +67,6 @@ export const IN_AN_HOUR_MS = 60 * 60_000
 
 const DAY_MS = 24 * 60 * 60_000
 
-/** The days of a week; and the days a weekday words a time within, from today: past them, the weekday would name today's. */
 const WEEK = 7
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -229,9 +228,11 @@ const dateOf = (date: Date) => `${date.getDate()} ${MONTHS[date.getMonth()] ?? '
 const daysTo = (at: number, now: number) => Math.round((onDay(at, 0) - onDay(now, 0)) / DAY_MS)
 
 /**
- * When a snooze wakes, as the pane says it at `now`: today's time alone
- * (`15:42`), `tomorrow 09:00`, a weekday within the week (`Mon 09:00`), else
- * its date (`3 Nov 09:00`); one with no time, `it moves`.
+ * When a snooze wakes, as the pane says it at `now`, by the calendar week,
+ * Monday to Sunday: today's time alone (`15:42`), `tomorrow 09:00`, later
+ * this week its weekday (`Sat 09:00`), in the next calendar week
+ * `next week`, else its date (`3 Dec 09:00`); one with no time, `it moves`.
+ * The app's `WakeTime.words` says it the same.
  */
 export const wakeWords = (until: number, now: number) => {
   if (until === UNTIL_IT_MOVES) {
@@ -240,6 +241,7 @@ export const wakeWords = (until: number, now: number) => {
 
   const date = new Date(until)
   const days = daysTo(until, now)
+  const fromMonday = placeAt(now) + days
   const clock = clockOf(date)
 
   if (days === 0) {
@@ -250,7 +252,11 @@ export const wakeWords = (until: number, now: number) => {
     return `tomorrow ${clock}`
   }
 
-  return days > 1 && days < WEEK ? `${weekdayOf(date)} ${clock}` : `${dateOf(date)} ${clock}`
+  if (days > 1 && fromMonday < WEEK) {
+    return `${weekdayOf(date)} ${clock}`
+  }
+
+  return fromMonday >= WEEK && fromMonday < 2 * WEEK ? 'next week' : `${dateOf(date)} ${clock}`
 }
 
 /** A time whole and local, never relative, so its words never change at midnight: `Mon 26 Oct 09:00`, as Claude is told it. */

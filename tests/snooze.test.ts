@@ -507,28 +507,54 @@ test("the pane counts calendar days, never hours, across Europe/London's changes
   expect(words([2026, 10, 26, 9], [2026, 10, 25, 0, 30]), 'going back, a day of 25 hours is one').toBe(
     'tomorrow 09:00',
   )
-  expect(words([2026, 3, 30, 9], [2026, 3, 28, 12]), 'going forward, a day of 23 hours is one').toBe(
-    'Mon 09:00',
+  expect(words([2026, 3, 30, 9], [2026, 3, 29, 0, 30]), 'going forward, a day of 23 hours is one').toBe(
+    'tomorrow 09:00',
+  )
+  expect(words([2026, 4, 5, 9], [2026, 3, 28, 12]), 'going forward, the next week ends on its Sunday').toBe(
+    'next week',
+  )
+  expect(words([2026, 4, 6, 9], [2026, 3, 28, 12]), 'going forward, the week after starts on its Monday').toBe(
+    '6 Apr 09:00',
   )
 })
 
-/** Friday 23 October 2026, 14:00 in London. */
+/** Friday 23 October 2026, 14:00 in London, before the clocks go back on the Sunday. */
 const FRIDAY = local(2026, 10, 23, 14)
 
-test("the pane words a snooze's time at its now: today's time alone, tomorrow, a weekday within the week, else its date", () => {
+test("the pane words a snooze's time at its now: today's time alone, tomorrow, a weekday later this week, next week, else its date", () => {
   for (const [until, words] of [
     [local(2026, 10, 23, 15, 42), '15:42'],
     [local(2026, 10, 23, 9, 5), '09:05'],
     [local(2026, 10, 24, 9), 'tomorrow 09:00'],
-    [local(2026, 10, 26, 9), 'Mon 09:00'],
-    [local(2026, 10, 29, 9), 'Thu 09:00'],
-    [local(2026, 10, 30, 9), '30 Oct 09:00'],
-    [local(2026, 11, 3, 9), '3 Nov 09:00'],
+    [local(2026, 10, 25, 9), 'Sun 09:00'],
+    [local(2026, 10, 26, 9), 'next week'],
+    [local(2026, 11, 1, 9), 'next week'],
+    [local(2026, 11, 2, 9), '2 Nov 09:00'],
+    [local(2026, 12, 3, 9), '3 Dec 09:00'],
+    [local(2026, 10, 21, 9), '21 Oct 09:00'],
   ] as const) {
     expect(wordsAt(until, FRIDAY), words).toBe(words)
   }
 
   expect(wordsAt(local(2026, 10, 24, 1, 30), local(2026, 10, 23, 23, 30))).toBe('tomorrow 01:30')
+})
+
+test("the pane's week runs Monday to Sunday, and tomorrow comes before it", () => {
+  const monday = local(2026, 10, 26, 10)
+  const saturday = local(2026, 10, 24, 12)
+  const sunday = local(2026, 11, 1, 12)
+
+  expect(wordsAt(local(2026, 10, 28, 9), monday), 'later this week').toBe('Wed 09:00')
+  expect(wordsAt(local(2026, 11, 1, 9), monday), "this week's Sunday").toBe('Sun 09:00')
+  expect(wordsAt(local(2026, 11, 2, 9), monday), "the next week's Monday").toBe('next week')
+  expect(wordsAt(local(2026, 11, 8, 9), monday), "the next week's Sunday").toBe('next week')
+  expect(wordsAt(local(2026, 11, 9, 9), monday), 'the week after next').toBe('9 Nov 09:00')
+  expect(wordsAt(local(2026, 11, 2, 9), sunday), 'Sunday to Monday').toBe('tomorrow 09:00')
+  expect(wordsAt(local(2026, 11, 3, 9), sunday), "Sunday to the next week's Tuesday").toBe('next week')
+  expect(wordsAt(local(2026, 11, 8, 9), sunday), "Sunday to the next week's Sunday").toBe('next week')
+  expect(wordsAt(local(2026, 11, 9, 9), sunday), 'Sunday to the week after next').toBe('9 Nov 09:00')
+  expect(wordsAt(local(2026, 10, 31, 9), saturday), 'Saturday to the next, 7 days on').toBe('next week')
+  expect(wordsAt(local(2026, 11, 2, 9), saturday), 'Saturday to the week after next').toBe('2 Nov 09:00')
 })
 
 test('Claude is told the time whole and local, never relative: its weekday, date and time', () => {

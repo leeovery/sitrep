@@ -44,7 +44,7 @@ struct SnoozedTurnEdgeTests {
     @Test func itsTimeSaysWhenItWakesOrUntilItMoves() {
         let snoozed = Self.board(upTo: 0).snoozed
 
-        #expect(snoozed.map { $0.timeText(at: Self.now, in: Self.london) } == ["Thu 09:00", "until it moves"])
+        #expect(snoozed.map { $0.timeText(at: Self.now, in: Self.london) } == ["tomorrow 09:00", "until it moves"])
     }
 
     /// Unfolded, Snoozed counts the turns and Needs you no longer does; each row its own key.

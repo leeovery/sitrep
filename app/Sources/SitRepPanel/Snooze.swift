@@ -100,9 +100,11 @@ extension Session {
     }
 }
 
-/// When a snooze wakes, in words, at a moment, on the 24-hour clock in local time: today's time alone, `17:42`; within
-/// the six days after today, tomorrow among them, its weekday and time, `Sat 09:00`; further out, its date and time,
-/// `3 Nov 09:00`. Spoken, VoiceOver's, the weekday and month whole: `Saturday 09:00`, `3 November 09:00`.
+/// When a snooze wakes, in words, at a moment, on the 24-hour clock in local time, by the calendar week, Monday to
+/// Sunday, as core's `wakeWords` says it: today's time alone, `17:42`; tomorrow, `tomorrow 09:00`; later this week, its
+/// weekday and time, `Sat 09:00`; in the next calendar week, `next week`; else its date and time, `3 Dec 09:00`.
+/// Spoken, for VoiceOver, the weekday and month whole: `Saturday 09:00`, `3 December 09:00`, though no row hands
+/// VoiceOver these yet.
 public enum WakeTime {
     /// What a row snoozed with no time says in a wake's place, on the card and to VoiceOver.
     public static let untilItMoves = "until it moves"
@@ -121,21 +123,39 @@ public enum WakeTime {
     public static func words(_ wakes: Date, at now: Date, in calendar: Calendar, spoken: Bool = false) -> String {
         let calendar = gregorian(like: calendar)
         let parts = calendar.dateComponents([.weekday, .day, .month, .hour, .minute], from: wakes)
-        let clock = String(format: "%02d:%02d", parts.hour!, parts.minute!)
+        let clock = Self.clock(parts)
         let today = calendar.startOfDay(for: now)
+        let days = calendar.dateComponents([.day], from: today, to: calendar.startOfDay(for: wakes)).day!
+        let fromMonday = Weekday.place(ofCalendarWeekday: calendar.component(.weekday, from: now)) + days
 
-        switch calendar.dateComponents([.day], from: today, to: calendar.startOfDay(for: wakes)).day! {
-        case 0:
+        switch (days, fromMonday) {
+        case (0, _):
             return clock
-        case 1 ..< 7:
-            return "\((spoken ? weekdays : shortWeekdays)[parts.weekday! - 1]) \(clock)"
+        case (1, _):
+            return "tomorrow \(clock)"
+        case (2..., ..<7):
+            return "\(weekday(parts, spoken: spoken)) \(clock)"
+        case (_, 7 ..< 14):
+            return "next week"
         default:
             return "\(parts.day!) \((spoken ? months : shortMonths)[parts.month! - 1]) \(clock)"
         }
     }
 
-    /// When on the wall clock the words for any wake next read differently: at the next local midnight, as today's
-    /// time becomes tomorrow's weekday, and a date a weekday.
+    /// When a choice on a row's Snooze menu wakes, at its right, saying only what its name does not: the time alone
+    /// where the name fixes the day, `09:00` beside Tomorrow; the weekday and time beside This weekend and Next week,
+    /// `Mon 09:00`.
+    public static func besideChoice(_ choice: SnoozeChoice, wakes: Date, in calendar: Calendar) -> String {
+        let parts = gregorian(like: calendar).dateComponents([.weekday, .hour, .minute], from: wakes)
+
+        return switch choice {
+        case .inAnHour, .laterToday, .tonight, .tomorrow: clock(parts)
+        case .thisWeekend, .nextWeek: "\(weekday(parts, spoken: false)) \(clock(parts))"
+        }
+    }
+
+    /// When on the wall clock the words for any wake next read differently: at the next local midnight, as tomorrow's
+    /// wake becomes today's time; a week's edge falls on one too.
     public static func changes(after now: Date, in calendar: Calendar) -> Date {
         let calendar = gregorian(like: calendar)
 
@@ -164,6 +184,14 @@ public enum WakeTime {
         gregorian.timeZone = calendar.timeZone
         gregorian.locale = calendar.locale
         return gregorian
+    }
+
+    private static func clock(_ parts: DateComponents) -> String {
+        String(format: "%02d:%02d", parts.hour!, parts.minute!)
+    }
+
+    private static func weekday(_ parts: DateComponents, spoken: Bool) -> String {
+        (spoken ? weekdays : shortWeekdays)[parts.weekday! - 1]
     }
 
     private static let shortWeekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]

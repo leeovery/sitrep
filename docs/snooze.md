@@ -5,8 +5,8 @@ Some asks can wait until tomorrow. Snooze puts a whole session off until a time 
 ## Try it
 
 1. Hover over the notch, and right-click a session under Needs you.
-2. Choose **Snooze**, then **Tomorrow**. Beside each choice, the menu shows when it wakes, such as `Thu 09:00`.
-3. The session leaves Needs you. Unfold Snoozed at the foot of the panel, and its row says when it wakes.
+2. Choose **Snooze**, then **Tomorrow**. Beside each choice, the menu shows when it wakes, such as `09:00` beside Tomorrow.
+3. The session leaves Needs you. Unfold Snoozed at the foot of the panel, and its row says when it wakes, such as `tomorrow 09:00`.
 
 In Claude Code, open an ask in the pane and press `snooze`, then `tomorrow`.
 
@@ -42,6 +42,18 @@ In Claude Code, open an ask in the pane and press `snooze`, then `tomorrow`.
 | Until it moves | When Claude next ends a turn there |
 
 Settings › Snooze turns each of the first six choices on or off. It sets the time of each one but In an hour. The pane in Claude Code reads them from `snooze.json`, in the board's folder, so it offers the same choices. With every choice off, the menu offers only Until it moves, and the pane offers no snooze. See [Settings, pane by pane](settings.md).
+
+A snoozed row in the app and `snoozed until` in the pane say when a session wakes in the same words. The week runs Monday to Sunday.
+
+| When it wakes | It reads |
+|---|---|
+| today | `17:42` |
+| tomorrow | `tomorrow 09:00` |
+| later this week, Monday to Sunday | `Sat 09:00` |
+| the next calendar week | `next week` |
+| further out | `3 Dec 09:00` |
+
+Beside each choice, the Snooze menu shows only what the choice name leaves out: `09:00` beside Tomorrow, and `Sat 09:00` beside This weekend.
 
 ## Related
 

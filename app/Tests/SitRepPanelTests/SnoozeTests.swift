@@ -238,22 +238,78 @@ struct SnoozeTests {
         #expect(Self.words(Self.at(23, 23, 59)) == "23:59")
     }
 
-    /// Within the six days after today, tomorrow among them, across the clocks going back too.
-    @Test func withinTheWeekItIsItsWeekdayAndTime() {
-        #expect(Self.words(Self.at(24, 9)) == "Sat 09:00")
-        #expect(Self.words(Self.at(26, 9)) == "Mon 09:00")
-        #expect(Self.words(Self.at(29, 9)) == "Thu 09:00")
+    /// Tomorrow by name, across the clocks going back on the Sunday too, from Saturday and from Sunday into a new week.
+    @Test func tomorrowItIsTomorrowAndItsTime() {
+        #expect(Self.words(Self.at(24, 9)) == "tomorrow 09:00")
+        #expect(WakeTime.words(Self.at(25, 9), at: Self.at(24, 0, 30), in: Self.london) == "tomorrow 09:00")
+        #expect(WakeTime.words(Self.at(26, 9), at: Self.at(25, 12), in: Self.london) == "tomorrow 09:00")
     }
 
-    /// A week on the weekday would name today's, so it is the date.
+    /// Later in the calendar week, Monday to Sunday, after tomorrow: its weekday, across the clocks going back.
+    @Test func laterThisWeekItIsItsWeekdayAndTime() {
+        #expect(Self.words(Self.at(25, 9)) == "Sun 09:00")
+        #expect(WakeTime.words(Self.at(28, 9), at: Self.at(26, 10), in: Self.london) == "Wed 09:00")
+        #expect(WakeTime.words(Self.at(1, 9, month: 11), at: Self.at(26, 10), in: Self.london) == "Sun 09:00")
+    }
+
+    /// Any day of the next calendar week, its Monday to its Sunday, across the clocks going back: 7 days on from a
+    /// Saturday among them.
+    @Test func inTheNextWeekItIsNextWeek() {
+        #expect(Self.words(Self.at(26, 9)) == "next week")
+        #expect(Self.words(Self.at(1, 9, month: 11)) == "next week")
+        #expect(WakeTime.words(Self.at(31, 9), at: Self.at(24, 12), in: Self.london) == "next week")
+        #expect(WakeTime.words(Self.at(8, 9, month: 11), at: Self.at(26, 10), in: Self.london) == "next week")
+    }
+
+    /// From a Sunday, the last day of its week, any day past tomorrow up to the next Sunday is next week, and the
+    /// Monday after it a date.
+    @Test func fromASundayTheNextCalendarWeekRunsToTheNextSunday() {
+        let sunday = Self.at(1, 12, month: 11)
+        let words = { (wakes: Date) in WakeTime.words(wakes, at: sunday, in: Self.london) }
+
+        #expect(words(Self.at(3, 9, month: 11)) == "next week")
+        #expect(words(Self.at(8, 9, month: 11)) == "next week")
+        #expect(words(Self.at(9, 9, month: 11)) == "9 Nov 09:00")
+    }
+
+    /// From the week after next on, and a day gone by, its date.
     @Test func furtherOutItIsItsDateAndTime() {
-        #expect(Self.words(Self.at(30, 9)) == "30 Oct 09:00")
-        #expect(Self.words(Self.at(3, 9, month: 11)) == "3 Nov 09:00")
+        #expect(Self.words(Self.at(2, 9, month: 11)) == "2 Nov 09:00")
+        #expect(Self.words(Self.at(3, 9, month: 12)) == "3 Dec 09:00")
+        #expect(WakeTime.words(Self.at(2, 9, month: 11), at: Self.at(24, 12), in: Self.london) == "2 Nov 09:00")
+        #expect(Self.words(Self.at(21, 9)) == "21 Oct 09:00")
+    }
+
+    /// Going forward on Sunday 29 March: a day of 23 hours is one, and the weeks still end on their Sundays.
+    @Test func theClocksGoingForwardMoveNoWeeksEdge() {
+        #expect(WakeTime.words(Self.at(30, 9, month: 3), at: Self.at(29, 0, 30, month: 3), in: Self.london)
+            == "tomorrow 09:00")
+        #expect(WakeTime.words(Self.at(5, 9, month: 4), at: Self.at(28, 12, month: 3), in: Self.london) == "next week")
+        #expect(WakeTime.words(Self.at(6, 9, month: 4), at: Self.at(28, 12, month: 3), in: Self.london) == "6 Apr 09:00")
     }
 
     @Test func spokenItsWeekdayAndMonthAreWhole() {
-        #expect(Self.words(Self.at(24, 9), spoken: true) == "Saturday 09:00")
-        #expect(Self.words(Self.at(3, 9, month: 11), spoken: true) == "3 November 09:00")
+        #expect(Self.words(Self.at(23, 17, 42), spoken: true) == "17:42")
+        #expect(Self.words(Self.at(24, 9), spoken: true) == "tomorrow 09:00")
+        #expect(Self.words(Self.at(25, 9), spoken: true) == "Sunday 09:00")
+        #expect(Self.words(Self.at(26, 9), spoken: true) == "next week")
+        #expect(Self.words(Self.at(3, 9, month: 12), spoken: true) == "3 December 09:00")
+    }
+
+    /// Beside a choice on a row's Snooze menu: the time alone where its name fixes the day, though In an hour runs
+    /// past midnight; the weekday and time beside This weekend and Next week.
+    @Test func besideAChoiceItSaysOnlyWhatItsNameDoesNot() {
+        let beside = { (choice: SnoozeChoice, wakes: Date) in
+            WakeTime.besideChoice(choice, wakes: wakes, in: Self.london)
+        }
+
+        #expect(beside(.inAnHour, Self.at(23, 15, 42)) == "15:42")
+        #expect(beside(.inAnHour, Self.at(24, 0, 30)) == "00:30")
+        #expect(beside(.laterToday, Self.at(23, 18, 42)) == "18:42")
+        #expect(beside(.tonight, Self.at(23, 19)) == "19:00")
+        #expect(beside(.tomorrow, Self.at(24, 9)) == "09:00")
+        #expect(beside(.thisWeekend, Self.at(24, 9)) == "Sat 09:00")
+        #expect(beside(.nextWeek, Self.at(26, 9)) == "Mon 09:00")
     }
 
     /// Its words change only at midnight.
@@ -281,7 +337,9 @@ struct SnoozeTests {
 
         #expect(WakeTime.words(elul, at: now, in: calendar) == "6 Sep 09:00")
         #expect(WakeTime.words(Self.at(3, 9, month: 11), at: now, in: calendar, spoken: true) == "3 November 09:00")
-        #expect(WakeTime.words(Self.at(24, 9), at: now, in: calendar) == "Sat 09:00")
+        #expect(WakeTime.words(Self.at(25, 9), at: now, in: calendar) == "Sun 09:00")
+        #expect(WakeTime.words(Self.at(26, 9), at: now, in: calendar) == "next week")
+        #expect(WakeTime.besideChoice(.nextWeek, wakes: Self.at(26, 9), in: calendar) == "Mon 09:00")
         #expect(SnoozeChoice.allCases.map { $0.wakes(after: now, in: calendar, settings: Self.defaults) }
             == SnoozeChoice.allCases.map { Self.wakes($0, after: now) })
         #expect(SnoozeChoice.allCases.map { $0.wakes(after: now, in: calendar, settings: Self.leesOwn) }
@@ -339,7 +397,7 @@ struct SnoozeTests {
         waiting.kind = .needs
         waiting.wakesAt = nil
         moves.wakesAt = nil
-        #expect(asleep.timeText(at: now, in: Self.london) == "Sat 09:00")
+        #expect(asleep.timeText(at: now, in: Self.london) == "tomorrow 09:00")
         #expect(moves.timeText(at: now, in: Self.london) == "until it moves")
         #expect(waiting.timeText(at: now, in: Self.london) == "1h")
         #expect(asleep.title == "Finish the Tailspin migration")
