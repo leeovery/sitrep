@@ -18,49 +18,9 @@ Claude Code window ──tools──▶ the mod ──writes──▶ ~/.local/s
 - **Your replies arrive as your own message.** A reply for this session is sent as you, marked "From the board:", and says under each ask whether it closes it or leaves it open for Claude to act on; while Claude is mid-turn it waits for the turn to end, and you can take it back until then.
 - **A reply for another session goes into its inbox.** That session's window sends it on, now or once a window takes the session up.
 
-The board has its own words: a **project**, roughly a repository, named as you'd say it; its **sessions**; and in each a **status**, **asks** (what only you can do or decide), **parked** items (put off, to come back to, and the project's, not only the session's) and **resolved** items. Claude stopped, waiting on you with no ask, is your **turn**, which SitRep calls **Stopped**. A session you **snooze** counts nowhere until it wakes. A session Claude or you **finished** leaves the board, and what it parked stays with its project.
+The board has its own words, each defined once in the [glossary](docs/glossary.md).
 
-## Claude and sitrep
-
-The mod gives Claude these tools. Only the main conversation can call them; a subagent puts what it would post in its report.
-
-| Tool | What it does |
-|---|---|
-| `start` / `join` | Starts a session in a project, or joins one by its id |
-| `status` | Sets the session's name, summary, what is under way, and what is next |
-| `ask` | Posts an ask that wants a yes, a choice or words, with where to look, and for a choice the option Claude recommends |
-| `park` | Parks something to come back to, on the session's project |
-| `resolve` / `reopen` / `edit` | Closes, reopens or corrects an item, with a reason: one of the session's, or something another session of the project parked |
-| `finish` | Finishes the session once it is complete, with nothing left on it; what it parked holds no finish back |
-| `project` | Renames the session's project, or says where it lives |
-| `move` | Moves the session, whole, to another project when you ask: its asks, parked items, status and history go with it, and a name no project has makes a new one |
-| `board` | Reads the board back, with the project's parked items, so Claude can check and repair it |
-
-- **Each conversation's first message tells Claude how to keep the board**, and lists every current session on it with its id, so Claude can join one you carry on with, or start a new one.
-- **Claude asks only when it needs you**, says it in the chat as well, and picks the shape by what you give back. A yes's button is the verb you're giving: `✓ Go`, `✓ Approve`, `✓ It works`. A choice ends the button of the option Claude leans toward with `· recommended`, and a "(recommended)" Claude types into an option's words is read as that and taken out.
-- **No refusals for what does no harm.** Resolving an ask you already closed, or a parked item you picked up, passes quietly, and an edit takes an item's line as `text` or `title` alike.
-- **Drift gets noticed.** When the board changes, its open items ride into Claude's next turn, and a join hands Claude the board as it stands (its status, open asks and parked items) to correct anything stale.
-- **Claude has no tool for snoozing.** Snoozing a session is yours.
-
-## The CLI
-
-The CLI is `bin/sitrep` in the plugin's folder; the app's copy is `~/Library/Application Support/sitrep/bin/sitrep`. A command on a session names it with `--session sr-xxxxxx`, else `$SITREP_SESSION`, and `sitrep <command> --help` says more.
-
-| Command | What it does |
-|---|---|
-| `sitrep list` | Every project's current sessions, with their ids and what waits on you; with `--project <name>`, only that project's |
-| `sitrep board` | A session's status, open asks and its project's parked items, with their ids; with `--json`, the session alone: its open asks, the items it parked itself, its latest status changes and its resolved asks |
-| `sitrep status` | Sets where a session stands, giving only what changed |
-| `sitrep ask` | Posts an ask, and prints its id |
-| `sitrep park` | Parks something to come back to, on the session's project, and prints its id |
-| `sitrep answer` | Answers a yes or a choice ask, or ignores any ask, into the session's inbox |
-| `sitrep snooze` | Snoozes a session, its asks and its turn, until a time, or with no `--until` until it moves |
-| `sitrep wake` | Wakes a snoozed session now |
-| `sitrep finish` | Finishes a session no window holds |
-| `sitrep move <project>` | Moves a session into a project already on the board; it makes no project |
-| `sitrep watch` | Prints the board as a line of JSON at the start and at each change, for SitRep |
-
-`ask` takes `--wants yes|choice|words`, then `--yes <label>` for a yes, `--option <choice>` for each of a choice's options with `--recommended <choice>` for the one you lean toward, or `--needs <words>` for words. `snooze` names each ask the session's row shows, and `--until` in milliseconds since the epoch. `list` and `board` take `--json`. Exit codes: 0 done; 1 a usage error, a refused input or a failure; 2 no such session.
+Claude's tools are in [How Claude keeps the board](docs/claude-and-sitrep.md), and every CLI command is in [The `sitrep` command](docs/cli.md).
 
 ## Developing
 

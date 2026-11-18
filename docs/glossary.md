@@ -8,11 +8,17 @@ Each word below means one thing on every page of these docs. The words are group
 
 **the board**: Everything Claude keeps for you: projects, the sessions in them, and their items. It is a folder of files in `~/.local/state/sitrep`, with no server, account or database. In Claude Code, the button that opens the pane says `▸ show board`.
 
+**current**: A session that isn't finished, and has a window, an ask waiting, or a change in the last 7 days. The first message Claude gets in a conversation lists only current sessions.
+
 **finished**: A session that is closed. Claude finishes one once nothing is left on it. You can finish one from the pane if no window has it, and its open asks then stop counting. Its parked items stay with the project.
 
 **inbox**: Where a reply for another session waits until a window of that session sends it on to Claude. Each session has one.
 
-**parked item**: Something Claude raised and put off, to come back to later. It belongs to the project, and names the session that parked it. It never counts as waiting on you.
+**item id**: The short id of an ask or a parked item, such as `xsaq`. The `sitrep` command prints it when it posts one, and its other commands take it.
+
+**old session**: A session that is no longer current: finished, or 7 days with no window, no ask waiting and no change. A project in the pane folds its old sessions under `show old sessions`.
+
+**parked item**: Something Claude raised and put off, to come back to later. It belongs to the project, and names the session that parked it. It never counts as waiting on you. Under PARKED in the pane, `show picked up` lists the items you picked up or dropped, and those Claude closed.
 
 **project**: What a session is about, named by Claude the way you'd say it, such as Northwind. It is roughly a repository. The folder a window started in never decides it.
 
@@ -26,7 +32,9 @@ Each word below means one thing on every page of these docs. The words are group
 
 **status**: Where a session stands: its name, a one-line summary, what is under way now, and what comes next.
 
-**Stopped**: A session at your turn: Claude has stopped and waits for your next message, with no ask waiting. The Mac app shows it in blue, and titles its banner Stopped. The pane calls it your turn.
+**Stopped**: A session at your turn: Claude has stopped and waits for your next message, with no ask waiting. The Mac app shows it in blue, and titles its banner Stopped. The pane has no label for it, and says "your turn there" only when it asks whether to snooze a session.
+
+**Until it moves**: The snooze choice with no time. It wakes the session when Claude next ends a turn there, or sooner, the way any snooze wakes.
 
 **window**: One running Claude Code, wherever it shows: a Ghostty window, a tab, or a tmux pane. A window holds one session at a time.
 
@@ -48,23 +56,31 @@ Each word below means one thing on every page of these docs. The words are group
 
 **toast**: A short note Claude Code shows in the window. SitRep shows one when a new ask lands in this session: `◆ New ask:` and the ask title.
 
-## At the edge of your screen
+## In the Mac app
 
-**banner**: A macOS notification from SitRep, for a new ask or for Claude stopping. Both are off until you turn them on in Settings › Notifications. A click on one takes you to the session.
+**banner**: A macOS notification from SitRep, for a new ask or for Claude stopping. A click on one takes you to the session. Both are off until you turn them on in Settings › Notifications. **Turn On…** in the welcome window also turns on the banner for a new ask. A failure banner, such as "SitRep could not jump" or "Not snoozed", shows whatever those switches say.
 
-**dimmed session**: A session drawn dimmed, because no terminal on this Mac shows it. Either no window holds it, or you reach its window only from another device. Its asks still count.
+**count**: A number past the marks of a section on the strip. "+3" means three more sessions than the section has room for. A number with no plus, such as "3", stands for a folded section.
 
-**the menu bar item**: The SitRep icon in the menu bar, and its menu. The menu lists your sessions under one total, such as "3 need you". The icon lights the same way the notch does.
+**dimmed session**: A session drawn dimmed, because no terminal on this Mac shows it. Either no window holds it, or you reach its window only from another device, such as over SSH. SitRep checks which terminal each Claude runs in every few seconds. Its asks still count.
+
+**mark**: A session on the strip: a ring holding two letters of its project. The colour of the ring says where the session stands.
+
+**the menu bar item**: The SitRep icon in the menu bar, and its menu. The menu lists your sessions under one total, such as "3 need you". The icon lights the same way the notch does. SitRep has no Dock icon, so this is where you reach it.
 
 **Needs you**: The first section of the panel: the sessions waiting on you. An orange row has asks, or a window waiting at a permission prompt. A blue row is Stopped.
 
-**the notch**: The SitRep shape at the left or right edge of your screen, black by default. It opens into the panel when you hover over it. Its light is orange while an orange row waits in Needs you. With none, it is blue while a session is Stopped.
+**the notch**: The SitRep shape at the left or right edge of your screen, black by default, on every Space. It opens into the panel when you hover over it. Its light is orange while an orange row waits in Needs you. With none, it is blue while a session is Stopped.
 
 **the panel**: What the notch opens: your sessions, in Needs you, Working and Snoozed. A click on a session takes you to it.
 
 **the pulse**: The notch swelling and flashing its light. It comes for a new ask by default. For Claude stopping, you turn it on in Settings › Notifications.
 
+**row**: A session as a line in the panel, or in the menu of the menu bar item. A row in Needs you has a line for each ask or permission prompt waiting.
+
 **the strip**: The other way to show the board at the screen edge: a narrow column with a mark for each session. You choose Notch, Strip or Nothing under Show, in the menu or in Settings › Edge.
+
+**the welcome window**: The window SitRep opens at its first start. It shows what SitRep does, and sets your first choices, such as the sound. It also asks macOS for banners and control of Ghostty, both optional. Show Welcome Window, in the menu, opens it again.
 
 **Working**: The section of the panel for sessions that don't need you. Claude is running a turn there, or waits on work of its own, such as a background agent.
 
