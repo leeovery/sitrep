@@ -628,7 +628,7 @@ orchestrator decides what reaches the board.
 | `park` | park something to come back to, on the attached session's project |
 | `resolve` / `reopen` / `edit` | close, reopen or correct an item, with a reason. Resolving what Lee closed, an ask he answered or ignored or a parked item he picked up, passes quietly, changing nothing (below). An edit takes an item's one line as `text` or `title` alike, whatever the item, and may change what an ask wants, its `yes`, `options`, `recommended` and `needs`, under the checks `ask` makes for what it changes (see Storage); an empty `needs` or `recommended` clears it. An item of the attached session, or a parked item another session of its project parked, named with that session's id (`session`) and written into that session, in this window's own file there; another session's ask, or a session of another project, is refused |
 | `finish` | finish the attached session, with a reason, once it is complete and nothing is left on it; what it parked stays its project's and holds no finish back. The window stays attached, and joining it again reopens it |
-| `project` | rename the attached session's project, or say where it lives, or both; a name another project has is refused, saying a move there is Lee's call. It never moves a session to another project: `move` does |
+| `project` | rename the attached session's project, or say where it lives, or both; a name another project has is refused, saying a move there is the user's call, so to ask first. It never moves a session to another project: `move` does |
 | `move` | move the attached session, whole, to another project, at Lee's word: one on the board whose name matches, as `start` matches one, else a new one, with its directory once known; the project it is in already is refused. Every window holding it follows (17 November 2026; see "A session moves to another project at Lee's word") |
 | `board` | read back the board's open items, what each ask wants back among them (`k1 wants a yes (Go)`), and the project's parked items, so Claude can check and repair it |
 
@@ -672,8 +672,8 @@ and named it in internal shorthand):
   posted, though its guide was in front of it; it read the ask rule as one
   for questions alone). The guide gives both as one rule, a bullet of its
   own, not a clause deep in "As it goes" (18 November 2026), and says what
-  the ask does in words a Claude that never saw the app reads: it shows
-  Lee it waits on him.
+  the ask does in words a Claude that never saw the app reads: the board
+  shows it waiting on the user.
 - When Lee asks to move the session to another project, move it with
   `move`: the whole session goes, so no new one is started there instead;
   and move one only at Lee's word (17 November 2026: asked to move
@@ -727,18 +727,26 @@ the tool descriptions and their answers, the refusals, the board text
 (`waiting on the user`, `the user replied, yours to act on`, `snoozed by
 the user`), a board message's lines, the narration line, and the CLI's
 help and messages. Until then they said Lee, so a plugin installed on
-anyone else's Mac told its Claude the board was Lee's. Claude learns a
+anyone else's Mac told its Claude the board was Lee's; it ships in the
+release after 0.7.0, so a 0.7.0 install still says Lee. Claude learns a
 person's name from their own CLAUDE.md or setup, where they gave it; the
 first plan, SitRep reading the Mac account's name into a file the mod and
 the CLI read, felt invasive, and was dropped before it was built. The name
 is one constant, core's `USER`, with its possessive, and no text guesses
-at a pronoun: each is worded to need none ("so it shows the user that
-something waits", "longer words before a tool call can arrive as a short
-summary"), and the guide, the tools and the CLI's help are each tested to
-hold no gendered one. The plugin's own descriptions, in `plugin.json` and
-`marketplace.json`, say "you". This document goes on in Lee's voice, and
-texts it quotes from before this date say Lee where the code now says the
-user.
+at a pronoun: each is worded to need none ("so the board shows it waiting
+on the user", "the rest never showed"), and what Claude reads, the guide,
+the tools' descriptions and answers, the board text, a board message's
+lines, the narration line, the refusals and the CLI's help, is tested to
+hold no gendered one. The refusals only the person's own presses meet,
+of a snooze, a wake or an answer, from the pane, the app or the CLI, speak
+to them as "you", as the pane's toasts do (`This session is finished: its
+asks wait on you no more.`); the CLI's help stays in the third person, for
+scripts. A join's reopening says "It had been finished by the user" or
+"by Claude". The plugin's own descriptions, in `plugin.json` and
+`marketplace.json`, say "you". This document goes on in Lee's voice;
+where it quotes a text that was reworded it gives the new words, and where
+only the name was swapped, its quotes from before this date say Lee where
+the code now says the user.
 
 **No refusal for a call that does no harm** (13 November 2026). Live, Claude
 was refused for calls that did no harm, and each refusal cost a turn and
@@ -855,11 +863,12 @@ turn (hooks/summarised.ts):
   `next.origin` the engine) that settles without a refusal, any tool's,
   sitrep's among them, carries one line in its result's `context`, which
   Claude reads after the result and Lee never sees, and everything untold
-  is then told. With words: "Your words before this tool call reached Lee
-  only as this summary: “…”. He never saw the rest." With none: "Your words
-  before this tool call never reached Lee: he saw none of them." Either
-  ends "Say again, after your last tool call, whatever of them Lee still
-  needs: a question, steps, a finding, a decision.", since most narrations
+  is then told. With words: "Your words before this tool call reached the
+  user only as this summary: “…”. The rest never showed." With none: "Your
+  words before this tool call never reached the user: none of them
+  showed." Either ends "Say again, after your last tool call, whatever of
+  them the user still needs: a question, steps, a finding, a decision.",
+  since most narrations
   are mid-turn progress no longer worth restating (over three days, turns
   with narration had a median of one narrated message, and as many as 32).
 - **What carries it.** An errored result (a failed command, a permission
@@ -1599,8 +1608,8 @@ choice with a comment riding along from Ready to send, `This closes the
 ask: nothing more to do with it.`, whatever else the message carries to it;
 a comment alone leaves it open, `This leaves the ask open: act on it, then
 resolve it.`, unless an answer of Lee's to it is on its way apart from the
-message, when the line says that answer closes it, `An answer of Lee's to
-this ask, sent apart from this message, closes it.`, saying nothing of
+message, when the line says that answer closes it, `An answer from the
+user to this ask, sent apart from this message, closes it.`, saying nothing of
 where or when it arrives. That answer may be in another board's send to
 the inbox, or the CLI's; in a send already in flight from this window,
 ahead of this one in its queue, which Claude may have already; or in
@@ -2792,14 +2801,14 @@ sitrep wake [--session <id>]
   `answer` and `finish` do: what it did shows on `watch`'s next line and in
   `board --json`. There is no `--json`.
 - Nothing is written, exit 1, the first of these saying why: the session
-  finished (`This session is finished: its asks wait on Lee no more.`); an
+  finished (`This session is finished: its asks wait on you no more.`); an
   id that is no item, or no ask, in `answer`'s words; an ask waiting on Lee,
-  not snoozed, that the asks named leave out (`An ask waits on Lee that the
+  not snoozed, that the asks named leave out (`An ask waits on you that the
   snooze did not name: look at it, then snooze again.`), so one that landed
   since the row was drawn is never snoozed unseen, where asks waiting on
   him no more, closed, ignored, commented on or answered on the way, may be
   named or not; the session needing nothing of Lee, no ask waiting on him,
-  snoozed or not, and not at his turn (`<name> needs nothing of Lee: there
+  snoozed or not, and not at his turn (`<name> needs nothing of you: there
   is nothing to snooze.`), a window's stop being its own; then `--until`
   no time, whole milliseconds a date holds (`A snooze wakes at a time in
   milliseconds since the epoch, or with none until it moves.`), or come

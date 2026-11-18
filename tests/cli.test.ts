@@ -10,7 +10,7 @@ import {
   VERSION,
   type SessionPaths,
 } from '../core'
-import { ELSEWHERE, META, MIN, PROJECT, T0, W1, W2 } from './data'
+import { ELSEWHERE, META, MIN, PERSON, PROJECT, T0, W1, W2 } from './data'
 import { beat, file, finish, moveTo, park, snoozeSession, status, yesAsk, type Line } from './lines'
 import { ENV, FIRST_ID, NEXT_ID, NOW, terminal } from './terminal'
 
@@ -684,11 +684,11 @@ test('a snooze or a wake refused ends as refused, in the check’s words, and wr
   )
   expect(await t.run('snooze', 'k1', 'k2', ...until, ...SESSION)).toEqual(
     refused(
-      'An ask waits on the user that the snooze did not name: look at it, then snooze again.',
+      'An ask waits on you that the snooze did not name: look at it, then snooze again.',
     ),
   )
   expect(await t.run('snooze', ...until, '--session', LOBBY.id)).toEqual(
-    refused('Lobby needs nothing of the user: there is nothing to snooze.'),
+    refused('Lobby needs nothing of you: there is nothing to snooze.'),
   )
   expect(await t.run('snooze', '--until', 'soon', ...SESSION, ...SHOWN)).toEqual(
     refused(
@@ -828,7 +828,7 @@ test("every command's help names the person it is for the user, and guesses at n
   expect(helps.join('\n')).toContain(
     "Answer a yes or a choice ask, or ignore any ask, as the user does on the board: into the session's inbox, which its window gives Claude as the user's own message,",
   )
-  expect(helps.join('\n')).not.toMatch(/\b(Lee|he|him|his|she|her|hers)\b/i)
+  expect(helps.join('\n')).not.toMatch(PERSON)
 })
 
 test('no words, an unknown command or a word that will not read is a usage error, pointing at the help', async () => {

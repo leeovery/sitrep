@@ -202,7 +202,7 @@ test('a snooze the check refuses writes nothing, and a toast says why: an ask la
 
   expect(linesOf(w, paths.log(W1), 'snoozeSession')).toEqual([])
   expect(w.toasts.at(-1)).toBe(
-    'Not snoozed: An ask waits on the user that the snooze did not name: look at it, then snooze again.',
+    'Not snoozed: An ask waits on you that the snooze did not name: look at it, then snooze again.',
   )
 })
 

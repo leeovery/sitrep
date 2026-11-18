@@ -119,7 +119,7 @@ test("blockKindOf reads the kind off a signature's envelope, and nothing off one
   expect(blockKindOf('Bw=='), 'a wire type no envelope has').toBeUndefined()
 })
 
-test('the line quotes what Lee saw of the words, or says he saw none of them, and asks for what he still needs', () => {
+test('the line quotes what the user saw of the words, or says none of them showed, and asks for what the user still needs', () => {
   expect(summarisedLine([SUMMARY])).toBe(
     `Your words before this tool call reached the user only as this summary: “${SUMMARY}”. The rest never showed. ${SAY_AGAIN}`,
   )

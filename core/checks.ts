@@ -758,7 +758,7 @@ const brokenBy = (rules: readonly AskRule[], asks: readonly Ask[]) => {
   return undefined
 }
 
-const FINISHED = `This session is finished: its asks wait on ${USER.name} no more.`
+const FINISHED = 'This session is finished: its asks wait on you no more.'
 
 const OLD_WINDOW =
   'A window holding this session runs an older sitrep: run /reload-plugins in it first.'
@@ -872,7 +872,7 @@ export const checkAnswer = (session: Session, input: unknown, version?: string):
 const isRefusal = <T>(checked: Checked<T>): checked is { ok: false; error: string } => !checked.ok
 
 /** Why a snooze is refused where an ask waits on Lee that the row did not show: it came in since, and is never snoozed unseen. */
-const UNSEEN = `An ask waits on ${USER.name} that the snooze did not name: look at it, then snooze again.`
+const UNSEEN = 'An ask waits on you that the snooze did not name: look at it, then snooze again.'
 
 /**
  * Why the asks a snooze names, those its row showed, by their ids, will not
@@ -931,9 +931,7 @@ export const checkSnooze = (
   }
 
   if (!needsLeeAt(session, now)) {
-    return refuse(
-      `${session.status.name} needs nothing of ${USER.name}: there is nothing to snooze.`,
-    )
+    return refuse(`${session.status.name} needs nothing of you: there is nothing to snooze.`)
   }
 
   const asks = session.asks.filter(waitsOnLee).map(ask => ask.id)

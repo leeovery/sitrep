@@ -17,6 +17,7 @@ import {
   LEDGER,
   META,
   MIN,
+  PERSON,
   PROJECT,
   REPO,
   reviewRound,
@@ -68,7 +69,53 @@ test("Claude's tools name the person they are for the user, as Claude Code does,
 
   expect(specs).toContain('Post an ask: something only the user can do or decide.')
   expect(specs).toContain("the move tool does, at the user's word.")
-  expect(specs).not.toMatch(/\b(Lee|he|him|his|she|her|hers)\b/i)
+  expect(specs).not.toMatch(PERSON)
+})
+
+test("every tool's answer and refusal names the user, and guesses at no pronoun", async ($, on) => {
+  const w = world($, on)
+  const lobby = w.elsewhere({ ...META, id: 'sr-bbbbbb', name: 'Lobby', by: W2 })
+
+  lobby.write(finish('lee'))
+
+  const { paths } = await w.begin()
+  const answers: string[] = []
+  const say = async (tool: string, args: Record<string, unknown> = {}) => {
+    const answer = await w.call(tool, args)
+
+    answers.push(String(answer.result ?? answer.deny))
+
+    return answer
+  }
+  const ask = postedId(await say('ask', reviewRound(1)))
+  const parked = postedId(await say('park', { title: 'Look at the glance again' }))
+
+  w.writer(paths)(reply('r1', ask, 'yes'), delivered('r1'))
+  await say('status', { now: ['Drawing Inbox'] })
+  await say('edit', { item: parked, title: 'Look at the glance once more' })
+  await say('resolve', { item: ask })
+  await say('reopen', { item: ask })
+  await say('resolve', { item: parked })
+  await say('reopen', { item: parked })
+  await say('board')
+  await say('finish', { reason: 'Shipped' })
+  await say('finish')
+  await say('start', { name: 'Board', summary: 'The board', project: 'SitRep' })
+  await say('project', { name: 'north wind' })
+  await say('project', { directory: '/Users/me/Code/sitrep' })
+  await say('move', { project: 'Northwind' })
+  await say('move', { project: 'Northwind' })
+  await say('join', { session: 'sr-bbbbbb' })
+
+  expect(answers).toContain(
+    `Posted ask ${ask}. Put it to the user in full after your last tool call.`,
+  )
+  expect(answers).toContain(`${ask} was closed already by the user: nothing to resolve.`)
+  expect(answers).toContain(
+    "Another project is already named Northwind. Renaming can't give this project that name. Moving this session there instead is the user's call, so ask first.",
+  )
+  expect(answers.join('\n')).toContain('It had been finished by the user; joining it reopened it.')
+  expect(answers.join('\n')).not.toMatch(PERSON)
 })
 
 test('start files the session under the project it names, attaches the window and says to record the id', async ($, on) => {
@@ -302,7 +349,7 @@ test('the ask and edit tools take wants, yes, options and needs; the ask says ho
   expect(ask?.inputSchema?.required).toEqual(['wants', 'title'])
   expect(ask?.inputSchema?.properties).not.toHaveProperty('kind')
   expect(ask?.description).toContain(
-    'Want a yes when the user gives a go, an approval, or word that it works or is done, its button the verb the user gives (Go, Approve, Done)',
+    'Want a yes for a go, an approval, or word that it works or is done, its button the verb given (Go, Approve, Done)',
   )
   expect(ask?.description, 'an ask for what Lee is left to do, as the guide wants one').toContain(
     "Ask when you cannot go on without the user, when the user's judgement changes what happens next, or when you leave the user something to do, such as a release, a merge or a command to run;",
@@ -345,7 +392,7 @@ test('resolve closes an item, reopen opens it again; each refuses where the item
   )
 })
 
-test("resolving what Lee closed, an ask he answered or ignored, a parked item he picked up, passes quietly, writing nothing; one he commented on, or whose answer is still on its way, resolves as ever", async ($, on) => {
+test("resolving what the user closed, an ask answered or ignored or a parked item picked up, passes quietly, writing nothing; one commented on, or whose answer is still on its way, resolves as ever", async ($, on) => {
   const w = world($, on)
   const { paths } = await w.begin()
   const post = async (args: Record<string, unknown>) => await asked(w, args)

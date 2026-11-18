@@ -9,7 +9,7 @@ import {
   summariseProject,
   toldSummary,
 } from '../core'
-import { MIN, SENDER, T0, W1, W2 } from './data'
+import { MIN, PERSON, SENDER, T0, W1, W2 } from './data'
 import {
   beat,
   choiceAsk,
@@ -203,17 +203,17 @@ test('a conversation starts knowing how to keep the board and talk to Lee beside
   expect(guide, 'the user, as Claude Code names them').toMatch(
     /^sitrep is the user's board inside Claude Code: where each session stands and what waits on the user\./,
   )
-  expect(guide, 'no name, and no pronoun guessed').not.toMatch(/\b(Lee|he|him|his|she|her|hers)\b/i)
+  expect(guide, 'no name, and no pronoun guessed').not.toMatch(PERSON)
   expect(guide).toContain(
     'Start a session when the work will run across several turns or will need the user',
   )
   expect(guide).toContain('Not for a quick question.')
   expect(guide).toContain(
-    "Keep it current, since it tells the user, away from this window, that something is waiting; but talk to the user as if it weren't there: the chat alone says all the user needs.",
+    "Keep it current, since away from this window it tells the user what waits; but in the chat talk as if it weren't there: the chat alone says everything the user needs.",
   )
   expect(guide).toContain('resolve it yourself when the user answers it in the chat')
   expect(guide, 'the ask rule, a bullet of its own').toContain(
-    '\n- A turn that ends on a decision or a question for the user, or that leaves the user something to do, such as a release, a merge or a command to run, even said as a statement ("It\'s ready for you to release"), posts it as an ask, so it shows the user that something waits, never only in the status. Plain conversation needs none.\n',
+    '\n- A turn that ends on a decision or a question for the user, or that leaves the user something to do, such as a release, a merge or a command to run, even said as a statement ("It\'s ready for you to release"), posts it as an ask, so the board shows it waiting on the user, never only in the status. Plain conversation needs none.\n',
   )
   expect(guide).toContain(
     'Touch the board only once it is clear which project the work is on: the project being discussed, whatever folder this window started in.',
@@ -228,7 +228,7 @@ test('a conversation starts knowing how to keep the board and talk to Lee beside
     "- When the user asks to move this session to another project, move it with the sitrep move tool: the whole session goes, so never start a new one there instead. Move one only at the user's word.",
   )
   expect(guide).toContain(
-    'Item and session ids are yours alone: the user sees none of them on the board or in the app, so never name one to the user. Name an ask, a parked item or a session by its words.',
+    'Item and session ids are yours alone: the user sees none of them on the board or in the app, so never name one in the chat. Name an ask, a parked item or a session by its words.',
   )
   expect(guide).not.toContain('On the board')
   expect(guide, 'what Lee needs said in the chat, never by the board').toContain(
@@ -241,7 +241,7 @@ test('a conversation starts knowing how to keep the board and talk to Lee beside
     "An ask the user hasn't answered that you still need, raise again in the chat.",
   )
   expect(guide, "the turn's order").toContain(
-    "Every board call of a turn comes before your closing message to the user, never after it. Before any tool call, write the user a line at most: longer words before a tool call can arrive as a short summary, or not at all. What the user must read goes after the turn's last tool call.",
+    "Every board call of a turn comes before your closing message to the user, never after it. Before any tool call, write the user a line at most: longer words before a tool call can reach the user as a short summary, or not at all. What the user must read goes after the turn's last tool call.",
   )
   expect(guide, 'sessions, never pieces of work').not.toMatch(/\bpieces? of work\b/i)
   expect(
