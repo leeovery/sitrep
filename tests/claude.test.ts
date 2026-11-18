@@ -194,11 +194,8 @@ test('a conversation starts knowing how to keep the board and talk to Lee beside
     "Keep it current, since it tells Lee, away from this window, that something waits on him; but talk to Lee as if it weren't there: the chat alone tells him all he needs.",
   )
   expect(guide).toContain('resolve it yourself when Lee answers it in the chat')
-  expect(guide).toContain(
-    'a turn that ends on a decision or a question for Lee posts it as an ask, so it shows in Needs you, never only in the status;',
-  )
-  expect(guide).toContain(
-    'so does a turn that leaves Lee something to do, a release, a merge or a command to run, even said as a statement ("It\'s ready for you to release"); plain conversation needs none',
+  expect(guide, 'the ask rule, a bullet of its own').toContain(
+    '\n- A turn that ends on a decision or a question for Lee, or that leaves Lee something to do, a release, a merge or a command to run, even said as a statement ("It\'s ready for you to release"), posts it as an ask, so it shows Lee it waits on him, never only in the status. Plain conversation needs none.\n',
   )
   expect(guide).toContain(
     'Touch the board only once it is clear which project the work is on: the project being discussed, whatever folder this window started in.',

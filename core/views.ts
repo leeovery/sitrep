@@ -298,11 +298,11 @@ export const projectTakenOff = (taken: readonly ProjectParked[]): ProjectParked[
 /** How many entries a list of the board's past shows until it is shown in full. */
 export const LATEST_SHOWN = 3
 
-/** A list of the board's past as carried for a view: the latest entries it shows, every one where it shows all, and how many there are. */
-export type Carried<T> = { entries: T[]; count: number }
+/** A list of the board's past as a view shows it: the latest entries, every one where it shows all, and how many there are. */
+export type Latest<T> = { entries: T[]; count: number }
 
-/** A list carried for a view: every entry while it shows all, else only the latest it shows. */
-export const carried = <T>(all: readonly T[], isAll: boolean): Carried<T> => ({
+/** A list as a view shows it: every entry while it shows all, else only the latest. */
+export const latestOf = <T>(all: readonly T[], isAll: boolean): Latest<T> => ({
   entries: isAll ? [...all] : all.slice(0, LATEST_SHOWN),
   count: all.length,
 })

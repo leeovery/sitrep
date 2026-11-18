@@ -652,15 +652,18 @@ and named it in internal shorthand):
   it. What it parked stays its project's and holds no finish back (11
   November 2026).
 - A turn that ends on a decision or a question for Lee posts it as an ask,
-  so it shows in Needs you, never only in the status; plain conversation
-  needs none (4 November 2026: two sessions ended turns with "Put to Lee:
-  …" in their status line instead of posting an ask, so Lee's card showed
-  them under Your turn, not Needs you).
+  so it shows Lee it waits on him (in Needs you), never only in the status;
+  plain conversation needs none (4 November 2026: two sessions ended turns
+  with "Put to Lee: …" in their status line instead of posting an ask, so
+  Lee's card showed them under Your turn, not Needs you).
 - So does a turn that leaves Lee something to do, a release, a merge or a
   command to run, even said as a statement (17 November 2026: a session
   ended "It's ready for you to release", its status emptied and no ask
   posted, though its guide was in front of it; it read the ask rule as one
-  for questions alone).
+  for questions alone). The guide gives both as one rule, a bullet of its
+  own, not a clause deep in "As it goes" (18 November 2026), and says what
+  the ask does in words a Claude that never saw the app reads: it shows
+  Lee it waits on him.
 - When Lee asks to move the session to another project, move it with
   `move`: the whole session goes, so no new one is started there instead;
   and move one only at Lee's word (17 November 2026: asked to move
@@ -687,9 +690,13 @@ and named it in internal shorthand):
 
 Wording rules, in the tool descriptions:
 
-- Ask only when Claude cannot go on without Lee, or Lee's judgement changes what
-  happens next. Say it in full in the chat as well, after the last tool call:
-  the board never stands in for the chat. The ask's answer says the same:
+- Ask when Claude cannot go on without Lee, when Lee's judgement changes what
+  happens next, or when Claude leaves Lee something to do, a release, a merge
+  or a command to run, as the guide's ask rule says (18 November 2026: the
+  narrower rule, read as Claude decides, forbade the ask the guide demands
+  of a session handing Lee a release). Say it in full in the chat as well,
+  after the last tool call: the board never stands in for the chat. The
+  ask's answer says the same:
   `Posted ask k3f9. Put it to Lee in full after your last tool call.`
 - Choose the shape by what Lee gives back: a yes for a go, an approval, "it
   works" or "done"; a choice for one of options; words when Lee must write
@@ -2962,10 +2969,10 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   (`sitrep`), numbered on (`sitrep-2`) where a folder already has it. The
   key is only where its files are; the name in `project.json` is what
   matches and shows.
-- **`project.json`:** `{ v, name, directory?, created, by }`. A start writes
-  it as it makes the project, and the `project` tool as it renames it or
-  gives it a directory; a start giving a directory to a project with none
-  writes it too. It breaks the one-file-per-writer rule below: whichever
+- **`project.json`:** `{ v, name, directory?, created, by }`. A start or a
+  `move` writes it as it makes the project, and the `project` tool as it
+  renames it or gives it a directory; a start or a `move` giving a
+  directory to a project with none writes it too. It breaks the one-file-per-writer rule below: whichever
   writer makes the change rewrites it whole, and the last write wins. That
   is fine for a file rewritten only that rarely, by Claude, at Lee's word.
 - **`snooze.json`** (17 November 2026; see "Lee sets the times", under
@@ -3421,7 +3428,12 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   sessions live, only for the projects that draw it: each session's name
   by its id, for the held session's project and the project of the place
   the open board shows, a session's or a project's, where Parked's picked
-  up names the session a pick-up went to; what was taken off the Parked of
+  up names the session a pick-up went to, with the name of every session
+  the pick-ups it lists went to, wherever that session is filed now (18
+  November 2026: once the session that parked an item or the one that
+  picked it up moved to another project, the item read `picked up` alone,
+  as the names were only of the sessions filed under the project); what
+  was taken off the Parked of
   every session filed under it, finished and idle ones included, only while
   the open board shows a view of the project, its own or a session's, home
   among them, which draw it; and its old sessions, only while the open board

@@ -58,9 +58,10 @@ export type FiledUnder = (session: string) => ProjectKey | undefined
 
 /**
  * The session a queued reply goes to from a window holding `held`: a
- * pick-up to the held session, whichever session parked the item, held
- * back while that session is filed under another project, or either is not
- * read (`pickedElsewhere`); any other reply to its item's session.
+ * pick-up to the held session, whichever session parked the item; any
+ * other reply to its item's session. It only routes: whether a pick-up is
+ * held back for where its sessions are filed is `pickedElsewhere`'s to
+ * judge, as the board (`heldBack`) and a send (`whyLeftIn`) read it.
  */
 export const goesTo = (held: SitrepSessionRef, reply: SitrepQueued): SitrepSessionRef =>
   reply.verdict === 'pickup' ? held : { project: reply.project, session: reply.session }

@@ -3,7 +3,7 @@
  * folded away under Status until Lee opens it. A change opens to its detail
  * as a tree, each line opening with its label.
  */
-import { carried, labelOf, type Session, type StatusLine } from '../../core'
+import { labelOf, latestOf, type Session, type StatusLine } from '../../core'
 import { historyList } from '../lists'
 import { C, GLYPH } from '../look'
 import { itemKey } from '../places'
@@ -73,7 +73,7 @@ const drawChange = (d: Drawing, changed: Addressed): Block => {
 export const drawHistory = (d: Drawing, session: Pick<Session, 'id' | 'history'>): Block[] =>
   drawPast(d, {
     list: historyList(session.id),
-    carried: carried(addressed(session), true),
+    latest: latestOf(addressed(session), true),
     draw: changed => drawChange(d, changed),
     opens: opensOf,
     folding: { show: 'show history', hide: 'hide history' },

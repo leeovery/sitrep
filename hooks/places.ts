@@ -20,8 +20,8 @@ import {
   takenOffBy,
   waitsOnLee,
   type Ask,
-  type Carried,
   type Filed,
+  type Latest,
   type Parked,
   type Parking,
   type ProjectKey,
@@ -215,7 +215,7 @@ export const parkedIn = (scene: Scene, key: ProjectKey): ParkedAt[] => {
   }))
 }
 
-/** The name of a session filed under a project, by its id: the held session's as it stands, another's as the look read it; none where the look carried no names for the project. */
+/** The name of the session a pick-up in a project's list went to, by its id, wherever it is filed: the held session's as it stands, another's as the look read it; none where the look carried no name for it. */
 const nameIn = (scene: Scene, key: ProjectKey, id: string) =>
   id === scene.session.id ? scene.session.status.name : projectRead(scene, key)?.names?.[id]
 
@@ -251,15 +251,15 @@ const pastRead = (scene: Scene, key: ProjectKey) => {
  */
 const withHeld = <T>(
   held: readonly T[],
-  around: Carried<T> | undefined,
+  around: Latest<T> | undefined,
   order: (all: readonly T[]) => T[],
-): Carried<T> | undefined =>
+): Latest<T> | undefined =>
   around === undefined
     ? undefined
     : { entries: order([...held, ...around.entries]), count: held.length + around.count }
 
 /** What was taken off a project's Parked, the newest taken off first, from every session filed under it, finished and idle ones included; none until the look carries it. */
-export const takenOffIn = (scene: Scene, key: ProjectKey): Carried<TakenAt> | undefined => {
+export const takenOffIn = (scene: Scene, key: ProjectKey): Latest<TakenAt> | undefined => {
   const held = key === scene.here ? takenOffBy(scene.session) : []
   const taken = withHeld(held, pastRead(scene, key)?.takenOff, projectTakenOff)
 

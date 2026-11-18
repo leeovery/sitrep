@@ -294,6 +294,9 @@ test('the ask and edit tools take wants, yes, options and needs; the ask says ho
   expect(ask?.description).toContain(
     'Want a yes when Lee gives a go, an approval, or word that it works or is done, its button the verb Lee gives (Go, Approve, Done)',
   )
+  expect(ask?.description, 'an ask for what Lee is left to do, as the guide wants one').toContain(
+    "Ask when you cannot go on without Lee, when Lee's judgement changes what happens next, or when you leave Lee something to do, such as a release, a merge or a command to run;",
+  )
   expect(ask?.description).toContain(
     'say it in full in the chat as well, after your last tool call: the board never stands in for the chat.',
   )

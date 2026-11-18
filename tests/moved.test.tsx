@@ -38,7 +38,7 @@ import {
 } from './data'
 import { entered } from './answers'
 import { rowsOf } from './drawn'
-import { file, moveTo, park, reply, resolve, yesAsk } from './lines'
+import { delivered, file, moveTo, park, reply, resolve, yesAsk } from './lines'
 import {
   asked,
   asking,
@@ -1232,3 +1232,45 @@ test("a move line naming a project not on the board moves nothing: no window fol
   expect(movedToasts(w)).toEqual([])
   expect(await firstMessage($)).toContain(`- Northwind: ${id} "Help desk redesign"`)
 })
+
+/** Which session moved to Contoso once Themes picked up an item, the one that parked it or Themes, and which parked it: the ledger, or this one. */
+type PickedThenMoved = { mover: 'parker' | 'picker'; parker: 'ledger' | 'held' }
+
+const PICKED_THEN_MOVED: Record<string, PickedThenMoved> = {
+  'the session that parked it': { mover: 'parker', parker: 'ledger' },
+  'the session that picked it up': { mover: 'picker', parker: 'ledger' },
+  'the session that picked up what this session parked': { mover: 'picker', parker: 'held' },
+}
+
+for (const [moved, { mover, parker }] of Object.entries(PICKED_THEN_MOVED)) {
+  test(`Parked's picked up names the session a pick-up went to, filed under another project than the item's since ${moved} moved to Contoso`, async ($, on) => {
+    const w = world($, on)
+
+    withContoso(w)
+
+    const ledger = withLedger(w)
+    const themes = w.elsewhere(THEMES)
+    const { id, paths } = await w.begin()
+    const item =
+      parker === 'held'
+        ? { paths, id: postedId(await w.call('park', { title: EXPORT })), session: id }
+        : { paths: ledger.paths, id: 'p1', session: LEDGER.id }
+
+    w.writer(item.paths, THEMES.by)(
+      reply('r1', item.id, 'pickup', { to: THEMES.id }),
+      delivered('r1'),
+    )
+    ;(mover === 'parker' ? ledger : themes).write(moveTo(ELSEWHERE.key))
+    await w.clock.advance(AROUND_MS)
+
+    const project = mover === 'parker' ? ELSEWHERE.key : PROJECT.key
+    const ui = await w.opened()
+
+    await toProject(ui, project)
+    await ui.press({ key: `pickedup:project:${project}` })
+    await ui.press({ key: `picked:${item.session}:${item.id}` })
+    expect(rowsOf(await ui.find({ key: `taken:${item.session}:${item.id}` }))).toContain(
+      '│ picked up by Themes',
+    )
+  })
+}

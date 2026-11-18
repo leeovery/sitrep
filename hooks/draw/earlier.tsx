@@ -3,7 +3,7 @@
  * newest closed first, each opening to how it closed. It shows the latest
  * few, and a press opens it to every one.
  */
-import { answerOf, carried, closingReply, type Ask, type Filed } from '../../core'
+import { answerOf, closingReply, latestOf, type Ask, type Filed } from '../../core'
 import { resolvedList } from '../lists'
 import { C, GLYPH } from '../look'
 import { itemKey } from '../places'
@@ -61,7 +61,7 @@ export const drawResolved = (d: Drawing, { session }: Filed): Block[] => {
     { key: 'resolved', element: heading(d, 'RESOLVED', C.ok, `${asks.length} resolved`) },
     ...drawPast(d, {
       list: resolvedList(session.id),
-      carried: carried(asks, true),
+      latest: latestOf(asks, true),
       draw: ask => drawClosed(d, session.id, ask),
       opens: ask => resolvedKey(session.id, ask),
     }),
