@@ -32,11 +32,13 @@ With several Claude Code windows open across several projects, what waits on you
 
 ## Screens
 
-|  |  |
-|:---:|:---:|
-| <img src="art/screens/pane-home.svg" alt="The board in Claude Code, at home: two asks, the first opened, its options as buttons with Markdown marked recommended; then the session's status and what it parked" width="400"><br>**The pane**<br>What this session needs from you, answered in place | <img src="art/screens/pane-project.svg" alt="The board in Claude Code on a project's view: its two sessions, each with what it is doing and its waiting count, then every ask and parked item of the project" width="400"><br>**A project**<br>Every session of a project, and all it waits on |
-| <img src="art/screens/notch.png" alt="SitRep's notch at the left edge of the screen, open: Needs you lists two sessions with asks and one stopped, Working one still at work" width="400"><br>**The notch**<br>Every session at the edge of your screen, a click from its window | <img src="art/screens/strip.png" alt="SitRep's strip at the left edge of the screen: a ring for each session, the second opened into a tab naming the session and its project" width="400"><br>**The strip**<br>A ring for each session, its words a hover away |
-| <picture><source media="(prefers-color-scheme: light)" srcset="art/screens/settings-snooze-light.png"><img src="art/screens/settings-snooze.png" alt="Settings' Snooze pane: Snooze's six choices, each with a switch, and its time where it has one" width="400"></picture><br>**Settings › Snooze**<br>When each of Snooze's choices wakes a session | |
+<img src="art/screens/claude-code.png" alt="Claude Code in a Ghostty window: on the left, the conversation, Claude at work on an answer given from the board, with the band above the prompt counting 2 asks and 2 elsewhere; on the right, the board docked beside it, the session's two asks, the first opened with Threaded marked recommended, then its status, what it parked and what it resolved" width="100%">
+
+**The board in Claude Code.** Docked beside the conversation, it holds what this session needs from you, answered in place.
+
+<img src="art/screens/notch.webp" alt="SitRep's notch at the left edge of a Mac's screen, lit orange: the pointer comes to it and it pours open into a panel listing Needs you, two sessions with asks in orange and two stopped in blue, then Working and Snoozed; the pointer leaves and it closes" width="100%">
+
+**The notch.** At the edge of your screen, it lights while something needs you, and opens on hover to every session, a click from its window.
 
 ## Install
 

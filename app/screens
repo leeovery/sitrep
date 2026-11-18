@@ -1,9 +1,12 @@
 #!/bin/bash
-# Draws the README's screens into art/screens, each by the shipping code from
-# a made-up board, with nothing shown on the screen: the board in Claude Code
-# as SVGs (screens/pane.ts, on Bun), and SitRep's notch, strip and Settings'
-# Snooze pane as PNGs at 2x (ReadmeScreensTests, through swift test). Run it
-# again whenever the look changes, and commit what it draws.
+# Draws the README's pictures into art/screens, each from a made-up board, with
+# nothing shown on the screen, on one made-up Mac's desktop at 2x: Claude Code
+# in a Ghostty window, the board docked at its side, its cells laid out by
+# screens/window.ts on Bun and drawn by ReadmeScreensTests; and the notch at the
+# screen's left edge opening as the pointer comes to it, filmed by
+# ReadmeScreensTests frame by frame and put together by img2webp as an
+# animated WebP. Run it again whenever the look changes, and commit what it
+# draws.
 set -euo pipefail
 
 if [[ $# -ne 0 ]]; then
@@ -11,11 +14,27 @@ if [[ $# -ne 0 ]]; then
   exit 1
 fi
 
+if ! command -v img2webp >/dev/null; then
+  echo "app/screens needs img2webp: brew install webp" >&2
+  exit 1
+fi
+
 repo=$(cd "$(dirname "$0")/.." && pwd)
 screens=$repo/art/screens
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+
+# Bun takes its JSX factory from the tsconfig where it starts, so from the root
+(cd "$repo" && bun screens/window.ts "$work/window.json")
+SITREP_SCREENS=$work swift test --package-path "$repo/app" --filter ReadmeScreensTests
+
+# Each frame of the film for as long as it shows, as ReadmeScreensTests listed them
+frames=()
+while read -r frame ms; do
+  frames+=(-d "$ms" "$work/notch/$frame")
+done <"$work/notch/frames.txt"
 
 mkdir -p "$screens"
-find "$screens" -maxdepth 1 -type f \( -name '*.svg' -o -name '*.png' \) -delete
-# Bun takes its JSX factory from the tsconfig where it starts, so from the root
-(cd "$repo" && bun screens/pane.ts "$screens")
-SITREP_SCREENS=$screens swift test --package-path "$repo/app" --filter ReadmeScreensTests
+find "$screens" -maxdepth 1 -type f \( -name '*.png' -o -name '*.webp' -o -name '*.svg' \) -delete
+cp "$work/window.png" "$screens/claude-code.png"
+img2webp -loop 0 -lossy -q 88 -m 6 "${frames[@]}" -o "$screens/notch.webp"

@@ -97,7 +97,7 @@ swift test --package-path app     # the app's tests
 
 `app/build` builds the app, signs it with the Developer ID, installs it to `/Applications/SitRep.app` over the cask's copy and starts it, replacing the one running, so the login item and macOS's permissions carry over. It doesn't notarize: a build installed from a checkout is never quarantined. It changes the plugin too: while SitRep's copy is the plugin, the build's start refreshes the copy from what the build carries, so every Claude window runs the building checkout's mod from its next `/reload-plugins`. `brew reinstall --cask sitrep` puts the release back, leaving SitRep stopped, so open it, or run `app/open`, after; the next release's `brew upgrade` replaces the build.
 
-`app/screens` draws the README's screens again into `art/screens`, with nothing shown on the screen: the pane from the mod's own drawing, as SVGs, and the notch, the strip and Settings from the app's, as PNGs at 2x, each over a made-up board. Run it whenever the look changes, and commit what it draws.
+`app/screens` draws the README's pictures again into `art/screens`, with nothing shown on the screen, each over a made-up board, at 2x on one made-up desktop: Claude Code in a Ghostty window with the board docked at its side, as a PNG, the board and the band from the mod's own drawing and Claude Code's screen round them a mock; and the notch opening at the screen's edge as the pointer comes to it, filmed from the app's own drawing and put together as an animated WebP. It needs `img2webp` (`brew install webp`), and draws the window in JetBrainsMono Nerd Font Mono, which must be installed. Run it whenever the look changes, and commit what it draws.
 
 ## Releasing
 
