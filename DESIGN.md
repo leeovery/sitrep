@@ -3712,8 +3712,9 @@ card's row menu writes.
   start, keep and restart, where files already share the state.
 - **Core run inside SitRep on JavaScriptCore**, and the Bun CLI dropped.
   The purest form: the board's rules still written once, in TypeScript, and
-  no Bun in SitRep. Now the named later destination, since the CLI is only
-  SitRep's bridge; not planned now.
+  no Bun in SitRep. It was the named later destination, since the CLI is only
+  SitRep's bridge, until Lee dropped it on 18 November 2026: the compiled CLI
+  works, and nobody feels Bun.
 
 ## One engine, two front ends
 
@@ -9995,18 +9996,26 @@ open), and tmux passing an escape sequence through from Claude's own pane
 
 ## Later
 
-Parked: an **agents** view (subagents, observed from engine events, grouped by
-what they're for); a **tmux indicator** reading the shared folder; **Paper
-thumbnails** inline in Ghostty; a **shy notch**, pulling away as the
-cursor nears before giving up and pouring open (Lee, 16 October 2026); a
-"re:" tag on Lee's transcript rows that
-came from the board; and **core run inside SitRep on JavaScriptCore**, the
-Bun CLI dropped, the named later destination (9 November 2026; see "The
-structure"). Jumping to a session's window is now "The menu bar".
+Nothing is parked here. Jumping to a session's window is now "The menu bar".
 
-Dropped: a standalone toast plugin (Claude Code has one), and a line in the
-new-ask toast saying the band opens it: Lee knows it does, and on the phone
-the toast is better short.
+Dropped:
+- a standalone toast plugin (Claude Code has one);
+- a line in the new-ask toast saying the band opens it: Lee knows it does,
+  and on the phone the toast is better short.
+
+Dropped by Lee on 18 November 2026:
+- an **agents** view (subagents, observed from engine events, grouped by
+  what they're for);
+- a **tmux indicator** reading the shared folder, since the band and the
+  notch do its job;
+- **Paper thumbnails** inline in Ghostty;
+- a **shy notch**, pulling away as the cursor nears before giving up and
+  pouring open (16 October 2026);
+- a "re:" tag on Lee's transcript rows that came from the board, since
+  "From the board:" marks them;
+- **core run inside SitRep on JavaScriptCore** (see "The structure");
+- an **instant Space switch** for the jump, A/B'd live on 6 November 2026
+  against the slide: "They're both really quick." The slide stays.
 
 ## Open questions
 
