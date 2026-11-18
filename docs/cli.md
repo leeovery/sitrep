@@ -10,11 +10,11 @@ The command is `bin/sitrep` in the plugin's folder. SitRep installs its own copy
 ~/Library/Application Support/sitrep/bin/sitrep
 ```
 
-That copy is a single program, and needs nothing else installed. To type `sitrep` in your shell, add an alias:
+That copy is a single program, and needs nothing else installed. To run it as `sitrep`, from your shell and from scripts, add its folder to your PATH in `~/.zshrc`:
 
 ```bash
 sr=~/Library/"Application Support"/sitrep
-alias sitrep="$sr/bin/sitrep"
+export PATH="$PATH:$sr/bin"
 ```
 
 If you run the plugin from a clone of the repository, the `bin/sitrep` in the clone runs on Bun.
@@ -43,22 +43,29 @@ Parked:
 - dbp3: Dark mode for the help desk
 ```
 
-The list shows each session id, with what waits on you. The board names each item by a short id, such as `xsaq`. Other commands take these ids.
+The list gives each session id. The brackets count what the session holds:
+
+- `open`: a window is running the session.
+- `waiting`: asks waiting on you.
+- `snoozed`: asks put aside while the session is snoozed.
+- `parked`: items the session parked, which never wait on you.
+
+A project with nothing current but parked items shows `no current sessions (1 parked)`. The board names each item by a short id, such as `xsaq`. Other commands take these ids.
 
 ## The commands
 
 | Command | What it does |
 |---|---|
 | `list` | Lists the sessions in each project, with their ids |
-| `board` | Prints a session: status, open asks, and the parked items of the project |
+| `board` | Prints a session: status, open asks, and the project's parked items |
 | `status` | Sets where a session stands, giving only what changed |
 | `ask <title>` | Posts an ask, and prints its id |
-| `park <title>` | Parks an item on the project of the session, and prints its id |
+| `park <title>` | Parks an item on the session's project, and prints its id |
 | `answer <ask> <answer>` | Answers a yes or a choice ask, the way you would on the board |
 | `snooze <ask>...` | Snoozes a session, until a time or until it moves |
 | `wake` | Wakes a snoozed session now |
-| `finish` | Finishes a session that no window holds |
-| `move <project>` | Moves a session to another project on the board |
+| `finish` | Finishes a session no window is running |
+| `move <project>` | Moves a session to a project already on the board; it makes none |
 | `watch` | Prints the board as JSON at each change, for SitRep |
 
 `sitrep --help` lists every command with its flags. `sitrep <command> --help` says more about one.
@@ -84,20 +91,22 @@ If you give both, `--session` wins. The pane and SitRep never show a session id,
 
 An ask takes `--wants`, and then the flags for its shape:
 
-| `--wants` | Its flags |
-|---|---|
-| `yes` | `--yes <label>`, the button's verb, 20 characters at most |
-| `choice` | `--option <choice>` for each option, two at least; `--recommended <choice>` for the one you lean toward |
-| `words` | `--needs <words>`, what the words should be (optional) |
+| `--wants` | Flag | What it gives |
+|---|---|---|
+| `yes` | `--yes <label>` | The button's verb, 20 characters at most. Required |
+| `choice` | `--option <choice>` | One option each time; two at least |
+| `choice` | `--recommended <choice>` | The option you lean toward |
+| `words` | `--needs <words>` | What the words should be. Optional |
 
-For example, a choice:
+For example, a choice, which prints the new ask id:
 
-```bash
-sitrep ask Pick the editor for replies \
-  --wants choice \
-  --option Threaded --option Flat \
-  --recommended Threaded \
-  --session sr-nw0001
+```console
+$ sitrep ask Pick the editor for replies \
+    --wants choice \
+    --option Threaded --option Flat \
+    --recommended Threaded \
+    --session sr-nw0001
+xsaq
 ```
 
 The title needs no quotes: every word that isn't a flag goes into it. Both `ask` and `park` also take two flags:
@@ -108,11 +117,18 @@ The title needs no quotes: every word that isn't a flag goes into it. Both `ask`
 ## Other flags
 
 - **`status`** takes `--name`, `--summary`, `--now` and `--next`. Give `--now` once for each line under way: together they replace the whole list. `--now ""` empties it, and `--next ""` clears it.
-- **`answer`** takes the ask id, then a yes in its own words or one of the options. Give `--ignore` in place of an answer to ignore any ask. An answer to a words ask, or a comment, needs the Claude Code prompt.
-- **`snooze`** names every ask waiting on you in the session, so none is snoozed unseen. `--until <ms>` sets the wake time, in milliseconds since the epoch. Without it, the session sleeps until it moves.
+- **`answer`** takes the ask id, then the answer. For a yes, that is the word on its button, such as `Approve`. For a choice, it is one of the options. Give `--ignore` in place of an answer to ignore any ask. An answer to a words ask, or a comment, needs the Claude Code prompt. The answer goes into the session's inbox. The Claude Code window running that session sends it to Claude as your own message, now or once a window takes the session up.
+- **`snooze`** names every ask waiting on you in the session, so none is snoozed unseen. A session at your turn with no asks takes no ids. `--until <ms>` sets the wake time, in milliseconds since the epoch. Without it, the session sleeps until it moves.
 - **`list`** shows the sessions that aren't finished and have a window, an ask waiting, or a change in the last week. Projects whose directory holds your current folder come first. `--project <name>` lists only that project.
 
-An answer goes into the inbox of the session. The Claude Code window running that session sends it to Claude as your own message, now or once a window takes the session up.
+For example, approve the review from the sample, then snooze the session for an hour:
+
+```bash
+sitrep answer 7way Approve --session sr-nw0001
+sitrep snooze xsaq \
+  --until $(( ($(date +%s) + 3600) * 1000 )) \
+  --session sr-nw0001
+```
 
 ## JSON for tools
 
@@ -123,7 +139,7 @@ An answer goes into the inbox of the session. The Claude Code window running tha
 | `list --json` | Every project listed, with counts and each session |
 | `board --json` | One session: open asks, the items it parked itself, the latest status changes, and resolved asks |
 
-Note that `board --json` holds only the items this session parked. The text form lists every parked item of the project.
+The text form of `board` lists every item parked in the project, not only this session's.
 
 ## Exit codes
 
@@ -133,7 +149,7 @@ Note that `board --json` holds only the items this session parked. The text form
 | `1` | A usage error, a refused input, or a failure |
 | `2` | No such session |
 
-A refusal prints one line to standard error, starting `sitrep:`, that says what to fix. Run with no command, `sitrep` prints the help to standard error and exits 1.
+A refusal prints one line to standard error, starting `sitrep:`, that says what to fix. With no command, `sitrep` prints the help to standard error and exits 1.
 
 ## Related
 
