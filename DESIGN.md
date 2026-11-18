@@ -4551,8 +4551,9 @@ truth. There is still no background service. None of it is built now. Lee:
 
 ## Where it lives
 
-Its own repository, `leeovery/sitrep`: private until sitrep is stable, then
-public, which is half the point of its own repository. It began in kit, Lee's Mac
+Its own repository, `leeovery/sitrep`: private until sitrep was stable,
+then public, from 18 November 2026, which was half the point of its own
+repository. It began in kit, Lee's Mac
 setup, at `shared/plugins/sitrep/` in kit's own marketplace, and moved out on
 13 October 2026, its history split out with every commit kept, once this
 design and stages 1 and 2 had merged there (kit-config #1 and #2). With the
@@ -4569,33 +4570,29 @@ carries `app/` too; it is small, and accepted.
 
 **Installing and updating**, decided with Lee on 14 October 2026: app first.
 How the app updates changed on 16 October 2026 (Sparkle, below), and on 27
-October 2026 went back to `brew upgrade` while the repository is private.
+October 2026 went back to `brew upgrade` while the repository was private.
 
 - **On a Mac, sitrep is the app**, from a Homebrew cask in `homebrew-tools`,
   and from nowhere else (no download of its own), so every install updates
   the same way. That way was `brew upgrade` until 16 October 2026, when the
-  app was to update itself; while the repository is private it is `brew
-  upgrade` (27 October 2026). The cask is private as the repository is, and
-  the app it downloads is quarantined, so a release is signed with Lee's
-  Developer ID and notarized (stage 4). The cask exists since 27 October
-  2026, `Casks/sitrep.rb` in `leeovery/homebrew-tools`: `brew install
-  --cask leeovery/tools/sitrep`, with `HOMEBREW_GITHUB_API_TOKEN` set to a
-  token that can read the repository. It downloads the release's zip
-  through GitHub's API by the asset's id. Its download strategy adds the
-  token only as it fetches, so `brew info --json` never shows it, and,
-  when the token is not set or GitHub refuses it, fails naming
-  `HOMEBREW_GITHUB_API_TOKEN` and the access it needs, rather than with
-  GitHub's bare 401 or 404; a zip already in Homebrew's cache needs no
-  token. It leaves `auto_updates` unset, so `brew upgrade` updates the
-  app, and skips livecheck, which can't read a private repository. Its
-  uninstall quits the app and its notices helper. Its zap takes SitRep's
+  app was to update itself; it is `brew upgrade` again since 27 October
+  2026, until Sparkle is built. The app the cask downloads is quarantined,
+  so a release is signed with Lee's Developer ID and notarized (stage 4).
+  The cask exists since 27 October 2026, `Casks/sitrep.rb` in
+  `leeovery/homebrew-tools`: `brew install --cask leeovery/tools/sitrep`.
+  It downloads `SitRep-<version>.zip` from the release's public URL,
+  `https://github.com/leeovery/sitrep/releases/download/v<version>/SitRep-<version>.zip`,
+  with Homebrew's own download, no token and no strategy of its own. Its
+  `livecheck` reads GitHub's latest release. It leaves `auto_updates`
+  unset, so `brew upgrade` updates the app. Its uninstall quits the app and its notices helper. Its zap takes SitRep's
   preferences, caches, saved state and its copy of the plugin; never the
   board's folder, nor `~/Library/Logs/SitRep`, where a release logs on a
   Mac that releases. A zap leaves Claude Code with the plugin registered
   from the folder it removed, so the README says to uninstall it there.
-  The tap's `update-formula` workflow writes each release's version,
-  sha256 and asset id into it, sent by `app/release-upload`. All three
-  were placeholders until the first release, 0.3.0 on 28 October 2026.
+  The tap's `update-formula` workflow writes each release's version and
+  sha256 into it, sent by `app/release-upload`; until 18 November 2026 it
+  wrote the asset's id too (see "Public, with no token", under stage 4).
+  They were placeholders until the first release, 0.3.0 on 28 October 2026.
 - **`brew upgrade` reopens SitRep; an install or a reinstall does not**
   (6 November 2026, leeovery/homebrew-tools#6). The cask has no
   `postflight` now: Homebrew 7 deprecates it, and its own reopen, from the
@@ -4674,9 +4671,10 @@ October 2026 went back to `brew upgrade` while the repository is private.
   October, since `brew upgrade` already updates a cask. That was reversed
   because `brew upgrade` reaches only those who run it, where an app that
   updates itself reaches everyone, and knows when the plugin changed. It
-  waits while the repository is private (27 October 2026): the feed, and
-  the zips it names, would need GitHub's authentication. Until then `brew
-  upgrade` updates the app.
+  waited while the repository was private (27 October 2026), as the feed,
+  and the zips it names, would have needed GitHub's authentication; the
+  repository is public since 18 November 2026. Until Sparkle is built,
+  `brew upgrade` updates the app.
 - **After an update** the app refreshes its copy of the plugin, so one
   update moves both, and their versions never part. Windows on the old mod
   show as needing `/reload-plugins` (see "Versions side by side"). First
@@ -8402,10 +8400,11 @@ open), and tmux passing an escape sequence through from Claude's own pane
 4. **Releases**, decided with Lee on 27 October 2026. First planned as a
    GitHub Action on a macOS runner that built the app, published Sparkle's
    feed and updated the cask, once sitrep was stable and public.
-   - **The repository stays private**, and the cask with it: a new Mac
-     gets SitRep from a private cask in `leeovery/homebrew-tools`. Sparkle
-     waits until the repository is public, and `brew upgrade` updates the
-     app meanwhile (see "Installing and updating").
+   - **The repository stayed private** until 18 November 2026, and the
+     cask needed a GitHub token until then: a new Mac gets SitRep from the
+     cask in `leeovery/homebrew-tools`. Sparkle waited until the repository
+     was public, and `brew upgrade` updates the app meanwhile (see
+     "Installing and updating").
    - **mint cuts a release** (`./release`): the version, in `plugin.json`,
      which the app takes, the tag `v<version>`, and the GitHub release. Its
      `pre_tag` runs every gate, since no CI does, then builds the release
@@ -8462,7 +8461,7 @@ open), and tmux passing an escape sequence through from Claude's own pane
    - **Uploaded after it** (`app/release-upload`), mint's `post_release`,
      once the tag and the release are pushed: the zip kept uploaded to the
      release as `SitRep-<version>.zip`, replacing one there, and the cask
-     sent its sha256 and the asset's id (below). Nothing is built after the
+     sent its version and sha256 (below). Nothing is built after the
      tag: the zip is taken only where its sha256 matches, the commit built
      lies under the tag, and the tag changes nothing since but mint's
      bookkeeping, as its commits of the version, the changelog and its
@@ -8474,8 +8473,8 @@ open), and tmux passing an escape sequence through from Claude's own pane
      mint environment, `app/release-upload` uploads the version
      `plugin.json` names, or the version given (`app/release-upload
      0.3.1`), tagged `v<version>`, from what's kept, which needs no signing
-     or Apple again. A re-run's upload replaces the asset, so the asset's id
-     is new.
+     or Apple again. A re-run's upload replaces the asset with the same
+     kept zip, under the same name and with the same sha256.
    - **Why before the tag** (Lee, 5 November 2026, as Switchboard had
      adopted that day): every failure about the app, or the means of
      signing it, comes before mint's point of no return, so a release is
@@ -8538,16 +8537,16 @@ open), and tmux passing an escape sequence through from Claude's own pane
      more for leave to control Ghostty.
    - **The cask and the tap's update**, built 27 October 2026. The cask,
      `Casks/sitrep.rb` in `leeovery/homebrew-tools`, downloads the release's
-     zip through GitHub's API by its asset id (see "Installing and
+     zip from its public URL, by the zip's name (see "Installing and
      updating"); it needs macOS 14 and an arm64 Mac, as the app and its CLI
      are arm64 only, so an Intel Mac needs an x64 build beside them. Once
      it has uploaded, `app/release-upload` sends the tap's `update-formula`
      workflow, through `gh api`, the event `update-formula` with `tool`
-     `sitrep`, the version, the zip's sha256 and the asset's id, which the
-     workflow checks (`X.Y.Z`, 64 hex digits, a number), writes into the
-     cask's own lines and commits, one run at a time. It sends at every run
-     that uploads, since each changes both, but only for the latest
-     release: Homebrew takes any version other than the one installed as
+     `sitrep`, the version and the zip's sha256, which the workflow checks
+     (`X.Y.Z`, 64 hex digits), writes into the cask's own lines and
+     commits, one run at a time. It sends at every run that uploads, which
+     matters after `app/release-build` has built the zip again or after an
+     earlier send failed, but only for the latest release: Homebrew takes any version other than the one installed as
      an upgrade, so the cask on an older one would downgrade every Mac. A
      204 from GitHub only says the dispatch was taken, so `app/release-upload`
      then finds the run it started, the first of the tap's `update-formula`
@@ -8559,11 +8558,24 @@ open), and tmux passing an escape sequence through from Claude's own pane
      waits on it, bounded by the workflow's 5-minute timeout. A failed
      send, no run found, or a run that fails fails the release run, saying
      the command that sends it again and the run's URL; the upload stays.
-     A rerun on the same version replaces the asset, which GitHub deletes,
-     so the cask names a deleted asset until the workflow commits the new
-     id, about a minute, or until a rerun or the command sends it, if the
-     send or the update fails. Unlike Stitch's formula, with its table of
-     asset ids by version, the cask holds only the current one.
+     A rerun uploads the same kept zip, with the same sha256, but `gh
+     release upload --clobber` deletes the old asset first: if that upload
+     fails, installs of the current version get a 404 until a rerun
+     succeeds. Only after `app/release-build` has built the zip again does
+     its sha256 change, and installs fail the cask's sha256 until the
+     workflow commits the new one, about a minute, or until a rerun or the
+     command sends it, if the send or the update fails.
+   - **Public, with no token** (18 November 2026): the repository went
+     public, and the cask stopped needing a token. Until then the cask
+     downloaded the zip through GitHub's API by the asset's id, with a
+     download strategy of its own that sent `HOMEBREW_GITHUB_API_TOKEN`,
+     and `app/release-upload` sent the tap the asset's id beside the
+     version and sha256, as the only way to download from a private
+     repository. Now the cask names the zip's public URL by version, with
+     no strategy, no `asset_id` and no token, `livecheck` reads GitHub's
+     latest release where it had skipped, and the tap's workflow takes the
+     version and sha256 alone. A Mac that installed with a token needs
+     nothing new: its next `brew upgrade` takes the new cask.
    - **Where the build runs**: in `pre_tag`, before the tag, since 5
      November 2026 (see "Why before the tag"). On 28 October 2026 Lee chose
      `post_release`, after the tag and the push, where `app/release` built,
