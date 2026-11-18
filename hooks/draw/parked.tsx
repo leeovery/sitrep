@@ -21,6 +21,7 @@ import {
   ANSWERING,
   answeringOf,
   drawOnItsWay,
+  drawQuestion,
   drawQueued,
   drawRow,
   drawWrite,
@@ -88,17 +89,18 @@ const drawPickUps = (d: Drawing, entry: ParkedAt) => {
   ]
 }
 
-/** An opened parked item's buttons, under its tree: the pick-ups where the window can, and the drop, which asks first. */
+/** An opened parked item's buttons, under its tree: the pick-ups where the window can, and the drop, which asks first: dim after them, as an ask's ignore is, and drawn as any press where it is the only one. */
 const drawButtons = (d: Drawing, entry: ParkedAt) => {
   const { Box, Button } = d.els
   const key = keyOf(entry)
+  const pickUps = drawPickUps(d, entry)
 
   return (
     <Box paddingLeft={2} flexDirection="row" columnGap={1} flexWrap="wrap">
-      {drawPickUps(d, entry)}
+      {pickUps}
       <Button
         key={dropKey(key)}
-        dimColor
+        dimColor={pickUps.length > 0}
         label="✕ drop"
         onPress={() => d.act.select(dropKey(key))}
       />
@@ -108,26 +110,24 @@ const drawButtons = (d: Drawing, entry: ParkedAt) => {
 
 /** The drop's question, in place of the item's buttons: yes, written at once, or cancel, back to the buttons. */
 const drawDropping = (d: Drawing, entry: ParkedAt) => {
-  const { Box, Text, Button } = d.els
+  const { Box } = d.els
   const key = keyOf(entry)
 
   return (
     <Box paddingLeft={2} flexDirection="column">
-      <Text wrap="wrap">{DROP_QUESTION}</Text>
-      <Box flexDirection="row" columnGap={1} flexWrap="wrap">
-        <Button
-          key={`drop-yes:${key}`}
-          variant="primary"
-          label="yes, drop it"
-          onPress={() => d.act.drop(refOf(entry))}
-        />
-        <Button
-          key={`drop-no:${key}`}
-          dimColor
-          label="cancel"
-          onPress={() => d.act.select(key)}
-        />
-      </Box>
+      {drawQuestion(
+        d,
+        DROP_QUESTION,
+        [
+          {
+            key: `drop-yes:${key}`,
+            label: 'yes, drop it',
+            variant: 'primary',
+            onPress: () => d.act.drop(refOf(entry)),
+          },
+        ],
+        { key: `drop-no:${key}`, onPress: () => d.act.select(key) },
+      )}
     </Box>
   )
 }
@@ -185,7 +185,7 @@ const howTaken = ({ parked, pickedUpBy }: TakenAt) => {
   }
 }
 
-/** What an item taken off Parked opens to: Lee's note on the pick-up, or Claude's reason for the close, and where Claude's own record of it is. */
+/** What an item taken off Parked opens to: Lee's note on the pick-up, or Claude's reason for the close, and where Claude's own record of it is; a dropped item, that alone. */
 const takenDetail = ({ parked }: TakenAt) => {
   const said = parked.state === 'closed' ? parked.reason : parked.answer?.note
   const detail = shown(said, seeRef(parked.ref, TAKEN_MARK.color))

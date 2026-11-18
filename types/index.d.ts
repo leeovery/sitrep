@@ -299,6 +299,8 @@ export type SitrepInFlight = SitrepSessionRef & {
   text: string
   /** The replies the message carries, their ids fixed as it was claimed: each naming its item by its own id, or a pick-up of another session's item by its address (`sr-q7rx01:k3f9`), its session's id first, since two sessions' items can share an id. */
   replies: SitrepReplyBody[]
+  /** A send's: each reply's line in its text, in the order of `replies`, an ask's last ending with where the message leaves it, so a held send can go without a pick-up whose item left Parked meanwhile. None on another source's, nor on one an older load claimed, which goes as claimed. */
+  lines?: string[]
   /** When it was claimed, which tells this claim from a later one of the same text. */
   claimedAt: number
   /** Whether the window still holds it, not yet submitted, for Claude's turn to end or the message ahead of it: a send can be taken back until then. One an older load left, submitted as it was claimed, is not. */

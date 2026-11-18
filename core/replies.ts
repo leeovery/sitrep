@@ -378,12 +378,16 @@ const messageLines = <R extends ReplyFields>(carried: readonly Carried<R>[]) => 
   )
 }
 
+/** Lee's message carrying replies, from each reply's line in it. */
+export const messageText = (lines: readonly string[]) => [FROM_THE_BOARD, ...lines].join('\n')
+
 /**
- * Lee's message to a session carrying replies, and the replies it carries:
- * those that fit an item of the session `answered` reads each in, the
- * message's own unless it says another, as for a pick-up of an item another
- * session of the project parked; undefined when none does. Under its last
- * reply to each ask, a line says where the message leaves the ask.
+ * Lee's message to a session carrying replies, the replies it carries, and
+ * each one's line in it, in their order: those that fit an item of the
+ * session `answered` reads each in, the message's own unless it says
+ * another, as for a pick-up of an item another session of the project
+ * parked; undefined when none does. Under its last reply to each ask, a line
+ * says where the message leaves the ask, on that reply's line.
  */
 export const boardMessage = <R extends ReplyFields>(
   session: Session,
@@ -407,12 +411,13 @@ export const boardMessage = <R extends ReplyFields>(
       : []
   })
 
-  return carried.length === 0
-    ? undefined
-    : {
-        text: [FROM_THE_BOARD, ...messageLines(carried)].join('\n'),
-        replies: carried.map(({ reply }) => reply),
-      }
+  if (carried.length === 0) {
+    return undefined
+  }
+
+  const lines = messageLines(carried)
+
+  return { text: messageText(lines), lines, replies: carried.map(({ reply }) => reply) }
 }
 
 /** The replies a window submits now: every one on its way when it is the session's deliverer, else none. */

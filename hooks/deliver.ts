@@ -38,6 +38,7 @@ import type { PromptOrigin, Timer } from 'claude-code'
 import {
   deliveredMark,
   isObject,
+  messageText,
   sentLines,
   USER,
   type Body,
@@ -52,7 +53,7 @@ import type {
   SitrepStoredFlights,
 } from '../types'
 import { betweenTurns } from './activity'
-import { filedNow, lookAround } from './around'
+import { filedNow, foldAt, lookAround } from './around'
 import { folderHolding } from './folders'
 import { logFailure, rootFor, type Host } from './host'
 import { writeHeld, writeInto, type Into } from './into'
@@ -746,6 +747,74 @@ const quietFor = (host: Host, waiting: SitrepInFlight) => {
   })
 }
 
+/** A send's claim with each reply's line in its text, so it can be written again without some; not one an older load claimed. */
+const isLined = (flight: SitrepInFlight): flight is SitrepInFlight & { lines: string[] } =>
+  Array.isArray(flight.lines) &&
+  flight.lines.length === flight.replies.length &&
+  flight.lines.every(line => typeof line === 'string')
+
+/**
+ * Whether a reply a claim carries is a pick-up of what another session
+ * parked whose item has left Parked since, as that session stands now:
+ * dropped by Lee, picked up from another window, or closed by Claude; not
+ * by this pick-up itself, written down already by a write cut short. No
+ * heartbeat says such a pick-up, so nothing else bars it once claimed. One
+ * whose session or item does not read has not, and goes as claimed.
+ */
+const hasLeftParked = async (
+  host: Host,
+  flight: SitrepInFlight,
+  reply: SitrepReplyBody,
+  now: number,
+) => {
+  const { session, item } = repliedTo(flight, reply.item)
+
+  if (session === flight.session) {
+    return false
+  }
+
+  const root = await rootFor(host)
+  const folder = await folderHolding(host, root, session, flight.project)
+  const read =
+    folder === undefined ? undefined : await foldAt(host, root, { project: folder, session }, now)
+  const parked = read?.items.get(item)
+
+  return parked?.type === 'park' && parked.state !== 'parked' && parked.answer?.id !== reply.id
+}
+
+/**
+ * A held send as it can go now: without each pick-up whose item has left
+ * Parked since the claim (`hasLeftParked`), written again from the lines
+ * left, so Ready to send, carrying it no more, says why it stays; none
+ * where nothing is left. Any other goes as claimed.
+ */
+const goingNow = async (
+  host: Host,
+  flight: SitrepInFlight,
+): Promise<SitrepInFlight | undefined> => {
+  if (!isLined(flight)) {
+    return flight
+  }
+
+  const now = await host.clock.now()
+  const left = await Promise.all(
+    flight.replies.map(reply => hasLeftParked(host, flight, reply, now)),
+  )
+
+  if (!left.includes(true)) {
+    return flight
+  }
+
+  const kept = flight.replies.flatMap((reply, i) =>
+    left[i] === true ? [] : [{ reply, line: flight.lines[i] ?? '' }],
+  )
+  const lines = kept.map(each => each.line)
+
+  return kept.length === 0
+    ? undefined
+    : { ...flight, replies: kept.map(each => each.reply), lines, text: messageText(lines) }
+}
+
 /**
  * Submits the first message in flight while the window holds it, should the
  * main conversation be between turns as the window has heard it, and not
@@ -762,13 +831,16 @@ const quietFor = (host: Host, waiting: SitrepInFlight) => {
  * first, as the window knows its claims, it writes nothing. The submit is
  * not waited on: a hook waiting on its own submit never ends, and one made
  * as a turn ends starts a turn of its own about 13 ms later (a live probe).
- * Whether it submitted one.
+ * A send goes without each pick-up whose item has left Parked since its
+ * claim (`goingNow`), and one left with nothing is let go, as a take-back
+ * lets it go, the next held going in its place, as it goes where a take-back
+ * lands first. Whether it submitted one.
  *
  * Run at the claim, and at each look, for a message held between turns: its
  * update as the turn ended failed, no load ran it then, or the message ahead
  * of it ended since.
  */
-export const sendHeld = async (host: Host) => {
+export const sendHeld = async (host: Host): Promise<boolean> => {
   const isBetween = await betweenTurns(host)
   const isPress = host.isPress === true
   const isStopped = !isPress && (await host.state.stopped.read())
@@ -779,19 +851,36 @@ export const sendHeld = async (host: Host) => {
     flights[0]?.isHeld === true &&
     isBetween()
 
-  if (!isGoing(await flightNow(host))) {
+  const [claimed] = await flightNow(host)
+
+  if (claimed === undefined || !isGoing([claimed])) {
     return false
   }
 
+  const standing = await goingNow(host, claimed)
+
+  if (standing === undefined) {
+    await letGoHeldOne(host, claimed)
+
+    return sendHeld(host)
+  }
+
   let going: SitrepInFlight | undefined
+  let isAnother = false
 
   await changeFlight(host, flights => {
     const [first, ...behind] = flights
+    const isFirstGoing = first !== undefined && isGoing(flights)
 
-    going = first !== undefined && isGoing(flights) ? { ...first, isHeld: false } : undefined
+    isAnother = isFirstGoing && !isClaim(first, claimed)
+    going = isFirstGoing && !isAnother ? { ...standing, isHeld: false } : undefined
 
     return going === undefined ? flights : [going, ...behind]
   })
+
+  if (isAnother) {
+    return sendHeld(host)
+  }
 
   if (going === undefined) {
     return false

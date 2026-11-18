@@ -1213,10 +1213,11 @@ show all 4
   where to look, its `see`, and the pick-up once one waits or is on its way;
   `pick it up` and `✎ with a comment` sit under the tree until then, in a
   window holding a session of the item's project: another project's parked
-  items show there without them. `✕ drop` sits after them, in any window
-  (18 November 2026; see "Dropping a parked item"). The pick-up queues in Ready to send like
-  any reply, to this session whichever session of the project parked the
-  item (see Delivery); its comment is written in the prompt as an ask's is,
+  items show there without them. `✕ drop` sits after them, dim, in any
+  window, and alone, drawn as any press, where they are not (18 November
+  2026; see "Dropping a parked item"). The pick-up queues in Ready to send
+  like any reply, to this session whichever session of the project parked
+  the item (see Delivery); its comment is written in the prompt as an ask's is,
   and goes with it as its note (see "Answering an ask"). It is never
   counted: not on a tab, nor on the band.
 - **Parked's picked up.** Closed, Parked lists only what is parked, and at
@@ -1257,7 +1258,9 @@ show all 4
     ask's answers: the session's own items, and every other session's of
     the project, live, idle, finished or moved there, in every view that
     lists them. It goes to no Claude, so another project's items have it
-    too, where the pick-ups are not drawn. It is not drawn while a pick-up
+    too, where the pick-ups are not drawn; there it is the only press, and
+    drawn as any press, not dim, which would read as one that does
+    nothing. It is not drawn while a pick-up
     waits on the item or is on its way to it, nor while Lee writes its
     note in the prompt, as the pick-ups are not.
   - **It asks first, in place**, as Snooze's question and a session's
@@ -1269,17 +1272,17 @@ show all 4
     on the pane, so no one press drops anything. Escape is not heard: it
     hands the keys back to the prompt, which the pane learns of only as it
     is drawn again without them, so the question stands until one of
-    those, as Snooze's does. Drawn docked, from a test:
+    those, as Snooze's does. The three questions are drawn by one helper
+    (kit.tsx's `drawQuestion`): the words, the answers, a dim `cancel`.
+    Drawn docked, the session's own item opened, then asking:
 
     ```
-    ◇ Invoice ledger: Export the ledger as CSV                   1m
-    └ In the spec, section 4
+    ◇ A priority badge across all tabs                          now
       [ pick it up ] [ ✎ with a comment ] [ ✕ drop ]
     ```
 
     ```
-    ◇ Invoice ledger: Export the ledger as CSV                   1m
-    └ In the spec, section 4
+    ◇ A priority badge across all tabs                          now
       Drop it? It leaves Parked, and Claude no longer sees it.
       [ yes, drop it ] [ cancel ]
     ```
@@ -1298,27 +1301,47 @@ show all 4
     way to (`Not dropped: your pick-up of it is on its way to Claude.`),
     since Claude would be told to pick up what the board no longer holds.
     Another session than the held one is read afresh after any press that
-    writes into it, off the board or not, so a finished or idle session's
-    item leaves the view at once, not at the next whole look.
+    writes into it or queues a reply to it, a finish among them, off the
+    board or not, so a finished or idle session's item leaves the view at
+    once, not at the next whole look; a session idle past the views,
+    finished from its view, shows finished in its project's old sessions
+    the same way.
   - **What it does to the item.** The fold closes it as of the line,
     `dropped`, Lee's (`closedBy` `drop`). The first close stands: a drop of
     an item picked up or closed changes nothing, nor does one naming an
     ask. A reply on its way to it goes void, `dropped`, so a pick-up in
     Ready to send meanwhile reads `· not sent: you dropped it`, and no send
     carries it. The line moves no session's time, as no line about a
-    parked item but its park does. The item leaves Parked for its project's
+    parked item but its park does; nor does one naming an ask or no item,
+    which changes nothing. The item leaves Parked for its project's
     picked up, `dropped by you`, which opens to its `see`, or `nothing more
     was recorded`.
   - **What Claude reads.** The board text lists only what is parked, so it
     lists the item no more, and the board having changed rides into
     Claude's next turn as any change does, where Claude had been told of
     the item. A resolve of it passes quietly, as of anything Lee closed:
-    `k3f9 was dropped already by the user: nothing to resolve.` One gap is
-    the one a pick-up of another session's item has already (no heartbeat
-    says it, under Delivery): another window's pick-up of it, claimed
-    before the drop and written down after, is Claude's there, the item
-    staying dropped, as of two windows' pick-ups of one item the first
-    stands.
+    `k3f9 was dropped already by the user: nothing to resolve.` The
+    tool's description tells Claude so beforehand: a parked item may be
+    dropped by the user, so one gone that Claude didn't close was dropped,
+    to leave, parked again or reopened only at the user's word; else it
+    reads the same as a write that was lost.
+  - **A pick-up held in another window.** No heartbeat says a pick-up of
+    another session's item (under Delivery), so another window's, claimed
+    before the drop and held for its Claude's turn, would otherwise go in
+    after it, minutes later. A held send is read again as it goes
+    (deliver.ts's `goingNow`): each pick-up of what another session parked whose
+    item has left Parked since the claim, dropped, picked up from another
+    window or closed by Claude, is left out, and the message written again
+    from the lines left, each reply's line kept on the claim (`lines`) as
+    the send makes it. Ready to send, the send carrying it no more, says
+    why at the next look (`· not sent: you dropped it`, `· not sent: Claude
+    closed it`); a send left with nothing is let go, as a take-back lets it
+    go, and the next held goes in its place. What is left is a drop landing
+    between that read and Claude Code taking the message, milliseconds;
+    there Claude has the pick-up, and it is written down as given, as the
+    board never denies Claude what it was told: the item stays dropped, the
+    first close standing, as of two windows' pick-ups of one item. A claim
+    an older load made carries no lines, and goes as claimed.
   - **Claude's `reopen` brings it back**, as it brings back any parked
     item picked up or closed: into Parked and Claude's board text again.
     A drop has no undo on the pane, so a word to Claude in the chat is
@@ -1659,7 +1682,7 @@ keeps the image's blocks and puts the new text in place of the typed text
 - **Always shown.** The band shows it the whole time it stands, on the surface
   it was begun on, and it stands exactly while the next Enter there would be
   taken. Once its ask can take the reply no longer (closed, or a parked item
-  picked up or closed, an ask's session finished but for the one this
+  picked up, closed or dropped, an ask's session finished but for the one this
   window holds (`reaches`; a parked item's session finished ends
   nothing), for an answer another already on its way, a send
   carrying the reply its comment would join) the band is back to its
@@ -2414,8 +2437,8 @@ app (see "The menu bar").
     delivered or goes void.
   - **Who closed the item, and how**: Lee's answer, Lee's ignore, Lee's
     drop of a parked item (18 November 2026), or Claude.
-    Recorded by the line that closes it, a delivered answer or a resolve,
-    and cleared by a reopen. The first close stands: Claude resolving an
+    Recorded by the line that closes it, a delivered answer, a resolve or a
+    drop, and cleared by a reopen. The first close stands: Claude resolving an
     item Lee's answer closed adds Claude's reason and leaves it Lee's, so an
     ask Lee ignored stays ignored, out of Resolved.
   - **Why a reply is void**, when it goes nowhere: `changed`, `answered`,
@@ -4400,10 +4423,10 @@ truth. There is still no background service. None of it is built now. Lee:
       lists one (`id`, `title`, `where`, `ref`, `at`): on every session,
       followed or not, where before only a followed session's board held
       them. It was what the SitRep window's Parked list read, every item on
-      the board. An item picked up or closed leaves it. A field added: `v`
-      did not move. It stays the session's own (11 November 2026): a
-      finished session's, in no project's `sessions`, are on no line, and no
-      surface of the app shows parked items.
+      the board. An item picked up, closed or dropped leaves it. A field
+      added: `v` did not move. It stays the session's own (11 November
+      2026): a finished session's, in no project's `sessions`, are on no
+      line, and no surface of the app shows parked items.
       `lastWindow` (12 November 2026, stage 8) is, for an away session, the
       window it was last in: its latest heartbeat by when it was last seen,
       as it let go, else at its latest beat (core's `lastWindowOf`, ranking

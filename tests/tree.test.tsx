@@ -494,6 +494,10 @@ test('All projects keeps a project whose sessions are finished or idle past the 
   expect(await keysOf(ui, 'drop:'), 'the drop, which goes to no Claude').toEqual([
     'drop:sr-0ff11e:p1',
   ])
+  expect(
+    (await ui.find({ key: 'drop:sr-0ff11e:p1' }))?.props.dimColor,
+    'the only press, so not dim',
+  ).toBeFalsy()
 })
 
 test('the band counts what waits in every other session, in every project, and opens All projects on it', async ($, on) => {

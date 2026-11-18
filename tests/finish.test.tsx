@@ -3,6 +3,7 @@ import { expect, test, tier } from './kit'
 import { parseEntries, sessionPaths } from '../core'
 import { rowsOf } from './drawn'
 import {
+  DAY,
   ELSEWHERE,
   LEDGER,
   meta,
@@ -17,7 +18,7 @@ import {
   W1,
   W3,
 } from './data'
-import { file, finish, park, yesAsk } from './lines'
+import { file, finish, park, status, yesAsk } from './lines'
 import { postedId, toProject, WIDE, world, type Board, type World } from './world'
 
 tier('user')
@@ -152,6 +153,29 @@ test("yes writes the finish into the session's folder as this window's writer, a
   expect(w.state.pane).toMatchObject({ place: { level: 'project', project: PROJECT.key } })
   expect(await keysOf(ui, 'go:')).toEqual([`go:${id}`, `go:${LEDGER.id}`])
   expect(await ui.find({ type: 'Text', text: '2 waiting on you' })).toBeDefined()
+})
+
+test("a finish of a session idle past the views, which only a whole look reads, shows it finished among the project's old sessions as the board goes up there", async ($, on) => {
+  const w = world($, on)
+  const idle = sessionPaths(ROOT, PROJECT.key, THEMES.id)
+  const old = `old:project:${PROJECT.key}`
+
+  w.elsewhere({ ...THEMES, created: T0 - 10 * DAY })
+  w.put(idle.log(THEMES.by), file([T0 - 9 * DAY, status(['Drawing the palette'], THEMES)]))
+  await w.begin()
+
+  const ui = await w.opened()
+
+  await toProject(ui)
+  await ui.press({ key: old })
+  expect(rowsOf(await ui.find({ key: `ended:${THEMES.id}` }))[0]).toMatch(/idle 9d$/)
+
+  await ui.press({ key: `go:${THEMES.id}` })
+  await ui.press({ key: `finish:${THEMES.id}` })
+  await ui.press({ key: `finish-yes:${THEMES.id}` })
+
+  expect(w.state.pane).toMatchObject({ place: { level: 'project', project: PROJECT.key } })
+  expect(rowsOf(await ui.find({ key: `ended:${THEMES.id}` }))[0]).toMatch(/finished now$/)
 })
 
 test("Lee's finish hides nothing parked: the session's items stay in the project's Parked, by its name", async ($, on) => {

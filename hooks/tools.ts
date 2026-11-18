@@ -672,7 +672,7 @@ const TOOLS = [
   posting(
     spec(
       'park',
-      "Park something raised and put off, to come back to, on the attached session's project: any session of it sees it.",
+      `Park something raised and put off, to come back to, on the attached session's project: any session of it sees it. A parked item may be dropped by ${USER.name} from the board: one gone that you didn't close was dropped, so leave it, and park it again or reopen it only at ${USER.possessive} word.`,
       { title: text(LINE), where: WHERE, ref: REF },
       ['title'],
     ),

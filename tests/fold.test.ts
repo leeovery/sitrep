@@ -193,7 +193,7 @@ test("Lee's drop takes a parked item off Parked, dropped by Lee then; reopened, 
     [T0 + 1 * MIN, park('p1', 'first')],
     [T0 + 2 * MIN, park('p2', 'second')],
     [T0 + 3 * MIN, resolve('p1', 'Posted twice')],
-    [T0 + 4 * MIN, reopen('p1')],
+    [T0 + 4 * MIN, reopen('p1', 'Not done after all')],
   ]
   const dropped = fold({ logs: { [W1]: file(...posted), [W2]: file([T0 + 5 * MIN, drop('p1')]) } })
   const back = fold({
@@ -214,7 +214,7 @@ test("Lee's drop takes a parked item off Parked, dropped by Lee then; reopened, 
   expect(back.items.get('p1')).toMatchObject({ state: 'parked', reason: 'Lee wants it back' })
 })
 
-test('a drop changes nothing but an item still parked: an ask, an item picked up, closed by Claude or dropped already, and one the session does not have', () => {
+test("a drop changes nothing but an item still parked: an ask, an item picked up, closed by Claude or dropped already, and one the session does not have, nor moves its session's time", () => {
   const session = fold({
     logs: {
       [W1]: file(
@@ -241,6 +241,7 @@ test('a drop changes nothing but an item still parked: an ask, an item picked up
   expect(session.items.get('p1')).toMatchObject({ state: 'picked', closedAt: T0 + MIN })
   expect(session.items.get('p2')).toMatchObject({ state: 'closed', reason: 'Done elsewhere' })
   expect(session.items.get('p3')).toMatchObject({ state: 'dropped', closedAt: T0 + MIN })
+  expect(session.updatedAt, 'as of its ask, its last line about anything else').toBe(T0)
 })
 
 test("a drop voids Lee's pick-up on its way to the item, which never goes in: Claude is told nothing of the item", () => {

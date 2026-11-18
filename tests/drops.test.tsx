@@ -7,10 +7,26 @@
 import { expect, test, tier, type Engine } from './kit'
 import { CURRENT_MS, sessionPaths, type SessionMeta } from '../core'
 import { AROUND_MS } from '../hooks/around'
-import { ELSEWHERE, HOME, LEDGER, MIN, PROJECT, ROOT, SHIFTS, T0, W1, W2, W4 } from './data'
-import { rowsOf } from './drawn'
-import { delivered, drop, file, finish, moveTo, park, reply, type Line } from './lines'
 import {
+  CLOSES,
+  ELSEWHERE,
+  HOME,
+  LEDGER,
+  MIN,
+  PROJECT,
+  REVIEW,
+  ROOT,
+  SHIFTS,
+  T0,
+  W1,
+  W2,
+  W4,
+} from './data'
+import { rowsOf } from './drawn'
+import { pane, sceneFrom } from './render'
+import { delivered, drop, file, finish, moveTo, park, reply, resolve, type Line } from './lines'
+import {
+  asked,
   CONVERSATION,
   kindsIn,
   postedId,
@@ -107,6 +123,9 @@ test("an opened parked item's ✕ drop asks first, in place of its buttons, the 
 
   await ui.press({ key: `ppick:${key}` })
   expect((await parkedRows(ui, key)).at(-1)).toBe(BUTTONS)
+  expect((await ui.find({ key: `drop:${key}` }))?.props.dimColor, 'dim after the pick-ups').toBe(
+    true,
+  )
 
   await ui.press({ key: `drop:${key}` })
   expect(await parkedRows(ui, key)).toEqual([
@@ -370,4 +389,98 @@ test("Claude's resolve of an item Lee dropped passes quietly, writing nothing; i
   ])
   expect(await ui.find({ key: PICKED_UP })).toBeUndefined()
   expect(String((await w.call('board')).result)).toContain(`- ${id}: ${BADGE}`)
+})
+
+/** Lee picks up the ledger's parked item from the project's view, then goes home. */
+const pickUpLedgers = async (ui: Board) => {
+  await toProject(ui)
+  await ui.press({ key: `ppick:${LEDGERS}` })
+  await ui.press({ key: `pickup:${LEDGERS}` })
+  await ui.press({ key: 'tab:session' })
+}
+
+/** The ledger's export as Ready to send draws its pick-up. */
+const readyExport = async (ui: Board) =>
+  rowsOf(await ui.find({ key: `readyanswer:${LEDGERS}` }))
+
+test("a send held for Claude's turn goes without a pick-up of another session's item Lee dropped meanwhile, from another window: Ready to send keeps it, saying so, and Claude has the rest", async ($, on) => {
+  const w = world($, on)
+  const { ui } = await besideLedger(w, OPEN)
+  const posted = await asked(w, REVIEW)
+
+  await pickUpLedgers(ui)
+  await ui.press({ key: `pick:${w.item(posted)}` })
+  await ui.press({ key: `yes:${w.item(posted)}` })
+  await w.turnStarts('Carry on.')
+  await ui.press({ key: 'send' })
+  w.put(LEDGER_OWN, file(...OPEN.lines, [w.clock.now(), drop('p1')]))
+  await w.turnEnds()
+  await w.clock.settle()
+
+  expect(w.submitted).toEqual([
+    `From the board:\n- Review Tickets & Replies, round 1 → Approve${CLOSES}`,
+  ])
+  expect(w.files.has(LEDGER_LOG), 'no pick-up written down').toBe(false)
+  expect(w.state.queue).toEqual([
+    { project: PROJECT.key, session: LEDGER.id, item: 'p1', verdict: 'pickup' },
+  ])
+  await w.clock.advance(AROUND_MS)
+  expect(await readyExport(ui), 'at the next look').toEqual([
+    '└ pick it up · not sent: you dropped it',
+  ])
+})
+
+test("a send held for Claude's turn carrying only a pick-up whose item Claude closed meanwhile is let go, nothing submitted: Ready to send keeps it, saying so", async ($, on) => {
+  const w = world($, on)
+  const { ui } = await besideLedger(w, OPEN)
+
+  await pickUpLedgers(ui)
+  await w.turnStarts('Carry on.')
+  await ui.press({ key: 'send' })
+  w.put(LEDGER_OWN, file(...OPEN.lines, [w.clock.now(), resolve('p1', 'Done elsewhere')]))
+  await w.turnEnds()
+  await w.clock.settle()
+
+  expect(fromTheBoard(w), 'nothing to Claude').toEqual([])
+  expect(w.state.inFlight ?? [], 'let go').toEqual([])
+  expect(w.files.has(LEDGER_LOG)).toBe(false)
+  await w.clock.advance(AROUND_MS)
+  expect(await readyExport(ui), 'at the next look').toEqual([
+    '└ pick it up · not sent: Claude closed it',
+  ])
+})
+
+test('a send pressed as a pick-up\'s item is dropped from another window, before the look reads it, carries nothing, and says why', async ($, on) => {
+  const w = world($, on)
+  const { ui } = await besideLedger(w, OPEN)
+
+  await pickUpLedgers(ui)
+  w.put(LEDGER_OWN, file(...OPEN.lines, [w.clock.now(), drop('p1')]))
+  await ui.press({ key: 'send' })
+
+  expect(fromTheBoard(w), 'nothing to Claude').toEqual([])
+  expect(w.toasts).toContain(
+    'Nothing to send: the items replied to are answered or closed already. Your replies are still on the board.',
+  )
+})
+
+test("a reply sent into a session's inbox, from an older build, whose item Lee dropped before it went in, shows in Ready to send as not delivered, saying so", async () => {
+  const ui = pane(
+    sceneFrom({
+      now: T0 + 3 * MIN,
+      around: [
+        {
+          meta: LEDGER,
+          lines: [
+            [T0, park('p1', EXPORT)],
+            [T0 + MIN, reply('r1', 'p1', 'pickup')],
+            [T0 + 2 * MIN, drop('p1')],
+          ],
+        },
+      ],
+      sent: [{ project: PROJECT.key, session: LEDGER.id, replies: ['r1'] }],
+    }),
+  )
+
+  expect(await ui.find({ type: 'Text', text: '· not delivered: you dropped it' })).toBeDefined()
 })

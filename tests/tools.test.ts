@@ -69,6 +69,9 @@ test("Claude's tools name the person they are for the user, as Claude Code does,
 
   expect(specs).toContain('Post an ask: something only the user can do or decide.')
   expect(specs).toContain("the move tool does, at the user's word.")
+  expect(specs).toContain(
+    "A parked item may be dropped by the user from the board: one gone that you didn't close was dropped, so leave it, and park it again or reopen it only at the user's word.",
+  )
   expect(specs).not.toMatch(PERSON)
 })
 

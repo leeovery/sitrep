@@ -505,6 +505,35 @@ export const drawOnItsWay = (d: Drawing, item: Ask | Parked, reply: ReplyFields)
   return drawReplyRow(d, item, reply, <Text color={C.grey}>· on its way</Text>)
 }
 
+/** An answer to a question a press asks in place: its button. */
+export type Answer = { key: string; label: string; variant?: 'primary'; onPress: () => void }
+
+/**
+ * The question a press asks in place of what it was pressed among, as the
+ * finish, Snooze and the drop ask theirs: its words, then its answers, and
+ * a dim `cancel` after them.
+ */
+export const drawQuestion = (
+  d: Drawing,
+  question: string,
+  answers: readonly Answer[],
+  cancel: Pick<Answer, 'key' | 'onPress'>,
+) => {
+  const { Box, Text, Button } = d.els
+
+  return (
+    <Box flexDirection="column">
+      <Text wrap="wrap">{question}</Text>
+      <Box flexDirection="row" columnGap={1} flexWrap="wrap">
+        {answers.map(({ key, label, variant, onPress }) => (
+          <Button key={key} variant={variant} label={label} onPress={onPress} />
+        ))}
+        <Button key={cancel.key} dimColor label="cancel" onPress={cancel.onPress} />
+      </Box>
+    </Box>
+  )
+}
+
 /** Writing to an item in the prompt box, from the surface drawn on: an ask's answer or a comment on it, or a pick-up's note; none where Lee cannot write back. */
 export const answeringOf = <K extends SessionKey>(
   d: Drawing,

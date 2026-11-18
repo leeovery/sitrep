@@ -30,7 +30,7 @@ import {
   W2,
   W3,
 } from './data'
-import { beat, delivered, file, park, reply } from './lines'
+import { beat, delivered, drop, file, park, reply } from './lines'
 import { asked, CONVERSATION, lost, openAsk, pressYes, world, writeDoor, type World } from './world'
 
 tier('user')
@@ -670,4 +670,16 @@ test("a pick-up with an image of another session's parked item goes in to this w
   expect(ledger[0]).toMatchObject({ item: 'p3', verdict: 'pickup', note: 'Like this [Image #1]' })
   expect(w.toasts).not.toContain(ELSEWHERE)
   expect(w.state.queue ?? []).toEqual([])
+})
+
+test("a pick-up with an image of another session's parked item Lee dropped meanwhile, from another window, is kept, a toast saying why", async ($, on) => {
+  const w = world($, on)
+  const ledger = await onLedgersParked(w)
+
+  ledger.write(drop('p3'))
+  expect(await entered(w, $, 'Like this [Image #1]', { attachments: [IMAGE] })).toEqual({
+    drop: NOT_TAKEN,
+  })
+  expect(w.toasts).toContain('Not sent: you dropped it.')
+  expect(w.prompts).toEqual([])
 })
