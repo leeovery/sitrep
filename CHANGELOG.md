@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-11-18
+
+Drop parked items from the board without telling Claude.
+
+✨ Added
+- Drop a parked item from any window of its project — a "✕ drop" button asks for confirmation, then takes the item off Parked, and it shows later as "dropped by you" under what was taken off.
+- Claude's park tool now explains that a parked item gone from the board may have been dropped, so Claude leaves it unless you say otherwise.
+
+🔧 Changed
+- Parked items can be dropped even from windows that cannot pick them up, and Claude's resolve of an item you dropped passes quietly with a note that you dropped it.
+- A queued pick-up whose item was dropped, picked up elsewhere or closed by Claude is held back from the send and left in Ready to send, instead of going to Claude.
+
+🐛 Fixed
+- Finishing a session from the board now refreshes that session at once, so it no longer lingers as it was.
+
 ## [0.7.1] - 2026-11-18
 
 🔧 Changed
