@@ -63,21 +63,7 @@ struct SettingsStillsTests {
     private static func render(
         _ view: some View, _ name: String, size: CGSize, sourceLocation: SourceLocation = #_sourceLocation
     ) throws {
-        let hosting = NSHostingView(rootView: view
-            .frame(width: size.width, height: size.height)
-            .environment(\.colorScheme, .dark)
-            .environment(\.displayScale, 2))
-
-        hosting.appearance = NSAppearance(named: .darkAqua)
-        hosting.frame = CGRect(origin: .zero, size: size)
-        hosting.layoutSubtreeIfNeeded()
-
-        let bitmap = try #require(
-            hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds), sourceLocation: sourceLocation
-        )
-
-        hosting.cacheDisplay(in: hosting.bounds, to: bitmap)
-        try #require(bitmap.representation(using: .png, properties: [:]), sourceLocation: sourceLocation)
+        try Still.png(view, size: size, sourceLocation: sourceLocation)
             .write(to: try #require(stills, sourceLocation: sourceLocation).appending(path: "\(name).png"))
     }
 

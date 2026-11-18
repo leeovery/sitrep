@@ -1,5 +1,5 @@
 {
   "extends": "./.claude-plugin/types/tsconfig.json",
-  "include": ["core", "hooks", "tests", "cli"],
+  "include": ["core", "hooks", "tests", "cli", "screens"],
   "exclude": ["cli/shell"]
 }

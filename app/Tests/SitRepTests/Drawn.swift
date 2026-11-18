@@ -39,9 +39,9 @@ struct Drawn {
         scale = CGFloat(bitmap.pixelsHigh) / view.bounds.height
     }
 
-    /// A layer as Core Animation draws it, at 2×, over black: under a flipped root, as the edge lays its layers out
-    /// from the top left, each drawn at a `contentsScale` of 2.
-    init(_ layer: CALayer) throws {
+    /// A layer as Core Animation draws it, at 2×, over black unless `ground` says: under a flipped root, as the edge
+    /// lays its layers out from the top left, each drawn at a `contentsScale` of 2.
+    init(_ layer: CALayer, over ground: CGColor = .black) throws {
         let size = layer.bounds.size
         let root = CALayer()
 
@@ -58,7 +58,7 @@ struct Drawn {
 
         let context = try #require(NSGraphicsContext(bitmapImageRep: bitmap)).cgContext
 
-        context.setFillColor(.black)
+        context.setFillColor(ground)
         context.fill(CGRect(x: 0, y: 0, width: bitmap.pixelsWide, height: bitmap.pixelsHigh))
         // `render(in:)` lays the root's sublayers out from its bottom, flipped or not, while its text is drawn the
         // flipped root's way up: the context's own flip sets both right.

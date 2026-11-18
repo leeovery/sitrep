@@ -1,0 +1,21 @@
+#!/bin/bash
+# Draws the README's screens into art/screens, each by the shipping code from
+# a made-up board, with nothing shown on the screen: the board in Claude Code
+# as SVGs (screens/pane.ts, on Bun), and SitRep's notch, strip and Settings'
+# Snooze pane as PNGs at 2x (ReadmeScreensTests, through swift test). Run it
+# again whenever the look changes, and commit what it draws.
+set -euo pipefail
+
+if [[ $# -ne 0 ]]; then
+  echo "Usage: app/screens" >&2
+  exit 1
+fi
+
+repo=$(cd "$(dirname "$0")/.." && pwd)
+screens=$repo/art/screens
+
+mkdir -p "$screens"
+find "$screens" -maxdepth 1 -type f \( -name '*.svg' -o -name '*.png' \) -delete
+# Bun takes its JSX factory from the tsconfig where it starts, so from the root
+(cd "$repo" && bun screens/pane.ts "$screens")
+SITREP_SCREENS=$screens swift test --package-path "$repo/app" --filter ReadmeScreensTests
