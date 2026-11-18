@@ -4,6 +4,7 @@ import { CLI, MIN, SENDER, T0, W1, W2 } from './data'
 import {
   choiceAsk,
   delivered,
+  drop,
   file,
   finish,
   fold,
@@ -187,6 +188,81 @@ test('a resolved parked item leaves Parked; reopened, it is back where it was', 
   ])
 })
 
+test("Lee's drop takes a parked item off Parked, dropped by Lee then; reopened, it is back where it was", () => {
+  const posted: Line[] = [
+    [T0 + 1 * MIN, park('p1', 'first')],
+    [T0 + 2 * MIN, park('p2', 'second')],
+    [T0 + 3 * MIN, resolve('p1', 'Posted twice')],
+    [T0 + 4 * MIN, reopen('p1')],
+  ]
+  const dropped = fold({ logs: { [W1]: file(...posted), [W2]: file([T0 + 5 * MIN, drop('p1')]) } })
+  const back = fold({
+    logs: {
+      [W1]: file(...posted, [T0 + 6 * MIN, reopen('p1', 'Lee wants it back')]),
+      [W2]: file([T0 + 5 * MIN, drop('p1')]),
+    },
+  })
+
+  expect(dropped.parked.map(each => each.title)).toEqual(['second'])
+  expect(dropped.items.get('p1')).toMatchObject({
+    state: 'dropped',
+    closedBy: 'drop',
+    closedAt: T0 + 5 * MIN,
+    reason: undefined,
+  })
+  expect(back.parked.map(each => each.title)).toEqual(['first', 'second'])
+  expect(back.items.get('p1')).toMatchObject({ state: 'parked', reason: 'Lee wants it back' })
+})
+
+test('a drop changes nothing but an item still parked: an ask, an item picked up, closed by Claude or dropped already, and one the session does not have', () => {
+  const session = fold({
+    logs: {
+      [W1]: file(
+        [T0, yesAsk('k1', 'Review it')],
+        [T0, park('p1', 'Picked')],
+        [T0, park('p2', 'Closed')],
+        [T0, park('p3', 'Dropped')],
+        [T0 + MIN, reply('r1', 'p1', 'pickup')],
+        [T0 + MIN, delivered('r1')],
+        [T0 + MIN, resolve('p2', 'Done elsewhere')],
+        [T0 + MIN, drop('p3')],
+      ),
+      [W2]: file(
+        [T0 + 2 * MIN, drop('k1')],
+        [T0 + 2 * MIN, drop('p1')],
+        [T0 + 2 * MIN, drop('p2')],
+        [T0 + 2 * MIN, drop('p3')],
+        [T0 + 2 * MIN, drop('zz99')],
+      ),
+    },
+  })
+
+  expect(session.items.get('k1')).toMatchObject({ state: 'waiting' })
+  expect(session.items.get('p1')).toMatchObject({ state: 'picked', closedAt: T0 + MIN })
+  expect(session.items.get('p2')).toMatchObject({ state: 'closed', reason: 'Done elsewhere' })
+  expect(session.items.get('p3')).toMatchObject({ state: 'dropped', closedAt: T0 + MIN })
+})
+
+test("a drop voids Lee's pick-up on its way to the item, which never goes in: Claude is told nothing of the item", () => {
+  const session = fold({
+    logs: { [W1]: file([T0, park('p1', 'Export the ledger as CSV')]) },
+    inbox: { [SENDER]: file([T0 + MIN, reply('r1', 'p1', 'pickup')]) },
+  })
+  const dropped = fold({
+    logs: {
+      [W1]: file([T0, park('p1', 'Export the ledger as CSV')]),
+      [W2]: file([T0 + 2 * MIN, drop('p1')]),
+    },
+    inbox: { [SENDER]: file([T0 + MIN, reply('r1', 'p1', 'pickup')]) },
+  })
+
+  expect(session.items.get('p1')?.answerOnItsWay?.id).toBe('r1')
+  expect(dropped.replies.map(each => [each.id, each.delivery, each.voided])).toEqual([
+    ['r1', 'void', 'dropped'],
+  ])
+  expect(dropped.items.get('p1')?.answerOnItsWay).toBeUndefined()
+})
+
 /** A session's lines with notes as the board wrote them before notes went, and lines naming one. */
 const NOTED = file(
   [T0 + 1 * MIN, yesAsk('k1', 'Review round 1')],
@@ -317,7 +393,7 @@ test('a finish in the inbox, or by a finisher the format does not know, finishes
   expect(session.finished).toBeUndefined()
 })
 
-test("no line about a parked item but its park moves its session's time: a pick-up, its mark, a resolve, an edit and a reopen leave it as recent as it was, whoever writes them", () => {
+test("no line about a parked item but its park moves its session's time: a pick-up, its mark, a resolve, an edit, a reopen and a drop leave it as recent as it was, whoever writes them", () => {
   const parked = T0 + 2 * MIN
   const session = fold({
     logs: {
@@ -334,6 +410,7 @@ test("no line about a parked item but its park moves its session's time: a pick-
         [T0 + 12 * MIN, { type: 'edit', item: 'p3', changes: { title: 'A priority flag' } }],
         [T0 + 13 * MIN, resolve('p3')],
         [T0 + 14 * MIN, reopen('p3')],
+        [T0 + 15 * MIN, drop('p2')],
       ),
     },
   })

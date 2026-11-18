@@ -570,6 +570,20 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
     }
   },
 
+  drop: (fold, { item: id, at }) => {
+    const item = fold.items.get(id)
+
+    if (item?.type !== 'park' || item.closedBy !== undefined) {
+      return
+    }
+
+    item.state = 'dropped'
+    item.closedAt = at
+    item.closedBy = 'drop'
+    item.reason = undefined
+    voidOnItsWay(fold, item, at, closedReason(item))
+  },
+
   finish: (fold, { who, reason, at, by }) => {
     fold.finished = { at, by, who, reason }
 

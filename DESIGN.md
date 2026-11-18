@@ -33,7 +33,7 @@ Settled with Lee on 16 October 2026.
 | **the board** | The content: projects, sessions and their items, the state any surface shows. Putting something on the board is like putting it in a database. | |
 | **status** | Where a session stands: its name, a one-line summary, what is under way now (one line each), and what comes next. | |
 | **ask** | Something only Lee can do or decide, posted by Claude. Counted on the band, unless snoozed. | |
-| **parked** | Something raised and put off, to circle back to. Its project's, naming the session that parked it (11 November 2026; see "Parked items are the project's"). Not counted, not dismissable. | |
+| **parked** | Something raised and put off, to circle back to. Its project's, naming the session that parked it (11 November 2026; see "Parked items are the project's"). Not counted; Lee drops one from the pane (18 November 2026; see "Dropping a parked item"). | |
 | **reply** | Lee's answer to an ask, or a pick-up of a parked item, waiting in Ready to send. | |
 | **resolved** | An item done with: an ask a reply closed, or any item Claude resolved. Resolved lists a session's resolved asks. | |
 | **snoozed** | A session Lee put off until a time, its asks and its turn together (13 November 2026; an ask alone from 23 October; see "Snooze"): nothing of it counts as waiting on Lee until then, and it is back as it wakes, as Lee wakes it, as a new ask lands there, or as Lee writes to it; snoozed until it moves, as its turn next ends too. | Snoozed |
@@ -204,8 +204,8 @@ vanished from every view, though still stored.
   sessions is current. On Lee's board that day, 11 sessions holding 25
   items stood on the board for those items alone.
 - **No line about a parked item moves its session's time**, its park aside:
-  a pick-up, its delivered mark, and a resolve, an edit or a reopen of a
-  parked item leave the session as recent as it was (`updatedAt`), whoever
+  a pick-up, its delivered mark, and a resolve, an edit, a reopen or Lee's
+  drop of a parked item leave the session as recent as it was (`updatedAt`), whoever
   writes them. So an act on a parked item from another session never brings
   the session that parked it back onto the board. A mark counts as about
   parked items where every reply it names is a pick-up. The fold judges each
@@ -626,7 +626,7 @@ orchestrator decides what reaches the board.
 | `status` | set the name, summary, the list of what is under way, and what is next |
 | `ask` | post an ask: what it wants back (`wants`: a yes, a choice or words), its title, and where to look; a yes's button (`yes`: the verb Lee gives, `Go`, `Approve`, `It works`), a choice's `options` and the one Claude leans toward (`recommended`), or what a words ask's words are (`needs`: "the command's output"), each only on its own shape |
 | `park` | park something to come back to, on the attached session's project |
-| `resolve` / `reopen` / `edit` | close, reopen or correct an item, with a reason. Resolving what Lee closed, an ask he answered or ignored or a parked item he picked up, passes quietly, changing nothing (below). An edit takes an item's one line as `text` or `title` alike, whatever the item, and may change what an ask wants, its `yes`, `options`, `recommended` and `needs`, under the checks `ask` makes for what it changes (see Storage); an empty `needs` or `recommended` clears it. An item of the attached session, or a parked item another session of its project parked, named with that session's id (`session`) and written into that session, in this window's own file there; another session's ask, or a session of another project, is refused |
+| `resolve` / `reopen` / `edit` | close, reopen or correct an item, with a reason. Resolving what Lee closed, an ask he answered or ignored or a parked item he picked up or dropped, passes quietly, changing nothing (below). An edit takes an item's one line as `text` or `title` alike, whatever the item, and may change what an ask wants, its `yes`, `options`, `recommended` and `needs`, under the checks `ask` makes for what it changes (see Storage); an empty `needs` or `recommended` clears it. An item of the attached session, or a parked item another session of its project parked, named with that session's id (`session`) and written into that session, in this window's own file there; another session's ask, or a session of another project, is refused |
 | `finish` | finish the attached session, with a reason, once it is complete and nothing is left on it; what it parked stays its project's and holds no finish back. The window stays attached, and joining it again reopens it |
 | `project` | rename the attached session's project, or say where it lives, or both; a name another project has is refused, saying a move there is the user's call, so to ask first. It never moves a session to another project: `move` does |
 | `move` | move the attached session, whole, to another project, at Lee's word: one on the board whose name matches, as `start` matches one, else a new one, with its directory once known; the project it is in already is refused. Every window holding it follows (17 November 2026; see "A session moves to another project at Lee's word") |
@@ -765,7 +765,8 @@ a note had. So:
 - **Resolving what Lee closed passes quietly**: an ask whose yes, choice,
   words or ignore Claude has, or a parked item Lee picked up, the call
   answers `k3f9 was closed already by Lee: nothing to resolve.` and writes
-  nothing, so Claude's reason never lands on Lee's reply. A parked item
+  nothing (a parked item Lee dropped, `k3f9 was dropped already by the
+  user: …`, from 18 November 2026; see "Dropping a parked item"), so Claude's reason never lands on Lee's reply. A parked item
   another session of the project parked passes the same way. Every refusal
   resolve and reopen made before stands for the rest: resolving an ask or a
   parked item Claude resolved; reopening what is open. Before, an
@@ -1212,18 +1213,20 @@ show all 4
   where to look, its `see`, and the pick-up once one waits or is on its way;
   `pick it up` and `✎ with a comment` sit under the tree until then, in a
   window holding a session of the item's project: another project's parked
-  items show there without them. The pick-up queues in Ready to send like
+  items show there without them. `✕ drop` sits after them, in any window
+  (18 November 2026; see "Dropping a parked item"). The pick-up queues in Ready to send like
   any reply, to this session whichever session of the project parked the
   item (see Delivery); its comment is written in the prompt as an ask's is,
   and goes with it as its note (see "Answering an ask"). It is never
   counted: not on a tab, nor on the band.
 - **Parked's picked up.** Closed, Parked lists only what is parked, and at
   its foot, while anything was taken off it, `show picked up 3`, counting
-  the items Lee picked up or Claude closed. Opened, it reads `hide picked
-  up`, and those items hang under it, the newest taken off first, each a
-  list's row: a green `✓`, its title and how it went, and how long ago:
-  `Rename the settings tab · picked up by Export`, or `Drop the old
-  importer · closed by Claude`. Opened, an item hangs Lee's note on the
+  the items Lee picked up or dropped, or Claude closed. Opened, it reads
+  `hide picked up`, and those items hang under it, the newest taken off
+  first, each a list's row: a green `✓`, its title and how it went, and how
+  long ago: `Rename the settings tab · picked up by Export`, `Drop the old
+  importer · closed by Claude`, or `Export the ledger as CSV · dropped by
+  you`. Opened, an item hangs Lee's note on the
   pick-up, or Claude's reason for the close, and its `see`; or `nothing more
   was recorded`. It shows the latest 3; with more, `show all 5`, then `show
   fewer`. Every view of a project lists what any session of it parked,
@@ -1242,6 +1245,99 @@ show all 4
   pick-up's time can't be read back, and a wrong name is worse than none.
   A pick-up written before its line said (17 November 2026) reads `picked
   up` alone.
+
+- **Dropping a parked item** (18 November 2026). Lee: "allow us to drop
+  parked items with an option… Ideally, it would just drop it, maybe with
+  confirmation." Until then a parked item left Parked only by Lee picking
+  it up or Claude closing it, so one Lee had no use for waited on Claude.
+  The press drops it: Lee's own write, as a snooze or a finish from the
+  pane is, with no round trip through Claude and nothing in Ready to send.
+  - **Where it is offered.** An opened parked item has `✕ drop`, dim,
+    after `pick it up` and `✎ with a comment`, as `✕ ignore` sits after an
+    ask's answers: the session's own items, and every other session's of
+    the project, live, idle, finished or moved there, in every view that
+    lists them. It goes to no Claude, so another project's items have it
+    too, where the pick-ups are not drawn. It is not drawn while a pick-up
+    waits on the item or is on its way to it, nor while Lee writes its
+    note in the prompt, as the pick-ups are not.
+  - **It asks first, in place**, as Snooze's question and a session's
+    finish do: the question and its answers in place of the buttons, the
+    item opened still (`drop:<session>:<item>` as the pane's `selected`).
+    `cancel` goes back to the buttons; the item's title closes it, question
+    and all; opening anything else, going elsewhere on the board or closing
+    the board ends it, as each changes what is opened. A drop has no undo
+    on the pane, so no one press drops anything. Escape is not heard: it
+    hands the keys back to the prompt, which the pane learns of only as it
+    is drawn again without them, so the question stands until one of
+    those, as Snooze's does. Drawn docked, from a test:
+
+    ```
+    ◇ Invoice ledger: Export the ledger as CSV                   1m
+    └ In the spec, section 4
+      [ pick it up ] [ ✎ with a comment ] [ ✕ drop ]
+    ```
+
+    ```
+    ◇ Invoice ledger: Export the ledger as CSV                   1m
+    └ In the spec, section 4
+      Drop it? It leaves Parked, and Claude no longer sees it.
+      [ yes, drop it ] [ cancel ]
+    ```
+
+  - **Yes writes it at once**: a line, `{ "type": "drop", "item": "p1" }`,
+    in the session that parked the item, in this window's own file there,
+    as Lee's finish of another session is written. The session is found by
+    its id, as every press's ref is (actions.ts's `kept`), so one moved to
+    another project since is written in the folder it was started in. In
+    the held session it goes through the hold, a change Claude did not
+    make. Nothing goes into an inbox, and nothing to Claude. It is checked
+    against the session as it stands (core's `checkDrop`): an item no
+    longer parked writes nothing, a toast saying how it left (`Not
+    dropped: it was picked up already.`, `… Claude closed it already.`, `…
+    you dropped it already.`), and nor does one Lee's pick-up is on its
+    way to (`Not dropped: your pick-up of it is on its way to Claude.`),
+    since Claude would be told to pick up what the board no longer holds.
+    Another session than the held one is read afresh after any press that
+    writes into it, off the board or not, so a finished or idle session's
+    item leaves the view at once, not at the next whole look.
+  - **What it does to the item.** The fold closes it as of the line,
+    `dropped`, Lee's (`closedBy` `drop`). The first close stands: a drop of
+    an item picked up or closed changes nothing, nor does one naming an
+    ask. A reply on its way to it goes void, `dropped`, so a pick-up in
+    Ready to send meanwhile reads `· not sent: you dropped it`, and no send
+    carries it. The line moves no session's time, as no line about a
+    parked item but its park does. The item leaves Parked for its project's
+    picked up, `dropped by you`, which opens to its `see`, or `nothing more
+    was recorded`.
+  - **What Claude reads.** The board text lists only what is parked, so it
+    lists the item no more, and the board having changed rides into
+    Claude's next turn as any change does, where Claude had been told of
+    the item. A resolve of it passes quietly, as of anything Lee closed:
+    `k3f9 was dropped already by the user: nothing to resolve.` One gap is
+    the one a pick-up of another session's item has already (no heartbeat
+    says it, under Delivery): another window's pick-up of it, claimed
+    before the drop and written down after, is Claude's there, the item
+    staying dropped, as of two windows' pick-ups of one item the first
+    stands.
+  - **Claude's `reopen` brings it back**, as it brings back any parked
+    item picked up or closed: into Parked and Claude's board text again.
+    A drop has no undo on the pane, so a word to Claude in the chat is
+    Lee's way back, which refusing the reopen would take away. Claude
+    reopens only on purpose, by the item's id, and the board text no
+    longer lists a dropped item, so nothing leads it to reopen one unasked.
+  - **The CLI has no drop**: it acts for Lee on asks (`answer`), snoozes
+    and finishes, never on a parked item. Its `board` and `list`, and
+    `watch`, read the line as the mod does, the item gone from Parked and
+    from what counts it, in the shapes they had: `board --json` lists only
+    what is parked and `watch` counts it, so neither's version moves.
+    SitRep changes nothing.
+  - **Older readers** skip the line, as they skip any kind they do not
+    know: a mod or a CLI of 0.7.1 or before reads the item still parked,
+    and lists it in Parked, Claude's board text and SitRep's counts, until
+    it runs a release that reads it. Back on such a release, a load reading
+    the board this build saved in `$.state` draws a dropped item as picked
+    up until its next look. Nothing is rewritten, and the line format stays
+    1.
 
 ### Answering an ask
 
@@ -2316,19 +2412,21 @@ app (see "The menu bar").
   - **Lee's answer on its way** to an item, at most one: recorded as the
     answer reaches the item open with none on its way, and ended as it is
     delivered or goes void.
-  - **Who closed the item, and how**: Lee's answer, Lee's ignore, or Claude.
+  - **Who closed the item, and how**: Lee's answer, Lee's ignore, Lee's
+    drop of a parked item (18 November 2026), or Claude.
     Recorded by the line that closes it, a delivered answer or a resolve,
     and cleared by a reopen. The first close stands: Claude resolving an
     item Lee's answer closed adds Claude's reason and leaves it Lee's, so an
     ask Lee ignored stays ignored, out of Resolved.
   - **Why a reply is void**, when it goes nowhere: `changed`, `answered`,
-    `resolved` or `finished`.
+    `resolved`, `dropped` or `finished`.
 
   Delivered and void are two facts, not one: a delivered mark is Claude's
   record that it has a reply, and makes delivered any reply it names,
   whatever else is true of it.
   - **One answer per item.** A reply reaching an item closed is void,
-    `answered` where Lee closed it, `resolved` where Claude did. An answer
+    `answered` where Lee's answer or ignore closed it, `resolved` where
+    Claude did, `dropped` where Lee dropped it. An answer
     reaching an item with Lee's answer on its way is void, `answered`. A
     comment bars no answer, and nothing bars a comment but its item closed.
     An answer barred so, by Lee's answer on its way, is read again should
@@ -3192,9 +3290,9 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   **Parked items as the project's** (11 November 2026; see "Parked items
   are the project's") change no format and rewrite nothing. A `park` line
   stays in the file of the session that parked it, and its replies, marks,
-  resolves, edits and reopens go into that session's folder, whichever
-  session's window or Claude writes them, each writer in its own file
-  there. A project's parked items are read, not stored: the views gather
+  resolves, edits, reopens and drops go into that session's folder,
+  whichever session's window or Claude writes them, each writer in its own
+  file there. A project's parked items are read, not stored: the views gather
   them from every session filed under the project. Moving them to the
   project was set aside: an item's history is spread over its session's
   files and folded as one session, item ids are unique only within a
@@ -3230,7 +3328,10 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
 
   The kinds: `status`, `ask` and `park`; `resolve`, `reopen` and
   `edit`, each naming an item; `reply`, Lee's answer to one; `delivered`,
-  naming the replies Claude has been given; `finish`, the session finished,
+  naming the replies Claude has been given; `drop` (18 November 2026),
+  Lee's drop of a parked item, naming it (`item`), written in the session
+  that parked it, in the writer's own file there (see "Dropping a parked
+  item"); `finish`, the session finished,
   saying who (`lee` or `claude`) and with an optional reason; `unfinish`, a
   window joining it again; `move` (17 November 2026), the session moved to
   another project, named by its key (`project`), which reads as a folder's

@@ -43,7 +43,7 @@ export type SitrepReply = {
   deliveredAt?: number
   voidedAt?: number
   /** Why it went void, as core's `Voided` says. */
-  voided?: 'changed' | 'finished' | 'answered' | 'resolved'
+  voided?: 'changed' | 'finished' | 'answered' | 'resolved' | 'dropped'
   /** Settled while its item stood closed, which has reopened since: core's `isHistory`. */
   isHistory?: boolean
 }
@@ -55,7 +55,7 @@ export type SitrepPosted = {
   openedAt: number
   closedAt?: number
   /** Who closed it: core's `ClosedBy`. */
-  closedBy?: 'answer' | 'ignore' | 'claude'
+  closedBy?: 'answer' | 'ignore' | 'claude' | 'drop'
   editedAt?: number
   reason?: string
   ref?: string
@@ -85,7 +85,7 @@ export type SitrepParked = SitrepPosted & {
   type: 'park'
   title: string
   where?: string
-  state: 'parked' | 'picked' | 'closed'
+  state: 'parked' | 'picked' | 'closed' | 'dropped'
   answer?: SitrepReply
   /** Lee's answer on its way to it: core's `answerOnItsWay`. */
   answerOnItsWay?: SitrepReply
@@ -399,7 +399,7 @@ export type SitrepPane = {
   isOpen: boolean
   /** Null at home: this session. */
   place: SitrepPlace | null
-  /** The item (or status change) opened under its line, or the press asking in place what it should do (`finish:<session>`, `snooze:<session>:<ask>`, the ask opened still). */
+  /** The item (or status change) opened under its line, or the press asking in place what it should do (`finish:<session>`, `snooze:<session>:<ask>`, the ask opened still, `drop:<session>:<item>`, the parked item opened still). */
   selected: string | null
   /** How much each list of the board's past shows, by the list (`history:<session>`): a list missing shows as it starts, RESOLVED its latest, Status's history and Parked's picked up closed. A pane an older load saved lacks it, and is read as none. */
   shown: Partial<Record<string, SitrepShowing>>

@@ -910,6 +910,22 @@ test("after a move, Lee's pick-up of the held session's own parked item, pressed
   expect(kindsIn(w, paths.log(W1))).toEqual(['ask', 'park', 'move', 'reply', 'delivered', 'status'])
 })
 
+test("after a move, Lee's drop of the held session's own parked item, pressed on its view in its new project, goes through the hold, and the next post keeps it", async ($, on) => {
+  const w = world($, on)
+  const { id, paths, parked, ui } = await movedHere(w)
+
+  await ui.press({ key: `ppick:${w.item(parked)}` })
+  await ui.press({ key: `drop:${w.item(parked)}` })
+  await ui.press({ key: `drop-yes:${w.item(parked)}` })
+
+  expect(w.state.board?.items.find(each => each.id === parked)?.state).toBe('dropped')
+
+  await w.call('status', { now: ['Drawing Inbox'] })
+
+  expect(kindsIn(w, paths.log(W1))).toEqual(['ask', 'park', 'move', 'drop', 'status'])
+  expect(filesUnder(w, ELSEWHERE.key, id)).toEqual([])
+})
+
 test("after a move, Claude's edit, resolve and finish of the held session go through the hold, the board showing each, and each post keeps the last", async ($, on) => {
   const w = world($, on)
   const { paths, ask, parked } = await movedHere(w)

@@ -13,6 +13,7 @@ import {
   type AskState,
   type Barred,
   type Body,
+  type ClosedBy,
   type DeliveredBody,
   type Delivery,
   type Item,
@@ -112,9 +113,17 @@ export const closingReply = (ask: Ask) => (ask.closedBy === 'answer' ? ask.answe
 export const replyOnItsWay = (item: Ask | Parked) =>
   item.answerOnItsWay ?? item.replies.findLast(isPending)
 
-/** Why a closed item takes no reply: `answered` where Lee closed it, `resolved` where Claude did. */
+/** Why an item closed each way takes no reply. */
+const BARRED_BY: Record<ClosedBy, Barred> = {
+  answer: 'answered',
+  ignore: 'answered',
+  claude: 'resolved',
+  drop: 'dropped',
+}
+
+/** Why a closed item takes no reply: `answered` where Lee's answer or ignore closed it, `resolved` where Claude did, `dropped` where Lee dropped it. */
 export const closedReason = (item: Pick<Item, 'closedBy'>): Barred =>
-  item.closedBy === 'claude' ? 'resolved' : 'answered'
+  BARRED_BY[item.closedBy ?? 'answer']
 
 /**
  * What keeps an item from taking a reply of Lee's with this verdict now;

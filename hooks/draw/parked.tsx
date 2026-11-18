@@ -1,14 +1,15 @@
 /**
  * PARKED: everything parked in a project, finished and idle sessions'
  * included, in its view and in each of its sessions', a session's own
- * first, each to pick up from a window holding a session of its project;
- * and at its foot,
- * folded away until Lee opens it, what was taken off it, picked up by Lee
- * or closed by Claude. Drawn while something is parked or was taken off. A
- * pick-up queues in Ready to send like any reply, to this session whichever
- * session of the project parked the item, with a comment written in the
- * prompt box as its note where Lee wants one (DESIGN.md, "Answering an
- * ask").
+ * first, each to pick up from a window holding a session of its project,
+ * and to drop from any; and at its foot, folded away until Lee opens it,
+ * what was taken off it, picked up or dropped by Lee or closed by Claude.
+ * Drawn while something is parked or was taken off. A pick-up queues in
+ * Ready to send like any reply, to this session whichever session of the
+ * project parked the item, with a comment written in the prompt box as its
+ * note where Lee wants one (DESIGN.md, "Answering an ask"). A drop asks
+ * first, in place, and is written at once, nothing sent to Claude
+ * (DESIGN.md, "Dropping a parked item").
  */
 import { replyOnItsWay, type Listing, type ProjectKey } from '../../core'
 import type { SitrepItemRef } from '../../types'
@@ -50,44 +51,106 @@ const drawPickUp = (d: Drawing, { at, parked }: ParkedAt) => {
 /** A parked item's address, since a project's view lists every session's. */
 const keyOf = ({ at, parked }: ParkedAt) => itemKey(at.session, parked.id)
 
-/** The parked item as the item a pick-up answers. */
+/** The parked item as the item a pick-up answers, and a drop drops. */
 const refOf = ({ at, parked }: ParkedAt): SitrepItemRef<ProjectKey> => ({ ...at, item: parked.id })
 
-/** An opened parked item's buttons, under its tree: the pick-up, and the pick-up with a comment written in the prompt. */
+/** What opens a parked item's question of whether to drop it, in place of its buttons: this, then its address. */
+const dropKey = (key: string) => `drop:${key}`
+
+/** What dropping a parked item asks in place. */
+const DROP_QUESTION = 'Drop it? It leaves Parked, and Claude no longer sees it.'
+
+/** Whether the window can pick a parked item up: it holds a session of the item's project, whose Claude a pick-up goes to. */
+const isPickable = (d: Drawing, { at }: ParkedAt) => at.project === d.scene.here
+
+/** The pick-up, and the pick-up with a comment written in the prompt, where the window can pick the item up. */
+const drawPickUps = (d: Drawing, entry: ParkedAt) => {
+  const { Button } = d.els
+  const key = keyOf(entry)
+  const at = refOf(entry)
+
+  if (!isPickable(d, entry)) {
+    return []
+  }
+
+  return [
+    <Button
+      key={`pickup:${key}`}
+      label="pick it up"
+      onPress={() => d.act.reply({ ...at, verdict: 'pickup' })}
+    />,
+    ...drawWrite(
+      d,
+      `comment:${key}`,
+      '✎ with a comment',
+      answeringOf(d, at, entry.parked, 'pickup'),
+    ),
+  ]
+}
+
+/** An opened parked item's buttons, under its tree: the pick-ups where the window can, and the drop, which asks first. */
 const drawButtons = (d: Drawing, entry: ParkedAt) => {
   const { Box, Button } = d.els
   const key = keyOf(entry)
-  const at = refOf(entry)
-  const answering = answeringOf(d, at, entry.parked, 'pickup')
 
   return (
     <Box paddingLeft={2} flexDirection="row" columnGap={1} flexWrap="wrap">
+      {drawPickUps(d, entry)}
       <Button
-        key={`pickup:${key}`}
-        label="pick it up"
-        onPress={() => d.act.reply({ ...at, verdict: 'pickup' })}
+        key={dropKey(key)}
+        dimColor
+        label="✕ drop"
+        onPress={() => d.act.select(dropKey(key))}
       />
-      {drawWrite(d, `comment:${key}`, '✎ with a comment', answering)}
     </Box>
   )
 }
 
-/** Whether the window can pick a parked item up: it holds a session of the item's project, whose Claude a pick-up goes to. */
-const isPickable = (d: Drawing, { at }: ParkedAt) => at.project === d.scene.here
+/** The drop's question, in place of the item's buttons: yes, written at once, or cancel, back to the buttons. */
+const drawDropping = (d: Drawing, entry: ParkedAt) => {
+  const { Box, Text, Button } = d.els
+  const key = keyOf(entry)
+
+  return (
+    <Box paddingLeft={2} flexDirection="column">
+      <Text wrap="wrap">{DROP_QUESTION}</Text>
+      <Box flexDirection="row" columnGap={1} flexWrap="wrap">
+        <Button
+          key={`drop-yes:${key}`}
+          variant="primary"
+          label="yes, drop it"
+          onPress={() => d.act.drop(refOf(entry))}
+        />
+        <Button
+          key={`drop-no:${key}`}
+          dimColor
+          label="cancel"
+          onPress={() => d.act.select(key)}
+        />
+      </Box>
+    </Box>
+  )
+}
 
 /** A row's title after the name of its item's session, but in that session's own view, `own` naming it. */
 const titled = ({ at, name }: ParkedAt, title: string, own: string | undefined) =>
   at.session === own ? title : `${name}: ${title}`
 
-/** A parked item: its row, its title named as `titled` names it, and, opened, the buttons that pick it up under its tree, where the window can. */
+/**
+ * A parked item: its row, its title named as `titled` names it, and,
+ * opened, its buttons under its tree, or the drop's question in their
+ * place, while nothing of Lee's waits on it or is on its way to it.
+ */
 const drawItem = (d: Drawing, entry: ParkedAt, own: string | undefined) => {
   const { parked } = entry
   const key = keyOf(entry)
   const at = refOf(entry)
-  const isOpen = d.scene.pane.selected === key
+  const { selected } = d.scene.pane
+  const isDropping = selected === dropKey(key)
+  const isOpen = selected === key || isDropping
   const pickUp = drawPickUp(d, entry)
   const isAnswering = isBeingAnswered(d, at)
-  const hasButtons = isOpen && pickUp === undefined && !isAnswering && isPickable(d, entry)
+  const hasButtons = isOpen && pickUp === undefined && !isAnswering
 
   return drawRow(d, {
     key: `parked:${key}`,
@@ -95,27 +158,31 @@ const drawItem = (d: Drawing, entry: ParkedAt, own: string | undefined) => {
     title: titled(entry, parked.title, own),
     at: parked.at,
     isOpen,
-    press: { key: `ppick:${key}`, onPress: () => d.act.select(key) },
+    // `select` toggles the key it is given, so the title gives the one the pane holds: one press closes the item from the drop's question too.
+    press: { key: `ppick:${key}`, onPress: () => d.act.select(isDropping ? dropKey(key) : key) },
     branches: shown(
       isOpen && parked.where,
       isOpen && seeRef(parked.ref, MARK.color),
       pickUp,
       isAnswering && ANSWERING,
     ),
-    after: hasButtons && drawButtons(d, entry),
+    after: hasButtons && (isDropping ? drawDropping(d, entry) : drawButtons(d, entry)),
   })
 }
 
 /** The mark every item taken off Parked is drawn with: done with. */
 const TAKEN_MARK = { glyph: GLYPH.done, color: C.ok }
 
-/** How an item left Parked: picked up, by the session it went to where that is known, or closed by Claude. */
+/** How an item left Parked, by the session a pick-up went to where that is known. */
 const howTaken = ({ parked, pickedUpBy }: TakenAt) => {
-  if (parked.state === 'closed') {
-    return 'closed by Claude'
+  switch (parked.state) {
+    case 'closed':
+      return 'closed by Claude'
+    case 'dropped':
+      return 'dropped by you'
+    default:
+      return pickedUpBy === undefined ? 'picked up' : `picked up by ${pickedUpBy}`
   }
-
-  return pickedUpBy === undefined ? 'picked up' : `picked up by ${pickedUpBy}`
 }
 
 /** What an item taken off Parked opens to: Lee's note on the pick-up, or Claude's reason for the close, and where Claude's own record of it is. */

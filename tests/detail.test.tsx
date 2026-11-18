@@ -163,7 +163,7 @@ test('an opened parked item hangs where and its record from its mark, its button
     '│ by department, week tally, separate summaries',
     '├ In DESIGN.md, Later',
     '└ see notes: spreadsheet-pilot.md',
-    '  [ pick it up ] [ ✎ with a comment ]',
+    '  [ pick it up ] [ ✎ with a comment ] [ ✕ drop ]',
   ])
 })
 
@@ -175,7 +175,7 @@ test('a parked item with nothing to hang shows no stem beside its title, only it
   expect(drawn.slice(1)).toEqual([
     '  pages: contributors by team and level, owner',
     '  by department, week tally, separate summaries',
-    '  [ pick it up ] [ ✎ with a comment ]',
+    '  [ pick it up ] [ ✎ with a comment ] [ ✕ drop ]',
   ])
 })
 

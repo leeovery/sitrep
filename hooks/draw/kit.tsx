@@ -592,10 +592,11 @@ export const drawRewrite = (d: Drawing, key: string, item: Ask | Parked, queued:
 /** A press answered by the `ui.press` hook, inside the press itself, where its calls carry Lee's press; the button's own closure does nothing. */
 export const answeredByTheHook = () => undefined
 
-/** Why a reply in Ready to send stays as a send goes: its item took another answer of Lee's first, or Claude closed it; or its session finished, no reply reaching it; or, for a pick-up, its session or the held one not read. */
+/** Why a reply in Ready to send stays as a send goes: its item took another answer of Lee's first, or Claude closed it, or Lee dropped it; or its session finished, no reply reaching it; or, for a pick-up, its session or the held one not read. */
 const NOT_SENT: Record<Exclude<HeldBack, 'moved'>, string> = {
   answered: '· not sent: already answered',
   resolved: '· not sent: Claude closed it',
+  dropped: '· not sent: you dropped it',
   finished: '· not sent: session finished',
   unread: "· not sent: its session can't be read",
 }

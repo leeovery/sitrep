@@ -120,6 +120,9 @@ export const resolve = (item: string, reason?: string): Body => ({ type: 'resolv
 
 export const reopen = (item: string, reason?: string): Body => ({ type: 'reopen', item, reason })
 
+/** Lee's drop of a parked item, from the board. */
+export const drop = (item: string): Body => ({ type: 'drop', item })
+
 export const finish = (who: Finisher, reason?: string): Body => ({ type: 'finish', who, reason })
 
 export const unfinish = (): Body => ({ type: 'unfinish' })

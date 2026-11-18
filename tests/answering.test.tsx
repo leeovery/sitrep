@@ -774,11 +774,13 @@ const pickingUp = async (w: World) => {
 /** The rows a parked item is drawn on. */
 const parkedRows = async (ui: Board, key: string) => rowsOf(await ui.find({ key: `parked:${key}` }))
 
-test('an opened parked item offers pick it up and ✎ with a comment; neither once a pick-up is queued', async ($, on) => {
+test('an opened parked item offers pick it up, ✎ with a comment and ✕ drop; none once a pick-up is queued', async ($, on) => {
   const w = world($, on)
   const { id, ui } = await onParked(w)
 
-  expect((await parkedRows(ui, w.item(id))).at(-1)).toBe('  [ pick it up ] [ ✎ with a comment ]')
+  expect((await parkedRows(ui, w.item(id))).at(-1)).toBe(
+    '  [ pick it up ] [ ✎ with a comment ] [ ✕ drop ]',
+  )
   await ui.press({ key: `pickup:${w.item(id)}` })
   expect(await parkedRows(ui, w.item(id))).toEqual([
     expect.stringMatching(/^◇ A priority badge/),
@@ -786,6 +788,7 @@ test('an opened parked item offers pick it up and ✎ with a comment; neither on
   ])
   expect(await ui.find({ key: `pickup:${w.item(id)}` })).toBeUndefined()
   expect(await ui.find({ key: `comment:${w.item(id)}` })).toBeUndefined()
+  expect(await ui.find({ key: `drop:${w.item(id)}` })).toBeUndefined()
 })
 
 test('✎ with a comment has the next Enter pick the parked item up: it says so under the item, its buttons gone, and the band names it', async ($, on) => {
