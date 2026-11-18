@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-11-18
+
+💥 Breaking
+- Notes are gone: the `sitrep note` command and Claude's note tool are removed, and the NOTES section no longer appears on the board — use asks, parked items or the status history instead.
+- `sitrep board --json` (now version 4) replaces `log` with `history`, which holds only status changes — update any script that reads `log`.
+
+✨ Added
+- Settings › Snooze pane — switch each of six choices on or off (In an hour, Later today, Tonight, Tomorrow, This weekend, Next week) and set their hours, days and times; the menus and Claude Code's pane offer the same choices.
+- Move a session to another project at your word — Claude's new move tool and `sitrep move <project>` carry the whole session over, and every window holding it follows.
+- Status history in the Claude Code pane — every change of a session's status, opened from Status.
+- Parked now has a "picked up" list showing what was picked up or closed, and says which session picked each item up.
+- A project's view folds its old sessions (finished, or idle over a week) under its sessions, opened on demand.
+- A session's view names its project as a press that opens it, and says when the session finished and why.
+
+🔧 Changed
+- Asks left open in a finished session wait on no one — they show faint with no buttons, and only the window still holding that session can reply.
+- The recommended option now ends its own button's label rather than sitting beside it.
+- Claude now posts an ask when it leaves you something to do, such as a release, a merge or a command to run.
+- Strip tabs and rows cut long titles to fit while keeping the "more" count visible.
+- A snooze wakes at the time its menu item showed, even if the menu stood open for a while, and a time already past is refused with a notice.
+
+🐛 Fixed
+- Editing an ask no longer refuses a change over a rule the edit doesn't touch, such as giving an older ask a new title.
+- The hairline between rows in Settings no longer disappears on 1× screens.
+- The welcome stage's pointer finds the ask's row again after you change the strip or notch settings while it plays.
+
 ## [0.6.0] - 2026-11-16
 
 Sessions where Claude has stopped now count as your turn, and a click on a session no terminal on this Mac shows carries it on in a new window.
