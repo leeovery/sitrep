@@ -29,7 +29,7 @@ import { rowKey, type PanelRow, type PanelView } from './view'
 export const LEFT = 1
 
 /** The widest the layout grows. */
-const MOST = 120
+export const MOST = 120
 
 /** The least a frame is laid out at; below it, `Too small`. */
 const LEAST: Size = { width: 24, height: 8 }

@@ -92,6 +92,15 @@ test('an erase clears to the line end, its start or all of it, and below the cur
   expect(painted.rows[0]?.slice(2)).toEqual([cell(' ', { bg: 'ansi:4' }), cell(' ', { bg: 'ansi:4' })])
 })
 
+test('an erase with the cursor past the row end pads the row to it, then paints the cells the erase covers', () => {
+  const blue = cell(' ', { bg: 'ansi:4' })
+  const toEnd = read(`ab${ESC}[5G${ESC}[44m${ESC}[K`, { width: 8 })
+  const toStart = read(`ab${ESC}[5G${ESC}[44m${ESC}[1K`, { width: 8 })
+
+  expect(toEnd.rows[0]).toEqual([cell('a'), cell('b'), cell(' '), cell(' '), blue, blue, blue, blue])
+  expect(toStart.rows[0]).toEqual([blue, blue, blue, blue, blue, cell(' '), cell(' '), cell(' ')])
+})
+
 test('OSC draws nothing, ended by BEL or ST, and the cursor shown or hidden and synchronised output are passed over', () => {
   const grid = read(`${ESC}]9;Help desk redesign asks\x07${ESC}[?25l${ESC}[?2026ha${ESC}]0;title${ESC}\\b${ESC}[?2026l${ESC}[?25h`)
 
@@ -164,6 +173,14 @@ test("a blank's ink and weight aren't compared, as nothing shows them; its groun
   const drawn = gridOf([[cell(' ', { fg: 'ansi:3', bold: true, faint: true }), cell(' ', { bg: 'ansi:4' }), cell(' ', { reverse: true })]])
 
   expect(compare(frame, drawn).map(each => each.col)).toEqual([2, 3])
+})
+
+test("a reversed blank's ink and weight are compared, its ink being the ground the terminal paints: a red, bold or faint band is no plain one", () => {
+  const band = cell(' ', { reverse: true })
+  const frame = gridOf([[band, band, band, band]])
+  const drawn = gridOf([[band, cell(' ', { reverse: true, fg: 'ansi:1' }), cell(' ', { reverse: true, bold: true }), cell(' ', { reverse: true, faint: true })]])
+
+  expect(compare(frame, drawn).map(each => each.col)).toEqual([2, 3, 4])
 })
 
 test("a drawn row shorter than the frame's reads as blank; one drawn past the frame's columns, or a height otherwise, is an error", () => {

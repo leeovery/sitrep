@@ -15,8 +15,9 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import type { Size } from '../panel/cells'
 import { ansi, text } from '../panel/draw'
+import { MOST } from '../panel/layout'
 import { compare, describe, read } from './cells'
-import { drawn, FIXTURES, frameName, NAMES, ZONE, type Fixture } from './fixtures'
+import { drawn, FIXTURES, frameName, misfitsOf, NAMES, ZONE, type Fixture } from './fixtures'
 import { sweep, type Rule } from './sweep'
 
 const FRAMES = `${import.meta.dir}/../../tests/frames`
@@ -42,22 +43,32 @@ const ON_PURPOSE: readonly { screen: string; rule: Rule; why: string }[] = [
   },
 ]
 
-/** The widest the panel lays out. */
-const MOST = 120
-
 const MARKS = /[●○✻◌◉]/u
 
 const OUT_OF_VIEW = /▼ \d+ more/u
 
+/** What the sweep finds of a draw that doesn't fit its size, beside the width checks. */
+const PAST_SIZE = 'a frame past its size'
+
+type Found = Rule | typeof PAST_SIZE
+
 /** The most rows of a `.txt` a failure names. */
 const SHOWN = 20
 
-type Frame = { name: string; size: Size; txt: string; ansi: string }
+/** A fixture drawn: its frame's name and size, its files' texts, and how it fails to fit its size. */
+type Frame = { name: string; size: Size; txt: string; ansi: string; misfits: string[] }
 
 const frameOf = (fixture: Fixture): Frame => {
   const lines = drawn(fixture)
+  const name = frameName(fixture)
 
-  return { name: frameName(fixture), size: fixture.size, txt: text(lines), ansi: ansi(lines, fixture.paint.level) }
+  return {
+    name,
+    size: fixture.size,
+    txt: text(lines),
+    ansi: ansi(lines, fixture.paint.level),
+    misfits: misfitsOf(lines, fixture.size).map(misfit => `${name}: ${misfit}`),
+  }
 }
 
 const pathOf = (file: string) => `${FRAMES}/${file}`
@@ -88,14 +99,14 @@ const ansiHeld = (name: string, kept: string, output: string, size: Size): strin
 }
 
 /** How the frame is drawn otherwise than its files in tests/frames. */
-const held = ({ name, size, txt, ansi: output }: Frame): string[] => {
+const held = ({ name, size, txt, ansi: output, misfits }: Frame): string[] => {
   const [txtPath, ansiPath] = [pathOf(`${name}.txt`), pathOf(`${name}.ansi`)]
 
   if (!existsSync(txtPath) || !existsSync(ansiPath)) {
-    return [`${name}: no frame; bun cli/frames/check.ts --update writes it`]
+    return [...misfits, `${name}: no frame; bun cli/frames/check.ts --update writes it`]
   }
 
-  return [...txtHeld(name, readFileSync(txtPath, 'utf8'), txt), ...ansiHeld(name, readFileSync(ansiPath, 'utf8'), output, size)]
+  return [...misfits, ...txtHeld(name, readFileSync(txtPath, 'utf8'), txt), ...ansiHeld(name, readFileSync(ansiPath, 'utf8'), output, size)]
 }
 
 /** The frame files kept that no fixture draws. */
@@ -105,9 +116,12 @@ const keptUndrawn = (frames: readonly Frame[]) => {
   return existsSync(FRAMES) ? readdirSync(FRAMES).filter(file => FRAME_FILE.test(file) && !drawnFiles.has(file)) : []
 }
 
-const update = (frames: readonly Frame[]): string[] => {
+/** Every frame that fits its size written again, and those nothing draws deleted; one that doesn't fit is left as it was, and fails. */
+const update = (frames: readonly Frame[]): { said: string[]; failures: string[] } => {
+  const fitting = frames.filter(frame => frame.misfits.length === 0)
+
   mkdirSync(FRAMES, { recursive: true })
-  frames.forEach(({ name, txt, ansi: output }) => {
+  fitting.forEach(({ name, txt, ansi: output }) => {
     writeFileSync(pathOf(`${name}.txt`), txt)
     writeFileSync(pathOf(`${name}.ansi`), output)
   })
@@ -116,7 +130,10 @@ const update = (frames: readonly Frame[]): string[] => {
 
   undrawn.forEach(file => unlinkSync(pathOf(file)))
 
-  return [`${frames.length} frames written`, ...undrawn.map(file => `deleted ${file}: nothing draws it`)]
+  return {
+    said: [`${fitting.length} frames written`, ...undrawn.map(file => `deleted ${file}: nothing draws it`)],
+    failures: frames.flatMap(frame => frame.misfits),
+  }
 }
 
 const check = (frames: readonly Frame[]): { said: string[]; failures: string[] } => {
@@ -126,7 +143,7 @@ const check = (frames: readonly Frame[]): { said: string[]; failures: string[] }
 }
 
 /** Whether a frame of the screen breaks the rule on purpose. */
-const isOnPurpose = (screen: string, rule: Rule) => ON_PURPOSE.some(each => each.screen === screen && each.rule === rule)
+const isOnPurpose = (screen: string, rule: Found) => ON_PURPOSE.some(each => each.screen === screen && each.rule === rule)
 
 /** Every rule every fixture breaks at every size the sweep draws at. */
 const breaksSwept = () =>
@@ -134,10 +151,16 @@ const breaksSwept = () =>
     const draws = fixture.screen === 'quiet' ? undefined : (rows: readonly string[]) => rows.some(row => MARKS.test(row))
 
     return SWEEP_SIZES.flatMap(size => {
-      const grid = read(ansi(drawn(fixture, size), fixture.paint.level), size, false)
+      const lines = drawn(fixture, size)
+      const grid = read(ansi(lines, fixture.paint.level), size, false)
       const at = `${frameName(fixture)} at ${size.width}×${size.height}`
+      const misfits = misfitsOf(lines, size).map((shown): { rule: Found; shown: string } => ({ rule: PAST_SIZE, shown }))
 
-      return sweep(grid, { names: NAMES, outOfView: OUT_OF_VIEW, draws, most: MOST }).map(found => ({ screen: fixture.screen, at, ...found }))
+      return [...misfits, ...sweep(grid, { names: NAMES, outOfView: OUT_OF_VIEW, draws, most: MOST })].map(found => ({
+        screen: fixture.screen,
+        at,
+        ...found,
+      }))
     })
   })
 
@@ -168,7 +191,7 @@ const main = (args: readonly string[]) => {
   process.env.TZ = ZONE
 
   const frames = FIXTURES.map(frameOf)
-  const golden = args.includes('--update') ? { said: update(frames), failures: [] } : check(frames)
+  const golden = args.includes('--update') ? update(frames) : check(frames)
   const widths = swept()
   const failures = [...golden.failures, ...widths.failures]
 

@@ -653,9 +653,11 @@ class Difference(NamedTuple):
 
 
 def _alike(a, b):
+    """Glyph, ground and reverse alike, and the pen whole but on a blank not
+    reversed: reversed, a blank's ink is the ground the terminal paints."""
     if a[0] != b[0] or a[1].bg != b[1].bg or a[1].reverse != b[1].reverse:
         return False
-    return a[0] == ' ' or a[1] == b[1]
+    return (a[0] == ' ' and not a[1].reverse and not b[1].reverse) or a[1] == b[1]
 
 
 def compare(frame, drawn):
@@ -698,7 +700,23 @@ def describe(name, diffs, shown=20):
 # ---------------------------------------------------------------- the width checks
 
 RULE_GLYPHS = '─━┄┅┈┉╌╍═│┃┆┊╎┬┴┼├┤╵╷╴╶'
-_CUT = re.compile(r'([\w./-]{2,})…')
+_JOINING = re.compile(r'[^\W_]')
+
+
+def _cut_of(text, name):
+    """(shown, cells cut) for name as text holds it cut: its longest prefix
+    there, at a word's start, followed by '…'; None for a name not cut there."""
+    for kept in range(len(name) - 1, 0, -1):
+        prefix = name[:kept].rstrip()
+        shown = prefix + '…'
+        if len(prefix) < 2:
+            continue
+        at = text.find(shown)
+        while at != -1:
+            if at == 0 or not _JOINING.match(text[at - 1]):
+                return shown, width_of(name) - width_of(prefix)
+            at = text.find(shown, at + 1)
+    return None
 
 
 def reach(c, rows=None):
@@ -731,11 +749,12 @@ def sweep(c, names=(), view=None, out_of_view=None, draws=None, fold_spare=3, le
     breaks = []
     for t in texts:
         spare = c.width - width_of(t)
-        for m in _CUT.finditer(t):
-            took = max((width_of(n) - width_of(m.group(1)) for n in names
-                        if n.startswith(m.group(1)) and len(n) > len(m.group(1))), default=0)
-            if took and spare > took:
-                breaks.append(('a cut name with room', f'{m.group(0)!r}: {took} cells cut, {spare} blank at its row\'s end'))
+        took = {}
+        for shown, cells in filter(None, (_cut_of(t, n) for n in names)):
+            took[shown] = max(took.get(shown, 0), cells)
+        for shown, cells in took.items():
+            if spare > cells:
+                breaks.append(('a cut name with room', f'{shown!r}: {cells} cells cut, {spare} blank at its row\'s end'))
     foot = 0
     while foot < len(texts) and not texts[len(texts) - 1 - foot].strip():
         foot += 1

@@ -27,6 +27,14 @@ test('a name cut with more blank cells at its row end than the cut took is a bre
   expect(rulesOf(24, [' ✻ Exporting the le…', full(24)])).toEqual([])
 })
 
+test('a name of several words is seen cut at any word, by its longest prefix the row holds, and only where a word starts', () => {
+  expect(sweep(frame(30, [' ● Help desk re…', full(30)]), { names: NAMES })).toEqual([
+    { rule: 'a cut name with room', shown: '"Help desk re…": 6 cells cut, 14 blank at its row\'s end' },
+  ])
+  expect(rulesOf(30, [' ● Help desk…', full(30)])).toEqual(['a cut name with room'])
+  expect(rulesOf(30, [' ● SoHelp desk re…', full(30)])).toEqual([])
+})
+
 test('rows out of view over 3 blank rows at the foot is a fold with rows spare; over 2, it is not', () => {
   const body = [full(30), ' ▼ 6 more']
 

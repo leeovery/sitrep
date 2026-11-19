@@ -217,10 +217,13 @@ class Screen {
       row.length = Math.min(row.length, col)
 
       if (this.pen.bg !== DEFAULT && this.width > 0) {
+        row.push(...Array.from({ length: col - row.length }, () => BLANK))
         row.push(...Array.from({ length: this.width - col }, () => this.blank()))
       }
     } else if (mode === 1) {
-      for (let x = 0; x < Math.min(col + 1, row.length); x++) {
+      row.push(...Array.from({ length: Math.max(col + 1 - row.length, 0) }, () => BLANK))
+
+      for (let x = 0; x <= col; x++) {
         row[x] = this.blank()
       }
     } else {
@@ -392,12 +395,12 @@ export const read = (text: string, bounds: Bounds = {}, scrollback = true): Grid
 export const textOf = (grid: Grid, y: number): string =>
   (grid.rows[y] ?? []).map(cell => cell.glyph).join('').trimEnd()
 
-/** Whether two cells look alike: glyph, ground and reverse, and the pen whole but on a blank. */
+/** Whether two cells look alike: glyph, ground and reverse, and the pen whole but on a blank not reversed, whose ink and weight nothing shows; reversed, its ink is the ground the terminal paints. */
 const isAlike = (a: Cell, b: Cell) =>
   a.glyph === b.glyph &&
   a.pen.bg === b.pen.bg &&
   a.pen.reverse === b.pen.reverse &&
-  (a.glyph === ' ' || isSamePen(a.pen, b.pen))
+  ((a.glyph === ' ' && !a.pen.reverse && !b.pen.reverse) || isSamePen(a.pen, b.pen))
 
 /**
  * The cells `drawn` differs from `frame` in. A drawn row may be shorter than

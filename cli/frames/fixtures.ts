@@ -8,6 +8,8 @@
  *   the board's order and counts are core's and the panel's, not round 1's.
  * - A session whose Claude ended is away on its row; one whose Claude runs
  *   where no terminal on this Mac shows it is away by `notHere`.
+ * - Where a screen has a band, or Snoozed just opened, `top` is the least
+ *   that keeps that row whole in view at each size, as the keys would.
  * - The clock is London's: `check.ts` runs in its zone, so a Snoozed wake
  *   reads the same on any machine.
  */
@@ -22,10 +24,11 @@ import {
   type SnoozedKind,
   type SnoozedRow,
 } from '../../core'
-import type { Size } from '../panel/cells'
+import { widthOf, type Size } from '../panel/cells'
 import { draw, type Line } from '../panel/draw'
+import { topFor } from '../panel/layout'
 import { rgbOf, type Paint } from '../panel/paint'
-import { viewOf, type ViewState } from '../panel/view'
+import { rowKey, viewOf, type PanelView, type ViewState } from '../panel/view'
 
 /** The board a fixture shows, and the sessions on it this Mac doesn't show. */
 export type World = { feed: Feed; notHere: ReadonlySet<string> }
@@ -37,16 +40,19 @@ export type Fixture = {
   world: World
   paint: Paint
   now: number
-  /** The view state the screen shows, given whole: no key reaches it yet. */
-  state: ViewState
+  /** The view state the screen shows, but `top`, given whole: no key reaches it yet. */
+  state: Omit<ViewState, 'top'>
+  /** The row the view keeps whole in sight, by its key, standing in for the keys that scroll to it: the band's, or Snoozed's last once opened. */
+  inView?: string
 }
 
 /** The zone the fixtures' clock reads in. */
 export const ZONE = 'Europe/London'
 
-const MIN = 60_000
+const MINUTE_MS = 60_000
 
-const HOUR = 60
+/** An hour, in the minutes a row's age is given in. */
+const HOUR_MINUTES = 60
 
 /** Wednesday 18 November 2026, 14:00 in London, which keeps UTC in November. */
 const NOW = Date.UTC(2026, 10, 18, 14)
@@ -60,6 +66,8 @@ const NORDFOX = { fg: rgbOf('#CDCECF'), bg: rgbOf('#2E3440') }
 const COLOUR: Paint = { level: 'truecolor', ...NORDFOX }
 
 const NO_COLOR: Paint = { level: 'none', ...NORDFOX }
+
+const SIXTEEN: Paint = { level: '16', ...NORDFOX }
 
 /** Each project's letters in its sessions' ids. */
 const CODES: Record<string, string> = {
@@ -106,21 +114,31 @@ const SECTIONS = {
 
 type Made = { count?: number; away?: Away; wakeAt?: number }
 
+/** The window a stop or a turn comes from. */
+const WRITER = 'w1'
+
+/** A row's line, keyed as core keys it: an ask by its session and id, a window's stop by its window and when it showed, a turn by its session. */
+const lineOf = (is: RowKind, session: string, at: number, first: RowLine, since: number): Row['lines'][number] => {
+  switch (is) {
+    case 'ask':
+      return { key: `ask:${session}:k${at + 1}`, is, ask: `k${at + 1}`, first, since }
+    case 'permission':
+    case 'question':
+      return { key: `stop:${session}:${WRITER}:${since}`, is, writer: WRITER, first, since }
+    default:
+      return { key: `turn:${session}`, is, writer: WRITER, first, since }
+  }
+}
+
 /** A row of `count` lines saying `first`, the newest `minutes` old, each older a minute before it. */
 const seat = (is: RowKind, name: string, project: string, first: RowLine, minutes: number, made: Made = {}): Seat => {
   const { count = 1, away, wakeAt } = made
-  const since = NOW - minutes * MIN
+  const since = NOW - minutes * MINUTE_MS
   const base = named(name, project, away === 'ended')
   const row: Row = {
     ...base,
     section: SECTIONS[is],
-    lines: Array.from({ length: count }, (_, at) => ({
-      key: `${is}:${base.session}:${at}`,
-      is,
-      ...(is === 'ask' ? { ask: `k${at + 1}` } : {}),
-      first,
-      since: since - at * MIN,
-    })),
+    lines: Array.from({ length: count }, (_, at) => lineOf(is, base.session, at, first, since - at * MINUTE_MS)),
     since,
     ...(wakeAt === undefined ? {} : { wakeAt }),
   }
@@ -145,7 +163,7 @@ const own = (name: string, project: string, status: string, minutes: number) =>
 
 /** On its own work, waiting on a wake due `minutes` from now. */
 const waking = (name: string, project: string, inMinutes: number, minutes: number) => {
-  const until = NOW + inMinutes * MIN
+  const until = NOW + inMinutes * MINUTE_MS
 
   return seat('onItsWork', name, project, { lead: 'Wakes', until }, minutes, { wakeAt: until })
 }
@@ -157,7 +175,16 @@ const snoozed = (is: SnoozedKind, name: string, project: string, status: string,
   return {
     snoozed: {
       ...base,
-      lines: [{ key: `${is === 'ask' ? 'ask' : 'turn'}:${base.session}:0`, is, first: { lead: status }, since: NOW - 3 * HOUR * MIN, wakesAt }],
+      lines: [
+        {
+          key: is === 'ask' ? `ask:${base.session}:k1` : `turn:${base.session}`,
+          ...(is === 'ask' ? { ask: 'k1' } : {}),
+          is,
+          first: { lead: status },
+          since: NOW - 3 * HOUR_MINUTES * MINUTE_MS,
+          wakesAt,
+        },
+      ],
       wakesAt,
     },
   }
@@ -183,9 +210,9 @@ const REST: readonly Seat[] = [
   permission('Data import', 'Litware', 'Bash', 'psql -f import.sql', 1),
   ask('Help desk redesign', 'Northwind', 'Thread replies, or keep them flat?', 4),
   ask('Shift schedules', 'Contoso', 'Approve the rota', 26),
-  ask('Email templates', 'Fabrikam', 'Keep the plain-text versions?', 2 * HOUR, { away: 'ended' }),
+  ask('Email templates', 'Fabrikam', 'Keep the plain-text versions?', 2 * HOUR_MINUTES, { away: 'ended' }),
   turn('Release notes', 'Tailspin', 'Drafted the 2.4 release notes', 31),
-  turn('Warehouse map', 'Litware', 'Mapped the ground floor', HOUR, { away: 'elsewhere' }),
+  turn('Warehouse map', 'Litware', 'Mapped the ground floor', HOUR_MINUTES, { away: 'elsewhere' }),
   working('Mobile app', 'Woodgrove', 'Running npm test', 6),
   working('Invoice ledger', 'Northwind', 'Exporting the ledger as CSV', 2),
   own('Catalog sync', 'Fabrikam', 'Waiting on 2 agents', 15),
@@ -202,12 +229,12 @@ const BUSY: readonly Seat[] = [
   ask('Shift schedules', 'Contoso', 'Approve the rota', 26),
   ask('Expense claims', 'Trey Research', 'Which receipts need a scan?', 40, { count: 3 }),
   permission('Tax rates', 'Wingtip', 'Edit', 'src/tax/rates.ts', 52),
-  ask('Email templates', 'Fabrikam', 'Keep the plain-text versions?', 2 * HOUR, { away: 'ended' }),
-  ask('Gift cards', 'Tailspin', 'Should a card expire?', 3 * HOUR, { away: 'ended' }),
+  ask('Email templates', 'Fabrikam', 'Keep the plain-text versions?', 2 * HOUR_MINUTES, { away: 'ended' }),
+  ask('Gift cards', 'Tailspin', 'Should a card expire?', 3 * HOUR_MINUTES, { away: 'ended' }),
   turn('Release notes', 'Tailspin', 'Drafted the 2.4 release notes', 31),
-  turn('Search index', 'Wingtip', 'Rebuilt the index; 3 fields left', HOUR),
-  turn('Staff directory', 'Contoso', 'Added the new starters', 2 * HOUR),
-  turn('Warehouse map', 'Litware', 'Mapped the ground floor', HOUR, { away: 'elsewhere' }),
+  turn('Search index', 'Wingtip', 'Rebuilt the index; 3 fields left', HOUR_MINUTES),
+  turn('Staff directory', 'Contoso', 'Added the new starters', 2 * HOUR_MINUTES),
+  turn('Warehouse map', 'Litware', 'Mapped the ground floor', HOUR_MINUTES, { away: 'elsewhere' }),
   working('Payroll export', 'Contoso', 'Writing payroll.csv', 22),
   working('Stock levels', 'Wingtip', 'Reading src/stock/levels.ts', 12),
   working('Delivery slots', 'Northwind', 'Running the slot planner', 9, { away: 'elsewhere' }),
@@ -218,7 +245,7 @@ const BUSY: readonly Seat[] = [
   working('Invoice ledger', 'Northwind', 'Exporting the ledger as CSV', 2),
   working('Login page', 'Adventure Works', 'Editing src/login/form.tsx', 1),
   working('Error alerts', 'Trey Research', 'Fetching the alert rules', 1),
-  waking('Report builder', 'Fabrikam', 12, HOUR),
+  waking('Report builder', 'Fabrikam', 12, HOUR_MINUTES),
   own('Audit log', 'Tailspin', 'Watching the nightly export', 48),
   own('Catalog sync', 'Fabrikam', 'Waiting on 2 agents', 15),
   own('Booking reminders', 'Litware', 'Running the reminder job', 8),
@@ -264,19 +291,37 @@ const newestLine = (world: World, name: string) => rowNamed(world, name).lines[0
 
 const UNREACHABLE = "Release notes can't be opened here: its terminal has no tmux or zmx."
 
-const AT_START: ViewState = { top: 0, isSnoozedOpen: false, board: 'read', arrivals: new Map() }
+const AT_START: Omit<ViewState, 'top'> = { isSnoozedOpen: false, board: 'read', arrivals: new Map() }
 
-/** A screen: its world, its paint and its view state, at each of its sizes with the `top` it shows there. */
-type Screen = { world: World; paint?: Paint; state?: Partial<ViewState>; sizes: readonly (readonly [w: number, h: number, top?: number])[] }
+/** Snoozed's last row, by its key: the one opening Snoozed scrolls into view. */
+const lastSnoozed = (world: World) => {
+  const view = viewOf(world.feed, { ...AT_START, top: 0, isSnoozedOpen: true }, NOW, world.notHere)
+  const last = view.sections.find(section => section.kind === 'snoozed')?.rows.at(-1)
+
+  if (last === undefined) {
+    throw new Error('no row in Snoozed')
+  }
+
+  return rowKey(last)
+}
+
+/** A screen: its world, its paint, its view state and the row it keeps in view, the band's unless told, at each of its sizes. */
+type Screen = {
+  world: World
+  paint?: Paint
+  state?: Partial<ViewState>
+  inView?: string
+  sizes: readonly (readonly [width: number, height: number])[]
+}
 
 const SCREENS: Record<string, Screen> = {
   rest: { world: AT_REST, sizes: [[39, 27], [69, 46], [73, 36]] },
   picked: { world: AT_REST, state: { band: sessionNamed(AT_REST, 'Help desk redesign') }, sizes: [[39, 27], [69, 46], [73, 36]] },
-  unfolded: { world: AT_REST, state: { isSnoozedOpen: true }, sizes: [[39, 27, 2], [69, 46]] },
+  unfolded: { world: AT_REST, state: { isSnoozedOpen: true }, inView: lastSnoozed(AT_REST), sizes: [[39, 27], [69, 46]] },
   busy: {
     world: CROWDED,
     state: { band: sessionNamed(CROWDED, 'Invoice ledger') },
-    sizes: [[39, 27, 11], [69, 46, 1], [73, 36, 6], [73, 15, 16], [24, 8, 19]],
+    sizes: [[39, 27], [69, 46], [73, 36], [73, 15], [24, 8]],
   },
   arriving: {
     world: ARRIVED,
@@ -296,24 +341,44 @@ const SCREENS: Record<string, Screen> = {
     state: { band: sessionNamed(AT_REST, 'Help desk redesign'), isSnoozedOpen: true },
     sizes: [[39, 27]],
   },
+  sixteen: { world: AT_REST, paint: SIXTEEN, state: { band: sessionNamed(AT_REST, 'Help desk redesign') }, sizes: [[39, 27]] },
   narrow: { world: AT_REST, sizes: [[30, 27]] },
   small: { world: AT_REST, sizes: [[23, 10]] },
 }
 
-export const FIXTURES: readonly Fixture[] = Object.entries(SCREENS).flatMap(([screen, { world, paint = COLOUR, state = {}, sizes }]) =>
-  sizes.map(([width, height, top = 0]) => ({
+export const FIXTURES: readonly Fixture[] = Object.entries(SCREENS).flatMap(([screen, { world, paint = COLOUR, state = {}, inView, sizes }]) => {
+  const kept = inView ?? state.band
+
+  return sizes.map(([width, height]) => ({
     screen,
     size: { width, height },
     world,
     paint,
     now: NOW,
-    state: { ...AT_START, ...state, top },
-  })),
-)
+    state: { ...AT_START, ...state },
+    ...(kept === undefined ? {} : { inView: kept }),
+  }))
+})
 
 /** The fixture's frame's name: `panel-rest-39x27`. */
 export const frameName = ({ screen, size }: Fixture) => `panel-${screen}-${size.width}x${size.height}`
 
+/** The fixture's view at a size: scrolled the least that keeps its row whole in view, as the keys would leave it; from the top with none. */
+export const viewAt = ({ world, now, state, inView }: Fixture, size: Size): PanelView => {
+  const view = viewOf(world.feed, { ...state, top: 0 }, now, world.notHere)
+
+  return inView === undefined ? view : { ...view, top: topFor(view, size, inView) ?? 0 }
+}
+
 /** The fixture drawn, as the panel draws it, at its size or another. */
-export const drawn = ({ world, paint, now, state, size }: Fixture, at: Size = size): Line[] =>
-  draw(viewOf(world.feed, state, now, world.notHere), at, paint)
+export const drawn = (fixture: Fixture, at: Size = fixture.size): Line[] => draw(viewAt(fixture, at), at, fixture.paint)
+
+/** How drawn lines fail to fit a size: other than one a row, or a line wider than the columns. */
+export const misfitsOf = (lines: readonly Line[], size: Size): string[] => [
+  ...(lines.length === size.height ? [] : [`${lines.length} lines drawn for ${size.height} rows`]),
+  ...lines.flatMap((line, at) => {
+    const cells = widthOf(line.map(run => run.text).join(''))
+
+    return cells <= size.width ? [] : [`line ${at + 1} drawn ${cells} cells wide for ${size.width} columns`]
+  }),
+]
