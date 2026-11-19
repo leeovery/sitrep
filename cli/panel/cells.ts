@@ -32,6 +32,7 @@ const WIDE: readonly (readonly [number, number])[] = [
   [0xfe30, 0xfe6f],
   [0xff00, 0xff60],
   [0xffe0, 0xffe6],
+  [0x1b000, 0x1b2ff],
   [0x20000, 0x2fffd],
   [0x30000, 0x3fffd],
 ]
@@ -59,7 +60,7 @@ export const cellsOf = (grapheme: string): number => {
 export const widthOf = (text: string): number =>
   graphemesOf(text).reduce((width, grapheme) => width + cellsOf(grapheme), 0)
 
-/** The text in at most `cells`, its end cut to `…` where it doesn't fit whole. */
+/** The text in at most `cells`, its end cut to `…` where it doesn't fit whole, with no space left before the `…`. */
 export const cut = (text: string, cells: number): string => {
   if (widthOf(text) <= cells) {
     return text
@@ -83,7 +84,7 @@ export const cut = (text: string, cells: number): string => {
     width = next
   }
 
-  return kept + ELLIPSIS
+  return kept.trimEnd() + ELLIPSIS
 }
 
 /** A word too wide for a line, in pieces each `cells` wide at most. */
@@ -127,4 +128,19 @@ export const wrap = (text: string, cells: number): string[] => {
   }
 
   return line === '' ? lines : [...lines, line]
+}
+
+/** Lines in at most `rows`: past them, the last kept carries the rest of the words, cut to `cells`. */
+export const fitted = (lines: readonly string[], rows: number, cells: number): string[] => {
+  if (lines.length <= rows) {
+    return [...lines]
+  }
+
+  if (rows < 1) {
+    return []
+  }
+
+  const rest = lines.slice(rows - 1).filter(line => line !== '')
+
+  return [...lines.slice(0, rows - 1), cut(rest.join(' '), cells)]
 }

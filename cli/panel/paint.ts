@@ -2,15 +2,16 @@
  * The panel's colours: the notch's inks over the terminal's own background,
  * at the level the terminal draws, and the pens each word is drawn in.
  *
- * - The level comes from the environment: none with `NO_COLOR`, the level
- *   `FORCE_COLOR` gives, else 24-bit, 256 or 16 as `COLORTERM` and `TERM`
- *   say. A light background, said by `COLORFGBG` or by the terminal's own
+ * - The level comes from the environment: none with `NO_COLOR`; else 24-bit,
+ *   256 or 16 as `COLORTERM` and `TERM` say, raised to the least
+ *   `FORCE_COLOR` asks for, or none where it says `0`. A light background, said by `COLORFGBG` or by the terminal's own
  *   answer, draws in the terminal's 16, the palette being drawn for dark ones.
  * - Names, the title and the keys are in the terminal's own ink, never a hex.
  * - Three things mix toward the background: an away row's words, a Snoozed
  *   row's mark, and a new ask's wash. They mix only with both of the
- *   terminal's answers, at 256 colours or more; otherwise a dim is faint and
- *   the wash is left out.
+ *   terminal's answers, at 256 colours or more; otherwise a dim is faint.
+ *   The wash is left out below 24-bit, where its nearest colour sits beside
+ *   the band's, so an arriving row would look chosen: `◉` says it alone.
  * - Without colour, faint carries the metadata, never on a bold word, since
  *   many terminals draw SGR 1 and 2 as one intensity.
  */
@@ -118,20 +119,32 @@ export type ColourEnv = {
   COLORFGBG?: string
 }
 
+/** The levels, from none up. */
+const LEVELS: readonly Level[] = ['none', '16', '256', 'truecolor']
+
+/** The least level `FORCE_COLOR` asks for: none for `0` or `false`, else 16 unless it names more. */
 const FORCED: Record<string, Level> = { '0': 'none', false: 'none', '2': '256', '3': 'truecolor' }
 
+/** The level `COLORTERM` and `TERM` say. */
 const detected = (env: ColourEnv): Level => {
   const term = env.TERM ?? ''
 
-  if (env.FORCE_COLOR !== undefined) {
-    return FORCED[env.FORCE_COLOR] ?? '16'
-  }
-
-  if (/^(truecolor|24bit)$/.test(env.COLORTERM ?? '') || term.includes('ghostty') || term.endsWith('-direct')) {
+  if (/^(truecolor|24bit)$/i.test(env.COLORTERM ?? '') || term.includes('ghostty') || term.endsWith('-direct')) {
     return 'truecolor'
   }
 
   return term.includes('256color') ? '256' : '16'
+}
+
+/** The level the terminal says, raised to what `FORCE_COLOR` asks for at least, as chalk reads it; `0` or `false` turns colour off. */
+const forced = (env: ColourEnv): Level => {
+  const least = env.FORCE_COLOR === undefined ? '16' : (FORCED[env.FORCE_COLOR] ?? '16')
+
+  if (least === 'none') {
+    return 'none'
+  }
+
+  return LEVELS[Math.max(LEVELS.indexOf(least), LEVELS.indexOf(detected(env)))] ?? least
 }
 
 /** `COLORFGBG`'s background, its last field, as rxvt numbers it: 7, and 9 to 15, are light. */
@@ -147,7 +160,7 @@ export const levelOf = (env: ColourEnv): Level => {
     return 'none'
   }
 
-  const level = detected(env)
+  const level = forced(env)
 
   return level !== 'none' && isLightByEnv(env) ? '16' : level
 }
@@ -159,8 +172,10 @@ export type Pens = {
   dimmed: (style: Style) => Pen
   /** What the band lays over the chosen row's cells. */
   band: Pen
-  /** What a new ask's wash lays over its row's cells, where it can be mixed. */
+  /** What a new ask's wash lays over its row's cells, at 24-bit with both answers. */
   wash?: Pen
+  /** Whether the pens carry colour: without it, bold alone tells an ask. */
+  isColoured: boolean
 }
 
 /** The level the palette draws at: the terminal's 16 on a light background. */
@@ -215,7 +230,8 @@ export const pensOf = (paint: Paint): Pens => {
     of,
     dimmed,
     band: isGround ? { bg: { rgb: BAND } } : { reverse: true },
-    ...(canMix ? { wash: { bg: { rgb: mix(bg, PALETTE.orange, WASHED) } } } : {}),
+    isColoured: level !== 'none',
+    ...(canMix && level === 'truecolor' ? { wash: { bg: { rgb: mix(bg, PALETTE.orange, WASHED) } } } : {}),
   }
 }
 

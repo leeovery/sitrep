@@ -35,16 +35,12 @@ const escapes = (paint: Paint) => {
   return [...Object.values(STYLES).map(style => pens.of(style)), pens.band].map(pen => sgr(pen, paint.level))
 }
 
-test('the level: none with NO_COLOR, what FORCE_COLOR says, 24-bit, 256 or 16 as COLORTERM and TERM say', () => {
+test('the level: none with NO_COLOR, else 24-bit, 256 or 16 as COLORTERM and TERM say, in any case', () => {
   const envs = [
-    { NO_COLOR: '1', COLORTERM: 'truecolor', FORCE_COLOR: '3' },
     { NO_COLOR: '', TERM: 'xterm-256color' },
-    { FORCE_COLOR: '0', COLORTERM: 'truecolor' },
-    { FORCE_COLOR: '1', TERM: 'xterm-256color' },
-    { FORCE_COLOR: '2' },
-    { FORCE_COLOR: '3', TERM: 'dumb' },
     { COLORTERM: 'truecolor', TERM: 'xterm' },
-    { COLORTERM: '24bit' },
+    { COLORTERM: 'TrueColor' },
+    { COLORTERM: '24BIT' },
     { TERM: 'xterm-ghostty' },
     { TERM: 'xterm-direct' },
     { TERM: 'tmux-256color' },
@@ -52,21 +48,24 @@ test('the level: none with NO_COLOR, what FORCE_COLOR says, 24-bit, 256 or 16 as
     {},
   ]
 
-  expect(envs.map(levelOf)).toEqual([
-    'none',
-    '256',
-    'none',
-    '16',
-    '256',
-    'truecolor',
-    'truecolor',
-    'truecolor',
-    'truecolor',
-    'truecolor',
-    '256',
-    '16',
-    '16',
-  ])
+  expect(envs.map(levelOf)).toEqual(['256', 'truecolor', 'truecolor', 'truecolor', 'truecolor', 'truecolor', '256', '16', '16'])
+})
+
+test('FORCE_COLOR is a least level, as chalk reads it: the terminal says more where it can; 0 or false turns colour off; NO_COLOR wins over all', () => {
+  const envs = [
+    { FORCE_COLOR: '1', COLORTERM: 'truecolor' },
+    { FORCE_COLOR: '1', TERM: 'xterm-256color' },
+    { FORCE_COLOR: '', TERM: 'dumb' },
+    { FORCE_COLOR: 'true' },
+    { FORCE_COLOR: '2', TERM: 'xterm' },
+    { FORCE_COLOR: '2', COLORTERM: 'truecolor' },
+    { FORCE_COLOR: '3', TERM: 'dumb' },
+    { FORCE_COLOR: '0', COLORTERM: 'truecolor' },
+    { FORCE_COLOR: 'false', TERM: 'xterm-256color' },
+    { NO_COLOR: '1', FORCE_COLOR: '3', COLORTERM: 'truecolor' },
+  ]
+
+  expect(envs.map(levelOf)).toEqual(['truecolor', '256', '16', '16', '256', 'truecolor', 'truecolor', 'none', 'none', 'none'])
 })
 
 test("a light background by COLORFGBG draws in the terminal's 16; a dark one keeps its level", () => {
@@ -151,7 +150,14 @@ test("with both of the terminal's answers, an away row's words, a Snoozed mark a
     `${ESC}[0;38;2;92;119;176m`,
     `${ESC}[0;48;2;83;67;69m`,
   ])
-  expect(sgr(pens.wash ?? {}, '256')).toBe(`${ESC}[0;48;5;238m`)
+})
+
+test("at 256 colours the dims mix, as at 24-bit, but the wash is left out: its nearest sits beside the band's", () => {
+  const pens = pensOf({ level: '256', fg: FG, bg: BG })
+
+  expect(pens.wash).toBeUndefined()
+  expect(sgr(pens.dimmed({ tone: 'orange' }), '256')).toBe(`${ESC}[0;38;5;95m`)
+  expect(sgr(pens.dimmed({ tone: 'ink', bold: true }), '256')).toBe(`${ESC}[0;1;38;5;246m`)
 })
 
 test("without both answers, or at 16 colours, a dim is faint, never on a bold word, and there's no wash", () => {
@@ -166,6 +172,7 @@ test("without both answers, or at 16 colours, a dim is faint, never on a bold wo
     const pens = pensOf(paint)
 
     expect(pens.wash).toBeUndefined()
+    expect(pens.isColoured).toBe(paint.level !== 'none')
     expect(pens.dimmed({ tone: 'ink' }).faint).toBe(true)
     expect(pens.dimmed({ tone: 'orange' }).faint).toBe(true)
     expect(pens.dimmed({ tone: 'ink', bold: true })).toEqual({ bold: true })

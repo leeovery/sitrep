@@ -1,41 +1,30 @@
 /**
  * The panel drawn: a view to lines at a size, with no clock and no terminal.
+ * Where each part goes is the layout's (layout.ts); this draws them.
  *
- * - Row 0 is the title; the last row the key line; between them the body,
- *   from row 2: each section's heading and its rows, a blank row between
- *   sections. A pick's answer sits above the key line, a blank row over it.
  * - Every line starts at column 1, and the layout's last column is a margin
- *   too. Past 120 columns the layout stays 120 wide, at the left.
+ *   too.
+ * - A section's heading: its words in grey capitals, its counts, a rule and
+ *   the chevron. Without colour an ask's count is bold and a turn's regular,
+ *   as their names are, since the two share `●`.
  * - A row is a session on two lines: its mark, name and time; then its
  *   project and status line. As the width falls, the status line is cut,
  *   then dropped; the project is cut; the name is cut to its least; then a
  *   Snoozed wake loses its clock, and the time goes.
- * - The body shows the rows that fit, in whole rows, from the view's `top`:
- *   the sessions scrolled past, said by `▲ N more` under their section's
- *   heading, kept at the top. Below 15 rows the blank row under the title
- *   gives way, then the blank rows between sections.
- * - A board gone stale says when it was read, at the title's right; before
- *   any board, the body says it's looking, or why it can't read one.
+ * - An empty board, and one not yet read, stand centred in the body's place.
+ * - The key line drops whole hints from the right, `q quit` last.
+ * - A board gone stale says when it was read, at the title's right.
  * - Below 24 columns or 8 rows it draws only `Too small`.
  */
-import { cellsOf, cut, graphemesOf, widthOf, wrap, type Size } from './cells'
+import { cellsOf, cut, fitted, graphemesOf, widthOf, wrap, type Size } from './cells'
+import { isTooSmall, layoutOf, LEFT, type Layout, type Placed, type Section } from './layout'
 import { pensOf, sgr, type Ink, type Level, type Paint, type Pen, type Pens, type Style } from './paint'
-import { rowKey, type PanelRow, type PanelView } from './view'
+import type { PanelRow, PanelView } from './view'
 
 export type Run = { text: string; pen: Pen }
 export type Line = Run[]
 
-/** The widest the layout grows. */
-const MOST = 120
-
-/** The least a frame is drawn at; below it, `Too small`. */
-const LEAST: Size = { width: 24, height: 8 }
-
-/** Below this many rows, the blank rows give way. */
-const ROOMY = 15
-
-/** The column of the marks and the headings, after the margin; and of the names and line two. */
-const MARK = 1
+/** The column of the names and of line two. */
 const NAME = 3
 
 /** The fewest cells a name or a status line is cut to. */
@@ -44,15 +33,12 @@ const LEAST_CUT = 6
 /** The fewest cells a heading's rule is drawn in. */
 const LEAST_RULE = 3
 
-type Section = PanelView['sections'][number]
-
 const STYLE = {
-  title: { tone: 'ink', bold: true },
+  strong: { tone: 'ink', bold: true },
   heading: { tone: 'grey' },
   rule: { tone: 'rule', isMeta: true },
   meta: { tone: 'grey', isMeta: true },
   status: { tone: 'soft' },
-  key: { tone: 'ink', bold: true },
   answer: { tone: 'ink' },
   arriving: { tone: 'orange', bold: true },
 } satisfies Record<string, Style>
@@ -80,6 +66,10 @@ const LOOKING = 'Looking for sessions…'
 
 const UNREADABLE = "Can't read the board"
 
+type Hint = [key: string, word: string]
+
+const QUIT: Hint = ['q', 'quit']
+
 // ---------------------------------------------------------------- the grid
 
 type Cell = { glyph: string; pen: Pen }
@@ -92,13 +82,12 @@ const BLANK: Cell = { glyph: ' ', pen: {} }
 const gridOf = (size: Size): Grid =>
   Array.from({ length: Math.max(size.height, 0) }, () => Array.from({ length: Math.max(size.width, 0) }, () => BLANK))
 
-/** A mark with no glyph of its own, joined to the cell before column `x`, the first of a wide glyph's two. */
+/** A mark with no glyph of its own, joined to the cell before column `x`. */
 const join = (row: Cell[] | undefined, x: number, mark: string) => {
-  const before = row?.[x - 1]?.glyph === '' ? x - 2 : x - 1
-  const cell = row?.[before]
+  const cell = row?.[x - 1]
 
   if (row !== undefined && cell !== undefined) {
-    row[before] = { glyph: cell.glyph + mark, pen: cell.pen }
+    row[x - 1] = { glyph: cell.glyph + mark, pen: cell.pen }
   }
 }
 
@@ -141,7 +130,17 @@ const lay = (grid: Grid, y: number, from: number, to: number, over: Pen) => {
   }
 }
 
-const isSameInk = (a: Ink | undefined, b: Ink | undefined) => JSON.stringify(a) === JSON.stringify(b)
+const isSameInk = (a: Ink | undefined, b: Ink | undefined): boolean => {
+  if (a === undefined || b === undefined) {
+    return a === b
+  }
+
+  if ('ansi' in a) {
+    return 'ansi' in b && a.ansi === b.ansi
+  }
+
+  return 'rgb' in b && a.rgb[0] === b.rgb[0] && a.rgb[1] === b.rgb[1] && a.rgb[2] === b.rgb[2]
+}
 
 const isSamePen = (a: Pen, b: Pen) =>
   isSameInk(a.fg, b.fg) &&
@@ -154,7 +153,7 @@ const isSamePen = (a: Pen, b: Pen) =>
 const isBare = (cell: Cell) => cell.glyph === ' ' && cell.pen.bg === undefined && cell.pen.reverse !== true
 
 /** A row's cells as runs of one pen, its bare cells at the end left off. */
-const lineOf = (cells: Cell[]): Line => {
+const runsOf = (cells: Cell[]): Line => {
   let end = cells.length
 
   while (end > 0 && isBare(cells[end - 1] ?? BLANK)) {
@@ -175,31 +174,15 @@ const lineOf = (cells: Cell[]): Line => {
 
 // ---------------------------------------------------------------- the frame
 
-/** What every part of a frame draws on: the grid, the layout's width, the terminal's height, and the pens. */
-type Frame = { grid: Grid; width: number; height: number; pens: Pens }
-
-/** One of the body's pieces, in its order: a blank row between sections, a heading, or a row. */
-type Block = { kind: 'gap' } | { kind: 'heading'; section: Section } | { kind: 'row'; row: PanelRow; section: Section }
-
-const HEIGHT: Record<Block['kind'], number> = { gap: 1, heading: 1, row: 2 }
-
-const heightOf = (blocks: readonly Block[]) => blocks.reduce((sum, block) => sum + HEIGHT[block.kind], 0)
-
-const blocksOf = (sections: readonly Section[], hasGaps: boolean): Block[] =>
-  sections.flatMap((section, at): Block[] => [
-    ...(at > 0 && hasGaps ? [{ kind: 'gap' } as const] : []),
-    { kind: 'heading', section },
-    ...(section.isOpen ? section.rows.map(row => ({ kind: 'row', row, section }) as const) : []),
-  ])
-
-const rowsIn = (blocks: readonly Block[]) => blocks.filter(block => block.kind === 'row').length
+/** What every part of a frame draws on: the grid, where the parts go, and the pens. */
+type Frame = { grid: Grid; layout: Layout; pens: Pens }
 
 /** The title; on a board gone stale, the time of the last read at the right. */
-const title = ({ grid, width, pens }: Frame, view: PanelView) => {
-  put(grid, MARK, 0, 'sitrep', pens.of(STYLE.title))
+const title = ({ grid, layout, pens }: Frame, view: PanelView) => {
+  put(grid, LEFT, 0, 'sitrep', pens.of(STYLE.strong))
 
   if (view.board === 'stale' && view.asOf !== undefined) {
-    putRight(grid, width - 1, 0, `as of ${view.asOf}`, pens.of(STYLE.meta))
+    putRight(grid, layout.width - 1, 0, `as of ${view.asOf}`, pens.of(STYLE.meta))
   }
 }
 
@@ -214,21 +197,22 @@ const counts = ({ grid, pens }: Frame, x: number, y: number, section: Section) =
 
     const tone = NEEDS[count.need]
     const after = put(grid, from, y, '●', pens.of({ tone }))
+    const bold = pens.isColoured || count.need === 'ask'
 
-    return put(grid, after, y, String(count.value), pens.of({ tone, bold: true }))
+    return put(grid, after, y, String(count.value), pens.of({ tone, bold }))
   }, x)
 
 const heading = (frame: Frame, y: number, section: Section) => {
-  const { grid, width, pens } = frame
-  const words = put(grid, MARK, y, HEADINGS[section.kind], pens.of(STYLE.heading))
+  const { grid, layout, pens } = frame
+  const words = put(grid, LEFT, y, HEADINGS[section.kind], pens.of(STYLE.heading))
   const end = section.counts.length === 0 ? words : counts(frame, words + 1, y, section)
-  const rule = width - 4 - end
+  const rule = layout.width - 4 - end
 
   if (rule >= LEAST_RULE) {
     put(grid, end + 1, y, '─'.repeat(rule), pens.of(STYLE.rule))
   }
 
-  put(grid, width - 2, y, section.isOpen ? '▿' : '▹', pens.of(STYLE.rule))
+  put(grid, layout.width - 2, y, section.isOpen ? '▿' : '▹', pens.of(STYLE.rule))
 }
 
 /** A Snoozed wake without its clock, `tomorrow` for `tomorrow 09:00`; none for a bare clock. */
@@ -246,28 +230,31 @@ const timeFitting = (row: PanelRow, room: number) => {
 /** A row's words in a style: an away row's dimmed as one, as the notch dims it. */
 type Inking = (style: Style) => Pen
 
-const firstLine = ({ grid, width }: Frame, y: number, row: PanelRow, ink: Inking) => {
+const firstLine = ({ grid, layout }: Frame, y: number, row: PanelRow, ink: Inking) => {
   const count = row.count !== undefined && row.count > 1 ? ` ${row.count}` : ''
-  const room = width - 1 - NAME - widthOf(count)
+  const room = layout.width - 1 - NAME - widthOf(count)
   const time = timeFitting(row, room)
   const nameRoom = room - (time === '' ? 0 : widthOf(time) + 2)
-  const style = row.isSnoozed ? { tone: 'grey', bold: row.mark === 'ask', isMeta: true } as const : MARKS[row.mark].name
+  const style = row.isSnoozed ? ({ tone: 'grey', bold: row.mark === 'ask', isMeta: true } as const) : MARKS[row.mark].name
   const after = put(grid, NAME, y, cut(row.name, nameRoom), ink(style))
 
   put(grid, after, y, count, ink(STYLE.meta))
-  putRight(grid, width - 1, y, time, ink(STYLE.meta))
+  putRight(grid, layout.width - 1, y, time, ink(STYLE.meta))
 }
 
 /** Line two: the project and ` · `, then the status line and a question's `+2`; the project alone, cut, once the status line has no room. */
-const secondLine = ({ grid, width }: Frame, y: number, row: PanelRow, ink: Inking) => {
-  const { project, status: { text: status } } = row
+const secondLine = ({ grid, layout }: Frame, y: number, row: PanelRow, ink: Inking) => {
+  const {
+    project,
+    status: { text: status },
+  } = row
   const more = row.status.more === undefined ? '' : ` +${row.status.more}`
   const lead = `${project} · `
-  const room = width - 1 - NAME - widthOf(lead) - widthOf(more)
+  const room = layout.width - 1 - NAME - widthOf(lead) - widthOf(more)
   const hasStatus = status !== '' && (widthOf(status) <= room || room >= LEAST_CUT)
 
   if (!hasStatus) {
-    put(grid, NAME, y, cut(project, width - 1 - NAME), ink(STYLE.meta))
+    put(grid, NAME, y, cut(project, layout.width - 1 - NAME), ink(STYLE.meta))
     return
   }
 
@@ -292,183 +279,152 @@ const markOf = ({ pens }: Frame, row: PanelRow) => {
 }
 
 const rowAt = (frame: Frame, y: number, row: PanelRow, isBand: boolean) => {
-  const { grid, width, pens } = frame
+  const { grid, layout, pens } = frame
   const isDimmed = row.isAway && !row.isSnoozed
   const ink: Inking = style => (isDimmed ? pens.dimmed(style) : pens.of(style))
   const mark = markOf(frame, row)
   const ground = isBand ? pens.band : row.isNew ? pens.wash : undefined
 
-  put(grid, MARK, y, mark.glyph, mark.pen)
+  put(grid, LEFT, y, mark.glyph, mark.pen)
   firstLine(frame, y, row, ink)
   secondLine(frame, y + 1, row, ink)
 
   if (ground !== undefined) {
-    lay(grid, y, MARK, width - 1, ground)
-    lay(grid, y + 1, MARK, width - 1, ground)
+    lay(grid, y, LEFT, layout.width - 1, ground)
+    lay(grid, y + 1, LEFT, layout.width - 1, ground)
   }
 }
 
-/** The blocks from `start` that fit in `room` rows with `used` taken, a row kept for `▼` while any are left after; gives the index after the last. */
-const endOf = (blocks: readonly Block[], start: number, used: number, room: number) => {
-  let end = start
-  let taken = used
+const placedAt = (frame: Frame, view: PanelView, placed: Placed) => {
+  const { grid, pens } = frame
 
-  while (end < blocks.length) {
-    const block = blocks[end] as Block
-    const below = end + 1 < blocks.length ? 1 : 0
-
-    if (taken + HEIGHT[block.kind] + below > room) {
-      break
-    }
-
-    taken += HEIGHT[block.kind]
-    end++
-  }
-
-  return end
-}
-
-const body = (frame: Frame, view: PanelView, sections: readonly Section[], from: number, to: number) => {
-  const { grid, height, pens } = frame
-  const room = to - from
-  const hasGaps = height >= ROOMY || heightOf(blocksOf(sections, true)) <= room
-  const blocks = blocksOf(sections, hasGaps)
-  const rows = blocks.filter(block => block.kind === 'row')
-  const top = Math.max(0, Math.min(view.top, rows.length - 1))
-  const first = rows[top]
-  const start = top === 0 || first === undefined ? 0 : blocks.indexOf(first)
-  const pinned = start === 0 ? undefined : first?.section
-  const end = endOf(blocks, start, start === 0 ? 0 : 2, room)
-  const below = rowsIn(blocks.slice(end))
-  let y = from
-
-  if (pinned !== undefined) {
-    heading(frame, y++, pinned)
-    put(grid, MARK, y++, `▲ ${top} more`, pens.of(STYLE.meta))
-  }
-
-  for (const block of blocks.slice(start, end)) {
-    if (block.kind === 'heading') {
-      heading(frame, y, block.section)
-    } else if (block.kind === 'row') {
-      rowAt(frame, y, block.row, rowKey(block.row) === view.band)
-    }
-
-    y += HEIGHT[block.kind]
-  }
-
-  if (below > 0) {
-    put(grid, MARK, y, `▼ ${below} more`, pens.of(STYLE.meta))
+  switch (placed.kind) {
+    case 'heading':
+      return heading(frame, placed.y, placed.section)
+    case 'row':
+      return rowAt(frame, placed.y, placed.row, placed.key === view.band)
+    case 'above':
+      return put(grid, LEFT, placed.y, `▲ ${placed.count} more`, pens.of(STYLE.meta))
+    case 'below':
+      return put(grid, LEFT, placed.y, `▼ ${placed.count} more`, pens.of(STYLE.meta))
   }
 }
 
-/** Words in the body's place: each line centred, the lines a little above the middle. */
-const centred = ({ grid, width, height }: Frame, lines: readonly Run[]) => {
-  const [left, right, top, bottom] = [MARK, width - 1, 1, height - 1]
-  const from = top + Math.max(0, Math.floor((bottom - top - lines.length) / 2) - 1)
+/** A heading's lines over its words: the heading, a blank row, then the words fitted to the rows left; the heading alone, cut, with no room for a word under it. */
+const headed = (head: string, words: readonly string[], rows: number, cells: number) =>
+  rows < 3 ? fitted([head], rows, cells) : [head, '', ...fitted(words, rows - 2, cells)]
 
-  lines.forEach(({ text, pen }, at) =>
-    put(grid, left + Math.floor((right - left - widthOf(text)) / 2), from + at, text, pen),
-  )
+/**
+ * Words in the body's place, each line centred, the lines a little above
+ * the middle: a heading in bold and a blank row, where there is one, then
+ * the words in grey. Past the rows there are, the last kept carries the
+ * rest, cut with `…`.
+ */
+const centred = ({ grid, layout, pens }: Frame, head: string | undefined, words: readonly string[]) => {
+  const { from, to } = layout.words
+  const right = layout.width - 1
+  const cells = right - LEFT - 2
+  const lines = head === undefined ? fitted(words, to - from, cells) : headed(head, words, to - from, cells)
+  const top = from + Math.max(0, Math.floor((to - from - lines.length) / 2) - 1)
+
+  lines.forEach((line, at) => {
+    const pen = head !== undefined && at === 0 ? pens.of(STYLE.strong) : pens.of(STYLE.meta)
+
+    put(grid, LEFT + Math.floor((right - LEFT - widthOf(line)) / 2), top + at, line, pen)
+  })
 }
-
-/** A heading in bold, a blank row, then its words in grey, wrapped at `cells`. */
-const told = ({ pens }: Frame, heading: string, words: string, cells: number): Run[] => [
-  { text: heading, pen: pens.of(STYLE.title) },
-  { text: '', pen: {} },
-  ...wrap(words, cells).map(text => ({ text, pen: pens.of(STYLE.meta) })),
-]
 
 /** An empty board: `All clear`, then what it means, wrapped at 24 columns. */
-const quiet = (frame: Frame) => centred(frame, told(frame, 'All clear', QUIET, Math.min(frame.width - 4, 24)))
+const quiet = (frame: Frame) => centred(frame, 'All clear', wrap(QUIET, Math.min(frame.layout.width - 4, 24)))
 
 /** Before any board: `Looking for sessions…`, or why the board can't be read. */
 const unread = (frame: Frame, reason: string | undefined) =>
-  centred(
-    frame,
-    reason === undefined
-      ? [{ text: LOOKING, pen: frame.pens.of(STYLE.meta) }]
-      : told(frame, UNREADABLE, reason, frame.width - 4),
-  )
+  reason === undefined
+    ? centred(frame, undefined, [LOOKING])
+    : centred(frame, UNREADABLE, wrap(reason, frame.layout.width - 4))
 
 /** The answer to a pick: `!`, then its words, hung under the first. */
-const answer = ({ grid, pens }: Frame, from: number, lines: readonly string[]) =>
-  lines.forEach((line, at) => {
+const answer = ({ grid, layout, pens }: Frame) =>
+  layout.answer.lines.forEach((line, at) => {
     if (at === 0) {
-      put(grid, MARK, from, '!', pens.of(STYLE.key))
+      put(grid, LEFT, layout.answer.from, '!', pens.of(STYLE.strong))
     }
 
-    put(grid, MARK + 2, from + at, line, pens.of(STYLE.answer))
+    put(grid, LEFT + 2, layout.answer.from + at, line, pens.of(STYLE.answer))
   })
 
-/** The keys that work now, most needed first. */
-const hintsOf = (view: PanelView, sections: readonly Section[]): [string, string][] => {
+/** The keys that work now, but `q quit`, most needed first. */
+const hintsOf = (view: PanelView, sections: readonly Section[]): Hint[] => {
   if (sections.length === 0) {
-    return [['q', 'quit']]
+    return []
   }
 
-  const moves: [string, string][] = view.band === undefined ? [['↑↓', 'pick']] : [['↑↓', 'move'], ['⏎', 'open']]
-  const snoozed: [string, string][] = sections.some(section => section.kind === 'snoozed') ? [['s', 'snoozed']] : []
+  const moves: Hint[] = view.band === undefined ? [['↑↓', 'pick']] : [['↑↓', 'move'], ['⏎', 'open']]
+  const snoozed: Hint[] = sections.some(section => section.kind === 'snoozed') ? [['s', 'snoozed']] : []
 
-  return [...moves, ...snoozed, ['q', 'quit']]
+  return [...moves, ...snoozed]
 }
 
-/** The key line, whole hints dropped from the right where they don't fit. */
-const keyLine = ({ grid, width, height, pens }: Frame, hints: readonly [string, string][]) => {
-  let x = MARK
+const hintsWidth = (hints: readonly Hint[]) =>
+  hints.reduce((sum, [key, word], at) => sum + (at === 0 ? 0 : 2) + widthOf(key) + 1 + widthOf(word), 0)
 
-  for (const [index, [key, word]] of hints.entries()) {
-    const from = index === 0 ? x : x + 2
+/** The key line: the hints that fit, dropped whole from the right, then `q quit`, which always applies, dropped last. */
+const keyLine = ({ grid, layout, pens }: Frame, hints: readonly Hint[]) => {
+  const room = layout.width - 1 - LEFT
+  const kept = [...hints]
 
-    if (from + widthOf(key) + 1 + widthOf(word) > width - 1) {
-      return
-    }
-
-    x = put(grid, put(grid, from, height - 1, key, pens.of(STYLE.key)), height - 1, ` ${word}`, pens.of(STYLE.meta))
+  while (kept.length > 0 && hintsWidth([...kept, QUIT]) > room) {
+    kept.pop()
   }
+
+  const shown = hintsWidth([...kept, QUIT]) <= room ? [...kept, QUIT] : []
+  const y = layout.height - 1
+
+  shown.reduce((x, [key, word], at) => {
+    const after = put(grid, at === 0 ? x : x + 2, y, key, pens.of(STYLE.strong))
+
+    return put(grid, after, y, ` ${word}`, pens.of(STYLE.meta))
+  }, LEFT)
 }
 
 const tooSmall = (size: Size): Line[] => {
   const grid = gridOf(size)
 
-  put(grid, MARK, 0, cut('Too small', size.width - 2), {})
+  put(grid, LEFT, 0, cut('Too small', size.width - 2), {})
 
-  return grid.map(lineOf)
+  return grid.map(runsOf)
 }
 
 /** The view drawn at the size, in the pens the terminal's answers give: a line a terminal row. */
 export const draw = (view: PanelView, size: Size, paint: Paint): Line[] => {
-  if (size.width < LEAST.width || size.height < LEAST.height) {
+  if (isTooSmall(size)) {
     return tooSmall(size)
   }
 
-  const frame: Frame = {
-    grid: gridOf(size),
-    width: Math.min(size.width, MOST),
-    height: size.height,
-    pens: pensOf(paint),
-  }
-  const sections = view.sections.filter(section => section.rows.length > 0)
-  const said = view.answer === undefined ? [] : wrap(view.answer, frame.width - 4)
-  const foot = frame.height - 1 - (said.length === 0 ? 0 : said.length + 1)
+  const layout = layoutOf(view, size)
+  const frame: Frame = { grid: gridOf(size), layout, pens: pensOf(paint) }
 
   title(frame, view)
 
   if (view.board === 'looking') {
     unread(frame, view.reason)
-  } else if (sections.length === 0) {
+  } else if (layout.sections.length === 0) {
     quiet(frame)
   } else {
-    body(frame, view, sections, frame.height < ROOMY ? 1 : 2, foot)
+    layout.placed.forEach(placed => placedAt(frame, view, placed))
   }
 
-  answer(frame, foot + 1, said)
-  keyLine(frame, hintsOf(view, sections))
+  answer(frame)
+  keyLine(frame, hintsOf(view, layout.sections))
 
-  return frame.grid.map(lineOf)
+  return frame.grid.map(runsOf)
 }
 
-/** The lines as a terminal draws them, at the level: each run's pen set where it changes, reset at a line's end, the lines a newline apart. */
+/**
+ * The lines as a terminal draws them: each run's pen set where it changes,
+ * reset at a line's end, the lines a newline apart. The level must be the
+ * one the lines were drawn at, the paint's that `draw` was given.
+ */
 export const ansi = (lines: readonly Line[], level: Level): string => {
   const plain = sgr({}, level)
 
