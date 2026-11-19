@@ -17,10 +17,13 @@
  *   controlling terminal does.
  * - A program handed the terminal runs with the run's standard input,
  *   output and error, raw mode let go already by the panel. While it runs,
- *   SIGINT, SIGQUIT and SIGTSTP are heard and ignored, so the keys that
- *   send them to the whole job reach the program alone: a caught signal
- *   goes back to its default in a program started, where an ignored one
- *   would stay ignored.
+ *   SIGINT and SIGQUIT are heard and ignored, so the keys that send them to
+ *   the whole job reach the program alone: a caught signal goes back to its
+ *   default in a program started, where an ignored one would stay ignored.
+ *   SIGTSTP keeps its default, so Ctrl-Z stops the run with the program,
+ *   and the shell's `fg` goes on with both: the run can't see a program
+ *   stop, so a run that heard it would hold the terminal from the shell,
+ *   the program stopped (proven live, 19 November 2026).
  * - A program run apart from the terminal reads nothing, its output and
  *   error piped back, and is ended past its time.
  */
@@ -42,8 +45,8 @@ const tried = (act: () => void) => {
 /** Hears a write's error from a terminal gone, which unheard would end the run before the panel gives the terminal back. */
 const lost = () => {}
 
-/** The signals a terminal's keys send to the whole job, which a program handed the terminal takes alone. */
-const KEYED = ['SIGINT', 'SIGQUIT', 'SIGTSTP'] as const
+/** The signals a terminal's keys send to the whole job that a program handed the terminal takes alone: Ctrl-Z's is not one, as the run stops with it. */
+const KEYED = ['SIGINT', 'SIGQUIT'] as const
 
 /** What hears the keyed signals while a program has the terminal, keeping their defaults from the run. */
 const ignored = () => {}

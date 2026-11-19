@@ -52,8 +52,9 @@ export type Terminal = {
   /**
    * Gives the terminal to a program, with the CLI's standard input, output
    * and error, until it ends: its exit code, 128 and the signal's number for
-   * one a signal ended. SIGINT, SIGQUIT and SIGTSTP are the program's while
-   * it runs, and never end or stop the CLI. Rejects where it could not start.
+   * one a signal ended. SIGINT and SIGQUIT are the program's while it runs,
+   * and never end the CLI; SIGTSTP stops the CLI with it, as a job stops
+   * whole. Rejects where it could not start.
    */
   hand: (argv: readonly string[]) => Promise<number>
   /** Runs a program apart from the terminal, up to `ms`: its exit code and what it wrote. Rejects where it could not start, or did not end in time, which ends it. */

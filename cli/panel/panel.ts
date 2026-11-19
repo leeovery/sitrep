@@ -33,8 +33,8 @@
  *   edge (edge.ts). Refused, it says why in the pick's answer. Else the
  *   terminal is handed over: given back as for a stop, then handed to the
  *   login shell. SIGINT and SIGQUIT are the program's meanwhile, as is a
- *   SIGCONT; SIGTERM and SIGHUP still end the panel, leaving the terminal to
- *   the program. It keeps looking at the board, drawing nothing, and takes
+ *   SIGCONT, Ctrl-Z stopping the panel with it; SIGTERM and SIGHUP still end
+ *   the panel, leaving the terminal to the program. It keeps looking at the board, drawing nothing, and takes
  *   the terminal back as the program ends, drawn whole from the latest
  *   board, the band where it was, with what the pick leaves to say.
  */
