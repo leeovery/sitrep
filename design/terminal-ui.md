@@ -83,7 +83,7 @@ Colour says what's needed; fill says where (DESIGN.md, "The notch and its panel"
 **A section's heading** is one row:
 - its words in capitals, `NEEDS YOU`, `WORKING`, `SNOOZED`, at column 1, grey `#7A82AB`, regular;
 - a space, then its counts;
-- a space, then a rule of `─` in faint `#565F89`, out to column W−5;
+- a space, then a rule of `─` in faint `#565F89`, out to column W−4;
 - a space, then the chevron at column W−2: `▿` open, `▹` folded, faint.
 
 **The counts,** as the notch's eyebrow counts them (`Eyebrow`, `SitRepPanel/Sections.swift`):
@@ -98,10 +98,10 @@ Colour says what's needed; fill says where (DESIGN.md, "The notch and its panel"
 **The words.**
 - **The name:** an ask's in the terminal's ink, bold; a turn's in that ink, regular; a working or own-work row's in soft. In Snoozed, grey, an ask's bold.
 - **The status line** is the row's first line (`RowLine`): its lead, then its subject after a space (`Running npm test`). A permission prompt joins its subject with `: ` (`Allow Bash: psql -f import.sql`). A question adds its `+2` after a space, in grey. A wake reads `Wakes in 12m`.
-- **The time:** in Needs you, how long its newest line has waited; in Working, how long the turn has run; on its own work, how long since its turn ended. Each reads as `ago` gives it: `now`, `12m`, `2h`, `3d`. In Snoozed, when it wakes, as core's `wakeWords` says it (`14:00`, `tomorrow 09:00`, `Sat 09:00`, `next week`), or `until it moves`.
+- **The time:** in Needs you, how long its newest line has waited; in Working, how long the turn has run; on its own work, how long since its turn ended. Each reads as the notch's `Age` words it, rounded down: `now`, `12m`, `1h` at 90 minutes, `3d` (19 November 2026: core's `ago`, which the pane uses, rounds to the nearest instead). In Snoozed, when it wakes, as core's `wakeWords` says it (`14:00`, `tomorrow 09:00`, `Sat 09:00`, `next week`), or `until it moves`.
 
 **Dimming.**
-- **An away row** dims its words as one, as the notch does: each ink 0.61 of the way from the background, its mark kept full and hollow (`DIMMED` in round 1).
+- **An away row** dims its words as one, as the notch does: each ink 0.61 of the way from the background, its mark kept full and hollow (`DIMMED` in round 1). A Snoozed row is never drawn away: its mark stays filled and its words undimmed, as the notch draws it (`NotchGlass.swift`, 19 November 2026).
 - **A Snoozed row** dims its mark, and only its mark. Its name is grey, as "The words" says, and its project and status line are as any row's.
 - **The band and the wash** sit over both lines of a row, from column 1 to W−2.
 - **A new ask's wash** is orange mixed 22% into the background, `#534345` on Nordfox, for two seconds from the first frame that shows the line.
@@ -228,7 +228,7 @@ So with the default command, picking a session a live window holds always refuse
 
 - **A look that fails,** as an unreadable state folder: the watch passes over a file that doesn't read and ends on anything else. The panel never ends on a look (Lee, 19 November 2026):
   - **after a board,** it keeps the last board, with `as of 12:04` in grey at the right of the title row, as the app's menu does, until a look reads again;
-  - **before any board,** the body reads `Looking for sessions…` in grey, once the first look has taken 300 ms, then `Can't read the board` and the reason, as the app's words go.
+  - **before any board,** the body reads `Looking for sessions…` in grey, once the first look has taken 300 ms, then `Can't read the board` in bold, a blank row, and the reason in grey wrapped at W−4, as the app's words go. Both are centred as the quiet board is. The view has no clock: the loop holds the first draw for the 300 ms.
 - **A pick that can't open** says why in its answer (see "Picking a row") and changes nothing.
 - **The panel itself failing:** it restores the terminal first, then prints `sitrep: <message>` to standard error and exits 1, as `main` does for any command.
 
@@ -295,7 +295,7 @@ Dimming the terminal's own ink needs its foreground too. With both answers, at 2
 | The time | its own width | a Snoozed wake drops its clock (`tomorrow`) where the name would get under 6, then goes |
 | The status line | its own width | 6 cells and `…`; below that it goes, its ` · ` with it |
 | The project, on line two | its own width | cut with `…` once the status line has gone |
-| The heading's rule | out to W−5 | 3 cells; below that it goes, the counts and the chevron kept |
+| The heading's rule | out to W−4 | 3 cells; below that it goes, the counts and the chevron kept |
 | The key line | every hint | whole hints drop from the right |
 | A pick's answer | wraps at W−4 | always wraps, never cut |
 
@@ -395,14 +395,22 @@ export type PanelRow = {
 }
 export type PanelView = {
   sections: { kind: PanelSection['kind']; counts: PanelSection['counts']; rows: PanelRow[]; isOpen: boolean }[]
-  band?: string
-  top: number
+  band?: string // a row key, rowKey's: the session's id, or snoozed:<id> for its Snoozed row, as Swift's markID
+  top: number // the first row in view, counted over the open sections' rows, one a row
   answer?: string
   board: 'looking' | 'read' | 'stale'
+  asOf?: string // `12:04`, while the board is stale
+  reason?: string // why the board can't be read, before any board
 }
-export const viewOf: (feed: Feed, state: PanelState, now: number, notHere: ReadonlySet<string>) => PanelView
+export type StatusWords = { text: string; more?: number } // the status line joined; a question's +2
+export const rowKey: (row: PanelRow) => string
+export const viewOf: (feed: Feed | undefined, state: ViewState, now: number, notHere: ReadonlySet<string>) => PanelView
 
-// cli/panel/state.ts: the keys and the board, with no terminal
+// cli/panel/state.ts: the keys and the board, with no terminal.
+// PanelState carries ViewState (the band, top, Snoozed's fold, the answer, the board's state,
+// when it was read and why it can't be, and each new line's first-shown time), so it passes
+// straight to viewOf. It stamps a line's time at every news, a woken ask included, and drops
+// those older than two seconds.
 export type PanelEvent =
   | { board: Feed; news: string[] }
   | { key: Key }
