@@ -22,7 +22,8 @@ import type { Io } from './io'
 import { looking, untilEnded, type Look } from './looks'
 import { feedText, watchLine, type BoardFields } from './output'
 
-export { OFF_BOARD_MS, POLL_MS } from './looks'
+export { OFF_BOARD_MS } from '../core'
+export { POLL_MS } from './looks'
 
 /** What the last line showed: the board as text, the version it ran, and the rows needing Lee shown so far. */
 type Printed = { text: string; version: string | undefined; shown: Shown }
@@ -73,14 +74,13 @@ export const watch = async (io: Io) => {
   let last: Printed | undefined
 
   try {
-    await looking(
-      io,
-      run,
-      look => {
+    await looking(io, run, {
+      seen: look => {
         last = print(io, last, look, follows.unprinted(look.followed, look.boardById))
       },
-      follows.followed,
-    )
+      followed: follows.followed,
+      endsOnNewVersion: true,
+    })
   } finally {
     follows.stop()
     run.stop()

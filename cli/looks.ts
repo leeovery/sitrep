@@ -14,9 +14,8 @@
  *   slept, told by its two clocks, ages no heartbeat (core's pauses.ts):
  *   folded again at the instant it was to go stale, a window the Mac slept
  *   through is live still.
- * - It ends once the program that started it has gone, its standard output
- *   is closed, or SIGTERM comes (ending.ts), and as the plugin's manifest
- *   comes to say another version.
+ * - It ends as the run it is given ends, and, where its caller says so,
+ *   as the plugin's manifest comes to say another version.
  */
 import {
   clockAt,
@@ -44,9 +43,6 @@ import { heldBoard, type HeldBoard } from './output'
 /** How often it looks at the folder: as the mod's readers do. */
 export const POLL_MS = 1_000
 
-/** How often it reads again the sessions off the board, as every reader does. */
-export { OFF_BOARD_MS }
-
 /** A session as last read: its files, what they fold to, its board, and whether it is off the board, with no window to hear. */
 type LastRead = SessionRead & { board: HeldBoard | undefined; isOff: boolean }
 
@@ -59,8 +55,12 @@ type Reading = {
   followed: ReadonlySet<string>
 }
 
-/** What a look found: every project and its sessions, and whether each session stood as at the last look, none folded anew. */
-type Looked = { read: ProjectRead[]; isSame: boolean }
+/** What a look found: every project and its sessions, whether each session stood as at the last look, none folded anew, and each session's board, by its id. */
+type Looked = {
+  read: ProjectRead[]
+  isSame: boolean
+  boardById: (id: string) => HeldBoard | undefined
+}
 
 /**
  * A look, as handed to what watches: what it found, when, the Mac's sleeps
@@ -74,7 +74,19 @@ export type Look = Looked & {
   version: string | undefined
   followed: ReadonlySet<string>
   feed: () => Feed
-  boardById: (id: string) => HeldBoard | undefined
+}
+
+/**
+ * What watches the looks: `seen` handed each one, the sessions `followed`
+ * gives read as followed. The looks end as the plugin's manifest comes to
+ * say another version only where `endsOnNewVersion`. A look that fails
+ * ends them unless `isPastFailure`, told why, says to go on.
+ */
+export type Watcher = {
+  seen: (look: Look) => void
+  followed?: () => ReadonlySet<string>
+  endsOnNewVersion?: boolean
+  isPastFailure?: (error: unknown) => boolean
 }
 
 const NONE: ReadonlySet<string> = new Set()
@@ -113,7 +125,6 @@ const lazily = <T>(make: () => T) => {
  */
 const boardReader = (io: Io, root: string) => {
   let lastRead = new Map<string, LastRead>()
-  let byId = new Map<string, () => HeldBoard | undefined>()
   let projects = ''
 
   const look = async ({ now, clock, isWhole, isDue, followed }: Reading): Promise<Looked> => {
@@ -143,7 +154,8 @@ const boardReader = (io: Io, root: string) => {
     isSame &&= looked.size === lastRead.size && named === projects
     lastRead = looked
     projects = named
-    byId = new Map()
+
+    const byId = new Map<string, () => HeldBoard | undefined>()
 
     for (const { project, sessions } of read) {
       for (const session of sessions.filter(each => !byId.has(each.id))) {
@@ -156,10 +168,10 @@ const boardReader = (io: Io, root: string) => {
       }
     }
 
-    return { read, isSame }
+    return { read, isSame, boardById: id => byId.get(id)?.() }
   }
 
-  return { look, boardById: (id: string) => byId.get(id)?.() }
+  return { look }
 }
 
 /**
@@ -182,14 +194,17 @@ export const untilEnded = (io: Io) => {
     cut?.()
   }
 
-  void ended.then(() => {
+  const end = () => {
     isEnded = true
     wake()
-  })
+  }
+
+  void ended.then(end)
 
   return {
     isEnded: () => isEnded,
     wake,
+    end,
     wait: (ms: number) =>
       new Promise<void>(resolve => {
         if (isWoken) {
@@ -241,54 +256,74 @@ const releaseOf = (io: Io, held: Io) => {
   }
 }
 
+/** How long to wait for the next look: a second, or less where the board changes by time alone sooner. */
+const untilNext = (now: number, expiry: number | undefined) =>
+  Math.min(POLL_MS, (expiry ?? Infinity) - now)
+
 /**
- * Looks at the board until `run` is to end, or the plugin's manifest says a
- * version other than the one it started on, handing `seen` each look, the
- * sessions `followed` gives read as followed. A file that does not read is
- * passed over for the look; anything else that fails ends it.
+ * Looks at the board until `run` is to end, handing each look to
+ * `watcher`. A file that does not read is passed over for the look.
  */
 export const looking = async (
   io: Io,
   run: Run,
-  seen: (look: Look) => void,
-  followed: () => ReadonlySet<string> = () => NONE,
+  {
+    seen,
+    followed = () => NONE,
+    endsOnNewVersion = false,
+    isPastFailure = () => false,
+  }: Watcher,
 ) => {
   const held = heldReads(io)
   const release = releaseOf(io, held)
   const reader = boardReader(held, rootOf(io.env))
   const isWholeLook = every(OFF_BOARD_MS, -Infinity)
+  const isOver = async () => run.isEnded() || ((await release.isMoved()) && endsOnNewVersion)
+  const passed = (error: unknown) => {
+    if (isPastFailure(error)) {
+      return undefined
+    }
+
+    throw error
+  }
   let clock: Clock | undefined
   let expiry: number | undefined
 
-  while (!run.isEnded() && !(await release.isMoved())) {
+  while (!(await isOver())) {
     const now = io.now()
     const version = release.version()
 
     clock = clockAt(clock, now, io.uptime())
 
     const followedNow = followed()
-    const isWhole = isWholeLook(now)
-    const isDue = expiry !== undefined && now >= expiry
-    const { read, isSame } = await reader.look({
-      now,
-      clock,
-      isWhole,
-      isDue,
-      followed: followedNow,
-    })
+    const looked = await reader
+      .look({
+        now,
+        clock,
+        isWhole: isWholeLook(now),
+        isDue: expiry !== undefined && now >= expiry,
+        followed: followedNow,
+      })
+      .catch(passed)
+
+    if (looked === undefined) {
+      await run.wait(POLL_MS)
+
+      continue
+    }
+
+    const { read } = looked
 
     expiry = nextExpiry(read, now)
     seen({
-      read,
-      isSame,
+      ...looked,
       now,
       clock,
       version,
       followed: followedNow,
       feed: lazily(() => feedOf(read, now, version)),
-      boardById: reader.boardById,
     })
 
-    await run.wait(Math.min(POLL_MS, (expiry ?? Infinity) - now))
+    await run.wait(untilNext(now, expiry))
   }
 }
