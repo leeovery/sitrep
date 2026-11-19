@@ -297,7 +297,7 @@ const rowAt = (frame: Frame, y: number, row: PanelRow, isBand: boolean) => {
   }
 }
 
-const placedAt = (frame: Frame, view: PanelView, placed: Placed) => {
+const drawPlaced = (frame: Frame, view: PanelView, placed: Placed) => {
   const { grid, pens } = frame
 
   switch (placed.kind) {
@@ -409,7 +409,7 @@ export const draw = (view: PanelView, size: Size, paint: Paint): Line[] => {
   } else if (layout.sections.length === 0) {
     quiet(frame)
   } else {
-    layout.placed.forEach(placed => placedAt(frame, view, placed))
+    layout.placed.forEach(placed => drawPlaced(frame, view, placed))
   }
 
   answer(frame)

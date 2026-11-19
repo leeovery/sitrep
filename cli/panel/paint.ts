@@ -124,7 +124,6 @@ export type ColourEnv = {
 /** The levels, from none up. */
 const LEVELS: readonly Level[] = ['none', '16', '256', 'truecolor']
 
-/** The least level `FORCE_COLOR` asks for: none for `0` or `false`, else 16 unless it names more. */
 /** The level `COLORTERM` and `TERM` say. */
 const detected = (env: ColourEnv): Level => {
   const term = env.TERM ?? ''

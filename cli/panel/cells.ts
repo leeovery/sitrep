@@ -13,9 +13,12 @@ const ELLIPSIS = '…'
 
 const graphemes = new Intl.Segmenter('en', { granularity: 'grapheme' })
 
+/** Printable ASCII: a grapheme a character, a cell each, with no segmenting. */
+const ASCII = /^[\x20-\x7e]*$/
+
 /** The text's graphemes, each a cell's glyph, or two cells' for a wide one. */
 export const graphemesOf = (text: string): string[] =>
-  Array.from(graphemes.segment(text), each => each.segment)
+  ASCII.test(text) ? [...text] : Array.from(graphemes.segment(text), each => each.segment)
 
 /** East Asian Wide and Fullwidth: the blocks that hold them. */
 const WIDE: readonly (readonly [number, number])[] = [
@@ -58,7 +61,7 @@ export const cellsOf = (grapheme: string): number => {
 }
 
 export const widthOf = (text: string): number =>
-  graphemesOf(text).reduce((width, grapheme) => width + cellsOf(grapheme), 0)
+  ASCII.test(text) ? text.length : graphemesOf(text).reduce((width, grapheme) => width + cellsOf(grapheme), 0)
 
 /** The text in at most `cells`, its end cut to `…` where it doesn't fit whole, with no space left before the `…`. */
 export const cut = (text: string, cells: number): string => {

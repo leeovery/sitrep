@@ -239,8 +239,8 @@ test('scrolled from `top`, the rows above said by `▲ N more` under their secti
     '   Northwind · Approve the rota',
     ' ● Data import                      6m',
     '   Northwind · Approve the rota',
-    ' WORKING 1 ───────────────────────── ▿',
     ' ▼ 1 more',
+    '',
     ' ↑↓ pick  s snoozed  q quit',
   ])
   expect(frame(scrolled(2), 24, 8)).toEqual([
@@ -967,16 +967,17 @@ test('every row can be brought into view, whole, at every room the body has from
     for (let words = 0; words <= 40; words += 4) {
       const answered = { ...view, ...(words === 0 ? {} : { answer: 'word '.repeat(words) }) }
       const size = { width: 30, height }
-      const room = layoutOf(answered, size).body.to - layoutOf(answered, size).body.from
+      const { body } = layoutOf(answered, size)
+      const room = body.to - body.from
 
       rooms.add(room)
 
       if (room >= 2) {
         for (const key of keys) {
           const top = topFor(answered, size, key)
-          const shown = layoutOf({ ...answered, top: top ?? 0 }, size).rows.map(each => each.key)
 
-          expect(shown).toContain(key)
+          expect(top).not.toBeUndefined()
+          expect(layoutOf({ ...answered, top: top ?? 0 }, size).rows.map(each => each.key)).toContain(key)
         }
       }
     }
@@ -1085,4 +1086,64 @@ test('a wide glyph or an emoji at the right edge is cut whole, nothing drawn pas
     ' ↑↓ pick  q quit',
   ])
   expect(lines.every(line => widthOf(line) <= 25)).toBe(true)
+})
+
+test('a body never ends on an open heading: a section that has no room for a row under its heading leaves it for `▼`', () => {
+  const asks = ASKS.slice(0, 2)
+  const view: PanelView = {
+    sections: [
+      { kind: 'needsYou', rows: asks, counts: [{ value: 2, need: 'ask' }], isOpen: true },
+      { kind: 'working', rows: [MOBILE, LEDGER], counts: [{ value: 2 }], isOpen: true },
+    ],
+    top: 0,
+    board: 'read',
+  }
+
+  expect(frame(view, 30, 9)).toEqual([
+    ' sitrep',
+    ' NEEDS YOU ●2 ───────────── ▿',
+    ' ● Help desk redesign      1m',
+    '   Northwind · Approve the r…',
+    ' ● Shift schedules         2m',
+    '   Northwind · Approve the r…',
+    ' ▼ 2 more',
+    '',
+    ' ↑↓ pick  q quit',
+  ])
+})
+
+test('with no room for a row, `top` goes back to 0 and `▼` counts every row', () => {
+  const view: PanelView = {
+    sections: [
+      { kind: 'needsYou', rows: ASKS.slice(0, 4), counts: [{ value: 4, need: 'ask' }], isOpen: true },
+      { kind: 'working', rows: [MOBILE, LEDGER, { ...MOBILE, session: 'sr-wg0002' }], counts: [{ value: 3 }], isOpen: true },
+    ],
+    top: 3,
+    answer: 'word '.repeat(40),
+    board: 'read',
+  }
+
+  expect(layoutOf(view, { width: 30, height: 12 }).top).toBe(0)
+  expect(frame(view, 30, 12)).toEqual([
+    ' sitrep',
+    ' ▼ 7 more',
+    '',
+    ' ! word word word word word',
+    '   word word word word word',
+    '   word word word word word',
+    '   word word word word word',
+    '   word word word word word',
+    '   word word word word word',
+    '   word word word word word',
+    '   word word word word word',
+    ' q quit',
+  ])
+})
+
+test('an answer of all the rows there are leaves the body empty, never running backwards, at 15 rows and more', () => {
+  const layout = layoutOf(board({ answer: 'word '.repeat(80) }), { width: 24, height: 16 })
+
+  expect(layout.answer.lines.length).toBe(13)
+  expect(layout.body).toEqual({ from: 1, to: 1 })
+  expect(layout.placed.length).toBe(0)
 })

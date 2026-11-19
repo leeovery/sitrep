@@ -15,7 +15,10 @@
  *   allowing, their section's heading, pinned, and `▲ N more` for the rows
  *   scrolled past; or `▲` alone; or nothing. `▼ N more` says the rows below,
  *   its row kept free while any block is left after, but never at the cost
- *   of the first row shown, and never under a blank row.
+ *   of the first row shown.
+ * - The body never starts or ends on a blank row, or on an open section's
+ *   heading, while blocks follow: a heading stands only with a row under it.
+ *   A folded Snoozed heading is drawn last.
  * - `top` goes no further than the least from which the body shows the last
  *   block.
  */
@@ -93,29 +96,41 @@ export const isTooSmall = (size: Size) => size.width < LEAST.width || size.heigh
 /** The body's view from a `top`: where it starts, what stands above its first row, and the index after the last block that fits. */
 type Window = { start: number; lead: Lead; end: number }
 
+/** Whether blocks follow the one at `at`, so `▼` may need a row under it. */
+const isFollowed = (blocks: readonly Block[], at: number) => at + 1 < blocks.length
+
+/** The rows the block at `at` takes, and one for `▼` while blocks follow it. */
+const roomFor = (blocks: readonly Block[], at: number) => HEIGHT[(blocks[at] as Block).kind] + (isFollowed(blocks, at) ? 1 : 0)
+
+/** A block a body may not end on while blocks follow: a blank row, or an open section's heading, which stands only with a row under it. */
+const isBare = (block: Block | undefined) => block?.kind === 'gap' || (block?.kind === 'heading' && block.section.isOpen)
+
 /**
  * The blocks from `start` that fit in `room` rows with `used` taken, a row
  * kept for `▼` while any are left after, though never at the cost of the
- * first; ending on no blank row while any are left after it. Gives the index
- * after the last.
+ * first; never ending on a heading or a blank row while any are left after.
+ * Gives the index after the last.
  */
 const endOf = (blocks: readonly Block[], start: number, used: number, room: number) => {
   let end = start
   let taken = used
 
   while (end < blocks.length) {
-    const block = blocks[end] as Block
-    const below = end > start && end + 1 < blocks.length ? 1 : 0
+    const needs = end === start ? HEIGHT[(blocks[end] as Block).kind] : roomFor(blocks, end)
 
-    if (taken + HEIGHT[block.kind] + below > room) {
+    if (taken + needs > room) {
       break
     }
 
-    taken += HEIGHT[block.kind]
+    taken += HEIGHT[(blocks[end] as Block).kind]
     end++
   }
 
-  return end > start && end < blocks.length && blocks[end - 1]?.kind === 'gap' ? end - 1 : end
+  while (end > start + 1 && end < blocks.length && isBare(blocks[end - 1])) {
+    end--
+  }
+
+  return end
 }
 
 /** What fits above the first row of a body scrolled to `start` past `top` rows, with a row kept for `▼` while blocks follow it. */
@@ -124,7 +139,7 @@ const leadOf = (blocks: readonly Block[], start: number, top: number, room: numb
     return 'none'
   }
 
-  const needs = HEIGHT.row + (start + 1 < blocks.length ? 1 : 0)
+  const needs = roomFor(blocks, start)
 
   return room >= LEAD_ROWS.pinned + needs ? 'pinned' : room >= LEAD_ROWS.above + needs ? 'above' : 'none'
 }
@@ -133,7 +148,7 @@ const leadOf = (blocks: readonly Block[], start: number, top: number, room: numb
 const startOf = (blocks: readonly Block[], top: number, room: number) => {
   const first = blocks.filter(block => block.kind === 'row')[top]
   const at = first === undefined ? 0 : blocks.indexOf(first)
-  const needs = heightOf(blocks.slice(0, at)) + HEIGHT.row + (at + 1 < blocks.length ? 1 : 0)
+  const needs = heightOf(blocks.slice(0, at)) + (first === undefined ? 0 : roomFor(blocks, at))
 
   return top === 0 && room >= needs ? 0 : at
 }
@@ -147,6 +162,10 @@ const windowOf = (blocks: readonly Block[], top: number, room: number): Window =
 
 /** The least `top` from which the body shows the last block: any greater leaves blank rows. */
 const lastTopOf = (blocks: readonly Block[], room: number) => {
+  if (room < HEIGHT.row) {
+    return 0
+  }
+
   const rows = rowsIn(blocks)
   const fills = Array.from({ length: rows }, (_, top) => top).find(
     top => windowOf(blocks, top, room).end === blocks.length,
@@ -183,14 +202,14 @@ const placedIn = (blocks: readonly Block[], window: Window, top: number, body: R
   return below > 0 && y < body.to ? [...placed, { kind: 'below', y, count: below }] : placed
 }
 
-/** The body's rows and blocks: the blank row under the title kept while every block fits with it, then the gaps between sections. */
+/** The body's rows and blocks: the blank row under the title kept while every block fits with it, then the gaps between sections; never running backwards past the answer. */
 const bodyOf = (sections: readonly Section[], height: number, foot: number) => {
   const gapped = blocksOf(sections, true)
   const isWhole = (from: number) => heightOf(gapped) <= foot - from
   const from = height >= ROOMY || isWhole(2) ? 2 : 1
   const hasGaps = height >= ROOMY || isWhole(from)
 
-  return { body: { from, to: foot }, blocks: hasGaps ? gapped : blocksOf(sections, false) }
+  return { body: { from: Math.min(from, foot), to: foot }, blocks: hasGaps ? gapped : blocksOf(sections, false) }
 }
 
 /** The parts every `top` shares: the sizes, the answer, the body's rows and its blocks. */
