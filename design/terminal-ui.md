@@ -135,7 +135,7 @@ Doesn't apply: the panel shows no step running. Its marks are still: `✻` doesn
 | Key | What it does |
 |---|---|
 | `↑` `↓`, `k` `j` | The first press puts the band on the top row in view; then each moves it a row, across sections, skipping headings |
-| `PgUp` `PgDn` | Moves the band a body's height |
+| `PgUp` `PgDn` | Moves the band by the rows in view, so none is skipped unseen |
 | `Home` `End` | Moves the band to the first or the last row |
 | `⏎` | Opens the band's session (see "Picking a row") |
 | `s` | Opens or folds Snoozed |
@@ -147,7 +147,7 @@ Doesn't apply: the panel shows no step running. Its marks are still: `✻` doesn
 
 **Decoding.** Keys come in raw mode as bytes. `CSI` and `SS3` arrows both read as arrows (`ESC [ A`, `ESC O A`), so application cursor mode doesn't matter. A lone `ESC` with nothing after it within 50 ms is `esc`. Any other byte does nothing.
 
-**Mouse and touch** (Lee, 19 November 2026). The panel turns on button reporting in SGR's form (`CSI ?1000h`, `CSI ?1006h`), never motion, and turns it off on leaving and for a hand-over.
+**Mouse and touch** (Lee, 19 November 2026). The panel turns on button reporting in SGR's form (`CSI ?1000h`, `CSI ?1006h`), never motion, and turns it off on leaving and for a hand-over. A terminal that sends the older X10 form (`ESC [ M` and three bytes) is read the same way, so a click never reads as a key. Bracketed paste is on too (`CSI ?2004h`), and a paste is dropped whole, so pasted text never acts as keys.
 - **A tap or a click** on a row puts the band on it; one on the band's row opens it, as `⏎` does.
 - **The wheel or a swipe** scrolls the view a row a notch; the band stays on its session, in view or not.
 - **No hover:** hover needs every pointer move sent over SSH.
@@ -242,8 +242,9 @@ Doesn't apply: the panel collects no remedies. A pick's answer says what to do i
 
 `q` or `Ctrl-C` leaves the alternate screen, so the shell's screen comes back as it was. It prints nothing and exits 0.
 - **SIGTERM** restores the terminal and exits 143.
-- **SIGHUP,** as an SSH connection drops, tries to restore it and exits 129.
-- **`Ctrl-Z`** restores the terminal and stops the panel; on SIGCONT it takes the terminal back and redraws.
+- **SIGHUP,** as an SSH connection drops, tries to restore it and exits 129. A terminal gone without one (its input ended, or output failing) counts as a hang-up.
+- **SIGINT and SIGQUIT** from outside restore it and exit 130 and 131. Ctrl-C typed in the panel is a key, and exits 0.
+- **`Ctrl-Z`** restores the terminal and stops the panel. It takes the terminal back as the stop returns, the size read afresh, so a stop the kernel discards, as in an orphaned process group under `ssh -t host sitrep`, never leaves it stranded; the SIGCONT of its own stop then does nothing more. A SIGCONT after a stop from outside takes it back too.
 
 ## Colour
 
@@ -414,7 +415,8 @@ export const viewOf: (feed: Feed | undefined, state: ViewState, now: number, not
 // straight to viewOf. It stamps a line's time at every news, a woken ask included, and drops
 // those older than two seconds.
 export type PanelEvent =
-  | { board: Feed; news: string[] }
+  | { board: Feed; news: string[]; now: number } // now: the look's own time, which stamps the arrivals
+  | { failed: string } // a look that failed: the board kept, stale
   | { key: Key }
   | { size: Size }
   | { tick: number }
@@ -456,7 +458,7 @@ export type Terminal = {
   ask: (query: string) => Promise<string>
   hand: (argv: readonly string[]) => Promise<number>
   run: (argv: readonly string[], ms: number) => Promise<{ exit: number; out: string; err: string }>
-  onSignal: (signal: 'SIGHUP' | 'SIGTERM' | 'SIGCONT', heard: () => void) => () => void
+  onSignal: (signal: 'SIGHUP' | 'SIGTERM' | 'SIGINT' | 'SIGQUIT' | 'SIGCONT', heard: () => void) => () => void
   suspend: () => void
 }
 ```
@@ -468,7 +470,7 @@ export type Terminal = {
 
 The fakes in `tests/` stand in for all of it.
 
-**The loop.** `cli/panel/run.ts`'s `panel(io, flags)`:
+**The loop.** `cli/panel/panel.ts`'s `panel(io, terminal)`:
 1. Asks the colours and enters the screen.
 2. Starts `looking` (`cli/looks.ts`), the watch's loop, which hands it each look's `Feed`.
 3. Steps the state on every event, draws, and writes only the rows that changed, inside synchronized output (`CSI ?2026h` … `CSI ?2026l`).
