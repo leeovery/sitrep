@@ -4,8 +4,10 @@
  *
  * - The level comes from the environment: none with `NO_COLOR`; else 24-bit,
  *   256 or 16 as `COLORTERM` and `TERM` say, raised to the least
- *   `FORCE_COLOR` asks for, or none where it says `0`. A light background, said by `COLORFGBG` or by the terminal's own
- *   answer, draws in the terminal's 16, the palette being drawn for dark ones.
+ *   `FORCE_COLOR` asks for, or none where it says `0`.
+ * - A light background, said by `COLORFGBG` or by the terminal's own
+ *   answer, draws in the terminal's 16, the palette being drawn for dark
+ *   ones.
  * - Names, the title and the keys are in the terminal's own ink, never a hex.
  * - Three things mix toward the background: an away row's words, a Snoozed
  *   row's mark, and a new ask's wash. They mix only with both of the
@@ -123,8 +125,6 @@ export type ColourEnv = {
 const LEVELS: readonly Level[] = ['none', '16', '256', 'truecolor']
 
 /** The least level `FORCE_COLOR` asks for: none for `0` or `false`, else 16 unless it names more. */
-const FORCED: Record<string, Level> = { '0': 'none', false: 'none', '2': '256', '3': 'truecolor' }
-
 /** The level `COLORTERM` and `TERM` say. */
 const detected = (env: ColourEnv): Level => {
   const term = env.TERM ?? ''
@@ -136,15 +136,23 @@ const detected = (env: ColourEnv): Level => {
   return term.includes('256color') ? '256' : '16'
 }
 
-/** The level the terminal says, raised to what `FORCE_COLOR` asks for at least, as chalk reads it; `0` or `false` turns colour off. */
+/** The least level `FORCE_COLOR` asks for, as chalk reads it: none for `0` or `false`; 256 for 2; 24-bit for 3 or more; else 16. */
+const leastOf = (force: string): Level => {
+  const level = /^\d+$/.test(force) ? Number(force) : force === 'false' ? 0 : 1
+
+  return level === 0 ? 'none' : level === 1 ? '16' : level === 2 ? '256' : 'truecolor'
+}
+
+/** The level the terminal says, raised to what `FORCE_COLOR` asks for at least; `0` or `false` turns colour off. */
 const forced = (env: ColourEnv): Level => {
-  const least = env.FORCE_COLOR === undefined ? '16' : (FORCED[env.FORCE_COLOR] ?? '16')
+  const least = env.FORCE_COLOR === undefined ? '16' : leastOf(env.FORCE_COLOR)
+  const said = detected(env)
 
   if (least === 'none') {
     return 'none'
   }
 
-  return LEVELS[Math.max(LEVELS.indexOf(least), LEVELS.indexOf(detected(env)))] ?? least
+  return LEVELS.indexOf(said) > LEVELS.indexOf(least) ? said : least
 }
 
 /** `COLORFGBG`'s background, its last field, as rxvt numbers it: 7, and 9 to 15, are light. */

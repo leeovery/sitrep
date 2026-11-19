@@ -1,5 +1,5 @@
 import { expect, test } from './kit'
-import { cut, fitted, widthOf, wrap } from '../cli/panel/cells'
+import { cut, widthOf, wrap, wrapIn } from '../cli/panel/cells'
 
 test("a grapheme's cells: wide and fullwidth two, an emoji two, a combining mark none of its own, an ambiguous glyph one", () => {
   const texts = ['Northwind', '漢字', 'ｈｉ', 'é', '👍', '❤️', '👩‍💻', '🇬🇧', '●○◌◉✻─▿▹▲▼…']
@@ -34,17 +34,14 @@ test('words wrap between words at the width, and a word wider than a line goes i
   expect(wrap('', 10)).toEqual([])
 })
 
-test('lines fitted to rows: past them, the last kept carries the rest of the words, cut with `…`', () => {
-  const lines = ['Shift schedules', "can't be opened", 'here: its terminal', 'has no tmux or zmx.']
+test('words wrapped in rows: past them, the last kept carries the rest, cut with `…`, a broken word whole again', () => {
+  const text = "Shift schedules can't be opened here: its terminal has no tmux or zmx."
+  const path = "EACCES: open '/Users/me/.local/state/sitrep/sessions/sr-nw0001.json'"
 
-  expect(fitted(lines, 4, 20)).toEqual(lines)
-  expect(fitted(lines, 3, 20)).toEqual(['Shift schedules', "can't be opened", 'here: its terminal…'])
-  expect(fitted(['All clear', '', 'Nothing needs you,', 'and nothing is', 'running.'], 4, 30)).toEqual([
-    'All clear',
-    '',
-    'Nothing needs you,',
-    'and nothing is running.',
-  ])
-  expect(fitted(['All clear', '', 'Nothing needs you,'], 2, 12)).toEqual(['All clear', 'Nothing nee…'])
-  expect(fitted(lines, 0, 20)).toEqual([])
+  expect(wrapIn(text, 20, 4)).toEqual(wrap(text, 20))
+  expect(wrapIn(text, 20, 3)).toEqual(['Shift schedules', "can't be opened", 'here: its terminal…'])
+  expect(wrap(path, 20)).toEqual(['EACCES: open', "'/Users/me/.local/st", 'ate/sitrep/sessions/', "sr-nw0001.json'"])
+  expect(wrapIn(path, 20, 2)).toEqual(['EACCES: open', "'/Users/me/.local/s…"])
+  expect(wrapIn(path, 20, 3)).toEqual(['EACCES: open', "'/Users/me/.local/st", 'ate/sitrep/sessions…'])
+  expect(wrapIn(text, 20, 0)).toEqual([])
 })

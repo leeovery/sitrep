@@ -1,23 +1,25 @@
 /**
  * Where a frame's parts go at a size, with no pens and no text drawn: the
  * one copy of the fit rules, for drawing (draw.ts) and for the keys, which
- * keep the band's row in sight, page by a body's height, and find the row a
- * tap lands on.
+ * keep the band's row in sight (`topFor`), page by a body's height, and find
+ * the row a tap lands on.
  *
  * - Row 0 is the title, the last row the key line; both always stay.
  * - A pick's answer sits above the key line, a blank row over it, in at most
  *   the rows between the title and the key line, less that blank row; past
  *   them its last line is cut with `…`.
- * - The body runs from row 2, or row 1 below 15 rows, to the answer's blank
- *   row or the key line. Its blank rows between sections give way when the
- *   body is short of rows below 15.
- * - It shows the rows that fit, in whole rows, from `top`: the rows scrolled
- *   past, said by `▲ N more` under their section's heading, kept at the top,
- *   given room for both and a row. `▼ N more` says the rows below, its row
- *   kept free while any block is left after.
- * - `top` goes no further than the greatest that still fills the body.
+ * - The body runs from row 2 to the answer's blank row or the key line.
+ *   Below 15 rows, short of room, the blank row under the title gives way
+ *   first, then the blank rows between sections.
+ * - It shows the rows that fit, in whole rows, from `top`. Above them, room
+ *   allowing, their section's heading, pinned, and `▲ N more` for the rows
+ *   scrolled past; or `▲` alone; or nothing. `▼ N more` says the rows below,
+ *   its row kept free while any block is left after, but never at the cost
+ *   of the first row shown, and never under a blank row.
+ * - `top` goes no further than the least from which the body shows the last
+ *   block.
  */
-import { fitted, wrap, type Size } from './cells'
+import { wrapIn, type Size } from './cells'
 import { rowKey, type PanelRow, type PanelView } from './view'
 
 /** The left margin's width: every line starts here. */
@@ -57,7 +59,7 @@ export type Layout = {
   words: Region
   /** The view's `top`, kept within `lastTop`. */
   top: number
-  /** The greatest `top` that still fills the body: past it, the body would show blank rows. */
+  /** The least `top` from which the body shows the last block: any greater leaves blank rows. */
   lastTop: number
   placed: Placed[]
   /** Each row in view by its key, at the terminal row of its first line. */
@@ -69,9 +71,11 @@ type Block = { kind: 'gap' } | { kind: 'heading'; section: Section } | { kind: '
 
 const HEIGHT: Record<Block['kind'], number> = { gap: 1, heading: 1, row: 2 }
 
-/** A pinned heading and `▲`, and a row under them. */
-const PINNED_ROWS = 2
-const PINNED_ROOM = PINNED_ROWS + HEIGHT.row
+/** What stands above the first row of a scrolled body: its heading, pinned, and `▲`; `▲` alone; or nothing. */
+type Lead = 'pinned' | 'above' | 'none'
+
+/** The rows each lead takes: it stands only with room under it for a row, and for `▼` while blocks follow the row. */
+const LEAD_ROWS: Record<Lead, number> = { pinned: 2, above: 1, none: 0 }
 
 const heightOf = (blocks: readonly Block[]) => blocks.reduce((sum, block) => sum + HEIGHT[block.kind], 0)
 
@@ -86,17 +90,22 @@ const rowsIn = (blocks: readonly Block[]) => blocks.filter(block => block.kind =
 
 export const isTooSmall = (size: Size) => size.width < LEAST.width || size.height < LEAST.height
 
-/** The body's view from `top`: where it starts, whether its heading is pinned, and the index after the last block that fits. */
-type Window = { start: number; isPinned: boolean; end: number }
+/** The body's view from a `top`: where it starts, what stands above its first row, and the index after the last block that fits. */
+type Window = { start: number; lead: Lead; end: number }
 
-/** The blocks from `start` that fit in `room` rows with `used` taken, a row kept for `▼` while any are left after; gives the index after the last. */
+/**
+ * The blocks from `start` that fit in `room` rows with `used` taken, a row
+ * kept for `▼` while any are left after, though never at the cost of the
+ * first; ending on no blank row while any are left after it. Gives the index
+ * after the last.
+ */
 const endOf = (blocks: readonly Block[], start: number, used: number, room: number) => {
   let end = start
   let taken = used
 
   while (end < blocks.length) {
     const block = blocks[end] as Block
-    const below = end + 1 < blocks.length ? 1 : 0
+    const below = end > start && end + 1 < blocks.length ? 1 : 0
 
     if (taken + HEIGHT[block.kind] + below > room) {
       break
@@ -106,15 +115,34 @@ const endOf = (blocks: readonly Block[], start: number, used: number, room: numb
     end++
   }
 
-  return end
+  return end > start && end < blocks.length && blocks[end - 1]?.kind === 'gap' ? end - 1 : end
+}
+
+/** What fits above the first row of a body scrolled to `start` past `top` rows, with a row kept for `▼` while blocks follow it. */
+const leadOf = (blocks: readonly Block[], start: number, top: number, room: number): Lead => {
+  if (top === 0) {
+    return 'none'
+  }
+
+  const needs = HEIGHT.row + (start + 1 < blocks.length ? 1 : 0)
+
+  return room >= LEAD_ROWS.pinned + needs ? 'pinned' : room >= LEAD_ROWS.above + needs ? 'above' : 'none'
+}
+
+/** Where a body from `top` starts: at its row, or, from the first, at the top, the headings over it kept where the row still fits under them. */
+const startOf = (blocks: readonly Block[], top: number, room: number) => {
+  const first = blocks.filter(block => block.kind === 'row')[top]
+  const at = first === undefined ? 0 : blocks.indexOf(first)
+  const needs = heightOf(blocks.slice(0, at)) + HEIGHT.row + (at + 1 < blocks.length ? 1 : 0)
+
+  return top === 0 && room >= needs ? 0 : at
 }
 
 const windowOf = (blocks: readonly Block[], top: number, room: number): Window => {
-  const first = blocks.filter(block => block.kind === 'row')[top]
-  const start = top === 0 || first === undefined ? 0 : blocks.indexOf(first)
-  const isPinned = start > 0 && room >= PINNED_ROOM
+  const start = startOf(blocks, top, room)
+  const lead = leadOf(blocks, start, top, room)
 
-  return { start, isPinned, end: endOf(blocks, start, isPinned ? PINNED_ROWS : 0, room) }
+  return { start, lead, end: endOf(blocks, start, LEAD_ROWS[lead], room) }
 }
 
 /** The least `top` from which the body shows the last block: any greater leaves blank rows. */
@@ -132,9 +160,12 @@ const placedIn = (blocks: readonly Block[], window: Window, top: number, body: R
   const first = blocks[window.start]
   let y = body.from
 
-  if (window.isPinned && first?.kind === 'row') {
-    placed.push({ kind: 'heading', y, section: first.section }, { kind: 'above', y: y + 1, count: top })
-    y += PINNED_ROWS
+  if (window.lead === 'pinned' && first?.kind === 'row') {
+    placed.push({ kind: 'heading', y: y++, section: first.section })
+  }
+
+  if (window.lead !== 'none') {
+    placed.push({ kind: 'above', y: y++, count: top })
   }
 
   for (const block of blocks.slice(window.start, window.end)) {
@@ -152,31 +183,64 @@ const placedIn = (blocks: readonly Block[], window: Window, top: number, body: R
   return below > 0 && y < body.to ? [...placed, { kind: 'below', y, count: below }] : placed
 }
 
-/** The view's parts at the size: the answer's rows, the body's, and what the body shows from `top`. */
-export const layoutOf = (view: PanelView, size: Size): Layout => {
+/** The body's rows and blocks: the blank row under the title kept while every block fits with it, then the gaps between sections. */
+const bodyOf = (sections: readonly Section[], height: number, foot: number) => {
+  const gapped = blocksOf(sections, true)
+  const isWhole = (from: number) => heightOf(gapped) <= foot - from
+  const from = height >= ROOMY || isWhole(2) ? 2 : 1
+  const hasGaps = height >= ROOMY || isWhole(from)
+
+  return { body: { from, to: foot }, blocks: hasGaps ? gapped : blocksOf(sections, false) }
+}
+
+/** The parts every `top` shares: the sizes, the answer, the body's rows and its blocks. */
+const partsOf = (view: PanelView, size: Size) => {
   const width = Math.min(size.width, MOST)
   const { height } = size
   const sections = view.sections.filter(section => section.rows.length > 0)
-  const said = view.answer === undefined ? [] : fitted(wrap(view.answer, width - 4), height - 3, width - 4)
+  const said = view.answer === undefined ? [] : wrapIn(view.answer, width - 4, height - 3)
   const foot = height - 1 - (said.length === 0 ? 0 : said.length + 1)
-  const body = { from: height < ROOMY ? 1 : 2, to: foot }
+  const { body, blocks } = bodyOf(sections, height, foot)
   const room = Math.max(body.to - body.from, 0)
-  const hasGaps = height >= ROOMY || heightOf(blocksOf(sections, true)) <= room
-  const blocks = isTooSmall(size) || room === 0 ? [] : blocksOf(sections, hasGaps)
-  const lastTop = lastTopOf(blocks, room)
-  const top = Math.min(Math.max(view.top, 0), lastTop)
-  const placed = placedIn(blocks, windowOf(blocks, top, room), top, body)
+  const shown = isTooSmall(size) || room === 0 ? [] : blocks
+
+  return { width, height, sections, said, foot, body, room, blocks: shown, lastTop: lastTopOf(shown, room) }
+}
+
+type Parts = ReturnType<typeof partsOf>
+
+const placedAt = (parts: Parts, top: number) => placedIn(parts.blocks, windowOf(parts.blocks, top, parts.room), top, parts.body)
+
+const rowsOf = (placed: readonly Placed[]) =>
+  placed.flatMap(each => (each.kind === 'row' ? [{ key: each.key, y: each.y }] : []))
+
+/** The view's parts at the size: the answer's rows, the body's, and what the body shows from `top`. */
+export const layoutOf = (view: PanelView, size: Size): Layout => {
+  const parts = partsOf(view, size)
+  const top = Math.min(Math.max(view.top, 0), parts.lastTop)
+  const placed = placedAt(parts, top)
 
   return {
-    width,
-    height,
-    sections,
-    answer: { from: height - 1 - said.length, lines: said },
-    body,
-    words: { from: 1, to: foot },
+    width: parts.width,
+    height: parts.height,
+    sections: parts.sections,
+    answer: { from: parts.height - 1 - parts.said.length, lines: parts.said },
+    body: parts.body,
+    words: { from: 1, to: parts.foot },
     top,
-    lastTop,
+    lastTop: parts.lastTop,
     placed,
-    rows: placed.flatMap(each => (each.kind === 'row' ? [{ key: each.key, y: each.y }] : [])),
+    rows: rowsOf(placed),
   }
+}
+
+/** The `top` nearest the view's at which the row `key` lies whole in the body, the lesser of two as near; none where no `top` shows it. */
+export const topFor = (view: PanelView, size: Size, key: string): number | undefined => {
+  const parts = partsOf(view, size)
+  const from = Math.min(Math.max(view.top, 0), parts.lastTop)
+  const tops = Array.from({ length: parts.lastTop + 1 }, (_, top) => top)
+    .filter(top => rowsOf(placedAt(parts, top)).some(row => row.key === key))
+    .sort((a, b) => Math.abs(a - from) - Math.abs(b - from) || a - b)
+
+  return tops[0]
 }

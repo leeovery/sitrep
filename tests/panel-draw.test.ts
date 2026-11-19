@@ -1,8 +1,9 @@
 import { expect, test } from './kit'
 import { ansi, draw, text } from '../cli/panel/draw'
-import { layoutOf } from '../cli/panel/layout'
+import { widthOf } from '../cli/panel/cells'
+import { layoutOf, topFor } from '../cli/panel/layout'
 import { rgbOf, type Paint } from '../cli/panel/paint'
-import type { PanelRow, PanelView } from '../cli/panel/view'
+import { rowKey, type PanelRow, type PanelView } from '../cli/panel/view'
 
 /** No colour at all, as with NO_COLOR: the frames below hold glyphs alone. */
 const NONE: Paint = { level: 'none' }
@@ -134,7 +135,7 @@ test('a row at every width: the status line cut, then dropped at 24; past 120 co
     top: 0,
     board: 'read',
   }
-  const rows = (width: number) => frame(one, width, 8).slice(1, 4)
+  const rows = (width: number) => frame(one, width, 8).slice(2, 5)
 
   expect(rows(24)).toEqual([' NEEDS YOU ●2 ─────── ▿', ' ● Help desk red… 2  4m', '   Northwind'])
   expect(rows(39)).toEqual([
@@ -210,7 +211,7 @@ test('giving way at 24 columns: the project cut once the status line has gone, a
 test('a cut never splits a wide glyph, and the name is cut before its count, never the count', () => {
   const wide = row('sr-nw0003', 'turn', '漢字漢字漢字漢字漢字漢字', 'Northwind', 'Approve the rota', '4m', { count: 12 })
 
-  expect(frame(only('needsYou', [wide]), 24, 8).slice(2, 4)).toEqual([' ● 漢字漢字漢字… 12  4m', '   Northwind · Approve…'])
+  expect(frame(only('needsYou', [wide]), 24, 8).slice(3, 5)).toEqual([' ● 漢字漢字漢字… 12  4m', '   Northwind · Approve…'])
 })
 
 test('scrolled from `top`, the rows above said by `▲ N more` under their section heading, kept at the top, and those below by `▼ N more`', () => {
@@ -254,7 +255,7 @@ test('scrolled from `top`, the rows above said by `▲ N more` under their secti
   ])
 })
 
-test('below 15 rows the blank row under the title goes, then the blank rows between sections, then the body scrolls', () => {
+test('below 15 rows, short of room, the blank row under the title goes first, then the blank rows between sections, then the body scrolls', () => {
   const two: PanelView = {
     sections: [
       { kind: 'needsYou', rows: [SHIFTS], counts: [{ value: 1, need: 'turn' }], isOpen: true },
@@ -266,6 +267,7 @@ test('below 15 rows the blank row under the title goes, then the blank rows betw
 
   expect(frame(two, 39, 10)).toEqual([
     ' sitrep',
+    '',
     ' NEEDS YOU ●1 ────────────────────── ▿',
     ' ● Shift schedules                 26m',
     '   Contoso · Approve the rota',
@@ -273,7 +275,6 @@ test('below 15 rows the blank row under the title goes, then the blank rows betw
     ' WORKING 1 ───────────────────────── ▿',
     ' ✻ Mobile app                       6m',
     '   Woodgrove · Running npm test',
-    '',
     ' ↑↓ pick  q quit',
   ])
   expect(frame(board(), 39, 14)).toEqual([
@@ -333,8 +334,8 @@ test("a pick's answer sits above the key line, `!` then its words, wrapped at W�
     '   Litware · Allow Bash: psql -f impo…',
     ' ● Shift schedules                 26m',
     '   Contoso · Approve the rota',
-    '',
     ' ▼ 2 more',
+    '',
     '',
     " ! Shift schedules can't be opened",
     '   here: its terminal has no tmux or',
@@ -375,7 +376,7 @@ test("the band names a row by its key: a session's Snoozed row is its own", () =
   const snoozed = drawn(view, 39, 22, NONE, 17, 18)
 
   expect(snoozed[0]?.startsWith(` ${ESC}[0;2;7m●`)).toBe(true)
-  expect(drawn(board({ isOpen: true, band: 'sr-ts0001' }), 39, 22, NONE, 17, 18)[0]).not.toContain('7m')
+  expect(drawn(board({ isOpen: true, band: 'sr-ts0001' }), 39, 22, NONE, 17, 18)[0]).not.toContain(';7m●')
 })
 
 test("an away row's words dim as one, its mark kept full and hollow; without colour a bold name stays bold, never faint", () => {
@@ -395,7 +396,7 @@ test('a Snoozed row dims its mark alone, filled even away; its name grey, an ask
     isAway: true,
   })
 
-  expect(drawn(only('snoozed', [ONBOARDING, away]), 39, 10, NORDFOX, 2, 6)).toEqual([
+  expect(drawn(only('snoozed', [ONBOARDING, away]), 39, 10, NORDFOX, 3, 7)).toEqual([
     ` ${ESC}[0;38;2;149;93;78m●${ESC}[0m ${ESC}[0;1;38;2;122;130;171mOnboarding flow${ESC}[0m      ${ESC}[0;38;2;122;130;171mtomorrow 09:00${ESC}[0m`,
     `   ${ESC}[0;38;2;122;130;171mTailspin · ${ESC}[0;38;2;169;177;214mPick the onboarding ste…${ESC}[0m`,
     ` ${ESC}[0;38;2;92;119;176m●${ESC}[0m ${ESC}[0;38;2;122;130;171mMobile app${ESC}[0m                ${ESC}[0;38;2;122;130;171mnext week${ESC}[0m`,
@@ -408,17 +409,17 @@ test("a new ask's mark is `◉`, bold orange, its row washed at 24-bit where the
   const view = (band?: string): PanelView => ({ ...only('needsYou', [arriving]), ...(band === undefined ? {} : { band }) })
   const wash = `48;2;83;67;69`
 
-  expect(drawn(view(), 39, 8, NORDFOX, 2, 3)).toEqual([
+  expect(drawn(view(), 39, 8, NORDFOX, 3, 4)).toEqual([
     ` ${ESC}[0;1;38;2;215;119;87;${wash}m◉${ESC}[0;${wash}m ${ESC}[0;1;${wash}mData import${ESC}[0;${wash}m                     ${ESC}[0;38;2;122;130;171;${wash}mnow${ESC}[0m`,
   ])
-  expect(drawn(view(), 39, 8, { level: 'truecolor' }, 2, 3)).toEqual([
+  expect(drawn(view(), 39, 8, { level: 'truecolor' }, 3, 4)).toEqual([
     ` ${ESC}[0;1;38;2;215;119;87m◉${ESC}[0m ${ESC}[0;1mData import${ESC}[0m                     ${ESC}[0;38;2;122;130;171mnow${ESC}[0m`,
   ])
-  expect(drawn(view(), 39, 8, NONE, 2, 3)).toEqual([
+  expect(drawn(view(), 39, 8, NONE, 3, 4)).toEqual([
     ` ${ESC}[0;1m◉${ESC}[0m ${ESC}[0;1mData import${ESC}[0m                     ${ESC}[0;2mnow${ESC}[0m`,
   ])
-  expect(drawn(view('sr-ct0002'), 39, 8, NORDFOX, 2, 3)[0]).toContain('48;2;62;74;91m')
-  expect(drawn(view('sr-ct0002'), 39, 8, NORDFOX, 2, 3)[0]).not.toContain(wash)
+  expect(drawn(view('sr-ct0002'), 39, 8, NORDFOX, 3, 4)[0]).toContain('48;2;62;74;91m')
+  expect(drawn(view('sr-ct0002'), 39, 8, NORDFOX, 3, 4)[0]).not.toContain(wash)
 })
 
 test('the headings: grey words, the needs-you counts in bold orange and blue, the rule and chevron faint', () => {
@@ -447,7 +448,7 @@ test('the rule goes below 3 cells, its counts and chevron kept', () => {
     board: 'read',
   }
 
-  expect(frame(many, 24, 8)[1]).toBe(' NEEDS YOU ●123 ●45   ▿')
+  expect(frame(many, 24, 8)[2]).toBe(' NEEDS YOU ●123 ●45   ▿')
 })
 
 test("a stale board says when it was read at the title's right; before any board, the body says it's looking, or why it can't read one", () => {
@@ -495,16 +496,16 @@ test('the lines as text: each its glyphs, trimmed, a newline after each; as esca
   const lines = draw(only('working', [MOBILE]), { width: 24, height: 8 }, NONE)
 
   expect(text(lines)).toBe(
-    [' sitrep', ' WORKING 1 ────────── ▿', ' ✻ Mobile app        6m', '   Woodgrove · Running…', '', '', '', ' ↑↓ pick  q quit', ''].join(
+    [' sitrep', '', ' WORKING 1 ────────── ▿', ' ✻ Mobile app        6m', '   Woodgrove · Running…', '', '', ' ↑↓ pick  q quit', ''].join(
       '\n',
     ),
   )
   expect(ansi(lines, 'none').split('\n')).toEqual([
     ` ${ESC}[0;1msitrep${ESC}[0m`,
+    '',
     ` WORKING ${ESC}[0;2m1${ESC}[0m ${ESC}[0;2m──────────${ESC}[0m ${ESC}[0;2m▿${ESC}[0m`,
     ` ✻ Mobile app        ${ESC}[0;2m6m${ESC}[0m`,
     `   ${ESC}[0;2mWoodgrove · ${ESC}[0mRunning…`,
-    '',
     '',
     '',
     ` ${ESC}[0;1m↑↓${ESC}[0;2m pick${ESC}[0m  ${ESC}[0;1mq${ESC}[0;2m quit${ESC}[0m`,
@@ -747,13 +748,13 @@ test('an answer taller than the body keeps the title and the key line, takes the
     '   say which folder it',
     '   ran in, as a window',
     '   on an older sitrep…',
-    ' ↑↓ move  q quit',
+    ' ⏎ open  q quit',
   ])
   expect(frame(board({ band: 'sr-ct0001', answer: NO_FOLDER }), 24, 14)).toEqual([
     ' sitrep',
-    ' NEEDS YOU ●3 ●1 ──── ▿',
-    ' ▼ 5 more',
-    '',
+    ' ● Help desk red… 2  4m',
+    '   Northwind',
+    ' ▼ 4 more',
     '',
     " ! Shift schedules's",
     '   last window did not',
@@ -821,7 +822,7 @@ test("without colour an ask's count is bold and a turn's regular, as their names
 })
 
 test("at 256 colours: the palette's nearest, the dims mixed, the band a ground, and no wash", () => {
-  const arriving: PanelRow = { ...DATA_IMPORT, isAway: false, isNew: true }
+  const arriving: PanelRow = { ...DATA_IMPORT, session: 'sr-lw0002', isAway: false, isNew: true }
   const view = board({ band: 'sr-ct0001' })
   const [needsYou, ...rest] = view.sections
 
@@ -874,4 +875,214 @@ test("at 16 colours: the terminal's own, the rule faint, the dims faint, the ban
     '',
     ` ${ESC}[0;1m↑↓${ESC}[0;90m move${ESC}[0m  ${ESC}[0;1m⏎${ESC}[0;90m open${ESC}[0m  ${ESC}[0;1ms${ESC}[0;90m snoozed${ESC}[0m  ${ESC}[0;1mq${ESC}[0;90m quit${ESC}[0m`,
   ])
+})
+
+/** Seven asks: the six, and one more in Contoso. */
+const SEVEN: PanelView = {
+  sections: [
+    {
+      kind: 'needsYou',
+      rows: [...ASKS, row('sr-ct0006', 'ask', 'Help desk redesign', 'Contoso', 'Approve the rota', '7m')],
+      counts: [{ value: 7, need: 'ask' }],
+      isOpen: true,
+    },
+  ],
+  top: 0,
+  board: 'read',
+}
+
+test('with 4 body rows a scrolled body shows `▲` alone over its row, `▼` under it; with 3, the row and `▼` alone', () => {
+  expect(frame({ ...SEVEN, top: 1, answer: 'Short.' }, 33, 8)).toEqual([
+    ' sitrep',
+    ' ▲ 1 more',
+    ' ● Shift schedules            2m',
+    '   Northwind · Approve the rota',
+    ' ▼ 5 more',
+    '',
+    ' ! Short.',
+    ' ↑↓ pick  q quit',
+  ])
+  expect(layoutOf({ ...SEVEN, top: 1, answer: 'Short.' }, { width: 33, height: 8 }).rows).toEqual([
+    { key: 'sr-nw0001', y: 2 },
+  ])
+  expect(frame({ ...SEVEN, top: 1, answer: 'Short. And a second line of words, to wrap.' }, 33, 8)).toEqual([
+    ' sitrep',
+    ' ● Shift schedules            2m',
+    '   Northwind · Approve the rota',
+    ' ▼ 5 more',
+    '',
+    ' ! Short. And a second line of',
+    '   words, to wrap.',
+    ' ↑↓ pick  q quit',
+  ])
+})
+
+test('a band low in Working, scrolled, with an answer that leaves the body little room, stays in sight', () => {
+  const needs = ['Help desk redesign', 'Shift schedules', 'Data import'].map((name, at) =>
+    row(`sr-nw010${at}`, 'ask', name, 'Northwind', 'Approve the rota', `${at + 1}m`),
+  )
+  const working = ['Mobile app', 'Invoice ledger', 'Onboarding flow', 'Data import'].map((name, at) =>
+    row(`sr-wg010${at}`, 'working', name, 'Woodgrove', 'Running npm test', `${at + 1}m`),
+  )
+  const view: PanelView = {
+    sections: [
+      { kind: 'needsYou', rows: needs, counts: [{ value: 3, need: 'ask' }], isOpen: true },
+      { kind: 'working', rows: working, counts: [{ value: 4 }], isOpen: true },
+    ],
+    band: 'sr-wg0101',
+    top: 4,
+    answer: NO_FOLDER,
+    board: 'read',
+  }
+
+  expect(frame(view, 24, 16)).toEqual([
+    ' sitrep',
+    '',
+    ' ▲ 4 more',
+    ' ✻ Invoice ledger    2m',
+    '   Woodgrove · Running…',
+    ' ▼ 2 more',
+    '',
+    " ! Shift schedules's",
+    '   last window did not',
+    '   say which folder it',
+    '   ran in, as a window',
+    '   on an older sitrep',
+    '   does not, so sitrep',
+    '   has nothing to put',
+    '   for {dir}.',
+    ' ↑↓ move  q quit',
+  ])
+  expect(layoutOf(view, { width: 24, height: 16 }).rows).toEqual([
+    { key: 'sr-wg0101', y: 3 },
+  ])
+})
+
+test('every row can be brought into view, whole, at every room the body has from 2 rows up', () => {
+  const view = scrolled(0, { sections: scrolled(0).sections.map(section => ({ ...section, isOpen: true })) })
+  const keys = view.sections.flatMap(section => section.rows.map(rowKey))
+  const rooms = new Set<number>()
+
+  for (let height = 8; height <= 22; height++) {
+    for (let words = 0; words <= 40; words += 4) {
+      const answered = { ...view, ...(words === 0 ? {} : { answer: 'word '.repeat(words) }) }
+      const size = { width: 30, height }
+      const room = layoutOf(answered, size).body.to - layoutOf(answered, size).body.from
+
+      rooms.add(room)
+
+      if (room >= 2) {
+        for (const key of keys) {
+          const top = topFor(answered, size, key)
+          const shown = layoutOf({ ...answered, top: top ?? 0 }, size).rows.map(each => each.key)
+
+          expect(shown).toContain(key)
+        }
+      }
+    }
+  }
+
+  expect([2, 3, 4, 5, 6, 7, 8, 9, 10].every(room => rooms.has(room))).toBe(true)
+})
+
+test('`topFor` gives the `top` nearest the view\'s that shows the row whole: the band at the start, the middle and the end, and under an answer', () => {
+  const size = { width: 39, height: 12 }
+
+  expect(topFor(scrolled(3), size, 'sr-nw0000')).toBe(0)
+  expect(topFor(scrolled(0), size, 'sr-nw0003')).toBe(0)
+  expect(topFor(scrolled(0), size, 'sr-nw0005')).toBe(3)
+  expect(topFor(scrolled(4), size, 'sr-nw0002')).toBe(2)
+  expect(topFor(scrolled(0), size, 'sr-wg0001')).toBe(4)
+  expect(topFor(scrolled(0, { answer: PICKED }), size, 'sr-nw0002')).toBe(2)
+  expect(topFor(scrolled(0), size, 'snoozed:sr-ts0001')).toBeUndefined()
+  expect(topFor(scrolled(0), size, 'sr-nw9999')).toBeUndefined()
+})
+
+test('`▼` stands under the rows it counts, never under a blank row', () => {
+  const five: PanelView = {
+    sections: [
+      { kind: 'needsYou', rows: ASKS.slice(0, 5), counts: [{ value: 5, need: 'ask' }], isOpen: true },
+      { kind: 'working', rows: [MOBILE], counts: [{ value: 1 }], isOpen: true },
+    ],
+    top: 1,
+    board: 'read',
+  }
+
+  expect(frame(five, 30, 15)).toEqual([
+    ' sitrep',
+    '',
+    ' NEEDS YOU ●5 ───────────── ▿',
+    ' ▲ 1 more',
+    ' ● Shift schedules         2m',
+    '   Northwind · Approve the r…',
+    ' ● Invoice ledger          3m',
+    '   Northwind · Approve the r…',
+    ' ● Onboarding flow         4m',
+    '   Northwind · Approve the r…',
+    ' ● Mobile app              5m',
+    '   Northwind · Approve the r…',
+    ' ▼ 1 more',
+    '',
+    ' ↑↓ pick  q quit',
+  ])
+})
+
+test('`↑↓` is offered only while a row is in view: not over a folded Snoozed alone, nor while an answer fills the body', () => {
+  const folded: PanelView = { ...only('snoozed', [ONBOARDING]), sections: [{ ...only('snoozed', [ONBOARDING]).sections[0]!, isOpen: false }] }
+
+  expect(frame(folded, 39, 10).at(-1)).toBe(' s snoozed  q quit')
+  expect(frame(only('working', [MOBILE], { answer: NO_FOLDER }), 24, 8).at(-1)).toBe(' q quit')
+})
+
+test('a squeezed quiet board cuts its words at 24 columns, as it wraps them', () => {
+  expect(frame(only('needsYou', [], { answer: PICKED }), 69, 8)).toEqual([
+    ' sitrep',
+    '                              All clear',
+    '',
+    '                       Nothing needs you, and…',
+    '',
+    " ! Shift schedules can't be opened here: its terminal has no tmux or",
+    '   zmx.',
+    ' q quit',
+  ])
+})
+
+test('the chevron never overwrites a count: past W−3 it goes', () => {
+  const many: PanelView = {
+    sections: [
+      {
+        kind: 'needsYou',
+        rows: [SHIFTS],
+        counts: [
+          { value: 12345, need: 'ask' },
+          { value: 567, need: 'turn' },
+        ],
+        isOpen: true,
+      },
+    ],
+    top: 0,
+    board: 'read',
+  }
+
+  expect(frame(many, 24, 8)[2]).toBe(' NEEDS YOU ●12345 ●567')
+})
+
+test('a wide glyph or an emoji at the right edge is cut whole, nothing drawn past W−2', () => {
+  const wide = row('sr-nw0011', 'turn', 'Data 漢字漢字漢字 import 👍👍', 'Northwind', '漢字漢字漢字漢字漢字漢字漢字', '4m')
+  const emoji = row('sr-nw0012', 'ask', '👍 Help desk redesign 👍👍', 'Contoso', 'Approve 👍👍👍👍👍👍', '1m')
+  const lines = frame(only('needsYou', [wide, emoji]), 26, 10)
+
+  expect(lines).toEqual([
+    ' sitrep',
+    '',
+    ' NEEDS YOU 2 ────────── ▿',
+    ' ● Data 漢字漢字漢字…  4m',
+    '   Northwind · 漢字漢字…',
+    ' ● 👍 Help desk rede…  1m',
+    '   Contoso · Approve 👍…',
+    '',
+    '',
+    ' ↑↓ pick  q quit',
+  ])
+  expect(lines.every(line => widthOf(line) <= 25)).toBe(true)
 })

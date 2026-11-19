@@ -104,9 +104,11 @@ const pieces = (word: string, cells: number): string[] => {
   return [...out, piece]
 }
 
-/** The text's words in lines `cells` wide at most, broken between words, and a word wider than a line in pieces. */
-export const wrap = (text: string, cells: number): string[] => {
-  const lines: string[] = []
+/** A wrapped line, and whether it ends inside a word too wide for a line, its next piece on the line after. */
+type Wrapped = { text: string; isBroken: boolean }
+
+const wrapped = (text: string, cells: number): Wrapped[] => {
+  const lines: Wrapped[] = []
   let line = ''
 
   for (const word of text.split(' ').filter(each => each !== '')) {
@@ -118,29 +120,37 @@ export const wrap = (text: string, cells: number): string[] => {
     }
 
     if (line !== '') {
-      lines.push(line)
+      lines.push({ text: line, isBroken: false })
     }
 
     const parts = pieces(word, Math.max(cells, 1))
 
-    lines.push(...parts.slice(0, -1))
+    lines.push(...parts.slice(0, -1).map(piece => ({ text: piece, isBroken: true })))
     line = parts.at(-1) ?? ''
   }
 
-  return line === '' ? lines : [...lines, line]
+  return line === '' ? lines : [...lines, { text: line, isBroken: false }]
 }
 
-/** Lines in at most `rows`: past them, the last kept carries the rest of the words, cut to `cells`. */
-export const fitted = (lines: readonly string[], rows: number, cells: number): string[] => {
+/** The text's words in lines `cells` wide at most, broken between words, and a word wider than a line in pieces. */
+export const wrap = (text: string, cells: number): string[] => wrapped(text, cells).map(line => line.text)
+
+/** The text wrapped at `cells` in at most `rows` lines: past them, the last kept carries the rest, a broken word whole again, cut with `…`. */
+export const wrapIn = (text: string, cells: number, rows: number): string[] => {
+  const lines = wrapped(text, cells)
+
   if (lines.length <= rows) {
-    return [...lines]
+    return lines.map(line => line.text)
   }
 
   if (rows < 1) {
     return []
   }
 
-  const rest = lines.slice(rows - 1).filter(line => line !== '')
+  const rest = lines
+    .slice(rows - 1)
+    .map(line => line.text + (line.isBroken ? '' : ' '))
+    .join('')
 
-  return [...lines.slice(0, rows - 1), cut(rest.join(' '), cells)]
+  return [...lines.slice(0, rows - 1).map(line => line.text), cut(rest.trimEnd(), cells)]
 }

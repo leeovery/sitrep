@@ -51,7 +51,7 @@ test('the level: none with NO_COLOR, else 24-bit, 256 or 16 as COLORTERM and TER
   expect(envs.map(levelOf)).toEqual(['256', 'truecolor', 'truecolor', 'truecolor', 'truecolor', 'truecolor', '256', '16', '16'])
 })
 
-test('FORCE_COLOR is a least level, as chalk reads it: the terminal says more where it can; 0 or false turns colour off; NO_COLOR wins over all', () => {
+test('FORCE_COLOR is a least level, as chalk reads it, 3 and more 24-bit: the terminal says more where it can; 0 or false turns colour off; NO_COLOR wins over all', () => {
   const envs = [
     { FORCE_COLOR: '1', COLORTERM: 'truecolor' },
     { FORCE_COLOR: '1', TERM: 'xterm-256color' },
@@ -60,12 +60,25 @@ test('FORCE_COLOR is a least level, as chalk reads it: the terminal says more wh
     { FORCE_COLOR: '2', TERM: 'xterm' },
     { FORCE_COLOR: '2', COLORTERM: 'truecolor' },
     { FORCE_COLOR: '3', TERM: 'dumb' },
+    { FORCE_COLOR: '4', TERM: 'dumb' },
     { FORCE_COLOR: '0', COLORTERM: 'truecolor' },
     { FORCE_COLOR: 'false', TERM: 'xterm-256color' },
     { NO_COLOR: '1', FORCE_COLOR: '3', COLORTERM: 'truecolor' },
   ]
 
-  expect(envs.map(levelOf)).toEqual(['truecolor', '256', '16', '16', '256', 'truecolor', 'truecolor', 'none', 'none', 'none'])
+  expect(envs.map(levelOf)).toEqual([
+    'truecolor',
+    '256',
+    '16',
+    '16',
+    '256',
+    'truecolor',
+    'truecolor',
+    'truecolor',
+    'none',
+    'none',
+    'none',
+  ])
 })
 
 test("a light background by COLORFGBG draws in the terminal's 16; a dark one keeps its level", () => {

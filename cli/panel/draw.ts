@@ -16,7 +16,7 @@
  * - A board gone stale says when it was read, at the title's right.
  * - Below 24 columns or 8 rows it draws only `Too small`.
  */
-import { cellsOf, cut, fitted, graphemesOf, widthOf, wrap, type Size } from './cells'
+import { cellsOf, cut, graphemesOf, widthOf, wrapIn, type Size } from './cells'
 import { isTooSmall, layoutOf, LEFT, type Layout, type Placed, type Section } from './layout'
 import { pensOf, sgr, type Ink, type Level, type Paint, type Pen, type Pens, type Style } from './paint'
 import type { PanelRow, PanelView } from './view'
@@ -212,7 +212,9 @@ const heading = (frame: Frame, y: number, section: Section) => {
     put(grid, end + 1, y, '─'.repeat(rule), pens.of(STYLE.rule))
   }
 
-  put(grid, layout.width - 2, y, section.isOpen ? '▿' : '▹', pens.of(STYLE.rule))
+  if (end <= layout.width - 3) {
+    put(grid, layout.width - 2, y, section.isOpen ? '▿' : '▹', pens.of(STYLE.rule))
+  }
 }
 
 /** A Snoozed wake without its clock, `tomorrow` for `tomorrow 09:00`; none for a bare clock. */
@@ -310,21 +312,20 @@ const placedAt = (frame: Frame, view: PanelView, placed: Placed) => {
   }
 }
 
-/** A heading's lines over its words: the heading, a blank row, then the words fitted to the rows left; the heading alone, cut, with no room for a word under it. */
-const headed = (head: string, words: readonly string[], rows: number, cells: number) =>
-  rows < 3 ? fitted([head], rows, cells) : [head, '', ...fitted(words, rows - 2, cells)]
+/** A heading's lines over its words: the heading, a blank row, then the words wrapped in the rows left; the heading alone, cut, with no room for a word under it. */
+const headed = (head: string, words: string, rows: number, cells: number) =>
+  rows < 3 ? [cut(head, cells)].slice(0, rows) : [head, '', ...wrapIn(words, cells, rows - 2)]
 
 /**
  * Words in the body's place, each line centred, the lines a little above
  * the middle: a heading in bold and a blank row, where there is one, then
- * the words in grey. Past the rows there are, the last kept carries the
- * rest, cut with `…`.
+ * the words in grey, wrapped at `cells`. Past the rows there are, the last
+ * kept carries the rest, cut with `…`.
  */
-const centred = ({ grid, layout, pens }: Frame, head: string | undefined, words: readonly string[]) => {
+const centred = ({ grid, layout, pens }: Frame, head: string | undefined, words: string, cells: number) => {
   const { from, to } = layout.words
   const right = layout.width - 1
-  const cells = right - LEFT - 2
-  const lines = head === undefined ? fitted(words, to - from, cells) : headed(head, words, to - from, cells)
+  const lines = head === undefined ? wrapIn(words, cells, to - from) : headed(head, words, to - from, cells)
   const top = from + Math.max(0, Math.floor((to - from - lines.length) / 2) - 1)
 
   lines.forEach((line, at) => {
@@ -335,13 +336,13 @@ const centred = ({ grid, layout, pens }: Frame, head: string | undefined, words:
 }
 
 /** An empty board: `All clear`, then what it means, wrapped at 24 columns. */
-const quiet = (frame: Frame) => centred(frame, 'All clear', wrap(QUIET, Math.min(frame.layout.width - 4, 24)))
+const quiet = (frame: Frame) => centred(frame, 'All clear', QUIET, Math.min(frame.layout.width - 4, 24))
 
 /** Before any board: `Looking for sessions…`, or why the board can't be read. */
 const unread = (frame: Frame, reason: string | undefined) =>
   reason === undefined
-    ? centred(frame, undefined, [LOOKING])
-    : centred(frame, UNREADABLE, wrap(reason, frame.layout.width - 4))
+    ? centred(frame, undefined, LOOKING, frame.layout.width - 4)
+    : centred(frame, UNREADABLE, reason, frame.layout.width - 4)
 
 /** The answer to a pick: `!`, then its words, hung under the first. */
 const answer = ({ grid, layout, pens }: Frame) =>
@@ -353,16 +354,13 @@ const answer = ({ grid, layout, pens }: Frame) =>
     put(grid, LEFT + 2, layout.answer.from + at, line, pens.of(STYLE.answer))
   })
 
-/** The keys that work now, but `q quit`, most needed first. */
-const hintsOf = (view: PanelView, sections: readonly Section[]): Hint[] => {
-  if (sections.length === 0) {
-    return []
-  }
+/** The keys that work now, but `q quit`, most needed first: `↑↓` only while a row is in view to move to, `⏎` while the band is on one. */
+const hintsOf = (view: PanelView, layout: Layout): Hint[] => {
+  const arrows: Hint[] = layout.rows.length === 0 ? [] : [['↑↓', view.band === undefined ? 'pick' : 'move']]
+  const open: Hint[] = view.band === undefined ? [] : [['⏎', 'open']]
+  const snoozed: Hint[] = layout.sections.some(section => section.kind === 'snoozed') ? [['s', 'snoozed']] : []
 
-  const moves: Hint[] = view.band === undefined ? [['↑↓', 'pick']] : [['↑↓', 'move'], ['⏎', 'open']]
-  const snoozed: Hint[] = sections.some(section => section.kind === 'snoozed') ? [['s', 'snoozed']] : []
-
-  return [...moves, ...snoozed]
+  return [...arrows, ...open, ...snoozed]
 }
 
 const hintsWidth = (hints: readonly Hint[]) =>
@@ -415,7 +413,7 @@ export const draw = (view: PanelView, size: Size, paint: Paint): Line[] => {
   }
 
   answer(frame)
-  keyLine(frame, hintsOf(view, layout.sections))
+  keyLine(frame, hintsOf(view, layout))
 
   return frame.grid.map(runsOf)
 }
