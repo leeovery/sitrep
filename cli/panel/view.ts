@@ -16,6 +16,7 @@
  *   says why.
  */
 import {
+  clockOf,
   oneLine,
   panelSections,
   wakeWords,
@@ -111,15 +112,6 @@ export const countdown = (until: number, now: number) =>
 
 /** A question's `+2`, as core words it, as its number. */
 const moreOf = (more: string | undefined) => (more === undefined ? undefined : Number(more))
-
-const twoDigits = (value: number) => String(value).padStart(2, '0')
-
-/** A local time on the 24-hour clock, `12:04`, as core's `wakeWords` words today's. */
-const clockOf = (at: number) => {
-  const date = new Date(at)
-
-  return `${twoDigits(date.getHours())}:${twoDigits(date.getMinutes())}`
-}
 
 const statusOf = (line: RowLine, isPermission: boolean, now: number): StatusWords => {
   const after = [line.mono, line.until === undefined ? line.subject : countdown(line.until, now)]
@@ -222,7 +214,7 @@ export const viewOf = (
     top,
     ...(answer === undefined ? {} : { answer }),
     board,
-    ...(board === 'stale' && readAt !== undefined ? { asOf: clockOf(readAt) } : {}),
+    ...(board === 'stale' && readAt !== undefined ? { asOf: clockOf(new Date(readAt)) } : {}),
     ...(reason === undefined ? {} : { reason }),
   }
 }
