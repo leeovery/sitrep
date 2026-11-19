@@ -160,8 +160,8 @@ test("a finished session's open ask waits on no one: a faint mark, a dim title, 
 
   expect(await ui.find({ type: 'Text', text: 'nothing waiting · 1 left open' })).toBeDefined()
   expect((await ui.find({ type: 'Text', text: FINISHED_LINE }))?.props.color).toBe(C.faint)
-  expect(rowsOf(await ui.find({ key: `ask:${ASK}` }), ACROSS)[0]).toMatch(/^◆ Ship it\?/)
-  expect((await ui.find({ type: 'Text', text: '◆' }))?.props.color).toBe(C.faint)
+  expect(rowsOf(await ui.find({ key: `ask:${ASK}` }), ACROSS)[0]).toMatch(/^● Ship it\?/)
+  expect((await ui.find({ type: 'Text', text: '●' }))?.props.color).toBe(C.faint)
   expect((await ui.find({ key: `pick:${ASK}` }))?.props.dimColor).toBe(true)
   expect(
     keys.filter(key => /^(yes|choose|answer|comment|ignore|snooze|wake|finish)/.test(key)),

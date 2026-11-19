@@ -9,14 +9,14 @@ When Claude needs something only you can do or decide, it posts an ask. SitRep c
 ## Try it
 
 1. In a Claude Code window, give Claude work that needs your decision. For example: "Start a session on Northwind, and ask me which editor replies should use."
-2. Claude posts an ask, and the band above the prompt shows `◆ 1 ask`.
+2. Claude posts an ask, and the band above the prompt shows `● 1 ask`.
 3. Type `/sitrep` to open the pane. The ask waits under ASKS, with its buttons.
 
 ## What happens
 
 - **An ask takes one of three shapes.** A yes has one button in Claude's words, such as `✓ Go`. A choice has a button for each option, and the option Claude recommends ends in `· recommended`. A words ask has `✎ Answer`, for words you write back.
 - **Every ask has more buttons.** Each has `✕ ignore` and `snooze`, and a yes or a choice also has `✎ comment`. [Answering from the board](answering.md) covers each one.
-- **A new ask announces itself.** In the Claude Code window running that session, the ◆ on the band pulses, and a toast says `◆ New ask:` and the ask title. SitRep plays a sound and pulses the notch, wherever the session is.
+- **A new ask announces itself.** In the Claude Code window running that session, the ● on the band pulses, and a toast says `● New ask:` and the ask title. SitRep plays a sound and pulses the notch, wherever the session is.
 - **The band counts asks, and nothing else that waits on you.** First come the asks of this session, then the asks in every other session, such as `2 elsewhere`. A click on a count opens the pane.
 - **The pane lists them.** A session lists its asks under ASKS, with a count such as `2 waiting`. Each tab of the pane counts the asks under it.
 - **Needs you gathers every session that waits on you.** In the panel the notch opens, an orange row has asks, or a window waiting at a permission prompt. A blue row is Stopped. The Needs you heading counts the orange lines in orange, and the Stopped sessions in blue.

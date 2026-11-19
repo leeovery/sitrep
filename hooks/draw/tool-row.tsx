@@ -6,6 +6,7 @@
  * session.
  */
 import { itemTitle, oneLine, type Session } from '../../core'
+import { GLYPH } from '../look'
 import { toolNamed, type ToolName } from '../tools'
 import type { Els } from './kit'
 
@@ -36,8 +37,8 @@ const SAID: Record<ToolName, (input: Input, name: string | undefined) => string>
   start: input => `started: ${text(input.name)}`,
   join: (_, name) => (name === undefined ? 'joined a session' : `joined: ${name}`),
   status: () => '• status set',
-  ask: input => `◆ asked: ${text(input.title)}`,
-  park: input => `◇ parked: ${text(input.title)}`,
+  ask: input => `${GLYPH.ask} asked: ${text(input.title)}`,
+  park: input => `${GLYPH.parked} parked: ${text(input.title)}`,
   resolve: (_, name = 'an item') => `resolved: ${name}`,
   reopen: (_, name = 'an item') => `reopened: ${name}`,
   edit: (_, name = 'an item') => `edited: ${name}`,

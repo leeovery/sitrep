@@ -94,7 +94,7 @@ test('an ask wanting words offers an answer, an ignore and a snooze, and hangs w
   const ui = drawnWith([askOf('k1', LIST)], 'k1')
 
   expect(rowsOf(await ui.find({ key: `ask:${heldItem('k1')}` })).slice(0, 5)).toEqual([
-    '◆ Run sitrep list in a shell and paste what it now',
+    '● Run sitrep list in a shell and paste what it now',
     '│ prints',
     `├ needs: ${OUTPUT}`,
     '└ Any terminal: type sitrep list',
@@ -783,7 +783,7 @@ test('an opened parked item offers pick it up, ✎ with a comment and ✕ drop; 
   )
   await ui.press({ key: `pickup:${w.item(id)}` })
   expect(await parkedRows(ui, w.item(id))).toEqual([
-    expect.stringMatching(/^◇ A priority badge/),
+    expect.stringMatching(/^● A priority badge/),
     '└ pick it up · not sent yet ↺ undo',
   ])
   expect(await ui.find({ key: `pickup:${w.item(id)}` })).toBeUndefined()

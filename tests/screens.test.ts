@@ -70,7 +70,7 @@ test("the board's cells carry its palette: a heading in its colour and bold, the
   expect(at(option, 'Redraw')).toEqual({ color: ACCENT })
   expect(at(option, 'recommended')).toEqual({ color: C.recommended })
   expect(at(option, 'Ship it')).toEqual({})
-  expect(showing(cells, '◆').map(cell => cell.paint.color)).toEqual([C.ask, C.ask])
+  expect(showing(cells, '●').map(cell => cell.paint.color)).toEqual([C.ask, C.ask, C.parked])
 })
 
 test('a row hands what it has spare to the child that grows, so the one after it sits at the right edge', () => {
@@ -166,7 +166,7 @@ const plain = (words: string): Cell[] => [...words].map(char => ({ char, paint: 
 /** Claude Code's screen round a board of `height` rows and a band, read as characters. */
 const screenOf = (height: number) => {
   const board = Array.from({ length: height }, (_, i) => plain(`board ${i}`.padEnd(BOARD_COLUMNS)))
-  const band = plain('◆ 2 asks'.padStart(TALK_COLUMNS))
+  const band = plain('● 2 asks'.padStart(TALK_COLUMNS))
   const screen = claudeScreen(board, band)
 
   return { screen, chars: screen.rows.map(charsOf) }
@@ -192,7 +192,7 @@ test("the conversation is cut from its top to the board's height, the band at it
   const { chars } = screenOf(3)
   const talk = (row: string) => row.slice(0, TALK_COLUMNS)
 
-  expect(talk(chars[3] ?? '')).toBe('◆ 2 asks'.padStart(TALK_COLUMNS))
+  expect(talk(chars[3] ?? '')).toBe('● 2 asks'.padStart(TALK_COLUMNS))
   expect(talk(chars[2] ?? '').trim()).toBe('')
   expect(talk(chars[1] ?? '').trim()).toBe('changes. Press shift+tab twice to enable.')
   expect(chars[4]).toMatch(/^─+ northwind ─$/)
@@ -219,13 +219,13 @@ test("Ghostty paints a cell as Nord Wave does: no colour its foreground, dim at 
 test('a row is drawn as runs of cells painted alike, each from the column it starts at, a background its ground', () => {
   const row = [
     ...plain('ab'),
-    { char: '◆', paint: { color: C.ask } },
+    { char: '●', paint: { color: C.ask } },
     { char: 'x', paint: { color: C.ask, bold: true, background: C.tab } },
   ]
 
   expect(runsOf(row)).toEqual([
     { column: 0, text: 'ab', ink: NORD_WAVE.foreground },
-    { column: 2, text: '◆', ink: C.ask },
+    { column: 2, text: '●', ink: C.ask },
     { column: 3, text: 'x', ink: C.ask, ground: C.tab, bold: true },
   ])
 })

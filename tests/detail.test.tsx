@@ -15,7 +15,7 @@ const FOLD =
   "Move the pilot's results into the spreadsheet pages: contributors by team and level, owner by department, week tally, separate summaries"
 
 /** The first row of FOLD opened: its mark, its title's first line, its age. */
-const TITLED = /^◇ Move the pilot's results into the spreadsheet +now$/
+const TITLED = /^● Move the pilot's results into the spreadsheet +now$/
 
 const DECIDE = {
   wants: 'choice',
@@ -212,7 +212,7 @@ test("a reply waiting to be sent is the ask's last branch", async () => {
   ])
 
   expect(await rows(ui, `ask:${heldItem('k1')}`)).toEqual([
-    '◆ Keep the ledger 400 days, or forever? now',
+    '● Keep the ledger 400 days, or forever? now',
     '├ In Paper: page round 1',
     '└ → Forever · not sent yet ↺ undo ✎ comment',
   ])

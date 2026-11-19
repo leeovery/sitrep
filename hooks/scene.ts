@@ -183,11 +183,11 @@ export const isPulsing = ({ pulse, session }: Scene, ask?: Ask) =>
   pulse.frames > 0 &&
   (ask === undefined || (pulse.asks.includes(ask.id) && session.asks.includes(ask)))
 
-/** An ask's ◆ as it stands in the pulse; with no ask, the ◆ any new ask pulses. */
+/** An ask's ● as it stands in the pulse; with no ask, the ● any new ask pulses. */
 export const askMark = (scene: Scene, ask?: Ask) =>
   pulseOf(isPulsing(scene, ask) ? scene.pulse.frames : 0)
 
-/** The ◆ beside the count of asks `waiting`: grey while none waits or pulses. */
+/** The ● beside the count of asks `waiting`: grey while none waits or pulses. */
 export const countMark = (scene: Scene, waiting: number) => {
   const mark = askMark(scene)
 

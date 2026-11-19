@@ -3,13 +3,14 @@
  * and how ages and long lines read.
  *
  * Text drawn with no colour is white: what is clickable, and the main
- * content. Colour goes on glyphs, headings and amber waiting counts alone.
+ * content. Colour goes on glyphs, headings and orange waiting counts alone.
  */
 
 export const C = {
-  ask: '#e0af68',
-  /** A new ask's pulse. */
-  pulse: '#ff9e64',
+  /** Claude Code's own orange, the notch's ask circle. */
+  ask: '#d77757',
+  /** A new ask's flash: the ask's hue and chroma, its OKLCH lightness raised from 0.67 to 0.79, the old pulse's. */
+  pulse: '#ff9c7b',
   sessions: '#7aa2f7',
   parked: '#bb9af7',
   ok: '#9ece6a',
@@ -31,8 +32,9 @@ export const C = {
 } as const
 
 export const GLYPH = {
-  ask: '◆',
-  parked: '◇',
+  ask: '●',
+  /** Filled, as an ask's: on the notch a hollow circle means away. */
+  parked: '●',
   now: '•',
   next: '◦',
   home: '⌂',
@@ -50,8 +52,8 @@ export const GLYPH = {
 /** The board's close where its frame's ✕ is one cell: not plain, so bracketed, a target wide enough to tap. */
 export const CLOSE = { label: '✕ close' } as const
 
-/** The ◆ of a new ask, frame by frame as it pulses. */
-const PULSE = ['◆', '◈', '◇', '◈']
+/** The ● of a new ask, frame by frame as it pulses. */
+const PULSE = ['●', '◉', '○', '◉']
 
 const MIN = 60_000
 const HOUR = 60 * MIN
@@ -108,7 +110,7 @@ export const wrapped = (text: string, width: number) => {
 export const counted = (count: number, one: string, many: string) =>
   `${count} ${count === 1 ? one : many}`
 
-/** The ask glyph and its colour at a frame of the pulse: amber at rest, flashing while it runs. */
+/** The ask glyph and its colour at a frame of the pulse: orange at rest, flashing while it runs. */
 export const pulseOf = (frames: number) =>
   frames > 0
     ? {

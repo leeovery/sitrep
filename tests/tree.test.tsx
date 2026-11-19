@@ -267,7 +267,7 @@ test('All projects: this project first, then the busiest; the quiet fold into on
     `proj:${FABRIKAM.key}`,
   ])
   expect(await keysOf(ui, 'go:')).toEqual([`go:${HELD.id}`, `go:${LEDGER.id}`, `go:${SHIFTS.id}`])
-  expect(await ui.find({ type: 'Text', text: 'no sessions open · ◇ 1 parked' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'no sessions open · ● 1 parked' })).toBeDefined()
   expect(
     await ui.find({ type: 'Text', text: '1 more, with nothing going on: Tailspin' }),
   ).toBeDefined()
@@ -308,8 +308,8 @@ test("the project view's ASKS holds every session's asks, the newest first, each
   const at = listed.findIndex(row => row.startsWith(' ASKS'))
 
   expect(listed.slice(at + 1, at + 3), 'no blank row between asks').toEqual([
-    expect.stringMatching(/^ ◆ Help desk redesign: Review Tickets & Replies, round 1 +now$/),
-    expect.stringMatching(/^ ◆ Invoice ledger: Keep the ledger 400 days, or forever\? +now$/),
+    expect.stringMatching(/^ ● Help desk redesign: Review Tickets & Replies, round 1 +now$/),
+    expect.stringMatching(/^ ● Invoice ledger: Keep the ledger 400 days, or forever\? +now$/),
   ])
 
   await ui.press({ key: `pick:${LEDGER.id}:k3` })
@@ -475,7 +475,7 @@ test('All projects keeps a project whose sessions are finished or idle past the 
 
   await ui.press({ key: 'tab:all' })
   expect(await keysOf(ui, 'proj:')).toEqual([`proj:${PROJECT.key}`, `proj:${FABRIKAM.key}`])
-  expect(await ui.find({ type: 'Text', text: 'no sessions open · ◇ 2 parked' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'no sessions open · ● 2 parked' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /more, with nothing going on/ })).toBeUndefined()
 
   await ui.press({ key: `proj:${FABRIKAM.key}` })

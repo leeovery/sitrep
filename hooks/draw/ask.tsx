@@ -58,7 +58,7 @@ const HINT =
 /** The mark of an ask Lee's send closed. */
 const RESOLVED = { glyph: GLYPH.done, color: C.ok }
 
-/** The mark of an ask Lee snoozed: quieted, as the ◆ by a count with nothing waiting. */
+/** The mark of an ask Lee snoozed: quieted, as the ● by a count with nothing waiting. */
 const SNOOZED = { glyph: GLYPH.ask, color: C.grey }
 
 /** The mark of an ask left open in a finished session: a closed thing, which waits on no one. */
@@ -293,7 +293,7 @@ const drawButtons = (d: Drawing, ask: Ask, standing: Standing, isLast: boolean) 
   )
 }
 
-/** An ask's mark: ticked once Lee's send closed it, faint where no reply can reach it, quieted while snoozed, else its ◆ as it stands in the pulse. */
+/** An ask's mark: ticked once Lee's send closed it, faint where no reply can reach it, quieted while snoozed, else its ● as it stands in the pulse. */
 const markOf = (d: Drawing, ask: Ask, { isClosed, isUnreachable, snoozedUntil }: Standing) => {
   if (isClosed) {
     return RESOLVED

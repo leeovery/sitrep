@@ -129,7 +129,7 @@ test("an opened parked item's ✕ drop asks first, in place of its buttons, the 
 
   await ui.press({ key: `drop:${key}` })
   expect(await parkedRows(ui, key)).toEqual([
-    expect.stringMatching(/^◇ A priority badge across all tabs/),
+    expect.stringMatching(/^● A priority badge across all tabs/),
     QUESTION,
     ANSWERS,
   ])
@@ -385,7 +385,7 @@ test("Claude's resolve of an item Lee dropped passes quietly, writing nothing; i
     `Reopened ${id}.`,
   )
   expect(await parkedRows(ui, w.item(id))).toEqual([
-    expect.stringMatching(/^◇ A priority badge across all tabs/),
+    expect.stringMatching(/^● A priority badge across all tabs/),
   ])
   expect(await ui.find({ key: PICKED_UP })).toBeUndefined()
   expect(String((await w.call('board')).result)).toContain(`- ${id}: ${BADGE}`)
