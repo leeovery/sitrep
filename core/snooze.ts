@@ -217,7 +217,7 @@ export const heldSnooze = (held: unknown): SnoozeSettings => {
 const twoDigits = (value: number) => String(value).padStart(2, '0')
 
 /** A local time of day on the 24-hour clock: `09:00`. */
-const clockOf = (date: Date) => `${twoDigits(date.getHours())}:${twoDigits(date.getMinutes())}`
+export const clockOf = (date: Date) => `${twoDigits(date.getHours())}:${twoDigits(date.getMinutes())}`
 
 const weekdayOf = (date: Date) => WEEKDAYS[date.getDay()] ?? ''
 
