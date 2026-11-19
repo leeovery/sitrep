@@ -2,7 +2,7 @@ import { expect, test } from './kit'
 import type { Size } from '../cli/panel/cells'
 import type { Key, Press } from '../cli/panel/keys'
 import { layoutOf } from '../cli/panel/layout'
-import { opening, step, type PanelEvent, type PanelState } from '../cli/panel/state'
+import { kept, opening, step, type PanelEvent, type PanelState } from '../cli/panel/state'
 import { NEW_MS, viewOf } from '../cli/panel/view'
 import type { Feed } from '../core'
 import { boardRow, feedOfRows, snoozedRow, T0 } from './data'
@@ -172,6 +172,27 @@ test("a tap on either line of a row puts the band on it, a tap on the band's row
   expect(pressed(read(), tap(5, 40)).band, 'past the layout').toBeUndefined()
 })
 
+test("a tap while a pick's answer shows finds the row under it as drawn, the answer's rows holding none, and drops the answer", () => {
+  for (const height of [11, 15, 20]) {
+    const size = { width: 40, height }
+    const answered = kept({
+      ...pressed(read(boardOf(), size), DOWN, DOWN, DOWN, DOWN),
+      answer: "Release notes can't be opened here, as its window is on another Mac.",
+    })
+    const { answer: _, ...bare } = answered
+    const rowAt = (state: PanelState, y: number) => layoutIn(state).rows.find(row => y === row.y || y === row.y + 1)?.key
+    const ys = Array.from({ length: height }, (_, y) => y)
+
+    expect(ys.some(y => rowAt(answered, y) !== rowAt(bare, y)), `at ${height} rows the answer moves what is under a tap`).toBe(true)
+
+    for (const y of ys) {
+      const tapped = pressed(answered, tap(y))
+
+      expect([tapped.band, tapped.answer], `row ${y} of ${height}`).toEqual([rowAt(answered, y) ?? answered.band, undefined])
+    }
+  }
+})
+
 test('the wheel scrolls the view a row a notch, the band staying on its session in sight or not; past the end piles nothing up', () => {
   const banded = pressed(read(), DOWN)
   const far = pressed(banded, ...Array.from({ length: 50 }, () => wheel(1)))
@@ -266,8 +287,10 @@ test('a failed look before any board says why; after a board, it keeps the board
   expect(stepped(before, { board: boardOf(), news: [], now: T0 }).reason).toBeUndefined()
 })
 
-test('q, Ctrl-C and Ctrl-Z are the loop\'s: they move nothing here', () => {
+test('q, Ctrl-C and Ctrl-Z are the loop\'s: they move nothing here, and drop an answer as any key does', () => {
   const banded = pressed(read(), DOWN, wheel(1))
+  const answered = { ...banded, answer: "Release notes can't be opened here." }
 
   expect(pressed(banded, press('quit'), press('suspend'))).toEqual(banded)
+  expect([pressed(answered, press('quit')).answer, pressed(answered, press('suspend')).answer]).toEqual([undefined, undefined])
 })

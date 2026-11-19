@@ -3,8 +3,9 @@
  * and the writes that turn one frame into the next.
  *
  * - Entering: the alternate screen, the cursor hidden, autowrap off, so a
- *   line written to the last column never scrolls the screen, and mouse
- *   reporting on in SGR's form, buttons only, never motion.
+ *   line written to the last column never scrolls the screen, mouse
+ *   reporting on in SGR's form, buttons only, never motion, and bracketed
+ *   paste, so a paste is told from keys.
  * - Leaving undoes each, in the other order.
  * - A frame rewrites only the rows that changed, each whole from its first
  *   column and cleared to its end, since a drawn line leaves off its
@@ -15,9 +16,9 @@
 
 const CSI = '\x1b['
 
-export const ENTER = `${CSI}?1049h${CSI}?25l${CSI}?7l${CSI}?1000h${CSI}?1006h`
+export const ENTER = `${CSI}?1049h${CSI}?25l${CSI}?7l${CSI}?1000h${CSI}?1006h${CSI}?2004h`
 
-export const LEAVE = `${CSI}?1006l${CSI}?1000l${CSI}?7h${CSI}?25h${CSI}?1049l`
+export const LEAVE = `${CSI}?2004l${CSI}?1006l${CSI}?1000l${CSI}?7h${CSI}?25h${CSI}?1049l`
 
 const SYNC = { from: `${CSI}?2026h`, to: `${CSI}?2026l` }
 

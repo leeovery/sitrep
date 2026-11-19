@@ -16,7 +16,7 @@ interface ImportMeta {
   readonly dir: string
 }
 
-type ProcessSignal = 'SIGTERM' | 'SIGHUP' | 'SIGCONT'
+type ProcessSignal = 'SIGHUP' | 'SIGINT' | 'SIGQUIT' | 'SIGTERM' | 'SIGCONT'
 
 declare const process: {
   cwd(): string
@@ -40,8 +40,9 @@ declare const process: {
     setRawMode(isRaw: boolean): void
     on(event: 'data', listener: (text: string) => void): void
     off(event: 'data', listener: (text: string) => void): void
-    on(event: 'error', listener: () => void): void
-    off(event: 'error', listener: () => void): void
+    /** Its end, its closing, or its failing, as a terminal gone gives them. */
+    on(event: 'end' | 'close' | 'error', listener: () => void): void
+    off(event: 'end' | 'close' | 'error', listener: () => void): void
     resume(): void
     pause(): void
   }
@@ -51,6 +52,13 @@ declare const process: {
     /** A terminal's width and height, in cells; undefined off one. */
     readonly columns: number | undefined
     readonly rows: number | undefined
+    /**
+     * Node's, which Bun keeps: asks the terminal its size again, as a
+     * SIGWINCH has the runtime do, and emits `resize` at once where it
+     * changed. A resize made while the run is stopped sends its SIGWINCH to
+     * the shell, leaving `columns` and `rows` as they were without it.
+     */
+    _refreshSize?(): void
     write(text: string): boolean
     on(event: 'error' | 'resize', listener: () => void): void
     off(event: 'error' | 'resize', listener: () => void): void

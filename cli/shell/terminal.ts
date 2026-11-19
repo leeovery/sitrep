@@ -4,15 +4,21 @@
  *
  * - Raw mode is on while anything listens to the keys or waits on an
  *   answer to a query, and off once nothing does.
- * - A query waits for DA1's answer up to a second. Past that, what comes
- *   in the second after is dropped, so a late answer is never read as keys.
+ * - A query waits for DA1's answer up to a second. An answer that comes
+ *   later reaches the keys, whose reader passes it over.
+ * - The size is asked of the terminal each time: Bun's `columns` and `rows`
+ *   change only on a SIGWINCH, which a resize made while the run is stopped
+ *   sends to the shell instead (proven live, 19 November 2026).
  * - A terminal gone, as after a hang-up, fails nothing: a write to it is
  *   lost, and raw mode is let go without a word, so the panel gives the
- *   terminal back on every path, that one included.
+ *   terminal back on every path, that one included. While raw mode is on,
+ *   its input ending or failing, or its output failing, is heard as SIGHUP,
+ *   for a terminal can go without one, as one that was never this run's
+ *   controlling terminal does.
  */
 import type { Signal, Terminal } from '../io'
 
-/** How long a query waits for DA1's answer, and how long after it gave up an answer is dropped. */
+/** How long a query waits for DA1's answer. */
 const ANSWER_MS = 1_000
 
 /** DA1's answer: `CSI ? <attributes> c`. */
@@ -25,28 +31,43 @@ const tried = (act: () => void) => {
   } catch {}
 }
 
-/** Hears a stream's error from a terminal gone, which unheard would end the run before the panel gives the terminal back. */
+/** Hears a write's error from a terminal gone, which unheard would end the run before the panel gives the terminal back. */
 const lost = () => {}
 
-/** Raw mode while any hold it, standard input read only then: each hold gives what lets it go, once. */
-const rawHolds = () => {
+/**
+ * Raw mode while any hold it, standard input read only then, and the
+ * terminal's going heard by `gone`: each hold, counted once raw mode is on,
+ * gives what lets it go, once.
+ */
+const rawHolds = (gone: () => void) => {
   let holds = 0
+
+  const hearGoing = (isHearing: boolean) => {
+    const on = isHearing ? 'on' : 'off'
+
+    process.stdin[on]('end', gone)
+    process.stdin[on]('close', gone)
+    process.stdin[on]('error', gone)
+    process.stdout[on]('error', gone)
+  }
 
   return () => {
     let isHeld = true
 
-    if (holds++ === 0) {
+    if (holds === 0) {
       process.stdin.setEncoding('utf8')
-      process.stdin.on('error', lost)
       process.stdin.setRawMode(true)
+      hearGoing(true)
       process.stdin.resume()
     }
 
+    holds += 1
+
     return () => {
       if (isHeld && --holds === 0) {
+        hearGoing(false)
         tried(() => process.stdin.setRawMode(false))
         process.stdin.pause()
-        process.stdin.off('error', lost)
       }
 
       isHeld = false
@@ -60,8 +81,8 @@ export const terminalOf = (): Terminal | undefined => {
     return undefined
   }
 
-  const raw = rawHolds()
-  let dropsUntil = 0
+  const hangUps = new Set<() => void>()
+  const raw = rawHolds(() => hangUps.forEach(heard => heard()))
   let isWriting = false
 
   const listen = (heard: (bytes: string) => void) => {
@@ -87,15 +108,6 @@ export const terminalOf = (): Terminal | undefined => {
   const ask = (query: string) =>
     new Promise<string>(resolve => {
       let heard = ''
-      const finish = (answer: string) => {
-        clearTimeout(timer)
-        stop()
-        resolve(answer)
-      }
-      const timer = setTimeout(() => {
-        dropsUntil = Date.now() + ANSWER_MS
-        finish(heard)
-      }, ANSWER_MS)
       const stop = listen(bytes => {
         heard += bytes
 
@@ -105,12 +117,20 @@ export const terminalOf = (): Terminal | undefined => {
           finish(heard.slice(0, at))
         }
       })
+      const timer = setTimeout(() => finish(heard), ANSWER_MS)
+      const finish = (answer: string) => {
+        clearTimeout(timer)
+        stop()
+        resolve(answer)
+      }
 
       write(query)
     })
 
   return {
     size: () => {
+      process.stdout._refreshSize?.()
+
       const { columns, rows } = process.stdout
 
       return columns !== undefined && rows !== undefined && columns > 0 && rows > 0 ? { width: columns, height: rows } : undefined
@@ -120,18 +140,20 @@ export const terminalOf = (): Terminal | undefined => {
 
       return () => process.stdout.off('resize', heard)
     },
-    keys: heard =>
-      listen(bytes => {
-        if (Date.now() >= dropsUntil) {
-          heard(bytes)
-        }
-      }),
+    keys: listen,
     write,
     ask,
     onSignal: (signal: Signal, heard) => {
       process.on(signal, heard)
 
-      return () => process.off(signal, heard)
+      if (signal === 'SIGHUP') {
+        hangUps.add(heard)
+      }
+
+      return () => {
+        process.off(signal, heard)
+        hangUps.delete(heard)
+      }
     },
     suspend: () => void process.kill(process.pid, 'SIGTSTP'),
   }

@@ -28,9 +28,8 @@ import {
 import { widthOf, type Size } from '../panel/cells'
 import { draw, type Line } from '../panel/draw'
 import type { Key } from '../panel/keys'
-import { topFor } from '../panel/layout'
 import { rgbOf, type Paint } from '../panel/paint'
-import { opening, step, type PanelState } from '../panel/state'
+import { kept, opening, step, type PanelState } from '../panel/state'
 import { viewOf, type PanelView } from '../panel/view'
 
 /** The board a fixture shows, and the sessions on it this Mac doesn't show. */
@@ -300,7 +299,9 @@ const SNOOZED: Key = { kind: 'snoozed' }
 /** The keys that put the band on the session named so, from none: `↓` onto the first row, the top one in view, then a `↓` a row. */
 const downTo = (world: World, name: string): Key[] => {
   const state = step(opening({ width: 80, height: 24 }, NOW, world.notHere), { board: world.feed, news: [], now: NOW }).state
-  const rows = viewOf(world.feed, state, NOW, world.notHere).sections.flatMap(section => section.rows)
+  const rows = viewOf(world.feed, state, NOW, world.notHere)
+    .sections.filter(section => section.isOpen)
+    .flatMap(section => section.rows)
   const at = rows.findIndex(row => row.name === name)
 
   if (at === -1) {
@@ -365,21 +366,12 @@ export const FIXTURES: readonly Fixture[] = Object.entries(SCREENS).flatMap(([sc
 /** The fixture's frame's name: `panel-rest-39x27`. */
 export const frameName = ({ screen, size }: Fixture) => `panel-${screen}-${size.width}x${size.height}`
 
-/** The answer laid over the state, the view scrolled the least that keeps the band's row whole in sight under it. */
-const answered = (state: PanelState, answer: string): PanelState => {
-  const told = { ...state, answer }
-  const view = viewOf(told.feed, told, told.now, told.notHere)
-  const top = told.band === undefined ? undefined : topFor(view, told.size, told.band)
-
-  return { ...told, top: top ?? told.top }
-}
-
-/** The fixture's state at a size: its board read, then its keys pressed, as the panel steps them; then its answer. */
+/** The fixture's state at a size: its board read, then its keys pressed, as the panel steps them; then its answer, the band kept whole in sight under it. */
 export const stateAt = ({ world, now, news, keys, answer }: Fixture, size: Size): PanelState => {
   const read = step(opening(size, now, world.notHere), { board: world.feed, news, now }).state
   const pressed = keys.reduce((state, key) => step(state, { key }).state, read)
 
-  return answer === undefined ? pressed : answered(pressed, answer)
+  return answer === undefined ? pressed : kept({ ...pressed, answer })
 }
 
 /** The fixture's view at a size, as the panel reaches it there. */

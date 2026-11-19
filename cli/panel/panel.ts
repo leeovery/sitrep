@@ -2,27 +2,35 @@
  * The panel: bare `sitrep` on a terminal, the board drawn on the alternate
  * screen and kept current until it is left.
  *
- * - Opening, it asks the terminal's colours, enters the screen, and looks
- *   at the board every second as `watch` does (looks.ts), in its own
+ * - Opening, it hears the keys, raw mode on, then asks the terminal's
+ *   colours, so a key typed before the answer comes is read, and the answer
+ *   never is: the key reader passes it over. Then it enters the screen and
+ *   looks at the board every second as `watch` does (looks.ts), in its own
  *   process.
  * - Its first draw waits for the first look, up to 300 ms, so `Looking for
  *   sessions…` never flashes up before a board read at once.
  * - It steps its state (state.ts) on every look, key and resize, and at a
  *   new ask's wash's end, then draws, writing only the rows that changed. A
  *   look that finds the board as it stood moves the clock alone, so the
- *   times turn over with the minute.
+ *   times turn over with the minute. A resize to the size it had redraws
+ *   nothing.
  * - It never ends on a look: one that fails keeps the last board, stale,
  *   or says why the board can't be read before any.
- * - Ctrl-Z gives the terminal back and stops it; SIGCONT takes the
- *   terminal again and draws afresh.
+ * - Ctrl-Z gives the terminal back and stops it, then takes the terminal
+ *   back as the stop returns: on `fg`, or at once in a process group no
+ *   shell controls, where the stop is lost. That stop's own SIGCONT does
+ *   nothing more. A SIGCONT after a stop from outside, which leaves the
+ *   terminal to the shell, cooked, takes it back. Taking it back reads the
+ *   size again, since a resize made while stopped goes to the shell.
  * - However it ends, it gives the terminal back first: `q` and Ctrl-C as
- *   done, SIGTERM as terminated, SIGHUP as hung up, its writes tried though
- *   the terminal may be gone; and a thrown error, thrown on once the
- *   terminal is given back. SIGTERM and SIGHUP are heard from the first,
- *   the colour query's wait among it, when raw mode is already on.
+ *   done; SIGHUP, or the terminal gone without one, as hung up; SIGINT,
+ *   SIGQUIT and SIGTERM from outside as each says. Its writes are tried
+ *   though the terminal may be gone, and every wait it set is let go. A
+ *   thrown error is thrown on once the terminal is given back. The signals
+ *   that end it are heard from the first, the colour query's wait among it.
  */
 import { newRows, ownTime, type Shown } from '../../core'
-import type { Io, Terminal, Waiting } from '../io'
+import type { Io, Signal, Terminal } from '../io'
 import { looking, untilEnded, type Look } from '../looks'
 import type { Size } from './cells'
 import { COLOUR_QUERY, paintOf } from './colours'
@@ -31,10 +39,10 @@ import { keysOf, type Key } from './keys'
 import { levelOf, type Paint } from './paint'
 import { ENTER, LEAVE, repaint } from './screen'
 import { opening, step, type PanelEvent } from './state'
-import { NEW_MS, viewOf } from './view'
+import { cleaned, NEW_MS, viewOf } from './view'
 
-/** How the panel ended: left by its keys, told to end, or its terminal gone. */
-export type Closed = 'done' | 'terminated' | 'hungUp'
+/** How the panel ended: left by its keys, or by a signal, its terminal gone among them. */
+export type Closed = 'done' | 'hungUp' | 'interrupted' | 'quit' | 'terminated'
 
 /** How long the first draw waits for the first look. */
 export const HOLD_MS = 300
@@ -42,56 +50,60 @@ export const HOLD_MS = 300
 /** How long a lone ESC waits for the rest of a sequence. */
 export const ESC_MS = 50
 
+/** The signals that end the panel, and how each ends it. */
+const ENDINGS: readonly (readonly [Signal, Closed])[] = [
+  ['SIGHUP', 'hungUp'],
+  ['SIGINT', 'interrupted'],
+  ['SIGQUIT', 'quit'],
+  ['SIGTERM', 'terminated'],
+]
+
 /** The size laid out at while the terminal says none. */
 const UNSIZED: Size = { width: 80, height: 24 }
 
 /** The sessions on the board no terminal on this Mac shows: none known, until SitRep says. */
 const NOT_HERE: ReadonlySet<string> = new Set()
 
-/** Why a look failed, as a sentence, as the app words it. */
+/** Why a look failed, as a sentence, as the app words it, made harmless for the terminal. */
 const reasonOf = (error: unknown) => {
-  const message = error instanceof Error ? error.message : String(error)
+  const message = cleaned(error instanceof Error ? error.message : String(error))
 
   return /[.!?]$/.test(message) ? message : `${message}.`
 }
 
 const sizeOf = (terminal: Terminal) => terminal.size() ?? UNSIZED
 
-/** A wait that acts once its time has passed, unless cancelled first. */
-const after = (io: Io, ms: number, act: () => void): Waiting => {
-  const waiting = io.wait(ms)
-
-  void waiting.then(act)
-
-  return waiting
-}
+const isSameSize = (a: Size, b: Size) => a.width === b.width && a.height === b.height
 
 /** The run's end, as the panel's looks hear it: only the panel ends them, as it closes, never a signal of their own. */
 const byThePanel = () => ({ ended: new Promise<void>(() => {}), stop: () => {} })
+
+/** Something to do once `ms` have passed, unless let go first by what it gives. */
+type Later = (ms: number, act: () => void) => () => void
 
 /**
  * The keys in bytes as they come: a sequence cut short held for the next
  * bytes, and read as all there is once ESC_MS pass with nothing more, so a
  * lone ESC is `esc`.
  */
-const keyReader = (io: Io, pressed: (key: Key) => void, guard: (act: () => void) => void) => {
+const keyReader = (later: Later, pressed: (key: Key) => void) => {
   let rest = ''
-  let quiet: Waiting | undefined
+  let letQuietGo = () => {}
 
   const read = (bytes: string, isQuiet: boolean) => {
-    quiet?.cancel()
+    letQuietGo()
 
     const found = keysOf(rest + bytes, isQuiet)
 
     rest = found.rest
-    quiet = rest === '' ? undefined : after(io, ESC_MS, () => guard(() => read('', true)))
+    letQuietGo = !isQuiet && rest !== '' ? later(ESC_MS, () => read('', true)) : () => {}
     found.keys.forEach(pressed)
   }
 
   return {
     heard: (bytes: string) => read(bytes, false),
     stop: () => {
-      quiet?.cancel()
+      letQuietGo()
       rest = ''
     },
   }
@@ -114,6 +126,7 @@ const live = (io: Io, terminal: Terminal) => {
   const closing = closer()
   const run = untilEnded({ ...io, ending: byThePanel })
   const listening: (() => void)[] = []
+  const waiting = new Set<() => void>()
   let paint: Paint = { level: levelOf(io.env) }
   let state = opening(sizeOf(terminal), io.now(), NOT_HERE)
   let isClosed = false
@@ -122,8 +135,15 @@ const live = (io: Io, terminal: Terminal) => {
   let onScreen: string[] | undefined
   let stopKeys = () => {}
   let shown: Shown | undefined
-  let hold: Waiting | undefined
-  let wash: Waiting | undefined
+  /**
+   * The panel's own stop's SIGCONT is yet to come, the terminal taken back
+   * already as the stop returned. In a process group no shell controls the
+   * stop is lost and none comes, so the next SIGCONT is taken for it: only
+   * a SIGSTOP stops such a group, and nothing takes its terminal meanwhile.
+   */
+  let isWaking = false
+  let letHoldGo = () => {}
+  let letWashGo = () => {}
   let looks: Promise<unknown> = Promise.resolve()
 
   const close = (closed: Closed) => {
@@ -142,12 +162,29 @@ const live = (io: Io, terminal: Terminal) => {
     }
   }
 
+  /** Acts, guarded, once `ms` have passed; each wait kept until it acts or is let go, so closing lets every one go. */
+  const later: Later = (ms, act) => {
+    const wait = io.wait(ms)
+    const letGo = () => {
+      waiting.delete(letGo)
+      wait.cancel()
+    }
+
+    waiting.add(letGo)
+    void wait.then(() => {
+      waiting.delete(letGo)
+      guard(act)
+    })
+
+    return letGo
+  }
+
   /** The clock stepped at the earliest wash's end, NEW_MS from its line's first showing. */
   const washing = () => {
     const first = Math.min(...state.arrivals.values())
 
-    wash?.cancel()
-    wash = Number.isFinite(first) ? after(io, first + NEW_MS - io.now(), () => guard(() => apply({ tick: io.now() }))) : undefined
+    letWashGo()
+    letWashGo = Number.isFinite(first) ? later(first + NEW_MS - io.now(), () => apply({ tick: io.now() })) : () => {}
   }
 
   const frame = () => {
@@ -177,35 +214,38 @@ const live = (io: Io, terminal: Terminal) => {
       return
     }
 
+    state = step(state, { key }).state
+
     if (key.kind === 'quit') {
       close('done')
     } else if (key.kind === 'suspend') {
       suspend()
     } else {
-      apply({ key })
+      frame()
     }
   }
 
-  const reader = keyReader(io, pressed, guard)
+  const reader = keyReader(later, pressed)
 
-  /** The terminal taken: its keys listened to, raw mode set afresh where a stop from outside left it to the shell, and the screen entered. */
-  const enter = () => {
+  /** The keys heard, raw mode set afresh, as a stop from outside leaves it to the shell, cooked. */
+  const listen = () => {
     stopKeys()
+    stopKeys = terminal.keys(bytes => guard(() => reader.heard(bytes)))
+  }
+
+  const enter = () => {
     isOnScreen = true
     onScreen = undefined
-    stopKeys = terminal.keys(bytes => guard(() => reader.heard(bytes)))
     terminal.write(ENTER)
   }
 
-  const leave = () => {
-    if (!isOnScreen) {
-      return
-    }
-
-    isOnScreen = false
-
+  /** The terminal given back: the screen left, where it was entered, then raw mode let go and the keys no more heard. */
+  const release = () => {
     try {
-      terminal.write(LEAVE)
+      if (isOnScreen) {
+        isOnScreen = false
+        terminal.write(LEAVE)
+      }
     } finally {
       stopKeys()
       stopKeys = () => {}
@@ -213,19 +253,53 @@ const live = (io: Io, terminal: Terminal) => {
     }
   }
 
-  const suspend = () => {
-    leave()
-    terminal.suspend()
+  /** The terminal taken back, as after a stop: the keys heard, the screen entered, its size read again, and drawn whole. */
+  const takeBack = () => {
+    listen()
+    enter()
+    state = step(state, { size: sizeOf(terminal) }).state
+    frame()
   }
 
-  const resume = () => {
-    enter()
-    frame()
+  /**
+   * Ctrl-Z, once the screen is taken: the terminal given back, the run
+   * stopped, and the terminal taken back as the stop returns, a macrotask
+   * on, so a SIGTERM or SIGHUP sent with the SIGCONT closes the panel first.
+   */
+  const suspend = () => {
+    if (!isOnScreen) {
+      return
+    }
+
+    release()
+    isWaking = true
+    terminal.suspend()
+    later(0, takeBack)
+  }
+
+  /** SIGCONT, a macrotask on, as Ctrl-Z's take-back is: nothing for the panel's own stop, taken back already; a stop from outside taken back. */
+  const continued = () => {
+    later(0, () => {
+      if (isWaking) {
+        isWaking = false
+      } else {
+        takeBack()
+      }
+    })
+  }
+
+  const resized = () => {
+    const size = sizeOf(terminal)
+
+    if (!isSameSize(size, state.size)) {
+      onScreen = undefined
+      apply({ size })
+    }
   }
 
   const unhold = () => {
     isHeld = false
-    hold?.cancel()
+    letHoldGo()
   }
 
   /** A look's board, stepped as a board where it changed or the board was stale; else the clock alone. */
@@ -252,31 +326,22 @@ const live = (io: Io, terminal: Terminal) => {
     return true
   }
 
-  const resized = () => {
-    onScreen = undefined
-    apply({ size: sizeOf(terminal) })
-  }
-
-  /** The panel opened: told to end from the first, even while it asks the colours with raw mode on; then on the screen, watching the board. */
+  /** The panel opened: closed by a signal from the first; its keys heard before it asks the colours, so the tty is never cooked between; then on the screen, watching the board. */
   const open = async () => {
-    listening.push(
-      terminal.onSignal('SIGTERM', () => close('terminated')),
-      terminal.onSignal('SIGHUP', () => close('hungUp')),
-    )
+    listening.push(...ENDINGS.map(([signal, closed]) => terminal.onSignal(signal, () => close(closed))))
+    listen()
     paint = paintOf(paint.level, await terminal.ask(COLOUR_QUERY))
 
     if (!isClosed) {
       listening.push(
-        terminal.onSignal('SIGCONT', () => guard(resume)),
+        terminal.onSignal('SIGCONT', continued),
         terminal.onResize(() => guard(resized)),
       )
       enter()
-      hold = after(io, HOLD_MS, () =>
-        guard(() => {
-          unhold()
-          frame()
-        }),
-      )
+      letHoldGo = later(HOLD_MS, () => {
+        unhold()
+        frame()
+      })
       looks = looking(io, run, { seen: onLook, endsOnNewVersion: false, isPastFailure: onFailure }).catch(closing.fail)
     }
 
@@ -286,10 +351,9 @@ const live = (io: Io, terminal: Terminal) => {
   const giveBack = async () => {
     isClosed = true
     run.end()
-    hold?.cancel()
-    wash?.cancel()
-    listening.forEach(stop => stop())
-    leave()
+    ;[...waiting].forEach(letGo => letGo())
+    listening.splice(0).forEach(stop => stop())
+    release()
     await looks
   }
 

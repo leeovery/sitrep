@@ -34,8 +34,13 @@ import type { Env, Io, Terminal } from './io'
 import { panel } from './panel/panel'
 import { watch } from './watch'
 
-/** How a run ends: done; a usage error, a refused input or a failure; no such session; or, the panel's, its terminal hung up (SIGHUP's 128 + 1) or it was told to end (SIGTERM's 128 + 15). */
-export const EXIT = { done: 0, refused: 1, noSession: 2, hungUp: 129, terminated: 143 } as const
+/**
+ * How a run ends: done; a usage error, a refused input or a failure; no
+ * such session; or, the panel's, by a signal, 128 and its number: its
+ * terminal hung up (SIGHUP), it was interrupted (SIGINT), told to quit
+ * (SIGQUIT) or told to end (SIGTERM).
+ */
+export const EXIT = { done: 0, refused: 1, noSession: 2, hungUp: 129, interrupted: 130, quit: 131, terminated: 143 } as const
 
 export type Exit = (typeof EXIT)[keyof typeof EXIT]
 

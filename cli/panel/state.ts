@@ -16,14 +16,15 @@
  *   band; and folds it, passing the band on as a session leaving does.
  * - `esc` drops the band, and any key a pick's answer, the loop's own among
  *   them.
- * - A tap puts the band on the row under it, and opens the band's own row,
- *   as ⏎ does; the wheel scrolls a row a notch, the band staying on its
- *   session, in sight or not.
+ * - A tap puts the band on the row under it as drawn, a pick's answer
+ *   still showing, and opens the band's own row, as ⏎ does; the wheel
+ *   scrolls a row a notch, the band staying on its session, in sight or not.
  * - `top` is kept as the layout clamps it, so scrolling past the end piles
  *   nothing up.
  * - Each line new to Needs you is stamped with the time of the board it
  *   came on, and dropped once NEW_MS old.
- * - `q`, Ctrl-C and Ctrl-Z are the loop's: they change nothing else here.
+ * - `q`, Ctrl-C and Ctrl-Z are stepped as any key, dropping an answer, and
+ *   change nothing else here: leaving and suspending are the loop's.
  */
 import type { Feed } from '../../core'
 import type { Size } from './cells'
@@ -74,12 +75,12 @@ const viewIn = (state: PanelState) => viewOf(state.feed, state, state.now, state
 const layoutIn = (state: PanelState) => layoutOf(viewIn(state), state.size)
 
 /** The rows of the open sections, in order: those the band moves across and `top` counts. */
-const rowsIn = (state: PanelState): PanelRow[] =>
+const openRows = (state: PanelState): PanelRow[] =>
   viewIn(state)
     .sections.filter(section => section.isOpen)
     .flatMap(section => section.rows)
 
-const keysIn = (state: PanelState) => rowsIn(state).map(rowKey)
+const keysIn = (state: PanelState) => openRows(state).map(rowKey)
 
 /** The state with `field` set, or without it, given none. */
 const withField = <K extends 'band' | 'answer' | 'reason'>(state: PanelState, field: K, value: PanelState[K]): PanelState => {
@@ -101,7 +102,7 @@ const isBandInSight = (state: PanelState) => {
 }
 
 /** The view moved the least that keeps the band's row whole in sight. */
-const kept = (state: PanelState): PanelState => {
+export const kept = (state: PanelState): PanelState => {
   const top = state.band === undefined ? undefined : topFor(viewIn(state), state.size, state.band)
 
   return top === undefined ? state : { ...state, top }
@@ -124,8 +125,8 @@ const followed = (before: PanelState, after: PanelState): string | undefined => 
     return undefined
   }
 
-  const was = rowsIn(before)
-  const rows = rowsIn(after)
+  const was = openRows(before)
+  const rows = openRows(after)
   const at = was.findIndex(row => rowKey(row) === before.band)
   const session = was[at]?.session
   const row =
@@ -194,14 +195,18 @@ const toggled = (state: PanelState): PanelState => {
 
 /** ⏎: the band's session to open, if there's a band. */
 const opened = (state: PanelState): Stepped => {
-  const session = rowsIn(state).find(row => rowKey(row) === state.band)?.session
+  const session = openRows(state).find(row => rowKey(row) === state.band)?.session
 
   return session === undefined ? { state } : { state, open: session }
 }
 
-/** A tap on a row in view, on either of its lines: the band put on it, or, on the band's own row, opened. */
-const tapped = (state: PanelState, { x, y }: Tap): Stepped => {
-  const layout = layoutIn(state)
+/**
+ * A tap on either line of a row, found where the rows stood as `drawn`,
+ * with a pick's answer under them: the band put on it, or, on the band's
+ * own row, opened.
+ */
+const tapped = (state: PanelState, { x, y }: Tap, drawn: PanelState): Stepped => {
+  const layout = layoutIn(drawn)
   const row = x < layout.width ? layout.rows.find(each => y === each.y || y === each.y + 1) : undefined
 
   if (row === undefined) {
@@ -213,8 +218,8 @@ const tapped = (state: PanelState, { x, y }: Tap): Stepped => {
 
 const only = (state: PanelState): Stepped => ({ state })
 
-/** What each key does to the state, its answer already dropped. */
-const ON_KEY: { [K in Key['kind']]: (state: PanelState, key: Extract<Key, { kind: K }>) => Stepped } = {
+/** What each key does to the state, its answer already dropped, and the state as it was drawn. */
+const ON_KEY: { [K in Key['kind']]: (state: PanelState, key: Extract<Key, { kind: K }>, drawn: PanelState) => Stepped } = {
   up: state => only(movedBy(state, -1)),
   down: state => only(movedBy(state, 1)),
   pageUp: state => only(movedBy(state, -pageOf(state))),
@@ -230,10 +235,10 @@ const ON_KEY: { [K in Key['kind']]: (state: PanelState, key: Extract<Key, { kind
   suspend: only,
 }
 
-const pressed = (state: PanelState, key: Key): Stepped => {
-  const onKey = ON_KEY[key.kind] as (state: PanelState, key: Key) => Stepped
+const pressed = (drawn: PanelState, key: Key): Stepped => {
+  const onKey = ON_KEY[key.kind] as (state: PanelState, key: Key, drawn: PanelState) => Stepped
 
-  return onKey(withField(state, 'answer', undefined), key)
+  return onKey(withField(drawn, 'answer', undefined), key, drawn)
 }
 
 /** The panel's state after the event, and the session it asks to open, if any. */

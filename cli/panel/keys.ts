@@ -6,11 +6,19 @@
  *   application cursor mode doesn't matter, and Home and End the same. PgUp
  *   and PgDn come as `ESC [ 5 ~` and `ESC [ 6 ~`.
  * - `j` and `k` move as `↓` and `↑`; `q` and Ctrl-C both leave.
- * - A mouse report in SGR's form: a press of the first button is a tap,
- *   the wheel scrolls; a release, or any other button, is nothing.
+ * - A mouse report, in SGR's form or in the old X10 form a terminal without
+ *   SGR's sends, its three bytes after `ESC [ M`: a press of the first
+ *   button is a tap, the wheel scrolls; a release, or any other button, is
+ *   nothing.
+ * - A paste, between `ESC [ 200 ~` and `ESC [ 201 ~`, is never keys, however
+ *   many pieces it comes in.
+ * - A string sequence, `ESC ]` and the like, is read as the terminal answers
+ *   the colour query: up to its `BEL` or `ST`, its body only what a colour
+ *   holds. Any other byte cuts it short and is read on its own, so a key
+ *   typed after Alt+`]` is never swallowed.
  * - A sequence the bytes end inside is left to read with the next bytes.
  *   Once nothing more has come, a lone `ESC` is `esc`, and the start of any
- *   other sequence is dropped.
+ *   other sequence is dropped; a paste under way is kept, to its end.
  * - Any other byte, or sequence, does nothing: the terminal's answers to
  *   the colour query among them, so none is taken as a key.
  */
@@ -30,8 +38,12 @@ export type Keys = { keys: Key[]; rest: string }
 
 const ESC = '\x1b'
 
-/** What one read at a place in the bytes found: a key or nothing, and how many bytes it took; or that the bytes end inside it. */
-type Read = { key?: Key; length: number } | 'unfinished'
+/**
+ * What one read at a place in the bytes found: a key or nothing, and how
+ * many bytes it took; that the bytes end inside it; or that they end inside
+ * a paste, and what of it to hold for the next bytes.
+ */
+type Read = { key?: Key; length: number } | 'unfinished' | { pasting: string }
 
 const PLAIN: Readonly<Record<string, Press>> = {
   j: 'down',
@@ -63,10 +75,19 @@ const SS3: Readonly<Record<string, Press>> = { ...FINAL, M: 'enter' }
 /** The second byte of a sequence ended by `ST` or `BEL`: an OSC, a DCS, an SOS, a PM or an APC. */
 const STRING_STARTS = new Set([']', 'P', 'X', '^', '_'])
 
+/** What an answer to OSC 10 or 11 holds between its start and its end: its number and `;`, then `rgb:` or `rgba:`, hex digits split by `/`, or `#` and hex. */
+const ANSWER_BYTE = /[0-9a-fA-F:;/rg#]/
+
+/** Bracketed paste's start and end. */
+const PASTE = { from: `${ESC}[200~`, to: `${ESC}[201~` }
+
 /** The modifiers a mouse report adds to its button: Shift, Meta, Ctrl. */
 const MODIFIERS = 4 | 8 | 16
 
 const WHEEL: Readonly<Record<number, number>> = { 64: -1, 65: 1 }
+
+/** How far X10 shifts each of its bytes: a button by 32, a cell by 33, counted from 0. */
+const X10 = { button: 32, cell: 33 }
 
 const pressOf = (kind: Press | undefined): Key | undefined => (kind === undefined ? undefined : { kind })
 
@@ -78,14 +99,8 @@ const isBetween = (char: string, from: number, to: number) => {
   return code >= from && code <= to
 }
 
-/** An SGR mouse report's parameters, `<b;x;y`, and its last byte: a press of the first button is a tap at the cell, 1-based in the report; a wheel's notch scrolls. */
-const mouseOf = (params: string, final: string): Key | undefined => {
-  const [button, x, y] = params.slice(1).split(';').map(Number)
-
-  if (final !== 'M' || button === undefined || x === undefined || y === undefined) {
-    return undefined
-  }
-
+/** A mouse report's button at a cell counted from 0: a press of the first button is a tap there; a wheel's notch scrolls. */
+const buttonKey = (button: number, x: number, y: number): Key | undefined => {
   const plain = button & ~MODIFIERS
   const by = WHEEL[plain]
 
@@ -93,7 +108,18 @@ const mouseOf = (params: string, final: string): Key | undefined => {
     return { kind: 'wheel', by }
   }
 
-  return plain === 0 && x >= 1 && y >= 1 ? { kind: 'tap', x: x - 1, y: y - 1 } : undefined
+  return plain === 0 && x >= 0 && y >= 0 ? { kind: 'tap', x, y } : undefined
+}
+
+/** An SGR mouse report's parameters, `<b;x;y`, and its last byte, `M` a press, its cell 1-based. */
+const mouseOf = (params: string, final: string): Key | undefined => {
+  const [button, x, y] = params.slice(1).split(';').map(Number)
+
+  if (final !== 'M' || button === undefined || x === undefined || y === undefined) {
+    return undefined
+  }
+
+  return buttonKey(button, x - 1, y - 1)
 }
 
 const csiKey = (params: string, final: string): Key | undefined => {
@@ -102,6 +128,29 @@ const csiKey = (params: string, final: string): Key | undefined => {
   }
 
   return pressOf(final === '~' ? TILDE[params.split(';')[0] ?? ''] : FINAL[final])
+}
+
+/** An X10 mouse report from `at`, its `ESC [ M` there: its button and cell come as the three bytes after, each shifted. */
+const x10At = (bytes: string, at: number): Read => {
+  const [button, x, y] = [...bytes.slice(at + 3, at + 6)].map(char => char.charCodeAt(0))
+
+  if (button === undefined || x === undefined || y === undefined) {
+    return 'unfinished'
+  }
+
+  return taken(6, buttonKey(button - X10.button, x - X10.cell, y - X10.cell))
+}
+
+/** A paste from `at`, its start there: dropped whole to its end; held where the bytes end inside it, with as much of its tail as its end could start in. */
+const pasteAt = (bytes: string, at: number): Read => {
+  const body = at + PASTE.from.length
+  const end = bytes.indexOf(PASTE.to, body)
+
+  if (end === -1) {
+    return { pasting: PASTE.from + bytes.slice(Math.max(body, bytes.length - (PASTE.to.length - 1))) }
+  }
+
+  return taken(end + PASTE.to.length - at)
 }
 
 /** A `CSI` sequence from `at`, its `ESC [` there: its parameter and middle bytes, then its last. One cut short by a byte no `CSI` holds is taken up to that byte, as nothing. */
@@ -113,6 +162,7 @@ const csiAt = (bytes: string, at: number): Read => {
   }
 
   const final = bytes[end]
+  const params = bytes.slice(at + 2, end)
 
   if (final === undefined) {
     return 'unfinished'
@@ -122,17 +172,37 @@ const csiAt = (bytes: string, at: number): Read => {
     return taken(end - at)
   }
 
-  return taken(end + 1 - at, csiKey(bytes.slice(at + 2, end), final))
+  if (params === '' && final === 'M') {
+    return x10At(bytes, at)
+  }
+
+  return params === '200' && final === '~' ? pasteAt(bytes, at) : taken(end + 1 - at, csiKey(params, final))
 }
 
-/** A string sequence from `at`, as the terminal's answers to the colour query come: up to its `BEL` or `ST`. */
+/**
+ * A string sequence from `at`, as the terminal's answers to the colour
+ * query come: up to its `BEL` or `ST`. A byte no answer holds cuts it short,
+ * taken up to that byte, as nothing: an `ESC` that is no `ST` starts
+ * another sequence, and any other byte is read on its own.
+ */
 const stringAt = (bytes: string, at: number): Read => {
-  const bell = bytes.indexOf('\x07', at + 2)
-  const st = bytes.indexOf(`${ESC}\\`, at + 2)
-  const ends = [bell === -1 ? Infinity : bell + 1, st === -1 ? Infinity : st + 2]
-  const end = Math.min(...ends)
+  for (let end = at + 2; end < bytes.length; end++) {
+    const byte = bytes[end] ?? ''
 
-  return end === Infinity ? 'unfinished' : taken(end - at)
+    if (byte === '\x07') {
+      return taken(end + 1 - at)
+    }
+
+    if (byte === ESC) {
+      return bytes[end + 1] === undefined ? 'unfinished' : taken(bytes[end + 1] === '\\' ? end + 2 - at : end - at)
+    }
+
+    if (!ANSWER_BYTE.test(byte)) {
+      return taken(end - at)
+    }
+  }
+
+  return 'unfinished'
 }
 
 /** A sequence from `at`, its `ESC` there; `ESC` and any other byte is that byte with Alt, which does nothing. */
@@ -162,11 +232,14 @@ const readAt = (bytes: string, at: number): Read => {
   return byte === ESC ? escapeAt(bytes, at) : taken(1, pressOf(PLAIN[byte]))
 }
 
+/** The start of a sequence the bytes end inside, read as all there is: a lone `ESC` is `esc`; any other start is dropped. */
+const quietened = (keys: Key[], rest: string): Keys => ({ keys: rest === ESC ? [...keys, { kind: 'esc' }] : keys, rest: '' })
+
 /**
  * The keys in the bytes, and the start of a sequence they end inside, left
  * to read with the next bytes; `isQuiet`, as nothing more came within 50
- * ms, such a start is read as all there is: a lone `ESC` is `esc`, and any
- * other start is dropped.
+ * ms, such a start is read as all there is. A paste under way is held
+ * however long, since only its end ends it.
  */
 export const keysOf = (bytes: string, isQuiet = false): Keys => {
   const keys: Key[] = []
@@ -176,9 +249,11 @@ export const keysOf = (bytes: string, isQuiet = false): Keys => {
     const read = readAt(bytes, at)
 
     if (read === 'unfinished') {
-      const rest = bytes.slice(at)
+      return isQuiet ? quietened(keys, bytes.slice(at)) : { keys, rest: bytes.slice(at) }
+    }
 
-      return isQuiet ? { keys: rest === ESC ? [...keys, { kind: 'esc' }] : keys, rest: '' } : { keys, rest }
+    if ('pasting' in read) {
+      return { keys, rest: read.pasting }
     }
 
     if (read.key !== undefined) {

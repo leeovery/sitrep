@@ -27,15 +27,15 @@ export type Waiting = Promise<void> & { cancel: () => void }
 /** A run's end as listened for: `ended` resolves once it is to end; `stop` stops the listening, as the run ends some other way, so nothing holds it open after. */
 export type Ending = { ended: Promise<void>; stop: () => void }
 
-/** The signals the panel answers: its terminal hung up, it is told to end, and it is brought back from a stop. */
-export type Signal = 'SIGHUP' | 'SIGTERM' | 'SIGCONT'
+/** The signals the panel answers: its terminal hung up, it is interrupted, told to quit or to end from outside, and it is brought back from a stop. */
+export type Signal = 'SIGHUP' | 'SIGINT' | 'SIGQUIT' | 'SIGTERM' | 'SIGCONT'
 
 /**
  * The terminal the CLI runs on, for the panel. Each listening gives what
  * stops it.
  */
 export type Terminal = {
-  /** The terminal's size; undefined while it says none. */
+  /** The terminal's size, asked afresh, as a resize made while the run was stopped is never heard; undefined while it says none. */
   size: () => Size | undefined
   onResize: (heard: () => void) => () => void
   /** Listens to the keys typed, in raw mode while it listens, hearing their bytes in whatever pieces they come. */
@@ -44,8 +44,9 @@ export type Terminal = {
   write: (text: string) => void
   /** Writes the query, ending on DA1's, and gives what the terminal answered before DA1's answer, or by the time it gave up waiting for it. */
   ask: (query: string) => Promise<string>
+  /** Listens for a signal; SIGHUP is heard too as the terminal goes without one, its input ended or failed. */
   onSignal: (signal: Signal, heard: () => void) => () => void
-  /** Stops the run, as Ctrl-Z does in a terminal's own mode, until SIGCONT. */
+  /** Stops the run, as Ctrl-Z does in a terminal's own mode, returning once it goes on: at once where nothing stops it, as in a process group no shell controls. */
   suspend: () => void
 }
 

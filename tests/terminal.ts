@@ -67,21 +67,28 @@ type Options = {
 /** What a terminal answers the panel's colour query with, before DA1's answer: Nordfox's ink and ground, as the golden frames are drawn on. */
 export const NORDFOX = '\x1b]10;rgb:cdcd/cece/cfcf\x07\x1b]11;rgb:2e2e/3434/4040\x07'
 
+/** What the fake terminal keeps among its writes where the run stopped, as the shell took the terminal. */
+export const STOPPED = '<stopped>'
+
 /**
  * A terminal for the panel's runs: the size it says, keys typed into it,
  * resizes and signals as a test scripts them, the colour query answered
  * with `answer`, once it settles where it is a promise, and every write
- * kept, the query among them. Its keys are read only while the panel
- * listens, in raw mode: a key typed otherwise is the shell's.
+ * kept, the query among them, with STOPPED where the run stopped. A stop
+ * returns at once, as one the shell has already brought back. Its keys are
+ * read only while the panel listens, in raw mode: a key typed otherwise is
+ * the shell's.
  */
 export const tty = ({ size = { width: 39, height: 27 }, answer = NORDFOX }: { size?: Size; answer?: string | Promise<string> } = {}) => {
   let said: Size | undefined = size
   let reading: ((bytes: string) => void) | undefined
-  let suspends = 0
+  let listens = 0
   const writes: string[] = []
   const listeners: Record<Signal | 'resize', Set<() => void>> = {
     resize: new Set(),
     SIGHUP: new Set(),
+    SIGINT: new Set(),
+    SIGQUIT: new Set(),
     SIGTERM: new Set(),
     SIGCONT: new Set(),
   }
@@ -97,6 +104,7 @@ export const tty = ({ size = { width: 39, height: 27 }, answer = NORDFOX }: { si
     onResize: heard => listen('resize', heard),
     keys: heard => {
       reading = heard
+      listens += 1
 
       return () => {
         reading = reading === heard ? undefined : reading
@@ -109,9 +117,7 @@ export const tty = ({ size = { width: 39, height: 27 }, answer = NORDFOX }: { si
       return answer
     },
     onSignal: listen,
-    suspend: () => {
-      suspends += 1
-    },
+    suspend: () => void writes.push(STOPPED),
   }
 
   return {
@@ -119,15 +125,19 @@ export const tty = ({ size = { width: 39, height: 27 }, answer = NORDFOX }: { si
     writes,
     /** Types the bytes, heard at once while the panel listens to its keys. */
     type: (bytes: string) => reading?.(bytes),
-    /** The terminal resized: to `size`, or to saying none. */
-    resize: (size: Size | undefined) => {
+    /** The terminal resized: to `size`, or to saying none; with `isHeard` false, unheard, as a resize made while the run is stopped goes to the shell. */
+    resize: (size: Size | undefined, { isHeard = true } = {}) => {
       said = size
-      listeners.resize.forEach(heard => heard())
+
+      if (isHeard) {
+        listeners.resize.forEach(heard => heard())
+      }
     },
     signal: (signal: Signal) => listeners[signal].forEach(heard => heard()),
     /** Whether the panel listens to its keys, raw mode on. */
     isReading: () => reading !== undefined,
-    suspends: () => suspends,
+    /** How many times the panel began listening to its keys, raw mode set each time. */
+    listens: () => listens,
     /** How many listen to its resizes and signals. */
     listening: () => Object.values(listeners).reduce((sum, each) => sum + each.size, 0),
   }
