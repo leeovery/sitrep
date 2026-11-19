@@ -36,6 +36,8 @@ clone on `main`, and work in a worktree.
 claude plugin test .              # every test, the mod's and the CLI's
 bunx tsc -p .                     # the mod, the core and the CLI
 bunx tsc -p cli/shell             # the CLI's binding to Bun, on its own
+bunx tsc -p cli/frames            # the panel's golden-frame checker
+bun cli/frames/check.ts           # the panel's frames, and the width sweep
 swift build --package-path app    # the app
 swift test --package-path app     # the app's tests
 ```

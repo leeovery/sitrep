@@ -1,0 +1,36 @@
+ sitrep
+
+ NEEDS YOU ●11 ●4 ──────────────────────────────────────────────────── ▿
+ ▲ 6 more
+ ○ Email templates                                                    2h
+   Fabrikam · Keep the plain-text versions?
+ ○ Gift cards                                                         3h
+   Tailspin · Should a card expire?
+ ● Release notes                                                     31m
+   Tailspin · Drafted the 2.4 release notes
+ ● Search index                                                       1h
+   Wingtip · Rebuilt the index; 3 fields left
+ ● Staff directory                                                    2h
+   Contoso · Added the new starters
+ ○ Warehouse map                                                      1h
+   Litware · Mapped the ground floor
+
+ WORKING 14 ────────────────────────────────────────────────────────── ▿
+ ✻ Payroll export                                                    22m
+   Contoso · Writing payroll.csv
+ ✻ Stock levels                                                      12m
+   Wingtip · Reading src/stock/levels.ts
+ ✻ Delivery slots                                                     9m
+   Northwind · Running the slot planner
+ ✻ Mobile app                                                         6m
+   Woodgrove · Running npm test
+ ✻ Route planner                                                      5m
+   Trey Research · Searching for route costs
+ ✻ Sales dashboard                                                    4m
+   Adventure Works · Editing src/charts/sales.tsx
+ ✻ Loyalty points                                                     3m
+   Woodgrove · Reading the points ledger
+ ✻ Invoice ledger                                                     2m
+   Northwind · Exporting the ledger as CSV
+ ▼ 6 more
+ ↑↓ move  ⏎ open  s snoozed  q quit

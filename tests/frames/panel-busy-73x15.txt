@@ -1,0 +1,15 @@
+ sitrep
+
+ WORKING 14 ────────────────────────────────────────────────────────── ▿
+ ▲ 16 more
+ ✻ Route planner                                                      5m
+   Trey Research · Searching for route costs
+ ✻ Sales dashboard                                                    4m
+   Adventure Works · Editing src/charts/sales.tsx
+ ✻ Loyalty points                                                     3m
+   Woodgrove · Reading the points ledger
+ ✻ Invoice ledger                                                     2m
+   Northwind · Exporting the ledger as CSV
+ ▼ 6 more
+
+ ↑↓ move  ⏎ open  s snoozed  q quit
