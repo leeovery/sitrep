@@ -55,7 +55,7 @@ type Opened = {
 /**
  * Bare `sitrep` on the fake terminal, over the CLI's memory world: Northwind's
  * session asking k1 since T0, its window seen now, in Ghostty unless told
- * otherwise, the login shell zsh. Its clock moves only as the test passes
+ * otherwise, its device there, the login shell zsh. Its clock moves only as the test passes
  * time, each wait firing in turn as the clock reaches it.
  */
 const opened = ({
@@ -86,6 +86,10 @@ const opened = ({
   const paths = t.seed(meta, { lines: [[T0, yesAsk('k1', 'Review round 1')]] })
 
   t.files.set(paths.heartbeat(W1), { text: beat(W1, { attachedAt: NOW, seenAt: NOW, where, directory }), mtimeMs: NOW })
+
+  if (where.device !== undefined) {
+    t.files.set(where.device, { text: '', mtimeMs: T0 })
+  }
 
   if (command !== undefined) {
     t.files.set(`${HOME}/${DEFAULTS}`, { text: '', bytes: defaultsOf({ app: { resume: command } }), mtimeMs: T0 })
@@ -884,6 +888,30 @@ test('SIGTERM and SIGHUP still end the panel while a program has the terminal, w
     expect(writes(), signal).toEqual([LEAVE, HANDED])
     expect(givenBack(run), signal).toEqual(GIVEN_BACK)
   }
+})
+
+test('a Ctrl-Z pressed while a pick is readied gives the terminal back, and nothing takes it back while the program the pick runs has it', async () => {
+  let answer: (ran: Ran) => void = () => {}
+  const run = opened({ size: WIDE, where: IN_ZMX, directory: REPO, command: OWN, ps: () => new Promise(resolve => (answer = resolve)) })
+
+  await run.passing(0)
+  await run.type('j')
+
+  const writes = run.writesFrom()
+
+  await run.type('\r\x1a')
+  answer(NO_PROCESS)
+  await run.passing(0)
+
+  expect(writes()).toEqual([LEAVE, STOPPED, HANDED])
+  expect(run.screen.isReading()).toBe(false)
+
+  run.screen.end(0)
+  await run.passing(0)
+
+  expect(writes().slice(0, 4)).toEqual([LEAVE, STOPPED, HANDED, ENTER])
+  expect(run.screen.isReading()).toBe(true)
+  await run.type('q')
 })
 
 test('a SIGTERM or SIGHUP sent to the whole job as the program ends, as `kill %1` sends it, ends the panel before it takes the terminal back', async () => {

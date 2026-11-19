@@ -1,5 +1,5 @@
 import { expect, test } from './kit'
-import { DEFAULT_COMMAND } from '../cli/panel/command'
+import { DEFAULT_COMMAND, typedOf } from '../cli/panel/command'
 import { carriedOn, reachOf, type ClaudeThere, type Resume } from '../cli/panel/reach'
 import {
   feedOf,
@@ -136,7 +136,16 @@ const HELD: Resume = { name: NAME, claude: W1, dir: FOLDER, device: '/dev/ttys04
 
 const AWAY: Resume = { ...HELD, isHeld: false }
 
-const carried = (resume: Resume, there: ClaudeThere, command = DEFAULT_COMMAND) => carriedOn(resume, there, command)
+/** The pick carried on as the edge readies it, the command typed first; a test of a command not fit to fill throws. */
+const carried = (resume: Resume, there: ClaudeThere, command = DEFAULT_COMMAND) => {
+  const typed = typedOf(command, NAME)
+
+  if (!typed.ok) {
+    throw new Error(typed.error)
+  }
+
+  return carriedOn(resume, there, typed.value)
+}
 
 const ran = (value: string) => ({ ok: true, value })
 
@@ -146,10 +155,10 @@ const STILL_RUNNING = refused(`${NAME}'s Claude is still running: set a resume c
 
 const SUSPENDED = refused(`${NAME} is suspended in its window: type fg there to bring it back.`)
 
-test("a Claude suspended on the window's device refuses whatever the command, a later conversation's device or an empty command among them", () => {
+test("a Claude suspended on the window's device refuses whatever the command, a later conversation's device among them", () => {
   const resumes = [HELD, AWAY, { ...AWAY, ownsDevice: false }]
 
-  expect(resumes.flatMap(resume => [DEFAULT_COMMAND, OWN, ''].map(command => carried(resume, 'stopped', command)))).toEqual(Array(9).fill(SUSPENDED))
+  expect(resumes.flatMap(resume => [DEFAULT_COMMAND, OWN].map(command => carried(resume, 'stopped', command)))).toEqual(Array(6).fill(SUSPENDED))
 })
 
 test('`ps` giving no answer refuses whatever the command, before anything runs', () => {
@@ -188,9 +197,4 @@ test("a window that said no folder refuses a command naming `{dir}`, in the wind
     refused(`${NAME}'s last window did not say which folder it ran in, as a window on an older sitrep does not, so sitrep has nothing to put for {dir}.`),
   )
   expect(carried(older, 'none', 'claude --resume {claude}')).toEqual(ran(`claude --resume '${W1}'`))
-})
-
-test("the command's own refusals come after the Claude on its device is read: an empty command says to set one", () => {
-  expect(carried(AWAY, 'none', '')).toEqual(refused(`The resume command in Settings is empty. To carry ${NAME} on, set one, or restore the default.`))
-  expect(carried(HELD, 'none', '  ')).toEqual(refused(`The resume command in Settings is empty. To carry ${NAME} on, set one, or restore the default.`))
 })

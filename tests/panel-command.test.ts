@@ -1,11 +1,15 @@
 import { expect, test } from './kit'
-import { DEFAULT_COMMAND, isDefault, lineOf, shellQuoted, type ResumeFacts } from '../cli/panel/command'
+import { DEFAULT_COMMAND, lineOf, shellQuoted, typedOf, type ResumeFacts } from '../cli/panel/command'
 import { HOME, W1 } from './data'
 
 /**
  * The resume command, read, refused and filled as SitRep's TypedCommand
  * does it, held to the cases its Swift tests hold (TypedCommandTests,
- * ResumeCommandTests): a session's name or folder never runs as code.
+ * ResumeCommandTests): a session's name or folder never runs as code
+ * through what the reader sees, quotes, backticks, `$(…)`, arithmetic,
+ * subscripts and a `${…}`'s offset. What evaluates its arguments as code,
+ * as `eval`, it can't see: a command passing a placeholder to one is the
+ * user's own risk.
  */
 const NAME = 'Invoice ledger'
 
@@ -42,6 +46,7 @@ test('each value is always in single quotes, never bare, its own quotes closed, 
     ['=zmx', "'=zmx'"],
     ['~/tmux', "'~/tmux'"],
     ['', "''"],
+    ["x'\u0301; touch pwned; '\u0301", "'x'\\''\u0301; touch pwned; '\\''\u0301'"],
   ]
 
   expect(cases.map(([value]) => shellQuoted(value))).toEqual(cases.map(([, quoted]) => quoted))
@@ -116,6 +121,69 @@ test('a placeholder in arithmetic or a subscript is refused, saying why: the she
   expect(commands.map(command => line(command, { dir: '/x$(touch pwned)' }))).toEqual(Array(commands.length).fill(EVALUATED))
 })
 
+test('a `${…}` offset or length is arithmetic, as is a subscript after a special parameter: a placeholder there is refused', () => {
+  const commands = [
+    'echo ${x:{dir}}',
+    'echo ${x:0:{dir}}',
+    'echo ${x[@]:{dir}}',
+    'echo ${@:{dir}}',
+    'echo ${x:${y:-{dir}}}',
+    'echo ${x:-${y:{dir}}}',
+    'echo ${x: {dir}}',
+    'echo ${x::{dir}}',
+    'echo $@[{dir}]',
+    'echo $*[{dir}]',
+    'echo $$[{dir}]',
+    'echo "${x:1:{dir}}"',
+  ]
+
+  expect(commands.map(command => line(command, { dir: '/x$(touch pwned)' }))).toEqual(Array(commands.length).fill(EVALUATED))
+})
+
+test('a `${…}` word after `:-`, `:=`, `:?`, `:+` or any other operator is no offset: a placeholder there is filled', () => {
+  const commands = ['cd ${x:-{dir}}', 'cd ${x:={dir}}', 'cd ${x:?{dir}}', 'cd ${x:+{dir}}', 'cd ${x-{dir}}', 'cd ${x:-[{dir}]}', 'cd ${x:-$(echo {dir})}']
+
+  expect(commands.map(command => line(command, { dir: 'a b' }))).toEqual(
+    commands.map(command => filled(command.replace('{dir}', "'a b'"))),
+  )
+})
+
+test('a placeholder in quotes inside a `$(…)` is refused, as is one in a `$(…)` inside quotes: the shell reads a `$(…)` afresh, quotes and all', () => {
+  const commands = [
+    'cd "$(echo \'"{dir}"\')" && claude --resume {claude}',
+    "cd $(echo '{dir}')",
+    'cd "$(echo {dir})"',
+    'cd "$(echo "$(echo \'{dir}\')")"',
+    "cd ${x:-$(echo '{dir}')}",
+    'cd "`echo $(echo {dir})`"',
+  ]
+
+  expect(commands.map(command => line(command, { dir: 'x; touch pwned; echo ' }))).toEqual(Array(commands.length).fill(QUOTED))
+})
+
+test('a `$(…)` closes on its own `)`, the quotes and parentheses inside it read as it reads them: a placeholder after it, outside quotes, is filled', () => {
+  const commands = [
+    'cd $(echo {dir}) && claude --resume {claude}',
+    'cd "$(echo x)" {dir}',
+    'cd "$(dirname "$(echo x)")" {dir}',
+    'cd $( (echo x) ) {dir}',
+    'cd "$(echo \')\')" {dir}',
+    'cd "$(echo \\))" {dir}',
+    'cd $(echo $((1 + 2))) {dir}',
+  ]
+
+  expect(commands.map(command => line(command, { dir: 'a b' }))).toEqual(
+    commands.map(command => filled(command.replace('{dir}', "'a b'").replace('{claude}', `'${W1}'`))),
+  )
+})
+
+test('a `)` that would close a `$(…)` holding a `case` may end one of its patterns: the substitution stays open, so quotes around it hold', () => {
+  const commands = ['echo "$(case $x in a) echo \'"{dir}"\';; esac)"', 'echo "$(case $x in a) echo x;; esac)" {dir}']
+
+  expect(commands.map(command => line(command, { dir: 'x; touch pwned; echo ' }))).toEqual([QUOTED, QUOTED])
+  expect(line('echo $(case $x in a) echo x;; esac) {dir}', { dir: 'a b' })).toEqual(filled("echo $(case $x in a) echo x;; esac) 'a b'"))
+})
+
 test("arithmetic and subscripts closed before a placeholder, a test's brackets, `$(…)` and `${…}` leave it filled; DESIGN's examples stand", () => {
   const commands = [
     'echo $(( 1 + (2) )) && cd {dir}',
@@ -134,21 +202,21 @@ test("arithmetic and subscripts closed before a placeholder, a test's brackets, 
   expect(commands.filter(command => !line(command).ok)).toEqual([])
 })
 
-/** Lee's Portal one-liner and tmux by `{tty}`, as DESIGN records them. */
-const PORTAL =
-  's=$(portal hook list | awk -F\'\\t\' -v id={claude} \'index($3, "--resume " id) {print $1; exit}\'); [ -n "$s" ] && portal open -s "$s" || portal open -p {dir} -- claude --resume {claude}'
+/** Lee's one-liner through his session tool, as DESIGN records it, the tool renamed `seat`; and tmux by `{tty}`. */
+const SEAT =
+  's=$(seat hook list | awk -F\'\\t\' -v id={claude} \'index($3, "--resume " id) {print $1; exit}\'); [ -n "$s" ] && seat open -s "$s" || seat open -p {dir} -- claude --resume {claude}'
 
 const TMUX =
   't=$(tmux list-panes -a -F \'#{pane_tty} #{session_name}\' | awk -v d={tty} \'$1==d {print $2; exit}\'); [ -n "$t" ] && tmux attach -t "$t" || tmux new -c {dir} claude --resume {claude}'
 
-test("DESIGN's examples fill exactly as written: the Portal one-liner, and tmux by `{tty}`, its device or ''", () => {
+test("DESIGN's examples fill exactly as written: the session tool's one-liner, and tmux by `{tty}`, its device or ''", () => {
   const dir = `${HOME}/Code/fabrikam`
   const tmuxed = (tty: string) =>
     `t=$(tmux list-panes -a -F '#{pane_tty} #{session_name}' | awk -v d='${tty}' '$1==d {print $2; exit}'); [ -n "$t" ] && tmux attach -t "$t" || tmux new -c '${dir}' claude --resume '${W1}'`
 
-  expect(line(PORTAL, { dir })).toEqual(
+  expect(line(SEAT, { dir })).toEqual(
     filled(
-      `s=$(portal hook list | awk -F'\\t' -v id='${W1}' 'index($3, "--resume " id) {print $1; exit}'); [ -n "$s" ] && portal open -s "$s" || portal open -p '${dir}' -- claude --resume '${W1}'`,
+      `s=$(seat hook list | awk -F'\\t' -v id='${W1}' 'index($3, "--resume " id) {print $1; exit}'); [ -n "$s" ] && seat open -s "$s" || seat open -p '${dir}' -- claude --resume '${W1}'`,
     ),
   )
   expect(line(TMUX, { dir, tty: '/dev/ttys041' })).toEqual(filled(tmuxed('/dev/ttys041')))
@@ -161,6 +229,12 @@ test("the default resumes the conversation in its folder, a `'` in the folder's 
 })
 
 test('the default is told by its text, the spaces round it aside: any other is the user\'s own', () => {
+  const isDefault = (command: string) => {
+    const typed = typedOf(command, NAME)
+
+    return typed.ok && typed.value.isDefault
+  }
+
   expect([DEFAULT_COMMAND, ` ${DEFAULT_COMMAND}\n`].map(isDefault)).toEqual([true, true])
   expect(['cd {dir} &&  claude --resume {claude}', `${DEFAULT_COMMAND} --verbose`, ''].map(isDefault)).toEqual([false, false, false])
 })
@@ -171,7 +245,7 @@ test("`{tty}` is the device its Claude still runs on where it is given; otherwis
 })
 
 test("a placeholder SitRep doesn't know is refused, naming each, and the three it knows: `{session}`, `{socket}` and `{pane}` went with the open command", () => {
-  expect(line('portal open -s {session}')).toEqual(
+  expect(line('seat open -s {session}')).toEqual(
     refused("The resume command in Settings has {session}, which SitRep doesn't know. It knows {claude}, {dir} and {tty}."),
   )
   expect(line('tmux -S {socket} attach -t {pane}')).toEqual(

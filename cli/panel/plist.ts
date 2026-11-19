@@ -10,7 +10,9 @@
  *   object after the marker.
  * - A dictionary holds its keys' references, then its values'. A key is a
  *   string, in ASCII or in UTF-16.
- * - A list cut short, or not one at all, holds nothing.
+ * - A list cut short, or not one at all, holds nothing: every length is
+ *   held to the bytes there are before anything is read by it, so a list
+ *   claiming more than it holds costs no more than its own size.
  */
 
 const HEADER = 'bplist00'
@@ -30,6 +32,9 @@ const latin1 = (bytes: Uint8Array) => String.fromCharCode(...bytes)
 const utf16 = (bytes: Uint8Array) =>
   String.fromCharCode(...Array.from({ length: bytes.length / 2 }, (_, at) => ((bytes[2 * at] ?? 0) << 8) | (bytes[2 * at + 1] ?? 0)))
 
+/** Thrown for a list that is not one, or is cut short. */
+const unreadable = () => new RangeError('not a binary property list, or one cut short')
+
 const reader = (bytes: Uint8Array) => {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
   const trailer = bytes.length - TRAILER
@@ -41,7 +46,7 @@ const reader = (bytes: Uint8Array) => {
   /** The bytes from `start`, `length` of them, before the trailer; throws past it. */
   const span = (start: number, length: number) => {
     if (start + length > trailer) {
-      throw new RangeError('the list is cut short')
+      throw unreadable()
     }
 
     return bytes.subarray(start, start + length)
@@ -50,6 +55,10 @@ const reader = (bytes: Uint8Array) => {
   const offsetSize = view.getUint8(trailer + 6)
   const refSize = view.getUint8(trailer + 7)
   const table = uintAt(trailer + 24, 8)
+
+  if (offsetSize === 0 || refSize === 0) {
+    throw unreadable()
+  }
 
   const itemOf = (ref: number): Item => {
     const at = uintAt(table + ref * offsetSize, offsetSize)
@@ -65,15 +74,31 @@ const reader = (bytes: Uint8Array) => {
     return { kind, length: uintAt(at + 2, size), start: at + 2 + size }
   }
 
-  const textOf = ({ kind, length, start }: Item) => {
+  /** Whether the item is a string saying `text`, read only where its length could. */
+  const says = ({ kind, length, start }: Item, text: string) => {
     if (kind === KIND.ascii) {
-      return latin1(span(start, length))
+      return length === text.length && latin1(span(start, length)) === text
     }
 
-    return kind === KIND.utf16 ? utf16(span(start, 2 * length)) : undefined
+    return kind === KIND.utf16 && length === text.length && utf16(span(start, 2 * length)) === text
   }
 
-  return { uintAt, span, refSize, top: uintAt(trailer + 16, 8), itemOf, textOf }
+  /** The top dictionary, its references held to the bytes before the trailer; none where the top is no dictionary. */
+  const topDictionary = () => {
+    const dictionary = itemOf(uintAt(trailer + 16, 8))
+
+    if (dictionary.kind !== KIND.dictionary) {
+      return undefined
+    }
+
+    if (dictionary.length * 2 * refSize > trailer - dictionary.start) {
+      throw unreadable()
+    }
+
+    return dictionary
+  }
+
+  return { uintAt, span, refSize, itemOf, says, topDictionary }
 }
 
 const read = (bytes: Uint8Array, key: string) => {
@@ -81,14 +106,24 @@ const read = (bytes: Uint8Array, key: string) => {
     return undefined
   }
 
-  const { uintAt, span, refSize, top, itemOf, textOf } = reader(bytes)
-  const dictionary = itemOf(top)
-  const refAt = (index: number) => uintAt(dictionary.start + index * refSize, refSize)
-  const keys = Array.from({ length: dictionary.length }, (_, index) => index)
-  const found = dictionary.kind === KIND.dictionary ? keys.find(index => textOf(itemOf(refAt(index))) === key) : undefined
-  const value = found === undefined ? undefined : itemOf(refAt(dictionary.length + found))
+  const { uintAt, span, refSize, itemOf, says, topDictionary } = reader(bytes)
+  const dictionary = topDictionary()
 
-  return value?.kind === KIND.data ? span(value.start, value.length).slice() : undefined
+  if (dictionary === undefined) {
+    return undefined
+  }
+
+  const itemAt = (index: number) => itemOf(uintAt(dictionary.start + index * refSize, refSize))
+
+  for (let index = 0; index < dictionary.length; index += 1) {
+    if (says(itemAt(index), key)) {
+      const value = itemAt(dictionary.length + index)
+
+      return value.kind === KIND.data ? span(value.start, value.length).slice() : undefined
+    }
+  }
+
+  return undefined
 }
 
 /** The data under `key` in the list's top dictionary; none where the key holds none, or the bytes hold no list. */

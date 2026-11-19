@@ -20,7 +20,10 @@ struct TypedCommandTests {
         #expect(ResumeCommand(" claude --resume {claude} ") == ResumeCommand("claude --resume {claude}"))
     }
 
-    /// Never bare, even where no character is special, as a bare word can be a zsh global alias.
+    /// Never bare, even where no character is special, as a bare word can be a zsh global alias; and each quote escaped,
+    /// one with a combining mark after it among them, which is one character to Swift but still a quote to the shell.
+    /// Matched by character, `x'\u{301}; touch pwned; '\u{301}` was typed unescaped, its `;` run (found in review, 19
+    /// November 2026), so the line is held to its scalars.
     @Test(arguments: [
         ("%12", "'%12'"),
         ("/private/tmp/tmux-501/default", "'/private/tmp/tmux-501/default'"),
@@ -31,9 +34,10 @@ struct TypedCommandTests {
         ("=zmx", "'=zmx'"),
         ("~/tmux", "'~/tmux'"),
         ("", "''"),
+        ("x'\u{301}; touch pwned; '\u{301}", "'x'\\''\u{301}; touch pwned; '\\''\u{301}'"),
     ])
     func eachValueIsAlwaysInSingleQuotesItsOwnEscaped(value: String, quoted: String) {
-        #expect(shellQuoted(value) == quoted)
+        #expect(Array(shellQuoted(value).unicodeScalars) == Array(quoted.unicodeScalars))
     }
 
     @Test func eachPlaceholderIsFilledQuotedEveryTimeItIsNamed() {
@@ -177,5 +181,86 @@ struct TypedCommandTests {
     ])
     func eachProblemIsRefusedInPlainWords(problem: CommandProblem<ResumeFact>, words: String) {
         #expect(problem.refusal(named: JumpWorld.named) == words)
+    }
+
+    /// A quote with a combining mark after it is one character to Swift, but still a quote to the shell: the command is
+    /// read a scalar at a time, so a placeholder after such a quote is inside quotes, refused, and one with a mark after
+    /// it outside them is filled (found in review, 19 November 2026).
+    @Test func aQuoteWithACombiningMarkAfterItStillOpensQuotes() async throws {
+        #expect(ResumeCommand("cd '\u{301}{dir}'").problem == .quoted(["dir"]))
+        #expect(
+            Array(try await Self.line("cd {dir}\u{301}").unicodeScalars)
+                == Array("cd '/Users/me/Code/litware'\u{301}".unicodeScalars)
+        )
+    }
+
+    /// The shell reads a `$(…)` afresh, quotes and all, double quotes around it or not: a placeholder in quotes inside
+    /// one is refused, as is one in a `$(…)` inside quotes. Read as one double-quoted string, `"$(echo '"{dir}"')"` left
+    /// `{dir}` outside quotes, and a folder's `;` ran what followed (found in review, 19 November 2026).
+    @Test(arguments: [
+        #"cd "$(echo '"{dir}"')" && claude --resume {claude}"#, "cd $(echo '{dir}')", #"cd "$(echo {dir})""#,
+        #"cd "$(echo "$(echo '{dir}')")""#, "cd ${x:-$(echo '{dir}')}", #"cd "`echo $(echo {dir})`""#,
+    ])
+    func aPlaceholderInQuotesInsideASubstitutionOrInOneInsideQuotesIsRefused(command: String) async {
+        await #expect(throws: Unopenable(description: CommandProblem<ResumeFact>.quoted(["dir"]).refusal(named: JumpWorld.named))) {
+            try await Self.line(command, folder: "x; touch pwned; echo ")
+        }
+    }
+
+    /// A `$(…)` closes on its own `)`, the quotes and parentheses inside it read as it reads them: a placeholder in one
+    /// with no quote around it, or after one, is filled.
+    @Test(arguments: [
+        ("cd $(echo {dir}) && claude --resume {claude}", "cd $(echo 'a b') && claude --resume '\(claude)'"),
+        (#"cd "$(echo x)" {dir}"#, #"cd "$(echo x)" 'a b'"#),
+        (#"cd "$(dirname "$(echo x)")" {dir}"#, #"cd "$(dirname "$(echo x)")" 'a b'"#),
+        ("cd $( (echo x) ) {dir}", "cd $( (echo x) ) 'a b'"),
+        (#"cd "$(echo ')')" {dir}"#, #"cd "$(echo ')')" 'a b'"#),
+        (#"cd "$(echo \))" {dir}"#, #"cd "$(echo \))" 'a b'"#),
+        ("cd $(echo $((1 + 2))) {dir}", "cd $(echo $((1 + 2))) 'a b'"),
+    ])
+    func aPlaceholderInASubstitutionUnquotedOrAfterOneIsFilled(command: String, line: String) async throws {
+        #expect(try await Self.line(command, folder: "a b") == line)
+    }
+
+    /// A `)` that would close a `$(…)` holding a `case` may end one of its patterns: the substitution stays open, so
+    /// quotes around it hold, refusing more, never less.
+    @Test func aSubstitutionHoldingACaseStaysOpen() async throws {
+        #expect(ResumeCommand(#"echo "$(case $x in a) echo '"{dir}"';; esac)""#).problem == .quoted(["dir"]))
+        #expect(ResumeCommand(#"echo "$(case $x in a) echo x;; esac)" {dir}"#).problem == .quoted(["dir"]))
+        #expect(
+            try await Self.line("echo $(case $x in a) echo x;; esac) {dir}", folder: "a b")
+                == "echo $(case $x in a) echo x;; esac) 'a b'"
+        )
+    }
+
+    /// A `${…}`'s offset or length is arithmetic, as is a subscript after a special parameter, in zsh: `${x:{dir}}` and
+    /// `$@[{dir}]` ran a `$(…)` from a quoted value (found in review, 19 November 2026).
+    @Test(arguments: [
+        "echo ${x:{dir}}", "echo ${x:0:{dir}}", "echo ${x[@]:{dir}}", "echo ${@:{dir}}", "echo ${x:${y:-{dir}}}",
+        "echo ${x: {dir}}", "echo ${x::{dir}}", "echo $@[{dir}]", "echo $*[{dir}]", "echo $$[{dir}]",
+        #"echo "${x:1:{dir}}""#, "echo ${x:-${y:{dir}}}",
+    ])
+    func aPlaceholderInAnOffsetOrASpecialSubscriptIsRefused(command: String) async {
+        await #expect(throws: Unopenable(description: CommandProblem<ResumeFact>.evaluated(["dir"]).refusal(named: JumpWorld.named))) {
+            try await Self.line(command, folder: "/x$(touch pwned)")
+        }
+    }
+
+    /// A `${…}`'s word after `:-`, `:=`, `:?`, `:+` or any other operator is no offset: a placeholder there is filled.
+    @Test(arguments: [
+        "cd ${x:-{dir}}", "cd ${x:={dir}}", "cd ${x:?{dir}}", "cd ${x:+{dir}}", "cd ${x-{dir}}", "cd ${x:-[{dir}]}",
+        "cd ${x:-$(echo {dir})}",
+    ])
+    func aPlaceholderInAnExpansionsWordIsFilled(command: String) async throws {
+        #expect(try await Self.line(command, folder: "a b") == command.replacing("{dir}", with: "'a b'"))
+    }
+
+    /// Lee's one-liner through his session tool, as DESIGN records it, the tool renamed `seat`: both `{claude}`s and
+    /// `{dir}` filled, quoted.
+    @Test func theSessionToolsOneLinerFillsAsWritten() async throws {
+        let command = #"s=$(seat hook list | awk -F'\t' -v id={claude} 'index($3, "--resume " id) {print $1; exit}'); [ -n "$s" ] && seat open -s "$s" || seat open -p {dir} -- claude --resume {claude}"#
+
+        #expect(ResumeCommand(command).problem == nil)
+        #expect(try await Self.line(command) == #"s=$(seat hook list | awk -F'\t' -v id='\#(Self.claude)' 'index($3, "--resume " id) {print $1; exit}'); [ -n "$s" ] && seat open -s "$s" || seat open -p '/Users/me/Code/litware' -- claude --resume '\#(Self.claude)'"#)
     }
 }

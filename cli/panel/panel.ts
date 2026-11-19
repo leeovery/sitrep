@@ -33,13 +33,15 @@
  *   edge (edge.ts). Refused, it says why in the pick's answer. Else the
  *   terminal is handed over: given back as for a stop, then handed to the
  *   login shell. SIGINT and SIGQUIT are the program's meanwhile, as is a
- *   SIGCONT, Ctrl-Z stopping the panel with it; SIGTERM and SIGHUP still end
- *   the panel, leaving the terminal to the program. It keeps looking at the board, drawing nothing, and takes
- *   the terminal back as the program ends, drawn whole from the latest
- *   board, the band where it was, with what the pick leaves to say.
+ *   SIGCONT, Ctrl-Z stopping the panel with it; SIGTERM and SIGHUP still
+ *   end the panel, leaving the terminal to the program. It keeps looking at
+ *   the board, drawing nothing, and takes the terminal back as the program
+ *   ends, drawn whole from the latest board, the band where it was, with
+ *   what the pick leaves to say. Nothing else takes it back meanwhile, a
+ *   Ctrl-Z's take-back pressed while the pick was readied among them.
  */
 import { newRows, ownTime, type Feed, type Shown } from '../../core'
-import type { Io, Signal, Terminal } from '../io'
+import { KEYED, type Io, type Signal, type Terminal } from '../io'
 import { looking, untilEnded, type Look } from '../looks'
 import type { Size } from './cells'
 import { COLOUR_QUERY, paintOf } from './colours'
@@ -68,9 +70,6 @@ const ENDINGS: readonly (readonly [Signal, Closed])[] = [
   ['SIGQUIT', 'quit'],
   ['SIGTERM', 'terminated'],
 ]
-
-/** The signals a terminal's keys send, which are a program's while it has the terminal. */
-const KEYED: ReadonlySet<Signal> = new Set(['SIGINT', 'SIGQUIT'])
 
 /** The size laid out at while the terminal says none. */
 const UNSIZED: Size = { width: 80, height: 24 }
@@ -285,8 +284,12 @@ const live = (io: Io, terminal: Terminal) => {
     }
   }
 
-  /** The terminal taken back, as after a stop: the keys heard, the screen entered, its size read again, and drawn whole. */
+  /** The terminal taken back, as after a stop, unless a program has it: the keys heard, the screen entered, its size read again, and drawn whole. */
   const takeBack = () => {
+    if (isHanded) {
+      return
+    }
+
     listen()
     enter()
     state = step(state, { size: sizeOf(terminal) }).state
@@ -309,12 +312,12 @@ const live = (io: Io, terminal: Terminal) => {
     later(0, takeBack)
   }
 
-  /** SIGCONT, a macrotask on, as Ctrl-Z's take-back is: nothing for the panel's own stop, taken back already, nor while a program has the terminal; a stop from outside taken back. */
+  /** SIGCONT, a macrotask on, as Ctrl-Z's take-back is: nothing for the panel's own stop, taken back already; a stop from outside taken back. */
   const continued = () => {
     later(0, () => {
       if (isWaking) {
         isWaking = false
-      } else if (!isHanded) {
+      } else {
         takeBack()
       }
     })

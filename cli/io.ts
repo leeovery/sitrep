@@ -35,6 +35,9 @@ export type Ran = { exit: number; out: string; err: string }
 /** The signals the panel answers: its terminal hung up, it is interrupted, told to quit or to end from outside, and it is brought back from a stop. */
 export type Signal = 'SIGHUP' | 'SIGINT' | 'SIGQUIT' | 'SIGTERM' | 'SIGCONT'
 
+/** The signals a terminal's keys send to the whole job that a program handed the terminal takes alone, ending nothing else: Ctrl-Z's is not one, as the CLI stops with the program. */
+export const KEYED: ReadonlySet<Signal> = new Set(['SIGINT', 'SIGQUIT'])
+
 /**
  * The terminal the CLI runs on, for the panel. Each listening gives what
  * stops it.
@@ -57,7 +60,7 @@ export type Terminal = {
    * whole. Rejects where it could not start.
    */
   hand: (argv: readonly string[]) => Promise<number>
-  /** Runs a program apart from the terminal, up to `ms`: its exit code and what it wrote. Rejects where it could not start, or did not end in time, which ends it. */
+  /** Runs a program apart from the terminal, up to `ms`: its exit code and what it wrote. Rejects where it could not start; and at `ms` where it has not ended, killed, whatever holds its output open. */
   run: (argv: readonly string[], ms: number) => Promise<Ran>
   /** Listens for a signal; SIGHUP is heard too as the terminal goes without one, its input ended or failed. */
   onSignal: (signal: Signal, heard: () => void) => () => void

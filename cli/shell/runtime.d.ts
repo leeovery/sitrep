@@ -9,8 +9,8 @@ type BunEntry = { name: string; isFile(): boolean; isDirectory(): boolean }
 /** A program Bun started: its exit code once it ends, 128 and the signal's number where a signal ended it. */
 type BunChild = {
   readonly exited: Promise<number>
-  /** Sends it SIGTERM. */
-  kill(): void
+  /** Sends it the signal, SIGTERM where none is given. */
+  kill(signal?: ProcessSignal | 'SIGKILL'): void
 }
 
 /** A program started with its output and error piped back. */

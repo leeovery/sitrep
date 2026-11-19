@@ -10,17 +10,18 @@
  *   refused, since its Claude ends with its terminal and a command could
  *   only start a second beside it; so is one whose windows say nothing of
  *   where they are, and one with no window left.
- * - Then from what `ps` saw on that window's device, and the command
- *   (`carriedOn`), as the app's click carries a session on (Jump.carryOn):
- *   a Claude suspended there, or `ps` giving no answer, refuses whatever the
- *   command. The default refuses while the session's Claude may still be
- *   alive: running on a device still its conversation's, or held by a live
- *   window with no Claude seen there, as a tab just closed. A command the
- *   user wrote runs past that guard: what it does is theirs. `{tty}` is the
- *   device only while its Claude runs there, the device its own.
+ * - Then from what `ps` saw on that window's device, and the command,
+ *   typed and found fit already (`carriedOn`), as the app's click carries
+ *   a session on (Jump.carryOn): a Claude suspended there, or `ps` giving
+ *   no answer, refuses whatever the command. The default refuses while the
+ *   session's Claude may still be alive: running on a device still its
+ *   conversation's, or held by a live window with no Claude seen there, as
+ *   a tab just closed. A command the user wrote runs past that guard: what
+ *   it does is theirs. `{tty}` is the device only while its Claude runs
+ *   there, the device its own.
  */
 import type { Checked, Feed, FeedWindow, LastWindow } from '../../core'
-import { isDefault, lineOf } from './command'
+import { filledOf, type Typed } from './command'
 
 /** The window a pick carries a session on from: its writer, folder and device, whether a live window holds the session, and whether that device is still its conversation's. */
 export type Resume = {
@@ -104,8 +105,8 @@ const ALIVE = {
   held: (name: string) => `${name}'s window has just stopped answering: try again in a moment.`,
 }
 
-/** The line a pick runs, the command filled for the window it resumes from, or why none runs, given what runs on that window's device. */
-export const carriedOn = (resume: Resume, there: ClaudeThere, command: string): Checked<string> => {
+/** The line a pick runs, the command, typed already, filled for the window it resumes from; or why none runs, given what runs on that window's device. */
+export const carriedOn = (resume: Resume, there: ClaudeThere, typed: Typed): Checked<string> => {
   const { name, claude, dir, device, isHeld, ownsDevice } = resume
   const isSeen = there === 'running' && ownsDevice
   const alive = isSeen ? 'seen' : isHeld ? 'held' : undefined
@@ -118,9 +119,9 @@ export const carriedOn = (resume: Resume, there: ClaudeThere, command: string): 
     return { ok: false, error: `${name} is suspended in its window: type fg there to bring it back.` }
   }
 
-  if (alive !== undefined && isDefault(command)) {
+  if (alive !== undefined && typed.isDefault) {
     return { ok: false, error: ALIVE[alive](name) }
   }
 
-  return lineOf(command, { claude, ...(dir === undefined ? {} : { dir }), tty: isSeen ? (device ?? '') : '', isHeld }, name)
+  return filledOf(typed, { claude, ...(dir === undefined ? {} : { dir }), tty: isSeen ? (device ?? '') : '', isHeld }, name)
 }

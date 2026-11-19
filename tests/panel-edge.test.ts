@@ -1,5 +1,5 @@
 import { drained, expect, test } from './kit'
-import type { Io, Ran } from '../cli/io'
+import type { Env, Io, Ran } from '../cli/io'
 import { DEFAULT_COMMAND } from '../cli/panel/command'
 import { claudeIn, claudeOn, commandIn, DEFAULTS, handed, PS_MS, QUICK_MS, readied, savedCommand } from '../cli/panel/edge'
 import { dataIn } from '../cli/panel/plist'
@@ -45,6 +45,46 @@ test("a binary property list as macOS writes it gives the data under a key of it
   expect(textOf(dataIn(apple, 'card'))).toBe('{"x":1}')
 })
 
+/** A list of the objects given, its top object the first, its offsets' table where given, each offset and reference a byte unless said, and the trailer's six spare bytes as given. */
+const listOf = (objects: readonly number[], table: number, { spare = [], sizes = [1, 1] }: { spare?: readonly number[]; sizes?: readonly number[] } = {}) => {
+  const trailer = new Uint8Array(32)
+  const view = new DataView(trailer.buffer)
+
+  trailer.set(spare)
+  trailer.set(sizes, 6)
+  view.setBigUint64(8, 1n)
+  view.setBigUint64(24, BigInt(table))
+
+  return Uint8Array.from([...new TextEncoder().encode('bplist00'), ...objects, ...trailer])
+}
+
+/** A dictionary at byte 8 claiming 2³¹ − 1 entries in an integer after its marker, the offsets' table a byte after it. */
+const CLAIMING_OBJECTS = [0xdf, 0x13, 0, 0, 0, 0, 0x7f, 0xff, 0xff, 0xff, 8]
+
+const CLAIMING = listOf(CLAIMING_OBJECTS, 18)
+
+/**
+ * A dictionary claiming ten entries, holding one: its key `app`, and the
+ * data `x` as its value, whose reference is read past the references there
+ * are, from the trailer's first spare byte.
+ */
+const PAST_TRAILER = listOf([0xda, 1, 0x53, 0x61, 0x70, 0x70, 0x41, 0x78, 8, 10, 14], 16, { spare: [2] })
+
+test('a list claiming more than it holds is read no further, at once: the length of a dictionary is held to the bytes before the trailer', () => {
+  expect(dataIn(CLAIMING, 'app')).toBeUndefined()
+  expect(dataIn(PAST_TRAILER, 'app')).toBeUndefined()
+})
+
+test('a list whose offsets or references take no bytes, or whose top object is no dictionary, holds nothing: one claiming 2³¹ − 1 references of no bytes each is not looked through', () => {
+  const apple = bytesOf(APPLE)
+  const sized = (at: number) => Uint8Array.from(apple, (byte, index) => (index === apple.length - 32 + at ? 0 : byte))
+
+  expect([dataIn(sized(6), 'app'), dataIn(sized(7), 'app')]).toEqual([undefined, undefined])
+  expect(dataIn(listOf(CLAIMING_OBJECTS, 18, { sizes: [1, 0] }), 'app')).toBeUndefined()
+  expect(dataIn(listOf([0x5f, 0x10, 0x7f, 8], 11), 'app')).toBeUndefined()
+  expect(dataIn(listOf([0x43, 0x61, 0x70, 0x70, 8], 12), 'app')).toBeUndefined()
+})
+
 test('a key not there, or holding no data, gives nothing; so do bytes that are no list, and a list cut short', () => {
   const apple = bytesOf(APPLE)
 
@@ -79,7 +119,7 @@ test("the command is read from SitRep's defaults in the home folder; the default
   saved.files.set(SETTINGS, { text: '', bytes: defaultsOf({ app: { resume: 'carry {claude}' } }), mtimeMs: T0 })
   homeless.files.set(SETTINGS, { text: '', bytes: defaultsOf({ app: { resume: 'carry {claude}' } }), mtimeMs: T0 })
 
-  expect(SETTINGS).toBe(`${HOME}/Library/Preferences/com.leeovery.sitrep.plist`)
+  expect(DEFAULTS).toMatch(/^Library\/Preferences\/com\.[a-z]+\.sitrep\.plist$/)
   expect(await Promise.all([saved, none, homeless].map(each => savedCommand(each.io)))).toEqual(['carry {claude}', DEFAULT_COMMAND, DEFAULT_COMMAND])
 })
 
@@ -91,41 +131,60 @@ test("a Claude Code on a device is told by its program, `claude` or a version in
   expect(claudeIn('')).toBe('none')
 })
 
-/** A terminal whose `ps` answers as given. */
-const psSaying = (ran: (argv: readonly string[]) => Promise<Ran>) => tty({ ran })
+const DEVICE = '/dev/ttys041'
 
-test("`ps` is the system's, asked of the device alone, within its time; it exits 1, listing nothing, for a device no process is on, or one gone", async () => {
+/** The memory world with a terminal whose `ps` answers as given, and the device there unless said. */
+const psSaying = (ran: (argv: readonly string[]) => Promise<Ran>, { isThere = true }: { isThere?: boolean } = {}) => {
+  const screen = tty({ ran })
+  const t = terminal({ terminal: screen.terminal })
+
+  if (isThere) {
+    t.files.set(DEVICE, { text: '', mtimeMs: T0 })
+  }
+
+  return { on: (device: string | undefined) => claudeOn(t.io, screen.terminal, device), runs: screen.runs }
+}
+
+test("`ps` is the system's, asked of the device alone, within its time; it exits 1 with nothing to say for a device no process is on", async () => {
   const listing = psSaying(async () => ({ exit: 0, out: 'S+   claude\n', err: '' }))
   const empty = psSaying(async () => ({ exit: 1, out: '', err: '' }))
-  const gone = psSaying(async () => ({ exit: 1, out: '', err: 'ps: /dev/ttys041: No such file or directory\n' }))
 
-  expect(await claudeOn(listing.terminal, '/dev/ttys041')).toBe('running')
-  expect(listing.runs()).toEqual([{ argv: ['/bin/ps', '-t', '/dev/ttys041', '-o', 'stat=,comm='], ms: PS_MS }])
-  expect(await claudeOn(empty.terminal, '/dev/ttys041')).toBe('none')
-  expect(await claudeOn(gone.terminal, '/dev/ttys041')).toBe('none')
+  expect(await listing.on(DEVICE)).toBe('running')
+  expect(listing.runs()).toEqual([{ argv: ['/bin/ps', '-t', DEVICE, '-o', 'stat=,comm='], ms: PS_MS }])
+  expect(await empty.on(DEVICE)).toBe('none')
 })
 
-test('`ps` failing otherwise, not starting, or not answering in time, is no answer; with no device it is never asked', async () => {
-  const failing = psSaying(async () => ({ exit: 2, out: '', err: 'ps: illegal option' }))
-  const listingThenFailing = psSaying(async () => ({ exit: 1, out: 'S+   claude\n', err: '' }))
-  const late = psSaying(async () => {
-    throw new Error('/bin/ps gave no answer within 2000 ms')
-  })
-  const nowhere = psSaying(async () => ({ exit: 0, out: 'S+   claude\n', err: '' }))
+test('a device gone runs nothing, and `ps` is not asked; neither is it for no device, nor for one no terminal has, which is no answer', async () => {
+  const gone = psSaying(async () => ({ exit: 0, out: 'S+   claude\n', err: '' }), { isThere: false })
+  const asked = psSaying(async () => ({ exit: 0, out: 'S+   claude\n', err: '' }))
 
-  expect(await claudeOn(failing.terminal, '/dev/ttys041')).toBe('unknown')
-  expect(await claudeOn(listingThenFailing.terminal, '/dev/ttys041')).toBe('unknown')
-  expect(await claudeOn(late.terminal, '/dev/ttys041')).toBe('unknown')
-  expect(await claudeOn(nowhere.terminal, undefined)).toBe('none')
-  expect(nowhere.runs()).toEqual([])
+  expect(await gone.on(DEVICE)).toBe('none')
+  expect(await asked.on(undefined)).toBe('none')
+  expect(await Promise.all(['/dev/disk0', '/dev/ttys041 -o pid', '-A', '/dev/../dev/ttys041', '/dev/TTYS041'].map(asked.on))).toEqual(Array(5).fill('unknown'))
+  expect([gone.runs(), asked.runs()]).toEqual([[], []])
+})
+
+test('`ps` failing otherwise, saying why as it ends 1, not starting, or not answering in time, is no answer', async () => {
+  const failing = [
+    async () => ({ exit: 2, out: '', err: 'ps: illegal option' }),
+    async () => ({ exit: 1, out: '', err: 'ps: /dev/ttys041: No such file or directory\n' }),
+    async () => ({ exit: 1, out: 'S+   claude\n', err: '' }),
+    async () => {
+      throw new Error('/bin/ps gave no answer within 2000 ms')
+    },
+  ].map(ran => psSaying(ran))
+
+  expect(await Promise.all(failing.map(each => each.on(DEVICE)))).toEqual(Array(4).fill('unknown'))
 })
 
 const AWAY: Resume = { name: NAME, claude: W1, dir: FOLDER, device: '/dev/ttys041', isHeld: false, ownsDevice: true }
 
-/** The memory world with SitRep's defaults saving `command`, where given, its login shell `shell`, and a terminal whose `ps` answers as given. */
-const world = ({ command, shell = '/bin/zsh', ps = { exit: 1, out: '', err: '' } }: { command?: string; shell?: string; ps?: Ran } = {}) => {
+/** The memory world with SitRep's defaults saving `command`, where given, its environment, the login shell zsh unless given, the device there, and a terminal whose `ps` answers as given. */
+const world = ({ command, env = { ...ENV, SHELL: '/bin/zsh' }, ps = { exit: 1, out: '', err: '' } }: { command?: string; env?: Env; ps?: Ran } = {}) => {
   const screen = tty({ ran: async () => ps })
-  const t = terminal({ env: { ...ENV, SHELL: shell }, terminal: screen.terminal })
+  const t = terminal({ env, terminal: screen.terminal })
+
+  t.files.set(DEVICE, { text: '', mtimeMs: T0 })
 
   if (command !== undefined) {
     t.files.set(SETTINGS, { text: '', bytes: defaultsOf({ app: { resume: command } }), mtimeMs: T0 })
@@ -148,18 +207,44 @@ test('a pick readied hands the filled line to the login shell, `$SHELL -l -c <li
   })
 })
 
-test('a pick refused is readied as its words, with nothing handed; one with no login shell set says so', async () => {
+test('a pick refused is readied as its words, with nothing handed', async () => {
   const running = world({ ps: { exit: 0, out: 'S+   claude\n', err: '' } })
-  const unshelled = world({ shell: '' })
-  const unset = terminal({ env: ENV })
 
   expect(await readied(running.t.io, running.screen.terminal, AWAY)).toEqual({
     ok: false,
     error: `${NAME}'s Claude is still running: set a resume command that can reach it, in SitRep's Settings.`,
   })
-  expect(await readied(unshelled.t.io, unshelled.screen.terminal, AWAY)).toEqual({ ok: false, error: "sitrep couldn't start your login shell, $SHELL." })
-  expect(await readied(unset.io, unshelled.screen.terminal, AWAY)).toEqual({ ok: false, error: "sitrep couldn't start your login shell, $SHELL." })
-  expect([running.screen.handed(), unshelled.screen.handed()]).toEqual([[], []])
+  expect(running.screen.handed()).toEqual([])
+})
+
+test('a command not fit to fill refuses in its own words before `ps` is asked: empty, unknown, or with a placeholder in quotes', async () => {
+  const commands = ['', 'seat open -s {session}', 'cd "{dir}"']
+  const worlds = commands.map(command => world({ command, ps: { exit: 0, out: 'T+   claude\n', err: '' } }))
+  const answers = await Promise.all(worlds.map(({ t, screen }) => readied(t.io, screen.terminal, AWAY)))
+
+  expect(answers.map(answer => !answer.ok && answer.error)).toEqual([
+    `The resume command in Settings is empty. To carry ${NAME} on, set one, or restore the default.`,
+    "The resume command in Settings has {session}, which SitRep doesn't know. It knows {claude}, {dir} and {tty}.",
+    'The resume command in Settings puts {dir} in quotes or backticks. Remove them: SitRep quotes each value itself.',
+  ])
+  expect(worlds.flatMap(({ screen }) => screen.runs())).toEqual([])
+})
+
+test('the line runs only in a POSIX login shell, as each value is quoted for one: any other, or none set, refuses before `ps` is asked', async () => {
+  const shells = ['/bin/sh', '/bin/bash', '/opt/homebrew/bin/zsh', '/bin/dash', '/bin/ksh']
+  const posix = await Promise.all(shells.map(shell => world({ env: { ...ENV, SHELL: shell } })).map(({ t, screen }) => readied(t.io, screen.terminal, AWAY)))
+  const others = [...['/opt/homebrew/bin/fish', '/bin/tcsh', '/usr/local/bin/nu', ''].map(shell => ({ ...ENV, SHELL: shell })), ENV].map(env => world({ env }))
+  const refusals = await Promise.all(others.map(({ t, screen }) => readied(t.io, screen.terminal, AWAY)))
+
+  expect(posix.map(answer => answer.ok && answer.value[0])).toEqual(shells)
+  expect(refusals.map(answer => !answer.ok && answer.error)).toEqual([
+    'sitrep can run the resume command only in a POSIX shell; your login shell is fish.',
+    'sitrep can run the resume command only in a POSIX shell; your login shell is tcsh.',
+    'sitrep can run the resume command only in a POSIX shell; your login shell is nu.',
+    "sitrep couldn't start your login shell: $SHELL is not set.",
+    "sitrep couldn't start your login shell: $SHELL is not set.",
+  ])
+  expect(others.flatMap(({ screen }) => screen.runs())).toEqual([])
 })
 
 /** The world with a clock the test moves while the program has the terminal. */

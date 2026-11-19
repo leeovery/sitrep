@@ -25,9 +25,11 @@
  *   stop, so a run that heard it would hold the terminal from the shell,
  *   the program stopped (proven live, 19 November 2026).
  * - A program run apart from the terminal reads nothing, its output and
- *   error piped back, and is ended past its time.
+ *   error piped back. Past its time it is killed, SIGKILL, which it can't
+ *   hear, and the run answers then, never waiting on its pipes: what it
+ *   started may hold them open.
  */
-import type { Ran, Signal, Terminal } from '../io'
+import { KEYED, type Ran, type Signal, type Terminal } from '../io'
 
 /** How long a query waits for DA1's answer. */
 const ANSWER_MS = 1_000
@@ -45,9 +47,6 @@ const tried = (act: () => void) => {
 /** Hears a write's error from a terminal gone, which unheard would end the run before the panel gives the terminal back. */
 const lost = () => {}
 
-/** The signals a terminal's keys send to the whole job that a program handed the terminal takes alone: Ctrl-Z's is not one, as the run stops with it. */
-const KEYED = ['SIGINT', 'SIGQUIT'] as const
-
 /** What hears the keyed signals while a program has the terminal, keeping their defaults from the run. */
 const ignored = () => {}
 
@@ -62,21 +61,20 @@ const hand = async (argv: readonly string[]) => {
   }
 }
 
-/** The program, run apart from the terminal up to `ms`: how it ended and what it wrote; rejected where it was ended for its time. */
+/** The program, run apart from the terminal up to `ms`: how it ended and what it wrote; rejected at `ms`, killed, where it hasn't ended by then. */
 const run = async (argv: readonly string[], ms: number): Promise<Ran> => {
   const child = Bun.spawn([...argv], { stdin: 'ignore', stdout: 'pipe', stderr: 'pipe' })
-  let isLate = false
-  const timer = setTimeout(() => {
-    isLate = true
-    child.kill()
-  }, ms)
+  const ran = Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited])
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const late = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      child.kill('SIGKILL')
+      reject(new Error(`${argv[0] ?? 'the program'} gave no answer within ${ms} ms`))
+    }, ms)
+  })
 
   try {
-    const [out, err, exit] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited])
-
-    if (isLate) {
-      throw new Error(`${argv[0] ?? 'the program'} gave no answer within ${ms} ms`)
-    }
+    const [out, err, exit] = await Promise.race([ran, late])
 
     return { exit, out, err }
   } finally {

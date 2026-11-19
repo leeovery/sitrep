@@ -8,19 +8,24 @@
  *   underscores, but none after an unescaped `$` or `#`, the shell's `${…}`
  *   and tmux's `#{…}`, nor one escaped, nor, inside quotes, one whose name
  *   is no placeholder's, as awk's `'{print}'`.
- * - A placeholder is filled only outside quotes and backticks, where its
- *   quoted value would end them early, and outside arithmetic and
- *   subscripts, where the shell runs a `$(…)` even in a quoted value.
- *   Joined to unquoted text it is filled: `id={claude}` is `id='…'`, one
- *   shell word.
+ * - A placeholder is filled only where no quote or backtick stands around
+ *   it, however deep in `$(…)`, since its quoted value would end them
+ *   early; and outside what the reader sees the shell evaluate as
+ *   arithmetic, where a `$(…)` in a value runs even quoted: `$((…))`,
+ *   `((…))`, `$[…]`, a subscript, and a `${…}`'s offset, `${x:…}`. Joined
+ *   to unquoted text it is filled: `id={claude}` is `id='…'`, one word.
+ * - What evaluates its arguments as code, `eval`, `let`, `[[ … -eq … ]]`,
+ *   `declare -i`, zsh's `${(e)…}` or a glob qualifier `*(e:…:)`, the
+ *   reader can't see: a command the user wrote that passes a placeholder
+ *   to one takes that risk itself.
  * - Each value goes in single quotes, never bare.
  * - Refused before anything runs: none given; a character that doesn't
  *   print, in the command or in a value; a placeholder SitRep doesn't know;
- *   one in arithmetic or a subscript; one in quotes or backticks; `{dir}`,
- *   where the window said no folder.
- * - It reads the command a code point at a time, as the shell reads
- *   characters, where the Swift reads graphemes: a quote with a combining
- *   mark after it still opens quotes here.
+ *   one evaluated; one in quotes or backticks; `{dir}`, where the window
+ *   said no folder.
+ * - It reads the command a code point at a time, as the Swift reads its
+ *   scalars: a quote with a combining mark after it is still a quote, as
+ *   the shell, reading bytes, takes it.
  */
 import { inWords, type Checked } from '../../core'
 
@@ -41,7 +46,7 @@ export const DEFAULT_COMMAND = 'cd {dir} && claude --resume {claude}'
  */
 export type ResumeFacts = { claude: string; dir?: string; tty: string; isHeld: boolean }
 
-/** Where a placeholder stands: bare; inside quotes or backticks; or where the shell evaluates it, in arithmetic or a subscript. */
+/** Where a placeholder stands: bare; inside quotes or backticks; or where the shell evaluates it as arithmetic. */
 type Standing = 'bare' | 'quoted' | 'evaluated'
 
 /** The command's words as written, between its placeholders, and each placeholder and where it stands. */
@@ -49,32 +54,51 @@ type Piece = { words: string } | { name: string; standing: Standing }
 
 type Quote = 'single' | 'ansi' | 'double' | 'backtick'
 
-type Nest = 'arithmetic' | 'subscripted' | 'expansion'
+/**
+ * How far a `${…}` is read: its parameter, as `x`, `@` or `x[1]`; a `:`
+ * just after it; an offset or a length, `${x:1:2}`, which the shell
+ * evaluates as arithmetic, as any `:` after the parameter opens but `:-`,
+ * `:=`, `:?` and `:+`; or a word, past any other operator.
+ */
+type Phase = 'parameter' | 'colon' | 'offset' | 'word'
 
 /**
  * Where the shell is: `'…'`; `$'…'`, where a backslash escapes; `"…"`;
  * `` `…` ``, which the shell scans for its closing backtick before any
- * quoting inside it; `$((…))` or `((…))`; `$[…]` or a subscript, `a[…]` or
- * `${a[…]}`, which it evaluates as arithmetic; or `${…}`. Each that nests
- * is open by as many as are unclosed.
+ * quoting inside it; `$((…))` or `((…))`; `$[…]` or a subscript, which it
+ * evaluates as arithmetic; `${…}`; or `$(…)`, read as a command of its own,
+ * so quotes open afresh inside it, double quotes around it or not, and one
+ * holding a `case` marked. Each that nests is open by as many as are
+ * unclosed.
  */
-type Context = { kind: Quote } | { kind: Nest; open: number }
+type Context =
+  | { kind: Quote }
+  | { kind: 'arithmetic' | 'subscripted'; open: number }
+  | { kind: 'expansion'; open: number; at: Phase }
+  | { kind: 'substitution'; open: number; hasCase: boolean }
+
+type Nested = Exclude<Context, { kind: Quote }>
 
 /** The `(` read last: none, a plain one, or `$(`'s. */
 type Paren = 'none' | 'plain' | 'dollar'
 
 /** What the character before left the next to follow. */
-type Before = { isAfterDollar: boolean; isAfterName: boolean; paren: Paren }
+type Before = { isAfterDollar: boolean; isAfterName: boolean; isAfterSpecial: boolean; paren: Paren }
 
-const NESTING: Record<Nest, { opens: string; closes: string }> = {
+const NESTING: Record<Nested['kind'], { opens: string; closes: string }> = {
   arithmetic: { opens: '(', closes: ')' },
   subscripted: { opens: '[', closes: ']' },
   expansion: { opens: '{', closes: '}' },
+  substitution: { opens: '(', closes: ')' },
 }
 
 const QUOTES: ReadonlySet<Context['kind']> = new Set(['single', 'ansi', 'double', 'backtick'])
 
-const EVALUATED: ReadonlySet<Context['kind']> = new Set(['arithmetic', 'subscripted'])
+/** The shell's special parameters but the digits, which a name's characters take in: `$@`, `$*`, `$#`, `$?`, `$-`, `$$` and `$!`. */
+const SPECIAL: ReadonlySet<string> = new Set(['@', '*', '#', '?', '-', '$', '!'])
+
+/** What makes a word of what follows a `${…}`'s `:`, never an offset: `:-`, `:=`, `:?` and `:+`. */
+const WORD_OPERATORS: ReadonlySet<string> = new Set(['-', '=', '?', '+'])
 
 const NAME_PART = /^[A-Za-z0-9_]$/
 
@@ -115,13 +139,38 @@ const UNTYPABLE: Readonly<Record<number, string>> = {
 
 const isPlaceholder = (name: string): name is Placeholder => (PLACEHOLDERS as readonly string[]).includes(name)
 
+/** Whether the shell evaluates what stands in it as arithmetic, which runs a `$(…)` even in a quoted value. */
+const isEvaluated = (context: Context) =>
+  context.kind === 'arithmetic' ||
+  context.kind === 'subscripted' ||
+  (context.kind === 'expansion' && (context.at === 'colon' || context.at === 'offset'))
+
+/** How far a `${…}` is read once a character is read directly in it, a placeholder's `{` among them. */
+const phaseAfter = (at: Phase, character: string): Phase => {
+  if (at === 'colon') {
+    return WORD_OPERATORS.has(character) ? 'word' : 'offset'
+  }
+
+  if (at !== 'parameter') {
+    return at
+  }
+
+  if (character === ':') {
+    return 'colon'
+  }
+
+  return NAME_PART.test(character) || SPECIAL.has(character) || character === '[' ? 'parameter' : 'word'
+}
+
 /**
  * The shell reading a command a character at a time: inside which quotes,
- * backticks, arithmetic, subscripts or `${…}`, as one may hold another;
- * whether the next character is escaped; whether the one before is an
- * unescaped `$` that opens an expansion, never the second of `$$`, the
- * shell's own process id, nor one escaped; whether it was an unescaped `#`
- * or `(`; and whether it ended a name, as a subscript's `[` follows one.
+ * backticks, arithmetic, subscripts, `${…}` or `$(…)`, as one may hold
+ * another; whether the next character is escaped; whether the one before
+ * is an unescaped `$` that opens an expansion, never the second of `$$`,
+ * the shell's own process id, nor one escaped; whether it was a special
+ * parameter after such a `$`, an unescaped `#` or `(`; whether it ended a
+ * name, as a subscript's `[` follows one; and the name being read directly
+ * in a `$(…)`, to tell its `case`.
  */
 const shellReading = () => {
   const contexts: Context[] = []
@@ -129,35 +178,90 @@ const shellReading = () => {
   let isAfterDollar = false
   let isAfterHash = false
   let isAfterName = false
+  let isAfterSpecial = false
   let paren: Paren = 'none'
+  let word = ''
 
   const last = () => contexts.at(-1)
+
+  const replaceLast = (context: Context) => {
+    contexts.pop()
+    contexts.push(context)
+  }
 
   const forgetBefore = () => {
     isAfterDollar = false
     isAfterHash = false
     isAfterName = false
+    isAfterSpecial = false
     paren = 'none'
   }
 
-  /** A character outside quotes, or in double quotes: the expansions and evaluations it opens, and what it leaves the next. `((` opens arithmetic only outside quotes, where it is a command. */
-  const expand = (character: string, before: Before) => {
+  /** What a character outside quotes, or in double quotes, leaves the next to follow. */
+  const note = (character: string, before: Before) => {
     isAfterDollar = character === '$' && !before.isAfterDollar
+    isAfterSpecial = before.isAfterDollar && SPECIAL.has(character)
     isAfterHash = character === '#'
     isAfterName = NAME_PART.test(character)
-
-    if (character === '(' && (before.paren === 'dollar' || (before.paren === 'plain' && last()?.kind !== 'double'))) {
-      contexts.push({ kind: 'arithmetic', open: 2 })
-    } else if (character === '(') {
-      paren = before.isAfterDollar ? 'dollar' : 'plain'
-    } else if (character === '[' && (before.isAfterDollar || before.isAfterName || last()?.kind === 'expansion')) {
-      contexts.push({ kind: 'subscripted', open: 1 })
-    } else if (character === '{' && before.isAfterDollar) {
-      contexts.push({ kind: 'expansion', open: 1 })
-    }
   }
 
-  /** Whether the character closes, or nests deeper in, the arithmetic, subscript or `${…}` it is in: true where it was only that. */
+  /** A `case` read directly in a `$(…)`, a word of its own or not, marks it. */
+  const noteWord = (character: string) => {
+    const context = last()
+
+    if (context?.kind === 'substitution' && NAME_PART.test(character)) {
+      word += character
+
+      return
+    }
+
+    if (context?.kind === 'substitution' && word === 'case') {
+      replaceLast({ ...context, hasCase: true })
+    }
+
+    word = ''
+  }
+
+  /**
+   * A character that opens what nests, outside quotes or in double quotes:
+   * `$(`; `$((`, the substitution `$(` opened taken for arithmetic; outside
+   * double quotes, `((`, a command, its first `(` counted where it was read;
+   * `${`; and `$[`, or a subscript after a name, a special parameter or a
+   * `${…}`'s parameter. It is read before what it is in counts it, so a
+   * `$(` or a `${` inside another is one of its own.
+   */
+  const opens = (character: string, before: Before, isInDouble: boolean) => {
+    const context = last()
+
+    if (character === '(' && before.paren === 'dollar') {
+      replaceLast({ kind: 'arithmetic', open: 2 })
+    } else if (character === '(' && before.isAfterDollar) {
+      contexts.push({ kind: 'substitution', open: 1, hasCase: false })
+      paren = 'dollar'
+    } else if (character === '(' && before.paren === 'plain' && !isInDouble) {
+      contexts.push({ kind: 'arithmetic', open: 1 })
+    } else if (character === '{' && before.isAfterDollar) {
+      contexts.push({ kind: 'expansion', open: 1, at: 'parameter' })
+    } else if (
+      character === '[' &&
+      (before.isAfterDollar || before.isAfterName || before.isAfterSpecial || (context?.kind === 'expansion' && context.at === 'parameter'))
+    ) {
+      contexts.push({ kind: 'subscripted', open: 1 })
+    } else {
+      paren = character === '(' ? 'plain' : 'none'
+
+      return false
+    }
+
+    return true
+  }
+
+  /**
+   * Whether the character closes, or nests deeper in, what it is in: true
+   * where it was only that. A `)` that would close a `$(…)` holding a `case`
+   * may end one of its patterns: the substitution is kept open, so a quote
+   * around it stays in force, reading on refusing more, never less.
+   */
   const closes = (character: string) => {
     const context = last()
 
@@ -165,17 +269,21 @@ const shellReading = () => {
       return false
     }
 
-    const { opens, closes: closing } = NESTING[context.kind]
-    const open = character === opens ? context.open + 1 : character === closing ? context.open - 1 : undefined
+    const { opens: opening, closes: closing } = NESTING[context.kind]
+    const open = character === opening ? context.open + 1 : character === closing ? context.open - 1 : undefined
 
     if (open === undefined) {
       return false
     }
 
+    if (open === 0 && context.kind === 'substitution' && context.hasCase) {
+      return true
+    }
+
     contexts.pop()
 
     if (open > 0) {
-      contexts.push({ kind: context.kind, open })
+      contexts.push({ ...context, open })
     }
 
     return true
@@ -188,18 +296,28 @@ const shellReading = () => {
   }
 
   const inDouble = (character: string, before: Before) => {
+    note(character, before)
+
     if (character === '"') {
       contexts.pop()
     } else if (character === '`') {
       contexts.push({ kind: 'backtick' })
     } else {
-      expand(character, before)
+      opens(character, before, true)
     }
   }
 
-  /** Outside quotes, or in what nests: the quotes a character opens, `$'`, `'`, `"` or a backtick, or what it expands. */
+  /** Outside quotes, or in what nests: how far a `${…}` it is read directly in is read, what it opens or closes, or the quotes it opens, `$'`, `'`, `"` or a backtick. */
   const outsideQuotes = (character: string, before: Before) => {
-    if (closes(character)) {
+    const context = last()
+
+    if (context?.kind === 'expansion') {
+      replaceLast({ ...context, at: phaseAfter(context.at, character) })
+    }
+
+    note(character, before)
+
+    if (opens(character, before, false) || closes(character)) {
       return
     }
 
@@ -207,8 +325,6 @@ const shellReading = () => {
       contexts.push({ kind: before.isAfterDollar ? 'ansi' : 'single' })
     } else if (character === '"' || character === '`') {
       contexts.push({ kind: character === '"' ? 'double' : 'backtick' })
-    } else {
-      expand(character, before)
     }
   }
 
@@ -217,7 +333,7 @@ const shellReading = () => {
     mayStartPlaceholder: () => !isEscaped && !isAfterDollar && !isAfterHash,
     /** Where a name opening here stands; none where it is no placeholder's and in quotes, being only words there. */
     standing: (isKnown: boolean): Standing | undefined => {
-      if (contexts.some(context => EVALUATED.has(context.kind))) {
+      if (contexts.some(isEvaluated)) {
         return 'evaluated'
       }
 
@@ -227,18 +343,31 @@ const shellReading = () => {
 
       return isKnown ? 'quoted' : undefined
     },
-    /** A placeholder read whole: what follows it follows no `$`, `#`, `(` or name. */
-    readPlaceholder: forgetBefore,
+    /** A placeholder read whole: what follows it follows no `$`, `#`, `(` or name, and a `${…}` it is directly in is read on, as by its `{`. */
+    readPlaceholder: () => {
+      const context = last()
+
+      forgetBefore()
+      word = ''
+
+      if (context?.kind === 'expansion') {
+        replaceLast({ ...context, at: phaseAfter(context.at, '{') })
+      }
+    },
     read: (character: string) => {
-      const before: Before = { isAfterDollar, isAfterName, paren }
+      const before: Before = { isAfterDollar, isAfterName, isAfterSpecial, paren }
       const isEscapedHere = isEscaped
 
       isEscaped = false
       forgetBefore()
 
       if (isEscapedHere) {
+        word = ''
+
         return
       }
+
+      noteWord(character)
 
       const kind = last()?.kind
 
@@ -364,17 +493,26 @@ const factProblemOf = (wanted: readonly Placeholder[], facts: ResumeFacts, name:
 export const shellQuoted = (value: string) => `'${value.replaceAll("'", "'\\''")}'`
 
 /** Whether the command is the default, told by its text, the spaces around it aside: one saved the same as it is the default. */
-export const isDefault = (command: string) => command.replace(AROUND, '') === DEFAULT_COMMAND
+const isDefault = (command: string) => command.replace(AROUND, '') === DEFAULT_COMMAND
 
-/**
- * The line to run for a session, named as the board names it: the command
- * with each placeholder replaced by its fact, quoted; or why none runs, in
- * SitRep's words.
- */
-export const lineOf = (command: string, facts: ResumeFacts, name: string): Checked<string> => {
+/** A command read as the shell reads it and found fit to fill, whatever the session: its pieces, the placeholders it names, and whether it is the default. */
+export type Typed = { pieces: readonly Piece[]; wanted: readonly Placeholder[]; isDefault: boolean }
+
+/** The command read as the shell reads it, and found fit to fill; or why it is not, in SitRep's words naming the session. */
+export const typedOf = (command: string, name: string): Checked<Typed> => {
   const pieces = piecesOf(command)
-  const wanted = namesOf(pieces).filter(isPlaceholder)
-  const problem = problemOf(pieces, name) ?? factProblemOf(wanted, facts, name)
+  const problem = problemOf(pieces, name)
+
+  if (problem !== undefined) {
+    return { ok: false, error: problem }
+  }
+
+  return { ok: true, value: { pieces, wanted: namesOf(pieces).filter(isPlaceholder), isDefault: isDefault(command) } }
+}
+
+/** The line to run for a session, named as the board names it: the typed command, each placeholder replaced by its fact, quoted; or why none runs, a fact missing or not fit to type. */
+export const filledOf = ({ pieces, wanted }: Typed, facts: ResumeFacts, name: string): Checked<string> => {
+  const problem = factProblemOf(wanted, facts, name)
   const values = valuesOf(facts)
 
   if (problem !== undefined) {
@@ -391,4 +529,11 @@ export const lineOf = (command: string, facts: ResumeFacts, name: string): Check
       })
       .join(''),
   }
+}
+
+/** The line to run for a session, named as the board names it, the command as given; or why none runs, in SitRep's words. */
+export const lineOf = (command: string, facts: ResumeFacts, name: string): Checked<string> => {
+  const typed = typedOf(command, name)
+
+  return typed.ok ? filledOf(typed.value, facts, name) : typed
 }
