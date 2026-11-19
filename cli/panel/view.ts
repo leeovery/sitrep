@@ -8,13 +8,14 @@
  *   on after a space, or after `: ` on a permission prompt; a wake counts
  *   down to its time, `Wakes in 12m`; a question's `+2` comes apart.
  * - The time: in Snoozed, when the row wakes, as `wakeWords` says it, or
- *   `until it moves`; elsewhere, how long its newest line has stood, as
- *   `ago` gives it.
+ *   `until it moves`; elsewhere, how long its newest line has stood, in
+ *   whole units rounded down, as the notch reads it.
  * - A row is new for two seconds from the first view that showed a line of
  *   it new to Needs you.
+ * - A stale board says when it was last read, `12:04`; a board not read
+ *   says why.
  */
 import {
-  ago,
   oneLine,
   panelSections,
   wakeWords,
@@ -52,13 +53,15 @@ export type PanelView = {
   top: number
   answer?: string
   board: 'looking' | 'read' | 'stale'
+  asOf?: string
+  reason?: string
 }
 
 /** What the view reads of the panel's state. */
 export type ViewState = {
-  /** The chosen row's session. */
+  /** The chosen row, by its key (`rowKey`). */
   band?: string
-  /** The body's first row in view. */
+  /** The first row in view: its index over the rows of the open sections, in order, one a row, not a screen line. */
   top: number
   isSnoozedOpen: boolean
   /** A pick's answer. */
@@ -66,42 +69,65 @@ export type ViewState = {
   board: PanelView['board']
   /** When each line new to Needs you was first shown, by its key. */
   arrivals: ReadonlyMap<string, number>
+  /** When the board was last read. */
+  readAt?: number
+  /** Why the board can't be read. */
+  reason?: string
 }
+
+/** A row's key, apart from its session's row in another section: a session can have one in Snoozed too, as the app's `markID` says. */
+export const rowKey = (row: PanelRow): string =>
+  row.isSnoozed ? `snoozed:${row.session}` : row.session
 
 /** How long a line new to Needs you stays new from its first showing. */
 export const NEW_MS = 2_000
 
 const MIN = 60_000
 
-/** Shown text: its control characters dropped, then on one line. */
-export const shown = (text: string) => oneLine(text.replace(/(?!\s)\p{Cc}/gu, ''))
+/** Text from the board made harmless: its control characters dropped, then on one line. */
+export const cleaned = (text: string) => oneLine(text.replace(/(?!\s)\p{Cc}/gu, ''))
 
 /**
- * A time in ms in its largest whole unit, rounded down as the app's `Age`
- * rounds: `12m`, `2h`, `3d`. Not `ago`, which rounds to the nearest: 90
- * minutes to go reads `in 1h` in the app.
+ * Whole minutes in their largest whole unit, rounded down, as the app's
+ * `Age` words them: `now` under one, `12m`, `2h`, `3d`. Not core's `ago`,
+ * which rounds to the nearest: 90 minutes read `2h` there, `1h` here.
  */
-const wholeUnits = (ms: number) => {
-  const minutes = Math.floor(ms / MIN)
+const inUnits = (minutes: number) => {
   const hours = Math.floor(minutes / 60)
+
+  if (minutes < 1) {
+    return 'now'
+  }
 
   return minutes < 60 ? `${minutes}m` : hours < 24 ? `${hours}h` : `${Math.floor(hours / 24)}d`
 }
 
+/** How long ago `at` was, as the notch's rows read it. */
+const age = (at: number, now: number) => inUnits(Math.floor((now - at) / MIN))
+
 /** A wake's countdown, as the app's `untilText` words it: up to the whole minute, `in 12m`; `now` once due. */
 export const countdown = (until: number, now: number) =>
-  until <= now ? 'now' : `in ${wholeUnits(Math.ceil((until - now) / MIN) * MIN)}`
+  until <= now ? 'now' : `in ${inUnits(Math.ceil((until - now) / MIN))}`
 
 /** A question's `+2`, as core words it, as its number. */
-const moreOf = (more: string | undefined) => (more === undefined ? undefined : Number(more.slice(1)))
+const moreOf = (more: string | undefined) => (more === undefined ? undefined : Number(more))
+
+const twoDigits = (value: number) => String(value).padStart(2, '0')
+
+/** A local time on the 24-hour clock, `12:04`, as core's `wakeWords` words today's. */
+const clockOf = (at: number) => {
+  const date = new Date(at)
+
+  return `${twoDigits(date.getHours())}:${twoDigits(date.getMinutes())}`
+}
 
 const statusOf = (line: RowLine, isPermission: boolean, now: number): StatusWords => {
   const after = [line.mono, line.until === undefined ? line.subject : countdown(line.until, now)]
     .filter(part => part !== undefined)
-    .map(shown)
+    .map(cleaned)
     .filter(part => part !== '')
     .join(' ')
-  const lead = shown(line.lead)
+  const lead = cleaned(line.lead)
   const text = after === '' ? lead : `${lead}${isPermission ? ': ' : ' '}${after}`
   const more = moreOf(line.more)
 
@@ -127,7 +153,7 @@ const markOf = (row: Row | SnoozedRow): PanelRow['mark'] => {
 
 const timeOf = (row: Row | SnoozedRow, now: number) => {
   if (!isSnoozedRow(row)) {
-    return ago(now, row.since)
+    return age(row.since, now)
   }
 
   return row.wakesAt === undefined ? 'until it moves' : wakeWords(row.wakesAt, now)
@@ -151,9 +177,9 @@ const rowOf = (row: Row | SnoozedRow, arrivals: ViewState['arrivals'], now: numb
     isAway: row.isAway,
     isSnoozed: isSnoozedRow(row),
     isNew: isNewAt(row, arrivals, now),
-    name: shown(row.name),
+    name: cleaned(row.name),
     ...(row.lines.length > 1 ? { count: row.lines.length } : {}),
-    project: shown(row.projectName),
+    project: cleaned(row.projectName),
     status:
       first === undefined
         ? { text: '' }
@@ -162,21 +188,41 @@ const rowOf = (row: Row | SnoozedRow, arrivals: ViewState['arrivals'], now: numb
   }
 }
 
-/** The board in the panel's words at `now`, the sessions in `notHere` drawn away. */
-export const viewOf = (
-  feed: Feed,
+const sectionsOf = (
+  feed: Feed | undefined,
   state: ViewState,
   now: number,
   notHere: ReadonlySet<string>,
-): PanelView => ({
-  sections: panelSections(feed, notHere).map(({ kind, counts, rows }) => ({
-    kind,
-    counts,
-    rows: rows.map(row => rowOf(row, state.arrivals, now)),
-    isOpen: kind !== 'snoozed' || state.isSnoozedOpen,
-  })),
-  ...(state.band === undefined ? {} : { band: state.band }),
-  top: state.top,
-  ...(state.answer === undefined ? {} : { answer: state.answer }),
-  board: state.board,
-})
+): PanelView['sections'] =>
+  feed === undefined
+    ? []
+    : panelSections(feed, notHere).map(({ kind, counts, rows }) => ({
+        kind,
+        counts,
+        rows: rows.map(row => rowOf(row, state.arrivals, now)),
+        isOpen: kind !== 'snoozed' || state.isSnoozedOpen,
+      }))
+
+/**
+ * The board in the panel's words at `now`, the sessions in `notHere` drawn
+ * away; no sections before any board is read. A stale one says when it was
+ * last read.
+ */
+export const viewOf = (
+  feed: Feed | undefined,
+  state: ViewState,
+  now: number,
+  notHere: ReadonlySet<string>,
+): PanelView => {
+  const { band, top, answer, board, readAt, reason } = state
+
+  return {
+    sections: sectionsOf(feed, state, now, notHere),
+    ...(band === undefined ? {} : { band }),
+    top,
+    ...(answer === undefined ? {} : { answer }),
+    board,
+    ...(board === 'stale' && readAt !== undefined ? { asOf: clockOf(readAt) } : {}),
+    ...(reason === undefined ? {} : { reason }),
+  }
+}

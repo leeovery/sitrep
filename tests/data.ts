@@ -2,7 +2,19 @@
  * The sample data the tests share: times, windows, the projects and sessions
  * under test, and the asks Claude posts. Every name is a placeholder.
  */
-import type { AskBody, FolderKey, Project, ProjectKey, SessionMeta } from '../core'
+import type {
+  AskBody,
+  Feed,
+  FolderKey,
+  Project,
+  ProjectKey,
+  Row,
+  RowKind,
+  RowLine,
+  SessionMeta,
+  SnoozedKind,
+  SnoozedRow,
+} from '../core'
 import { itemKey } from '../hooks/places'
 
 export const MIN = 60_000
@@ -172,3 +184,68 @@ export const CLOSES = '\n  This closes the ask: nothing more to do with it.'
 
 /** The line under a comment in Lee's message saying it left its ask open. */
 export const LEAVES_OPEN = '\n  This leaves the ask open: act on it, then resolve it.'
+
+/** The section a row of each kind of line sits in. */
+export const SECTIONS: Record<RowKind, Row['section']> = {
+  ask: 'needsYou',
+  permission: 'needsYou',
+  question: 'needsYou',
+  working: 'working',
+  onItsWork: 'working',
+  yourTurn: 'yourTurn',
+}
+
+/** A made-up row beyond its session: Northwind's, named and saying as its session, here, unless told. */
+export type RowMade = { name?: string; project?: string; first?: RowLine; isAway?: boolean }
+
+const named = (session: string, { name = session, project = 'Northwind', isAway = false }: RowMade) => ({
+  session,
+  isAway,
+  project: project.toLowerCase(),
+  name,
+  projectName: project,
+  letters: project.slice(0, 2),
+  second: `${project} · ${name}`,
+})
+
+/** A session's row in its section: `lines` lines of the kind given, the newest at `since`, each older a minute before. */
+export const boardRow = (
+  session: string,
+  is: RowKind,
+  { since = T0, lines = 1, ...made }: RowMade & { since?: number; lines?: number } = {},
+): Row => ({
+  ...named(session, made),
+  section: SECTIONS[is],
+  lines: Array.from({ length: lines }, (_, at) => ({
+    key: `${is}:${session}:${at}`,
+    is,
+    first: made.first ?? { lead: session },
+    since: since - at * MIN,
+  })),
+  since,
+})
+
+/** A session's row in Snoozed, of lines of the kinds given, keyed as their lines in Needs you are, waking at `wakesAt`. */
+export const snoozedRow = (
+  session: string,
+  kinds: SnoozedKind[],
+  { wakesAt, ...made }: RowMade & { wakesAt?: number } = {},
+): SnoozedRow => ({
+  ...named(session, made),
+  lines: kinds.map((is, at) => ({
+    key: `${is === 'ask' ? 'ask' : 'turn'}:${session}:${at}`,
+    is,
+    first: made.first ?? { lead: session },
+    since: T0,
+  })),
+  ...(wakesAt === undefined ? {} : { wakesAt }),
+})
+
+/** A feed of these rows and Snoozed rows, in the order given, as core would give them. */
+export const feedOfRows = (rows: Row[], snoozed: SnoozedRow[] = []): Feed => ({
+  head: { needYou: 0, sessions: rows.length },
+  rows,
+  snoozed,
+  projects: [],
+  windows: [],
+})
