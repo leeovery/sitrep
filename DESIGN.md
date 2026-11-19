@@ -10059,16 +10059,28 @@ look", the pick on its page "FINAL · board in a terminal".
   orange, then its Stopped in blue; Working; then Snoozed, folded at first.
   Each row names its project.
 - **It doesn't answer asks**, as the notch doesn't.
-- **Picking a row attaches that session's tmux or zmx session in place**,
-  on the Mac as over SSH, so it behaves the same on every screen, and
-  detaching comes back to the panel. A session whose Claude has ended
-  resumes in place, by the resume command; one running in a terminal with
-  no tmux or zmx can't be reached from the panel, which says so. Opening a
-  session's own window, as the notch's jump does, is not the panel's.
-- **A new ask posts a terminal notification**, OSC 9 or 777, which rootshell
-  shows in the background and tmux passes through with passthrough on. It
-  is on by default, and a flag turns it off. Claude stopping posts none, as
-  in the app's defaults.
+- **Picking a row runs SitRep's resume command in place**, in the
+  panel's own terminal, on the Mac as over SSH, so it behaves the same on
+  every screen: the command a click runs for a session this Mac doesn't
+  show (stage 8), filled and refused as the app fills and refuses it, the
+  default's guard and the suspended rule with it. The panel never attaches
+  a session itself, and knows no `zmx attach`, no `tmux attach` and no
+  session tool: corrected by Lee on 19 November 2026, "It should never run
+  zmx attach. We should be using the existing commands that are registered
+  for this process." It takes the terminal back when the command ends, so
+  with a command attaching in a plain shell, detaching comes back to the
+  panel. A session a terminal on this Mac shows is no special case: the
+  panel never jumps and never moves the Mac's screen. Lee: "As long as we
+  always go through the command … It's generic enough that it's up to the
+  user to handle their own scenarios through the registered commands."
+  What becomes of a session open elsewhere is the command's business, not
+  SitRep's. A session running in a terminal with no tmux or zmx can't be
+  reached from the panel, which says so.
+- **A new ask posts a terminal notification**, OSC 777, its title the
+  ask's words and its body the project and session, which rootshell shows
+  in the background and tmux passes through with passthrough on. It is on
+  by default, and `--no-notify` turns it off. Claude stopping posts none,
+  as in the app's defaults.
 - **The marks keep the notch's grammar**: colour says what is needed,
   Claude Code's orange `#D77757` for an ask and blue for Stopped; fill says
   where, filled where a terminal on this Mac shows the session and hollow
@@ -10084,9 +10096,12 @@ look", the pick on its page "FINAL · board in a terminal".
   narrowest, and for 69×46, 73×36 and 114×45, Lee's measured sizes, down to
   15 rows. Lee: "We build it dynamically. It will fit regardless."
 
-Picking a row has the CLI run tmux and zmx, which it has not done since 10
-November 2026 (stage 7, step B); how far that goes, with the resume command
-and which sessions this Mac shows, is among the spec's questions for Lee.
+Every other question the spec put to Lee he answered on 19 November 2026
+as it recommended, and none is left open. So the CLI runs programs again, which it has not done
+since 10 November 2026 (stage 7, step B), but only for a pick: the user's
+resume command through the login shell, and `ps` for the guard and
+`{tty}`; never zmx or tmux. SitRep comes to write which sessions this Mac
+doesn't show, for the panel's hollow marks.
 
 ## Later
 
