@@ -53,7 +53,7 @@ A setting to run a command on a new ask, such as `rootshell-notify`, is parked. 
 4. A pick's answer, when there is one: a blank row, then the answer's lines, just above the key line.
 5. The last row, the key line.
 
-**A short terminal.** The title and the key line always stay. Below 15 rows the blank row under the title goes first, then the blank rows between sections; then the body scrolls.
+**A short terminal.** The title and the key line always stay. Below 15 rows the blank row under the title stays while every block fits with it; short of room it goes first, then the blank rows between sections; then the body scrolls.
 
 **Too small.** Below 24 columns or 8 rows the panel draws only `Too small` on row 0, at the margin, cut to the width. It keeps watching, so notifications still post, and it draws in full again once the terminal grows.
 
@@ -76,7 +76,7 @@ Colour says what's needed; fill says where (DESIGN.md, "The notch and its panel"
 | `!` | bold | a pick's answer |
 | the band | `#3E4A5B` ground | the chosen row, over both its lines |
 
-**Without colour** (`NO_COLOR`), the shapes carry it. An ask and a turn share `●`, so an ask's name is bold and a turn's regular. The band is reverse video over both lines. A new ask keeps `◉` and loses its wash. Metadata is faint (SGR 2): times, projects, counts in grey, the rule, the chevron, `▲ N more`, an away row's words. A bold name is never faint too, since many terminals draw SGR 1 and 2 as one intensity.
+**Without colour** (`NO_COLOR`), the shapes carry it. An ask and a turn share `●`, so an ask's name is bold and a turn's regular. The band is reverse video over both lines. A new ask keeps `◉` and loses its wash. In Needs you's heading, the asks' count is bold and the Stopped count regular, so `●4 ●2` don't rest on colour (19 November 2026). Metadata is faint (SGR 2): times, projects, counts in grey, the rule, the chevron, `▲ N more`, an away row's words. A bold name is never faint too, since many terminals draw SGR 1 and 2 as one intensity.
 
 ## Rows and structure
 
@@ -116,6 +116,8 @@ Colour says what's needed; fill says where (DESIGN.md, "The notch and its panel"
 **Scrolling.** The body shows the rows that fit, in whole rows.
 - **Out of view:** above them, `▲ 11 more` in grey on a row of its own; below them, `▼ 6 more`. Each counts sessions, not lines.
 - **The pinned heading:** scrolled into a section, its heading stays on the body's top row, above `▲`.
+- **A short body,** as when an answer takes its rows: the pinned heading and `▲` stand above the first row only if a row and `▼` still fit under them; else `▲` alone if it fits; else the row alone.
+- **Never a bare edge:** the body never starts or ends on a blank row, or on an open section's heading, while blocks follow: a heading stands only with a row under it. A folded Snoozed heading is drawn last.
 - **The band in view:** the view moves the least that keeps the band's row whole in sight. With no band, opening Snoozed scrolls its last row into view.
 
 **A quiet board.** With no rows at all, the body reads `All clear`, bold, then a blank row, then `Nothing needs you, and nothing is running.` in grey, wrapped at 24 columns. Each line is centred, the three a little above the middle. The key line reads `q quit`.
@@ -141,7 +143,7 @@ Doesn't apply: the panel shows no step running. Its marks are still: `✻` doesn
 | `q`, `Ctrl-C` | Leaves |
 | `Ctrl-Z` | Suspends the panel; `fg` brings it back, drawn afresh |
 
-**The key line** names the keys that work now, most needed first: `↑↓ pick  s snoozed  q quit` with no band, `↑↓ move  ⏎ open  s snoozed  q quit` with one. Each key is bold in the terminal's ink, its word grey, two spaces between hints. `s snoozed` shows only while Snoozed holds rows; an empty board's line is `q quit`. Short of room, whole hints drop from the right. PgUp, Home, `j`, `k`, `esc` and `Ctrl-Z` work but aren't named.
+**The key line** names the keys that work now, most needed first: `↑↓ pick  s snoozed  q quit` with no band, `↑↓ move  ⏎ open  s snoozed  q quit` with one. Each key is bold in the terminal's ink, its word grey, two spaces between hints. `s snoozed` shows only while Snoozed holds rows; an empty board's line is `q quit`. Short of room, whole hints drop from the right, `q quit` last, since it always applies. `↑↓` is named only while a row is in view. PgUp, Home, `j`, `k`, `esc` and `Ctrl-Z` work but aren't named.
 
 **Decoding.** Keys come in raw mode as bytes. `CSI` and `SS3` arrows both read as arrows (`ESC [ A`, `ESC O A`), so application cursor mode doesn't matter. A lone `ESC` with nothing after it within 50 ms is `esc`. Any other byte does nothing.
 
@@ -261,8 +263,8 @@ Doesn't apply: the panel collects no remedies. A pick's answer says what to do i
 - **The terminal's ink:** names, the title and the keys are in the terminal's own foreground, never a hex, so they read on any theme.
 - **The level:**
   - `NO_COLOR` set: no colour at all.
-  - `FORCE_COLOR` set: colour on, at the level its value gives.
-  - `COLORTERM` of `truecolor` or `24bit`, or a `TERM` naming `ghostty` or ending `-direct`: 24-bit.
+  - `FORCE_COLOR` set: colour on, at least the level its value gives (`1` 16 colours, `2` 256, `3` or more 24-bit; `0` or `false`, none); a higher level the terminal says it has still wins, as chalk reads it.
+  - `COLORTERM` of `truecolor` or `24bit`, in any case, or a `TERM` naming `ghostty` or ending `-direct`: 24-bit.
   - A `TERM` naming `256color`: 256 colours.
   - Otherwise: 16.
 
@@ -275,7 +277,7 @@ Doesn't apply: the panel collects no remedies. A pick's answer says what to do i
 - a Snoozed row's dimmed mark;
 - a new ask's wash, orange at 22%.
 
-Dimming the terminal's own ink needs its foreground too. With both answers, at 256 colours or more, they're mixed. Without them, or at 16 colours, the dims are faint (SGR 2) and the wash is left out. The band is a fixed colour, so it needs no answer.
+Dimming the terminal's own ink needs its foreground too. With both answers, at 256 colours or more, they're mixed. Without them, or at 16 colours, the dims are faint (SGR 2). The wash is drawn at 24-bit only: at 256 colours `#534345` lands on grey 238, beside the band's 239, so an arriving row would look chosen; `◉` carries an arrival there, as at 16. The band is a fixed colour, so it needs no answer.
 
 **Bold and faint.** Bold marks what needs you: an ask's name, the needs-you counts, the title, the keys, `!` and `◉`. Faint (SGR 2) is used only without colour or at 16, for metadata.
 
@@ -291,21 +293,21 @@ Dimming the terminal's own ink needs its foreground too. With both answers, at 2
 
 | Part | Natural | Least, and below it |
 |---|---|---|
-| The name, with its count | its own width | 6 cells and `…`; the count is never cut |
+| The name, with its count | its own width | 6 cells, the `…` among them; the count is never cut |
 | The time | its own width | a Snoozed wake drops its clock (`tomorrow`) where the name would get under 6, then goes |
-| The status line | its own width | 6 cells and `…`; below that it goes, its ` · ` with it |
+| The status line | its own width | 6 cells, the `…` among them; below that it goes, its ` · ` with it |
 | The project, on line two | its own width | cut with `…` once the status line has gone |
 | The heading's rule | out to W−4 | 3 cells; below that it goes, the counts and the chevron kept |
 | The key line | every hint | whole hints drop from the right |
-| A pick's answer | wraps at W−4 | always wraps, never cut |
+| A pick's answer | wraps at W−4 | wraps; cut with `…` only where it is taller than the rows between the title and the key line |
 
 **What gives way first,** as the width falls: the status line is cut, then dropped; then the project is cut; then the name is cut to its least; then a Snoozed wake loses its clock; then the time goes. At 39 columns, Lee's narrowest, only the status line is cut. Below 24 columns the panel draws `Too small`.
 
 **Wide terminals.** Past 120 columns the layout stays 120 and stands at the left. The rows don't change form with width: line two holds the status line at every width, as round 4 drew at 114 and 173.
 
-**Cutting.** A name is cut from its end with one `…`, only below its natural width. Nothing is cut that a wider terminal would show whole, and nothing cut can't be read by widening the terminal.
+**Cutting.** A name is cut from its end with one `…`, only below its natural width, with no space left before the `…` (`Thread…`, never `Thread …`). Nothing is cut that a wider terminal would show whole, and nothing cut can't be read by widening the terminal.
 
-**Shown text made harmless.** Every word from the board is collapsed to one line, as core's `oneLine` does, before it's measured. C0 and C1 controls, `ESC` and `DEL` are dropped from it, so a session's name can't move the cursor or set a colour.
+**Shown text made harmless.** Every word from the board is collapsed to one line, as core's `oneLine` does, before it's measured: once, by the view's `cleaned`, so the renderer cleans nothing. C0 and C1 controls, `ESC` and `DEL` are dropped from it, so a session's name can't move the cursor or set a colour.
 
 **Cell widths.** A cell's width is its grapheme's:
 - East Asian Wide and Fullwidth characters, and emoji in emoji presentation, take two cells;
@@ -418,6 +420,11 @@ export type PanelEvent =
   | { tick: number }
   | { opened: Answer | undefined }
 export const step: (state: PanelState, event: PanelEvent) => { state: PanelState; open?: string }
+
+// cli/panel/layout.ts: the fit rules, once, for draw and for step
+// (keeping the band whole, paging, a tap's row)
+export const layoutOf: (view: PanelView, size: Size) => Layout // the body, the answer, top clamped, lastTop, each visible row's key and y
+export const topFor: (view: PanelView, size: Size, key: string) => number | undefined // the top nearest view.top showing the row whole
 
 // cli/panel/draw.ts: lines at a size; no clock, no terminal
 export type Run = { text: string; pen: Pen }
