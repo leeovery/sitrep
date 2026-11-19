@@ -2,6 +2,7 @@ import { expect, test } from './kit'
 import { drawn, FIXTURES, frameName, misfitsOf, viewAt } from '../cli/frames/fixtures'
 import { layoutOf } from '../cli/panel/layout'
 import type { Line } from '../cli/panel/draw'
+import { rowKey, type PanelView } from '../cli/panel/view'
 
 /** The sizes the checker's sweep draws at, and a short one. */
 const SIZES = [
@@ -36,18 +37,24 @@ test('every fixture draws to fit its size, and at every size the sweep draws at'
   expect(misfits).toEqual([])
 })
 
-test("a fixture keeps its row whole in view at every size with room for a row, as the keys would leave it: the band, or Snoozed's last once opened", () => {
-  const kept = FIXTURES.filter(fixture => fixture.inView !== undefined)
-  const unseen = kept.flatMap(fixture =>
-    [fixture.size, ...SIZES].flatMap(size => {
-      const { rows, body } = layoutOf(viewAt(fixture, size), size)
-      const hasRoom = body.to - body.from >= 2
+/** The row a fixture's view keeps whole in sight: the band's, or, with none, Snoozed's last once opened. */
+const keptOf = (view: PanelView) => {
+  const last = view.sections.find(section => section.kind === 'snoozed' && section.isOpen)?.rows.at(-1)
 
-      return hasRoom && !rows.some(each => each.key === fixture.inView) ? [`${frameName(fixture)} at ${size.width}×${size.height}`] : []
-    }),
-  )
+  return view.band ?? (last === undefined ? undefined : rowKey(last))
+}
 
-  expect(kept.map(frameName)).toContain('panel-unfolded-39x27')
-  expect(kept.map(frameName)).toContain('panel-busy-73x15')
+test("a fixture's keys leave its row whole in view at every size with room for a row: the band, or Snoozed's last once opened", () => {
+  const atSizes = FIXTURES.flatMap(fixture => [fixture.size, ...SIZES].map(size => ({ fixture, size, view: viewAt(fixture, size) })))
+  const kept = atSizes.filter(({ view }) => keptOf(view) !== undefined)
+  const unseen = kept.flatMap(({ fixture, size, view }) => {
+    const { rows, body } = layoutOf(view, size)
+    const hasRoom = body.to - body.from >= 2
+
+    return hasRoom && !rows.some(each => each.key === keptOf(view)) ? [`${frameName(fixture)} at ${size.width}×${size.height}`] : []
+  })
+
+  expect(kept.map(({ fixture }) => frameName(fixture))).toContain('panel-unfolded-39x27')
+  expect(kept.map(({ fixture }) => frameName(fixture))).toContain('panel-busy-73x15')
   expect(unseen).toEqual([])
 })

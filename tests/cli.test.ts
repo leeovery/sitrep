@@ -23,7 +23,7 @@ import {
   yesAsk,
   type Line,
 } from './lines'
-import { ENV, FIRST_ID, NEXT_ID, NOW, terminal } from './terminal'
+import { ENV, FIRST_ID, NEXT_ID, NOW, terminal, tty } from './terminal'
 
 type Terminal = ReturnType<typeof terminal>
 
@@ -883,6 +883,17 @@ test('no words, an unknown command or a word that will not read is a usage error
     out: '',
     err: 'sitrep: There is no --session. sitrep list --help says more.\n',
   })
+})
+
+test('no words off a terminal, or on one whose TERM is dumb, keep the help on standard error and exit 1, the terminal left alone', async () => {
+  const offOne = await terminal().run()
+  const dumb = tty()
+  const onDumb = await terminal({ env: { ...ENV, TERM: 'dumb' }, terminal: dumb.terminal }).run()
+
+  expect(onDumb).toEqual(offOne)
+  expect(onDumb.exit).toBe(EXIT.refused)
+  expect(onDumb.err).toContain('sitrep: post to the sitrep board from scripts and other tools.')
+  expect(dumb.writes).toEqual([])
 })
 
 test('a failure the world throws is told, and ends as refused', async () => {

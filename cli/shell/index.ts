@@ -2,13 +2,14 @@
  * The CLI bound to Bun: the file system, the environment and the folder it
  * runs in, the clocks and waiting on them, random bytes, standard input,
  * standard output and error and when the run is to end, the plugin's
- * manifest, and the exit code. bin/sitrep runs it.
+ * manifest, the terminal it runs on, and the exit code. bin/sitrep runs it.
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { appendFile, mkdir } from 'node:fs/promises'
 import { endOf, type Signals } from '../ending'
 import type { Io, Listed, Waiting } from '../io'
 import { main } from '../main'
+import { terminalOf } from './terminal'
 
 /** Errors a listing means "not there" by: the folder is missing, or is a file. */
 const ABSENT = ['ENOENT', 'ENOTDIR']
@@ -144,6 +145,7 @@ const io: Io = {
   err: text => void process.stderr.write(text),
   ending: () => endOf(signals, PARENT),
   manifest: MANIFEST,
+  terminal: terminalOf(),
 }
 
 /** Runs the CLI on the words it was given, and exits as it ends. */
