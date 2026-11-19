@@ -9,8 +9,10 @@
  * - A session whose Claude ended is away on its row; one whose Claude runs
  *   where no terminal on this Mac shows it is away by `notHere`.
  * - Each is reached as the panel reaches it, at each size: its board read,
- *   then its keys pressed, both stepped as the panel steps them. Only a
- *   pick's answer is given whole: no key gives one until ⏎ opens a row.
+ *   then its keys pressed, both stepped as the panel steps them. A pick is
+ *   answered from the board alone, as `reachOf` answers it: a fixture runs
+ *   no command.
+ * - A session given a place has a live window there.
  * - The clock is London's: `check.ts` runs in its zone, so a Snoozed wake
  *   reads the same on any machine.
  */
@@ -19,17 +21,20 @@ import {
   inPanelOrder,
   inSnoozedOrder,
   type Feed,
+  type FeedWindow,
   type Row,
   type RowKind,
   type RowLine,
   type SnoozedKind,
   type SnoozedRow,
+  type Where,
 } from '../../core'
 import { widthOf, type Size } from '../panel/cells'
 import { draw, type Line } from '../panel/draw'
 import type { Key } from '../panel/keys'
 import { rgbOf, type Paint } from '../panel/paint'
-import { kept, opening, step, type PanelState } from '../panel/state'
+import { reachOf } from '../panel/reach'
+import { opening, step, type PanelState } from '../panel/state'
 import { viewOf, type PanelView } from '../panel/view'
 
 /** The board a fixture shows, and the sessions on it this Mac doesn't show. */
@@ -46,8 +51,6 @@ export type Fixture = {
   news: readonly string[]
   /** The keys pressed once the board is read. */
   keys: readonly Key[]
-  /** A pick's answer, given whole once the keys are pressed, the band kept whole in sight under it. */
-  answer?: string
 }
 
 /** The zone the fixtures' clock reads in. */
@@ -94,8 +97,8 @@ const idFor = (project: string) => `sr-${CODES[project] ?? 'xx'}${String(++issue
 /** Where a session is away from: its Claude ended, or no terminal on this Mac shows it. */
 type Away = 'ended' | 'elsewhere'
 
-/** A session as a world holds it: its row in a section or in Snoozed, and whether this Mac shows it. */
-type Seat = { row: Row; away?: Away } | { snoozed: SnoozedRow }
+/** A session as a world holds it: its row in a section or in Snoozed, whether this Mac shows it, and where its live window is, if it says. */
+type Seat = { row: Row; away?: Away; where?: Where } | { snoozed: SnoozedRow }
 
 const named = (name: string, project: string, isAway: boolean) => ({
   session: idFor(project),
@@ -116,7 +119,7 @@ const SECTIONS = {
   onItsWork: 'working',
 } as const satisfies Record<RowKind, Row['section']>
 
-type Made = { count?: number; away?: Away; wakeAt?: number }
+type Made = { count?: number; away?: Away; wakeAt?: number; where?: Where }
 
 /** The window a stop or a turn comes from. */
 const WRITER = 'w1'
@@ -136,7 +139,7 @@ const lineOf = (is: RowKind, session: string, at: number, first: RowLine, since:
 
 /** A row of `count` lines saying `first`, the newest `minutes` old, each older a minute before it. */
 const seat = (is: RowKind, name: string, project: string, first: RowLine, minutes: number, made: Made = {}): Seat => {
-  const { count = 1, away, wakeAt } = made
+  const { count = 1, away, wakeAt, where } = made
   const since = NOW - minutes * MINUTE_MS
   const base = named(name, project, away === 'ended')
   const row: Row = {
@@ -147,7 +150,7 @@ const seat = (is: RowKind, name: string, project: string, first: RowLine, minute
     ...(wakeAt === undefined ? {} : { wakeAt }),
   }
 
-  return away === undefined ? { row } : { row, away }
+  return { row, ...(away === undefined ? {} : { away }), ...(where === undefined ? {} : { where }) }
 }
 
 const ask = (name: string, project: string, status: string, minutes: number, made?: Made) =>
@@ -194,6 +197,18 @@ const snoozed = (is: SnoozedKind, name: string, project: string, status: string,
   }
 }
 
+/** The live window of a session given a place, the first a jump tries, attached as its row's line came. */
+const windowOf = (row: Row, where: Where): FeedWindow => ({
+  writer: WRITER,
+  session: row.session,
+  name: row.name,
+  project: row.projectName,
+  needsReload: false,
+  where,
+  attachedAt: row.since,
+  jumpOrder: 0,
+})
+
 /** The world of these sessions, as core gives its board. */
 const worldOf = (seats: readonly Seat[]): World => {
   const rows = inPanelOrder(seats.flatMap(each => ('row' in each ? [each.row] : [])))
@@ -204,18 +219,21 @@ const worldOf = (seats: readonly Seat[]): World => {
       rows,
       snoozed: inSnoozedOrder(seats.flatMap(each => ('snoozed' in each ? [each.snoozed] : []))),
       projects: [],
-      windows: [],
+      windows: seats.flatMap(each => ('where' in each && each.where !== undefined ? [windowOf(each.row, each.where)] : [])),
     },
     notHere: new Set(seats.flatMap(each => ('row' in each && each.away === 'elsewhere' ? [each.row.session] : []))),
   }
 }
+
+/** A Ghostty window in no multiplexer, whose Claude a pick can't reach. */
+const IN_GHOSTTY: Where = { device: '/dev/ttys004', terminal: 'ghostty' }
 
 const REST: readonly Seat[] = [
   permission('Data import', 'Litware', 'Bash', 'psql -f import.sql', 1),
   ask('Help desk redesign', 'Northwind', 'Thread replies, or keep them flat?', 4),
   ask('Shift schedules', 'Contoso', 'Approve the rota', 26),
   ask('Email templates', 'Fabrikam', 'Keep the plain-text versions?', 2 * HOUR_MINUTES, { away: 'ended' }),
-  turn('Release notes', 'Tailspin', 'Drafted the 2.4 release notes', 31),
+  turn('Release notes', 'Tailspin', 'Drafted the 2.4 release notes', 31, { where: IN_GHOSTTY }),
   turn('Warehouse map', 'Litware', 'Mapped the ground floor', HOUR_MINUTES, { away: 'elsewhere' }),
   working('Mobile app', 'Woodgrove', 'Running npm test', 6),
   working('Invoice ledger', 'Northwind', 'Exporting the ledger as CSV', 2),
@@ -290,9 +308,9 @@ const rowNamed = (world: World, name: string) => {
 /** The key of the session's newest line. */
 const newestLine = (world: World, name: string) => rowNamed(world, name).lines[0]?.key ?? ''
 
-const UNREACHABLE = "Release notes can't be opened here: its terminal has no tmux or zmx."
-
 const DOWN: Key = { kind: 'down' }
+
+const ENTER: Key = { kind: 'enter' }
 
 const SNOOZED: Key = { kind: 'snoozed' }
 
@@ -311,13 +329,12 @@ const downTo = (world: World, name: string): Key[] => {
   return Array.from({ length: at + 1 }, () => DOWN)
 }
 
-/** A screen: its world, its paint, the lines new on its board, the keys pressed and a pick's answer, at each of its sizes. */
+/** A screen: its world, its paint, the lines new on its board and the keys pressed, at each of its sizes. */
 type Screen = {
   world: World
   paint?: Paint
   news?: readonly string[]
   keys?: readonly Key[]
-  answer?: string
   sizes: readonly (readonly [width: number, height: number])[]
 }
 
@@ -331,12 +348,7 @@ const SCREENS: Record<string, Screen> = {
     sizes: [[39, 27], [69, 46], [73, 36], [73, 15], [24, 8]],
   },
   arriving: { world: ARRIVED, news: [newestLine(ARRIVED, 'Room bookings')], sizes: [[39, 27], [69, 46]] },
-  unreachable: {
-    world: AT_REST,
-    keys: downTo(AT_REST, 'Release notes'),
-    answer: UNREACHABLE,
-    sizes: [[39, 27], [69, 46]],
-  },
+  unreachable: { world: AT_REST, keys: [...downTo(AT_REST, 'Release notes'), ENTER], sizes: [[39, 27], [69, 46]] },
   quiet: { world: QUIET, sizes: [[39, 27], [69, 46]] },
   wide: { world: AT_REST, keys: downTo(AT_REST, 'Help desk redesign'), sizes: [[114, 45], [173, 53]] },
   nocolor: {
@@ -350,29 +362,30 @@ const SCREENS: Record<string, Screen> = {
   small: { world: AT_REST, sizes: [[23, 10]] },
 }
 
-export const FIXTURES: readonly Fixture[] = Object.entries(SCREENS).flatMap(([screen, { world, paint = COLOUR, news = [], keys = [], answer, sizes }]) =>
-  sizes.map(([width, height]) => ({
-    screen,
-    size: { width, height },
-    world,
-    paint,
-    now: NOW,
-    news,
-    keys,
-    ...(answer === undefined ? {} : { answer }),
-  })),
+export const FIXTURES: readonly Fixture[] = Object.entries(SCREENS).flatMap(([screen, { world, paint = COLOUR, news = [], keys = [], sizes }]) =>
+  sizes.map(([width, height]) => ({ screen, size: { width, height }, world, paint, now: NOW, news, keys })),
 )
 
 /** The fixture's frame's name: `panel-rest-39x27`. */
 export const frameName = ({ screen, size }: Fixture) => `panel-${screen}-${size.width}x${size.height}`
 
-/** The fixture's state at a size: its board read, then its keys pressed, as the panel steps them; then its answer, the band kept whole in sight under it. */
-export const stateAt = ({ world, now, news, keys, answer }: Fixture, size: Size): PanelState => {
-  const read = step(opening(size, now, world.notHere), { board: world.feed, news, now }).state
-  const pressed = keys.reduce((state, key) => step(state, { key }).state, read)
+/** The state after a key, a pick it asks for answered from the world's board alone. */
+const pressedIn =
+  ({ feed }: World) =>
+  (state: PanelState, key: Key): PanelState => {
+    const { state: next, open } = step(state, { key })
+    const reach = open === undefined ? undefined : reachOf(open, feed)
 
-  return answer === undefined ? pressed : kept({ ...pressed, answer })
-}
+    if (reach !== undefined && 'resume' in reach) {
+      throw new Error(`a fixture runs no resume command, as ${reach.resume.name}'s would be`)
+    }
+
+    return reach === undefined ? next : step(next, { opened: reach.answer }).state
+  }
+
+/** The fixture's state at a size: its board read, then its keys pressed, as the panel steps them. */
+export const stateAt = ({ world, now, news, keys }: Fixture, size: Size): PanelState =>
+  keys.reduce(pressedIn(world), step(opening(size, now, world.notHere), { board: world.feed, news, now }).state)
 
 /** The fixture's view at a size, as the panel reaches it there. */
 export const viewAt = (fixture: Fixture, size: Size): PanelView => {

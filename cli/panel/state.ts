@@ -15,7 +15,8 @@
  * - `s` opens Snoozed, scrolling its last row into view where there's no
  *   band; and folds it, passing the band on as a session leaving does.
  * - `esc` drops the band, and any key a pick's answer, the loop's own among
- *   them.
+ *   them. A pick done sets its answer, or none, the band kept whole in
+ *   sight above it.
  * - A tap puts the band on the row under it as drawn, a pick's answer
  *   still showing, and opens the band's own row, as ⏎ does; the wheel
  *   scrolls a row a notch, the band staying on its session, in sight or not.
@@ -53,6 +54,8 @@ export type PanelEvent =
   | { size: Size }
   /** The clock, moved on. */
   | { tick: number }
+  /** A pick done: what it leaves to say, if anything. */
+  | { opened: string | undefined }
 
 /** A step's state, and the session to open, where ⏎ or a tap asks for one. */
 export type Stepped = { state: PanelState; open?: string }
@@ -257,6 +260,10 @@ export const step = (state: PanelState, event: PanelEvent): Stepped => {
 
   if ('size' in event) {
     return only(settled(keepingSight(state, { ...state, size: event.size })))
+  }
+
+  if ('opened' in event) {
+    return only(settled(kept(withField(state, 'answer', event.opened))))
   }
 
   return only({ ...state, now: event.tick, arrivals: arrived(state.arrivals, [], event.tick) })

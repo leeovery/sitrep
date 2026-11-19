@@ -15,8 +15,16 @@
  *   its input ending or failing, or its output failing, is heard as SIGHUP,
  *   for a terminal can go without one, as one that was never this run's
  *   controlling terminal does.
+ * - A program handed the terminal runs with the run's standard input,
+ *   output and error, raw mode let go already by the panel. While it runs,
+ *   SIGINT, SIGQUIT and SIGTSTP are heard and ignored, so the keys that
+ *   send them to the whole job reach the program alone: a caught signal
+ *   goes back to its default in a program started, where an ignored one
+ *   would stay ignored.
+ * - A program run apart from the terminal reads nothing, its output and
+ *   error piped back, and is ended past its time.
  */
-import type { Signal, Terminal } from '../io'
+import type { Ran, Signal, Terminal } from '../io'
 
 /** How long a query waits for DA1's answer. */
 const ANSWER_MS = 1_000
@@ -33,6 +41,45 @@ const tried = (act: () => void) => {
 
 /** Hears a write's error from a terminal gone, which unheard would end the run before the panel gives the terminal back. */
 const lost = () => {}
+
+/** The signals a terminal's keys send to the whole job, which a program handed the terminal takes alone. */
+const KEYED = ['SIGINT', 'SIGQUIT', 'SIGTSTP'] as const
+
+/** What hears the keyed signals while a program has the terminal, keeping their defaults from the run. */
+const ignored = () => {}
+
+/** The program, given the terminal until it ends: its exit code. */
+const hand = async (argv: readonly string[]) => {
+  KEYED.forEach(signal => process.on(signal, ignored))
+
+  try {
+    return await Bun.spawn([...argv], { stdin: 'inherit', stdout: 'inherit', stderr: 'inherit' }).exited
+  } finally {
+    KEYED.forEach(signal => process.off(signal, ignored))
+  }
+}
+
+/** The program, run apart from the terminal up to `ms`: how it ended and what it wrote; rejected where it was ended for its time. */
+const run = async (argv: readonly string[], ms: number): Promise<Ran> => {
+  const child = Bun.spawn([...argv], { stdin: 'ignore', stdout: 'pipe', stderr: 'pipe' })
+  let isLate = false
+  const timer = setTimeout(() => {
+    isLate = true
+    child.kill()
+  }, ms)
+
+  try {
+    const [out, err, exit] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited])
+
+    if (isLate) {
+      throw new Error(`${argv[0] ?? 'the program'} gave no answer within ${ms} ms`)
+    }
+
+    return { exit, out, err }
+  } finally {
+    clearTimeout(timer)
+  }
+}
 
 /**
  * Raw mode while any hold it, standard input read only then, and the
@@ -143,6 +190,8 @@ export const terminalOf = (): Terminal | undefined => {
     keys: listen,
     write,
     ask,
+    hand,
+    run,
     onSignal: (signal: Signal, heard) => {
       process.on(signal, heard)
 

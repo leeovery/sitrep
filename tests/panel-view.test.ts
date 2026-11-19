@@ -219,6 +219,14 @@ test('text from the board has its control characters dropped and comes on one li
   })
 })
 
+test("a pick's answer is cleaned as the board's words are, since it carries a session's name", () => {
+  const answer = "Help\u001b[2J desk\r\nredesign can't be opened here:\u0007 its terminal has no tmux or zmx."
+
+  expect(viewOf(feedOf([row('ask')]), { ...STATE, answer }, NOW, NONE).answer).toBe(
+    "Help[2J desk redesign can't be opened here: its terminal has no tmux or zmx.",
+  )
+})
+
 test('Snoozed is open as the state says, Needs you and Working always', () => {
   const feed = feedOf([row('ask'), row('working')], [snoozed(['ask'])])
   const opened = (isSnoozedOpen: boolean) =>

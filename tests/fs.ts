@@ -5,7 +5,8 @@
  */
 import type { FsEntry } from 'claude-code'
 
-export type File = { text: string; mtimeMs: number }
+/** A file: its text, and its bytes where it is a binary one, which its text can't hold. */
+export type File = { text: string; mtimeMs: number; bytes?: Uint8Array }
 
 export const isUnder = (dir: string, path: string) => path.startsWith(`${dir}/`)
 

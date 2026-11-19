@@ -154,6 +154,21 @@ test('esc drops the band; any key drops a pick\'s answer, the band staying but f
   expect([pressed(answered, ESC).band, pressed(answered, ESC).answer]).toEqual([undefined, undefined])
 })
 
+test('a pick done sets its answer, the band kept whole in sight above it; one with nothing to say leaves none', () => {
+  const words = "Data import can't be opened here: its terminal has no tmux or zmx."
+
+  for (const height of [11, 15]) {
+    const onLast = pressed(read(boardOf(), { width: 40, height }), END)
+    const answered = stepped(onLast, { opened: words })
+
+    expect(inView({ ...onLast, answer: words }), `at ${height} rows the answer alone hides the band`).not.toContain(W5)
+    expect([answered.answer, answered.band, inView(answered)], `at ${height} rows`).toEqual([words, W5, expect.arrayContaining([W5])])
+    expect(answered.top).toBe(layoutIn(answered).top)
+  }
+
+  expect(stepped(pressed(read(), DOWN), { opened: undefined })).toEqual(pressed(read(), DOWN))
+})
+
 test("⏎ asks to open the band's session, a Snoozed row's own session; with no band it asks nothing", () => {
   expect(step(pressed(read(), DOWN, DOWN), { key: ENTER }).open).toBe(N2)
   expect(step(pressed(read(), SNOOZE, END), { key: ENTER }).open).toBe(S2)

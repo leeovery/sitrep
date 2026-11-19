@@ -6,7 +6,7 @@
  * and, for the panel, a terminal it runs on. Nothing touches a real folder
  * or a real terminal.
  */
-import type { Env, Io, Listed, Signal, Terminal } from '../cli/io'
+import type { Env, Io, Listed, Ran, Signal, Terminal } from '../cli/io'
 import { main } from '../cli/main'
 import type { Size } from '../cli/panel/cells'
 import {
@@ -70,20 +70,41 @@ export const NORDFOX = '\x1b]10;rgb:cdcd/cece/cfcf\x07\x1b]11;rgb:2e2e/3434/4040
 /** What the fake terminal keeps among its writes where the run stopped, as the shell took the terminal. */
 export const STOPPED = '<stopped>'
 
+/** What the fake terminal keeps among its writes where the run handed it to a program. */
+export const HANDED = '<handed>'
+
+/** How `ps` answers for a device no process is on. */
+export const NO_PROCESS: Ran = { exit: 1, out: '', err: '' }
+
 /**
  * A terminal for the panel's runs: the size it says, keys typed into it,
  * resizes and signals as a test scripts them, the colour query answered
  * with `answer`, once it settles where it is a promise, and every write
- * kept, the query among them, with STOPPED where the run stopped. A stop
- * returns at once, as one the shell has already brought back. Its keys are
- * read only while the panel listens, in raw mode: a key typed otherwise is
- * the shell's.
+ * kept, the query among them, with STOPPED where the run stopped and
+ * HANDED where it handed the terminal to a program. A stop returns at
+ * once, as one the shell has already brought back. A program handed the
+ * terminal runs until the test ends it, or fails to start. A program run
+ * apart answers as `ran` says, NO_PROCESS unless told. Its keys are read
+ * only while the panel listens, in raw mode: a key typed otherwise is the
+ * shell's, or the program's.
  */
-export const tty = ({ size = { width: 39, height: 27 }, answer = NORDFOX }: { size?: Size; answer?: string | Promise<string> } = {}) => {
+export const tty = ({
+  size = { width: 39, height: 27 },
+  answer = NORDFOX,
+  ran = async () => NO_PROCESS,
+}: {
+  size?: Size
+  answer?: string | Promise<string>
+  ran?: (argv: readonly string[], ms: number) => Promise<Ran>
+} = {}) => {
   let said: Size | undefined = size
   let reading: ((bytes: string) => void) | undefined
   let listens = 0
   const writes: string[] = []
+  /** Each program handed the terminal, and each run apart, by its words and its time. */
+  const handed: (readonly string[])[] = []
+  const runs: { argv: readonly string[]; ms: number }[] = []
+  let program: { end: (exit: number) => void; fail: (error: Error) => void } | undefined
   const listeners: Record<Signal | 'resize', Set<() => void>> = {
     resize: new Set(),
     SIGHUP: new Set(),
@@ -116,6 +137,19 @@ export const tty = ({ size = { width: 39, height: 27 }, answer = NORDFOX }: { si
 
       return answer
     },
+    hand: argv => {
+      writes.push(HANDED)
+      handed.push(argv)
+
+      return new Promise<number>((end, fail) => {
+        program = { end, fail }
+      })
+    },
+    run: (argv, ms) => {
+      runs.push({ argv, ms })
+
+      return ran(argv, ms)
+    },
     onSignal: listen,
     suspend: () => void writes.push(STOPPED),
   }
@@ -134,6 +168,14 @@ export const tty = ({ size = { width: 39, height: 27 }, answer = NORDFOX }: { si
       }
     },
     signal: (signal: Signal) => listeners[signal].forEach(heard => heard()),
+    /** The words of each program handed the terminal, in turn. */
+    handed: () => handed,
+    /** Each program run apart from the terminal, its words and its time, in turn. */
+    runs: () => runs,
+    /** The program handed the terminal ends, with this exit code. */
+    end: (exit: number) => program?.end(exit),
+    /** The program handed the terminal could not start. */
+    unstarted: (error: Error) => program?.fail(error),
     /** Whether the panel listens to its keys, raw mode on. */
     isReading: () => reading !== undefined,
     /** How many times the panel began listening to its keys, raw mode set each time. */
@@ -198,6 +240,15 @@ export function terminal(options: Options = {}) {
         }
 
         return held.text
+      },
+      bytes: async path => {
+        const held = files.get(path)
+
+        if (held === undefined) {
+          throw new Error(`ENOENT: no such file or directory, open '${path}'`)
+        }
+
+        return held.bytes ?? new TextEncoder().encode(held.text)
       },
       list: async dir => listed(files, dir),
       stat: async path => {

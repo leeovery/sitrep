@@ -2,8 +2,9 @@
  * What the CLI asks of the world: its file system, the environment and the
  * folder it runs in, the clocks and waiting on them, random bytes, standard
  * input, somewhere to print and when that is gone, the plugin's manifest,
- * and the terminal it runs on, if it runs on one. It runs no program.
- * cli/shell binds it to Bun; a test binds it to memory.
+ * and the terminal it runs on, if it runs on one. It runs a program only
+ * through the terminal, for a pick in the panel (panel/edge.ts). cli/shell
+ * binds it to Bun; a test binds it to memory.
  *
  * The file system appends and never rewrites: the CLI's file may be written
  * by another run of it at the same moment, and an append keeps both runs'
@@ -19,13 +20,17 @@ export type Listed = { name: string; kind: 'file' | 'dir' }
 /** A file's size and when it was last written; a folder's when an entry was last made, removed or renamed in it. */
 export type Stat = { size: number; mtimeMs: number }
 
-export type Env = { XDG_STATE_HOME?: string; HOME?: string; SITREP_SESSION?: string } & ColourEnv
+/** The environment the CLI reads: where the board is, the home folder SitRep's settings are in, the session a window holds, the login shell a pick runs in, and the terminal's colours. */
+export type Env = { XDG_STATE_HOME?: string; HOME?: string; SITREP_SESSION?: string; SHELL?: string } & ColourEnv
 
 /** A wait under way: it resolves once its time has passed, unless `cancel` lets it go first, its timer with it, never to resolve. */
 export type Waiting = Promise<void> & { cancel: () => void }
 
 /** A run's end as listened for: `ended` resolves once it is to end; `stop` stops the listening, as the run ends some other way, so nothing holds it open after. */
 export type Ending = { ended: Promise<void>; stop: () => void }
+
+/** How a program run apart from the terminal ended, and what it wrote to standard output and error. */
+export type Ran = { exit: number; out: string; err: string }
 
 /** The signals the panel answers: its terminal hung up, it is interrupted, told to quit or to end from outside, and it is brought back from a stop. */
 export type Signal = 'SIGHUP' | 'SIGINT' | 'SIGQUIT' | 'SIGTERM' | 'SIGCONT'
@@ -44,6 +49,15 @@ export type Terminal = {
   write: (text: string) => void
   /** Writes the query, ending on DA1's, and gives what the terminal answered before DA1's answer, or by the time it gave up waiting for it. */
   ask: (query: string) => Promise<string>
+  /**
+   * Gives the terminal to a program, with the CLI's standard input, output
+   * and error, until it ends: its exit code, 128 and the signal's number for
+   * one a signal ended. SIGINT, SIGQUIT and SIGTSTP are the program's while
+   * it runs, and never end or stop the CLI. Rejects where it could not start.
+   */
+  hand: (argv: readonly string[]) => Promise<number>
+  /** Runs a program apart from the terminal, up to `ms`: its exit code and what it wrote. Rejects where it could not start, or did not end in time, which ends it. */
+  run: (argv: readonly string[], ms: number) => Promise<Ran>
   /** Listens for a signal; SIGHUP is heard too as the terminal goes without one, its input ended or failed. */
   onSignal: (signal: Signal, heard: () => void) => () => void
   /** Stops the run, as Ctrl-Z does in a terminal's own mode, returning once it goes on: at once where nothing stops it, as in a process group no shell controls. */
@@ -54,6 +68,8 @@ export type Io = {
   fs: {
     /** A file's text; rejects when it is not there. */
     read: (path: string) => Promise<string>
+    /** A file's bytes, as a binary one holds them; rejects when it is not there. */
+    bytes: (path: string) => Promise<Uint8Array>
     /** A folder's files and folders; none while it is not there. */
     list: (dir: string) => Promise<Listed[]>
     /** A file's or a folder's size and time; undefined while it is not there. */
