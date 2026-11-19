@@ -20,7 +20,7 @@ The pane shows the board inside Claude Code, docked beside the chat or inline un
 - **A project shows SESSIONS, ASKS and PARKED.** Under SESSIONS, `show old sessions` opens the old ones. A session is old once finished, or after 7 days with no window, no ask and no change. ASKS holds every session's asks, and PARKED all the project's parked items, each naming the session it came from.
 - **A parked item can be picked up.** Open it and press `pick it up`, or `✎ with a comment`. The pick-up waits in Ready to send, then goes to the Claude in this window. You can pick an item up only from a window running a session of its project.
 - **A parked item can be dropped, from any window.** Press `✕ drop`, and the pane asks "Drop it? It leaves Parked, and Claude no longer sees it." Then `yes, drop it` takes it off the board at once. Claude learns only that the item is gone.
-- **The band counts asks.** It reads `◆ 1 ask   2 elsewhere   ▸ show board`, and a click on a count opens the pane. When a new ask lands in this session, the ◆ pulses, and a toast says `◆ New ask:` and the ask title.
+- **The band counts asks.** It reads `● 1 ask   2 elsewhere   ▸ show board`, and a click on a count opens the pane. When a new ask lands in this session, the ● pulses, and a toast says `● New ask:` and the ask title.
 
 ## Good to know
 

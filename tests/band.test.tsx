@@ -2,7 +2,8 @@ import type { ClientSurface, JsonValue, RenderPropsOf, RenderViewport } from 'cl
 import { expect, test, tier, type Mounted } from './kit'
 import { bandLast, besideBand } from '../hooks/draw/band'
 import Placement from '../hooks/draw/placement'
-import { rowsOf } from './drawn'
+import { C } from '../hooks/look'
+import { glyphColors, rowsOf } from './drawn'
 import { reviewRound } from './data'
 import {
   asked,
@@ -203,7 +204,7 @@ test('the band is counts on the right, each opening the board on what it counts,
   expect(await ui.drawn()).toMatchObject({ props: { justifyContent: 'flex-end' } })
   expect(await ui.find({ key: 'band:asks' })).toMatchObject({ text: '1 ask' })
   expect(await ui.find({ key: 'band:parked' })).toBeUndefined()
-  expect(await ui.find({ type: 'Text', text: '◇' })).toBeUndefined()
+  expect(glyphColors(await ui.drawn(), '●')).toEqual([C.ask])
   expect(await ui.find({ text: /parked/ })).toBeUndefined()
 
   await ui.press({ key: 'band:asks' })

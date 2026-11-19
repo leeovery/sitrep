@@ -22,7 +22,7 @@ import type { Host } from '../hooks/host'
 import { C } from '../hooks/look'
 import { WATCH_MS } from '../hooks/window'
 import type { SitrepAttachment, SitrepPane } from '../types'
-import { rowsOf } from './drawn'
+import { glyphColors, rowsOf } from './drawn'
 import { slot } from './host'
 import { CLI, CLOSES, GO, META, MIN, PROJECT, REVIEW, ROOT, SENDER, THEMES, W1, W2 } from './data'
 import { delivered, file, park, reply, snoozeSession, wakeSession, yesAsk } from './lines'
@@ -285,9 +285,11 @@ test("ASKS draws a snoozed session's asks after those waiting, quieted, each han
   expect((await ui.find({ key: `pick:${w.item('k4', THEMES.id)}` }))?.props.dimColor).toBeFalsy()
   expect(rowsOf(await ui.find({ key: `ask:${w.item(ledger)}` }))[0]).toContain('Keep the ledger')
 
-  const marks = (await ui.findAll({ type: 'Text', text: '◆' })).map(each => each.props.color)
+  const marks = async (id: string) => glyphColors(await ui.find({ key: `ask:${id}` }), '●')
 
-  expect(marks.slice(-2), "the snoozed asks' ◆, quieted").toEqual([C.grey, C.grey])
+  expect(await marks(w.item('k4', THEMES.id)), "the waiting ask's ●").toEqual([C.ask])
+  expect(await marks(w.item(ledger)), "a snoozed ask's ●, quieted").toEqual([C.grey])
+  expect(await marks(w.item(review)), "a snoozed ask's ●, quieted").toEqual([C.grey])
 })
 
 test('with nothing waiting, the heading still says what is snoozed', async ($, on) => {
@@ -581,7 +583,7 @@ test('answering a snoozed ask answers it: the reply sent takes it out of Snoozed
   expect(await ui.find({ type: 'Text', text: /snoozed/ })).toBeUndefined()
 })
 
-test('an ask its time wakes is announced as a new one is: the ◆ pulses, a toast, and it opens, playing no sound, which is SitRep\'s', async ($, on) => {
+test('an ask its time wakes is announced as a new one is: the ● pulses, a toast, and it opens, playing no sound, which is SitRep\'s', async ($, on) => {
   const w = fridayWorld($, on)
   const { id, app } = await posted(w)
   const ui = await w.pane()
@@ -594,7 +596,7 @@ test('an ask its time wakes is announced as a new one is: the ◆ pulses, a toas
 
   await w.clock.advance(2 * WATCH_MS)
 
-  expect(w.toasts.at(-1)).toBe('◆ Back from snooze: Review Tickets & Replies, round 1')
+  expect(w.toasts.at(-1)).toBe('● Back from snooze: Review Tickets & Replies, round 1')
   expect(w.sounds, 'SitRep, the Mac app, plays it').toEqual([])
   expect(w.state.pulse).toMatchObject({ asks: [id] })
   expect(w.state.pane?.selected).toBe(w.item(id))
@@ -604,7 +606,7 @@ test('an ask its time wakes is announced as a new one is: the ◆ pulses, a toas
 test('a woken ask is announced once: what changes the board after says nothing more of it', async ($, on) => {
   const w = fridayWorld($, on)
   const { id, app } = await posted(w)
-  const back = '◆ Back from snooze: Review Tickets & Replies, round 1'
+  const back = '● Back from snooze: Review Tickets & Replies, round 1'
 
   await w.pane()
   app(snoozeSession(w.clock.now() + 2 * WATCH_MS, id))
@@ -617,7 +619,7 @@ test('a woken ask is announced once: what changes the board after says nothing m
   await w.clock.advance(HEARTBEAT_MS + 5_000)
 
   expect(w.toasts.filter(toast => toast === back)).toEqual([back])
-  expect(w.toasts.slice(toasts)).toEqual(['◆ New ask: Try it at 80 columns'])
+  expect(w.toasts.slice(toasts)).toEqual(['● New ask: Try it at 80 columns'])
 })
 
 test('asks their time wakes together make one toast, naming the latest', async ($, on) => {
@@ -630,7 +632,7 @@ test('asks their time wakes together make one toast, naming the latest', async (
   await w.clock.advance(WATCH_MS)
   await w.clock.advance(2 * WATCH_MS)
 
-  expect(w.toasts.at(-1)).toBe('◆ 2 back from snooze, the latest: Give the ok for phase 3')
+  expect(w.toasts.at(-1)).toBe('● 2 back from snooze, the latest: Give the ok for phase 3')
   expect(w.state.pulse?.asks).toEqual([id, go])
   expect(w.state.pane?.selected).toBe(w.item(go))
 })
@@ -652,7 +654,7 @@ test("an ask landing as another wakes makes one toast, the new ask's; both pulse
   await w.clock.advance(WATCH_MS - 1)
 
   expect(w.toasts.length, 'one toast').toBe(toasts + 1)
-  expect(w.toasts.at(-1)).toBe('◆ New ask: Try it at 80 columns')
+  expect(w.toasts.at(-1)).toBe('● New ask: Try it at 80 columns')
   expect(w.state.pulse?.asks).toEqual([id, 'k9'])
   expect(w.state.pane?.selected).toBe(w.item('k9'))
 })
@@ -714,7 +716,7 @@ test('a reload over an ask asleep announces nothing for it; its time waking it a
 
   await w.clock.advance(2 * WATCH_MS)
 
-  expect(w.toasts).toEqual(['◆ Back from snooze: Review round 1'])
+  expect(w.toasts).toEqual(['● Back from snooze: Review round 1'])
 })
 
 test('a reload over an ask already woken announces nothing for it', async ($, on) => {

@@ -16,7 +16,7 @@ import {
   onLedgersParked,
   OUTPUT,
 } from './answers'
-import { rowsOf } from './drawn'
+import { glyphColors, rowsOf } from './drawn'
 import { CLOSES, FRAMES, GO, heldItem, LEDGER, PROJECT, ROOT, T0, W1, W2, W3 } from './data'
 import { askOf, delivered, file, finish, kindAsk, park, reply, type Line } from './lines'
 import { pane, sceneFrom } from './render'
@@ -90,17 +90,18 @@ test('an ask wanting a choice offers each option, a comment, an ignore and a sno
   )
 })
 
-test('an ask wanting words offers an answer, an ignore and a snooze, and hangs what its words are first, in amber', async () => {
+test('an ask wanting words offers an answer, an ignore and a snooze, and hangs what its words are first, in orange', async () => {
   const ui = drawnWith([askOf('k1', LIST)], 'k1')
 
   expect(rowsOf(await ui.find({ key: `ask:${heldItem('k1')}` })).slice(0, 5)).toEqual([
-    '◆ Run sitrep list in a shell and paste what it now',
+    '● Run sitrep list in a shell and paste what it now',
     '│ prints',
     `├ needs: ${OUTPUT}`,
     '└ Any terminal: type sitrep list',
     '  [ ✎ Answer ] [ ✕ ignore ] [ snooze ]',
   ])
   expect((await ui.find({ type: 'Text', text: `needs: ${OUTPUT}` }))?.props.color).toBe(C.ask)
+  expect(glyphColors(await ui.find({ key: `ask:${heldItem('k1')}` }), '●')).toEqual([C.ask])
 })
 
 test("an ask written by its kind into a session's file draws as the shape it maps to", async () => {
@@ -783,9 +784,10 @@ test('an opened parked item offers pick it up, ✎ with a comment and ✕ drop; 
   )
   await ui.press({ key: `pickup:${w.item(id)}` })
   expect(await parkedRows(ui, w.item(id))).toEqual([
-    expect.stringMatching(/^◇ A priority badge/),
+    expect.stringMatching(/^● A priority badge/),
     '└ pick it up · not sent yet ↺ undo',
   ])
+  expect(glyphColors(await ui.find({ key: `parked:${w.item(id)}` }), '●')).toEqual([C.parked])
   expect(await ui.find({ key: `pickup:${w.item(id)}` })).toBeUndefined()
   expect(await ui.find({ key: `comment:${w.item(id)}` })).toBeUndefined()
   expect(await ui.find({ key: `drop:${w.item(id)}` })).toBeUndefined()

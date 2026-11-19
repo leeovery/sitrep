@@ -1,5 +1,5 @@
 /**
- * A new ask, whoever posted it, or one its snooze's time just woke: the ◆
+ * A new ask, whoever posted it, or one its snooze's time just woke: the ●
  * pulses, a toast names it, and the board opens it. SitRep, the Mac app,
  * plays its sound (DESIGN, "Settings").
  * What counts as new is the window's to say (window.ts): an ask there when

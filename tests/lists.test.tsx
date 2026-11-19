@@ -3,7 +3,7 @@ import { expect, test, tier } from './kit'
 import type { Body, SessionMeta } from '../core'
 import { C } from '../hooks/look'
 import { EVERY_PROJECT, projectPlace } from '../hooks/places'
-import { rowsOf } from './drawn'
+import { glyphColors, rowsOf } from './drawn'
 import { ELSEWHERE, HELD, heldItem, LEDGER, MIN, PROJECT, T0, W2, type Asked } from './data'
 import { askOf, park, resolve, status, yesAsk, type Line } from './lines'
 import { pane, sceneFrom, type Desk, type Drawn } from './render'
@@ -107,21 +107,42 @@ test("PARKED lists every item parked in the project with no blank row between th
   const project = await rowsAt(desk, { place: projectPlace(PROJECT.key) })
 
   expect(listedUnder(session, 'PARKED')).toEqual([
-    ' ◇ A priority badge 3m',
-    ' ◇ Thumbnails in the picker 2m',
-    ' ◇ Export the ledger as CSV 1m',
+    ' ● A priority badge 3m',
+    ' ● Thumbnails in the picker 2m',
+    ' ● Export the ledger as CSV 1m',
     ' from other sessions',
-    ' ◇ Invoice ledger: Archive old invoices 4m',
+    ' ● Invoice ledger: Archive old invoices 4m',
   ])
   expect(listedUnder(project, 'PARKED')).toEqual([
-    ' ◇ Invoice ledger: Archive old invoices 4m',
-    ' ◇ Help desk redesign: A priority badge 3m',
-    ' ◇ Help desk redesign: Thumbnails in the picker 2m',
-    ' ◇ Help desk redesign: Export the ledger as CSV 1m',
+    ' ● Invoice ledger: Archive old invoices 4m',
+    ' ● Help desk redesign: A priority badge 3m',
+    ' ● Help desk redesign: Thumbnails in the picker 2m',
+    ' ● Help desk redesign: Export the ledger as CSV 1m',
   ])
 
   for (const rows of [session, project]) {
     expect(rows.find(row => row.startsWith(' PARKED'))).toMatch(/ 4 to come back to$/)
+  }
+})
+
+/** The colours of the marks in the blocks keyed `prefix`, in the order drawn. */
+const marksIn = async (ui: Drawn, prefix: string) =>
+  (await ui.findAll({ type: 'Box' }))
+    .filter(block => block.key?.startsWith(`block:${prefix}`))
+    .flatMap(block => glyphColors(block, '●'))
+
+test("an ask's ● is orange and a parked item's purple, in a session and in its project, another session's items too", async () => {
+  const desk: Desk = {
+    lines: minutely(...reviewLines('Review round 1', 'Review round 2'), ...PARKED),
+    around: [{ meta: LEDGER, lines: [[T0 - MIN, park('p9', 'Archive old invoices')]], seenAt: T0 }],
+    now: T0 + 5 * MIN,
+  }
+  const session = pane(sceneFrom(desk))
+  const project = pane(sceneFrom({ ...desk, pane: { place: projectPlace(PROJECT.key) } }))
+
+  for (const [view, ui] of [['session', session], ['project', project]] as const) {
+    expect(await marksIn(ui, 'ask:'), `${view}: ASKS`).toEqual([C.ask, C.ask])
+    expect(await marksIn(ui, 'parked:'), `${view}: PARKED`).toEqual(Array(4).fill(C.parked))
   }
 })
 
@@ -142,18 +163,18 @@ test("in a session's PARKED, a faint `from other sessions` heads the items other
   const mine: Desk = { lines: minutely(park('p1', 'A priority badge')) }
 
   expect(await parkedRows(mine, 60)).toEqual([
-    ' ◇ A priority badge                                      3m',
+    ' ● A priority badge                                      3m',
     ' from other sessions',
-    ' ◇ Invoice ledger: Archive old invoices                  4m',
+    ' ● Invoice ledger: Archive old invoices                  4m',
   ])
   expect(await parkedRows(mine, 40)).toEqual([
-    ' ◇ A priority badge                  3m',
+    ' ● A priority badge                  3m',
     ' from other sessions',
-    ' ◇ Invoice ledger: Archive old inv…  4m',
+    ' ● Invoice ledger: Archive old inv…  4m',
   ])
   expect(await parkedRows({}, 40), 'none of its own').toEqual([
     ' from other sessions',
-    ' ◇ Invoice ledger: Archive old inv…  4m',
+    ' ● Invoice ledger: Archive old inv…  4m',
   ])
 
   const label = await pane(sceneFrom({ ...mine, around, now: T0 + 3 * MIN })).find({
@@ -172,9 +193,9 @@ test('ASKS lists its asks as rows with no blank row between them, each its mark,
   const at = rows.findIndex(row => row.startsWith(' ASKS'))
 
   expect(rows.slice(at + 1, at + 5)).toEqual([
-    ' ◆ Review round 3 1m',
-    ' ◆ Review round 2 2m',
-    ' ◆ Review round 1 3m',
+    ' ● Review round 3 1m',
+    ' ● Review round 2 2m',
+    ' ● Review round 1 3m',
     '',
   ])
 })
@@ -203,9 +224,9 @@ test('a reply waiting on an ask not opened, or on its way, still hangs from it, 
   await ui.press({ key: `pick:${w.item(older)}` })
 
   expect(await asksListed(), 'waiting to be sent').toEqual([
-    ' ◆ Review round 2 1m',
+    ' ● Review round 2 1m',
     ' └ → Approve · not sent yet ↺ undo ✎ comment',
-    ' ◆ Review round 1 2m',
+    ' ● Review round 1 2m',
     ' └ ignored · not sent yet ↺ undo',
   ])
 
@@ -214,9 +235,9 @@ test('a reply waiting on an ask not opened, or on its way, still hangs from it, 
 
   await turn.arrived
   expect(await asksListed(), 'on its way').toEqual([
-    ' ◆ Review round 2 1m',
+    ' ● Review round 2 1m',
     ' └ → Approve · on its way',
-    ' ◆ Review round 1 2m',
+    ' ● Review round 1 2m',
     ' └ ignored · on its way',
   ])
 
@@ -232,12 +253,12 @@ test('an opened ask has a blank row after its buttons and hint, so the next ask 
   const at = (title: string) => rows.findIndex(row => row.includes(title))
 
   expect(rows.slice(at('Review round 2'), at('Review round 1') + 1)).toEqual([
-    ' ◆ Review round 2 1m',
+    ' ● Review round 2 1m',
     ' └ In Paper: page round 2',
     '   [ ✓ Approve ] [ ✎ comment ] [ ✕ ignore ] [ snooze ]',
     "   Your reply waits in Ready to send. Ignore tells Claude you've seen it and won't act on it.",
     '',
-    ' ◆ Review round 1 2m',
+    ' ● Review round 1 2m',
   ])
 })
 

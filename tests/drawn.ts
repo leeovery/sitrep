@@ -133,8 +133,11 @@ const wordWrapped = (line: string, cells?: number): string[] => {
   return [...rows, row]
 }
 
+const elementsIn = (children: readonly unknown[] = []) =>
+  children.filter((child): child is Drawn => typeof child === 'object' && !!child)
+
 const rowsOfBox = ({ props = {}, children = [] }: Drawn, cells?: number): string[] => {
-  const shown = children.filter((child): child is Drawn => typeof child === 'object' && !!child)
+  const shown = elementsIn(children)
   const isColumn = props.flexDirection === 'column'
   const rowGap = numberOf(props.rowGap ?? props.gap)
   const gap = isColumn ? rowGap : numberOf(props.columnGap ?? props.gap)
@@ -188,3 +191,11 @@ export const readyRows = async (ui: Pick<Mounted, 'find'>) =>
 /** Ready to send's heading row, by how many replies it holds not yet with Claude. */
 export const readyHeading = (count: number) =>
   `READY TO SEND${count} ${count === 1 ? 'reply' : 'replies'}`
+
+/** The colour of each Text in `element` drawing `glyph` alone, in document order. */
+export const glyphColors = (element: Drawn | undefined, glyph: string): unknown[] =>
+  element === undefined
+    ? []
+    : element.type === 'Text' && wordsOf(element.children) === glyph
+      ? [element.props?.color]
+      : elementsIn(element.children).flatMap(child => glyphColors(child, glyph))

@@ -5,7 +5,7 @@ import { CURRENT_MS, sessionPaths, type Body, type SessionMeta } from '../core'
 import { AROUND_MS } from '../hooks/around'
 import { C, GLYPH } from '../hooks/look'
 import { EVERY_PROJECT, itemKey, projectPlace } from '../hooks/places'
-import { rowsOf } from './drawn'
+import { glyphColors, rowsOf } from './drawn'
 import {
   changeKey,
   DAY,
@@ -267,7 +267,9 @@ test('All projects: this project first, then the busiest; the quiet fold into on
     `proj:${FABRIKAM.key}`,
   ])
   expect(await keysOf(ui, 'go:')).toEqual([`go:${HELD.id}`, `go:${LEDGER.id}`, `go:${SHIFTS.id}`])
-  expect(await ui.find({ type: 'Text', text: 'no sessions open · ◇ 1 parked' })).toBeDefined()
+  expect(
+    glyphColors(await ui.find({ type: 'Text', text: 'no sessions open · ● 1 parked' }), '●'),
+  ).toEqual([C.parked])
   expect(
     await ui.find({ type: 'Text', text: '1 more, with nothing going on: Tailspin' }),
   ).toBeDefined()
@@ -308,9 +310,13 @@ test("the project view's ASKS holds every session's asks, the newest first, each
   const at = listed.findIndex(row => row.startsWith(' ASKS'))
 
   expect(listed.slice(at + 1, at + 3), 'no blank row between asks').toEqual([
-    expect.stringMatching(/^ ◆ Help desk redesign: Review Tickets & Replies, round 1 +now$/),
-    expect.stringMatching(/^ ◆ Invoice ledger: Keep the ledger 400 days, or forever\? +now$/),
+    expect.stringMatching(/^ ● Help desk redesign: Review Tickets & Replies, round 1 +now$/),
+    expect.stringMatching(/^ ● Invoice ledger: Keep the ledger 400 days, or forever\? +now$/),
   ])
+
+  for (const key of [w.item(posted), `${LEDGER.id}:k3`]) {
+    expect(glyphColors(await ui.find({ key: `ask:${key}` }), '●'), key).toEqual([C.ask])
+  }
 
   await ui.press({ key: `pick:${LEDGER.id}:k3` })
   await ui.press({ key: `choose:${LEDGER.id}:k3:1` })
@@ -475,7 +481,9 @@ test('All projects keeps a project whose sessions are finished or idle past the 
 
   await ui.press({ key: 'tab:all' })
   expect(await keysOf(ui, 'proj:')).toEqual([`proj:${PROJECT.key}`, `proj:${FABRIKAM.key}`])
-  expect(await ui.find({ type: 'Text', text: 'no sessions open · ◇ 2 parked' })).toBeDefined()
+  expect(
+    glyphColors(await ui.find({ type: 'Text', text: 'no sessions open · ● 2 parked' }), '●'),
+  ).toEqual([C.parked])
   expect(await ui.find({ type: 'Text', text: /more, with nothing going on/ })).toBeUndefined()
 
   await ui.press({ key: `proj:${FABRIKAM.key}` })

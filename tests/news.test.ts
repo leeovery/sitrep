@@ -19,7 +19,7 @@ test("a new ask from another writer pulses, toasts for 10 seconds and opens, pla
   const toastsMs: (number | undefined)[] = []
 
   // Registered before the world's own, so it is outermost and hears each toast on its way to the world.
-  on('ui.toast', { text: /^◆ New ask: / }, ($, e, next) => (toastsMs.push(e.timeoutMs), next(e)))
+  on('ui.toast', { text: /^● New ask: / }, ($, e, next) => (toastsMs.push(e.timeoutMs), next(e)))
 
   const w = world($, on)
   const elsewhere = w.writer(paths)
@@ -34,7 +34,7 @@ test("a new ask from another writer pulses, toasts for 10 seconds and opens, pla
   elsewhere(choiceAsk('k2', 'Keep the ledger forever?', ['Yes', 'No']))
   await w.clock.advance(WATCH_MS)
 
-  expect(w.toasts).toEqual(['◆ New ask: Keep the ledger forever?'])
+  expect(w.toasts).toEqual(['● New ask: Keep the ledger forever?'])
   expect(w.sounds, 'SitRep, the Mac app, plays it').toEqual([])
   expect(toastsMs, 'long enough to read through').toEqual([TOAST_MS])
   expect(w.state.pulse).toEqual({ asks: ['k2'], frames: 24 })
@@ -51,7 +51,7 @@ test("a new ask from another writer pulses, toasts for 10 seconds and opens, pla
   ).toBeUndefined()
 })
 
-test('the ◆ pulses on the band, then rests', async ($, on) => {
+test('the ● pulses on the band, ringed in the brighter orange every other frame and filled between, never hollow, then rests', async ($, on) => {
   const w = world($, on)
 
   await w.begin()
@@ -60,11 +60,17 @@ test('the ◆ pulses on the band, then rests', async ($, on) => {
   const band = await w.band()
 
   await w.clock.advance(PULSE_FRAME_MS)
-  expect(await band.find({ type: 'Text', text: '◈' })).toMatchObject({ props: { color: C.pulse } })
+  expect(await band.find({ type: 'Text', text: '◉' })).toMatchObject({ props: { color: C.pulse } })
 
-  await w.clock.advance(24 * PULSE_FRAME_MS)
+  await w.clock.advance(PULSE_FRAME_MS)
+  expect(w.state.pulse?.frames).toBeGreaterThan(0)
+  expect(await band.find({ type: 'Text', text: '◉' })).toBeUndefined()
+  expect(await band.find({ type: 'Text', text: '○' })).toBeUndefined()
+  expect(await band.find({ type: 'Text', text: '●' })).toMatchObject({ props: { color: C.ask } })
+
+  await w.clock.advance(23 * PULSE_FRAME_MS)
   expect(w.state.pulse).toEqual({ asks: [], frames: 0 })
-  expect(await band.find({ type: 'Text', text: '◆' })).toMatchObject({ props: { color: C.ask } })
+  expect(await band.find({ type: 'Text', text: '●' })).toMatchObject({ props: { color: C.ask } })
 })
 
 test("Claude's own ask is new to the window too", async ($, on) => {
@@ -74,7 +80,7 @@ test("Claude's own ask is new to the window too", async ($, on) => {
 
   const id = await asked(w, { wants: 'yes', yes: 'Done', title: 'Run the production apply' })
 
-  expect(w.toasts).toEqual(['◆ New ask: Run the production apply'])
+  expect(w.toasts).toEqual(['● New ask: Run the production apply'])
   expect(w.state.pane?.selected).toBe(w.item(id))
 })
 
@@ -86,7 +92,7 @@ test('asks landing together make one toast', async ($, on) => {
   elsewhere(yesAsk('k1', 'Review round 1'), yesAsk('k2', 'Try it at 80 columns', 'It works'))
   await w.clock.advance(WATCH_MS)
 
-  expect(w.toasts).toEqual(['◆ 2 new asks, the latest: Try it at 80 columns'])
+  expect(w.toasts).toEqual(['● 2 new asks, the latest: Try it at 80 columns'])
   expect(w.state.pulse?.asks).toEqual(['k1', 'k2'])
 })
 
@@ -121,7 +127,7 @@ test('after a reload, the asks already there make no toast; the next one does', 
   elsewhere(yesAsk('k2', 'Review round 2'))
   await w.clock.advance(WATCH_MS)
 
-  expect(w.toasts).toEqual(['◆ New ask: Review round 2'])
+  expect(w.toasts).toEqual(['● New ask: Review round 2'])
 })
 
 test('an ask closed before the window first saw it is no news', async ($, on) => {

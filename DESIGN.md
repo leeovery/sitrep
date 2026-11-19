@@ -449,7 +449,7 @@ notch and its panel").
   Claude needing Lee explicitly or implicitly, and the white ring a
   your-turn row had said nothing. So the Mac app's "need you" counts asks
   and turns alike (see "The rows"). Core's state is unchanged, and so is
-  the plugin's band inside Claude Code, whose "◆ N asks" counts asks
+  the plugin's band inside Claude Code, whose "● N asks" counts asks
   alone. Until then it was not orange and had a section of its own: they
   are in a conversation, and Lee comes back when ready.
 - **away**: no window holds it, and it is still current. Dimmed. SitRep
@@ -908,15 +908,15 @@ Dashboard redesign · Switchboard
 Redesign the dashboard, area by area in Paper
 
 ASKS ─────────────────────────────────────────────────── 3 waiting
-◆ Review Sessions & Runway, round 1                             2h
+● Review Sessions & Runway, round 1                             2h
 └ In Paper: the dashboard file, page "round 1", frames 1–6
   [ ✓ Approve ] [ ✎ comment ] [ ✕ ignore ]
   Your reply waits in Ready to send. Ignore tells Claude you've
   seen it and won't act on it.
 
-◆ Give the go for stage 3                                       3h
+● Give the go for stage 3                                       3h
 └ → Go · not sent yet ↺ undo ✎ comment
-◆ Choose how long the ledger keeps requests                     3h
+● Choose how long the ledger keeps requests                     3h
 
 STATUS ─────────────────────────────────────────── updated 12m ago
 • Waiting on your review of Sessions & Runway, round 1
@@ -929,9 +929,9 @@ hide history
 show all 14
 
 PARKED ──────────────────────────────────────── 3 to come back to
-◇ Paper thumbnails inline in Ghostty                            1d
-◇ A Space-aware sessions window                                 2d
-◇ Request ledger: Export the ledger as CSV                      1d
+● Paper thumbnails inline in Ghostty                            1d
+● A Space-aware sessions window                                 2d
+● Request ledger: Export the ledger as CSV                      1d
 show picked up 3
 
 RESOLVED ────────────────────────────────────────────── 4 resolved
@@ -1016,12 +1016,12 @@ show all 4
   show all 7
 
   ASKS ─────────────────────────────────────────────────── 2 waiting
-  ◆ Dashboard redesign: Review Sessions & Runway, round 1        2h
-  ◆ Request ledger: Keep the ledger 400 days, or forever?        3h
+  ● Dashboard redesign: Review Sessions & Runway, round 1        2h
+  ● Request ledger: Keep the ledger 400 days, or forever?        3h
 
   PARKED ─────────────────────────────────────── 2 to come back to
-  ◇ Request ledger: Export the ledger as CSV                     1d
-  ◇ Dashboard redesign: A tmux indicator                         2d
+  ● Request ledger: Export the ledger as CSV                     1d
+  ● Dashboard redesign: A tmux indicator                         2d
   hide picked up
   ✓ Request ledger: Rename the export · picked up by Request…    1h
   ✓ Dashboard redesign: Drop the old importer · closed by Cla…   4d
@@ -1044,7 +1044,7 @@ show all 4
   `Export to CSV · Northwind · finished 1d ago`. STATUS draws what was
   under way and what was next faint, so neither reads as going on, and
   where its finish gave a reason ends with it, `✓ finished: Shipped`. What
-  it left open waits on no one: its asks, each with a faint `◆` and a dim
+  it left open waits on no one: its asks, each with a faint `●` and a dim
   title, count nowhere, offer no reply and no snooze, and under ASKS'
   heading, which counts them apart (`nothing waiting · 2 left open`), a
   faint line says why: `Finished: its asks can't be answered.` An ask
@@ -1107,7 +1107,7 @@ show all 4
   between asks otherwise. An ask Lee's send just closed keeps the same row
   for a moment: a green `✓`, its title faint, `sent, and Claude has it`.
   An ask whose session Lee snoozed comes after those waiting, the soonest to
-  wake first, quieted (its `◆` grey, its title dim), and hangs `snoozed until
+  wake first, quieted (its `●` grey, its title dim), and hangs `snoozed until
   tomorrow 09:00` with `wake now`, which wakes its session; opened, it answers as
   any ask does (see "Snooze").
 - **Resolved:** a section of its own at the foot of a session's view, under
@@ -1209,7 +1209,7 @@ show all 4
   the project's" gives, a session named by its name, never by its id (11
   November 2026). A finished session's item
   shows as any other, with no mark of its own. Each is a list's row: a
-  purple `◇`, its title, and its age. Opened, its tree hangs from the mark:
+  purple `●`, its title, and its age. Opened, its tree hangs from the mark:
   where to look, its `see`, and the pick-up once one waits or is on its way;
   `pick it up` and `✎ with a comment` sit under the tree until then, in a
   window holding a session of the item's project: another project's parked
@@ -1277,12 +1277,12 @@ show all 4
     Drawn docked, the session's own item opened, then asking:
 
     ```
-    ◇ A priority badge across all tabs                          now
+    ● A priority badge across all tabs                          now
       [ pick it up ] [ ✎ with a comment ] [ ✕ drop ]
     ```
 
     ```
-    ◇ A priority badge across all tabs                          now
+    ● A priority badge across all tabs                          now
       Drop it? It leaves Parked, and Claude no longer sees it.
       [ yes, drop it ] [ cancel ]
     ```
@@ -1948,7 +1948,7 @@ meets these.
 One line above the prompt, right-aligned counts only, each one a way in:
 
 ```
-                                             ◆ 1 ask   2 elsewhere   ▸ show board
+                                             ● 1 ask   2 elsewhere   ▸ show board
 ```
 
 `asks` opens this session; `elsewhere`, what waits on Lee in every other
@@ -2001,7 +2001,7 @@ besides, should one ever reach them (the band's tests pass under 2.1.321
 and 2.1.322 as under 2.1.323, all but the two that only 2.1.323 can run: a
 drawing in the band's own row by naming it, and the list itself).
 
-When a new ask lands: the ◆ pulses and a toast names it, and SitRep, the Mac
+When a new ask lands: the ● pulses and a toast names it, and SitRep, the Mac
 app, plays its sound (see "Settings", under "The menu bar"). Until 27
 October 2026 the window played a soft chime, macOS's Glass, and only the
 window holding the ask's session did, so an ask from a session whose window
@@ -2012,7 +2012,7 @@ the plugin's folder, and once an update, or a checkout under `app/plugin here`
 moving on, has taken `sounds/` out of that folder, its play fails, logging
 "sitrep: the chime failed" to the debug log, so no window doubles SitRep's
 sound. So it is when an ask's snooze runs out in this session, the toast
-saying `◆ Back from snooze: Review the plan`, and the pane opens it; not when
+saying `● Back from snooze: Review the plan`, and the pane opens it; not when
 Lee wakes it, from the pane or the app. Asks landing and waking together make
 one toast, the new asks' (see "Snooze"). Dropped for now (11 October 2026):
 a macOS notification for asks. Back on 13 October 2026, from the menu bar
@@ -2876,7 +2876,7 @@ while no `watch` ran, the app quit, brings no swell, as any line then.
   ask's buttons (**proposed**). The pane offers no snooze of a turn alone:
   it draws no turn as a row of its own; the card does.
 - How it is drawn, with no Paper for the pane (**proposed**): the snoozed
-  asks the soonest to wake first, each `◆` grey and its title dim,
+  asks the soonest to wake first, each `●` grey and its title dim,
   `wake now` a dim press after its time; `snooze` a dim button after an
   ask's answers, on an ask waiting on Lee in a session not finished, its
   question `Snooze this session? Its asks, and your turn there, stop
@@ -2886,7 +2886,7 @@ while no `watch` ran, the app quit, brings no swell, as any line then.
   CLI's words after `Not snoozed:` or `Not woken:`; one whose session is
   gone says so.
 - An ask its time wakes in the held session is announced as a new one is:
-  the `◆` pulses, a toast, `◆ Back from snooze: Review the plan`, and it
+  the `●` pulses, a toast, `● Back from snooze: Review the plan`, and it
   opens; SitRep plays its sound for it, as for a new ask (the window's chime
   until 27 October 2026, see "Settings"). One Lee wakes is not
   (**proposed**): it carries no `wokeAt`.
@@ -4701,10 +4701,14 @@ truth. There is still no background service. None of it is built now. Lee:
 
 ## Look
 
-- Palette (Tokyo Night): ask `#e0af68`, new-ask pulse `#ff9e64`, sessions `#7aa2f7`,
+- Palette (Tokyo Night): sessions `#7aa2f7`,
   parked `#bb9af7`, ok `#9ece6a`, now `#73daca`, soft `#a9b1d6`,
   grey `#7a82ab`, faint `#565f89`, rules `#3b4261`, tab `#292e42`; and,
   of its own, recommended `#7178c7`, a darker lilac than a primary button's.
+  Claude Code's own orange, the notch card's: ask `#d77757`, and the
+  new-ask pulse `#ff9c7b`, that orange at the OKLCH lightness the old
+  pulse had, 0.79 where the ask's is 0.67, so the pulse still flashes
+  brighter.
 - **White:** anything clickable, and the main content.
 - **Soft:** lines describing the item above them (a summary, what a session is
   doing, a reply, a status change's detail), and the line a section with nothing in it
@@ -4720,14 +4724,27 @@ truth. There is still no background service. None of it is built now. Lee:
   RESOLVED's asks nor Parked's picked up: each is a row to open, its `✓`
   green and its title white; and every tree's `│ ├ └`.
   Section headings' rules and the tabs' rule are the rule colour.
-- **Colour:** glyphs, headings and amber waiting counts only; in the ask's
-  amber, the `needs:` line of a words ask, since it is a request of Lee's,
+- **Colour:** glyphs, headings and orange waiting counts only; in the ask's
+  orange, the `needs:` line of a words ask, since it is a request of Lee's,
   not a description; a tree line's label (`Added:`, `see`), in its
   item's colour; and the word ending the recommended option's button, in
   a darker lilac than the primary's own (`#7178c7`), quieter than the
   option and never grey.
-- Glyphs: `◆` ask, `◇` parked, `•` under way, `◦` next, `✓` done, `└ ├` trees, `⌂` home.
-  No glyph that reads as "expand" unless it expands.
+- Glyphs: `●` ask in orange, `●` parked in purple, `•` under way, `◦` next, `✓` done, `└ ├` trees, `⌂` home.
+  No glyph that reads as "expand" unless it expands. A new ask's `●`
+  pulses `● ◉ ● ◉`, each `◉` in the brighter orange. A snoozed ask's `●`
+  is grey, and a finished session's faint.
+- **The pane's marks are the notch's** (Lee, 19 November 2026). The notch
+  card marks an ask with an orange circle, its colour saying what is
+  needed, so the pane does too: an ask's `●` in Claude Code's orange, a
+  parked item's in the pane's purple. The parked circle is filled, never
+  hollow, and so is every frame of the pulse: on the notch a hollow
+  circle means away, and one shape carries one meaning. Until then an ask was a `◆` in Tokyo Night's amber
+  (`#e0af68`), pulsing `◆ ◈ ◇ ◈` in its orange (`#ff9e64`), and a parked
+  item a purple `◇`. Claude's `asked:` and `parked:` rows in the chat
+  open with the same marks in their colours, the words dim, so neither
+  reads as Claude Code's own `●` before a tool call. All projects still
+  marks no session's state.
 - **One row for every list.** A status change, a parked item, one picked
   up or closed, an ask in Asks and a resolved ask are drawn alike: the mark, the title (white, and the
   press that opens it) on one line, clipped, and the age on the right, in

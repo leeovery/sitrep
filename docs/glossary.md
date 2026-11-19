@@ -54,7 +54,7 @@ Each word below means one thing on every page of these docs. The words are group
 
 **reply**: Your answer or comment on an ask, given from the board, or a pick-up of a parked item. A reply for this session reaches Claude as your own message, marked "From the board:". A reply for another session goes into its inbox.
 
-**toast**: A short note Claude Code shows in the window. SitRep shows one when a new ask lands in this session: `◆ New ask:` and the ask title.
+**toast**: A short note Claude Code shows in the window. SitRep shows one when a new ask lands in this session: `● New ask:` and the ask title.
 
 ## In the Mac app
 

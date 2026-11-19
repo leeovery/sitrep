@@ -2,7 +2,7 @@ import type { SitrepPane } from '../types'
 import { expect, test, tier } from './kit'
 import { C } from '../hooks/look'
 import { itemKey } from '../hooks/places'
-import { rowsOf } from './drawn'
+import { glyphColors, rowsOf } from './drawn'
 import { DAY, ELSEWHERE, HELD, meta, PROJECT, T0, W3 } from './data'
 import type { Neighbour } from './filing'
 import { delivered, finish, park, reply, status, wordsAsk, yesAsk } from './lines'
@@ -160,8 +160,8 @@ test("a finished session's open ask waits on no one: a faint mark, a dim title, 
 
   expect(await ui.find({ type: 'Text', text: 'nothing waiting · 1 left open' })).toBeDefined()
   expect((await ui.find({ type: 'Text', text: FINISHED_LINE }))?.props.color).toBe(C.faint)
-  expect(rowsOf(await ui.find({ key: `ask:${ASK}` }), ACROSS)[0]).toMatch(/^◆ Ship it\?/)
-  expect((await ui.find({ type: 'Text', text: '◆' }))?.props.color).toBe(C.faint)
+  expect(rowsOf(await ui.find({ key: `ask:${ASK}` }), ACROSS)[0]).toMatch(/^● Ship it\?/)
+  expect(glyphColors(await ui.find({ key: `ask:${ASK}` }), '●')).toEqual([C.faint])
   expect((await ui.find({ key: `pick:${ASK}` }))?.props.dimColor).toBe(true)
   expect(
     keys.filter(key => /^(yes|choose|answer|comment|ignore|snooze|wake|finish)/.test(key)),
