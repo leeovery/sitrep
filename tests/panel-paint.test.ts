@@ -1,0 +1,186 @@
+import { expect, test } from './kit'
+import {
+  levelOf,
+  nearest256,
+  PALETTE,
+  BAND,
+  pensOf,
+  rgbOf,
+  sgr,
+  type Paint,
+  type Style,
+} from '../cli/panel/paint'
+
+/** Nordfox, the background and foreground the frames are drawn on. */
+const FG = rgbOf('#CDCECF')
+const BG = rgbOf('#2E3440')
+
+const ESC = '\u001b'
+
+/** The pens every word of the panel is drawn in, by what each draws. */
+const STYLES: Record<string, Style> = {
+  name: { tone: 'ink', bold: true },
+  orange: { tone: 'orange' },
+  blue: { tone: 'blue', bold: true },
+  soft: { tone: 'soft' },
+  heading: { tone: 'grey' },
+  meta: { tone: 'grey', isMeta: true },
+  rule: { tone: 'rule', isMeta: true },
+}
+
+/** Each style's escape at the level, the band's last. */
+const escapes = (paint: Paint) => {
+  const pens = pensOf(paint)
+
+  return [...Object.values(STYLES).map(style => pens.of(style)), pens.band].map(pen => sgr(pen, paint.level))
+}
+
+test('the level: none with NO_COLOR, what FORCE_COLOR says, 24-bit, 256 or 16 as COLORTERM and TERM say', () => {
+  const envs = [
+    { NO_COLOR: '1', COLORTERM: 'truecolor', FORCE_COLOR: '3' },
+    { NO_COLOR: '', TERM: 'xterm-256color' },
+    { FORCE_COLOR: '0', COLORTERM: 'truecolor' },
+    { FORCE_COLOR: '1', TERM: 'xterm-256color' },
+    { FORCE_COLOR: '2' },
+    { FORCE_COLOR: '3', TERM: 'dumb' },
+    { COLORTERM: 'truecolor', TERM: 'xterm' },
+    { COLORTERM: '24bit' },
+    { TERM: 'xterm-ghostty' },
+    { TERM: 'xterm-direct' },
+    { TERM: 'tmux-256color' },
+    { TERM: 'xterm' },
+    {},
+  ]
+
+  expect(envs.map(levelOf)).toEqual([
+    'none',
+    '256',
+    'none',
+    '16',
+    '256',
+    'truecolor',
+    'truecolor',
+    'truecolor',
+    'truecolor',
+    'truecolor',
+    '256',
+    '16',
+    '16',
+  ])
+})
+
+test("a light background by COLORFGBG draws in the terminal's 16; a dark one keeps its level", () => {
+  expect(levelOf({ COLORTERM: 'truecolor', COLORFGBG: '0;15' })).toBe('16')
+  expect(levelOf({ TERM: 'xterm-256color', COLORFGBG: '0;default;7' })).toBe('16')
+  expect(levelOf({ COLORTERM: 'truecolor', COLORFGBG: '15;0' })).toBe('truecolor')
+  expect(levelOf({ NO_COLOR: '1', COLORFGBG: '0;15' })).toBe('none')
+})
+
+test("the palette at 256 colours is the nearest of xterm's to each ink, the band's included", () => {
+  expect([...Object.values(PALETTE), BAND].map(nearest256)).toEqual([173, 111, 146, 103, 60, 239])
+})
+
+test("each pen's escape at 24-bit: the palette's own inks, the terminal's ink for names, the band a ground", () => {
+  expect(escapes({ level: 'truecolor' })).toEqual([
+    `${ESC}[0;1m`,
+    `${ESC}[0;38;2;215;119;87m`,
+    `${ESC}[0;1;38;2;122;162;247m`,
+    `${ESC}[0;38;2;169;177;214m`,
+    `${ESC}[0;38;2;122;130;171m`,
+    `${ESC}[0;38;2;122;130;171m`,
+    `${ESC}[0;38;2;86;95;137m`,
+    `${ESC}[0;48;2;62;74;91m`,
+  ])
+})
+
+test("each pen's escape at 256 colours: the nearest of each", () => {
+  expect(escapes({ level: '256' })).toEqual([
+    `${ESC}[0;1m`,
+    `${ESC}[0;38;5;173m`,
+    `${ESC}[0;1;38;5;111m`,
+    `${ESC}[0;38;5;146m`,
+    `${ESC}[0;38;5;103m`,
+    `${ESC}[0;38;5;103m`,
+    `${ESC}[0;38;5;60m`,
+    `${ESC}[0;48;5;239m`,
+  ])
+})
+
+test("each pen's escape at 16 colours: the terminal's own, the rule faint, the band reverse video", () => {
+  expect(escapes({ level: '16' })).toEqual([
+    `${ESC}[0;1m`,
+    `${ESC}[0;33m`,
+    `${ESC}[0;1;34m`,
+    `${ESC}[0m`,
+    `${ESC}[0;90m`,
+    `${ESC}[0;90m`,
+    `${ESC}[0;2;90m`,
+    `${ESC}[0;7m`,
+  ])
+})
+
+test('with NO_COLOR, no colour at all: metadata faint, never a bold word, the band reverse video', () => {
+  expect(escapes({ level: 'none' })).toEqual([
+    `${ESC}[0;1m`,
+    `${ESC}[0m`,
+    `${ESC}[0;1m`,
+    `${ESC}[0m`,
+    `${ESC}[0m`,
+    `${ESC}[0;2m`,
+    `${ESC}[0;2m`,
+    `${ESC}[0;7m`,
+  ])
+  expect(sgr({ fg: { rgb: PALETTE.orange }, bg: { ansi: 4 }, bold: true }, 'none')).toBe(`${ESC}[0;1m`)
+})
+
+test("with both of the terminal's answers, an away row's words, a Snoozed mark and the wash are mixed toward its background", () => {
+  const pens = pensOf({ level: 'truecolor', fg: FG, bg: BG })
+
+  expect(
+    [
+      pens.dimmed({ tone: 'ink', bold: true }),
+      pens.dimmed({ tone: 'grey', isMeta: true }),
+      pens.dimmed({ tone: 'orange' }),
+      pens.dimmed({ tone: 'blue' }),
+      pens.wash ?? {},
+    ].map(pen => sgr(pen, 'truecolor')),
+  ).toEqual([
+    `${ESC}[0;1;38;2;143;146;151m`,
+    `${ESC}[0;38;2;92;100;129m`,
+    `${ESC}[0;38;2;149;93;78m`,
+    `${ESC}[0;38;2;92;119;176m`,
+    `${ESC}[0;48;2;83;67;69m`,
+  ])
+  expect(sgr(pens.wash ?? {}, '256')).toBe(`${ESC}[0;48;5;238m`)
+})
+
+test("without both answers, or at 16 colours, a dim is faint, never on a bold word, and there's no wash", () => {
+  const paints: Paint[] = [
+    { level: 'truecolor', bg: BG },
+    { level: '256', fg: FG },
+    { level: '16', fg: FG, bg: BG },
+    { level: 'none', fg: FG, bg: BG },
+  ]
+
+  for (const paint of paints) {
+    const pens = pensOf(paint)
+
+    expect(pens.wash).toBeUndefined()
+    expect(pens.dimmed({ tone: 'ink' }).faint).toBe(true)
+    expect(pens.dimmed({ tone: 'orange' }).faint).toBe(true)
+    expect(pens.dimmed({ tone: 'ink', bold: true })).toEqual({ bold: true })
+  }
+
+  expect(sgr(pensOf({ level: 'truecolor' }).dimmed({ tone: 'grey' }), 'truecolor')).toBe(
+    `${ESC}[0;2;38;2;122;130;171m`,
+  )
+  expect(sgr(pensOf({ level: '16' }).dimmed({ tone: 'orange' }), '16')).toBe(`${ESC}[0;2;33m`)
+})
+
+test("a light background the terminal answered draws in its own 16, with no mix", () => {
+  const pens = pensOf({ level: 'truecolor', fg: rgbOf('#2E3440'), bg: rgbOf('#ECEFF4') })
+
+  expect(sgr(pens.of(STYLES.orange as Style), 'truecolor')).toBe(`${ESC}[0;33m`)
+  expect(pens.band).toEqual({ reverse: true })
+  expect(pens.wash).toBeUndefined()
+})
