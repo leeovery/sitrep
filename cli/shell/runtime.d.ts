@@ -16,29 +16,52 @@ interface ImportMeta {
   readonly dir: string
 }
 
+type ProcessSignal = 'SIGHUP' | 'SIGINT' | 'SIGQUIT' | 'SIGTERM' | 'SIGCONT'
+
 declare const process: {
   cwd(): string
   /** The program running: Bun's own, or the binary `bun build --compile` made. */
   readonly execPath: string
+  readonly pid: number
   /** The id of the process that started this one, as it stands: launchd's, once that one has gone. */
   readonly ppid: number
   exitCode: number | undefined
   /** Ends the run now, with this exit code. */
   exit(code: number): never
-  on(event: 'SIGTERM', listener: () => void): void
-  off(event: 'SIGTERM', listener: () => void): void
+  /** Sends a signal to a process: to this one, SIGTSTP stops it, as Ctrl-Z does in a terminal's own mode. */
+  kill(pid: number, signal: 'SIGTSTP'): boolean
+  on(event: ProcessSignal, listener: () => void): void
+  off(event: ProcessSignal, listener: () => void): void
   stdin: {
     /** True on a terminal; undefined on a pipe or a file. */
     readonly isTTY: boolean | undefined
     setEncoding(encoding: 'utf8'): void
+    /** A terminal's raw mode: each byte as it is typed, unechoed, Ctrl-C and Ctrl-Z among them. */
+    setRawMode(isRaw: boolean): void
     on(event: 'data', listener: (text: string) => void): void
     off(event: 'data', listener: (text: string) => void): void
+    /** Its end, its closing, or its failing, as a terminal gone gives them. */
+    on(event: 'end' | 'close' | 'error', listener: () => void): void
+    off(event: 'end' | 'close' | 'error', listener: () => void): void
+    resume(): void
     pause(): void
   }
   stdout: {
+    /** True on a terminal; undefined on a pipe or a file. */
+    readonly isTTY: boolean | undefined
+    /** A terminal's width and height, in cells; undefined off one. */
+    readonly columns: number | undefined
+    readonly rows: number | undefined
+    /**
+     * Node's, which Bun keeps: asks the terminal its size again, as a
+     * SIGWINCH has the runtime do, and emits `resize` at once where it
+     * changed. A resize made while the run is stopped sends its SIGWINCH to
+     * the shell, leaving `columns` and `rows` as they were without it.
+     */
+    _refreshSize?(): void
     write(text: string): boolean
-    on(event: 'error', listener: () => void): void
-    off(event: 'error', listener: () => void): void
+    on(event: 'error' | 'resize', listener: () => void): void
+    off(event: 'error' | 'resize', listener: () => void): void
   }
   stderr: { write(text: string): boolean }
 }

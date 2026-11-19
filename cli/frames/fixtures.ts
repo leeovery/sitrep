@@ -1,15 +1,16 @@
 /**
  * The moments the golden frames hold: round 1's worlds (design/paper/round1)
  * as core gives them, each at a size, in what the terminal answered, at a
- * fixed clock, in the view state that reaches the screen. Each is drawn
- * through `viewOf` and `draw`, as the panel draws.
+ * fixed clock, in the state the panel reaches it in. Each is drawn through
+ * `viewOf` and `draw`, as the panel draws.
  *
  * - The rows are made as core makes them and put in core's own order, so
  *   the board's order and counts are core's and the panel's, not round 1's.
  * - A session whose Claude ended is away on its row; one whose Claude runs
  *   where no terminal on this Mac shows it is away by `notHere`.
- * - Where a screen has a band, or Snoozed just opened, `top` is the least
- *   that keeps that row whole in view at each size, as the keys would.
+ * - Each is reached as the panel reaches it, at each size: its board read,
+ *   then its keys pressed, both stepped as the panel steps them. Only a
+ *   pick's answer is given whole: no key gives one until ⏎ opens a row.
  * - The clock is London's: `check.ts` runs in its zone, so a Snoozed wake
  *   reads the same on any machine.
  */
@@ -26,9 +27,10 @@ import {
 } from '../../core'
 import { widthOf, type Size } from '../panel/cells'
 import { draw, type Line } from '../panel/draw'
-import { topFor } from '../panel/layout'
+import type { Key } from '../panel/keys'
 import { rgbOf, type Paint } from '../panel/paint'
-import { rowKey, viewOf, type PanelView, type ViewState } from '../panel/view'
+import { kept, opening, step, type PanelState } from '../panel/state'
+import { viewOf, type PanelView } from '../panel/view'
 
 /** The board a fixture shows, and the sessions on it this Mac doesn't show. */
 export type World = { feed: Feed; notHere: ReadonlySet<string> }
@@ -40,10 +42,12 @@ export type Fixture = {
   world: World
   paint: Paint
   now: number
-  /** The view state the screen shows, but `top`, given whole: no key reaches it yet. */
-  state: Omit<ViewState, 'top'>
-  /** The row the view keeps whole in sight, by its key, standing in for the keys that scroll to it: the band's, or Snoozed's last once opened. */
-  inView?: string
+  /** The lines new to Needs you on the board, first shown at `now`. */
+  news: readonly string[]
+  /** The keys pressed once the board is read. */
+  keys: readonly Key[]
+  /** A pick's answer, given whole once the keys are pressed, the band kept whole in sight under it. */
+  answer?: string
 }
 
 /** The zone the fixtures' clock reads in. */
@@ -283,91 +287,98 @@ const rowNamed = (world: World, name: string) => {
   return row
 }
 
-/** The session named so in the world, by its id. */
-const sessionNamed = (world: World, name: string) => rowNamed(world, name).session
-
 /** The key of the session's newest line. */
 const newestLine = (world: World, name: string) => rowNamed(world, name).lines[0]?.key ?? ''
 
 const UNREACHABLE = "Release notes can't be opened here: its terminal has no tmux or zmx."
 
-const AT_START: Omit<ViewState, 'top'> = { isSnoozedOpen: false, board: 'read', arrivals: new Map() }
+const DOWN: Key = { kind: 'down' }
 
-/** Snoozed's last row, by its key: the one opening Snoozed scrolls into view. */
-const lastSnoozed = (world: World) => {
-  const view = viewOf(world.feed, { ...AT_START, top: 0, isSnoozedOpen: true }, NOW, world.notHere)
-  const last = view.sections.find(section => section.kind === 'snoozed')?.rows.at(-1)
+const SNOOZED: Key = { kind: 'snoozed' }
 
-  if (last === undefined) {
-    throw new Error('no row in Snoozed')
+/** The keys that put the band on the session named so, from none: `↓` onto the first row, the top one in view, then a `↓` a row. */
+const downTo = (world: World, name: string): Key[] => {
+  const state = step(opening({ width: 80, height: 24 }, NOW, world.notHere), { board: world.feed, news: [], now: NOW }).state
+  const rows = viewOf(world.feed, state, NOW, world.notHere)
+    .sections.filter(section => section.isOpen)
+    .flatMap(section => section.rows)
+  const at = rows.findIndex(row => row.name === name)
+
+  if (at === -1) {
+    throw new Error(`no row named ${name} in view`)
   }
 
-  return rowKey(last)
+  return Array.from({ length: at + 1 }, () => DOWN)
 }
 
-/** A screen: its world, its paint, its view state and the row it keeps in view, the band's unless told, at each of its sizes. */
+/** A screen: its world, its paint, the lines new on its board, the keys pressed and a pick's answer, at each of its sizes. */
 type Screen = {
   world: World
   paint?: Paint
-  state?: Partial<ViewState>
-  inView?: string
+  news?: readonly string[]
+  keys?: readonly Key[]
+  answer?: string
   sizes: readonly (readonly [width: number, height: number])[]
 }
 
 const SCREENS: Record<string, Screen> = {
   rest: { world: AT_REST, sizes: [[39, 27], [69, 46], [73, 36]] },
-  picked: { world: AT_REST, state: { band: sessionNamed(AT_REST, 'Help desk redesign') }, sizes: [[39, 27], [69, 46], [73, 36]] },
-  unfolded: { world: AT_REST, state: { isSnoozedOpen: true }, inView: lastSnoozed(AT_REST), sizes: [[39, 27], [69, 46]] },
+  picked: { world: AT_REST, keys: downTo(AT_REST, 'Help desk redesign'), sizes: [[39, 27], [69, 46], [73, 36]] },
+  unfolded: { world: AT_REST, keys: [SNOOZED], sizes: [[39, 27], [69, 46]] },
   busy: {
     world: CROWDED,
-    state: { band: sessionNamed(CROWDED, 'Invoice ledger') },
+    keys: downTo(CROWDED, 'Invoice ledger'),
     sizes: [[39, 27], [69, 46], [73, 36], [73, 15], [24, 8]],
   },
-  arriving: {
-    world: ARRIVED,
-    state: { arrivals: new Map([[newestLine(ARRIVED, 'Room bookings'), NOW]]) },
-    sizes: [[39, 27], [69, 46]],
-  },
+  arriving: { world: ARRIVED, news: [newestLine(ARRIVED, 'Room bookings')], sizes: [[39, 27], [69, 46]] },
   unreachable: {
     world: AT_REST,
-    state: { band: sessionNamed(AT_REST, 'Release notes'), answer: UNREACHABLE },
+    keys: downTo(AT_REST, 'Release notes'),
+    answer: UNREACHABLE,
     sizes: [[39, 27], [69, 46]],
   },
   quiet: { world: QUIET, sizes: [[39, 27], [69, 46]] },
-  wide: { world: AT_REST, state: { band: sessionNamed(AT_REST, 'Help desk redesign') }, sizes: [[114, 45], [173, 53]] },
+  wide: { world: AT_REST, keys: downTo(AT_REST, 'Help desk redesign'), sizes: [[114, 45], [173, 53]] },
   nocolor: {
     world: AT_REST,
     paint: NO_COLOR,
-    state: { band: sessionNamed(AT_REST, 'Help desk redesign'), isSnoozedOpen: true },
+    keys: [...downTo(AT_REST, 'Help desk redesign'), SNOOZED],
     sizes: [[39, 27]],
   },
-  sixteen: { world: AT_REST, paint: SIXTEEN, state: { band: sessionNamed(AT_REST, 'Help desk redesign') }, sizes: [[39, 27]] },
+  sixteen: { world: AT_REST, paint: SIXTEEN, keys: downTo(AT_REST, 'Help desk redesign'), sizes: [[39, 27]] },
   narrow: { world: AT_REST, sizes: [[30, 27]] },
   small: { world: AT_REST, sizes: [[23, 10]] },
 }
 
-export const FIXTURES: readonly Fixture[] = Object.entries(SCREENS).flatMap(([screen, { world, paint = COLOUR, state = {}, inView, sizes }]) => {
-  const kept = inView ?? state.band
-
-  return sizes.map(([width, height]) => ({
+export const FIXTURES: readonly Fixture[] = Object.entries(SCREENS).flatMap(([screen, { world, paint = COLOUR, news = [], keys = [], answer, sizes }]) =>
+  sizes.map(([width, height]) => ({
     screen,
     size: { width, height },
     world,
     paint,
     now: NOW,
-    state: { ...AT_START, ...state },
-    ...(kept === undefined ? {} : { inView: kept }),
-  }))
-})
+    news,
+    keys,
+    ...(answer === undefined ? {} : { answer }),
+  })),
+)
 
 /** The fixture's frame's name: `panel-rest-39x27`. */
 export const frameName = ({ screen, size }: Fixture) => `panel-${screen}-${size.width}x${size.height}`
 
-/** The fixture's view at a size: scrolled the least that keeps its row whole in view, as the keys would leave it; from the top with none. */
-export const viewAt = ({ world, now, state, inView }: Fixture, size: Size): PanelView => {
-  const view = viewOf(world.feed, { ...state, top: 0 }, now, world.notHere)
+/** The fixture's state at a size: its board read, then its keys pressed, as the panel steps them; then its answer, the band kept whole in sight under it. */
+export const stateAt = ({ world, now, news, keys, answer }: Fixture, size: Size): PanelState => {
+  const read = step(opening(size, now, world.notHere), { board: world.feed, news, now }).state
+  const pressed = keys.reduce((state, key) => step(state, { key }).state, read)
 
-  return inView === undefined ? view : { ...view, top: topFor(view, size, inView) ?? 0 }
+  return answer === undefined ? pressed : kept({ ...pressed, answer })
+}
+
+/** The fixture's view at a size, as the panel reaches it there. */
+export const viewAt = (fixture: Fixture, size: Size): PanelView => {
+  const state = stateAt(fixture, size)
+
+  return viewOf(state.feed, state, fixture.now, state.notHere)
 }
 
 /** The fixture drawn, as the panel draws it, at its size or another. */

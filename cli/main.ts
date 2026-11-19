@@ -7,7 +7,8 @@
  * `<session>/inbox/cli.jsonl`, the same way; each file's count goes on from
  * that file. It writes no delivered marks or heartbeats: it is never a
  * window on the session. `watch` runs on, printing the board as it changes,
- * until it is to end.
+ * until it is to end. With no words, on a terminal, it is the panel, the
+ * board drawn in the terminal until it is left; off one, the help.
  */
 import {
   addition,
@@ -29,11 +30,17 @@ import {
 } from './commands'
 import { findSession, readBoardAt, readProjects, textAt, type Found } from './files'
 import { commandHelp, HELP } from './help'
-import type { Env, Io } from './io'
+import type { Env, Io, Terminal } from './io'
+import { panel } from './panel/panel'
 import { watch } from './watch'
 
-/** How a run ends: done; a usage error, a refused input or a failure; or no such session. */
-export const EXIT = { done: 0, refused: 1, noSession: 2 } as const
+/**
+ * How a run ends: done; a usage error, a refused input or a failure; no
+ * such session; or, the panel's, by a signal, 128 and its number: its
+ * terminal hung up (SIGHUP), it was interrupted (SIGINT), told to quit
+ * (SIGQUIT) or told to end (SIGTERM).
+ */
+export const EXIT = { done: 0, refused: 1, noSession: 2, hungUp: 129, interrupted: 130, quit: 131, terminated: 143 } as const
 
 export type Exit = (typeof EXIT)[keyof typeof EXIT]
 
@@ -201,10 +208,20 @@ const runCommand = async (io: Io, command: Command, words: readonly string[]) =>
   }
 }
 
+/** The terminal the panel opens on: standard input and output both one, and `TERM` not `dumb`. */
+const panelTerminal = ({ terminal, env }: Io): Terminal | undefined =>
+  env.TERM === 'dumb' ? undefined : terminal
+
 const answer = async (io: Io, words: readonly string[]): Promise<Exit> => {
   const [name, ...rest] = words
 
   if (name === undefined) {
+    const terminal = panelTerminal(io)
+
+    if (terminal !== undefined) {
+      return EXIT[await panel(io, terminal)]
+    }
+
     io.err(`${HELP}\n`)
 
     return EXIT.refused
