@@ -5,6 +5,7 @@
  * Text drawn with no colour is white: what is clickable, and the main
  * content. Colour goes on glyphs, headings and orange waiting counts alone.
  */
+import { ago } from '../core'
 
 export const C = {
   /** Claude Code's own orange, the notch's ask circle. */
@@ -57,25 +58,6 @@ const PEAK = { glyph: '◉', color: C.pulse }
 
 /** An ask's mark at rest. */
 const REST = { glyph: GLYPH.ask, color: C.ask }
-
-const MIN = 60_000
-const HOUR = 60 * MIN
-const DAY = 24 * HOUR
-
-/** How long ago `at` was, in the fewest characters: `now`, `12m`, `2h`, `3d`. */
-export const ago = (now: number, at: number) => {
-  const elapsed = now - at
-
-  if (elapsed < MIN) {
-    return 'now'
-  }
-
-  if (elapsed < HOUR) {
-    return `${Math.round(elapsed / MIN)}m`
-  }
-
-  return elapsed < DAY ? `${Math.round(elapsed / HOUR)}h` : `${Math.round(elapsed / DAY)}d`
-}
 
 /** How long ago `at` was, as a heading's note says it: `just now`, `12m ago`. */
 export const agoWords = (now: number, at: number) => {

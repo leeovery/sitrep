@@ -71,7 +71,7 @@ export type ProjectsCommand = About & {
   act: (projects: Projects, input: Fields) => Checked<string>
 }
 
-/** The board watched, a line each time it changes, until the run is to end: the loop is `watch.ts`. */
+/** The board watched, a line each time it changes, until the run is to end: the loop is `looks.ts`, the printing `watch.ts`. */
 export type FeedCommand = About & { on: 'feed' }
 
 export type Command = SessionCommand | ProjectsCommand | FeedCommand

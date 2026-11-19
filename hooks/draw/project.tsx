@@ -8,6 +8,7 @@
  */
 import type { RenderElement } from 'claude-code'
 import {
+  ago,
   isLiveSession,
   type EndedSession,
   type Listing,
@@ -15,7 +16,7 @@ import {
   type SessionSummary,
 } from '../../core'
 import { oldList, projectScope } from '../lists'
-import { ago, C, clip, GLYPH } from '../look'
+import { C, clip, GLYPH } from '../look'
 import { askedIn, hereFirst, parkedIn, projectAt, takenOffIn } from '../places'
 import { drawAsks } from './ask'
 import { context, heading, NONE_OPEN, spaced, waitingWords, type Block, type Drawing } from './kit'
