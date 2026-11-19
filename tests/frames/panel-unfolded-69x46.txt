@@ -1,0 +1,46 @@
+ sitrep
+
+ NEEDS YOU ●4 ●2 ───────────────────────────────────────────────── ▿
+ ● Data import                                                    1m
+   Litware · Allow Bash: psql -f import.sql
+ ● Help desk redesign                                             4m
+   Northwind · Thread replies, or keep them flat?
+ ● Shift schedules                                               26m
+   Contoso · Approve the rota
+ ○ Email templates                                                2h
+   Fabrikam · Keep the plain-text versions?
+ ● Release notes                                                 31m
+   Tailspin · Drafted the 2.4 release notes
+ ○ Warehouse map                                                  1h
+   Litware · Mapped the ground floor
+
+ WORKING 3 ─────────────────────────────────────────────────────── ▿
+ ✻ Mobile app                                                     6m
+   Woodgrove · Running npm test
+ ✻ Invoice ledger                                                 2m
+   Northwind · Exporting the ledger as CSV
+ ◌ Catalog sync                                                  15m
+   Fabrikam · Waiting on 2 agents
+
+ SNOOZED 2 ─────────────────────────────────────────────────────── ▿
+ ● Onboarding flow                                    tomorrow 09:00
+   Contoso · Pick the onboarding steps
+ ● Pricing page                                            next week
+   Litware · Drafted three price tiers
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ ↑↓ pick  s snoozed  q quit

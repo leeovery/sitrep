@@ -1,0 +1,27 @@
+ [0;1msitrep[0m
+
+ NEEDS YOU ●[0;1m4[0m ●2 [0;2m───────────────────[0m [0;2m▿[0m
+ ● [0;1mData import[0m                      [0;2m1m[0m
+   [0;2mLitware · [0mAllow Bash: psql -f impo…
+ [0;7m● [0;1;7mHelp desk redesign[0;7m               [0;2;7m4m[0m
+ [0;7m  [0;2;7mNorthwind · [0;7mThread replies, or kee…[0m
+ ● [0;1mShift schedules[0m                 [0;2m26m[0m
+   [0;2mContoso · [0mApprove the rota
+ ○ [0;1mEmail templates[0m                  [0;2m2h[0m
+   [0;2mFabrikam · Keep the plain-text ver…[0m
+ ● Release notes                   [0;2m31m[0m
+   [0;2mTailspin · [0mDrafted the 2.4 release…
+ ○ [0;2mWarehouse map[0m                    [0;2m1h[0m
+   [0;2mLitware · Mapped the ground floor[0m
+
+ WORKING [0;2m3[0m [0;2m─────────────────────────[0m [0;2m▿[0m
+ ✻ Mobile app                       [0;2m6m[0m
+   [0;2mWoodgrove · [0mRunning npm test
+ ✻ Invoice ledger                   [0;2m2m[0m
+   [0;2mNorthwind · [0mExporting the ledger a…
+ ◌ Catalog sync                    [0;2m15m[0m
+   [0;2mFabrikam · [0mWaiting on 2 agents
+ [0;2m▼ 2 more[0m
+
+
+ [0;1m↑↓[0;2m move[0m  [0;1m⏎[0;2m open[0m  [0;1ms[0;2m snoozed[0m  [0;1mq[0;2m quit[0m

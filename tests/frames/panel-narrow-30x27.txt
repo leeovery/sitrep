@@ -1,0 +1,27 @@
+ sitrep
+
+ NEEDS YOU ●4 ●2 ────────── ▿
+ ● Data import             1m
+   Litware · Allow Bash: psq…
+ ● Help desk redesign      4m
+   Northwind · Thread replie…
+ ● Shift schedules        26m
+   Contoso · Approve the rota
+ ○ Email templates         2h
+   Fabrikam · Keep the plain…
+ ● Release notes          31m
+   Tailspin · Drafted the 2.…
+ ○ Warehouse map           1h
+   Litware · Mapped the grou…
+
+ WORKING 3 ──────────────── ▿
+ ✻ Mobile app              6m
+   Woodgrove · Running npm t…
+ ✻ Invoice ledger          2m
+   Northwind · Exporting the…
+ ◌ Catalog sync           15m
+   Fabrikam · Waiting on 2 a…
+
+ SNOOZED 2 ──────────────── ▹
+
+ ↑↓ pick  s snoozed  q quit

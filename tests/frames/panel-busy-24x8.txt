@@ -1,0 +1,8 @@
+ sitrep
+ WORKING 14 ───────── ▿
+ ▲ 19 more
+ ✻ Invoice ledger    2m
+   Northwind · Exporti…
+ ▼ 6 more
+
+ ↑↓ move  q quit
