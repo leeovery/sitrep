@@ -4,6 +4,7 @@
  * own: the mod and the CLI pass in file texts, the time and random bytes, and
  * do the reading, writing and drawing.
  */
+export * from './ago'
 export * from './checks'
 export * from './claude'
 export * from './entries'

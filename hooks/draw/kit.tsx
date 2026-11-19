@@ -10,6 +10,7 @@
  */
 import type { ElementTable, RenderElement, RenderSurface } from 'claude-code'
 import {
+  ago,
   answerOf,
   moreLines,
   type Ask,
@@ -27,7 +28,7 @@ import type {
 } from '../../types'
 import type { Actions } from '../actions'
 import { answeringIn } from '../answering'
-import { ago, C, clip, counted, GLYPH, wrapped } from '../look'
+import { C, clip, counted, GLYPH, wrapped } from '../look'
 import { itemKey, projectLabel, projectOf } from '../places'
 import { heldBack, isCarried, type HeldBack } from '../queue'
 import type { Scene } from '../scene'
