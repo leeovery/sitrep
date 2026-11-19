@@ -1,0 +1,11 @@
+# A round writes these each run, from its script: never kept. The build's
+# golden frames live with the build, in tests/frames/, drawn from round 4's.
+round*/frames/
+round*/paper/
+round*/jobs/
+round*/preview.html
+round*/preview.png
+# A round's Paper set is written each run too; only its check_text.py is kept.
+round*/for-paper/*
+!round*/for-paper/check_text.py
+__pycache__/
