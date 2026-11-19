@@ -10039,6 +10039,55 @@ open), and tmux passing an escape sequence through from Claude's own pane
      4. A notification's click and the menu's row on an away session go
         the same way.
 
+## The board in a terminal
+
+Settled with Lee on 18 and 19 November 2026: the notch's panel as a
+terminal app, for the screens with no notch, an iPad or a phone signed in
+to the Mac over SSH in rootshell, and for a Ghostty tab on the Mac. The
+full spec, the code it builds on, what that code can't give yet, the
+questions still Lee's and the slices it is built in, is
+`design/terminal-ui.md`; the looks are in Paper's "SitRep · terminal
+look", the pick on its page "FINAL · board in a terminal".
+
+- **One panel, drawn the same everywhere:** a dashboard to leave open
+  beside your work, and a launcher to pick from. `sitrep` alone opens it on
+  a terminal, on the alternate screen; `sitrep help` keeps the help, and
+  every other command, `watch` among them, stays byte for byte. It reads
+  the board as `watch` does, in its own process, so it needs no SitRep
+  running.
+- **Sessions by state, as the notch orders them:** Needs you, its asks in
+  orange, then its Stopped in blue; Working; then Snoozed, folded at first.
+  Each row names its project.
+- **It doesn't answer asks**, as the notch doesn't.
+- **Picking a row attaches that session's tmux or zmx session in place**,
+  on the Mac as over SSH, so it behaves the same on every screen, and
+  detaching comes back to the panel. A session whose Claude has ended
+  resumes in place, by the resume command; one running in a terminal with
+  no tmux or zmx can't be reached from the panel, which says so. Opening a
+  session's own window, as the notch's jump does, is not the panel's.
+- **A new ask posts a terminal notification**, OSC 9 or 777, which rootshell
+  shows in the background and tmux passes through with passthrough on. It
+  is on by default, and a flag turns it off. Claude stopping posts none, as
+  in the app's defaults.
+- **The marks keep the notch's grammar**: colour says what is needed,
+  Claude Code's orange `#D77757` for an ask and blue for Stopped; fill says
+  where, filled where a terminal on this Mac shows the session and hollow
+  away. `✻` is working, `◌` on its own work, and `◉` a new ask, for two
+  seconds. Asks are circles, as on the notch card (19 November 2026; round
+  1 drew diamonds).
+- **The look** (19 November 2026, the fourth of four rounds): each session
+  on two lines, its name and time, then its project and status line, under
+  grey capital headings with a rule, `NEEDS YOU ●4 ●2 ───── ▿`, the words
+  in `#7A82AB` at regular weight and the rule in `#565F89`. Every row starts
+  flush at the margin, with no `▸`: the band alone marks the chosen row.
+- **It fits the terminal it is in**, drawn first for 39×27, rootshell's
+  narrowest, and for 69×46, 73×36 and 114×45, Lee's measured sizes, down to
+  15 rows. Lee: "We build it dynamically. It will fit regardless."
+
+Picking a row has the CLI run tmux and zmx, which it has not done since 10
+November 2026 (stage 7, step B); how far that goes, with the resume command
+and which sessions this Mac shows, is among the spec's questions for Lee.
+
 ## Later
 
 Nothing is parked here. Jumping to a session's window is now "The menu bar".
