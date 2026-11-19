@@ -51,7 +51,7 @@ test("a new ask from another writer pulses, toasts for 10 seconds and opens, pla
   ).toBeUndefined()
 })
 
-test('the ● pulses on the band, then rests', async ($, on) => {
+test('the ● pulses on the band, ringed in the brighter orange every other frame and filled between, never hollow, then rests', async ($, on) => {
   const w = world($, on)
 
   await w.begin()
@@ -62,7 +62,13 @@ test('the ● pulses on the band, then rests', async ($, on) => {
   await w.clock.advance(PULSE_FRAME_MS)
   expect(await band.find({ type: 'Text', text: '◉' })).toMatchObject({ props: { color: C.pulse } })
 
-  await w.clock.advance(24 * PULSE_FRAME_MS)
+  await w.clock.advance(PULSE_FRAME_MS)
+  expect(w.state.pulse?.frames).toBeGreaterThan(0)
+  expect(await band.find({ type: 'Text', text: '◉' })).toBeUndefined()
+  expect(await band.find({ type: 'Text', text: '○' })).toBeUndefined()
+  expect(await band.find({ type: 'Text', text: '●' })).toMatchObject({ props: { color: C.ask } })
+
+  await w.clock.advance(23 * PULSE_FRAME_MS)
   expect(w.state.pulse).toEqual({ asks: [], frames: 0 })
   expect(await band.find({ type: 'Text', text: '●' })).toMatchObject({ props: { color: C.ask } })
 })

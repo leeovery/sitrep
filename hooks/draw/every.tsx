@@ -37,17 +37,30 @@ const drawSession = (d: Drawing, project: ProjectKey, session: SessionSummary) =
   )
 }
 
+/** A project's parked count after its line saying no session is open, its mark in the parked purple. */
+const drawParked = (d: Drawing, project: Summary) => {
+  const { Text } = d.els
+
+  return (
+    <Text>
+      {' · '}
+      <Text color={C.parked}>{GLYPH.parked}</Text>
+      {` ${project.parked} parked`}
+    </Text>
+  )
+}
+
 /** What hangs from a project: its open sessions, or a line saying none is. */
 const branchesOf = (d: Drawing, project: Summary) => {
   const { Text } = d.els
   const open = hereFirst(d.scene, project.sessions.filter(isLiveSession))
-  const parked = project.parked > 0 ? ` · ${GLYPH.parked} ${project.parked} parked` : ''
 
   return open.length > 0
     ? open.map(session => drawSession(d, project.key, session))
     : [
         <Text key={`allnone:${project.key}`} color={C.soft}>
-          {`${NONE_OPEN}${parked}`}
+          {NONE_OPEN}
+          {project.parked > 0 && drawParked(d, project)}
         </Text>,
       ]
 }

@@ -3,7 +3,7 @@ import { expect, test, tier } from './kit'
 import type { Body } from '../core'
 import { hoverScope } from '../hooks/draw/kit'
 import { C, clip, GLYPH } from '../hooks/look'
-import { rowsOf } from './drawn'
+import { glyphColors, rowsOf } from './drawn'
 import { changeKey, HELD, heldItem, MIN, PROJECT, REVIEW, T0, W1, type Asked } from './data'
 import { askOf, park, status, type Line } from './lines'
 import { pane, sceneFrom, type Drawn } from './render'
@@ -158,6 +158,7 @@ test('an opened parked item hangs where and its record from its mark, its button
   const drawn = await rows(ui, `parked:${heldItem('p1')}`)
 
   expect(drawn[0]).toMatch(TITLED)
+  expect(glyphColors(await ui.find({ key: `parked:${heldItem('p1')}` }), '●')).toEqual([C.parked])
   expect(drawn.slice(1)).toEqual([
     '│ pages: contributors by team and level, owner',
     '│ by department, week tally, separate summaries',
@@ -216,6 +217,7 @@ test("a reply waiting to be sent is the ask's last branch", async () => {
     '├ In Paper: page round 1',
     '└ → Forever · not sent yet ↺ undo ✎ comment',
   ])
+  expect(glyphColors(await ui.find({ key: `ask:${heldItem('k1')}` }), '●')).toEqual([C.ask])
 })
 
 test('a closed ask keeps its faint title and tick, and hangs that Claude has it from the tick', async ($, on) => {
@@ -291,7 +293,7 @@ test('an opened status change opens each detail line with its label in the statu
   }
 })
 
-test("an opened ask's see is labelled in the ask's amber, a parked item's in its purple", async () => {
+test("an opened ask's see is labelled in the ask's orange, a parked item's in its purple", async () => {
   const bodies = [
     askOf('k1', {
       wants: 'yes',

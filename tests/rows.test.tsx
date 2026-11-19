@@ -1,6 +1,8 @@
 import type { On } from 'claude-code'
 import { expect, test, tier, type Engine } from './kit'
+import { C } from '../hooks/look'
 import { NAMES_KEPT } from '../hooks/tools'
+import { glyphColors, rowsOf } from './drawn'
 import { PROJECT, REVIEW, reviewRound } from './data'
 import { asked, startedId, world, type World } from './world'
 
@@ -76,8 +78,8 @@ function engineRows(on: On) {
 const LINES: [tool: string, input: { [key: string]: unknown }, line: string][] = [
   ['start', { name: 'Help desk redesign', summary: 'Redesign it' }, 'started: Help desk redesign'],
   ['status', { now: ['Drawing Inbox'] }, '• status set'],
-  ['ask', REVIEW, '● asked: Review Tickets & Replies, round 1'],
-  ['park', { title: 'A priority badge' }, '● parked: A priority badge'],
+  ['ask', REVIEW, 'asked: Review Tickets & Replies, round 1'],
+  ['park', { title: 'A priority badge' }, 'parked: A priority badge'],
   ['finish', { reason: 'Shipped' }, '✓ finished a session'],
   ['project', { name: 'Trey Research' }, 'project renamed: Trey Research'],
   ['project', { directory: '/Users/me/trey-research' }, 'project lives in /Users/me/trey-research'],
@@ -100,6 +102,26 @@ test("each of Claude's sitrep calls is one dim line saying what it did, on every
 
       expect(drawn?.props.dimColor, `${surface}: ${tool}`).toBe(true)
       expect(await ui.find({ text: 'the engine row' })).toBeUndefined()
+      await ui.unmount()
+    }
+  }
+})
+
+test("an ask's row and a park's open with the mark the board gives what they posted, in its colour, before their dim words, on every surface", async ($, on) => {
+  engineRows(on)
+
+  const marked: [tool: string, input: { [key: string]: unknown }, row: string, color: string][] = [
+    ['ask', REVIEW, '● asked: Review Tickets & Replies, round 1', C.ask],
+    ['park', { title: 'A priority badge' }, '● parked: A priority badge', C.parked],
+  ]
+
+  for (const surface of SURFACES) {
+    for (const [tool, input, line, color] of marked) {
+      const ui = await $.ui.mount({ ...row(tool, input, `toolu_${tool}`), surface })
+      const drawn = await ui.drawn()
+
+      expect(rowsOf(drawn).map(each => each.trim()), `${surface}: ${tool}`).toEqual([line])
+      expect(glyphColors(drawn, '●'), `${surface}: ${tool}`).toEqual([color])
       await ui.unmount()
     }
   }

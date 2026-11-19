@@ -4704,10 +4704,11 @@ truth. There is still no background service. None of it is built now. Lee:
 - Palette (Tokyo Night): sessions `#7aa2f7`,
   parked `#bb9af7`, ok `#9ece6a`, now `#73daca`, soft `#a9b1d6`,
   grey `#7a82ab`, faint `#565f89`, rules `#3b4261`, tab `#292e42`; and,
-  of its own, recommended `#7178c7`, a darker lilac than a primary button's;
-  ask `#d77757`, Claude Code's own orange, the notch card's; and new-ask
-  pulse `#ff9c7b`, that orange at the OKLCH lightness the old pulse had,
-  0.79 where the ask's is 0.67, so the pulse still flashes brighter.
+  of its own, recommended `#7178c7`, a darker lilac than a primary button's.
+  Claude Code's own orange, the notch card's: ask `#d77757`, and the
+  new-ask pulse `#ff9c7b`, that orange at the OKLCH lightness the old
+  pulse had, 0.79 where the ask's is 0.67, so the pulse still flashes
+  brighter.
 - **White:** anything clickable, and the main content.
 - **Soft:** lines describing the item above them (a summary, what a session is
   doing, a reply, a status change's detail), and the line a section with nothing in it
@@ -4731,16 +4732,19 @@ truth. There is still no background service. None of it is built now. Lee:
   option and never grey.
 - Glyphs: `●` ask in orange, `●` parked in purple, `•` under way, `◦` next, `✓` done, `└ ├` trees, `⌂` home.
   No glyph that reads as "expand" unless it expands. A new ask's `●`
-  pulses through `◉`, `○` and `◉`, in the brighter orange at each `◉`. A
-  snoozed ask's `●` is grey, and a finished session's faint.
+  pulses `● ◉ ● ◉`, each `◉` in the brighter orange. A snoozed ask's `●`
+  is grey, and a finished session's faint.
 - **The pane's marks are the notch's** (Lee, 19 November 2026). The notch
   card marks an ask with an orange circle, its colour saying what is
   needed, so the pane does too: an ask's `●` in Claude Code's orange, a
   parked item's in the pane's purple. The parked circle is filled, never
-  hollow: on the notch a hollow circle means away, and one shape carries
-  one meaning. Until then an ask was a `◆` in Tokyo Night's amber
+  hollow, and so is every frame of the pulse: on the notch a hollow
+  circle means away, and one shape carries one meaning. Until then an ask was a `◆` in Tokyo Night's amber
   (`#e0af68`), pulsing `◆ ◈ ◇ ◈` in its orange (`#ff9e64`), and a parked
-  item a purple `◇`. All projects still marks no session's state.
+  item a purple `◇`. Claude's `asked:` and `parked:` rows in the chat
+  open with the same marks in their colours, the words dim, so neither
+  reads as Claude Code's own `●` before a tool call. All projects still
+  marks no session's state.
 - **One row for every list.** A status change, a parked item, one picked
   up or closed, an ask in Asks and a resolved ask are drawn alike: the mark, the title (white, and the
   press that opens it) on one line, clipped, and the age on the right, in

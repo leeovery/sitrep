@@ -3,7 +3,7 @@ import { expect, test, tier } from './kit'
 import type { Body, SessionMeta } from '../core'
 import { C } from '../hooks/look'
 import { EVERY_PROJECT, projectPlace } from '../hooks/places'
-import { rowsOf } from './drawn'
+import { glyphColors, rowsOf } from './drawn'
 import { ELSEWHERE, HELD, heldItem, LEDGER, MIN, PROJECT, T0, W2, type Asked } from './data'
 import { askOf, park, resolve, status, yesAsk, type Line } from './lines'
 import { pane, sceneFrom, type Desk, type Drawn } from './render'
@@ -122,6 +122,27 @@ test("PARKED lists every item parked in the project with no blank row between th
 
   for (const rows of [session, project]) {
     expect(rows.find(row => row.startsWith(' PARKED'))).toMatch(/ 4 to come back to$/)
+  }
+})
+
+/** The colours of the marks in the blocks keyed `prefix`, in the order drawn. */
+const marksIn = async (ui: Drawn, prefix: string) =>
+  (await ui.findAll({ type: 'Box' }))
+    .filter(block => block.key?.startsWith(`block:${prefix}`))
+    .flatMap(block => glyphColors(block, '●'))
+
+test("an ask's ● is orange and a parked item's purple, in a session and in its project, another session's items too", async () => {
+  const desk: Desk = {
+    lines: minutely(...reviewLines('Review round 1', 'Review round 2'), ...PARKED),
+    around: [{ meta: LEDGER, lines: [[T0 - MIN, park('p9', 'Archive old invoices')]], seenAt: T0 }],
+    now: T0 + 5 * MIN,
+  }
+  const session = pane(sceneFrom(desk))
+  const project = pane(sceneFrom({ ...desk, pane: { place: projectPlace(PROJECT.key) } }))
+
+  for (const [view, ui] of [['session', session], ['project', project]] as const) {
+    expect(await marksIn(ui, 'ask:'), `${view}: ASKS`).toEqual([C.ask, C.ask])
+    expect(await marksIn(ui, 'parked:'), `${view}: PARKED`).toEqual(Array(4).fill(C.parked))
   }
 })
 

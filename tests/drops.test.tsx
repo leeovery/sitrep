@@ -7,6 +7,7 @@
 import { expect, test, tier, type Engine } from './kit'
 import { CURRENT_MS, sessionPaths, type SessionMeta } from '../core'
 import { AROUND_MS } from '../hooks/around'
+import { C } from '../hooks/look'
 import {
   CLOSES,
   ELSEWHERE,
@@ -22,7 +23,7 @@ import {
   W2,
   W4,
 } from './data'
-import { rowsOf } from './drawn'
+import { glyphColors, rowsOf } from './drawn'
 import { pane, sceneFrom } from './render'
 import { delivered, drop, file, finish, moveTo, park, reply, resolve, type Line } from './lines'
 import {
@@ -133,6 +134,7 @@ test("an opened parked item's ✕ drop asks first, in place of its buttons, the 
     QUESTION,
     ANSWERS,
   ])
+  expect(glyphColors(await ui.find({ key: `parked:${key}` }), '●')).toEqual([C.parked])
   expect(
     await ui.find({ key: `pickup:${key}` }),
     'no pick-up beside the question',
@@ -387,6 +389,7 @@ test("Claude's resolve of an item Lee dropped passes quietly, writing nothing; i
   expect(await parkedRows(ui, w.item(id))).toEqual([
     expect.stringMatching(/^● A priority badge across all tabs/),
   ])
+  expect(glyphColors(await ui.find({ key: `parked:${w.item(id)}` }), '●')).toEqual([C.parked])
   expect(await ui.find({ key: PICKED_UP })).toBeUndefined()
   expect(String((await w.call('board')).result)).toContain(`- ${id}: ${BADGE}`)
 })

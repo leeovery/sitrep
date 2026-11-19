@@ -22,7 +22,7 @@ import type { Host } from '../hooks/host'
 import { C } from '../hooks/look'
 import { WATCH_MS } from '../hooks/window'
 import type { SitrepAttachment, SitrepPane } from '../types'
-import { rowsOf } from './drawn'
+import { glyphColors, rowsOf } from './drawn'
 import { slot } from './host'
 import { CLI, CLOSES, GO, META, MIN, PROJECT, REVIEW, ROOT, SENDER, THEMES, W1, W2 } from './data'
 import { delivered, file, park, reply, snoozeSession, wakeSession, yesAsk } from './lines'
@@ -285,9 +285,11 @@ test("ASKS draws a snoozed session's asks after those waiting, quieted, each han
   expect((await ui.find({ key: `pick:${w.item('k4', THEMES.id)}` }))?.props.dimColor).toBeFalsy()
   expect(rowsOf(await ui.find({ key: `ask:${w.item(ledger)}` }))[0]).toContain('Keep the ledger')
 
-  const marks = (await ui.findAll({ type: 'Text', text: '●' })).map(each => each.props.color)
+  const marks = async (id: string) => glyphColors(await ui.find({ key: `ask:${id}` }), '●')
 
-  expect(marks.slice(-2), "the snoozed asks' ●, quieted").toEqual([C.grey, C.grey])
+  expect(await marks(w.item('k4', THEMES.id)), "the waiting ask's ●").toEqual([C.ask])
+  expect(await marks(w.item(ledger)), "a snoozed ask's ●, quieted").toEqual([C.grey])
+  expect(await marks(w.item(review)), "a snoozed ask's ●, quieted").toEqual([C.grey])
 })
 
 test('with nothing waiting, the heading still says what is snoozed', async ($, on) => {

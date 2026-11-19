@@ -6,9 +6,9 @@
  * session.
  */
 import { itemTitle, oneLine, type Session } from '../../core'
-import { GLYPH } from '../look'
+import { C, GLYPH } from '../look'
 import { toolNamed, type ToolName } from '../tools'
-import type { Els } from './kit'
+import type { Els, Mark } from './kit'
 
 type Input = { readonly [key: string]: unknown }
 
@@ -37,8 +37,8 @@ const SAID: Record<ToolName, (input: Input, name: string | undefined) => string>
   start: input => `started: ${text(input.name)}`,
   join: (_, name) => (name === undefined ? 'joined a session' : `joined: ${name}`),
   status: () => '• status set',
-  ask: input => `${GLYPH.ask} asked: ${text(input.title)}`,
-  park: input => `${GLYPH.parked} parked: ${text(input.title)}`,
+  ask: input => `asked: ${text(input.title)}`,
+  park: input => `parked: ${text(input.title)}`,
   resolve: (_, name = 'an item') => `resolved: ${name}`,
   reopen: (_, name = 'an item') => `reopened: ${name}`,
   edit: (_, name = 'an item') => `edited: ${name}`,
@@ -47,6 +47,15 @@ const SAID: Record<ToolName, (input: Input, name: string | undefined) => string>
   move: (input, name) => `moved to: ${name ?? text(input.project)}`,
   board: () => 'read the board back',
 }
+
+/** The calls whose rows open with the mark the board gives what they posted, in its colour. */
+const MARKS: Partial<Record<ToolName, Mark>> = {
+  ask: { glyph: GLYPH.ask, color: C.ask },
+  park: { glyph: GLYPH.parked, color: C.parked },
+}
+
+/** A call's row: what it did, and the mark it opens with where it posted something. */
+export type ToolLine = { words: string; mark?: Mark }
 
 /**
  * The calls whose rows name what they did, by the name kept as each was
@@ -91,7 +100,11 @@ const nameFor = async (
  * name (read only then, so no other row is drawn again as the board moves).
  * Undefined for a tool that is not sitrep's.
  */
-export const toolLine = async (tool: string, input: unknown, naming: Naming) => {
+export const toolLine = async (
+  tool: string,
+  input: unknown,
+  naming: Naming,
+): Promise<ToolLine | undefined> => {
   const name = toolNamed(tool)
   const fields = typeof input === 'object' && input !== null ? (input as Input) : {}
 
@@ -101,20 +114,24 @@ export const toolLine = async (tool: string, input: unknown, naming: Naming) => 
 
   const heldName = NAMING[name]
 
-  return SAID[name](
+  const words = SAID[name](
     fields,
     heldName === undefined ? undefined : await nameFor(heldName, fields, naming),
   )
+  const mark = MARKS[name]
+
+  return mark === undefined ? { words } : { words, mark }
 }
 
-/** The call's row, indented as a folded group's count line is. */
-export const drawToolRow = (els: Els, line: string) => {
+/** The call's row, indented as a folded group's count line is: its words dim, its mark in colour. */
+export const drawToolRow = (els: Els, { words, mark }: ToolLine) => {
   const { Box, Text } = els
 
   return (
-    <Box paddingLeft={2}>
+    <Box paddingLeft={2} flexDirection="row" gap={1}>
+      {mark !== undefined && <Text color={mark.color}>{mark.glyph}</Text>}
       <Text dimColor wrap="truncate-end">
-        {line}
+        {words}
       </Text>
     </Box>
   )

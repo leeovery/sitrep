@@ -52,8 +52,11 @@ export const GLYPH = {
 /** The board's close where its frame's ✕ is one cell: not plain, so bracketed, a target wide enough to tap. */
 export const CLOSE = { label: '✕ close' } as const
 
-/** The ● of a new ask, frame by frame as it pulses. */
-const PULSE = ['●', '◉', '○', '◉']
+/** A new ask's pulse at its peak, every other frame: its ● ringed, in the brighter orange. */
+const PEAK = { glyph: '◉', color: C.pulse }
+
+/** An ask's mark at rest. */
+const REST = { glyph: GLYPH.ask, color: C.ask }
 
 const MIN = 60_000
 const HOUR = 60 * MIN
@@ -110,11 +113,5 @@ export const wrapped = (text: string, width: number) => {
 export const counted = (count: number, one: string, many: string) =>
   `${count} ${count === 1 ? one : many}`
 
-/** The ask glyph and its colour at a frame of the pulse: orange at rest, flashing while it runs. */
-export const pulseOf = (frames: number) =>
-  frames > 0
-    ? {
-        glyph: PULSE[frames % PULSE.length] ?? GLYPH.ask,
-        color: frames % 2 === 1 ? C.pulse : C.ask,
-      }
-    : { glyph: GLYPH.ask, color: C.ask }
+/** The ask glyph and its colour at a frame of the pulse: at rest, but at its peak on every odd frame while it runs. */
+export const pulseOf = (frames: number) => (frames % 2 === 1 ? PEAK : REST)
