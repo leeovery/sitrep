@@ -131,7 +131,8 @@ test(
     const menu = layoutIn(open).menu ?? { y: -1, lines: 0 }
 
     expect(menu.lines).toBe(6)
-    expect(menu.y).toBe((layoutIn(open).rows[0]?.y ?? 0) + 2)
+    expect([layoutIn(open).rows[0]?.y, menu.y], 'the row under its heading, under the blank top row, the menu under the row').toEqual([2, 4])
+    expect(writeOf(open, tap(menu.y))).toMatchObject({ until: at(2026, 11, 18, 15) })
     expect(writeOf(open, tap(menu.y + 1))).toEqual({ command: 'snooze', session: ASKING, asks: ['k1', 'k2'], until: at(2026, 11, 18, 17) })
 
     for (const key of [tap(menu.y - 1), tap(menu.y + 6), tap(menu.y, 40), ESC, Z]) {

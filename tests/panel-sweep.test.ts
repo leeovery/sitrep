@@ -114,6 +114,16 @@ const keysOf = (view: PanelView) => view.sections.filter(section => section.isOp
 
 const bottomOf = (placed: Placed) => placed.y + (placed.kind === 'row' ? 2 : 1)
 
+/** Whether every block shows, with its blank rows between sections, under a blank top row: the rows shown, every heading among them, nothing scrolled. */
+const fitsUnderTop = (view: PanelView, layout: Layout, shown: readonly number[]) => {
+  const { placed, body } = layout
+  const headings = placed.filter(each => each.kind === 'heading').length
+  const lines = placed.reduce((sum, each) => sum + (each.kind === 'row' ? each.height + each.menu : 1), 0)
+  const isWhole = shown.length === keysOf(view).length && headings === layout.sections.length && placed.every(each => each.kind === 'row' || each.kind === 'heading')
+
+  return isWhole && lines + Math.max(headings - 1, 0) < body.to
+}
+
 /** Each rule a frame breaks, by its name. */
 const brokenIn = (view: PanelView, size: Size, layout: Layout, lines: string[]): string[] => {
   const keys = keysOf(view)
@@ -127,7 +137,8 @@ const brokenIn = (view: PanelView, size: Size, layout: Layout, lines: string[]):
   const markYs = lines.flatMap((line, y) => (y >= body.from && y < body.to && MARKED.test(line) ? [y] : []))
 
   breaks('exactly H lines', lines.length !== size.height)
-  breaks('the body from row 0, with no title', body.from !== 0 || lines.some(line => line.startsWith(' sitrep')))
+  breaks('no title: row 0 blank while rows start on row 1', body.from > 1 || (body.from === 1 && layout.sections.length > 0 && lines[0] !== '') || lines.some(line => line.startsWith(' sitrep')))
+  breaks('the top row kept exactly while every block fits under it', view.board !== 'looking' && (body.from === 1) !== fitsUnderTop(view, layout, shown))
   breaks('the key line kept', !/q quit( +as of 12:04)?$/.test(lines.at(-1) ?? ''))
   breaks("a stale board's notice at the key line's right end", (view.board === 'stale') !== (lines.at(-1) ?? '').endsWith('  as of 12:04'))
   breaks('nothing past W−2', lines.some(line => widthOf(line) > Math.min(size.width, 120) - 1))

@@ -1,3 +1,4 @@
+
  NEEDS YOU ●4 ●2 ─────────────────── ▿
  ● Data import                      1m
    Litware · Allow Bash: psql -f impo…
@@ -21,7 +22,6 @@
    Fabrikam · Waiting on 2 agents
 
  SNOOZED 2 ───────────────────────── ▹
-
 
 
  ↑↓ move  ⏎ expand  o open  q quit

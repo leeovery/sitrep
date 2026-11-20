@@ -18,14 +18,16 @@
  *   on the choice picked rather than on the row.
  * - The key line drops whole hints from the right, `q quit` last, or in the
  *   menu `esc cancel`.
- * - There is no title: the body starts on row 0 (Lee, 20 November 2026).
+ * - There is no title: row 0 is blank, and gives way first, short of room
+ *   (Lee, 20 November 2026). Nothing is drawn on it.
  * - A board gone stale says when it was read, at the key line's right end;
  *   the keys are cut to the room left of it.
- * - Below 24 columns or 8 rows it draws only `Too small`.
+ * - Below 24 columns or 8 rows it draws only `Too small`, on row 1 while
+ *   there is one.
  */
 import { cellsOf, cut, graphemesOf, widthOf, wrapIn, type Size, type Tagged } from './cells'
 import { countOf, expandedOf, LEAST_CUT, NAME, timeFitting, type Tag } from './expand'
-import { isTooSmall, layoutOf, LEFT, type Layout, type Placed, type Section } from './layout'
+import { isTooSmall, layoutOf, LEFT, topRowOf, type Layout, type Placed, type Section } from './layout'
 import { pensOf, sgr, type Ink, type Level, type Paint, type Pen, type Pens, type Style } from './paint'
 import { rowKey, type PanelRow, type PanelView } from './view'
 
@@ -365,15 +367,18 @@ const headed = (head: string, words: string, rows: number, cells: number) =>
   rows < 3 ? [cut(head, cells)].slice(0, rows) : [head, '', ...wrapIn(words, cells, rows - 2)]
 
 /**
- * Words in the body's place, each line centred, the lines a little above
- * the middle: a heading in bold and a blank row, where there is one, then
- * the words in grey, wrapped at `cells`. Past the rows there are, the last
- * kept carries the rest, cut with `…`.
+ * Words in the body's place, under its top row while that stays, each line
+ * centred, the lines a little above the middle: a heading in bold and a
+ * blank row, where there is one, then the words in grey, wrapped at
+ * `cells`. Past the rows there are, the last kept carries the rest, cut
+ * with `…`.
  */
 const centred = ({ grid, layout, pens }: Frame, head: string | undefined, words: string, cells: number) => {
-  const { from, to } = layout.words
+  const linesIn = (rows: number) => (head === undefined ? wrapIn(words, cells, rows) : headed(head, words, rows, cells))
+  const { from: place, to } = layout.words
+  const from = place + topRowOf(linesIn(to - place).length, to - place)
   const right = layout.width - 1
-  const lines = head === undefined ? wrapIn(words, cells, to - from) : headed(head, words, to - from, cells)
+  const lines = linesIn(to - from)
   const top = from + Math.max(0, Math.floor((to - from - lines.length) / 2) - 1)
 
   lines.forEach((line, at) => {
@@ -481,7 +486,7 @@ const keyLine = ({ grid, layout, pens }: Frame, { hints, last }: { hints: readon
 const tooSmall = (size: Size): Line[] => {
   const grid = gridOf(size)
 
-  put(grid, LEFT, 0, cut('Too small', size.width - 2), {})
+  put(grid, LEFT, topRowOf(1, size.height), cut('Too small', size.width - 2), {})
 
   return grid.map(runsOf)
 }

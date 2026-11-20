@@ -9,9 +9,10 @@
  * - A pick's answer sits above the key line, a blank row over it, in at most
  *   the rows above the key line, less that blank row; past them its last
  *   line is cut with `…`.
- * - The body runs from row 0 to the answer's blank row or the key line.
- *   Below 13 rows, short of room, the blank rows between sections give way:
- *   13 rows give the body what 15 gave under the old title.
+ * - Row 0 is blank, and the body runs from row 1 to the answer's blank row
+ *   or the key line. Short of room, the top row gives way first: it stays
+ *   only while every block fits under it, so it never costs the body a row.
+ *   Then, below 13 rows, the blank rows between sections give way.
  * - It shows the rows that fit, in whole rows, from `top`. Above them, room
  *   allowing, their section's heading, pinned, and `▲ N more` for the rows
  *   scrolled past; or `▲` alone; or nothing. `▼ N more` says the rows below,
@@ -43,7 +44,7 @@ export const MOST = 120
 /** The least a frame is laid out at; below it, `Too small`. */
 const LEAST: Size = { width: 24, height: 8 }
 
-/** Below this many rows, the blank rows give way. */
+/** Below this many rows, short of room, the blank rows between sections give way. */
 const ROOMY = 13
 
 export type Section = PanelView['sections'][number]
@@ -67,7 +68,7 @@ export type Layout = {
   answer: { from: number; lines: string[] }
   /** The body's rows. */
   body: Region
-  /** The rows the body's place holds, where words stand centred in it. */
+  /** The rows the body's place holds from row 0, where words stand centred, under the top row while it stays (`topRowOf`). */
   words: Region
   /** The view's `top`, kept within `lastTop`. */
   top: number
@@ -226,12 +227,16 @@ const placedIn = (blocks: readonly Block[], window: Window, top: number, body: R
   return below > 0 && y < body.to ? [...placed, { kind: 'below', y, count: below }] : placed
 }
 
-/** The body's rows, from the top to the foot, and its blocks: the gaps between sections kept while every block fits with them. */
+/** The first row of the body's place: 1, the top row left blank, while `lines` fit under it in the `room` rows from row 0; else 0. */
+export const topRowOf = (lines: number, room: number) => (lines < room ? 1 : 0)
+
+/** The body's rows, from the top to the foot, and its blocks: the blank top row, then the gaps between sections, each kept while every block fits with it. */
 const bodyOf = (sections: readonly Section[], height: number, foot: number, shape: Shaping) => {
   const gapped = blocksOf(sections, true, shape)
+  const from = topRowOf(heightOf(gapped), foot)
   const hasGaps = height >= ROOMY || heightOf(gapped) <= foot
 
-  return { body: { from: 0, to: foot }, blocks: hasGaps ? gapped : blocksOf(sections, false, shape) }
+  return { body: { from, to: foot }, blocks: hasGaps ? gapped : blocksOf(sections, false, shape) }
 }
 
 /**
