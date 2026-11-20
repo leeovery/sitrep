@@ -58,10 +58,21 @@ test('the sequence is OSC 777: notify, the title, then the place, ended by BEL',
   )
 })
 
-test("control characters are dropped from both fields, C1's among them, lines run together, and a ; in the title becomes ,", () => {
+test("control characters are dropped from both fields, C1's among them, lines run together, and a ; in either becomes ,", () => {
   expect(osc777({ title: 'Ship\x07 it;\x1b]0;now\x9c\nplease', place: 'North\x1bwind; · Help\x00 desk\r\nredesign' })).toBe(
-    '\x1b]777;notify;Ship it,]0,now please;Northwind; · Help desk redesign\x07',
+    '\x1b]777;notify;Ship it,]0,now please;Northwind, · Help desk redesign\x07',
   )
+})
+
+test('the title is cut to 200 code points, its ellipsis among them, never inside a character outside the BMP', () => {
+  const long = `${'a'.repeat(198)}😀😀 and more`
+  const place = 'Northwind · Help desk redesign'
+
+  expect(osc777({ title: long, place })).toBe(`\x1b]777;notify;${'a'.repeat(198)}😀…;${place}\x07`)
+  expect(osc777({ title: `${'a'.repeat(199)}😀`, place }), 'one of 200 is kept whole').toBe(
+    `\x1b]777;notify;${'a'.repeat(199)}😀;${place}\x07`,
+  )
+  expect(osc777({ title: 'b'.repeat(10_000), place }).length).toBe('\x1b]777;notify;'.length + 200 + place.length + 2)
 })
 
 test("inside tmux the sequence goes in tmux's passthrough, each ESC in it doubled; outside, as it is", () => {

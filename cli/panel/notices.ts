@@ -7,14 +7,17 @@
  *
  * - The sequence is OSC 777, `ESC ] 777 ; notify ; <title> ; <body> BEL`.
  * - Both fields are cleaned as the board's words are, so no control
- *   character can end the sequence early, and a `;` in the title becomes
- *   `,`, since it would end the field.
+ *   character can end the sequence early, and a `;` in either becomes `,`,
+ *   since it ends the title's field, and a parser splitting on every one
+ *   would cut the body.
+ * - The title is cut as a subject is (`shownText`), so a long ask makes no
+ *   OSC some terminals drop.
  * - Inside tmux, `$TMUX` set, it goes in tmux's passthrough, each ESC in it
  *   doubled, which tmux passes on only with `allow-passthrough on`.
  *
  * Pure: the loop writes them.
  */
-import type { Feed } from '../../core'
+import { shownText, type Feed } from '../../core'
 import { cleaned } from './view'
 
 /** A notification's words: the ask's, and where it is. */
@@ -44,9 +47,12 @@ export const newAsks = (feed: Feed, news: readonly string[]): Notice[] => {
   )
 }
 
-/** The notice as OSC 777, its fields cleaned. */
+/** A field's words made harmless for the sequence. */
+const field = (text: string) => cleaned(text).replaceAll(';', ',')
+
+/** The notice as OSC 777, its fields cleaned, the title cut to SHOWN_LENGTH. */
 export const osc777 = ({ title, place }: Notice) =>
-  `${ESC}]777;notify;${cleaned(title).replaceAll(';', ',')};${cleaned(place)}${BEL}`
+  `${ESC}]777;notify;${shownText(field(title))};${field(place)}${BEL}`
 
 /** A sequence in tmux's passthrough. */
 export const passedThrough = (sequence: string) => `${ESC}Ptmux;${sequence.replaceAll(ESC, ESC + ESC)}${ESC}\\`

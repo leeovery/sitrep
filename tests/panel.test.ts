@@ -976,7 +976,7 @@ test('one pick at a time: ⏎ again while ps answers asks nothing more; q meanwh
   expect(run.screen.writes.at(-1)).toBe(LEAVE)
 })
 
-test('each ask new on the board posts one OSC 777, the oldest first, each a write of its own after the frame, never inside one; the first board posts none', async () => {
+test('asks new in one look post one OSC 777 each, the oldest first, each a write of its own after the frame, never inside one; the first board posts none', async () => {
   const run = opened()
 
   await run.passing(0)
@@ -997,6 +997,28 @@ test('each ask new on the board posts one OSC 777, the oldest first, each a writ
   await run.passing(2_000)
 
   expect(noticesIn(run.screen.writes), 'the asks are told once').toEqual(notices)
+  await run.type('q')
+})
+
+test('asks new across two looks each post after their own look\'s frame', async () => {
+  const run = opened()
+
+  await run.passing(0)
+  post(run, yesAsk('k2', 'Ship it'))
+  await run.passing(1_000)
+
+  const first = run.screen.writes.length
+
+  post(run, yesAsk('k3', 'Then the docs'))
+  await run.passing(1_000)
+
+  const { writes } = run.screen
+  const [frameOne, noticeOne] = writes.slice(first - 2, first)
+  const [frameTwo, noticeTwo] = writes.slice(first)
+
+  expect(framesIn([frameOne ?? '', frameTwo ?? ''])).toHaveLength(2)
+  expect([noticeOne, noticeTwo]).toEqual([SHIP_IT, '\x1b]777;notify;Then the docs;Northwind · Help desk redesign\x07'])
+  expect(noticesIn(writes)).toHaveLength(2)
   await run.type('q')
 })
 
@@ -1039,13 +1061,73 @@ test('a new ask notifies while the panel draws `Too small`', async () => {
   await run.type('q')
 })
 
-test("a notification's words are made harmless: control characters dropped, lines run together, a ; in the title made ,", async () => {
-  const run = opened()
+test("a look whose reads end after q posts nothing: the run's last write is the screen given back", async () => {
+  let isHeld = false
+  const looks = latch()
+  const run = opened({ fs: call => (isHeld && call === 'list' ? looks.opened : undefined) })
+
+  await run.passing(0)
+  post(run, yesAsk('k2', 'Ship it'))
+  isHeld = true
+  await run.passing(1_000)
+  await run.type('q')
+  looks.open()
+  await run.passing(0)
+
+  expect(await run.ended()).toEqual({ exit: EXIT.done, err: '' })
+  expect(run.screen.writes.at(-1)).toBe(LEAVE)
+  expect(noticesIn(run.screen.writes)).toEqual([])
+})
+
+/** The panel whose looks fail while `failing()` says so, as a state folder that can't be read. */
+const failingWhile = (failing: () => boolean) =>
+  opened({
+    fs: (call, path) => {
+      if (failing() && call === 'stat' && path === projectsDir(ROOT)) {
+        throw new Error('EACCES: permission denied')
+      }
+    },
+  })
+
+test('a first good look after looks that failed is the first board, and posts nothing, an ask added meanwhile among it', async () => {
+  let isFailing = true
+  const run = failingWhile(() => isFailing)
+
+  await run.passing(0)
+  post(run, yesAsk('k2', 'Ship it'))
+  await run.passing(1_000)
+  isFailing = false
+  await run.passing(1_000)
+
+  expect(screenOf(run.screen.writes)[3]).toBe(' ● Help desk redesign 2             now')
+  expect(noticesIn(run.screen.writes)).toEqual([])
+  await run.type('q')
+})
+
+test('an ask added while looks fail, between two good ones, posts once at the next good look', async () => {
+  let isFailing = false
+  const run = failingWhile(() => isFailing)
+
+  await run.passing(0)
+  isFailing = true
+  post(run, yesAsk('k2', 'Ship it'))
+  await run.passing(2_000)
+
+  expect(noticesIn(run.screen.writes)).toEqual([])
+  isFailing = false
+  await run.passing(3_000)
+
+  expect(noticesIn(run.screen.writes)).toEqual([SHIP_IT])
+  await run.type('q')
+})
+
+test("a notification's words are made harmless: control characters dropped, lines run together, a ; in either field made ,", async () => {
+  const run = opened({ meta: { ...META, name: 'Help desk;\x1b redesign' } })
 
   await run.passing(0)
   post(run, yesAsk('k2', 'Ship;\x1b]0;now\x07 it\nplease'))
   await run.passing(1_000)
 
-  expect(noticesIn(run.screen.writes)).toEqual(['\x1b]777;notify;Ship,]0,now it please;Northwind · Help desk redesign\x07'])
+  expect(noticesIn(run.screen.writes)).toEqual(['\x1b]777;notify;Ship,]0,now it please;Northwind · Help desk, redesign\x07'])
   await run.type('q')
 })

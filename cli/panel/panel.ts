@@ -44,6 +44,9 @@
  *   look's frame, so never inside one. A look while a program has the
  *   terminal, or while it draws `Too small`, posts them as any does. The
  *   first board posts none, since core's `newRows` finds nothing new on it.
+ *   What landed while looks failed posts at the next good one, once each.
+ *   A look whose reads end after the panel closed is dropped, so nothing
+ *   reaches the shell after the terminal is given back.
  */
 import { newRows, ownTime, type Feed, type Shown } from '../../core'
 import { KEYED, type Io, type Signal, type Terminal } from '../io'
@@ -427,6 +430,9 @@ const live = (io: Io, terminal: Terminal, { isNotifying }: PanelOptions) => {
     notify(feed, news.news)
   }
 
+  /** A look, unless the panel closed while its reads were under way. */
+  const lookedAt = (look: Look) => guard(() => onLook(look))
+
   const onFailure = (error: unknown) => {
     unhold()
     apply({ failed: reasonOf(error) })
@@ -450,7 +456,7 @@ const live = (io: Io, terminal: Terminal, { isNotifying }: PanelOptions) => {
         unhold()
         frame()
       })
-      looks = looking(io, run, { seen: onLook, endsOnNewVersion: false, isPastFailure: onFailure }).catch(closing.fail)
+      looks = looking(io, run, { seen: lookedAt, endsOnNewVersion: false, isPastFailure: onFailure }).catch(closing.fail)
     }
 
     return closing.closed
