@@ -24,4 +24,4 @@
  ▼ 2 more
 
 
- ↑↓ move  ⏎ open  s snoozed  q quit
+ ↑↓ move  ⏎ expand  o open  q quit

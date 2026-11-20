@@ -17,9 +17,13 @@
  * - `esc` drops the band, and any key a pick's answer, the loop's own among
  *   them. A pick done sets its answer, or none, the band kept whole in
  *   sight above it.
+ * - ⏎ expands the band's row, and folds it again: one row at most, the
+ *   band's, folded as the band moves to another row, kept whole in sight.
+ *   `o` opens the band's session; nothing else does.
  * - A tap puts the band on the row under it as drawn, a pick's answer
- *   still showing, and opens the band's own row, as ⏎ does; the wheel
- *   scrolls a row a notch, the band staying on its session, in sight or not.
+ *   still showing, and expands or folds the band's own row, as ⏎ does; the
+ *   wheel scrolls a row a notch, the band staying on its session, in sight
+ *   or not.
  * - `top` is kept as the layout clamps it, so scrolling past the end piles
  *   nothing up.
  * - The sessions SitRep's file dims move behind those drawn filled, the
@@ -66,7 +70,7 @@ export type PanelEvent =
   /** The sessions open on no device the panel is looked at from, as SitRep last read them. */
   | { notHere: ReadonlySet<string> }
 
-/** A step's state, and the session to open, where ⏎ or a tap asks for one. */
+/** A step's state, and the session to open, where `o` asks for one. */
 export type Stepped = { state: PanelState; open?: string }
 
 type Tap = Extract<Key, { kind: 'tap' }>
@@ -95,12 +99,19 @@ const openRows = (state: PanelState): PanelRow[] =>
 const keysIn = (state: PanelState) => openRows(state).map(rowKey)
 
 /** The state with `field` set, or without it, given none. */
-const withField = <K extends 'band' | 'answer' | 'reason'>(state: PanelState, field: K, value: PanelState[K]): PanelState => {
+const withField = <K extends 'band' | 'expanded' | 'answer' | 'reason'>(state: PanelState, field: K, value: PanelState[K]): PanelState => {
   const next = { ...state }
 
   delete next[field]
 
   return value === undefined ? next : { ...next, [field]: value }
+}
+
+/** The band on the row `key`, or on none; its row folded where it moves to another. */
+const withBand = (state: PanelState, key: string | undefined): PanelState => {
+  const next = withField(state, 'band', key)
+
+  return next.expanded === key ? next : withField(next, 'expanded', undefined)
 }
 
 /** The state with `top` as the layout clamps it. */
@@ -125,7 +136,7 @@ const keepingSight = (before: PanelState, after: PanelState) => (isBandInSight(b
 
 /** The band on the row `key`, kept whole in sight; the state as it was, given no row. */
 const placed = (state: PanelState, key: string | undefined) =>
-  key === undefined ? state : settled(kept(withField(state, 'band', key)))
+  key === undefined ? state : settled(kept(withBand(state, key)))
 
 /**
  * Where the band goes as the rows change from `before` to `after`: to its
@@ -151,7 +162,7 @@ const followed = (before: PanelState, after: PanelState): string | undefined => 
 
 /** `next`, its rows moved from where they stood in `state`: the band following its row, and kept in sight where it was. */
 const reflowed = (state: PanelState, next: PanelState) =>
-  settled(keepingSight(state, withField(next, 'band', followed(state, next))))
+  settled(keepingSight(state, withBand(next, followed(state, next))))
 
 /** Each line new on the board stamped `now`, and those first shown NEW_MS ago or more dropped. */
 const arrived = (arrivals: ViewState['arrivals'], news: readonly string[], now: number) =>
@@ -210,27 +221,36 @@ const toggled = (state: PanelState): PanelState => {
   return settled({ ...next, top: topFor(viewIn(next), next.size, rowKey(last)) ?? next.top })
 }
 
-/** ⏎: the band's session to open, if there's a band. */
+/** `o`: the band's session to open, if there's a band. */
 const opened = (state: PanelState): Stepped => {
   const session = openRows(state).find(row => rowKey(row) === state.band)?.session
 
   return session === undefined ? { state } : { state, open: session }
 }
 
-/**
- * A tap on either line of a row, found where the rows stood as `drawn`,
- * with a pick's answer under them: the band put on it, or, on the band's
- * own row, opened.
- */
-const tapped = (state: PanelState, { x, y }: Tap, drawn: PanelState): Stepped => {
-  const layout = layoutIn(drawn)
-  const row = x < layout.width ? layout.rows.find(each => y === each.y || y === each.y + 1) : undefined
-
-  if (row === undefined) {
-    return { state }
+/** ⏎: the band's row expanded, or folded again, kept whole in sight; nothing with no band. */
+const expanded = (state: PanelState): PanelState => {
+  if (state.band === undefined) {
+    return state
   }
 
-  return row.key === state.band ? opened(state) : { state: placed(state, row.key) }
+  return settled(kept(withField(state, 'expanded', state.expanded === state.band ? undefined : state.band)))
+}
+
+/**
+ * A tap on any line of a row, found where the rows stood as `drawn`, with a
+ * pick's answer under them: the band put on it, or, on the band's own row,
+ * expanded or folded.
+ */
+const tapped = (state: PanelState, { x, y }: Tap, drawn: PanelState): PanelState => {
+  const layout = layoutIn(drawn)
+  const row = x < layout.width ? layout.rows.find(each => y >= each.y && y < each.y + each.height) : undefined
+
+  if (row === undefined) {
+    return state
+  }
+
+  return row.key === state.band ? expanded(state) : placed(state, row.key)
 }
 
 const only = (state: PanelState): Stepped => ({ state })
@@ -244,9 +264,10 @@ const ON_KEY: { [K in Key['kind']]: (state: PanelState, key: Extract<Key, { kind
   home: state => only(placed(state, keysIn(state)[0])),
   end: state => only(placed(state, keysIn(state).at(-1))),
   snoozed: state => only(toggled(state)),
-  esc: state => only(settled(withField(state, 'band', undefined))),
-  enter: opened,
-  tap: tapped,
+  esc: state => only(settled(withBand(state, undefined))),
+  enter: state => only(expanded(state)),
+  open: opened,
+  tap: (state, key, drawn) => only(tapped(state, key, drawn)),
   wheel: (state, { by }) => only(settled({ ...state, top: layoutIn(state).top + by })),
   quit: only,
   suspend: only,

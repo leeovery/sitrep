@@ -24,4 +24,4 @@
 
  ! Release notes can't be opened here:
    its terminal has no tmux or zmx.
- ↑↓ move  ⏎ open  s snoozed  q quit
+ ↑↓ move  ⏎ expand  o open  q quit

@@ -42,6 +42,8 @@ export type PanelRow = {
   count?: number
   project: string
   status: StatusWords
+  /** Each of its lines' words, its status line first: what the chosen row shows expanded. */
+  lines: StatusWords[]
   time: string
 }
 
@@ -53,6 +55,8 @@ export type PanelView = {
     isOpen: boolean
   }[]
   band?: string
+  /** The chosen row, expanded. */
+  expanded?: string
   top: number
   answer?: string
   board: 'looking' | 'read' | 'stale'
@@ -64,6 +68,8 @@ export type PanelView = {
 export type ViewState = {
   /** The chosen row, by its key (`rowKey`). */
   band?: string
+  /** The chosen row's key, while it is expanded: never another row's. */
+  expanded?: string
   /** The first row in view: its index over the rows of the open sections, in order, one a row, not a screen line. */
   top: number
   isSnoozedOpen: boolean
@@ -163,7 +169,7 @@ const isNewAt = (row: Row | SnoozedRow, arrivals: ViewState['arrivals'], now: nu
   })
 
 const rowOf = (row: Row | SnoozedRow, arrivals: ViewState['arrivals'], now: number): PanelRow => {
-  const [first] = row.lines
+  const lines = row.lines.map(line => statusOf(line.first, line.is === 'permission', now))
 
   return {
     session: row.session,
@@ -174,10 +180,8 @@ const rowOf = (row: Row | SnoozedRow, arrivals: ViewState['arrivals'], now: numb
     name: cleaned(row.name),
     ...(row.lines.length > 1 ? { count: row.lines.length } : {}),
     project: cleaned(row.projectName),
-    status:
-      first === undefined
-        ? { text: '' }
-        : statusOf(first.first, first.is === 'permission', now),
+    status: lines[0] ?? { text: '' },
+    lines,
     time: timeOf(row, now),
   }
 }
@@ -208,11 +212,12 @@ export const viewOf = (
   now: number,
   notHere: ReadonlySet<string>,
 ): PanelView => {
-  const { band, top, answer, board, readAt, reason } = state
+  const { band, expanded, top, answer, board, readAt, reason } = state
 
   return {
     sections: sectionsOf(feed, state, now, notHere),
     ...(band === undefined ? {} : { band }),
+    ...(expanded === undefined ? {} : { expanded }),
     top,
     ...(answer === undefined ? {} : { answer: cleaned(answer) }),
     board,

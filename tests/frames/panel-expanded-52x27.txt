@@ -1,0 +1,27 @@
+ sitrep
+
+ NEEDS YOU ●4 ●1 ──────────────────────────────── ▿
+ ● Help desk redesign for the support team in    4m
+   every regional office 3
+   Northwind
+   Thread replies, or keep them flat?
+   Keep the old ticket numbers once the new desk
+   goes live?
+   Which office moves first?
+ ○ Data import                                   2h
+   Litware · Keep the old CSV columns?
+ ● Shift schedules                              31m
+   Contoso · Drafted the new rota
+
+ WORKING 2 ────────────────────────────────────── ▿
+ ✻ Mobile app                                    6m
+   Woodgrove · Running npm test
+ ◌ Invoice ledger                               15m
+   Fabrikam · Waiting on 2 agents
+
+ SNOOZED 1 ────────────────────────────────────── ▹
+
+
+
+
+ ↑↓ move  ⏎ fold  o open  s snoozed  q quit

@@ -119,7 +119,8 @@ const SECTIONS = {
   onItsWork: 'working',
 } as const satisfies Record<RowKind, Row['section']>
 
-type Made = { count?: number; away?: Away; wakeAt?: number; where?: Where }
+/** How a row is made: its lines, and the words of each after the first where they differ; whether it is away, its wake, and where its window is. */
+type Made = { count?: number; more?: readonly string[]; away?: Away; wakeAt?: number; where?: Where }
 
 /** The window a stop or a turn comes from. */
 const WRITER = 'w1'
@@ -137,15 +138,20 @@ const lineOf = (is: RowKind, session: string, at: number, first: RowLine, since:
   }
 }
 
-/** A row of `count` lines saying `first`, the newest `minutes` old, each older a minute before it. */
+/** A row of `count` lines saying `first`, or each its own of `more`, the newest `minutes` old, each older a minute before it. */
 const seat = (is: RowKind, name: string, project: string, first: RowLine, minutes: number, made: Made = {}): Seat => {
-  const { count = 1, away, wakeAt, where } = made
+  const { count = 1, away, wakeAt, where, more = [] } = made
   const since = NOW - minutes * MINUTE_MS
   const base = named(name, project, away === 'ended')
+  const saying = (at: number): RowLine => {
+    const lead = more[at - 1]
+
+    return lead === undefined ? first : { lead }
+  }
   const row: Row = {
     ...base,
     section: SECTIONS[is],
-    lines: Array.from({ length: count }, (_, at) => lineOf(is, base.session, at, first, since - at * MINUTE_MS)),
+    lines: Array.from({ length: count }, (_, at) => lineOf(is, base.session, at, saying(at), since - at * MINUTE_MS)),
     since,
     ...(wakeAt === undefined ? {} : { wakeAt }),
   }
@@ -297,9 +303,19 @@ const QUIET = worldOf([])
 
 const FOR_DOCS = worldOf(DOCS)
 
+/** The docs world with a row the narrow width cuts short, of a long name and three asks. */
+const LONG_NAME = 'Help desk redesign for the support team in every regional office'
+
+const LONG_ASKS = ask(LONG_NAME, 'Northwind', 'Thread replies, or keep them flat?', 4, {
+  count: 3,
+  more: ['Keep the old ticket numbers once the new desk goes live?', 'Which office moves first?'],
+})
+
+const EXPANDING = worldOf([LONG_ASKS, ...DOCS.slice(1)])
+
 /** Every name and project the worlds hold: those a frame may cut. */
 export const NAMES: readonly string[] = [
-  ...new Set([...REST, ...BUSY, ...DOCS, NEW_ASK].flatMap(each => {
+  ...new Set([...REST, ...BUSY, ...DOCS, NEW_ASK, LONG_ASKS].flatMap(each => {
     const { name, projectName } = 'row' in each ? each.row : each.snoozed
 
     return [name, projectName]
@@ -323,6 +339,8 @@ const newestLine = (world: World, name: string) => rowNamed(world, name).lines[0
 const DOWN: Key = { kind: 'down' }
 
 const ENTER: Key = { kind: 'enter' }
+
+const OPEN: Key = { kind: 'open' }
 
 const SNOOZED: Key = { kind: 'snoozed' }
 
@@ -360,7 +378,7 @@ const SCREENS: Record<string, Screen> = {
     sizes: [[39, 27], [69, 46], [73, 36], [73, 15], [24, 8]],
   },
   arriving: { world: ARRIVED, news: [newestLine(ARRIVED, 'Room bookings')], sizes: [[39, 27], [69, 46]] },
-  unreachable: { world: AT_REST, keys: [...downTo(AT_REST, 'Release notes'), ENTER], sizes: [[39, 27], [69, 46]] },
+  unreachable: { world: AT_REST, keys: [...downTo(AT_REST, 'Release notes'), OPEN], sizes: [[39, 27], [69, 46]] },
   quiet: { world: QUIET, sizes: [[39, 27], [69, 46]] },
   wide: { world: AT_REST, keys: downTo(AT_REST, 'Help desk redesign'), sizes: [[114, 45], [173, 53]] },
   nocolor: {
@@ -373,6 +391,7 @@ const SCREENS: Record<string, Screen> = {
   narrow: { world: AT_REST, sizes: [[30, 27]] },
   small: { world: AT_REST, sizes: [[23, 10]] },
   docs: { world: FOR_DOCS, sizes: [[73, 19]] },
+  expanded: { world: EXPANDING, keys: [...downTo(EXPANDING, LONG_NAME), ENTER], sizes: [[52, 27], [114, 45]] },
 }
 
 export const FIXTURES: readonly Fixture[] = Object.entries(SCREENS).flatMap(([screen, { world, paint = COLOUR, news = [], keys = [], sizes }]) =>

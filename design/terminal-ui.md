@@ -8,7 +8,7 @@ SitRep shows the board at the edge of a Mac's screen, as the notch or the strip.
 - **Sessions by state,** as the notch orders them: Needs you (asks in orange, Stopped in blue), then Working, then Snoozed, folded at first. The project shows on each row.
 - **It suits a terminal.** It's drawn for a narrow terminal first, such as a 25% split on an iPad or a phone held upright, and grows with the width. Lee: "We build it dynamically. It will fit regardless."
 - **It doesn't answer asks,** because the notch doesn't.
-- **Picking a row** opens that session in place, on the Mac as over SSH, so it behaves the same on every screen. Detaching comes back to the panel.
+- **Picking a row** opens that session in place (by `o` since 20 November 2026), on the Mac as over SSH, so it behaves the same on every screen. Detaching comes back to the panel.
   - A session whose Claude has ended resumes in place, by the resume command.
   - A session running in a terminal with no tmux or zmx can't be reached from here, and the panel says so.
   - **Corrected by Lee on 19 November 2026:** the panel never attaches a session itself. "It should never run zmx attach. We should be using the existing commands that are registered for this process." It runs SitRep's resume command, as the app's click does for a session this Mac doesn't show (see "Picking a row").
@@ -24,6 +24,8 @@ A setting to run a command on a new ask, such as `rootshell-notify`, is parked. 
 - **Every recommendation in "Open for Lee" accepted,** with the correction above, and the question it raised answered: a pick always goes through the command, a session this Mac shows included. Nothing is left open.
 
 **Decided by Lee on 20 November 2026,** after his test over SSH from his phone, where every asking session drew hollow though he had it open there, attached from the phone and detached on the Mac: **hollow means not open on the device you're looking from.** Over SSH, a session attached from that same device counts as here. On the Mac, nothing changes: hollow is what the notch dims (see "The marks").
+
+**Decided by Lee on 20 November 2026,** for the narrow strip he keeps open on his iPad over SSH to see what needs him: he reads rows the width cuts short there, and must never open a session by accident. **`⏎`, or a tap on the chosen row, expands it; `o` opens it.** Opening takes the deliberate `o`, and a tap or `⏎` never opens anything. There is no view-only flag. "Open" stays the docs' word, and nothing says "attach" (see "Keys" and "Expanding a row").
 
 ## The looks
 
@@ -141,31 +143,59 @@ Doesn't apply: the panel shows no step running. Its marks are still: `✻` doesn
 | `↑` `↓`, `k` `j` | The first press puts the band on the top row in view; then each moves it a row, across sections, skipping headings |
 | `PgUp` `PgDn` | Moves the band by the rows in view, so none is skipped unseen |
 | `Home` `End` | Moves the band to the first or the last row |
-| `⏎` | Opens the band's session (see "Picking a row") |
+| `⏎` | Expands the band's row, and folds it again (see "Expanding a row") |
+| `o` | Opens the band's session (see "Picking a row") |
 | `s` | Opens or folds Snoozed |
 | `esc` | Drops the band and any pick's answer |
 | `q`, `Ctrl-C` | Leaves |
 | `Ctrl-Z` | Suspends the panel; `fg` brings it back, drawn afresh |
 
-**The key line** names the keys that work now, most needed first: `↑↓ pick  s snoozed  q quit` with no band, `↑↓ move  ⏎ open  s snoozed  q quit` with one. Each key is bold in the terminal's ink, its word grey, two spaces between hints. `s snoozed` shows only while Snoozed holds rows; an empty board's line is `q quit`. Short of room, whole hints drop from the right, `q quit` last, since it always applies. `↑↓` is named only while a row is in view. PgUp, Home, `j`, `k`, `esc` and `Ctrl-Z` work but aren't named.
+**The key line** names the keys that work now, most needed first: `↑↓ pick  s snoozed  q quit` with no band, `↑↓ move  ⏎ expand  o open  s snoozed  q quit` with one, and `⏎ fold` in place of `⏎ expand` while the band's row is expanded. Each key is bold in the terminal's ink, its word grey, two spaces between hints. `s snoozed` shows only while Snoozed holds rows; an empty board's line is `q quit`. Short of room, whole hints drop from the right, `q quit` last, since it always applies: at 39 columns the band's line is `↑↓ move  ⏎ expand  o open  q quit`. `↑↓` is named only while a row is in view. PgUp, Home, `j`, `k`, `esc` and `Ctrl-Z` work but aren't named.
 
 **Decoding.** Keys come in raw mode as bytes. `CSI` and `SS3` arrows both read as arrows (`ESC [ A`, `ESC O A`), so application cursor mode doesn't matter. A lone `ESC` with nothing after it within 50 ms is `esc`. Any other byte does nothing.
 
 **Mouse and touch** (Lee, 19 November 2026). The panel turns on button reporting in SGR's form (`CSI ?1000h`, `CSI ?1006h`), never motion, and turns it off on leaving and for a hand-over. A terminal that sends the older X10 form (`ESC [ M` and three bytes) is read the same way, so a click never reads as a key. Bracketed paste is on too (`CSI ?2004h`), and a paste is dropped whole, so pasted text never acts as keys.
-- **A tap or a click** on a row puts the band on it; one on the band's row opens it, as `⏎` does.
+- **A tap or a click** on any line of a row puts the band on it; one on the band's row expands it or folds it, as `⏎` does, and never opens it (Lee, 20 November 2026).
 - **The wheel or a swipe** scrolls the view a row a notch; the band stays on its session, in view or not.
 - **No hover:** hover needs every pointer move sent over SSH.
 - **Selecting text** in the panel needs the terminal's modifier held while reporting is on.
 
 **The band and a changing board.** Rows take their new places at every look. The band stays on its session wherever that row goes, and the view keeps it in sight (Lee, 19 November 2026): a dashboard left open for hours must stay current, where the notch holds its rows only while its panel is open, a glance. A session that leaves the board passes the band to the row now in its place, else the row above; with no rows left, there's no band.
 
+## Expanding a row
+
+A narrow terminal cuts a row's words short. `⏎`, or a tap on the chosen row, expands it, so nothing is cut; again, it folds (Lee, 20 November 2026).
+
+```text
+ NEEDS YOU ●4 ●1 ──────────────────────────────── ▿
+ ● Help desk redesign for the support team in    4m
+   every regional office 3
+   Northwind
+   Thread replies, or keep them flat?
+   Keep the old ticket numbers once the new desk
+   goes live?
+   Which office moves first?
+ ○ Data import                                   2h
+   Litware · Keep the old CSV columns?
+```
+
+- **One expanded row at most:** the band's. Moving the band to another row folds it, by a key, a tap, or a changing board that passes the band on; coming back finds it folded. A row that only moves keeps it expanded.
+- **What it shows,** from what the feed gives the row (core's `Row` and `SnoozedRow`, each `RowLine`), nothing read beyond it:
+  - **line one:** the mark, then the name and its count, wrapping under the names' column (column 3) as far as they need, the time kept at the first line's right, fitted as a folded row's is;
+  - **a row of one line:** its project and ` · `, then its status line and a question's `+2`, wrapped as one, as line two reads them; ` ·` stays with the project's last word, so no line starts on it;
+  - **a row of several lines,** as several asks: its project alone, then each line's words on a line of its own, each wrapped, in the row's order.
+- **The words keep their looks:** the name as the row's name, the project, count and `+2` grey, the status lines soft. A word wider than a line goes in pieces, as a pick's answer does.
+- **The band** lies over every line of the expanded row, and the view keeps the whole row in sight, as it does any band.
+- **Taller than the body,** the row is cut to the body's rows, never below two, and its last line kept reads `…`. Scrolling, the pinned heading, `▲` and `▼` follow the layout's rules for a row of that height. Below 24 columns or 8 rows the panel still draws `Too small`.
+- **The fold isn't saved,** as Snoozed's isn't.
+
 ## Picking a row
 
-`⏎` on a row runs SitRep's resume command for its session in the panel's own terminal, as the app's click does for a session this Mac doesn't show (DESIGN.md, stage 8, "One command, the resume command", 13 November 2026). The panel never attaches a session itself: it runs no `zmx attach` and no `tmux attach`, and knows no session tool. What the command does is yours, and whether it works is yours too (Lee, 19 November 2026: "It should never run zmx attach. We should be using the existing commands that are registered for this process.").
+`o` on a row runs SitRep's resume command for its session in the panel's own terminal, as the app's click does for a session this Mac doesn't show (DESIGN.md, stage 8, "One command, the resume command", 13 November 2026). The panel never attaches a session itself: it runs no `zmx attach` and no `tmux attach`, and knows no session tool. What the command does is yours, and whether it works is yours too (Lee, 19 November 2026: "It should never run zmx attach. We should be using the existing commands that are registered for this process.").
 
 **One command, not two.** The only command SitRep registers for opening a session is the resume command. The open command of stage 7, step C, with its `{session}`, `{socket}` and `{pane}`, was folded into it on 13 November 2026. SitRep passes over an `openCommand` still saved, and Settings has no field for it. So a session a live window holds and one no window holds both run the resume command, filled from the window the session is carried on from.
 
-| The session | `⏎` |
+| The session | `o` |
 |---|---|
 | A live window in tmux or zmx | The resume command, filled from that window |
 | Live windows, none in tmux or zmx | The answer: `Release notes can't be opened here: its terminal has no tmux or zmx.` |
@@ -258,7 +288,7 @@ So with the default command, picking a session a live window holds always refuse
 2. Run the login shell with the panel's standard input, output and error, and ignore SIGINT and SIGQUIT while it runs: they're the command's. SIGTSTP keeps its default, so Ctrl-Z stops the whole job, the panel with the command, and `fg` carries on with both; the panel takes nothing back at that SIGCONT. A panel that heard SIGTSTP held the terminal from the shell, the command stopped, since Bun can't see a child stop (shown live, 19 November 2026). SIGTERM and SIGHUP still end the panel, which takes nothing back, but the process ends only once the command ends, then exits 143 or 129: Bun's child keeps it alive, and that is right, since ending sooner would hand the terminal to the shell under the command.
 3. When the shell ends, unless a SIGTERM or SIGHUP sent with its end closed the panel first, take the terminal back: enter the screen, read the size afresh, and draw whole from the latest board, the band where it was, with the pick's answer, if it leaves one.
 
-- **One pick at a time.** A `⏎` or a tap while a pick is under way does nothing. Nothing takes the terminal back while the command has it, a Ctrl-Z's take-back pressed while the pick was readied included.
+- **One pick at a time.** An `o` while a pick is under way does nothing. Nothing takes the terminal back while the command has it, a Ctrl-Z's take-back pressed while the pick was readied included.
 
 - **Coming back is the command's.** The panel takes the terminal back only when the command ends. A command attaching a zmx session in a plain shell returns when you detach, with zmx's `Ctrl-\`. A resumed Claude with no multiplexer returns when you quit it. A command that switches this terminal's client and ends, or never ends, decides otherwise; the panel doesn't watch it.
 - **Inside a multiplexer.** A panel running inside zmx or tmux runs the command there like anywhere else. Whether the command nests a client, switches this one or refuses is the command's, and no question of the panel's: it attaches nothing itself (Lee, 19 November 2026; this was Open for Lee, 2).
@@ -472,11 +502,13 @@ export type PanelRow = {
   count?: number
   project: string
   status: StatusWords
+  lines: StatusWords[] // each line's words, the status line first, for the row expanded
   time: string
 }
 export type PanelView = {
   sections: { kind: PanelSection['kind']; counts: PanelSection['counts']; rows: PanelRow[]; isOpen: boolean }[]
   band?: string // a row key, rowKey's: the session's id, or snoozed:<id> for its Snoozed row, as Swift's markID
+  expanded?: string // the band's row key while it is expanded
   top: number // the first row in view, counted over the open sections' rows, one a row
   answer?: string
   board: 'looking' | 'read' | 'stale'
@@ -514,8 +546,12 @@ export const ttyOf: (rdev: number) => string | undefined // '/dev/ttys004' for m
 
 // cli/panel/layout.ts: the fit rules, once, for draw and for step
 // (keeping the band whole, paging, a tap's row)
-export const layoutOf: (view: PanelView, size: Size) => Layout // the body, the answer, top clamped, lastTop, each visible row's key and y
+export const layoutOf: (view: PanelView, size: Size) => Layout // the body, the answer, top clamped, lastTop, each visible row's key, y and height
 export const topFor: (view: PanelView, size: Size, key: string) => number | undefined // the top nearest view.top showing the row whole
+
+// cli/panel/expand.ts: the chosen row expanded, its lines counted by the layout and drawn by draw.ts
+export type Expanded = { time: string; lines: Tagged<Tag>[][] } // Tag: 'name' | 'meta' | 'status'
+export const expandedOf: (row: PanelRow, width: number) => Expanded
 
 // cli/panel/draw.ts: lines at a size; no clock, no terminal
 export type Run = { text: string; pen: Pen }
@@ -524,7 +560,7 @@ export const draw: (view: PanelView, size: Size, paint: Paint) => Line[]
 export const ansi: (lines: Line[], level: Level) => string
 export const text: (lines: Line[]) => string
 
-// cli/panel/reach.ts: what ⏎ opens, decided from the feed alone
+// cli/panel/reach.ts: what `o` opens, decided from the feed alone
 export type Resume = { name: string; claude: string; dir?: string; device?: string; isHeld: boolean; ownsDevice: boolean }
 export type Reach = { resume: Resume } | { answer: string }
 export const reachOf: (session: string, feed: Feed) => Reach
@@ -540,7 +576,7 @@ export const passedThrough: (sequence: string) => string // in tmux's passthroug
 export const noticesOf: (feed: Feed, news: readonly string[], env: { TMUX?: string }) => string[] // a write each
 ```
 
-**`Paint`** is what the terminal said: the colour level, and its foreground and background where it answered. **`Key`** is decoded from bytes by `cli/panel/keys.ts`'s `keysOf`. `step` returns `open` with a session's id when `⏎` asks for one, and the loop answers with `opened`.
+**`Paint`** is what the terminal said: the colour level, and its foreground and background where it answered. **`Key`** is decoded from bytes by `cli/panel/keys.ts`'s `keysOf`. `step` returns `open` with a session's id when `o` asks for one, and the loop answers with `opened`.
 
 **The shell's half.** `Io` gains `terminal`, absent off a terminal, bound to Bun in `cli/shell/terminal.ts`:
 
@@ -589,9 +625,10 @@ The fakes in `tests/` stand in for all of it.
   - each element drawn at widths 24, 39, 69, 73, 114 and 173, colour off, its lines inline;
   - each pen's exact escape codes at 24-bit, 256 and 16 colours, and none at all with `NO_COLOR`;
   - the mixes with and without the terminal's answers;
+  - the chosen row expanded: its name and line two wrapped, a row of several lines its project alone then each line's words, the band over every line, and one taller than the body cut, its last line `…`;
   - `Too small` below 24×8.
 - **`panel-keys.test.ts`:** byte sequences to keys, a lone `esc` by its 50 ms, `CSI` and `SS3` arrows.
-- **`panel-state.test.ts`:** the band's first press, moves, pages and ends; the view's scroll; the band following its session and passing on; folding; answers dropped on a key; the sessions SitRep's file dims moving behind those drawn filled, the band on its session.
+- **`panel-state.test.ts`:** the band's first press, moves, pages and ends; the view's scroll; the band following its session and passing on; folding; expanding and folding a row, one at most, folded as the band moves, kept whole in sight, a tap on any of its lines landing on it; `o` alone asking to open, never `⏎` or a tap; answers dropped on a key; the sessions SitRep's file dims moving behind those drawn filled, the band on its session.
 - **`here.test.ts`:**
   - `sightingsOf` on the file as the app writes it (`tests/here.ts`, the text the Swift tests hold the app's encoder to); fresh up to 30 seconds either side of `at`, nothing from then; nothing for a file missing, torn, of a later version or none, or of the wrong shape; a version 1 file dimming what it named wherever the panel is;
   - `lookingFrom` by each path: its tty's viewers, whatever its `SSH_CONNECTION` says; a tty listed with none, or unlisted, its `SSH_CONNECTION`'s first field, an IPv6 one among them; else `mac`;
@@ -632,7 +669,7 @@ The fakes in `tests/` stand in for all of it.
 - **Writing them again:** `--update` writes the frames again and deletes those nothing draws; a kept frame nothing draws fails.
 - **The checker's own tests:** its reader and comparer are pure TypeScript in `cli/frames/cells.ts`, tested under the kit with inline strings.
 - **The fixtures** (`cli/frames/fixtures.ts`) are moments: a world, a size, the terminal's answers (Nordfox's `#CDCECF` on `#2E3440`), a fixed clock, and the keys pressed to reach them.
-- **The screens:** round 4's, `rest`, `picked`, `unfolded`, `busy`, `arriving`, `unreachable`, `quiet`, `wide` and `nocolor`, at round 4's sizes. Added to them: `narrow-30x27`, `small-23x10`, `busy-24x8`, and `docs-73x19`, the docs page's still.
+- **The screens:** round 4's, `rest`, `picked`, `unfolded`, `busy`, `arriving`, `unreachable`, `quiet`, `wide` and `nocolor`, at round 4's sizes. Added to them: `narrow-30x27`, `small-23x10`, `busy-24x8`, `docs-73x19`, the docs page's still, and `expanded`, at 52×27 and 114×45: a row of a long name and three asks, expanded (20 November 2026).
 - **The first goldens** are round 4's frames, with one change on purpose: the names and a pick's answer, which round 4 drew in Nordfox's `#CDCECF`, are in the terminal's own ink, as its title and keys already are.
 
 **The sweep.** The checker draws every fixture at 39×27, 69×46, 73×36, 114×45, 173×53 and 73×15, and runs the four width checks from termgrid's `sweep`, ported:
@@ -691,7 +728,7 @@ Every recommendation was accepted by Lee on 19 November 2026, with one correctio
 
 1. **Leaving a session the panel opened** is the command's: the panel takes the terminal back when the command ends. With a command attaching a zmx session in a plain shell, zmx's `Ctrl-\` detaches and ends it; a resumed Claude with no multiplexer ends when you quit it. Nothing of sitrep's own: a key of its own would mean relaying every byte through a pty the CLI holds.
 2. **Picking from a panel inside zmx or tmux** is no longer a question, and was removed. It asked whether the panel should switch, nest or refuse an attach it made itself. The panel makes none: what your command does inside a multiplexer is your command's.
-3. **Mouse and touch:** a tap puts the band on a row and a tap on the band's row opens it; the wheel or a swipe scrolls; no hover (see "Keys").
+3. **Mouse and touch:** a tap puts the band on a row and a tap on the band's row opened it (since 20 November 2026 it expands the row, and `o` opens it); the wheel or a swipe scrolls; no hover (see "Keys").
 4. **The flag:** `--no-notify`, read as `sitrep --no-notify`.
 5. **The notification:** OSC 777, the ask's words as its title and `Project · Session` as its body, once Lee confirms rootshell shows it.
 6. **While a command has the terminal,** the panel keeps posting notifications.

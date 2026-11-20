@@ -74,7 +74,7 @@ Each word below means one thing on every page of these docs. The words are group
 
 **the pulse**: The notch swelling and flashing its light. By default it comes for a new ask, and when a window starts waiting at a permission prompt. For Claude stopping, you turn it on in Settings › Notifications.
 
-**row**: A session in the panel, in the terminal view, or in the menu of the menu bar item. In the panel, a row in Needs you has a line for each ask or permission prompt waiting. In the terminal view, a row takes two lines. The first holds the name, with a count if more than one thing waits. The second holds the project, then the newest thing it waits on or is doing. In Snoozed, the second line holds the thing that wakes soonest instead, the oldest if several wake together.
+**row**: A session in the panel, in the terminal view, or in the menu of the menu bar item. In the panel, a row in Needs you has a line for each ask or permission prompt waiting. In the terminal view, a row takes two lines until you expand it. The first holds the name, with a count if more than one thing waits. The second holds the project, then the newest thing it waits on or is doing. In Snoozed, the second line holds the thing that wakes soonest instead, the oldest if several wake together.
 
 **the strip**: The other way to show the board at the screen edge: a narrow column with a mark for each session. You choose Notch, Strip or Nothing under Show, in the menu or in Settings › Edge.
 
@@ -83,6 +83,8 @@ Each word below means one thing on every page of these docs. The words are group
 **Working**: The section of the panel and of the terminal view for sessions that don't need you. Claude is running a turn there, or waits on work of its own, such as a background agent.
 
 ## In a terminal
+
+**expand**: To show a row of the terminal view whole: press `⏎`, or tap the chosen row. Its name and words wrap over as many lines as they need, and several asks take a line each. Press `⏎` again to fold it.
 
 **terminal notification**: A notification that the terminal itself shows, such as Ghostty showing a macOS notification. The terminal view sends one for each new ask, unless you open it with `sitrep --no-notify`.
 
@@ -94,4 +96,4 @@ Each word below means one thing on every page of these docs. The words are group
 
 **plain shell syntax**: What a resume command may hold: words, pipes and `&&`, redirections, quotes, variables such as `$s`, and `$(…)`. The shells sh, bash, zsh, dash and ksh all read it the same way, so SitRep knows where each value lands. SitRep refuses a command that holds anything else, and names the part it found.
 
-**the resume command**: What SitRep types into a new Ghostty window, for a session no terminal on this Mac shows. The terminal view runs it in its own terminal, for the session you open with `⏎`. The default is `cd {dir} && claude --resume {claude}`. You can set your own in Settings › General.
+**the resume command**: What SitRep types into a new Ghostty window, for a session no terminal on this Mac shows. The terminal view runs it in its own terminal, for the session you open with `o`. The default is `cd {dir} && claude --resume {claude}`. You can set your own in Settings › General.

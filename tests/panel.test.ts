@@ -234,7 +234,7 @@ const BANDED =
   '\x1b[?2026h' +
   '\x1b[4;1H \x1b[0;7m● \x1b[0;1;7mHelp desk redesign\x1b[0;7m                \x1b[0;2;7m1m\x1b[0m\x1b[K' +
   '\x1b[5;1H \x1b[0;7m  \x1b[0;2;7mNorthwind · \x1b[0;7mReview round 1          \x1b[0m\x1b[K' +
-  '\x1b[10;1H \x1b[0;1m↑↓\x1b[0;2m move\x1b[0m  \x1b[0;1m⏎\x1b[0;2m open\x1b[0m  \x1b[0;1mq\x1b[0;2m quit\x1b[0m\x1b[K' +
+  '\x1b[10;1H \x1b[0;1m↑↓\x1b[0;2m move\x1b[0m  \x1b[0;1m⏎\x1b[0;2m expand\x1b[0m  \x1b[0;1mo\x1b[0;2m open\x1b[0m  \x1b[0;1mq\x1b[0;2m quit\x1b[0m\x1b[K' +
   '\x1b[?2026l'
 
 test('the panel asks the colours, takes the screen, draws the board whole, a key rewrites only the rows it changed, and q gives it all back', async () => {
@@ -553,7 +553,7 @@ test('a sequence split across reads is read whole, and a lone ESC is esc once 50
 
   await run.passing(1)
 
-  expect(banded).toBe(' ↑↓ move  ⏎ open  q quit')
+  expect(banded).toBe(' ↑↓ move  ⏎ expand  o open  q quit')
   expect(run.screen.writes.length).toBe(before + 1)
   expect(screenOf(run.screen.writes)[9]).toBe(' ↑↓ pick  q quit')
   await run.type('q')
@@ -576,7 +576,7 @@ test('a paste is never keys, however long its pieces take to come', async () => 
 
   await run.type('j')
 
-  expect(screenOf(run.screen.writes)[9]).toBe(' ↑↓ move  ⏎ open  q quit')
+  expect(screenOf(run.screen.writes)[9]).toBe(' ↑↓ move  ⏎ expand  o open  q quit')
   await run.type('q')
 })
 
@@ -904,7 +904,7 @@ const picking = async (given: Opened = {}) => {
 
   const writes = run.writesFrom()
 
-  await run.type('\r')
+  await run.type('o')
 
   return { run, writes }
 }
@@ -939,7 +939,7 @@ test('as the program ends, the terminal is taken back, raw mode set afresh, draw
   expect(frame).toContain('\x1b[0;7m')
   expect(rows[3]).toBe(' ● Help desk redesign                                             1m')
   expect(rows.some(row => row.startsWith(' !'))).toBe(false)
-  expect(rows[19]).toBe(' ↑↓ move  ⏎ open  q quit')
+  expect(rows[19]).toBe(' ↑↓ move  ⏎ expand  o open  q quit')
   expect([run.screen.isReading(), run.screen.listens()]).toEqual([true, listens + 1])
   await run.type('q')
 
@@ -959,7 +959,7 @@ test('a command that ends non-zero within 2 seconds leaves its answer above the 
   slow.run.screen.end(1)
   await slow.run.passing(0)
 
-  expect(rowsOf(quick.writes()).slice(17)).toEqual(['', ' ! The resume command ended with 1 for Help desk redesign.', ' ↑↓ move  ⏎ open  q quit'])
+  expect(rowsOf(quick.writes()).slice(17)).toEqual(['', ' ! The resume command ended with 1 for Help desk redesign.', ' ↑↓ move  ⏎ expand  o open  q quit'])
   expect(rowsOf(slow.writes()).some(row => row.startsWith(' !'))).toBe(false)
   await quick.run.type('q')
   await slow.run.type('q')
@@ -1055,7 +1055,7 @@ test('a Ctrl-Z pressed while a pick is readied gives the terminal back, and noth
 
   const writes = run.writesFrom()
 
-  await run.type('\r\x1a')
+  await run.type('o\x1a')
   answer(NO_PROCESS)
   await run.passing(0)
 
@@ -1100,7 +1100,7 @@ test('the board is looked at while a program has the terminal, drawing nothing, 
   await run.type('q')
 })
 
-test('one pick at a time: ⏎ again while ps answers asks nothing more; q meanwhile leaves, and nothing is handed over after', async () => {
+test('one pick at a time: o again while ps answers asks nothing more; q meanwhile leaves, and nothing is handed over after', async () => {
   let answer: (ran: Ran) => void = () => {}
   const ps = () =>
     new Promise<Ran>(resolve => {
@@ -1108,7 +1108,7 @@ test('one pick at a time: ⏎ again while ps answers asks nothing more; q meanwh
     })
   const { run } = await picking({ ps })
 
-  await run.type('\r')
+  await run.type('o')
 
   expect(run.screen.runs()).toHaveLength(1)
   await run.type('q')

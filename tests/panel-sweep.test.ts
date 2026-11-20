@@ -66,8 +66,7 @@ const rowsOf = (random: Random, count: number, marks: readonly PanelRow['mark'][
   Array.from({ length: count }, (): PanelRow => {
     const mark = pick(random, marks)
     const more = random(4) === 0 ? { more: 2 } : {}
-
-    return {
+    const row = {
       session: `sr-nw${String(id.next++).padStart(4, '0')}`,
       mark,
       isAway: random(3) === 0,
@@ -79,6 +78,8 @@ const rowsOf = (random: Random, count: number, marks: readonly PanelRow['mark'][
       status: { text: pick(random, STATUSES), ...more },
       time: isSnoozed ? pick(random, WAKES) : pick(random, ['now', '12m', '3d']),
     }
+
+    return { ...row, lines: [row.status] }
   })
 
 const boardOf = (random: Random, id: { next: number }): PanelView => {

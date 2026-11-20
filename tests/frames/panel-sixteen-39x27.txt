@@ -24,4 +24,4 @@
 
  SNOOZED 2 ───────────────────────── ▹
 
- ↑↓ move  ⏎ open  s snoozed  q quit
+ ↑↓ move  ⏎ expand  o open  q quit

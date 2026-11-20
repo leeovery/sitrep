@@ -33,4 +33,4 @@
 
 
 
- ↑↓ move  ⏎ open  s snoozed  q quit
+ ↑↓ move  ⏎ expand  o open  s snoozed  q quit

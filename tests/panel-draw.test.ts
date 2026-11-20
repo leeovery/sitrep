@@ -30,6 +30,7 @@ const row = (
   name,
   project,
   status: { text: status },
+  lines: [more.status ?? { text: status }],
   time,
   ...more,
 })
@@ -340,7 +341,7 @@ test("a pick's answer sits above the key line, `!` then its words, wrapped at W�
     " ! Shift schedules can't be opened",
     '   here: its terminal has no tmux or',
     '   zmx.',
-    ' ↑↓ move  ⏎ open  s snoozed  q quit',
+    ' ↑↓ move  ⏎ expand  o open  q quit',
   ])
   expect(drawn(board({ answer }), 39, 16, NORDFOX, 12, 13)).toEqual([
     ` ${ESC}[0;1m!${ESC}[0m Shift schedules can't be opened`,
@@ -351,7 +352,7 @@ test('the key line names the keys that work now, `s` only while Snoozed holds ro
   const keys = (view: PanelView, width: number) => frame(view, width, 10).at(-1)
 
   expect(keys(board(), 39)).toBe(' ↑↓ pick  s snoozed  q quit')
-  expect(keys(board({ band: 'sr-ct0001' }), 39)).toBe(' ↑↓ move  ⏎ open  s snoozed  q quit')
+  expect(keys(board({ band: 'sr-ct0001' }), 39)).toBe(' ↑↓ move  ⏎ expand  o open  q quit')
   expect(keys(board({ band: 'sr-ct0001' }), 24)).toBe(' ↑↓ move  q quit')
   expect(keys(only('working', [MOBILE]), 39)).toBe(' ↑↓ pick  q quit')
   expect(keys(only('working', []), 39)).toBe(' q quit')
@@ -368,6 +369,74 @@ test('the band lies over both lines of the chosen row, from column 1 to W−2: a
   expect(drawn(board({ band: 'sr-ct0001' }), 39, 20, NONE, 7, 9)).toEqual([
     ` ${ESC}[0;7m● Shift schedules                 ${ESC}[0;2;7m26m${ESC}[0m`,
     ` ${ESC}[0;7m  ${ESC}[0;2;7mContoso · ${ESC}[0;7mApprove the rota         ${ESC}[0m`,
+  ])
+})
+
+/** A session whose name and status line a narrow row cuts short. */
+const LONG = row('sr-nw0009', 'turn', 'Help desk redesign for every regional support office', 'Northwind', 'Drafted the reply templates for the billing queue', '31m')
+
+/** A session with three lines waiting: two asks and a question with more to it. */
+const SEVERAL = row('sr-nw0010', 'ask', 'Shift schedules', 'Contoso', 'Approve the rota', '4m', {
+  count: 3,
+  lines: [{ text: 'Approve the rota' }, { text: 'Keep the night shift at four people, or move to five?' }, { text: 'Which week first?', more: 2 }],
+})
+
+test("the chosen row expanded cuts nothing: its name, then its project and status line, wrap under the names' column, the time at the first line's right", () => {
+  const view = only('needsYou', [LONG, SHIFTS], { band: 'sr-nw0009', expanded: 'sr-nw0009' })
+
+  expect(frame(view, 39, 12)).toEqual([
+    ' sitrep',
+    '',
+    ' NEEDS YOU 2 ─────────────────────── ▿',
+    ' ● Help desk redesign for every    31m',
+    '   regional support office',
+    '   Northwind · Drafted the reply',
+    '   templates for the billing queue',
+    ' ● Shift schedules                 26m',
+    '   Contoso · Approve the rota',
+    '',
+    '',
+    ' ↑↓ move  ⏎ fold  o open  q quit',
+  ])
+  expect(frame(view, 114, 12).slice(3, 5)).toEqual([
+    ' ● Help desk redesign for every regional support office                                                       31m',
+    '   Northwind · Drafted the reply templates for the billing queue',
+  ])
+})
+
+test("a row of several lines expanded shows its project alone, then each line's words on a line of its own, a question's `+2` after it", () => {
+  const view = only('needsYou', [SEVERAL], { band: 'sr-nw0010', expanded: 'sr-nw0010' })
+
+  expect(frame(view, 39, 12).slice(2, 9)).toEqual([
+    ' NEEDS YOU 1 ─────────────────────── ▿',
+    ' ● Shift schedules 3                4m',
+    '   Contoso',
+    '   Approve the rota',
+    '   Keep the night shift at four',
+    '   people, or move to five?',
+    '   Which week first? +2',
+  ])
+})
+
+test('the band lies over every line of an expanded row, from column 1 to W−2', () => {
+  const view = only('needsYou', [SEVERAL], { band: 'sr-nw0010', expanded: 'sr-nw0010' })
+
+  expect(drawn(view, 39, 12, NONE, 3, 9).every(line => line.startsWith(` ${ESC}[0;7m`) || line.startsWith(` ${ESC}[0;1;7m`))).toBe(true)
+  expect(drawn(view, 39, 12, NONE, 4, 5)).toEqual([` ${ESC}[0;7m  ${ESC}[0;2;7mContoso${ESC}[0;7m                            ${ESC}[0m`])
+})
+
+test('an expanded row taller than the body is cut to it, its last line kept saying `…`', () => {
+  const view = only('needsYou', [SEVERAL], { band: 'sr-nw0010', expanded: 'sr-nw0010' })
+
+  expect(frame(view, 24, 8)).toEqual([
+    ' sitrep',
+    ' ● Shift schedules   4m',
+    '   3',
+    '   Contoso',
+    '   Approve the rota',
+    '   Keep the night shift',
+    '   …',
+    ' ↑↓ move  q quit',
   ])
 })
 
@@ -555,7 +624,7 @@ test('every element at every width: the stale title, the pinned heading and its 
     " ! Shift schedules can't be opened",
     '   here: its terminal has no tmux or',
     '   zmx.',
-    ' ↑↓ move  ⏎ open  s snoozed  q quit',
+    ' ↑↓ move  ⏎ expand  o open  q quit',
   ])
   expect(frame(view, 69, 12)).toEqual([
     ' sitrep                                                  as of 12:04',
@@ -569,7 +638,7 @@ test('every element at every width: the stale title, the pinned heading and its 
     '',
     " ! Shift schedules can't be opened here: its terminal has no tmux or",
     '   zmx.',
-    ' ↑↓ move  ⏎ open  s snoozed  q quit',
+    ' ↑↓ move  ⏎ expand  o open  s snoozed  q quit',
   ])
   expect(frame(view, 73, 12)).toEqual([
     ' sitrep                                                      as of 12:04',
@@ -583,7 +652,7 @@ test('every element at every width: the stale title, the pinned heading and its 
     '',
     " ! Shift schedules can't be opened here: its terminal has no tmux or",
     '   zmx.',
-    ' ↑↓ move  ⏎ open  s snoozed  q quit',
+    ' ↑↓ move  ⏎ expand  o open  s snoozed  q quit',
   ])
   expect(frame(view, 114, 12)).toEqual([
     ' sitrep                                                                                               as of 12:04',
@@ -597,7 +666,7 @@ test('every element at every width: the stale title, the pinned heading and its 
     '',
     '',
     " ! Shift schedules can't be opened here: its terminal has no tmux or zmx.",
-    ' ↑↓ move  ⏎ open  s snoozed  q quit',
+    ' ↑↓ move  ⏎ expand  o open  s snoozed  q quit',
   ])
   expect(frame(view, 173, 12)).toEqual([
     ' sitrep                                                                                                     as of 12:04',
@@ -611,7 +680,7 @@ test('every element at every width: the stale title, the pinned heading and its 
     '',
     '',
     " ! Shift schedules can't be opened here: its terminal has no tmux or zmx.",
-    ' ↑↓ move  ⏎ open  s snoozed  q quit',
+    ' ↑↓ move  ⏎ expand  o open  s snoozed  q quit',
   ])
 })
 
@@ -741,9 +810,9 @@ test("the layout gives the body's rows, where each row in view stands by its key
     lines: ["Shift schedules can't be opened", 'here: its terminal has no tmux or', 'zmx.'],
   })
   expect(layout.rows).toEqual([
-    { key: 'sr-nw0003', y: 4 },
-    { key: 'sr-nw0004', y: 6 },
-    { key: 'sr-nw0005', y: 8 },
+    { key: 'sr-nw0003', y: 4, height: 2 },
+    { key: 'sr-nw0004', y: 6, height: 2 },
+    { key: 'sr-nw0005', y: 8, height: 2 },
   ])
   expect(layout.lastTop).toBe(6)
 })
@@ -757,7 +826,7 @@ test('an answer taller than the body keeps the title and the key line, takes the
     '   say which folder it',
     '   ran in, as a window',
     '   on an older sitrep…',
-    ' ⏎ open  q quit',
+    ' ⏎ expand  q quit',
   ])
   expect(frame(board({ band: 'sr-ct0001', answer: NO_FOLDER }), 24, 14)).toEqual([
     ' sitrep',
@@ -857,7 +926,7 @@ test("at 256 colours: the palette's nearest, the dims mixed, the band a ground, 
     `   ${ESC}[0;38;5;103mFabrikam · ${ESC}[0;38;5;146mWaiting on 2 agents${ESC}[0m`,
     '',
     ` ${ESC}[0;38;5;103mSNOOZED${ESC}[0m ${ESC}[0;38;5;103m1${ESC}[0m ${ESC}[0;38;5;60m─────────────────────────${ESC}[0m ${ESC}[0;38;5;60m▹${ESC}[0m`,
-    ` ${ESC}[0;1m↑↓${ESC}[0;38;5;103m move${ESC}[0m  ${ESC}[0;1m⏎${ESC}[0;38;5;103m open${ESC}[0m  ${ESC}[0;1ms${ESC}[0;38;5;103m snoozed${ESC}[0m  ${ESC}[0;1mq${ESC}[0;38;5;103m quit${ESC}[0m`,
+    ` ${ESC}[0;1m↑↓${ESC}[0;38;5;103m move${ESC}[0m  ${ESC}[0;1m⏎${ESC}[0;38;5;103m expand${ESC}[0m  ${ESC}[0;1mo${ESC}[0;38;5;103m open${ESC}[0m  ${ESC}[0;1mq${ESC}[0;38;5;103m quit${ESC}[0m`,
   ])
 })
 
@@ -882,7 +951,7 @@ test("at 16 colours: the terminal's own, the rule faint, the dims faint, the ban
     ` ${ESC}[0;90mSNOOZED${ESC}[0m ${ESC}[0;90m1${ESC}[0m ${ESC}[0;2;90m─────────────────────────${ESC}[0m ${ESC}[0;2;90m▹${ESC}[0m`,
     '',
     '',
-    ` ${ESC}[0;1m↑↓${ESC}[0;90m move${ESC}[0m  ${ESC}[0;1m⏎${ESC}[0;90m open${ESC}[0m  ${ESC}[0;1ms${ESC}[0;90m snoozed${ESC}[0m  ${ESC}[0;1mq${ESC}[0;90m quit${ESC}[0m`,
+    ` ${ESC}[0;1m↑↓${ESC}[0;90m move${ESC}[0m  ${ESC}[0;1m⏎${ESC}[0;90m expand${ESC}[0m  ${ESC}[0;1mo${ESC}[0;90m open${ESC}[0m  ${ESC}[0;1mq${ESC}[0;90m quit${ESC}[0m`,
   ])
 })
 
@@ -912,7 +981,7 @@ test('with 4 body rows a scrolled body shows `▲` alone over its row, `▼` und
     ' ↑↓ pick  q quit',
   ])
   expect(layoutOf({ ...SEVEN, top: 1, answer: 'Short.' }, { width: 33, height: 8 }).rows).toEqual([
-    { key: 'sr-nw0001', y: 2 },
+    { key: 'sr-nw0001', y: 2, height: 2 },
   ])
   expect(frame({ ...SEVEN, top: 1, answer: 'Short. And a second line of words, to wrap.' }, 33, 8)).toEqual([
     ' sitrep',
@@ -963,7 +1032,7 @@ test('a band low in Working, scrolled, with an answer that leaves the body littl
     ' ↑↓ move  q quit',
   ])
   expect(layoutOf(view, { width: 24, height: 16 }).rows).toEqual([
-    { key: 'sr-wg0101', y: 3 },
+    { key: 'sr-wg0101', y: 3, height: 2 },
   ])
 })
 

@@ -10213,8 +10213,8 @@ look", the pick on its page "FINAL · board in a terminal".
   orange, then its Stopped in blue; Working; then Snoozed, folded at first.
   Each row names its project.
 - **It doesn't answer asks**, as the notch doesn't.
-- **Picking a row runs SitRep's resume command in place**, in the
-  panel's own terminal, on the Mac as over SSH, so it behaves the same on
+- **Picking a row, by `o`, runs SitRep's resume command in place**, in
+  the panel's own terminal, on the Mac as over SSH, so it behaves the same on
   every screen: the command a click runs for a session this Mac doesn't
   show (stage 8), filled and refused as the app fills and refuses it, the
   default's guard with it. A Claude suspended on the session's device
@@ -10295,6 +10295,14 @@ look", the pick on its page "FINAL · board in a terminal".
     tap to its pane only for its own push notifications (parked).
   - **The band,** too strong at first on the phone's near-black, now stands
     one quiet step of contrast off any ground (#187).
+- **`⏎` expands, `o` opens**, decided by Lee on 20 November 2026. He keeps
+  the view open in a narrow strip on his iPad over SSH, to see what needs
+  him, and reads there the rows its width cuts short, without ever opening
+  a session by accident. So `⏎`, or a tap on the chosen row, expands it,
+  its name and its words wrapped whole, each of several asks on a line of
+  its own, and folds it again; one row at most, the band's. `o` alone
+  opens, as `⏎` did, every answer as before. There is no view-only flag.
+  "Open" stays the docs' word, and nothing says "attach".
 
 Every other question the spec put to Lee he answered on 19 November 2026
 as it recommended, and none is left open. So the CLI runs programs again, which it has not done

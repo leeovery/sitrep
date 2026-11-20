@@ -30,7 +30,7 @@
  *   thrown error is thrown on once the terminal is given back. The signals
  *   that end it are heard from the first: one during the colour query lets
  *   the query go at once, never waiting out its answer.
- * - A pick, ⏎ or a tap on the band's row, one at a time: what the session's
+ * - A pick, `o` on the band's row, one at a time: what the session's
  *   window can reach (reach.ts), then the resume command readied by the
  *   edge (edge.ts). Refused, it says why in the pick's answer. Else the
  *   terminal is handed over: given back as for a stop, then handed to the
@@ -187,7 +187,7 @@ const live = (io: Io, terminal: Terminal, { isNotifying }: PanelOptions) => {
    * a SIGSTOP stops such a group, and nothing takes its terminal meanwhile.
    */
   let isWaking = false
-  /** A pick is under way, from ⏎ until it is answered or the program it ran ends. */
+  /** A pick is under way, from `o` until it is answered or the program it ran ends. */
   let isPicking = false
   /** A program has the terminal. */
   let isHanded = false
@@ -397,7 +397,7 @@ const live = (io: Io, terminal: Terminal, { isNotifying }: PanelOptions) => {
     }
   }
 
-  /** The session ⏎ or a tap asks to open, if any, while no other pick is under way. */
+  /** The session `o` asks to open, if any, while no other pick is under way. */
   const pick = (session: string | undefined) => {
     const { feed } = state
 
