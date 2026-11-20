@@ -77,7 +77,7 @@ function engineRows(on: On) {
 
 const LINES: [tool: string, input: { [key: string]: unknown }, line: string][] = [
   ['start', { name: 'Help desk redesign', summary: 'Redesign it' }, 'started: Help desk redesign'],
-  ['status', { now: ['Drawing Inbox'] }, '• status set'],
+  ['status', { now: ['Drawing Inbox'] }, '● status set'],
   ['ask', REVIEW, 'asked: Review Tickets & Replies, round 1'],
   ['park', { title: 'A priority badge' }, 'parked: A priority badge'],
   ['finish', { reason: 'Shipped' }, '✓ finished a session'],

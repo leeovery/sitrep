@@ -70,7 +70,7 @@ test("the board's cells carry its palette: a heading in its colour and bold, the
   expect(at(option, 'Redraw')).toEqual({ color: ACCENT })
   expect(at(option, 'recommended')).toEqual({ color: C.recommended })
   expect(at(option, 'Ship it')).toEqual({})
-  expect(showing(cells, '●').map(cell => cell.paint.color)).toEqual([C.ask, C.ask, C.parked])
+  expect(showing(cells, '●').map(cell => cell.paint.color)).toEqual([C.ask, C.ask, C.now, C.parked])
 })
 
 test('a row hands what it has spare to the child that grows, so the one after it sits at the right edge', () => {

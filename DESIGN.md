@@ -919,13 +919,13 @@ ASKS ─────────────────────────
 ● Choose how long the ledger keeps requests                     3h
 
 STATUS ─────────────────────────────────────────── updated 12m ago
-• Waiting on your review of Sessions & Runway, round 1
-• Drawing Usage, round 2
-◦ next: Usage, round 3
+● Waiting on your review of Sessions & Runway, round 1
+● Drawing Usage, round 2
+○ next: Usage, round 3
 hide history
-• now also drawing Usage, round 2                              12m
-• no longer waiting on your review of Overview, round 2         1h
-• now waiting on your review of Sessions & Runway, round 1      1h
+● now also drawing Usage, round 2                              12m
+● no longer waiting on your review of Overview, round 2         1h
+● now waiting on your review of Sessions & Runway, round 1      1h
 show all 14
 
 PARKED ──────────────────────────────────────── 3 to come back to
@@ -1133,7 +1133,7 @@ show all 4
   next, and at its foot, while the status has ever changed,
   `show history 14`, counting the changes. Opened, it reads `hide history`,
   and the changes hang under it, the newest first, each a list's row: a
-  faint `•`, the change's headline, and its age. The headline is what
+  faint `●`, the change's headline, and its age. The headline is what
   changed most: what is under way (`now wire up the export`, `now also
   …`, `no longer fix the login race`, ` (and 2 more)` after it), else what
   is next (`next is …`, `nothing next`), the name (`renamed to …`), the
@@ -4748,7 +4748,7 @@ truth. There is still no background service. None of it is built now. Lee:
   label and a coloured child, and blanks the pane; 2.1.326 takes one, as
   the recommended option's button shows). **Faint:** closed things (an away
   session, an old session's last status, an ask Lee's send just closed, a
-  status change's `•`), but not
+  status change's `●`), but not
   RESOLVED's asks nor Parked's picked up: each is a row to open, its `✓`
   green and its title white; and every tree's `│ ├ └`.
   Section headings' rules and the tabs' rule are the rule colour.
@@ -4758,7 +4758,7 @@ truth. There is still no background service. None of it is built now. Lee:
   item's colour; and the word ending the recommended option's button, in
   a darker lilac than the primary's own (`#7178c7`), quieter than the
   option and never grey.
-- Glyphs: `●` ask in orange, `●` parked in purple, `•` under way, `◦` next, `✓` done, `└ ├` trees, `⌂` home.
+- Glyphs: `●` ask in orange, `●` parked in purple, `●` under way, `○` next, `✓` done, `└ ├` trees, `⌂` home.
   No glyph that reads as "expand" unless it expands. A new ask's `●`
   pulses `● ◉ ● ◉`, each `◉` in the brighter orange. A snoozed ask's `●`
   is grey, and a finished session's faint.

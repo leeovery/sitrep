@@ -36,7 +36,7 @@ const projectSaid = (input: Input) => {
 const SAID: Record<ToolName, (input: Input, name: string | undefined) => string> = {
   start: input => `started: ${text(input.name)}`,
   join: (_, name) => (name === undefined ? 'joined a session' : `joined: ${name}`),
-  status: () => '• status set',
+  status: () => '● status set',
   ask: input => `asked: ${text(input.title)}`,
   park: input => `parked: ${text(input.title)}`,
   resolve: (_, name = 'an item') => `resolved: ${name}`,

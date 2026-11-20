@@ -36,8 +36,8 @@ export const GLYPH = {
   ask: '●',
   /** Filled, as an ask's: on the notch a hollow circle means away. */
   parked: '●',
-  now: '•',
-  next: '◦',
+  now: '●',
+  next: '○',
   home: '⌂',
   every: '≡',
   up: '←',
