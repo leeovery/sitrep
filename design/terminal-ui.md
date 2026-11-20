@@ -78,7 +78,7 @@ Colour says what's needed; fill says where (DESIGN.md, "The notch and its panel"
 | `▿` / `▹` | faint `#565F89` | a section open / folded |
 | `▲` / `▼` | grey `#7A82AB` | rows out of view above / below |
 | `!` | bold | a pick's answer |
-| the band | `#3E4A5B` ground | the chosen row, over both its lines |
+| the band | the background, one step toward `#3E4A5B` | the chosen row, over both its lines |
 
 **Without colour** (`NO_COLOR`), the shapes carry it. An ask and a turn share `●`, so an ask's name is bold and a turn's regular. The band is reverse video over both lines. A new ask keeps `◉` and loses its wash. In Needs you's heading, the asks' count is bold and the Stopped count regular, so `●4 ●2` don't rest on colour (19 November 2026). Metadata is faint (SGR 2): times, projects, counts in grey, the rule, the chevron, `▲ N more`, an away row's words. A bold name is never faint too, since many terminals draw SGR 1 and 2 as one intensity.
 
@@ -317,7 +317,7 @@ Doesn't apply: the panel collects no remedies. A pick's answer says what to do i
 | A working name, the status line, `✻` | `#A9B1D6` | 146 | default |
 | Times, projects, counts, headings, key words, `◌` | `#7A82AB` | 103 | bright black |
 | The rule and the chevron | `#565F89` | 60 | bright black, faint |
-| The band | `#3E4A5B` | 239 | reverse video |
+| The band | the background, one step toward `#3E4A5B` (`#343D4B` on Nordfox, `#282B30` on `#212121`) | the nearest (237 on Nordfox, 236 on `#212121`) | reverse video |
 
 - **The terminal's ink:** names, the title and the keys are in the terminal's own foreground, never a hex, so they read on any theme.
 - **The level:**
@@ -331,18 +331,35 @@ Doesn't apply: the panel collects no remedies. A pick's answer says what to do i
 
 **Asking the terminal.** At start, in raw mode, the panel asks for the terminal's foreground and background (OSC 10, OSC 11), then device attributes (DA1), which every terminal answers. It waits for DA1's answer, up to a second. Answers that come after are read and dropped for a second more, never taken as keys. It asks only on a terminal, in the foreground.
 
-**Mixes.** Three things are mixed toward the background, so they need its colour:
+**Mixes.** Four things are mixed from the background, so they need its colour:
 - an away row's dimmed words, 0.61 of each ink;
 - a Snoozed row's dimmed mark;
-- a new ask's wash, orange at 22%.
+- a new ask's wash, orange at 22%;
+- the band, the background moved one step, a set contrast, toward `#3E4A5B` (see "The band's step").
 
-Dimming the terminal's own ink needs its foreground too. With both answers, at 256 colours or more, they're mixed. Without them, or at 16 colours, the dims are faint (SGR 2). The wash is drawn at 24-bit only: at 256 colours `#534345` lands on grey 238, beside the band's 239, so an arriving row would look chosen; `◉` carries an arrival there, as at 16. The band is a fixed colour, so it needs no answer.
+Dimming the terminal's own ink needs its foreground too. With both answers, at 256 colours or more, they're mixed. Without them, or at 16 colours, the dims are faint (SGR 2). On the band, a dim mixes toward the band's ground instead of the background, so a hollow row's words keep there the step they have off it. The wash is drawn at 24-bit only: at 256 colours it lands beside the band (on Nordfox the wash `#534345` is grey 238 and the band 237; on `#212121` the wash is 237 and the band 236), so an arriving row would look chosen; `◉` carries an arrival there, as at 16. The band needs only the background's answer: without it, the band is the step over a near-black `#212121`, `#282B30`.
+
+**The band, quieter (Lee, 20 November 2026).** On his phone over SSH, on a near-black background, the fixed `#3E4A5B` band was too strong to read a hollow row's grey project on: "the background highlight needs to be made a little more transparent. It is very difficult to see the project name [...] when it's dimmed. When the orange circle is empty, the text is slightly more dimmed, which I think is appropriate. But then when you hover it, that level is too much. It needs to be brought right back. Make it as dim as we can get it, because it's still going to be obvious. Maybe a touch higher." So the band moved most of the way back to the background: 20% toward `#3E4A5B` was the faintest step that still read as a chosen row on `#212121`, and 25% is the touch above it. The dims off the band stayed as they were.
+
+**The band's step.** A fixed fraction reads differently on each ground: 25% is barely there on Nordfox and nothing on `#3B4252`. So the band holds a contrast step instead, the 1.13 : 1 that 25% toward `#3E4A5B` makes on `#212121`:
+1. The background moves toward `#3E4A5B` by the least amount, in hundredths, that reaches the step, so the band keeps its cool tint.
+2. If `#3E4A5B` can't reach it, because the ground is close to it or lighter, the background moves toward the terminal's foreground instead, or white without that answer.
+3. No band stands off its ground by more than `#3E4A5B` does off `#212121`, 1.79 : 1, the band before.
+
+| Ground | Moved toward | By | Band |
+|---|---|---|---|
+| `#212121` | `#3E4A5B` | 25% | `#282B30` |
+| Nordfox `#2E3440` | `#3E4A5B` | 39% | `#343D4B` |
+| `#3B4252` | its foreground `#D8DEE9` | 6% | `#444B5B` |
+| `#4A4A4A` | its foreground `#E0E0E0` | 5% | `#525252` |
+
+A light background draws in reverse video, as at 16.
 
 **Bold and faint.** Bold marks what needs you: an ask's name, the needs-you counts, the title, the keys, `!` and `◉`. Faint (SGR 2) is used only without colour or at 16, for metadata.
 
 **Contrast,** measured on Nordfox's `#2E3440`, the background the frames are drawn on:
 - **The palette:** soft 5.9 : 1, blue 5.0, orange 4.0, grey 3.3, the rule 2.0.
-- **On the band:** soft 4.3 : 1, grey 2.4.
+- **On the band:** soft 5.2 : 1, grey 2.9, a hollow row's dimmed grey 2.0 (2.1 off it); on `#212121`, soft 6.7, grey 3.8, dimmed grey 2.3 (2.5 off it).
 - **Lee's call.** These are the frames Lee picked; they clear the floor for marks (3 : 1), not every word the text floor (4.5 : 1).
 - **A light background:** the palette is drawn for dark ones. Where OSC 11 or `COLORFGBG` says the background is light, the panel draws with the terminal's own 16 colours, as the 16 column above, until a light set is drawn in Paper and picked (Lee, 19 November 2026).
 

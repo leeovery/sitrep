@@ -266,7 +266,7 @@ const secondLine = ({ grid, layout }: Frame, y: number, row: PanelRow, ink: Inki
   put(grid, end, y, more, ink(STYLE.meta))
 }
 
-const markOf = ({ pens }: Frame, row: PanelRow) => {
+const markOf = ({ pens }: Frame, row: PanelRow, dimmed: Inking) => {
   const mark = MARKS[row.mark]
 
   if (row.isNew) {
@@ -274,7 +274,7 @@ const markOf = ({ pens }: Frame, row: PanelRow) => {
   }
 
   if (row.isSnoozed) {
-    return { glyph: mark.here, pen: pens.dimmed(mark.style) }
+    return { glyph: mark.here, pen: dimmed(mark.style) }
   }
 
   return { glyph: row.isAway ? mark.away : mark.here, pen: pens.of(mark.style) }
@@ -283,8 +283,9 @@ const markOf = ({ pens }: Frame, row: PanelRow) => {
 const rowAt = (frame: Frame, y: number, row: PanelRow, isBand: boolean) => {
   const { grid, layout, pens } = frame
   const isDimmed = row.isAway && !row.isSnoozed
-  const ink: Inking = style => (isDimmed ? pens.dimmed(style) : pens.of(style))
-  const mark = markOf(frame, row)
+  const dimmed = isBand ? pens.bandDimmed : pens.dimmed
+  const ink: Inking = style => (isDimmed ? dimmed(style) : pens.of(style))
+  const mark = markOf(frame, row, dimmed)
   const ground = isBand ? pens.band : row.isNew ? pens.wash : undefined
 
   put(grid, LEFT, y, mark.glyph, mark.pen)

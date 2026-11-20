@@ -362,8 +362,8 @@ test('the key line names the keys that work now, `s` only while Snoozed holds ro
 
 test('the band lies over both lines of the chosen row, from column 1 to W−2: a ground in colour, reverse video without', () => {
   expect(drawn(board({ band: 'sr-ct0001' }), 39, 20, NORDFOX, 7, 9)).toEqual([
-    ` ${ESC}[0;38;2;122;162;247;48;2;62;74;91m●${ESC}[0;48;2;62;74;91m Shift schedules                 ${ESC}[0;38;2;122;130;171;48;2;62;74;91m26m${ESC}[0m`,
-    ` ${ESC}[0;48;2;62;74;91m  ${ESC}[0;38;2;122;130;171;48;2;62;74;91mContoso · ${ESC}[0;38;2;169;177;214;48;2;62;74;91mApprove the rota${ESC}[0;48;2;62;74;91m         ${ESC}[0m`,
+    ` ${ESC}[0;38;2;122;162;247;48;2;52;61;75m●${ESC}[0;48;2;52;61;75m Shift schedules                 ${ESC}[0;38;2;122;130;171;48;2;52;61;75m26m${ESC}[0m`,
+    ` ${ESC}[0;48;2;52;61;75m  ${ESC}[0;38;2;122;130;171;48;2;52;61;75mContoso · ${ESC}[0;38;2;169;177;214;48;2;52;61;75mApprove the rota${ESC}[0;48;2;52;61;75m         ${ESC}[0m`,
   ])
   expect(drawn(board({ band: 'sr-ct0001' }), 39, 20, NONE, 7, 9)).toEqual([
     ` ${ESC}[0;7m● Shift schedules                 ${ESC}[0;2;7m26m${ESC}[0m`,
@@ -387,6 +387,15 @@ test("an away row's words dim as one, its mark kept full and hollow; without col
   expect(drawn(board(), 39, 20, NONE, 5, 7)).toEqual([
     ` ○ ${ESC}[0;1mData import${ESC}[0m                      ${ESC}[0;2m1m${ESC}[0m`,
     `   ${ESC}[0;2mLitware · Allow Bash: psql -f impo…${ESC}[0m`,
+  ])
+})
+
+test("on the band, an away row's words dim toward the band's ground, not the terminal's background", () => {
+  const ground = '48;2;52;61;75'
+
+  expect(drawn(board({ band: 'sr-lw0001' }), 39, 20, NORDFOX, 5, 7)).toEqual([
+    ` ${ESC}[0;38;2;215;119;87;${ground}m○${ESC}[0;${ground}m ${ESC}[0;1;38;2;145;149;156;${ground}mData import${ESC}[0;${ground}m                      ${ESC}[0;38;2;95;103;134;${ground}m1m${ESC}[0m`,
+    ` ${ESC}[0;${ground}m  ${ESC}[0;38;2;95;103;134;${ground}mLitware · ${ESC}[0;38;2;123;132;160;${ground}mAllow Bash: psql -f impo…${ESC}[0m`,
   ])
 })
 
@@ -418,7 +427,7 @@ test("a new ask's mark is `◉`, bold orange, its row washed at 24-bit where the
   expect(drawn(view(), 39, 8, NONE, 3, 4)).toEqual([
     ` ${ESC}[0;1m◉${ESC}[0m ${ESC}[0;1mData import${ESC}[0m                     ${ESC}[0;2mnow${ESC}[0m`,
   ])
-  expect(drawn(view('sr-ct0002'), 39, 8, NORDFOX, 3, 4)[0]).toContain('48;2;62;74;91m')
+  expect(drawn(view('sr-ct0002'), 39, 8, NORDFOX, 3, 4)[0]).toContain('48;2;52;61;75m')
   expect(drawn(view('sr-ct0002'), 39, 8, NORDFOX, 3, 4)[0]).not.toContain(wash)
 })
 
@@ -838,8 +847,8 @@ test("at 256 colours: the palette's nearest, the dims mixed, the band a ground, 
     `   ${ESC}[0;38;5;103mNorthwind · ${ESC}[0;38;5;146mThread replies, or…${ESC}[0;38;5;103m +1${ESC}[0m`,
     ` ${ESC}[0;38;5;173m○${ESC}[0m ${ESC}[0;1;38;5;246mData import${ESC}[0m                      ${ESC}[0;38;5;60m1m${ESC}[0m`,
     `   ${ESC}[0;38;5;60mLitware · ${ESC}[0;38;5;103mAllow Bash: psql -f impo…${ESC}[0m`,
-    ` ${ESC}[0;38;5;111;48;5;239m●${ESC}[0;48;5;239m Shift schedules                 ${ESC}[0;38;5;103;48;5;239m26m${ESC}[0m`,
-    ` ${ESC}[0;48;5;239m  ${ESC}[0;38;5;103;48;5;239mContoso · ${ESC}[0;38;5;146;48;5;239mApprove the rota${ESC}[0;48;5;239m         ${ESC}[0m`,
+    ` ${ESC}[0;38;5;111;48;5;237m●${ESC}[0;48;5;237m Shift schedules                 ${ESC}[0;38;5;103;48;5;237m26m${ESC}[0m`,
+    ` ${ESC}[0;48;5;237m  ${ESC}[0;38;5;103;48;5;237mContoso · ${ESC}[0;38;5;146;48;5;237mApprove the rota${ESC}[0;48;5;237m         ${ESC}[0m`,
     '',
     ` ${ESC}[0;38;5;103mWORKING${ESC}[0m ${ESC}[0;38;5;103m2${ESC}[0m ${ESC}[0;38;5;60m─────────────────────────${ESC}[0m ${ESC}[0;38;5;60m▿${ESC}[0m`,
     ` ${ESC}[0;38;5;146m✻${ESC}[0m ${ESC}[0;38;5;146mMobile app${ESC}[0m                       ${ESC}[0;38;5;103m6m${ESC}[0m`,

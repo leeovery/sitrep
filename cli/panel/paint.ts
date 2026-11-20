@@ -12,8 +12,14 @@
  * - Three things mix toward the background: an away row's words, a Snoozed
  *   row's mark, and a new ask's wash. They mix only with both of the
  *   terminal's answers, at 256 colours or more; otherwise a dim is faint.
+ *   On the band, a dim mixes toward the band's ground instead.
  *   The wash is left out below 24-bit, where its nearest colour sits beside
  *   the band's, so an arriving row would look chosen: `◉` says it alone.
+ * - The band stands off the background by one step of contrast, the
+ *   faintest that still reads as a chosen row and a touch more: the
+ *   background moved toward `BAND` by the least that reaches it, or toward
+ *   the terminal's ink where `BAND` can't. With no background answered,
+ *   it is the step over a near-black one.
  * - Without colour, faint carries the metadata, never on a bold word, since
  *   many terminals draw SGR 1 and 2 as one intensity.
  */
@@ -45,7 +51,16 @@ export const PALETTE = {
   rule: rgbOf('#565F89'),
 }
 
+/** The cool grey the band's ground leans toward from the background. */
 export const BAND = rgbOf('#3E4A5B')
+
+/** How far toward `BAND` the band's step is measured on `DARK`: a touch above the faintest that reads (Lee, 20 November 2026). */
+const BANDED = 0.25
+
+/** The background the band's step is measured on, and mixed from where the terminal didn't answer: a near-black, as most dark themes are. */
+const DARK = rgbOf('#212121')
+
+const WHITE: Rgb = [255, 255, 255]
 
 /** How far a dimmed ink goes toward the background: the notch keeps 0.61 of it. */
 const DIMMED = 0.39
@@ -112,6 +127,33 @@ const luminance = (rgb: Rgb) => {
 /** A background with more contrast against black than against white. */
 const isLight = (rgb: Rgb) => (luminance(rgb) + 0.05) / 0.05 > 1.05 / (luminance(rgb) + 0.05)
 
+/** The contrast between two colours, as WCAG measures it. */
+const contrast = (a: Rgb, b: Rgb) => {
+  const [one, other] = [luminance(a) + 0.05, luminance(b) + 0.05]
+
+  return Math.max(one, other) / Math.min(one, other)
+}
+
+/** The step the band stands off any background by: `BANDED` toward `BAND` on `DARK`, about 1.13 : 1. */
+const STEP = contrast(mix(DARK, BAND, BANDED), DARK)
+
+/** The loudest a band may stand off its background: `BAND` itself on `DARK`, the band before 20 November 2026, about 1.79 : 1. */
+const LOUDEST = contrast(BAND, DARK)
+
+/** The amounts a band's mix tries, in hundredths, least first. */
+const AMOUNTS = Array.from({ length: 101 }, (_, at) => at / 100)
+
+/** The background moved toward `target` by the least amount that stands it off by `STEP`, never past `LOUDEST`. */
+const steppedToward = (bg: Rgb, target: Rgb): Rgb | undefined => {
+  const isStep = (ground: Rgb) => contrast(ground, bg) >= STEP && contrast(ground, bg) <= LOUDEST
+  const amount = AMOUNTS.find(each => isStep(mix(bg, target, each)))
+
+  return amount === undefined ? undefined : mix(bg, target, amount)
+}
+
+/** The band's ground: the background stepped toward `BAND`, for its cool tint; else toward the terminal's ink, white unanswered; else, with neither, `BANDED` toward `BAND`. */
+const bandOn = (bg: Rgb, fg: Rgb = WHITE): Rgb => steppedToward(bg, BAND) ?? steppedToward(bg, fg) ?? mix(bg, BAND, BANDED)
+
 /** The environment the level reads. */
 export type ColourEnv = {
   NO_COLOR?: string
@@ -177,6 +219,8 @@ export type Pens = {
   of: (style: Style) => Pen
   /** The style dimmed as the notch dims, 0.61 of the way from the background. */
   dimmed: (style: Style) => Pen
+  /** The style dimmed on the band, 0.61 of the way from the band's ground, so it reads there as it does off it. */
+  bandDimmed: (style: Style) => Pen
   /** What the band lays over the chosen row's cells. */
   band: Pen
   /** What a new ask's wash lays over its row's cells, at 24-bit with both answers. */
@@ -221,22 +265,25 @@ export const pensOf = (paint: Paint): Pens => {
   const canMix = (level === 'truecolor' || level === '256') && fg !== undefined && bg !== undefined
   const of = (style: Style) => penOf(inkAt(style.tone, level), style.bold === true, isFaintAt(style, level))
 
-  const dimmed = (style: Style) => {
-    if (!canMix) {
+  const bandGround = bandOn(bg ?? DARK, fg)
+
+  const dimmedOver = (ground: Rgb | undefined) => (style: Style) => {
+    if (!canMix || ground === undefined) {
       return penOf(inkAt(style.tone, level), style.bold === true, style.bold !== true)
     }
 
     const ink = style.tone === 'ink' ? fg : PALETTE[style.tone]
 
-    return penOf({ rgb: mix(ink, bg, DIMMED) }, style.bold === true, false)
+    return penOf({ rgb: mix(ink, ground, DIMMED) }, style.bold === true, false)
   }
 
   const isGround = level === 'truecolor' || level === '256'
 
   return {
     of,
-    dimmed,
-    band: isGround ? { bg: { rgb: BAND } } : { reverse: true },
+    dimmed: dimmedOver(bg),
+    bandDimmed: dimmedOver(bandGround),
+    band: isGround ? { bg: { rgb: bandGround } } : { reverse: true },
     isColoured: level !== 'none',
     ...(canMix && level === 'truecolor' ? { wash: { bg: { rgb: mix(bg, PALETTE.orange, WASHED) } } } : {}),
   }
