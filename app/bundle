@@ -1,5 +1,6 @@
 #!/bin/bash
-# Builds SitRep.app into the folder given, signed with Lee's Developer ID,
+# Builds SitRep.app into the folder given, signed with Lee's Developer ID
+# from the signing keychain (app/signing-common),
 # carrying the plugin and the notices helper: app/build runs it, then installs
 # what it made, and app/release-build, with --release, notarizes it. The
 # folder must be outside the repository, and the bundle gone once installed: a
@@ -23,6 +24,8 @@ fi
 identity="Developer ID Application: PointsBox Limited (CQKZZ4FN6V)"
 app=$(cd "$(dirname "$0")" && pwd)
 repo=$(dirname "$app")
+# shellcheck source=app/signing-common
+. "$app/signing-common"
 work=$1
 bundle="$work/SitRep.app"
 
@@ -31,17 +34,19 @@ if [[ -e "$bundle" ]]; then
   exit 1
 fi
 
-# Signed by the identity's hash: after a renewal the keychain holds two of the
-# name, and codesign refuses a name that is ambiguous.
-signer=$(security find-identity -v -p codesigning | grep -F "\"$identity\"" | awk '{ print $2 }' || true)
+unlock_keychain
+
+# Signed by the identity's hash: after a renewal the signing keychain holds two
+# of the name, and codesign refuses a name that is ambiguous.
+signer=$(security find-identity -v -p codesigning "$keychain" | grep -F "\"$identity\"" | awk '{ print $2 }' || true)
 if [[ -z $signer ]]; then
-  echo "No \"$identity\" signing identity in the keychain: SitRep is signed with it." >&2
+  echo "No \"$identity\" signing identity in the signing keychain: SitRep is signed with it, and kit apply imports it, its developer-id step." >&2
   exit 1
 fi
 if [[ $(wc -l <<< "$signer") -gt 1 ]]; then
-  echo "The keychain holds more than one \"$identity\" signing identity:" >&2
+  echo "The signing keychain holds more than one \"$identity\" signing identity:" >&2
   echo "$signer" >&2
-  echo "Remove the old one from the keychain, and keep the one to sign with." >&2
+  echo "Remove the old one from the signing keychain, and keep the one to sign with." >&2
   exit 1
 fi
 
@@ -54,7 +59,7 @@ else
   timestamp=--timestamp=none
 fi
 sign() {
-  codesign --force --options runtime "$timestamp" -s "$signer" "$@"
+  codesign --force --options runtime "$timestamp" --keychain "$keychain" -s "$signer" "$@"
 }
 
 # One version covers the plugin and the app: plugin.json's, or, for a

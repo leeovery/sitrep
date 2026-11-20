@@ -39,7 +39,7 @@ It needs:
 - **Bun**: the `bin/sitrep` of a checkout under `app/plugin here` runs on it, the gates run `bunx`, and `app/bundle` compiles the app's CLI with `bun build --compile`;
 - **Xcode**, for Swift 6 and the `actool` that compiles the icon;
 - **jq**, which `app/plugin` reads Claude Code's lists with;
-- **the Developer ID certificate**, `Developer ID Application: PointsBox Limited (CQKZZ4FN6V)`, in the login keychain: `app/bundle` signs with it, and stops without it.
+- **the Developer ID certificate**, `Developer ID Application: PointsBox Limited (CQKZZ4FN6V)`, in the signing keychain, `~/Library/Keychains/signing.keychain-db`, which kit's developer-id step makes: `app/bundle` signs with it, and stops without it. The keychain opens with `DEVELOPER_ID_P12_PASSWORD`, which kit writes to `~/.secrets.zsh`; `app/bundle` and `app/notarize` unlock it themselves, so nothing asks, at the Mac or over SSH, but a shell that hasn't sourced `~/.secrets.zsh` can't build.
 
 Without that certificate, `app/bundle` and `app/build` can't run: a contributor without it runs the gates below, and Lee builds and installs the app.
 
@@ -89,6 +89,6 @@ The cask downloads the zip from the release's public URL, `https://github.com/le
 
 Once per Mac that releases, beside the Developer ID certificate:
 
-- notarytool's login saved in the keychain as the Mac's one profile `notarytool`, shared by every app built here: `xcrun notarytool store-credentials notarytool`;
+- notarytool's login saved in the signing keychain as the Mac's one profile `notarytool`, shared by every app built here, which kit's notarytool step makes;
 - `gh` logged in as an account that can upload to this repository's releases and dispatch to `leeovery/homebrew-tools`;
 - mint: `brew install leeovery/tools/mint`.

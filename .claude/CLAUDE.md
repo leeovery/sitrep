@@ -55,7 +55,9 @@ app's tests skip their scans, so the release refuses to run without it.
 `app/` is a Swift package, no Xcode project: the menu bar app, which runs
 the plugin's CLI for the board, and makes the jump itself. `app/bundle <folder>` makes the
 bundle, the plugin inside it, into a folder, signed with Lee's Developer ID
-from the keychain; `app/build` runs it, installs the bundle to
+from the signing keychain, which it unlocks itself with
+`DEVELOPER_ID_P12_PASSWORD` (`app/signing-common`, which `app/notarize`
+shares); `app/build` runs it, installs the bundle to
 `/Applications/SitRep.app` over the cask's copy and starts it, replacing the
 one running; `app/quit` and `app/open` stop and start SitRep for it and for
 `app/plugin`.
