@@ -242,7 +242,7 @@ for (const [standing, ledger] of Object.entries(STANDING)) {
       rowsOf(await ui.find({ key: `taken:${LEDGER.id}:p1` })),
       'picked up by the session it went to',
     ).toEqual([
-      '✓ Invoice ledger: Export the ledger as CSV · now',
+      '● Invoice ledger: Export the ledger as CSV · now',
       '│ picked up by Help desk redesign',
       '└ nothing more was recorded',
     ])
@@ -297,7 +297,7 @@ test("Parked's picked up names the session a pick-up went to though the window t
   await ui.press({ key: PICKED_UP })
   await ui.press({ key: `picked:${LEDGER.id}:p1` })
   expect(rowsOf(await ui.find({ key: `taken:${LEDGER.id}:p1` }))).toEqual([
-    '✓ Invoice ledger: Export the ledger as CSV · 2m',
+    '● Invoice ledger: Export the ledger as CSV · 2m',
     '│ picked up by Help desk redesign',
     '└ nothing more was recorded',
   ])

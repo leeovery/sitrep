@@ -71,7 +71,7 @@ test('the board then shows the ask closed, and folds it into what was done once 
 
   expect(await ui.find({ type: 'Text', text: /READY TO SEND/ })).toBeUndefined()
   expect(rowsOf(await ui.find({ key: `ask:${w.item(id)}` }))).toEqual([
-    '✓ Review Tickets & Replies, round 1 now',
+    '● Review Tickets & Replies, round 1 now',
     '└ sent, and Claude has it',
   ])
   expect(await ui.find({ key: `pick:${w.item(id)}` })).toBeUndefined()

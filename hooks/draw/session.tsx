@@ -77,7 +77,7 @@ const drawStatus = (d: Drawing, { session }: Filed) => {
         marked(
           d,
           'finished',
-          GLYPH.done,
+          GLYPH.closed,
           C.grey,
           <Text color={C.soft} wrap="wrap">
             finished: {why}

@@ -152,16 +152,16 @@ test("PARKED's picked up is folded under what is parked as a dim press counting 
   expect(await ui.find({ key: `ppick:${heldItem('p1')}` })).toBeDefined()
 })
 
-test("PARKED's picked up shown lists what was taken off, the newest first, each ticked green with its age: picked up by the session it went to, or closed by Claude", async () => {
+test("PARKED's picked up shown lists what was taken off, the newest first, each dotted green with its age: picked up by the session it went to, or closed by Claude", async () => {
   const ui = drawn(PARKED, showing(PICKED_UP))
 
   expect(await press(ui, PICKED_UP)).toMatchObject({ label: 'hide picked up', dimColor: true })
   expect(await rowsUnder(ui, 'taken:')).toEqual([
-    ['✓ Drop the old flag · closed by Claude             54m'],
-    ['✓ Tidy the fixtures · picked up by Help desk re…   55m'],
+    ['● Drop the old flag · closed by Claude             54m'],
+    ['● Tidy the fixtures · picked up by Help desk re…   55m'],
   ])
   expect(
-    (await ui.findAll({ type: 'Text', text: '✓' })).map(each => each.props.color),
+    (await ui.findAll({ type: 'Text', text: '●' })).slice(-2).map(each => each.props.color),
   ).toEqual([C.ok, C.ok])
 })
 
@@ -173,13 +173,13 @@ test("an item taken off opens to Lee's note on the pick-up and its ref, or to Cl
     )
 
   expect(await opened('p2')).toEqual([
-    '✓ Tidy the fixtures · picked up by Help desk       55m',
+    '● Tidy the fixtures · picked up by Help desk       55m',
     '│ redesign',
     '├ Before the release',
     '└ see notes: tidy.md',
   ])
   expect(await opened('p3')).toEqual([
-    '✓ Drop the old flag · closed by Claude             54m',
+    '● Drop the old flag · closed by Claude             54m',
     '└ Dropped it in the PR',
   ])
 
@@ -346,9 +346,9 @@ test("a session's view shown lists what was taken off the project's Parked, the 
     const ui = homeDrawn({ shown: { [PICKED_UP]: 'latest' } }, props)
 
     expect(await roomyRows(ui, 'taken:'), props.placement).toEqual([
-      ['✓ Themes: Pick the accent · picked up 52m'],
-      ['✓ Invoice ledger: Export as CSV · picked up by Themes 53m'],
-      ['✓ Tidy the fixtures · picked up by Help desk redesign 55m'],
+      ['● Themes: Pick the accent · picked up 52m'],
+      ['● Invoice ledger: Export as CSV · picked up by Themes 53m'],
+      ['● Tidy the fixtures · picked up by Help desk redesign 55m'],
     ])
   }
 })
@@ -359,9 +359,9 @@ test("the project's view shown names each item's session, picked up by the sessi
     const rows = (prefix: string) => roomyRows(ui, prefix)
 
     expect(await rows('taken:'), props.placement).toEqual([
-      ['✓ Themes: Pick the accent · picked up 52m'],
-      ['✓ Invoice ledger: Export as CSV · picked up by Themes 53m'],
-      ['✓ Help desk redesign: Tidy the fixtures · picked up by Help desk redesign 55m'],
+      ['● Themes: Pick the accent · picked up 52m'],
+      ['● Invoice ledger: Export as CSV · picked up by Themes 53m'],
+      ['● Help desk redesign: Tidy the fixtures · picked up by Help desk redesign 55m'],
     ])
   }
 })
@@ -371,9 +371,9 @@ test('at the narrowest width a test draws, a row of the past keeps to its line, 
   const rows = (prefix: string) => rowsUnder(ui, prefix, 40)
 
   expect(await rows('taken:')).toEqual([
-    ['✓ Themes: Pick the accent · picke…   52m'],
-    ['✓ Invoice ledger: Export as CSV ·…   53m'],
-    ['✓ Help desk redesign: Tidy the fi…   55m'],
+    ['● Themes: Pick the accent · picke…   52m'],
+    ['● Invoice ledger: Export as CSV ·…   53m'],
+    ['● Help desk redesign: Tidy the fi…   55m'],
   ])
 })
 

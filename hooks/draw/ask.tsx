@@ -56,7 +56,7 @@ const HINT =
   "Your reply waits in Ready to send. Ignore tells Claude you've seen it and won't act on it."
 
 /** The mark of an ask Lee's send closed. */
-const RESOLVED = { glyph: GLYPH.done, color: C.ok }
+const RESOLVED = { glyph: GLYPH.closed, color: C.ok }
 
 /** The mark of an ask Lee snoozed: quieted, as the ● by a count with nothing waiting. */
 const SNOOZED = { glyph: GLYPH.ask, color: C.grey }

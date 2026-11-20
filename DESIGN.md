@@ -921,7 +921,7 @@ ASKS ─────────────────────────
 STATUS ─────────────────────────────────────────── updated 12m ago
 ● Waiting on your review of Sessions & Runway, round 1
 ● Drawing Usage, round 2
-○ next: Usage, round 3
+● next: Usage, round 3
 hide history
 ● now also drawing Usage, round 2                              12m
 ● no longer waiting on your review of Overview, round 2         1h
@@ -1023,8 +1023,8 @@ show all 4
   ● Request ledger: Export the ledger as CSV                     1d
   ● Dashboard redesign: A tmux indicator                         2d
   hide picked up
-  ✓ Request ledger: Rename the export · picked up by Request…    1h
-  ✓ Dashboard redesign: Drop the old importer · closed by Cla…   4d
+  ● Request ledger: Rename the export · picked up by Request…    1h
+  ● Dashboard redesign: Drop the old importer · closed by Cla…   4d
   ```
 
 - **Another session** is the same view as this one, in the same order: its
@@ -1043,7 +1043,7 @@ show all 4
   as STATUS says when it was updated, where another says it is closed:
   `Export to CSV · Northwind · finished 1d ago`. STATUS draws what was
   under way and what was next faint, so neither reads as going on, and
-  where its finish gave a reason ends with it, `✓ finished: Shipped`. What
+  where its finish gave a reason ends with it, `● finished: Shipped`. What
   it left open waits on no one: its asks, each with a faint `●` and a dim
   title, count nowhere, offer no reply and no snooze, and under ASKS'
   heading, which counts them apart (`nothing waiting · 2 left open`), a
@@ -4749,7 +4749,7 @@ truth. There is still no background service. None of it is built now. Lee:
   the recommended option's button shows). **Faint:** closed things (an away
   session, an old session's last status, an ask Lee's send just closed, a
   status change's `●`), but not
-  RESOLVED's asks nor Parked's picked up: each is a row to open, its `✓`
+  RESOLVED's asks nor Parked's picked up: each is a row to open, its `●`
   green and its title white; and every tree's `│ ├ └`.
   Section headings' rules and the tabs' rule are the rule colour.
 - **Colour:** glyphs, headings and orange waiting counts only; in the ask's
@@ -4758,7 +4758,7 @@ truth. There is still no background service. None of it is built now. Lee:
   item's colour; and the word ending the recommended option's button, in
   a darker lilac than the primary's own (`#7178c7`), quieter than the
   option and never grey.
-- Glyphs: `●` ask in orange, `●` parked in purple, `●` under way, `○` next, `✓` done, `└ ├` trees, `⌂` home.
+- Glyphs: `●` ask in orange, `●` parked in purple, `●` under way in green, `●` next in grey, `●` resolved and picked up in green, `✓` done on buttons, `└ ├` trees, `⌂` home.
   No glyph that reads as "expand" unless it expands. A new ask's `●`
   pulses `● ◉ ● ◉`, each `◉` in the brighter orange. A snoozed ask's `●`
   is grey, and a finished session's faint.

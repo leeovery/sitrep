@@ -191,7 +191,7 @@ test("yes drops this session's own item at once, through the hold: it leaves Par
   expect(await ui.find({ type: 'Text', text: 'nothing to come back to' })).toBeDefined()
   expect(await ui.find({ key: PICKED_UP, text: 'show picked up 1' })).toBeDefined()
   expect(await takenRows(ui, key)).toEqual([
-    '✓ A priority badge across all tabs · dropped by now',
+    '● A priority badge across all tabs · dropped by now',
     '│ you',
     '└ nothing more was recorded',
   ])
@@ -269,7 +269,7 @@ for (const [standing, ledger] of Object.entries(STANDING)) {
     expect(w.state.queue ?? []).toEqual([])
     expect(await ui.find({ type: 'Text', text: 'nothing to come back to' })).toBeDefined()
     expect(await takenRows(ui, LEDGERS)).toEqual([
-      '✓ Invoice ledger: Export the ledger as CSV · now',
+      '● Invoice ledger: Export the ledger as CSV · now',
       '│ dropped by you',
       '└ nothing more was recorded',
     ])
@@ -348,7 +348,7 @@ test('a drop pressed on an item picked up a moment before, from another window, 
   expect(w.toasts).toContain('Not dropped: it was picked up already.')
   expect(w.files.has(LEDGER_LOG), 'nothing written').toBe(false)
   expect(await takenRows(ui, LEDGERS)).toEqual([
-    '✓ Invoice ledger: Export the ledger as CSV · now',
+    '● Invoice ledger: Export the ledger as CSV · now',
     '│ picked up by Invoice ledger',
     '└ nothing more was recorded',
   ])

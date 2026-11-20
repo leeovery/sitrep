@@ -171,7 +171,7 @@ const drawItem = (d: Drawing, entry: ParkedAt, own: string | undefined) => {
 }
 
 /** The mark every item taken off Parked is drawn with: done with. */
-const TAKEN_MARK = { glyph: GLYPH.done, color: C.ok }
+const TAKEN_MARK = { glyph: GLYPH.closed, color: C.ok }
 
 /** How an item left Parked, by the session a pick-up went to where that is known. */
 const howTaken = ({ parked, pickedUpBy }: TakenAt) => {

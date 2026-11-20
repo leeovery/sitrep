@@ -94,7 +94,7 @@ test("a session lists its status's history and its closed asks with no blank row
     ' ● now merging PR #82 6m',
     ' ● now merging PR #81 7m',
   ])
-  expect(listedUnder(rows, 'RESOLVED')).toEqual([' ✓ Review round 2 1m', ' ✓ Review round 1 2m'])
+  expect(listedUnder(rows, 'RESOLVED')).toEqual([' ● Review round 2 1m', ' ● Review round 1 2m'])
 })
 
 test("PARKED lists every item parked in the project with no blank row between them: in a session, its own first, unnamed, then the others', each naming its session; in the project, the oldest first, each naming its session; each counting them all", async () => {

@@ -220,7 +220,7 @@ test("a reply waiting to be sent is the ask's last branch", async () => {
   expect(glyphColors(await ui.find({ key: `ask:${heldItem('k1')}` }), '●')).toEqual([C.ask])
 })
 
-test('a closed ask keeps its faint title and tick, and hangs that Claude has it from the tick', async ($, on) => {
+test('a closed ask keeps its faint title and dot, and hangs that Claude has it from the dot', async ($, on) => {
   const w = world($, on)
 
   await w.begin()
@@ -231,7 +231,7 @@ test('a closed ask keeps its faint title and tick, and hangs that Claude has it 
   await ui.press({ key: `choose:${w.item(id)}:1` })
   await ui.press({ key: 'send' })
   expect(await rows(ui, `ask:${w.item(id)}`)).toEqual([
-    '✓ Keep the ledger 400 days, or forever? now',
+    '● Keep the ledger 400 days, or forever? now',
     '└ sent, and Claude has it',
   ])
   expect((await ui.find({ type: 'Text', text: DECIDE.title }))?.props.color).toBe('#565f89')
