@@ -141,6 +141,24 @@ struct HereTests {
         #expect(await Self.here([inZmx(Self.portals)], FakeTmux(), FakeTable(nil)) == .unknown([.processes]))
     }
 
+    /// A click asks only whether this Mac's screen shows the session, so its read of here reads no environment, nor any
+    /// zmx server's command line, both of which the read for `here.json` reads: Lee's case, a zmx session attached from
+    /// his phone over ssh, read both ways.
+    @Test func aClicksReadOfHereReadsNoEnvironmentNorAnyZmxServersCommandLine() async {
+        var mac = Mac()
+        let client = mac.zmxOverSsh(Self.portals, on: "/dev/ttys050")
+        let server = mac.zmxServer(Self.portals, tty: "/dev/ttys087")
+        let clicked = FakeTable(mac.tree), viewed = FakeTable(mac.tree)
+
+        _ = await Jumping(FakeTmux(), clicked).outcome([inZmx(Self.portals)])
+        _ = await HereReader(tmux: FakeTmux(), table: viewed).read(["sr-a": [inZmx(Self.portals)]])
+
+        #expect(clicked.addressReaders == 0)
+        #expect(!clicked.argumentsRead.contains(server))
+        #expect(viewed.addressesRead == [client])
+        #expect(viewed.argumentsRead.contains(server))
+    }
+
     // MARK: A session
 
     /// Of a session's windows, here where any is, though another's showing is unknown; unknown where none is here and

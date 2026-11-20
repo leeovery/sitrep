@@ -9457,25 +9457,29 @@ open), and tmux passing an escape sequence through from Claude's own pane
      goes by outside a multiplexer, is not read: a Claude reached over SSH
      whose shell carries Ghostty's is not here. Read every few seconds and
      on each watch line, one read at a time, off the main thread; and read
-     again at the click, the same read, which picks the way: here, the
-     jump, exactly as today; not here, the command. Where the jump and the
-     read disagree, the heartbeat saying Ghostty and the ancestry sshd, the
-     read decides. A session here whose jump then fails is refused in the
-     jump's words, as today, and nothing starts. Since 20 November 2026
-     the same read tells who views each held session (see "The board in a
-     terminal"): every client showing it gives a viewer, `mac` where it is
+     again at the click, the same read of the seats alone, which picks the
+     way: here, the jump, exactly as today; not here, the command. Where
+     the jump and the read disagree, the heartbeat saying Ghostty and the
+     ancestry sshd, the read decides. A session here whose jump then fails
+     is refused in the jump's words, as today, and nothing starts. Since
+     20 November 2026 the same read tells who views each held session (see
+     "The board in a terminal"): every client showing it gives a viewer, `mac` where it is
      seated in a terminal app here, as above, or `ssh:` and the address in
      its `SSH_CONNECTION` where an SSH login reached it, OpenSSH's or
-     `tsshd`, trzsz-ssh's, which Lee's phone reaches the Mac through. Only
-     that variable is read from another process's environment, and only
-     its first field kept. A session is here where `mac` is among its
-     viewers, so the notch is unchanged. The read also maps each zmx
-     session's tty, and each tmux pane's, to its viewers, reading the
-     command line of each zmx server beside its clients'. Each read is
-     written to `here.json` while any session is held (see "Storage"), for
-     the board in a terminal, which reads it at every look: the one reader
-     of here outside the app. That costs a debug build's read 28ms against
-     23.5ms, over 1,317 processes and 25 zmx sessions.
+     `tsshd`, trzsz-ssh's, which Lee's phone reaches the Mac through.
+     `tsshd` joins the remote logins `seenFromHere` cuts from their
+     parents, which the notch and the click go by too, and changes nothing
+     either shows: it runs under launchd, so no ancestry through it ever
+     reached a terminal app. Only that variable is read from another
+     process's environment, and only its first field kept. A session is
+     here where `mac` is among its viewers, so the notch is unchanged. The
+     read also maps each zmx session's tty, and each tmux pane's, to its
+     viewers, reading the command line of each zmx server beside its
+     clients'. The click's read reads neither, nor any environment. Each
+     read is written to `here.json` while any session is held (see
+     "Storage"), for the board in a terminal, which reads it at every look:
+     the one reader of here outside the app. That costs a debug build's
+     read 28ms against 23.5ms, over 1,317 processes and 25 zmx sessions.
    - **What the read costs.** It asks Ghostty nothing, as `sitrep screen`
      did not (6 November 2026): no Apple Event, so no prompt for leave to
      control Ghostty and no 5 seconds' wait on a locked screen. The

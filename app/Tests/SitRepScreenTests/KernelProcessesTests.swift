@@ -22,11 +22,13 @@ struct KernelProcessesTests {
         #expect(device(of: terminal) == nil)
     }
 
-    /// `KERN_PROCARGS2`'s bytes: the count, the executable's path, its padding, each argument, then the environment.
-    private static func procargs(count: Int32, _ fields: [String], padding: Int = 3) -> [UInt8] {
-        let (path, rest) = (fields[0], fields.dropFirst())
+    /// `KERN_PROCARGS2`'s bytes as the kernel lays them out: the count; the executable's path, its NULs running to the
+    /// next multiple of 8 counted from its start; each argument; then the environment.
+    private static func procargs(count: Int32, _ fields: [String]) -> [UInt8] {
+        let (path, rest) = (Array(fields[0].utf8), fields.dropFirst())
+        let padded = (path.count + 8) / 8 * 8
 
-        return withUnsafeBytes(of: count) { Array($0) } + Array(path.utf8) + Array(repeating: 0, count: padding)
+        return withUnsafeBytes(of: count) { Array($0) } + path + Array(repeating: 0, count: padded - path.count)
             + rest.flatMap { Array($0.utf8) + [0] }
     }
 
@@ -42,14 +44,19 @@ struct KernelProcessesTests {
         )
     }
 
-    @Test func anEmptyArgumentIsKept() {
-        #expect(parseProcArgs(Self.procargs(count: 2, ["/bin/sh", "sh", "", "HOME=/"]))?.arguments == ["sh", ""])
+    /// An empty argument is kept, the first among them: the path's padding is skipped by its length, so it never takes
+    /// an empty first argument with it, a path of 7 bytes, with no padding but its NUL, among them.
+    @Test(arguments: ["/bin/sh", "/bin/sleep", "/usr/bin/yes"])
+    func anEmptyArgumentIsKeptTheFirstAmongThem(path: String) {
+        #expect(parseProcArgs(Self.procargs(count: 2, [path, "sh", "", "HOME=/"]))?.arguments == ["sh", ""])
+        #expect(parseProcArgs(Self.procargs(count: 2, [path, "", "30", "HOME=/"]))?.arguments == ["", "30"])
     }
 
     @Test func bytesCutShortAreNoCommandLine() {
         let whole = Self.procargs(count: 2, ["/bin/sh", "sh", "-c"])
 
         #expect(parseProcArgs(whole.dropLast()) == nil)
+        #expect(parseProcArgs(Self.procargs(count: 0, ["/bin/zsh"]).prefix(13)) == nil, "cut inside the padding")
         #expect(parseProcArgs(Self.procargs(count: 3, ["/bin/sh", "sh", "-c"])) == nil)
         #expect(parseProcArgs(withUnsafeBytes(of: Int32(0)) { Array($0) } + Array("/bin/sh".utf8)) == nil)
         #expect(parseProcArgs([1, 0]) == nil)
@@ -75,15 +82,23 @@ struct KernelProcessesTests {
     }
 
     /// Nothing but an address is ever given from the environment: none where `SSH_CONNECTION` is not set, is empty, or
-    /// starts with anything but an IP address, a token set in its place among them; never a variable whose name only
-    /// starts the same, nor an argument that looks like one, nor what follows the environment's end.
+    /// starts with anything but an IP address, a token set in its place among them, or one longer than any address;
+    /// never a variable whose name only starts the same, nor an argument that looks like one, nor what follows the
+    /// environment's end, nor a value cut short, though what is left of it looks like an address.
     @Test func nothingButAnAddressIsGivenFromTheEnvironment() {
         let afterTheEnd = Self.procargs(count: 1, ["/bin/zsh", "-zsh", "HOME=/Users/me", "", "SSH_CONNECTION=192.0.2.7 1 2 3"])
+        let whole = Self.login("192.0.2.123 50122 192.0.2.1 22")
+        let cut = whole[..<(whole.firstRange(of: Array("=192.0.2.12".utf8))?.upperBound ?? whole.endIndex)]
+        let tooLong = "fe80::7%" + String(repeating: "e", count: 60)
 
         #expect(parseSSHAddress(Self.login()) == nil)
-        for connection in ["", "ghp_notARealToken0001 1 2 3", "GITHUB_TOKEN=ghp_notARealToken0001", "192.0.2.7x 1 2 3", "fe80::7% 1"] {
+        for connection in [
+            "", "ghp_notARealToken0001 1 2 3", "GITHUB_TOKEN=ghp_notARealToken0001", "192.0.2.7x 1 2 3", "fe80::7% 1",
+            "fe80::7%e-0 1", tooLong + " 1",
+        ] {
             #expect(parseSSHAddress(Self.login(connection)) == nil, "\(connection)")
         }
+        #expect(parseSSHAddress(cut) == nil, "cut inside its value")
         #expect(parseSSHAddress(Self.procargs(count: 1, ["/bin/zsh", "-zsh", "SSH_CONNECTION_X=192.0.2.7 1 2 3"])) == nil)
         #expect(parseSSHAddress(Self.procargs(count: 2, ["/bin/zsh", "-zsh", "SSH_CONNECTION=192.0.2.7 1 2 3", "A=b"])) == nil)
         #expect(parseSSHAddress(afterTheEnd) == nil)
@@ -122,7 +137,9 @@ struct KernelProcessesTests {
             started.append(sleeping)
         }
 
-        #expect(KernelProcesses().sshAddresses(of: Set(started.map(\.processIdentifier))) == [started[0].processIdentifier: "192.0.2.7"])
+        let address = KernelProcesses().sshAddressReader()
+
+        #expect(started.map { address($0.processIdentifier) } == ["192.0.2.7", nil, nil])
     }
 
     @Test(.tags(.thisMac))

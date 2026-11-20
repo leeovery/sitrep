@@ -113,19 +113,44 @@ struct ViewerTests {
     }
 
     /// macOS hides its own programs' environments, a login shell's among them: so the address is the first another
-    /// process on the shell's tty gives, Claude's there, every one of them the login's; none where none gives one.
-    @Test func aLoginShellsHiddenEnvironmentIsReadThroughAnotherProcessOnItsTty() async {
+    /// process on the shell's tty gives, those read one at a time in order of process id, through one reader, and none
+    /// after the first that gives one: Claude's, not the later process's naming the iPad. None where none gives one.
+    @Test func aLoginShellsHiddenEnvironmentIsReadThroughTheFirstProcessOnItsTtyThatGivesOne() async {
         var mac = Mac()
         let shell = mac.tree.shell(under: Mac.sshd, on: "/dev/ttys080", ssh: Mac.phone)
         let claude = mac.tree.add(under: shell, Self.claude, on: "/dev/ttys080")
-        let table = FakeTable(mac.tree)
         var bare = Mac()
 
+        mac.tree.add(under: shell, "/opt/homebrew/bin/node", on: "/dev/ttys080", ssh: Mac.iPad)
         _ = bare.tree.shell(under: Mac.sshd, on: "/dev/ttys080", ssh: Mac.phone)
 
+        let table = FakeTable(mac.tree)
+
         #expect(await Self.viewers([Where(device: "/dev/ttys080")], table: table) == .seen([.ssh(Mac.phone)]))
-        #expect(table.addressesRead == [shell, claude])
+        #expect(table.addressesRead == [shell, claude], "the later process never read")
+        #expect(table.addressReaders == 1)
         #expect(await Self.viewers([Where(device: "/dev/ttys080")], table: FakeTable(bare.tree)) == .seen([]))
+    }
+
+    /// The nearest remote login above a client decides: mosh started from an SSH login's shell gives none, its
+    /// environment, which carries that login's address, never read; an SSH login started from mosh's shell, its own
+    /// client's address.
+    @Test func theNearestRemoteLoginAboveAClientDecides() async {
+        var mac = Mac()
+        let mosh = "/opt/homebrew/bin/mosh-server"
+        let sshShell = mac.tree.shell(under: Mac.sshd, on: "/dev/ttys050", ssh: Mac.phone)
+        let moshFromSSH = mac.tree.add(under: mac.tree.add(under: sshShell, mosh), "/bin/zsh", on: "/dev/ttys051")
+        let viaMosh = mac.tree.zmx(Self.helpDesk, under: moshFromSSH, on: "/dev/ttys051")
+        let moshShell = mac.tree.shell(under: [mosh], on: "/dev/ttys052")
+        let sshd = mac.tree.add(under: mac.tree.add(under: moshShell, Mac.sshd[0]), Mac.sshd[1])
+
+        mac.tree.zmx(Self.shifts, under: mac.tree.add(under: sshd, "/bin/zsh", on: "/dev/ttys053", ssh: Mac.iPad), on: "/dev/ttys053")
+
+        let table = FakeTable(mac.tree)
+        let read = await Self.read(["sr-nw0001": [inZmx(Self.helpDesk)], "sr-ct0002": [inZmx(Self.shifts)]], table: table)
+
+        #expect(read.sessions == ["sr-nw0001": .seen([]), "sr-ct0002": .seen([.ssh(Mac.iPad)])])
+        #expect(!table.addressesRead.contains(viaMosh))
     }
 
     private static let claude = "/Users/me/.local/share/claude/versions/2.1.322"

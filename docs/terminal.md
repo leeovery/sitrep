@@ -19,7 +19,7 @@ Homebrew links `sitrep` into the Homebrew `bin` folder, which a shell needs on i
 
 - **Sessions come in three sections.** Needs you comes first, then Working. Snoozed comes last, folded until you press `s`. Each session takes two lines: the name, a count if more than one thing waits, and a time. Then come the project and what the session waits on or is doing.
 - **A dot says what waits.** An orange dot has asks or a permission prompt waiting, and a blue dot is Stopped. A row new to Needs you shows `◉` for 2 seconds. In Working, `✻` runs a turn, and `◌` waits on work of its own.
-- **A dimmed session has dimmed words.** It isn't open on the device you're looking from. On the Mac, the notch dims the same sessions. In Needs you, its dot is hollow, and a Working row keeps `✻` or `◌`. In Snoozed, nothing marks it.
+- **A dimmed session has dimmed words.** It isn't open on the device you're looking from. SitRep dims the same sessions at the screen edge. In Needs you, its dot is hollow, and a Working row keeps `✻` or `◌`. In Snoozed, nothing marks it.
 - **The board stays current,** within a second, and the chosen row follows its session.
 - **A new ask posts a terminal notification.** It shows the ask, the project and the session. Asks waiting at the start post none. To open the terminal view without notifications, type `sitrep --no-notify`.
 - **`⏎` runs your resume command here.** Set it in Settings › General. When the command ends, the terminal view comes back.

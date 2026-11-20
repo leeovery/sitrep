@@ -80,28 +80,32 @@ public struct Sightings: Sendable, Equatable {
 ///
 /// macOS hides the environment of its own programs from other processes (live, 20 November 2026): a login shell's,
 /// `/bin/zsh`, which tops a terminal holding Claude in no multiplexer. So a client whose own environment gives no
-/// address takes the first another process on its tty gives, in order of process id: every process on a login's tty
-/// is that login's. No other environment is read: only those of the clients an SSH login reached, and of the
-/// processes on the tty of one whose own gives none.
+/// address takes the first another process on its tty gives: every process on a login's tty is that login's. Those are
+/// read one at a time, in order of process id, and none after the first that gives one. No other environment is read:
+/// only those of the clients an SSH login reached, and of those processes.
 struct Viewing {
     private let viewers: [Client: Viewer]
 
-    init(_ processes: Processes, clients: Set<Client>, table: any ProcessTable) {
+    /// Each client's viewer, its address read through the table given; with none, as at a click, which asks only
+    /// whether this Mac's screen shows a session, no environment is read, and a client not seated here has no viewer.
+    init(_ processes: Processes, clients: Set<Client>, addresses table: (any ProcessTable)?) {
         var viewers: [Client: Viewer] = [:]
         var overSSH: [Client] = []
 
         for client in clients {
             if processes.seat(of: client.pid, own: client.device) != nil {
                 viewers[client] = .mac
-            } else if processes.isReachedOverSSH(client.pid) {
+            } else if table != nil, processes.isReachedOverSSH(client.pid) {
                 overSSH.append(client)
             }
         }
 
-        let addresses = Self.addresses(of: overSSH, processes, table)
+        if let table, !overSSH.isEmpty {
+            let addresses = Self.addresses(of: overSSH, processes, table.sshAddressReader())
 
-        for client in overSSH {
-            viewers[client] = addresses[client].map(Viewer.ssh)
+            for client in overSSH {
+                viewers[client] = addresses[client].map(Viewer.ssh)
+            }
         }
 
         self.viewers = viewers
@@ -109,26 +113,32 @@ struct Viewing {
 
     /// Each client's address: its own environment's; else the first another process on its tty gives.
     private static func addresses(
-        of clients: [Client], _ processes: Processes, _ table: any ProcessTable
+        of clients: [Client], _ processes: Processes, _ address: (pid_t) -> String?
     ) -> [Client: String] {
+        let own = clients.reduce(into: [Client: String]()) { own, client in own[client] = address(client.pid) }
         let asked = Set(clients.map(\.pid))
-        let own = read(asked, table)
-        let ttys = Set(clients.filter { own[$0.pid] == nil }.compactMap(\.device))
-        let onTtys = processes.all.filter { !asked.contains($0.key) && $0.value.device.map(ttys.contains) == true }
-        let others = read(Set(onTtys.keys), table)
-        let firstOnTty: [String: String] = onTtys.keys.sorted().reduce(into: [:]) { first, pid in
-            if let device = onTtys[pid]?.device, first[device] == nil {
-                first[device] = others[pid]
+        let ttys = Set(clients.filter { own[$0] == nil }.compactMap(\.device))
+        let onTtys: [String: [pid_t]] = processes.all.reduce(into: [:]) { onTtys, each in
+            if let device = each.value.device, ttys.contains(device), !asked.contains(each.key) {
+                onTtys[device, default: []].append(each.key)
             }
         }
+        let firstOnTty = onTtys.compactMapValues { pids in Self.first(of: pids.sorted(), address) }
 
         return clients.reduce(into: [:]) { addresses, client in
-            addresses[client] = own[client.pid] ?? client.device.flatMap { firstOnTty[$0] }
+            addresses[client] = own[client] ?? client.device.flatMap { firstOnTty[$0] }
         }
     }
 
-    private static func read(_ pids: Set<pid_t>, _ table: any ProcessTable) -> [pid_t: String] {
-        pids.isEmpty ? [:] : table.sshAddresses(of: pids)
+    /// The first address the processes give, in turn, none read after it.
+    private static func first(of pids: [pid_t], _ address: (pid_t) -> String?) -> String? {
+        for pid in pids {
+            if let found = address(pid) {
+                return found
+            }
+        }
+
+        return nil
     }
 
     func viewers(of clients: [Client]) -> Set<Viewer> {

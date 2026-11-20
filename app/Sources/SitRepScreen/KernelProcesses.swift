@@ -37,13 +37,9 @@ public struct KernelProcesses: ProcessTable {
         return Processes(all, arguments: arguments)
     }
 
-    /// Each process's SSH client address, read through `KERN_PROCARGS2`, one buffer for them all.
-    public func sshAddresses(of pids: Set<pid_t>) -> [pid_t: String] {
-        let reader = Reader()
-
-        return pids.reduce(into: [:]) { addresses, pid in
-            addresses[pid] = reader.sshAddress(of: pid)
-        }
+    /// Each process's SSH client address, read through `KERN_PROCARGS2` into one buffer for every process asked of.
+    public func sshAddressReader() -> (pid_t) -> String? {
+        Reader().sshAddress(of:)
     }
 
     /// Every process, as one `sysctl` gives them: asked how much room it needs, then given some over, as processes
@@ -137,8 +133,8 @@ struct ProcArgs: Equatable {
     let arguments: [String]
 }
 
-/// `KERN_PROCARGS2`'s bytes: the count of the arguments, the executable's path, the padding after it, then each
-/// argument, each ending in a NUL, the environment after them. Nil for bytes cut short.
+/// `KERN_PROCARGS2`'s bytes: the count of the arguments, the executable's path, the NULs padding it to a pointer's
+/// alignment, then each argument, each ending in a NUL, the environment after them. Nil for bytes cut short.
 func parseProcArgs(_ bytes: some Collection<UInt8>) -> ProcArgs? {
     ProcArgsFields(bytes).map { fields in
         ProcArgs(
@@ -151,34 +147,56 @@ func parseProcArgs(_ bytes: some Collection<UInt8>) -> ProcArgs? {
 /// The address of the SSH client that reached a process, from `KERN_PROCARGS2`'s bytes: the first field of
 /// `SSH_CONNECTION`, sshd's `<client> <port> <server> <port>`; nil where none is set, or its first field is no IP
 /// address. Environments hold tokens, so it is the one variable ever read there: each is matched by its bytes, and only
-/// the address is made text.
+/// an address they are checked to be is made text.
 func parseSSHAddress(_ bytes: some Collection<UInt8>) -> String? {
     guard let connection = ProcArgsFields(bytes)?.environment.first(where: { $0.starts(with: sshConnection) }) else {
         return nil
     }
 
-    let address = String(decoding: connection.dropFirst(sshConnection.count).prefix { $0 != UInt8(ascii: " ") }, as: UTF8.self)
+    let address = connection.dropFirst(sshConnection.count).prefix { $0 != UInt8(ascii: " ") }
 
-    return isAddress(address) ? address : nil
+    return isAddress(address) ? String(decoding: address, as: UTF8.self) : nil
 }
 
 private let sshConnection = Array("SSH_CONNECTION=".utf8)
 
-/// Whether the text is an IPv4 or IPv6 address, a zone after `%` allowed (`fe80::1%en0`).
-private func isAddress(_ text: String) -> Bool {
-    let parts = text.split(separator: "%", maxSplits: 1, omittingEmptySubsequences: false)
-    var bytes = in6_addr()
-    let address = String(parts[0])
-    let isIP = inet_pton(AF_INET, address, &bytes) == 1 || inet_pton(AF_INET6, address, &bytes) == 1
+/// The longest address taken: an IPv6 address's text and its zone's name (`fe80::1%en0`).
+private let addressMax = Int(INET6_ADDRSTRLEN) + Int(IF_NAMESIZE)
 
-    return isIP && parts.dropFirst().allSatisfy { zone in
-        !zone.isEmpty && zone.allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber) }
+/// Whether the bytes are an IPv4 or IPv6 address, a zone of letters and digits after `%` allowed (`fe80::1%en0`).
+private func isAddress(_ bytes: ArraySlice<UInt8>) -> Bool {
+    guard bytes.count <= addressMax else {
+        return false
+    }
+
+    let parts = bytes.split(separator: UInt8(ascii: "%"), maxSplits: 1, omittingEmptySubsequences: false)
+    let address = Array(parts[0]) + [0]
+    var read = in6_addr()
+    let isIP = address.withUnsafeBufferPointer { address in
+        address.withMemoryRebound(to: CChar.self) { text in
+            inet_pton(AF_INET, text.baseAddress, &read) == 1 || inet_pton(AF_INET6, text.baseAddress, &read) == 1
+        }
+    }
+
+    return isIP && parts.dropFirst().allSatisfy { zone in !zone.isEmpty && zone.allSatisfy(isLetterOrDigit) }
+}
+
+private func isLetterOrDigit(_ byte: UInt8) -> Bool {
+    switch byte {
+    case UInt8(ascii: "0")...UInt8(ascii: "9"), UInt8(ascii: "A")...UInt8(ascii: "Z"), UInt8(ascii: "a")...UInt8(ascii: "z"):
+        true
+    default:
+        false
     }
 }
 
 /// `KERN_PROCARGS2`'s bytes in their parts: the executable's path, then the fields after its padding, each ending in a
 /// NUL, the arguments first, as many as the count says. The environment, which can run to kilobytes, is split only as
 /// it is walked.
+///
+/// The padding runs from the path's NUL to a pointer's alignment, counted from the path's start, where the arguments
+/// start: so it is skipped by its length, never by its NULs, which would take an empty first argument with them (live,
+/// 20 November 2026: every one of 988 processes, and `exec` given an empty first argument).
 private struct ProcArgsFields {
     let path: ArraySlice<UInt8>
     private(set) var arguments: [ArraySlice<UInt8>] = []
@@ -195,13 +213,17 @@ private struct ProcArgsFields {
         }
 
         let count = Int(bytes.prefix(countSize).withUnsafeBytes { $0.loadUnaligned(as: Int32.self) })
+        let alignment = MemoryLayout<UnsafeRawPointer>.alignment
 
         path = bytes[countSize...].prefix { $0 != 0 }
-        rest = bytes[path.endIndex...].drop { $0 == 0 }
 
-        guard count >= 0, path.endIndex < bytes.endIndex else {
+        let start = countSize + (path.count + alignment) / alignment * alignment
+
+        guard count >= 0, start <= bytes.endIndex else {
             return nil
         }
+
+        rest = bytes[start...]
 
         while arguments.count < count {
             guard let field = Self.field(of: &rest) else {

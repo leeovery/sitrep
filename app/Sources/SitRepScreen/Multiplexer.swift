@@ -15,8 +15,8 @@ public protocol Multiplexer: Sendable {
     func isIn(_ where: Board.Window.Where) -> Bool
     /// Whether it tells its clients by a process's command line, so the table reads that one's.
     func tellsBy(_ process: Proc) -> Bool
-    /// Whether it tells its sessions' ttys by a process's command line, so the read of here has the table read that
-    /// one's too: the jump's own read never needs them.
+    /// Whether it tells its sessions' ttys by a process's command line, so the read of here for `here.json` has the
+    /// table read that one's too: neither the jump's own read nor a click's read of here needs them.
     func tellsTtysBy(_ process: Proc) -> Bool
     /// Reads what it needs for the windows that run in it, each program within its limit; nothing that fails here
     /// fails the read.

@@ -33,9 +33,10 @@ public protocol ProcessTable: Sendable {
     /// Every process, by its id, and the command line, its program first as it was started, of each the predicate
     /// wants and whose can be read; nil where the kernel gave none.
     func read(arguments wanted: (Proc) -> Bool) -> Processes?
-    /// The address of the SSH client each process given was reached from, the first field of `SSH_CONNECTION` in its
-    /// environment, of those whose environment can be read and holds one.
-    func sshAddresses(of pids: Set<pid_t>) -> [pid_t: String]
+    /// What reads, for one read of here, the address of the SSH client a process was reached from: the first field of
+    /// `SSH_CONNECTION` in its environment; nil where that cannot be read or holds none. It reads one process's at a
+    /// time, so no more environments are read than are needed.
+    func sshAddressReader() -> (pid_t) -> String?
 }
 
 /// Every process, by its id, and the command line of each a multiplexer tells its clients by.

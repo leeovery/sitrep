@@ -47,25 +47,26 @@ public struct HereReader: Sendable {
 
     /// Who views each session, by the windows a jump tries for it, all read at once; and each multiplexer tty's.
     public func read(_ sessions: [String: [Board.Window.Where]]) async -> HereRead {
-        let sight = await look(sessions.values.flatMap(\.self))
+        let sight = await look(sessions.values.flatMap(\.self), asking: .viewers)
 
         return HereRead(sessions: sessions.mapValues(sight.sighting), ttys: sight.ttys)
     }
 
-    /// Whether the session the windows hold is here; never, with none, as a session no window holds is away.
+    /// Whether the session the windows hold is here, as a click asks; never, with none, as a session no window holds is
+    /// away.
     func read(_ windows: [Board.Window.Where]) async -> Here {
         guard !windows.isEmpty else {
             return .notHere
         }
 
-        return await look(windows).sighting(windows).here
+        return await look(windows, asking: .seats).sighting(windows).here
     }
 
-    /// The table, with the command lines the multiplexers tell their clients and their sessions' ttys by, beside what
-    /// each multiplexer read for the windows in it.
-    private func look(_ windows: [Board.Window.Where]) async -> Sight {
+    /// The table, with the command lines the multiplexers tell their clients by, and their sessions' ttys where every
+    /// viewer is asked, beside what each multiplexer read for the windows in it.
+    private func look(_ windows: [Board.Window.Where], asking: Asking) async -> Sight {
         async let processes = table.read { process in
-            multiplexers.contains { $0.tellsBy(process) || $0.tellsTtysBy(process) }
+            multiplexers.contains { $0.tellsBy(process) || asking == .viewers && $0.tellsTtysBy(process) }
         }
         let readings = await withTaskGroup(of: (Int, any Reading).self) { group in
             for (order, multiplexer) in multiplexers.enumerated() {
@@ -75,8 +76,18 @@ public struct HereReader: Sendable {
             return await group.reduce(into: []) { $0.append($1) }.sorted { $0.0 < $1.0 }.map(\.1)
         }
 
-        return await Sight(Screen(readings: readings, processes: processes?.seenFromHere), windows, table)
+        let screen = Screen(readings: readings, processes: await processes?.seenFromHere)
+
+        return Sight(screen, windows, addresses: asking == .viewers ? table : nil)
     }
+}
+
+/// How far a read of here looks: at the seats alone, whether this Mac's screen shows each window, all a click needs;
+/// or at every viewer, and each multiplexer tty's, as `here.json` holds them, which reads each zmx server's command line
+/// and the environment of each client an SSH login reached.
+private enum Asking {
+    case seats
+    case viewers
 }
 
 /// What one read saw: the screen as the multiplexers and the table give it; the clients showing each window, and each
@@ -87,10 +98,13 @@ private struct Sight {
     private let ttyClients: [String: [Client]]
     private let viewing: Viewing?
 
-    init(_ screen: Screen, _ windows: [Board.Window.Where], _ table: any ProcessTable) {
+    /// With no table to read addresses through, the seats alone: no multiplexer tty, and no viewer but `mac`.
+    init(_ screen: Screen, _ windows: [Board.Window.Where], addresses table: (any ProcessTable)?) {
         let tops = screen.processes?.tops ?? [:]
-        let ttyClients = screen.processes.map { processes in
-            screen.readings.reduce(into: [:]) { ttys, reading in ttys.merge(reading.ttys(processes), uniquingKeysWith: +) }
+        let ttyClients: [String: [Client]] = screen.processes.map { processes in
+            table == nil ? [:] : screen.readings.reduce(into: [:]) { ttys, reading in
+                ttys.merge(reading.ttys(processes), uniquingKeysWith: +)
+            }
         } ?? [:]
         let clients = Dictionary(windows.map { ($0, Self.clients(of: $0, screen, tops)) }) { first, _ in first }
         let all = Set(clients.values.joined()).union(ttyClients.values.joined())
@@ -98,7 +112,7 @@ private struct Sight {
         self.screen = screen
         self.clients = clients
         self.ttyClients = ttyClients
-        viewing = screen.processes.map { Viewing($0, clients: all, table: table) }
+        viewing = screen.processes.map { Viewing($0, clients: all, addresses: table) }
     }
 
     /// A window in a multiplexer, by the clients of its session the innermost finds; one in none, by the processes on

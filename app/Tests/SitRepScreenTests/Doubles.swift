@@ -85,7 +85,9 @@ struct Tree: Sendable {
 /// The process table holding a tree, or giving no answer, which keeps what it was asked.
 final class FakeTable: ProcessTable {
     private let tree: Tree?
-    private let asked = OSAllocatedUnfairLock(initialState: (looks: 0, arguments: [pid_t](), addresses: [pid_t]()))
+    private let asked = OSAllocatedUnfairLock(
+        initialState: (looks: 0, arguments: [pid_t](), addressReaders: 0, addresses: [pid_t]())
+    )
 
     init(_ tree: Tree?) {
         self.tree = tree
@@ -95,13 +97,19 @@ final class FakeTable: ProcessTable {
     var looks: Int { asked.withLock(\.looks) }
     /// Whose command lines were read.
     var argumentsRead: [pid_t] { asked.withLock(\.arguments).sorted() }
-    /// Whose SSH client addresses were read.
-    var addressesRead: [pid_t] { asked.withLock(\.addresses).sorted() }
+    /// How many readers of SSH client addresses were made.
+    var addressReaders: Int { asked.withLock(\.addressReaders) }
+    /// Whose SSH client addresses were read, in turn.
+    var addressesRead: [pid_t] { asked.withLock(\.addresses) }
 
-    func sshAddresses(of pids: Set<pid_t>) -> [pid_t: String] {
-        asked.withLock { $0.addresses += pids }
+    func sshAddressReader() -> (pid_t) -> String? {
+        asked.withLock { $0.addressReaders += 1 }
 
-        return tree.map { tree in tree.addresses.filter { pids.contains($0.key) && !tree.hidden.contains($0.key) } } ?? [:]
+        return { [tree, asked] pid in
+            asked.withLock { $0.addresses.append(pid) }
+
+            return tree.flatMap { $0.hidden.contains(pid) ? nil : $0.addresses[pid] }
+        }
     }
 
     func read(arguments wanted: (Proc) -> Bool) -> Processes? {
