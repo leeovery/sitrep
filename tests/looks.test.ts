@@ -1,8 +1,9 @@
 import { expect, test } from './kit'
 import type { Io } from '../cli/io'
 import { looking, POLL_MS, untilEnded, type Look, type Run, type Watcher } from '../cli/looks'
-import { append, projectsDir, type Body, type SessionPaths } from '../core'
+import { append, hereFile, projectsDir, type Body, type SessionPaths } from '../core'
 import { META, PLUGIN_VERSION, PROJECT, REPO, ROOT, T0, W1 } from './data'
+import { APP_FILE as HERE_FILE } from './here'
 import { yesAsk } from './lines'
 import { WHERE } from './world'
 import { manifestText, MANIFEST, NOW, terminal } from './terminal'
@@ -62,7 +63,12 @@ const looked = async (
     stop: () => {},
   }
 
-  await looking(io, run, { ...watcher, seen: look => looks.push(look) })
+  await looking(io, run, {
+    ...watcher,
+    seen: look => {
+      looks.push(look)
+    },
+  })
 
   return { looks, waits }
 }
@@ -97,6 +103,19 @@ test("each look hands the board's feed as it stands then, once a second, until t
   ])
   expect(looks.map(each => each.now)).toEqual([NOW, NOW + POLL_MS])
   expect(waits).toEqual([POLL_MS, POLL_MS])
+})
+
+test("SitRep's here.json at the folder's top, and the temp file a write of it leaves beside it, change no look: the board reads projects/ alone", async () => {
+  const { t } = seeded()
+  const beside = () => {
+    t.files.set(hereFile(ROOT), { text: HERE_FILE, mtimeMs: t.io.now() })
+    t.files.set(`${ROOT}/.dat.nosync01.here.json`, { text: HERE_FILE.slice(0, 9), mtimeMs: t.io.now() })
+  }
+
+  const { looks } = await looked(t, [beside, () => {}])
+
+  expect(looks.map(each => each.isSame)).toEqual([false, true, true])
+  expect(looks.map(keys)).toEqual([[`ask:${META.id}:k1`], [`ask:${META.id}:k1`], [`ask:${META.id}:k1`]])
 })
 
 test('a look where nothing was folded anew says so, and its feed is made once, however often asked for', async () => {

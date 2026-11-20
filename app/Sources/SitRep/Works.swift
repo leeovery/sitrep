@@ -23,6 +23,12 @@ final class Works {
         set { here.changed = newValue }
     }
 
+    /// The same at every read, changed or not, for `here.json`.
+    var notHereRead: (Set<String>) -> Void {
+        get { here.taken }
+        set { here.taken = newValue }
+    }
+
     /// A jump that fails is told in a banner (`JumpAnswer.banner`); tmux is found on Lee's PATH, as `path` gives it,
     /// the login shell's found once and kept, asked for at each jump, and each read of here, within its limit; a window
     /// is opened as `opening` gives Lee's settings at the click.

@@ -1,3 +1,4 @@
+import Foundation
 import os
 import SitRepCore
 @testable import SitRepScreen
@@ -167,6 +168,55 @@ struct HereWatchTests {
         clock.pass(HereWatch.every)
         try await until(within: .seconds(10)) { reads.asked.count == 3 }
         #expect(HereWatch.every == .seconds(3))
+    }
+
+    /// Each read taken is told, changed or not, after `changed` where it changed: what `here.json` is written from.
+    @Test func eachReadTakenIsToldChangedOrNot() async throws {
+        let reads = Reads(["sr-a": .notHere, "sr-b": .here])
+        let watch = Self.watch(reads)
+        let line = try Self.held("sr-a", "sr-b")
+        var told: [String] = []
+
+        defer { watch.stop() }
+        watch.changed = { told.append("changed \($0.sorted())") }
+        watch.taken = { told.append("taken \($0.sorted())") }
+        watch.heard(line)
+        try await Self.read(1, by: reads, of: watch)
+        watch.heard(line)
+        try await Self.read(2, by: reads, of: watch)
+        reads.answer(["sr-a": .here, "sr-b": .here])
+        watch.heard(line)
+        try await Self.read(3, by: reads, of: watch)
+
+        #expect(told == [
+            #"changed ["sr-a"]"#, #"taken ["sr-a"]"#, #"taken ["sr-a"]"#, "changed []", "taken []",
+        ])
+    }
+
+    /// As the app writes it: `here.json` at every read, though nothing changed, its time the read's own.
+    @Test func hereJsonIsWrittenAtEveryReadThoughNothingChanged() async throws {
+        let folder = FileManager.default.temporaryDirectory.appending(path: "sitrep-here-\(UUID().uuidString)")
+        let file = HereFile(url: folder.appending(path: HereFile.name))
+        let reads = Reads(["sr-a": .notHere])
+        let watch = Self.watch(reads)
+        let line = try Self.held("sr-a")
+        var times: [Date] = []
+
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer {
+            watch.stop()
+            try? FileManager.default.removeItem(at: folder)
+        }
+        watch.taken = { notHere in
+            times.append(Date(timeIntervalSince1970: 1_763_650_000 + 3 * Double(times.count)))
+            file.write(notHere, at: times[times.count - 1])
+        }
+        for count in 1 ... 2 {
+            watch.heard(line)
+            try await Self.read(count, by: reads, of: watch)
+            #expect(try Data(contentsOf: file.url) == HereFile.text(["sr-a"], at: times[count - 1]))
+        }
+        #expect(times.count == 2)
     }
 
     /// A session read as here forgets the window opened for it, as a click reading it so does.

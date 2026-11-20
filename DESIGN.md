@@ -3135,6 +3135,7 @@ writers and readers stay safe:
 ```
 $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   snooze.json                 Snooze's choices as Lee set them in SitRep: the app's alone, for the pane
+  here.json                   the held sessions SitRep last read no terminal on this Mac shows: the app's alone, for the panel in a terminal
   projects/<project key>/
     project.json              name, directory, created and by whom: the project's own
     sessions/<session id>/
@@ -3229,6 +3230,29 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
     snoozes, before its first look rewrites what an older build stored.
   - SitRep is its one writer, as the one-file-per-writer rule below has
     every file, so it needs no lock.
+- **`here.json`** (20 November 2026; see "The board in a terminal"): the
+  held sessions SitRep's last read of here found no terminal on this Mac
+  shows (stage 8, "How it is read"), for the board in a terminal to draw
+  hollow and dimmed, as the notch does. Compact, its keys sorted
+  (`tests/here.ts` holds the app's encoder to its text):
+
+  ```
+  {"at":1763650000123,"notHere":["sr-ct0002","sr-nw0001"],"v":1}
+  ```
+
+  - **The app alone writes it,** at every read of here, every 3 seconds
+    and at each watch line, changed or not, so `at`, the write's time in
+    milliseconds since the epoch, stays fresh while SitRep runs. It writes
+    the whole file beside it and renames it over the old, off the main
+    thread, a write at a time; a write that fails says nothing, and makes
+    no folder. It finds the folder as for `snooze.json`, and removes the
+    file as SitRep quits.
+  - **The CLI's panel reads it** at every look, the board changed or not
+    (core's `notHereOf`). A file missing, unreadable, misshapen, of a later
+    version, or 10 seconds or more from the look's time either way
+    (`HERE_STALE_MS`, three reads and a second over) names none, so a held
+    session draws filled while SitRep isn't reading. The mod never reads
+    it, and the board reads `projects/` alone.
 - **Folders from before projects were named** keep their keys
   (`code-3f9a1c2e`, `switchboard-5b0e7d41`, from the folder a window
   started in): no key is renamed. Without a `project.json`, such a project is
@@ -9410,7 +9434,10 @@ open), and tmux passing an escape sequence through from Claude's own pane
      jump, exactly as today; not here, the command. Where the jump and the
      read disagree, the heartbeat saying Ghostty and the ancestry sshd, the
      read decides. A session here whose jump then fails is refused in the
-     jump's words, as today, and nothing starts.
+     jump's words, as today, and nothing starts. Each read is written to
+     `here.json` too, changed or not (20 November 2026; see "Storage"),
+     for the board in a terminal, which reads it at every look: the one
+     reader of here outside the app.
    - **What the read costs.** It asks Ghostty nothing, as `sitrep screen`
      did not (6 November 2026): no Apple Event, so no prompt for leave to
      control Ghostty and no 5 seconds' wait on a locked screen. The
@@ -10173,13 +10200,18 @@ look", the pick on its page "FINAL · board in a terminal".
 - **It fits the terminal it is in**, drawn first for 39×27, rootshell's
   narrowest, and for 69×46, 73×36 and 114×45, Lee's measured sizes, down to
   15 rows. Lee: "We build it dynamically. It will fit regardless."
+- **The fill comes from SitRep** (20 November 2026): SitRep writes each
+  read of here to `here.json` (see "Storage"), and the panel reads it at
+  every look, so a held session no terminal on this Mac shows draws hollow
+  and dimmed, as on the notch. A file 10 seconds old, or none, as with
+  SitRep not running, leaves every held session filled.
 
 Every other question the spec put to Lee he answered on 19 November 2026
 as it recommended, and none is left open. So the CLI runs programs again, which it has not done
 since 10 November 2026 (stage 7, step B), but only for a pick: the user's
 resume command through the login shell, and `ps` for the guard and
-`{tty}`; never zmx or tmux. SitRep comes to write which sessions this Mac
-doesn't show, for the panel's hollow marks.
+`{tty}`; never zmx or tmux. SitRep writes which sessions this Mac doesn't
+show, for the panel's hollow marks.
 
 ## Later
 

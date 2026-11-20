@@ -22,6 +22,8 @@
  *   scrolls a row a notch, the band staying on its session, in sight or not.
  * - `top` is kept as the layout clamps it, so scrolling past the end piles
  *   nothing up.
+ * - The sessions SitRep says this Mac doesn't show move behind those it
+ *   shows, the band staying on its session, as on a changing board.
  * - Each line new to Needs you is stamped with the time of the board it
  *   came on, and dropped once NEW_MS old.
  * - `q`, Ctrl-C and Ctrl-Z are stepped as any key, dropping an answer, and
@@ -56,6 +58,8 @@ export type PanelEvent =
   | { tick: number }
   /** A pick done: what it leaves to say, if anything. */
   | { opened: string | undefined }
+  /** The sessions no terminal on this Mac shows, as SitRep last read them. */
+  | { notHere: ReadonlySet<string> }
 
 /** A step's state, and the session to open, where ⏎ or a tap asks for one. */
 export type Stepped = { state: PanelState; open?: string }
@@ -140,6 +144,10 @@ const followed = (before: PanelState, after: PanelState): string | undefined => 
   return row === undefined ? undefined : rowKey(row)
 }
 
+/** `next`, its rows moved from where they stood in `state`: the band following its row, and kept in sight where it was. */
+const reflowed = (state: PanelState, next: PanelState) =>
+  settled(keepingSight(state, withField(next, 'band', followed(state, next))))
+
 /** Each line new on the board stamped `now`, and those first shown NEW_MS ago or more dropped. */
 const arrived = (arrivals: ViewState['arrivals'], news: readonly string[], now: number) =>
   new Map([...arrivals, ...news.map(key => [key, now] as const)].filter(([, at]) => now - at < NEW_MS))
@@ -154,7 +162,7 @@ const boarded = (state: PanelState, { board, news, now }: Board): PanelState => 
     arrivals: arrived(state.arrivals, news, now),
   }
 
-  return settled(keepingSight(state, withField(read, 'band', followed(state, read))))
+  return reflowed(state, read)
 }
 
 /** A failed look: after a board, the board kept, stale; before any, why it can't be read. */
@@ -186,7 +194,7 @@ const toggled = (state: PanelState): PanelState => {
   const next = { ...state, isSnoozedOpen: !state.isSnoozedOpen }
 
   if (!next.isSnoozedOpen) {
-    return settled(keepingSight(state, withField(next, 'band', followed(state, next))))
+    return reflowed(state, next)
   }
 
   if (state.band !== undefined) {
@@ -264,6 +272,10 @@ export const step = (state: PanelState, event: PanelEvent): Stepped => {
 
   if ('opened' in event) {
     return only(settled(kept(withField(state, 'answer', event.opened))))
+  }
+
+  if ('notHere' in event) {
+    return only(reflowed(state, { ...state, notHere: event.notHere }))
   }
 
   return only({ ...state, now: event.tick, arrivals: arrived(state.arrivals, [], event.tick) })

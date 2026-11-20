@@ -4,10 +4,10 @@ import Testing
 
 /// No test reaches this Mac's real preferences, or its real board folder. Every one gives what it makes
 /// `MemoryDefaults`, as tests that made a suite of their own once left 171 domains behind; and every one gives a
-/// `SnoozeFile` a folder of its own, as the app's own writes the board folder SitRep shows. No type falls back to
-/// either, so a test reaches one only by naming it; this reads the app's test sources, across their lines, for a way
-/// it might: the standard domain, `.standard` however it is reached, a `UserDefaults` made, or another name given the
-/// type; and the live `SnoozeFile`, or one found from this Mac's own environment or home. It allows only
+/// `SnoozeFile` or a `HereFile` a folder of its own, as the app's own write the board folder SitRep shows. No type falls
+/// back to either, so a test reaches one only by naming it; this reads the app's test sources, across their lines, for
+/// a way it might: the standard domain, `.standard` however it is reached, a `UserDefaults` made, or another name given
+/// the type; and the live `SnoozeFile` or `HereFile`, or one found from this Mac's own environment or home. It allows only
 /// `MemoryDefaultsTests`' one check that its suite stays empty, by that line.
 @Suite(.backstop)
 struct DefaultsScanTests {
@@ -23,12 +23,12 @@ struct DefaultsScanTests {
             .wordBoundaryKind(.simple)
     }
 
-    /// Every way in to the board folder, as a pattern across lines: `SnoozeFile.live`, or `.live` given for one, or a
-    /// file found from this Mac's environment or its home.
+    /// Every way in to the board folder, as a pattern across lines: `SnoozeFile.live` or `HereFile.live`, or `.live`
+    /// given for one, or a file found from this Mac's environment or its home.
     private static var boardFolder: Regex<Substring> {
         #/
-            \bSnoozeFile \s* \. \s* live\b
-            | \bsnoozeFile \s* : \s* \. \s* live\b
+            \b(?:Snooze|Here)File \s* \. \s* live\b
+            | \b(?:snooze|here)File \s* : \s* \. \s* live\b
             | \benvironment \s* : \s* ProcessInfo \s* \. \s* processInfo \s* \. \s* environment\b
             | \bhomeDirectory (?:ForCurrentUser)\b
         /#
@@ -90,14 +90,18 @@ struct DefaultsScanTests {
             "SitRepTests/D.swift": "let e = SnoozeFile(environment: [:], home: FileManager.default.homeDirectory"
                 + "ForCurrentUser)\nlet f = SnoozeFile(environment: [\"HOME\": \"/x\"], home: home)",
             "SitRepTests/E.swift": "let g = SnoozeFile." + "live.url",
+            "SitRepScreenTests/F.swift": "let h = HereFile\n    ." + "live\nlet i = HereFile(url: folder)",
+            "SitRepTests/G.swift": "let j = Works(hereFile: ." + "live)\n// HereFile." + "live",
         ]
 
         #expect(Self.findings(files) == [
             "SitRepMenuTests/A.swift:1 reaches this Mac's board folder",
+            "SitRepScreenTests/F.swift:1 reaches this Mac's board folder",
             "SitRepTests/B.swift:1 reaches this Mac's board folder",
             "SitRepTests/C.swift:2 reaches this Mac's board folder",
             "SitRepTests/D.swift:1 reaches this Mac's board folder",
             "SitRepTests/E.swift:1 reaches this Mac's board folder",
+            "SitRepTests/G.swift:1 reaches this Mac's board folder",
         ])
     }
 

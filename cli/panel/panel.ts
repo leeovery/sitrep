@@ -39,6 +39,10 @@
  *   ends, drawn whole from the latest board, the band where it was, with
  *   what the pick leaves to say. Nothing else takes it back meanwhile, a
  *   Ctrl-Z's take-back pressed while the pick was readied among them.
+ * - At every look it reads SitRep's `here.json` too, the board changed or
+ *   not, and draws the held sessions it names hollow and dimmed, as the
+ *   notch does (core's here.ts). With no file, or a stale one, as with
+ *   SitRep not running, every held session draws filled.
  * - Each ask new on a look's board posts a terminal notification
  *   (notices.ts), unless the run turned them off: a write each, after the
  *   look's frame, so never inside one. A look while a program has the
@@ -48,7 +52,8 @@
  *   A look whose reads end after the panel closed is dropped, so nothing
  *   reaches the shell after the terminal is given back.
  */
-import { newRows, ownTime, type Feed, type Shown } from '../../core'
+import { hereFile, newRows, notHereOf, ownTime, rootOf, type Feed, type Shown } from '../../core'
+import { textAt } from '../files'
 import { KEYED, type Io, type Signal, type Terminal } from '../io'
 import { looking, untilEnded, type Look } from '../looks'
 import type { Size } from './cells'
@@ -88,6 +93,12 @@ const UNSIZED: Size = { width: 80, height: 24 }
 
 /** The sessions on the board no terminal on this Mac shows: none known, until SitRep says. */
 const NOT_HERE: ReadonlySet<string> = new Set()
+
+/** The sessions SitRep's `here.json` says no terminal on this Mac shows at `now`; none while SitRep says nothing. */
+const notHereAt = async (io: Io, now: number) => notHereOf(await textAt(io, hereFile(rootOf(io.env))), now)
+
+const isSameSet = (a: ReadonlySet<string>, b: ReadonlySet<string>) =>
+  a.size === b.size && [...a].every(each => b.has(each))
 
 /** Why a look failed, as a sentence, as the app words it, made harmless for the terminal. */
 const reasonOf = (error: unknown) => {
@@ -412,9 +423,18 @@ const live = (io: Io, terminal: Terminal, { isNotifying }: PanelOptions) => {
     }
   }
 
-  /** A look's board, stepped as a board where it changed or the board was stale; else the clock alone. */
-  const onLook = (look: Look) => {
+  /**
+   * A look's board, stepped as a board where it changed or the board was
+   * stale, else the clock alone; and the sessions this Mac doesn't show
+   * first, where SitRep says other than it did, so an unchanged board
+   * redraws with its new fill.
+   */
+  const onLook = (look: Look, notHere: ReadonlySet<string>) => {
     unhold()
+
+    if (!isSameSet(notHere, state.notHere)) {
+      state = step(state, { notHere }).state
+    }
 
     if (look.isSame && state.board === 'read') {
       apply({ tick: look.now })
@@ -430,8 +450,12 @@ const live = (io: Io, terminal: Terminal, { isNotifying }: PanelOptions) => {
     notify(feed, news.news)
   }
 
-  /** A look, unless the panel closed while its reads were under way. */
-  const lookedAt = (look: Look) => guard(() => onLook(look))
+  /** A look, with what SitRep says this Mac doesn't show as it ends, unless the panel closed while its reads were under way. */
+  const lookedAt = async (look: Look) => {
+    const notHere = await notHereAt(io, look.now)
+
+    guard(() => onLook(look, notHere))
+  }
 
   const onFailure = (error: unknown) => {
     unhold()
