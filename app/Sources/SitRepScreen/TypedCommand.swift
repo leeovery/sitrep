@@ -8,7 +8,9 @@ import SitRepCore
 /// It is held to plain shell syntax, which sh, bash, zsh, dash and ksh all read alike, and anything else is refused, in
 /// words pointing to a script (Lee, 20 November 2026): a reader refusing each place a shell reads a value again could
 /// never be finished, as three reviews each found more. Plain syntax is:
-/// - words of ASCII letters, digits and `_ . / : @ % + , = -`; a `~` starting one; `\` and the character after it;
+/// - words of ASCII letters, digits and `_ . / : @ % + , = -`; a `~` starting one, or right after its first `=` or a
+///   `:` past that, as in `PATH=~/bin:~/go/bin`, though never right before a placeholder, as zsh and ksh read `~'…'`
+///   as a user's home; `\` and the character after it;
 /// - spaces and tabs between them; `|`, `||`, `&&` and `;`;
 /// - redirections, `<`, `>` and `>>`, each to a word, and `>&` or `<&` to a single digit, which nothing may join, as
 ///   `2>&1`;
@@ -16,7 +18,8 @@ import SitRepCore
 /// - `'…'`, holding anything;
 /// - `"…"`, holding what prints but a backtick and `!`, and `\` only before `"` or `$`;
 /// - a parameter, in double quotes or out: `$name`, `${name}`, `$?`, `$$`, or `$1` to `$9`, one outside braces only
-///   where every shell ends it, at a blank, an operator, a redirection, a double quote, or one of `/ - = , + @ % \ $`;
+///   where every shell ends it: at a blank, an operator, a redirection, a `)`, a double quote, one of
+///   `/ - = , + @ % \ $`, or the command's end, and in double quotes at a `'` too;
 /// - `$(…)`, outside quotes, holding plain syntax, however deep.
 ///
 /// `$!` is none: an interactive bash or zsh, as SitRep types into, reads a `!` after it as history, and `&` alone,
@@ -27,10 +30,17 @@ import SitRepCore
 /// `id={claude}` is `id='…'`, one word. Inside quotes it is refused, as its quoted value would end them early. Another
 /// name in braces outside quotes is refused as one SitRep doesn't know; inside quotes it is text, as awk's `'{print}'`.
 ///
-/// What evaluates a name or number taken from its argument passes as words: `eval`, `let`, `read`, `declare`,
-/// `typeset`, `integer`, `export`, `printf -v` and `printf %d`, `test` and `[` with a numeric comparison or `-v`, and
-/// `shift`; and so does any program running an argument as code, as `sh -c`. A command Lee writes that passes a
-/// placeholder to one takes that risk.
+/// What takes code, a name or a number from its argument passes as words, and a command Lee writes that passes a
+/// placeholder to one takes that risk: a builtin such as `eval`, `trap`, `let`, `read`, `declare`, `typeset`, `local`,
+/// `export`, `printf -v`, `test`'s numeric comparisons, `shift`, `exit`, `return` or `ulimit`; an assignment to a
+/// variable the shell evaluates, as `PS1`, `PS4`, `PROMPT_COMMAND`, `ENV` and `BASH_ENV`, or an integer one such as
+/// `RANDOM`, `SECONDS` or `OPTIND`; or a program running an argument as code, as `sh -c`.
+///
+/// With zsh's GLOB_SUBST set, an unquoted parameter or `$(…)` holding a value can run code, as `x={dir}; echo $x`
+/// does: a command for such a shell puts them in double quotes. SitRep types the line into an interactive shell, which
+/// reads `.zshrc`; the panel's login shell, `-l -c`, reads none.
+///
+/// A value starting with a dash is refused, as a program would read it as an option.
 ///
 /// The panel's reader (`cli/panel/command.ts`) is the same machine, branch for branch.
 struct TypedCommand<Placeholder: CommandPlaceholder>: Equatable {
@@ -102,13 +112,30 @@ struct TypedCommand<Placeholder: CommandPlaceholder>: Equatable {
 
         let values = try await facts.values(wanted: wanted)
 
-        for placeholder in Placeholder.allCases where wanted.contains(placeholder) {
-            if let scalar = values[placeholder].flatMap(unprintable(in:)) {
-                throw Unopenable(description: "For \(name), \(facts.words(placeholder)) has \(scalar.untypable).")
-            }
+        if let problem = valueProblem(in: values, words: facts.words, named: name) {
+            throw Unopenable(description: problem)
         }
 
         return filled(values)
+    }
+
+    /// What is wrong with the values it names, in plain words: one holding a character that can't be typed; or one
+    /// starting with a dash, which a program would read as an option, as `claude --resume {claude}` would read an id of
+    /// `--settings=…`. Each the first by the placeholders' order.
+    private func valueProblem(
+        in values: [Placeholder: String], words: (Placeholder) -> String, named name: String
+    ) -> String? {
+        let named = Placeholder.allCases.filter(wanted.contains).map { ($0, values[$0] ?? "") }
+
+        for (placeholder, value) in named {
+            if let scalar = unprintable(in: value) {
+                return "For \(name), \(words(placeholder)) has \(scalar.untypable)."
+            }
+        }
+
+        return named.first { $0.1.hasPrefix("-") }.map { placeholder, _ in
+            "For \(name), \(words(placeholder)) starts with a dash, which a program would read as an option."
+        }
     }
 
     /// The command, each placeholder replaced by its fact quoted for the shell; one with no fact left as written.
@@ -159,8 +186,8 @@ extension TypedCommand {
     }
 
     /// The command read by plain shell syntax a scalar at a time, as far as it holds to it: inside which quotes, if any;
-    /// how many `$(…)` deep; where outside quotes; and the redirection read last, as a refusal of what follows it names
-    /// it.
+    /// how many `$(…)` deep; where outside quotes; where the word's first `=` stands, and each outer word's while in a
+    /// `$(…)`; and the redirection read last, as a refusal of what follows it names it.
     private struct Reading {
         let text: String
         private let scalars: [Unicode.Scalar]
@@ -170,6 +197,8 @@ extension TypedCommand {
         private var depth = 0
         private var spot = Spot.start
         private var quote: Unicode.Scalar?
+        private var equalsAt: Int?
+        private var outerEquals: [Int?] = []
         private var redirection = ""
         private var stop: CommandProblem<Placeholder>?
 
@@ -204,9 +233,26 @@ extension TypedCommand {
             at += count
         }
 
+        /// Into a word: a new one, its `=` yet to come, where the reading stood outside one.
+        private mutating func inWord() {
+            if spot != .word {
+                equalsAt = nil
+                spot = .word
+            }
+        }
+
         private mutating func word(_ count: Int) {
+            inWord()
             take(count)
-            spot = .word
+        }
+
+        /// A plain scalar, the word's first `=` kept, as a `~` may follow it.
+        private mutating func plain(_ scalar: Unicode.Scalar) {
+            word(1)
+
+            if scalar == "=", equalsAt == nil {
+                equalsAt = at - 1
+            }
         }
 
         private mutating func operate(_ count: Int) {
@@ -232,8 +278,21 @@ extension TypedCommand {
                 return refuse("{")
             }
 
+            inWord()
             placeholder(name, .bare, end: end)
-            spot = .word
+        }
+
+        /// A `~` outside quotes: starting a word, or right after its first `=` or a `:` past that; never right before a
+        /// placeholder, which zsh and ksh read through its quotes as a user's name.
+        private mutating func tilde() {
+            let isAssigned = spot == .word && equalsAt.map { $0 == at - 1 || ahead(-1) == ":" } == true
+            let found = ahead(1) == "{" ? placeholderAt(scalars, at + 1) : nil
+
+            if spot != .start, spot != .target, !isAssigned {
+                return refuse("~")
+            }
+
+            if let (name, _) = found { refuse("~{\(name)}") } else { word(1) }
         }
 
         /// A `{` in quotes: a placeholder, refused as quoted; any other name, text.
@@ -248,7 +307,7 @@ extension TypedCommand {
         /// A `$`: a parameter; outside quotes, a `$(…)` opening; nothing else.
         private mutating func dollar() {
             guard ahead(1) == "(" else {
-                if let length = parameterLength(scalars, at) {
+                if let length = parameterLength(scalars, at, isQuoted: quote == "\"") {
                     return word(length)
                 }
                 return refuse(dollarPart(scalars, at))
@@ -257,6 +316,8 @@ extension TypedCommand {
                 return refuse(ahead(2) == "(" ? "$((" : "$(")
             }
 
+            inWord()
+            outerEquals.append(equalsAt)
             take(2)
             depth += 1
             spot = .start
@@ -266,6 +327,7 @@ extension TypedCommand {
         private mutating func close() {
             take(1)
             depth -= 1
+            equalsAt = outerEquals.popLast() ?? nil
             spot = .word
         }
 
@@ -307,7 +369,7 @@ extension TypedCommand {
             case "{":
                 brace()
             case "~":
-                if spot == .start || spot == .target { word(1) } else { refuse("~") }
+                tilde()
             case "\\":
                 if ahead(1).isEmpty { refuse("\\") } else { word(2) }
             case "$":
@@ -326,7 +388,7 @@ extension TypedCommand {
             case "[", "]":
                 if spot == .start, scalars.at(at + 1)?.isBreak ?? true { word(1) } else { refuse("\(scalar)") }
             default:
-                if scalar.isWordPart { word(1) } else { refuse("\(scalar)") }
+                if scalar.isWordPart { plain(scalar) } else { refuse("\(scalar)") }
             }
         }
 
@@ -383,9 +445,10 @@ private func placeholderAt(_ scalars: [Unicode.Scalar], _ at: Int) -> (String, I
     return (written(scalars, from: at + 1, to: end), end + 1)
 }
 
-/// How many scalars the parameter `$` starts at `at` takes, `$name`, `${name}`, `$?`, `$$` or `$1` to `$9`, one outside
-/// braces only where what follows ends it; none where it starts none.
-private func parameterLength(_ scalars: [Unicode.Scalar], _ at: Int) -> Int? {
+/// How many scalars the parameter `$` starts at `at` takes, in double quotes or not, `$name`, `${name}`, `$?`, `$$` or
+/// `$1` to `$9`, one outside braces only where what follows ends it, in double quotes a `'` too, as in `"$USER's"`;
+/// none where it starts none.
+private func parameterLength(_ scalars: [Unicode.Scalar], _ at: Int, isQuoted: Bool) -> Int? {
     let next = scalars.at(at + 1)
     let isBraced = next == "{"
     var end = at + (isBraced ? 2 : 1)
@@ -404,7 +467,9 @@ private func parameterLength(_ scalars: [Unicode.Scalar], _ at: Int) -> Int? {
         return scalars.at(end) == "}" ? end + 1 - at : nil
     }
 
-    return (scalars.at(end)?.endsParameter ?? true) ? end - at : nil
+    let isEnded = scalars.at(end).map { $0.endsParameter || (isQuoted && $0 == "'") } ?? true
+
+    return isEnded ? end - at : nil
 }
 
 /// A `$` at `at` that starts no parameter, as a refusal names it: what it starts, to the scalar that ends it, as `${x:`,
@@ -479,7 +544,7 @@ private extension Unicode.Scalar {
     /// What may follow a parameter outside braces, where every shell ends it: a break, a double quote, or one of
     /// `/ - = , + @ % \ $`; or the command's end, read as none. Others read on: zsh's `$x:F:…:` evaluates the `…` as
     /// arithmetic, `$x[…]` is zsh's subscript, and zsh reads `$12` as `${12}` and `$$'…'` as `$$` and `$'…'`; ksh reads
-    /// `$x.y` as one name, and bash and ksh take a letter past ASCII into one.
+    /// `$x.y` as one name, and bash and ksh take a letter past ASCII into one. All but `$'…'` hold in double quotes too.
     var endsParameter: Bool {
         isBreak || "\"/-=,+@%\\$".unicodeScalars.contains(self)
     }

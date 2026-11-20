@@ -9,7 +9,10 @@
  *   reads a value again could never be finished, as three reviews each
  *   found more. Plain syntax is:
  *   - words of ASCII letters, digits and `_ . / : @ % + , = -`; a `~`
- *     starting one; `\` and the character after it;
+ *     starting one, or right after its first `=` or a `:` past that, as
+ *     in `PATH=~/bin:~/go/bin`, though never right before a placeholder,
+ *     as zsh and ksh read `~'…'` as a user's home; `\` and the character
+ *     after it;
  *   - spaces and tabs between them; `|`, `||`, `&&` and `;`;
  *   - redirections, `<`, `>` and `>>`, each to a word, and `>&` or `<&` to
  *     a single digit, which nothing may join, as `2>&1`;
@@ -18,9 +21,10 @@
  *   - `"…"`, holding what prints but a backtick and `!`, and `\` only
  *     before `"` or `$`;
  *   - a parameter, in double quotes or out: `$name`, `${name}`, `$?`, `$$`,
- *     or `$1` to `$9`, one outside braces only where every shell ends it,
- *     at a blank, an operator, a redirection, a double quote, or one of
- *     `/ - = , + @ % \ $`;
+ *     or `$1` to `$9`, one outside braces only where every shell ends it:
+ *     at a blank, an operator, a redirection, a `)`, a double quote, one
+ *     of `/ - = , + @ % \ $`, or the command's end, and in double quotes
+ *     at a `'` too;
  *   - `$(…)`, outside quotes, holding plain syntax, however deep.
  *   `$!` is none: an interactive bash or zsh reads a `!` after it as
  *   history, and `&` alone, which gives `$!` its meaning, is refused. Nor
@@ -33,17 +37,24 @@
  *   its quoted value would end them early. Another name in braces outside
  *   quotes is refused as one SitRep doesn't know; inside quotes it is
  *   text, as awk's `'{print}'`.
- * - What evaluates a name or number taken from its argument passes as
- *   words: `eval`, `let`, `read`, `declare`, `typeset`, `integer`,
- *   `export`, `printf -v` and `printf %d`, `test` and `[` with a numeric
- *   comparison or `-v`, and `shift`; and so does any program running an
- *   argument as code, as `sh -c`. A command passing a placeholder to one
- *   takes that risk itself.
+ * - What takes code, a name or a number from its argument passes as words,
+ *   and a command passing a placeholder to one takes that risk itself: a
+ *   builtin such as `eval`, `trap`, `let`, `read`, `declare`, `typeset`,
+ *   `local`, `export`, `printf -v`, `test`'s numeric comparisons, `shift`,
+ *   `exit`, `return` or `ulimit`; an assignment to a variable the shell
+ *   evaluates, as `PS1`, `PS4`, `PROMPT_COMMAND`, `ENV` and `BASH_ENV`, or
+ *   an integer one such as `RANDOM`, `SECONDS` or `OPTIND`; or a program
+ *   running an argument as code, as `sh -c`.
+ * - With zsh's GLOB_SUBST set, an unquoted parameter or `$(…)` holding a
+ *   value can run code, as `x={dir}; echo $x` does: a command for such a
+ *   shell puts them in double quotes. The panel's login shell, `-l -c`,
+ *   reads no `.zshrc`, but the app's interactive one does.
  * - Each value goes in single quotes, never bare.
  * - Refused before anything runs: none given; a character that doesn't
  *   print, in the command or in a value; a placeholder SitRep doesn't know;
  *   one in quotes; any part but plain syntax, and a quote or `$(…)` left
- *   open; `{dir}`, where the window said no folder.
+ *   open; `{dir}`, where the window said no folder; a value starting with
+ *   a dash, which a program would read as an option.
  * - It reads the command a code point at a time, as the Swift reads its
  *   scalars: a quote with a combining mark after it is still a quote, as
  *   the shell, reading bytes, takes it.
@@ -58,7 +69,7 @@ type Placeholder = (typeof PLACEHOLDERS)[number]
 /** The resume command where none is saved, as SitRep's `OpenSettings` holds it. */
 export const DEFAULT_COMMAND = 'cd {dir} && claude --resume {claude}'
 
-/** A command passing its placeholders to a script, as a refusal of a part sitrep can't check suggests. */
+/** A command passing its placeholders to a script, as a refusal of a part SitRep can't check suggests. */
 const SCRIPTED = '~/bin/resume {claude} {dir}'
 
 /**
@@ -76,7 +87,7 @@ type Standing = 'bare' | 'quoted'
 /** The command's words as written, between its placeholders, and each placeholder and where it stands. */
 type Piece = { words: string } | { name: string; standing: Standing }
 
-/** Where a reading stopped: at a part sitrep can't check, or at the command's end, with a part left open. */
+/** Where a reading stopped: at a part SitRep can't check, or at the command's end, with a part left open. */
 type Stop = { kind: 'unchecked' | 'unclosed'; part: string }
 
 /** A command as read: its pieces, as far as the reading went, and where it stopped, if it did. */
@@ -114,9 +125,12 @@ const BREAKS: ReadonlySet<string> = new Set(['', ' ', '\t', '|', '&', ';', '<', 
  * zsh's `$x:F:…:` evaluates the `…` as arithmetic, `$x[…]` is zsh's
  * subscript, and zsh reads `$12` as `${12}` and `$$'…'` as `$$` and `$'…'`;
  * ksh reads `$x.y` as one name, and bash and ksh take a letter past ASCII
- * into one.
+ * into one. All but `$'…'` hold in double quotes too.
  */
 const PARAMETER_ENDS: ReadonlySet<string> = new Set([...BREAKS, '"', '/', '-', '=', ',', '+', '@', '%', '\\', '$'])
+
+/** What may follow a parameter outside braces but inside double quotes: what may outside the quotes, and `'`, as in `"$USER's"`. */
+const QUOTED_PARAMETER_ENDS: ReadonlySet<string> = new Set([...PARAMETER_ENDS, "'"])
 
 /** What may start a word but its plain characters: a placeholder's brace, `~`, `\`, `$` and the quotes. */
 const WORD_STARTS: ReadonlySet<string> = new Set(['{', '~', '\\', '$', "'", '"'])
@@ -172,8 +186,8 @@ const placeholderAt = (characters: readonly string[], at: number) => {
     : undefined
 }
 
-/** How many characters the parameter `$` starts at `at` takes, `$name`, `${name}`, `$?`, `$$` or `$1` to `$9`, one outside braces only where what follows ends it; none where it starts none. */
-const parameterLength = (characters: readonly string[], at: number) => {
+/** How many characters the parameter `$` starts at `at` takes, in double quotes or not, `$name`, `${name}`, `$?`, `$$` or `$1` to `$9`, one outside braces only where what follows ends it; none where it starts none. */
+const parameterLength = (characters: readonly string[], at: number, isQuoted: boolean) => {
   const next = characters[at + 1] ?? ''
   const isBraced = next === '{'
   let end = at + (isBraced ? 2 : 1)
@@ -192,7 +206,7 @@ const parameterLength = (characters: readonly string[], at: number) => {
     return characters[end] === '}' ? end + 1 - at : undefined
   }
 
-  return PARAMETER_ENDS.has(characters[end] ?? '') ? end - at : undefined
+  return (isQuoted ? QUOTED_PARAMETER_ENDS : PARAMETER_ENDS).has(characters[end] ?? '') ? end - at : undefined
 }
 
 /** A `$` at `at` that starts no parameter, as a refusal names it: what it starts, to the character that ends it, as `${x:`, `$x:`, `$$'` or `$'`; `$` alone before a blank or the command's end. */
@@ -218,7 +232,8 @@ const dollarPart = (characters: readonly string[], at: number) => {
 /**
  * The command read by plain shell syntax a character at a time, as far as
  * it holds to it: inside which quotes, if any; how many `$(…)` deep; where
- * outside quotes, and the redirection read last, as a refusal of what
+ * outside quotes; where the word's first `=` stands, and each outer word's
+ * while in a `$(…)`; and the redirection read last, as a refusal of what
  * follows it names it.
  */
 const readingOf = (characters: readonly string[]): Reading => {
@@ -228,6 +243,8 @@ const readingOf = (characters: readonly string[]): Reading => {
   let depth = 0
   let spot: Spot = 'start'
   let quote: "'" | '"' | undefined
+  let equalsAt: number | undefined
+  const outerEquals: (number | undefined)[] = []
   let redirection = ''
   let stop: Stop | undefined
 
@@ -238,9 +255,26 @@ const readingOf = (characters: readonly string[]): Reading => {
     at += count
   }
 
+  /** Into a word: a new one, its `=` yet to come, where the reading stood outside one. */
+  const inWord = () => {
+    if (spot !== 'word') {
+      equalsAt = undefined
+      spot = 'word'
+    }
+  }
+
   const word = (count: number) => {
+    inWord()
     take(count)
-    spot = 'word'
+  }
+
+  /** A plain character, the word's first `=` kept, as a `~` may follow it. */
+  const plain = (character: string) => {
+    word(1)
+
+    if (character === '=' && equalsAt === undefined) {
+      equalsAt = at - 1
+    }
   }
 
   const operator = (count: number) => {
@@ -266,8 +300,20 @@ const readingOf = (characters: readonly string[]): Reading => {
       return refuse('{')
     }
 
+    inWord()
     placeholder(found.name, 'bare', found.end)
-    spot = 'word'
+  }
+
+  /** A `~` outside quotes: starting a word, or right after its first `=` or a `:` past that; never right before a placeholder, which zsh and ksh read through its quotes as a user's name. */
+  const tilde = () => {
+    const isAssigned = spot === 'word' && equalsAt !== undefined && (equalsAt === at - 1 || ahead(-1) === ':')
+    const found = ahead(1) === '{' ? placeholderAt(characters, at + 1) : undefined
+
+    if (spot !== 'start' && spot !== 'target' && !isAssigned) {
+      return refuse('~')
+    }
+
+    return found === undefined ? word(1) : refuse(`~{${found.name}}`)
   }
 
   /** A `{` in quotes: a placeholder, refused as quoted; any other name, text. */
@@ -280,7 +326,7 @@ const readingOf = (characters: readonly string[]): Reading => {
   /** A `$`: a parameter; outside quotes, a `$(…)` opening; nothing else. */
   const dollar = () => {
     if (ahead(1) !== '(') {
-      const length = parameterLength(characters, at)
+      const length = parameterLength(characters, at, quote === '"')
 
       return length === undefined ? refuse(dollarPart(characters, at)) : word(length)
     }
@@ -289,6 +335,8 @@ const readingOf = (characters: readonly string[]): Reading => {
       return refuse(ahead(2) === '(' ? '$((' : '$(')
     }
 
+    inWord()
+    outerEquals.push(equalsAt)
     take(2)
     depth += 1
     spot = 'start'
@@ -298,6 +346,7 @@ const readingOf = (characters: readonly string[]): Reading => {
   const close = () => {
     take(1)
     depth -= 1
+    equalsAt = outerEquals.pop()
     spot = 'word'
   }
 
@@ -343,7 +392,7 @@ const readingOf = (characters: readonly string[]): Reading => {
       case '{':
         return brace()
       case '~':
-        return spot === 'start' || spot === 'target' ? word(1) : refuse('~')
+        return tilde()
       case '\\':
         return ahead(1) === '' ? refuse('\\') : word(2)
       case '$':
@@ -367,7 +416,7 @@ const readingOf = (characters: readonly string[]): Reading => {
       case ']':
         return spot === 'start' && BREAKS.has(ahead(1)) ? word(1) : refuse(character)
       default:
-        return WORD.test(character) ? word(1) : refuse(character)
+        return WORD.test(character) ? plain(character) : refuse(character)
     }
   }
 
@@ -444,11 +493,11 @@ const unprintableIn = (text: string) => UNPRINTABLE.exec(text)?.[0]?.codePointAt
 const untypable = (point: number) =>
   UNTYPABLE[point] ?? `a character that can't be typed (U+${point.toString(16).toUpperCase().padStart(4, '0')})`
 
-/** Why the reading stopped, in SitRep's words: a part sitrep can't check, pointing to a script; or a part left open. */
+/** Why the reading stopped, in SitRep's words: a part SitRep can't check, pointing to a script; or a part left open. */
 const stopWords = ({ kind, part }: Stop) =>
   kind === 'unclosed'
     ? `${COMMAND} opens ${partWords(part)} but never closes it.`
-    : `${COMMAND} uses ${partWords(part)}, which sitrep can't check. Put that part in a script and pass it ${braced(PLACEHOLDERS, 'or')}, as in ${SCRIPTED}.`
+    : `${COMMAND} uses ${partWords(part)}, which SitRep can't check. Put that part in a script and pass it ${braced(PLACEHOLDERS, 'or')}, as in ${SCRIPTED}.`
 
 /** What is wrong with the command as written, less the spaces around it, whatever the session, in SitRep's words naming the session; none where nothing is. */
 const problemOf = (text: string, { pieces, stop }: Reading, name: string): string | undefined => {
@@ -477,19 +526,29 @@ const problemOf = (text: string, { pieces, stop }: Reading, name: string): strin
 
 const valuesOf = ({ claude, dir, tty }: ResumeFacts): Record<Placeholder, string | undefined> => ({ claude, dir, tty })
 
-/** What is wrong with the facts the command names: `{dir}` with no folder, or a value that can't be typed, the first by the placeholders' order. */
+/**
+ * What is wrong with the facts the command names: `{dir}` with no folder; a
+ * value that can't be typed; or one starting with a dash, which a program
+ * would read as an option, as `claude --resume {claude}` would read an id
+ * of `--settings=…`. Each the first by the placeholders' order.
+ */
 const factProblemOf = (wanted: readonly Placeholder[], facts: ResumeFacts, name: string): string | undefined => {
   const values = valuesOf(facts)
+  const named = PLACEHOLDERS.filter(each => wanted.includes(each)).map(each => ({ each, value: values[each] ?? '' }))
 
   if (wanted.includes('dir') && facts.dir === undefined) {
     return `${name}'s ${facts.isHeld ? 'window' : 'last window'} did not say which folder it ran in, as a window on an older sitrep does not, so sitrep has nothing to put for {dir}.`
   }
 
-  const untyped = PLACEHOLDERS.filter(each => wanted.includes(each))
-    .map(each => ({ each, point: unprintableIn(values[each] ?? '') }))
-    .find(({ point }) => point !== undefined)
+  const untyped = named.map(({ each, value }) => ({ each, point: unprintableIn(value) })).find(({ point }) => point !== undefined)
 
-  return untyped?.point === undefined ? undefined : `For ${name}, ${FACT_WORDS[untyped.each]} has ${untypable(untyped.point)}.`
+  if (untyped?.point !== undefined) {
+    return `For ${name}, ${FACT_WORDS[untyped.each]} has ${untypable(untyped.point)}.`
+  }
+
+  const dashed = named.find(({ value }) => value.startsWith('-'))
+
+  return dashed === undefined ? undefined : `For ${name}, ${FACT_WORDS[dashed.each]} starts with a dash, which a program would read as an option.`
 }
 
 /** A value as a POSIX shell, or zsh, reads it back whole: in single quotes, each of its own closed, escaped and opened again; never bare, as a bare word can be a zsh global alias. */

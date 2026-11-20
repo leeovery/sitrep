@@ -53,9 +53,9 @@ SitRep replaces each placeholder with a quoted value:
 
 Set your own in Settings › General, under Resume command. A one-liner, an alias, a function or a script all work. **Restore Default** puts the default back.
 
-SitRep runs only plain shell syntax, so a folder name never runs as code. The command may hold:
+SitRep runs only plain shell syntax. A folder name then runs as code only if your command hands it to something that runs it, such as `eval` or `sh -c`. The command may hold:
 
-- words, and a `~` at the start of one;
+- words, and a `~` at the start of one or after `=`, for example `PATH=~/bin`;
 - `|`, `||`, `&&` and `;`;
 - redirections: `<`, `>`, `>>` and `2>&1`;
 - tests, such as `[ -n "$s" ]`;

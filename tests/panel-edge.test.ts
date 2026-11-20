@@ -239,7 +239,7 @@ test('a command not fit to fill refuses in its own words before `ps` is asked: e
     `The resume command in Settings is empty. To carry ${NAME} on, set one, or restore the default.`,
     "The resume command in Settings has {session}, which SitRep doesn't know. It knows {claude}, {dir} and {tty}.",
     'The resume command in Settings puts {dir} in quotes. Remove them: SitRep quotes each value itself.',
-    "The resume command in Settings uses a backtick, which sitrep can't check. Put that part in a script and pass it {claude}, {dir} or {tty}, as in ~/bin/resume {claude} {dir}.",
+    "The resume command in Settings uses a backtick, which SitRep can't check. Put that part in a script and pass it {claude}, {dir} or {tty}, as in ~/bin/resume {claude} {dir}.",
   ])
   expect(worlds.flatMap(({ screen }) => screen.runs())).toEqual([])
 })

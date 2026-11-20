@@ -2,15 +2,17 @@ import { expect, test } from './kit'
 import { DEFAULT_COMMAND, lineOf, shellQuoted, typedOf, type ResumeFacts } from '../cli/panel/command'
 import { commandsOf } from './commands'
 import { HOME, W1 } from './data'
+import { READER_CASES } from './reader-cases'
 import { REFUSED_COMMANDS } from './refused-commands'
 
 /**
  * The resume command, read, refused and filled as SitRep's TypedCommand
  * does it, held to the cases its Swift tests hold (TypedCommandTests,
  * ResumeCommandTests): plain shell syntax only, so a session's name or
- * folder never runs as code, and anything else refused in words pointing
- * to a script. What evaluates its arguments, as `eval`, passes as words:
- * a command passing a placeholder to one is the user's own risk.
+ * folder runs as code only where the command hands it to what runs it, and
+ * anything else refused in words pointing to a script. What takes code, a
+ * name or a number from its argument, as `eval` or `trap`, passes as
+ * words: a command passing a placeholder to one is the user's own risk.
  */
 const NAME = 'Invoice ledger'
 
@@ -27,10 +29,10 @@ const refused = (error: string) => ({ ok: false, error })
 
 const QUOTED = refused('The resume command in Settings puts {dir} in quotes. Remove them: SitRep quotes each value itself.')
 
-/** The refusal of a part sitrep can't check, as named. */
+/** The refusal of a part SitRep can't check, as named. */
 const unchecked = (part: string) =>
   refused(
-    `The resume command in Settings uses ${part}, which sitrep can't check. Put that part in a script and pass it {claude}, {dir} or {tty}, as in ~/bin/resume {claude} {dir}.`,
+    `The resume command in Settings uses ${part}, which SitRep can't check. Put that part in a script and pass it {claude}, {dir} or {tty}, as in ~/bin/resume {claude} {dir}.`,
   )
 
 /** Hostile facts: a quote that would end its own, a backtick, and a subscript the shell would evaluate. */
@@ -107,6 +109,10 @@ test('plain shell syntax passes, each placeholder filled wherever it stands outs
     "echo 'a $(b) `c` {print} #!* \\' {dir}",
     'echo "it\'s (a) {x} ~ * ? # ; & | < > [ ] }" {dir}',
     'claude --resume={claude} -v id={claude} x{dir}y {dir}/sub "a"{claude} {dir}:{tty}',
+    'echo "resuming $USER\'s session" "$1\'" "${x}\'" {dir}',
+    'PATH=~/bin:$PATH claude --resume {claude}',
+    'x=a:~/b:~/c --flag=~/d a_1=~/e {dir}',
+    'x=$(echo {dir}):~/b {claude}',
   ]
 
   expect(commands.map(command => line(command, HOSTILE))).toEqual(commands.map(command => filled(filledHostile(command))))
@@ -188,6 +194,7 @@ test('each part but plain shell syntax is refused, named as found, pointing to a
     ['echo "a\\\\b" {dir}', '`\\\\`'],
     ['echo "!" {dir}', '`!`'],
     ['echo "$x[1]" {dir}', '`$x[`'],
+    ['echo "$x.y" {dir}', '`$x.`'],
     ['echo "`pwd`" {dir}', 'a backtick'],
     ['echo x >&{dir}', '`>&{`'],
     ['echo x >&- {dir}', '`>&-`'],
@@ -197,6 +204,13 @@ test('each part but plain shell syntax is refused, named as found, pointing to a
     ['echo x >|{dir}', '`>|`'],
     ['echo x <>{dir}', '`<>`'],
     ['cd a~b {dir}', '`~`'],
+    ['echo a:~/b {dir}', '`~`'],
+    ['x=a=~/b {dir}', '`~`'],
+    ['x=1 $(echo a):~/b {dir}', '`~`'],
+    ['cd ~{dir}', '`~{dir}`'],
+    ['x=~{dir}', '`~{dir}`'],
+    ['x=a:~{claude}', '`~{claude}`'],
+    ['echo ~{x}', '`~{x}`'],
     ['cd ~/café {dir}', '`é`'],
     ['cd {dir} >', '`>`'],
     ['cd {dir} \\', '`\\`'],
@@ -242,8 +256,37 @@ test('commands made at random from plain syntax pass, each placeholder filled qu
   expect(holding.filter(command => line(command, HOSTILE).ok)).toEqual([])
 })
 
-test('what evaluates a name or number from its argument passes as words: a command passing a placeholder to one takes that risk', () => {
-  const commands = ['eval {dir}', 'let {dir}', 'read {dir}', 'declare -i n={dir}', 'printf -v {dir} x', '[ {dir} -eq 1 ]', 'shift {dir}']
+test("each command of tests/reader-cases.ts gets what the panel gave it when the file was made, as the app's reader is held to the same file", () => {
+  const { name, facts: given, rows } = READER_CASES
+  const caseOf = (command: string) => {
+    const read = lineOf(command, given, name)
+
+    return read.ok ? { command, line: read.value } : { command, refusal: read.error }
+  }
+
+  expect(rows.length).toBe(2_000)
+  expect(rows.filter(row => JSON.stringify(caseOf(row.command)) !== JSON.stringify(row))).toEqual([])
+})
+
+test('what takes code, a name or a number from its argument passes as words, a builtin or a variable the shell evaluates: a command passing a placeholder to one takes that risk', () => {
+  const commands = [
+    'eval {dir}',
+    'trap {dir} EXIT',
+    'let {dir}',
+    'read {dir}',
+    'declare -i n={dir}',
+    'local {dir}',
+    'printf -v {dir} x',
+    '[ {dir} -eq 1 ]',
+    'shift {dir}',
+    'exit {dir}',
+    'ulimit {dir}',
+    'PS4={dir}; set -x',
+    'BASH_ENV={dir} bash x',
+    'PROMPT_COMMAND={dir}',
+    'RANDOM={dir}',
+    'OPTIND={dir}',
+  ]
 
   expect(commands.map(command => line(command, HOSTILE))).toEqual(commands.map(command => filled(filledHostile(command))))
 })
@@ -301,6 +344,19 @@ test('a value holding a control, or another character that prints nothing, is re
   expect(line('attach {tty} {dir}', { tty: '\u0015', dir: '\u0003' })).toEqual(
     refused(`For ${NAME}, the folder its Claude ran in has a character that can't be typed (U+0003).`),
   )
+})
+
+test('a value starting with a dash is refused, naming the fact: a program would read it as an option', () => {
+  expect(line('claude --resume {claude}', { claude: '--settings=x' })).toEqual(
+    refused(`For ${NAME}, the Claude Code session's id starts with a dash, which a program would read as an option.`),
+  )
+  expect(line('attach {tty} {dir}', { tty: '-t', dir: '-x' })).toEqual(
+    refused(`For ${NAME}, the folder its Claude ran in starts with a dash, which a program would read as an option.`),
+  )
+  expect(line('attach {tty} {claude}', { tty: '\u0015', claude: '-x' })).toEqual(
+    refused(`For ${NAME}, the terminal its Claude runs on has a character that can't be typed (U+0015).`),
+  )
+  expect(line('claude --resume {claude} x{dir}', { dir: 'a-b' })).toEqual(filled(`claude --resume '${W1}' x'a-b'`))
 })
 
 test('a fact the command does not name is never looked at', () => {

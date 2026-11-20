@@ -49,6 +49,12 @@ const DOUBLE = [' ', 'x', "'", '(', ')', ';', '&', '|', '<', '>', '*', '?', '#',
 /** Parameters, one outside braces always ended by a character every shell ends it at. */
 const PARAMETERS = ['$x/', '$s-', '${x}', '${x}:', '$HOME/', '$?=', '$$-', '$1,', '$_x9@', '$x$s+', '$1%']
 
+/** Parameters ended by a `'`, which ends one only in double quotes. */
+const QUOTED_PARAMETERS = ["$USER's", "$x'", "$1'", "$?'", "$$'", "${x}'"]
+
+/** Names an assignment's value may follow, a flag's among them, as `--flag=~/x`. */
+const ASSIGNED = ['x', 'PATH', '--flag', 'a_1', '']
+
 /** What follows a `\` outside quotes: a blank never last, as the spaces around a command are trimmed. */
 const ESCAPED = [' x', ...'\'"`$(){};&|<>*?#![]~\\^x']
 
@@ -104,6 +110,11 @@ const REFUSED = [
   '$-',
   '$#',
   '$#$( [ {dir} ] )',
+  '~{dir}',
+  'x=~{dir}',
+  'x=a:~{claude}',
+  'a:~b',
+  'x=a=~b',
   '$x:h',
   '$x:F:{dir}:h',
   '$?:F:1:',
@@ -143,7 +154,7 @@ const REFUSED = [
 ]
 
 /** Parts refused inside double quotes, put between two letters there. */
-const REFUSED_DOUBLE = ['`', '!', '$x[1]', '$(x)', '$((1))', '\\\\', '\\n', '\\`', '${x:-y}', '${#x}', "$'", '$!', '$@', '$0', '$#', '$x:h', '$?:F:1:', '{dir}', '{claude}', '$']
+const REFUSED_DOUBLE = ['`', '!', '$x[1]', '$x.y', '$(x)', '$((1))', '\\\\', '\\n', '\\`', '${x:-y}', '${#x}', "$'", '$!', '$@', '$0', '$#', '$x:h', '$?:F:1:', '{dir}', '{claude}', '$']
 
 /** A maker of commands, drawing on the numbers given. */
 const makerOf = (random: () => number) => {
@@ -157,7 +168,7 @@ const makerOf = (random: () => number) => {
 
   const double = () =>
     `"${Array.from({ length: Math.floor(random() * 3) }, () =>
-      pick([() => pick(DOUBLE), () => pick(PARAMETERS), () => pick(['\\"', '\\$'])])(),
+      pick([() => pick(DOUBLE), () => pick(PARAMETERS), () => pick(QUOTED_PARAMETERS), () => pick(['\\"', '\\$'])])(),
     ).join('')}"`
 
   const substitution = (): string => {
@@ -187,16 +198,24 @@ const makerOf = (random: () => number) => {
       substitution,
     ])()
 
-  /** A word: parts joined, a `~` first or not where it may start one. */
-  const word = (mayTilde = true) => (mayTilde && chance(0.1) ? '~' : '') + Array.from({ length: 1 + Math.floor(random() * 3) }, part).join('')
+  /** A word: parts joined, a `~` first or not where it may stand, though never right before a placeholder. */
+  const word = (mayTilde = true) => {
+    const parts = Array.from({ length: 1 + Math.floor(random() * 3) }, part)
+    const isTilded = mayTilde && chance(0.1) && !PLACEHOLDERS.includes(parts[0] ?? '')
+
+    return (isTilded ? '~' : '') + parts.join('')
+  }
+
+  /** An assignment, or a flag given a value: a name, `=`, and words joined by `:`, each a `~` first or not. */
+  const assigned = () => `${pick(ASSIGNED)}=${Array.from({ length: 1 + Math.floor(random() * 3) }, () => word()).join(':')}`
 
   const redirection = () => (chance(0.3) ? pick(DUPLICATIONS) : `${pick(REDIRECTIONS)}${word()}`)
 
-  const argument = () => pick([() => word(), () => word(), () => word(), () => pick(FLAGS), redirection])()
+  const argument = () => pick([() => word(), () => word(), () => word(), () => pick(FLAGS), assigned, redirection])()
 
   /** A simple command, the word given among its arguments, if any. */
   const command = (extra?: string): string => {
-    const head = pick([() => pick(NAMES), () => `x=${word(false)}`, () => `s=${substitution()}`, () => pick(PLACEHOLDERS), () => '['])()
+    const head = pick([() => pick(NAMES), assigned, () => `s=${substitution()}`, () => pick(PLACEHOLDERS), () => '['])()
     const rest = Array.from({ length: Math.floor(random() * 4) }, argument)
     const at = Math.floor(random() * (rest.length + 1))
     const given = extra === undefined ? rest : [...rest.slice(0, at), extra, ...rest.slice(at)]

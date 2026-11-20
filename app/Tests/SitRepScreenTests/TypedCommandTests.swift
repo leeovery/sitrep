@@ -85,6 +85,10 @@ struct TypedCommandTests {
         #"echo 'a $(b) `c` {print} #!* \' {dir}"#,
         #"echo "it's (a) {x} ~ * ? # ; & | < > [ ] }" {dir}"#,
         #"claude --resume={claude} -v id={claude} x{dir}y {dir}/sub "a"{claude} {dir}:{tty}"#,
+        #"echo "resuming $USER's session" "$1'" "${x}'" {dir}"#,
+        "PATH=~/bin:$PATH claude --resume {claude}",
+        "x=a:~/b:~/c --flag=~/d a_1=~/e {dir}",
+        "x=$(echo {dir}):~/b {claude}",
     ]
 
     /// Plain shell syntax passes, each placeholder filled wherever it stands outside quotes, however deep in `$(…)`.
@@ -170,6 +174,7 @@ struct TypedCommandTests {
         (#"echo "a\\b" {dir}"#, #"\\"#),
         (#"echo "!" {dir}"#, "!"),
         (#"echo "$x[1]" {dir}"#, "$x["),
+        (#"echo "$x.y" {dir}"#, "$x."),
         (#"echo "`pwd`" {dir}"#, "`"),
         ("echo x >&{dir}", ">&{"),
         ("echo x >&- {dir}", ">&-"),
@@ -179,6 +184,13 @@ struct TypedCommandTests {
         ("echo x >|{dir}", ">|"),
         ("echo x <>{dir}", "<>"),
         ("cd a~b {dir}", "~"),
+        ("echo a:~/b {dir}", "~"),
+        ("x=a=~/b {dir}", "~"),
+        ("x=1 $(echo a):~/b {dir}", "~"),
+        ("cd ~{dir}", "~{dir}"),
+        ("x=~{dir}", "~{dir}"),
+        ("x=a:~{claude}", "~{claude}"),
+        ("echo ~{x}", "~{x}"),
         ("cd ~/café {dir}", "é"),
         ("cd {dir} >", ">"),
         (#"cd {dir} \"#, #"\"#),
@@ -215,12 +227,91 @@ struct TypedCommandTests {
         #expect(commands.filter { ResumeCommand($0).problem == nil } == [])
     }
 
-    /// What evaluates a name or number from its argument passes as words: a command passing a placeholder to one takes
-    /// that risk.
-    @Test(arguments: ["eval {dir}", "let {dir}", "read {dir}", "declare -i n={dir}", "printf -v {dir} x", "[ {dir} -eq 1 ]", "shift {dir}"])
-    func whatEvaluatesItsArgumentPassesAsWords(command: String) {
+    /// The commands of tests/reader-cases.ts, made by the panel's reader, each with the line or the refusal it gave.
+    private struct ReaderCases: Decodable {
+        struct Facts: Decodable {
+            let claude: String
+            let dir: String
+            let tty: String
+            let isHeld: Bool
+        }
+
+        struct Row: Decodable, Equatable {
+            let command: String
+            var line: String?
+            var refusal: String?
+        }
+
+        let name: String
+        let facts: Facts
+        let rows: [Row]
+    }
+
+    /// Each command of the cases the panel's tests hold its reader to gets what the panel gave it when the file was
+    /// made: the same line, or the same refusal.
+    @Test func eachCommandOfTheReaderCasesGetsWhatThePanelGaveIt() async throws {
+        let file = try String(contentsOf: Repository.root.appending(path: "tests/reader-cases.ts"), encoding: .utf8)
+        let opening = try #require(file.range(of: "= {\n"))
+        let object = file[file.index(opening.lowerBound, offsetBy: 2)...]
+        let cases = try JSONDecoder().decode(ReaderCases.self, from: Data(object.utf8))
+        let window = Board.LastWindow(writer: cases.facts.claude, directory: cases.facts.dir)
+        let facts = ResumeFacts(window: window, tty: cases.facts.tty, isHeld: cases.facts.isHeld)
+        var differing: [ReaderCases.Row] = []
+
+        for row in cases.rows {
+            var given = ReaderCases.Row(command: row.command)
+
+            do {
+                given.line = try await ResumeCommand(row.command).line(from: facts, named: cases.name)
+            } catch let refusal as Unopenable {
+                given.refusal = refusal.description
+            }
+
+            if given != row {
+                differing.append(given)
+            }
+        }
+
+        #expect(cases.rows.count == 2000)
+        #expect(differing == [])
+    }
+
+    static let evaluating: [String] = [
+        "eval {dir}", "trap {dir} EXIT", "let {dir}", "read {dir}", "declare -i n={dir}", "local {dir}",
+        "printf -v {dir} x", "[ {dir} -eq 1 ]", "shift {dir}", "exit {dir}", "ulimit {dir}", "PS4={dir}; set -x",
+        "BASH_ENV={dir} bash x", "PROMPT_COMMAND={dir}", "RANDOM={dir}", "OPTIND={dir}",
+    ]
+
+    /// What takes code, a name or a number from its argument passes as words, a builtin or a variable the shell
+    /// evaluates: a command passing a placeholder to one takes that risk.
+    @Test(arguments: evaluating)
+    func whatTakesCodeFromItsArgumentPassesAsWords(command: String) {
         #expect(ResumeCommand(command).problem == nil)
         #expect(ResumeCommand(command).filled(Self.hostile) == Self.filledHostile(command))
+    }
+
+    /// A value starting with a dash would be read as an option, as an id of `--settings=…` by
+    /// `claude --resume {claude}`: refused, naming the fact, each value that can't be typed first, and a dash inside a
+    /// word passes.
+    @Test func aValueStartingWithADashIsRefusedNamingTheFact() async throws {
+        let line = { (command: String, writer: String, folder: String, tty: String) in
+            try await ResumeCommand(command).line(
+                from: ResumeFacts(window: Board.LastWindow(writer: writer, directory: folder), tty: tty),
+                named: JumpWorld.named
+            )
+        }
+        let dashed = "which a program would read as an option."
+
+        await #expect(throws: Unopenable(description: "For \(JumpWorld.named), the Claude Code session's id starts with a dash, \(dashed)")) {
+            try await line("claude --resume {claude}", "--settings=x", "/a", "")
+        }
+        await #expect(throws: Unopenable(description: "For \(JumpWorld.named), the folder its Claude ran in starts with a dash, \(dashed)")) {
+            try await line("attach {tty} {dir}", Self.claude, "-x", "-t")
+        }
+        await #expect(throws: Unopenable(description: "For \(JumpWorld.named), the terminal its Claude runs on has a character that can't be typed (U+0015).")) {
+            try await line("attach {tty} {claude}", "-x", "/a", "\u{15}")
+        }
+        #expect(try await line("claude --resume {claude} x{dir}", Self.claude, "a-b", "") == "claude --resume '\(Self.claude)' x'a-b'")
     }
 
     /// The terminal and the line editor act on a control byte before any quoting: ^U erases what was typed, ^C

@@ -9576,8 +9576,12 @@ open), and tmux passing an escape sequence through from Claude's own pane
    list of what to refuse can't be finished; a list of what to accept can.
    So both readers, the app's `TypedCommand` and the panel's `lineOf`, one
    machine branch for branch, accept only:
-   - words of ASCII letters, digits and `_ . / : @ % + , = -`, a `~`
-     starting one, and `\` with the character after it;
+   - words of ASCII letters, digits and `_ . / : @ % + , = -`, and `\`
+     with the character after it;
+   - a `~` starting a word, or right after its first `=` or a `:` past
+     that, as in `PATH=~/bin:~/go/bin`, but never right before a
+     placeholder: zsh and ksh read `~'root'` as `/var/root`, through the
+     quotes;
    - spaces and tabs between words, and `|`, `||`, `&&` and `;`;
    - redirections, `<`, `>` and `>>` to a word, and `>&` or `<&` to a
      single digit, as `2>&1`, which nothing may join;
@@ -9585,8 +9589,10 @@ open), and tmux passing an escape sequence through from Claude's own pane
    - `'…'`, holding anything; `"…"`, holding what prints but a backtick
      and `!`, and `\` only before `"` or `$`;
    - `$name`, `${name}`, `$?`, `$$` and `$1` to `$9`, one outside braces
-     ending at a blank, an operator, a redirection, a double quote, or
-     one of `/ - = , + @ % \ $`, where every shell ends it: zsh reads
+     ending at a blank, an operator, a redirection, a `)`, a double
+     quote, one of `/ - = , + @ % \ $` or the line's end, and in double
+     quotes at a `'` too, as in `"$USER's"`, where every shell ends it:
+     zsh reads
      `$x[…]` as a subscript, even in double quotes, `$x:F:…:` as a
      modifier evaluating the `…` as arithmetic, `$12` as
      `${12}` and `$$'…'` as `$$` and `$'…'`, and ksh reads `$x.y` as one
@@ -9597,11 +9603,21 @@ open), and tmux passing an escape sequence through from Claude's own pane
 
    A placeholder stands outside every quote, at the top level or in a
    `$(…)`, joined to a word or not. Anything else is refused, in words
-   pointing to a script. What evaluates a name or a number taken from its
-   argument still passes as words: `eval`, `let`, `read`, `declare`,
-   `typeset`, `integer`, `export`, `printf -v` and `printf %d`, `test` and
-   `[` with a numeric comparison or `-v`, and `shift`. A command passing a
-   placeholder to one is Lee's risk, as one passing it to `sh -c` is.
+   pointing to a script, and so is a value starting with a dash, which a
+   program would read as an option.
+
+   What takes code, a name or a number from its argument still passes as
+   words, not refused by name: a builtin that does (`eval`, `trap`,
+   `let`, `read`, `declare`, `typeset`, `local`, `export`, `printf -v`,
+   `test`'s numeric comparisons, `shift`, `exit`, `return`, `ulimit`, …),
+   or an assignment to a variable the shell evaluates (`PS1`, `PS4`,
+   `PROMPT_COMMAND`, `ENV`, `BASH_ENV`, and integer ones such as
+   `RANDOM`, `SECONDS` and `OPTIND`). A review of 20 November 2026 ran a
+   value's `$(…)` or `a[$(…)]` through each. A command passing a
+   placeholder to one is Lee's risk, as one passing it to `sh -c` is. So
+   is zsh's GLOB_SUBST, an option Lee would set: with it, an unquoted
+   parameter or `$(…)` holding a value runs a glob qualifier in it, so a
+   command for such a shell puts them in double quotes.
 
    A seeded fuzz held the reader to the shells (20 November 2026):
    commands made from the grammar's parts and from refused ones, 60% of
@@ -9610,7 +9626,13 @@ open), and tmux passing an escape sequence through from Claude's own pane
    ksh. Its first rounds found zsh's `$$'…'`, `$#$(…)` and `$x:F:…:`, and
    the probes after them `$10:F:…:`. Its last 140,000 commands, 344,664
    shell runs, ran no value, and the Swift reader gave the panel's words
-   on each of 60,000 more.
+   on each of 60,000 more. With review's changes in, `"$USER's"` and
+   `PATH=~/bin` passing, 60,000 more commands, 149,166 shell runs, ran
+   none; nor did 6,000 lines typed into an interactive bash 3.2 and 5.3
+   and zsh on a pty, 18,000 runs, history primed before each so a `!` in
+   a value read as history would break out of its quotes. Both suites
+   now hold their reader to 2,000 of the commands, each with the panel's
+   line or refusal, in `tests/reader-cases.ts`.
 
    **Limits**, of the rule:
    - a row's look lags the screen by up to the read's few seconds; the
@@ -9637,9 +9659,14 @@ open), and tmux passing an escape sequence through from Claude's own pane
      millisecond are settled by the order they are listed in, the same in
      the feed and the mod;
    - the typed line assumes a POSIX shell, as step C's does;
-   - a command passing a placeholder to what evaluates its argument, as
-     `eval` or `[ {dir} -eq 1 ]` in zsh, runs what the value holds: it is
-     his, as the reader accepts plain syntax, and these are words;
+   - a command passing a placeholder to what takes code from its
+     argument, a builtin such as `eval` or `trap`, or an assignment to a
+     variable the shell evaluates, such as `PS4` or `RANDOM`, runs what
+     the value holds: it is his, as the reader accepts plain syntax, and
+     these are words;
+   - with zsh's GLOB_SUBST set, an unquoted parameter or `$(…)` holding a
+     value can run code; the panel's `-l -c` reads no `.zshrc`, but the
+     app's interactive shell does;
    - a command Lee wrote that resumes beside a Claude still running is
      his, as its guard is.
 

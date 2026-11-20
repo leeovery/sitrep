@@ -86,4 +86,6 @@ Each word below means one thing on every page of these docs. The words are group
 
 **the jump**: What a click on a session does: it brings forward the terminal that shows the window. Ghostty gets the exact Ghostty window. Any other terminal app comes forward whole.
 
+**plain shell syntax**: What a resume command may hold: words, pipes and `&&`, redirections, quotes, variables such as `$s`, and `$(…)`. The shells sh, bash, zsh, dash and ksh all read it the same way, so SitRep knows where each value lands. SitRep refuses a command that holds anything else, and names the part it found.
+
 **the resume command**: What SitRep types into a new Ghostty window, for a session no terminal on this Mac shows. The default is `cd {dir} && claude --resume {claude}`. You can set your own in Settings › General.
