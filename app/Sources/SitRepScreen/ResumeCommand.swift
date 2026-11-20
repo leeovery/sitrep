@@ -12,6 +12,8 @@ enum ResumeFact: String, CommandPlaceholder {
 
     static let command = "resume command"
 
+    static let scripted = "~/bin/resume {claude} {dir}"
+
     static func unset(named name: String) -> String {
         "The resume command in Settings is empty. To carry \(name) on, set one, or restore the default."
     }
@@ -20,7 +22,7 @@ enum ResumeFact: String, CommandPlaceholder {
 extension TypedCommand where Placeholder == ResumeFact {
     /// Whether it is the default, told by its text, so one saved the same as it is the default.
     var isDefault: Bool {
-        self == ResumeCommand(OpenSettings.defaultResumeCommand)
+        text == OpenSettings.defaultResumeCommand
     }
 }
 

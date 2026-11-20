@@ -7,7 +7,8 @@
  *   object's offset starts.
  * - Each object opens with a marker, its kind in the high four bits and its
  *   length in the low four; a length of 15 or more comes in an integer
- *   object after the marker.
+ *   object after the marker, of 8 bytes at most: a list claiming a longer
+ *   one holds nothing, read no further.
  * - A dictionary holds its keys' references, then its values'. A key is a
  *   string, in ASCII or in UTF-16.
  * - A list cut short, or not one at all, holds nothing: every length is
@@ -23,6 +24,9 @@ const KIND = { data: 0x4, ascii: 0x5, utf16: 0x6, dictionary: 0xd }
 
 /** The marker's low four bits saying an integer object holds the length. */
 const LONG = 0x0f
+
+/** The most bytes an integer object holds. */
+const INTEGER_BYTES = 8
 
 type Item = { kind: number; length: number; start: number }
 
@@ -70,6 +74,10 @@ const reader = (bytes: Uint8Array) => {
     }
 
     const size = 1 << (view.getUint8(at + 1) & 0x0f)
+
+    if (size > INTEGER_BYTES) {
+      throw unreadable()
+    }
 
     return { kind, length: uintAt(at + 2, size), start: at + 2 + size }
   }

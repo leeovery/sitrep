@@ -32,8 +32,12 @@ interface ImportMeta {
   readonly dir: string
 }
 
-/** The signals the CLI listens for: SIGTSTP among them, which a listener keeps from stopping the run. */
-type ProcessSignal = 'SIGHUP' | 'SIGINT' | 'SIGQUIT' | 'SIGTERM' | 'SIGCONT' | 'SIGTSTP'
+/**
+ * The signals the CLI listens for. SIGTSTP is none, since a listener would
+ * keep it from stopping the run: Ctrl-Z during a hand-over stops the run
+ * with the program. The CLI only sends it, to itself (`process.kill`).
+ */
+type ProcessSignal = 'SIGHUP' | 'SIGINT' | 'SIGQUIT' | 'SIGTERM' | 'SIGCONT'
 
 declare const process: {
   cwd(): string

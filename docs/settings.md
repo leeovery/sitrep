@@ -13,7 +13,7 @@ How a new window opens for a session, and how SitRep starts. See [A click takes 
 | Open at login | On, off | On, from the welcome window | Starts SitRep when you log in |
 | Terminal | Ghostty | Ghostty | The terminal a new window opens in |
 | Bring a session's Ghostty window to the front | Allow…, or Open System Settings… | Asked at the first jump | Lets a click reach the window |
-| Command | Any command | See below | Typed in a new Ghostty window |
+| Command | Plain shell syntax | See below | Typed in a new Ghostty window |
 
 SitRep types the command only for a session that no terminal on this Mac shows. The default resumes the session in Claude Code:
 

@@ -67,9 +67,11 @@ struct ResumeCommandTests {
     @Test(arguments: [
         ("portal open -s {session}", "The resume command in Settings has {session}, which SitRep doesn't know. It knows {claude}, {dir} and {tty}."),
         ("tmux -S {socket} attach -t {pane}", "The resume command in Settings has {socket} and {pane}, which SitRep doesn't know. It knows {claude}, {dir} and {tty}."),
-        (#"cd "{dir}" && claude"#, "The resume command in Settings puts {dir} in quotes or backticks. Remove them: SitRep quotes each value itself."),
+        (#"cd "{dir}" && claude"#, "The resume command in Settings puts {dir} in quotes. Remove them: SitRep quotes each value itself."),
+        ("cd `pwd` && claude --resume {claude}", "The resume command in Settings uses a backtick, which SitRep can't check. Put that part in a script and pass it {claude}, {dir} or {tty}, as in ~/bin/resume {claude} {dir}."),
+        ("cd {dir} && claude --resume {claude} 'x", "The resume command in Settings opens `'` but never closes it."),
         ("claude\t--resume {claude}", "The resume command in Settings has a tab, which can't be typed."),
-    ])
+    ] as [(String, String)])
     func aCommandSitRepCannotFillOrTypeIsRefusedInPlainWords(command: String, words: String) async {
         await #expect(throws: Unopenable(description: words)) {
             try await Self.line(command)

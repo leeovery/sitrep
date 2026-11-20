@@ -9542,15 +9542,15 @@ open), and tmux passing an escape sequence through from Claude's own pane
      <name> on, set one, or restore the default.";
    - the guard's, above;
    - a `{dir}` with no folder, in the words of 12 November 2026 (below);
-   - the command's reading, as step C's, but for a placeholder joined to
-     unquoted text, which the rethink allows (below): a character that does
-     not print, a placeholder SitRep does not know, one inside quotes or
-     backticks; and one in arithmetic, `$((…))`, `((…))` or `$[…]`, or a
-     subscript, `a[…]` or `${a[…]}`, which the shell evaluates as
-     arithmetic, running a `$(…)` even in a quoted value
-     (`$(( '/x$(cmd)' ))` runs `cmd` in zsh, bash and sh): "The resume
-     command in Settings puts {dir} in arithmetic or a subscript, where the
-     shell runs what is in a value even quoted. Move it out.";
+   - the command's reading, held to plain shell syntax since 20 November
+     2026 (below): a character that does not print; a placeholder SitRep
+     does not know; one inside quotes, "The resume command in Settings
+     puts {dir} in quotes. Remove them: SitRep quotes each value itself.";
+     any other part, named as found, "The resume command in Settings uses
+     `(`, which SitRep can't check. Put that part in a script and pass it
+     {claude}, {dir} or {tty}, as in ~/bin/resume {claude} {dir}.", a
+     backtick named "a backtick"; and a quote or a `$(…)` left open, "The
+     resume command in Settings opens `"` but never closes it.";
    - the chosen terminal not running, as an opening's;
    - the process table giving no answer, as the build's: "Could not tell
      whether <name>'s Claude is still running: the process table gave no
@@ -9566,6 +9566,51 @@ open), and tmux passing an escape sequence through from Claude's own pane
    The build's unknown zmx session ("a zmx process's command line gave no
    answer") goes with the read it came from, and its refusal of a Claude
    running on its device narrows to the guard, the default's alone.
+
+   **Plain shell syntax only** (Lee, 20 November 2026). The reader tried
+   to refuse each place a shell reads a value again, and each of three
+   reviews found more ways for a folder's name to run as code across sh,
+   bash 3.2 and 5.3, zsh, dash and ksh: 14 in the last alone, among them
+   bash 5.3's `${ cmd; }`, zsh's glob qualifiers and `=(…)`, a `'` in a
+   double-quoted `${…}` in zsh, dash and ksh, and ksh93's `x={dir}=(…)`. A
+   list of what to refuse can't be finished; a list of what to accept can.
+   So both readers, the app's `TypedCommand` and the panel's `lineOf`, one
+   machine branch for branch, accept only:
+   - words of ASCII letters, digits and `_ . / : @ % + , = -`, a `~`
+     starting one, and `\` with the character after it;
+   - spaces and tabs between words, and `|`, `||`, `&&` and `;`;
+   - redirections, `<`, `>` and `>>` to a word, and `>&` or `<&` to a
+     single digit, as `2>&1`, which nothing may join;
+   - `[` and `]` as words of their own;
+   - `'…'`, holding anything; `"…"`, holding what prints but a backtick
+     and `!`, and `\` only before `"` or `$`;
+   - `$name`, `${name}`, `$?`, `$$` and `$1` to `$9`, one outside braces
+     ending at a blank, an operator, a redirection, a double quote, or
+     one of `/ - = , + @ % \ $`, where every shell ends it: zsh reads
+     `$x[…]` as a subscript, even in double quotes, `$x:F:…:` as a
+     modifier evaluating the `…` as arithmetic, `$12` as
+     `${12}` and `$$'…'` as `$$` and `$'…'`, and ksh reads `$x.y` as one
+     name; never `$!`, whose `!` an interactive bash or zsh reads as
+     history, nor `$#`, whose `#` zsh reads as the length of what follows,
+     `$#$(…)` a glob qualifier (all proven 20 November 2026);
+   - `$(…)` outside quotes, holding the same, however deep.
+
+   A placeholder stands outside every quote, at the top level or in a
+   `$(…)`, joined to a word or not. Anything else is refused, in words
+   pointing to a script. What evaluates a name or a number taken from its
+   argument still passes as words: `eval`, `let`, `read`, `declare`,
+   `typeset`, `integer`, `export`, `printf -v` and `printf %d`, `test` and
+   `[` with a numeric comparison or `-v`, and `shift`. A command passing a
+   placeholder to one is Lee's risk, as one passing it to `sh -c` is.
+
+   A seeded fuzz held the reader to the shells (20 November 2026):
+   commands made from the grammar's parts and from refused ones, 60% of
+   them mutated by random shell characters, each one taken filled with
+   hostile folder names and run in sh, bash 3.2 and 5.3, zsh, dash and
+   ksh. Its first rounds found zsh's `$$'…'`, `$#$(…)` and `$x:F:…:`, and
+   the probes after them `$10:F:…:`. Its last 140,000 commands, 344,664
+   shell runs, ran no value, and the Swift reader gave the panel's words
+   on each of 60,000 more.
 
    **Limits**, of the rule:
    - a row's look lags the screen by up to the read's few seconds; the
@@ -9592,6 +9637,9 @@ open), and tmux passing an escape sequence through from Claude's own pane
      millisecond are settled by the order they are listed in, the same in
      the feed and the mod;
    - the typed line assumes a POSIX shell, as step C's does;
+   - a command passing a placeholder to what evaluates its argument, as
+     `eval` or `[ {dir} -eq 1 ]` in zsh, runs what the value holds: it is
+     his, as the reader accepts plain syntax, and these are words;
    - a command Lee wrote that resumes beside a Claude still running is
      his, as its guard is.
 

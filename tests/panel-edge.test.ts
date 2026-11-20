@@ -75,6 +75,19 @@ test('a list claiming more than it holds is read no further, at once: the length
   expect(dataIn(PAST_TRAILER, 'app')).toBeUndefined()
 })
 
+/** A dictionary at byte 8 holding the key `app` and the data `x`, its length of 1 in an integer of `size` bytes after its marker. */
+const lengthIn = (size: number) => {
+  const dictionary = [0xdf, 0x10 | Math.log2(size), ...Array<number>(size - 1).fill(0), 1, 1, 2]
+  const key = 8 + dictionary.length
+
+  return listOf([...dictionary, 0x53, 0x61, 0x70, 0x70, 0x41, 0x78, 8, key, key + 4], key + 6)
+}
+
+test('a length comes in an integer of 8 bytes at most: a list claiming one of 16 holds nothing', () => {
+  expect(textOf(dataIn(lengthIn(8), 'app'))).toBe('x')
+  expect(dataIn(lengthIn(16), 'app')).toBeUndefined()
+})
+
 test('a list whose offsets or references take no bytes, or whose top object is no dictionary, holds nothing: one claiming 2³¹ − 1 references of no bytes each is not looked through', () => {
   const apple = bytesOf(APPLE)
   const sized = (at: number) => Uint8Array.from(apple, (byte, index) => (index === apple.length - 32 + at ? 0 : byte))
@@ -217,15 +230,16 @@ test('a pick refused is readied as its words, with nothing handed', async () => 
   expect(running.screen.handed()).toEqual([])
 })
 
-test('a command not fit to fill refuses in its own words before `ps` is asked: empty, unknown, or with a placeholder in quotes', async () => {
-  const commands = ['', 'seat open -s {session}', 'cd "{dir}"']
+test('a command not fit to fill refuses in its own words before `ps` is asked: empty, unknown, with a placeholder in quotes, or past plain syntax', async () => {
+  const commands = ['', 'seat open -s {session}', 'cd "{dir}"', 'cd `pwd` {dir}']
   const worlds = commands.map(command => world({ command, ps: { exit: 0, out: 'T+   claude\n', err: '' } }))
   const answers = await Promise.all(worlds.map(({ t, screen }) => readied(t.io, screen.terminal, AWAY)))
 
   expect(answers.map(answer => !answer.ok && answer.error)).toEqual([
     `The resume command in Settings is empty. To carry ${NAME} on, set one, or restore the default.`,
     "The resume command in Settings has {session}, which SitRep doesn't know. It knows {claude}, {dir} and {tty}.",
-    'The resume command in Settings puts {dir} in quotes or backticks. Remove them: SitRep quotes each value itself.',
+    'The resume command in Settings puts {dir} in quotes. Remove them: SitRep quotes each value itself.',
+    "The resume command in Settings uses a backtick, which sitrep can't check. Put that part in a script and pass it {claude}, {dir} or {tty}, as in ~/bin/resume {claude} {dir}.",
   ])
   expect(worlds.flatMap(({ screen }) => screen.runs())).toEqual([])
 })
