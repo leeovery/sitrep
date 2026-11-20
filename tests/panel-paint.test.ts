@@ -88,8 +88,36 @@ test("a light background by COLORFGBG draws in the terminal's 16; a dark one kee
   expect(levelOf({ NO_COLOR: '1', COLORFGBG: '0;15' })).toBe('none')
 })
 
-test("the palette at 256 colours is the nearest of xterm's to each ink, the band's included", () => {
-  expect([...Object.values(PALETTE), BAND].map(nearest256)).toEqual([173, 111, 146, 103, 60, 239])
+test("the palette at 256 colours is the nearest of xterm's to each ink", () => {
+  expect(Object.values(PALETTE).map(nearest256)).toEqual([173, 111, 146, 103, 60])
+})
+
+test("the band is the terminal's background moved a quarter of the way toward #3E4A5B, its nearest at 256 colours; the foreground isn't needed", () => {
+  const grounds = [BG, rgbOf('#212121')].flatMap(bg => [
+    sgr(pensOf({ level: 'truecolor', fg: FG, bg }).band, 'truecolor'),
+    sgr(pensOf({ level: '256', bg }).band, '256'),
+  ])
+
+  expect(grounds).toEqual([`${ESC}[0;48;2;50;58;71m`, `${ESC}[0;48;5;237m`, `${ESC}[0;48;2;40;43;48m`, `${ESC}[0;48;5;236m`])
+  expect(pensOf({ level: 'truecolor', bg: BAND }).band).toEqual({ bg: { rgb: BAND } })
+})
+
+test("without the background's answer, the band is that quarter step over a near-black #212121, darker than #3E4A5B", () => {
+  expect(pensOf({ level: 'truecolor', fg: FG }).band).toEqual({ bg: { rgb: [40, 43, 48] } })
+  expect(sgr(pensOf({ level: '256' }).band, '256')).toBe(`${ESC}[0;48;5;236m`)
+})
+
+test("on the band, a dim mixes toward the band's ground, so a hollow row's words keep there the step they have off it", () => {
+  const pens = pensOf({ level: 'truecolor', fg: FG, bg: BG })
+
+  expect(
+    [
+      pens.bandDimmed({ tone: 'ink', bold: true }),
+      pens.bandDimmed({ tone: 'grey', isMeta: true }),
+      pens.bandDimmed({ tone: 'orange' }),
+    ].map(pen => sgr(pen, 'truecolor')),
+  ).toEqual([`${ESC}[0;1;38;2;145;148;154m`, `${ESC}[0;38;2;94;102;132m`, `${ESC}[0;38;2;151;95;81m`])
+  expect(sgr(pens.dimmed({ tone: 'grey', isMeta: true }), 'truecolor')).toBe(`${ESC}[0;38;2;92;100;129m`)
 })
 
 test("each pen's escape at 24-bit: the palette's own inks, the terminal's ink for names, the band a ground", () => {
@@ -101,7 +129,7 @@ test("each pen's escape at 24-bit: the palette's own inks, the terminal's ink fo
     `${ESC}[0;38;2;122;130;171m`,
     `${ESC}[0;38;2;122;130;171m`,
     `${ESC}[0;38;2;86;95;137m`,
-    `${ESC}[0;48;2;62;74;91m`,
+    `${ESC}[0;48;2;40;43;48m`,
   ])
 })
 
@@ -114,7 +142,7 @@ test("each pen's escape at 256 colours: the nearest of each", () => {
     `${ESC}[0;38;5;103m`,
     `${ESC}[0;38;5;103m`,
     `${ESC}[0;38;5;60m`,
-    `${ESC}[0;48;5;239m`,
+    `${ESC}[0;48;5;236m`,
   ])
 })
 
@@ -189,6 +217,8 @@ test("without both answers, or at 16 colours, a dim is faint, never on a bold wo
     expect(pens.dimmed({ tone: 'ink' }).faint).toBe(true)
     expect(pens.dimmed({ tone: 'orange' }).faint).toBe(true)
     expect(pens.dimmed({ tone: 'ink', bold: true })).toEqual({ bold: true })
+    expect(pens.bandDimmed({ tone: 'ink' })).toEqual(pens.dimmed({ tone: 'ink' }))
+    expect(pens.bandDimmed({ tone: 'ink', bold: true })).toEqual({ bold: true })
   }
 
   expect(sgr(pensOf({ level: 'truecolor' }).dimmed({ tone: 'grey' }), 'truecolor')).toBe(

@@ -12,8 +12,12 @@
  * - Three things mix toward the background: an away row's words, a Snoozed
  *   row's mark, and a new ask's wash. They mix only with both of the
  *   terminal's answers, at 256 colours or more; otherwise a dim is faint.
+ *   On the band, a dim mixes toward the band's ground instead.
  *   The wash is left out below 24-bit, where its nearest colour sits beside
  *   the band's, so an arriving row would look chosen: `◉` says it alone.
+ * - The band is the background moved a little toward `BAND`, as faint as
+ *   still reads as a chosen row; with no background answered, it is that
+ *   step over a near-black one.
  * - Without colour, faint carries the metadata, never on a bold word, since
  *   many terminals draw SGR 1 and 2 as one intensity.
  */
@@ -45,7 +49,14 @@ export const PALETTE = {
   rule: rgbOf('#565F89'),
 }
 
+/** The cool grey the band's ground leans toward from the background. */
 export const BAND = rgbOf('#3E4A5B')
+
+/** How far the band's ground goes from the background toward `BAND`: a touch above the faintest step that reads (Lee, 20 November 2026). */
+const BANDED = 0.25
+
+/** The background the band is mixed from where the terminal didn't answer: a near-black, as most dark themes are. */
+const DARK = rgbOf('#212121')
 
 /** How far a dimmed ink goes toward the background: the notch keeps 0.61 of it. */
 const DIMMED = 0.39
@@ -177,6 +188,8 @@ export type Pens = {
   of: (style: Style) => Pen
   /** The style dimmed as the notch dims, 0.61 of the way from the background. */
   dimmed: (style: Style) => Pen
+  /** The style dimmed on the band, 0.61 of the way from the band's ground, so it reads there as it does off it. */
+  bandDimmed: (style: Style) => Pen
   /** What the band lays over the chosen row's cells. */
   band: Pen
   /** What a new ask's wash lays over its row's cells, at 24-bit with both answers. */
@@ -221,22 +234,25 @@ export const pensOf = (paint: Paint): Pens => {
   const canMix = (level === 'truecolor' || level === '256') && fg !== undefined && bg !== undefined
   const of = (style: Style) => penOf(inkAt(style.tone, level), style.bold === true, isFaintAt(style, level))
 
-  const dimmed = (style: Style) => {
-    if (!canMix) {
+  const bandGround = mix(bg ?? DARK, BAND, BANDED)
+
+  const dimmedOver = (ground: Rgb | undefined) => (style: Style) => {
+    if (!canMix || ground === undefined) {
       return penOf(inkAt(style.tone, level), style.bold === true, style.bold !== true)
     }
 
     const ink = style.tone === 'ink' ? fg : PALETTE[style.tone]
 
-    return penOf({ rgb: mix(ink, bg, DIMMED) }, style.bold === true, false)
+    return penOf({ rgb: mix(ink, ground, DIMMED) }, style.bold === true, false)
   }
 
   const isGround = level === 'truecolor' || level === '256'
 
   return {
     of,
-    dimmed,
-    band: isGround ? { bg: { rgb: BAND } } : { reverse: true },
+    dimmed: dimmedOver(bg),
+    bandDimmed: dimmedOver(bandGround),
+    band: isGround ? { bg: { rgb: bandGround } } : { reverse: true },
     isColoured: level !== 'none',
     ...(canMix && level === 'truecolor' ? { wash: { bg: { rgb: mix(bg, PALETTE.orange, WASHED) } } } : {}),
   }
