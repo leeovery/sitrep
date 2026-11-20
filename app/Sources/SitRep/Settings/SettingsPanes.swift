@@ -149,7 +149,8 @@ struct CommandRow: View {
     /// The face of a part a refusal sets in backticks: monospaced, at the line's size.
     static let partFont = Font.subheadline.monospaced()
 
-    /// A refusal as the row shows it: each part it sets in backticks in the monospaced face, the backticks dropped.
+    /// A refusal as the row shows it: each part it sets in backticks in the monospaced face, between typographic quotes
+    /// in the line's own face, so a lone `(` reads as a part, not stray punctuation.
     /// Split by hand, not read as Markdown, as a part may hold `*` or `_`; none holds a backtick, which a refusal names
     /// in words.
     static func shown(_ refusal: String) -> AttributedString {
@@ -157,10 +158,12 @@ struct CommandRow: View {
             shown, piece in
             var words = AttributedString(piece.element)
 
-            if !piece.offset.isMultiple(of: 2) {
+            if piece.offset.isMultiple(of: 2) {
+                shown += words
+            } else {
                 words.font = partFont
+                shown += AttributedString("“") + words + AttributedString("”")
             }
-            shown += words
         }
     }
 }

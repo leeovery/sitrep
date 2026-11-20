@@ -160,15 +160,15 @@ struct GeneralPaneTests {
         #expect(refused.drawn.litRows(in: under) != nil)
     }
 
-    /// A part the refusal sets in backticks shows in the monospaced face, its backticks dropped, a `*` or `_` in it
-    /// kept as typed; the rest in the line's own face, its words as the refusal gives them.
-    @Test func aRefusalsPartsShowMonospacedWithNoBackticks() {
+    /// A part the refusal sets in backticks shows in the monospaced face between typographic quotes, which stay in the
+    /// line's own face, its backticks dropped and a `*` or `_` in it kept as typed; the rest as the refusal gives it.
+    @Test func aRefusalsPartsShowMonospacedInTypographicQuotes() {
         let refusal = "The command uses `$x_*`, which SitRep can't check, nor `(`."
         let shown = CommandRow.shown(refusal)
         let runs = shown.runs.map { (String(shown[$0.range].characters), $0.font) }
 
-        #expect(String(shown.characters) == refusal.replacingOccurrences(of: "`", with: ""))
-        #expect(runs.map(\.0) == ["The command uses ", "$x_*", ", which SitRep can't check, nor ", "(", "."])
+        #expect(String(shown.characters) == "The command uses “$x_*”, which SitRep can't check, nor “(”.")
+        #expect(runs.map(\.0) == ["The command uses “", "$x_*", "”, which SitRep can't check, nor “", "(", "”."])
         #expect(runs.map(\.1) == [nil, CommandRow.partFont, nil, CommandRow.partFont, nil])
         #expect(CommandRow.shown("The command is empty.").runs.count == 1)
     }
