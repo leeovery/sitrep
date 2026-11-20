@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-11-20
+
+The board in any terminal: type `sitrep` in a Ghostty tab or over SSH from a phone, and see what waits on you.
+
+✨ Added
+- `sitrep` with no command opens the board in your terminal, with keys to move, expand, snooze or wake a session, and `o` to open one with your resume command — `--no-notify` turns off its notifications.
+- Terminal notifications for each new ask while the terminal board is open.
+- Sessions you look at from a phone over SSH show as open there, not dimmed, in the terminal board — SitRep now tracks which device views each session.
+- The resume command setting explains under the field, as you type, why a command can't run.
+- The Snooze menu shows a wake time beside each choice, such as `09:00` beside Tomorrow.
+- New docs pages for every feature, the `sitrep` command and every setting.
+
+🔧 Changed
+- The resume command now accepts only plain shell syntax, and refuses anything else with a message pointing to a script; values starting with a dash are refused too.
+- Wake times read by calendar week: `tomorrow 09:00`, `Sat 09:00` for later this week, `next week`, then a date.
+- Asks, parked items and resolved items in the Claude Code pane use round marks, with asks in orange.
+- A project with nothing open shows its parked count in the parked colour in All projects.
+- Sitrep tool calls in the chat show the mark the board gives an ask or a parked item.
+
+🐛 Fixed
+- Resume commands with an empty first argument no longer break when SitRep reads a process's command line.
+
 ## [0.8.0] - 2026-11-18
 
 Drop parked items from the board without telling Claude.
