@@ -8,7 +8,7 @@
  * - A light background, said by `COLORFGBG` or by the terminal's own
  *   answer, draws in the terminal's 16, the palette being drawn for dark
  *   ones.
- * - Names, the title and the keys are in the terminal's own ink, never a hex.
+ * - Names and the keys are in the terminal's own ink, never a hex.
  * - Three things mix toward the background: an away row's words, a Snoozed
  *   row's mark, and a new ask's wash. They mix only with both of the
  *   terminal's answers, at 256 colours or more; otherwise a dim is faint.

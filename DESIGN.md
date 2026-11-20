@@ -10274,7 +10274,7 @@ look", the pick on its page "FINAL · board in a terminal".
   Bun, into Homebrew's `bin`, in a PR on the tap. `docs/terminal.md` is its
   page, calling it the terminal view, since the docs' "panel" is the
   notch's; its still, `art/screens/terminal.webp`, is the golden frame
-  `panel-docs-73x19`, a world of the docs' placeholder names alone, drawn
+  `panel-docs-73x17`, a world of the docs' placeholder names alone, drawn
   by termgrid.
 - **Proven live on 20 November 2026,** by Lee, from a build of `f5e442c`, on
   his iPad and iPhone in rootshell over tssh:
@@ -10314,6 +10314,12 @@ look", the pick on its page "FINAL · board in a terminal".
   a Snoozed row `z` writes `sitrep wake`'s line. On a row of a window's
   prompt alone, or a working one, the notch offers no Snooze, and `z` says
   why in words.
+- **No title** (Lee, 20 November 2026), for that same strip, where every
+  row counts: the ` sitrep` title row and the blank row under it are gone,
+  and the body starts on row 0. A stale board's `as of 12:04`, the title
+  row's only other use, stands at the key line's right end instead, the
+  keys cut before it. The blank rows between sections give way below 13
+  rows, the body as roomy there as it was below 15 under the title.
 
 Every other question the spec put to Lee he answered on 19 November 2026
 as it recommended, and none is left open. So the CLI runs programs again, which it has not done

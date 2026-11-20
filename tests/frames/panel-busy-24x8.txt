@@ -1,8 +1,8 @@
- sitrep
  WORKING 14 ───────── ▿
- ▲ 19 more
+ ▲ 18 more
+ ✻ Loyalty points    3m
+   Woodgrove · Reading…
  ✻ Invoice ledger    2m
    Northwind · Exporti…
  ▼ 6 more
-
  ↑↓ move  q quit

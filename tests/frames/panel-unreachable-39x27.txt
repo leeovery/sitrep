@@ -1,5 +1,3 @@
- sitrep
-
  NEEDS YOU ●4 ●2 ─────────────────── ▿
  ● Data import                      1m
    Litware · Allow Bash: psql -f impo…
@@ -19,8 +17,10 @@
    Woodgrove · Running npm test
  ✻ Invoice ledger                   2m
    Northwind · Exporting the ledger a…
- ▼ 1 more
+ ◌ Catalog sync                    15m
+   Fabrikam · Waiting on 2 agents
 
+ SNOOZED 2 ───────────────────────── ▹
 
  ! Release notes can't be opened here:
    its terminal has no tmux or zmx.

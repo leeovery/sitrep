@@ -53,13 +53,13 @@ A setting to run a command on a new ask, such as `rootshell-notify`, is parked. 
 **The layout's width.** W is the terminal's width up to 120 columns. Past 120 the layout stays 120 wide and stands at the left, as round 4 drew it at 173. With no width to read, as a terminal that answers no size, it lays out at 80×24.
 
 **Top to bottom:**
-1. Row 0, the title: ` sitrep`, bold, in the terminal's own ink. Its right side is empty, unless the board went stale: then `as of 12:04` in grey, ending at column W−2 (see "Failure").
-2. Row 1, blank.
-3. The body, from row 2: the sections, a blank row between each two.
-4. A pick's answer, when there is one: a blank row, then the answer's lines, just above the key line.
-5. The last row, the key line.
+1. The body, from row 0: the sections, a blank row between each two.
+2. A pick's answer, when there is one: a blank row, then the answer's lines, just above the key line.
+3. The last row, the key line. On a board gone stale, `as of 12:04` stands at its right end in grey, ending at column W−2 (see "Failure").
 
-**A short terminal.** The title and the key line always stay. Below 15 rows the blank row under the title stays while every block fits with it; short of room it goes first, then the blank rows between sections; then the body scrolls.
+**No title** (Lee, 20 November 2026). The view had a title row, ` sitrep` in bold, and a blank row under it. Lee dropped both for the narrow strip he keeps open on his iPad, where every row counts: the body starts on row 0, and the stale notice, the title row's only other use, moved to the key line's right end, in the same words and style, so the keys keep their places. Every state that drew under the title draws from row 0 now: `Too small`, the failure words, the empty board and the short body's centred lead.
+
+**A short terminal.** The key line always stays. Below 13 rows, short of room, the blank rows between sections give way; then the body scrolls. 13 rows give the body what 15 gave under the title, so a body keeps its blank rows at the same room as before.
 
 **Too small.** Below 24 columns or 8 rows the panel draws only `Too small` on row 0, at the margin, cut to the width. It keeps watching, so notifications still post, and it draws in full again once the terminal grows.
 
@@ -351,7 +351,7 @@ So with the default command, picking a session a live window holds always refuse
 ## Failure
 
 - **A look that fails,** as an unreadable state folder: the watch passes over a file that doesn't read and ends on anything else. The panel never ends on a look (Lee, 19 November 2026):
-  - **after a board,** it keeps the last board, with `as of 12:04` in grey at the right of the title row, as the app's menu does, until a look reads again;
+  - **after a board,** it keeps the last board, with `as of 12:04` in grey at the key line's right end, as the app's menu does, until a look reads again. The keys are cut, whole hints from the right as ever, to the room left of it, two spaces kept before it, so the notice is never cut while `q quit` fits: at 39 columns, with no band, the line is `↑↓ pick  q quit           as of 12:04` (Lee, 20 November 2026);
   - **before any board,** the body reads `Looking for sessions…` in grey, once the first look has taken 300 ms, then `Can't read the board` in bold, a blank row, and the reason in grey wrapped at W−4, as the app's words go. Both are centred as the quiet board is. The view has no clock: the loop holds the first draw for the 300 ms.
 - **A pick that can't open** says why in its answer (see "Picking a row") and changes nothing.
 - **The panel itself failing:** it restores the terminal first, then prints `sitrep: <message>` to standard error and exits 1, as `main` does for any command.
@@ -384,7 +384,7 @@ Doesn't apply: the panel collects no remedies. A pick's answer says what to do i
 | The rule and the chevron | `#565F89` | 60 | bright black, faint |
 | The band | the background, one step toward `#3E4A5B` (`#343D4B` on Nordfox, `#282B30` on `#212121`) | the nearest (237 on Nordfox, 236 on `#212121`) | reverse video |
 
-- **The terminal's ink:** names, the title and the keys are in the terminal's own foreground, never a hex, so they read on any theme.
+- **The terminal's ink:** names and the keys are in the terminal's own foreground, never a hex, so they read on any theme.
 - **The level:**
   - `NO_COLOR` set: no colour at all.
   - `FORCE_COLOR` set: colour on, at least the level its value gives (`1` 16 colours, `2` 256, `3` or more 24-bit; `0` or `false`, none); a higher level the terminal says it has still wins, as chalk reads it.
@@ -420,7 +420,7 @@ Dimming the terminal's own ink needs its foreground too. With both answers, at 2
 
 A light background draws in reverse video, as at 16.
 
-**Bold and faint.** Bold marks what needs you: an ask's name, the needs-you counts, the title, the keys, `!` and `◉`. Faint (SGR 2) is used only without colour or at 16, for metadata.
+**Bold and faint.** Bold marks what needs you: an ask's name, the needs-you counts, the keys, `!` and `◉`. Faint (SGR 2) is used only without colour or at 16, for metadata.
 
 **Contrast,** measured on Nordfox's `#2E3440`, the background the frames are drawn on:
 - **The palette:** soft 5.9 : 1, blue 5.0, orange 4.0, grey 3.3, the rule 2.0.
@@ -440,7 +440,7 @@ A light background draws in reverse video, as at 16.
 | The project, on line two | its own width | cut with `…` once the status line has gone |
 | The heading's rule | out to W−4 | 3 cells; below that it goes, the counts and the chevron kept |
 | The key line | every hint | whole hints drop from the right |
-| A pick's answer | wraps at W−4 | wraps; cut with `…` only where it is taller than the rows between the title and the key line |
+| A pick's answer | wraps at W−4 | wraps; cut with `…` only where it is taller than the rows above the key line |
 
 **What gives way first,** as the width falls: the status line is cut, then dropped; then the project is cut; then the name is cut to its least; then a Snoozed wake loses its clock; then the time goes. At 39 columns, Lee's narrowest, only the status line is cut. Below 24 columns the panel draws `Too small`.
 
@@ -455,7 +455,7 @@ A light background draws in reverse video, as at 16.
 - a combining mark joins the cell before;
 - a cut never splits a grapheme.
 
-**Height.** It gives way in the order "The frame" gives. The least is 8 rows: the title, a heading, `▲`, one two-line row, `▼` and the key line, with one row to spare. A pick's answer takes its rows from the body.
+**Height.** It gives way in the order "The frame" gives. The least is 8 rows: a heading, `▲`, one two-line row, `▼` and the key line, with two rows to spare. A pick's answer takes its rows from the body.
 
 ## Per command
 
@@ -720,7 +720,7 @@ The fakes in `tests/` stand in for all of it.
 - **Writing them again:** `--update` writes the frames again and deletes those nothing draws; a kept frame nothing draws fails.
 - **The checker's own tests:** its reader and comparer are pure TypeScript in `cli/frames/cells.ts`, tested under the kit with inline strings.
 - **The fixtures** (`cli/frames/fixtures.ts`) are moments: a world, a size, the terminal's answers (Nordfox's `#CDCECF` on `#2E3440`), a fixed clock, and the keys pressed to reach them.
-- **The screens:** round 4's, `rest`, `picked`, `unfolded`, `busy`, `arriving`, `unreachable`, `quiet`, `wide` and `nocolor`, at round 4's sizes. Added to them: `narrow-30x27`, `small-23x10`, `busy-24x8`, `docs-73x19`, the docs page's still, `expanded`, at 52×27 and 114×45: a row of a long name and three asks, expanded; `snoozing`, at the same sizes, the snooze menu open; and `waking`, at 52×27, a Snoozed row chosen, its key line naming `z wake` (20 November 2026).
+- **The screens:** round 4's, `rest`, `picked`, `unfolded`, `busy`, `arriving`, `unreachable`, `quiet`, `wide` and `nocolor`, at round 4's sizes. Added to them: `narrow-30x27`, `small-23x10`, `busy-24x8`, `docs-73x17`, the docs page's still, `expanded`, at 52×27 and 114×45: a row of a long name and three asks, expanded; `snoozing`, at the same sizes, the snooze menu open; and `waking`, at 52×27, a Snoozed row chosen, its key line naming `z wake` (20 November 2026).
 - **The first goldens** are round 4's frames, with one change on purpose: the names and a pick's answer, which round 4 drew in Nordfox's `#CDCECF`, are in the terminal's own ink, as its title and keys already are.
 
 **The sweep.** The checker draws every fixture at 39×27, 69×46, 73×36, 114×45, 173×53 and 73×15, and runs the four width checks from termgrid's `sweep`, ported:
@@ -741,7 +741,7 @@ The quiet board is listed on purpose, as round 1 lists it: "All clear" and one s
 
 - **The demo world** is round 1's: `REST`, `BUSY` and the arriving `Room bookings`, in `cli/frames/fixtures.ts`, all placeholder names.
 - **No VHS tapes:** the golden frames and the live runs hold the panel.
-- **The still** for the docs page, `docs/terminal.md`, is the golden frame `panel-docs-73x19`, drawn from the fixtures' docs world: only the six sessions and six projects the docs may name (CLAUDE.md, "Writing the docs"), with asks, a Stopped row, a hollow one, `✻`, `◌` and Snoozed folded. It is read by `termgrid.py`'s `read_ansi` and drawn as the rounds' previews are (`preview_page`, its title bar `sitrep`, Nordfox), shot by headless Chrome at 2× and made lossless webp by `cwebp`: `art/screens/terminal.webp`. Remake it after a change to that frame.
+- **The still** for the docs page, `docs/terminal.md`, is the golden frame `panel-docs-73x17`, drawn from the fixtures' docs world: only the six sessions and six projects the docs may name (CLAUDE.md, "Writing the docs"), with asks, a Stopped row, a hollow one, `✻`, `◌` and Snoozed folded. It is read by `termgrid.py`'s `read_ansi` and drawn as the rounds' previews are (`preview_page`, its title bar `sitrep`, Nordfox), shot by headless Chrome at 2× and made lossless webp by `cwebp`: `art/screens/terminal.webp`. Remake it after a change to that frame.
 - **Later rounds** start from the build's frames read into termgrid, not from round 1's model of them.
 
 ## Out of scope
@@ -783,7 +783,7 @@ Every recommendation was accepted by Lee on 19 November 2026, with one correctio
 4. **The flag:** `--no-notify`, read as `sitrep --no-notify`.
 5. **The notification:** OSC 777, the ask's words as its title and `Project · Session` as its body, once Lee confirms rootshell shows it.
 6. **While a command has the terminal,** the panel keeps posting notifications.
-7. **A board that can't be read:** the last board kept, with `as of 12:04` in grey at the right of the title row; before any board, `Looking for sessions…`, then `Can't read the board` and the reason.
+7. **A board that can't be read:** the last board kept, with `as of 12:04` in grey at the key line's right end (at the title's right until 20 November 2026); before any board, `Looking for sessions…`, then `Can't read the board` and the reason.
 8. **Which sessions this Mac shows:** SitRep writes the sessions this Mac doesn't show as it reads them, for the panel to read; with SitRep not running, a held session draws filled. Widened by Lee on 20 November 2026: SitRep writes who views each session, and the panel dims what is open on no device it is looked at from (see "The marks").
 9. **The resume command:** SitRep's setting, read from its saved settings, the default where none is saved.
 10. **What the CLI runs,** narrowed by the correction: one edge module, `cli/panel/edge.ts`, for the pick alone. It runs your resume command through your login shell, and `ps -t <device>` for the living-Claude check and `{tty}`. It never runs zmx or tmux, nor anything else, and the app's jump keeps all of its own.

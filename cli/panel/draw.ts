@@ -18,7 +18,9 @@
  *   on the choice picked rather than on the row.
  * - The key line drops whole hints from the right, `q quit` last, or in the
  *   menu `esc cancel`.
- * - A board gone stale says when it was read, at the title's right.
+ * - There is no title: the body starts on row 0 (Lee, 20 November 2026).
+ * - A board gone stale says when it was read, at the key line's right end;
+ *   the keys are cut to the room left of it.
  * - Below 24 columns or 8 rows it draws only `Too small`.
  */
 import { cellsOf, cut, graphemesOf, widthOf, wrapIn, type Size, type Tagged } from './cells'
@@ -176,15 +178,6 @@ const runsOf = (cells: Cell[]): Line => {
 
 /** What every part of a frame draws on: the grid, where the parts go, and the pens. */
 type Frame = { grid: Grid; layout: Layout; pens: Pens }
-
-/** The title; on a board gone stale, the time of the last read at the right. */
-const title = ({ grid, layout, pens }: Frame, view: PanelView) => {
-  put(grid, LEFT, 0, 'sitrep', pens.of(STYLE.strong))
-
-  if (view.board === 'stale' && view.asOf !== undefined) {
-    putRight(grid, layout.width - 1, 0, `as of ${view.asOf}`, pens.of(STYLE.meta))
-  }
-}
 
 /** A section's counts from column `x`, a space between each two; gives the column after them. */
 const counts = ({ grid, pens }: Frame, x: number, y: number, section: Section) =>
@@ -453,17 +446,28 @@ const hintsOf = (view: PanelView, layout: Layout): { hints: Hint[]; last: Hint }
 const hintsWidth = (hints: readonly Hint[]) =>
   hints.reduce((sum, [key, word], at) => sum + (at === 0 ? 0 : 2) + widthOf(key) + 1 + widthOf(word), 0)
 
-/** The key line: the hints that fit, dropped whole from the right, then the last, which always applies, dropped last. */
-const keyLine = ({ grid, layout, pens }: Frame, { hints, last }: { hints: readonly Hint[]; last: Hint }) => {
-  const room = layout.width - 1 - LEFT
+/** On a board gone stale, when it was last read; else nothing. */
+const staleOf = (view: PanelView) => (view.board === 'stale' && view.asOf !== undefined ? `as of ${view.asOf}` : undefined)
+
+/**
+ * The key line: on a board gone stale, when it was read, at the right end;
+ * then the hints that fit left of it, dropped whole from the right, then the
+ * last, which always applies, dropped last.
+ */
+const keyLine = ({ grid, layout, pens }: Frame, { hints, last }: { hints: readonly Hint[]; last: Hint }, stale: string | undefined) => {
+  const y = layout.height - 1
+  const room = layout.width - 1 - LEFT - (stale === undefined ? 0 : widthOf(stale) + 2)
   const kept = [...hints]
+
+  if (stale !== undefined) {
+    putRight(grid, layout.width - 1, y, stale, pens.of(STYLE.meta))
+  }
 
   while (kept.length > 0 && hintsWidth([...kept, last]) > room) {
     kept.pop()
   }
 
   const shown = hintsWidth([...kept, last]) <= room ? [...kept, last] : []
-  const y = layout.height - 1
 
   shown.reduce((x, [key, word], at) => {
     const after = put(grid, at === 0 ? x : x + 2, y, key, pens.of(STYLE.strong))
@@ -489,8 +493,6 @@ export const draw = (view: PanelView, size: Size, paint: Paint): Line[] => {
   const layout = layoutOf(view, size)
   const frame: Frame = { grid: gridOf(size), layout, pens: pensOf(paint) }
 
-  title(frame, view)
-
   if (view.board === 'looking') {
     unread(frame, view.reason)
   } else if (layout.sections.length === 0) {
@@ -500,7 +502,7 @@ export const draw = (view: PanelView, size: Size, paint: Paint): Line[] => {
   }
 
   answer(frame)
-  keyLine(frame, hintsOf(view, layout))
+  keyLine(frame, hintsOf(view, layout), staleOf(view))
 
   return frame.grid.map(runsOf)
 }

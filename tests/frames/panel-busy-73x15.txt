@@ -1,7 +1,7 @@
- sitrep
-
  WORKING 14 ────────────────────────────────────────────────────────── ▿
- ▲ 16 more
+ ▲ 15 more
+ ✻ Mobile app                                                         6m
+   Woodgrove · Running npm test
  ✻ Route planner                                                      5m
    Trey Research · Searching for route costs
  ✻ Sales dashboard                                                    4m

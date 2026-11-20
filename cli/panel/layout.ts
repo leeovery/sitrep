@@ -4,13 +4,14 @@
  * keep the band's row in sight (`topFor`), page by a body's height, and find
  * the row a tap lands on.
  *
- * - Row 0 is the title, the last row the key line; both always stay.
+ * - The last row is the key line, and always stays. There is no title (Lee,
+ *   20 November 2026).
  * - A pick's answer sits above the key line, a blank row over it, in at most
- *   the rows between the title and the key line, less that blank row; past
- *   them its last line is cut with `…`.
- * - The body runs from row 2 to the answer's blank row or the key line.
- *   Below 15 rows, short of room, the blank row under the title gives way
- *   first, then the blank rows between sections.
+ *   the rows above the key line, less that blank row; past them its last
+ *   line is cut with `…`.
+ * - The body runs from row 0 to the answer's blank row or the key line.
+ *   Below 13 rows, short of room, the blank rows between sections give way:
+ *   13 rows give the body what 15 gave under the old title.
  * - It shows the rows that fit, in whole rows, from `top`. Above them, room
  *   allowing, their section's heading, pinned, and `▲ N more` for the rows
  *   scrolled past; or `▲` alone; or nothing. `▼ N more` says the rows below,
@@ -41,7 +42,7 @@ export const MOST = 120
 const LEAST: Size = { width: 24, height: 8 }
 
 /** Below this many rows, the blank rows give way. */
-const ROOMY = 15
+const ROOMY = 13
 
 export type Section = PanelView['sections'][number]
 
@@ -64,7 +65,7 @@ export type Layout = {
   answer: { from: number; lines: string[] }
   /** The body's rows. */
   body: Region
-  /** The rows under the title the body's place holds, where words stand centred in it. */
+  /** The rows the body's place holds, where words stand centred in it. */
   words: Region
   /** The view's `top`, kept within `lastTop`. */
   top: number
@@ -223,14 +224,12 @@ const placedIn = (blocks: readonly Block[], window: Window, top: number, body: R
   return below > 0 && y < body.to ? [...placed, { kind: 'below', y, count: below }] : placed
 }
 
-/** The body's rows and blocks: the blank row under the title kept while every block fits with it, then the gaps between sections; never running backwards past the answer. */
+/** The body's rows, from the top to the foot, and its blocks: the gaps between sections kept while every block fits with them. */
 const bodyOf = (sections: readonly Section[], height: number, foot: number, shape: Shaping) => {
   const gapped = blocksOf(sections, true, shape)
-  const isWhole = (from: number) => heightOf(gapped) <= foot - from
-  const from = height >= ROOMY || isWhole(2) ? 2 : 1
-  const hasGaps = height >= ROOMY || isWhole(from)
+  const hasGaps = height >= ROOMY || heightOf(gapped) <= foot
 
-  return { body: { from: Math.min(from, foot), to: foot }, blocks: hasGaps ? gapped : blocksOf(sections, false, shape) }
+  return { body: { from: 0, to: foot }, blocks: hasGaps ? gapped : blocksOf(sections, false, shape) }
 }
 
 /**
@@ -258,7 +257,7 @@ const partsOf = (view: PanelView, size: Size) => {
   const width = Math.min(size.width, MOST)
   const { height } = size
   const sections = view.sections.filter(section => section.rows.length > 0)
-  const said = view.answer === undefined ? [] : wrapIn(view.answer, width - 4, height - 3)
+  const said = view.answer === undefined ? [] : wrapIn(view.answer, width - 4, height - 2)
   const foot = height - 1 - (said.length === 0 ? 0 : said.length + 1)
   const shape: Shaping = row => ({
     height: rowKey(row) === view.expanded ? Math.max(expandedOf(row, width).lines.length, ROW) : ROW,
@@ -297,7 +296,7 @@ export const layoutOf = (view: PanelView, size: Size): Layout => {
     sections: parts.sections,
     answer: { from: parts.height - 1 - parts.said.length, lines: parts.said },
     body: parts.body,
-    words: { from: 1, to: parts.foot },
+    words: { from: 0, to: parts.foot },
     top,
     lastTop: parts.lastTop,
     placed,

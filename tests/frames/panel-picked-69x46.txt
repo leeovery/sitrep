@@ -1,5 +1,3 @@
- sitrep
-
  NEEDS YOU ●4 ●2 ───────────────────────────────────────────────── ▿
  ● Data import                                                    1m
    Litware · Allow Bash: psql -f import.sql
@@ -23,6 +21,8 @@
    Fabrikam · Waiting on 2 agents
 
  SNOOZED 2 ─────────────────────────────────────────────────────── ▹
+
+
 
 
 

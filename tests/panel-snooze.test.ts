@@ -212,12 +212,14 @@ test(
   inLondon(() => {
     const low = pressed(read(board(), { width: 40, height: 15 }), DOWN, DOWN, DOWN, Z)
     const short = pressed(read(board(), { width: 40, height: 8 }), DOWN, Z)
+    const weekend = pressed(stepped(read(board(), { width: 40, height: 8 }), { snoozeSettings: snoozeSettingsOf('{"v":1,"weekend":{"on":true}}') }), DOWN, Z)
     const lowLayout = layoutIn(low)
     const row = lowLayout.rows.find(each => each.key === TURN)
 
     expect([row?.height, lowLayout.menu]).toEqual([2, { y: (row?.y ?? 0) + 2, lines: 6 }])
     expect(lowLayout.menu === undefined ? 0 : lowLayout.menu.y + lowLayout.menu.lines).toBeLessThanOrEqual(lowLayout.body.to)
     expect(layoutIn(short).rows.find(each => each.key === ASKING)?.height).toBe(1)
-    expect(layoutIn(short).menu?.lines).toBe(5)
+    expect(layoutIn(short).menu?.lines).toBe(6)
+    expect([weekend.menu?.options.length, layoutIn(weekend).rows[0]?.height, layoutIn(weekend).menu?.lines]).toEqual([7, 1, 6])
   }),
 )

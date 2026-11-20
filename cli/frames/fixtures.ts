@@ -394,7 +394,7 @@ const SCREENS: Record<string, Screen> = {
   sixteen: { world: AT_REST, paint: SIXTEEN, keys: downTo(AT_REST, 'Help desk redesign'), sizes: [[39, 27]] },
   narrow: { world: AT_REST, sizes: [[30, 27]] },
   small: { world: AT_REST, sizes: [[23, 10]] },
-  docs: { world: FOR_DOCS, sizes: [[73, 19]] },
+  docs: { world: FOR_DOCS, sizes: [[73, 17]] },
   expanded: { world: EXPANDING, keys: [...downTo(EXPANDING, LONG_NAME), ENTER], sizes: [[52, 27], [114, 45]] },
   snoozing: { world: FOR_DOCS, keys: [...downTo(FOR_DOCS, 'Help desk redesign'), SNOOZE], sizes: [[52, 27], [114, 45]] },
   waking: { world: FOR_DOCS, keys: [SNOOZED, END], sizes: [[52, 27]] },

@@ -127,8 +127,9 @@ const brokenIn = (view: PanelView, size: Size, layout: Layout, lines: string[]):
   const markYs = lines.flatMap((line, y) => (y >= body.from && y < body.to && MARKED.test(line) ? [y] : []))
 
   breaks('exactly H lines', lines.length !== size.height)
-  breaks('the title kept', !lines[0]?.startsWith(' sitrep'))
-  breaks('the key line kept', !/q quit$/.test(lines.at(-1) ?? ''))
+  breaks('the body from row 0, with no title', body.from !== 0 || lines.some(line => line.startsWith(' sitrep')))
+  breaks('the key line kept', !/q quit( +as of 12:04)?$/.test(lines.at(-1) ?? ''))
+  breaks("a stale board's notice at the key line's right end", (view.board === 'stale') !== (lines.at(-1) ?? '').endsWith('  as of 12:04'))
   breaks('nothing past W−2', lines.some(line => widthOf(line) > Math.min(size.width, 120) - 1))
   breaks('no overlaps', new Set(ys).size !== ys.length)
   breaks('the body kept to its rows', ys.some(y => y < body.from || y >= body.to) || body.to < body.from)

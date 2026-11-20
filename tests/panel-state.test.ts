@@ -9,12 +9,12 @@ import { boardRow, feedOfRows, snoozedRow, T0 } from './data'
 
 /**
  * The board under test: three asks, five working and two in Snoozed, each
- * row named by its session. At 40×15 the body is rows 2 to 13: from the
- * top it shows Needs you's heading on row 2, its three rows from rows 3, 5
- * and 7, a blank row, Working's heading on row 10 and its first row from
- * 11, then `▼ 4 more` on 13.
+ * row named by its session. At 40×13 the body is rows 0 to 11: from the
+ * top it shows Needs you's heading on row 0, its three rows from rows 1, 3
+ * and 5, a blank row, Working's heading on row 8 and its first row from 9,
+ * then `▼ 4 more` on 11.
  */
-const SIZE: Size = { width: 40, height: 15 }
+const SIZE: Size = { width: 40, height: 13 }
 
 const ASKS = ['sr-nw0001', 'sr-nw0002', 'sr-nw0003']
 
@@ -207,15 +207,15 @@ test('one row at most is expanded, the chosen one: the band moving to another ro
 })
 
 test("a tap on any line of a row puts the band on it, a tap on the band's row expands it or folds it; anywhere else, nothing", () => {
-  const onN2 = pressed(read(), tap(5))
+  const onN2 = pressed(read(), tap(3))
 
   expect(inView(read())).toEqual([N1, N2, N3, W1])
   expect(onN2.band).toBe(N2)
-  expect(pressed(read(), tap(12)).band, "W1's second line").toBe(W1)
-  expect(pressed(onN2, tap(6)).expanded).toBe(N2)
-  expect(pressed(onN2, tap(6), tap(5)).expanded).toBeUndefined()
-  expect([2, 9, 13, 14].map(y => pressed(read(), tap(y)).band), 'a heading, a blank row, ▼, the key line').toEqual([undefined, undefined, undefined, undefined])
-  expect(pressed(read(), tap(5, 40)).band, 'past the layout').toBeUndefined()
+  expect(pressed(read(), tap(10)).band, "W1's second line").toBe(W1)
+  expect(pressed(onN2, tap(4)).expanded).toBe(N2)
+  expect(pressed(onN2, tap(4), tap(3)).expanded).toBeUndefined()
+  expect([0, 7, 11, 12].map(y => pressed(read(), tap(y)).band), 'a heading, a blank row, ▼, the key line').toEqual([undefined, undefined, undefined, undefined])
+  expect(pressed(read(), tap(3, 40)).band, 'past the layout').toBeUndefined()
 })
 
 test('an expanded row takes the lines its words need, and a tap on any of them lands on it', () => {
@@ -225,8 +225,8 @@ test('an expanded row takes the lines its words need, and a tap on any of them l
   const rows = layoutIn(expanded).rows
 
   expect(rows.map(row => [row.key, row.height])).toEqual([[N1, 7], [N2, 2]])
-  expect(Array.from({ length: 7 }, (_, at) => pressed(expanded, tap(3 + at)).band)).toEqual(Array(7).fill(N1))
-  expect(pressed(expanded, tap(10)).band).toBe(N2)
+  expect(Array.from({ length: 7 }, (_, at) => pressed(expanded, tap(1 + at)).band)).toEqual(Array(7).fill(N1))
+  expect(pressed(expanded, tap(8)).band).toBe(N2)
 })
 
 test('an expanded row near the foot is scrolled whole into sight; one taller than the body is cut to it', () => {
@@ -240,11 +240,11 @@ test('an expanded row near the foot is scrolled whole into sight; one taller tha
   const last = layoutIn(low).rows.at(-1)
   const tall = pressed(read(feedOfRows([boardRow(N1, 'ask', { name: 'word '.repeat(80) })])), DOWN, ENTER)
 
-  expect(layoutIn(onW5).rows.at(-1)).toEqual({ key: W5, y: 12, height: 2 })
+  expect(layoutIn(onW5).rows.at(-1)).toEqual({ key: W5, y: 10, height: 2 })
   expect([last?.key, last?.height]).toEqual([W5, 4])
   expect((last?.y ?? 0) + (last?.height ?? 0)).toBe(layoutIn(low).body.to)
   expect(low.top).toBeGreaterThan(onW5.top)
-  expect(layoutIn(tall).rows).toEqual([{ key: N1, y: 2, height: 12 }])
+  expect(layoutIn(tall).rows).toEqual([{ key: N1, y: 0, height: 12 }])
 })
 
 test("a tap while a pick's answer shows finds the row under it as drawn, the answer's rows holding none, and drops the answer", () => {
