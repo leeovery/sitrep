@@ -36,7 +36,7 @@ A setting to run a command on a new ask, such as `rootshell-notify`, is parked. 
 
 **What stays byte for byte.** Every existing command: its words, its output, its JSON, its exit codes and the files it writes. `sitrep watch` prints the same lines, so SitRep reads it as before. Bare `sitrep` off a terminal, as a script or a pipe runs it, keeps today's answer: the help on standard error, exit 1. The help gains one usage line, `sitrep [--no-notify]`, saying it opens the board in this terminal; every other line of it stays (Lee, 19 November 2026).
 
-**What the switch carries.** Three pieces move to where both the watch and the panel can use them, with no change to what they give: the watch's look loop (`cli/watch.ts`) into `cli/looks.ts`; `ago` from the pane's `hooks/look.ts` into core; and the panel's grouping of Needs you, which only the app's Swift holds today, into core (see "What the code can't give yet").
+**What the switch carries.** Three pieces move to where both the watch and the panel can use them, with no change to what they give: the watch's look loop (`cli/watch.ts`) into `cli/looks.ts`; `ago` from the pane's `hooks/look.ts` into core; and the panel's grouping of Needs you, which the app's Swift held alone, into core's `panelSections`.
 
 ## The frame
 
@@ -59,7 +59,7 @@ A setting to run a command on a new ask, such as `rootshell-notify`, is parked. 
 
 ## The marks
 
-Colour says what's needed; fill says where (DESIGN.md, "The notch and its panel"). Filled, a terminal on this Mac shows the session. Hollow, it's away: no window holds it, its Claude ended, or no terminal on this Mac shows it. The panel learns the last from SitRep, which writes the sessions this Mac doesn't show as it reads them; with SitRep not running, a held session draws filled (Lee, 19 November 2026; "What the code can't give yet", 6).
+Colour says what's needed; fill says where (DESIGN.md, "The notch and its panel"). Filled, a terminal on this Mac shows the session. Hollow, it's away: no window holds it, its Claude ended, or no terminal on this Mac shows it. The panel learns the last from SitRep, which writes the sessions this Mac doesn't show as it reads them; with SitRep not running, a held session draws filled (Lee, 19 November 2026; "What the code can't give yet", 1).
 
 | Mark | Colour | Meaning |
 |---|---|---|
@@ -168,6 +168,7 @@ Doesn't apply: the panel shows no step running. Its marks are still: `✻` doesn
 | A live window that says nothing of where it is | The answer: `Release notes can't be opened here: its window didn't say where it is.` |
 | No live window, with a last window | The resume command, filled from the last window |
 | No live window, and none to resume | The answer: `Release notes can't be carried on from here: no window of it is left.` |
+| Gone from the board by the pick | The answer, as the app's jump says it: `There is no such session on the board, in any project.` |
 
 - **Which live window.** The first in core's jump order (`FeedWindow.jumpOrder`) whose `where` names tmux or zmx. A Snoozed row picks the same way.
 - **Why tmux or zmx is still read.** Only to refuse. A window in no multiplexer ends its Claude with its terminal, so a command run for it could only start a second Claude beside the first, as stage 1 settled and the app's step C refused. The panel reads the heartbeat's `where` and nothing more: it asks tmux nothing and runs zmx never.
@@ -175,7 +176,7 @@ Doesn't apply: the panel shows no step running. Its marks are still: `✻` doesn
 **The placeholders,** filled as the app fills them (`ResumeFacts`, `SitRepScreen/ResumeCommand.swift`):
 - `{claude}`: the window's writer, the Claude Code session id of the session's latest conversation: the live window's, or the last window's (`FeedSession.lastWindow`) for a session no window holds;
 - `{dir}`: that window's `directory`;
-- `{tty}`: that window's device, filled only while `ps` shows a Claude Code on it, running or suspended, with no later conversation seen there (`ownsDevice`); otherwise `''`.
+- `{tty}`: that window's device, filled only while `ps` shows a Claude Code running on it, with no later conversation seen there (`ownsDevice`); otherwise `''`. A held session's live window owns its device. A Claude suspended there fills nothing, since the pick then refuses (see "Never beside a living Claude").
 
 **The line,** read and refused as the app's `TypedCommand` reads it, in its words. It holds to plain shell syntax, and anything else is refused in words that point to a script (Lee, 20 November 2026). A reader that refused each place a shell reads a value again could never be finished: three reviews each found new ways for a folder's name to run as code across sh, bash 3.2 and 5.3, zsh, dash and ksh.
 - **Plain shell syntax,** which those shells all read alike:
@@ -198,44 +199,68 @@ Doesn't apply: the panel shows no step running. Its marks are still: `✻` doesn
 - **`$!` and `$#` left out.** An interactive bash or zsh reads the `!` of `$!` as history, and with `&` alone refused, no job runs in the background for it to name. `$#` is always 0 here, and zsh reads its `#` as asking the length of what follows: in `$#$(…)` zsh reads the length of `$$` and a glob qualifier where the others read a `$(…)`.
 - **The placeholders** stand outside every quote, at the top level or in a `$(…)`, joined to a word or not: `id={claude}` is `id='…'`, one word. Inside quotes, a name that is no placeholder's is text, as awk's `'{print $1}'`.
 - **Quoted.** Each value goes in single quotes, never bare.
-- **Refused before anything runs,** the first that applies:
-  - a character that doesn't print, in the command or in a value;
-  - a placeholder SitRep doesn't know;
+- **Refused before anything runs.** The command, read less the spaces around it, the first that applies:
+  - empty (see "Which command");
+  - a character that doesn't print: `The resume command in Settings has a tab, which can't be typed.`, a line break and an escape named so too, any other by its code point;
+  - a placeholder SitRep doesn't know: `The resume command in Settings has {session}, which SitRep doesn't know. It knows {claude}, {dir} and {tty}.`;
   - one inside quotes: `The resume command in Settings puts {dir} in quotes. Remove them: SitRep quotes each value itself.`;
-  - any other part, named as found: ``The resume command in Settings uses `(`, which SitRep can't check. Put that part in a script and pass it {claude}, {dir} or {tty}, as in ~/bin/resume {claude} {dir}.``, a backtick named `a backtick`;
-  - a quote or a `$(…)` left open: ``The resume command in Settings opens `"` but never closes it.``;
-  - `{dir}`, where the window said no folder;
+  - the first part past plain syntax, read from the left: any other part, named as found, ``The resume command in Settings uses `(`, which SitRep can't check. Put that part in a script and pass it {claude}, {dir} or {tty}, as in ~/bin/resume {claude} {dir}.``, a backtick named `a backtick`; or a quote or a `$(…)` left open, ``The resume command in Settings opens `"` but never closes it.``.
+
+  Then the values, once the guard has passed (see "The order of checks"), the first that applies:
+  - `{dir}`, where the window said no folder (see "No folder");
+  - a value with a character that doesn't print: `For Release notes, the folder its Claude ran in has a tab, which can't be typed.`;
   - a value starting with a dash, which a program would read as an option, as `claude --resume {claude}` would read an id of `--settings=…`: `For Release notes, the Claude Code session's id starts with a dash, which a program would read as an option.`
 - **What takes code from an argument is yours.** Two kinds take code, a name or a number from an argument and evaluate it, as a program running an argument as code does, `sh -c` among them. They pass as words: a command that passes a placeholder to one takes that risk.
   - a builtin: `eval`, `trap`, `let`, `read`, `declare`, `typeset`, `local`, `export`, `printf -v`, `test`'s numeric comparisons, `shift`, `exit`, `return`, `ulimit`, and others, such as zsh's `getln` and `repeat`;
   - an assignment to a variable the shell evaluates: `PS1`, `PS4`, `PROMPT_COMMAND`, `ENV`, `BASH_ENV`, and integer ones such as `RANDOM`, `SECONDS` and `OPTIND`.
-- **Run** in your login shell, `$SHELL -l -c <line>`, so it has your own PATH and environment, as the app's typed line does.
+- **Run** as `$SHELL -l -c <line>`: a login shell that isn't interactive. It reads your login files, such as `.zprofile` or `.bash_profile`, so it has the PATH and environment they set. It reads no `.zshrc` or `.bashrc`, which only an interactive shell reads. The app types its line at the prompt of an interactive login shell in a new window, which reads both. So an alias or a function defined in `.zshrc` works from the app's click but not from the panel; a script on the PATH works from both.
+- **A POSIX login shell only.** Each value is quoted for a POSIX shell's single quotes, and in fish's a `\'` is an escape. So the line runs only where the last part of `$SHELL`'s path is `sh`, `bash`, `zsh`, `dash` or `ksh`. Any other refuses before `ps` is asked: `sitrep can run the resume command only in a POSIX shell; your login shell is fish.` With `$SHELL` unset or empty: `sitrep couldn't start your login shell: $SHELL is not set.`
 
-**Which command.** SitRep's setting, read from SitRep's saved settings (the `resume` key under `app`, `SitRepMenu/AppSettings.swift`), and the default, `cd {dir} && claude --resume {claude}`, where none is saved (Lee, 19 November 2026). A command you wrote to run Claude in zmx then carries on there, so a dropped connection doesn't end it. A field saved empty refuses in SitRep's words: `The resume command in Settings is empty. To carry Release notes on, set one, or restore the default.`
+**Which command.** SitRep's setting, read from SitRep's saved settings, and the default, `cd {dir} && claude --resume {claude}`, where none is saved (Lee, 19 November 2026). The settings are JSON under `app` in SitRep's defaults, `~/Library/Preferences/com.leeovery.sitrep.plist`, a binary property list the panel reads itself (`cli/panel/plist.ts`), as `SitRepMenu/AppSettings.swift` saves them:
+- its `resume`, read as saved, an empty one included;
+- else the `resumeCommand` saved before `resume` had a key of its own, only where it holds a command;
+- else the default. Defaults that can't be read hold none. A command you wrote to run Claude in zmx then carries on there, so a dropped connection doesn't end it. A field saved empty refuses in SitRep's words: `The resume command in Settings is empty. To carry Release notes on, set one, or restore the default.`
 
-**Never beside a living Claude,** as the app's click (`Jump.carryOn`), read from `ps -t <device>` before anything runs:
-- **Suspended,** whatever the command: a Claude stopped on the last window's device answers `Release notes is suspended in its window: type fg there to bring it back.`, starting nothing.
+**Never beside a living Claude,** after the app's click (`Jump.carryOn`), read from `/bin/ps -t <device> -o stat=,comm=` before anything runs:
+- **What `ps` is asked.** Only a terminal's device, `/dev/tty…`, and within 2 seconds. A Claude Code is told by its program as `ps` gives it: `claude`, or a file in a `claude/versions` folder. One whose state starts `T` is suspended. A device no longer there runs nothing, and `ps` isn't asked. `ps` ending 1 with nothing to say means no process is on the device. Any other failure, a device that isn't a terminal's, or no answer in time, is no answer.
+- **Suspended,** whatever the command: a Claude stopped on the window's device, whoever was seen there after, answers `Release notes is suspended in its window: type fg there to bring it back.`, starting nothing.
 - **No answer from `ps`,** whatever the command: `Could not tell whether Release notes's Claude is still running: the process table gave no answer.`
 - **The guard, the default's alone:**
-  - a Claude seen running on the window's device: `Release notes's Claude is still running: set a resume command that can reach it, in SitRep's Settings.`;
+  - a Claude seen running on the window's device, the device still its conversation's (`ownsDevice`): `Release notes's Claude is still running: set a resume command that can reach it, in SitRep's Settings.`;
   - a live window holding the session with no Claude seen on its device, as a tab just closed: `Release notes's window has just stopped answering: try again in a moment.`
-- **A command you wrote** runs past the guard: what it does is yours. The default is told by its text, so a command saved the same as it is the default.
-- **No folder:** a window with no directory, for a command naming `{dir}`, answers `Release notes's last window did not say which folder it ran in, as a window on an older sitrep does not, so sitrep has nothing to put for {dir}.`
+- **A later conversation's Claude** running on the device isn't the session's: it refuses nothing, and fills no `{tty}`.
+- **A command you wrote** runs past the guard: what it does is yours. The default is told by its text, less the spaces around it, so a command saved the same as it is the default.
+- **No folder:** a window with no directory, for a command naming `{dir}`, answers `Release notes's last window did not say which folder it ran in, as a window on an older sitrep does not, so sitrep has nothing to put for {dir}.` For a held session, it says `Release notes's window`.
+
+**Where the app's click differs,** on purpose:
+- **A suspended Claude.** The app takes you to its window where a terminal on this Mac shows it, saying `… is suspended in this window: type fg to bring it back.` Where none shows it, the app carries the session on as any other: the default refused, a command you wrote run, `{tty}` filled where the device is its own. The panel never jumps, and reads no screen to tell whether a terminal here shows it. So it treats every suspended Claude as the app treats one it can take you to: yours to bring back, with nothing started, whatever the command.
+- **The words.** The app's suspended refusal adds `which SitRep could not bring forward`; the panel tries no window, so it drops that. The app's running refusal says `still running where this Mac doesn't show it` and `in Settings`; the panel can't tell where it shows, and isn't SitRep, so it says `still running` and `in SitRep's Settings`.
+- **Telling a Claude Code.** The app reads each process's program path; the panel reads `ps`'s argv[0] (see "Known limits").
+
+**The order of checks,** the first that refuses answers, and nothing runs before the last:
+1. The feed (`reachOf`): a session gone from the board, then the table's refusals.
+2. The command, typed (`typedOf`): its own refusals, with no `ps` asked.
+3. The login shell: unset, or not a POSIX shell.
+4. `ps` on the window's device: no answer, then suspended.
+5. The guard, the default's alone.
+6. The values (`filledOf`): `{dir}` with no folder, a value that doesn't print, then one starting with a dash.
 
 So with the default command, picking a session a live window holds always refuses: only a command that can reach a running Claude opens one. Lee's own command (DESIGN.md, stage 8's examples) attaches the session holding that Claude, or starts one resuming it.
 
 **No special case, on the Mac or anywhere** (Lee, 19 November 2026). A pick always runs the command in the panel's terminal, a session already showing in a window on this Mac included. The panel never jumps, never asks SitRep to, and never moves the Mac's screen. Lee: "As long as we always go through the command … It's generic enough that it's up to the user to handle their own scenarios through the registered commands." What becomes of a session open elsewhere is the command's business, not SitRep's. Lee's own takes the session over from the other window, which then says it's open elsewhere, so the session never runs in two terminals at once.
 
 **The hand-over.** Running the command hands the terminal over, then takes it back:
-1. Leave the alternate screen, show the cursor, turn autowrap on, mouse reporting and raw mode off, and stop reading keys.
-2. Run the login shell with the panel's standard input, output and error, and ignore SIGINT and SIGQUIT while it runs: they're the command's. SIGTSTP keeps its default, so Ctrl-Z stops the whole job, the panel with the command, and `fg` carries on with both; the panel takes nothing back at that SIGCONT. A panel that heard SIGTSTP held the terminal from the shell, the command stopped, since Bun can't see a child stop (shown live, 19 November 2026).
-3. When the shell ends, take the terminal back and redraw from the latest board, the band where it was.
+1. Leave the alternate screen, show the cursor, turn autowrap on, mouse reporting, bracketed paste and raw mode off, and stop reading keys.
+2. Run the login shell with the panel's standard input, output and error, and ignore SIGINT and SIGQUIT while it runs: they're the command's. SIGTSTP keeps its default, so Ctrl-Z stops the whole job, the panel with the command, and `fg` carries on with both; the panel takes nothing back at that SIGCONT. A panel that heard SIGTSTP held the terminal from the shell, the command stopped, since Bun can't see a child stop (shown live, 19 November 2026). SIGTERM and SIGHUP still end the panel, leaving the terminal to the command.
+3. When the shell ends, unless a SIGTERM or SIGHUP sent with its end closed the panel first, take the terminal back: enter the screen, read the size afresh, and draw whole from the latest board, the band where it was, with the pick's answer, if it leaves one.
+
+- **One pick at a time.** A `⏎` or a tap while a pick is under way does nothing. Nothing takes the terminal back while the command has it, a Ctrl-Z's take-back pressed while the pick was readied included.
 
 - **Coming back is the command's.** The panel takes the terminal back only when the command ends. A command attaching a zmx session in a plain shell returns when you detach, with zmx's `Ctrl-\`. A resumed Claude with no multiplexer returns when you quit it. A command that switches this terminal's client and ends, or never ends, decides otherwise; the panel doesn't watch it.
 - **Inside a multiplexer.** A panel running inside zmx or tmux runs the command there like anywhere else. Whether the command nests a client, switches this one or refuses is the command's, and no question of the panel's: it attaches nothing itself (Lee, 19 November 2026; this was Open for Lee, 2).
-- **Watching meanwhile.** The panel keeps looking at the board, and posts notifications, while the command runs (Lee, 19 November 2026).
+- **Watching meanwhile.** The panel keeps looking at the board, drawing nothing, and posts notifications, while the command runs (Lee, 19 November 2026).
 - **A command that fails** says so in its own words, on the screen the panel gave it. One that ends non-zero within 2 seconds also leaves an answer when the panel comes back: `The resume command ended with 1 for Release notes.`
-- **A login shell that can't start** leaves `sitrep couldn't start your login shell, $SHELL.`
+- **A login shell that can't start** leaves its answer, naming `$SHELL`'s path: `sitrep couldn't start your login shell, /bin/zsh.`
 
 **A pick's answer** sits above the key line: `!` bold, a space, then the words in the terminal's ink, wrapped at W−4 and hung under the first word. It stays until the next key.
 
@@ -358,41 +383,30 @@ Dimming the terminal's own ink needs its foreground too. With both answers, at 2
 
 ## Built on: the code as it is
 
-- **Dispatch.** `cli/main.ts`'s `answer` takes the first word as a command's name. With none, it prints `HELP` to standard error and returns `EXIT.refused`, 1; `help`, `--help` and `-h` print the help. The panel goes in `answer`'s empty case, on a terminal.
-- **The board.** `cli/watch.ts`'s `watchUntil` looks every second (`POLL_MS`).
-  - It uses `boardReader` over `heldReads` (`cli/held.ts`) and `readBoard`/`readFolder` (`cli/files.ts`).
+- **Dispatch.** `cli/main.ts`'s `answer` takes the first word as a command's name. With none, on a terminal whose `TERM` isn't `dumb`, it opens the panel (`cli/panel/panel.ts`'s `panel`); off one, it prints `HELP` to standard error and returns `EXIT.refused`, 1. `help`, `--help` and `-h` print the help.
+- **The looks.** `cli/looks.ts`'s `looking` looks at the board every second (`POLL_MS`) and hands each look to its caller, `cli/watch.ts`'s `watch` or the panel.
+  - It reads by `boardReader` over `heldReads` (`cli/held.ts`) and `readBoard`/`readFolder` (`cli/files.ts`).
   - It keeps a `Clock` of the Mac's sleeps (`clockAt`), and looks again when core's `nextExpiry` says time alone changes the board.
-  - It ends by `untilEnded` (`cli/ending.ts`).
+  - It ends as its run does (`untilEnded`); the panel's run ends only as the panel closes.
   - Core's `feedOf` makes the `Feed`; `newRows` says what's new. Each look's `Feed` is all the panel draws from.
-- **The rows.** `core/rows.ts`'s `rowOf` and `snoozedRowOf` make the rows.
-  - A `Row` carries its session, name, project name, `isAway`, `section` (`needsYou`, `yourTurn`, `working`), its `lines` newest first, and `since`.
-  - A `Line` carries its key, `is`, `first` (`RowLine`: `lead`, `mono`, `subject`, `more`, `until`) and `since`.
-  - Core's `inPanelOrder` groups needs-you here, needs-you away, your turn, working, then on its own work. `inSnoozedOrder` orders Snoozed.
+- **The rows.** `core/rows.ts`'s `rowOf` and `snoozedRowOf` make the rows, and core's `inPanelOrder` and `inSnoozedOrder` order them. `core/panel.ts`'s `panelSections` puts them in the panel's sections, with their counts.
+- **The words.** `cli/panel/view.ts`'s `viewOf` words each row: its time rounded down, as the app's `Age` words it; a wake's countdown; core's `wakeWords` and `oneLine`. Core's `ago` (`core/ago.ts`) is the pane's, and rounds to the nearest.
 - **Where a window is.** Each live window comes as a `FeedWindow`: its writer, session, `where`, `directory`, `state` and `jumpOrder`.
   - `where` is `core/where.ts`'s `Where`: `device`, `terminal`, `tmux` with its `socket` and `pane`, and `zmx` with its `session`.
   - The mod records it once a process (`hooks/where.ts`'s `whereNow`): the socket is `$TMUX` up to its first comma, the pane `$TMUX_PANE`, the zmx session `$ZMX_SESSION` whole, and the device by `TTY_WALK`.
-  - Core's `inJumpOrder` orders the windows for a jump.
+  - Core's `inJumpOrder` gives each window its `jumpOrder`; a window with no `where` has none.
 - **Resuming.** A session no live window holds carries `lastWindow` (`core/windows.ts`'s `lastWindowOf`): its writer (`{claude}`), `where`, `directory` (`{dir}`) and `ownsDevice`.
-  - The CLI can't resume a session today. SitRep does, in Swift (`SitRepScreen/Jump.swift`'s `carryOn` and `resume`).
-  - SitRep fills the command by `ResumeCommand` and `ResumeFacts`, reads and quotes it by `TypedCommand`, and keeps its default in `OpenSettings.defaultResumeCommand`.
-  - The command Lee sets is saved in SitRep's defaults, under `app`'s `resume` key (`SitRepMenu/AppSettings.swift`).
-  - It is the one command SitRep registers for opening a session. The open command of stage 7, step C, with `{session}`, `{socket}` and `{pane}`, folded into it on 13 November 2026: `AppSettings` passes over an `openCommand` still saved, and no `OpenCommand` is left in `app/Sources`.
-- **Words.** `core/snooze.ts`'s `wakeWords`, `core/text.ts`'s `oneLine`, and `hooks/look.ts`'s `ago`.
-- **The world.** `cli/io.ts`'s `Io` gives the file system, the environment, the clocks, standard input, output and error, and the run's end. It has no terminal and no `run`: "It runs no program" (DESIGN.md, 10 November 2026, stage 7, step B). `cli/shell/index.ts` binds it to Bun, its runtime declared in `cli/shell/runtime.d.ts`.
-- **Retired, in history.** The CLI's tmux, zmx and `ps` readings went in `09e943b` (#110), with the Bun binding's runner of programs: `cli/tmux.ts`, `cli/zmx.ts`, `cli/processes.ts`, `cli/multiplexer.ts`.
+  - SitRep resumes a session in Swift (`SitRepScreen/Jump.swift`'s `carryOn` and `resume`). It fills the command by `ResumeCommand` and `ResumeFacts`, reads and quotes it by `TypedCommand`, and keeps its default in `OpenSettings.defaultResumeCommand`.
+  - The panel resumes one in TypeScript, by the same rules: `cli/panel/reach.ts`'s `reachOf` and `carriedOn`, `cli/panel/command.ts`'s `typedOf` and `filledOf`, `TypedCommand`'s twin, and `cli/panel/edge.ts`, which reads the saved command (`cli/panel/plist.ts`), asks `ps` and hands the line over. The two readers are held to one file of cases (see "Testing").
+  - The command is saved in SitRep's defaults, under `app`'s `resume` key (`SitRepMenu/AppSettings.swift`). It is the one command SitRep registers for opening a session: `AppSettings` passes over an `openCommand` still saved, and no `OpenCommand` is left in `app/Sources`.
+- **Whether a Claude is alive or suspended** on a device: SitRep reads it from its process table (`Jump.claude(on:)`), the panel from `ps` (`cli/panel/edge.ts`'s `claudeOn`).
+- **The world.** `cli/io.ts`'s `Io` gives the file system, the environment, the clocks, standard input, output and error, the run's end, and the terminal, absent off one. It runs a program only through the terminal, for a pick: `hand` gives the terminal to the login shell, and `run` asks `ps`. `cli/shell/index.ts` binds it to Bun, and `cli/shell/terminal.ts` the terminal, their runtime declared in `cli/shell/runtime.d.ts`.
+- **The frames.** `cli/frames/check.ts`, run by Bun, holds each fixture to its golden frame in `tests/frames/` and runs the sweep (see "Testing").
 
 ## What the code can't give yet
 
-1. **A look loop apart from printing.** `boardReader`, `untilEnded` and `releaseOf` are private to `cli/watch.ts`.
-2. **The panel's order and counts.** Needs you's asks before its Stopped, here before away, and the eyebrow's counts are the app's alone (`SitRepPanel/Sections.swift`'s `inPanelOrder` and `Eyebrow`, `SitRepEdge/PanelBoard.swift`). Core's `inPanelOrder` groups by section and away.
-3. **Words for the times.** `ago` is the pane's, in `hooks/look.ts`. A wake's countdown, `Wakes in 12m`, is worded only by the app.
-4. **A terminal.** `Io` has no raw mode, size, resize, alternate screen, colour query, or way to hand the terminal to a program and wait.
-5. **Running a program.** The panel runs your resume command through your login shell, and `ps` for the living-Claude check and `{tty}`; `Io` has no `run`, nor a way to hand the terminal over. It never runs tmux or zmx.
-6. **Which sessions this Mac shows.** Only SitRep reads it (`SitRepScreen/HereWatch.swift`, `Here.swift`), and core knows nothing of it. SitRep doesn't yet write what it reads anywhere the panel can read it, so the panel can't yet tell a held session no Ghostty shows from one it does.
-7. **The resume command.** It lives only in SitRep's saved settings, as JSON in a property list, and only Swift fills, reads and quotes it (`ResumeFacts`, `TypedCommand`). The panel needs a TypeScript reading of the same rules, and a read of the saved setting.
-8. **Whether a Claude is alive or suspended** on a device: only SitRep's process table reads it (`Jump.claude(on:)`).
-9. **`sitrep` on a shell's PATH.** Claude Code puts the plugin's `bin` on Claude's own PATH. A login shell, over SSH or in Ghostty, has no `sitrep`, and the cask has no `binary` stanza.
-10. **Golden frames under the kit.** `claude plugin test` loads only code: a test can't import `node:fs` or a `.txt`, proven on 19 November 2026, as `RealNamesTests.swift` notes. The frames need a checker run by Bun (see "Testing").
+1. **Which sessions this Mac shows.** Only SitRep reads it (`SitRepScreen/HereWatch.swift`, `Here.swift`), and core knows nothing of it. SitRep doesn't yet write what it reads anywhere the panel can read it, so the panel can't yet tell a held session no Ghostty shows from one it does.
+2. **`sitrep` on a shell's PATH.** Claude Code puts the plugin's `bin` on Claude's own PATH. A login shell, over SSH or in Ghostty, has no `sitrep`, and the cask has no `binary` stanza.
 
 ## The output seam
 
@@ -444,7 +458,7 @@ export type PanelEvent =
   | { key: Key }
   | { size: Size }
   | { tick: number }
-  | { opened: Answer | undefined }
+  | { opened: string | undefined } // a pick done: the answer it leaves, if any
 export const step: (state: PanelState, event: PanelEvent) => { state: PanelState; open?: string }
 
 // cli/panel/layout.ts: the fit rules, once, for draw and for step
@@ -460,9 +474,8 @@ export const ansi: (lines: Line[], level: Level) => string
 export const text: (lines: Line[]) => string
 
 // cli/panel/reach.ts: what ⏎ opens, decided from the feed alone
-export type Reach =
-  | { resume: { claude: string; dir?: string; device?: string; isHeld: boolean } }
-  | { answer: string }
+export type Resume = { name: string; claude: string; dir?: string; device?: string; isHeld: boolean; ownsDevice: boolean }
+export type Reach = { resume: Resume } | { answer: string }
 export const reachOf: (session: string, feed: Feed) => Reach
 
 // cli/panel/command.ts: TypedCommand's rules in TypeScript; no terminal, no shell
@@ -517,7 +530,14 @@ The fakes in `tests/` stand in for all of it.
   - `Too small` below 24×8.
 - **`panel-keys.test.ts`:** byte sequences to keys, a lone `esc` by its 50 ms, `CSI` and `SS3` arrows.
 - **`panel-state.test.ts`:** the band's first press, moves, pages and ends; the view's scroll; the band following its session and passing on; folding; answers dropped on a key.
-- **`panel-reach.test.ts`:** every row of "Picking a row"'s table; the jump order; `{claude}`, `{dir}` and `{tty}` from a live window and from a last window; the guard's and the suspended rule's words, the default against a command you wrote.
+- **`panel-reach.test.ts`:**
+  - `reachOf`: every row of "Picking a row"'s table, a session gone from the board among them; the jump order; a session in Snoozed alone; `{claude}`, `{dir}`, the device and `ownsDevice` from a live window and from a last window;
+  - `carriedOn`: suspended and no answer from `ps` refusing whatever the command; the guard's words, the default saved with spaces round it among them, against a command you wrote, and `{tty}` filled only for a Claude running on its own device; a later conversation's Claude refusing nothing; no folder in the window's words.
+- **`panel-edge.test.ts`:**
+  - the property list reader: the data under a key, long and in UTF-16; a list cut short, claiming more than it holds, or with offsets of no bytes, holding nothing;
+  - the saved command: `resume`, empty where cleared, else the older `resumeCommand`, else the default, from the home folder's defaults;
+  - `ps`: the system's, asked of the device alone within its time; a Claude Code told by its program, stopped by its state; a device gone or none asking nothing; a failure as no answer;
+  - the line handed to `$SHELL -l -c`; a command's refusals before `ps` is asked; a POSIX login shell only; the quick failure's answer; a login shell that can't start.
 - **`panel-command.test.ts`:** `lineOf` held to the cases `TypedCommand`'s Swift tests hold: quoting, plain syntax filled, every refusal in its words, and each command of `tests/refused-commands.ts`, the reviews' holes, refused, a list the Swift tests read too. A seeded run of commands made from the grammar's parts (`tests/commands.ts`) holds plain ones filled and ones with a part refused never taken. `tests/reader-cases.ts` holds 2,000 of them, most mutated, each with the line or the refusal the panel gave, made by `bun tests/make-reader-cases.ts > tests/reader-cases.ts`; both suites read it, so the two readers give the same for every one. The kit can't start a process, so the same commands filled with hostile values ran in sh, bash 3.2 and 5.3, zsh, dash and ksh in a scratch run, outside the suite.
 - **`panel.test.ts`,** golden runs through the fake terminal:
   - the exact writes to enter, draw, hand over, take back and leave;
@@ -545,7 +565,7 @@ The quiet board is listed on purpose, as round 1 lists it: "All clear" and one s
 
 **Gates.** The slice that brings the checker adds `bun cli/frames/check.ts` and `bunx tsc -p cli/frames` to CLAUDE.md's gates. The root `tsconfig.json` excludes `cli/frames` as it does `cli/shell`.
 
-**Live tests.** A live run points `XDG_STATE_HOME` at a folder of its own and seeds sessions there, as CLAUDE.md says. Picking a row attaches in the panel's own terminal and brings no window forward, so it is no jump.
+**Live tests.** A live run points `XDG_STATE_HOME` at a folder of its own and seeds sessions there, as CLAUDE.md says. Picking a row runs the resume command in the panel's own terminal and brings no window forward, so it is no jump.
 
 ## Pictures
 
