@@ -8702,8 +8702,8 @@ open), and tmux passing an escape sequence through from Claude's own pane
    - **Built on this Mac, not in CI** (Lee's choice): with the Xcode Lee
      tests with, no certificate in GitHub, and no macOS runner's minutes.
      It builds on a Mac only because the Developer ID's key and the notary
-     login live in this Mac's keychain; Lee's other tools rightly build in
-     CI (28 October 2026).
+     login live in this Mac's signing keychain; Lee's other tools rightly
+     build in CI (28 October 2026).
    - **Built before the tag** (`app/release-build`), the last of mint's
      `pre_tag`, once every gate has passed: from HEAD, which mint tags once
      it commits its bookkeeping, in a git worktree of its own outside the
@@ -8787,10 +8787,17 @@ open), and tmux passing an escape sequence through from Claude's own pane
      asset's id and, when sending the cask fails, the command that sends
      it. A dry run does nothing: mint runs no hooks then.
    - **Signed with Lee's Developer ID**, `Developer ID Application:
-     PointsBox Limited (CQKZZ4FN6V)` in the login keychain, by `app/bundle`
-     for every build, `app/build`'s too, so a build from a checkout and a
-     release share macOS's leave (see step 3's "Signed with"). It signs by
-     the identity's hash, and refuses, listing them, when the keychain
+     PointsBox Limited (CQKZZ4FN6V)` in the signing keychain,
+     `~/Library/Keychains/signing.keychain-db`, by `app/bundle` for every
+     build, `app/build`'s too, so a build from a checkout and a release
+     share macOS's leave (see step 3's "Signed with"). The signing keychain,
+     which kit's developer-id step makes, holds the identity and
+     notarytool's profile alone and opens with the `.p12`'s password,
+     `DEVELOPER_ID_P12_PASSWORD`, which kit writes to `~/.secrets.zsh`:
+     `app/bundle` and `app/notarize` unlock it themselves
+     (`app/signing-common`), so neither asks, at the Mac or over SSH, and a
+     shell without that variable can't build the app. It signs by the
+     identity's hash, and refuses, listing them, when the signing keychain
      holds two of the name, as after a renewal. Inside out, never with
      `--deep`: the CLI (step 9), the notices helper, then the app, each
      under the hardened runtime. A release's carry a secure timestamp,
@@ -8803,7 +8810,8 @@ open), and tmux passing an escape sequence through from Claude's own pane
      `--deep` checks only as a file it seals.
    - **Notarised and stapled for a release only.** `app/notarize` zips the
      app with `ditto`, sends it with `notarytool submit --wait` under the
-     keychain profile `notarytool`, the Mac's one login for notarising,
+     keychain profile `notarytool` in the signing keychain, the Mac's one
+     login for notarising,
      shared by every app built here, waits again with `notarytool wait` when a
      wait ends in progress, as a dropped connection leaves it, prints
      `notarytool log` when Apple refuses it, staples the ticket and

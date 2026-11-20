@@ -2,7 +2,8 @@
 # Notarizes a SitRep.app that app/bundle made, staples the ticket to it and
 # zips the stapled app for download: app/release-build runs it. notarytool's
 # login is the Mac's one keychain profile "notarytool", shared by every app
-# built here, which kit's shared step of that name makes from 1Password.
+# built here, in the signing keychain (app/signing-common), where kit's step
+# of that name puts it from 1Password.
 set -euo pipefail
 
 if [[ $# -ne 2 ]]; then
@@ -10,7 +11,10 @@ if [[ $# -ne 2 ]]; then
   exit 1
 fi
 
-profile=notarytool
+# shellcheck source=app/signing-common
+. "$(cd "$(dirname "$0")" && pwd)/signing-common"
+unlock_keychain
+
 bundle=$1
 zip=$2
 
@@ -24,7 +28,7 @@ field() {
 
 echo "Sending $bundle to Apple's notary service, and waiting for its verdict…"
 ditto -c -k --keepParent "$bundle" "$work/submission.zip"
-result=$(xcrun notarytool submit "$work/submission.zip" --keychain-profile "$profile" --wait --output-format json || true)
+result=$(xcrun notarytool submit "$work/submission.zip" "${notary[@]}" --wait --output-format json || true)
 id=$(field id "$result")
 status=$(field status "$result")
 if [[ -z $id ]]; then
@@ -38,16 +42,16 @@ fi
 for _ in 1 2 3; do
   [[ $status == "In Progress" ]] || break
   echo "Submission $id: in progress; waiting again…"
-  status=$(field status "$(xcrun notarytool wait "$id" --keychain-profile "$profile" --output-format json || true)")
+  status=$(field status "$(xcrun notarytool wait "$id" "${notary[@]}" --output-format json || true)")
   status=${status:-In Progress}
 done
 echo "Submission $id: $status"
 if [[ $status == "In Progress" ]]; then
-  echo "No verdict yet: xcrun notarytool wait $id --keychain-profile $profile says when there is." >&2
+  echo "No verdict yet: xcrun notarytool wait $id ${notary[*]} says when there is." >&2
   exit 1
 fi
 if [[ $status != Accepted ]]; then
-  xcrun notarytool log "$id" --keychain-profile "$profile" >&2
+  xcrun notarytool log "$id" "${notary[@]}" >&2
   exit 1
 fi
 

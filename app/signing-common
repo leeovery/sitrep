@@ -1,0 +1,33 @@
+# shellcheck shell=bash
+#
+# What app/bundle and app/notarize, which source it, agree on: the signing
+# keychain they sign and notarize from, and how they open it.
+
+# The signing keychain, which kit's developer-id step makes, holds the
+# Developer ID identity and notarytool's profile, and nothing else. It opens
+# with the .p12's password, DEVELOPER_ID_P12_PASSWORD, which kit writes to
+# ~/.secrets.zsh, so app/bundle and app/notarize unlock it themselves and ask
+# nothing, at the Mac or over SSH; every codesign and notarytool call names
+# it, and no other keychain is read.
+keychain=$HOME/Library/Keychains/signing.keychain-db
+# notarytool's login is the Mac's, whatever it notarizes, so its profile is
+# named for notarytool, not for SitRep.
+profile=notarytool
+# How every notarytool call signs in: the profile, in the signing keychain.
+# shellcheck disable=SC2034 # read by app/notarize
+notary=(--keychain "$keychain" --keychain-profile "$profile")
+
+# signing_fail says why the run stops, and stops it.
+signing_fail() {
+  echo "$1" >&2
+  exit 1
+}
+
+# unlock_keychain unlocks the signing keychain with its password, so nothing
+# that signs or notarizes asks for it.
+unlock_keychain() {
+  [[ -f $keychain ]] || signing_fail "There's no signing keychain at $keychain: kit apply makes it, its developer-id step."
+  [[ -n ${DEVELOPER_ID_P12_PASSWORD:-} ]] || signing_fail "DEVELOPER_ID_P12_PASSWORD isn't set, so the signing keychain can't be unlocked: kit secret sync writes it, and a shell that hasn't sourced ~/.secrets.zsh lacks it."
+  security unlock-keychain -p "$DEVELOPER_ID_P12_PASSWORD" "$keychain" ||
+    signing_fail "The signing keychain doesn't unlock with DEVELOPER_ID_P12_PASSWORD, as security says above: kit apply makes it with that password, its developer-id step."
+}
