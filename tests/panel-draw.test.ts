@@ -429,6 +429,7 @@ test('an expanded row taller than the body is cut to it, its last line kept sayi
 const MENU: NonNullable<PanelView['menu']> = {
   row: 'sr-ct0001',
   at: 1,
+  top: 0,
   options: [
     { title: 'In an hour', time: '15:00', until: 1 },
     { title: 'Later today', time: '17:00', until: 2 },
@@ -1257,4 +1258,26 @@ test('an answer of all the rows there are leaves the body empty, never running b
   expect(layout.answer.lines.length).toBe(14)
   expect(layout.body).toEqual({ from: 0, to: 0 })
   expect(layout.placed.length).toBe(0)
+})
+
+test('short of room, the menu draws the choices around the pick, scrolled as the layout keeps them: the last picked, the first gone', () => {
+  const view = only('needsYou', [SHIFTS], { band: 'sr-ct0001', menu: { ...MENU, at: 6, top: 0 } })
+
+  expect(frame(view, 39, 8)).toEqual([
+    ' ● Shift schedules                 26m',
+    '   Later today                   17:00',
+    '   Tonight                       18:00',
+    '   Tomorrow                      09:00',
+    '   This weekend              Sat 09:00',
+    '   Next week                 Mon 09:00',
+    '   Until it moves',
+    ' ↑↓ pick  ⏎ snooze  esc cancel',
+  ])
+  expect(drawn(view, 39, 8, NONE, 6, 7)).toEqual([` ${ESC}[0;7m  ${ESC}[0;1;7mUntil it moves${ESC}[0;7m                     ${ESC}[0m`])
+})
+
+test('an expanded row the menu leaves one line draws its folded first line, never `…`, so the menu says whose it is', () => {
+  const view = only('needsYou', [SEVERAL], { band: 'sr-nw0010', expanded: 'sr-nw0010', menu: { ...MENU, row: 'sr-nw0010' } })
+
+  expect(frame(view, 39, 8).slice(0, 2)).toEqual([' ● Shift schedules 3                4m', '   In an hour                    15:00'])
 })

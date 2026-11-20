@@ -208,21 +208,21 @@ A narrow terminal cuts a row's words short. `⏎`, or a tap on the chosen row, e
 ```
 
 - **Which rows,** as the notch offers Snooze (`RowMenu`): a row that needs you, of asks, or of your turn alone. On a row of a window's prompt alone, or a working row, `z` answers in the answer line, as a pick's refusals do: `Data import waits on a prompt in its window, and a prompt can't be snoozed.`, or `Mobile app needs nothing of you: there is nothing to snooze.` With no band, `z` does nothing.
-- **The choices:** Snooze's times as Lee set them in SitRep, read from the app's `snooze.json` at every look, core's defaults where there is none (`snoozeSettingsOf`); those still to come, in their order (`snoozeChoicesAt`), each worked out as the menu opens (`snoozeAt`); then Until it moves. A choice snoozes to the time it showed, as the notch's does, though the clock moved on meanwhile.
+- **The choices:** Snooze's times as Lee set them in SitRep, read from the app's `snooze.json` at every look, core's defaults where there is none (`snoozeSettingsOf`); those still to come, in their order (`snoozeChoicesAt`), each worked out as the menu opens (`snoozeAt`), from the time of the last look, a failed one too, so a stale board offers no time already past; then Until it moves. A choice snoozes to the time it showed, as the notch's does, though the clock moved on meanwhile.
 - **The words** are the notch's: In an hour, Later today, Tonight, Tomorrow, This weekend, Next week, Until it moves (DESIGN.md, "Snooze"). Each time stands at the right in grey, saying only what its name doesn't, as the notch's menu says it (`WakeTime.besideChoice`, core's `timeBeside`): the time alone, `15:00`, and beside This weekend and Next week its weekday too, `Mon 09:00`. Until it moves has none. Unlike the notch, no separator stands before Until it moves, so the menu takes no row more than its choices.
 - **Its looks:** a choice a line, from the names' column, in the terminal's ink; the band moves onto the choice picked, its name bold, and leaves the row while the menu is open. Short of room, the time goes, then the name is cut.
-- **Its place:** under the chosen row, expanded or not, the two kept whole in sight as one. Short of room, the row's lines give way first, down to its first line, then the menu's last choices; the layout's other rules hold, and `Too small` too.
-- **Its keys:** `↑↓` pick a choice; `⏎`, or a tap on a choice, snoozes to it; `esc`, `z`, or a tap anywhere else closes it, writing nothing. Any other key does nothing while it is open, but `q`, `Ctrl-C` and `Ctrl-Z`, which work as ever.
-- **The menu is the row's:** a board that passes the band to another row closes it.
+- **Its place:** under the chosen row, expanded or not, the two kept whole in sight as one. Short of room, the row's lines give way first, down to its first line, which an expanded row draws folded, so the menu always says whose it is; then the menu shows the choices it has room for, scrolled the least from where it stood that keeps the pick among them, so every choice stays reachable and the pick is always drawn. An answer that lands while it is open shrinks it the same way. The layout's other rules hold, and `Too small` too.
+- **Its keys:** `↑↓` pick a choice, scrolling the menu where it is cut short; `⏎`, or a tap on a drawn choice, snoozes to it, never to one out of sight; `esc`, `z`, or a tap anywhere else closes it, writing nothing. Any other key does nothing while it is open, but `q`, `Ctrl-C` and `Ctrl-Z`, which work as ever.
+- **The menu is the row's:** a board that passes the band to another row closes it, as does one on which the row can no longer be snoozed: its asks gone to a prompt alone, or the row now Working or Snoozed.
 - **What it writes:** exactly what `sitrep snooze` writes, the CLI's own line in its own file (`<session>/cli.jsonl`), run in the panel's process as the command runs (`cli/acts.ts`) on the words the app's row menu gives it: `--until <ms>` but for Until it moves, `--session <id>`, then after `--` the asks the row showed as the menu opened, so none is snoozed unseen; a row of your turn alone names none. The line, for Help desk redesign's ask k1 snoozed for an hour from 14:00 on 18 November 2026:
 
   ```text
   {"v":1,"at":1795010400000,"seq":1,"type":"snoozeSession","until":1795014000000,"asks":["k1"]}
   ```
 
-- **Waking:** `z` on a Snoozed row writes `sitrep wake`'s line, with no menu.
+- **Waking:** `z` on a Snoozed row writes `sitrep wake`'s line, with no menu. A second `z` on it before a board shows the wake writes nothing, rather than a refusal that it is not snoozed.
 - **Afterwards:** the next look finds the row in Snoozed, and the band passes on as "The band and a changing board" says: to the session's Snoozed row while Snoozed is open, else to the row now in its place.
-- **A failed write,** refused by the command's checks or failing in the files, gives its words in the answer line and changes nothing: an ask that landed since the menu opened answers `An ask waits on you that the snooze did not name: look at it, then snooze again.`
+- **A failed write,** refused by the command's checks or failing in the files, gives its words in the answer line and changes nothing: an ask that landed since the menu opened answers `An ask waits on you that the snooze did not name: look at it, then snooze again.` A choice whose time came while the menu stood open writes nothing, and says so as the notch says it (`WakeTime.comeAlready`, core's `wakeWords`): `18:00 has come already.`
 
 ## Picking a row
 
@@ -561,7 +561,7 @@ export const viewOf: (feed: Feed | undefined, state: ViewState, now: number, not
 // those older than two seconds.
 export type PanelEvent =
   | { board: Feed; news: string[]; now: number } // now: the look's own time, which stamps the arrivals
-  | { failed: string } // a look that failed: the board kept, stale
+  | { failed: string; now: number } // a look that failed, and when: the board kept, stale, the menu's clock moved on
   | { key: Key }
   | { size: Size }
   | { tick: number }
@@ -576,6 +576,7 @@ export const step: (state: PanelState, event: PanelEvent) => { state: PanelState
 
 // cli/panel/menu.ts: the snooze menu's choices as the notch's menu offers and words them
 export type SnoozeOption = { title: string; time: string; until?: number } // no until, Until it moves
+export type Menu = { row: string; session: string; asks: readonly string[]; options: readonly SnoozeOption[]; at: number; top: number } // at: the pick; top: the first drawn, as the layout last kept it
 export const snoozeOptions: (now: number, settings: SnoozeSettings) => SnoozeOption[]
 
 // cli/panel/writes.ts and cli/acts.ts: a write as `sitrep snooze` or `sitrep wake` makes it
@@ -677,7 +678,7 @@ The fakes in `tests/` stand in for all of it.
   - `Too small` below 24×8.
 - **`panel-keys.test.ts`:** byte sequences to keys, a lone `esc` by its 50 ms, `CSI` and `SS3` arrows.
 - **`panel-state.test.ts`:** the band's first press, moves, pages and ends; the view's scroll; the band following its session and passing on; folding; expanding and folding a row, one at most, folded as the band moves, kept whole in sight, a tap on any of its lines landing on it; `o` alone asking to open, never `⏎` or a tap; answers dropped on a key; the sessions SitRep's file dims moving behind those drawn filled, the band on its session.
-- **`panel-snooze.test.ts`,** in London at a fixed clock: the menu's choices and their words under the defaults, under a `snooze.json`, and after Tonight's time; `↑↓` within the first and the last; ⏎ and a tap on a choice asking for the snooze, naming the asks the row showed, with no time for Until it moves; a turn alone naming none; `esc`, `z` and a tap elsewhere closing it, writing nothing; every other key doing nothing; `z` waking a Snoozed row, and refused in words on a prompt alone and a working row; the menu closed as a board passes the band on, its asks kept as it opened; a failed write's answer; the menu and its row kept in sight, the row giving way first.
+- **`panel-snooze.test.ts`,** in London at a fixed clock: the menu's choices and their words under the defaults, under a `snooze.json`, and after Tonight's time; `↑↓` within the first and the last, the menu scrolled at 39×8 with seven choices so the seventh is reached, drawn and made, and an answer landing while it is open keeping the pick drawn; ⏎ and a tap on a drawn choice asking for the snooze, naming the asks the row showed, with no time for Until it moves; a turn alone naming none; `esc`, `z` and a tap elsewhere closing it, writing nothing; every other key doing nothing; `z` waking a Snoozed row, and refused in words on a prompt alone and a working row; the menu closed as a board passes the band on, or leaves the row nothing to snooze, its asks kept as it opened; the choices worked out from a failed look's time; a second `z` on a Snoozed row writing nothing until a board comes; a failed write's answer; the menu and its row kept in sight, the row giving way first.
 - **`snooze.test.ts`:** core's `timeBeside`, the time alone or the weekday and time, as the app's menu words them.
 - **`here.test.ts`:**
   - `sightingsOf` on the file as the app writes it (`tests/here.ts`, the text the Swift tests hold the app's encoder to); fresh up to 30 seconds either side of `at`, nothing from then; nothing for a file missing, torn, of a later version or none, or of the wrong shape; a version 1 file dimming what it named wherever the panel is;

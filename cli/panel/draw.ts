@@ -233,9 +233,9 @@ const words = (grid: Grid, y: number, line: readonly Tagged<Tag>[], styles: Reco
   line.reduce((x, word, at) => put(grid, at === 0 ? x : x + 1, y, word.text, styles[word.tag]), NAME)
 
 /**
- * The chosen row expanded, in the lines the layout gives it: its words
- * whole, the time at the first line's right; where the body cuts it short,
- * its last line kept says `…`.
+ * The chosen row expanded, in the two lines or more the layout gives it: its
+ * words whole, the time at the first line's right; where the body cuts it
+ * short, its last line kept, never its first, says `…`.
  */
 const expandedLines = ({ grid, layout }: Frame, y: number, height: number, row: PanelRow, ink: Inking) => {
   const { time, lines } = expandedOf(row, layout.width)
@@ -291,11 +291,12 @@ const markOf = ({ pens }: Frame, row: PanelRow, dimmed: Inking) => {
  * column, in the terminal's ink, and its time at the right in grey, where
  * both fit; the band on the choice picked, its name bold.
  */
-const menuAt = ({ grid, layout, pens }: Frame, y: number, lines: number, menu: NonNullable<PanelView['menu']>) => {
+const menuAt = ({ grid, layout, pens }: Frame, menu: NonNullable<PanelView['menu']>) => {
   const room = layout.width - 1 - NAME
+  const { y, lines, first } = layout.menu ?? { y: 0, lines: 0, first: 0 }
 
-  menu.options.slice(0, lines).forEach((option, at) => {
-    const isPicked = at === menu.at
+  menu.options.slice(first, first + lines).forEach((option, at) => {
+    const isPicked = first + at === menu.at
     const time = widthOf(option.title) + 2 + widthOf(option.time) <= room ? option.time : ''
 
     put(grid, NAME, y + at, cut(option.title, room), pens.of({ tone: 'ink', bold: isPicked }))
@@ -309,7 +310,8 @@ const menuAt = ({ grid, layout, pens }: Frame, y: number, lines: number, menu: N
 
 /**
  * A row on its lines: folded, its two, or its first alone where its menu
- * leaves no more; expanded, as many as the layout gives it; the band or the
+ * leaves no more, expanded or not, so the menu always says whose it is;
+ * expanded, as many as the layout gives it; the band or the
  * wash over every one. With its menu open the band is the menu's, on the
  * choice picked.
  */
@@ -324,7 +326,7 @@ const rowAt = (frame: Frame, { y, row, key, height, menu }: Extract<Placed, { ki
 
   put(grid, LEFT, y, mark.glyph, mark.pen)
 
-  if (key === view.expanded) {
+  if (key === view.expanded && height > 1) {
     expandedLines(frame, y, height, row, ink)
   } else {
     firstLine(frame, y, row, ink)
@@ -339,7 +341,7 @@ const rowAt = (frame: Frame, { y, row, key, height, menu }: Extract<Placed, { ki
   }
 
   if (view.menu !== undefined && menu > 0) {
-    menuAt(frame, y + height, menu, view.menu)
+    menuAt(frame, view.menu)
   }
 }
 

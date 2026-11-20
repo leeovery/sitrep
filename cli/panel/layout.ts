@@ -21,7 +21,9 @@
  *   need (expand.ts), cut to the body's height where it is taller, never
  *   below two. The snooze menu stands under the chosen row, a line a
  *   choice, the two as one block; short of room, the row's lines give way
- *   first, down to its first, then the menu's last choices.
+ *   first, down to its first, then the menu shows the choices it has room
+ *   for, scrolled the least from where it was that keeps the pick among
+ *   them.
  * - The body never starts or ends on a blank row, or on an open section's
  *   heading, while blocks follow: a heading stands only with a row under it.
  *   A folded Snoozed heading is drawn last.
@@ -74,8 +76,8 @@ export type Layout = {
   placed: Placed[]
   /** Each row in view by its key, at the terminal row of its first line, and the lines it takes. */
   rows: { key: string; y: number; height: number }[]
-  /** The snooze menu's choices in view: the terminal row of the first, and how many. */
-  menu?: { y: number; lines: number }
+  /** The snooze menu's choices in view: the terminal row of the first, how many, and which choice is first. */
+  menu?: { y: number; lines: number; first: number }
 }
 
 /** One of the body's pieces, in its order: a blank row between sections, a heading, or a row, the lines it takes and its menu's. */
@@ -277,11 +279,17 @@ const placedAt = (parts: Parts, top: number) => placedIn(parts.blocks, windowOf(
 const rowsOf = (placed: readonly Placed[]) =>
   placed.flatMap(each => (each.kind === 'row' ? [{ key: each.key, y: each.y, height: each.height }] : []))
 
+/** The first of `lines` choices drawn: the least move from `top` that keeps the pick `at` among them, within the choices there are. */
+const firstOf = ({ options, at, top }: NonNullable<PanelView['menu']>, lines: number) =>
+  Math.max(Math.min(Math.min(Math.max(top, at - lines + 1), at), options.length - lines), 0)
+
 /** The snooze menu's choices in view, under their row's lines; none while no row shows one. */
-const menuOf = (placed: readonly Placed[]) => {
+const menuOf = (view: PanelView, placed: readonly Placed[]) => {
   const row = placed.find(each => each.kind === 'row' && each.menu > 0)
 
-  return row?.kind === 'row' ? { menu: { y: row.y + row.height, lines: row.menu } } : {}
+  return row?.kind === 'row' && view.menu !== undefined
+    ? { menu: { y: row.y + row.height, lines: row.menu, first: firstOf(view.menu, row.menu) } }
+    : {}
 }
 
 /** The view's parts at the size: the answer's rows, the body's, and what the body shows from `top`. */
@@ -301,7 +309,7 @@ export const layoutOf = (view: PanelView, size: Size): Layout => {
     lastTop: parts.lastTop,
     placed,
     rows: rowsOf(placed),
-    ...menuOf(placed),
+    ...menuOf(view, placed),
   }
 }
 

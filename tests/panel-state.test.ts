@@ -187,10 +187,25 @@ test("⏎ expands the band's row and ⏎ again folds it, the band staying; with 
 test('⏎ and a tap never ask to open anything: only o does', () => {
   const onN2 = pressed(read(), DOWN, DOWN)
 
+  expect(layoutIn(onN2).rows.find(row => row.key === N2)).toEqual({ key: N2, y: 3, height: 2 })
+
   for (const state of [onN2, pressed(onN2, ENTER)]) {
-    expect(step(state, { key: ENTER }).open).toBeUndefined()
-    expect(step(state, { key: tap(6) }).open).toBeUndefined()
+    const enter = step(state, { key: ENTER })
+
+    expect([enter.open, enter.state.expanded]).toEqual([undefined, state.expanded === undefined ? N2 : undefined])
+
+    for (const y of [3, 4]) {
+      const tapped = step(state, { key: tap(y) })
+
+      expect([tapped.open, tapped.state.band, tapped.state.expanded], `a tap on the band's line at ${y}`).toEqual([
+        undefined,
+        N2,
+        state.expanded === undefined ? N2 : undefined,
+      ])
+    }
   }
+
+  expect(step(onN2, { key: OPEN }).open).toBe(N2)
 })
 
 test('one row at most is expanded, the chosen one: the band moving to another row by a key, a tap or a changing board folds it', () => {
@@ -374,8 +389,8 @@ test('a line new again, as an ask woken, is stamped again with the time of the b
 })
 
 test('a failed look before any board says why; after a board, it keeps the board, stale, as read when it last read', () => {
-  const before = step(opening(SIZE, T0), { failed: "EACCES: can't read the folder." }).state
-  const after = stepped(read(), { failed: "EACCES: can't read the folder." })
+  const before = step(opening(SIZE, T0), { failed: "EACCES: can't read the folder.", now: T0 }).state
+  const after = stepped(read(), { failed: "EACCES: can't read the folder.", now: T0 })
   const again = stepped(after, { board: boardOf(), news: [], now: T0 + 5_000 })
 
   expect([before.board, before.reason, before.feed]).toEqual(['looking', "EACCES: can't read the folder.", undefined])

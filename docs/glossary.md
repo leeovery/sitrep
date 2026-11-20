@@ -28,6 +28,8 @@ Each word below means one thing on every page of these docs. The words are group
 
 **session id**: The id the board gives a session, such as `sr-nw0001`. Claude uses it to join a session. The pane and the Mac app never show it, but the `sitrep` command does. It is not Claude Code's own session id, which names one conversation and changes on `/clear`.
 
+**Snooze menu**: The list of snooze choices, each with the time it wakes, then Until it moves. In the Mac app, it opens from **Snooze** when you right-click a row. In the terminal view, `z` opens it under the chosen row.
+
 **snoozed**: A session you put off until a time you pick, or until it moves. Its asks and your turn there stop counting until it wakes. A new ask wakes it at once. Only you can snooze a session: Claude has no way to.
 
 **status**: Where a session stands: its name, a one-line summary, what is under way now, and what comes next.
@@ -88,7 +90,7 @@ Each word below means one thing on every page of these docs. The words are group
 
 **terminal notification**: A notification that the terminal itself shows, such as Ghostty showing a macOS notification. The terminal view sends one for each new ask, unless you open it with `sitrep --no-notify`.
 
-**the terminal view**: The board in a terminal, opened by typing `sitrep` with no command. It shows Needs you, Working and Snoozed, each session on two lines. It works in any terminal, on the Mac or over SSH.
+**the terminal view**: The board in a terminal, opened by typing `sitrep` with no command. It shows Needs you, Working and Snoozed, each session on two lines until you expand it. It works in any terminal, on the Mac or over SSH.
 
 ## Getting to a session
 

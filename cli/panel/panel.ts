@@ -508,7 +508,7 @@ const live = (io: Io, terminal: Terminal, { isNotifying }: PanelOptions) => {
     await withSitRep(notHere => {
       unhold()
       fill(notHere)
-      apply({ failed: reasonOf(error) })
+      apply({ failed: reasonOf(error), now: io.now() })
     })
 
     return true

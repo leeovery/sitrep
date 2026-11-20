@@ -84,6 +84,7 @@ test(
       session: ASKING,
       asks: ['k1', 'k2'],
       at: 0,
+      top: 0,
       options: [
         { title: 'In an hour', time: '15:00', until: at(2026, 11, 18, 15) },
         { title: 'Later today', time: '17:00', until: at(2026, 11, 18, 17) },
@@ -216,10 +217,104 @@ test(
     const lowLayout = layoutIn(low)
     const row = lowLayout.rows.find(each => each.key === TURN)
 
-    expect([row?.height, lowLayout.menu]).toEqual([2, { y: (row?.y ?? 0) + 2, lines: 6 }])
+    expect([row?.height, lowLayout.menu]).toEqual([2, { y: (row?.y ?? 0) + 2, lines: 6, first: 0 }])
     expect(lowLayout.menu === undefined ? 0 : lowLayout.menu.y + lowLayout.menu.lines).toBeLessThanOrEqual(lowLayout.body.to)
     expect(layoutIn(short).rows.find(each => each.key === ASKING)?.height).toBe(1)
     expect(layoutIn(short).menu?.lines).toBe(6)
     expect([weekend.menu?.options.length, layoutIn(weekend).rows[0]?.height, layoutIn(weekend).menu?.lines]).toEqual([7, 1, 6])
+  }),
+)
+
+/** Snooze's choices with This weekend on: seven on a Wednesday afternoon, Until it moves among them. */
+const WEEKEND = snoozeSettingsOf('{"v":1,"weekend":{"on":true}}')
+
+/** Whether the menu's pick is among the choices drawn. */
+const isPickDrawn = (state: PanelState) => {
+  const menu = layoutIn(state).menu
+
+  return menu !== undefined && state.menu !== undefined && state.menu.at >= menu.first && state.menu.at < menu.first + menu.lines
+}
+
+test(
+  'short of room for every choice, the menu scrolls the least that keeps the pick drawn, every choice reachable: at 39×8, the seventh, Until it moves, is reached, drawn and made',
+  inLondon(() => {
+    const open = pressed(stepped(read(board(), { width: 39, height: 8 }), { snoozeSettings: WEEKEND }), DOWN, Z)
+    const walk = Array.from({ length: 7 }, (_, steps) => pressed(open, ...Array<Key>(steps).fill(DOWN)))
+    const last = walk[6] as PanelState
+    const back = pressed(last, UP, UP, UP, UP, UP)
+
+    expect([open.menu?.options.length, layoutIn(open).menu?.lines]).toEqual([7, 6])
+    expect(walk.map(state => [state.menu?.at, layoutIn(state).menu?.first])).toEqual([
+      [0, 0],
+      [1, 0],
+      [2, 0],
+      [3, 0],
+      [4, 0],
+      [5, 0],
+      [6, 1],
+    ])
+    expect(walk.every(isPickDrawn)).toBe(true)
+    expect(writeOf(last, ENTER)).toEqual({ command: 'snooze', session: ASKING, asks: ['k1', 'k2'] })
+    expect([back.menu?.at, layoutIn(back).menu?.first], 'back up, scrolled only once the pick reaches the top').toEqual([1, 1])
+    expect(layoutIn(pressed(back, UP)).menu?.first).toBe(0)
+    expect(writeOf(last, tap((layoutIn(last).menu?.y ?? 0) + 5)), 'a tap on the last line drawn makes the choice drawn there').toEqual({
+      command: 'snooze',
+      session: ASKING,
+      asks: ['k1', 'k2'],
+    })
+    expect(writeOf(last, tap(layoutIn(last).menu?.y ?? 0))).toMatchObject({ until: at(2026, 11, 18, 17) })
+  }),
+)
+
+test(
+  'an answer landing while the menu is open shrinks it, and the pick stays drawn: ⏎ makes only the choice drawn',
+  inLondon(() => {
+    const picked = pressed(onRow(read(board(), { width: 40, height: 11 }), 0), Z, DOWN, DOWN, DOWN, DOWN, DOWN)
+    const words = 'Something else now waits on you in Help desk redesign: snooze it from its row again, once you have looked at it there.'
+    const shrunk = stepped(picked, { written: words })
+
+    expect([layoutIn(picked).menu?.lines, picked.menu?.at]).toEqual([6, 5])
+    expect(layoutIn(shrunk).menu?.lines).toBeLessThan(6)
+    expect(isPickDrawn(shrunk)).toBe(true)
+    expect(writeOf(shrunk, ENTER)).toEqual({ command: 'snooze', session: ASKING, asks: ['k1', 'k2'] })
+  }),
+)
+
+test(
+  "on a stale board the menu's times are worked out from the failed look's time, not the last good one: no In an hour already past, no Tonight after its time",
+  inLondon(() => {
+    const stale = stepped(read(), { failed: 'EACCES: permission denied', now: at(2026, 11, 18, 19) })
+    const options = pressed(onRow(stale, 0), Z).menu?.options.map(each => `${each.title} ${each.time}`.trim())
+
+    expect(stale.board).toBe('stale')
+    expect(options).toEqual(['In an hour 20:00', 'Later today 22:00', 'Tomorrow 09:00', 'Next week Mon 09:00', 'Until it moves'])
+  }),
+)
+
+test(
+  'the menu closes once its row can no longer be snoozed: its asks gone to a prompt alone, or the row now working; a row that keeps an ask keeps it',
+  inLondon(() => {
+    const open = pressed(onRow(read(), 0), Z)
+    const promptOnly: Row = { ...asking, lines: [lineOf(ASKING, 'permission', 2)] }
+    const working = boardRow(ASKING, 'working', { name: 'Help desk redesign', since: NOW })
+    const fewer: Row = { ...asking, lines: [lineOf(ASKING, 'ask', 0, 'k1')] }
+
+    expect(stepped(open, { board: board([promptOnly]), news: [], now: NOW }).menu).toBeUndefined()
+    expect(stepped(open, { board: board([working]), news: [], now: NOW }).menu).toBeUndefined()
+    expect(stepped(open, { board: board([fewer]), news: [], now: NOW }).menu?.row).toBe(ASKING)
+  }),
+)
+
+test(
+  'a second z on a Snoozed row before a board shows the wake writes nothing more; once a board comes, z wakes again',
+  inLondon(() => {
+    const onAsleep = pressed(read(), press('snoozed'), END)
+    const woken = step(onAsleep, { key: Z })
+    const again = step(woken.state, { key: Z })
+    const boarded = stepped(woken.state, { board: board(), news: [], now: NOW })
+
+    expect(woken.write).toEqual({ command: 'wake', session: ASLEEP })
+    expect(again.write).toBeUndefined()
+    expect(step(boarded, { key: Z }).write).toEqual({ command: 'wake', session: ASLEEP })
   }),
 )

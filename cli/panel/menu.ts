@@ -10,8 +10,12 @@ import { snoozeAt, snoozeChoicesAt, timeBeside, type SnoozeChoice, type SnoozeSe
 /** A choice on the menu: its name, its time beside it, and when it wakes; none for Until it moves. */
 export type SnoozeOption = { title: string; time: string; until?: number }
 
-/** The menu open under the band's row, by its key: the session it snoozes, the asks that row showed, its choices, and the one picked. */
-export type Menu = { row: string; session: string; asks: readonly string[]; options: readonly SnoozeOption[]; at: number }
+/**
+ * The menu open under the band's row, by its key: the session it snoozes,
+ * the asks that row showed, its choices, the one picked, and the first
+ * drawn, as the layout last kept it, short of room for them all.
+ */
+export type Menu = { row: string; session: string; asks: readonly string[]; options: readonly SnoozeOption[]; at: number; top: number }
 
 /** Each choice's name, as the notch's menu names it (`SnoozeChoice.title`). */
 const TITLES: Record<SnoozeChoice, string> = {

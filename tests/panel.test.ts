@@ -7,7 +7,8 @@ import { paintOf } from '../cli/panel/colours'
 import { DEFAULTS, PS_MS } from '../cli/panel/edge'
 import { ESC_MS, HOLD_MS } from '../cli/panel/panel'
 import { repaint } from '../cli/panel/screen'
-import { append, clockOf, HERE_STALE_MS, hereFile, projectsDir, type Body, type SessionMeta, type Where } from '../core'
+import { written } from '../cli/panel/writes'
+import { append, clockOf, HERE_STALE_MS, hereFile, projectsDir, wakeWords, type Body, type SessionMeta, type Where } from '../core'
 import { HOME, META, PROJECT, REPO, ROOT, T0, W1 } from './data'
 import { beat, snoozeSession, yesAsk, type Line } from './lines'
 import { defaultsOf } from './plist'
@@ -1353,4 +1354,14 @@ test('a snooze the command refuses says why above the key line and writes nothin
     ' ↑↓ move  ⏎ expand  o open  q quit',
   ])
   await run.type('q')
+})
+
+test("a snooze whose time has come already writes nothing, said as the notch says it, not in the command's words; one still to come is written", async () => {
+  const t = terminal({ now: () => NOW })
+  const paths = t.seed(META, { lines: ASKED, seenAt: NOW })
+  const snooze = (until: number) => written(t.io, { command: 'snooze', session: META.id, asks: ['k1'], until })
+
+  expect(await snooze(NOW)).toEqual({ ok: false, error: `${wakeWords(NOW, NOW)} has come already.`, ending: 'refused' })
+  expect(t.files.has(paths.log('cli'))).toBe(false)
+  expect(await snooze(NOW + 1)).toMatchObject({ ok: true })
 })

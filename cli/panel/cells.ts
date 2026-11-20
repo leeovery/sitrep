@@ -90,13 +90,13 @@ export const cut = (text: string, cells: number): string => {
   return kept.trimEnd() + ELLIPSIS
 }
 
-/** A word too wide for a line, in pieces each `cells` wide at most. */
-const pieces = (word: string, cells: number): string[] => {
+/** A word too wide for a line, in pieces, the nth `cellsAt(n)` wide at most. */
+const pieces = (word: string, cellsAt: (piece: number) => number): string[] => {
   const out: string[] = []
   let piece = ''
 
   for (const grapheme of graphemesOf(word)) {
-    if (piece !== '' && widthOf(piece + grapheme) > cells) {
+    if (piece !== '' && widthOf(piece + grapheme) > Math.max(cellsAt(out.length), 1)) {
       out.push(piece)
       piece = ''
     }
@@ -116,7 +116,7 @@ type Wrapped<T> = { words: Tagged<T>[]; isBroken: boolean }
 /**
  * Words in lines, each as wide as `cellsAt` gives for it at most, a space
  * between each two, broken between words, and a word wider than its line in
- * pieces that line's width, its tag kept on each.
+ * pieces, each the width of the line it stands on, its tag kept on each.
  */
 const wrappedOver = <T>(words: readonly Tagged<T>[], cellsAt: (line: number) => number): Wrapped<T>[] => {
   const lines: Wrapped<T>[] = []
@@ -136,7 +136,8 @@ const wrappedOver = <T>(words: readonly Tagged<T>[], cellsAt: (line: number) => 
       lines.push({ words: line, isBroken: false })
     }
 
-    const parts = pieces(word.text, Math.max(cellsAt(lines.length), 1))
+    const from = lines.length
+    const parts = pieces(word.text, piece => cellsAt(from + piece))
 
     lines.push(...parts.slice(0, -1).map(piece => ({ words: [{ text: piece, tag: word.tag }], isBroken: true })))
 

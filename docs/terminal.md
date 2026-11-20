@@ -22,7 +22,7 @@ Homebrew links `sitrep` into the Homebrew `bin` folder, which a shell needs on i
 - **A dimmed session has dimmed words.** It isn't open on the device you're looking from. In Needs you, its dot is hollow, and a Working row keeps `✻` or `◌`. In Snoozed, nothing marks it.
 - **The board stays current** within a second, the chosen row following its session. Each new ask posts a terminal notification. To turn notifications off, type `sitrep --no-notify`.
 - **`o` runs your resume command here.** Set it in Settings › General. When it ends, the terminal view comes back.
-- **`z` snoozes the chosen row.** A menu under the row offers your snooze times from Settings › Snooze, then Until it moves. In Snoozed, `z` wakes the row.
+- **`z` snoozes the chosen row** from the Snooze menu, with your times from Settings › Snooze. In Snoozed, `z` wakes the row.
 
 ## Good to know
 
@@ -46,7 +46,7 @@ The last line names the main keys. Here is every key:
 | `s` | Unfold or fold Snoozed |
 | `q`, `Ctrl-C` | Leave; `Ctrl-Z` suspends, and `fg` brings it back |
 
-`esc` clears the choice, the snooze menu and any words above the keys. If `o` or `z` can't act, or the command fails within 2 seconds, those words say why. Every other command is in [The `sitrep` command](cli.md).
+`esc` closes the Snooze menu, or else clears the choice. Any key clears the words above the keys. If `o` or `z` can't act, or the command fails within 2 seconds, those words say why. Every other command is in [The `sitrep` command](cli.md).
 
 ## Related
 

@@ -60,8 +60,8 @@ export type PanelView = {
   band?: string
   /** The chosen row, expanded. */
   expanded?: string
-  /** The snooze menu, open under the chosen row: its choices, and the one picked. */
-  menu?: Pick<Menu, 'row' | 'options' | 'at'>
+  /** The snooze menu, open under the chosen row: its choices, the one picked, and the first drawn as the layout last kept it. */
+  menu?: Pick<Menu, 'row' | 'options' | 'at' | 'top'>
   top: number
   answer?: string
   board: 'looking' | 'read' | 'stale'
@@ -237,7 +237,7 @@ export const viewOf = (
     sections: sectionsOf(feed, state, now, notHere),
     ...(band === undefined ? {} : { band }),
     ...(expanded === undefined ? {} : { expanded }),
-    ...(menu === undefined ? {} : { menu: { row: menu.row, options: menu.options, at: menu.at } }),
+    ...(menu === undefined ? {} : { menu: { row: menu.row, options: menu.options, at: menu.at, top: menu.top } }),
     top,
     ...(answer === undefined ? {} : { answer: cleaned(answer) }),
     board,

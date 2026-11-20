@@ -46,11 +46,12 @@ test('words wrapped in rows: past them, the last kept carries the rest, cut with
   expect(wrapIn(text, 20, 0)).toEqual([])
 })
 
-test('tagged words wrap as words do, the first line narrower, each word keeping its tag, a broken word on its pieces', () => {
+test('tagged words wrap as words do, the first line narrower, each word keeping its tag, a broken word in pieces each the width of its own line', () => {
   const words = [...wordsOf('Help desk redesign', 'name'), { text: '2', tag: 'count' }]
   const texts = (lines: { text: string; tag: string }[][]) => lines.map(line => line.map(word => `${word.tag}:${word.text}`).join(' '))
 
   expect(texts(wrapTagged(words, 9, 20))).toEqual(['name:Help name:desk', 'name:redesign count:2'])
-  expect(texts(wrapTagged(wordsOf('Northwind', 'meta'), 4, 6))).toEqual(['meta:Nort', 'meta:hwin', 'meta:d'])
+  expect(texts(wrapTagged(wordsOf('Northwind', 'meta'), 4, 6))).toEqual(['meta:Nort', 'meta:hwind'])
+  expect(texts(wrapTagged(wordsOf('a Northwindsdesk', 'meta'), 4, 6))).toEqual(['meta:a', 'meta:Northw', 'meta:indsde', 'meta:sk'])
   expect(wrapTagged([], 4, 6)).toEqual([])
 })
