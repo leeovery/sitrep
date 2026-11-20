@@ -10138,7 +10138,10 @@ look", the pick on its page "FINAL · board in a terminal".
   panel's own terminal, on the Mac as over SSH, so it behaves the same on
   every screen: the command a click runs for a session this Mac doesn't
   show (stage 8), filled and refused as the app fills and refuses it, the
-  default's guard and the suspended rule with it. The panel never attaches
+  default's guard with it. A Claude suspended on the session's device
+  refuses whatever the command, since the panel never jumps to it, and the
+  line runs in a POSIX login shell alone, by `$SHELL -l -c`, which reads no
+  `.zshrc`, where the app's typed line does. The panel never attaches
   a session itself, and knows no `zmx attach`, no `tmux attach` and no
   session tool: corrected by Lee on 19 November 2026, "It should never run
   zmx attach. We should be using the existing commands that are registered
