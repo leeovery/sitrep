@@ -267,13 +267,17 @@ So with the default command, picking a session a live window holds always refuse
 ## Notifications
 
 - **What notifies.** Each ask new on the board, as core's `newRows` finds it and the app's `newAsks` keeps it to asks: never a permission prompt, a question, or Claude stopping.
-- **What doesn't.** The panel's first board posts nothing, as the app's first board doesn't. Several new asks post oldest first.
+- **What doesn't.** The panel's first board posts nothing, as the app's first board doesn't: core's `newRows` finds nothing new on it, a first board after looks that failed included. A failed look posts nothing either, as the app's stale board doesn't.
+- **After a failed look,** the panel keeps what it had shown, so the next good look posts each ask that landed meanwhile, once. The app starts a new run instead, and posts none of them; the panel's way tells you what you missed.
+- **After the panel closes,** a look whose reads were still under way posts nothing, so no notification reaches your shell once the terminal is given back. Several new asks post oldest first, by the time each was posted, a tie in board order.
 - **The words** are the app's banner's (`Notices.newAsk`): the ask's words, then `Project · Session`.
-- **The sequence** is OSC 777, written whole between frames: `ESC ] 777 ; notify ; <ask> ; <Project · Session> BEL`, the ask's words as its title (Lee, 19 November 2026). It carries a title and a body, as the app's banner does, where OSC 9 carries one line. That rootshell shows it is Lee's to confirm in slice 7's live run.
+- **The sequence** is OSC 777, written whole between frames: `ESC ] 777 ; notify ; <ask> ; <Project · Session> BEL`, the ask's words as its title (Lee, 19 November 2026). It carries a title and a body, as the app's banner does, where OSC 9 carries one line. Each is a write of its own, after the look's frame. That rootshell shows it is Lee's to confirm in a live run.
 - **Inside tmux** (`$TMUX` set), it goes in tmux's passthrough, `ESC P tmux; … ESC \` with each `ESC` doubled. tmux shows it only with `allow-passthrough on`, your setting.
-- **Clean text.** Control characters are dropped from the words, and a `;` in OSC 777's title becomes `,`, since `;` ends the field.
-- **Turning it off.** `--no-notify` turns notifications off for the run: `sitrep --no-notify` (Lee, 19 November 2026).
-- **While a command has the terminal,** the panel keeps posting: an ask in another session is the one you'd want to hear about (Lee, 19 November 2026).
+- **Clean text.** Both fields are cleaned as the board's words are (`cleaned`): control characters dropped, C1's among them, and a line break run into a space. A `;` in either becomes `,`: it ends the title's field, and a parser that splits on every `;` would cut the body.
+- **A long ask** is cut as a subject is (core's `shownText`): its title keeps 200 code points at most, the `…` among them, never cut inside a character. A 10 KB ask would make a 10 KB OSC, which some terminals drop.
+- **Turning it off.** `--no-notify` turns notifications off for the run: `sitrep --no-notify` (Lee, 19 November 2026). The board is drawn as ever, the new ask's mark and wash among it.
+- **While a command has the terminal,** the panel keeps posting: an ask in another session is the one you'd want to hear about (Lee, 19 November 2026). It posts while it draws `Too small` too.
+- **Proven live** on 20 November 2026, in a pty on a scratch board: one OSC 777 for an ask added while the panel ran, its `;` made `,`, none for the first board, none inside a frame, and none with `--no-notify`. tmux's passthrough is held by the tests alone: no tmux was on the Mac the build ran on.
 
 ## Failure
 
@@ -370,7 +374,10 @@ Dimming the terminal's own ink needs its foreground too. With both answers, at 2
 
 **`sitrep`, alone, on a terminal:** the panel.
 - **When it opens:** standard input and output are both terminals, and `TERM` isn't `dumb`.
-- **Its flags:** words that are all flags read as the panel's, so `sitrep --no-notify` opens it too. A word that isn't a flag is a command's name, as today.
+- **Its flags:** words that are all flags, each a dash and more, read as the panel's, so `sitrep --no-notify` opens it too. A word that isn't a flag is a command's name, as today, so `sitrep --no-notify watch` is no command `--no-notify`.
+  - **A flag it doesn't take** answers as an unknown command does, before the terminal is touched: `sitrep --bogus` says `There is no command --bogus.`, exit 1, as it did before the panel took any.
+  - **`--help` or `-h` among them** is the help, so `sitrep --no-notify --help` prints it. `sitrep --help park` is still `park`'s help.
+  - **Off a terminal,** `sitrep --no-notify` answers as bare `sitrep` does off one: the help on standard error, exit 1.
 - **Opening:** it asks the terminal's colours, enters the alternate screen, looks at the board and draws it.
 - **Running:** it redraws as the board changes, as keys move the band, as the terminal resizes, and as the clock turns a minute or ends a wash.
 - **Leaving:** see "The close".
@@ -480,6 +487,13 @@ export const reachOf: (session: string, feed: Feed) => Reach
 
 // cli/panel/command.ts: TypedCommand's rules in TypeScript; no terminal, no shell
 export const lineOf: (command: string, facts: ResumeFacts, name: string) => Checked<string>
+
+// cli/panel/notices.ts: what a look's news posts, as Notices.swift's newAsks and newAsk keep it
+export type Notice = { title: string; place: string } // the ask's words; Project · Session
+export const newAsks: (feed: Feed, news: readonly string[]) => Notice[] // asks only, oldest first
+export const osc777: (notice: Notice) => string // its fields cleaned, each ; made ,, the title cut to 200
+export const passedThrough: (sequence: string) => string // in tmux's passthrough, each ESC doubled
+export const noticesOf: (feed: Feed, news: readonly string[], env: { TMUX?: string }) => string[] // a write each
 ```
 
 **`Paint`** is what the terminal said: the colour level, and its foreground and background where it answered. **`Key`** is decoded from bytes by `cli/panel/keys.ts`'s `keysOf`. `step` returns `open` with a session's id when `⏎` asks for one, and the loop answers with `opened`.
@@ -507,11 +521,12 @@ export type Terminal = {
 
 The fakes in `tests/` stand in for all of it.
 
-**The loop.** `cli/panel/panel.ts`'s `panel(io, terminal)`:
+**The loop.** `cli/panel/panel.ts`'s `panel(io, terminal, { isNotifying })`, `isNotifying` false for `--no-notify`:
 1. Asks the colours and enters the screen.
 2. Starts `looking` (`cli/looks.ts`), the watch's loop, which hands it each look's `Feed`.
 3. Steps the state on every event, draws, and writes only the rows that changed, inside synchronized output (`CSI ?2026h` … `CSI ?2026l`).
-4. Opens what `step` asks for through `cli/panel/edge.ts`, the CLI's one edge: it reads SitRep's saved resume command, asks `ps` about the window's device, and hands the filled line to your login shell. It runs nothing else.
+4. Writes each of a look's `noticesOf`, a write each after its frame, where it notifies; `Env` gains `TMUX` for them.
+5. Opens what `step` asks for through `cli/panel/edge.ts`, the CLI's one edge: it reads SitRep's saved resume command, asks `ps` about the window's device, and hands the filled line to your login shell. It runs nothing else.
 
 **What goes.** Nothing: the watch prints as before, from `looking`.
 
@@ -543,8 +558,9 @@ The fakes in `tests/` stand in for all of it.
   - the exact writes to enter, draw, hand over, take back and leave;
   - `q` exits 0, SIGTERM 143, SIGHUP 129;
   - SIGINT ignored while a program has the terminal;
-  - notifications: one OSC each for new asks only, none on the first board, none with the flag, wrapped inside tmux.
-- **`cli.test.ts`:** bare `sitrep` off a terminal keeps its help and exit 1; every command's tests pass unchanged.
+  - notifications: one OSC each for new asks only, oldest first, in one look and across two, none on the first board, none with the flag, wrapped inside tmux, posted during a hand-over and while `Too small`, never inside a frame's write, none after the panel closes, once after a failed look and none on a first board after one, the text cleaned.
+- **`panel-notices.test.ts`:** `newAsks`' kinds, order and words, an away row's place; `osc777`'s bytes, cleaning and cut; tmux's wrapping.
+- **`cli.test.ts`:** bare `sitrep` off a terminal keeps its help and exit 1; the help's new line, every other line as it was; the flags read as the panel's, an unknown one as an unknown command, and `--no-notify` off a terminal; every command's tests pass unchanged.
 
 **Golden frames,** by the Bun checker `cli/frames/check.ts`, which the kit can't run:
 - **The files:** each frame is a `.txt` and an `.ansi` in `tests/frames/`, named `panel-<screen>-<W>x<H>`.
@@ -585,7 +601,8 @@ The quiet board is listed on purpose, as round 1 lists it: "All clear" and one s
 ## Known limits
 
 - **Coming back after a pick is the command's.** A command that switches this terminal's client and ends leaves the panel running in a session this terminal no longer shows. A `zmx attach` your command runs inside another zmx session does just that (DESIGN.md, "The jump", records the limit).
-- **OSC 9 and 777 inside zmx** are not yet known to reach the terminal; slice 7 proves it live.
+- **A notification during a hand-over can garble the program's screen.** The panel and the program share the terminal, and macOS copies a write to a tty in 100-byte chunks, sleeping between them where it must. So a notification can land inside one of the program's escape sequences, or the program's bytes inside the notification, leaving stray characters until it repaints. It is rare and cosmetic, and the title's cut narrows it; holding notifications until the take-back would break the rule that the panel keeps posting meanwhile.
+- **OSC 777 inside zmx** is not yet known to reach the terminal, nor rootshell to show it; both are left to Lee's live test after slice 9. The panel wraps it for tmux alone.
 - **An update under a running panel.** The panel runs the code it started with until you quit it. The watch, by contrast, ends at a new version for SitRep to start again.
 - **A resumed Claude lives in the panel's terminal.** A dropped SSH connection ends it, unless the resume command runs it in a multiplexer.
 - **Ambiguous-width glyphs.** `●` `○` `◌` `◉` `✻` `─` `▿` `▹` `▲` `▼` are East Asian Ambiguous: a terminal set to draw them wide breaks the columns.

@@ -13,6 +13,7 @@
 import type { Random } from '../core'
 import type { ColourEnv } from './panel/paint'
 import type { Size } from './panel/cells'
+import type { NoticeEnv } from './panel/notices'
 
 /** A folder's entry, as its listing gives it. */
 export type Listed = { name: string; kind: 'file' | 'dir' }
@@ -20,8 +21,8 @@ export type Listed = { name: string; kind: 'file' | 'dir' }
 /** A file's size and when it was last written; a folder's when an entry was last made, removed or renamed in it. */
 export type Stat = { size: number; mtimeMs: number }
 
-/** The environment the CLI reads: where the board is, the home folder SitRep's settings are in, the session a window holds, the login shell a pick runs in, and the terminal's colours. */
-export type Env = { XDG_STATE_HOME?: string; HOME?: string; SITREP_SESSION?: string; SHELL?: string } & ColourEnv
+/** The environment the CLI reads: where the board is, the home folder SitRep's settings are in, the session a window holds, the login shell a pick runs in, the terminal's colours, and the tmux the panel's notifications pass through. */
+export type Env = { XDG_STATE_HOME?: string; HOME?: string; SITREP_SESSION?: string; SHELL?: string } & ColourEnv & NoticeEnv
 
 /** A wait under way: it resolves once its time has passed, unless `cancel` lets it go first, its timer with it, never to resolve. */
 export type Waiting = Promise<void> & { cancel: () => void }
