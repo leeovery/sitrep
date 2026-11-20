@@ -242,6 +242,16 @@ const REST: readonly Seat[] = [
   snoozed('yourTurn', 'Pricing page', 'Litware', 'Drafted three price tiers', nineOn(23)),
 ]
 
+/** The docs page's still: only the placeholder names the docs may use, and a row of each kind the page names. */
+const DOCS: readonly Seat[] = [
+  ask('Help desk redesign', 'Northwind', 'Thread replies, or keep them flat?', 4, { count: 2 }),
+  ask('Data import', 'Litware', 'Keep the old CSV columns?', 2 * HOUR_MINUTES, { away: 'ended' }),
+  turn('Shift schedules', 'Contoso', 'Drafted the new rota', 31),
+  working('Mobile app', 'Woodgrove', 'Running npm test', 6),
+  own('Invoice ledger', 'Fabrikam', 'Waiting on 2 agents', 15),
+  snoozed('ask', 'Onboarding flow', 'Tailspin', 'Pick the onboarding steps', nineOn(19)),
+]
+
 const NEW_ASK = ask('Room bookings', 'Woodgrove', 'Can a room be booked twice?', 0)
 
 const BUSY: readonly Seat[] = [
@@ -285,9 +295,11 @@ const CROWDED = worldOf(BUSY)
 
 const QUIET = worldOf([])
 
+const FOR_DOCS = worldOf(DOCS)
+
 /** Every name and project the worlds hold: those a frame may cut. */
 export const NAMES: readonly string[] = [
-  ...new Set([...REST, ...BUSY, NEW_ASK].flatMap(each => {
+  ...new Set([...REST, ...BUSY, ...DOCS, NEW_ASK].flatMap(each => {
     const { name, projectName } = 'row' in each ? each.row : each.snoozed
 
     return [name, projectName]
@@ -360,6 +372,7 @@ const SCREENS: Record<string, Screen> = {
   sixteen: { world: AT_REST, paint: SIXTEEN, keys: downTo(AT_REST, 'Help desk redesign'), sizes: [[39, 27]] },
   narrow: { world: AT_REST, sizes: [[30, 27]] },
   small: { world: AT_REST, sizes: [[23, 10]] },
+  docs: { world: FOR_DOCS, sizes: [[73, 19]] },
 }
 
 export const FIXTURES: readonly Fixture[] = Object.entries(SCREENS).flatMap(([screen, { world, paint = COLOUR, news = [], keys = [], sizes }]) =>

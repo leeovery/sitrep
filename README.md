@@ -29,6 +29,7 @@ With several Claude Code windows open across several projects, what waits on you
 - **A click takes you there.** Click a session, and SitRep brings forward the Ghostty window showing it, on any Space. That works inside tmux, inside [zmx](https://github.com/neurosnap/zmx), a tool that keeps terminal sessions to attach to, or in neither. If no window shows the session, SitRep resumes it in a new one. [A click takes you there](docs/jump.md)
 - **Sessions outlive their windows.** After a `/clear`, or in a new Claude told to carry on, the session keeps its status, history and asks. What it parks stays with the project, and Claude moves a session to another project when you say so. [Sessions](docs/sessions.md)
 - **Put a session off.** Snooze a session for an hour, until tonight, until next week, or until it moves. Until it wakes, nothing it holds counts as waiting on you. Settings › Snooze sets which timed choices you see, and when each wakes. [Putting a session off](docs/snooze.md)
+- **The board in any terminal.** Type `sitrep` in a Ghostty tab, or over SSH from a phone, and the board fills the terminal. Open a session from it with your resume command. [The board in any terminal](docs/terminal.md)
 
 ## Screens
 

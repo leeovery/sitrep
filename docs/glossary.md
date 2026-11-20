@@ -60,13 +60,13 @@ Each word below means one thing on every page of these docs. The words are group
 
 **banner**: A macOS notification from SitRep, for a new ask or for Claude stopping. A click on one takes you to the session. Both are off until you turn them on in Settings › Notifications. **Turn On…** in the welcome window also turns on the banner for a new ask. A failure banner, such as "SitRep could not jump" or "Not snoozed", shows even with both switches off.
 
-**dimmed session**: A session drawn dimmed, because no terminal on this Mac shows it. Either no window runs it, or you reach its window only from another device, such as over SSH. Every few seconds, SitRep checks which terminal each Claude runs in. Its asks still count.
+**dimmed session**: A session drawn dimmed, because no terminal on this Mac shows it. Either no window runs it, or you reach its window only from another device, such as over SSH. Every few seconds, SitRep checks which terminal each Claude runs in. Its asks still count. The terminal view dims one too, with a hollow dot in Needs you. While SitRep isn't running, it dims only a session no window runs.
 
 **mark**: A session on the strip: a ring holding two letters of its project. The colour of the ring says where the session stands.
 
 **the menu bar item**: The SitRep icon in the menu bar, and its menu. The menu lists your sessions under one total, such as "3 need you". The icon lights the same way the notch does. SitRep has no Dock icon, so this is where you reach it.
 
-**Needs you**: The first section of the panel: the sessions waiting on you. An orange row has asks, or a window waiting at a permission prompt. A blue row is Stopped.
+**Needs you**: The first section of the panel and of the terminal view: the sessions waiting on you. An orange row has asks, or a window waiting at a permission prompt. The terminal view shows the same with an orange dot. A blue row or dot is Stopped.
 
 **the notch**: The SitRep shape at the left or right edge of your screen, black by default, on every Space. It opens into the panel when you hover over it. Its light is orange while an orange row waits in Needs you. With none, it is blue while a session is Stopped.
 
@@ -74,13 +74,19 @@ Each word below means one thing on every page of these docs. The words are group
 
 **the pulse**: The notch swelling and flashing its light. By default it comes for a new ask, and when a window starts waiting at a permission prompt. For Claude stopping, you turn it on in Settings › Notifications.
 
-**row**: A session as a line in the panel, or in the menu of the menu bar item. A row in Needs you has a line for each ask or permission prompt waiting.
+**row**: A session in the panel, in the terminal view, or in the menu of the menu bar item. In the panel, a row in Needs you has a line for each ask or permission prompt waiting. In the terminal view, a row takes two lines. The first holds the name, with a count if more than one thing waits. The second holds the project, then the newest thing it waits on or is doing.
 
 **the strip**: The other way to show the board at the screen edge: a narrow column with a mark for each session. You choose Notch, Strip or Nothing under Show, in the menu or in Settings › Edge.
 
 **the welcome window**: The window SitRep opens at its first start. It shows what SitRep does, and sets your first choices, such as the sound. The first time, it also turns on Open at login. It also asks macOS for banners and control of Ghostty, both optional. Show Welcome Window, in the menu, opens it again.
 
-**Working**: The section of the panel for sessions that don't need you. Claude is running a turn there, or waits on work of its own, such as a background agent.
+**Working**: The section of the panel and of the terminal view for sessions that don't need you. Claude is running a turn there, or waits on work of its own, such as a background agent.
+
+## In a terminal
+
+**terminal notification**: A notification that the terminal itself shows, such as Ghostty showing a macOS notification. The terminal view sends one for each new ask, unless you open it with `sitrep --no-notify`.
+
+**the terminal view**: The board in a terminal, opened by typing `sitrep` with no command. It shows Needs you, Working and Snoozed, each session on two lines. It works in any terminal, on the Mac or over SSH.
 
 ## Getting to a session
 
@@ -88,4 +94,4 @@ Each word below means one thing on every page of these docs. The words are group
 
 **plain shell syntax**: What a resume command may hold: words, pipes and `&&`, redirections, quotes, variables such as `$s`, and `$(…)`. The shells sh, bash, zsh, dash and ksh all read it the same way, so SitRep knows where each value lands. SitRep refuses a command that holds anything else, and names the part it found.
 
-**the resume command**: What SitRep types into a new Ghostty window, for a session no terminal on this Mac shows. The default is `cd {dir} && claude --resume {claude}`. You can set your own in Settings › General.
+**the resume command**: What SitRep types into a new Ghostty window, for a session no terminal on this Mac shows. The terminal view runs it in its own terminal, for the session you open with `⏎`. The default is `cd {dir} && claude --resume {claude}`. You can set your own in Settings › General.

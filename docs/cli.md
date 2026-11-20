@@ -10,12 +10,7 @@ The command is `bin/sitrep` in the plugin's folder. SitRep installs its own copy
 ~/Library/Application Support/sitrep/bin/sitrep
 ```
 
-That copy is a single program, and needs nothing else installed. To run it as `sitrep`, from your shell and from scripts, add its folder to your PATH in `~/.zshrc`:
-
-```bash
-sr=~/Library/"Application Support"/sitrep
-export PATH="$PATH:$sr/bin"
-```
+That copy is a single program, and needs nothing else installed. SitRep.app carries a copy of its own, and the Homebrew install links that copy into the Homebrew `bin` folder. Any shell or script with that folder on its PATH runs `sitrep`.
 
 If you run the plugin from a clone of the repository, the `bin/sitrep` in the clone runs on Bun.
 
@@ -68,7 +63,7 @@ A project with nothing current but parked items shows `no current sessions (1 pa
 | `move <project>` | Moves a session to a project already on the board; it makes none |
 | `watch` | Prints the board as JSON at each change, for SitRep |
 
-`sitrep --help` lists every command with its flags. `sitrep <command> --help` says more about one.
+In a terminal, `sitrep` with no command opens the board there: see [The board in any terminal](terminal.md). `sitrep --help` lists every command with its flags. `sitrep <command> --help` says more about one.
 
 ## Naming the session
 
@@ -148,8 +143,9 @@ The text form of `board` lists every item parked in the project, not only this s
 | `0` | Done |
 | `1` | A usage error, a refused input, or a failure |
 | `2` | No such session |
+| `129`, `130`, `131`, `143` | The terminal view ended by SIGHUP, SIGINT, SIGQUIT or SIGTERM |
 
-A refusal prints one line to standard error, starting `sitrep:`, that says what to fix. With no command, `sitrep` prints the help to standard error and exits 1.
+A refusal prints one line to standard error, starting `sitrep:`, that says what to fix. With no command in a script, a pipe or a terminal whose `TERM` is `dumb`, `sitrep` prints the help to standard error and exits 1.
 
 ## Related
 

@@ -36,6 +36,8 @@ A setting to run a command on a new ask, such as `rootshell-notify`, is parked. 
 
 **What stays byte for byte.** Every existing command: its words, its output, its JSON, its exit codes and the files it writes. `sitrep watch` prints the same lines, so SitRep reads it as before. Bare `sitrep` off a terminal, as a script or a pipe runs it, keeps today's answer: the help on standard error, exit 1. The help gains one usage line, `sitrep [--no-notify]`, saying it opens the board in this terminal; every other line of it stays (Lee, 19 November 2026).
 
+**Its name in the docs.** `docs/terminal.md` and the glossary call the panel the terminal view, since "the panel" there is what the notch opens (one term, one meaning); a new ask's OSC 777 is a terminal notification, beside the app's banner. The page's dots are the spec's marks, since "mark" there is a session on the strip, and its chosen row is the band, since "the band" there is the line above the Claude Code prompt.
+
 **What the switch carries.** Three pieces move to where both the watch and the panel can use them, with no change to what they give: the watch's look loop (`cli/watch.ts`) into `cli/looks.ts`; `ago` from the pane's `hooks/look.ts` into core; and the panel's grouping of Needs you, which the app's Swift held alone, into core's `panelSections`.
 
 ## The frame
@@ -418,7 +420,7 @@ Dimming the terminal's own ink needs its foreground too. With both answers, at 2
 
 ## What the code can't give yet
 
-1. **`sitrep` on a shell's PATH.** Claude Code puts the plugin's `bin` on Claude's own PATH. A login shell, over SSH or in Ghostty, has no `sitrep`, and the cask has no `binary` stanza.
+Nothing in this repo. `sitrep` on a shell's PATH lands with the tap's PR (slice 9): Claude Code puts the plugin's `bin` on Claude's own PATH alone, so the cask in `leeovery/homebrew-tools` gains `binary "#{appdir}/SitRep.app/Contents/Resources/Plugin/bin/sitrep"`, linking the compiled CLI the bundle carries, which needs no Bun, into Homebrew's `bin`. The tap's `update-formula.yml` rewrites only the cask's `version` and `sha256` lines, so the stanza survives every release.
 
 ## The output seam
 
@@ -589,7 +591,7 @@ The fakes in `tests/` stand in for all of it.
 - **Writing them again:** `--update` writes the frames again and deletes those nothing draws; a kept frame nothing draws fails.
 - **The checker's own tests:** its reader and comparer are pure TypeScript in `cli/frames/cells.ts`, tested under the kit with inline strings.
 - **The fixtures** (`cli/frames/fixtures.ts`) are moments: a world, a size, the terminal's answers (Nordfox's `#CDCECF` on `#2E3440`), a fixed clock, and the keys pressed to reach them.
-- **The screens:** round 4's, `rest`, `picked`, `unfolded`, `busy`, `arriving`, `unreachable`, `quiet`, `wide` and `nocolor`, at round 4's sizes. Added to them: `narrow-30x27`, `small-23x10`, and `busy-24x8`.
+- **The screens:** round 4's, `rest`, `picked`, `unfolded`, `busy`, `arriving`, `unreachable`, `quiet`, `wide` and `nocolor`, at round 4's sizes. Added to them: `narrow-30x27`, `small-23x10`, `busy-24x8`, and `docs-73x19`, the docs page's still.
 - **The first goldens** are round 4's frames, with one change on purpose: the names and a pick's answer, which round 4 drew in Nordfox's `#CDCECF`, are in the terminal's own ink, as its title and keys already are.
 
 **The sweep.** The checker draws every fixture at 39×27, 69×46, 73×36, 114×45, 173×53 and 73×15, and runs the four width checks from termgrid's `sweep`, ported:
@@ -608,7 +610,7 @@ The quiet board is listed on purpose, as round 1 lists it: "All clear" and one s
 
 - **The demo world** is round 1's: `REST`, `BUSY` and the arriving `Room bookings`, in `cli/frames/fixtures.ts`, all placeholder names.
 - **No VHS tapes:** the golden frames and the live runs hold the panel.
-- **The still** for the docs page is a golden frame, `panel-rest-73x36`, read by `termgrid.py read` and drawn as the rounds' previews are, into `art/`.
+- **The still** for the docs page, `docs/terminal.md`, is the golden frame `panel-docs-73x19`, drawn from the fixtures' docs world: only the six sessions and six projects the docs may name (CLAUDE.md, "Writing the docs"), with asks, a Stopped row, a hollow one, `✻`, `◌` and Snoozed folded. It is read by `termgrid.py`'s `read_ansi` and drawn as the rounds' previews are (`preview_page`, its title bar `sitrep`, Nordfox), shot by headless Chrome at 2× and made lossless webp by `cwebp`: `art/screens/terminal.webp`. Remake it after a change to that frame.
 - **Later rounds** start from the build's frames read into termgrid, not from round 1's model of them.
 
 ## Out of scope

@@ -10209,6 +10209,14 @@ look", the pick on its page "FINAL · board in a terminal".
   every look, so a held session no terminal on this Mac shows draws hollow
   and dimmed, as on the notch. No file, as with nothing dimmed or SitRep
   not running, or one 30 seconds old, leaves every held session filled.
+- **Reached from any shell, and documented** (20 November 2026, slice 9):
+  the cask's `binary` stanza links the CLI the bundle carries,
+  `Contents/Resources/Plugin/bin/sitrep`, a compiled binary needing no
+  Bun, into Homebrew's `bin`, in a PR on the tap. `docs/terminal.md` is its
+  page, calling it the terminal view, since the docs' "panel" is the
+  notch's; its still, `art/screens/terminal.webp`, is the golden frame
+  `panel-docs-73x19`, a world of the docs' placeholder names alone, drawn
+  by termgrid.
 
 Every other question the spec put to Lee he answered on 19 November 2026
 as it recommended, and none is left open. So the CLI runs programs again, which it has not done
