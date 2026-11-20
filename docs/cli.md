@@ -143,7 +143,7 @@ The text form of `board` lists every item parked in the project, not only this s
 | `0` | Done |
 | `1` | A usage error, a refused input, or a failure |
 | `2` | No such session |
-| `129` to `143` | The terminal view ended by a signal: 128 and its number |
+| `129`, `130`, `131`, `143` | The terminal view ended by SIGHUP, SIGINT, SIGQUIT or SIGTERM |
 
 A refusal prints one line to standard error, starting `sitrep:`, that says what to fix. With no command in a script, a pipe or a terminal whose `TERM` is `dumb`, `sitrep` prints the help to standard error and exits 1.
 

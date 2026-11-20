@@ -60,13 +60,13 @@ Each word below means one thing on every page of these docs. The words are group
 
 **banner**: A macOS notification from SitRep, for a new ask or for Claude stopping. A click on one takes you to the session. Both are off until you turn them on in Settings › Notifications. **Turn On…** in the welcome window also turns on the banner for a new ask. A failure banner, such as "SitRep could not jump" or "Not snoozed", shows even with both switches off.
 
-**dimmed session**: A session drawn dimmed, because no terminal on this Mac shows it. Either no window runs it, or you reach its window only from another device, such as over SSH. Every few seconds, SitRep checks which terminal each Claude runs in. Its asks still count.
+**dimmed session**: A session drawn dimmed, because no terminal on this Mac shows it. Either no window runs it, or you reach its window only from another device, such as over SSH. Every few seconds, SitRep checks which terminal each Claude runs in. Its asks still count. The terminal view dims one too, with a hollow dot in Needs you. While SitRep isn't running, it dims only a session no window runs.
 
 **mark**: A session on the strip: a ring holding two letters of its project. The colour of the ring says where the session stands.
 
 **the menu bar item**: The SitRep icon in the menu bar, and its menu. The menu lists your sessions under one total, such as "3 need you". The icon lights the same way the notch does. SitRep has no Dock icon, so this is where you reach it.
 
-**Needs you**: The first section of the panel and of the terminal view: the sessions waiting on you. An orange row, or an orange dot in the terminal view, has asks, or a window waiting at a permission prompt. A blue one is Stopped.
+**Needs you**: The first section of the panel and of the terminal view: the sessions waiting on you. An orange row has asks, or a window waiting at a permission prompt. The terminal view shows the same with an orange dot. A blue row or dot is Stopped.
 
 **the notch**: The SitRep shape at the left or right edge of your screen, black by default, on every Space. It opens into the panel when you hover over it. Its light is orange while an orange row waits in Needs you. With none, it is blue while a session is Stopped.
 
@@ -74,7 +74,7 @@ Each word below means one thing on every page of these docs. The words are group
 
 **the pulse**: The notch swelling and flashing its light. By default it comes for a new ask, and when a window starts waiting at a permission prompt. For Claude stopping, you turn it on in Settings › Notifications.
 
-**row**: A session in the panel, in the terminal view, or in the menu of the menu bar item. In the panel, a row in Needs you has a line for each ask or permission prompt waiting. In the terminal view, a row takes two lines. The first holds the name, with a count if more than one thing waits. The second holds the newest thing it waits on or is doing.
+**row**: A session in the panel, in the terminal view, or in the menu of the menu bar item. In the panel, a row in Needs you has a line for each ask or permission prompt waiting. In the terminal view, a row takes two lines. The first holds the name, with a count if more than one thing waits. The second holds the project, then the newest thing it waits on or is doing.
 
 **the strip**: The other way to show the board at the screen edge: a narrow column with a mark for each session. You choose Notch, Strip or Nothing under Show, in the menu or in Settings › Edge.
 
