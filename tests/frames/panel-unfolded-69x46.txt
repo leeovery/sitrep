@@ -1,3 +1,4 @@
+
  NEEDS YOU ●4 ●2 ───────────────────────────────────────────────── ▿
  ● Data import                                                    1m
    Litware · Allow Bash: psql -f import.sql
@@ -25,7 +26,6 @@
    Contoso · Pick the onboarding steps
  ● Pricing page                                            next week
    Litware · Drafted three price tiers
-
 
 
 

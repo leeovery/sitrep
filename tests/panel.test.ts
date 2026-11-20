@@ -229,17 +229,17 @@ const rowsIn = (write: string | undefined) => [...(write ?? '').matchAll(/\x1b\[
  */
 const FIRST_FRAME =
   '\x1b[?2026h\x1b[2J' +
-  '\x1b[1;1H NEEDS YOU ●\x1b[0;1m1\x1b[0m \x1b[0;2m───────────────────────\x1b[0m \x1b[0;2m▿\x1b[0m\x1b[K' +
-  '\x1b[2;1H ● \x1b[0;1mHelp desk redesign\x1b[0m                \x1b[0;2m1m\x1b[0m\x1b[K' +
-  '\x1b[3;1H   \x1b[0;2mNorthwind · \x1b[0mReview round 1\x1b[K' +
+  '\x1b[2;1H NEEDS YOU ●\x1b[0;1m1\x1b[0m \x1b[0;2m───────────────────────\x1b[0m \x1b[0;2m▿\x1b[0m\x1b[K' +
+  '\x1b[3;1H ● \x1b[0;1mHelp desk redesign\x1b[0m                \x1b[0;2m1m\x1b[0m\x1b[K' +
+  '\x1b[4;1H   \x1b[0;2mNorthwind · \x1b[0mReview round 1\x1b[K' +
   '\x1b[10;1H \x1b[0;1m↑↓\x1b[0;2m pick\x1b[0m  \x1b[0;1mq\x1b[0;2m quit\x1b[0m\x1b[K' +
   '\x1b[?2026l'
 
 /** `j`'s frame: only the rows it changed, the band's two in reverse video and the key line. */
 const BANDED =
   '\x1b[?2026h' +
-  '\x1b[2;1H \x1b[0;7m● \x1b[0;1;7mHelp desk redesign\x1b[0;7m                \x1b[0;2;7m1m\x1b[0m\x1b[K' +
-  '\x1b[3;1H \x1b[0;7m  \x1b[0;2;7mNorthwind · \x1b[0;7mReview round 1          \x1b[0m\x1b[K' +
+  '\x1b[3;1H \x1b[0;7m● \x1b[0;1;7mHelp desk redesign\x1b[0;7m                \x1b[0;2;7m1m\x1b[0m\x1b[K' +
+  '\x1b[4;1H \x1b[0;7m  \x1b[0;2;7mNorthwind · \x1b[0;7mReview round 1          \x1b[0m\x1b[K' +
   '\x1b[10;1H \x1b[0;1m↑↓\x1b[0;2m move\x1b[0m  \x1b[0;1m⏎\x1b[0;2m expand\x1b[0m  \x1b[0;1mo\x1b[0;2m open\x1b[0m  \x1b[0;1mq\x1b[0;2m quit\x1b[0m\x1b[K' +
   '\x1b[?2026l'
 
@@ -328,7 +328,7 @@ test('a resize while the colour query waits, heard by nothing yet, is drawn at o
   await run.passing(0)
 
   expect(screenOf(run.screen.writes, 20)[19]).toBe(' ↑↓ pick  q quit')
-  expect(screenOf(run.screen.writes, 20)[1]).toBe(' ● Help desk redesign                                             1m')
+  expect(screenOf(run.screen.writes, 20)[2]).toBe(' ● Help desk redesign                                             1m')
   await run.type('q')
 })
 
@@ -410,7 +410,7 @@ test('Ctrl-Z gives the terminal back before it stops, and takes it back as the s
 
   expect(stopped()[2]).toBe(ENTER)
   expect(stopped()[3]?.startsWith('\x1b[?2026h\x1b[2J')).toBe(true)
-  expect(screenOf(stopped())[1]).toBe(' ● Help desk redesign                1m')
+  expect(screenOf(stopped())[2]).toBe(' ● Help desk redesign                1m')
   expect(stopped()[3]).toContain('\x1b[0;7m')
   expect(run.screen.isReading()).toBe(true)
 
@@ -477,7 +477,7 @@ test('Ctrl-Z takes the terminal back at the size it has after the stop, a resize
   await run.passing(0)
 
   expect(screenOf(run.screen.writes, 20)[19]).toBe(' ↑↓ pick  q quit')
-  expect(screenOf(run.screen.writes, 20)[1]).toBe(' ● Help desk redesign                                             1m')
+  expect(screenOf(run.screen.writes, 20)[2]).toBe(' ● Help desk redesign                                             1m')
   await run.type('q')
 })
 
@@ -532,7 +532,7 @@ test('a resize draws afresh at the new size; one to the size it had draws nothin
 
   expect(grown()[0]?.startsWith('\x1b[?2026h\x1b[2J')).toBe(true)
   expect(screenOf(grown(), 20)[19]).toBe(' ↑↓ pick  q quit')
-  expect(screenOf(grown(), 20)[1]).toBe(' ● Help desk redesign                                             1m')
+  expect(screenOf(grown(), 20)[2]).toBe(' ● Help desk redesign                                             1m')
 
   const unsized = run.writesFrom()
 
@@ -601,7 +601,7 @@ test("the first draw waits up to 300 ms for the first look, then says it's looki
   first.open()
   await run.passing(0)
 
-  expect(screenOf(run.screen.writes)[1]).toBe(' ● Help desk redesign                1m')
+  expect(screenOf(run.screen.writes)[2]).toBe(' ● Help desk redesign                1m')
   await run.type('q')
 })
 
@@ -677,7 +677,7 @@ test('a look that fails after a board keeps the board, as of when it was read, u
   expect(stale.at(-1)?.startsWith(' ↑↓ pick  q quit ')).toBe(true)
   expect(stale.at(-1)?.endsWith(` as of ${clockOf(new Date(NOW))}`), "at the key line's right end").toBe(true)
   expect(stale.at(-1)?.length, 'ending at column W−2').toBe(SIZE.width - 1)
-  expect(stale[1]).toBe(' ● Help desk redesign                1m')
+  expect(stale[2]).toBe(' ● Help desk redesign                1m')
   expect(screenOf(run.screen.writes).at(-1)).toBe(' ↑↓ pick  q quit')
   await run.type('q')
 })
@@ -694,7 +694,7 @@ test("a look that fails still reads SitRep's here.json: the file gone while the 
 
   writeHere(run, META.id)
   await run.passing(0)
-  expect(screenOf(run.screen.writes)[1]).toBe(AWAY_ROW)
+  expect(screenOf(run.screen.writes)[2]).toBe(AWAY_ROW)
 
   isFailing = true
   run.t.files.delete(hereFile(ROOT))
@@ -703,7 +703,7 @@ test("a look that fails still reads SitRep's here.json: the file gone while the 
   const stale = screenOf(run.screen.writes)
 
   expect(stale.at(-1)?.endsWith(` as of ${clockOf(new Date(NOW))}`), 'the board kept, stale').toBe(true)
-  expect(stale[1]).toBe(HERE_ROW)
+  expect(stale[2]).toBe(HERE_ROW)
   await run.type('q')
 })
 
@@ -720,8 +720,8 @@ test('the times turn over with the minute, the board standing still, and nothing
 
   await run.passing(1)
 
-  expect(ticking().map(rowsIn)).toEqual([[2]])
-  expect(screenOf(run.screen.writes)[1]).toBe(' ● Help desk redesign                2m')
+  expect(ticking().map(rowsIn)).toEqual([[3]])
+  expect(screenOf(run.screen.writes)[2]).toBe(' ● Help desk redesign                2m')
   await run.type('q')
 })
 
@@ -740,7 +740,7 @@ test("a held session SitRep's here.json names draws hollow and dimmed at the nex
   const run = opened()
 
   await run.passing(0)
-  expect(screenOf(run.screen.writes)[1]).toBe(HERE_ROW)
+  expect(screenOf(run.screen.writes)[2]).toBe(HERE_ROW)
 
   writeHere(run, META.id)
 
@@ -748,23 +748,23 @@ test("a held session SitRep's here.json names draws hollow and dimmed at the nex
 
   await run.passing(POLL_MS)
 
-  expect(screenOf(run.screen.writes)[1]).toBe(AWAY_ROW)
-  expect(dimming().map(rowsIn)).toEqual([[2, 3]])
-  expect(dimming()[0], 'its second line faint as one, without colour').toContain('\x1b[3;1H   \x1b[0;2mNorthwind · Review round 1\x1b[0m')
+  expect(screenOf(run.screen.writes)[2]).toBe(AWAY_ROW)
+  expect(dimming().map(rowsIn)).toEqual([[3, 4]])
+  expect(dimming()[0], 'its second line faint as one, without colour').toContain('\x1b[4;1H   \x1b[0;2mNorthwind · Review round 1\x1b[0m')
 
   await run.passing(HERE_STALE_MS - POLL_MS - 1)
-  expect(screenOf(run.screen.writes)[1], 'dimmed still at the last look before the limit').toBe(AWAY_ROW)
+  expect(screenOf(run.screen.writes)[2], 'dimmed still at the last look before the limit').toBe(AWAY_ROW)
 
   await run.passing(POLL_MS)
-  expect(screenOf(run.screen.writes)[1], 'filled at the first look past it').toBe(HERE_ROW)
+  expect(screenOf(run.screen.writes)[2], 'filled at the first look past it').toBe(HERE_ROW)
 
   writeHere(run, META.id)
   await run.passing(POLL_MS)
-  expect(screenOf(run.screen.writes)[1], 'written afresh').toBe(AWAY_ROW)
+  expect(screenOf(run.screen.writes)[2], 'written afresh').toBe(AWAY_ROW)
 
   run.t.files.delete(hereFile(ROOT))
   await run.passing(POLL_MS)
-  expect(screenOf(run.screen.writes)[1], 'gone, as SitRep quitting leaves it').toBe(HERE_ROW)
+  expect(screenOf(run.screen.writes)[2], 'gone, as SitRep quitting leaves it').toBe(HERE_ROW)
   await run.type('q')
 })
 
@@ -773,11 +773,11 @@ test("the panel's first board is drawn with the fill SitRep's here.json gives, a
 
   writeHere(run, META.id)
   await run.passing(0)
-  expect(screenOf(run.screen.writes)[1]).toBe(AWAY_ROW)
+  expect(screenOf(run.screen.writes)[2]).toBe(AWAY_ROW)
 
   writeHere(run, 'sr-zz9999')
   await run.passing(POLL_MS)
-  expect(screenOf(run.screen.writes)[1]).toBe(HERE_ROW)
+  expect(screenOf(run.screen.writes)[2]).toBe(HERE_ROW)
 
   const unchanged = run.writesFrom()
 
@@ -800,15 +800,15 @@ test('over SSH, a held session open on the device the panel is looked at from dr
   await phone.passing(0)
   await mac.passing(0)
 
-  expect(screenOf(phone.screen.writes)[1], 'open on the phone').toBe(HERE_ROW)
-  expect(screenOf(mac.screen.writes)[1], 'not on the Mac').toBe(AWAY_ROW)
+  expect(screenOf(phone.screen.writes)[2], 'open on the phone').toBe(HERE_ROW)
+  expect(screenOf(mac.screen.writes)[2], 'not on the Mac').toBe(AWAY_ROW)
 
   both.forEach(run => writeSeen(run, { [META.id]: ['mac'] }))
   await phone.passing(POLL_MS)
   await mac.passing(POLL_MS)
 
-  expect(screenOf(phone.screen.writes)[1], 'open only on the Mac').toBe(AWAY_ROW)
-  expect(screenOf(mac.screen.writes)[1], 'on the Mac').toBe(HERE_ROW)
+  expect(screenOf(phone.screen.writes)[2], 'open only on the Mac').toBe(AWAY_ROW)
+  expect(screenOf(mac.screen.writes)[2], 'on the Mac').toBe(HERE_ROW)
   await phone.type('q')
   await mac.type('q')
 })
@@ -818,11 +818,11 @@ test("inside a multiplexer session, the panel is looked at from its own tty's vi
 
   writeSeen(run, { [META.id]: ['ssh:192.0.2.7'] }, { '/dev/ttys004': ['ssh:192.0.2.7'], '/dev/ttys012': ['mac'] })
   await run.passing(0)
-  expect(screenOf(run.screen.writes)[1], 'the phone views its tty').toBe(HERE_ROW)
+  expect(screenOf(run.screen.writes)[2], 'the phone views its tty').toBe(HERE_ROW)
 
   writeSeen(run, { [META.id]: ['ssh:192.0.2.7'] }, { '/dev/ttys012': ['mac'] })
   await run.passing(POLL_MS)
-  expect(screenOf(run.screen.writes)[1], 'its tty unlisted: the iPad, as its SSH_CONNECTION says').toBe(AWAY_ROW)
+  expect(screenOf(run.screen.writes)[2], 'its tty unlisted: the iPad, as its SSH_CONNECTION says').toBe(AWAY_ROW)
   await run.type('q')
 })
 
@@ -847,10 +847,10 @@ test("a new ask's row is marked new and washed for two seconds from the frame th
 
   await run.passing(1)
 
-  expect(screenOf([arrived])[1]).toBe(' ◉ Help desk redesign 2             now')
+  expect(screenOf([arrived])[2]).toBe(' ◉ Help desk redesign 2             now')
   expect(arrived).toContain('48;2;83;67;69')
   expect(run.screen.writes.length).toBe(before + 1)
-  expect(screenOf(run.screen.writes)[1]).toBe(' ● Help desk redesign 2             now')
+  expect(screenOf(run.screen.writes)[2]).toBe(' ● Help desk redesign 2             now')
   expect(run.screen.writes.at(-1)).not.toContain('48;2;83;67;69')
   looks.open()
   await run.type('q')
@@ -943,7 +943,7 @@ test('as the program ends, the terminal is taken back, raw mode set afresh, draw
   expect([left, handed, entered, writes().length]).toEqual([LEAVE, HANDED, ENTER, 4])
   expect(frame.startsWith('\x1b[?2026h\x1b[2J')).toBe(true)
   expect(frame).toContain('\x1b[0;7m')
-  expect(rows[1]).toBe(' ● Help desk redesign                                             1m')
+  expect(rows[2]).toBe(' ● Help desk redesign                                             1m')
   expect(rows.some(row => row.startsWith(' !'))).toBe(false)
   expect(rows[19]).toBe(' ↑↓ move  ⏎ expand  o open  z snooze  q quit')
   expect([run.screen.isReading(), run.screen.listens()]).toEqual([true, listens + 1])
@@ -1102,7 +1102,7 @@ test('the board is looked at while a program has the terminal, drawing nothing, 
   run.screen.end(0)
   await run.passing(0)
 
-  expect(screenOf(writes(), 20)[1]).toBe(' ◉ Help desk redesign 2                                              now')
+  expect(screenOf(writes(), 20)[2]).toBe(' ◉ Help desk redesign 2                                              now')
   await run.type('q')
 })
 
@@ -1180,7 +1180,7 @@ test('--no-notify opens the panel and posts nothing, the new ask drawn all the s
   await run.passing(1_000)
 
   expect(noticesIn(run.screen.writes)).toEqual([])
-  expect(screenOf(run.screen.writes)[1]).toBe(' ◉ Help desk redesign 2             now')
+  expect(screenOf(run.screen.writes)[2]).toBe(' ◉ Help desk redesign 2             now')
   await run.type('q')
 
   expect(await run.ended()).toEqual({ exit: EXIT.done, err: '' })
@@ -1206,7 +1206,7 @@ test('a new ask notifies while the panel draws `Too small`', async () => {
   post(run, yesAsk('k2', 'Ship it'))
   await run.passing(1_000)
 
-  expect(screenOf(run.screen.writes)[0]).toBe(' Too small')
+  expect(screenOf(run.screen.writes)[1]).toBe(' Too small')
   expect(noticesIn(run.screen.writes)).toEqual([SHIP_IT])
   await run.type('q')
 })
@@ -1249,7 +1249,7 @@ test('a first good look after looks that failed is the first board, and posts no
   isFailing = false
   await run.passing(1_000)
 
-  expect(screenOf(run.screen.writes)[1]).toBe(' ● Help desk redesign 2             now')
+  expect(screenOf(run.screen.writes)[2]).toBe(' ● Help desk redesign 2             now')
   expect(noticesIn(run.screen.writes)).toEqual([])
   await run.type('q')
 })
@@ -1308,7 +1308,7 @@ test("z then ⏎ writes the line sitrep snooze writes, in the CLI's own file: th
   expect(JSON.parse(cliText(run))).toEqual({ v: 1, at: NOW, seq: 1, type: 'snoozeSession', until: IN_AN_HOUR, asks: ['k1'] })
   await run.passing(1_000)
 
-  expect(screenOf(run.screen.writes).slice(0, 2)).toEqual([' SNOOZED 2 ────────────────────────── ▹', ''])
+  expect(screenOf(run.screen.writes).slice(0, 3)).toEqual(['', ' SNOOZED 2 ────────────────────────── ▹', ''])
   await run.type('q')
 })
 

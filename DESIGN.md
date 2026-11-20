@@ -10274,7 +10274,7 @@ look", the pick on its page "FINAL · board in a terminal".
   Bun, into Homebrew's `bin`, in a PR on the tap. `docs/terminal.md` is its
   page, calling it the terminal view, since the docs' "panel" is the
   notch's; its still, `art/screens/terminal.webp`, is the golden frame
-  `panel-docs-73x17`, a world of the docs' placeholder names alone, drawn
+  `panel-docs-73x18`, a world of the docs' placeholder names alone, drawn
   by termgrid.
 - **Proven live on 20 November 2026,** by Lee, from a build of `f5e442c`, on
   his iPad and iPhone in rootshell over tssh:
@@ -10320,6 +10320,10 @@ look", the pick on its page "FINAL · board in a terminal".
   row's only other use, stands at the key line's right end instead, the
   keys cut before it. The blank rows between sections give way below 13
   rows, the body as roomy there as it was below 15 under the title.
+- **A blank top row** (Lee, 20 November 2026: "its a little snug at the
+  top"): row 0 is blank again, with no title on it, while the whole body
+  fits under it; short of room it gives way first, so it never costs a
+  row. The docs frame is `panel-docs-73x18`.
 
 Every other question the spec put to Lee he answered on 19 November 2026
 as it recommended, and none is left open. So the CLI runs programs again, which it has not done

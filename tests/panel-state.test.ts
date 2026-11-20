@@ -233,6 +233,18 @@ test("a tap on any line of a row puts the band on it, a tap on the band's row ex
   expect(pressed(read(), tap(3, 40)).band, 'past the layout').toBeUndefined()
 })
 
+test('with room, row 0 stays blank and the body stands a row lower: a tap lands on the row drawn under it, one on row 0 or a heading on none', () => {
+  const short = read(boardOf({ asks: [N1, N2], working: [], snoozed: [] }))
+  const tapped = (y: number) => pressed(short, tap(y)).band
+
+  expect(layoutIn(short).rows.map(row => [row.key, row.y])).toEqual([
+    [N1, 2],
+    [N2, 4],
+  ])
+  expect([0, 1, 2, 3, 4, 5, 6].map(tapped)).toEqual([undefined, undefined, N1, N1, N2, N2, undefined])
+  expect(layoutIn(read()).rows[0]?.y, 'a board too long for its rows gives the top row up').toBe(1)
+})
+
 test('an expanded row takes the lines its words need, and a tap on any of them lands on it', () => {
   const long = 'An unusually long session name that the narrow row has to cut short'
   const feed = feedOfRows([boardRow(N1, 'ask', { name: long, lines: 3 }), boardRow(N2, 'ask')])
@@ -240,8 +252,8 @@ test('an expanded row takes the lines its words need, and a tap on any of them l
   const rows = layoutIn(expanded).rows
 
   expect(rows.map(row => [row.key, row.height])).toEqual([[N1, 7], [N2, 2]])
-  expect(Array.from({ length: 7 }, (_, at) => pressed(expanded, tap(1 + at)).band)).toEqual(Array(7).fill(N1))
-  expect(pressed(expanded, tap(8)).band).toBe(N2)
+  expect(Array.from({ length: 7 }, (_, at) => pressed(expanded, tap(2 + at)).band)).toEqual(Array(7).fill(N1))
+  expect(pressed(expanded, tap(9)).band).toBe(N2)
 })
 
 test('an expanded row near the foot is scrolled whole into sight; one taller than the body is cut to it', () => {

@@ -53,15 +53,21 @@ A setting to run a command on a new ask, such as `rootshell-notify`, is parked. 
 **The layout's width.** W is the terminal's width up to 120 columns. Past 120 the layout stays 120 wide and stands at the left, as round 4 drew it at 173. With no width to read, as a terminal that answers no size, it lays out at 80×24.
 
 **Top to bottom:**
-1. The body, from row 0: the sections, a blank row between each two.
-2. A pick's answer, when there is one: a blank row, then the answer's lines, just above the key line.
-3. The last row, the key line. On a board gone stale, `as of 12:04` stands at its right end in grey, ending at column W−2 (see "Failure").
+1. A blank row, row 0, while the whole body fits under it (see "A short terminal").
+2. The body: the sections, a blank row between each two.
+3. A pick's answer, when there is one: a blank row, then the answer's lines, just above the key line.
+4. The last row, the key line. On a board gone stale, `as of 12:04` stands at its right end in grey, ending at column W−2 (see "Failure").
 
-**No title** (Lee, 20 November 2026). The view had a title row, ` sitrep` in bold, and a blank row under it. Lee dropped both for the narrow strip he keeps open on his iPad, where every row counts: the body starts on row 0, and the stale notice, the title row's only other use, moved to the key line's right end, in the same words and style, so the keys keep their places. Every state that drew under the title draws from row 0 now: `Too small`, the failure words, the empty board and the short body's centred lead.
+**No title** (Lee, 20 November 2026). The view had a title row, ` sitrep` in bold, and a blank row under it. Lee dropped both for the narrow strip he keeps open on his iPad, where every row counts: the body starts on row 0, and the stale notice, the title row's only other use, moved to the key line's right end, in the same words and style, so the keys keep their places. Every state that drew under the title drew from row 0 then: `Too small`, the failure words, the empty board and the short body's centred lead, until the blank top row came back the same day.
 
-**A short terminal.** The key line always stays. Below 13 rows, short of room, the blank rows between sections give way; then the body scrolls. 13 rows give the body what 15 gave under the title, so a body keeps its blank rows at the same room as before.
+**A blank top row** (Lee, 20 November 2026). With the title gone, the body ran to the window's top edge: "would it be hard to re-insert the blank line at the top? but keep the title gone? its a little snug at the top". So row 0 is blank again, and nothing is drawn on it: no title, no version, no notice; the stale notice stays at the key line's right end. It gives way first, short of room, and never costs a row (see "A short terminal"). Every state takes it by the same rule, which the layout's `topRowOf` gives:
+- **The board:** the body starts on row 1 while every block fits under it, its blank rows between sections and a pick's answer counted; else on row 0.
+- **The empty board, `Looking for sessions…` and the failure words:** centred in the rows under row 0 while their lines fit there; else in the rows from row 0, as before.
+- **`Too small`:** on row 1, at the margin, while the terminal has a second row; on row 0 in a terminal one row tall.
 
-**Too small.** Below 24 columns or 8 rows the panel draws only `Too small` on row 0, at the margin, cut to the width. It keeps watching, so notifications still post, and it draws in full again once the terminal grows.
+**A short terminal.** The key line always stays. Short of room, the blank top row gives way first: it stays only while every block fits under it, so the board never loses a row of content to it, at any height. Then, below 13 rows, the blank rows between sections give way; then the body scrolls. 13 rows give the body what 15 gave under the title, so a body keeps its blank rows at the same room as before. A fixed height for the top row, as the old title's 15, would cost a row at every height above it once the board runs longer than the window: at 39×27 the busy board would show a row fewer and the unreachable board would lose its folded Snoozed heading. So a board that grows past its rows, an expanded row or an opened snooze menu among it, moves up a row as the top row goes.
+
+**Too small.** Below 24 columns or 8 rows the panel draws only `Too small` on row 1, under the blank top row, at the margin, cut to the width; on row 0 in a terminal one row tall. It keeps watching, so notifications still post, and it draws in full again once the terminal grows.
 
 ## The marks
 
@@ -721,7 +727,7 @@ The fakes in `tests/` stand in for all of it.
 - **Writing them again:** `--update` writes the frames again and deletes those nothing draws; a kept frame nothing draws fails.
 - **The checker's own tests:** its reader and comparer are pure TypeScript in `cli/frames/cells.ts`, tested under the kit with inline strings.
 - **The fixtures** (`cli/frames/fixtures.ts`) are moments: a world, a size, the terminal's answers (Nordfox's `#CDCECF` on `#2E3440`), a fixed clock, and the keys pressed to reach them.
-- **The screens:** round 4's, `rest`, `picked`, `unfolded`, `busy`, `arriving`, `unreachable`, `quiet`, `wide` and `nocolor`, at round 4's sizes. Added to them: `narrow-30x27`, `small-23x10`, `busy-24x8`, `docs-73x17`, the docs page's still, `expanded`, at 52×27 and 114×45: a row of a long name and three asks, expanded; `snoozing`, at the same sizes, the snooze menu open; and `waking`, at 52×27, a Snoozed row chosen, its key line naming `z wake` (20 November 2026).
+- **The screens:** round 4's, `rest`, `picked`, `unfolded`, `busy`, `arriving`, `unreachable`, `quiet`, `wide` and `nocolor`, at round 4's sizes. Added to them: `narrow-30x27`, `small-23x10`, `busy-24x8`, `docs-73x18`, the docs page's still, `expanded`, at 52×27 and 114×45: a row of a long name and three asks, expanded; `snoozing`, at the same sizes, the snooze menu open; and `waking`, at 52×27, a Snoozed row chosen, its key line naming `z wake` (20 November 2026).
 - **The first goldens** are round 4's frames, with one change on purpose: the names and a pick's answer, which round 4 drew in Nordfox's `#CDCECF`, are in the terminal's own ink, as its title and keys already are.
 
 **The sweep.** The checker draws every fixture at 39×27, 69×46, 73×36, 114×45, 173×53 and 73×15, and runs the four width checks from termgrid's `sweep`, ported:
@@ -742,7 +748,7 @@ The quiet board is listed on purpose, as round 1 lists it: "All clear" and one s
 
 - **The demo world** is round 1's: `REST`, `BUSY` and the arriving `Room bookings`, in `cli/frames/fixtures.ts`, all placeholder names.
 - **No VHS tapes:** the golden frames and the live runs hold the panel.
-- **The still** for the docs page, `docs/terminal.md`, is the golden frame `panel-docs-73x17`, drawn from the fixtures' docs world: only the six sessions and six projects the docs may name (CLAUDE.md, "Writing the docs"), with asks, a Stopped row, a hollow one, `✻`, `◌` and Snoozed folded. It is read by `termgrid.py`'s `read_ansi` and drawn as the rounds' previews are (`preview_page`, its title bar `sitrep`, Nordfox), shot by headless Chrome at 2× and made lossless webp by `cwebp`: `art/screens/terminal.webp`. Remake it after a change to that frame.
+- **The still** for the docs page, `docs/terminal.md`, is the golden frame `panel-docs-73x18`, drawn from the fixtures' docs world: only the six sessions and six projects the docs may name (CLAUDE.md, "Writing the docs"), with asks, a Stopped row, a hollow one, `✻`, `◌` and Snoozed folded. It is read by `termgrid.py`'s `read_ansi` and drawn as the rounds' previews are (`preview_page`, its title bar `sitrep`, Nordfox), shot by headless Chrome at 2× and made lossless webp by `cwebp`: `art/screens/terminal.webp`. Remake it after a change to that frame.
 - **Later rounds** start from the build's frames read into termgrid, not from round 1's model of them.
 
 ## Out of scope
