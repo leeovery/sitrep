@@ -26,6 +26,14 @@ extension TypedCommand where Placeholder == ResumeFact {
     }
 }
 
+public extension OpenSettings {
+    /// Why the resume command as typed can't run, whatever the session, as Settings says it under the field, in words
+    /// naming no session; none for one that can.
+    static func refusal(of command: String) -> String? {
+        ResumeCommand(command).problem?.said(of: "The command")
+    }
+}
+
 /// What fills the resume command for a session: its window's writer and folder, the folder none from a window on a
 /// sitrep from before heartbeats said it, the one fact it may lack; and the device its Claude still runs on, none
 /// unless SitRep sees that Claude there, which is filled as empty. Its window is a live one where a window holds it,

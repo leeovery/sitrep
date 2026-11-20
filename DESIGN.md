@@ -6986,10 +6986,18 @@ live changed, and how they group.
   show opens a new window and types this command into your login shell.
   {claude} is its Claude Code session id, {dir} the folder it ran in,
   and {tty} the terminal that Claude still runs on, empty unless it does.
-  Each is replaced with a quoted value." Saved as typed, under a key of
+  Each is replaced with a quoted value. It takes plain shell syntax only:
+  anything more goes in a script." Saved as typed, under a key of
   its own (see stage 8's plan): the open command saved as `openCommand` is
   read and passed over, and a resume command never set reads as the
-  default. Nothing is said of it until a click. Not yet drawn in Paper.
+  default. A command that can't run says why under the label and the
+  field, in a row's line, as each key is typed: the refusal a click gives,
+  its subject "The command", naming no session, each part it sets in
+  backticks shown monospaced between typographic quotes, as "The command uses
+  `(`, which SitRep can't check. …"; an empty one, "The command is
+  empty." (20 November 2026, as the terminal phase's review found a
+  refused command said nothing until a click, and nothing at all with
+  SitRep's banners off). Not yet drawn in Paper.
   As it stood until 13 November 2026: **Ghostty**, the leave alone in a
   section of its own; **New windows** (stage 7, C): how a window is
   opened for a session no window shows. Terminal, the pop-up; and Open
@@ -9613,7 +9621,8 @@ open), and tmux passing an escape sequence through from Claude's own pane
      that, as in `PATH=~/bin:~/go/bin`, but never right before a
      placeholder: zsh and ksh read `~'root'` as `/var/root`, through the
      quotes;
-   - spaces and tabs between words, and `|`, `||`, `&&` and `;`;
+   - spaces between words, and `|`, `||`, `&&` and `;`, never a tab,
+     at which the shell SitRep types into completes;
    - redirections, `<`, `>` and `>>` to a word, and `>&` or `<&` to a
      single digit, as `2>&1`, which nothing may join;
    - `[` and `]` as words of their own;

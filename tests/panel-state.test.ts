@@ -251,6 +251,16 @@ test("the sessions SitRep says this Mac doesn't show move behind those it shows,
   expect(back.band).toBe(N1)
 })
 
+test("a board and the sessions this Mac doesn't show, stepped as one, move the band from the rows as drawn: the row now in its place on screen", () => {
+  const N4 = 'sr-nw0004'
+  const onN2 = pressed(read(boardOf({ asks: [N1, N2, N3, N4] })), DOWN, DOWN)
+  const looked = stepped(onN2, { board: boardOf({ asks: [N1, N3, N4] }), news: [], now: T0, notHere: new Set([N1]) })
+
+  expect(onN2.band).toBe(N2)
+  expect(inView(looked).slice(0, 3)).toEqual([N3, N4, N1])
+  expect([looked.band, [...looked.notHere]]).toEqual([N4, [N1]])
+})
+
 test('a session that leaves passes the band to the row now in its place, else the row above; with no rows left there is none', () => {
   const onW2 = pressed(read(), DOWN, PAGE_DOWN)
   const onW5 = pressed(read(), END)

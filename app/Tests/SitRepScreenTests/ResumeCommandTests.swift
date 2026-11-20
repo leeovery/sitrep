@@ -103,4 +103,23 @@ struct ResumeCommandTests {
             try await Self.line("cd {dir}", window)
         }
     }
+
+    /// Settings says why a command can't run under its field, whatever the session: the refusal a click would give,
+    /// its subject the field's own, naming no session; nothing for one that runs.
+    @Test(arguments: [
+        ("cd {dir} && (claude --resume {claude})", "The command uses `(`, which SitRep can't check. Put that part in a script and pass it {claude}, {dir} or {tty}, as in ~/bin/resume {claude} {dir}."),
+        ("cd '{dir}'", "The command puts {dir} in quotes. Remove them: SitRep quotes each value itself."),
+        ("cd {dir}\tclaude", "The command has a tab, which can't be typed."),
+        ("claude --resume {session}", "The command has {session}, which SitRep doesn't know. It knows {claude}, {dir} and {tty}."),
+        ("echo \"Northwind", #"The command opens `"` but never closes it."#),
+        ("  ", "The command is empty."),
+    ])
+    func settingsSaysWhyACommandCantRunNamingNoSession(command: String, words: String) {
+        #expect(OpenSettings.refusal(of: command) == words)
+    }
+
+    @Test(arguments: [OpenSettings.defaultResumeCommand, "~/bin/carry --claude {claude} -p {dir}", "~/bin/resume {claude} {dir} 2>&1"])
+    func settingsSaysNothingOfACommandThatRuns(command: String) {
+        #expect(OpenSettings.refusal(of: command) == nil)
+    }
 }

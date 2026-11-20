@@ -13,7 +13,7 @@
  *     in `PATH=~/bin:~/go/bin`, though never right before a placeholder,
  *     as zsh and ksh read `~'…'` as a user's home; `\` and the character
  *     after it;
- *   - spaces and tabs between them; `|`, `||`, `&&` and `;`;
+ *   - spaces between them; `|`, `||`, `&&` and `;`;
  *   - redirections, `<`, `>` and `>>`, each to a word, and `>&` or `<&` to
  *     a single digit, which nothing may join, as `2>&1`;
  *   - `[` and `]` as words of their own, as `[ -n "$s" ]`;
@@ -114,10 +114,10 @@ const SPECIAL = /^[?$1-9]$/
 
 const DIGIT = /^[0-9]$/
 
-const BLANKS: ReadonlySet<string> = new Set([' ', '\t'])
+const BLANKS: ReadonlySet<string> = new Set([' '])
 
 /** What may follow a part nothing may join, `2>&1`, `[` or `]`: a blank, an operator, a redirection, a `$(…)`'s end, or the command's, read as ''. */
-const BREAKS: ReadonlySet<string> = new Set(['', ' ', '\t', '|', '&', ';', '<', '>', ')'])
+const BREAKS: ReadonlySet<string> = new Set(['', ' ', '|', '&', ';', '<', '>', ')'])
 
 /**
  * What may follow a parameter outside braces, where every shell ends it: a

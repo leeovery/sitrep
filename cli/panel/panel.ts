@@ -4,7 +4,8 @@
  *
  * - Opening, it hears the keys, raw mode on, then asks the terminal's
  *   colours, so a key typed before the answer comes is read, and the answer
- *   never is: the key reader passes it over. Then it enters the screen and
+ *   never is: the key reader passes it over. Then it enters the screen,
+ *   reading the size again, since a resize while it asked goes unheard, and
  *   looks at the board every second as `watch` does (looks.ts), in its own
  *   process.
  * - Its first draw waits for the first look, up to 300 ms, so `Looking for
@@ -27,17 +28,20 @@
  *   SIGQUIT and SIGTERM from outside as each says. Its writes are tried
  *   though the terminal may be gone, and every wait it set is let go. A
  *   thrown error is thrown on once the terminal is given back. The signals
- *   that end it are heard from the first, the colour query's wait among it.
+ *   that end it are heard from the first: one during the colour query lets
+ *   the query go at once, never waiting out its answer.
  * - A pick, ⏎ or a tap on the band's row, one at a time: what the session's
  *   window can reach (reach.ts), then the resume command readied by the
  *   edge (edge.ts). Refused, it says why in the pick's answer. Else the
  *   terminal is handed over: given back as for a stop, then handed to the
  *   login shell. SIGINT and SIGQUIT are the program's meanwhile, as is a
  *   SIGCONT, Ctrl-Z stopping the panel with it; SIGTERM and SIGHUP still
- *   end the panel, leaving the terminal to the program. It keeps looking at
- *   the board, drawing nothing, and takes the terminal back as the program
- *   ends, drawn whole from the latest board, the band where it was, with
- *   what the pick leaves to say. Nothing else takes it back meanwhile, a
+ *   end the panel, taking nothing back, though the run ends only once the
+ *   program does, which keeps it alive, so the terminal never goes to the
+ *   shell under the program. It keeps looking at the board, drawing
+ *   nothing, and takes the terminal back as the program ends, drawn whole
+ *   from the latest board, the band where it was, with what the pick leaves
+ *   to say. Nothing else takes it back meanwhile, a
  *   Ctrl-Z's take-back pressed while the pick was readied among them.
  * - At every look it reads SitRep's `here.json` too, the board changed,
  *   unchanged or not read at all, and draws the held sessions it names hollow and dimmed, as the
@@ -443,15 +447,16 @@ const live = (io: Io, terminal: Terminal, { isNotifying }: PanelOptions) => {
 
   /**
    * A look's board, stepped as a board where it changed or the board was
-   * stale, else the clock alone; and the sessions this Mac doesn't show
-   * first, where SitRep says other than it did, so an unchanged board
-   * redraws with its new fill.
+   * stale, the sessions this Mac doesn't show with it, so the band follows
+   * its row from where it was drawn; else the clock alone, the fill first,
+   * where SitRep says other than it did, so an unchanged board redraws with
+   * its new fill.
    */
   const onLook = (look: Look, notHere: ReadonlySet<string>) => {
     unhold()
-    fill(notHere)
 
     if (look.isSame && state.board === 'read') {
+      fill(notHere)
       apply({ tick: look.now })
 
       return
@@ -461,7 +466,7 @@ const live = (io: Io, terminal: Terminal, { isNotifying }: PanelOptions) => {
     const news = newRows(shown, feed, ownTime(look.clock))
 
     shown = news.shown
-    apply({ board: feed, news: news.news, now: look.now })
+    apply({ board: feed, news: news.news, now: look.now, notHere })
     notify(feed, news.news)
   }
 
@@ -479,17 +484,27 @@ const live = (io: Io, terminal: Terminal, { isNotifying }: PanelOptions) => {
     return true
   }
 
-  /** The panel opened: closed by a signal from the first; its keys heard before it asks the colours, so the tty is never cooked between; then on the screen, watching the board. */
+  /**
+   * The panel opened: closed by a signal from the first, the colour query
+   * let go as it closes; its keys heard before it asks the colours, so the
+   * tty is never cooked between; then on the screen, at the size the
+   * terminal has once the query is answered, watching the board.
+   */
   const open = async () => {
     listening.push(...ENDINGS.map(([signal, closed]) => terminal.onSignal(signal, () => ended(signal, closed))))
     listen()
-    paint = paintOf(paint.level, await terminal.ask(COLOUR_QUERY))
+
+    const asking = terminal.ask(COLOUR_QUERY)
+
+    void closing.closed.then(asking.cancel, asking.cancel)
+    paint = paintOf(paint.level, await asking)
 
     if (!isClosed) {
       listening.push(
         terminal.onSignal('SIGCONT', continued),
         terminal.onResize(() => guard(resized)),
       )
+      state = step(state, { size: sizeOf(terminal) }).state
       enter()
       letHoldGo = later(HOLD_MS, () => {
         unhold()

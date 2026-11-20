@@ -11,7 +11,7 @@ import SitRepCore
 /// - words of ASCII letters, digits and `_ . / : @ % + , = -`; a `~` starting one, or right after its first `=` or a
 ///   `:` past that, as in `PATH=~/bin:~/go/bin`, though never right before a placeholder, as zsh and ksh read `~'…'`
 ///   as a user's home; `\` and the character after it;
-/// - spaces and tabs between them; `|`, `||`, `&&` and `;`;
+/// - spaces between them; `|`, `||`, `&&` and `;`;
 /// - redirections, `<`, `>` and `>>`, each to a word, and `>&` or `<&` to a single digit, which nothing may join, as
 ///   `2>&1`;
 /// - `[` and `]` as words of their own, as `[ -n "$s" ]`;
@@ -550,7 +550,7 @@ private extension Unicode.Scalar {
     }
 
     var isBlank: Bool {
-        self == " " || self == "\t"
+        self == " "
     }
 
     /// What may follow a part nothing may join, `2>&1`, `[` or `]`: a blank, an operator, a redirection or a `$(…)`'s
@@ -609,11 +609,14 @@ enum CommandProblem<Placeholder: CommandPlaceholder>: Equatable {
 
     /// Why no window opens, in plain words, for the session named.
     func refusal(named name: String) -> String {
-        let command = "The \(Placeholder.command) in Settings"
+        self == .empty ? Placeholder.unset(named: name) : said(of: "The \(Placeholder.command) in Settings")
+    }
 
-        return switch self {
+    /// What is wrong, in plain words naming no session, the command called as `command` calls it.
+    func said(of command: String) -> String {
+        switch self {
         case .empty:
-            Placeholder.unset(named: name)
+            "\(command) is empty."
         case let .unprintable(scalar):
             "\(command) has \(scalar.untypable)."
         case let .unknown(names):

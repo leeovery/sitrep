@@ -27,6 +27,9 @@ export type Env = { XDG_STATE_HOME?: string; HOME?: string; SITREP_SESSION?: str
 /** A wait under way: it resolves once its time has passed, unless `cancel` lets it go first, its timer with it, never to resolve. */
 export type Waiting = Promise<void> & { cancel: () => void }
 
+/** A terminal's answer to a query, waited on until it comes or `cancel` lets it go. */
+export type Asking = Promise<string> & { cancel: () => void }
+
 /** A run's end as listened for: `ended` resolves once it is to end; `stop` stops the listening, as the run ends some other way, so nothing holds it open after. */
 export type Ending = { ended: Promise<void>; stop: () => void }
 
@@ -51,8 +54,12 @@ export type Terminal = {
   keys: (heard: (bytes: string) => void) => () => void
   /** Writes to the terminal, as given; a write the terminal has gone from is lost. */
   write: (text: string) => void
-  /** Writes the query, ending on DA1's, and gives what the terminal answered before DA1's answer, or by the time it gave up waiting for it. */
-  ask: (query: string) => Promise<string>
+  /**
+   * Writes the query, ending on DA1's, and gives what the terminal answered
+   * before DA1's answer, or by the time it gave up waiting for it, or was
+   * let go: `cancel` stops the wait at once.
+   */
+  ask: (query: string) => Asking
   /**
    * Gives the terminal to a program, with the CLI's standard input, output
    * and error, until it ends: its exit code, 128 and the signal's number for

@@ -184,7 +184,7 @@ Doesn't apply: the panel shows no step running. Its marks are still: `✻` doesn
 - **Plain shell syntax,** which those shells all read alike:
   - words of ASCII letters, digits and `_ . / : @ % + , = -`, and `\` with the character after it;
   - a `~` starting a word, or right after the word's first `=` or a `:` past that, as in `PATH=~/bin:~/go/bin` and `--flag=~/x`;
-  - spaces and tabs between words, and `|`, `||`, `&&` and `;`;
+  - spaces between words, and `|`, `||`, `&&` and `;`; never a tab, which can't be typed, since a shell completes at one;
   - redirections: `<`, `>` and `>>` to a word, and `>&` or `<&` to a single digit, as `2>&1`, which nothing may join;
   - `[` and `]` as words of their own, as `[ -n "$s" ]`;
   - `'…'`, holding anything;
@@ -253,7 +253,7 @@ So with the default command, picking a session a live window holds always refuse
 
 **The hand-over.** Running the command hands the terminal over, then takes it back:
 1. Leave the alternate screen, show the cursor, turn autowrap on, mouse reporting, bracketed paste and raw mode off, and stop reading keys.
-2. Run the login shell with the panel's standard input, output and error, and ignore SIGINT and SIGQUIT while it runs: they're the command's. SIGTSTP keeps its default, so Ctrl-Z stops the whole job, the panel with the command, and `fg` carries on with both; the panel takes nothing back at that SIGCONT. A panel that heard SIGTSTP held the terminal from the shell, the command stopped, since Bun can't see a child stop (shown live, 19 November 2026). SIGTERM and SIGHUP still end the panel, leaving the terminal to the command.
+2. Run the login shell with the panel's standard input, output and error, and ignore SIGINT and SIGQUIT while it runs: they're the command's. SIGTSTP keeps its default, so Ctrl-Z stops the whole job, the panel with the command, and `fg` carries on with both; the panel takes nothing back at that SIGCONT. A panel that heard SIGTSTP held the terminal from the shell, the command stopped, since Bun can't see a child stop (shown live, 19 November 2026). SIGTERM and SIGHUP still end the panel, which takes nothing back, but the process ends only once the command ends, then exits 143 or 129: Bun's child keeps it alive, and that is right, since ending sooner would hand the terminal to the shell under the command.
 3. When the shell ends, unless a SIGTERM or SIGHUP sent with its end closed the panel first, take the terminal back: enter the screen, read the size afresh, and draw whole from the latest board, the band where it was, with the pick's answer, if it leaves one.
 
 - **One pick at a time.** A `⏎` or a tap while a pick is under way does nothing. Nothing takes the terminal back while the command has it, a Ctrl-Z's take-back pressed while the pick was readied included.
@@ -261,7 +261,7 @@ So with the default command, picking a session a live window holds always refuse
 - **Coming back is the command's.** The panel takes the terminal back only when the command ends. A command attaching a zmx session in a plain shell returns when you detach, with zmx's `Ctrl-\`. A resumed Claude with no multiplexer returns when you quit it. A command that switches this terminal's client and ends, or never ends, decides otherwise; the panel doesn't watch it.
 - **Inside a multiplexer.** A panel running inside zmx or tmux runs the command there like anywhere else. Whether the command nests a client, switches this one or refuses is the command's, and no question of the panel's: it attaches nothing itself (Lee, 19 November 2026; this was Open for Lee, 2).
 - **Watching meanwhile.** The panel keeps looking at the board, drawing nothing, and posts notifications, while the command runs (Lee, 19 November 2026).
-- **A command that fails** says so in its own words, on the screen the panel gave it. One that ends non-zero within 2 seconds also leaves an answer when the panel comes back: `The resume command ended with 1 for Release notes.`
+- **A command that fails** says so in its own words, on the screen the panel gave it. One that ends non-zero within 2 seconds also leaves an answer when the panel comes back: `The resume command ended with 1 for Release notes.` One a signal ended, exiting 129 and up, leaves none, since that is mostly a Ctrl-C you pressed yourself.
 - **A login shell that can't start** leaves its answer, naming `$SHELL`'s path: `sitrep couldn't start your login shell, /bin/zsh.`
 
 **A pick's answer** sits above the key line: `!` bold, a space, then the words in the terminal's ink, wrapped at W−4 and hung under the first word. It stays until the next key.
@@ -297,6 +297,7 @@ Doesn't apply: the panel collects no remedies. A pick's answer says what to do i
 
 `q` or `Ctrl-C` leaves the alternate screen, so the shell's screen comes back as it was. It prints nothing and exits 0.
 - **SIGTERM** restores the terminal and exits 143.
+- **During a hand-over,** SIGTERM and SIGHUP end the panel once the command it handed the terminal to ends, then it exits 143 or 129 (see "The hand-over").
 - **SIGHUP,** as an SSH connection drops, tries to restore it and exits 129. A terminal gone without one (its input ended, or output failing) counts as a hang-up.
 - **SIGINT and SIGQUIT** from outside restore it and exit 130 and 131. Ctrl-C typed in the panel is a key, and exits 0.
 - **`Ctrl-Z`** restores the terminal and stops the panel. It takes the terminal back as the stop returns, the size read afresh, so a stop the kernel discards, as in an orphaned process group under `ssh -t host sitrep`, never leaves it stranded; the SIGCONT of its own stop then does nothing more. A SIGCONT after a stop from outside takes it back too.

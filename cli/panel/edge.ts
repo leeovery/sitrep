@@ -25,7 +25,8 @@
  *   environment, in a POSIX shell only, as each value is quoted for one: a
  *   `\'` in fish's single quotes is an escape. A command that ends non-zero
  *   within QUICK_MS leaves an answer saying so, as its own words went by
- *   too fast to read.
+ *   too fast to read; one a signal ended leaves none, since a Ctrl-C the
+ *   user pressed ends it so.
  */
 import { isObject, type Checked } from '../../core'
 import type { Io, Ran, Terminal } from '../io'
@@ -44,6 +45,9 @@ export const PS_MS = 2_000
 
 /** How soon a command that fails ends for its failure to leave an answer. */
 export const QUICK_MS = 2_000
+
+/** The highest exit code of a program's own; above it, 128 and a signal's number, a signal ended it, as a Ctrl-C does. */
+const HIGHEST_OWN_EXIT = 128
 
 /** A process as `ps` lists it: its state, then its program, spaces and all. */
 const PROCESS = /^\s*(\S+)\s+(.*\S)\s*$/
@@ -173,7 +177,7 @@ export const handed = async (io: Io, terminal: Terminal, argv: readonly string[]
   try {
     const exit = await terminal.hand(argv)
 
-    return exit !== 0 && io.uptime() - from < QUICK_MS ? `The resume command ended with ${exit} for ${name}.` : undefined
+    return exit !== 0 && exit <= HIGHEST_OWN_EXIT && io.uptime() - from < QUICK_MS ? `The resume command ended with ${exit} for ${name}.` : undefined
   } catch {
     return unstarted(argv[0] ?? '')
   }
