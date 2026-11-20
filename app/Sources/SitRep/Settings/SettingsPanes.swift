@@ -135,7 +135,7 @@ struct CommandRow: View {
             }
             .frame(minHeight: SettingsStyle.oneLineRow)
             if let refusal = OpenSettings.refusal(of: command) {
-                Text(refusal)
+                Text(Self.shown(refusal))
                     .font(.subheadline)
                     .foregroundStyle(SettingsStyle.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -144,6 +144,24 @@ struct CommandRow: View {
             }
         }
         .padding(.horizontal, SettingsStyle.inset)
+    }
+
+    /// The face of a part a refusal sets in backticks: monospaced, at the line's size.
+    static let partFont = Font.subheadline.monospaced()
+
+    /// A refusal as the row shows it: each part it sets in backticks in the monospaced face, the backticks dropped.
+    /// Split by hand, not read as Markdown, as a part may hold `*` or `_`; none holds a backtick, which a refusal names
+    /// in words.
+    static func shown(_ refusal: String) -> AttributedString {
+        refusal.split(separator: "`", omittingEmptySubsequences: false).enumerated().reduce(into: AttributedString()) {
+            shown, piece in
+            var words = AttributedString(piece.element)
+
+            if !piece.offset.isMultiple(of: 2) {
+                words.font = partFont
+            }
+            shown += words
+        }
     }
 }
 

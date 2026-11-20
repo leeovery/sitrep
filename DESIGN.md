@@ -6992,7 +6992,8 @@ live changed, and how they group.
   read and passed over, and a resume command never set reads as the
   default. A command that can't run says why under the label and the
   field, in a row's line, as each key is typed: the refusal a click gives,
-  its subject "The command", naming no session, as "The command uses
+  its subject "The command", naming no session, each part it sets in
+  backticks shown in the monospaced face, the backticks dropped, as "The command uses
   `(`, which SitRep can't check. …"; an empty one, "The command is
   empty." (20 November 2026, as the terminal phase's review found a
   refused command said nothing until a click, and nothing at all with
