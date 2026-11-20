@@ -8796,10 +8796,10 @@ open), and tmux passing an escape sequence through from Claude's own pane
      `DEVELOPER_ID_P12_PASSWORD`, which kit writes to `~/.secrets.zsh`:
      `app/bundle` and `app/notarize` unlock it themselves
      (`app/signing-common`), reading the password from `~/.secrets.zsh`
-     where the shell lacks it, so neither asks, at the Mac or over SSH. It
-     signs by the
-     identity's hash, and refuses, listing them, when the signing keychain
-     holds two of the name, as after a renewal. Inside out, never with
+     where the shell lacks it or holds an old one, so neither asks, at the
+     Mac or over SSH. It signs by the identity's hash, and refuses, listing
+     them, when the signing keychain holds two of the name, as after a
+     renewal. Inside out, never with
      `--deep`: the CLI (step 9), the notices helper, then the app, each
      under the hardened runtime. A release's carry a secure timestamp,
      which notarising needs; getting one needs the network, and without it

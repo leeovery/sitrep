@@ -39,7 +39,7 @@ It needs:
 - **Bun**: the `bin/sitrep` of a checkout under `app/plugin here` runs on it, the gates run `bunx`, and `app/bundle` compiles the app's CLI with `bun build --compile`;
 - **Xcode**, for Swift 6 and the `actool` that compiles the icon;
 - **jq**, which `app/plugin` reads Claude Code's lists with;
-- **the Developer ID certificate**, `Developer ID Application: PointsBox Limited (CQKZZ4FN6V)`, in the signing keychain, `~/Library/Keychains/signing.keychain-db`, which kit's developer-id step makes: `app/bundle` signs with it, and stops without it. The keychain opens with `DEVELOPER_ID_P12_PASSWORD`, which kit writes to `~/.secrets.zsh`; `app/bundle` and `app/notarize` unlock it themselves, reading the password from `~/.secrets.zsh` where the shell lacks it, so nothing asks, at the Mac or over SSH.
+- **the Developer ID certificate**, `Developer ID Application: PointsBox Limited (CQKZZ4FN6V)`, in the signing keychain, `~/Library/Keychains/signing.keychain-db`, which kit's developer-id step makes: `app/bundle` signs with it, and stops without it. The keychain opens with `DEVELOPER_ID_P12_PASSWORD`, which kit writes to `~/.secrets.zsh`; `app/bundle` and `app/notarize` unlock it themselves, reading the password from `~/.secrets.zsh` where the shell lacks it or holds an old one, so nothing asks, at the Mac or over SSH.
 
 Without that certificate, `app/bundle` and `app/build` can't run: a contributor without it runs the gates below, and Lee builds and installs the app.
 

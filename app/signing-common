@@ -18,9 +18,10 @@ profile=notarytool
 # shellcheck disable=SC2034 # read by app/notarize
 notary=(--keychain "$keychain" --keychain-profile "$profile")
 # What a command handed to a person runs first, so it opens the signing
-# keychain however the shell came: the variable's name, never its value.
+# keychain in any shell, one that hasn't read ~/.secrets.zsh among them: it
+# reads the password from that file, naming the variable, never its value.
 # shellcheck disable=SC2034 # read by app/notarize
-unlock_command="security unlock-keychain -p \"\$DEVELOPER_ID_P12_PASSWORD\" $keychain"
+unlock_command="source ~/.secrets.zsh && security unlock-keychain -p \"\$DEVELOPER_ID_P12_PASSWORD\" $keychain"
 
 # signing_fail says why the run stops, and stops it.
 signing_fail() {
@@ -32,17 +33,23 @@ signing_fail() {
 # that signs or notarizes asks for it.
 unlock_keychain() {
   [[ -f $keychain ]] || signing_fail "There's no signing keychain at $keychain: kit apply makes it, its developer-id step."
-  # A shell that hasn't read ~/.secrets.zsh, as a plain ssh command's, an
-  # agent's or one started before kit wrote it, finds the password there.
-  if [[ -z ${DEVELOPER_ID_P12_PASSWORD:-} && -f $HOME/.secrets.zsh ]]; then
-    DEVELOPER_ID_P12_PASSWORD=$(zsh -fc 'source ~/.secrets.zsh && print -rn -- "${DEVELOPER_ID_P12_PASSWORD-}"') ||
-      DEVELOPER_ID_P12_PASSWORD=
+  # The environment's password first, then ~/.secrets.zsh's where it differs:
+  # a shell that hasn't read the file, as a plain ssh command's, an agent's or
+  # one started before kit wrote it, has none, and one started before the
+  # password changed has the old one.
+  local from_file=
+  if [[ -f $HOME/.secrets.zsh ]]; then
+    from_file=$(zsh -fc 'source ~/.secrets.zsh && print -rn -- "${DEVELOPER_ID_P12_PASSWORD-}"') || from_file=
   fi
-  [[ -n ${DEVELOPER_ID_P12_PASSWORD:-} ]] || signing_fail "DEVELOPER_ID_P12_PASSWORD isn't set, nor in ~/.secrets.zsh, so the signing keychain can't be unlocked: kit secret sync writes it to ~/.secrets.zsh."
-  security unlock-keychain -p "$DEVELOPER_ID_P12_PASSWORD" "$keychain" ||
-    signing_fail "The signing keychain doesn't open with DEVELOPER_ID_P12_PASSWORD, as security says above: security delete-keychain $keychain, then kit apply, which makes it again with notarytool's profile."
+  [[ -n ${DEVELOPER_ID_P12_PASSWORD:-} || -n $from_file ]] || signing_fail "DEVELOPER_ID_P12_PASSWORD isn't set, nor in ~/.secrets.zsh, so the signing keychain can't be unlocked: kit secret sync writes it to ~/.secrets.zsh."
+  if [[ -z ${DEVELOPER_ID_P12_PASSWORD:-} ]] || ! security unlock-keychain -p "$DEVELOPER_ID_P12_PASSWORD" "$keychain" 2>/dev/null; then
+    if [[ -z $from_file || $from_file == "${DEVELOPER_ID_P12_PASSWORD:-}" ]] || ! security unlock-keychain -p "$from_file" "$keychain" 2>/dev/null; then
+      signing_fail "The signing keychain doesn't open with DEVELOPER_ID_P12_PASSWORD, the environment's or ~/.secrets.zsh's: kit status developer-id says whether the password or the keychain is wrong, and what to do."
+    fi
+    DEVELOPER_ID_P12_PASSWORD=$from_file
+  fi
   # Behind a keychain holding the same identity, as the login keychain may,
   # codesign takes that one's key, locked over SSH.
-  [[ $(security list-keychains -d user | head -n 1 | tr -d ' "') == "$keychain" ]] ||
+  [[ $(security list-keychains -d user | head -n 1 | sed 's/^ *"//; s/"$//') == "$keychain" ]] ||
     signing_fail "The signing keychain isn't first on the keychain search list, where codesign finds its key whatever --keychain names: kit apply puts it there, its developer-id step."
 }
