@@ -10265,6 +10265,27 @@ look", the pick on its page "FINAL · board in a terminal".
   notch's; its still, `art/screens/terminal.webp`, is the golden frame
   `panel-docs-73x19`, a world of the docs' placeholder names alone, drawn
   by termgrid.
+- **Proven live on 20 November 2026,** by Lee, from a build of `f5e442c`, on
+  his iPad and iPhone in rootshell over tssh:
+  - **The dims by device:** from a plain tab on the iPad, the sessions
+    attached there drew filled, Folio's (attached only in the Mac's Ghostty)
+    and Fabric's (attached nowhere) hollow. On the iPhone, with nothing
+    attached, every row drew hollow. Attaching the sitrep session there
+    through Portal filled its row within seconds, while the iPad's view,
+    whose attach Portal ended, drew it hollow. Taking the session back
+    swapped them. Run inside a zmx session, the view found itself by its
+    tty and drew the same.
+  - **The pick:** `⏎` on a hollow row ran Lee's Portal resume command and
+    attached the session at once. Portal's `Alt+D` detaches back to its
+    picker, by design, and leaving the picker brought the view back.
+    Portal labelled SitRep its terminal, because its walk takes any
+    ancestor under a `.app/` (parked, a Portal fix).
+  - **Notifications:** a new ask posted a banner on both devices while
+    rootshell was in the background. rootshell holds an OSC 777 banner back
+    for the tab in front, and a tap on one does nothing: rootshell returns a
+    tap to its pane only for its own push notifications (parked).
+  - **The band,** too strong at first on the phone's near-black, now stands
+    one quiet step of contrast off any ground (#187).
 
 Every other question the spec put to Lee he answered on 19 November 2026
 as it recommended, and none is left open. So the CLI runs programs again, which it has not done
