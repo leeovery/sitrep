@@ -88,11 +88,11 @@ test("a session lists its status's history and its closed asks with no blank row
   )
 
   expect(listedUnder(rows, 'STATUS')).toEqual([
-    ' • Drawing the schema',
+    ' ● Drawing the schema',
     ' hide history',
-    ' • now drawing the schema 5m',
-    ' • now merging PR #82 6m',
-    ' • now merging PR #81 7m',
+    ' ● now drawing the schema 5m',
+    ' ● now merging PR #82 6m',
+    ' ● now merging PR #81 7m',
   ])
   expect(listedUnder(rows, 'RESOLVED')).toEqual([' ✓ Review round 2 1m', ' ✓ Review round 1 2m'])
 })

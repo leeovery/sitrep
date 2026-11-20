@@ -103,10 +103,10 @@ test("a change in Status's history is its mark, its text and its age at the righ
     rowsOf(await ui.find({ key: `change:${changeKey(HELD.id, T0, W1)}` }), ACROSS)
 
   expect(await across(drawnFrom(bodies, historyShown()))).toEqual([
-    '• now drawing Inbox, round 2, and the brief bes…   now',
+    '● now drawing Inbox, round 2, and the brief bes…   now',
   ])
   expect(await across(drawnFrom(bodies, historyShown(T0)))).toEqual([
-    '• now drawing Inbox, round 2, and the brief        now',
+    '● now drawing Inbox, round 2, and the brief        now',
     '│ beside it',
     '├ Added: Drawing Inbox, round 2, and the brief beside',
     '│ it',

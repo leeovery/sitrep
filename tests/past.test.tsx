@@ -99,9 +99,9 @@ test("STATUS's history is folded under the status as a dim press counting every 
     dimColor: true,
   })
   expect(await rowsUnder(shown, 'change:')).toEqual([
-    ['• now shipping                                     56m'],
-    ['• no longer drawing round 2                        57m'],
-    ['• now also writing the notes                       58m'],
+    ['● now shipping                                     56m'],
+    ['● no longer drawing round 2                        57m'],
+    ['● now also writing the notes                       58m'],
   ])
 })
 
@@ -109,11 +109,11 @@ test('the history shown in full lists every change under show fewer', async () =
   const ui = drawn(CHANGES, showing(HISTORY, 'all'))
 
   expect(await rowsUnder(ui, 'change:')).toEqual([
-    ['• now shipping                                     56m'],
-    ['• no longer drawing round 2                        57m'],
-    ['• now also writing the notes                       58m'],
-    ['• now drawing round 2                              59m'],
-    ['• now drawing round 1                               1h'],
+    ['● now shipping                                     56m'],
+    ['● no longer drawing round 2                        57m'],
+    ['● now also writing the notes                       58m'],
+    ['● now drawing round 2                              59m'],
+    ['● now drawing round 1                               1h'],
   ])
   expect(await press(ui, `all:${HISTORY}`)).toMatchObject({ label: 'show fewer' })
 })
@@ -131,12 +131,12 @@ test('a change opens to its detail, each line under its label; its mark is a fai
   const ui = drawn(CHANGES, { ...showing(HISTORY), selected: `status:${change}` })
 
   expect(await rowsAt(ui, `change:${change}`)).toEqual([
-    '• now also writing the notes                       58m',
+    '● now also writing the notes                       58m',
     '├ Added: Writing the notes',
     '└ Still there: Drawing round 2',
   ])
   expect(
-    (await ui.findAll({ type: 'Text', text: '•' })).map(each => each.props.color),
+    (await ui.findAll({ type: 'Text', text: '●' })).map(each => each.props.color),
   ).toContain(C.faint)
 })
 
