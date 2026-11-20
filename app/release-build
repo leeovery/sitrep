@@ -114,6 +114,10 @@ clear_work
 mkdir -p "$work/build" "$work/out"
 git worktree add --quiet --detach "$tree" "$commit"
 echo "Building SitRep $version from $commit"
+# The tree's own app/bundle signs it. A tree from before the signing
+# keychain, a tag built again, signs from the keychains macOS searches, so
+# only while one of them holds the identity: the login keychain's copy is due
+# to go.
 MINT_NEW_VERSION=$version "$tree/app/bundle" --release "$work/build"
 bundle="$work/build/SitRep.app"
 built=$(plutil -extract CFBundleShortVersionString raw -o - "$bundle/Contents/Info.plist")

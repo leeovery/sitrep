@@ -8792,11 +8792,12 @@ open), and tmux passing an escape sequence through from Claude's own pane
      build, `app/build`'s too, so a build from a checkout and a release
      share macOS's leave (see step 3's "Signed with"). The signing keychain,
      which kit's developer-id step makes, holds the identity and
-     notarytool's profile alone and opens with the `.p12`'s password,
+     notarytool's profile and opens with the `.p12`'s password,
      `DEVELOPER_ID_P12_PASSWORD`, which kit writes to `~/.secrets.zsh`:
      `app/bundle` and `app/notarize` unlock it themselves
-     (`app/signing-common`), so neither asks, at the Mac or over SSH, and a
-     shell without that variable can't build the app. It signs by the
+     (`app/signing-common`), reading the password from `~/.secrets.zsh`
+     where the shell lacks it, so neither asks, at the Mac or over SSH. It
+     signs by the
      identity's hash, and refuses, listing them, when the signing keychain
      holds two of the name, as after a renewal. Inside out, never with
      `--deep`: the CLI (step 9), the notices helper, then the app, each
