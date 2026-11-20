@@ -294,19 +294,33 @@ test('a signal during the 300 ms hold ends the panel, the screen given back with
   }
 })
 
-test('a signal while the colour query waits ends the panel before it takes the screen, the terminal left as it was', async () => {
+test('a signal while the colour query waits ends the panel at once, the query let go, before it takes the screen, the terminal left as it was', async () => {
   for (const [name, leave, exit] of WAYS.filter(([way]) => way.startsWith('SIG'))) {
-    const answer = latch()
-    const run = opened({ answer: answer.opened.then(() => '') })
+    const run = opened({ answer: new Promise<string>(() => {}) })
 
     await run.passing(0)
+    expect(run.screen.isAsking(), name).toBe(true)
     await leave(run)
-    answer.open()
 
     expect(await run.ended(), name).toEqual({ exit, err: '' })
+    expect(run.screen.isAsking(), name).toBe(false)
     expect(run.screen.writes, name).toEqual([QUERY])
     expect(givenBack(run), name).toEqual(GIVEN_BACK)
   }
+})
+
+test('a resize while the colour query waits, heard by nothing yet, is drawn at once: the screen taken at the size the terminal has as the answer comes', async () => {
+  const answer = latch()
+  const run = opened({ answer: answer.opened.then(() => '') })
+
+  await run.passing(0)
+  run.screen.resize({ width: 69, height: 20 })
+  answer.open()
+  await run.passing(0)
+
+  expect(screenOf(run.screen.writes, 20)[19]).toBe(' ↑↓ pick  q quit')
+  expect(screenOf(run.screen.writes, 20)[3]).toBe(' ● Help desk redesign                                             1m')
+  await run.type('q')
 })
 
 test('the keys are heard while the colour query waits, raw mode on from before it asks: q then leaves before the screen is taken', async () => {

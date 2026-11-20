@@ -145,7 +145,11 @@ The text form of `board` lists every item parked in the project, not only this s
 | `2` | No such session |
 | `129`, `130`, `131`, `143` | The terminal view ended by SIGHUP, SIGINT, SIGQUIT or SIGTERM |
 
-A refusal prints one line to standard error, starting `sitrep:`, that says what to fix. With no command in a script, a pipe or a terminal whose `TERM` is `dumb`, `sitrep` prints the help to standard error and exits 1.
+A refusal prints one line to standard error, starting `sitrep:`, that says what to fix.
+
+If SIGTERM or SIGHUP comes while the terminal view runs your resume command, `sitrep` waits for that command to end, then exits 143 or 129.
+
+With no command, `sitrep` opens the terminal view only if standard input and output are both a terminal, and `TERM` isn't `dumb`. Otherwise it prints the help to standard error and exits 1.
 
 ## Related
 

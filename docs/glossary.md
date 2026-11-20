@@ -74,7 +74,7 @@ Each word below means one thing on every page of these docs. The words are group
 
 **the pulse**: The notch swelling and flashing its light. By default it comes for a new ask, and when a window starts waiting at a permission prompt. For Claude stopping, you turn it on in Settings › Notifications.
 
-**row**: A session in the panel, in the terminal view, or in the menu of the menu bar item. In the panel, a row in Needs you has a line for each ask or permission prompt waiting. In the terminal view, a row takes two lines. The first holds the name, with a count if more than one thing waits. The second holds the project, then the newest thing it waits on or is doing.
+**row**: A session in the panel, in the terminal view, or in the menu of the menu bar item. In the panel, a row in Needs you has a line for each ask or permission prompt waiting. In the terminal view, a row takes two lines. The first holds the name, with a count if more than one thing waits. The second holds the project, then the newest thing it waits on or is doing. In Snoozed, the second line holds the thing that wakes soonest instead, the oldest if several wake together.
 
 **the strip**: The other way to show the board at the screen edge: a narrow column with a mark for each session. You choose Notch, Strip or Nothing under Show, in the menu or in Settings › Edge.
 

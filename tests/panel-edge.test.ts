@@ -292,6 +292,13 @@ test('a command that ends non-zero within 2 seconds leaves an answer with its ex
   expect((await handedFor(10, 0)).said).toBeUndefined()
 })
 
+test('a command a signal ends within 2 seconds, as a Ctrl-C does, leaves no answer: 129 and up; 128 is its own', async () => {
+  expect((await handedFor(10, 130)).said).toBeUndefined()
+  expect((await handedFor(10, 129)).said).toBeUndefined()
+  expect((await handedFor(10, 143)).said).toBeUndefined()
+  expect((await handedFor(10, 128)).said).toBe(`The resume command ended with 128 for ${NAME}.`)
+})
+
 test('a login shell that cannot start leaves its own answer, naming it', async () => {
   const { io, screen } = clocked()
   const said = handed(io, screen.terminal, ['/bin/zshh', '-l', '-c', 'carry'], NAME)

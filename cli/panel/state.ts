@@ -45,8 +45,13 @@ export type PanelState = ViewState & {
   now: number
 }
 
-/** A look's board: the lines new to Needs you on it, and when it was read. */
-type Board = { board: Feed; news: readonly string[]; now: number }
+/**
+ * A look's board: the lines new to Needs you on it, when it was read, and
+ * the sessions no terminal on this Mac shows as SitRep said them then,
+ * where the look read them, stepped with the board so the band follows its
+ * row from where it was drawn.
+ */
+type Board = { board: Feed; news: readonly string[]; now: number; notHere?: ReadonlySet<string> }
 
 export type PanelEvent =
   | Board
@@ -152,7 +157,7 @@ const reflowed = (state: PanelState, next: PanelState) =>
 const arrived = (arrivals: ViewState['arrivals'], news: readonly string[], now: number) =>
   new Map([...arrivals, ...news.map(key => [key, now] as const)].filter(([, at]) => now - at < NEW_MS))
 
-const boarded = (state: PanelState, { board, news, now }: Board): PanelState => {
+const boarded = (state: PanelState, { board, news, now, notHere = state.notHere }: Board): PanelState => {
   const read: PanelState = {
     ...withField(state, 'reason', undefined),
     feed: board,
@@ -160,6 +165,7 @@ const boarded = (state: PanelState, { board, news, now }: Board): PanelState => 
     readAt: now,
     now,
     arrivals: arrived(state.arrivals, news, now),
+    notHere,
   }
 
   return reflowed(state, read)

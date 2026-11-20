@@ -111,15 +111,16 @@ struct GeneralPaneTests {
     /// The row, holding the command given, in a column of the width given: its height, its field, the field's first
     /// baseline from the row's top, and the row drawn.
     private static func row(
-        _ command: String = "", column: CGFloat, sourceLocation: SourceLocation = #_sourceLocation
+        _ command: String = OpenSettings.defaultResumeCommand, column: CGFloat,
+        sourceLocation: SourceLocation = #_sourceLocation
     ) throws
         -> (height: CGFloat, field: CGRect, baseline: CGFloat, drawn: Drawn)
     {
         let row = CommandRow(command: .constant(command)).background(.black)
-        let hosted = Hosted(row, size: CGSize(width: column, height: SettingsStyle.oneLineRow))
+        let height = NSHostingController(rootView: row).sizeThatFits(in: CGSize(width: column, height: 400)).height
+        let hosted = Hosted(row, size: CGSize(width: column, height: height))
         let field = try #require(hosted.all(NSTextField.self).first, sourceLocation: sourceLocation)
         let frame = hosted.frame(of: field)
-        let height = NSHostingController(rootView: row).sizeThatFits(in: CGSize(width: column, height: 400)).height
 
         return (height, frame, frame.minY + field.firstBaselineOffsetFromTop, try Drawn(hosted.hosting))
     }
@@ -143,6 +144,20 @@ struct GeneralPaneTests {
         #expect(squeezed.height == SettingsStyle.oneLineRow)
         #expect(squeezed.field.width < CommandRow.fieldWidth)
         #expect(abs(squeezed.field.maxX - (narrow - SettingsStyle.inset)) < 0.5)
+    }
+
+    /// A command that can't run says why under the label and the field, the row growing by the lines it takes and the
+    /// field staying where it stands; one that runs says nothing, the row its one line.
+    @Test(arguments: [column, leastColumn])
+    func aCommandThatCantRunSaysWhyUnderTheField(column: CGFloat) throws {
+        let runs = try Self.row(column: column)
+        let refused = try Self.row("cd {dir} && (claude --resume {claude})", column: column)
+        let under = CGRect(x: SettingsStyle.inset, y: SettingsStyle.oneLineRow, width: 40, height: 12)
+
+        #expect(runs.height == SettingsStyle.oneLineRow)
+        #expect(refused.height > SettingsStyle.oneLineRow + 2 * 13)
+        #expect(refused.field == runs.field)
+        #expect(refused.drawn.litRows(in: under) != nil)
     }
 
     /// The label and the command stand on one line of text: the foot of the label's O, which hangs below no line, on

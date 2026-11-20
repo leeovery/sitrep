@@ -53,7 +53,7 @@ SitRep replaces each placeholder with a quoted value:
 
 Set your own in Settings › General, under Resume command. A one-liner, an alias, a function or a script all work. **Restore Default** puts the default back.
 
-SitRep runs only plain shell syntax. A folder name then runs as code only if your command hands it to something that runs it, such as `eval` or `sh -c`. The command may hold:
+SitRep runs only plain shell syntax. A folder name then runs as code only if your command hands it to something that runs it, such as `eval` or `sh -c`. If you set zsh's `GLOB_SUBST`, put variables and `$(…)` in double quotes, for example `"$s"`. The command may hold:
 
 - words, and a `~` at the start of one or after `=`, for example `PATH=~/bin`;
 - `|`, `||`, `&&` and `;`;

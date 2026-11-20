@@ -4,8 +4,9 @@
  *
  * - Raw mode is on while anything listens to the keys or waits on an
  *   answer to a query, and off once nothing does.
- * - A query waits for DA1's answer up to a second. An answer that comes
- *   later reaches the keys, whose reader passes it over.
+ * - A query waits for DA1's answer up to a second, or until it is let go.
+ *   An answer that comes later reaches the keys, whose reader passes it
+ *   over.
  * - The size is asked of the terminal each time: Bun's `columns` and `rows`
  *   change only on a SIGWINCH, which a resize made while the run is stopped
  *   sends to the shell instead (proven live, 19 November 2026).
@@ -29,7 +30,7 @@
  *   hear, and the run answers then, never waiting on its pipes: what it
  *   started may hold them open.
  */
-import { KEYED, type Ran, type Signal, type Terminal } from '../io'
+import { KEYED, type Asking, type Ran, type Signal, type Terminal } from '../io'
 
 /** How long a query waits for DA1's answer. */
 const ANSWER_MS = 1_000
@@ -153,9 +154,10 @@ export const terminalOf = (): Terminal | undefined => {
     tried(() => void process.stdout.write(text))
   }
 
-  const ask = (query: string) =>
-    new Promise<string>(resolve => {
-      let heard = ''
+  const ask = (query: string): Asking => {
+    let heard = ''
+    let finish: (answer: string) => void = () => {}
+    const answered = new Promise<string>(resolve => {
       const stop = listen(bytes => {
         heard += bytes
 
@@ -166,7 +168,8 @@ export const terminalOf = (): Terminal | undefined => {
         }
       })
       const timer = setTimeout(() => finish(heard), ANSWER_MS)
-      const finish = (answer: string) => {
+
+      finish = answer => {
         clearTimeout(timer)
         stop()
         resolve(answer)
@@ -174,6 +177,9 @@ export const terminalOf = (): Terminal | undefined => {
 
       write(query)
     })
+
+    return Object.assign(answered, { cancel: () => finish(heard) })
+  }
 
   return {
     size: () => {

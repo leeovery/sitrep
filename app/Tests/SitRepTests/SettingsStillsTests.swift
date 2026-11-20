@@ -5,6 +5,7 @@ import Foundation
 import SitRepEdge
 import SitRepMenu
 import SitRepPanel
+import SitRepScreen
 import SitRepTestSupport
 import SwiftUI
 import Testing
@@ -61,9 +62,10 @@ struct SettingsStillsTests {
     }
 
     private static func render(
-        _ view: some View, _ name: String, size: CGSize, sourceLocation: SourceLocation = #_sourceLocation
+        _ view: some View, _ name: String, size: CGSize, scheme: ColorScheme = .dark,
+        sourceLocation: SourceLocation = #_sourceLocation
     ) throws {
-        try Still.png(view, size: size, sourceLocation: sourceLocation)
+        try Still.png(view, size: size, scheme: scheme, sourceLocation: sourceLocation)
             .write(to: try #require(stills, sourceLocation: sourceLocation).appending(path: "\(name).png"))
     }
 
@@ -71,13 +73,15 @@ struct SettingsStillsTests {
     /// size unless `width` says.
     private static func pane(
         _ pane: SettingsPane, _ settings: SettingsModel, _ name: String,
-        width: CGFloat = SettingsWindow.size.width - 188
+        width: CGFloat = SettingsWindow.size.width - 188, scheme: ColorScheme = .dark
     ) throws {
         let view = SettingsPaneContent(pane: pane, settings: settings)
             .frame(maxHeight: .infinity, alignment: .top)
             .background(Color(nsColor: .windowBackgroundColor))
 
-        try render(view, "settings-\(name)", size: CGSize(width: width, height: SettingsWindow.size.height))
+        try render(
+            view, "settings-\(name)", size: CGSize(width: width, height: SettingsWindow.size.height), scheme: scheme
+        )
     }
 
     private static let current = [window("w2", needsReload: false)]
@@ -93,6 +97,21 @@ struct SettingsStillsTests {
 
         preferences.app.resumeCommand = "portal open --claude {claude} -p {dir}"
         try Self.pane(.general, await Self.settings(preferences, windows: Self.current), "general-command")
+    }
+
+    /// Resume command with a command that runs and one that can't, which says why under the field, in light and dark.
+    @Test(arguments: ["~/bin/carry --claude {claude} -p {dir}", "cd {dir} && (claude --resume {claude})"], [
+        ColorScheme.light, .dark,
+    ])
+    func generalWithACommandThatRunsOrNot(command: String, scheme: ColorScheme) async throws {
+        let preferences = Self.preferences()
+        let name = OpenSettings.refusal(of: command) == nil ? "runs" : "refused"
+
+        preferences.app.resumeCommand = command
+        try Self.pane(
+            .general, await Self.settings(preferences, windows: Self.current),
+            "general-command-\(name)-\(scheme == .dark ? "dark" : "light")", scheme: scheme
+        )
     }
 
     @Test(arguments: [EdgeSettings.Show.strip, .nothing])

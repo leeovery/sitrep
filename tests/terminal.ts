@@ -79,7 +79,8 @@ export const NO_PROCESS: Ran = { exit: 1, out: '', err: '' }
 /**
  * A terminal for the panel's runs: the size it says, keys typed into it,
  * resizes and signals as a test scripts them, the colour query answered
- * with `answer`, once it settles where it is a promise, and every write
+ * with `answer`, once it settles where it is a promise, or with nothing
+ * where the query is let go first, and every write
  * kept, the query among them, with STOPPED where the run stopped and
  * HANDED where it handed the terminal to a program. A stop returns at
  * once, as one the shell has already brought back. A program handed the
@@ -100,6 +101,7 @@ export const tty = ({
   let said: Size | undefined = size
   let reading: ((bytes: string) => void) | undefined
   let listens = 0
+  let isAsking = false
   const writes: string[] = []
   /** Each program handed the terminal, and each run apart, by its words and its time. */
   const handed: (readonly string[])[] = []
@@ -132,10 +134,21 @@ export const tty = ({
       }
     },
     write: text => void writes.push(text),
-    ask: async query => {
-      writes.push(query)
+    ask: query => {
+      let letGo = () => {}
+      const cancelled = new Promise<string>(resolve => {
+        letGo = () => resolve('')
+      })
 
-      return answer
+      writes.push(query)
+      isAsking = true
+
+      return Object.assign(
+        Promise.race([Promise.resolve(answer), cancelled]).finally(() => {
+          isAsking = false
+        }),
+        { cancel: () => letGo() },
+      )
     },
     hand: argv => {
       writes.push(HANDED)
@@ -176,6 +189,8 @@ export const tty = ({
     end: (exit: number) => program?.end(exit),
     /** The program handed the terminal could not start. */
     unstarted: (error: Error) => program?.fail(error),
+    /** Whether the colour query waits on its answer, neither answered nor let go. */
+    isAsking: () => isAsking,
     /** Whether the panel listens to its keys, raw mode on. */
     isReading: () => reading !== undefined,
     /** How many times the panel began listening to its keys, raw mode set each time. */

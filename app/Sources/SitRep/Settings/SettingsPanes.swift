@@ -107,13 +107,15 @@ extension AppSettings {
 
 /// The resume command's row: its label, and the command in a field against the card's right, in the label's size in
 /// the monospaced face, kept as typed (`LiteralField`), the two on one line of text. The field gives way before the
-/// label does, so the label keeps its one line, and the row its height, at the window's least width.
+/// label does, so the label keeps its one line, and the row its height, at the window's least width. A command that
+/// can't run says why under them, as each key is typed, in a row's line, spanning the row.
 struct CommandRow: View {
     static let label = "Command"
-    /// What the command is for, and its placeholders.
+    /// What the command is for, its placeholders, and the syntax it takes.
     static let caption = "Clicking a session this Mac doesn't show opens a new window and types this command into "
         + "your login shell. {claude} is its Claude Code session id, {dir} the folder it ran in, and {tty} the "
-        + "terminal that Claude still runs on, empty unless it does. Each is replaced with a quoted value."
+        + "terminal that Claude still runs on, empty unless it does. Each is replaced with a quoted value. It takes "
+        + "plain shell syntax only: anything more goes in a script."
     /// The field's width where the column has room.
     static let fieldWidth: CGFloat = 360
     /// The command's face: monospaced, at the label's size.
@@ -122,16 +124,26 @@ struct CommandRow: View {
     @Binding var command: String
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 16) {
-            RowWords(label: Self.label)
-                .fixedSize(horizontal: true, vertical: false)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            LiteralField(label: Self.label, font: Self.font, text: $command)
-                .frame(maxWidth: Self.fieldWidth)
-                .layoutPriority(1)
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .firstTextBaseline, spacing: 16) {
+                RowWords(label: Self.label)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                LiteralField(label: Self.label, font: Self.font, text: $command)
+                    .frame(maxWidth: Self.fieldWidth)
+                    .layoutPriority(1)
+            }
+            .frame(minHeight: SettingsStyle.oneLineRow)
+            if let refusal = OpenSettings.refusal(of: command) {
+                Text(refusal)
+                    .font(.subheadline)
+                    .foregroundStyle(SettingsStyle.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.bottom, SettingsStyle.rowMargin)
+            }
         }
         .padding(.horizontal, SettingsStyle.inset)
-        .frame(minHeight: SettingsStyle.oneLineRow)
     }
 }
 
