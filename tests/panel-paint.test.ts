@@ -1,6 +1,7 @@
 import { expect, test } from './kit'
 import {
   levelOf,
+  mix,
   nearest256,
   PALETTE,
   BAND,
@@ -8,6 +9,7 @@ import {
   rgbOf,
   sgr,
   type Paint,
+  type Rgb,
   type Style,
 } from '../cli/panel/paint'
 
@@ -92,17 +94,72 @@ test("the palette at 256 colours is the nearest of xterm's to each ink", () => {
   expect(Object.values(PALETTE).map(nearest256)).toEqual([173, 111, 146, 103, 60])
 })
 
-test("the band is the terminal's background moved a quarter of the way toward #3E4A5B, its nearest at 256 colours; the foreground isn't needed", () => {
-  const grounds = [BG, rgbOf('#212121')].flatMap(bg => [
-    sgr(pensOf({ level: 'truecolor', fg: FG, bg }).band, 'truecolor'),
-    sgr(pensOf({ level: '256', bg }).band, '256'),
-  ])
+/** WCAG's contrast between two colours, to measure the band's step by. */
+const contrast = (a: readonly number[], b: readonly number[]) => {
+  const luminance = (rgb: readonly number[]) => {
+    const [r = 0, g = 0, b = 0] = rgb.map(channel => {
+      const c = channel / 255
 
-  expect(grounds).toEqual([`${ESC}[0;48;2;50;58;71m`, `${ESC}[0;48;5;237m`, `${ESC}[0;48;2;40;43;48m`, `${ESC}[0;48;5;236m`])
-  expect(pensOf({ level: 'truecolor', bg: BAND }).band).toEqual({ bg: { rgb: BAND } })
+      return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+    })
+
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+  }
+  const [one, other] = [luminance(a) + 0.05, luminance(b) + 0.05]
+
+  return Math.max(one, other) / Math.min(one, other)
+}
+
+/** The step a quarter of the way toward #3E4A5B makes on #212121, the step every dark ground's band stands off by. */
+const STEP = contrast([40, 43, 48], [33, 33, 33])
+
+test("the band stands off any dark ground by the step a quarter toward #3E4A5B makes on #212121: toward #3E4A5B by the least that reaches it, else toward the terminal's ink", () => {
+  const grounds: [bg: string, fg: string | undefined, band: number[], at256: number][] = [
+    ['#212121', '#D4D4D4', [40, 43, 48], 236],
+    ['#2E3440', '#CDCECF', [52, 61, 75], 237],
+    ['#3B4252', '#D8DEE9', [68, 75, 91], 239],
+    ['#4A4A4A', '#E0E0E0', [82, 82, 82], 239],
+    ['#4A4A4A', undefined, [83, 83, 83], 239],
+  ]
+
+  for (const [bg, fg, band, at256] of grounds) {
+    const paint = { bg: rgbOf(bg), ...(fg === undefined ? {} : { fg: rgbOf(fg) }) }
+    const step = contrast(band, rgbOf(bg))
+
+    expect(pensOf({ level: 'truecolor', ...paint }).band, bg).toEqual({ bg: { rgb: band } })
+    expect(sgr(pensOf({ level: '256', ...paint }).band, '256'), bg).toBe(`${ESC}[0;48;5;${at256}m`)
+    expect(step, bg).toBeGreaterThanOrEqual(STEP)
+    expect(step, bg).toBeLessThan(STEP + 0.02)
+  }
+
+  expect(Math.round(STEP * 1000)).toBe(1134)
 })
 
-test("without the background's answer, the band is that quarter step over a near-black #212121, darker than #3E4A5B", () => {
+test("each band is the least step: a hundredth less toward its colour falls short, and none is louder than #3E4A5B on #212121", () => {
+  const steps: [bg: string, toward: Rgb, amount: number][] = [
+    ['#212121', BAND, 0.25],
+    ['#2E3440', BAND, 0.39],
+    ['#3B4252', rgbOf('#D8DEE9'), 0.06],
+    ['#4A4A4A', rgbOf('#E0E0E0'), 0.05],
+  ]
+
+  for (const [hex, toward, amount] of steps) {
+    const bg = rgbOf(hex)
+    const fg = toward === BAND ? FG : toward
+
+    expect(pensOf({ level: 'truecolor', fg, bg }).band, hex).toEqual({ bg: { rgb: mix(bg, toward, amount) } })
+    expect(contrast(mix(bg, toward, amount - 0.01), bg), hex).toBeLessThan(STEP)
+    expect(contrast(mix(bg, toward, amount), bg), hex).toBeLessThanOrEqual(contrast(BAND, rgbOf('#212121')))
+  }
+})
+
+test("a ground neither #3E4A5B nor the terminal's ink can step from takes a quarter toward #3E4A5B", () => {
+  const bg = rgbOf('#3B4252')
+
+  expect(pensOf({ level: 'truecolor', fg: bg, bg }).band).toEqual({ bg: { rgb: mix(bg, BAND, 0.25) } })
+})
+
+test("without the background's answer, the band is the step over a near-black #212121, darker than #3E4A5B", () => {
   expect(pensOf({ level: 'truecolor', fg: FG }).band).toEqual({ bg: { rgb: [40, 43, 48] } })
   expect(sgr(pensOf({ level: '256' }).band, '256')).toBe(`${ESC}[0;48;5;236m`)
 })
@@ -116,7 +173,7 @@ test("on the band, a dim mixes toward the band's ground, so a hollow row's words
       pens.bandDimmed({ tone: 'grey', isMeta: true }),
       pens.bandDimmed({ tone: 'orange' }),
     ].map(pen => sgr(pen, 'truecolor')),
-  ).toEqual([`${ESC}[0;1;38;2;145;148;154m`, `${ESC}[0;38;2;94;102;132m`, `${ESC}[0;38;2;151;95;81m`])
+  ).toEqual([`${ESC}[0;1;38;2;145;149;156m`, `${ESC}[0;38;2;95;103;134m`, `${ESC}[0;38;2;151;96;82m`])
   expect(sgr(pens.dimmed({ tone: 'grey', isMeta: true }), 'truecolor')).toBe(`${ESC}[0;38;2;92;100;129m`)
 })
 

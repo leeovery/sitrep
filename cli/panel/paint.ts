@@ -15,9 +15,11 @@
  *   On the band, a dim mixes toward the band's ground instead.
  *   The wash is left out below 24-bit, where its nearest colour sits beside
  *   the band's, so an arriving row would look chosen: `◉` says it alone.
- * - The band is the background moved a little toward `BAND`, as faint as
- *   still reads as a chosen row; with no background answered, it is that
- *   step over a near-black one.
+ * - The band stands off the background by one step of contrast, the
+ *   faintest that still reads as a chosen row and a touch more: the
+ *   background moved toward `BAND` by the least that reaches it, or toward
+ *   the terminal's ink where `BAND` can't. With no background answered,
+ *   it is the step over a near-black one.
  * - Without colour, faint carries the metadata, never on a bold word, since
  *   many terminals draw SGR 1 and 2 as one intensity.
  */
@@ -52,11 +54,13 @@ export const PALETTE = {
 /** The cool grey the band's ground leans toward from the background. */
 export const BAND = rgbOf('#3E4A5B')
 
-/** How far the band's ground goes from the background toward `BAND`: a touch above the faintest step that reads (Lee, 20 November 2026). */
+/** How far toward `BAND` the band's step is measured on `DARK`: a touch above the faintest that reads (Lee, 20 November 2026). */
 const BANDED = 0.25
 
-/** The background the band is mixed from where the terminal didn't answer: a near-black, as most dark themes are. */
+/** The background the band's step is measured on, and mixed from where the terminal didn't answer: a near-black, as most dark themes are. */
 const DARK = rgbOf('#212121')
+
+const WHITE: Rgb = [255, 255, 255]
 
 /** How far a dimmed ink goes toward the background: the notch keeps 0.61 of it. */
 const DIMMED = 0.39
@@ -122,6 +126,33 @@ const luminance = (rgb: Rgb) => {
 
 /** A background with more contrast against black than against white. */
 const isLight = (rgb: Rgb) => (luminance(rgb) + 0.05) / 0.05 > 1.05 / (luminance(rgb) + 0.05)
+
+/** The contrast between two colours, as WCAG measures it. */
+const contrast = (a: Rgb, b: Rgb) => {
+  const [one, other] = [luminance(a) + 0.05, luminance(b) + 0.05]
+
+  return Math.max(one, other) / Math.min(one, other)
+}
+
+/** The step the band stands off any background by: `BANDED` toward `BAND` on `DARK`, about 1.13 : 1. */
+const STEP = contrast(mix(DARK, BAND, BANDED), DARK)
+
+/** The loudest a band may stand off its background: `BAND` itself on `DARK`, the band before 20 November 2026, about 1.79 : 1. */
+const LOUDEST = contrast(BAND, DARK)
+
+/** The amounts a band's mix tries, in hundredths, least first. */
+const AMOUNTS = Array.from({ length: 101 }, (_, at) => at / 100)
+
+/** The background moved toward `target` by the least amount that stands it off by `STEP`, never past `LOUDEST`. */
+const steppedToward = (bg: Rgb, target: Rgb): Rgb | undefined => {
+  const isStep = (ground: Rgb) => contrast(ground, bg) >= STEP && contrast(ground, bg) <= LOUDEST
+  const amount = AMOUNTS.find(each => isStep(mix(bg, target, each)))
+
+  return amount === undefined ? undefined : mix(bg, target, amount)
+}
+
+/** The band's ground: the background stepped toward `BAND`, for its cool tint; else toward the terminal's ink, white unanswered; else, with neither, `BANDED` toward `BAND`. */
+const bandOn = (bg: Rgb, fg: Rgb = WHITE): Rgb => steppedToward(bg, BAND) ?? steppedToward(bg, fg) ?? mix(bg, BAND, BANDED)
 
 /** The environment the level reads. */
 export type ColourEnv = {
@@ -234,7 +265,7 @@ export const pensOf = (paint: Paint): Pens => {
   const canMix = (level === 'truecolor' || level === '256') && fg !== undefined && bg !== undefined
   const of = (style: Style) => penOf(inkAt(style.tone, level), style.bold === true, isFaintAt(style, level))
 
-  const bandGround = mix(bg ?? DARK, BAND, BANDED)
+  const bandGround = bandOn(bg ?? DARK, fg)
 
   const dimmedOver = (ground: Rgb | undefined) => (style: Style) => {
     if (!canMix || ground === undefined) {

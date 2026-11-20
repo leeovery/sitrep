@@ -362,8 +362,8 @@ test('the key line names the keys that work now, `s` only while Snoozed holds ro
 
 test('the band lies over both lines of the chosen row, from column 1 to W−2: a ground in colour, reverse video without', () => {
   expect(drawn(board({ band: 'sr-ct0001' }), 39, 20, NORDFOX, 7, 9)).toEqual([
-    ` ${ESC}[0;38;2;122;162;247;48;2;50;58;71m●${ESC}[0;48;2;50;58;71m Shift schedules                 ${ESC}[0;38;2;122;130;171;48;2;50;58;71m26m${ESC}[0m`,
-    ` ${ESC}[0;48;2;50;58;71m  ${ESC}[0;38;2;122;130;171;48;2;50;58;71mContoso · ${ESC}[0;38;2;169;177;214;48;2;50;58;71mApprove the rota${ESC}[0;48;2;50;58;71m         ${ESC}[0m`,
+    ` ${ESC}[0;38;2;122;162;247;48;2;52;61;75m●${ESC}[0;48;2;52;61;75m Shift schedules                 ${ESC}[0;38;2;122;130;171;48;2;52;61;75m26m${ESC}[0m`,
+    ` ${ESC}[0;48;2;52;61;75m  ${ESC}[0;38;2;122;130;171;48;2;52;61;75mContoso · ${ESC}[0;38;2;169;177;214;48;2;52;61;75mApprove the rota${ESC}[0;48;2;52;61;75m         ${ESC}[0m`,
   ])
   expect(drawn(board({ band: 'sr-ct0001' }), 39, 20, NONE, 7, 9)).toEqual([
     ` ${ESC}[0;7m● Shift schedules                 ${ESC}[0;2;7m26m${ESC}[0m`,
@@ -391,11 +391,11 @@ test("an away row's words dim as one, its mark kept full and hollow; without col
 })
 
 test("on the band, an away row's words dim toward the band's ground, not the terminal's background", () => {
-  const ground = '48;2;50;58;71'
+  const ground = '48;2;52;61;75'
 
   expect(drawn(board({ band: 'sr-lw0001' }), 39, 20, NORDFOX, 5, 7)).toEqual([
-    ` ${ESC}[0;38;2;215;119;87;${ground}m○${ESC}[0;${ground}m ${ESC}[0;1;38;2;145;148;154;${ground}mData import${ESC}[0;${ground}m                      ${ESC}[0;38;2;94;102;132;${ground}m1m${ESC}[0m`,
-    ` ${ESC}[0;${ground}m  ${ESC}[0;38;2;94;102;132;${ground}mLitware · ${ESC}[0;38;2;123;131;158;${ground}mAllow Bash: psql -f impo…${ESC}[0m`,
+    ` ${ESC}[0;38;2;215;119;87;${ground}m○${ESC}[0;${ground}m ${ESC}[0;1;38;2;145;149;156;${ground}mData import${ESC}[0;${ground}m                      ${ESC}[0;38;2;95;103;134;${ground}m1m${ESC}[0m`,
+    ` ${ESC}[0;${ground}m  ${ESC}[0;38;2;95;103;134;${ground}mLitware · ${ESC}[0;38;2;123;132;160;${ground}mAllow Bash: psql -f impo…${ESC}[0m`,
   ])
 })
 
@@ -427,7 +427,7 @@ test("a new ask's mark is `◉`, bold orange, its row washed at 24-bit where the
   expect(drawn(view(), 39, 8, NONE, 3, 4)).toEqual([
     ` ${ESC}[0;1m◉${ESC}[0m ${ESC}[0;1mData import${ESC}[0m                     ${ESC}[0;2mnow${ESC}[0m`,
   ])
-  expect(drawn(view('sr-ct0002'), 39, 8, NORDFOX, 3, 4)[0]).toContain('48;2;50;58;71m')
+  expect(drawn(view('sr-ct0002'), 39, 8, NORDFOX, 3, 4)[0]).toContain('48;2;52;61;75m')
   expect(drawn(view('sr-ct0002'), 39, 8, NORDFOX, 3, 4)[0]).not.toContain(wash)
 })
 

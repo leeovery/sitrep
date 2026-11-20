@@ -862,7 +862,7 @@ test('the level comes from the environment: the band at 24-bit, at 256 colours, 
     await run.type('q')
   }
 
-  expect(bands[0]).toContain('48;2;50;58;71')
+  expect(bands[0]).toContain('48;2;52;61;75')
   expect(bands[1]).toContain('48;5;237')
   expect(bands[2]).toContain('\x1b[0;7m')
 })
