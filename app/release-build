@@ -26,6 +26,8 @@ app=$(cd "$(dirname "$0")" && pwd)
 repo=$(dirname "$app")
 # shellcheck source=app/release-common
 . "$app/release-common"
+# shellcheck source=app/signing-common
+. "$app/signing-common"
 cd "$repo"
 
 if [[ $# -ge 1 ]]; then
@@ -114,6 +116,17 @@ clear_work
 mkdir -p "$work/build" "$work/out"
 git worktree add --quiet --detach "$tree" "$commit"
 echo "Building SitRep $version from $commit"
+# The tree's own app/bundle signs it, a tag's built again among them, so the
+# signing keychain is unlocked here first and its password exported: a
+# bundle that opens it with the variable alone, as the first to sign from it
+# did, finds it. A bundle from before the signing keychain opens none: it
+# looks up the Developer ID with find-identity across the keychain search
+# list, which lists an identity held in two keychains four times, once for
+# each certificate and key, and refuses more than one. So it fails while the
+# login keychain keeps its copy beside the signing keychain's, and once that
+# copy goes signs from the signing keychain, which this unlocks.
+unlock_keychain
+export DEVELOPER_ID_P12_PASSWORD
 MINT_NEW_VERSION=$version "$tree/app/bundle" --release "$work/build"
 bundle="$work/build/SitRep.app"
 built=$(plutil -extract CFBundleShortVersionString raw -o - "$bundle/Contents/Info.plist")

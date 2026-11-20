@@ -47,7 +47,7 @@ for _ in 1 2 3; do
 done
 echo "Submission $id: $status"
 if [[ $status == "In Progress" ]]; then
-  echo "No verdict yet: xcrun notarytool wait $id ${notary[*]} says when there is." >&2
+  echo "No verdict yet: $unlock_command && xcrun notarytool wait $id ${notary[*]} says when there is." >&2
   exit 1
 fi
 if [[ $status != Accepted ]]; then
