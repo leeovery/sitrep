@@ -1,7 +1,7 @@
 /**
  * The CLI's help, drawn from the commands' own grammar so it never drifts
- * from what they take: every command's usage in brief, and one command's
- * words in full.
+ * from what they take: bare `sitrep`'s line for the panel, every command's
+ * usage in brief, and one command's words in full.
  */
 import type { Arg, Flag, Grammar } from './args'
 import { COMMANDS, SESSION_FLAG, type Command } from './commands'
