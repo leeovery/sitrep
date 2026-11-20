@@ -30,6 +30,8 @@ With several Claude Code windows open across several projects, what waits on you
 - **Sessions outlive their windows.** After a `/clear`, or in a new Claude told to carry on, the session keeps its status, history and asks. What it parks stays with the project, and Claude moves a session to another project when you say so. [Sessions](docs/sessions.md)
 - **Put a session off.** Snooze a session for an hour, until tonight, until next week, or until it moves. Until it wakes, nothing it holds counts as waiting on you. Settings › Snooze sets which timed choices you see, and when each wakes. [Putting a session off](docs/snooze.md)
 
+Away from the Mac, type `sitrep` in any terminal and the board fills it, even over SSH from a phone. [The board in any terminal](docs/terminal.md)
+
 ## Screens
 
 <img src="art/screens/claude-code.webp" alt="Claude Code in a Ghostty window: on the left, the conversation, Claude at work on an answer given from the board, with the band above the prompt counting 2 asks and 2 elsewhere; on the right, the board docked beside it, the session's two asks, the first opened with Threaded marked recommended, then its status, what it parked and what it resolved" width="100%">
