@@ -37,7 +37,7 @@ export const GLYPH = {
   /** Filled, as an ask's: on the notch a hollow circle means away. */
   parked: '●',
   now: '●',
-  next: '○',
+  next: '●',
   home: '⌂',
   every: '≡',
   up: '←',
@@ -46,6 +46,8 @@ export const GLYPH = {
   /** A tree's line running on past a row. */
   stem: '│',
   done: '✓',
+  /** A closed thing's mark in a list: resolved, taken off Parked, finished; a circle, as every other row's. */
+  closed: '●',
   /** Replies just taken in from the board. */
   news: '✦',
 } as const

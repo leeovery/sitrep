@@ -77,7 +77,7 @@ test("a finished session's STATUS says why it was finished, where its finish say
   const status = async (session: string) =>
     rowsOf(await viewOf(session).find({ type: 'Box' }), ACROSS).map(row => row.trim())
 
-  expect(await status(SHIPPED.id)).toContain('✓ finished: Shipped')
+  expect(await status(SHIPPED.id)).toContain('● finished: Shipped')
   expect((await status(QUIET.id)).filter(row => row.includes('finished:'))).toEqual([])
 })
 

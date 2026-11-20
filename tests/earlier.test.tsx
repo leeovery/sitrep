@@ -87,20 +87,20 @@ test('RESOLVED counts the closed asks, ignored ones aside, the newest closed fir
     `closed:${heldItem('a1')}`,
   ])
   expect(await across(`closed:${heldItem('a4')}`)).toEqual([
-    '✓ Review round 2                                    1h',
+    '● Review round 2                                    1h',
   ])
   expect(await across(`closed:${heldItem('a3')}`)).toEqual([
-    '✓ Run the apply                                     2h',
+    '● Run the apply                                     2h',
   ])
   expect(await across(`closed:${heldItem('a2')}`)).toEqual([
-    '✓ Keep the ledger 400 days, or forever?             3h',
+    '● Keep the ledger 400 days, or forever?             3h',
   ])
   expect(await across(`closed:${heldItem('a1')}`)).toEqual([
-    '✓ Review round 1                                    4h',
+    '● Review round 1                                    4h',
   ])
 })
 
-test('a closed ask opens to how it closed, one branch from its tick with no age in it', async () => {
+test('a closed ask opens to how it closed, one branch from its dot with no age in it', async () => {
   const opened = async (ask: string, shown: Partial<SitrepPane> = {}) => {
     const ui = drawnAfter(CLOSED, { ...shown, ...opening(ask) })
 
@@ -143,7 +143,7 @@ test('RESOLVED is a section of its own at the foot of the view, its heading gree
   ).toBeUndefined()
   expect(rows.slice(-2), 'the last of the view').toEqual([
     expect.stringMatching(/^ RESOLVED ─+ 1 resolved$/),
-    ' ✓ Review round 1                                    4h',
+    ' ● Review round 1                                    4h',
   ])
 })
 
@@ -158,7 +158,7 @@ test('ASKS holds only what is open: no line of what was done earlier', async () 
   expect(await ui.find({ type: 'Text', text: 'Nothing waiting on you.' })).toBeDefined()
 })
 
-test('each closed ask is a green tick and a white title, its age grey; a long title keeps to one line until opened', async () => {
+test('each closed ask is a green dot and a white title, its age grey; a long title keeps to one line until opened', async () => {
   const title =
     'Check every part of the help desk redesign, every area of it, against the brief and the notes'
   const lines = [
@@ -170,18 +170,18 @@ test('each closed ask is a green tick and a white title, its age grey; a long ti
   const drawn = async (drawing: Drawn) =>
     rowsOf(await drawing.find({ key: `closed:${heldItem('a1')}` }), ACROSS)
 
-  expect((await ui.find({ type: 'Text', text: '✓' }))?.props.color).toBe(C.ok)
+  expect((await ui.find({ type: 'Text', text: '●' }))?.props.color).toBe(C.ok)
   expect(await press()).toMatchObject({ plain: true, label: expect.stringMatching(/…$/) })
   expect((await press())?.dimColor).toBeUndefined()
   expect((await ui.find({ type: 'Text', text: '1h' }))?.props.color).toBe(C.grey)
   expect(await drawn(ui), 'closed, a line of its own, nothing hung').toEqual([
-    '✓ Check every part of the help desk redesign, e…    1h',
+    '● Check every part of the help desk redesign, e…    1h',
   ])
 
   const opened = drawnAfter(lines, opening('a1'))
 
   expect(await drawn(opened)).toEqual([
-    '✓ Check every part of the help desk redesign,       1h',
+    '● Check every part of the help desk redesign,       1h',
     '│ every area of it, against the brief and the',
     '│ notes',
     '└ → Approve',

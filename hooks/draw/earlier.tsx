@@ -11,7 +11,7 @@ import { resolvedEarlier } from '../scene'
 import { drawRow, heading, type Block, type Drawing } from './kit'
 import { drawPast } from './past'
 
-const MARK = { glyph: GLYPH.done, color: C.ok }
+const MARK = { glyph: GLYPH.closed, color: C.ok }
 
 /** What a closed ask is opened by, apart from the ask itself, which Asks opens: this, then its address. */
 export const RESOLVED_KEY = 'resolved:'
