@@ -59,7 +59,7 @@ A setting to run a command on a new ask, such as `rootshell-notify`, is parked. 
 
 ## The marks
 
-Colour says what's needed; fill says where (DESIGN.md, "The notch and its panel"). Filled, a terminal on this Mac shows the session. Hollow, it's away: no window holds it, its Claude ended, or no terminal on this Mac shows it. The panel learns the last from SitRep, which writes the sessions this Mac doesn't show as it reads them; with SitRep not running, a held session draws filled (Lee, 19 November 2026; "What the code can't give yet", 1).
+Colour says what's needed; fill says where (DESIGN.md, "The notch and its panel"). Filled, a terminal on this Mac shows the session. Hollow, it's away: no window holds it, its Claude ended, or no terminal on this Mac shows it. The panel learns the last from SitRep, which writes the sessions this Mac doesn't show to `here.json` as it reads them; with SitRep not running, a held session draws filled (Lee, 19 November 2026; "Built on: the code as it is", which sessions this Mac shows).
 
 | Mark | Colour | Meaning |
 |---|---|---|
@@ -406,14 +406,19 @@ Dimming the terminal's own ink needs its foreground too. With both answers, at 2
   - SitRep resumes a session in Swift (`SitRepScreen/Jump.swift`'s `carryOn` and `resume`). It fills the command by `ResumeCommand` and `ResumeFacts`, reads and quotes it by `TypedCommand`, and keeps its default in `OpenSettings.defaultResumeCommand`.
   - The panel resumes one in TypeScript, by the same rules: `cli/panel/reach.ts`'s `reachOf` and `carriedOn`, `cli/panel/command.ts`'s `typedOf` and `filledOf`, `TypedCommand`'s twin, and `cli/panel/edge.ts`, which reads the saved command (`cli/panel/plist.ts`), asks `ps` and hands the line over. The two readers are held to one file of cases (see "Testing").
   - The command is saved in SitRep's defaults, under `app`'s `resume` key (`SitRepMenu/AppSettings.swift`). It is the one command SitRep registers for opening a session: `AppSettings` passes over an `openCommand` still saved, and no `OpenCommand` is left in `app/Sources`.
+- **Which sessions this Mac shows.** SitRep reads it (`SitRepScreen/HereWatch.swift`, `Here.swift`) and writes what it read to `here.json`, at the top of sitrep's folder beside `snooze.json` (core's `HERE_FILE`; `SitRepScreen/HereFile.swift`):
+  - **The file:** `{"at":1763650000123,"notHere":["sr-ct0002","sr-nw0001"],"v":1}`, compact, its keys sorted: `at`, when SitRep wrote it, in milliseconds since the epoch; `notHere`, the held sessions its last read found no terminal on this Mac shows, sorted; `v`, the format's version, 1.
+  - **When SitRep writes it:** only while some held session is dimmed. `HereWatch.settled` tells each settling of `notHere`, changed or not: at each read, every 3 seconds (`HereWatch.every`), and at each board line, which can drop a session no window holds with no read. While the set holds any session, each settling writes the file, so `at` stays fresh: that is SitRep's heartbeat. As the set turns empty, the file is removed, once. So a Mac where every session shows writes nothing, against 28,800 writes a day had it written at every read, and a session a line drops leaves the file at once.
+  - **How it writes:** each write is whole, the bytes beside the file then renamed over it, and every write and removal runs on a queue of its own, off the main thread, in turn. A write that fails is tried again at the next settling; the first of a run of failures is logged, and no other until a write succeeds. It writes only into the folder as the board made it. SitRep removes the file as it quits, waiting a second at most, so a write hung on its volume never holds quitting up.
+  - **What the panel makes of it:** core's `notHereOf` reads it, and names none for a file missing, unreadable, of another shape or a later version, or 30 seconds or more from the moment it is read, either way (`HERE_STALE_MS`). So with nothing dimmed, or SitRep quit or never started, every held session draws filled at the next look; with SitRep crashed, hung or napped, within 30 seconds. The limit is long for SitRep's 3 seconds because only those three cases reach it: SitRep runs in the background with no activity held against App Nap, so macOS may stretch its sleep well past 10 seconds, and a shorter limit would blink every dimmed row filled in every panel. A session it names that no live window holds is away by core's own rule already, and `panelSections` leaves such a row as it is, so nothing counts it twice.
+  - **Who else reads the folder:** nothing else lists its top but the mod's snooze read, which takes `snooze.json` by its name. The board reads `projects/` alone. So `here.json`, and the temp file a write leaves beside it for a moment, are passed over.
 - **Whether a Claude is alive or suspended** on a device: SitRep reads it from its process table (`Jump.claude(on:)`), the panel from `ps` (`cli/panel/edge.ts`'s `claudeOn`).
 - **The world.** `cli/io.ts`'s `Io` gives the file system, the environment, the clocks, standard input, output and error, the run's end, and the terminal, absent off one. It runs a program only through the terminal, for a pick: `hand` gives the terminal to the login shell, and `run` asks `ps`. `cli/shell/index.ts` binds it to Bun, and `cli/shell/terminal.ts` the terminal, their runtime declared in `cli/shell/runtime.d.ts`.
 - **The frames.** `cli/frames/check.ts`, run by Bun, holds each fixture to its golden frame in `tests/frames/` and runs the sweep (see "Testing").
 
 ## What the code can't give yet
 
-1. **Which sessions this Mac shows.** Only SitRep reads it (`SitRepScreen/HereWatch.swift`, `Here.swift`), and core knows nothing of it. SitRep doesn't yet write what it reads anywhere the panel can read it, so the panel can't yet tell a held session no Ghostty shows from one it does.
-2. **`sitrep` on a shell's PATH.** Claude Code puts the plugin's `bin` on Claude's own PATH. A login shell, over SSH or in Ghostty, has no `sitrep`, and the cask has no `binary` stanza.
+1. **`sitrep` on a shell's PATH.** Claude Code puts the plugin's `bin` on Claude's own PATH. A login shell, over SSH or in Ghostty, has no `sitrep`, and the cask has no `binary` stanza.
 
 ## The output seam
 
@@ -466,7 +471,12 @@ export type PanelEvent =
   | { size: Size }
   | { tick: number }
   | { opened: string | undefined } // a pick done: the answer it leaves, if any
+  | { notHere: ReadonlySet<string> } // the sessions here.json names, where they differ from the state's
 export const step: (state: PanelState, event: PanelEvent) => { state: PanelState; open?: string }
+
+// core/here.ts: here.json's text as the panel reads it
+export const HERE_STALE_MS = 30_000 // ten of SitRep's reads: it matters only for a SitRep crashed, hung or napped
+export const notHereOf: (text: string | undefined, now: number) => ReadonlySet<string> // none for a file missing, torn, misshapen or stale
 
 // cli/panel/layout.ts: the fit rules, once, for draw and for step
 // (keeping the band whole, paging, a tap's row)
@@ -523,10 +533,11 @@ The fakes in `tests/` stand in for all of it.
 
 **The loop.** `cli/panel/panel.ts`'s `panel(io, terminal, { isNotifying })`, `isNotifying` false for `--no-notify`:
 1. Asks the colours and enters the screen.
-2. Starts `looking` (`cli/looks.ts`), the watch's loop, which hands it each look's `Feed`.
-3. Steps the state on every event, draws, and writes only the rows that changed, inside synchronized output (`CSI ?2026h` … `CSI ?2026l`).
-4. Writes each of a look's `noticesOf`, a write each after its frame, where it notifies; `Env` gains `TMUX` for them.
-5. Opens what `step` asks for through `cli/panel/edge.ts`, the CLI's one edge: it reads SitRep's saved resume command, asks `ps` about the window's device, and hands the filled line to your login shell. It runs nothing else.
+2. Starts `looking` (`cli/looks.ts`), the watch's loop, which hands it each look's `Feed`, the next look waiting on the panel's handling of it.
+3. At every look, the board changed, unchanged or failed, reads `here.json` by `Io`'s file system and core's `notHereOf`, aged from the moment of the read, and steps the state with `{ notHere }` first where the set differs, so an unchanged board, or one that can't be read, redraws with its new fill. `looking` waits on `seen` and on `isPastFailure` alike, so the reads stay in order. `panelSections` and `viewOf` stay pure: the read is the loop's.
+4. Steps the state on every event, draws, and writes only the rows that changed, inside synchronized output (`CSI ?2026h` … `CSI ?2026l`).
+5. Writes each of a look's `noticesOf`, a write each after its frame, where it notifies; `Env` gains `TMUX` for them.
+6. Opens what `step` asks for through `cli/panel/edge.ts`, the CLI's one edge: it reads SitRep's saved resume command, asks `ps` about the window's device, and hands the filled line to your login shell. It runs nothing else.
 
 **What goes.** Nothing: the watch prints as before, from `looking`.
 
@@ -544,7 +555,9 @@ The fakes in `tests/` stand in for all of it.
   - the mixes with and without the terminal's answers;
   - `Too small` below 24×8.
 - **`panel-keys.test.ts`:** byte sequences to keys, a lone `esc` by its 50 ms, `CSI` and `SS3` arrows.
-- **`panel-state.test.ts`:** the band's first press, moves, pages and ends; the view's scroll; the band following its session and passing on; folding; answers dropped on a key.
+- **`panel-state.test.ts`:** the band's first press, moves, pages and ends; the view's scroll; the band following its session and passing on; folding; answers dropped on a key; the sessions SitRep says this Mac doesn't show moving behind those it shows, the band on its session.
+- **`here.test.ts`:** `notHereOf` on the file as the app writes it (`tests/here.ts`, the text the Swift tests hold the app's encoder to); fresh up to 30 seconds either side of `at`, none from then; none for a file missing, torn, of a later version or none, or of the wrong shape.
+- **`looks.test.ts` and `offered.test.tsx`:** `here.json`, and a write's temp file, at the folder's top change no look, and the pane's snooze read still takes `snooze.json`.
 - **`panel-reach.test.ts`:**
   - `reachOf`: every row of "Picking a row"'s table, a session gone from the board among them; the jump order; a session in Snoozed alone; `{claude}`, `{dir}`, the device and `ownsDevice` from a live window and from a last window;
   - `carriedOn`: suspended and no answer from `ps` refusing whatever the command; the guard's words, the default saved with spaces round it among them, against a command you wrote, and `{tty}` filled only for a Claude running on its own device; a later conversation's Claude refusing nothing; no folder in the window's words.
@@ -558,9 +571,17 @@ The fakes in `tests/` stand in for all of it.
   - the exact writes to enter, draw, hand over, take back and leave;
   - `q` exits 0, SIGTERM 143, SIGHUP 129;
   - SIGINT ignored while a program has the terminal;
+  - the fill: a fresh `here.json` naming a held session draws it hollow and dimmed at the next look on an unchanged board, and the first board with it; the file stale, or gone, fills it again, a failing look among them; a file naming no session on the board, or none, writes nothing more;
   - notifications: one OSC each for new asks only, oldest first, in one look and across two, none on the first board, none with the flag, wrapped inside tmux, posted during a hand-over and while `Too small`, never inside a frame's write, none after the panel closes, once after a failed look and none on a first board after one, the text cleaned.
 - **`panel-notices.test.ts`:** `newAsks`' kinds, order and words, an away row's place; `osc777`'s bytes, cleaning and cut; tmux's wrapping.
 - **`cli.test.ts`:** bare `sitrep` off a terminal keeps its help and exit 1; the help's new line, every other line as it was; the flags read as the panel's, an unknown one as an unknown command, and `--no-notify` off a terminal; every command's tests pass unchanged.
+
+**In Swift,** `swift test`:
+- `HereFileTests`: the file's place as `rootOf` gives it; its text byte for byte as `tests/here.ts` holds it; a write whole, nothing left beside it; a failure making nothing, and a run of failures logged once; posted reads written in turn, the queue drained before the file is read; a read with nothing dimmed removing the file once; the removal after every write posted before it, and the removal at quit returning at its limit behind a hung write.
+- `HereWatchTests`: each settling told, at each read and at a line that drops a session; and `writes(to:)`, the seam `Works` calls, keeping the file in step: written while dimmed, removed as a line drops the session, never written while nothing is dimmed.
+- `DefaultsScanTests`: no test reaching the live `HereFile`.
+
+`Works` and `AppDelegate` have no test: `Works` builds the live jump and the live read, with no seam for a fake. The wiring is one line in `Works`, `here.writes(to: hereFile)`, and `hereFile` is a required argument of its `init`.
 
 **Golden frames,** by the Bun checker `cli/frames/check.ts`, which the kit can't run:
 - **The files:** each frame is a `.txt` and an `.ansi` in `tests/frames/`, named `panel-<screen>-<W>x<H>`.
@@ -581,7 +602,7 @@ The quiet board is listed on purpose, as round 1 lists it: "All clear" and one s
 
 **Gates.** The slice that brings the checker adds `bun cli/frames/check.ts` and `bunx tsc -p cli/frames` to CLAUDE.md's gates. The root `tsconfig.json` excludes `cli/frames` as it does `cli/shell`.
 
-**Live tests.** A live run points `XDG_STATE_HOME` at a folder of its own and seeds sessions there, as CLAUDE.md says. Picking a row runs the resume command in the panel's own terminal and brings no window forward, so it is no jump.
+**Live tests.** A live run points `XDG_STATE_HOME` at a folder of its own and seeds sessions there, as CLAUDE.md says. A `here.json` written by hand there stands in for SitRep, which writes only the folder its own environment names. Picking a row runs the resume command in the panel's own terminal and brings no window forward, so it is no jump.
 
 ## Pictures
 
@@ -607,6 +628,7 @@ The quiet board is listed on purpose, as round 1 lists it: "All clear" and one s
 - **A resumed Claude lives in the panel's terminal.** A dropped SSH connection ends it, unless the resume command runs it in a multiplexer.
 - **Ambiguous-width glyphs.** `●` `○` `◌` `◉` `✻` `─` `▿` `▹` `▲` `▼` are East Asian Ambiguous: a terminal set to draw them wide breaks the columns.
 - **A Claude Code told by its name.** The panel tells a Claude Code on a window's device by `ps -o comm`, the process's argv[0], not the path of its program, which the app reads (proc_pidpath) and no `ps` keyword gives. A Claude Code started through a link of another name is not seen there: the default can then resume beside it, and `{tty}` stays empty. A program started as `claude` (`exec -a claude`) is counted as one: the default then refuses it as still running.
+- **The fill can blink filled for one read,** about 3 seconds: on waking the Mac, the file is stale until SitRep's first read; and of two SitReps, the one quitting removes the file until the other's next read.
 - **A board a second old.** The panel looks every second, as the watch does, so a new ask's mark and its notification come up to a second late.
 - **zsh's GLOB_SUBST.** With it set, an unquoted parameter or `$(…)` holding a value can run code: `x={dir}; echo $x`, its value `*(e:touch PWNED:)`, runs `touch` under `zsh -o globsubst`. So a command for such a shell puts them in double quotes, as `echo "$x"`. Refusing every unquoted parameter would still miss an unquoted `$(…)`, and would refuse `s=$(…)` with it. The panel's `-l -c` reads no `.zshrc`, but the app's interactive shell does.
 

@@ -1,3 +1,4 @@
+import Foundation
 import os
 import SitRepCore
 @testable import SitRepScreen
@@ -167,6 +168,67 @@ struct HereWatchTests {
         clock.pass(HereWatch.every)
         try await until(within: .seconds(10)) { reads.asked.count == 3 }
         #expect(HereWatch.every == .seconds(3))
+    }
+
+    /// Each settling is told, changed or not, after `changed` where it changed: at each read, and at each line, which
+    /// drops a session no window holds with no read.
+    @Test func eachSettlingIsToldChangedOrNot() async throws {
+        let reads = Reads(["sr-a": .notHere, "sr-b": .here])
+        let watch = Self.watch(reads)
+        let line = try Self.held("sr-a", "sr-b")
+        var told: [String] = []
+
+        defer { watch.stop() }
+        watch.changed = { told.append("changed \($0.sorted())") }
+        watch.settled = { told.append("settled \($0.sorted())") }
+        watch.heard(line)
+        try await Self.read(1, by: reads, of: watch)
+        watch.heard(line)
+        try await Self.read(2, by: reads, of: watch)
+        watch.heard(try Self.held())
+
+        #expect(told == [
+            "settled []", #"changed ["sr-a"]"#, #"settled ["sr-a"]"#,
+            #"settled ["sr-a"]"#, #"settled ["sr-a"]"#,
+            "changed []", "settled []",
+        ])
+        #expect(reads.asked.count == 2, "the last line read nothing")
+    }
+
+    /// As the app keeps it (`writes(to:)`): `here.json` written at every read while a session is dimmed, its time the
+    /// settling's own; removed at once as a line drops the session; and never written while nothing is dimmed.
+    @Test func hereJsonIsKeptInStepWithEachSettling() async throws {
+        let folder = FileManager.default.temporaryDirectory.appending(path: "sitrep-here-\(UUID().uuidString)")
+        let file = HereFile(url: folder.appending(path: HereFile.name))
+        let reads = Reads(["sr-a": .notHere, "sr-b": .here])
+        let watch = Self.watch(reads)
+        let line = try Self.held("sr-a")
+        var stamped: [Date] = []
+
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer {
+            watch.stop()
+            try? FileManager.default.removeItem(at: folder)
+        }
+        watch.writes(to: file) {
+            stamped.append(Date(timeIntervalSince1970: 1_763_650_000 + 3 * Double(stamped.count)))
+            return stamped[stamped.count - 1]
+        }
+        for count in 1 ... 2 {
+            watch.heard(line)
+            try await Self.read(count, by: reads, of: watch)
+            file.flush()
+            #expect(try Data(contentsOf: file.url) == HereFile.text(["sr-a"], at: stamped[stamped.count - 1]))
+        }
+
+        watch.heard(try Self.held())
+        file.flush()
+        #expect(!FileManager.default.fileExists(atPath: file.url.path), "dropped by the line, no read")
+
+        watch.heard(try Self.held("sr-b"))
+        try await Self.read(3, by: reads, of: watch)
+        file.flush()
+        #expect(!FileManager.default.fileExists(atPath: file.url.path), "nothing dimmed, nothing written")
     }
 
     /// A session read as here forgets the window opened for it, as a click reading it so does.

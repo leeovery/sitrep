@@ -1,12 +1,13 @@
 import AppKit
 import SitRepCore
 import SitRepMenu
+import SitRepScreen
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let banners = Banners.live()
     private let plugin = Plugin()
-    private lazy var works = Works(banners: banners, path: plugin.path) { [preferences] in
+    private lazy var works = Works(banners: banners, path: plugin.path, hereFile: hereFile) { [preferences] in
         preferences.app.openSettings
     }
     private lazy var snoozes = Snoozes(plugin: plugin, post: banners.post)
@@ -14,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// The plugin folder `watch` runs on; nil before it first starts.
     private var watching: String?
     private let preferences = Preferences(.standard, snoozeFile: .live)
+    private let hereFile = HereFile.live
     private let sounds = AlertSounds.live
     private let live = LiveBoard()
     private var menu: StatusMenu?
@@ -80,10 +82,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// `watch` stops with the app, and a welcome open closes as its close button would close it, which quitting never
+    /// `watch` stops with the app, `here.json` goes with it, waited on a second at most, so no board in a terminal reads
+    /// a SitRep no longer running, and a welcome open closes as its close button would close it, which quitting never
     /// tells it.
     func applicationWillTerminate(_ notification: Notification) {
         feed.stop()
+        hereFile.remove()
         welcome?.closeIfOpen()
     }
 

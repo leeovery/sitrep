@@ -16,14 +16,9 @@ public struct SnoozeFile: Sendable {
         self.url = url
     }
 
-    /// In the board's folder, found as core's `rootOf` finds it: `$XDG_STATE_HOME/sitrep` where that names a folder
-    /// from the root, else `$HOME/.local/state/sitrep`, `home` where `HOME` names none. The app's environment is the
-    /// one its CLI's `watch` runs with, so the file sits by the board SitRep shows.
+    /// In the board's folder (`BoardFolder`), so the file sits by the board SitRep shows.
     public init(environment: [String: String], home: URL) {
-        let absolute = { (key: String) in environment[key].flatMap { $0.hasPrefix("/") ? URL(filePath: $0) : nil } }
-        let state = absolute("XDG_STATE_HOME") ?? (absolute("HOME") ?? home).appending(path: ".local/state")
-
-        self.init(url: state.appending(path: "sitrep").appending(path: Self.name))
+        self.init(url: BoardFolder.url(environment: environment, home: home).appending(path: Self.name))
     }
 
     /// Where this Mac's SitRep writes it.

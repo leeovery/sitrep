@@ -77,16 +77,18 @@ export type Look = Looked & {
 }
 
 /**
- * What watches the looks: `seen` handed each one, the sessions `followed`
- * gives read as followed. The looks end as the plugin's manifest comes to
- * say another version only where `endsOnNewVersion`. A look that fails
- * ends them unless `isPastFailure`, told why, says to go on.
+ * What watches the looks: `seen` handed each one, the next look waiting on
+ * what it gives back, the sessions `followed` gives read as followed. The
+ * looks end as the plugin's manifest comes to say another version only
+ * where `endsOnNewVersion`. A look that fails ends them unless
+ * `isPastFailure`, told why, says to go on, the next look waiting on it
+ * too.
  */
 export type Watcher = {
-  seen: (look: Look) => void
+  seen: (look: Look) => void | Promise<void>
   followed?: () => ReadonlySet<string>
   endsOnNewVersion?: boolean
-  isPastFailure?: (error: unknown) => boolean
+  isPastFailure?: (error: unknown) => boolean | Promise<boolean>
 }
 
 const NONE: ReadonlySet<string> = new Set()
@@ -279,8 +281,8 @@ export const looking = async (
   const reader = boardReader(held, rootOf(io.env))
   const isWholeLook = every(OFF_BOARD_MS, -Infinity)
   const isOver = async () => run.isEnded() || ((await release.isMoved()) && endsOnNewVersion)
-  const passed = (error: unknown) => {
-    if (isPastFailure(error)) {
+  const passed = async (error: unknown) => {
+    if (await isPastFailure(error)) {
       return undefined
     }
 
@@ -315,7 +317,7 @@ export const looking = async (
     const { read } = looked
 
     expiry = nextExpiry(read, now)
-    seen({
+    await seen({
       ...looked,
       now,
       clock,

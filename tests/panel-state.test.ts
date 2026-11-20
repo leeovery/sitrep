@@ -239,6 +239,18 @@ test('a band the wheel scrolled out of sight stays out of sight as the board cha
   expect([changed.band, changed.top]).toEqual([N1, 3])
 })
 
+test("the sessions SitRep says this Mac doesn't show move behind those it shows, the band staying on its session in sight; said no more, they come back", () => {
+  const onN1 = pressed(read(), DOWN)
+  const away = stepped(onN1, { notHere: new Set([N1]) })
+  const back = stepped(away, { notHere: new Set() })
+
+  expect(inView(onN1)).toEqual([N1, N2, N3, W1])
+  expect(inView(away)).toEqual([N2, N3, N1, W1])
+  expect([away.band, [...away.notHere]]).toEqual([N1, [N1]])
+  expect(inView(back)).toEqual([N1, N2, N3, W1])
+  expect(back.band).toBe(N1)
+})
+
 test('a session that leaves passes the band to the row now in its place, else the row above; with no rows left there is none', () => {
   const onW2 = pressed(read(), DOWN, PAGE_DOWN)
   const onW5 = pressed(read(), END)

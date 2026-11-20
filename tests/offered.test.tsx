@@ -7,10 +7,11 @@
  * after its time to trust; and settings a window holds read whole.
  */
 import { expect, test, tier } from './kit'
-import { IN_AN_HOUR_MS, parseEntries, SNOOZE_CHOICES, SNOOZE_DEFAULTS, snoozeFile } from '../core'
+import { hereFile, IN_AN_HOUR_MS, parseEntries, SNOOZE_CHOICES, SNOOZE_DEFAULTS, snoozeFile } from '../core'
 import { AROUND_MS } from '../hooks/around'
 import { MIN, ROOT, W1 } from './data'
 import { APP_FILE } from './choices'
+import { APP_FILE as HERE_FILE } from './here'
 import { asked, world, type Board, type World } from './world'
 import { LOCAL_ZONE, wallClock } from './zoned'
 
@@ -121,6 +122,16 @@ test("with no file, or one that does not read, garbled or of a later version, th
   }
 
   expect(w.toasts.slice(toasts)).toEqual([])
+})
+
+test("SitRep's here.json beside the file, at the folder's top, is never taken for it: the pane offers what snooze.json sets, the ask drawn as ever", async ($, on) => {
+  const w = world($, on, { now: FRIDAY })
+
+  w.put(hereFile(ROOT), HERE_FILE)
+
+  const { item, ui } = await asking(w, APP_FILE)
+
+  expect(await offered(ui, item)).toEqual(['later', 'tonight', 'tomorrow', 'weekend', 'week', 'no'])
 })
 
 /** Two files of one size, one switching In an hour off, the other Next week. */

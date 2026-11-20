@@ -25,14 +25,18 @@ final class Works {
 
     /// A jump that fails is told in a banner (`JumpAnswer.banner`); tmux is found on Lee's PATH, as `path` gives it,
     /// the login shell's found once and kept, asked for at each jump, and each read of here, within its limit; a window
-    /// is opened as `opening` gives Lee's settings at the click.
-    init(banners: Banners, path: @escaping @Sendable () async -> String, opening: @escaping () -> OpenSettings) {
+    /// is opened as `opening` gives Lee's settings at the click; the read of here is kept in `hereFile`.
+    init(
+        banners: Banners, path: @escaping @Sendable () async -> String, hereFile: HereFile,
+        opening: @escaping () -> OpenSettings
+    ) {
         let board = JumpBoard()
         let openings = RecentOpenings()
 
         self.board = board
         self.openings = openings
         here = HereWatch.live(path: path, openings: openings)
+        here.writes(to: hereFile)
         clicks = Clicks(jump: { session in
             let opening = opening()
 
