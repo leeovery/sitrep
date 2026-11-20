@@ -2,8 +2,8 @@
  * The sessions no terminal on this Mac shows, as core reads SitRep's
  * `here.json`: the file as the app writes it; none for a file missing,
  * garbled, of another shape or of a version this reader does not know; and
- * none for one 10 seconds or more old, as a SitRep no longer reading
- * leaves it.
+ * none for one 30 seconds or more from the reader's clock, either side,
+ * as a SitRep no longer reading leaves it.
  */
 import { expect, test } from './kit'
 import { HERE_STALE_MS, hereFile, notHereOf } from '../core'
@@ -20,8 +20,8 @@ test('it sits at the top of the board folder, beside projects/ and snooze.json',
   expect(hereFile('/Users/me/.local/state/sitrep')).toBe('/Users/me/.local/state/sitrep/here.json')
 })
 
-test('a file is fresh for 10 seconds, three of SitRep\'s reads and a second over, either side of its time; from then on it names none', () => {
-  expect(HERE_STALE_MS).toBe(10_000)
+test("a file is fresh for 30 seconds, ten of SitRep's reads, either side of its time; from then on it names none", () => {
+  expect(HERE_STALE_MS).toBe(30_000)
 
   for (const now of [APP_AT, APP_AT + HERE_STALE_MS - 1, APP_AT - HERE_STALE_MS + 1]) {
     expect(notHereOf(APP_FILE, now).size, String(now - APP_AT)).toBe(2)
@@ -51,7 +51,6 @@ test('a file of the wrong shape names none: a time missing or no time, ids missi
     { at: undefined },
     { at: '1763650000123' },
     { at: null },
-    { at: Infinity },
     { notHere: undefined },
     { notHere: 'sr-nw0001' },
     { notHere: { 'sr-nw0001': true } },
@@ -62,6 +61,8 @@ test('a file of the wrong shape names none: a time missing or no time, ids missi
   for (const fields of shapes) {
     expect(notHereOf(fileOf(fields), APP_AT).size, JSON.stringify(fields)).toBe(0)
   }
+
+  expect(notHereOf('{"at":1e400,"notHere":["sr-nw0001"],"v":1}', APP_AT).size, 'a time past any date').toBe(0)
 })
 
 test('a fresh file naming none names none, and a field this reader does not know is passed over', () => {

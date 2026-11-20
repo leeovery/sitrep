@@ -7,7 +7,7 @@ import SitRepScreen
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let banners = Banners.live()
     private let plugin = Plugin()
-    private lazy var works = Works(banners: banners, path: plugin.path) { [preferences] in
+    private lazy var works = Works(banners: banners, path: plugin.path, hereFile: hereFile) { [preferences] in
         preferences.app.openSettings
     }
     private lazy var snoozes = Snoozes(plugin: plugin, post: banners.post)
@@ -56,7 +56,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             edge?.show(notHere: notHere)
             menu?.show(notHere: notHere)
         }
-        works.notHereRead = { [hereFile] notHere in hereFile.post(notHere, at: .now) }
         self.edge = edge
         self.menu = menu
         plugin.start { [unowned self] in settled($0) }
@@ -83,8 +82,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// `watch` stops with the app, `here.json` goes with it, so no board in a terminal reads a SitRep no longer
-    /// running, and a welcome open closes as its close button would close it, which quitting never tells it.
+    /// `watch` stops with the app, `here.json` goes with it, waited on a second at most, so no board in a terminal reads
+    /// a SitRep no longer running, and a welcome open closes as its close button would close it, which quitting never
+    /// tells it.
     func applicationWillTerminate(_ notification: Notification) {
         feed.stop()
         hereFile.remove()

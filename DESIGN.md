@@ -3240,19 +3240,23 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   {"at":1763650000123,"notHere":["sr-ct0002","sr-nw0001"],"v":1}
   ```
 
-  - **The app alone writes it,** at every read of here, every 3 seconds
-    and at each watch line, changed or not, so `at`, the write's time in
-    milliseconds since the epoch, stays fresh while SitRep runs. It writes
-    the whole file beside it and renames it over the old, off the main
-    thread, a write at a time; a write that fails says nothing, and makes
-    no folder. It finds the folder as for `snooze.json`, and removes the
-    file as SitRep quits.
-  - **The CLI's panel reads it** at every look, the board changed or not
+  - **The app alone writes it,** and only while a held session is
+    dimmed: at every read of here, every 3 seconds, and at each watch line,
+    so `at`, the write's time in milliseconds since the epoch, stays fresh.
+    As nothing is dimmed any more, it removes the file, once, so a Mac
+    where every session shows writes nothing. It writes the whole file
+    beside it and renames it over the old, off the main thread, a write
+    at a time; a write that fails makes no folder, and the first of a run
+    of failures is logged. It finds the folder as for `snooze.json`, and
+    removes the file as SitRep quits, waiting a second at most.
+  - **The CLI's panel reads it** at every look, the board read or not
     (core's `notHereOf`). A file missing, unreadable, misshapen, of a later
-    version, or 10 seconds or more from the look's time either way
-    (`HERE_STALE_MS`, three reads and a second over) names none, so a held
-    session draws filled while SitRep isn't reading. The mod never reads
-    it, and the board reads `projects/` alone.
+    version, or 30 seconds or more from the moment it is read, either way
+    (`HERE_STALE_MS`), names none, so a held session draws filled while
+    SitRep isn't reading. The limit matters only for a SitRep crashed,
+    hung or napped: SitRep runs in the background with no activity held
+    against App Nap, so its 3 seconds may stretch well past 10. The mod
+    never reads it, and the board reads `projects/` alone.
 - **Folders from before projects were named** keep their keys
   (`code-3f9a1c2e`, `switchboard-5b0e7d41`, from the folder a window
   started in): no key is renamed. Without a `project.json`, such a project is
@@ -9434,10 +9438,10 @@ open), and tmux passing an escape sequence through from Claude's own pane
      jump, exactly as today; not here, the command. Where the jump and the
      read disagree, the heartbeat saying Ghostty and the ancestry sshd, the
      read decides. A session here whose jump then fails is refused in the
-     jump's words, as today, and nothing starts. Each read is written to
-     `here.json` too, changed or not (20 November 2026; see "Storage"),
-     for the board in a terminal, which reads it at every look: the one
-     reader of here outside the app.
+     jump's words, as today, and nothing starts. While any session is
+     dimmed, each read is written to `here.json` too (20 November 2026;
+     see "Storage"), for the board in a terminal, which reads it at every
+     look: the one reader of here outside the app.
    - **What the read costs.** It asks Ghostty nothing, as `sitrep screen`
      did not (6 November 2026): no Apple Event, so no prompt for leave to
      control Ghostty and no 5 seconds' wait on a locked screen. The
@@ -10203,8 +10207,8 @@ look", the pick on its page "FINAL · board in a terminal".
 - **The fill comes from SitRep** (20 November 2026): SitRep writes each
   read of here to `here.json` (see "Storage"), and the panel reads it at
   every look, so a held session no terminal on this Mac shows draws hollow
-  and dimmed, as on the notch. A file 10 seconds old, or none, as with
-  SitRep not running, leaves every held session filled.
+  and dimmed, as on the notch. No file, as with nothing dimmed or SitRep
+  not running, or one 30 seconds old, leaves every held session filled.
 
 Every other question the spec put to Lee he answered on 19 November 2026
 as it recommended, and none is left open. So the CLI runs programs again, which it has not done

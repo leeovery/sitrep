@@ -659,6 +659,31 @@ test('a look that fails after a board keeps the board, as of when it was read, u
   await run.type('q')
 })
 
+test("a look that fails still reads SitRep's here.json: the file gone while the board can't be read, the row draws filled again, the board kept stale", async () => {
+  let isFailing = false
+  const run = opened({
+    fs: (call, path) => {
+      if (isFailing && call === 'stat' && path === projectsDir(ROOT)) {
+        throw new Error('EACCES: permission denied')
+      }
+    },
+  })
+
+  run.t.files.set(hereFile(ROOT), { text: JSON.stringify({ at: NOW, notHere: [META.id], v: 1 }), mtimeMs: NOW })
+  await run.passing(0)
+  expect(screenOf(run.screen.writes)[3]).toBe(AWAY_ROW)
+
+  isFailing = true
+  run.t.files.delete(hereFile(ROOT))
+  await run.passing(POLL_MS)
+
+  const stale = screenOf(run.screen.writes)
+
+  expect(stale[0]?.endsWith(` as of ${clockOf(new Date(NOW))}`), 'the board kept, stale').toBe(true)
+  expect(stale[3]).toBe(HERE_ROW)
+  await run.type('q')
+})
+
 test('the times turn over with the minute, the board standing still, and nothing is written between', async () => {
   const run = opened()
 
@@ -685,7 +710,7 @@ const writeHere = (run: Run, ...notHere: string[]) =>
 const AWAY_ROW = ' ○ Help desk redesign                1m'
 const HERE_ROW = ' ● Help desk redesign                1m'
 
-test("a held session SitRep's here.json names draws hollow and dimmed at the next look, the board unchanged; filled again once the file is 10 seconds old, or gone", async () => {
+test("a held session SitRep's here.json names draws hollow and dimmed at the next look, the board unchanged; filled again once the file has gone stale, or is gone", async () => {
   const run = opened()
 
   await run.passing(0)
@@ -702,10 +727,10 @@ test("a held session SitRep's here.json names draws hollow and dimmed at the nex
   expect(dimming()[0], 'its second line faint as one, without colour').toContain('\x1b[5;1H   \x1b[0;2mNorthwind · Review round 1\x1b[0m')
 
   await run.passing(HERE_STALE_MS - POLL_MS - 1)
-  expect(screenOf(run.screen.writes)[3], 'fresh until 10 seconds old').toBe(AWAY_ROW)
+  expect(screenOf(run.screen.writes)[3], 'dimmed still at the last look before the limit').toBe(AWAY_ROW)
 
   await run.passing(POLL_MS)
-  expect(screenOf(run.screen.writes)[3], '10 seconds old').toBe(HERE_ROW)
+  expect(screenOf(run.screen.writes)[3], 'filled at the first look past it').toBe(HERE_ROW)
 
   writeHere(run, META.id)
   await run.passing(POLL_MS)
@@ -717,7 +742,7 @@ test("a held session SitRep's here.json names draws hollow and dimmed at the nex
   await run.type('q')
 })
 
-test("the panel's first board is drawn with the fill SitRep's here.json gives, and a file naming no session on the board, or none, changes nothing", async () => {
+test("the panel's first board is drawn with the fill SitRep's here.json gives, and a file naming no session on the board, or none, writes nothing more", async () => {
   const run = opened()
 
   writeHere(run, META.id)

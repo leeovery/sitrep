@@ -1,4 +1,5 @@
 import Foundation
+import os
 import SitRepCore
 @testable import SitRepScreen
 import SitRepTestSupport
@@ -96,8 +97,8 @@ struct HereFileTests {
         #expect(try Data(contentsOf: file.url) == HereFile.text(["sr-ct0002", "sr-fb0004"], at: Self.at.addingTimeInterval(3)))
     }
 
-    /// A write that fails says nothing and makes nothing: into a board folder not there, which it never makes; and
-    /// into one that is a file.
+    /// A write that fails makes nothing: into a board folder not there, which it never makes; and into one that is a
+    /// file.
     @Test func aWriteThatFailsGoesNoFurther() throws {
         let folder = try Folder()
         let missing = folder.url.appending(path: "sitrep")
@@ -112,19 +113,63 @@ struct HereFileTests {
         #expect(folder.names == ["blocked"])
     }
 
-    /// A write posted is made off the caller's thread, each in the order posted, so the last read stands.
-    @Test func writesPostedAreMadeInTurn() async throws {
+    /// The first of a run of failures is logged, and no other until a write succeeds: one line, never one a read.
+    @Test func aRunOfFailuresIsLoggedOnce() throws {
+        let folder = try Folder()
+        let logged = OSAllocatedUnfairLock(initialState: [String]())
+        let file = HereFile(url: folder.url.appending(path: "board/\(HereFile.name)")) { line in
+            logged.withLock { $0.append(line) }
+        }
+        let board = folder.url.appending(path: "board")
+
+        for _ in 0 ..< 3 {
+            file.write(["sr-nw0001"], at: Self.at)
+        }
+        #expect(logged.withLock { $0.count } == 1)
+        #expect(logged.withLock { $0.first?.hasPrefix("here.json was not written: ") } == true)
+
+        try FileManager.default.createDirectory(at: board, withIntermediateDirectories: true)
+        file.write(["sr-nw0001"], at: Self.at)
+        try FileManager.default.removeItem(at: board)
+        file.write(["sr-nw0001"], at: Self.at)
+        file.write(["sr-nw0001"], at: Self.at)
+        #expect(logged.withLock { $0.count } == 2, "logged again only after a write succeeded")
+    }
+
+    /// Posted reads are written off the caller's thread, each in the order posted, so the last read stands.
+    @Test func readsPostedAreWrittenInTurn() throws {
         let folder = try Folder()
         let file = folder.file
-        let last = try HereFile.text(["sr-nw0009"], at: Self.at.addingTimeInterval(9))
 
         for second in 0 ..< 10 {
             file.post(["sr-nw000\(second)"], at: Self.at.addingTimeInterval(TimeInterval(second)))
         }
+        file.flush()
 
-        try await until(within: .seconds(10), "for the last write to land") {
-            (try? Data(contentsOf: file.url)) == last
-        }
+        #expect(try Data(contentsOf: file.url) == HereFile.text(["sr-nw0009"], at: Self.at.addingTimeInterval(9)))
+    }
+
+    /// A read with nothing dimmed removes the file, a file left by a run before among it, once and in turn after the
+    /// writes posted before it; more such reads remove nothing, until a write.
+    @Test func aReadWithNothingDimmedRemovesTheFileOnce() throws {
+        let folder = try Folder()
+        let file = folder.file
+        let other = try HereFile.text(["sr-ct0002"], at: Self.at)
+
+        try other.write(to: file.url)
+        file.post([], at: Self.at)
+        file.flush()
+        #expect(folder.names.isEmpty, "a file left by a run before")
+
+        try other.write(to: file.url)
+        file.post([], at: Self.at)
+        file.flush()
+        #expect(try Data(contentsOf: file.url) == other, "removed once: nothing more till a write")
+
+        file.post(["sr-nw0001"], at: Self.at)
+        file.post([], at: Self.at)
+        file.flush()
+        #expect(folder.names.isEmpty, "removed after the write posted before it")
     }
 
     /// Removed once every write posted before it is done, so none brings it back; removing a file not there says
@@ -139,6 +184,28 @@ struct HereFileTests {
         }
         file.remove()
 
+        #expect(folder.names.isEmpty)
+    }
+
+    /// The removal at quit waits up to its limit on a write hung before it, then returns, the file left to go stale;
+    /// it lands once the write is done.
+    @Test func theRemovalAtQuitNeverWaitsPastItsLimit() throws {
+        let folder = try Folder()
+        let file = folder.file
+        let hung = DispatchSemaphore(value: 0)
+
+        file.write(["sr-nw0001"], at: Self.at)
+        file.queue.async { hung.wait() }
+
+        let started = ContinuousClock.now
+
+        file.remove(within: .milliseconds(200))
+
+        #expect(ContinuousClock.now - started < .seconds(5))
+        #expect(folder.names == [HereFile.name], "still standing behind the hung write")
+
+        hung.signal()
+        file.flush()
         #expect(folder.names.isEmpty)
     }
 }

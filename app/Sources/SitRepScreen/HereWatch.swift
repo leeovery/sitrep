@@ -2,9 +2,9 @@ import SitRepCore
 
 /// The continuous read of here (DESIGN, stage 8, "How it is read"), for the rows: every held session on the watch's
 /// last board read at each line and every `every` between them, one read at a time, off the main thread. It keeps
-/// the sessions last read as not here, which the rows draw dimmed, and tells each read taken, for `HereFile`. A session
-/// read as unknown keeps the look it last read, and one never read is here; one no window holds any more keeps none, so
-/// a look never outlives its session's hold. A session read as here forgets the window opened for it
+/// the sessions last read as not here, which the rows draw dimmed, and tells each settling of them, for `HereFile`. A
+/// session read as unknown keeps the look it last read, and one never read is here; one no window holds any more keeps
+/// none, so a look never outlives its session's hold. A session read as here forgets the window opened for it
 /// (`RecentOpenings.shown`).
 @MainActor
 public final class HereWatch {
@@ -30,8 +30,9 @@ public final class HereWatch {
     public private(set) var notHere: Set<String> = []
     /// Each change of `notHere`.
     public var changed: (Set<String>) -> Void = { _ in }
-    /// Each read taken, changed or not, after `changed` where it changed: `notHere` as it then stands.
-    public var taken: (Set<String>) -> Void = { _ in }
+    /// Each settling of `notHere`, changed or not, after `changed` where it changed: at each line, which may drop
+    /// sessions with no read, and at each read taken.
+    public var settled: (Set<String>) -> Void = { _ in }
 
     public init(openings: RecentOpenings, clock: any JumpClock = SystemClock(), read: @escaping Read) {
         self.openings = openings
@@ -105,7 +106,6 @@ public final class HereWatch {
             }
 
             take(answer)
-            taken(notHere)
             reading = nil
             if isAskedAgain {
                 isAskedAgain = false
@@ -129,11 +129,10 @@ public final class HereWatch {
     }
 
     private func keep(_ notHere: Set<String>) {
-        guard notHere != self.notHere else {
-            return
+        if notHere != self.notHere {
+            self.notHere = notHere
+            changed(notHere)
         }
-
-        self.notHere = notHere
-        changed(notHere)
+        settled(notHere)
     }
 }

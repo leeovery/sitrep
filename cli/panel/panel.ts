@@ -39,8 +39,8 @@
  *   ends, drawn whole from the latest board, the band where it was, with
  *   what the pick leaves to say. Nothing else takes it back meanwhile, a
  *   Ctrl-Z's take-back pressed while the pick was readied among them.
- * - At every look it reads SitRep's `here.json` too, the board changed or
- *   not, and draws the held sessions it names hollow and dimmed, as the
+ * - At every look it reads SitRep's `here.json` too, the board changed,
+ *   unchanged or not read at all, and draws the held sessions it names hollow and dimmed, as the
  *   notch does (core's here.ts). With no file, or a stale one, as with
  *   SitRep not running, every held session draws filled.
  * - Each ask new on a look's board posts a terminal notification
@@ -423,6 +423,24 @@ const live = (io: Io, terminal: Terminal, { isNotifying }: PanelOptions) => {
     }
   }
 
+  /** The sessions this Mac doesn't show stepped in, where SitRep says other than it did; drawn with what is stepped next. */
+  const fill = (notHere: ReadonlySet<string>) => {
+    if (!isSameSet(notHere, state.notHere)) {
+      state = step(state, { notHere }).state
+    }
+  }
+
+  /**
+   * What SitRep says this Mac doesn't show, read as the look's reads end,
+   * the board read or not, so a look that fails still moves the fill; then
+   * `act` with it, unless the panel closed meanwhile.
+   */
+  const withHere = async (act: (notHere: ReadonlySet<string>) => void) => {
+    const notHere = await notHereAt(io, io.now())
+
+    guard(() => act(notHere))
+  }
+
   /**
    * A look's board, stepped as a board where it changed or the board was
    * stale, else the clock alone; and the sessions this Mac doesn't show
@@ -431,10 +449,7 @@ const live = (io: Io, terminal: Terminal, { isNotifying }: PanelOptions) => {
    */
   const onLook = (look: Look, notHere: ReadonlySet<string>) => {
     unhold()
-
-    if (!isSameSet(notHere, state.notHere)) {
-      state = step(state, { notHere }).state
-    }
+    fill(notHere)
 
     if (look.isSame && state.board === 'read') {
       apply({ tick: look.now })
@@ -450,16 +465,16 @@ const live = (io: Io, terminal: Terminal, { isNotifying }: PanelOptions) => {
     notify(feed, news.news)
   }
 
-  /** A look, with what SitRep says this Mac doesn't show as it ends, unless the panel closed while its reads were under way. */
-  const lookedAt = async (look: Look) => {
-    const notHere = await notHereAt(io, look.now)
+  /** A look, unless the panel closed while its reads were under way. */
+  const lookedAt = (look: Look) => withHere(notHere => onLook(look, notHere))
 
-    guard(() => onLook(look, notHere))
-  }
-
-  const onFailure = (error: unknown) => {
-    unhold()
-    apply({ failed: reasonOf(error) })
+  /** A look that failed: the board kept, stale, or why it can't be read, with the fill as SitRep says it now. */
+  const onFailure = async (error: unknown) => {
+    await withHere(notHere => {
+      unhold()
+      fill(notHere)
+      apply({ failed: reasonOf(error) })
+    })
 
     return true
   }
