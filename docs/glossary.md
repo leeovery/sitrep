@@ -66,7 +66,7 @@ Each word below means one thing on every page of these docs. The words are group
 
 **the menu bar item**: The SitRep icon in the menu bar, and its menu. The menu lists your sessions under one total, such as "3 need you". The icon lights the same way the notch does. SitRep has no Dock icon, so this is where you reach it.
 
-**Needs you**: The first section of the panel and of the terminal view: the sessions waiting on you. An orange row has asks, or a window waiting at a permission prompt. A blue row is Stopped.
+**Needs you**: The first section of the panel and of the terminal view: the sessions waiting on you. An orange row, or an orange dot in the terminal view, has asks, or a window waiting at a permission prompt. A blue one is Stopped.
 
 **the notch**: The SitRep shape at the left or right edge of your screen, black by default, on every Space. It opens into the panel when you hover over it. Its light is orange while an orange row waits in Needs you. With none, it is blue while a session is Stopped.
 
@@ -74,7 +74,7 @@ Each word below means one thing on every page of these docs. The words are group
 
 **the pulse**: The notch swelling and flashing its light. By default it comes for a new ask, and when a window starts waiting at a permission prompt. For Claude stopping, you turn it on in Settings › Notifications.
 
-**row**: A session as a line in the panel, or in the menu of the menu bar item. The terminal view gives each row two lines. A row in Needs you has a line for each ask or permission prompt waiting.
+**row**: A session in the panel, in the terminal view, or in the menu of the menu bar item. In the panel, a row in Needs you has a line for each ask or permission prompt waiting. In the terminal view, a row takes two lines. The first holds the name, with a count if more than one thing waits. The second holds the newest thing it waits on or is doing.
 
 **the strip**: The other way to show the board at the screen edge: a narrow column with a mark for each session. You choose Notch, Strip or Nothing under Show, in the menu or in Settings › Edge.
 
@@ -94,4 +94,4 @@ Each word below means one thing on every page of these docs. The words are group
 
 **plain shell syntax**: What a resume command may hold: words, pipes and `&&`, redirections, quotes, variables such as `$s`, and `$(…)`. The shells sh, bash, zsh, dash and ksh all read it the same way, so SitRep knows where each value lands. SitRep refuses a command that holds anything else, and names the part it found.
 
-**the resume command**: What SitRep types into a new Ghostty window, for a session no terminal on this Mac shows. The terminal view runs it in its own terminal, for the session you pick. The default is `cd {dir} && claude --resume {claude}`. You can set your own in Settings › General.
+**the resume command**: What SitRep types into a new Ghostty window, for a session no terminal on this Mac shows. The terminal view runs it in its own terminal, for the session you open with `⏎`. The default is `cd {dir} && claude --resume {claude}`. You can set your own in Settings › General.

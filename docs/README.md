@@ -17,7 +17,7 @@ Find the page for what you want to do. Each line says what the page answers.
 - [Putting a session off](snooze.md): the snooze choices, what wakes a session, and waking one early.
 - [A click takes you there](jump.md): how a click finds the window, in Ghostty, tmux or zmx, and the resume command.
 - [The edge of your screen: the notch, the strip and the menu bar](notch.md): what lights up, how to move it, and the strip marks.
-- [The board in any terminal](terminal.md): typing `sitrep` in Ghostty or over SSH, the keys, and picking a session.
+- [The board in any terminal](terminal.md): typing `sitrep` in any terminal, the keys, and opening a session.
 - [Notifications: sounds, banners and the pulse](notifications.md): what a new ask and Claude stopping do, and how to choose.
 
 ## Look things up

@@ -10215,7 +10215,8 @@ look", the pick on its page "FINAL · board in a terminal".
   Bun, into Homebrew's `bin`, in a PR on the tap. `docs/terminal.md` is its
   page, calling it the terminal view, since the docs' "panel" is the
   notch's; its still, `art/screens/terminal.webp`, is the golden frame
-  `panel-rest-73x36` drawn by termgrid.
+  `panel-docs-73x19`, a world of the docs' placeholder names alone, drawn
+  by termgrid.
 
 Every other question the spec put to Lee he answered on 19 November 2026
 as it recommended, and none is left open. So the CLI runs programs again, which it has not done

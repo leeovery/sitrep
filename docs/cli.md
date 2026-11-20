@@ -10,7 +10,7 @@ The command is `bin/sitrep` in the plugin's folder. SitRep installs its own copy
 ~/Library/Application Support/sitrep/bin/sitrep
 ```
 
-That copy is a single program, and needs nothing else installed. The Homebrew install also links the one inside the app into the Homebrew `bin` folder. So `sitrep` runs from any login shell, and from scripts.
+That copy is a single program, and needs nothing else installed. SitRep.app carries a copy of its own, and the Homebrew install links that copy into the Homebrew `bin` folder. Any shell or script with that folder on its PATH runs `sitrep`.
 
 If you run the plugin from a clone of the repository, the `bin/sitrep` in the clone runs on Bun.
 
@@ -143,8 +143,9 @@ The text form of `board` lists every item parked in the project, not only this s
 | `0` | Done |
 | `1` | A usage error, a refused input, or a failure |
 | `2` | No such session |
+| `129` to `143` | The terminal view ended by a signal: 128 and its number |
 
-A refusal prints one line to standard error, starting `sitrep:`, that says what to fix. With no command in a script or a pipe, `sitrep` prints the help to standard error and exits 1.
+A refusal prints one line to standard error, starting `sitrep:`, that says what to fix. With no command in a script, a pipe or a terminal whose `TERM` is `dumb`, `sitrep` prints the help to standard error and exits 1.
 
 ## Related
 
