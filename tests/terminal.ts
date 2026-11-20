@@ -87,16 +87,18 @@ export const NO_PROCESS: Ran = { exit: 1, out: '', err: '' }
  * terminal runs until the test ends it, or fails to start. A program run
  * apart answers as `ran` says, NO_PROCESS unless told. Its keys are read
  * only while the panel listens, in raw mode: a key typed otherwise is the
- * shell's, or the program's.
+ * shell's, or the program's. Its device is `device`, none unless given.
  */
 export const tty = ({
   size = { width: 39, height: 27 },
   answer = NORDFOX,
   ran = async () => NO_PROCESS,
+  device,
 }: {
   size?: Size
   answer?: string | Promise<string>
   ran?: (argv: readonly string[], ms: number) => Promise<Ran>
+  device?: string
 } = {}) => {
   let said: Size | undefined = size
   let reading: ((bytes: string) => void) | undefined
@@ -124,6 +126,7 @@ export const tty = ({
 
   const terminal: Terminal = {
     size: () => said,
+    device: () => device,
     onResize: heard => listen('resize', heard),
     keys: heard => {
       reading = heard

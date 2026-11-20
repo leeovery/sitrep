@@ -96,6 +96,8 @@ declare module 'node:fs' {
     path: string,
     options: { throwIfNoEntry: false },
   ): { size: number; mtimeMs: number } | undefined
+  /** An open file's: `rdev`, the device it is, as the kernel numbers it, 0 for none; throws for a closed one. */
+  export function fstatSync(fd: number): { rdev: number }
 }
 
 declare module 'node:fs/promises' {

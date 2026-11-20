@@ -44,9 +44,12 @@
  *   to say. Nothing else takes it back meanwhile, a
  *   Ctrl-Z's take-back pressed while the pick was readied among them.
  * - At every look it reads SitRep's `here.json` too, the board changed,
- *   unchanged or not read at all, and draws the held sessions it names hollow and dimmed, as the
- *   notch does (core's here.ts). With no file, or a stale one, as with
- *   SitRep not running, every held session draws filled.
+ *   unchanged or not read at all, and draws hollow and dimmed each held
+ *   session open on no device it is looked at from (core's here.ts): on
+ *   the Mac, those the notch dims; over SSH, those not open on that phone.
+ *   Where it is looked at from is read once, as it opens: its own tty, and
+ *   its own `SSH_CONNECTION`. With no file, or a stale one, as with SitRep
+ *   not running, every held session draws filled.
  * - Each ask new on a look's board posts a terminal notification
  *   (notices.ts), unless the run turned them off: a write each, after the
  *   look's frame, so never inside one. A look while a program has the
@@ -56,7 +59,7 @@
  *   A look whose reads end after the panel closed is dropped, so nothing
  *   reaches the shell after the terminal is given back.
  */
-import { hereFile, newRows, notHereOf, ownTime, rootOf, type Feed, type Shown } from '../../core'
+import { hereFile, newRows, notHereOf, ownTime, rootOf, type Feed, type Lookout, type Shown } from '../../core'
 import { textAt } from '../files'
 import { KEYED, type Io, type Signal, type Terminal } from '../io'
 import { looking, untilEnded, type Look } from '../looks'
@@ -95,11 +98,12 @@ const ENDINGS: readonly (readonly [Signal, Closed])[] = [
 /** The size laid out at while the terminal says none. */
 const UNSIZED: Size = { width: 80, height: 24 }
 
-/** The sessions on the board no terminal on this Mac shows: none known, until SitRep says. */
+/** The sessions on the board open on no device the panel is looked at from: none known, until SitRep says. */
 const NOT_HERE: ReadonlySet<string> = new Set()
 
-/** The sessions SitRep's `here.json` says no terminal on this Mac shows at `now`; none while SitRep says nothing. */
-const notHereAt = async (io: Io, now: number) => notHereOf(await textAt(io, hereFile(rootOf(io.env))), now)
+/** The sessions SitRep's `here.json` says are open on no device the panel is looked at from at `now`; none while SitRep says nothing. */
+const notHereAt = async (io: Io, now: number, lookout: Lookout) =>
+  notHereOf(await textAt(io, hereFile(rootOf(io.env))), now, lookout)
 
 const isSameSet = (a: ReadonlySet<string>, b: ReadonlySet<string>) =>
   a.size === b.size && [...a].every(each => b.has(each))
@@ -165,6 +169,7 @@ const closer = () => {
 const live = (io: Io, terminal: Terminal, { isNotifying }: PanelOptions) => {
   const closing = closer()
   const run = untilEnded({ ...io, ending: byThePanel })
+  const lookout: Lookout = { tty: terminal.device(), sshConnection: io.env.SSH_CONNECTION }
   const listening: (() => void)[] = []
   const waiting = new Set<() => void>()
   let paint: Paint = { level: levelOf(io.env) }
@@ -427,7 +432,7 @@ const live = (io: Io, terminal: Terminal, { isNotifying }: PanelOptions) => {
     }
   }
 
-  /** The sessions this Mac doesn't show stepped in, where SitRep says other than it did; drawn with what is stepped next. */
+  /** The sessions open on no device the panel is looked at from stepped in, where SitRep says other than it did; drawn with what is stepped next. */
   const fill = (notHere: ReadonlySet<string>) => {
     if (!isSameSet(notHere, state.notHere)) {
       state = step(state, { notHere }).state
@@ -435,22 +440,23 @@ const live = (io: Io, terminal: Terminal, { isNotifying }: PanelOptions) => {
   }
 
   /**
-   * What SitRep says this Mac doesn't show, read as the look's reads end,
-   * the board read or not, so a look that fails still moves the fill; then
-   * `act` with it, unless the panel closed meanwhile.
+   * What SitRep says is open on no device the panel is looked at from,
+   * read as the look's reads end, the board read or not, so a look that
+   * fails still moves the fill; then `act` with it, unless the panel closed
+   * meanwhile.
    */
   const withHere = async (act: (notHere: ReadonlySet<string>) => void) => {
-    const notHere = await notHereAt(io, io.now())
+    const notHere = await notHereAt(io, io.now(), lookout)
 
     guard(() => act(notHere))
   }
 
   /**
    * A look's board, stepped as a board where it changed or the board was
-   * stale, the sessions this Mac doesn't show with it, so the band follows
-   * its row from where it was drawn; else the clock alone, the fill first,
-   * where SitRep says other than it did, so an unchanged board redraws with
-   * its new fill.
+   * stale, the sessions open on no device the panel is looked at from with
+   * it, so the band follows its row from where it was drawn; else the clock
+   * alone, the fill first, where SitRep says other than it did, so an
+   * unchanged board redraws with its new fill.
    */
   const onLook = (look: Look, notHere: ReadonlySet<string>) => {
     unhold()

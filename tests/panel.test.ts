@@ -53,6 +53,8 @@ type Opened = {
   command?: string
   /** How `ps` answers, as it settles. */
   ps?: () => Promise<Ran>
+  /** The terminal's device; none unless given. */
+  device?: string
 }
 
 /**
@@ -73,11 +75,12 @@ const opened = ({
   directory,
   command,
   ps = async () => NO_PROCESS,
+  device,
 }: Opened = {}) => {
   let clock = NOW
   let err = ''
   const timers: Timer[] = []
-  const screen = tty({ size, ran: ps, ...(answer === undefined ? {} : { answer }) })
+  const screen = tty({ size, ran: ps, device, ...(answer === undefined ? {} : { answer }) })
   const t = terminal({
     now: () => clock,
     uptime: () => clock - NOW,
@@ -683,7 +686,7 @@ test("a look that fails still reads SitRep's here.json: the file gone while the 
     },
   })
 
-  run.t.files.set(hereFile(ROOT), { text: JSON.stringify({ at: NOW, notHere: [META.id], v: 1 }), mtimeMs: NOW })
+  writeHere(run, META.id)
   await run.passing(0)
   expect(screenOf(run.screen.writes)[3]).toBe(AWAY_ROW)
 
@@ -716,9 +719,12 @@ test('the times turn over with the minute, the board standing still, and nothing
   await run.type('q')
 })
 
-/** SitRep's `here.json`, written as the clock stands, naming the sessions given as not here. */
-const writeHere = (run: Run, ...notHere: string[]) =>
-  run.t.files.set(hereFile(ROOT), { text: JSON.stringify({ at: run.now(), notHere, v: 1 }), mtimeMs: run.now() })
+/** SitRep's `here.json`, written as the clock stands, naming each session given with the viewers given, and each tty given with its. */
+const writeSeen = (run: Run, sessions: Record<string, string[]>, ttys: Record<string, string[]> = {}) =>
+  run.t.files.set(hereFile(ROOT), { text: JSON.stringify({ at: run.now(), sessions, ttys, v: 2 }), mtimeMs: run.now() })
+
+/** SitRep's `here.json`, naming the sessions given as seen by nobody, so dimmed wherever the panel is. */
+const writeHere = (run: Run, ...notHere: string[]) => writeSeen(run, Object.fromEntries(notHere.map(id => [id, []])))
 
 /** The held row's first line as drawn, away and here, its pens aside. */
 const AWAY_ROW = ' ○ Help desk redesign                1m'
@@ -772,6 +778,45 @@ test("the panel's first board is drawn with the fill SitRep's here.json gives, a
   writeHere(run)
   await run.passing(POLL_MS)
   expect(unchanged()).toEqual([])
+  await run.type('q')
+})
+
+/** The phone's and the iPad's SSH logins, as sshd sets `SSH_CONNECTION`. */
+const FROM_THE_PHONE = '192.0.2.7 50122 192.0.2.1 22'
+const FROM_THE_IPAD = '198.51.100.4 50123 192.0.2.1 22'
+
+test('over SSH, a held session open on the device the panel is looked at from draws filled, and one open only on the Mac hollow; on the Mac, the other way round', async () => {
+  const phone = opened({ env: { NO_COLOR: '1', SSH_CONNECTION: FROM_THE_PHONE } })
+  const mac = opened()
+  const both = [phone, mac]
+
+  both.forEach(run => writeSeen(run, { [META.id]: ['ssh:192.0.2.7'] }))
+  await phone.passing(0)
+  await mac.passing(0)
+
+  expect(screenOf(phone.screen.writes)[3], 'open on the phone').toBe(HERE_ROW)
+  expect(screenOf(mac.screen.writes)[3], 'not on the Mac').toBe(AWAY_ROW)
+
+  both.forEach(run => writeSeen(run, { [META.id]: ['mac'] }))
+  await phone.passing(POLL_MS)
+  await mac.passing(POLL_MS)
+
+  expect(screenOf(phone.screen.writes)[3], 'open only on the Mac').toBe(AWAY_ROW)
+  expect(screenOf(mac.screen.writes)[3], 'on the Mac').toBe(HERE_ROW)
+  await phone.type('q')
+  await mac.type('q')
+})
+
+test("inside a multiplexer session, the panel is looked at from its own tty's viewers, its SSH_CONNECTION the one the session was made with; with its tty no longer listed, from that", async () => {
+  const run = opened({ device: '/dev/ttys004', env: { NO_COLOR: '1', SSH_CONNECTION: FROM_THE_IPAD } })
+
+  writeSeen(run, { [META.id]: ['ssh:192.0.2.7'] }, { '/dev/ttys004': ['ssh:192.0.2.7'], '/dev/ttys012': ['mac'] })
+  await run.passing(0)
+  expect(screenOf(run.screen.writes)[3], 'the phone views its tty').toBe(HERE_ROW)
+
+  writeSeen(run, { [META.id]: ['ssh:192.0.2.7'] }, { '/dev/ttys012': ['mac'] })
+  await run.passing(POLL_MS)
+  expect(screenOf(run.screen.writes)[3], 'its tty unlisted: the iPad, as its SSH_CONNECTION says').toBe(AWAY_ROW)
   await run.type('q')
 })
 

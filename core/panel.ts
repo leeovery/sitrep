@@ -3,10 +3,12 @@
  * app's `Sections.swift` and `PanelBoard.swift`): Needs you, Working, then
  * Snoozed, each with its counts, an empty one left out.
  *
- * - Needs you holds its asks, then its Stopped, each those this Mac shows
+ * - Needs you holds its asks, then its Stopped, each those drawn filled
  *   before the away ones, each part in core's order, newest first. A
- *   session this Mac doesn't show is away, as one no window holds is; core
- *   has it among those a window holds, so it leads the away ones.
+ *   session in `notHere` is away, as one no window holds is: the app reads
+ *   it as one this Mac's screen doesn't show, the terminal view as one open
+ *   on no device it is looked at from. Core has it among those a window
+ *   holds, so it leads the away ones.
  * - Working keeps core's order: working, then on its own work.
  * - Snoozed keeps core's order (`inSnoozedOrder`). A session there may have
  *   a row in another section too.
@@ -26,13 +28,13 @@ export type PanelSection = {
 
 type Count = PanelSection['counts'][number]
 
-/** A row, away where this Mac doesn't show its session. */
+/** A row, away where its session is in `notHere`. */
 const awayUnless =
   (notHere: ReadonlySet<string>) =>
   <T extends Row | SnoozedRow>(row: T): T =>
     !row.isAway && notHere.has(row.session) ? { ...row, isAway: true } : row
 
-/** Those this Mac shows, then the away ones, each in the order given. */
+/** Those drawn filled, then the away ones, each in the order given. */
 const hereFirst = <T extends Row>(rows: readonly T[]) => [
   ...rows.filter(row => !row.isAway),
   ...rows.filter(row => row.isAway),

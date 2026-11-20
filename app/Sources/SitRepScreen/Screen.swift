@@ -89,6 +89,12 @@ public struct Screen: Sendable {
         return innermost(of: `where`).flatMap { $0.places(`where`, processes ?? Processes([:])) }
     }
 
+    /// The clients showing a window in a multiplexer, or that a select would make show it, seated or not, by the
+    /// innermost it runs in, as its places are found.
+    func clients(of where: Board.Window.Where) -> [Client] {
+        innermost(of: `where`).flatMap { $0.clients(`where`, processes ?? Processes([:])) }
+    }
+
     /// The readings of the multiplexer a window is innermost in: of those it runs in, the one whose own pty is its
     /// device; where none says so, each that cannot tell. A multiplexer run inside another passes its variables on
     /// (tmux started in zmx keeps `$ZMX_SESSION`, zmx started in tmux `$TMUX`), so the outer one's would name a

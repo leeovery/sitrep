@@ -3,7 +3,7 @@
  * write them.
  *
  *   <root>/snooze.json          Snooze's choices as Lee set them in SitRep
- *   <root>/here.json            the held sessions SitRep last read no terminal on this Mac shows
+ *   <root>/here.json            who SitRep last read viewing each held session and multiplexer tty
  *   <root>/projects/<project key>/
  *     project.json              the project's name and directory
  *     sessions/<session id>/
@@ -82,7 +82,7 @@ export const SNOOZE_FILE = 'snooze.json'
 
 export const snoozeFile = (root: string) => `${root}/${SNOOZE_FILE}`
 
-/** The held sessions no terminal on this Mac shows, as SitRep last read them, which the app alone writes, at the folder's top. */
+/** Who views each held session and each multiplexer tty, as SitRep last read them, which the app alone writes, at the folder's top. */
 export const HERE_FILE = 'here.json'
 
 export const hereFile = (root: string) => `${root}/${HERE_FILE}`

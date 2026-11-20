@@ -3135,7 +3135,7 @@ writers and readers stay safe:
 ```
 $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   snooze.json                 Snooze's choices as Lee set them in SitRep: the app's alone, for the pane
-  here.json                   the held sessions SitRep last read no terminal on this Mac shows: the app's alone, for the panel in a terminal
+  here.json                   who SitRep last read viewing each held session and each multiplexer tty: the app's alone, for the panel in a terminal
   projects/<project key>/
     project.json              name, directory, created and by whom: the project's own
     sessions/<session id>/
@@ -3230,33 +3230,48 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
     snoozes, before its first look rewrites what an older build stored.
   - SitRep is its one writer, as the one-file-per-writer rule below has
     every file, so it needs no lock.
-- **`here.json`** (20 November 2026; see "The board in a terminal"): the
-  held sessions SitRep's last read of here found no terminal on this Mac
-  shows (stage 8, "How it is read"), for the board in a terminal to draw
-  hollow and dimmed, as the notch does. Compact, its keys sorted
+- **`here.json`** (20 November 2026; see "The board in a terminal"): who
+  SitRep's last read of here saw viewing each held session, and each tty
+  inside a multiplexer session (stage 8, "How it is read"), for the board
+  in a terminal to draw hollow and dimmed what is open on no device it is
+  looked at from. Compact, its keys sorted, its slashes as they are
   (`tests/here.ts` holds the app's encoder to its text):
 
   ```
-  {"at":1763650000123,"notHere":["sr-ct0002","sr-nw0001"],"v":1}
+  {"at":1763650000123,"sessions":{"sr-ct0002":["ssh:192.0.2.7"],"sr-nw0001":["mac"]},"ttys":{"/dev/ttys004":["ssh:192.0.2.7"]},"v":2}
   ```
 
-  - **The app alone writes it,** and only while a held session is
-    dimmed: at every read of here, every 3 seconds, and at each watch line,
-    so `at`, the write's time in milliseconds since the epoch, stays fresh.
-    As nothing is dimmed any more, it removes the file, once, so a Mac
-    where every session shows writes nothing. It writes the whole file
-    beside it and renames it over the old, off the main thread, a write
-    at a time; a write that fails makes no folder, and the first of a run
-    of failures is logged. It finds the folder as for `snooze.json`, and
-    removes the file as SitRep quits, waiting a second at most.
+  - **A viewer** is `mac`, this Mac's screen, or `ssh:` and the address
+    of a device reached over SSH, from the first field of
+    `SSH_CONNECTION` in the client's environment, so every tab one phone
+    opens counts as that phone. `sessions` gives each held session read
+    its viewers, none for one open nowhere; `ttys` gives each multiplexer
+    tty with a viewer its session's, by its device, `/dev/ttys004`, named
+    from the kernel's numbers as the panel names its own. Version 1, which
+    named only the sessions no terminal on this Mac showed as `notHere`,
+    reads as each of them seen by nobody.
+  - **The app alone writes it:** at once as what it says changes, and
+    otherwise at most every 10 seconds while any held session is read, so
+    `at`, the write's time in milliseconds since the epoch, stays fresh.
+    With no session read, as with nothing held, it removes the file, once.
+    It writes the whole file beside it and renames it over the old, off
+    the main thread, a write at a time; a write that fails makes no folder
+    and is tried again at the next settling, and the first of a run of
+    failures is logged. It finds the folder as for `snooze.json`, and
+    removes the file as SitRep quits, waiting a second at most. Until 20
+    November 2026 it wrote only while a held session was dimmed; the panel
+    over SSH needs the file whenever sessions are held.
   - **The CLI's panel reads it** at every look, the board read or not
-    (core's `notHereOf`). A file missing, unreadable, misshapen, of a later
-    version, or 30 seconds or more from the moment it is read, either way
-    (`HERE_STALE_MS`), names none, so a held session draws filled while
-    SitRep isn't reading. The limit matters only for a SitRep crashed,
+    (core's `notHereOf`), and dims each held session whose viewers share
+    none with its own: its own tty's, where the file lists any; else the
+    device its own `SSH_CONNECTION` names; else `mac`. A file missing,
+    unreadable, misshapen, of a later version, or 30 seconds or more from
+    the moment it is read, either way (`HERE_STALE_MS`), says nothing, so
+    a held session draws filled while SitRep isn't reading, as does one
+    the file doesn't name. The limit matters only for a SitRep crashed,
     hung or napped: SitRep runs in the background with no activity held
-    against App Nap, so its 3 seconds may stretch well past 10. The mod
-    never reads it, and the board reads `projects/` alone.
+    against App Nap, so its sleep may stretch well past 10 seconds. The
+    mod never reads it, and the board reads `projects/` alone.
 - **Folders from before projects were named** keep their keys
   (`code-3f9a1c2e`, `switchboard-5b0e7d41`, from the folder a window
   started in): no key is renamed. Without a `project.json`, such a project is
@@ -9442,14 +9457,29 @@ open), and tmux passing an escape sequence through from Claude's own pane
      goes by outside a multiplexer, is not read: a Claude reached over SSH
      whose shell carries Ghostty's is not here. Read every few seconds and
      on each watch line, one read at a time, off the main thread; and read
-     again at the click, the same read, which picks the way: here, the
-     jump, exactly as today; not here, the command. Where the jump and the
-     read disagree, the heartbeat saying Ghostty and the ancestry sshd, the
-     read decides. A session here whose jump then fails is refused in the
-     jump's words, as today, and nothing starts. While any session is
-     dimmed, each read is written to `here.json` too (20 November 2026;
-     see "Storage"), for the board in a terminal, which reads it at every
-     look: the one reader of here outside the app.
+     again at the click, the same read of the seats alone, which picks the
+     way: here, the jump, exactly as today; not here, the command. Where
+     the jump and the read disagree, the heartbeat saying Ghostty and the
+     ancestry sshd, the read decides. A session here whose jump then fails
+     is refused in the jump's words, as today, and nothing starts. Since
+     20 November 2026 the same read tells who views each held session (see
+     "The board in a terminal"): every client showing it gives a viewer, `mac` where it is
+     seated in a terminal app here, as above, or `ssh:` and the address in
+     its `SSH_CONNECTION` where an SSH login reached it, OpenSSH's or
+     `tsshd`, trzsz-ssh's, which Lee's phone reaches the Mac through.
+     `tsshd` joins the remote logins `seenFromHere` cuts from their
+     parents, which the notch and the click go by too, and changes nothing
+     either shows: it runs under launchd, so no ancestry through it ever
+     reached a terminal app. Only that variable is read from another
+     process's environment, and only its first field kept. A session is
+     here where `mac` is among its viewers, so the notch is unchanged. The
+     read also maps each zmx session's tty, and each tmux pane's, to its
+     viewers, reading the command line of each zmx server beside its
+     clients'. The click's read reads neither, nor any environment. Each
+     read is written to `here.json` while any session is held (see
+     "Storage"), for the board in a terminal, which reads it at every look:
+     the one reader of here outside the app. That costs a debug build's
+     read 28ms against 23.5ms, over 1,317 processes and 25 zmx sessions.
    - **What the read costs.** It asks Ghostty nothing, as `sitrep screen`
      did not (6 November 2026): no Apple Event, so no prompt for leave to
      control Ghostty and no 5 seconds' wait on a locked screen. The
@@ -10201,10 +10231,10 @@ look", the pick on its page "FINAL · board in a terminal".
   as in the app's defaults.
 - **The marks keep the notch's grammar**: colour says what is needed,
   Claude Code's orange `#D77757` for an ask and blue for Stopped; fill says
-  where, filled where a terminal on this Mac shows the session and hollow
-  away. `✻` is working, `◌` on its own work, and `◉` a new ask, for two
-  seconds. Asks are circles, as on the notch card (19 November 2026; round
-  1 drew diamonds).
+  where, filled where the session is open on the device you're looking
+  from and hollow away. `✻` is working, `◌` on its own work, and `◉` a new
+  ask, for two seconds. Asks are circles, as on the notch card (19
+  November 2026; round 1 drew diamonds).
 - **The look** (19 November 2026, the fourth of four rounds): each session
   on two lines, its name and time, then its project and status line, under
   grey capital headings with a rule, `NEEDS YOU ●4 ●2 ───── ▿`, the words
@@ -10215,9 +10245,18 @@ look", the pick on its page "FINAL · board in a terminal".
   15 rows. Lee: "We build it dynamically. It will fit regardless."
 - **The fill comes from SitRep** (20 November 2026): SitRep writes each
   read of here to `here.json` (see "Storage"), and the panel reads it at
-  every look, so a held session no terminal on this Mac shows draws hollow
-  and dimmed, as on the notch. No file, as with nothing dimmed or SitRep
-  not running, or one 30 seconds old, leaves every held session filled.
+  every look. No file, as with SitRep not running, or one 30 seconds old,
+  leaves every held session filled.
+- **Hollow means not open on the device you're looking from**, decided by
+  Lee on 20 November 2026. Over SSH from his phone, in rootshell, every
+  asking session drew hollow, though he had each open there, attached
+  from the phone and detached on the Mac: hollow had meant no terminal on
+  this Mac's screen shows it. Now a session attached from the device the
+  panel is looked at from counts as here. On the Mac nothing changes: the
+  panel dims what the notch dims. SitRep tells each session's viewers,
+  `mac` or a device over SSH by its address, and each multiplexer tty's;
+  the panel finds its own by its tty, where SitRep lists it, as inside
+  zmx, else by its own `SSH_CONNECTION`, else it is on the Mac.
 - **Reached from any shell, and documented** (20 November 2026, slice 9):
   the cask's `binary` stanza links the CLI the bundle carries,
   `Contents/Resources/Plugin/bin/sitrep`, a compiled binary needing no
@@ -10231,8 +10270,8 @@ Every other question the spec put to Lee he answered on 19 November 2026
 as it recommended, and none is left open. So the CLI runs programs again, which it has not done
 since 10 November 2026 (stage 7, step B), but only for a pick: the user's
 resume command through the login shell, and `ps` for the guard and
-`{tty}`; never zmx or tmux. SitRep writes which sessions this Mac doesn't
-show, for the panel's hollow marks.
+`{tty}`; never zmx or tmux. SitRep writes who views each session, for the
+panel's hollow marks.
 
 ## Later
 
