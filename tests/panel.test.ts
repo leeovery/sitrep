@@ -1,15 +1,17 @@
 import { drained, expect, test } from './kit'
-import type { Io, Signal, Terminal } from '../cli/io'
+import type { Io, Ran, Signal, Terminal } from '../cli/io'
 import { EXIT, main } from '../cli/main'
 import type { Size } from '../cli/panel/cells'
 import { paintOf } from '../cli/panel/colours'
+import { DEFAULTS, PS_MS } from '../cli/panel/edge'
 import { ESC_MS, HOLD_MS } from '../cli/panel/panel'
 import { repaint } from '../cli/panel/screen'
-import { append, clockOf, projectsDir, type Body } from '../core'
-import { META, PROJECT, REPO, ROOT, T0, W1 } from './data'
-import { yesAsk } from './lines'
+import { append, clockOf, projectsDir, type Body, type SessionMeta, type Where } from '../core'
+import { HOME, META, PROJECT, REPO, ROOT, T0, W1 } from './data'
+import { beat, yesAsk } from './lines'
+import { defaultsOf } from './plist'
 import { WHERE } from './world'
-import { ENV, NOW, STOPPED, terminal, tty } from './terminal'
+import { ENV, HANDED, NO_PROCESS, NOW, STOPPED, terminal, tty } from './terminal'
 
 /** The writes that ask the colours, enter the screen and leave it, byte for byte. */
 const QUERY = '\x1b]10;?\x07\x1b]11;?\x07\x1b[c'
@@ -39,23 +41,60 @@ type Opened = {
   fs?: (call: string, path: string) => Promise<void> | void
   /** The terminal as the panel gets it. */
   wrap?: (terminal: Terminal) => Terminal
+  /** The session, as its meta says it. */
+  meta?: SessionMeta
+  /** Where the session's window is, and the folder its Claude runs in. */
+  where?: Where
+  directory?: string
+  /** The resume command SitRep's defaults save; none saved unless given. */
+  command?: string
+  /** How `ps` answers, as it settles. */
+  ps?: () => Promise<Ran>
 }
 
 /**
  * Bare `sitrep` on the fake terminal, over the CLI's memory world: Northwind's
- * session asking k1 since T0, its window seen now. Its clock moves only as the
- * test passes time, each wait firing in turn as the clock reaches it.
+ * session asking k1 since T0, its window seen now, in Ghostty unless told
+ * otherwise, its device there, the login shell zsh. Its clock moves only as the test passes
+ * time, each wait firing in turn as the clock reaches it.
  */
-const opened = ({ size = SIZE, env = { NO_COLOR: '1' }, answer, fs, wrap = each => each }: Opened = {}) => {
+const opened = ({
+  size = SIZE,
+  env = { NO_COLOR: '1' },
+  answer,
+  fs,
+  wrap = each => each,
+  meta = META,
+  where = WHERE,
+  directory,
+  command,
+  ps = async () => NO_PROCESS,
+}: Opened = {}) => {
   let clock = NOW
   let err = ''
   const timers: Timer[] = []
-  const screen = tty({ size, ...(answer === undefined ? {} : { answer }) })
-  const t = terminal({ now: () => clock, uptime: () => clock - NOW, env: { ...ENV, ...env }, terminal: wrap(screen.terminal) })
+  const screen = tty({ size, ran: ps, ...(answer === undefined ? {} : { answer }) })
+  const t = terminal({
+    now: () => clock,
+    uptime: () => clock - NOW,
+    env: { ...ENV, SHELL: '/bin/zsh', ...env },
+    terminal: wrap(screen.terminal),
+  })
 
   t.project(PROJECT.key, { name: PROJECT.name, directory: REPO, created: T0, by: W1 })
 
-  const paths = t.seed(META, { lines: [[T0, yesAsk('k1', 'Review round 1')]], seenAt: NOW, where: WHERE })
+  const paths = t.seed(meta, { lines: [[T0, yesAsk('k1', 'Review round 1')]] })
+
+  t.files.set(paths.heartbeat(W1), { text: beat(W1, { attachedAt: NOW, seenAt: NOW, where, directory }), mtimeMs: NOW })
+
+  if (where.device !== undefined) {
+    t.files.set(where.device, { text: '', mtimeMs: T0 })
+  }
+
+  if (command !== undefined) {
+    t.files.set(`${HOME}/${DEFAULTS}`, { text: '', bytes: defaultsOf({ app: { resume: command } }), mtimeMs: T0 })
+  }
+
   const told = (call: string) => async (path: string) => fs?.(call, path)
   const io: Io = {
     ...t.io,
@@ -687,4 +726,240 @@ test('a frame rewrites only the rows that changed, a row emptied cleared to its 
   expect(repaint(['a', 'b'], ['a', ''])).toBe('\x1b[?2026h\x1b[2;1H\x1b[K\x1b[?2026l')
   expect(repaint(undefined, ['a', '', 'c'])).toBe('\x1b[?2026h\x1b[2J\x1b[1;1Ha\x1b[K\x1b[3;1Hc\x1b[K\x1b[?2026l')
   expect(repaint(['a', 'b'], ['a', 'b'])).toBe('')
+})
+
+/** A window in a zmx session, on the device Ghostty's would be on. */
+const IN_ZMX: Where = { ...WHERE, zmx: { session: 'northwind · help-desk' } }
+
+/** The user's own resume command, naming every placeholder. */
+const OWN = 'attach {tty} {dir} {claude}'
+
+/** The login shell's words for the session, by the user's command: no Claude on its device, so `{tty}` empty. */
+const OWN_LINE = ['/bin/zsh', '-l', '-c', `attach '' '${REPO}' '${W1}'`]
+
+const WIDE: Size = { width: 69, height: 20 }
+
+/** The panel at 69×20, its session's window in zmx, the user's command saved: the band put on the session, then ⏎. */
+const picking = async (given: Opened = {}) => {
+  const run = opened({ size: WIDE, where: IN_ZMX, directory: REPO, command: OWN, ...given })
+
+  await run.passing(0)
+  await run.type('j')
+
+  const writes = run.writesFrom()
+
+  await run.type('\r')
+
+  return { run, writes }
+}
+
+/** The rows the writes leave on the screen at 69×20, their trailing blanks aside. */
+const rowsOf = (writes: readonly string[]) => screenOf(writes, WIDE.height).map(row => row.trimEnd())
+
+test("a pick hands the terminal over: the screen left, keys no more read, ps asked of the window's device, the login shell handed the line", async () => {
+  const { run, writes } = await picking()
+
+  expect(writes()).toEqual([LEAVE, HANDED])
+  expect(run.screen.isReading()).toBe(false)
+  expect(run.screen.runs()).toEqual([{ argv: ['/bin/ps', '-t', '/dev/ttys001', '-o', 'stat=,comm='], ms: PS_MS }])
+  expect(run.screen.handed()).toEqual([OWN_LINE])
+  run.screen.end(0)
+  await run.type('q')
+})
+
+test('as the program ends, the terminal is taken back, raw mode set afresh, drawn whole, the band where it was, nothing more to say', async () => {
+  const { run, writes } = await picking()
+  const listens = run.screen.listens()
+
+  await run.passing(3_000)
+  run.screen.end(0)
+  await run.passing(0)
+
+  const [left, handed, entered, frame = ''] = writes()
+  const rows = rowsOf(writes())
+
+  expect([left, handed, entered, writes().length]).toEqual([LEAVE, HANDED, ENTER, 4])
+  expect(frame.startsWith('\x1b[?2026h\x1b[2J')).toBe(true)
+  expect(frame).toContain('\x1b[0;7m')
+  expect(rows[3]).toBe(' ● Help desk redesign                                             1m')
+  expect(rows.some(row => row.startsWith(' !'))).toBe(false)
+  expect(rows[19]).toBe(' ↑↓ move  ⏎ open  q quit')
+  expect([run.screen.isReading(), run.screen.listens()]).toEqual([true, listens + 1])
+  await run.type('q')
+
+  expect(await run.ended()).toEqual({ exit: EXIT.done, err: '' })
+})
+
+test('a command that ends non-zero within 2 seconds leaves its answer above the key line; one ending later, none', async () => {
+  const quick = await picking()
+
+  await quick.run.passing(1_999)
+  quick.run.screen.end(1)
+  await quick.run.passing(0)
+
+  const slow = await picking()
+
+  await slow.run.passing(2_000)
+  slow.run.screen.end(1)
+  await slow.run.passing(0)
+
+  expect(rowsOf(quick.writes()).slice(17)).toEqual(['', ' ! The resume command ended with 1 for Help desk redesign.', ' ↑↓ move  ⏎ open  q quit'])
+  expect(rowsOf(slow.writes()).some(row => row.startsWith(' !'))).toBe(false)
+  await quick.run.type('q')
+  await slow.run.type('q')
+})
+
+test("a login shell that can't start leaves its own answer, the terminal taken back", async () => {
+  const { run, writes } = await picking()
+
+  run.screen.unstarted(new Error("ENOENT: no such file or directory, posix_spawn '/bin/zsh'"))
+  await run.passing(0)
+
+  expect(writes().slice(0, 3)).toEqual([LEAVE, HANDED, ENTER])
+  expect(rowsOf(writes())[18]).toBe(" ! sitrep couldn't start your login shell, /bin/zsh.")
+  await run.type('q')
+})
+
+test('a pick refused says why above the key line and hands nothing over; Ctrl-Z, stepped first, drops the answer', async () => {
+  const { run, writes } = await picking({ command: undefined })
+
+  expect(run.screen.handed()).toEqual([])
+  expect(writes().some(write => write === LEAVE)).toBe(false)
+  expect(rowsOf(run.screen.writes)[17]).toBe(" ! Help desk redesign's window has just stopped answering: try again")
+  expect(rowsOf(run.screen.writes)[18]).toBe('   in a moment.')
+
+  const stopped = run.writesFrom()
+
+  await run.type('\x1a')
+  await run.passing(0)
+
+  expect(stopped().slice(0, 3)).toEqual([LEAVE, STOPPED, ENTER])
+  expect(rowsOf(stopped()).some(row => row.startsWith(' !'))).toBe(false)
+  await run.type('q')
+})
+
+test('a pick the feed alone refuses asks ps nothing, as a window in no multiplexer; any key then drops the answer', async () => {
+  const { run } = await picking({ where: WHERE })
+
+  expect(run.screen.runs()).toEqual([])
+  expect(rowsOf(run.screen.writes).slice(17, 19)).toEqual([" ! Help desk redesign can't be opened here: its terminal has no tmux", '   or zmx.'])
+  await run.type('j')
+
+  expect(rowsOf(run.screen.writes).some(row => row.startsWith(' !'))).toBe(false)
+  await run.type('q')
+})
+
+test("a pick's answer reaches the screen made harmless, a name's control bytes dropped", async () => {
+  const { run } = await picking({ where: WHERE, meta: { ...META, name: 'Help desk\x1b[2J redesign' } })
+  const drawn = run.screen.writes.slice(1).join('')
+
+  expect(rowsOf(run.screen.writes)[17]).toBe(" ! Help desk[2J redesign can't be opened here: its terminal has no")
+  expect(drawn.includes('desk\x1b[2J')).toBe(false)
+  await run.type('q')
+})
+
+test("SIGINT and SIGQUIT are the program's while it has the terminal, as is a SIGCONT; taken back, SIGINT ends the panel again", async () => {
+  const { run, writes } = await picking()
+
+  await run.signal('SIGINT')
+  await run.signal('SIGQUIT')
+  await run.signal('SIGCONT')
+  await run.passing(0)
+
+  expect(writes()).toEqual([LEAVE, HANDED])
+  run.screen.end(130)
+  await run.passing(0)
+  await run.signal('SIGINT')
+
+  expect(await run.ended()).toEqual({ exit: 130, err: '' })
+  expect(writes().at(-1)).toBe(LEAVE)
+})
+
+test('SIGTERM and SIGHUP still end the panel while a program has the terminal, writing nothing more, every listening and wait let go', async () => {
+  for (const [signal, exit] of [['SIGTERM', 143], ['SIGHUP', 129]] as const) {
+    const { run, writes } = await picking()
+
+    await run.signal(signal)
+
+    expect(await run.ended(), signal).toEqual({ exit, err: '' })
+    run.screen.end(0)
+    await run.passing(0)
+
+    expect(writes(), signal).toEqual([LEAVE, HANDED])
+    expect(givenBack(run), signal).toEqual(GIVEN_BACK)
+  }
+})
+
+test('a Ctrl-Z pressed while a pick is readied gives the terminal back, and nothing takes it back while the program the pick runs has it', async () => {
+  let answer: (ran: Ran) => void = () => {}
+  const run = opened({ size: WIDE, where: IN_ZMX, directory: REPO, command: OWN, ps: () => new Promise(resolve => (answer = resolve)) })
+
+  await run.passing(0)
+  await run.type('j')
+
+  const writes = run.writesFrom()
+
+  await run.type('\r\x1a')
+  answer(NO_PROCESS)
+  await run.passing(0)
+
+  expect(writes()).toEqual([LEAVE, STOPPED, HANDED])
+  expect(run.screen.isReading()).toBe(false)
+
+  run.screen.end(0)
+  await run.passing(0)
+
+  expect(writes().slice(0, 4)).toEqual([LEAVE, STOPPED, HANDED, ENTER])
+  expect(run.screen.isReading()).toBe(true)
+  await run.type('q')
+})
+
+test('a SIGTERM or SIGHUP sent to the whole job as the program ends, as `kill %1` sends it, ends the panel before it takes the terminal back', async () => {
+  for (const [signal, exit] of [['SIGTERM', 143], ['SIGHUP', 129]] as const) {
+    const { run, writes } = await picking()
+
+    run.screen.end(128 + (signal === 'SIGTERM' ? 15 : 1))
+    await drained()
+    run.screen.signal(signal)
+    await run.passing(0)
+
+    expect(await run.ended(), signal).toEqual({ exit, err: '' })
+    expect(writes(), signal).toEqual([LEAVE, HANDED])
+    expect(givenBack(run), signal).toEqual(GIVEN_BACK)
+  }
+})
+
+test('the board is looked at while a program has the terminal, drawing nothing; taken back, it is drawn from the latest board, at the size the terminal has now', async () => {
+  const { run, writes } = await picking()
+
+  post(run, yesAsk('k2', 'Ship it'))
+  run.screen.resize({ width: 73, height: 20 })
+  await run.passing(1_000)
+
+  expect(writes()).toEqual([LEAVE, HANDED])
+  run.screen.end(0)
+  await run.passing(0)
+
+  expect(screenOf(writes(), 20)[3]).toBe(' ◉ Help desk redesign 2                                              now')
+  await run.type('q')
+})
+
+test('one pick at a time: ⏎ again while ps answers asks nothing more; q meanwhile leaves, and nothing is handed over after', async () => {
+  let answer: (ran: Ran) => void = () => {}
+  const ps = () =>
+    new Promise<Ran>(resolve => {
+      answer = resolve
+    })
+  const { run } = await picking({ ps })
+
+  await run.type('\r')
+
+  expect(run.screen.runs()).toHaveLength(1)
+  await run.type('q')
+  answer(NO_PROCESS)
+  await run.passing(0)
+
+  expect(await run.ended()).toEqual({ exit: EXIT.done, err: '' })
+  expect(run.screen.handed()).toEqual([])
+  expect(run.screen.writes.at(-1)).toBe(LEAVE)
 })

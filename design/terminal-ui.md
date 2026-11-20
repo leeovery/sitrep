@@ -177,14 +177,38 @@ Doesn't apply: the panel shows no step running. Its marks are still: `✻` doesn
 - `{dir}`: that window's `directory`;
 - `{tty}`: that window's device, filled only while `ps` shows a Claude Code on it, running or suspended, with no later conversation seen there (`ownsDevice`); otherwise `''`.
 
-**The line,** read and refused as the app's `TypedCommand` reads it, in its words:
-- **Read as the shell reads it.** A placeholder is `{name}`, never after an unescaped `$` or `#`.
+**The line,** read and refused as the app's `TypedCommand` reads it, in its words. It holds to plain shell syntax, and anything else is refused in words that point to a script (Lee, 20 November 2026). A reader that refused each place a shell reads a value again could never be finished: three reviews each found new ways for a folder's name to run as code across sh, bash 3.2 and 5.3, zsh, dash and ksh.
+- **Plain shell syntax,** which those shells all read alike:
+  - words of ASCII letters, digits and `_ . / : @ % + , = -`, and `\` with the character after it;
+  - a `~` starting a word, or right after the word's first `=` or a `:` past that, as in `PATH=~/bin:~/go/bin` and `--flag=~/x`;
+  - spaces and tabs between words, and `|`, `||`, `&&` and `;`;
+  - redirections: `<`, `>` and `>>` to a word, and `>&` or `<&` to a single digit, as `2>&1`, which nothing may join;
+  - `[` and `]` as words of their own, as `[ -n "$s" ]`;
+  - `'…'`, holding anything;
+  - `"…"`, holding what prints but a backtick and `!`, and `\` only before `"` or `$`;
+  - a parameter: `$name`, `${name}`, `$?`, `$$`, or `$1` to `$9`;
+  - `$(…)` outside quotes, holding the same syntax, however deep.
+- **Where a parameter ends.** Outside braces, a parameter must end where every shell ends it: at a blank, an operator, a redirection, a `)`, a double quote, one of `/ - = , + @ % \ $`, or the line's end. Inside double quotes, a `'` ends one too, as in `"$USER's"`. `${name}` ends at its brace, so any part of a word may follow it, as `${PATH}:/opt/bin`. The shells read on past other characters (found by the fuzz and the probes after it, 20 November 2026):
+  - zsh reads `$x[…]` as a subscript, even in double quotes, and `$x:…` as modifiers, of which `$x:F:…:` evaluates the `…` as arithmetic, running a value's `$(…)`;
+  - zsh reads `$12` as `${12}`, and `$$'…'` as `$$` and `$'…'`, in which `\'` ends nothing;
+  - ksh reads `$x.y` as one name, and bash and ksh take a letter past ASCII into a name.
+
+  All but `$'…'` hold inside double quotes too, so a `.`, `:` or `[` after a parameter is refused there as well.
+- **No `~` before a placeholder.** zsh and ksh read a tilde through the quotes after it: `~'root'` is `/var/root` there, and the text as written in bash and dash (proven 20 November 2026). So `~{dir}` is refused wherever a `~` may stand.
+- **`$!` and `$#` left out.** An interactive bash or zsh reads the `!` of `$!` as history, and with `&` alone refused, no job runs in the background for it to name. `$#` is always 0 here, and zsh reads its `#` as asking the length of what follows: in `$#$(…)` zsh reads the length of `$$` and a glob qualifier where the others read a `$(…)`.
+- **The placeholders** stand outside every quote, at the top level or in a `$(…)`, joined to a word or not: `id={claude}` is `id='…'`, one word. Inside quotes, a name that is no placeholder's is text, as awk's `'{print $1}'`.
 - **Quoted.** Each value goes in single quotes, never bare.
-- **Refused before anything runs:**
+- **Refused before anything runs,** the first that applies:
   - a character that doesn't print, in the command or in a value;
   - a placeholder SitRep doesn't know;
-  - one inside quotes or backticks;
-  - one in arithmetic or a subscript, where the shell runs what is in a value even quoted.
+  - one inside quotes: `The resume command in Settings puts {dir} in quotes. Remove them: SitRep quotes each value itself.`;
+  - any other part, named as found: ``The resume command in Settings uses `(`, which SitRep can't check. Put that part in a script and pass it {claude}, {dir} or {tty}, as in ~/bin/resume {claude} {dir}.``, a backtick named `a backtick`;
+  - a quote or a `$(…)` left open: ``The resume command in Settings opens `"` but never closes it.``;
+  - `{dir}`, where the window said no folder;
+  - a value starting with a dash, which a program would read as an option, as `claude --resume {claude}` would read an id of `--settings=…`: `For Release notes, the Claude Code session's id starts with a dash, which a program would read as an option.`
+- **What takes code from an argument is yours.** Two kinds take code, a name or a number from an argument and evaluate it, as a program running an argument as code does, `sh -c` among them. They pass as words: a command that passes a placeholder to one takes that risk.
+  - a builtin: `eval`, `trap`, `let`, `read`, `declare`, `typeset`, `local`, `export`, `printf -v`, `test`'s numeric comparisons, `shift`, `exit`, `return`, `ulimit`, and others, such as zsh's `getln` and `repeat`;
+  - an assignment to a variable the shell evaluates: `PS1`, `PS4`, `PROMPT_COMMAND`, `ENV`, `BASH_ENV`, and integer ones such as `RANDOM`, `SECONDS` and `OPTIND`.
 - **Run** in your login shell, `$SHELL -l -c <line>`, so it has your own PATH and environment, as the app's typed line does.
 
 **Which command.** SitRep's setting, read from SitRep's saved settings (the `resume` key under `app`, `SitRepMenu/AppSettings.swift`), and the default, `cd {dir} && claude --resume {claude}`, where none is saved (Lee, 19 November 2026). A command you wrote to run Claude in zmx then carries on there, so a dropped connection doesn't end it. A field saved empty refuses in SitRep's words: `The resume command in Settings is empty. To carry Release notes on, set one, or restore the default.`
@@ -204,7 +228,7 @@ So with the default command, picking a session a live window holds always refuse
 
 **The hand-over.** Running the command hands the terminal over, then takes it back:
 1. Leave the alternate screen, show the cursor, turn autowrap on, mouse reporting and raw mode off, and stop reading keys.
-2. Run the login shell with the panel's standard input, output and error, and ignore SIGINT, SIGQUIT and SIGTSTP while it runs: they're the command's.
+2. Run the login shell with the panel's standard input, output and error, and ignore SIGINT and SIGQUIT while it runs: they're the command's. SIGTSTP keeps its default, so Ctrl-Z stops the whole job, the panel with the command, and `fg` carries on with both; the panel takes nothing back at that SIGCONT. A panel that heard SIGTSTP held the terminal from the shell, the command stopped, since Bun can't see a child stop (shown live, 19 November 2026).
 3. When the shell ends, take the terminal back and redraw from the latest board, the band where it was.
 
 - **Coming back is the command's.** The panel takes the terminal back only when the command ends. A command attaching a zmx session in a plain shell returns when you detach, with zmx's `Ctrl-\`. A resumed Claude with no multiplexer returns when you quit it. A command that switches this terminal's client and ends, or never ends, decides otherwise; the panel doesn't watch it.
@@ -494,7 +518,7 @@ The fakes in `tests/` stand in for all of it.
 - **`panel-keys.test.ts`:** byte sequences to keys, a lone `esc` by its 50 ms, `CSI` and `SS3` arrows.
 - **`panel-state.test.ts`:** the band's first press, moves, pages and ends; the view's scroll; the band following its session and passing on; folding; answers dropped on a key.
 - **`panel-reach.test.ts`:** every row of "Picking a row"'s table; the jump order; `{claude}`, `{dir}` and `{tty}` from a live window and from a last window; the guard's and the suspended rule's words, the default against a command you wrote.
-- **`panel-command.test.ts`:** `lineOf` held to the cases `TypedCommand`'s Swift tests hold: quoting, placeholders read as the shell reads them, every refusal in its words.
+- **`panel-command.test.ts`:** `lineOf` held to the cases `TypedCommand`'s Swift tests hold: quoting, plain syntax filled, every refusal in its words, and each command of `tests/refused-commands.ts`, the reviews' holes, refused, a list the Swift tests read too. A seeded run of commands made from the grammar's parts (`tests/commands.ts`) holds plain ones filled and ones with a part refused never taken. `tests/reader-cases.ts` holds 2,000 of them, most mutated, each with the line or the refusal the panel gave, made by `bun tests/make-reader-cases.ts > tests/reader-cases.ts`; both suites read it, so the two readers give the same for every one. The kit can't start a process, so the same commands filled with hostile values ran in sh, bash 3.2 and 5.3, zsh, dash and ksh in a scratch run, outside the suite.
 - **`panel.test.ts`,** golden runs through the fake terminal:
   - the exact writes to enter, draw, hand over, take back and leave;
   - `q` exits 0, SIGTERM 143, SIGHUP 129;
@@ -545,7 +569,9 @@ The quiet board is listed on purpose, as round 1 lists it: "All clear" and one s
 - **An update under a running panel.** The panel runs the code it started with until you quit it. The watch, by contrast, ends at a new version for SitRep to start again.
 - **A resumed Claude lives in the panel's terminal.** A dropped SSH connection ends it, unless the resume command runs it in a multiplexer.
 - **Ambiguous-width glyphs.** `●` `○` `◌` `◉` `✻` `─` `▿` `▹` `▲` `▼` are East Asian Ambiguous: a terminal set to draw them wide breaks the columns.
+- **A Claude Code told by its name.** The panel tells a Claude Code on a window's device by `ps -o comm`, the process's argv[0], not the path of its program, which the app reads (proc_pidpath) and no `ps` keyword gives. A Claude Code started through a link of another name is not seen there: the default can then resume beside it, and `{tty}` stays empty. A program started as `claude` (`exec -a claude`) is counted as one: the default then refuses it as still running.
 - **A board a second old.** The panel looks every second, as the watch does, so a new ask's mark and its notification come up to a second late.
+- **zsh's GLOB_SUBST.** With it set, an unquoted parameter or `$(…)` holding a value can run code: `x={dir}; echo $x`, its value `*(e:touch PWNED:)`, runs `touch` under `zsh -o globsubst`. So a command for such a shell puts them in double quotes, as `echo "$x"`. Refusing every unquoted parameter would still miss an unquoted `$(…)`, and would refuse `s=$(…)` with it. The panel's `-l -c` reads no `.zshrc`, but the app's interactive shell does.
 
 ## Open for Lee
 

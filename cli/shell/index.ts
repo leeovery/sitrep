@@ -130,6 +130,7 @@ const signals: Signals = {
 const io: Io = {
   fs: {
     read: async path => readFileSync(path, 'utf8'),
+    bytes: async path => readFileSync(path),
     list,
     stat: statOf,
     append,

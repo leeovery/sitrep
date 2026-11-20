@@ -14,6 +14,8 @@
  *   it new to Needs you.
  * - A stale board says when it was last read, `12:04`; a board not read
  *   says why.
+ * - A pick's answer is cleaned as the board's words are: it can carry a
+ *   session's name, or the login shell's.
  */
 import {
   clockOf,
@@ -212,7 +214,7 @@ export const viewOf = (
     sections: sectionsOf(feed, state, now, notHere),
     ...(band === undefined ? {} : { band }),
     top,
-    ...(answer === undefined ? {} : { answer }),
+    ...(answer === undefined ? {} : { answer: cleaned(answer) }),
     board,
     ...(board === 'stale' && readAt !== undefined ? { asOf: clockOf(new Date(readAt)) } : {}),
     ...(reason === undefined ? {} : { reason }),

@@ -6,9 +6,25 @@
 
 type BunEntry = { name: string; isFile(): boolean; isDirectory(): boolean }
 
+/** A program Bun started: its exit code once it ends, 128 and the signal's number where a signal ended it. */
+type BunChild = {
+  readonly exited: Promise<number>
+  /** Sends it the signal, SIGTERM where none is given. */
+  kill(signal?: ProcessSignal | 'SIGKILL'): void
+}
+
+/** A program started with its output and error piped back. */
+type BunPiped = BunChild & {
+  readonly stdout: ReadableStream<Uint8Array>
+  readonly stderr: ReadableStream<Uint8Array>
+}
+
 declare const Bun: {
   readonly argv: readonly string[]
   readonly env: Readonly<Record<string, string | undefined>>
+  /** Starts a program in the environment the run has; throws where it can't, as for a program not there. */
+  spawn(command: string[], options: { stdin: 'inherit'; stdout: 'inherit'; stderr: 'inherit' }): BunChild
+  spawn(command: string[], options: { stdin: 'ignore'; stdout: 'pipe'; stderr: 'pipe' }): BunPiped
 }
 
 interface ImportMeta {
@@ -16,6 +32,11 @@ interface ImportMeta {
   readonly dir: string
 }
 
+/**
+ * The signals the CLI listens for. SIGTSTP is none, since a listener would
+ * keep it from stopping the run: Ctrl-Z during a hand-over stops the run
+ * with the program. The CLI only sends it, to itself (`process.kill`).
+ */
 type ProcessSignal = 'SIGHUP' | 'SIGINT' | 'SIGQUIT' | 'SIGTERM' | 'SIGCONT'
 
 declare const process: {
@@ -69,6 +90,7 @@ declare const process: {
 declare module 'node:fs' {
   export function readdirSync(path: string, options: { withFileTypes: true }): BunEntry[]
   export function readFileSync(path: string, encoding: 'utf8'): string
+  export function readFileSync(path: string): Uint8Array
   /** Undefined for a path not there, given `throwIfNoEntry: false`. */
   export function statSync(
     path: string,

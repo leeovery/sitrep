@@ -28,15 +28,28 @@
  *   though the terminal may be gone, and every wait it set is let go. A
  *   thrown error is thrown on once the terminal is given back. The signals
  *   that end it are heard from the first, the colour query's wait among it.
+ * - A pick, ⏎ or a tap on the band's row, one at a time: what the session's
+ *   window can reach (reach.ts), then the resume command readied by the
+ *   edge (edge.ts). Refused, it says why in the pick's answer. Else the
+ *   terminal is handed over: given back as for a stop, then handed to the
+ *   login shell. SIGINT and SIGQUIT are the program's meanwhile, as is a
+ *   SIGCONT, Ctrl-Z stopping the panel with it; SIGTERM and SIGHUP still
+ *   end the panel, leaving the terminal to the program. It keeps looking at
+ *   the board, drawing nothing, and takes the terminal back as the program
+ *   ends, drawn whole from the latest board, the band where it was, with
+ *   what the pick leaves to say. Nothing else takes it back meanwhile, a
+ *   Ctrl-Z's take-back pressed while the pick was readied among them.
  */
-import { newRows, ownTime, type Shown } from '../../core'
-import type { Io, Signal, Terminal } from '../io'
+import { newRows, ownTime, type Feed, type Shown } from '../../core'
+import { KEYED, type Io, type Signal, type Terminal } from '../io'
 import { looking, untilEnded, type Look } from '../looks'
 import type { Size } from './cells'
 import { COLOUR_QUERY, paintOf } from './colours'
 import { ansi, draw } from './draw'
+import { handed, readied } from './edge'
 import { keysOf, type Key } from './keys'
 import { levelOf, type Paint } from './paint'
+import { reachOf } from './reach'
 import { ENTER, LEAVE, repaint } from './screen'
 import { opening, step, type PanelEvent } from './state'
 import { cleaned, NEW_MS, viewOf } from './view'
@@ -142,6 +155,10 @@ const live = (io: Io, terminal: Terminal) => {
    * a SIGSTOP stops such a group, and nothing takes its terminal meanwhile.
    */
   let isWaking = false
+  /** A pick is under way, from ⏎ until it is answered or the program it ran ends. */
+  let isPicking = false
+  /** A program has the terminal. */
+  let isHanded = false
   let letHoldGo = () => {}
   let letWashGo = () => {}
   let looks: Promise<unknown> = Promise.resolve()
@@ -151,14 +168,25 @@ const live = (io: Io, terminal: Terminal) => {
     closing.close(closed)
   }
 
+  const fail = (error: unknown) => {
+    isClosed = true
+    closing.fail(error)
+  }
+
   const guard = (act: () => void) => {
     try {
       if (!isClosed) {
         act()
       }
     } catch (error) {
-      isClosed = true
-      closing.fail(error)
+      fail(error)
+    }
+  }
+
+  /** A signal that ends the panel, but for one a terminal's keys send while a program has the terminal. */
+  const ended = (signal: Signal, closed: Closed) => {
+    if (!(isHanded && KEYED.has(signal))) {
+      close(closed)
     }
   }
 
@@ -214,7 +242,9 @@ const live = (io: Io, terminal: Terminal) => {
       return
     }
 
-    state = step(state, { key }).state
+    const { state: next, open } = step(state, { key })
+
+    state = next
 
     if (key.kind === 'quit') {
       close('done')
@@ -222,6 +252,7 @@ const live = (io: Io, terminal: Terminal) => {
       suspend()
     } else {
       frame()
+      pick(open)
     }
   }
 
@@ -253,8 +284,12 @@ const live = (io: Io, terminal: Terminal) => {
     }
   }
 
-  /** The terminal taken back, as after a stop: the keys heard, the screen entered, its size read again, and drawn whole. */
+  /** The terminal taken back, as after a stop, unless a program has it: the keys heard, the screen entered, its size read again, and drawn whole. */
   const takeBack = () => {
+    if (isHanded) {
+      return
+    }
+
     listen()
     enter()
     state = step(state, { size: sizeOf(terminal) }).state
@@ -286,6 +321,62 @@ const live = (io: Io, terminal: Terminal) => {
         takeBack()
       }
     })
+  }
+
+  /**
+   * The terminal handed to the login shell, and taken back a macrotask after
+   * it ends, unless the panel closed meanwhile, what the pick leaves to say
+   * drawn with it: a SIGTERM or SIGHUP sent to the whole job as it ends, as a
+   * shell's `kill %1` or a terminal closing sends it, closes the panel first.
+   * The keyed signals stay the program's until then.
+   */
+  const handOver = async (argv: readonly string[], name: string) => {
+    release()
+    isHanded = true
+
+    const said = await handed(io, terminal, argv, name)
+
+    if (!isClosed) {
+      later(0, () => {
+        isHanded = false
+        state = step(state, { opened: said }).state
+        takeBack()
+      })
+    }
+  }
+
+  /** A pick refused, saying why. */
+  const refused = (answer: string) => guard(() => apply({ opened: answer }))
+
+  /** The session picked opened, as the window it is carried on from reaches: refused, saying why; or its resume command run, the terminal handed over. */
+  const picked = async (feed: Feed, session: string) => {
+    const reach = reachOf(session, feed)
+
+    if ('answer' in reach) {
+      return refused(reach.answer)
+    }
+
+    const argv = await readied(io, terminal, reach.resume)
+
+    if (!argv.ok) {
+      refused(argv.error)
+    } else if (!isClosed) {
+      await handOver(argv.value, reach.resume.name)
+    }
+  }
+
+  /** The session ⏎ or a tap asks to open, if any, while no other pick is under way. */
+  const pick = (session: string | undefined) => {
+    const { feed } = state
+
+    if (session === undefined || feed === undefined || isPicking) {
+      return
+    }
+
+    isPicking = true
+    void picked(feed, session).then(() => {
+      isPicking = false
+    }, fail)
   }
 
   const resized = () => {
@@ -328,7 +419,7 @@ const live = (io: Io, terminal: Terminal) => {
 
   /** The panel opened: closed by a signal from the first; its keys heard before it asks the colours, so the tty is never cooked between; then on the screen, watching the board. */
   const open = async () => {
-    listening.push(...ENDINGS.map(([signal, closed]) => terminal.onSignal(signal, () => close(closed))))
+    listening.push(...ENDINGS.map(([signal, closed]) => terminal.onSignal(signal, () => ended(signal, closed))))
     listen()
     paint = paintOf(paint.level, await terminal.ask(COLOUR_QUERY))
 

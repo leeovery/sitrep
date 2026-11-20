@@ -51,7 +51,23 @@ SitRep replaces each placeholder with a quoted value:
 | `{dir}` | The folder that Claude ran in |
 | `{tty}` | The terminal device that Claude still runs on; empty if none |
 
-Set your own in Settings › General, under Resume command. Leave each placeholder outside quotes: SitRep quotes the value itself. A one-liner, an alias, a function or a script all work. **Restore Default** puts the default back.
+Set your own in Settings › General, under Resume command. A one-liner, an alias, a function or a script all work. **Restore Default** puts the default back.
+
+SitRep runs only plain shell syntax. A folder name then runs as code only if your command hands it to something that runs it, such as `eval` or `sh -c`. The command may hold:
+
+- words, and a `~` at the start of one or after `=`, for example `PATH=~/bin`;
+- `|`, `||`, `&&` and `;`;
+- redirections: `<`, `>`, `>>` and `2>&1`;
+- tests, such as `[ -n "$s" ]`;
+- single quotes, and double quotes around text;
+- variables, such as `$s` and `${s}`;
+- `$(…)`, holding the same.
+
+Leave each placeholder outside quotes, because SitRep quotes the value itself. A banner names any other part, for example a backtick or `${x:-y}`. Put that part in a script, and pass the script the placeholders:
+
+```text
+~/bin/resume {claude} {dir}
+```
 
 ## Related
 
