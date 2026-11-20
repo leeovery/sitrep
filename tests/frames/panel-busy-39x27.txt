@@ -1,7 +1,7 @@
- sitrep
-
  NEEDS YOU ●11 ●4 ────────────────── ▿
- ▲ 11 more
+ ▲ 10 more
+ ● Staff directory                  2h
+   Contoso · Added the new starters
  ○ Warehouse map                    1h
    Litware · Mapped the ground floor
 
@@ -24,4 +24,4 @@
    Northwind · Exporting the ledger a…
  ▼ 6 more
 
- ↑↓ move  ⏎ open  s snoozed  q quit
+ ↑↓ move  ⏎ expand  o open  q quit

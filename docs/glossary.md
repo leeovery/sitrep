@@ -28,6 +28,8 @@ Each word below means one thing on every page of these docs. The words are group
 
 **session id**: The id the board gives a session, such as `sr-nw0001`. Claude uses it to join a session. The pane and the Mac app never show it, but the `sitrep` command does. It is not Claude Code's own session id, which names one conversation and changes on `/clear`.
 
+**Snooze menu**: The list of snooze choices, each with the time it wakes, then Until it moves. In the Mac app, it opens from **Snooze** when you right-click a row. In the terminal view, `z` opens it under the chosen row.
+
 **snoozed**: A session you put off until a time you pick, or until it moves. Its asks and your turn there stop counting until it wakes. A new ask wakes it at once. Only you can snooze a session: Claude has no way to.
 
 **status**: Where a session stands: its name, a one-line summary, what is under way now, and what comes next.
@@ -74,7 +76,7 @@ Each word below means one thing on every page of these docs. The words are group
 
 **the pulse**: The notch swelling and flashing its light. By default it comes for a new ask, and when a window starts waiting at a permission prompt. For Claude stopping, you turn it on in Settings › Notifications.
 
-**row**: A session in the panel, in the terminal view, or in the menu of the menu bar item. In the panel, a row in Needs you has a line for each ask or permission prompt waiting. In the terminal view, a row takes two lines. The first holds the name, with a count if more than one thing waits. The second holds the project, then the newest thing it waits on or is doing. In Snoozed, the second line holds the thing that wakes soonest instead, the oldest if several wake together.
+**row**: A session in the panel, in the terminal view, or in the menu of the menu bar item. In the panel, a row in Needs you has a line for each ask or permission prompt waiting. In the terminal view, a row takes two lines until you expand it. The first holds the name, with a count if more than one thing waits. The second holds the project, then the newest thing it waits on or is doing. In Snoozed, the second line holds the thing that wakes soonest instead, the oldest if several wake together.
 
 **the strip**: The other way to show the board at the screen edge: a narrow column with a mark for each session. You choose Notch, Strip or Nothing under Show, in the menu or in Settings › Edge.
 
@@ -84,9 +86,11 @@ Each word below means one thing on every page of these docs. The words are group
 
 ## In a terminal
 
+**expand**: To show a row of the terminal view whole: press `⏎`, or tap the chosen row. Its name and words wrap over as many lines as they need, and several asks take a line each. Press `⏎` again to fold it.
+
 **terminal notification**: A notification that the terminal itself shows, such as Ghostty showing a macOS notification. The terminal view sends one for each new ask, unless you open it with `sitrep --no-notify`.
 
-**the terminal view**: The board in a terminal, opened by typing `sitrep` with no command. It shows Needs you, Working and Snoozed, each session on two lines. It works in any terminal, on the Mac or over SSH.
+**the terminal view**: The board in a terminal, opened by typing `sitrep` with no command. It shows Needs you, Working and Snoozed, each session on two lines until you expand it. It works in any terminal, on the Mac or over SSH.
 
 ## Getting to a session
 
@@ -94,4 +98,4 @@ Each word below means one thing on every page of these docs. The words are group
 
 **plain shell syntax**: What a resume command may hold: words, pipes and `&&`, redirections, quotes, variables such as `$s`, and `$(…)`. The shells sh, bash, zsh, dash and ksh all read it the same way, so SitRep knows where each value lands. SitRep refuses a command that holds anything else, and names the part it found.
 
-**the resume command**: What SitRep types into a new Ghostty window, for a session no terminal on this Mac shows. The terminal view runs it in its own terminal, for the session you open with `⏎`. The default is `cd {dir} && claude --resume {claude}`. You can set your own in Settings › General.
+**the resume command**: What SitRep types into a new Ghostty window, for a session no terminal on this Mac shows. The terminal view runs it in its own terminal, for the session you open with `o`. The default is `cd {dir} && claude --resume {claude}`. You can set your own in Settings › General.

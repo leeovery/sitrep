@@ -1,7 +1,7 @@
- sitrep
-
  NEEDS YOU ●11 ●4 ──────────────────────────────────────────────────── ▿
- ▲ 6 more
+ ▲ 5 more
+ ● Tax rates                                                         52m
+   Wingtip · Allow Edit: src/tax/rates.ts
  ○ Email templates                                                    2h
    Fabrikam · Keep the plain-text versions?
  ○ Gift cards                                                         3h
@@ -33,4 +33,4 @@
  ✻ Invoice ledger                                                     2m
    Northwind · Exporting the ledger as CSV
  ▼ 6 more
- ↑↓ move  ⏎ open  s snoozed  q quit
+ ↑↓ move  ⏎ expand  o open  s snoozed  q quit

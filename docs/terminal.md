@@ -10,43 +10,43 @@ Type `sitrep` in a terminal, and the terminal view fills it with the board: what
 
 1. Open a terminal on your Mac. Or sign in to the Mac over SSH, with Remote Login on in System Settings › General › Sharing.
 2. Type `sitrep`. The board fills the terminal.
-3. Press `↓` to reach a session no window runs, such as one whose Claude you quit. Press `⏎` to open it here.
+3. Press `↓` to reach a session no window runs, such as one whose Claude you quit, then press `o` to open it here.
 4. Press `q` to leave, back to your shell.
 
 Homebrew links `sitrep` into the Homebrew `bin` folder, which a shell needs on its PATH.
 
 ## What happens
 
-- **Sessions come in three sections.** Needs you comes first, then Working. Snoozed comes last, folded until you press `s`. Each session takes two lines: the name, a count if more than one thing waits, and a time. Then come the project and what the session waits on or is doing.
+- **Sessions come in three sections.** Needs you comes first, then Working. Snoozed comes last, folded until you press `s`. Each session takes two lines: the name, a count if more than one thing waits, and a time. Then come the project and what the session waits on or is doing. Press `⏎` to expand a row the width cuts short.
 - **A dot says what waits.** An orange dot has asks or a permission prompt waiting, and a blue dot is Stopped. A row new to Needs you shows `◉` for 2 seconds. In Working, `✻` runs a turn, and `◌` waits on work of its own.
-- **A dimmed session has dimmed words.** It isn't open on the device you're looking from. SitRep dims the same sessions at the screen edge. In Needs you, its dot is hollow, and a Working row keeps `✻` or `◌`. In Snoozed, nothing marks it.
-- **The board stays current,** within a second, and the chosen row follows its session.
-- **A new ask posts a terminal notification.** It shows the ask, the project and the session. Asks waiting at the start post none. To open the terminal view without notifications, type `sitrep --no-notify`.
-- **`⏎` runs your resume command here.** Set it in Settings › General. When the command ends, the terminal view comes back.
+- **A dimmed session has dimmed words.** It isn't open on the device you're looking from. In Needs you, its dot is hollow, and a Working row keeps `✻` or `◌`. In Snoozed, nothing marks it.
+- **The board stays current** within a second, the chosen row following its session. Each new ask posts a terminal notification. To turn notifications off, type `sitrep --no-notify`.
+- **`o` runs your resume command here.** Set it in Settings › General. When it ends, the terminal view comes back.
+- **`z` snoozes the chosen row** from the Snooze menu, with your times from Settings › Snooze. In Snoozed, `z` wakes the row.
 
 ## Good to know
 
-- **The default command refuses a session a window still runs,** even with a hollow dot, because it would start a second Claude. To reach that window too, set a script that takes `{tty}` and `{claude}`. It attaches the tmux or zmx session on `{tty}`, or resumes `{claude}` if `{tty}` is empty. A window in neither can't be reached from here. See [A click takes you there](jump.md).
-- **The command runs in your login shell:** sh, bash, zsh, dash or ksh only. With fish, `⏎` opens nothing, and says why. If that shell is zsh, it reads `.zprofile` but not `.zshrc`, so a `.zshrc` alias won't run. A script on your PATH works.
+- **The default command refuses a session a window still runs,** even a hollow one, because it would start a second Claude. To reach that window, set a script that takes `{tty}` and `{claude}`. It attaches the tmux or zmx session on `{tty}`, or resumes `{claude}` if `{tty}` is empty. A window in neither can't be reached from here. See [A click takes you there](jump.md).
+- **The command runs in your login shell:** sh, bash, zsh, dash or ksh only. With fish, `o` opens nothing, and says why. In zsh, it reads `.zprofile` but not `.zshrc`, so a `.zshrc` alias won't run. A script on your PATH will.
 - **Notifications need a terminal that shows them.** The terminal view sends OSC 777, which Ghostty shows as a macOS notification. Inside tmux, set `allow-passthrough on`, or tmux holds it back.
-- **Dimming needs SitRep running.** SitRep tells the terminal view which devices show each session. Without SitRep, only a session no window runs is dimmed.
+- **Dimming needs SitRep running.** Without SitRep, only a session no window runs is dimmed.
 
 ## Reference
 
-The last line names the main keys. Here are all of them:
+The last line names the main keys. Here is every key:
 
 | Key | What it does |
 |---|---|
 | `↑` `↓`, `k` `j`, a click or a tap | Choose a row, then move between rows |
-| `PgUp` `PgDn` | Move by the rows in view |
-| `Home` `End` | Go to the first or the last row |
+| `PgUp` `PgDn`, `Home` `End` | Move a page, or to the first or last row |
 | The wheel, or a swipe | Scroll the rows; the chosen row stays |
-| `⏎`, or a click or a tap on the chosen row | Run the resume command for the chosen row |
+| `⏎`, or a tap on the chosen row | Expand the chosen row, or fold it |
+| `o` | Open the chosen row: run the resume command |
+| `z` | Snooze the chosen row, or wake it |
 | `s` | Unfold or fold Snoozed |
-| `esc` | Clear the choice and any words above the keys |
 | `q`, `Ctrl-C` | Leave; `Ctrl-Z` suspends, and `fg` brings it back |
 
-If `⏎` can't run the command, or the command fails within 2 seconds, words above the keys say why. Every other command is in [The `sitrep` command](cli.md).
+`esc` closes the Snooze menu, or else clears the choice. Any key clears the words above the keys. If `o` or `z` can't act, or the command fails within 2 seconds, those words say why. Every other command is in [The `sitrep` command](cli.md).
 
 ## Related
 

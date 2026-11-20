@@ -17,9 +17,25 @@
  * - `esc` drops the band, and any key a pick's answer, the loop's own among
  *   them. A pick done sets its answer, or none, the band kept whole in
  *   sight above it.
+ * - ⏎ expands the band's row, and folds it again: one row at most, the
+ *   band's, folded as the band moves to another row, kept whole in sight.
+ *   `o` opens the band's session; nothing else does.
  * - A tap puts the band on the row under it as drawn, a pick's answer
- *   still showing, and opens the band's own row, as ⏎ does; the wheel
- *   scrolls a row a notch, the band staying on its session, in sight or not.
+ *   still showing, and expands or folds the band's own row, as ⏎ does; the
+ *   wheel scrolls a row a notch, the band staying on its session, in sight
+ *   or not.
+ * - `z` on a row that needs Lee opens the snooze menu under it, its
+ *   choices worked out at that moment (menu.ts), row and menu kept whole in
+ *   sight; on a Snoozed row it asks to wake its session; on any other row
+ *   it answers why not, and a wake already asked for, until a board shows
+ *   it, writes nothing more. The menu belongs to the band's row, and closes
+ *   as the band moves to another, or as the row can no longer be snoozed.
+ * - In the menu `↑↓` pick a choice, every one reachable, the menu scrolled
+ *   the least that keeps the pick drawn where it has no room for all; ⏎,
+ *   or a tap on a drawn choice, asks to snooze the session to it, naming
+ *   the asks the row showed as the menu opened; `esc`, `z` or a tap
+ *   anywhere else closes it; any other key but the loop's does nothing. A
+ *   write that fails sets its answer.
  * - `top` is kept as the layout clamps it, so scrolling past the end piles
  *   nothing up.
  * - The sessions SitRep's file dims move behind those drawn filled, the
@@ -29,10 +45,11 @@
  * - `q`, Ctrl-C and Ctrl-Z are stepped as any key, dropping an answer, and
  *   change nothing else here: leaving and suspending are the loop's.
  */
-import type { Feed } from '../../core'
+import { SNOOZE_DEFAULTS, type Feed, type SnoozeSettings } from '../../core'
 import type { Size } from './cells'
 import type { Key } from './keys'
 import { layoutOf, topFor } from './layout'
+import { snoozeOptions, type Menu } from './menu'
 import { NEW_MS, rowKey, viewOf, type PanelRow, type ViewState } from './view'
 
 export type PanelState = ViewState & {
@@ -41,8 +58,12 @@ export type PanelState = ViewState & {
   size: Size
   /** The sessions on the board open on no device the panel is looked at from. */
   notHere: ReadonlySet<string>
+  /** Snooze's choices as Lee set them in SitRep, as the last look read them. */
+  snoozeSettings: SnoozeSettings
   /** The latest time an event brought. */
   now: number
+  /** The session `z` last asked to wake, until a board shows whether it woke. */
+  waking?: string
 }
 
 /**
@@ -55,23 +76,32 @@ type Board = { board: Feed; news: readonly string[]; now: number; notHere?: Read
 
 export type PanelEvent =
   | Board
-  /** A look that failed, and why. */
-  | { failed: string }
+  /** A look that failed, why, and when, so the menu's times are worked out from now on a stale board too. */
+  | { failed: string; now: number }
   | { key: Key }
   | { size: Size }
   /** The clock, moved on. */
   | { tick: number }
   /** A pick done: what it leaves to say, if anything. */
   | { opened: string | undefined }
+  /** A write done: why it failed, if it did. */
+  | { written: string | undefined }
   /** The sessions open on no device the panel is looked at from, as SitRep last read them. */
   | { notHere: ReadonlySet<string> }
+  /** Snooze's choices, as a look read them. */
+  | { snoozeSettings: SnoozeSettings }
 
-/** A step's state, and the session to open, where ⏎ or a tap asks for one. */
-export type Stepped = { state: PanelState; open?: string }
+/** A line to write, as `sitrep snooze` or `sitrep wake` writes it: a session snoozed, naming the asks its row showed, until a time or until it moves; or woken. */
+export type Write =
+  | { command: 'snooze'; session: string; asks: readonly string[]; until?: number }
+  | { command: 'wake'; session: string }
+
+/** A step's state; the session to open, where `o` asks for one; and the line to write, where the snooze menu or `z` asks for one. */
+export type Stepped = { state: PanelState; open?: string; write?: Write }
 
 type Tap = Extract<Key, { kind: 'tap' }>
 
-/** The panel's state before any board: Snoozed folded, no band, the board looked for. */
+/** The panel's state before any board: Snoozed folded, no band, the board looked for, Snooze's choices core's defaults. */
 export const opening = (size: Size, now: number, notHere: ReadonlySet<string> = new Set()): PanelState => ({
   top: 0,
   isSnoozedOpen: false,
@@ -79,6 +109,7 @@ export const opening = (size: Size, now: number, notHere: ReadonlySet<string> = 
   arrivals: new Map(),
   size,
   notHere,
+  snoozeSettings: SNOOZE_DEFAULTS,
   now,
 })
 
@@ -95,12 +126,20 @@ const openRows = (state: PanelState): PanelRow[] =>
 const keysIn = (state: PanelState) => openRows(state).map(rowKey)
 
 /** The state with `field` set, or without it, given none. */
-const withField = <K extends 'band' | 'answer' | 'reason'>(state: PanelState, field: K, value: PanelState[K]): PanelState => {
+const withField = <K extends 'band' | 'expanded' | 'menu' | 'answer' | 'reason' | 'waking'>(state: PanelState, field: K, value: PanelState[K]): PanelState => {
   const next = { ...state }
 
   delete next[field]
 
   return value === undefined ? next : { ...next, [field]: value }
+}
+
+/** The band on the row `key`, or on none; where it moves to another, its row folded and its menu closed. */
+const withBand = (state: PanelState, key: string | undefined): PanelState => {
+  const next = withField(state, 'band', key)
+  const folded = next.expanded === key ? next : withField(next, 'expanded', undefined)
+
+  return folded.menu?.row === key ? folded : withField(folded, 'menu', undefined)
 }
 
 /** The state with `top` as the layout clamps it. */
@@ -125,7 +164,7 @@ const keepingSight = (before: PanelState, after: PanelState) => (isBandInSight(b
 
 /** The band on the row `key`, kept whole in sight; the state as it was, given no row. */
 const placed = (state: PanelState, key: string | undefined) =>
-  key === undefined ? state : settled(kept(withField(state, 'band', key)))
+  key === undefined ? state : settled(kept(withBand(state, key)))
 
 /**
  * Where the band goes as the rows change from `before` to `after`: to its
@@ -149,9 +188,16 @@ const followed = (before: PanelState, after: PanelState): string | undefined => 
   return row === undefined ? undefined : rowKey(row)
 }
 
+/** The menu closed where its row can no longer be snoozed: its asks gone, or the row now Working or Snoozed. */
+const stillSnoozable = (state: PanelState): PanelState => {
+  const row = state.menu === undefined ? undefined : openRows(state).find(each => rowKey(each) === state.menu?.row)
+
+  return state.menu === undefined || (row?.asks !== undefined && !row.isSnoozed) ? state : withField(state, 'menu', undefined)
+}
+
 /** `next`, its rows moved from where they stood in `state`: the band following its row, and kept in sight where it was. */
 const reflowed = (state: PanelState, next: PanelState) =>
-  settled(keepingSight(state, withField(next, 'band', followed(state, next))))
+  settled(keepingSight(state, stillSnoozable(withBand(next, followed(state, next)))))
 
 /** Each line new on the board stamped `now`, and those first shown NEW_MS ago or more dropped. */
 const arrived = (arrivals: ViewState['arrivals'], news: readonly string[], now: number) =>
@@ -159,7 +205,7 @@ const arrived = (arrivals: ViewState['arrivals'], news: readonly string[], now: 
 
 const boarded = (state: PanelState, { board, news, now, notHere = state.notHere }: Board): PanelState => {
   const read: PanelState = {
-    ...withField(state, 'reason', undefined),
+    ...withField(withField(state, 'reason', undefined), 'waking', undefined),
     feed: board,
     board: 'read',
     readAt: now,
@@ -171,9 +217,9 @@ const boarded = (state: PanelState, { board, news, now, notHere = state.notHere 
   return reflowed(state, read)
 }
 
-/** A failed look: after a board, the board kept, stale; before any, why it can't be read. */
-const failed = (state: PanelState, reason: string): PanelState =>
-  state.feed === undefined ? { ...state, reason } : { ...state, board: 'stale' }
+/** A failed look at `now`: after a board, the board kept, stale; before any, why it can't be read. */
+const failed = (state: PanelState, { failed: reason, now }: { failed: string; now: number }): PanelState =>
+  state.feed === undefined ? { ...state, reason, now } : { ...state, board: 'stale', now }
 
 /** The band moved `by` rows, within the first and the last; a first press puts it on the top row in view. */
 const movedBy = (state: PanelState, by: number): PanelState => {
@@ -210,30 +256,123 @@ const toggled = (state: PanelState): PanelState => {
   return settled({ ...next, top: topFor(viewIn(next), next.size, rowKey(last)) ?? next.top })
 }
 
-/** ⏎: the band's session to open, if there's a band. */
+/** `o`: the band's session to open, if there's a band. */
 const opened = (state: PanelState): Stepped => {
   const session = openRows(state).find(row => rowKey(row) === state.band)?.session
 
   return session === undefined ? { state } : { state, open: session }
 }
 
+/** ⏎: the band's row expanded, or folded again, kept whole in sight; nothing with no band. */
+const expanded = (state: PanelState): PanelState => {
+  if (state.band === undefined) {
+    return state
+  }
+
+  return settled(kept(withField(state, 'expanded', state.expanded === state.band ? undefined : state.band)))
+}
+
 /**
- * A tap on either line of a row, found where the rows stood as `drawn`,
- * with a pick's answer under them: the band put on it, or, on the band's
- * own row, opened.
+ * A tap on any line of a row, found where the rows stood as `drawn`, with a
+ * pick's answer under them: the band put on it, or, on the band's own row,
+ * expanded or folded.
  */
-const tapped = (state: PanelState, { x, y }: Tap, drawn: PanelState): Stepped => {
+const tapped = (state: PanelState, { x, y }: Tap, drawn: PanelState): PanelState => {
   const layout = layoutIn(drawn)
-  const row = x < layout.width ? layout.rows.find(each => y === each.y || y === each.y + 1) : undefined
+  const row = x < layout.width ? layout.rows.find(each => y >= each.y && y < each.y + each.height) : undefined
+
+  if (row === undefined) {
+    return state
+  }
+
+  return row.key === state.band ? expanded(state) : placed(state, row.key)
+}
+
+const only = (state: PanelState): Stepped => ({ state })
+
+/** The state saying `answer`, the band kept whole in sight above it. */
+const answered = (state: PanelState, answer: string | undefined) => settled(kept(withField(state, 'answer', answer)))
+
+/** Why `z` snoozes nothing on a row the notch offers no Snooze, in words naming it: a window's prompt is its own, and a working row needs nothing. */
+const unsnoozable = (row: PanelRow) =>
+  row.mark === 'ask'
+    ? `${row.name} waits on a prompt in its window, and a prompt can't be snoozed.`
+    : `${row.name} needs nothing of you: there is nothing to snooze.`
+
+/** `z`: on a Snoozed row, its session to wake; on one that needs Lee, the menu opened under it, the two kept whole in sight; on any other, why not; nothing with no band. */
+const snoozing = (state: PanelState): Stepped => {
+  const row = openRows(state).find(each => rowKey(each) === state.band)
 
   if (row === undefined) {
     return { state }
   }
 
-  return row.key === state.band ? opened(state) : { state: placed(state, row.key) }
+  if (row.isSnoozed) {
+    return state.waking === row.session ? { state } : { state: withField(state, 'waking', row.session), write: { command: 'wake', session: row.session } }
+  }
+
+  if (row.asks === undefined) {
+    return { state: answered(state, unsnoozable(row)) }
+  }
+
+  const options = snoozeOptions(state.now, state.snoozeSettings)
+  const menu: Menu = { row: rowKey(row), session: row.session, asks: row.asks, options, at: 0, top: 0 }
+
+  return { state: settled(kept(withField(state, 'menu', menu))) }
 }
 
-const only = (state: PanelState): Stepped => ({ state })
+/** The menu closed. */
+const closed = (state: PanelState) => settled(withField(state, 'menu', undefined))
+
+/** The menu's pick moved `by`, within its first choice and its last, the menu scrolled as the layout keeps it drawn. */
+const pickedBy = (state: PanelState, menu: Menu, by: number): PanelState => {
+  const picked = { ...state, menu: { ...menu, at: Math.min(Math.max(menu.at + by, 0), menu.options.length - 1) } }
+  const top = layoutIn(picked).menu?.first
+
+  return top === undefined ? picked : { ...picked, menu: { ...picked.menu, top } }
+}
+
+/** The choice drawn on the menu's line `line`, counted from its first, as `drawn` lays the menu out; -1 where none is drawn there. */
+const drawnChoice = (drawn: PanelState, line: number) => {
+  const menu = layoutIn(drawn).menu
+
+  return menu === undefined || line < 0 || line >= menu.lines ? -1 : menu.first + line
+}
+
+/** The choice at `at` made: the menu closed, and the session to snooze to its time, naming the asks its row showed. */
+const chosen = (state: PanelState, menu: Menu, at: number): Stepped => {
+  const option = menu.options[at]
+
+  if (option === undefined) {
+    return { state: closed(state) }
+  }
+
+  const until = option.until === undefined ? {} : { until: option.until }
+
+  return { state: closed(state), write: { command: 'snooze', session: menu.session, asks: menu.asks, ...until } }
+}
+
+/** A tap with the menu open, found where it stood as `drawn`: on a drawn choice, that choice made; anywhere else, the menu closed. */
+const tappedMenu = (state: PanelState, menu: Menu, { x, y }: Tap, drawn: PanelState): Stepped => {
+  const layout = layoutIn(drawn)
+  const at = layout.menu === undefined || x >= layout.width ? -1 : drawnChoice(drawn, y - layout.menu.y)
+
+  return at === -1 ? { state: closed(state) } : chosen(state, menu, at)
+}
+
+/** ⏎ with the menu open: the pick made, which the layout always draws while the menu has a line; with none, nothing. */
+const enteredMenu = (state: PanelState, menu: Menu, drawn: PanelState): Stepped =>
+  (layoutIn(drawn).menu?.lines ?? 0) > 0 ? chosen(state, menu, menu.at) : only(state)
+
+/** What each key does with the menu open, its answer already dropped; any other does nothing, the loop's own aside. */
+const MENU_KEY: { [K in Key['kind']]?: (state: PanelState, menu: Menu, key: Extract<Key, { kind: K }>, drawn: PanelState) => Stepped } = {
+  up: (state, menu) => only(pickedBy(state, menu, -1)),
+  down: (state, menu) => only(pickedBy(state, menu, 1)),
+  enter: (state, menu, _, drawn) => enteredMenu(state, menu, drawn),
+  tap: tappedMenu,
+  esc: state => only(closed(state)),
+  snooze: state => only(closed(state)),
+}
 
 /** What each key does to the state, its answer already dropped, and the state as it was drawn. */
 const ON_KEY: { [K in Key['kind']]: (state: PanelState, key: Extract<Key, { kind: K }>, drawn: PanelState) => Stepped } = {
@@ -244,28 +383,39 @@ const ON_KEY: { [K in Key['kind']]: (state: PanelState, key: Extract<Key, { kind
   home: state => only(placed(state, keysIn(state)[0])),
   end: state => only(placed(state, keysIn(state).at(-1))),
   snoozed: state => only(toggled(state)),
-  esc: state => only(settled(withField(state, 'band', undefined))),
-  enter: opened,
-  tap: tapped,
+  esc: state => only(settled(withBand(state, undefined))),
+  enter: state => only(expanded(state)),
+  open: opened,
+  snooze: snoozing,
+  tap: (state, key, drawn) => only(tapped(state, key, drawn)),
   wheel: (state, { by }) => only(settled({ ...state, top: layoutIn(state).top + by })),
   quit: only,
   suspend: only,
 }
 
+/** A key, its answer dropped first: to the menu, while it is open, else as the board takes it. */
 const pressed = (drawn: PanelState, key: Key): Stepped => {
+  const state = withField(drawn, 'answer', undefined)
+
+  if (drawn.menu !== undefined) {
+    const onMenu = MENU_KEY[key.kind] as ((state: PanelState, menu: Menu, key: Key, drawn: PanelState) => Stepped) | undefined
+
+    return onMenu === undefined ? only(state) : onMenu(state, drawn.menu, key, drawn)
+  }
+
   const onKey = ON_KEY[key.kind] as (state: PanelState, key: Key, drawn: PanelState) => Stepped
 
-  return onKey(withField(drawn, 'answer', undefined), key, drawn)
+  return onKey(state, key, drawn)
 }
 
-/** The panel's state after the event, and the session it asks to open, if any. */
+/** The panel's state after the event, and the session it asks to open or the line it asks to write, if any. */
 export const step = (state: PanelState, event: PanelEvent): Stepped => {
   if ('board' in event) {
     return only(boarded(state, event))
   }
 
   if ('failed' in event) {
-    return only(failed(state, event.failed))
+    return only(failed(state, event))
   }
 
   if ('key' in event) {
@@ -277,11 +427,19 @@ export const step = (state: PanelState, event: PanelEvent): Stepped => {
   }
 
   if ('opened' in event) {
-    return only(settled(kept(withField(state, 'answer', event.opened))))
+    return only(answered(state, event.opened))
+  }
+
+  if ('written' in event) {
+    return only(answered(state, event.written))
   }
 
   if ('notHere' in event) {
     return only(reflowed(state, { ...state, notHere: event.notHere }))
+  }
+
+  if ('snoozeSettings' in event) {
+    return only({ ...state, snoozeSettings: event.snoozeSettings })
   }
 
   return only({ ...state, now: event.tick, arrivals: arrived(state.arrivals, [], event.tick) })

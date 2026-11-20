@@ -1,5 +1,3 @@
- sitrep
-
  NEEDS YOU ●4 ●2 ─────────────────── ▿
  ● Data import                      1m
    Litware · Allow Bash: psql -f impo…
@@ -21,7 +19,9 @@
    Northwind · Exporting the ledger a…
  ◌ Catalog sync                    15m
    Fabrikam · Waiting on 2 agents
- ▼ 2 more
 
-
- ↑↓ move  ⏎ open  s snoozed  q quit
+ SNOOZED 2 ───────────────────────── ▿
+ ● Onboarding flow      tomorrow 09:00
+   Contoso · Pick the onboarding steps
+ ▼ 1 more
+ ↑↓ move  ⏎ expand  o open  q quit

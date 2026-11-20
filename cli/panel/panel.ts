@@ -30,7 +30,7 @@
  *   thrown error is thrown on once the terminal is given back. The signals
  *   that end it are heard from the first: one during the colour query lets
  *   the query go at once, never waiting out its answer.
- * - A pick, ⏎ or a tap on the band's row, one at a time: what the session's
+ * - A pick, `o` on the band's row, one at a time: what the session's
  *   window can reach (reach.ts), then the resume command readied by the
  *   edge (edge.ts). Refused, it says why in the pick's answer. Else the
  *   terminal is handed over: given back as for a stop, then handed to the
@@ -43,6 +43,11 @@
  *   from the latest board, the band where it was, with what the pick leaves
  *   to say. Nothing else takes it back meanwhile, a
  *   Ctrl-Z's take-back pressed while the pick was readied among them.
+ * - A snooze or a wake that the menu or `z` asks for is written as `sitrep
+ *   snooze` or `sitrep wake` writes it (writes.ts), in the panel's own
+ *   process; refused, or failing, it says why in the answer. Snooze's
+ *   choices are SitRep's `snooze.json` as the last look read it, core's
+ *   defaults where there is none.
  * - At every look it reads SitRep's `here.json` too, the board changed,
  *   unchanged or not read at all, and draws hollow and dimmed each held
  *   session open on no device it is looked at from (core's here.ts): on
@@ -59,7 +64,7 @@
  *   A look whose reads end after the panel closed is dropped, so nothing
  *   reaches the shell after the terminal is given back.
  */
-import { hereFile, newRows, notHereOf, ownTime, rootOf, type Feed, type Lookout, type Shown } from '../../core'
+import { hereFile, newRows, notHereOf, ownTime, rootOf, snoozeFile, snoozeSettingsOf, type Feed, type Lookout, type Shown } from '../../core'
 import { textAt } from '../files'
 import { KEYED, type Io, type Signal, type Terminal } from '../io'
 import { looking, untilEnded, type Look } from '../looks'
@@ -72,8 +77,9 @@ import { levelOf, type Paint } from './paint'
 import { noticesOf } from './notices'
 import { reachOf } from './reach'
 import { ENTER, LEAVE, repaint } from './screen'
-import { opening, step, type PanelEvent } from './state'
+import { opening, step, type PanelEvent, type Write } from './state'
 import { cleaned, NEW_MS, viewOf } from './view'
+import { written } from './writes'
 
 /** How the panel ended: left by its keys, or by a signal, its terminal gone among them. */
 export type Closed = 'done' | 'hungUp' | 'interrupted' | 'quit' | 'terminated'
@@ -187,7 +193,7 @@ const live = (io: Io, terminal: Terminal, { isNotifying }: PanelOptions) => {
    * a SIGSTOP stops such a group, and nothing takes its terminal meanwhile.
    */
   let isWaking = false
-  /** A pick is under way, from ⏎ until it is answered or the program it ran ends. */
+  /** A pick is under way, from `o` until it is answered or the program it ran ends. */
   let isPicking = false
   /** A program has the terminal. */
   let isHanded = false
@@ -274,7 +280,7 @@ const live = (io: Io, terminal: Terminal, { isNotifying }: PanelOptions) => {
       return
     }
 
-    const { state: next, open } = step(state, { key })
+    const { state: next, open, write } = step(state, { key })
 
     state = next
 
@@ -285,6 +291,7 @@ const live = (io: Io, terminal: Terminal, { isNotifying }: PanelOptions) => {
     } else {
       frame()
       pick(open)
+      writing(write)
     }
   }
 
@@ -397,7 +404,7 @@ const live = (io: Io, terminal: Terminal, { isNotifying }: PanelOptions) => {
     }
   }
 
-  /** The session ⏎ or a tap asks to open, if any, while no other pick is under way. */
+  /** The session `o` asks to open, if any, while no other pick is under way. */
   const pick = (session: string | undefined) => {
     const { feed } = state
 
@@ -409,6 +416,19 @@ const live = (io: Io, terminal: Terminal, { isNotifying }: PanelOptions) => {
     void picked(feed, session).then(() => {
       isPicking = false
     }, fail)
+  }
+
+  /** The line the snooze menu or `z` asks for, written as the command writes it (writes.ts); a refusal, or a failure the files threw, said in words, changing nothing. The board shows a write done at the next look. */
+  const writing = (write: Write | undefined) => {
+    if (write !== undefined) {
+      void written(io, write)
+        .then(acted => (acted.ok ? undefined : acted.error), reasonOf)
+        .then(said => {
+          if (said !== undefined) {
+            guard(() => apply({ written: said }))
+          }
+        })
+    }
   }
 
   const resized = () => {
@@ -440,15 +460,19 @@ const live = (io: Io, terminal: Terminal, { isNotifying }: PanelOptions) => {
   }
 
   /**
-   * What SitRep says is open on no device the panel is looked at from,
-   * read as the look's reads end, the board read or not, so a look that
-   * fails still moves the fill; then `act` with it, unless the panel closed
-   * meanwhile.
+   * What SitRep says: what is open on no device the panel is looked at
+   * from, and Snooze's choices, read as the look's reads end, the board read
+   * or not, so a look that fails still moves the fill; then, unless the
+   * panel closed meanwhile, the choices stepped in, and `act` with the fill.
    */
-  const withHere = async (act: (notHere: ReadonlySet<string>) => void) => {
+  const withSitRep = async (act: (notHere: ReadonlySet<string>) => void) => {
     const notHere = await notHereAt(io, io.now(), lookout)
+    const snoozeSettings = snoozeSettingsOf(await textAt(io, snoozeFile(rootOf(io.env))))
 
-    guard(() => act(notHere))
+    guard(() => {
+      state = step(state, { snoozeSettings }).state
+      act(notHere)
+    })
   }
 
   /**
@@ -477,14 +501,14 @@ const live = (io: Io, terminal: Terminal, { isNotifying }: PanelOptions) => {
   }
 
   /** A look, unless the panel closed while its reads were under way. */
-  const lookedAt = (look: Look) => withHere(notHere => onLook(look, notHere))
+  const lookedAt = (look: Look) => withSitRep(notHere => onLook(look, notHere))
 
   /** A look that failed: the board kept, stale, or why it can't be read, with the fill as SitRep says it now. */
   const onFailure = async (error: unknown) => {
-    await withHere(notHere => {
+    await withSitRep(notHere => {
       unhold()
       fill(notHere)
-      apply({ failed: reasonOf(error) })
+      apply({ failed: reasonOf(error), now: io.now() })
     })
 
     return true

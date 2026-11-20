@@ -1,7 +1,6 @@
- sitrep
-
  NEEDS YOU ●11 ●4 ──────────────────────────────────────────────── ▿
- ▲ 1 more
+ ● Data import                                                    1m
+   Litware · Allow Bash: psql -f import.sql
  ● Help desk redesign 2                                           4m
    Northwind · Thread replies, or keep them flat?
  ● Room bookings                                                  9m
@@ -43,4 +42,5 @@
  ✻ Invoice ledger                                                 2m
    Northwind · Exporting the ledger as CSV
  ▼ 6 more
- ↑↓ move  ⏎ open  s snoozed  q quit
+
+ ↑↓ move  ⏎ expand  o open  s snoozed  q quit

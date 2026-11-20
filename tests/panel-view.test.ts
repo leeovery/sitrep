@@ -173,6 +173,41 @@ test('a row with more than one line counts them beside its name; one of one line
   expect(only(snoozed(['ask', 'ask']))?.count).toBe(2)
 })
 
+test("a row carries each of its lines' words, its status line first, for the row expanded", () => {
+  const asks: Row = {
+    ...row('ask'),
+    lines: [
+      { key: 'ask:a', is: 'ask', ask: 'k1', first: { lead: 'Approve the rota' }, since: NOW },
+      { key: 'stop:b', is: 'permission', first: { lead: 'Allow Bash', mono: 'psql -f import.sql' }, since: NOW },
+      { key: 'stop:c', is: 'question', first: { lead: 'Which week first?', more: '2' }, since: NOW },
+    ],
+  }
+
+  expect(only(asks)?.lines).toEqual([
+    { text: 'Approve the rota' },
+    { text: 'Allow Bash: psql -f import.sql' },
+    { text: 'Which week first?', more: 2 },
+  ])
+  expect(only(row('working'))?.lines).toEqual([{ text: 'Review the help desk' }])
+})
+
+test('a row that can be snoozed carries the asks a snooze names, those it shows, none on a turn; a row of stops alone, a working one or one in Snoozed carries none', () => {
+  const asking: Row = {
+    ...row('ask'),
+    lines: [
+      { key: 'ask:a', is: 'ask', ask: 'k1', first: { lead: 'Approve the rota' }, since: NOW },
+      { key: 'stop:b', is: 'permission', first: { lead: 'Allow Bash' }, since: NOW },
+      { key: 'ask:c', is: 'ask', ask: 'k3', first: { lead: 'Ship it' }, since: NOW },
+    ],
+  }
+
+  expect(only(asking)?.asks).toEqual(['k1', 'k3'])
+  expect(only(row('yourTurn'))?.asks).toEqual([])
+  expect(only(row('permission'))).not.toHaveProperty('asks')
+  expect(only(row('working'))).not.toHaveProperty('asks')
+  expect(only(snoozed(['ask']))).not.toHaveProperty('asks')
+})
+
 test("a row shows its session's name and its project's", () => {
   expect(only(row('working', undefined, { name: 'Invoice ledger', project: 'Fabrikam' }))).toMatchObject({
     session: HELP_DESK,
@@ -240,11 +275,11 @@ test('Snoozed is open as the state says, Needs you and Working always', () => {
   expect(opened(true).at(-1)).toEqual(['snoozed', true])
 })
 
-test("the view carries the state's band, scroll and answer, and the sections' counts", () => {
-  const state: ViewState = { ...STATE, band: `snoozed:${SHIFTS}`, top: 3, answer: 'Opened' }
+test("the view carries the state's band, expanded row, scroll and answer, and the sections' counts", () => {
+  const state: ViewState = { ...STATE, band: `snoozed:${SHIFTS}`, expanded: `snoozed:${SHIFTS}`, top: 3, answer: 'Opened' }
   const view = viewOf(feedOf([row('ask', undefined, { lines: 2 })]), state, NOW, NONE)
 
-  expect(view).toMatchObject({ band: `snoozed:${SHIFTS}`, top: 3, answer: 'Opened', board: 'read' })
+  expect(view).toMatchObject({ band: `snoozed:${SHIFTS}`, expanded: `snoozed:${SHIFTS}`, top: 3, answer: 'Opened', board: 'read' })
   expect(view.sections[0]?.counts).toEqual([{ value: 2, need: 'ask' }])
   expect(viewOf(feedOf([]), STATE, NOW, NONE)).toEqual({ sections: [], top: 0, board: 'read' })
 })

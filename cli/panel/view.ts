@@ -28,6 +28,7 @@ import {
   type RowLine,
   type SnoozedRow,
 } from '../../core'
+import type { Menu } from './menu'
 
 /** A status line: its words joined, and a question's extra count, which the renderer draws apart. */
 export type StatusWords = { text: string; more?: number }
@@ -42,7 +43,11 @@ export type PanelRow = {
   count?: number
   project: string
   status: StatusWords
+  /** Each of its lines' words, its status line first: what the chosen row shows expanded. */
+  lines: StatusWords[]
   time: string
+  /** The asks a snooze of it names, those it shows, none on a turn's row; absent where it can't be snoozed: a row of a window's stops alone, a working one, or one in Snoozed, which wakes. */
+  asks?: string[]
 }
 
 export type PanelView = {
@@ -53,6 +58,10 @@ export type PanelView = {
     isOpen: boolean
   }[]
   band?: string
+  /** The chosen row, expanded. */
+  expanded?: string
+  /** The snooze menu, open under the chosen row: its choices, the one picked, and the first drawn as the layout last kept it. */
+  menu?: Pick<Menu, 'row' | 'options' | 'at' | 'top'>
   top: number
   answer?: string
   board: 'looking' | 'read' | 'stale'
@@ -64,6 +73,10 @@ export type PanelView = {
 export type ViewState = {
   /** The chosen row, by its key (`rowKey`). */
   band?: string
+  /** The chosen row's key, while it is expanded: never another row's. */
+  expanded?: string
+  /** The snooze menu, open under the chosen row: never another row's. */
+  menu?: Menu
   /** The first row in view: its index over the rows of the open sections, in order, one a row, not a screen line. */
   top: number
   isSnoozedOpen: boolean
@@ -162,8 +175,19 @@ const isNewAt = (row: Row | SnoozedRow, arrivals: ViewState['arrivals'], now: nu
     return shownAt !== undefined && now - shownAt < NEW_MS
   })
 
+/** The asks a snooze of the row names, those it shows, none on a turn's row; none at all where the notch offers no Snooze: a row of a window's stops alone, a working one, or one in Snoozed, which wakes. */
+const asksOf = (row: Row | SnoozedRow) => {
+  if (isSnoozedRow(row) || row.section === 'working') {
+    return {}
+  }
+
+  const asks = row.lines.flatMap(line => (line.ask === undefined ? [] : [line.ask]))
+
+  return row.section === 'yourTurn' || asks.length > 0 ? { asks } : {}
+}
+
 const rowOf = (row: Row | SnoozedRow, arrivals: ViewState['arrivals'], now: number): PanelRow => {
-  const [first] = row.lines
+  const lines = row.lines.map(line => statusOf(line.first, line.is === 'permission', now))
 
   return {
     session: row.session,
@@ -174,11 +198,10 @@ const rowOf = (row: Row | SnoozedRow, arrivals: ViewState['arrivals'], now: numb
     name: cleaned(row.name),
     ...(row.lines.length > 1 ? { count: row.lines.length } : {}),
     project: cleaned(row.projectName),
-    status:
-      first === undefined
-        ? { text: '' }
-        : statusOf(first.first, first.is === 'permission', now),
+    status: lines[0] ?? { text: '' },
+    lines,
     time: timeOf(row, now),
+    ...asksOf(row),
   }
 }
 
@@ -208,11 +231,13 @@ export const viewOf = (
   now: number,
   notHere: ReadonlySet<string>,
 ): PanelView => {
-  const { band, top, answer, board, readAt, reason } = state
+  const { band, expanded, menu, top, answer, board, readAt, reason } = state
 
   return {
     sections: sectionsOf(feed, state, now, notHere),
     ...(band === undefined ? {} : { band }),
+    ...(expanded === undefined ? {} : { expanded }),
+    ...(menu === undefined ? {} : { menu: { row: menu.row, options: menu.options, at: menu.at, top: menu.top } }),
     top,
     ...(answer === undefined ? {} : { answer: cleaned(answer) }),
     board,

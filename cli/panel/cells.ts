@@ -90,13 +90,13 @@ export const cut = (text: string, cells: number): string => {
   return kept.trimEnd() + ELLIPSIS
 }
 
-/** A word too wide for a line, in pieces each `cells` wide at most. */
-const pieces = (word: string, cells: number): string[] => {
+/** A word too wide for a line, in pieces, the nth `cellsAt(n)` wide at most. */
+const pieces = (word: string, cellsAt: (piece: number) => number): string[] => {
   const out: string[] = []
   let piece = ''
 
   for (const grapheme of graphemesOf(word)) {
-    if (piece !== '' && widthOf(piece + grapheme) > cells) {
+    if (piece !== '' && widthOf(piece + grapheme) > Math.max(cellsAt(out.length), 1)) {
       out.push(piece)
       piece = ''
     }
@@ -107,33 +107,68 @@ const pieces = (word: string, cells: number): string[] => {
   return [...out, piece]
 }
 
-/** A wrapped line, and whether it ends inside a word too wide for a line, its next piece on the line after. */
-type Wrapped = { text: string; isBroken: boolean }
+/** A word with what it is, which says how it is drawn. */
+export type Tagged<T> = { text: string; tag: T }
 
-const wrapped = (text: string, cells: number): Wrapped[] => {
-  const lines: Wrapped[] = []
-  let line = ''
+/** A wrapped line's words, and whether it ends inside a word too wide for a line, its next piece on the line after. */
+type Wrapped<T> = { words: Tagged<T>[]; isBroken: boolean }
 
-  for (const word of text.split(' ').filter(each => each !== '')) {
-    const joined = line === '' ? word : `${line} ${word}`
+/**
+ * Words in lines, each as wide as `cellsAt` gives for it at most, a space
+ * between each two, broken between words, and a word wider than its line in
+ * pieces, each the width of the line it stands on, its tag kept on each.
+ */
+const wrappedOver = <T>(words: readonly Tagged<T>[], cellsAt: (line: number) => number): Wrapped<T>[] => {
+  const lines: Wrapped<T>[] = []
+  let line: Tagged<T>[] = []
+  let width = 0
 
-    if (widthOf(joined) <= cells) {
-      line = joined
+  for (const word of words) {
+    const joined = width + (line.length === 0 ? 0 : 1) + widthOf(word.text)
+
+    if (joined <= cellsAt(lines.length)) {
+      line.push(word)
+      width = joined
       continue
     }
 
-    if (line !== '') {
-      lines.push({ text: line, isBroken: false })
+    if (line.length > 0) {
+      lines.push({ words: line, isBroken: false })
     }
 
-    const parts = pieces(word, Math.max(cells, 1))
+    const from = lines.length
+    const parts = pieces(word.text, piece => cellsAt(from + piece))
 
-    lines.push(...parts.slice(0, -1).map(piece => ({ text: piece, isBroken: true })))
-    line = parts.at(-1) ?? ''
+    lines.push(...parts.slice(0, -1).map(piece => ({ words: [{ text: piece, tag: word.tag }], isBroken: true })))
+
+    const last = parts.at(-1) ?? ''
+
+    line = [{ text: last, tag: word.tag }]
+    width = widthOf(last)
   }
 
-  return line === '' ? lines : [...lines, { text: line, isBroken: false }]
+  return line.length === 0 ? lines : [...lines, { words: line, isBroken: false }]
 }
+
+/** The text's words, each tagged `tag`. */
+export const wordsOf = <T>(text: string, tag: T): Tagged<T>[] =>
+  text
+    .split(' ')
+    .filter(each => each !== '')
+    .map(each => ({ text: each, tag }))
+
+/** Tagged words in lines, the first `first` cells wide at most and each after it `rest`, broken as `wrap` breaks them. */
+export const wrapTagged = <T>(words: readonly Tagged<T>[], first: number, rest: number): Tagged<T>[][] =>
+  wrappedOver(words, line => (line === 0 ? first : rest)).map(line => line.words)
+
+/** A wrapped line's text, and whether it ends inside a word too wide for a line. */
+type Line = { text: string; isBroken: boolean }
+
+const wrapped = (text: string, cells: number): Line[] =>
+  wrappedOver(wordsOf(text, undefined), () => cells).map(line => ({
+    text: line.words.map(word => word.text).join(' '),
+    isBroken: line.isBroken,
+  }))
 
 /** The text's words in lines `cells` wide at most, broken between words, and a word wider than a line in pieces. */
 export const wrap = (text: string, cells: number): string[] => wrapped(text, cells).map(line => line.text)

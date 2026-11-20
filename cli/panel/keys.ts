@@ -23,8 +23,8 @@
  *   the colour query among them, so none is taken as a key.
  */
 
-/** A key that says nothing but itself: `snoozed` is `s`, `quit` is `q` or Ctrl-C, `suspend` is Ctrl-Z. */
-export type Press = 'up' | 'down' | 'pageUp' | 'pageDown' | 'home' | 'end' | 'enter' | 'snoozed' | 'esc' | 'quit' | 'suspend'
+/** A key that says nothing but itself: `open` is `o`, `snooze` is `z`, `snoozed` is `s`, `quit` is `q` or Ctrl-C, `suspend` is Ctrl-Z. */
+export type Press = 'up' | 'down' | 'pageUp' | 'pageDown' | 'home' | 'end' | 'enter' | 'open' | 'snooze' | 'snoozed' | 'esc' | 'quit' | 'suspend'
 
 export type Key =
   | { [K in Press]: { kind: K } }[Press]
@@ -48,6 +48,8 @@ type Read = { key?: Key; length: number } | 'unfinished' | { pasting: string }
 const PLAIN: Readonly<Record<string, Press>> = {
   j: 'down',
   k: 'up',
+  o: 'open',
+  z: 'snooze',
   s: 'snoozed',
   q: 'quit',
   '\x03': 'quit',

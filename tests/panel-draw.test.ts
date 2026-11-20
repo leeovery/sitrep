@@ -30,6 +30,7 @@ const row = (
   name,
   project,
   status: { text: status },
+  lines: [more.status ?? { text: status }],
   time,
   ...more,
 })
@@ -41,7 +42,7 @@ const HELP_DESK = row('sr-nw0001', 'ask', 'Help desk redesign', 'Northwind', '',
 const DATA_IMPORT = row('sr-lw0001', 'ask', 'Data import', 'Litware', 'Allow Bash: psql -f import.sql', '1m', {
   isAway: true,
 })
-const SHIFTS = row('sr-ct0001', 'turn', 'Shift schedules', 'Contoso', 'Approve the rota', '26m')
+const SHIFTS = row('sr-ct0001', 'turn', 'Shift schedules', 'Contoso', 'Approve the rota', '26m', { asks: [] })
 const MOBILE = row('sr-wg0001', 'working', 'Mobile app', 'Woodgrove', 'Running npm test', '6m')
 const LEDGER = row('sr-fb0001', 'onItsWork', 'Invoice ledger', 'Fabrikam', 'Waiting on 2 agents', '15m')
 const ONBOARDING = row('sr-ts0001', 'ask', 'Onboarding flow', 'Tailspin', 'Pick the onboarding steps', 'tomorrow 09:00', {
@@ -104,10 +105,8 @@ const frame = (view: PanelView, width: number, height: number, paint = NONE) =>
 const drawn = (view: PanelView, width: number, height: number, paint: Paint, from: number, to: number) =>
   ansi(draw(view, { width, height }, paint).slice(from, to), paint.level).split('\n')
 
-test('the board: the title, each heading with its counts, rule and chevron, each row on two lines, and the key line', () => {
-  expect(frame(board(), 39, 20)).toEqual([
-    ' sitrep',
-    '',
+test('the board from row 0: each heading with its counts, rule and chevron, each row on two lines, and the key line', () => {
+  expect(frame(board(), 39, 18)).toEqual([
     ' NEEDS YOU ●3 ●1 ─────────────────── ▿',
     ' ● Help desk redesign 2             4m',
     '   Northwind · Thread replies, or… +1',
@@ -135,7 +134,7 @@ test('a row at every width: the status line cut, then dropped at 24; past 120 co
     top: 0,
     board: 'read',
   }
-  const rows = (width: number) => frame(one, width, 8).slice(2, 5)
+  const rows = (width: number) => frame(one, width, 8).slice(0, 3)
 
   expect(rows(24)).toEqual([' NEEDS YOU ●2 ─────── ▿', ' ● Help desk red… 2  4m', '   Northwind'])
   expect(rows(39)).toEqual([
@@ -188,9 +187,7 @@ test('giving way at 24 columns: the project cut once the status line has gone, a
     board: 'read',
   }
 
-  expect(frame(view, 24, 16)).toEqual([
-    ' sitrep',
-    '',
+  expect(frame(view, 24, 14)).toEqual([
     ' NEEDS YOU ●2 ●1 ──── ▿',
     ' ● Help desk red… 2  4m',
     '   Northwind',
@@ -211,12 +208,11 @@ test('giving way at 24 columns: the project cut once the status line has gone, a
 test('a cut never splits a wide glyph, and the name is cut before its count, never the count', () => {
   const wide = row('sr-nw0003', 'turn', '漢字漢字漢字漢字漢字漢字', 'Northwind', 'Approve the rota', '4m', { count: 12 })
 
-  expect(frame(only('needsYou', [wide]), 24, 8).slice(3, 5)).toEqual([' ● 漢字漢字漢字… 12  4m', '   Northwind · Approve…'])
+  expect(frame(only('needsYou', [wide]), 24, 8).slice(1, 3)).toEqual([' ● 漢字漢字漢字… 12  4m', '   Northwind · Approve…'])
 })
 
 test('scrolled from `top`, the rows above said by `▲ N more` under their section heading, kept at the top, and those below by `▼ N more`', () => {
-  expect(frame(scrolled(0), 39, 12)).toEqual([
-    ' sitrep',
+  expect(frame(scrolled(0), 39, 11)).toEqual([
     ' NEEDS YOU ●6 ────────────────────── ▿',
     ' ● Help desk redesign               1m',
     '   Northwind · Approve the rota',
@@ -229,8 +225,7 @@ test('scrolled from `top`, the rows above said by `▲ N more` under their secti
     ' ▼ 3 more',
     ' ↑↓ pick  s snoozed  q quit',
   ])
-  expect(frame(scrolled(3), 39, 12)).toEqual([
-    ' sitrep',
+  expect(frame(scrolled(3), 39, 11)).toEqual([
     ' NEEDS YOU ●6 ────────────────────── ▿',
     ' ▲ 3 more',
     ' ● Onboarding flow                  4m',
@@ -244,18 +239,18 @@ test('scrolled from `top`, the rows above said by `▲ N more` under their secti
     ' ↑↓ pick  s snoozed  q quit',
   ])
   expect(frame(scrolled(2), 24, 8)).toEqual([
-    ' sitrep',
     ' NEEDS YOU ●6 ─────── ▿',
     ' ▲ 2 more',
     ' ● Invoice ledger    3m',
     '   Northwind · Approve…',
-    ' ▼ 4 more',
-    '',
+    ' ● Onboarding flow   4m',
+    '   Northwind · Approve…',
+    ' ▼ 3 more',
     ' ↑↓ pick  q quit',
   ])
 })
 
-test('below 15 rows, short of room, the blank row under the title goes first, then the blank rows between sections, then the body scrolls', () => {
+test('below 13 rows, short of room, the blank rows between sections give way, then the body scrolls; from 13 they stay', () => {
   const two: PanelView = {
     sections: [
       { kind: 'needsYou', rows: [SHIFTS], counts: [{ value: 1, need: 'turn' }], isOpen: true },
@@ -265,9 +260,7 @@ test('below 15 rows, short of room, the blank row under the title goes first, th
     board: 'read',
   }
 
-  expect(frame(two, 39, 10)).toEqual([
-    ' sitrep',
-    '',
+  expect(frame(two, 39, 8)).toEqual([
     ' NEEDS YOU ●1 ────────────────────── ▿',
     ' ● Shift schedules                 26m',
     '   Contoso · Approve the rota',
@@ -277,8 +270,7 @@ test('below 15 rows, short of room, the blank row under the title goes first, th
     '   Woodgrove · Running npm test',
     ' ↑↓ pick  q quit',
   ])
-  expect(frame(board(), 39, 14)).toEqual([
-    ' sitrep',
+  expect(frame(board(), 39, 12)).toEqual([
     ' NEEDS YOU ●3 ●1 ─────────────────── ▿',
     ' ● Help desk redesign 2             4m',
     '   Northwind · Thread replies, or… +1',
@@ -290,15 +282,13 @@ test('below 15 rows, short of room, the blank row under the title goes first, th
     ' ✻ Mobile app                       6m',
     '   Woodgrove · Running npm test',
     ' ▼ 1 more',
-    '',
     ' ↑↓ pick  s snoozed  q quit',
   ])
+  expect(frame(board(), 39, 13).slice(6, 9)).toEqual(['   Contoso · Approve the rota', '', ' WORKING 2 ───────────────────────── ▿'])
 })
 
 test('a quiet board reads `All clear` and what it means, wrapped at 24 columns, centred a little above the middle', () => {
-  expect(frame(only('needsYou', []), 39, 14)).toEqual([
-    ' sitrep',
-    '',
+  expect(frame(only('needsYou', []), 39, 12)).toEqual([
     '',
     '',
     '               All clear',
@@ -312,7 +302,7 @@ test('a quiet board reads `All clear` and what it means, wrapped at 24 columns, 
     '',
     ' q quit',
   ])
-  expect(frame(only('needsYou', []), 24, 12).slice(2, 7)).toEqual([
+  expect(frame(only('needsYou', []), 24, 11).slice(1, 6)).toEqual([
     '       All clear',
     '',
     '   Nothing needs you,',
@@ -324,9 +314,7 @@ test('a quiet board reads `All clear` and what it means, wrapped at 24 columns, 
 test("a pick's answer sits above the key line, `!` then its words, wrapped at W−4 and hung; its rows come from the body", () => {
   const answer = "Shift schedules can't be opened here: its terminal has no tmux or zmx."
 
-  expect(frame(board({ band: 'sr-ct0001', answer }), 39, 16)).toEqual([
-    ' sitrep',
-    '',
+  expect(frame(board({ band: 'sr-ct0001', answer }), 39, 14)).toEqual([
     ' NEEDS YOU ●3 ●1 ─────────────────── ▿',
     ' ● Help desk redesign 2             4m',
     '   Northwind · Thread replies, or… +1',
@@ -340,9 +328,9 @@ test("a pick's answer sits above the key line, `!` then its words, wrapped at W�
     " ! Shift schedules can't be opened",
     '   here: its terminal has no tmux or',
     '   zmx.',
-    ' ↑↓ move  ⏎ open  s snoozed  q quit',
+    ' ↑↓ move  ⏎ expand  o open  q quit',
   ])
-  expect(drawn(board({ answer }), 39, 16, NORDFOX, 12, 13)).toEqual([
+  expect(drawn(board({ answer }), 39, 14, NORDFOX, 10, 11)).toEqual([
     ` ${ESC}[0;1m!${ESC}[0m Shift schedules can't be opened`,
   ])
 })
@@ -351,40 +339,174 @@ test('the key line names the keys that work now, `s` only while Snoozed holds ro
   const keys = (view: PanelView, width: number) => frame(view, width, 10).at(-1)
 
   expect(keys(board(), 39)).toBe(' ↑↓ pick  s snoozed  q quit')
-  expect(keys(board({ band: 'sr-ct0001' }), 39)).toBe(' ↑↓ move  ⏎ open  s snoozed  q quit')
+  expect(keys(board({ band: 'sr-ct0001' }), 39)).toBe(' ↑↓ move  ⏎ expand  o open  q quit')
   expect(keys(board({ band: 'sr-ct0001' }), 24)).toBe(' ↑↓ move  q quit')
   expect(keys(only('working', [MOBILE]), 39)).toBe(' ↑↓ pick  q quit')
   expect(keys(only('working', []), 39)).toBe(' q quit')
-  expect(drawn(only('working', [MOBILE]), 39, 10, NORDFOX, 9, 10)).toEqual([
+  expect(drawn(only('working', [MOBILE]), 39, 8, NORDFOX, 7, 8)).toEqual([
     ` ${ESC}[0;1m↑↓${ESC}[0;38;2;122;130;171m pick${ESC}[0m  ${ESC}[0;1mq${ESC}[0;38;2;122;130;171m quit${ESC}[0m`,
   ])
 })
 
 test('the band lies over both lines of the chosen row, from column 1 to W−2: a ground in colour, reverse video without', () => {
-  expect(drawn(board({ band: 'sr-ct0001' }), 39, 20, NORDFOX, 7, 9)).toEqual([
+  expect(drawn(board({ band: 'sr-ct0001' }), 39, 18, NORDFOX, 5, 7)).toEqual([
     ` ${ESC}[0;38;2;122;162;247;48;2;52;61;75m●${ESC}[0;48;2;52;61;75m Shift schedules                 ${ESC}[0;38;2;122;130;171;48;2;52;61;75m26m${ESC}[0m`,
     ` ${ESC}[0;48;2;52;61;75m  ${ESC}[0;38;2;122;130;171;48;2;52;61;75mContoso · ${ESC}[0;38;2;169;177;214;48;2;52;61;75mApprove the rota${ESC}[0;48;2;52;61;75m         ${ESC}[0m`,
   ])
-  expect(drawn(board({ band: 'sr-ct0001' }), 39, 20, NONE, 7, 9)).toEqual([
+  expect(drawn(board({ band: 'sr-ct0001' }), 39, 18, NONE, 5, 7)).toEqual([
     ` ${ESC}[0;7m● Shift schedules                 ${ESC}[0;2;7m26m${ESC}[0m`,
     ` ${ESC}[0;7m  ${ESC}[0;2;7mContoso · ${ESC}[0;7mApprove the rota         ${ESC}[0m`,
   ])
 })
 
+/** A session whose name and status line a narrow row cuts short. */
+const LONG = row('sr-nw0009', 'turn', 'Help desk redesign for every regional support office', 'Northwind', 'Drafted the reply templates for the billing queue', '31m')
+
+/** A session with three lines waiting: two asks and a question with more to it. */
+const SEVERAL = row('sr-nw0010', 'ask', 'Shift schedules', 'Contoso', 'Approve the rota', '4m', {
+  count: 3,
+  lines: [{ text: 'Approve the rota' }, { text: 'Keep the night shift at four people, or move to five?' }, { text: 'Which week first?', more: 2 }],
+})
+
+test("the chosen row expanded cuts nothing: its name, then its project and status line, wrap under the names' column, the time at the first line's right", () => {
+  const view = only('needsYou', [LONG, SHIFTS], { band: 'sr-nw0009', expanded: 'sr-nw0009' })
+
+  expect(frame(view, 39, 10)).toEqual([
+    ' NEEDS YOU 2 ─────────────────────── ▿',
+    ' ● Help desk redesign for every    31m',
+    '   regional support office',
+    '   Northwind · Drafted the reply',
+    '   templates for the billing queue',
+    ' ● Shift schedules                 26m',
+    '   Contoso · Approve the rota',
+    '',
+    '',
+    ' ↑↓ move  ⏎ fold  o open  q quit',
+  ])
+  expect(frame(view, 114, 10).slice(1, 3)).toEqual([
+    ' ● Help desk redesign for every regional support office                                                       31m',
+    '   Northwind · Drafted the reply templates for the billing queue',
+  ])
+})
+
+test("a row of several lines expanded shows its project alone, then each line's words on a line of its own, a question's `+2` after it", () => {
+  const view = only('needsYou', [SEVERAL], { band: 'sr-nw0010', expanded: 'sr-nw0010' })
+
+  expect(frame(view, 39, 10).slice(0, 7)).toEqual([
+    ' NEEDS YOU 1 ─────────────────────── ▿',
+    ' ● Shift schedules 3                4m',
+    '   Contoso',
+    '   Approve the rota',
+    '   Keep the night shift at four',
+    '   people, or move to five?',
+    '   Which week first? +2',
+  ])
+})
+
+test('the band lies over every line of an expanded row, from column 1 to W−2', () => {
+  const view = only('needsYou', [SEVERAL], { band: 'sr-nw0010', expanded: 'sr-nw0010' })
+
+  expect(drawn(view, 39, 10, NONE, 1, 7).every(line => line.startsWith(` ${ESC}[0;7m`) || line.startsWith(` ${ESC}[0;1;7m`))).toBe(true)
+  expect(drawn(view, 39, 10, NONE, 2, 3)).toEqual([` ${ESC}[0;7m  ${ESC}[0;2;7mContoso${ESC}[0;7m                            ${ESC}[0m`])
+})
+
+test('an expanded row taller than the body is cut to it, its last line kept saying `…`', () => {
+  const view = only('needsYou', [SEVERAL], { band: 'sr-nw0010', expanded: 'sr-nw0010' })
+
+  expect(frame(view, 24, 8)).toEqual([
+    ' ● Shift schedules   4m',
+    '   3',
+    '   Contoso',
+    '   Approve the rota',
+    '   Keep the night shift',
+    '   at four people, or',
+    '   …',
+    ' ↑↓ move  q quit',
+  ])
+})
+
+/** The snooze menu open under Shift schedules, Later today picked. */
+const MENU: NonNullable<PanelView['menu']> = {
+  row: 'sr-ct0001',
+  at: 1,
+  top: 0,
+  options: [
+    { title: 'In an hour', time: '15:00', until: 1 },
+    { title: 'Later today', time: '17:00', until: 2 },
+    { title: 'Tonight', time: '18:00', until: 3 },
+    { title: 'Tomorrow', time: '09:00', until: 4 },
+    { title: 'This weekend', time: 'Sat 09:00', until: 5 },
+    { title: 'Next week', time: 'Mon 09:00', until: 6 },
+    { title: 'Until it moves', time: '' },
+  ],
+}
+
+test("the snooze menu stands under the chosen row, a choice a line, its time at the right in grey, the band on the choice picked; the key line is the menu's own", () => {
+  const view = board({ band: 'sr-ct0001', menu: MENU })
+
+  expect(frame(view, 39, 18).slice(0, 14)).toEqual([
+    ' NEEDS YOU ●3 ●1 ─────────────────── ▿',
+    ' ● Help desk redesign 2             4m',
+    '   Northwind · Thread replies, or… +1',
+    ' ○ Data import                      1m',
+    '   Litware · Allow Bash: psql -f impo…',
+    ' ● Shift schedules                 26m',
+    '   Contoso · Approve the rota',
+    '   In an hour                    15:00',
+    '   Later today                   17:00',
+    '   Tonight                       18:00',
+    '   Tomorrow                      09:00',
+    '   This weekend              Sat 09:00',
+    '   Next week                 Mon 09:00',
+    '   Until it moves',
+  ])
+  expect(frame(view, 39, 20).at(-1)).toBe(' ↑↓ pick  ⏎ snooze  esc cancel')
+  expect(drawn(view, 39, 18, NONE, 5, 9)).toEqual([
+    ' ● Shift schedules                 \u001b[0;2m26m\u001b[0m',
+    '   \u001b[0;2mContoso · \u001b[0mApprove the rota',
+    '   In an hour                    \u001b[0;2m15:00\u001b[0m',
+    ` ${ESC}[0;7m  ${ESC}[0;1;7mLater today${ESC}[0;7m                   ${ESC}[0;2;7m17:00${ESC}[0m`,
+  ])
+})
+
+test('a choice and its time fit as they can: past the width the time goes, then the name is cut', () => {
+  const view = board({ band: 'sr-ct0001', menu: MENU })
+
+  expect(frame(view, 24, 18).slice(7, 14)).toEqual([
+    '   In an hour     15:00',
+    '   Later today    17:00',
+    '   Tonight        18:00',
+    '   Tomorrow       09:00',
+    '   This weekend',
+    '   Next week  Mon 09:00',
+    '   Until it moves',
+  ])
+})
+
+test('the key line names z for the band\'s row: snooze on one that needs you, wake in Snoozed, nothing on a working row', () => {
+  const keys = (view: PanelView) => frame(view, 69, 22).at(-1)
+
+  expect(keys(board({ band: 'sr-ct0001' }))).toBe(' ↑↓ move  ⏎ expand  o open  z snooze  s snoozed  q quit')
+  expect(keys(board({ band: 'snoozed:sr-ts0001', isOpen: true }))).toBe(' ↑↓ move  ⏎ expand  o open  z wake  s snoozed  q quit')
+  expect(keys(board({ band: 'sr-wg0001' }))).toBe(' ↑↓ move  ⏎ expand  o open  s snoozed  q quit')
+  expect(keys(board({ band: 'sr-ct0001', menu: MENU }))).toBe(' ↑↓ pick  ⏎ snooze  esc cancel')
+  expect(frame(board({ band: 'sr-ct0001', menu: MENU }), 24, 22).at(-1)).toBe(' ↑↓ pick  esc cancel')
+})
+
 test("the band names a row by its key: a session's Snoozed row is its own", () => {
   const view = board({ isOpen: true, band: 'snoozed:sr-ts0001' })
-  const snoozed = drawn(view, 39, 22, NONE, 17, 18)
+  const snoozed = drawn(view, 39, 20, NONE, 15, 16)
 
   expect(snoozed[0]?.startsWith(` ${ESC}[0;2;7m●`)).toBe(true)
-  expect(drawn(board({ isOpen: true, band: 'sr-ts0001' }), 39, 22, NONE, 17, 18)[0]).not.toContain(';7m●')
+  expect(drawn(board({ isOpen: true, band: 'sr-ts0001' }), 39, 20, NONE, 15, 16)[0]).not.toContain(';7m●')
 })
 
 test("an away row's words dim as one, its mark kept full and hollow; without colour a bold name stays bold, never faint", () => {
-  expect(drawn(board(), 39, 20, NORDFOX, 5, 7)).toEqual([
+  expect(drawn(board(), 39, 18, NORDFOX, 3, 5)).toEqual([
     ` ${ESC}[0;38;2;215;119;87m○${ESC}[0m ${ESC}[0;1;38;2;143;146;151mData import${ESC}[0m                      ${ESC}[0;38;2;92;100;129m1m${ESC}[0m`,
     `   ${ESC}[0;38;2;92;100;129mLitware · ${ESC}[0;38;2;121;128;156mAllow Bash: psql -f impo…${ESC}[0m`,
   ])
-  expect(drawn(board(), 39, 20, NONE, 5, 7)).toEqual([
+  expect(drawn(board(), 39, 18, NONE, 3, 5)).toEqual([
     ` ○ ${ESC}[0;1mData import${ESC}[0m                      ${ESC}[0;2m1m${ESC}[0m`,
     `   ${ESC}[0;2mLitware · Allow Bash: psql -f impo…${ESC}[0m`,
   ])
@@ -393,7 +515,7 @@ test("an away row's words dim as one, its mark kept full and hollow; without col
 test("on the band, an away row's words dim toward the band's ground, not the terminal's background", () => {
   const ground = '48;2;52;61;75'
 
-  expect(drawn(board({ band: 'sr-lw0001' }), 39, 20, NORDFOX, 5, 7)).toEqual([
+  expect(drawn(board({ band: 'sr-lw0001' }), 39, 18, NORDFOX, 3, 5)).toEqual([
     ` ${ESC}[0;38;2;215;119;87;${ground}m○${ESC}[0;${ground}m ${ESC}[0;1;38;2;145;149;156;${ground}mData import${ESC}[0;${ground}m                      ${ESC}[0;38;2;95;103;134;${ground}m1m${ESC}[0m`,
     ` ${ESC}[0;${ground}m  ${ESC}[0;38;2;95;103;134;${ground}mLitware · ${ESC}[0;38;2;123;132;160;${ground}mAllow Bash: psql -f impo…${ESC}[0m`,
   ])
@@ -405,7 +527,7 @@ test('a Snoozed row dims its mark alone, filled even away; its name grey, an ask
     isAway: true,
   })
 
-  expect(drawn(only('snoozed', [ONBOARDING, away]), 39, 10, NORDFOX, 3, 7)).toEqual([
+  expect(drawn(only('snoozed', [ONBOARDING, away]), 39, 8, NORDFOX, 1, 5)).toEqual([
     ` ${ESC}[0;38;2;149;93;78m●${ESC}[0m ${ESC}[0;1;38;2;122;130;171mOnboarding flow${ESC}[0m      ${ESC}[0;38;2;122;130;171mtomorrow 09:00${ESC}[0m`,
     `   ${ESC}[0;38;2;122;130;171mTailspin · ${ESC}[0;38;2;169;177;214mPick the onboarding ste…${ESC}[0m`,
     ` ${ESC}[0;38;2;92;119;176m●${ESC}[0m ${ESC}[0;38;2;122;130;171mMobile app${ESC}[0m                ${ESC}[0;38;2;122;130;171mnext week${ESC}[0m`,
@@ -418,24 +540,24 @@ test("a new ask's mark is `◉`, bold orange, its row washed at 24-bit where the
   const view = (band?: string): PanelView => ({ ...only('needsYou', [arriving]), ...(band === undefined ? {} : { band }) })
   const wash = `48;2;83;67;69`
 
-  expect(drawn(view(), 39, 8, NORDFOX, 3, 4)).toEqual([
+  expect(drawn(view(), 39, 8, NORDFOX, 1, 2)).toEqual([
     ` ${ESC}[0;1;38;2;215;119;87;${wash}m◉${ESC}[0;${wash}m ${ESC}[0;1;${wash}mData import${ESC}[0;${wash}m                     ${ESC}[0;38;2;122;130;171;${wash}mnow${ESC}[0m`,
   ])
-  expect(drawn(view(), 39, 8, { level: 'truecolor' }, 3, 4)).toEqual([
+  expect(drawn(view(), 39, 8, { level: 'truecolor' }, 1, 2)).toEqual([
     ` ${ESC}[0;1;38;2;215;119;87m◉${ESC}[0m ${ESC}[0;1mData import${ESC}[0m                     ${ESC}[0;38;2;122;130;171mnow${ESC}[0m`,
   ])
-  expect(drawn(view(), 39, 8, NONE, 3, 4)).toEqual([
+  expect(drawn(view(), 39, 8, NONE, 1, 2)).toEqual([
     ` ${ESC}[0;1m◉${ESC}[0m ${ESC}[0;1mData import${ESC}[0m                     ${ESC}[0;2mnow${ESC}[0m`,
   ])
-  expect(drawn(view('sr-ct0002'), 39, 8, NORDFOX, 3, 4)[0]).toContain('48;2;52;61;75m')
-  expect(drawn(view('sr-ct0002'), 39, 8, NORDFOX, 3, 4)[0]).not.toContain(wash)
+  expect(drawn(view('sr-ct0002'), 39, 8, NORDFOX, 1, 2)[0]).toContain('48;2;52;61;75m')
+  expect(drawn(view('sr-ct0002'), 39, 8, NORDFOX, 1, 2)[0]).not.toContain(wash)
 })
 
 test('the headings: grey words, the needs-you counts in bold orange and blue, the rule and chevron faint', () => {
-  expect(drawn(board(), 39, 20, NORDFOX, 2, 3)).toEqual([
+  expect(drawn(board(), 39, 18, NORDFOX, 0, 1)).toEqual([
     ` ${ESC}[0;38;2;122;130;171mNEEDS YOU${ESC}[0m ${ESC}[0;38;2;215;119;87m●${ESC}[0;1;38;2;215;119;87m3${ESC}[0m ${ESC}[0;38;2;122;162;247m●${ESC}[0;1;38;2;122;162;247m1${ESC}[0m ${ESC}[0;38;2;86;95;137m───────────────────${ESC}[0m ${ESC}[0;38;2;86;95;137m▿${ESC}[0m`,
   ])
-  expect(drawn(board(), 39, 20, NONE, 10, 11)).toEqual([
+  expect(drawn(board(), 39, 18, NONE, 8, 9)).toEqual([
     ` WORKING ${ESC}[0;2m2${ESC}[0m ${ESC}[0;2m─────────────────────────${ESC}[0m ${ESC}[0;2m▿${ESC}[0m`,
   ])
 })
@@ -457,16 +579,24 @@ test('the rule goes below 3 cells, its counts and chevron kept', () => {
     board: 'read',
   }
 
-  expect(frame(many, 24, 8)[2]).toBe(' NEEDS YOU ●123 ●45   ▿')
+  expect(frame(many, 24, 8)[0]).toBe(' NEEDS YOU ●123 ●45   ▿')
 })
 
-test("a stale board says when it was read at the title's right; before any board, the body says it's looking, or why it can't read one", () => {
+test("there is no title: the body starts on row 0, and a stale board says when it was read at the key line's right end, the keys cut to the room left of it", () => {
   const empty = { sections: [], top: 0 }
 
-  expect(frame({ ...empty, board: 'stale', asOf: '12:04' }, 39, 10)[0]).toBe(' sitrep                    as of 12:04')
-  expect(frame({ ...empty, board: 'read', asOf: '12:04' }, 39, 10)[0]).toBe(' sitrep')
-  expect(frame({ ...empty, board: 'looking' }, 39, 12)).toEqual([
-    ' sitrep',
+  expect(frame({ ...empty, board: 'stale', asOf: '12:04' }, 39, 10).at(-1)).toBe(' q quit                    as of 12:04')
+  expect(frame({ ...empty, board: 'read', asOf: '12:04' }, 39, 10).at(-1)).toBe(' q quit')
+  expect(frame(board({ board: 'stale', asOf: '12:04' }), 39, 18).at(-1)).toBe(' ↑↓ pick  q quit           as of 12:04')
+  expect(frame(board({ board: 'stale', asOf: '12:04', band: 'sr-ct0001' }), 52, 18).at(-1)).toBe(' ↑↓ move  ⏎ expand  o open  q quit      as of 12:04')
+  expect(frame(board({ board: 'stale', asOf: '12:04', band: 'sr-ct0001' }), 24, 18).at(-1)).toBe(' q quit     as of 12:04')
+  expect(frame(board(), 39, 18)[0]).toBe(' NEEDS YOU ●3 ●1 ─────────────────── ▿')
+})
+
+test("before any board, the body says it's looking, or why it can't read one, centred from row 0", () => {
+  const empty = { sections: [], top: 0 }
+
+  expect(frame({ ...empty, board: 'looking' }, 39, 10)).toEqual([
     '',
     '',
     '',
@@ -476,13 +606,12 @@ test("a stale board says when it was read at the title's right; before any board
     '',
     '',
     '',
-    '',
     ' q quit',
   ])
   expect(
-    frame({ ...empty, board: 'looking', reason: "EACCES: permission denied, scandir '/Users/me/.local/state'" }, 39, 14).slice(
-      4,
-      8,
+    frame({ ...empty, board: 'looking', reason: "EACCES: permission denied, scandir '/Users/me/.local/state'" }, 39, 13).slice(
+      3,
+      7,
     ),
   ).toEqual([
     "         Can't read the board",
@@ -498,23 +627,23 @@ test('below 24 columns or 8 rows only `Too small`, at the margin, cut to the wid
   expect(tooSmall(23, 10)).toEqual([' Too small', ...Array<string>(9).fill('')])
   expect(tooSmall(24, 7)).toEqual([' Too small', ...Array<string>(6).fill('')])
   expect(tooSmall(8, 8)[0]).toBe(' Too s…')
-  expect(tooSmall(24, 8)[0]).toBe(' sitrep')
+  expect(tooSmall(24, 8)[0]).toBe(' NEEDS YOU ●3 ●1 ──── ▿')
 })
 
 test('the lines as text: each its glyphs, trimmed, a newline after each; as escapes: a reset where a line ends styled, a newline between', () => {
   const lines = draw(only('working', [MOBILE]), { width: 24, height: 8 }, NONE)
 
   expect(text(lines)).toBe(
-    [' sitrep', '', ' WORKING 1 ────────── ▿', ' ✻ Mobile app        6m', '   Woodgrove · Running…', '', '', ' ↑↓ pick  q quit', ''].join(
+    [' WORKING 1 ────────── ▿', ' ✻ Mobile app        6m', '   Woodgrove · Running…', '', '', '', '', ' ↑↓ pick  q quit', ''].join(
       '\n',
     ),
   )
   expect(ansi(lines, 'none').split('\n')).toEqual([
-    ` ${ESC}[0;1msitrep${ESC}[0m`,
-    '',
     ` WORKING ${ESC}[0;2m1${ESC}[0m ${ESC}[0;2m──────────${ESC}[0m ${ESC}[0;2m▿${ESC}[0m`,
     ` ✻ Mobile app        ${ESC}[0;2m6m${ESC}[0m`,
     `   ${ESC}[0;2mWoodgrove · ${ESC}[0mRunning…`,
+    '',
+    '',
     '',
     '',
     ` ${ESC}[0;1m↑↓${ESC}[0;2m pick${ESC}[0m  ${ESC}[0;1mq${ESC}[0;2m quit${ESC}[0m`,
@@ -526,39 +655,38 @@ const PICKED = "Shift schedules can't be opened here: its terminal has no tmux o
 const NO_FOLDER =
   "Shift schedules's last window did not say which folder it ran in, as a window on an older sitrep does not, so sitrep has nothing to put for {dir}."
 
-test('every element at every width: the stale title, the pinned heading and its counts, `▲`, `▼`, the band, the answer and the key line', () => {
+test('every element at every width: the stale notice, the pinned heading and its counts, `▲`, `▼`, the band, the answer and the key line', () => {
   const view = scrolled(2, { band: 'sr-nw0003', answer: PICKED, board: 'stale', asOf: '12:04' })
 
   expect(frame(view, 24, 12)).toEqual([
-    ' sitrep     as of 12:04',
     ' NEEDS YOU ●6 ─────── ▿',
     ' ▲ 2 more',
     ' ● Invoice ledger    3m',
     '   Northwind · Approve…',
     ' ▼ 4 more',
     '',
+    '',
     ' ! Shift schedules',
     "   can't be opened",
     '   here: its terminal',
     '   has no tmux or zmx.',
-    ' ↑↓ move  q quit',
+    ' q quit     as of 12:04',
   ])
   expect(frame(view, 39, 12)).toEqual([
-    ' sitrep                    as of 12:04',
     ' NEEDS YOU ●6 ────────────────────── ▿',
     ' ▲ 2 more',
     ' ● Invoice ledger                   3m',
     '   Northwind · Approve the rota',
-    ' ▼ 4 more',
-    '',
+    ' ● Onboarding flow                  4m',
+    '   Northwind · Approve the rota',
+    ' ▼ 3 more',
     '',
     " ! Shift schedules can't be opened",
     '   here: its terminal has no tmux or',
     '   zmx.',
-    ' ↑↓ move  ⏎ open  s snoozed  q quit',
+    ' ↑↓ move  q quit           as of 12:04',
   ])
   expect(frame(view, 69, 12)).toEqual([
-    ' sitrep                                                  as of 12:04',
     ' NEEDS YOU ●6 ──────────────────────────────────────────────────── ▿',
     ' ▲ 2 more',
     ' ● Invoice ledger                                                 3m',
@@ -567,12 +695,12 @@ test('every element at every width: the stale title, the pinned heading and its 
     '   Northwind · Approve the rota',
     ' ▼ 3 more',
     '',
+    '',
     " ! Shift schedules can't be opened here: its terminal has no tmux or",
     '   zmx.',
-    ' ↑↓ move  ⏎ open  s snoozed  q quit',
+    ' ↑↓ move  ⏎ expand  o open  s snoozed  q quit            as of 12:04',
   ])
   expect(frame(view, 73, 12)).toEqual([
-    ' sitrep                                                      as of 12:04',
     ' NEEDS YOU ●6 ──────────────────────────────────────────────────────── ▿',
     ' ▲ 2 more',
     ' ● Invoice ledger                                                     3m',
@@ -581,43 +709,43 @@ test('every element at every width: the stale title, the pinned heading and its 
     '   Northwind · Approve the rota',
     ' ▼ 3 more',
     '',
+    '',
     " ! Shift schedules can't be opened here: its terminal has no tmux or",
     '   zmx.',
-    ' ↑↓ move  ⏎ open  s snoozed  q quit',
+    ' ↑↓ move  ⏎ expand  o open  s snoozed  q quit                as of 12:04',
   ])
   expect(frame(view, 114, 12)).toEqual([
-    ' sitrep                                                                                               as of 12:04',
     ' NEEDS YOU ●6 ───────────────────────────────────────────────────────────────────────────────────────────────── ▿',
     ' ▲ 2 more',
     ' ● Invoice ledger                                                                                              3m',
     '   Northwind · Approve the rota',
     ' ● Onboarding flow                                                                                             4m',
     '   Northwind · Approve the rota',
-    ' ▼ 3 more',
-    '',
+    ' ● Mobile app                                                                                                  5m',
+    '   Northwind · Approve the rota',
+    ' ▼ 2 more',
     '',
     " ! Shift schedules can't be opened here: its terminal has no tmux or zmx.",
-    ' ↑↓ move  ⏎ open  s snoozed  q quit',
+    ' ↑↓ move  ⏎ expand  o open  s snoozed  q quit                                                         as of 12:04',
   ])
   expect(frame(view, 173, 12)).toEqual([
-    ' sitrep                                                                                                     as of 12:04',
     ' NEEDS YOU ●6 ─────────────────────────────────────────────────────────────────────────────────────────────────────── ▿',
     ' ▲ 2 more',
     ' ● Invoice ledger                                                                                                    3m',
     '   Northwind · Approve the rota',
     ' ● Onboarding flow                                                                                                   4m',
     '   Northwind · Approve the rota',
-    ' ▼ 3 more',
-    '',
+    ' ● Mobile app                                                                                                        5m',
+    '   Northwind · Approve the rota',
+    ' ▼ 2 more',
     '',
     " ! Shift schedules can't be opened here: its terminal has no tmux or zmx.",
-    ' ↑↓ move  ⏎ open  s snoozed  q quit',
+    ' ↑↓ move  ⏎ expand  o open  s snoozed  q quit                                                               as of 12:04',
   ])
 })
 
 test("the quiet board at every width, centred in the body's place", () => {
-  expect(frame(only('needsYou', []), 24, 10)).toEqual([
-    ' sitrep',
+  expect(frame(only('needsYou', []), 24, 9)).toEqual([
     '       All clear',
     '',
     '   Nothing needs you,',
@@ -628,9 +756,7 @@ test("the quiet board at every width, centred in the body's place", () => {
     '',
     ' q quit',
   ])
-  expect(frame(only('needsYou', []), 39, 10)).toEqual([
-    ' sitrep',
-    '',
+  expect(frame(only('needsYou', []), 39, 8)).toEqual([
     '               All clear',
     '',
     '        Nothing needs you, and',
@@ -640,9 +766,7 @@ test("the quiet board at every width, centred in the body's place", () => {
     '',
     ' q quit',
   ])
-  expect(frame(only('needsYou', []), 69, 10)).toEqual([
-    ' sitrep',
-    '',
+  expect(frame(only('needsYou', []), 69, 8)).toEqual([
     '                              All clear',
     '',
     '                       Nothing needs you, and',
@@ -652,9 +776,7 @@ test("the quiet board at every width, centred in the body's place", () => {
     '',
     ' q quit',
   ])
-  expect(frame(only('needsYou', []), 73, 10)).toEqual([
-    ' sitrep',
-    '',
+  expect(frame(only('needsYou', []), 73, 8)).toEqual([
     '                                All clear',
     '',
     '                         Nothing needs you, and',
@@ -664,9 +786,7 @@ test("the quiet board at every width, centred in the body's place", () => {
     '',
     ' q quit',
   ])
-  expect(frame(only('needsYou', []), 114, 10)).toEqual([
-    ' sitrep',
-    '',
+  expect(frame(only('needsYou', []), 114, 8)).toEqual([
     '                                                    All clear',
     '',
     '                                              Nothing needs you, and',
@@ -676,9 +796,7 @@ test("the quiet board at every width, centred in the body's place", () => {
     '',
     ' q quit',
   ])
-  expect(frame(only('needsYou', []), 173, 10)).toEqual([
-    ' sitrep',
-    '',
+  expect(frame(only('needsYou', []), 173, 8)).toEqual([
     '                                                       All clear',
     '',
     '                                                 Nothing needs you, and',
@@ -690,10 +808,8 @@ test("the quiet board at every width, centred in the body's place", () => {
   ])
 })
 
-test('scrolled with the blank rows between sections kept, at 15 rows and more', () => {
-  expect(frame(scrolled(3), 39, 16)).toEqual([
-    ' sitrep',
-    '',
+test('scrolled with the blank rows between sections kept, at 13 rows and more', () => {
+  expect(frame(scrolled(3), 39, 14)).toEqual([
     ' NEEDS YOU ●6 ────────────────────── ▿',
     ' ▲ 3 more',
     ' ● Onboarding flow                  4m',
@@ -714,8 +830,7 @@ test('scrolled with the blank rows between sections kept, at 15 rows and more', 
 test('`top` past the end goes no further than the greatest that still fills the body', () => {
   expect(layoutOf(scrolled(99), { width: 39, height: 12 }).lastTop).toBe(4)
   expect(frame(scrolled(99), 39, 12)).toEqual(frame(scrolled(4), 39, 12))
-  expect(frame(scrolled(99), 39, 12)).toEqual([
-    ' sitrep',
+  expect(frame(scrolled(99), 39, 11)).toEqual([
     ' NEEDS YOU ●6 ────────────────────── ▿',
     ' ▲ 4 more',
     ' ● Mobile app                       5m',
@@ -732,35 +847,34 @@ test('`top` past the end goes no further than the greatest that still fills the 
 })
 
 test("the layout gives the body's rows, where each row in view stands by its key, and the greatest `top`", () => {
-  const layout = layoutOf(scrolled(3, { band: 'sr-nw0003', answer: PICKED }), { width: 39, height: 16 })
+  const layout = layoutOf(scrolled(3, { band: 'sr-nw0003', answer: PICKED }), { width: 39, height: 14 })
 
-  expect(layout.body).toEqual({ from: 2, to: 11 })
-  expect(layout.words).toEqual({ from: 1, to: 11 })
+  expect(layout.body).toEqual({ from: 0, to: 9 })
+  expect(layout.words).toEqual({ from: 0, to: 9 })
   expect(layout.answer).toEqual({
-    from: 12,
+    from: 10,
     lines: ["Shift schedules can't be opened", 'here: its terminal has no tmux or', 'zmx.'],
   })
   expect(layout.rows).toEqual([
-    { key: 'sr-nw0003', y: 4 },
-    { key: 'sr-nw0004', y: 6 },
-    { key: 'sr-nw0005', y: 8 },
+    { key: 'sr-nw0003', y: 2, height: 2 },
+    { key: 'sr-nw0004', y: 4, height: 2 },
+    { key: 'sr-nw0005', y: 6, height: 2 },
   ])
   expect(layout.lastTop).toBe(6)
 })
 
-test('an answer taller than the body keeps the title and the key line, takes the rows between, less its blank row, and cuts its last line', () => {
+test('an answer taller than the body keeps the key line, takes the rows above it, less its blank row, and cuts its last line', () => {
   expect(frame(board({ band: 'sr-ct0001', answer: NO_FOLDER }), 24, 8)).toEqual([
-    ' sitrep',
     '',
     " ! Shift schedules's",
     '   last window did not',
     '   say which folder it',
     '   ran in, as a window',
-    '   on an older sitrep…',
-    ' ⏎ open  q quit',
+    '   on an older sitrep',
+    '   does not, so sitrep…',
+    ' ⏎ expand  q quit',
   ])
-  expect(frame(board({ band: 'sr-ct0001', answer: NO_FOLDER }), 24, 14)).toEqual([
-    ' sitrep',
+  expect(frame(board({ band: 'sr-ct0001', answer: NO_FOLDER }), 24, 13)).toEqual([
     ' ● Help desk red… 2  4m',
     '   Northwind',
     ' ▼ 4 more',
@@ -778,11 +892,11 @@ test('an answer taller than the body keeps the title and the key line, takes the
 })
 
 test('centred words stand in the rows the body leaves, above the answer and the key line, their last line cut where they run over', () => {
-  const reason = "EACCES: permission denied, open '/Users/me/.local/state/sitrep/sessions/sr-nw0001.json'"
+  const reason = "EACCES: permission denied, open '/Users/me/.local/state/sitrep/projects/northwind/sessions/sr-nw0001.json'"
 
   expect(frame(only('needsYou', [], { answer: PICKED }), 24, 8)).toEqual([
-    ' sitrep',
     '       All clear',
+    '',
     '',
     ' ! Shift schedules',
     "   can't be opened",
@@ -790,8 +904,7 @@ test('centred words stand in the rows the body leaves, above the answer and the 
     '   has no tmux or zmx.',
     ' q quit',
   ])
-  expect(frame(only('needsYou', [], { answer: PICKED }), 39, 10)).toEqual([
-    ' sitrep',
+  expect(frame(only('needsYou', [], { answer: PICKED }), 39, 9)).toEqual([
     '               All clear',
     '',
     '        Nothing needs you, and',
@@ -803,29 +916,29 @@ test('centred words stand in the rows the body leaves, above the answer and the 
     ' q quit',
   ])
   expect(frame({ sections: [], top: 0, board: 'looking', reason }, 24, 8)).toEqual([
-    ' sitrep',
     "  Can't read the board",
     '',
     '   EACCES: permission',
     '      denied, open',
     "  '/Users/me/.local/st",
-    '  ate/sitrep/sessions…',
+    '  ate/sitrep/projects/',
+    '  northwind/sessions/…',
     ' q quit',
   ])
   expect(frame(only('needsYou', []), 24, 8)).toEqual([
-    ' sitrep',
     '       All clear',
     '',
     '   Nothing needs you,',
     '     and nothing is',
     '        running.',
     '',
+    '',
     ' q quit',
   ])
 })
 
 test("without colour an ask's count is bold and a turn's regular, as their names are", () => {
-  expect(drawn(board(), 39, 20, NONE, 2, 3)).toEqual([
+  expect(drawn(board(), 39, 18, NONE, 0, 1)).toEqual([
     ` NEEDS YOU ●${ESC}[0;1m3${ESC}[0m ●1 ${ESC}[0;2m───────────────────${ESC}[0m ${ESC}[0;2m▿${ESC}[0m`,
   ])
 })
@@ -836,10 +949,8 @@ test("at 256 colours: the palette's nearest, the dims mixed, the band a ground, 
   const [needsYou, ...rest] = view.sections
 
   expect(
-    drawn({ ...view, sections: [{ ...needsYou!, rows: [arriving, ...needsYou!.rows] }, ...rest] }, 39, 20, { ...NORDFOX, level: '256' }, 0, 20),
+    drawn({ ...view, sections: [{ ...needsYou!, rows: [arriving, ...needsYou!.rows] }, ...rest] }, 39, 18, { ...NORDFOX, level: '256' }, 0, 18),
   ).toEqual([
-    ` ${ESC}[0;1msitrep${ESC}[0m`,
-    '',
     ` ${ESC}[0;38;5;103mNEEDS YOU${ESC}[0m ${ESC}[0;38;5;173m●${ESC}[0;1;38;5;173m3${ESC}[0m ${ESC}[0;38;5;111m●${ESC}[0;1;38;5;111m1${ESC}[0m ${ESC}[0;38;5;60m───────────────────${ESC}[0m ${ESC}[0;38;5;60m▿${ESC}[0m`,
     ` ${ESC}[0;1;38;5;173m◉${ESC}[0m ${ESC}[0;1mData import${ESC}[0m                      ${ESC}[0;38;5;103m1m${ESC}[0m`,
     `   ${ESC}[0;38;5;103mLitware · ${ESC}[0;38;5;146mAllow Bash: psql -f impo…${ESC}[0m`,
@@ -857,14 +968,12 @@ test("at 256 colours: the palette's nearest, the dims mixed, the band a ground, 
     `   ${ESC}[0;38;5;103mFabrikam · ${ESC}[0;38;5;146mWaiting on 2 agents${ESC}[0m`,
     '',
     ` ${ESC}[0;38;5;103mSNOOZED${ESC}[0m ${ESC}[0;38;5;103m1${ESC}[0m ${ESC}[0;38;5;60m─────────────────────────${ESC}[0m ${ESC}[0;38;5;60m▹${ESC}[0m`,
-    ` ${ESC}[0;1m↑↓${ESC}[0;38;5;103m move${ESC}[0m  ${ESC}[0;1m⏎${ESC}[0;38;5;103m open${ESC}[0m  ${ESC}[0;1ms${ESC}[0;38;5;103m snoozed${ESC}[0m  ${ESC}[0;1mq${ESC}[0;38;5;103m quit${ESC}[0m`,
+    ` ${ESC}[0;1m↑↓${ESC}[0;38;5;103m move${ESC}[0m  ${ESC}[0;1m⏎${ESC}[0;38;5;103m expand${ESC}[0m  ${ESC}[0;1mo${ESC}[0;38;5;103m open${ESC}[0m  ${ESC}[0;1mq${ESC}[0;38;5;103m quit${ESC}[0m`,
   ])
 })
 
 test("at 16 colours: the terminal's own, the rule faint, the dims faint, the band reverse video", () => {
-  expect(drawn(board({ band: 'sr-ct0001' }), 39, 20, { ...NORDFOX, level: '16' }, 0, 20)).toEqual([
-    ` ${ESC}[0;1msitrep${ESC}[0m`,
-    '',
+  expect(drawn(board({ band: 'sr-ct0001' }), 39, 18, { ...NORDFOX, level: '16' }, 0, 18)).toEqual([
     ` ${ESC}[0;90mNEEDS YOU${ESC}[0m ${ESC}[0;33m●${ESC}[0;1;33m3${ESC}[0m ${ESC}[0;34m●${ESC}[0;1;34m1${ESC}[0m ${ESC}[0;2;90m───────────────────${ESC}[0m ${ESC}[0;2;90m▿${ESC}[0m`,
     ` ${ESC}[0;33m●${ESC}[0m ${ESC}[0;1mHelp desk redesign${ESC}[0;90m 2${ESC}[0m             ${ESC}[0;90m4m${ESC}[0m`,
     `   ${ESC}[0;90mNorthwind · ${ESC}[0mThread replies, or…${ESC}[0;90m +1${ESC}[0m`,
@@ -882,7 +991,7 @@ test("at 16 colours: the terminal's own, the rule faint, the dims faint, the ban
     ` ${ESC}[0;90mSNOOZED${ESC}[0m ${ESC}[0;90m1${ESC}[0m ${ESC}[0;2;90m─────────────────────────${ESC}[0m ${ESC}[0;2;90m▹${ESC}[0m`,
     '',
     '',
-    ` ${ESC}[0;1m↑↓${ESC}[0;90m move${ESC}[0m  ${ESC}[0;1m⏎${ESC}[0;90m open${ESC}[0m  ${ESC}[0;1ms${ESC}[0;90m snoozed${ESC}[0m  ${ESC}[0;1mq${ESC}[0;90m quit${ESC}[0m`,
+    ` ${ESC}[0;1m↑↓${ESC}[0;90m move${ESC}[0m  ${ESC}[0;1m⏎${ESC}[0;90m expand${ESC}[0m  ${ESC}[0;1mo${ESC}[0;90m open${ESC}[0m  ${ESC}[0;1mq${ESC}[0;90m quit${ESC}[0m`,
   ])
 })
 
@@ -902,7 +1011,7 @@ const SEVEN: PanelView = {
 
 test('with 4 body rows a scrolled body shows `▲` alone over its row, `▼` under it; with 3, the row and `▼` alone', () => {
   expect(frame({ ...SEVEN, top: 1, answer: 'Short.' }, 33, 8)).toEqual([
-    ' sitrep',
+    ' NEEDS YOU ●7 ──────────────── ▿',
     ' ▲ 1 more',
     ' ● Shift schedules            2m',
     '   Northwind · Approve the rota',
@@ -912,10 +1021,10 @@ test('with 4 body rows a scrolled body shows `▲` alone over its row, `▼` und
     ' ↑↓ pick  q quit',
   ])
   expect(layoutOf({ ...SEVEN, top: 1, answer: 'Short.' }, { width: 33, height: 8 }).rows).toEqual([
-    { key: 'sr-nw0001', y: 2 },
+    { key: 'sr-nw0001', y: 2, height: 2 },
   ])
   expect(frame({ ...SEVEN, top: 1, answer: 'Short. And a second line of words, to wrap.' }, 33, 8)).toEqual([
-    ' sitrep',
+    ' ▲ 1 more',
     ' ● Shift schedules            2m',
     '   Northwind · Approve the rota',
     ' ▼ 5 more',
@@ -944,9 +1053,7 @@ test('a band low in Working, scrolled, with an answer that leaves the body littl
     board: 'read',
   }
 
-  expect(frame(view, 24, 16)).toEqual([
-    ' sitrep',
-    '',
+  expect(frame(view, 24, 14)).toEqual([
     ' ▲ 4 more',
     ' ✻ Invoice ledger    2m',
     '   Woodgrove · Running…',
@@ -962,8 +1069,8 @@ test('a band low in Working, scrolled, with an answer that leaves the body littl
     '   for {dir}.',
     ' ↑↓ move  q quit',
   ])
-  expect(layoutOf(view, { width: 24, height: 16 }).rows).toEqual([
-    { key: 'sr-wg0101', y: 3 },
+  expect(layoutOf(view, { width: 24, height: 14 }).rows).toEqual([
+    { key: 'sr-wg0101', y: 1, height: 2 },
   ])
 })
 
@@ -996,7 +1103,7 @@ test('every row can be brought into view, whole, at every room the body has from
 })
 
 test('`topFor` gives the `top` nearest the view\'s that shows the row whole: the band at the start, the middle and the end, and under an answer', () => {
-  const size = { width: 39, height: 12 }
+  const size = { width: 39, height: 11 }
 
   expect(topFor(scrolled(3), size, 'sr-nw0000')).toBe(0)
   expect(topFor(scrolled(0), size, 'sr-nw0003')).toBe(0)
@@ -1018,9 +1125,7 @@ test('`▼` stands under the rows it counts, never under a blank row', () => {
     board: 'read',
   }
 
-  expect(frame(five, 30, 15)).toEqual([
-    ' sitrep',
-    '',
+  expect(frame(five, 30, 13)).toEqual([
     ' NEEDS YOU ●5 ───────────── ▿',
     ' ▲ 1 more',
     ' ● Shift schedules         2m',
@@ -1045,14 +1150,14 @@ test('`↑↓` is offered only while a row is in view: not over a folded Snoozed
 })
 
 test('a squeezed quiet board cuts its words at 24 columns, as it wraps them', () => {
-  expect(frame(only('needsYou', [], { answer: PICKED }), 69, 8)).toEqual([
-    ' sitrep',
+  expect(frame(only('needsYou', [], { answer: NO_FOLDER }), 69, 8)).toEqual([
     '                              All clear',
     '',
     '                       Nothing needs you, and…',
     '',
-    " ! Shift schedules can't be opened here: its terminal has no tmux or",
-    '   zmx.',
+    " ! Shift schedules's last window did not say which folder it ran in,",
+    '   as a window on an older sitrep does not, so sitrep has nothing to',
+    '   put for {dir}.',
     ' q quit',
   ])
 })
@@ -1074,7 +1179,7 @@ test('the chevron never overwrites a count: past W−3 it goes', () => {
     board: 'read',
   }
 
-  expect(frame(many, 24, 8)[2]).toBe(' NEEDS YOU ●12345 ●567')
+  expect(frame(many, 24, 8)[0]).toBe(' NEEDS YOU ●12345 ●567')
 })
 
 test('a wide glyph or an emoji at the right edge is cut whole, nothing drawn past W−2', () => {
@@ -1083,13 +1188,13 @@ test('a wide glyph or an emoji at the right edge is cut whole, nothing drawn pas
   const lines = frame(only('needsYou', [wide, emoji]), 26, 10)
 
   expect(lines).toEqual([
-    ' sitrep',
-    '',
     ' NEEDS YOU 2 ────────── ▿',
     ' ● Data 漢字漢字漢字…  4m',
     '   Northwind · 漢字漢字…',
     ' ● 👍 Help desk rede…  1m',
     '   Contoso · Approve 👍…',
+    '',
+    '',
     '',
     '',
     ' ↑↓ pick  q quit',
@@ -1108,8 +1213,7 @@ test('a body never ends on an open heading: a section that has no room for a row
     board: 'read',
   }
 
-  expect(frame(view, 30, 9)).toEqual([
-    ' sitrep',
+  expect(frame(view, 30, 8)).toEqual([
     ' NEEDS YOU ●2 ───────────── ▿',
     ' ● Help desk redesign      1m',
     '   Northwind · Approve the r…',
@@ -1132,9 +1236,8 @@ test('with no room for a row, `top` goes back to 0 and `▼` counts every row', 
     board: 'read',
   }
 
-  expect(layoutOf(view, { width: 30, height: 12 }).top).toBe(0)
-  expect(frame(view, 30, 12)).toEqual([
-    ' sitrep',
+  expect(layoutOf(view, { width: 30, height: 10 }).top).toBe(0)
+  expect(frame(view, 30, 11)).toEqual([
     ' ▼ 7 more',
     '',
     ' ! word word word word word',
@@ -1149,10 +1252,32 @@ test('with no room for a row, `top` goes back to 0 and `▼` counts every row', 
   ])
 })
 
-test('an answer of all the rows there are leaves the body empty, never running backwards, at 15 rows and more', () => {
+test('an answer of all the rows there are leaves the body empty, never running backwards, at 13 rows and more', () => {
   const layout = layoutOf(board({ answer: 'word '.repeat(80) }), { width: 24, height: 16 })
 
-  expect(layout.answer.lines.length).toBe(13)
-  expect(layout.body).toEqual({ from: 1, to: 1 })
+  expect(layout.answer.lines.length).toBe(14)
+  expect(layout.body).toEqual({ from: 0, to: 0 })
   expect(layout.placed.length).toBe(0)
+})
+
+test('short of room, the menu draws the choices around the pick, scrolled as the layout keeps them: the last picked, the first gone', () => {
+  const view = only('needsYou', [SHIFTS], { band: 'sr-ct0001', menu: { ...MENU, at: 6, top: 0 } })
+
+  expect(frame(view, 39, 8)).toEqual([
+    ' ● Shift schedules                 26m',
+    '   Later today                   17:00',
+    '   Tonight                       18:00',
+    '   Tomorrow                      09:00',
+    '   This weekend              Sat 09:00',
+    '   Next week                 Mon 09:00',
+    '   Until it moves',
+    ' ↑↓ pick  ⏎ snooze  esc cancel',
+  ])
+  expect(drawn(view, 39, 8, NONE, 6, 7)).toEqual([` ${ESC}[0;7m  ${ESC}[0;1;7mUntil it moves${ESC}[0;7m                     ${ESC}[0m`])
+})
+
+test('an expanded row the menu leaves one line draws its folded first line, never `…`, so the menu says whose it is', () => {
+  const view = only('needsYou', [SEVERAL], { band: 'sr-nw0010', expanded: 'sr-nw0010', menu: { ...MENU, row: 'sr-nw0010' } })
+
+  expect(frame(view, 39, 8).slice(0, 2)).toEqual([' ● Shift schedules 3                4m', '   In an hour                    15:00'])
 })

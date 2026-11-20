@@ -8,7 +8,7 @@ Some asks can wait until tomorrow. Snooze puts a whole session off until a time 
 2. Choose **Snooze**, then **Tomorrow**. Beside each choice, the menu shows when it wakes, such as `09:00` beside Tomorrow.
 3. The session leaves Needs you. Unfold Snoozed at the foot of the panel, and its row says when it wakes, such as `tomorrow 09:00`.
 
-In Claude Code, open an ask in the pane and press `snooze`, then `tomorrow`.
+In Claude Code, open an ask in the pane and press `snooze`, then `tomorrow`. In the terminal view, choose the row and press `z`, then pick Tomorrow.
 
 ## What happens
 
@@ -20,14 +20,14 @@ In Claude Code, open an ask in the pane and press `snooze`, then `tomorrow`.
   - a new ask in the session;
   - your reply to one of its asks;
   - your prompt in the Claude Code window running that session.
-- **You can wake it yourself.** Right-click its row under Snoozed and choose **Wake now**, or press `wake now` in the pane.
+- **You can wake it yourself.** Right-click its row under Snoozed and choose **Wake now**, or press `wake now` in the pane. In the terminal view, press `z` on its row under Snoozed.
 
 ## Good to know
 
 - **Only you snooze a session.** Claude has no tool for it. Claude sees the snooze on the board, and leaves the asks until then.
 - **A permission prompt never snoozes.** A Claude Code window waiting at one stays in Needs you, though its session is snoozed.
-- **Until it moves has no time.** It wakes the session when Claude next ends a turn there, or for any of the reasons above. In the app, only the right-click menus offer it.
-- **The pane snoozes only from an ask.** A session at your turn with no ask snoozes from its row in the Mac app.
+- **Until it moves has no time.** It wakes the session when Claude next ends a turn there, or for any of the reasons above. Only the right-click menus and the terminal view offer it.
+- **The pane snoozes only from an ask.** A session at your turn with no ask snoozes from its row in the Mac app or the terminal view.
 
 ## Reference
 

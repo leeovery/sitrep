@@ -2647,9 +2647,11 @@ too"); since then the session does, its asks and its turn together (see
   length or hour was a named constant of each copy (`LATER_MS`,
   `TONIGHT_HOUR`, `TOMORROW_HOUR`, `NEXT_WEEK_HOUR`; `laterTodayInterval`,
   `tonightHour`, `tomorrowHour`, `nextWeekHour`), for this to take; In an
-  hour's length stays one (`IN_AN_HOUR_MS`, `inAnHourInterval`). The CLI
-  takes a time alone (`--until`), and works out none, so it reads no
-  setting.
+  hour's length stays one (`IN_AN_HOUR_MS`, `inAnHourInterval`). The CLI's
+  `snooze` takes a time alone (`--until`), and works out none, so it reads
+  no setting. The terminal view's snooze menu (20 November 2026) works its
+  times out as the pane does, by core's, from `snooze.json`, and writes the
+  line `sitrep snooze` writes.
 
   Lee: "We can always improve and add new options there." Each is worked out
   where it is pressed, on the Gregorian calendar in that Mac's time zone,
@@ -3134,7 +3136,7 @@ writers and readers stay safe:
 
 ```
 $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
-  snooze.json                 Snooze's choices as Lee set them in SitRep: the app's alone, for the pane
+  snooze.json                 Snooze's choices as Lee set them in SitRep: the app's alone, for the pane and the terminal view
   here.json                   who SitRep last read viewing each held session and each multiplexer tty: the app's alone, for the panel in a terminal
   projects/<project key>/
     project.json              name, directory, created and by whom: the project's own
@@ -3159,8 +3161,8 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
 - **`snooze.json`** (17 November 2026; see "Lee sets the times", under
   "Snooze"): Snooze's choices as Lee set them in SitRep's Settings, for the
   pane in Claude Code to offer the same. It sits at the folder's top, beside
-  `projects/`, where every reader of the board already looks, and the CLI
-  reads it not. The defaults, as the app's encoder writes them, indented,
+  `projects/`, where every reader of the board already looks; of the CLI,
+  only the terminal view reads it, for its snooze menu. The defaults, as the app's encoder writes them, indented,
   their keys in order (`tests/choices.ts` holds the encoder to its text):
 
   ```
@@ -10213,8 +10215,8 @@ look", the pick on its page "FINAL · board in a terminal".
   orange, then its Stopped in blue; Working; then Snoozed, folded at first.
   Each row names its project.
 - **It doesn't answer asks**, as the notch doesn't.
-- **Picking a row runs SitRep's resume command in place**, in the
-  panel's own terminal, on the Mac as over SSH, so it behaves the same on
+- **Picking a row, by `o`, runs SitRep's resume command in place**, in
+  the panel's own terminal, on the Mac as over SSH, so it behaves the same on
   every screen: the command a click runs for a session this Mac doesn't
   show (stage 8), filled and refused as the app fills and refuses it, the
   default's guard with it. A Claude suspended on the session's device
@@ -10272,7 +10274,7 @@ look", the pick on its page "FINAL · board in a terminal".
   Bun, into Homebrew's `bin`, in a PR on the tap. `docs/terminal.md` is its
   page, calling it the terminal view, since the docs' "panel" is the
   notch's; its still, `art/screens/terminal.webp`, is the golden frame
-  `panel-docs-73x19`, a world of the docs' placeholder names alone, drawn
+  `panel-docs-73x17`, a world of the docs' placeholder names alone, drawn
   by termgrid.
 - **Proven live on 20 November 2026,** by Lee, from a build of `f5e442c`, on
   his iPad and iPhone in rootshell over tssh:
@@ -10295,6 +10297,29 @@ look", the pick on its page "FINAL · board in a terminal".
     tap to its pane only for its own push notifications (parked).
   - **The band,** too strong at first on the phone's near-black, now stands
     one quiet step of contrast off any ground (#187).
+- **`⏎` expands, `o` opens**, decided by Lee on 20 November 2026. He keeps
+  the view open in a narrow strip on his iPad over SSH, to see what needs
+  him, and reads there the rows its width cuts short, without ever opening
+  a session by accident. So `⏎`, or a tap on the chosen row, expands it,
+  its name and its words wrapped whole, each of several asks on a line of
+  its own, and folds it again; one row at most, the band's. `o` alone
+  opens, as `⏎` did, every answer as before. There is no view-only flag.
+  "Open" stays the docs' word, and nothing says "attach".
+- **`z` snoozes** (Lee, 20 November 2026), from that same strip: on a row
+  that needs him, of asks or of his turn alone, it opens a menu of
+  Snooze's times under the row, the notch's choices and words, worked out
+  from `snooze.json` as the menu opens, then Until it moves. A choice
+  writes exactly what `sitrep snooze` writes, the CLI's own line in its
+  own file, naming the asks the row showed, so none is snoozed unseen. On
+  a Snoozed row `z` writes `sitrep wake`'s line. On a row of a window's
+  prompt alone, or a working one, the notch offers no Snooze, and `z` says
+  why in words.
+- **No title** (Lee, 20 November 2026), for that same strip, where every
+  row counts: the ` sitrep` title row and the blank row under it are gone,
+  and the body starts on row 0. A stale board's `as of 12:04`, the title
+  row's only other use, stands at the key line's right end instead, the
+  keys cut before it. The blank rows between sections give way below 13
+  rows, the body as roomy there as it was below 15 under the title.
 
 Every other question the spec put to Lee he answered on 19 November 2026
 as it recommended, and none is left open. So the CLI runs programs again, which it has not done

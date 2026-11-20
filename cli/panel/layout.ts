@@ -4,18 +4,26 @@
  * keep the band's row in sight (`topFor`), page by a body's height, and find
  * the row a tap lands on.
  *
- * - Row 0 is the title, the last row the key line; both always stay.
+ * - The last row is the key line, and always stays. There is no title (Lee,
+ *   20 November 2026).
  * - A pick's answer sits above the key line, a blank row over it, in at most
- *   the rows between the title and the key line, less that blank row; past
- *   them its last line is cut with `…`.
- * - The body runs from row 2 to the answer's blank row or the key line.
- *   Below 15 rows, short of room, the blank row under the title gives way
- *   first, then the blank rows between sections.
+ *   the rows above the key line, less that blank row; past them its last
+ *   line is cut with `…`.
+ * - The body runs from row 0 to the answer's blank row or the key line.
+ *   Below 13 rows, short of room, the blank rows between sections give way:
+ *   13 rows give the body what 15 gave under the old title.
  * - It shows the rows that fit, in whole rows, from `top`. Above them, room
  *   allowing, their section's heading, pinned, and `▲ N more` for the rows
  *   scrolled past; or `▲` alone; or nothing. `▼ N more` says the rows below,
  *   its row kept free while any block is left after, but never at the cost
  *   of the first row shown.
+ * - A row takes two lines; the chosen row expanded, the lines its words
+ *   need (expand.ts), cut to the body's height where it is taller, never
+ *   below two. The snooze menu stands under the chosen row, a line a
+ *   choice, the two as one block; short of room, the row's lines give way
+ *   first, down to its first, then the menu shows the choices it has room
+ *   for, scrolled the least from where it was that keeps the pick among
+ *   them.
  * - The body never starts or ends on a blank row, or on an open section's
  *   heading, while blocks follow: a heading stands only with a row under it.
  *   A folded Snoozed heading is drawn last.
@@ -23,6 +31,7 @@
  *   block.
  */
 import { wrapIn, type Size } from './cells'
+import { expandedOf } from './expand'
 import { rowKey, type PanelRow, type PanelView } from './view'
 
 /** The left margin's width: every line starts here. */
@@ -35,14 +44,14 @@ export const MOST = 120
 const LEAST: Size = { width: 24, height: 8 }
 
 /** Below this many rows, the blank rows give way. */
-const ROOMY = 15
+const ROOMY = 13
 
 export type Section = PanelView['sections'][number]
 
-/** What the body shows, each at its terminal row: a heading, a row's two lines, or `▲`/`▼` and the rows they count. */
+/** What the body shows, each at its terminal row: a heading; a row's lines, as many as it shows, and the snooze menu's choices under them, as many as it shows; or `▲`/`▼` and the rows they count. */
 export type Placed =
   | { kind: 'heading'; y: number; section: Section }
-  | { kind: 'row'; y: number; row: PanelRow; key: string }
+  | { kind: 'row'; y: number; row: PanelRow; key: string; height: number; menu: number }
   | { kind: 'above' | 'below'; y: number; count: number }
 
 /** Rows of the terminal, from `from` up to `to`, exclusive. */
@@ -58,21 +67,33 @@ export type Layout = {
   answer: { from: number; lines: string[] }
   /** The body's rows. */
   body: Region
-  /** The rows under the title the body's place holds, where words stand centred in it. */
+  /** The rows the body's place holds, where words stand centred in it. */
   words: Region
   /** The view's `top`, kept within `lastTop`. */
   top: number
   /** The least `top` from which the body shows the last block: any greater leaves blank rows. */
   lastTop: number
   placed: Placed[]
-  /** Each row in view by its key, at the terminal row of its first line. */
-  rows: { key: string; y: number }[]
+  /** Each row in view by its key, at the terminal row of its first line, and the lines it takes. */
+  rows: { key: string; y: number; height: number }[]
+  /** The snooze menu's choices in view: the terminal row of the first, how many, and which choice is first. */
+  menu?: { y: number; lines: number; first: number }
 }
 
-/** One of the body's pieces, in its order: a blank row between sections, a heading, or a row. */
-type Block = { kind: 'gap' } | { kind: 'heading'; section: Section } | { kind: 'row'; row: PanelRow; section: Section }
+/** One of the body's pieces, in its order: a blank row between sections, a heading, or a row, the lines it takes and its menu's. */
+type Block =
+  | { kind: 'gap' }
+  | { kind: 'heading'; section: Section }
+  | ({ kind: 'row'; row: PanelRow; section: Section } & RowShape)
 
-const HEIGHT: Record<Block['kind'], number> = { gap: 1, heading: 1, row: 2 }
+/** The lines a row takes, and the snooze menu under it, none where it has no menu. */
+type RowShape = { height: number; menu: number }
+
+/** A row's lines, folded. */
+const ROW = 2
+
+/** The lines a block takes. */
+const linesOf = (block: Block) => (block.kind === 'row' ? block.height + block.menu : 1)
 
 /** What stands above the first row of a scrolled body: its heading, pinned, and `▲`; `▲` alone; or nothing. */
 type Lead = 'pinned' | 'above' | 'none'
@@ -80,13 +101,16 @@ type Lead = 'pinned' | 'above' | 'none'
 /** The rows each lead takes: it stands only with room under it for a row, and for `▼` while blocks follow the row. */
 const LEAD_ROWS: Record<Lead, number> = { pinned: 2, above: 1, none: 0 }
 
-const heightOf = (blocks: readonly Block[]) => blocks.reduce((sum, block) => sum + HEIGHT[block.kind], 0)
+const heightOf = (blocks: readonly Block[]) => blocks.reduce((sum, block) => sum + linesOf(block), 0)
 
-const blocksOf = (sections: readonly Section[], hasGaps: boolean): Block[] =>
+/** The lines a row takes as it stands, the chosen row's when expanded, else its two; and its menu's, where its menu is open. */
+type Shaping = (row: PanelRow) => RowShape
+
+const blocksOf = (sections: readonly Section[], hasGaps: boolean, shape: Shaping): Block[] =>
   sections.flatMap((section, at): Block[] => [
     ...(at > 0 && hasGaps ? [{ kind: 'gap' } as const] : []),
     { kind: 'heading', section },
-    ...(section.isOpen ? section.rows.map(row => ({ kind: 'row', row, section }) as const) : []),
+    ...(section.isOpen ? section.rows.map(row => ({ kind: 'row', row, section, ...shape(row) }) as const) : []),
   ])
 
 const rowsIn = (blocks: readonly Block[]) => blocks.filter(block => block.kind === 'row').length
@@ -100,7 +124,7 @@ type Window = { start: number; lead: Lead; end: number }
 const isFollowed = (blocks: readonly Block[], at: number) => at + 1 < blocks.length
 
 /** The rows the block at `at` takes, and one for `▼` while blocks follow it. */
-const roomFor = (blocks: readonly Block[], at: number) => HEIGHT[(blocks[at] as Block).kind] + (isFollowed(blocks, at) ? 1 : 0)
+const roomFor = (blocks: readonly Block[], at: number) => linesOf(blocks[at] as Block) + (isFollowed(blocks, at) ? 1 : 0)
 
 /** A block a body may not end on while blocks follow: a blank row, or an open section's heading, which stands only with a row under it. */
 const isBare = (block: Block | undefined) => block?.kind === 'gap' || (block?.kind === 'heading' && block.section.isOpen)
@@ -116,13 +140,13 @@ const endOf = (blocks: readonly Block[], start: number, used: number, room: numb
   let taken = used
 
   while (end < blocks.length) {
-    const needs = end === start ? HEIGHT[(blocks[end] as Block).kind] : roomFor(blocks, end)
+    const needs = end === start ? linesOf(blocks[end] as Block) : roomFor(blocks, end)
 
     if (taken + needs > room) {
       break
     }
 
-    taken += HEIGHT[(blocks[end] as Block).kind]
+    taken += linesOf(blocks[end] as Block)
     end++
   }
 
@@ -162,7 +186,7 @@ const windowOf = (blocks: readonly Block[], top: number, room: number): Window =
 
 /** The least `top` from which the body shows the last block: any greater leaves blank rows. */
 const lastTopOf = (blocks: readonly Block[], room: number) => {
-  if (room < HEIGHT.row) {
+  if (room < ROW) {
     return 0
   }
 
@@ -191,10 +215,10 @@ const placedIn = (blocks: readonly Block[], window: Window, top: number, body: R
     if (block.kind === 'heading') {
       placed.push({ kind: 'heading', y, section: block.section })
     } else if (block.kind === 'row') {
-      placed.push({ kind: 'row', y, row: block.row, key: rowKey(block.row) })
+      placed.push({ kind: 'row', y, row: block.row, key: rowKey(block.row), height: block.height, menu: block.menu })
     }
 
-    y += HEIGHT[block.kind]
+    y += linesOf(block)
   }
 
   const below = rowsIn(blocks.slice(window.end))
@@ -202,14 +226,32 @@ const placedIn = (blocks: readonly Block[], window: Window, top: number, body: R
   return below > 0 && y < body.to ? [...placed, { kind: 'below', y, count: below }] : placed
 }
 
-/** The body's rows and blocks: the blank row under the title kept while every block fits with it, then the gaps between sections; never running backwards past the answer. */
-const bodyOf = (sections: readonly Section[], height: number, foot: number) => {
-  const gapped = blocksOf(sections, true)
-  const isWhole = (from: number) => heightOf(gapped) <= foot - from
-  const from = height >= ROOMY || isWhole(2) ? 2 : 1
-  const hasGaps = height >= ROOMY || isWhole(from)
+/** The body's rows, from the top to the foot, and its blocks: the gaps between sections kept while every block fits with them. */
+const bodyOf = (sections: readonly Section[], height: number, foot: number, shape: Shaping) => {
+  const gapped = blocksOf(sections, true, shape)
+  const hasGaps = height >= ROOMY || heightOf(gapped) <= foot
 
-  return { body: { from: Math.min(from, foot), to: foot }, blocks: hasGaps ? gapped : blocksOf(sections, false) }
+  return { body: { from: 0, to: foot }, blocks: hasGaps ? gapped : blocksOf(sections, false, shape) }
+}
+
+/**
+ * A block cut to the body's `room` where it is taller: a row with its menu
+ * keeps the menu whole under its first line at least, its own lines giving
+ * way first, then the menu's last; one with none is cut to the body, never
+ * below its two lines.
+ */
+const cutTo = (block: Block, room: number): Block => {
+  if (block.kind !== 'row' || linesOf(block) <= room) {
+    return block
+  }
+
+  if (block.menu === 0) {
+    return { ...block, height: Math.max(room, ROW) }
+  }
+
+  const height = Math.min(block.height, Math.max(room - block.menu, 1))
+
+  return { ...block, height, menu: Math.max(Math.min(block.menu, room - height), 0) }
 }
 
 /** The parts every `top` shares: the sizes, the answer, the body's rows and its blocks. */
@@ -217,11 +259,15 @@ const partsOf = (view: PanelView, size: Size) => {
   const width = Math.min(size.width, MOST)
   const { height } = size
   const sections = view.sections.filter(section => section.rows.length > 0)
-  const said = view.answer === undefined ? [] : wrapIn(view.answer, width - 4, height - 3)
+  const said = view.answer === undefined ? [] : wrapIn(view.answer, width - 4, height - 2)
   const foot = height - 1 - (said.length === 0 ? 0 : said.length + 1)
-  const { body, blocks } = bodyOf(sections, height, foot)
+  const shape: Shaping = row => ({
+    height: rowKey(row) === view.expanded ? Math.max(expandedOf(row, width).lines.length, ROW) : ROW,
+    menu: rowKey(row) === view.menu?.row ? view.menu.options.length : 0,
+  })
+  const { body, blocks } = bodyOf(sections, height, foot, shape)
   const room = Math.max(body.to - body.from, 0)
-  const shown = isTooSmall(size) || room === 0 ? [] : blocks
+  const shown = isTooSmall(size) || room === 0 ? [] : blocks.map(block => cutTo(block, room))
 
   return { width, height, sections, said, foot, body, room, blocks: shown, lastTop: lastTopOf(shown, room) }
 }
@@ -231,7 +277,20 @@ type Parts = ReturnType<typeof partsOf>
 const placedAt = (parts: Parts, top: number) => placedIn(parts.blocks, windowOf(parts.blocks, top, parts.room), top, parts.body)
 
 const rowsOf = (placed: readonly Placed[]) =>
-  placed.flatMap(each => (each.kind === 'row' ? [{ key: each.key, y: each.y }] : []))
+  placed.flatMap(each => (each.kind === 'row' ? [{ key: each.key, y: each.y, height: each.height }] : []))
+
+/** The first of `lines` choices drawn: the least move from `top` that keeps the pick `at` among them, within the choices there are. */
+const firstOf = ({ options, at, top }: NonNullable<PanelView['menu']>, lines: number) =>
+  Math.max(Math.min(Math.min(Math.max(top, at - lines + 1), at), options.length - lines), 0)
+
+/** The snooze menu's choices in view, under their row's lines; none while no row shows one. */
+const menuOf = (view: PanelView, placed: readonly Placed[]) => {
+  const row = placed.find(each => each.kind === 'row' && each.menu > 0)
+
+  return row?.kind === 'row' && view.menu !== undefined
+    ? { menu: { y: row.y + row.height, lines: row.menu, first: firstOf(view.menu, row.menu) } }
+    : {}
+}
 
 /** The view's parts at the size: the answer's rows, the body's, and what the body shows from `top`. */
 export const layoutOf = (view: PanelView, size: Size): Layout => {
@@ -245,11 +304,12 @@ export const layoutOf = (view: PanelView, size: Size): Layout => {
     sections: parts.sections,
     answer: { from: parts.height - 1 - parts.said.length, lines: parts.said },
     body: parts.body,
-    words: { from: 1, to: parts.foot },
+    words: { from: 0, to: parts.foot },
     top,
     lastTop: parts.lastTop,
     placed,
     rows: rowsOf(placed),
+    ...menuOf(view, placed),
   }
 }
 

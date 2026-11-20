@@ -1,5 +1,3 @@
- sitrep
-
  NEEDS YOU ●4 ●2 ─────────────────── ▿
  ● Data import                      1m
    Litware · Allow Bash: psql -f impo…
@@ -24,4 +22,6 @@
 
  SNOOZED 2 ───────────────────────── ▹
 
- ↑↓ move  ⏎ open  s snoozed  q quit
+
+
+ ↑↓ move  ⏎ expand  o open  q quit

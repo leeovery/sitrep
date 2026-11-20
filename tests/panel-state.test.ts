@@ -9,12 +9,12 @@ import { boardRow, feedOfRows, snoozedRow, T0 } from './data'
 
 /**
  * The board under test: three asks, five working and two in Snoozed, each
- * row named by its session. At 40×15 the body is rows 2 to 13: from the
- * top it shows Needs you's heading on row 2, its three rows from rows 3, 5
- * and 7, a blank row, Working's heading on row 10 and its first row from
- * 11, then `▼ 4 more` on 13.
+ * row named by its session. At 40×13 the body is rows 0 to 11: from the
+ * top it shows Needs you's heading on row 0, its three rows from rows 1, 3
+ * and 5, a blank row, Working's heading on row 8 and its first row from 9,
+ * then `▼ 4 more` on 11.
  */
-const SIZE: Size = { width: 40, height: 15 }
+const SIZE: Size = { width: 40, height: 13 }
 
 const ASKS = ['sr-nw0001', 'sr-nw0002', 'sr-nw0003']
 
@@ -38,9 +38,9 @@ const boardOf = ({ asks = ASKS, working = WORKING, snoozed = SNOOZED }: Board = 
 
 const press = (kind: Press): Key => ({ kind }) as Key
 
-const [DOWN, UP, PAGE_DOWN, PAGE_UP, HOME, END, ENTER, SNOOZE, ESC] = (
-  ['down', 'up', 'pageDown', 'pageUp', 'home', 'end', 'enter', 'snoozed', 'esc'] as const
-).map(press) as [Key, Key, Key, Key, Key, Key, Key, Key, Key]
+const [DOWN, UP, PAGE_DOWN, PAGE_UP, HOME, END, ENTER, OPEN, SNOOZE, ESC] = (
+  ['down', 'up', 'pageDown', 'pageUp', 'home', 'end', 'enter', 'open', 'snoozed', 'esc'] as const
+).map(press) as [Key, Key, Key, Key, Key, Key, Key, Key, Key, Key]
 
 const wheel = (by: number): Key => ({ kind: 'wheel', by })
 
@@ -169,22 +169,97 @@ test('a pick done sets its answer, the band kept whole in sight above it; one wi
   expect(stepped(pressed(read(), DOWN), { opened: undefined })).toEqual(pressed(read(), DOWN))
 })
 
-test("⏎ asks to open the band's session, a Snoozed row's own session; with no band it asks nothing", () => {
-  expect(step(pressed(read(), DOWN, DOWN), { key: ENTER }).open).toBe(N2)
-  expect(step(pressed(read(), SNOOZE, END), { key: ENTER }).open).toBe(S2)
-  expect(step(read(), { key: ENTER })).toEqual({ state: read() })
+test("o asks to open the band's session, a Snoozed row's own session; with no band it asks nothing", () => {
+  expect(step(pressed(read(), DOWN, DOWN), { key: OPEN }).open).toBe(N2)
+  expect(step(pressed(read(), SNOOZE, END), { key: OPEN }).open).toBe(S2)
+  expect(step(read(), { key: OPEN })).toEqual({ state: read() })
 })
 
-test("a tap on either line of a row puts the band on it, a tap on the band's row opens it; anywhere else, nothing", () => {
-  const onN2 = pressed(read(), tap(5))
+test("⏎ expands the band's row and ⏎ again folds it, the band staying; with no band it does nothing", () => {
+  const onN2 = pressed(read(), DOWN, DOWN)
+  const expanded = pressed(onN2, ENTER)
+
+  expect([expanded.band, expanded.expanded]).toEqual([N2, N2])
+  expect(pressed(expanded, ENTER)).toEqual(onN2)
+  expect(pressed(read(), ENTER)).toEqual(read())
+})
+
+test('⏎ and a tap never ask to open anything: only o does', () => {
+  const onN2 = pressed(read(), DOWN, DOWN)
+
+  expect(layoutIn(onN2).rows.find(row => row.key === N2)).toEqual({ key: N2, y: 3, height: 2 })
+
+  for (const state of [onN2, pressed(onN2, ENTER)]) {
+    const enter = step(state, { key: ENTER })
+
+    expect([enter.open, enter.state.expanded]).toEqual([undefined, state.expanded === undefined ? N2 : undefined])
+
+    for (const y of [3, 4]) {
+      const tapped = step(state, { key: tap(y) })
+
+      expect([tapped.open, tapped.state.band, tapped.state.expanded], `a tap on the band's line at ${y}`).toEqual([
+        undefined,
+        N2,
+        state.expanded === undefined ? N2 : undefined,
+      ])
+    }
+  }
+
+  expect(step(onN2, { key: OPEN }).open).toBe(N2)
+})
+
+test('one row at most is expanded, the chosen one: the band moving to another row by a key, a tap or a changing board folds it', () => {
+  const expanded = pressed(read(), DOWN, DOWN, ENTER)
+  const leaves = { board: boardOf({ asks: [N1, N3] }), news: [], now: T0 }
+
+  expect(pressed(expanded, DOWN).expanded).toBeUndefined()
+  expect(pressed(expanded, DOWN, UP).expanded, 'back on it, still folded').toBeUndefined()
+  expect(pressed(expanded, END).expanded).toBeUndefined()
+  expect(pressed(expanded, ESC).expanded).toBeUndefined()
+  expect(pressed(expanded, tap(3)).expanded).toBeUndefined()
+  expect(stepped(expanded, leaves).expanded).toBeUndefined()
+  expect(stepped(expanded, { board: boardOf({ asks: [N2, N1, N3] }), news: [], now: T0 }).expanded, 'its row moved, still the band').toBe(N2)
+})
+
+test("a tap on any line of a row puts the band on it, a tap on the band's row expands it or folds it; anywhere else, nothing", () => {
+  const onN2 = pressed(read(), tap(3))
 
   expect(inView(read())).toEqual([N1, N2, N3, W1])
   expect(onN2.band).toBe(N2)
-  expect(pressed(read(), tap(12)).band, "W1's second line").toBe(W1)
-  expect(step(onN2, { key: tap(6) }).open).toBe(N2)
-  expect(step(onN2, { key: tap(6) }).state.band).toBe(N2)
-  expect([2, 9, 13, 14].map(y => pressed(read(), tap(y)).band), 'a heading, a blank row, ▼, the key line').toEqual([undefined, undefined, undefined, undefined])
-  expect(pressed(read(), tap(5, 40)).band, 'past the layout').toBeUndefined()
+  expect(pressed(read(), tap(10)).band, "W1's second line").toBe(W1)
+  expect(pressed(onN2, tap(4)).expanded).toBe(N2)
+  expect(pressed(onN2, tap(4), tap(3)).expanded).toBeUndefined()
+  expect([0, 7, 11, 12].map(y => pressed(read(), tap(y)).band), 'a heading, a blank row, ▼, the key line').toEqual([undefined, undefined, undefined, undefined])
+  expect(pressed(read(), tap(3, 40)).band, 'past the layout').toBeUndefined()
+})
+
+test('an expanded row takes the lines its words need, and a tap on any of them lands on it', () => {
+  const long = 'An unusually long session name that the narrow row has to cut short'
+  const feed = feedOfRows([boardRow(N1, 'ask', { name: long, lines: 3 }), boardRow(N2, 'ask')])
+  const expanded = pressed(read(feed), DOWN, ENTER)
+  const rows = layoutIn(expanded).rows
+
+  expect(rows.map(row => [row.key, row.height])).toEqual([[N1, 7], [N2, 2]])
+  expect(Array.from({ length: 7 }, (_, at) => pressed(expanded, tap(1 + at)).band)).toEqual(Array(7).fill(N1))
+  expect(pressed(expanded, tap(8)).band).toBe(N2)
+})
+
+test('an expanded row near the foot is scrolled whole into sight; one taller than the body is cut to it', () => {
+  const long = 'A session name long enough to wrap over three lines at forty columns'
+  const feed = feedOfRows([
+    ...ASKS.map(id => boardRow(id, 'ask')),
+    ...WORKING.map(id => boardRow(id, 'working', id === W5 ? { name: long } : {})),
+  ])
+  const onW5 = pressed(read(feed), END)
+  const low = pressed(onW5, ENTER)
+  const last = layoutIn(low).rows.at(-1)
+  const tall = pressed(read(feedOfRows([boardRow(N1, 'ask', { name: 'word '.repeat(80) })])), DOWN, ENTER)
+
+  expect(layoutIn(onW5).rows.at(-1)).toEqual({ key: W5, y: 10, height: 2 })
+  expect([last?.key, last?.height]).toEqual([W5, 4])
+  expect((last?.y ?? 0) + (last?.height ?? 0)).toBe(layoutIn(low).body.to)
+  expect(low.top).toBeGreaterThan(onW5.top)
+  expect(layoutIn(tall).rows).toEqual([{ key: N1, y: 0, height: 12 }])
 })
 
 test("a tap while a pick's answer shows finds the row under it as drawn, the answer's rows holding none, and drops the answer", () => {
@@ -314,8 +389,8 @@ test('a line new again, as an ask woken, is stamped again with the time of the b
 })
 
 test('a failed look before any board says why; after a board, it keeps the board, stale, as read when it last read', () => {
-  const before = step(opening(SIZE, T0), { failed: "EACCES: can't read the folder." }).state
-  const after = stepped(read(), { failed: "EACCES: can't read the folder." })
+  const before = step(opening(SIZE, T0), { failed: "EACCES: can't read the folder.", now: T0 }).state
+  const after = stepped(read(), { failed: "EACCES: can't read the folder.", now: T0 })
   const again = stepped(after, { board: boardOf(), news: [], now: T0 + 5_000 })
 
   expect([before.board, before.reason, before.feed]).toEqual(['looking', "EACCES: can't read the folder.", undefined])
