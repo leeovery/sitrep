@@ -896,6 +896,66 @@ test('no words off a terminal, or on one whose TERM is dumb, keep the help on st
   expect(dumb.writes).toEqual([])
 })
 
+test("the help's one line for the board in this terminal comes before the commands; every other line stays as it was", async () => {
+  const { out } = await terminal().run('--help')
+  const lines = out.split('\n')
+
+  expect(lines[2]).toBe('  sitrep [--no-notify]  opens the board in this terminal')
+  expect(lines.filter((_, at) => at !== 2).join('\n')).toBe(
+    [
+      'sitrep: post to the sitrep board from scripts and other tools.',
+      '',
+      '  sitrep ask <title> --wants yes|choice|words [--yes <label>] [--option <choice>]... [--recommended <choice>] [--needs <words>] [--where <words>] [--ref <ref>]',
+      '  sitrep park <title> [--where <words>] [--ref <ref>]',
+      '  sitrep status [--name <words>] [--summary <line>] [--now <line>]... [--next <line>]',
+      '  sitrep answer <ask> (<answer> | --ignore)',
+      '  sitrep snooze <ask>... [--until <ms>]',
+      '  sitrep wake',
+      '  sitrep finish',
+      '  sitrep move <project>',
+      '  sitrep board [--json]',
+      '  sitrep list [--project <name>] [--json]',
+      '  sitrep watch',
+      '',
+      'A command on a session names it: --session sr-xxxxxx, else $SITREP_SESSION.',
+      "A post prints its item's id. Exit codes: 0 done; 1 a usage error, a refused",
+      'input or a failure; 2 no such session.',
+      '',
+      'sitrep <command> --help says more.',
+      '',
+    ].join('\n'),
+  )
+})
+
+test('words that are all flags are the panel\'s: --no-notify off a terminal, or on a dumb one, answers as bare sitrep does; --help among them is the help', async () => {
+  const bare = await terminal().run()
+  const dumb = tty()
+
+  expect(await terminal().run('--no-notify')).toEqual(bare)
+  expect(await terminal({ env: { ...ENV, TERM: 'dumb' }, terminal: dumb.terminal }).run('--no-notify')).toEqual(bare)
+  expect(dumb.writes).toEqual([])
+  expect(await terminal().run('--no-notify', '--help')).toEqual(await terminal().run('--help'))
+  expect(await terminal().run('--help', 'park')).toEqual(await terminal().run('park', '--help'))
+})
+
+test('a flag the panel does not take answers as an unknown command, before the terminal is touched; a word that is no flag is a command\'s name', async () => {
+  const screen = tty()
+  const onOne = terminal({ terminal: screen.terminal })
+
+  for (const words of [['--bogus'], ['--no-notify', '--bogus'], ['-x'], ['--no-notify=yes']]) {
+    expect(await onOne.run(...words), words.join(' ')).toEqual({
+      exit: EXIT.refused,
+      out: '',
+      err: `sitrep: There is no command ${words.at(-1)}. sitrep --help lists them.\n`,
+    })
+  }
+
+  expect(screen.writes).toEqual([])
+  expect((await onOne.run('--no-notify', 'watch')).err).toBe(
+    'sitrep: There is no command --no-notify. sitrep --help lists them.\n',
+  )
+})
+
 test('a failure the world throws is told, and ends as refused', async () => {
   const t = terminal({ env: {} })
 

@@ -53,6 +53,7 @@ const table = (rows: readonly [word: string, about: string][]) => {
 export const HELP = [
   'sitrep: post to the sitrep board from scripts and other tools.',
   '',
+  '  sitrep [--no-notify]  opens the board in this terminal',
   ...COMMANDS.map(command => `  ${usageOf(command, true)}`),
   '',
   'A command on a session names it: --session sr-xxxxxx, else $SITREP_SESSION.',

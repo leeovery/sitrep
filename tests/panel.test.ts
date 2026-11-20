@@ -34,6 +34,8 @@ const latch = () => {
 }
 
 type Opened = {
+  /** The words the CLI runs on: none, bare `sitrep`, unless given. */
+  words?: string[]
   size?: Size
   env?: Io['env']
   answer?: string | Promise<string>
@@ -59,6 +61,7 @@ type Opened = {
  * time, each wait firing in turn as the clock reaches it.
  */
 const opened = ({
+  words = [],
   size = SIZE,
   env = { NO_COLOR: '1' },
   answer,
@@ -122,7 +125,7 @@ const opened = ({
     },
   }
   const due = (until: number) => timers.filter(each => !each.isDone && each.at <= until).sort((a, b) => a.at - b.at)[0]
-  const ran = main([], io)
+  const ran = main(words, io)
 
   /** The clock moved on `ms`, each wait due on the way fired in turn, its work done before the next. */
   const passing = async (ms: number) => {
@@ -195,6 +198,15 @@ const screenOf = (writes: readonly string[], height = SIZE.height) => {
 
   return rows
 }
+
+/** The notification for Help desk redesign's ask k2, `Ship it`. */
+const SHIP_IT = '\x1b]777;notify;Ship it;Northwind · Help desk redesign\x07'
+
+/** The notifications among the writes, each a write of its own. */
+const noticesIn = (writes: readonly string[]) => writes.filter(write => write.includes('777;notify;'))
+
+/** The frames among the writes: each in synchronized output. */
+const framesIn = (writes: readonly string[]) => writes.filter(write => write.startsWith('\x1b[?2026h'))
 
 /** The terminal rows a write rewrites, counted from 1. */
 const rowsIn = (write: string | undefined) => [...(write ?? '').matchAll(/\x1b\[(\d+);1H/g)].map(([, y]) => Number(y))
@@ -676,7 +688,7 @@ test("a new ask's row is marked new and washed for two seconds from the frame th
   post(run, yesAsk('k2', 'Ship it'))
   await run.passing(1_000)
 
-  const arrived = run.screen.writes.at(-1) ?? ''
+  const arrived = framesIn(run.screen.writes).at(-1) ?? ''
 
   isHeld = true
   await run.passing(1_999)
@@ -929,14 +941,14 @@ test('a SIGTERM or SIGHUP sent to the whole job as the program ends, as `kill %1
   }
 })
 
-test('the board is looked at while a program has the terminal, drawing nothing; taken back, it is drawn from the latest board, at the size the terminal has now', async () => {
+test('the board is looked at while a program has the terminal, drawing nothing, though a new ask still notifies; taken back, it is drawn from the latest board, at the size the terminal has now', async () => {
   const { run, writes } = await picking()
 
   post(run, yesAsk('k2', 'Ship it'))
   run.screen.resize({ width: 73, height: 20 })
   await run.passing(1_000)
 
-  expect(writes()).toEqual([LEAVE, HANDED])
+  expect(writes()).toEqual([LEAVE, HANDED, SHIP_IT])
   run.screen.end(0)
   await run.passing(0)
 
@@ -962,4 +974,78 @@ test('one pick at a time: ⏎ again while ps answers asks nothing more; q meanwh
   expect(await run.ended()).toEqual({ exit: EXIT.done, err: '' })
   expect(run.screen.handed()).toEqual([])
   expect(run.screen.writes.at(-1)).toBe(LEAVE)
+})
+
+test('each ask new on the board posts one OSC 777, the oldest first, each a write of its own after the frame, never inside one; the first board posts none', async () => {
+  const run = opened()
+
+  await run.passing(0)
+
+  expect(noticesIn(run.screen.writes)).toEqual([])
+  post(run, yesAsk('k2', 'Ship it'))
+  await run.passing(400)
+  post(run, yesAsk('k3', 'Then the docs'))
+  await run.passing(600)
+
+  const { writes } = run.screen
+  const notices = noticesIn(writes)
+  const lastFrame = writes.lastIndexOf(framesIn(writes).at(-1) ?? '')
+
+  expect(notices).toEqual([SHIP_IT, '\x1b]777;notify;Then the docs;Northwind · Help desk redesign\x07'])
+  expect(writes.slice(lastFrame + 1)).toEqual(notices)
+  expect(framesIn(writes).filter(frame => frame.includes('\x1b]'))).toEqual([])
+  await run.passing(2_000)
+
+  expect(noticesIn(run.screen.writes), 'the asks are told once').toEqual(notices)
+  await run.type('q')
+})
+
+test('--no-notify opens the panel and posts nothing, the new ask drawn all the same', async () => {
+  const run = opened({ words: ['--no-notify'] })
+
+  await run.passing(0)
+  post(run, yesAsk('k2', 'Ship it'))
+  await run.passing(1_000)
+
+  expect(noticesIn(run.screen.writes)).toEqual([])
+  expect(screenOf(run.screen.writes)[3]).toBe(' ◉ Help desk redesign 2             now')
+  await run.type('q')
+
+  expect(await run.ended()).toEqual({ exit: EXIT.done, err: '' })
+})
+
+test("inside tmux the notification goes in tmux's passthrough, each ESC doubled", async () => {
+  const run = opened({ env: { NO_COLOR: '1', TMUX: '/private/tmp/tmux-501/default,4242,0' } })
+
+  await run.passing(0)
+  post(run, yesAsk('k2', 'Ship it'))
+  await run.passing(1_000)
+
+  expect(noticesIn(run.screen.writes)).toEqual([
+    '\x1bPtmux;\x1b\x1b]777;notify;Ship it;Northwind · Help desk redesign\x07\x1b\\',
+  ])
+  await run.type('q')
+})
+
+test('a new ask notifies while the panel draws `Too small`', async () => {
+  const run = opened({ size: { width: 23, height: 10 } })
+
+  await run.passing(0)
+  post(run, yesAsk('k2', 'Ship it'))
+  await run.passing(1_000)
+
+  expect(screenOf(run.screen.writes)[0]).toBe(' Too small')
+  expect(noticesIn(run.screen.writes)).toEqual([SHIP_IT])
+  await run.type('q')
+})
+
+test("a notification's words are made harmless: control characters dropped, lines run together, a ; in the title made ,", async () => {
+  const run = opened()
+
+  await run.passing(0)
+  post(run, yesAsk('k2', 'Ship;\x1b]0;now\x07 it\nplease'))
+  await run.passing(1_000)
+
+  expect(noticesIn(run.screen.writes)).toEqual(['\x1b]777;notify;Ship,]0,now it please;Northwind · Help desk redesign\x07'])
+  await run.type('q')
 })

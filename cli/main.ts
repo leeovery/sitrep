@@ -7,8 +7,9 @@
  * `<session>/inbox/cli.jsonl`, the same way; each file's count goes on from
  * that file. It writes no delivered marks or heartbeats: it is never a
  * window on the session. `watch` runs on, printing the board as it changes,
- * until it is to end. With no words, on a terminal, it is the panel, the
- * board drawn in the terminal until it is left; off one, the help.
+ * until it is to end. With no words, or only flags, on a terminal, it is the
+ * panel, the board drawn in the terminal until it is left; off one, the
+ * help.
  */
 import {
   addition,
@@ -48,6 +49,9 @@ export type Exit = (typeof EXIT)[keyof typeof EXIT]
 export const WRITER = 'cli'
 
 const HELP_WORDS = ['help', '--help', '-h']
+
+/** The panel's one flag of its own: no notification for a new ask. */
+const NO_NOTIFY = '--no-notify'
 
 const NAME_THE_SESSION =
   'Name the session: --session sr-xxxxxx, or SITREP_SESSION in the environment.'
@@ -212,19 +216,41 @@ const runCommand = async (io: Io, command: Command, words: readonly string[]) =>
 const panelTerminal = ({ terminal, env }: Io): Terminal | undefined =>
   env.TERM === 'dumb' ? undefined : terminal
 
-const answer = async (io: Io, words: readonly string[]): Promise<Exit> => {
-  const [name, ...rest] = words
+/** A word that reads as a flag of bare `sitrep`'s: a dash and more; never a command's name. */
+const isBareFlag = (word: string) => word.length > 1 && word.startsWith('-')
 
-  if (name === undefined) {
-    const terminal = panelTerminal(io)
+/**
+ * Bare `sitrep`, given only flags: one it doesn't take answered as an
+ * unknown command is, as before it took any; the help where they ask for
+ * it; else the panel on a terminal, and the help on standard error off one.
+ */
+const bare = async (io: Io, flags: readonly string[]): Promise<Exit> => {
+  const stray = flags.find(flag => flag !== NO_NOTIFY && !HELP_WORDS.includes(flag))
 
-    if (terminal !== undefined) {
-      return EXIT[await panel(io, terminal)]
-    }
+  if (stray !== undefined) {
+    return unknown(io, stray)
+  }
 
+  if (flags.some(flag => HELP_WORDS.includes(flag))) {
+    return help(io)
+  }
+
+  const terminal = panelTerminal(io)
+
+  if (terminal === undefined) {
     io.err(`${HELP}\n`)
 
     return EXIT.refused
+  }
+
+  return EXIT[await panel(io, terminal, { isNotifying: !flags.includes(NO_NOTIFY) })]
+}
+
+const answer = async (io: Io, words: readonly string[]): Promise<Exit> => {
+  const [name, ...rest] = words
+
+  if (name === undefined || words.every(isBareFlag)) {
+    return bare(io, words)
   }
 
   if (HELP_WORDS.includes(name)) {

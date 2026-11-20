@@ -39,6 +39,11 @@
  *   ends, drawn whole from the latest board, the band where it was, with
  *   what the pick leaves to say. Nothing else takes it back meanwhile, a
  *   Ctrl-Z's take-back pressed while the pick was readied among them.
+ * - Each ask new on a look's board posts a terminal notification
+ *   (notices.ts), unless the run turned them off: a write each, after the
+ *   look's frame, so never inside one. A look while a program has the
+ *   terminal, or while it draws `Too small`, posts them as any does. The
+ *   first board posts none, since core's `newRows` finds nothing new on it.
  */
 import { newRows, ownTime, type Feed, type Shown } from '../../core'
 import { KEYED, type Io, type Signal, type Terminal } from '../io'
@@ -49,6 +54,7 @@ import { ansi, draw } from './draw'
 import { handed, readied } from './edge'
 import { keysOf, type Key } from './keys'
 import { levelOf, type Paint } from './paint'
+import { noticesOf } from './notices'
 import { reachOf } from './reach'
 import { ENTER, LEAVE, repaint } from './screen'
 import { opening, step, type PanelEvent } from './state'
@@ -56,6 +62,9 @@ import { cleaned, NEW_MS, viewOf } from './view'
 
 /** How the panel ended: left by its keys, or by a signal, its terminal gone among them. */
 export type Closed = 'done' | 'hungUp' | 'interrupted' | 'quit' | 'terminated'
+
+/** What the run's flags set: whether a new ask posts a notification, as it does unless `--no-notify` says not. */
+export type PanelOptions = { isNotifying: boolean }
 
 /** How long the first draw waits for the first look. */
 export const HOLD_MS = 300
@@ -135,7 +144,7 @@ const closer = () => {
 }
 
 /** The panel on the terminal: opened until it closes, then the terminal given back. */
-const live = (io: Io, terminal: Terminal) => {
+const live = (io: Io, terminal: Terminal, { isNotifying }: PanelOptions) => {
   const closing = closer()
   const run = untilEnded({ ...io, ending: byThePanel })
   const listening: (() => void)[] = []
@@ -393,6 +402,13 @@ const live = (io: Io, terminal: Terminal) => {
     letHoldGo()
   }
 
+  /** Each ask new on the board posted, a write each, where the run notifies. */
+  const notify = (feed: Feed, news: readonly string[]) => {
+    if (isNotifying) {
+      noticesOf(feed, news, io.env).forEach(notice => terminal.write(notice))
+    }
+  }
+
   /** A look's board, stepped as a board where it changed or the board was stale; else the clock alone. */
   const onLook = (look: Look) => {
     unhold()
@@ -408,6 +424,7 @@ const live = (io: Io, terminal: Terminal) => {
 
     shown = news.shown
     apply({ board: feed, news: news.news, now: look.now })
+    notify(feed, news.news)
   }
 
   const onFailure = (error: unknown) => {
@@ -456,8 +473,8 @@ const live = (io: Io, terminal: Terminal) => {
  * hangs up: how it ended. A failure is thrown once the terminal is given
  * back.
  */
-export const panel = async (io: Io, terminal: Terminal): Promise<Closed> => {
-  const drawn = live(io, terminal)
+export const panel = async (io: Io, terminal: Terminal, options: PanelOptions): Promise<Closed> => {
+  const drawn = live(io, terminal, options)
 
   try {
     return await drawn.open()
