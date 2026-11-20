@@ -1,0 +1,27 @@
+ sitrep
+
+ NEEDS YOU ●3 ●1 ──────────────────────────────── ▿
+ ● Help desk redesign 2                          4m
+   Northwind · Thread replies, or keep them flat?
+   In an hour                                 15:00
+   Later today                                17:00
+   Tonight                                    18:00
+   Tomorrow                                   09:00
+   Next week                              Mon 09:00
+   Until it moves
+ ○ Data import                                   2h
+   Litware · Keep the old CSV columns?
+ ● Shift schedules                              31m
+   Contoso · Drafted the new rota
+
+ WORKING 2 ────────────────────────────────────── ▿
+ ✻ Mobile app                                    6m
+   Woodgrove · Running npm test
+ ◌ Invoice ledger                               15m
+   Fabrikam · Waiting on 2 agents
+
+ SNOOZED 1 ────────────────────────────────────── ▹
+
+
+
+ ↑↓ pick  ⏎ snooze  esc cancel

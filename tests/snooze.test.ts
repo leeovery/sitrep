@@ -13,6 +13,7 @@ import {
   snoozedAsks,
   snoozedUntilOf,
   summarise,
+  timeBeside,
   UNTIL_IT_MOVES,
   VERSION,
   waitingOnLee,
@@ -537,6 +538,17 @@ test("the pane words a snooze's time at its now: today's time alone, tomorrow, a
   }
 
   expect(wordsAt(local(2026, 10, 24, 1, 30), local(2026, 10, 23, 23, 30))).toBe('tomorrow 01:30')
+})
+
+test("a Snooze menu's time beside a choice says only what its name does not, as the app's menu does: the time alone, or the weekday and time", () => {
+  const beside = (choice: Parameters<typeof timeBeside>[0], until: number) => inZone(LONDON, () => timeBeside(choice, until))
+
+  expect(beside('hour', local(2026, 10, 23, 15))).toBe('15:00')
+  expect(beside('later', local(2026, 10, 23, 17, 5))).toBe('17:05')
+  expect(beside('tonight', local(2026, 10, 23, 18))).toBe('18:00')
+  expect(beside('tomorrow', local(2026, 10, 24, 9))).toBe('09:00')
+  expect(beside('weekend', local(2026, 10, 24, 9))).toBe('Sat 09:00')
+  expect(beside('week', local(2026, 10, 26, 9))).toBe('Mon 09:00')
 })
 
 test("the pane's week runs Monday to Sunday, and tomorrow comes before it", () => {

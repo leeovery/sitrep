@@ -42,4 +42,4 @@
 
 
 
- ↑↓ move  ⏎ fold  o open  s snoozed  q quit
+ ↑↓ move  ⏎ fold  o open  z snooze  s snoozed  q quit

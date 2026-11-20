@@ -191,6 +191,23 @@ test("a row carries each of its lines' words, its status line first, for the row
   expect(only(row('working'))?.lines).toEqual([{ text: 'Review the help desk' }])
 })
 
+test('a row that can be snoozed carries the asks a snooze names, those it shows, none on a turn; a row of stops alone, a working one or one in Snoozed carries none', () => {
+  const asking: Row = {
+    ...row('ask'),
+    lines: [
+      { key: 'ask:a', is: 'ask', ask: 'k1', first: { lead: 'Approve the rota' }, since: NOW },
+      { key: 'stop:b', is: 'permission', first: { lead: 'Allow Bash' }, since: NOW },
+      { key: 'ask:c', is: 'ask', ask: 'k3', first: { lead: 'Ship it' }, since: NOW },
+    ],
+  }
+
+  expect(only(asking)?.asks).toEqual(['k1', 'k3'])
+  expect(only(row('yourTurn'))?.asks).toEqual([])
+  expect(only(row('permission'))).not.toHaveProperty('asks')
+  expect(only(row('working'))).not.toHaveProperty('asks')
+  expect(only(snoozed(['ask']))).not.toHaveProperty('asks')
+})
+
 test("a row shows its session's name and its project's", () => {
   expect(only(row('working', undefined, { name: 'Invoice ledger', project: 'Fabrikam' }))).toMatchObject({
     session: HELP_DESK,

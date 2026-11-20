@@ -23,8 +23,8 @@ test('CSI and SS3 arrows both read as arrows, so application cursor mode does no
   expect(kinds('\x1b[1;5A\x1b[1;2B')).toEqual(['up', 'down'])
 })
 
-test('j and k move as ↓ and ↑; o opens; s is Snoozed; q and Ctrl-C leave; Ctrl-Z suspends; ⏎ comes as CR, LF or the keypad Enter', () => {
-  expect(kinds('jkos')).toEqual(['down', 'up', 'open', 'snoozed'])
+test('j and k move as ↓ and ↑; o opens; z snoozes; s is Snoozed; q and Ctrl-C leave; Ctrl-Z suspends; ⏎ comes as CR, LF or the keypad Enter', () => {
+  expect(kinds('jkozs')).toEqual(['down', 'up', 'open', 'snooze', 'snoozed'])
   expect(kinds('q\x03')).toEqual(['quit', 'quit'])
   expect(kinds('\x1a')).toEqual(['suspend'])
   expect(kinds('\r\n\x1bOM')).toEqual(['enter', 'enter', 'enter'])

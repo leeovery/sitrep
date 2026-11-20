@@ -342,6 +342,10 @@ const ENTER: Key = { kind: 'enter' }
 
 const OPEN: Key = { kind: 'open' }
 
+const SNOOZE: Key = { kind: 'snooze' }
+
+const END: Key = { kind: 'end' }
+
 const SNOOZED: Key = { kind: 'snoozed' }
 
 /** The keys that put the band on the session named so, from none: `↓` onto the first row, the top one in view, then a `↓` a row. */
@@ -392,6 +396,8 @@ const SCREENS: Record<string, Screen> = {
   small: { world: AT_REST, sizes: [[23, 10]] },
   docs: { world: FOR_DOCS, sizes: [[73, 19]] },
   expanded: { world: EXPANDING, keys: [...downTo(EXPANDING, LONG_NAME), ENTER], sizes: [[52, 27], [114, 45]] },
+  snoozing: { world: FOR_DOCS, keys: [...downTo(FOR_DOCS, 'Help desk redesign'), SNOOZE], sizes: [[52, 27], [114, 45]] },
+  waking: { world: FOR_DOCS, keys: [SNOOZED, END], sizes: [[52, 27]] },
 }
 
 export const FIXTURES: readonly Fixture[] = Object.entries(SCREENS).flatMap(([screen, { world, paint = COLOUR, news = [], keys = [], sizes }]) =>

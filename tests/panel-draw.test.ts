@@ -42,7 +42,7 @@ const HELP_DESK = row('sr-nw0001', 'ask', 'Help desk redesign', 'Northwind', '',
 const DATA_IMPORT = row('sr-lw0001', 'ask', 'Data import', 'Litware', 'Allow Bash: psql -f import.sql', '1m', {
   isAway: true,
 })
-const SHIFTS = row('sr-ct0001', 'turn', 'Shift schedules', 'Contoso', 'Approve the rota', '26m')
+const SHIFTS = row('sr-ct0001', 'turn', 'Shift schedules', 'Contoso', 'Approve the rota', '26m', { asks: [] })
 const MOBILE = row('sr-wg0001', 'working', 'Mobile app', 'Woodgrove', 'Running npm test', '6m')
 const LEDGER = row('sr-fb0001', 'onItsWork', 'Invoice ledger', 'Fabrikam', 'Waiting on 2 agents', '15m')
 const ONBOARDING = row('sr-ts0001', 'ask', 'Onboarding flow', 'Tailspin', 'Pick the onboarding steps', 'tomorrow 09:00', {
@@ -438,6 +438,73 @@ test('an expanded row taller than the body is cut to it, its last line kept sayi
     '   …',
     ' ↑↓ move  q quit',
   ])
+})
+
+/** The snooze menu open under Shift schedules, Later today picked. */
+const MENU: NonNullable<PanelView['menu']> = {
+  row: 'sr-ct0001',
+  at: 1,
+  options: [
+    { title: 'In an hour', time: '15:00', until: 1 },
+    { title: 'Later today', time: '17:00', until: 2 },
+    { title: 'Tonight', time: '18:00', until: 3 },
+    { title: 'Tomorrow', time: '09:00', until: 4 },
+    { title: 'This weekend', time: 'Sat 09:00', until: 5 },
+    { title: 'Next week', time: 'Mon 09:00', until: 6 },
+    { title: 'Until it moves', time: '' },
+  ],
+}
+
+test("the snooze menu stands under the chosen row, a choice a line, its time at the right in grey, the band on the choice picked; the key line is the menu's own", () => {
+  const view = board({ band: 'sr-ct0001', menu: MENU })
+
+  expect(frame(view, 39, 20).slice(2, 16)).toEqual([
+    ' NEEDS YOU ●3 ●1 ─────────────────── ▿',
+    ' ● Help desk redesign 2             4m',
+    '   Northwind · Thread replies, or… +1',
+    ' ○ Data import                      1m',
+    '   Litware · Allow Bash: psql -f impo…',
+    ' ● Shift schedules                 26m',
+    '   Contoso · Approve the rota',
+    '   In an hour                    15:00',
+    '   Later today                   17:00',
+    '   Tonight                       18:00',
+    '   Tomorrow                      09:00',
+    '   This weekend              Sat 09:00',
+    '   Next week                 Mon 09:00',
+    '   Until it moves',
+  ])
+  expect(frame(view, 39, 20).at(-1)).toBe(' ↑↓ pick  ⏎ snooze  esc cancel')
+  expect(drawn(view, 39, 20, NONE, 7, 11)).toEqual([
+    ' ● Shift schedules                 \u001b[0;2m26m\u001b[0m',
+    '   \u001b[0;2mContoso · \u001b[0mApprove the rota',
+    '   In an hour                    \u001b[0;2m15:00\u001b[0m',
+    ` ${ESC}[0;7m  ${ESC}[0;1;7mLater today${ESC}[0;7m                   ${ESC}[0;2;7m17:00${ESC}[0m`,
+  ])
+})
+
+test('a choice and its time fit as they can: past the width the time goes, then the name is cut', () => {
+  const view = board({ band: 'sr-ct0001', menu: MENU })
+
+  expect(frame(view, 24, 20).slice(9, 16)).toEqual([
+    '   In an hour     15:00',
+    '   Later today    17:00',
+    '   Tonight        18:00',
+    '   Tomorrow       09:00',
+    '   This weekend',
+    '   Next week  Mon 09:00',
+    '   Until it moves',
+  ])
+})
+
+test('the key line names z for the band\'s row: snooze on one that needs you, wake in Snoozed, nothing on a working row', () => {
+  const keys = (view: PanelView) => frame(view, 69, 22).at(-1)
+
+  expect(keys(board({ band: 'sr-ct0001' }))).toBe(' ↑↓ move  ⏎ expand  o open  z snooze  s snoozed  q quit')
+  expect(keys(board({ band: 'snoozed:sr-ts0001', isOpen: true }))).toBe(' ↑↓ move  ⏎ expand  o open  z wake  s snoozed  q quit')
+  expect(keys(board({ band: 'sr-wg0001' }))).toBe(' ↑↓ move  ⏎ expand  o open  s snoozed  q quit')
+  expect(keys(board({ band: 'sr-ct0001', menu: MENU }))).toBe(' ↑↓ pick  ⏎ snooze  esc cancel')
+  expect(frame(board({ band: 'sr-ct0001', menu: MENU }), 24, 22).at(-1)).toBe(' ↑↓ pick  esc cancel')
 })
 
 test("the band names a row by its key: a session's Snoozed row is its own", () => {

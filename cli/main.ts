@@ -1,27 +1,15 @@
 /**
  * The CLI, from its words to its exit code: the words read, then the files,
- * then the command's rules, then a line appended, and the answer printed.
+ * then the command's rules, then a line appended (acts.ts), and the answer
+ * printed.
  *
- * It writes as the writer `cli`, appending to `<session>/cli.jsonl` and
- * never rewriting it, and an answer to its letters in the session's inbox,
- * `<session>/inbox/cli.jsonl`, the same way; each file's count goes on from
- * that file. It writes no delivered marks or heartbeats: it is never a
- * window on the session. `watch` runs on, printing the board as it changes,
- * until it is to end. With no words, or only flags, on a terminal, it is the
- * panel, the board drawn in the terminal until it is left; off one, the
- * help.
+ * It writes no delivered marks or heartbeats: it is never a window on the
+ * session. `watch` runs on, printing the board as it changes, until it is
+ * to end. With no words, or only flags, on a terminal, it is the panel, the
+ * board drawn in the terminal until it is left; off one, the help.
  */
-import {
-  addition,
-  checkJoin,
-  manifestVersion,
-  parkedBy,
-  projectParked,
-  rootOf,
-  stamp,
-  type Body,
-  type Checked,
-} from '../core'
+import { rootOf, type Checked } from '../core'
+import { actOn } from './acts'
 import { parseWords, wantsHelp, type Fields } from './args'
 import {
   commandNamed,
@@ -29,11 +17,13 @@ import {
   type ProjectsCommand,
   type SessionCommand,
 } from './commands'
-import { findSession, readBoardAt, readProjects, textAt, type Found } from './files'
+import { readProjects } from './files'
 import { commandHelp, HELP } from './help'
-import type { Env, Io, Terminal } from './io'
+import type { Io, Terminal } from './io'
 import { panel } from './panel/panel'
 import { watch } from './watch'
+
+export { WRITER } from './acts'
 
 /**
  * How a run ends: done; a usage error, a refused input or a failure; no
@@ -45,16 +35,10 @@ export const EXIT = { done: 0, refused: 1, noSession: 2, hungUp: 129, interrupte
 
 export type Exit = (typeof EXIT)[keyof typeof EXIT]
 
-/** The writer the CLI writes as, whichever script or tool runs it. */
-export const WRITER = 'cli'
-
 const HELP_WORDS = ['help', '--help', '-h']
 
 /** The panel's one flag of its own: no notification for a new ask. */
 const NO_NOTIFY = '--no-notify'
-
-const NAME_THE_SESSION =
-  'Name the session: --session sr-xxxxxx, or SITREP_SESSION in the environment.'
 
 const fail = (io: Io, exit: Exit, error: string) => {
   io.err(`sitrep: ${error}\n`)
@@ -86,48 +70,6 @@ const help = (io: Io, name?: string) => {
   return EXIT.done
 }
 
-/** The session a command names: `--session`, else `SITREP_SESSION`, checked as join checks it. */
-const sessionIdOf = (input: Fields, env: Env): Checked<string> => {
-  const given = input.session ?? (env.SITREP_SESSION || undefined)
-
-  if (given === undefined) {
-    return { ok: false, error: NAME_THE_SESSION }
-  }
-
-  const checked = checkJoin({ session: given })
-
-  return checked.ok ? { ok: true, value: checked.value.session } : checked
-}
-
-/**
- * Appends the lines to a writer's file, their count going on from the file
- * as it stands, a torn last line ended first; never a rewrite, so runs at
- * once both land.
- */
-const post = async (io: Io, path: string, bodies: readonly Body[], now: number) => {
-  if (bodies.length > 0) {
-    const text = (await textAt(io, path)) ?? ''
-
-    await io.fs.append(path, addition(text, stamp(text, bodies, now)))
-  }
-}
-
-/** The session the words name, as it stands at `now`; else how the run ends, told. */
-const namedSession = async (io: Io, input: Fields, now: number): Promise<Found | Exit> => {
-  const id = sessionIdOf(input, io.env)
-
-  if (!id.ok) {
-    return fail(io, EXIT.refused, id.error)
-  }
-
-  const found = await findSession(io, rootOf(io.env), id.value, now)
-
-  return (
-    found ??
-    fail(io, EXIT.noSession, `There is no session ${id.value} on the board, in any project.`)
-  )
-}
-
 /** A command's answer printed, or its refusal told. */
 const told = (io: Io, acted: Checked<string>) => {
   if (!acted.ok) {
@@ -139,44 +81,15 @@ const told = (io: Io, acted: Checked<string>) => {
   return EXIT.done
 }
 
-/** The file a command's lines go to: the CLI's own, or its letters in the session's inbox. */
-const fileFor = ({ paths }: Found, command: SessionCommand) =>
-  command.into === 'inbox' ? paths.letters(WRITER) : paths.log(WRITER)
-
-/** What a command that reads the board is given of it: what every session filed under the found session's project parked, and the projects on it; none for any other. */
-const boardFor = async (io: Io, command: SessionCommand, { project }: Found, now: number) => {
-  if (command.readsBoard !== true) {
-    return { parked: [], projects: [] }
-  }
-
-  const read = await readBoardAt(io, rootOf(io.env), now)
-  const sessions = read.find(each => each.project.key === project)?.sessions ?? []
-
-  return {
-    parked: projectParked(sessions.flatMap(parkedBy)),
-    projects: read.map(each => each.project),
-  }
-}
-
-/** A command on a session: the session read, its checks, and its lines appended, dated as they are written. */
+/** A command on a session, acted (acts.ts): what it prints printed, or why not told. */
 const onSession = async (io: Io, command: SessionCommand, input: Fields) => {
-  const now = io.now()
-  const found = await namedSession(io, input, now)
-
-  if (typeof found === 'number') {
-    return found
-  }
-
-  const version = manifestVersion((await textAt(io, io.manifest)) ?? '')
-  const board = await boardFor(io, command, found, now)
-  const acted = command.act(found, input, { random: io.random, version, now, ...board })
+  const acted = await actOn(io, command, input)
 
   if (!acted.ok) {
-    return fail(io, EXIT.refused, acted.error)
+    return fail(io, EXIT[acted.ending], acted.error)
   }
 
-  await post(io, fileFor(found, command), acted.value.post, io.now())
-  print(io, acted.value.print)
+  print(io, acted.value)
 
   return EXIT.done
 }

@@ -259,6 +259,18 @@ export const wakeWords = (until: number, now: number) => {
   return fromMonday >= WEEK && fromMonday < 2 * WEEK ? 'next week' : `${dateOf(date)} ${clock}`
 }
 
+/**
+ * When a choice on a Snooze menu wakes, beside it, saying only what its name
+ * does not, as the app's `WakeTime.besideChoice` says it: the time alone
+ * where the name fixes the day, `09:00` beside Tomorrow; the weekday and
+ * time beside This weekend and Next week, `Mon 09:00`.
+ */
+export const timeBeside = (choice: SnoozeChoice, until: number) => {
+  const date = new Date(until)
+
+  return choice === 'weekend' || choice === 'week' ? `${weekdayOf(date)} ${clockOf(date)}` : clockOf(date)
+}
+
 /** A time whole and local, never relative, so its words never change at midnight: `Mon 26 Oct 09:00`, as Claude is told it. */
 export const wholeTime = (at: number) => {
   const date = new Date(at)

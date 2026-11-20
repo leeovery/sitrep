@@ -25,7 +25,7 @@ A setting to run a command on a new ask, such as `rootshell-notify`, is parked. 
 
 **Decided by Lee on 20 November 2026,** after his test over SSH from his phone, where every asking session drew hollow though he had it open there, attached from the phone and detached on the Mac: **hollow means not open on the device you're looking from.** Over SSH, a session attached from that same device counts as here. On the Mac, nothing changes: hollow is what the notch dims (see "The marks").
 
-**Decided by Lee on 20 November 2026,** for the narrow strip he keeps open on his iPad over SSH to see what needs him: he reads rows the width cuts short there, and must never open a session by accident. **`⏎`, or a tap on the chosen row, expands it; `o` opens it.** Opening takes the deliberate `o`, and a tap or `⏎` never opens anything. There is no view-only flag. "Open" stays the docs' word, and nothing says "attach" (see "Keys" and "Expanding a row").
+**Decided by Lee on 20 November 2026,** for the narrow strip he keeps open on his iPad over SSH to see what needs him: he snoozes rows from there, reads rows the width cuts short, and must never open a session by accident. **`⏎`, or a tap on the chosen row, expands it; `o` opens it; `z` snoozes it, or wakes it in Snoozed.** Opening takes the deliberate `o`, and a tap or `⏎` never opens anything. There is no view-only flag. "Open" stays the docs' word, and nothing says "attach" (see "Keys", "Expanding a row" and "Snoozing a row").
 
 ## The looks
 
@@ -145,12 +145,13 @@ Doesn't apply: the panel shows no step running. Its marks are still: `✻` doesn
 | `Home` `End` | Moves the band to the first or the last row |
 | `⏎` | Expands the band's row, and folds it again (see "Expanding a row") |
 | `o` | Opens the band's session (see "Picking a row") |
+| `z` | Snoozes the band's row by a menu of times, or wakes it in Snoozed (see "Snoozing a row") |
 | `s` | Opens or folds Snoozed |
 | `esc` | Drops the band and any pick's answer |
 | `q`, `Ctrl-C` | Leaves |
 | `Ctrl-Z` | Suspends the panel; `fg` brings it back, drawn afresh |
 
-**The key line** names the keys that work now, most needed first: `↑↓ pick  s snoozed  q quit` with no band, `↑↓ move  ⏎ expand  o open  s snoozed  q quit` with one, and `⏎ fold` in place of `⏎ expand` while the band's row is expanded. Each key is bold in the terminal's ink, its word grey, two spaces between hints. `s snoozed` shows only while Snoozed holds rows; an empty board's line is `q quit`. Short of room, whole hints drop from the right, `q quit` last, since it always applies: at 39 columns the band's line is `↑↓ move  ⏎ expand  o open  q quit`. `↑↓` is named only while a row is in view. PgUp, Home, `j`, `k`, `esc` and `Ctrl-Z` work but aren't named.
+**The key line** names the keys that work now, most needed first: `↑↓ pick  s snoozed  q quit` with no band, and with one `↑↓ move  ⏎ expand  o open  z snooze  s snoozed  q quit`. While the band's row is expanded `⏎ fold` stands in place of `⏎ expand`; on a Snoozed row `z wake` in place of `z snooze`; and on a row that can't be snoozed, a window's prompt alone or a working row, `z` isn't named. In the snooze menu the line is the menu's own, `↑↓ pick  ⏎ snooze  esc cancel`. Each key is bold in the terminal's ink, its word grey, two spaces between hints. `s snoozed` shows only while Snoozed holds rows; an empty board's line is `q quit`. Short of room, whole hints drop from the right, `q quit` last, since it always applies, or in the menu `esc cancel`: at 39 columns the band's line is `↑↓ move  ⏎ expand  o open  q quit`, at 52 `↑↓ move  ⏎ expand  o open  z snooze  q quit`. `↑↓` is named only while a row is in view. PgUp, Home, `j`, `k`, `esc` and `Ctrl-Z` work but aren't named.
 
 **Decoding.** Keys come in raw mode as bytes. `CSI` and `SS3` arrows both read as arrows (`ESC [ A`, `ESC O A`), so application cursor mode doesn't matter. A lone `ESC` with nothing after it within 50 ms is `esc`. Any other byte does nothing.
 
@@ -188,6 +189,40 @@ A narrow terminal cuts a row's words short. `⏎`, or a tap on the chosen row, e
 - **The band** lies over every line of the expanded row, and the view keeps the whole row in sight, as it does any band.
 - **Taller than the body,** the row is cut to the body's rows, never below two, and its last line kept reads `…`. Scrolling, the pinned heading, `▲` and `▼` follow the layout's rules for a row of that height. Below 24 columns or 8 rows the panel still draws `Too small`.
 - **The fold isn't saved,** as Snoozed's isn't.
+
+## Snoozing a row
+
+`z` on the chosen row snoozes it from a menu of times drawn under it, as the notch's row menu does; on a row in Snoozed it wakes it (Lee, 20 November 2026).
+
+```text
+ NEEDS YOU ●3 ●1 ──────────────────────────────── ▿
+ ● Help desk redesign 2                          4m
+   Northwind · Thread replies, or keep them flat?
+   In an hour                                 15:00
+   Later today                                17:00
+   Tonight                                    18:00
+   Tomorrow                                   09:00
+   Next week                              Mon 09:00
+   Until it moves
+ ○ Data import                                   2h
+```
+
+- **Which rows,** as the notch offers Snooze (`RowMenu`): a row that needs you, of asks, or of your turn alone. On a row of a window's prompt alone, or a working row, `z` answers in the answer line, as a pick's refusals do: `Data import waits on a prompt in its window, and a prompt can't be snoozed.`, or `Mobile app needs nothing of you: there is nothing to snooze.` With no band, `z` does nothing.
+- **The choices:** Snooze's times as Lee set them in SitRep, read from the app's `snooze.json` at every look, core's defaults where there is none (`snoozeSettingsOf`); those still to come, in their order (`snoozeChoicesAt`), each worked out as the menu opens (`snoozeAt`); then Until it moves. A choice snoozes to the time it showed, as the notch's does, though the clock moved on meanwhile.
+- **The words** are the notch's: In an hour, Later today, Tonight, Tomorrow, This weekend, Next week, Until it moves (DESIGN.md, "Snooze"). Each time stands at the right in grey, saying only what its name doesn't, as the notch's menu says it (`WakeTime.besideChoice`, core's `timeBeside`): the time alone, `15:00`, and beside This weekend and Next week its weekday too, `Mon 09:00`. Until it moves has none. Unlike the notch, no separator stands before Until it moves, so the menu takes no row more than its choices.
+- **Its looks:** a choice a line, from the names' column, in the terminal's ink; the band moves onto the choice picked, its name bold, and leaves the row while the menu is open. Short of room, the time goes, then the name is cut.
+- **Its place:** under the chosen row, expanded or not, the two kept whole in sight as one. Short of room, the row's lines give way first, down to its first line, then the menu's last choices; the layout's other rules hold, and `Too small` too.
+- **Its keys:** `↑↓` pick a choice; `⏎`, or a tap on a choice, snoozes to it; `esc`, `z`, or a tap anywhere else closes it, writing nothing. Any other key does nothing while it is open, but `q`, `Ctrl-C` and `Ctrl-Z`, which work as ever.
+- **The menu is the row's:** a board that passes the band to another row closes it.
+- **What it writes:** exactly what `sitrep snooze` writes, the CLI's own line in its own file (`<session>/cli.jsonl`), run in the panel's process as the command runs (`cli/acts.ts`) on the words the app's row menu gives it: `--until <ms>` but for Until it moves, `--session <id>`, then after `--` the asks the row showed as the menu opened, so none is snoozed unseen; a row of your turn alone names none. The line, for Help desk redesign's ask k1 snoozed for an hour from 14:00 on 18 November 2026:
+
+  ```text
+  {"v":1,"at":1795010400000,"seq":1,"type":"snoozeSession","until":1795014000000,"asks":["k1"]}
+  ```
+
+- **Waking:** `z` on a Snoozed row writes `sitrep wake`'s line, with no menu.
+- **Afterwards:** the next look finds the row in Snoozed, and the band passes on as "The band and a changing board" says: to the session's Snoozed row while Snoozed is open, else to the row now in its place.
+- **A failed write,** refused by the command's checks or failing in the files, gives its words in the answer line and changes nothing: an ask that landed since the menu opened answers `An ask waits on you that the snooze did not name: look at it, then snooze again.`
 
 ## Picking a row
 
@@ -469,9 +504,9 @@ A light background draws in reverse video, as at 16.
   - **The notch is unchanged:** its dimmed are the held sessions whose viewers hold no `mac` (`Sightings.notHere`), and a session never read is here.
   - **What the panel makes of it:** core's `sightingsOf` reads it, and says nothing for a file missing, unreadable, of another shape or a later version, or 30 seconds or more from the moment it is read, either way (`HERE_STALE_MS`). Its own viewers (core's `lookingFrom`) are its own tty's, where the file lists any, as inside zmx or tmux, whose `SSH_CONNECTION` is stale from wherever the session was made; else `ssh:` and the first field of its own `SSH_CONNECTION`; else `mac`. A held session is dimmed where its viewers share none with the panel's (core's `notHereOf`). So with SitRep quit or never started every held session draws filled at the next look, as does one the file doesn't name; with SitRep crashed, hung or napped, within 30 seconds. The limit is long for SitRep's 10 seconds because only those three cases reach it: SitRep runs in the background with no activity held against App Nap, so macOS may stretch its sleep well past 10 seconds, and a shorter limit would blink every dimmed row filled in every panel. A session it names that no live window holds is away by core's own rule already, and `panelSections` leaves such a row as it is, so nothing counts it twice.
   - **What a read costs:** the table's look reads the command line of each zmx server too, and the environment of each client an SSH login reached, all through one buffer for the read. Over this Mac's 1,317 processes and 25 zmx sessions, 6 of them attached from the phone, a debug build's read took 28ms against 23.5ms before, its table 11.8ms against 9.8ms, the command lines' parse stopping at the arguments (20 November 2026).
-  - **Who else reads the folder:** nothing else lists its top but the mod's snooze read, which takes `snooze.json` by its name. The board reads `projects/` alone. So `here.json`, and the temp file a write leaves beside it for a moment, are passed over.
+  - **Who else reads the folder:** nothing else lists its top but the mod's snooze read, which takes `snooze.json` by its name, as the panel's look does for its snooze menu. The board reads `projects/` alone. So `here.json`, and the temp file a write leaves beside it for a moment, are passed over.
 - **Whether a Claude is alive or suspended** on a device: SitRep reads it from its process table (`Jump.claude(on:)`), the panel from `ps` (`cli/panel/edge.ts`'s `claudeOn`).
-- **The world.** `cli/io.ts`'s `Io` gives the file system, the environment, the clocks, standard input, output and error, the run's end, and the terminal, absent off one. It runs a program only through the terminal, for a pick: `hand` gives the terminal to the login shell, and `run` asks `ps`. `cli/shell/index.ts` binds it to Bun, and `cli/shell/terminal.ts` the terminal, their runtime declared in `cli/shell/runtime.d.ts`.
+- **The world.** `cli/io.ts`'s `Io` gives the file system, the environment, the clocks, standard input, output and error, the run's end, and the terminal, absent off one. It appends only as the CLI's commands do, a snooze or a wake by the code `sitrep snooze` and `sitrep wake` run (`cli/acts.ts`). It runs a program only through the terminal, for a pick: `hand` gives the terminal to the login shell, and `run` asks `ps`. `cli/shell/index.ts` binds it to Bun, and `cli/shell/terminal.ts` the terminal, their runtime declared in `cli/shell/runtime.d.ts`.
 - **The frames.** `cli/frames/check.ts`, run by Bun, holds each fixture to its golden frame in `tests/frames/` and runs the sweep (see "Testing").
 
 ## What the code can't give yet
@@ -531,8 +566,21 @@ export type PanelEvent =
   | { size: Size }
   | { tick: number }
   | { opened: string | undefined } // a pick done: the answer it leaves, if any
+  | { written: string | undefined } // a snooze or a wake written: why it failed, if it did
   | { notHere: ReadonlySet<string> } // the sessions dimmed by here.json, where they differ from the state's
-export const step: (state: PanelState, event: PanelEvent) => { state: PanelState; open?: string }
+  | { snoozeSettings: SnoozeSettings } // snooze.json as the look read it
+export type Write =
+  | { command: 'snooze'; session: string; asks: readonly string[]; until?: number } // the asks the row showed; no until, until it moves
+  | { command: 'wake'; session: string }
+export const step: (state: PanelState, event: PanelEvent) => { state: PanelState; open?: string; write?: Write }
+
+// cli/panel/menu.ts: the snooze menu's choices as the notch's menu offers and words them
+export type SnoozeOption = { title: string; time: string; until?: number } // no until, Until it moves
+export const snoozeOptions: (now: number, settings: SnoozeSettings) => SnoozeOption[]
+
+// cli/panel/writes.ts and cli/acts.ts: a write as `sitrep snooze` or `sitrep wake` makes it
+export const wordsOf: (write: Write) => string[] // --until <ms>, --session <id>, -- and the asks; or --session <id>
+export const actOnWords: (io: Io, command: SessionCommand, words: readonly string[]) => Promise<Acted>
 
 // core/here.ts: here.json's text as the panel reads it
 export type Viewers = ReadonlySet<string> // 'mac', 'ssh:<address>'
@@ -629,6 +677,8 @@ The fakes in `tests/` stand in for all of it.
   - `Too small` below 24×8.
 - **`panel-keys.test.ts`:** byte sequences to keys, a lone `esc` by its 50 ms, `CSI` and `SS3` arrows.
 - **`panel-state.test.ts`:** the band's first press, moves, pages and ends; the view's scroll; the band following its session and passing on; folding; expanding and folding a row, one at most, folded as the band moves, kept whole in sight, a tap on any of its lines landing on it; `o` alone asking to open, never `⏎` or a tap; answers dropped on a key; the sessions SitRep's file dims moving behind those drawn filled, the band on its session.
+- **`panel-snooze.test.ts`,** in London at a fixed clock: the menu's choices and their words under the defaults, under a `snooze.json`, and after Tonight's time; `↑↓` within the first and the last; ⏎ and a tap on a choice asking for the snooze, naming the asks the row showed, with no time for Until it moves; a turn alone naming none; `esc`, `z` and a tap elsewhere closing it, writing nothing; every other key doing nothing; `z` waking a Snoozed row, and refused in words on a prompt alone and a working row; the menu closed as a board passes the band on, its asks kept as it opened; a failed write's answer; the menu and its row kept in sight, the row giving way first.
+- **`snooze.test.ts`:** core's `timeBeside`, the time alone or the weekday and time, as the app's menu words them.
 - **`here.test.ts`:**
   - `sightingsOf` on the file as the app writes it (`tests/here.ts`, the text the Swift tests hold the app's encoder to); fresh up to 30 seconds either side of `at`, nothing from then; nothing for a file missing, torn, of a later version or none, or of the wrong shape; a version 1 file dimming what it named wherever the panel is;
   - `lookingFrom` by each path: its tty's viewers, whatever its `SSH_CONNECTION` says; a tty listed with none, or unlisted, its `SSH_CONNECTION`'s first field, an IPv6 one among them; else `mac`;
@@ -649,6 +699,7 @@ The fakes in `tests/` stand in for all of it.
   - `q` exits 0, SIGTERM 143, SIGHUP 129;
   - SIGINT ignored while a program has the terminal;
   - the fill: a fresh `here.json` naming a held session seen by nobody draws it hollow and dimmed at the next look on an unchanged board, and the first board with it; the file stale, or gone, fills it again, a failing look among them; a file naming no session on the board, or none, writes nothing more; over SSH, a session open on the phone filled and one open only on the Mac hollow, and on the Mac the other way round; inside a multiplexer session, the panel's own tty's viewers, and its stale `SSH_CONNECTION` once its tty is unlisted;
+  - the writes: `z` and ⏎ writing the very text `sitrep snooze` writes in a twin world, for a row of asks and for a turn alone, In an hour from the test's clock; `z` on a Snoozed row writing `sitrep wake`'s; a snooze refused, an ask landed since the menu opened, said above the key line, nothing written;
   - notifications: one OSC each for new asks only, oldest first, in one look and across two, none on the first board, none with the flag, wrapped inside tmux, posted during a hand-over and while `Too small`, never inside a frame's write, none after the panel closes, once after a failed look and none on a first board after one, the text cleaned.
 - **`panel-notices.test.ts`:** `newAsks`' kinds, order and words, an away row's place; `osc777`'s bytes, cleaning and cut; tmux's wrapping.
 - **`cli.test.ts`:** bare `sitrep` off a terminal keeps its help and exit 1; the help's new line, every other line as it was; the flags read as the panel's, an unknown one as an unknown command, and `--no-notify` off a terminal; every command's tests pass unchanged.
@@ -669,7 +720,7 @@ The fakes in `tests/` stand in for all of it.
 - **Writing them again:** `--update` writes the frames again and deletes those nothing draws; a kept frame nothing draws fails.
 - **The checker's own tests:** its reader and comparer are pure TypeScript in `cli/frames/cells.ts`, tested under the kit with inline strings.
 - **The fixtures** (`cli/frames/fixtures.ts`) are moments: a world, a size, the terminal's answers (Nordfox's `#CDCECF` on `#2E3440`), a fixed clock, and the keys pressed to reach them.
-- **The screens:** round 4's, `rest`, `picked`, `unfolded`, `busy`, `arriving`, `unreachable`, `quiet`, `wide` and `nocolor`, at round 4's sizes. Added to them: `narrow-30x27`, `small-23x10`, `busy-24x8`, `docs-73x19`, the docs page's still, and `expanded`, at 52×27 and 114×45: a row of a long name and three asks, expanded (20 November 2026).
+- **The screens:** round 4's, `rest`, `picked`, `unfolded`, `busy`, `arriving`, `unreachable`, `quiet`, `wide` and `nocolor`, at round 4's sizes. Added to them: `narrow-30x27`, `small-23x10`, `busy-24x8`, `docs-73x19`, the docs page's still, `expanded`, at 52×27 and 114×45: a row of a long name and three asks, expanded; `snoozing`, at the same sizes, the snooze menu open; and `waking`, at 52×27, a Snoozed row chosen, its key line naming `z wake` (20 November 2026).
 - **The first goldens** are round 4's frames, with one change on purpose: the names and a pick's answer, which round 4 drew in Nordfox's `#CDCECF`, are in the terminal's own ink, as its title and keys already are.
 
 **The sweep.** The checker draws every fixture at 39×27, 69×46, 73×36, 114×45, 173×53 and 73×15, and runs the four width checks from termgrid's `sweep`, ported:
@@ -695,7 +746,7 @@ The quiet board is listed on purpose, as round 1 lists it: "All clear" and one s
 
 ## Out of scope
 
-- Answering asks (settled with Lee), and snoozing or waking from the panel.
+- Answering asks (settled with Lee). Snoozing and waking were out of scope until Lee asked for them on 20 November 2026 (see "Snoozing a row").
 - Opening a session's own Ghostty window on the Mac, as the notch's jump does: the panel attaches in place everywhere.
 - An ASCII fallback, colour settings, themes, and a `--no-color` flag: `NO_COLOR` covers it.
 - Remembering the fold or the band between runs.

@@ -248,7 +248,7 @@ const answer: SessionCommand = {
     posted(withId(checkAnswer(session, input, version), session, random), () => ''),
 }
 
-const snooze: SessionCommand = {
+export const snooze: SessionCommand = {
   name: 'snooze',
   about: `Snooze a session until a time, as ${USER.name} does from its row: everything it needs of ${USER.name}, its asks and its turn, counts nowhere until it comes, or until a new ask, ${USER.possessive} reply to one it holds, or a prompt typed in its window wakes it. Its turn ending alone does not; with no time, it holds until it moves, as its next turn ends. One line in the CLI's own file, none in the inbox. Snoozed already, it is snoozed again, to the new time. Prints nothing.`,
   grammar: {
@@ -268,7 +268,7 @@ const snooze: SessionCommand = {
   act: ({ session }, input, { now }) => quietly(checkSnooze(session, input, now)),
 }
 
-const wake: SessionCommand = {
+export const wake: SessionCommand = {
   name: 'wake',
   about: `Wake a snoozed session now, as ${USER.name} does from its row: everything it needs of ${USER.name} counts again. One line in the CLI's own file. Prints nothing.`,
   grammar: { args: [], flags: { ...SESSION } },

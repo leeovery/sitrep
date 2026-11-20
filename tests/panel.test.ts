@@ -9,7 +9,7 @@ import { ESC_MS, HOLD_MS } from '../cli/panel/panel'
 import { repaint } from '../cli/panel/screen'
 import { append, clockOf, HERE_STALE_MS, hereFile, projectsDir, type Body, type SessionMeta, type Where } from '../core'
 import { HOME, META, PROJECT, REPO, ROOT, T0, W1 } from './data'
-import { beat, yesAsk } from './lines'
+import { beat, snoozeSession, yesAsk, type Line } from './lines'
 import { defaultsOf } from './plist'
 import { WHERE } from './world'
 import { ENV, HANDED, NO_PROCESS, NOW, STOPPED, terminal, tty } from './terminal'
@@ -20,6 +20,9 @@ const ENTER = '\x1b[?1049h\x1b[?25l\x1b[?7l\x1b[?1000h\x1b[?1006h\x1b[?2004h'
 const LEAVE = '\x1b[?2004l\x1b[?1006l\x1b[?1000l\x1b[?7h\x1b[?25h\x1b[?1049l'
 
 const SIZE: Size = { width: 40, height: 10 }
+
+/** The session's one ask, Review round 1, as its window posted it at T0. */
+const ASKED: Line[] = [[T0, yesAsk('k1', 'Review round 1')]]
 
 /** A wait under way: when it is due, what ends it, and whether it has ended, fired or cancelled. */
 type Timer = { at: number; fire: () => void; isDone: boolean }
@@ -55,6 +58,8 @@ type Opened = {
   ps?: () => Promise<Ran>
   /** The terminal's device; none unless given. */
   device?: string
+  /** The session's lines, as its window wrote them: Review round 1, asked since T0, unless given. */
+  lines?: Line[]
 }
 
 /**
@@ -76,6 +81,7 @@ const opened = ({
   command,
   ps = async () => NO_PROCESS,
   device,
+  lines = ASKED,
 }: Opened = {}) => {
   let clock = NOW
   let err = ''
@@ -90,7 +96,7 @@ const opened = ({
 
   t.project(PROJECT.key, { name: PROJECT.name, directory: REPO, created: T0, by: W1 })
 
-  const paths = t.seed(meta, { lines: [[T0, yesAsk('k1', 'Review round 1')]] })
+  const paths = t.seed(meta, { lines })
 
   t.files.set(paths.heartbeat(W1), { text: beat(W1, { attachedAt: NOW, seenAt: NOW, where, directory }), mtimeMs: NOW })
 
@@ -939,7 +945,7 @@ test('as the program ends, the terminal is taken back, raw mode set afresh, draw
   expect(frame).toContain('\x1b[0;7m')
   expect(rows[3]).toBe(' ● Help desk redesign                                             1m')
   expect(rows.some(row => row.startsWith(' !'))).toBe(false)
-  expect(rows[19]).toBe(' ↑↓ move  ⏎ expand  o open  q quit')
+  expect(rows[19]).toBe(' ↑↓ move  ⏎ expand  o open  z snooze  q quit')
   expect([run.screen.isReading(), run.screen.listens()]).toEqual([true, listens + 1])
   await run.type('q')
 
@@ -959,7 +965,7 @@ test('a command that ends non-zero within 2 seconds leaves its answer above the 
   slow.run.screen.end(1)
   await slow.run.passing(0)
 
-  expect(rowsOf(quick.writes()).slice(17)).toEqual(['', ' ! The resume command ended with 1 for Help desk redesign.', ' ↑↓ move  ⏎ expand  o open  q quit'])
+  expect(rowsOf(quick.writes()).slice(17)).toEqual(['', ' ! The resume command ended with 1 for Help desk redesign.', ' ↑↓ move  ⏎ expand  o open  z snooze  q quit'])
   expect(rowsOf(slow.writes()).some(row => row.startsWith(' !'))).toBe(false)
   await quick.run.type('q')
   await slow.run.type('q')
@@ -1273,5 +1279,79 @@ test("a notification's words are made harmless: control characters dropped, line
   await run.passing(1_000)
 
   expect(noticesIn(run.screen.writes)).toEqual(['\x1b]777;notify;Ship,]0,now it please;Northwind · Help desk, redesign\x07'])
+  await run.type('q')
+})
+
+/** The CLI's own file in the run's session, as its text. */
+const cliText = (run: Run) => run.t.files.get(run.paths.log('cli'))?.text ?? ''
+
+/** The text `sitrep <words>` leaves in the CLI's own file, run now on a twin of the panel's world: the session holding these lines, its window seen now. */
+const asTheCommandWrites = async (lines: Line[], words: string[]) => {
+  const twin = terminal({ now: () => NOW })
+  const paths = twin.seed(META, { lines, seenAt: NOW })
+
+  expect((await twin.run(...words)).exit).toBe(EXIT.done)
+
+  return twin.files.get(paths.log('cli'))?.text ?? ''
+}
+
+/** An hour on from now, In an hour's time, which reads the same in every zone. */
+const IN_AN_HOUR = NOW + 60 * 60_000
+
+test("z then ⏎ writes the line sitrep snooze writes, in the CLI's own file: the asks the row shows, until the choice's time; the row then leaves for Snoozed", async () => {
+  const run = opened()
+
+  await run.passing(0)
+  await run.type('jz\r')
+
+  expect(cliText(run)).toBe(await asTheCommandWrites(ASKED, ['snooze', '--until', String(IN_AN_HOUR), '--session', META.id, '--', 'k1']))
+  expect(JSON.parse(cliText(run))).toEqual({ v: 1, at: NOW, seq: 1, type: 'snoozeSession', until: IN_AN_HOUR, asks: ['k1'] })
+  await run.passing(1_000)
+
+  expect(screenOf(run.screen.writes).slice(2, 4)).toEqual([' SNOOZED 2 ────────────────────────── ▹', ''])
+  await run.type('q')
+})
+
+test('a session at its turn alone snoozes as sitrep snooze does, naming no asks', async () => {
+  const run = opened({ lines: [] })
+
+  await run.passing(0)
+  await run.type('jz\r')
+
+  expect(cliText(run)).toBe(await asTheCommandWrites([], ['snooze', '--until', String(IN_AN_HOUR), '--session', META.id, '--']))
+  expect(JSON.parse(cliText(run))).toMatchObject({ type: 'snoozeSession', until: IN_AN_HOUR, asks: [] })
+  await run.type('q')
+})
+
+test('z on a Snoozed row writes the line sitrep wake writes, with no menu', async () => {
+  const run = opened()
+
+  post(run, snoozeSession(IN_AN_HOUR, 'k1'))
+  await run.passing(0)
+  await run.type('sjz')
+
+  expect(cliText(run).trim().split('\n').map(line => JSON.parse(line))).toEqual([
+    { v: 1, at: NOW, seq: 1, type: 'snoozeSession', until: IN_AN_HOUR, asks: ['k1'] },
+    { v: 1, at: NOW, seq: 2, type: 'wakeSession' },
+  ])
+  await run.type('q')
+})
+
+test('a snooze the command refuses says why above the key line and writes nothing: an ask that landed since the menu opened is never snoozed unseen', async () => {
+  const run = opened()
+
+  await run.passing(0)
+  await run.type('jz')
+  post(run, yesAsk('k2', 'Ship it'))
+  await run.type('\r')
+
+  expect(cliText(run)).not.toContain('snoozeSession')
+  expect(screenOf(run.screen.writes).slice(5, 10)).toEqual([
+    '',
+    ' ! An ask waits on you that the snooze',
+    '   did not name: look at it, then',
+    '   snooze again.',
+    ' ↑↓ move  ⏎ expand  o open  q quit',
+  ])
   await run.type('q')
 })

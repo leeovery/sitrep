@@ -14,7 +14,10 @@
  * - The chosen row expanded cuts nothing: its words wrap over the lines the
  *   layout gives it (expand.ts), the band over them all.
  * - An empty board, and one not yet read, stand centred in the body's place.
- * - The key line drops whole hints from the right, `q quit` last.
+ * - The snooze menu stands under the chosen row, a choice a line, the band
+ *   on the choice picked rather than on the row.
+ * - The key line drops whole hints from the right, `q quit` last, or in the
+ *   menu `esc cancel`.
  * - A board gone stale says when it was read, at the title's right.
  * - Below 24 columns or 8 rows it draws only `Too small`.
  */
@@ -22,7 +25,7 @@ import { cellsOf, cut, graphemesOf, widthOf, wrapIn, type Size, type Tagged } fr
 import { countOf, expandedOf, LEAST_CUT, NAME, timeFitting, type Tag } from './expand'
 import { isTooSmall, layoutOf, LEFT, type Layout, type Placed, type Section } from './layout'
 import { pensOf, sgr, type Ink, type Level, type Paint, type Pen, type Pens, type Style } from './paint'
-import type { PanelRow, PanelView } from './view'
+import { rowKey, type PanelRow, type PanelView } from './view'
 
 export type Run = { text: string; pen: Pen }
 export type Line = Run[]
@@ -290,10 +293,36 @@ const markOf = ({ pens }: Frame, row: PanelRow, dimmed: Inking) => {
   return { glyph: row.isAway ? mark.away : mark.here, pen: pens.of(mark.style) }
 }
 
-/** A row on its lines: folded, its two; expanded, as many as the layout gives it; the band or the wash over every one. */
-const rowAt = (frame: Frame, { y, row, key, height }: Extract<Placed, { kind: 'row' }>, view: PanelView) => {
+/**
+ * The snooze menu under its row, a choice a line: its name from the names'
+ * column, in the terminal's ink, and its time at the right in grey, where
+ * both fit; the band on the choice picked, its name bold.
+ */
+const menuAt = ({ grid, layout, pens }: Frame, y: number, lines: number, menu: NonNullable<PanelView['menu']>) => {
+  const room = layout.width - 1 - NAME
+
+  menu.options.slice(0, lines).forEach((option, at) => {
+    const isPicked = at === menu.at
+    const time = widthOf(option.title) + 2 + widthOf(option.time) <= room ? option.time : ''
+
+    put(grid, NAME, y + at, cut(option.title, room), pens.of({ tone: 'ink', bold: isPicked }))
+    putRight(grid, layout.width - 1, y + at, time, pens.of(STYLE.meta))
+
+    if (isPicked) {
+      lay(grid, y + at, LEFT, layout.width - 1, pens.band)
+    }
+  })
+}
+
+/**
+ * A row on its lines: folded, its two, or its first alone where its menu
+ * leaves no more; expanded, as many as the layout gives it; the band or the
+ * wash over every one. With its menu open the band is the menu's, on the
+ * choice picked.
+ */
+const rowAt = (frame: Frame, { y, row, key, height, menu }: Extract<Placed, { kind: 'row' }>, view: PanelView) => {
   const { grid, layout, pens } = frame
-  const isBand = key === view.band
+  const isBand = key === view.band && view.menu === undefined
   const isDimmed = row.isAway && !row.isSnoozed
   const dimmed = isBand ? pens.bandDimmed : pens.dimmed
   const ink: Inking = style => (isDimmed ? dimmed(style) : pens.of(style))
@@ -306,11 +335,18 @@ const rowAt = (frame: Frame, { y, row, key, height }: Extract<Placed, { kind: 'r
     expandedLines(frame, y, height, row, ink)
   } else {
     firstLine(frame, y, row, ink)
-    secondLine(frame, y + 1, row, ink)
+
+    if (height > 1) {
+      secondLine(frame, y + 1, row, ink)
+    }
   }
 
   for (let at = 0; ground !== undefined && at < height; at++) {
     lay(grid, y + at, LEFT, layout.width - 1, ground)
+  }
+
+  if (view.menu !== undefined && menu > 0) {
+    menuAt(frame, y + height, menu, view.menu)
   }
 }
 
@@ -371,31 +407,62 @@ const answer = ({ grid, layout, pens }: Frame) =>
     put(grid, LEFT + 2, layout.answer.from + at, line, pens.of(STYLE.answer))
   })
 
-/** The keys the band's row takes: `⏎` to expand it, or fold it again, and `o` to open it. */
-const bandHints = (view: PanelView): Hint[] =>
-  view.band === undefined ? [] : [['⏎', view.expanded === undefined ? 'expand' : 'fold'], ['o', 'open']]
+/** The keys the snooze menu takes, but `esc cancel`. */
+const MENU_HINTS: Hint[] = [
+  ['↑↓', 'pick'],
+  ['⏎', 'snooze'],
+]
 
-/** The keys that work now, but `q quit`, most needed first: `↑↓` only while a row is in view to move to, `⏎` and `o` while the band is on one. */
-const hintsOf = (view: PanelView, layout: Layout): Hint[] => {
+const CANCEL: Hint = ['esc', 'cancel']
+
+/** What `z` does to a row: wakes it in Snoozed, snoozes one that needs you, or nothing. */
+const snoozeHint = (row: PanelRow | undefined): Hint[] => {
+  if (row?.isSnoozed === true) {
+    return [['z', 'wake']]
+  }
+
+  return row?.asks === undefined ? [] : [['z', 'snooze']]
+}
+
+/** The keys the band's row takes: `⏎` to expand it, or fold it again, `o` to open it, and `z` where it can be snoozed or woken. */
+const bandHints = (view: PanelView): Hint[] => {
+  const row = view.sections.flatMap(section => section.rows).find(each => rowKey(each) === view.band)
+
+  return view.band === undefined
+    ? []
+    : [['⏎', view.expanded === undefined ? 'expand' : 'fold'], ['o', 'open'], ...snoozeHint(row)]
+}
+
+/**
+ * The keys that work now, most needed first, and the one dropped last: in
+ * the menu, its own and `esc cancel`; else `↑↓` only while a row is in view
+ * to move to, the band's row's keys while there is one, `s` while Snoozed
+ * holds rows, and `q quit`.
+ */
+const hintsOf = (view: PanelView, layout: Layout): { hints: Hint[]; last: Hint } => {
+  if (view.menu !== undefined) {
+    return { hints: MENU_HINTS, last: CANCEL }
+  }
+
   const arrows: Hint[] = layout.rows.length === 0 ? [] : [['↑↓', view.band === undefined ? 'pick' : 'move']]
   const snoozed: Hint[] = layout.sections.some(section => section.kind === 'snoozed') ? [['s', 'snoozed']] : []
 
-  return [...arrows, ...bandHints(view), ...snoozed]
+  return { hints: [...arrows, ...bandHints(view), ...snoozed], last: QUIT }
 }
 
 const hintsWidth = (hints: readonly Hint[]) =>
   hints.reduce((sum, [key, word], at) => sum + (at === 0 ? 0 : 2) + widthOf(key) + 1 + widthOf(word), 0)
 
-/** The key line: the hints that fit, dropped whole from the right, then `q quit`, which always applies, dropped last. */
-const keyLine = ({ grid, layout, pens }: Frame, hints: readonly Hint[]) => {
+/** The key line: the hints that fit, dropped whole from the right, then the last, which always applies, dropped last. */
+const keyLine = ({ grid, layout, pens }: Frame, { hints, last }: { hints: readonly Hint[]; last: Hint }) => {
   const room = layout.width - 1 - LEFT
   const kept = [...hints]
 
-  while (kept.length > 0 && hintsWidth([...kept, QUIT]) > room) {
+  while (kept.length > 0 && hintsWidth([...kept, last]) > room) {
     kept.pop()
   }
 
-  const shown = hintsWidth([...kept, QUIT]) <= room ? [...kept, QUIT] : []
+  const shown = hintsWidth([...kept, last]) <= room ? [...kept, last] : []
   const y = layout.height - 1
 
   shown.reduce((x, [key, word], at) => {
