@@ -22,8 +22,8 @@
  *   scrolls a row a notch, the band staying on its session, in sight or not.
  * - `top` is kept as the layout clamps it, so scrolling past the end piles
  *   nothing up.
- * - The sessions SitRep says this Mac doesn't show move behind those it
- *   shows, the band staying on its session, as on a changing board.
+ * - The sessions SitRep's file dims move behind those drawn filled, the
+ *   band staying on its session, as on a changing board.
  * - Each line new to Needs you is stamped with the time of the board it
  *   came on, and dropped once NEW_MS old.
  * - `q`, Ctrl-C and Ctrl-Z are stepped as any key, dropping an answer, and
@@ -39,7 +39,7 @@ export type PanelState = ViewState & {
   /** The board last read; none before the first. */
   feed?: Feed
   size: Size
-  /** The sessions on the board no terminal on this Mac shows. */
+  /** The sessions on the board open on no device the panel is looked at from. */
   notHere: ReadonlySet<string>
   /** The latest time an event brought. */
   now: number
@@ -47,9 +47,9 @@ export type PanelState = ViewState & {
 
 /**
  * A look's board: the lines new to Needs you on it, when it was read, and
- * the sessions no terminal on this Mac shows as SitRep said them then,
- * where the look read them, stepped with the board so the band follows its
- * row from where it was drawn.
+ * the sessions open on no device the panel is looked at from as SitRep
+ * said them then, where the look read them, stepped with the board so the
+ * band follows its row from where it was drawn.
  */
 type Board = { board: Feed; news: readonly string[]; now: number; notHere?: ReadonlySet<string> }
 
@@ -63,7 +63,7 @@ export type PanelEvent =
   | { tick: number }
   /** A pick done: what it leaves to say, if anything. */
   | { opened: string | undefined }
-  /** The sessions no terminal on this Mac shows, as SitRep last read them. */
+  /** The sessions open on no device the panel is looked at from, as SitRep last read them. */
   | { notHere: ReadonlySet<string> }
 
 /** A step's state, and the session to open, where ⏎ or a tap asks for one. */

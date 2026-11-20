@@ -15,21 +15,36 @@ typealias Where = Board.Window.Where
 struct Tree: Sendable {
     private(set) var processes: [pid_t: Proc] = [1: Proc(parent: 0, program: "/sbin/launchd")]
     private(set) var arguments: [pid_t: [String]] = [:]
+    /// The SSH client address in each process's environment, of those whose holds one.
+    private(set) var addresses: [pid_t: String] = [:]
+    /// The processes whose environment macOS hides from others, as it does its own programs'.
+    private(set) var hidden: Set<pid_t> = []
     private var next: pid_t = 100
 
-    /// A process under the parent, on the device given, running the program with the command line given.
+    /// A process under the parent, on the device given, running the program with the command line given; its
+    /// environment naming the SSH client address given, which its children inherit unless given another, and hidden
+    /// from others where it is macOS's own program.
     @discardableResult
     mutating func add(
         under parent: pid_t, _ program: String?, on device: String? = nil, arguments: [String]? = nil,
-        isStopped: Bool = false
+        isStopped: Bool = false, ssh address: String? = nil
     ) -> pid_t {
         let pid = next
 
         next += 1
         processes[pid] = Proc(parent: parent, device: device, program: program, isStopped: isStopped)
         arguments.map { self.arguments[pid] = $0 }
+        addresses[pid] = address ?? addresses[parent]
+        if program.map(Self.isMacOSs) == true {
+            hidden.insert(pid)
+        }
 
         return pid
+    }
+
+    /// Whether a program is macOS's own, in the system's folders.
+    private static func isMacOSs(_ program: String) -> Bool {
+        ["/bin/", "/sbin/", "/usr/bin/", "/usr/sbin/", "/usr/libexec/"].contains { program.hasPrefix($0) }
     }
 
     /// An app, or a server, launchd started: on no tty.
@@ -43,9 +58,9 @@ struct Tree: Sendable {
     }
 
     /// A shell on the device under a program on no app: `zsh < mosh-server` for Lee's phone, `zsh < sshd-session <
-    /// sshd` for a Ghostty on another Mac.
-    mutating func shell(under programs: [String], on device: String) -> pid_t {
-        add(under: programs.reduce(1) { add(under: $0, $1) }, "/bin/zsh", on: device)
+    /// sshd` for a Ghostty on another Mac; its environment naming the SSH client address given, as sshd sets it.
+    mutating func shell(under programs: [String], on device: String, ssh address: String? = nil) -> pid_t {
+        add(under: programs.reduce(1) { add(under: $0, $1) }, "/bin/zsh", on: device, ssh: address)
     }
 
     /// A tmux client under the shell, on the device.
@@ -70,7 +85,7 @@ struct Tree: Sendable {
 /// The process table holding a tree, or giving no answer, which keeps what it was asked.
 final class FakeTable: ProcessTable {
     private let tree: Tree?
-    private let asked = OSAllocatedUnfairLock(initialState: (looks: 0, arguments: [pid_t]()))
+    private let asked = OSAllocatedUnfairLock(initialState: (looks: 0, arguments: [pid_t](), addresses: [pid_t]()))
 
     init(_ tree: Tree?) {
         self.tree = tree
@@ -80,6 +95,14 @@ final class FakeTable: ProcessTable {
     var looks: Int { asked.withLock(\.looks) }
     /// Whose command lines were read.
     var argumentsRead: [pid_t] { asked.withLock(\.arguments).sorted() }
+    /// Whose SSH client addresses were read.
+    var addressesRead: [pid_t] { asked.withLock(\.addresses).sorted() }
+
+    func sshAddresses(of pids: Set<pid_t>) -> [pid_t: String] {
+        asked.withLock { $0.addresses += pids }
+
+        return tree.map { tree in tree.addresses.filter { pids.contains($0.key) && !tree.hidden.contains($0.key) } } ?? [:]
+    }
 
     func read(arguments wanted: (Proc) -> Bool) -> Processes? {
         asked.withLock { $0.looks += 1 }
@@ -224,8 +247,37 @@ struct Mac {
     }
 
     /// A tmux client of a Ghostty on another Mac, over ssh: `tmux < zsh < sshd-session < sshd`.
-    mutating func overSsh(_ device: String) -> pid_t {
-        tree.tmux(under: tree.shell(under: ["/usr/sbin/sshd", "/usr/libexec/sshd-session"], on: device), on: device)
+    mutating func overSsh(_ device: String, from address: String = Mac.phone) -> pid_t {
+        tree.tmux(under: tree.shell(under: Mac.sshd, on: device, ssh: address), on: device)
+    }
+
+    /// OpenSSH's server and its session's process, as a login over ssh runs under them.
+    static let sshd = ["/usr/sbin/sshd", "/usr/libexec/sshd-session"]
+
+    /// The SSH client addresses of Lee's phone and iPad, documentation's own (RFC 5737).
+    static let phone = "192.0.2.7"
+    static let iPad = "198.51.100.4"
+
+    /// A zmx client of the session attached over ssh from the address given, straight from the login's shell: `zmx <
+    /// zsh < sshd-session < sshd`.
+    @discardableResult
+    mutating func zmxOverSsh(_ session: String, on device: String, from address: String = Mac.phone) -> pid_t {
+        tree.zmx(session, under: tree.shell(under: Mac.sshd, on: device, ssh: address), on: device)
+    }
+
+    /// trzsz-ssh's UDP server, which the phone's tssh starts through an SSH login for each tab.
+    static let tsshd = "/opt/homebrew/Cellar/tsshd/0.1.10/bin/tsshd"
+
+    /// A zmx client of the session Portal attached in a tab of Lee's phone, through tssh: `zmx < portal < zsh <
+    /// tsshd`, tsshd run apart under launchd with its SSH login's environment, the client on Portal's relaying pty
+    /// (live, 20 November 2026).
+    @discardableResult
+    mutating func throughTssh(_ session: String, relay: String, tab device: String, from address: String = Mac.phone)
+        -> pid_t
+    {
+        let shell = tree.add(under: tree.add(under: 1, Mac.tsshd, ssh: address), "/bin/zsh", on: device)
+
+        return tree.zmx(session, under: tree.relay(under: shell, on: device), on: relay)
     }
 
     /// A zmx client of the session Portal attached in a Ghostty window on the device, the client on Portal's own
@@ -242,10 +294,14 @@ struct Mac {
         tree.zmx(session, under: tree.window(of: terminal, on: device), on: isPiped ? nil : device, by: "zmx")
     }
 
-    /// A zmx session's server: on no tty, under launchd, its command line a client's, then any command it runs.
+    /// A zmx session's server: on no tty, under launchd, its command line a client's, then any command it runs; and the
+    /// shell it started on the session's own tty, where one is given.
     @discardableResult
-    mutating func zmxServer(_ session: String, running command: [String] = []) -> pid_t {
-        tree.add(under: 1, zmxProgram, arguments: ["zmx", "attach", session] + command)
+    mutating func zmxServer(_ session: String, running command: [String] = [], tty: String? = nil) -> pid_t {
+        let server = tree.add(under: 1, zmxProgram, arguments: ["zmx", "attach", session] + command)
+
+        tty.map { _ = tree.add(under: server, "/bin/zsh", on: $0) }
+        return server
     }
 
     /// Claude Code on the device, by its program's path: Claude Code's own installer's, named by its version, unless

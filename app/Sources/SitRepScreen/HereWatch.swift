@@ -1,11 +1,12 @@
 import SitRepCore
 
-/// The continuous read of here (DESIGN, stage 8, "How it is read"), for the rows: every held session on the watch's
-/// last board read at each line and every `every` between them, one read at a time, off the main thread. It keeps
-/// the sessions last read as not here, which the rows draw dimmed, and tells each settling of them, for `HereFile`. A
-/// session read as unknown keeps the look it last read, and one never read is here; one no window holds any more keeps
-/// none, so a look never outlives its session's hold. A session read as here forgets the window opened for it
-/// (`RecentOpenings.shown`).
+/// The continuous read of here (DESIGN, stage 8, "How it is read"), for the rows and for `here.json`: every held
+/// session on the watch's last board read at each line and every `every` between them, one read at a time, off the main
+/// thread. It keeps who was last seen viewing each held session, and each multiplexer tty (`Sightings`); the sessions
+/// whose viewers hold no `mac` are the not here the rows draw dimmed, and each settling is told, for `HereFile`. A
+/// session read as unknown keeps the viewers it last read, and one never read has none, so it is here; one no window
+/// holds any more keeps none, so a look never outlives its session's hold. A read whose table gave no answer keeps the
+/// ttys too. A session read as here forgets the window opened for it (`RecentOpenings.shown`).
 @MainActor
 public final class HereWatch {
     /// How often it reads between the watch's lines. A read of 46 sessions, 33 of them in zmx, over 1,336 processes
@@ -13,8 +14,8 @@ public final class HereWatch {
     /// 2026): so a row's look lags the screen by 3 seconds at most, at under 1% of a core.
     public static let every = Duration.seconds(3)
 
-    /// A read of whether each session, by the windows a jump tries for it, is here.
-    public typealias Read = @Sendable ([String: [Board.Window.Where]]) async -> [String: Here]
+    /// A read of who views each session, by the windows a jump tries for it, and each multiplexer tty.
+    public typealias Read = @Sendable ([String: [Board.Window.Where]]) async -> HereRead
 
     private let read: Read
     private let openings: RecentOpenings
@@ -26,18 +27,23 @@ public final class HereWatch {
     private var isAskedAgain = false
     private var ticking: Task<Void, Never>?
 
-    /// The sessions a window holds that were last read as not here.
-    public private(set) var notHere: Set<String> = []
+    /// Who was last seen viewing each held session, and each multiplexer tty.
+    public private(set) var sightings = Sightings()
     /// Each change of `notHere`.
     public var changed: (Set<String>) -> Void = { _ in }
-    /// Each settling of `notHere`, changed or not, after `changed` where it changed: at each line, which may drop
-    /// sessions with no read, and at each read taken.
-    public var settled: (Set<String>) -> Void = { _ in }
+    /// Each settling of `sightings`, changed or not, after `changed` where `notHere` changed: at each line, which may
+    /// drop sessions with no read, and at each read taken.
+    public var settled: (Sightings) -> Void = { _ in }
 
     public init(openings: RecentOpenings, clock: any JumpClock = SystemClock(), read: @escaping Read) {
         self.openings = openings
         self.clock = clock
         self.read = read
+    }
+
+    /// The sessions a window holds that were last read as not on this Mac's screen.
+    public var notHere: Set<String> {
+        sightings.notHere
     }
 
     /// The read on this Mac: tmux found on Lee's PATH as `path` gives it, at each read, as a jump finds it.
@@ -47,11 +53,11 @@ public final class HereWatch {
         }
     }
 
-    /// Each board the watch prints: a session no window holds now drops its look at once, and the held ones are read,
-    /// now or as the read under way ends. The first starts the reads between lines.
+    /// Each board the watch prints: a session no window holds now drops its viewers at once, and the held ones are
+    /// read, now or as the read under way ends. The first starts the reads between lines.
     public func heard(_ board: Board) {
         self.board = board
-        keep(notHere.filter(board.isHeld))
+        keep(Sightings(sessions: sightings.sessions.filter { board.isHeld($0.key) }, ttys: sightings.ttys))
         if reading == nil {
             readNow()
         } else {
@@ -114,25 +120,26 @@ public final class HereWatch {
         }
     }
 
-    /// A read's sessions as they read, of those a window still holds: here, or not here; unknown, as last read.
-    private func take(_ read: [String: Here]) {
+    /// A read's sessions as they read, of those a window still holds: their viewers seen; unknown, as last read. Its
+    /// ttys, unless its table gave no answer.
+    private func take(_ read: HereRead) {
         let held = board.map { Set($0.windows.map(\.session)) } ?? []
+        var sessions = sightings.sessions
 
-        read.filter { $0.value == .here }.keys.forEach(openings.shown)
-        keep(Set(read.compactMap { session, here in
-            switch here {
-            case .here: nil
-            case .notHere: session
-            case .unknown: notHere.contains(session) ? session : nil
-            }
-        }).intersection(held))
+        read.sessions.filter { $0.value.here == .here }.keys.forEach(openings.shown)
+        for case let (session, .seen(viewers)) in read.sessions {
+            sessions[session] = viewers
+        }
+        keep(Sightings(sessions: sessions.filter { held.contains($0.key) }, ttys: read.ttys ?? sightings.ttys))
     }
 
-    private func keep(_ notHere: Set<String>) {
-        if notHere != self.notHere {
-            self.notHere = notHere
+    private func keep(_ sightings: Sightings) {
+        let wasNotHere = notHere
+
+        self.sightings = sightings
+        if notHere != wasNotHere {
             changed(notHere)
         }
-        settled(notHere)
+        settled(sightings)
     }
 }

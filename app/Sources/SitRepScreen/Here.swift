@@ -3,36 +3,32 @@ import SitRepCore
 
 /// Whether a session is here (DESIGN, stage 8, "Here"): a window holding it on the board, and a terminal on this Mac
 /// that SitRep can take Lee to showing it; not here; or unknown, what was asked giving no answer, which is never taken
-/// for not here.
+/// for not here. A session's `Sighting` tells it: here where `mac` is among its viewers.
 public enum Here: Sendable, Equatable {
     case here
     case notHere
     case unknown([Unanswered])
+}
 
-    /// A session's, from its windows': here where any is; else unknown where any is, each thing unanswered once; else
-    /// not here, as a session no window holds is.
-    init(_ windows: [Here]) {
-        guard !windows.contains(.here) else {
-            self = .here
-            return
-        }
+/// One read of here, for every session asked of: each session's sighting; and the viewers of each tty inside a
+/// multiplexer session, by its device, of those with any, for the board in a terminal to find its own; nil where the
+/// table gave no answer.
+public struct HereRead: Sendable, Equatable {
+    public let sessions: [String: Sighting]
+    public let ttys: [String: Set<Viewer>]?
 
-        var seen: Set<Unanswered> = []
-        let unanswered = windows.flatMap(\.unanswered)
-
-        self = unanswered.isEmpty ? .notHere : .unknown(unanswered.filter { seen.insert($0).inserted })
-    }
-
-    private var unanswered: [Unanswered] {
-        if case let .unknown(unanswered) = self { unanswered } else { [] }
+    public init(sessions: [String: Sighting], ttys: [String: Set<Viewer>]?) {
+        self.sessions = sessions
+        self.ttys = ttys
     }
 }
 
-/// Reads whether sessions are here, by a read of its own beside the jump's (`ScreenReader`), which it leaves as it is.
-/// The kernel's table is read once for every window, and each multiplexer for the windows in it, tmux asked only for
-/// the sockets they run under; nothing is asked of a terminal app. A window in a multiplexer is here where a client of
-/// its session is seated in a terminal app (`Processes.seat`), a tmux pane counting where a select would show it, as
-/// the jump finds one; a window in none, where a process on its device is, by the same step. A remote login's
+/// Reads whether sessions are here, by a read of its own beside the jump's (`ScreenReader`), which it leaves as it is,
+/// and who views each (`Viewer`). The kernel's table is read once for every window, and each multiplexer for the
+/// windows in it, tmux asked only for the sockets they run under; nothing is asked of a terminal app. A window in a
+/// multiplexer is viewed by every client of its session, a tmux pane counting a client where a select would show it, as
+/// the jump finds one; a window in none, by the processes on its device, by the same step. A client seated in a
+/// terminal app (`Processes.seat`) is this Mac's; one under an SSH login, the device its address names. A remote login's
 /// processes are seated in none (`seenFromHere`), and the heartbeat's `$TERM_PROGRAM`, which an ssh session may carry,
 /// is never read.
 public struct HereReader: Sendable {
@@ -49,11 +45,11 @@ public struct HereReader: Sendable {
         self.table = table
     }
 
-    /// Whether each session is here, by the windows a jump tries for it, all read at once.
-    public func read(_ sessions: [String: [Board.Window.Where]]) async -> [String: Here] {
+    /// Who views each session, by the windows a jump tries for it, all read at once; and each multiplexer tty's.
+    public func read(_ sessions: [String: [Board.Window.Where]]) async -> HereRead {
         let sight = await look(sessions.values.flatMap(\.self))
 
-        return sessions.mapValues(sight.here)
+        return HereRead(sessions: sessions.mapValues(sight.sighting), ttys: sight.ttys)
     }
 
     /// Whether the session the windows hold is here; never, with none, as a session no window holds is away.
@@ -62,13 +58,15 @@ public struct HereReader: Sendable {
             return .notHere
         }
 
-        return await look(windows).here(windows)
+        return await look(windows).sighting(windows).here
     }
 
-    /// The table, with the command lines the multiplexers tell their clients by, beside what each multiplexer read for
-    /// the windows in it.
+    /// The table, with the command lines the multiplexers tell their clients and their sessions' ttys by, beside what
+    /// each multiplexer read for the windows in it.
     private func look(_ windows: [Board.Window.Where]) async -> Sight {
-        async let processes = table.read { process in multiplexers.contains { $0.tellsBy(process) } }
+        async let processes = table.read { process in
+            multiplexers.contains { $0.tellsBy(process) || $0.tellsTtysBy(process) }
+        }
         let readings = await withTaskGroup(of: (Int, any Reading).self) { group in
             for (order, multiplexer) in multiplexers.enumerated() {
                 group.addTask { (order, await multiplexer.read(windows.filter(multiplexer.isIn))) }
@@ -77,47 +75,63 @@ public struct HereReader: Sendable {
             return await group.reduce(into: []) { $0.append($1) }.sorted { $0.0 < $1.0 }.map(\.1)
         }
 
-        return await Sight(screen: Screen(readings: readings, processes: processes?.seenFromHere))
+        return await Sight(Screen(readings: readings, processes: processes?.seenFromHere), windows, table)
     }
 }
 
-/// What one read saw: the screen as the multiplexers and the table give it, and the table's processes on each device
-/// whose parent is on another or none, through one of which every process on it descends.
+/// What one read saw: the screen as the multiplexers and the table give it; the clients showing each window, and each
+/// multiplexer tty; and each one's viewer, nil where the table gave no answer.
 private struct Sight {
     let screen: Screen
-    let tops: [String: [pid_t]]
+    private let clients: [Board.Window.Where: [Client]]
+    private let ttyClients: [String: [Client]]
+    private let viewing: Viewing?
 
-    init(screen: Screen) {
+    init(_ screen: Screen, _ windows: [Board.Window.Where], _ table: any ProcessTable) {
+        let tops = screen.processes?.tops ?? [:]
+        let ttyClients = screen.processes.map { processes in
+            screen.readings.reduce(into: [:]) { ttys, reading in ttys.merge(reading.ttys(processes), uniquingKeysWith: +) }
+        } ?? [:]
+        let clients = Dictionary(windows.map { ($0, Self.clients(of: $0, screen, tops)) }) { first, _ in first }
+        let all = Set(clients.values.joined()).union(ttyClients.values.joined())
+
         self.screen = screen
-        tops = screen.processes?.tops ?? [:]
+        self.clients = clients
+        self.ttyClients = ttyClients
+        viewing = screen.processes.map { Viewing($0, clients: all, table: table) }
     }
 
-    func here(_ windows: [Board.Window.Where]) -> Here {
-        Here(windows.map(here(of:)))
-    }
-
-    /// A window in a multiplexer, by what the jump would reach; one in none, by its device in the table.
-    private func here(of where: Board.Window.Where) -> Here {
+    /// A window in a multiplexer, by the clients of its session the innermost finds; one in none, by the processes on
+    /// its device whose parent is on another or none, through one of which every process on it descends.
+    private static func clients(
+        of where: Board.Window.Where, _ screen: Screen, _ tops: [String: [pid_t]]
+    ) -> [Client] {
         guard screen.readings.contains(where: { $0.isIn(`where`) }) else {
-            return outside(`where`)
+            return `where`.tty.map { device in tops[device, default: []].map { Client(pid: $0, device: device) } } ?? []
         }
 
-        return switch screen.reach(of: [`where`]) {
-        case .onScreen: .here
-        case .offScreen: .notHere
-        case let .unknown(unanswered): .unknown(unanswered)
-        }
+        return screen.clients(of: `where`)
     }
 
-    private func outside(_ where: Board.Window.Where) -> Here {
-        guard let device = `where`.tty else {
-            return .notHere
-        }
-        guard let processes = screen.processes else {
-            return .unknown([.processes])
-        }
+    func sighting(_ windows: [Board.Window.Where]) -> Sighting {
+        Sighting(windows.map(sighting(of:)))
+    }
 
-        return tops[device, default: []].contains { processes.seat(of: $0, own: device) != nil } ? .here : .notHere
+    /// The viewers of each multiplexer tty that has any.
+    var ttys: [String: Set<Viewer>]? {
+        viewing.map { viewing in ttyClients.mapValues(viewing.viewers).filter { !$0.value.isEmpty } }
+    }
+
+    /// A window's viewers, unknown where what its showing is told by gave no answer: in a multiplexer, what it asked,
+    /// or the table where its clients need it; in none, the table, unless it says no device.
+    private func sighting(of where: Board.Window.Where) -> Sighting {
+        let viewers = viewing?.viewers(of: clients[`where`] ?? []) ?? []
+        let isInOne = screen.readings.contains { $0.isIn(`where`) }
+        let unanswered = isInOne
+            ? screen.unanswered(for: [`where`])
+            : `where`.tty != nil && screen.processes == nil ? [.processes] : []
+
+        return Sighting(viewers, unanswered: unanswered)
     }
 }
 
@@ -140,18 +154,25 @@ extension Processes {
 }
 
 extension Proc {
-    /// The programs of a remote login, under which a shell is reached from another device: OpenSSH's server, and its
-    /// session's own process since OpenSSH 9.8; and mosh's, as Lee's phone reaches this Mac.
-    static let remoteLogins: Set<Substring> = ["sshd", "sshd-session", "mosh-server"]
+    /// The programs of a remote login, under which a shell is reached from another device: the SSH logins; and mosh's.
+    static let remoteLogins = sshLogins.union(["mosh-server"])
+    /// Of those, the logins whose sessions carry the `SSH_CONNECTION` of the SSH login that reached them: OpenSSH's
+    /// server, and its session's own process since OpenSSH 9.8; and `tsshd`, trzsz-ssh's server for its UDP mode,
+    /// which an SSH login starts and which then runs apart, under launchd, as Lee's phone reaches this Mac through
+    /// rootshell's tssh (live, 20 November 2026).
+    static let sshLogins: Set<Substring> = ["sshd", "sshd-session", "tsshd"]
 
     var isRemoteLogin: Bool {
-        guard let program else {
-            return false
-        }
+        programName.map(Self.remoteLogins.contains) ?? false
+    }
 
-        let name = program.lastIndex(of: "/").map { program[program.index(after: $0)...] } ?? program[...]
+    var isSSHLogin: Bool {
+        programName.map(Self.sshLogins.contains) ?? false
+    }
 
-        return Self.remoteLogins.contains(name)
+    /// Its program's file's name.
+    private var programName: Substring? {
+        program.map { program in program.lastIndex(of: "/").map { program[program.index(after: $0)...] } ?? program[...] }
     }
 
     /// The process with no parent.

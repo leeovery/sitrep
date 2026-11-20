@@ -10,6 +10,9 @@
  * - The size is asked of the terminal each time: Bun's `columns` and `rows`
  *   change only on a SIGWINCH, which a resize made while the run is stopped
  *   sends to the shell instead (proven live, 19 November 2026).
+ * - The device is standard input's, its `rdev` named as the app names a
+ *   process's tty from the kernel's table (core's `ttyOf`), so the panel
+ *   finds itself in SitRep's `here.json`.
  * - A terminal gone, as after a hang-up, fails nothing: a write to it is
  *   lost, and raw mode is let go without a word, so the panel gives the
  *   terminal back on every path, that one included. While raw mode is on,
@@ -30,6 +33,8 @@
  *   hear, and the run answers then, never waiting on its pipes: what it
  *   started may hold them open.
  */
+import { fstatSync } from 'node:fs'
+import { ttyOf } from '../../core'
 import { KEYED, type Asking, type Ran, type Signal, type Terminal } from '../io'
 
 /** How long a query waits for DA1's answer. */
@@ -188,6 +193,13 @@ export const terminalOf = (): Terminal | undefined => {
       const { columns, rows } = process.stdout
 
       return columns !== undefined && rows !== undefined && columns > 0 && rows > 0 ? { width: columns, height: rows } : undefined
+    },
+    device: () => {
+      try {
+        return ttyOf(fstatSync(0).rdev)
+      } catch {
+        return undefined
+      }
     },
     onResize: heard => {
       process.stdout.on('resize', heard)

@@ -37,6 +37,10 @@ public struct TmuxAdapter: Multiplexer {
         false
     }
 
+    public func tellsTtysBy(_: Proc) -> Bool {
+        false
+    }
+
     /// tmux, asked twice for each socket the windows run under, each socket once.
     public func read(_ windows: [Board.Window.Where]) async -> any Reading {
         let sockets = Set(windows.compactMap(\.tmux?.socket))
@@ -95,6 +99,13 @@ enum ServerRead: Sendable, Equatable {
 struct TmuxServer: Sendable, Equatable {
     let panes: [String: Pane]
     let clients: [TmuxClient]
+
+    /// The clients whose current tmux window is the pane's, or attached to a tmux session holding it, where a select
+    /// would show it; as `TmuxReading.places` takes them before seating them.
+    func clients(of pane: Pane) -> [Client] {
+        clients.filter { $0.window == pane.window || pane.sessions.contains($0.session) }
+            .map { Client(pid: $0.pid, device: $0.device) }
+    }
 }
 
 /// A pane: its tmux window, the tmux sessions holding that window, by their ids, and the device it is on.
@@ -190,6 +201,29 @@ struct TmuxReading: Reading {
 
         return seated.filter { client, _ in pane.sessions.contains(client.session) }.map { client, seat in
             Place(seat, select: Select(socket: tmux.socket, session: client.session, window: pane.window))
+        }
+    }
+
+    /// Every client showing the window's pane, or that a select would make show it, seated or not.
+    func clients(_ where: Board.Window.Where, _: Processes) -> [Client] {
+        guard let tmux = `where`.tmux, let server = server(`where`), let pane = server.panes[tmux.pane] else {
+            return []
+        }
+
+        return server.clients(of: pane)
+    }
+
+    /// Each pane's tty, on every server read, and its clients: the servers a window on the board runs under, which
+    /// alone tmux is asked of.
+    func ttys(_: Processes) -> [String: [Client]] {
+        servers.values.reduce(into: [:]) { ttys, read in
+            guard case let .server(server) = read else {
+                return
+            }
+
+            for pane in server.panes.values where isDevice(pane.device) {
+                ttys[pane.device, default: []] += server.clients(of: pane)
+            }
         }
     }
 

@@ -172,7 +172,7 @@ struct HereTests {
             "sr-a": [inTmux()], "sr-b": [inGhosttyWindow], "sr-c": [inTmux("%54"), Where(device: "/dev/ttys099")],
         ])
 
-        #expect(read == ["sr-a": .here, "sr-b": .here, "sr-c": .notHere])
+        #expect(read.sessions.mapValues(\.here) == ["sr-a": .here, "sr-b": .here, "sr-c": .notHere])
         #expect(table.looks == 1)
         #expect(tmux.runs.map(\.[1]).sorted() == ["list-clients", "list-panes"])
 

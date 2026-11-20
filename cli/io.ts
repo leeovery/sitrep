@@ -21,8 +21,15 @@ export type Listed = { name: string; kind: 'file' | 'dir' }
 /** A file's size and when it was last written; a folder's when an entry was last made, removed or renamed in it. */
 export type Stat = { size: number; mtimeMs: number }
 
-/** The environment the CLI reads: where the board is, the home folder SitRep's settings are in, the session a window holds, the login shell a pick runs in, the terminal's colours, and the tmux the panel's notifications pass through. */
-export type Env = { XDG_STATE_HOME?: string; HOME?: string; SITREP_SESSION?: string; SHELL?: string } & ColourEnv & NoticeEnv
+/** The environment the CLI reads: where the board is, the home folder SitRep's settings are in, the session a window holds, the login shell a pick runs in, the SSH login the panel is looked at through, the terminal's colours, and the tmux the panel's notifications pass through. */
+export type Env = {
+  XDG_STATE_HOME?: string
+  HOME?: string
+  SITREP_SESSION?: string
+  SHELL?: string
+  SSH_CONNECTION?: string
+} & ColourEnv &
+  NoticeEnv
 
 /** A wait under way: it resolves once its time has passed, unless `cancel` lets it go first, its timer with it, never to resolve. */
 export type Waiting = Promise<void> & { cancel: () => void }
@@ -49,6 +56,8 @@ export const KEYED: ReadonlySet<Signal> = new Set(['SIGINT', 'SIGQUIT'])
 export type Terminal = {
   /** The terminal's size, asked afresh, as a resize made while the run was stopped is never heard; undefined while it says none. */
   size: () => Size | undefined
+  /** The terminal's device, `/dev/ttys032`, as standard input's `rdev` names it (core's `ttyOf`); undefined for none. */
+  device: () => string | undefined
   onResize: (heard: () => void) => () => void
   /** Listens to the keys typed, in raw mode while it listens, hearing their bytes in whatever pieces they come. */
   keys: (heard: (bytes: string) => void) => () => void
