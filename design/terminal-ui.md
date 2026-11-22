@@ -110,7 +110,7 @@ Colour says what's needed; fill says where (DESIGN.md, "The notch and its panel"
 **The words.**
 - **The name:** an ask's in the terminal's ink, bold; a turn's in that ink, regular; a working or own-work row's in soft. In Snoozed, grey, an ask's bold.
 - **The status line** is the row's first line (`RowLine`): its lead, then its subject after a space (`Running npm test`). A permission prompt joins its subject with `: ` (`Allow Bash: psql -f import.sql`). A question adds its `+2` after a space, in grey. A wake reads `Wakes in 12m`.
-- **The time:** in Needs you, how long its newest line has waited; in Working, how long the turn has run; on its own work, how long since its turn ended. Each reads as the notch's `Age` words it, rounded down: `now`, `12m`, `1h` at 90 minutes, `3d` (19 November 2026: core's `ago`, which the pane uses, rounds to the nearest instead). In Snoozed, when it wakes, as core's `wakeWords` says it (`14:00`, `tomorrow 09:00`, `Sat 09:00`, `next week`), or `until it moves`.
+- **The time:** in Needs you, how long its newest line has waited; in Working, how long the turn has run; on its own work, how long since its turn ended. Each reads as the notch's `Age` words it, rounded down: `now`, `12m`, `1h` at 90 minutes, `3d`, core's `ago`, which the pane uses too since 22 November 2026, when it stopped rounding to the nearest. In Snoozed, when it wakes, as core's `wakeWords` says it (`14:00`, `tomorrow 09:00`, `Sat 09:00`, `next week`), or `until it moves`.
 
 **Dimming.**
 - **An away row** dims its words as one, as the notch does: each ink 0.61 of the way from the background, its mark kept full and hollow (`DIMMED` in round 1). A Snoozed row is never drawn away: its mark stays filled and its words undimmed, as the notch draws it (`NotchGlass.swift`, 19 November 2026).
@@ -490,7 +490,7 @@ A light background draws in reverse video, as at 16.
   - It ends as its run does (`untilEnded`); the panel's run ends only as the panel closes.
   - Core's `feedOf` makes the `Feed`; `newRows` says what's new. Each look's `Feed` is all the panel draws from.
 - **The rows.** `core/rows.ts`'s `rowOf` and `snoozedRowOf` make the rows, and core's `inPanelOrder` and `inSnoozedOrder` order them. `core/panel.ts`'s `panelSections` puts them in the panel's sections, with their counts.
-- **The words.** `cli/panel/view.ts`'s `viewOf` words each row: its time rounded down, as the app's `Age` words it; a wake's countdown; core's `wakeWords` and `oneLine`. Core's `ago` (`core/ago.ts`) is the pane's, and rounds to the nearest.
+- **The words.** `cli/panel/view.ts`'s `viewOf` words each row: its time and a wake's countdown through core's `ago` and `inUnits` (`core/ago.ts`), rounded down as the app's `Age` words it, the pane's too; core's `wakeWords` and `oneLine`.
 - **Where a window is.** Each live window comes as a `FeedWindow`: its writer, session, `where`, `directory`, `state` and `jumpOrder`.
   - `where` is `core/where.ts`'s `Where`: `device`, `terminal`, `tmux` with its `socket` and `pane`, and `zmx` with its `session`.
   - The mod records it once a process (`hooks/where.ts`'s `whereNow`): the socket is `$TMUX` up to its first comma, the pane `$TMUX_PANE`, the zmx session `$ZMX_SESSION` whole, and the device by `TTY_WALK`.
