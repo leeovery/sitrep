@@ -18,7 +18,9 @@
  *   session's name, or the login shell's.
  */
 import {
+  ago,
   clockOf,
+  inUnits,
   oneLine,
   panelSections,
   wakeWords,
@@ -103,24 +105,6 @@ const MIN = 60_000
 /** Text from the board made harmless: its control characters dropped, then on one line. */
 export const cleaned = (text: string) => oneLine(text.replace(/(?!\s)\p{Cc}/gu, ''))
 
-/**
- * Whole minutes in their largest whole unit, rounded down, as the app's
- * `Age` words them: `now` under one, `12m`, `2h`, `3d`. Not core's `ago`,
- * which rounds to the nearest: 90 minutes read `2h` there, `1h` here.
- */
-const inUnits = (minutes: number) => {
-  const hours = Math.floor(minutes / 60)
-
-  if (minutes < 1) {
-    return 'now'
-  }
-
-  return minutes < 60 ? `${minutes}m` : hours < 24 ? `${hours}h` : `${Math.floor(hours / 24)}d`
-}
-
-/** How long ago `at` was, as the notch's rows read it. */
-const age = (at: number, now: number) => inUnits(Math.floor((now - at) / MIN))
-
 /** A wake's countdown, as the app's `untilText` words it: up to the whole minute, `in 12m`; `now` once due. */
 export const countdown = (until: number, now: number) =>
   until <= now ? 'now' : `in ${inUnits(Math.ceil((until - now) / MIN))}`
@@ -160,7 +144,7 @@ const markOf = (row: Row | SnoozedRow): PanelRow['mark'] => {
 
 const timeOf = (row: Row | SnoozedRow, now: number) => {
   if (!isSnoozedRow(row)) {
-    return age(row.since, now)
+    return ago(now, row.since)
   }
 
   return row.wakesAt === undefined ? 'until it moves' : wakeWords(row.wakesAt, now)
