@@ -1,0 +1,34 @@
+# How press builds, signs and ships SitRep: `press prepare` before mint tags a
+# release, `press upload` after (.mint.toml's hooks). app/build signs an
+# everyday build through it too, with press sign --dev.
+name = "sitrep"
+
+# SitRep.app is the product: laid out by app/bundle, unsigned, then signed
+# inside out, notarized and stapled. It may send Apple Events (Ghostty).
+[[app]]
+path = "SitRep.app"
+identifier = "com.leeovery.sitrep"
+entitlements = "app/SitRep.entitlements"
+build = ["app/bundle {dir} {version}"]
+
+# Signed before the app, in this order. The CLI, compiled by Bun, maps memory
+# for its JIT.
+[[app.inside]]
+path = "Contents/Resources/Plugin/bin/sitrep"
+identifier = "com.leeovery.sitrep.cli"
+entitlements = "app/CLI.entitlements"
+
+# The notices helper, which posts SitRep's banners.
+[[app.inside]]
+path = "Contents/Helpers/SitRepNotices.app"
+identifier = "com.leeovery.sitrep.notices"
+
+# The zip the cask downloads, holding the stapled app. Its sum stays in the
+# kept folder; only the zip is uploaded.
+[package]
+name = "SitRep-{version}.zip"
+
+# The cask in leeovery/homebrew-tools, moved on to each release that is the
+# latest and no pre-release.
+[tap]
+kind = "cask"

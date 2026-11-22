@@ -4,7 +4,7 @@
 The CLI's, compiled by Bun, under the hardened runtime: allow-jit, so that
 JavaScriptCore can map memory for its JIT. Without it the CLI still answers,
 its JIT off and a hot loop four times slower. Proven 27 October 2026 on Bun
-1.4.3, signed as app/bundle signs it: allow-jit alone gave the JIT back.
+1.4.3, signed as press signs it (.press.toml): allow-jit alone gave the JIT back.
 allow-unsigned-executable-memory, which allows more, is not needed, nor
 disable-library-validation, as it loads only the system's libraries.
 -->

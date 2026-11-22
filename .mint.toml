@@ -16,19 +16,24 @@ diff_exclude = [
 [release]
 # One version covers the plugin and the app: app/bundle stamps plugin.json's
 # into the bundle, or, in pre_tag, before mint writes it there, the version
-# mint is releasing.
+# mint is releasing, which press gives it. press reads these two keys too, so
+# a release's upload knows plugin.json's version line for mint's bookkeeping.
 version_file = '.claude-plugin/plugin.json'
 version_pattern = '"version": "{version}"'
-diff_exclude = ["app/release-*", "app/notarize", "app/signing-common", "prototypes/", "screens/", "app/screens", "art/screens/", "CONTRIBUTING.md", ".gitignore", "tsconfig.json", "design/", "cli/frames/"]
+diff_exclude = ["app/release-*", "app/notarize", "app/signing-common", ".press.toml", "prototypes/", "screens/", "app/screens", "art/screens/", "CONTRIBUTING.md", ".gitignore", "tsconfig.json", "design/", "cli/frames/"]
 
 [release.hooks]
 # No CI runs the tests or builds a release, so both happen here, before the
-# irreversible tag and push: every gate, then app/release-build, which builds
-# HEAD, signed with the Developer ID, notarized and stapled, and keeps its
-# zip, so a failure about the app, the certificate or Apple's answer stops
-# the release before its tag, with nothing public yet. First, the list of
-# real names the tests may not use: git leaves it out, and without it the
-# scan that keeps them out is skipped, unseen in a passing run.
+# irreversible tag and push. press check (preflight) fails in seconds where
+# the signing keychain won't open or the notary login has lapsed, before mint
+# writes notes. Then every gate, then press prepare, which builds HEAD in a
+# worktree of its own, as .press.toml says, signed with the Developer ID,
+# notarized and stapled, and keeps its zip, so a failure about the app, the
+# certificate or Apple's answer stops the release before its tag, with
+# nothing public yet. First, the list of real names the tests may not use:
+# git leaves it out, and without it the scan that keeps them out is skipped,
+# unseen in a passing run.
+preflight = ['press check']
 pre_tag = [
     'test -f tests/real-names.txt || { echo "tests/real-names.txt is missing: the list of names no test may use is kept out of git. The main clone holds the master copy, and worktrees copy it from there (.worktreeinclude). Put it back in this clone and release again." >&2; exit 1; }',
     'claude plugin test .',
@@ -36,9 +41,9 @@ pre_tag = [
     'bunx tsc -p cli/shell',
     'swift build --package-path app -j 2',
     'swift test --package-path app -j 2',
-    'app/release-build',
+    'press prepare',
 ]
-# Once the tag and the release are pushed: app/release-upload uploads the
-# kept zip to the release and sends the cask the new zip. A failure here only
-# warns, and app/release-upload <version>, run again by hand, finishes it.
-post_release = ['app/release-upload']
+# Once the tag and the release are pushed: press upload uploads the kept zip
+# to the release and sends the cask the new zip. A failure here only warns,
+# and press upload <version>, run again by hand, finishes it.
+post_release = ['press upload']
