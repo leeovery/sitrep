@@ -53,27 +53,28 @@ app's tests skip their scans, so the release refuses to run without it.
 ## The app
 
 `app/` is a Swift package, no Xcode project: the menu bar app, which runs
-the plugin's CLI for the board, and makes the jump itself. `app/bundle <folder>` makes the
-bundle, the plugin inside it, into a folder, signed with Lee's Developer ID
-from the signing keychain, which it unlocks itself with
-`DEVELOPER_ID_P12_PASSWORD` (`app/signing-common`, which `app/notarize`
-shares); `app/build` runs it, installs the bundle to
+the plugin's CLI for the board, and makes the jump itself. `app/bundle <folder> <version>`
+lays the bundle out, the plugin inside it, into a folder, unsigned; press,
+the owner's release tool (`~/bin/press`, reading `.press.toml`), signs it
+with the Developer ID from the signing keychain, which it unlocks itself.
+`app/build` runs `app/bundle` at `plugin.json`'s version, then
+`press sign --dev`, which signs it with no timestamp, installs the bundle to
 `/Applications/SitRep.app` over the cask's copy and starts it, replacing the
 one running; `app/quit` and `app/open` stop and start SitRep for it and for
 `app/plugin`.
-A release (`./release`) is built before mint's tag and uploaded after it.
-`app/release-build`, the last of mint's `pre_tag`, builds HEAD in a
+A release (`./release`) is built before mint's tag and uploaded after it,
+by press. `press check`, mint's `preflight`, checks the Mac can sign and
+notarize. `press prepare`, the last of mint's `pre_tag`, builds HEAD in a
 worktree of its own, the bundle stamped with the version mint is about to
-tag, notarizes and staples it (`app/notarize`), and keeps the zip in
-`~/Library/Caches/SitRep/release/<version>/`; anything dirty beyond mint's
-bookkeeping (`plugin.json` in its version alone, `CHANGELOG.md`,
-`.mint.toml`), untracked files included, or HEAD moving before the zip is
-kept, stops it.
-`app/release-upload`, mint's `post_release`, uploads that zip to the GitHub
-release and, for the latest release, sends the cask in
-`leeovery/homebrew-tools` the new zip and waits on the tap's update; it
-builds nothing. Both share `app/release-common` and log to
-`~/Library/Logs/SitRep/release-<version>.log`.
+tag, signs it inside out, notarizes and staples it, and keeps the zip in
+`~/Library/Caches/press/sitrep/<version>/`; uncommitted changes, a tag
+taken, or HEAD moving before the zip is kept, stop it.
+`press upload`, mint's `post_release`, uploads that zip to the GitHub
+release, building the tag again where what's kept doesn't fit it beyond
+mint's bookkeeping (`plugin.json` in its version alone, `CHANGELOG.md`,
+`.mint.toml`), and, for the latest release, sends the cask in
+`leeovery/homebrew-tools` the new zip and waits on the tap's update. Both
+log to `~/Library/Logs/press/sitrep-<version>.log`.
 
 ## Live tests
 

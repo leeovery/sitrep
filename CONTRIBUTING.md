@@ -39,9 +39,10 @@ It needs:
 - **Bun**: the `bin/sitrep` of a checkout under `app/plugin here` runs on it, the gates run `bunx`, and `app/bundle` compiles the app's CLI with `bun build --compile`;
 - **Xcode**, for Swift 6 and the `actool` that compiles the icon;
 - **jq**, which `app/plugin` reads Claude Code's lists with;
-- **the Developer ID certificate**, `Developer ID Application: PointsBox Limited (CQKZZ4FN6V)`, in the signing keychain, `~/Library/Keychains/signing.keychain-db`, which kit's developer-id step makes: `app/bundle` signs with it, and stops without it. The keychain opens with `DEVELOPER_ID_P12_PASSWORD`, which kit writes to `~/.secrets.zsh`; `app/bundle` and `app/notarize` unlock it themselves, reading the password from `~/.secrets.zsh` where the shell lacks it or holds an old one, so nothing asks, at the Mac or over SSH.
+- **press**, the owner's release tool (one script in kit-config, `~/bin/press`, its Mac's signing, notary, tap and folders in `~/.config/press/config.toml`), which signs every build of the app as `.press.toml` lists its parts;
+- **the Developer ID certificate**, `Developer ID Application: PointsBox Limited (CQKZZ4FN6V)`, in the signing keychain, `~/Library/Keychains/signing.keychain-db`, which kit's developer-id step makes: press signs with it, and stops without it. The keychain opens with `DEVELOPER_ID_P12_PASSWORD`, which kit writes to `~/.secrets.zsh`; press unlocks it itself, reading the password from `~/.secrets.zsh` where the shell lacks it or holds an old one, so nothing asks, at the Mac or over SSH.
 
-Without that certificate, `app/bundle` and `app/build` can't run: a contributor without it runs the gates below, and Lee builds and installs the app.
+`app/bundle <folder> <version>` lays the app out, unsigned, and needs neither. Without them `app/build` can't run: a contributor without them runs the gates below, and Lee builds and installs the app.
 
 The engine's types live in `.claude-plugin/types/`, which git leaves out; `.worktreeinclude` copies them into a worktree.
 
@@ -55,7 +56,7 @@ swift build --package-path app    # the app
 swift test --package-path app     # the app's tests
 ```
 
-`app/build` builds the app, signs it with the Developer ID, installs it to `/Applications/SitRep.app` over the cask's copy and starts it, replacing the one running, so the login item and macOS's permissions carry over. It doesn't notarize: a build installed from a checkout is never quarantined. It changes the plugin too: while SitRep's copy is the plugin, the build's start refreshes the copy from what the build carries, so every Claude window runs the building checkout's mod from its next `/reload-plugins`. `brew reinstall --cask sitrep` puts the release back, leaving SitRep stopped, so open it, or run `app/open`, after; the next release's `brew upgrade` replaces the build.
+`app/build` lays the app out (`app/bundle`), signs it with the Developer ID (`press sign --dev`, with no timestamp, so it builds offline), installs it to `/Applications/SitRep.app` over the cask's copy and starts it, replacing the one running, so the login item and macOS's permissions carry over. It doesn't notarize: a build installed from a checkout is never quarantined. It changes the plugin too: while SitRep's copy is the plugin, the build's start refreshes the copy from what the build carries, so every Claude window runs the building checkout's mod from its next `/reload-plugins`. `brew reinstall --cask sitrep` puts the release back, leaving SitRep stopped, so open it, or run `app/open`, after; the next release's `brew upgrade` replaces the build.
 
 `app/screens` draws the README's pictures again into `art/screens`, with nothing shown on the screen, each over a made-up board, at 2x on one made-up desktop: Claude Code in a Ghostty window with the board docked at its side, as a WebP, the board and the band from the mod's own drawing and Claude Code's screen round them a mock; and the notch opening at the screen's edge as the pointer comes to it, filmed from the app's own drawing and put together as an animated WebP. It needs `cwebp` and `img2webp` (`brew install webp`), and draws the window in JetBrainsMono Nerd Font Mono, which must be installed. Run it whenever the look changes, and commit what it draws.
 
@@ -68,24 +69,24 @@ A release is cut and built on a Mac, by mint:
 ./release --dry-run    # the plan, with nothing changed and no hooks run
 ```
 
-mint sets the version in `.claude-plugin/plugin.json`, which the app takes too. The app is built, signed and notarized before mint's tag, so a failure in any of that stops the release with nothing public yet. Its `pre_tag` hook runs every gate above, since no CI does, then `app/release-build`, which:
+mint sets the version in `.claude-plugin/plugin.json`, which the app takes too. The app is built, signed and notarized before mint's tag, so a failure in any of that stops the release with nothing public yet. Its `preflight` hook, `press check`, checks in seconds that the Mac can sign and notarize: the signing keychain opens, and notarytool's profile signs in. Its `pre_tag` hook runs every gate above, since no CI does, then `press prepare`, which, as `.press.toml` says:
 
-1. stops when the working tree differs from HEAD in anything but mint's bookkeeping (the version in `plugin.json`, `CHANGELOG.md`, `.mint.toml`), untracked files included, since mint commits whatever `pre_tag` leaves into the tag; so a `--notes-file` lives outside the repository;
-2. builds the app from HEAD, in a worktree of its own, by HEAD's own `app/bundle`, stamped with the version mint is about to tag;
-3. notarizes and staples it (`app/notarize`), and checks that Gatekeeper accepts the zip as a download;
-4. checks the working tree again, and that HEAD is still the commit built, then keeps the zip, its sha256 and the commit built in `~/Library/Caches/SitRep/release/<version>/`, where other versions' builds are kept a month.
+1. stops when the checkout has uncommitted changes, or the tag is taken;
+2. builds the app from HEAD, in a worktree of its own, by HEAD's own `app/bundle`, stamped with the version mint is about to tag (its `Info.plist` without a pre-release's suffix, the plugin with the version whole);
+3. signs it inside out (the CLI, the notices helper, then the app), notarizes and staples it, and checks that Gatekeeper accepts a quarantined copy as notarized, unpacked from the zip as a download;
+4. checks HEAD is still the commit built, then keeps the zip, its sha256 and the commit built in `~/Library/Caches/press/sitrep/<version>/`, where other versions' builds are kept a month.
 
-Then mint writes the notes, commits the version and the changelog, tags `v<version>`, pushes, and makes the GitHub release. Its `post_release` hook runs `app/release-upload`, which builds nothing:
+Then mint writes the notes, commits the version and the changelog, tags `v<version>`, pushes, and makes the GitHub release. Its `post_release` hook runs `press upload`, which:
 
-1. checks the kept zip is whole and was built from what the tag holds, but for mint's bookkeeping;
-2. uploads it as `SitRep-<version>.zip` to the release, replacing one there;
+1. checks the kept zip is whole and was built from what the tag holds, but for mint's bookkeeping (the version in `plugin.json`, `CHANGELOG.md`, `.mint.toml`), and builds the tag again, which notarizes again, where it wasn't;
+2. uploads it as `SitRep-<version>.zip` to the release, replacing one there, and checks GitHub lists it at its size;
 3. when the release is the latest, sends the cask in `leeovery/homebrew-tools` the version and the zip's sha256, and waits for the tap's workflow to commit them. A rerun for an older release leaves the cask alone, since the cask on an older version would downgrade every Mac.
 
-Both log everything to `~/Library/Logs/SitRep/release-<version>.log`. mint only warns when `post_release` fails, so run it again by hand, `app/release-upload` or `app/release-upload <version>`: it uploads what's kept and sends the cask again. When nothing fitting is kept, it says to build the tag again first, `app/release-build <version> v<version>`, which notarizes again. When the upload went and a step before the tap's run failed (finding the latest release, listing the tap's runs, sending the cask) or the tap started no run within a minute, it prints the command that sends the cask again. When the tap's run started, it prints the run's URL, and if that run fails, the URL and the command.
+Both log everything to `~/Library/Logs/press/sitrep-<version>.log`. mint only warns when `post_release` fails, so run it again by hand, `press upload <version>` (`--dry-run` says what it would upload and send): it uploads what's kept, or the tag built again, and sends the cask again. When the upload went and a step before the tap's run failed (finding the latest release, listing the tap's runs, sending the cask) or the tap started no run within a minute, it prints the command that sends the cask again. When the tap's run started, it prints the run's URL, and if that run fails, the URL and the command. `press prepare 0.0.0-check` checks signing and notarizing without releasing anything.
 
-Leave the clone alone while mint runs. `pre_tag`'s checks end with it, and mint then writes the notes and waits at the review gate before it tags: a commit or a pull made then, or an edit to `plugin.json` beyond its version, is tagged unbuilt, and `app/release-upload` refuses the zip. `app/release-build <version> v<version>`, then `app/release-upload <version>`, finish that release. Closing the gap needs a mint hook nearer the tag.
+Leave the clone alone while mint runs. `pre_tag`'s checks end with it, and mint then writes the notes and waits at the review gate before it tags: a commit or a pull made then, or an edit to `plugin.json` beyond its version, is tagged unbuilt, and `press upload` builds the tag again before it uploads. Closing the gap needs a mint hook nearer the tag.
 
-The cask downloads the zip from the release's public URL, `https://github.com/leeovery/sitrep/releases/download/v<version>/SitRep-<version>.zip`, with no token. A rerun of `app/release-upload` uploads the same kept zip, with the same sha256, but `gh release upload --clobber` deletes the old asset first: if that upload fails, installs of the current version get a 404 until a rerun succeeds. Only after `app/release-build` has built the zip again does its sha256 change: until the tap's workflow commits the new one, about a minute later, installs fail the cask's checksum, and if the sending or the update fails in between, they keep failing until a rerun or the printed command sends it again.
+The cask downloads the zip from the release's public URL, `https://github.com/leeovery/sitrep/releases/download/v<version>/SitRep-<version>.zip`, with no token. A rerun of `press upload` uploads the same kept zip, with the same sha256, but `gh release upload --clobber` deletes the old asset first: if that upload fails, installs of the current version get a 404 until a rerun succeeds. Only after the tag is built again does the zip's sha256 change: until the tap's workflow commits the new one, about a minute later, installs fail the cask's checksum, and if the sending or the update fails in between, they keep failing until a rerun or the printed command sends it again.
 
 Once per Mac that releases, beside the Developer ID certificate:
 

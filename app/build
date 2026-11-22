@@ -1,31 +1,35 @@
 #!/bin/bash
-# Builds SitRep, signed with Lee's Developer ID and carrying the plugin
-# (app/bundle), installs it to /Applications over the cask's copy and starts
-# it, replacing the one running. The login item and macOS's permissions
+# Builds SitRep, signed with Lee's Developer ID and carrying the plugin, and
+# installs it to /Applications over the cask's copy and starts it, replacing
+# the one running: app/bundle lays it out at plugin.json's version, then press
+# sign --dev signs it as .press.toml lists its parts, with no timestamp, so it
+# builds offline. The signature is the same from build to build, so macOS
+# keeps SitRep's permissions, and the login item and macOS's permissions
 # remember the app by where it is, so a build goes where the release is and
-# keeps the login item and the permissions, and there is never a second
-# bundle with SitRep's id. It isn't notarized: a build installed from here
-# is never quarantined, and notarizing would add minutes to every install.
-# As it starts, the build refreshes SitRep's copy of the plugin with the one
-# it carries, so every Claude window runs this checkout's mod from its next
-# /reload-plugins; or it leaves the sitrep marketplace as it is where it is
-# not SitRep's own (app/plugin). `brew reinstall --cask sitrep` puts the
-# release back, and the next release's `brew upgrade` replaces the build.
+# there is never a second bundle with SitRep's id. It isn't notarized: a build
+# installed from here is never quarantined, and notarizing would add minutes
+# to every install. As it starts, the build refreshes SitRep's copy of the
+# plugin with the one it carries, so every Claude window runs this checkout's
+# mod from its next /reload-plugins; or it leaves the sitrep marketplace as it
+# is where it is not SitRep's own (app/plugin). `brew reinstall --cask sitrep`
+# puts the release back, and the next release's `brew upgrade` replaces the
+# build.
 set -euo pipefail
 
+cd "$(dirname "$0")/.."
 installed=/Applications/SitRep.app
-app=$(cd "$(dirname "$0")" && pwd -P)
 
 # Put together outside the repository, and gone once installed.
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
-"$app/bundle" "$work"
-version=$(plutil -extract CFBundleShortVersionString raw -o - "$work/SitRep.app/Contents/Info.plist")
+version=$(plutil -extract version raw -o - .claude-plugin/plugin.json)
+app/bundle "$work" "$version"
+press sign --dev "$work"
 
-"$app/quit"
+app/quit
 
 rm -rf "$installed"
 ditto "$work/SitRep.app" "$installed"
-"$app/open"
+app/open
 
 echo "SitRep $version installed to $installed; brew reinstall --cask sitrep puts the release back"

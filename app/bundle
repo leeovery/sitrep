@@ -1,32 +1,23 @@
 #!/bin/bash
-# Builds SitRep.app into the folder given, signed with Lee's Developer ID
-# from the signing keychain (app/signing-common),
-# carrying the plugin and the notices helper: app/build runs it, then installs
-# what it made, and app/release-build, with --release, notarizes it. The
+# Lays SitRep.app out, unsigned, into the folder given, at the version given:
+# the app, carrying the plugin, its CLI and the notices helper. press signs
+# what it lays out, as .press.toml lists the parts: app/build runs it, then
+# press sign --dev, then installs what it made, and a release's press prepare
+# runs it in a worktree of its own, then signs, notarizes and staples it. The
 # folder must be outside the repository, and the bundle gone once installed: a
 # second signed copy left about could be the one macOS launches by its bundle
 # id.
 set -euo pipefail
 
-release=false
-if [[ ${1-} == --release ]]; then
-  release=true
-  shift
-fi
-if [[ $# -ne 1 ]]; then
-  echo "Usage: app/bundle [--release] <folder>" >&2
+if [[ $# -ne 2 || -z $2 ]]; then
+  echo "Usage: app/bundle <folder> <version>" >&2
   exit 1
 fi
 
-# macOS ties the leave to control Ghostty, notifications and the login item to
-# the bundle id and the Developer ID's team, not to a build or a certificate,
-# so a build from here and a release share them.
-identity="Developer ID Application: PointsBox Limited (CQKZZ4FN6V)"
 app=$(cd "$(dirname "$0")" && pwd)
 repo=$(dirname "$app")
-# shellcheck source=app/signing-common
-. "$app/signing-common"
 work=$1
+version=$2
 bundle="$work/SitRep.app"
 
 if [[ -e "$bundle" ]]; then
@@ -34,41 +25,12 @@ if [[ -e "$bundle" ]]; then
   exit 1
 fi
 
-unlock_keychain
-
-# Signed by the identity's hash: after a renewal the signing keychain holds two
-# of the name, and codesign refuses a name that is ambiguous.
-signer=$(security find-identity -v -p codesigning "$keychain" | grep -F "\"$identity\"" | awk '{ print $2 }' || true)
-if [[ -z $signer ]]; then
-  echo "No \"$identity\" signing identity in the signing keychain: SitRep is signed with it, and kit apply imports it, its developer-id step." >&2
-  exit 1
-fi
-if [[ $(wc -l <<< "$signer") -gt 1 ]]; then
-  echo "The signing keychain holds more than one \"$identity\" signing identity:" >&2
-  echo "$signer" >&2
-  echo "Remove the old one from the signing keychain, and keep the one to sign with." >&2
-  exit 1
-fi
-
-# Under the hardened runtime. A release's signatures carry a secure timestamp,
-# which notarizing needs: codesign fails without one, as when Apple's server
-# can't be reached. Any other build's carry none, so it builds offline.
-if $release; then
-  timestamp=--timestamp
-else
-  timestamp=--timestamp=none
-fi
-sign() {
-  codesign --force --options runtime "$timestamp" --keychain "$keychain" -s "$signer" "$@"
-}
-
-# One version covers the plugin and the app: plugin.json's, or, for a
-# release, as mint's pre_tag runs before mint writes it there, the version
-# mint is releasing.
-version=$(plutil -extract version raw -o - "$repo/.claude-plugin/plugin.json")
-if $release; then
-  version=${MINT_NEW_VERSION:-$version}
-fi
+# One version covers the plugin and the app: the version given, plugin.json's
+# for a build from here, and for a release the version mint is releasing, as
+# mint's pre_tag runs before mint writes it there. Apple reads a bundle's
+# versions as numbers and dots alone, so a pre-release's Info.plist carries
+# its release's, and the plugin the version whole.
+plain=${version%%-*}
 
 # The link is given the SDK as -isysroot. SwiftPM hands it to clang's link
 # only as --sysroot and with no SDKROOT, so clang records the deployment
@@ -87,8 +49,8 @@ mkdir -p "$bundle/Contents/MacOS" "$bundle/Contents/Resources"
 cp "$binaries/SitRep" "$bundle/Contents/MacOS/SitRep"
 info="$bundle/Contents/Info.plist"
 cp "$app/Info.plist" "$info"
-plutil -insert CFBundleShortVersionString -string "$version" "$info"
-plutil -insert CFBundleVersion -string "$version" "$info"
+plutil -insert CFBundleShortVersionString -string "$plain" "$info"
+plutil -insert CFBundleVersion -string "$plain" "$info"
 
 # The notices helper, which posts SitRep's banners: a click on one activates
 # the app that posted it, and the helper has no window, so macOS has no Space
@@ -102,8 +64,8 @@ cp "$binaries/SitRepNotices" "$helper/Contents/MacOS/SitRepNotices"
 helper_info="$helper/Contents/Info.plist"
 cp "$app/Notices/Info.plist" "$helper_info"
 plutil -insert CFBundleIdentifier -string "$(plutil -extract CFBundleIdentifier raw -o - "$info").notices" "$helper_info"
-plutil -insert CFBundleShortVersionString -string "$version" "$helper_info"
-plutil -insert CFBundleVersion -string "$version" "$helper_info"
+plutil -insert CFBundleShortVersionString -string "$plain" "$helper_info"
+plutil -insert CFBundleVersion -string "$plain" "$helper_info"
 plutil -insert LSMinimumSystemVersion -string "$(plutil -extract LSMinimumSystemVersion raw -o - "$info")" "$helper_info"
 
 # The plugin the app installs, as Claude Code runs it from this checkout:
@@ -133,13 +95,14 @@ fi
 # move, to another volume, it copies and leaves behind.
 cli="$plugin/bin/sitrep"
 (cd "$work" && bun build --compile "$repo/cli/shell/run.ts" --outfile "$cli" > /dev/null)
-sign --identifier "$(plutil -extract CFBundleIdentifier raw -o - "$info").cli" --entitlements "$app/CLI.entitlements" "$cli"
-# Its build, a digest of its files, which the app compares with its own
-# copy's, so a build at the same version from other edits still replaces it.
-# The CLI is among them as signed, and a signature records its time, a
-# release's as Apple's timestamp and any other's as the Mac's clock, so every
-# build's digest is new and replaces the copy.
-(cd "$plugin" && find . -type f -print0 | sort -z | xargs -0 shasum -a 256 | shasum -a 256 | cut -c1-16) > "$plugin/.sitrep-build"
+# Its build, which the app compares with its own copy's, so a build at the
+# same version from other edits still replaces it: a digest of its files,
+# with a value of its own mixed in, so every build's is new, though press
+# signs the CLI only once it is laid out.
+{
+  (cd "$plugin" && find . -type f -print0 | sort -z | xargs -0 shasum -a 256)
+  uuidgen
+} | shasum -a 256 | cut -c1-16 > "$plugin/.sitrep-build"
 
 # The icon, compiled from its Icon Composer layers: Assets.car, from which
 # macOS makes the dark, clear and tinted looks, and an .icns for older
@@ -164,33 +127,3 @@ for each in "$bundle" "$helper"; do
   /usr/libexec/PlistBuddy -c "Merge $work/icon.plist" "$each/Contents/Info.plist" > /dev/null
 done
 rm -r "$icon" "$work/icon.plist" "$work/actool.plist"
-
-# Inside out, never with --deep: the CLI as it was made, then the helper, as
-# SitRep's signature seals the helper's as it stands. The helper sends no
-# Apple Events, so it takes no entitlements.
-sign "$helper"
-sign --entitlements "$app/SitRep.entitlements" "$bundle"
-
-# Each part as macOS will judge it: by the Developer ID, under the hardened
-# runtime, a release's with a secure timestamp, and with the entitlements it
-# was given and no others. The app's --deep checks the CLI only as a file it
-# seals, so the CLI's own signature is verified too.
-codesign --verify --deep --strict "$bundle"
-codesign --verify --strict "$cli"
-check() {
-  local part=$1 given=$2 details signed expected=""
-  details=$(codesign -dvv "$part" 2>&1 || true)
-  # In one form, keys sorted as plutil writes them.
-  signed=$(codesign -d --entitlements - --xml "$part" 2> /dev/null | plutil -convert xml1 -o - - 2> /dev/null || true)
-  [[ -z $given ]] || expected=$(plutil -convert xml1 -o - "$given")
-  if ! grep -qF "Authority=$identity" <<< "$details" || ! grep -q "(runtime)" <<< "$details" ||
-    { $release && ! grep -q "^Timestamp=" <<< "$details"; } || [[ $signed != "$expected" ]]; then
-    echo "$part is not signed as app/bundle signs it:" >&2
-    echo "$details" >&2
-    codesign -d --entitlements - "$part" >&2
-    exit 1
-  fi
-}
-check "$cli" "$app/CLI.entitlements"
-check "$helper" ""
-check "$bundle" "$app/SitRep.entitlements"
