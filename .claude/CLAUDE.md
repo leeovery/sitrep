@@ -55,8 +55,8 @@ app's tests skip their scans, so the release refuses to run without it.
 `app/` is a Swift package, no Xcode project: the menu bar app, which runs
 the plugin's CLI for the board, and makes the jump itself. `app/bundle <folder> <version>`
 lays the bundle out, the plugin inside it, into a folder, unsigned; press,
-Lee's release tool (`~/bin/press`, reading `.press.toml`), signs it with
-his Developer ID from the signing keychain, which it unlocks itself.
+the owner's release tool (`~/bin/press`, reading `.press.toml`), signs it
+with the Developer ID from the signing keychain, which it unlocks itself.
 `app/build` runs `app/bundle` at `plugin.json`'s version, then
 `press sign --dev`, which signs it with no timestamp, installs the bundle to
 `/Applications/SitRep.app` over the cask's copy and starts it, replacing the

@@ -8708,15 +8708,15 @@ open), and tmux passing an escape sequence through from Claude's own pane
      does, then builds the release (`press prepare`); its `post_release`
      uploads it (`press upload`). Until 22 November 2026 the scripts below
      built and uploaded it (`app/release-build`, `app/release-upload`).
-   - **Through press** (22 November 2026): press, Lee's release tool in
+   - **Through press** (22 November 2026): press, the owner's release tool in
      kit-config, took over from the release scripts, `app/release-build`,
      `app/release-common`, `app/release-upload`, `app/notarize` and
      `app/signing-common`, which went. `.press.toml` says what SitRep builds
      and ships: the app, the CLI and the notices helper inside it, each
      signed by its identifier with its entitlements, inside out, under the
      hardened runtime, the zip `SitRep-<version>.zip`, its sha256, and the
-     cask in `leeovery/homebrew-tools`. press does what the bullets below
-     describe of the scripts: builds HEAD in a worktree of its own, by
+     cask in `leeovery/homebrew-tools`. press takes the steps the bullets
+     below set out: it builds HEAD in a worktree of its own, by
      HEAD's own `app/bundle`, signs it from the signing keychain, which it
      unlocks itself, notarises, staples and checks it as a quarantined
      download would be, keeps the zip in `~/Library/Caches/press/sitrep/<version>/`,
@@ -8724,20 +8724,30 @@ open), and tmux passing an escape sequence through from Claude's own pane
      `~/Library/Logs/press/sitrep-<version>.log`, and sends the cask its
      version and sha256 only for the latest release. The app's Info.plist
      carries the version without a pre-release suffix, the bundled plugin
-     the version whole. What differs: press checks only the tracked tree
-     against HEAD, and that HEAD hasn't moved, where `app/release-build`
-     counted untracked files too (mint still refuses them before its
-     hooks run); and press signs the CLI after `app/bundle` has stamped the
-     plugin, so `app/bundle` mixes a random value into the `.sitrep-build`
-     digest, which the CLI's signature, made before it, used to make new
-     for every build. The bullets below are how the scripts did it, which
-     press keeps.
+     the version whole. What differs: press checks the tracked tree
+     against HEAD before it builds, and again with HEAD before it keeps the build, where
+     `app/release-build` counted untracked files too (mint still refuses
+     them before its hooks run); and press signs the CLI after `app/bundle`
+     has stamped the plugin, so `app/bundle` mixes a random value into the
+     `.sitrep-build` digest, which the CLI's signature, made before it, used
+     to make new for every build. press keeps the rules the bullets below
+     set out, not the scripts' mechanics: those bullets marked "the
+     scripts'" are history. Its work folder and lock are its own,
+     `~/Library/Caches/press/sitrep/work` and `lock`, not
+     `.sitrep-release-work` and `.sitrep-release-lock`; a failed run
+     removes the apps it built and its worktree; `SITREP_RELEASE_CACHE` is
+     gone, press's folders being its config's; `press prepare <version>
+     [<ref>]` and `press upload <version>` build and upload by hand, where
+     `app/release-build <version> [<ref>]` and `app/release-upload
+     <version>` did; press, not `app/signing-common`, unlocks the signing
+     keychain; and press sends the submission without waiting, then waits
+     on it in rounds, where `app/notarize` sent it with `--wait`.
    - **Built on this Mac, not in CI** (Lee's choice): with the Xcode Lee
      tests with, no certificate in GitHub, and no macOS runner's minutes.
      It builds on a Mac only because the Developer ID's key and the notary
      login live in this Mac's signing keychain; Lee's other tools rightly
      build in CI (28 October 2026).
-   - **Built before the tag** (`app/release-build`), the last of mint's
+   - **Built before the tag** (the scripts', `app/release-build`), the last of mint's
      `pre_tag`, once every gate has passed: from HEAD, which mint tags once
      it commits its bookkeeping, in a git worktree of its own outside the
      repository, by HEAD's own `app/bundle --release`. mint's `pre_tag` runs
@@ -8780,7 +8790,7 @@ open), and tmux passing an escape sequence through from Claude's own pane
      its tag, for mint to be run again once it's put right: nothing is
      public yet. By hand, `app/release-build <version> [<ref>]` builds the
      version given, from HEAD or from the ref, as a tag's tree.
-   - **Uploaded after it** (`app/release-upload`), mint's `post_release`,
+   - **Uploaded after it** (the scripts', `app/release-upload`), mint's `post_release`,
      once the tag and the release are pushed: the zip kept uploaded to the
      release as `SitRep-<version>.zip`, replacing one there, and the cask
      sent its version and sha256 (below). Nothing is built after the
@@ -8813,13 +8823,13 @@ open), and tmux passing an escape sequence through from Claude's own pane
      not of the tag; `app/release-build <version> v<version>`, then
      `app/release-upload <version>`, finish it. Closing it needs a mint
      hook nearer the tag. So the clone is left alone while mint runs.
-   - **Logged.** mint shows nothing of a hook that succeeds, and only its
+   - **Logged** (the scripts'). mint shows nothing of a hook that succeeds, and only its
      stderr when it fails, so both stages write everything to stderr and
      to `~/Library/Logs/SitRep/release-<version>.log`, naming the log as
      they start; the log keeps the zip's sha256, the commit built, the
      asset's id and, when sending the cask fails, the command that sends
      it. A dry run does nothing: mint runs no hooks then.
-   - **Signed with Lee's Developer ID**, `Developer ID Application:
+   - **Signed with Lee's Developer ID** (the scripts'), `Developer ID Application:
      PointsBox Limited (CQKZZ4FN6V)` in the signing keychain,
      `~/Library/Keychains/signing.keychain-db`, by `app/bundle` for every
      build, `app/build`'s too, so a build from a checkout and a release
@@ -8842,7 +8852,7 @@ open), and tmux passing an escape sequence through from Claude's own pane
      entitlements, the app's Apple Events, the CLI's `allow-jit`, and none
      for the helper; and verifies the CLI's own signature, which the app's
      `--deep` checks only as a file it seals.
-   - **Notarised and stapled for a release only.** `app/notarize` zips the
+   - **Notarised and stapled for a release only** (the scripts'). `app/notarize` zips the
      app with `ditto`, sends it with `notarytool submit --wait` under the
      keychain profile `notarytool` in the signing keychain, the Mac's one
      login for notarising,
@@ -8866,7 +8876,7 @@ open), and tmux passing an escape sequence through from Claude's own pane
      uploaded: the first release is Lee's. The jump from a build signed so
      went as before, live, with no prompt (step 9); macOS may yet ask once
      more for leave to control Ghostty.
-   - **The cask and the tap's update**, built 27 October 2026. The cask,
+   - **The cask and the tap's update** (the scripts'), built 27 October 2026. The cask,
      `Casks/sitrep.rb` in `leeovery/homebrew-tools`, downloads the release's
      zip from its public URL, by the zip's name (see "Installing and
      updating"); it needs macOS 14 and an arm64 Mac, as the app and its CLI
