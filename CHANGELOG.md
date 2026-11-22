@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.1] - 2026-11-22
+
+🔧 Changed
+
+- Ages now round down to the largest whole unit everywhere, so 90 minutes reads `1h` instead of `2h` on every surface that shows how long ago something happened.
+
 ## [0.9.0] - 2026-11-20
 
 The board in any terminal: type `sitrep` in a Ghostty tab or over SSH from a phone, and see what waits on you.
