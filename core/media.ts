@@ -27,8 +27,11 @@ const SAVED_NAME = /^[0-9a-z]+\.[0-9a-z]+$/
 /** Where Claude Code's prompt leaves a pasted image: `[Image #1]`. */
 const PLACEHOLDER = /\[Image #(\d+)\]/g
 
-/** A saved attachment as a reply's words name it. */
-const NAMED = /\[(?:image|document): ([^\]\n]+)\]/g
+/** A saved attachment as a reply's words name it: its kind, and its path. */
+const NAMED = /\[(image|document): ([^\]\n]+)\]/g
+
+/** What each kind of saved attachment reads as on the board, as Claude Code's prompt shows an image. */
+const SHOWN: Record<SavedMedia['kind'], string> = { image: 'Image', document: 'Document' }
 
 export const mediaExtension = (mediaType: string) =>
   EXTENSIONS.get(mediaType) ?? SUBTYPE.exec(mediaType)?.[1] ?? 'bin'
@@ -49,19 +52,42 @@ export const MEDIA_HINT =
 
 /** The paths words name as attachments, whatever they are. */
 const namedPaths = (text: string | undefined) =>
-  [...(text ?? '').matchAll(NAMED)].map(([, path = '']) => path)
+  [...(text ?? '').matchAll(NAMED)].map(([, , path = '']) => path)
 
 /** Whether a path is a saved attachment's: directly in the folder `dir`, named as a save names one. */
 const isSavedIn = (dir: string, path: string) =>
   path.startsWith(`${dir}/`) && isSavedName(path.slice(dir.length + 1))
 
-/** Whether words name a saved attachment, in sitrep's media folder wherever sitrep's folder is: what has a message tell Claude to open one. */
-export const namesSavedMedia = (text: string | undefined) =>
-  namedPaths(text).some(path => {
-    const dir = path.slice(0, path.lastIndexOf('/'))
+/** Whether a path is a saved attachment's, in sitrep's media folder wherever sitrep's folder is. */
+const isSavedAnywhere = (path: string) => {
+  const dir = path.slice(0, path.lastIndexOf('/'))
 
-    return isMediaDir(dir) && isSavedIn(dir, path)
+  return isMediaDir(dir) && isSavedIn(dir, path)
+}
+
+/** Whether words name a saved attachment: what has a message tell Claude to open one. */
+export const namesSavedMedia = (text: string | undefined) => namedPaths(text).some(isSavedAnywhere)
+
+/**
+ * A reply's words as Lee sees them (Lee, 23 November 2026): each saved
+ * attachment as Claude Code's prompt shows an image, `[Image #1]` or
+ * `[Document #1]`, numbered by its kind in the order the words name them,
+ * since the path reads badly on the board. Any other words in the same
+ * brackets stay as they are. Only the words sent to Claude keep the path.
+ */
+export const shownWords = (text: string) => {
+  const counts: Record<SavedMedia['kind'], number> = { image: 0, document: 0 }
+
+  return text.replace(NAMED, (whole, kind: SavedMedia['kind'], path: string) => {
+    if (!isSavedAnywhere(path)) {
+      return whole
+    }
+
+    counts[kind] += 1
+
+    return `[${SHOWN[kind]} #${counts[kind]}]`
   })
+}
 
 /** The numbers of the image placeholders in `text`, each once, lowest first. */
 const placeholdersIn = (text: string) =>

@@ -16,10 +16,12 @@ import {
   mediaExtension,
   mediaFile,
   mediaNamed,
+  mediaWords,
   messageText,
   MEDIA_HINT,
   namesSavedMedia,
   placeMedia,
+  shownWords,
   type SavedMedia,
 } from '../core'
 import type { Host } from '../hooks/host'
@@ -209,6 +211,34 @@ test('only a path a save gives, in sitrep’s media folder wherever that is, has
       '[image: /Users/me/notsitrep/media/aaaa.png]',
     ].map(namesSavedMedia),
   ).toEqual([false, false, false, false, false, false])
+})
+
+test('the board shows a saved image as Claude Code’s prompt does, numbered within the words, the words around it kept', () => {
+  const lines = `[image: ${SHOT.path}] then [image: ${CROP.path}]\nand [image: ${SHOT.path}]`
+
+  expect(shownWords(`Frame 2 [image: ${SHOT.path}], cropped`)).toBe('Frame 2 [Image #1], cropped')
+  expect(shownWords(lines)).toBe('[Image #1] then [Image #2]\nand [Image #3]')
+})
+
+test('a saved document shows as one, counted apart from the images', () => {
+  const mixed = [SHOT, SPEC, CROP, SPEC].map(mediaWords).join(' ')
+
+  expect(shownWords(`See the spec [document: ${SPEC.path}]`)).toBe('See the spec [Document #1]')
+  expect(shownWords(mixed)).toBe('[Image #1] [Document #1] [Image #2] [Document #2]')
+})
+
+test('only a path a save gives is shown short: other words in the same brackets stay as they are, and count for nothing', () => {
+  const kept = [
+    '[image: /elsewhere/x.png]',
+    `[image: ${MEDIA}/deeper/aaaa.png]`,
+    `[document: ${ROOT}/snooze.json]`,
+    '[Image #4]',
+  ]
+
+  expect(shownWords([...kept, `[image: ${SHOT.path}]`].join(' '))).toBe(
+    [...kept, '[Image #1]'].join(' '),
+  )
+  expect(shownWords('No attachments here')).toBe('No attachments here')
 })
 
 test('the save writes a file only Lee can read, in a folder only Lee can open, every path an argument and never in the script', () => {

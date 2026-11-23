@@ -3,7 +3,7 @@
  * newest closed first, each opening to how it closed. It shows the latest
  * few, and a press opens it to every one.
  */
-import { answerOf, closingReply, listingOf, type Ask, type Filed } from '../../core'
+import { closingReply, listingOf, shownAnswerOf, type Ask, type Filed } from '../../core'
 import { resolvedList } from '../lists'
 import { C, GLYPH } from '../look'
 import { itemKey } from '../places'
@@ -23,7 +23,7 @@ const howClosed = (ask: Ask) => {
   const reply = closingReply(ask)
 
   if (reply !== undefined) {
-    return answerOf(ask, reply)
+    return shownAnswerOf(ask, reply)
   }
 
   return ask.reason === undefined ? 'resolved by Claude' : `resolved by Claude: ${ask.reason}`

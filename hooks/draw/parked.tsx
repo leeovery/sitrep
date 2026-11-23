@@ -11,7 +11,7 @@
  * first, in place, and is written at once, nothing sent to Claude
  * (DESIGN.md, "Dropping a parked item").
  */
-import { replyOnItsWay, type Listing, type ProjectKey } from '../../core'
+import { replyOnItsWay, shownWords, type Listing, type ProjectKey } from '../../core'
 import type { SitrepItemRef } from '../../types'
 import { pickedUpList, projectScope } from '../lists'
 import { C, GLYPH } from '../look'
@@ -174,10 +174,20 @@ const howTaken = ({ parked, pickedUpBy }: TakenAt) => {
   }
 }
 
+/** What was said as an item left Parked: Claude's reason for the close, else Lee's note on the pick-up, as Lee sees it. */
+const saidOf = ({ parked }: TakenAt) => {
+  if (parked.state === 'closed') {
+    return parked.reason
+  }
+
+  const note = parked.answer?.note
+
+  return note === undefined ? undefined : shownWords(note)
+}
+
 /** What an item taken off Parked opens to: Lee's note on the pick-up, or Claude's reason for the close, and where Claude's own record of it is; a dropped item, that alone. */
-const takenDetail = ({ parked }: TakenAt) => {
-  const said = parked.state === 'closed' ? parked.reason : parked.answer?.note
-  const detail = shown(said, seeRef(parked.ref, TAKEN_MARK.color))
+const takenDetail = (entry: TakenAt) => {
+  const detail = shown(saidOf(entry), seeRef(entry.parked.ref, TAKEN_MARK.color))
 
   return detail.length > 0 ? detail : ['nothing more was recorded']
 }
