@@ -93,6 +93,10 @@ export const MEDIA_DIR = 'media'
 
 export const mediaDir = (root: string) => `${root}/${MEDIA_DIR}`
 
+/** Whether a folder is sitrep's media folder, as `mediaDir` names one wherever sitrep's folder is. */
+export const isMediaDir = (dir: string) =>
+  dir.startsWith('/') && dir.endsWith(`/${FOLDER}/${MEDIA_DIR}`)
+
 export const projectPaths = (root: string, project: string): ProjectPaths => {
   const dir = `${projectsDir(root)}/${safe(project)}`
 

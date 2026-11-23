@@ -70,7 +70,7 @@ import { SEND, SEND_NOW } from './draw/ready'
 import { drawToolResult, drawToolRow, toolLine } from './draw/tool-row'
 import { logFailure, TOAST_MS, type Host } from './host'
 import { loadedNow } from './load'
-import { ranOk, removeArgv, saveArgv, sweepMedia } from './media'
+import { allowingSaved, processFiles, sweepMedia } from './media'
 import {
   BAND_KEYS,
   boardClosed,
@@ -126,8 +126,12 @@ const hostOf = ($: EngineInterface): Host => ({
     write: (path, text) => $.fs.write(path, text),
     list: dir => $.fs.list(dir),
     exists: path => $.fs.exists(path),
-    save: async (path, base64) => ranOk(await $.process.run(saveArgv(path), { stdin: base64 })),
-    remove: async paths => ranOk(await $.process.run(removeArgv(paths))),
+    real: path =>
+      $.fs.stat(path, { resolve: true }).then(
+        stat => stat.realPath,
+        () => undefined,
+      ),
+    ...processFiles((argv, init) => $.process.run(argv, init)),
   },
   clock: {
     now: () => $.clock.now(),
@@ -406,9 +410,10 @@ export const register: Register = on => {
   ).catch(($, e, next) => next(e))
 
   on('tool.check', async ($, e, next) => {
-    const verdict = await next(e)
+    const host = hostOf($)
+    const verdict = await allowingSaved(host, e, await next(e))
 
-    await heardCheck(hostOf($), e, verdict.decision)
+    await heardCheck(host, e, verdict.decision)
 
     return verdict
   }).catch(($, e, next) => next(e))
@@ -472,7 +477,7 @@ export const register: Register = on => {
     }
 
     // A prompt the answering mode takes goes no further, so it takes no board context either.
-    const taken = await captured(host, e)
+    const taken = await captured(host, e, next.signal)
 
     if (taken !== undefined && 'drop' in taken) {
       await wentNowhere()

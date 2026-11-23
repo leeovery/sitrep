@@ -1211,11 +1211,11 @@ show all 4
   shows as any other, with no mark of its own. Each is a list's row: a
   purple `●`, its title, and its age. Opened, its tree hangs from the mark:
   where to look, its `see`, and the pick-up once one waits or is on its way;
-  `pick it up` sits under the tree until then, in a
-  window holding a session of the item's project: another project's parked
-  items show there without them. `✕ drop` sits after them, dim, in any
-  window, and alone, drawn as any press, where they are not (18 November
-  2026; see "Dropping a parked item"). The pick-up queues in Ready to send
+  `pick it up` sits under the tree until then, in a window holding a
+  session of the item's project: another project's parked items show there
+  without it. `✕ drop` sits after it, dim, in any window, and alone, drawn
+  as any press, where it is not (18 November 2026; see "Dropping a parked
+  item"). The pick-up queues in Ready to send
   like any reply, to this session whichever session of the project parked
   the item (see Delivery); once queued, `✎ comment` under it writes its
   comment in the prompt as an ask's is, which goes with it as its note (see
@@ -1537,7 +1537,9 @@ its words name (see "An answer with an image", below).
    ✎ Your next Enter answers "Run sitrep list…"  ↓                         cancel
    ```
 
-   (`comments on` for a comment, `picks up` for a pick-up; a comment that
+   (`comments on` for a comment, and for a pick-up's note once the
+   pick-up is queued, as after a Go; `picks up` for a pick-up only where
+   none is queued, as after `↺ undo` while the mode stands; a comment that
    closes its ask, as one on an old decide does, is an answer, and says
    `answers`). It shows on the band of the surface the mode was begun on,
    and only there. `cancel` ends it, in one press. Escape at
@@ -1591,20 +1593,29 @@ base64 in slices of up to 4 MiB, `next` going on.
   16 random characters, then the extension its type names (`png`, `jpg`,
   `gif`, `webp`, `pdf`, else its subtype, else `bin`). `$.fs` writes only
   text and removes nothing, so a process writes the bytes and removes them
-  (hooks/media.ts): `/bin/sh -c 'umask 077 && mkdir -p "$1" &&
-  /usr/bin/base64 --decode > "$2"'`, the base64 on its standard input and
-  each path an argument, never in the script, the folder made 0700 and the
-  file 0600; and `/bin/rm -f --` and the paths.
+  (hooks/media.ts): `/bin/sh -c 'umask 077 && mkdir -p "$1" && chmod 700
+  "$1" && /usr/bin/base64 --decode > "$2"'`, the base64 on its standard
+  input and each path an argument, never in the script, the folder 0700 and
+  the file 0600; `/usr/bin/touch -c --` and the paths to mark them sent;
+  and `/bin/rm -f --` and the paths. Each runs from `/`, so a worktree
+  removed under the window breaks none. A read is whole only once its
+  slices end, each `next` past the one before, and its bytes come to the
+  `size` the engine gives; else it can't be saved.
 - **The words.** Each image takes its placeholder's place, `[Image #1]`
   becoming `[image: /…/sitrep/media/k3x9….png]`: the placeholders, lowest
   number first, take the images in the order attached. An attachment no
   placeholder places, a document among them, goes at the end, after a
-  space, or on a line of its own after words of several lines. The board
+  space, or on a line of its own after words of several lines. Nothing
+  in the types ties an attachment to its number, so Claude Code's own order
+  is trusted: a placeholder Lee deleted while its image stayed attached
+  would shift the images after it (a live check). The board
   shows the words as they are, the path among them, and `✎ edit` puts them
   back in the prompt so. A message any of whose lines names one ends with
   one line more, `Each [image: …] or [document: …] above is a file the user
-  attached: open it with your Read tool.` (core's `messageText`, so a send,
-  an inbox's delivery and a held send written again all carry it):
+  attached: open it with your Read tool.` It is decided from the replies'
+  notes, and only by a path a save gives, `<…>/sitrep/media/<name>.<ext>`,
+  never by other words in the same brackets (core's `messageText`, so a
+  send, an inbox's delivery and a held send written again all carry it):
 
   ```
   From the board:
@@ -1617,21 +1628,41 @@ base64 in slices of up to 4 MiB, `next` going on.
   `Your comment waits in Ready to send.` or its like: to any session's
   item, not only the held one's, the words going wherever the reply goes.
 - **The ride where any can't be saved**: audio, an attachment with no `id`,
-  a read answering `{ unreadable }` or `{ deny }` or failing, a write that
-  fails. What was saved of it is removed, and the prompt rides in as it did
-  before (below): nothing worse than before.
+  a read answering `{ unreadable }` or `{ deny }` or failing or falling
+  short, a write that fails. What was saved of it is removed, a file begun
+  by a failed write among them, and the prompt rides in as it did before
+  (below): nothing worse than before. For another session's item the ride
+  is refused as before, its toast saying first that `The attachment
+  couldn't be saved, so it can go only to this window's session: …`.
+- **A submission given up** while its attachments were saved (the hook's
+  `next.signal` aborted) queues nothing, and its files are removed; the
+  mode stands.
+- **Claude's Read of a saved file runs with no prompt.** The media folder
+  lies outside every working directory, so the engine's check would ask at
+  every send, and an inbox's reply in a window nobody watches would wait on
+  it. The `tool.check` hook turns that ask into an allow for a Read whose
+  `file_path` lands, every link and `..` followed (`$.fs.stat`'s
+  `realPath`), directly in the media folder, itself resolved, named as a
+  save names a file. A deny stands, and every other call's verdict is as it
+  came.
 - **A reply owns the files its words name**: a path directly in the media
   folder, named as a save names one, so no words name anything else for
   removing. A file goes once no reply names it without having gone anywhere:
-  `↺ undo`, `✕` in Ready to send, `cancel all`, or `✎ edit` taking words
-  that no longer name it (`changeQueue`, run by those presses and the mode's
-  Enter).
+  `↺ undo`, `✕` in Ready to send, `cancel all`, `✎ edit` taking words that
+  no longer name it, or a button's reply in place of it (`changeQueue`, run
+  by those presses and the mode's Enter). Two ways a reply leaves Ready to
+  send remove nothing, and the sweep takes what they leave: an inbox write
+  that fails, whose replies are put back, and the ride's displaced reply,
+  put back as it was (the ride's words never name a saved file).
 - **A sent reply's files stay** for the Claude it went to. Claude opens one
   in the turn the send starts, after the send is written down, and a reply
   sent into another session's inbox is read only at that window's next
-  delivery, however much later. So the window sweeps the media folder at
-  every session start: a file older than 14 days that no reply in its own
-  Ready to send names is removed. The sweep sees this window's Ready to send
+  delivery, however much later. So a send, written down or written into an
+  inbox, marks the files its replies name changed now, one `touch` for all,
+  and the window sweeps the media folder at every session start: a file
+  named as a save names one, changed over 14 days ago, that no reply in its
+  own Ready to send names is removed. A reply that waited long in Ready to
+  send is so counted from its send, never its save. The sweep sees this window's Ready to send
   alone, `$.state` being each window's: a file only another window's Ready
   to send names, waiting there over 14 days, is swept from under it.
 - **What the test kit can't do.** It answers no `$.prompt.media` (`no
@@ -1673,8 +1704,10 @@ keeps the image's blocks and puts the new text in place of the typed text
   prompt of Lee's does, the board's context with it.
 - **Only to this window's session.** The prompt goes into this window's
   Claude, so an ask of another session can't take it: the prompt is kept,
-  with `An attachment goes only to this window's session: take it out to
-  answer in words, or answer from that session's window.` A pick-up takes
+  with `The attachment couldn't be saved, so it can go only to this
+  window's session: take it out to answer in words, or answer from that
+  session's window.` (`An attachment goes only to this window's session: …`
+  until 23 November 2026, when the ride became the fallback.) A pick-up takes
   one whichever session of the project parked its item, since every pick-up
   goes to this window's Claude (11 November 2026; see Delivery).
 - **On its way from the start.** Before the prompt goes on, the reply is
@@ -3225,7 +3258,8 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   for each attachment the answering mode saved, named by 16 random
   characters and the extension its type names. A window writes them, and
   removes them as their reply leaves Ready to send without going, or at a
-  session start once 14 days old and named by nothing in its Ready to send.
+  session start once 14 days past its send and named by nothing in its
+  Ready to send. Claude reads them there with no prompt.
 - **`project.json`:** `{ v, name, directory?, created, by }`. A start or
   Claude's `move` writes it as it makes the project, and the `project`
   tool as it renames it or gives it a directory; a start or Claude's

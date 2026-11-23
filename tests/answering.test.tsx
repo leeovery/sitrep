@@ -824,9 +824,20 @@ test('✎ comment under a queued pick-up has the next Enter be its note: it says
   expect(await ui.find({ key: `pickup:${w.item(id)}` })).toBeUndefined()
 
   const { rows } = await bandRow(w)
-  const says = `✎ Your next Enter picks up "${TMUX}"  ↓`
+  const says = `✎ Your next Enter comments on "${TMUX}"  ↓`
 
   expect(rows).toEqual([`${says.padEnd(100 - 'cancel'.length)}cancel`])
+})
+
+test('↺ undo of the pick-up while its comment is being written leaves the mode standing: the band says the next Enter picks the item up, and it does, with the words its note', async ($, on) => {
+  const w = world($, on)
+  const { id, ui } = await pickingUp(w)
+
+  await ui.press({ key: `undo:${w.item(id)}` })
+  expect(w.state.queue).toEqual([])
+  expect((await bandRow(w)).rows[0]).toMatch(`✎ Your next Enter picks up "${TMUX}"`)
+  expect(await entered(w, $, 'Before the release')).toEqual({ drop: TAKEN.pickup })
+  expect(w.state.queue).toEqual([{ ...at(w, id), verdict: 'pickup', note: 'Before the release' }])
 })
 
 test('the next Enter is taken as the pick-up, its words the note: queued in Ready to send, nothing to Claude, the box emptied', async ($, on) => {
@@ -883,7 +894,7 @@ test('a reload keeps picking up: the band still names it, and the next Enter is 
   const { id } = await pickingUp(w)
 
   await $.session.start(CONVERSATION)
-  expect((await bandRow(w)).rows[0]).toMatch(/^✎ Your next Enter picks up "A priority badge"/)
+  expect((await bandRow(w)).rows[0]).toMatch(/^✎ Your next Enter comments on "A priority badge"/)
   expect(await entered(w, $, 'Before the release')).toEqual({ drop: TAKEN.pickup })
   expect(w.state.queue).toEqual([{ ...at(w, id), verdict: 'pickup', note: 'Before the release' }])
 })
@@ -905,7 +916,7 @@ test("picking up another session's parked item from the project's view stands fr
 
   await onLedgersParked(w, true)
   expect(w.state.others, 'the ledger not read in full').toEqual([])
-  expect((await bandRow(w)).rows[0]).toMatch(`✎ Your next Enter picks up "${EXPORT}"`)
+  expect((await bandRow(w)).rows[0]).toMatch(`✎ Your next Enter comments on "${EXPORT}"`)
   expect(await entered(w, $, 'With the totals')).toEqual({ drop: TAKEN.pickup })
   expect(w.state.queue).toEqual([
     {
@@ -973,7 +984,7 @@ test('a queued pick-up with a note shows it, how many lines more, undo and ✎ e
   await ui.press({ key: `rewrite:${w.item(id)}` })
   expect(w.box.text).toBe(FOUR_LINES)
   expect(w.state.answering).toMatchObject({ item: id, as: 'pickup' })
-  expect((await bandRow(w)).rows[0]).toMatch(/^✎ Your next Enter picks up /)
+  expect((await bandRow(w)).rows[0]).toMatch(/^✎ Your next Enter comments on /)
   expect(await entered(w, $, 'Before the release')).toEqual({ drop: TAKEN.pickup })
   expect(w.state.queue).toEqual([{ ...at(w, id), verdict: 'pickup', note: 'Before the release' }])
 })

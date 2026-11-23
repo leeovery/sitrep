@@ -1,6 +1,6 @@
 /**
- * The ride (DESIGN.md, "An answer with an image"): an answer whose
- * attachment can't be saved goes in at once with Lee's prompt. IMAGE
+ * The ride (DESIGN.md, "The ride", under "Answering an ask"): an answer
+ * whose attachment can't be saved goes in at once with Lee's prompt. IMAGE
  * carries no handle to read its bytes by, so it is never saved, and every
  * Enter here takes the ride; answering-media.test.tsx has the saved case.
  */

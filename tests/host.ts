@@ -25,6 +25,16 @@ export const fsOn = (files: Map<string, File>, now: number): Host['fs'] => {
         files.delete(path)
       }
     },
+    touch: async paths => {
+      for (const path of paths) {
+        const file = files.get(path)
+
+        if (file !== undefined) {
+          files.set(path, { ...file, mtimeMs: now })
+        }
+      }
+    },
+    real: async path => (isThere(files, path) ? path : undefined),
   }
 }
 

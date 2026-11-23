@@ -156,7 +156,7 @@ const queue = async (host: Host, reply: SitrepQueued<ProjectKey>) => {
   const keeping = await kept(host, reply, UNQUEUED)
 
   if (keeping !== undefined) {
-    await host.state.queue.update(replies => queuing(replies, keeping))
+    await changeQueue(host, replies => queuing(replies, keeping))
     await readIfElsewhere(host, reply)
   }
 }

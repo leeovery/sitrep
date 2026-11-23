@@ -30,7 +30,12 @@
  * Ended with nothing taken, the mode takes back the words it put in the
  * prompt box, so none of the board's words go to Claude unasked.
  */
-import type { PromptOrigin, PromptSubmitInput, RenderSurface } from 'claude-code'
+import type {
+  PromptOrigin,
+  PromptSubmitAttachment,
+  PromptSubmitInput,
+  RenderSurface,
+} from 'claude-code'
 import {
   barredBy,
   boardMessage,
@@ -45,7 +50,7 @@ import {
 import type { SitrepAnswering, SitrepAttachment, SitrepInFlight, SitrepQueued } from '../types'
 import { claimRide, letRideGo, rideTaken, type Ridden } from './deliver'
 import { logFailure, type Host } from './host'
-import { changeQueue, savedWith } from './media'
+import { changeQueue, removeMedia, savedWith } from './media'
 import { unwrapPastes } from './paste'
 import { briefOf, canReach, filedAt, parkedOf } from './places'
 import {
@@ -114,9 +119,9 @@ export const LEFT =
 
 const EMPTY = 'Write your answer in the prompt first, or cancel it on the band.'
 
-/** Why a prompt carrying an attachment that can't be saved is kept: it can go only into this window's Claude. */
+/** Why a prompt carrying an attachment that can't be saved is kept: unsaved, it can go only into this window's Claude. */
 export const ELSEWHERE =
-  "An attachment goes only to this window's session: take it out to answer in words, or answer from that session's window."
+  "The attachment couldn't be saved, so it can go only to this window's session: take it out to answer in words, or answer from that session's window."
 
 /** Why a reply can't go in with Lee's prompt, as Ready to send says it leaves one out, its session read afresh. */
 export const CANNOT_RIDE: Record<LeftOut, string> = {
@@ -508,6 +513,34 @@ const letIn = async (
 }
 
 /**
+ * Lee's words queued with his attachments saved and named in them; let in
+ * with them where any can't be saved. A submission given up while they were
+ * saved (`signal`) queues nothing, and leaves nothing saved.
+ */
+const withAttachments = async (
+  host: Host,
+  scene: Scene,
+  standing: Answering,
+  words: string,
+  attachments: readonly PromptSubmitAttachment[],
+  signal: AbortSignal | undefined,
+): Promise<Captured | undefined> => {
+  const saved = await savedWith(host, attachments, words)
+
+  if (saved === undefined) {
+    return letIn(host, scene, standing, words)
+  }
+
+  if (signal?.aborted === true) {
+    await removeMedia(host, saved.paths)
+
+    return { drop: NOT_TAKEN }
+  }
+
+  return queued(host, standing, saved.words)
+}
+
+/**
  * What the mode makes of Lee's prompt; undefined where it goes to Claude as
  * ever: a prompt not of Lee's own, one from a surface the mode is not shown
  * on, or one while a survey holds the band there. Its words are queued, each
@@ -518,6 +551,7 @@ const letIn = async (
 export const captured = async (
   host: Host,
   { text, attachments = [], origin }: Pick<PromptSubmitInput, 'text' | 'attachments' | 'origin'>,
+  signal?: AbortSignal,
 ): Promise<Captured | undefined> => {
   const surface = SURFACE_OF[origin.kind]
 
@@ -547,7 +581,7 @@ export const captured = async (
     return { drop: NOT_TAKEN }
   }
 
-  const saved = attachments.length > 0 ? await savedWith(host, attachments, words) : words
-
-  return saved === undefined ? letIn(host, scene, standing, words) : queued(host, standing, saved)
+  return attachments.length === 0
+    ? queued(host, standing, words)
+    : withAttachments(host, scene, standing, words, attachments, signal)
 }

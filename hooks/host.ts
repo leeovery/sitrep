@@ -71,6 +71,10 @@ export type Host = {
     save: (path: string, base64: string) => Promise<void>
     /** Removes files, those already gone among them. */
     remove: (paths: readonly string[]) => Promise<void>
+    /** Marks files changed now, making none that is gone. */
+    touch: (paths: readonly string[]) => Promise<void>
+    /** Where a path lands, every link and `..` followed; undefined where it leads nowhere. */
+    real: (path: string) => Promise<string | undefined>
   }
   clock: {
     now: () => Promise<number>

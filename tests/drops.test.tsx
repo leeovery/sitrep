@@ -5,7 +5,8 @@
  * reads the item gone from the board.
  */
 import { expect, test, tier, type Engine } from './kit'
-import { CURRENT_MS, sessionPaths, type SessionMeta } from '../core'
+import { CURRENT_MS, MEDIA_HINT, sessionPaths, type SessionMeta } from '../core'
+import { CLEAR_AFTER_DROP_MS } from '../hooks/answering'
 import { AROUND_MS } from '../hooks/around'
 import { C } from '../hooks/look'
 import {
@@ -23,6 +24,7 @@ import {
   W2,
   W4,
 } from './data'
+import { entered } from './answers'
 import { glyphColors, rowsOf } from './drawn'
 import { pane, sceneFrom } from './render'
 import { delivered, drop, file, finish, moveTo, park, reply, resolve, type Line } from './lines'
@@ -430,6 +432,30 @@ test("a send held for Claude's turn goes without a pick-up of another session's 
   await w.clock.advance(AROUND_MS)
   expect(await readyExport(ui), 'at the next look').toEqual([
     '└ pick it up · not sent: you dropped it',
+  ])
+})
+
+test("a held send written again without a dropped pick-up still tells Claude to open the saved file the reply it keeps names", async ($, on) => {
+  const w = world($, on)
+  const { ui } = await besideLedger(w, OPEN)
+  const posted = await asked(w, REVIEW)
+  const saved = `${ROOT}/media/aaaa.png`
+
+  await pickUpLedgers(ui)
+  await ui.press({ key: `pick:${w.item(posted)}` })
+  await ui.press({ key: `yes:${w.item(posted)}` })
+  await ui.press({ key: `rewrite:${w.item(posted)}` })
+  await entered(w, $, `Like this [image: ${saved}]`)
+  await w.clock.advance(CLEAR_AFTER_DROP_MS)
+  await w.turnStarts('Carry on.')
+  await ui.press({ key: 'send' })
+  w.put(LEDGER_OWN, file(...OPEN.lines, [w.clock.now(), drop('p1')]))
+  await w.turnEnds()
+  await w.clock.settle()
+
+  expect(w.submitted).toEqual([
+    'From the board:\n- Review Tickets & Replies, round 1 → Approve, with a comment: ' +
+      `“Like this [image: ${saved}]”${CLOSES}\n${MEDIA_HINT}`,
   ])
 })
 

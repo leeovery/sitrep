@@ -57,6 +57,7 @@ import { filedNow, foldAt, lookAround } from './around'
 import { folderAmong, folderHolding, folderKeys } from './folders'
 import { logFailure, rootFor, type Host } from './host'
 import { writeHeld, writeInto, type Into } from './into'
+import { freshenMedia } from './media'
 import { isCarriedBy, namedIn, queuing, repliedTo, unqueuing } from './queue'
 import { LINGER_MS, tickAfter } from './scene'
 import { changedKnown, postKnown, type ChangedThere } from './seen'
@@ -264,6 +265,7 @@ const AFTER: Record<SitrepSource, After> = {
     // Claude has shows in Ready to send as not sent, its ask answered by it.
     written: async (host, delivery) => {
       await host.state.queue.update(queue => queue.filter(each => !isCarriedBy(delivery, each)))
+      await freshenMedia(host, delivery.replies)
     },
     ended: async host => {
       tickAfter(host, LINGER_MS)
@@ -846,7 +848,12 @@ const goingNow = async (
 
   return kept.length === 0
     ? undefined
-    : { ...flight, replies: kept.map(each => each.reply), lines, text: messageText(lines) }
+    : {
+        ...flight,
+        replies: kept.map(each => each.reply),
+        lines,
+        text: messageText(lines, kept.map(each => each.reply.note)),
+      }
 }
 
 /**

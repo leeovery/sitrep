@@ -5,19 +5,19 @@
  * tool (DESIGN.md, "An answer with an image"). A reply owns the files its
  * words name.
  */
-import { mediaDir } from './paths'
+import { isMediaDir, mediaDir } from './paths'
 
 /** A saved attachment: its kind, and the file it was saved as. */
 export type SavedMedia = { kind: 'image' | 'document'; path: string }
 
 /** The extension each common type is saved with; any other takes its subtype, or `bin`. */
-const EXTENSIONS: Readonly<Record<string, string>> = {
-  'image/png': 'png',
-  'image/jpeg': 'jpg',
-  'image/gif': 'gif',
-  'image/webp': 'webp',
-  'application/pdf': 'pdf',
-}
+const EXTENSIONS: ReadonlyMap<string, string> = new Map([
+  ['image/png', 'png'],
+  ['image/jpeg', 'jpg'],
+  ['image/gif', 'gif'],
+  ['image/webp', 'webp'],
+  ['application/pdf', 'pdf'],
+])
 
 const SUBTYPE = /^[a-z]+\/([a-z0-9]+)$/
 
@@ -31,7 +31,10 @@ const PLACEHOLDER = /\[Image #(\d+)\]/g
 const NAMED = /\[(?:image|document): ([^\]\n]+)\]/g
 
 export const mediaExtension = (mediaType: string) =>
-  EXTENSIONS[mediaType] ?? SUBTYPE.exec(mediaType)?.[1] ?? 'bin'
+  EXTENSIONS.get(mediaType) ?? SUBTYPE.exec(mediaType)?.[1] ?? 'bin'
+
+/** Whether a file's name is one a save gives: drawn, then its extension. */
+export const isSavedName = (name: string) => SAVED_NAME.test(name)
 
 /** The file an attachment is saved as, under sitrep's folder `root`. */
 export const mediaFile = (root: string, name: string, mediaType: string) =>
@@ -44,8 +47,21 @@ export const mediaWords = ({ kind, path }: SavedMedia) => `[${kind}: ${path}]`
 export const MEDIA_HINT =
   'Each [image: …] or [document: …] above is a file the user attached: open it with your Read tool.'
 
-/** Whether a message's line names a saved attachment. */
-export const namesMedia = (line: string) => new RegExp(NAMED.source).test(line)
+/** The paths words name as attachments, whatever they are. */
+const namedPaths = (text: string | undefined) =>
+  [...(text ?? '').matchAll(NAMED)].map(([, path = '']) => path)
+
+/** Whether a path is a saved attachment's: directly in the folder `dir`, named as a save names one. */
+const isSavedIn = (dir: string, path: string) =>
+  path.startsWith(`${dir}/`) && isSavedName(path.slice(dir.length + 1))
+
+/** Whether words name a saved attachment, in sitrep's media folder wherever sitrep's folder is: what has a message tell Claude to open one. */
+export const namesSavedMedia = (text: string | undefined) =>
+  namedPaths(text).some(path => {
+    const dir = path.slice(0, path.lastIndexOf('/'))
+
+    return isMediaDir(dir) && isSavedIn(dir, path)
+  })
 
 /** The numbers of the image placeholders in `text`, each once, lowest first. */
 const placeholdersIn = (text: string) =>
@@ -85,10 +101,5 @@ export const placeMedia = (text: string, saved: readonly SavedMedia[]) => {
  * directly in its media folder, named as a save names one, so no words can
  * name anything else for removing.
  */
-export const mediaNamed = (text: string | undefined, root: string) => {
-  const dir = `${mediaDir(root)}/`
-
-  return [...(text ?? '').matchAll(NAMED)].flatMap(([, path = '']) =>
-    path.startsWith(dir) && SAVED_NAME.test(path.slice(dir.length)) ? [path] : [],
-  )
-}
+export const mediaNamed = (text: string | undefined, root: string) =>
+  namedPaths(text).filter(path => isSavedIn(mediaDir(root), path))

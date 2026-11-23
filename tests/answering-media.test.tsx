@@ -8,13 +8,14 @@
  * leaving Ready to send takes with it, and the sweep.
  */
 import type { PromptMedia, PromptMediaArgs, PromptSubmitAttachment } from 'claude-code'
-import { expect, test, tier, type Engine } from './kit'
-import { MEDIA_HINT } from '../core'
+import { drained, expect, test, tier, type Engine } from './kit'
+import { MEDIA_HINT, sessionPaths } from '../core'
+import { actionsOf } from '../hooks/actions'
 import { captured, ELSEWHERE, NOT_TAKEN, TAKEN } from '../hooks/answering'
 import type { Host } from '../hooks/host'
-import { removeArgv } from '../hooks/media'
+import { removeArgv, SAVED_READ, touchArgv } from '../hooks/media'
 import type { SitrepAnswering } from '../types'
-import { answering, entered, LIST, OUTPUT } from './answers'
+import { answering, entered, LIST, onLedgersAsks, OUTPUT } from './answers'
 import {
   CLOSES,
   DAY,
@@ -27,6 +28,7 @@ import {
   PROJECT,
   ROOT,
   T0,
+  W1,
 } from './data'
 import type { File } from './fs'
 import { wordsAsk, yesAsk } from './lines'
@@ -69,6 +71,7 @@ const enteredOn = async (
   text: string,
   attachments: readonly PromptSubmitAttachment[],
   media: (args: PromptMediaArgs) => PromptMedia = () => PNG,
+  signal?: AbortSignal,
 ) => {
   const { host, files } = await windowFrom(desk)
   const toasts: string[] = []
@@ -83,10 +86,13 @@ const enteredOn = async (
       media: async (args: PromptMediaArgs) => media(args),
     },
   } as unknown as Host
-  const made = await captured(window, { text, attachments, origin: { kind: 'composer' } })
+  const made = await captured(window, { text, attachments, origin: { kind: 'composer' } }, signal)
 
   return { made, host: window, files, toasts }
 }
+
+/** Where a reply to the held session's yes ask goes. */
+const AT_K1 = { project: PROJECT.key, session: HELD.id, item: 'k1' }
 
 /** The held session with Claude's yes ask, the window commenting on it. */
 const COMMENTING: Desk = {
@@ -110,6 +116,21 @@ test('a comment with an image waits in Ready to send: the image saved as a file,
     },
   ])
   expect(await host.state.answering.read()).toBeNull()
+})
+
+test('a submission given up while its image was saved queues nothing, and leaves nothing saved: the mode stands', async () => {
+  const { made, host, files } = await enteredOn(
+    COMMENTING,
+    'Like this [Image #1]',
+    [PASTED],
+    () => PNG,
+    AbortSignal.abort(),
+  )
+
+  expect(made).toEqual({ drop: NOT_TAKEN })
+  expect(savedIn(files)).toEqual([])
+  expect(await host.state.queue.read()).toEqual([])
+  expect(await host.state.answering.read()).toMatchObject({ item: 'k1', as: 'comment' })
 })
 
 /** The ledger's words ask, the window answering it. */
@@ -192,9 +213,13 @@ const commented = async (w: World, $: Engine, ...named: string[]) => {
   return { id, key, ui }
 }
 
-/** Whether the window removed exactly `paths`, in one run, and they are gone. */
+/** The processes the window ran of a command, each with how it ran it. */
+const ranOf = (w: World, command: string) =>
+  w.runs.flatMap((argv, i) => (argv[0] === command ? [{ argv, init: w.inits[i] }] : []))
+
+/** Whether the window removed exactly `paths`, in one run from /, and they are gone. */
 const removed = (w: World, ...paths: string[]) => {
-  expect(w.runs.filter(argv => argv[0] === '/bin/rm')).toEqual([removeArgv(paths)])
+  expect(ranOf(w, '/bin/rm')).toEqual([{ argv: removeArgv(paths), init: { cwd: '/' } }])
   expect(paths.filter(path => w.files.has(path))).toEqual([])
 }
 
@@ -209,7 +234,29 @@ test('a send words the reply with the path in its place, and tells Claude once t
   ])
   expect(w.state.queue).toEqual([])
   expect(w.files.has(SHOT), 'kept for Claude').toBe(true)
-  expect(w.runs.filter(argv => argv[0] === '/bin/rm')).toEqual([])
+  expect(ranOf(w, '/bin/rm')).toEqual([])
+  expect(ranOf(w, '/usr/bin/touch')).toEqual([{ argv: touchArgv([SHOT]), init: { cwd: '/' } }])
+  expect(w.files.get(SHOT)?.mtimeMs, 'its 14 days counted from the send').toBe(w.clock.now())
+})
+
+test("a reply with a saved file sent into another session's inbox keeps the file, marked fresh for that window's delivery", async ($, on) => {
+  const w = world($, on)
+  const ui = await onLedgersAsks(w)
+  const there = w.item('k3', LEDGER.id)
+
+  w.files.set(SHOT, { text: '', mtimeMs: T0 })
+  await ui.press({ key: `pick:${there}` })
+  await ui.press({ key: `answer:${there}` })
+  await entered(w, $, `These [image: ${SHOT}]`)
+  await w.clock.advance(MIN)
+  await ui.press({ key: 'send' })
+
+  expect(
+    w.text(sessionPaths(ROOT, PROJECT.key, LEDGER.id).letters(W1)),
+    'in the ledger’s inbox',
+  ).toContain(SHOT)
+  expect(ranOf(w, '/usr/bin/touch')).toEqual([{ argv: touchArgv([SHOT]), init: { cwd: '/' } }])
+  expect(w.files.get(SHOT)?.mtimeMs).toBe(w.clock.now())
 })
 
 test('undo takes the reply’s file with it', async ($, on) => {
@@ -226,6 +273,33 @@ test('✕ in Ready to send takes the reply’s file with it', async ($, on) => {
 
   await ui.press({ key: `unready:${key}` })
   removed(w, SHOT, CROP)
+})
+
+test('a removal that fails says so in the debug log, and leaves the file for the sweep', async ($, on) => {
+  const w = world($, on)
+  const { key, ui } = await commented(w, $, SHOT)
+
+  w.refuseWrites(path => path === SHOT)
+  await ui.press({ key: `undo:${key}` })
+  expect(w.logs).toContain(
+    `sitrep: removing saved attachments failed: /bin/rm: ${SHOT}: Operation not permitted`,
+  )
+  expect(w.files.has(SHOT)).toBe(true)
+  expect(w.state.queue).toEqual([])
+})
+
+test('a reply pressed in place of one naming a saved file takes the file with it', async () => {
+  const { host, files } = await windowFrom({
+    ...COMMENTING,
+    answering: null,
+    queue: [{ ...AT_K1, verdict: 'comment', note: `Like this [image: ${SHOT}]` }],
+  })
+
+  files.set(SHOT, { text: '', mtimeMs: T0 })
+  actionsOf(host).reply({ ...AT_K1, verdict: 'yes' })
+  await drained()
+  expect(await host.state.queue.read()).toEqual([{ ...AT_K1, verdict: 'yes' }])
+  expect(savedIn(files)).toEqual([])
 })
 
 test('cancel all takes every reply’s file with it', async ($, on) => {
@@ -261,4 +335,53 @@ test('the session start sweeps the saved files over 14 days old that nothing in 
   await $.session.start(CONVERSATION)
   removed(w, stale)
   expect([SHOT, fresh].filter(path => w.files.has(path))).toEqual([SHOT, fresh])
+})
+
+/** Claude's Read of `path`, checked, the engine's own check asking, as it does outside every working directory. */
+const readChecked = (w: World, $: Engine, path: string) => {
+  w.checkGives('Read', 'ask')
+
+  return $.tool.check({ tool: 'Read', input: { file_path: path } })
+}
+
+test("Claude's Read of a saved file runs with no prompt, though it lies outside every working directory", async ($, on) => {
+  const w = world($, on)
+
+  await w.begin()
+  w.files.set(SHOT, { text: '', mtimeMs: T0 })
+  expect(await readChecked(w, $, SHOT)).toEqual({ decision: 'allow', reason: SAVED_READ })
+  expect(
+    (await readChecked(w, $, `${MEDIA}/deeper/../aaaa.png`)).decision,
+    'where it lands, `..` folded',
+  ).toBe('allow')
+})
+
+test("any other Read is checked as it came: beside the media folder, below it, out of it by `..`, in another folder, or named as no save names a file", async ($, on) => {
+  const w = world($, on)
+  const others = [
+    `${ROOT}/aaaa.png`,
+    `${MEDIA}/deeper/aaaa.png`,
+    `${MEDIA}/../snooze.json`,
+    '/Users/me/Desktop/aaaa.png',
+    `${MEDIA}/Notes.txt`,
+  ]
+
+  await w.begin()
+
+  for (const path of [...others, `${ROOT}/snooze.json`]) {
+    w.files.set(path, { text: '', mtimeMs: T0 })
+  }
+
+  for (const path of others) {
+    expect((await readChecked(w, $, path)).decision, path).toBe('ask')
+  }
+})
+
+test("a deny of Claude's Read of a saved file stands", async ($, on) => {
+  const w = world($, on)
+
+  await w.begin()
+  w.files.set(SHOT, { text: '', mtimeMs: T0 })
+  w.checkGives('Read', 'deny')
+  expect((await $.tool.check({ tool: 'Read', input: { file_path: SHOT } })).decision).toBe('deny')
 })

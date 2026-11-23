@@ -3,7 +3,7 @@
  * built-in tools' calls the engine runs, with their permission checks,
  * dialogs and endings; and the turn's Stop.
  */
-import type { ClassicEventOf, ClassicResultOf, On } from 'claude-code'
+import type { ClassicEventOf, ClassicResultOf, On, ToolCheckResult } from 'claude-code'
 import type { Engine } from 'claude-code/testing'
 
 /** What a test calls a tool with: its short name and its arguments. */
@@ -88,6 +88,9 @@ export function tools(engine: Engine, on: On) {
 
   on('classic.Stop', () => stopAnswer)
 
+  /** What the engine's own check answers each tool no call beneath names, by its name: `allow` for any not here. */
+  const checks = new Map<string, ToolCheckResult['decision']>()
+
   on('tool.check', ($, e) => {
     const call = beneath.get(callKey(e.tool, e.input as Args))
 
@@ -97,11 +100,14 @@ export function tools(engine: Engine, on: On) {
       return { decision: 'allow' as const }
     }
 
-    return { decision: call?.verdict ?? 'allow' }
+    return { decision: call?.verdict ?? checks.get(e.tool) ?? 'allow' }
   })
 
   return {
     registered,
+
+    /** The engine's own check answers `decision` from here on for every call of `tool` no call beneath names. */
+    checkGives: (tool: string, decision: ToolCheckResult['decision']) => checks.set(tool, decision),
 
     /** Calls one of sitrep's tools from the main conversation, or from a subagent given its id. */
     call: (name: string, args: Args = {}, agentId?: string) =>

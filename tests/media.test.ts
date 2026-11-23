@@ -5,7 +5,12 @@
  * test kit cannot answer `$.prompt.media` (no implementation, and no event
  * a test can answer it on).
  */
-import type { PromptMedia, PromptMediaArgs, PromptSubmitAttachment } from 'claude-code'
+import type {
+  ProcessRunInit,
+  PromptMedia,
+  PromptMediaArgs,
+  PromptSubmitAttachment,
+} from 'claude-code'
 import { expect, test } from './kit'
 import {
   mediaExtension,
@@ -13,11 +18,21 @@ import {
   mediaNamed,
   messageText,
   MEDIA_HINT,
+  namesSavedMedia,
   placeMedia,
   type SavedMedia,
 } from '../core'
 import type { Host } from '../hooks/host'
-import { changeQueue, removeArgv, saveArgv, savedWith, sweepMedia } from '../hooks/media'
+import {
+  changeQueue,
+  freshenMedia,
+  processFiles,
+  removeArgv,
+  saveArgv,
+  savedWith,
+  sweepMedia,
+  touchArgv,
+} from '../hooks/media'
 import type { SitrepQueued } from '../types'
 import { DAY, HOME, MIN, PROJECT, ROOT, STATE_HOME, T0 } from './data'
 import { bytesOf, type File } from './fs'
@@ -51,21 +66,32 @@ const image = (id?: string): PromptSubmitAttachment => ({
   id,
 })
 
-/** A host whose files are `files`, its engine answering `answers` for the prompt's attachments, and the reads it was asked for. */
+/**
+ * A host whose files are `files`, its engine answering `answers` for the
+ * prompt's attachments, and the reads it was asked for. The save numbered
+ * `failing`, counting from 0, fails once its file is begun, as the shell's
+ * redirect makes the file before the write fails.
+ */
 const hostOn = (
   files: Map<string, File>,
-  answers: Answers,
+  answers: Answers = {},
   queue: SitrepQueued[] = [],
-  refusing: (path: string) => boolean = () => false,
+  failing?: number,
 ) => {
   const fs = fsOn(files, T0)
   const reads: PromptMediaArgs[] = []
   const logged: string[] = []
+  let saves = 0
   const host = {
     fs: {
       ...fs,
-      save: (path: string, base64: string) =>
-        refusing(path) ? Promise.reject(new Error('EIO')) : fs.save(path, base64),
+      save: async (path: string, base64: string) => {
+        await fs.save(path, base64)
+
+        if (saves++ === failing) {
+          throw new Error('EIO')
+        }
+      },
     },
     env: async () => ({ XDG_STATE_HOME: STATE_HOME, HOME }),
     clock: { now: async () => T0 },
@@ -123,6 +149,14 @@ test('an attachment no placeholder places goes at the end: after a space, or on 
   )
 })
 
+test('a type that names a property every object has takes the fallback, never the property', () => {
+  expect(['__proto__', 'constructor', 'toString'].map(mediaExtension)).toEqual([
+    'bin',
+    'bin',
+    'bin',
+  ])
+})
+
 test('a saved file is named for its type: the common ones by their usual extension, any other by its subtype, else bin', () => {
   expect(['image/png', 'image/jpeg', 'image/webp', 'application/pdf'].map(mediaExtension)).toEqual(
     ['png', 'jpg', 'webp', 'pdf'],
@@ -146,42 +180,100 @@ test('words own only the saved files they name directly in the media folder: not
   expect(mediaNamed(undefined, ROOT)).toEqual([])
 })
 
-test('a message naming a saved file tells Claude, once at its end, to open each with its Read tool; one naming none says nothing of it', () => {
-  const named = [`- Give the ok → Go, with a comment: “Like this [image: ${SHOT.path}]”`]
+test('a message whose replies name a saved file tells Claude, once at its end, to open each with its Read tool; one naming none says nothing of it', () => {
+  const note = `Like this [image: ${SHOT.path}]`
+  const lines = [`- Give the ok → Go, with a comment: “${note}”`, '- Ship it → Redraw']
 
-  expect(messageText(named)).toBe(`From the board:\n${named[0]}\n${MEDIA_HINT}`)
+  expect(messageText(lines, [note, undefined])).toBe(
+    `From the board:\n${lines.join('\n')}\n${MEDIA_HINT}`,
+  )
   expect(MEDIA_HINT).toBe(
     'Each [image: …] or [document: …] above is a file the user attached: ' +
       'open it with your Read tool.',
   )
-  expect(messageText(['- Run it → answer: “[Image #1]”'])).not.toContain(MEDIA_HINT)
+  expect(messageText(['- Run it → answer: “[Image #1]”'], ['[Image #1]'])).not.toContain(
+    MEDIA_HINT,
+  )
 })
 
-test('the save writes a file only Lee can read, its folder made as needed, every path an argument and never in the script', () => {
+test('only a path a save gives, in sitrep’s media folder wherever that is, has a message tell Claude to open it: never other words in the same brackets', () => {
+  expect(namesSavedMedia(`[image: ${SHOT.path}]`)).toBe(true)
+  expect(namesSavedMedia('[document: /Users/me/.local/state/sitrep/media/k3x9.pdf]')).toBe(true)
+  expect(
+    [
+      '[image: /tmp/shot.png]',
+      `[image: ${ROOT}/snooze.json]`,
+      `[image: ${MEDIA}/deeper/aaaa.png]`,
+      `[image: ${MEDIA}/Shot 1.png]`,
+      '[image: sitrep/media/aaaa.png]',
+      '[image: /Users/me/notsitrep/media/aaaa.png]',
+    ].map(namesSavedMedia),
+  ).toEqual([false, false, false, false, false, false])
+})
+
+test('the save writes a file only Lee can read, in a folder only Lee can open, every path an argument and never in the script', () => {
   const path = `${MEDIA}/aaaa.png`
   const [shell, flag, script, name, dir, file] = saveArgv(path)
 
   expect([shell, flag, name, dir, file]).toEqual(['/bin/sh', '-c', 'sh', MEDIA, path])
-  expect(script).toBe('umask 077 && mkdir -p "$1" && /usr/bin/base64 --decode > "$2"')
+  expect(script).toBe(
+    'umask 077 && mkdir -p "$1" && chmod 700 "$1" && /usr/bin/base64 --decode > "$2"',
+  )
   expect(removeArgv([path])).toEqual(['/bin/rm', '-f', '--', path])
+  expect(touchArgv([path])).toEqual(['/usr/bin/touch', '-c', '--', path])
+})
+
+test('the host saves, marks and removes by running each process from /, the bytes on the save’s standard input; one that exits otherwise fails, saying why', async () => {
+  const path = `${MEDIA}/aaaa.png`
+  const runs: { argv: readonly string[]; init?: ProcessRunInit }[] = []
+  let exitCode = 0
+  const files = processFiles(async (argv, init) => {
+    runs.push({ argv, init })
+
+    return {
+      exitCode,
+      stdout: '',
+      stderr: exitCode === 0 ? '' : 'rm: aaaa.png: Operation not permitted\n',
+      isStdoutTruncated: false,
+      isStderrTruncated: false,
+    }
+  })
+
+  await files.save(path, HEAD + TAIL)
+  await files.touch([path])
+  await files.remove([path])
+  expect(runs).toEqual([
+    { argv: saveArgv(path), init: { cwd: '/', stdin: HEAD + TAIL } },
+    { argv: touchArgv([path]), init: { cwd: '/' } },
+    { argv: removeArgv([path]), init: { cwd: '/' } },
+  ])
+
+  exitCode = 1
+
+  const failed = await files.remove([path]).then(
+    () => 'removed',
+    (error: Error) => error.message,
+  )
+
+  expect(failed).toBe('rm: aaaa.png: Operation not permitted')
 })
 
 test('an image is read slice by slice while the prompt is in flight, saved whole, and named in the words where it sat', async () => {
   const files = new Map<string, File>()
   const { host, reads } = hostOn(files, { a1: PNG })
-  const words = await savedWith(host, [image('a1')], 'Like this [Image #1]')
+  const saved = await savedWith(host, [image('a1')], 'Like this [Image #1]')
   const [path = ''] = savedIn(files)
 
   expect(reads).toEqual([{ id: 'a1' }, { id: 'a1', offset: 6 }])
   expect(path).toMatch(new RegExp(`^${MEDIA}/[0-9a-z]{16}\\.png$`))
   expect(files.get(path)?.bytes).toEqual(bytesOf(HEAD + TAIL))
-  expect(words).toBe(`Like this [image: ${path}]`)
+  expect(saved).toEqual({ words: `Like this [image: ${path}]`, paths: [path] })
 })
 
 test('a document is saved too, and named at the end', async () => {
   const files = new Map<string, File>()
   const { host } = hostOn(files, { a1: PNG, d1: PDF })
-  const words = await savedWith(
+  const saved = await savedWith(
     host,
     [image('a1'), { type: 'document', mediaType: 'application/pdf', id: 'd1' }],
     'Both [Image #1]',
@@ -189,30 +281,35 @@ test('a document is saved too, and named at the end', async () => {
   const png = savedIn(files).find(path => path.endsWith('.png'))
   const pdf = savedIn(files).find(path => path.endsWith('.pdf'))
 
-  expect(words).toBe(`Both [image: ${png}] [document: ${pdf}]`)
+  expect(saved?.words).toBe(`Both [image: ${png}] [document: ${pdf}]`)
 })
 
 /** Each way an attachment can't be saved, as the engine or the disk answers it. */
-const FAILURES: readonly [string, PromptSubmitAttachment, Answers, boolean?][] = [
+const FAILURES: readonly [string, PromptSubmitAttachment, Answers, number?][] = [
   ['unreadable', image('a2'), { a2: [{ unreadable: 'too large to process' }] }],
   ['refused', image('a2'), { a2: [{ deny: 'not this submission' }] }],
   ['audio', { type: 'audio', mediaType: 'audio/wav', id: 'a2' }, {}],
   ['with no id', image(), {}],
-  ['whose write fails', image('a2'), { a2: PNG }, true],
+  [
+    'whose slices go on from no further than they started',
+    image('a2'),
+    { a2: [{ ...PNG[0], next: 0 } as PromptMedia] },
+  ],
+  [
+    'whose bytes fall short of the size the engine gives',
+    image('a2'),
+    { a2: [{ type: 'image', mediaType: 'image/png', base64: HEAD, size: 8 }] },
+  ],
+  ['whose write fails, its file begun', image('a2'), { a2: PNG }, 1],
 ]
 
-for (const [why, failing, answers, isWriteRefused] of FAILURES) {
+for (const [why, failing, answers, failingSave] of FAILURES) {
   test(`an attachment ${why} leaves nothing saved, and the prompt rides in as before`, async () => {
     const files = new Map<string, File>()
-    const { host } = hostOn(
-      files,
-      { a1: PNG, ...answers },
-      [],
-      () => isWriteRefused === true && savedIn(files).length > 0,
-    )
+    const { host } = hostOn(files, { a1: PNG, ...answers }, [], failingSave)
 
     expect(await savedWith(host, [image('a1'), failing], '[Image #1] [Image #2]')).toBeUndefined()
-    expect(savedIn(files), 'the first one saved, removed again').toEqual([])
+    expect(savedIn(files), 'each one begun, removed again').toEqual([])
   })
 }
 
@@ -254,21 +351,33 @@ test('words written again that still name a file keep it; words that name it no 
   expect(savedIn(files)).toEqual([])
 })
 
-test('the sweep removes the files older than 14 days that no reply in Ready to send names, and nothing else', async () => {
+test('the sweep removes the files older than 14 days that no reply in Ready to send names, and nothing else, nor any name a save never gives', async () => {
   const old = T0 - 14 * DAY - MIN
+  const notSaved = `${MEDIA}/Notes.txt`
   const files = new Map([
-    ...filesAt(old, SHOT.path, CROP.path),
+    ...filesAt(old, SHOT.path, CROP.path, notSaved),
     ...filesAt(T0 - 13 * DAY, SPEC.path),
   ])
   const { host } = hostOn(files, {}, [comment(`[image: ${CROP.path}]`)])
 
   await sweepMedia(host)
-  expect(savedIn(files).sort()).toEqual([CROP.path, SPEC.path])
+  expect(savedIn(files).sort()).toEqual([notSaved, CROP.path, SPEC.path].sort())
+})
+
+test('a send marks the saved files its replies name fresh, so the sweep counts their 14 days from it; nothing else', async () => {
+  const old = T0 - 20 * DAY
+  const files = filesAt(old, SHOT.path, CROP.path)
+  const { host } = hostOn(files)
+
+  await freshenMedia(host, [comment(`[image: ${SHOT.path}]`), comment('No picture')])
+  expect([files.get(SHOT.path)?.mtimeMs, files.get(CROP.path)?.mtimeMs]).toEqual([T0, old])
+  await sweepMedia(host)
+  expect(savedIn(files)).toEqual([SHOT.path])
 })
 
 test('the sweep with no media folder lists nothing, and removes nothing', async () => {
   const files = filesAt(T0 - 30 * DAY, `${ROOT}/snooze.json`)
-  const { host } = hostOn(files, {})
+  const { host } = hostOn(files)
 
   await sweepMedia(host)
   expect([...files.keys()]).toEqual([`${ROOT}/snooze.json`])
