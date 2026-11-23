@@ -11,8 +11,8 @@
 import type { ElementTable, RenderElement, RenderSurface } from 'claude-code'
 import {
   ago,
-  answerOf,
   moreLines,
+  shownAnswerOf,
   type Ask,
   type Parked,
   type ReplyFields,
@@ -484,7 +484,7 @@ export const drawReplyRow = (
     <Box flexGrow={1} flexShrink={1} flexDirection="row" columnGap={1}>
       <Box flexShrink={1}>
         <Text color={C.soft} wrap="truncate-end">
-          {answerOf(item, reply)}
+          {shownAnswerOf(item, reply)}
         </Text>
       </Box>
       {more > 0 && (

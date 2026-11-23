@@ -1608,9 +1608,10 @@ base64 in slices of up to 4 MiB, `next` going on.
   space, or on a line of its own after words of several lines. Nothing
   in the types ties an attachment to its number, so Claude Code's own order
   is trusted: a placeholder Lee deleted while its image stayed attached
-  would shift the images after it (a live check). The board
-  shows the words as they are, the path among them, and `✎ edit` puts them
-  back in the prompt so. A message any of whose lines names one ends with
+  would shift the images after it (a live check). The board shows each
+  saved file short (below), and `✎ edit` puts the words back in the prompt
+  with the path, since words that no longer name a file remove it. A
+  message any of whose lines names one ends with
   one line more, `Each [image: …] or [document: …] above is a file the user
   attached: open it with your Read tool.` It is decided from the replies'
   notes, and only by a path a save gives, `<…>/sitrep/media/<name>.<ext>`,
@@ -1624,6 +1625,25 @@ base64 in slices of up to 4 MiB, `next` going on.
   Each [image: …] or [document: …] above is a file the user attached: open it with your Read tool.
   ```
 
+- **Shown short** (Lee, 23 November 2026). Every surface that shows Lee a
+  reply's words shows a saved file as Claude Code's prompt shows an image:
+  `[Image #1]`, or `[Document #1]` for a document, each kind counted on its
+  own. The number in Claude Code's placeholder is only its paste counter
+  for the session, so here `n` counts the saved files within that one
+  reply's words, in order: 1, 2 and so on. A file is told by the hint's
+  rule, a path a save gives; other words in the same brackets stay as typed
+  and count for nothing (core's `shownWords`). So the row under the ask,
+  Ready to send's row, `you commented: “…”`, a picked-up item's note in
+  Parked and a resolved ask's answer read `comment: “Frame 2 [Image #1]”`
+  (core's `shownAnswerOf` on one row). A row clips after the change, so
+  `[Image #1]` shows whole where it fits. The path stays in what is stored,
+  in the words sent to Claude (the send, an inbox's delivery and a held
+  send), in Claude's own reading of the board (`replied (…)`, which
+  `sitrep board` prints too), and in `--json`'s `words`, which a script may
+  need. The Mac app and the terminal view show no reply's words at all.
+  Until then the board showed the words as they were: live, a queued row
+  read `“[image: /Users/…/.local/state/sitrep/me…`, Lee's own words pushed
+  out of view.
 - **Queued** then as words alone are (step 3), the prompt dropped with
   `Your comment waits in Ready to send.` or its like: to any session's
   item, not only the held one's, the words going wherever the reply goes.

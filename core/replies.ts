@@ -24,7 +24,7 @@ import {
   type Wants,
   type Session,
 } from './types'
-import { MEDIA_HINT, namesSavedMedia } from './media'
+import { MEDIA_HINT, namesSavedMedia, shownWords } from './media'
 import { USER } from './user'
 
 /** What a reply says, whatever it is written as. */
@@ -332,6 +332,10 @@ export const answerOf = (item: Ask | Parked, reply: ReplyFields) => {
 
   return ARROWED.includes(reply.verdict) ? `→ ${answer}` : answer
 }
+
+/** A reply on one row as Lee sees it, each saved attachment its note names shown short (`shownWords`); Claude's reading and the CLI's JSON keep `answerOf`'s path. */
+export const shownAnswerOf = (item: Ask | Parked, reply: ReplyFields) =>
+  answerOf(item, reply.note === undefined ? reply : { ...reply, note: shownWords(reply.note) })
 
 /** Whose a picked-up item was, as Lee's message says it: the name of the session that parked it, where that is another than the message's. */
 const parkedBy = (name: string | undefined) => (name === undefined ? '' : `, ${name}'s`)

@@ -4,7 +4,7 @@ import type { Body } from '../core'
 import { C } from '../hooks/look'
 import { WATCH_MS } from '../hooks/window'
 import { rowsOf } from './drawn'
-import { HELD, heldItem, HOUR, MIN, T0, W2 } from './data'
+import { HELD, heldItem, HOUR, MIN, ROOT, T0, W2 } from './data'
 import { choiceAsk, delivered, file, reply, resolve, yesAsk, type Line } from './lines'
 import { pane, sceneFrom, type Drawn } from './render'
 import { ACROSS, DOCKED, postedId, world, type World } from './world'
@@ -111,6 +111,19 @@ test('a closed ask opens to how it closed, one branch from its dot with no age i
   expect(await opened('a3')).toEqual(['└ resolved by Claude: Ran it in the chat'])
   expect(await opened('a2')).toEqual(['└ → Forever'])
   expect(await opened('a1', IN_FULL)).toEqual(['└ → Approve'])
+})
+
+test('a closed ask opens to its answer with each saved image shown as Claude Code’s prompt does, never its path', async () => {
+  const note = `Ship it [image: ${ROOT}/media/aaaa.png]`
+  const lines = [
+    ...after(0, yesAsk('a1', 'Review round 1')),
+    ...after(1, reply('r1', 'a1', 'yes', { note }), delivered('r1')),
+  ]
+  const ui = drawnAfter(lines, opening('a1'))
+
+  expect(rowsOf(await ui.find({ key: `closed:${heldItem('a1')}` }), ACROSS).slice(1)).toEqual([
+    '└ → Approve, with a comment: “Ship it [Image #1]”',
+  ])
 })
 
 test('RESOLVED shows the latest 3 under a dim show all; shown in full, it lists every one under a dim show fewer', async () => {

@@ -118,6 +118,30 @@ test('opening one item a send picked up opens only that one', async ($, on) => {
   expect(await ui.find({ type: 'Text', text: /After the API fixes/ })).toBeUndefined()
 })
 
+test('a picked-up item opens to its note with each saved image shown as Claude Code’s prompt does, never its path', async ($, on) => {
+  const w = world($, on)
+
+  await w.begin()
+
+  const id = postedId(await w.call('park', { title: PARKED[0]?.title ?? '' }))
+  const ui = await w.opened()
+
+  await ui.press({ key: `ppick:${w.item(id)}` })
+  await ui.press({ key: `pickup:${w.item(id)}` })
+  await ui.press({ key: `rewrite:${w.item(id)}` })
+  await $.prompt.submit({
+    text: `Like this [image: ${ROOT}/media/aaaa.png]`,
+    wait: false,
+    origin: { kind: 'composer' },
+  })
+  await ui.press({ key: 'send' })
+  await ui.press({ key: PICKED_UP })
+  await ui.press({ key: `picked:${w.item(id)}` })
+
+  expect(await ui.find({ type: 'Text', text: 'Like this [Image #1]' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /\/media\// })).toBeUndefined()
+})
+
 test("a project's Parked draws a send's several pick-ups, each its own row", async ($, on) => {
   const w = world($, on)
   const { ui } = await pickedUp(w, $)

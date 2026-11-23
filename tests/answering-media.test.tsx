@@ -33,7 +33,8 @@ import {
 import type { File } from './fs'
 import { wordsAsk, yesAsk } from './lines'
 import { windowFrom, type Desk } from './render'
-import { asked, CONVERSATION, world, type World } from './world'
+import { readyRows, rowsOf } from './drawn'
+import { asked, CONVERSATION, world, type Board, type World } from './world'
 
 tier('user')
 
@@ -237,6 +238,36 @@ test('a send words the reply with the path in its place, and tells Claude once t
   expect(ranOf(w, '/bin/rm')).toEqual([])
   expect(ranOf(w, '/usr/bin/touch')).toEqual([{ argv: touchArgv([SHOT]), init: { cwd: '/' } }])
   expect(w.files.get(SHOT)?.mtimeMs, 'its 14 days counted from the send').toBe(w.clock.now())
+})
+
+/** Whether the board draws a path anywhere: Lee sees each saved file by its short form alone. */
+const drawsPath = async (ui: Board) =>
+  (await ui.find({ type: 'Text', text: new RegExp(MEDIA) })) !== undefined
+
+test('a queued reply shows each saved image as Claude Code’s prompt does, numbered within its words, under its ask and in Ready to send; the queue keeps the path', async ($, on) => {
+  const w = world($, on)
+  const { key, ui } = await commented(w, $, SHOT, CROP)
+  const shown = 'comment: “Frame 2 [Image #1] [Image #2]”'
+
+  expect(rowsOf(await ui.find({ key: `ask:${key}` })).at(-1)).toBe(
+    `└ ${shown} · not sent yet ↺ undo ✎ edit`,
+  )
+  expect(await readyRows(ui)).toContain(`└ ${shown} ✎ edit`)
+  expect(await drawsPath(ui)).toBe(false)
+  expect(w.state.queue?.map(reply => reply.note)).toEqual([
+    `Frame 2 [image: ${SHOT}] [image: ${CROP}]`,
+  ])
+})
+
+test('a comment Claude has shows its saved image by its short form under its ask', async ($, on) => {
+  const w = world($, on)
+  const { ui } = await commented(w, $, SHOT)
+
+  await ui.press({ key: 'send' })
+  expect(
+    await ui.find({ type: 'Text', text: 'you commented: “Frame 2 [Image #1]”. Claude has it.' }),
+  ).toBeDefined()
+  expect(await drawsPath(ui)).toBe(false)
 })
 
 test("a reply with a saved file sent into another session's inbox keeps the file, marked fresh for that window's delivery", async ($, on) => {

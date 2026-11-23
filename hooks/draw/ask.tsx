@@ -20,6 +20,7 @@
 import {
   isAnswer,
   replyOnItsWay,
+  shownWords,
   snoozeChoicesAt,
   VERDICTS,
   waitsOnLee,
@@ -226,7 +227,9 @@ const branchesOf = (d: Drawing, ask: Ask, color: string, standing: Standing) => 
     isOpen && ask.needs !== undefined && { text: `needs: ${ask.needs}`, color: C.ask },
     isOpen && ask.where,
     isOpen && seeRef(ask.ref, color),
-    isOpen && commented !== undefined && `you commented: “${commented}”. Claude has it.`,
+    isOpen &&
+      commented !== undefined &&
+      `you commented: “${shownWords(commented)}”. Claude has it.`,
     snoozedUntil !== undefined && drawAsleep(d, standing, snoozedUntil),
     replyBranch(d, ask, standing),
     isAnswering && ANSWERING,
