@@ -53,7 +53,7 @@ const QUESTION = '  Drop it? It leaves Parked, and Claude no longer sees it.'
 const ANSWERS = '  [ yes, drop it ] [ cancel ]'
 
 /** An opened parked item's buttons, as drawn in a window of its project. */
-const BUTTONS = '  [ pick it up ] [ ✎ with a comment ] [ ✕ drop ]'
+const BUTTONS = '  [ pick it up ] [ ✕ drop ]'
 
 /** What heads the board's text where it rides into a turn. */
 const CHANGED = 'The sitrep board changed since you last saw it. It now reads:'

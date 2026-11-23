@@ -92,7 +92,7 @@ export const onLedgersAsks = async (w: World, isUnread = false) => {
 /** The ledger's parked item. */
 export const EXPORT = 'Export the ledger as CSV'
 
-/** The board on the project's view, the ledger's parked item drawn there from its brief, opened, and ✎ with a comment pressed: the ledger. */
+/** The board on the project's view, the ledger's parked item drawn there from its brief, opened, picked up, and ✎ comment pressed under the pick-up: the ledger. */
 export const onLedgersParked = async (w: World, isUnread = false) => {
   const ledger = w.elsewhere(LEDGER)
 
@@ -111,7 +111,8 @@ export const onLedgersParked = async (w: World, isUnread = false) => {
 
   await toProject(ui)
   await ui.press({ key: `ppick:${there}` })
-  await ui.press({ key: `comment:${there}` })
+  await ui.press({ key: `pickup:${there}` })
+  await ui.press({ key: `rewrite:${there}` })
 
   return ledger
 }

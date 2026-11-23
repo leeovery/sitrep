@@ -593,16 +593,16 @@ const REWRITTEN_AS: Record<Verdict, SitrepAnswering['as'] | undefined> = {
 
 /**
  * The way to write a queued reply's words in the prompt box, under `key`: a
- * bare yes's or choice's comment; or, where the box can be filled with
- * them, the words of an answer, a comment, a yes's or choice's comment, or
- * a pick-up's note, written again. None for an ignore or a bare pick-up.
+ * bare yes's, choice's or pick-up's comment; or, where the box can be
+ * filled with them, the words of an answer, a comment, a yes's or choice's
+ * comment, or a pick-up's note, written again. None for an ignore.
  */
 export const drawRewrite = (d: Drawing, key: string, item: Ask | Parked, queued: SitrepQueued) => {
   const { Button } = d.els
   const words = queued.note
   const as = REWRITTEN_AS[queued.verdict]
   const answering = as === undefined ? undefined : answeringOf(d, queued, item, as)
-  const isOffered = words === undefined ? as === 'comment' : canRewrite(d)
+  const isOffered = words === undefined || canRewrite(d)
 
   if (answering === undefined || !isOffered) {
     return undefined

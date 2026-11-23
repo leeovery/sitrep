@@ -56,7 +56,7 @@ export type Actions = {
   unqueue: (session: string, item: string) => void
   /** Empties the queue, but for what the sends in flight carry. */
   cancelAll: () => void
-  /** Has the next Enter in the prompt box answer an ask, comment on it, or pick a parked item up with a comment; `text` fills the box first, to edit the words already queued. */
+  /** Has the next Enter in the prompt box answer an ask, comment on it, or add a comment to a pick-up; `text` fills the box first, to edit the words already queued. */
   answer: (answering: SitrepAnswering<SessionKey>, text?: string) => void
   /** Takes back a send the window holds for its turn, its replies back in Ready to send among those still to send; none once it has gone. */
   takeBack: (send: SitrepInFlight) => void

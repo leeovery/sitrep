@@ -1211,14 +1211,15 @@ show all 4
   shows as any other, with no mark of its own. Each is a list's row: a
   purple `●`, its title, and its age. Opened, its tree hangs from the mark:
   where to look, its `see`, and the pick-up once one waits or is on its way;
-  `pick it up` and `✎ with a comment` sit under the tree until then, in a
+  `pick it up` sits under the tree until then, in a
   window holding a session of the item's project: another project's parked
   items show there without them. `✕ drop` sits after them, dim, in any
   window, and alone, drawn as any press, where they are not (18 November
   2026; see "Dropping a parked item"). The pick-up queues in Ready to send
   like any reply, to this session whichever session of the project parked
-  the item (see Delivery); its comment is written in the prompt as an ask's is,
-  and goes with it as its note (see "Answering an ask"). It is never
+  the item (see Delivery); once queued, `✎ comment` under it writes its
+  comment in the prompt as an ask's is, which goes with it as its note (see
+  "Answering an ask"). It is never
   counted: not on a tab, nor on the band.
 - **Parked's picked up.** Closed, Parked lists only what is parked, and at
   its foot, while anything was taken off it, `show picked up 3`, counting
@@ -1254,15 +1255,15 @@ show all 4
   The press drops it: Lee's own write, as a snooze or a finish from the
   pane is, with no round trip through Claude and nothing in Ready to send.
   - **Where it is offered.** An opened parked item has `✕ drop`, dim,
-    after `pick it up` and `✎ with a comment`, as `✕ ignore` sits after an
+    after `pick it up`, as `✕ ignore` sits after an
     ask's answers: the session's own items, and every other session's of
     the project, live, idle, finished or moved there, in every view that
     lists them. It goes to no Claude, so another project's items have it
-    too, where the pick-ups are not drawn; there it is the only press, and
+    too, where the pick-up is not drawn; there it is the only press, and
     drawn as any press, not dim, which would read as one that does
     nothing. It is not drawn while a pick-up
     waits on the item or is on its way to it, nor while Lee writes its
-    note in the prompt, as the pick-ups are not.
+    note in the prompt, as the pick-up is not.
   - **It asks first, in place**, as Snooze's question and a session's
     finish do: the question and its answers in place of the buttons, the
     item opened still (`drop:<session>:<item>` as the pane's `selected`).
@@ -1278,7 +1279,7 @@ show all 4
 
     ```
     ● A priority badge across all tabs                          now
-      [ pick it up ] [ ✎ with a comment ] [ ✕ drop ]
+      [ pick it up ] [ ✕ drop ]
     ```
 
     ```
@@ -1510,9 +1511,9 @@ answer with an image attached goes at once instead (see "An answer with an
 image", below).
 
 1. `✎ Answer` (a words ask) or `✎ comment` (a yes or a choice) puts the
-   window in **answering** mode for that ask; `✎ with a comment` puts it in
-   the mode for a parked item's pick-up, all that follows holding for it as
-   for an ask. It is held in `$.state` (`answering`: the item, whether it
+   window in **answering** mode for that ask; `✎ comment` under a queued
+   pick-up (step 4) puts it in the mode for a parked item's pick-up, all
+   that follows holding for it as for an ask. It is held in `$.state` (`answering`: the item, whether it
    is an answer, a comment or a pick-up, its title, the surface it was
    begun on, and any words it put in the prompt). Only with the prompt
    empty: a draft there is refused with
@@ -1568,9 +1569,12 @@ image", below).
    send: its words clipped to a line, `+3 lines` when there are more, then,
    under the ask, `· not sent yet ↺ undo ✎ edit`. `✎ edit` enters the mode
    again for that reply, the prompt filled with its words (still only from
-   an empty prompt), and the next Enter replaces them. A bare yes or choice
-   offers `✎ comment` there instead, which adds its note; a bare pick-up,
-   neither.
+   an empty prompt), and the next Enter replaces them. A bare yes, choice
+   or pick-up offers `✎ comment` there instead, which adds its note. So a
+   parked item offers only `pick it up`, beside its drop, and a comment
+   follows the pick-up as one follows a Go (Lee, 23 November 2026; until
+   then the item offered `✎ with a comment` beside `pick it up`, and a bare
+   pick-up offered no comment).
 5. **One send carries everything**, as ever.
 
 **An answer with an image** (5 November 2026). Lee answered an ask in the
@@ -1719,8 +1723,8 @@ keeps the image's blocks and puts the new text in place of the typed text
 all of this; the phone over mosh is the terminal. Claude's app (the
 `mobile` surface) sends its prompt through the Remote Control bridge, which
 the hook hears (so the engine's types say; not yet tried live), but the mod
-cannot reach its box: `✎ Answer`, `✎ comment` and `✎ with a comment` work
-there, and `✎ edit` is not offered. Desktop and VS Code send theirs some way
+cannot reach its box: `✎ Answer` and `✎ comment` work there, a pick-up's
+among them, and `✎ edit` is not offered. Desktop and VS Code send theirs some way
 not yet seen, so they offer nothing to write: a words ask is only ignored
 there, a parked item only picked up, and Lee says the rest in the chat.
 

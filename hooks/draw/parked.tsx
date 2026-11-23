@@ -6,8 +6,8 @@
  * what was taken off it, picked up or dropped by Lee or closed by Claude.
  * Drawn while something is parked or was taken off. A pick-up queues in
  * Ready to send like any reply, to this session whichever session of the
- * project parked the item, with a comment written in the prompt box as its
- * note where Lee wants one (DESIGN.md, "Answering an ask"). A drop asks
+ * project parked the item, a comment written in the prompt box added to it
+ * as its note once it is queued (DESIGN.md, "Answering an ask"). A drop asks
  * first, in place, and is written at once, nothing sent to Claude
  * (DESIGN.md, "Dropping a parked item").
  */
@@ -19,12 +19,10 @@ import { itemKey, type ParkedAt, type TakenAt } from '../places'
 import { queuedOn } from '../queue'
 import {
   ANSWERING,
-  answeringOf,
   drawOnItsWay,
   drawQuestion,
   drawQueued,
   drawRow,
-  drawWrite,
   heading,
   isBeingAnswered,
   seeRef,
@@ -64,32 +62,23 @@ const DROP_QUESTION = 'Drop it? It leaves Parked, and Claude no longer sees it.'
 /** Whether the window can pick a parked item up: it holds a session of the item's project, whose Claude a pick-up goes to. */
 const isPickable = (d: Drawing, { at }: ParkedAt) => at.project === d.scene.here
 
-/** The pick-up, and the pick-up with a comment written in the prompt, where the window can pick the item up. */
+/** The pick-up, where the window can pick the item up: a comment is added once it is queued, as a yes's is. */
 const drawPickUps = (d: Drawing, entry: ParkedAt) => {
   const { Button } = d.els
-  const key = keyOf(entry)
   const at = refOf(entry)
 
-  if (!isPickable(d, entry)) {
-    return []
-  }
-
-  return [
-    <Button
-      key={`pickup:${key}`}
-      label="pick it up"
-      onPress={() => d.act.reply({ ...at, verdict: 'pickup' })}
-    />,
-    ...drawWrite(
-      d,
-      `comment:${key}`,
-      '✎ with a comment',
-      answeringOf(d, at, entry.parked, 'pickup'),
-    ),
-  ]
+  return isPickable(d, entry)
+    ? [
+        <Button
+          key={`pickup:${keyOf(entry)}`}
+          label="pick it up"
+          onPress={() => d.act.reply({ ...at, verdict: 'pickup' })}
+        />,
+      ]
+    : []
 }
 
-/** An opened parked item's buttons, under its tree: the pick-ups where the window can, and the drop, which asks first: dim after them, as an ask's ignore is, and drawn as any press where it is the only one. */
+/** An opened parked item's buttons, under its tree: the pick-up where the window can, and the drop, which asks first: dim after it, as an ask's ignore is, and drawn as any press where it is the only one. */
 const drawButtons = (d: Drawing, entry: ParkedAt) => {
   const { Box, Button } = d.els
   const key = keyOf(entry)

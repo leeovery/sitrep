@@ -241,7 +241,7 @@ test('a pick-up from Parked while a send is held joins no part of it: it is a qu
     '',
     'to this session',
     'A priority badge across all tabs ✕',
-    '└ pick it up',
+    '└ pick it up ✎ comment',
     ...CONTROLS,
   ])
 

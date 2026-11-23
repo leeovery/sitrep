@@ -67,7 +67,8 @@ async function pickedUp(w: World, $: Engine) {
     if (note === undefined) {
       await ui.press({ key: `pickup:${w.item(id)}` })
     } else {
-      await ui.press({ key: `comment:${w.item(id)}` })
+      await ui.press({ key: `pickup:${w.item(id)}` })
+      await ui.press({ key: `rewrite:${w.item(id)}` })
       await $.prompt.submit({ text: note, wait: false, origin: { kind: 'composer' } })
     }
   }
@@ -402,7 +403,7 @@ test('a pick-up still in Ready to send when the window takes up a session of ano
 
   await w.call('join', { session: 'sr-themes' })
   expect(w.state.queue, 'a session of this project').toEqual(queued)
-  expect(await readyExport(ui)).toEqual(['└ pick it up'])
+  expect(await readyExport(ui)).toEqual(['└ pick it up ✎ comment'])
   expect(w.toasts.filter(toast => toast.includes('pick-up'))).toEqual([])
   expect(w.files.has(LEDGER_LOG), 'the item stays parked').toBe(false)
 })
