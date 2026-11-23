@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2026-11-23
+
+Image and document attachments on replies now wait in Ready to send like any other reply, instead of forcing the prompt through at once.
+
+✨ Added
+- Attachments on a reply written in the prompt box are saved as files and named in the reply's words — Claude opens them with its Read tool, and they can go to any session.
+- Claude's Read of a saved attachment runs without a permission prompt.
+- Saved attachments are cleaned up automatically — removed when their reply is undone, cancelled or replaced, and swept after 14 days once sent.
+
+🔧 Changed
+- Attachments show on the board as `[Image #1]` or `[Document #1]` rather than as file paths.
+- A pick-up's comment is now added after the pick-up is queued, as a yes's is, instead of through a separate "with a comment" button — the band says "comments on" once it is queued.
+- An attachment that can't be saved still goes in at once with your prompt, and the warning now says it couldn't be saved.
+
 ## [0.9.1] - 2026-11-22
 
 🔧 Changed
