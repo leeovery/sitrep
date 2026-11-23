@@ -1507,8 +1507,8 @@ shape is ever shown as a word:
 
 **Lee writes in Claude Code's own prompt box**, where a paste works, and the
 words still wait in Ready to send with everything else, sent in one go. An
-answer with an image attached goes at once instead (see "An answer with an
-image", below).
+answer with an image attached waits there too, the image saved as a file
+its words name (see "An answer with an image", below).
 
 1. `✎ Answer` (a words ask) or `✎ comment` (a yes or a choice) puts the
    window in **answering** mode for that ask; `✎ comment` under a queued
@@ -1564,7 +1564,7 @@ image", below).
    undocumented): it is unwrapped onto lines of its own, the words typed
    around it kept in place. An empty Enter is not taken: a toast says why,
    the prompt stays in the box, and the mode stands. One with something
-   attached goes in at once (below).
+   attached is queued too, each attachment saved as a file (below).
 4. **Queued, the reply shows on one row**, under the ask and in Ready to
    send: its words clipped to a line, `+3 lines` when there are more, then,
    under the ask, `· not sent yet ↺ undo ✎ edit`. `✎ edit` enters the mode
@@ -1577,14 +1577,79 @@ image", below).
    pick-up offered no comment).
 5. **One send carries everything**, as ever.
 
-**An answer with an image** (5 November 2026). Lee answered an ask in the
+**An answer with an image** (23 November 2026). An Enter the mode takes
+with something attached waits in Ready to send, as any reply does. Lee
+decided it the same day: an image comment is queued as a typed one is, and,
+being queued, one works for a session in another window too. Until then it
+rode in at once (the ride, below), because `prompt.submit` gave a plugin an
+attachment's kind alone. The engine now reads the bytes: `$.prompt.media({
+id })`, inside a `prompt.submit` hook, `e.attachments[].id` the handle,
+base64 in slices of up to 4 MiB, `next` going on.
+
+- **Saved.** While the hook is in flight, each attachment is read whole and
+  written to a file of its own, `<root>/media/<name>.<ext>` (see Storage):
+  16 random characters, then the extension its type names (`png`, `jpg`,
+  `gif`, `webp`, `pdf`, else its subtype, else `bin`). `$.fs` writes only
+  text and removes nothing, so a process writes the bytes and removes them
+  (hooks/media.ts): `/bin/sh -c 'umask 077 && mkdir -p "$1" &&
+  /usr/bin/base64 --decode > "$2"'`, the base64 on its standard input and
+  each path an argument, never in the script, the folder made 0700 and the
+  file 0600; and `/bin/rm -f --` and the paths.
+- **The words.** Each image takes its placeholder's place, `[Image #1]`
+  becoming `[image: /…/sitrep/media/k3x9….png]`: the placeholders, lowest
+  number first, take the images in the order attached. An attachment no
+  placeholder places, a document among them, goes at the end, after a
+  space, or on a line of its own after words of several lines. The board
+  shows the words as they are, the path among them, and `✎ edit` puts them
+  back in the prompt so. A message any of whose lines names one ends with
+  one line more, `Each [image: …] or [document: …] above is a file the user
+  attached: open it with your Read tool.` (core's `messageText`, so a send,
+  an inbox's delivery and a held send written again all carry it):
+
+  ```
+  From the board:
+  - Ship round 2, or redraw? → comment: “Frame 2 [image: /Users/me/.local/state/sitrep/media/k3x9m2qa7d0f8hzc.png]”
+    This leaves the ask open: act on it, then resolve it.
+  Each [image: …] or [document: …] above is a file the user attached: open it with your Read tool.
+  ```
+
+- **Queued** then as words alone are (step 3), the prompt dropped with
+  `Your comment waits in Ready to send.` or its like: to any session's
+  item, not only the held one's, the words going wherever the reply goes.
+- **The ride where any can't be saved**: audio, an attachment with no `id`,
+  a read answering `{ unreadable }` or `{ deny }` or failing, a write that
+  fails. What was saved of it is removed, and the prompt rides in as it did
+  before (below): nothing worse than before.
+- **A reply owns the files its words name**: a path directly in the media
+  folder, named as a save names one, so no words name anything else for
+  removing. A file goes once no reply names it without having gone anywhere:
+  `↺ undo`, `✕` in Ready to send, `cancel all`, or `✎ edit` taking words
+  that no longer name it (`changeQueue`, run by those presses and the mode's
+  Enter).
+- **A sent reply's files stay** for the Claude it went to. Claude opens one
+  in the turn the send starts, after the send is written down, and a reply
+  sent into another session's inbox is read only at that window's next
+  delivery, however much later. So the window sweeps the media folder at
+  every session start: a file older than 14 days that no reply in its own
+  Ready to send names is removed. The sweep sees this window's Ready to send
+  alone, `$.state` being each window's: a file only another window's Ready
+  to send names, waiting there over 14 days, is swept from under it.
+- **What the test kit can't do.** It answers no `$.prompt.media` (`no
+  implementation for prompt.media`, and no event a test answers it on). So
+  the save, and the mode's Enter with one saved, are tested on a host with
+  no engine beneath (tests/media.test.ts, tests/answering-media.test.tsx);
+  the engine's tests take the ride, the send's words, the removals and the
+  sweep. Not yet tried live.
+
+**The ride** (5 November 2026; the answer with an image until 23 November
+2026, its fallback since). Lee answered an ask in the
 prompt with a screenshot attached, and the board refused it as words alone;
 Lee: "they're just paths that pass through. We need to make that work." An
-image can't wait in Ready to send: `prompt.submit` gives a plugin each
+image couldn't wait in Ready to send then: `prompt.submit` gave a plugin each
 attachment's kind, type and file name, never its bytes or a path; a
 plugin's own `$.prompt.submit` expands no pasted image; and Claude Code
-caches only pasted text. So an Enter the mode takes with something attached
-is not dropped: Lee's own prompt goes in now, its text rewritten as the
+caches only pasted text. So an Enter the mode takes with an attachment it
+can't save is not dropped: Lee's own prompt goes in now, its text rewritten as the
 board's words for that one reply (`From the board:` and the reply's line,
 as a send words it), its attachments passing through untouched. Claude Code
 keeps the image's blocks and puts the new text in place of the typed text
@@ -2140,7 +2205,7 @@ app (see "The menu bar").
   and says it waits for the inbox's replies, Lee's replies left in Ready to
   send. The inbox's is claimed only with nothing in flight: while anything
   is, a look takes in nothing more. An answer that went in with Lee's
-  prompt (see "An answer with an image", under "Answering an ask") is the
+  prompt (see "The ride", under "Answering an ask") is the
   one exception to both: it is claimed as his Enter goes on, after any
   message submitted already, the inbox's among them, and ahead of every one
   held, the inbox's too. That is safe: Lee's prompt is Claude Code's to
@@ -2196,7 +2261,7 @@ app (see "The menu bar").
     goes by the turn the window's state says: a reload landing in those
     milliseconds can still submit the next early, into Claude Code's queue,
     its own prompt after the first's still, only past taking back. For an
-    answer Lee typed with an image while Claude's turn ran, that window is
+    answer that rode in with Lee's prompt while Claude's turn ran, that window is
     the rest of the turn: a reload then forgets the wait on its turn, and a
     send behind it may go as that turn ends, past taking back. A load
     finding several held carries the first on, and the rest in turn.
@@ -3142,6 +3207,7 @@ writers and readers stay safe:
 $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   snooze.json                 Snooze's choices as Lee set them in SitRep: the app's alone, for the pane and the terminal view
   here.json                   who SitRep last read viewing each held session and each multiplexer tty: the app's alone, for the panel in a terminal
+  media/<name>.<ext>          an image or document Lee attached to a reply he wrote in the prompt, for Claude to open: 0600, in a 0700 folder
   projects/<project key>/
     project.json              name, directory, created and by whom: the project's own
     sessions/<session id>/
@@ -3155,6 +3221,11 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   (`sitrep`), numbered on (`sitrep-2`) where a folder already has it. The
   key is only where its files are; the name in `project.json` is what
   matches and shows.
+- **`media/`** (23 November 2026; see "An answer with an image"): one file
+  for each attachment the answering mode saved, named by 16 random
+  characters and the extension its type names. A window writes them, and
+  removes them as their reply leaves Ready to send without going, or at a
+  session start once 14 days old and named by nothing in its Ready to send.
 - **`project.json`:** `{ v, name, directory?, created, by }`. A start or
   Claude's `move` writes it as it makes the project, and the `project`
   tool as it renames it or gives it a directory; a start or Claude's

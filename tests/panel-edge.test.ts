@@ -5,6 +5,7 @@ import { claudeIn, claudeOn, commandIn, DEFAULTS, handed, PS_MS, QUICK_MS, readi
 import { dataIn } from '../cli/panel/plist'
 import type { Resume } from '../cli/panel/reach'
 import { HOME, T0, W1 } from './data'
+import { bytesOf } from './fs'
 import { defaultsOf, plistOf } from './plist'
 import { ENV, terminal, tty } from './terminal'
 
@@ -26,8 +27,6 @@ const SETTINGS = `${HOME}/${DEFAULTS}`
  */
 const APPLE =
   'YnBsaXN0MDDVAQIDBAUGBwgJClNhcHBccGx1Z2luRm9sZGVyVGNhcmRZcGFuZWxTaG93ZABjAGEAZgDpTxB3eyJub3RpZmllc05ld0Fza3MiOmZhbHNlLCJwbGF5c1NvdW5kIjp0cnVlLCJzb3VuZCI6IkdsYXNzIiwidGVybWluYWwiOiJnaG9zdHR5IiwicmVzdW1lIjoiYXR0YWNoIHt0dHl9IHtkaXJ9IHtjbGF1ZGV9In1fECwvVXNlcnMvbWUvTGlicmFyeS9BcHBsaWNhdGlvbiBTdXBwb3J0L3NpdHJlcEd7IngiOjF9VXN0cmlwQnt9CBMXJCkzPLbl7fMAAAAAAAABAQAAAAAAAAALAAAAAAAAAAAAAAAAAAAA9g=='
-
-const bytesOf = (base64: string) => Uint8Array.from(atob(base64), character => character.charCodeAt(0))
 
 const textOf = (bytes: Uint8Array | undefined) => (bytes === undefined ? undefined : new TextDecoder().decode(bytes))
 

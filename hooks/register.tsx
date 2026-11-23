@@ -70,6 +70,7 @@ import { SEND, SEND_NOW } from './draw/ready'
 import { drawToolResult, drawToolRow, toolLine } from './draw/tool-row'
 import { logFailure, TOAST_MS, type Host } from './host'
 import { loadedNow } from './load'
+import { ranOk, removeArgv, saveArgv, sweepMedia } from './media'
 import {
   BAND_KEYS,
   boardClosed,
@@ -125,6 +126,8 @@ const hostOf = ($: EngineInterface): Host => ({
     write: (path, text) => $.fs.write(path, text),
     list: dir => $.fs.list(dir),
     exists: path => $.fs.exists(path),
+    save: async (path, base64) => ranOk(await $.process.run(saveArgv(path), { stdin: base64 })),
+    remove: async paths => ranOk(await $.process.run(removeArgv(paths))),
   },
   clock: {
     now: () => $.clock.now(),
@@ -170,6 +173,7 @@ const hostOf = ($: EngineInterface): Host => ({
     read: async () => (await $.prompt.read()).text,
     fill: text => $.prompt.fill({ text, mode: 'replace' }),
     clear: () => $.prompt.fill({ text: '', mode: 'replace' }),
+    media: args => $.prompt.media(args),
   },
   // Each slot spelled out: validate reads every atom's reads and writes off this
   // file, and refused them passed through a shared helper.
@@ -320,6 +324,7 @@ export const register: Register = on => {
       immediate: true,
     })
     await syncBoard(host)
+    await sweepMedia(host).catch(logFailure(host, 'sweeping old attachments'))
     tickEvery(host)
     lookEvery(host)
     receiveEvery(host)

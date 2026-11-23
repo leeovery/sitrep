@@ -3,7 +3,9 @@ import type { On } from 'claude-code'
 import type { MockClock } from 'claude-code/testing'
 import { PLUGIN_VERSION } from '../data'
 import { MANIFEST } from '../../hooks/version'
-import { isThere, listingIn, missing, textIn, type File } from '../fs'
+import { removeArgv, saveArgv } from '../../hooks/media'
+import { bytesOf, isThere, listingIn, missing, textIn, type File } from '../fs'
+import { exited } from './conversation'
 
 /** The plugin's manifest, giving `version`. */
 export const manifestOf = (version: unknown) =>
@@ -13,6 +15,13 @@ export const manifestOf = (version: unknown) =>
 type Look = 'read' | 'exists' | 'list'
 
 const MISSING = (path: string) => ({ deny: missing(path) })
+
+/** The removal of saved attachments, before the paths it removes. */
+const REMOVE = removeArgv([])
+
+/** Whether two argument vectors are one. */
+const isSame = (one: readonly string[], other: readonly string[]) =>
+  one.length === other.length && one.every((each, i) => each === other[i])
 
 /** The engine's file system beneath the mod, its files written at the clock's time. */
 export function disk(on: On, clock: MockClock) {
@@ -67,6 +76,32 @@ export function disk(on: On, clock: MockClock) {
     return answered('list', e.path, listing(e.path))
   })
 
+  /** Answers the processes that save attachments and remove them over the files, as the shell would; undefined for any other. */
+  const ran = (argv: readonly string[], stdin = '') => {
+    const path = argv.at(-1) ?? ''
+
+    if (isSame(argv, saveArgv(path))) {
+      if (isRefused?.(path)) {
+        return exited(1, '', `sh: ${path}: Input/output error`)
+      }
+
+      files.set(path, { text: '', bytes: bytesOf(stdin), mtimeMs: clock.now() })
+      written.push(path)
+
+      return exited(0)
+    }
+
+    if (isSame(argv.slice(0, REMOVE.length), REMOVE)) {
+      for (const each of argv.slice(REMOVE.length)) {
+        files.delete(each)
+      }
+
+      return exited(0)
+    }
+
+    return undefined
+  }
+
   /** A folder's listing, as the engine gives it. */
   const listing = (dir: string) => {
     const entries = listingIn(files, dir)
@@ -78,6 +113,7 @@ export function disk(on: On, clock: MockClock) {
     files,
     listed,
     written,
+    ran,
     /** Writes a file as another writer would: a window elsewhere, the CLI, Lee's board. */
     put: (path: string, text: string) => files.set(path, { text, mtimeMs: clock.now() }),
     /** The text of a file, failing the test when it is not there. */

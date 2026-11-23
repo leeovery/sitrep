@@ -45,6 +45,12 @@ export const newSessionId = (random: Random, taken: ReadonlySet<string>) =>
 export const newItemId = (random: Random, taken: ReadonlySet<string>) =>
   fresh(random, taken, '', ITEM_ID_LENGTH)
 
+/** How long a saved attachment's name is: enough that two never meet, with no list of the taken to check. */
+const MEDIA_NAME_LENGTH = 16
+
+/** A new name for a saved attachment's file. */
+export const newMediaName = (random: Random) => draw(random, MEDIA_NAME_LENGTH)
+
 /** Whether a string is a session id, as Claude passes one to join. */
 export const isSessionId = (value: unknown): value is string =>
   typeof value === 'string' && SESSION_ID.test(value)

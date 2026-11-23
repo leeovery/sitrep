@@ -72,8 +72,19 @@ export function conversation(engine: Engine, on: On, cwd: string) {
   }
 }
 
-/** The walk up Claude Code's processes for its terminal, as the mod runs it: printing TTY unless told otherwise. */
-export function walking(on: On) {
+/** How a process the mod runs ended, as the engine gives it. */
+export const exited = (exitCode: number, stdout = '', stderr = '') => ({
+  value: { exitCode, stdout, stderr, isStdoutTruncated: false, isStderrTruncated: false },
+})
+
+/** Answers a process the mod runs that is not the walk, given its argument vector and standard input; undefined for the walk. */
+export type Runs = (
+  argv: readonly string[],
+  stdin?: string,
+) => ReturnType<typeof exited> | undefined
+
+/** The walk up Claude Code's processes for its terminal, as the mod runs it: printing TTY unless told otherwise; any other process the mod runs, as `others` answers it. */
+export function walking(on: On, others: Runs = () => undefined) {
   /** The commands the mod ran, each as its argument vector. */
   const runs: (readonly string[])[] = []
   let walk: Walk = { stdout: `${TTY}\n` }
@@ -81,17 +92,15 @@ export function walking(on: On) {
   on('process.run', ($, e) => {
     runs.push(e.argv)
 
+    const other = others(e.argv, e.init?.stdin)
+
+    if (other !== undefined) {
+      return other
+    }
+
     return 'refused' in walk
       ? { deny: walk.refused }
-      : {
-          value: {
-            exitCode: walk.exitCode ?? 0,
-            stdout: walk.stdout,
-            stderr: '',
-            isStdoutTruncated: false,
-            isStderrTruncated: false,
-          },
-        }
+      : exited(walk.exitCode ?? 0, walk.stdout)
   })
 
   return {

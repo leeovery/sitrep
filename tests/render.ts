@@ -12,6 +12,10 @@
  * path cannot draw: a docked board scrolled down its list, which it always
  * shows from the top; and a look after the window's first, one that folds
  * a session off the board from the files it last read.
+ *
+ * The window made for a scene is also lent whole (`windowFrom`), for a test
+ * running the mod's code on what the engine's test kit cannot answer, as
+ * `$.prompt.media`.
  */
 import type { ElementTable, RenderElement, RenderPropsOf, RenderSurface } from 'claude-code'
 import { foldSession, sessionPaths, SNOOZE_DEFAULTS } from '../core'
@@ -223,15 +227,15 @@ const filesOf = (desk: Desk, now: number) => {
 }
 
 /**
- * The scene the window makes of a desk at `now`: the held session folded
- * from what the watch's reader reads of its files, the sessions around it
- * read by the window's own look, its first, and the scene read from
- * `$.state` as the board's render hook reads it.
+ * The window over a desk at `now`, its host, its files and its look made:
+ * the held session folded from what the watch's reader reads of its files,
+ * and the sessions around it read by the window's own look, its first.
  */
-const sceneOver = async (desk: Desk) => {
+const windowOver = async (desk: Desk) => {
   const now = desk.now ?? T0
   const logged: string[] = []
-  const host = hostOver(filesOf(desk, now), now, desk, logged)
+  const files = filesOf(desk, now)
+  const host = hostOver(files, now, desk, logged)
   const read = await createReader()(host, sessionPaths(ROOT, PROJECT.key, HELD.id))
   const session = foldSession(read, now)
 
@@ -247,17 +251,24 @@ const sceneOver = async (desk: Desk) => {
     throw new Error(logged.join('\n'))
   }
 
-  return sceneOf(host)
+  return { host, files }
 }
 
-/** Scenes made so far, one at a time: each look starts by forgetting what the one before it read. */
+/** Windows made so far, one at a time: each look starts by forgetting what the one before it read. */
 let making: Promise<unknown> = Promise.resolve()
 
-/** The scene the held window draws from at `now`, T0 unless told: the board open at home unless the desk's pane says otherwise. */
-export const sceneFrom = (desk: Desk = {}): Promise<Scene | undefined> => {
-  const made = making.then(() => sceneOver(desk))
+/** What `make` makes, once every window made before it is. */
+const oneAtATime = <T>(make: () => Promise<T>) => {
+  const made = making.then(make)
 
   making = made.catch(() => undefined)
 
   return made
 }
+
+/** The held window over a desk at `now`, T0 unless told, its look made: its host, and the files it reads and writes. For a test that runs the mod's code on it, giving the host what that code asks of it beyond the look. */
+export const windowFrom = (desk: Desk = {}) => oneAtATime(() => windowOver(desk))
+
+/** The scene the held window draws from at `now`, T0 unless told: the board open at home unless the desk's pane says otherwise; read from `$.state` as the board's render hook reads it. */
+export const sceneFrom = (desk: Desk = {}): Promise<Scene | undefined> =>
+  oneAtATime(async () => sceneOf((await windowOver(desk)).host))

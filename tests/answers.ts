@@ -36,7 +36,7 @@ export const entered = (
   return engine.prompt.submit({ text, wait: false, origin: { kind: 'composer' }, ...extra })
 }
 
-/** An image Lee pasted, as a plugin is given it: its kind, never its bytes or its path. */
+/** An image Lee pasted with no handle to read its bytes by, so it can't be saved, and rides in with Lee's prompt. */
 export const IMAGE: PromptSubmitAttachment = { type: 'image', mediaType: 'image/png' }
 
 /** Where a reply to an ask of the held session goes. */

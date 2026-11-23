@@ -1,3 +1,9 @@
+/**
+ * The ride (DESIGN.md, "An answer with an image"): an answer whose
+ * attachment can't be saved goes in at once with Lee's prompt. IMAGE
+ * carries no handle to read its bytes by, so it is never saved, and every
+ * Enter here takes the ride; answering-media.test.tsx has the saved case.
+ */
 import { expect, test, tier, type Engine } from './kit'
 import { parseEntries, parsePresence, sessionPaths } from '../core'
 import { CANNOT_RIDE, ELSEWHERE, NOT_TAKEN } from '../hooks/answering'

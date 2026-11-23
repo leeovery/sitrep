@@ -24,6 +24,7 @@ import {
   type Wants,
   type Session,
 } from './types'
+import { MEDIA_HINT, namesMedia } from './media'
 import { USER } from './user'
 
 /** What a reply says, whatever it is written as. */
@@ -378,8 +379,9 @@ const messageLines = <R extends ReplyFields>(carried: readonly Carried<R>[]) => 
   )
 }
 
-/** Lee's message carrying replies, from each reply's line in it. */
-export const messageText = (lines: readonly string[]) => [FROM_THE_BOARD, ...lines].join('\n')
+/** Lee's message carrying replies, from each reply's line in it, and what to do with an attachment where a line names one. */
+export const messageText = (lines: readonly string[]) =>
+  [FROM_THE_BOARD, ...lines, ...(lines.some(namesMedia) ? [MEDIA_HINT] : [])].join('\n')
 
 /**
  * Lee's message to a session carrying replies, the replies it carries, and

@@ -39,6 +39,7 @@ import { inFolder } from './folders'
 import { logFailure, rootFor, type Host } from './host'
 import { writeHeld, writeInto, writeOwnFile } from './into'
 import { isProjectList } from './lists'
+import { changeQueue } from './media'
 import { closeBoard } from './pane'
 import { projectPlace } from './places'
 import { clearing, queuing, unqueuing } from './queue'
@@ -332,13 +333,13 @@ export const actionsOf = (host: Host): Actions => {
     reply: reply => run('queuing a reply', () => queue(host, reply)),
     unqueue: (session, item) =>
       run('taking a reply back', () =>
-        host.state.queue.update(replies => unqueuing(replies, session, item)),
+        changeQueue(host, replies => unqueuing(replies, session, item)),
       ),
     cancelAll: () =>
       run('cancelling every reply', async () => {
         const flights = await host.state.inFlight.read()
 
-        await host.state.queue.update(replies => clearing(replies, flights))
+        await changeQueue(host, replies => clearing(replies, flights))
       }),
     answer: (answering, text) =>
       run('answering in the prompt', () => answer(host, answering, text)),
