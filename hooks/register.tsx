@@ -70,6 +70,7 @@ import { SEND, SEND_NOW } from './draw/ready'
 import { drawToolResult, drawToolRow, toolLine } from './draw/tool-row'
 import { logFailure, TOAST_MS, type Host } from './host'
 import { loadedNow } from './load'
+import { allowingSaved, processFiles, sweepMedia } from './media'
 import {
   BAND_KEYS,
   boardClosed,
@@ -125,6 +126,12 @@ const hostOf = ($: EngineInterface): Host => ({
     write: (path, text) => $.fs.write(path, text),
     list: dir => $.fs.list(dir),
     exists: path => $.fs.exists(path),
+    real: path =>
+      $.fs.stat(path, { resolve: true }).then(
+        stat => stat.realPath,
+        () => undefined,
+      ),
+    ...processFiles((argv, init) => $.process.run(argv, init)),
   },
   clock: {
     now: () => $.clock.now(),
@@ -170,6 +177,7 @@ const hostOf = ($: EngineInterface): Host => ({
     read: async () => (await $.prompt.read()).text,
     fill: text => $.prompt.fill({ text, mode: 'replace' }),
     clear: () => $.prompt.fill({ text: '', mode: 'replace' }),
+    media: args => $.prompt.media(args),
   },
   // Each slot spelled out: validate reads every atom's reads and writes off this
   // file, and refused them passed through a shared helper.
@@ -320,6 +328,7 @@ export const register: Register = on => {
       immediate: true,
     })
     await syncBoard(host)
+    await sweepMedia(host).catch(logFailure(host, 'sweeping old attachments'))
     tickEvery(host)
     lookEvery(host)
     receiveEvery(host)
@@ -401,9 +410,10 @@ export const register: Register = on => {
   ).catch(($, e, next) => next(e))
 
   on('tool.check', async ($, e, next) => {
-    const verdict = await next(e)
+    const host = hostOf($)
+    const verdict = await allowingSaved(host, e, await next(e))
 
-    await heardCheck(hostOf($), e, verdict.decision)
+    await heardCheck(host, e, verdict.decision)
 
     return verdict
   }).catch(($, e, next) => next(e))
@@ -467,7 +477,7 @@ export const register: Register = on => {
     }
 
     // A prompt the answering mode takes goes no further, so it takes no board context either.
-    const taken = await captured(host, e)
+    const taken = await captured(host, e, next.signal)
 
     if (taken !== undefined && 'drop' in taken) {
       await wentNowhere()

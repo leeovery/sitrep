@@ -13,6 +13,8 @@ import type {
   FsEntry,
   PaneOpenArgs,
   ProcessRunResult,
+  PromptMedia,
+  PromptMediaArgs,
   PromptSubmitResult,
   Timer,
   ToastOptions,
@@ -65,6 +67,14 @@ export type Host = {
     write: (path: string, text: string) => Promise<void>
     list: (dir: string) => Promise<FsEntry[]>
     exists: (path: string) => Promise<boolean>
+    /** Writes the bytes `base64` holds to a file only Lee can read, making its folder as needed. */
+    save: (path: string, base64: string) => Promise<void>
+    /** Removes files, those already gone among them. */
+    remove: (paths: readonly string[]) => Promise<void>
+    /** Marks files changed now, making none that is gone. */
+    touch: (paths: readonly string[]) => Promise<void>
+    /** Where a path lands, every link and `..` followed; undefined where it leads nowhere. */
+    real: (path: string) => Promise<string | undefined>
   }
   clock: {
     now: () => Promise<number>
@@ -111,6 +121,8 @@ export type Host = {
     fill: (text: string) => Promise<unknown>
     /** Empties Lee's prompt box. */
     clear: () => Promise<unknown>
+    /** An image or document attached to the prompt being submitted, by its `id`: a slice of its bytes, or why there are none. Only inside a `prompt.submit` hook. */
+    media: (args: PromptMediaArgs) => Promise<PromptMedia>
   }
   state: {
     attachment: Slot<SitrepAttachment | null>

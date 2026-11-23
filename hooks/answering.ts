@@ -16,20 +16,26 @@
  * window's own message, and the item is its project's. An item whose
  * session the board has not read yet leaves it standing, unshown.
  *
- * A prompt carrying an attachment, an image, can't wait in Ready to send:
- * a plugin is given its kind, never its bytes or its path, and its own
- * prompts carry none. So Lee's prompt goes in at once, rewritten as the
- * board's own words for that one reply, its attachments with it: a message
- * in flight from the moment it is decided, as a send is from its claim, but
- * submitted by Lee's Enter, and written down once Claude Code takes it. It
- * goes into this window's Claude, so only for a reply that goes to the
- * session the window holds: to an item of its own, or a pick-up of an item
- * any session of its project parked.
+ * A prompt carrying an attachment, an image, waits in Ready to send as any
+ * does: each attachment is saved as a file of sitrep's while the hook is in
+ * flight, and the reply's words name it where its placeholder sat
+ * (media.ts). Where any can't be saved, Lee's prompt rides in at once
+ * instead, rewritten as the board's own words for that one reply, its
+ * attachments with it: a message in flight from the moment it is decided,
+ * as a send is from its claim, but submitted by Lee's Enter, and written
+ * down once Claude Code takes it. It goes into this window's Claude, so
+ * only for a reply that goes to the session the window holds: to an item of
+ * its own, or a pick-up of an item any session of its project parked.
  *
  * Ended with nothing taken, the mode takes back the words it put in the
  * prompt box, so none of the board's words go to Claude unasked.
  */
-import type { PromptOrigin, PromptSubmitInput, RenderSurface } from 'claude-code'
+import type {
+  PromptOrigin,
+  PromptSubmitAttachment,
+  PromptSubmitInput,
+  RenderSurface,
+} from 'claude-code'
 import {
   barredBy,
   boardMessage,
@@ -44,6 +50,7 @@ import {
 import type { SitrepAnswering, SitrepAttachment, SitrepInFlight, SitrepQueued } from '../types'
 import { claimRide, letRideGo, rideTaken, type Ridden } from './deliver'
 import { logFailure, type Host } from './host'
+import { changeQueue, removeMedia, savedWith } from './media'
 import { unwrapPastes } from './paste'
 import { briefOf, canReach, filedAt, parkedOf } from './places'
 import {
@@ -112,9 +119,9 @@ export const LEFT =
 
 const EMPTY = 'Write your answer in the prompt first, or cancel it on the band.'
 
-/** Why a prompt carrying an attachment is kept: it can go only into this window's Claude. */
+/** Why a prompt carrying an attachment that can't be saved is kept: unsaved, it can go only into this window's Claude. */
 export const ELSEWHERE =
-  "An attachment goes only to this window's session: take it out to answer in words, or answer from that session's window."
+  "The attachment couldn't be saved, so it can go only to this window's session: take it out to answer in words, or answer from that session's window."
 
 /** Why a reply can't go in with Lee's prompt, as Ready to send says it leaves one out, its session read afresh. */
 export const CANNOT_RIDE: Record<LeftOut, string> = {
@@ -328,9 +335,7 @@ const queued = async (host: Host, standing: Answering, words: string): Promise<C
   const queue = await host.state.queue.read()
   const taken = TAKEN[writtenAs(standing, queue)]
 
-  await host.state.queue.update(waiting =>
-    queuing(waiting, replyOf(standing.answering, waiting, words)),
-  )
+  await changeQueue(host, waiting => queuing(waiting, replyOf(standing.answering, waiting, words)))
   await forget(host)
   // The engine puts a dropped prompt back in the box, over a clear made while
   // the hook runs (live), so the box is cleared once the drop has settled.
@@ -450,15 +455,16 @@ const afterClaim = async (
 }
 
 /**
- * Lee's prompt, carrying an attachment, let in as the board's words for the
- * reply, so the attachment goes with it: only for a reply that goes to the
- * session the window holds, whose Claude it goes into, and only while the
- * item, read afresh in its own session, takes the reply as a send would
- * carry it; else it is kept, a toast saying why. The mode is over, and the
- * reply claimed as a message in flight before it goes, its item read afresh
- * again once the claim has landed, then frozen in Ready to send in place of
- * what was queued on its item, so no send carries that too. Where a send
- * carries the item's reply already, the prompt goes on as any prompt does.
+ * Lee's prompt, carrying an attachment that can't be saved, let in as the
+ * board's words for the reply, so the attachment goes with it: only for a
+ * reply that goes to the session the window holds, whose Claude it goes
+ * into, and only while the item, read afresh in its own session, takes the
+ * reply as a send would carry it; else it is kept, a toast saying why. The
+ * mode is over, and the reply claimed as a message in flight before it
+ * goes, its item read afresh again once the claim has landed, then frozen
+ * in Ready to send in place of what was queued on its item, so no send
+ * carries that too. Where a send carries the item's reply already, the
+ * prompt goes on as any prompt does.
  */
 const letIn = async (
   host: Host,
@@ -507,15 +513,45 @@ const letIn = async (
 }
 
 /**
+ * Lee's words queued with his attachments saved and named in them; let in
+ * with them where any can't be saved. A submission given up while they were
+ * saved (`signal`) queues nothing, and leaves nothing saved.
+ */
+const withAttachments = async (
+  host: Host,
+  scene: Scene,
+  standing: Answering,
+  words: string,
+  attachments: readonly PromptSubmitAttachment[],
+  signal: AbortSignal | undefined,
+): Promise<Captured | undefined> => {
+  const saved = await savedWith(host, attachments, words)
+
+  if (saved === undefined) {
+    return letIn(host, scene, standing, words)
+  }
+
+  if (signal?.aborted === true) {
+    await removeMedia(host, saved.paths)
+
+    return { drop: NOT_TAKEN }
+  }
+
+  return queued(host, standing, saved.words)
+}
+
+/**
  * What the mode makes of Lee's prompt; undefined where it goes to Claude as
  * ever: a prompt not of Lee's own, one from a surface the mode is not shown
- * on, or one while a survey holds the band there. Words alone are queued,
- * the prompt dropped; words with an attachment ride in with it. One with
- * nothing in it is kept, and the mode stands.
+ * on, or one while a survey holds the band there. Its words are queued, each
+ * attachment saved and named in them, the prompt dropped; words with an
+ * attachment that can't be saved ride in with it. One with nothing in it is
+ * kept, and the mode stands.
  */
 export const captured = async (
   host: Host,
   { text, attachments = [], origin }: Pick<PromptSubmitInput, 'text' | 'attachments' | 'origin'>,
+  signal?: AbortSignal,
 ): Promise<Captured | undefined> => {
   const surface = SURFACE_OF[origin.kind]
 
@@ -545,7 +581,7 @@ export const captured = async (
     return { drop: NOT_TAKEN }
   }
 
-  return attachments.length > 0
-    ? letIn(host, scene, standing, words)
-    : queued(host, standing, words)
+  return attachments.length === 0
+    ? queued(host, standing, words)
+    : withAttachments(host, scene, standing, words, attachments, signal)
 }

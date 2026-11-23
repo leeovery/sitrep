@@ -36,7 +36,7 @@ export const entered = (
   return engine.prompt.submit({ text, wait: false, origin: { kind: 'composer' }, ...extra })
 }
 
-/** An image Lee pasted, as a plugin is given it: its kind, never its bytes or its path. */
+/** An image Lee pasted with no handle to read its bytes by, so it can't be saved, and rides in with Lee's prompt. */
 export const IMAGE: PromptSubmitAttachment = { type: 'image', mediaType: 'image/png' }
 
 /** Where a reply to an ask of the held session goes. */
@@ -92,7 +92,7 @@ export const onLedgersAsks = async (w: World, isUnread = false) => {
 /** The ledger's parked item. */
 export const EXPORT = 'Export the ledger as CSV'
 
-/** The board on the project's view, the ledger's parked item drawn there from its brief, opened, and ✎ with a comment pressed: the ledger. */
+/** The board on the project's view, the ledger's parked item drawn there from its brief, opened, picked up, and ✎ comment pressed under the pick-up: the ledger. */
 export const onLedgersParked = async (w: World, isUnread = false) => {
   const ledger = w.elsewhere(LEDGER)
 
@@ -111,7 +111,8 @@ export const onLedgersParked = async (w: World, isUnread = false) => {
 
   await toProject(ui)
   await ui.press({ key: `ppick:${there}` })
-  await ui.press({ key: `comment:${there}` })
+  await ui.press({ key: `pickup:${there}` })
+  await ui.press({ key: `rewrite:${there}` })
 
   return ledger
 }

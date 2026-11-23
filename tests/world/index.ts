@@ -56,10 +56,10 @@ export function world(engine: Engine, on: On, options: Options = {}) {
     ...(options.env ?? { TERM_PROGRAM: 'ghostty' }),
   })
 
-  const walk = walking(on)
+  const fs = disk(on, clock)
+  const walk = walking(on, fs.ran)
   const talk = conversation(engine, on, options.cwd ?? REPO)
   const held = kept(on)
-  const fs = disk(on, clock)
   const called = tools(engine, on)
 
   /** The conversation started, and a session started in it: its id and its folder's paths. */

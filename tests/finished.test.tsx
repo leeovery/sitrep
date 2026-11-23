@@ -180,7 +180,6 @@ test("what still works on a finished session's view stays: its parked item picks
     `history:${SHIPPED.id}`,
     `ppick:${itemKey(SHIPPED.id, 'p1')}`,
     `pickup:${itemKey(SHIPPED.id, 'p1')}`,
-    `comment:${itemKey(SHIPPED.id, 'p1')}`,
     `drop:${itemKey(SHIPPED.id, 'p1')}`,
   ])
 })

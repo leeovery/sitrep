@@ -164,7 +164,7 @@ test('an opened parked item hangs where and its record from its mark, its button
     '│ by department, week tally, separate summaries',
     '├ In DESIGN.md, Later',
     '└ see notes: spreadsheet-pilot.md',
-    '  [ pick it up ] [ ✎ with a comment ] [ ✕ drop ]',
+    '  [ pick it up ] [ ✕ drop ]',
   ])
 })
 
@@ -176,7 +176,7 @@ test('a parked item with nothing to hang shows no stem beside its title, only it
   expect(drawn.slice(1)).toEqual([
     '  pages: contributors by team and level, owner',
     '  by department, week tally, separate summaries',
-    '  [ pick it up ] [ ✎ with a comment ] [ ✕ drop ]',
+    '  [ pick it up ] [ ✕ drop ]',
   ])
 })
 
@@ -189,7 +189,7 @@ test("a pick-up waiting to be sent is the parked item's last branch, and takes t
 
   expect((await rows(ui, `parked:${heldItem('p1')}`)).slice(1)).toEqual([
     '├ In DESIGN.md',
-    '└ pick it up · not sent yet ↺ undo',
+    '└ pick it up · not sent yet ↺ undo ✎ comment',
   ])
 })
 

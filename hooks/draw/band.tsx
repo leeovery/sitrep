@@ -23,6 +23,7 @@ import { answeringIn, writtenAs, type Answering } from '../answering'
 import { C, clip, CLOSE, counted, GLYPH } from '../look'
 import { BAND, placementOn } from '../pane'
 import { waitingElsewhere, waitingHere } from '../places'
+import { queuedOn } from '../queue'
 import { countMark, type Scene } from '../scene'
 import { answeredByTheHook, type Els } from './kit'
 
@@ -34,6 +35,16 @@ const NARROW = 64
 
 /** What the next Enter does, by what Lee is writing: an answer where it closes the ask. */
 const NEXT_ENTER = { answer: 'answers', comment: 'comments on', pickup: 'picks up' } as const
+
+/** What the band says the next Enter does: a pick-up's note comments on the item once the pick-up is queued, as a Go's does; it picks the item up only where none is. */
+const verbOf = (standing: Answering, queue: Scene['queue']) => {
+  const as = writtenAs(standing, queue)
+  const { session, item } = standing.answering
+
+  return as === 'pickup' && queuedOn(queue, session, item) !== undefined
+    ? NEXT_ENTER.comment
+    : NEXT_ENTER[as]
+}
 
 const CANCEL = 'cancel'
 
@@ -60,7 +71,7 @@ const answeringCells = (enter: string, verb: string) =>
 const drawAnswering = (els: Els, width: number, standing: Answering, scene: Scene) => {
   const { Box, Text, Button } = els
   const enter = enterOf(width)
-  const verb = NEXT_ENTER[writtenAs(standing, scene.queue)]
+  const verb = verbOf(standing, scene.queue)
   const title = clip(standing.answering.title, Math.max(8, width - answeringCells(enter, verb)))
 
   return (

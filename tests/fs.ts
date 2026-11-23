@@ -8,6 +8,10 @@ import type { FsEntry } from 'claude-code'
 /** A file: its text, and its bytes where it is a binary one, which its text can't hold. */
 export type File = { text: string; mtimeMs: number; bytes?: Uint8Array }
 
+/** The bytes base64 holds. */
+export const bytesOf = (base64: string) =>
+  Uint8Array.from(atob(base64), character => character.charCodeAt(0))
+
 export const isUnder = (dir: string, path: string) => path.startsWith(`${dir}/`)
 
 /** The files and folders directly in `dir`, as the files under it imply them: each a file, held there, or a folder. */

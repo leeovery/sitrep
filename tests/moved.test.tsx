@@ -498,7 +498,8 @@ test("a pick-up of the session's own parked item Lee is writing a note for as it
   const ui = await w.opened()
 
   await ui.press({ key: `ppick:${w.item(parked)}` })
-  await ui.press({ key: `comment:${w.item(parked)}` })
+  await ui.press({ key: `pickup:${w.item(parked)}` })
+  await ui.press({ key: `rewrite:${w.item(parked)}` })
   w.writer(paths, W2)(moveTo(ELSEWHERE.key))
   await w.clock.advance(WATCH_MS)
 
@@ -623,7 +624,7 @@ test('a pick-up of what a session then moved to another project parked is drawn 
   ledger.write(moveTo(PROJECT.key))
   await w.clock.advance(AROUND_MS)
 
-  expect(await readyPickUp(ui)).toEqual({ rows: ['└ pick it up'], isUnreadied: true })
+  expect(await readyPickUp(ui)).toEqual({ rows: ['└ pick it up ✎ comment'], isUnreadied: true })
 
   await ui.press({ key: 'send' })
 
@@ -983,11 +984,15 @@ test("the window's refs keep naming the session's folder after a move, as a buil
   await ui.press({ key: `pick:${w.item(ask)}` })
   await ui.press({ key: `yes:${w.item(ask)}` })
   await ui.press({ key: `ppick:${w.item(parked)}` })
-  await ui.press({ key: `comment:${w.item(parked)}` })
+  await ui.press({ key: `pickup:${w.item(parked)}` })
+  await ui.press({ key: `rewrite:${w.item(parked)}` })
 
   expect(w.state.attachment?.project).toBe(PROJECT.key)
   expect(w.state.pane?.place).toEqual({ level: 'session', project: PROJECT.key, session })
-  expect(w.state.queue).toEqual([{ project: PROJECT.key, session, item: ask, verdict: 'yes' }])
+  expect(w.state.queue).toEqual([
+    { project: PROJECT.key, session, item: ask, verdict: 'yes' },
+    { project: PROJECT.key, session, item: parked, verdict: 'pickup' },
+  ])
   expect(w.state.answering).toMatchObject({ project: PROJECT.key, session, item: parked })
 })
 

@@ -763,11 +763,12 @@ const onParked = async (w: World) => {
   return { id, ui, paths }
 }
 
-/** The board on a parked item, ✎ with a comment pressed: the next Enter picks it up. */
+/** The board on a parked item, picked up, and ✎ comment pressed under the pick-up: the next Enter is its note. */
 const pickingUp = async (w: World) => {
   const parked = await onParked(w)
 
-  await parked.ui.press({ key: `comment:${w.item(parked.id)}` })
+  await parked.ui.press({ key: `pickup:${w.item(parked.id)}` })
+  await parked.ui.press({ key: `rewrite:${w.item(parked.id)}` })
 
   return parked
 }
@@ -775,25 +776,38 @@ const pickingUp = async (w: World) => {
 /** The rows a parked item is drawn on. */
 const parkedRows = async (ui: Board, key: string) => rowsOf(await ui.find({ key: `parked:${key}` }))
 
-test('an opened parked item offers pick it up, ✎ with a comment and ✕ drop; none once a pick-up is queued', async ($, on) => {
+test('an opened parked item offers only pick it up and ✕ drop; once a pick-up is queued, ✎ comment under it and in Ready to send, as under a Go', async ($, on) => {
   const w = world($, on)
   const { id, ui } = await onParked(w)
 
-  expect((await parkedRows(ui, w.item(id))).at(-1)).toBe(
-    '  [ pick it up ] [ ✎ with a comment ] [ ✕ drop ]',
-  )
+  expect((await parkedRows(ui, w.item(id))).at(-1)).toBe('  [ pick it up ] [ ✕ drop ]')
+  expect(await ui.find({ key: `comment:${w.item(id)}` })).toBeUndefined()
   await ui.press({ key: `pickup:${w.item(id)}` })
   expect(await parkedRows(ui, w.item(id))).toEqual([
     expect.stringMatching(/^● A priority badge/),
-    '└ pick it up · not sent yet ↺ undo',
+    '└ pick it up · not sent yet ↺ undo ✎ comment',
+  ])
+  expect(rowsOf(await ui.find({ key: `readyanswer:${w.item(id)}` }))).toEqual([
+    '└ pick it up ✎ comment',
   ])
   expect(glyphColors(await ui.find({ key: `parked:${w.item(id)}` }), '●')).toEqual([C.parked])
   expect(await ui.find({ key: `pickup:${w.item(id)}` })).toBeUndefined()
-  expect(await ui.find({ key: `comment:${w.item(id)}` })).toBeUndefined()
   expect(await ui.find({ key: `drop:${w.item(id)}` })).toBeUndefined()
 })
 
-test('✎ with a comment has the next Enter pick the parked item up: it says so under the item, its buttons gone, and the band names it', async ($, on) => {
+test('✎ comment in Ready to send, under a bare pick-up, has the next Enter be its note too', async ($, on) => {
+  const w = world($, on)
+  const { id, ui } = await onParked(w)
+
+  await ui.press({ key: `pickup:${w.item(id)}` })
+  await ui.press({ key: `readyrewrite:${w.item(id)}` })
+  expect(w.state.answering).toMatchObject({ item: id, as: 'pickup' })
+  expect(w.box.text).toBe('')
+  expect(await entered(w, $, 'Before the release')).toEqual({ drop: TAKEN.pickup })
+  expect(w.state.queue).toEqual([{ ...at(w, id), verdict: 'pickup', note: 'Before the release' }])
+})
+
+test('✎ comment under a queued pick-up has the next Enter be its note: it says so under the item, and the band names it', async ($, on) => {
   const w = world($, on)
   const { id, ui } = await pickingUp(w)
 
@@ -803,13 +817,27 @@ test('✎ with a comment has the next Enter pick the parked item up: it says so 
     title: TMUX,
     surface: 'terminal',
   })
-  expect((await parkedRows(ui, w.item(id))).slice(1)).toEqual(['└ answering in the prompt…'])
+  expect((await parkedRows(ui, w.item(id))).slice(1)).toEqual([
+    '├ pick it up · not sent yet ↺ undo ✎ comment',
+    '└ answering in the prompt…',
+  ])
   expect(await ui.find({ key: `pickup:${w.item(id)}` })).toBeUndefined()
 
   const { rows } = await bandRow(w)
-  const says = `✎ Your next Enter picks up "${TMUX}"  ↓`
+  const says = `✎ Your next Enter comments on "${TMUX}"  ↓`
 
   expect(rows).toEqual([`${says.padEnd(100 - 'cancel'.length)}cancel`])
+})
+
+test('↺ undo of the pick-up while its comment is being written leaves the mode standing: the band says the next Enter picks the item up, and it does, with the words its note', async ($, on) => {
+  const w = world($, on)
+  const { id, ui } = await pickingUp(w)
+
+  await ui.press({ key: `undo:${w.item(id)}` })
+  expect(w.state.queue).toEqual([])
+  expect((await bandRow(w)).rows[0]).toMatch(`✎ Your next Enter picks up "${TMUX}"`)
+  expect(await entered(w, $, 'Before the release')).toEqual({ drop: TAKEN.pickup })
+  expect(w.state.queue).toEqual([{ ...at(w, id), verdict: 'pickup', note: 'Before the release' }])
 })
 
 test('the next Enter is taken as the pick-up, its words the note: queued in Ready to send, nothing to Claude, the box emptied', async ($, on) => {
@@ -855,7 +883,8 @@ test('cancel ends picking up in one press: the buttons and the counts are back, 
   await band.press({ key: 'band:cancel-answer' })
   expect(w.state.answering).toBeNull()
   expect(await band.find({ key: 'band:asks' })).toBeDefined()
-  expect(await ui.find({ key: `comment:${w.item(id)}` })).toBeDefined()
+  expect(await ui.find({ key: `rewrite:${w.item(id)}` })).toBeDefined()
+  expect(w.state.queue, 'the bare pick-up kept').toEqual([{ ...at(w, id), verdict: 'pickup' }])
   expect((await entered(w, $, 'Carry on.')).drop).toBeUndefined()
   expect(w.prompts.map(each => each.text)).toEqual(['Carry on.'])
 })
@@ -865,7 +894,7 @@ test('a reload keeps picking up: the band still names it, and the next Enter is 
   const { id } = await pickingUp(w)
 
   await $.session.start(CONVERSATION)
-  expect((await bandRow(w)).rows[0]).toMatch(/^✎ Your next Enter picks up "A priority badge"/)
+  expect((await bandRow(w)).rows[0]).toMatch(/^✎ Your next Enter comments on "A priority badge"/)
   expect(await entered(w, $, 'Before the release')).toEqual({ drop: TAKEN.pickup })
   expect(w.state.queue).toEqual([{ ...at(w, id), verdict: 'pickup', note: 'Before the release' }])
 })
@@ -887,7 +916,7 @@ test("picking up another session's parked item from the project's view stands fr
 
   await onLedgersParked(w, true)
   expect(w.state.others, 'the ledger not read in full').toEqual([])
-  expect((await bandRow(w)).rows[0]).toMatch(`✎ Your next Enter picks up "${EXPORT}"`)
+  expect((await bandRow(w)).rows[0]).toMatch(`✎ Your next Enter comments on "${EXPORT}"`)
   expect(await entered(w, $, 'With the totals')).toEqual({ drop: TAKEN.pickup })
   expect(w.state.queue).toEqual([
     {
@@ -955,12 +984,12 @@ test('a queued pick-up with a note shows it, how many lines more, undo and ✎ e
   await ui.press({ key: `rewrite:${w.item(id)}` })
   expect(w.box.text).toBe(FOUR_LINES)
   expect(w.state.answering).toMatchObject({ item: id, as: 'pickup' })
-  expect((await bandRow(w)).rows[0]).toMatch(/^✎ Your next Enter picks up /)
+  expect((await bandRow(w)).rows[0]).toMatch(/^✎ Your next Enter comments on /)
   expect(await entered(w, $, 'Before the release')).toEqual({ drop: TAKEN.pickup })
   expect(w.state.queue).toEqual([{ ...at(w, id), verdict: 'pickup', note: 'Before the release' }])
 })
 
-test("in Claude's app ✎ with a comment picks up too, nothing offering to edit it; VS Code offers only the pick-up", async ($, on) => {
+test("in Claude's app ✎ comment adds a pick-up's note too, nothing offering to edit it; VS Code offers only the pick-up", async ($, on) => {
   const w = world($, on)
 
   await w.begin()
@@ -969,7 +998,8 @@ test("in Claude's app ✎ with a comment picks up too, nothing offering to edit 
   const app = await paneOn($, 'mobile')
 
   await app.press({ key: `ppick:${w.item(id)}` })
-  await app.press({ key: `comment:${w.item(id)}` })
+  await app.press({ key: `pickup:${w.item(id)}` })
+  await app.press({ key: `rewrite:${w.item(id)}` })
   expect(await entered(w, $, 'Before the release', { origin: { kind: 'bridge' } })).toEqual({
     drop: TAKEN.pickup,
   })
@@ -979,6 +1009,7 @@ test("in Claude's app ✎ with a comment picks up too, nothing offering to edit 
 
   const vscode = await paneOn($, 'vscode')
 
-  expect(await vscode.find({ key: `pickup:${w.item(id)}` })).toBeDefined()
-  expect(await vscode.find({ key: `comment:${w.item(id)}` })).toBeUndefined()
+  await vscode.press({ key: `pickup:${w.item(id)}` })
+  expect(await vscode.find({ key: `rewrite:${w.item(id)}` })).toBeUndefined()
+  expect(await vscode.find({ key: `readyrewrite:${w.item(id)}` })).toBeUndefined()
 })

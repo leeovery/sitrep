@@ -1,8 +1,8 @@
 import { expect, test, tier } from './kit'
-import { parseEntries } from '../core'
+import { MEDIA_HINT, parseEntries } from '../core'
 import { FLASH_MS } from '../hooks/deliver'
 import { WATCH_MS } from '../hooks/window'
-import { CLOSES, MIN, PROJECT, REVIEW, SENDER, W1, W2 } from './data'
+import { CLOSES, LEAVES_OPEN, MIN, PROJECT, REVIEW, ROOT, SENDER, W1, W2 } from './data'
 import { file, reply } from './lines'
 import { asked, CONVERSATION, INLINE, kindsIn, world, type World } from './world'
 
@@ -64,6 +64,25 @@ test("the window delivering for its session submits inbox replies as Lee's own m
 
   await w.clock.advance(4 * WATCH_MS)
   expect(w.prompts, 'nothing goes in twice').toHaveLength(1)
+})
+
+test('an inbox reply whose note names a saved file has its message tell Claude to open it', async ($, on) => {
+  const w = world($, on)
+  const { posted, send } = await fromSender(w)
+  const saved = `${ROOT}/media/aaaa.png`
+  const turn = w.holdPrompts()
+
+  send(['r1', posted, 'comment', { note: `Like this [image: ${saved}]` }])
+  await w.clock.advance(TAKE_IN)
+  await turn.arrived
+  expect(w.state.inFlight).toMatchObject({
+    source: 'inbox',
+    text:
+      'From the board:\n- Review Tickets & Replies, round 1 → comment: ' +
+      `“Like this [image: ${saved}]”${LEAVES_OPEN}\n${MEDIA_HINT}`,
+  })
+  turn.end()
+  await w.clock.advance(WATCH_MS)
 })
 
 test("a window that is not its session's deliverer submits nothing", async ($, on) => {

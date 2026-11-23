@@ -39,6 +39,7 @@ import { inFolder } from './folders'
 import { logFailure, rootFor, type Host } from './host'
 import { writeHeld, writeInto, writeOwnFile } from './into'
 import { isProjectList } from './lists'
+import { changeQueue } from './media'
 import { closeBoard } from './pane'
 import { projectPlace } from './places'
 import { clearing, queuing, unqueuing } from './queue'
@@ -56,7 +57,7 @@ export type Actions = {
   unqueue: (session: string, item: string) => void
   /** Empties the queue, but for what the sends in flight carry. */
   cancelAll: () => void
-  /** Has the next Enter in the prompt box answer an ask, comment on it, or pick a parked item up with a comment; `text` fills the box first, to edit the words already queued. */
+  /** Has the next Enter in the prompt box answer an ask, comment on it, or add a comment to a pick-up; `text` fills the box first, to edit the words already queued. */
   answer: (answering: SitrepAnswering<SessionKey>, text?: string) => void
   /** Takes back a send the window holds for its turn, its replies back in Ready to send among those still to send; none once it has gone. */
   takeBack: (send: SitrepInFlight) => void
@@ -155,7 +156,7 @@ const queue = async (host: Host, reply: SitrepQueued<ProjectKey>) => {
   const keeping = await kept(host, reply, UNQUEUED)
 
   if (keeping !== undefined) {
-    await host.state.queue.update(replies => queuing(replies, keeping))
+    await changeQueue(host, replies => queuing(replies, keeping))
     await readIfElsewhere(host, reply)
   }
 }
@@ -332,13 +333,13 @@ export const actionsOf = (host: Host): Actions => {
     reply: reply => run('queuing a reply', () => queue(host, reply)),
     unqueue: (session, item) =>
       run('taking a reply back', () =>
-        host.state.queue.update(replies => unqueuing(replies, session, item)),
+        changeQueue(host, replies => unqueuing(replies, session, item)),
       ),
     cancelAll: () =>
       run('cancelling every reply', async () => {
         const flights = await host.state.inFlight.read()
 
-        await host.state.queue.update(replies => clearing(replies, flights))
+        await changeQueue(host, replies => clearing(replies, flights))
       }),
     answer: (answering, text) =>
       run('answering in the prompt', () => answer(host, answering, text)),

@@ -424,7 +424,6 @@ test("the project view's PARKED holds a finished session's items and an idle one
 
   await ui.press({ key: `ppick:${LEDGER.id}:p2` })
   expect(await ui.find({ key: `pickup:${LEDGER.id}:p2` })).toBeDefined()
-  expect(await ui.find({ key: `comment:${LEDGER.id}:p2` })).toBeDefined()
 })
 
 test("a finished session's files as a build before parked items were the project's left them: its items show in the project's PARKED by its name, and no look rewrites a byte", async ($, on) => {

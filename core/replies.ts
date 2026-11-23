@@ -24,6 +24,7 @@ import {
   type Wants,
   type Session,
 } from './types'
+import { MEDIA_HINT, namesSavedMedia } from './media'
 import { USER } from './user'
 
 /** What a reply says, whatever it is written as. */
@@ -378,8 +379,12 @@ const messageLines = <R extends ReplyFields>(carried: readonly Carried<R>[]) => 
   )
 }
 
-/** Lee's message carrying replies, from each reply's line in it. */
-export const messageText = (lines: readonly string[]) => [FROM_THE_BOARD, ...lines].join('\n')
+/** Lee's message carrying replies, from each reply's line in it; and, where any reply's note names a saved attachment, what to do with one. */
+export const messageText = (
+  lines: readonly string[],
+  notes: readonly (string | undefined)[] = [],
+) =>
+  [FROM_THE_BOARD, ...lines, ...(notes.some(namesSavedMedia) ? [MEDIA_HINT] : [])].join('\n')
 
 /**
  * Lee's message to a session carrying replies, the replies it carries, and
@@ -417,7 +422,11 @@ export const boardMessage = <R extends ReplyFields>(
 
   const lines = messageLines(carried)
 
-  return { text: messageText(lines), lines, replies: carried.map(({ reply }) => reply) }
+  return {
+    text: messageText(lines, carried.map(({ reply }) => reply.note)),
+    lines,
+    replies: carried.map(({ reply }) => reply),
+  }
 }
 
 /** The replies a window submits now: every one on its way when it is the session's deliverer, else none. */

@@ -242,6 +242,6 @@ test("a pick-up from this session's PARKED waits in Ready to send", async ($, on
   expect(rows.slice(group, group + 3)).toEqual([
     'to this session',
     'A priority badge across all tabs ✕',
-    '└ pick it up',
+    '└ pick it up ✎ comment',
   ])
 })

@@ -12,6 +12,7 @@ import type { SitrepAttachment, SitrepQueued, SitrepSessionRef } from '../types'
 import { foldAt, lookAround } from './around'
 import { rootFor, type Host } from './host'
 import { counted } from './look'
+import { freshenMedia } from './media'
 import {
   afterSend,
   destinations,
@@ -113,6 +114,8 @@ const sendTo = async (
 
     throw error
   }
+
+  await freshenMedia(host, replies)
 
   await host.state.sent.update(list =>
     withSent(

@@ -3,7 +3,9 @@ import type { On } from 'claude-code'
 import type { MockClock } from 'claude-code/testing'
 import { PLUGIN_VERSION } from '../data'
 import { MANIFEST } from '../../hooks/version'
+import { removeArgv, touchArgv } from '../../hooks/media'
 import { isThere, listingIn, missing, textIn, type File } from '../fs'
+import { exited } from './conversation'
 
 /** The plugin's manifest, giving `version`. */
 export const manifestOf = (version: unknown) =>
@@ -13,6 +15,27 @@ export const manifestOf = (version: unknown) =>
 type Look = 'read' | 'exists' | 'list'
 
 const MISSING = (path: string) => ({ deny: missing(path) })
+
+/** The removal of saved attachments, before the paths it removes. */
+const REMOVE = removeArgv([])
+
+/** The marking of sent attachments, before the paths it marks. */
+const TOUCH = touchArgv([])
+
+/** The paths a process given `argv` acts on after `command`; undefined where it runs another command. */
+const pathsAfter = (argv: readonly string[], command: readonly string[]) =>
+  command.every((each, i) => argv[i] === each) ? argv.slice(command.length) : undefined
+
+/** Where a path lands, `.` and `..` folded: the world's files have no links. */
+const folded = (path: string) =>
+  `/${path
+    .split('/')
+    .reduce<string[]>(
+      (parts, part) =>
+        part === '..' ? parts.slice(0, -1) : part === '' || part === '.' ? parts : [...parts, part],
+      [],
+    )
+    .join('/')}`
 
 /** The engine's file system beneath the mod, its files written at the clock's time. */
 export function disk(on: On, clock: MockClock) {
@@ -67,6 +90,67 @@ export function disk(on: On, clock: MockClock) {
     return answered('list', e.path, listing(e.path))
   })
 
+  /** Marks each file of `paths` changed now, making none. */
+  const touch = (paths: readonly string[]) => {
+    for (const path of paths) {
+      const file = files.get(path)
+
+      if (file !== undefined) {
+        files.set(path, { ...file, mtimeMs: clock.now() })
+      }
+    }
+  }
+
+  /** Removes each file of `paths`. */
+  const remove = (paths: readonly string[]) => {
+    for (const path of paths) {
+      files.delete(path)
+    }
+  }
+
+  /**
+   * Answers the processes that remove saved attachments and mark them over
+   * the files, as each command would, failing on a path writes are refused
+   * at; undefined for any other. The save is no part of it: the kit reads no
+   * attachment, so no test reaches one.
+   */
+  const ran = (argv: readonly string[]) => {
+    const removed = pathsAfter(argv, REMOVE)
+    const touched = pathsAfter(argv, TOUCH)
+    const paths = removed ?? touched
+
+    if (paths === undefined) {
+      return undefined
+    }
+
+    const refused = paths.find(path => isRefused?.(path) === true)
+
+    if (refused !== undefined) {
+      return exited(1, '', `${argv[0]}: ${refused}: Operation not permitted`)
+    }
+
+    ;(removed === undefined ? touch : remove)(paths)
+
+    return exited(0)
+  }
+
+  on('fs.stat', ($, e) => {
+    const path = folded(e.path)
+    const file = files.get(path)
+
+    return isThere(files, path)
+      ? {
+          value: {
+            kind: file === undefined ? ('dir' as const) : ('file' as const),
+            size: file?.text.length ?? 0,
+            mtimeMs: file?.mtimeMs ?? 0,
+            isLink: false,
+            ...(e.resolve ? { realPath: path } : {}),
+          },
+        }
+      : MISSING(e.path)
+  })
+
   /** A folder's listing, as the engine gives it. */
   const listing = (dir: string) => {
     const entries = listingIn(files, dir)
@@ -78,6 +162,7 @@ export function disk(on: On, clock: MockClock) {
     files,
     listed,
     written,
+    ran,
     /** Writes a file as another writer would: a window elsewhere, the CLI, Lee's board. */
     put: (path: string, text: string) => files.set(path, { text, mtimeMs: clock.now() }),
     /** The text of a file, failing the test when it is not there. */

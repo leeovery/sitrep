@@ -4,6 +4,7 @@
  *
  *   <root>/snooze.json          Snooze's choices as Lee set them in SitRep
  *   <root>/here.json            who SitRep last read viewing each held session and multiplexer tty
+ *   <root>/media/<name>.<ext>   an image or document Lee attached to a reply, for Claude to open
  *   <root>/projects/<project key>/
  *     project.json              the project's name and directory
  *     sessions/<session id>/
@@ -86,6 +87,15 @@ export const snoozeFile = (root: string) => `${root}/${SNOOZE_FILE}`
 export const HERE_FILE = 'here.json'
 
 export const hereFile = (root: string) => `${root}/${HERE_FILE}`
+
+/** The folder the images and documents Lee attaches to his replies are saved in, at the folder's top. */
+export const MEDIA_DIR = 'media'
+
+export const mediaDir = (root: string) => `${root}/${MEDIA_DIR}`
+
+/** Whether a folder is sitrep's media folder, as `mediaDir` names one wherever sitrep's folder is. */
+export const isMediaDir = (dir: string) =>
+  dir.startsWith('/') && dir.endsWith(`/${FOLDER}/${MEDIA_DIR}`)
 
 export const projectPaths = (root: string, project: string): ProjectPaths => {
   const dir = `${projectsDir(root)}/${safe(project)}`
