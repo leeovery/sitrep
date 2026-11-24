@@ -18,6 +18,7 @@ import {
   withId,
   withParkId,
   type Checked,
+  type Session,
   type SessionFiles,
 } from '../core'
 import { MIN, SENDER, T0, W1 } from './data'
@@ -822,18 +823,26 @@ test("Lee's snooze of one ask is refused, the first refusal in order saying why:
   }
 })
 
-test("Lee's wake now on an ask wakes that ask alone where his own snooze of it stands, run out at its time or not; its session where the session's snooze holds it; refused in a finished session, and for an ask not snoozed", () => {
+test("Lee's wake now on an ask wakes that ask alone where his own snooze of it stands, run out at its time or not; its session while the session's snooze holds it, and that ask alone once the session's has run out and he snoozed it on its own; refused in a finished session, and for an ask not snoozed", () => {
   const own = boardOf([K1_ASLEEP])
   const ranOut = boardOf([[T0 + 2 * MIN, snooze('k1', NOW)]])
+  const afterSession = boardOf([
+    [T0 + 2 * MIN, snoozeSession(T0 + 3 * MIN, ...SHOWN)],
+    [T0 + 4 * MIN, snooze('k1', LATER)],
+    [T0 + 4 * MIN, snooze('k2', LATER)],
+  ])
   const finished = boardOf([K1_ASLEEP, [T0 + 3 * MIN, finish('lee')]])
+  const wakeOf = (board: Session, id: string) => checkWakeAsk(board, id, NOW)
   const wakeK1 = { type: 'wake', item: 'k1' }
 
-  expect(value(checkWakeAsk(own, 'k1'))).toEqual(wakeK1)
-  expect(value(checkWakeAsk(ranOut, 'k1')), 'run out').toEqual(wakeK1)
-  expect(value(checkWakeAsk(boardOf([SESSION_ASLEEP]), 'k1')), "the session's").toEqual({
+  expect(value(wakeOf(own, 'k1'))).toEqual(wakeK1)
+  expect(value(wakeOf(ranOut, 'k1')), 'run out').toEqual(wakeK1)
+  expect(value(wakeOf(boardOf([SESSION_ASLEEP]), 'k1')), "the session's").toEqual({
     type: 'wakeSession',
   })
-  expect(refusal(checkWakeAsk(finished, 'k1'))).toBe(FINISHED)
-  expect(refusal(checkWakeAsk(own, 'k2')), 'another ask, waiting').toBe('it is not snoozed.')
-  expect(refusal(checkWakeAsk(own, 'zz')), 'no item').toBe('it is not snoozed.')
+  expect(afterSession.snooze?.until, "the session's run out, standing still").toBe(T0 + 3 * MIN)
+  expect(value(wakeOf(afterSession, 'k1')), 'on its own since').toEqual(wakeK1)
+  expect(refusal(wakeOf(finished, 'k1'))).toBe(FINISHED)
+  expect(refusal(wakeOf(own, 'k2')), 'another ask, waiting').toBe('it is not snoozed.')
+  expect(refusal(wakeOf(own, 'zz')), 'no item').toBe('it is not snoozed.')
 })

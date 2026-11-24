@@ -276,9 +276,12 @@ const snooze = async (host: Host, at: SitrepItemRef<ProjectKey>, when: SnoozeCho
   await writeLee(host, at, UNSNOOZED, session => checkSnoozeAsk(session, at.item, until, now))
 }
 
-/** Lee's waking of a snoozed ask, checked against its session as it stands. */
-const wake = (host: Host, at: SitrepItemRef<ProjectKey>) =>
-  writeLee(host, at, 'Not woken', session => checkWakeAsk(session, at.item))
+/** Lee's waking of a snoozed ask, checked against its session as it stands at the press. */
+const wake = async (host: Host, at: SitrepItemRef<ProjectKey>) => {
+  const now = await host.clock.now()
+
+  await writeLee(host, at, 'Not woken', session => checkWakeAsk(session, at.item, now))
+}
 
 /**
  * Lee's drop of a parked item, checked against the session that parked it

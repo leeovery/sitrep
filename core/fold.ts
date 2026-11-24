@@ -605,11 +605,11 @@ const HANDLERS: { [T in Body['type']]: Handler<T> } = {
 
   wakeSession: fold => wakeSession(fold.asleep),
 
-  snooze: (fold, { item: id, until }) => {
+  snooze: (fold, { item: id, until, at }) => {
     const item = fold.items.get(id)
 
     if (item?.type === 'ask') {
-      snoozeAsk(fold.asleep, item, until, fold.items.values())
+      snoozeAsk(fold.asleep, item, until, fold.items.values(), at)
     }
   },
 
@@ -747,10 +747,12 @@ const presenceOf = (files: Readonly<Record<string, string>>, pauses: readonly Pa
 const isAsk = (item: Item): item is Ask => item.type === 'ask'
 const isParked = (item: Item): item is Parked => item.type === 'park' && item.state === 'parked'
 
-/** Lee's snoozes and wakes of a session or a turn are never told to Claude, so they leave a session as recent as it was. */
+/** Lee's snoozes and wakes of a session, an ask or a turn are never told to Claude, so they leave a session as recent as it was. */
 const UNTOLD: ReadonlySet<Body['type']> = new Set([
   'snoozeSession',
   'wakeSession',
+  'snooze',
+  'wake',
   'snoozeTurn',
   'wakeTurn',
 ])

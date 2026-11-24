@@ -13,7 +13,7 @@ import { isSessionId, newItemId, type Random } from './ids'
 import { directoryOf, isNameable, type Project } from './project'
 import { offeredAs, readOptions, unmarked } from './recommended'
 import { needsReload } from './release'
-import { replyOnItsWay, waitingOnLee, waitsOnLee, yesOf } from './replies'
+import { replyOnItsWay, snoozedUntilOf, waitingOnLee, waitsOnLee, yesOf } from './replies'
 import { turnEndOf } from './rows'
 import { WANTS } from './shapes'
 import type { StatusFields } from './status'
@@ -1075,9 +1075,17 @@ const checkWakeOwn = (session: Session, id: string): Checked<WakeBody> => {
 }
 
 /**
- * Lee's waking of a snoozed ask now, as the pane's `wake now` gives it:
- * where the session's snooze holds the ask, the session, as `checkWake`
- * wakes it; else that ask alone, from its own snooze.
+ * Lee's waking of a snoozed ask at `now`, as the pane's `wake now` gives
+ * it: while the session's snooze holds the ask, the session, as `checkWake`
+ * wakes it; else that ask alone, from its own snooze. One the session's
+ * snooze held until it ran out, then snoozed on its own, wakes alone, so
+ * the session's other asks sleep on.
  */
-export const checkWakeAsk = (session: Session, id: string): Checked<WakeSessionBody | WakeBody> =>
-  session.snooze?.asks.includes(id) === true ? checkWake(session) : checkWakeOwn(session, id)
+export const checkWakeAsk = (
+  session: Session,
+  id: string,
+  now: number,
+): Checked<WakeSessionBody | WakeBody> =>
+  snoozedUntilOf(session, now) !== undefined && session.snooze?.asks.includes(id) === true
+    ? checkWake(session)
+    : checkWakeOwn(session, id)

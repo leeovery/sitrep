@@ -1161,8 +1161,8 @@ show all 4
   An ask Lee snoozed, on its own or with its session, comes after those
   waiting, the soonest to wake first, quieted (its `●` grey, its title
   dim), and hangs `snoozed until tomorrow 09:00` with `wake now`, which
-  wakes that ask where its own snooze holds it, and its session where the
-  session's does; opened, it answers as any ask does (see "Snooze").
+  wakes its session while the session's snooze holds it, and else that ask
+  alone; opened, it answers as any ask does (see "Snooze").
 - **Resolved:** a section of its own at the foot of a session's view, under
   Parked, drawn once an ask has closed. Its heading counts the asks closed
   before now, ignored ones aside (`4 resolved`), and it lists the latest 3,
@@ -2898,9 +2898,10 @@ section says how it stands now.
 - An old reader skips both kinds, as it skips any it does not know: a window
   not reloaded counts the session's asks on its band, and its Claude reads
   them waiting, until it reloads (`watch`'s `needsReload` lists it).
-- The lines before 13 November 2026, `snooze` and `wake` of an ask, and
-  `snoozeTurn` and `wakeTurn` of a turn, are still read: see "The row
-  snoozes" for how.
+- `snooze` and `wake` of one ask, written before 13 November 2026 and by
+  the pane again from 24 November (see "An ask snoozes in the pane"), and
+  `snoozeTurn` and `wakeTurn` of a turn, from before 13 November, are
+  read too: see "Reading the old lines", under "The row snoozes", for how.
 
 **What a snooze is, as the fold reads it** (`core/asleep.ts`). Every reader
 reads the lines in one order (see "Reading merges", under "Storage"), so of
@@ -3054,9 +3055,9 @@ while no `watch` ran, the app quit, brings no swell, as any line then.
   `snooze.json` sets them (`in an hour`, `later today`, `tonight`,
   `tomorrow`, `this weekend`, `next week`), then `cancel`. A choice writes one
   `snooze` line of that ask in its session, its time worked out at the
-  press (see "An ask snoozes in the pane"); `wake now` writes one `wake`
-  of the ask where its own snooze holds it, and one `wakeSession` where
-  the session's does. Each is checked against the session as it stands,
+  press (see "An ask snoozes in the pane"); `wake now` writes one
+  `wakeSession` while the session's snooze holds the ask, and else one
+  `wake` of the ask. Each is checked against the session as it stands,
   the session's wake as the CLI checks it, and goes in the window's own
   file in the session (above), wherever the pane draws an ask's buttons
   (**proposed**). The pane offers no snooze of a turn alone:
@@ -3084,10 +3085,11 @@ while no `watch` ran, the app quit, brings no swell, as any line then.
 it did not make: the board's text changes, and rides into its next turn as
 context (see "Claude's side"). Never a message, never a turn. A snooze
 running out changes the text again, and that rides in the same way. The
-lines themselves leave the session's `updatedAt` as it was (`UNTOLD`,
-`core/fold.ts`), so the first message's listing and the sessions around a
-window order it as before; a snooze of a session at its turn alone, with no
-ask, changes nothing Claude reads.
+lines themselves, a session's, an ask's or an old turn's, and their wakes,
+leave the session's `updatedAt` as it was (`UNTOLD`, `core/fold.ts`), so the
+first message's listing and the sessions around a window order it as before;
+a snooze of a session at its turn alone, with no ask, changes nothing Claude
+reads.
 
 - The board text (the `board` tool, a join's answer, the context, `sitrep
   board`) lists a snoozed ask among the open asks, in place of `waiting on
@@ -3203,7 +3205,9 @@ own snooze worked, and how its lines are still read.
   Nothing writes them since 13 November 2026; how they are read now is in
   "The row snoozes".
 - **Never told to Claude:** they leave the session's `updatedAt` as it was
-  (`UNTOLD`, `core/fold.ts`), as the session's own lines do now.
+  (`UNTOLD`, `core/fold.ts`), as the session's own lines do now, and since
+  24 November 2026 an ask's `snooze` and `wake` too, which moved it until
+  then.
 - **How it showed:** `watch`'s `snoozed` carried it as a row of its own,
   beside any row of the session's asks asleep, its one line keyed
   `turn:<session>`, its `is` `yourTurn`, its `ask` null, `first` the turn's
@@ -3260,13 +3264,15 @@ rules, had Lee waking and snoozing twice for one thing he meant to put off.
   through the hold before the board's change is read, so the waking rides
   in with the prompt. Anything Lee types in the window counts, a slash
   command among them, by design: he is there. It writes only while his
-  snooze of the session, or an old line's of its turn, still holds (core's
-  `isSessionAsleepAt`), never for an ask's own snooze (see "An ask snoozes
-  in the pane"), so never for a snooze run out; nor for a turn that starts
-  without him: a
-  task's notification, a scheduled wake, a loop, or a board message. A
-  window not yet reloaded runs the mod from before this, so Lee's prompt
-  there wakes nothing until it reloads.
+  snooze of the session, or an old line's snooze of its turn, still holds
+  (core's `isSessionAsleepAt`): not for one run out, not for an ask's own
+  snooze alone (see "An ask snoozes in the pane"), and not for a turn that
+  starts without him: a task's notification, a scheduled wake, a loop, or
+  a board message. A `wakeSession` ends everything he snoozed of the
+  session, so where an ask's own snooze stands beside the session's or an
+  old turn's, his prompt ends it too. That is rare: a row's snooze stands
+  in place of the asks' own. A window not yet reloaded runs the mod from
+  before this, so Lee's prompt there wakes nothing until it reloads.
 
 **Until it moves** (Lee, 13 November 2026, keeping it from board I, and the
 same on every row): Snooze's fourth choice, after a separator, with no time
@@ -3295,23 +3301,27 @@ winning, as in Needs you.
 **Reading the old lines.** Every board on disk stays readable, and old
 writers and readers stay safe:
 
-- An old `snooze` of an ask keeps its old meaning, per ask: its own time,
-  for the ask it names waiting as posted, open and not replied, ended as
-  that ask closes, reopens, or is woken by an old `wake`; one naming
-  anything else is passed over, as before. Besides, while old lines'
-  snoozes hold every ask waiting on Lee in the session, its turn sleeps
-  with them, until the first of them wakes or closes, or a new ask lands.
-  That joins Tailspin's turn to its three snoozed asks, the case Lee raised,
-  in one row, waking as the first ask does, and leaves a session whose
-  asks Lee left showing as it was, its turn on its Needs you row.
+- A `snooze` of an ask, from before 13 November or from the pane since
+  24 November (see "An ask snoozes in the pane"), reads per ask: its own
+  time, for the ask it names waiting as posted, open and not replied,
+  ended as that ask closes, reopens, or is woken by a `wake`; one naming
+  anything else is passed over. Besides, while such snoozes hold every ask
+  waiting on Lee in the session, the turn standing as the last of them was
+  written sleeps with them, until the first of them wakes or closes, or a
+  new ask lands; a turn ending after it is a new need. That joins
+  Tailspin's turn to its three snoozed asks, the case Lee raised, in one
+  row, waking as the first ask does, and leaves a session whose asks Lee
+  left showing as it was, its turn on its Needs you row.
 - An old `snoozeTurn` holds as it always did: until its time, or with none
   until the session takes another turn, and ended by a `wakeTurn`, by
   something after it needing Lee or his reply, and by Lee's snooze or wake
   of the session. Of a session snooze and an old turn snooze both holding,
   the turn wakes as the later does.
-- Lee's snooze of the session stands in place of whatever old lines
-  snoozed of it, and his wake of it, from the app, the CLI, the pane or
-  his prompt, ends them all.
+- Lee's snooze of the session stands in place of whatever he snoozed of
+  it before, the asks' own snoozes among them. His wake of it, a
+  `wakeSession`, ends them all: from the app or the CLI; from the pane's
+  `wake now` on an ask the session's snooze holds; or from his prompt,
+  while the session's snooze or an old turn snooze holds.
 - Old readers, a window not reloaded or an app before this change, skip
   `snoozeSession` and `wakeSession` as any line they do not know, so they
   show the session's asks waiting until they reload. The app ships its own
@@ -3331,16 +3341,31 @@ still snoozes its session.
   as it always read those lines, each ask its own time. The pane offers
   only the choices with a time, so it never writes one until it moves.
 - **What it puts off:** that ask alone. The session's other asks waiting on
-  Lee stay in Needs you, and so does his turn there. The turn sleeps with
-  the asks' own snoozes only while they hold every ask waiting on Lee, so
-  snoozing a session's only ask puts off its turn too, until the first of
-  them wakes or closes.
+  Lee stay in Needs you, and so does his turn there.
+- **The turn standing sleeps with it** (24 November 2026, from review).
+  While the asks' own snoozes hold every ask waiting on Lee, the turn
+  standing as he wrote the last of them sleeps with them, until the first
+  wakes or closes. So snoozing a session's only ask at his turn puts that
+  turn off too. A turn Claude ends after the snooze is a new need, on Your
+  turn, as with an old line's snooze of a turn: Lee can snooze an ask for
+  a week and work on in the window, each turn coming back to him.
 - **What wakes it:** its time; the ask closing or reopened; `wake now` on
-  the ask in the pane; and Lee waking the session's row, on the card,
-  which wakes everything he snoozed of it.
-- **What does not:** Lee's own prompt in the session's window (he snoozed
-  one ask while working on the rest; his prompt wakes only the session's
-  own snooze), a new ask, the turn ending, and anything Claude writes.
+  the ask in the pane, which writes a `wake` of the ask, or a `wakeSession`
+  while the session's snooze holds it; Lee waking the session's row, on
+  the card, which wakes everything he snoozed of it; and a row's snooze,
+  on the card or the CLI, which stands in place of the ask's own, so
+  everything comes back at the row's time, an ask he snoozed for longer
+  among them.
+- **What does not:** Lee's own prompt in the session's window, since he
+  snoozed one ask while working on the rest. His prompt wakes only the
+  session's snooze or an old turn snooze; where one of those holds beside
+  the ask's own, which is rare, its `wakeSession` ends the ask's too (see
+  "The row snoozes"). Nor does a new ask, the turn ending, or anything
+  Claude writes.
+- **Never told to Claude:** its `snooze` and `wake` leave the session's
+  `updatedAt` as it was (`UNTOLD`), as a session's lines do, so a snooze
+  moves no session up the list; until 24 November 2026 they moved it.
+  Claude still reads the ask snoozed in the board text.
 - **Drawn** as the fold already draws an ask's own snooze: the session's
   row in Needs you with the asks still waiting, and its row in Snoozed,
   beside it, with a line for each ask asleep. The app reads the same rows
@@ -3644,9 +3669,10 @@ $XDG_STATE_HOME/sitrep/, else ~/.local/state/sitrep/
   makes a path of it; and `snoozeSession`, Lee's snooze of the session
   until a time (`until`), and `wakeSession`, Lee's waking of it now, Lee's
   alone and written to the writer's own file, never an inbox (13 November
-  2026; see "Snooze"), which `snooze` and `wake` of an ask (23 October 2026)
-  and `snoozeTurn` and `wakeTurn` of a turn (4 November 2026) came before,
-  still read and no longer written. A `note`, Claude's note until notes
+  2026; see "Snooze"); `snooze` and `wake` of one ask (23 October 2026),
+  which the pane writes again from 24 November 2026 (see "An ask snoozes
+  in the pane"); and `snoozeTurn` and `wakeTurn` of a turn (4 November
+  2026), still read and no longer written. A `note`, Claude's note until notes
   went (17 November 2026), is still read, for its `id` alone: the id stays
   taken, and the line dates its session and counts in its writer's file as
   ever, but it posts nothing; an edit's `text` and `detail`, a note's, are

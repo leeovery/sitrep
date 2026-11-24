@@ -3,24 +3,25 @@
  * "Snooze" in DESIGN.md): his snooze of the session, which holds the asks
  * waiting on him as it was written, and his turn there, as a row on the
  * card writes it; his snooze of one ask, each its own time, as the pane
- * writes it, the turn sleeping with those while they hold every ask waiting
- * on Lee; and an old line's snooze of a turn, read as it always was.
+ * writes it, the turn standing as the last was written sleeping with those
+ * while they hold every ask waiting on Lee; and an old line's snooze of a
+ * turn, read as it always was.
  */
 import { waitsOnLee } from './replies'
-import type { Ask, Item, SessionSnooze, TurnSnooze } from './types'
+import type { Ask, Item, SessionSnooze, TurnSnooze, TurnWithAsks } from './types'
 
 export type Asleep = {
   /** Lee's latest snooze of the session, until a line wakes it. */
   session?: SessionSnooze
   /** When Lee's latest snooze of each ask, its own, wakes, by ask, until a line ends it. */
   asks: Map<string, number>
-  /** Whether Lee's snoozes of asks held every ask waiting on him as the last was written, so the turn sleeps with them, until one of them ends. */
-  isTurnWithAsks: boolean
+  /** When Lee wrote the snooze of an ask that left his snoozes of asks holding every ask waiting on him, so the turn standing then sleeps with them, until one of them ends. */
+  turnWithAsksAt?: number
   /** From an old line: Lee's latest snooze of the turn, until a line wakes it. */
   turn?: TurnSnooze
 }
 
-export const nothingAsleep = (): Asleep => ({ asks: new Map(), isTurnWithAsks: false })
+export const nothingAsleep = (): Asleep => ({ asks: new Map() })
 
 const isAsk = (item: Item): item is Ask => item.type === 'ask'
 
@@ -39,7 +40,7 @@ export const snoozeSession = (
 export const wakeSession = (asleep: Asleep) => {
   asleep.session = undefined
   asleep.asks.clear()
-  asleep.isTurnWithAsks = false
+  asleep.turnWithAsksAt = undefined
   asleep.turn = undefined
 }
 
@@ -53,7 +54,7 @@ const wakeEarly = (asleep: Asleep, at: number) => {
 /** An ask posted or reopened at `at`: something new needing Lee wakes the session, and ends the turn's sleep with the asks and an old line's snooze of it. */
 export const newNeed = (asleep: Asleep, at: number) => {
   wakeEarly(asleep, at)
-  asleep.isTurnWithAsks = false
+  asleep.turnWithAsksAt = undefined
   asleep.turn = undefined
 }
 
@@ -81,27 +82,36 @@ export const endAskSnooze = (asleep: Asleep, id: string, at: number) => {
   }
 
   asleep.asks.delete(id)
-  asleep.isTurnWithAsks = false
+  asleep.turnWithAsksAt = undefined
 }
 
-/** Lee's snooze of one ask waiting as posted, its own; the turn sleeps with the asks once their snoozes hold every one waiting on him. */
-export const snoozeAsk = (asleep: Asleep, ask: Ask, until: number, items: Iterable<Item>) => {
+/** Lee's snooze at `at` of one ask waiting as posted, its own; the turn standing then sleeps with the asks once their snoozes hold every one waiting on him. */
+export const snoozeAsk = (
+  asleep: Asleep,
+  ask: Ask,
+  until: number,
+  items: Iterable<Item>,
+  at: number,
+) => {
   if (ask.state !== 'waiting') {
     return
   }
 
   asleep.asks.set(ask.id, until)
-  asleep.isTurnWithAsks = [...items]
+
+  const isEvery = [...items]
     .filter(isAsk)
     .filter(waitsOnLee)
     .every(each => asleep.asks.has(each.id))
+
+  asleep.turnWithAsksAt = isEvery ? at : undefined
 }
 
 /** Lee's waking of one ask from its own snooze: it ends an old line's snooze of the turn too, as it always did. */
 export const wakeAsk = (asleep: Asleep, id: string) => {
   if (asleep.asks.delete(id)) {
     asleep.turn = undefined
-    asleep.isTurnWithAsks = false
+    asleep.turnWithAsksAt = undefined
   }
 }
 
@@ -147,13 +157,22 @@ const turnAt = (asleep: Asleep, now: number) =>
     ? undefined
     : asleep.turn
 
-/** When the turn sleeping with Lee's snoozes of asks wakes at `now`: as the first of them does, while they hold every ask waiting on him. */
-const turnWithAsksAt = (asleep: Asleep, asks: readonly Ask[], now: number) => {
+/**
+ * The turn sleeping with Lee's snoozes of asks at `now`, while they hold
+ * every ask waiting on him: when it wakes, as the first of them does, and
+ * when the snooze that put it off was written, the turn standing then.
+ */
+const turnWithAsksOf = (
+  asleep: Asleep,
+  asks: readonly Ask[],
+  now: number,
+): TurnWithAsks | undefined => {
+  const at = asleep.turnWithAsksAt
   const waiting = asks.filter(waitsOnLee).map(ask => asleep.asks.get(ask.id))
   const holding = waiting.filter((until): until is number => until !== undefined && now < until)
 
-  return asleep.isTurnWithAsks && holding.length > 0 && holding.length === waiting.length
-    ? Math.min(...holding)
+  return at !== undefined && holding.length > 0 && holding.length === waiting.length
+    ? { until: Math.min(...holding), at }
     : undefined
 }
 
@@ -185,6 +204,6 @@ export const standAsleep = (asleep: Asleep, asks: readonly Ask[], now: number) =
     snooze: session,
     asideUntil: session === undefined ? asleep.session?.until : undefined,
     turnSnooze: turnAt(asleep, now),
-    turnWithAsks: turnWithAsksAt(asleep, asks, now),
+    turnWithAsks: turnWithAsksOf(asleep, asks, now),
   }
 }

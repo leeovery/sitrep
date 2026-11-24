@@ -416,18 +416,28 @@ test("Lee's snooze of one ask keeps its own time, ended as its ask closes, reope
   ).toEqual(['k1', UNTIL, undefined])
 })
 
-test("Lee's snoozes of asks holding every ask waiting on him put his turn off with them, until the first wakes or closes; an ask left showing leaves the turn as it was", () => {
+test("Lee's snoozes of asks holding every ask waiting on him put his turn off with them, the turn standing as he wrote the last, until the first wakes or closes; an ask left showing leaves the turn as it was", () => {
   const then = (now: number, ...lines: Line[]) => foldAt(now, [...EACH_ALONE, ...lines]).turnWithAsks
 
-  expect(then(NOW)).toBe(UNTIL)
+  expect(then(NOW)).toEqual({ until: UNTIL, at: T0 + MIN })
   expect(then(UNTIL), 'the first woken').toBeUndefined()
   expect(then(NOW, [T0 + 2 * MIN, resolve('k1')]), 'the first resolved').toBeUndefined()
   expect(then(NOW, [T0 + 2 * MIN, yesAsk('k3', 'Tag it')]), 'a new ask').toBeUndefined()
   expect(foldAt(NOW, [REVIEW, SHIP, K1_ALONE]).turnWithAsks, 'k2 left showing').toBeUndefined()
   expect(
     foldAt(NOW, [REVIEW, SHIP, K1_ALONE, [T0 + 2 * MIN, snooze('k2', UNTIL)]]).turnWithAsks,
-    'the pane snoozing one, then the other',
-  ).toBe(UNTIL)
+    'the pane snoozing one, then the other, the turn standing at the second',
+  ).toEqual({ until: UNTIL, at: T0 + 2 * MIN })
+})
+
+test("Lee's snoozes and wakes of an ask are never told to Claude: they leave the session as recent as it was", () => {
+  const before = foldAt(NOW, [REVIEW, SHIP]).updatedAt
+
+  expect(before).toBe(T0)
+  expect(
+    foldAt(NOW, [REVIEW, SHIP, [T0 + 2 * MIN, snooze('k1', UNTIL)], [T0 + 3 * MIN, wake('k1')]])
+      .updatedAt,
+  ).toBe(before)
 })
 
 test("Lee's snooze of an ask his snooze of the session does not hold keeps the session's standing until the ask's time; at it, that ask waits on Lee and sets the session's aside", () => {
