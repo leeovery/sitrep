@@ -40,6 +40,8 @@ Settled with Lee on 16 October 2026.
 | **finished** | A session Claude or Lee finished, once it was complete with nothing left on it; what it parked is its project's, and stays. | |
 | **notch** | The SitRep notch, where it needs telling from the camera's: the black shape at the edge of the screen that opens into the panel. | |
 | **panel** | What the notch opens, the notch panel or the SitRep panel: a glance at the board, and a jump. | |
+| **row's arrow** | A Needs you row's button at its right end, shown in its time's place while the pointer is on the row, that opens the asks panel (24 November 2026). | |
+| **asks panel** | The panel beside the list that shows one session's asks, one at a time, to answer from; a Needs you row's arrow opens it (24 November 2026; see "Answering from the panel"). | |
 | **strip** | The alternative to the notch and its panel: a narrow strip the height of the screen. | |
 | **menu bar item** | SitRep's icon in the menu bar, and its menu. | |
 | **Settings** | Where Lee sets SitRep up. | |
@@ -1465,7 +1467,10 @@ shape is ever shown as a word:
     text, `board --json` and `watch` carry it (`recommended`, null where
     none), and the CLI's `answer`, refusing an answer, names it once among
     the options (`answer it with “Ship it” (recommended) or “Redraw”.`).
-    No band, banner or row shows an ask's options, so none shows it. Lee's
+    No band or row shows an ask's options, so none shows it; since 24
+    November 2026 the asks panel ends the recommended option's row with
+    the word, and a banner's buttons, which list the options, leave it out
+    (see "Answering from the panel"). Lee's
     reply when he picks the option is the option alone, as ever
     (`→ Redraw`), never the word. Being the button's own, the word wraps
     with its label: on a narrow pane or a phone a long option wraps inside
@@ -4315,13 +4320,22 @@ truth. There is still no background service. None of it is built now. Lee:
     shape.
   - `answer` (20 October 2026) answers a yes or a choice ask, or ignores
     any ask, as Lee does on the board, built for the SitRep window to answer
-    through, which the app no longer runs: the ask by its id, then the answer in
-    the words of the button Lee pressed, a yes ask's yes (`sitrep answer k1
-    Go`) or one of a choice ask's options (`sitrep answer k2 Keep it`),
-    matched exactly, as the board shows them; or `--ignore` in their place,
-    the pane's `✕ ignore`, which every ask offers, a words ask among them.
-    It prints nothing.
-    - It writes a reply, `yes`, `choose` with its option, or `ignore`, into
+    through, and since 24 November 2026 the asks panel and a new ask's
+    banner (see "Answering from the panel"): the ask by its id, then the
+    answer in the words of the button Lee pressed, a yes ask's yes
+    (`sitrep answer k1 Go`) or one of a choice ask's options (`sitrep
+    answer k2 Keep it`), matched exactly, as the board shows them; or
+    `--ignore` in their place, the pane's `✕ ignore`, which every ask
+    offers, a words ask among them. It prints nothing.
+    - Since 24 November 2026 it answers a words ask too, with the words
+      given (`sitrep answer k3 Ship the Tuesday build`): a reply `{verdict:
+      'answer', note}`, its words the `note`, as the pane's words answer
+      is. The words keep to one line, as every answer given does. Words
+      that are empty, or only spaces, are refused (`k3 wants words: give
+      them after its id.`). Until then a words ask was refused, its words
+      needing Claude Code's prompt.
+    - It writes a reply, `yes`, `choose` with its option, `answer` with its
+      words, or `ignore`, into
       the session's inbox as the CLI's letters, as the pane's replies to
       another session go in (see "Delivery"): the session's window delivers
       it to Claude as Lee's own message, as it delivers any reply, and marks
@@ -4338,11 +4352,11 @@ truth. There is still no background service. None of it is built now. Lee:
       resolve of it after passes quietly, writing nothing (13 November
       2026; until then Claude resolved it after, its reason over Lee's
       ignore).
-    - Refused, exit 1 and nothing written: words, a comment and a
-      permission prompt, which need Claude Code's prompt (`k3 wants words,
-      which need Claude Code's prompt: answer it there.`; a comment is no
-      word it takes, `There is no --comment.`; a permission prompt is no ask
-      on the board, and is answered in its window); a decide written before
+    - Refused, exit 1 and nothing written: a comment and a permission
+      prompt, which need Claude Code's prompt (a comment is no word it
+      takes, `There is no --comment.`; a permission prompt is no ask on the
+      board, and is answered in its window); a words ask given no words; a
+      decide written before
       asks had options, which offers none to choose (`k5 gives no options to
       choose from: answer it in Claude Code's prompt.`); an ask closed (`k1 is
       already closed.`) or ignored (`k4 is already ignored.`); one with
@@ -5279,7 +5293,8 @@ that takes Lee to the window a session is in.
     Mac. SitRep to the helper: ready, post, a request for the leave, or
     to ask for it first, each with an id its answer gives back, and hand
     back the front. The helper to SitRep: ready, with its own pid,
-    clicked (the session's id), and the leave. Each carries SitRep's pid,
+    clicked (the session's id), answered (24 November 2026; see "Its
+    buttons", below), and the leave. Each carries SitRep's pid,
     whichever way it goes, and each side reads only its own SitRep's, so
     a helper left over from another SitRep is not heard, nor heeds one.
     Each side says ready as it starts listening. The helper answers each
@@ -5316,8 +5331,36 @@ that takes Lee to the window a session is in.
     SitRep ends, watching its `NSRunningApplication`. A click that
     starts the helper while SitRep is not running starts SitRep, not
     activated, and is held until SitRep says it is ready.
-- **Answering stays in Claude Code:** the panel shows, and takes Lee there
-  (17 October 2026).
+  - **Its buttons** (24 November 2026, Paper's board D on the page
+    "Answering from the notch" of the file "SitRep · side panel"). A new
+    ask's banner answers the ask, with the buttons macOS draws, shown as
+    the pointer reaches the banner, by the ask's shape:
+    - a yes: one button, its yes, in the ask's words (`Go`);
+    - a choice: a button for each option, in Claude's order, which macOS
+      gathers under Options where there are several;
+    - a words ask: Reply, macOS's text field in the banner, with Send.
+
+    No banner offers Ignore: closing a banner is not ignoring its ask. A
+    banner's answer goes at once, with no Undo, since a banner has nowhere
+    to show one; the asks panel's two seconds are the panel's alone (see
+    "Answering from the panel"). A click on the banner itself still jumps,
+    as before. The post SitRep relays carries the ask's shape beside its
+    words: its id, what it wants, its yes and its options. The helper
+    registers a category of the banner's own, its actions those buttons,
+    before posting it, and relays a button's response back to SitRep: the
+    ask's id, and the answer pressed or the words typed. SitRep runs
+    `sitrep answer` with them, the words kept to one line as the CLI keeps
+    them. A refusal, the ask answered in its window meanwhile among them,
+    posts a banner "Not answered" over the CLI's words, as a refused
+    snooze posts "Not snoozed". A banner for Lee's turn, the test
+    notification, a refusal's banner and the banner of an ask with no
+    options to choose from have no buttons.
+- **Answering from the edge** (24 November 2026; see "Answering from the
+  panel"): a yes or a choice from the asks panel, and a yes, a choice or
+  words from a new ask's banner (below), each through `sitrep answer`. A
+  words ask on the panel, a permission prompt and Claude Code's question
+  stay in Claude Code: the panel shows them, and takes Lee there. From 17
+  October 2026 until then, all answering stayed in Claude Code.
 - **Clicking** a session, an ask or a macOS notification takes Lee to the
   Ghostty window showing that session, on whatever Space it is, and leaves
   SitRep's windows on their own Space. A
@@ -5633,7 +5676,9 @@ Needs you row has a line for each ask waiting and each permission prompt or
 question its windows are stopped on, the newest first (the oldest first
 until 4 November 2026); any other row has one, its state's. It is one row:
 one lift, one press, one pick, and a click anywhere on it jumps to the
-session. Needs you sorts by each row's newest line, newest first (by its
+session, but on a Needs you row's arrow, which opens the asks panel (24
+November 2026; see "Answering from the panel"). Needs you sorts by each
+row's newest line, newest first (by its
 oldest, oldest first, until 4 November 2026), and its count, on its
 eyebrow, is of lines: the asks and stops waiting, not the sessions.
 
@@ -5887,8 +5932,10 @@ doesn't show, as its click does (stage 8; disabled on an away row until
 menu shows, the card holds open as if the pointer rested where it was
 opened, wherever the pointer goes on the menu, and its grace starts only
 once the menu closes, so a choice made on it finds its row still there.
-Under the pointer a row's time stays: the button that took its place until
-5 November 2026, opening the session in the SitRep window, went with the
+Under the pointer a row's time stays, but on a Needs you row with an ask
+the asks panel answers, whose arrow takes its place (24 November 2026; see
+"Answering from the panel"): the button that took its place until 5
+November 2026, opening the session in the SitRep window, went with the
 window, and so did the menu's Open in SitRep.
 
 On a row whose lines hold asks, or a your-turn row (since 4 November 2026,
@@ -6115,9 +6162,111 @@ The shape is one path rebuilt every frame from the springs. As in the
 prototype, they are integrated semi-implicitly in substeps of at most 4ms,
 with their velocity kept when a target changes.
 
-**Later: answering from the panel.** A yes or a choice would go through
-the session's inbox. A permission prompt would need a hook that holds
-Claude Code's prompt open.
+### Answering from the panel
+
+Decided with Lee on 24 November 2026, and drawn in Paper (the file "SitRep
+· side panel", the page "Answering from the notch"). Board F is the design,
+keeping boards E1 and E2's arrow; boards A, B and E were drawn and not
+taken; board D is the banner (see "The menu bar", "Its buttons"). One
+(getone.one) and every notch app for Claude Code answer from the screen's
+edge, and SitRep's plumbing was there already: `sitrep answer` writes a
+reply into the session's inbox, and the session's window delivers it as
+"From the board:" (see "One engine, two front ends"). Until then this
+section was a line under "The notch and its panel", "Later: answering from
+the panel": a yes or a choice would go through the session's inbox, and a
+permission prompt would need a hook that holds Claude Code's prompt open.
+
+**Rejected: the notch opening by itself** (board C, "peek"). SitRep never
+interrupts: nothing on its surfaces opens, pops or takes focus by itself;
+it lights and waits, and Lee comes to it.
+
+**The row's arrow** (boards E1 and E2, kept in F). A Needs you row with at
+least one board ask the panel can answer, a yes, a choice or a words ask,
+has two places to click:
+- its words: a click jumps to the session's window, as before;
+- its arrow, at its right end: a button of its own, 40 wide and 26 tall,
+  radius 8, in the time lane's place while the pointer is on the row, the
+  time showing otherwise. Unlit, its chevron is the soft grey on the row's
+  hover fill; it lights as the pointer reaches it, its fill #34343B and
+  its chevron white. A click on it opens the asks panel.
+
+A row whose waiting lines are only Claude Code's own permission prompts or
+questions has no arrow, since the panel can't answer those. Nor have
+Stopped rows, Working rows or Snoozed rows.
+
+**The asks panel** (board F) opens beside the list, level with the row,
+its first line level with the row's line. It overlaps the list's right
+edge by 8 points and sits on top of it, with a hairline border, white at
+15%, and a shadow, as a Mac submenu opens beside its menu (Lee, with a
+screenshot of a Paper menu's Services submenu). It is the panel's black,
+372 wide, radius 24, its height its content's. The row stays lit, its
+hover fill and its arrow lit, while its asks panel is open.
+
+It shows one ask at a time, the session's asks in the row's order, newest
+first:
+- **The top line:** the session's name, 12 semibold in white, and its
+  project, 12 in the faint grey. At its right, page dots where the session
+  has more than one ask: the current one orange, 14 × 5, the others 5 × 5,
+  #3A3A40.
+- **The ask's title,** 17 semibold, letter-spacing -0.02em, its line 22;
+  under it "Asked 4m ago", 12 in the faint grey, the age from the ask's
+  posting or reopening, as its line on the row counts from.
+- **Its answers** as numbered rows, full width: 38 tall, radius 11, fill
+  #1C1C1F, border #34343A. A keycap, 20 × 20, radius 6, fill #2C2C31,
+  holds its number, 11 semibold in the soft grey; the label is 13 medium
+  in white. The recommended option's row ends in "recommended", 11 medium
+  in the faint grey. A yes has one row, its yes; a choice a row for each
+  option, in Claude's order.
+- **A words ask** has one outlined row, with no fill and its border
+  #2C2C31, its keycap holding ↗, reading "Answer in Claude": a click jumps
+  to the session's window. So does an ask with no options to choose from.
+- **The foot:** Ignore and Snooze ▾, in the soft grey, and, for a yes or a
+  choice, an outlined "Open in Claude ↗" at its right, which jumps.
+
+The numbers are labels only. No keys answer, only clicks (Lee, 24 November
+2026): the panel never takes the keyboard.
+
+**Opening and closing.** Another row's arrow moves the asks panel to that
+session; a click on the lit arrow again closes it. The asks panel stays
+open while the pointer is over the list or over it. Leaving both starts the
+panel's grace and closes both, as leaving the panel does today. Answering
+steps to the session's next ask; after its last, the asks panel closes. An
+ask that leaves the board meanwhile, answered in its window or resolved,
+leaves the asks panel with it, and the asks panel closes once none is left.
+
+**Answering, with two seconds to undo.** A click on an answer row turns it
+white: a white fill, its label in ink, and a check in its keycap's place. A
+line at the asks panel's foot reads "Sending Threaded", the answer's words
+after "Sending", with a countdown ring and an outlined Undo. After 2
+seconds SitRep runs `sitrep answer <ask> <answer>`. Ignore runs `sitrep
+answer <ask> --ignore` with the same two seconds, its line reading
+"Ignoring". While an answer is held, the asks panel takes no other.
+- Undo within the two seconds takes it back, and nothing is written.
+- Leaving the notch within the two seconds, or moving the asks panel to
+  another row, doesn't cancel: the answer still goes.
+- Once it goes, the asks panel steps to the session's next ask.
+- A refusal from the CLI, as an ask answered in its window meanwhile,
+  posts a banner "Not answered" over the CLI's words, as Snooze's refusals
+  post "Not snoozed".
+
+The answer then travels as any `sitrep answer` does: into the session's
+inbox, delivered by the session's window as "From the board:". The ask
+leaves Needs you once its answer is on its way, as the feed already drops
+it.
+
+**Snooze ▾** offers the row's Snooze, the choices of its right-click
+menu's submenu (see "A right-click on any row brings up its menu"), and
+snoozes the session as that does, closing the asks panel.
+
+**Black and Glass.** The asks panel draws in both Materials, as the panel
+does. In Glass it is the panel's glass, its words in the system's label
+colours, as the Glass rows are; its rows, keycaps and outlines keep their
+shapes, filled in the glass's tints in place of the black's greys, and its
+current page dot and its sending line keep Claude's orange and white.
+
+**Not in this build** (see "Later"): the strip, whose tab could take the
+arrow later; the menu bar item; permission prompts and Claude Code's
+question dialog; keys.
 
 ### The strip
 
@@ -10365,6 +10514,40 @@ open), and tmux passing an escape sequence through from Claude's own pane
      4. A notification's click and the menu's row on an away session go
         the same way.
 
+9. **Answering from the panel and the banner**, decided with Lee on 24
+   November 2026 (see "Answering from the panel", and "Its buttons" under
+   "The menu bar"). In order, each step a PR:
+   1. **`sitrep answer` takes words.** A words ask's words, a reply
+      `{verdict: 'answer', note}` into the session's inbox, kept to one
+      line; empty words refused; a comment and a permission prompt still
+      refused (see "One engine, two front ends"). `docs/cli.md` waits for
+      step 5.
+   2. **The app reads each ask, and answers.** `Board` decodes each
+      session's `asks` from the watch line, which carries them already:
+      the id, what it wants, the yes, the title, the options, the option
+      recommended and the reply. `SitRepCLI.answer` runs `sitrep answer`
+      of an ask, with an answer or `--ignore`, giving back written or
+      refused, as its snooze and wake do. A sender holds an answer two
+      seconds, Undo taking it back, then runs it; a refusal posts the
+      banner "Not answered" over the CLI's words, as a refused snooze
+      posts "Not snoozed".
+   3. **The row's arrow and the asks panel**, in Black and in Glass. The
+      arrow on a Needs you row with an ask the panel answers; the asks
+      panel beside the list, its window wider than the panel's while it is
+      open, and taking clicks over the asks panel's shape as over the
+      panel's; its pages, its answer rows, Ignore, Snooze, and the sending
+      line with its countdown and Undo; staying open while the pointer is
+      over the list or over it.
+   4. **The banner's buttons**, through the notices helper. The post
+      carries the ask's id, what it wants, its yes and its options; the
+      helper registers a category for each banner, its actions the ask's
+      buttons, or Reply for words, and relays a response, the ask's id and
+      the answer or the words, back to SitRep, which runs the CLI at once.
+   5. **The docs:** `docs/answering.md`, whose "SitRep, the Mac app,
+      doesn't answer" goes; `docs/notch.md`; `docs/notifications.md`;
+      `docs/cli.md`; and `docs/glossary.md`, for the asks panel and the
+      row's arrow.
+
 ## The board in a terminal
 
 Settled with Lee on 18 and 19 November 2026: the notch's panel as a
@@ -10384,7 +10567,9 @@ look", the pick on its page "FINAL · board in a terminal".
 - **Sessions by state, as the notch orders them:** Needs you, its asks in
   orange, then its Stopped in blue; Working; then Snoozed, folded at first.
   Each row names its project.
-- **It doesn't answer asks**, as the notch doesn't.
+- **It doesn't answer asks**, as the notch didn't when it was settled; the
+  notch's asks panel answers since 24 November 2026 (see "Answering from
+  the panel").
 - **Picking a row, by `o`, runs SitRep's resume command in place**, in
   the panel's own terminal, on the Mac as over SSH, so it behaves the same on
   every screen: the command a click runs for a session this Mac doesn't
@@ -10504,7 +10689,16 @@ panel's hollow marks.
 
 ## Later
 
-Nothing is parked here. Jumping to a session's window is now "The menu bar".
+Jumping to a session's window is now "The menu bar".
+
+Left out of answering from the panel (24 November 2026; see "Answering
+from the panel"):
+- **Permission prompts and Claude Code's question dialog** from the
+  panel: a probe of the engine's `classic.PermissionRequest` hook, which
+  may hide the terminal's dialog while it waits.
+- **The strip's tab taking the arrow**, to open the asks panel from the
+  strip.
+- **The menu bar item** answering, from its menu.
 
 Dropped:
 - a standalone toast plugin (Claude Code has one);
@@ -10542,8 +10736,10 @@ on 11 October 2026 (see "Build order"):
 4. **The CLI answering asks:** settled on 20 October 2026, with stage 3's
    step 8: `sitrep answer`, a yes or a choice, or `--ignore` for any ask, a
    reply into the session's inbox, which its window delivers as it delivers
-   any reply. A words ask, a comment and a permission prompt stay with
-   Claude Code's prompt (see "One engine, two front ends").
+   any reply. A words ask, a comment and a permission prompt stayed with
+   Claude Code's prompt. Since 24 November 2026 it takes a words ask's
+   words too, for the banner's Reply; a comment and a permission prompt
+   still stay there (see "One engine, two front ends").
 
 ## Build order
 
