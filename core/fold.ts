@@ -137,7 +137,7 @@ const post = (fold: Fold, item: Item) => {
   return true
 }
 
-/** Lee's reply settles an ask still open, and ends an old line's snooze of it; one closing it says how, and leaves it no reason of Claude's. */
+/** Lee's reply settles an ask still open, and ends his own snooze of it; one closing it says how, and leaves it no reason of Claude's. */
 const settleAsk = (fold: Fold, ask: Ask, reply: Reply, at: number) => {
   if (ask.closedBy !== undefined) {
     return
@@ -391,7 +391,7 @@ const reshape = (ask: Ask, { wants, kind }: EditBody['changes']) => {
   fitShape(ask)
 }
 
-/** An item opening again, afresh, an old line's snooze of an ask ended: where it stood closed, every reply then settled, void or delivered, is history from here; one on its way stays live. */
+/** An item opening again, afresh, Lee's own snooze of an ask ended: where it stood closed, every reply then settled, void or delivered, is history from here; one on its way stays live. */
 const reopen = (fold: Fold, item: Item, at: number) => {
   if (item.closedBy !== undefined) {
     for (const reply of item.replies.filter(each => !isPending(each) && isLine(fold, each))) {

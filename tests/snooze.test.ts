@@ -1,8 +1,9 @@
 /**
  * Lee's snooze of a session: when it wakes, as the fold reads the lines at a
- * moment, what wakes it sooner and what leaves it, where its asks count, how
- * the lines from before a snooze was the session's read, and Snooze's times
- * as they are worded (as they are worked out, in wakes.test.ts).
+ * moment, what wakes it sooner and what leaves it, where its asks count; his
+ * snooze of one ask, as the pane writes it; how an old line's snooze of a
+ * turn reads; and Snooze's times as they are worded (as they are worked
+ * out, in wakes.test.ts).
  */
 import { expect, test } from './kit'
 import {
@@ -365,13 +366,13 @@ test('a snooze with no time holds until it moves: no time wakes it, its asks sle
   ).toBe(0)
 })
 
-/** k1 put off by an old line until UNTIL. */
-const OLD_K1: Line = [T0 + MIN, snooze('k1', UNTIL)]
+/** k1 put off on its own until UNTIL, as the pane writes it. */
+const K1_ALONE: Line = [T0 + MIN, snooze('k1', UNTIL)]
 
-/** Both asks put off by old lines, written together, k2 an hour later than k1. */
-const OLD_ROW: Line[] = [REVIEW, SHIP, OLD_K1, [T0 + MIN, snooze('k2', UNTIL + HOUR)]]
+/** Both asks put off, each on its own, written together, k2 an hour later than k1. */
+const EACH_ALONE: Line[] = [REVIEW, SHIP, K1_ALONE, [T0 + MIN, snooze('k2', UNTIL + HOUR)]]
 
-test("an old line's snooze of an ask keeps its own time, ended as its ask closes, reopens or is woken; one naming anything else is passed over", () => {
+test("Lee's snooze of one ask keeps its own time, ended as its ask closes, reopens or is woken, and by his wake of the session, never by a new ask; one naming anything else is passed over", () => {
   const passedOver = foldAt(NOW, [
     [T0, snooze('k4', UNTIL)],
     REVIEW,
@@ -392,40 +393,44 @@ test("an old line's snooze of an ask keeps its own time, ended as its ask closes
     snoozed: 1,
   }
 
-  expect(standing(foldAt(NOW, [REVIEW, SHIP, OLD_K1]))).toEqual(k1Asleep)
-  expect(foldAt(NOW, [REVIEW, SHIP, OLD_K1]).snooze).toBeUndefined()
-  expect(standing(foldAt(UNTIL, [REVIEW, SHIP, OLD_K1])).asks[0]).toEqual(['k1', undefined, UNTIL])
-  expect(standing(foldAt(NOW, OLD_ROW)).asks).toEqual([
+  expect(standing(foldAt(NOW, [REVIEW, SHIP, K1_ALONE]))).toEqual(k1Asleep)
+  expect(foldAt(NOW, [REVIEW, SHIP, K1_ALONE]).snooze).toBeUndefined()
+  expect(standing(foldAt(UNTIL, [REVIEW, SHIP, K1_ALONE])).asks[0]).toEqual(['k1', undefined, UNTIL])
+  expect(standing(foldAt(NOW, EACH_ALONE)).asks).toEqual([
     ['k1', UNTIL, undefined],
     ['k2', UNTIL + HOUR, undefined],
   ])
   expect([passedOver.waiting, snoozedAsks(passedOver)]).toEqual([3, []])
-  expect(standing(foldAt(NOW, [REVIEW, SHIP, OLD_K1, [T0 + 2 * MIN, wake('k1')]]))).toEqual(AWAKE)
+  expect(standing(foldAt(NOW, [REVIEW, SHIP, K1_ALONE, [T0 + 2 * MIN, wake('k1')]]))).toEqual(AWAKE)
   expect(
-    standing(foldAt(NOW, [REVIEW, SHIP, OLD_K1, [T0 + 2 * MIN, resolve('k1')]])).snoozed,
+    standing(foldAt(NOW, [REVIEW, SHIP, K1_ALONE, [T0 + 2 * MIN, resolve('k1')]])).snoozed,
     'resolved',
   ).toBe(0)
   expect(
-    standing(foldAt(NOW, [...OLD_ROW, [T0 + 2 * MIN, wakeSession()]])),
+    standing(foldAt(NOW, [...EACH_ALONE, [T0 + 2 * MIN, wakeSession()]])),
     "Lee's wake of the session",
   ).toEqual(AWAKE)
+  expect(
+    standing(foldAt(NOW, [REVIEW, SHIP, K1_ALONE, [T0 + 2 * MIN, yesAsk('k3', 'Tag it')]])).asks[0],
+    'a new ask',
+  ).toEqual(['k1', UNTIL, undefined])
 })
 
-test("old lines' snoozes holding every ask waiting on Lee put its turn off with them, until the first wakes or closes; an ask left showing leaves the turn as it was", () => {
-  const then = (now: number, ...lines: Line[]) => foldAt(now, [...OLD_ROW, ...lines]).turnWithAsks
+test("Lee's snoozes of asks holding every ask waiting on him put his turn off with them, until the first wakes or closes; an ask left showing leaves the turn as it was", () => {
+  const then = (now: number, ...lines: Line[]) => foldAt(now, [...EACH_ALONE, ...lines]).turnWithAsks
 
   expect(then(NOW)).toBe(UNTIL)
   expect(then(UNTIL), 'the first woken').toBeUndefined()
   expect(then(NOW, [T0 + 2 * MIN, resolve('k1')]), 'the first resolved').toBeUndefined()
   expect(then(NOW, [T0 + 2 * MIN, yesAsk('k3', 'Tag it')]), 'a new ask').toBeUndefined()
-  expect(foldAt(NOW, [REVIEW, SHIP, OLD_K1]).turnWithAsks, 'k2 left showing').toBeUndefined()
+  expect(foldAt(NOW, [REVIEW, SHIP, K1_ALONE]).turnWithAsks, 'k2 left showing').toBeUndefined()
   expect(
-    foldAt(NOW, [REVIEW, SHIP, OLD_K1, [T0 + 2 * MIN, snooze('k2', UNTIL)]]).turnWithAsks,
+    foldAt(NOW, [REVIEW, SHIP, K1_ALONE, [T0 + 2 * MIN, snooze('k2', UNTIL)]]).turnWithAsks,
     'the pane snoozing one, then the other',
   ).toBe(UNTIL)
 })
 
-test("an old line's snooze of an ask Lee's snooze of the session does not hold keeps Lee's snooze standing until the old one's time; at it, that ask waits on Lee and sets Lee's snooze aside", () => {
+test("Lee's snooze of an ask his snooze of the session does not hold keeps the session's standing until the ask's time; at it, that ask waits on Lee and sets the session's aside", () => {
   const lines: Line[] = [
     REVIEW,
     SHIP,
@@ -441,7 +446,7 @@ test("an old line's snooze of an ask Lee's snooze of the session does not hold k
   expect(waitingOnLee(at).map(ask => ask.id)).toContain('k2')
 })
 
-test("an old line's snooze of the turn ends as an old snooze of an ask written after it wakes: at that ask's time, not a moment later", () => {
+test("an old line's snooze of the turn ends as a snooze of an ask written after it wakes: at that ask's time, not a moment later", () => {
   const lines: Line[] = [
     REVIEW,
     [T0 + MIN, snoozeTurn(T0, UNTIL + HOUR)],
@@ -452,9 +457,9 @@ test("an old line's snooze of the turn ends as an old snooze of an ask written a
   expect(foldAt(UNTIL, lines).turnSnooze).toBeUndefined()
 })
 
-test("Lee's snooze of the session stands in place of the old lines' snoozes of its asks, and of their turn", () => {
+test("Lee's snooze of the session stands in place of his snoozes of its asks, each its own, and of their turn", () => {
   const replaced = foldAt(NOW, [
-    ...OLD_ROW,
+    ...EACH_ALONE,
     [T0 + 2 * MIN, snoozeSession(UNTIL + 2 * HOUR, 'k1', 'k2')],
   ])
 

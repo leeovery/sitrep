@@ -1,10 +1,12 @@
 /**
- * Snooze in the pane: an ask waiting on Lee snoozes its session from its
+ * Snooze in the pane: an ask waiting on Lee snoozes alone from its
  * buttons, asked in place until when, and written into the window's own
  * file in that session, through the hold or read back and written whole;
- * snoozed asks in ASKS after those waiting, quieted, with `wake now`; an
+ * snoozed asks in ASKS after those waiting, quieted, with `wake now`, which
+ * wakes the ask, or its session where the session's snooze holds it; an
  * ask its time wakes announced as a new one is, one Lee wakes not; and
- * Lee's own prompt in the window waking the session it holds.
+ * Lee's own prompt in the window waking his snooze of the session it
+ * holds, never an ask's own.
  */
 import { expect, test, tier } from './kit'
 import {
@@ -25,7 +27,7 @@ import type { SitrepAttachment, SitrepPane } from '../types'
 import { glyphColors, rowsOf } from './drawn'
 import { slot } from './host'
 import { CLI, CLOSES, GO, META, MIN, PROJECT, REVIEW, ROOT, SENDER, THEMES, W1, W2 } from './data'
-import { delivered, file, park, reply, snoozeSession, wakeSession, yesAsk } from './lines'
+import { delivered, file, park, reply, snooze, snoozeSession, wakeSession, yesAsk } from './lines'
 import {
   asked,
   CONVERSATION,
@@ -117,11 +119,11 @@ test("the pane's snooze writes one line through the hold into the window's own f
   await snoozing(ui, w.item(id), 'tomorrow')
   await w.call('park', { title: 'Drew round 2' })
 
-  expect(linesOf(w, paths.log(W1), 'snoozeSession')).toMatchObject([
+  expect(linesOf(w, paths.log(W1), 'snooze')).toMatchObject([
     {
-      type: 'snoozeSession',
+      type: 'snooze',
+      item: id,
       until: snoozeAt('tomorrow', pressedAt, SNOOZE_DEFAULTS),
-      asks: [id],
       at: pressedAt,
     },
   ])
@@ -129,9 +131,35 @@ test("the pane's snooze writes one line through the hold into the window's own f
     parseEntries(w.text(paths.log(W1)))
       .map(line => line.type)
       .slice(-3),
-  ).toEqual(['ask', 'snoozeSession', 'park'])
+  ).toEqual(['ask', 'snooze', 'park'])
   expect(w.files.has(paths.letters(W1)), 'nothing goes to the inbox').toBe(false)
   expect(w.state.board?.asks[0]?.snoozedUntil).toBe(local(2026, 10, 24, 9))
+})
+
+test("the pane's snooze of one of two asks puts off that ask alone, and no session's: the other waits on Lee still, unquieted, as does one landing after the board was drawn", async ($, on) => {
+  const w = fridayWorld($, on)
+  const { paths, id, app } = await posted(w)
+  const go = await asked(w, GO)
+  const ui = await w.pane()
+
+  await ui.press({ key: `snooze:${w.item(go)}` })
+  app(yesAsk('k9', 'Try it at 80 columns', 'It works'))
+  await ui.press({ key: `snooze-tomorrow:${w.item(go)}` })
+  await w.clock.advance(REST_MS)
+
+  expect(linesOf(w, paths.log(W1), 'snooze')).toMatchObject([
+    { item: go, until: local(2026, 10, 24, 9) },
+  ])
+  expect(linesOf(w, paths.log(W1), 'snoozeSession')).toEqual([])
+  expect(w.state.board?.asks.map(ask => [ask.id, ask.snoozedUntil])).toEqual([
+    [id, undefined],
+    [go, local(2026, 10, 24, 9)],
+    ['k9', undefined],
+  ])
+  expect(w.state.board?.waiting).toBe(2)
+  expect(await ui.find({ type: 'Text', text: '2 waiting · 1 snoozed' })).toBeDefined()
+  expect(await keysOf(ui, 'wake:')).toEqual([`wake:${w.item(go)}`])
+  expect((await ui.find({ key: `pick:${w.item(id)}` }))?.props.dimColor).toBeFalsy()
 })
 
 test("another session's snooze is read back and written whole into the window's own file there, and the board reads it again", async ($, on) => {
@@ -152,7 +180,7 @@ test("another session's snooze is read back and written whole into the window's 
 
   expect(parseEntries(w.text(MINE)).map(({ seq, type }) => [seq, type])).toEqual([
     [1, 'park'],
-    [2, 'snoozeSession'],
+    [2, 'snooze'],
   ])
   expect(parseEntries(w.text(MINE)).at(-1)).toMatchObject({
     until: pressedAt + DEFAULT_LATER_MS,
@@ -171,12 +199,12 @@ test("a project's Asks offers snooze on another session's ask drawn from its bri
   await ui.press({ key: `pick:${item}` })
   await snoozing(ui, item, 'week')
 
-  expect(linesOf(w, MINE, 'snoozeSession')).toMatchObject([{ until: local(2026, 10, 26, 9) }])
+  expect(linesOf(w, MINE, 'snooze')).toMatchObject([{ item: 'k4', until: local(2026, 10, 26, 9) }])
   expect(await ui.find({ type: 'Text', text: 'snoozed until next week' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /1 waiting · 1 snoozed/ })).toBeDefined()
 })
 
-test("wake now writes one wake line, the session's, and every ask of it waits on Lee again", async ($, on) => {
+test("wake now on an ask the session's snooze holds writes one wake line, the session's, and every ask of it waits on Lee again", async ($, on) => {
   const w = fridayWorld($, on)
   const { paths, id, app } = await posted(w)
   const go = await asked(w, GO)
@@ -191,19 +219,36 @@ test("wake now writes one wake line, the session's, and every ask of it waits on
   expect(await ui.find({ key: `wake:${w.item(id)}` })).toBeUndefined()
 })
 
-test('a snooze the check refuses writes nothing, and a toast says why: an ask landed since the board was drawn', async ($, on) => {
+test("wake now on an ask snoozed on its own writes one wake line, that ask's, and no session's: it waits on Lee again, another he snoozed sleeping on", async ($, on) => {
   const w = fridayWorld($, on)
   const { paths, id, app } = await posted(w)
+  const go = await asked(w, GO)
+  const ui = await w.pane()
+
+  app(snooze(id, local(2026, 10, 24, 9)), snooze(go, local(2026, 10, 26, 9)))
+  await w.clock.advance(WATCH_MS)
+  await ui.press({ key: `wake:${w.item(id)}` })
+
+  expect(linesOf(w, paths.log(W1), 'wake')).toMatchObject([{ type: 'wake', item: id }])
+  expect(linesOf(w, paths.log(W1), 'wakeSession')).toEqual([])
+  expect(w.state.board?.waiting).toBe(1)
+  expect(await keysOf(ui, 'wake:')).toEqual([`wake:${w.item(go)}`])
+})
+
+test('a snooze the check refuses writes nothing, and a toast says why: a comment of Lee\'s on its way to the ask since the board was drawn', async ($, on) => {
+  const w = fridayWorld($, on)
+  const { paths, id } = await posted(w)
   const ui = await w.pane()
 
   await ui.press({ key: `snooze:${w.item(id)}` })
-  app(yesAsk('k9', 'Try it at 80 columns', 'It works'))
+  w.put(
+    paths.letters(SENDER),
+    file([w.clock.now(), reply('r1', id, 'comment', { note: 'Looks off' })]),
+  )
   await ui.press({ key: `snooze-later:${w.item(id)}` })
 
-  expect(linesOf(w, paths.log(W1), 'snoozeSession')).toEqual([])
-  expect(w.toasts.at(-1)).toBe(
-    'Not snoozed: An ask waits on you that the snooze did not name: look at it, then snooze again.',
-  )
+  expect(linesOf(w, paths.log(W1), 'snooze')).toEqual([])
+  expect(w.toasts.at(-1)).toBe('Not snoozed: your reply to it is on its way to Claude.')
 })
 
 test('a snooze into a session gone since the board was drawn writes nothing, and a toast says so', async ($, on) => {
@@ -231,7 +276,7 @@ test('a wake the check refuses writes nothing, and a toast says why: woken from 
   await ui.press({ key: `wake:${w.item(id)}` })
 
   expect(linesOf(w, paths.log(W1), 'wakeSession')).toEqual([])
-  expect(w.toasts.at(-1)).toBe('Not woken: Help desk redesign is not snoozed.')
+  expect(w.toasts.at(-1)).toBe('Not woken: it is not snoozed.')
 })
 
 test('a snoozed ask counts on neither the band nor the tabs, here or elsewhere', async ($, on) => {
@@ -325,66 +370,60 @@ test('a waiting ask, opened, offers snooze among its buttons; a snoozed one, ope
   expect(await ui.find({ key: `snooze:${item}` })).toBeUndefined()
 })
 
-test('snooze asks in place until when, and snoozes the whole session: every ask of it quieted, the ask closed; in an hour, later today, tonight, tomorrow and next week, in that order, each write their time', async ($, on) => {
+test('snooze asks in place until when, and snoozes that ask alone: it is quieted and closed, the others waiting on; in an hour, later today, tonight, tomorrow and next week, in that order, each write their time', async ($, on) => {
   const w = fridayWorld($, on)
   const { paths, id: first } = await posted(w)
   const second = await asked(w, GO)
   const third = await asked(w, KEEP_LEDGER)
   const ui = await w.pane()
+  const item = w.item(third)
 
   await w.clock.advance(REST_MS)
 
   const pressedAt = w.clock.now()
 
-  await ui.press({ key: `snooze:${w.item(third)}` })
+  await ui.press({ key: `snooze:${item}` })
 
   expect(
-    await ui.find({
-      type: 'Text',
-      text: 'Snooze this session? Its asks, and your turn there, stop counting until it wakes.',
-    }),
+    await ui.find({ type: 'Text', text: 'Snooze it? It stops counting until it wakes.' }),
   ).toBeDefined()
-  expect(
-    await ui.find({ key: `yes:${w.item(third)}` }),
-    'the question in place of its buttons',
-  ).toBeUndefined()
+  expect(await ui.find({ key: `yes:${item}` }), 'the question in place of its buttons').toBeUndefined()
   expect(await keysOf(ui, 'snooze-')).toEqual(
-    ['hour', 'later', 'tonight', 'tomorrow', 'week', 'no'].map(
-      when => `snooze-${when}:${w.item(third)}`,
-    ),
+    ['hour', 'later', 'tonight', 'tomorrow', 'week', 'no'].map(when => `snooze-${when}:${item}`),
   )
-  expect(await ui.find({ key: `snooze-hour:${w.item(third)}`, text: 'in an hour' })).toBeDefined()
-  expect(await ui.find({ key: `snooze-later:${w.item(third)}`, text: 'later today' })).toBeDefined()
-  expect(await ui.find({ key: `snooze-tonight:${w.item(third)}`, text: 'tonight' })).toBeDefined()
-  expect(await ui.find({ key: `snooze-tomorrow:${w.item(third)}`, text: 'tomorrow' })).toBeDefined()
-  expect(await ui.find({ key: `snooze-week:${w.item(third)}`, text: 'next week' })).toBeDefined()
-  expect(await ui.find({ key: `snooze-no:${w.item(third)}`, text: 'cancel' })).toBeDefined()
+  expect(await ui.find({ key: `snooze-hour:${item}`, text: 'in an hour' })).toBeDefined()
+  expect(await ui.find({ key: `snooze-later:${item}`, text: 'later today' })).toBeDefined()
+  expect(await ui.find({ key: `snooze-tonight:${item}`, text: 'tonight' })).toBeDefined()
+  expect(await ui.find({ key: `snooze-tomorrow:${item}`, text: 'tomorrow' })).toBeDefined()
+  expect(await ui.find({ key: `snooze-week:${item}`, text: 'next week' })).toBeDefined()
+  expect(await ui.find({ key: `snooze-no:${item}`, text: 'cancel' })).toBeDefined()
 
-  await ui.press({ key: `snooze-later:${w.item(third)}` })
+  await ui.press({ key: `snooze-later:${item}` })
 
   expect(w.state.pane?.selected, 'the ask closes').toBeNull()
-  expect(await ui.find({ type: 'Text', text: 'nothing waiting · 3 snoozed' })).toBeDefined()
-  expect(await keysOf(ui, 'wake:')).toHaveLength(3)
+  expect(await ui.find({ type: 'Text', text: '2 waiting · 1 snoozed' })).toBeDefined()
+  expect(await keysOf(ui, 'wake:')).toEqual([`wake:${item}`])
 
-  for (const [item, when] of [
-    [first, 'hour'],
-    [third, 'tonight'],
-    [second, 'tomorrow'],
-    [first, 'week'],
-  ] as const) {
-    await ui.press({ key: `wake:${w.item(item)}` })
-    await ui.press({ key: `pick:${w.item(item)}` })
-    await snoozing(ui, w.item(item), when)
+  for (const when of ['hour', 'tonight', 'tomorrow', 'week'] as const) {
+    await ui.press({ key: `wake:${item}` })
+    await ui.press({ key: `pick:${item}` })
+    await snoozing(ui, item, when)
   }
 
-  expect(linesOf(w, paths.log(W1), 'snoozeSession')).toMatchObject([
-    { until: pressedAt + DEFAULT_LATER_MS },
-    { until: pressedAt + IN_AN_HOUR_MS },
-    { until: local(2026, 10, 23, 18) },
-    { until: local(2026, 10, 24, 9) },
-    { until: local(2026, 10, 26, 9) },
-  ])
-  expect(linesOf(w, paths.log(W1), 'wakeSession')).toHaveLength(4)
+  expect(linesOf(w, paths.log(W1), 'snooze')).toMatchObject(
+    [
+      pressedAt + DEFAULT_LATER_MS,
+      pressedAt + IN_AN_HOUR_MS,
+      local(2026, 10, 23, 18),
+      local(2026, 10, 24, 9),
+      local(2026, 10, 26, 9),
+    ].map(until => ({ item: third, until })),
+  )
+  expect(linesOf(w, paths.log(W1), 'wake')).toHaveLength(4)
+  expect(linesOf(w, paths.log(W1), 'snoozeSession')).toEqual([])
+  expect(w.state.board?.asks.filter(ask => ask.snoozedUntil === undefined).map(ask => ask.id)).toEqual(
+    [first, second],
+  )
 })
 
 /** A minute before 18:00 on Friday 23 October 2026, in the Mac's zone. */
@@ -418,7 +457,7 @@ test('tonight drawn before 18:00 and pressed after snoozes nothing, a toast sayi
     isOpen: true,
     place: null,
     selected: 'snooze:ask',
-    resolvedInFull: null,
+    shown: {},
     heldShown: null,
     placement: {},
   })
@@ -430,7 +469,7 @@ test('tonight drawn before 18:00 and pressed after snoozes nothing, a toast sayi
     log: (text: string) => said.resolve(`logged: ${text}`),
   } as unknown as Host
 
-  actionsOf(host).snooze({ project: PROJECT.key, session: THEMES.id }, ['k4'], 'tonight')
+  actionsOf(host).snooze({ project: PROJECT.key, session: THEMES.id, item: 'k4' }, 'tonight')
 
   expect(await said.promise).toBe('Not snoozed: 18:00 has come already.')
   expect((await pane.read()).selected).toBe('snooze:ask')
@@ -448,7 +487,7 @@ test("snooze's cancel goes back to the ask's buttons, and writes nothing", async
   expect(await ui.find({ key: `yes:${item}` })).toBeDefined()
   expect(await ui.find({ key: `snooze-later:${item}` })).toBeUndefined()
   expect(w.state.pane?.selected).toBe(item)
-  expect(linesOf(w, paths.log(W1), 'snoozeSession')).toEqual([])
+  expect(linesOf(w, paths.log(W1), 'snooze')).toEqual([])
 })
 
 test("the soonest to wake comes first among the snoozed in a project's Asks, whenever each was posted", async ($, on) => {
@@ -603,6 +642,24 @@ test('an ask its time wakes is announced as a new one is: the ● pulses, a toas
   expect(await ui.find({ key: `yes:${w.item(id)}` })).toBeDefined()
 })
 
+test('an ask snoozed on its own wakes at its time, announced as a new one is, and waits on Lee again', async ($, on) => {
+  const w = fridayWorld($, on)
+  const { id, app } = await posted(w)
+  const until = w.clock.now() + 2 * WATCH_MS
+
+  await w.pane()
+  app(snooze(id, until))
+  await w.clock.advance(WATCH_MS)
+
+  expect(w.state.board?.asks[0]?.snoozedUntil).toBe(until)
+
+  await w.clock.advance(2 * WATCH_MS)
+
+  expect(w.toasts.at(-1)).toBe('● Back from snooze: Review Tickets & Replies, round 1')
+  expect(w.state.board?.asks[0]).toMatchObject({ wokeAt: until })
+  expect(w.state.board?.waiting).toBe(1)
+})
+
 test('a woken ask is announced once: what changes the board after says nothing more of it', async ($, on) => {
   const w = fridayWorld($, on)
   const { id, app } = await posted(w)
@@ -753,12 +810,12 @@ test("a pane snooze rides to Claude as a change to the board in the context of t
   expect((await $.prompt.submit(TASK_DONE)).context).toBeUndefined()
 })
 
-test("Lee's own prompt in the window wakes the session it holds while his snooze holds: one wake line through the hold, before the prompt takes the board's change; a turn that starts without him wakes nothing", async ($, on) => {
+test("Lee's own prompt in the window wakes the session it holds while his snooze of it holds: one wake line through the hold, before the prompt takes the board's change; a turn that starts without him wakes nothing", async ($, on) => {
   const w = fridayWorld($, on)
   const { paths, id, app } = await posted(w)
   const ui = await w.pane()
 
-  await snoozing(ui, w.item(id), 'week')
+  app(snoozeSession(local(2026, 10, 26, 9), id))
   await w.clock.advance(AROUND_MS)
   await $.prompt.submit(TASK_DONE)
 
@@ -787,12 +844,29 @@ test("Lee's own prompt in the window wakes the session it holds while his snooze
   expect(linesOf(w, paths.log(W1), 'wakeSession'), 'a snooze run out').toHaveLength(1)
 })
 
-test("Lee's prompt from the Remote Control bridge wakes it as one typed does; snoozed and woken before Claude saw either, his prompt carries no change", async ($, on) => {
+test("Lee's own prompt in the window leaves an ask he snoozed on its own asleep, its turn with it: he put that one off, and writes nothing", async ($, on) => {
   const w = fridayWorld($, on)
   const { paths, id } = await posted(w)
   const ui = await w.pane()
 
-  await snoozing(ui, w.item(id), 'later')
+  await snoozing(ui, w.item(id), 'week')
+  await w.clock.advance(AROUND_MS)
+  await $.prompt.submit(PROMPT)
+  await w.clock.advance(WATCH_MS)
+
+  expect(linesOf(w, paths.log(W1), 'wakeSession')).toEqual([])
+  expect(linesOf(w, paths.log(W1), 'wake')).toEqual([])
+  expect(w.state.board?.asks[0]?.snoozedUntil).toBe(local(2026, 10, 26, 9))
+  expect(await ui.find({ type: 'Text', text: 'snoozed until next week' })).toBeDefined()
+})
+
+test("Lee's prompt from the Remote Control bridge wakes it as one typed does; snoozed and woken before Claude saw either, his prompt carries no change", async ($, on) => {
+  const w = fridayWorld($, on)
+  const { paths, id, app } = await posted(w)
+
+  await w.pane()
+  app(snoozeSession(FRIDAY + DEFAULT_LATER_MS, id))
+  await w.clock.advance(1_000)
 
   const { context } = await $.prompt.submit({ ...PROMPT, origin: { kind: 'bridge' } })
 

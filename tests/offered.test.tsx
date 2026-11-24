@@ -63,7 +63,7 @@ async function asking(w: World, file?: string) {
 /** Each `until` the window's own file holds, in the order written. */
 const untils = (w: World, path: string) =>
   parseEntries(w.text(path)).flatMap(line =>
-    line.type === 'snoozeSession' ? [(line as { until?: number }).until] : [],
+    line.type === 'snooze' ? [(line as { until: number }).until] : [],
   )
 
 test('the pane offers the choices the file switches on, in their order, those it switches off left out', async ($, on) => {

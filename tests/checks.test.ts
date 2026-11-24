@@ -9,9 +9,11 @@ import {
   checkReopen,
   checkResolve,
   checkSnooze,
+  checkSnoozeAsk,
   checkStart,
   checkStatus,
   checkWake,
+  checkWakeAsk,
   closedByLee,
   withId,
   withParkId,
@@ -741,7 +743,7 @@ test("a snooze is refused, the first refusal in order saying why: the session fi
   }
 })
 
-test("a wake is one line, the session's, wherever a snooze of Lee's stands, run out at its time or an old line's of a turn; refused in a finished session, or one not snoozed", () => {
+test("a wake is one line, the session's, wherever a snooze of Lee's stands, run out at its time, his own of one ask, or an old line's of a turn; refused in a finished session, or one not snoozed", () => {
   const woken = { type: 'wakeSession' }
 
   expect(value(checkWake(boardOf([[T0 + 2 * MIN, snoozeSession(LATER, ...SHOWN)]])))).toEqual(woken)
@@ -751,7 +753,7 @@ test("a wake is one line, the session's, wherever a snooze of Lee's stands, run 
   ).toEqual(woken)
   expect(
     value(checkWake(boardOf([[T0 + 2 * MIN, snooze('k1', LATER)]]))),
-    "an old line's of an ask",
+    'his own of one ask',
   ).toEqual(woken)
   expect(value(checkWake(boardOf([[T0 + 2 * MIN, snoozeTurn(T0)]]))), "an old line's").toEqual(
     woken,
@@ -771,4 +773,67 @@ test("a wake is one line, the session's, wherever a snooze of Lee's stands, run 
     ),
     'woken already',
   ).toBe('Help desk redesign is not snoozed.')
+})
+
+const FINISHED = 'This session is finished: its asks wait on you no more.'
+
+/** Lee's snooze of k1 alone until LATER, as the pane writes it. */
+const K1_ASLEEP: Line = [T0 + 2 * MIN, snooze('k1', LATER)]
+
+/** Lee's snooze of the session until LATER, as the card writes it. */
+const SESSION_ASLEEP: Line = [T0 + 2 * MIN, snoozeSession(LATER, ...SHOWN)]
+
+/** Lee's snooze of one ask on the board, as the pane gives it. */
+const snoozeAskOf = (id: string, until = LATER, board = BOARD) =>
+  checkSnoozeAsk(board, id, until, NOW)
+
+test("Lee's snooze of one ask is one line, that ask's, until a time still to come; one snoozed already, on its own or with its session, is snoozed again, to the new time", () => {
+  const again = { type: 'snooze', item: 'k1', until: LATER + MIN }
+
+  expect(value(snoozeAskOf('k1'))).toEqual({ type: 'snooze', item: 'k1', until: LATER })
+  expect(value(snoozeAskOf('k1', NOW + 1)), 'a moment on').toMatchObject({ until: NOW + 1 })
+  expect(value(snoozeAskOf('k1', LATER + MIN, boardOf([K1_ASLEEP]))), 'on its own').toEqual(again)
+  expect(
+    value(snoozeAskOf('k1', LATER + MIN, boardOf([SESSION_ASLEEP]))),
+    'with its session',
+  ).toEqual(again)
+})
+
+test("Lee's snooze of one ask is refused, the first refusal in order saying why: the session finished; the ask gone, or no ask; closed or ignored; his reply on its way to it, an answer or a comment; his comment Claude's to act on; then its time come already", () => {
+  const finished = boardOf([[T0 + 2 * MIN, finish('lee')]])
+  const commenting = boardOf([[T0 + 2 * MIN, reply('r4', 'k1', 'comment', { note: 'Off' })]])
+  const gone = 'it is no longer on the board.'
+  const onItsWay = 'your reply to it is on its way to Claude.'
+  const claudes = "it waits on Claude: your comment is Claude's to act on."
+  const come = 'That time has come already: give one still to come.'
+
+  for (const [why, refused, error] of [
+    ['finished', snoozeAskOf('k1', LATER, finished), FINISHED],
+    ['no item', snoozeAskOf('zz'), gone],
+    ['a parked item', snoozeAskOf('p1'), gone],
+    ['closed', snoozeAskOf('k5'), 'it is closed already.'],
+    ['ignored', snoozeAskOf('k4'), 'it is ignored already.'],
+    ['an answer on its way', snoozeAskOf('k6'), onItsWay],
+    ['a comment on its way', snoozeAskOf('k1', LATER, commenting), onItsWay],
+    ['Claude has a comment', snoozeAskOf('k3'), claudes],
+    ['come already', snoozeAskOf('k1', NOW), come],
+  ] as const) {
+    expect(refusal(refused), why).toBe(error)
+  }
+})
+
+test("Lee's wake now on an ask wakes that ask alone where his own snooze of it stands, run out at its time or not; its session where the session's snooze holds it; refused in a finished session, and for an ask not snoozed", () => {
+  const own = boardOf([K1_ASLEEP])
+  const ranOut = boardOf([[T0 + 2 * MIN, snooze('k1', NOW)]])
+  const finished = boardOf([K1_ASLEEP, [T0 + 3 * MIN, finish('lee')]])
+  const wakeK1 = { type: 'wake', item: 'k1' }
+
+  expect(value(checkWakeAsk(own, 'k1'))).toEqual(wakeK1)
+  expect(value(checkWakeAsk(ranOut, 'k1')), 'run out').toEqual(wakeK1)
+  expect(value(checkWakeAsk(boardOf([SESSION_ASLEEP]), 'k1')), "the session's").toEqual({
+    type: 'wakeSession',
+  })
+  expect(refusal(checkWakeAsk(finished, 'k1'))).toBe(FINISHED)
+  expect(refusal(checkWakeAsk(own, 'k2')), 'another ask, waiting').toBe('it is not snoozed.')
+  expect(refusal(checkWakeAsk(own, 'zz')), 'no item').toBe('it is not snoozed.')
 })
