@@ -661,26 +661,37 @@ the skipped hook's work runs on in the queue and writes its line.
   session's failed statuses was on its board 2.5 to 7 seconds after the
   error, and an ask Claude sent again was on its board twice.
 - **The deadline:** sitrep's hook gives a call until its budget's
-  remaining time less 3 seconds (`next.budget.remainingMs`, read as the
-  hook begins), waited with `$.clock.sleep`, which runs on the budget as
-  the queue does. A call whose work is done by then is answered as ever.
+  remaining time less 3 seconds (`next.budget.remainingMs` as the hook
+  begins), waited with `$.clock.sleep`. A call whose work is done by then
+  is answered as ever. The wait is real time, and the budget runs at real
+  time only while no `$` call of the hook's is in flight: so through a
+  wait in the queue, but not through the call's own reads and writes once
+  its turn has come. So the deadline judges a call still queued by the
+  real time, and a call begun by the budget it has left, read live.
 - **At the deadline,** a call is answered by how far its work has come:
 
   | Its work | The answer |
   |---|---|
   | still waiting its turn in the queue | refused: the board was busy and nothing was written, so send it again; its turn, when it comes, does nothing |
-  | a post's (`status`, `ask`, `park`, `finish`, and `resolve`, `reopen` and `edit` on the attached session), its check not yet passed | the same refusal; once its check runs it writes nothing |
-  | a post's, its check passed | its answer, as it would have been (`Status set.`, `Posted ask k1mz. …`); the line is written after, in the queue, a failure to write it logged |
+  | a post's (`status`, `ask`, `park`, `finish`, and `resolve`, `reopen` and `edit` on the attached session), its check not yet passed | the same refusal once its budget is within 3 seconds of spent, read live; until then it waits on, looking again as that much more of the budget could have gone; refused, once its check runs it writes nothing |
+  | a post's, its check passed, or its check refused it, or it had nothing to change | its answer, as it would have been (`Status set.`, `Posted ask k1mz. …`, the check's refusal); a line is written after, in the queue, a failure to write it logged |
   | any other tool's, begun | none yet: the hook waits on, as before |
 
-  The answer of a post is known once its check passes, so the post
+  The answer of a post is known once its check settles, so the post
   answers then and the line follows; a call refused at the deadline has
-  written nothing, so sending it again never doubles it.
+  written nothing, so sending it again never doubles it. Lee stopping
+  the turn ends the wait as the deadline does, the call answered by how
+  far its work has come, a post before its check refused whatever its
+  budget.
 - **The timers queue no backlog:** each of the window's timers (the
   watch's refresh every 1.5 seconds, the heartbeat every 30, the
   inbox's look every 1.5, the look around every 5) skips a tick while its
   last is still queued or running, so a busy Mac slows them rather than
-  stacking them up, and a call waits behind one of each at most.
+  stacking them up. Of them only the watch and the heartbeat run in the
+  window's queue, so a call waits behind one run of each at most, besides
+  whatever Lee's presses and the deliveries put there. A beat held past a
+  minute leaves the window's heartbeat stale for a while, as the window
+  is then.
 
 **When to start a session**, in every conversation's first message
 (added once a conversation started one with nothing to go on but the tools,

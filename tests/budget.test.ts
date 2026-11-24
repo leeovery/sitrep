@@ -4,8 +4,8 @@ import { HEARTBEAT_MS, parseEntries, type SessionPaths } from '../core'
 import { AROUND_MS } from '../hooks/around'
 import { WATCH_MS } from '../hooks/window'
 import { HELP_DESK, HOME, LEDGER, REVIEW, W1 } from './data'
-import { park, yesAsk } from './lines'
-import { postedId, world, type World } from './world'
+import { delivered, park, reply, yesAsk } from './lines'
+import { kindsIn, postedId, world, type World } from './world'
 
 tier('user')
 
@@ -67,23 +67,26 @@ test('calls waiting their turn behind the watch past their deadline are refused,
   expect(w.logs).toEqual([])
 })
 
-test('a post whose check has not passed by its deadline, its fold held, is refused, the board busy, and writes nothing once it runs on', async ($, on) => {
+test("a post whose check has not passed by its deadline, its fold held, waits on, the hook's own read having stood its budget still: answered once its fold is read, its line written once", async ($, on) => {
   const w = world($, on)
   const { paths } = await w.begin()
   const fold = gate()
-  const before = ownText(w, paths)
 
   w.after('list', paths.presence, () => fold.held)
 
   const ask = w.call('ask', REVIEW)
+  const call = answering(ask)
 
   await w.clock.settle()
   await w.clock.advance(PAST_THE_DEADLINE)
-  expect((await ask).deny).toBe(BUSY)
+  expect(call.isAnswered, 'answered at the deadline').toBe(false)
 
   fold.open()
+
+  const id = postedId(await ask)
+
   await w.clock.settle()
-  expect(ownText(w, paths), 'nothing written').toBe(before)
+  expect(asksIn(w, paths)).toEqual([id])
 })
 
 test('a post whose check passed by its deadline, its write held, is answered then as ever, and its line lands once written', async ($, on) => {
@@ -150,9 +153,48 @@ test('a post answered at its deadline whose write then fails says so in the debu
 
   disk.open()
   await w.clock.settle()
-  expect(w.logs.filter(line => line.includes('the status call answered at its deadline'))).toEqual([
-    expect.stringContaining('EIO'),
-  ])
+  expect(w.logs.filter(line => line.includes("the status call's work after its deadline"))).toEqual(
+    [expect.stringContaining('EIO: i/o error')],
+  )
+})
+
+test("a post with nothing to change, its row's name still being kept at its deadline, is answered then with its own answer, not refused", async ($, on) => {
+  const naming = gate()
+  let isNamingHeld = false
+
+  on('state.set', { plugin: 'sitrep', key: 'named' }, async ($, e, next) => {
+    if (isNamingHeld) {
+      isNamingHeld = false
+      await naming.held
+    }
+
+    return next(e)
+  })
+
+  const w = world($, on)
+  const { paths } = await w.begin()
+  const ask = postedId(await w.call('ask', REVIEW))
+
+  w.writer(paths)(reply('r1', ask, 'yes'), delivered('r1'))
+  isNamingHeld = true
+
+  const resolve = w.call('resolve', { item: ask })
+  const call = answering(resolve)
+
+  await w.clock.settle()
+  await w.clock.advance(PAST_THE_DEADLINE)
+  await w.clock.settle()
+  // Checked without waiting on the call: held past 10 s of real time, the
+  // hold above would overrun and let the name through, answering it anyway.
+  expect(call.isAnswered, 'answered at the deadline, its name still held').toBe(true)
+  expect(isNamingHeld, 'its name was being kept').toBe(false)
+  expect(await resolve).toEqual({
+    result: `${ask} was closed already by the user: nothing to resolve.`,
+  })
+
+  naming.open()
+  await w.clock.settle()
+  expect(w.state.named?.map(each => each.name)).toEqual([REVIEW.title])
 })
 
 test('a call begun that is no post, such as board, is not refused at its deadline: it answers once its work is done', async ($, on) => {
@@ -173,7 +215,7 @@ test('a call begun that is no post, such as board, is not refused at its deadlin
   expect((await board).result).toContain(HELP_DESK.name)
 })
 
-test("resolve on the attached session's item is a post, refused at its deadline before its check; on a parked item of another session, it is not", async ($, on) => {
+test("resolve on the attached session's item is a post, answered at its deadline once decided, its write held; on a parked item of another session it is not, and waits on", async ($, on) => {
   const w = world($, on)
   const ledger = w.elsewhere(LEDGER)
 
@@ -183,19 +225,22 @@ test("resolve on the attached session's item is a post, refused at its deadline 
   const ask = postedId(await w.call('ask', REVIEW))
   const own = gate()
 
-  w.after('list', paths.presence, () => own.held)
+  w.beforeWrite(paths.log(W1), () => own.held)
 
   const here = w.call('resolve', { item: ask })
 
   await w.clock.settle()
   await w.clock.advance(PAST_THE_DEADLINE)
-  expect((await here).deny, 'its own').toBe(BUSY)
+  expect((await here).result, 'its own').toBe(`Resolved ${ask}.`)
+  expect(kindsIn(w, paths.log(W1)), 'not written yet').toEqual(['ask'])
+
   own.open()
   await w.clock.settle()
+  expect(kindsIn(w, paths.log(W1))).toEqual(['ask', 'resolve'])
 
   const there = gate()
 
-  w.after('list', ledger.paths.dir, () => there.held)
+  w.beforeWrite(ledger.paths.log(W1), () => there.held)
 
   const elsewhere = w.call('resolve', { item: 'p1', session: LEDGER.id })
   const call = answering(elsewhere)

@@ -446,10 +446,11 @@ export const register: Register = on => {
     return answer
   }).catch(($, e, next) => next(e))
 
-  // Answered within the hook's budget, as it stands as the hook begins: past
-  // it Claude Code skips the hook, its .catch unasked (tools.ts).
+  // Answered within the hook's budget, read afresh at each look, since each
+  // read of `next.budget` is a copy: past it Claude Code skips the hook, its
+  // .catch unasked (deadline.ts).
   on('tool.call', { tool: OWN_TOOLS }, ($, e, next) =>
-    answerCall(hostOf($), e, next.budget.remainingMs),
+    answerCall(hostOf($), e, { left: () => next.budget.remainingMs, signal: next.signal }),
   ).catch(($, e, next) =>
     next.called
       ? next(e)
