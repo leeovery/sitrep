@@ -19,6 +19,9 @@ export type Answered = { result: string } | { deny: string }
 /** How long before its hook's budget runs out a call's deadline comes: room for a wait that ends late, and for the answer to get back, on a Mac too busy to keep time. */
 export const MARGIN_MS = 3_000
 
+/** The shortest wait before a call that waited on looks again: its budget stands still through a slow read of its own, so a wait of what could have gone since would shrink to nothing and spin. The margin has room for it. */
+export const LOOK_AGAIN_MS = 250
+
 /** The answer to a call dropped at its deadline, which wrote nothing. */
 export const BUSY = 'The board was busy, so nothing was written: send it again.'
 
@@ -147,10 +150,12 @@ export const byDeadline = async (
     }
 
     const left = budget.left()
-    const verdict = progress.due(woke === STOPPED || left <= MARGIN_MS)
+    // A reading that is no time, a budget unmetered once metered, counts as spent.
+    const isSpent = woke === STOPPED || !(Number.isFinite(left) && left > MARGIN_MS)
+    const verdict = progress.due(isSpent)
 
     if (verdict === 'again') {
-      return waitFor(left - MARGIN_MS)
+      return waitFor(Math.max(left - MARGIN_MS, LOOK_AGAIN_MS))
     }
 
     if (verdict === 'work') {

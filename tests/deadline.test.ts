@@ -1,5 +1,12 @@
 import { drained, expect, test } from './kit'
-import { BUSY, byDeadline, MARGIN_MS, progressOf, type Answered } from '../hooks/deadline'
+import {
+  BUSY,
+  byDeadline,
+  LOOK_AGAIN_MS,
+  MARGIN_MS,
+  progressOf,
+  type Answered,
+} from '../hooks/deadline'
 import type { Host } from '../hooks/host'
 
 /** A hook's whole budget, as it begins. */
@@ -128,6 +135,31 @@ test('a post before its check with budget left at the deadline, its own reads ha
   expect(call.progress.knows(SET)).toBe(true)
   await call.wake()
   expect(call.answer()).toEqual(SET)
+})
+
+test('a post that waits on, its budget standing still just past the margin through a slow read, looks again no sooner than its shortest wait, never spinning', async () => {
+  const call = postBegun()
+
+  call.budget.left = MARGIN_MS + 10
+  await call.wake()
+  await call.wake()
+  expect(call.answer(), 'waits on').toBeUndefined()
+  expect(call.waits.map(wait => wait.ms)).toEqual([
+    BUDGET_MS - MARGIN_MS,
+    LOOK_AGAIN_MS,
+    LOOK_AGAIN_MS,
+  ])
+})
+
+test('a budget read as no time once the call has waited on counts as spent: a post before its check is refused, never looking again at once', async () => {
+  for (const left of [Number.NaN, Number.POSITIVE_INFINITY]) {
+    const call = postBegun()
+
+    call.budget.left = left
+    await call.wake()
+    expect(call.answer(), String(left)).toEqual({ deny: BUSY })
+    expect(call.waits, String(left)).toHaveLength(1)
+  }
 })
 
 test('a post that waits on at its deadline is refused once a later look finds its budget within the margin of spent', async () => {
