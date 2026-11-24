@@ -326,16 +326,12 @@ public final class NotchRun: Framed {
     }
 
     /// The content scrolled this much further, inside its length; not by a scroll over the asks panel. A scroll that
-    /// moves the list closes the asks panel, as a Mac menu's scroll closes its submenu.
+    /// moves the list past a few points closes the asks panel (`AsksPanel.scrolled`).
     public func scroll(by delta: Double, _ moment: Moment) {
         upToNow(moment)
         if let panel = frame.panel, !isOnAsks(moment.pointer) {
-            let was = scroll
-
             scroll = list.content.scrolled(scroll, by: delta, showing: panel.frame.height)
-            if scroll != was {
-                asking.close()
-            }
+            asking.scrolled(to: scroll)
         }
         placeAsks(in: moment.setting)
     }
@@ -351,6 +347,12 @@ public final class NotchRun: Framed {
     /// Whether a row still folds or fades in at this time.
     public func isFolding(at time: Double) -> Bool {
         folds.isMoving(at: time)
+    }
+
+    /// Whether frames must keep coming at this time, though the pointer is still: the notch moves, a row folds, or the
+    /// way to the asks panel holds the pointer, which a rest or its time ends with no move (`SafeTriangle`).
+    public func needsFrames(at time: Double) -> Bool {
+        frame.isMoving || isFolding(at: time) || asking.isFindingWay
     }
 
     /// When, after this wall time, the first of the shown rows' times, or a wake's countdown, next reads differently,

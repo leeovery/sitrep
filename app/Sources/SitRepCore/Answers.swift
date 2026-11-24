@@ -50,6 +50,12 @@ public final class Answers {
     private let sleep: @Sendable (Duration) async throws -> Void
     private let now: () -> Date
     private var holding: Task<Void, Never>?
+    /// The answers gone to the CLI that it is not yet done with, each by its place in the order they went.
+    private var sends: [Int: Task<Void, Never>] = [:]
+    private var nextSend = 0
+
+    /// Whether an answer is held, or gone to the CLI and not yet written or refused: quitting waits on it.
+    public var isAnswering: Bool { held != nil || !sends.isEmpty }
 
     /// `answer` runs an answer through the CLI; `post` posts a refusal's banner; `sleep` waits out the hold and `now`
     /// tells the wall clock: the tests' clocks, in place of the real ones.
@@ -111,28 +117,33 @@ public final class Answers {
         run(answering)
     }
 
-    /// Sends the answer held now, its hold cut short, as quitting does, which never cancels it; back once the CLI has
-    /// written it or refused it, within the CLI's own time limit, or at once while none is held.
-    public func sendHeld() async {
-        guard let held else {
-            return
+    /// Every answer seen through, as quitting does, which cancels none: the one held sent now, its hold cut short;
+    /// back once the CLI is done with it and with every one gone before, each within the CLI's own time limit, or at
+    /// once with none.
+    public func finish() async {
+        if let held {
+            holding?.cancel()
+            release()
+            run(held.answering)
         }
-
-        holding?.cancel()
-        release()
-        await run(held.answering).value
+        while let send = sends.values.first {
+            await send.value
+        }
     }
 
-    @discardableResult
-    private func run(_ answering: Answering) -> Task<Void, Never> {
+    private func run(_ answering: Answering) {
+        let send = nextSend
+
+        nextSend += 1
         heard(.went(answering))
-        return Task {
+        sends[send] = Task {
             let written = await answer(answering)
 
             if case let .refused(why) = written {
                 post(.unanswered(why))
             }
             heard(.ended(answering, written))
+            sends[send] = nil
         }
     }
 

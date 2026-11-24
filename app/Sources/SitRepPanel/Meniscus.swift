@@ -147,7 +147,7 @@ public final class Meniscus: Notch {
     /// What happened since the last frame, before the sim clock moves on: the screen, the content, what needs Lee,
     /// whether to reduce motion, a panel beside the open one, and the pointer.
     private func take(_ input: Input) {
-        let besideChanged = input.beside != beside
+        let besideChanged = input.beside != beside, wasBeside = isBeside(sp)
 
         reducesMotion = input.reducesMotion
         beside = input.beside
@@ -165,7 +165,8 @@ public final class Meniscus: Notch {
         }
         let pointer = input.pointer.map { Vec(max(0, $0.x), $0.y) }
 
-        if besideChanged, pointer == sp {
+        // a still pointer gets no leave as the shape pours under it, only as the room beside comes or goes under it
+        if besideChanged, pointer == sp, wasBeside || isBeside(sp) {
             rehover()
         }
         pointerMoved(pointer, at: input.pointerTime)

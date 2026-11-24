@@ -160,14 +160,15 @@ struct AnswersTests {
 
     /// Quitting sends the answer held at once, its hold cut short, and is back only once the CLI is done with it; the
     /// hold running out after sends nothing more.
-    @Test func theAnswerHeldIsSentAtOnceAndBackOnceTheCLIIsDone() async {
+    @Test func finishingSendsTheAnswerHeldAtOnceAndIsBackOnceTheCLIIsDone() async {
         let (answers, clock, cli) = Self.made()
 
         answers.hold(Self.approve)
         await until(turns: 100_000) { clock.sleeps.count == 1 }
-        await answers.sendHeld()
+        #expect(answers.isAnswering)
+        await answers.finish()
 
-        #expect(answers.held == nil)
+        #expect(!answers.isAnswering)
         #expect(cli.ran == [Self.approve])
         #expect(cli.news.dropFirst() == [.went(Self.approve), .ended(Self.approve, .written)])
 
@@ -176,13 +177,59 @@ struct AnswersTests {
         #expect(cli.ran == [Self.approve])
     }
 
-    @Test func withNoneHeldSendingWhatIsHeldSendsNothing() async {
+    @Test func withNothingHeldOrGoingFinishingSendsNothing() async {
         let (answers, _, cli) = Self.made()
 
-        await answers.sendHeld()
+        #expect(!answers.isAnswering)
+        await answers.finish()
 
         #expect(cli.ran.isEmpty)
         #expect(cli.news.isEmpty)
+    }
+
+    /// An answer whose hold ran out just before quitting, gone to the CLI and not yet written, is waited on: quitting
+    /// is back only once the CLI is done with it.
+    @Test func finishingWaitsOnAnAnswerTheCLIIsNotDoneWith() async {
+        let gate = Gate()
+        let (answers, clock, cli) = Self.made(gate: gate)
+        var finished = false
+
+        answers.hold(Self.approve)
+        await until(turns: 100_000) { clock.sleeps.count == 1 }
+        clock.pass(Answers.goesAfter)
+        await until(turns: 100_000) { gate.waiting == 1 }
+        #expect(answers.held == nil && answers.isAnswering)
+
+        let finishing = Task {
+            await answers.finish()
+            finished = true
+        }
+
+        await Self.settle()
+        #expect(!finished)
+        gate.open()
+        await finishing.value
+        #expect(cli.ran == [Self.approve] && !answers.isAnswering)
+    }
+
+    /// The hold running out as quitting begins: the answer goes once, and quitting waits on it.
+    @Test func theHoldRunningOutAsFinishingBeginsSendsItOnce() async {
+        let gate = Gate()
+        let (answers, clock, cli) = Self.made(gate: gate)
+
+        answers.hold(Self.approve)
+        await until(turns: 100_000) { clock.sleeps.count == 1 }
+        clock.pass(Answers.goesAfter)
+
+        let finishing = Task { await answers.finish() }
+
+        await until(turns: 100_000) { gate.waiting == 1 }
+        gate.open()
+        await finishing.value
+        await Self.settle()
+        #expect(cli.ran == [Self.approve])
+        #expect(cli.news.filter { $0 == .went(Self.approve) }.count == 1)
+        #expect(!answers.isAnswering)
     }
 
     @Test func aRefusalPostsNotAnsweredInTheCLIsWords() async {
@@ -196,12 +243,18 @@ struct AnswersTests {
         #expect(cli.news.last == .ended(Self.approve, .refused(why)))
     }
 
-    private static func made(answering written: WriteAnswer = .written) -> (Answers, TestClock, CLI) {
+    /// Answers on a clock the test moves, to a CLI answering as given, at once or, through `gate`, once it opens.
+    private static func made(
+        answering written: WriteAnswer = .written, gate: Gate? = nil
+    ) -> (Answers, TestClock, CLI) {
         let clock = TestClock(passing: [], holdsCancelled: true)
         let cli = CLI(written)
         let answers = Answers(
-            answer: { cli.run($0) }, post: { cli.banners.append($0) }, sleep: { try await clock.sleep(for: $0) },
-            now: { heldAt }
+            answer: { answering in
+                await gate?.pass()
+                return cli.run(answering)
+            },
+            post: { cli.banners.append($0) }, sleep: { try await clock.sleep(for: $0) }, now: { heldAt }
         )
 
         answers.heard = { cli.news.append($0) }
@@ -231,5 +284,28 @@ private final class CLI {
     func run(_ answering: Answering) -> WriteAnswer {
         ran.append(answering)
         return written
+    }
+}
+
+/// A CLI's run held until the test lets it through: how many wait, and the way through for every one.
+@MainActor
+private final class Gate {
+    private var through: [CheckedContinuation<Void, Never>] = []
+    private var isOpen = false
+
+    var waiting: Int { through.count }
+
+    func pass() async {
+        guard !isOpen else {
+            return
+        }
+
+        await withCheckedContinuation { through.append($0) }
+    }
+
+    func open() {
+        isOpen = true
+        through.forEach { $0.resume() }
+        through = []
     }
 }

@@ -30,16 +30,18 @@ struct AsksPanel {
     }
 
     /// What it shows, for a press to tell a change of meaning by: beside which row, which holds its session, where on
-    /// the stage, its ask as it reads, and whether an answer to it is held.
-    private struct Look: Equatable {
+    /// the stage and when, on the display's clock, its ask as it reads, and whether an answer to it is held.
+    private struct Look {
         let row: String
         let place: CGPoint
+        let time: Double
         let ask: PanelAsk
         let isSending: Bool
 
-        init(_ shown: AsksShown) {
+        init(_ shown: AsksShown, at time: Double) {
             row = shown.row
             place = shown.frame.origin
+            self.time = time
             ask = shown.ask
             isSending = shown.sending != nil
         }
@@ -54,13 +56,14 @@ struct AsksPanel {
                 return false
             }
 
-            let moved = hypot(place.x - was.place.x, place.y - was.place.y) > Self.still
+            let moved = hypot(place.x - was.place.x, place.y - was.place.y) > Self.settling * (time - was.time) / 1000
 
             return was.ask != ask || (was.isSending && !isSending) || (pointerOn && moved)
         }
 
-        /// How far it moves from one frame to the next as the panel's springs settle, which is no move.
-        private static let still = 0.5
+        /// How fast, pt/s, it moves as the panel's springs settle, which is no move: half a point a frame at 60Hz,
+        /// where a row landing above slides it at up to 300.
+        private static let settling = 30.0
     }
 
     private var open: Open?
@@ -74,6 +77,8 @@ struct AsksPanel {
     private var way = SafeTriangle()
     private var look: Look?
     private var lookedAt = -Double.infinity
+    /// The row it opened beside, and how far the list was scrolled then.
+    private var opened: (row: String, scroll: Double)?
 
     /// The row it is open beside, by its key; nil while it is closed.
     var row: String? { open?.row }
@@ -102,6 +107,21 @@ struct AsksPanel {
     mutating func close() {
         open = nil
     }
+
+    /// The list scrolled this far: closed once that moves it more than `scrollMost` from where it was as it opened, as
+    /// a Mac menu's scroll closes its submenu.
+    mutating func scrolled(to scroll: Double) {
+        if let opened, abs(scroll - opened.scroll) > Self.scrollMost {
+            close()
+        }
+    }
+
+    /// How far, pt, the list scrolls under it before it closes: the few points of a sideways swipe's drift or a
+    /// brush on a Magic Mouse leave it open; a third of a row's height is a scroll meant.
+    static let scrollMost = 10.0
+
+    /// Whether the way to it from the list holds the pointer, which must be judged frame by frame until it ends.
+    var isFindingWay: Bool { way.holds }
 
     /// Kept to what shows: closed while the panel is not open, its row gone or none of its asks left; else at its
     /// ask, or, where that left, the one that took its page, or the last.
@@ -153,8 +173,11 @@ struct AsksPanel {
         on ground: AsksGround, pointer: CGPoint?, at time: Double, layout: (PanelAsk) -> AsksLayout
     ) {
         shown = placed(on: ground, pointer: pointer, layout: layout)
+        if opened?.row != shown?.row {
+            opened = shown.map { ($0.row, ground.scroll) }
+        }
 
-        let look = shown.map(Look.init), pointerOn = pointer.map { shown?.contains($0) == true } ?? false
+        let look = shown.map { Look($0, at: time) }, pointerOn = pointer.map { shown?.contains($0) == true } ?? false
 
         if look?.meansOther(than: self.look, pointerOn: pointerOn) == true {
             lookedAt = time

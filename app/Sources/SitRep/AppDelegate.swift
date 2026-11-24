@@ -12,6 +12,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     private lazy var snoozes = Snoozes(plugin: plugin, post: banners.post)
     private lazy var answers = Answers(plugin: plugin, post: banners.post)
+    /// Quitting, waiting on the answers (`applicationShouldTerminate`).
+    private var quitting: Task<Void, Never>?
     private let feed = Feed()
     /// The plugin folder `watch` runs on; nil before it first starts.
     private var watching: String?
@@ -85,15 +87,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// An answer held at quitting goes before the app does, as leaving the notch never cancels one (DESIGN,
-    /// "Answering, with two seconds to undo"): sent at once, the app quitting once the CLI is done with it, within the
-    /// CLI's time limit.
+    /// "Answering, with two seconds to undo"): sent at once, the app quitting once the CLI is done with it and with
+    /// any gone before, within the CLI's time limit. Asked again meanwhile, it waits on the same.
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard answers.held != nil else {
+        guard quitting == nil else {
+            return .terminateLater
+        }
+        guard answers.isAnswering else {
             return .terminateNow
         }
 
-        Task {
-            await answers.sendHeld()
+        quitting = Task {
+            await answers.finish()
             sender.reply(toApplicationShouldTerminate: true)
         }
         return .terminateLater

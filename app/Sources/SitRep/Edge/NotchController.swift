@@ -247,11 +247,12 @@ final class NotchController: NSObject, CalloutShape {
         surface.drawLight(run, at: time, reducesMotion: Displays.reducesMotion(settings))
     }
 
-    /// Frames run while something moves; otherwise only the light's slow refresh, while it is lit and moves, and with
-    /// the panel out, a frame as its times next change. Hidden, none.
+    /// Frames run while something moves, or the way to the asks panel holds the pointer (`NotchRun.needsFrames`);
+    /// otherwise only the light's slow refresh, while it is lit and moves, and with the panel out, a frame as its times
+    /// next change. Hidden, none.
     private func pace(at time: Double) {
         let ghosts = ghost.step(at: time)
-        let running = isShown && (run.frame.isMoving || run.isFolding(at: time) || ghosts || isWashing(at: time))
+        let running = isShown && (run.needsFrames(at: time) || ghosts || isWashing(at: time))
 
         link?.isPaused = !running
         lightLink?.isPaused = running || !lightMoves(at: time)

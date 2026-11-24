@@ -20,11 +20,11 @@ struct AsksPanelRunTests {
     private static let helpDesk = "needs:\(AsksBoard.helpDesk)", shifts = "needs:\(AsksBoard.shifts)"
 
     private static func setting(
-        right: Bool = false, style: NotchStyle = .meniscus, stage: Stage = stage
+        right: Bool = false, style: NotchStyle = .meniscus, stage: Stage = stage, reducesMotion: Bool = false
     ) -> NotchRun.Setting {
         NotchRun.Setting(
             stage: stage, mirror: right ? CGAffineTransform(a: -1, b: 0, c: 0, d: 1, tx: 800, ty: 0) : .identity,
-            style: style, reducesMotion: false, isChosen: true
+            style: style, reducesMotion: reducesMotion, isChosen: true
         )
     }
 
@@ -550,28 +550,47 @@ struct AsksPanelRunTests {
         #expect(open[1] < 120)
     }
 
+    /// How the pointer's samples come on the way: a new one each frame at 60Hz; at 120Hz, one every other frame, as a
+    /// slower mouse or trackpad gives on a fast display; or a fast mouse's 500 a second, each a point and a half back
+    /// or on along the way in turn, further from the asks panel than the one before every other time.
+    enum Feed: CaseIterable {
+        case fresh, repeats, jitter
+
+        /// How far apart, ms, the steps come.
+        var every: Double {
+            switch self {
+            case .fresh: frameMS
+            case .repeats: frameMS / 2
+            case .jitter: 2
+            }
+        }
+    }
+
     /// On a list of one row the asks panel runs on below it: the straight way from the arrow, where it stands on
     /// either edge, to the last answer of a choice of three, past the list's bottom corner, keeps the panel open, as a
-    /// Mac submenu's safe triangle does, on either notch. The pointer goes slowly enough that its way off both panels
-    /// takes longer than a leave's grace, and within the triangle's time.
+    /// Mac submenu's safe triangle does, on either notch, however the pointer's samples come. The pointer goes slowly
+    /// enough that its way off both panels takes longer than a leave's grace, and within the triangle's time.
     @Test(arguments: [NotchStyle.meniscus, .card], [false, true])
     func theWayFromTheArrowToTheLastAnswerKeepsItOpen(_ style: NotchStyle, right: Bool) throws {
-        let setting = Self.setting(right: right, style: style)
-        let run = try Self.asksOpen(Self.helpDesk, setting, board: AsksBoard.board(alone: true))
-        let from = try Self.arrow(Self.helpDesk, run, setting), to = try Self.part(.answer(2), run, setting)
-        let off = try Self.offBoth(run, from: from, to: to)
+        for feed in Feed.allCases {
+            let setting = Self.setting(right: right, style: style)
+            let run = try Self.asksOpen(Self.helpDesk, setting, board: AsksBoard.board(alone: true))
+            let from = try Self.arrow(Self.helpDesk, run, setting), to = try Self.part(.answer(2), run, setting)
+            let off = try Self.offBoth(run, from: from, to: to)
 
-        try #require(off.length > 0, "the way never leaves both panels")
-        for point in Self.way(from: from, to: to, at: off.length / (SafeTriangle.lasts - 60)) {
-            run.step(Self.at(run, point, setting))
+            try #require(off.length > 0, "the way never leaves both panels")
+            for point in Self.way(from: from, to: to, at: off.length / (SafeTriangle.lasts - 60), feed: feed) {
+                run.step(NotchRun.Moment(time: run.time + feed.every, pointer: point, setting: setting))
+            }
+            Self.frames(run, for: 2000, to, setting)
+            #expect(run.phase == .open && run.asksShown?.hover == .answer(2), "fed \(feed)")
         }
-        Self.frames(run, for: 2000, to, setting)
-        #expect(run.phase == .open && run.asksShown?.hover == .answer(2))
     }
 
     /// A pointer on the way that rests there, turns back the way it came, still in the triangle, or creeps on past
-    /// the triangle's time is off the panel at once, and the panel closes as a leave closes it, before the pointer is
-    /// back on the list, on either notch.
+    /// the triangle's time is off the panel, and the panel closes as a leave closes it: a rest or a turn within the
+    /// window it is judged over and a slow leave's grace, a creep within the triangle's time and that grace of leaving
+    /// the list, on either notch.
     @Test(arguments: [NotchStyle.meniscus, .card], ["rests", "turns", "creeps"])
     func onTheWayAPointerThatDawdlesClosesIt(_ style: NotchStyle, dawdle: String) throws {
         let setting = Self.setting(right: true, style: style)
@@ -579,27 +598,85 @@ struct AsksPanelRunTests {
         let from = try Self.arrow(Self.helpDesk, run, setting), to = try Self.part(.answer(2), run, setting)
         let off = try Self.offBoth(run, from: from, to: to), panel = try #require(run.frame.panel)
         let speed = dawdle == "creeps" ? off.length / (SafeTriangle.lasts + 600) : 1.0
-        var way = Self.way(from: from, to: to, at: speed)
+        var way = Self.way(from: from, to: to, at: speed), halfway = way.count
 
         if dawdle != "creeps" {
-            let halfway = try #require(way.firstIndex { hypot($0.x - off.middle.x, $0.y - off.middle.y) < speed * 20 })
+            halfway = try #require(way.firstIndex { hypot($0.x - off.middle.x, $0.y - off.middle.y) < speed * 20 })
+
             let there = way[halfway]
             let back = Self.way(from: there, to: from, at: speed / 8).filter { !panel.contains($0) }
 
             way = Array(way[...halfway]) + (dawdle == "turns" ? back : Array(repeating: there, count: 90))
         }
-        for point in way where run.phase == .open {
+
+        var onList = run.time, dawdled = run.time
+
+        for (step, point) in way.enumerated() where run.phase == .open {
             run.step(Self.at(run, point, setting))
+            if panel.contains(point) {
+                onList = run.time
+            }
+            if step == halfway {
+                dawdled = run.time
+            }
         }
         #expect(run.phase != .open)
+        if dawdle == "creeps" {
+            #expect(run.time - onList <= SafeTriangle.lasts + Self.slowGrace + 2 * Self.frameMS)
+        } else {
+            #expect(run.time - dawdled <= SafeTriangle.window + Self.slowGrace + 2 * Self.frameMS)
+        }
     }
 
-    /// The points a pointer passes at this speed, pt/ms, a frame apart, from one point to another, the last one too.
-    private static func way(from: CGPoint, to: CGPoint, at speed: Double) -> [CGPoint] {
-        let frames = max(1, Int((hypot(to.x - from.x, to.y - from.y) / (speed * frameMS)).rounded(.up)))
+    /// A slow leave's grace, ms: the longest a leave keeps the panel open.
+    private static let slowGrace = 300.0
 
-        return (1 ... frames).map { step in
-            let share = Double(step) / Double(frames)
+    /// The pointer resting on the way, with steps only as the app takes them: at each of the pointer's samples, and at
+    /// frames while the run asks for them (`needsFrames`). The rest ends the way on time, and the panel closes within
+    /// the window the way is judged over and a slow leave's grace of the rest, on either notch.
+    @Test(arguments: [NotchStyle.meniscus, .card])
+    func aPointerRestingOnTheWayClosesItWithNoOtherInput(_ style: NotchStyle) throws {
+        let setting = Self.setting(right: true, style: style)
+        let run = try Self.asksOpen(Self.helpDesk, setting, board: AsksBoard.board(alone: true))
+        let from = try Self.arrow(Self.helpDesk, run, setting), to = try Self.part(.answer(2), run, setting)
+        let off = try Self.offBoth(run, from: from, to: to), panel = try #require(run.frame.panel)
+        let way = Self.way(from: from, to: to, at: 1)
+        let halfway = try #require(way.firstIndex { hypot($0.x - off.middle.x, $0.y - off.middle.y) < 20 })
+        var time = run.time, last = from
+
+        for point in way[...halfway] {
+            time += 8
+            Self.asTheAppSteps(run, until: time, pointer: last, setting)
+            run.step(NotchRun.Moment(time: time, pointer: point, setting: setting))
+            last = point
+        }
+        #expect(!panel.contains(last) && run.phase == .open)
+        Self.asTheAppSteps(run, until: time + 2000, pointer: last, setting) { run.phase != .open }
+        #expect(run.phase != .open)
+        #expect(run.time - time <= SafeTriangle.window + Self.slowGrace + 2 * Self.frameMS)
+    }
+
+    /// Frames as the app takes them, the pointer still, up to a time or until `done`: one a display refresh while the
+    /// run asks for them, else none.
+    private static func asTheAppSteps(
+        _ run: NotchRun, until end: Double, pointer: CGPoint, _ setting: NotchRun.Setting,
+        done: () -> Bool = { false }
+    ) {
+        while run.time + frameMS < end, run.needsFrames(at: run.time), !done() {
+            run.step(at(run, pointer, setting))
+        }
+    }
+
+    /// The points a pointer gives at this speed, pt/ms, a step of `feed` apart, from one point to another, the last
+    /// one too, fed as `feed` has them.
+    private static func way(from: CGPoint, to: CGPoint, at speed: Double, feed: Feed = .fresh) -> [CGPoint] {
+        let length = hypot(to.x - from.x, to.y - from.y)
+        let steps = max(1, Int((length / (speed * feed.every)).rounded(.up)))
+
+        return (1 ... steps).map { step in
+            let sample = feed == .repeats && step % 2 == 1 && step < steps ? step - 1 : step
+            let jitter = feed == .jitter && step < steps ? (step % 2 == 0 ? 1.5 : -1.5) : 0
+            let share = (Double(sample) + jitter / (speed * feed.every)) / Double(steps)
 
             return CGPoint(x: from.x + (to.x - from.x) * share, y: from.y + (to.y - from.y) * share)
         }
@@ -621,29 +698,54 @@ struct AsksPanelRunTests {
         return (length * Double(off.count) / Double(steps), off.isEmpty ? from : off[off.count / 2])
     }
 
+    /// Rows folding away above its row while it is open, the list's top moving down past a pointer resting on the
+    /// list: the asks panel moving with its row is no leave of the list, as Meniscus gives a still pointer no enter or
+    /// leave as the shape pours under it. Under reduced motion, where the edge never clings to the pointer, so that
+    /// nothing else holds it. Card reads the pointer against the shape every frame, so this is Meniscus's rule alone.
+    @Test func theListsTopMovingPastAStillPointerIsNoLeaveWithItOpen() throws {
+        let setting = Self.setting(reducesMotion: true)
+        let run = try Self.asksOpen(Self.shifts, setting), was = try #require(run.asksShown)
+        let panel = try #require(run.frame.panel)
+        let resting = CGPoint(x: panel.frame.minX + 200, y: panel.frame.minY + 5)
+
+        Self.frames(run, for: 500, resting, setting)
+        _ = run.show(AsksBoard.board(without: ["k1", "k2"]), Self.at(run, resting, setting))
+        Self.frames(run, for: 1000, resting, setting)
+
+        #expect(run.frame.panel?.contains(resting) == false, "the list never left the pointer")
+        #expect(try #require(run.asksShown).frame.minY != was.frame.minY)
+        Self.frames(run, for: 2000, resting, setting)
+        #expect(run.phase == .open)
+    }
+
     // MARK: What moves it
 
     /// A row landing above its own slides it down under a resting pointer: for a beat after, a press there is let go,
-    /// as what sits under the pointer moved; then it is taken.
-    @Test func itSlidingUnderARestingPointerLetsAPressGoForABeat() throws {
+    /// as what sits under the pointer moved; then it is taken. With frames at a display's 60Hz, and with steps a
+    /// millisecond apart, as frames and inputs can come: a slide is told by its speed, not how far one step moves it.
+    @Test(arguments: [60.0, 1000.0])
+    func itSlidingUnderARestingPointerLetsAPressGoForABeat(hz: Double) throws {
         let setting = Self.setting()
         let run = try Self.asksOpen(Self.shifts, setting, board: AsksBoard.board(without: ["k1", "k2"]))
         let was = try #require(run.asksShown), resting = try Self.part(.inClaude, run)
+        let next = { NotchRun.Moment(time: run.time + 1000 / hz, pointer: resting, setting: setting) }
 
         Self.frames(run, for: AsksPanel.settle, resting, setting)
         _ = run.show(AsksBoard.board(), Self.at(run, resting, setting))
-        Self.frames(run, for: 3 * Self.frameMS, resting, setting)
+        for _ in 0 ..< Int(hz / 20) {
+            run.step(next())
+        }
 
         #expect(try #require(run.asksShown).frame.minY > was.frame.minY)
         #expect(run.asksShown?.hover != nil)
-        #expect(run.press(Self.at(run, resting, setting)) == nil)
+        #expect(run.press(next()) == nil)
 
         Self.frames(run, for: 600, resting, setting)
         #expect(run.press(Self.at(run, resting, setting)) != nil)
     }
 
-    /// A scroll that moves the list closes it, as a Mac menu's scroll closes its submenu; a scroll over it moves
-    /// nothing and leaves it open.
+    /// A scroll that moves the list more than a few points closes it, as a Mac menu's scroll closes its submenu; a few
+    /// points, as a sideways swipe's drift, leave it open, as does a scroll over it, which moves nothing.
     @Test func aScrollOfTheListClosesIt() throws {
         let setting = Self.setting(stage: Stage(height: 360, visibleTop: 24, visibleBottom: 360, notchY: 180))
         let run = try Self.asksOpen(Self.helpDesk, setting)
@@ -652,8 +754,11 @@ struct AsksPanelRunTests {
         run.scroll(by: 40, Self.at(run, onIt, setting))
         #expect(run.scroll == 0 && run.asksShown != nil)
 
+        run.scroll(by: AsksPanel.scrollMost - 2, Self.at(run, onTheList, setting))
+        #expect(run.scroll == AsksPanel.scrollMost - 2 && run.asksShown != nil)
+
         run.scroll(by: 40, Self.at(run, onTheList, setting))
-        #expect(run.scroll > 0)
+        #expect(run.scroll > AsksPanel.scrollMost)
         #expect(run.asksShown == nil)
     }
 
