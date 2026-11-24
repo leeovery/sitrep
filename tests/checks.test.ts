@@ -535,11 +535,28 @@ test('an answer not in the words the ask takes is refused, saying what it takes'
   )
 })
 
-test("a words ask needs Claude Code's prompt, an old one needing something back among them; only an ask is answered", () => {
-  const prompt = "wants words, which need Claude Code's prompt: answer it there."
+test("a words ask, an old one needing something back among them, takes its words on one line as the pane's words answer; only an ask is answered", () => {
+  const answer = '  Ship the\n Tuesday  build '
 
-  expect(refusal(checkAnswer(SESSION, { ask: 'k4', answer: 'v1.2.3' }))).toBe(`k4 ${prompt}`)
-  expect(refusal(checkAnswer(SESSION, { ask: 'o1', answer: 'Done' }))).toBe(`o1 ${prompt}`)
+  expect(value(checkAnswer(SESSION, { ask: 'k4', answer }))).toEqual({
+    type: 'reply',
+    item: 'k4',
+    verdict: 'answer',
+    note: 'Ship the Tuesday build',
+  })
+  expect(value(checkAnswer(SESSION, { ask: 'o1', answer: 'Done' }))).toEqual({
+    type: 'reply',
+    item: 'o1',
+    verdict: 'answer',
+    note: 'Done',
+  })
+
+  for (const given of [undefined, '', ' \n ']) {
+    expect(refusal(checkAnswer(SESSION, { ask: 'k4', answer: given })), JSON.stringify(given)).toBe(
+      'k4 wants words: give them after its id.',
+    )
+  }
+
   expect(
     refusal(checkAnswer(SESSION, { ask: 'n1', answer: 'Yes' })),
     'a note, as one was written',

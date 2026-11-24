@@ -2,7 +2,9 @@ import { expect, test } from './kit'
 import { readSession } from '../cli/files'
 import { EXIT, WRITER } from '../cli/main'
 import {
+  boardMessage,
   foldSession,
+  FROM_THE_BOARD,
   parseEntries,
   serialise,
   toDeliver,
@@ -287,15 +289,55 @@ test("an answer is refused while the window delivering the session runs a sitrep
   expect((await t.run('answer', 'k1', 'Go', ...SESSION)).exit, 'reloaded').toBe(EXIT.done)
 })
 
-test("what needs Claude Code's prompt is refused in the CLI's words, and writes nothing: a words ask, a comment", async () => {
+test("a words ask takes its words on one line, into the inbox as the pane's words answer, and its window delivers them as Lee's answer", async () => {
+  const t = terminal()
+  const paths = t.seed(META, { lines: POSTED, seenAt: NOW, version: PLUGIN_VERSION })
+
+  expect(await t.run('answer', 'k3', 'Ship the\n Tuesday ', 'build', ...SESSION)).toEqual({
+    exit: EXIT.done,
+    out: '',
+    err: '',
+  })
+  expect(letters(t, paths)).toEqual([
+    {
+      v: VERSION,
+      at: NOW,
+      seq: 1,
+      type: 'reply',
+      id: FIRST_ID,
+      item: 'k3',
+      verdict: 'answer',
+      note: 'Ship the Tuesday build',
+    },
+  ])
+
+  const session = await folded(t, paths)
+
+  expect(boardMessage(session, toDeliver(session, W1))?.text).toBe(
+    [
+      FROM_THE_BOARD,
+      "- Run the export → the command's output: “Ship the Tuesday build”",
+      '  This closes the ask: nothing more to do with it.',
+    ].join('\n'),
+  )
+  expect((await boardOf(t)).asks[2]).toMatchObject({
+    id: 'k3',
+    reply: { is: 'onItsWay', isAnswer: true },
+  })
+})
+
+test("a words ask given no words, or only spaces, and a comment, which needs Claude Code's prompt, are refused in the CLI's words, and write nothing", async () => {
   const t = terminal()
   const paths = t.seed(META, { lines: POSTED })
 
-  expect(await t.run('answer', 'k3', 'v1.2.3', ...SESSION)).toEqual({
-    exit: EXIT.refused,
-    out: '',
-    err: "sitrep: k3 wants words, which need Claude Code's prompt: answer it there.\n",
-  })
+  for (const words of [[], [''], [' \n ']]) {
+    expect(await t.run('answer', 'k3', ...words, ...SESSION), JSON.stringify(words)).toEqual({
+      exit: EXIT.refused,
+      out: '',
+      err: 'sitrep: k3 wants words: give them after its id.\n',
+    })
+  }
+
   expect((await t.run('answer', 'k1', 'Go', '--comment', 'After lunch', ...SESSION)).err).toBe(
     'sitrep: There is no --comment. sitrep answer --help says more.\n',
   )
