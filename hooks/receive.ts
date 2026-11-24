@@ -26,7 +26,7 @@ import { boardMessage, toDeliver, type Reply, type ReplyBody } from '../core'
 import type { SitrepInFlight } from '../types'
 import { sessionOf } from './board'
 import { deliver, letGoHeldOne, sendHeld, writeTaken } from './deliver'
-import { logFailure, type Host } from './host'
+import { logFailure, oneAtATime, type Host } from './host'
 import { WATCH_MS } from './window'
 
 let timer: Timer | undefined
@@ -104,11 +104,11 @@ const receive = async (host: Host) => {
   }
 }
 
-/** Looks for inbox replies to take in at the watch's pace, from the window's start. */
+/** Looks for inbox replies to take in at the watch's pace, from the window's start, skipping a tick while its last look is under way. */
 export const receiveEvery = (host: Host) => {
   timer?.cancel()
   timer = host.clock.every(
     WATCH_MS,
-    () => void receive(host).catch(logFailure(host, 'taking in the inbox')),
+    oneAtATime(() => receive(host).catch(logFailure(host, 'taking in the inbox'))),
   )
 }
