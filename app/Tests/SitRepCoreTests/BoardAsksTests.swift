@@ -31,6 +31,18 @@ struct BoardAsksTests {
         #expect(yes.needs == nil)
     }
 
+    /// A yes ask whose line gave no yes, null or left out, has core's `yesOf`'s bare `yes`, which the CLI takes.
+    @Test(arguments: [#","yes":null"#, ""])
+    func aYesWithNoYesGivenIsABareYes(yes: String) throws {
+        let line = Self.line([WatchLine.Ask(id: "k1", wants: .yes, yes: nil)])
+
+        #expect(line.contains(#","yes":null"#))
+
+        let board = try Board.read(line.replacingOccurrences(of: #","yes":null"#, with: yes))
+
+        #expect(board.ask("k1", of: "sr-nw0001")?.yes == "yes")
+    }
+
     @Test func aChoiceGivesItsOptionsInClaudesOrderAndNoYes() throws {
         let choice = try #require(try Board.read(Lines.watch[0]).ask("k2", of: "sr-m4h6qe"))
 
@@ -102,8 +114,20 @@ struct BoardAsksTests {
         #expect(board.asks(of: "sr-nw0001").map(\.id) == ["k1"])
     }
 
-    /// A session off the board, or one from a line not carrying its asks, has none.
-    @Test func aSessionWithNoAsksOnTheLineHasNone() throws {
+    /// A session whose line carries no `asks` has none, and is named all the same.
+    @Test func aSessionWhoseLineCarriesNoAsksHasNoneItsNameKept() throws {
+        let line = Self.line([])
+
+        #expect(line.contains(#""asks":[],"#))
+
+        let board = try Board.read(line.replacingOccurrences(of: #""asks":[],"#, with: ""))
+
+        #expect(board.asks(of: "sr-nw0001").isEmpty)
+        #expect(board.name(of: "sr-nw0001") == "Ledger export")
+    }
+
+    /// A session off the board has none; an ask delivered has left the board.
+    @Test func noAskIsFoundOffTheBoard() throws {
         let board = try Board.read(Lines.pretty)
 
         #expect(board.asks(of: "sr-zzzzzz").isEmpty)

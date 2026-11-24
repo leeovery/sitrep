@@ -25,7 +25,7 @@ struct AnswersTests {
         #expect(cli.news == [.held(held)])
         #expect(cli.ran.isEmpty, "nothing runs within the hold")
 
-        clock.pass(Answers.hold)
+        clock.pass(Answers.goesAfter)
         await until(turns: 100_000) { cli.news.count == 3 }
 
         #expect(cli.ran == [Self.approve])
@@ -44,10 +44,44 @@ struct AnswersTests {
         answers.undo()
 
         #expect(answers.held == nil)
-        clock.pass(Answers.hold)
+        clock.pass(Answers.goesAfter)
         await Self.settle()
         #expect(cli.ran.isEmpty)
         #expect(cli.news.dropFirst() == [.undone(Self.ignore)])
+    }
+
+    /// The hold has run out but its task has not yet run: Undo still takes it back.
+    @Test func undoAsTheHoldRunsOutTakesItBackAndNothingIsWritten() async {
+        let (answers, clock, cli) = Self.made()
+
+        answers.hold(Self.ignore)
+        await until(turns: 100_000) { clock.sleeps.count == 1 }
+        clock.pass(Answers.goesAfter)
+        answers.undo()
+        await Self.settle()
+
+        #expect(cli.ran.isEmpty)
+        #expect(cli.news.dropFirst() == [.undone(Self.ignore)])
+    }
+
+    /// A listener taking it back as it hears it held takes it back.
+    @Test func undoOnHearingItHeldTakesItBackAndNothingIsWritten() async {
+        let (answers, clock, cli) = Self.made()
+
+        answers.heard = { news in
+            cli.news.append(news)
+            if case .held = news {
+                answers.undo()
+            }
+        }
+        answers.hold(Self.ignore)
+        await until(turns: 100_000) { clock.sleeps.count == 1 }
+        clock.pass(Answers.goesAfter)
+        await Self.settle()
+
+        #expect(cli.ran.isEmpty)
+        #expect(cli.news.dropFirst() == [.undone(Self.ignore)])
+        #expect(answers.held == nil)
     }
 
     @Test func undoWithNothingHeldDoesNothing() async {
@@ -56,6 +90,39 @@ struct AnswersTests {
         answers.undo()
 
         #expect(cli.news.isEmpty)
+    }
+
+    /// Gone, it is past taking back: Undo tells nothing.
+    @Test func undoOnceItHasGoneTellsNothing() async {
+        let (answers, clock, cli) = Self.made()
+
+        answers.hold(Self.approve)
+        await until(turns: 100_000) { clock.sleeps.count == 1 }
+        clock.pass(Answers.goesAfter)
+        await until(turns: 100_000) { cli.news.count == 3 }
+        answers.undo()
+
+        #expect(cli.ran == [Self.approve])
+        #expect(cli.news.count == 3)
+        #expect(!cli.news.contains(.undone(Self.approve)))
+    }
+
+    /// A banner's answer to the ask held takes the hold back first, as Undo does, then goes at once: the held one
+    /// never goes after it, for the CLI to refuse as answered already.
+    @Test func anAnswerSentToTheAskHeldTakesTheHoldBackThenGoes() async {
+        let (answers, clock, cli) = Self.made()
+        let banners = Answering(.words("Approve"), to: Self.ignore.ask, of: Self.ignore.session)
+
+        answers.hold(Self.ignore)
+        await until(turns: 100_000) { clock.sleeps.count == 1 }
+        answers.send(banners)
+        await until(turns: 100_000) { cli.news.count == 4 }
+        clock.pass(Answers.goesAfter)
+        await Self.settle()
+
+        #expect(answers.held == nil)
+        #expect(cli.ran == [banners])
+        #expect(cli.news.dropFirst() == [.undone(Self.ignore), .went(banners), .ended(banners, .written)])
     }
 
     /// While one is held the asks panel takes no other: the second is refused, unheld and never sent; once the first
@@ -68,8 +135,9 @@ struct AnswersTests {
 
         #expect(!answers.hold(Self.ignore))
         #expect(answers.held?.answering == Self.approve)
+        #expect(cli.news.count == 1, "the refused one tells nothing")
 
-        clock.pass(Answers.hold)
+        clock.pass(Answers.goesAfter)
         await until(turns: 100_000) { cli.ran.count == 1 }
         #expect(cli.ran == [Self.approve])
         #expect(answers.hold(Self.ignore))

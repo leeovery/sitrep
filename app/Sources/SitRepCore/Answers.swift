@@ -30,14 +30,15 @@ public enum AnswerNews: Sendable, Equatable {
 }
 
 /// Lee's answers from the asks panel and the banners (DESIGN, "Answering from the panel"). The asks panel's is held
-/// `hold` before it goes, so Undo can take it back with nothing written; once held it goes whatever the panel does
+/// `goesAfter` before it goes, so Undo can take it back with nothing written; once held it goes whatever the panel does
 /// meanwhile, closed or moved to another row. One is held at a time: the asks panel takes no other while it is, and
-/// one asked to be held meanwhile is refused. A banner's goes at once, held or not. A refusal from the CLI posts a
-/// banner in its words.
+/// one asked to be held meanwhile is refused. A banner's goes at once, held or not; held to the same ask, the hold is
+/// taken back first, so the CLI never refuses it as answered already. A refusal from the CLI posts a banner in its
+/// words.
 @MainActor
 public final class Answers {
     /// How long the asks panel's answer is held before it goes.
-    public static let hold = Duration.seconds(2)
+    public static let goesAfter = Duration.seconds(2)
 
     /// Each answer's news, as it is held, taken back, goes, and ends.
     public var heard: (AnswerNews) -> Void = { _ in }
@@ -64,7 +65,7 @@ public final class Answers {
         self.now = now
     }
 
-    /// Holds the answer `hold`, then sends it, unless Undo takes it back first; whether it is held, which it is not
+    /// Holds the answer `goesAfter`, then sends it, unless Undo takes it back first; whether it is held, which it is not
     /// while another is.
     @discardableResult
     public func hold(_ answering: Answering) -> Bool {
@@ -74,19 +75,19 @@ public final class Answers {
 
         let heldAt = now()
         let held = HeldAnswer(
-            answering: answering, heldAt: heldAt, goesAt: heldAt.addingTimeInterval(Self.hold / .seconds(1))
+            answering: answering, heldAt: heldAt, goesAt: heldAt.addingTimeInterval(Self.goesAfter / .seconds(1))
         )
 
         self.held = held
-        heard(.held(held))
         holding = Task { [sleep] in
-            guard (try? await sleep(Self.hold)) != nil, !Task.isCancelled else {
+            guard (try? await sleep(Self.goesAfter)) != nil, !Task.isCancelled else {
                 return
             }
 
             self.release()
-            self.send(answering)
+            self.run(answering)
         }
+        heard(.held(held))
         return true
     }
 
@@ -101,8 +102,16 @@ public final class Answers {
         heard(.undone(held.answering))
     }
 
-    /// Sends the answer now, with no hold: a banner's.
+    /// Sends the answer now, with no hold: a banner's. One held to the same ask of the session is taken back first, as
+    /// Undo takes it.
     public func send(_ answering: Answering) {
+        if let held, held.answering.ask == answering.ask, held.answering.session == answering.session {
+            undo()
+        }
+        run(answering)
+    }
+
+    private func run(_ answering: Answering) {
         heard(.went(answering))
         Task {
             let written = await answer(answering)

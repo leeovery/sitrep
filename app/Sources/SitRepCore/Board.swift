@@ -91,7 +91,7 @@ public struct Board: Versioned, Sendable, Equatable {
     /// An open ask of a session, as the asks panel and a new ask's banner answer it: what it wants back, a yes's one
     /// button or a choice's options, Claude's pick among them, what a words ask needs, when it was posted, and where
     /// Lee's reply to it stands.
-    public struct Ask: Decodable, Sendable, Equatable, Identifiable {
+    public struct Ask: Decodable, Sendable, Equatable {
         public enum Wants: String, Decodable, Sendable {
             case yes, choice, words
         }
@@ -116,7 +116,8 @@ public struct Board: Versioned, Sendable, Equatable {
 
         public let id: String
         public let wants: Wants
-        /// A yes ask's button's words; nil for any other.
+        /// A yes ask's button's words, as core's `yesOf` gives them: a bare `yes` where its line gave none; nil for any
+        /// other ask.
         public let yes: String?
         public let title: String
         /// A choice's options, in Claude's order; none for any other ask.
@@ -131,7 +132,7 @@ public struct Board: Versioned, Sendable, Equatable {
         public let reply: Reply?
         private let state: String
 
-        /// Waiting on Lee, with no reply of his on its way, as core's `waitsOnLee` has it: an ask he can answer.
+        /// Waiting, with no reply of Lee's on its way, as core's `waitsOnLee` has it.
         public var waitsOnLee: Bool { state == "waiting" && reply?.kind != .onItsWay }
 
         public init(from decoder: any Decoder) throws {
@@ -139,7 +140,7 @@ public struct Board: Versioned, Sendable, Equatable {
 
             id = try given.decode(String.self, forKey: .id)
             wants = try given.decode(Wants.self, forKey: .wants)
-            yes = try given.decodeIfPresent(String.self, forKey: .yes)
+            yes = try wants == .yes ? given.decodeIfPresent(String.self, forKey: .yes) ?? "yes" : nil
             title = try given.decode(String.self, forKey: .title)
             options = try given.decodeIfPresent([String].self, forKey: .options) ?? []
             recommended = try given.decodeIfPresent(String.self, forKey: .recommended)

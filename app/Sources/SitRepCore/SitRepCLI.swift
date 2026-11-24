@@ -52,15 +52,17 @@ public struct SitRepCLI: Sendable {
     }
 
     /// Answers an ask of the session, or ignores it, into the session's inbox. The ask and the answer come after `--`,
-    /// as the CLI reads any word before it as a flag, `-h` as a call for its help, so words such as `--force` or
-    /// `ls -h` arrive whole.
+    /// as the CLI reads a `--name` word before it as a flag, and `-h` or `--help` as a call for its help, so words such
+    /// as `--force` or `ls -h` arrive whole. The answer's words, which can be anything Lee typed, are never logged.
     public func answer(_ ask: String, of session: String, with answer: Answer) async -> WriteAnswer {
-        let words = switch answer {
-        case let .words(words): ["--session", session, "--", ask, words]
-        case .ignore: ["--session", session, "--ignore", "--", ask]
+        let ended = switch answer {
+        case let .words(given):
+            await sitrep(["answer", "--session", session, "--", ask], unlogged: [given], limit: Self.sessionLimit)
+        case .ignore:
+            await sitrep(["answer", "--session", session, "--ignore", "--", ask], limit: Self.sessionLimit)
         }
 
-        return written(await sitrep(["answer"] + words, limit: Self.sessionLimit), by: "answer")
+        return written(ended, by: "answer")
     }
 
     /// Wakes the session now: everything Lee snoozed of it needs him again.
@@ -82,10 +84,10 @@ public struct SitRepCLI: Sendable {
         }
     }
 
-    /// The CLI run on the words given; a run that exits other than 0 is a failure, as one that never ends is. Ended
-    /// early, it is killed with its process group.
-    private func sitrep(_ words: [String], limit: TimeInterval) async -> Ended {
-        let program = await self.program(words, limit: limit)
+    /// The CLI run on the words given, then the `unlogged`, which its log line leaves out; a run that exits other than 0
+    /// is a failure, as one that never ends is. Ended early, it is killed with its process group.
+    private func sitrep(_ words: [String], unlogged: [String] = [], limit: TimeInterval) async -> Ended {
+        let program = await self.program(words + unlogged, limit: limit)
         let clock = ContinuousClock()
         let started = clock.now
         let ended: Ended
