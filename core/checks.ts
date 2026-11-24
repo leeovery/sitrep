@@ -752,7 +752,7 @@ export const checkDrop = (session: Session, id: string): Checked<DropBody> => {
     : refuse('your pick-up of it is on its way to Claude.')
 }
 
-/** The words a yes or a choice ask is answered in outside Claude Code: its yes, or one of its options; none for words. */
+/** The words a yes or a choice ask is answered in outside Claude Code: its yes, or one of its options. A words ask takes its own path, `wordsGiven`. */
 const answersOf = (ask: Ask): readonly string[] => {
   switch (ask.wants) {
     case 'yes':
@@ -809,16 +809,12 @@ const isDeliveredByOld = (session: Session, version: string | undefined) => {
 type Answer = Checked<Omit<ReplyBody, 'id'>>
 
 /** A yes or a choice in the words given, the ask's own; or why they will not answer it. */
-const worded = (ask: Ask, given: string | undefined): Answer => {
+const offered = (ask: Ask, given: string | undefined): Answer => {
   const answers = answersOf(ask)
   const wanted = ask.wants === 'yes' ? 'a yes' : 'a choice'
 
   if (answers.length === 0) {
-    return refuse(
-      ask.wants === 'words'
-        ? `${ask.id} wants words, which need Claude Code's prompt: answer it there.`
-        : `${ask.id} gives no options to choose from: answer it in Claude Code's prompt.`,
-    )
+    return refuse(`${ask.id} gives no options to choose from: answer it in Claude Code's prompt.`)
   }
 
   const answer = given === undefined ? undefined : offeredAs(answers, given)
@@ -835,6 +831,16 @@ const worded = (ask: Ask, given: string | undefined): Answer => {
       : { type: 'reply', item: ask.id, verdict: 'choose', option: answer },
   )
 }
+
+/** A words ask's answer, the words given its note, as the pane's words answer is; or a refusal where none are given. */
+const wordsGiven = (ask: Ask, given: string | undefined): Answer =>
+  given === undefined
+    ? refuse(`${ask.id} wants words: give them after its id.`)
+    : ok({ type: 'reply', item: ask.id, verdict: 'answer', note: given })
+
+/** An answer in the words given: a words ask's own, or a yes or a choice in the ask's words. */
+const worded = (ask: Ask, given: string | undefined): Answer =>
+  ask.wants === 'words' ? wordsGiven(ask, given) : offered(ask, given)
 
 /** Lee's ignore, as the board's `✕ ignore` gives it: seen, and not to be acted on, whatever the ask wants back. */
 const ignored = (ask: Ask, given: string | undefined): Answer =>
@@ -873,8 +879,9 @@ const askAnswered = (
 /**
  * Lee's answer to an ask of the session, as the CLI gives it from outside
  * Claude Code: a yes in its button's words, or one of a choice's options,
- * as the board shows them; or, `ignore`, Lee's ignore, which any ask takes.
- * Words, a comment and a permission prompt need Claude Code's prompt.
+ * as the board shows them; a words ask's words, on one line; or, given `--ignore`,
+ * Lee's ignore, which any ask takes. A comment and a permission prompt need
+ * Claude Code's prompt.
  * Refused in a finished session, whose asks wait on Lee no more; while the
  * window delivering the session runs a sitrep behind `version`, the CLI's;
  * and for an ask closed or ignored, or with another answer of Lee's on its

@@ -238,7 +238,7 @@ test("every refusal core's checks give names no person and guesses at no pronoun
     checkAnswer(OLD, { ask: 'k1', answer: 'Approve' }, '9.9.9'),
     checkAnswer(SESSION, { ask: 'k9', answer: 'Done' }),
     checkAnswer(SESSION, { ask: 'k2', answer: 'Drop it' }),
-    checkAnswer(SESSION, { ask: 'k4', answer: 'v1' }),
+    checkAnswer(SESSION, { ask: 'k4', answer: ' ' }),
     checkAnswer(SESSION, { ask: 'k5', answer: 'Dark' }),
     checkAnswer(SESSION, { ask: 'k1', answer: 'Go' }),
     checkAnswer(SESSION, { ask: 'k1', answer: 'Approve', ignore: true }),

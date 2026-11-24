@@ -223,13 +223,13 @@ const board: SessionCommand = {
 
 const answer: SessionCommand = {
   name: 'answer',
-  about: `Answer a yes or a choice ask, or ignore any ask, as ${USER.name} does on the board: into the session's inbox, which its window gives Claude as ${USER.possessive} own message, now or once a window takes the session up. Words, a comment and a permission prompt need Claude Code's prompt. Prints nothing.`,
+  about: `Answer a yes, a choice or a words ask, or ignore any ask, as ${USER.name} does on the board: into the session's inbox, which its window gives Claude as ${USER.possessive} own message, now or once a window takes the session up. Words keep to one line. A comment and a permission prompt need Claude Code's prompt. Prints nothing.`,
   grammar: {
     args: [
       { field: 'ask', about: "the ask's id, as the board lists it" },
       {
         field: 'answer',
-        about: "a yes ask's yes, in its words, or one of a choice ask's options",
+        about: "a yes ask's yes, one of a choice ask's options, or a words ask's words",
         or: 'ignore',
       },
     ],

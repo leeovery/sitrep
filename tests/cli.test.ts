@@ -858,7 +858,7 @@ test("every command's help names the person it is for the user, and guesses at n
   }
 
   expect(helps.join('\n')).toContain(
-    "Answer a yes or a choice ask, or ignore any ask, as the user does on the board: into the session's inbox, which its window gives Claude as the user's own message,",
+    "Answer a yes, a choice or a words ask, or ignore any ask, as the user does on the board: into the session's inbox, which its window gives Claude as the user's own message,",
   )
   expect(helps.join('\n')).not.toMatch(PERSON)
 })
