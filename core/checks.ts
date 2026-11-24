@@ -5,14 +5,15 @@
  * options and the one recommended, words what they are. A refusal says
  * what to fix, in words Claude can act on. Lee's answer to an ask from
  * outside Claude Code, as the CLI gives it, is checked here too, and Lee's
- * snooze and waking of a session, and his drop of a parked item.
+ * snooze and waking of a session or of one ask, and his drop of a parked
+ * item.
  */
 import { isTime } from './entries'
 import { isSessionId, newItemId, type Random } from './ids'
 import { directoryOf, isNameable, type Project } from './project'
 import { offeredAs, readOptions, unmarked } from './recommended'
 import { needsReload } from './release'
-import { waitingOnLee, waitsOnLee, yesOf } from './replies'
+import { replyOnItsWay, snoozedUntilOf, waitingOnLee, waitsOnLee, yesOf } from './replies'
 import { turnEndOf } from './rows'
 import { WANTS } from './shapes'
 import type { StatusFields } from './status'
@@ -33,8 +34,10 @@ import {
   type ReopenBody,
   type ReplyBody,
   type ResolveBody,
+  type SnoozeBody,
   type SnoozeSessionBody,
   type StatusBody,
+  type WakeBody,
   type WakeSessionBody,
   type Wants,
   type Session,
@@ -723,6 +726,9 @@ export const checkFinish = (
     ? ok({ type: 'finish', who, reason: line(fieldsOf(input).reason) })
     : refuse('This session is already finished.')
 
+/** Why Lee's press on an item is refused, the item gone from the board. */
+const OFF_THE_BOARD = 'it is no longer on the board.'
+
 /** Why Lee's drop of a parked item is refused once the item is off Parked, by how it left. */
 const OFF_PARKED: Record<Exclude<Parked['state'], 'parked'>, string> = {
   picked: 'it was picked up already.',
@@ -740,7 +746,7 @@ export const checkDrop = (session: Session, id: string): Checked<DropBody> => {
   const item = session.items.get(id)
 
   if (item?.type !== 'park') {
-    return refuse('it is no longer on the board.')
+    return refuse(OFF_THE_BOARD)
   }
 
   if (item.state !== 'parked') {
@@ -941,9 +947,11 @@ const timeIn = (value: unknown) => {
   return isTime(time) && Number.isInteger(time) ? time : undefined
 }
 
+const TIME_COME = 'That time has come already: give one still to come.'
+
 /**
  * Lee's snooze of the session until a time, as the app's row menu and the
- * pane give it: everything it needs of Lee, its asks waiting and its turn,
+ * CLI give it: everything it needs of Lee, its asks waiting and its turn,
  * put off together. The asks named are those the row showed, so one that
  * came in since is never snoozed unseen. Refused in a finished session, and
  * in one needing nothing of Lee, a window's stops being its own; snoozed
@@ -988,15 +996,59 @@ export const checkSnooze = (
 
   return until > now
     ? ok({ type: 'snoozeSession', until, asks })
-    : refuse('That time has come already: give one still to come.')
+    : refuse(TIME_COME)
 }
+
+/** What Lee's snooze of one ask needs of it: open, and waiting on him as posted, neither his reply on its way to it nor his comment Claude's to act on. */
+const ASK_SNOOZE_RULES: readonly AskRule[] = [
+  [isClosed, ask => `it is ${ask.state} already.`],
+  [ask => replyOnItsWay(ask) !== undefined, () => 'your reply to it is on its way to Claude.'],
+  [ask => ask.state === 'replied', () => "it waits on Claude: your comment is Claude's to act on."],
+]
+
+/**
+ * Lee's snooze of one ask until a time, as the pane gives it: that ask
+ * put off, the session's other asks left waiting. Where it leaves every
+ * ask waiting on him snoozed, the turn standing as it is written sleeps
+ * with them too; a turn ending after it is his. Refused in a finished
+ * session, for an ask gone or no longer waiting on him, and for a time
+ * come already at `now`; one snoozed already is snoozed again, to the new
+ * time.
+ */
+export const checkSnoozeAsk = (
+  session: Session,
+  id: string,
+  until: number,
+  now: number,
+): Checked<SnoozeBody> => {
+  if (session.finished !== undefined) {
+    return refuse(FINISHED)
+  }
+
+  const ask = session.items.get(id)
+
+  if (ask?.type !== 'ask') {
+    return refuse(OFF_THE_BOARD)
+  }
+
+  const broken = brokenBy(ASK_SNOOZE_RULES, [ask])
+
+  if (broken !== undefined) {
+    return refuse(broken)
+  }
+
+  return until > now ? ok({ type: 'snooze', item: id, until }) : refuse(TIME_COME)
+}
+
+/** Whether a snooze of Lee's stands on an ask: holding it, or run out at its time and not yet ended. */
+const isUnderSnooze = (ask: Ask) => ask.snoozedUntil !== undefined || ask.wokeAt !== undefined
 
 /**
  * Lee's waking of the session now, whatever he snoozed of it: refused in a
  * finished session, and with no snooze of his standing. One run out at its
- * time, or an old line's of an ask, or of a turn the session has moved on
- * from, still stands until woken, so a Wake now pressed as its time comes
- * is never refused.
+ * time, or one of an ask, or an old line's of a turn the session has moved
+ * on from, still stands until woken, so a Wake now pressed as its time
+ * comes is never refused.
  */
 export const checkWake = (session: Session): Checked<WakeSessionBody> => {
   if (session.finished !== undefined) {
@@ -1006,7 +1058,36 @@ export const checkWake = (session: Session): Checked<WakeSessionBody> => {
   const isAsleep =
     session.snooze !== undefined ||
     session.turnSnooze !== undefined ||
-    session.asks.some(ask => ask.snoozedUntil !== undefined || ask.wokeAt !== undefined)
+    session.asks.some(isUnderSnooze)
 
   return isAsleep ? ok({ type: 'wakeSession' }) : refuse(`${session.status.name} is not snoozed.`)
 }
+
+/** Lee's waking of an ask from his own snooze of it: refused in a finished session, and with none standing. */
+const checkWakeOwn = (session: Session, id: string): Checked<WakeBody> => {
+  if (session.finished !== undefined) {
+    return refuse(FINISHED)
+  }
+
+  const ask = session.items.get(id)
+
+  return ask?.type === 'ask' && isUnderSnooze(ask)
+    ? ok({ type: 'wake', item: id })
+    : refuse('it is not snoozed.')
+}
+
+/**
+ * Lee's waking of a snoozed ask at `now`, as the pane's `wake now` gives
+ * it: while the session's snooze holds the ask, the session, as `checkWake`
+ * wakes it; else that ask alone, from its own snooze. One the session's
+ * snooze held until it ran out, then snoozed on its own, wakes alone, so
+ * the session's other asks sleep on.
+ */
+export const checkWakeAsk = (
+  session: Session,
+  id: string,
+  now: number,
+): Checked<WakeSessionBody | WakeBody> =>
+  snoozedUntilOf(session, now) !== undefined && session.snooze?.asks.includes(id) === true
+    ? checkWake(session)
+    : checkWakeOwn(session, id)

@@ -887,9 +887,9 @@ test("after a move, Lee's snooze and wake of the held session's ask, pressed on 
     'ask',
     'park',
     'move',
-    'snoozeSession',
+    'snooze',
     'status',
-    'wakeSession',
+    'wake',
     'status',
   ])
   expect(filesUnder(w, ELSEWHERE.key, id)).toEqual([])
