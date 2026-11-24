@@ -643,6 +643,45 @@ out; the type-check must not hang on names only a load writes. A call
 matching the prefix that is none of the tools is denied (`sitrep has no
 tool …`).
 
+**A call is answered within its hook's budget** (24 November 2026). The
+engine gives a hook 10 seconds of its own time (`HookBudget.ms`): the
+clock stops only while a `next(e)` or one of the hook's own `$` calls is
+in flight, so a wait on the window's queue (`serially`), behind work a
+timer queued, is the hook's own time. Past it, Claude Code 2.1.331 skips
+the hook without asking its `.catch` (proven with a probe mod: a `.catch`
+that always refused was never taken), and the call goes on to the
+engine's own tool, the loopback MCP server, which answers `sitrep
+registered the tool status but no hook answered this call`. Meanwhile
+the skipped hook's work runs on in the queue and writes its line.
+
+- **What it did:** 15 calls failed so from 22 to 24 November, `status`
+  and `ask` in four projects' windows, each 10.5 to 12.6 seconds after
+  its hook began, while the Mac's processor stood at 100% for hours
+  (test suites and builds of other projects). Every one of the Fabric
+  session's failed statuses was on its board 2.5 to 7 seconds after the
+  error, and an ask Claude sent again was on its board twice.
+- **The deadline:** sitrep's hook gives a call until its budget's
+  remaining time less 3 seconds (`next.budget.remainingMs`, read as the
+  hook begins), waited with `$.clock.sleep`, which runs on the budget as
+  the queue does. A call whose work is done by then is answered as ever.
+- **At the deadline,** a call is answered by how far its work has come:
+
+  | Its work | The answer |
+  |---|---|
+  | still waiting its turn in the queue | refused: the board was busy and nothing was written, so send it again; its turn, when it comes, does nothing |
+  | a post's (`status`, `ask`, `park`, `finish`, and `resolve`, `reopen` and `edit` on the attached session), its check not yet passed | the same refusal; once its check runs it writes nothing |
+  | a post's, its check passed | its answer, as it would have been (`Status set.`, `Posted ask k1mz. …`); the line is written after, in the queue, a failure to write it logged |
+  | any other tool's, begun | none yet: the hook waits on, as before |
+
+  The answer of a post is known once its check passes, so the post
+  answers then and the line follows; a call refused at the deadline has
+  written nothing, so sending it again never doubles it.
+- **The timers queue no backlog:** each of the window's timers (the
+  watch's refresh every 1.5 seconds, the heartbeat every 30, the
+  inbox's look every 1.5, the look around every 5) skips a tick while its
+  last is still queued or running, so a busy Mac slows them rather than
+  stacking them up, and a call waits behind one of each at most.
+
 **When to start a session**, in every conversation's first message
 (added once a conversation started one with nothing to go on but the tools,
 and named it in internal shorthand):
