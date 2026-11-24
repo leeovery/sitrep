@@ -13,7 +13,7 @@ Find the page for what you want to do. Each line says what the page answers.
 
 - [Asks: what waits on you, in one place](asks.md): what an ask is, what Stopped means, and where each is counted.
 - [Answering from the board](answering.md): the buttons, words in the prompt, Ready to send, and how a reply reaches Claude.
-- [Answering from the edge of your screen](answering-edge.md): the row arrow, the asks panel, and the buttons on a banner.
+- [Answering from the edge of your screen](answering-edge.md): the row's arrow, the asks panel, and the buttons on a banner.
 - [Sessions outlive their windows](sessions.md): carrying on after `/clear`, moving and finishing a session, and old sessions.
 - [Putting a session off](snooze.md): the snooze choices, what wakes a session, and waking one early.
 - [A click takes you there](jump.md): how a click finds the window, in Ghostty, tmux or zmx, and the resume command.
