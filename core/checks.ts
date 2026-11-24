@@ -1008,10 +1008,12 @@ const ASK_SNOOZE_RULES: readonly AskRule[] = [
 
 /**
  * Lee's snooze of one ask until a time, as the pane gives it: that ask
- * alone put off, the session's other asks and its turn left as they stand.
- * Refused in a finished session, for an ask gone or no longer waiting on
- * him, and for a time come already at `now`; one snoozed already is
- * snoozed again, to the new time.
+ * put off, the session's other asks left waiting. Where it leaves every
+ * ask waiting on him snoozed, the turn standing as it is written sleeps
+ * with them too; a turn ending after it is his. Refused in a finished
+ * session, for an ask gone or no longer waiting on him, and for a time
+ * come already at `now`; one snoozed already is snoozed again, to the new
+ * time.
  */
 export const checkSnoozeAsk = (
   session: Session,
