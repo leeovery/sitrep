@@ -52,6 +52,8 @@ const SENT: SitrepInFlight = {
 const delivering = (board: Session, inFlight: SitrepInFlight[]) => {
   const state = { board: boardOf(board), inFlight }
   const submitted: string[] = []
+  /** How many reads of the message in flight were made. */
+  let reads = 0
   let landed = () => {}
   const landing = new Promise<void>(resolve => {
     landed = resolve
@@ -74,6 +76,7 @@ const delivering = (board: Session, inFlight: SitrepInFlight[]) => {
       board: { read: async () => state.board },
       inFlight: {
         read: async () => {
+          reads += 1
           await landing
 
           return state.inFlight
@@ -98,7 +101,7 @@ const delivering = (board: Session, inFlight: SitrepInFlight[]) => {
 
   receiveEvery(host)
 
-  return { state, submitted, look: () => look(), land: () => landed() }
+  return { state, submitted, look: () => look(), land: () => landed(), reads: () => reads }
 }
 
 test('a look with nothing in flight delivers the inbox replies on their way', async () => {
@@ -109,6 +112,22 @@ test('a look with nothing in flight delivers the inbox replies on their way', as
   await drained()
 
   expect(window.submitted).toEqual([`From the board:\n- Review round 1 → Approve${CLOSES}`])
+})
+
+test('a tick while the last look is still under way is skipped: the timer stacks no looks up', async () => {
+  const window = delivering(UNWRITTEN, [])
+
+  window.look()
+  window.look()
+  expect(window.reads(), 'the second tick skipped').toBe(1)
+
+  window.land()
+  await drained()
+
+  const done = window.reads()
+
+  window.look()
+  expect(window.reads(), 'the next tick, once the last look is done').toBe(done + 1)
 })
 
 test('a look reads the board only once it finds no message in flight, so a send written down meanwhile is on it: an answer the send voided is never delivered too', async () => {

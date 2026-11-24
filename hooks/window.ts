@@ -49,7 +49,7 @@ import { endAnswering, settleAnswering } from './answering'
 import { filedNow, foldedFor, lookAround } from './around'
 import { boardOf } from './board'
 import { namesKept } from './filing'
-import { logFailure, rootFor, type Host } from './host'
+import { logFailure, oneAtATime, rootFor, type Host } from './host'
 import { isLater, isSuperseded, loadedNow, supersede } from './load'
 import { announce, type News } from './news'
 import { addressed } from './places'
@@ -376,37 +376,38 @@ const isSaid = (presence: Presence, doing: Pick<Presence, 'state' | 'sending'>) 
   JSON.stringify([presence.state, presence.sending]) ===
   JSON.stringify([doing.state, doing.sending])
 
-/** The beat, saying the window's doing as it stands, the messages in flight read afresh from `$.state`, and the watch, each run in turn and only while `hold` is still the window's. */
+/** The beat, saying the window's doing as it stands, the messages in flight read afresh from `$.state`, and the watch, each run in turn and only while `hold` is still the window's, and each skipping a tick while its last is under way. */
 const timersFor = (host: Host, hold: Hold) => {
-  const whileHeld = (what: string, task: () => Promise<unknown>) => () =>
-    void serially(() => (current === hold ? task() : Promise.resolve())).catch(
-      logFailure(host, what),
-    )
+  const whileHeld = (what: string, task: () => Promise<unknown>) =>
+    serially(() => (current === hold ? task() : Promise.resolve())).catch(logFailure(host, what))
 
   return [
-    host.clock.every(HEARTBEAT_MS, () => {
-      // Counted as the beat's dispatch begins, which is the moment its read
-      // of `$.state` gives, before it waits its turn on the window's queue.
-      const since = changes
+    host.clock.every(
+      HEARTBEAT_MS,
+      oneAtATime(() => {
+        // Counted as the beat's dispatch begins, which is the moment its read
+        // of `$.state` gives, before it waits its turn on the window's queue.
+        const since = changes
 
-      whileHeld('the heartbeat', async () => {
-        await readFlight(host, since)
+        return whileHeld('the heartbeat', async () => {
+          await readFlight(host, since)
 
-        const directory = (await directoryNow(host)) ?? hold.presence.directory
+          const directory = (await directoryNow(host)) ?? hold.presence.directory
 
-        await beat(
-          host,
-          hold,
-          heartbeat(
-            { ...hold.presence, directory, ...(await doingNow(host, hold.attachment)) },
-            await host.clock.now(),
-          ),
-        )
-      })()
-    }),
+          await beat(
+            host,
+            hold,
+            heartbeat(
+              { ...hold.presence, directory, ...(await doingNow(host, hold.attachment)) },
+              await host.clock.now(),
+            ),
+          )
+        })
+      }),
+    ),
     host.clock.every(
       WATCH_MS,
-      whileHeld('the watch', () => refresh(host)),
+      oneAtATime(() => whileHeld('the watch', () => refresh(host))),
     ),
   ]
 }

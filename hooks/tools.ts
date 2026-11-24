@@ -49,7 +49,7 @@ import {
 import type { SitrepAttachment } from '../types'
 import { filedNow, foldAt, lookAround } from './around'
 import { folderHolding } from './folders'
-import { bearingsOf, random, rootFor, type Host } from './host'
+import { bearingsOf, logFailure, random, rootFor, type Host } from './host'
 import { writeInto, type Into } from './into'
 import {
   changeProject,
@@ -67,12 +67,76 @@ type Fields = { readonly [key: string]: unknown }
 /** A tool's answer, and the name the call's row gives what it named, where it names one. */
 type Answer = { result: string; names?: string } | { deny: string }
 
+/** A tool's answer as the model reads it. */
+type Answered = { result: string } | { deny: string }
+
 /** A tool's spec, its name kept literal, so what draws each tool's row is held to cover every one (draw/tool-row.tsx). */
 type Spec<N extends string> = ToolSpec & { name: N }
 
 type Tool<N extends string = string> = {
   spec: Spec<N>
-  answer: (host: Host, input: Fields) => Promise<Answer>
+  answer: (host: Host, input: Fields, progress: Progress) => Promise<Answer>
+}
+
+/** How long before its hook's budget runs out a call's deadline comes: room for a wait that ends late, and for the answer to get back, on a Mac too busy to keep time. */
+const MARGIN_MS = 3_000
+
+/** The answer to a call dropped at its deadline, which wrote nothing. */
+const BUSY = 'The board was busy, so nothing was written: send it again.'
+
+/**
+ * How far a call's work has come: waiting its turn in the window's queue;
+ * running; a post's, before its answer is known; a post's whose answer is
+ * known, its check passed; or dropped at its deadline, which it never
+ * leaves.
+ */
+type Stage = 'waiting' | 'running' | 'posting' | { known: string } | 'dropped'
+
+/**
+ * A call's progress, as its work moves it on and its deadline reads it.
+ * Each move is made at once, so no wait comes between reading the stage
+ * and moving it.
+ */
+type Progress = {
+  /** Its turn come: whether its work goes on, which a call dropped never does. */
+  begin: () => boolean
+  /** A post's answer begun, the fold its check reads with it: the deadline drops it until its answer is known. */
+  posts: () => void
+  /** A post's answer known, before it writes: whether it writes, which a post dropped never does. */
+  knows: (result: string) => boolean
+  /** Its deadline come: the answer it gives the call now, refusing one it drops; none for a call whose work runs on to its own. */
+  due: () => Answered | undefined
+}
+
+const progressOf = (): Progress => {
+  let stage: Stage = 'waiting'
+  /** Moves the call on to `to`, unless it was dropped: whether it moved. */
+  const moveOn = (to: Stage) => {
+    const isDropped = stage === 'dropped'
+
+    if (!isDropped) {
+      stage = to
+    }
+
+    return !isDropped
+  }
+
+  return {
+    begin: () => moveOn('running'),
+    posts: () => {
+      moveOn('posting')
+    },
+    knows: result => moveOn({ known: result }),
+    due: () => {
+      if (stage === 'waiting' || stage === 'posting') {
+        stage = 'dropped'
+
+        return { deny: BUSY }
+      }
+
+      return typeof stage === 'object' ? { result: stage.known } : undefined
+    },
+  }
 }
 
 /** How the model names this plugin's tools. */
@@ -167,17 +231,35 @@ const holdNow = async (
 
 /** A tool on the attached session, handed it folded as it stands, and where the window holds it as that fold files it. */
 const onSession =
-  (answer: (host: Host, session: Session, input: Fields, holding: Holding) => Promise<Answer>) =>
-  async (host: Host, input: Fields): Promise<Answer> => {
+  (
+    answer: (
+      host: Host,
+      session: Session,
+      input: Fields,
+      holding: Holding,
+      progress: Progress,
+    ) => Promise<Answer>,
+  ): Tool['answer'] =>
+  async (host, input, progress) => {
     const now = await holdNow(host)
 
-    return 'deny' in now ? now : answer(host, now.session, input, now.holding)
+    return 'deny' in now ? now : answer(host, now.session, input, now.holding, progress)
+  }
+
+/** A post's answer: until its answer is known the deadline drops it, the fold its check reads included. */
+const droppable =
+  (answer: Tool['answer']): Tool['answer'] =>
+  (host, input, progress) => {
+    progress.posts()
+
+    return answer(host, input, progress)
   }
 
 /**
  * A tool that posts one line, checked from its input, to the attached
  * session: a line Claude knows of. `names` names what the line is about, in
- * the session as it stands after it.
+ * the session as it stands after it. Its answer is known once its check
+ * passes, and kept before it writes, so its deadline can give it.
  */
 const posting = <N extends string, B extends Body>(
   toolSpec: Spec<N>,
@@ -187,27 +269,32 @@ const posting = <N extends string, B extends Body>(
   unchanged: Unchanged = () => undefined,
 ): Tool<N> => ({
   spec: toolSpec,
-  answer: onSession(async (host, session, input) => {
-    // Read with the check, from the one read the post appends after: nothing re-reads in between.
-    const quiet = unchanged(session, input)
+  answer: droppable(
+    onSession(async (host, session, input, _, progress) => {
+      // Read with the check, from the one read the post appends after: nothing re-reads in between.
+      const quiet = unchanged(session, input)
 
-    if (quiet !== undefined) {
-      return quiet
-    }
+      if (quiet !== undefined) {
+        return quiet
+      }
 
-    const checked = await check(session, input, host)
+      const checked = await check(session, input, host)
 
-    if (!checked.ok) {
-      return { deny: checked.error }
-    }
+      if (!checked.ok) {
+        return { deny: checked.error }
+      }
 
-    const after = await postKnown(host, session, [checked.value])
+      const result = said(checked.value, session)
 
-    return {
-      result: said(checked.value, session),
-      names: after === undefined ? undefined : names(after, checked.value),
-    }
-  }),
+      if (!progress.knows(result)) {
+        return { deny: BUSY }
+      }
+
+      const after = await postKnown(host, session, [checked.value])
+
+      return { result, names: after === undefined ? undefined : names(after, checked.value) }
+    }),
+  ),
 })
 
 /** What a tool's answer says it did, given the line it wrote and the session as it stood before, where that was read. */
@@ -385,9 +472,9 @@ const onItem = <N extends string, B extends Body & { item: string }>(
 
   return {
     spec: toolSpec,
-    answer: (host, input) =>
+    answer: (host, input, progress) =>
       input.session === undefined || input.session === attached()?.session
-        ? here.answer(host, input)
+        ? here.answer(host, input, progress)
         : parkedElsewhere(host, input, check, said, unchanged),
   }
 }
@@ -771,7 +858,7 @@ export const nameKept = async (host: Host, call: string) =>
   (await host.state.named.read()).find(each => each.call === call)?.name
 
 /** A tool's answer as the model reads it, the name its row gives kept first. */
-const answered = async (host: Host, call: string, answer: Answer) => {
+const answered = async (host: Host, call: string, answer: Answer): Promise<Answered> => {
   if ('deny' in answer) {
     return answer
   }
@@ -783,18 +870,79 @@ const answered = async (host: Host, call: string, answer: Answer) => {
   return { result: answer.result }
 }
 
-/** Answers a call of one of the tools; a subagent's is refused. */
+/** The deadline come, before the call's work answered. */
+const DUE = Symbol('due')
+
+/**
+ * The answer of a call's work, or, should its deadline `ms` come first, the
+ * answer its progress gives then, the work running on unawaited, its
+ * failure logged. With no deadline, the budget unmetered or spent, the
+ * work's answer however long it takes.
+ */
+const byDeadline = async (
+  host: Host,
+  name: string,
+  work: Promise<Answered>,
+  progress: Progress,
+  ms: number,
+) => {
+  if (!(Number.isFinite(ms) && ms > 0)) {
+    return work
+  }
+
+  const stop = new AbortController()
+  // A wait cut short, by the work's end or the dispatch's, leaves the work's own answer.
+  const deadline = host.clock.sleep(ms, stop.signal).then(
+    (): typeof DUE => DUE,
+    () => work,
+  )
+  const first = await Promise.race([work, deadline]).finally(() => stop.abort())
+
+  if (first !== DUE) {
+    return first
+  }
+
+  const early = progress.due()
+
+  if (early === undefined) {
+    return work
+  }
+
+  void work.catch(logFailure(host, `the ${name} call answered at its deadline`))
+
+  return early
+}
+
+/**
+ * Answers a call of one of the tools; a subagent's is refused. Its work
+ * waits its turn in the window's queue, and is answered within its hook's
+ * budget, as `budget` (its time left, in ms) stood as the hook began: past
+ * the budget Claude Code skips the hook without asking its `.catch`, and
+ * the call goes to the engine's own tool, which fails it, though its work
+ * runs on to write its line (DESIGN.md, "A call is answered within its
+ * hook's budget").
+ */
 export const answerCall = async (
   host: Host,
   call: Fields & { tool: string; tool_use_id: string; agentId?: string },
-): Promise<{ result: string } | { deny: string }> => {
+  budget: number,
+): Promise<Answered> => {
   if (call.agentId !== undefined) {
     return { deny: FOR_THE_REPORT }
   }
 
   const tool = BY_NAME.get(call.tool)
 
-  return tool === undefined
-    ? { deny: `sitrep has no tool ${call.tool}.` }
-    : serially(async () => answered(host, call.tool_use_id, await tool.answer(host, call)))
+  if (tool === undefined) {
+    return { deny: `sitrep has no tool ${call.tool}.` }
+  }
+
+  const progress = progressOf()
+  const work = serially(async () =>
+    progress.begin()
+      ? answered(host, call.tool_use_id, await tool.answer(host, call, progress))
+      : { deny: BUSY },
+  )
+
+  return byDeadline(host, tool.spec.name, work, progress, budget - MARGIN_MS)
 }

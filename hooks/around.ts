@@ -73,7 +73,7 @@ import { boardOf, hereOf, sessionOf } from './board'
 import { fromTheTop } from './clip'
 import { fileOne, filingWith, projectNames, type FiledIn, type InFolder } from './filing'
 import { folderKeys } from './folders'
-import { logFailure, rootFor, type Host, type Slot } from './host'
+import { logFailure, oneAtATime, rootFor, type Host, type Slot } from './host'
 import { oldList, pickedUpList, projectScope } from './lists'
 import { EVERY_PROJECT, samePlace } from './places'
 import { destinations, isShowing, type Folded } from './queue'
@@ -626,8 +626,11 @@ export const lookAround = (host: Host, fresh: readonly string[] = []) => {
   return looking
 }
 
-/** Reads the sessions around the held one every `AROUND_MS`, from the window's start. */
+/** Reads the sessions around the held one every `AROUND_MS`, from the window's start, skipping a tick while its last look is under way. */
 export const lookEvery = (host: Host) => {
   timer?.cancel()
-  timer = host.clock.every(AROUND_MS, () => void lookAround(host))
+  timer = host.clock.every(
+    AROUND_MS,
+    oneAtATime(() => lookAround(host)),
+  )
 }
