@@ -145,7 +145,7 @@ final class AsksPanelLayer {
 
     /// A row's label after its keycap, and its note at its end, the label cut short before it.
     private static func labelled(_ row: CALayer, _ label: (words: String, note: String?), isHeld: Bool) {
-        let at = AsksPanelParts.label(in: row.bounds.size, note: label.note)
+        let at = AsksPanelParts.labelBoxes(in: row.bounds.size, note: label.note)
         let words = TextLine.text(
             label.words, EdgeStyle.asksLabel, isHeld ? EdgeStyle.onWhite : EdgeStyle.ink,
             kern: EdgeStyle.tightKern(EdgeStyle.asksLabel)

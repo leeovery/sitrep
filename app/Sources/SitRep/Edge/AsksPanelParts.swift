@@ -25,15 +25,18 @@ enum AsksPanelParts {
         let box = asks.layout.top, line = AsksLayout.textLine, gap = 8.0, y = box.midY - line / 2
         let dots = asks.pages > 1 ? Self.dots(asks.page, of: asks.pages, right: box.maxX, middle: box.midY) : []
         let room = box.width - (dots.isEmpty ? 0 : dotsWidth(asks.pages) + gap)
-        let nameWidth = min(TextLine.width(TextLine.text(asks.session.name, EdgeStyle.asksName, EdgeStyle.ink)), room)
-        let projectX = box.minX + nameWidth + gap
+        let whole = TextLine.width(TextLine.text(asks.session.name, EdgeStyle.asksName, EdgeStyle.ink))
+        let projectX = box.minX + min(whole, room) + gap
 
         return Top(
-            name: CGRect(x: box.minX, y: y, width: nameWidth, height: line),
+            name: CGRect(x: box.minX, y: y, width: min(whole + Self.slack, room), height: line),
             project: CGRect(x: projectX, y: y, width: max(0, box.minX + room - projectX), height: line),
             dots: dots
         )
     }
+
+    /// Room past words set whole in a box as wide as Core Text sets them, which SwiftUI may set a hair wider and cut.
+    private static let slack = 1.0
 
     private static let dotGap = 4.0, dotSide = 5.0, currentDot = 14.0
     static let dotRadius = 3.0
@@ -79,7 +82,7 @@ enum AsksPanelParts {
 
     /// Where a row's label goes after its keycap, and its note at its end, the label cut short before it, in the row's
     /// own frame.
-    static func label(in row: CGSize, note: String?) -> (label: CGRect, note: CGRect?) {
+    static func labelBoxes(in row: CGSize, note: String?) -> (label: CGRect, note: CGRect?) {
         let line = AsksLayout.labelLine, y = (row.height - line) / 2
         var end = row.width - AsksLayout.rowSide
         var noteBox: CGRect?
@@ -88,7 +91,7 @@ enum AsksPanelParts {
             let width = TextLine.width(TextLine.text(note, EdgeStyle.asksNote, EdgeStyle.ink3))
             let drop = TextLine.drop(of: EdgeStyle.asksNote, to: EdgeStyle.asksLabel, lineHeight: line)
 
-            noteBox = CGRect(x: end - width, y: y + drop, width: width, height: line)
+            noteBox = CGRect(x: end - width, y: y + drop, width: width + Self.slack, height: line)
             end -= width + AsksLayout.recommendedGap
         }
         return (CGRect(x: AsksLayout.labelX, y: y, width: max(0, end - AsksLayout.labelX), height: line), noteBox)
@@ -137,7 +140,7 @@ enum AsksPanelParts {
 
         return (
             CGRect(x: AsksLayout.openPad, y: y, width: pill.width, height: line),
-            CGRect(x: markX, y: y, width: mark + 1, height: line)
+            CGRect(x: markX, y: y, width: mark + Self.slack, height: line)
         )
     }
 

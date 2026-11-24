@@ -124,8 +124,12 @@ private struct NotchGlass: View {
                 if let asks = shown.asks {
                     let box = asks.frame.applying(shown.mirror)
 
-                    GlassAsksPanel(asks: asks, pointsLeft: shown.mirror.a < 0, now: shown.now)
-                        .offset(x: box.minX, y: box.minY)
+                    GlassAsksPanel(
+                        asks: asks, pointsLeft: shown.mirror.a < 0, asked: asks.ask.askedText(at: shown.now),
+                        now: shown.now
+                    )
+                    .equatable()
+                    .offset(x: box.minX, y: box.minY)
                 }
             }
             .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .topLeading)
@@ -295,6 +299,7 @@ struct GlassSessionRow: View {
             RoundedRectangle(cornerRadius: radius)
                 .fill(.primary.opacity(pressed ? GlassTint.press : hovered ? GlassTint.hover : 0))
                 .animation(.easeOut(duration: 0.11), value: pressed)
+                .animation(.easeOut(duration: 0.11), value: hovered)
             RoundedRectangle(cornerRadius: radius)
                 .fill(GlassInk.orange.opacity(0.12))
                 .strokeBorder(GlassInk.orange.opacity(0.26), lineWidth: 1)
@@ -317,7 +322,6 @@ struct GlassSessionRow: View {
             }
         }
         .frame(width: size.width, height: size.height, alignment: .topLeading)
-        .animation(.easeOut(duration: 0.11), value: hovered)
         .scaleEffect(pressed ? 0.985 : 1)
         .animation(.easeOut(duration: 0.14), value: pressed)
     }
@@ -416,6 +420,23 @@ struct GlassSessionRow: View {
         } else if let subject = line.subject(at: now) {
             Text.tight(subject, line.until == nil ? EdgeStyle.line : EdgeStyle.lineCountdown)
         }
+    }
+}
+
+/// A Needs you row's arrow on glass (DESIGN, "The row's arrow"): unlit, its chevron in the secondary on the row's lift;
+/// lit, a step stronger than the lift, its chevron in the primary; pointing away from the screen's edge.
+@available(macOS 26, *)
+struct GlassRowArrow: View {
+    let arrow: SessionRow.Arrow
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: RowArrow.radius, style: .circular)
+                .fill(.primary.opacity(arrow.isLit ? GlassTint.press : 0))
+            Outline(path: Path(RowArrow.chevron(pointsLeft: arrow.pointsLeft)))
+                .stroke(arrow.isLit ? .primary : .secondary, style: .rounded(AsksPanelParts.strokeWidth))
+        }
+        .frame(width: RowArrow.size.width, height: RowArrow.size.height)
     }
 }
 

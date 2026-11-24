@@ -6,16 +6,23 @@ import SwiftUI
 /// The asks panel in glass (DESIGN, "Answering from the panel", "Black and Glass"): the panel's glass, plain, its
 /// hairline the separator's and its shadows a submenu's, as the black's; its words in the glass's label colours, as
 /// the glass rows' are; its rows, keycaps and outlines the black's shapes, filled in the glass's tints; its current
-/// page dot Claude's orange, and the answer held white with ink. Laid out as the black's, in its own frame, its words
-/// over the glass beside it rather than in it, as the panel's rows are, so the glass never tints them for what is under
-/// it.
+/// page dot Claude's orange, and the answer held in the primary made opaque, its words in the other. Laid out as the
+/// black's, in its own frame, its words over the glass beside it rather than in it, as the panel's rows are, so the
+/// glass never tints them for what is under it. Drawn again only as what it shows changes: never for the clock alone.
 @available(macOS 26, *)
-struct GlassAsksPanel: View {
+struct GlassAsksPanel: View, Equatable {
     let asks: AsksShown
     /// Whether it opens leftward, from the screen's right edge: its side shadow falls the other way.
     let pointsLeft: Bool
-    /// The wall clock, ms: its age's, and the countdown's.
+    /// How long ago its ask was asked, as worded at the frame.
+    let asked: String
+    /// The wall clock at the frame, ms, which the countdown starts from as an answer is first held, and runs down from
+    /// on its own: no reason to draw it again.
     let now: Double
+
+    nonisolated static func == (one: Self, other: Self) -> Bool {
+        one.asks == other.asks && one.pointsLeft == other.pointsLeft && one.asked == other.asked
+    }
 
     var body: some View {
         let size = asks.layout.size, shape = AsksGlassShadows.outline
@@ -55,17 +62,12 @@ struct GlassAsksPanel: View {
         ForEach(lines.indices, id: \.self) { index in
             let line = lines[index]
 
-            Text(Self.trailingSpaceless(line.text.string))
+            Text(line.text.string)
                 .font(Font(EdgeStyle.asksTitle)).kerning(EdgeStyle.asksTitleKern).foregroundStyle(.primary)
                 .placed(in: line.box)
         }
-        Text(asks.ask.askedText(at: now)).font(Font(EdgeStyle.sub)).foregroundStyle(.tertiary)
+        Text(asked).font(Font(EdgeStyle.sub)).foregroundStyle(.tertiary)
             .placed(in: asks.layout.age)
-    }
-
-    /// A line as Core Text broke it, which leaves the space it broke at on its end, where SwiftUI would count it.
-    private static func trailingSpaceless(_ line: String) -> String {
-        String(line.reversed().drop { $0.isWhitespace }.reversed())
     }
 
     /// An answer's row: filled and bordered, lifted under the pointer, white while it is the answer held; outlined, for
@@ -75,8 +77,7 @@ struct GlassAsksPanel: View {
         let box = asks.layout.answers[index], isHeld = asks.sending.map { $0.row == index } ?? false
         let isLifted = asks.hover == .answer(index) || asks.hover == .inClaude
         let label = AsksPanelParts.label(index, of: asks.ask)
-        let at = AsksPanelParts.label(in: box.size, note: label.note)
-        let ink = Color(cgColor: EdgeStyle.onWhite)
+        let at = AsksPanelParts.labelBoxes(in: box.size, note: label.note), ink = GlassInk.onHeld
 
         return ZStack(alignment: .topLeading) {
             ground(isHeld: isHeld, isLifted: isLifted)
@@ -98,14 +99,14 @@ struct GlassAsksPanel: View {
         .offset(x: box.minX, y: box.minY)
     }
 
-    /// An answer's row's ground: white held; a step stronger lifted; outlined, answering in Claude; else filled, its
-    /// border a step over its fill.
+    /// An answer's row's ground: the primary held; a step stronger lifted; outlined, answering in Claude; else filled,
+    /// its border a step over its fill.
     @ViewBuilder private func ground(isHeld: Bool, isLifted: Bool) -> some View {
         let row = RoundedRectangle(cornerRadius: AsksLayout.answerRadius, style: .circular)
 
         switch (isHeld, isLifted, asks.ask.isInClaude) {
         case (true, _, _):
-            row.fill(Color(cgColor: EdgeStyle.ink))
+            row.fill(GlassInk.held)
         case (false, true, _):
             row.fill(.primary.opacity(GlassTint.lifted)).overlay(row.strokeBorder(.primary.opacity(GlassTint.press)))
         case (false, false, true):
@@ -125,7 +126,7 @@ struct GlassAsksPanel: View {
             .offset(x: cap.minX, y: cap.minY)
     }
 
-    /// The held answer's check, in ink, in its keycap's place.
+    /// The held answer's check, in the held row's ink, in its keycap's place.
     private func check(_ ink: Color) -> some View {
         let check = AsksPanelParts.check()
 
@@ -209,15 +210,9 @@ struct GlassAsksPanel: View {
     }
 }
 
-extension StrokeStyle {
-    /// A stroke this wide, round at its caps and joins, as the black's strokes are.
-    fileprivate static func rounded(_ width: Double) -> StrokeStyle {
-        StrokeStyle(lineWidth: width, lineCap: .round, lineJoin: .round)
-    }
-}
-
 /// The asks panel's shadows on glass, cast by a black of its shape, as the black's, with the black and every shadow
-/// inside its outline cut away, so the glass shows what is under it untouched.
+/// inside its outline cut away, so the glass shows what is under it untouched. The black stands half a point inside the
+/// outline, so the cut's soft edge leaves none of it as a dark rim round the glass.
 @available(macOS 26, *)
 private struct AsksGlassShadows: View {
     let size: CGSize
@@ -230,7 +225,7 @@ private struct AsksGlassShadows: View {
             ForEach(casts.indices, id: \.self) { index in
                 let cast = casts[index]
 
-                Self.outline.fill(.black)
+                Self.outline.inset(by: 0.5).fill(.black)
                     .shadow(
                         color: .black.opacity(cast.opacity), radius: cast.radius, x: cast.offset.width,
                         y: cast.offset.height
@@ -257,25 +252,9 @@ private struct AsksGlassShadows: View {
     private static let reach = 60.0
 }
 
-/// A Needs you row's arrow on glass (DESIGN, "The row's arrow"): unlit, its chevron in the secondary on the row's lift;
-/// lit, a step stronger than the lift, its chevron in the primary; pointing away from the screen's edge.
-@available(macOS 26, *)
-struct GlassRowArrow: View {
-    let arrow: SessionRow.Arrow
-
-    var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: RowArrow.radius, style: .circular)
-                .fill(.primary.opacity(arrow.isLit ? GlassTint.press : 0))
-            Outline(path: Path(RowArrow.chevron(pointsLeft: arrow.pointsLeft)))
-                .stroke(arrow.isLit ? .primary : .secondary, style: .rounded(AsksPanelParts.strokeWidth))
-        }
-        .frame(width: RowArrow.size.width, height: RowArrow.size.height)
-    }
-}
-
-/// The countdown on glass: the black's ring, its track in the quaternary and its arc in the secondary, as the glass's
-/// spinner's, run down in the render server from what is left of the held answer's two seconds.
+/// The countdown on glass: the black's ring, its track in the quaternary, as the glass's spinner's is, and its arc in
+/// the secondary, as the black's arc is soft, run down in the render server from what is left of the held answer's two
+/// seconds.
 struct GlassCountdown: NSViewRepresentable {
     let sending: Sending
     /// The wall clock, ms.

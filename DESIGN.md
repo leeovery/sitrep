@@ -6262,7 +6262,11 @@ snoozes the session as that does, closing the asks panel.
 does. In Glass it is the panel's glass, its words in the system's label
 colours, as the Glass rows are; its rows, keycaps and outlines keep their
 shapes, filled in the glass's tints in place of the black's greys, and its
-current page dot and its sending line keep Claude's orange and white.
+current page dot keeps Claude's orange. The answer held is white with ink
+in the dark appearance, as in Black, and near-black with light words in
+the light one, where white would barely stand off the glass. The asks
+panel's edge is a hairline in the separator colour, the open Glass panel
+having no rim of its own.
 
 **Not in this build** (see "Later"): the strip, whose tab could take the
 arrow later; the menu bar item; permission prompts and Claude Code's

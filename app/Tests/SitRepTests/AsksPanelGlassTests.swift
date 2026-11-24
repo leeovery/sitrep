@@ -101,12 +101,12 @@ struct AsksPanelGlassTests {
     private static let words = PanelAsk(id: "k1", title: "Say what an empty rota should read", since: 0)
     private static let margin = 40.0
 
-    /// The asks panel drawn with room round it, over black or over `ground`, a second after `sending` was held where
-    /// one is.
+    /// The asks panel drawn with room round it, in the dark unless told, over black or over `ground`, `heldFor` ms
+    /// after `sending` was held where one is.
     @available(macOS 26, *)
     private static func drawn(
-        _ ask: PanelAsk = choice, pages: Int = 2, sending: Sending? = nil, hover: AsksPart? = nil,
-        pointsLeft: Bool = false, over ground: Color = .black
+        _ ask: PanelAsk = choice, pages: Int = 2, sending: Sending? = nil, heldFor: Double = 1000,
+        hover: AsksPart? = nil, pointsLeft: Bool = false, over ground: Color = .black, scheme: ColorScheme = .dark
     ) throws -> (Drawn, AsksShown) {
         let layout = AsksLayout(ask, measure: .drawn)
         let asks = AsksShown(
@@ -114,13 +114,13 @@ struct AsksPanelGlassTests {
             frame: CGRect(origin: .zero, size: layout.size), sending: sending, hover: hover
         )
         let size = CGSize(width: layout.size.width + 2 * margin, height: layout.height + 2 * margin)
-        let now = 4 * 60_000 + (sending.map { $0.heldAt - 4 * 60_000 + 1000 } ?? 0)
-        let panel = GlassAsksPanel(asks: asks, pointsLeft: pointsLeft, now: now)
+        let now = sending.map { $0.heldAt + heldFor } ?? 4 * 60_000
+        let panel = GlassAsksPanel(asks: asks, pointsLeft: pointsLeft, asked: ask.askedText(at: now), now: now)
             .offset(x: margin, y: margin)
             .frame(width: size.width, height: size.height, alignment: .topLeading)
             .background(ground)
 
-        return (try Drawn(panel, size: size), asks)
+        return (try Drawn(panel, size: size, scheme: scheme), asks)
     }
 
     /// A box of the asks panel's own, in the picture.
@@ -172,7 +172,8 @@ struct AsksPanelGlassTests {
     @available(macOS 26, *)
     @Test func itsTopLineNamesTheSessionAndItsDotsTheCurrentAskOrange() throws {
         let (drawn, asks) = try Self.drawn(), top = AsksPanelParts.top(asks)
-        let current = try #require(top.dots.first { $0.isCurrent }), other = try #require(top.dots.first { !$0.isCurrent })
+        let current = try #require(top.dots.first { $0.isCurrent })
+        let other = try #require(top.dots.first { !$0.isCurrent })
         let orange = try #require(drawn.pixel(at: Self.middle(current.box)))
         let grey = try #require(drawn.pixel(at: Self.middle(other.box)))
 
@@ -249,24 +250,88 @@ struct AsksPanelGlassTests {
 
     // MARK: Sending
 
-    /// "Sending Threaded", a second into its two: its row white, a check in ink in its keycap's place, the words in
-    /// the primary, the arc run halfway round, from 12 o'clock to 6 down the right, the track bare on the left, and
-    /// Undo outlined.
+    private static let held = Sending(row: 0, words: "Threaded", heldAt: 4 * 60_000, goesAt: 4 * 60_000 + 2000)
+
+    /// "Sending Threaded" in the dark: its row white, a check in ink in its keycap's place, the words in the primary,
+    /// and Undo outlined.
     @available(macOS 26, *)
-    @Test func aHeldAnswersRowIsWhiteAndItsCountdownHalfRunOutASecondIn() throws {
-        let held = Sending(row: 0, words: "Threaded", heldAt: 4 * 60_000, goesAt: 4 * 60_000 + 2000)
-        let (drawn, asks) = try Self.drawn(sending: held)
-        let row = Self.placed(asks.layout.answers[0]), ring = Self.placed(asks.layout.countdown)
-        let check = AsksLayout.keycap.offsetBy(dx: row.minX, dy: row.minY), undo = Self.placed(asks.layout.undo)
-        let right = CGRect(x: ring.midX + 3.5, y: ring.midY - 1, width: 2.5, height: 2)
-        let left = CGRect(x: ring.midX - 6, y: ring.midY - 1, width: 2.5, height: 2)
+    @Test func aHeldAnswersRowIsWhiteWithInkInTheDark() throws {
+        let (drawn, asks) = try Self.drawn(sending: Self.held)
+        let row = Self.placed(asks.layout.answers[0]), undo = Self.placed(asks.layout.undo)
+        let check = AsksLayout.keycap.offsetBy(dx: row.minX, dy: row.minY)
 
         #expect(try #require(drawn.pixel(at: CGPoint(x: row.minX + 36, y: row.minY + 4))).isWhite)
         #expect(try #require(drawn.pixels(in: check).min { $0.lightness < $1.lightness }).lightness < 0.5)
         #expect(Self.isPrimary(try Self.brightest(drawn, in: Self.placed(asks.layout.sending))))
-        #expect(Self.isSecondary(try Self.brightest(drawn, in: right)))
-        #expect(try Self.brightest(drawn, in: left) < 0.6)
         #expect(Self.light(drawn, at: CGPoint(x: undo.midX, y: undo.minY + 0.25)) > 0.2)
+    }
+
+    /// In the light, over a white desk, the held row is the primary made opaque, near black, and its check, label and
+    /// "recommended" are light on it.
+    @available(macOS 26, *)
+    @Test func aHeldAnswersRowIsNearBlackWithLightWordsInTheLight() throws {
+        let (drawn, asks) = try Self.drawn(sending: Self.held, over: .white, scheme: .light)
+        let row = Self.placed(asks.layout.answers[0]), at = AsksPanelParts.labelBoxes(in: row.size, note: "recommended")
+        let check = AsksLayout.keycap.offsetBy(dx: row.minX, dy: row.minY)
+        let label = at.label.offsetBy(dx: row.minX, dy: row.minY)
+        let note = try #require(at.note).offsetBy(dx: row.minX, dy: row.minY)
+
+        #expect(Self.light(drawn, at: CGPoint(x: row.minX + 36, y: row.minY + 4)) < 0.3)
+        #expect(try Self.brightest(drawn, in: check) > 2.4)
+        #expect(try Self.brightest(drawn, in: label) > 2.4)
+        #expect((1.0 ... 2.2).contains(try Self.brightest(drawn, in: note)))
+    }
+
+    /// Half a second into its two, the arc runs from 12 o'clock clockwise round to 9, three quarters of the ring: lit
+    /// down the right and across the bottom, the track bare between 9 and 12. An arc from any other start fails.
+    @available(macOS 26, *)
+    @Test func theCountdownIsThreeQuartersLeftHalfASecondIn() throws {
+        let (drawn, asks) = try Self.drawn(sending: Self.held, heldFor: 500), ring = Self.placed(asks.layout.countdown)
+        let at = { (x: Double, y: Double) in CGRect(x: ring.midX + x - 1, y: ring.midY + y - 1, width: 2, height: 2) }
+
+        #expect(Self.isSecondary(try Self.brightest(drawn, in: at(3.4, -3.4))))
+        #expect(Self.isSecondary(try Self.brightest(drawn, in: at(3.4, 3.4))))
+        #expect(Self.isSecondary(try Self.brightest(drawn, in: at(-3.4, 3.4))))
+        #expect(try Self.brightest(drawn, in: at(-3.4, -3.4)) < 0.6)
+    }
+
+    /// It is drawn again for what it shows, and how long ago its ask is worded, never for the clock alone: the
+    /// countdown runs on its own.
+    @available(macOS 26, *)
+    @Test func itIsDrawnAgainOnlyAsWhatItShowsChanges() throws {
+        let layout = AsksLayout(Self.choice, measure: .drawn)
+        let asks = AsksShown(
+            row: "needs:sr-nw0001", session: Self.helpDesk, ask: Self.choice, page: 0, pages: 2, layout: layout,
+            frame: CGRect(origin: .zero, size: layout.size), sending: nil, hover: nil
+        )
+        let panel = { (asks: AsksShown, asked: String, now: Double) in
+            GlassAsksPanel(asks: asks, pointsLeft: false, asked: asked, now: now)
+        }
+        let lifted = AsksShown(
+            row: asks.row, session: asks.session, ask: asks.ask, page: 0, pages: 2, layout: layout, frame: asks.frame,
+            sending: nil, hover: .answer(0)
+        )
+
+        #expect(panel(asks, "Asked 4m ago", 0) == panel(asks, "Asked 4m ago", 16))
+        #expect(panel(asks, "Asked 4m ago", 0) != panel(asks, "Asked 5m ago", 0))
+        #expect(panel(asks, "Asked 4m ago", 0) != panel(lifted, "Asked 4m ago", 0))
+    }
+
+    /// A name's box, and "recommended"'s, a point wider than Core Text sets the words, so SwiftUI never cuts them a
+    /// hair early; the project still 8 after the name as set, so the black draws as it did.
+    @Test func wordsSetWholeHaveAPointToSpare() throws {
+        let layout = AsksLayout(Self.choice, measure: .drawn)
+        let asks = AsksShown(
+            row: "needs:sr-nw0001", session: Self.helpDesk, ask: Self.choice, page: 0, pages: 1, layout: layout,
+            frame: CGRect(origin: .zero, size: layout.size), sending: nil, hover: nil
+        )
+        let name = TextLine.width(TextLine.text(Self.helpDesk.name, EdgeStyle.asksName, EdgeStyle.ink))
+        let note = TextLine.width(TextLine.text("recommended", EdgeStyle.asksNote, EdgeStyle.ink3))
+        let top = AsksPanelParts.top(asks)
+        let noted = try #require(AsksPanelParts.labelBoxes(in: layout.answers[0].size, note: "recommended").note)
+
+        #expect(top.name.width == name + 1 && top.project.minX == top.name.minX + name + 8)
+        #expect(noted.width == note + 1 && noted.minX == layout.answers[0].width - AsksLayout.rowSide - note)
     }
 
     /// The countdown runs down in the render server from what is left when it is first shown, over what is left of
@@ -286,5 +351,4 @@ struct AsksPanelGlassTests {
         #expect(view.arc.strokeEnd == 0.75)
         #expect(view.arc.animation(forKey: "countdown") as? CABasicAnimation === run)
     }
-
 }

@@ -178,8 +178,8 @@ struct AsksPanelStillsTests {
         let canvas = try Canvas(cut.size)
         let bitmap = try #require(NSBitmapImageRep(
             bitmapDataPlanes: nil, pixelsWide: Int(cut.width * Canvas.scale),
-            pixelsHigh: Int(cut.height * Canvas.scale), bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .calibratedRGB,
-            bytesPerRow: 0, bitsPerPixel: 0
+            pixelsHigh: Int(cut.height * Canvas.scale), bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true,
+            isPlanar: false, colorSpaceName: .calibratedRGB, bytesPerRow: 0, bitsPerPixel: 0
         )?.retagging(with: .sRGB))
 
         bitmap.size = cut.size

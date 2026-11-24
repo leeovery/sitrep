@@ -35,6 +35,18 @@ enum GlassInk {
     static func colour(of need: Need) -> Color {
         need == .ask ? orange : blue
     }
+    /// The answer held: the primary label colour made opaque, white on the dark as the black's held row is, near black
+    /// on the light; and what is set on it, the other of the two.
+    @MainActor static let held = Self.appearing(dark: EdgeStyle.ink, light: EdgeStyle.onWhite)
+    @MainActor static let onHeld = Self.appearing(dark: EdgeStyle.onWhite, light: EdgeStyle.ink)
+
+    /// One colour in the dark appearance, the other in the light.
+    private static func appearing(dark: CGColor, light: CGColor) -> Color {
+        let dark = NSColor(cgColor: dark) ?? .white, light = NSColor(cgColor: light) ?? .black
+
+        return Color(nsColor: NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? dark : light })
+    }
+
     /// The same, for a spinner's arc.
     static let orangeArc = NSColor(cgColor: EdgeStyle.color(LiveLight.orange)) ?? .systemOrange
     static let blueArc = NSColor(cgColor: EdgeStyle.color(LiveLight.blue)) ?? .systemBlue
@@ -43,9 +55,10 @@ enum GlassInk {
 /// The glass's tints: the primary label colour at these opacities, which the system's appearance turns light on the
 /// dark and dark on the light, in place of the black's greys.
 enum GlassTint {
-    /// A row's lift under the pointer.
+    /// A row's lift under the pointer; a keycap over its answer's row, and that row's border over its fill.
     static let hover = 0.08
-    /// A step stronger: a row pressed in, a row's arrow lit, an answer's row, a pill under the pointer.
+    /// A step stronger: a row pressed in, a row's arrow lit, an answer's row, a pill under the pointer, and the border
+    /// of an answer's row lifted.
     static let press = 0.12
     /// An answer's row under the pointer.
     static let lifted = 0.16
@@ -53,6 +66,13 @@ enum GlassTint {
     static let outline = 0.18
     /// A page dot not current, as #3A3A40 is on the black.
     static let dot = 0.24
+}
+
+extension StrokeStyle {
+    /// A stroke this wide, round at its caps and joins, as the black's strokes are.
+    static func rounded(_ width: Double) -> StrokeStyle {
+        StrokeStyle(lineWidth: width, lineCap: .round, lineJoin: .round)
+    }
 }
 
 /// An arc turning round a track, once in a period, or held still with none: a working row's mark on the glass. Black's

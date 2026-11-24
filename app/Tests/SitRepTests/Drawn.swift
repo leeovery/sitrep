@@ -2,7 +2,8 @@ import AppKit
 import SwiftUI
 import Testing
 
-/// A view drawn offscreen over black, in the dark, to read its pixels by the view's own points from its top left.
+/// A view drawn offscreen over black, in the dark unless told, to read its pixels by the view's own points from its top
+/// left.
 @MainActor
 struct Drawn {
     let bitmap: NSBitmapImageRep
@@ -10,13 +11,13 @@ struct Drawn {
 
     /// Offscreen, at 2× whatever the screen's scale, as a Retina screen draws it, so what a test counts in pixels holds
     /// on any Mac.
-    init(_ view: some View, size: CGSize) throws {
+    init(_ view: some View, size: CGSize, scheme: ColorScheme = .dark) throws {
         let hosting = NSHostingView(rootView: view
             .frame(width: size.width, height: size.height)
             .background(Color.black)
-            .environment(\.colorScheme, .dark))
+            .environment(\.colorScheme, scheme))
 
-        hosting.appearance = NSAppearance(named: .darkAqua)
+        hosting.appearance = NSAppearance(named: scheme == .dark ? .darkAqua : .aqua)
         hosting.frame = CGRect(origin: .zero, size: size)
         hosting.layoutSubtreeIfNeeded()
 
