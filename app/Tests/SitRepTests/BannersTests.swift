@@ -1,5 +1,5 @@
 @testable import SitRep
-import SitRepCore
+@testable import SitRepCore
 import SitRepRelay
 import SitRepTestSupport
 import Testing
@@ -15,7 +15,9 @@ struct BannersTests {
     private static let second: Int32 = 5151
     private static let ready = ToSitRep.ready(helper: first)
     private static let asked = Banner(title: "Pick a name", subtitle: "Trey Research · Build the desktop app", body: "", work: "sr-a8n2xc")
-    private static let pressed = NoticeAnswer(ask: "k2", session: "sr-a8n2xc", words: "Right")
+    private static let pressed = NoticeAnswer(
+        to: NoticeAsk(id: "k2", session: "sr-a8n2xc", wants: .choice(["Left", "Right"])), words: "Right"
+    )
     private static let askedNotice = Notice(
         title: "Pick a name", subtitle: "Trey Research · Build the desktop app", body: "", work: "sr-a8n2xc"
     )
@@ -222,14 +224,14 @@ struct BannersTests {
         #expect(clicks.works.isEmpty)
     }
 
-    /// The app's handler: the banner's answer sent through `Answers` at once, with no hold, as its words.
-    @Test func aRelayedAnswerIsSentAtOnceThroughAnswers() async {
+    /// The app's handler: the banner's answer sent through `Answers` at once, with no hold, as its words, the board
+    /// still holding the ask as its banner showed it.
+    @Test func aRelayedAnswerIsSentAtOnceThroughAnswers() async throws {
         let ran = Ran()
         let answers = Answers(answer: { ran.answerings.append($0); return .written }, post: { ran.banners.append($0) })
-        let banners = Banners(pid: Self.pid, send: sent.put, helperApp: app)
+        let board = try Self.board(WatchLine.Ask(id: "k2", wants: .choice, yes: nil, options: ["Left", "Right"]))
 
-        banners.start(onClick: { _, _ in }, onAnswer: answers.send)
-        banners.heard(Self.fromHelper(.answered(Self.pressed)))
+        Self.relay(Self.pressed, to: answers, on: board)
         await until(turns: 10_000) { !ran.answerings.isEmpty }
 
         #expect(ran.answerings == [Answering(.words("Right"), to: "k2", of: "sr-a8n2xc")])
@@ -237,17 +239,43 @@ struct BannersTests {
         #expect(ran.banners.isEmpty)
     }
 
+    /// The board's ask reshaped since its banner showed: "Not answered", and nothing sent.
+    @Test func aRelayedAnswerToAnAskReshapedSinceIsNotSent() async throws {
+        let ran = Ran()
+        let answers = Answers(answer: { ran.answerings.append($0); return .written }, post: { ran.banners.append($0) })
+        let board = try Self.board(WatchLine.Ask(id: "k2", wants: .words, yes: nil))
+
+        Self.relay(Self.pressed, to: answers, on: board)
+        await until(turns: 10_000) { !ran.banners.isEmpty }
+
+        #expect(ran.banners == [.unanswered("The ask changed after its banner showed, so nothing was sent.")])
+        #expect(ran.answerings.isEmpty)
+    }
+
     /// A refusal, as for an ask answered in its window meanwhile, posts "Not answered" in the CLI's words.
     @Test func aRelayedAnswerTheCLIRefusesPostsNotAnswered() async {
         let ran = Ran()
         let answers = Answers(answer: { _ in .refused("Answered already") }, post: { ran.banners.append($0) })
-        let banners = Banners(pid: Self.pid, send: sent.put, helperApp: app)
 
-        banners.start(onClick: { _, _ in }, onAnswer: answers.send)
-        banners.heard(Self.fromHelper(.answered(Self.pressed)))
+        Self.relay(Self.pressed, to: answers, on: nil)
         await until(turns: 10_000) { !ran.banners.isEmpty }
 
         #expect(ran.banners == [.unanswered("Answered already")])
+    }
+
+    /// The answer relayed through banners started as the app starts them, on the board given.
+    private static func relay(_ answer: NoticeAnswer, to answers: Answers, on board: Board?) {
+        let banners = Banners(pid: pid, send: { _ in }, helperApp: App())
+
+        banners.start(onClick: { _, _ in }, onAnswer: { answers.send($0, on: board) })
+        banners.heard(fromHelper(.answered(answer)))
+    }
+
+    /// A board holding this one ask of the session `pressed` answers.
+    private static func board(_ ask: WatchLine.Ask) throws -> Board {
+        let session = WatchLine.Session(id: "sr-a8n2xc", asks: [ask])
+
+        return try Board.read(WatchLine(projects: [WatchLine.Project(sessions: [session])]).text)
     }
 
     /// Its ready and its end come by different ways, in no order: a ready from a helper already ended would take what

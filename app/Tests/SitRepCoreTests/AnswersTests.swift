@@ -169,6 +169,86 @@ struct AnswersTests {
         #expect(cli.news.last == .ended(Self.approve, .refused(why)))
     }
 
+    // MARK: A banner's answer, against the board
+
+    /// The board still holds the ask as its banner showed it, or still offers the words: sent at once.
+    @Test(arguments: [
+        (Banner.Ask.Wants.yes("Go"), "Go", WatchLine.Ask(id: "k1", wants: .yes, yes: "Go")),
+        (
+            .choice(["Left", "Right"]), "Right",
+            WatchLine.Ask(id: "k1", wants: .choice, yes: nil, options: ["Right", "Both"])
+        ),
+        (.words, "12 passed", WatchLine.Ask(id: "k1", wants: .words, yes: nil, needs: "the test run")),
+    ])
+    func aBannersAnswerTheBoardStillTakesIsSent(
+        wants: Banner.Ask.Wants, words: String, live: WatchLine.Ask
+    ) async throws {
+        let (answers, _, cli) = Self.made()
+
+        answers.send(words, from: Self.banner(wants), on: try Self.board(live))
+        await until(turns: 100_000) { cli.ran.count == 1 }
+
+        #expect(cli.ran == [Answering(.words(words), to: "k1", of: "sr-4t2kq8")])
+        #expect(cli.banners.isEmpty)
+    }
+
+    /// Reshaped since its banner showed, wanting something else or no longer offering the words: "Not answered",
+    /// nothing sent. A yes "Go" made to want words would otherwise take "Go" as its words.
+    @Test(arguments: [
+        (Banner.Ask.Wants.yes("Go"), "Go", WatchLine.Ask(id: "k1", wants: .words, yes: nil)),
+        (.yes("Go"), "Go", WatchLine.Ask(id: "k1", wants: .yes, yes: "Approve")),
+        (.choice(["Left", "Right"]), "Right", WatchLine.Ask(id: "k1", wants: .choice, yes: nil, options: ["Left"])),
+        (.choice(["Left", "Right"]), "Right", WatchLine.Ask(id: "k1", wants: .yes, yes: "Right")),
+        (.words, "12 passed", WatchLine.Ask(id: "k1", wants: .choice, yes: nil, options: ["12 passed"])),
+    ])
+    func aBannersAnswerToAnAskReshapedSinceIsNotSent(
+        wants: Banner.Ask.Wants, words: String, live: WatchLine.Ask
+    ) async throws {
+        let (answers, _, cli) = Self.made()
+
+        answers.send(words, from: Self.banner(wants), on: try Self.board(live))
+        await Self.settle()
+
+        #expect(cli.banners == [.unanswered("The ask changed after its banner showed, so nothing was sent.")])
+        #expect(cli.ran.isEmpty)
+    }
+
+    /// The board holding the ask no more, or no board yet, as SitRep started by the press: sent, for the CLI to refuse
+    /// in its own words where it is answered already.
+    @Test func aBannersAnswerToAnAskOffTheBoardIsSentForTheCLIToJudge() async throws {
+        let (answers, _, cli) = Self.made()
+
+        answers.send("Go", from: Self.banner(.yes("Go")), on: try Self.board(WatchLine.Ask(id: "k9")))
+        answers.send("Go", from: Self.banner(.yes("Go")), on: nil)
+        await until(turns: 100_000) { cli.ran.count == 2 }
+
+        #expect(cli.banners.isEmpty)
+    }
+
+    /// Reply sent with no words: macOS has closed the banner, so a banner says nothing went.
+    @Test func aBannersReplyWithNoWordsIsNotSent() async throws {
+        let (answers, _, cli) = Self.made()
+
+        let board = try Self.board(WatchLine.Ask(id: "k1", wants: .words, yes: nil))
+
+        answers.send("", from: Self.banner(.words), on: board)
+        await Self.settle()
+
+        #expect(cli.banners == [.unanswered("Reply had no words, so nothing was sent.")])
+        #expect(cli.ran.isEmpty)
+    }
+
+    private static func banner(_ wants: Banner.Ask.Wants) -> Banner.Ask {
+        Banner.Ask(id: "k1", session: "sr-4t2kq8", wants: wants)
+    }
+
+    /// A board whose session `sr-4t2kq8` holds this one ask.
+    private static func board(_ ask: WatchLine.Ask) throws -> Board {
+        let session = WatchLine.Session(id: "sr-4t2kq8", asks: [ask])
+
+        return try Board.read(WatchLine(projects: [WatchLine.Project(sessions: [session])]).text)
+    }
+
     private static func made(answering written: WriteAnswer = .written) -> (Answers, TestClock, CLI) {
         let clock = TestClock(passing: [], holdsCancelled: true)
         let cli = CLI(written)

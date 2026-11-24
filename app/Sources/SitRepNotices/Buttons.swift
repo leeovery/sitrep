@@ -3,10 +3,20 @@ import SitRepRelay
 import UserNotifications
 
 /// A new ask's banner's buttons (DESIGN, "The menu bar", "Its buttons"), under a category of the banner's own: a yes's
-/// one button, a choice's options in Claude's order, or Reply with Send for a words ask; none brings an app forward. A
-/// response is read back by the button's place among the ask's answers, which the banner's userInfo carries, never by
-/// its title, which two options could share.
+/// one button, a choice's options in Claude's order, or Reply with Send for a words ask. None brings an app forward,
+/// and each asks for the Mac unlocked, so no answer goes from a locked screen. A response is read back by the button's
+/// place among the ask's answers, which the banner's userInfo carries, never by its title, which two options could
+/// share.
 enum Buttons {
+    /// What a response to a banner is.
+    enum Response: Equatable, Sendable {
+        /// A click on its body, naming the session it jumps to, if any.
+        case click(work: String?)
+        case answer(NoticeAnswer)
+        /// An action not of its ask's, passed over.
+        case none
+    }
+
     /// The action of a words ask's Reply.
     static let reply = "reply"
     /// The userInfo key carrying the id of the work a banner jumps to.
@@ -28,38 +38,58 @@ enum Buttons {
         userInfo[workKey] as? String
     }
 
-    /// The answer a button's response gives: its answer's words, or the words typed in Reply; nil for an action not
-    /// one of its ask's, or for Reply sent empty, which sends nothing.
+    /// The ask a banner's buttons answer, if it has any.
+    static func ask(_ userInfo: [AnyHashable: Any]) -> NoticeAsk? {
+        (userInfo as? [String: String]).flatMap(NoticeAsk.init(fields:))
+    }
+
+    /// A response read: a click on the banner's body (`UNNotificationDefaultActionIdentifier`), or one of its buttons.
+    static func response(to action: String, typed: String?, userInfo: [AnyHashable: Any]) -> Response {
+        guard action != UNNotificationDefaultActionIdentifier else {
+            return .click(work: work(userInfo))
+        }
+
+        return answer(to: action, typed: typed, userInfo: userInfo).map(Response.answer) ?? .none
+    }
+
+    /// The answer a button's response gives: its answer's words, or the words typed in Reply, trimmed, empty where
+    /// none were, for SitRep to say nothing went; nil for an action not one of its ask's.
     static func answer(to action: String, typed: String?, userInfo: [AnyHashable: Any]) -> NoticeAnswer? {
-        guard let ask = (userInfo as? [String: String]).flatMap(NoticeAsk.init(fields:)) else {
+        guard let ask = ask(userInfo) else {
             return nil
         }
 
         let words = action == reply ? replied(typed, to: ask) : pressed(action, of: ask)
 
-        return words.map { NoticeAnswer(ask: ask.id, session: ask.session, words: $0) }
+        return words.map { NoticeAnswer(to: ask, words: $0) }
     }
 
-    /// The categories to register as a banner is posted under `category`: its own, and those `needed` names, of the
-    /// banners still delivered; every other dropped, as `setNotificationCategories` replaces the whole set.
-    static func registered(
-        _ categories: Set<UNNotificationCategory>, adding category: UNNotificationCategory, needed: Set<String>
+    /// The whole set to register, as `setNotificationCategories` replaces it: a category for each banner still
+    /// delivered with an ask, by its request's id, and those `recent`ly posted, which Notification Center may not list
+    /// as delivered yet. Built from what is known, never read back, as a read may miss a set not yet landed.
+    static func categories(
+        delivered: [String: NoticeAsk], recent: [UNNotificationCategory]
     ) -> Set<UNNotificationCategory> {
-        categories.filter { needed.contains($0.identifier) && $0.identifier != category.identifier }.union([category])
+        let all = delivered.map { category($1, id: $0) } + recent
+        let byId = Dictionary(all.map { ($0.identifier, $0) }) { _, recent in recent }
+
+        return Set(byId.values)
     }
 
     private static func actions(_ wants: NoticeAsk.Wants) -> [UNNotificationAction] {
         guard wants != .words else {
             return [
                 UNTextInputNotificationAction(
-                    identifier: reply, title: "Reply", options: [], textInputButtonTitle: "Send",
+                    identifier: reply, title: "Reply", options: .authenticationRequired, textInputButtonTitle: "Send",
                     textInputPlaceholder: ""
                 ),
             ]
         }
 
         return answers(wants).enumerated().map { index, words in
-            UNNotificationAction(identifier: answerPrefix + String(index), title: words, options: [])
+            UNNotificationAction(
+                identifier: answerPrefix + String(index), title: words, options: .authenticationRequired
+            )
         }
     }
 
@@ -85,8 +115,6 @@ enum Buttons {
     }
 
     private static func replied(_ typed: String?, to ask: NoticeAsk) -> String? {
-        let words = typed?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-
-        return ask.wants == .words && !words.isEmpty ? words : nil
+        ask.wants == .words ? typed?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "" : nil
     }
 }

@@ -225,10 +225,13 @@ struct HelperTests {
         #expect(sent.messages == [Self.ready, Self.ready, .clicked(work: "sr-a8n2xc")])
     }
 
-    /// A banner's button answers through SitRep, and nothing comes forward, so the front stays where it is.
-    @Test func aBannersAnswerIsRelayedToSitRep() async {
+    /// A banner's button answers through SitRep. Nothing jumps, so the front is handed back, should macOS have made
+    /// the helper active for the press.
+    @Test func aBannersAnswerIsRelayedToSitRepAndTheFrontHandedBack() async {
         let helper = helper(SitRep(isRunning: true))
-        let answer = NoticeAnswer(ask: "k2", session: "sr-a8n2xc", words: "Right")
+        let answer = NoticeAnswer(
+            to: NoticeAsk(id: "k2", session: "sr-a8n2xc", wants: .choice(["Right"])), words: "Right"
+        )
 
         await helper.start()
         helper.heard(Self.fromSitRep(.ready))
@@ -236,7 +239,7 @@ struct HelperTests {
 
         #expect(sent.messages.last == .answered(answer))
         #expect(sent.pids == [Self.sitRep])
-        #expect(calls.handBacks == 0)
+        #expect(calls.handBacks == 1)
     }
 
     /// The button that started the helper, with SitRep not running: SitRep is started, and the answer, with any click
@@ -244,7 +247,9 @@ struct HelperTests {
     @Test func anAnswerWithNoSitRepStartsItAndIsHandedOverInOrderOnceItListens() async {
         let sitRep = SitRep(isRunning: false)
         let helper = helper(sitRep)
-        let answer = NoticeAnswer(ask: "k3", session: "sr-a8n2xc", words: "12 passed, 0 failed")
+        let answer = NoticeAnswer(
+            to: NoticeAsk(id: "k3", session: "sr-a8n2xc", wants: .words), words: "12 passed, 0 failed"
+        )
 
         helper.clicked("sr-a8n2xc")
         helper.answered(answer)

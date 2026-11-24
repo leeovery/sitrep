@@ -111,6 +111,16 @@ public final class Answers {
         run(answering)
     }
 
+    /// A banner's answer, sent at once as `send` sends it, unless it cannot answer the ask as `board` holds it
+    /// (`Banner.Ask.refusal`): then a banner "Not answered" says why, and nothing is sent.
+    public func send(_ words: String, from banner: Banner.Ask, on board: Board?) {
+        if let why = banner.refusal(of: words, live: board?.ask(banner.id, of: banner.session)) {
+            return post(.unanswered(why))
+        }
+
+        send(Answering(.words(words), to: banner.id, of: banner.session))
+    }
+
     private func run(_ answering: Answering) {
         heard(.went(answering))
         Task {

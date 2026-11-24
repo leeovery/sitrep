@@ -15,8 +15,21 @@ extension Answers {
         )
     }
 
-    /// A banner's answer the notices helper relayed, sent at once, as a banner has nowhere to show an Undo.
-    func send(_ answer: NoticeAnswer) {
-        send(Answering(.words(answer.words), to: answer.ask, of: answer.session))
+    /// A banner's answer the notices helper relayed, sent at once, as a banner has nowhere to show an Undo, unless it
+    /// cannot answer the ask as `board` holds it.
+    func send(_ answer: NoticeAnswer, on board: Board?) {
+        send(answer.words, from: Banner.Ask(answer.ask), on: board)
+    }
+}
+
+private extension Banner.Ask {
+    init(_ ask: NoticeAsk) {
+        let wants: Wants = switch ask.wants {
+        case let .yes(yes): .yes(yes)
+        case let .choice(options): .choice(options)
+        case .words: .words
+        }
+
+        self.init(id: ask.id, session: ask.session, wants: wants)
     }
 }

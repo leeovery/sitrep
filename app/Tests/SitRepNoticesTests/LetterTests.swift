@@ -74,10 +74,14 @@ struct LetterTests {
         #expect(Self.carried(letter) == letter)
     }
 
-    /// A button's answer, or the words typed in Reply.
-    @Test(arguments: ["Right", "12 passed, 0 failed"])
-    func anAnswerArrivesAsSent(words: String) {
-        let letter = Letter(ToSitRep.answered(NoticeAnswer(ask: "k2", session: "sr-a8n2xc", words: words)), pid: 4012)
+    /// A button's answer, or the words typed in Reply, none among them, each with its ask as its banner showed it.
+    @Test(arguments: [
+        (NoticeAsk.Wants.yes("Go"), "Go"), (.choice(["Left", "Right"]), "Right"), (.words, "12 passed, 0 failed"),
+        (.words, ""),
+    ])
+    func anAnswerArrivesAsSentWithItsAsksShape(wants: NoticeAsk.Wants, words: String) {
+        let answer = NoticeAnswer(to: NoticeAsk(id: "k2", session: "sr-a8n2xc", wants: wants), words: words)
+        let letter = Letter(ToSitRep.answered(answer), pid: 4012)
 
         #expect(Self.carried(letter) == letter)
     }
@@ -110,9 +114,10 @@ struct LetterTests {
         ["kind": "status", "leave": "sometimes", "id": "c", "pid": "4012"],
         ["kind": "ready", "pid": "4012"],
         ["kind": "ready", "helper": "not a pid", "pid": "4012"],
-        ["kind": "answered", "ask": "k2", "session": "sr-a8n2xc", "pid": "4012"],
-        ["kind": "answered", "session": "sr-a8n2xc", "words": "Right", "pid": "4012"],
-        ["kind": "answered", "ask": "k2", "words": "Right", "pid": "4012"],
+        ["kind": "answered", "ask": "k2", "session": "sr-a8n2xc", "wants": "words", "pid": "4012"],
+        ["kind": "answered", "session": "sr-a8n2xc", "wants": "words", "words": "Right", "pid": "4012"],
+        ["kind": "answered", "ask": "k2", "wants": "words", "words": "Right", "pid": "4012"],
+        ["kind": "answered", "ask": "k2", "session": "sr-a8n2xc", "words": "Right", "pid": "4012"],
     ])
     func toSitRepAnythingElseIsNoLetter(userInfo: [String: String]) {
         #expect(Letter<ToSitRep>(userInfo: userInfo) == nil)

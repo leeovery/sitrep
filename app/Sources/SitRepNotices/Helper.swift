@@ -100,8 +100,12 @@ final class Helper {
     }
 
     /// A banner's button pressed, or words sent from its Reply: relayed to SitRep, which sends it, or held until it
-    /// listens. Nothing comes forward, so the front stays where it is.
+    /// listens. Nothing jumps, so the front is handed back, as for a click naming no session, should macOS have made
+    /// the windowless helper active for the press, as it may when the press starts it. Not active, the helper hides
+    /// at its next activation within a second (`Front`): a click on a banner then jumps, and its window comes forward
+    /// all the same.
     func answered(_ answer: NoticeAnswer) {
+        own.handBack()
         relayOrHold(.answered(answer))
     }
 

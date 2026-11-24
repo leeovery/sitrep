@@ -132,29 +132,27 @@ public struct NoticeAsk: Equatable, Sendable {
     }
 }
 
-/// An answer from a banner's button, or the words typed in its Reply: the ask, by its id and its session, and the
-/// answer's words.
+/// An answer from a banner's button, or the words typed in its Reply, empty where none were: the ask as its banner
+/// showed it, so SitRep can tell an ask reshaped since, and the answer's words.
 public struct NoticeAnswer: Equatable, Sendable {
-    public let ask: String
-    public let session: String
+    public let ask: NoticeAsk
     public let words: String
 
-    public init(ask: String, session: String, words: String) {
+    public init(to ask: NoticeAsk, words: String) {
         self.ask = ask
-        self.session = session
         self.words = words
     }
 
     var fields: [String: String] {
-        ["ask": ask, "session": session, "words": words]
+        ask.fields.merging(["words": words]) { _, words in words }
     }
 
     init?(fields: [String: String]) {
-        guard let ask = fields["ask"], let session = fields["session"], let words = fields["words"] else {
+        guard let ask = NoticeAsk(fields: fields), let words = fields["words"] else {
             return nil
         }
 
-        self.init(ask: ask, session: session, words: words)
+        self.init(to: ask, words: words)
     }
 }
 

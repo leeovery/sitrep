@@ -37,7 +37,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         quitOnSignal = QuitOnSignal()
         banners.start(
             onClick: { [works] work, handBack in works.jump(to: work, handBack: handBack) },
-            onAnswer: { [answers] in answers.send($0) }
+            onAnswer: { [answers, live] in answers.send($0, on: live.last.board) }
         )
     }
 

@@ -35,6 +35,29 @@ public struct Banner: Equatable, Sendable {
             id = ask.id
             self.session = session
         }
+
+        /// Why `words`, sent from this banner, cannot answer the ask as the board now holds it: Reply sent with none,
+        /// or the ask reshaped since its banner showed, wanting something else, or no longer offering the words. Nil
+        /// where they answer it, or where the board no longer holds it, which the CLI refuses in its own words.
+        public func refusal(of words: String, live: Board.Ask?) -> String? {
+            guard !words.isEmpty else {
+                return "Reply had no words, so nothing was sent."
+            }
+            guard let live, !takes(words, live) else {
+                return nil
+            }
+
+            return "The ask changed after its banner showed, so nothing was sent."
+        }
+
+        private func takes(_ words: String, _ live: Board.Ask) -> Bool {
+            switch (wants, live.wants) {
+            case (.yes, .yes): live.yes == words
+            case (.choice, .choice): live.options.contains(words)
+            case (.words, .words): true
+            default: false
+            }
+        }
     }
 
     public let title: String
