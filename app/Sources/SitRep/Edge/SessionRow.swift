@@ -93,10 +93,60 @@ final class SessionRow {
         layer.backgroundColor = isPressed ? EdgeStyle.press : isHighlighted ? EdgeStyle.hover : nil
     }
 
-    /// In the time's place, pressed, the spinner; else the time.
+    /// Its arrow, in its time's place, while it shows (board E2): unlit, its chevron soft with no fill of its own; lit,
+    /// filled, its chevron white; pointing away from the screen's edge.
+    var arrow: Arrow? {
+        didSet {
+            guard arrow != oldValue else {
+                return
+            }
+
+            showArrow()
+            showTimeOrSpinner()
+        }
+    }
+
+    struct Arrow: Equatable {
+        var isLit: Bool
+        var pointsLeft: Bool
+    }
+
+    private var arrowLayer: CALayer?
+
+    private func showArrow() {
+        still {
+            arrowLayer?.removeFromSuperlayer()
+            arrowLayer = arrow.map(Self.arrow)
+            arrowLayer.map { arrow in
+                rescale(arrow, to: layer.contentsScale)
+                layer.addSublayer(arrow)
+            }
+        }
+    }
+
+    private static func arrow(_ arrow: Arrow) -> CALayer {
+        let box = CALayer(), chevron = CAShapeLayer()
+
+        box.bounds = CGRect(origin: .zero, size: RowArrow.size)
+        box.cornerRadius = RowArrow.radius
+        box.backgroundColor = arrow.isLit ? EdgeStyle.arrowLit : nil
+        chevron.frame = box.bounds
+        chevron.path = RowArrow.chevron(pointsLeft: arrow.pointsLeft)
+        chevron.fillColor = nil
+        chevron.strokeColor = arrow.isLit ? EdgeStyle.ink : EdgeStyle.ink2
+        chevron.lineWidth = 1.5
+        chevron.lineCap = .round
+        chevron.lineJoin = .round
+        box.addSublayer(chevron)
+        return box
+    }
+
+    /// In the time's place, pressed, the spinner; else the arrow, where it shows; else the time.
     private func showTimeOrSpinner() {
         still {
-            age?.isHidden = isPressed
+            age?.isHidden = isPressed || arrow != nil
+            arrowLayer?.isHidden = isPressed
+            arrowLayer?.frame = RowArrow.box(in: layer.bounds.size)
             spinner.layer.isHidden = !isPressed
         }
     }
@@ -125,7 +175,7 @@ final class SessionRow {
         let line = TextLine(words, in: at.age, alignment: .right)
 
         line.contentsScale = layer.contentsScale
-        line.isHidden = isPressed
+        line.isHidden = isPressed || arrow != nil
         if let age {
             layer.replaceSublayer(age, with: line)
         } else {

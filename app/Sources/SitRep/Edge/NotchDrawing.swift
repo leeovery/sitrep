@@ -32,6 +32,10 @@ struct NotchScene {
     let mirror: CGAffineTransform
     /// The calendar the rows' wake times are worded on, the run's.
     var calendar = WakeTime.calendar
+    /// The rows' arrows that show, by their rows' keys, each lit or not (`NotchRun.arrows`).
+    var arrows: [String: Bool] = [:]
+    /// The asks panel, while it is open.
+    var asks: AsksShown?
 }
 
 extension Frame.Panel {

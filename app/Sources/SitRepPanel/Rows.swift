@@ -44,7 +44,7 @@ public struct Session: Equatable, Sendable {
 
         /// When on the wall clock its time may next read differently: at its next whole minute.
         public func ageChanges(after now: Double) -> Double {
-            since + Session.minute * max(1, ((now - since) / Session.minute).rounded(.down) + 1)
+            Session.ageChanges(since: since, after: now)
         }
 
         /// What it waits on, set plain after the title at this time on the wall clock: a wake's countdown, else its
@@ -192,6 +192,11 @@ public struct Session: Equatable, Sendable {
     public func countdownRoom(after now: Double) -> [String] { headline.countdownRoom(after: now) }
 
     fileprivate static let minute = 60_000.0
+
+    /// When on the wall clock a time counted from `since` next reads differently: at its next whole minute.
+    static func ageChanges(since: Double, after now: Double) -> Double {
+        since + minute * max(1, ((now - since) / minute).rounded(.down) + 1)
+    }
 
     /// The time until a wake in ms as its countdown reads (`Age`, up to the whole minute): "in 12m", "in 2h", "in
     /// 3d"; "now" once it is due.

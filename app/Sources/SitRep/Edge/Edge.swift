@@ -26,8 +26,12 @@ final class Edge {
     private var notHere: Set<String> = []
 
     /// What Lee set, followed as it changes; `jump` jumps to a session, and tells once it answers whether it jumped;
-    /// `snoozes` snoozes and wakes a row's asks from its menu.
-    init(_ preferences: Preferences, jump: @escaping (String, @escaping (JumpAnswer) -> Void) -> Void, snoozes: Snoozes) {
+    /// `snoozes` snoozes and wakes a row's asks from its menu; `answers` holds and sends the asks panel's answers,
+    /// and tells the notch of each.
+    init(
+        _ preferences: Preferences, jump: @escaping (String, @escaping (JumpAnswer) -> Void) -> Void, snoozes: Snoozes,
+        answers: Answers
+    ) {
         let settings = preferences.edge
 
         self.preferences = preferences
@@ -36,6 +40,9 @@ final class Edge {
         notch.onJump = jump
         notch.onSnooze = { snoozes.snoozeRow($0, showing: $1, $2) }
         notch.onWake = { snoozes.wakeRow($0) }
+        notch.onAnswer = { answers.hold($0) }
+        notch.onUndo = { answers.undo() }
+        answers.heard = { [unowned self] in notch.heard($0) }
         strip.onJump = jump
         strip.onSnooze = notch.onSnooze
         strip.onWake = notch.onWake

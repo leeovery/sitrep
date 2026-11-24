@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         preferences.app.openSettings
     }
     private lazy var snoozes = Snoozes(plugin: plugin, post: banners.post)
+    private lazy var answers = Answers(plugin: plugin, post: banners.post)
     private let feed = Feed()
     /// The plugin folder `watch` runs on; nil before it first starts.
     private var watching: String?
@@ -43,7 +44,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let edge = Edge(
             preferences,
             jump: { [works] session, answered in works.jump(to: session, answered: answered) },
-            snoozes: snoozes
+            snoozes: snoozes,
+            answers: answers
         )
         let menu = StatusMenu(
             works: works, preferences: preferences, openSettings: { [unowned self] in settings.show() },

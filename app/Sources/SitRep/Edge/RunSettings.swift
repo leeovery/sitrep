@@ -3,13 +3,14 @@ import SitRepPanel
 
 extension NotchRun.Setting {
     /// What the notch runs in on this screen edge, as Lee set it: the edge's stage and mirror, his style, motion as he
-    /// and the Mac set it, and whether he chose the notch to show the board. The real notch's and the welcome stage's
-    /// alike.
+    /// and the Mac set it, whether he chose the notch to show the board, and whether its material draws the rows'
+    /// arrows and the asks panel, which black alone does yet. The real notch's and the welcome stage's alike.
     @MainActor
     static func on(_ edge: ScreenEdge, _ settings: EdgeSettings) -> Self {
         Self(
             stage: edge.stage, mirror: edge.mirror, style: settings.style,
-            reducesMotion: Displays.reducesMotion(settings), isChosen: settings.show == .notch
+            reducesMotion: Displays.reducesMotion(settings), isChosen: settings.show == .notch,
+            answers: NotchSurface.drawn(settings.material) == .black
         )
     }
 }

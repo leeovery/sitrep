@@ -1,12 +1,12 @@
 import CoreGraphics
 @testable import SitRep
-import SitRepEdge
+@testable import SitRepEdge
 import SitRepPanel
 import SitRepTestSupport
 import Testing
 
 /// The black panel's rows under the pointer: the row there lifts, and comes down as the pointer leaves it, whatever
-/// the board did to the rows meanwhile.
+/// the board did to the rows meanwhile; and the row the asks panel is open beside stays lifted, its arrow lit.
 @MainActor
 @Suite(.backstop)
 struct PanelContentTests {
@@ -116,6 +116,36 @@ struct PanelContentTests {
         #expect(content.rows["needs:x"]?.row.washing != nil)
         #expect(content.rows["turn:x"]?.row.washing == nil)
         #expect(content.rows["turn:x"] != nil)
+    }
+
+    /// The pointer on another row, the row beside the asks panel stays lifted, its arrow lit; closed, it comes down.
+    @Test func theRowBesideTheAsksPanelStaysLitItsArrowLit() {
+        let content = PanelContent()
+        let asking = Session(
+            id: "a", project: "Northwind", name: "Help desk redesign", kind: .needs, ask: "k1", title: "Thread?",
+            sub: "Northwind", since: 0
+        )
+        let ask = PanelAsk(id: "k1", title: "Thread replies?", answers: ["Threaded"], since: 0)
+        let list = Self.list(.line(asking), Self.row("b"))
+        var scene = Self.scene(Self.open(list), hover: 1)
+
+        scene.arrows = ["needs:a": true]
+        scene.asks = AsksShown(
+            row: "needs:a", session: asking, ask: ask, page: 0, pages: 1,
+            layout: AsksLayout(ask, measure: .estimated), frame: .zero, sending: nil, hover: nil
+        )
+        content.show(list)
+        content.show(scene)
+
+        #expect(content.rows["needs:a"]?.row.isHighlighted == true && content.rows["b"]?.row.isHighlighted == true)
+        #expect(content.rows["needs:a"]?.row.arrow == SessionRow.Arrow(isLit: true, pointsLeft: false))
+        #expect(content.rows["b"]?.row.arrow == nil)
+
+        scene.arrows = [:]
+        scene.asks = nil
+        content.show(scene)
+
+        #expect(content.rows["needs:a"]?.row.isHighlighted == false && content.rows["needs:a"]?.row.arrow == nil)
     }
 
     @Test func aRowMadeAnewUnderThePointerLifts() {

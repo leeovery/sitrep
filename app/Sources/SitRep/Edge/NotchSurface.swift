@@ -34,16 +34,17 @@ final class NotchSurface: EdgeSurface<any NotchDrawing> {
     }
 
     /// The run's latest frame, as it runs in `setting`: the panel's list, the shape and the content through `mirror`,
-    /// the edge's as it stands once the frame has swapped edges, the row under the pointer as the frame saw it, and the
-    /// light, the rows' times as of `now` on the wall clock. The real notch draws through here, and the welcome's
-    /// stage.
+    /// the edge's as it stands once the frame has swapped edges, the row under the pointer as the frame saw it, the
+    /// rows' arrows and the asks panel, and the light, the rows' times as of `now` on the wall clock. The real notch
+    /// draws through here, and the welcome's stage.
     func draw(
         _ run: NotchRun, in setting: NotchRun.Setting, mirror: CGAffineTransform, now: Double = Displays.wallNow
     ) {
         show(run.list)
         show(NotchScene(
             frame: run.frame, hover: run.seen.flatMap { run.item(at: $0, in: setting) }, scroll: run.scroll,
-            time: run.time, now: now, mirror: mirror, calendar: run.calendar
+            time: run.time, now: now, mirror: mirror, calendar: run.calendar, arrows: run.arrows(in: setting),
+            asks: run.asksShown(in: setting)
         ))
         drawLight(run, at: run.lightTime(run.time), reducesMotion: setting.reducesMotion)
     }

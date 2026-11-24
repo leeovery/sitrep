@@ -21,6 +21,9 @@ final class NotchController: NSObject, CalloutShape {
     private let snoozeSettings: () -> SnoozeSettings
     /// A Snoozed row's menu's Wake now: the session.
     var onWake: (String) -> Void = { _ in }
+    /// An answer's row, or Ignore, on the asks panel: the answer to hold; and the sending line's Undo.
+    var onAnswer: (Answering) -> Void = { _ in }
+    var onUndo: () -> Void = {}
     /// A drag let the notch go: the settings with its new place.
     var onMoved: (EdgeMove) -> Void = { _ in }
     /// Each frame drawn, with whether the pointer is over the notch, or its panel.
@@ -46,6 +49,8 @@ final class NotchController: NSObject, CalloutShape {
     /// Where on the stage the row's menu AppKit was last handed was asked for, which holds the card open once it
     /// shows.
     private var menuAt: CGPoint?
+    /// Whether the window is wide, for the asks panel open beside the panel (`ScreenEdge.window(wide:)`).
+    private var isWide = false
 
     /// The slow refresh the light breathes on while frames are idle.
     private static let lightRate = CAFrameRateRange(minimum: 20, maximum: 30, preferred: 30)
@@ -59,7 +64,7 @@ final class NotchController: NSObject, CalloutShape {
         self.settings = settings
         self.snoozeSettings = snoozeSettings
         edge = ScreenEdge(display, settings)
-        run = NotchRun(at: Displays.now, in: .on(edge, settings), folding: folding)
+        run = NotchRun(at: Displays.now, in: .on(edge, settings), folding: folding, measure: AsksPanelLayer.measure)
         window = EdgeWindow.onScreen(frame: edge.window, view: surface)
         super.init()
 
@@ -119,7 +124,7 @@ final class NotchController: NSObject, CalloutShape {
     func apply(_ settings: EdgeSettings, on display: Display) {
         self.settings = settings
         edge = ScreenEdge(display, settings)
-        window.setFrame(edge.window, display: true)
+        window.setFrame(edge.window(wide: isWide), display: true)
         surface.material = settings.material
         caption.over = edge.visible
         wake()
@@ -185,10 +190,10 @@ final class NotchController: NSObject, CalloutShape {
         wake()
     }
 
-    /// The run's latest frame drawn: the edge it swapped to saved, the caption told the panel drained, and the clocks
-    /// paced.
+    /// The run's latest frame drawn, in the window widened for the asks panel while it is open: the edge it swapped to
+    /// saved, the caption told the panel drained, and the clocks paced.
     private func draw() {
-        let frame = run.frame, time = run.time, pointer = run.seen
+        let time = run.time, pointer = run.seen
         let setting = NotchRun.Setting.on(edge, settings), shown = run.takeShown()
 
         if shown.swappedEdge, let crossing {
@@ -198,13 +203,25 @@ final class NotchController: NSObject, CalloutShape {
         if let drained = shown.jumpDrained {
             caption.drained(at: drained)
         }
-        surface.draw(run, in: setting, mirror: edge.mirror)
+        widen(run.asksShown(in: setting) != nil)
+        surface.draw(run, in: setting, mirror: edge.mirror(wide: isWide))
 
-        let isPointedAt = pointer.map(frame.hits) ?? false
+        let isPointedAt = pointer.map { run.hits($0, in: setting) } ?? false
 
         window.takesClicks = run.drag != nil || isPointedAt
         onDrawn?(isPointedAt)
         pace(at: time)
+    }
+
+    /// The window wide while the asks panel is open beside the panel, and back to the panel's once it closes: on the
+    /// right edge it grows into the screen, its stage mirrored across its new width.
+    private func widen(_ wide: Bool) {
+        guard wide != isWide else {
+            return
+        }
+
+        isWide = wide
+        window.setFrame(edge.window(wide: wide), display: false)
     }
 
     /// The notch at rest at its home, from the edge to its front, on the screen, for what stands beside it: at the home
@@ -263,8 +280,9 @@ final class NotchController: NSObject, CalloutShape {
     }
 
     /// A press on a row that jumps presses it in and jumps to its session, in place of any jump under way, and once the
-    /// jump has jumped, the caption says where; on an eyebrow, its section folds or unfolds, kept; anywhere else on
-    /// the black, it may become a drag (`NotchRun.press`).
+    /// jump has jumped, the caption says where; on an eyebrow, its section folds or unfolds, kept; on the asks panel,
+    /// an answer is held or taken back, or its Snooze offers the row's; anywhere else on the black, it may become a
+    /// drag (`NotchRun.press`).
     private func press(at screenPoint: CGPoint) {
         guard let point = edge.stagePoint(screenPoint) else {
             return
@@ -273,9 +291,46 @@ final class NotchController: NSObject, CalloutShape {
         switch run.press(moment(pointer: point)) {
         case let .jump(session, to: target, click: click)?:
             jump(from: session, to: target, click: click)
-        case .fold?, .carry?, nil:
+        case let .answer(answering)?:
+            onAnswer(answering)
+        case .undo?:
+            onUndo()
+        case let .snooze(session, at: pressed)?:
+            snooze(session, pressed: pressed)
+        case .fold?, .carry?, .asks?, nil:
             break
         }
+        took()
+    }
+
+    /// The asks panel's Snooze ▾: the Snooze choices of its row's menu, under the button, the card held open as the
+    /// row's menu holds it while it shows. A choice snoozes the session, naming the asks its row showed, and closes the
+    /// asks panel.
+    private func snooze(_ session: Session, pressed: CGPoint) {
+        let setting = NotchRun.Setting.on(edge, settings)
+
+        guard let asks = run.asksShown(in: setting) else {
+            return
+        }
+
+        let drawn = asks.frame.applying(edge.mirror(wide: isWide)), button = asks.layout.snooze
+        let id = session.id, showing = RowMenu.Row(session).asks ?? []
+        let menu = SnoozeMenu(offering: snoozeSettings(), at: Date(), in: run.calendar) { [unowned self] until in
+            onSnooze(id, showing, until)
+            run.closeAsks(moment())
+        }
+
+        run.menuOpened(at: pressed)
+        menu.popUp(
+            positioning: nil, at: CGPoint(x: drawn.minX + button.minX, y: drawn.minY + button.maxY), in: surface
+        )
+        run.menuClosed()
+    }
+
+    /// An answer's news, as the answers tell it: the asks panel shows it sending, as it was, or at the session's next
+    /// ask.
+    func heard(_ news: AnswerNews) {
+        run.heard(news, moment())
         took()
     }
 

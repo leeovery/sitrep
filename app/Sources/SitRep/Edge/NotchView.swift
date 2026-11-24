@@ -2,10 +2,10 @@ import AppKit
 import SitRepEdge
 import SitRepPanel
 
-/// The notch in black: the black shape, the light in the notch, and the content over them, as layers in the stage's
-/// own coordinates (y down from the screen's top), mirrored on the right edge; under reduced motion, the shape it
-/// cross-fades from. A frame changes the shape's path, the light and the content's clip and paint; nothing animates
-/// implicitly.
+/// The notch in black: the black shape, the light in the notch, the content over them, and the asks panel over all, as
+/// layers in the stage's own coordinates (y down from the screen's top), mirrored on the right edge; under reduced
+/// motion, the shape it cross-fades from. A frame changes the shape's path, the light and the content's clip and
+/// paint; nothing animates implicitly.
 @MainActor
 final class NotchView: StageHost, NotchDrawing {
     /// The shape and the light, through the edge's mirror.
@@ -14,6 +14,7 @@ final class NotchView: StageHost, NotchDrawing {
     private let fading = CAShapeLayer()
     private let light = LightLayer()
     private let content = PanelContent()
+    private let asks = AsksPanelLayer()
 
     init() {
         let root = CALayer()
@@ -28,6 +29,7 @@ final class NotchView: StageHost, NotchDrawing {
         stage.addSublayer(light)
         root.addSublayer(stage)
         root.addSublayer(content.layer)
+        root.addSublayer(asks.layer)
     }
 
     @available(*, unavailable)
@@ -65,6 +67,7 @@ final class NotchView: StageHost, NotchDrawing {
             fading.opacity = Float(frame.fading?.alpha ?? 0)
             content.show(scene)
         }
+        asks.show(scene.asks, mirror: scene.mirror, now: scene.now)
     }
 
     /// Lifted by a drag, the black casts the prototype's shadow: 4 down, blurred 12, at 0.4, at full lift.
@@ -90,5 +93,6 @@ final class NotchView: StageHost, NotchDrawing {
 
         rescale(stage, to: scale)
         content.rescaled(to: scale)
+        asks.rescaled(to: scale)
     }
 }

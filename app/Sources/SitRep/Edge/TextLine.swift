@@ -103,6 +103,22 @@ final class TextLine: CALayer {
         CTLineGetTypographicBounds(CTLineCreateWithAttributedString(text), nil, nil, nil)
     }
 
+    /// The text broken into lines as wide as `width` at most, where Core Text breaks them, `most` of them at most: the
+    /// last holds the rest, for its line to cut short. None for no text.
+    static func wrapped(_ text: NSAttributedString, width: CGFloat, most: Int) -> [NSAttributedString] {
+        let typesetter = CTTypesetterCreateWithAttributedString(text)
+        var lines: [NSAttributedString] = [], start = 0
+
+        while start < text.length {
+            let rest = text.length - start
+            let count = lines.count == most - 1 ? rest : max(1, CTTypesetterSuggestLineBreak(typesetter, start, width))
+
+            lines.append(text.attributedSubstring(from: NSRange(location: start, length: count)))
+            start += count
+        }
+        return lines
+    }
+
     /// How far down a line of `lower` sits in a line box as tall as one of `upper`'s for their baselines to meet, as
     /// two sizes on one baseline: a your-turn row's project after its words.
     static func drop(of lower: NSFont, to upper: NSFont, lineHeight: CGFloat) -> CGFloat {

@@ -1,5 +1,6 @@
 import CoreGraphics
 import Foundation
+import SitRepCore
 import SitRepPanel
 
 /// What the panel lists: its head, where it has one, and its items laid out, in the order the model has them.
@@ -15,6 +16,11 @@ public struct PanelList: Equatable, Sendable {
     /// The item at an index, while there is one.
     public func item(_ index: Int) -> Item? {
         content.entries.indices.contains(index) ? content.entries[index].item : nil
+    }
+
+    /// The index of the item of this key, not folding away.
+    public func index(of key: String) -> Int? {
+        content.entries.firstIndex { !$0.isGoing && $0.item.key == key }
     }
 }
 
@@ -35,13 +41,20 @@ public final class NotchRun: Framed {
         /// Whether Lee chose the notch to show the board: an arrival unfolds Needs you on its card. With the strip
         /// chosen, Needs you folded stays folded, its count on the strip flashing (14 November 2026).
         public var isChosen: Bool
+        /// Whether the drawing draws the rows' arrows and the asks panel: until glass does, its rows have no arrow,
+        /// and a press on one's time jumps, as before.
+        public var answers: Bool
 
-        public init(stage: Stage, mirror: CGAffineTransform, style: NotchStyle, reducesMotion: Bool, isChosen: Bool) {
+        public init(
+            stage: Stage, mirror: CGAffineTransform, style: NotchStyle, reducesMotion: Bool, isChosen: Bool,
+            answers: Bool = true
+        ) {
             self.stage = stage
             self.mirror = mirror
             self.style = style
             self.reducesMotion = reducesMotion
             self.isChosen = isChosen
+            self.answers = answers
         }
     }
 
@@ -58,6 +71,14 @@ public final class NotchRun: Framed {
         case fold
         /// The black off a row, which a move makes a drag.
         case carry
+        /// A row's arrow: the asks panel opened beside its row, moved to it, or closed.
+        case asks
+        /// An answer's row, or Ignore, on the asks panel: the answer to hold.
+        case answer(Answering)
+        /// The sending line's Undo: the answer held taken back.
+        case undo
+        /// Snooze ▾ on the asks panel: its row's session, to snooze from a menu at this point on the stage.
+        case snooze(Session, at: CGPoint)
     }
 
     /// The model: every input to it comes through the run, and what is drawn from it is read here. Internal only for
@@ -95,13 +116,20 @@ public final class NotchRun: Framed {
     public let calendar: Calendar
     /// What the list was last laid out from, which its folds are told apart from.
     private var laid: Laid
+    /// The asks panel: where it is open, the answer held, and the asks answered.
+    private var asking = AsksPanel()
+    /// How the drawing sets the asks panel's words, and the ask it last laid out.
+    private let measure: AsksMeasure
+    private var laidOut: (ask: PanelAsk, layout: AsksLayout)?
 
     /// The sections folded as `folding` has them, the rows' wake times worded in the Gregorian calendar in the Mac's
-    /// time zone, followed as it changes (`WakeTime.calendar`).
+    /// time zone, followed as it changes (`WakeTime.calendar`), and the asks panel's words as `measure` sets them.
     public init(
-        at time: Double, in setting: Setting, folding: Folding = Folding(), calendar: Calendar = WakeTime.calendar
+        at time: Double, in setting: Setting, folding: Folding = Folding(), calendar: Calendar = WakeTime.calendar,
+        measure: AsksMeasure = .estimated
     ) {
         book = RunBook(at: time)
+        self.measure = measure
         lit = time
         style = setting.style
         self.folding = folding
@@ -149,10 +177,12 @@ public final class NotchRun: Framed {
     public func step(_ moment: Moment) {
         let time = book.clock(moment.time), setting = moment.setting
 
+        let pointer = menuAt ?? moment.pointer
+        let held = heldOnAsks(pointer, in: setting)
+
         list.content = folds.content(at: time, headed: list.head != nil)
 
-        let pointer = menuAt ?? moment.pointer
-        var input = Self.input(at: time, pointer: pointer, needsLee: board.needsLee, list, setting)
+        var input = Self.input(at: time, pointer: held, needsLee: board.needsLee, list, setting)
 
         input.pointerAt = menuAt == nil ? moment.pointerAt : nil
         frame = notch.frame(input)
@@ -164,6 +194,20 @@ public final class NotchRun: Framed {
         restyle(input, to: setting.style)
         scroll = frame.panel.map { list.content.scrolled(scroll, by: 0, showing: $0.frame.height) } ?? 0
         asks.take(lastAsk: frame.light.lastAsk, simTime: frame.time, at: time)
+        keepAsks(in: setting)
+    }
+
+    /// The pointer as the model is told it: on the asks panel, off the list, a point on the list as near it as leaves
+    /// the panel still (`Frame.Panel.held`), so the panel stays open over either, and leaving both is leaving the
+    /// panel.
+    private func heldOnAsks(_ pointer: CGPoint?, in setting: Setting) -> CGPoint? {
+        guard let pointer, let panel = frame.panel, !panel.contains(pointer),
+              asksShown(in: setting)?.contains(pointer) == true
+        else {
+            return pointer
+        }
+
+        return panel.held(pointer)
     }
 
     /// Hidden, the notch's time ran on: it is taken on to now (`Notch.runOn`), the pointer away, and the frame after
@@ -191,25 +235,35 @@ public final class NotchRun: Framed {
         self.board = board
         lightNeed = board.need ?? lightNeed
         rows.take(board.cardSessions)
+        asking.take(board)
 
         if !board.new.isEmpty, moment.setting.isChosen {
             folding.set(.needsYou, folded: false)
         }
         relist(at: time, in: moment.setting)
+        keepAsks(in: moment.setting)
         return isOut ? Set(board.sessions.filter { board.new.contains($0.id) }.map { Item.line($0).key }) : []
     }
 
     /// A press at the pointer. The model takes a frame first, so the row under the press and the row it presses in
     /// are found in the one list, the list as drawn, even when the board changed it since the model's last frame. On
-    /// a row that jumps, the model presses it in, whatever jump runs, as the latest click wins; on an eyebrow, its
-    /// section folds or unfolds; anywhere else on the black, a drag may begin, unless the notch is still crossing to
-    /// the other edge.
+    /// the asks panel, what it is on there (`pressAsks`); on a row's arrow, the asks panel opens beside the row, moves
+    /// to it, or, open beside it, closes; on a row that jumps, the model presses it in, whatever jump runs, as the
+    /// latest click wins; on an eyebrow, its section folds or unfolds; anywhere else on the black, a drag may begin,
+    /// unless the notch is still crossing to the other edge.
     public func press(_ moment: Moment) -> Press? {
         upToNow(moment)
         guard let point = moment.pointer else {
             return nil
         }
 
+        if let asks = asksShown(in: moment.setting), asks.contains(point) {
+            return pressAsks(asks, at: point, in: moment.setting)
+        }
+        if let index = arrow(at: point, in: moment.setting) {
+            toggleAsks(index)
+            return .asks
+        }
         if let index = item(at: point, in: moment.setting) {
             return click(index, in: moment.setting)
         }
@@ -284,10 +338,10 @@ public final class NotchRun: Framed {
         notch.jumpAnswered()
     }
 
-    /// The content scrolled this much further, inside its length.
+    /// The content scrolled this much further, inside its length; not by a scroll over the asks panel.
     public func scroll(by delta: Double, _ moment: Moment) {
         upToNow(moment)
-        if let panel = frame.panel {
+        if let panel = frame.panel, !isOnAsks(moment.pointer, in: moment.setting) {
             scroll = list.content.scrolled(scroll, by: delta, showing: panel.frame.height)
         }
     }
@@ -310,7 +364,10 @@ public final class NotchRun: Framed {
     public func nextAgeChange(after now: Double) -> Double? {
         let midnight = WakeTime.changes(after: Date(timeIntervalSince1970: now / 1000), in: calendar)
 
-        return rows.shown.map { $0.isSnoozed ? midnight.timeIntervalSince1970 * 1000 : $0.changes(after: now) }.min()
+        let rows = rows.shown.map { $0.isSnoozed ? midnight.timeIntervalSince1970 * 1000 : $0.changes(after: now) }
+        let asked = asking.shownAsk(in: list, board).map { $0.ageChanges(after: now) }
+
+        return (rows + [asked].compactMap { $0 }).min()
     }
 
     /// How long before this time the last new ask was, ms; nil when there has been none.
@@ -346,16 +403,139 @@ public final class NotchRun: Framed {
     /// shows and jumps. By its key, since a session in Snoozed has another row too.
     public func jump(to row: String, _ moment: Moment) -> Press? {
         upToNow(moment)
-        let index = list.content.entries.indices.first { index in
-            !list.content.entries[index].isGoing && list.item(index)?.key == row
-        }
-
-        return index.flatMap { jump($0) }
+        return list.index(of: row).flatMap { jump($0) }
     }
 
-    /// A point on the stage in the content's own frame, while the panel shows it there.
+    /// The asks panel as the last frame placed it, beside its row, the part of it under the pointer lit; nil while it
+    /// is closed.
+    public func asksShown(in setting: Setting) -> AsksShown? {
+        asking.shown(
+            in: list, board, panel: frame.panel, scroll: scroll, pointer: seen, on: setting.stage,
+            mirror: setting.mirror, layout: layout
+        )
+    }
+
+    /// The rows' arrows that show, by their rows' keys, each lit or not: the row under the pointer's, where the asks
+    /// panel answers an ask of its session, lit with the pointer on it; and, lit, the arrow of the row whose asks
+    /// panel is open. None while the panel is not open.
+    public func arrows(in setting: Setting) -> [String: Bool] {
+        guard setting.answers, notch.phase == .open else {
+            return [:]
+        }
+
+        var arrows = asking.row.map { [$0: true] } ?? [:]
+
+        if let point = seen, let index = item(at: point, in: setting), let key = arrowRow(index) {
+            arrows[key] = arrows[key] == true || arrow(at: point, in: setting) == index
+        }
+        return arrows
+    }
+
+    /// Whether a point on the stage is on the black, the notch's hit area or the asks panel: where the window takes
+    /// clicks.
+    public func hits(_ point: CGPoint, in setting: Setting) -> Bool {
+        frame.hits(point) || isOnAsks(point, in: setting)
+    }
+
+    /// An answer's news, as the answers tell it (DESIGN, "Answering, with two seconds to undo"): held, the asks panel
+    /// shows it sending; taken back, as it was; gone, the asks panel steps to the session's next ask, closing after its
+    /// last; refused by the CLI, the ask is back.
+    public func heard(_ news: AnswerNews, _ moment: Moment) {
+        upToNow(moment)
+        asking.heard(news)
+        keepAsks(in: moment.setting)
+    }
+
+    /// The asks panel closed, as a snooze from it closes it.
+    public func closeAsks(_ moment: Moment) {
+        upToNow(moment)
+        asking.close()
+    }
+
+    /// The asks panel kept to what shows: closed as the panel goes in, its row goes, or its last ask, or where the
+    /// drawing draws none.
+    private func keepAsks(in setting: Setting) {
+        asking.keep(isOpen: notch.phase == .open && setting.answers, list, board)
+    }
+
+    private func isOnAsks(_ point: CGPoint?, in setting: Setting) -> Bool {
+        point.map { asksShown(in: setting)?.contains($0) == true } ?? false
+    }
+
+    /// A press on the asks panel: an answer's row, or Ignore, holds that answer, while none is held; Undo takes the
+    /// held one back; Snooze ▾ offers the row's snooze; Answer in Claude and Open in Claude jump as the row does,
+    /// closing it. Nowhere on it carries the notch.
+    private func pressAsks(_ asks: AsksShown, at point: CGPoint, in setting: Setting) -> Press? {
+        let ask = asks.ask, session = asks.session.id
+        let part = asks.layout.part(at: asks.ownPoint(point, mirror: setting.mirror), sending: asks.sending != nil)
+
+        switch part {
+        case let .answer(row)?:
+            return asking.isHolding ? nil : .answer(Answering(.words(ask.answers[row]), to: ask.id, of: session))
+        case .ignore?:
+            return asking.isHolding ? nil : .answer(Answering(.ignore, to: ask.id, of: session))
+        case .undo?:
+            return .undo
+        case .snooze?:
+            return .snooze(asks.session, at: point)
+        case .inClaude?, .open?:
+            asking.close()
+            return list.index(of: asks.row).flatMap { jump($0) }
+        case nil:
+            return nil
+        }
+    }
+
+    /// The asks panel opened beside the row at this index, moved to it, or closed.
+    private func toggleAsks(_ index: Int) {
+        guard let row = list.item(index), let session = row.session else {
+            return
+        }
+
+        asking.toggle(row.key, session, on: board)
+    }
+
+    /// The row whose arrow a point on the stage is on, by its index in the list, while the panel is open.
+    private func arrow(at point: CGPoint, in setting: Setting) -> Int? {
+        guard setting.answers, notch.phase == .open, let content = contentPoint(point, in: setting),
+              let index = list.content.item(at: content), arrowRow(index) != nil
+        else {
+            return nil
+        }
+
+        let row = list.content.itemFrame(index)
+        let box = RowArrow.box(in: list.content.entries[index].item.box(width: row.width).size)
+
+        return box.contains(CGPoint(x: content.x - row.minX, y: content.y - row.minY)) ? index : nil
+    }
+
+    /// The key of the row at this index where it has an arrow: a Needs you row, not folding away, whose session the
+    /// asks panel answers an ask of.
+    private func arrowRow(_ index: Int) -> String? {
+        let entry = list.content.entries[index]
+
+        guard !entry.isGoing, let session = entry.item.session, !asking.asks(of: session, on: board).isEmpty else {
+            return nil
+        }
+
+        return entry.item.key
+    }
+
+    /// An ask laid out as the drawing sets its words, the last one kept, as a frame lays it out more than once.
+    private func layout(_ ask: PanelAsk) -> AsksLayout {
+        if let laidOut, laidOut.ask == ask {
+            return laidOut.layout
+        }
+
+        let layout = AsksLayout(ask, measure: measure)
+
+        laidOut = (ask, layout)
+        return layout
+    }
+
+    /// A point on the stage in the content's own frame, while the panel shows it there, the asks panel not over it.
     private func contentPoint(_ point: CGPoint, in setting: Setting) -> CGPoint? {
-        guard let panel = frame.panel, panel.contains(point) else {
+        guard let panel = frame.panel, panel.contains(point), !isOnAsks(point, in: setting) else {
             return nil
         }
 
