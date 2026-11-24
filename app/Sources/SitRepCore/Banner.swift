@@ -36,6 +36,11 @@ public struct Banner: Equatable, Sendable {
         refused("Not snoozed", why)
     }
 
+    /// An answer or an ignore that the CLI refused, in its words, as for an ask answered in its window meanwhile.
+    public static func unanswered(_ why: String) -> Banner {
+        refused("Not answered", why)
+    }
+
     /// A row's Wake now that the CLI refused, in its words.
     public static func unwoken(_ why: String) -> Banner {
         refused("Not woken", why)

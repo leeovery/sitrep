@@ -29,6 +29,9 @@ public struct Board: Versioned, Sendable, Equatable {
     let named: [String: String]
     /// The window each away session was last in, by its id, which a click carries it on from; read as the names are.
     let lastWindows: [String: LastWindow]
+    /// Each session's open asks, by its id, in the line's order; read as the names are, an ask that does not read left
+    /// out.
+    let asks: [String: [Ask]]
 
     /// The rows holding a line new on this board, by their sessions.
     public var newRows: Set<String> {
@@ -52,19 +55,21 @@ public struct Board: Versioned, Sendable, Equatable {
 
         named = sessions.reduce(into: [:]) { $0[$1.id] = $1.name }
         lastWindows = sessions.reduce(into: [:]) { $0[$1.id] = $1.lastWindow }
+        asks = sessions.reduce(into: [:]) { $0[$1.id] = $1.asks }
     }
 
     private enum CodingKeys: String, CodingKey {
         case at, version, head, rows, snoozed, windows, new, projects
     }
 
-    /// A project, for the names of its sessions and the windows its away ones were last in.
+    /// A project, for the names of its sessions, the windows its away ones were last in, and their asks.
     private struct Project: Decodable {
         struct Session: Decodable {
             let id: String
             let name: String
             /// None from a CLI from before the watch carried it (12 November 2026), or in a shape that does not read.
             let lastWindow: LastWindow?
+            let asks: [Ask]
 
             init(from decoder: any Decoder) throws {
                 let given = try decoder.container(keyedBy: CodingKeys.self)
@@ -72,14 +77,81 @@ public struct Board: Versioned, Sendable, Equatable {
                 id = try given.decode(String.self, forKey: .id)
                 name = try given.decode(String.self, forKey: .name)
                 lastWindow = try? given.decodeIfPresent(LastWindow.self, forKey: .lastWindow)
+                asks = (try? given.decodeIfPresent([Readable<Ask>].self, forKey: .asks))?.compactMap(\.value) ?? []
             }
 
             private enum CodingKeys: String, CodingKey {
-                case id, name, lastWindow
+                case id, name, lastWindow, asks
             }
         }
 
         let sessions: [Session]
+    }
+
+    /// An open ask of a session, as the asks panel and a new ask's banner answer it: what it wants back, a yes's one
+    /// button or a choice's options, Claude's pick among them, what a words ask needs, when it was posted, and where
+    /// Lee's reply to it stands.
+    public struct Ask: Decodable, Sendable, Equatable, Identifiable {
+        public enum Wants: String, Decodable, Sendable {
+            case yes, choice, words
+        }
+
+        /// Where Lee's reply to it stands: on its way to the session, delivered, or not delivered, Claude having
+        /// closed the ask first; whether it is his answer, not a comment; its words as the board shows them on one
+        /// row; and since when.
+        public struct Reply: Decodable, Sendable, Equatable {
+            public enum Kind: String, Decodable, Sendable {
+                case onItsWay, delivered, notDelivered
+            }
+
+            public let kind: Kind
+            public let isAnswer: Bool
+            public let words: String?
+            public let since: Date
+
+            private enum CodingKeys: String, CodingKey {
+                case kind = "is", isAnswer, words, since
+            }
+        }
+
+        public let id: String
+        public let wants: Wants
+        /// A yes ask's button's words; nil for any other.
+        public let yes: String?
+        public let title: String
+        /// A choice's options, in Claude's order; none for any other ask.
+        public let options: [String]
+        /// The option Claude recommends; none from a CLI from before asks said it.
+        public let recommended: String?
+        /// What a words ask needs of Lee.
+        public let needs: String?
+        /// When it was posted.
+        public let at: Date
+        /// None where Lee has sent none, and from a CLI from before the watch said it.
+        public let reply: Reply?
+        private let state: String
+
+        /// Waiting on Lee, with no reply of his on its way, as core's `waitsOnLee` has it: an ask he can answer.
+        public var waitsOnLee: Bool { state == "waiting" && reply?.kind != .onItsWay }
+
+        public init(from decoder: any Decoder) throws {
+            let given = try decoder.container(keyedBy: CodingKeys.self)
+
+            id = try given.decode(String.self, forKey: .id)
+            wants = try given.decode(Wants.self, forKey: .wants)
+            yes = try given.decodeIfPresent(String.self, forKey: .yes)
+            title = try given.decode(String.self, forKey: .title)
+            options = try given.decodeIfPresent([String].self, forKey: .options) ?? []
+            recommended = try given.decodeIfPresent(String.self, forKey: .recommended)
+            needs = try given.decodeIfPresent(String.self, forKey: .needs)
+            at = try given.decode(Date.self, forKey: .at)
+            reply = try given.decodeIfPresent(Reply.self, forKey: .reply)
+            state = try given.decode(String.self, forKey: .state)
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case id, wants, yes, title, options, recommended, needs, at, reply, state
+        }
     }
 
     /// The window an away session was last in, by its heartbeat last seen: its writer, the Claude Code session it ran,
@@ -406,6 +478,17 @@ public struct Board: Versioned, Sendable, Equatable {
             .map(\.window)
     }
 
+    /// The session's open asks, in the line's order; none for a session not on the board, nor from a line that does not
+    /// carry them.
+    public func asks(of session: String) -> [Ask] {
+        asks[session] ?? []
+    }
+
+    /// An open ask of the session, by its id; nil for one not on the board, as a closed one is not.
+    public func ask(_ id: String, of session: String) -> Ask? {
+        asks(of: session).first { $0.id == id }
+    }
+
     /// The session's name, as its row, its Snoozed row, a window of it or its project says; nil for a session not on
     /// the board, as a finished one holding no window is not.
     public func name(of session: String) -> String? {
@@ -413,6 +496,15 @@ public struct Board: Versioned, Sendable, Equatable {
             ?? snoozed.first { $0.session == session }?.name
             ?? windows.first { $0.session == session }?.name
             ?? named[session]
+    }
+}
+
+/// A value of a list that reads, or none for one that does not, so one the app cannot read leaves the rest read.
+private struct Readable<Value: Decodable>: Decodable {
+    let value: Value?
+
+    init(from decoder: any Decoder) throws {
+        value = try? Value(from: decoder)
     }
 }
 

@@ -1,17 +1,24 @@
 import Foundation
 import os
 
-/// What `sitrep snooze` or `wake` came to: written, or refused in the CLI's words, with nothing written.
+/// What `sitrep answer`, `snooze` or `wake` came to: written, or refused in the CLI's words, with nothing written.
 public enum WriteAnswer: Sendable, Equatable {
     case written
     case refused(String)
 }
 
+/// Lee's answer to an ask: a yes, one of a choice's options or a words ask's words, as the CLI takes them; or his
+/// ignore, which any ask takes.
+public enum Answer: Sendable, Hashable {
+    case words(String)
+    case ignore
+}
+
 /// The plugin's CLI, `<plugin>/bin/sitrep`, run as a child with Lee's PATH.
-/// The app watches the board through it, and writes only what the card's row menu does: Lee's snoozes and wakes. It
+/// The app watches the board through it, and writes only what its surfaces do: Lee's answers, snoozes and wakes. It
 /// jumps itself (SitRepScreen's `Jump`), as the CLI no longer does.
 public struct SitRepCLI: Sendable {
-    /// `snooze` and `wake` read and write one session's files, and run no program.
+    /// `answer`, `snooze` and `wake` read and write one session's files, and run no program.
     static let sessionLimit: TimeInterval = 10
 
     private static let logger = Logger(sitrep: "cli")
@@ -42,6 +49,18 @@ public struct SitRepCLI: Sendable {
         let words = ["snooze"] + time + ["--session", session, "--"] + asks
 
         return written(await sitrep(words, limit: Self.sessionLimit), by: "snooze")
+    }
+
+    /// Answers an ask of the session, or ignores it, into the session's inbox. The ask and the answer come after `--`,
+    /// as the CLI reads any word before it as a flag, `-h` as a call for its help, so words such as `--force` or
+    /// `ls -h` arrive whole.
+    public func answer(_ ask: String, of session: String, with answer: Answer) async -> WriteAnswer {
+        let words = switch answer {
+        case let .words(words): ["--session", session, "--", ask, words]
+        case .ignore: ["--session", session, "--ignore", "--", ask]
+        }
+
+        return written(await sitrep(["answer"] + words, limit: Self.sessionLimit), by: "answer")
     }
 
     /// Wakes the session now: everything Lee snoozed of it needs him again.
