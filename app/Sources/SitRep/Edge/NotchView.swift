@@ -86,6 +86,10 @@ final class NotchView: StageHost, NotchDrawing {
         content.wash(rows, at: time)
     }
 
+    func onView(_ box: CGRect) -> CGRect {
+        stage.convert(box, to: layer)
+    }
+
     private func rescaleToWindow() {
         guard let scale = window?.backingScaleFactor else {
             return

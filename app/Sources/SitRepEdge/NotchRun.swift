@@ -493,7 +493,7 @@ public final class NotchRun: Framed {
             return nil
         }
 
-        let row = list.content.drawnFrame(index)
+        let row = list.content.laidFrame(index)
 
         return RowArrow.box(in: row.size).contains(CGPoint(x: content.x - row.minX, y: content.y - row.minY))
             ? index : nil

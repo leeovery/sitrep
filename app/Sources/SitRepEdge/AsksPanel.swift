@@ -29,16 +29,31 @@ struct AsksPanel {
         }
     }
 
-    /// What it shows, for a press to tell a change by: its session's ask, and whether an answer to it is held.
+    /// What it shows, for a press to tell a change of meaning by: beside which row, its session's ask as it reads, and
+    /// whether an answer to it is held.
     private struct Look: Equatable {
+        let row: String
         let session: String
-        let ask: String
+        let ask: PanelAsk
         let isSending: Bool
 
         init(_ shown: AsksShown) {
+            row = shown.row
             session = shown.session.id
-            ask = shown.ask.id
+            ask = shown.ask
             isSending = shown.sending != nil
+        }
+
+        /// Whether, shown after `was`, what sits under the pointer means something else: another ask, or the same one
+        /// changed, in the same place; or the sending line gone, its Undo's place another part's. Not opening, nor
+        /// moving to another row, where nothing of it sat under the pointer; nor a hold, the sending line coming where
+        /// the foot was, whose Undo a fast press is meant for.
+        func meansOther(than was: Look?) -> Bool {
+            guard let was, was.row == row else {
+                return false
+            }
+
+            return was.session != session || was.ask != ask || (was.isSending && !isSending)
         }
     }
 
@@ -136,10 +151,10 @@ struct AsksPanel {
 
         let look = shown.map(Look.init)
 
-        if look != self.look {
-            self.look = look
+        if look?.meansOther(than: self.look) == true {
             lookedAt = time
         }
+        self.look = look
     }
 
     /// The room the notch is told the pointer is on (`Input.beside`): the asks panel and the room to its row's arrow;
@@ -178,8 +193,9 @@ struct AsksPanel {
         }
     }
 
-    /// Whether what it shows has stood long enough to take a press (`settle`): a press meant for the ask, or the
-    /// sending line, it showed a moment before never lands on what took its place.
+    /// Whether what it shows has stood long enough to take a press (`settle`) since what sits under the pointer last
+    /// changed meaning (`Look.meansOther`): a press meant for the ask, or the sending line's Undo, it showed a moment
+    /// before never lands on what took its place.
     func isSettled(at time: Double) -> Bool {
         time - lookedAt >= Self.settle
     }
@@ -195,7 +211,7 @@ struct AsksPanel {
         }
 
         let ask = page.asks[open.page], laid = layout(ask)
-        let rowTop = panel.frame.minY + ground.list.content.drawnFrame(page.index).minY - ground.scroll
+        let rowTop = panel.frame.minY + ground.list.content.laidFrame(page.index).minY - ground.scroll
         let frame = laid.frame(besideRowAt: rowTop, on: ground.stage)
         let sending = held.flatMap { Sending($0, to: ask, of: page.session.id) }
         var shown = AsksShown(
@@ -207,35 +223,39 @@ struct AsksPanel {
         return shown
     }
 
-    /// The asks panel and the room between it and its row's arrow, the hull of the two facing each other: a pointer on
-    /// its way from the arrow crosses it, past the list's corner, as it does a Mac submenu's safe triangle; none where
-    /// the arrow is not before the asks panel.
-    private static func room(of asks: AsksShown, on ground: AsksGround) -> CGPath {
+    /// The asks panel and the room between it and its row's arrow, as Mac submenus have a safe triangle: the hull of
+    /// the asks panel's near side and the arrow's span, at the arrow's height and as far from the list's front as the
+    /// arrow stands on the left edge, so a pointer on its way from the arrow crosses it past the list's corner. On
+    /// the right edge, where the arrow stands at the row's other end, the same wedge: the list holds the way there.
+    /// Internal only for the tests.
+    static func room(of asks: AsksShown, on ground: AsksGround) -> CGPath {
         let room = CGMutablePath(), near = asks.frame.minX
 
         room.addRect(asks.frame)
-        if let arrow = arrowBox(of: asks, on: ground), arrow.minX < near {
+        if let arrow = arrowSpan(of: asks, on: ground), arrow.x < near {
             room.addLines(between: [
-                CGPoint(x: arrow.minX, y: arrow.minY), CGPoint(x: near, y: asks.frame.minY),
-                CGPoint(x: near, y: asks.frame.maxY), CGPoint(x: arrow.minX, y: arrow.maxY),
+                CGPoint(x: arrow.x, y: arrow.top), CGPoint(x: near, y: asks.frame.minY),
+                CGPoint(x: near, y: asks.frame.maxY), CGPoint(x: arrow.x, y: arrow.bottom),
             ])
             room.closeSubpath()
         }
         return room
     }
 
-    /// Its row's arrow on the stage, as the panel and its scroll place it.
-    private static func arrowBox(of asks: AsksShown, on ground: AsksGround) -> CGRect? {
+    /// The near end of its row's arrow on the stage, as far from the list's front as on the left edge, and its top
+    /// and bottom, as the panel and its scroll place it.
+    private static func arrowSpan(
+        of asks: AsksShown, on ground: AsksGround
+    ) -> (x: Double, top: Double, bottom: Double)? {
         guard let panel = ground.panel, let index = ground.list.index(of: asks.row) else {
             return nil
         }
 
-        let row = ground.list.content.drawnFrame(index)
+        let row = ground.list.content.laidFrame(index)
         let box = RowArrow.box(in: row.size).offsetBy(dx: row.minX, dy: row.minY)
-        let from = panel.stagePoint(box.origin, mirror: ground.mirror, scroll: ground.scroll)
-        let to = panel.stagePoint(CGPoint(x: box.maxX, y: box.maxY), mirror: ground.mirror, scroll: ground.scroll)
+        let top = panel.frame.minY + box.minY - ground.scroll
 
-        return CGRect(x: from.x, y: from.y, width: to.x - from.x, height: to.y - from.y).standardized
+        return (panel.frame.minX + box.minX, top, top + box.height)
     }
 
     /// Its row, by its index in the list, its session and that session's asks, while it is open at a page they hold.

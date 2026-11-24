@@ -419,6 +419,14 @@ public struct Content: Equatable, Sendable {
         }
     }
 
+    /// Where an item lays out what it draws, in the content's own frame: at its own height, under its margin above,
+    /// which a fold clips rather than shortens (`drawnFrame`).
+    public func laidFrame(_ index: Int) -> CGRect {
+        let frame = itemFrame(index)
+
+        return entries[index].item.box(width: frame.width).offsetBy(dx: frame.minX, dy: frame.minY)
+    }
+
     /// Where an item draws, in the content's own frame: its box less its margins, as a fold shortens it.
     public func drawnFrame(_ index: Int) -> CGRect {
         let frame = itemFrame(index), margins = entries[index].item.margins

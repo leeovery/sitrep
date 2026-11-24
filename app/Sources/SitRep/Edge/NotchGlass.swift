@@ -78,6 +78,10 @@ final class NotchGlassView: NSView, NotchDrawing {
     /// When each row's wash began, by its key.
     var washed: [String: Double] { scene.washed }
 
+    func onView(_ box: CGRect) -> CGRect {
+        stage.convert(box, to: stage.superlayer)
+    }
+
     private func rescaleToWindow() {
         if let scale = window?.backingScaleFactor {
             rescale(stage, to: scale)

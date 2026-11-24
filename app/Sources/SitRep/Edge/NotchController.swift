@@ -33,7 +33,8 @@ final class NotchController: NSObject, CalloutShape {
     private var edge: ScreenEdge
     /// Its run: internal only for the tests, which read where it places the rows and the asks panel.
     let run: NotchRun
-    private let surface = NotchSurface()
+    /// Its window's content: internal only for the tests, which read where it draws.
+    let surface = NotchSurface()
     /// Its window: internal only for the tests, which read that it stays on the screen.
     let window: EdgeWindow
     private var link: CADisplayLink?
@@ -218,8 +219,9 @@ final class NotchController: NSObject, CalloutShape {
 
     /// The window wide while the asks panel is open beside the panel, and back to the panel's once it closes, a frame
     /// drawn through its mirror. On the right edge it grows into the screen, its stage mirrored across its new width,
-    /// so all it draws moves in it: the window's new frame and the frame drawn into it go to the screen together, in
-    /// one transaction, the window's views laid out and displayed in it, the glass's too, and flushed at once.
+    /// so all it draws moves in it: the window takes its new frame, its views their new bounds, and then the frame is
+    /// drawn into them, the black mirrored across the new width and the glass laid out to it, all in one transaction,
+    /// flushed at once, so the screen gets the new window and what it draws together.
     private func widen(_ wide: Bool, drawing draw: (CGAffineTransform) -> Void) {
         guard wide != isWide else {
             return draw(edge.mirror(wide: isWide))
@@ -227,8 +229,9 @@ final class NotchController: NSObject, CalloutShape {
 
         isWide = wide
         CATransaction.begin()
-        draw(edge.mirror(wide: wide))
         window.setFrame(edge.window(wide: wide), display: false)
+        window.contentView?.layoutSubtreeIfNeeded()
+        draw(edge.mirror(wide: wide))
         window.displayIfNeeded()
         CATransaction.commit()
         CATransaction.flush()

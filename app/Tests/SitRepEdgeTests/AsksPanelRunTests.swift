@@ -68,11 +68,11 @@ struct AsksPanelRunTests {
         )
     }
 
-    /// A row's frame as it draws, in the content's own frame.
+    /// Where a row lays out what it draws, at its own height, in the content's own frame.
     private static func row(_ key: String, _ run: NotchRun) throws -> CGRect {
         let index = try #require(run.list.index(of: key), "no row \(key)")
 
-        return run.list.content.drawnFrame(index)
+        return run.list.content.laidFrame(index)
     }
 
     /// The middle of a row's arrow, where it has one, or where it would.
@@ -115,14 +115,13 @@ struct AsksPanelRunTests {
         )
     }
 
-    /// The run with the asks panel opened from a row's arrow, and settled there, the pointer still on the arrow.
+    /// The run with the asks panel opened from a row's arrow, the pointer still on the arrow.
     private static func asksOpen(
         _ key: String = helpDesk, _ setting: NotchRun.Setting = setting(), board: PanelBoard = AsksBoard.board()
     ) throws -> NotchRun {
-        let run = opened(setting, board: board), there = try arrow(key, run, setting)
+        let run = opened(setting, board: board)
 
-        #expect(run.press(at(run, there, setting)) == .asks)
-        frames(run, for: AsksPanel.settle, there, setting)
+        #expect(run.press(at(run, try arrow(key, run, setting), setting)) == .asks)
         return run
     }
 
@@ -223,7 +222,7 @@ struct AsksPanelRunTests {
 
     /// Beside the list, overlapping its front by 8, its top 12 above its row's, so its top line is level with the row.
     @Test func itStandsBesideTheListLevelWithItsRow() throws {
-        let run = try Self.asksOpen(), setting = Self.setting()
+        let run = try Self.asksOpen()
         let asks = try #require(run.asksShown), panel = try #require(run.frame.panel)
         let row = try Self.row(Self.helpDesk, run)
 
@@ -311,6 +310,7 @@ struct AsksPanelRunTests {
         #expect(run.asksShown == nil)
     }
 
+    /// Held, the answer shows sending, its Undo taking a press at once; no other answer is taken meanwhile.
     @Test func aHeldAnswerSendsUntilUndoneAndTheAsksPanelTakesNoOther() throws {
         let run = try Self.asksOpen(), setting = Self.setting()
 
@@ -319,7 +319,6 @@ struct AsksPanelRunTests {
         let sending = try #require(run.asksShown?.sending)
 
         #expect(sending.row == 0 && sending.words == "Threaded" && sending.goesAt - sending.heldAt == 2000)
-        Self.frames(run, for: AsksPanel.settle, try Self.part(.undo, run), setting)
         #expect(run.press(Self.at(run, try Self.part(.answer(1), run), setting)) == nil)
         #expect(run.press(Self.at(run, try Self.part(.undo, run), setting)) == .undo)
 
@@ -377,23 +376,47 @@ struct AsksPanelRunTests {
         #expect(run.asksShown?.hover == .undo)
     }
 
-    /// For a beat after what it shows changes, a press on it is let go: one meant for the sending line's Undo, as the
-    /// answer went, lands on nothing of the next ask's; after the beat, it takes presses again.
-    @Test func aPressJustAfterWhatItShowsChangesIsLetGo() throws {
+    /// Straight after it opens, a press on an answer is taken: nothing of it sat under the pointer before.
+    @Test func aPressStraightAfterItOpensIsTaken() throws {
+        let run = Self.opened(), setting = Self.setting()
+
+        #expect(run.press(Self.at(run, try Self.arrow(Self.helpDesk, run), setting)) == .asks)
+        #expect(run.press(Self.at(run, try Self.part(.answer(0), run), setting)) == .answer(Self.threaded))
+    }
+
+    /// For a beat after the ask it shows changes, a press on it is let go: one meant for Threaded, as that answer
+    /// went, lands on Approve of the next ask, and is let go; after the beat, it is taken.
+    @Test func aPressJustAfterTheAskChangesIsLetGo() throws {
+        let run = try Self.asksOpen(), setting = Self.setting(), threaded = try Self.part(.answer(0), run)
+
+        run.heard(Self.held(Self.threaded), Self.at(run, threaded, setting))
+        run.heard(.went(Self.threaded), Self.at(run, threaded, setting))
+        #expect(run.asksShown?.ask.id == "k2")
+        #expect(run.asksShown?.hover == .answer(0))
+        #expect(run.press(Self.at(run, threaded, setting)) == nil)
+
+        Self.frames(run, for: AsksPanel.settle, threaded, setting)
+        #expect(run.press(Self.at(run, threaded, setting)) == .answer(Self.approve))
+    }
+
+    /// For a beat after an Undo, a press where Undo was is let go: Open in Claude has come back there.
+    @Test func aPressJustAfterAnUndoIsLetGo() throws {
         let run = try Self.asksOpen(), setting = Self.setting()
 
-        run.heard(Self.held(Self.threaded), Self.at(run, try Self.part(.answer(0), run), setting))
-        Self.frames(run, for: AsksPanel.settle, try Self.part(.undo, run), setting)
+        run.heard(Self.held(Self.threaded), Self.at(run, nil, setting))
 
         let undo = try Self.part(.undo, run)
 
-        run.heard(.went(Self.threaded), Self.at(run, undo, setting))
-        #expect(run.asksShown?.ask.id == "k2")
+        #expect(run.press(Self.at(run, undo, setting)) == .undo)
+        run.heard(.undone(Self.threaded), Self.at(run, undo, setting))
+        #expect(run.asksShown?.hover == .open)
         #expect(run.press(Self.at(run, undo, setting)) == nil)
-        #expect(run.press(Self.at(run, try Self.part(.answer(0), run), setting)) == nil)
 
-        Self.frames(run, for: AsksPanel.settle, try Self.part(.answer(0), run), setting)
-        #expect(run.press(Self.at(run, try Self.part(.answer(0), run), setting)) == .answer(Self.approve))
+        Self.frames(run, for: AsksPanel.settle, undo, setting)
+        guard case .jump? = run.press(Self.at(run, undo, setting)) else {
+            Issue.record("Open in Claude did not jump after the beat")
+            return
+        }
     }
 
     /// A press on another row's words jumps to it, and the asks panel closes with the panel.
@@ -410,15 +433,32 @@ struct AsksPanelRunTests {
         #expect(run.asksShown == nil)
     }
 
-    /// The arrow takes a press where it draws, in the row's box less its gap: from just inside its top to just inside
-    /// its bottom.
-    @Test(arguments: [1.0, -1.0])
-    func theArrowTakesAPressWhereItDraws(_ inside: Double) throws {
-        let run = Self.opened(), setting = Self.setting()
-        let row = try Self.row(Self.helpDesk, run), box = RowArrow.box(in: row.size)
-        let y = row.minY + (inside > 0 ? box.minY : box.maxY) + inside
+    /// The arrow takes a press where it draws: as its row arrives on the board and unfolds, laid out at its own height
+    /// and clipped to its growing box, on the arrow's top, and not just above it, where an arrow centred in the
+    /// shortened box would be.
+    @Test(arguments: [true, false])
+    func theArrowTakesAPressWhereItDrawsAsItsRowUnfolds(onIt: Bool) throws {
+        let setting = Self.setting(), run = Self.opened(setting, board: AsksBoard.board(without: ["k1", "k2"]))
+        let shortened = {
+            run.list.index(of: Self.helpDesk).map { index in
+                let entry = run.list.content.entries[index]
 
-        #expect(run.press(Self.at(run, try Self.onStage(row.minX + box.midX, y, run, setting), setting)) == .asks)
+                return (8 ... entry.item.height - 6).contains(entry.height)
+            } ?? false
+        }
+
+        #expect(run.list.index(of: Self.helpDesk) == nil)
+        _ = run.show(AsksBoard.board(), Self.at(run, Self.onTheNotch, setting))
+        for _ in 0 ..< 30 where !shortened() {
+            run.step(Self.at(run, Self.onTheNotch, setting))
+        }
+        try #require(shortened())
+
+        let row = try Self.row(Self.helpDesk, run), box = RowArrow.box(in: row.size)
+        let point = try Self.onStage(row.minX + box.midX, row.minY + box.minY + (onIt ? 1 : -1), run, setting)
+        let press = run.press(Self.at(run, point, setting))
+
+        #expect(onIt ? press == .asks : press != .asks)
     }
 
     // MARK: The pointer on it
@@ -443,33 +483,42 @@ struct AsksPanelRunTests {
         #expect(moved.allSatisfy { abs($0.maxX - still.maxX) < 0.01 && abs($0.height - still.height) < 0.01 })
     }
 
-    /// The asks panel closing from under a pointer that stays still, as its last answer goes, is no leave: the panel
-    /// stays open until the pointer moves, and closes once it has moved off.
+    /// The asks panel closing from under a pointer that stays still, just past the list's front, as its last answer
+    /// goes, is no leave: the panel stays open, and the edge doesn't reach for the pointer, until it moves; once it has
+    /// moved off, the panel closes. Card would close on it; Meniscus would bow toward it.
     @Test(arguments: [NotchStyle.meniscus, .card])
-    func aStillPointerItClosesFromUnderKeepsThePanelOpen(_ style: NotchStyle) throws {
+    func aStillPointerItClosesFromUnderKeepsThePanelOpenAndStill(_ style: NotchStyle) throws {
         let setting = Self.setting(style: style), run = try Self.asksOpen(Self.helpDesk, setting)
-        let onIt = try Self.onAsks(run)
+        let asks = try #require(run.asksShown), onIt = CGPoint(x: asks.frame.minX + 14, y: asks.frame.midY)
 
-        Self.frames(run, for: 500, onIt, setting)
+        Self.frames(run, for: 1000, onIt, setting)
+
+        let still = run.frame.outline.boundingBoxOfPath
+
         run.heard(.went(Self.threaded), Self.at(run, onIt, setting))
         run.heard(.went(Self.approve), Self.at(run, onIt, setting))
         #expect(run.asksShown == nil)
 
         Self.frames(run, for: 3000, onIt, setting)
         #expect(run.phase == .open)
+        #expect(abs(run.frame.outline.boundingBoxOfPath.maxX - still.maxX) < 0.01)
 
-        Self.frames(run, for: 2000, CGPoint(x: onIt.x + 1, y: onIt.y), setting) { run.phase != .open }
+        Self.frames(run, for: 2000, CGPoint(x: onIt.x + 60, y: onIt.y), setting) { run.phase != .open }
         #expect(run.phase != .open)
     }
 
-    /// Stepping to a shorter ask, its foot rising from under a still pointer, keeps the panel open.
+    /// Stepping to a shorter ask, its foot rising from under a still pointer just past the list's front, keeps the
+    /// panel open and the edge still.
     @Test(arguments: [NotchStyle.meniscus, .card])
-    func steppingToAShorterAskKeepsThePanelOpen(_ style: NotchStyle) throws {
+    func steppingToAShorterAskKeepsThePanelOpenAndStill(_ style: NotchStyle) throws {
         let setting = Self.setting(style: style), run = try Self.asksOpen(Self.helpDesk, setting)
         let asks = try #require(run.asksShown)
-        let foot = try Self.onAsks(run, down: asks.frame.height - 4)
+        let foot = CGPoint(x: asks.frame.minX + 14, y: asks.frame.maxY - 4)
 
-        Self.frames(run, for: 500, foot, setting)
+        Self.frames(run, for: 1000, foot, setting)
+
+        let still = run.frame.outline.boundingBoxOfPath
+
         run.heard(.went(Self.threaded), Self.at(run, foot, setting))
 
         let next = try #require(run.asksShown)
@@ -477,6 +526,7 @@ struct AsksPanelRunTests {
         #expect(next.ask.id == "k2" && !next.frame.contains(foot))
         Self.frames(run, for: 3000, foot, setting)
         #expect(run.phase == .open && run.asksShown != nil)
+        #expect(abs(run.frame.outline.boundingBoxOfPath.maxX - still.maxX) < 0.01)
     }
 
     /// Leaving the asks panel is leaving the panel at the pointer's own speed, as from the list: slowly, the slow
@@ -497,26 +547,59 @@ struct AsksPanelRunTests {
     }
 
     /// On a list of one row the asks panel runs on below it: the way from the arrow down to its foot, past the list's
-    /// bottom corner, keeps the panel open, as a Mac submenu's safe triangle does, on either edge and either notch.
+    /// bottom corner, keeps the panel open, as a Mac submenu's safe triangle does, the pointer resting off both a while
+    /// on the way, on either edge and either notch. On the right edge the arrow stands at the row's other end, and the
+    /// way starts along the row, on the list, from where it stands on the left.
     @Test(arguments: [NotchStyle.meniscus, .card], [false, true])
     func theWayFromTheArrowPastTheListsCornerKeepsItOpen(_ style: NotchStyle, right: Bool) throws {
         let setting = Self.setting(right: right, style: style)
         let run = try Self.asksOpen(Self.helpDesk, setting, board: AsksBoard.board(alone: true))
         let asks = try #require(run.asksShown), panel = try #require(run.frame.panel)
-        let from = try Self.arrow(Self.helpDesk, run, setting)
+        let row = try Self.row(Self.helpDesk, run), box = RowArrow.box(in: row.size)
+        let from = CGPoint(x: panel.frame.minX + row.minX + box.midX, y: try Self.arrow(Self.helpDesk, run, setting).y)
+        let corner = try #require(stride(from: from.y, to: asks.frame.maxY, by: 1).lazy.map {
+            CGPoint(x: asks.frame.minX - 6, y: $0)
+        }.first { !panel.contains($0) && !asks.frame.contains($0) })
+        let off = CGPoint(x: corner.x, y: corner.y + 6)
         let to = CGPoint(x: asks.frame.minX + 40, y: asks.frame.maxY - 20)
-        let way = (1 ... 30).map { step in
-            let share = Double(step) / 30
 
-            return CGPoint(x: from.x + (to.x - from.x) * share, y: from.y + (to.y - from.y) * share)
+        for point in Self.way(from: from, to: off) + [off] {
+            run.step(Self.at(run, point, setting))
         }
-
-        #expect(way.contains { !panel.contains($0) && !asks.frame.contains($0) })
-        for point in way {
+        Self.frames(run, for: 1000, off, setting)
+        #expect(run.phase == .open)
+        for point in Self.way(from: off, to: to) {
             run.step(Self.at(run, point, setting))
         }
         Self.frames(run, for: 2000, to, setting)
         #expect(run.phase == .open && run.asksShown != nil)
+    }
+
+    /// On the right edge the room between the arrow and the asks panel is the left edge's: no wider, as the arrow
+    /// standing at the row's other end leaves the way there to the list.
+    @Test func theRoomToItIsNoWiderOnTheRightEdge() throws {
+        let rooms = try [false, true].map { right in
+            let setting = Self.setting(right: right)
+            let run = try Self.asksOpen(Self.helpDesk, setting, board: AsksBoard.board(alone: true))
+            let ground = AsksGround(
+                list: run.list, board: run.board, panel: run.frame.panel, scroll: run.scroll, stage: setting.stage,
+                mirror: setting.mirror
+            )
+
+            return AsksPanel.room(of: try #require(run.asksShown), on: ground).boundingBoxOfPath
+        }
+
+        #expect(rooms[0].width > CGFloat(AsksLayout.width))
+        #expect(rooms[1].width <= rooms[0].width + 0.5)
+    }
+
+    /// The points a pointer passes going from one point to another in 15 frames, the last not.
+    private static func way(from: CGPoint, to: CGPoint) -> [CGPoint] {
+        (0 ..< 15).map { step in
+            let share = Double(step) / 15
+
+            return CGPoint(x: from.x + (to.x - from.x) * share, y: from.y + (to.y - from.y) * share)
+        }
     }
 
     // MARK: The right edge
