@@ -28,8 +28,9 @@ enum AsksBoard {
         id: "k1", wants: .words, yes: nil, title: "Say what an empty rota should read", needs: "The empty state's words"
     )
 
-    /// The rows, those named in `without` left out of Help desk redesign's lines and asks, as an ask leaves the board.
-    static func line(without: Set<String> = []) -> WatchLine {
+    /// The rows, those named in `without` left out of Help desk redesign's lines and asks, as an ask leaves the board;
+    /// `alone`, Help desk redesign's row alone, with nothing snoozed.
+    static func line(without: Set<String> = [], alone: Bool = false) -> WatchLine {
         let helpDeskLines: [WatchLine.Row.Line] = [
             .init("ask:\(helpDesk):k1", .ask, ask: "k1", first: "Thread replies, or keep them flat?", since: ago(4)),
             .init("ask:\(helpDesk):k2", .ask, ask: "k2", first: "Review Tickets & Replies, round 1", since: ago(12)),
@@ -66,7 +67,7 @@ enum AsksBoard {
                 session: "sr-lw0006", name: "Data import", projectName: "Litware",
                 lines: [.init("work:sr-lw0006", .working, first: "Mapping the columns", since: ago(5))]
             ),
-        ].compactMap { $0 }
+        ].compactMap { $0 }.filter { !alone || $0.session == helpDesk }
         let projects = [
             WatchLine.Project(name: "Northwind", sessions: [
                 WatchLine.Session(
@@ -86,14 +87,16 @@ enum AsksBoard {
             ]
         )
 
-        return WatchLine(at: at, rows: rows, snoozed: [snoozed], projects: projects)
+        return WatchLine(at: at, rows: rows, snoozed: alone ? [] : [snoozed], projects: projects)
     }
 
     /// The board as the panel has it.
-    static func board(without: Set<String> = []) -> PanelBoard {
+    static func board(without: Set<String> = [], alone: Bool = false) -> PanelBoard {
         var last = LastBoard()
 
-        _ = last.hear(.line(line(without: without).text), at: Date(timeIntervalSince1970: Double(at) / 1000))
+        _ = last.hear(
+            .line(line(without: without, alone: alone).text), at: Date(timeIntervalSince1970: Double(at) / 1000)
+        )
         return PanelBoard(last)
     }
 

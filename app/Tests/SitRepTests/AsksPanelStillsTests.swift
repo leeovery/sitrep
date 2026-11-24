@@ -111,7 +111,7 @@ struct AsksPanelStillsTests {
     private static func row(_ key: String, _ run: NotchRun) throws -> CGRect {
         let panel = try #require(run.frame.panel), index = try #require(run.list.index(of: key))
 
-        return run.list.content.itemFrame(index).offsetBy(dx: panel.frame.minX, dy: panel.frame.minY - run.scroll)
+        return run.list.content.drawnFrame(index).offsetBy(dx: panel.frame.minX, dy: panel.frame.minY - run.scroll)
     }
 
     private static func words(_ key: String, _ run: NotchRun) throws -> CGPoint {
@@ -128,7 +128,7 @@ struct AsksPanelStillsTests {
 
     /// On the asks panel's title, where nothing lifts.
     private static func onTitle(_ run: NotchRun) throws -> CGPoint {
-        let asks = try #require(run.asksShown(in: setting))
+        let asks = try #require(run.asksShown)
 
         return CGPoint(x: asks.frame.minX + asks.layout.title.midX, y: asks.frame.minY + asks.layout.title.midY)
     }
@@ -163,7 +163,7 @@ struct AsksPanelStillsTests {
         surface.draw(run, in: setting, mirror: edge.mirror(wide: true), now: now)
 
         let outline = run.frame.outline.boundingBox
-        let shown = run.asksShown(in: setting).map { outline.union($0.frame) } ?? outline
+        let shown = run.asksShown.map { outline.union($0.frame) } ?? outline
         let cut = CGRect(x: 0, y: shown.minY - 40, width: AsksLayout.reach + 24, height: shown.height + 80)
         let shot = look == .black
             ? try EdgeShot(surface, cut: cut).shoot(turned: Running.at(0.3)) : try cached(surface, cut)

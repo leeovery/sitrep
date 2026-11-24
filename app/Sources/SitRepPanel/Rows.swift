@@ -415,13 +415,18 @@ public struct Content: Equatable, Sendable {
                 return false
             }
 
-            let frame = itemFrame(i), margins = item.margins
-            let drawn = CGRect(
-                x: frame.minX, y: frame.minY + margins.above, width: frame.width,
-                height: max(0, frame.height - margins.above - margins.below)
-            )
-            return drawn.contains(point)
+            return drawnFrame(i).contains(point)
         }
+    }
+
+    /// Where an item draws, in the content's own frame: its box less its margins, as a fold shortens it.
+    public func drawnFrame(_ index: Int) -> CGRect {
+        let frame = itemFrame(index), margins = entries[index].item.margins
+
+        return CGRect(
+            x: frame.minX, y: frame.minY + margins.above, width: frame.width,
+            height: max(0, frame.height - margins.above - margins.below)
+        )
     }
 
     private static let width = Tuning.panelDepth - 2 * paddingSide

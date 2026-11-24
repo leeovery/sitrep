@@ -50,10 +50,13 @@ public struct Input {
     public var content: Content
     /// Whether to reduce motion, as the Mac or SitRep asks: then nothing springs, and shapes cross-fade.
     public var reducesMotion: Bool
+    /// A panel beside the open one, the asks panel, and the room between them: the pointer on it is on the panel, so
+    /// leaving both is leaving the panel, and the open edge never clings to it.
+    public var beside: CGPath?
 
     public init(
         time: Double, pointer: CGPoint?, pointerAt: Double? = nil, needsLee: Bool, stage: Stage, content: Content,
-        reducesMotion: Bool = false
+        reducesMotion: Bool = false, beside: CGPath? = nil
     ) {
         self.time = time
         self.pointer = pointer
@@ -62,6 +65,7 @@ public struct Input {
         self.stage = stage
         self.content = content
         self.reducesMotion = reducesMotion
+        self.beside = beside
     }
 
     /// When the pointer was read.
@@ -175,6 +179,13 @@ public struct Frame {
         public func contentPoint(_ point: CGPoint, mirror: CGAffineTransform, scroll: Double) -> CGPoint {
             let drawn = drawn(mirror), at = point.applying(mirror)
             return CGPoint(x: at.x - drawn.minX, y: at.y - drawn.minY + scroll)
+        }
+
+        /// A point in the content's own frame on the stage, the way back from `contentPoint`.
+        public func stagePoint(_ point: CGPoint, mirror: CGAffineTransform, scroll: Double) -> CGPoint {
+            let drawn = drawn(mirror)
+
+            return CGPoint(x: point.x + drawn.minX, y: point.y + drawn.minY - scroll).applying(mirror.inverted())
         }
     }
 

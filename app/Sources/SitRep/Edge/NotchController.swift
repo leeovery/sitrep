@@ -31,7 +31,8 @@ final class NotchController: NSObject, CalloutShape {
 
     private var settings: EdgeSettings
     private var edge: ScreenEdge
-    private let run: NotchRun
+    /// Its run: internal only for the tests, which read where it places the rows and the asks panel.
+    let run: NotchRun
     private let surface = NotchSurface()
     /// Its window: internal only for the tests, which read that it stays on the screen.
     let window: EdgeWindow
@@ -174,9 +175,10 @@ final class NotchController: NSObject, CalloutShape {
         }
     }
 
-    /// One frame: the notch moved on to this time with the pointer where it is, drawn, and the clocks paced.
-    private func step(at time: Double) {
-        run.step(moment(at: time))
+    /// One frame: the notch moved on to this time with the pointer where it is, drawn, and the clocks paced. Internal
+    /// only for the tests, which give the pointer on the stage.
+    func step(at time: Double, pointer: CGPoint? = nil) {
+        run.step(moment(at: time, pointer: pointer))
         draw()
     }
 
@@ -203,25 +205,33 @@ final class NotchController: NSObject, CalloutShape {
         if let drained = shown.jumpDrained {
             caption.drained(at: drained)
         }
-        widen(run.asksShown(in: setting) != nil)
-        surface.draw(run, in: setting, mirror: edge.mirror(wide: isWide))
+        widen(run.asksShown != nil) { mirror in
+            surface.draw(run, in: setting, mirror: mirror)
+        }
 
-        let isPointedAt = pointer.map { run.hits($0, in: setting) } ?? false
+        let isPointedAt = pointer.map { run.hits($0) } ?? false
 
         window.takesClicks = run.drag != nil || isPointedAt
         onDrawn?(isPointedAt)
         pace(at: time)
     }
 
-    /// The window wide while the asks panel is open beside the panel, and back to the panel's once it closes: on the
-    /// right edge it grows into the screen, its stage mirrored across its new width.
-    private func widen(_ wide: Bool) {
+    /// The window wide while the asks panel is open beside the panel, and back to the panel's once it closes, a frame
+    /// drawn through its mirror. On the right edge it grows into the screen, its stage mirrored across its new width,
+    /// so all it draws moves in it: the window's new frame and the frame drawn into it go to the screen together, in
+    /// one transaction, the window's views laid out and displayed in it, the glass's too, and flushed at once.
+    private func widen(_ wide: Bool, drawing draw: (CGAffineTransform) -> Void) {
         guard wide != isWide else {
-            return
+            return draw(edge.mirror(wide: isWide))
         }
 
         isWide = wide
+        CATransaction.begin()
+        draw(edge.mirror(wide: wide))
         window.setFrame(edge.window(wide: wide), display: false)
+        window.displayIfNeeded()
+        CATransaction.commit()
+        CATransaction.flush()
     }
 
     /// The notch at rest at its home, from the edge to its front, on the screen, for what stands beside it: at the home
@@ -282,8 +292,8 @@ final class NotchController: NSObject, CalloutShape {
     /// A press on a row that jumps presses it in and jumps to its session, in place of any jump under way, and once the
     /// jump has jumped, the caption says where; on an eyebrow, its section folds or unfolds, kept; on the asks panel,
     /// an answer is held or taken back, or its Snooze offers the row's; anywhere else on the black, it may become a
-    /// drag (`NotchRun.press`).
-    private func press(at screenPoint: CGPoint) {
+    /// drag (`NotchRun.press`). Internal only for the tests.
+    func press(at screenPoint: CGPoint) {
         guard let point = edge.stagePoint(screenPoint) else {
             return
         }
@@ -307,9 +317,7 @@ final class NotchController: NSObject, CalloutShape {
     /// row's menu holds it while it shows. A choice snoozes the session, naming the asks its row showed, and closes the
     /// asks panel.
     private func snooze(_ session: Session, pressed: CGPoint) {
-        let setting = NotchRun.Setting.on(edge, settings)
-
-        guard let asks = run.asksShown(in: setting) else {
+        guard let asks = run.asksShown else {
             return
         }
 

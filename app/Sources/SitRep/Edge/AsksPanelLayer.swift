@@ -22,8 +22,12 @@ final class AsksPanelLayer {
     }
 
     /// The asks panel as the frame shows it, through the edge's mirror, its age and countdown as of `now` on the wall
-    /// clock; hidden while it is closed.
+    /// clock; hidden while it is closed. It shows, moves and closes at once, as a submenu does.
     func show(_ asks: AsksShown?, mirror: CGAffineTransform, now: Double) {
+        still { place(asks, mirror: mirror, now: now) }
+    }
+
+    private func place(_ asks: AsksShown?, mirror: CGAffineTransform, now: Double) {
         guard let asks else {
             layer.isHidden = true
             shown = nil
@@ -32,13 +36,11 @@ final class AsksPanelLayer {
 
         let pointsLeft = mirror.a < 0, asked = asks.ask.askedText(at: now)
 
-        still {
-            layer.isHidden = false
-            layer.frame = asks.frame.applying(mirror)
-            if !Self.drawsAlike(asks, shown) || drawnFor?.pointsLeft != pointsLeft || drawnFor?.asked != asked {
-                layer.sublayers = Self.parts(of: asks, pointsLeft: pointsLeft, now: now)
-                rescale(layer, to: scale)
-            }
+        layer.isHidden = false
+        layer.frame = asks.frame.applying(mirror)
+        if !Self.drawsAlike(asks, shown) || drawnFor?.pointsLeft != pointsLeft || drawnFor?.asked != asked {
+            layer.sublayers = Self.parts(of: asks, pointsLeft: pointsLeft, now: now)
+            rescale(layer, to: scale)
         }
         shown = asks
         drawnFor = (pointsLeft, asked)

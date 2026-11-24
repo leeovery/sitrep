@@ -230,4 +230,32 @@ struct AsksPanelDrawnTests {
         #expect(Self.brightest(0x2C2C31, in: left, of: drawn))
         #expect(Self.shows(0x2C2C31, at: CGPoint(x: undo.midX, y: undo.minY + 0.25), in: drawn))
     }
+
+    /// It shows, moves and closes at once, as a submenu does: nothing it changes asks for an animation, which Core
+    /// Animation does only outside a transaction that turns them off.
+    @Test func itShowsAndClosesAtOnce() {
+        let layout = AsksLayout(Self.choice, measure: AsksMeasure.drawn), panel = AsksPanelLayer()
+        let asks = AsksShown(
+            row: "needs:sr-nw0001", session: Self.helpDesk, ask: Self.choice, page: 0, pages: 2, layout: layout,
+            frame: CGRect(origin: .zero, size: layout.size), sending: nil, hover: nil
+        )
+        let asked = ActionsAsked()
+
+        panel.layer.delegate = asked
+        panel.show(asks, mirror: .identity, now: 0)
+        panel.show(nil, mirror: .identity, now: 0)
+
+        #expect(panel.layer.isHidden)
+        #expect(asked.keys.isEmpty)
+    }
+}
+
+/// The changes a layer asked its delegate for an animation for, by their keys.
+private final class ActionsAsked: NSObject, CALayerDelegate {
+    private(set) var keys: [String] = []
+
+    func action(for layer: CALayer, forKey event: String) -> CAAction? {
+        keys.append(event)
+        return nil
+    }
 }

@@ -44,7 +44,7 @@ final class NotchSurface: EdgeSurface<any NotchDrawing> {
         show(NotchScene(
             frame: run.frame, hover: run.seen.flatMap { run.item(at: $0, in: setting) }, scroll: run.scroll,
             time: run.time, now: now, mirror: mirror, calendar: run.calendar, arrows: run.arrows(in: setting),
-            asks: run.asksShown(in: setting)
+            asks: run.asksShown
         ))
         drawLight(run, at: run.lightTime(run.time), reducesMotion: setting.reducesMotion)
     }

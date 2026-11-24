@@ -29,9 +29,29 @@ struct AsksPanel {
         }
     }
 
+    /// What it shows, for a press to tell a change by: its session's ask, and whether an answer to it is held.
+    private struct Look: Equatable {
+        let session: String
+        let ask: String
+        let isSending: Bool
+
+        init(_ shown: AsksShown) {
+            session = shown.session.id
+            ask = shown.ask.id
+            isSending = shown.sending != nil
+        }
+    }
+
     private var open: Open?
     private var held: HeldAnswer?
     private var gone: Set<AskOf> = []
+    /// As the last frame placed it; nil while it is closed.
+    private(set) var shown: AsksShown?
+    /// Where it stands with the room to its row's arrow, and what the notch was last told of it, with the pointer then.
+    private var room: CGPath?
+    private var told: (room: CGPath, pointer: CGPoint?)?
+    private var look: Look?
+    private var lookedAt = -Double.infinity
 
     /// The row it is open beside, by its key; nil while it is closed.
     var row: String? { open?.row }
@@ -104,34 +124,118 @@ struct AsksPanel {
         gone = gone.filter { gone in board.asks[gone.session]?.contains { $0.id == gone.ask } == true }
     }
 
-    /// The ask it shows, in its row's session, while it is open.
-    func shownAsk(in list: PanelList, _ board: PanelBoard) -> PanelAsk? {
-        page(in: list, board)?.asks[open?.page ?? 0]
+    /// Placed as a frame shows it (`shown`): beside its row as the panel and its scroll place the row on the stage,
+    /// laid out by `layout`, kept on the screen, the answer held to its ask sending, and the part of it under `pointer`
+    /// lit; with the room between it and its row's arrow; and, where what it shows changed, when, on the display's
+    /// clock.
+    mutating func place(
+        on ground: AsksGround, pointer: CGPoint?, at time: Double, layout: (PanelAsk) -> AsksLayout
+    ) {
+        shown = placed(on: ground, pointer: pointer, layout: layout)
+        room = shown.map { Self.room(of: $0, on: ground) }
+
+        let look = shown.map(Look.init)
+
+        if look != self.look {
+            self.look = look
+            lookedAt = time
+        }
     }
 
-    /// As a frame shows it: beside its row as the panel and its scroll place the row on the stage, laid out by
-    /// `layout`, kept on the screen, the answer held to its ask sending, and the part of it under `pointer` lit.
-    func shown(
-        in list: PanelList, _ board: PanelBoard, panel: Frame.Panel?, scroll: Double, pointer: CGPoint?,
-        on stage: Stage, mirror: CGAffineTransform, layout: (PanelAsk) -> AsksLayout
+    /// The room the notch is told the pointer is on (`Input.beside`): the asks panel and the room to its row's arrow;
+    /// or, where they went from under a pointer that has not moved since, as the asks panel closed or shrank, the room
+    /// they had, so that is no leave until the pointer moves.
+    mutating func beside(_ pointer: CGPoint?) -> CGPath? {
+        if let told, let pointer, told.pointer == pointer, told.room.contains(pointer),
+           room?.contains(pointer) != true {
+            return told.room
+        }
+
+        told = room.map { (room: $0, pointer: pointer) }
+        return room
+    }
+
+    /// What a press, or the pointer, at a point on the stage is on, on the asks panel as shown: while an answer is
+    /// held, no answer's row nor Ignore, as it takes no other.
+    func part(at point: CGPoint, mirror: CGAffineTransform) -> AsksPart? {
+        shown.flatMap { Self.part(of: $0, at: point, mirror: mirror, holding: isHolding) }
+    }
+
+    private static func part(
+        of shown: AsksShown, at point: CGPoint, mirror: CGAffineTransform, holding: Bool
+    ) -> AsksPart? {
+        guard shown.contains(point) else {
+            return nil
+        }
+
+        let part = shown.layout.part(at: shown.ownPoint(point, mirror: mirror), sending: shown.sending != nil)
+
+        switch part {
+        case .answer?, .ignore?:
+            return holding ? nil : part
+        case .inClaude?, .snooze?, .open?, .undo?, nil:
+            return part
+        }
+    }
+
+    /// Whether what it shows has stood long enough to take a press (`settle`): a press meant for the ask, or the
+    /// sending line, it showed a moment before never lands on what took its place.
+    func isSettled(at time: Double) -> Bool {
+        time - lookedAt >= Self.settle
+    }
+
+    /// How long, ms, what it shows stands before it takes a press.
+    static let settle = 300.0
+
+    private func placed(
+        on ground: AsksGround, pointer: CGPoint?, layout: (PanelAsk) -> AsksLayout
     ) -> AsksShown? {
-        guard let open, let panel, let page = page(in: list, board) else {
+        guard let open, let panel = ground.panel, let page = page(in: ground.list, ground.board) else {
             return nil
         }
 
         let ask = page.asks[open.page], laid = layout(ask)
-        let rowTop = panel.frame.minY + list.content.itemFrame(page.index).minY - scroll
-        let frame = laid.frame(besideRowAt: rowTop, on: stage)
+        let rowTop = panel.frame.minY + ground.list.content.drawnFrame(page.index).minY - ground.scroll
+        let frame = laid.frame(besideRowAt: rowTop, on: ground.stage)
         let sending = held.flatMap { Sending($0, to: ask, of: page.session.id) }
-        let hover = pointer.flatMap { point in
-            AsksShown.contains(point, in: frame)
-                ? laid.part(at: AsksShown.ownPoint(point, in: frame, mirror: mirror), sending: sending != nil) : nil
+        var shown = AsksShown(
+            row: open.row, session: page.session, ask: ask, page: open.page, pages: page.asks.count, layout: laid,
+            frame: frame, sending: sending, hover: nil
+        )
+
+        shown.hover = pointer.flatMap { Self.part(of: shown, at: $0, mirror: ground.mirror, holding: isHolding) }
+        return shown
+    }
+
+    /// The asks panel and the room between it and its row's arrow, the hull of the two facing each other: a pointer on
+    /// its way from the arrow crosses it, past the list's corner, as it does a Mac submenu's safe triangle; none where
+    /// the arrow is not before the asks panel.
+    private static func room(of asks: AsksShown, on ground: AsksGround) -> CGPath {
+        let room = CGMutablePath(), near = asks.frame.minX
+
+        room.addRect(asks.frame)
+        if let arrow = arrowBox(of: asks, on: ground), arrow.minX < near {
+            room.addLines(between: [
+                CGPoint(x: arrow.minX, y: arrow.minY), CGPoint(x: near, y: asks.frame.minY),
+                CGPoint(x: near, y: asks.frame.maxY), CGPoint(x: arrow.minX, y: arrow.maxY),
+            ])
+            room.closeSubpath()
+        }
+        return room
+    }
+
+    /// Its row's arrow on the stage, as the panel and its scroll place it.
+    private static func arrowBox(of asks: AsksShown, on ground: AsksGround) -> CGRect? {
+        guard let panel = ground.panel, let index = ground.list.index(of: asks.row) else {
+            return nil
         }
 
-        return AsksShown(
-            row: open.row, session: page.session, ask: ask, page: open.page, pages: page.asks.count, layout: laid,
-            frame: frame, sending: sending, hover: hover
-        )
+        let row = ground.list.content.drawnFrame(index)
+        let box = RowArrow.box(in: row.size).offsetBy(dx: row.minX, dy: row.minY)
+        let from = panel.stagePoint(box.origin, mirror: ground.mirror, scroll: ground.scroll)
+        let to = panel.stagePoint(CGPoint(x: box.maxX, y: box.maxY), mirror: ground.mirror, scroll: ground.scroll)
+
+        return CGRect(x: from.x, y: from.y, width: to.x - from.x, height: to.y - from.y).standardized
     }
 
     /// Its row, by its index in the list, its session and that session's asks, while it is open at a page they hold.
@@ -150,4 +254,15 @@ struct AsksPanel {
             held = nil
         }
     }
+}
+
+/// Where the asks panel stands at a frame: the list and the board it shows them from, the open panel and its scroll,
+/// and the screen and the edge's mirror.
+struct AsksGround {
+    let list: PanelList
+    let board: PanelBoard
+    let panel: Frame.Panel?
+    let scroll: Double
+    let stage: Stage
+    let mirror: CGAffineTransform
 }

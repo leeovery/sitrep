@@ -104,7 +104,8 @@ final class TextLine: CALayer {
     }
 
     /// The text broken into lines as wide as `width` at most, where Core Text breaks them, `most` of them at most: the
-    /// last holds the rest, for its line to cut short. None for no text.
+    /// last holds the rest, for its line to cut short. Each line ends at its last word, the space Core Text breaks
+    /// after left off, so a line set at its right reaches its edge. None for no text.
     static func wrapped(_ text: NSAttributedString, width: CGFloat, most: Int) -> [NSAttributedString] {
         let typesetter = CTTypesetterCreateWithAttributedString(text)
         var lines: [NSAttributedString] = [], start = 0
@@ -113,10 +114,22 @@ final class TextLine: CALayer {
             let rest = text.length - start
             let count = lines.count == most - 1 ? rest : max(1, CTTypesetterSuggestLineBreak(typesetter, start, width))
 
-            lines.append(text.attributedSubstring(from: NSRange(location: start, length: count)))
+            lines.append(trimmedEnd(text.attributedSubstring(from: NSRange(location: start, length: count))))
             start += count
         }
         return lines
+    }
+
+    /// A line without the white space at its end.
+    private static func trimmedEnd(_ line: NSAttributedString) -> NSAttributedString {
+        let characters = line.string as NSString
+        var end = characters.length
+
+        while end > 0, let last = Unicode.Scalar(characters.character(at: end - 1)),
+              CharacterSet.whitespacesAndNewlines.contains(last) {
+            end -= 1
+        }
+        return line.attributedSubstring(from: NSRange(location: 0, length: end))
     }
 
     /// How far down a line of `lower` sits in a line box as tall as one of `upper`'s for their baselines to meet, as

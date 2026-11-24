@@ -240,15 +240,3 @@ public enum RowArrow {
         return path
     }
 }
-
-extension Frame.Panel {
-    /// A point on the content as near this one as leaves the notch still: inside the clip by more than its corners and
-    /// the cling's reach, so the edge neither bows nor stretches for it. What the model is told the pointer is while it
-    /// is on the asks panel, so the panel stays open as it would under the pointer on the list.
-    public func held(_ point: CGPoint) -> CGPoint {
-        let inset = max(topRadius, bottomRadius, Tuning.clingNear) + 1
-        let y = clip.height > 2 * inset ? clamp(point.y, clip.minY + inset, clip.maxY - inset) : clip.midY
-
-        return CGPoint(x: clamp(point.x, clip.minX, max(clip.minX, clip.maxX - inset)), y: y)
-    }
-}

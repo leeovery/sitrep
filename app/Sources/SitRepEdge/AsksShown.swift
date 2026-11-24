@@ -19,7 +19,7 @@ public struct AsksShown: Equatable, Sendable {
     /// The answer held for its ask, counting down; nil while none is.
     public let sending: Sending?
     /// What the pointer is on, where it takes a click.
-    public let hover: AsksPart?
+    public internal(set) var hover: AsksPart?
 
     /// Whether a point on the stage is on it, its corners rounded.
     public func contains(_ point: CGPoint) -> Bool {
