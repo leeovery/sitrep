@@ -229,7 +229,7 @@ const answer: SessionCommand = {
       { field: 'ask', about: "the ask's id, as the board lists it" },
       {
         field: 'answer',
-        about: "a yes ask's yes, in its words, one of a choice ask's options, or a words ask's words",
+        about: "a yes ask's yes, one of a choice ask's options, or a words ask's words",
         or: 'ignore',
       },
     ],

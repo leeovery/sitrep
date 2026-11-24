@@ -752,7 +752,7 @@ export const checkDrop = (session: Session, id: string): Checked<DropBody> => {
     : refuse('your pick-up of it is on its way to Claude.')
 }
 
-/** The words a yes or a choice ask is answered in outside Claude Code: its yes, or one of its options; none for words. */
+/** The words a yes or a choice ask is answered in outside Claude Code: its yes, or one of its options. A words ask takes its own path, `wordsGiven`. */
 const answersOf = (ask: Ask): readonly string[] => {
   switch (ask.wants) {
     case 'yes':
@@ -879,7 +879,7 @@ const askAnswered = (
 /**
  * Lee's answer to an ask of the session, as the CLI gives it from outside
  * Claude Code: a yes in its button's words, or one of a choice's options,
- * as the board shows them; a words ask's words, on one line; or, `ignore`,
+ * as the board shows them; a words ask's words, on one line; or, given `--ignore`,
  * Lee's ignore, which any ask takes. A comment and a permission prompt need
  * Claude Code's prompt.
  * Refused in a finished session, whose asks wait on Lee no more; while the
