@@ -23,7 +23,7 @@ An ask waits in the pane with its buttons, so you answer it without finding the 
 
 ## Good to know
 
-- **SitRep, the Mac app, doesn't answer.** It snoozes and wakes a session, and a click takes you to the window. You answer there, from the pane. To answer from a shell, use `sitrep answer`, in [The `sitrep` command](cli.md).
+- **SitRep, the Mac app, answers too.** Answer from the notch, or from the banner for a new ask: see [Answering from the edge of your screen](answering-edge.md). From a shell, use `sitrep answer`, in [The `sitrep` command](cli.md).
 - **A comment on its own leaves the ask open.** Every other reply closes it, `✕ ignore` included. An ignore tells Claude you've seen the ask and won't act on it.
 - **The prompt must be empty to answer.** If a draft is there, the pane refuses, so its Enter can't send the wrong words.
 - **An image waits in Ready to send too.** SitRep saves it as a file for Claude, and clears it after 14 days. If saving fails, the answer goes at once, to this window's session only.

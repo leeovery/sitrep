@@ -56,7 +56,7 @@ A project with nothing current but parked items shows `no current sessions (1 pa
 | `status` | Sets where a session stands, giving only what changed |
 | `ask <title>` | Posts an ask, and prints its id |
 | `park <title>` | Parks an item on the session's project, and prints its id |
-| `answer <ask> <answer>` | Answers a yes or a choice ask, the way you would on the board |
+| `answer <ask> <answer>` | Answers a yes, a choice or a words ask, the way you would on the board |
 | `snooze <ask>...` | Snoozes a session, until a time or until it moves |
 | `wake` | Wakes a snoozed session now |
 | `finish` | Finishes a session no window is running |
