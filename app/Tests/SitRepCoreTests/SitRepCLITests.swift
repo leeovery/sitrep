@@ -136,6 +136,43 @@ struct SitRepCLITests {
         #expect(programs.all.map(\.arguments) == [["wake", "--session", "sr-4t2kq8"]])
     }
 
+    @Test func answerRunsAnswerOfTheAskOfTheSessionWithItsWords() async {
+        let (cli, programs) = Self.cli(Self.exited(0))
+
+        #expect(await cli.answer("k2", of: "sr-4t2kq8", with: .words("By change")) == .written)
+        #expect(programs.all.map(\.arguments) == [["answer", "--session", "sr-4t2kq8", "--", "k2", "By change"]])
+        #expect(programs.all.map(\.limit) == [10])
+    }
+
+    /// The CLI reads `-h` or `--help` before `--` as a call for its help, writing nothing, and any other `--word` as a
+    /// flag: the answer's words come after `--`, each answer one word, whole.
+    @Test(arguments: ["--force", "-h", "run ls -h", "--help me", "--"])
+    func anAnswersWordsComeWholeAfterTheDashes(words: String) async {
+        let (cli, programs) = Self.cli(Self.exited(0))
+
+        _ = await cli.answer("k3", of: "sr-4t2kq8", with: .words(words))
+
+        #expect(programs.all.map(\.arguments) == [["answer", "--session", "sr-4t2kq8", "--", "k3", words]])
+    }
+
+    @Test func anIgnoreRunsAnswerOfTheAskWithIgnoreAndNoWords() async {
+        let (cli, programs) = Self.cli(Self.exited(0))
+
+        #expect(await cli.answer("k1", of: "sr-4t2kq8", with: .ignore) == .written)
+        #expect(programs.all.map(\.arguments) == [["answer", "--session", "sr-4t2kq8", "--ignore", "--", "k1"]])
+    }
+
+    @Test func anAnswerRefusedGivesTheCLIsWords() async {
+        let (cli, _) = Self.cli(Self.exited(1, stderr: "sitrep: k1 is answered already: its answer is on its way.\n"))
+
+        #expect(await cli.answer("k1", of: "sr-4t2kq8", with: .words("Approve")) == .refused(
+            "k1 is answered already: its answer is on its way."
+        ))
+        #expect(await cli.answer("k1", of: "sr-4t2kq8", with: .ignore) == .refused(
+            "k1 is answered already: its answer is on its way."
+        ))
+    }
+
     @Test(arguments: [
         "Tailspin is not snoozed.", "An ask waits on you that the snooze did not name: look at it, then snooze again.",
     ])

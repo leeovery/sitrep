@@ -1,17 +1,24 @@
 import Foundation
 import os
 
-/// What `sitrep snooze` or `wake` came to: written, or refused in the CLI's words, with nothing written.
+/// What `sitrep answer`, `snooze` or `wake` came to: written, or refused in the CLI's words, with nothing written.
 public enum WriteAnswer: Sendable, Equatable {
     case written
     case refused(String)
 }
 
+/// Lee's answer to an ask: a yes, one of a choice's options or a words ask's words, as the CLI takes them; or his
+/// ignore, which any ask takes.
+public enum Answer: Sendable, Hashable {
+    case words(String)
+    case ignore
+}
+
 /// The plugin's CLI, `<plugin>/bin/sitrep`, run as a child with Lee's PATH.
-/// The app watches the board through it, and writes only what the card's row menu does: Lee's snoozes and wakes. It
+/// The app watches the board through it, and writes only what its surfaces do: Lee's answers, snoozes and wakes. It
 /// jumps itself (SitRepScreen's `Jump`), as the CLI no longer does.
 public struct SitRepCLI: Sendable {
-    /// `snooze` and `wake` read and write one session's files, and run no program.
+    /// `answer`, `snooze` and `wake` read and write one session's files, and run no program.
     static let sessionLimit: TimeInterval = 10
 
     private static let logger = Logger(sitrep: "cli")
@@ -44,6 +51,20 @@ public struct SitRepCLI: Sendable {
         return written(await sitrep(words, limit: Self.sessionLimit), by: "snooze")
     }
 
+    /// Answers an ask of the session, or ignores it, into the session's inbox. The ask and the answer come after `--`,
+    /// as the CLI reads a `--name` word before it as a flag, and `-h` or `--help` as a call for its help, so words such
+    /// as `--force` or `ls -h` arrive whole. The answer's words, which can be anything Lee typed, are never logged.
+    public func answer(_ ask: String, of session: String, with answer: Answer) async -> WriteAnswer {
+        let ended = switch answer {
+        case let .words(given):
+            await sitrep(["answer", "--session", session, "--", ask], unlogged: [given], limit: Self.sessionLimit)
+        case .ignore:
+            await sitrep(["answer", "--session", session, "--ignore", "--", ask], limit: Self.sessionLimit)
+        }
+
+        return written(ended, by: "answer")
+    }
+
     /// Wakes the session now: everything Lee snoozed of it needs him again.
     public func wake(_ session: String) async -> WriteAnswer {
         written(await sitrep(["wake", "--session", session], limit: Self.sessionLimit), by: "wake")
@@ -63,10 +84,10 @@ public struct SitRepCLI: Sendable {
         }
     }
 
-    /// The CLI run on the words given; a run that exits other than 0 is a failure, as one that never ends is. Ended
-    /// early, it is killed with its process group.
-    private func sitrep(_ words: [String], limit: TimeInterval) async -> Ended {
-        let program = await self.program(words, limit: limit)
+    /// The CLI run on the words given, then the `unlogged`, which its log line leaves out; a run that exits other than 0
+    /// is a failure, as one that never ends is. Ended early, it is killed with its process group.
+    private func sitrep(_ words: [String], unlogged: [String] = [], limit: TimeInterval) async -> Ended {
+        let program = await self.program(words + unlogged, limit: limit)
         let clock = ContinuousClock()
         let started = clock.now
         let ended: Ended

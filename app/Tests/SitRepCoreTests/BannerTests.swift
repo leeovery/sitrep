@@ -10,6 +10,12 @@ struct BannerTests {
         #expect(banner == Banner(title: "SitRep could not jump", subtitle: nil, body: "Wingtip is not on screen: no Ghostty window shows it.", work: nil))
     }
 
+    @Test func anAnswerRefusedSaysNotAnsweredInTheCLIsWordsAndJumpsNowhere() {
+        #expect(Banner.unanswered("k1 is answered already.") == Banner(
+            title: "Not answered", subtitle: nil, body: "k1 is answered already.", work: nil
+        ))
+    }
+
     @Test func aJumpGivenNoAnswerInTimeSaysTheMacIsTooBusy() {
         #expect(Banner.tooBusy == Banner(
             title: "SitRep could not jump", subtitle: nil, body: "The Mac is too busy to jump.", work: nil
