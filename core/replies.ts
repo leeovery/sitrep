@@ -180,9 +180,9 @@ export const isUntilItMoves = (session: Pick<Session, 'snooze' | 'finished'>) =>
 
 /**
  * Whether an ask is snoozed, on Lee's side: waiting on Lee, with Lee's
- * snooze of its session holding on it. One Lee's reply is on its way to
- * waits on Lee no more, and is no longer snoozed either, though the snooze
- * stands.
+ * snooze of it, or of its session, holding on it. One Lee's reply is on
+ * its way to waits on Lee no more, and is no longer snoozed either, though
+ * the snooze stands.
  */
 export const isSnoozed = (ask: Ask): ask is SnoozedAsk =>
   waitsOnLee(ask) && ask.snoozedUntil !== undefined

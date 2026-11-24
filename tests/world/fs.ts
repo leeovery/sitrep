@@ -14,6 +14,18 @@ export const manifestOf = (version: unknown) =>
 /** The kinds of look the mod takes at a path. */
 type Look = 'read' | 'exists' | 'list'
 
+/** What happens once, at a moment a test picks. */
+type Act = { act: () => void | Promise<void> }
+
+/** Runs the first act `isIt` picks, once, and lets it go. */
+const actOnce = async <T extends Act>(acts: T[], isIt: (each: T) => boolean) => {
+  const at = acts.findIndex(isIt)
+
+  if (at !== -1) {
+    await acts.splice(at, 1)[0]?.act()
+  }
+}
+
 const MISSING = (path: string) => ({ deny: missing(path) })
 
 /** The removal of saved attachments, before the paths it removes. */
@@ -48,15 +60,13 @@ export function disk(on: On, clock: MockClock) {
   /** The plugin's manifest; none, as one that cannot be read. */
   let manifest: string | undefined = manifestOf(PLUGIN_VERSION)
   /** What happens once, right after the mod's next look of a kind at a path is answered. */
-  const afterwards: { look: Look; path: string; act: () => void | Promise<void> }[] = []
+  const afterwards: (Act & { look: Look; path: string })[] = []
+  /** What happens once, right before the mod's next write to a path lands. */
+  const beforehand: (Act & { path: string })[] = []
 
   /** Answers the mod's look at `path`, once whatever was to happen right after it has. */
   const answered = async <T>(look: Look, path: string, answer: T) => {
-    const at = afterwards.findIndex(each => each.look === look && each.path === path)
-
-    if (at !== -1) {
-      await afterwards.splice(at, 1)[0]?.act()
-    }
+    await actOnce(afterwards, each => each.look === look && each.path === path)
 
     return answer
   }
@@ -71,7 +81,9 @@ export function disk(on: On, clock: MockClock) {
     return answered('read', e.path, text === undefined ? MISSING(e.path) : { value: text })
   })
 
-  on('fs.write', ($, e) => {
+  on('fs.write', async ($, e) => {
+    await actOnce(beforehand, each => each.path === e.path)
+
     if (isRefused?.(e.path)) {
       return { deny: `EIO: i/o error, write ${e.path}` }
     }
@@ -176,7 +188,8 @@ export function disk(on: On, clock: MockClock) {
       manifest = text
     },
     /** Runs `act` once, right after the mod's next look of the kind at `path` is answered: as another writer writing at that moment. */
-    after: (look: Look, path: string, act: () => void | Promise<void>) =>
-      afterwards.push({ look, path, act }),
+    after: (look: Look, path: string, act: Act['act']) => afterwards.push({ look, path, act }),
+    /** Runs `act` once, right before the mod's next write to `path` lands: as a disk slow to take it. */
+    beforeWrite: (path: string, act: Act['act']) => beforehand.push({ path, act }),
   }
 }

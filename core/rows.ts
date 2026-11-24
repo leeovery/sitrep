@@ -476,15 +476,28 @@ const oldTurnSnooze = (session: Session, end: number, now: number): Waking | und
   return now < snooze.until ? { wakesAt: snooze.until } : undefined
 }
 
+/**
+ * The turn that ended at `end` put off with Lee's snoozes of asks, each its
+ * own: only the turn standing as he wrote the snooze that completed them,
+ * so a turn ending after it is a new need, as with an old line's snooze of
+ * a turn.
+ */
+const turnWithAsksOn = (session: Session, end: number): Waking | undefined => {
+  const sleep = session.turnWithAsks
+
+  return sleep === undefined || end > sleep.at ? undefined : { wakesAt: sleep.until }
+}
+
 /** A session's turn Lee put off: when it ended, and when it wakes, none for one until it moves. */
 export type SnoozedTurn = Waking & { end: number }
 
 /**
  * A session's turn Lee put off at `now`: it stands at your turn while his
  * snooze of the session holds, on whatever turn, since a turn ending alone
- * never wakes it; while an old line's snooze of that turn holds; or while
- * old lines' snoozes hold every ask waiting on him. Of several, it wakes as
- * the latest does.
+ * never wakes it; while an old line's snooze of that turn holds; or, the
+ * turn standing as he wrote the last of them, while his snoozes of asks,
+ * each its own, hold every ask waiting on him. Of several, it wakes as the
+ * latest does.
  */
 export const snoozedTurnOf = (session: Session, now: number): SnoozedTurn | undefined => {
   const end = turnEndOf(session, now)
@@ -497,17 +510,25 @@ export const snoozedTurnOf = (session: Session, now: number): SnoozedTurn | unde
   const waking = latestWaking([
     until === undefined ? undefined : wakingAt(until),
     oldTurnSnooze(session, end, now),
-    session.turnWithAsks === undefined ? undefined : { wakesAt: session.turnWithAsks },
+    turnWithAsksOn(session, end),
   ])
 
   return waking === undefined ? undefined : { ...waking, end }
 }
 
-/** Whether anything Lee snoozed of a session holds at `now`: his snooze of it, one of its asks, or its turn. */
-export const isAsleepAt = (session: Session, now: number) =>
-  snoozedUntilOf(session, now) !== undefined ||
-  snoozedAsks(session).length > 0 ||
-  snoozedTurnOf(session, now) !== undefined
+/**
+ * Whether Lee's snooze of a session holds at `now`, or an old line's of its
+ * turn: what his own prompt in its window wakes. His snooze of one ask is
+ * none of it: he put that one off alone, working on the rest.
+ */
+export const isSessionAsleepAt = (session: Session, now: number) => {
+  const end = turnEndOf(session, now)
+
+  return (
+    snoozedUntilOf(session, now) !== undefined ||
+    (end !== undefined && oldTurnSnooze(session, end, now) !== undefined)
+  )
+}
 
 /** A turn put off, as its line in Snoozed: keyed as its turn's row is, saying what Claude left Lee as that row does, since the turn's end. */
 const snoozedTurnLine = (session: Session, { end, wakesAt }: SnoozedTurn): SnoozedLine => ({

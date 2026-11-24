@@ -1781,34 +1781,69 @@ test("a session's fold next changes as Lee's snooze of it runs out, though an as
 const turnAt = (now: number, snoozes: Line[], presence = onTurn(TURN, now)) =>
   sessionOf({ lines: [LEFT, ...snoozes], presence }, now)
 
-/** Both asks put off by old lines, written together, and the session at its turn. */
-const OLD_ROW: Line[] = [
+/** Both asks put off, each on its own, written together a minute into Lee's turn. */
+const EACH_ALONE: Line[] = [
   LEFT,
   [T0, yesAsk('k1', 'Review round 1')],
   [T0, yesAsk('k2', 'Ship it')],
-  [T0 + MIN, snooze('k1', WAKES)],
-  [T0 + MIN, snooze('k2', WAKES_LATER)],
+  [TURN + MIN, snooze('k1', WAKES)],
+  [TURN + MIN, snooze('k2', WAKES_LATER)],
 ]
 
-test("old lines' snoozes of every ask waiting on Lee put its turn off with them, in one row, until the first wakes or closes; an ask left showing leaves its row in Needs you", () => {
+test("Lee's snoozes of every ask waiting on him, each its own, put his turn off with them, in one row, until the first wakes or closes; an ask left showing leaves its row in Needs you", () => {
   const then = (now: number, lines: Line[]) =>
     placed(feedAt(now, sessionOf({ lines, presence: onTurn(TURN, now) }, now)))
 
-  expect(then(NOW, OLD_ROW)).toEqual({ rows: [], snoozed: [K1, TURN_KEY, K2] })
+  expect(then(NOW, EACH_ALONE)).toEqual({ rows: [], snoozed: [K1, TURN_KEY, K2] })
   expect(
-    snoozedTurnOf(sessionOf({ lines: OLD_ROW, presence: onTurn() }), NOW),
+    snoozedTurnOf(sessionOf({ lines: EACH_ALONE, presence: onTurn() }), NOW),
     'waking as the first does',
   ).toEqual({ wakesAt: WAKES, end: TURN })
-  expect(then(WAKES, OLD_ROW), 'the first woken').toEqual({ rows: [K1], snoozed: [K2] })
-  expect(then(NOW, [...OLD_ROW, [T0 + 2 * MIN, resolve('k1')]]), 'the first resolved').toEqual({
+  expect(then(WAKES, EACH_ALONE), 'the first woken').toEqual({ rows: [K1], snoozed: [K2] })
+  expect(then(NOW, [...EACH_ALONE, [TURN + 2 * MIN, resolve('k1')]]), 'the first resolved').toEqual({
     rows: [TURN_KEY],
     snoozed: [K2],
   })
-  expect(then(NOW, [...OLD_ROW, [T0 + 2 * MIN, wake('k1')]]), 'the first woken by Lee').toEqual({
+  expect(then(NOW, [...EACH_ALONE, [TURN + 2 * MIN, wake('k1')]]), 'the first woken by Lee').toEqual({
     rows: [K1],
     snoozed: [K2],
   })
-  expect(then(NOW, OLD_ROW.slice(0, -1)), 'k2 left showing').toEqual({ rows: [K2], snoozed: [K1] })
+  expect(then(NOW, EACH_ALONE.slice(0, -1)), 'k2 left showing').toEqual({ rows: [K2], snoozed: [K1] })
+})
+
+test("an ask Lee snoozed on its own, as the pane does, leaves its session's row in Needs you with the ask still waiting, beside its row in Snoozed holding that ask's line alone; the session's only ask, it puts the turn standing off too, both back at its time", () => {
+  const feedThen = (now: number, lines: Line[], end = TURN) =>
+    feedAt(now, sessionOf({ lines, presence: onTurn(end, now) }, now))
+  const beside = feedThen(NOW, EACH_ALONE.slice(0, -1))
+  const only: Line[] = [LEFT, [T0, yesAsk('k1', 'Review round 1')], [TURN + MIN, snooze('k1', WAKES)]]
+
+  expect(beside.rows).toMatchObject([{ section: 'needsYou', lines: [{ key: K2 }] }])
+  expect(beside.snoozed).toMatchObject([
+    { session: META.id, wakesAt: WAKES, lines: [{ key: K1, is: 'ask', ask: 'k1', wakesAt: WAKES }] },
+  ])
+  expect(placed(feedThen(NOW, only))).toEqual({ rows: [], snoozed: [K1, TURN_KEY] })
+  expect(placed(feedThen(WAKES, only)), 'at its time').toEqual({ rows: [K1], snoozed: [] })
+})
+
+test("the turn sleeps with Lee's snoozes of asks only while it is the turn standing as he wrote the last of them: a turn ending after is a new need, on Your turn, the ask asleep still; one that ended before it, his turn then, sleeps", () => {
+  const only = (at: number): Line[] => [
+    LEFT,
+    [T0, yesAsk('k1', 'Review round 1')],
+    [at, snooze('k1', WAKES)],
+  ]
+  const then = (snoozedAt: number, end: number) =>
+    placed(feedAt(NOW, sessionOf({ lines: only(snoozedAt), presence: onTurn(end, NOW) }, NOW)))
+
+  expect(then(TURN + MIN, TURN), 'the turn standing').toEqual({ rows: [], snoozed: [K1, TURN_KEY] })
+  expect(then(TURN + MIN, TURN + 20 * MIN), 'a turn ending after').toEqual({
+    rows: [TURN_KEY],
+    snoozed: [K1],
+  })
+  expect(then(TURN - MIN, TURN), 'snoozed while Claude was still working').toEqual({
+    rows: [TURN_KEY],
+    snoozed: [K1],
+  })
+  expect(then(TURN, TURN), 'written as the turn ended').toEqual({ rows: [], snoozed: [K1, TURN_KEY] })
 })
 
 test('a row snoozed until it moves, its Claude still working, has no time to wake at, nor one the board next changes by; the wake its turn ending writes brings it back, the ask winning its row', () => {

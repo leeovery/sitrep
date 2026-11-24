@@ -78,6 +78,8 @@ export type Host = {
   }
   clock: {
     now: () => Promise<number>
+    /** Resolves after `ms`, rejecting at once once `signal` aborts: the hook's own time, its budget running on through it. */
+    sleep: (ms: number, signal?: AbortSignal) => Promise<void>
     after: (ms: number, task: () => void) => Timer
     every: (ms: number, task: () => void) => Timer
   }
@@ -171,3 +173,23 @@ export const bearingsOf = async (host: Host): Promise<Bearings> => ({
 /** Writes to the debug log what failed where nothing waits on it, as a timer's work. */
 export const logFailure = (host: Host, what: string) => (error: unknown) =>
   host.log(`sitrep: ${what} failed: ${error instanceof Error ? error.message : String(error)}`)
+
+/**
+ * A timer's tick that skips while its last run is still under way, queued
+ * or running, so a busy Mac slows the timer rather than stacking its runs
+ * up for every tool call to wait behind. `run` logs its own failure.
+ */
+export const oneAtATime = (run: () => Promise<unknown>) => {
+  let isUnderWay = false
+
+  return () => {
+    if (isUnderWay) {
+      return
+    }
+
+    isUnderWay = true
+    void run().finally(() => {
+      isUnderWay = false
+    })
+  }
+}
