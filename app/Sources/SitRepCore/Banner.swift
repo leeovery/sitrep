@@ -1,15 +1,55 @@
-/// A banner's words, and the session clicking it jumps to, if any.
+/// A banner's words, the session clicking it jumps to, if any, and the ask its buttons answer, if any.
 public struct Banner: Equatable, Sendable {
+    /// An ask a new ask's banner answers with the buttons macOS draws (DESIGN, "The menu bar", "Its buttons"): its id,
+    /// its session, and what it wants back.
+    public struct Ask: Equatable, Sendable {
+        public enum Wants: Equatable, Sendable {
+            /// One button, its yes.
+            case yes(String)
+            /// A button for each option, in Claude's order.
+            case choice([String])
+            /// Reply, macOS's text field, with Send.
+            case words
+        }
+
+        public let id: String
+        public let session: String
+        public let wants: Wants
+
+        public init(id: String, session: String, wants: Wants) {
+            self.id = id
+            self.session = session
+            self.wants = wants
+        }
+
+        /// The board's ask, as its banner answers it; nil for a choice with no options to choose from, whose banner
+        /// has no buttons.
+        public init?(_ ask: Board.Ask, of session: String) {
+            switch (ask.wants, ask.yes) {
+            case let (.yes, yes?): wants = .yes(yes)
+            case (.choice, _) where !ask.options.isEmpty: wants = .choice(ask.options)
+            case (.words, _): wants = .words
+            default: return nil
+            }
+
+            id = ask.id
+            self.session = session
+        }
+    }
+
     public let title: String
     public let subtitle: String?
     public let body: String
     public let work: String?
+    /// The ask its buttons answer; nil for every other banner, which has none.
+    public let ask: Ask?
 
-    public init(title: String, subtitle: String?, body: String, work: String?) {
+    public init(title: String, subtitle: String?, body: String, work: String?, ask: Ask? = nil) {
         self.title = title
         self.subtitle = subtitle
         self.body = body
         self.work = work
+        self.ask = ask
     }
 
     /// A jump that failed, in the words of its refusal.

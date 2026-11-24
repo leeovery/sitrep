@@ -22,6 +22,7 @@ final class Banners {
     /// The ids of the requests the helper has yet to answer: internal only for the tests.
     var unanswered: Set<String> { Set(answers.keys) }
     private var onClick: (String, @escaping () -> Void) -> Void = { _, _ in }
+    private var onAnswer: (NoticeAnswer) -> Void = { _ in }
 
     init(
         pid: Int32, send: @escaping (Letter<ToHelper>) -> Void, helperApp: HelperStarting,
@@ -34,10 +35,14 @@ final class Banners {
     }
 
     /// Clicks told to `onClick`, with the session and what hands the front back should nothing come forward, its jump
-    /// refused or a window already opening; SitRep says it listens, and starts the helper. Before launching ends, so a
-    /// click that started SitRep, held by the helper, is heard.
-    func start(onClick: @escaping (_ work: String, _ handBack: @escaping () -> Void) -> Void) {
+    /// refused or a window already opening, and a banner's answers to `onAnswer`; SitRep says it listens, and starts
+    /// the helper. Before launching ends, so a click or an answer that started SitRep, held by the helper, is heard.
+    func start(
+        onClick: @escaping (_ work: String, _ handBack: @escaping () -> Void) -> Void,
+        onAnswer: @escaping (NoticeAnswer) -> Void
+    ) {
         self.onClick = onClick
+        self.onAnswer = onAnswer
         say(.ready)
         helperApp.open()
     }
@@ -51,6 +56,7 @@ final class Banners {
         switch message {
         case let .ready(helper): helperListens(helper)
         case let .clicked(work): clicked(work, from: listening)
+        case let .answered(answer): onAnswer(answer)
         case let .status(leave, id): answer(id, leave)
         }
     }
@@ -74,7 +80,10 @@ final class Banners {
     }
 
     func post(_ banner: Banner) {
-        deliver(.post(Notice(title: banner.title, subtitle: banner.subtitle, body: banner.body, work: banner.work)))
+        deliver(.post(Notice(
+            title: banner.title, subtitle: banner.subtitle, body: banner.body, work: banner.work,
+            ask: banner.ask.map(NoticeAsk.init)
+        )))
     }
 
     /// What macOS lets SitRep do with notifications; nil when the helper does not answer in time.
@@ -159,6 +168,18 @@ final class Banners {
 
     private func say(_ message: ToHelper) {
         send(Letter(message, pid: pid))
+    }
+}
+
+private extension NoticeAsk {
+    init(_ ask: Banner.Ask) {
+        let wants: Wants = switch ask.wants {
+        case let .yes(yes): .yes(yes)
+        case let .choice(options): .choice(options)
+        case .words: .words
+        }
+
+        self.init(id: ask.id, session: ask.session, wants: wants)
     }
 }
 

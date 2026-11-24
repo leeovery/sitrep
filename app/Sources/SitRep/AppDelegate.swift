@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         preferences.app.openSettings
     }
     private lazy var snoozes = Snoozes(plugin: plugin, post: banners.post)
+    private lazy var answers = Answers(plugin: plugin, post: banners.post)
     private let feed = Feed()
     /// The plugin folder `watch` runs on; nil before it first starts.
     private var watching: String?
@@ -30,11 +31,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var welcome: WelcomeWindow?
     private var quitOnSignal: QuitOnSignal?
 
-    /// The notices helper is listened to before launching ends, so a click that starts the app is heard; and a SIGTERM
-    /// quits as Quit SitRep does.
+    /// The notices helper is listened to before launching ends, so a click or a banner's answer that starts the app is
+    /// heard; and a SIGTERM quits as Quit SitRep does.
     func applicationWillFinishLaunching(_ notification: Notification) {
         quitOnSignal = QuitOnSignal()
-        banners.start { [works] work, handBack in works.jump(to: work, handBack: handBack) }
+        banners.start(
+            onClick: { [works] work, handBack in works.jump(to: work, handBack: handBack) },
+            onAnswer: { [answers] in answers.send($0) }
+        )
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {

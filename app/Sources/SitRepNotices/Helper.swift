@@ -24,8 +24,8 @@ protocol SitRepApp {
 /// The helper's work, between SitRep and macOS's notifications. A click activates the helper, which has no window, so
 /// macOS has no Space to take Lee to; the helper relays it, and SitRep jumps as from any other click. A click that
 /// started the helper while SitRep was not running starts SitRep, and is held until SitRep says it listens. A click on
-/// a banner naming no session hands the front back, as nothing jumps, as does a click whose jump SitRep refused. The
-/// helper quits as its SitRep ends.
+/// a banner naming no session hands the front back, as nothing jumps, as does a click whose jump SitRep refused. A
+/// banner's answer is relayed, or held, as a click is. The helper quits as its SitRep ends.
 @MainActor
 final class Helper {
     /// The helper's own app.
@@ -44,8 +44,8 @@ final class Helper {
     /// The pid of the SitRep it serves, once found or started.
     private var pid: Int32?
     private var isSitRepListening = false
-    /// Clicks heard before SitRep listens, in order.
-    private var held: [String] = []
+    /// Clicks and answers heard before SitRep listens, in order.
+    private var held: [ToSitRep] = []
     /// The banner being posted, the next waiting on it, so they show in the order SitRep sent them.
     private var posting: Task<Void, Never>?
 
@@ -96,21 +96,31 @@ final class Helper {
             return own.handBack()
         }
 
-        if isSitRepListening {
-            relay(.clicked(work: work))
-        } else {
-            held.append(work)
-        }
+        relayOrHold(.clicked(work: work))
     }
 
-    /// SitRep's `ready` answered with the helper's, as SitRep may have missed it, and the clicks held handed on. Each
+    /// A banner's button pressed, or words sent from its Reply: relayed to SitRep, which sends it, or held until it
+    /// listens. Nothing comes forward, so the front stays where it is.
+    func answered(_ answer: NoticeAnswer) {
+        relayOrHold(.answered(answer))
+    }
+
+    /// SitRep's `ready` answered with the helper's, as SitRep may have missed it, and what was held handed on. Each
     /// is answered, as SitRep says it again while it has not heard the helper; SitRep answers only a helper's first,
     /// so the two stop.
     private func sitRepListens() {
         isSitRepListening = true
         relay(.ready(helper: own.pid))
-        held.forEach { relay(.clicked(work: $0)) }
+        held.forEach(relay)
         held = []
+    }
+
+    private func relayOrHold(_ message: ToSitRep) {
+        if isSitRepListening {
+            relay(message)
+        } else {
+            held.append(message)
+        }
     }
 
     private func post(_ notice: Notice) {

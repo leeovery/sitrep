@@ -1,13 +1,13 @@
 import SitRepCore
 
 /// The macOS notifications a board sends (DESIGN, "Settings", Notifications), each silent, a click jumping to its
-/// session: one for each ask new on it, with its title, then its project and session; and one for each session it
-/// moved into Lee's turn, "Stopped", with its project and session, then what Claude left him.
+/// session: one for each ask new on it, with its title, then its project and session, its buttons answering it; and one
+/// for each session it moved into Lee's turn, "Stopped", with its project and session, then what Claude left him.
 public enum Notices {
     /// What this board sends, with Lee's switches as they stand: a new ask's while its switch is on, then his turn's
     /// while its own is.
     public static func due(_ last: LastBoard, _ settings: AppSettings) -> [Banner] {
-        let asks = settings.notifiesNewAsks ? last.newAsks.map { newAsk($0.ask, of: $0.row) } : []
+        let asks = settings.notifiesNewAsks ? last.newAsks.map { newAsk($0.ask, of: $0.row, on: last.board) } : []
         let turns = settings.notifiesTurns ? last.newTurnRows.map(turn) : []
 
         return asks + turns
@@ -19,8 +19,11 @@ public enum Notices {
         Banner(title: "Test notification", subtitle: nil, body: "This is what SitRep's notifications look like.", work: nil)
     }
 
-    private static func newAsk(_ ask: Board.Row.Line, of row: Board.Row) -> Banner {
-        Banner(title: ask.first.lead, subtitle: placeOf(row), body: "", work: row.session)
+    /// Its buttons answer the board's ask the line is, where it has buttons (DESIGN, "Its buttons").
+    private static func newAsk(_ line: Board.Row.Line, of row: Board.Row, on board: Board?) -> Banner {
+        let ask = line.ask.flatMap { board?.ask($0, of: row.session) }.flatMap { Banner.Ask($0, of: row.session) }
+
+        return Banner(title: line.first.lead, subtitle: placeOf(row), body: "", work: row.session, ask: ask)
     }
 
     private static func turn(_ row: Board.Row) -> Banner {
