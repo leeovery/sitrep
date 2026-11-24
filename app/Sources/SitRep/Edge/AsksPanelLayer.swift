@@ -38,7 +38,7 @@ final class AsksPanelLayer {
 
         layer.isHidden = false
         layer.frame = asks.frame.applying(mirror)
-        if !Self.drawsAlike(asks, shown) || drawnFor?.pointsLeft != pointsLeft || drawnFor?.asked != asked {
+        if asks.unplaced != shown?.unplaced || drawnFor?.pointsLeft != pointsLeft || drawnFor?.asked != asked {
             layer.sublayers = Self.parts(of: asks, pointsLeft: pointsLeft, now: now)
             rescale(layer, to: scale)
         }
@@ -49,17 +49,6 @@ final class AsksPanelLayer {
     func rescaled(to scale: CGFloat) {
         self.scale = scale
         rescale(layer, to: scale)
-    }
-
-    /// Whether two showings draw the same, wherever they stand.
-    private static func drawsAlike(_ one: AsksShown, _ other: AsksShown?) -> Bool {
-        guard let other else {
-            return false
-        }
-
-        return one.row == other.row && one.session == other.session && one.ask == other.ask && one.page == other.page
-            && one.pages == other.pages && one.layout == other.layout && one.sending == other.sending
-            && one.hover == other.hover
     }
 
     /// Everything it draws, from the back: its shadows, its black, and over it its words and rows.
@@ -120,26 +109,25 @@ final class AsksPanelLayer {
     /// for the one row that answers in Claude. Its keycap holds its number, or ↗, or held, a check in its place; then
     /// its label, and "recommended" at its end for Claude's pick.
     private static func answer(_ index: Int, of asks: AsksShown) -> CALayer {
-        let box = asks.layout.answers[index], isHeld = asks.sending.map { $0.row == index } ?? false
-        let isLifted = asks.hover == .answer(index) || asks.hover == .inClaude
-        let row = rounded(box, AsksLayout.answerRadius, fill: nil)
+        let shows = AsksPanelParts.answerRow(index, of: asks)
+        let row = rounded(asks.layout.answers[index], AsksLayout.answerRadius, fill: nil)
 
         row.borderWidth = 1
-        switch (isHeld, isLifted, asks.ask.isInClaude) {
-        case (true, _, _):
+        switch shows.ground {
+        case .held:
             row.backgroundColor = EdgeStyle.ink
             row.borderColor = EdgeStyle.ink
-        case (false, true, _):
+        case .lifted:
             row.backgroundColor = EdgeStyle.answerLifted
             row.borderColor = EdgeStyle.answerLiftedBorder
-        case (false, false, true):
+        case .outlined:
             row.borderColor = EdgeStyle.outline
-        case (false, false, false):
+        case .filled:
             row.backgroundColor = EdgeStyle.answer
             row.borderColor = EdgeStyle.answerBorder
         }
-        row.addSublayer(isHeld ? check() : keycap(asks.ask.isInClaude ? "↗" : "\(index + 1)"))
-        labelled(row, AsksPanelParts.label(index, of: asks.ask), isHeld: isHeld)
+        row.addSublayer(shows.mark.map(keycap) ?? check())
+        labelled(row, AsksPanelParts.label(index, of: asks.ask), isHeld: shows.isHeld)
         return row
     }
 

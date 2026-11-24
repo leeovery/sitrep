@@ -32,7 +32,7 @@ struct AsksLayoutTests {
     @Test func aWordsAskHasOneRowAnsweringInClaudeAndNoOpenInClaude() {
         let layout = AsksLayout(Self.words, measure: Self.measure)
 
-        #expect(layout.answers.count == 1 && layout.isInClaude && layout.open == nil)
+        #expect(layout.answers.count == 1 && layout.open == nil)
         let row = layout.answers[0]
 
         #expect(layout.part(at: CGPoint(x: row.midX, y: row.midY), sending: false) == .inClaude)
@@ -59,16 +59,19 @@ struct AsksLayoutTests {
         #expect(layout.part(at: middle(layout.undo), sending: true) == .undo)
     }
 
-    /// Its top 12 over its row's, and moved just enough to keep 8 inside the screen's visible frame, as a submenu.
+    /// Overlapping the list's front by 8, its top 12 over its row's, and moved just enough to keep 8 inside the
+    /// screen's visible frame, as a submenu.
     @Test func itStandsLevelWithItsRowKeptOnTheScreen() {
         let layout = AsksLayout(Self.choice, measure: Self.measure)
 
-        #expect(layout.frame(besideRowAt: 300, on: Self.stage) == CGRect(x: 364, y: 288, width: 372, height: 248))
+        let beside = layout.frame(besideRowAt: 300, front: 400, on: Self.stage)
+
+        #expect(beside == CGRect(x: 392, y: 288, width: 372, height: 248))
         let lowest = CGFloat(Self.stage.visibleBottom - AsksLayout.spare)
         let highest = CGFloat(Self.stage.visibleTop + AsksLayout.spare)
 
-        #expect(layout.frame(besideRowAt: 900, on: Self.stage).maxY == lowest)
-        #expect(layout.frame(besideRowAt: 20, on: Self.stage).minY == highest)
+        #expect(layout.frame(besideRowAt: 900, front: 372, on: Self.stage).maxY == lowest)
+        #expect(layout.frame(besideRowAt: 20, front: 372, on: Self.stage).minY == highest)
     }
 
     @Test func theRowsArrowEnds3InFromItsRowOnItsMiddle() {

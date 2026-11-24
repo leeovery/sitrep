@@ -29,32 +29,38 @@ struct AsksPanel {
         }
     }
 
-    /// What it shows, for a press to tell a change of meaning by: beside which row, its session's ask as it reads, and
-    /// whether an answer to it is held.
+    /// What it shows, for a press to tell a change of meaning by: beside which row, which holds its session, where on
+    /// the stage, its ask as it reads, and whether an answer to it is held.
     private struct Look: Equatable {
         let row: String
-        let session: String
+        let place: CGPoint
         let ask: PanelAsk
         let isSending: Bool
 
         init(_ shown: AsksShown) {
             row = shown.row
-            session = shown.session.id
+            place = shown.frame.origin
             ask = shown.ask
             isSending = shown.sending != nil
         }
 
         /// Whether, shown after `was`, what sits under the pointer means something else: another ask, or the same one
-        /// changed, in the same place; or the sending line gone, its Undo's place another part's. Not opening, nor
-        /// moving to another row, where nothing of it sat under the pointer; nor a hold, the sending line coming where
-        /// the foot was, whose Undo a fast press is meant for.
-        func meansOther(than was: Look?) -> Bool {
+        /// changed, in the same place; the sending line gone, its Undo's place another part's; or, with the pointer on
+        /// it, it moved under the pointer, as a row landing above its own slides it down. Not opening, nor moving to
+        /// another row, where nothing of it sat under the pointer; nor a hold, the sending line coming where the foot
+        /// was, whose Undo a fast press is meant for.
+        func meansOther(than was: Look?, pointerOn: Bool) -> Bool {
             guard let was, was.row == row else {
                 return false
             }
 
-            return was.session != session || was.ask != ask || (was.isSending && !isSending)
+            let moved = hypot(place.x - was.place.x, place.y - was.place.y) > Self.still
+
+            return was.ask != ask || (was.isSending && !isSending) || (pointerOn && moved)
         }
+
+        /// How far it moves from one frame to the next as the panel's springs settle, which is no move.
+        private static let still = 0.5
     }
 
     private var open: Open?
@@ -62,9 +68,10 @@ struct AsksPanel {
     private var gone: Set<AskOf> = []
     /// As the last frame placed it; nil while it is closed.
     private(set) var shown: AsksShown?
-    /// Where it stands with the room to its row's arrow, and what the notch was last told of it, with the pointer then.
-    private var room: CGPath?
-    private var told: (room: CGPath, pointer: CGPoint?)?
+    /// Where the notch was last told it stands, with the pointer then (`beside`).
+    private var told: (room: CGRect, pointer: CGPoint?)?
+    /// The way to it from the list.
+    private var way = SafeTriangle()
     private var look: Look?
     private var lookedAt = -Double.infinity
 
@@ -141,26 +148,40 @@ struct AsksPanel {
 
     /// Placed as a frame shows it (`shown`): beside its row as the panel and its scroll place the row on the stage,
     /// laid out by `layout`, kept on the screen, the answer held to its ask sending, and the part of it under `pointer`
-    /// lit; with the room between it and its row's arrow; and, where what it shows changed, when, on the display's
-    /// clock.
+    /// lit; and, where what sits under the pointer changed meaning (`Look.meansOther`), when, on the display's clock.
     mutating func place(
         on ground: AsksGround, pointer: CGPoint?, at time: Double, layout: (PanelAsk) -> AsksLayout
     ) {
         shown = placed(on: ground, pointer: pointer, layout: layout)
-        room = shown.map { Self.room(of: $0, on: ground) }
 
-        let look = shown.map(Look.init)
+        let look = shown.map(Look.init), pointerOn = pointer.map { shown?.contains($0) == true } ?? false
 
-        if look?.meansOther(than: self.look) == true {
+        if look?.meansOther(than: self.look, pointerOn: pointerOn) == true {
             lookedAt = time
         }
         self.look = look
     }
 
-    /// The room the notch is told the pointer is on (`Input.beside`): the asks panel and the room to its row's arrow;
-    /// or, where they went from under a pointer that has not moved since, as the asks panel closed or shrank, the room
-    /// they had, so that is no leave until the pointer moves.
-    mutating func beside(_ pointer: CGPoint?) -> CGPath? {
+    /// The room the notch is told the pointer is on (`Input.beside`): the asks panel, or, where it went from under a
+    /// pointer that has not moved since, as it closed or shrank, the room it had, so that is no leave until the pointer
+    /// moves; and the way to it from the list while that holds the pointer (`SafeTriangle`).
+    mutating func beside(_ pointer: CGPoint?, onList: Bool, at time: Double) -> CGPath? {
+        let room = kept(pointer), triangle = way.holding(pointer, onList: onList, toward: shown?.frame, at: time)
+
+        guard let room else {
+            return triangle
+        }
+
+        let beside = CGMutablePath()
+
+        beside.addRect(room)
+        triangle.map { beside.addPath($0) }
+        return beside
+    }
+
+    private mutating func kept(_ pointer: CGPoint?) -> CGRect? {
+        let room = shown?.frame
+
         if let told, let pointer, told.pointer == pointer, told.room.contains(pointer),
            room?.contains(pointer) != true {
             return told.room
@@ -212,7 +233,7 @@ struct AsksPanel {
 
         let ask = page.asks[open.page], laid = layout(ask)
         let rowTop = panel.frame.minY + ground.list.content.laidFrame(page.index).minY - ground.scroll
-        let frame = laid.frame(besideRowAt: rowTop, on: ground.stage)
+        let frame = laid.frame(besideRowAt: rowTop, front: panel.frame.maxX, on: ground.stage)
         let sending = held.flatMap { Sending($0, to: ask, of: page.session.id) }
         var shown = AsksShown(
             row: open.row, session: page.session, ask: ask, page: open.page, pages: page.asks.count, layout: laid,
@@ -221,41 +242,6 @@ struct AsksPanel {
 
         shown.hover = pointer.flatMap { Self.part(of: shown, at: $0, mirror: ground.mirror, holding: isHolding) }
         return shown
-    }
-
-    /// The asks panel and the room between it and its row's arrow, as Mac submenus have a safe triangle: the hull of
-    /// the asks panel's near side and the arrow's span, at the arrow's height and as far from the list's front as the
-    /// arrow stands on the left edge, so a pointer on its way from the arrow crosses it past the list's corner. On
-    /// the right edge, where the arrow stands at the row's other end, the same wedge: the list holds the way there.
-    /// Internal only for the tests.
-    static func room(of asks: AsksShown, on ground: AsksGround) -> CGPath {
-        let room = CGMutablePath(), near = asks.frame.minX
-
-        room.addRect(asks.frame)
-        if let arrow = arrowSpan(of: asks, on: ground), arrow.x < near {
-            room.addLines(between: [
-                CGPoint(x: arrow.x, y: arrow.top), CGPoint(x: near, y: asks.frame.minY),
-                CGPoint(x: near, y: asks.frame.maxY), CGPoint(x: arrow.x, y: arrow.bottom),
-            ])
-            room.closeSubpath()
-        }
-        return room
-    }
-
-    /// The near end of its row's arrow on the stage, as far from the list's front as on the left edge, and its top
-    /// and bottom, as the panel and its scroll place it.
-    private static func arrowSpan(
-        of asks: AsksShown, on ground: AsksGround
-    ) -> (x: Double, top: Double, bottom: Double)? {
-        guard let panel = ground.panel, let index = ground.list.index(of: asks.row) else {
-            return nil
-        }
-
-        let row = ground.list.content.laidFrame(index)
-        let box = RowArrow.box(in: row.size).offsetBy(dx: row.minX, dy: row.minY)
-        let top = panel.frame.minY + box.minY - ground.scroll
-
-        return (panel.frame.minX + box.minX, top, top + box.height)
     }
 
     /// Its row, by its index in the list, its session and that session's asks, while it is open at a page they hold.

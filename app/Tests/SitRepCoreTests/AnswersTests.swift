@@ -158,6 +158,33 @@ struct AnswersTests {
         #expect(answers.held?.answering == Self.ignore)
     }
 
+    /// Quitting sends the answer held at once, its hold cut short, and is back only once the CLI is done with it; the
+    /// hold running out after sends nothing more.
+    @Test func theAnswerHeldIsSentAtOnceAndBackOnceTheCLIIsDone() async {
+        let (answers, clock, cli) = Self.made()
+
+        answers.hold(Self.approve)
+        await until(turns: 100_000) { clock.sleeps.count == 1 }
+        await answers.sendHeld()
+
+        #expect(answers.held == nil)
+        #expect(cli.ran == [Self.approve])
+        #expect(cli.news.dropFirst() == [.went(Self.approve), .ended(Self.approve, .written)])
+
+        clock.pass(Answers.goesAfter)
+        await Self.settle()
+        #expect(cli.ran == [Self.approve])
+    }
+
+    @Test func withNoneHeldSendingWhatIsHeldSendsNothing() async {
+        let (answers, _, cli) = Self.made()
+
+        await answers.sendHeld()
+
+        #expect(cli.ran.isEmpty)
+        #expect(cli.news.isEmpty)
+    }
+
     @Test func aRefusalPostsNotAnsweredInTheCLIsWords() async {
         let why = "k1 is answered already: its answer is on its way."
         let (answers, _, cli) = Self.made(answering: .refused(why))

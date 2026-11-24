@@ -56,6 +56,7 @@ final class NotchGlassView: NSView, NotchDrawing {
     func show(_ scene: NotchScene) {
         self.scene.now = scene.now
         self.scene.calendar = scene.calendar
+        self.scene.depth = bounds.width
         self.scene.frame = scene
         still {
             // a layer turns about its centre, so the window's mirror is its flip alone
@@ -77,6 +78,9 @@ final class NotchGlassView: NSView, NotchDrawing {
 
     /// When each row's wash began, by its key.
     var washed: [String: Double] { scene.washed }
+
+    /// How deep the glass was made thick across at the last frame, as the view stood: internal only for the tests.
+    var depth: Double { scene.depth }
 
     func onView(_ box: CGRect) -> CGRect {
         stage.convert(box, to: stage.superlayer)
@@ -101,6 +105,9 @@ final class NotchGlassScene {
     var calendar = WakeTime.calendar
     /// When each new row's wash began, on the display's clock, by the row's key.
     var washed: [String: Double] = [:]
+    /// How deep the window is at the last frame, wide while the asks panel is open: what the glass is made thick
+    /// across.
+    var depth = ScreenEdge.depth
 }
 
 /// The glass and the panel's content on it, in the window's own coordinates.
@@ -150,7 +157,7 @@ private struct NotchGlass: View {
         let glass = Glass.regular.tint(mark.tint > 0 ? .black.opacity(mark.tint) : nil)
 
         return Color.clear
-            .glassEffect(glass, in: Outline(path: GlassThickness.thick(drawn.cgPath, width: ScreenEdge.depth)))
+            .glassEffect(glass, in: Outline(path: GlassThickness.thick(drawn.cgPath, width: scene.depth)))
             .overlay(alignment: .topLeading) {
                 if mark.rim > 0 {
                     Outline(path: drawn)

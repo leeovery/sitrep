@@ -21,7 +21,7 @@ struct GlassAsksPanel: View, Equatable {
     let now: Double
 
     nonisolated static func == (one: Self, other: Self) -> Bool {
-        one.asks == other.asks && one.pointsLeft == other.pointsLeft && one.asked == other.asked
+        one.asks.unplaced == other.asks.unplaced && one.pointsLeft == other.pointsLeft && one.asked == other.asked
     }
 
     var body: some View {
@@ -74,17 +74,16 @@ struct GlassAsksPanel: View, Equatable {
     /// the one row that answers in Claude. Its keycap holds its number, or ↗, or held, a check in its place; then its
     /// label, and "recommended" at its end for Claude's pick.
     private func answer(_ index: Int) -> some View {
-        let box = asks.layout.answers[index], isHeld = asks.sending.map { $0.row == index } ?? false
-        let isLifted = asks.hover == .answer(index) || asks.hover == .inClaude
-        let label = AsksPanelParts.label(index, of: asks.ask)
+        let box = asks.layout.answers[index], shows = AsksPanelParts.answerRow(index, of: asks)
+        let isHeld = shows.isHeld, label = AsksPanelParts.label(index, of: asks.ask)
         let at = AsksPanelParts.labelBoxes(in: box.size, note: label.note), ink = GlassInk.onHeld
 
         return ZStack(alignment: .topLeading) {
-            ground(isHeld: isHeld, isLifted: isLifted)
-            if isHeld {
-                check(ink)
+            ground(shows.ground)
+            if let mark = shows.mark {
+                keycap(mark)
             } else {
-                keycap(asks.ask.isInClaude ? "↗" : "\(index + 1)")
+                check(ink)
             }
             if let note = label.note, let noteBox = at.note {
                 Text(note).font(Font(EdgeStyle.asksNote))
@@ -101,17 +100,17 @@ struct GlassAsksPanel: View, Equatable {
 
     /// An answer's row's ground: the primary held; a step stronger lifted; outlined, answering in Claude; else filled,
     /// its border a step over its fill.
-    @ViewBuilder private func ground(isHeld: Bool, isLifted: Bool) -> some View {
+    @ViewBuilder private func ground(_ ground: AsksPanelParts.AnswerRow.Ground) -> some View {
         let row = RoundedRectangle(cornerRadius: AsksLayout.answerRadius, style: .circular)
 
-        switch (isHeld, isLifted, asks.ask.isInClaude) {
-        case (true, _, _):
+        switch ground {
+        case .held:
             row.fill(GlassInk.held)
-        case (false, true, _):
+        case .lifted:
             row.fill(.primary.opacity(GlassTint.lifted)).overlay(row.strokeBorder(.primary.opacity(GlassTint.press)))
-        case (false, false, true):
+        case .outlined:
             row.strokeBorder(.primary.opacity(GlassTint.outline))
-        case (false, false, false):
+        case .filled:
             row.fill(.primary.opacity(GlassTint.press)).overlay(row.strokeBorder(.primary.opacity(GlassTint.hover)))
         }
     }

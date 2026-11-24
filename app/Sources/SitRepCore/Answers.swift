@@ -111,9 +111,22 @@ public final class Answers {
         run(answering)
     }
 
-    private func run(_ answering: Answering) {
+    /// Sends the answer held now, its hold cut short, as quitting does, which never cancels it; back once the CLI has
+    /// written it or refused it, within the CLI's own time limit, or at once while none is held.
+    public func sendHeld() async {
+        guard let held else {
+            return
+        }
+
+        holding?.cancel()
+        release()
+        await run(held.answering).value
+    }
+
+    @discardableResult
+    private func run(_ answering: Answering) -> Task<Void, Never> {
         heard(.went(answering))
-        Task {
+        return Task {
             let written = await answer(answering)
 
             if case let .refused(why) = written {

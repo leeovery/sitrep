@@ -134,7 +134,7 @@ final class SessionRow {
         chevron.path = RowArrow.chevron(pointsLeft: arrow.pointsLeft)
         chevron.fillColor = nil
         chevron.strokeColor = arrow.isLit ? EdgeStyle.ink : EdgeStyle.ink2
-        chevron.lineWidth = 1.5
+        chevron.lineWidth = AsksPanelParts.strokeWidth
         chevron.lineCap = .round
         chevron.lineJoin = .round
         box.addSublayer(chevron)

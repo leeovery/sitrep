@@ -84,6 +84,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// An answer held at quitting goes before the app does, as leaving the notch never cancels one (DESIGN,
+    /// "Answering, with two seconds to undo"): sent at once, the app quitting once the CLI is done with it, within the
+    /// CLI's time limit.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard answers.held != nil else {
+            return .terminateNow
+        }
+
+        Task {
+            await answers.sendHeld()
+            sender.reply(toApplicationShouldTerminate: true)
+        }
+        return .terminateLater
+    }
+
     /// `watch` stops with the app, `here.json` goes with it, waited on a second at most, so no board in a terminal reads
     /// a SitRep no longer running, and a welcome open closes as its close button would close it, which quitting never
     /// tells it.

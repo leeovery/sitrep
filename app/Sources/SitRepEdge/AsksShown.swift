@@ -15,7 +15,7 @@ public struct AsksShown: Equatable, Sendable {
     public let pages: Int
     public let layout: AsksLayout
     /// Where it stands on the stage.
-    public let frame: CGRect
+    public private(set) var frame: CGRect
     /// The answer held for its ask, counting down; nil while none is.
     public let sending: Sending?
     /// What the pointer is on, where it takes a click.
@@ -23,25 +23,24 @@ public struct AsksShown: Equatable, Sendable {
 
     /// Whether a point on the stage is on it, its corners rounded.
     public func contains(_ point: CGPoint) -> Bool {
-        Self.contains(point, in: frame)
-    }
-
-    /// A point on the stage in its own frame (`ownPoint(_:in:mirror:)`).
-    public func ownPoint(_ point: CGPoint, mirror: CGAffineTransform) -> CGPoint {
-        Self.ownPoint(point, in: frame, mirror: mirror)
-    }
-
-    /// Whether a point on the stage is on an asks panel standing there, its corners rounded.
-    static func contains(_ point: CGPoint, in frame: CGRect) -> Bool {
         CGPath(roundedRect: frame, cornerWidth: AsksLayout.radius, cornerHeight: AsksLayout.radius, transform: nil)
             .contains(point)
     }
 
-    /// A point on the stage in the own frame of an asks panel standing there, as drawn through the edge's mirror: it
-    /// reads left to right on either edge.
-    static func ownPoint(_ point: CGPoint, in frame: CGRect, mirror: CGAffineTransform) -> CGPoint {
+    /// A point on the stage in its own frame, as drawn through the edge's mirror: it reads left to right on either
+    /// edge.
+    public func ownPoint(_ point: CGPoint, mirror: CGAffineTransform) -> CGPoint {
         let drawn = frame.applying(mirror), at = point.applying(mirror)
         return CGPoint(x: at.x - drawn.minX, y: at.y - drawn.minY)
+    }
+
+    /// The same showing at the stage's corner: what it draws, wherever it stands, for a drawing to tell whether it
+    /// draws alike.
+    public var unplaced: AsksShown {
+        var unplaced = self
+
+        unplaced.frame.origin = .zero
+        return unplaced
     }
 }
 

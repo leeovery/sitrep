@@ -147,6 +147,8 @@ public final class Meniscus: Notch {
     /// What happened since the last frame, before the sim clock moves on: the screen, the content, what needs Lee,
     /// whether to reduce motion, a panel beside the open one, and the pointer.
     private func take(_ input: Input) {
+        let besideChanged = input.beside != beside
+
         reducesMotion = input.reducesMotion
         beside = input.beside
         if input.stage != stage {
@@ -161,7 +163,12 @@ public final class Meniscus: Notch {
                 answerAll()
             }
         }
-        pointerMoved(input.pointer.map { Vec(max(0, $0.x), $0.y) }, at: input.pointerTime)
+        let pointer = input.pointer.map { Vec(max(0, $0.x), $0.y) }
+
+        if besideChanged, pointer == sp {
+            rehover()
+        }
+        pointerMoved(pointer, at: input.pointerTime)
     }
 
     /// The screen changed: the notch's home moves with it, unless a drag has already taken it there.

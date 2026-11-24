@@ -41,9 +41,9 @@ struct AnswerableAsksTests {
         #expect(PanelAsk(id: "k1", title: "Pick", answers: ["A"], recommended: "B", since: 0).recommended == nil)
     }
 
-    /// Invoice ledger waits on a permission prompt alone; Onboarding flow is at Lee's turn; the others work.
+    /// Invoice ledger waits on a permission prompt alone; Onboarding flow is at Lee's turn; Mobile app works.
     @Test func noRowButAnAsksHasAny() {
-        #expect(Set(Self.board.asks.keys) == [AsksBoard.helpDesk, AsksBoard.shifts])
+        #expect(Set(Self.board.asks.keys) == [AsksBoard.helpDesk, AsksBoard.shifts, AsksBoard.dataImport])
     }
 
     @Test func anAskTheRowsLinesNoLongerShowIsNone() {

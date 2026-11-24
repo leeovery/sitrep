@@ -59,17 +59,46 @@ enum AsksPanelParts {
         }
     }
 
-    /// The ask's title in this colour, broken into the lines the layout left room for, each with its box.
+    /// The ask's title in this colour, broken into the lines the layout left room for, each with its box, with the
+    /// slack past it that words set whole take.
     static func titleLines(_ asks: AsksShown, colour: CGColor) -> [(text: NSAttributedString, box: CGRect)] {
         let layout = asks.layout, box = layout.title
         let title = TextLine.text(asks.ask.title, EdgeStyle.asksTitle, colour, kern: EdgeStyle.asksTitleKern)
 
         return TextLine.wrapped(title, width: box.width, most: layout.titleLines).enumerated().map { index, line in
             (line, CGRect(
-                x: box.minX, y: box.minY + Double(index) * AsksLayout.titleLine, width: box.width,
+                x: box.minX, y: box.minY + Double(index) * AsksLayout.titleLine, width: box.width + Self.slack,
                 height: AsksLayout.titleLine
             ))
         }
+    }
+
+    /// An answer's row as it shows, in black and in glass: its ground, and its keycap's mark, its number or ↗; none
+    /// while it is the answer held, a check in its place.
+    struct AnswerRow: Equatable {
+        enum Ground {
+            /// The answer held.
+            case held
+            /// Under the pointer.
+            case lifted
+            /// The one row of an ask answered in Claude.
+            case outlined
+            case filled
+        }
+
+        let ground: Ground
+        let mark: String?
+
+        var isHeld: Bool { ground == .held }
+    }
+
+    static func answerRow(_ index: Int, of asks: AsksShown) -> AnswerRow {
+        let isHeld = asks.sending.map { $0.row == index } ?? false
+        let isLifted = asks.hover == .answer(index) || asks.hover == .inClaude
+        let inClaude = asks.ask.isInClaude
+        let ground: AnswerRow.Ground = isHeld ? .held : isLifted ? .lifted : inClaude ? .outlined : .filled
+
+        return AnswerRow(ground: ground, mark: isHeld ? nil : inClaude ? "↗" : "\(index + 1)")
     }
 
     /// What an answer's row reads: "Answer in Claude" for the one row of an ask answered there, else its answer; and

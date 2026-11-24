@@ -107,8 +107,6 @@ public struct AsksLayout: Equatable, Sendable {
     public let age: CGRect
     /// Each answer's row; the one row of an ask answered in Claude.
     public let answers: [CGRect]
-    /// Whether its one row answers in Claude.
-    public let isInClaude: Bool
     public let foot: CGRect
     public let ignore, snooze: CGRect
     /// None for an ask answered in Claude, whose row does it.
@@ -143,7 +141,6 @@ public struct AsksLayout: Equatable, Sendable {
                 height: Self.answerHeight
             )
         }
-        isInClaude = ask.isInClaude
         foot = CGRect(x: side, y: footTop, width: Self.inner, height: Self.footHeight)
         ignore = CGRect(
             x: side + Self.footPadLeft, y: footTop, width: 2 * Self.buttonPad + word(Self.ignoreWords),
@@ -182,7 +179,7 @@ public struct AsksLayout: Equatable, Sendable {
             return undo.contains(point) ? .undo : nil
         }
         if let row = answers.firstIndex(where: { $0.contains(point) }) {
-            return isInClaude ? .inClaude : .answer(row)
+            return open == nil ? .inClaude : .answer(row)
         }
         if ignore.contains(point) {
             return .ignore
@@ -193,16 +190,15 @@ public struct AsksLayout: Equatable, Sendable {
         return open?.contains(point) == true ? .open : nil
     }
 
-    /// Where it stands on the stage beside a row whose top is this far down it: past the list's front, overlapping it,
-    /// its top line level with the row's, and moved just enough to keep inside the screen's visible frame, as a Mac
-    /// submenu is.
-    public func frame(besideRowAt rowTop: Double, on stage: Stage) -> CGRect {
+    /// Where it stands on the stage beside a row whose top is this far down it, in a list whose front is this far from
+    /// the edge: past the front, overlapping it, its top line level with the row's, and moved just enough to keep
+    /// inside the screen's visible frame, as a Mac submenu is.
+    public func frame(besideRowAt rowTop: Double, front: Double, on stage: Stage) -> CGRect {
         let highest = stage.visibleTop + Self.spare
         let lowest = max(highest, stage.visibleBottom - Self.spare - height)
 
         return CGRect(
-            x: Tuning.panelDepth - Self.overlap, y: clamp(rowTop - Self.above, highest, lowest), width: Self.width,
-            height: height
+            x: front - Self.overlap, y: clamp(rowTop - Self.above, highest, lowest), width: Self.width, height: height
         )
     }
 

@@ -2,7 +2,7 @@ import AppKit
 @testable import SitRep
 @testable import SitRepCore
 import SitRepEdge
-import SitRepPanel
+@testable import SitRepPanel
 import SitRepTestSupport
 import Testing
 
@@ -38,7 +38,8 @@ struct NotchAsksWindowTests {
     }
 
     /// The frame the window widens or narrows on is drawn into the window as it now is: the black and the light
-    /// mirrored across its new width, where the rows and the asks panel are, never across the width it had.
+    /// mirrored across its new width, where the rows and the asks panel are, never across the width it had; and in
+    /// glass, its views laid out to the new width before it drew, the glass made thick across it.
     @Test(arguments: [EdgeSettings.Edge.left, .right], [EdgeSettings.Material.black, .glass])
     func wideningOrNarrowingTheBlackIsDrawnAcrossTheNewWidth(
         _ side: EdgeSettings.Edge, material: EdgeSettings.Material
@@ -49,11 +50,13 @@ struct NotchAsksWindowTests {
         try notch.openAsks()
         #expect(notch.controller.window.frame == notch.edge.window(wide: true))
         #expect(notch.drawsTheBlack(through: notch.edge.mirror(wide: true)))
+        #expect(notch.isLaidOutAcrossTheWindow())
 
         try notch.pressArrow()
         #expect(notch.run.asksShown == nil)
         #expect(notch.controller.window.frame == notch.edge.window)
         #expect(notch.drawsTheBlack(through: notch.edge.mirror))
+        #expect(notch.isLaidOutAcrossTheWindow())
     }
 
     /// The middle of Help desk redesign's arrow on the stage.
@@ -157,5 +160,20 @@ private final class Driven {
         let drawn = controller.surface.drawing.onView(box), wanted = box.applying(mirror)
 
         return abs(drawn.minX - wanted.minX) < 0.5 && abs(drawn.maxX - wanted.maxX) < 0.5
+    }
+
+    /// Whether the drawing and its views stand as wide as the window, and glass, as it drew, was made thick across
+    /// that width.
+    func isLaidOutAcrossTheWindow() -> Bool {
+        let drawing = controller.surface.drawing, width = controller.window.frame.width
+        let views = [drawing] + drawing.subviews
+
+        guard views.allSatisfy({ abs($0.frame.width - width) < 0.5 }) else {
+            return false
+        }
+        if #available(macOS 26, *), let glass = drawing as? NotchGlassView {
+            return abs(glass.depth - width) < 0.5
+        }
+        return true
     }
 }

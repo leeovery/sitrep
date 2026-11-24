@@ -326,9 +326,11 @@ final class NotchController: NSObject, CalloutShape {
 
         let drawn = asks.frame.applying(edge.mirror(wide: isWide)), button = asks.layout.snooze
         let id = session.id, showing = RowMenu.Row(session).asks ?? []
+        // the close drawn as the choice is made, whether AppKit performs it before `popUp` returns or after
         let menu = SnoozeMenu(offering: snoozeSettings(), at: Date(), in: run.calendar) { [unowned self] until in
             onSnooze(id, showing, until)
             run.closeAsks(moment())
+            took()
         }
 
         run.menuOpened(at: pressed)
