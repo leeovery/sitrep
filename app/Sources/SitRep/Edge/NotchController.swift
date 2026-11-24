@@ -64,7 +64,7 @@ final class NotchController: NSObject, CalloutShape {
         self.settings = settings
         self.snoozeSettings = snoozeSettings
         edge = ScreenEdge(display, settings)
-        run = NotchRun(at: Displays.now, in: .on(edge, settings), folding: folding, measure: AsksPanelLayer.measure)
+        run = NotchRun(at: Displays.now, in: .on(edge, settings), folding: folding, measure: AsksMeasure.drawn)
         window = EdgeWindow.onScreen(frame: edge.window, view: surface)
         super.init()
 

@@ -68,25 +68,21 @@ final class AsksPanelLayer {
             + asks.layout.answers.indices.map { answer($0, of: asks) } + foot(asks, at: now)
     }
 
-    /// Its two shadows, as a submenu's: 14 down blurred 36 at 65%, and toward the list, 4 across blurred 12 at 50%.
-    /// Each a black of its shape casting it, under the body; Core Animation's radius halves the CSS blur.
+    /// Its two shadows (`AsksShadow`), each a black of its shape casting it, under the body.
     private static func shadows(_ size: CGSize, pointsLeft: Bool) -> [CALayer] {
-        let toward = pointsLeft ? 4.0 : -4.0
+        AsksShadow.casts(pointsLeft: pointsLeft).map { cast in
+            let shadow = rounded(CGRect(origin: .zero, size: size), AsksLayout.radius, fill: EdgeStyle.black)
 
-        return [(CGSize(width: 0, height: 14), 18.0, 0xA6), (CGSize(width: toward, height: 0), 6.0, 0x80)]
-            .map { offset, radius, alpha in
-                let shadow = rounded(CGRect(origin: .zero, size: size), AsksLayout.radius, fill: EdgeStyle.black)
-
-                shadow.shadowPath = CGPath(
-                    roundedRect: shadow.bounds, cornerWidth: AsksLayout.radius, cornerHeight: AsksLayout.radius,
-                    transform: nil
-                )
-                shadow.shadowColor = EdgeStyle.black
-                shadow.shadowOpacity = Float(alpha) / 255
-                shadow.shadowRadius = radius
-                shadow.shadowOffset = offset
-                return shadow
-            }
+            shadow.shadowPath = CGPath(
+                roundedRect: shadow.bounds, cornerWidth: AsksLayout.radius, cornerHeight: AsksLayout.radius,
+                transform: nil
+            )
+            shadow.shadowColor = EdgeStyle.black
+            shadow.shadowOpacity = Float(cast.opacity)
+            shadow.shadowRadius = cast.radius
+            shadow.shadowOffset = cast.offset
+            return shadow
+        }
     }
 
     private static func body(_ size: CGSize) -> CALayer {
@@ -97,58 +93,25 @@ final class AsksPanelLayer {
         return body
     }
 
-    /// The top line: the session's name, 8, its project faint, the name kept whole first; and page dots at its right
-    /// where the session has more than one ask, the current one orange and wide.
+    /// The top line: the session's name and its project faint; and its page dots, the current one orange.
     private static func top(_ asks: AsksShown) -> [CALayer] {
-        let box = asks.layout.top, line = AsksLayout.textLine, gap = 8.0, y = box.midY - line / 2
-        let dots = asks.pages > 1 ? Self.dots(asks.page, of: asks.pages, right: box.maxX, middle: box.midY) : []
-        let room = box.width - (dots.isEmpty ? 0 : Self.dotsWidth(asks.pages) + gap)
-        let name = TextLine.text(asks.session.name, EdgeStyle.asksName, EdgeStyle.ink)
-        let nameWidth = min(TextLine.width(name), room)
-        let project = TextLine.text(asks.session.project, EdgeStyle.sub, EdgeStyle.ink3)
-        let projectX = box.minX + nameWidth + gap
+        let top = AsksPanelParts.top(asks)
+        let dots = top.dots.map { dot in
+            rounded(dot.box, AsksPanelParts.dotRadius, fill: dot.isCurrent ? EdgeStyle.orange : EdgeStyle.dot)
+        }
 
         return [
-            TextLine(name, in: CGRect(x: box.minX, y: y, width: nameWidth, height: line)),
-            TextLine(project, in: CGRect(x: projectX, y: y, width: max(0, box.minX + room - projectX), height: line)),
+            TextLine(TextLine.text(asks.session.name, EdgeStyle.asksName, EdgeStyle.ink), in: top.name),
+            TextLine(TextLine.text(asks.session.project, EdgeStyle.sub, EdgeStyle.ink3), in: top.project),
         ] + dots
-    }
-
-    private static let dotGap = 4.0, dotSide = 5.0, currentDot = 14.0
-
-    private static func dotsWidth(_ pages: Int) -> Double {
-        currentDot + Double(pages - 1) * (dotSide + dotGap)
-    }
-
-    private static func dots(_ page: Int, of pages: Int, right: Double, middle: Double) -> [CALayer] {
-        var x = right - dotsWidth(pages)
-
-        return (0 ..< pages).map { index in
-            let width = index == page ? currentDot : dotSide
-            let dot = rounded(
-                CGRect(x: x, y: middle - dotSide / 2, width: width, height: dotSide), 3,
-                fill: index == page ? EdgeStyle.orange : EdgeStyle.dot
-            )
-
-            x += width + dotGap
-            return dot
-        }
     }
 
     /// The ask's title, wrapped to its lines, and under it how long ago it was asked.
     private static func ask(_ asks: AsksShown, at now: Double) -> [CALayer] {
-        let layout = asks.layout, box = layout.title
-        let title = TextLine.text(asks.ask.title, EdgeStyle.asksTitle, EdgeStyle.ink, kern: EdgeStyle.asksTitleKern)
-        let lines = TextLine.wrapped(title, width: box.width, most: layout.titleLines).enumerated().map { index, line in
-            TextLine(line, in: CGRect(
-                x: box.minX, y: box.minY + Double(index) * AsksLayout.titleLine, width: box.width,
-                height: AsksLayout.titleLine
-            ))
-        }
-
+        let lines = AsksPanelParts.titleLines(asks, colour: EdgeStyle.ink).map { TextLine($0.text, in: $0.box) }
         let asked = TextLine.text(asks.ask.askedText(at: now), EdgeStyle.sub, EdgeStyle.ink3)
 
-        return lines + [TextLine(asked, in: layout.age)]
+        return lines + [TextLine(asked, in: asks.layout.age)]
     }
 
     /// An answer's row: filled and bordered, lifted under the pointer, white while it is the answer held; outlined,
@@ -158,8 +121,6 @@ final class AsksPanelLayer {
         let box = asks.layout.answers[index], isHeld = asks.sending.map { $0.row == index } ?? false
         let isLifted = asks.hover == .answer(index) || asks.hover == .inClaude
         let row = rounded(box, AsksLayout.answerRadius, fill: nil)
-        let label = asks.ask.isInClaude ? "Answer in Claude" : asks.ask.answers[index]
-        let note = asks.ask.recommended == label && !asks.ask.isInClaude ? "recommended" : nil
 
         row.borderWidth = 1
         switch (isHeld, isLifted, asks.ask.isInClaude) {
@@ -176,33 +137,24 @@ final class AsksPanelLayer {
             row.borderColor = EdgeStyle.answerBorder
         }
         row.addSublayer(isHeld ? check() : keycap(asks.ask.isInClaude ? "↗" : "\(index + 1)"))
-        labelled(row, label, note: note, isHeld: isHeld)
+        labelled(row, AsksPanelParts.label(index, of: asks.ask), isHeld: isHeld)
         return row
     }
 
     /// A row's label after its keycap, and its note at its end, the label cut short before it.
-    private static func labelled(_ row: CALayer, _ label: String, note: String?, isHeld: Bool) {
-        let width = row.bounds.width, line = AsksLayout.labelLine, y = (row.bounds.height - line) / 2
+    private static func labelled(_ row: CALayer, _ label: (words: String, note: String?), isHeld: Bool) {
+        let at = AsksPanelParts.label(in: row.bounds.size, note: label.note)
         let words = TextLine.text(
-            label, EdgeStyle.asksLabel, isHeld ? EdgeStyle.onWhite : EdgeStyle.ink,
+            label.words, EdgeStyle.asksLabel, isHeld ? EdgeStyle.onWhite : EdgeStyle.ink,
             kern: EdgeStyle.tightKern(EdgeStyle.asksLabel)
         )
-        var end = width - AsksLayout.rowSide
 
-        if let note {
+        if let note = label.note, let box = at.note {
             let colour = isHeld ? EdgeStyle.onWhite.copy(alpha: 0.5) ?? EdgeStyle.onWhite : EdgeStyle.ink3
-            let noted = TextLine.text(note, EdgeStyle.asksNote, colour)
-            let noteWidth = TextLine.width(noted)
-            let drop = TextLine.drop(of: EdgeStyle.asksNote, to: EdgeStyle.asksLabel, lineHeight: line)
 
-            row.addSublayer(TextLine(
-                noted, in: CGRect(x: end - noteWidth, y: y + drop, width: noteWidth, height: line)
-            ))
-            end -= noteWidth + AsksLayout.recommendedGap
+            row.addSublayer(TextLine(TextLine.text(note, EdgeStyle.asksNote, colour), in: box))
         }
-        row.addSublayer(TextLine(words, in: CGRect(
-            x: AsksLayout.labelX, y: y, width: max(0, end - AsksLayout.labelX), height: line
-        )))
+        row.addSublayer(TextLine(words, in: at.label))
     }
 
     private static func keycap(_ mark: String) -> CALayer {
@@ -216,15 +168,11 @@ final class AsksPanelLayer {
         return cap
     }
 
-    /// The held answer's check, 11 across, in its keycap's place.
+    /// The held answer's check, in its keycap's place.
     private static func check() -> CALayer {
-        let path = CGMutablePath(), side = 11.0, cap = AsksLayout.keycap
+        let check = AsksPanelParts.check()
 
-        path.addLines(between: [CGPoint(x: 2, y: 5.8), CGPoint(x: 4.4, y: 8.2), CGPoint(x: 9, y: 3)])
-        return stroked(
-            path, in: CGRect(x: cap.midX - side / 2, y: cap.midY - side / 2, width: side, height: side),
-            colour: EdgeStyle.onWhite, width: 1.6
-        )
+        return stroked(check.path, in: check.box, colour: EdgeStyle.onWhite, width: AsksPanelParts.checkWidth)
     }
 
     /// The foot: Ignore, Snooze ▾ and, for an ask answered here, Open in Claude; while its ask's answer is held, the
@@ -242,43 +190,29 @@ final class AsksPanelLayer {
         return [ignore, snooze, snoozeChevron(in: layout.snooze, lit: asks.hover == .snooze)] + [open].compactMap { $0 }
     }
 
-    /// A foot button's words, soft, white under the pointer, inside its padding on its middle.
+    /// A foot button's words, soft, white under the pointer.
     private static func footWords(_ words: String, in box: CGRect, lit: Bool) -> CALayer {
-        let line = AsksLayout.textLine
-
-        return TextLine(
+        TextLine(
             TextLine.text(words, EdgeStyle.asksFoot, lit ? EdgeStyle.ink : EdgeStyle.ink2),
-            in: CGRect(x: box.minX + AsksLayout.buttonPad, y: box.midY - line / 2, width: box.width, height: line)
+            in: AsksPanelParts.footWords(in: box)
         )
     }
 
-    /// Snooze's chevron, pointing down, after its words.
     private static func snoozeChevron(in box: CGRect, lit: Bool) -> CALayer {
-        let size = AsksLayout.snoozeChevron, scale = size.width / 10
-        let path = CGMutablePath()
+        let chevron = AsksPanelParts.snoozeChevron(in: box)
 
-        path.addLines(between: [CGPoint(x: 1.2, y: 1.2), CGPoint(x: 5, y: 4.8), CGPoint(x: 8.8, y: 1.2)].map {
-            CGPoint(x: $0.x * scale, y: $0.y * scale)
-        })
         return stroked(
-            path,
-            in: CGRect(
-                x: box.maxX - AsksLayout.buttonPad - size.width, y: box.midY - size.height / 2, width: size.width,
-                height: size.height
-            ),
-            colour: lit ? EdgeStyle.ink : EdgeStyle.ink2, width: 1.5
+            chevron.path, in: chevron.box, colour: lit ? EdgeStyle.ink : EdgeStyle.ink2,
+            width: AsksPanelParts.strokeWidth
         )
     }
 
     /// Open in Claude, outlined, its ↗ soft after it; filled under the pointer.
     private static func openPill(_ box: CGRect, lit: Bool) -> CALayer {
-        let pill = Self.pill(box, lit: lit), line = AsksLayout.textLine, y = (box.height - line) / 2
-        let words = TextLine.text(AsksLayout.openWords, EdgeStyle.asksFoot, EdgeStyle.ink)
-        let mark = TextLine.text(AsksLayout.openMark, EdgeStyle.asksFoot, EdgeStyle.ink2)
-        let markX = AsksLayout.openPad + TextLine.width(words) + AsksLayout.wordsGap
+        let pill = Self.pill(box, lit: lit), at = AsksPanelParts.openWords(in: box.size)
 
-        pill.addSublayer(TextLine(words, in: CGRect(x: AsksLayout.openPad, y: y, width: box.width, height: line)))
-        pill.addSublayer(TextLine(mark, in: CGRect(x: markX, y: y, width: TextLine.width(mark) + 1, height: line)))
+        pill.addSublayer(TextLine(TextLine.text(AsksLayout.openWords, EdgeStyle.asksFoot, EdgeStyle.ink), in: at.words))
+        pill.addSublayer(TextLine(TextLine.text(AsksLayout.openMark, EdgeStyle.asksFoot, EdgeStyle.ink2), in: at.mark))
         return pill
     }
 
@@ -293,45 +227,19 @@ final class AsksPanelLayer {
     /// The sending line: the ring counting down from what is left of the two seconds at `now`, "Sending" and the
     /// answer's words, or "Ignoring", and Undo.
     private static func sendingLine(_ sending: Sending, _ asks: AsksShown, at now: Double) -> [CALayer] {
-        let layout = asks.layout
-        let lead = sending.words == nil ? "Ignoring" : "Sending "
-        let said = TextLine.text(lead, EdgeStyle.asksFootPlain, EdgeStyle.ink2)
+        let layout = asks.layout, ring = CountdownRing(in: layout.countdown)
+        let said = TextLine.text(AsksPanelParts.sendingLead(sending), EdgeStyle.asksFootPlain, EdgeStyle.ink2)
+        let undo = pill(layout.undo, lit: asks.hover == .undo)
 
         sending.words.map { said.append(TextLine.text($0, EdgeStyle.asksFoot, EdgeStyle.ink)) }
-
-        let undo = pill(layout.undo, lit: asks.hover == .undo), line = AsksLayout.textLine
-        let y = (layout.undo.height - line) / 2
-
         undo.addSublayer(TextLine(
             TextLine.text(AsksLayout.undoWords, EdgeStyle.asksFoot, EdgeStyle.ink),
-            in: CGRect(x: AsksLayout.undoPad, y: y, width: layout.undo.width, height: line)
+            in: AsksPanelParts.undoWords(in: layout.undo.size)
         ))
-        return countdown(sending, in: layout.countdown, at: now) + [TextLine(said, in: layout.sending), undo]
-    }
-
-    /// The countdown: a track, and over it an arc from 12 o'clock running down from full to nothing as the answer's two
-    /// seconds run out, in the render server from what is left at `now`.
-    private static func countdown(_ sending: Sending, in box: CGRect, at now: Double) -> [CALayer] {
-        let centre = CGPoint(x: box.width / 2, y: box.height / 2), radius = 4.75
-        let circle = CGMutablePath()
-
-        circle.addArc(center: centre, radius: radius, startAngle: -.pi / 2, endAngle: 1.5 * .pi, clockwise: false)
-
-        let track = stroked(circle, in: box, colour: EdgeStyle.track, width: 1.5)
-        let arc = stroked(circle, in: box, colour: EdgeStyle.ink2, width: 1.5)
-        let left = sending.left(at: now)
-        let run = CABasicAnimation(keyPath: "strokeEnd")
-
-        arc.strokeEnd = left
-        run.fromValue = left
-        run.toValue = 0
-        run.duration = left * (sending.goesAt - sending.heldAt) / 1000
-        run.fillMode = .forwards
-        run.isRemovedOnCompletion = false
-        if run.duration > 0 {
-            arc.add(run, forKey: "countdown")
-        }
-        return [track, arc]
+        ring.track.strokeColor = EdgeStyle.track
+        ring.arc.strokeColor = EdgeStyle.ink2
+        ring.count(sending, at: now)
+        return [ring.track, ring.arc, TextLine(said, in: layout.sending), undo]
     }
 
     private static func rounded(_ box: CGRect, _ radius: Double, fill: CGColor?) -> CALayer {
@@ -356,19 +264,4 @@ final class AsksPanelLayer {
         shape.lineJoin = .round
         return shape
     }
-
-    /// How the asks panel's words are set, for the run to lay it out: its title's lines, and its foot's words' widths.
-    nonisolated static let measure = AsksMeasure(
-        titleLines: { title in
-            MainActor.assumeIsolated {
-                let text = TextLine.text(title, EdgeStyle.asksTitle, EdgeStyle.ink, kern: EdgeStyle.asksTitleKern)
-                let width = AsksLayout.inner - 2 * AsksLayout.textSide
-
-                return max(1, TextLine.wrapped(text, width: width, most: AsksLayout.titleMost).count)
-            }
-        },
-        footWidth: { words in
-            MainActor.assumeIsolated { TextLine.width(TextLine.text(words, EdgeStyle.asksFoot, EdgeStyle.ink)) }
-        }
-    )
 }

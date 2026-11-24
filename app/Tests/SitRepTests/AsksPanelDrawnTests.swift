@@ -101,7 +101,7 @@ struct AsksPanelDrawnTests {
     private static func drawn(
         _ ask: PanelAsk = choice, page: Int = 0, pages: Int = 2, sending: Sending? = nil, hover: AsksPart? = nil
     ) throws -> (Drawn, AsksShown) {
-        let layout = AsksLayout(ask, measure: AsksPanelLayer.measure)
+        let layout = AsksLayout(ask, measure: AsksMeasure.drawn)
         let asks = AsksShown(
             row: "needs:sr-nw0001", session: helpDesk, ask: ask, page: page, pages: pages, layout: layout,
             frame: CGRect(origin: CGPoint(x: margin, y: margin), size: layout.size), sending: sending, hover: hover
@@ -131,7 +131,7 @@ struct AsksPanelDrawnTests {
     /// way on the right edge. Read off its layers, as `render(in:)` casts a shadow up where the screen casts it down.
     @Test(arguments: [false, true])
     func itCastsASubmenusShadowsTheSideOneTowardTheList(onTheRight: Bool) throws {
-        let layout = AsksLayout(Self.choice, measure: AsksPanelLayer.measure), panel = AsksPanelLayer()
+        let layout = AsksLayout(Self.choice, measure: AsksMeasure.drawn), panel = AsksPanelLayer()
         let asks = AsksShown(
             row: "needs:sr-nw0001", session: Self.helpDesk, ask: Self.choice, page: 0, pages: 2, layout: layout,
             frame: CGRect(origin: .zero, size: layout.size), sending: nil, hover: nil

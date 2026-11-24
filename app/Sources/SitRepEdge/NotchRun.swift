@@ -41,20 +41,13 @@ public final class NotchRun: Framed {
         /// Whether Lee chose the notch to show the board: an arrival unfolds Needs you on its card. With the strip
         /// chosen, Needs you folded stays folded, its count on the strip flashing (14 November 2026).
         public var isChosen: Bool
-        /// Whether the drawing draws the rows' arrows and the asks panel: until glass does, its rows have no arrow,
-        /// and a press on one's time jumps, as before.
-        public var answers: Bool
 
-        public init(
-            stage: Stage, mirror: CGAffineTransform, style: NotchStyle, reducesMotion: Bool, isChosen: Bool,
-            answers: Bool = true
-        ) {
+        public init(stage: Stage, mirror: CGAffineTransform, style: NotchStyle, reducesMotion: Bool, isChosen: Bool) {
             self.stage = stage
             self.mirror = mirror
             self.style = style
             self.reducesMotion = reducesMotion
             self.isChosen = isChosen
-            self.answers = answers
         }
     }
 
@@ -194,7 +187,7 @@ public final class NotchRun: Framed {
         restyle(input, to: setting.style)
         scroll = frame.panel.map { list.content.scrolled(scroll, by: 0, showing: $0.frame.height) } ?? 0
         asks.take(lastAsk: frame.light.lastAsk, simTime: frame.time, at: time)
-        keepAsks(in: setting)
+        keepAsks()
     }
 
     /// The pointer as the model is told it: on the asks panel, off the list, a point on the list as near it as leaves
@@ -241,7 +234,7 @@ public final class NotchRun: Framed {
             folding.set(.needsYou, folded: false)
         }
         relist(at: time, in: moment.setting)
-        keepAsks(in: moment.setting)
+        keepAsks()
         return isOut ? Set(board.sessions.filter { board.new.contains($0.id) }.map { Item.line($0).key }) : []
     }
 
@@ -419,7 +412,7 @@ public final class NotchRun: Framed {
     /// panel answers an ask of its session, lit with the pointer on it; and, lit, the arrow of the row whose asks
     /// panel is open. None while the panel is not open.
     public func arrows(in setting: Setting) -> [String: Bool] {
-        guard setting.answers, notch.phase == .open else {
+        guard notch.phase == .open else {
             return [:]
         }
 
@@ -443,7 +436,7 @@ public final class NotchRun: Framed {
     public func heard(_ news: AnswerNews, _ moment: Moment) {
         upToNow(moment)
         asking.heard(news)
-        keepAsks(in: moment.setting)
+        keepAsks()
     }
 
     /// The asks panel closed, as a snooze from it closes it.
@@ -452,10 +445,9 @@ public final class NotchRun: Framed {
         asking.close()
     }
 
-    /// The asks panel kept to what shows: closed as the panel goes in, its row goes, or its last ask, or where the
-    /// drawing draws none.
-    private func keepAsks(in setting: Setting) {
-        asking.keep(isOpen: notch.phase == .open && setting.answers, list, board)
+    /// The asks panel kept to what shows: closed as the panel goes in, its row goes, or its last ask.
+    private func keepAsks() {
+        asking.keep(isOpen: notch.phase == .open, list, board)
     }
 
     private func isOnAsks(_ point: CGPoint?, in setting: Setting) -> Bool {
@@ -497,7 +489,7 @@ public final class NotchRun: Framed {
 
     /// The row whose arrow a point on the stage is on, by its index in the list, while the panel is open.
     private func arrow(at point: CGPoint, in setting: Setting) -> Int? {
-        guard setting.answers, notch.phase == .open, let content = contentPoint(point, in: setting),
+        guard notch.phase == .open, let content = contentPoint(point, in: setting),
               let index = list.content.item(at: content), arrowRow(index) != nil
         else {
             return nil

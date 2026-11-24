@@ -19,12 +19,10 @@ struct AsksPanelRunTests {
     private static let onTheNotch = CGPoint(x: 3, y: 491), away = CGPoint(x: 1300, y: 491)
     private static let helpDesk = "needs:\(AsksBoard.helpDesk)", shifts = "needs:\(AsksBoard.shifts)"
 
-    private static func setting(
-        right: Bool = false, style: NotchStyle = .meniscus, answers: Bool = true
-    ) -> NotchRun.Setting {
+    private static func setting(right: Bool = false, style: NotchStyle = .meniscus) -> NotchRun.Setting {
         NotchRun.Setting(
             stage: stage, mirror: right ? CGAffineTransform(a: -1, b: 0, c: 0, d: 1, tx: 800, ty: 0) : .identity,
-            style: style, reducesMotion: false, isChosen: true, answers: answers
+            style: style, reducesMotion: false, isChosen: true
         )
     }
 
@@ -157,28 +155,6 @@ struct AsksPanelRunTests {
             Issue.record("a press on \(key)'s time did not jump")
             return
         }
-    }
-
-    /// In glass, which draws no arrow yet, a row's time is the row's, as before.
-    @Test func whereTheDrawingDrawsNoArrowAPressOnTheRowsTimeJumps() throws {
-        let setting = Self.setting(answers: false), run = Self.opened(setting)
-        let there = try Self.arrow(Self.helpDesk, run, setting)
-
-        run.step(Self.at(run, there, setting))
-        #expect(run.arrows(in: setting).isEmpty)
-        guard case let .jump(session, to: _, click: _)? = run.press(Self.at(run, there, setting)) else {
-            Issue.record("a press on the row's time did not jump")
-            return
-        }
-        #expect(session.id == AsksBoard.helpDesk)
-    }
-
-    /// Lee choosing glass, which draws none yet, closes it.
-    @Test func itClosesWhereTheDrawingDrawsNone() throws {
-        let run = try Self.asksOpen()
-
-        run.step(Self.at(run, Self.onTheNotch, Self.setting(answers: false)))
-        #expect(run.asksShown(in: Self.setting()) == nil)
     }
 
     // MARK: Opening and closing

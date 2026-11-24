@@ -40,6 +40,21 @@ enum GlassInk {
     static let blueArc = NSColor(cgColor: EdgeStyle.color(LiveLight.blue)) ?? .systemBlue
 }
 
+/// The glass's tints: the primary label colour at these opacities, which the system's appearance turns light on the
+/// dark and dark on the light, in place of the black's greys.
+enum GlassTint {
+    /// A row's lift under the pointer.
+    static let hover = 0.08
+    /// A step stronger: a row pressed in, a row's arrow lit, an answer's row, a pill under the pointer.
+    static let press = 0.12
+    /// An answer's row under the pointer.
+    static let lifted = 0.16
+    /// An outlined row's or pill's border, as #2C2C31 is on the black.
+    static let outline = 0.18
+    /// A page dot not current, as #3A3A40 is on the black.
+    static let dot = 0.24
+}
+
 /// An arc turning round a track, once in a period, or held still with none: a working row's mark on the glass. Black's
 /// arc, turned by Core Animation in the render server: the app does no work as it turns, and no update of the views
 /// round it, animated or not, restarts it.

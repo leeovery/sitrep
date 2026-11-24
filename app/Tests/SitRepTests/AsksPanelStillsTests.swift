@@ -7,10 +7,11 @@ import SitRepPanel
 import SitRepTestSupport
 import Testing
 
-/// The row's arrow and the asks panel in black, drawn by the real run into the real surface at the README desktop's
-/// left edge, to read beside Paper's boards E2, F and A2: the pointer on a Needs you row's words, then on its arrow;
-/// the asks panel on a session's choice, and on a words ask; and an answer sending, its countdown under way. Only when
-/// `SITREP_STILLS` names a folder for them, so a run of the tests writes nothing.
+/// The row's arrow and the asks panel in black, and in glass dark and light, drawn by the real run into the real
+/// surface at the README desktop's left edge, to read beside Paper's boards E2, F and A2: the pointer on a Needs you
+/// row's words, then on its arrow; the asks panel on a session's choice, and on a words ask; and an answer sending, its
+/// countdown under way. Only when `SITREP_STILLS` names a folder for them, so a run of the tests writes nothing: black
+/// in it, glass in its `glass` and `glass-light` folders.
 @MainActor
 @Suite(.backstop, .enabled(if: stills != nil))
 struct AsksPanelStillsTests {
@@ -32,34 +33,39 @@ struct AsksPanelStillsTests {
     )
     private static let helpDesk = "needs:sr-nw0001", shifts = "needs:sr-ct0002"
 
-    @Test func thePointerOnARowsWords() throws {
+    @Test(arguments: Look.allCases)
+    func thePointerOnARowsWords(look: Look) throws {
         let run = try Self.opened()
 
-        try Self.shoot(run, pointer: try Self.words(Self.helpDesk, run), as: "1-row-words")
+        try Self.shoot(run, pointer: try Self.words(Self.helpDesk, run), as: "1-row-words", in: look)
     }
 
-    @Test func thePointerOnTheRowsArrow() throws {
+    @Test(arguments: Look.allCases)
+    func thePointerOnTheRowsArrow(look: Look) throws {
         let run = try Self.opened()
 
-        try Self.shoot(run, pointer: try Self.arrow(Self.helpDesk, run), as: "2-row-arrow")
+        try Self.shoot(run, pointer: try Self.arrow(Self.helpDesk, run), as: "2-row-arrow", in: look)
     }
 
-    @Test func theAsksPanelOnAChoice() throws {
+    @Test(arguments: Look.allCases)
+    func theAsksPanelOnAChoice(look: Look) throws {
         let run = try Self.opened()
 
         try Self.open(Self.helpDesk, run)
-        try Self.shoot(run, pointer: try Self.onTitle(run), as: "3-asks-choice")
+        try Self.shoot(run, pointer: try Self.onTitle(run), as: "3-asks-choice", in: look)
     }
 
-    @Test func theAsksPanelOnAWordsAsk() throws {
+    @Test(arguments: Look.allCases)
+    func theAsksPanelOnAWordsAsk(look: Look) throws {
         let run = try Self.opened()
 
         try Self.open(Self.shifts, run)
-        try Self.shoot(run, pointer: try Self.onTitle(run), as: "4-asks-words")
+        try Self.shoot(run, pointer: try Self.onTitle(run), as: "4-asks-words", in: look)
     }
 
     /// "Sending Threaded", held 800ms before the still is drawn, so its ring has 60% to run.
-    @Test func anAnswerSending() throws {
+    @Test(arguments: Look.allCases)
+    func anAnswerSending(look: Look) throws {
         let run = try Self.opened(), at = Date(timeIntervalSince1970: Self.now / 1000 - 0.8)
         let threaded = Answering(.words("Threaded"), to: "k1", of: "sr-nw0001")
 
@@ -68,14 +74,14 @@ struct AsksPanelStillsTests {
             .held(HeldAnswer(answering: threaded, heldAt: at, goesAt: at.addingTimeInterval(2))),
             NotchRun.Moment(time: run.time + Self.frameMS, pointer: try Self.onTitle(run), setting: Self.setting)
         )
-        try Self.shoot(run, pointer: try Self.onTitle(run), as: "5-sending")
+        try Self.shoot(run, pointer: try Self.onTitle(run), as: "5-sending", in: look)
     }
 
     // MARK: The run
 
     /// The run over the board, its panel poured out and settled under the pointer held at the notch's home.
     private static func opened() throws -> NotchRun {
-        let run = NotchRun(at: 0, in: setting, measure: AsksPanelLayer.measure)
+        let run = NotchRun(at: 0, in: setting, measure: AsksMeasure.drawn)
         let home = CGPoint(x: 4, y: edge.stage.notchY)
 
         _ = run.show(board(), NotchRun.Moment(time: 0, pointer: nil, setting: setting))
@@ -127,23 +133,61 @@ struct AsksPanelStillsTests {
         return CGPoint(x: asks.frame.minX + asks.layout.title.midX, y: asks.frame.minY + asks.layout.title.midY)
     }
 
-    /// The run moved on a few frames with the pointer here, drawn, and shot from the screen's edge past the asks panel,
-    /// over the panel's height and the asks panel's, with room round them.
-    private static func shoot(_ run: NotchRun, pointer: CGPoint, as name: String) throws {
-        let folder = try #require(stills), surface = NotchSurface()
+    /// What a still is drawn in, and the folder it goes in.
+    enum Look: CaseIterable {
+        case black, glass, glassLight
+
+        var material: EdgeSettings.Material { self == .black ? .black : .glass }
+
+        var appearance: NSAppearance? { NSAppearance(named: self == .glassLight ? .aqua : .darkAqua) }
+
+        var folder: String? {
+            switch self {
+            case .black: nil
+            case .glass: "glass"
+            case .glassLight: "glass-light"
+            }
+        }
+    }
+
+    /// The run moved on a few frames with the pointer here, drawn in the look, and shot from the screen's edge past the
+    /// asks panel, over the panel's height and the asks panel's, with room round them.
+    private static func shoot(_ run: NotchRun, pointer: CGPoint, as name: String, in look: Look) throws {
+        let root = try #require(stills), surface = NotchSurface()
+        let folder = look.folder.map { root.appending(path: $0) } ?? root
 
         step(run, for: 6 * frameMS, pointer: pointer)
-        surface.material = .black
+        surface.appearance = look.appearance
+        surface.material = look.material
         surface.frame = CGRect(origin: .zero, size: edge.window(wide: true).size)
         surface.draw(run, in: setting, mirror: edge.mirror(wide: true), now: now)
 
         let outline = run.frame.outline.boundingBox
         let shown = run.asksShown(in: setting).map { outline.union($0.frame) } ?? outline
         let cut = CGRect(x: 0, y: shown.minY - 40, width: AsksLayout.reach + 24, height: shown.height + 80)
-        let shot = try EdgeShot(surface, cut: cut)
+        let shot = look == .black
+            ? try EdgeShot(surface, cut: cut).shoot(turned: Running.at(0.3)) : try cached(surface, cut)
 
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        try shot.shoot(turned: Running.at(0.3)).png().write(to: folder.appending(path: "\(name).png"))
+        try shot.png().write(to: folder.appending(path: "\(name).png"))
+    }
+
+    /// The glass, whose SwiftUI draws only into a view's cache out of a window, over the desktop's wallpaper: the
+    /// Liquid Glass itself is the window server's, which draws none here.
+    private static func cached(_ surface: NSView, _ cut: CGRect) throws -> Canvas {
+        let canvas = try Canvas(cut.size)
+        let bitmap = try #require(NSBitmapImageRep(
+            bitmapDataPlanes: nil, pixelsWide: Int(cut.width * Canvas.scale),
+            pixelsHigh: Int(cut.height * Canvas.scale), bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .calibratedRGB,
+            bytesPerRow: 0, bitsPerPixel: 0
+        )?.retagging(with: .sRGB))
+
+        bitmap.size = cut.size
+        surface.layoutSubtreeIfNeeded()
+        surface.cacheDisplay(in: cut, to: bitmap)
+        try ReadmeDesktop.drawWallpaper(cut, in: canvas.context)
+        canvas.draw(try #require(bitmap.cgImage), in: CGRect(origin: .zero, size: cut.size))
+        return canvas
     }
 
     // MARK: The board
