@@ -40,7 +40,7 @@ final class EdgeShot {
     /// comes off first.
     func shoot(turned: (CABasicAnimation) -> Double, over: (CGContext) -> Void = { _ in }) throws -> Canvas {
         let canvas = try Canvas(cut.size), context = canvas.context
-        let restores = [try Glows.set(root), Running.set(root, turned: turned)]
+        let restores = [try Glows.set(root), Running.set(root, turned: turned), Shadows.set(root)]
 
         defer { restores.forEach { $0() } }
         canvas.draw(backdrop, in: CGRect(origin: .zero, size: cut.size))
@@ -114,6 +114,30 @@ enum Running {
         each(layer)
         layer.sublayers?.forEach { visit($0, each) }
         layer.mask.map { visit($0, each) }
+    }
+}
+
+/// The shadows cast down the screen, an asks panel's, which `render(in:)` casts up instead, offsetting each in the
+/// context's own space, y up, where the screen offsets it in the flipped layers': each offset turned over for the shot,
+/// and set back once drawn.
+@MainActor
+enum Shadows {
+    static func set(_ root: CALayer) -> () -> Void {
+        var restores: [() -> Void] = []
+
+        still {
+            Running.visit(root) { layer in
+                let offset = layer.shadowOffset
+
+                guard layer.shadowOpacity > 0, offset.height != 0 else {
+                    return
+                }
+
+                layer.shadowOffset = CGSize(width: offset.width, height: -offset.height)
+                restores.append { layer.shadowOffset = offset }
+            }
+        }
+        return { still { restores.forEach { $0() } } }
     }
 }
 

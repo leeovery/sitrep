@@ -44,7 +44,7 @@ public struct Session: Equatable, Sendable {
 
         /// When on the wall clock its time may next read differently: at its next whole minute.
         public func ageChanges(after now: Double) -> Double {
-            since + Session.minute * max(1, ((now - since) / Session.minute).rounded(.down) + 1)
+            Session.ageChanges(since: since, after: now)
         }
 
         /// What it waits on, set plain after the title at this time on the wall clock: a wake's countdown, else its
@@ -192,6 +192,11 @@ public struct Session: Equatable, Sendable {
     public func countdownRoom(after now: Double) -> [String] { headline.countdownRoom(after: now) }
 
     fileprivate static let minute = 60_000.0
+
+    /// When on the wall clock a time counted from `since` next reads differently: at its next whole minute.
+    static func ageChanges(since: Double, after now: Double) -> Double {
+        since + minute * max(1, ((now - since) / minute).rounded(.down) + 1)
+    }
 
     /// The time until a wake in ms as its countdown reads (`Age`, up to the whole minute): "in 12m", "in 2h", "in
     /// 3d"; "now" once it is due.
@@ -410,13 +415,26 @@ public struct Content: Equatable, Sendable {
                 return false
             }
 
-            let frame = itemFrame(i), margins = item.margins
-            let drawn = CGRect(
-                x: frame.minX, y: frame.minY + margins.above, width: frame.width,
-                height: max(0, frame.height - margins.above - margins.below)
-            )
-            return drawn.contains(point)
+            return drawnFrame(i).contains(point)
         }
+    }
+
+    /// Where an item lays out what it draws, in the content's own frame: at its own height, under its margin above,
+    /// which a fold clips rather than shortens (`drawnFrame`).
+    public func laidFrame(_ index: Int) -> CGRect {
+        let frame = itemFrame(index)
+
+        return entries[index].item.box(width: frame.width).offsetBy(dx: frame.minX, dy: frame.minY)
+    }
+
+    /// Where an item draws, in the content's own frame: its box less its margins, as a fold shortens it.
+    public func drawnFrame(_ index: Int) -> CGRect {
+        let frame = itemFrame(index), margins = entries[index].item.margins
+
+        return CGRect(
+            x: frame.minX, y: frame.minY + margins.above, width: frame.width,
+            height: max(0, frame.height - margins.above - margins.below)
+        )
     }
 
     private static let width = Tuning.panelDepth - 2 * paddingSide

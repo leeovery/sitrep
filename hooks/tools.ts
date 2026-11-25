@@ -48,6 +48,7 @@ import {
 } from '../core'
 import type { SitrepAttachment } from '../types'
 import { filedNow, foldAt, lookAround } from './around'
+import { BUSY, byDeadline, progressOf, type Answered, type Budget, type Progress } from './deadline'
 import { folderHolding } from './folders'
 import { bearingsOf, random, rootFor, type Host } from './host'
 import { writeInto, type Into } from './into'
@@ -72,7 +73,7 @@ type Spec<N extends string> = ToolSpec & { name: N }
 
 type Tool<N extends string = string> = {
   spec: Spec<N>
-  answer: (host: Host, input: Fields) => Promise<Answer>
+  answer: (host: Host, input: Fields, progress: Progress) => Promise<Answer>
 }
 
 /** How the model names this plugin's tools. */
@@ -174,10 +175,17 @@ const onSession =
     return 'deny' in now ? now : answer(host, now.session, input, now.holding)
   }
 
+/** A post's answer once decided, kept before anything is written, so its deadline can give it; a post dropped meanwhile answers as its deadline did. */
+const decided = (progress: Progress, answer: Answer): Answer =>
+  progress.knows(answer) ? answer : { deny: BUSY }
+
 /**
  * A tool that posts one line, checked from its input, to the attached
  * session: a line Claude knows of. `names` names what the line is about, in
- * the session as it stands after it.
+ * the session as it stands after it. Until its answer is decided its
+ * deadline may drop it, the fold its check reads included; whatever it
+ * decides, the line's answer or one with nothing to write, is kept before
+ * anything is written.
  */
 const posting = <N extends string, B extends Body>(
   toolSpec: Spec<N>,
@@ -187,27 +195,39 @@ const posting = <N extends string, B extends Body>(
   unchanged: Unchanged = () => undefined,
 ): Tool<N> => ({
   spec: toolSpec,
-  answer: onSession(async (host, session, input) => {
+  answer: async (host, input, progress) => {
+    progress.posts()
+
+    const now = await holdNow(host)
+
+    if ('deny' in now) {
+      return decided(progress, now)
+    }
+
+    const { session } = now
     // Read with the check, from the one read the post appends after: nothing re-reads in between.
     const quiet = unchanged(session, input)
 
     if (quiet !== undefined) {
-      return quiet
+      return decided(progress, quiet)
     }
 
     const checked = await check(session, input, host)
 
     if (!checked.ok) {
-      return { deny: checked.error }
+      return decided(progress, { deny: checked.error })
+    }
+
+    const answer = decided(progress, { result: said(checked.value, session) })
+
+    if ('deny' in answer) {
+      return answer
     }
 
     const after = await postKnown(host, session, [checked.value])
 
-    return {
-      result: said(checked.value, session),
-      names: after === undefined ? undefined : names(after, checked.value),
-    }
-  }),
+    return { ...answer, names: after === undefined ? undefined : names(after, checked.value) }
+  },
 })
 
 /** What a tool's answer says it did, given the line it wrote and the session as it stood before, where that was read. */
@@ -385,9 +405,9 @@ const onItem = <N extends string, B extends Body & { item: string }>(
 
   return {
     spec: toolSpec,
-    answer: (host, input) =>
+    answer: (host, input, progress) =>
       input.session === undefined || input.session === attached()?.session
-        ? here.answer(host, input)
+        ? here.answer(host, input, progress)
         : parkedElsewhere(host, input, check, said, unchanged),
   }
 }
@@ -771,7 +791,7 @@ export const nameKept = async (host: Host, call: string) =>
   (await host.state.named.read()).find(each => each.call === call)?.name
 
 /** A tool's answer as the model reads it, the name its row gives kept first. */
-const answered = async (host: Host, call: string, answer: Answer) => {
+const answered = async (host: Host, call: string, answer: Answer): Promise<Answered> => {
   if ('deny' in answer) {
     return answer
   }
@@ -783,18 +803,32 @@ const answered = async (host: Host, call: string, answer: Answer) => {
   return { result: answer.result }
 }
 
-/** Answers a call of one of the tools; a subagent's is refused. */
+/**
+ * Answers a call of one of the tools; a subagent's is refused. Its work
+ * waits its turn in the window's queue, and is answered within its hook's
+ * `budget`, as the hook reads it live (deadline.ts).
+ */
 export const answerCall = async (
   host: Host,
   call: Fields & { tool: string; tool_use_id: string; agentId?: string },
-): Promise<{ result: string } | { deny: string }> => {
+  budget: Budget,
+): Promise<Answered> => {
   if (call.agentId !== undefined) {
     return { deny: FOR_THE_REPORT }
   }
 
   const tool = BY_NAME.get(call.tool)
 
-  return tool === undefined
-    ? { deny: `sitrep has no tool ${call.tool}.` }
-    : serially(async () => answered(host, call.tool_use_id, await tool.answer(host, call)))
+  if (tool === undefined) {
+    return { deny: `sitrep has no tool ${call.tool}.` }
+  }
+
+  const progress = progressOf()
+  const work = serially(async () =>
+    progress.begin()
+      ? answered(host, call.tool_use_id, await tool.answer(host, call, progress))
+      : { deny: BUSY },
+  )
+
+  return byDeadline(host, tool.spec.name, work, progress, budget)
 }

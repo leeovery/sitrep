@@ -168,14 +168,15 @@ export type SnoozeSessionBody = { type: 'snoozeSession'; until?: number; asks: s
 export type WakeSessionBody = { type: 'wakeSession' }
 
 /**
- * Lee's snooze of an ask, from before a snooze was the session's (23
- * October to 13 November 2026), which a window not reloaded still writes:
- * read as his snooze of the session until `until`, where it names an ask
- * waiting as posted.
+ * Lee's snooze of one ask, its own, until `until`, as the pane writes it:
+ * that ask alone put off, where it names one waiting as posted; the turn
+ * sleeps with such snoozes while they hold every ask waiting on him. Read
+ * so since 23 October 2026; from 13 to 24 November 2026 only a window not
+ * reloaded wrote it.
  */
 export type SnoozeBody = { type: 'snooze'; item: string; until: number }
 
-/** Lee's waking of a snoozed ask, from before a snooze was the session's: read as his waking of the session. */
+/** Lee's waking of one ask from his own snooze of it, as the pane writes it: that snooze ended, and an old line's snooze of the turn. */
 export type WakeBody = { type: 'wake'; item: string }
 
 /**
@@ -285,9 +286,9 @@ export type Ask = Posted & {
   answerOnItsWay?: Reply
   /** Lee's replies to it, oldest first, those on their way in a live window's message, not written down yet, among them at their claim's time. */
   replies: Reply[]
-  /** When Lee's snooze of its session wakes, while that is still to come at the fold's moment, `UNTIL_IT_MOVES` for one with no time; only on one waiting as posted. */
+  /** When Lee's snooze of it, or of its session, wakes, while that is still to come at the fold's moment, `UNTIL_IT_MOVES` for one with no time; the later where both hold; only on one waiting as posted. */
   snoozedUntil?: number
-  /** When Lee's snooze of its session ran out, once it has, until a later line ends it; only on one waiting as posted. */
+  /** When Lee's snooze of it, or of its session, ran out, once it has, until a later line ends it; only on one waiting as posted. */
   wokeAt?: number
 }
 
@@ -423,6 +424,14 @@ export const UNTIL_IT_MOVES = Number.MAX_SAFE_INTEGER
 /** Lee's latest snooze of a session's turn, from an old line: the turn it holds, by its end; when it wakes, none until the turn moves; and when Lee wrote it. */
 export type TurnSnooze = { turn: number; until?: number; at: number }
 
+/**
+ * A session's turn put off with Lee's snoozes of asks, each its own, while
+ * they hold every ask waiting on him: when the first of them wakes, and
+ * when he wrote the one that completed them. Only a turn standing then, ended
+ * by that time, sleeps with them; one ending after is a new need.
+ */
+export type TurnWithAsks = { until: number; at: number }
+
 /** A session as it stands, every writer's lines read together. */
 export type Session = {
   id: string
@@ -458,10 +467,10 @@ export type Session = {
   asideUntil?: number
   /** Lee's latest snooze of its turn, from an old line, until a line wakes it: whether it holds at a moment is the rows' to say. */
   turnSnooze?: TurnSnooze
-  /** From old lines' snoozes of asks, holding every ask waiting on Lee: when the first of them wakes, the turn with it; none once one has woken or ended. */
-  turnWithAsks?: number
+  /** From Lee's snoozes of asks, each its own, holding every ask waiting on him: the turn standing as the last was written sleeps with them; none once one has woken or ended. */
+  turnWithAsks?: TurnWithAsks
   /** Every id the session's lines use, items and replies alike. */
   ids: ReadonlySet<string>
-  /** The latest line's time, Lee's snoozes and wakes of a session or a turn aside, which Claude is never told of, and lines about a parked item but its park, which is its project's; or when the session was started. */
+  /** The latest line's time, Lee's snoozes and wakes of a session, an ask or a turn aside, which Claude is never told of, and lines about a parked item but its park, which is its project's; or when the session was started. */
   updatedAt: number
 }

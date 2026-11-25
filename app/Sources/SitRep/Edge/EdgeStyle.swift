@@ -66,6 +66,31 @@ enum EdgeStyle {
     static let rowCountdown = NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .medium)
     static let rowSub = NSFont.systemFont(ofSize: 11)
 
+    /// The row's arrow, lit (Paper's board E2).
+    static let arrowLit = srgb(0x34343B)
+    /// The asks panel's (board F): its hairline, an answer's row and its border, lifted under the pointer, a keycap and
+    /// an outlined row's or pill's border, a page dot not current, and the words on an answer's row held, white.
+    static let asksBorder = white(0.15)
+    static let answer = srgb(0x1C1C1F)
+    static let answerBorder = srgb(0x34343A)
+    static let answerLifted = srgb(0x26262A)
+    static let answerLiftedBorder = srgb(0x45454C)
+    static let keycap = srgb(0x2C2C31)
+    static let outline = srgb(0x2C2C31)
+    static let dot = srgb(0x3A3A40)
+    static let onWhite = srgb(0x111113)
+    /// The asks panel's type: the session's name, the ask's title, a keycap's number, an answer's label and its
+    /// "recommended", and the foot's words, medium and regular.
+    static let asksName = NSFont.systemFont(ofSize: 12, weight: .semibold)
+    static let asksTitle = NSFont.systemFont(ofSize: 17, weight: .semibold)
+    static let asksKeycap = NSFont.systemFont(ofSize: 11, weight: .semibold)
+    static let asksLabel = NSFont.systemFont(ofSize: 13, weight: .medium)
+    static let asksNote = NSFont.systemFont(ofSize: 11, weight: .medium)
+    static let asksFoot = NSFont.systemFont(ofSize: 12, weight: .medium)
+    static let asksFootPlain = NSFont.systemFont(ofSize: 12, weight: .regular)
+    /// The ask's title spaced at -0.02em.
+    static let asksTitleKern = -0.02 * asksTitle.pointSize
+
     /// What a row in Needs you waits on, as its mark's colour says it: an ask's orange, or Lee's turn's blue.
     static func colour(of need: Need) -> CGColor {
         need == .ask ? orange : blue

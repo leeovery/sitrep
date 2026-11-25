@@ -135,6 +135,7 @@ const hostOf = ($: EngineInterface): Host => ({
   },
   clock: {
     now: () => $.clock.now(),
+    sleep: (ms, signal) => $.clock.sleep(ms, { signal }),
     after: (ms, task) => $.clock.after(ms, task),
     every: (ms, task) => $.clock.every(ms, task),
   },
@@ -445,7 +446,12 @@ export const register: Register = on => {
     return answer
   }).catch(($, e, next) => next(e))
 
-  on('tool.call', { tool: OWN_TOOLS }, ($, e) => answerCall(hostOf($), e)).catch(($, e, next) =>
+  // Answered within the hook's budget, read afresh at each look, since each
+  // read of `next.budget` is a copy: past it Claude Code skips the hook, its
+  // .catch unasked (deadline.ts).
+  on('tool.call', { tool: OWN_TOOLS }, ($, e, next) =>
+    answerCall(hostOf($), e, { left: () => next.budget.remainingMs, signal: next.signal }),
+  ).catch(($, e, next) =>
     next.called
       ? next(e)
       : { deny: `The sitrep board could not take that: ${next.error.message ?? next.error.kind}.` },

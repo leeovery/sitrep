@@ -43,4 +43,18 @@ struct TextLineTests {
         #expect(set < TextLine.width(TextLine.text("…", EdgeStyle.count, EdgeStyle.ink2)))
         #expect(line.width == set)
     }
+
+    /// A title wrapped onto lines ends each at its last word, the space it broke after left off, and the last holds
+    /// the rest.
+    @Test func wrappedLinesEndAtTheirLastWord() {
+        let title = TextLine.text(
+            "Thread the replies under each ticket, or keep them flat in the order they came in?", EdgeStyle.asksTitle,
+            EdgeStyle.ink
+        )
+        let lines = TextLine.wrapped(title, width: 160, most: 3).map(\.string)
+
+        #expect(lines.count == 3)
+        #expect(lines.allSatisfy { $0.last.map { !$0.isWhitespace } ?? false })
+        #expect(lines.joined(separator: " ") == title.string)
+    }
 }
