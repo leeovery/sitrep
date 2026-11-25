@@ -561,6 +561,23 @@ test('an answer given the shape the caller showed is refused where the ask now w
   )
 })
 
+test('an old ask is answered with --wants as the board reports it: an old do needing something back wants words, a review a yes', () => {
+  expect(value(checkAnswer(SESSION, { ask: 'o1', answer: 'Done', wants: 'words' }))).toEqual({
+    type: 'reply',
+    item: 'o1',
+    verdict: 'answer',
+    note: 'Done',
+  })
+  expect(value(checkAnswer(SESSION, { ask: 'o2', answer: 'Approve', wants: 'yes' }))).toEqual({
+    type: 'reply',
+    item: 'o2',
+    verdict: 'yes',
+  })
+  expect(refusal(checkAnswer(SESSION, { ask: 'o2', answer: 'Approve', wants: 'words' }))).toBe(
+    'o2 now wants a yes, not words: look at it again.',
+  )
+})
+
 test("a words ask, an old one needing something back among them, takes its words on one line as the pane's words answer; only an ask is answered", () => {
   const answer = '  Ship the\n Tuesday  build '
 

@@ -22,8 +22,10 @@ public struct LastBoard: Sendable, Equatable {
     /// The sessions the line just heard moved into Lee's turn, by their ids
     /// (`turnsEnded`). Only as the line comes, as `isRunsFirst` is.
     public private(set) var newTurns: Set<String> = []
-    /// The asks that waited on Lee on the board before and wait on him no more on the line just heard: answered,
-    /// ignored, resolved, or gone with their session, so their banners go. Only as the line comes, as `isRunsFirst` is.
+    /// The asks that waited on Lee on the board kept and wait on him no more on the line just heard: answered, ignored,
+    /// commented on, resolved, or gone with their session, so their banners go. Only as the line comes, as `newTurns`
+    /// is; a restarted run's first line among them, against the board the last run left, as asks may have left
+    /// between the runs.
     public private(set) var asksLeft: Set<AskOf> = []
 
     /// A run has started and nothing it printed has been heard yet.
@@ -70,7 +72,7 @@ public struct LastBoard: Sendable, Equatable {
             let read = try Board.read(line)
 
             newTurns = turnsEnded(on: read, after: isRunsFirst ? nil : board)
-            asksLeft = (board?.waitingOnLee ?? []).subtracting(read.waitingOnLee)
+            asksLeft = asksLeft(on: read, after: board)
             board = read
             stale = nil
             staleSince = nil
@@ -105,6 +107,16 @@ public struct LastBoard: Sendable, Equatable {
             ends[row.session] = row.section == .yourTurn ? max(row.since, end ?? row.since) : end
         }
         return Set(ended.map(\.session))
+    }
+
+    /// The asks waiting on Lee on the last board that wait on him no more on this one: none where either line's
+    /// projects did not read, as such a line says nothing of its asks, so no banner goes for an ask still waiting.
+    private func asksLeft(on board: Board, after last: Board?) -> Set<AskOf> {
+        guard let was = last?.waitingOnLee, let now = board.waitingOnLee else {
+            return []
+        }
+
+        return was.subtracting(now)
     }
 
     /// Stale for the reason given, since it first went stale.

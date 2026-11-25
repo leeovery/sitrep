@@ -108,7 +108,7 @@ public final class Answers {
             answering: answering, heldAt: heldAt, goesAt: heldAt.addingTimeInterval(Self.goesAfter / .seconds(1))
         )
 
-        let named = named(answering)
+        let named = naming(answering)
 
         self.held = held
         heldNamed = named
@@ -141,16 +141,16 @@ public final class Answers {
         if let held, held.answering.ask == answering.ask, held.answering.session == answering.session {
             undo()
         }
-        run(answering, named: named(answering))
+        run(answering, named: naming(answering))
     }
 
     /// A banner's answer, sent at once as `send` sends it, unless it cannot answer the ask as the board holds it
     /// (`Banner.Ask.refusal`): then a banner "Not answered" says why, and nothing is sent.
     public func send(_ words: String, from banner: Banner.Ask) {
-        let answering = Answering(.words(words), to: banner.id, of: banner.session, wanting: banner.wants.kind)
+        let answering = Answering(.words(words), to: banner.id, of: banner.session, wanting: banner.wants.shape)
 
         if let why = banner.refusal(of: words, live: board()?.ask(banner.id, of: banner.session)) {
-            return post(.unanswered(why, of: named(answering)))
+            return post(.unanswered(why, of: naming(answering)))
         }
 
         send(answering)
@@ -173,10 +173,12 @@ public final class Answers {
     }
 
     /// The ask answered, as the board names it now; nil where it holds it no more.
-    private func named(_ answering: Answering) -> AskNamed? {
-        board()?.named(answering.ask, of: answering.session)
+    private func naming(_ answering: Answering) -> AskNamed? {
+        board()?.naming(answering.ask, of: answering.session)
     }
 
+    /// Sent, its refusal naming the ask as `named` has it, as the board showed it when it was held or sent; else as
+    /// the board shows it by the time the CLI refuses, as for one held before SitRep had heard a board.
     private func run(_ answering: Answering, named: AskNamed?) {
         let send = nextSend
 
@@ -186,7 +188,7 @@ public final class Answers {
             let written = await answer(answering)
 
             if case let .refused(why) = written {
-                post(.unanswered(why, of: named))
+                post(.unanswered(why, of: named ?? naming(answering)))
             }
             heard(.ended(answering, written))
             sends[send] = nil

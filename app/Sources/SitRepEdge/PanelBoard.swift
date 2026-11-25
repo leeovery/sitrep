@@ -223,7 +223,7 @@ private extension PanelAsk {
 
 extension PanelAsk.Wants {
     /// What it wants, as the board and `sitrep answer --wants` say it.
-    public var kind: Board.Ask.Wants {
+    public var shape: Board.Ask.Wants {
         switch self {
         case .yes: .yes
         case .choice: .choice

@@ -74,9 +74,9 @@ extension NotchRun {
 
         switch asking.part(at: point, mirror: setting.mirror) {
         case let .answer(row)?:
-            return .answer(Answering(.words(ask.answers[row]), to: ask.id, of: session, wanting: ask.wants.kind))
+            return .answer(Answering(.words(ask.answers[row]), to: ask.id, of: session, wanting: ask.wants.shape))
         case .ignore?:
-            return .answer(Answering(.ignore, to: ask.id, of: session, wanting: ask.wants.kind))
+            return .answer(Answering(.ignore, to: ask.id, of: session, wanting: ask.wants.shape))
         case .undo?:
             return .undo
         case .snooze?:

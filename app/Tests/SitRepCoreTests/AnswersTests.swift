@@ -263,7 +263,7 @@ struct AnswersTests {
         answers.send(words, from: Self.banner(wants))
         await until(turns: 100_000) { cli.ran.count == 1 }
 
-        #expect(cli.ran == [Answering(.words(words), to: "k1", of: "sr-4t2kq8", wanting: wants.kind)])
+        #expect(cli.ran == [Answering(.words(words), to: "k1", of: "sr-4t2kq8", wanting: wants.shape)])
         #expect(cli.banners.isEmpty)
     }
 
@@ -320,7 +320,7 @@ struct AnswersTests {
     /// A refusal names the ask by its title, under its project and session, a click jumping there: named as the board
     /// showed it as the answer was held, though the ask has left it by the time the CLI refuses.
     @Test func aRefusalNamesTheAskAsTheBoardShowedItAsTheAnswerWasHeld() async throws {
-        let box = BoardBox(try Self.board(WatchLine.Ask(id: "k1", title: "Pick the export format"), row: true))
+        let box = BoardBox(try Self.board(WatchLine.Ask(id: "k1", title: "Pick the export format"), row: .needsYou))
         let (answers, clock, cli) = Self.made(answering: .refused("k1 is already closed.")) { box.board }
 
         answers.hold(Self.approve)
@@ -338,12 +338,40 @@ struct AnswersTests {
     /// A banner's answer refused as reshaped names its ask too.
     @Test func aReshapedAsksRefusalNamesTheAsk() async throws {
         let live = WatchLine.Ask(id: "k1", wants: .words, yes: nil, title: "Pick the export format")
-        let (answers, _, cli) = Self.made(board: try Self.board(live, row: true))
+        let (answers, _, cli) = Self.made(board: try Self.board(live, row: .needsYou))
 
         answers.send("Go", from: Self.banner(.yes("Go")))
         await Self.settle()
 
         #expect(cli.banners.map(\.subtitle) == ["Northwind · Ledger export"])
+        #expect(cli.banners.map(\.work) == ["sr-4t2kq8"])
+    }
+
+    /// Its whole session snoozed, the ask has no row in Needs you: its row in Snoozed names its place.
+    @Test func aRefusalForAnAskOfASnoozedSessionNamesItsPlace() async throws {
+        let board = try Self.board(WatchLine.Ask(id: "k1", title: "Pick the export format"), row: .snoozed)
+        let (answers, _, cli) = Self.made(answering: .refused("k1 is already closed."), board: board)
+
+        answers.send(Self.approve)
+        await until(turns: 100_000) { cli.banners.count == 1 }
+
+        #expect(cli.banners.map(\.subtitle) == ["Northwind · Ledger export"])
+        #expect(cli.banners.map(\.body) == ["“Pick the export format” is already closed."])
+    }
+
+    /// Held before SitRep had heard a board, as by a press that started it: named as the board shows it by the time
+    /// the CLI refuses.
+    @Test func aRefusalForAnAnswerHeldBeforeAnyBoardNamesTheAskAsTheBoardShowsItThen() async throws {
+        let box = BoardBox(nil)
+        let (answers, clock, cli) = Self.made(answering: .refused("k1 is already closed.")) { box.board }
+
+        answers.hold(Self.approve)
+        await until(turns: 100_000) { clock.sleeps.count == 1 }
+        box.board = try Self.board(WatchLine.Ask(id: "k1", title: "Pick the export format"), row: .needsYou)
+        clock.pass(Answers.goesAfter)
+        await until(turns: 100_000) { cli.banners.count == 1 }
+
+        #expect(cli.banners.map(\.body) == ["“Pick the export format” is already closed."])
         #expect(cli.banners.map(\.work) == ["sr-4t2kq8"])
     }
 
@@ -353,12 +381,20 @@ struct AnswersTests {
 
     /// A board whose session `sr-4t2kq8`, Northwind's Ledger export, holds this one ask, with its Needs you row, or
     /// none.
-    private static func board(_ ask: WatchLine.Ask, row: Bool = false) throws -> Board {
+    private static func board(_ ask: WatchLine.Ask, row: Row = .nowhere) throws -> Board {
         let session = WatchLine.Session(id: "sr-4t2kq8", asks: [ask])
         let line = WatchLine.Row.Line("ask:sr-4t2kq8:k1", .ask, ask: "k1", first: "Pick")
-        let rows = row ? [WatchLine.Row(session: "sr-4t2kq8", lines: [line])] : []
+        let asleep = WatchLine.SnoozedRow.Line("ask:sr-4t2kq8:k1", ask: "k1", first: "Pick", wakesAt: nil)
+        let rows = row == .needsYou ? [WatchLine.Row(session: "sr-4t2kq8", lines: [line])] : []
+        let snoozed = row == .snoozed ? [WatchLine.SnoozedRow(session: "sr-4t2kq8", lines: [asleep])] : []
+        let watched = WatchLine(rows: rows, snoozed: snoozed, projects: [WatchLine.Project(sessions: [session])])
 
-        return try Board.read(WatchLine(rows: rows, projects: [WatchLine.Project(sessions: [session])]).text)
+        return try Board.read(watched.text)
+    }
+
+    /// Where the session's row stands on the board, if anywhere.
+    enum Row {
+        case nowhere, needsYou, snoozed
     }
 
     private static func made(

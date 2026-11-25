@@ -5480,15 +5480,19 @@ that takes Lee to the window a session is in.
     unlocked; a press hands the front back, as nothing jumps; Reply sent
     empty posts "Not answered", saying it had no words. Every answer, the
     asks panel's too, passes `--wants`, what the ask wanted as Lee saw
-    it, so the CLI refuses one Claude reshaped since; SitRep refuses it
-    first where its last board already shows the change. A refusal's
-    banner names the ask by its title in place of its id, under its
-    project and session, as its new ask's banner does, and a click on it
-    jumps there. An ask that waits on Lee no more, answered anywhere,
-    ignored, resolved or gone with its session, has its banners still in
-    Notification Center taken down, over the relay's `cleared`, so no
-    old button answers it and the helper's categories stay bounded to
-    the banners on screen and the ten last posted.
+    it, so the CLI refuses one Claude reshaped since. For a banner's
+    answer SitRep refuses it first where its last board already shows
+    the change; the asks panel's held answer is left to the CLI. A
+    refusal's banner names the ask by its title in place of its id,
+    under its project and session, as its new ask's banner does, from
+    its row in Needs you or in Snoozed, and a click on it jumps there.
+    An ask that waits on Lee no more, answered anywhere, ignored,
+    commented on, resolved or gone with its session, has its banners
+    still in Notification Center taken down, over the relay's `cleared`,
+    so no old button answers it and the helper's categories stay bounded
+    to the banners on screen and the ten last posted. Only while SitRep
+    runs, and from a line whose projects read: an ask that left while it
+    was off keeps its banner, and the CLI refuses a press on it.
 - **Answering from the edge** (24 November 2026; see "Answering from the
   panel"): a yes or a choice from the asks panel, and a yes, a choice or
   words from a new ask's banner (below), each through `sitrep answer`. A

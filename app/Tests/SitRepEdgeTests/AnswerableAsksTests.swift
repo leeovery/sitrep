@@ -41,8 +41,8 @@ struct AnswerableAsksTests {
         let helpDesk = try #require(Self.board.asks[AsksBoard.helpDesk])
         let shifts = try #require(Self.board.asks[AsksBoard.shifts])
 
-        #expect(helpDesk.map(\.wants.kind) == [.choice, .yes])
-        #expect(shifts.map(\.wants.kind) == [.words])
+        #expect(helpDesk.map(\.wants.shape) == [.choice, .yes])
+        #expect(shifts.map(\.wants.shape) == [.words])
     }
 
     @Test func aChoiceWithNoOptionsIsAnsweredInClaudeAndAPickNotOfferedIsNone() {

@@ -14,7 +14,7 @@ public struct Banner: Equatable, Sendable {
             case words
 
             /// What it wants, as the board and `sitrep answer --wants` say it.
-            public var kind: Board.Ask.Wants {
+            public var shape: Board.Ask.Wants {
                 switch self {
                 case .yes: .yes
                 case .choice: .choice
@@ -143,8 +143,8 @@ public struct Banner: Equatable, Sendable {
     }
 }
 
-/// An ask as a refusal's banner names it: its id, which the CLI's words lead with, its title, its project and session,
-/// and its session, which a click jumps to.
+/// An ask as a refusal's banner names it: its id, which the CLI's words name it by, its title, its project and
+/// session, and its session, which a click jumps to.
 public struct AskNamed: Equatable, Sendable {
     public let id: String
     public let title: String
@@ -153,14 +153,23 @@ public struct AskNamed: Equatable, Sendable {
 }
 
 extension Board {
-    /// The ask of the session, named as its row shows it; nil for an ask or a row not on the board.
-    public func named(_ ask: String, of session: String) -> AskNamed? {
-        guard let title = self.ask(ask, of: session)?.title, let row = rows.first(where: { $0.session == session })
-        else {
+    /// The ask of the session, named as its row shows it, in Needs you or, its whole session snoozed, in Snoozed; nil
+    /// for an ask, or a session with no row, not on the board.
+    public func naming(_ ask: String, of session: String) -> AskNamed? {
+        let place = rows.first { $0.session == session }?.place ?? snoozed.first { $0.session == session }?.place
+
+        guard let title = self.ask(ask, of: session)?.title, let place else {
             return nil
         }
 
-        return AskNamed(id: ask, title: title, place: row.place, session: session)
+        return AskNamed(id: ask, title: title, place: place, session: session)
+    }
+}
+
+extension Board.SnoozedRow {
+    /// Its project and session by name, as its row in Needs you says them.
+    var place: String {
+        "\(projectName) · \(name)"
     }
 }
 
