@@ -2,7 +2,6 @@ import QuartzCore
 @testable import SitRep
 @testable import SitRepPanel
 import SitRepTestSupport
-import SwiftUI
 import Testing
 
 /// A mark in black, eased as the prototype's `.mk` eases it: its arc in over 60ms as a click's jump starts, so a quick
@@ -107,21 +106,12 @@ struct StripMarkLayerTests {
         #expect(layer.ring.borderColor == nil)
     }
 
-    /// Read round it, its eight dashes show, a gap between each, on the black and on glass alike.
+    /// Read round it, its eight dashes show, a gap between each.
     @Test func itsDottedRingReadsAsEightDashesOnTheBlack() throws {
         let layer = StripMarkLayer()
 
         layer.show(Self.mark(.onItsWork), at: CGPoint(x: 12, y: 12))
         #expect(try Self.dashes(Drawn(layer.layer)) == 8)
-    }
-
-    @available(macOS 26, *)
-    @Test func itsDottedRingReadsAsEightDashesOnGlass() throws {
-        let side = StripFrame.Mark.size
-
-        #expect(try Self.dashes(Drawn(GlassMark(mark: Self.mark(.onItsWork)), size: CGSize(width: side, height: side)))
-            == 8)
-        #expect(try Self.dashes(Drawn(GlassMark(mark: Self.mark(.turn)), size: CGSize(width: side, height: side))) == 1)
     }
 
     /// The runs of ink met going once round a mark's ring, 11.25 from its centre: a ring whole is one.

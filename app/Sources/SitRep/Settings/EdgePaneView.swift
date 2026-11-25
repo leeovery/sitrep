@@ -12,7 +12,7 @@ struct EdgePaneView: View {
     @State private var isSliding = false
 
     var body: some View {
-        let sections = EdgePane.sections(preferences.edge, hasGlass: settings.services.hasGlass)
+        let sections = EdgePane.sections(preferences.edge)
 
         VStack(alignment: .leading, spacing: SettingsStyle.sectionGap) {
             SettingsCard {
@@ -64,10 +64,6 @@ struct EdgePaneView: View {
                 }
                 .labelsHidden()
                 .frame(width: 160)
-            }
-        case .material:
-            CardRow(label: "Material", line: "For the notch and the strip alike") {
-                segmented("Material", \.material, EdgeSettings.Material.allCases, \.title)
             }
         case .reduceMotion:
             CardRow(label: "Reduce motion", line: "SitRep follows the Mac's own setting either way") {

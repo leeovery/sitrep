@@ -83,41 +83,27 @@ struct NoticesTests {
         #expect(Notices.due(stale, .notifyingAsks).isEmpty)
     }
 
-    /// Its buttons answer the board's ask the line is, by what it wants: a yes's words, a choice's options in Claude's
-    /// order, Claude's pick, Right, among them in its place and unmarked, or Reply for words.
+    /// It tells of the ask its line names, whatever the ask wants, for the banner to be taken down by once the ask
+    /// waits on Lee no more.
     @Test(arguments: [
-        (WatchLine.Ask(id: "k2", wants: .yes, yes: "Go"), Banner.Ask.Wants.yes("Go")),
-        (WatchLine.Ask(id: "k2", wants: .yes, yes: nil), .yes("yes")),
-        (
-            WatchLine.Ask(id: "k2", wants: .choice, yes: nil, options: ["Left", "Right"], recommended: "Right"),
-            .choice(["Left", "Right"])
-        ),
-        (WatchLine.Ask(id: "k2", wants: .words, yes: nil, needs: "the command's output"), .words),
+        WatchLine.Ask(id: "k2", wants: .yes, yes: "Go"),
+        WatchLine.Ask(id: "k2", wants: .choice, yes: nil, options: ["Left", "Right"], recommended: "Right"),
+        WatchLine.Ask(id: "k2", wants: .words, yes: nil, needs: "the command's output"),
     ])
-    func aNewAsksBannerAnswersItsAsk(ask: WatchLine.Ask, wants: Banner.Ask.Wants) {
-        #expect(Notices.due(Self.asking([ask]), .notifyingAsks).map(\.ask) == [
-            Banner.Ask(
-                id: "k2", session: "sr-nw0001", title: "Pick the export format", place: "Northwind · Ledger export",
-                wants: wants
-            ),
-        ])
+    func aNewAsksBannerTellsOfItsAsk(ask: WatchLine.Ask) {
+        #expect(Notices.due(Self.asking([ask]), .notifyingAsks).map(\.ask) == [AskOf(session: "sr-nw0001", ask: "k2")])
     }
 
-    /// A choice with no options to choose from has no buttons, nor does a line naming no ask the board holds.
-    @Test(arguments: [
-        ("k2", [WatchLine.Ask(id: "k2", wants: .choice, yes: nil, options: [])]),
-        ("k2", [WatchLine.Ask(id: "k9")]),
-        (nil, [WatchLine.Ask(id: "k2")]),
-    ])
-    func aNewAsksBannerWithNothingToAnswerWithHasNoButtons(line: String?, asks: [WatchLine.Ask]) {
-        let banners = Notices.due(Self.asking(asks, line: line), .notifyingAsks)
+    /// A line naming no ask tells of none.
+    @Test func aNewAsksBannerWhoseLineNamesNoAskTellsOfNone() {
+        let banners = Notices.due(Self.asking([WatchLine.Ask(id: "k2")], line: nil), .notifyingAsks)
 
         #expect(banners.map(\.title) == ["Pick the export format"])
         #expect(banners.map(\.ask) == [nil])
     }
 
-    /// Lee's turn's banner has no buttons, nor does the test notification.
-    @Test func noOtherBannerHasButtons() {
+    /// Lee's turn's banner tells of no ask, nor does the test notification.
+    @Test func noOtherBannerTellsOfAnAsk() {
         var settings = AppSettings.notifyingAsks
 
         settings.notifiesTurns = true

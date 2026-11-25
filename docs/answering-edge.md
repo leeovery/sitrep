@@ -1,6 +1,6 @@
-# Answering from the edge of your screen
+# Answering from the notch
 
-You can answer a yes or a choice from the notch, without leaving the app you are in. Point at a session that waits on you, click the arrow, and click the answer. The banner for a new ask takes answers too. This helps most when an ask needs one click, and its window is on another Space.
+You can answer a yes or a choice from the notch, without leaving the app you are in. Point at a session that waits on you, click the arrow, and click the answer. This helps most when an ask needs one click, and its window is on another Space.
 
 ## Try it
 
@@ -20,27 +20,24 @@ You can answer a yes or a choice from the notch, without leaving the app you are
 
 - **Only the notch has the arrow.** The strip and the menu bar item have none.
 - **Permission prompts stay in Claude Code.** A row holding only permission prompts, or questions from Claude Code itself, has no arrow. Click the row to go to the window, and answer there.
-- **A banner answer goes at once.** A banner has no room for Undo, and no Ignore: closing a banner leaves the ask waiting. On a locked Mac, macOS asks you to unlock the Mac first. Banners for a new ask are off until you turn on **Notify me of a new ask**, in Settings › Notifications.
+- **A banner only takes you there.** The banner for a new ask has no buttons. A click on it brings forward the window running that session. See [Sounds, banners and the pulse](notifications.md).
 - **A refused answer says so.** A banner titled "Not answered" says why, and nothing is sent. For example, SitRep refuses an answer if:
   - the ask was answered or closed elsewhere;
-  - the ask now wants something else, or no longer offers your answer;
-  - for a banner, the ask has a new title since the banner showed.
+  - the ask now wants something else, or no longer offers your answer.
 
   That banner shows with the switches in Settings off, but macOS must allow banners from SitRep.
 
 ## Reference
 
-Point at a new ask's banner, and macOS shows its buttons.
-
-| What | Asks panel | Banner |
-|---|---|---|
-| A yes | One row, its yes | One button, its yes |
-| A choice | A row for each option | A button for each, under Options if several |
-| A words ask | Open in Claude ↗ | Reply, then Send |
-| Permission prompt | No arrow: click the row | No banner |
-| Ignore | Ignore, at the foot | None |
-| Undo | For two seconds | None: it goes at once |
-| Snooze | This ask only | None |
+| What | In the asks panel |
+|---|---|
+| A yes | One row, its yes |
+| A choice | A row for each option |
+| A words ask | Open in Claude ↗ |
+| Permission prompt | No arrow: click the row |
+| Ignore | Ignore, at the foot |
+| Undo | For two seconds |
+| Snooze | This ask only |
 
 **Snooze ▾** puts off only the ask on screen, until a time the pane offers. The asks panel then closes. With every Snooze time off or passed for today, Snooze ▾ hides. See [Putting a session off](snooze.md).
 

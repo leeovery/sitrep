@@ -2,16 +2,16 @@ import AppKit
 import SitRepEdge
 import SitRepPanel
 
-/// The notch's window content, drawn in the material chosen: what it was told last, replayed into a new drawing.
+/// The notch's window content, drawn in black.
 @MainActor
-final class NotchSurface: EdgeSurface<any NotchDrawing> {
+final class NotchSurface: EdgeSurface {
+    let drawing = NotchView()
     /// The list and the frame it was last told to draw, each internal only for the tests.
     private(set) var list: PanelList?
     private(set) var scene: NotchScene?
-    private var light: (placed: Frame.Light, outline: CGPath, colours: LiveLight)?
 
     init() {
-        super.init(make: Self.drawing, view: { $0 })
+        super.init(showing: drawing)
     }
 
     func show(_ list: PanelList) {
@@ -25,7 +25,6 @@ final class NotchSurface: EdgeSurface<any NotchDrawing> {
     }
 
     func showLight(_ placed: Frame.Light, outline: CGPath, colours: LiveLight) {
-        light = (placed, outline, colours)
         drawing.showLight(placed, outline: outline, colours: colours)
     }
 
@@ -54,20 +53,5 @@ final class NotchSurface: EdgeSurface<any NotchDrawing> {
         showLight(run.frame.light, outline: run.frame.outline, colours: LiveLight(
             time: time, sinceAsk: run.sinceAsk(at: time), reducesMotion: reducesMotion, need: run.lightNeed
         ))
-    }
-
-    override func replay() {
-        list.map(drawing.show)
-        scene.map(drawing.show)
-        if let light {
-            drawing.showLight(light.placed, outline: light.outline, colours: light.colours)
-        }
-    }
-
-    private static func drawing(_ material: EdgeSettings.Material) -> any NotchDrawing {
-        if #available(macOS 26, *), material == .glass {
-            return NotchGlassView()
-        }
-        return NotchView()
     }
 }

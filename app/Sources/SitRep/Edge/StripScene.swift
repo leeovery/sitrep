@@ -2,13 +2,7 @@ import AppKit
 import SitRepEdge
 import SitRepPanel
 
-/// One way of drawing the strip, in black or in glass: a frame at a time.
-@MainActor
-protocol StripDrawing: NSView {
-    func show(_ scene: StripScene)
-}
-
-/// One frame as a drawing draws it, in the stage's coordinates, x into the screen from its edge: the drawing puts it
+/// One frame as the strip draws it, in the stage's coordinates, x into the screen from its edge: `StripView` puts it
 /// through the edge's mirror, and hangs it from the menu bar its window starts under.
 struct StripScene {
     let frame: StripFrame

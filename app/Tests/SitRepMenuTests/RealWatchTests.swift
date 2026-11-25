@@ -10,15 +10,12 @@ import Testing
 struct RealWatchTests {
     private static let asked = heard(Lines.newAsk.map(Heard.line))
 
-    /// Its click goes to the away session, for the jump to carry it on (stage 8); its button, its yes, answers it.
+    /// Its click goes to the away session, for the jump to carry it on (stage 8); it tells of its ask.
     @Test func aNewAskSendsANoticeNamingItsProjectAndSession() {
         #expect(Notices.due(Self.asked, .notifyingAsks) == [
             Banner(
                 title: "Choose how long the archive keeps reports", subtitle: "Woodgrove · Usage", body: "",
-                work: "sr-k3dg0r", ask: Banner.Ask(
-                    id: "a6xm", session: "sr-k3dg0r", title: "Choose how long the archive keeps reports",
-                    place: "Woodgrove · Usage", wants: .yes("Approve")
-                )
+                work: "sr-k3dg0r", ask: AskOf(session: "sr-k3dg0r", ask: "a6xm")
             ),
         ])
     }
@@ -75,16 +72,13 @@ struct RealWatchTests {
     }
 
     /// The fourth ask posted into Tailspin's session, its row's newest line: a notice of its own, naming the session,
-    /// its buttons the choice's options.
+    /// telling of its ask.
     @Test func aNewAskInASessionWithOthersWaitingSendsANoticeOfItsOwn() {
         #expect(Notices.due(heard(Lines.bySession.map(Heard.line)), .notifyingAsks) == [
             Banner(
                 title: "Choose the branch the fixes land on", subtitle: "Tailspin · Finish the Tailspin migration",
                 body: "", work: "sr-4t2kq8",
-                ask: Banner.Ask(
-                    id: "y51h", session: "sr-4t2kq8", title: "Choose the branch the fixes land on",
-                    place: "Tailspin · Finish the Tailspin migration", wants: .choice(["main", "next"])
-                )
+                ask: AskOf(session: "sr-4t2kq8", ask: "y51h")
             ),
         ])
     }

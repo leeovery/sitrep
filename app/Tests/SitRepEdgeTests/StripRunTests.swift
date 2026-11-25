@@ -230,10 +230,10 @@ struct StripRunTests {
             return
         }
         settings.show = .notch
-        settings.material = .glass
+        settings.reducesMotion = true
         let saved = drop.move.applied(to: settings)
         #expect(drop.isAcross && saved.edge == .right)
-        #expect(saved.show == .notch && saved.material == .glass)
+        #expect(saved.show == .notch && saved.reducesMotion)
     }
 
     @Test func hiddenMidDragTheStripEndsWhereItBegan() {

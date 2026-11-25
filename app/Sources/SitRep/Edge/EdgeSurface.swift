@@ -13,31 +13,17 @@ struct EdgePointer {
     var menu: (CGPoint) -> NSMenu? = { _ in nil }
 }
 
-/// An edge's window content: one drawing of it at a time, in the material Lee chose, and every press, drag and scroll
-/// on the window, whichever draws it. A form's surface makes its drawings and replays the last frame into a new one.
+/// An edge's window content: its drawing, and every press, drag and scroll on the window, whatever of the drawing is
+/// under it.
 @MainActor
-class EdgeSurface<Drawing>: NSView {
+class EdgeSurface: NSView {
     var pointer = EdgePointer()
 
-    /// What the edge is made of: glass from macOS 26, black before it.
-    var material = EdgeSettings.Material.black {
-        didSet {
-            if Self.drawn(material) != Self.drawn(oldValue) {
-                swap(to: Self.drawn(material))
-            }
-        }
-    }
-
-    private(set) var drawing: Drawing
-    private let make: (EdgeSettings.Material) -> Drawing
-    private let view: (Drawing) -> NSView
-
-    init(make: @escaping (EdgeSettings.Material) -> Drawing, view: @escaping (Drawing) -> NSView) {
-        self.make = make
-        self.view = view
-        drawing = make(.black)
+    init(showing drawing: NSView) {
         super.init(frame: .zero)
-        add(view(drawing))
+        drawing.frame = bounds
+        drawing.autoresizingMask = [.width, .height]
+        addSubview(drawing)
     }
 
     @available(*, unavailable)
@@ -47,15 +33,7 @@ class EdgeSurface<Drawing>: NSView {
 
     override var isFlipped: Bool { true }
 
-    /// The material as it can be drawn on this Mac.
-    static func drawn(_ material: EdgeSettings.Material) -> EdgeSettings.Material {
-        if #available(macOS 26, *) {
-            return material
-        }
-        return .black
-    }
-
-    /// Every event on the window is the surface's, never a drawing's own views'.
+    /// Every event on the window is the surface's, never its drawing's.
     override func hitTest(_ point: NSPoint) -> NSView? {
         frame.contains(point) ? self : nil
     }
@@ -86,22 +64,6 @@ class EdgeSurface<Drawing>: NSView {
 
     override func scrollWheel(with event: NSEvent) {
         pointer.scrolled(Scroll(event))
-    }
-
-    /// The new drawing has been put in place: it takes the last frame.
-    func replay() {}
-
-    private func swap(to material: EdgeSettings.Material) {
-        view(drawing).removeFromSuperview()
-        drawing = make(material)
-        add(view(drawing))
-        replay()
-    }
-
-    private func add(_ drawing: NSView) {
-        drawing.frame = bounds
-        drawing.autoresizingMask = [.width, .height]
-        addSubview(drawing)
     }
 }
 

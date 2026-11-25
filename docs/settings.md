@@ -35,7 +35,6 @@ What stands at the edge of your screen. See [The edge of your screen](notch.md).
 | Style | Meniscus, Card | Meniscus | How the notch opens |
 | Length | Grows, Full | Grows | How long the strip is |
 | Max | A slider | Full | How far the strip grows |
-| Material | Black, Glass | Black | The look, from macOS 26 |
 | Reduce motion | On, off | Off | Less movement at the edge |
 
 The pane shows only the settings for your choice under Show. Style is for the notch only. Length and Max are for the strip only, and Max shows only at Grows. With Nothing, the menu bar item carries the board, and the pane holds only Show.

@@ -47,15 +47,13 @@ public enum AnswerNews: Sendable, Equatable {
     case ended(Answering, WriteAnswer)
 }
 
-/// Lee's answers from the asks panel and the banners (DESIGN, "Answering from the panel"). The asks panel's is held
-/// `goesAfter` before it goes, so Undo can take it back with nothing written; once held it goes whatever the panel does
-/// meanwhile, closed or moved to another row. One is held at a time: the asks panel takes no other while it is, and
-/// one asked to be held meanwhile is refused. A banner's goes at once, held or not; held to the same ask, the hold is
-/// taken back first, so the CLI never refuses it as answered already. A refusal from the CLI posts a banner in its
-/// words.
+/// Lee's answers from the asks panel (DESIGN, "Answering from the panel"). Each is held `goesAfter` before it goes, so
+/// Undo can take it back with nothing written; once held it goes whatever the panel does meanwhile, closed or moved to
+/// another row. One is held at a time: the asks panel takes no other while it is, and one asked to be held meanwhile is
+/// refused. A refusal from the CLI posts a banner in its words.
 @MainActor
 public final class Answers {
-    /// How long the asks panel's answer is held before it goes.
+    /// How long an answer is held before it goes.
     public static let goesAfter = Duration.seconds(2)
 
     /// Each answer's news, as it is held, taken back, goes, and ends.
@@ -133,33 +131,6 @@ public final class Answers {
         holding?.cancel()
         release()
         heard(.undone(held.answering))
-    }
-
-    /// Sends the answer now, with no hold: a banner's. One held to the same ask of the session is taken back first, as
-    /// Undo takes it.
-    public func send(_ answering: Answering) {
-        send(answering, named: naming(answering))
-    }
-
-    /// A banner's answer, sent at once as `send` sends it, unless it cannot answer the ask as the board holds it
-    /// (`Banner.Ask.refusal`): then a banner "Not answered" says why, and nothing is sent. Its refusal names the ask as
-    /// the board does, else as the banner showed it, as for an ask closed while SitRep was off.
-    public func send(_ words: String, from banner: Banner.Ask) {
-        let answering = Answering(.words(words), to: banner.id, of: banner.session, wanting: banner.wants.shape)
-        let named = naming(answering) ?? banner.named
-
-        if let why = banner.refusal(of: words, live: board()?.ask(banner.id, of: banner.session)) {
-            return post(.unanswered(why, of: named))
-        }
-
-        send(answering, named: named)
-    }
-
-    private func send(_ answering: Answering, named: AskNamed?) {
-        if let held, held.answering.ask == answering.ask, held.answering.session == answering.session {
-            undo()
-        }
-        run(answering, named: named)
     }
 
     /// Every answer seen through, as quitting does, which cancels none: the one held sent now, its hold cut short;

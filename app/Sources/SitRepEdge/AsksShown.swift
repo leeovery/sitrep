@@ -2,9 +2,9 @@ import CoreGraphics
 import SitRepCore
 import SitRepPanel
 
-/// The asks panel as a frame shows it (DESIGN, "Answering from the panel"), for the drawing, black or glass: beside
-/// which row, one ask of the row's session and its page among them, laid out, where it stands on the stage, the answer
-/// held for that ask, and what the pointer is on.
+/// The asks panel as a frame shows it (DESIGN, "Answering from the panel"), for the drawing: beside which row, one ask
+/// of the row's session and its page among them, laid out, where it stands on the stage, the answer held for that ask,
+/// and what the pointer is on.
 public struct AsksShown: Equatable, Sendable {
     /// The row it opened beside, by its key: lit, its arrow lit, while it is open.
     public let row: String

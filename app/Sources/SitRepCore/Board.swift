@@ -94,9 +94,9 @@ public struct Board: Versioned, Sendable, Equatable {
         let sessions: [Session]
     }
 
-    /// An open ask of a session, as the asks panel and a new ask's banner answer it: what it wants back, a yes's one
-    /// button or a choice's options, Claude's pick among them, and where Lee's reply to it stands. Only what they read
-    /// is read, so a field nothing reads, in whatever shape, never drops the ask, its arrow or its buttons.
+    /// An open ask of a session, as the asks panel answers it: what it wants back, a yes's one button or a choice's
+    /// options, Claude's pick among them, and where Lee's reply to it stands. Only what the app reads is read, so a
+    /// field nothing reads, in whatever shape, never drops the ask or its arrow.
     public struct Ask: Decodable, Sendable, Equatable {
         public enum Wants: String, Decodable, Sendable {
             case yes, choice, words
@@ -147,10 +147,10 @@ public struct Board: Versioned, Sendable, Equatable {
             state = try given.decode(String.self, forKey: .state)
         }
 
-        /// Whether it asks what `other` asks, as a new ask's banner shows it: the same title, wanting the same, with
-        /// the same yes and options. The watch line lists Claude's pick first, so a pick gained, moved or cleared
-        /// reorders them without Claude doing so: they are alike as the same options, in the same order once either
-        /// pick is taken out, so a reorder Claude makes of the rest still counts.
+        /// Whether it asks what `other` asks: the same title, wanting the same, with the same yes and options. The
+        /// watch line lists Claude's pick first, so a pick gained, moved or cleared reorders them without Claude doing
+        /// so: they are alike as the same options, in the same order once either pick is taken out, so a reorder Claude
+        /// makes of the rest still counts.
         func asksAlike(_ other: Ask) -> Bool {
             title == other.title && wants == other.wants && yes == other.yes && optionsAlike(other)
         }

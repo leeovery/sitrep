@@ -2,10 +2,9 @@ import AppKit
 import SitRepEdge
 import SitRepPanel
 
-/// Where the asks panel draws its words and marks inside its layout's boxes, the same in black and in glass, which
-/// differ only in what they fill and colour them with: the top line's name, project and page dots, the title's lines,
-/// an answer's label and its "recommended", the foot's words, Snooze's chevron, the held answer's check, and the
-/// pills' words.
+/// Where the asks panel draws its words and marks inside its layout's boxes: the top line's name, project and page
+/// dots, the title's lines, an answer's label and its "recommended", the foot's words, Snooze's chevron, the held
+/// answer's check, and the pills' words.
 @MainActor
 enum AsksPanelParts {
     /// The top line: the session's name, kept whole first, 8 before its project; and its page dots at its right where
@@ -56,8 +55,8 @@ enum AsksPanelParts {
         }
     }
 
-    /// An answer's row as it shows, in black and in glass (Paper's board H3): Claude's pick, in lilac, or not; and its
-    /// ground, held, lifted under the pointer, or filled.
+    /// An answer's row as it shows (Paper's board H3): Claude's pick, in lilac, or not; and its ground, held, lifted
+    /// under the pointer, or filled.
     struct AnswerRow: Equatable {
         enum Ground {
             /// The answer held.
@@ -91,7 +90,7 @@ enum AsksPanelParts {
 
     /// An answer's lines on its row as they show, each with its box in the row's frame and the slack past it that
     /// words set whole take: across the row; held, before its check, on no more lines than the layout left it, so the
-    /// row keeps its height. A tag on a line of its own is lowered onto the words' baseline, in black and glass alike.
+    /// row keeps its height. A tag on a line of its own is lowered onto the words' baseline.
     static func answerLines(_ index: Int, of asks: AsksShown) -> [(line: AnswerLine, box: CGRect)] {
         let row = asks.layout.answers[index].size, shows = answerRow(index, of: asks)
         let check = shows.isHeld ? AsksLayout.checkSide + AsksLayout.checkGap : 0
@@ -313,14 +312,11 @@ final class CountdownRing {
         }
     }
 
-    /// Whether its arc runs down, or has run out, in the render server.
-    var isCounting: Bool { arc.animation(forKey: Self.key) != nil }
-
     private static let key = "countdown"
 }
 
 extension AsksMeasure {
-    /// How the asks panel's words are set in black and in glass alike, for the run to lay it out: its title's lines,
+    /// How the asks panel's words are set, for the run to lay it out: its title's lines,
     /// its answers' lines, and its foot's words' widths.
     nonisolated static let drawn = AsksMeasure(
         titleLines: { title in

@@ -28,8 +28,8 @@ public struct LastBoard: Sendable, Equatable {
     /// between the runs.
     public private(set) var asksLeft: Set<AskOf> = []
     /// The asks that waited on Lee on the board kept and still wait on him on the line just heard, edited meanwhile:
-    /// their title, their yes, their options or what they want, so their banners go, whose buttons would answer what the
-    /// ask no longer asks. Only as the line comes, as `asksLeft` is, and by the same rules.
+    /// their title, their yes, their options or what they want, so their banners go, which tell of what the ask no
+    /// longer asks. Only as the line comes, as `asksLeft` is, and by the same rules.
     public private(set) var asksChanged: Set<AskOf> = []
 
     /// A run has started and nothing it printed has been heard yet.

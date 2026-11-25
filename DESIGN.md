@@ -3238,7 +3238,7 @@ own snooze worked, and how its lines are still read.
   moves after every one with a time. On the card it is a Snoozed row whose
   mark is, since 13 November 2026, a snoozed ask's dot in blue, dimmed the
   same (see "How each row reads"); until then a ring 9 across, its stroke
-  1.5, in the faint grey, #5C5C63 (on glass the tertiary). In its time's
+  1.5, in the faint grey, #5C5C63. In its time's
   place, in the soft grey, it says when it wakes, or "until it moves". A
   row of a session's turn alone still reads so.
 - **The CLI** named the turn by `--turn <ms>`, its end as `watch` gives its
@@ -4477,7 +4477,7 @@ truth. There is still no background service. None of it is built now. Lee:
       them after its id.`). Until then a words ask was refused, its words
       needing Claude Code's prompt.
     - `--wants` (25 November 2026) gives what the ask wanted as Lee saw it, and
-      the asks panel and a banner always pass it: an ask Claude reshaped since
+      the asks panel always passes it: an ask Claude reshaped since
       is refused at the write (`k1 now wants words, not a yes: look at it
       again.`), so "Go" is never taken for a words ask's words.
     - It writes a reply, `yes`, `choose` with its option, `answer` with its
@@ -5440,9 +5440,8 @@ that takes Lee to the window a session is in.
     Mac. SitRep to the helper: ready, post, a request for the leave, or
     to ask for it first, each with an id its answer gives back, hand
     back the front, and cleared, an ask's banners taken down (25 November
-    2026). The helper to SitRep: ready, with its own pid,
-    clicked (the session's id), answered (24 November 2026; see "Its
-    buttons", below), and the leave. Each carries SitRep's pid,
+    2026). The helper to SitRep: ready, with its own pid, clicked (the
+    session's id), and the leave. Each carries SitRep's pid,
     whichever way it goes, and each side reads only its own SitRep's, so
     a helper left over from another SitRep is not heard, nor heeds one.
     Each side says ready as it starts listening. The helper answers each
@@ -5479,90 +5478,39 @@ that takes Lee to the window a session is in.
     SitRep ends, watching its `NSRunningApplication`. A click that
     starts the helper while SitRep is not running starts SitRep, not
     activated, and is held until SitRep says it is ready.
-  - **Its buttons** (24 November 2026, Paper's board D on the page
-    "Answering from the notch" of the file "SitRep · side panel"). A new
-    ask's banner answers the ask, with the buttons macOS draws, shown as
-    the pointer reaches the banner, by the ask's shape:
-    - a yes: one button, its yes, in the ask's words (`Go`);
-    - a choice: a button for each option, Claude's pick first, which
-      macOS gathers under Options where there are several;
-    - a words ask: Reply, macOS's text field in the banner, with Send.
-
-    No banner offers Ignore: closing a banner is not ignoring its ask. A
-    banner's answer goes at once, with no Undo, since a banner has nowhere
-    to show one; the asks panel's two seconds are the panel's alone (see
-    "Answering from the panel"). A click on the banner itself still jumps,
-    as before. The post SitRep relays carries the ask's shape beside its
-    words: its id, what it wants, its yes and its options, and its title
-    and its project and session as the banner shows them. The helper
-    registers a category of the banner's own, its actions those buttons,
-    before posting it, and relays a button's response back to SitRep: the
-    ask as the banner showed it, and the answer pressed or the words
-    typed. SitRep runs
-    `sitrep answer` with them, the words kept to one line as the CLI keeps
-    them. A refusal, the ask answered in its window meanwhile among them,
-    posts a banner "Not answered" over the CLI's words, as a refused
-    snooze posts "Not snoozed". A banner for Lee's turn, the test
-    notification, a refusal's banner and the banner of an ask with no
-    options to choose from have no buttons.
-
-    Settled in review, 25 November 2026: each button needs the Mac
-    unlocked; a press hands the front back, as nothing jumps; Reply sent
-    empty posts "Not answered", saying it had no words. Every answer, the
-    asks panel's too, passes `--wants`, what the ask wanted as Lee saw
-    it, so the CLI refuses one Claude reshaped since. For a banner's
-    answer SitRep refuses it first where its last board already shows
-    the change; the asks panel's held answer is left to the CLI. A
-    refusal's banner names the ask by its title in place of its id,
-    under its project and session, as its new ask's banner does, from
-    the session's row on the board, any row, Working among them, or its
-    row in Snoozed, and a click on it jumps there.
-    An ask that waits on Lee no more, answered anywhere, ignored,
-    commented on, resolved or gone with its session, has its banners
-    still in Notification Center taken down, over the relay's `cleared`,
-    so no old button answers it and the helper's categories stay bounded
-    to the banners on screen and the ten last posted. Only while SitRep
-    runs, and from a line whose projects read: an ask that left while it
-    was off keeps its banner, and the CLI refuses a press on it.
-
-    Settled in the phase review, 25 November 2026:
-    - **An ask edited since its banner** never takes the old banner's
-      answer. Claude may edit an ask's title, keeping its shape and its
-      yes: "Deploy to staging?" made "Deploy to production?", still
-      `Go`. The CLI sees no title, so SitRep's check is the one that
-      holds: a press on a banner whose title differs from the board's
-      posts "Not answered", saying the ask changed after its banner
-      showed, and sends nothing. Where the board doesn't hold the ask, as
-      for a press that starts SitRep or a line whose projects don't read,
-      the answer goes to the CLI, and so does a press in the second before
-      the edited line lands: rare, and accepted, since closing them would
-      take the title to the CLI.
-    - **An ask edited while it waits** has its banners taken down, over
-      `cleared`, as one that left: its title, its yes, its options or
-      what it wants changed against the last line, the ask waiting on
-      Lee on both. By the same rules: only from a line whose projects
-      read, against a last line whose projects read, and never on the
-      first line SitRep hears. An edit the banner never shows, Claude's
-      pick or what a words ask needs, leaves it up. The asks panel draws
-      the live ask, so it needs neither; an answer already held there
-      when Claude retitles still goes, the new title drawn above its Undo.
-      Banners are taken down before new ones are posted, so an ask woken
-      on the line that edits it keeps its fresh banner.
-    - **An edited ask gets no fresh banner.** A banner announces a new
-      ask, and an edit is none: the ask stays lit in Needs you, and a
-      Reply being typed goes with its banner.
-    - **A refusal names the ask as its banner showed it** where the board
-      holds it no more, as for an ask answered in Claude while SitRep was
-      off: never by its id.
-    - **A banner's answer to the ask held** in the asks panel takes the
-      hold back first, as Undo does, and goes at once, so the CLI never
-      refuses it as answered already.
+  - **Its buttons, built and removed.** From 24 November 2026 a new ask's
+    banner answered its ask with the buttons macOS draws: a yes's one
+    button, a choice's options, or Reply with Send for a words ask (Paper's
+    board D on the page "Answering from the notch" of the file "SitRep ·
+    side panel"). Lee removed them after his second live try, 25 November
+    2026: "I don't think I want asks in notifications. Let's leave
+    notifications simple. They appear. If you click it, it takes you to the
+    window, and leave them like that." Every banner posts with no buttons
+    again, and a click on one jumps. What the round built for the asks
+    panel stays:
+    - every answer passes `--wants`, what the ask wanted as Lee saw it, so
+      the CLI refuses one Claude reshaped since;
+    - a refusal posts "Not answered" over the CLI's words, the ask named
+      by its title in place of its id, under its project and session, from
+      the session's row on the board, any row, Working among them, or its
+      row in Snoozed, and a click on it jumps there;
+    - an ask that waits on Lee no more, answered anywhere, ignored,
+      commented on, resolved or gone with its session, or edited while it
+      waits, its title, its yes, its options or what it wants, has its
+      banners still in Notification Center taken down, over the relay's
+      `cleared`, so Notification Center keeps to what still waits. Only
+      while SitRep runs, and from a line whose projects read, against a
+      last line whose projects read, never on the first line SitRep hears.
+      Banners are taken down before new ones post, so an ask woken on the
+      line that edits it keeps its fresh banner; an edit alone posts no
+      fresh banner, since a banner announces a new ask.
 - **Answering from the edge** (24 November 2026; see "Answering from the
-  panel"): a yes or a choice from the asks panel, and a yes, a choice or
-  words from a new ask's banner (above), each through `sitrep answer`. A
-  words ask on the panel, a permission prompt and Claude Code's question
-  stay in Claude Code: the panel shows them, and takes Lee there. From 17
-  October 2026 until then, all answering stayed in Claude Code.
+  panel"): a yes or a choice from the asks panel, through `sitrep answer`.
+  A words ask, a permission prompt and Claude Code's question stay in
+  Claude Code: the panel shows them, and takes Lee there. From 17 October
+  2026 until then, all answering stayed in Claude Code. A new ask's banner
+  answered too, from 24 to 25 November 2026 (see "Its buttons, built and
+  removed", above).
 - **Clicking** a session, an ask or a macOS notification takes Lee to the
   Ghostty window showing that session, on whatever Space it is, and leaves
   SitRep's windows on their own Space. A
@@ -5627,17 +5575,15 @@ light inside. It opens into a black panel:
 - front corners of radius 24, and flares of 18 into the bezel;
 - kept 40 from the top and bottom of the screen's visible frame.
 
-In Glass (Settings' Material; Black by default), Meniscus and the card are
-thick Liquid Glass from rest, the light drawn over the glass and the rows in
-the system's label colours. Clear glass that narrow hardly reads (Lee, 20
-October 2026: "the hovering box maybe is a little too subtle"), so the
-notch is marked as the black is by its dark: the glass tinted black at 0.5,
-with a white rim 1 point wide at 0.22 inside its edge. It is in full at
-the notch at rest, and near it while something needs Lee or the notch
-reaches for the pointer (the tint 0.44 to 0.49), as it eases off with how
-far out the outline is past the notch at rest, to the plain glass of the
-panel open, which Lee liked as it was. Under reduced motion each outline
-of the cross-fade keeps its own.
+**Black only** (25 November 2026). The notch, its panel, the asks panel
+and the strip are drawn in black alone. Until then Settings' Material
+offered Glass beside Black, macOS 26's Liquid Glass, drawn in SwiftUI over
+the same layouts; Lee removed it after his second live try of the asks
+panel: "Glass actually looks really shit. Let's just remove that
+entirely and just remove the option for the material and just stick to
+black." The Material row went with it. A Material saved by an earlier
+version is passed over, so a Glass saved draws in black, with nothing
+asked.
 
 It sits on the left edge by default, at Lee's asking, 0.42 of the way down
 the screen, a little above the middle, as the prototypes have it and where
@@ -5780,7 +5726,7 @@ with it.
   and Tailspin's three are 4), then its stopped in #124's blue, its
   your-turn rows, one a session; each is drawn only above zero, so 4 asks
   and 7 stopped read "4 7", asks alone the orange one, stopped alone the
-  blue. On glass the same, in Claude's orange and the blue. Until then it
+  blue. Until then it
   had one count, in orange, the turns counted in it since they joined
   Needs you that morning, so 4 asks and 7 turns read 11. Working counts
   its rows, as Your turn did; Snoozed counts its lines, as Needs you its
@@ -5831,9 +5777,9 @@ with it.
   its own motion, one folding away finishing and one arriving, the new
   ask's own row among them, folding in.
 - **One shape** (board J2, 4 November 2026): every row is one line, 30
-  tall, inset 10, its lift's corners 10, with no gap between rows, in black
-  and on glass alike (see "How each row reads"). Lee, of board I's card,
-  its rows of two heights: they "look a little odd". From board I that
+  tall, inset 10, its lift's corners 10, with no gap between rows (see "How
+  each row reads"). Lee, of board I's card, its rows of two heights: they
+  "look a little odd". From board I that
   morning Needs you's and Your turn's rows were drawn whole, two lines, 49
   tall, and Working's and Snoozed's one line; from 22 October 2026 until
   board I Your turn's rows were the one line and Working's two, so the less
@@ -6062,7 +6008,7 @@ right, Your turn's row alone on one line from 22 October 2026:
   on one line since board I (4 November 2026), 30 tall. Its dot 7 across
   with no glow, its orange dimmed by the away rows' 0.61, which stands it
   about as bright on the black as the faint grey, #5C5C63, it was until 13
-  November 2026 (on glass the orange at 0.61); the session's name 13 in the soft
+  November 2026; the session's name 13 in the soft
   grey, #98989F, cut short, its count faint after it; its project in a lane
   at its right, 12 in the faint grey. An away row is drawn the same, since
   an ask Lee put off urges nothing until it wakes; it still jumps nowhere.
@@ -6370,7 +6316,8 @@ with their velocity kept when a target changes.
 Decided with Lee on 24 November 2026, and drawn in Paper (the file "SitRep
 · side panel", the page "Answering from the notch"). Board F is the design,
 keeping boards E1 and E2's arrow; boards A, B and E were drawn and not
-taken; board D is the banner (see "The menu bar", "Its buttons"). One
+taken; board D is the banner, built and removed (see "The menu bar", "Its
+buttons, built and removed"). One
 (getone.one) and every notch app for Claude Code answer from the screen's
 edge, and SitRep's plumbing was there already: `sitrep answer` writes a
 reply into the session's inbox, and the session's window delivers it as
@@ -6397,7 +6344,7 @@ has two places to click:
   press reads as taking the asks panel back (Lee, 25 November 2026, after
   his first live try). It turns as the asks panel opens and closes, a
   rotation of 0.2 seconds, never a cross-fade, and at once under Reduce
-  motion, in Black and Glass alike.
+  motion.
 
 A row whose waiting lines are only Claude Code's own permission prompts or
 questions has no arrow, since the panel can't answer those. Nor have
@@ -6517,8 +6464,6 @@ hover.
 - Leaving the notch within the two seconds, or moving the asks panel to
   another row, doesn't cancel: the answer still goes.
 - Once it goes, the asks panel steps to the session's next ask.
-- A banner's answer to the ask held takes the hold back, as Undo does,
-  and goes in its place (see "Its buttons").
 - Quitting SitRep sends the answer held at once, its hold cut short, and
   waits on the CLI to write it, and every answer gone before it, each
   within the CLI's 10 seconds.
@@ -6534,8 +6479,6 @@ Accepted in the phase review, 25 November 2026, and recorded:
   landing.
 - A CLI stopped at its 10 seconds after it wrote the answer says "Not
   answered" for an answer that went.
-- A held answer gone to the CLI and a banner's press on the same ask: the
-  first to write wins, and the CLI refuses the other as answered already.
 
 The answer then travels as any `sitrep answer` does: into the session's
 inbox, delivered by the session's window as "From the board:". The ask
@@ -6550,20 +6493,6 @@ as Lee set them, each with when it wakes, and no Until it moves. A
 refusal posts "Not snoozed" over the CLI's words, as the row's does. The
 row's right-click Snooze stays the session's. Until 25 November 2026
 Snooze ▾ offered the row's Snooze and snoozed the session.
-
-**Black and Glass.** The asks panel draws in both Materials, as the panel
-does. In Glass it is the panel's glass, its words in the system's label
-colours, as the Glass rows are; its rows and outlines keep their shapes,
-filled in the glass's tints in place of the black's greys, and its
-current page dot keeps Claude's orange. Claude's pick keeps its lilac at
-the black's strengths: #B1B9F9 and its tag #9AA2EE in the dark
-appearance, and in the light one the pane's darker #7178C7 for both,
-where the pale lilac would barely stand off the glass. The answer held is
-white with ink in the dark appearance, as in Black, and near-black with
-light words in the light one, where white would barely stand off the
-glass; either stands apart from the lilac pick. The asks
-panel's edge is a hairline in the separator colour, the open Glass panel
-having no rim of its own.
 
 **Not in this build** (see "Later"): the strip, whose tab could take the
 arrow later; the menu bar item; permission prompts and Claude Code's
@@ -6633,7 +6562,7 @@ prototype is `prototypes/strip/strip.html`.
     it, in the ring's place, as on any mark, and the ring comes back after.
   - **in Snoozed** (14 November 2026): an ask's ring orange and a turn's
     blue, each dimmed as a Snoozed row's dot is, with no glow, the letters
-    faint, in black and on glass alike; it never flashes nor washes.
+    faint; it never flashes nor washes.
 
   **Three sections**, as the panel's (14 November 2026, Lee): Needs you,
   Working and Snoozed, in the panel's order, a hairline between each two
@@ -6687,9 +6616,9 @@ prototype is `prototypes/strip/strip.html`.
   "+2" was (board F, 22 October 2026, after the proposal Lee agreed: "a row
   is a session on every surface"). An away one's name sits over "No window
   holds it. Carry it on in Claude.", its words dimming as one, as the
-  panel's (see "The rows"; 3 November 2026), on the black and on glass, in
-  a tab and in a count's rows alike. A tab's title says what follows its
-  verb on every kind, as the card's row does, and on a working tab the
+  panel's (see "The rows"; 3 November 2026), in a tab and in a count's rows
+  alike. A tab's title says what follows its verb on every kind, as the
+  card's row does, and on a working tab the
   verb alone shimmers, what follows it still in its grey; with a count,
   what follows gives way, cut with an ellipsis, before the count does (17
   November 2026).
@@ -6878,9 +6807,9 @@ prototype is `prototypes/strip/strip.html`.
     are made, and never out: hidden, each is clear and lets every click
     through, and the turns and sweeps Core Animation runs for it in the
     render server are paused, to run again as it shows.
-- **Material:** Black, the bezel's, or Glass, macOS 26's Liquid Glass, for
-  the strip and its tabs alike, as one shape (Lee, 18 October 2026: "I like
-  the glass and the black, actually"). See Settings.
+- **Black**, the bezel's, the strip and its tabs alike, as one shape. Glass
+  was offered beside it from 18 October 2026 (Lee: "I like the glass and the
+  black, actually") until 25 November 2026 (see "The notch and its panel").
 
 **How the strip moves**, felt in the browser spike (18 October 2026, the
 prototype's Strip tab, now `prototypes/strip/strip.html`; Lee kept its
@@ -6928,16 +6857,9 @@ defaults):
   it.
 - **Reduced motion:** no springs and no reach; a tab's shape fades in and
   out, and marks snap to their places and fade in.
-- **In glass**, Liquid Glass has two thicknesses and picks one from a
-  shape's size: the strip alone would be thin, the strip with a tab out
-  thick, and a shape rebuilt every frame switches at once (Lee: "it needs
-  to be a little more graded rather than instant"). A thin glass fading out
-  over the thick one still read on the display as two steps, so the strip
-  is thick glass from rest, one look in every frame (Lee, 19 October 2026:
-  "the glass panel looks good as it is"). A mark's ring lifts once under
-  the pointer, over 110ms, and settles back once. The working arcs and the
-  shimmer turn in Core Animation, in the render server, so the strip at
-  rest does no work in the app.
+- **A mark's ring** lifts once under the pointer, over 110ms, and settles
+  back once. The working arcs and the shimmer turn in Core Animation, in
+  the render server, so the strip at rest does no work in the app.
 
 They ship fixed, as the notch's do (above, "The app ships these values
 fixed"). Lee's settings:
@@ -7177,10 +7099,9 @@ does; the boards first drew it on a band of black.
   3. **Your edge:** "Choose what sits at your edge." Notch or Strip as
      Settings' own pictures, at the window's size, the one chosen ringed in
      the accent; under them a grouped form in System Settings' rows: Style,
-     Meniscus or Card; Material, Black or Glass (from macOS 26, as in
-     Settings); and Edge, Left or Right. At Strip, Length, Grows or Full,
-     takes Style's place in a cross-fade, one row for another, so the form
-     keeps its height and holds only what applies. Settings' Edge pane
+     Meniscus or Card; and Edge, Left or Right. At Strip, Length, Grows or
+     Full, takes Style's place in a cross-fade, one row for another, so the
+     form keeps its height and holds only what applies. Settings' Edge pane
      changes at once instead, as its height changes with it (Lee found its
      motion jarring). Under the form, a quiet text button, Show nothing
      at the edge, sets Show to Nothing (Lee, 3 November 2026: "I think I
@@ -7231,7 +7152,7 @@ does; the boards first drew it on a band of black.
      the first hover takes it away for good. The strip, if chosen, shows
      it as the notch would.
 - **Leaving early:** Skip setup, ⌘W or the close button keep what Lee set
-  and the defaults for the rest: the notch on the left, Meniscus, Black,
+  and the defaults for the rest: the notch on the left, Meniscus, the sound
   Glass, and open at login, macOS's notice with it. Nothing is asked of
   macOS.
 - **Borrowed**, from Lee's saved references and what was looked at:
@@ -7435,18 +7356,17 @@ live changed, and how they group.
   jarring"):
   - **Notch:** Edge, Left or Right ("or drag it across the middle");
     Display, the main one unless another is chosen; Style, Meniscus or Card
-    ("Meniscus pours, Card slides"); Material. Then Motion.
+    ("Meniscus pours, Card slides"). Then Motion.
   - **Strip:** Edge; Display; Length, Grows or Full ("grows with what's on
     it, or runs the screen's height"); Max, only at Grows, a slider 160
-    wide whose right end is Full ("how long it grows"); Material. Then
-    Motion.
+    wide whose right end is Full ("how long it grows"). Then Motion.
   - **Nothing:** neither section; the pane is the Show row's card alone,
     and Show has a line under it, as a row's line is set, saying the menu
     carries the board. Under the notch or the strip,
     Show has no line.
 
-  Material is Black or Glass, for the notch and the strip alike, Black by
-  default, from macOS 26 (before it, Black and no row). Reduce motion is
+  Until 25 November 2026 a Material row, Black or Glass, closed both
+  sections (see "The notch and its panel"). Reduce motion is
   off, its line saying SitRep follows the Mac's own setting either way
   (Lee, 18 October 2026: "One thing we might want to ship... is the ability
   to reduce motion").
@@ -8671,7 +8591,7 @@ open), and tmux passing an escape sequence through from Claude's own pane
         before any, "SitRep can't read the board", and in a SitRep with no
         plugin to run, the trouble that left it none (step 9).
       - **Frames run only while something moves**: the notch, a row
-        folding, the ghost, a new row's wash in glass. A pointer resting
+        folding, the ghost. A pointer resting
         anywhere, by the notch or on the still panel, costs nothing; the
         open panel's times are drawn again as they change, each minute.
       - **The spike's panel that stayed open**, found in the tests: frames
@@ -8766,9 +8686,9 @@ open), and tmux passing an escape sequence through from Claude's own pane
         prototype's `.mk.jumping .arc` does, so a quick answer still shows
         it, and out over the mark's 240, as it fades in over 240 for a mark
         turning working. The ring, its glow and the letters' colour ease over
-        240 and the pressed fill over 110, each on its own, in black and in
-        glass. The caption is the panel's, over the strip's screen, once the
-        spin is over. As the panel's, a click while a jump runs, from
+        240 and the pressed fill over 110, each on its own. The caption is
+        the panel's, over the strip's screen, once the spin is over. As the
+        panel's, a click while a jump runs, from
         anywhere, jumps in its place (none was taken until 4 November 2026);
         an answer to an earlier click changes nothing; and the
         session jumped to is the one the strip pressed in. A click is a
@@ -10497,8 +10417,8 @@ open), and tmux passing an escape sequence through from Claude's own pane
      nothing new on it (`retold`), so nothing swells or washes twice. On the
      strip an ask's mark takes the away look, and other marks keep theirs.
    - **The look**: no new styling. Working and on-its-own-work titles now
-     dim by `Away.dim` on the card, the strip's tab and count rows and on
-     glass, as a your-turn row's and an ask's did already; the menu dimmed
+     dim by `Away.dim` on the card and the strip's tab and count rows, as a
+     your-turn row's and an ask's did already; the menu dimmed
      every away row's words already.
    - **After review** (13 November 2026):
      - the suspended rule goes by the read of here, never the jump's
@@ -10816,8 +10736,9 @@ open), and tmux passing an escape sequence through from Claude's own pane
         the same way.
 
 9. **Answering from the panel and the banner**, decided with Lee on 24
-   November 2026 (see "Answering from the panel", and "Its buttons" under
-   "The menu bar"). In order, each step a PR:
+   November 2026 (see "Answering from the panel", and "Its buttons, built
+   and removed" under "The menu bar"): the banner's half removed on 25
+   November 2026. In order, each step a PR:
    1. **`sitrep answer` takes words.** A words ask's words, a reply
       `{verdict: 'answer', note}` into the session's inbox, kept to one
       line; empty words refused; a comment and a permission prompt still
@@ -10832,7 +10753,8 @@ open), and tmux passing an escape sequence through from Claude's own pane
       seconds, Undo taking it back, then runs it; a refusal posts the
       banner "Not answered" over the CLI's words, as a refused snooze
       posts "Not snoozed".
-   3. **The row's arrow and the asks panel**, in Black and in Glass. The
+   3. **The row's arrow and the asks panel**, in Black and in Glass, Glass
+      removed on 25 November 2026 (see "The notch and its panel"). The
       arrow on a Needs you row with an ask the panel answers; the asks
       panel beside the list, its window wider than the panel's while it is
       open, and taking clicks over the asks panel's shape as over the
@@ -10840,10 +10762,11 @@ open), and tmux passing an escape sequence through from Claude's own pane
       line with its countdown and Undo; staying open while the pointer is
       over the list or over it.
    4. **The banner's buttons**, through the notices helper. The post
-      carries the ask's id, what it wants, its yes and its options; the
-      helper registers a category for each banner, its actions the ask's
-      buttons, or Reply for words, and relays a response, the ask's id and
-      the answer or the words, back to SitRep, which runs the CLI at once.
+      carried the ask's id, what it wants, its yes and its options; the
+      helper registered a category for each banner, its actions the ask's
+      buttons, or Reply for words, and relayed a response back to SitRep,
+      which ran the CLI at once. Removed at Lee's call on 25 November 2026,
+      but for the banners taken down as their ask leaves or changes.
    5. **The docs:** `docs/answering.md`, whose "SitRep, the Mac app,
       doesn't answer" goes; `docs/notch.md`; `docs/notifications.md`;
       `docs/cli.md`; and `docs/glossary.md`, for the asks panel and the
@@ -11002,6 +10925,10 @@ from the panel"):
 - **The menu bar item** answering, from its menu.
 
 Dropped:
+- **answering from a new ask's banner**, built on 24 November 2026 and
+  removed the next day (see "Its buttons, built and removed");
+- **the Glass material**, removed on 25 November 2026 (see "The notch and
+  its panel");
 - a standalone toast plugin (Claude Code has one);
 - a line in the new-ask toast saying the band opens it: Lee knows it does,
   and on the phone the toast is better short.
@@ -11039,8 +10966,9 @@ on 11 October 2026 (see "Build order"):
    reply into the session's inbox, which its window delivers as it delivers
    any reply. A words ask, a comment and a permission prompt stayed with
    Claude Code's prompt. Since 24 November 2026 it takes a words ask's
-   words too, for the banner's Reply; a comment and a permission prompt
-   still stay there (see "One engine, two front ends").
+   words too, for the banner's Reply, which went on 25 November 2026; a
+   comment and a permission prompt still stay there (see "One engine, two
+   front ends").
 
 ## Build order
 

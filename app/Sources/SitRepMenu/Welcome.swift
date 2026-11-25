@@ -230,11 +230,11 @@ public struct WelcomeSounds: Equatable, Sendable {
 }
 
 /// Step 3's grouped form under the two pictures: Style for the notch, or Length for the strip in its place, so the
-/// form keeps its height; then Material, from macOS 26 only; then Edge; and under it, Show nothing at the edge. At
-/// Nothing neither picture is chosen, and the rows stay in their place, taking no presses.
+/// form keeps its height; then Edge; and under it, Show nothing at the edge. At Nothing neither picture is chosen, and
+/// the rows stay in their place, taking no presses.
 public enum WelcomeEdgeForm {
     public enum Row: Hashable, Sendable {
-        case style, length, material, edge
+        case style, length, edge
     }
 
     /// Under the form: Show nothing at the edge, a link that sets Nothing; at Nothing, a line in its place, saying what
@@ -250,8 +250,8 @@ public enum WelcomeEdgeForm {
         }
     }
 
-    public static func rows(_ settings: EdgeSettings, hasGlass: Bool) -> [Row] {
-        [settings.show == .strip ? .length : .style] + (hasGlass ? [.material] : []) + [.edge]
+    public static func rows(_ settings: EdgeSettings) -> [Row] {
+        [settings.show == .strip ? .length : .style, .edge]
     }
 
     /// The picture ringed: the shape Lee chose, none at Nothing.

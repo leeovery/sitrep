@@ -71,13 +71,13 @@ struct NotchDragTests {
     @Test func letGoItKeepsTheRestOfTheSettings() {
         var settings = EdgeSettings()
         settings.style = .card
-        settings.material = .glass
+        settings.reducesMotion = true
         var drag = NotchDrag(at: Self.press, home: 412)
         drag.move(to: CGPoint(x: 30, y: 250), width: Self.width)
 
         let dropped = drag.dropped(settings, at: 262, height: Self.height).applied(to: settings)
 
         #expect(dropped.style == .card)
-        #expect(dropped.material == .glass)
+        #expect(dropped.reducesMotion)
     }
 }

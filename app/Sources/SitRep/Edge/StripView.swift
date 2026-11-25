@@ -6,7 +6,7 @@ import SitRepPanel
 /// (y down from the screen's top), hung from the menu bar the window starts under. A frame changes paths, places,
 /// opacities and clips; a tab's words and a mark's letters are laid out once.
 @MainActor
-final class StripView: StageHost, StripDrawing {
+final class StripView: StageHost {
     /// The blacks, through the edge's mirror, ...
     private let stage = CALayer()
     private let fading = CAShapeLayer()

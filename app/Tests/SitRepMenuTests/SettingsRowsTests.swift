@@ -11,43 +11,38 @@ import Testing
 @Suite(.backstop)
 struct EdgePaneTests {
     private static func sections(
-        _ show: EdgeSettings.Show, length: StripLength = .grows, hasGlass: Bool = true
+        _ show: EdgeSettings.Show, length: StripLength = .grows
     ) -> [EdgePane.Section] {
         var settings = EdgeSettings()
 
         settings.show = show
         settings.length = length
 
-        return EdgePane.sections(settings, hasGlass: hasGlass)
+        return EdgePane.sections(settings)
     }
 
     private static let motion = EdgePane.Section(name: "Motion", rows: [.reduceMotion])
 
-    @Test func theNotchsSectionIsEdgeDisplayStyleAndMaterialThenMotion() {
+    @Test func theNotchsSectionIsEdgeDisplayAndStyleThenMotion() {
         #expect(Self.sections(.notch) == [
-            EdgePane.Section(name: "Notch", rows: [.edge, .display, .style, .material]), Self.motion,
+            EdgePane.Section(name: "Notch", rows: [.edge, .display, .style]), Self.motion,
         ])
     }
 
-    @Test func theStripsSectionIsEdgeDisplayLengthMaxAndMaterialThenMotion() {
+    @Test func theStripsSectionIsEdgeDisplayLengthAndMaxThenMotion() {
         #expect(Self.sections(.strip) == [
-            EdgePane.Section(name: "Strip", rows: [.edge, .display, .length, .max, .material]), Self.motion,
+            EdgePane.Section(name: "Strip", rows: [.edge, .display, .length, .max]), Self.motion,
         ])
     }
 
     @Test func maxIsForGrowsAlone() {
-        #expect(Self.sections(.strip, length: .full).first?.rows == [.edge, .display, .length, .material])
+        #expect(Self.sections(.strip, length: .full).first?.rows == [.edge, .display, .length])
         #expect(!Self.sections(.notch, length: .grows).contains { $0.rows.contains(.max) })
     }
 
     @Test func withNothingThereIsNoSectionAndOneLineSaysWhatCarriesTheBoard() {
         #expect(Self.sections(.nothing).isEmpty)
         #expect(EdgePane.menuCarries == "The menu carries the board.")
-    }
-
-    @Test func materialIsFromMacOS26AloneAndMotionStaysBeforeIt() {
-        #expect(Self.sections(.notch, hasGlass: false).first?.rows == [.edge, .display, .style])
-        #expect(Self.sections(.strip, hasGlass: false).last == Self.motion)
     }
 }
 

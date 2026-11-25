@@ -4,8 +4,7 @@ import SitRepTestSupport
 import Testing
 
 /// Lee's answers (DESIGN, "Answering from the panel"): the asks panel's held two seconds, Undo taking it back with
-/// nothing written, one held at a time; a banner's sent at once; a refusal from the CLI posted as "Not answered" in its
-/// words. On a clock the test moves, and a CLI that runs nothing.
+/// nothing written, one held at a time; a refusal from the CLI posted as "Not answered" in its words. On a clock the test moves, and a CLI that runs nothing.
 @MainActor
 @Suite(.backstop)
 struct AnswersTests {
@@ -107,24 +106,6 @@ struct AnswersTests {
         #expect(!cli.news.contains(.undone(Self.approve)))
     }
 
-    /// A banner's answer to the ask held takes the hold back first, as Undo does, then goes at once: the held one
-    /// never goes after it, for the CLI to refuse as answered already.
-    @Test func anAnswerSentToTheAskHeldTakesTheHoldBackThenGoes() async {
-        let (answers, clock, cli) = Self.made()
-        let banners = Answering(.words("Approve"), to: Self.ignore.ask, of: Self.ignore.session, wanting: .yes)
-
-        answers.hold(Self.ignore)
-        await until(turns: 100_000) { clock.sleeps.count == 1 }
-        answers.send(banners)
-        await until(turns: 100_000) { cli.news.count == 4 }
-        clock.pass(Answers.goesAfter)
-        await Self.settle()
-
-        #expect(answers.held == nil)
-        #expect(cli.ran == [banners])
-        #expect(cli.news.dropFirst() == [.undone(Self.ignore), .went(banners), .ended(banners, .written)])
-    }
-
     /// While one is held the asks panel takes no other: the second is refused, unheld and never sent; once the first
     /// has gone, another is held.
     @Test func anAnswerHeldWhileAnotherIsIsRefused() async {
@@ -141,21 +122,6 @@ struct AnswersTests {
         await until(turns: 100_000) { cli.ran.count == 1 }
         #expect(cli.ran == [Self.approve])
         #expect(answers.hold(Self.ignore))
-    }
-
-    /// A banner's answer goes at once, with no hold, one held meanwhile standing as it was.
-    @Test func anAnswerSentGoesAtOnceWithNoHold() async {
-        let (answers, clock, cli) = Self.made()
-
-        answers.hold(Self.ignore)
-        await until(turns: 100_000) { clock.sleeps.count == 1 }
-        answers.send(Self.approve)
-        await until(turns: 100_000) { cli.ran.count == 1 }
-
-        #expect(cli.ran == [Self.approve])
-        #expect(clock.sleeps == [.seconds(2)], "the held one's alone")
-        #expect(cli.news.dropFirst() == [.went(Self.approve), .ended(Self.approve, .written)])
-        #expect(answers.held?.answering == Self.ignore)
     }
 
     /// Quitting sends the answer held at once, its hold cut short, and is back only once the CLI is done with it; the
@@ -234,104 +200,15 @@ struct AnswersTests {
 
     @Test func aRefusalPostsNotAnsweredInTheCLIsWords() async {
         let why = "k1 is answered already: its answer is on its way."
-        let (answers, _, cli) = Self.made(answering: .refused(why))
+        let (answers, clock, cli) = Self.made(answering: .refused(why))
 
-        answers.send(Self.approve)
-        await until(turns: 100_000) { cli.news.count == 2 }
+        answers.hold(Self.approve)
+        await until(turns: 100_000) { clock.sleeps.count == 1 }
+        clock.pass(Answers.goesAfter)
+        await until(turns: 100_000) { cli.news.count == 3 }
 
         #expect(cli.banners == [Banner(title: "Not answered", subtitle: nil, body: why, work: nil)])
         #expect(cli.news.last == .ended(Self.approve, .refused(why)))
-    }
-
-    // MARK: A banner's answer, against the board
-
-    /// The board still holds the ask as its banner showed it, or still offers the words: sent at once, with what the
-    /// banner showed it wanting, for the CLI to refuse should it want something else by then.
-    @Test(arguments: [
-        (Banner.Ask.Wants.yes("Go"), "Go", WatchLine.Ask(id: "k1", wants: .yes, yes: "Go")),
-        (
-            .choice(["Left", "Right"]), "Right",
-            WatchLine.Ask(id: "k1", wants: .choice, yes: nil, options: ["Right", "Both"])
-        ),
-        (.words, "12 passed", WatchLine.Ask(id: "k1", wants: .words, yes: nil, needs: "the test run")),
-    ])
-    func aBannersAnswerTheBoardStillTakesIsSent(
-        wants: Banner.Ask.Wants, words: String, live: WatchLine.Ask
-    ) async throws {
-        let (answers, _, cli) = Self.made(board: try Self.board(live))
-
-        answers.send(words, from: Self.banner(wants))
-        await until(turns: 100_000) { cli.ran.count == 1 }
-
-        #expect(cli.ran == [Answering(.words(words), to: "k1", of: "sr-4t2kq8", wanting: wants.shape)])
-        #expect(cli.banners.isEmpty)
-    }
-
-    /// Reshaped since its banner showed, wanting something else or no longer offering the words: "Not answered",
-    /// nothing sent. A yes "Go" made to want words would otherwise take "Go" as its words.
-    @Test(arguments: [
-        (Banner.Ask.Wants.yes("Go"), "Go", WatchLine.Ask(id: "k1", wants: .words, yes: nil)),
-        (.yes("Go"), "Go", WatchLine.Ask(id: "k1", wants: .yes, yes: "Approve")),
-        (.choice(["Left", "Right"]), "Right", WatchLine.Ask(id: "k1", wants: .choice, yes: nil, options: ["Left"])),
-        (.choice(["Left", "Right"]), "Right", WatchLine.Ask(id: "k1", wants: .yes, yes: "Right")),
-        (.words, "12 passed", WatchLine.Ask(id: "k1", wants: .choice, yes: nil, options: ["12 passed"])),
-    ])
-    func aBannersAnswerToAnAskReshapedSinceIsNotSent(
-        wants: Banner.Ask.Wants, words: String, live: WatchLine.Ask
-    ) async throws {
-        let (answers, _, cli) = Self.made(board: try Self.board(live))
-
-        answers.send(words, from: Self.banner(wants))
-        await Self.settle()
-
-        #expect(cli.banners == [Self.named("The ask changed after its banner showed, so nothing was sent.")])
-        #expect(cli.ran.isEmpty)
-    }
-
-    /// Retitled since its banner showed, its yes the same: "Not answered", nothing sent, as the CLI, which sees no
-    /// title, would take "Go" for the new question.
-    @Test func aBannersAnswerToAnAskRetitledSinceIsNotSent() async throws {
-        let live = WatchLine.Ask(id: "k1", wants: .yes, yes: "Go", title: "Deploy to production?")
-        let (answers, _, cli) = Self.made(board: try Self.board(live, row: .needsYou))
-        let banner = Banner.Ask(
-            id: "k1", session: "sr-4t2kq8", title: "Deploy to staging?", place: "Northwind · Ledger export",
-            wants: .yes("Go")
-        )
-
-        answers.send("Go", from: banner)
-        await Self.settle()
-
-        #expect(cli.banners.map(\.title) == ["Not answered"])
-        #expect(cli.banners.map(\.body) == ["The ask changed after its banner showed, so nothing was sent."])
-        #expect(cli.banners.map(\.work) == ["sr-4t2kq8"])
-        #expect(cli.ran.isEmpty)
-    }
-
-    /// The board holding the ask no more, or no board yet, as SitRep started by the press: sent, with what the banner
-    /// showed it wanting, for the CLI to refuse in its own words where it is answered already, or reshaped.
-    @Test func aBannersAnswerToAnAskOffTheBoardIsSentForTheCLIToJudge() async throws {
-        let (off, _, offRan) = Self.made(board: try Self.board(WatchLine.Ask(id: "k9")))
-        let (none, _, noneRan) = Self.made()
-        let sent = Answering(.words("Go"), to: "k1", of: "sr-4t2kq8", wanting: .yes)
-
-        off.send("Go", from: Self.banner(.yes("Go")))
-        none.send("Go", from: Self.banner(.yes("Go")))
-        await until(turns: 100_000) { offRan.ran.count == 1 && noneRan.ran.count == 1 }
-
-        #expect(offRan.ran == [sent])
-        #expect(noneRan.ran == [sent])
-        #expect(offRan.banners.isEmpty && noneRan.banners.isEmpty)
-    }
-
-    /// Reply sent with no words: macOS has closed the banner, so a banner says nothing went.
-    @Test func aBannersReplyWithNoWordsIsNotSent() async throws {
-        let (answers, _, cli) = Self.made(board: try Self.board(WatchLine.Ask(id: "k1", wants: .words, yes: nil)))
-
-        answers.send("", from: Self.banner(.words))
-        await Self.settle()
-
-        #expect(cli.banners == [Self.named("Reply had no words, so nothing was sent.")])
-        #expect(cli.ran.isEmpty)
     }
 
     // MARK: A refusal, named
@@ -354,48 +231,18 @@ struct AnswersTests {
         )])
     }
 
-    /// A banner's answer refused as reshaped names its ask too.
-    @Test func aReshapedAsksRefusalNamesTheAsk() async throws {
-        let live = WatchLine.Ask(id: "k1", wants: .words, yes: nil, title: "Pick the export format")
-        let (answers, _, cli) = Self.made(board: try Self.board(live, row: .needsYou))
-
-        answers.send("Go", from: Self.banner(.yes("Go")))
-        await Self.settle()
-
-        #expect(cli.banners.map(\.subtitle) == ["Northwind · Ledger export"])
-        #expect(cli.banners.map(\.work) == ["sr-4t2kq8"])
-    }
-
     /// Its whole session snoozed, the ask has no row in Needs you: its row in Snoozed names its place.
     @Test func aRefusalForAnAskOfASnoozedSessionNamesItsPlace() async throws {
         let board = try Self.board(WatchLine.Ask(id: "k1", title: "Pick the export format"), row: .snoozed)
-        let (answers, _, cli) = Self.made(answering: .refused("k1 is already closed."), board: board)
+        let (answers, clock, cli) = Self.made(answering: .refused("k1 is already closed."), board: board)
 
-        answers.send(Self.approve)
+        answers.hold(Self.approve)
+        await until(turns: 100_000) { clock.sleeps.count == 1 }
+        clock.pass(Answers.goesAfter)
         await until(turns: 100_000) { cli.banners.count == 1 }
 
         #expect(cli.banners.map(\.subtitle) == ["Northwind · Ledger export"])
         #expect(cli.banners.map(\.body) == ["“Pick the export format” is already closed."])
-    }
-
-    /// A banner pressed for an ask closed while SitRep was off, the board holding it no more, or no board yet: the
-    /// refusal names it as its banner showed it, never by its id.
-    @Test func aBannersRefusalForAnAskOffTheBoardNamesItAsTheBannerShowedIt() async throws {
-        let (off, _, offCLI) = Self.made(
-            answering: .refused("k1 is already closed."), board: try Self.board(WatchLine.Ask(id: "k9"), row: .needsYou)
-        )
-        let (none, _, noneCLI) = Self.made(answering: .refused("k1 is already closed."))
-        let named = Banner(
-            title: "Not answered", subtitle: "Northwind · Ledger export",
-            body: "“Pick the export format” is already closed.", work: "sr-4t2kq8"
-        )
-
-        off.send("Go", from: Self.banner(.yes("Go")))
-        none.send("Go", from: Self.banner(.yes("Go")))
-        await until(turns: 100_000) { offCLI.banners.count == 1 && noneCLI.banners.count == 1 }
-
-        #expect(offCLI.banners == [named])
-        #expect(noneCLI.banners == [named])
     }
 
     /// Held before SitRep had heard a board, as by a press that started it: named as the board shows it by the time
@@ -412,18 +259,6 @@ struct AnswersTests {
 
         #expect(cli.banners.map(\.body) == ["“Pick the export format” is already closed."])
         #expect(cli.banners.map(\.work) == ["sr-4t2kq8"])
-    }
-
-    /// "Not answered" in these words, naming the ask as `banner` shows it, under its place, a click jumping there.
-    private static func named(_ why: String) -> Banner {
-        Banner(title: "Not answered", subtitle: "Northwind · Ledger export", body: why, work: "sr-4t2kq8")
-    }
-
-    private static func banner(_ wants: Banner.Ask.Wants) -> Banner.Ask {
-        Banner.Ask(
-            id: "k1", session: "sr-4t2kq8", title: "Pick the export format", place: "Northwind · Ledger export",
-            wants: wants
-        )
     }
 
     /// A board whose session `sr-4t2kq8`, Northwind's Ledger export, holds this one ask, with its Needs you row, or

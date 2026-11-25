@@ -80,11 +80,11 @@ public struct AsksMeasure: Sendable {
     )
 }
 
-/// Where the asks panel lays out one ask, the same in black and in glass (Paper's boards F and H3): its top line, the
-/// session's name and project and its page dots; the ask's title and its age; its answers' rows, each as tall as the
-/// lines its words wrap to, none for an ask Lee answers in Claude; and its foot, Ignore, Snooze ▾ where Snooze offers
-/// a time, and Open in Claude, which the sending line takes the place of while an answer is held. Every box is in the
-/// asks panel's own frame, from its top left, 372 wide.
+/// Where the asks panel lays out one ask (Paper's boards F and H3): its top line, the session's name and project and
+/// its page dots; the ask's title and its age; its answers' rows, each as tall as the lines its words wrap to, none for
+/// an ask Lee answers in Claude; and its foot, Ignore, Snooze ▾ where Snooze offers a time, and Open in Claude, which
+/// the sending line takes the place of while an answer is held. Every box is in the asks panel's own frame, from its
+/// top left, 372 wide.
 public struct AsksLayout: Equatable, Sendable {
     public static let width = 372.0, radius = 24.0
     /// How far it overlaps the list's front, on top of it, and how far its top stands above its row's.

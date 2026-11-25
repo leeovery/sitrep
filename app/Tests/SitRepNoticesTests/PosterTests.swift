@@ -4,17 +4,14 @@ import SitRepTestSupport
 import Testing
 import UserNotifications
 
-/// Each banner posted, a new ask's under a category of its own, the whole set built from the banners delivered and
-/// those lately posted, and landed before the banner is added. Over a notification center of the test's own.
+/// Each banner posted with no buttons, carrying the session its click jumps to and the ask it tells of; and the banners
+/// of an ask that waits on Lee no more taken down. Over a notification center of the test's own.
 @MainActor
 @Suite(.backstop)
 struct PosterTests {
     /// What the poster asked of the center, in order.
     enum Step: Equatable {
         case delivered
-        case set([String])
-        /// The read that waits for the last set to land.
-        case barrier
         case add(id: String, category: String)
         case remove([String])
     }
@@ -30,15 +27,6 @@ struct PosterTests {
             return delivered
         }
 
-        func setCategories(_ categories: Set<UNNotificationCategory>) {
-            steps.append(.set(categories.map(\.identifier).sorted()))
-        }
-
-        func categories() async -> Set<UNNotificationCategory> {
-            steps.append(.barrier)
-            return []
-        }
-
         func add(_ request: UNNotificationRequest) async throws {
             steps.append(.add(id: request.identifier, category: request.content.categoryIdentifier))
             added.append(request)
@@ -47,26 +35,14 @@ struct PosterTests {
         func remove(_ ids: [String]) {
             steps.append(.remove(ids))
         }
-
-        /// The ids of the last set registered.
-        var lastSet: [String] {
-            steps.reversed().lazy.compactMap { if case let .set(ids) = $0 { ids } else { nil } }.first ?? []
-        }
     }
 
-    private static let ask = asked("k1", of: "sr-nw0001", wants: .yes("Go"))
+    private static let ask = NoticeAsk(id: "k1", session: "sr-nw0001")
     private static let asking = Notice(
         title: "Pick the export format", subtitle: "Northwind · Ledger export", body: "", work: "sr-nw0001", ask: ask
     )
 
     private let center = Center()
-
-    /// An ask of the session, its title and place Northwind's Ledger export's.
-    private static func asked(_ id: String, of session: String, wants: NoticeAsk.Wants) -> NoticeAsk {
-        NoticeAsk(
-            id: id, session: session, title: "Pick the export format", place: "Northwind · Ledger export", wants: wants
-        )
-    }
 
     /// Ids b1, b2, … in the order the banners post.
     private func poster() -> Poster {
@@ -78,59 +54,36 @@ struct PosterTests {
         }
     }
 
-    @Test func aBannerWithNoAskIsAddedWithNoCategoryAndNoSet() async {
+    @Test func aBannerWithNoAskIsAddedAndCarriesItsSessionAlone() async {
         await poster().post(Notice(title: "Stopped", subtitle: "Northwind · Ledger export", body: "", work: "sr-nw0001"))
 
         #expect(center.steps == [.add(id: "b1", category: "")])
+        #expect(center.added[0].content.userInfo as? [String: String] == ["work": "sr-nw0001"])
     }
 
-    /// Its set registered, then landed, then the banner added under its category.
-    @Test func aNewAsksBannerIsAddedOnlyOnceItsCategoryHasLanded() async {
-        center.delivered = ["b0": Self.asked("k0", of: "sr-nw0001", wants: .words)]
-
+    /// A new ask's banner has no buttons, as every banner: a click on it jumps to its session, and it carries its ask,
+    /// to be found and taken down by.
+    @Test func aNewAsksBannerIsAddedWithNoButtonsCarryingItsSessionAndItsAsk() async {
         await poster().post(Self.asking)
 
-        #expect(center.steps == [.delivered, .set(["b0", "b1"]), .barrier, .add(id: "b1", category: "b1")])
-        #expect(Buttons.ask(center.added[0].content.userInfo) == Self.ask)
-        #expect(Buttons.work(center.added[0].content.userInfo) == "sr-nw0001")
+        #expect(center.steps == [.add(id: "b1", category: "")])
+        #expect(BannerInfo.ask(center.added[0].content.userInfo) == Self.ask)
+        #expect(BannerInfo.work(center.added[0].content.userInfo) == "sr-nw0001")
     }
 
-    /// Two posted back to back: the first keeps its buttons though Notification Center does not list it yet.
-    @Test func aBannerJustPostedKeepsItsCategoryThoughNotListedAsDelivered() async {
-        let poster = poster()
+    /// The test notification, a refusal's, and any other naming no session carry nothing.
+    @Test func aBannerNamingNoSessionCarriesNothing() async {
+        await poster().post(Notice(title: "Not answered", subtitle: nil, body: "Answered already", work: nil))
 
-        await poster.post(Self.asking)
-        await poster.post(Self.asking)
-
-        #expect(center.lastSet == ["b1", "b2"])
-    }
-
-    /// A helper started again knows nothing it posted: the banners delivered keep their buttons all the same.
-    @Test func aBannerDeliveredBeforeTheHelperStartedKeepsItsCategory() async {
-        center.delivered = ["a1": Self.ask, "a2": Self.asked("k2", of: "sr-nw0001", wants: .choice(["Left"]))]
-
-        await poster().post(Self.asking)
-
-        #expect(center.lastSet == ["a1", "a2", "b1"])
-    }
-
-    /// A banner neither delivered nor lately posted gives its category up, so the set stays bounded.
-    @Test func onlyTheLastTenPostedAreKeptBeyondThoseDelivered() async {
-        let poster = poster()
-
-        for _ in 0 ..< Poster.keptRecent + 2 {
-            await poster.post(Self.asking)
-        }
-
-        #expect(center.lastSet == (3 ... 12).map { "b\($0)" }.sorted())
+        #expect(center.added[0].content.userInfo.isEmpty)
     }
 
     /// An ask that waits on Lee no more: every banner of it still delivered goes, found by the ask and session it
     /// carries, and no other, a like id in another session's among them.
     @Test func clearingAnAskRemovesItsDeliveredBannersAlone() async {
         center.delivered = [
-            "a1": Self.ask, "a2": Self.ask, "a3": Self.asked("k1", of: "sr-nw0002", wants: .words),
-            "a4": Self.asked("k2", of: "sr-nw0001", wants: .words),
+            "a1": Self.ask, "a2": Self.ask, "a3": NoticeAsk(id: "k1", session: "sr-nw0002"),
+            "a4": NoticeAsk(id: "k2", session: "sr-nw0001"),
         ]
 
         await poster().clear(ask: "k1", session: "sr-nw0001")
@@ -139,7 +92,7 @@ struct PosterTests {
     }
 
     @Test func clearingAnAskWithNoBannerDeliveredRemovesNothing() async {
-        center.delivered = ["a4": Self.asked("k2", of: "sr-nw0001", wants: .words)]
+        center.delivered = ["a4": NoticeAsk(id: "k2", session: "sr-nw0001")]
 
         await poster().clear(ask: "k1", session: "sr-nw0001")
 

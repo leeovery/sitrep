@@ -77,8 +77,8 @@ export const offeredAs = (options: readonly string[], given: string) => {
 /**
  * A choice's options in the order SitRep offers them to press: the one
  * Claude recommends first, the rest in Claude's order. Every list of
- * buttons follows it, the pane's, the asks panel's and a banner's, each
- * answering by an option's words; Claude's board text keeps Claude's order.
+ * buttons follows it, the pane's and the asks panel's, each answering by
+ * an option's words; Claude's board text keeps Claude's order.
  */
 export const pickFirst = (options: readonly string[], recommended: string | undefined) =>
   recommended === undefined || !options.includes(recommended)

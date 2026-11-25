@@ -15,13 +15,6 @@ struct BannersTests {
     private static let second: Int32 = 5151
     private static let ready = ToSitRep.ready(helper: first)
     private static let asked = Banner(title: "Pick a name", subtitle: "Trey Research · Build the desktop app", body: "", work: "sr-a8n2xc")
-    private static let pressed = NoticeAnswer(
-        to: NoticeAsk(
-            id: "k2", session: "sr-a8n2xc", title: "Pick a name", place: "Trey Research · Build the desktop app",
-            wants: .choice(["Left", "Right"])
-        ),
-        words: "Right"
-    )
     private static let askedNotice = Notice(
         title: "Pick a name", subtitle: "Trey Research · Build the desktop app", body: "", work: "sr-a8n2xc"
     )
@@ -76,18 +69,10 @@ struct BannersTests {
         }
     }
 
-    /// What `Answers` ran through the CLI, and the banners it posted.
-    @MainActor
-    final class Ran {
-        var answerings: [Answering] = []
-        var banners: [Banner] = []
-    }
-
     @MainActor
     final class Clicks {
         var works: [String] = []
         var refused: (() -> Void)?
-        var answers: [NoticeAnswer] = []
     }
 
     private let sent = Sent()
@@ -97,13 +82,10 @@ struct BannersTests {
     private func banners(answerWithin: Duration = .seconds(60)) -> Banners {
         let banners = Banners(pid: Self.pid, send: sent.put, helperApp: app, answerWithin: answerWithin)
 
-        banners.start(
-            onClick: { [clicks] work, refused in
-                clicks.works.append(work)
-                clicks.refused = refused
-            },
-            onAnswer: { [clicks] in clicks.answers.append($0) }
-        )
+        banners.start { [clicks] work, refused in
+            clicks.works.append(work)
+            clicks.refused = refused
+        }
 
         return banners
     }
@@ -192,86 +174,24 @@ struct BannersTests {
 
         banners.heard(Self.fromHelper(Self.ready, pid: 977))
         banners.heard(Self.fromHelper(.clicked(work: "sr-a8n2xc"), pid: 977))
-        banners.heard(Self.fromHelper(.answered(Self.pressed), pid: 977))
         banners.post(Self.asked)
 
         #expect(clicks.works.isEmpty)
-        #expect(clicks.answers.isEmpty)
         #expect(sent.messages == [.ready])
     }
 
-    /// A new ask's banner goes with its ask, whatever it wants, for the helper to draw its buttons.
-    @Test(arguments: [
-        (Banner.Ask.Wants.yes("Go"), NoticeAsk.Wants.yes("Go")),
-        (.choice(["Left", "Right"]), .choice(["Left", "Right"])),
-        (.words, .words),
-    ])
-    func aNewAsksBannerGoesWithItsAsk(wants: Banner.Ask.Wants, relayed: NoticeAsk.Wants) {
+    /// A new ask's banner goes with its ask, for the helper to take it down by once the ask waits on Lee no more.
+    @Test func aNewAsksBannerGoesWithItsAsk() {
         let banners = banners()
-        let ask = Banner.Ask(
-            id: "k2", session: "sr-a8n2xc", title: "Pick a name", place: "Trey Research · Build the desktop app",
-            wants: wants
-        )
 
         banners.heard(Self.fromHelper(Self.ready))
-        banners.post(Banner(title: "Pick a name", subtitle: nil, body: "", work: "sr-a8n2xc", ask: ask))
+        banners.post(Banner(
+            title: "Pick a name", subtitle: nil, body: "", work: "sr-a8n2xc", ask: AskOf(session: "sr-a8n2xc", ask: "k2")
+        ))
 
         #expect(sent.messages.last == .post(Notice(
-            title: "Pick a name", subtitle: nil, body: "", work: "sr-a8n2xc",
-            ask: NoticeAsk(
-                id: "k2", session: "sr-a8n2xc", title: "Pick a name", place: "Trey Research · Build the desktop app",
-                wants: relayed
-            )
+            title: "Pick a name", subtitle: nil, body: "", work: "sr-a8n2xc", ask: NoticeAsk(id: "k2", session: "sr-a8n2xc")
         )))
-    }
-
-    @Test func anAnswerTheHelperRelaysReachesItsHandler() {
-        let banners = banners()
-
-        banners.heard(Self.fromHelper(.answered(Self.pressed)))
-
-        #expect(clicks.answers == [Self.pressed])
-        #expect(clicks.works.isEmpty)
-    }
-
-    /// The app's handler: the banner's answer sent through `Answers` at once, with no hold, as its words, with what the
-    /// banner showed it wanting, the board still holding the ask as its banner showed it.
-    @Test func aRelayedAnswerIsSentAtOnceThroughAnswers() async throws {
-        let ran = Ran()
-        let board = try Self.board(
-            WatchLine.Ask(id: "k2", wants: .choice, yes: nil, title: "Pick a name", options: ["Left", "Right"])
-        )
-        let answers = Self.answers(ran, on: board)
-
-        Self.relay(Self.pressed, to: answers)
-        await until(turns: 10_000) { !ran.answerings.isEmpty }
-
-        #expect(ran.answerings == [Answering(.words("Right"), to: "k2", of: "sr-a8n2xc", wanting: .choice)])
-        #expect(answers.held == nil)
-        #expect(ran.banners.isEmpty)
-    }
-
-    /// The board's ask reshaped since its banner showed: "Not answered", and nothing sent.
-    @Test func aRelayedAnswerToAnAskReshapedSinceIsNotSent() async throws {
-        let ran = Ran()
-        let answers = Self.answers(ran, on: try Self.board(WatchLine.Ask(id: "k2", wants: .words, yes: nil)))
-
-        Self.relay(Self.pressed, to: answers)
-        await until(turns: 10_000) { !ran.banners.isEmpty }
-
-        #expect(ran.banners == [Self.named("The ask changed after its banner showed, so nothing was sent.")])
-        #expect(ran.answerings.isEmpty)
-    }
-
-    /// A refusal, as for an ask answered in its window meanwhile, posts "Not answered" in the CLI's words.
-    @Test func aRelayedAnswerTheCLIRefusesPostsNotAnswered() async {
-        let ran = Ran()
-        let answers = Self.answers(ran, on: nil, written: .refused("Answered already"))
-
-        Self.relay(Self.pressed, to: answers)
-        await until(turns: 10_000) { !ran.banners.isEmpty }
-
-        #expect(ran.banners == [Self.named("Answered already")])
     }
 
     /// An ask that waits on Lee no more has its banners cleared through the helper.
@@ -282,35 +202,6 @@ struct BannersTests {
         banners.clear(AskOf(session: "sr-a8n2xc", ask: "k2"))
 
         #expect(sent.messages.last == .cleared(ask: "k2", session: "sr-a8n2xc"))
-    }
-
-    /// Answers through a CLI that writes as given, recording what it ran and posted, on this board.
-    private static func answers(_ ran: Ran, on board: Board?, written: WriteAnswer = .written) -> Answers {
-        Answers(
-            answer: { ran.answerings.append($0); return written }, post: { ran.banners.append($0) },
-            board: { board }
-        )
-    }
-
-    /// The answer relayed through banners started as the app starts them.
-    private static func relay(_ answer: NoticeAnswer, to answers: Answers) {
-        let banners = Banners(pid: pid, send: { _ in }, helperApp: App())
-
-        banners.start(onClick: { _, _ in }, onAnswer: answers.send)
-        banners.heard(fromHelper(.answered(answer)))
-    }
-
-    /// "Not answered" in these words, naming the ask `pressed` answers as its banner showed it, which the board, with no
-    /// row for its session, does not name.
-    private static func named(_ why: String) -> Banner {
-        Banner(title: "Not answered", subtitle: "Trey Research · Build the desktop app", body: why, work: "sr-a8n2xc")
-    }
-
-    /// A board holding this one ask of the session `pressed` answers.
-    private static func board(_ ask: WatchLine.Ask) throws -> Board {
-        let session = WatchLine.Session(id: "sr-a8n2xc", asks: [ask])
-
-        return try Board.read(WatchLine(projects: [WatchLine.Project(sessions: [session])]).text)
     }
 
     /// Its ready and its end come by different ways, in no order: a ready from a helper already ended would take what

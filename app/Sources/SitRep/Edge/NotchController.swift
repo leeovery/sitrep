@@ -5,11 +5,11 @@ import SitRepPanel
 
 /// The notch on its display: it runs the notch (`NotchRun`), in the style Lee chose, a frame per display refresh with
 /// the pointer, the time and the board's rows, and draws what each gives back. Frames run only while something moves:
-/// the model, a row folding, the ghost, a new row's wash in glass. A pointer resting anywhere moves nothing; the mouse
-/// monitors wake the frames as it moves near the notch, or anywhere while the panel is out (`Frame.wakes`). While
-/// idle it costs nothing, but for the light, which breathes on a slow refresh of its own while something needs Lee
-/// (under reduced motion it holds still, and the refresh runs only while a new ask brightens it), and the open
-/// panel's times, drawn again as they change. Whatever comes between frames, a board or Lee's hand, goes to the run,
+/// the model, a row folding, the ghost. A pointer resting anywhere moves nothing; the mouse monitors wake the frames as
+/// it moves near the notch, or anywhere while the panel is out (`Frame.wakes`). While idle it costs nothing, but for
+/// the light, which breathes on a slow refresh of its own while something needs Lee (under reduced motion it holds
+/// still, and the refresh runs only while a new ask brightens it), and the open panel's times, drawn again as they
+/// change. Whatever comes between frames, a board or Lee's hand, goes to the run,
 /// which brings the notch up to now first; each is drawn, and frames show what it did.
 @MainActor
 final class NotchController: NSObject, CalloutShape {
@@ -49,8 +49,6 @@ final class NotchController: NSObject, CalloutShape {
     private var crossing: EdgeMove?
     private let ghost = GhostEdge()
     private let caption = CaptionWindow()
-    /// When a new row was last washed, on the run's clock.
-    private var washed: Double?
     private var monitors: [Any] = []
     /// Where on the stage the row's menu AppKit was last handed was asked for, which holds the card open once it
     /// shows.
@@ -74,7 +72,6 @@ final class NotchController: NSObject, CalloutShape {
         window = EdgeWindow.onScreen(frame: edge.window, view: surface)
         super.init()
 
-        surface.material = settings.material
         surface.show(run.list)
         surface.pointer = EdgePointer(
             pressed: { [unowned self] in press(at: $0) },
@@ -120,18 +117,16 @@ final class NotchController: NSObject, CalloutShape {
 
         if !washes.isEmpty {
             surface.wash(washes, at: run.time)
-            washed = run.time
         }
         took()
     }
 
-    /// The settings and the display, as they stand: the edge and the place along it, the material and the motion at
-    /// once, the style once the notch is at rest.
+    /// The settings and the display, as they stand: the edge and the place along it, and the motion at once, the style
+    /// once the notch is at rest.
     func apply(_ settings: EdgeSettings, on display: Display) {
         self.settings = settings
         edge = ScreenEdge(display, settings)
         window.setFrame(edge.window(wide: isWide), display: true)
-        surface.material = settings.material
         caption.over = edge.visible
         wake()
     }
@@ -232,8 +227,8 @@ final class NotchController: NSObject, CalloutShape {
     /// The window wide while the asks panel is open beside the panel, and back to the panel's once it closes, a frame
     /// drawn through its mirror. On the right edge it grows into the screen, its stage mirrored across its new width,
     /// so all it draws moves in it: the window takes its new frame, its views their new bounds, and then the frame is
-    /// drawn into them, the black mirrored across the new width and the glass laid out to it, all in one transaction,
-    /// flushed at once, so the screen gets the new window and what it draws together.
+    /// drawn into them, the black mirrored across the new width, all in one transaction, flushed at once, so the screen
+    /// gets the new window and what it draws together.
     private func widen(_ wide: Bool, drawing draw: (CGAffineTransform) -> Void) {
         guard wide != isWide else {
             return draw(edge.mirror(wide: isWide))
@@ -264,7 +259,7 @@ final class NotchController: NSObject, CalloutShape {
     /// next change. Hidden, none.
     private func pace(at time: Double) {
         let ghosts = ghost.step(at: time)
-        let running = isShown && (run.needsFrames(at: time) || ghosts || isWashing(at: time))
+        let running = isShown && (run.needsFrames(at: time) || ghosts)
 
         link?.isPaused = !running
         lightLink?.isPaused = running || !lightMoves(at: time)
@@ -278,11 +273,6 @@ final class NotchController: NSObject, CalloutShape {
     /// Whether the light, shown and lit, changes from moment to moment (`LiveLight.moves`).
     private func lightMoves(at time: Double) -> Bool {
         isShown && run.lightMoves(at: time, reducesMotion: Displays.reducesMotion(settings))
-    }
-
-    /// A new row's wash, which glass draws a frame at a time.
-    private func isWashing(at time: Double) -> Bool {
-        NotchSurface.drawn(settings.material) == .glass && washed.map { time - $0 < Wash.length } == true
     }
 
     /// A frame as the first of the open panel's times next reads differently, menus tracking or not.

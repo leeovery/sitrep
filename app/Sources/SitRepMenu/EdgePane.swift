@@ -7,7 +7,7 @@ import SitRepPanel
 public enum EdgePane {
     /// A row of a section.
     public enum Row: Hashable, Sendable {
-        case edge, display, style, length, max, material, reduceMotion
+        case edge, display, style, length, max, reduceMotion
     }
 
     /// A section: its header, and its card's rows.
@@ -18,16 +18,14 @@ public enum EdgePane {
 
     public static let menuCarries = "The menu carries the board."
 
-    /// The sections for what Lee set: Style for the notch, Length and Max for the strip, Max only at Grows; Material
-    /// only from macOS 26, before which the edge is black and there is no row.
-    public static func sections(_ settings: EdgeSettings, hasGlass: Bool) -> [Section] {
-        let material: [Row] = hasGlass ? [.material] : []
+    /// The sections for what Lee set: Style for the notch, Length and Max for the strip, Max only at Grows.
+    public static func sections(_ settings: EdgeSettings) -> [Section] {
         let max: [Row] = settings.length == .grows ? [.max] : []
         let motion = Section(name: "Motion", rows: [.reduceMotion])
 
         return switch settings.show {
-        case .notch: [Section(name: "Notch", rows: [.edge, .display, .style] + material), motion]
-        case .strip: [Section(name: "Strip", rows: [.edge, .display, .length] + max + material), motion]
+        case .notch: [Section(name: "Notch", rows: [.edge, .display, .style]), motion]
+        case .strip: [Section(name: "Strip", rows: [.edge, .display, .length] + max), motion]
         case .nothing: []
         }
     }
@@ -44,10 +42,6 @@ extension NotchStyle {
 
 extension StripLength {
     public var title: String { self == .grows ? "Grows" : "Full" }
-}
-
-extension EdgeSettings.Material {
-    public var title: String { self == .black ? "Black" : "Glass" }
 }
 
 /// A display Lee can choose for the edge, by the id the edge knows it by; nil for the main display, whichever that is.

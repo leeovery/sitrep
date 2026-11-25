@@ -2,8 +2,8 @@ import Foundation
 
 /// What Lee sets for the screen's edge: Settings' Edge pane, and the menu's Show (DESIGN, "Settings"). How
 /// the notch and the strip move is not among them; that ships fixed. Read leniently, so settings another version saved
-/// keep what they can: a key missing or unreadable keeps its default, and anything but an object reads as the
-/// defaults.
+/// keep what they can: a key missing or unreadable keeps its default, one no longer read is passed over, as Material's
+/// is since the edge is black alone, and anything but an object reads as the defaults.
 public struct EdgeSettings: Codable, Equatable, Sendable {
     /// What shows at the screen's edge: the notch and its light, the strip and its rings, or only the menu bar's glyph.
     public enum Show: String, Codable, CaseIterable, Sendable {
@@ -18,11 +18,6 @@ public struct EdgeSettings: Codable, Equatable, Sendable {
         public var other: Edge { self == .left ? .right : .left }
     }
 
-    /// The notch's and the strip's black: the bezel's, or macOS 26's Liquid Glass.
-    public enum Material: String, Codable, CaseIterable, Sendable {
-        case black, glass
-    }
-
     public var show = Show.notch
     public var edge = Edge.left
     /// How far down the screen the notch sits, from 0 at its top to 1 at its bottom: a little above the middle until
@@ -33,7 +28,6 @@ public struct EdgeSettings: Codable, Equatable, Sendable {
     public var style = NotchStyle.meniscus
     public var length = StripLength.grows
     public var maxLength = StripMax.full
-    public var material = Material.black
     /// SitRep's own Reduce motion: the app reduces motion when this or the Mac asks.
     public var reducesMotion = false
 
@@ -59,7 +53,6 @@ public struct EdgeSettings: Codable, Equatable, Sendable {
         style = given.value(.style, or: defaults.style)
         length = given.value(.length, or: defaults.length)
         maxLength = given.value(.maxLength, or: defaults.maxLength)
-        material = given.value(.material, or: defaults.material)
         reducesMotion = given.value(.reducesMotion, or: defaults.reducesMotion)
     }
 }

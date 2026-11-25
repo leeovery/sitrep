@@ -46,7 +46,7 @@ struct SettingsModelTests {
 
         func services() -> SettingsServices {
             SettingsServices(
-                displays: { self.displays += 1; return [] }, hasGlass: true, jump: { _ in }, sendTest: {}, copy: { _ in },
+                displays: { self.displays += 1; return [] }, jump: { _ in }, sendTest: {}, copy: { _ in },
                 sounds: AlertSounds(names: ["Basso", "Glass", "Tink"]) { self.played.append($0) },
                 noticeLeave: {
                     self.reads += 1

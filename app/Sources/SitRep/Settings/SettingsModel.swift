@@ -12,8 +12,6 @@ import SwiftUI
 struct SettingsServices {
     /// The displays connected, for Display.
     var displays: () -> [DisplayChoice.Connected]
-    /// Liquid Glass, for Material: macOS 26's.
-    var hasGlass: Bool
     var jump: (String) -> Void
     var sendTest: () -> Void
     /// Words put on the pasteboard, as Copy puts `/reload-plugins` there.

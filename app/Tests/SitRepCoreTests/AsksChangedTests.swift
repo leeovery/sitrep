@@ -3,9 +3,9 @@ import Foundation
 import SitRepTestSupport
 import Testing
 
-/// The asks a line shows edited while they wait on Lee, whose banners then go, as their buttons would answer what the
-/// ask no longer asks (DESIGN, "Its buttons"): a new title, yes, options or shape; only as the line comes, against the
-/// board kept; none where a line's projects do not read, nor on the first line SitRep hears.
+/// The asks a line shows edited while they wait on Lee, whose banners then go, as they tell of what the ask no longer
+/// asks (DESIGN, "The menu bar"): a new title, yes, options or shape; only as the line comes, against the board kept;
+/// none where a line's projects do not read, nor on the first line SitRep hears.
 @Suite(.backstop)
 struct AsksChangedTests {
     private static let noon = Date(timeIntervalSince1970: 1_792_445_600)

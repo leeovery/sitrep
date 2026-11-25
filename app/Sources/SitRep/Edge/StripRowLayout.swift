@@ -2,9 +2,8 @@ import AppKit
 import SitRepEdge
 import SitRepPanel
 
-/// Where a tab lays a session's row in its words' box, as the prototype's `.tl` lays it out, the same in black and in
-/// glass: the title and the line under it at the left, centred down the box, and the time at the right, where the
-/// spinner turns while a click jumps.
+/// Where a tab lays a session's row in its words' box, as the prototype's `.tl` lays it out: the title and the line
+/// under it at the left, centred down the box, and the time at the right, where the spinner turns while a click jumps.
 struct StripRowLayout {
     let title, sub, age, spinner: CGRect
 

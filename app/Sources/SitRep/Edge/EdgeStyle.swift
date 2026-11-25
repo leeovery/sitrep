@@ -83,8 +83,6 @@ enum EdgeStyle {
     static let pickLifted = srgb(0xB1B9F9, alpha: 0x47)
     static let pickLiftedBorder = srgb(0xB1B9F9, alpha: 0x80)
     static let pickTag = srgb(0x9AA2EE)
-    /// The board pane's darker lilac, #7178C7, its "recommended": Claude's pick's on light glass.
-    static let pickOnLight = srgb(0x7178C7)
     static let dot = srgb(0x3A3A40)
     static let onWhite = srgb(0x111113)
     /// The asks panel's type: the session's name, the ask's title, an answer's words and its pick's "Recommended",

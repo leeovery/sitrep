@@ -57,7 +57,6 @@ final class StripController: NSObject, CalloutShape {
         window = EdgeWindow.onScreen(frame: edge.stripWindow, view: surface)
         super.init()
 
-        surface.material = settings.material
         surface.pointer = EdgePointer(
             pressed: { [unowned self] in press(at: $0) },
             dragged: { [unowned self] in drag(to: $0) },
@@ -101,13 +100,12 @@ final class StripController: NSObject, CalloutShape {
         took()
     }
 
-    /// The settings and the display, as they stand: the edge and the place along it, the length and Max, the material
-    /// and the motion, all at once.
+    /// The settings and the display, as they stand: the edge and the place along it, the length and Max, and the
+    /// motion, all at once.
     func apply(_ settings: EdgeSettings, on display: Display) {
         self.settings = settings
         edge = ScreenEdge(display, settings)
         window.setFrame(edge.stripWindow, display: true)
-        surface.material = settings.material
         caption.over = edge.visible
         run.place(settings, moment())
         took()

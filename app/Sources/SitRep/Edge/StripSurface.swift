@@ -2,14 +2,15 @@ import AppKit
 import SitRepEdge
 import SitRepPanel
 
-/// The strip's window content, drawn in the material chosen: the last frame, replayed into a new drawing.
+/// The strip's window content, drawn in black.
 @MainActor
-final class StripSurface: EdgeSurface<any StripDrawing> {
+final class StripSurface: EdgeSurface {
+    private let drawing = StripView()
     /// What it was last told to draw: internal only for the tests.
     private(set) var scene: StripScene?
 
     init() {
-        super.init(make: Self.drawing, view: { $0 })
+        super.init(showing: drawing)
     }
 
     func show(_ scene: StripScene) {
@@ -27,16 +28,5 @@ final class StripSurface: EdgeSurface<any StripDrawing> {
             frame: run.frame, hoverRow: run.hoverRow, note: run.note, now: now, mirror: mirror,
             menu: setting.stage.menu, reducesMotion: setting.reducesMotion
         ))
-    }
-
-    override func replay() {
-        scene.map(drawing.show)
-    }
-
-    private static func drawing(_ material: EdgeSettings.Material) -> any StripDrawing {
-        if #available(macOS 26, *), material == .glass {
-            return StripGlassView()
-        }
-        return StripView()
     }
 }

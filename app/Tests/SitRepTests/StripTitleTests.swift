@@ -2,7 +2,6 @@ import AppKit
 @testable import SitRep
 @testable import SitRepPanel
 import SitRepTestSupport
-import SwiftUI
 import Testing
 
 /// A strip title's runs: its count 6 after the last of its words, kept whole as the words before it give way, and on a
@@ -101,25 +100,6 @@ struct StripTitleTests {
 
         #expect(litInk.maxX <= verb + 1, "lit to \(litInk.maxX), the verb \(verb)")
         #expect(greyInk.maxX > verb + 40, "grey to \(greyInk.maxX)")
-    }
-
-    /// On glass, the light is the verb alone, laid out as the whole title, what follows it clear.
-    @available(macOS 26, *)
-    @Test func aWorkingTitlesLightOnGlassIsItsVerbAlone() throws {
-        let title = StripTitle.tab(Self.working(subject: "AVAVA Tower Wolf"), saying: "AVAVA Tower Wolf")
-        let verb = StripTitle.tab(Self.working(subject: nil, more: nil), saying: nil)
-        let size = CGSize(width: 340, height: 30)
-        let ink = { (text: Text) in
-            try #require(Drawn(text.foregroundStyle(.primary).fixedSize().frame(
-                width: size.width, height: size.height, alignment: .leading
-            ), size: size).drawnBox(in: CGRect(origin: .zero, size: size), ground: Self.ground))
-        }
-        let lit = try ink(title.glass(hidden: [.follows, .more]))
-        let whole = try ink(title.glass())
-        let alone = try ink(verb.glass())
-
-        #expect(abs(lit.maxX - alone.maxX) <= 1, "lit to \(lit.maxX), the verb alone to \(alone.maxX)")
-        #expect(whole.maxX > alone.maxX + 40)
     }
 
     /// The layer the shimmer's band masks: its lit title.

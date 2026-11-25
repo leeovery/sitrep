@@ -328,8 +328,8 @@ struct WelcomeSoundsTests {
 /// Step 3's form under the pictures.
 @Suite(.backstop)
 struct WelcomeEdgeFormTests {
-    @Test func theNotchsFormIsStyleMaterialAndEdge() {
-        #expect(WelcomeEdgeForm.rows(EdgeSettings(), hasGlass: true) == [.style, .material, .edge])
+    @Test func theNotchsFormIsStyleAndEdge() {
+        #expect(WelcomeEdgeForm.rows(EdgeSettings()) == [.style, .edge])
     }
 
     /// One row for another, so the form keeps its height.
@@ -337,7 +337,7 @@ struct WelcomeEdgeFormTests {
         var strip = EdgeSettings()
 
         strip.show = .strip
-        #expect(WelcomeEdgeForm.rows(strip, hasGlass: true) == [.length, .material, .edge])
+        #expect(WelcomeEdgeForm.rows(strip) == [.length, .edge])
     }
 
     /// The notch's rows stay in their place at Nothing, so the form keeps its height, taking no presses.
@@ -345,7 +345,7 @@ struct WelcomeEdgeFormTests {
         var nothing = EdgeSettings()
 
         nothing.show = .nothing
-        #expect(WelcomeEdgeForm.rows(nothing, hasGlass: true) == [.style, .material, .edge])
+        #expect(WelcomeEdgeForm.rows(nothing) == [.style, .edge])
         #expect(!WelcomeEdgeForm.takesPresses(nothing))
     }
 
@@ -374,10 +374,6 @@ struct WelcomeEdgeFormTests {
             WelcomeEdgeForm.Under.nothingShown.words
                 == "Only the menu bar's light. Choose Notch or Strip to bring it back."
         )
-    }
-
-    @Test func beforeMacOS26ThereIsNoMaterial() {
-        #expect(WelcomeEdgeForm.rows(EdgeSettings(), hasGlass: false) == [.style, .edge])
     }
 }
 
