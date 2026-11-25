@@ -13,7 +13,7 @@ You can answer a yes or a choice from the notch, without leaving the app you are
 - **A click on the row itself still jumps.** Only the arrow opens the asks panel. Click the arrow again to close the asks panel, or another row's arrow to move it. The asks panel stays open while the pointer is over it or over the panel.
 - **The asks panel shows one ask at a time.** The session name and project come first, then the ask title and its age, such as "Asked 4m ago". If the session has more than one ask, dots at the top show which one you're on. After an answer, the next ask shows. After the last, the asks panel closes.
 - **Each answer is a numbered row.** A yes has one row, in the verb Claude gave. A choice has a row for each option, and the option Claude recommends ends in "recommended". The numbers are labels only: no key answers.
-- **You get two seconds to undo.** The row you click fills, with a check in place of its number, and the foot counts down two seconds beside **Undo**. **Ignore** waits the same two seconds, and the foot reads "Ignoring". Undo takes the answer back, and nothing is written. Leaving the notch doesn't stop the answer: it still goes.
+- **You get two seconds to undo.** The row you click fills, with a check in place of its number, and the foot counts down two seconds beside **Undo**. **Ignore** waits the same two seconds, and the foot reads "Ignoring". Undo takes the answer back. Leaving the notch doesn't stop the answer.
 - **A words ask opens Claude.** The words ask has one row, "Answer in Claude", and a click takes you to the window. For a yes or a choice, **Open in Claude ↗** at the foot does the same.
 - **The answer reaches Claude as your own message.** The answer goes into that session's inbox. The Claude Code window running that session sends it on, starting "From the board:". The ask leaves Needs you once the answer is on its way.
 
@@ -22,7 +22,7 @@ You can answer a yes or a choice from the notch, without leaving the app you are
 - **Only the notch has the arrow.** The strip and the menu bar item have none. A click there still takes you to the session.
 - **Permission prompts stay in Claude Code.** A row holding only permission prompts, or questions from Claude Code itself, has no arrow. Click the row to go to the window, and answer there.
 - **A banner answer goes at once.** A banner has no room for Undo, and no Ignore: closing a banner leaves the ask waiting. On a locked Mac, macOS asks you to unlock the Mac first. Banners for a new ask are off until you turn on **Notify me of a new ask**, in Settings › Notifications.
-- **A refused answer says so.** If the ask was answered in its window meanwhile, a banner titled "Not answered" says why. It shows even with banners off.
+- **A refused answer says so.** If the ask was answered elsewhere, or Claude changed the ask since you saw it, nothing is sent. A banner titled "Not answered" names the ask and says why, even with banners off.
 
 ## Reference
 
@@ -38,7 +38,7 @@ Point at a new ask's banner, and macOS shows its buttons. The asks panel answers
 | Undo | For two seconds | None: it goes at once |
 | Snooze | Snooze ▾, then a choice | None |
 
-**Snooze ▾** offers only the Snooze choices of the row menu. The asks panel closes once you pick one. See [Putting a session off](snooze.md).
+**Snooze ▾** offers the row menu's Snooze choices. The asks panel closes once you pick one. See [Putting a session off](snooze.md).
 
 ## Related
 
