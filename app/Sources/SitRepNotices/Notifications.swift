@@ -27,6 +27,10 @@ final class Notifications: NSObject, Notifying, UNUserNotificationCenterDelegate
         await poster.post(notice)
     }
 
+    func clear(ask: String, session: String) async {
+        await poster.clear(ask: ask, session: session)
+    }
+
     func leave() async -> NoticeLeave {
         let settings = await center.notificationSettings()
 
@@ -86,7 +90,7 @@ final class Notifications: NSObject, Notifying, UNUserNotificationCenterDelegate
             switch read {
             case let .click(work): onClick(work)
             case let .answer(answer): onAnswer(answer)
-            case .none: break
+            case .passedOver: break
             }
         }
     }

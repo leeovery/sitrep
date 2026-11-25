@@ -820,7 +820,7 @@ test('help: every command in brief, how a session is named, and the exit codes',
     '  sitrep ask <title> --wants yes|choice|words [--yes <label>] [--option <choice>]... [--recommended <choice>] [--needs <words>] [--where <words>] [--ref <ref>]\n',
   )
   expect(out).toContain(
-    '  sitrep answer <ask> (<answer> | --ignore)\n  sitrep snooze <ask>... [--until <ms>]\n  sitrep wake\n  sitrep finish\n  sitrep move <project>\n',
+    '  sitrep answer <ask> (<answer> | --ignore) [--wants yes|choice|words]\n  sitrep snooze <ask>... [--until <ms>]\n  sitrep wake\n  sitrep finish\n  sitrep move <project>\n',
   )
   expect(out).toContain('  sitrep list [--project <name>] [--json]\n  sitrep watch\n')
   expect(out).toContain('--session sr-xxxxxx, else $SITREP_SESSION')
@@ -908,7 +908,7 @@ test("the help's one line for the board in this terminal comes before the comman
       '  sitrep ask <title> --wants yes|choice|words [--yes <label>] [--option <choice>]... [--recommended <choice>] [--needs <words>] [--where <words>] [--ref <ref>]',
       '  sitrep park <title> [--where <words>] [--ref <ref>]',
       '  sitrep status [--name <words>] [--summary <line>] [--now <line>]... [--next <line>]',
-      '  sitrep answer <ask> (<answer> | --ignore)',
+      '  sitrep answer <ask> (<answer> | --ignore) [--wants yes|choice|words]',
       '  sitrep snooze <ask>... [--until <ms>]',
       '  sitrep wake',
       '  sitrep finish',

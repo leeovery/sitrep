@@ -84,7 +84,7 @@ struct NoticesTests {
     }
 
     /// Its buttons answer the board's ask the line is, by what it wants: a yes's words, a choice's options in Claude's
-    /// order, Claude's pick among them unmarked, or Reply for words.
+    /// order, Claude's pick, Right, among them in its place and unmarked, or Reply for words.
     @Test(arguments: [
         (WatchLine.Ask(id: "k2", wants: .yes, yes: "Go"), Banner.Ask.Wants.yes("Go")),
         (WatchLine.Ask(id: "k2", wants: .yes, yes: nil), .yes("yes")),

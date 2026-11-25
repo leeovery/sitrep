@@ -22,6 +22,9 @@ public struct LastBoard: Sendable, Equatable {
     /// The sessions the line just heard moved into Lee's turn, by their ids
     /// (`turnsEnded`). Only as the line comes, as `isRunsFirst` is.
     public private(set) var newTurns: Set<String> = []
+    /// The asks that waited on Lee on the board before and wait on him no more on the line just heard: answered,
+    /// ignored, resolved, or gone with their session, so their banners go. Only as the line comes, as `isRunsFirst` is.
+    public private(set) var asksLeft: Set<AskOf> = []
 
     /// A run has started and nothing it printed has been heard yet.
     private var awaitsRunsFirst = false
@@ -43,6 +46,7 @@ public struct LastBoard: Sendable, Equatable {
 
         isRunsFirst = false
         newTurns = []
+        asksLeft = []
 
         switch heard {
         case let .line(line):
@@ -66,6 +70,7 @@ public struct LastBoard: Sendable, Equatable {
             let read = try Board.read(line)
 
             newTurns = turnsEnded(on: read, after: isRunsFirst ? nil : board)
+            asksLeft = (board?.waitingOnLee ?? []).subtracting(read.waitingOnLee)
             board = read
             stale = nil
             staleSince = nil

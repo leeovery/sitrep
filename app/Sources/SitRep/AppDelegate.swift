@@ -11,7 +11,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         preferences.app.openSettings
     }
     private lazy var snoozes = Snoozes(plugin: plugin, post: banners.post)
-    private lazy var answers = Answers(plugin: plugin, post: banners.post)
+    /// One for the asks panel and the banners alike, so a banner's answer takes back the asks panel's hold on its ask.
+    private lazy var answers = Answers(plugin: plugin, post: banners.post) { [live] in live.last.board }
     /// Quitting, waiting on the answers (`applicationShouldTerminate`).
     private var quitting: Task<Void, Never>?
     private let feed = Feed()
@@ -39,7 +40,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         quitOnSignal = QuitOnSignal()
         banners.start(
             onClick: { [works] work, handBack in works.jump(to: work, handBack: handBack) },
-            onAnswer: { [answers, live] in answers.send($0, on: live.last.board) }
+            onAnswer: { [answers] in answers.send($0) }
         )
     }
 
@@ -145,6 +146,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         Chime.due(last, preferences.app).map(sounds.play)
         Notices.due(last, preferences.app).forEach(banners.post)
+        last.asksLeft.forEach(banners.clear)
     }
 
     /// ⌘,, through the main menu: the Settings window.

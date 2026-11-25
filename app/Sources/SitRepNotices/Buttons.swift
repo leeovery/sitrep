@@ -14,7 +14,7 @@ enum Buttons {
         case click(work: String?)
         case answer(NoticeAnswer)
         /// An action not of its ask's, passed over.
-        case none
+        case passedOver
     }
 
     /// The action of a words ask's Reply.
@@ -49,7 +49,7 @@ enum Buttons {
             return .click(work: work(userInfo))
         }
 
-        return answer(to: action, typed: typed, userInfo: userInfo).map(Response.answer) ?? .none
+        return answer(to: action, typed: typed, userInfo: userInfo).map(Response.answer) ?? .passedOver
     }
 
     /// The answer a button's response gives: its answer's words, or the words typed in Reply, trimmed, empty where

@@ -86,6 +86,11 @@ final class Banners {
         )))
     }
 
+    /// The banners of an ask that waits on Lee no more go, their buttons with them.
+    func clear(_ ask: AskOf) {
+        deliver(.cleared(ask: ask.ask, session: ask.session))
+    }
+
     /// What macOS lets SitRep do with notifications; nil when the helper does not answer in time.
     func leave() async -> NoticeLeave? {
         await request(within: answerWithin) { .status(id: $0) }
@@ -171,24 +176,12 @@ final class Banners {
     }
 }
 
-private extension NoticeAsk {
-    init(_ ask: Banner.Ask) {
-        let wants: Wants = switch ask.wants {
-        case let .yes(yes): .yes(yes)
-        case let .choice(options): .choice(options)
-        case .words: .words
-        }
-
-        self.init(id: ask.id, session: ask.session, wants: wants)
-    }
-}
-
 private extension ToHelper {
     /// The id of a request, which its answer gives back.
     var request: String? {
         switch self {
         case let .status(id), let .ask(id): id
-        case .ready, .post, .handBack: nil
+        case .ready, .post, .handBack, .cleared: nil
         }
     }
 }

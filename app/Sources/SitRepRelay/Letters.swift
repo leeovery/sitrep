@@ -167,6 +167,8 @@ public enum ToHelper: Relayed {
     case ask(id: String)
     /// The front given back to the app Lee was in: the jump for a click the helper relayed was refused.
     case handBack
+    /// The ask of the session waits on Lee no more: its banners still delivered go, their buttons with them.
+    case cleared(ask: String, session: String)
 
     public static let way = "to-helper"
 
@@ -177,6 +179,7 @@ public enum ToHelper: Relayed {
         case let .status(id): [kind: "status", "id": id]
         case let .ask(id): [kind: "ask", "id": id]
         case .handBack: [kind: "hand-back"]
+        case let .cleared(ask, session): [kind: "cleared", "ask": ask, "session": session]
         }
     }
 
@@ -192,6 +195,12 @@ public enum ToHelper: Relayed {
             self = .post(notice)
         case let ("status", id?): self = .status(id: id)
         case let ("ask", id?): self = .ask(id: id)
+        case ("cleared", _):
+            guard let ask = fields["ask"], let session = fields["session"] else {
+                return nil
+            }
+
+            self = .cleared(ask: ask, session: session)
         default: return nil
         }
     }

@@ -1,3 +1,5 @@
+import Foundation
+
 /// A banner's words, the session clicking it jumps to, if any, and the ask its buttons answer, if any.
 public struct Banner: Equatable, Sendable {
     /// An ask a new ask's banner answers with the buttons macOS draws (DESIGN, "The menu bar", "Its buttons"): its id,
@@ -10,6 +12,15 @@ public struct Banner: Equatable, Sendable {
             case choice([String])
             /// Reply, macOS's text field, with Send.
             case words
+
+            /// What it wants, as the board and `sitrep answer --wants` say it.
+            public var kind: Board.Ask.Wants {
+                switch self {
+                case .yes: .yes
+                case .choice: .choice
+                case .words: .words
+                }
+            }
         }
 
         public let id: String
@@ -104,6 +115,23 @@ public struct Banner: Equatable, Sendable {
         refused("Not answered", why)
     }
 
+    /// An answer or an ignore refused, said of its ask where the board named it: the words naming it by its title in
+    /// place of its id, which Lee never sees, under its project and session, as its new ask's banner has them, a click
+    /// jumping to its session. Named by nothing, in the words alone.
+    public static func unanswered(_ why: String, of ask: AskNamed?) -> Banner {
+        guard let ask else {
+            return unanswered(why)
+        }
+
+        let id = try? NSRegularExpression(pattern: "\\b\(NSRegularExpression.escapedPattern(for: ask.id))\\b")
+        let title = NSRegularExpression.escapedTemplate(for: "“\(ask.title)”")
+        let named = id?.stringByReplacingMatches(
+            in: why, range: NSRange(why.startIndex..., in: why), withTemplate: title
+        ) ?? why
+
+        return Banner(title: "Not answered", subtitle: ask.place, body: named, work: ask.session)
+    }
+
     /// A row's Wake now that the CLI refused, in its words.
     public static func unwoken(_ why: String) -> Banner {
         refused("Not woken", why)
@@ -112,6 +140,34 @@ public struct Banner: Equatable, Sendable {
     /// Something Lee chose that macOS refused, in its words.
     public static func refused(_ what: String, _ why: String) -> Banner {
         Banner(title: what, subtitle: nil, body: why, work: nil)
+    }
+}
+
+/// An ask as a refusal's banner names it: its id, which the CLI's words lead with, its title, its project and session,
+/// and its session, which a click jumps to.
+public struct AskNamed: Equatable, Sendable {
+    public let id: String
+    public let title: String
+    public let place: String
+    public let session: String
+}
+
+extension Board {
+    /// The ask of the session, named as its row shows it; nil for an ask or a row not on the board.
+    public func named(_ ask: String, of session: String) -> AskNamed? {
+        guard let title = self.ask(ask, of: session)?.title, let row = rows.first(where: { $0.session == session })
+        else {
+            return nil
+        }
+
+        return AskNamed(id: ask, title: title, place: row.place, session: session)
+    }
+}
+
+extension Board.Row {
+    /// Its project and session by name, as a new ask's banner says them.
+    public var place: String {
+        "\(projectName) · \(name)"
     }
 }
 

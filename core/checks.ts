@@ -814,10 +814,33 @@ const isDeliveredByOld = (session: Session, version: string | undefined) => {
 
 type Answer = Checked<Omit<ReplyBody, 'id'>>
 
+/** What an ask wants back, as a refusal says it. */
+const WANTED: Record<Wants, string> = { yes: 'a yes', choice: 'a choice', words: 'words' }
+
+/**
+ * Why the shape the caller showed, `--wants`, no longer fits the ask:
+ * Claude reshaped it since, so an answer to what was shown is never taken
+ * for an answer to what it is now, as "Go" for a words ask's words.
+ * Undefined with none shown, or with the one it wants.
+ */
+const reshaped = (ask: Ask, shown: unknown) => {
+  if (shown === undefined) {
+    return undefined
+  }
+
+  if (!isWants(shown)) {
+    return `--wants is one of ${WANTS.join(', ')}.`
+  }
+
+  return shown === ask.wants
+    ? undefined
+    : `${ask.id} now wants ${WANTED[ask.wants]}, not ${WANTED[shown]}: look at it again.`
+}
+
 /** A yes or a choice in the words given, the ask's own; or why they will not answer it. */
 const offered = (ask: Ask, given: string | undefined): Answer => {
   const answers = answersOf(ask)
-  const wanted = ask.wants === 'yes' ? 'a yes' : 'a choice'
+  const wanted = WANTED[ask.wants]
 
   if (answers.length === 0) {
     return refuse(`${ask.id} gives no options to choose from: answer it in Claude Code's prompt.`)
@@ -892,7 +915,8 @@ const askAnswered = (
  * window delivering the session runs a sitrep behind `version`, the CLI's;
  * and for an ask closed or ignored, or with another answer of Lee's on its
  * way already, since it takes no second answer. A comment on its way bars
- * none.
+ * none. Given the shape the caller showed, refused where the ask now wants
+ * something else, its ignore among them.
  */
 export const checkAnswer = (session: Session, input: unknown, version?: string): Answer => {
   const fields = fieldsOf(input)
@@ -903,7 +927,7 @@ export const checkAnswer = (session: Session, input: unknown, version?: string):
   }
 
   const ask = asked.value
-  const broken = brokenBy(ANSWER_RULES, [ask])
+  const broken = brokenBy(ANSWER_RULES, [ask]) ?? reshaped(ask, fields.wants)
 
   if (broken !== undefined) {
     return refuse(broken)

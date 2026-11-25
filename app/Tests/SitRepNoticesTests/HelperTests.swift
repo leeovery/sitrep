@@ -29,6 +29,14 @@ struct HelperTests {
                 await withCheckedContinuation { held = $0 }
             }
             posted.append(notice)
+            done.append("post \(notice.title)")
+        }
+
+        /// What it posted and cleared, in order.
+        var done: [String] = []
+
+        func clear(ask: String, session: String) async {
+            done.append("clear \(ask) of \(session)")
         }
 
         /// Once `count` banners are posted.
@@ -324,6 +332,24 @@ struct HelperTests {
         mac.release()
 
         #expect(await mac.posts(2) == [first, second])
+    }
+
+    /// An ask's banners are cleared in turn with the posts SitRep sent before, so one posted then cleared goes.
+    @Test func itClearsAnAsksBannersInTheOrderSitRepSent() async {
+        let helper = helper(SitRep(isRunning: true))
+        let first = Notice(title: "First", subtitle: nil, body: "", work: "sr-1")
+
+        mac.holdsFirstPost = true
+        await helper.start()
+        helper.heard(Self.fromSitRep(.post(first)))
+        helper.heard(Self.fromSitRep(.cleared(ask: "k1", session: "sr-1")))
+        await until(turns: 10_000) { mac.isHolding }
+        #expect(mac.done.isEmpty)
+
+        mac.release()
+        await until(turns: 10_000) { mac.done.count == 2 }
+
+        #expect(mac.done == ["post First", "clear k1 of sr-1"])
     }
 
     @Test func itAnswersAStatusWithMacOSsLeaveUnderItsId() async throws {

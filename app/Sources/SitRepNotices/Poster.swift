@@ -13,6 +13,7 @@ protocol BannerCenter {
     /// The set registered, read only to wait for the last set to land.
     func categories() async -> Set<UNNotificationCategory>
     func add(_ request: UNNotificationRequest) async throws
+    func remove(_ ids: [String])
 }
 
 /// Posts each banner, a new ask's under a category of its own (`Buttons`), its set registered and landed before the
@@ -54,6 +55,16 @@ final class Poster {
         }
     }
 
+    /// The banners still delivered of the ask of the session go, so no button answers an ask that waits on Lee no
+    /// more, and their categories leave the next set, but for those lately posted.
+    func clear(ask: String, session: String) async {
+        let ids = await center.deliveredAsks().filter { $1.id == ask && $1.session == session }.map(\.key)
+
+        if !ids.isEmpty {
+            center.remove(ids.sorted())
+        }
+    }
+
     private func register(_ category: UNNotificationCategory) async {
         recent = Array((recent + [category]).suffix(Self.keptRecent))
         center.setCategories(Buttons.categories(delivered: await center.deliveredAsks(), recent: recent))
@@ -84,5 +95,9 @@ final class LiveCenter: BannerCenter {
 
     func add(_ request: UNNotificationRequest) async throws {
         try await center.add(request)
+    }
+
+    func remove(_ ids: [String]) {
+        center.removeDeliveredNotifications(withIdentifiers: ids)
     }
 }

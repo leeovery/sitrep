@@ -18,7 +18,7 @@ struct LetterTests {
 
     @Test(arguments: [
         ToHelper.ready, .handBack, .post(notice), .post(Notice(title: "Not snoozed", subtitle: nil, body: "Gone", work: nil)),
-        .status(id: "a"), .ask(id: "b"),
+        .status(id: "a"), .ask(id: "b"), .cleared(ask: "k2", session: "sr-a8n2xc"),
     ])
     func eachMessageToTheHelperArrivesAsSent(message: ToHelper) {
         let letter = Letter(message, pid: 4012)
@@ -104,6 +104,8 @@ struct LetterTests {
         ["kind": "wave", "pid": "4012"],
         ["kind": "post", "body": "No title", "pid": "4012"],
         ["kind": "status", "pid": "4012"],
+        ["kind": "cleared", "ask": "k2", "pid": "4012"],
+        ["kind": "cleared", "session": "sr-a8n2xc", "pid": "4012"],
         ["kind": "ready", "pid": "not a pid"],
     ])
     func anythingElseIsNoLetter(userInfo: [String: String]) {

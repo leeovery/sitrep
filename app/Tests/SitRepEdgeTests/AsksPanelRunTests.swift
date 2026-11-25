@@ -163,8 +163,8 @@ struct AsksPanelRunTests {
         return .held(HeldAnswer(answering: answering, heldAt: now, goesAt: now.addingTimeInterval(2)))
     }
 
-    private static let threaded = Answering(.words("Threaded"), to: "k1", of: AsksBoard.helpDesk)
-    private static let approve = Answering(.words("Approve"), to: "k2", of: AsksBoard.helpDesk)
+    private static let threaded = Answering(.words("Threaded"), to: "k1", of: AsksBoard.helpDesk, wanting: .choice)
+    private static let approve = Answering(.words("Approve"), to: "k2", of: AsksBoard.helpDesk, wanting: .yes)
 
     // MARK: The row's arrow
 
@@ -270,7 +270,7 @@ struct AsksPanelRunTests {
         #expect(run.press(Self.at(run, try Self.part(.answer(0), run), setting)) == .answer(Self.threaded))
         #expect(
             run.press(Self.at(run, try Self.part(.ignore, run), setting))
-                == .answer(Answering(.ignore, to: "k1", of: AsksBoard.helpDesk))
+                == .answer(Answering(.ignore, to: "k1", of: AsksBoard.helpDesk, wanting: .choice))
         )
 
         let words = try Self.asksOpen(Self.shifts)
@@ -870,7 +870,7 @@ struct AsksPanelRunTests {
         #expect(asks.frame.minX == panel.frame.maxX - CGFloat(AsksLayout.overlap))
         #expect(
             run.press(Self.at(run, try Self.part(.answer(1), run, setting), setting))
-                == .answer(Answering(.words("Flat"), to: "k1", of: AsksBoard.helpDesk))
+                == .answer(Answering(.words("Flat"), to: "k1", of: AsksBoard.helpDesk, wanting: .choice))
         )
     }
 }

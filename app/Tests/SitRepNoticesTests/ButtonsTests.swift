@@ -116,11 +116,11 @@ struct ButtonsTests {
         ("answer.0", words), (UNNotificationDismissActionIdentifier, yes),
     ])
     func anActionNotOfItsAskAnswersNothing(action: String, ask: NoticeAsk) {
-        #expect(Buttons.response(to: action, typed: "Right", userInfo: Self.userInfo(ask)) == Buttons.Response.none)
+        #expect(Buttons.response(to: action, typed: "Right", userInfo: Self.userInfo(ask)) == .passedOver)
     }
 
     @Test func aBannerWithNoAskAnswersNothing() {
-        #expect(Buttons.response(to: "answer.0", typed: nil, userInfo: ["work": "sr-nw0001"]) == Buttons.Response.none)
+        #expect(Buttons.response(to: "answer.0", typed: nil, userInfo: ["work": "sr-nw0001"]) == .passedOver)
     }
 
     /// A click on a banner's body jumps, buttons or none, whatever was typed.

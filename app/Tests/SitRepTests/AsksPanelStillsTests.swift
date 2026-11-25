@@ -67,7 +67,7 @@ struct AsksPanelStillsTests {
     @Test(arguments: Look.allCases)
     func anAnswerSending(look: Look) throws {
         let run = try Self.opened(), at = Date(timeIntervalSince1970: Self.now / 1000 - 0.8)
-        let threaded = Answering(.words("Threaded"), to: "k1", of: "sr-nw0001")
+        let threaded = Answering(.words("Threaded"), to: "k1", of: "sr-nw0001", wanting: .choice)
 
         try Self.open(Self.helpDesk, run)
         run.heard(

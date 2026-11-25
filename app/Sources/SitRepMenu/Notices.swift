@@ -23,16 +23,11 @@ public enum Notices {
     private static func newAsk(_ line: Board.Row.Line, of row: Board.Row, on board: Board?) -> Banner {
         let ask = line.ask.flatMap { board?.ask($0, of: row.session) }.flatMap { Banner.Ask($0, of: row.session) }
 
-        return Banner(title: line.first.lead, subtitle: placeOf(row), body: "", work: row.session, ask: ask)
+        return Banner(title: line.first.lead, subtitle: row.place, body: "", work: row.session, ask: ask)
     }
 
     private static func turn(_ row: Board.Row) -> Banner {
-        Banner(title: "Stopped", subtitle: placeOf(row), body: row.newest.first.lead, work: row.session)
-    }
-
-    /// The row's project and session by name, an away row's too, whose second line says no window holds it.
-    private static func placeOf(_ row: Board.Row) -> String {
-        "\(row.projectName) · \(row.name)"
+        Banner(title: "Stopped", subtitle: row.place, body: row.newest.first.lead, work: row.session)
     }
 }
 

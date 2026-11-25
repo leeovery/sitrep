@@ -538,6 +538,29 @@ test('an answer not in the words the ask takes is refused, saying what it takes'
   )
 })
 
+test('an answer given the shape the caller showed is refused where the ask now wants something else, its ignore among them', () => {
+  expect(value(checkAnswer(SESSION, { ask: 'k1', answer: 'Approve', wants: 'yes' }))).toEqual({
+    type: 'reply',
+    item: 'k1',
+    verdict: 'yes',
+  })
+  expect(value(checkAnswer(SESSION, { ask: 'k4', answer: 'Done', wants: 'words' }))).toMatchObject({
+    verdict: 'answer',
+  })
+  expect(refusal(checkAnswer(SESSION, { ask: 'k4', answer: 'Approve', wants: 'yes' }))).toBe(
+    'k4 now wants words, not a yes: look at it again.',
+  )
+  expect(refusal(checkAnswer(SESSION, { ask: 'k1', answer: 'Keep it', wants: 'choice' }))).toBe(
+    'k1 now wants a yes, not a choice: look at it again.',
+  )
+  expect(refusal(checkAnswer(SESSION, { ask: 'k2', ignore: true, wants: 'words' }))).toBe(
+    'k2 now wants a choice, not words: look at it again.',
+  )
+  expect(refusal(checkAnswer(SESSION, { ask: 'k1', answer: 'Approve', wants: 'a drawing' }))).toBe(
+    '--wants is one of yes, choice, words.',
+  )
+})
+
 test("a words ask, an old one needing something back among them, takes its words on one line as the pane's words answer; only an ask is answered", () => {
   const answer = '  Ship the\n Tuesday  build '
 

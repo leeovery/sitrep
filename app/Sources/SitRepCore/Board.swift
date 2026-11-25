@@ -485,6 +485,11 @@ public struct Board: Versioned, Sendable, Equatable {
         asks[session] ?? []
     }
 
+    /// Every open ask on the board waiting on Lee, by its session.
+    var waitingOnLee: Set<AskOf> {
+        Set(asks.flatMap { session, asks in asks.filter(\.waitsOnLee).map { AskOf(session: session, ask: $0.id) } })
+    }
+
     /// An open ask of the session, by its id; nil for one not on the board, as a closed one is not.
     public func ask(_ id: String, of session: String) -> Ask? {
         asks(of: session).first { $0.id == id }

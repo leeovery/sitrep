@@ -208,16 +208,27 @@ private extension PanelAsk {
     /// An ask as the asks panel answers it: a yes by its one button, a choice by its options, a words ask in Claude;
     /// timed as its line on the row is.
     init(_ ask: Board.Ask, of line: Board.Row.Line) {
-        let answers: [String] = switch ask.wants {
-        case .yes: [ask.yes ?? "yes"]
-        case .choice: ask.options
-        case .words: []
+        let (wants, answers): (Wants, [String]) = switch ask.wants {
+        case .yes: (.yes, [ask.yes ?? "yes"])
+        case .choice: (.choice, ask.options)
+        case .words: (.words, [])
         }
 
         self.init(
-            id: ask.id, title: ask.title, answers: answers, recommended: ask.wants == .choice ? ask.recommended : nil,
-            since: line.since.timeIntervalSince1970 * 1000
+            id: ask.id, title: ask.title, wants: wants, answers: answers,
+            recommended: ask.wants == .choice ? ask.recommended : nil, since: line.since.timeIntervalSince1970 * 1000
         )
+    }
+}
+
+extension PanelAsk.Wants {
+    /// What it wants, as the board and `sitrep answer --wants` say it.
+    public var kind: Board.Ask.Wants {
+        switch self {
+        case .yes: .yes
+        case .choice: .choice
+        case .words: .words
+        }
     }
 }
 

@@ -125,7 +125,7 @@ struct PanelContentTests {
             id: "a", project: "Northwind", name: "Help desk redesign", kind: .needs, ask: "k1", title: "Thread?",
             sub: "Northwind", since: 0
         )
-        let ask = PanelAsk(id: "k1", title: "Thread replies?", answers: ["Threaded"], since: 0)
+        let ask = PanelAsk(id: "k1", title: "Thread replies?", wants: .choice, answers: ["Threaded"], since: 0)
         let list = Self.list(.line(asking), Self.row("b"))
         var scene = Self.scene(Self.open(list), hover: 1)
 

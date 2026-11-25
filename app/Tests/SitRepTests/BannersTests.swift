@@ -224,17 +224,17 @@ struct BannersTests {
         #expect(clicks.works.isEmpty)
     }
 
-    /// The app's handler: the banner's answer sent through `Answers` at once, with no hold, as its words, the board
-    /// still holding the ask as its banner showed it.
+    /// The app's handler: the banner's answer sent through `Answers` at once, with no hold, as its words, with what the
+    /// banner showed it wanting, the board still holding the ask as its banner showed it.
     @Test func aRelayedAnswerIsSentAtOnceThroughAnswers() async throws {
         let ran = Ran()
-        let answers = Answers(answer: { ran.answerings.append($0); return .written }, post: { ran.banners.append($0) })
         let board = try Self.board(WatchLine.Ask(id: "k2", wants: .choice, yes: nil, options: ["Left", "Right"]))
+        let answers = Self.answers(ran, on: board)
 
-        Self.relay(Self.pressed, to: answers, on: board)
+        Self.relay(Self.pressed, to: answers)
         await until(turns: 10_000) { !ran.answerings.isEmpty }
 
-        #expect(ran.answerings == [Answering(.words("Right"), to: "k2", of: "sr-a8n2xc")])
+        #expect(ran.answerings == [Answering(.words("Right"), to: "k2", of: "sr-a8n2xc", wanting: .choice)])
         #expect(answers.held == nil)
         #expect(ran.banners.isEmpty)
     }
@@ -242,10 +242,9 @@ struct BannersTests {
     /// The board's ask reshaped since its banner showed: "Not answered", and nothing sent.
     @Test func aRelayedAnswerToAnAskReshapedSinceIsNotSent() async throws {
         let ran = Ran()
-        let answers = Answers(answer: { ran.answerings.append($0); return .written }, post: { ran.banners.append($0) })
-        let board = try Self.board(WatchLine.Ask(id: "k2", wants: .words, yes: nil))
+        let answers = Self.answers(ran, on: try Self.board(WatchLine.Ask(id: "k2", wants: .words, yes: nil)))
 
-        Self.relay(Self.pressed, to: answers, on: board)
+        Self.relay(Self.pressed, to: answers)
         await until(turns: 10_000) { !ran.banners.isEmpty }
 
         #expect(ran.banners == [.unanswered("The ask changed after its banner showed, so nothing was sent.")])
@@ -255,19 +254,37 @@ struct BannersTests {
     /// A refusal, as for an ask answered in its window meanwhile, posts "Not answered" in the CLI's words.
     @Test func aRelayedAnswerTheCLIRefusesPostsNotAnswered() async {
         let ran = Ran()
-        let answers = Answers(answer: { _ in .refused("Answered already") }, post: { ran.banners.append($0) })
+        let answers = Self.answers(ran, on: nil, written: .refused("Answered already"))
 
-        Self.relay(Self.pressed, to: answers, on: nil)
+        Self.relay(Self.pressed, to: answers)
         await until(turns: 10_000) { !ran.banners.isEmpty }
 
         #expect(ran.banners == [.unanswered("Answered already")])
     }
 
-    /// The answer relayed through banners started as the app starts them, on the board given.
-    private static func relay(_ answer: NoticeAnswer, to answers: Answers, on board: Board?) {
+    /// An ask that waits on Lee no more has its banners cleared through the helper.
+    @Test func anAskLeftIsClearedThroughTheHelper() {
+        let banners = banners()
+
+        banners.heard(Self.fromHelper(Self.ready))
+        banners.clear(AskOf(session: "sr-a8n2xc", ask: "k2"))
+
+        #expect(sent.messages.last == .cleared(ask: "k2", session: "sr-a8n2xc"))
+    }
+
+    /// Answers through a CLI that writes as given, recording what it ran and posted, on this board.
+    private static func answers(_ ran: Ran, on board: Board?, written: WriteAnswer = .written) -> Answers {
+        Answers(
+            answer: { ran.answerings.append($0); return written }, post: { ran.banners.append($0) },
+            board: { board }
+        )
+    }
+
+    /// The answer relayed through banners started as the app starts them.
+    private static func relay(_ answer: NoticeAnswer, to answers: Answers) {
         let banners = Banners(pid: pid, send: { _ in }, helperApp: App())
 
-        banners.start(onClick: { _, _ in }, onAnswer: { answers.send($0, on: board) })
+        banners.start(onClick: { _, _ in }, onAnswer: answers.send)
         banners.heard(fromHelper(.answered(answer)))
     }
 

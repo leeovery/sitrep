@@ -36,9 +36,21 @@ struct AnswerableAsksTests {
         #expect(asks[0].isInClaude && asks[0].answers.isEmpty)
     }
 
+    /// What each wants, as the board says it, for its answer to pass on, so one reshaped since is refused.
+    @Test func eachSaysWhatItWantsAsTheBoardSaysIt() throws {
+        let helpDesk = try #require(Self.board.asks[AsksBoard.helpDesk])
+        let shifts = try #require(Self.board.asks[AsksBoard.shifts])
+
+        #expect(helpDesk.map(\.wants.kind) == [.choice, .yes])
+        #expect(shifts.map(\.wants.kind) == [.words])
+    }
+
     @Test func aChoiceWithNoOptionsIsAnsweredInClaudeAndAPickNotOfferedIsNone() {
-        #expect(PanelAsk(id: "k1", title: "Pick", answers: [], since: 0).isInClaude)
-        #expect(PanelAsk(id: "k1", title: "Pick", answers: ["A"], recommended: "B", since: 0).recommended == nil)
+        #expect(PanelAsk(id: "k1", title: "Pick", wants: .choice, answers: [], since: 0).isInClaude)
+        #expect(
+            PanelAsk(id: "k1", title: "Pick", wants: .choice, answers: ["A"], recommended: "B", since: 0).recommended
+                == nil
+        )
     }
 
     /// Invoice ledger waits on a permission prompt alone; Onboarding flow is at Lee's turn; Mobile app works.
@@ -51,7 +63,7 @@ struct AnswerableAsksTests {
     }
 
     @Test func theAgeReadsAsTheRowsTime() {
-        let ask = PanelAsk(id: "k1", title: "Pick", since: 0)
+        let ask = PanelAsk(id: "k1", title: "Pick", wants: .words, since: 0)
 
         #expect(ask.askedText(at: 30_000) == "Asked just now")
         #expect(ask.askedText(at: 4 * 60_000) == "Asked 4m ago")

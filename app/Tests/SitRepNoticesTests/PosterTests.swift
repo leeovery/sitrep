@@ -16,6 +16,7 @@ struct PosterTests {
         /// The read that waits for the last set to land.
         case barrier
         case add(id: String, category: String)
+        case remove([String])
     }
 
     @MainActor
@@ -41,6 +42,10 @@ struct PosterTests {
         func add(_ request: UNNotificationRequest) async throws {
             steps.append(.add(id: request.identifier, category: request.content.categoryIdentifier))
             added.append(request)
+        }
+
+        func remove(_ ids: [String]) {
+            steps.append(.remove(ids))
         }
 
         /// The ids of the last set registered.
@@ -111,5 +116,26 @@ struct PosterTests {
         }
 
         #expect(center.lastSet == (3 ... 12).map { "b\($0)" }.sorted())
+    }
+
+    /// An ask that waits on Lee no more: every banner of it still delivered goes, found by the ask and session it
+    /// carries, and no other, a like id in another session's among them.
+    @Test func clearingAnAskRemovesItsDeliveredBannersAlone() async {
+        center.delivered = [
+            "a1": Self.ask, "a2": Self.ask, "a3": NoticeAsk(id: "k1", session: "sr-nw0002", wants: .words),
+            "a4": NoticeAsk(id: "k2", session: "sr-nw0001", wants: .words),
+        ]
+
+        await poster().clear(ask: "k1", session: "sr-nw0001")
+
+        #expect(center.steps == [.delivered, .remove(["a1", "a2"])])
+    }
+
+    @Test func clearingAnAskWithNoBannerDeliveredRemovesNothing() async {
+        center.delivered = ["a4": NoticeAsk(id: "k2", session: "sr-nw0001", wants: .words)]
+
+        await poster().clear(ask: "k1", session: "sr-nw0001")
+
+        #expect(center.steps == [.delivered])
     }
 }

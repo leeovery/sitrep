@@ -5,6 +5,8 @@ import SitRepRelay
 @MainActor
 protocol Notifying {
     func post(_ notice: Notice) async
+    /// The banners still delivered of the ask of the session go.
+    func clear(ask: String, session: String) async
     func leave() async -> NoticeLeave
     /// macOS asked for leave, unless Lee answered already; then the leave.
     func ask() async -> NoticeLeave
@@ -46,8 +48,8 @@ final class Helper {
     private var isSitRepListening = false
     /// Clicks and answers heard before SitRep listens, in order.
     private var held: [ToSitRep] = []
-    /// The banner being posted, the next waiting on it, so they show in the order SitRep sent them.
-    private var posting: Task<Void, Never>?
+    /// The banner being posted, or cleared, the next waiting on it, so they go in the order SitRep sent them.
+    private var turn: Task<Void, Never>?
 
     init(notifications: Notifying, sitRep: SitRepApp, send: @escaping (Letter<ToSitRep>) -> Void, own: Own) {
         self.notifications = notifications
@@ -82,7 +84,8 @@ final class Helper {
 
         switch message {
         case .ready: sitRepListens()
-        case let .post(notice): post(notice)
+        case let .post(notice): inTurn { await $0.post(notice) }
+        case let .cleared(ask, session): inTurn { await $0.clear(ask: ask, session: session) }
         case let .status(id): answer(id, notifications.leave)
         case let .ask(id): answer(id, notifications.ask)
         case .handBack: own.handBack()
@@ -127,12 +130,13 @@ final class Helper {
         }
     }
 
-    private func post(_ notice: Notice) {
-        let previous = posting
+    /// Done once what SitRep sent before it is, so banners show, and go, in the order SitRep sent them.
+    private func inTurn(_ work: @escaping @MainActor (Notifying) async -> Void) {
+        let previous = turn
 
-        posting = Task { [notifications] in
+        turn = Task { [notifications] in
             await previous?.value
-            await notifications.post(notice)
+            await work(notifications)
         }
     }
 
