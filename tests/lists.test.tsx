@@ -100,7 +100,7 @@ test("a session lists its status's history and its closed asks with no blank row
   expect(listedUnder(rows, 'RESOLVED')).toEqual([' ● Review round 2 1m', ' ● Review round 1 2m'])
 })
 
-test("PARKED shown in full lists every item parked in the project with no blank row between them: in a session, its own first, unnamed, then the others', each naming its session; in the project, the oldest first, each naming its session; each counting them all", async () => {
+test("PARKED shown in full lists every item parked in the project with no blank row between them: in a session, its own first, unnamed, then the others', each naming its session, each part the newest first; in the project, the newest first, each naming its session; each counting them all", async () => {
   const desk: Desk = {
     lines: minutely(...PARKED),
     around: [{ meta: LEDGER, lines: [[T0 - MIN, park('p1', 'Archive old invoices')]], seenAt: T0 }],
@@ -110,18 +110,18 @@ test("PARKED shown in full lists every item parked in the project with no blank 
   const project = await rowsAt(desk, { ...PARKED_IN_FULL, place: projectPlace(PROJECT.key) })
 
   expect(listedUnder(session, 'PARKED')).toEqual([
-    ' ● A priority badge 3m',
-    ' ● Thumbnails in the picker 2m',
     ' ● Export the ledger as CSV 1m',
+    ' ● Thumbnails in the picker 2m',
+    ' ● A priority badge 3m',
     ' from other sessions',
     ' ● Invoice ledger: Archive old invoices 4m',
     ' show fewer',
   ])
   expect(listedUnder(project, 'PARKED')).toEqual([
-    ' ● Invoice ledger: Archive old invoices 4m',
-    ' ● Help desk redesign: A priority badge 3m',
-    ' ● Help desk redesign: Thumbnails in the picker 2m',
     ' ● Help desk redesign: Export the ledger as CSV 1m',
+    ' ● Help desk redesign: Thumbnails in the picker 2m',
+    ' ● Help desk redesign: A priority badge 3m',
+    ' ● Invoice ledger: Archive old invoices 4m',
     ' show fewer',
   ])
 

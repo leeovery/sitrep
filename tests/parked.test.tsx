@@ -1,7 +1,8 @@
 /**
- * PARKED folded to its first 3, as RESOLVED is (DESIGN.md, "Parked"): `show
- * all` lists every item, `show fewer` folds it again, and an item Lee is
- * acting on shows though folded, in its place.
+ * PARKED folded to its latest 3, as RESOLVED is (DESIGN.md, "Parked
+ * folds"): the newest first, `show all` lists every item, `show fewer`
+ * folds it again, and an item Lee is acting on shows though folded, in its
+ * place.
  */
 import type { SitrepPane } from '../types'
 import { expect, test, tier } from './kit'
@@ -17,7 +18,7 @@ import {
 import { itemKey, projectPlace } from '../hooks/places'
 import { WATCH_MS } from '../hooks/window'
 import { rowsOf } from './drawn'
-import { HELD, heldItem, LEDGER, MIN, PROJECT, T0, W2 } from './data'
+import { ELSEWHERE, HELD, heldItem, LEDGER, MIN, PROJECT, T0, W2 } from './data'
 import { file, park, reply, type Line } from './lines'
 import { pane, sceneFrom, type Desk, type Drawn } from './render'
 import { world } from './world'
@@ -68,44 +69,61 @@ const toggle = async (ui: Drawn) => (await ui.find({ key: TOGGLE }))?.props
 
 const IN_FULL: Partial<SitrepPane> = { shown: { [PARKED]: 'all' } }
 
-test("PARKED shows its first 3, the session's own first, under a dim show all counting every item; its heading counts every one", async () => {
+test("PARKED shows its latest 3, the session's own first, the newest first, under a dim show all counting every item; its heading counts every one", async () => {
   const ui = drawn(3)
   const rows = rowsOf(await ui.find({ type: 'Box' }))
 
-  expect(await listed(ui)).toEqual([heldItem('p1'), heldItem('p2'), heldItem('p3')])
+  expect(await listed(ui)).toEqual([heldItem('p3'), heldItem('p2'), heldItem('p1')])
   expect(await toggle(ui)).toMatchObject({ label: 'show all 5', plain: true, dimColor: true })
   expect(rows.find(row => row.startsWith(' PARKED'))).toMatch(/ 5 to come back to$/)
 })
 
-test('shown in full, PARKED lists every item, from other sessions before the first another parked, under a dim show fewer', async () => {
+test('shown in full, PARKED lists every item, its own and then the others each the newest first, from other sessions before the first another parked, under a dim show fewer', async () => {
   const ui = drawn(3, { pane: IN_FULL })
 
   expect(await listed(ui)).toEqual([
-    heldItem('p1'),
-    heldItem('p2'),
     heldItem('p3'),
+    heldItem('p2'),
+    heldItem('p1'),
     'others',
-    ledgerItem('p1'),
     ledgerItem('p2'),
+    ledgerItem('p1'),
   ])
   expect(await toggle(ui)).toMatchObject({ label: 'show fewer', plain: true, dimColor: true })
 })
 
 test('folded, from other sessions shows only where an item after it shows', async () => {
   expect(await listed(drawn(2))).toEqual([
-    heldItem('p1'),
     heldItem('p2'),
+    heldItem('p1'),
     'others',
-    ledgerItem('p1'),
+    ledgerItem('p2'),
   ])
   expect(await listed(drawn(3)), 'none of the others shown').not.toContain('others')
 })
 
-test("a project's view folds its PARKED the same, the oldest first, each naming its session", async () => {
-  const ui = drawn(3, { pane: { place: projectPlace(PROJECT.key) } })
+test("a project's view folds its PARKED the same, the newest first whichever session parked it", async () => {
+  const ui = drawn(1, { pane: { place: projectPlace(PROJECT.key) } })
 
-  expect(await listed(ui)).toEqual([ledgerItem('p1'), ledgerItem('p2'), heldItem('p1')])
-  expect(await toggle(ui)).toMatchObject({ label: 'show all 5' })
+  expect(await listed(ui)).toEqual([heldItem('p1'), ledgerItem('p2'), ledgerItem('p1')])
+  expect(await toggle(ui)).toBeUndefined()
+  expect(await listed(drawn(2, { pane: { place: projectPlace(PROJECT.key) } }))).toEqual([
+    heldItem('p2'),
+    heldItem('p1'),
+    ledgerItem('p2'),
+  ])
+})
+
+test("a project's views share its fold: shown in full in one, it is in the other; another project's fold leaves it folded", async () => {
+  const home = (shown: Partial<SitrepPane>) => drawn(3, { pane: shown })
+  const project = (shown: Partial<SitrepPane>) =>
+    drawn(3, { pane: { ...shown, place: projectPlace(PROJECT.key) } })
+  const elsewhere = { shown: { [parkedList(projectScope(ELSEWHERE.key))]: 'all' as const } }
+
+  expect(await toggle(home(IN_FULL))).toMatchObject({ label: 'show fewer' })
+  expect(await toggle(project(IN_FULL))).toMatchObject({ label: 'show fewer' })
+  expect(await toggle(home(elsewhere))).toMatchObject({ label: 'show all 5' })
+  expect(await toggle(project(elsewhere))).toMatchObject({ label: 'show all 5' })
 })
 
 test('PARKED of 3 items or fewer has no show all', async () => {
@@ -115,46 +133,54 @@ test('PARKED of 3 items or fewer has no show all', async () => {
   expect(await toggle(ui)).toBeUndefined()
 })
 
-/** What Lee is acting on past the fold, the ledger's second item: as the desk holds it. */
+/** What Lee is acting on past the fold, the ledger's first item, the oldest: as the desk holds it. */
 const ACTING_ON: Record<string, Desk> = {
-  open: { pane: { selected: ledgerItem('p2') } },
-  'asking to drop it': { pane: { selected: `drop:${ledgerItem('p2')}` } },
+  open: { pane: { selected: ledgerItem('p1') } },
+  'asking to drop it': { pane: { selected: `drop:${ledgerItem('p1')}` } },
   'in answering': {
     answering: {
       project: PROJECT.key,
       session: LEDGER.id,
-      item: 'p2',
+      item: 'p1',
       as: 'pickup',
-      title: 'Rename the shift report',
+      title: 'Archive old invoices',
       surface: 'terminal',
     },
   },
   'its pick-up queued in Ready to send': {
-    queue: [{ project: PROJECT.key, session: LEDGER.id, item: 'p2', verdict: 'pickup' }],
+    queue: [{ project: PROJECT.key, session: LEDGER.id, item: 'p1', verdict: 'pickup' }],
   },
 }
 
 for (const [acting, desk] of Object.entries(ACTING_ON)) {
-  test(`folded, an item past the first 3 shows in its place while ${acting}, from other sessions before it`, async () => {
+  test(`folded, an item past the latest 3 shows in its place while ${acting}, from other sessions before it`, async () => {
     expect(await listed(drawn(3, desk))).toEqual([
-      heldItem('p1'),
-      heldItem('p2'),
       heldItem('p3'),
+      heldItem('p2'),
+      heldItem('p1'),
       'others',
-      ledgerItem('p2'),
+      ledgerItem('p1'),
     ])
+    expect(await toggle(drawn(3, desk))).toMatchObject({ label: 'show all 5' })
   })
 }
 
-test('folded, an item past the first 3 shows in its place while its pick-up is on its way', async () => {
-  const lines = [...own(5), [T0 + 6 * MIN, reply('r1', 'p5', 'pickup')] satisfies Line]
+test('folded, an item past the latest 3 shows in its place while its pick-up is on its way', async () => {
+  const lines = [...own(5), [T0 + 6 * MIN, reply('r1', 'p1', 'pickup')] satisfies Line]
   const ui = pane(sceneFrom({ lines, now: NOW }))
 
-  expect(await listed(ui)).toEqual([heldItem('p1'), heldItem('p2'), heldItem('p3'), heldItem('p5')])
+  expect(await listed(ui)).toEqual([heldItem('p5'), heldItem('p4'), heldItem('p3'), heldItem('p1')])
   expect(await toggle(ui)).toMatchObject({ label: 'show all 5' })
 })
 
-test('show fewer keeps an item opened past the first 3 open and shown; closed, it folds away; closing the board folds PARKED', async ($, on) => {
+test('folded, where what Lee is acting on puts every item on show, PARKED has no show all', async () => {
+  const ui = pane(sceneFrom({ lines: own(4), now: NOW, pane: { selected: heldItem('p1') } }))
+
+  expect(await listed(ui)).toEqual([heldItem('p4'), heldItem('p3'), heldItem('p2'), heldItem('p1')])
+  expect(await toggle(ui)).toBeUndefined()
+})
+
+test('show fewer keeps an item opened past the latest 3 open and shown; closed, it folds away; closing the board folds PARKED', async ($, on) => {
   const w = world($, on, { now: NOW })
   const { paths } = await w.begin()
 
@@ -163,19 +189,19 @@ test('show fewer keeps an item opened past the first 3 open and shown; closed, i
 
   const ui = await w.opened()
   const band = await w.band()
-  const fifth = w.item('p5')
+  const oldest = w.item('p1')
   const shownItems = async () => (await listed(ui)).filter(key => key !== 'others')
 
   await ui.press({ key: TOGGLE })
   expect(w.state.pane?.shown?.[PARKED]).toBe('all')
-  await ui.press({ key: `ppick:${fifth}` })
+  await ui.press({ key: `ppick:${oldest}` })
 
   await ui.press({ key: TOGGLE })
   expect(w.state.pane?.shown?.[PARKED]).toBeUndefined()
-  expect(w.state.pane?.selected, 'what Lee is acting on stays open').toBe(fifth)
-  expect(await shownItems()).toEqual([w.item('p1'), w.item('p2'), w.item('p3'), fifth])
+  expect(w.state.pane?.selected, 'what Lee is acting on stays open').toBe(oldest)
+  expect(await shownItems()).toEqual([w.item('p5'), w.item('p4'), w.item('p3'), oldest])
 
-  await ui.press({ key: `ppick:${fifth}` })
+  await ui.press({ key: `ppick:${oldest}` })
   expect(await shownItems()).toHaveLength(3)
 
   await ui.press({ key: TOGGLE })
@@ -186,7 +212,7 @@ test('show fewer keeps an item opened past the first 3 open and shown; closed, i
   expect(await toggle(ui)).toMatchObject({ label: 'show all 5' })
 })
 
-test("PARKED's press reads no look again: the look carries every parked item; only picked up and old sessions are carried as shown", () => {
+test("only Parked's picked up and old sessions are carried as shown, so only their presses read the look again; PARKED's items are carried whole", () => {
   const project = projectScope(PROJECT.key)
 
   expect(isCarriedAsShown(pickedUpList(project))).toBe(true)

@@ -170,11 +170,11 @@ session of the project sees it and acts on it: Claude's board text lists
 it, Claude's tools resolve, edit or reopen it, and Lee picks it up from the
 pane in any window of the project, the pick-up going to the Claude in that
 window (see Delivery). Every view of the project lists every one, folded
-to its first 3 until Lee shows all (see "Parked folds"): a
-project's view the oldest first, each naming its session by name, and a
-session's view the items it parked first, then the rest, each of those
-naming its session, each part the oldest first, as Claude's board text
-lists them. Finishing a session hides none of them, and
+to its latest 3 until Lee shows all (see "Parked folds"): a project's view
+the newest first, each naming its session by name, and a session's view
+the items it parked first, then the rest, each of those naming its
+session, each part the newest first. Claude's board text lists them in
+the same parts, each the oldest first. Finishing a session hides none of them, and
 a session going idle takes none with it. Asks stay their session's.
 Decided with Lee, 11 November 2026;
 until then a parked item was its session's, and a finished session's
@@ -1044,7 +1044,8 @@ show all 4
   answered right there as in a session's view, its old sessions at the foot
   of Sessions (see "Old sessions"); and Parked, every item parked in the
   project, finished and idle sessions' included, each naming its session by
-  name, and what was taken off it. A project has no Resolved, and no
+  name, its latest 3 until Lee shows all (see "Parked folds"), and what
+  was taken off it. A project has no Resolved, and no
   history of its sessions' status: each session's is under its own Status.
 
   ```
@@ -1170,7 +1171,8 @@ show all 4
   the newest closed first. With more, `show all 4`, dim, opens it to every one
   and then reads `show fewer`. That toggle alone opens and folds it: opening
   or closing an item, in RESOLVED or anywhere on the pane, never changes how
-  many it shows; closing the pane folds it. Each is a list's row: a green `✓`,
+  many it shows, but in Parked, whose fold shows what Lee is acting on (see
+  "Parked folds"); closing the pane folds it. Each is a list's row: a green `✓`,
   its title, and how long ago it closed. Opened, as any item opens, it shows
   its whole title and hangs how it closed: the reply that closed it
   (`→ Approve`, `→ Forever`), or `resolved by Claude: <reason>`. Folding
@@ -1224,9 +1226,10 @@ show all 4
   Resolved's `show all`.
   Each is a plain press, drawn dim, at the list's foot, and only it opens
   and folds its list: opening or closing an item never changes how much a
-  list shows. Folding a list closes an item opened in what it no longer
-  shows, but Parked's, which keeps what Lee is acting on (see "Parked
-  folds"). What each shows is kept with the rest of the pane's place:
+  list shows, but in Parked: folded, it shows an item opened past its
+  latest 3 while it is open, and that item folds away as it closes (see
+  "Parked folds"). Folding a list closes an item opened in what it no
+  longer shows; Parked's fold hides no open item, so it closes none. What each shows is kept with the rest of the pane's place:
   Status's history and Resolved per session, old sessions per project, and
   Parked and its picked up per project too, the lists every view of the
   project draws (17 and 25 November 2026); closing the pane folds them
@@ -1278,10 +1281,10 @@ show all 4
   comment in the prompt as an ask's is, which goes with it as its note (see
   "Answering an ask"). It is never
   counted: not on a tab, nor on the band.
-- **Parked folds** (25 November 2026, Lee). Parked lists its first 3, in
-  its order, a session's own first; with more, `show all 12`, dim, counting
-  every item, opens it to every one and then reads `show fewer`, as
-  Resolved's does, kept per project as Parked's picked up is, so every view
+- **Parked folds** (25 November 2026, Lee). Parked lists its latest 3,
+  the newest first, a session's own first; with more, `show all 12`, dim,
+  counting every item, opens it to every one and then reads `show fewer`,
+  as Resolved's does, kept per project as Parked's picked up is, so every view
   of the project folds alike. Until then it listed every item, always: in a
   project with dozens parked, a pane above the prompt on a narrow screen
   scrolled a long way past them to reach Ready to send. An item Lee is
@@ -1289,7 +1292,11 @@ show all 4
   or asking whether to drop it, one in answering, and one whose pick-up
   waits in Ready to send or is on its way. So folding never hides, closes
   or drops what Lee has under way: `show fewer` closes only what it hides,
-  and it hides none of those. `from other sessions` shows only where an
+  and it hides none of those. One opened past the latest 3 folds away as
+  it closes, the one place opening or closing an item changes how much a
+  list shows. Where those show every item, there is no `show all`. Until
+  then Parked listed the oldest first, so the fold would have hidden what
+  Claude parked last. `from other sessions` shows only where an
   item after it shows. The heading still counts every item, and Parked's
   picked up stays at its foot, as it was. Claude's board text, and
   `sitrep board` with `--json`, list every item: they are not the pane.

@@ -3,11 +3,12 @@
  * history, PARKED and its picked up, a project's old sessions, and
  * RESOLVED. A list that folds away shows only its press until it is
  * opened (`show history 14`, then `hide history` over it); PARKED and
- * RESOLVED always show. Shown, it lists its first few, and with more, a
- * press shows every one (`show all 14`, then `show fewer`), past the first
- * few only those Lee is acting on while it shows fewer. Only these presses
- * change what a list shows, kept in the pane per list; opening or closing
- * an item never does.
+ * RESOLVED always show. Shown, it lists its latest few, and with more, a
+ * press shows every one (`show all 14`, then `show fewer`). Only these
+ * presses change what a list shows, kept in the pane per list; opening or
+ * closing an item never does, but in PARKED: showing fewer, it shows too
+ * the items Lee is acting on past the latest few, so one opened there
+ * shows while it is open, and folds away as it closes.
  */
 import { LATEST_SHOWN as LATEST, type Listing } from '../../core'
 import type { SitrepShowing } from '../../types'
@@ -19,7 +20,7 @@ export type Folding = { show: string; hide: string }
 export type Past<T> = {
   /** The list, as the pane keeps what it shows: `history:<session>`. Its presses are keyed by it. */
   list: string
-  /** The newest first: every one, or, for a project's views, the latest they show, with how many there are. */
+  /** The newest first, PARKED's in each of its parts: every one, or, for a project's views, the latest they show, with how many there are. */
   listing: Listing<T>
   /** An entry, as a block of its own. */
   draw: (entry: T) => Block
@@ -27,7 +28,7 @@ export type Past<T> = {
   opens?: (entry: T) => string
   /** The presses that open the list and fold it away; none for a list that always shows. */
   folding?: Folding
-  /** Whether an entry past the first few shows while the list shows fewer, Lee acting on it; none for a list that keeps none. */
+  /** Whether an entry past the latest few shows while the list shows fewer, Lee acting on it; none for a list that keeps none. */
   keeps?: (entry: T) => boolean
 }
 
@@ -42,7 +43,7 @@ const drawPress = (d: Drawing, key: string, label: string, onPress: () => void):
   return { key, element: <Button key={key} plain dimColor label={label} onPress={onPress} /> }
 }
 
-/** A list's blocks: its press alone while it is folded away, none with nothing in it; else its entries, the first few or every one, between its presses. */
+/** A list's blocks: its press alone while it is folded away, none with nothing in it; else its entries, the latest few or every one, between its presses, `show all` only while showing fewer hides any. */
 export const drawPast = <T,>(d: Drawing, past: Past<T>): Block[] => {
   const { list, listing, draw, opens, folding, keeps } = past
   const { entries, count } = listing
@@ -65,7 +66,7 @@ export const drawPast = <T,>(d: Drawing, past: Past<T>): Block[] => {
   const hide = folding && drawPress(d, list, folding.hide, show(undefined, entries))
   const fewer = folding === undefined ? undefined : 'latest'
   const all =
-    count > LATEST &&
+    count > fewerShown.length &&
     drawPress(
       d,
       `all:${list}`,
