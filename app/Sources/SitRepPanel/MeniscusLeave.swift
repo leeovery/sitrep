@@ -100,9 +100,10 @@ extension Meniscus {
     /// out, wherever it leaves: a tongue stretches after it with its tip just past the pointer, on a spring quick
     /// enough to keep up with a slow leave, and follows it round a corner. It breaks when it has stretched to Hold and
     /// hung there a beat, or when the pointer gets `outrun` ahead of its tip: a fast leave outruns it almost at once.
-    /// Only a pointer going back over a flare into the bezel gets the grace. Under reduced motion it never clings.
+    /// Only a pointer going back over a flare into the bezel gets the grace. Under reduced motion it never clings, nor
+    /// to a pointer on a panel beside it: leaving that is a leave with the cling off, so the grace.
     func updateCling(_ g: MeniscusGeometry) {
-        guard phase == .open, !reducesMotion, feel.pull > 0 else {
+        guard phase == .open, !reducesMotion, feel.pull > 0, !isBeside(sp) else {
             if phase == .open, S.ba.target != 0 {
                 to(\.ba, 0, 120)
             }

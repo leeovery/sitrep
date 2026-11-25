@@ -11,6 +11,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         preferences.app.openSettings
     }
     private lazy var snoozes = Snoozes(plugin: plugin, post: banners.post)
+    private lazy var answers = Answers(plugin: plugin, post: banners.post)
+    /// Quitting, waiting on the answers (`applicationShouldTerminate`).
+    private var quitting: Task<Void, Never>?
     private let feed = Feed()
     /// The plugin folder `watch` runs on; nil before it first starts.
     private var watching: String?
@@ -43,7 +46,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let edge = Edge(
             preferences,
             jump: { [works] session, answered in works.jump(to: session, answered: answered) },
-            snoozes: snoozes
+            snoozes: snoozes,
+            answers: answers
         )
         let menu = StatusMenu(
             works: works, preferences: preferences, openSettings: { [unowned self] in settings.show() },
@@ -80,6 +84,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             menu?.unrun(trouble)
             works.unrun(trouble.line)
         }
+    }
+
+    /// An answer held at quitting goes before the app does, as leaving the notch never cancels one (DESIGN,
+    /// "Answering, with two seconds to undo"): sent at once, the app quitting once the CLI is done with it and with
+    /// any gone before, within the CLI's time limit. Asked again meanwhile, it waits on the same.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard quitting == nil else {
+            return .terminateLater
+        }
+        guard answers.isAnswering else {
+            return .terminateNow
+        }
+
+        quitting = Task {
+            await answers.finish()
+            sender.reply(toApplicationShouldTerminate: true)
+        }
+        return .terminateLater
     }
 
     /// `watch` stops with the app, `here.json` goes with it, waited on a second at most, so no board in a terminal reads

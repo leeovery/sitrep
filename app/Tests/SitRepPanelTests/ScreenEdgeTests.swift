@@ -86,6 +86,33 @@ struct ScreenEdgeTests {
         #expect(Self.right.window == CGRect(x: 2560 - ScreenEdge.depth, y: 0, width: ScreenEdge.depth, height: 1440))
     }
 
+    /// Wide while the asks panel is open, the window grows into the screen: from the right side on the right, mirrored
+    /// across its new width, so a point on the stage is still drawn under the pointer; from the left side on the left.
+    @Test func wideTheWindowGrowsIntoTheScreenAndStillDrawsUnderThePointer() throws {
+        let wide = Self.right.window(wide: true), screenPoint = CGPoint(x: 2100, y: 900)
+        let stage = try #require(Self.right.stagePoint(screenPoint))
+
+        #expect(ScreenEdge.wideDepth > ScreenEdge.depth)
+        #expect(wide == CGRect(x: 2560 - ScreenEdge.wideDepth, y: 0, width: ScreenEdge.wideDepth, height: 1440))
+        #expect(wide.minX + stage.applying(Self.right.mirror(wide: true)).x == screenPoint.x)
+        #expect(Self.studio.window(wide: true) == CGRect(x: 0, y: 0, width: ScreenEdge.wideDepth, height: 1440))
+        #expect(Self.studio.mirror(wide: true) == .identity)
+    }
+
+    /// A point on the content is the same through the wide window's mirror as through the narrow one's, as the run
+    /// reads it through the narrow one while the drawing draws through the wide.
+    @Test(arguments: [EdgeSettings.Edge.left, .right])
+    func theContentReadsTheSameThroughTheWideMirror(_ side: EdgeSettings.Edge) {
+        let edge = ScreenEdge(frame: Self.studio.frame, visible: Self.studio.visible, edge: side)
+        var lab = Lab(needsLee: true)
+        lab.openByTouch()
+        let panel = lab.frame.panel!, point = CGPoint(x: panel.frame.maxX - 20, y: panel.frame.minY + 50)
+        let content = panel.contentPoint(point, mirror: edge.mirror, scroll: 30)
+
+        #expect(panel.contentPoint(point, mirror: edge.mirror(wide: true), scroll: 30) == content)
+        #expect(panel.stagePoint(content, mirror: edge.mirror(wide: true), scroll: 30) == point)
+    }
+
     @Test func onTheLeftTheStageIsTheWindowsOwnAndOnTheRightItIsMirroredAcrossIt() {
         let point = CGPoint(x: 30, y: 500)
 

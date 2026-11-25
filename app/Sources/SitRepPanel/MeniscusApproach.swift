@@ -22,7 +22,13 @@ extension Meniscus {
         if let p {
             trail.add(p, at: time)
         }
-        let over = hoverOf(p)
+        rehover()
+    }
+
+    /// What the pointer is over, read again, and the grace started or cancelled as it changes: as the pointer moves,
+    /// or, under a still pointer, as the room beside the panel changes (`Input.beside`), the way to it expiring.
+    func rehover() {
+        let over = hoverOf(sp)
         guard over != hover else {
             return
         }

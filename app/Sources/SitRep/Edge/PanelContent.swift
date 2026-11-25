@@ -20,8 +20,8 @@ final class PanelContent {
     /// The rows by their items' keys, each in its item's layer: a row changing section is two while it folds out of
     /// one place and into the other.
     private(set) var rows: [String: (item: CALayer, row: SessionRow)] = [:]
-    /// The row lifted under the pointer.
-    private var hovered: SessionRow?
+    /// The rows lifted: under the pointer, and beside the asks panel open.
+    private var lifted: [SessionRow] = []
     /// When each row's wash began, by its item's key: a row made anew mid-wash carries it on.
     private var washed: [String: Double] = [:]
     private var scale: CGFloat = 1
@@ -60,8 +60,8 @@ final class PanelContent {
         shown = list
     }
 
-    /// The content as the frame has it, scrolled this far, the row under the pointer lit; hidden while the panel is
-    /// in.
+    /// The content as the frame has it, scrolled this far, the row under the pointer lit, and the row the asks panel is
+    /// open beside, the rows' arrows as they show; hidden while the panel is in.
     func show(_ scene: NotchScene) {
         guard let panel = scene.frame.panel else {
             return hide()
@@ -76,7 +76,10 @@ final class PanelContent {
         zip(items, panel.items).forEach(paint)
         rows.values.forEach { $0.row.showAge(at: scene.now, in: scene.calendar) }
         rows.forEach { $1.row.isPressed = $0 == panel.pressed }
-        highlight(scene.hover.flatMap { shown.item($0)?.key })
+        rows.forEach { key, row in
+            row.row.arrow = scene.arrows[key].map { SessionRow.Arrow(isLit: $0, pointsLeft: scene.mirror.a < 0) }
+        }
+        highlight([scene.hover.flatMap { shown.item($0)?.key }, scene.asks?.row].compactMap { $0 })
     }
 
     /// The rows washed from this time, by their items' keys, ms on the display's clock.
@@ -93,7 +96,8 @@ final class PanelContent {
 
     private func hide() {
         layer.isHidden = true
-        highlight(nil)
+        highlight([])
+        rows.values.forEach { $0.row.arrow = nil }
     }
 
     /// An item for each, in their order: a row kept where its session reads the same, else made anew; an eyebrow drawn
@@ -149,22 +153,22 @@ final class PanelContent {
         layer.transform = CATransform3DMakeTranslation(0, paint.rise, 0)
     }
 
-    /// The row under the pointer lifts, and the one lifted before comes down, kept or made anew since: the lift comes
-    /// and goes in 110ms, as the prototype's does. An eyebrow never lifts.
-    private func highlight(_ key: String?) {
-        let lift = key.flatMap { rows[$0]?.row }
+    /// The rows of these keys lift, and those lifted before come down, kept or made anew since: the lift comes and goes
+    /// in 110ms, as the prototype's does. An eyebrow never lifts.
+    private func highlight(_ keys: [String]) {
+        let lift = keys.compactMap { rows[$0]?.row }
 
-        guard lift !== hovered else {
+        guard Set(lift.map(ObjectIdentifier.init)) != Set(lifted.map(ObjectIdentifier.init)) else {
             return
         }
 
         CATransaction.begin()
         CATransaction.setDisableActions(false)
         CATransaction.setAnimationDuration(0.11)
-        hovered?.isHighlighted = false
-        lift?.isHighlighted = true
+        lifted.filter { row in !lift.contains { $0 === row } }.forEach { $0.isHighlighted = false }
+        lift.forEach { $0.isHighlighted = true }
         CATransaction.commit()
-        hovered = lift
+        lifted = lift
     }
 
     /// An item's box, clipping what it holds as it folds, what it draws in it where its margins leave it.
