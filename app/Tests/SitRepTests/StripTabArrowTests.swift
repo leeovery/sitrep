@@ -167,6 +167,75 @@ struct StripTabArrowTests {
         #expect(Double(wide - narrow) == StripRowLayout.arrowRoom)
     }
 
+    /// How the arrow changes as a tab's words are laid out again: it goes, as its last ask's answer goes; it comes, as
+    /// the board gives its session an ask; or it stays, its row renamed, the pointer moving off it.
+    enum ArrowChange: CaseIterable {
+        case goes, comes, stays
+    }
+
+    /// As a tab's words are laid out again, the words going out stay as they were as they fade (`StripView.showWords`):
+    /// their layout, and their arrow as it last looked, or none. Only the newest take the arrow as it looks now.
+    @Test(arguments: ArrowChange.allCases)
+    func aTabsWordsGoingOutKeepTheirLayoutAndTheirArrow(_ change: ArrowChange) throws {
+        let setting = StripRun.Setting(stage: StripStage(width: 1512, height: 982, menu: 37), reducesMotion: false)
+        let run = StripRun(at: 1000, in: setting, EdgeSettings(), measure: StripWordsLayer.measure)
+        let board = NotchAsksWindowTests.board(), view = StripView()
+        var time = 1000.0, onArrow = false
+        let step = {
+            let mark = CGPoint(x: 18, y: run.strip.yOf(.session("sr-nw0001")))
+            let tab = run.frame.tabs.first { $0.isLive }, words = tab?.words.last
+            let arrow = tab.flatMap { tab in
+                words.map { words in
+                    let box = RowArrow.tabBox(in: words.frame.size, pointsLeft: false)
+
+                    return CGPoint(x: tab.box.minX + words.frame.minX + box.midX, y: tab.box.minY + words.frame.midY)
+                }
+            }
+
+            time += 1000.0 / 60
+            run.step(StripRun.Moment(time: time, pointer: onArrow ? arrow ?? mark : mark, setting: setting))
+            view.show(StripScene(
+                frame: run.frame, hoverRow: nil, note: run.note, now: 0, mirror: .identity, menu: 37,
+                reducesMotion: false, arrow: run.arrow(in: setting), asks: run.asksShown
+            ))
+        }
+
+        run.show(change == .comes ? PanelBoard(rows: board.sessions) : board, StripRun.Moment(
+            time: time, pointer: nil, setting: setting
+        ))
+        for _ in 0 ..< 180 {
+            step()
+        }
+        onArrow = change != .comes
+        step()
+
+        let tab = try #require(run.frame.tabs.first { $0.isLive }), id = try #require(tab.words.last).id
+        let old = try #require(view.words(ofTab: tab.id)[id]), look = old.arrowLook
+
+        #expect((look != nil) == (change != .comes))
+        switch change {
+        case .goes:
+            let threaded = Answering(.words("Threaded"), to: "k1", of: "sr-nw0001", wanting: .choice)
+
+            run.heard(.went(threaded), StripRun.Moment(time: time, pointer: nil, setting: setting))
+        case .comes:
+            run.show(board, StripRun.Moment(time: time, pointer: nil, setting: setting))
+        case .stays:
+            run.show(NotchAsksWindowTests.board(named: "Help desk redesign, round two"), StripRun.Moment(
+                time: time, pointer: nil, setting: setting
+            ))
+        }
+        onArrow = false
+        step()
+
+        let words = try #require(run.frame.tabs.first { $0.id == tab.id }).words, newestID = try #require(words.last).id
+        let newest = try #require(view.words(ofTab: tab.id)[newestID])
+
+        #expect(words.count == 2 && words.first?.id == id)
+        #expect(view.words(ofTab: tab.id)[id] === old && old.arrowLook == look)
+        #expect(newest.arrowLook == (change == .goes ? nil : ArrowButton.Look(isLit: false, pointsLeft: false)))
+    }
+
     /// The scene's arrow on the tab's words: lit as the run says, pointing away from the edge, and turned while the
     /// asks panel is open beside the tab; none on another session's words.
     @Test(arguments: [false, true])

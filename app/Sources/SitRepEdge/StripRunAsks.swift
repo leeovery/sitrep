@@ -100,14 +100,14 @@ extension StripRun {
     }
 
     /// The session, by its mark's key, whose tab's arrow a point on the stage is on: at the tab's front end, its right
-    /// on the left edge and its left on the right (`RowArrow.tabBox`).
+    /// on the left edge and its left on the right, out to the end (`RowArrow.tabHitBox`).
     func arrow(at point: CGPoint, in setting: Setting) -> String? {
         guard let open = arrowRow, open.tab.contains(point) else {
             return nil
         }
 
         let own = open.tab.ownPoint(point, in: open.words, mirror: setting.mirror)
-        let box = RowArrow.tabBox(in: open.words.frame.size, pointsLeft: setting.mirror.a < 0)
+        let box = RowArrow.tabHitBox(in: open.words.frame.size, pointsLeft: setting.mirror.a < 0)
 
         return box.contains(own) ? open.session.markID : nil
     }

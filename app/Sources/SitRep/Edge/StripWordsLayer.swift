@@ -24,6 +24,11 @@ final class StripWordsLayer {
     /// The row's arrow, where its session takes one, and whether it has shown yet.
     private var arrow: ArrowButton?
     private var arrowShows = false
+
+    /// How the row's arrow looks while it shows; nil with none, or hidden: internal only for the tests.
+    var arrowLook: ArrowButton.Look? {
+        arrow?.box.isHidden == false ? arrow?.look : nil
+    }
     /// A count's rows, by their marks' keys (`Session.markID`), scrolled together.
     private let list = CALayer()
     private(set) var rows: [String: CALayer] = [:]

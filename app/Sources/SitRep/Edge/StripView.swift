@@ -123,16 +123,20 @@ final class StripView: StageHost {
         }
     }
 
-    /// A tab's words, each laid out once as it comes, and again should what they say of the board change, or how
-    /// they move.
+    /// A tab's words, each laid out once as it comes, and its newest again should what they say of the board change, or
+    /// how they move; words going out stay as they were laid out as they fade. Only the newest take the row's arrow:
+    /// going out, theirs looks as it last did.
     private func showWords(_ tab: StripFrame.Tab, in drawn: inout Tab, _ scene: StripScene) {
         for gone in Set(drawn.words.keys).subtracting(tab.words.map(\.id)) {
             drawn.words[gone]?.layer.removeFromSuperlayer()
             drawn.words[gone] = nil
         }
+
+        let newest = tab.words.last?.id
+
         for words in tab.words {
-            let frame = scene.frame(words, in: tab)
-            let layer = drawn.words[words.id].flatMap { $0.says(scene) ? $0 : nil } ?? {
+            let frame = scene.frame(words, in: tab), isNewest = words.id == newest
+            let layer = drawn.words[words.id].flatMap { !isNewest || $0.says(scene) ? $0 : nil } ?? {
                 let made = StripWordsLayer(words, in: frame, scene)
 
                 drawn.words[words.id]?.layer.removeFromSuperlayer()
@@ -144,9 +148,14 @@ final class StripView: StageHost {
             drawn.words[words.id] = layer
             layer.show(
                 words, in: frame, hover: tab.isLive ? scene.hoverRow : nil,
-                arrow: tab.isLive ? scene.arrow(on: words) : nil, now: scene.now
+                arrow: tab.isLive && isNewest ? scene.arrow(on: words) : nil, now: scene.now
             )
         }
+    }
+
+    /// A tab's words as drawn, by their ids: internal only for the tests, which read how they are laid out.
+    func words(ofTab id: Int) -> [Int: StripWordsLayer] {
+        tabs[id]?.words ?? [:]
     }
 
     private func addTab() -> Tab {

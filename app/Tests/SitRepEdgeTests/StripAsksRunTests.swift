@@ -229,6 +229,22 @@ struct StripAsksRunTests {
         #expect(right ? drawn.maxX == drawnTab.minX + CGFloat(AsksLayout.overlap) : drawn.minX == drawnTab.maxX - 8)
     }
 
+    /// A press between the tab's arrow and its front end, where a pointer coming from the strip overshoots the arrow,
+    /// opens the asks panel as the arrow does, and letting go jumps nowhere; on either edge.
+    @Test(arguments: [false, true])
+    func aPressPastTheArrowToTheTabsFrontEndOpensTheAsksPanel(right: Bool) throws {
+        let setting = Self.setting(right: right), run = Self.poured(Self.helpDesk, setting)
+        let words = try Self.tab(run).words.frame.size, box = RowArrow.tabBox(in: words, pointsLeft: right)
+        let past = try Self.onTab(CGPoint(x: right ? 4 : words.width - 4, y: box.midY), run, setting)
+
+        #expect(right ? 4 < box.minX : words.width - 4 > box.maxX)
+        Self.frames(run, for: Self.frameMS, past, setting)
+        #expect(run.arrow(in: setting)?.isLit == true)
+        #expect(run.press(Self.at(run, past, setting)) == .asks)
+        #expect(run.release(EdgeSettings(), Self.at(run, past, setting)) == nil)
+        #expect(run.asksShown != nil)
+    }
+
     /// The open asks panel leaves the tab's arrow whole: its far side stands as far in from the tab's front as a notch
     /// row's from the list's, so the asks panel, overlapping the front by 8, leaves 9 beside it, on either edge.
     @Test(arguments: [false, true])

@@ -386,6 +386,16 @@ public enum RowArrow {
         box(in: words, pointsLeft: pointsLeft, in: fromFront)
     }
 
+    /// Where a click on a strip's tab's arrow lands, in their own frame: its box, stretched out to the words' front end,
+    /// so a pointer coming from the strip that overshoots it still opens the asks panel rather than jumping.
+    public static func tabHitBox(in words: CGSize, pointsLeft: Bool) -> CGRect {
+        let box = tabBox(in: words, pointsLeft: pointsLeft)
+
+        return pointsLeft
+            ? CGRect(x: 0, y: box.minY, width: box.maxX, height: box.height)
+            : CGRect(x: box.minX, y: box.minY, width: words.width - box.minX, height: box.height)
+    }
+
     /// Its box on the middle of what is this big, this far in from the end it points toward.
     private static func box(in whole: CGSize, pointsLeft: Bool, in inset: Double) -> CGRect {
         CGRect(

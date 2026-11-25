@@ -9,7 +9,7 @@ import SitRepPanel
 final class ArrowButton {
     let box = CALayer()
     let chevron = CAShapeLayer()
-    private var look: Look?
+    private(set) var look: Look?
 
     /// How it shows: lit or not, which way it points, whether it is turned, and whether it turns at once, under Reduce
     /// motion.

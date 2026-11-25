@@ -6597,7 +6597,10 @@ from it beside the tab, as the notch's does beside its row.
   row's end, the row 14 inside the list), so the asks panel, overlapping
   the front by 8, leaves 9 beside it and never cuts its rounded end (the
   review, 25 November 2026; it stood 3 in until then, 5 points of it
-  under the asks panel). A tab is out only under the pointer, so its
+  under the asks panel). A click between it and the tab's front end is
+  its too, so a pointer coming from the strip that overshoots it opens
+  the asks panel rather than jumping (the review, 25 November 2026). A
+  tab is out only under the pointer, so its
   arrow always shows on it, and the tab makes room for it rather than
   hiding the time: it is 51 points wider, the arrow and its inset, with
   8 between the arrow and the time on the left edge, or 6 between the
@@ -6607,7 +6610,9 @@ from it beside the tab, as the notch's does beside its row.
   Its words and its time keep the layout they would have in the rest. It
   lights, points and turns as the row's arrow does, fades with the tab's
   words as they go, drawing back or gliding on, and hides while a click
-  presses the tab in. A count's tab of rows takes none.
+  presses the tab in. Words going out stay as they were laid out, their
+  arrow as it last looked, as the tab's newest words take the arrow, or
+  give it back. A count's tab of rows takes none.
 - **The arrow and its room have one source:** the sessions the asks panel
   answers an ask of, an ask whose answer went left out. Once the last
   ask's answer goes, the arrow goes, and the tab's words give back its
