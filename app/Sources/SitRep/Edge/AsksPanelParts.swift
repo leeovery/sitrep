@@ -23,8 +23,10 @@ enum AsksPanelParts {
 
     static func top(_ asks: AsksShown) -> Top {
         let box = asks.layout.top, line = AsksLayout.textLine, gap = 8.0, y = box.midY - line / 2
-        let dots = asks.pages > 1 ? Self.dots(asks.page, of: asks.pages, right: box.maxX, middle: box.midY) : []
-        let room = box.width - (dots.isEmpty ? 0 : dotsWidth(asks.pages) + gap)
+        let dots = asks.layout.dots(page: asks.page, of: asks.pages).enumerated().map { index, box in
+            Dot(box: box, isCurrent: index == asks.page)
+        }
+        let room = (dots.first.map { $0.box.minX - gap } ?? box.maxX) - box.minX
         let whole = TextLine.width(TextLine.text(asks.session.name, EdgeStyle.asksName, EdgeStyle.ink))
         let projectX = box.minX + min(whole, room) + gap
 
@@ -38,26 +40,7 @@ enum AsksPanelParts {
     /// Room past words set whole in a box as wide as Core Text sets them, which SwiftUI may set a hair wider and cut.
     private static let slack = 1.0
 
-    private static let dotGap = 4.0, dotSide = 5.0, currentDot = 14.0
     static let dotRadius = 3.0
-
-    private static func dotsWidth(_ pages: Int) -> Double {
-        currentDot + Double(pages - 1) * (dotSide + dotGap)
-    }
-
-    private static func dots(_ page: Int, of pages: Int, right: Double, middle: Double) -> [Dot] {
-        var x = right - dotsWidth(pages)
-
-        return (0 ..< pages).map { index in
-            let width = index == page ? currentDot : dotSide
-            let dot = Dot(
-                box: CGRect(x: x, y: middle - dotSide / 2, width: width, height: dotSide), isCurrent: index == page
-            )
-
-            x += width + dotGap
-            return dot
-        }
-    }
 
     /// The ask's title in this colour, broken into the lines the layout left room for, each with its box, with the
     /// slack past it that words set whole take.
@@ -73,16 +56,14 @@ enum AsksPanelParts {
         }
     }
 
-    /// An answer's row as it shows, in black and in glass: its ground, and its keycap's mark, its number or ↗; none
-    /// while it is the answer held, a check in its place.
+    /// An answer's row as it shows, in black and in glass: its ground, and its keycap's number; none while it is the
+    /// answer held, a check in its place.
     struct AnswerRow: Equatable {
         enum Ground {
             /// The answer held.
             case held
             /// Under the pointer.
             case lifted
-            /// The one row of an ask answered in Claude.
-            case outlined
             case filled
         }
 
@@ -94,19 +75,16 @@ enum AsksPanelParts {
 
     static func answerRow(_ index: Int, of asks: AsksShown) -> AnswerRow {
         let isHeld = asks.sending.map { $0.row == index } ?? false
-        let isLifted = asks.hover == .answer(index) || asks.hover == .inClaude
-        let inClaude = asks.ask.isInClaude
-        let ground: AnswerRow.Ground = isHeld ? .held : isLifted ? .lifted : inClaude ? .outlined : .filled
+        let ground: AnswerRow.Ground = isHeld ? .held : asks.hover == .answer(index) ? .lifted : .filled
 
-        return AnswerRow(ground: ground, mark: isHeld ? nil : inClaude ? "↗" : "\(index + 1)")
+        return AnswerRow(ground: ground, mark: isHeld ? nil : "\(index + 1)")
     }
 
-    /// What an answer's row reads: "Answer in Claude" for the one row of an ask answered there, else its answer; and
-    /// "recommended" at its end for Claude's pick.
+    /// What an answer's row reads: its answer, and "recommended" at its end for Claude's pick.
     static func label(_ index: Int, of ask: PanelAsk) -> (words: String, note: String?) {
-        let words = ask.isInClaude ? "Answer in Claude" : ask.answers[index]
+        let words = ask.answers[index]
 
-        return (words, ask.recommended == words && !ask.isInClaude ? "recommended" : nil)
+        return (words, ask.recommended == words ? "recommended" : nil)
     }
 
     /// Where a row's label goes after its keycap, and its note at its end, the label cut short before it, in the row's

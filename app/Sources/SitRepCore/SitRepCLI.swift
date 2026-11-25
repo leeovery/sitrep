@@ -51,6 +51,14 @@ public struct SitRepCLI: Sendable {
         return written(await sitrep(words, limit: Self.sessionLimit), by: "snooze")
     }
 
+    /// Snoozes one ask of the session alone until the instant given, as the pane does, its other asks left waiting.
+    /// The CLI refuses an ask closed, or no longer waiting on Lee, in the pane's words.
+    public func snooze(_ session: String, ask: String, until: Date) async -> WriteAnswer {
+        let words = ["snooze", "--ask", ask, "--until", Self.milliseconds(until), "--session", session]
+
+        return written(await sitrep(words, limit: Self.sessionLimit), by: "snooze")
+    }
+
     /// Answers an ask of the session, or ignores it, into the session's inbox. The ask and the answer come after `--`,
     /// as the CLI reads a `--name` word before it as a flag, and `-h` or `--help` as a call for its help, so words such
     /// as `--force` or `ls -h` arrive whole. The answer's words, which can be anything Lee typed, are never logged.

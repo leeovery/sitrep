@@ -129,6 +129,18 @@ struct SitRepCLITests {
         ])
     }
 
+    /// One ask snoozed alone, as the asks panel's Snooze ▾ snoozes the ask it shows: by its id, with its time.
+    @Test func anAsksSnoozeRunsSnoozeOfThatAskWithItsTime() async {
+        let (cli, programs) = Self.cli(Self.exited(0))
+        let until = Date(timeIntervalSince1970: 1_792_745_127)
+
+        #expect(await cli.snooze("sr-4t2kq8", ask: "k2", until: until) == .written)
+        #expect(programs.all.map(\.arguments) == [
+            ["snooze", "--ask", "k2", "--until", "1792745127000", "--session", "sr-4t2kq8"],
+        ])
+        #expect(programs.all.map(\.limit) == [10])
+    }
+
     @Test func wakeRunsWakeOfTheSession() async {
         let (cli, programs) = Self.cli(Self.exited(0))
 
@@ -183,12 +195,14 @@ struct SitRepCLITests {
 
     @Test(arguments: [
         "Tailspin is not snoozed.", "An ask waits on you that the snooze did not name: look at it, then snooze again.",
+        "it is closed already.",
     ])
     func aSnoozeOrAWakeRefusedGivesTheCLIsWords(words: String) async {
         let (cli, _) = Self.cli(Self.exited(1, stderr: "sitrep: \(words)\n"))
 
         #expect(await cli.wake("sr-4t2kq8") == .refused(words))
         #expect(await cli.snooze("sr-4t2kq8", showing: ["k1"], until: Date()) == .refused(words))
+        #expect(await cli.snooze("sr-4t2kq8", ask: "k1", until: Date()) == .refused(words))
     }
 }
 

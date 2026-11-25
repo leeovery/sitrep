@@ -1064,6 +1064,30 @@ export const checkSnoozeAsk = (
   return until > now ? ok({ type: 'snooze', item: id, until }) : refuse(TIME_COME)
 }
 
+/**
+ * Lee's snooze of one ask as the CLI gives it, for the asks panel: the ask
+ * by its id (`item`) and its time, which it needs, as the pane offers only
+ * times; then checked as the pane's is (`checkSnoozeAsk`). Refused where
+ * it names the asks a row showed too, as a session's snooze does.
+ */
+export const checkSnoozeOneAsk = (
+  session: Session,
+  input: unknown,
+  now: number,
+): Checked<SnoozeBody> => {
+  const fields = fieldsOf(input)
+
+  if ((lines(fields.ask) ?? []).length > 0) {
+    return refuse('Snooze one ask with --ask, or the asks the row shows: not both.')
+  }
+
+  const until = timeIn(fields.until)
+
+  return until === undefined
+    ? refuse('An ask snoozes until a time in milliseconds since the epoch.')
+    : checkSnoozeAsk(session, String(fields.item), until, now)
+}
+
 /** Whether a snooze of Lee's stands on an ask: holding it, or run out at its time and not yet ended. */
 const isUnderSnooze = (ask: Ask) => ask.snoozedUntil !== undefined || ask.wokeAt !== undefined
 

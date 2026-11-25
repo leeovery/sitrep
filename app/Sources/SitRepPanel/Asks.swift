@@ -3,8 +3,7 @@ import Foundation
 
 /// An ask as the asks panel answers it (DESIGN, "Answering from the panel"): its title, the answers it offers in
 /// Claude's order, a yes's one or a choice's options, and the one Claude recommends; none for a words ask, or a choice
-/// with no options, which the asks panel answers in Claude. Its time is its line's on the row: its posting, or its
-/// reopening.
+/// with no options, which Lee answers in Claude. Its time is its line's on the row: its posting, or its reopening.
 public struct PanelAsk: Equatable, Sendable {
     /// What it wants back, as the board says it, which its answer passes on, so one reshaped since is refused.
     public enum Wants: Sendable {
@@ -30,9 +29,6 @@ public struct PanelAsk: Equatable, Sendable {
         self.since = since
     }
 
-    /// Whether the asks panel answers it in Claude, a jump to the session's window, having no answers of its own.
-    public var isInClaude: Bool { answers.isEmpty }
-
     /// "Asked 4m ago" at this time on the wall clock, its age as a row words its time; under a minute, "Asked just
     /// now".
     public func askedText(at now: Double) -> String {
@@ -49,8 +45,8 @@ public struct PanelAsk: Equatable, Sendable {
 public enum AsksPart: Hashable, Sendable {
     /// An answer's row, by its place among the ask's answers.
     case answer(Int)
-    /// The one row of an ask answered in Claude: it jumps.
-    case inClaude
+    /// A page dot, by the place of its ask among the session's.
+    case page(Int)
     case ignore, snooze, open
     /// The sending line's Undo.
     case undo
@@ -75,7 +71,7 @@ public struct AsksMeasure: Sendable {
 }
 
 /// Where the asks panel lays out one ask, the same in black and in glass (Paper's board F): its top line, the session's
-/// name and project and its page dots; the ask's title and its age; its answers' rows, or the one row that answers in
+/// name and project and its page dots; the ask's title and its age; its answers' rows, none for an ask Lee answers in
 /// Claude; and its foot, Ignore, Snooze ▾ and Open in Claude, which the sending line takes the place of while an
 /// answer is held. Every box is in the asks panel's own frame, from its top left, 372 wide.
 public struct AsksLayout: Equatable, Sendable {
@@ -114,12 +110,10 @@ public struct AsksLayout: Equatable, Sendable {
     public let title: CGRect
     public let titleLines: Int
     public let age: CGRect
-    /// Each answer's row; the one row of an ask answered in Claude.
+    /// Each answer's row; none for an ask Lee answers in Claude.
     public let answers: [CGRect]
     public let foot: CGRect
-    public let ignore, snooze: CGRect
-    /// None for an ask answered in Claude, whose row does it.
-    public let open: CGRect?
+    public let ignore, snooze, open: CGRect
     public let countdown: CGRect
     /// The sending line's words: "Sending" and the answer, or "Ignoring".
     public let sending: CGRect
@@ -131,9 +125,10 @@ public struct AsksLayout: Equatable, Sendable {
         let side = Self.padSide, text = side + Self.textSide, textWidth = Self.inner - 2 * Self.textSide
         let lines = min(Self.titleMost, max(1, measure.titleLines(ask.title)))
         let askTop = Self.padTop + Self.topHeight + Self.between
-        let rows = max(1, ask.answers.count)
+        let rows = ask.answers.count
         let answersTop = askTop + Double(lines) * Self.titleLine + Self.ageGap + Self.textLine + Self.between
-        let footTop = answersTop + Double(rows) * Self.answerHeight + Double(rows - 1) * Self.answerGap + Self.between
+        let answersHeight = Double(rows) * Self.answerHeight + Double(max(0, rows - 1)) * Self.answerGap
+        let footTop = answersTop + (rows == 0 ? 0 : answersHeight + Self.between)
         let pillTop = footTop + (Self.footHeight - Self.pillHeight) / 2
         let right = side + Self.inner
         let word = { (words: String) in measure.footWidth(words) }
@@ -164,8 +159,7 @@ public struct AsksLayout: Equatable, Sendable {
         let openWidth = 2 * Self.openPad + word(Self.openWords) + Self.wordsGap + word(Self.openMark)
         let undoWidth = 2 * Self.undoPad + word(Self.undoWords)
 
-        open = ask.isInClaude
-            ? nil : CGRect(x: right - openWidth, y: pillTop, width: openWidth, height: Self.pillHeight)
+        open = CGRect(x: right - openWidth, y: pillTop, width: openWidth, height: Self.pillHeight)
         countdown = CGRect(
             x: text, y: footTop + (Self.footHeight - Self.ring) / 2, width: Self.ring, height: Self.ring
         )
@@ -182,13 +176,17 @@ public struct AsksLayout: Equatable, Sendable {
 
     public var size: CGSize { CGSize(width: Self.width, height: height) }
 
-    /// What a click at a point in its own frame lands on: while an answer of its ask is held, Undo alone.
-    public func part(at point: CGPoint, sending: Bool) -> AsksPart? {
+    /// What a click at a point in its own frame lands on, showing the ask at `page` of `pages`: a page dot, which
+    /// pages whatever is held; while an answer of its ask is held, Undo alone.
+    public func part(at point: CGPoint, sending: Bool, page: Int, of pages: Int) -> AsksPart? {
+        if let dot = dot(at: point, page: page, of: pages) {
+            return .page(dot)
+        }
         if sending {
             return undo.contains(point) ? .undo : nil
         }
         if let row = answers.firstIndex(where: { $0.contains(point) }) {
-            return open == nil ? .inClaude : .answer(row)
+            return .answer(row)
         }
         if ignore.contains(point) {
             return .ignore
@@ -196,7 +194,55 @@ public struct AsksLayout: Equatable, Sendable {
         if snooze.contains(point) {
             return .snooze
         }
-        return open?.contains(point) == true ? .open : nil
+        return open.contains(point) ? .open : nil
+    }
+
+    /// The page dots at the top line's right, showing the ask at `page` of `pages`, the current one wide; none for one
+    /// ask.
+    public func dots(page: Int, of pages: Int) -> [CGRect] {
+        guard pages > 1 else {
+            return []
+        }
+
+        var x = top.maxX - Self.dotsWidth(pages)
+
+        return (0 ..< pages).map { index in
+            let width = index == page ? Self.currentDot : Self.dotSide
+            let dot = CGRect(x: x, y: top.midY - Self.dotSide / 2, width: width, height: Self.dotSide)
+
+            x += width + Self.dotGap
+            return dot
+        }
+    }
+
+    /// The dot a click at a point in its own frame is nearest across the dots and `dotReach` past either end, the top
+    /// line's whole height: a dot 5 wide is no target to aim at (DESIGN, "Paging").
+    private func dot(at point: CGPoint, page: Int, of pages: Int) -> Int? {
+        let dots = dots(page: page, of: pages)
+
+        guard let first = dots.first, let last = dots.last else {
+            return nil
+        }
+
+        let reach = CGRect(
+            x: first.minX - Self.dotReach, y: Self.padTop, width: last.maxX - first.minX + 2 * Self.dotReach,
+            height: Self.topHeight
+        )
+
+        return reach.contains(point)
+            ? dots.indices.min { Self.across(point.x, dots[$0]) < Self.across(point.x, dots[$1]) } : nil
+    }
+
+    /// How far a point across is from a box: none inside it.
+    private static func across(_ x: Double, _ box: CGRect) -> Double {
+        max(0, box.minX - x, x - box.maxX)
+    }
+
+    /// The page dots: 5 across, the current one 14, 4 apart; and how far past the first and the last a click is theirs.
+    public static let dotSide = 5.0, currentDot = 14.0, dotGap = 4.0, dotReach = 6.0
+
+    static func dotsWidth(_ pages: Int) -> Double {
+        currentDot + Double(pages - 1) * (dotSide + dotGap)
     }
 
     /// Where it stands on the stage beside a row whose top is this far down it, in a list whose front is this far from
@@ -225,6 +271,8 @@ public struct AsksLayout: Equatable, Sendable {
 public enum RowArrow {
     public static let size = CGSize(width: 40, height: 26)
     public static let radius = 8.0, inset = 3.0
+    /// How long, in seconds, its chevron takes to turn as its asks panel opens or closes.
+    public static let turning = 0.2
 
     /// Its box in a row this big, in the row's own frame.
     public static func box(in row: CGSize) -> CGRect {

@@ -77,7 +77,7 @@ final class PanelContent {
         rows.values.forEach { $0.row.showAge(at: scene.now, in: scene.calendar) }
         rows.forEach { $1.row.isPressed = $0 == panel.pressed }
         rows.forEach { key, row in
-            row.row.arrow = scene.arrows[key].map { SessionRow.Arrow(isLit: $0, pointsLeft: scene.mirror.a < 0) }
+            row.row.arrow = scene.arrow(key)
         }
         highlight([scene.hover.flatMap { shown.item($0)?.key }, scene.asks?.row].compactMap { $0 })
     }

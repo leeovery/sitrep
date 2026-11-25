@@ -239,8 +239,7 @@ private struct GlassPanel: View {
         case let .session(session), let .line(session):
             GlassSessionRow(
                 session: session, size: box.size, hovered: lit, pressed: pressed, now: scene.now, wash: wash(item.key),
-                calendar: scene.calendar,
-                arrow: scene.arrows[item.key].map { SessionRow.Arrow(isLit: $0, pointsLeft: scene.mirror.a < 0) }
+                calendar: scene.calendar, arrow: scene.arrow(item.key)
             )
             .offset(y: box.minY)
         case let .eyebrow(eyebrow):
@@ -435,7 +434,8 @@ struct GlassSessionRow: View {
 }
 
 /// A Needs you row's arrow on glass (DESIGN, "The row's arrow"): unlit, its chevron in the secondary on the row's lift;
-/// lit, a step stronger than the lift, its chevron in the primary; pointing away from the screen's edge.
+/// lit, a step stronger than the lift, its chevron in the primary; pointing away from the screen's edge, and turning
+/// to point back while its asks panel is open, as the black's does.
 @available(macOS 26, *)
 struct GlassRowArrow: View {
     let arrow: SessionRow.Arrow
@@ -446,6 +446,8 @@ struct GlassRowArrow: View {
                 .fill(.primary.opacity(arrow.isLit ? GlassTint.press : 0))
             Outline(path: Path(RowArrow.chevron(pointsLeft: arrow.pointsLeft)))
                 .stroke(arrow.isLit ? .primary : .secondary, style: .rounded(AsksPanelParts.strokeWidth))
+                .rotationEffect(.radians(arrow.turn))
+                .animation(arrow.turnsAtOnce ? nil : .easeInOut(duration: RowArrow.turning), value: arrow.isTurned)
         }
         .frame(width: RowArrow.size.width, height: RowArrow.size.height)
     }

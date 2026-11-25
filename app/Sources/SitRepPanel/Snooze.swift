@@ -67,7 +67,13 @@ public enum SnoozeTime: Hashable, Sendable {
 
     /// What every row's Snooze offers at `now`: Snooze's times offered as Lee set them, then until it moves.
     public static func offered(at now: Date, in calendar: Calendar, settings: SnoozeSettings) -> [SnoozeTime] {
-        SnoozeChoice.offered(at: now, in: calendar, settings: settings).map(SnoozeTime.at) + [.untilItMoves]
+        offeredForAsk(at: now, in: calendar, settings: settings) + [.untilItMoves]
+    }
+
+    /// What one ask's Snooze offers at `now`, in the pane and the asks panel: Snooze's times offered as Lee set them,
+    /// never until it moves (DESIGN, "An ask snoozes in the pane").
+    public static func offeredForAsk(at now: Date, in calendar: Calendar, settings: SnoozeSettings) -> [SnoozeTime] {
+        SnoozeChoice.offered(at: now, in: calendar, settings: settings).map(SnoozeTime.at)
     }
 
     public var title: String {

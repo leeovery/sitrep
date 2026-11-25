@@ -7,10 +7,10 @@ import SitRepTestSupport
 import Testing
 
 /// The row's arrow and the asks panel in black, as Paper's boards E2, F and A2 draw them: the arrow soft on the row's
-/// lift, lit #34343B with its chevron white, pointing away from the screen's edge; the asks panel's black, its
-/// hairline and its shadow, its page dots, its title and age, its answers' rows and keycaps, the outlined row of a
-/// words ask, its foot's Open in Claude; and while an answer is held, its row white, the countdown's arc half run out
-/// a second in, and Undo.
+/// lift, lit #34343B with its chevron white, pointing away from the screen's edge, turned back while its asks panel is
+/// open, turning in 0.2 seconds or at once under Reduce motion; the asks panel's black, its hairline and its shadow,
+/// its page dots, its title and age, its answers' rows and keycaps, a words ask with none, its foot's Open in Claude
+/// for every ask; and while an answer is held, its row white, the countdown's arc half run out a second in, and Undo.
 @MainActor
 @Suite(.backstop)
 struct AsksPanelDrawnTests {
@@ -43,17 +43,22 @@ struct AsksPanelDrawnTests {
 
     private static let row = CGSize(width: 344, height: 30)
 
-    /// A Needs you row lifted under the pointer, its arrow unlit or lit, pointing right or left.
-    private static func arrowed(isLit: Bool, pointsLeft: Bool = false) throws -> Drawn {
+    /// A Needs you row lifted under the pointer, its arrow unlit or lit, pointing right or left, turned or not.
+    private static func arrowed(isLit: Bool, pointsLeft: Bool = false, isTurned: Bool = false) throws -> Drawn {
+        let row = arrowRow()
+
+        row.isHighlighted = true
+        row.arrow = SessionRow.Arrow(isLit: isLit, pointsLeft: pointsLeft, isTurned: isTurned)
+        return try Drawn(row.layer)
+    }
+
+    private static func arrowRow() -> SessionRow {
         let session = Session(
             id: "sr-nw0001", project: "Northwind", name: "Help desk redesign", kind: .needs, ask: "k1",
             title: "Thread replies, or keep them flat?", sub: "Northwind", since: 0
         )
-        let row = SessionRow(session, size: Self.row)
 
-        row.isHighlighted = true
-        row.arrow = SessionRow.Arrow(isLit: isLit, pointsLeft: pointsLeft)
-        return try Drawn(row.layer)
+        return SessionRow(session, size: Self.row)
     }
 
     private static var arrowBox: CGRect { RowArrow.box(in: row) }
@@ -81,6 +86,48 @@ struct AsksPanelDrawnTests {
 
         #expect(light(right, tipRight) > light(right, tipLeft))
         #expect(light(left, tipLeft) > light(left, tipRight))
+    }
+
+    /// Turned, while its asks panel is open, it points back the other way, on either edge.
+    @Test func turnedItsChevronPointsBack() throws {
+        let box = Self.arrowBox, middle = box.midY
+        let tipRight = CGPoint(x: box.midX + 1.5, y: middle), tipLeft = CGPoint(x: box.midX - 1.5, y: middle)
+        let right = try Self.arrowed(isLit: true, isTurned: true)
+        let left = try Self.arrowed(isLit: true, pointsLeft: true, isTurned: true)
+        let light = { (drawn: Drawn, point: CGPoint) in drawn.pixel(at: point)?.lightness ?? 0 }
+
+        #expect(light(right, tipLeft) > light(right, tipRight))
+        #expect(light(left, tipRight) > light(left, tipLeft))
+    }
+
+    /// The chevron's turns, as the render server runs them: half a turn in 0.2 seconds as its asks panel opens, and
+    /// back as it closes, from where it showed; none under Reduce motion, nor as the arrow first shows turned.
+    @Test func itTurnsInAFifthOfASecondOrAtOnceUnderReduceMotion() throws {
+        let row = Self.arrowRow(), lit = SessionRow.Arrow(isLit: true, pointsLeft: false)
+        let turning = { (row: SessionRow) in
+            row.arrowLayer?.chevron.animation(forKey: SessionRow.turnKey) as? CABasicAnimation
+        }
+
+        row.arrow = SessionRow.Arrow(isLit: true, pointsLeft: false, isTurned: true)
+        #expect(turning(row) == nil)
+        row.arrow = lit
+        let back = try #require(turning(row))
+
+        #expect(back.keyPath == "transform.rotation.z" && back.duration == 0.2)
+        #expect(back.fromValue as? Double == .pi && back.toValue as? Double == 0)
+
+        let opening = Self.arrowRow()
+
+        opening.arrow = lit
+        opening.arrow = SessionRow.Arrow(isLit: true, pointsLeft: false, isTurned: true)
+        #expect(turning(opening)?.fromValue as? Double == 0 && turning(opening)?.toValue as? Double == .pi)
+
+        let still = Self.arrowRow()
+
+        still.arrow = lit
+        still.arrow = SessionRow.Arrow(isLit: true, pointsLeft: false, isTurned: true, turnsAtOnce: true)
+        #expect(turning(still) == nil)
+        #expect(still.arrowLayer?.chevron.value(forKeyPath: SessionRow.turnKey) as? Double == .pi)
     }
 
     // MARK: The asks panel
@@ -197,16 +244,20 @@ struct AsksPanelDrawnTests {
         #expect(Self.shows(0x26262A, at: CGPoint(x: second.maxX - 20, y: second.midY), in: drawn))
     }
 
-    @Test func aWordsAskHasOneOutlinedRowAndNoOpenInClaude() throws {
-        let (drawn, asks) = try Self.drawn(Self.words, pages: 1), row = Self.placed(asks.layout.answers[0])
+    /// A words ask draws no row between its age and its foot: only the black, and its foot's Open in Claude.
+    @Test func aWordsAskHasNoRowsAndItsFootsOpenInClaude() throws {
+        let (drawn, asks) = try Self.drawn(Self.words, pages: 1), layout = asks.layout
+        let gap = layout.foot.minY - layout.age.maxY
+        let between = Self.placed(CGRect(x: layout.foot.minX, y: layout.age.maxY + 2, width: layout.foot.width, height: gap - 4))
+        let open = Self.placed(layout.open)
 
-        #expect(asks.layout.open == nil)
-        #expect(Self.shows(0x000000, at: CGPoint(x: row.maxX - 20, y: row.midY), in: drawn))
-        #expect(Self.shows(0x2C2C31, at: CGPoint(x: row.midX, y: row.minY + 0.25), in: drawn))
+        #expect(try #require(drawn.pixels(in: between).max { $0.lightness < $1.lightness }).lightness < 0.01)
+        #expect(Self.shows(0x2C2C31, at: CGPoint(x: open.midX, y: open.minY + 0.25), in: drawn))
+        #expect(Self.brightest(Self.white, in: open.insetBy(dx: 10, dy: 4), of: drawn))
     }
 
     @Test func openInClaudeIsAnOutlinedPill() throws {
-        let (drawn, asks) = try Self.drawn(), open = Self.placed(try #require(asks.layout.open))
+        let (drawn, asks) = try Self.drawn(), open = Self.placed(asks.layout.open)
 
         #expect(Self.shows(0x2C2C31, at: CGPoint(x: open.midX, y: open.minY + 0.25), in: drawn))
         #expect(Self.brightest(Self.white, in: open.insetBy(dx: 10, dy: 4), of: drawn))

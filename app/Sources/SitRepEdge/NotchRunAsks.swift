@@ -63,8 +63,8 @@ extension NotchRun {
     }
 
     /// A press on the asks panel, once what it shows has settled (`AsksPanel.settle`): an answer's row, or Ignore,
-    /// holds that answer, while none is held; Undo takes the held one back; Snooze ▾ offers the row's snooze; Answer
-    /// in Claude and Open in Claude jump as the row does, closing it. Nowhere on it carries the notch.
+    /// holds that answer, while none is held; Undo takes the held one back; a page dot shows its ask; Snooze ▾ offers
+    /// the snooze of the ask shown; Open in Claude jumps as the row does, closing it. Nowhere on it carries the notch.
     func pressAsks(_ asks: AsksShown, at point: CGPoint, in setting: Setting) -> Press? {
         let ask = asks.ask, session = asks.session.id
 
@@ -79,9 +79,12 @@ extension NotchRun {
             return .answer(Answering(.ignore, to: ask.id, of: session, wanting: ask.wants.shape))
         case .undo?:
             return .undo
+        case let .page(page)?:
+            asking.page(to: page, list, board)
+            return .asks
         case .snooze?:
-            return .snooze(asks.session, at: point)
-        case .inClaude?, .open?:
+            return .snooze(ask: ask.id, of: session, at: point)
+        case .open?:
             return list.index(of: asks.row).flatMap { jump($0) }
         case nil:
             return nil

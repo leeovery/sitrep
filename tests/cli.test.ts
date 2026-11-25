@@ -736,6 +736,34 @@ test('a snooze or a wake refused ends as refused, in the check’s words, and wr
   expect((await t.run('wake', '--session', 'sr-zzzzzz')).exit).toBe(EXIT.noSession)
 })
 
+test("snooze --ask writes one line of the CLI's own, that ask's snooze until its time, the session's other asks still waiting, nothing in the inbox, and prints nothing; refused in the pane's words, writing nothing", async () => {
+  const t = terminal()
+  const paths = t.seed(META, ASKED)
+  const refused = (error: string) => ({ exit: EXIT.refused, out: '', err: `sitrep: ${error}\n` })
+
+  expect(await t.run('snooze', '--ask', 'k2', '--until', String(WAKES), ...SESSION)).toEqual(DONE)
+  expect(cliLines(t, paths)).toEqual([
+    { v: VERSION, at: NOW, seq: 1, type: 'snooze', item: 'k2', until: WAKES },
+  ])
+  expect(folded(t, paths).asks.map(ask => [ask.id, ask.snoozedUntil])).toEqual([
+    ['k1', undefined],
+    ['k2', WAKES],
+    ['k3', undefined],
+  ])
+  expect(t.files.has(paths.letters(WRITER)), 'nothing goes to its inbox').toBe(false)
+
+  expect(await t.run('snooze', '--ask', 'zz', '--until', String(WAKES), ...SESSION)).toEqual(
+    refused('it is no longer on the board.'),
+  )
+  expect(await t.run('snooze', '--ask', 'k1', ...SESSION)).toEqual(
+    refused('An ask snoozes until a time in milliseconds since the epoch.'),
+  )
+  expect(
+    await t.run('snooze', '--ask', 'k1', '--until', String(WAKES), ...SESSION, ...SHOWN),
+  ).toEqual(refused('Snooze one ask with --ask, or the asks the row shows: not both.'))
+  expect(cliLines(t, paths)).toHaveLength(1)
+})
+
 test('what the CLI prints says what is snoozed: each ask its snoozedUntil while it is, else null; each session and project how many in list --json and board --json, and plain list among its facts', async () => {
   const t = terminal()
 
@@ -820,7 +848,7 @@ test('help: every command in brief, how a session is named, and the exit codes',
     '  sitrep ask <title> --wants yes|choice|words [--yes <label>] [--option <choice>]... [--recommended <choice>] [--needs <words>] [--where <words>] [--ref <ref>]\n',
   )
   expect(out).toContain(
-    '  sitrep answer <ask> (<answer> | --ignore) [--wants yes|choice|words]\n  sitrep snooze <ask>... [--until <ms>]\n  sitrep wake\n  sitrep finish\n  sitrep move <project>\n',
+    '  sitrep answer <ask> (<answer> | --ignore) [--wants yes|choice|words]\n  sitrep snooze (<ask>... | --ask <id>) [--until <ms>]\n  sitrep wake\n  sitrep finish\n  sitrep move <project>\n',
   )
   expect(out).toContain('  sitrep list [--project <name>] [--json]\n  sitrep watch\n')
   expect(out).toContain('--session sr-xxxxxx, else $SITREP_SESSION')
@@ -909,7 +937,7 @@ test("the help's one line for the board in this terminal comes before the comman
       '  sitrep park <title> [--where <words>] [--ref <ref>]',
       '  sitrep status [--name <words>] [--summary <line>] [--now <line>]... [--next <line>]',
       '  sitrep answer <ask> (<answer> | --ignore) [--wants yes|choice|words]',
-      '  sitrep snooze <ask>... [--until <ms>]',
+      '  sitrep snooze (<ask>... | --ask <id>) [--until <ms>]',
       '  sitrep wake',
       '  sitrep finish',
       '  sitrep move <project>',

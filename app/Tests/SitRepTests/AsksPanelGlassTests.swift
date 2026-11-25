@@ -9,11 +9,11 @@ import Testing
 
 /// The row's arrow and the asks panel in glass, in the dark appearance over black (DESIGN, "Answering from the panel",
 /// "Black and Glass"): the arrow's chevron in the secondary on the row's lift, lit a step stronger with its chevron in
-/// the primary, pointing away from the screen's edge, taking the time's place; the asks panel's hairline and its
-/// shadows, cast outside it alone, its words in the label colours, its
-/// current page dot orange, its rows and keycaps in the glass's tints, lifted under the pointer, the words ask's row
-/// outlined; and while an answer is held, its row white with its check in ink, and the countdown run down from what is
-/// left. The glass itself is the window server's, which draws nothing offscreen: these read what is drawn over it.
+/// the primary, pointing away from the screen's edge, turned back while its asks panel is open, taking the time's
+/// place; the asks panel's hairline and its shadows, cast outside it alone, its words in the label colours, its
+/// current page dot orange, its rows and keycaps in the glass's tints, lifted under the pointer, a words ask with none;
+/// and while an answer is held, its row white with its check in ink, and the countdown run down from what is left. The
+/// glass itself is the window server's, which draws nothing offscreen: these read what is drawn over it.
 @MainActor
 @Suite(.backstop)
 struct AsksPanelGlassTests {
@@ -29,9 +29,9 @@ struct AsksPanelGlassTests {
 
     private static let row = CGSize(width: 344, height: 30)
 
-    /// A Needs you row lifted under the pointer, its arrow unlit or lit, pointing right or left.
+    /// A Needs you row lifted under the pointer, its arrow unlit or lit, pointing right or left, turned or not.
     @available(macOS 26, *)
-    private static func arrowed(isLit: Bool, pointsLeft: Bool = false) throws -> Drawn {
+    private static func arrowed(isLit: Bool, pointsLeft: Bool = false, isTurned: Bool = false) throws -> Drawn {
         let session = Session(
             id: "sr-nw0001", project: "Northwind", name: "Help desk redesign", kind: .needs, ask: "k1",
             title: "Thread replies, or keep them flat?", sub: "Northwind", since: 0
@@ -40,7 +40,7 @@ struct AsksPanelGlassTests {
         return try Drawn(
             GlassSessionRow(
                 session: session, size: row, hovered: true, pressed: false, now: 60_000, wash: 0,
-                arrow: SessionRow.Arrow(isLit: isLit, pointsLeft: pointsLeft)
+                arrow: SessionRow.Arrow(isLit: isLit, pointsLeft: pointsLeft, isTurned: isTurned, turnsAtOnce: true)
             ),
             size: row
         )
@@ -86,6 +86,18 @@ struct AsksPanelGlassTests {
 
         #expect(Self.light(right, at: tipRight) > Self.light(right, at: tipLeft))
         #expect(Self.light(left, at: tipLeft) > Self.light(left, at: tipRight))
+    }
+
+    /// Turned, while its asks panel is open, it points back the other way, on either edge.
+    @available(macOS 26, *)
+    @Test func turnedItsChevronPointsBack() throws {
+        let box = Self.arrowBox, middle = box.midY
+        let tipRight = CGPoint(x: box.midX + 1.5, y: middle), tipLeft = CGPoint(x: box.midX - 1.5, y: middle)
+        let right = try Self.arrowed(isLit: true, isTurned: true)
+        let left = try Self.arrowed(isLit: true, pointsLeft: true, isTurned: true)
+
+        #expect(Self.light(right, at: tipLeft) > Self.light(right, at: tipRight))
+        #expect(Self.light(left, at: tipRight) > Self.light(left, at: tipLeft))
     }
 
     // MARK: The asks panel
@@ -231,18 +243,21 @@ struct AsksPanelGlassTests {
         #expect(Self.light(lifted, at: point) > Self.light(resting, at: point) + 0.08)
     }
 
+    /// A words ask draws no row between its age and its foot, whose Open in Claude it has.
     @available(macOS 26, *)
-    @Test func aWordsAskHasOneOutlinedRowAndNoOpenInClaude() throws {
-        let (drawn, asks) = try Self.drawn(Self.words, pages: 1), row = Self.placed(asks.layout.answers[0])
+    @Test func aWordsAskHasNoRowsAndItsFootsOpenInClaude() throws {
+        let (drawn, asks) = try Self.drawn(Self.words, pages: 1), layout = asks.layout
+        let gap = layout.foot.minY - layout.age.maxY
+        let between = Self.placed(CGRect(x: layout.foot.minX, y: layout.age.maxY + 2, width: layout.foot.width, height: gap - 4))
+        let open = Self.placed(layout.open)
 
-        #expect(asks.layout.open == nil)
-        #expect(Self.light(drawn, at: CGPoint(x: row.maxX - 20, y: row.midY)) < 0.02)
-        #expect(Self.light(drawn, at: CGPoint(x: row.midX, y: row.minY + 0.25)) > 0.2)
+        #expect(try Self.brightest(drawn, in: between) < 0.02)
+        #expect(Self.light(drawn, at: CGPoint(x: open.midX, y: open.minY + 0.25)) > 0.2)
     }
 
     @available(macOS 26, *)
     @Test func openInClaudeIsAnOutlinedPill() throws {
-        let (drawn, asks) = try Self.drawn(), open = Self.placed(try #require(asks.layout.open))
+        let (drawn, asks) = try Self.drawn(), open = Self.placed(asks.layout.open)
 
         #expect(Self.light(drawn, at: CGPoint(x: open.midX, y: open.minY + 0.25)) > 0.2)
         #expect(Self.light(drawn, at: CGPoint(x: open.minX + 6, y: open.midY)) < 0.02)

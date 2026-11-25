@@ -7,8 +7,8 @@ struct EdgePointer {
     var pressed: (CGPoint) -> Void = { _ in }
     var dragged: (CGPoint) -> Void = { _ in }
     var released: () -> Void = {}
-    /// A scroll, by this many points down the content.
-    var scrolled: (Double) -> Void = { _ in }
+    /// A scroll, down the content and along it.
+    var scrolled: (Scroll) -> Void = { _ in }
     /// A right-click: the menu it brings up there, if any.
     var menu: (CGPoint) -> NSMenu? = { _ in nil }
 }
@@ -31,9 +31,6 @@ class EdgeSurface<Drawing>: NSView {
     private(set) var drawing: Drawing
     private let make: (EdgeSettings.Material) -> Drawing
     private let view: (Drawing) -> NSView
-
-    /// A wheel's notch, scrolled as so many points.
-    private static var lineHeight: Double { 16 }
 
     init(make: @escaping (EdgeSettings.Material) -> Drawing, view: @escaping (Drawing) -> NSView) {
         self.make = make
@@ -88,9 +85,7 @@ class EdgeSurface<Drawing>: NSView {
     }
 
     override func scrollWheel(with event: NSEvent) {
-        let delta = event.hasPreciseScrollingDeltas ? event.scrollingDeltaY : event.scrollingDeltaY * Self.lineHeight
-
-        pointer.scrolled(-delta)
+        pointer.scrolled(Scroll(event))
     }
 
     /// The new drawing has been put in place: it takes the last frame.
@@ -107,5 +102,34 @@ class EdgeSurface<Drawing>: NSView {
         drawing.frame = bounds
         drawing.autoresizingMask = [.width, .height]
         addSubview(drawing)
+    }
+}
+
+extension Scroll {
+    /// A scroll event as the edge takes it: its deltas the way the Mac scrolls, a wheel's notch as 16 points; and
+    /// where it falls in its gesture, its momentum after the fingers lift, else its own phase, none for a mouse's
+    /// wheel.
+    init(_ event: NSEvent) {
+        let scale = event.hasPreciseScrollingDeltas ? 1 : Self.lineHeight
+
+        self.init(
+            down: -event.scrollingDeltaY * scale, along: -event.scrollingDeltaX * scale, phase: Self.phase(of: event)
+        )
+    }
+
+    /// A wheel's notch, scrolled as so many points.
+    private static let lineHeight = 16.0
+
+    private static func phase(of event: NSEvent) -> Phase {
+        if !event.momentumPhase.isEmpty {
+            return .momentum
+        }
+        if !event.phase.isDisjoint(with: [.mayBegin, .began]) {
+            return .began
+        }
+        if !event.phase.isDisjoint(with: [.ended, .cancelled]) {
+            return .ended
+        }
+        return event.phase.isEmpty ? .wheel : .changed
     }
 }

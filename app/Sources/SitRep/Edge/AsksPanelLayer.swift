@@ -4,7 +4,7 @@ import SitRepPanel
 
 /// The asks panel in black (Paper's board F; DESIGN, "Answering from the panel"): the panel's black, 372 wide, its
 /// corners 24, a hairline round it and a submenu's shadow, over the list's front; its top line, the session's name and
-/// project and its page dots; the ask's title and its age; its answers' rows, numbered, or the one that answers in
+/// project and its page dots; the ask's title and its age; its answers' rows, numbered, none for an ask Lee answers in
 /// Claude; and its foot, Ignore, Snooze ▾ and Open in Claude, or, while an answer of its ask is held, the sending
 /// line, its ring counting down the two seconds and Undo. It appears at once, as a Mac submenu does, and is drawn again
 /// only as what it shows changes; a frame moves it with its row.
@@ -105,9 +105,8 @@ final class AsksPanelLayer {
         return lines + [TextLine(asked, in: asks.layout.age)]
     }
 
-    /// An answer's row: filled and bordered, lifted under the pointer, white while it is the answer held; outlined,
-    /// for the one row that answers in Claude. Its keycap holds its number, or ↗, or held, a check in its place; then
-    /// its label, and "recommended" at its end for Claude's pick.
+    /// An answer's row: filled and bordered, lifted under the pointer, white while it is the answer held. Its keycap
+    /// holds its number, or held, a check in its place; then its label, and "recommended" at its end for Claude's pick.
     private static func answer(_ index: Int, of asks: AsksShown) -> CALayer {
         let shows = AsksPanelParts.answerRow(index, of: asks)
         let row = rounded(asks.layout.answers[index], AsksLayout.answerRadius, fill: nil)
@@ -120,8 +119,6 @@ final class AsksPanelLayer {
         case .lifted:
             row.backgroundColor = EdgeStyle.answerLifted
             row.borderColor = EdgeStyle.answerLiftedBorder
-        case .outlined:
-            row.borderColor = EdgeStyle.outline
         case .filled:
             row.backgroundColor = EdgeStyle.answer
             row.borderColor = EdgeStyle.answerBorder
@@ -175,9 +172,9 @@ final class AsksPanelLayer {
         let layout = asks.layout
         let ignore = footWords(AsksLayout.ignoreWords, in: layout.ignore, lit: asks.hover == .ignore)
         let snooze = footWords(AsksLayout.snoozeWords, in: layout.snooze, lit: asks.hover == .snooze)
-        let open = layout.open.map { openPill($0, lit: asks.hover == .open) }
+        let open = openPill(layout.open, lit: asks.hover == .open)
 
-        return [ignore, snooze, snoozeChevron(in: layout.snooze, lit: asks.hover == .snooze)] + [open].compactMap { $0 }
+        return [ignore, snooze, snoozeChevron(in: layout.snooze, lit: asks.hover == .snooze), open]
     }
 
     /// A foot button's words, soft, white under the pointer.

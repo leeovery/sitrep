@@ -70,9 +70,8 @@ struct GlassAsksPanel: View, Equatable {
             .placed(in: asks.layout.age)
     }
 
-    /// An answer's row: filled and bordered, lifted under the pointer, white while it is the answer held; outlined, for
-    /// the one row that answers in Claude. Its keycap holds its number, or ↗, or held, a check in its place; then its
-    /// label, and "recommended" at its end for Claude's pick.
+    /// An answer's row: filled and bordered, lifted under the pointer, white while it is the answer held. Its keycap
+    /// holds its number, or held, a check in its place; then its label, and "recommended" at its end for Claude's pick.
     private func answer(_ index: Int) -> some View {
         let box = asks.layout.answers[index], shows = AsksPanelParts.answerRow(index, of: asks)
         let isHeld = shows.isHeld, label = AsksPanelParts.label(index, of: asks.ask)
@@ -98,8 +97,8 @@ struct GlassAsksPanel: View, Equatable {
         .offset(x: box.minX, y: box.minY)
     }
 
-    /// An answer's row's ground: the primary held; a step stronger lifted; outlined, answering in Claude; else filled,
-    /// its border a step over its fill.
+    /// An answer's row's ground: the primary held; a step stronger lifted; else filled, its border a step over its
+    /// fill.
     @ViewBuilder private func ground(_ ground: AsksPanelParts.AnswerRow.Ground) -> some View {
         let row = RoundedRectangle(cornerRadius: AsksLayout.answerRadius, style: .circular)
 
@@ -108,14 +107,12 @@ struct GlassAsksPanel: View, Equatable {
             row.fill(GlassInk.held)
         case .lifted:
             row.fill(.primary.opacity(GlassTint.lifted)).overlay(row.strokeBorder(.primary.opacity(GlassTint.press)))
-        case .outlined:
-            row.strokeBorder(.primary.opacity(GlassTint.outline))
         case .filled:
             row.fill(.primary.opacity(GlassTint.press)).overlay(row.strokeBorder(.primary.opacity(GlassTint.hover)))
         }
     }
 
-    /// A keycap, a step over its row, its number or ↗ soft on it.
+    /// A keycap, a step over its row, its number soft on it.
     private func keycap(_ mark: String) -> some View {
         let cap = AsksLayout.keycap, shape = RoundedRectangle(cornerRadius: AsksLayout.keycapRadius, style: .circular)
 
@@ -146,9 +143,7 @@ struct GlassAsksPanel: View, Equatable {
             footWords(AsksLayout.ignoreWords, in: layout.ignore, lit: asks.hover == .ignore)
             footWords(AsksLayout.snoozeWords, in: layout.snooze, lit: asks.hover == .snooze)
             snoozeChevron(in: layout.snooze, lit: asks.hover == .snooze)
-            if let open = layout.open {
-                openPill(open, lit: asks.hover == .open)
-            }
+            openPill(layout.open, lit: asks.hover == .open)
         }
     }
 

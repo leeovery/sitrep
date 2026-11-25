@@ -62,7 +62,7 @@ final class StripController: NSObject, CalloutShape {
             pressed: { [unowned self] in press(at: $0) },
             dragged: { [unowned self] in drag(to: $0) },
             released: { [unowned self] in release() },
-            scrolled: { [unowned self] in scroll(by: $0) },
+            scrolled: { [unowned self] in scroll(by: $0.down) },
             menu: { [unowned self] in menu(at: $0) }
         )
         caption.over = edge.visible

@@ -8,16 +8,18 @@ import Testing
 
 /// The row's arrow and the asks panel as the notch's run has them (DESIGN, "Answering from the panel"): the arrow on a
 /// Needs you row with an ask the panel answers, lit on itself; a press on it opening the asks panel beside the row,
-/// moving it to another, closing it from the lit one, a press on the row's words still jumping; the asks panel level
-/// with its row past the list's front, read left to right on either edge, holding the panel open while the pointer is
-/// on it; its answers held, taken back and gone, stepping to the session's next ask and closing after the last; and an
-/// ask leaving the board leaving it.
+/// moving it to another, closing it from the lit one, a press on the row's words still jumping, and while it is open, a
+/// click elsewhere on the list closing it and doing nothing else; the asks panel level with its row past the list's
+/// front, read left to right on either edge, holding the panel open while the pointer is on it; its answers held,
+/// taken back and gone, stepping to the session's next ask and closing after the last; its dots and a horizontal swipe
+/// paging it; its Snooze ▾ snoozing the ask it shows; and an ask leaving the board leaving it.
 @Suite(.backstop)
 struct AsksPanelRunTests {
     private static let stage = Stage(height: 982, visibleTop: 24, visibleBottom: 982, notchY: 491)
     private static let frameMS = 1000.0 / 60
     private static let onTheNotch = CGPoint(x: 3, y: 491), away = CGPoint(x: 1300, y: 491)
     private static let helpDesk = "needs:\(AsksBoard.helpDesk)", shifts = "needs:\(AsksBoard.shifts)"
+    private static let dataImport = "needs:\(AsksBoard.dataImport)"
 
     private static func setting(
         right: Bool = false, style: NotchStyle = .meniscus, stage: Stage = stage, reducesMotion: Bool = false
@@ -103,15 +105,14 @@ struct AsksPanelRunTests {
     ) throws -> CGPoint {
         let asks = try #require(run.asksShown)
         let layout = asks.layout
-        let box: CGRect? = switch part {
+        let own = switch part {
         case let .answer(row): layout.answers[row]
-        case .inClaude: layout.answers[0]
+        case let .page(page): layout.dots(page: asks.page, of: asks.pages)[page]
         case .ignore: layout.ignore
         case .snooze: layout.snooze
         case .open: layout.open
         case .undo: layout.undo
         }
-        let own = try #require(box)
 
         return CGPoint(
             x: setting.mirror.a < 0 ? asks.frame.maxX - own.midX : asks.frame.minX + own.midX,
@@ -264,7 +265,7 @@ struct AsksPanelRunTests {
 
     // MARK: Answering
 
-    @Test func anAnswersRowAndIgnoreHoldTheirAnswersAndAWordsAskJumpsFromItsRow() throws {
+    @Test func anAnswersRowAndIgnoreHoldTheirAnswers() throws {
         let run = try Self.asksOpen(), setting = Self.setting()
 
         #expect(run.press(Self.at(run, try Self.part(.answer(0), run), setting)) == .answer(Self.threaded))
@@ -272,15 +273,19 @@ struct AsksPanelRunTests {
             run.press(Self.at(run, try Self.part(.ignore, run), setting))
                 == .answer(Answering(.ignore, to: "k1", of: AsksBoard.helpDesk, wanting: .choice))
         )
+    }
 
-        let words = try Self.asksOpen(Self.shifts)
+    /// A words ask has no row answering in Claude, which only did what Open in Claude does: its foot's Open in Claude
+    /// jumps.
+    @Test func aWordsAskHasNoRowsAndJumpsFromOpenInClaude() throws {
+        let words = try Self.asksOpen(Self.shifts), setting = Self.setting()
         let asks = try #require(words.asksShown)
 
-        #expect(asks.layout.open == nil && asks.layout.answers.count == 1)
+        #expect(asks.ask.wants == .words && asks.layout.answers.isEmpty)
         guard case let .jump(session, to: _, click: _)? = words.press(
-            Self.at(words, try Self.part(.inClaude, words), setting)
+            Self.at(words, try Self.part(.open, words), setting)
         ) else {
-            Issue.record("Answer in Claude did not jump")
+            Issue.record("Open in Claude did not jump")
             return
         }
         #expect(session.id == AsksBoard.shifts)
@@ -302,14 +307,16 @@ struct AsksPanelRunTests {
         #expect(run.asksShown == nil)
     }
 
-    @Test func snoozeOffersTheRowsSessionsSnooze() throws {
-        let run = try Self.asksOpen(), setting = Self.setting(), there = try Self.part(.snooze, run)
+    /// Snooze ▾ offers the snooze of the ask it shows, the one paged to, not its session's.
+    @Test func snoozeOffersTheSnoozeOfTheAskItShows() throws {
+        let run = try Self.asksOpen(), setting = Self.setting()
 
-        guard case let .snooze(session, at: point)? = run.press(Self.at(run, there, setting)) else {
-            Issue.record("Snooze offered nothing")
-            return
-        }
-        #expect(session.id == AsksBoard.helpDesk && point == there)
+        #expect(run.press(Self.at(run, try Self.part(.page(1), run), setting)) == .asks)
+        Self.frames(run, for: AsksPanel.settle, try Self.onAsks(run, down: 70), setting)
+
+        let there = try Self.part(.snooze, run)
+
+        #expect(run.press(Self.at(run, there, setting)) == .snooze(ask: "k2", of: AsksBoard.helpDesk, at: there))
         run.closeAsks(Self.at(run, there, setting))
         #expect(run.asksShown == nil)
     }
@@ -423,18 +430,54 @@ struct AsksPanelRunTests {
         }
     }
 
-    /// A press on another row's words jumps to it, and the asks panel closes with the panel.
-    @Test func aJumpFromAnotherRowClosesIt() throws {
-        let run = try Self.asksOpen(), setting = Self.setting()
+    /// While it is open, a click on the list anywhere but an arrow, on a row's words, its own row's or another's, an
+    /// eyebrow or the black between, closes it and does nothing else: no jump, no fold, no drag, the panel still open.
+    /// The next click acts.
+    @Test(arguments: [Elsewhere.ownRow, .anotherRow, .eyebrow, .between])
+    func aClickElsewhereOnTheListClosesItAndDoesNothingElse(_ place: Elsewhere) throws {
+        let run = try Self.asksOpen(), setting = Self.setting(), folded = run.folded
+        let point = try place.point(run, setting)
 
-        guard case let .jump(session, to: _, click: _)? = run.press(
-            Self.at(run, try Self.words(Self.shifts, run), setting)
-        ) else {
-            Issue.record("a press on another row's words did not jump")
-            return
+        #expect(run.press(Self.at(run, point, setting)) == .asks)
+        #expect(run.asksShown == nil && run.drag == nil && run.folded == folded)
+        run.step(Self.at(run, point, setting))
+        #expect(run.phase == .open && run.frame.panel?.pressed == nil)
+
+        if place == .anotherRow {
+            guard case let .jump(session, to: _, click: _)? = run.press(Self.at(run, point, setting)) else {
+                Issue.record("the next click on the row's words did not jump")
+                return
+            }
+            #expect(session.id == AsksBoard.shifts)
         }
-        #expect(session.id == AsksBoard.shifts)
-        #expect(run.asksShown == nil)
+    }
+
+    /// Where on the list, off every arrow, a click closes the asks panel.
+    enum Elsewhere: CaseIterable {
+        case ownRow, anotherRow, eyebrow, between
+
+        func point(_ run: NotchRun, _ setting: NotchRun.Setting) throws -> CGPoint {
+            typealias Run = AsksPanelRunTests
+
+            switch self {
+            case .ownRow:
+                return try Run.words(Run.helpDesk, run, setting)
+            case .anotherRow:
+                return try Run.words(Run.shifts, run, setting)
+            case .eyebrow:
+                let index = try #require(run.list.content.entries.firstIndex { entry in
+                    guard case .eyebrow = entry.item else {
+                        return false
+                    }
+                    return true
+                })
+                let box = run.list.content.laidFrame(index)
+
+                return try Run.onStage(box.minX + 40, box.midY, run, setting)
+            case .between:
+                return try Run.onStage(2, try Run.row(Run.shifts, run).minY - 1, run, setting)
+            }
+        }
     }
 
     /// The arrow takes a press where it draws: as its row arrives on the board and unfolds, laid out at its own height
@@ -751,8 +794,8 @@ struct AsksPanelRunTests {
     @Test(arguments: [60.0, 1000.0])
     func itSlidingUnderARestingPointerLetsAPressGoForABeat(hz: Double) throws {
         let setting = Self.setting()
-        let run = try Self.asksOpen(Self.shifts, setting, board: AsksBoard.board(without: ["k1", "k2"]))
-        let was = try #require(run.asksShown), resting = try Self.part(.inClaude, run)
+        let run = try Self.asksOpen(Self.dataImport, setting, board: AsksBoard.board(without: ["k1", "k2"]))
+        let was = try #require(run.asksShown), resting = try Self.part(.answer(0), run)
         let next = { NotchRun.Moment(time: run.time + 1000 / hz, pointer: resting, setting: setting) }
 
         Self.frames(run, for: AsksPanel.settle, resting, setting)
@@ -773,8 +816,8 @@ struct AsksPanelRunTests {
     /// steps it, is no move: a press then, at that time, is taken once the slide has long since settled.
     @Test func aSpringsRestSnapIsNoMoveThoughTwoPlacingsShareATime() throws {
         let setting = Self.setting()
-        let run = try Self.asksOpen(Self.shifts, setting, board: AsksBoard.board(without: ["k1", "k2"]))
-        let resting = try Self.part(.inClaude, run)
+        let run = try Self.asksOpen(Self.dataImport, setting, board: AsksBoard.board(without: ["k1", "k2"]))
+        let resting = try Self.part(.answer(0), run)
         let now = { NotchRun.Moment(time: run.time, pointer: resting, setting: setting) }
 
         Self.frames(run, for: AsksPanel.settle, resting, setting)
@@ -819,7 +862,7 @@ struct AsksPanelRunTests {
     /// The list shrinking under it, scrolled to its foot, moves the list with no scroll: a brush of a point after
     /// leaves it open, as the list has moved only that point by a scroll since it opened.
     @Test func theListKeptInViewAsItShrinksIsNoScrollOfIt() throws {
-        let setting = Self.setting(stage: Self.short), dataImport = "needs:\(AsksBoard.dataImport)"
+        let setting = Self.setting(stage: Self.short), dataImport = Self.dataImport
         let run = Self.opened(setting)
 
         run.scroll(by: 1000, Self.at(run, try Self.words(Self.helpDesk, run, setting), setting))
@@ -849,7 +892,7 @@ struct AsksPanelRunTests {
         let run = try Self.asksOpen(), setting = Self.setting()
 
         run.heard(Self.held(Self.threaded), Self.at(run, nil, setting))
-        #expect(run.press(Self.at(run, try Self.arrow("needs:\(AsksBoard.dataImport)", run), setting)) == .asks)
+        #expect(run.press(Self.at(run, try Self.arrow(Self.dataImport, run), setting)) == .asks)
         #expect(run.asksShown?.session.id == AsksBoard.dataImport && run.asksShown?.sending == nil)
 
         let map = try Self.part(.answer(0), run)
@@ -857,6 +900,106 @@ struct AsksPanelRunTests {
         run.step(Self.at(run, map, setting))
         #expect(run.asksShown?.hover == nil)
         #expect(run.press(Self.at(run, map, setting)) == nil)
+    }
+
+    // MARK: Paging
+
+    /// A click on a dot shows its ask; for a beat after the ask changes, a press on it is let go, as after any change;
+    /// after the beat, it is taken.
+    @Test func aClickOnADotShowsItsAsk() throws {
+        let run = try Self.asksOpen(), setting = Self.setting()
+
+        #expect(run.press(Self.at(run, try Self.part(.page(1), run), setting)) == .asks)
+        #expect(run.asksShown?.ask.id == "k2" && run.asksShown?.page == 1)
+
+        let first = try Self.part(.page(0), run)
+
+        #expect(run.press(Self.at(run, first, setting)) == nil)
+        #expect(run.asksShown?.ask.id == "k2")
+        Self.frames(run, for: AsksPanel.settle, first, setting)
+        #expect(run.press(Self.at(run, first, setting)) == .asks)
+        #expect(run.asksShown?.ask.id == "k1" && run.asksShown?.page == 0)
+    }
+
+    /// Where a swipe's scrolls come: on the asks panel, over its title, whatever ask it shows.
+    private static func swipe(
+        _ run: NotchRun, _ phase: Scroll.Phase, along: Double, down: Double = 0, after ms: Double = frameMS
+    ) throws {
+        let onIt = try onAsks(run, down: 70), setting = setting()
+
+        run.scroll(
+            Scroll(down: down, along: along, phase: phase),
+            NotchRun.Moment(time: run.time + ms, pointer: onIt, setting: setting)
+        )
+    }
+
+    /// A trackpad's swipe steps one ask a gesture, once it has gone 12 points along: the next as it goes along, the
+    /// previous as it comes back; the rest of the gesture, and the momentum after the fingers lift, take no second
+    /// step; nothing wraps past the first.
+    @Test func aSwipeStepsOneAskAGesture() throws {
+        let run = try Self.asksOpen()
+        let shows = { run.asksShown?.ask.id }
+
+        try Self.swipe(run, .began, along: 0)
+        try Self.swipe(run, .changed, along: 8)
+        #expect(shows() == "k1")
+        try Self.swipe(run, .changed, along: 5)
+        #expect(shows() == "k2")
+        try Self.swipe(run, .changed, along: -40)
+        try Self.swipe(run, .ended, along: 0)
+        try Self.swipe(run, .momentum, along: -60)
+        #expect(shows() == "k2")
+
+        try Self.swipe(run, .began, along: -4)
+        try Self.swipe(run, .changed, along: -10)
+        #expect(shows() == "k1")
+        try Self.swipe(run, .ended, along: 0)
+        try Self.swipe(run, .began, along: -30)
+        #expect(shows() == "k1")
+    }
+
+    /// A swipe more down than along is no swipe, whatever it comes to along.
+    @Test func aSwipeMoreDownThanAlongDoesNotPage() throws {
+        let run = try Self.asksOpen()
+
+        try Self.swipe(run, .began, along: 0)
+        try Self.swipe(run, .changed, along: 14, down: 20)
+        try Self.swipe(run, .ended, along: 0)
+        #expect(run.asksShown?.ask.id == "k1")
+    }
+
+    /// A mouse's wheel, with no phases, scrolls one gesture until 300ms pass with none: a scroll back straight after a
+    /// step takes none; one after a pause does.
+    @Test func aWheelsScrollsAreOneGestureUntilAPause() throws {
+        let run = try Self.asksOpen()
+
+        try Self.swipe(run, .wheel, along: 16)
+        #expect(run.asksShown?.ask.id == "k2")
+        try Self.swipe(run, .wheel, along: -16, after: 100)
+        #expect(run.asksShown?.ask.id == "k2")
+        try Self.swipe(run, .wheel, along: -16, after: AsksSwipe.wheelGap + 1)
+        #expect(run.asksShown?.ask.id == "k1")
+    }
+
+    /// Paging is no answer: an answer held stays held as the asks panel pages away and back, its Undo with its ask;
+    /// the other ask takes none meanwhile; and for a beat after a swipe, a press is let go.
+    @Test func pagingKeepsAnAnswerHeldAndAPressWaitsItsBeat() throws {
+        let run = try Self.asksOpen(), setting = Self.setting()
+
+        run.heard(Self.held(Self.threaded), Self.at(run, nil, setting))
+        try Self.swipe(run, .wheel, along: 16)
+        #expect(run.asksShown?.ask.id == "k2" && run.asksShown?.sending == nil && run.asking.isHolding)
+        Self.frames(run, for: AsksPanel.settle, try Self.onAsks(run, down: 70), setting)
+        #expect(run.press(Self.at(run, try Self.part(.answer(0), run), setting)) == nil)
+
+        try Self.swipe(run, .wheel, along: -16, after: AsksSwipe.wheelGap + 1)
+
+        let undo = try Self.part(.undo, run)
+
+        #expect(run.asksShown?.sending?.words == "Threaded")
+        #expect(run.press(Self.at(run, undo, setting)) == nil)
+        Self.frames(run, for: AsksPanel.settle, undo, setting)
+        #expect(run.press(Self.at(run, undo, setting)) == .undo)
     }
 
     // MARK: The right edge

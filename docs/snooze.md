@@ -8,11 +8,11 @@ Some asks can wait until tomorrow. Snooze puts a whole session off until a time 
 2. Choose **Snooze**, then **Tomorrow**. Beside each choice, the menu shows when it wakes, such as `09:00` beside Tomorrow.
 3. The session leaves Needs you. Unfold Snoozed at the foot of the panel, and its row says when it wakes, such as `tomorrow 09:00`.
 
-In Claude Code, open an ask in the pane and press `snooze`, then `tomorrow`. In the terminal view, choose the row and press `z`, then pick Tomorrow.
+In the terminal view, choose the row and press `z`, then pick Tomorrow. To put off only one ask, press `snooze` on it in the Claude Code pane, or use **Snooze ▾** in the asks panel.
 
 ## What happens
 
-- **The whole session snoozes.** Its asks and your turn there go together. Snoozing one ask from the pane snoozes its session.
+- **A row snoozes the whole session.** Its asks and your turn there go together. From the pane or the asks panel, only that ask snoozes.
 - **Snoozed holds it.** Snoozed is the last section of the panel, folded at first to a count. The count has one line for each ask asleep, and one for a snoozed turn. The strip folds Snoozed the same way, and shows a mark for each session once you unfold it.
 - **The pane keeps the asks in sight.** A snoozed ask stays under ASKS, drawn faint, with `snoozed until tomorrow 09:00` and `wake now`. The heading counts both, such as `1 waiting · 2 snoozed`.
 - **Its time wakes it.** The asks come back to Needs you, with the sound and the pulse a new ask brings. In the Claude Code window running that session, a toast says `● Back from snooze:` and the ask title. Your turn comes back quietly.
@@ -27,7 +27,7 @@ In Claude Code, open an ask in the pane and press `snooze`, then `tomorrow`. In 
 - **Only you snooze a session.** Claude has no tool for it. Claude sees the snooze on the board, and leaves the asks until then.
 - **A permission prompt never snoozes.** A Claude Code window waiting at one stays in Needs you, though its session is snoozed.
 - **Until it moves has no time.** It wakes the session when Claude next ends a turn there, or for any of the reasons above. Only the right-click menus and the terminal view offer it.
-- **The pane snoozes only from an ask.** A session at your turn with no ask snoozes from its row in the Mac app or the terminal view.
+- **The pane and the asks panel snooze one ask.** A whole session snoozes from its row.
 
 ## Reference
 

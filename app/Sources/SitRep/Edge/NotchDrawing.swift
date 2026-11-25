@@ -39,6 +39,18 @@ struct NotchScene {
     var arrows: [String: Bool] = [:]
     /// The asks panel, while it is open.
     var asks: AsksShown?
+    /// Whether the Mac reduces motion, when the arrows turn at once.
+    var reducesMotion = false
+
+    /// The arrow of the row `key`, where it shows: lit or not, pointing toward where the asks panel opens, away from
+    /// the screen's edge, and turned while the asks panel is open beside its row.
+    func arrow(_ key: String) -> SessionRow.Arrow? {
+        arrows[key].map { isLit in
+            SessionRow.Arrow(
+                isLit: isLit, pointsLeft: mirror.a < 0, isTurned: asks?.row == key, turnsAtOnce: reducesMotion
+            )
+        }
+    }
 }
 
 extension Frame.Panel {

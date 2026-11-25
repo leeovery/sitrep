@@ -17,6 +17,7 @@ import {
   checkMoveTo,
   checkPark,
   checkSnooze,
+  checkSnoozeOneAsk,
   checkStatus,
   checkWake,
   projectNamed,
@@ -123,6 +124,7 @@ const quietly = (checked: Checked<Body>): Checked<Outcome> => posted(checked, ()
 const ASKS_SHOWN: Arg = {
   field: 'ask',
   about: `each ask the session's row shows, by its id, as the board lists it: an ask waiting on ${USER.name} left out refuses the snooze, so none is snoozed unseen; none for a row of its turn alone`,
+  or: 'ask',
   isMany: true,
 }
 
@@ -256,7 +258,7 @@ const answer: SessionCommand = {
 
 export const snooze: SessionCommand = {
   name: 'snooze',
-  about: `Snooze a session until a time, as ${USER.name} does from its row: everything it needs of ${USER.name}, its asks and its turn, counts nowhere until it comes, or until a new ask, ${USER.possessive} reply to one it holds, or a prompt typed in its window wakes it. Its turn ending alone does not; with no time, it holds until it moves, as its next turn ends. One line in the CLI's own file, none in the inbox. Snoozed already, it is snoozed again, to the new time. Prints nothing.`,
+  about: `Snooze a session until a time, as ${USER.name} does from its row: everything it needs of ${USER.name}, its asks and its turn, counts nowhere until it comes, or until a new ask, ${USER.possessive} reply to one it holds, or a prompt typed in its window wakes it. Its turn ending alone does not; with no time, it holds until it moves, as its next turn ends. With --ask, that ask alone, until a time, as ${USER.name} snoozes one from the pane: the session's other asks stay waiting. One line in the CLI's own file, none in the inbox. Snoozed already, it is snoozed again, to the new time. Prints nothing.`,
   grammar: {
     args: [ASKS_SHOWN],
     flags: {
@@ -267,11 +269,22 @@ export const snooze: SessionCommand = {
         about:
           'when it wakes, in milliseconds since the epoch: a time still to come; none, until it moves',
       },
+      ask: {
+        field: 'item',
+        form: 'one',
+        value: '<id>',
+        about: 'one ask alone, by its id, in place of the asks its row shows: it needs --until',
+      },
       ...SESSION,
     },
   },
   on: 'session',
-  act: ({ session }, input, { now }) => quietly(checkSnooze(session, input, now)),
+  act: ({ session }, input, { now }) =>
+    quietly(
+      input.item === undefined
+        ? checkSnooze(session, input, now)
+        : checkSnoozeOneAsk(session, input, now),
+    ),
 }
 
 export const wake: SessionCommand = {

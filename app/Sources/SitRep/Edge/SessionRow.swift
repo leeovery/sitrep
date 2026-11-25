@@ -94,59 +94,96 @@ final class SessionRow {
     }
 
     /// Its arrow, in its time's place, while it shows (board E2): unlit, its chevron soft with no fill of its own; lit,
-    /// filled, its chevron white; pointing away from the screen's edge.
+    /// filled, its chevron white; pointing toward where the asks panel opens, away from the screen's edge, and turning
+    /// to point back while its asks panel is open (DESIGN, "The row's arrow").
     var arrow: Arrow? {
         didSet {
             guard arrow != oldValue else {
                 return
             }
 
-            showArrow()
+            showArrow(was: oldValue)
             showTimeOrSpinner()
         }
     }
 
+    /// How its arrow shows: lit or not, which way it points, whether it is turned, and whether it turns at once, under
+    /// Reduce motion.
     struct Arrow: Equatable {
         var isLit: Bool
         var pointsLeft: Bool
+        var isTurned = false
+        var turnsAtOnce = false
+
+        /// How far, radians, its chevron is turned.
+        var turn: Double { isTurned ? .pi : 0 }
     }
 
-    private var arrowLayer: CALayer?
+    /// Its arrow's box, and the chevron in it, kept while the arrow shows, so a turn runs on it. Internal only for the
+    /// tests, which read the turn.
+    private(set) var arrowLayer: (box: CALayer, chevron: CAShapeLayer)?
 
-    private func showArrow() {
-        still {
-            arrowLayer?.removeFromSuperlayer()
-            arrowLayer = arrow.map(Self.arrow)
-            arrowLayer.map { arrow in
-                rescale(arrow, to: layer.contentsScale)
-                layer.addSublayer(arrow)
+    /// The arrow as it now shows: made where it came, gone where it went, else lit as it is, its chevron turning where
+    /// it turned, over `RowArrow.turning`, or at once under Reduce motion.
+    private func showArrow(was: Arrow?) {
+        guard let arrow else {
+            return still {
+                arrowLayer?.box.removeFromSuperlayer()
+                arrowLayer = nil
             }
         }
+
+        let shown = arrowLayer ?? makeArrow()
+
+        still {
+            shown.box.backgroundColor = arrow.isLit ? EdgeStyle.arrowLit : nil
+            shown.chevron.path = RowArrow.chevron(pointsLeft: arrow.pointsLeft)
+            shown.chevron.strokeColor = arrow.isLit ? EdgeStyle.ink : EdgeStyle.ink2
+            shown.chevron.setValue(arrow.turn, forKeyPath: Self.turnKey)
+        }
+        if let was, was.isTurned != arrow.isTurned, !arrow.turnsAtOnce {
+            turn(shown.chevron, from: was.turn, to: arrow.turn)
+        }
+        arrowLayer = shown
     }
 
-    private static func arrow(_ arrow: Arrow) -> CALayer {
+    private func makeArrow() -> (box: CALayer, chevron: CAShapeLayer) {
         let box = CALayer(), chevron = CAShapeLayer()
 
-        box.bounds = CGRect(origin: .zero, size: RowArrow.size)
-        box.cornerRadius = RowArrow.radius
-        box.backgroundColor = arrow.isLit ? EdgeStyle.arrowLit : nil
-        chevron.frame = box.bounds
-        chevron.path = RowArrow.chevron(pointsLeft: arrow.pointsLeft)
-        chevron.fillColor = nil
-        chevron.strokeColor = arrow.isLit ? EdgeStyle.ink : EdgeStyle.ink2
-        chevron.lineWidth = AsksPanelParts.strokeWidth
-        chevron.lineCap = .round
-        chevron.lineJoin = .round
-        box.addSublayer(chevron)
-        return box
+        still {
+            box.bounds = CGRect(origin: .zero, size: RowArrow.size)
+            box.cornerRadius = RowArrow.radius
+            chevron.frame = box.bounds
+            chevron.fillColor = nil
+            chevron.lineWidth = AsksPanelParts.strokeWidth
+            chevron.lineCap = .round
+            chevron.lineJoin = .round
+            box.addSublayer(chevron)
+            rescale(box, to: layer.contentsScale)
+            layer.addSublayer(box)
+        }
+        return (box, chevron)
     }
+
+    /// The chevron turning, a rotation in the render server, from where it shows now, mid-turn or not.
+    private func turn(_ chevron: CAShapeLayer, from: Double, to: Double) {
+        let turning = CABasicAnimation(keyPath: Self.turnKey)
+
+        turning.fromValue = chevron.presentation()?.value(forKeyPath: Self.turnKey) ?? from
+        turning.toValue = to
+        turning.duration = RowArrow.turning
+        turning.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        chevron.add(turning, forKey: Self.turnKey)
+    }
+
+    static let turnKey = "transform.rotation.z"
 
     /// In the time's place, pressed, the spinner; else the arrow, where it shows; else the time.
     private func showTimeOrSpinner() {
         still {
             age?.isHidden = isPressed || arrow != nil
-            arrowLayer?.isHidden = isPressed
-            arrowLayer?.frame = RowArrow.box(in: layer.bounds.size)
+            arrowLayer?.box.isHidden = isPressed
+            arrowLayer?.box.frame = RowArrow.box(in: layer.bounds.size)
             spinner.layer.isHidden = !isPressed
         }
     }

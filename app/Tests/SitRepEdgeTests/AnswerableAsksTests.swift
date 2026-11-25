@@ -7,8 +7,8 @@ import Testing
 
 /// The asks the asks panel answers, as the board gives them to the panel (DESIGN, "Answering from the panel"): each
 /// Needs you row's asks, taken from its lines in their order, each timed as its line is; a yes by its one button, a
-/// choice by its options and Claude's pick, a words ask, or a choice with no options, answered in Claude; and none for
-/// a row of Claude Code's own prompts, nor for a turn's or a working row.
+/// choice by its options and Claude's pick, a words ask, or a choice with no options, with none, answered in Claude;
+/// and none for a row of Claude Code's own prompts, nor for a turn's or a working row.
 @Suite(.backstop)
 struct AnswerableAsksTests {
     private static let board = AsksBoard.board()
@@ -26,14 +26,13 @@ struct AnswerableAsksTests {
 
         #expect(asks[0].answers == ["Threaded", "Flat"] && asks[0].recommended == "Threaded")
         #expect(asks[1].answers == ["Approve"] && asks[1].recommended == nil)
-        #expect(!asks[0].isInClaude && !asks[1].isInClaude)
     }
 
-    @Test func aWordsAskIsAnsweredInClaude() throws {
+    @Test func aWordsAskOffersNoAnswers() throws {
         let asks = try #require(Self.board.asks[AsksBoard.shifts])
 
         #expect(asks.map(\.id) == ["k1"])
-        #expect(asks[0].isInClaude && asks[0].answers.isEmpty)
+        #expect(asks[0].answers.isEmpty)
     }
 
     /// What each wants, as the board says it, for its answer to pass on, so one reshaped since is refused.
@@ -45,8 +44,7 @@ struct AnswerableAsksTests {
         #expect(shifts.map(\.wants.shape) == [.words])
     }
 
-    @Test func aChoiceWithNoOptionsIsAnsweredInClaudeAndAPickNotOfferedIsNone() {
-        #expect(PanelAsk(id: "k1", title: "Pick", wants: .choice, answers: [], since: 0).isInClaude)
+    @Test func aPickNotOfferedIsNone() {
         #expect(
             PanelAsk(id: "k1", title: "Pick", wants: .choice, answers: ["A"], recommended: "B", since: 0).recommended
                 == nil
