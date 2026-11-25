@@ -3,7 +3,7 @@ import Foundation
 /// A banner's words, the session clicking it jumps to, if any, and the ask its buttons answer, if any.
 public struct Banner: Equatable, Sendable {
     /// An ask a new ask's banner answers with the buttons macOS draws (DESIGN, "The menu bar", "Its buttons"): its id,
-    /// its session, and what it wants back.
+    /// its session, its title and place as the banner shows them, and what it wants back.
     public struct Ask: Equatable, Sendable {
         public enum Wants: Equatable, Sendable {
             /// One button, its yes.
@@ -25,36 +25,50 @@ public struct Banner: Equatable, Sendable {
 
         public let id: String
         public let session: String
+        /// Its title, as the banner shows it.
+        public let title: String
+        /// Its project and session by name, as the banner shows them under its title.
+        public let place: String
         public let wants: Wants
 
-        public init(id: String, session: String, wants: Wants) {
+        public init(id: String, session: String, title: String, place: String, wants: Wants) {
             self.id = id
             self.session = session
+            self.title = title
+            self.place = place
             self.wants = wants
         }
 
-        /// The board's ask, as its banner answers it; nil for a choice with no options to choose from, whose banner
-        /// has no buttons.
-        public init?(_ ask: Board.Ask, of session: String) {
-            switch (ask.wants, ask.yes) {
-            case let (.yes, yes?): wants = .yes(yes)
-            case (.choice, _) where !ask.options.isEmpty: wants = .choice(ask.options)
-            case (.words, _): wants = .words
-            default: return nil
+        /// The board's ask of the row's session, as its banner answers it; nil for a choice with no options to choose
+        /// from, whose banner has no buttons.
+        public init?(_ ask: Board.Ask, of row: Board.Row) {
+            let wants: Wants? = switch ask.wants {
+            case .yes: ask.yes.map(Wants.yes)
+            case .choice: ask.options.isEmpty ? nil : .choice(ask.options)
+            case .words: .words
             }
 
-            id = ask.id
-            self.session = session
+            guard let wants else {
+                return nil
+            }
+
+            self.init(id: ask.id, session: row.session, title: ask.title, place: row.place, wants: wants)
+        }
+
+        /// The ask as its banner showed it, which a refusal names it by where the board holds it no more.
+        public var named: AskNamed {
+            AskNamed(id: id, title: title, place: place, session: session)
         }
 
         /// Why `words`, sent from this banner, cannot answer the ask as the board now holds it: Reply sent with none,
-        /// or the ask reshaped since its banner showed, wanting something else, or no longer offering the words. Nil
-        /// where they answer it, or where the board no longer holds it, which the CLI refuses in its own words.
+        /// or the ask changed since its banner showed, its title edited, wanting something else, or no longer offering
+        /// the words. Nil where they answer it, or where the board no longer holds it, which the CLI refuses in its own
+        /// words. The CLI sees no title, so this check alone keeps a press on the old title from answering the new.
         public func refusal(of words: String, live: Board.Ask?) -> String? {
             guard !words.isEmpty else {
                 return "Reply had no words, so nothing was sent."
             }
-            guard let live, !takes(words, live) else {
+            guard let live, live.title != title || !takes(words, live) else {
                 return nil
             }
 
@@ -166,19 +180,22 @@ extension Board {
     }
 }
 
-extension Board.SnoozedRow {
-    /// Its project and session by name, as its row in Needs you says them.
-    var place: String {
-        "\(projectName) · \(name)"
-    }
+/// A row of a session, named by its project and its session.
+public protocol Placed {
+    var projectName: String { get }
+    var name: String { get }
 }
 
-extension Board.Row {
-    /// Its project and session by name, as a new ask's banner says them.
+extension Placed {
+    /// Its project and session by name, as a new ask's banner says them, from its row in Needs you or in Snoozed alike.
     public var place: String {
         "\(projectName) · \(name)"
     }
 }
+
+extension Board.Row: Placed {}
+
+extension Board.SnoozedRow: Placed {}
 
 extension JumpAnswer {
     /// The banner a jump that came to this posts: a refusal in its own words, a window's under its own title; no

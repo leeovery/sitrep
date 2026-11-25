@@ -4498,7 +4498,8 @@ truth. There is still no background service. None of it is built now. Lee:
       manifest's. An unknown session is exit 2. Where several refusals
       apply, the first of these says why: the session finished; no such
       item, or one that is no ask; the window behind; the ask ignored,
-      closed, or with an answer on its way; then the answer given.
+      closed, or with an answer on its way; the ask wanting other than
+      `--wants` gives (25 November 2026); then the answer given.
     - Two runs answering one ask at once can both find it with nothing on
       its way, and both land. Only the first goes in, the second a second
       answer, void (see "Which replies go in", under Delivery), so the window
@@ -5465,10 +5466,12 @@ that takes Lee to the window a session is in.
     to show one; the asks panel's two seconds are the panel's alone (see
     "Answering from the panel"). A click on the banner itself still jumps,
     as before. The post SitRep relays carries the ask's shape beside its
-    words: its id, what it wants, its yes and its options. The helper
+    words: its id, what it wants, its yes and its options, and its title
+    and its project and session as the banner shows them. The helper
     registers a category of the banner's own, its actions those buttons,
     before posting it, and relays a button's response back to SitRep: the
-    ask's id, and the answer pressed or the words typed. SitRep runs
+    ask as the banner showed it, and the answer pressed or the words
+    typed. SitRep runs
     `sitrep answer` with them, the words kept to one line as the CLI keeps
     them. A refusal, the ask answered in its window meanwhile among them,
     posts a banner "Not answered" over the CLI's words, as a refused
@@ -5485,7 +5488,8 @@ that takes Lee to the window a session is in.
     the change; the asks panel's held answer is left to the CLI. A
     refusal's banner names the ask by its title in place of its id,
     under its project and session, as its new ask's banner does, from
-    its row in Needs you or in Snoozed, and a click on it jumps there.
+    the session's row on the board, any row, Working among them, or its
+    row in Snoozed, and a click on it jumps there.
     An ask that waits on Lee no more, answered anywhere, ignored,
     commented on, resolved or gone with its session, has its banners
     still in Notification Center taken down, over the relay's `cleared`,
@@ -5493,9 +5497,33 @@ that takes Lee to the window a session is in.
     to the banners on screen and the ten last posted. Only while SitRep
     runs, and from a line whose projects read: an ask that left while it
     was off keeps its banner, and the CLI refuses a press on it.
+
+    Settled in the phase review, 25 November 2026:
+    - **An ask edited since its banner** never takes the old banner's
+      answer. Claude may edit an ask's title, keeping its shape and its
+      yes: "Deploy to staging?" made "Deploy to production?", still
+      `Go`. The CLI sees no title, so SitRep's check is the one that
+      holds: a press on a banner whose title differs from the board's
+      posts "Not answered", saying the ask changed after its banner
+      showed, and sends nothing. With no board yet, as for a press that
+      starts SitRep, the answer goes to the CLI.
+    - **An ask edited while it waits** has its banners taken down, over
+      `cleared`, as one that left: its title, its yes, its options or
+      what it wants changed against the last line, the ask waiting on
+      Lee on both. By the same rules: only from a line whose projects
+      read, against a last line whose projects read, and never on the
+      first line SitRep hears. An edit the banner never shows, Claude's
+      pick or what a words ask needs, leaves it up. The asks panel draws
+      the live ask, so it needs neither.
+    - **A refusal names the ask as its banner showed it** where the board
+      holds it no more, as for an ask answered in Claude while SitRep was
+      off: never by its id.
+    - **A banner's answer to the ask held** in the asks panel takes the
+      hold back first, as Undo does, and goes at once, so the CLI never
+      refuses it as answered already.
 - **Answering from the edge** (24 November 2026; see "Answering from the
   panel"): a yes or a choice from the asks panel, and a yes, a choice or
-  words from a new ask's banner (below), each through `sitrep answer`. A
+  words from a new ask's banner (above), each through `sitrep answer`. A
   words ask on the panel, a permission prompt and Claude Code's question
   stay in Claude Code: the panel shows them, and takes Lee there. From 17
   October 2026 until then, all answering stayed in Claude Code.
@@ -5503,7 +5531,8 @@ that takes Lee to the window a session is in.
   Ghostty window showing that session, on whatever Space it is, and leaves
   SitRep's windows on their own Space. A
   notification's click activates the notices helper, not SitRep. A click
-  on a notification naming no session (a refusal, or the test with no
+  on a notification naming no session (a refusal, but a "Not answered"
+  naming its ask, which jumps to the ask's session; or the test with no
   window holding one) hides the helper, handing the front back to the app
   Lee was in, as nothing jumps; so does a click whose jump SitRep refuses,
   or whose window could not be opened, or is opening already from a click a
@@ -6371,6 +6400,18 @@ panel's grace and closes both, as leaving the panel does today. Answering
 steps to the session's next ask; after its last, the asks panel closes. An
 ask that leaves the board meanwhile, answered in its window or resolved,
 leaves the asks panel with it, and the asks panel closes once none is left.
+- **On the way to it,** as a Mac submenu keeps its own, the triangle from
+  where the pointer last was on the list to the asks panel's near side
+  holds it open while the pointer keeps closing in on it: judged over the
+  last 80ms, with 1pt of slack for a hand's jitter, and for 400ms at most
+  from leaving the list. A pointer resting, turning away or out of the
+  triangle is off the list at once.
+- **A scroll of the list** of more than 10 points from where it stood as
+  the asks panel opened closes the asks panel, as a Mac menu's scroll
+  closes its submenu; a sideways swipe's drift leaves it open.
+- **A press lands only on what has stood 300ms** since the part under the
+  pointer last changed meaning, so a press meant for the ask, or for the
+  sending line's Undo, never lands on what took its place.
 
 **Answering, with two seconds to undo.** A click on an answer row turns it
 white: a white fill, its label in ink, and a check in its keycap's place. A
@@ -6378,14 +6419,32 @@ line at the asks panel's foot reads "Sending Threaded", the answer's words
 after "Sending", with a countdown ring and an outlined Undo. After 2
 seconds SitRep runs `sitrep answer <ask> <answer>`. Ignore runs `sitrep
 answer <ask> --ignore` with the same two seconds, its line reading
-"Ignoring". While an answer is held, the asks panel takes no other.
+"Ignoring". While an answer is held, the asks panel takes no other: its
+other answer rows and Ignore, on any ask, take no click and light on no
+hover.
 - Undo within the two seconds takes it back, and nothing is written.
 - Leaving the notch within the two seconds, or moving the asks panel to
   another row, doesn't cancel: the answer still goes.
 - Once it goes, the asks panel steps to the session's next ask.
+- A banner's answer to the ask held takes the hold back, as Undo does,
+  and goes in its place (see "Its buttons").
+- Quitting SitRep sends the answer held at once, its hold cut short, and
+  waits on the CLI to write it, and every answer gone before it, each
+  within the CLI's 10 seconds.
 - A refusal from the CLI, as an ask answered in its window meanwhile,
   posts a banner "Not answered" over the CLI's words, as Snooze's refusals
   post "Not snoozed".
+
+Accepted in the phase review, 25 November 2026, and recorded:
+- A refusal from the asks panel shows only as a banner. With macOS's
+  leave for SitRep's banners denied it is only logged, and the ask stays
+  lit in Needs you.
+- A row menu's Snooze within the two seconds is woken again by the answer
+  landing.
+- A CLI stopped at its 10 seconds after it wrote the answer says "Not
+  answered" for an answer that went.
+- A held answer gone to the CLI and a banner's press on the same ask: the
+  first to write wins, and the CLI refuses the other as answered already.
 
 The answer then travels as any `sitrep answer` does: into the session's
 inbox, delivered by the session's window as "From the board:". The ask

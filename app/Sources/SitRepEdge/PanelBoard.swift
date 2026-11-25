@@ -209,7 +209,7 @@ private extension PanelAsk {
     /// timed as its line on the row is.
     init(_ ask: Board.Ask, of line: Board.Row.Line) {
         let (wants, answers): (Wants, [String]) = switch ask.wants {
-        case .yes: (.yes, [ask.yes ?? "yes"])
+        case .yes: (.yes, ask.yes.map { [$0] } ?? [])
         case .choice: (.choice, ask.options)
         case .words: (.words, [])
         }

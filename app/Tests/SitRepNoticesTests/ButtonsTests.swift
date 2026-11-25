@@ -9,12 +9,18 @@ import UserNotifications
 /// registered.
 @Suite(.backstop)
 struct ButtonsTests {
-    private static let yes = NoticeAsk(id: "k1", session: "sr-nw0001", wants: .yes("Go"))
+    private static let yes = ask("k1", wants: .yes("Go"))
     /// Two options alike but for their case, which only their places tell apart.
-    private static let choice = NoticeAsk(
-        id: "k2", session: "sr-nw0001", wants: .choice(["Left, the notch's edge", "Right", "right"])
-    )
-    private static let words = NoticeAsk(id: "k3", session: "sr-nw0001", wants: .words)
+    private static let choice = ask("k2", wants: .choice(["Left, the notch's edge", "Right", "right"]))
+    private static let words = ask("k3", wants: .words)
+
+    /// An ask of Northwind's Ledger export.
+    private static func ask(_ id: String, wants: NoticeAsk.Wants) -> NoticeAsk {
+        NoticeAsk(
+            id: id, session: "sr-nw0001", title: "Pick the export format", place: "Northwind · Ledger export",
+            wants: wants
+        )
+    }
 
     /// Each button's title and options, and, for a text field, its button's words.
     private struct Drawn: Equatable {

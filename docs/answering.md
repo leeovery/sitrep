@@ -37,7 +37,7 @@ An ask waits in the pane with its buttons, so you answer it without finding the 
 | `✎ Answer` | A words ask | Sends words; closes the ask |
 | `✎ comment` | A yes or a choice | Sends words; leaves it open |
 | `✕ ignore` | Every ask | Closes the ask, unanswered |
-| `snooze` | An ask waiting on you | Asks until when; puts the session off |
+| `snooze` | An ask waiting on you | Asks until when; puts that ask off |
 | `↺ take back` | A send held | Returns its replies to Ready to send |
 | `cancel all` | Ready to send | Clears the replies not sent |
 

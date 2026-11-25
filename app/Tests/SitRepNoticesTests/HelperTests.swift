@@ -139,6 +139,14 @@ struct HelperTests {
         Letter(message, pid: pid)
     }
 
+    /// An ask of Trey Research's Build the desktop app.
+    private static func ask(_ id: String, wants: NoticeAsk.Wants) -> NoticeAsk {
+        NoticeAsk(
+            id: id, session: "sr-a8n2xc", title: "Pick a name", place: "Trey Research · Build the desktop app",
+            wants: wants
+        )
+    }
+
     /// Started by SitRep, it finds SitRep running and says it listens, under SitRep's pid.
     @Test func itServesTheSitRepRunningAndSaysItListens() async {
         let sitRep = SitRep(isRunning: true)
@@ -237,9 +245,7 @@ struct HelperTests {
     /// the helper active for the press.
     @Test func aBannersAnswerIsRelayedToSitRepAndTheFrontHandedBack() async {
         let helper = helper(SitRep(isRunning: true))
-        let answer = NoticeAnswer(
-            to: NoticeAsk(id: "k2", session: "sr-a8n2xc", wants: .choice(["Right"])), words: "Right"
-        )
+        let answer = NoticeAnswer(to: Self.ask("k2", wants: .choice(["Right"])), words: "Right")
 
         await helper.start()
         helper.heard(Self.fromSitRep(.ready))
@@ -255,9 +261,7 @@ struct HelperTests {
     @Test func anAnswerWithNoSitRepStartsItAndIsHandedOverInOrderOnceItListens() async {
         let sitRep = SitRep(isRunning: false)
         let helper = helper(sitRep)
-        let answer = NoticeAnswer(
-            to: NoticeAsk(id: "k3", session: "sr-a8n2xc", wants: .words), words: "12 passed, 0 failed"
-        )
+        let answer = NoticeAnswer(to: Self.ask("k3", wants: .words), words: "12 passed, 0 failed")
 
         helper.clicked("sr-a8n2xc")
         helper.answered(answer)

@@ -284,7 +284,26 @@ struct AnswersTests {
         answers.send(words, from: Self.banner(wants))
         await Self.settle()
 
-        #expect(cli.banners == [.unanswered("The ask changed after its banner showed, so nothing was sent.")])
+        #expect(cli.banners == [Self.named("The ask changed after its banner showed, so nothing was sent.")])
+        #expect(cli.ran.isEmpty)
+    }
+
+    /// Retitled since its banner showed, its yes the same: "Not answered", nothing sent, as the CLI, which sees no
+    /// title, would take "Go" for the new question.
+    @Test func aBannersAnswerToAnAskRetitledSinceIsNotSent() async throws {
+        let live = WatchLine.Ask(id: "k1", wants: .yes, yes: "Go", title: "Deploy to production?")
+        let (answers, _, cli) = Self.made(board: try Self.board(live, row: .needsYou))
+        let banner = Banner.Ask(
+            id: "k1", session: "sr-4t2kq8", title: "Deploy to staging?", place: "Northwind · Ledger export",
+            wants: .yes("Go")
+        )
+
+        answers.send("Go", from: banner)
+        await Self.settle()
+
+        #expect(cli.banners.map(\.title) == ["Not answered"])
+        #expect(cli.banners.map(\.body) == ["The ask changed after its banner showed, so nothing was sent."])
+        #expect(cli.banners.map(\.work) == ["sr-4t2kq8"])
         #expect(cli.ran.isEmpty)
     }
 
@@ -311,7 +330,7 @@ struct AnswersTests {
         answers.send("", from: Self.banner(.words))
         await Self.settle()
 
-        #expect(cli.banners == [.unanswered("Reply had no words, so nothing was sent.")])
+        #expect(cli.banners == [Self.named("Reply had no words, so nothing was sent.")])
         #expect(cli.ran.isEmpty)
     }
 
@@ -359,6 +378,26 @@ struct AnswersTests {
         #expect(cli.banners.map(\.body) == ["“Pick the export format” is already closed."])
     }
 
+    /// A banner pressed for an ask closed while SitRep was off, the board holding it no more, or no board yet: the
+    /// refusal names it as its banner showed it, never by its id.
+    @Test func aBannersRefusalForAnAskOffTheBoardNamesItAsTheBannerShowedIt() async throws {
+        let (off, _, offCLI) = Self.made(
+            answering: .refused("k1 is already closed."), board: try Self.board(WatchLine.Ask(id: "k9"), row: .needsYou)
+        )
+        let (none, _, noneCLI) = Self.made(answering: .refused("k1 is already closed."))
+        let named = Banner(
+            title: "Not answered", subtitle: "Northwind · Ledger export",
+            body: "“Pick the export format” is already closed.", work: "sr-4t2kq8"
+        )
+
+        off.send("Go", from: Self.banner(.yes("Go")))
+        none.send("Go", from: Self.banner(.yes("Go")))
+        await until(turns: 100_000) { offCLI.banners.count == 1 && noneCLI.banners.count == 1 }
+
+        #expect(offCLI.banners == [named])
+        #expect(noneCLI.banners == [named])
+    }
+
     /// Held before SitRep had heard a board, as by a press that started it: named as the board shows it by the time
     /// the CLI refuses.
     @Test func aRefusalForAnAnswerHeldBeforeAnyBoardNamesTheAskAsTheBoardShowsItThen() async throws {
@@ -375,8 +414,16 @@ struct AnswersTests {
         #expect(cli.banners.map(\.work) == ["sr-4t2kq8"])
     }
 
+    /// "Not answered" in these words, naming the ask as `banner` shows it, under its place, a click jumping there.
+    private static func named(_ why: String) -> Banner {
+        Banner(title: "Not answered", subtitle: "Northwind · Ledger export", body: why, work: "sr-4t2kq8")
+    }
+
     private static func banner(_ wants: Banner.Ask.Wants) -> Banner.Ask {
-        Banner.Ask(id: "k1", session: "sr-4t2kq8", wants: wants)
+        Banner.Ask(
+            id: "k1", session: "sr-4t2kq8", title: "Pick the export format", place: "Northwind · Ledger export",
+            wants: wants
+        )
     }
 
     /// A board whose session `sr-4t2kq8`, Northwind's Ledger export, holds this one ask, with its Needs you row, or

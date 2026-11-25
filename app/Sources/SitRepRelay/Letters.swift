@@ -76,8 +76,9 @@ public struct Notice: Equatable, Sendable {
     }
 }
 
-/// The ask a new ask's banner answers with its buttons: its id, its session, and what it wants back, its yes or its
-/// options among it. Its fields go in the post, and in the banner's userInfo, which a button's response gives back.
+/// The ask a new ask's banner answers with its buttons: its id, its session, its title and place as the banner shows
+/// them, and what it wants back, its yes or its options among it. Its fields go in the post, and in the banner's
+/// userInfo, which a button's response gives back.
 public struct NoticeAsk: Equatable, Sendable {
     public enum Wants: Equatable, Sendable {
         case yes(String)
@@ -88,14 +89,19 @@ public struct NoticeAsk: Equatable, Sendable {
 
     public let id: String
     public let session: String
+    public let title: String
+    public let place: String
     public let wants: Wants
 
-    public init(id: String, session: String, wants: Wants) {
+    public init(id: String, session: String, title: String, place: String, wants: Wants) {
         self.id = id
         self.session = session
+        self.title = title
+        self.place = place
         self.wants = wants
     }
 
+    /// Its title under a key of its own, as the post's `title` is the banner's.
     public var fields: [String: String] {
         let wanted: [String: String] = switch wants {
         case let .yes(yes): ["wants": "yes", "yes": yes]
@@ -104,15 +110,17 @@ public struct NoticeAsk: Equatable, Sendable {
         case .words: ["wants": "words"]
         }
 
-        return wanted.merging(["ask": id, "session": session]) { _, ask in ask }
+        return wanted.merging(["ask": id, "session": session, "askTitle": title, "place": place]) { _, ask in ask }
     }
 
     public init?(fields: [String: String]) {
-        guard let id = fields["ask"], let session = fields["session"], let wants = Self.wants(fields) else {
+        guard let id = fields["ask"], let session = fields["session"], let title = fields["askTitle"],
+              let place = fields["place"], let wants = Self.wants(fields)
+        else {
             return nil
         }
 
-        self.init(id: id, session: session, wants: wants)
+        self.init(id: id, session: session, title: title, place: place, wants: wants)
     }
 
     private static func wants(_ fields: [String: String]) -> Wants? {

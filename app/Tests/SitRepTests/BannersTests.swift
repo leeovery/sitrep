@@ -16,7 +16,11 @@ struct BannersTests {
     private static let ready = ToSitRep.ready(helper: first)
     private static let asked = Banner(title: "Pick a name", subtitle: "Trey Research · Build the desktop app", body: "", work: "sr-a8n2xc")
     private static let pressed = NoticeAnswer(
-        to: NoticeAsk(id: "k2", session: "sr-a8n2xc", wants: .choice(["Left", "Right"])), words: "Right"
+        to: NoticeAsk(
+            id: "k2", session: "sr-a8n2xc", title: "Pick a name", place: "Trey Research · Build the desktop app",
+            wants: .choice(["Left", "Right"])
+        ),
+        words: "Right"
     )
     private static let askedNotice = Notice(
         title: "Pick a name", subtitle: "Trey Research · Build the desktop app", body: "", work: "sr-a8n2xc"
@@ -204,14 +208,20 @@ struct BannersTests {
     ])
     func aNewAsksBannerGoesWithItsAsk(wants: Banner.Ask.Wants, relayed: NoticeAsk.Wants) {
         let banners = banners()
-        let ask = Banner.Ask(id: "k2", session: "sr-a8n2xc", wants: wants)
+        let ask = Banner.Ask(
+            id: "k2", session: "sr-a8n2xc", title: "Pick a name", place: "Trey Research · Build the desktop app",
+            wants: wants
+        )
 
         banners.heard(Self.fromHelper(Self.ready))
         banners.post(Banner(title: "Pick a name", subtitle: nil, body: "", work: "sr-a8n2xc", ask: ask))
 
         #expect(sent.messages.last == .post(Notice(
             title: "Pick a name", subtitle: nil, body: "", work: "sr-a8n2xc",
-            ask: NoticeAsk(id: "k2", session: "sr-a8n2xc", wants: relayed)
+            ask: NoticeAsk(
+                id: "k2", session: "sr-a8n2xc", title: "Pick a name", place: "Trey Research · Build the desktop app",
+                wants: relayed
+            )
         )))
     }
 
@@ -228,7 +238,9 @@ struct BannersTests {
     /// banner showed it wanting, the board still holding the ask as its banner showed it.
     @Test func aRelayedAnswerIsSentAtOnceThroughAnswers() async throws {
         let ran = Ran()
-        let board = try Self.board(WatchLine.Ask(id: "k2", wants: .choice, yes: nil, options: ["Left", "Right"]))
+        let board = try Self.board(
+            WatchLine.Ask(id: "k2", wants: .choice, yes: nil, title: "Pick a name", options: ["Left", "Right"])
+        )
         let answers = Self.answers(ran, on: board)
 
         Self.relay(Self.pressed, to: answers)
@@ -247,7 +259,7 @@ struct BannersTests {
         Self.relay(Self.pressed, to: answers)
         await until(turns: 10_000) { !ran.banners.isEmpty }
 
-        #expect(ran.banners == [.unanswered("The ask changed after its banner showed, so nothing was sent.")])
+        #expect(ran.banners == [Self.named("The ask changed after its banner showed, so nothing was sent.")])
         #expect(ran.answerings.isEmpty)
     }
 
@@ -259,7 +271,7 @@ struct BannersTests {
         Self.relay(Self.pressed, to: answers)
         await until(turns: 10_000) { !ran.banners.isEmpty }
 
-        #expect(ran.banners == [.unanswered("Answered already")])
+        #expect(ran.banners == [Self.named("Answered already")])
     }
 
     /// An ask that waits on Lee no more has its banners cleared through the helper.
@@ -286,6 +298,12 @@ struct BannersTests {
 
         banners.start(onClick: { _, _ in }, onAnswer: answers.send)
         banners.heard(fromHelper(.answered(answer)))
+    }
+
+    /// "Not answered" in these words, naming the ask `pressed` answers as its banner showed it, which the board, with no
+    /// row for its session, does not name.
+    private static func named(_ why: String) -> Banner {
+        Banner(title: "Not answered", subtitle: "Trey Research · Build the desktop app", body: why, work: "sr-a8n2xc")
     }
 
     /// A board holding this one ask of the session `pressed` answers.

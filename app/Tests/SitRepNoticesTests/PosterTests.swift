@@ -54,12 +54,19 @@ struct PosterTests {
         }
     }
 
-    private static let ask = NoticeAsk(id: "k1", session: "sr-nw0001", wants: .yes("Go"))
+    private static let ask = asked("k1", of: "sr-nw0001", wants: .yes("Go"))
     private static let asking = Notice(
         title: "Pick the export format", subtitle: "Northwind · Ledger export", body: "", work: "sr-nw0001", ask: ask
     )
 
     private let center = Center()
+
+    /// An ask of the session, its title and place Northwind's Ledger export's.
+    private static func asked(_ id: String, of session: String, wants: NoticeAsk.Wants) -> NoticeAsk {
+        NoticeAsk(
+            id: id, session: session, title: "Pick the export format", place: "Northwind · Ledger export", wants: wants
+        )
+    }
 
     /// Ids b1, b2, … in the order the banners post.
     private func poster() -> Poster {
@@ -79,7 +86,7 @@ struct PosterTests {
 
     /// Its set registered, then landed, then the banner added under its category.
     @Test func aNewAsksBannerIsAddedOnlyOnceItsCategoryHasLanded() async {
-        center.delivered = ["b0": NoticeAsk(id: "k0", session: "sr-nw0001", wants: .words)]
+        center.delivered = ["b0": Self.asked("k0", of: "sr-nw0001", wants: .words)]
 
         await poster().post(Self.asking)
 
@@ -100,7 +107,7 @@ struct PosterTests {
 
     /// A helper started again knows nothing it posted: the banners delivered keep their buttons all the same.
     @Test func aBannerDeliveredBeforeTheHelperStartedKeepsItsCategory() async {
-        center.delivered = ["a1": Self.ask, "a2": NoticeAsk(id: "k2", session: "sr-nw0001", wants: .choice(["Left"]))]
+        center.delivered = ["a1": Self.ask, "a2": Self.asked("k2", of: "sr-nw0001", wants: .choice(["Left"]))]
 
         await poster().post(Self.asking)
 
@@ -122,8 +129,8 @@ struct PosterTests {
     /// carries, and no other, a like id in another session's among them.
     @Test func clearingAnAskRemovesItsDeliveredBannersAlone() async {
         center.delivered = [
-            "a1": Self.ask, "a2": Self.ask, "a3": NoticeAsk(id: "k1", session: "sr-nw0002", wants: .words),
-            "a4": NoticeAsk(id: "k2", session: "sr-nw0001", wants: .words),
+            "a1": Self.ask, "a2": Self.ask, "a3": Self.asked("k1", of: "sr-nw0002", wants: .words),
+            "a4": Self.asked("k2", of: "sr-nw0001", wants: .words),
         ]
 
         await poster().clear(ask: "k1", session: "sr-nw0001")
@@ -132,7 +139,7 @@ struct PosterTests {
     }
 
     @Test func clearingAnAskWithNoBannerDeliveredRemovesNothing() async {
-        center.delivered = ["a4": NoticeAsk(id: "k2", session: "sr-nw0001", wants: .words)]
+        center.delivered = ["a4": Self.asked("k2", of: "sr-nw0001", wants: .words)]
 
         await poster().clear(ask: "k1", session: "sr-nw0001")
 

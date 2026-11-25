@@ -15,7 +15,10 @@ struct RealWatchTests {
         #expect(Notices.due(Self.asked, .notifyingAsks) == [
             Banner(
                 title: "Choose how long the archive keeps reports", subtitle: "Woodgrove · Usage", body: "",
-                work: "sr-k3dg0r", ask: Banner.Ask(id: "a6xm", session: "sr-k3dg0r", wants: .yes("Approve"))
+                work: "sr-k3dg0r", ask: Banner.Ask(
+                    id: "a6xm", session: "sr-k3dg0r", title: "Choose how long the archive keeps reports",
+                    place: "Woodgrove · Usage", wants: .yes("Approve")
+                )
             ),
         ])
     }
@@ -78,7 +81,10 @@ struct RealWatchTests {
             Banner(
                 title: "Choose the branch the fixes land on", subtitle: "Tailspin · Finish the Tailspin migration",
                 body: "", work: "sr-4t2kq8",
-                ask: Banner.Ask(id: "y51h", session: "sr-4t2kq8", wants: .choice(["main", "next"]))
+                ask: Banner.Ask(
+                    id: "y51h", session: "sr-4t2kq8", title: "Choose the branch the fixes land on",
+                    place: "Tailspin · Finish the Tailspin migration", wants: .choice(["main", "next"])
+                )
             ),
         ])
     }
